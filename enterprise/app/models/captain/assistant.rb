@@ -4,7 +4,7 @@
 #
 #  id                  :bigint           not null, primary key
 #  config              :jsonb            not null
-#  description         :string
+#  description         :text
 #  guardrails          :jsonb
 #  name                :string           not null
 #  response_guidelines :jsonb
@@ -17,6 +17,8 @@
 #  index_captain_assistants_on_account_id  (account_id)
 #
 class Captain::Assistant < ApplicationRecord
+  DESCRIPTION_LENGTH_LIMIT = 500
+
   include Avatarable
   include Concerns::CaptainToolsHelpers
   include Concerns::Agentable
@@ -27,6 +29,7 @@ class Captain::Assistant < ApplicationRecord
   has_one :agent_bot, foreign_key: :captain_assistant_id, dependent: :destroy, inverse_of: :captain_assistant
   has_many :documents, class_name: 'Captain::Document', dependent: :destroy_async
   has_many :responses, class_name: 'Captain::AssistantResponse', dependent: :destroy_async
+  has_many :faq_suggestions, class_name: 'Captain::FaqSuggestion', dependent: :destroy_async
   has_many :captain_inboxes,
            class_name: 'CaptainInbox',
            foreign_key: :captain_assistant_id,
@@ -36,15 +39,16 @@ class Captain::Assistant < ApplicationRecord
   has_many :messages, as: :sender, dependent: :nullify
   has_many :copilot_threads, dependent: :destroy_async
   has_many :scenarios, class_name: 'Captain::Scenario', dependent: :destroy_async
-  has_many :assistant_logs, class_name: 'Captain::AssistantLog', foreign_key: :captain_assistant_id, dependent: :destroy_async
+  has_many :assistant_logs, class_name: 'Captain::AssistantLog', foreign_key: :captain_assistant_id, dependent: :destroy
   has_many :document_chunks, class_name: 'Captain::DocumentChunk', dependent: :destroy_async
+  has_many :agent_sessions, class_name: 'Captain::AgentSession', dependent: :destroy_async
 
   store_accessor :config, :temperature, :feature_faq, :feature_memory, :feature_contact_attributes, :product_name
   store_accessor :behavior, :debounce_seconds, :business_hours_config, :humanizer_config, :media_pipeline_config,
                  :router_config, :copilot_trigger_config, :dedup_config
 
   validates :name, presence: true
-  validates :description, presence: true
+  validates :description, presence: true, length: { maximum: DESCRIPTION_LENGTH_LIMIT }
   validates :account_id, presence: true
 
   scope :ordered, -> { order(created_at: :desc) }
@@ -132,7 +136,8 @@ class Captain::Assistant < ApplicationRecord
   def agent_tools
     tools = [
       self.class.resolve_tool_class('faq_lookup').new(self),
-      self.class.resolve_tool_class('handoff').new(self)
+      self.class.resolve_tool_class('handoff').new(self),
+      *account.captain_custom_tools.enabled.map { |custom_tool| custom_tool.tool(self) }
     ]
 
     if chunk_knowledge_enabled? && (knowledge_tool = self.class.resolve_tool_class('search_knowledge'))
@@ -140,7 +145,7 @@ class Captain::Assistant < ApplicationRecord
     end
 
     tools.concat(configured_agent_tools)
-    tools
+    tools.uniq(&:name)
   end
 
   # B3 do modelo IA-como-agente: tools de negocio armadas direto no assistant via

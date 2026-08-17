@@ -198,10 +198,13 @@ export const mutations = {
     _state.accessBlocked = next;
   },
 
-  [types.ASSIGN_AGENT](_state, { conversationId, assignee }) {
+  [types.ASSIGN_AGENT](_state, { conversationId, assignee, assigneeType }) {
     const chat = findConversation(_state, conversationId);
     if (!chat) return;
     chat.meta.assignee = assignee;
+    if (assigneeType !== undefined) {
+      chat.meta.assignee_type = assigneeType;
+    }
   },
 
   [types.ASSIGN_TEAM](_state, { team, conversationId }) {
@@ -398,9 +401,13 @@ export const mutations = {
         emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
       }
     } else {
-      _state.allConversations.push(conversation);
-      if (_state.conversationMap) {
-        _state.conversationMap[conversation.id] = conversation;
+      const { conversationType } = _state.conversationFilters || {};
+      const { MENTION, PARTICIPATING } = wootConstants.CONVERSATION_TYPE;
+      if (![MENTION, PARTICIPATING].includes(conversationType)) {
+        _state.allConversations.push(conversation);
+        if (_state.conversationMap) {
+          _state.conversationMap[conversation.id] = conversation;
+        }
       }
     }
   },
@@ -463,7 +470,6 @@ export const mutations = {
     const lastCall = (chat.messages || []).findLast(
       m => m.content_type === CONTENT_TYPES.VOICE_CALL
     );
-
     if (!lastCall) return;
 
     lastCall.content_attributes ??= {};

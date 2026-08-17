@@ -59,6 +59,30 @@ RSpec.describe Conversation, type: :model do
         conversation.save!
         expect(conversation.applied_sla.sla_policy_id).to eq(sla_policy.id)
       end
+
+      it 'throws error if contact is blocked' do
+        conversation.contact.update!(blocked: true)
+        conversation.sla_policy = sla_policy
+
+        expect(conversation.valid?).to be false
+        expect(conversation.errors[:sla_policy]).to eq(['cannot be assigned to conversations with blocked contacts'])
+      end
+
+      it 'allows assigning sla after contact is unblocked' do
+        conversation.contact.update!(blocked: true)
+        conversation.contact.update!(blocked: false)
+        conversation.sla_policy = sla_policy
+
+        conversation.save!
+
+        expect(conversation.applied_sla.sla_policy_id).to eq(sla_policy.id)
+      end
+
+      it 'keeps existing behavior when contact is missing' do
+        conversation.update_columns(contact_id: nil, contact_inbox_id: nil) # rubocop:disable Rails/SkipsModelValidations
+
+        expect(conversation.reload.sla_applicable?).to be true
+      end
     end
 
     context 'when conversation already has a different sla' do
@@ -203,12 +227,14 @@ RSpec.describe Conversation, type: :model do
     context 'with V2 bulk auto-assignment' do
       before do
         account.enable_features!('assignment_v2')
+        assignment_policy = create(:assignment_policy, account: account, enabled: true)
+        create(:inbox_assignment_policy, inbox: inbox, assignment_policy: assignment_policy)
       end
 
       it 'does not steal a conversation owned by the captain mirror' do
         conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror)
 
-        Inboxes::BulkAutoAssignmentJob.perform_now
+        AutoAssignment::AssignmentService.new(inbox: inbox).perform_bulk_assignment
 
         conversation.reload
         expect(conversation.assignee_id).to be_nil

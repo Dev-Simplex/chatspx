@@ -1,14 +1,14 @@
 {
   "REPORT": {
     "HEADER": "Conversations",
-    "LOADING_CHART": "Loading chart data...",
+    "LOADING_CHART": "Nalaganje podatkov grafa...",
     "NO_ENOUGH_DATA": "Nismo prejeli dovolj podatkov za ustvarjanje poročila. Poskusite znova pozneje.",
     "DOWNLOAD_CONVERSATION_REPORTS": "Download conversation reports",
     "DATA_FETCHING_FAILED": "Failed to fetch data, please try again later.",
     "SUMMARY_FETCHING_FAILED": "Failed to fetch summary, please try again later.",
     "METRICS": {
       "CONVERSATIONS": {
-        "NAME": "Conversations",
+        "NAME": "Pogovori",
         "DESC": "(Skupaj)"
       },
       "INCOMING_MESSAGES": {
@@ -33,7 +33,7 @@
       },
       "RESOLUTION_COUNT": {
         "NAME": "Število rešitev",
-        "DESC": "( Total )"
+        "DESC": "Skupaj"
       },
       "BOT_RESOLUTION_COUNT": {
         "NAME": "Resolution Count",
@@ -61,8 +61,8 @@
       "CUSTOM_DATE_RANGE": "Custom date range"
     },
     "CUSTOM_DATE_RANGE": {
-      "CONFIRM": "Apply",
-      "PLACEHOLDER": "Select date range"
+      "CONFIRM": "Uporabi",
+      "PLACEHOLDER": "Izberi časovno obdobje"
     },
     "GROUP_BY_FILTER_DROPDOWN_LABEL": "Group By",
     "DURATION_FILTER_LABEL": "Duration",
@@ -120,6 +120,26 @@
     "FILTER_ACTIONS": {
       "CLEAR_FILTER": "Clear filter",
       "EMPTY_LIST": "No results found"
+    },
+    "DRILLDOWN": {
+      "TITLE": "{metric} details",
+      "RESULT_COUNT_CONVERSATION": "{count} conversation | {count} conversations",
+      "RESULT_COUNT_MESSAGE": "{count} message | {count} messages",
+      "EMPTY": "No records found for this bar.",
+      "ERROR": "Could not load records. Please try again.",
+      "ADMIN_ONLY": "Only administrators can drill down into report records.",
+      "LOAD_MORE": "Load more",
+      "CLOSE": "Close details",
+      "PREVIOUS_BUCKET": "Previous bar",
+      "NEXT_BUCKET": "Next bar",
+      "UNKNOWN_CONTACT": "Unknown contact",
+      "UNKNOWN_INBOX": "Unknown inbox",
+      "UNASSIGNED_AGENT": "Unassigned",
+      "NO_MESSAGE_CONTENT": "No message content",
+      "MESSAGE_CREATED_AT": "Message created at {time}",
+      "EVENT_OCCURRED_AT": "Event occurred at {time}",
+      "INCOMING_MESSAGE": "Incoming message",
+      "OUTGOING_MESSAGE": "Outgoing message"
     },
     "PAGINATION": {
       "RESULTS": "Showing {start} to {end} of {total} results",
@@ -424,7 +444,7 @@
     }
   },
   "CSAT_REPORTS": {
-    "HEADER": "CSAT Reports",
+    "HEADER": "CSAT Poročila",
     "NO_RECORDS": "No responses yet",
     "NO_RECORDS_DESCRIPTION": "CSAT survey responses will appear here once customers start providing feedback.",
     "DOWNLOAD": "Download CSAT Reports",
@@ -454,10 +474,10 @@
     },
     "TABLE": {
       "HEADER": {
-        "CONTACT_NAME": "Contact",
+        "CONTACT_NAME": "Kontakt",
         "AGENT_NAME": "Agent",
-        "RATING": "Rating",
-        "FEEDBACK_TEXT": "Feedback comment",
+        "RATING": "Ocena",
+        "FEEDBACK_TEXT": "Komentar povratne informacije",
         "CONVERSATION": "Conversation",
         "CUSTOMER": "Customer",
         "RESPONSE": "Response",
@@ -469,11 +489,11 @@
     "NO_FEEDBACK": "No feedback provided",
     "METRIC": {
       "TOTAL_RESPONSES": {
-        "LABEL": "Total responses",
-        "TOOLTIP": "Total number of responses collected"
+        "LABEL": "Skupni odgovori",
+        "TOOLTIP": "Skupno število zbranih odgovorov"
       },
       "SATISFACTION_SCORE": {
-        "LABEL": "Satisfaction score",
+        "LABEL": "Ocena zadovoljstva",
         "TOOLTIP": "Total number of positive responses / Total number of responses * 100"
       },
       "RESPONSE_RATE": {

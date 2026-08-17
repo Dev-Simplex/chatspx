@@ -14,6 +14,9 @@ const props = defineProps({
       value.every(option => 'value' in option && 'label' in option),
   },
   placeholder: { type: String, default: '' },
+  // Fallback label shown when the selected value is not in `options` yet
+  // (e.g. API-backed lists that load lazily on open).
+  displayLabel: { type: String, default: '' },
   modelValue: { type: [String, Number], default: '' },
   disabled: { type: Boolean, default: false },
   searchPlaceholder: { type: String, default: '' },
@@ -27,7 +30,7 @@ const props = defineProps({
   creatable: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['update:modelValue', 'search']);
+const emit = defineEmits(['update:modelValue', 'search', 'open']);
 
 const { t } = useI18n();
 
@@ -71,7 +74,7 @@ const selectedLabel = computed(() => {
   if (selected) return selected.label;
   // Valor criado (creatable) não está em options -> mostra o próprio valor.
   if (props.creatable && selectedValue.value) return selectedValue.value;
-  return selectPlaceholder.value;
+  return props.displayLabel || selectPlaceholder.value;
 });
 
 const selectOption = option => {
@@ -91,6 +94,7 @@ const toggleDropdown = () => {
   open.value = !open.value;
   if (open.value) {
     search.value = '';
+    emit('open');
     nextTick(() => dropdownRef.value?.focus());
   }
 };

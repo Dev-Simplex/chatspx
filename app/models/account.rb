@@ -7,6 +7,7 @@
 #  custom_attributes     :jsonb
 #  domain                :string(100)
 #  feature_flags         :bigint           default(0), not null
+#  feature_flags_ext_1   :bigint           default(0), not null
 #  internal_attributes   :jsonb            not null
 #  limits                :jsonb
 #  locale                :integer          default("en")
@@ -23,73 +24,33 @@
 #
 
 class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
-  # used for single column multi flags
+  # used for multi-flag bitset columns
   include FlagShihTzu
   include Reportable
   include Featurable
   include CacheKeys
   include CaptainFeaturable
   include AccountEmailRateLimitable
-
-  SETTINGS_PARAMS_SCHEMA = {
-    'type': 'object',
-    'properties':
-      {
-        'auto_resolve_after': { 'type': %w[integer null], 'minimum': 10, 'maximum': 1_439_856 },
-        'auto_resolve_message': { 'type': %w[string null] },
-        'auto_resolve_ignore_waiting': { 'type': %w[boolean null] },
-        'audio_transcriptions': { 'type': %w[boolean null] },
-        'auto_resolve_label': { 'type': %w[string null] },
-        'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
-        'resolve_assignment_gate': { 'type': %w[boolean null] },
-        'takeover_request_gate': { 'type': %w[boolean null] },
-        'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
-        'reply_assignment_gate': { 'type': %w[boolean null] },
-        'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
-        'conversation_required_attributes': {
-          'type': %w[array null],
-          'items': { 'type': 'string' }
-        },
-        'captain_models': {
-          'type': %w[object null],
-          'properties': {
-            'editor': { 'type': %w[string null] },
-            'assistant': { 'type': %w[string null] },
-            'copilot': { 'type': %w[string null] },
-            'label_suggestion': { 'type': %w[string null] },
-            'audio_transcription': { 'type': %w[string null] },
-            'help_center_search': { 'type': %w[string null] }
-          },
-          'additionalProperties': false
-        },
-        'captain_features': {
-          'type': %w[object null],
-          'properties': {
-            'editor': { 'type': %w[boolean null] },
-            'assistant': { 'type': %w[boolean null] },
-            'copilot': { 'type': %w[boolean null] },
-            'label_suggestion': { 'type': %w[boolean null] },
-            'audio_transcription': { 'type': %w[boolean null] },
-            'help_center_search': { 'type': %w[boolean null] }
-          },
-          'additionalProperties': false
-        }
-      },
-    'required': [],
-    'additionalProperties': true
-  }.to_json.freeze
+  include AccountSettingsSchema
 
   DEFAULT_QUERY_SETTING = {
     flag_query_mode: :bit_operator,
     check_for_column: false
   }.freeze
+  SUSPENSION_CATEGORIES = %w[spam non_payment other].freeze
+
+  attr_accessor :suspension_category, :suspension_reason
 
   validates :name, presence: true
+  # `domain` is the inbound email domain used to construct reply addresses
+  # (see `inbound_email_domain`). Do not repurpose it for a website or any
+  # non-mail-related domain.
   validates :domain, length: { maximum: 100 }
   validates_with JsonSchemaValidator,
                  schema: SETTINGS_PARAMS_SCHEMA,
                  attribute_resolver: ->(record) { record.settings }
   validate :validate_reporting_timezone
+  validate :validate_support_email_format, if: :will_save_change_to_support_email?
 
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
 
@@ -100,7 +61,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
-  store_accessor :settings, :captain_auto_resolve_mode
+  store_accessor :settings, :captain_auto_resolve_mode, :captain_false_promise_harness_enabled
   store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
   store_accessor :settings, :resolve_assignment_gate
   # Modo "só troca de mãos via pedido aprovado" (D1). Independente do
@@ -173,6 +134,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
   after_create :create_default_funnel
+  after_update_commit :clear_unread_conversation_counts_cache, if: :saved_change_to_feature_conversation_unread_counts?
   after_destroy :remove_account_sequences
 
   def agents
@@ -209,6 +171,10 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     }
   end
 
+  def suspension_history
+    internal_attributes['suspensions'] || []
+  end
+
   def inbound_email_domain
     domain.presence || GlobalConfig.get('MAILER_INBOUND_EMAIL_DOMAIN')['MAILER_INBOUND_EMAIL_DOMAIN'] || ENV.fetch('MAILER_INBOUND_EMAIL_DOMAIN',
                                                                                                                    false)
@@ -223,6 +189,10 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
       agents: ChatwootApp.max_limit.to_i,
       inboxes: ChatwootApp.max_limit.to_i
     }
+  end
+
+  def api_and_webhooks_enabled?
+    true
   end
 
   def locale_english_name
@@ -246,6 +216,19 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     ActiveModel::Type::Boolean.new.cast(takeover_request_gate) || false
   end
 
+  def onboarding_step
+    step = custom_attributes['onboarding_step']
+    return nil if step.blank?
+
+    enrichment_key = format(Redis::Alfred::ACCOUNT_ONBOARDING_ENRICHMENT, account_id: id)
+    Redis::Alfred.exists?(enrichment_key) ? 'enrichment' : step
+  end
+
+  def reset_cache_keys
+    super
+    clear_unread_conversation_counts_cache
+  end
+
   private
 
   def create_default_funnel
@@ -256,6 +239,10 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def clear_unread_conversation_counts_cache
+    ::Conversations::UnreadCounts::Store.clear_account!(id)
   end
 
   trigger.after(:insert).for_each(:row) do
@@ -274,6 +261,16 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     return if reporting_timezone.blank? || ActiveSupport::TimeZone[reporting_timezone].present?
 
     errors.add(:reporting_timezone, I18n.t('errors.account.reporting_timezone.invalid'))
+  end
+
+  def validate_support_email_format
+    value = attributes['support_email']
+    return if value.blank?
+
+    parsed = Mail::Address.new(value).address
+    errors.add(:support_email, I18n.t('errors.account.support_email.invalid')) if parsed.blank?
+  rescue Mail::Field::ParseError, Mail::Field::IncompleteParseError
+    errors.add(:support_email, I18n.t('errors.account.support_email.invalid'))
   end
 
   def remove_account_sequences

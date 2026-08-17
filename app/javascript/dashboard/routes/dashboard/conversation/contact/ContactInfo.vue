@@ -1,25 +1,29 @@
 <script>
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import {
+  DuplicateContactException,
+  ExceptionWithMessage,
+} from 'shared/helpers/CustomErrors';
 import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useAdmin } from 'dashboard/composables/useAdmin';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
+import { stripGroupSuffix } from 'dashboard/helper/whatsappGroupHelper';
+import { emitter } from 'shared/helpers/mitt';
+import {
+  isAConversationRoute,
+  isAInboxViewRoute,
+  getConversationDashboardRoute,
+} from '../../../../helper/routeHelpers';
+
 import ContactInfoRow from './ContactInfoRow.vue';
 import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
 import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
 import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
-import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
+import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
-import { BUS_EVENTS } from 'shared/constants/busEvents';
-import { stripGroupSuffix } from 'dashboard/helper/whatsappGroupHelper';
-
-import {
-  isAConversationRoute,
-  isAInboxViewRoute,
-  getConversationDashboardRoute,
-} from '../../../../helper/routeHelpers';
-import { emitter } from 'shared/helpers/mitt';
 
 export default {
   components: {
@@ -29,7 +33,7 @@ export default {
     ComposeConversation,
     SocialIcons,
     ContactMergeModal,
-    ExportConversationModal,
+    InlineInput,
     VoiceCallButton,
   },
   props: {
@@ -45,21 +49,19 @@ export default {
   emits: ['panelClose'],
   setup() {
     const { isAdmin } = useAdmin();
-    return {
-      isAdmin,
-    };
+    return { isAdmin };
   },
   data() {
     return {
       showEditModal: false,
       showDeleteModal: false,
-      showExportModal: false,
+      isEditingName: false,
+      editName: '',
     };
   },
   computed: {
     ...mapGetters({
       uiFlags: 'contacts/getUIFlags',
-      currentChat: 'getSelectedChat',
     }),
     contactProfileLink() {
       return `/app/accounts/${this.$route.params.accountId}/contacts/${this.contact.id}`;
@@ -67,16 +69,12 @@ export default {
     additionalAttributes() {
       return this.contact.additional_attributes || {};
     },
-    // O contato de uma conversa de grupo é o próprio grupo. Ele carrega dois dados
-    // que não servem ao agente: o sufixo "(GROUP)"/"(Grupo)" que integrações grudam
-    // no nome, e o JID técnico no identificador. Ambos são tratados só na exibição.
     isWhatsappGroup() {
       return String(this.contact.identifier || '').endsWith('@g.us');
     },
     displayName() {
       return stripGroupSuffix(this.contact.name || '');
     },
-    // Identificador técnico não é informação de atendimento: em grupo, escondemos.
     visibleIdentifier() {
       return this.isWhatsappGroup ? '' : this.contact.identifier;
     },
@@ -86,12 +84,11 @@ export default {
         city = '',
         country_code: countryCode,
       } = this.additionalAttributes;
-      const cityAndCountry = [city, country].filter(item => !!item).join(', ');
+      const cityAndCountry = [city, country].filter(Boolean).join(', ');
 
-      if (!cityAndCountry) {
-        return '';
-      }
-      return this.findCountryFlag(countryCode, cityAndCountry);
+      return cityAndCountry
+        ? this.findCountryFlag(countryCode, cityAndCountry)
+        : '';
     },
     socialProfiles() {
       const {
@@ -100,16 +97,12 @@ export default {
         social_telegram_user_name: telegramUsername,
       } = this.additionalAttributes;
 
-      const telegram = socialProfiles?.telegram || telegramUsername || '';
-      const twitter = socialProfiles?.twitter || twitterScreenName || '';
-
       return {
         ...(socialProfiles || {}),
-        twitter,
-        telegram,
+        twitter: socialProfiles?.twitter || twitterScreenName || '',
+        telegram: socialProfiles?.telegram || telegramUsername || '',
       };
     },
-    // Delete Modal
     confirmDeleteMessage() {
       return ` ${this.contact.name}?`;
     },
@@ -127,15 +120,11 @@ export default {
     toggleEditModal() {
       this.showEditModal = !this.showEditModal;
     },
-    openComposeConversationModal(toggleFn) {
-      toggleFn();
-      // Flag to prevent triggering drag n drop,
-      // When compose modal is active
+    openComposeConversationModal(toggle) {
+      toggle();
       emitter.emit(BUS_EVENTS.NEW_CONVERSATION_MODAL, true);
     },
     closeComposeConversationModal() {
-      // Flag to enable drag n drop,
-      // When compose modal is closed
       emitter.emit(BUS_EVENTS.NEW_CONVERSATION_MODAL, false);
     },
     toggleDeleteModal() {
@@ -151,14 +140,47 @@ export default {
     },
     findCountryFlag(countryCode, cityAndCountry) {
       try {
-        if (!countryCode) {
-          return `${cityAndCountry} 🌎`;
-        }
-
-        const code = countryCode?.toLowerCase();
-        return `${cityAndCountry} <span class="fi fi-${code} size-3.5"></span>`;
-      } catch (error) {
+        if (!countryCode) return `${cityAndCountry} 🌎`;
+        return `${cityAndCountry} <span class="fi fi-${countryCode.toLowerCase()} size-3.5"></span>`;
+      } catch {
         return '';
+      }
+    },
+    startEditingName() {
+      this.editName = this.contact.name || '';
+      this.isEditingName = true;
+      this.$nextTick(() => this.$refs.nameInput?.focus());
+    },
+    cancelNameEdit() {
+      this.isEditingName = false;
+    },
+    saveNameEdit() {
+      if (!this.isEditingName) return;
+      this.isEditingName = false;
+      const name = this.editName.trim();
+      if (name && name !== this.contact.name) this.updateContactField({ name });
+    },
+    async updateContactField(attributes) {
+      try {
+        await this.$store.dispatch('contacts/update', {
+          id: this.contact.id,
+          ...attributes,
+        });
+        useAlert(this.$t('CONTACT_FORM.SUCCESS_MESSAGE'));
+        await this.$store.dispatch(
+          'contacts/fetchContactableInbox',
+          this.contact.id
+        );
+      } catch (error) {
+        if (error instanceof DuplicateContactException) {
+          useAlert(
+            error.contactErrorDetail || this.$t('CONTACT_FORM.ERROR_MESSAGE')
+          );
+        } else if (error instanceof ExceptionWithMessage) {
+          useAlert(error.data);
+        } else {
+          useAlert(error.message || this.$t('CONTACT_FORM.ERROR_MESSAGE'));
+        }
       }
     },
     async deleteContact({ id }) {
@@ -172,20 +194,12 @@ export default {
             name: getConversationDashboardRoute(this.$route.name),
           });
         } else if (isAInboxViewRoute(this.$route.name)) {
-          this.$router.push({
-            name: 'inbox_view',
-          });
+          this.$router.push({ name: 'inbox_view' });
         } else if (this.$route.name !== 'contacts_dashboard') {
-          this.$router.push({
-            name: 'contacts_dashboard',
-          });
+          this.$router.push({ name: 'contacts_dashboard' });
         }
       } catch (error) {
-        useAlert(
-          error.message
-            ? error.message
-            : this.$t('DELETE_CONTACT.API.ERROR_MESSAGE')
-        );
+        useAlert(error.message || this.$t('DELETE_CONTACT.API.ERROR_MESSAGE'));
       }
     },
     openMergeModal() {
@@ -198,7 +212,6 @@ export default {
 <template>
   <div class="relative w-full pt-10 pb-6 px-6">
     <div class="flex flex-col items-center w-full">
-      <!-- Avatar centered 120px -->
       <Thumbnail
         v-if="showAvatar"
         :src="contact.thumbnail"
@@ -208,12 +221,27 @@ export default {
         allow-preview
       />
 
-      <!-- Name centered -->
       <div v-if="showAvatar" class="flex items-center gap-2 mt-3">
+        <InlineInput
+          v-if="isEditingName"
+          ref="nameInput"
+          v-model="editName"
+          custom-input-class="!text-[19px] !font-semibold !text-center"
+          class="!w-fit"
+          @enter-press="saveNameEdit"
+          @escape-press="cancelNameEdit"
+          @blur="saveNameEdit"
+        />
         <h3
-          class="my-0 text-[19px] font-semibold capitalize break-words text-n-slate-12 text-center"
+          v-else
+          class="group/name my-0 text-[19px] font-semibold capitalize break-words text-n-slate-12 text-center cursor-pointer hover:text-n-slate-12/80"
+          :title="$t('CONTACT_PANEL.CLICK_TO_EDIT')"
+          @click="startEditingName"
         >
           {{ displayName }}
+          <span
+            class="i-lucide-pencil text-xs text-n-slate-10 opacity-0 group-hover/name:opacity-100 transition-opacity ml-1 align-middle"
+          />
         </h3>
         <span
           v-if="contact.created_at"
@@ -234,7 +262,6 @@ export default {
         </a>
       </div>
 
-      <!-- Email/Phone centered -->
       <div class="flex flex-col items-center gap-0.5 mt-1">
         <span
           v-if="contact.email"
@@ -250,19 +277,16 @@ export default {
         </span>
       </div>
 
-      <!-- Social icons -->
       <div class="mt-3">
         <SocialIcons :social-profiles="socialProfiles" />
       </div>
 
-      <!-- Action buttons (flex, WA style — auto-distributes when some are hidden) -->
       <div
         class="flex items-stretch justify-center gap-1.5 mt-6 w-full max-w-[300px] mx-auto"
       >
         <div class="flex-1 min-w-0">
           <ComposeConversation
             :contact-id="String(contact.id)"
-            is-modal
             @close="closeComposeConversationModal"
           >
             <template #trigger="{ toggle }">
@@ -327,7 +351,6 @@ export default {
         </button>
       </div>
 
-      <!-- Additional info rows -->
       <div
         v-if="
           visibleIdentifier ||
@@ -375,11 +398,6 @@ export default {
       @cancel="toggleEditModal"
     />
     <ContactMergeModal ref="mergeModal" :primary-contact="contact" />
-    <ExportConversationModal
-      :show="showExportModal"
-      :conversations="currentChat?.id ? [currentChat] : []"
-      @close="showExportModal = false"
-    />
     <woot-delete-modal
       v-if="showDeleteModal"
       v-model:show="showDeleteModal"

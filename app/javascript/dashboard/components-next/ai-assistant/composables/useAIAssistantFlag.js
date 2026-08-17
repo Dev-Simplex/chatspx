@@ -25,16 +25,12 @@ function safeRead(storageKey, key) {
  * be shown to the current account.
  *
  * Resolution order (highest priority first):
- *   1. `sessionStorage.chatspx_ai_panel_v2_session === 'on'|'off'` (one-shot
+ *   1. Server-side feature flag `ai_assistant_v2` as the rollout kill-switch.
+ *   2. `sessionStorage.chatspx_ai_panel_v2_session === 'on'|'off'` (one-shot
  *      override set by `?aiv2=1` / `?aiv2=0` — see `applyAIAssistantQueryOverride`).
- *   2. `localStorage.chatspx_ai_panel_v2 === 'on'|'off'` (sticky per-browser
+ *   3. `localStorage.chatspx_ai_panel_v2 === 'on'|'off'` (sticky per-browser
  *      override, useful for canary testing).
- *   3. Server-side feature flag `ai_assistant_v2` (default-off rollout gate).
  *   4. Default: OFF.
- *
- * Note: client-side overrides take precedence so QA / canary testers can
- * force V2 even when the server flag cannot be flipped (e.g. flag bit
- * position is past the bigint column capacity in the current schema).
  */
 export function useAIAssistantFlag() {
   const isFeatureEnabledonAccount = useMapGetter(
@@ -43,6 +39,13 @@ export function useAIAssistantFlag() {
   const currentAccountId = useMapGetter('getCurrentAccountId');
 
   return computed(() => {
+    const accountId = currentAccountId.value;
+    const serverEnabled = isFeatureEnabledonAccount.value(
+      accountId,
+      FEATURE_FLAGS.AI_ASSISTANT_V2
+    );
+    if (!serverEnabled) return false;
+
     const session = safeRead('sessionStorage', SESSION_KEY);
     if (session === 'on') return true;
     if (session === 'off') return false;
@@ -51,12 +54,7 @@ export function useAIAssistantFlag() {
     if (local === 'on') return true;
     if (local === 'off') return false;
 
-    const accountId = currentAccountId.value;
-    const serverEnabled = isFeatureEnabledonAccount.value(
-      accountId,
-      FEATURE_FLAGS.AI_ASSISTANT_V2
-    );
-    return Boolean(serverEnabled);
+    return true;
   });
 }
 

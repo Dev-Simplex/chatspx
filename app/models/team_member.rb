@@ -24,6 +24,7 @@ class TeamMember < ApplicationRecord
   # Best-effort — a chat sync hiccup must never block team membership changes.
   after_create :sync_internal_team_channel_add
   after_destroy :sync_internal_team_channel_remove
+  after_commit :invalidate_filtered_unread_count_visibility, on: [:create, :destroy]
 
   private
 
@@ -41,6 +42,10 @@ class TeamMember < ApplicationRecord
     team_internal_channel&.members&.where(user_id: user_id)&.destroy_all
   rescue StandardError => e
     Rails.logger.warn("[internal_chat] team channel sync (remove) failed: #{e.message}")
+  end
+
+  def invalidate_filtered_unread_count_visibility
+    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(team&.account).user_visibility_changed!(user_id: user_id)
   end
 end
 

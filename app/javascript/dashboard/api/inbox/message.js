@@ -15,6 +15,7 @@ export const buildCreatePayload = ({
   bccEmails = '',
   toEmails = '',
   templateParams,
+  isVoiceMessage = false,
 }) => {
   let payload;
   if (files && files.length !== 0) {
@@ -38,6 +39,9 @@ export const buildCreatePayload = ({
     }
     if (contentType) {
       payload.append('content_type', contentType);
+    }
+    if (isVoiceMessage) {
+      payload.append('is_voice_message', true);
     }
   } else {
     payload = {
@@ -72,6 +76,7 @@ class MessageApi extends ApiClient {
     bccEmails = '',
     toEmails = '',
     templateParams,
+    isVoiceMessage = false,
   }) {
     const hasFiles = files && files.length !== 0;
 
@@ -89,6 +94,7 @@ class MessageApi extends ApiClient {
         bccEmails,
         toEmails,
         templateParams,
+        isVoiceMessage,
       }),
       // Only meaningful when attachments ride inside the request body (indirect
       // upload). For DirectUpload the blob is already on the server and this

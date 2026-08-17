@@ -22,6 +22,7 @@
     "CALL_SHORT": "Ligar",
     "CALL_INITIATED": "Efetuando chamada…",
     "CALL_FAILED": "Não foi possível iniciar a chamada. Tente novamente.",
+    "CLICK_TO_EDIT": "Click to edit",
     "VOICE_INBOX_PICKER": {
       "TITLE": "Escolha uma caixa de entrada de voz"
     },
@@ -399,6 +400,7 @@
       "IDENTIFIER": "Identificador",
       "COUNTRY": "País/região",
       "CITY": "Cidade",
+      "COMPANY": "Empresa",
       "CREATED_AT": "Criado em",
       "LAST_ACTIVITY": "Última atividade",
       "REFERER_LINK": "Link de origem",
@@ -530,6 +532,7 @@
         "ATTRIBUTES": "Atributos",
         "HISTORY": "Histórico",
         "NOTES": "Notas",
+        "MEDIA": "Mídia",
         "MERGE": "Mesclar",
         "ATTENDANCE": "Andamento"
       },
@@ -660,8 +663,11 @@
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Atribuir rótulo",
+    "REMOVE_LABELS": "Remover Etiquetas",
     "ASSIGN_LABELS_SUCCESS": "Rótulos atribuídos com sucesso.",
     "ASSIGN_LABELS_FAILED": "Falha ao atribuir etiquetas",
+    "REMOVE_LABELS_SUCCESS": "Etiquetas removidas com sucesso.",
+    "REMOVE_LABELS_FAILED": "Falha ao remover etiquetas",
     "DESCRIPTION": "Selecione as etiquetas que deseja adicionar aos contatos selecionados.",
     "NO_LABELS_FOUND": "Nenhuma etiqueta disponível ainda.",
     "SELECTED_COUNT": "{count} selecionado",

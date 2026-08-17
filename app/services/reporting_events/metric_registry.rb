@@ -6,6 +6,7 @@ module ReportingEvents::MetricRegistry
     resolutions_count: :resolved_conversations_count,
     avg_resolution_time: :avg_resolution_time,
     avg_first_response_time: :avg_first_response_time,
+    avg_first_response_time_after_assignment: :avg_first_response_time_after_assignment,
     reply_time: :avg_reply_time
   }.freeze
 
@@ -18,6 +19,7 @@ module ReportingEvents::MetricRegistry
       }
     end,
     'first_response' => ->(values) { { first_response: duration_metric(values) } },
+    'first_response_after_assignment' => ->(values) { { first_response_after_assignment: duration_metric(values) } },
     'reply_time' => ->(values) { { reply_time: duration_metric(values) } },
     'conversation_bot_resolved' => ->(values) { { bot_resolutions_count: count_metric(values[:count]) } },
     'conversation_bot_handoff' => ->(values) { { bot_handoffs_count: count_metric(values[:count]) } }
@@ -29,6 +31,7 @@ module ReportingEvents::MetricRegistry
     incoming_messages_count: { aggregate: :count }.freeze,
     outgoing_messages_count: { aggregate: :count }.freeze,
     avg_first_response_time: { raw_event_name: :first_response, rollup_metric: :first_response, aggregate: :average }.freeze,
+    avg_first_response_time_after_assignment: { raw_event_name: :first_response_after_assignment, aggregate: :average }.freeze,
     avg_resolution_time: { raw_event_name: :conversation_resolved, rollup_metric: :resolution_time, aggregate: :average }.freeze,
     reply_time: { raw_event_name: :reply_time, rollup_metric: :reply_time, aggregate: :average }.freeze,
     resolutions_count: { raw_event_name: :conversation_resolved, rollup_metric: :resolutions_count, aggregate: :count }.freeze,

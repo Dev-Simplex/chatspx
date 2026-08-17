@@ -2,14 +2,15 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   include Api::V1::InboxesHelper
   before_action :fetch_inbox, except: [:index, :create]
   before_action :fetch_agent_bot, only: [:set_agent_bot]
-  before_action :validate_limit, only: [:create]
   # we are already handling the authorization in fetch inbox
   before_action :check_authorization, except: [:show]
 
   include Api::V1::Accounts::Concerns::WhatsappHealthManagement
 
   def index
-    @inboxes = policy_scope(Current.account.inboxes.order_by_name.includes(:channel, { avatar_attachment: [:blob] }))
+    @inboxes = policy_scope(Current.account.inboxes)
+               .includes(:channel, :portal, :working_hours, { avatar_attachment: :blob })
+               .order_by_name
     # Exclude private chat inbox so it never appears in the sidebar
     @inboxes = @inboxes.where.not(id: PrivateChat::Config.inbox_id) if PrivateChat::Config.enabled? && PrivateChat::Config.inbox_id.present?
   end
@@ -46,17 +47,26 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   def update
-    inbox_params = permitted_params.except(:channel, :csat_config, :nps_config)
-    inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
-    inbox_params[:nps_config] = format_nps_config(permitted_params[:nps_config]) if permitted_params[:nps_config].present?
-    # Merge (nao substitui) additional_attributes para preservar chaves de outras features (ex: pin_mode)
-    if inbox_params[:additional_attributes].present?
-      inbox_params[:additional_attributes] =
-        (@inbox.additional_attributes || {}).merge(inbox_params[:additional_attributes].to_h)
+    continue_update = false
+
+    ActiveRecord::Base.transaction do
+      continue_update = update_branded_email_layout
+      raise ActiveRecord::Rollback unless continue_update
+
+      inbox_params = permitted_params.except(:channel, :csat_config, :nps_config)
+      inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
+      inbox_params[:nps_config] = format_nps_config(permitted_params[:nps_config]) if permitted_params[:nps_config].present?
+      # Merge additional attributes so feature-specific keys are not discarded.
+      if inbox_params[:additional_attributes].present?
+        inbox_params[:additional_attributes] =
+          (@inbox.additional_attributes || {}).merge(inbox_params[:additional_attributes].to_h)
+      end
+      @inbox.update!(inbox_params)
+      update_inbox_working_hours
+      update_channel if channel_update_required?
     end
-    @inbox.update!(inbox_params)
-    update_inbox_working_hours
-    update_channel if channel_update_required?
+
+    return unless continue_update
   end
 
   def agent_bot
@@ -72,6 +82,12 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
       @inbox.agent_bot_inbox.destroy!
     end
     head :ok
+  end
+
+  def reset_secret
+    return head :not_found unless @inbox.api?
+
+    @inbox.channel.reset_secret!
   end
 
   def destroy
@@ -105,7 +121,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   def fetch_agent_bot
-    @agent_bot = AgentBot.find(params[:agent_bot]) if params[:agent_bot]
+    @agent_bot = AgentBot.accessible_to(Current.account).find(params[:agent_bot]) if params[:agent_bot]
   end
 
   def create_channel
@@ -143,8 +159,8 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   def reauthorize_and_update_channel(channel_attributes)
-    @inbox.channel.reauthorized! if @inbox.channel.respond_to?(:reauthorized!)
     @inbox.channel.update!(permitted_params(channel_attributes)[:channel])
+    @inbox.channel.reauthorized! if @inbox.channel.respond_to?(:reauthorized!)
   end
 
   def update_channel_feature_flags
@@ -209,6 +225,33 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
     }.compact
   end
 
+  def update_branded_email_layout
+    return true unless params.key?(:branded_email_layout)
+
+    branded_email_layout = normalized_branded_email_layout
+
+    unless Current.account.feature_enabled?(:branded_email_templates)
+      return true if branded_email_layout.blank?
+
+      render_could_not_create_error('Branded email templates feature is not enabled')
+      return false
+    end
+
+    unless @inbox.email?
+      return true if branded_email_layout.blank?
+
+      render_could_not_create_error('Branded email layout is only supported for email inboxes')
+      return false
+    end
+
+    @inbox.update_branded_email_layout!(branded_email_layout)
+    true
+  rescue ActiveRecord::RecordInvalid => e
+    render_could_not_create_error(e.record.errors.full_messages.join(', '))
+    false
+  end
+
+  def normalized_branded_email_layout = params[:branded_email_layout] == 'null' ? nil : params[:branded_email_layout]
   def inbox_attributes
     [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled, :nps_survey_enabled,
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,

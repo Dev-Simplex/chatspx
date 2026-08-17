@@ -16,15 +16,16 @@ RSpec.describe Internal::ReconcilePlanConfigService do
 
       it 'disables the premium features for accounts' do
         account = create(:account)
-        account.enable_features!('disable_branding', 'audit_logs', 'captain_integration')
+        account.enable_features!('disable_branding', 'audit_logs', 'captain_integration', 'captain_integration_v2')
         account_with_captain = create(:account)
-        account_with_captain.enable_features!('captain_integration')
+        account_with_captain.enable_features!('captain_integration', 'captain_integration_v2')
         disable_branding_account = create(:account)
         disable_branding_account.enable_features!('disable_branding')
         service.perform
-        expect(account.reload.enabled_features.keys).not_to include('disable_branding', 'audit_logs')
-        expect(account.reload.enabled_features.keys).to include('captain_integration')
-        expect(account_with_captain.reload.enabled_features.keys).to include('captain_integration')
+        expect(account.reload.enabled_features.keys).not_to include(
+          'captain_integration', 'captain_integration_v2', 'disable_branding', 'audit_logs'
+        )
+        expect(account_with_captain.reload.enabled_features.keys).not_to include('captain_integration', 'captain_integration_v2')
         expect(disable_branding_account.reload.enabled_features.keys).not_to include('disable_branding')
       end
 
@@ -68,14 +69,16 @@ RSpec.describe Internal::ReconcilePlanConfigService do
 
       it 'does not disable the premium features for accounts' do
         account = create(:account)
-        account.enable_features!('disable_branding', 'audit_logs', 'captain_integration')
+        account.enable_features!('disable_branding', 'audit_logs', 'captain_integration', 'captain_integration_v2')
         account_with_captain = create(:account)
-        account_with_captain.enable_features!('captain_integration')
+        account_with_captain.enable_features!('captain_integration', 'captain_integration_v2')
         disable_branding_account = create(:account)
         disable_branding_account.enable_features!('disable_branding')
         service.perform
-        expect(account.reload.enabled_features.keys).to include('captain_integration', 'disable_branding', 'audit_logs')
-        expect(account_with_captain.reload.enabled_features.keys).to include('captain_integration')
+        expect(account.reload.enabled_features.keys).to include(
+          'captain_integration', 'captain_integration_v2', 'disable_branding', 'audit_logs'
+        )
+        expect(account_with_captain.reload.enabled_features.keys).to include('captain_integration', 'captain_integration_v2')
         expect(disable_branding_account.reload.enabled_features.keys).to include('disable_branding')
       end
 

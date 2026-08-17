@@ -5,32 +5,25 @@ class Captain::Assistant::AgentRunnerService
   include Integrations::LlmInstrumentationConstants
   include Captain::Assistant::RunnerCallbacksHelper
   include Captain::Assistant::TracePayloadHelper
+  include Captain::Assistant::RunnerStateHelper
 
-  CONVERSATION_STATE_ATTRIBUTES = %i[
-    id display_id inbox_id contact_id status priority
-    label_list custom_attributes additional_attributes
-  ].freeze
+  attr_reader :last_run_result
 
-  CONTACT_STATE_ATTRIBUTES = %i[
-    id name email phone_number identifier contact_type
-    custom_attributes additional_attributes
-  ].freeze
-
-  CONTACT_INBOX_STATE_ATTRIBUTES = %i[id hmac_verified].freeze
-
-  CAMPAIGN_STATE_ATTRIBUTES = %i[id title message campaign_type description].freeze
   def initialize(assistant:, conversation: nil, callbacks: {}, source: nil)
     @assistant = assistant
     @conversation = conversation
     @callbacks = callbacks
     @source = source
+    @handoff_tool_called = false
   end
 
   def generate_response(message_history: [])
     message_to_process, context = run_payload(message_history)
-    result = runner.run(message_to_process, context: context, max_turns: 100)
+    @last_run_result = Llm::AccountScopedContext.with_account(@assistant.account) do
+      runner.run(message_to_process, context: context, max_turns: 10)
+    end
 
-    process_agent_result(result)
+    process_agent_result(@last_run_result)
   rescue StandardError => e
     handle_run_error(e)
   end
@@ -40,7 +33,9 @@ class Captain::Assistant::AgentRunnerService
   # mensagem. NAO altera #generate_response (caminho de producao). Mesma chamada do runner.
   def run_raw(message_history: [])
     message_to_process, context = run_payload(message_history)
-    runner.run(message_to_process, context: context, max_turns: 100)
+    Llm::AccountScopedContext.with_account(@assistant.account) do
+      runner.run(message_to_process, context: context, max_turns: 100)
+    end
   end
 
   private
@@ -123,6 +118,7 @@ class Captain::Assistant::AgentRunnerService
     response['response'] = '' if response['response'].present? && fallback_replays_history?(response['response'])
 
     response['agent_name'] = result.context&.dig(:current_agent)
+    response['handoff_tool_called'] = result.context&.dig(:captain_v2_handoff_tool_called) || false
     response
   end
 
@@ -181,36 +177,9 @@ class Captain::Assistant::AgentRunnerService
   def error_response(error_message)
     {
       'response' => 'conversation_handoff',
-      'reasoning' => "Error occurred: #{error_message}"
+      'reasoning' => "Error occurred: #{error_message}",
+      'handoff_tool_called' => @handoff_tool_called
     }
-  end
-
-  def build_state
-    state = {
-      account_id: @assistant.account_id,
-      assistant_id: @assistant.id,
-      assistant_config: @assistant.config
-    }
-    state[:source] = @source if @source.present?
-
-    build_conversation_state(state) if @conversation
-    state
-  end
-
-  def build_conversation_state(state)
-    state[:conversation] = slice_attrs(@conversation, CONVERSATION_STATE_ATTRIBUTES)
-    # O marcador de espera por humano NÃO entra no contexto do agente: a presença dele empurra
-    # o LLM pro silêncio ([IGNORAR]) mesmo quando o cliente traz pergunta nova. Ele segue no
-    # banco pros outros usos (guard do follow-up + filtro "Aguardando atendimento").
-    state[:conversation][:custom_attributes] = (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde')
-    state[:channel_type] = @conversation.inbox&.channel_type
-    state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
-    state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
-    state[:contact_inbox] = slice_attrs(@conversation.contact_inbox, CONTACT_INBOX_STATE_ATTRIBUTES) if @conversation.contact_inbox
-  end
-
-  def slice_attrs(record, keys)
-    record.attributes.symbolize_keys.slice(*keys)
   end
 
   def build_and_wire_agents
@@ -233,7 +202,7 @@ class Captain::Assistant::AgentRunnerService
       span_attributes: {
         ATTR_LANGFUSE_TAGS => ['captain_v2'].to_json
       },
-      attribute_provider: ->(context_wrapper) { dynamic_trace_attributes(context_wrapper) }
+      attribute_provider: Captain::Assistant::InstrumentationAttributeProvider.new(self)
     )
     register_trace_input_callback(runner)
   end
@@ -246,7 +215,6 @@ class Captain::Assistant::AgentRunnerService
     {
       ATTR_LANGFUSE_USER_ID => state[:account_id],
       format(ATTR_LANGFUSE_METADATA, 'assistant_id') => state[:assistant_id],
-      format(ATTR_LANGFUSE_METADATA, 'conversation_id') => conversation[:id],
       format(ATTR_LANGFUSE_METADATA, 'conversation_display_id') => conversation[:display_id],
       format(ATTR_LANGFUSE_METADATA, 'channel_type') => state[:channel_type],
       format(ATTR_LANGFUSE_METADATA, 'source') => state[:source],
@@ -256,16 +224,18 @@ class Captain::Assistant::AgentRunnerService
   end
 
   def add_usage_metadata_callback(runner)
-    return runner unless ChatwootApp.otel_enabled?
-
     handoff_tool_name = Captain::Tools::HandoffTool.new(@assistant).name
 
+    # Tool tracking always runs — process_response in the job consumes the resulting
+    # handoff_tool_called flag regardless of whether OTEL is enabled.
     runner.on_tool_complete do |tool_name, _tool_result, context_wrapper|
       track_handoff_usage(tool_name, handoff_tool_name, context_wrapper)
     end
 
-    runner.on_run_complete do |_agent_name, _result, context_wrapper|
-      write_credits_used_metadata(context_wrapper)
+    if ChatwootApp.otel_enabled?
+      runner.on_run_complete do |_agent_name, _result, context_wrapper|
+        write_credits_used_metadata(context_wrapper)
+      end
     end
     runner
   end
@@ -274,15 +244,17 @@ class Captain::Assistant::AgentRunnerService
     return unless context_wrapper&.context
     return unless tool_name.to_s == handoff_tool_name
 
+    # Mirror the flag onto the instance so error_response can surface it even when
+    # the runner raises before returning a result (the context is unreachable then).
     context_wrapper.context[:captain_v2_handoff_tool_called] = true
+    @handoff_tool_called = true
   end
 
   def write_credits_used_metadata(context_wrapper)
     root_span = context_wrapper&.context&.dig(:__otel_tracing, :root_span)
     return unless root_span
 
-    credit_used = !context_wrapper.context[:captain_v2_handoff_tool_called]
-    root_span.set_attribute(format(ATTR_LANGFUSE_METADATA, 'credit_used'), credit_used.to_s)
+    root_span.set_attribute(format(ATTR_LANGFUSE_METADATA, 'credit_used'), @handoff_tool_called ? 'false' : 'true')
   end
 
   def runner

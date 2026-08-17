@@ -66,6 +66,10 @@ class Inboxes extends CacheEnabledApiClient {
       )}`
     );
   }
+
+  resetSecret(inboxId) {
+    return axios.post(`${this.url}/${inboxId}/reset_secret`);
+  }
 }
 
 export default new Inboxes();

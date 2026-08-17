@@ -16,6 +16,7 @@ export const getters = {
     const contact = $state.records[id];
     return contact || {};
   },
+  getContactAttachments: $state => id => $state.records[id]?.attachments || [],
   getMeta: $state => {
     return $state.meta;
   },

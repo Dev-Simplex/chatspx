@@ -2,17 +2,21 @@ module Llm::Models
   CONFIG = YAML.load_file(Rails.root.join('config/llm.yml')).freeze
 
   class << self
-    def providers = CONFIG['providers']
-    def models = CONFIG['models']
-    def features = CONFIG['features']
-    def feature_keys = CONFIG['features'].keys
+    def providers = CONFIG.fetch('providers')
+    def models = CONFIG.fetch('models')
+    def features = CONFIG.fetch('features')
+    def feature_keys = features.keys
+
+    def feature?(feature)
+      features.key?(feature.to_s)
+    end
 
     def default_model_for(feature)
-      CONFIG.dig('features', feature.to_s, 'default')
+      features.dig(feature.to_s, 'default')
     end
 
     def models_for(feature)
-      CONFIG.dig('features', feature.to_s, 'models') || []
+      features.dig(feature.to_s, 'models') || []
     end
 
     def valid_model_for?(feature, model_name)
@@ -21,6 +25,7 @@ module Llm::Models
 
     def runtime_supported_model?(model_id)
       return false if model_id.blank?
+      return false unless models.key?(model_id.to_s)
 
       RubyLLM.models.find(runtime_id_for(model_id))
       true
@@ -51,13 +56,21 @@ module Llm::Models
         .find { |model_id| runtime_supported_model?(model_id) }
     end
 
+    def model_config(model_name)
+      models[model_name.to_s]
+    end
+
+    def provider_for(model_name)
+      model_config(model_name)&.dig('provider')
+    end
+
     def feature_config(feature_key)
       feature = features[feature_key.to_s]
       return nil unless feature
 
       {
-        models: feature['models'].map do |model_name|
-          model = models[model_name]
+        models: models_for(feature_key).map do |model_name|
+          model = model_config(model_name)
           {
             id: model_name,
             display_name: model['display_name'],

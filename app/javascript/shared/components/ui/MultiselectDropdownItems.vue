@@ -2,6 +2,8 @@
 import WootDropdownItem from 'shared/components/ui/dropdown/DropdownItem.vue';
 import WootDropdownMenu from 'shared/components/ui/dropdown/DropdownMenu.vue';
 import Avatar from 'next/avatar/Avatar.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
+import EmojiIcon from 'dashboard/components-next/emoji-icon-picker/EmojiIcon.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 export default {
@@ -9,6 +11,8 @@ export default {
     WootDropdownItem,
     WootDropdownMenu,
     Avatar,
+    Icon,
+    EmojiIcon,
     NextButton,
   },
 
@@ -39,6 +43,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    showEmojiIcon: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['select'],
 
@@ -51,7 +59,9 @@ export default {
   computed: {
     filteredOptions() {
       return this.options.filter(option => {
-        return option.name.toLowerCase().includes(this.search.toLowerCase());
+        return (option.name || '')
+          .toLowerCase()
+          .includes(this.search.toLowerCase());
       });
     },
     noResult() {
@@ -71,10 +81,18 @@ export default {
       this.$refs.searchbar.focus();
     },
     isActive(option) {
-      return this.selectedItems.some(item => item && option.id === item.id);
+      return this.selectedItems.some(item => {
+        if (!item || option.id !== item.id) return false;
+
+        return (
+          (option.assignee_type || 'User') === (item.assignee_type || 'User')
+        );
+      });
     },
     isAIOption(option) {
-      return option?.type === 'agent_bot';
+      return (
+        option?.type === 'agent_bot' || option?.assignee_type === 'AgentBot'
+      );
     },
     showGroupHeader(option, index) {
       if (!this.grouped) return false;
@@ -100,7 +118,10 @@ export default {
     <div class="flex items-start justify-start flex-auto overflow-auto mt-2">
       <div class="w-full max-h-[10rem]">
         <WootDropdownMenu>
-          <template v-for="(option, idx) in filteredOptions" :key="option.id">
+          <template
+            v-for="(option, idx) in filteredOptions"
+            :key="`${option.assignee_type || 'User'}-${option.id}`"
+          >
             <li
               v-if="showGroupHeader(option, idx)"
               class="px-2.5 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide select-none"
@@ -135,13 +156,52 @@ export default {
                   </span>
                 </div>
                 <Avatar
-                  v-if="hasThumbnail"
+                  v-if="
+                    hasThumbnail &&
+                    (!option.icon || option.assignee_type === 'AgentBot')
+                  "
                   :src="option.thumbnail"
                   :name="option.name"
                   :status="option.availability_status"
+                  :icon-name="
+                    option.assignee_type === 'AgentBot'
+                      ? 'i-lucide-bot'
+                      : undefined
+                  "
                   :size="24"
                   hide-offline-status
                   rounded-full
+                >
+                  <template
+                    v-if="
+                      option.assignee_type === 'AgentBot' && option.thumbnail
+                    "
+                    #badge
+                  >
+                    <div
+                      class="absolute z-20 flex items-center justify-center rounded-full outline outline-1 outline-n-weak bg-n-solid-1 -bottom-0.5 ltr:-right-0.5 rtl:-left-0.5 size-3.5"
+                    >
+                      <Icon
+                        icon="i-lucide-bot"
+                        class="text-n-slate-11 size-2.5"
+                      />
+                    </div>
+                  </template>
+                </Avatar>
+                <div
+                  v-else-if="option.icon && showEmojiIcon"
+                  class="flex items-center justify-center flex-shrink-0 text-sm rounded-full size-6 outline outline-1 -outline-offset-1 outline-n-weak"
+                >
+                  <EmojiIcon
+                    :value="option.icon"
+                    :color="option.icon_color"
+                    class="size-3.5 !text-sm"
+                  />
+                </div>
+                <Icon
+                  v-else-if="option.icon"
+                  :icon="option.icon"
+                  class="size-5 text-n-slate-11"
                 />
               </NextButton>
             </WootDropdownItem>

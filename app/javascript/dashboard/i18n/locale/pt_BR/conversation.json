@@ -91,6 +91,8 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "Você só pode responder a esta conversa usando um modelo de mensagem devido a",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "Restrições de janela de mensagem de 24 horas",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "Esta conta do Instagram foi migrada para a nova caixa de entrada do canal do Instagram. Todas as novas mensagens serão mostradas lá. Você não poderá mais enviar mensagens desta conversa.",
+    "INSTAGRAM_RESTRICTION_BANNER": "O Instagram está com restrições no momento. Algumas mensagens ou ações podem sofrer atrasos ou/e ficar indisponíveis enquanto restauramos o funcionamento completo.",
+    "INSTAGRAM_RESTRICTION_STATUS_LINK": "Ver atualização de status",
     "REPLYING_TO": "Você está respondendo a:",
     "REMOVE_SELECTION": "Remover seleção",
     "DOWNLOAD": "Baixar",
@@ -114,6 +116,7 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "Esta mensagem não é suportada. Você pode ver esta mensagem no aplicativo Facebook Messenger.",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "Esta mensagem não é suportada. Você pode ver esta mensagem no aplicativo do Instagram.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "Esta mensagem não é compatível. Você pode visualizá-la no aplicativo do TikTok.",
+    "UNSUPPORTED_MESSAGE_WHATSAPP": "Esta mensagem não é suportada. Você pode visualizar esta mensagem no aplicativo do WhatsApp.",
     "SUCCESS_DELETE_MESSAGE": "Mensagem excluída com sucesso",
     "FAIL_DELETE_MESSSAGE": "Não foi possível excluir a mensagem! Tente novamente",
     "NO_RESPONSE": "Sem resposta",
@@ -125,7 +128,8 @@
     "SCHEDULED_BY_UNKNOWN": "Sistema",
     "CARD": {
       "SHOW_LABELS": "Mostrar etiquetas",
-      "HIDE_LABELS": "Ocultar as etiquetas"
+      "HIDE_LABELS": "Ocultar as etiquetas",
+      "LABELS_COUNT": "{count} etiquetas"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Chamada recebida",
@@ -149,6 +153,7 @@
       "OPEN": "Mais",
       "CLOSE": "Fechar",
       "DETAILS": "detalhes",
+      "COPY_ID_SUCCESS": "ID da conversa copiado para área de transferência",
       "SNOOZED_UNTIL": "Adiar até",
       "SNOOZED_UNTIL_TOMORROW": "Adiado até amanhã",
       "SNOOZED_UNTIL_NEXT_WEEK": "Adiada até a próxima semana",
@@ -384,7 +389,9 @@
       "TIP_AUDIORECORDER_ICON": "Gravar áudio",
       "TIP_AUDIORECORDER_PERMISSION": "Permitir acesso ao áudio",
       "TIP_AUDIORECORDER_ERROR": "Não foi possível abrir o áudio",
+      "AUDIO_CONVERSION_FAILED": "Falha na conversão do áudio. Tente novamente.",
       "DRAG_DROP": "Arraste e solte aqui para anexar",
+      "IMAGE_UPLOAD_SUCCESS": "Imagem enviada com sucesso",
       "START_AUDIO_RECORDING": "Iniciar gravação de áudio",
       "STOP_AUDIO_RECORDING": "Parar gravação de áudio",
       "DISCARD_AUDIO_RECORDING": "Descartar gravação",
@@ -499,6 +506,25 @@
         "MESSAGE": "Você não pode desfazer essa ação",
         "DELETE": "Excluir",
         "CANCEL": "Cancelar"
+      },
+      "REPORT_MESSAGE": {
+        "LABEL": "Reportar mensagem",
+        "TITLE": "Reportar mensagem do Capitão",
+        "DESCRIPTION": "Encontrou algum problema com esta resposta da IA? Conte-nos o que deu errado e nossa equipe irá analisar para ajudar a melhorar a precisão do Capitão.",
+        "PROBLEM_TYPE": "Tipo de problema",
+        "PROBLEM_TYPE_PLACEHOLDER": "Selecione um tipo de problema",
+        "DESCRIPTION_LABEL": "Descrição",
+        "DESCRIPTION_PLACEHOLDER": "Descreva o problema detalhadamente",
+        "SUBMIT": "Reportar",
+        "SUCCESS": "Obrigado pelo seu relato. Nossa equipe irá analisá-lo.",
+        "ERROR": "Não foi possível enviar o relato desta mensagem. Tente novamente.",
+        "REASONS": {
+          "incorrect_information": "Informação incorreta",
+          "inappropriate_response": "Resposta inadequada",
+          "incomplete_response": "Resposta incompleta",
+          "outdated_information": "Informação desatualizada",
+          "other": "Outro"
+        }
       }
     },
     "EDIT_MESSAGE": {
@@ -637,7 +663,7 @@
       "DENIED_WITH_NOTE": "Seu pedido de atendimento foi negado: {note}",
       "SUPERSEDED": "Seu pedido não é mais necessário — outra pessoa assumiu a conversa."
     },
-    "ACCESS_BLOCKED": {
+      "ACCESS_BLOCKED": {
       "TITLE": "Esta conversa não está atribuída a você",
       "BODY": "Está atribuída a {name}.",
       "BODY_WITH_TEAM": "Está atribuída a {name} ({team}).",
@@ -646,8 +672,8 @@
       "REQUEST_SENT": "Pedido enviado",
       "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
-      "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
-    }
+        "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
+      }
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Enviar transcrição de conversa",
@@ -713,7 +739,8 @@
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Pedidos do Shopify",
       "KANBAN_STATUS": "Situação no Kanban",
-      "GROUP_PARTICIPANTS": "Integrantes do grupo"
+      "GROUP_PARTICIPANTS": "Integrantes do grupo",
+      "SHARED_FILES": "Anexos"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Não está em nenhum funil",
@@ -751,14 +778,26 @@
     },
     "MEDIA_EMPTY": "Nenhuma mídia ou arquivo nesta conversa",
     "SHOW_MORE": "Ver mais {count}",
-    "BULK": {
+      "BULK": {
       "DOWNLOAD_ALL": "Baixar todas ({count})",
       "SELECT": "Selecionar",
       "SELECTED_COUNT": "{count} selecionada(s)",
       "DOWNLOAD_SELECTED": "Baixar selecionadas (.zip)",
       "CANCEL": "Cancelar",
       "PREPARING": "Preparando… ({processed}/{total})",
-      "PREPARING_INDEFINITE": "Preparando…"
+        "PREPARING_INDEFINITE": "Preparando…"
+      },
+    "SHARED_FILES": {
+      "EMPTY": "Nenhum anexo ainda",
+      "DOWNLOAD": "Baixar arquivo",
+      "DOWNLOAD_ERROR": "Não foi possível baixar o arquivo. Por favor, tente novamente.",
+      "MEDIA_HEADING": "Mídia",
+      "FILES_HEADING": "Arquivos",
+      "VIEW_ALL": "Visualizar tudo",
+      "SHOW_LESS": "Mostrar menos",
+      "MORE_COUNT": "+{count}",
+      "UNTITLED_FILE": "Arquivo sem nome",
+      "JUMP_TO_MESSAGE": "Ir para mensagem"
     },
     "SHOPIFY": {
       "ORDER_ID": "Pedido #{id}",

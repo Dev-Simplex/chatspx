@@ -10,6 +10,7 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ContactDetails from 'dashboard/components-next/Contacts/Pages/ContactDetails.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import ContactHistory from 'dashboard/components-next/Contacts/ContactsSidebar/ContactHistory.vue';
+import ContactMedia from 'dashboard/components-next/Contacts/ContactsSidebar/ContactMedia.vue';
 import ContactMerge from 'dashboard/components-next/Contacts/ContactsSidebar/ContactMerge.vue';
 import ContactCustomAttributes from 'dashboard/components-next/Contacts/ContactsSidebar/ContactCustomAttributes.vue';
 import ContactAttendanceStatus from 'dashboard/components-next/Contacts/ContactsSidebar/ContactAttendanceStatus.vue';
@@ -53,6 +54,7 @@ const CONTACT_TABS_OPTIONS = [
   // "Notas" saiu da página de contato (segue disponível dentro das conversas,
   // via ContactPanel) e deu lugar a "Andamento": quem atende este contato agora.
   { key: 'ATTENDANCE', value: 'attendance' },
+  { key: 'MEDIA', value: 'media' },
   { key: 'MERGE', value: 'merge' },
 ];
 
@@ -170,8 +172,8 @@ onMounted(() => {
         :selected-contact="selectedContact"
         @go-to-contacts-list="goToContactsList"
       />
-      <template #sidebar>
-        <div class="px-6">
+      <template #sidebarHeader>
+        <div class="px-6 pt-6 pb-3">
           <TabBar
             :tabs="tabs"
             :initial-active-tab="activeTabIndex"
@@ -179,6 +181,8 @@ onMounted(() => {
             @tab-changed="handleTabChange"
           />
         </div>
+      </template>
+      <template #sidebar>
         <div
           v-if="isFetchingItem"
           class="flex items-center justify-center py-10 text-n-slate-11"
@@ -196,6 +200,7 @@ onMounted(() => {
             :is-fetching="isFetchingAttendance"
           />
           <ContactHistory v-if="activeTab === 'history'" />
+          <ContactMedia v-if="activeTab === 'media'" />
           <ContactMerge
             v-if="activeTab === 'merge'"
             ref="contactMergeRef"
