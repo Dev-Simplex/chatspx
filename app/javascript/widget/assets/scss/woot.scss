@@ -1,8 +1,26 @@
+// Bloco 1.08 — este bundle usa o config PRÓPRIO do widget, com `content`
+// restrito ao que renderiza dentro do iframe. Sem esta linha, o CSS do widget
+// herda as utilitárias de dashboard, portal, survey e v3 — 1.692.204 B crus
+// para uma tela de chat. `@config` é o mecanismo do Tailwind ≥ 3.2 para vários
+// bundles com um só PostCSS.
+//
+// ⚠️ O CAMINHO É RELATIVO AO ARQUIVO QUE O POSTCSS RECEBE, não a este. Quem o
+// PostCSS vê é o bloco `<style lang="scss">` de `widget/App.vue`, que faz
+// `@import` deste arquivo — o Sass já concatenou tudo antes. Logo a base é
+// `app/javascript/widget/`, três níveis até a raiz, e NÃO `…/assets/scss/`,
+// que seriam cinco. Errar isso não passa silencioso: o build falha com
+// "The config file at … does not exist".
+@config '../../../tailwind.widget.config.js';
+
 @import 'reset';
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
-@import 'shared/assets/fonts/widget_fonts';
+// `widget_fonts` SAIU: eram 7 `@font-face` de Inter que ninguém baixa. Nenhum
+// componente do widget declara `font-family: Inter` (verificado por grep em
+// `widget/` e `shared/components/`), então as sete declarações eram CSS morto —
+// e o §8 item 8 do PLANO-MESTRE decide não adotar webfont no widget. A pilha de
+// fontes do sistema, que o `sans` do tema já define, é o que o visitante vê.
 @import 'views/conversation';
 
 html,

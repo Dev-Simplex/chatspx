@@ -131,7 +131,7 @@ export default {
   >
     <h6
       v-dompurify-html="formattedTitle"
-      class="text-n-slate-12 text-sm font-medium pt-5 px-2.5 text-center prose prose-bubble"
+      class="text-n-slate-12 text-sm font-medium pt-5 px-2.5 text-center csat-title"
     />
     <div v-if="isEmojiType" class="ratings flex justify-around py-5 px-4">
       <button
@@ -168,6 +168,44 @@ export default {
 </template>
 
 <style lang="scss" scoped>
+// Bloco 1.08 — este título usava `prose prose-bubble`, e era a ÚNICA ocorrência
+// de `prose` em tudo que o widget renderiza. O plugin `@tailwindcss/typography`
+// cobrava 16.536 B no CSS do widget por ela: estilos para h1–h6, listas,
+// tabelas, `pre`, `blockquote` e imagens, num título de uma linha.
+//
+// O conteúdo aqui é markdown sanitizado (`v-dompurify-html`), e o que de fato
+// aparece num título de pesquisa é ênfase, link e, no limite, código inline. É
+// isso que está estilizado abaixo — o resto herda, como já herdava.
+.csat-title {
+  line-height: 1.6;
+
+  :deep(p) {
+    @apply m-0;
+
+    & + p {
+      @apply mt-1;
+    }
+  }
+
+  :deep(strong),
+  :deep(b) {
+    @apply font-bold text-n-slate-12;
+  }
+
+  :deep(em),
+  :deep(i) {
+    @apply italic;
+  }
+
+  :deep(a) {
+    @apply underline text-w-brand-readable;
+  }
+
+  :deep(code) {
+    @apply bg-n-alpha-2 text-n-slate-11 rounded px-1 py-px text-xs;
+  }
+}
+
 .customer-satisfaction {
   .ratings {
     .emoji-button {
