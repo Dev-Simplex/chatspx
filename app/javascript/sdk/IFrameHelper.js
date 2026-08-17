@@ -20,7 +20,7 @@ import {
   addUnreadClass,
   removeUnreadClass,
 } from './bubbleHelpers';
-import { isWidgetColorLighter } from 'shared/helpers/colorHelper';
+import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
 import {
   CHATWOOT_ERROR,
@@ -41,6 +41,31 @@ const updateAuthCookie = (cookieContent, baseDomain = '') =>
   setCookieWithDomain('cw_conversation', cookieContent, {
     baseDomain,
   });
+
+// Bloco 1.03 — os tokens do servidor pintam o launcher, que vive no host.
+//
+// O valor chega por `postMessage`, e `postMessage` é superfície de entrada:
+// escrever a string recebida direto num `style` daria a quem conseguisse forjar
+// a mensagem uma primitiva de CSS no documento do CLIENTE. Por isso passa por
+// aqui: nome tem de estar na lista fechada de `WIDGET_TOKEN_NAMES`, e valor tem
+// de ser hex de 3/6/8 dígitos ou uma referência `var(--w-…)` — o alfabeto
+// inteiro que o `WidgetTokens` do servidor sabe produzir.
+const SAFE_TOKEN_VALUE =
+  /^(#[0-9a-f]{3}|#[0-9a-f]{6}|#[0-9a-f]{8}|var\(--w-[a-z-]+\))$/i;
+
+export const applyWidgetTokens = (element, tokens = {}) => {
+  if (!element?.style) return {};
+  const applied = {};
+  WIDGET_TOKEN_NAMES.forEach(name => {
+    const value = tokens[name];
+    if (typeof value !== 'string' || !SAFE_TOKEN_VALUE.test(value.trim())) {
+      return;
+    }
+    element.style.setProperty(name, value.trim());
+    applied[name] = value.trim();
+  });
+  return applied;
+};
 
 const updateCampaignReadStatus = baseDomain => {
   const expireBy = addHours(new Date(), 1);
@@ -179,6 +204,9 @@ export const IFrameHelper = {
       });
       IFrameHelper.onLoad({
         widgetColor: message.config.channelConfig.widgetColor,
+        // Mesma fonte que o `<style>` do painel: `WidgetTokens` no servidor.
+        // O host NÃO recalcula contraste — ele consome o resultado.
+        tokens: message.config.tokens || message.config.channelConfig.tokens,
       });
       IFrameHelper.toggleCloseButton();
 
@@ -299,15 +327,23 @@ export const IFrameHelper = {
     IFrameHelper.sendMessage('push-event', { eventName });
   },
 
-  onLoad: ({ widgetColor }) => {
+  onLoad: ({ widgetColor, tokens }) => {
     const iframe = IFrameHelper.getAppFrame();
     iframe.style.visibility = '';
     iframe.setAttribute('id', `chatwoot_live_chat_widget`);
+
+    // O painel (iframe) já pintou com estes valores no 1º byte de HTML. Aqui
+    // eles entram no documento do host, hospedados nos DOIS elementos que são
+    // nossos — nunca no `:root` do site do cliente, que é documento alheio e
+    // onde um `--w-brand` do próprio site nos sobrescreveria.
+    const applied = applyWidgetTokens(widgetHolder, tokens);
+    IFrameHelper.appliedTokens = applied;
 
     if (IFrameHelper.getBubbleHolder().length) {
       return;
     }
     createBubbleHolder(window.$chatwoot.hideMessageBubble);
+    applyWidgetTokens(bubbleHolder, tokens);
     onLocationChangeListener();
 
     let className = 'woot-widget-bubble';
@@ -318,7 +354,11 @@ export const IFrameHelper = {
       closeBtnClassName += ' woot-widget-bubble--flat';
     }
 
-    if (isWidgetColorLighter(widgetColor)) {
+    // O que era `isWidgetColorLighter(widgetColor)` — brilho ponderado
+    // 299/587/114 com limiar 225, que não é WCAG e não verifica se o resultado
+    // atinge razão alguma. Agora a decisão já vem tomada do servidor: se o
+    // texto sobre a marca é preto, a marca é "clara". Zero fórmula aqui.
+    if (applied['--w-on-brand'] === '#000000') {
       className += ' woot-widget-bubble-color--lighter';
       closeBtnClassName += ' woot-widget-bubble-color--lighter';
     }
@@ -331,8 +371,8 @@ export const IFrameHelper = {
 
     addClasses(closeBubble, closeBtnClassName);
 
-    chatIcon.style.background = widgetColor;
-    closeBubble.style.background = widgetColor;
+    chatIcon.style.background = applied['--w-brand'] || widgetColor;
+    closeBubble.style.background = applied['--w-brand'] || widgetColor;
 
     bubbleHolder.appendChild(chatIcon);
     bubbleHolder.appendChild(closeBubble);
