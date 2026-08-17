@@ -10,6 +10,37 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-17] 🟢 CTWA — 93% das conversas de anúncio chegavam sem dizer de onde vieram (PR #59) · e o #56 virou #58+#59
+
+> Lead de **formulário** já era carimbado desde julho; quem clica no anúncio e escreve primeiro
+> entra por **outra porta** (pipeline de mensagem recebida) e ficava invisível. Medido na Tozi
+> (conta 6, inbox 91), 45 dias: **167 conversas vindas de anúncio, 155 sem nenhum atributo de
+> campanha (93%)**, de **17 criativos distintos**.
+
+- **O dado sempre esteve lá** — no `referral` que a Meta manda junto da primeira mensagem. Ninguém
+  o lia. Traz `source_id` (id do **anúncio**, não da campanha), `source_type`, `source_url`,
+  `headline`, `body`, `media_type`, `image_url`, `ctwa_clid`. **Não vem nome de campanha nem de
+  conjunto** — isso exigiria consultar a Graph. Mas vem o `headline`, legível, então a visibilidade
+  não depende de chamada externa nenhuma.
+- **PR #59 (fase 1, só visibilidade):** `Whatsapp::ReferralVisibilityService` +
+  `Spx::CtwaVisibilityListener` no `AsyncDispatcher`. Carimba **as mesmas chaves** do fluxo de
+  formulário (`meta_anuncio`, `meta_anuncio_id`, `meta_origem`, `meta_tipo`) de propósito — o
+  marketing não pode ter duas taxonomias pra mesma pergunta. **Primeiro clique manda** (a conversa é
+  única por contato; reescrever apagaria a origem em silêncio). **Uma label só** (`anuncio`), senão
+  17 criativos viram 17 labels. Sem opt-in por conta: só age quando há `referral`, e o que grava é
+  fato, não comportamento.
+- **Medido na `.232`, banco dedicado, contra baseline (o próprio ramo com o commit revertido):**
+  ramo **296 exemplos / 11 falhas** × baseline **289 / 11**, **lista de falhas idêntica** (as 11 são
+  pré-existentes na box). +7 exemplos novos passando, zero regressão. Rubocop 0 nos 4 arquivos
+  (a 1ª medição pegou `CyclomaticComplexity 8/7` no listener — era a navegação segura do log, não a
+  regra; extraída em commit separado).
+- ⏭️ **Fase 2 (rotear por `source_id`) NÃO foi feita** e depende de ler o **PR #44** antes, pra não
+  duplicar `campaign_overrides`. É a fase que muda comportamento — decisão do Paulo.
+- ⚠️ **Erro meu, corrigido:** commitei o CTWA em cima da branch do **#56** (conserto do envio
+  silencioso no Instagram), misturando dois assuntos num PR só. Separado **sem force-push**: duas
+  branches novas a partir da `homologacao`, **#58** (Instagram) e **#59** (CTWA), e o #56 fechado
+  apontando pros dois.
+
 ### [2026-08-15 04:20] ✅ DEPLOY DA `.232` EXECUTADO — e o off-git dela virou código de verdade (PR #51 mergeado)
 
 > O deploy estava **suspenso** desde 13/08 porque a box tinha trabalho vivo fora do git. Saiu hoje,
@@ -241,6 +272,9 @@
 - 🔴 **GOTCHA que custou 6 pessoas:** `CampaignRecipient#template_params` é **`{'1' => valor}`** (documentado em `send_template_service.rb:23`), não `{'body' => [valor]}`. Com o formato errado o HSM sai **sem erro e sem o nome** ("Oi , sou a Kettlen..."). Peguei no 6º **lendo o texto enviado**, não o status — status só diz que a Meta aceitou. Era o primeiro template com variável nesta conta, não havia precedente para copiar. Corrigidos os 124 pendentes antes de retomar.
 - **🟢 Buraco de roteamento fechado — regra #73** `Disparo inbox 99 — time Kettlen → Kettlen` (`conversation_opened` + `inbox_id=99` + `team_id=62` → `assign_agent=126`), criada por `dup` da #72 para não inventar formato. **O time 62 tem `allow_auto_assign=false`** e não tinha regra: o lead respondia, a conversa reabria no time e ficava **sem dono** até alguém abrir o painel. Medido: João e Cibele estavam atribuindo à Kettlen **na mão**, uma a uma, com até 13 min de espera. A regra automatiza o que já era a prática. As campanhas anteriores já tinham as #70/#71/#72 (Francielli 68→138, Henrique 69→140, Weigler 70→139).
 - ⚠️ **`conversation_opened` só dispara na transição resolvida→aberta.** Conversa que já está aberta e recebe nova mensagem **não** passa pela regra — por isso a #73 não age nas que reabriram antes dela existir (essas seguem na mão).
+- **Levas seguintes:** **#8** (sáb 15/08, 8h–12h, `pacing 12s` = 5/min) → **998 enviadas / 2 falhas**, número seguiu GREEN; **6,6% de resposta (66 leads)** — a projeção feita a partir da #7 dizia 63. **#9** (300) agendada para **ter 18/08 08:00–09:00**. Sobram ~1.220 elegíveis na base.
+- **`quiet_hours` é a janela de SILÊNCIO, não a de envio** (`dispatch_scheduler_job.rb:63`): `{start: 12, end: 8}` cala das 12h às 8h, ou seja envia 08:00–11:59. Campanha criada já em `dispatch_running` fora da janela fica muda e acorda sozinha — não precisa de ninguém apertando botão na hora. Os scripts de criação **abortam** se, com a config escolhida, a campanha fosse enviar no instante da escrita.
+- **Receita que fechou o buraco do nome:** em vez de escrever o `template_params`, o script **lê um destinatário que já renderizou certo** na campanha anterior e aborta se a chave não for `'1'`. Também aborta com template não aprovado, imagem do header fora do ar, nome vazio na seleção ou elegíveis insuficientes.
 - **A inbox 99 não tem IA nenhuma.** A regra que mandaria pra Clara (#63) está escopada na **inbox 91**. As 583 abertas da 99 são todas de humano (Francielli 310, Weigler 192, Henrique 81). ⚠️ Não confundir com a queixa da equipe sobre "a Clara pega tudo" — aquela é da **91**. São duas filas com desenhos opostos.
 
 ### [2026-08-12] 🔴→🟡 FÁBRICA: vazamento de marca contido no SPX (causa raiz segue no MTM) · Tozi: override do Pacaembu · BigStore: agente criado desconectado
