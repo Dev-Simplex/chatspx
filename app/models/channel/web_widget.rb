@@ -61,6 +61,11 @@ class Channel::WebWidget < ApplicationRecord
     'Website'
   end
 
+  # Menu de opcoes: o widget renderiza input_select nativamente no front.
+  def supports_interactive_items?
+    true
+  end
+
   def web_widget_script
     "
     <script>

@@ -38,6 +38,11 @@ class Channel::FacebookPage < ApplicationRecord
     'Facebook'
   end
 
+  # Menu de opcoes: vira quick_replies em Facebook::SendOnFacebookService.
+  def supports_interactive_items?
+    true
+  end
+
   def create_contact_inbox(instagram_id, name)
     @contact_inbox = ::ContactInboxWithContactBuilder.new({
                                                             source_id: instagram_id,
