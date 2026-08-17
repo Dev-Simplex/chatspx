@@ -140,13 +140,13 @@ class Rack::Attack
 
   ## Kanban v2 (Fase 8): public WorkForm submissions — anti-spam per IP
   throttle('public/funnel_forms', limit: ENV.fetch('RATE_LIMIT_FUNNEL_FORMS', 10).to_i, period: 1.hour) do |req|
-    req.ip if req.path_without_extentions.match?(%r{\A/public/api/v1/funnel_forms/[^/]+\z}) && req.post?
+    req.ip if req.path_without_extensions.match?(%r{\A/public/api/v1/funnel_forms/[^/]+\z}) && req.post?
   end
 
   ## F1 (R-2): public Flow webhook trigger — anti-flood per IP on the path (edge defense; the
   ## controller adds a second, per-token throttle). Machine-to-machine, so a higher default.
   throttle('public/flow_webhooks', limit: ENV.fetch('RATE_LIMIT_FLOW_WEBHOOKS', 120).to_i, period: 1.minute) do |req|
-    req.ip if req.path_without_extentions.match?(%r{\A/webhooks/flows/[^/]+\z}) && req.post?
+    req.ip if req.path_without_extensions.match?(%r{\A/webhooks/flows/[^/]+\z}) && req.post?
   end
 
   ## MFA throttling - prevent brute force attacks
