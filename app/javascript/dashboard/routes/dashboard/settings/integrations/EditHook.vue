@@ -33,6 +33,10 @@ export default {
   data() {
     return {
       alertMessage: '',
+      // ChatSPX (item 26): chaves que o SERVIDOR não devolveu. O jbuilder filtra `settings` por
+      // `app.visible_properties`, então credenciais (api_key, credentials, app_secret…) chegam
+      // `undefined` aqui. Reenviá-las como '' apagava o valor gravado no banco.
+      keysMissingFromServer: this.settingKeysMissingFromServer(),
       // Inicializa o form com os settings atuais do hook
       values: this.parseInitialValues(),
     };
@@ -46,6 +50,17 @@ export default {
     },
   },
   methods: {
+    // Nomes de campo do form que NÃO vieram no `settings` da resposta. Só olha o que o servidor
+    // mandou — não presume quais chaves são secretas, porque `visible_properties` muda por app e
+    // já mudou uma vez neste merge.
+    settingKeysMissingFromServer() {
+      const settings = this.hook?.settings || {};
+      return (this.integration?.settings_form_schema || [])
+        .map(item => item.name)
+        .filter(
+          name => settings[name] === undefined || settings[name] === null
+        );
+    },
     parseInitialValues() {
       // Copia settings atuais como ponto de partida do form
       const settings = this.hook?.settings || {};
@@ -73,11 +88,19 @@ export default {
     buildHookPayload() {
       const settings = {};
       Object.keys(this.values).forEach(key => {
-        settings[key] = this.values[key];
+        const value = this.values[key];
+        // Chave que o servidor não devolveu e que o usuário não preencheu: NÃO reenviar. Mandar
+        // '' aqui apagava a credencial gravada. Se ele digitar algo, o valor vai normalmente e
+        // substitui — trocar a chave continua funcionando.
+        const isUntouchedHiddenKey =
+          this.keysMissingFromServer.includes(key) &&
+          (value === '' || value === undefined || value === null);
+        if (isUntouchedHiddenKey) return;
+        settings[key] = value;
       });
 
       this.formItems.forEach(item => {
-        if (item.validation?.includes('JSON')) {
+        if (item.validation?.includes('JSON') && item.name in settings) {
           settings[item.name] = JSON.parse(settings[item.name]);
         }
       });
