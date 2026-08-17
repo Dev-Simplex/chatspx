@@ -12,8 +12,11 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
 
   describe '#description' do
     it 'returns the correct description' do
-      expect(tool.description).to include('only when the customer requests human assistance')
-      expect(tool.description).to include('accepts an offer to speak with a human')
+      # ChatSPX (C-15): a descrição é o texto que o LLM lê pra decidir transferir. A do upstream é
+      # consent-first ("only when the customer requests…") e faz a IA quase nunca escalar — o bug
+      # que o comentário de handoff_tool.rb:1-6 documenta ter corrigido. Este assert trava a nossa.
+      expect(tool.description).to include('Passa a conversa para um ATENDENTE HUMANO')
+      expect(tool.description).to include('A IA continua respondendo normalmente até um humano assumir')
     end
 
     it 'enumerates the account teams when present (C6)' do
@@ -24,7 +27,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
 
       description = described_class.new(assistant).description
 
-      expect(description).to include('Hand off the conversation to a human agent')
+      expect(description).to include('Passa a conversa para um ATENDENTE HUMANO')
       expect(description).to include("#{team_a.id}: #{team_a.name}")
       expect(description).to include("#{team_b.id}: #{team_b.name}")
       expect(description).not_to include("#{other_account_team.id}: #{other_account_team.name}")

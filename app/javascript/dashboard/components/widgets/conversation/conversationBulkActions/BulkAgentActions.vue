@@ -145,7 +145,7 @@ const handleToggleDropdown = () => {
       >
         <template v-if="selectedAgent" #footer>
           <div
-            class="pt-2 pb-2 px-2 border-t border-n-weak sticky bottom-0 rounded-b-md z-20 bg-n-alpha-3 backdrop-blur-[4px]"
+            class="pt-2 pb-2 px-2 border-t border-n-weak sticky bottom-0 rounded-b-md z-20 bg-n-solid-1 dark:bg-[#233138]"
           >
             <div class="flex flex-col gap-2">
               <I18nT

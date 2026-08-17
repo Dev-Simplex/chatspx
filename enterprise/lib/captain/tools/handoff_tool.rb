@@ -3,9 +3,11 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   # de passar um lead qualificado pra uma pessoa fechar. A descrição antiga ("when unable to
   # assist further") fazia a IA quase nunca chamar o tool (uma IA que está atendendo bem nunca
   # se considera "unable to assist"), então nenhum lead chegava ao humano.
-  description 'Hand off the conversation to a human agent only when the customer requests human assistance, ' \
-              'accepts an offer to speak with a human, an account-specific guideline requires transfer, or the ' \
-              'request requires an action the assistant cannot perform. Continue assisting until a human takes over.'
+  description 'Passa a conversa para um ATENDENTE HUMANO do time assumir. Use quando já ' \
+              'qualificou o cliente e é hora de uma pessoa continuar: ele quer visitar, ' \
+              'agendar ou fechar; pediu falar com um humano; o assunto exige uma pessoa ' \
+              '(jurídico, uma ação que você não executa); ou você não conseguiu resolver. ' \
+              'A IA continua respondendo normalmente até um humano assumir.'
   param :reason, type: 'string', desc: 'The reason why handoff is needed (optional)', required: false
   param :team_id, type: 'string', desc: 'ID of the team to route the conversation to (optional)', required: false
 
@@ -71,10 +73,10 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
 
     # Session capture attributes the run to this note so agents can inspect the
     # generation path on the handoff reason instead of the canned follow-up message.
-    if service.handoff_note.present?
-      metadata = tool_context.state[:cw_metadata] ||= {}
-      metadata[:handoff_note_id] = service.handoff_note.id
-    end
+    return if service.handoff_note.blank?
+
+    metadata = tool_context.state[:cw_metadata] ||= {}
+    metadata[:handoff_note_id] = service.handoff_note.id
   end
 
   # TODO: Future enhancement

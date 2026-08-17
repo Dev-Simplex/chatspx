@@ -190,6 +190,17 @@ class Conversation < ApplicationRecord
   has_many :reporting_events, dependent: :destroy_async
   has_many :funnel_items, dependent: :destroy
   has_many :scheduled_messages, dependent: :destroy_async
+  # ChatSPX (item 23): este `dependent: :nullify` NÃO é redundante com o `ON DELETE SET NULL` da FK
+  # (migration 20260723000000) — ele existe porque a FK sozinha depende da ORDEM DOS TRIGGERS.
+  # Ao apagar a conversa o Postgres dispara duas ações sobre a MESMA linha de flow_step_logs:
+  # o CASCADE de `flow_runs.conversation_id` (que remove a run) e o SET NULL de
+  # `flow_step_logs.conversation_id` (que faz UPDATE na linha). Se o UPDATE roda DEPOIS do delete
+  # da run, o Postgres revalida `flow_run_id` contra uma linha que ele mesmo apagou na transação e
+  # levanta InvalidForeignKey. Qual das duas roda primeiro depende da ordem de criação das
+  # constraints, e ela DIVERGE entre os dois caminhos: um banco carregado de schema.rb (a suíte de
+  # teste) passa; um banco onde a migration correu por cima (toda a frota) falha. Testes verdes,
+  # produção quebrada. Nullificar aqui acontece ANTES do DELETE e é determinístico.
+  has_many :flow_step_logs, dependent: :nullify
 
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status

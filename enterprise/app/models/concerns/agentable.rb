@@ -35,9 +35,19 @@ module Concerns::Agentable
 
   def agent_model
     route = Llm::FeatureRouter.resolve(feature: 'assistant', account: account)
-    return route[:model] if route[:source] == :account_override || account&.feature_enabled?('captain_integration_v2')
+    preferred = if route[:source] == :account_override || account&.feature_enabled?('captain_integration_v2')
+                  route[:model]
+                else
+                  installation_model.presence || route[:model]
+                end
 
-    installation_model.presence || route[:model]
+    # `runtime_id_for`: o llm.yml guarda o modelo com ponto (claude-sonnet-4.5, branding/UI) e o
+    # RubyLLM só conhece a forma com hífen — sem isso, Agents::Agent quebra com ModelNotFoundError
+    # (ai-agents passa o valor direto pra RubyLLM.chat com assume_model_exists: false).
+    # `first_runtime_supported`: mesmo guarda-chuva que Llm::BaseAiService#model_for_feature já usa,
+    # pra um default novo do upstream (ex.: gpt-5.2) não derrubar o Captain onde a chave não o tem.
+    selected = Llm::Models.first_runtime_supported(preferred, Llm::Models.default_model_for('assistant'))
+    Llm::Models.runtime_id_for(selected.presence || preferred)
   end
 
   private
@@ -61,7 +71,10 @@ module Concerns::Agentable
     return {} unless asst
 
     bh = asst.behavior['business_hours'] || {}
-    timezone = bh['timezone'].presence || account&.reporting_timezone.presence
+    # O fallback final é nosso: sem ele, conta sem business_hours.timezone E sem
+    # reporting_timezone cai em TimeZone[nil] -> nil -> UTC, e a IA informa horário 3-4h
+    # adiantado ao cliente. Ver onda-0-auditoria-enterprise.md C-11.
+    timezone = bh['timezone'].presence || account&.reporting_timezone.presence || 'America/Cuiaba'
     tz = ActiveSupport::TimeZone[timezone] || ActiveSupport::TimeZone['UTC']
     now = Time.current.in_time_zone(tz)
     dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
@@ -200,10 +213,14 @@ module Concerns::Agentable
     Captain::ResponseSchema
   end
 
+  # Em pt-BR (C-12): o upstream formata em inglês ("Monday, August 17, 2026 12:00 PM") enquanto o
+  # nosso `current_datetime` é pt-BR. Com os dois no prompt (o snippet current_time do upstream e o
+  # runtime_context nosso), a IA recebia a hora duas vezes, em dois idiomas e dois formatos.
   def format_current_time(timezone)
     tz = ActiveSupport::TimeZone[timezone] if timezone.present?
     time = tz ? Time.current.in_time_zone(tz) : Time.current
-    time.strftime('%A, %B %d, %Y %I:%M %p %Z')
+    dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
+    "#{dias[time.wday]}, #{time.strftime('%d/%m/%Y às %H:%M %Z')}"
   end
 
   def prompt_context

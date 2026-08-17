@@ -1537,6 +1537,84 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:ok)
       end
+
+      # ChatSPX (item 23) — ACEITE DO DEFEITO, e ele não é "a API devolveu 200".
+      # O 200 é exatamente o que mentia: `Conversations::DeleteService` chamava o nosso
+      # `DeleteObjectJob` com `(conversation, user, ip)` — 3 objetos — quando o job espera
+      # `(object_type, object_id, user_id, ip)`. A primeira linha do job é
+      # `return unless ALLOWED_OBJECT_TYPES.include?(object_type)`, e String == Conversation é
+      # false: o job retornava na primeira linha, sem exceção, sem log, sem GlitchTip. Os dois
+      # exemplos acima passavam verdes porque asseveram a CHAMADA. Este assevera o EFEITO.
+      context 'when the conversation has records that used to block its deletion' do
+        let!(:flow_run) do
+          flow = create(:flow, account: account)
+          create(:flow_run, flow: flow, account: account, conversation: conversation, contact: conversation.contact)
+        end
+        let!(:enrollment) do
+          create(:message_sequence_enrollment,
+                 message_sequence: create(:message_sequence, account: account),
+                 conversation: conversation)
+        end
+
+        def delete_the_conversation
+          perform_enqueued_jobs(only: DeleteObjectJob) do
+            delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}",
+                   headers: administrator.create_new_auth_token,
+                   as: :json
+          end
+        end
+
+        it 'removes the conversation from the database, not just returns 200' do
+          delete_the_conversation
+
+          expect(response).to have_http_status(:ok)
+          expect(Conversation.exists?(conversation.id)).to be(false)
+          # NOT NULL na coluna -> CASCADE: não existem sem a conversa.
+          expect(FlowRun.exists?(flow_run.id)).to be(false)
+          expect(MessageSequenceEnrollment.exists?(enrollment.id)).to be(false)
+        end
+
+        # A FK sozinha NÃO basta, e o motivo é uma armadilha que só aparece na frota.
+        # Apagar a conversa dispara duas ações sobre a MESMA linha de flow_step_logs: o CASCADE de
+        # `flow_runs.conversation_id` (remove a run) e o SET NULL de `flow_step_logs.conversation_id`
+        # (UPDATE na linha). Se o UPDATE roda depois do delete da run, o Postgres revalida
+        # `flow_run_id` contra uma linha que ele mesmo apagou na transação -> InvalidForeignKey.
+        # Qual roda primeiro depende da ORDEM DE CRIAÇÃO das constraints, e ela diverge:
+        # schema.rb carregado do zero (esta suíte) passa; migration aplicada por cima (a frota)
+        # falha. Este exemplo recria as FKs na ordem da migration para medir o caso da frota.
+        it 'removes the conversation under the FK ordering the fleet will have' do
+          step_log = create(:flow_step_log, flow: flow_run.flow, account: account,
+                                            conversation: conversation, flow_run: flow_run)
+          reapply_migration_fk_order!
+
+          delete_the_conversation
+
+          expect(response).to have_http_status(:ok)
+          expect(Conversation.exists?(conversation.id)).to be(false)
+          # Nullable -> SET NULL: o log de diagnóstico SOBREVIVE, só perde os vínculos.
+          expect(FlowStepLog.find(step_log.id)).to have_attributes(conversation_id: nil, flow_run_id: nil)
+        end
+
+        # Mesma sequência de DDL da migration 20260723000000, na mesma ordem: é ela que produz a
+        # ordem de triggers dos bancos que já existem. Roda dentro da transação do exemplo.
+        def reapply_migration_fk_order!
+          conn = ActiveRecord::Base.connection
+          [
+            ['captain_assistant_logs', 'conversation_id', 'conversations', 'SET NULL'],
+            ['flow_step_logs', 'conversation_id', 'conversations', 'SET NULL'],
+            ['flow_step_logs', 'flow_run_id', 'flow_runs', 'SET NULL'],
+            ['flow_runs', 'conversation_id', 'conversations', 'CASCADE'],
+            ['message_sequence_enrollments', 'conversation_id', 'conversations', 'CASCADE']
+          ].each do |table, column, target, action|
+            name = conn.foreign_keys(table).find { |fk| fk.column == column }&.name
+            conn.execute("ALTER TABLE #{table} DROP CONSTRAINT #{name}") if name
+            conn.execute(
+              "ALTER TABLE #{table} ADD CONSTRAINT #{name || "fk_#{table}_#{column}"} " \
+              "FOREIGN KEY (#{column}) REFERENCES #{target}(id) ON DELETE #{action}"
+            )
+          end
+        end
+      end
     end
   end
 end

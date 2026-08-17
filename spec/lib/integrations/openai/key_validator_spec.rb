@@ -27,6 +27,25 @@ RSpec.describe Integrations::Openai::KeyValidator do
     expect(described_class.valid?(api_key)).to be true
   end
 
+  # ChatSPX (item 24): contra um endpoint próprio, 401 em /models NÃO é prova de chave morta —
+  # gateway que só libera /chat/completions devolve 401 ali com a chave boa. Sem este fail-open, o
+  # admin não consegue salvar uma chave válida (Hook#validate_openai_api_key rejeita o save) e o
+  # Migration::ValidateOpenaiHooksJob apaga as integrações de IA da VM inteira.
+  it 'accepts a 401 from a custom endpoint, because a third-party gateway may not implement /models' do
+    allow(InstallationConfig).to receive(:find_by).with(name: 'CAPTAIN_OPEN_AI_ENDPOINT')
+                                                  .and_return(instance_double(InstallationConfig, value: 'https://gateway.interno/'))
+    stub_request(:get, 'https://gateway.interno/v1/models').to_return(status: 401)
+
+    expect(described_class.valid?(api_key)).to be true
+  end
+
+  it 'still rejects a 401 from the default OpenAI endpoint' do
+    allow(InstallationConfig).to receive(:find_by).with(name: 'CAPTAIN_OPEN_AI_ENDPOINT').and_return(nil)
+    stub_request(:get, probe_url).to_return(status: 401)
+
+    expect(described_class.valid?(api_key)).to be false
+  end
+
   it 'routes the probe through the configured endpoint' do
     custom_url = 'https://proxy.example.com/v1/models'
     allow(InstallationConfig).to receive(:find_by).with(name: 'CAPTAIN_OPEN_AI_ENDPOINT')

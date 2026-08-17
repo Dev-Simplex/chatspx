@@ -30,12 +30,29 @@ const isContextMenuOpen = ref(false);
 
 provide('contextMenuElementTarget', virtualListRef);
 
+// ChatSPX (A4-1): interruptor único, e ele está DESLIGADO de propósito.
+//
+// O ConversationCardExpanded que o upstream trouxe NÃO implementa o isolamento por agente: em tela
+// larga com layout expandido, o preview da última mensagem restrita a OUTRO agente aparecia em
+// texto cru, sem o 🔒 "Conteúdo restrito" — vazamento de conteúdo entre agentes. Ele também não tem
+// o chip de IA, o destaque de não-atendida nem a cadeia de fallback de conteúdo do nosso card.
+//
+// Enquanto isto for `false`, a lista usa SEMPRE o nosso ConversationCard, que é exatamente o
+// comportamento de hoje na frota. Para religar, porte as quatro customizações de
+// components/widgets/conversation/ConversationCard.vue para o card expandido (Opção B do
+// relatório) — não basta trocar este booleano.
+// Ver plano/redesenho/execucao/onda-0-auditoria-dashboard.md ACHADO A4-1 / C-1.
+const EXPANDED_CARD_HAS_AGENT_ISOLATION = false;
+
 const breakpoints = useBreakpoints({
   lg: wootConstants.LARGE_SCREEN_BREAKPOINT,
 });
 const isLgScreen = breakpoints.greaterOrEqual('lg');
 const showExpandedCards = computed(
-  () => props.isOnExpandedLayout && isLgScreen.value
+  () =>
+    EXPANDED_CARD_HAS_AGENT_ISOLATION &&
+    props.isOnExpandedLayout &&
+    isLgScreen.value
 );
 
 useChatListKeyboardEvents(conversationListRef);

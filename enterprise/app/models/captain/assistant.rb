@@ -39,6 +39,13 @@ class Captain::Assistant < ApplicationRecord
   has_many :messages, as: :sender, dependent: :nullify
   has_many :copilot_threads, dependent: :destroy_async
   has_many :scenarios, class_name: 'Captain::Scenario', dependent: :destroy_async
+  # C-18 NÃO aplicado, e a medição é a razão: `dependent: :destroy_async` (que era o nosso) apaga o
+  # captain_assistant primeiro e só depois enfileira a remoção dos logs — mas a FK
+  # `fk_rails_abeee9b5ea` de captain_assistant_logs NÃO tem cascade, então o destroy estoura
+  # PG::ForeignKeyViolation na hora (provado por spec/enterprise/models/captain/assistant_spec.rb:37).
+  # O `:destroy` do upstream é o correto para este schema. A preocupação do auditor (apagar assistant
+  # com histórico longo bloqueia a request) é real, mas o conserto dela é ON DELETE CASCADE na FK,
+  # via migration — trabalho próprio. Ver onda-0-correcoes-aplicadas.md, item C-18.
   has_many :assistant_logs, class_name: 'Captain::AssistantLog', foreign_key: :captain_assistant_id, dependent: :destroy
   has_many :document_chunks, class_name: 'Captain::DocumentChunk', dependent: :destroy_async
   has_many :agent_sessions, class_name: 'Captain::AgentSession', dependent: :destroy_async

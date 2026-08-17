@@ -60,8 +60,10 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
-        expect(json_response.dig(:features, :assistant, :default)).to eq('gpt-4.1')
-        expect(json_response.dig(:features, :copilot, :default)).to eq('gpt-4.1')
+        # ChatSPX (C-13): trava os defaults do fork. O merge da v4.16.2 os reverteu para gpt-4.1 e
+        # reescreveu este assert junto, o que fez a reversão passar verde na suíte.
+        expect(json_response.dig(:features, :assistant, :default)).to eq('gpt-5-mini')
+        expect(json_response.dig(:features, :copilot, :default)).to eq('gpt-5-mini')
       end
 
       it 'returns llm_connection details when hook is configured' do

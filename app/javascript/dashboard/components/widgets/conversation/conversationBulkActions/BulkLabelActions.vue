@@ -182,7 +182,7 @@ const handleDismiss = () => {
 
         <template #footer>
           <div
-            class="sticky bottom-0 rounded-b-md px-2 py-2 z-20 bg-n-alpha-3 backdrop-blur-[4px]"
+            class="sticky bottom-0 rounded-b-md px-2 py-2 z-20 bg-n-solid-1 dark:bg-[#233138]"
           >
             <NextButton
               sm

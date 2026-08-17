@@ -3,6 +3,13 @@ class Enterprise::Billing::ReconcilePlanFeaturesService
 
   # Plan hierarchy: Hacker (default) -> Startups -> Business -> Enterprise
   # Each higher tier includes all features from the lower tiers
+  #
+  # ChatSPX (C-17): `captain_integration` NÃO entra nesta lista. Nós o tiramos da gestão por plano de
+  # propósito (o diff BASE→NOSSO de handle_stripe_event_service.rb era exatamente essa linha). Com ele
+  # aqui, `perform` começa com `disable_features(*PREMIUM_PLAN_FEATURES)` e qualquer
+  # `customer.subscription.updated` desliga o Captain de conta fora de Startups+. O merge da v4.16.2
+  # o reintroduziu ao extrair as listas para este serviço novo.
+  # Ver plano/redesenho/execucao/onda-0-auditoria-enterprise.md §4.4 e C-17.
   STARTUP_PLAN_FEATURES = %w[
     inbound_emails
     help_center
@@ -12,7 +19,6 @@ class Enterprise::Billing::ReconcilePlanFeaturesService
     channel_email
     channel_instagram
     channel_tiktok
-    captain_integration
     captain_document_auto_sync
     advanced_search_indexing
     advanced_search

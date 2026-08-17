@@ -43,14 +43,22 @@ class Conversations::UnreadCounts::Builder
     end
   end
 
+  # ChatSPX (item 23): NÃO usar `.joins(:messages)` aqui. O nosso `Conversation has_many :messages`
+  # tem scope INSTANCE-DEPENDENT (`app/models/conversation.rb:168` — o lambda do
+  # `team_message_isolation`, que é isolamento por time e é nosso), e o Rails proíbe JOIN em
+  # associação instance-dependent: `ArgumentError: association scope 'messages' is instance
+  # dependent`. Este arquivo é novo do upstream e trouxe o `joins(:messages)`; hoje é latente
+  # (`conversation_unread_counts` / `unread_count_for_filters` estão `enabled: false` e o caminho é
+  # gated por `feature_enabled?`), mas vira 500 no dia em que alguém ligar a flag para um cliente
+  # com isolamento por time. O EXISTS correlacionado abaixo tem a MESMA semântica — conversa com ao
+  # menos uma mensagem incoming da conta, mais nova que `agent_last_seen_at` (ou sem ele) — sem
+  # tocar a associação, e dispensa o `.distinct`.
   def unread_conversations
-    account.conversations
-           .open
-           .joins(:messages)
-           .merge(Message.incoming.reorder(nil))
-           .where(messages: { account_id: account.id })
-           .where(unread_since_last_seen_condition)
-           .distinct
+    account.conversations.open.where(
+      Message.incoming.reorder(nil).where(account_id: account.id)
+             .where(Message.arel_table[:conversation_id].eq(Conversation.arel_table[:id]))
+             .where(unread_since_last_seen_condition).arel.exists
+    )
   end
 
   def unread_since_last_seen_condition

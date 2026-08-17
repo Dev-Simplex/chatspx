@@ -141,7 +141,9 @@ class ActionCableConnector extends BaseActionCableConnector {
   // different Vuex modules and setCurrentUserAvailability updates the root state.
   // Vuex does not support batching commits across modules in a single dispatch.
   onPresenceUpdate = data => {
-    if (isImpersonating()) return;
+    // ChatSPX (A4-2): `isImpersonating` é um `computed` ref de useImpersonation(), não uma função.
+    // Chamá-lo levantava TypeError em runtime a cada presence update, matando os três dispatches.
+    if (isImpersonating.value) return;
     this.app.$store.dispatch('contacts/updatePresence', data.contacts);
     this.app.$store.dispatch('agents/updatePresence', data.users);
     this.app.$store.dispatch('setCurrentUserAvailability', data.users);
@@ -423,7 +425,6 @@ class ActionCableConnector extends BaseActionCableConnector {
       this.refreshConversationUnreadCountsWithFilteredRetry();
     }
   };
-
 }
 
 export default {

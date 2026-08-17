@@ -163,6 +163,20 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 - rbenv: sempre inicializar antes de qualquer comando Ruby
 - **CRITICO — Nunca `systemctl restart` em producao sem antes rodar `rails db:migrate:status`.** Migration pendente + restart = 500 em cadeia (PG::UndefinedColumn em queries que usam a coluna nova). Bomba latente pode ficar 7+ dias oculta porque codigo antigo em memoria nao a referencia. Ver vault: `01-Permanentes/Incidente - Pending Migration 24-abr-2026.md`. Para aplicar migration especifica pulando outras pendentes (ex: uma com orphan data), usar `db:migrate:up VERSION=YYYYMMDDHHMMSS` (nao `db:migrate VERSION=X` que aplica TODAS ate X).
 
+### Armadilhas herdadas do merge da v4.16.2 (nao consertar — consertar piora)
+
+- **Nao existe coluna `feature_flags_ext_2`.** A migration `20260706215758_add_feature_flags_ext_2_to_accounts.rb`
+  se chama `ext_2` mas o corpo adiciona **`feature_flags_ext_1`** — bug do upstream, identico em
+  `v4.16.2`. Ela e a UNICA migration que cria `ext_1`, e o schema fecha. `Featurable::FEATURE_FLAG_COLUMNS`
+  conhece so `feature_flags` e `feature_flags_ext_1`. **Nao renomear a migration**: ela ja esta aplicada
+  na frota, e renomear faz o Rails reexecuta-la e tentar criar `ext_1` de novo. Quem for adicionar
+  `ext_2` de verdade: crie uma migration nova, nao confie no nome desta. (auditoria-enterprise §1.4 / C-22)
+- **`quoted_email_reply` e flag MORTO e ainda ocupa um bit.** O upstream promoveu o recurso a GA e tirou
+  o gate do `ReplyBox.vue`; o merge acompanhou. Mas a entrada continua em `config/features.yml`, o que
+  faz o super admin exibir "desligado" enquanto o recurso esta ligado para todo canal de e-mail.
+  **Nao remover a entrada**: tirar um flag do meio da lista remapeia o bit de todos os que vem depois,
+  em toda a frota. Slot queimado e mais barato que remapear. (auditoria-dashboard A4-9)
+
 ## Commit Messages
 
 - Conventional Commits: `tipo(escopo): descricao`

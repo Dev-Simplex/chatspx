@@ -42,6 +42,22 @@ RSpec.describe Migration::ValidateOpenaiHooksJob do
     expect(hook_b.reload).to be_enabled
   end
 
+  # ChatSPX: o modo relatório é o que torna esse job operável na frota sem risco (C-2). Ele conta
+  # o que APAGARIA sem apagar, para o operador conferir se a chave está de fato morta ou se o
+  # gateway da VM só devolve 401 em /v1/models.
+  it 'reports what it would destroy without destroying anything when dry_run is true' do
+    account = create(:account)
+    hook = create_openai_hook(account: account, api_key: 'sk-bad')
+    allow(Integrations::Openai::KeyValidator).to receive(:valid?).with('sk-bad').and_return(false)
+
+    result = described_class.perform_now(dry_run: true)
+
+    expect(result).to eq(checked: 1, destroyed: 1)
+    expect(hook.reload).to be_enabled
+    expect(hook.reload.settings['api_key']).to eq('sk-bad')
+    expect(AdministratorNotifications::IntegrationsNotificationMailer).not_to have_received(:with)
+  end
+
   it 'only checks enabled OpenAI hooks' do
     account = create(:account)
     slack_hook = create(:integrations_hook, account: account, app_id: 'slack')

@@ -1058,4 +1058,62 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
       end
     end
   end
+
+  # ChatSPX (C-16): o merge apagou fix_property_links, mas o PRODUTOR do dado continua vivo —
+  # buscar_imovel_tool grava urls_imoveis na conversa e enviar_fotos_imovel_tool carimba
+  # property_code. Sem o consumidor, a IA volta a mandar URL de imóvel inventada ao cliente final.
+  describe '#sanitize_for_whatsapp' do
+    let(:conversation) { create(:conversation, inbox: inbox, account: account) }
+    let(:job) do
+      described_class.new(conversation, assistant).tap do |j|
+        j.instance_variable_set(:@conversation, conversation)
+      end
+    end
+
+    it 'replaces an invented property URL with the one the search returned' do
+      conversation.update!(
+        custom_attributes: { 'urls_imoveis' => { '3338' => 'https://www.toziimoveis.com.br/imovel/x,3338' } }
+      )
+
+      out = job.send(:sanitize_for_whatsapp, 'Olha: https://www.toziimoveis.com.br/imovel/apto-3338')
+
+      expect(out).to eq('Olha: https://www.toziimoveis.com.br/imovel/x,3338')
+    end
+
+    it 'drops a Tozi URL whose code matches nothing' do
+      conversation.update!(custom_attributes: { 'urls_imoveis' => {} })
+
+      out = job.send(:sanitize_for_whatsapp, 'Veja https://www.toziimoveis.com.br/imovel/apto-9999')
+
+      expect(out).to eq('Veja ')
+    end
+
+    it 'strips the legacy pt-BR attachment placeholder the fleet already has in history' do
+      out = job.send(:sanitize_for_whatsapp, 'Segue [foto do imóvel 3338 enviada] pra você ver')
+
+      expect(out).to eq('Segue  pra você ver')
+    end
+  end
+
+  # ChatSPX (C-16): sem o código, toda foto vira o MESMO placeholder no histórico e o modelo não
+  # sabe qual imóvel é qual.
+  describe '#outgoing_attachment_placeholder' do
+    let(:conversation) { create(:conversation, inbox: inbox, account: account) }
+    let(:job) { described_class.new(conversation, assistant) }
+
+    it 'names the property when the tool stamped property_code' do
+      message = create(:message, :with_attachment, conversation: conversation, account: account,
+                                                   message_type: :outgoing, content: nil,
+                                                   additional_attributes: { 'property_code' => '3338' })
+
+      expect(job.send(:outgoing_attachment_placeholder, message.reload)).to eq('[foto do imóvel 3338 enviada]')
+    end
+
+    it 'falls back to the neutral upstream placeholder without a property_code' do
+      message = create(:message, :with_attachment, conversation: conversation, account: account,
+                                                   message_type: :outgoing, content: nil)
+
+      expect(job.send(:outgoing_attachment_placeholder, message.reload)).to eq('[attachment sent]')
+    end
+  end
 end
