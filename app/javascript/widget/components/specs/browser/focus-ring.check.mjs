@@ -1,3 +1,7 @@
+/* eslint-disable no-console -- Este arquivo é um verificador de linha de
+   comando: a saída no console É o resultado dele, lida por quem roda e
+   colada no relatório do bloco. Não é log esquecido em código de produção,
+   que é o que a regra existe para pegar. */
 /**
  * Mecanismo de aceite do bloco 1.06 — a terceira asserção: `outline-color` não
  * transparente, e anel de foco que de fato desenha.
@@ -40,9 +44,7 @@ const check = (name, actual, expected) => {
 };
 
 // ── 1. Extrai do componente as classes reais do contêiner do composer ────────
-const classeBase = componente.match(
-  /class="(items-center flex[^"]*)"/
-);
+const classeBase = componente.match(/class="(items-center flex[^"]*)"/);
 const classeFoco = componente.match(/'([^']*shadow-focus[^']*)':\s*isFocused/);
 if (!classeBase || !classeFoco) {
   console.error(
@@ -80,7 +82,16 @@ const outCss = join(dir, 'out.css');
 writeFileSync(inCss, '@tailwind utilities;\n');
 execFileSync(
   'pnpm',
-  ['exec', 'tailwindcss', '-c', 'tailwind.config.js', '-i', inCss, '-o', outCss],
+  [
+    'exec',
+    'tailwindcss',
+    '-c',
+    'tailwind.config.js',
+    '-i',
+    inCss,
+    '-o',
+    outCss,
+  ],
   { cwd: repoRoot, stdio: 'pipe' }
 );
 const CSS = readFileSync(outCss, 'utf8');
@@ -130,9 +141,7 @@ check(
 );
 
 await composer.focus();
-await page.waitForFunction(
-  () => document.activeElement?.id === 'composer'
-);
+await page.waitForFunction(() => document.activeElement?.id === 'composer');
 
 // A asserção do aceite: nenhum elemento do composer pode ter anel de largura
 // visível E cor transparente. `outline-0` zera a largura; `outline-none` deixava
@@ -164,5 +173,7 @@ check(
 await browser.close();
 
 const failed = results.filter(r => !r.ok);
-console.log(`\n${results.length - failed.length}/${results.length} asserções ok`);
+console.log(
+  `\n${results.length - failed.length}/${results.length} asserções ok`
+);
 process.exit(failed.length ? 1 : 0);

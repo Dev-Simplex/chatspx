@@ -1,3 +1,7 @@
+/* eslint-disable no-console -- Este arquivo é um verificador de linha de
+   comando: a saída no console É o resultado dele, lida por quem roda e
+   colada no relatório do bloco. Não é log esquecido em código de produção,
+   que é o que a regra existe para pegar. */
 /**
  * Mecanismo de aceite do bloco 1.05 — a armadilha do `:hover` verde.
  *
@@ -28,10 +32,7 @@ const EXPECTED = 'rgb(0, 156, 224)';
 // que o serviço Ruby do 1.02 calcula; aqui ele entra como o servidor o emitiria.
 const ON_BRAND = '#000000';
 
-const source = readFileSync(
-  new URL('../../sdk.js', import.meta.url),
-  'utf8'
-);
+const source = readFileSync(new URL('../../sdk.js', import.meta.url), 'utf8');
 const match = source.match(/export const SDK_CSS = `([\s\S]*?)\n`;/);
 if (!match) {
   console.error('FALHA: não consegui extrair SDK_CSS de sdk.js');
@@ -47,7 +48,9 @@ const results = [];
 const check = (name, actual, expected) => {
   const ok = actual === expected;
   results.push({ name, actual, expected, ok });
-  console.log(`${ok ? '  ok  ' : ' FAIL '} ${name}\n        esperado=${expected}  recebido=${actual}`);
+  console.log(
+    `${ok ? '  ok  ' : ' FAIL '} ${name}\n        esperado=${expected}  recebido=${actual}`
+  );
 };
 
 const browser = await chromium.launch();
@@ -70,8 +73,7 @@ await page.setContent(`<!doctype html>
 const bubble = page.locator('.woot-widget-bubble');
 await bubble.waitFor({ state: 'visible' });
 
-const bgOf = () =>
-  bubble.evaluate(el => getComputedStyle(el).backgroundColor);
+const bgOf = () => bubble.evaluate(el => getComputedStyle(el).backgroundColor);
 
 // 1) repouso
 check('lançador em repouso usa a cor da inbox', await bgOf(), EXPECTED);
@@ -122,7 +124,9 @@ check(
 );
 // E a prova de que o strip não escondeu nada: nenhum hex de 6 dígitos sobrou em
 // declaração, exceto os três tokens fixos que não dependem da inbox.
-const hexEmDeclaracao = (cssSemComentarios.match(/#[0-9a-fA-F]{6}\b/g) || []).sort();
+const hexEmDeclaracao = (
+  cssSemComentarios.match(/#[0-9a-fA-F]{6}\b/g) || []
+).sort();
 check(
   'os únicos hex em declaração são os 3 tokens fixos',
   hexEmDeclaracao.join(','),

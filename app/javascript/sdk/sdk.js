@@ -10,6 +10,16 @@ export const SDK_CSS = `
   --w-border: #F2F3F7;
   --w-danger: #ff4040;
   --w-surface: #ffffff;
+
+  /* As três curvas da casa (22 §D.2), repetidas aqui porque '_tokens.scss' só é
+     carregado DENTRO do iframe e o lançador/holder vivem no documento do host.
+     São os mesmos valores, e o spec de tokens compara os dois lados.
+     'linear' fica permitido só para opacidade pura, rotação contínua e para os
+     truques de 'visibility'/'bottom' com duração 0ms — nunca para 'transform'
+     de uma superfície que entra ou sai, que é o que este bloco corrige. */
+  --w-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --w-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --w-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
 }
 
 .woot-widget-holder {
@@ -19,7 +29,11 @@ export const SDK_CSS = `
   transform: translateY(0);
   overflow: hidden !important;
   position: fixed !important;
-  transition: opacity 0.2s linear, transform 0.25s linear;
+  /* Era 'transform 0.25s linear' — o painel subia a velocidade constante, que é
+     o que faz uma superfície parecer empurrada em vez de aberta. A abertura usa
+     a curva de entrada; a opacidade pode seguir linear, porque em opacidade pura
+     'linear' é justamente o correto. */
+  transition: opacity 0.2s linear, transform 0.25s var(--w-ease-enter);
   z-index: 2147483000 !important;
 }
 
@@ -216,47 +230,47 @@ export const SDK_CSS = `
 }
 .woot-widget-bubble.woot--close {
   transform: translateX(0px) scale(1) rotate(0deg);
-  transition: transform 300ms ease, opacity 100ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
+  transition: transform 300ms var(--w-ease-enter), opacity 100ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
 }
 .woot-widget-bubble.woot--close.woot--hide {
   transform: translateX(8px) scale(.75) rotate(45deg);
-  transition: transform 300ms ease, opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
+  transition: transform 300ms var(--w-ease-exit), opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
 }
 
 .woot-widget-bubble {
   transform-origin: center;
   will-change: transform, opacity;
   transform: translateX(0) scale(1) rotate(0deg);
-  transition: transform 300ms ease, opacity 100ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
+  transition: transform 300ms var(--w-ease-enter), opacity 100ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
 }
 .woot-widget-bubble.woot--hide {
   transform: translateX(8px) scale(.75) rotate(-30deg);
-  transition: transform 300ms ease, opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
+  transition: transform 300ms var(--w-ease-exit), opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
 }
 
 .woot-widget-bubble.woot-widget--expanded {
   transform: translateX(0px);
-  transition: transform 300ms ease, opacity 100ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
+  transition: transform 300ms var(--w-ease-enter), opacity 100ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
 }
 .woot-widget-bubble.woot-widget--expanded.woot--hide {
   transform: translateX(8px);
-  transition: transform 300ms ease, opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
+  transition: transform 300ms var(--w-ease-exit), opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
 }
 .woot-widget-bubble.woot-widget-bubble--flat.woot--close {
   transform: translateX(0px);
-  transition: transform 300ms ease, opacity 10ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
+  transition: transform 300ms var(--w-ease-enter), opacity 10ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
 }
 .woot-widget-bubble.woot-widget-bubble--flat.woot--close.woot--hide {
   transform: translateX(8px);
-  transition: transform 300ms ease, opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
+  transition: transform 300ms var(--w-ease-exit), opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
 }
 .woot-widget-bubble.woot-widget--expanded.woot-widget-bubble--flat {
   transform: translateX(0px);
-  transition: transform 300ms ease, opacity 200ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
+  transition: transform 300ms var(--w-ease-enter), opacity 200ms ease, visibility 0ms linear 0ms, bottom 0ms linear 0ms;
 }
 .woot-widget-bubble.woot-widget--expanded.woot-widget-bubble--flat.woot--hide {
   transform: translateX(8px);
-  transition: transform 300ms ease, opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
+  transition: transform 300ms var(--w-ease-exit), opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
 }
 
 @media only screen and (max-width: 667px) {

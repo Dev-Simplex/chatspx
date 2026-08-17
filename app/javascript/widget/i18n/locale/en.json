@@ -159,6 +159,7 @@
     "CONVERSATION_LOG": "Conversation history",
     "CLOSE_WIDGET": "Close chat",
     "OPEN_IN_NEW_WINDOW": "Open chat in a new window",
-    "OPEN_WIDGET": "Open chat"
+    "OPEN_WIDGET": "Open chat",
+    "AGENT_TYPING": "Agent is typing a message"
   }
 }
