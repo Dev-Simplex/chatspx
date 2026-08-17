@@ -16,7 +16,11 @@ export const aliases = {
 export const vueOptions = {
   template: {
     compilerOptions: {
-      isCustomElement: (tag: string) => ['ninja-keys'].includes(tag),
+      // `lord-icon` é o custom element do ícone animado (LordIconIcon.vue). Sem
+      // declará-lo aqui o compilador Vue o trata como componente, não resolve e
+      // o ícone não renderiza.
+      isCustomElement: (tag: string) =>
+        ['ninja-keys', 'lord-icon'].includes(tag),
     },
   },
 };
