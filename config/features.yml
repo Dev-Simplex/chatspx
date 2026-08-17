@@ -195,7 +195,14 @@
   chatwoot_internal: true
 - name: assignment_v2
   display_name: Assignment V2
-  enabled: true
+  # ChatSPX (item 22): `false` é nosso e deliberado — é a diferença entre o round-robin clássico e o
+  # motor v2 com assignment policies. O merge da v4.16.2 trocou para `true`, e junto veio a migration
+  # 20260409091202 ligando o flag no ACCOUNT_LEVEL_FEATURE_DEFAULTS: toda conta NOVA nasceria com o
+  # motor v2 — e, pelo auto-sync de enterprise/app/models/enterprise/account.rb:117-124, também com
+  # `advanced_assignment` (que só agora passou a ser gravável, ver auditoria-enterprise §1.3).
+  # Adotar o motor v2 como padrão é decisão de produto legítima, mas se toma de propósito, não como
+  # efeito colateral de merge. Ver onda-0-auditoria-enterprise.md §2.7 e C-7.
+  enabled: false
 - name: twilio_content_templates
   display_name: Twilio Content Templates
   enabled: false
