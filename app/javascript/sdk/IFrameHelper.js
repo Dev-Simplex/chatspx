@@ -336,14 +336,26 @@ export const IFrameHelper = {
     // eles entram no documento do host, hospedados nos DOIS elementos que são
     // nossos — nunca no `:root` do site do cliente, que é documento alheio e
     // onde um `--w-brand` do próprio site nos sobrescreveria.
-    const applied = applyWidgetTokens(widgetHolder, tokens);
+    // Degradação para aba aberta ANTES do deploy do 1.02: `chatwootWebChannel`
+    // vem sem `tokens`. Antes deste bloco isso não importava, porque o inline
+    // pintava a bolha de qualquer jeito; agora que o inline saiu, sem isto o
+    // lançador ficaria SEM cor de fundo até o próximo reload.
+    // Repassar `widgetColor` cru para `--w-brand` não é calcular contraste — é
+    // usar a cor da inbox que o host já conhece. Quem decide a cor SOBRE ela
+    // segue sendo o servidor; na ausência dele vale o fallback do `SDK_CSS`.
+    const effectiveTokens =
+      tokens && tokens['--w-brand']
+        ? tokens
+        : { ...tokens, '--w-brand': widgetColor };
+
+    const applied = applyWidgetTokens(widgetHolder, effectiveTokens);
     IFrameHelper.appliedTokens = applied;
 
     if (IFrameHelper.getBubbleHolder().length) {
       return;
     }
     createBubbleHolder(window.$chatwoot.hideMessageBubble);
-    applyWidgetTokens(bubbleHolder, tokens);
+    applyWidgetTokens(bubbleHolder, effectiveTokens);
     onLocationChangeListener();
 
     let className = 'woot-widget-bubble';
@@ -371,8 +383,13 @@ export const IFrameHelper = {
 
     addClasses(closeBubble, closeBtnClassName);
 
-    chatIcon.style.background = applied['--w-brand'] || widgetColor;
-    closeBubble.style.background = applied['--w-brand'] || widgetColor;
+    // NÃO existe mais `chatIcon.style.background = …` aqui, e a ausência é o
+    // ponto do bloco 1.05. O estilo inline vencia a folha sem `!important`, o
+    // que mascarava o `#2dc46f` cravado em `.woot-widget-bubble:hover` —
+    // literal morto que ressuscitaria no instante em que o inline saísse.
+    // Agora a cor vem de `background: var(--w-brand)` no `SDK_CSS`, herdando o
+    // token que `applyWidgetTokens` acabou de escrever no `bubbleHolder`, e o
+    // `:hover` usa a MESMA var. Uma fonte, os dois estados.
 
     bubbleHolder.appendChild(chatIcon);
     bubbleHolder.appendChild(closeBubble);

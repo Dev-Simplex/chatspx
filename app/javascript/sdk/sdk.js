@@ -1,7 +1,15 @@
 export const SDK_CSS = `
-:root {
-  --b-100: #F2F3F7;
-  --s-700: #37546D;
+/* Tokens que NÃO dependem da inbox (borda, alerta, superfície do badge).
+   Declarados nos NOSSOS dois containers, nunca no ':root' do host: o documento
+   é do cliente, e um site com '--w-*' próprio nos sobrescreveria — é a mesma
+   decisão que o bloco 1.03 tomou para os tokens que vêm do servidor.
+   Os tokens de MARCA ('--w-brand', '--w-on-brand', …) não aparecem aqui de
+   propósito: quem os escreve é 'applyWidgetTokens', com o valor que o servidor
+   calculou para a inbox. */
+#cw-widget-holder, #cw-bubble-holder {
+  --w-border: #F2F3F7;
+  --w-danger: #ff4040;
+  --w-surface: #ffffff;
 }
 
 .woot-widget-holder {
@@ -18,7 +26,7 @@ export const SDK_CSS = `
 .woot-widget-holder.woot-widget-holder--flat {
   box-shadow: none;
   border-radius: 0;
-  border: 1px solid var(--b-100);
+  border: 1px solid var(--w-border);
 }
 
 .woot-widget-holder iframe {
@@ -39,7 +47,14 @@ export const SDK_CSS = `
 }
 
 .woot-widget-bubble {
-  background: #2dc46f;
+  background: var(--w-brand);
+  /* 'color' existe para o ícone herdar: o SVG do lançador usa
+     fill="currentColor", então a cor do traço passa a vir de '--w-on-brand' —
+     a mesma decisão WCAG que pinta o texto do painel.
+     O fallback é '--w-surface' (branco) e vale só para a aba aberta antes do
+     deploy do 1.02, que chega sem tokens: ali o ícone segue branco, que era
+     exatamente o 'fill="#FFFFFF"' de antes. */
+  color: var(--w-on-brand, var(--w-surface));
   border-radius: 100px;
   border-width: 0px;
   bottom: 20px;
@@ -82,11 +97,11 @@ export const SDK_CSS = `
   position: absolute;
   width: 12px;
   height: 12px;
-  background: #ff4040;
+  background: var(--w-danger);
   border-radius: 100%;
   top: 0px;
   right: 0px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--w-surface);
   transition: background 0.2s ease;
 }
 
@@ -100,7 +115,7 @@ export const SDK_CSS = `
 
 .woot-widget-bubble.woot-widget--expanded div {
   align-items: center;
-  color: #fff;
+  color: var(--w-on-brand);
   display: flex;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen-Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif;
   font-size: 16px;
@@ -110,10 +125,14 @@ export const SDK_CSS = `
   width: auto !important;
 }
 
-.woot-widget-bubble.woot-widget--expanded.woot-widget-bubble-color--lighter div{
-  color: var(--s-700);
-}
-
+/* As três regras '.woot-widget-bubble-color--lighter' que viviam aqui, no 'path'
+   e no 'woot--close' foram REMOVIDAS. Elas existiam para pintar de escuro
+   ('--s-700: #37546D') quando a marca era clara, decisão tomada por
+   'isWidgetColorLighter' — brilho 299/587/114, limiar 225, não-WCAG. Agora
+   '--w-on-brand' já É essa decisão, calculada por luminância no servidor: as
+   regras viraram duplicatas exatas da regra base e duplicata exata é ruído.
+   A classe continua sendo aplicada pelo 1.03 (tem spec) como sinal semântico de
+   "o servidor decidiu que esta marca é clara", mas não pinta mais nada. */
 .woot-widget-bubble.woot-widget--expanded svg {
   height: 20px;
   margin: 14px 8px 14px 16px;
@@ -128,8 +147,17 @@ export const SDK_CSS = `
   right: 20px;
 }
 
+/* O ':hover' repete '--w-brand' de propósito, e é o ponto mais perigoso da onda.
+   Este seletor reaplicava '#2dc46f' cravado. O literal estava MORTO porque
+   'IFrameHelper' escrevia 'chatIcon.style.background' inline, e inline vence
+   folha sem '!important'; ao remover o inline (é o que este bloco faz), o
+   literal RESSUSCITARIA e o lançador de qualquer cliente ficaria verde ao
+   passar o mouse. O feedback de hover continua vindo do box-shadow, como hoje —
+   por isso a cor é a mesma de repouso, e não '--w-brand-hover': o aceite do
+   bloco exige que o lançador em '#009CE0' siga 'rgb(0,156,224)' EM hover, ou
+   seja, sem mudança de matiz. */
 .woot-widget-bubble:hover {
-  background: #2dc46f;
+  background: var(--w-brand);
   box-shadow: 0 8px 32px rgba(0, 0, 0, .4) !important;
 }
 
@@ -138,10 +166,6 @@ export const SDK_CSS = `
   height: 24px;
   margin: 20px;
   width: 24px;
-}
-
-.woot-widget-bubble.woot-widget-bubble-color--lighter path{
-  fill: var(--s-700);
 }
 
 @media only screen and (min-width: 667px) {
@@ -158,7 +182,7 @@ export const SDK_CSS = `
 }
 
 .woot--close::before, .woot--close::after {
-  background-color: #fff;
+  background-color: var(--w-on-brand);
   content: ' ';
   display: inline;
   height: 24px;
@@ -166,10 +190,6 @@ export const SDK_CSS = `
   position: absolute;
   top: 20px;
   width: 2px;
-}
-
-.woot-widget-bubble-color--lighter.woot--close::before, .woot-widget-bubble-color--lighter.woot--close::after {
-  background-color: var(--s-700);
 }
 
 .woot--close::before {

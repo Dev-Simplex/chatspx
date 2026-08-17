@@ -4,10 +4,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // contraste em JS".
 //
 // O launcher vive no `document` do site do cliente e o painel vive num iframe.
-// Antes deste bloco, cada lado decidia a própria cor de texto: o painel com
-// `getContrastingTextColor` (YIQ, limiar 186) e o host com
-// `isWidgetColorLighter` (brilho 299/587/114, limiar 225). Duas heurísticas
-// diferentes, nenhuma WCAG — e é por isso que header e launcher discordavam.
+// Antes deste bloco, cada lado decidia a própria cor de texto: o painel por uma
+// heurística YIQ (limiar 186) e o host com `isWidgetColorLighter` (brilho
+// 299/587/114, limiar 225). Duas heurísticas diferentes, nenhuma WCAG — e é por
+// isso que header e launcher discordavam. O bloco 1.04 removeu a primeira do
+// código; a segunda saiu aqui, no 1.03.
 //
 // Aqui o teste não verifica "tem alguma cor": ele verifica que o VALOR que o
 // launcher pinta é o MESMO objeto de tokens que o servidor mandou para o
@@ -106,9 +107,22 @@ describe('IFrameHelper.onLoad — o launcher pinta com o que o painel recebeu', 
     IFrameHelper.onLoad({ widgetColor: '#ff0000', tokens: SERVER_TOKENS });
 
     const bubble = document.querySelector('.woot-widget-bubble');
+    const holder = document.getElementById('cw-bubble-holder');
+
     // `widgetColor` divergente de propósito: se o launcher lesse a cor por
-    // fora do token, este teste pintaria vermelho.
-    expect(bubble.style.background).toBe('rgb(0, 156, 224)');
+    // fora do token, apareceria vermelho em algum destes três lugares.
+    //
+    // Este teste mudou no bloco 1.05, e a mudança é o ponto: ele ASSERE A
+    // AUSÊNCIA do estilo inline. Enquanto `chatIcon.style.background` existia,
+    // o inline vencia a folha e mascarava o `#2dc46f` cravado no `:hover` — o
+    // literal só apareceria em produção, no mouse do visitante. Sem inline, a
+    // cor de repouso e a de hover saem da mesma var, e o valor efetivo é
+    // medido em Chromium real por `sdk-launcher-hover.spec.js`.
+    expect(bubble.style.background).toBe('');
+    // `null`, não "string sem vermelho": o SDK não escreve atributo `style`
+    // nenhum no lançador. É a forma mais forte de dizer que o inline saiu.
+    expect(bubble.getAttribute('style')).toBeNull();
+    expect(holder.style.getPropertyValue('--w-brand')).toBe('#009ce0');
   });
 
   it('a marca clara vira classe --lighter pela decisão do SERVIDOR', () => {

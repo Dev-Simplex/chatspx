@@ -43,7 +43,11 @@ export const createBubbleIcon = ({ className, path, target }) => {
     'path'
   );
   bubblePath.setAttributeNS(null, 'd', path);
-  bubblePath.setAttributeNS(null, 'fill', '#FFFFFF');
+  // `currentColor`, não um branco cravado: a cor do ícone passa a herdar o
+  // `color` do lançador, que é `var(--w-on-brand)` — a decisão de contraste que
+  // o servidor calculou por luminância WCAG. Com marca clara o ícone escurece
+  // sozinho, em vez de ficar branco sobre claro a 3,07:1.
+  bubblePath.setAttributeNS(null, 'fill', 'currentColor');
 
   bubbleIcon.appendChild(bubblePath);
   target.appendChild(bubbleIcon);
