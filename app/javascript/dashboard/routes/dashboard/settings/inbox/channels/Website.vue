@@ -6,6 +6,7 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import PageHeader from '../../SettingsSubPageHeader.vue';
 import GreetingsEditor from 'shared/components/GreetingsEditor.vue';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
+import { DEFAULT_WIDGET_COLOR } from 'dashboard/constants/widget';
 
 export default {
   components: {
@@ -18,7 +19,7 @@ export default {
     return {
       inboxName: '',
       channelWebsiteUrl: '',
-      channelWidgetColor: '#2dc46f',
+      channelWidgetColor: DEFAULT_WIDGET_COLOR,
       channelWelcomeTitle: '',
       channelWelcomeTagline: '',
       greetingEnabled: false,

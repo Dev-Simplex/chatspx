@@ -1,3 +1,29 @@
 {
-  "INBOX_WIDGET": {}
+  "INBOX_WIDGET": {
+    "PRE_CHAT_FORM": {
+      "FIELDS": {
+        "EMAIL_ADDRESS": {
+          "LABEL": "Endereço de e-mail",
+          "PLACEHOLDER": "Por favor, digite seu e-mail"
+        },
+        "FULL_NAME": {
+          "LABEL": "Nome Completo",
+          "PLACEHOLDER": "Por favor, digite seu nome completo"
+        },
+        "PHONE_NUMBER": {
+          "LABEL": "Número de Telefone",
+          "PLACEHOLDER": "Por favor, digite seu número de telefone"
+        }
+      }
+    },
+    "CONFIGURATION": {
+      "ALLOWED_DOMAINS": {
+        "EMPTY_WARNING": {
+          "TITLE": "Qualquer site pode embutir este widget",
+          "BODY": "Com este campo em branco, o servidor não envia o cabeçalho de proteção contra enquadramento, e qualquer página da internet pode carregar este widget dentro de um iframe — inclusive um site que imite o seu para coletar dados de quem acha que está falando com você.",
+          "ACTION_HINT": "Para fechar isso, liste aqui os domínios onde o widget deve funcionar — um por linha. Inclua todos: domínio principal, subdomínios, homologação e outros sites da mesma empresa. Um domínio que faltar deixa de exibir o widget."
+        }
+      }
+    }
+  }
 }

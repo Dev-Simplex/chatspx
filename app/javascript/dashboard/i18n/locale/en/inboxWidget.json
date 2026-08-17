@@ -1,3 +1,29 @@
 {
-  "INBOX_WIDGET": {}
+  "INBOX_WIDGET": {
+    "PRE_CHAT_FORM": {
+      "FIELDS": {
+        "EMAIL_ADDRESS": {
+          "LABEL": "Email Address",
+          "PLACEHOLDER": "Please enter your email address"
+        },
+        "FULL_NAME": {
+          "LABEL": "Full Name",
+          "PLACEHOLDER": "Please enter your full name"
+        },
+        "PHONE_NUMBER": {
+          "LABEL": "Phone Number",
+          "PLACEHOLDER": "Please enter your phone number"
+        }
+      }
+    },
+    "CONFIGURATION": {
+      "ALLOWED_DOMAINS": {
+        "EMPTY_WARNING": {
+          "TITLE": "Any website can embed this widget",
+          "BODY": "While this field is blank, the server sends no frame-protection header, and any page on the internet can load this widget inside an iframe — including a site impersonating yours to collect data from people who believe they are talking to you.",
+          "ACTION_HINT": "To close this, list the domains where the widget should work — one per line. Include all of them: main domain, subdomains, staging, and any other site of the same company. A missing domain stops showing the widget."
+        }
+      }
+    }
+  }
 }
