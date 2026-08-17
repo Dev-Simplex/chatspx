@@ -1,17 +1,19 @@
 class SwaggerController < ApplicationController
   before_action :authenticate_docs!
 
+  # Sem gate de ambiente: com ele (upstream), o `else head :not_found` respondia 404 em producao
+  # antes de a Basic Auth servir para qualquer coisa, e `authenticate_docs!` virava codigo morto —
+  # a doc da API deixava de existir em producao. Quem fecha a porta e o `authenticate_docs!`, que ja
+  # e o padrao seguro: sem SWAGGER_DOCS_PASSWORD ele devolve 404 por conta propria.
+  # O hardening de path traversal do upstream (clean_path_info + delete_prefix + o start_with? abaixo)
+  # e bom e fica. Ver plano/redesenho/execucao/onda-0-auditoria-ruby.md patch 3.
   def respond
-    if Rails.env.development? || Rails.env.test?
-      swagger_root = Rails.root.join('swagger')
-      file_path = swagger_root.join(derived_path).cleanpath
+    swagger_root = Rails.root.join('swagger')
+    file_path = swagger_root.join(derived_path).cleanpath
 
-      return head :not_found unless file_path.to_s.start_with?("#{swagger_root}/") && file_path.file?
+    return head :not_found unless file_path.to_s.start_with?("#{swagger_root}/") && file_path.file?
 
-      render inline: file_path.read
-    else
-      head :not_found
-    end
+    render inline: file_path.read
   end
 
   private
