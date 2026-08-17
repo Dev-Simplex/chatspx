@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_23_000000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2229,7 +2229,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
   add_foreign_key "canned_responses", "teams", on_delete: :nullify
   add_foreign_key "canned_responses", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants"
-  add_foreign_key "captain_assistant_logs", "conversations"
+  add_foreign_key "captain_assistant_logs", "conversations", on_delete: :nullify
   add_foreign_key "contact_flow_suppressions", "accounts"
   add_foreign_key "contact_flow_suppressions", "contacts"
   add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
@@ -2258,11 +2258,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
   add_foreign_key "flow_node_stats", "flows"
   add_foreign_key "flow_runs", "accounts"
   add_foreign_key "flow_runs", "contacts"
-  add_foreign_key "flow_runs", "conversations"
+  add_foreign_key "flow_runs", "conversations", on_delete: :cascade
   add_foreign_key "flow_runs", "flows"
   add_foreign_key "flow_step_logs", "accounts"
-  add_foreign_key "flow_step_logs", "conversations"
-  add_foreign_key "flow_step_logs", "flow_runs"
+  add_foreign_key "flow_step_logs", "conversations", on_delete: :nullify
+  add_foreign_key "flow_step_logs", "flow_runs", on_delete: :nullify
   add_foreign_key "flow_step_logs", "flows"
   add_foreign_key "funnel_automations", "funnel_stages"
   add_foreign_key "funnel_automations", "funnels"
@@ -2295,7 +2295,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
   add_foreign_key "mentions", "conversations", on_delete: :cascade
   add_foreign_key "message_reactions", "accounts"
   add_foreign_key "message_reactions", "messages"
-  add_foreign_key "message_sequence_enrollments", "conversations"
+  add_foreign_key "message_sequence_enrollments", "conversations", on_delete: :cascade
   add_foreign_key "message_sequence_enrollments", "message_sequences"
   add_foreign_key "message_sequence_steps", "message_sequences"
   add_foreign_key "message_sequences", "accounts"
