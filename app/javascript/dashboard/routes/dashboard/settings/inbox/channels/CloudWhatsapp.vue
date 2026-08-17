@@ -5,6 +5,7 @@ import { useAlert } from 'dashboard/composables';
 import { required } from '@vuelidate/validators';
 import router from '../../../../index';
 import { isPhoneE164OrEmpty, isNumber } from 'shared/helpers/Validators';
+import InboxesAPI from 'dashboard/api/inboxes';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
@@ -165,6 +166,7 @@ export default {
 
     <div class="w-full mt-4">
       <NextButton
+        :disabled="uiFlags.isCreating"
         :is-loading="uiFlags.isCreating"
         type="submit"
         solid

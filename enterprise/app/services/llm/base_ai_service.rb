@@ -8,14 +8,17 @@ class Llm::BaseAiService
 
   attr_reader :model, :temperature, :account
 
-  def initialize(account: nil)
+  def initialize(feature: nil, account: nil, fallback_model: nil)
+    @llm_feature = feature
+    @llm_account = account
+    @fallback_model = fallback_model
     Llm::Config.initialize!
     @account = account
     setup_model
     setup_temperature
   end
 
-  def chat(model: nil, temperature: @temperature)
+  def chat(model: @model, temperature: @temperature)
     selected_model = model.presence || model_for_feature
     @model = selected_model
     context_for_account.chat(model: Llm::Models.runtime_id_for(selected_model)).with_temperature(temperature)
@@ -39,13 +42,29 @@ class Llm::BaseAiService
     @model = model_for_feature
   end
 
+  def feature_route
+    return if @llm_feature.blank?
+
+    Llm::FeatureRouter.resolve(feature: @llm_feature, account: @llm_account)
+  end
+
+  def installation_model
+    InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value
+  end
+
   def setup_temperature
     @temperature = DEFAULT_TEMPERATURE
   end
 
   def model_for_feature
-    key = feature_name.presence || 'assistant'
-    candidates = model_candidates_for_feature(key)
+    key = @llm_feature.presence || feature_name.presence || 'assistant'
+    route = feature_route
+    candidates = [
+      route&.dig(:model),
+      @fallback_model,
+      installation_model,
+      *model_candidates_for_feature(key)
+    ].compact_blank.uniq
     selected_model = Llm::Models.first_runtime_supported(*candidates)
     fallback_model = selected_model.presence || DEFAULT_MODEL
 

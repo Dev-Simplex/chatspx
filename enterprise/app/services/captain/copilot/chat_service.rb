@@ -4,7 +4,7 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
   attr_reader :assistant, :account, :user, :copilot_thread, :previous_history, :messages
 
   def initialize(assistant, config)
-    super(account: assistant.account)
+    super(feature: 'copilot', account: assistant.account)
 
     @assistant = assistant
     @account = assistant.account

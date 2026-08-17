@@ -1,12 +1,6 @@
 require 'rails_helper'
 
 RSpec.describe BulkActionsJob do
-  params = {
-    type: 'Conversation',
-    fields: { status: 'snoozed' },
-    ids: Conversation.first(3).pluck(:display_id)
-  }
-
   subject(:job) { described_class.perform_later(account_id: account.id, params: params, user_id: agent.id) }
 
   let(:account) { create(:account) }
@@ -14,9 +8,11 @@ RSpec.describe BulkActionsJob do
   let!(:conversation_1) { create(:conversation, account_id: account.id, status: :open) }
   let!(:conversation_2) { create(:conversation, account_id: account.id, status: :open) }
   let!(:conversation_3) { create(:conversation, account_id: account.id, status: :open) }
+  let(:conversation_ids) { [conversation_1.display_id, conversation_2.display_id, conversation_3.display_id] }
+  let(:params) { { type: 'Conversation', fields: { status: 'snoozed' }, ids: conversation_ids } }
 
   before do
-    Conversation.all.find_each do |conversation|
+    [conversation_1, conversation_2, conversation_3].each do |conversation|
       create(:inbox_member, inbox: conversation.inbox, user: agent)
     end
   end
@@ -38,7 +34,7 @@ RSpec.describe BulkActionsJob do
       params = {
         type: 'Conversation',
         fields: { status: 'snoozed', assignee_id: agent.id },
-        ids: [conversation_1, conversation_2, conversation_3].map(&:display_id)
+        ids: conversation_ids
       }
 
       expect(conversation_1.status).to eq('open')
@@ -54,7 +50,7 @@ RSpec.describe BulkActionsJob do
       params = {
         type: 'Conversation',
         fields: { status: 'snoozed', assignee_id: agent.id },
-        ids: [conversation_1, conversation_2, conversation_3].map(&:display_id)
+        ids: conversation_ids
       }
 
       expect(conversation_1.assignee_id).to be_nil
@@ -70,7 +66,7 @@ RSpec.describe BulkActionsJob do
       params = {
         type: 'Conversation',
         fields: { status: 'snoozed', snoozed_until: Time.zone.now },
-        ids: [conversation_1, conversation_2, conversation_3].map(&:display_id)
+        ids: conversation_ids
       }
 
       expect(conversation_1.snoozed_until).to be_nil
@@ -78,8 +74,22 @@ RSpec.describe BulkActionsJob do
       described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
 
       expect(conversation_1.reload.snoozed_until).to be_present
-      expect(Conversation.second.snoozed_until).to be_present
-      expect(Conversation.third.snoozed_until).to be_present
+      expect(conversation_2.reload.snoozed_until).to be_present
+      expect(conversation_3.reload.snoozed_until).to be_present
+    end
+
+    it 'skips conversations whose inbox the agent does not belong to' do
+      forbidden_conversation = create(:conversation, account_id: account.id, status: :open)
+      params = {
+        type: 'Conversation',
+        fields: { status: 'resolved' },
+        ids: [conversation_1.display_id, forbidden_conversation.display_id]
+      }
+
+      described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
+
+      expect(conversation_1.reload.status).to eq('resolved')
+      expect(forbidden_conversation.reload.status).to eq('open')
     end
 
     context 'when the resolve assignment gate is enabled' do

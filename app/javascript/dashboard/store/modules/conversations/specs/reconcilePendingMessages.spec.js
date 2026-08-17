@@ -31,7 +31,7 @@ describe('#reconcilePendingMessages', () => {
     const { commit, dispatch, promise } = run(chat);
     await promise;
 
-    expect(commit).toHaveBeenCalledWith(types.REMOVE_PENDING_MESSAGE, {
+    expect(commit).toHaveBeenCalledWith(types.REMOVE_OPTIMISTIC_MESSAGE, {
       conversationId: 1,
       echoId: 'uuid-1',
     });

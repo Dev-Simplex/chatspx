@@ -59,3 +59,5 @@ class ContactPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 end
+
+ContactPolicy.prepend_mod_with('ContactPolicy')

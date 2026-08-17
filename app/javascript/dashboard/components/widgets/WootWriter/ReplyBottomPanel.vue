@@ -7,7 +7,6 @@ import * as ActiveStorage from 'activestorage';
 import inboxMixin from 'shared/mixins/inboxMixin';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { getAllowedFileTypesByChannel } from '@chatwoot/utils';
-import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
 import VideoCallButton from '../VideoCallButton.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { mapGetters } from 'vuex';
@@ -145,7 +144,6 @@ export default {
     },
   },
   emits: [
-    'replaceText',
     'toggleInsertArticle',
     'togglePopout',
     'selectWhatsappTemplate',
@@ -183,11 +181,6 @@ export default {
       setSignatureFlagForInbox,
       fetchSignatureFlagFromUISettings,
       uploadRef,
-    };
-  },
-  data() {
-    return {
-      ALLOWED_FILE_TYPES,
     };
   },
   computed: {
@@ -231,13 +224,11 @@ export default {
       return this.conversationType === 'instagram_direct_message';
     },
     allowedFileTypes() {
-      // Use default file types for private notes
       if (this.isOnPrivateNote) {
-        return this.ALLOWED_FILE_TYPES;
+        return getAllowedFileTypesByChannel();
       }
 
       let channelType = this.channelType || this.inbox?.channel_type;
-
       if (this.isAnInstagramChannel || this.isInstagramDM) {
         channelType = INBOX_TYPES.INSTAGRAM;
       }
@@ -315,9 +306,6 @@ export default {
   methods: {
     toggleMessageSignature() {
       this.setSignatureFlagForInbox(this.channelType, !this.sendWithSignature);
-    },
-    replaceText(text) {
-      this.$emit('replaceText', text);
     },
     toggleInsertArticle() {
       this.$emit('toggleInsertArticle');

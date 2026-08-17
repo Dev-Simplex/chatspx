@@ -1,6 +1,8 @@
 <script setup>
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
 
 const props = defineProps({
   open: {
@@ -26,6 +28,10 @@ const props = defineProps({
   selectedValues: {
     type: [String, Number, Array],
     default: () => [],
+  },
+  loading: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -62,16 +68,23 @@ defineExpose({
     v-show="open"
     class="absolute z-50 w-full mt-1 transition-opacity duration-200 rounded-xl shadow-lg bg-n-solid-1 border border-n-weak"
   >
-    <div class="relative border-b border-n-weak">
-      <span
-        class="absolute i-lucide-search top-2.5 size-4 left-3 text-n-slate-10"
+    <div class="relative border-b border-n-strong">
+      <Spinner
+        v-if="loading"
+        :size="16"
+        class="absolute top-2.5 start-3 text-n-slate-11"
+      />
+      <Icon
+        v-else
+        icon="i-lucide-search"
+        class="absolute top-2.5 size-4 start-3"
       />
       <input
         ref="searchInput"
         :value="searchValue"
         type="search"
         :placeholder="searchPlaceholder || t('COMBOBOX.SEARCH_PLACEHOLDER')"
-        class="reset-base w-full py-2 pl-10 pr-2 text-sm focus:outline-none border-none rounded-t-xl bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-9"
+        class="reset-base w-full py-2 !ps-10 !pe-2 text-sm focus:outline-none border-none rounded-t-xl bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-9"
         @input="onInputSearch"
       />
     </div>
@@ -89,7 +102,7 @@ defineExpose({
         }"
         role="option"
         :aria-selected="isSelected(option)"
-        @click="emit('select', option)"
+        @click.stop="emit('select', option)"
       >
         <span
           :class="{

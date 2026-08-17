@@ -9,7 +9,7 @@ describe('CsatMetrics.vue', () => {
 
   beforeEach(() => {
     getters = {
-      'csat/getMetrics': () => ({ totalResponseCount: 100 }),
+      'csat/getMetrics': () => ({ totalResponseCount: 100, signals: [] }),
       'csat/getRatingPercentage': () => ({
         1: 10,
         2: 20,

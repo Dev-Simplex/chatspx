@@ -26,6 +26,7 @@ module Current
   # Puma reusa threads → quem setar TEM que limpar num `ensure` (precedente:
   # Macros::ExecutionService).
   thread_mattr_accessor :takeover_approval_in_progress
+  thread_mattr_accessor :inbox
 
   def self.reset
     Current.user = nil
@@ -37,5 +38,6 @@ module Current
     Current.funnel_automation_depth = nil
     Current.flow_depth = nil
     Current.takeover_approval_in_progress = nil
+    Current.inbox = nil
   end
 end

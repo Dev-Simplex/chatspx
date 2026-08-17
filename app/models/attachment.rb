@@ -25,18 +25,23 @@ class Attachment < ApplicationRecord
   include Rails.application.routes.url_helpers
 
   ACCEPTABLE_FILE_TYPES = %w[
-    text/csv text/plain text/rtf
+    text/csv text/plain text/rtf text/xml
     application/json application/pdf
+    application/xml
     application/zip application/x-7z-compressed application/vnd.rar application/x-tar
     application/msword application/vnd.ms-excel application/vnd.ms-powerpoint application/rtf
     application/vnd.oasis.opendocument.text
     application/vnd.openxmlformats-officedocument.presentationml.presentation
     application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    application/x-pkcs12 application/pkcs12
   ].freeze
+  ACCEPTABLE_FILE_EXTENSIONS = %w[pfx xml].freeze
+  GENERIC_FILE_CONTENT_TYPES = %w[application/octet-stream].freeze
   belongs_to :account
   belongs_to :message
   has_one_attached :file
+  before_save :set_extension
   validate :acceptable_file
   validates :external_url, length: { maximum: Limits::URL_LENGTH_LIMIT }
   enum file_type: { :image => 0, :audio => 1, :video => 2, :file => 3, :location => 4, :fallback => 5, :share => 6, :story_mention => 7,
@@ -108,9 +113,8 @@ class Attachment < ApplicationRecord
     # attachment BEFORE downloading the media, so any failed download leaves the row behind. Since
     # push_event_data feeds the messages endpoint, one such row used to 500 the WHOLE conversation.
     # Same guard the generic branch already applies in `metadata_for_file_type`.
-    audio_file_data = base_data.merge(
-      file.attached? ? file_metadata : { data_url: external_url, thumb_url: '' }
-    )
+    audio_file_data = base_data.merge(file.attached? ? file_metadata : { data_url: external_url, thumb_url: '' })
+    audio_file_data[:data_url] = inline_audio_url if file.attached?
     audio_file_data[:transcribed_text] = meta&.[]('transcribed_text') || ''
 
     peaks = meta&.[]('waveform_peaks')
@@ -119,9 +123,16 @@ class Attachment < ApplicationRecord
     audio_file_data
   end
 
+  def inline_audio_url
+    return '' unless file.attached?
+
+    Rails.application.routes.url_helpers.rails_storage_redirect_url(file, disposition: 'inline')
+  end
+
   def file_metadata
     metadata = {
       extension: extension,
+      content_type: file.content_type,
       data_url: file_url,
       thumb_url: thumb_url,
       file_size: file.byte_size,
@@ -129,7 +140,7 @@ class Attachment < ApplicationRecord
       height: file.metadata[:height]
     }
 
-    metadata[:data_url] = metadata[:thumb_url] = external_url if message.inbox.instagram? && message.incoming?
+    metadata[:data_url] = metadata[:thumb_url] = external_url if instagram_incoming_message?
     metadata
   end
 
@@ -186,6 +197,21 @@ class Attachment < ApplicationRecord
   # WhatsApp engine at send time. Only applied to Channel::Api.
   WAHA_MAX_SIZE_BY_CATEGORY_MB = { 'image' => 16, 'video' => 16, 'audio' => 16, 'document' => 100 }.freeze
 
+  def instagram_incoming_message?
+    return false unless message.incoming?
+
+    return true if message.inbox.instagram_direct?
+
+    message.inbox.instagram? && message.conversation&.additional_attributes&.dig('type') == 'instagram_direct_message'
+  end
+
+  def set_extension
+    return unless file.attached?
+    return if extension.present?
+
+    self.extension = File.extname(file.filename.to_s).delete_prefix('.').presence
+  end
+
   def should_validate_file?
     return unless file.attached?
     # we are only limiting attachment types in case of website widget
@@ -207,7 +233,10 @@ class Attachment < ApplicationRecord
   end
 
   def validate_file_content_type(file_content_type)
-    errors.add(:file, 'type not supported') unless media_file?(file_content_type) || ACCEPTABLE_FILE_TYPES.include?(file_content_type)
+    return if media_file?(file_content_type) || ACCEPTABLE_FILE_TYPES.include?(file_content_type)
+    return if generic_file_content_type?(file_content_type) && ACCEPTABLE_FILE_EXTENSIONS.include?(file_extension)
+
+    errors.add(:file, 'type not supported')
   end
 
   def validate_file_size(byte_size)
@@ -245,7 +274,15 @@ class Attachment < ApplicationRecord
   end
 
   def media_file?(file_content_type)
-    file_content_type.start_with?('image/', 'video/', 'audio/')
+    file_content_type.to_s.start_with?('image/', 'video/', 'audio/')
+  end
+
+  def generic_file_content_type?(file_content_type)
+    file_content_type.blank? || GENERIC_FILE_CONTENT_TYPES.include?(file_content_type)
+  end
+
+  def file_extension
+    File.extname(file.filename.to_s).delete_prefix('.').downcase
   end
 
   def schedule_audio_transcription

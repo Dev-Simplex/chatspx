@@ -1,29 +1,65 @@
-<p>Olá <%= @resource.name %>,</p>
+<%
+  brand_name = global_config['BRAND_NAME'] || 'SPX - CHAT'
+  recipient_name = @resource.name.presence || @resource.email
+  account_user = @resource&.account_users&.first
+  inviter = account_user&.inviter
+  account_name = account_user&.account&.name
+  invited_user = inviter.present? && @resource.unconfirmed_email.blank?
 
-<% account_user = @resource&.account_users&.first %>
+  eyebrow = 'Boas-vindas'
+  heading = 'Confirme seu email para começar'
+  intro_text =
+    "Boas-vindas ao #{brand_name}. Precisamos verificar seu endereço de email antes de liberar o acesso à sua conta."
+  supporting_text = 'Leva apenas um momento.'
+  action_text = 'Confirmar minha conta'
+  action_url = frontend_url('auth/confirmation', confirmation_token: @token)
+  info_title = nil
+  info_text = nil
+  detail_rows = []
+  detail_rows << ['Novo email', @resource.unconfirmed_email] if @resource.unconfirmed_email.present?
 
-<% if account_user&.inviter.present? && @resource.unconfirmed_email.blank? %>
-  <p><%= account_user.inviter.name %>, da <%= account_user.account.name %>, convidou você para experimentar <%= global_config['BRAND_NAME'] || 'SPX - CHAT' %>.</p>
-<% end %>
+  if @resource.unconfirmed_email.present?
+    eyebrow = 'Alteração de email'
+    heading = 'Confirme seu novo endereço de email'
+    intro_text = "Recebemos uma solicitação para alterar o endereço de email da sua conta #{brand_name}."
+    supporting_text = 'Confirme o novo endereço abaixo para concluir a alteração.'
+    action_text = 'Confirmar endereço de email'
+  elsif @resource.confirmed?
+    eyebrow = 'Conta pronta'
+    heading = 'Sua conta está pronta'
+    intro_text = "Sua conta #{brand_name} já está ativa."
+    supporting_text = 'Use o botão abaixo para entrar e continuar.'
+    action_text = 'Acessar minha conta'
+    action_url = frontend_url('auth/sign_in')
+    detail_rows = []
+  elsif invited_user
+    eyebrow = 'Convite para a equipe'
+    heading = account_name.present? ? "Você foi convidado para #{account_name}" : "Você foi convidado para conhecer #{brand_name}"
+    intro_text = if account_name.present?
+      "#{inviter.name} convidou você para a equipe #{account_name} no #{brand_name}."
+    else
+      "#{inviter.name} convidou você para conhecer #{brand_name}."
+    end
+    supporting_text = 'Crie sua conta para começar a colaborar com a equipe.'
+    action_text = 'Aceitar convite'
+    action_url = frontend_url(
+      'auth/password/edit',
+      reset_password_token: @resource.send(:set_reset_password_token)
+    )
+    detail_rows = [['Convidado por', inviter.name]]
+    detail_rows << ['Equipe', account_name] if account_name.present?
+  end
+%>
 
-<% if @resource.confirmed? %>
-  <p>Você pode fazer login na sua conta <%= global_config['BRAND_NAME'] || 'SPX - CHAT' %> através do link abaixo:</p>
-<% else %>
-  <% if account_user&.inviter.blank? %>
-  <p>
-    Bem-vindo ao <%= global_config['BRAND_NAME'] || 'SPX - CHAT' %>! Temos um conjunto de ferramentas poderosas prontas para você explorar. Antes disso, precisamos rapidamente verificar seu endereço de email para saber que é realmente você.
-  </p>
-  <% end %>
-  <p>Por favor, reserve um momento e clique no link abaixo para ativar sua conta.</p>
-<% end %>
-
-
-<% if @resource.unconfirmed_email.present? %>
-  <p><%= link_to 'Confirmar minha conta', frontend_url('auth/confirmation', confirmation_token: @token) %></p>
-<% elsif @resource.confirmed? %>
-  <p><%= link_to 'Fazer login na minha conta', frontend_url('auth/sign_in') %></p>
-<% elsif account_user&.inviter.present? %>
-  <p><%= link_to 'Confirmar minha conta', frontend_url('auth/password/edit', reset_password_token: @resource.send(:set_reset_password_token)) %></p>
-<% else %>
-  <p><%= link_to 'Confirmar minha conta', frontend_url('auth/confirmation', confirmation_token: @token) %></p>
-<% end %>
+<%= render partial: 'devise/mailer/confirmation_body', locals: {
+  action_text: action_text,
+  action_url: action_url,
+  detail_rows: detail_rows,
+  eyebrow: eyebrow,
+  heading: heading,
+  info_text: info_text,
+  info_title: info_title,
+  intro_text: intro_text,
+  recipient_name: recipient_name,
+  supporting_text: supporting_text
+} %>

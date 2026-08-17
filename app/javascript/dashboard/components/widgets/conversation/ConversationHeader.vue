@@ -28,6 +28,8 @@ import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
 import { CONVERSATION_PRIORITY } from 'shared/constants/messages';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { useAlert } from 'dashboard/composables';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
 const props = defineProps({
   chat: {
@@ -69,6 +71,7 @@ const backButtonUrl = computed(() => {
 
   const conversationTypeMap = {
     conversation_through_mentions: 'mention',
+    conversation_through_participating: 'participating',
     conversation_through_unattended: 'unattended',
     conversation_through_unread: 'unread',
   };
@@ -188,7 +191,11 @@ const hasMultipleInboxes = computed(
   () => store.getters['inboxes/getInboxes'].length > 1
 );
 
-const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
+const hasSlaPolicyId = computed(
+  () =>
+    (props.chat?.applied_sla?.id || props.chat?.sla_policy_id) &&
+    !currentContact.value?.blocked
+);
 
 // --- WhatsApp 24h window timer -------------------------------------------
 // Re-render every 60s so "remaining" stays fresh without per-component timers.
@@ -394,6 +401,15 @@ const setPriority = async value => {
   });
   closePriorityMenu();
 };
+
+const copyConversationId = async () => {
+  try {
+    await copyTextToClipboard(String(props.chat.id));
+    useAlert(t('CONVERSATION.HEADER.COPY_ID_SUCCESS'));
+  } catch (error) {
+    // error
+  }
+};
 </script>
 
 <template>
@@ -456,9 +472,18 @@ const setPriority = async value => {
         </div>
 
         <div
-          class="wa-contact-subtitle flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap"
+          class="wa-contact-subtitle flex items-center gap-2 overflow-hidden text-xs conversation--header--actions text-n-slate-11 text-ellipsis whitespace-nowrap"
         >
+          <button
+            type="button"
+            class="truncate text-label-small text-n-slate-11 hover:text-n-slate-12 !p-0 cucursor-pointer"
+            @click="copyConversationId"
+          >
+            {{ `#${chat.id}` }}
+          </button>
+          <span v-if="hasMultipleInboxes">•</span>
           <InboxName v-if="hasMultipleInboxes" :inbox="inbox" class="!mx-0" />
+          <span v-if="isSnoozed">•</span>
           <span v-if="isSnoozed" class="font-medium text-n-amber-10">
             {{ snoozedDisplayText }}
           </span>

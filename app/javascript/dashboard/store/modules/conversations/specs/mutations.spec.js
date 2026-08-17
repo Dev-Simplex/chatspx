@@ -328,7 +328,7 @@ describe('#mutations', () => {
     });
   });
 
-  describe('#REMOVE_PENDING_MESSAGE', () => {
+  describe('#REMOVE_OPTIMISTIC_MESSAGE', () => {
     it('removes only the still-optimistic message (id === echo_id)', () => {
       const chat = {
         id: 1,
@@ -345,7 +345,7 @@ describe('#mutations', () => {
       };
       const state = buildStateWithChat(chat);
 
-      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+      mutations[types.REMOVE_OPTIMISTIC_MESSAGE](state, {
         conversationId: 1,
         echoId: 'uuid-abc',
       });
@@ -364,7 +364,7 @@ describe('#mutations', () => {
       };
       const state = buildStateWithChat(chat);
 
-      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+      mutations[types.REMOVE_OPTIMISTIC_MESSAGE](state, {
         conversationId: 1,
         echoId: 'uuid-abc',
       });

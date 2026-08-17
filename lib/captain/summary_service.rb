@@ -3,9 +3,9 @@ class Captain::SummaryService < Captain::BaseTaskService
 
   def perform
     make_api_call(
-      model: GPT_MODEL,
+      feature: 'editor',
       messages: [
-        { role: 'system', content: prompt_from_file('summary') },
+        { role: 'system', content: system_prompt },
         { role: 'user', content: sanitized_conversation_text }
       ]
     )
@@ -18,7 +18,19 @@ class Captain::SummaryService < Captain::BaseTaskService
     Captain::PiiSanitizer.sanitize(raw)
   end
 
+  def system_prompt
+    <<~PROMPT
+      #{prompt_from_file('summary')}
+
+      Reply in #{account.locale_english_name}.
+    PROMPT
+  end
+
   def event_name
     'summarize'
+  end
+
+  def use_account_openai_hook?
+    true
   end
 end

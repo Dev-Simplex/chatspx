@@ -1,13 +1,15 @@
 module Concerns::Agentable
   extend ActiveSupport::Concern
 
+  DEFAULT_TEMPERATURE = 0.5
+
   def agent
     Agents::Agent.new(
       name: agent_name,
       instructions: ->(context) { agent_instructions(context) },
       tools: agent_tools,
       model: agent_model,
-      temperature: temperature.to_f || 0.7,
+      temperature: temperature.presence&.to_f || DEFAULT_TEMPERATURE,
       response_schema: agent_response_schema
     )
   end
@@ -19,6 +21,7 @@ module Concerns::Agentable
       state = context.context[:state] || {}
       config = state[:assistant_config] || {}
       enhanced_context = enhanced_context.merge(
+        current_time: format_current_time(state[:timezone]),
         conversation: state[:conversation] || {},
         contact: config['feature_contact_attributes'].present? ? state[:contact] : nil,
         campaign: state[:campaign] || {}
@@ -28,6 +31,13 @@ module Concerns::Agentable
     return split_instructions_for_cache(enhanced_context) if prompt_cache_system_enabled?
 
     Captain::PromptRenderer.render(template_name, enhanced_context.with_indifferent_access)
+  end
+
+  def agent_model
+    route = Llm::FeatureRouter.resolve(feature: 'assistant', account: account)
+    return route[:model] if route[:source] == :account_override || account&.feature_enabled?('captain_integration_v2')
+
+    installation_model.presence || route[:model]
   end
 
   private
@@ -44,17 +54,15 @@ module Concerns::Agentable
     []  # Default implementation, override if needed
   end
 
-  def agent_model
-    raw = account&.captain_assistant_model.presence || LlmConstants::DEFAULT_MODEL
-    Llm::Models.runtime_id_for(raw)
-  end
-
   # Injeta data/hora atual e status do horário comercial no contexto do prompt,
   # pra o agente não adivinhar/alucinar horário (ex: dizer "volta segunda" numa quarta).
   def time_awareness
-    asst = is_a?(Captain::Assistant) ? self : assistant
+    asst = is_a?(Captain::Assistant) ? self : (assistant if respond_to?(:assistant))
+    return {} unless asst
+
     bh = asst.behavior['business_hours'] || {}
-    tz = ActiveSupport::TimeZone[bh['timezone'].presence || 'America/Cuiaba'] || ActiveSupport::TimeZone['UTC']
+    timezone = bh['timezone'].presence || account&.reporting_timezone.presence
+    tz = ActiveSupport::TimeZone[timezone] || ActiveSupport::TimeZone['UTC']
     now = Time.current.in_time_zone(tz)
     dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
     inside = Captain::Behavior::BusinessHoursChecker.new(assistant: asst).status == :inside
@@ -150,7 +158,7 @@ module Concerns::Agentable
   # Chaves de contexto que MUDAM durante a conversa (data/hora com resolucao de
   # minuto + estado da conversa/contato/campanha, incluindo custom_attributes que
   # as tools escrevem mid-conversa). Precisam ficar FORA do bloco cacheado.
-  VOLATILE_PROMPT_KEYS = %w[current_datetime business_status conversation contact campaign].freeze
+  VOLATILE_PROMPT_KEYS = %w[current_time current_datetime business_status business_hours_text conversation contact campaign].freeze
 
   # Prompt caching (Fase 2): separa o prefixo ESTAVEL do prompt (identidade,
   # persona, regras, guardrails, cenarios) do VOLATIL (data/hora + contexto da
@@ -177,15 +185,25 @@ module Concerns::Agentable
   # setarem custom_attributes['prompt_cache_system']=true. Fallback global via ENV
   # SPX_PROMPT_CACHE_SYSTEM pra teste. Default (nenhum dos dois) = OFF.
   def prompt_cache_system_enabled?
-    asst = is_a?(Captain::Assistant) ? self : assistant
+    asst = is_a?(Captain::Assistant) ? self : (assistant if respond_to?(:assistant))
     per_account = asst&.account&.custom_attributes&.dig('prompt_cache_system')
     return ActiveModel::Type::Boolean.new.cast(per_account) unless per_account.nil?
 
     ActiveModel::Type::Boolean.new.cast(ENV.fetch('SPX_PROMPT_CACHE_SYSTEM', nil))
   end
 
+  def installation_model
+    InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value
+  end
+
   def agent_response_schema
     Captain::ResponseSchema
+  end
+
+  def format_current_time(timezone)
+    tz = ActiveSupport::TimeZone[timezone] if timezone.present?
+    time = tz ? Time.current.in_time_zone(tz) : Time.current
+    time.strftime('%A, %B %d, %Y %I:%M %p %Z')
   end
 
   def prompt_context

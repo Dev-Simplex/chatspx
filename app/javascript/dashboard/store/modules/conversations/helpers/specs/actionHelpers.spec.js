@@ -2,6 +2,7 @@ import {
   isOnMentionsView,
   isOnFoldersView,
   buildConversationList,
+  isOnParticipatingView,
 } from '../actionHelpers';
 
 describe('#isOnMentionsView', () => {
@@ -154,5 +155,21 @@ describe('#buildConversationList', () => {
         response.meta
       );
     });
+  });
+});
+
+describe('#isOnParticipatingView', () => {
+  it('return valid responses when passing the state', () => {
+    expect(
+      isOnParticipatingView({ route: { name: 'conversation_participating' } })
+    ).toBe(true);
+    expect(
+      isOnParticipatingView({
+        route: { name: 'conversation_through_participating' },
+      })
+    ).toBe(true);
+    expect(
+      isOnParticipatingView({ route: { name: 'conversation_messages' } })
+    ).toBe(false);
   });
 });

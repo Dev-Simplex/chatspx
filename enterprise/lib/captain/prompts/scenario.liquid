@@ -8,9 +8,11 @@ IMPORTANTE: você JÁ é o agente {{ title }} e já assumiu esta conversa. NUNCA
 
 {{ instructions }}
 
-{% if current_datetime %}Agora é {{ current_datetime }} (horário de Sinop/MT). O atendimento está {{ business_status }}. Nunca invente o dia da semana nem se está aberto.
-{% endif %}
 If you believe the user's request is not within the scope of your role, you can assign this conversation back to the orchestrator agent using the `handoff_to_{{ assistant_name }}` tool
+
+{% render 'current_time', current_time: current_time %}
+
+{% render 'core_rules' %}
 
 {% if conversation || contact || campaign.id %}
 # Current Context

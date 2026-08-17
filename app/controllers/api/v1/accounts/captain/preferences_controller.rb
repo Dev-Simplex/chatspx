@@ -1,5 +1,4 @@
 class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::BaseController
-  before_action :current_account
   before_action :authorize_account_update, only: [:update]
 
   def show
@@ -8,8 +7,8 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
 
   def update
     params_to_update = captain_params
-    @current_account.captain_models = params_to_update[:captain_models] if params_to_update[:captain_models]
-    @current_account.captain_features = params_to_update[:captain_features] if params_to_update[:captain_features]
+    @current_account.captain_models = params_to_update[:captain_models] if params_to_update.key?(:captain_models)
+    @current_account.captain_features = params_to_update[:captain_features] if params_to_update.key?(:captain_features)
     @current_account.save! if @current_account.changed?
 
     update_llm_connection(params_to_update[:llm_connection]) if params_to_update[:llm_connection]
@@ -44,7 +43,7 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
 
   def merged_captain_models
     existing_models = @current_account.captain_models || {}
-    existing_models.merge(permitted_captain_models)
+    existing_models.merge(permitted_captain_models).compact_blank.presence
   end
 
   def merged_captain_features
@@ -53,29 +52,31 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
   end
 
   def permitted_captain_models
-    params.require(:captain_models).permit(
-      :editor, :assistant, :copilot, :label_suggestion,
-      :audio_transcription, :help_center_search
-    ).to_h.stringify_keys
+    params.require(:captain_models).permit(*captain_feature_keys).to_h.stringify_keys
   end
 
   def permitted_captain_features
-    params.require(:captain_features).permit(
-      :editor, :assistant, :copilot, :label_suggestion,
-      :audio_transcription, :help_center_search
-    ).to_h.stringify_keys
+    params.require(:captain_features).permit(*captain_feature_keys).to_h.stringify_keys
+  end
+
+  def captain_feature_keys
+    Llm::Models.feature_keys.map(&:to_sym)
   end
 
   def features_with_account_preferences
     preferences = Current.account.captain_preferences
     account_features = preferences[:features] || {}
-    account_models = preferences[:models] || {}
 
     Llm::Models.feature_keys.index_with do |feature_key|
       config = Llm::Models.feature_config(feature_key)
+      route = Llm::FeatureRouter.resolve(feature: feature_key, account: Current.account)
       config.merge(
+        default: default_model_for(feature_key),
         enabled: account_features[feature_key] == true,
-        selected: account_models[feature_key] || config[:default]
+        model: route[:model],
+        selected: route[:model],
+        provider: route[:provider],
+        source: route[:source]
       )
     end
   end
@@ -126,5 +127,11 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
 
   def anthropic_hook_service
     @anthropic_hook_service ||= Captain::AnthropicHookService.new(account: @current_account)
+  end
+
+  def default_model_for(feature_key)
+    return Llm::FeatureRouter::CAPTAIN_V2_ASSISTANT_MODEL if feature_key == 'assistant' && Current.account.feature_enabled?('captain_integration_v2')
+
+    Llm::Models.default_model_for(feature_key)
   end
 end

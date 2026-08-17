@@ -23,6 +23,7 @@ import ConversationInfo from './ConversationInfo.vue';
 import KanbanStatus from './KanbanStatus.vue';
 import MessageSequenceWidget from './MessageSequenceWidget.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
+import SharedFiles from './SharedFiles.vue';
 import Draggable from 'vuedraggable';
 import ConversationSummary from './ConversationSummary.vue';
 import ConversationChecklist from './ConversationChecklist.vue';
@@ -378,6 +379,18 @@ onMounted(() => {
               "
             >
               <KanbanStatus :conversation-id="conversationId" />
+            </AccordionItem>
+          </div>
+          <div v-else-if="element.name === 'shared_files'">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SHARED_FILES')"
+              :is-open="isContactSidebarItemOpen('is_shared_files_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_shared_files_open', value)
+              "
+            >
+              <SharedFiles />
             </AccordionItem>
           </div>
         </template>

@@ -12,7 +12,8 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
 
   describe '#description' do
     it 'returns the correct description' do
-      expect(tool.description).to eq('Hand off the conversation to a human agent when unable to assist further')
+      expect(tool.description).to include('only when the customer requests human assistance')
+      expect(tool.description).to include('accepts an offer to speak with a human')
     end
 
     it 'enumerates the account teams when present (C6)' do
@@ -23,7 +24,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
 
       description = described_class.new(assistant).description
 
-      expect(description).to include('Hand off the conversation to a human agent when unable to assist further')
+      expect(description).to include('Hand off the conversation to a human agent')
       expect(description).to include("#{team_a.id}: #{team_a.name}")
       expect(description).to include("#{team_b.id}: #{team_b.name}")
       expect(description).not_to include("#{other_account_team.id}: #{other_account_team.name}")
@@ -109,6 +110,12 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           )
 
           tool.perform(tool_context, reason: reason)
+        end
+
+        it 'records the handoff note id in the run state for session capture' do
+          tool.perform(tool_context, reason: 'Customer needs specialized support')
+
+          expect(tool_context.state[:cw_metadata][:handoff_note_id]).to eq(Message.last.id)
         end
       end
 
@@ -248,6 +255,12 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           )
 
           tool.perform(tool_context)
+        end
+
+        it 'does not record a handoff note id since the empty note never renders' do
+          tool.perform(tool_context)
+
+          expect(tool_context.state[:cw_metadata]).to be_nil
         end
       end
 

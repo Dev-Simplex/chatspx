@@ -1,4 +1,8 @@
 class Captain::Conversation::ResponseBuilderJob < ApplicationJob
+  include Captain::Conversation::V1ActionClassifier
+  include Captain::Conversation::V1FalsePromiseHandler
+  include Captain::Conversation::MessageBuilder
+
   MAX_MESSAGE_LENGTH = 10_000
   retry_on ActiveStorage::FileNotFoundError, attempts: 3, wait: 2.seconds
   retry_on Faraday::BadRequestError, attempts: 3, wait: 2.seconds
@@ -34,34 +38,43 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   delegate :account, :inbox, to: :@conversation
 
   def generate_and_process_response
+    message_history = collect_previous_messages
     @response = Captain::Llm::AssistantChatService.new(assistant: @assistant, conversation: @conversation).generate_response(
-      message_history: collect_previous_messages
+      message_history: message_history
     )
+    classify_v1_response_action(message_history) if conversation_pending?
+    repair_v1_false_promise_response(message_history) if conversation_pending?
     process_response
   end
 
   def generate_response_with_v2
-    @response = Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation).generate_response(
-      message_history: collect_previous_messages
-    )
+    runner_service = Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation)
+    message_history = Captain::Conversation::MessageHistoryBuilderService.new(
+      conversation: @conversation,
+      assistant: @assistant,
+      directive: @directive
+    ).perform
+    @response = runner_service.generate_response(message_history: message_history)
+    @run_result = runner_service.last_run_result
+
     process_response
   end
 
   def process_response
     return unless captain_can_respond?
 
-    if handoff_requested?
-      process_action('handoff')
+    if v2_handoff_tool_fired?
+      conversation_pending? ? process_v1_handoff : process_v2_handoff
+      capture_assistant_session(result_message: @handoff_message, credits_consumed: 0.0)
+    elsif v1_handoff_requested?
+      process_v1_handoff
     else
-      # Sem transacao envolvendo a rajada: cada bolha precisa COMMITAR pra disparar o
-      # SendReplyJob (after_create_commit). Dentro de uma transacao os sends so disparariam
-      # no commit final, TODOS juntos -> corriam soltos e chegavam fora de ordem. Commitando
-      # uma a uma, o wait_for_dispatch (espera o source_id) serializa o envio.
-      create_messages
+      message = create_messages
       Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
       account.increment_response_usage
       ensure_handoff_if_promised
       auto_schedule_followup if @did_send
+      capture_assistant_session(result_message: message, credits_consumed: 1.0)
     end
   end
 
@@ -151,14 +164,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     message.message_type == 'incoming' ? 'user' : 'assistant'
   end
 
-  # Foto sai como outgoing de conteudo vazio; sem o codigo, todas viram o MESMO placeholder
-  # no historico e o modelo nao sabe qual imovel e qual ("esse e qual?"). Carimbado pela
-  # EnviarFotosImovelTool em additional_attributes['property_code'].
   def outgoing_attachment_placeholder(message)
     return '' unless message.attachments.any?
 
-    code = message.additional_attributes&.dig('property_code')
-    code.present? ? "[foto do imóvel #{code} enviada]" : '[foto do imóvel enviada]'
+    '[attachment sent]'
   end
 
   # Forward do agent_name das additional_attributes para o histórico da gem.
@@ -180,9 +189,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     @own_agent_names.include?(agent_name)
   end
 
-  # Quando o cliente responde (reply) a uma mensagem específica do WhatsApp,
-  # injeta o texto citado no contexto pra o agente saber a qual imóvel/mensagem
-  # ele se refere. Sem isso, "é essa" / "quero essa" ficavam sem referência.
+  # Include the quoted message so short replies retain their reference.
   def with_reply_context(message, content)
     attrs = message.content_attributes || {}
     reply_id = attrs['in_reply_to']
@@ -203,17 +210,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     end
   end
 
-  # A msg citada pode ser uma FOTO (outgoing de conteudo vazio). Antes, content.blank?
-  # descartava a citacao e o "esse e qual?" ficava sem referencia — resolve pelo
-  # property_code carimbado na foto; senao, ao menos sinaliza que e uma foto.
   def quoted_description(quoted)
     text = quoted.content.to_s.gsub(/\s+/, ' ').strip
     return text[0, 180] if text.present?
 
-    code = quoted.additional_attributes&.dig('property_code')
-    return "foto do imóvel #{code}" if code.present?
-
-    quoted.attachments.any? ? 'uma foto enviada anteriormente' : ''
+    quoted.attachments.any? ? 'a previously sent attachment' : ''
   end
 
   def prepare_multimodal_message_content(message)
@@ -251,14 +252,40 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     Rails.logger.warn("[Captain] ensure_handoff_if_promised falhou: #{e.message}")
   end
 
-  def process_action(action)
-    case action
-    when 'handoff'
-      I18n.with_locale(@assistant.account.locale) do
-        create_handoff_message
-        @conversation.bot_handoff!
-        send_out_of_office_message_if_applicable
-      end
+  def v1_handoff_requested?
+    legacy_v1_handoff_token? || classifier_v1_handoff_requested?
+  end
+
+  def classifier_v1_handoff_requested?
+    @response['action'] == 'handoff'
+  end
+
+  def legacy_v1_handoff_token?
+    @response['response'] == 'conversation_handoff'
+  end
+
+  def v2_handoff_tool_fired?
+    @response['handoff_tool_called']
+  end
+
+  def process_v1_handoff
+    I18n.with_locale(@assistant.account.locale) do
+      Rails.logger.info(
+        "[CAPTAIN][ResponseBuilderJob] V1 handoff requested for account=#{account.id} conversation=#{@conversation.display_id} " \
+        "source=#{@response&.dig('action_source') || 'legacy'} reason=#{@response&.dig('action_reason')}"
+      )
+      create_handoff_message
+      @conversation.bot_handoff!
+      report_v1_handoff_not_executed if conversation_pending?
+      send_out_of_office_message_if_applicable
+    end
+  end
+
+  def process_v2_handoff
+    # HandoffTool already ran bot_handoff! + OOO inside the agent loop. Preserve
+    # waiting_since so this message doesn't clear the timestamp it left in place.
+    I18n.with_locale(@assistant.account.locale) do
+      create_handoff_message(preserve_waiting_since: true)
     end
   end
 
@@ -270,9 +297,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     ::MessageTemplates::Template::OutOfOffice.perform_if_applicable(@conversation)
   end
 
-  def create_handoff_message
-    create_outgoing_message(
-      @assistant.config['handoff_message'].presence || I18n.t('conversations.captain.handoff')
+  def create_handoff_message(preserve_waiting_since: false)
+    @handoff_message = create_outgoing_message(
+      @assistant.config['handoff_message'].presence || I18n.t('conversations.captain.handoff'),
+      preserve_waiting_since: preserve_waiting_since
     )
   end
 
@@ -346,9 +374,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def sanitize_for_whatsapp(content)
     return content if content.blank?
 
-    content = fix_property_links(content)
     content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
-           .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
+           .gsub(/\[\s*attachments?\s+sent\s*\]/i, '')
            .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
            .gsub(/__(.*?)__/m, '\1')        # __negrito__ -> negrito
            .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
@@ -360,26 +387,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
   end
 
-  # A URL de um imóvel só vem da buscar_imovel (build_url). O LLM às vezes monta
-  # uma URL do site na mão, com formato e número inventados (ex: caminho
-  # /imovel/...-3338 em vez de ...,ImoCodigo). Aqui, toda URL da Tozi na resposta
-  # é trocada pela que a busca realmente retornou (casando o código no fim da
-  # URL); se nenhum código bater, é inventada -> remove. Sem busca na conversa,
-  # nenhuma URL da Tozi é legítima. Só toca a saída da IA (não a de humano).
-  def fix_property_links(content)
-    return content unless content.match?(/toziimoveis/i)
-
-    mapa = @conversation.reload.custom_attributes&.dig('urls_imoveis') || {}
-    content.gsub(%r{https?://[^\s)\]]*toziimoveis\.com\.br[^\s)\]]*}i) do |url|
-      match = url.scan(/\d+/).find { |n| mapa.key?(n) }
-      match ? mapa[match] : ''
-    end
-  end
-
   def send_humanized_response(content)
     chunks = Captain::Behavior::HumanizerService.new(config: @assistant.behavior['humanizer']).split(content)
 
     sent = 0
+    last_message = nil
     chunks.each do |chunk|
       next if chunk.blank? # bolha vazia (ex: sobra de sentinela [IGNORAR] removido) -> não envia
 
@@ -393,11 +405,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # pick e o create!) aceito — lock pessimista por mensagem seria desproporcional.
       break unless captain_can_respond?
 
-      message = create_outgoing_message(chunk, agent_name: @response['agent_name'])
-      wait_for_dispatch(message)
+      last_message = create_outgoing_message(chunk, agent_name: @response['agent_name'])
+      wait_for_dispatch(last_message)
       sent += 1
     end
     log_behavior_event('humanizer_split', { chunks: chunks.size, sent: sent }) if chunks.size > 1
+    last_message
   end
 
   # Espera a bolha ser despachada pro WhatsApp (ganhar source_id) antes de criar a proxima,
@@ -445,7 +458,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     raise ArgumentError, 'Message content cannot be blank' if content.blank?
   end
 
-  def create_outgoing_message(message_content, agent_name: nil)
+  def create_outgoing_message(message_content, agent_name: nil, preserve_waiting_since: false)
     additional_attrs = {}
     additional_attrs[:agent_name] = agent_name if agent_name.present?
 
@@ -455,18 +468,34 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       inbox_id: inbox.id,
       sender: @assistant,
       content: message_content,
-      additional_attributes: additional_attrs
+      additional_attributes: additional_attrs,
+      preserve_waiting_since: preserve_waiting_since
     )
+  end
+
+  # Capture runs outside the delivery transaction and never raises (the service
+  # swallows its own failures): a session-logging bug must never roll back the
+  # customer reply or trigger the top-level handle_error handoff on top of it.
+  def capture_assistant_session(result_message:, credits_consumed:)
+    Captain::Assistant::SessionCaptureService.new(assistant: @assistant, conversation: @conversation, run_result: @run_result,
+                                                  result_message: result_message, credits_consumed: credits_consumed).capture
   end
 
   def handle_error(error)
     log_error(error)
-    process_action('handoff') if conversation_pending?
+    @response ||= {}
+    @response['action_source'] ||= 'error'
+    @response['action_reason'] ||= error_action_reason(error)
+    process_v1_handoff if conversation_pending?
     true
   end
 
   def log_error(error)
     ChatwootExceptionTracker.new(error, account: account).capture_exception
+  end
+
+  def error_action_reason(error)
+    error.class.name.underscore.tr('/', '_')
   end
 
   def captain_v2_enabled?
@@ -487,6 +516,15 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       conversation: @conversation,
       event_type: event_type,
       payload: payload
+    )
+  end
+
+  def report_v1_handoff_not_executed
+    error = StandardError.new("Captain V1 handoff requested but conversation #{@conversation.display_id} is still pending")
+    ChatwootExceptionTracker.new(error, account: account).capture_exception
+    Rails.logger.error(
+      "[CAPTAIN][ResponseBuilderJob] V1 handoff requested but not executed for account=#{account.id} " \
+      "conversation=#{@conversation.display_id}"
     )
   end
 

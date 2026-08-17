@@ -7,7 +7,7 @@ class Captain::Llm::EmbeddingService
     Llm::Config.initialize!
     @account = account || Account.find_by(id: account_id)
     @account_id = @account&.id || account_id
-    @embedding_model = @account&.captain_help_center_search_model.presence || LlmConstants::DEFAULT_EMBEDDING_MODEL
+    @embedding_model = @account&.captain_help_center_search_model.presence || self.class.embedding_model
   end
 
   def self.embedding_model
