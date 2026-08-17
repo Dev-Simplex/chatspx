@@ -16,6 +16,12 @@ class Spx::CtwaVisibilityListener < BaseListener
 
     Whatsapp::ReferralVisibilityService.new(message: message).perform
   rescue StandardError => e
-    Rails.logger.error("[Spx::CtwaVisibilityListener] msg=#{event&.data&.dig(:message)&.id}: #{e.message}")
+    registrar_falha(event, e)
+  end
+
+  private
+
+  def registrar_falha(event, error)
+    Rails.logger.error("[Spx::CtwaVisibilityListener] msg=#{event&.data&.dig(:message)&.id}: #{error.message}")
   end
 end
