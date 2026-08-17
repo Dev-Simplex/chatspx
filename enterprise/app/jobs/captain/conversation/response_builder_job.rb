@@ -82,7 +82,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       content = if message.incoming?
                   with_reply_context(message, prepare_multimodal_message_content(message))
                 else
-                  message.content.presence || outgoing_attachment_placeholder(message)
+                  outgoing_content(message)
                 end
       with_forwardable_agent_name({ content: content, role: determine_role(message) }, message)
     end.tap { |history| injetar_notas(history) }
@@ -240,6 +240,32 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # Foto sai como outgoing de conteudo vazio; sem o codigo, todas viram o MESMO placeholder
   # no historico e o modelo nao sabe qual imovel e qual ("esse e qual?"). Carimbado pela
   # EnviarFotosImovelTool em additional_attributes['property_code'].
+  # Histórico de mensagem de SAÍDA. Mensagem entregue como payload interativo (carrossel de
+  # fotos, Flow, cta_url) tem um `content` que é rótulo de PAINEL: ele nunca chega ao cliente,
+  # porque o provider envia o payload e ignora o texto. Repassá-lo cru põe no histórico um
+  # turno que parece fala do agente — e o modelo IMITA o formato.
+  #
+  # Medido na Tozi (conta 6, conv 49439): 7 segundos depois de um carrossel real, o agente
+  # escreveu à mão "📷 Carrossel: 9 fotos do imóvel 5194" como resposta sua. Essa mensagem saiu
+  # sem interactive_payload nenhum, e o cliente recebeu a linha SEM foto — logo depois de ter
+  # recebido as fotos de verdade. Mesmo remédio dos rótulos de áudio/imagem/vídeo do
+  # OpenAiMessageBuilderService: marcar a ORIGEM em vez de tentar corrigir por conduta.
+  def outgoing_content(message)
+    return interactive_payload_placeholder(message) if interactive_payload?(message)
+
+    message.content.presence || outgoing_attachment_placeholder(message)
+  end
+
+  def interactive_payload?(message)
+    message.content_attributes.is_a?(Hash) && message.content_attributes['interactive_payload'].present?
+  end
+
+  # Mesmo formato do placeholder de foto: evento entre colchetes, não frase.
+  def interactive_payload_placeholder(message)
+    code = message.additional_attributes&.dig('property_code')
+    code.present? ? "[carrossel de fotos do imóvel #{code} enviado]" : '[mensagem interativa enviada]'
+  end
+
   def outgoing_attachment_placeholder(message)
     return '' unless message.attachments.any?
 
