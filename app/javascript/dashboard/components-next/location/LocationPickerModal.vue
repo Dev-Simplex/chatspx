@@ -1,6 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+// SABOTAGEM TEMPORARIA (bloco 0.5) — remover
+import LStatic from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const props = defineProps({
   show: {
@@ -84,6 +87,9 @@ const resetState = () => {
 };
 
 const ensureLeaflet = async () => {
+  // SABOTAGEM TEMPORARIA (bloco 0.5): usa o Leaflet importado estaticamente
+  leafletRef = LStatic;
+  return LStatic;
   if (leafletRef) return leafletRef;
   const [{ default: L }, iconUrlMod, iconRetinaUrlMod, shadowUrlMod] =
     await Promise.all([

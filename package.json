@@ -14,7 +14,8 @@
     "ruby:prettier": "bundle exec rubocop -a",
     "build:sdk": "vite build --config vite.lib.config.ts",
     "prepare": "husky install",
-    "size": "size-limit",
+    "size": "size-limit && node scripts/widget-size.mjs",
+    "size:widget": "node scripts/widget-size.mjs",
     "story:dev": "histoire dev",
     "story:build": "histoire build",
     "story:preview": "histoire preview",
@@ -22,12 +23,15 @@
   },
   "size-limit": [
     {
-      "path": "public/vite/assets/widget-*.js",
-      "limit": "300 KB"
+      "name": "sdk.js cru (protege o parse)",
+      "path": "public/packs/js/sdk.js",
+      "gzip": false,
+      "limit": "40 KB"
     },
     {
+      "name": "sdk.js gzip (protege o visitante)",
       "path": "public/packs/js/sdk.js",
-      "limit": "40 KB"
+      "limit": "15 KB"
     }
   ],
   "dependencies": {

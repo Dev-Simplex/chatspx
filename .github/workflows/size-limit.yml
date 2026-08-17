@@ -51,5 +51,25 @@ jobs:
         env:
           RAILS_ENV: production
 
-      - name: Size Check
-        run: pnpm run size
+      # `size-limit` cobre o `sdk.js` nos dois orçamentos (40 KB crus / 15 KB
+      # gzip — arbitragem A13). O glob `public/vite/assets/widget-*.js` saiu
+      # daqui: ele media o chunk de entrada, não o grafo, e dependia do hash
+      # do build.
+      - name: Size Check (sdk.js)
+        run: pnpm exec size-limit
+
+      # Gate do bloco 0.5: percorre o manifest do Vite e soma o fecho
+      # transitivo dos imports estáticos do widget, trava `leaflet-*.js` fora
+      # dos imports estáticos e publica o delta em bytes do `sdk.js` contra a
+      # linha de base da §12 (29.014 B crus / 9.595 B gzip).
+      #
+      # O grafo é REPORTADO em destaque e guardado por uma régua de REGRESSÃO
+      # no valor medido hoje — não pelo antigo teto de 300 kB, que foi escrito
+      # para o chunk de entrada. Quem baixa o número de verdade é o bloco 1.08
+      # (CSS do widget <= 80 KB crus) e depois o 2.18 (JS eager <= 150 KB gzip).
+      #
+      # `if: always()` para que a saída do gate apareça mesmo quando o
+      # `size-limit` acima já tiver falhado — dois gates, dois relatórios.
+      - name: Widget graph size gate
+        if: always()
+        run: node scripts/widget-size.mjs
