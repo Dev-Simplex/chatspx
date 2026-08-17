@@ -154,5 +154,11 @@
   },
   "FOOTER_REPLY_TO": {
     "REPLY_TO": "Respondendo a:"
+  },
+  "A11Y": {
+    "CONVERSATION_LOG": "Histórico da conversa",
+    "CLOSE_WIDGET": "Fechar o chat",
+    "OPEN_IN_NEW_WINDOW": "Abrir o chat em uma nova janela",
+    "OPEN_WIDGET": "Abrir o chat"
   }
 }

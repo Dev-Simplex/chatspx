@@ -69,6 +69,11 @@ export default {
     isUnreadOrCampaignView() {
       return ['unread-messages', 'campaigns'].includes(this.$route.name);
     },
+    documentLocale() {
+      return this.$root.$i18n.locale
+        ? String(this.$root.$i18n.locale).replace('_', '-')
+        : '';
+    },
   },
   watch: {
     activeCampaign() {
@@ -78,6 +83,19 @@ export default {
       immediate: true,
       handler(value) {
         document.documentElement.dir = value ? 'rtl' : 'ltr';
+      },
+    },
+    // O `lang` inicial vem do ERB, com o locale da conta. Aqui ele acompanha a
+    // troca em tempo de execução, que existe quando a inbox habilita mais de um
+    // idioma: sem isto o documento continuaria anunciando o idioma antigo e o
+    // leitor de tela leria o novo com a pronúncia errada (WCAG 3.1.1).
+    // `_` do locale interno vira `-` do BCP 47 — `pt_BR` → `pt-BR`.
+    documentLocale: {
+      immediate: true,
+      handler(value) {
+        if (value) {
+          document.documentElement.lang = value;
+        }
       },
     },
   },
@@ -125,6 +143,10 @@ export default {
       IFrameHelper.sendMessage({
         event: 'setBubbleLabel',
         label: this.$t('BUBBLE.LABEL'),
+        // O lançador vive no documento do host, fora do bundle do widget, e por
+        // isso não alcança o i18n do Vue. O nome acessível dele atravessa a
+        // ponte já traduzido (bloco 1.06) — é este painel que tem os 40 locales.
+        ariaLabel: this.$t('A11Y.OPEN_WIDGET'),
       });
     },
     setIframeHeight(isFixedHeight) {

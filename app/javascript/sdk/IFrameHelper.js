@@ -17,6 +17,7 @@ import {
   onClickChatBubble,
   onBubbleClick,
   setBubbleText,
+  setBubbleAccessibleName,
   addUnreadClass,
   removeUnreadClass,
 } from './bubbleHelpers';
@@ -236,6 +237,12 @@ export const IFrameHelper = {
     },
     setBubbleLabel(message) {
       setBubbleText(window.$chatwoot.launcherTitle || message.label);
+      // O nome acessível do lançador vem traduzido do painel (bloco 1.06). Cai
+      // no rótulo do texto expandido quando o painel é de uma versão anterior e
+      // ainda não manda `ariaLabel`.
+      setBubbleAccessibleName(
+        window.$chatwoot.launcherTitle || message.ariaLabel || message.label
+      );
     },
 
     setAuthCookie({ data: { widgetAuthToken } }) {

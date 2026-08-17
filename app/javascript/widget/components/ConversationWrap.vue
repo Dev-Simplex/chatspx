@@ -108,7 +108,18 @@ export default {
         : 'conversation-container-light',
     ]"
   >
-    <div class="conversation-wrap" :class="{ 'is-typing': isAgentTyping }">
+    <!-- `role="log"` marca a região onde chegam mensagens novas, e é o que faz
+         o leitor de tela anunciar a resposta do agente sem o visitante ter de
+         sair do campo de texto para procurá-la. O papel já implica
+         `aria-live="polite"`, então não o repetimos: `polite` espera a pausa da
+         fala em vez de interromper, que é o comportamento certo para chat.
+         `aria-label` porque uma região precisa de nome para ser navegável. -->
+    <div
+      class="conversation-wrap"
+      role="log"
+      :aria-label="$t('A11Y.CONVERSATION_LOG')"
+      :class="{ 'is-typing': isAgentTyping }"
+    >
       <div v-if="isFetchingList" class="message--loader">
         <Spinner />
       </div>

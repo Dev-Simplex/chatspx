@@ -1,5 +1,11 @@
 <!DOCTYPE html>
-<html>
+<%# `lang` é o primeiro requisito de a11y de um documento (WCAG 3.1.1) e o widget
+    não tinha nenhum: o leitor de tela lia português com fonemas de inglês. O
+    locale da conta usa `_` (`pt_BR`); BCP 47 exige `-` (`pt-BR`), daí o `tr`.
+    O visitante pode trocar de idioma em tempo de execução quando a inbox tem
+    mais de um habilitado — nesse caso `App.vue` reescreve este atributo no
+    mesmo watcher que já cuida do `dir` de RTL. %>
+<html lang="<%= @web_widget.account.locale.to_s.tr('_', '-') %>">
   <head>
     <title><%= @global_config['INSTALLATION_NAME'] %></title>
     <%= csrf_meta_tags %>
