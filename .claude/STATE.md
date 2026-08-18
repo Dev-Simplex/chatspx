@@ -10,6 +10,36 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-18] 🔵 FRENTE ABERTA: `unidades` — onde moram as lojas do cliente (Fase 1)
+
+> Worktree `orca/workspaces/chatspx/unidades`, branch **`PauloSeze/unidades`**, agente Claude
+> rodando. Contrato: **`docs/contratos/unidades.md`** (está na branch de docs / PR #42, ainda não
+> na `homologacao` — o worker lê por `git show origin/conciliacao/higiene-11ago:...`).
+
+- **Por que existe:** o SPX **não tem lugar nenhum** para as unidades físicas de um cliente —
+  verificado no código. `WorkingHour` é por *inbox* (quando o SPX atende, não quando a loja abre) e
+  **não existe conceito de exceção/feriado em lugar nenhum do repositório**; `Captain::CustomTool`
+  exige `endpoint_url`, então consulta mas não guarda; knowledge responde por similaridade, que é
+  ruim em listagem e incapaz de fazer conta de data. Resultado medido na BigStore: o prompt da Bia
+  diz *"você não tem nenhuma fonte de dados conectada"* e **toda** pergunta de horário, endereço,
+  telefone ou preço vira handoff — no n8n a mesma IA respondia, porque tinha uma Data Table.
+- **O princípio:** regra padrão e exceção são coisas diferentes, e **a exceção tem data e morre
+  sozinha**. A dor do n8n não era guardar, era que exceção virava regra (`abre_domingo: true`) e
+  alguém tinha que lembrar de desfazer. Exceção vale para um **conjunto** (etiqueta), senão
+  "editar 20 linhas" só vira "criar 20 exceções".
+- **Escopo da Fase 1:** 3 tabelas + models com a regra de resolução + tool `buscar_unidades` +
+  rake de carga + specs. **Sem UI** — a tela é Fase 2 e depende das 4 questões da §9.
+- **A prioridade da UI é invertida de propósito:** endereço muda uma vez por ano e a gente carrega;
+  **exceção muda toda semana e precisa ser do cliente**, senão reconstruímos o n8n com mais passos.
+- **Ganho de projeto sobre o n8n:** lá a instrução era o **modelo** converter "abre amanhã?" em data
+  absoluta antes de consultar. Aqui a data se resolve **em Ruby**, no fuso da unidade. E expressão
+  não resolvível tem que dizer isso — não pode virar "hoje" por omissão.
+- ⚠️ **Armadilha evitada na criação:** a `homologacao` **local** deste notebook está **156 commits
+  atrás** da origin. Worktree criada com `--base-branch origin/homologacao` explícito (`ce3adb2be9`).
+  É a mesma pegadinha que em 15/08 fez um cherry-pick nascer sobre base velha.
+- **Sem Run de orquestração**, de propósito: é **uma** frente, e a fila de mensagens do Run polui a
+  conversa do Paulo. Supervisão por leitura do terminal.
+
 ### [2026-08-17] 🟡 FLOWS: o menu de opções sumia em canal que não desenha menu (PR #60) — armadilha latente, exposição ZERO hoje
 
 > O `send_interactive` é o **mais antigo** dos cinco nós de canal e o **único sem guarda**. As quatro
