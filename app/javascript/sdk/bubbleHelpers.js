@@ -25,6 +25,28 @@ export const setBubbleText = bubbleText => {
   }
 };
 
+/**
+ * Nome acessível do lançador, que vive no documento do HOST.
+ *
+ * O lançador é um `<button>` só com ícone: sem nome, o leitor de tela anuncia
+ * "botão" e o visitante não descobre que ali abre o chat. O `title` cravado em
+ * inglês que existia aqui também não servia — em conta pt-BR ele lia
+ * "Open chat window".
+ *
+ * A tradução não pode nascer neste arquivo: o SDK roda fora do bundle do widget
+ * e não alcança o i18n do Vue. Ela chega pela ponte que já existe para o texto
+ * do modo expandido (`setBubbleLabel`), com a string vinda do painel, que tem os
+ * 40 locales. `window.$chatwoot.launcherTitle` (opção pública do cliente)
+ * continua tendo precedência, como no texto expandido.
+ */
+export const setBubbleAccessibleName = name => {
+  if (!name) return;
+  [chatBubble, closeBubble].forEach(bubble => {
+    bubble.title = name;
+    bubble.setAttribute('aria-label', name);
+  });
+};
+
 export const createBubbleIcon = ({ className, path, target }) => {
   let bubbleClassName = `${className} woot-elements--${window.$chatwoot.position}`;
   const bubbleIcon = document.createElementNS(
@@ -43,7 +65,11 @@ export const createBubbleIcon = ({ className, path, target }) => {
     'path'
   );
   bubblePath.setAttributeNS(null, 'd', path);
-  bubblePath.setAttributeNS(null, 'fill', '#FFFFFF');
+  // `currentColor`, não um branco cravado: a cor do ícone passa a herdar o
+  // `color` do lançador, que é `var(--w-on-brand)` — a decisão de contraste que
+  // o servidor calculou por luminância WCAG. Com marca clara o ícone escurece
+  // sozinho, em vez de ficar branco sobre claro a 3,07:1.
+  bubblePath.setAttributeNS(null, 'fill', 'currentColor');
 
   bubbleIcon.appendChild(bubblePath);
   target.appendChild(bubbleIcon);
@@ -57,7 +83,13 @@ export const createBubbleIcon = ({ className, path, target }) => {
   }
 
   target.className = bubbleClassName;
-  target.title = 'Open chat window';
+  // Nome provisório, válido pelos milissegundos até o painel montar e a ponte
+  // entregar a string traduzida (ver `setBubbleAccessibleName`). A opção pública
+  // do cliente vence, e quando ela existe não há momento nenhum em inglês.
+  // Não deixar `title` vazio é deliberado: um botão sem nome é pior para o
+  // leitor de tela do que um botão com nome no idioma errado.
+  target.title = window.$chatwoot.launcherTitle || 'Open chat window';
+  target.setAttribute('aria-label', target.title);
   return target;
 };
 

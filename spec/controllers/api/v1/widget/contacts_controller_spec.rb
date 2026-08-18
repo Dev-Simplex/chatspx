@@ -175,15 +175,155 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
     end
 
     context 'when no identifier is supplied (anonymous prechat update)' do
-      it 'allows updating name/email without an identifier_hash' do
+      it 'allows updating the name without an identifier_hash' do
         patch '/api/v1/widget/contact',
-              params: { website_token: web_widget.website_token, email: 'prechat@test.com', name: 'Prechat User' },
+              params: { website_token: web_widget.website_token, name: 'Prechat User' },
               headers: { 'X-Auth-Token' => token },
               as: :json
 
-        expect(victim.reload.email).to be_nil
-        expect(Contact.from_email('prechat@test.com')).to be_present
         expect(response).to have_http_status(:success)
+        expect(contact.reload.name).to eq('Prechat User')
+      end
+    end
+  end
+
+  # BLOCO 1.11 — HMAC, portas 1 e 2 (B5)
+  #
+  # Porta 1: PATCH /widget/contact aceitava escrita de identidade sem assinatura.
+  # Porta 2: should_verify_hmac? desligava a checagem quando custom_attributes
+  #          vinha presente e identifier vinha em branco.
+  #
+  # O impacto das duas e o mesmo e nao e "atributo errado": ContactIdentifyAction
+  # faz merge_if_existing_email_contact / _phone_number_contact quando identifier
+  # esta em branco (contact_identify_action.rb:36-47,72-85). O merge MOVE o
+  # contact_inbox da sessao anonima para o contato da vitima, ou seja, entrega ao
+  # chamador a sessao de widget da vitima e o historico de conversas dela.
+  describe 'BLOCO 1.11 - takeover de contato por merge sem HMAC' do
+    let(:web_widget) { create(:channel_widget, account: account, hmac_mandatory: true) }
+    let!(:victim) do
+      create(:contact, account: account, identifier: 'victim-identifier', name: 'Victim',
+                       email: 'victim@corp.com', phone_number: '+551199990000')
+    end
+    let(:attacker) { create(:contact, account: account, name: 'Anon') }
+    let(:attacker_inbox) { create(:contact_inbox, contact: attacker, inbox: web_widget.inbox) }
+    let(:attacker_token) do
+      Widget::TokenService.new(payload: { source_id: attacker_inbox.source_id, inbox_id: web_widget.inbox.id }).generate_token
+    end
+
+    # A prova do takeover: o contact_inbox da sessao continua apontando para o
+    # contato anonimo, e a vitima nao ganhou a sessao do atacante.
+    def expect_no_takeover
+      expect(attacker_inbox.reload.contact_id).to eq(attacker.id)
+      expect(victim.reload.contact_inboxes.pluck(:source_id)).not_to include(attacker_inbox.source_id)
+    end
+
+    context 'when porta 1: PATCH /widget/contact sem assinatura, em inbox com hmac obrigatorio' do
+      it 'nao altera o contato quando o e-mail da vitima e enviado sem identifier_hash' do
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, email: 'victim@corp.com', name: 'Attacker' },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(victim.reload.name).to eq('Victim')
+        expect_no_takeover
+      end
+
+      it 'nao altera o contato quando o telefone da vitima e enviado sem identifier_hash' do
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, phone_number: '+551199990000' },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+        expect_no_takeover
+      end
+    end
+
+    context 'when porta 2: custom_attributes presente + identifier em branco desligava a checagem' do
+      it 'nao altera o contato em PATCH /widget/contact' do
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, email: 'victim@corp.com',
+                        custom_attributes: { plano: 'enterprise' } },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(victim.reload.custom_attributes).to eq({})
+        expect_no_takeover
+      end
+
+      it 'nao altera o contato em PATCH /widget/contact/set_user' do
+        patch '/api/v1/widget/contact/set_user',
+              params: { website_token: web_widget.website_token, email: 'victim@corp.com',
+                        custom_attributes: { plano: 'enterprise' } },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(victim.reload.custom_attributes).to eq({})
+        expect_no_takeover
+      end
+    end
+
+    context 'when hmac obrigatorio: o que continua funcionando' do
+      it 'aceita setCustomAttributes (sem campo de identidade) na sessao corrente' do
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, custom_attributes: { carrinho_valor: 4200 } },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(attacker.reload.custom_attributes).to eq({ 'carrinho_valor' => 4200 })
+        expect_no_takeover
+      end
+
+      it 'aceita identidade quando o identifier_hash e valido' do
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, identifier: 'victim-identifier',
+                        identifier_hash: OpenSSL::HMAC.hexdigest('sha256', web_widget.hmac_token, 'victim-identifier'),
+                        name: 'Legit' },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(victim.reload.name).to eq('Legit')
+      end
+    end
+
+    # Nao-regressao: quem NAO usa HMAC (hmac_mandatory=false, sem identifier_hash)
+    # tem que continuar exatamente como hoje, merge por e-mail incluso.
+    context 'when nao-regressao: inbox que nao usa HMAC' do
+      let(:web_widget) { create(:channel_widget, account: account, hmac_mandatory: false) }
+
+      it 'continua identificando por e-mail sem identifier_hash' do
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, email: 'victim@corp.com', name: 'Prechat' },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(attacker_inbox.reload.contact_id).to eq(victim.id)
+      end
+
+      it 'continua aceitando custom_attributes sem identifier' do
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, custom_attributes: { carrinho_valor: 4200 } },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(attacker.reload.custom_attributes).to eq({ 'carrinho_valor' => 4200 })
+      end
+
+      it 'continua aceitando set_user sem identifier_hash' do
+        patch '/api/v1/widget/contact/set_user',
+              params: { website_token: web_widget.website_token, identifier: 'novo-id', name: 'Novo' },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(attacker.reload.identifier).to eq('novo-id')
       end
     end
   end

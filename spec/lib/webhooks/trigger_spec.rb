@@ -6,7 +6,10 @@ describe Webhooks::Trigger do
   subject(:trigger) { described_class }
 
   let!(:account) { create(:account) }
-  let!(:inbox) { create(:inbox, account: account) }
+  # O fork valida `pending_status_allowed_by_inbox` (conversation.rb:461, commit
+  # da2ea07ed1). Sem a flag, todo `create(:conversation, status: :pending)` deste
+  # arquivo levanta RecordInvalid — eram 6 vermelhos herdados do upstream.
+  let!(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
   let!(:conversation) { create(:conversation, inbox: inbox) }
   let!(:message) { create(:message, account: account, inbox: inbox, conversation: conversation) }
 
@@ -46,20 +49,69 @@ describe Webhooks::Trigger do
       trigger.execute(url, payload, webhook_type)
     end
 
-    it 'updates message status if webhook fails for message-created event' do
-      payload = { event: 'message_created', conversation: { id: conversation.id }, id: message.id }
-
-      expect(SafeFetch).to receive(:fetch).and_raise(SafeFetch::HttpError.new('500 Internal Server Error'))
-
-      expect { trigger.execute(url, payload, webhook_type) }.to change { message.reload.status }.from('sent').to('failed')
-    end
-
-    it 'updates message status if webhook fails for message-updated event' do
+    # B3: um 500 e transitorio. Antes, `execute` engolia o erro e ja marcava a
+    # mensagem como falha — o job terminava com sucesso e nao havia reentrega.
+    # Agora a excecao sobe e quem marca a falha e `handle_failure`, chamado uma
+    # unica vez pelo WebhookJob quando as 5 tentativas se esgotam.
+    # (o caso message_created equivalente esta em 'lets a 500 rise for non-agent
+    # webhooks so the job can retry', mais abaixo — e o exemplo do upstream que
+    # afirmava o defeito, renomeado no lugar.)
+    it 'raises on a 500 for message-updated instead of silently marking the message failed' do
       payload = { event: 'message_updated', conversation: { id: conversation.id }, id: message.id }
 
       expect(SafeFetch).to receive(:fetch).and_raise(SafeFetch::HttpError.new('500 Internal Server Error'))
 
-      expect { trigger.execute(url, payload, webhook_type) }.to change { message.reload.status }.from('sent').to('failed')
+      expect { trigger.execute(url, payload, webhook_type) }
+        .to raise_error(SafeFetch::HttpError, '500 Internal Server Error')
+      expect(message.reload.status).to eq('sent')
+    end
+
+    it 'marks the message failed when handle_failure is called for message-created' do
+      payload = { event: 'message_created', conversation: { id: conversation.id }, id: message.id }
+      error = SafeFetch::HttpError.new('500 Internal Server Error')
+
+      expect { trigger.new(url, payload, webhook_type).handle_failure(error) }
+        .to change { message.reload.status }.from('sent').to('failed')
+    end
+
+    it 'does not retry a 404 — the destination refused the payload' do
+      payload = { event: 'message_created', conversation: { id: conversation.id }, id: message.id }
+
+      expect(SafeFetch).to receive(:fetch).and_raise(SafeFetch::HttpError.new('404 Not Found'))
+
+      expect { trigger.execute(url, payload, webhook_type) }.not_to raise_error
+      expect(message.reload.status).to eq('failed')
+    end
+
+    it 'retries a 429 — the destination asked us to back off' do
+      payload = { event: 'message_created', conversation: { id: conversation.id }, id: message.id }
+
+      expect(SafeFetch).to receive(:fetch).and_raise(SafeFetch::HttpError.new('429 Too Many Requests'))
+
+      expect { trigger.execute(url, payload, webhook_type) }
+        .to raise_error(SafeFetch::HttpError, '429 Too Many Requests')
+      expect(message.reload.status).to eq('sent')
+    end
+
+    it 'retries a read timeout' do
+      payload = { event: 'message_created', conversation: { id: conversation.id }, id: message.id }
+
+      expect(SafeFetch).to receive(:fetch).and_raise(SafeFetch::FetchError.new('Net::ReadTimeout'))
+
+      expect { trigger.execute(url, payload, webhook_type) }.to raise_error(SafeFetch::FetchError)
+      expect(message.reload.status).to eq('sent')
+    end
+
+    # Um corpo grande so e recusado DEPOIS de um 2xx (safe_fetch/fetcher.rb:35
+    # ignora o corpo de quem nao e Net::HTTPSuccess). A entrega ja aconteceu —
+    # reentregar duplicaria o webhook no destino.
+    it 'does not retry an oversized response body, because delivery already happened' do
+      payload = { event: 'message_created', conversation: { id: conversation.id }, id: message.id }
+
+      expect(SafeFetch).to receive(:fetch).and_raise(SafeFetch::FileTooLargeError.new('exceeded 42 bytes'))
+
+      expect { trigger.execute(url, payload, webhook_type) }.not_to raise_error
+      expect(message.reload.status).to eq('failed')
     end
 
     it 'treats blocked private webhook URLs as failures' do
@@ -165,13 +217,18 @@ describe Webhooks::Trigger do
       end
     end
 
-    it 'handles 500 without raising for non-agent webhooks' do
+    # DIVERGENCIA DELIBERADA DO UPSTREAM (B3): este exemplo se chamava
+    # 'handles 500 without raising for non-agent webhooks' e afirmava exatamente
+    # o defeito — engolir o 500 e nunca reentregar. Vai conflitar no proximo
+    # merge do upstream, e e para conflitar.
+    it 'lets a 500 rise for non-agent webhooks so the job can retry' do
       payload = { event: 'message_created', conversation: { id: conversation.id }, id: message.id }
 
       expect(SafeFetch).to receive(:fetch).and_raise(SafeFetch::HttpError.new('500 Internal Server Error'))
 
-      expect { trigger.execute(url, payload, webhook_type) }.not_to raise_error
-      expect(message.reload.status).to eq('failed')
+      expect { trigger.execute(url, payload, webhook_type) }
+        .to raise_error(SafeFetch::HttpError, '500 Internal Server Error')
+      expect(message.reload.status).to eq('sent')
     end
   end
 
@@ -262,7 +319,8 @@ describe Webhooks::Trigger do
 
     expect(SafeFetch).to receive(:fetch).and_raise(SafeFetch::HttpError.new('500 Internal Server Error'))
 
-    expect { trigger.execute(url, payload, webhook_type) }.not_to(change { message.reload.status })
+    expect { trigger.execute(url, payload, webhook_type) }.to raise_error(SafeFetch::HttpError)
+    expect(message.reload.status).to eq('sent')
   end
 
   context 'when webhook timeout configuration is blank' do

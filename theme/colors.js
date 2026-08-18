@@ -287,4 +287,53 @@ export const colors = {
       border: 'rgba(var(--label-border))',
     },
   },
+
+  // ── Namespace do widget (bloco 1.04) ──────────────────────────────────────
+  // ADIÇÃO, nunca substituição: a chave `n.brand` acima continua onde estava,
+  // com o valor do upstream, para que `theme/colors.js` siga mergeando limpo
+  // (o upstream mexe neste arquivo). O widget deixa de usar a chave dele.
+  //
+  // Todos os cinco valores resolvem para `var(--w-*)`, e os cinco são emitidos
+  // pelo servidor em `WidgetTokens` (bloco 1.02) antes do 1º paint. Nenhum
+  // token novo foi inventado aqui de propósito: um token que o servidor NÃO
+  // calcula ficaria preso no fallback de `_tokens.scss` e não acompanharia a
+  // cor da inbox — que é exatamente o defeito que esta onda corrige.
+  //
+  // Sem `<alpha-value>`: `bg-w-brand/50` não existe, e é intencional. Diluir a
+  // marca com opacidade invalida o contraste calculado (regra C10 do 16 §2.5.1).
+  //
+  // ── Por que cada var tem fallback (nota R21) ──────────────────────────────
+  // `_tokens.scss` só é carregado pelo CSS do WIDGET, mas dois componentes de
+  // `shared/` que esta migração toca — `Spinner.vue` e
+  // `ui/MultiselectDropdownItems.vue` — também renderizam no DASHBOARD, onde
+  // nenhum `--w-*` existe. Sem o segundo argumento, `var(--w-brand-readable)`
+  // ali seria guaranteed-invalid: a propriedade cai para o valor inicial e o
+  // spinner do dashboard perderia a cor da marca.
+  //
+  // O fallback é `#2dc46f`, o literal histórico de `n.brand`, justamente para
+  // que FORA do widget o resultado seja idêntico ao de antes desta migração.
+  // Dentro do widget ele nunca é exercitado: `_tokens.scss` declara os sete
+  // tokens no `:root`, e o servidor (1.02) os sobrescreve antes do 1º paint.
+  //
+  // Os fallbacks de `hover`/`active` NÃO são `#2dc46f`: são os tons derivados
+  // pela mesma fórmula do serviço. Repetir a cor-base ali apagaria o feedback
+  // de hover na página de survey, que também renderiza `shared/Button.vue` e
+  // não carrega `_tokens.scss` — trocar `brightness-110` por uma cor igual à
+  // de repouso seria uma regressão de affordance.
+  w: {
+    brand: {
+      DEFAULT: 'var(--w-brand, #2dc46f)',
+      hover: 'var(--w-brand-hover, #29b064)',
+      active: 'var(--w-brand-active, #25a15b)',
+      // A marca é fundo. Como texto ou ícone sobre superfície clara ela precisa
+      // escurecer até 4,5:1 — este é esse valor, e serve também às bordas, que
+      // pedem 3:1 (WCAG 1.4.11).
+      readable: 'var(--w-brand-readable, #2dc46f)',
+    },
+    // Cor legível SOBRE a marca, decidida por luminância WCAG no servidor.
+    'on-brand': 'var(--w-on-brand, #000000)',
+    // Anel de foco. Nunca transparente — ver o comentário do `--w-focus-ring-*`
+    // em `_tokens.scss`.
+    focus: 'var(--w-focus-ring-color, #2dc46f)',
+  },
 };

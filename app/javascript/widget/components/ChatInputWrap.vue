@@ -135,7 +135,7 @@ export default {
   <div
     class="items-center flex ltr:pl-3 rtl:pr-3 ltr:pr-2 rtl:pl-2 rounded-lg transition-all duration-200 bg-white dark:bg-n-solid-2 border"
     :class="{
-      'border-n-brand shadow-focus': isFocused,
+      'border-w-focus shadow-focus': isFocused,
       'border-n-weak': !isFocused,
     }"
     @keydown.esc="hideEmojiPicker"
@@ -170,7 +170,7 @@ export default {
           class="transition-all duration-150"
           :class="{
             'text-n-slate-12': !showEmojiPicker,
-            'text-n-brand': showEmojiPicker,
+            'text-w-brand-readable': showEmojiPicker,
           }"
         />
       </button>
@@ -188,6 +188,12 @@ export default {
 
 <style scoped lang="scss">
 .user-message-input {
-  @apply border-none outline-none w-full placeholder:text-n-slate-10 resize-none h-8 min-h-8 max-h-60 py-1 px-0 my-2 bg-transparent text-n-slate-12 transition-all duration-200;
+  // `outline-0`, não `outline-none`: o utilitário `outline-none` do Tailwind
+  // gera `outline: 2px solid transparent`, ou seja, um anel de foco de 2px
+  // TRANSPARENTE (A5 do 22 §D.5) — invisível para quem navega por teclado.
+  // `outline-0` zera a largura sem pintar um anel fantasma. Quem mostra o foco
+  // é o contêiner, com `border-w-focus shadow-focus`, e `shadow-focus` só passou
+  // a desenhar de fato neste bloco.
+  @apply border-none outline-0 w-full placeholder:text-n-slate-10 resize-none h-8 min-h-8 max-h-60 py-1 px-0 my-2 bg-transparent text-n-slate-12 transition-all duration-200;
 }
 </style>
