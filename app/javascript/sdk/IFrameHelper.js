@@ -10,6 +10,7 @@ import {
   widgetHolder,
   createBubbleHolder,
   createBubbleIcon,
+  resolveLauncherIcon,
   bubbleSVG,
   chatBubble,
   closeBubble,
@@ -179,6 +180,7 @@ export const IFrameHelper = {
       });
       IFrameHelper.onLoad({
         widgetColor: message.config.channelConfig.widgetColor,
+        channelConfig: message.config.channelConfig,
       });
       IFrameHelper.toggleCloseButton();
 
@@ -299,7 +301,7 @@ export const IFrameHelper = {
     IFrameHelper.sendMessage('push-event', { eventName });
   },
 
-  onLoad: ({ widgetColor }) => {
+  onLoad: ({ widgetColor, channelConfig }) => {
     const iframe = IFrameHelper.getAppFrame();
     iframe.style.visibility = '';
     iframe.setAttribute('id', `chatwoot_live_chat_widget`);
@@ -327,6 +329,9 @@ export const IFrameHelper = {
       className,
       path: bubbleSVG,
       target: chatBubble,
+      // Bloco 3.19. Sem `widget_appearance.launcher_icon` (3.18 ainda não entregou),
+      // isto resolve para `default` — o balão de hoje.
+      launcherIcon: resolveLauncherIcon(channelConfig),
     });
 
     addClasses(closeBubble, closeBtnClassName);
