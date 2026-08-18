@@ -24,6 +24,13 @@
           "ACTION_HINT": "To close this, list the domains where the widget should work — one per line. Include all of them: main domain, subdomains, staging, and any other site of the same company. A missing domain stops showing the widget."
         }
       }
+    },
+    "APPEARANCE": {
+      "SITE_OVERRIDE": {
+        "TITLE": "The snippet on your site can override this",
+        "BODY": "What you save here is the default, and it now applies to the whole team — it is no longer kept in this browser alone. But if the snippet on your site sets chatwootSettings.position, type, launcherTitle, darkMode, hideMessageBubble or widgetStyle, the site value wins.",
+        "ACTION_HINT": "If the widget ignores what you saved here, look for chatwootSettings in your site HTML — this screen cannot read your site code."
+      }
     }
   }
 }

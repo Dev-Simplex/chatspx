@@ -48,12 +48,23 @@ module WidgetConfigurable
     validate :ensure_widget_config_objects
     validate :ensure_no_secret_in_widget_config
     validate :ensure_widget_triggers_match_schema
+    validate :ensure_widget_appearance_matches_schema
+    validate :ensure_additional_attributes_fit_the_ceiling
   end
 
   # Leitura derivada, nunca backfill (A4): inbox sem a chave se comporta como "support",
   # que e literalmente o comportamento de hoje.
   def resolved_widget_profile
     widget_profile.presence || 'support'
+  end
+
+  # A aparencia entregue ao widget e sempre COMPLETA: o banco e o padrao, e o padrao tem de existir
+  # mesmo na inbox que nunca abriu a tela (regra A4 — sem migration e sem backfill).
+  # Chave fora do schema e descartada aqui: o que sobrou de uma versao anterior nao vaza para o site.
+  def resolved_widget_appearance
+    stored = widget_appearance.is_a?(Hash) ? widget_appearance : {}
+
+    WidgetAppearanceSchema::DEFAULTS.merge(stored.slice(*WidgetAppearanceSchema::DEFAULTS.keys))
   end
 
   private
@@ -78,6 +89,21 @@ module WidgetConfigurable
   # aqui que ela consegue dizer QUAL campo esta errado.
   def ensure_widget_triggers_match_schema
     validate_against_schema(:widget_triggers, WidgetTriggersSchema::SCHEMA)
+  end
+
+  def ensure_widget_appearance_matches_schema
+    validate_against_schema(:widget_appearance, WidgetAppearanceSchema::SCHEMA)
+  end
+
+  # O teto do jsonb (3.18). `additional_attributes` inteiro vai para o HTML de toda pagina do site do
+  # cliente e e servido a qualquer agente com a inbox atribuida — um hash aberto sem teto e o oposto
+  # do orcamento de bytes que este plano defende em outros seis lugares.
+  def ensure_additional_attributes_fit_the_ceiling
+    size = (additional_attributes || {}).to_json.bytesize
+    return if size <= Inbox::MAX_ADDITIONAL_ATTRIBUTES_BYTES
+
+    errors.add(:additional_attributes,
+               I18n.t('errors.inbox.widget_config.over_size_limit', limit: Inbox::MAX_ADDITIONAL_ATTRIBUTES_BYTES))
   end
 
   def validate_against_schema(key, schema)

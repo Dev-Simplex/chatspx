@@ -52,6 +52,9 @@ class Inbox < ApplicationRecord
 
   store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
 
+  # Teto do jsonb servido ao site do cliente e a todo agente da inbox (bloco 3.18).
+  MAX_ADDITIONAL_ATTRIBUTES_BYTES = 16_384
+
   # Not allowing characters:
   validates :name, presence: true
   validates :account_id, presence: true

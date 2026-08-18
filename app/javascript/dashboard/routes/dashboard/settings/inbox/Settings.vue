@@ -37,17 +37,17 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import SpinnerLoader from 'dashboard/components-next/spinner/Spinner.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
-import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
-import { LocalStorage } from 'shared/helpers/localStorage';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
 import ColorPicker from 'dashboard/components-next/colorpicker/ColorPicker.vue';
 import SelectInput from 'dashboard/components-next/select/Select.vue';
+import Banner from 'dashboard/components-next/banner/Banner.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
 export default {
   components: {
+    Banner,
     BotConfiguration,
     CollaboratorsPage,
     ConfigurationPage,
@@ -396,8 +396,10 @@ export default {
         )
       );
     },
-    widgetBuilderStorageKey() {
-      return `${LOCAL_STORAGE_KEYS.WIDGET_BUILDER}${this.inbox.id}`;
+    // Bloco 3.18: a aparencia mora no banco, nao no localStorage deste navegador (defeito D1).
+    // O objeto gravado e devolvido inteiro por `_inbox.json.jbuilder:27`.
+    storedWidgetAppearance() {
+      return this.inbox?.additional_attributes?.widget_appearance || {};
     },
   },
   watch: {
@@ -538,19 +540,10 @@ export default {
         ? this.inbox.help_center.slug
         : '';
 
-      const savedBubbleSettings = LocalStorage.get(
-        this.widgetBuilderStorageKey
-      );
-      if (savedBubbleSettings) {
-        this.widgetBubblePosition = savedBubbleSettings.position || 'right';
-        this.widgetBubbleType = savedBubbleSettings.type || 'standard';
-        this.widgetBubbleLauncherTitle =
-          savedBubbleSettings.launcherTitle || '';
-      } else {
-        this.widgetBubblePosition = 'right';
-        this.widgetBubbleType = 'standard';
-        this.widgetBubbleLauncherTitle = '';
-      }
+      const appearance = this.storedWidgetAppearance;
+      this.widgetBubblePosition = appearance.position || 'right';
+      this.widgetBubbleType = appearance.launcher_type || 'standard';
+      this.widgetBubbleLauncherTitle = appearance.launcher_text || '';
     },
     async fetchHealthData() {
       if (!this.inbox) return;
@@ -642,13 +635,6 @@ export default {
       this.selectedTabIndex = tabIndex === -1 ? 0 : tabIndex;
     },
     async updateInbox() {
-      const bubbleSettings = {
-        position: this.widgetBubblePosition,
-        type: this.widgetBubbleType,
-        launcherTitle: this.widgetBubbleLauncherTitle,
-      };
-      LocalStorage.set(this.widgetBuilderStorageKey, bubbleSettings);
-
       try {
         this.$nextTick(() => {
           this.setTabFromRouteParam();
@@ -672,6 +658,21 @@ export default {
           pending_status_enabled: this.pendingStatusEnabled,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
+          // O merge do servidor e raso no primeiro nivel (`inboxes_controller.rb:52-56`): mandar
+          // apenas os tres campos desta tela apagaria os que ela ainda nao edita (tema, offsets,
+          // icone). Por isso o objeto vai INTEIRO, com o que ja estava gravado por baixo.
+          ...(this.isAWebWidgetInbox
+            ? {
+                additional_attributes: {
+                  widget_appearance: {
+                    ...this.storedWidgetAppearance,
+                    position: this.widgetBubblePosition,
+                    launcher_type: this.widgetBubbleType,
+                    launcher_text: this.widgetBubbleLauncherTitle || '',
+                  },
+                },
+              }
+            : {}),
           channel: {
             widget_color: this.channelWidgetColor,
             website_url: this.channelWebsiteUrl,
@@ -1113,6 +1114,27 @@ export default {
                   $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.WIDGET_BUBBLE')
                 "
               >
+                <!--
+                  Bloco 3.18 — a regra de precedencia, escrita onde ela e decidida: o banco e o
+                  padrao, o `chatwootSettings` do site sobrescreve. Esta tela nao le o HTML do site
+                  do cliente, entao ela declara a REGRA em vez de afirmar um override que nao pode
+                  verificar. Declarar override ATIVO por campo depende do SDK reportar (bloco 3.09).
+                -->
+                <Banner color="blue" class="mb-3 !items-start">
+                  <div class="flex flex-col gap-1">
+                    <span class="font-medium">
+                      {{ $t('INBOX_WIDGET.APPEARANCE.SITE_OVERRIDE.TITLE') }}
+                    </span>
+                    <span>
+                      {{ $t('INBOX_WIDGET.APPEARANCE.SITE_OVERRIDE.BODY') }}
+                    </span>
+                    <span>
+                      {{
+                        $t('INBOX_WIDGET.APPEARANCE.SITE_OVERRIDE.ACTION_HINT')
+                      }}
+                    </span>
+                  </div>
+                </Banner>
                 <div class="flex items-center gap-6">
                   <div class="flex items-center gap-2">
                     <label class="text-n-slate-11 text-heading-3">

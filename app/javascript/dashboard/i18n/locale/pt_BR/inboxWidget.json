@@ -24,6 +24,13 @@
           "ACTION_HINT": "Para fechar isso, liste aqui os domínios onde o widget deve funcionar — um por linha. Inclua todos: domínio principal, subdomínios, homologação e outros sites da mesma empresa. Um domínio que faltar deixa de exibir o widget."
         }
       }
+    },
+    "APPEARANCE": {
+      "SITE_OVERRIDE": {
+        "TITLE": "O código instalado no site pode sobrescrever isto",
+        "BODY": "O que você salva aqui é o padrão, e ele vale para toda a equipe — não fica mais guardado só neste navegador. Mas se o snippet do seu site definir chatwootSettings.position, type, launcherTitle, darkMode, hideMessageBubble ou widgetStyle, o valor do site vence.",
+        "ACTION_HINT": "Se o widget não obedecer ao que você salvou aqui, procure por chatwootSettings no HTML do site — esta tela não consegue ler o código do seu site."
+      }
     }
   }
 }

@@ -75,6 +75,7 @@ pt_BR:
         detail_max_items: "passa do limite de %{count} itens"
         detail_unknown_field: "campo desconhecido"
         detail_type: "deve ser do tipo %{type}"
+        over_size_limit: "passa do limite de %{limit} bytes — ele é servido em toda página do site do cliente"
     private_chat:
       invalid_password: Senha inválida
     account:

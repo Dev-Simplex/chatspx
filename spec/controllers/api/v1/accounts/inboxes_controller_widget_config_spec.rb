@@ -135,6 +135,53 @@ RSpec.describe 'Inbox widget configuration API', type: :request do
     end
   end
 
+  # Bloco 3.18 — o aceite que o defeito D1 quebra hoje. O valor tem de viver no SERVIDOR: enquanto ele
+  # morava no `localStorage` do admin, "outro navegador" e "outro administrador" viam o padrao de fabrica.
+  describe 'appearance survives the browser and the administrator (3.18 / D1)' do
+    let(:other_admin) { create(:user, account: account, role: :administrator) }
+
+    it 'admin B, in another session, reads exactly what admin A saved' do
+      patch base_url,
+            headers: admin.create_new_auth_token,
+            params: { additional_attributes: { widget_appearance: { position: 'left', launcher_text: 'Fale com a gente' } } },
+            as: :json
+      expect(response).to have_http_status(:success)
+
+      get base_url, headers: other_admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['additional_attributes']['widget_appearance'])
+        .to eq({ 'position' => 'left', 'launcher_text' => 'Fale com a gente' })
+    end
+
+    it 'answers 422 naming the field for position: "center"' do
+      patch_inbox(widget_appearance: { position: 'center' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message'])
+        .to eq('Widget appearance tem valor inválido em "position": valor não permitido (aceitos: left, right)')
+      expect(inbox.reload.widget_appearance).to be_nil
+    end
+
+    it 'answers 422 for an offset of 500 and for a 200 character launcher text' do
+      patch_inbox(widget_appearance: { offset_x: 500 })
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('offset_x')
+
+      patch_inbox(widget_appearance: { launcher_text: 'a' * 200 })
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('launcher_text')
+    end
+
+    it 'answers 422 when additional_attributes goes over the jsonb ceiling' do
+      patch_inbox(widget_tracking: { event_map: Array.new(400) { |i| ["event_#{i}", 'a' * 40] }.to_h })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('additional_attributes')
+      expect(response.parsed_body['message']).to include('16384')
+    end
+  end
+
   describe 'an inbox that never heard of the four keys' do
     it 'updates unrelated fields without any of them' do
       patch base_url,
