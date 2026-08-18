@@ -130,7 +130,23 @@
   "CSAT": {
     "TITLE": "Avalie sua conversa",
     "SUBMITTED_TITLE": "Obrigado por enviar a classificação",
-    "PLACEHOLDER": "Conte-nos mais..."
+    "PLACEHOLDER": "Conte-nos mais...",
+    "RATING_GROUP_LABEL": "Como foi o atendimento?",
+    "RATING_SELECTED": "Avaliação enviada: {label}",
+    "RATINGS": {
+      "POOR": "Ruim",
+      "FAIR": "Neutro",
+      "AVERAGE": "Mediano",
+      "GOOD": "Bom",
+      "EXCELLENT": "Excelente"
+    },
+    "STARS": {
+      "ONE": "1 estrela de 5",
+      "TWO": "2 estrelas de 5",
+      "THREE": "3 estrelas de 5",
+      "FOUR": "4 estrelas de 5",
+      "FIVE": "5 estrelas de 5"
+    }
   },
   "EMAIL_TRANSCRIPT": {
     "BUTTON_TEXT": "Solicitar uma transcrição de conversa",

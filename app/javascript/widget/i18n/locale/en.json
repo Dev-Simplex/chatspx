@@ -130,7 +130,23 @@
   "CSAT": {
     "TITLE": "Rate your conversation",
     "SUBMITTED_TITLE": "Thank you for submitting the rating",
-    "PLACEHOLDER": "Tell us more..."
+    "PLACEHOLDER": "Tell us more...",
+    "RATING_GROUP_LABEL": "How was the support?",
+    "RATING_SELECTED": "Rating submitted: {label}",
+    "RATINGS": {
+      "POOR": "Poor",
+      "FAIR": "Fair",
+      "AVERAGE": "Average",
+      "GOOD": "Good",
+      "EXCELLENT": "Excellent"
+    },
+    "STARS": {
+      "ONE": "1 star out of 5",
+      "TWO": "2 stars out of 5",
+      "THREE": "3 stars out of 5",
+      "FOUR": "4 stars out of 5",
+      "FIVE": "5 stars out of 5"
+    }
   },
   "EMAIL_TRANSCRIPT": {
     "BUTTON_TEXT": "Request a conversation transcript",
