@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "Hi",
         "AGENT_MESSAGE": "Hello"
       },
-      "BRANDING_TEXT": "Drivs av Chatwoot",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "Drivs av Chatwoot"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

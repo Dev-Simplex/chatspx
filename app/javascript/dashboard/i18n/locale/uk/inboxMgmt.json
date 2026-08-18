@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "Привіт",
         "AGENT_MESSAGE": "Доброго дня"
       },
-      "BRANDING_TEXT": "Працює на Chatwoot",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "Працює на Chatwoot"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

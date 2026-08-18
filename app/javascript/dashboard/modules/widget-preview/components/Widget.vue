@@ -99,24 +99,26 @@ const tabs = computed(() => [
 
 const isPreviewTab = computed(() => activeTabIndex.value === 0);
 
-const widgetScript = computed(() => {
-  if (!props.webWidgetScript) return '';
-
-  const options = {
-    position: props.widgetBubblePosition,
-    type: props.widgetBubbleType,
-    launcherTitle: props.widgetBubbleLauncherTitle,
-  };
-
-  const script = props.webWidgetScript;
-  return (
-    script.substring(0, 13) +
-    t('INBOX_MGMT.WIDGET_BUILDER.SCRIPT_SETTINGS', {
-      options: JSON.stringify(options),
-    }) +
-    script.substring(13)
-  );
-});
+/**
+ * O snippet que o cliente cola no site — **exatamente** como o servidor o
+ * escreve (`Channel::WebWidget#web_widget_script`).
+ *
+ * O que existia aqui era o defeito D3: o script era cortado no byte 13
+ * (`script.substring(0, 13)`) e no buraco entrava
+ * `t('INBOX_MGMT.WIDGET_BUILDER.SCRIPT_SETTINGS')` — uma string de i18n cujo
+ * conteúdo era JAVASCRIPT EXECUTÁVEL (`window.chatwootSettings = {options};`).
+ * Duas consequências, e as duas chegavam ao site do cliente: um tradutor
+ * mexendo numa chave de tradução quebrava o snippet de todo mundo naquele
+ * idioma, e o corte por posição fixa quebrava sozinho se o servidor mudasse
+ * um espaço no começo do script.
+ *
+ * As opções que aquele bloco injetava (posição, formato, texto do lançador)
+ * não precisam mais viajar no snippet: elas moram em `widget_appearance` e o
+ * servidor as entrega no boot. `chatwootSettings` continua funcionando no site
+ * do cliente como OVERRIDE deliberado — e quando ele existe, a tela de
+ * aparência avisa (3.09) em vez de mentir.
+ */
+const widgetScript = computed(() => props.webWidgetScript);
 
 const replyTimeText = computed(() => {
   switch (props.replyTime) {

@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "Բարև",
         "AGENT_MESSAGE": "Բարև ձեզ"
       },
-      "BRANDING_TEXT": "Շահագործվում է Chatwoot-ով",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "Շահագործվում է Chatwoot-ով"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

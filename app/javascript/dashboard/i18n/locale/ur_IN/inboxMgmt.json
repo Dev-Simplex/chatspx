@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "ہیلو",
         "AGENT_MESSAGE": "سلام"
       },
-      "BRANDING_TEXT": "چالو کردہ Chatwoot",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "چالو کردہ Chatwoot"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {
