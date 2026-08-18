@@ -10,10 +10,101 @@
 
 ## 🚧 Em andamento
 
-### [2026-08-18] 🟢 COMENTÁRIOS DO INSTAGRAM: não era a Meta que barrava — era o SPX se desassinando
+### [2026-08-17] 🔴→🟢 LEAD DE LOCAÇÃO NASCIA NA AGENTE DE VENDAS (conv 28230) — **PR #57 aberto** · rodízio mapeado · supervisor de locação criado
 
-> Descoberta que inverte o diagnóstico de 11/08 (`docs/SPEC-instagram-comentarios.md`). **O escopo
-> não é o bloqueio para RECEBER comentário.** Ele bloqueia só a **resposta**.
+> Sessão de queixa de cliente. Tudo medido na VM da prod Tozi (conta 6), read-only. Log completo do
+> caso no vault: `spx-os/clientes/tozi-conversation-log.md` (3 blocos de 17/08).
+
+- **O caso:** lead do site com `jornada` começando em *"Interesse em locação"* foi atendido pela
+  **Júlia (vendas)** e encaminhado ao time **vendas**; a Maria Vitoria corrigiu na mão 12 min depois.
+- **Três defeitos empilhados:**
+  1. **Origem:** o `SiteLeadJob` monta o lead **sem `campaign_id`**, e `hook_setting` só resolve
+     override **por campanha** → **todo** lead de site cai no global do hook #8 (bot 17 = Júlia).
+     Não existia caminho de configuração para o site.
+  2. **🔴 `handoff_team_id` da conta é IGNORADO.** A chave (=60, recepção) só desliga a enumeração de
+     times no `HandoffTool`; o `HumanHandoffService#resolve_team` **nunca a lê** e cai no
+     `assistant.config['team_id']`. Medido: **641 handoffs/60d, só 81 pra recepção — e os 81 são da
+     Clara**, cujo padrão já é 60. Era paliativo até o rodízio ficar pronto e **nunca funcionou** —
+     e ainda tirou da Júlia a capacidade de rotear. Comentário corrigido no PR #57 (`f862aa5e`).
+  3. Conduta manda transferir locação pra Bruna (usa 93x/60d), mas o gatilho positivo do `handoff`
+     vence quando o cliente pede fotos/visita.
+- **Escala:** 40 conversas/60d com busca de locação + handoff pra vendas. **28 corrigidas por humano**
+  (mediana **78 min**; 15 casos >1h, pior **17h30**), 11 pela própria IA (mediana 3 min), 1 nunca.
+- **✅ [PR #57](https://github.com/Dev-Simplex/chatspx/pull/57)** (branch `PauloSeze/leads-site-fotos`,
+  4 commits, **81 specs / 0 falhas**, rubocop 35=35 contra baseline):
+  - **`intent_overrides` no hook** (opt-in, genérico): `[{match, assign_agent_bot_id, assign_team_id}]`
+    casado por substring contra a `jornada`, sem acento/caixa. Precedência **campanha > intenção >
+    global**. Provado por **replay das 100 jornadas reais**: sem a chave = idêntico a hoje; com ela,
+    57 mudam e **43 desses 57 o time humano de fato levou pra locação** (91,5% dos decididos).
+  - **Carrossel deixa de virar fala do agente:** mensagem com `interactive_payload` entra no histórico
+    como `[carrossel de fotos do imóvel X enviado]`. Causa medida: o modelo **copiou** o texto do
+    rótulo e mandou uma linha sem foto 7s depois do carrossel real. Alcance: 149/56.870 msgs em 30d.
+  - **`docs/SPEC-fila-envio-fotos.md`** — o `COOLDOWN=90` recusou os outros 2 imóveis que o cliente
+    pediu (9ms e 3ms, e as 3 chamadas gravaram `status=ok`). Spec de enfileirar em vez de recusar.
+    **Não implementada** — decisão do Paulo: estudar e criar.
+  - ⏭️ Só vale na Tozi **depois** de mergear + promover + deployar. Ligar a chave no hook #8 é config.
+- **🟢 RODÍZIO: motor 100% construído, 0% configurado.** As 4 tabelas (`distribuicao_policies/states/
+  logs/produtos`) estão **vazias** — nunca rodou. Tem pool ordenado, preferência do cliente por nome,
+  teto, continuidade 30d, SLA 30min, espelho Vista e `modo_posse=designacao` pro corretor que não vive
+  no SPX. **O código já está na prod** — ligar é config, não deploy.
+  - **Locação (#27) pronta:** os 5 membros formais são os 5 atendentes reais; **96%** das conversas
+    atribuídas tiveram fala do dono → `modo_posse: assignee`. Pool proposto: **Adrian #63, Gelson #72,
+    Evellyn #137, Camila #110**. **Maria Vitoria #66 fora** — 1,6 msg/conversa em 1.080 conversas, ela
+    despacha, não atende. ⏳ aguarda aval dos nomes.
+  - **Vendas (#26) NÃO dá pra ligar:** o time tem **2 membros e nenhum corretor** (eles vivem no
+    Vista). O `build_pool` **intersecta com os membros do time** → pool vazio → `sem_pool` em silêncio.
+  - ⚠️ Cap: começar **sem**. Evellyn tem **185 conversas abertas** contra 35/15/7 — parece acúmulo, não
+    carga; com cap ela seria excluída por um número que não significa o que parece. (Olhar em separado.)
+- **🟢 SUPERVISOR DE LOCAÇÃO CRIADO — usuário #141 Leonardo Rimoli**
+  (`supervisor.locacao@toziimoveis.com.br`). Identificado por prova: cartão compartilhado pela Angela
+  em 13/07 — *"Leonardo Gerente Comercial De Locacao"*, +55 66 99243-3029, LID `157784347828264@lid`.
+  Ele **não tinha conta** e operava só por 3 grupos de WhatsApp que caem na inbox.
+  - **Config canônica:** `role=agent` + linha em `team_supervisors` (time 27).
+    `permissions=["agent","team_supervisor"]`. Enxerga **7.998 conversas, todas de locação, zero fora**.
+  - ⚠️ **A frente "Supervisor de Time" JÁ EXISTIA** (`task/supervisor-de-time.md`, F1–F5 entregues, já
+    em produção). **"Supervisor" é rótulo de UI, não role do backend** (D1/D6). Um custom role que eu
+    havia criado foi **revertido e apagado** por duplicar o conceito.
+  - ⏳ **`agent` não vê relatório** (`ReportPolicy#view?` exige admin) e *"relatórios escopados por
+    supervisão"* está em **Fora de escopo (deferido)** no doc deles. **Paulo levantou com o Walisson
+    em 17/08; resposta esperada 18/08.**
+- ⏭️ **Sobras:** worktree de CI em `/tmp/ci-leads-site` na `.232` · as **31 conversas** poluídas pelo
+  incidente de menção do Instagram seguem abertas · a `producao` local deste notebook está **297
+  commits atrás** (sair sempre de `origin/producao`).
+
+### [2026-08-18] 🟢 COMENTÁRIOS DO INSTAGRAM DESTRAVADOS — eram DUAS coisas nossas, nenhuma da Meta
+
+> Inverte o diagnóstico de 11/08 (`docs/SPEC-instagram-comentarios.md`), que dava o escopo como
+> bloqueio com prazo de App Review. **Não havia App Review nenhuma.** Faltavam duas coisas, ambas
+> do lado do SPX: a assinatura de conta e o escopo no token. As duas resolvidas hoje, sem deploy.
+
+**O caminho do diagnóstico, porque ele erra duas vezes antes de acertar:**
+1. Achei que era só a assinatura de conta → liguei `comments` → **webhook continuou sem disparar**.
+2. Achei então que o escopo gateava a entrega e que teria App Review → **o painel mostrou
+   `Standard access`, ativo, sem análise pendente**.
+3. O teste que fechou foi **por capacidade, não por declaração**: pedir
+   `fields=username,from{id,username}` num comentário devolvia **HTTP 200 com os campos
+   simplesmente ausentes**. A Meta não erra quando falta permissão — ela **omite em silêncio**.
+   Mesma família das outras falhas caladas da semana.
+
+**✅ Resolvido (18/08, sem tocar em código):** reconexão da inbox 57 por uma URL de consentimento
+montada à mão com o escopo a mais, usando o `redirect_uri` e o `state` do próprio SPX — o callback
+dele fez a troca e gravou o token. Zero off-git, zero escrita manual no banco.
+
+Conferido depois: conta 7 segue com **uma** inbox (`[57]`, nenhuma fantasma — o risco real era
+autorizar na conta errada, que foi o incidente de 04/08); token novo com 60 dias; a assinatura de
+`comments` **sobreviveu** (o `subscribe` é `after_create_commit`, não roda em update); e o autor
+dos comentários **passou a aparecer** (`@pauloseze`, `@mayarabalbino6`…) onde antes vinha vazio.
+
+⏭️ **Falta a prova do webhook** — o comentário de teste foi feito antes da reconexão.
+
+⏭️ **A dívida de código que fica:** `Instagram::IntegrationHelper::REQUIRED_SCOPES` é constante
+global. A reconexão pela TELA continua mintando só dois escopos, então este token é melhor que o
+que a UI produz. Acrescentar o escopo ali muda a tela de consentimento de **toda conta em toda
+box**, e onde o app não tiver a permissão o OAuth passa a falhar por escopo inválido — a Tozi usa
+outro app (`SPX Lead Ads Tozi`). Tem que virar configurável, não constante. Mesmo padrão da
+armadilha do `subscribed_fields`.
+
+> **Registro antigo, mantido porque explica os números:**
 
 - **O app do SPX na `.232` é o `Business MW` (`478777497423728`)** — confirmado pelo print do painel:
   callback `https://chatspx.app/webhooks/instagram`, conta `bigstoreutilidades`
