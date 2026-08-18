@@ -136,11 +136,14 @@ RSpec.describe 'Widget configuration payload', type: :request do
       # Gravado POR BAIXO da validacao de 3.01, de proposito: a lista negativa barra a escrita pela
       # API, mas a projecao existe para o caso de um segredo entrar por outro caminho — console,
       # import, migration de terceiro. Se a leitura fosse o hash cru, ele sairia no HTML do cliente.
+      # rubocop:disable Rails/SkipsModelValidations -- pular a validacao E o cenario: o teste existe
+      # para o segredo que entra por um caminho que nao passa pela lista negativa de 3.01.
       inbox.update_column(
         :additional_attributes,
         { 'widget_tracking' => { 'meta_pixel_id' => '1234567890', 'access_token' => 'EAAG-super-secret',
                                  'ga4' => { 'api_secret' => 'shh' } } }
       )
+      # rubocop:enable Rails/SkipsModelValidations
     end
 
     it 'the ERB delivers only the public identifiers' do
