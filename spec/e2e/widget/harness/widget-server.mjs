@@ -137,7 +137,17 @@ const widgetDocument = `<!doctype html>
     <script type="module" src="/app/javascript/entrypoints/widget.js"></script>
   </head>
   <body>
-    <div id="app" class="h-full"></div>
+    <!-- ESPELHO de app/views/widgets/show.html.erb. As classes daqui NÃO são
+         decorativas: .woot-widget-app é o gancho de color-scheme do bloco 2.10,
+         e sem ela o painel perde a barra de rolagem e o caret escuros.
+         app/javascript/widget/specs/appMountParity.spec.js reprova se os dois
+         arquivos divergirem.
+         SEM CRASE NESTE COMENTÁRIO: ele vive dentro de uma template literal, e
+         uma crase aqui fecha a string e derruba o servidor inteiro com
+         "SyntaxError: Unexpected identifier" — que o Playwright reporta como
+         "Process from config.webServer was not able to start", mensagem que
+         parece contenção de porta e não é. -->
+    <div id="app" class="h-full woot-widget-app"></div>
   </body>
 </html>`;
 
