@@ -56,7 +56,7 @@ const selectEmoji = emoji => {
           ref="searchInput"
           v-model="emojiSearch"
           type="text"
-          class="block w-full h-10 text-sm reset-base outline outline-1 outline-offset-[-1px] outline-n-weak focus:outline-n-brand border-none rounded-lg !ps-9 !pe-3 !py-2.5 bg-transparent text-n-slate-12 placeholder:text-n-slate-10"
+          class="block w-full h-10 text-sm reset-base outline outline-1 outline-offset-[-1px] outline-n-weak focus:outline-w-focus border-none rounded-lg !ps-9 !pe-3 !py-2.5 bg-transparent text-n-slate-12 placeholder:text-n-slate-10"
           :placeholder="t('EMOJI_ICON_PICKER.SEARCH_EMOJI')"
         />
       </div>

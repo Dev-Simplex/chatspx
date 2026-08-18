@@ -628,7 +628,9 @@ class Conversation < ApplicationRecord
   def validate_referer_url
     return unless additional_attributes['referer']
 
-    self['additional_attributes']['referer'] = nil unless url_valid?(additional_attributes['referer'])
+    # Bloco 1.20 — a lógica vive em `lib/url_helper.rb` (arquivo 0/0 no merge do upstream); aqui
+    # fica só a chamada. Antes, URL mal escapada virava `nil` em silêncio e a origem do lead sumia.
+    sanitize_referer_attribute!(self['additional_attributes'])
   end
 
   def add_to_appropriate_funnel # rubocop:disable Metrics/AbcSize

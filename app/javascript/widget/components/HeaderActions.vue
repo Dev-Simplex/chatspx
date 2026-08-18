@@ -89,13 +89,20 @@ export default {
       "
       class="button transparent compact"
       :title="$t('END_CONVERSATION')"
+      :aria-label="$t('END_CONVERSATION')"
       @click="resolveConversation"
     >
       <FluentIcon icon="sign-out" size="22" class="text-white" />
     </button>
+    <!-- `title` E `aria-label`: o botão só tem ícone, então sem um nome ele é
+         anunciado como "botão" e nada mais. `title` dá a dica visual no mouse;
+         `aria-label` é o que o leitor de tela usa — e não depende de o ícone
+         expor texto. -->
     <button
       v-if="showPopoutButton"
       class="button transparent compact new-window--button"
+      :title="$t('A11Y.OPEN_IN_NEW_WINDOW')"
+      :aria-label="$t('A11Y.OPEN_IN_NEW_WINDOW')"
       @click="popoutWindow"
     >
       <FluentIcon icon="open" size="22" class="text-white" />
@@ -105,6 +112,8 @@ export default {
       :class="{
         'rn-close-button': isRNWebView,
       }"
+      :title="$t('A11Y.CLOSE_WIDGET')"
+      :aria-label="$t('A11Y.CLOSE_WIDGET')"
       @click="closeWindow"
     >
       <FluentIcon icon="dismiss" size="24" class="text-white" />
