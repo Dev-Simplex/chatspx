@@ -1,6 +1,11 @@
 <script>
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
-import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+// Bloco 1.08 — era `dashboard/components-next/avatar/Avatar.vue`. Aquele
+// componente arrastava, por import estático, `Icon.vue`, `GalleryView.vue`,
+// `button/Button.vue` e `spinner/Spinner.vue`, e com eles 27.619 B de
+// utilitárias para o CSS do widget — por cinco props. `WAvatar` é a réplica
+// pixel a pixel do subconjunto que esta tela usa.
+import Avatar from 'widget/components/WAvatar.vue';
 import configMixin from '../mixins/configMixin';
 import { isEmptyObject } from 'widget/helpers/utils';
 import {

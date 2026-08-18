@@ -6,7 +6,7 @@ import { messageStamp } from 'shared/helpers/timeHelper';
 import ImageBubble from 'widget/components/ImageBubble.vue';
 import VideoBubble from 'widget/components/VideoBubble.vue';
 import FileBubble from 'widget/components/FileBubble.vue';
-import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import Avatar from 'widget/components/WAvatar.vue';
 import { MESSAGE_TYPE } from 'widget/helpers/constants';
 import configMixin from '../mixins/configMixin';
 import messageMixin from '../mixins/messageMixin';

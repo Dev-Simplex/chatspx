@@ -55,31 +55,15 @@ module.exports = {
     './app/javascript/shared/**/*.js',
     './app/views/widgets/**/*.erb',
 
-    // ── Componentes de `dashboard/` que o WIDGET renderiza de verdade ─────────
-    // Isto NÃO é o glob antigo voltando: são seis caminhos nomeados, e cada um
-    // está aqui porque o fecho de imports prova que o widget o carrega.
-    //
-    // A cadeia, medida a partir de `entrypoints/widget.js`:
-    //   router.js → views/UnreadMessages.vue → components/UnreadMessageList.vue
-    //   → components/UnreadMessage.vue → dashboard/components-next/avatar/Avatar.vue
-    //   → icon/Icon.vue, GalleryView.vue → button/Button.vue, spinner/Spinner.vue
-    //
-    // A tela de mensagens não lidas é uma das quatro que os 16 snapshots do
-    // widget cobrem. Sem estes caminhos, o Tailwind não gera as classes desses
-    // componentes e a tela chega SEM ESTILO — sem erro de build, sem aviso no
-    // console. Foi `specs/tailwindWidgetContent.spec.js` que pegou isso.
-    //
-    // São ARQUIVOS EXATOS, não globs de diretório, e a diferença é grande:
-    // `components-next/icon/**` traz sete arquivos — incluindo dois
-    // `*.story.vue`, que nunca renderizam em produção — e custa 30.625 B só
-    // ele. Nomeando `Icon.vue`, o conjunto dos seis cai de 103.903 B para
-    // 71.560 B de utilitárias. Glob aqui é imprecisão paga em bytes.
-    './app/javascript/dashboard/components-next/avatar/Avatar.vue',
-    './app/javascript/dashboard/components-next/icon/Icon.vue',
-    './app/javascript/dashboard/components-next/button/Button.vue',
-    './app/javascript/dashboard/components-next/spinner/Spinner.vue',
-    './app/javascript/dashboard/components-next/TeleportWithDirection.vue',
-    './app/javascript/dashboard/components/widgets/conversation/components/GalleryView.vue',
+    // ── Nada de `dashboard/` aqui, e isso foi CONQUISTADO ────────────────────
+    // Até 18/08 esta lista tinha seis caminhos de `dashboard/`, porque o widget
+    // renderizava o `Avatar` de lá em três telas e ele arrastava `Icon.vue`,
+    // `GalleryView.vue`, `button/Button.vue` e `spinner/Spinner.vue`. Custavam
+    // 27.619 B e eram a razão de o CSS ficar em 100.717 B, acima do teto.
+    // `widget/components/WAvatar.vue` os substituiu — réplica pixel a pixel do
+    // subconjunto usado — e os seis caminhos puderam sair.
+    // A guarda que impede a volta é `specs/tailwindWidgetContent.spec.js`, que
+    // assere que nenhum `.vue` de `dashboard/` está no fecho de imports.
 
     // `shared/components/ui/**` FORA. O plano (§A.1.1 ponto 25) já suspeitava
     // disso por leitura; aqui está medido: percorrendo o fecho de imports a
