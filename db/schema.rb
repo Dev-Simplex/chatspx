@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_18_010550) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2023,6 +2023,51 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.datetime "updated_at", precision: nil, null: false
     t.index ["account_id"], name: "index_teams_on_account_id"
     t.index ["name", "account_id"], name: "index_teams_on_name_and_account_id", unique: true
+  end
+
+  create_table "unidade_excecoes", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "unidade_id"
+    t.string "etiqueta"
+    t.date "data_inicio", null: false
+    t.date "data_fim", null: false
+    t.boolean "fechada", default: false, null: false
+    t.time "abre"
+    t.time "fecha"
+    t.string "motivo"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "data_fim"], name: "index_unidade_excecoes_on_account_id_and_data_fim"
+    t.index ["unidade_id"], name: "index_unidade_excecoes_on_unidade_id"
+  end
+
+  create_table "unidade_horarios", force: :cascade do |t|
+    t.bigint "unidade_id", null: false
+    t.integer "dia_semana", null: false
+    t.time "abre"
+    t.time "fecha"
+    t.boolean "fechada", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["unidade_id", "dia_semana"], name: "index_unidade_horarios_on_unidade_id_and_dia_semana"
+  end
+
+  create_table "unidades", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "slug", null: false
+    t.string "nome", null: false
+    t.string "cidade"
+    t.string "uf"
+    t.boolean "ativa", default: true, null: false
+    t.text "endereco"
+    t.string "telefone"
+    t.string "timezone", default: "America/Cuiaba", null: false
+    t.jsonb "etiquetas", default: [], null: false
+    t.jsonb "atributos", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "ativa"], name: "index_unidades_on_account_id_and_ativa"
+    t.index ["account_id", "slug"], name: "index_unidades_on_account_id_and_slug", unique: true
   end
 
   create_table "users", id: :serial, force: :cascade do |t|
