@@ -68,6 +68,29 @@ describe('profileConfigHelper', () => {
     });
   });
 
+  describe('a grafia que a paridade 0.6 NÃO distingue', () => {
+    // `keys_by_canonical_name` faz `key.delete('_').downcase`: `profileConfig` e
+    // `profile_config` são a MESMA chave para a suíte de paridade. Ela ficaria verde
+    // com os dois montadores divergindo na grafia — e um consumidor que lesse só uma
+    // cairia nos defaults sem nada falhar. É a forma do defeito do `tokens`.
+    it('lê a chave em snake_case também', () => {
+      expect(
+        profileConfigFromChannel({
+          profile_config: { showKnowledgeBase: false, homeLayout: 'marketing' },
+        })
+      ).toMatchObject({ showKnowledgeBase: false, homeLayout: 'marketing' });
+    });
+
+    it('camelCase vence quando as duas chegam — é a grafia declarada no contrato', () => {
+      expect(
+        profileConfigFromChannel({
+          profileConfig: { homeLayout: 'support' },
+          profile_config: { homeLayout: 'marketing' },
+        }).homeLayout
+      ).toBe('support');
+    });
+  });
+
   describe('o que o servidor manda vence o default', () => {
     it('o perfil marketing da §B.4 atravessa inteiro', () => {
       const resolved = resolveProfileConfig({

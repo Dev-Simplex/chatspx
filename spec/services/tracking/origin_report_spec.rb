@@ -96,6 +96,27 @@ RSpec.describe Tracking::OriginReport do
       )
     end
 
+    # Defeito pego na validação em navegador: a tela mostrava DUAS linhas de indisponível na
+    # dimensão de tipo — `nao_disponivel` (o parser rodou e não achou) e a ausência da chave (a
+    # conversa nem passou pelo parser). Causas diferentes, mesma frase para o cliente.
+    it 'soma "nao_disponivel" e ausência da chave numa linha só, em origin_kind' do
+      3.times { conversa(created_at: 5.days.ago, origem: { 'last_origin_kind' => 'nao_disponivel' }) }
+      2.times { conversa(created_at: 5.days.ago, origem: { 'last_utm_source' => 'google' }) }
+      conversa(created_at: 5.days.ago, origem: { 'last_origin_kind' => 'busca_paga' })
+
+      linhas = relatorio[:measured][:origin_kind]
+
+      expect(linhas).to eq([{ value: nil, count: 5 }, { value: 'busca_paga', count: 1 }])
+      expect(linhas.pluck(:value)).not_to include('nao_disponivel')
+      expect(linhas.sum { |linha| linha[:count] }).to eq(relatorio[:measured][:conversations_count])
+    end
+
+    it 'a unificação não toca as outras dimensões — ali o valor do cliente é o dado' do
+      conversa(created_at: 5.days.ago, origem: { 'last_utm_source' => 'nao_disponivel' })
+
+      expect(relatorio[:measured][:source]).to eq([{ value: 'nao_disponivel', count: 1 }])
+    end
+
     it 'respeita a janela pedida' do
       conversa(created_at: 40.days.ago, origem: { 'last_utm_source' => 'fora' })
       conversa(created_at: 5.days.ago, origem: { 'last_utm_source' => 'dentro' })

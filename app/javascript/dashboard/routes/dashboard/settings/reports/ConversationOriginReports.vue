@@ -9,11 +9,14 @@
  *      vazio nem zerado — vazio e lido como "nao veio ninguem", e isso e mentira.
  */
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import ReportsAPI from 'dashboard/api/reports';
 import ReportHeader from './components/ReportHeader.vue';
 import ReportFilters from './components/ReportFilters.vue';
 import OriginDimensionTable from './components/OriginDimensionTable.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+
+const { t } = useI18n();
 
 const isLoading = ref(false);
 const report = ref(null);
@@ -38,6 +41,21 @@ const formattedStartDate = computed(() => {
 });
 
 const rowsFor = dimension => report.value?.measured?.[dimension] ?? [];
+
+// `origin_kind` e a unica dimensao com vocabulario fechado: os valores vem do catalogo do 1.18 e
+// tem rotulo proprio. As outras tres carregam o que o site do cliente escreveu, e ai o valor cru
+// E o dado — traduzir seria reescrever a campanha dele.
+// Chaves literais, uma a uma: chave dinamica escapa do rastreio do lint de i18n e vira string
+// faltando em producao sem ninguem perceber.
+const ORIGIN_KIND_LABELS = computed(() => ({
+  busca_paga: t('ORIGIN_REPORTS.ORIGIN_KINDS.busca_paga'),
+  busca_organica: t('ORIGIN_REPORTS.ORIGIN_KINDS.busca_organica'),
+  social: t('ORIGIN_REPORTS.ORIGIN_KINDS.social'),
+  ia_generativa: t('ORIGIN_REPORTS.ORIGIN_KINDS.ia_generativa'),
+  email: t('ORIGIN_REPORTS.ORIGIN_KINDS.email'),
+  referencia: t('ORIGIN_REPORTS.ORIGIN_KINDS.referencia'),
+  nao_disponivel: t('ORIGIN_REPORTS.ORIGIN_KINDS.nao_disponivel'),
+}));
 
 const fetchReport = async ({ from, to }) => {
   isLoading.value = true;
@@ -89,10 +107,10 @@ const fetchReport = async ({ from, to }) => {
       data-testid="before-measurement"
       class="flex flex-col gap-1 p-4 rounded-lg bg-n-amber-2 border border-n-amber-6"
     >
-      <span class="text-body-main font-medium text-n-amber-11">
+      <span class="text-body-main font-medium text-n-amber-12">
         {{ $t('ORIGIN_REPORTS.BEFORE_MEASUREMENT.TITLE') }}
       </span>
-      <span class="text-body-small text-n-slate-11">
+      <span class="text-body-small text-n-slate-12">
         {{
           coversWholeRange
             ? $t('ORIGIN_REPORTS.BEFORE_MEASUREMENT.WHOLE_RANGE', {
@@ -134,6 +152,7 @@ const fetchReport = async ({ from, to }) => {
         testid="origin-origin_kind"
         :title="$t('ORIGIN_REPORTS.DIMENSIONS.ORIGIN_KIND')"
         :rows="rowsFor('origin_kind')"
+        :value-labels="ORIGIN_KIND_LABELS"
       />
     </template>
   </div>

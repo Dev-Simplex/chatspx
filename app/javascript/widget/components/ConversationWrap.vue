@@ -41,8 +41,13 @@ export default {
       isAgentTyping: 'conversation/getIsAgentTyping',
       conversationAttributes: 'conversationAttributes/getConversationParams',
     }),
+    // Bloco 2.10. Lia `darkMode` cru, então o valor `auto` — que agora é o
+    // DEFAULT — caía sempre em `light-scheme`, mesmo com o sistema escuro e o
+    // resto do painel já escuro. `prefersDarkMode` é o valor RESOLVIDO: é ele
+    // que o `App.vue` usa para a classe `dark`, e as duas decisões precisam
+    // sair da mesma fonte.
     colorSchemeClass() {
-      return `${this.darkMode === 'dark' ? 'dark-scheme' : 'light-scheme'}`;
+      return this.prefersDarkMode ? 'dark-scheme' : 'light-scheme';
     },
     showStatusIndicator() {
       const { status } = this.conversationAttributes;

@@ -162,6 +162,7 @@
       "APPEARANCE_HIDE_BUBBLE": "Hide the bubble",
       "APPEARANCE_PANEL_STYLE": "Panel style",
       "APPEARANCE_LAUNCHER_ICON": "Launcher icon",
+      "APPEARANCE_HOME_INTENTS": "Home screen options",
       "TRIGGERS_APPROACH": "Desktop approach",
       "TRIGGERS_APPROACH_MOBILE": "Mobile approach",
       "TRIGGERS_DEGRADE_ON_RETURN": "Soften approach on return",
@@ -276,11 +277,18 @@
           "STANDARD": "Standard",
           "FLAT": "Flat"
         }
+      },
+      "SITE_OVERRIDE": {
+        "TITLE": "The snippet on your site can override this",
+        "BODY": "What you save here is the default, and it now applies to the whole team — it is no longer kept in this browser alone. But if the snippet on your site sets chatwootSettings.position, type, launcherTitle, darkMode, hideMessageBubble or widgetStyle, the site value wins.",
+        "ACTION_HINT": "If the widget ignores what you saved here, look for chatwootSettings in your site HTML — this screen cannot read your site code."
       }
     },
     "PREVIEW": {
       "DARK": "Dark",
-      "MOBILE": "Mobile"
+      "MOBILE": "Mobile",
+      "OPEN_LAUNCHER": "Open the chat",
+      "CLOSE_LAUNCHER": "Close the chat"
     },
     "PROFILE": {
       "SUPPORT": {
@@ -331,6 +339,45 @@
     },
     "TABS": {
       "APPEARANCE": "Appearance"
+    },
+    "APPROACH": {
+      "TITLE": "Approach",
+      "LEVELS": {
+        "DISCREET": {
+          "LABEL": "Discreet",
+          "DESCRIPTION": "A small bubble with one sentence, next to the launcher. No photo."
+        },
+        "BOLD": {
+          "LABEL": "Bold",
+          "DESCRIPTION": "A larger bubble, with the photo of whoever answers and shortcuts. This is the default."
+        },
+        "AGGRESSIVE": {
+          "LABEL": "Aggressive",
+          "DESCRIPTION": "The panel opens by itself, once per session, when the trigger fires."
+        }
+      },
+      "DEGRADE_ON_RETURN": {
+        "LABEL": "Insist less with visitors already approached",
+        "DESCRIPTION": "Someone who already saw the approach and did not answer gets the level below on the next visit, then nothing."
+      },
+      "MOBILE": {
+        "LABEL": "On mobile",
+        "AGGRESSIVE_NOT_OFFERED": "Auto-open is not offered on mobile: the panel covers the whole screen there."
+      }
+    },
+    "HOME_INTENTS": {
+      "LABEL": "Intent options on the home screen",
+      "DESCRIPTION": "2 to 4 named options, instead of a \"How can I help?\". Visitors decide in seconds whether you solve their problem.",
+      "HELP": "The text is yours and is shown to the visitor. The identifier stays invisible and lets you compare how each option performs in reports.",
+      "SUGGESTIONS": {
+        "PRICING": "I want a quote",
+        "SUPPORT": "I need help with an order",
+        "PRODUCT": "I want to know the product"
+      },
+      "ERRORS": {
+        "NEED_TWO": "Keep 2 to 4 options, or none — a single option is not a choice.",
+        "DUPLICATED_ID": "Two options cannot share the same identifier."
+      }
     }
   }
 }

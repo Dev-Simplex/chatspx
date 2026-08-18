@@ -23,7 +23,7 @@ const isDefaultScreen = computed(() => {
 
 <template>
   <div
-    class="rounded-t-lg flex-shrink-0 transition-[max-height] duration-300 bg-n-solid-1"
+    class="rounded-t-lg flex-shrink-0 transition-[max-height] duration-300 bg-wp-surface"
     :class="isDefaultScreen ? 'px-4 py-5' : 'p-4'"
   >
     <div class="relative top-px">
@@ -36,26 +36,26 @@ const isDefaultScreen = computed(() => {
         />
         <div v-if="!isDefaultScreen">
           <div class="flex items-center justify-start gap-1">
-            <span class="text-base font-medium leading-3 text-n-slate-12">
+            <span class="text-base font-medium leading-3 text-wp-text">
               {{ config.websiteName }}
             </span>
             <div
               v-if="config.isOnline"
-              class="w-2 h-2 bg-n-teal-10 rounded-full"
+              class="w-2 h-2 bg-wp-online rounded-full"
             />
           </div>
-          <span class="mt-1 text-xs text-n-slate-11">
+          <span class="mt-1 text-xs text-wp-text-muted">
             {{ config.replyTime }}
           </span>
         </div>
       </div>
       <div v-if="isDefaultScreen" class="overflow-auto max-h-60">
-        <h2 class="mb-2 text-2xl break-words text-n-slate-12">
+        <h2 class="mb-2 text-2xl break-words text-wp-text">
           {{ config.welcomeHeading }}
         </h2>
         <p
           v-dompurify-html="formatMessage(config.welcomeTagline)"
-          class="text-sm break-words text-n-slate-11 [&_a]:!text-n-slate-11 [&_a]:underline"
+          class="text-sm break-words text-wp-text-muted [&_a]:!text-wp-text-muted [&_a]:underline"
         />
       </div>
     </div>

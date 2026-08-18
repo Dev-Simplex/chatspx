@@ -87,6 +87,15 @@ export const resolveProfileConfig = (raw = {}) => {
 /**
  * Lê o `profileConfig` de onde o servidor o escreveu.
  * Único ponto do widget que toca `window.chatwootWebChannel.profileConfig`.
+ *
+ * ACEITA AS DUAS GRAFIAS, e não é preciosismo — é um buraco que a rede não cobre.
+ * A suíte de paridade 0.6 canonicaliza chave com `key.delete('_').downcase`, então
+ * `profileConfig` num montador e `profile_config` no outro passam como equivalentes
+ * e a paridade fica VERDE. Se este consumidor lesse só a forma camelCase, o widget
+ * cairia nos defaults por um dos dois caminhos sem nada falhar em lugar nenhum —
+ * a mesma forma do defeito do `tokens`, que ficou mudo atrás de um `||`.
  */
-export const profileConfigFromChannel = (channelConfig = {}) =>
-  resolveProfileConfig((channelConfig || {}).profileConfig);
+export const profileConfigFromChannel = (channelConfig = {}) => {
+  const config = channelConfig || {};
+  return resolveProfileConfig(config.profileConfig ?? config.profile_config);
+};

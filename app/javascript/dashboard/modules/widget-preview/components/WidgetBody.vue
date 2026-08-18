@@ -20,7 +20,7 @@
       </div>
 
       <div
-        class="shadow rounded-[1.25rem] rounded-bl-[0.25rem] px-4 py-3 inline-block text-sm text-n-slate-12 bg-n-solid-2"
+        class="shadow rounded-[1.25rem] rounded-bl-[0.25rem] px-4 py-3 inline-block text-sm text-wp-text bg-wp-surface-2"
       >
         <div>
           <p class="m-0">

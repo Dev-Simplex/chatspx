@@ -162,6 +162,7 @@
       "APPEARANCE_HIDE_BUBBLE": "Esconder a bolha",
       "APPEARANCE_PANEL_STYLE": "Estilo do painel",
       "APPEARANCE_LAUNCHER_ICON": "Ícone do lançador",
+      "APPEARANCE_HOME_INTENTS": "Opções da tela inicial",
       "TRIGGERS_APPROACH": "Abordagem no computador",
       "TRIGGERS_APPROACH_MOBILE": "Abordagem no celular",
       "TRIGGERS_DEGRADE_ON_RETURN": "Reduzir a abordagem em quem volta",
@@ -276,11 +277,18 @@
           "STANDARD": "Padrão",
           "FLAT": "Plano"
         }
+      },
+      "SITE_OVERRIDE": {
+        "TITLE": "O código instalado no site pode sobrescrever isto",
+        "BODY": "O que você salva aqui é o padrão, e ele vale para toda a equipe — não fica mais guardado só neste navegador. Mas se o snippet do seu site definir chatwootSettings.position, type, launcherTitle, darkMode, hideMessageBubble ou widgetStyle, o valor do site vence.",
+        "ACTION_HINT": "Se o widget não obedecer ao que você salvou aqui, procure por chatwootSettings no HTML do site — esta tela não consegue ler o código do seu site."
       }
     },
     "PREVIEW": {
       "DARK": "Escuro",
-      "MOBILE": "Celular"
+      "MOBILE": "Celular",
+      "OPEN_LAUNCHER": "Abrir o chat",
+      "CLOSE_LAUNCHER": "Fechar o chat"
     },
     "PROFILE": {
       "SUPPORT": {
@@ -331,6 +339,45 @@
     },
     "TABS": {
       "APPEARANCE": "Aparência"
+    },
+    "APPROACH": {
+      "TITLE": "Abordagem",
+      "LEVELS": {
+        "DISCREET": {
+          "LABEL": "Discreto",
+          "DESCRIPTION": "Um balão pequeno com uma frase, ao lado do lançador. Sem foto."
+        },
+        "BOLD": {
+          "LABEL": "Chamativo",
+          "DESCRIPTION": "Um balão maior, com foto de quem atende e atalhos. É o padrão."
+        },
+        "AGGRESSIVE": {
+          "LABEL": "Agressivo",
+          "DESCRIPTION": "O painel abre sozinho, uma vez por sessão, quando o gatilho dispara."
+        }
+      },
+      "DEGRADE_ON_RETURN": {
+        "LABEL": "Insistir menos com quem já foi abordado",
+        "DESCRIPTION": "Quem já viu a abordagem e não respondeu recebe o nível abaixo na visita seguinte, e depois nada."
+      },
+      "MOBILE": {
+        "LABEL": "Em celular",
+        "AGGRESSIVE_NOT_OFFERED": "Abertura automática não é oferecida em celular: lá o painel cobre a tela inteira."
+      }
+    },
+    "HOME_INTENTS": {
+      "LABEL": "Opções de intenção na tela inicial",
+      "DESCRIPTION": "De 2 a 4 opções nomeadas, no lugar de um \"Como posso ajudar?\". Quem chega decide em segundos se você resolve o problema dele.",
+      "HELP": "O texto é seu e aparece para o visitante. O identificador fica invisível e serve para você comparar o desempenho de cada opção nos relatórios.",
+      "SUGGESTIONS": {
+        "PRICING": "Quero um orçamento",
+        "SUPPORT": "Preciso de ajuda com um pedido",
+        "PRODUCT": "Quero conhecer o produto"
+      },
+      "ERRORS": {
+        "NEED_TWO": "Deixe de 2 a 4 opções, ou nenhuma — uma opção sozinha não é escolha.",
+        "DUPLICATED_ID": "Duas opções não podem ter o mesmo identificador."
+      }
     }
   }
 }

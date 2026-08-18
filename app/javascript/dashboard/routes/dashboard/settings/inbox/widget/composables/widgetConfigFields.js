@@ -22,17 +22,28 @@
  */
 import { DEFAULT_WIDGET_COLOR } from 'dashboard/constants/widget';
 
-/** Valores de fabrica de `widget_appearance` (PLANO-MESTRE 3.18). */
+/**
+ * Valores de fabrica de `widget_appearance`.
+ *
+ * Sao os do SERVIDOR (`WidgetAppearanceSchema::DEFAULTS`, bloco 3.18), e nao
+ * uma segunda opiniao: uma inbox sem a chave gravada vale exatamente isto, e a
+ * tela que mostrasse outro valor mentiria sobre o estado atual. O cruzamento e
+ * verificado em `specs/widgetAppearanceContract.spec.js`, que le o arquivo Ruby.
+ *
+ * `home_intents` viaja no rascunho para nao ser APAGADO por um PATCH que so
+ * mexeu na posicao (o objeto do grupo vai inteiro); a UI dele e de outro bloco.
+ */
 export const DEFAULT_APPEARANCE = Object.freeze({
-  theme: 'auto',
+  theme: 'light',
   position: 'right',
-  offset_x: 20,
-  offset_y: 20,
+  offset_x: 0,
+  offset_y: 0,
   launcher_type: 'standard',
   launcher_text: '',
   hide_bubble: false,
   panel_style: 'standard',
   launcher_icon: 'default',
+  home_intents: [],
 });
 
 /** Valores de fabrica de `widget_triggers` (PLANO-MESTRE 3.02 e 3.20). */

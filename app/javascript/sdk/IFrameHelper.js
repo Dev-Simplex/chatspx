@@ -10,6 +10,7 @@ import {
   widgetHolder,
   createBubbleHolder,
   createBubbleIcon,
+  resolveLauncherIcon,
   bubbleSVG,
   chatBubble,
   closeBubble,
@@ -22,6 +23,7 @@ import {
   removeUnreadClass,
 } from './bubbleHelpers';
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
+import { drenar } from './preBootQueue';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
 import {
   CHATWOOT_ERROR,
@@ -211,6 +213,11 @@ export const IFrameHelper = {
     loaded: message => {
       updateAuthCookie(message.config.authToken, window.$chatwoot.baseDomain);
       window.$chatwoot.hasLoaded = true;
+      // Bloco 1.23 — a partir daqui existe quem escute do outro lado da ponte.
+      // Tudo o que o site chamou antes do painel montar sai agora, na ordem de
+      // chegada. Antes disto, essas mensagens eram postadas para um iframe sem
+      // ouvinte e sumiam em silêncio.
+      const drenados = drenar();
       const campaignsSnoozedTill = Cookies.get('cw_snooze_campaigns_till');
       IFrameHelper.sendMessage('config-set', {
         locale: window.$chatwoot.locale,
@@ -234,11 +241,31 @@ export const IFrameHelper = {
         // Mesma fonte que o `<style>` do painel: `WidgetTokens` no servidor.
         // O host NÃO recalcula contraste — ele consome o resultado.
         tokens: message.config.tokens || message.config.channelConfig.tokens,
+        // O ícone do lançador (3.19) sai de `widget_appearance`, que viaja dentro
+        // do `channelConfig`. Não é cor: é modo, URL e rótulo. Quem pinta continua
+        // sendo `tokens`, acima — uma fonte só para a cor do lançador.
+        channelConfig: message.config.channelConfig,
       });
       IFrameHelper.toggleCloseButton();
 
-      if (window.$chatwoot.user) {
-        IFrameHelper.sendMessage('set-user', window.$chatwoot.user);
+      // RE-HIDRATAÇÃO, não fila. Serve ao caso em que o iframe recarrega com o
+      // SDK já identificado (`reset()`, navegação que recria o frame): o painel
+      // novo precisa saber quem é o visitante.
+      //
+      // Duas correções do bloco 1.23 aqui:
+      //
+      // 1. NÃO REENVIA O QUE A FILA ACABOU DE ENVIAR. Sem esta guarda, um
+      //    `setUser` chamado antes do boot sairia DUAS vezes — que é exatamente
+      //    a armadilha da segunda fila descrita na §12.1 do PLANO-MESTRE.
+      // 2. O FORMATO ESTAVA ERRADO. Esta linha mandava `window.$chatwoot.user`
+      //    cru, enquanto `setUser` manda `{ identifier, user }`. O painel recebia
+      //    um payload sem `identifier` — o mesmo evento com dois formatos,
+      //    dependendo de quem o emitiu.
+      if (window.$chatwoot.user && !drenados.includes('setUser')) {
+        IFrameHelper.sendMessage('set-user', {
+          identifier: window.$chatwoot.identifier,
+          user: window.$chatwoot.user,
+        });
       }
 
       window.playAudioAlert = () => {};
@@ -266,8 +293,17 @@ export const IFrameHelper = {
       // O nome acessível do lançador vem traduzido do painel (bloco 1.06). Cai
       // no rótulo do texto expandido quando o painel é de uma versão anterior e
       // ainda não manda `ariaLabel`.
+      //
+      // `launcherIconLabel` (3.19) entra entre a opção pública e o genérico do
+      // painel: é o nome que o admin escreveu para a foto do lançador, e é mais
+      // específico que "Abrir o chat" — mas menos que o que o cliente escreveu no
+      // próprio snippet. Sem ele nesta cadeia, a ponte apagaria o nome da pessoa
+      // milissegundos depois de o lançador aparecer com a foto dela.
       setBubbleAccessibleName(
-        window.$chatwoot.launcherTitle || message.ariaLabel || message.label
+        window.$chatwoot.launcherTitle ||
+          IFrameHelper.launcherIconLabel ||
+          message.ariaLabel ||
+          message.label
       );
     },
 
@@ -360,7 +396,7 @@ export const IFrameHelper = {
     IFrameHelper.sendMessage('push-event', { eventName });
   },
 
-  onLoad: ({ widgetColor, tokens }) => {
+  onLoad: ({ widgetColor, tokens, channelConfig }) => {
     const iframe = IFrameHelper.getAppFrame();
     iframe.style.visibility = '';
     iframe.setAttribute('id', `chatwoot_live_chat_widget`);
@@ -408,10 +444,21 @@ export const IFrameHelper = {
       closeBtnClassName += ' woot-widget-bubble-color--lighter';
     }
 
+    // Bloco 3.19. Sem `widget_appearance.launcher_icon` (3.18 ainda não entregou),
+    // isto resolve para `default` — o balão de hoje.
+    const launcherIcon = resolveLauncherIcon(channelConfig);
+
+    // O rótulo configurado na tela de aparência precisa sobreviver à ponte do 1.06:
+    // sem guardá-lo aqui, o `setBubbleLabel` que chega logo depois substituiria
+    // "Falar com a Marina" pelo genérico "Abrir o chat". Guardado ao lado de
+    // `appliedTokens`, que o 1.03 já pendura no mesmo objeto.
+    IFrameHelper.launcherIconLabel = launcherIcon.label;
+
     const chatIcon = createBubbleIcon({
       className,
       path: bubbleSVG,
       target: chatBubble,
+      launcherIcon,
     });
 
     addClasses(closeBubble, closeBtnClassName);

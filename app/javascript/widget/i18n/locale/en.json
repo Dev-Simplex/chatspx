@@ -92,6 +92,7 @@
     },
     "CAMPAIGN_HEADER": "Please provide your name and email before starting the conversation",
     "IS_REQUIRED": "is required",
+    "FIELD_IS_REQUIRED": "{label} is required",
     "REQUIRED": "Required",
     "REGEX_ERROR": "Please provide a valid input"
   },
@@ -160,7 +161,9 @@
     "CLOSE_WIDGET": "Close chat",
     "OPEN_IN_NEW_WINDOW": "Open chat in a new window",
     "OPEN_WIDGET": "Open chat",
-    "AGENT_TYPING": "Agent is typing a message"
+    "AGENT_TYPING": "Agent is typing a message",
+    "AGENT_AVATAR": "Agent avatar",
+    "IMAGE_ATTACHMENT": "Image sent in the conversation"
   },
   "CAPTURE": {
     "SUBMIT": "Send",

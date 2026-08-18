@@ -18,6 +18,7 @@ import {
   ON_UNREAD_MESSAGE_CLICK,
 } from './constants/widgetBusEvents';
 import { useDarkMode } from 'widget/composables/useDarkMode';
+import { watchDocumentTheme } from 'widget/helpers/documentTheme';
 import { useRouter } from 'vue-router';
 import { useAvailability } from 'widget/composables/useAvailability';
 import { registerBridgeListeners } from './bridge';
@@ -33,6 +34,14 @@ export default {
     const { prefersDarkMode } = useDarkMode();
     const router = useRouter();
     const { isInWorkingHours } = useAvailability();
+
+    // Bloco 2.10. A classe `dark` também no `<html>`, e não só nas `div`s
+    // abaixo: é o que faz o fundo do DOCUMENTO acompanhar o tema e o que
+    // habilita o `color-scheme: dark` do `:root` (ver `helpers/documentTheme`).
+    // `immediate` porque o primeiro valor já precisa valer — sem ele o widget
+    // abriria claro e escureceria na primeira troca, que é o flash que este
+    // bloco existe para matar.
+    watchDocumentTheme(prefersDarkMode);
 
     return { prefersDarkMode, router, isInWorkingHours };
   },
