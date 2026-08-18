@@ -165,4 +165,46 @@ describe ContactIdentifyAction do
       end
     end
   end
+
+  # B6: chave nova mandada pelo site via setUser/prechat era gravada no jsonb do
+  # contato e nao aparecia em lugar nenhum — o painel itera sobre as definicoes
+  # (CustomAttributes.vue:76-89) e o filtro recusa chave sem definicao
+  # (filters/filter_helper.rb:22-25).
+  describe 'auto-provisionamento de CustomAttributeDefinition' do
+    let(:contact) { create(:contact, account: account) }
+
+    def definitions
+      account.custom_attribute_definitions.where(attribute_model: 'contact_attribute')
+    end
+
+    it 'cria a definicao da chave nova' do
+      expect do
+        described_class.new(contact: contact, params: { custom_attributes: { carrinho_valor: 4200 } }).perform
+      end.to change(definitions, :count).by(1)
+
+      definition = definitions.find_by(attribute_key: 'carrinho_valor')
+      expect(definition.attribute_display_type).to eq('number')
+      expect(definition.attribute_display_name).to eq('Carrinho valor')
+    end
+
+    it 'nao duplica quando a mesma chave volta' do
+      2.times do |index|
+        described_class.new(contact: contact.reload, params: { custom_attributes: { carrinho_valor: 4200 + index } }).perform
+      end
+
+      expect(definitions.where(attribute_key: 'carrinho_valor').count).to eq(1)
+    end
+
+    it 'nao levanta nem cria definicao para chave reservada' do
+      expect do
+        described_class.new(contact: contact, params: { custom_attributes: { city: 'Sao Paulo', email: 'x@y.com' } }).perform
+      end.not_to change(definitions, :count)
+    end
+
+    it 'nao mexe em nada quando a chamada nao traz custom_attributes' do
+      expect do
+        described_class.new(contact: contact, params: { name: 'Sem atributos' }).perform
+      end.not_to change(definitions, :count)
+    end
+  end
 end
