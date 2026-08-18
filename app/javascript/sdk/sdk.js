@@ -232,7 +232,7 @@ export const SDK_CSS = `
   margin: 8px 8px 8px 8px;
 }
 
-@media only screen and (min-width: 667px) {
+@media only screen and (min-width: 768px) {
   .woot-widget-holder.woot-elements--left {
     left: 20px;
  }
@@ -323,12 +323,25 @@ export const SDK_CSS = `
   transition: transform 300ms var(--w-ease-exit), opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
 }
 
-@media only screen and (max-width: 667px) {
+@media only screen and (max-width: 767px) {
   .woot-widget-holder {
+    /* Dupla declaracao de proposito, e a ordem importa: quem nao conhece as
+       unidades dinamicas ignora a segunda linha e fica com a antiga. A unidade
+       antiga (100vh) mede em celular a viewport COM a barra do navegador
+       recolhida — o rodape do widget fica embaixo dela, e o botao de enviar
+       some atras do Chrome. Sem crase neste arquivo: o CSS inteiro vive dentro
+       de uma template string, e uma crase aqui a FECHA no meio. */
     height: 100%;
+    height: 100dvh;
     right: 0;
     top: 0;
     width: 100%;
+    width: 100dvw;
+    /* O recorte do aparelho (notch, barra de gestos): sem isto o composer fica
+       debaixo da barra inferior do iPhone e o visitante nao consegue toca-lo. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
  }
 
  .woot-widget-holder iframe {
@@ -362,7 +375,7 @@ export const SDK_CSS = `
   }
 }
 
-@media only screen and (min-width: 667px) {
+@media only screen and (min-width: 768px) {
   .woot-widget-holder {
     border-radius: 16px;
     bottom: 104px;

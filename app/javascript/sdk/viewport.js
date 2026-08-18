@@ -1,11 +1,15 @@
 /**
  * O breakpoint do widget, em UM lugar.
  *
- * A base tem três valores para a mesma pergunta — `max-width: 668px` em
- * `IFrameHelper.js:480` e `667px` em três media queries de `sdk.js` —, e um
- * visitante com a janela em 668 px cai num estado que ninguém desenhou. O bloco
- * 2.09 unifica em **768**; este módulo é a fonte, e o 2.11 já nasce consumindo
- * dela em vez de acrescentar um quarto número.
+ * A base tinha TRÊS valores para a mesma pergunta: um limite de 668 px no
+ * `IFrameHelper` e outro de 667 px em três media queries do `sdk.js`. Pior que
+ * a divergência era a sobreposição — o `sdk.js` usava o mesmo 667 como teto de
+ * uma faixa e piso da outra, então naquele pixel exato as duas regras casavam e
+ * quem decidia era a ordem no arquivo. E na janela de 668 px o CSS já tratava
+ * como desktop enquanto o JS avisava o widget que era celular.
+ *
+ * Agora é um número só, e as faixas são disjuntas: até 767 é tela cheia, de 768
+ * em diante é flutuante.
  */
 export const MOBILE_BREAKPOINT = 768;
 

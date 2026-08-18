@@ -9,7 +9,13 @@
   <head>
     <title><%= @global_config['INSTALLATION_NAME'] %></title>
     <%= csrf_meta_tags %>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <%# `maximum-scale=1, user-scalable=0` saiu daqui (bloco 2.09). Travar o zoom
+        é violação direta de SC 1.4.4 (AA): quem precisa ampliar para ler não
+        consegue, e não há alternativa dentro do iframe.
+        A razão histórica do trava-zoom é o auto-zoom do iOS ao focar um campo
+        com fonte < 16px — a correção certa é o tamanho da fonte do composer
+        (bloco 2.05), não desligar o zoom de todo mundo. %>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <%# Bloco 1.02 — os tokens de marca calculados no SERVIDOR, emitidos ANTES
         de qualquer script. É o que mata o flash de cor errada: hoje o widget
         pinta verde, o `App.vue` corrige depois, e em conexão lenta isso se vê.
