@@ -23,20 +23,6 @@ class Captain::Tools::TransferirParaAgenteTool < Captain::Tools::BasePublicTool
   TRANSFER_HISTORY_KEY = 'ia_transferencias'.freeze
   HISTORY_LIMIT = 10
 
-  # Trilho anti-ping-pong. Sem ele, A passa pra B, B devolve pra A e o cliente fica esperando
-  # enquanto a conversa quica entre as duas — caso real: conv 17770 em 24/07, Júlia<->Bruna
-  # três vezes em três minutos, até um humano quebrar o loop na mão.
-  #
-  # A janela é curta DE PROPÓSITO: com conversa única por contato (lock_to_single_conversation)
-  # a conversa vive meses e troca de assunto legitimamente (locação -> financeiro -> manutenção).
-  # Contar "transferências da conversa inteira" travaria a troca legítima semanas depois; o
-  # loop, ao contrário, se resolve em minutos. Estourou o trilho -> chama gente, que é a saída
-  # segura: melhor um humano a mais do que um cliente preso no vaivém.
-  TRANSFER_WINDOW = 1.hour
-  MAX_TRANSFERS_IN_WINDOW = 3
-  TRANSFER_HISTORY_KEY = 'ia_transferencias'.freeze
-  HISTORY_LIMIT = 10
-
   def perform(tool_context, agente:)
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa.' unless conversation
