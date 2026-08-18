@@ -50,9 +50,15 @@ RSpec.describe 'Relatório de origem das conversas (1.22)', type: :request do
       expect(corpo['before_measurement']['covers_whole_range']).to be(false)
       expect(corpo['measured']['conversations_count']).to eq(2)
       expect(corpo['measured']['source']).to contain_exactly({ 'value' => 'google', 'count' => 1 }, { 'value' => nil, 'count' => 1 })
+      # `nao_disponivel` chega ao cliente como ausência (`value: null`), na mesma linha de quem
+      # nem passou pelo parser — duas linhas com o mesmo rótulo pareceriam tela quebrada.
       expect(corpo['measured']['origin_kind']).to contain_exactly(
-        { 'value' => 'busca_paga', 'count' => 1 }, { 'value' => 'nao_disponivel', 'count' => 1 }
+        { 'value' => 'busca_paga', 'count' => 1 }, { 'value' => nil, 'count' => 1 }
       )
+    end
+
+    it 'não vaza o valor de máquina "nao_disponivel" para o cliente' do
+      expect(buscar.parsed_body['measured']['origin_kind'].pluck('value')).not_to include('nao_disponivel')
     end
 
     it 'em lugar nenhum da resposta aparece a palavra "direta"' do

@@ -12,6 +12,10 @@ const props = defineProps({
   title: { type: String, required: true },
   rows: { type: Array, default: () => [] },
   testid: { type: String, required: true },
+  // Mapa valor-cru -> rotulo humano. Sem ele a coluna mostra `busca_paga` e `nao_disponivel`,
+  // que sao valores de MAQUINA: o cliente nao le snake_case, e `nao_disponivel` ficaria dizendo
+  // a mesma coisa que "origem nao disponivel" em outra lingua so nessa dimensao.
+  valueLabels: { type: Object, default: null },
 });
 
 const { t } = useI18n();
@@ -22,10 +26,12 @@ const total = computed(() =>
 
 // `value` nulo e a conversa medida que nao trouxe o parametro: ela e "origem nao disponivel",
 // e nunca "origem direta" — nao sabemos que o acesso foi direto, sabemos que faltou dado.
-const labelFor = value =>
-  value === null || value === undefined || value === ''
-    ? t('ORIGIN_REPORTS.UNAVAILABLE')
-    : value;
+const labelFor = value => {
+  if (value === null || value === undefined || value === '') {
+    return t('ORIGIN_REPORTS.UNAVAILABLE');
+  }
+  return props.valueLabels?.[value] ?? value;
+};
 
 const shareLabel = count =>
   `${total.value ? Math.round((count / total.value) * 1000) / 10 : 0}%`;
@@ -36,7 +42,7 @@ const shareLabel = count =>
     <h3 class="text-heading-3 text-n-slate-12">{{ title }}</h3>
     <table class="w-full text-body-main">
       <thead>
-        <tr class="text-left text-n-slate-11">
+        <tr class="text-left text-n-slate-12">
           <th class="py-2 font-medium">
             {{ $t('ORIGIN_REPORTS.TABLE.VALUE') }}
           </th>
@@ -61,7 +67,7 @@ const shareLabel = count =>
             {{ labelFor(row.value) }}
           </td>
           <td class="py-2 text-right tabular-nums">{{ row.count }}</td>
-          <td class="py-2 text-right tabular-nums text-n-slate-11">
+          <td class="py-2 text-right tabular-nums text-n-slate-12">
             {{ shareLabel(row.count) }}
           </td>
         </tr>

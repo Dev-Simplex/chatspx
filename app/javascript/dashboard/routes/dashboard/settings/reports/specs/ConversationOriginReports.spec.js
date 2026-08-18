@@ -83,6 +83,40 @@ describe('OriginDimensionTable', () => {
   it('nao divide por zero quando a dimensao esta vazia', () => {
     expect(montarTabela([]).findAll('tbody tr')).toHaveLength(0);
   });
+
+  // Defeito pego na validacao em navegador: sem `valueLabels`, a dimensao "tipo de origem"
+  // mostrava `busca_paga` e `nao_disponivel` — valor de MAQUINA na cara do cliente.
+  it('traduz valor de vocabulario fechado quando recebe o mapa de rotulos', () => {
+    const wrapper = shallowMount(OriginDimensionTable, {
+      props: {
+        title: 'Por tipo de origem',
+        testid: 'origin-origin_kind',
+        rows: [
+          { value: 'busca_paga', count: 6 },
+          { value: 'nao_disponivel', count: 4 },
+        ],
+        valueLabels: {
+          busca_paga: 'Busca paga',
+          nao_disponivel: 'origem nao disponivel',
+        },
+      },
+      global: { mocks: { $t } },
+    });
+    const linhas = wrapper.findAll('tbody tr');
+
+    expect(linhas[0].text()).toContain('Busca paga');
+    expect(linhas[1].text()).toContain('origem nao disponivel');
+    expect(wrapper.text()).not.toContain('busca_paga');
+    expect(wrapper.text()).not.toContain('nao_disponivel');
+  });
+
+  it('sem mapa de rotulos, o valor do cliente sai como ele escreveu', () => {
+    const linhas = montarTabela([
+      { value: 'institucional_agosto', count: 2 },
+    ]).findAll('tbody tr');
+
+    expect(linhas[0].text()).toContain('institucional_agosto');
+  });
 });
 
 describe('ConversationOriginReports', () => {
