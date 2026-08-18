@@ -23,6 +23,18 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     return;
   }
 
+  // Bloco 2.14. O snippet mostra um link de contato alternativo quando o
+  // bundle não carrega — e um dos gatilhos dele é um PRAZO, porque parte dos
+  // bloqueadores de conteúdo apenas descarta a requisição sem disparar
+  // `onerror`. Em rede muito lenta esse prazo produz falso positivo: o link
+  // aparece e, segundos depois, o SDK chega. Chamar `hide()` aqui é o que
+  // impede o link de conviver com um widget que passou a funcionar.
+  //
+  // `?.` em tudo de propósito: o snippet antigo, já colado no site de clientes
+  // que existem hoje, NÃO define `chatwootFallback`. Uma chamada direta
+  // quebraria o widget deles no primeiro deploy.
+  window.chatwootFallback?.hide?.();
+
   // if this is a Rails Turbo app
   document.addEventListener('turbo:before-render', event => {
     // when morphing the page, this typically happens on reload like events
