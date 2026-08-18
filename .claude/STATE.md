@@ -10,6 +10,45 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-18] 🟢 COMENTÁRIOS DO INSTAGRAM: não era a Meta que barrava — era o SPX se desassinando
+
+> Descoberta que inverte o diagnóstico de 11/08 (`docs/SPEC-instagram-comentarios.md`). **O escopo
+> não é o bloqueio para RECEBER comentário.** Ele bloqueia só a **resposta**.
+
+- **O app do SPX na `.232` é o `Business MW` (`478777497423728`)** — confirmado pelo print do painel:
+  callback `https://chatspx.app/webhooks/instagram`, conta `bigstoreutilidades`
+  (`17841468839878751`) com assinatura ativada, e o campo **`comments` já Assinado no nível do app**.
+  ⚠️ O `INSTAGRAM_APP_ID` gravado na box é `1147598410038941` — é o *ID do app do Instagram* do
+  produto, não o id do app pai; não confundir com o WABA TOZI (`1147301410628990`).
+- **São DUAS camadas de assinatura**, e quem manda é a de **conta**: `GET /{ig}/subscribed_apps`
+  devolvia `["messages","message_reactions","messaging_seen"]`. Essa lista é escrita pelo **próprio
+  SPX**, no array fixo do `Channel::Instagram#subscribe`, e é sobrescrita a cada conexão de inbox.
+- **Provado nos dois lados antes de mexer:** 7 dias de journal = **4.418** eventos de webhook do
+  Instagram e **zero** evento de `changes` (nenhum `TestEventService`). Os únicos `changes` no log
+  são do WhatsApp, que é outro produto.
+- ✅ **`comments` LIGADO para a BigStore em 18/08**, por chamada de API, **sem deploy**, com snapshot
+  e reversão automática embutida. Estado final:
+  `["comments","message_reactions","messages","messaging_seen"]`.
+  **Reverter:** `POST /17841468839878751/subscribed_apps?subscribed_fields=message_reactions,messages,messaging_seen`
+  (script em `/tmp/liga_comments.rb` na box).
+- **Por que foi seguro:** o SPX **não consegue responder** comentário (sem código e sem escopo), então
+  ligar o recebimento **não** cria resposta dobrada com o n8n — aquele risco é só da resposta. O
+  comentário chega, o job classifica como evento de teste e descarta. Nada muda para o cliente.
+- ⏭️ **Falta provar com comentário real.** O rastro será a linha de `Parameters:` do
+  `Webhooks::InstagramController` com `"field" => "comments"` no journal.
+- 🔴 **A armadilha da frente, para quando ela abrir:** aquele array de `subscribed_fields` é
+  **compartilhado por toda inbox de Instagram de toda conta em toda box** — inclui a Tozi, com a
+  Clara viva na inbox 101. E o `subscribe` manda a lista inteira numa chamada só, com
+  `rescue StandardError; true`: numa box cujo app não tenha o campo, a chamada falha, o erro é
+  engolido e **o canal pode ficar sem assinatura nenhuma, matando o DM em silêncio**. Tem que ser
+  condicional por canal e com a falha visível.
+- ⏭️ **Responder** comentário continua dependendo de `instagram_business_manage_comments` no token →
+  reconectar a inbox por OAuth. Aí sim é decisão + janela de manutenção.
+- ⏭️ **Decisão de modelagem tomada pelo Paulo:** comentário **não vira conversa**. Vira superfície
+  própria — uma página de rede social com o comentário, a publicação, e o que a IA respondeu (ou não,
+  e por quê). O cache de publicações que essa tela precisa é **o mesmo dado** que a IA precisa para
+  responder, então tela e cérebro são a mesma obra.
+
 ### [2026-08-18] 🔵 FRENTE ABERTA: `unidades` — onde moram as lojas do cliente (Fase 1)
 
 > Worktree `orca/workspaces/chatspx/unidades`, branch **`PauloSeze/unidades`**, agente Claude
