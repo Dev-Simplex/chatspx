@@ -409,6 +409,10 @@
   locked: false
   description: 'Enable human agent for instagram channel for longer message back period. Needs additional app approval: https://developers.facebook.com/docs/features-reference/human-agent/'
   type: boolean
+- name: INSTAGRAM_WEBHOOK_EXTRA_FIELDS
+  display_title: 'Instagram Webhook Extra Fields'
+  description: 'Comma separated webhook fields subscribed on top of the mandatory ones (messages, message_reactions, messaging_seen). Only add a field the Meta app of THIS installation is allowed to receive — `messaging_postbacks` is the one that delivers card button clicks. Leave empty to keep the default subscription.'
+  locked: false
 - name: INSTAGRAM_API_VERSION
   display_title: 'Instagram API Version'
   description: 'Configure this if you want to use a different Instagram API version. Make sure its prefixed with `v`'
