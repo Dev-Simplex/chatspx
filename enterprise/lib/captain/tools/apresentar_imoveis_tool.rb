@@ -19,22 +19,18 @@ class Captain::Tools::ApresentarImoveisTool < Captain::Tools::BasePublicTool
   VISTA_FIELDS = ['Codigo', 'ImoCodigo', 'Categoria', 'Status', 'Dormitorios', 'Bairro', 'BairroComercial',
                   'ValorVenda', 'ValorLocacao', 'AreaTotal', { 'Foto' => %w[Foto Destaque] }].freeze
 
+  # O canal que não desenha card mandaria só o texto da mensagem, sem foto e sem botão, e sem
+  # falha nenhuma registrada — foi assim que o carrossel do WhatsApp saiu vazio no Instagram.
+  # Quem monta pergunta ANTES de montar, e a IA recebe o que fazer no lugar.
+  SEM_CARD = 'Este canal não desenha vitrine de cards. Apresente as opções em texto mesmo, uma linha por imóvel ' \
+             'com o link de cada um, e pergunte qual delas o cliente quer ver.'.freeze
+
   def perform(tool_context, codigos:)
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa pra montar a vitrine.' unless conversation
 
-    # O canal que não desenha card mandaria só o texto da mensagem, sem foto e sem botão, e
-    # sem falha nenhuma registrada — foi assim que o carrossel do WhatsApp saiu vazio no
-    # Instagram. Quem monta pergunta ANTES de montar, e a IA recebe o que fazer no lugar.
-    unless conversation.inbox.channel.supports_card_carousel?
-      return 'Este canal não desenha vitrine de cards. Apresente as opções em texto mesmo, uma linha por imóvel ' \
-             'com o link de cada um, e pergunte qual delas o cliente quer ver.'
-    end
-
     pedidos = normaliza_codigos(codigos)
-    return 'Preciso dos códigos dos imóveis que a busca desta conversa retornou.' if pedidos.empty?
-
-    recusa = codigos_recusados(conversation, pedidos)
+    recusa = motivo_de_recusa(conversation, pedidos)
     return recusa if recusa
 
     cards = pedidos.filter_map { |codigo| build_card(codigo) }
@@ -55,9 +51,16 @@ class Captain::Tools::ApresentarImoveisTool < Captain::Tools::BasePublicTool
     codigos.to_s.split(',').map { |codigo| codigo.gsub(/\D/, '') }.reject(&:blank?).uniq.first(MAX_CARDS)
   end
 
+  def motivo_de_recusa(conversation, pedidos)
+    return SEM_CARD unless conversation.inbox.channel.supports_card_carousel?
+    return 'Preciso dos códigos dos imóveis que a busca desta conversa retornou.' if pedidos.empty?
+
+    codigos_fora_da_busca(conversation, pedidos)
+  end
+
   # Mesma trava do envio de fotos: só entra na vitrine código que apareceu numa busca desta
   # conversa. Sem busca registrada (conversa migrada), não há o que conferir e passa.
-  def codigos_recusados(conversation, pedidos)
+  def codigos_fora_da_busca(conversation, pedidos)
     vistos = codigos_conhecidos(conversation)
     return nil if vistos.empty?
 
