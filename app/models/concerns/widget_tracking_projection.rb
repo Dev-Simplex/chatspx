@@ -1,7 +1,7 @@
 # A projecao PUBLICA de `widget_tracking` (bloco 3.04, regra dura do plano 24 §15.1).
 #
 # O que sai para o widget e uma PROJECAO por lista branca, nunca o objeto inteiro do banco. A razao
-# nao e teorica: `widget_tracking` vai para o HTML de toda pagina do site do cliente, e a lista
+# nao e teorica: `widget_tracking` e publicado no HTML de toda pagina do site do cliente, e a lista
 # negativa de 3.01 barra a ESCRITA de segredo — mas um segredo gravado por outro caminho (console,
 # import, migration de terceiro, bug futuro) sairia junto se a leitura fosse `to_json` do hash.
 #
