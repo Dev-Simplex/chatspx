@@ -47,6 +47,8 @@ class Inbox < ApplicationRecord
   include AccountCacheRevalidator
   include InboxAgentAvailability
   include InboxBrandedEmailLayoutable
+  # As quatro chaves de configuracao do widget em `additional_attributes` (bloco 3.01, arbitragem A1)
+  include WidgetConfigurable
 
   store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
 

@@ -60,6 +60,11 @@ pt_BR:
   errors:
     conversation:
       pending_status_disabled_for_inbox: "não pode ser Pendente — recurso desativado para esta caixa de entrada"
+    inbox:
+      widget_config:
+        invalid_profile: "não é um perfil de widget válido (valores aceitos: %{profiles})"
+        must_be_object: "deve ser um objeto JSON"
+        secret_not_allowed: 'não aceita segredo: a chave "%{key}" deve ficar na tela de credenciais, nunca aqui'
     private_chat:
       invalid_password: Senha inválida
     account:

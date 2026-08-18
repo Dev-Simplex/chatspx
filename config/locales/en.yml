@@ -76,6 +76,11 @@ en:
   errors:
     conversation:
       pending_status_disabled_for_inbox: "cannot be Pending — feature disabled for this inbox"
+    inbox:
+      widget_config:
+        invalid_profile: "is not a valid widget profile (accepted values: %{profiles})"
+        must_be_object: "must be a JSON object"
+        secret_not_allowed: 'does not accept secrets: the key "%{key}" belongs in the credentials screen, never here'
     private_chat:
       invalid_password: Invalid password
     account:
