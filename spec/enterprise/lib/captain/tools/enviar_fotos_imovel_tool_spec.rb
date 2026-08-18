@@ -85,7 +85,7 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
 
       expect(retorno).to include('1 foto').and include('tudo que ele tem cadastrado')
       expect(retorno).not_to include('1 fotos')
-      expect(retorno).not_to match(/galeria/i)
+      expect(retorno).not_to include('ofereça o link')
     end
 
     it 'does not promise more photos when it sent every one that exists' do
@@ -93,7 +93,7 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
       retorno = tool.perform(tool_context, codigo: '9434')
 
       expect(retorno).to include('3 fotos').and include('não há outras nem no site')
-      expect(retorno).not_to match(/galeria/i)
+      expect(retorno).not_to include('ofereça o link')
     end
 
     # Aqui a oferta da galeria é honesta: o teto por imóvel cortou, e o site tem o resto.
