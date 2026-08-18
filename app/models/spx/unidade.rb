@@ -51,10 +51,8 @@ class Spx::Unidade < ApplicationRecord
   belongs_to :account
 
   has_many :horarios, -> { order(:dia_semana, :abre) },
-           class_name: 'Spx::UnidadeHorario', foreign_key: :unidade_id,
-           dependent: :destroy, inverse_of: :unidade
-  has_many :excecoes, class_name: 'Spx::UnidadeExcecao', foreign_key: :unidade_id,
-                      dependent: :destroy, inverse_of: :unidade
+           class_name: 'Spx::UnidadeHorario', dependent: :destroy, inverse_of: :unidade
+  has_many :excecoes, class_name: 'Spx::UnidadeExcecao', dependent: :destroy, inverse_of: :unidade
 
   validates :slug, presence: true, uniqueness: { scope: :account_id }
   validates :nome, presence: true

@@ -67,7 +67,7 @@ RSpec.describe Captain::Tools::BuscarUnidadeTool, type: :model do
 
     it 'anuncia falha de consulta sem deixar concluir que a unidade não existe' do
       unidade_com_grade
-      allow(::Spx::Unidade).to receive(:ativas).and_raise(ActiveRecord::StatementInvalid)
+      allow(Spx::Unidade).to receive(:ativas).and_raise(ActiveRecord::StatementInvalid)
 
       expect(tool.perform(tool_context)).to include('falha de consulta, não ausência')
     end

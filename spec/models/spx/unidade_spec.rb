@@ -5,7 +5,7 @@ require 'rails_helper'
 # mentir pro cliente sobre porta aberta — por isso cada regra tem um exemplo próprio.
 RSpec.describe Spx::Unidade do
   let(:account) { create(:account) }
-  let(:unidade) { create(:spx_unidade, account: account, cidade: 'Cuiabá', etiquetas: ['MT', 'Capital']) }
+  let(:unidade) { create(:spx_unidade, account: account, cidade: 'Cuiabá', etiquetas: %w[MT Capital]) }
 
   # 2026-08-24 é segunda-feira; 2026-08-23 é domingo.
   let(:segunda) { Date.new(2026, 8, 24) }

@@ -7,8 +7,8 @@ RSpec.describe Spx::UnidadeExpressaoTemporal do
   let(:zona) { ActiveSupport::TimeZone['America/Cuiaba'] }
 
   # 2026-08-19 é quarta-feira. 14:30 no fuso da unidade.
-  def resolver(expressao, em: '2026-08-19 14:30:00')
-    travel_to(zona.parse(em)) { described_class.resolver(expressao, zona) }
+  def resolver(expressao, agora: '2026-08-19 14:30:00')
+    travel_to(zona.parse(agora)) { described_class.resolver(expressao, zona) }
   end
 
   describe 'expressões relativas' do
@@ -69,7 +69,7 @@ RSpec.describe Spx::UnidadeExpressaoTemporal do
     end
 
     it 'num domingo devolve o próprio dia, que é o fim de semana em curso' do
-      expect(resolver('final de semana', em: '2026-08-23 10:00:00').datas).to eq([Date.new(2026, 8, 23)])
+      expect(resolver('final de semana', agora: '2026-08-23 10:00:00').datas).to eq([Date.new(2026, 8, 23)])
     end
   end
 
@@ -79,7 +79,7 @@ RSpec.describe Spx::UnidadeExpressaoTemporal do
     end
 
     it 'resolve dia/mês escolhendo a ocorrência que ainda não passou' do
-      expect(resolver('2/1', em: '2026-12-28 09:00:00').datas).to eq([Date.new(2027, 1, 2)])
+      expect(resolver('2/1', agora: '2026-12-28 09:00:00').datas).to eq([Date.new(2027, 1, 2)])
     end
 
     it 'resolve mês por extenso' do

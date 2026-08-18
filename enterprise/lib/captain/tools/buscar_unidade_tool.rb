@@ -24,9 +24,10 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
 
   LIMITE_UNIDADES = 15
   LIMITE_CIDADES = 25
+  MINIMO_CONTINENCIA = 3
   DIAS_ABREVIADOS = %w[dom seg ter qua qui sex sáb].freeze
-  DIAS_POR_EXTENSO = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
-                      'Quinta-feira', 'Sexta-feira', 'Sábado'].freeze
+  DIAS_POR_EXTENSO = %w[Domingo Segunda-feira Terça-feira Quarta-feira
+                        Quinta-feira Sexta-feira Sábado].freeze
 
   SEM_CADASTRO = 'Esta conta não tem unidade cadastrada. Isto não é falha de consulta: não existe ' \
                  'dado de endereço, telefone ou horário de loja pra responder aqui.'.freeze
@@ -38,7 +39,7 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
   # Gate multi-tenant. O rescue não é cargo cult: a migration é aplicada com alvo, VM a VM, e sem
   # ele montar o agente numa box ainda não migrada derrubaria o atendimento da frota inteira.
   def active?
-    ::Spx::Unidade.ativas.where(account_id: @assistant.account_id).exists?
+    ::Spx::Unidade.ativas.exists?(account_id: @assistant.account_id)
   rescue StandardError => e
     Rails.logger.warn("[BuscarUnidade] active? indisponível: #{e.class} #{e.message}")
     false
@@ -65,13 +66,15 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
   end
 
   # Compara sem acento e sem caixa, e aceita continência nos dois sentidos porque a pessoa tanto
-  # escreve menos que o cadastro quanto escreve mais (a cidade junto com a UF, por exemplo).
+  # escreve menos que o cadastro quanto escreve mais (a cidade junto com a UF, por exemplo). O piso
+  # de tamanho existe pra continência não virar curinga: com uma ou duas letras ela casaria com
+  # quase toda cidade, e a lista devolvida deixaria de significar alguma coisa.
   def filtrar_por_cidade(unidades, cidade)
     alvo = ::Spx::Unidade.normalizar(cidade)
     return unidades if alvo.blank?
 
     exatas = unidades.select { |unidade| ::Spx::Unidade.normalizar(unidade.cidade) == alvo }
-    return exatas if exatas.any?
+    return exatas if exatas.any? || alvo.length < MINIMO_CONTINENCIA
 
     unidades.select do |unidade|
       nome = ::Spx::Unidade.normalizar(unidade.cidade)
@@ -110,13 +113,12 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
                          .vigentes_entre(datas.min, datas.max).to_a
   end
 
+  # Corte de lista nunca é silencioso: quem lê precisa saber que existe unidade fora do que veio.
   def cabecalho(pedido, momento, encontradas, total_ativas, mostradas)
-    linhas = ["#{encontradas} de #{total_ativas} unidade(s) ativa(s):"]
-    if mostradas < encontradas
-      linhas << "Mostrando #{mostradas} — peça a cidade à pessoa pra reduzir a lista antes de responder."
-    end
-    linhas << aviso_de_data(pedido, momento)
-    linhas.compact.join(' ')
+    corte = mostradas < encontradas
+    ["#{encontradas} de #{total_ativas} unidade(s) ativa(s):",
+     corte ? "Mostrando #{mostradas} — peça a cidade à pessoa pra reduzir a lista antes de responder." : nil,
+     aviso_de_data(pedido, momento)].compact.join(' ')
   end
 
   # O "não entendi a data" é obrigatório e é o oposto de cair em hoje por omissão.
@@ -198,11 +200,18 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
   def horario_habitual(unidade)
     return 'não cadastrado.' unless unidade.horario_cadastrado?
 
-    grupos = ::Spx::Unidade::ORDEM_LEITURA.each_with_object([]) do |wday, acc|
+    agrupar_semana(unidade).map { |grupo| "#{rotulo_dias(grupo[:dias])} #{grupo[:texto]}" }.join(' · ')
+  end
+
+  def agrupar_semana(unidade)
+    ::Spx::Unidade::ORDEM_LEITURA.each_with_object([]) do |wday, acc|
       texto = unidade.faixas_padrao(wday).map(&:to_s).join(' e ').presence || 'fechada'
-      acc.last && acc.last[:texto] == texto ? acc.last[:dias] << wday : acc << { dias: [wday], texto: texto }
+      if acc.last && acc.last[:texto] == texto
+        acc.last[:dias] << wday
+      else
+        acc << { dias: [wday], texto: texto }
+      end
     end
-    grupos.map { |grupo| "#{rotulo_dias(grupo[:dias])} #{grupo[:texto]}" }.join(' · ')
   end
 
   def rotulo_dias(dias)

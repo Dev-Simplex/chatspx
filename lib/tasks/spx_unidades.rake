@@ -24,6 +24,7 @@
 # um bloco de rake cai em Object e passa a existir pra todas as tasks do projeto.
 module SpxUnidadesCarga
   DIAS = { 'dom' => 0, 'seg' => 1, 'ter' => 2, 'qua' => 3, 'qui' => 4, 'sex' => 5, 'sab' => 6 }.freeze
+  NEGATIVAS = %w[false nao não 0].freeze
 
   module_function
 
@@ -104,7 +105,7 @@ namespace :spx do
           timezone: linha['timezone'].presence || Spx::Unidade::FUSO_PADRAO,
           etiquetas: linha['etiquetas'].to_s.split('|').map(&:strip).compact_blank,
           atributos: SpxUnidadesCarga.atributos(linha['atributos']),
-          ativa: !%w[false nao não 0].include?(linha['ativa'].to_s.strip.downcase)
+          ativa: SpxUnidadesCarga::NEGATIVAS.exclude?(linha['ativa'].to_s.strip.downcase)
         )
         unidade.save!
 

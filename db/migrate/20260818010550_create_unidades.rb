@@ -19,6 +19,14 @@
 # cada frente escolhe hora redonda — 120000, 130000, 120100. Segundo real não colide.
 class CreateUnidades < ActiveRecord::Migration[7.1]
   def change
+    criar_unidades
+    criar_horarios
+    criar_excecoes
+  end
+
+  private
+
+  def criar_unidades
     create_table :unidades do |t|
       t.bigint  :account_id, null: false
       t.string  :slug,       null: false
@@ -45,7 +53,9 @@ class CreateUnidades < ActiveRecord::Migration[7.1]
     end
     add_index :unidades, %i[account_id slug], unique: true
     add_index :unidades, %i[account_id ativa]
+  end
 
+  def criar_horarios
     create_table :unidade_horarios do |t|
       t.bigint  :unidade_id, null: false
       # 0 = domingo ... 6 = sábado (convenção do Date#wday, pra não precisar traduzir na leitura).
@@ -58,7 +68,9 @@ class CreateUnidades < ActiveRecord::Migration[7.1]
     # Índice NÃO único de propósito: comércio de rua fecha no almoço, e duas linhas no mesmo dia
     # é como se expressa uma grade partida. Único aqui proibiria isso pra sempre.
     add_index :unidade_horarios, %i[unidade_id dia_semana]
+  end
 
+  def criar_excecoes
     create_table :unidade_excecoes do |t|
       t.bigint  :account_id,  null: false
       # unidade_id preenchido = exceção de UMA unidade; etiqueta preenchida = de um GRUPO;
