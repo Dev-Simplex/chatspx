@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useToggle } from '@vueuse/core';
 import WidgetHead from './WidgetHead.vue';
 import WidgetBody from './WidgetBody.vue';
+import WidgetPreChatPreview from './WidgetPreChatPreview.vue';
 import WidgetFooter from './WidgetFooter.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import Code from 'dashboard/components/Code.vue';
@@ -53,6 +54,15 @@ const props = defineProps({
   offsetX: { type: Number, default: 20 },
   offsetY: { type: Number, default: 20 },
   hideBubble: { type: Boolean, default: false },
+  /**
+   * Bloco 3.16 — o pré-chat como a tela 3 o configurou.
+   *
+   * Duas props, e nenhuma delas é cor: o preview do pré-chat pinta com os
+   * mesmos tokens do resto (`--w-brand` / `--w-on-brand`). Sem isto, a única
+   * forma de saber como o formulário ficou era salvar e abrir o site.
+   */
+  preChatEnabled: { type: Boolean, default: false },
+  preChatOptions: { type: Object, default: () => ({}) },
 });
 
 const { t } = useI18n();
@@ -237,7 +247,13 @@ const handleToggleWidget = () => {
         >
           <WidgetHead :config="getWidgetConfig" />
           <div>
-            <WidgetBody v-if="!getWidgetConfig.isDefaultScreen" />
+            <!-- Na conversa, o visitante vê o pré-chat ANTES das mensagens —
+                 é a ordem do widget real. Sem pré-chat, as bolhas de sempre. -->
+            <WidgetPreChatPreview
+              v-if="!getWidgetConfig.isDefaultScreen && preChatEnabled"
+              :options="preChatOptions"
+            />
+            <WidgetBody v-else-if="!getWidgetConfig.isDefaultScreen" />
             <WidgetFooter :config="getWidgetConfig" />
             <div class="py-2.5 flex justify-center">
               <a

@@ -116,6 +116,11 @@
         "DESCRIPTION": "Nenhum campo é apagado: todos passam para a etapa 1. O que deixa de valer são as etapas {steps} e as condicionais destes campos: {fields}.",
         "CONFIRM": "Voltar para Simples",
         "CANCEL": "Continuar no Construtor"
+      },
+      "PREVIEW": {
+        "EMPTY": "Nenhum campo ligado: o visitante vai direto para a conversa.",
+        "START": "Iniciar conversa",
+        "STEP_OF": "Etapa {step} de {total} — as seguintes aparecem depois que esta for respondida."
       }
     },
     "CONFIGURATION": {

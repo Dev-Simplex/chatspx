@@ -116,6 +116,11 @@
         "DESCRIPTION": "No field is deleted: all of them move to step 1. What stops applying are steps {steps} and the conditions on these fields: {fields}.",
         "CONFIRM": "Back to Simple",
         "CANCEL": "Stay in Builder"
+      },
+      "PREVIEW": {
+        "EMPTY": "No field is on: the visitor goes straight to the conversation.",
+        "START": "Start conversation",
+        "STEP_OF": "Step {step} of {total} — the next ones show up after this one is answered."
       }
     },
     "CONFIGURATION": {
