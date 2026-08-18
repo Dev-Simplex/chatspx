@@ -61,6 +61,20 @@ module WidgetConfigurable
     { 'approach' => desktop, 'approach_mobile' => mobile, 'degrade_on_return' => degrade }
   end
 
+  # Bloco 3.04: os gatilhos entregues ao widget, com a abordagem JA RESOLVIDA por dentro. A abordagem
+  # nao ganha chave propria no payload de proposito (A15): dois lugares para o mesmo fato obrigariam o
+  # SDK a ler dois caminhos para tomar uma decisao so, e e assim que as duas pontas divergem.
+  def resolved_widget_triggers
+    stored = widget_triggers.is_a?(Hash) ? widget_triggers : {}
+
+    stored.merge(resolved_widget_approach)
+  end
+
+  # Bloco 3.04: o que o widget recebe de tracking e uma projecao por lista branca, nunca o hash cru.
+  def public_widget_tracking
+    WidgetTrackingProjection.public_view(widget_tracking)
+  end
+
   # A aparencia entregue ao widget e sempre COMPLETA: o banco e o padrao, e o padrao tem de existir
   # mesmo na inbox que nunca abriu a tela (regra A4 — sem migration e sem backfill).
   # Chave fora do schema e descartada aqui: o que sobrou de uma versao anterior nao vaza para o site.

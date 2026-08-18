@@ -28,6 +28,14 @@
         timezone: '<%= @web_widget.inbox.timezone %>',
         allowMessagesAfterResolved: <%= @web_widget.inbox.allow_messages_after_resolved %>,
         disableBranding: <%= @web_widget.inbox.account.feature_enabled?('disable_branding') %>,
+        <%# Bloco 3.04 — a configuracao da Onda 2. `widgetProfile` existe so para telemetria e para o %>
+        <%# rotulo na tela: o widget ramifica por `profileConfig`, que sao flags planas (A3). %>
+        <%# `widgetTracking` e PROJECAO por lista branca, nunca o hash cru do banco. %>
+        widgetProfile: '<%= @web_widget.inbox.resolved_widget_profile %>',
+        profileConfig: <%= WidgetProfile.resolve(@web_widget).to_json.html_safe %>,
+        widgetTriggers: <%= @web_widget.inbox.resolved_widget_triggers.to_json.html_safe %>,
+        widgetTracking: <%= @web_widget.inbox.public_widget_tracking.to_json.html_safe %>,
+        widgetAppearance: <%= @web_widget.inbox.resolved_widget_appearance.to_json.html_safe %>,
       }
       window.chatwootPubsubToken = '<%= @contact_inbox.pubsub_token %>'
       window.authToken = '<%= @token %>'
