@@ -39,7 +39,11 @@ class Flow < ApplicationRecord
   belongs_to :updated_by, class_name: 'User', optional: true
   has_many_attached :files
 
-  enum trigger_type: { manual: 0, conversation_event: 1, schedule: 2, keyword: 3, external_webhook: 4 }
+  # `widget_prechat` (5) — bloco 4.02/BK-21. O fluxo de CAPTURA do chat de site: quem decide qual
+  # deles o visitante recebe e o SERVIDOR (Flows::WidgetPrechatResolver), pelo `trigger_config`; o
+  # widget nunca ve a lista de fluxos nem os criterios. Enum e codigo: a coluna ja e integer, entao
+  # o valor novo NAO precisa de migration.
+  enum trigger_type: { manual: 0, conversation_event: 1, schedule: 2, keyword: 3, external_webhook: 4, widget_prechat: 5 }
   enum reentry_policy: { once: 0, re_enroll: 1, re_enroll_after: 2 }
   enum visibility: { personal: 0, global: 1 }
 
@@ -77,6 +81,7 @@ class Flow < ApplicationRecord
     move_funnel_stage call_macro send_csat
     add_participant enroll_in_sequence http_request
     send_cta_url send_location_request send_whatsapp_flow
+    send_form
   ].freeze
 
   # `wait_for_reply` (F2): suspende o walk ESPERANDO a resposta do contato e ramifica pela opção
@@ -88,6 +93,8 @@ class Flow < ApplicationRecord
   validates :name, presence: true
   validate :definition_shape
   validate :definition_action_names
+  validate :widget_prechat_trigger_config_shape
+  validate :widget_prechat_collected_fields_cap
 
   # F1 (R-2) — gatilho `external_webhook`: um endpoint PÚBLICO dispara o flow via POST externo.
   # A segurança inteira repousa sobre um token forte e não-adivinhável que IDENTIFICA o flow (o
@@ -112,6 +119,15 @@ class Flow < ApplicationRecord
 
   def edges
     definition_hash.fetch('edges', [])
+  end
+
+  # Quantos CAMPOS o fluxo coleta do visitante. Campo coletado == no `wait_for_reply`: cada um e
+  # exatamente uma pergunta que o visitante responde (o `send_interactive`/`send_message` que o
+  # precede so DESENHA a pergunta; quem espera a resposta e o wait_for_reply). Base do teto de 8
+  # do bloco 4.02/BK-23.
+  def collected_fields_count
+    wait_nodes = nodes.count { |node| node.is_a?(Hash) && node['type'] == 'wait_for_reply' }
+    wait_nodes + form_field_nodes_count
   end
 
   # Sobrescrito por `Enterprise::Flow` para somar add_sla/assign_ai_agent no build enterprise.
@@ -161,6 +177,48 @@ class Flow < ApplicationRecord
   def persisted_webhook_token
     previous = trigger_config_was
     previous['webhook_token'] if previous.is_a?(Hash)
+  end
+
+  # Bloco 4.02 — a forma do `trigger_config` do gatilho `widget_prechat`, conferida por
+  # json_schemer (§10.2 N3: validacao no servidor, sem Zod). So corre nesse gatilho: o mesmo
+  # jsonb serve os outros quatro, cada um com sua forma.
+  def widget_prechat_trigger_config_shape
+    return unless widget_prechat?
+
+    config = trigger_config.presence
+    return if config.blank?
+
+    unless config.is_a?(Hash)
+      errors.add(:trigger_config, 'deve ser um objeto')
+      return
+    end
+
+    Flow::WidgetPrechatSchema.validator.validate(config).each do |schema_error|
+      errors.add(:trigger_config, Flow::WidgetPrechatSchema.humanize(schema_error))
+    end
+  end
+
+  # Teto de 8 campos coletados (BK-23, [R06 §14.3 R14]). RECUSA o save em vez de truncar: truncar
+  # apagaria etapa que o admin desenhou e ele so descobriria pelo lead que nao chega. A mensagem
+  # diz o numero encontrado e o teto — erro sem numero obriga a contar no canvas.
+  def widget_prechat_collected_fields_cap
+    return unless widget_prechat?
+
+    count = collected_fields_count
+    return if count <= Flow::WidgetPrechatSchema::MAX_COLLECTED_FIELDS
+
+    errors.add(:definition,
+               "fluxo de captura coleta #{count} campos; o teto e #{Flow::WidgetPrechatSchema::MAX_COLLECTED_FIELDS}")
+  end
+
+  # Um `send_form` coleta VARIOS campos de uma vez — cada item conta um. Sem isso, um fluxo com um
+  # unico no de formulario de 12 campos passaria pelo teto de 8 contando como zero.
+  def form_field_nodes_count
+    nodes.sum do |node|
+      next 0 unless node.is_a?(Hash) && node['type'] == 'action' && node['action_name'] == 'send_form'
+
+      Array(node.dig('action_params', 0, 'items')).size
+    end
   end
 
   def definition_hash

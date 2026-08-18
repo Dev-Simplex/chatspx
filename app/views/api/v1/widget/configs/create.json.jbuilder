@@ -22,6 +22,15 @@ json.website_channel_config do
   json.widget_color @web_widget.widget_color
   json.working_hours @web_widget.inbox.working_hours
   json.working_hours_enabled @web_widget.inbox.working_hours_enabled
+  # Bloco 3.04 — as mesmas chaves do `show.html.erb`, e a suite de paridade (0.6) cobra as duas
+  # pontas: acrescentar aqui e esquecer la (ou o contrario) falha nomeando a chave e o arquivo.
+  # As chaves de TOPO seguem a convencao de cada arquivo (snake_case aqui, camelCase no ERB); o
+  # CONTEUDO e identico, porque quem consome os dois e o mesmo codigo do widget.
+  json.widget_profile @web_widget.inbox.resolved_widget_profile
+  json.profile_config WidgetProfile.resolve(@web_widget)
+  json.widget_triggers @web_widget.inbox.resolved_widget_triggers
+  json.widget_tracking @web_widget.inbox.public_widget_tracking
+  json.widget_appearance @web_widget.inbox.resolved_widget_appearance
 end
 
 json.contact do

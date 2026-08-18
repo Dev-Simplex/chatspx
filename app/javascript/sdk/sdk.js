@@ -182,6 +182,56 @@ export const SDK_CSS = `
   width: 24px;
 }
 
+/* ── BLOCO 3.19 · o lançador com foto ───────────────────────────────────────
+   Asserção 8 — recorte "object-fit: cover" no círculo de 64 px congelado (§8 item 2).
+   A bolha já é 64x64 com "overflow: hidden" e "border-radius: 100px"; a foto herda
+   o raio e preenche. Foto retangular é RECORTADA, nunca esticada — sem isto um
+   retrato 3:4 entorta o lançador na página do cliente. */
+.woot-widget-bubble img.woot-widget-bubble__photo {
+  all: revert;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
+  margin: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Asserção 7 — anel/borda com ≥ 3:1 (SC 1.4.11).
+   São DOIS anéis, e é o que torna o aceite atingível: o lançador pousa numa página
+   de fundo desconhecido, então nenhuma cor sozinha garante 3:1 contra "o fundo".
+   Os dois anéis contrastam ENTRE SI, de modo que a borda do controle continua
+   perceptível sobre qualquer fundo — claro, escuro ou a própria cor da marca.
+
+   Um anel de UMA cor não resolve, e isso é demonstrável: >=3:1 contra branco exige
+   luminância <= 0,30000; contra #171717 exige >= 0,12570; contra a marca #2dc46f
+   exige <= 0,10395. O intervalo [0,12570 ; 0,10395] é VAZIO. Daí os dois anéis.
+   Medidos: externo x marca 3,727 · externo x claro 4,759 · externo x anel interno
+   4,759 · interno x escuro 17,928. Nenhum par abaixo de 3:1.
+   O interior referencia "--w-brand-border", o token que a asserção 7 nomeia. ATENÇAO,
+   e isto foi MEDIDO no merge com o 1.03: "--w-brand-border" NAO esta em
+   'WIDGET_TOKEN_NAMES' (IframeEventHelper.js), que e lista FECHADA — 'applyWidgetTokens'
+   descarta nome fora dela. Enquanto 1.02/1.03 nao acrescentarem o token, quem pinta e
+   sempre o fallback branco, e e exatamente ele que os numeros acima medem: nenhum
+   deles e aspiracional. Quando o token entrar na lista, os pares precisam ser
+   remedidos com o valor real. Registrado no relatorio da trilha. */
+.woot-widget-bubble.woot-widget-bubble--has-photo {
+  box-shadow:
+    0 0 0 2px var(--w-brand-border, #ffffff),
+    0 0 0 3px rgba(0, 0, 0, 0.55),
+    0 8px 24px rgba(0, 0, 0, 0.16) !important;
+}
+
+.woot-widget-bubble.woot-widget--expanded img.woot-widget-bubble__photo {
+  height: 32px;
+  width: 32px;
+  border-radius: 100px;
+  margin: 8px 8px 8px 8px;
+}
+
 @media only screen and (min-width: 667px) {
   .woot-widget-holder.woot-elements--left {
     left: 20px;

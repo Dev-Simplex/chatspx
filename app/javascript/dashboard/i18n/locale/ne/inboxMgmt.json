@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "नमस्ते",
         "AGENT_MESSAGE": "नमस्कार"
       },
-      "BRANDING_TEXT": "Chatwoot द्वारा संचालित",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "Chatwoot द्वारा संचालित"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

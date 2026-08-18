@@ -33,6 +33,7 @@ import internalChat from './internalChat.json';
 import labelsMgmt from './labelsMgmt.json';
 import login from './login.json';
 import macros from './macros.json';
+import originReports from './originReports.json';
 import report from './report.json';
 import resetPassword from './resetPassword.json';
 import search from './search.json';
@@ -86,6 +87,7 @@ export default {
   ...labelsMgmt,
   ...login,
   ...macros,
+  ...originReports,
   ...report,
   ...resetPassword,
   ...search,

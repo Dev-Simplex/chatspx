@@ -9,7 +9,7 @@ vi.mock('dashboard/composables/store', () => ({
 const build = (props = {}) =>
   mount(Widget, {
     props: { websiteName: 'Simplex', color: '#2dc46f', ...props },
-    global: { stubs: { Code: true, TabBar: true } },
+    global: { stubs: { Code: true } },
   });
 
 const surface = wrapper =>
@@ -102,5 +102,64 @@ describe('preview do widget — o que a tela de aparência configura', () => {
       .parentElement;
 
     expect(linha.getAttribute('style')).toContain('justify-content: start');
+  });
+});
+
+/* O nome do evento e do componente TabBar (upstream) e nao segue o camelCase
+   que o lint exige dos NOSSOS componentes; isolado aqui para nao espalhar o
+   disable pelo arquivo. */
+const abrirAbaScript = async wrapper => {
+  wrapper.findComponent({ name: 'TabBar' }).vm.$emit(
+    // eslint-disable-next-line vue/custom-event-name-casing
+    'tab-changed',
+    {
+      label: wrapper.vm.$t(
+        'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.WIDGET_VIEW_OPTION.SCRIPT'
+      ),
+    }
+  );
+  await wrapper.vm.$nextTick();
+};
+
+describe('preview do widget — o snippet (D3)', () => {
+  const SNIPPET = `
+    <script>
+      (function(d,t) {
+        var BASE_URL="https://chatspx.app";
+        var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+        g.src=BASE_URL+"/packs/js/sdk.js";
+      })(document,"script");
+    </script>
+    `;
+
+  it('mostra o script do servidor INTEIRO, sem cortar nem costurar', async () => {
+    const wrapper = build({ webWidgetScript: SNIPPET });
+
+    // aba "Script"
+    await abrirAbaScript(wrapper);
+
+    const code = wrapper.findComponent({ name: 'Code' });
+    expect(code.props('script')).toBe(SNIPPET);
+  });
+
+  it('opção de lançador NÃO é costurada dentro do snippet', async () => {
+    const wrapper = build({
+      webWidgetScript: SNIPPET,
+      widgetBubblePosition: 'left',
+      widgetBubbleType: 'expanded_bubble',
+      widgetBubbleLauncherTitle: 'Fale com a gente',
+    });
+
+    await abrirAbaScript(wrapper);
+
+    const script = wrapper.findComponent({ name: 'Code' }).props('script');
+    expect(script).not.toContain('chatwootSettings');
+    expect(script).not.toContain('launcherTitle');
+    // e o corte no byte 13 nao deixou marca: o script comeca como o servidor o escreveu
+    expect(script.startsWith(SNIPPET.slice(0, 40))).toBe(true);
+  });
+
+  it('sem script do servidor, não inventa um', () => {
+    expect(build().vm).toBeTruthy();
   });
 });

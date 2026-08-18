@@ -196,11 +196,185 @@
         "LABEL": "Brand color",
         "HEX_LABEL": "Brand color in hexadecimal",
         "INVALID": "Use the #RRGGBB format."
+      },
+      "SAVED": "Appearance saved.",
+      "SAVE_ERROR": "Could not save the appearance.",
+      "SECTIONS": {
+        "BRAND": "Brand",
+        "THEME": "Theme",
+        "LAUNCHER": "Launcher",
+        "TEXTS": "Texts",
+        "FEATURES": "Features",
+        "ADVANCED": "Advanced"
+      },
+      "OVERRIDE": {
+        "TITLE": "The website overrides this setting",
+        "BODY": "The code installed on the website sets {fields} on its own. What is saved here is the default and the website wins — to make this screen's value count, remove the field from the chatwootSettings object on the site.",
+        "FIELD_HINT": "The website overrides this field."
+      },
+      "THEME": {
+        "LABEL": "Theme mode",
+        "HELP": "Automatic follows the visitor's system theme.",
+        "LIGHT": {
+          "LABEL": "Light",
+          "DESCRIPTION": "The widget always opens light."
+        },
+        "DARK": {
+          "LABEL": "Dark",
+          "DESCRIPTION": "The widget always opens dark."
+        },
+        "AUTO": {
+          "LABEL": "Automatic",
+          "DESCRIPTION": "Follows the system theme of whoever visits the site."
+        }
+      },
+      "LAUNCHER": {
+        "POSITION": "Position",
+        "POSITIONS": {
+          "LEFT": "Left",
+          "LEFT_HINT": "The bubble sits in the bottom-left corner.",
+          "RIGHT": "Right",
+          "RIGHT_HINT": "The bubble sits in the bottom-right corner."
+        },
+        "OFFSETS": "Distance from the edges",
+        "OFFSETS_HINT": "In pixels, from 0 to 120. Useful when another element of the site takes the corner.",
+        "OFFSET_X": "Side",
+        "OFFSET_Y": "Bottom",
+        "TYPE": "Shape",
+        "TYPES": {
+          "STANDARD": "Bubble",
+          "STANDARD_HINT": "Just the icon, in a circle.",
+          "EXPANDED_BUBBLE": "Bubble with text",
+          "EXPANDED_BUBBLE_HINT": "The icon with a call next to it."
+        },
+        "TEXT": "Launcher text",
+        "TEXT_PLACEHOLDER": "Talk to us",
+        "TEXT_TOO_LONG": "At most {max} characters.",
+        "HIDE_BUBBLE": "Hide the bubble",
+        "HIDE_BUBBLE_HINT": "Removes the launcher. Only do this if the site opens the chat from its own button — with no launcher and no button, the visitor is left with no way to reach you."
+      },
+      "TEXTS": {
+        "WELCOME_TITLE": "Welcome title",
+        "WELCOME_TAGLINE": "Welcome tagline",
+        "REPLY_TIME": "Reply time",
+        "REPLY_TIMES": {
+          "IN_A_FEW_MINUTES": "In a few minutes",
+          "IN_A_FEW_HOURS": "In a few hours",
+          "IN_A_DAY": "In a day"
+        }
+      },
+      "FEATURES": {
+        "ATTACHMENTS": "Allow attachments in the widget",
+        "EMOJI_PICKER": "Show the emoji picker",
+        "END_CONVERSATION": "Let the visitor end the conversation",
+        "USE_INBOX_AVATAR_FOR_BOT": "Use the inbox name and avatar for the bot"
+      },
+      "ADVANCED": {
+        "PANEL_STYLE": "Panel style",
+        "PANEL_STYLE_HINT": "Standard has the header in the brand color; flat uses a neutral background.",
+        "PANEL_STYLES": {
+          "STANDARD": "Standard",
+          "FLAT": "Flat"
+        }
+      },
+      "SITE_OVERRIDE": {
+        "TITLE": "The snippet on your site can override this",
+        "BODY": "What you save here is the default, and it now applies to the whole team — it is no longer kept in this browser alone. But if the snippet on your site sets chatwootSettings.position, type, launcherTitle, darkMode, hideMessageBubble or widgetStyle, the site value wins.",
+        "ACTION_HINT": "If the widget ignores what you saved here, look for chatwootSettings in your site HTML — this screen cannot read your site code."
       }
     },
     "PREVIEW": {
       "DARK": "Dark",
       "MOBILE": "Mobile"
+    },
+    "PROFILE": {
+      "SUPPORT": {
+        "LABEL": "Support",
+        "DESCRIPTION": "For people who already are customers and need help. The widget waits for the click: no invitation, no teaser, CSAT at the end and history over email."
+      },
+      "MARKETING": {
+        "LABEL": "Marketing",
+        "DESCRIPTION": "To turn a visitor into a customer. The widget invites — teaser on a trigger, qualification in the pre-chat and a conversion event at the end."
+      },
+      "QUESTION": "What is this inbox for?",
+      "QUESTION_HELP": "Pick now so the inbox is born right. You can change it later, and changing never erases what you configured.",
+      "SHOW_OTHER": "Show {profile} settings",
+      "HIDE_OTHER": "Hide {profile} settings",
+      "HIDDEN_HINT": "The {profile} profile hides these sections — it does not remove them. They stay saved and come back if you switch the profile.",
+      "SWITCH_DIALOG": {
+        "TITLE": "Switch this inbox profile",
+        "DESCRIPTION": "The {profile} profile proposes the changes below. Check what you want applied — anything left unchecked is not touched.",
+        "WILL_CHANGE": "What changes, if you check it",
+        "WILL_KEEP": "What stays saved",
+        "KEEP_EXPLANATION": "Nothing is erased. Every setting of the previous profile stays in the database, inert, and comes back if you switch the profile back.",
+        "NOTHING_CHANGES": "Nothing changes: this inbox is already set the way the new profile proposes.",
+        "CONFIRM": "Switch the profile",
+        "CANCEL": "Keep the current profile"
+      },
+      "PROPOSALS": {
+        "PRECHATFORMENABLED": {
+          "SUPPORT": "Turn the pre-chat form off (the customer talks first, no form)",
+          "MARKETING": "Turn the pre-chat form on (to qualify the visitor before the conversation)"
+        },
+        "TRIGGERSPRESET": {
+          "SUPPORT": "Turn triggers off: the widget goes back to waiting for the click",
+          "MARKETING": "Turn the teaser on with the composite trigger (8 seconds on page AND 30% scroll)"
+        },
+        "CONTINUITYVIAEMAIL": {
+          "SUPPORT": "Turn email continuity on (history follows into the customer's inbox)",
+          "MARKETING": "Turn email continuity off"
+        },
+        "CSATSURVEYENABLED": {
+          "SUPPORT": "Turn the satisfaction survey (CSAT) on when a conversation is resolved",
+          "MARKETING": "Turn the satisfaction survey (CSAT) off"
+        },
+        "KNOWLEDGEBASE": {
+          "SUPPORT": "Show the Help Center on the widget home screen",
+          "MARKETING": "Hide the Help Center on the widget home screen"
+        }
+      }
+    },
+    "TABS": {
+      "APPEARANCE": "Appearance"
+    },
+    "APPROACH": {
+      "TITLE": "Approach",
+      "LEVELS": {
+        "DISCREET": {
+          "LABEL": "Discreet",
+          "DESCRIPTION": "A small bubble with one sentence, next to the launcher. No photo."
+        },
+        "BOLD": {
+          "LABEL": "Bold",
+          "DESCRIPTION": "A larger bubble, with the photo of whoever answers and shortcuts. This is the default."
+        },
+        "AGGRESSIVE": {
+          "LABEL": "Aggressive",
+          "DESCRIPTION": "The panel opens by itself, once per session, when the trigger fires."
+        }
+      },
+      "DEGRADE_ON_RETURN": {
+        "LABEL": "Insist less with visitors already approached",
+        "DESCRIPTION": "Someone who already saw the approach and did not answer gets the level below on the next visit, then nothing."
+      },
+      "MOBILE": {
+        "LABEL": "On mobile",
+        "AGGRESSIVE_NOT_OFFERED": "Auto-open is not offered on mobile: the panel covers the whole screen there."
+      }
+    },
+    "HOME_INTENTS": {
+      "LABEL": "Intent options on the home screen",
+      "DESCRIPTION": "2 to 4 named options, instead of a \"How can I help?\". Visitors decide in seconds whether you solve their problem.",
+      "HELP": "The text is yours and is shown to the visitor. The identifier stays invisible and lets you compare how each option performs in reports.",
+      "SUGGESTIONS": {
+        "PRICING": "I want a quote",
+        "SUPPORT": "I need help with an order",
+        "PRODUCT": "I want to know the product"
+      },
+      "ERRORS": {
+        "NEED_TWO": "Keep 2 to 4 options, or none — a single option is not a choice.",
+        "DUPLICATED_ID": "Two options cannot share the same identifier."
+      }
     }
   }
 }

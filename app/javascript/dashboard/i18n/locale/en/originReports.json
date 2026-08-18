@@ -1,0 +1,25 @@
+{
+  "ORIGIN_REPORTS": {
+    "HEADER": "Conversation origin",
+    "DESCRIPTION": "Where the conversations in this period came from: campaign, medium and origin type.",
+    "ERROR": "Could not load the origin report.",
+    "UNAVAILABLE": "origin not available",
+    "EMPTY_MEASURED": "No conversations in this period after measurement started.",
+    "BEFORE_MEASUREMENT": {
+      "TITLE": "Before measurement",
+      "WHOLE_RANGE": "{count} conversation(s) in this period predate the start of origin measurement. They did happen — their origin is what was not collected.",
+      "PARTIAL": "{count} conversation(s) in this period predate the start of measurement, on {date}. They did happen — their origin is what was not collected."
+    },
+    "DIMENSIONS": {
+      "SOURCE": "By campaign source (utm_source)",
+      "MEDIUM": "By campaign medium (utm_medium)",
+      "CAMPAIGN": "By campaign (utm_campaign)",
+      "ORIGIN_KIND": "By origin type"
+    },
+    "TABLE": {
+      "VALUE": "Value",
+      "CONVERSATIONS": "Conversations",
+      "SHARE": "Share"
+    }
+  }
+}

@@ -15,6 +15,9 @@
     "INITIATED_FROM": "Initiated from",
     "INITIATED_AT": "Initiated at",
     "IP_ADDRESS": "IP Address",
+    "IP_ADDRESS_REVEAL": "Show IP address",
+    "IP_ADDRESS_HIDE": "Hide IP address",
+    "IP_ADDRESS_MASKED": "Hidden",
     "CREATED_AT_LABEL": "Created",
     "NEW_MESSAGE": "New message",
     "NEW_MESSAGE_SHORT": "Message",
@@ -206,6 +209,9 @@
     }
   },
   "CUSTOM_ATTRIBUTES": {
+    "FROM_WEBSITE_SECTION": "Data received from the website ({count})",
+    "FROM_WEBSITE_BADGE": "From the website",
+    "FROM_WEBSITE_BADGE_TITLE": "Sent by your website through setCustomAttributes, with no prior setup",
     "BUTTON": "Add custom attribute",
     "COPY_SUCCESSFUL": "Copied to clipboard successfully",
     "SHOW_MORE": "Show all attributes",

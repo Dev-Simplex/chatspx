@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "வணக்கம்",
         "AGENT_MESSAGE": "ஹலோ"
       },
-      "BRANDING_TEXT": "சாட்வுட் மூலம் இயக்கபடுகிறது",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "சாட்வுட் மூலம் இயக்கபடுகிறது"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

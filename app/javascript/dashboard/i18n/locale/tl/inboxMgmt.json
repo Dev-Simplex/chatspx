@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "Kumusta",
         "AGENT_MESSAGE": "Kumusta"
       },
-      "BRANDING_TEXT": "Pinapagana ng Chatwoot",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "Pinapagana ng Chatwoot"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {
