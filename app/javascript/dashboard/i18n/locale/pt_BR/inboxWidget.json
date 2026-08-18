@@ -171,7 +171,9 @@
     },
     "PREVIEW": {
       "DARK": "Escuro",
-      "MOBILE": "Celular"
+      "MOBILE": "Celular",
+      "OPEN_LAUNCHER": "Abrir o chat",
+      "CLOSE_LAUNCHER": "Fechar o chat"
     },
     "PROFILE": {
       "SUPPORT": {

@@ -27,18 +27,22 @@ const getStatusText = computed(() => {
   <div class="relative flex flex-col w-full px-4">
     <div
       v-if="config.isDefaultScreen"
-      class="p-4 rounded-md shadow-sm bg-n-solid-2"
+      class="p-4 rounded-md shadow-sm bg-wp-surface-2"
     >
       <div class="flex items-center justify-between">
         <div>
-          <div class="text-sm font-medium leading-4 text-n-slate-12">
+          <div class="text-sm font-medium leading-4 text-wp-text">
             {{ getStatusText }}
           </div>
-          <div class="mt-1 text-xs text-n-slate-11">
+          <div class="mt-1 text-xs text-wp-text-muted">
             {{ config.replyTime }}
           </div>
         </div>
-        <Avatar name="C" :size="34" rounded-full />
+        <!-- ilustrativo: quem lê a tela por leitor de tela não ganha nada com
+             "avatar C", e um role="img" sem nome é violação séria -->
+        <span aria-hidden="true">
+          <Avatar name="C" :size="34" rounded-full />
+        </span>
       </div>
       <button
         v-if="config.isDefaultScreen"
@@ -56,7 +60,7 @@ const getStatusText = computed(() => {
     </div>
     <div
       v-else
-      class="flex items-center h-10 rounded-md bg-n-solid-2"
+      class="flex items-center h-10 rounded-md bg-wp-surface-2"
       :class="{ 'ring-2 ring-w-focus': isInputFocused }"
     >
       <ResizableTextArea
@@ -65,7 +69,7 @@ const getStatusText = computed(() => {
         :placeholder="
           $t('INBOX_MGMT.WIDGET_BUILDER.FOOTER.CHAT_INPUT_PLACEHOLDER')
         "
-        class="flex-grow !bg-transparent border-0 outline-none !outline-0 border-none h-8 text-sm pb-0 !pt-1.5 resize-none px-3 !mb-0 focus:outline-none rounded-md text-n-slate-12"
+        class="flex-grow !bg-transparent border-0 outline-none !outline-0 border-none h-8 text-sm pb-0 !pt-1.5 resize-none px-3 !mb-0 focus:outline-none rounded-md text-wp-text"
         @focus="isInputFocused = true"
         @blur="isInputFocused = false"
       />

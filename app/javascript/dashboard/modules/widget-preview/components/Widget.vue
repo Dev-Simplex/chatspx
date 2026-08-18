@@ -199,6 +199,7 @@ const handleToggleWidget = () => {
           <Switch
             v-model="isChatMode"
             :aria-label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_SCREEN.CHAT')"
+            data-testid="preview-chat-toggle"
           />
         </div>
         <div class="flex items-center gap-2">
@@ -234,7 +235,7 @@ const handleToggleWidget = () => {
       >
         <div
           v-if="isWidgetVisible"
-          class="widget-wrapper flex flex-1 flex-shrink-0 flex-col justify-between rounded-lg shadow-md bg-n-solid-1 h-[31.25rem] mb-4"
+          class="widget-wrapper flex flex-1 flex-shrink-0 flex-col justify-between rounded-lg shadow-md bg-wp-surface h-[31.25rem] mb-4"
           :class="surfaceWidth"
         >
           <WidgetHead :config="getWidgetConfig" />
@@ -243,11 +244,13 @@ const handleToggleWidget = () => {
             <WidgetFooter :config="getWidgetConfig" />
             <div class="py-2.5 flex justify-center">
               <a
-                class="items-center gap-0.5 text-n-slate-11 cursor-pointer flex filter grayscale opacity-90 hover:grayscale-0 hover:opacity-100 text-xxs"
+                class="flex items-center gap-0.5 cursor-pointer text-wp-text-muted text-xxs"
               >
                 <img
                   class="max-w-2.5 max-h-2.5"
                   :src="globalConfig.logoThumbnail"
+                  alt=""
+                  aria-hidden="true"
                 />
                 <span>
                   {{
@@ -275,6 +278,11 @@ const handleToggleWidget = () => {
                 : 'w-16 h-16'
             "
             data-testid="preview-launcher"
+            :aria-label="
+              isWidgetVisible
+                ? $t('INBOX_WIDGET.PREVIEW.CLOSE_LAUNCHER')
+                : $t('INBOX_WIDGET.PREVIEW.OPEN_LAUNCHER')
+            "
             @click="handleToggleWidget"
           >
             <img

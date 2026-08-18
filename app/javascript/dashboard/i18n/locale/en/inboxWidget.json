@@ -171,7 +171,9 @@
     },
     "PREVIEW": {
       "DARK": "Dark",
-      "MOBILE": "Mobile"
+      "MOBILE": "Mobile",
+      "OPEN_LAUNCHER": "Open the chat",
+      "CLOSE_LAUNCHER": "Close the chat"
     },
     "PROFILE": {
       "SUPPORT": {
