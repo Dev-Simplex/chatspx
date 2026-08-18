@@ -159,8 +159,16 @@ watch(
       :style="badgeStyles"
       :class="STATUS_CLASSES[status]"
     />
+    <!-- `aria-label` obrigatório aqui, e a razão é contraintuitiva: `role="img"`
+         REMOVE os filhos da árvore de acessibilidade. As iniciais "ML" que
+         aparecem na tela não são lidas — para o leitor de tela este nó é uma
+         imagem sem nome, que é a violação `role-img-alt` do axe.
+         Herdado do `Avatar` do dashboard, que este componente replicou fielmente
+         em 1.08: a réplica trouxe o defeito junto. Medido na triagem de 18/08 em
+         `messages`, `home` e `unread`. Não muda um pixel. -->
     <span
       role="img"
+      :aria-label="name || undefined"
       class="relative inline-flex items-center justify-center object-cover overflow-hidden font-medium outline outline-1 -outline-offset-1 outline-[rgb(0_0_0_/_0.03)] dark:outline-[rgb(255_255_255_/_0.04)]"
       :class="[
         borderRadiusClass,
