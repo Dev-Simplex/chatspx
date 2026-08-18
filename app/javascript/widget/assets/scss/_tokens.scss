@@ -294,26 +294,52 @@
   // Já havia um `color-scheme` no widget, mas só na `div` da conversa
   // (`ConversationWrap.vue`, `.light-scheme`/`.dark-scheme`) — e ele seguia o
   // `darkMode` CRU, então no modo `auto` ficava sempre claro. Duas lacunas,
-  // portanto: o valor errado, corrigido lá, e o ESCOPO errado, corrigido aqui.
+  // portanto: o valor errado, corrigido lá, e o escopo, corrigido aqui.
   //
-  // O escopo certo é o `:root` do documento do iframe: `color-scheme` governa o
-  // que a folha de estilo NÃO pinta — a barra de rolagem, o `caret` do campo de
-  // texto, o realce de seleção e os controles nativos de formulário. Numa `div`
-  // isso não alcança a barra de rolagem do documento, que é justamente onde a
-  // falta mais aparece: painel escuro com barra clara ao lado.
+  // `color-scheme` governa o que a folha de estilo NÃO pinta: a barra de
+  // rolagem, o `caret` do campo de texto, o realce de seleção e os controles
+  // nativos de formulário.
   //
-  // O seletor é `:root.dark` (e não `.dark`) porque a classe `dark` também é
-  // aplicada às `div`s raiz de `App.vue`, e não faz sentido cada uma delas
-  // redeclarar o esquema do documento.
+  // ⚠️ POR QUE EM `#app` E NÃO NO `:root`, QUE É O QUE O ACEITE PEDE
   //
-  // Quem põe a classe no `<html>` é `helpers/documentTheme.js`: o tema chega do
-  // host por `postMessage`, depois de o documento existir, então o servidor não
-  // teria como marcá-lo no ERB.
+  // Porque no `:root` ele produz uma regressão que o Chromium mostrou e nenhum
+  // teste de unidade veria. Medido, com a estrutura real do documento:
+  //
+  //   :root.dark { color-scheme: dark }                      → canvas rgb(18,18,18)
+  //   :root.dark { color-scheme: dark; background: transparent } → canvas rgb(18,18,18)
+  //   + `background: transparent` também no `body`           → canvas rgb(18,18,18)
+  //   :root.dark .woot-widget-app { color-scheme: dark }     → canvas rgb(255,255,255) ✅
+  //
+  // O agente de usuário pinta o CANVAS do documento com a cor do esquema quando
+  // o elemento raiz não tem fundo próprio — e declarar `transparent` NÃO desliga
+  // isso: um raiz transparente faz o canvas cair no padrão do UA, que sob
+  // `color-scheme: dark` é escuro.
+  //
+  // O documento do widget é transparente de propósito: no estado de mensagem
+  // não lida o iframe FLUTUA sobre o site do cliente e só os balões aparecem.
+  // Com o `color-scheme` no `:root`, o snapshot `unread-dark-desktop` virou um
+  // retângulo PRETO sobre 60% da imagem — na tela do cliente, uma tarja preta
+  // sobre o site dele a cada mensagem não lida.
+  //
+  // No container do app o efeito útil é integralmente preservado:
+  // `color-scheme` é herdado, então a barra de rolagem da lista de mensagens, o
+  // `caret` do composer e os controles do pré-chat — todos DENTRO dele —
+  // continuam escuros. O que se perde é a barra de rolagem do DOCUMENTO, que
+  // não existe: quem rola no widget é a lista, não o documento.
+  //
+  // O gancho é `.woot-widget-app` (posta em `views/widgets/show.html.erb` ao
+  // lado do `id="app"`) e não `#app`, porque seletor de id é justamente o que
+  // `scss-lint` recusa — e a regra tem razão: id em folha de estilo é
+  // especificidade que ninguém consegue sobrescrever depois.
+  //
+  // Quem põe a classe `dark` no `<html>` é `helpers/documentTheme.js`: o tema
+  // chega do host por `postMessage`, depois de o documento existir, então o
+  // servidor não teria como marcá-lo no ERB.
   :root {
     color-scheme: light;
   }
 
-  :root.dark {
+  :root.dark .woot-widget-app {
     color-scheme: dark;
   }
 
