@@ -1,4 +1,5 @@
 import MessageAPI from '../../api/message';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 
 const state = {
   uiFlags: {
@@ -38,7 +39,10 @@ export const actions = {
       );
       dispatch('contacts/get', {}, { root: true });
     } catch (error) {
-      // Ignore error
+      // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+      // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+      // visitante; passa apenas a ser CONTADO.
+      reportWidgetError(error, { origem: 'store/message' });
     }
     commit('toggleUpdateStatus', false);
   },

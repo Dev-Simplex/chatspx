@@ -70,6 +70,23 @@ class Rack::Attack
 
   throttle('req/ip', limit: ENV.fetch('RACK_ATTACK_LIMIT', '3000').to_i, period: 1.minute, &:ip)
 
+  ### Telemetria de erro do widget (bloco 2.13) ###
+  #
+  # Endpoint PÚBLICO e não autenticado: qualquer visitante de qualquer site que
+  # tenha o widget consegue chamá-lo, e o `website_token` está no snippet, à
+  # vista. Sem teto próprio ele seria um amplificador barato — e o teto de
+  # `req/ip` (3000/min) é grande demais para servir de proteção aqui.
+  #
+  # O cliente já tem teto e deduplicação próprios (`MAX_POR_SESSAO = 10` em
+  # `widget/helpers/telemetry.js`), mas isso é código que roda na máquina de
+  # outra pessoa. Este é o teto que vale.
+  #
+  # 20/min por IP cobre com folga um visitante real: o cliente para de mandar no
+  # 10º da sessão, e o dobro disso dá espaço para várias abas abertas.
+  throttle('widget_telemetry/ip', limit: 20, period: 1.minute) do |req|
+    req.ip if req.path_without_extensions == '/api/v1/widget/telemetry' && req.post?
+  end
+
   ###-----------------------------------------------###
   ###-----Authentication Related Throttling---------###
   ###-----------------------------------------------###

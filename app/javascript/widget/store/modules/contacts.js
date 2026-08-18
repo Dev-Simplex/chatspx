@@ -2,6 +2,7 @@ import { sendMessage } from 'widget/helpers/utils';
 import ContactsAPI from '../../api/contacts';
 import { SET_USER_ERROR } from '../../constants/errorTypes';
 import { setHeader } from '../../helpers/axios';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 const state = {
   currentUser: {},
 };
@@ -31,7 +32,10 @@ export const actions = {
       const { data } = await ContactsAPI.get();
       commit(SET_CURRENT_USER, data);
     } catch (error) {
-      // Ignore error
+      // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+      // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+      // visitante; passa apenas a ser CONTADO.
+      reportWidgetError(error, { origem: 'store/contacts#get' });
     }
   },
   update: async ({ dispatch }, { user }) => {
@@ -39,7 +43,10 @@ export const actions = {
       await ContactsAPI.update(user);
       dispatch('get');
     } catch (error) {
-      // Ignore error
+      // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+      // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+      // visitante; passa apenas a ser CONTADO.
+      reportWidgetError(error, { origem: 'store/contacts#update' });
     }
   },
   setUser: async ({ dispatch }, { identifier, user: userObject }) => {
@@ -91,14 +98,24 @@ export const actions = {
     try {
       await ContactsAPI.setCustomAttributes(customAttributes);
     } catch (error) {
-      // Ignore error
+      // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+      // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+      // visitante; passa apenas a ser CONTADO.
+      reportWidgetError(error, {
+        origem: 'store/contacts#setCustomAttributes',
+      });
     }
   },
   deleteCustomAttribute: async (_, customAttribute) => {
     try {
       await ContactsAPI.deleteCustomAttribute(customAttribute);
     } catch (error) {
-      // Ignore error
+      // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+      // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+      // visitante; passa apenas a ser CONTADO.
+      reportWidgetError(error, {
+        origem: 'store/contacts#deleteCustomAttribute',
+      });
     }
   },
 };
