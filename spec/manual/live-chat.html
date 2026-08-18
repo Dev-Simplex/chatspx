@@ -73,8 +73,14 @@
   // Configuração por querystring, para a página servir a qualquer ambiente:
   //   ?url=http://192.168.8.232:3055&token=SEU_TOKEN
   var qs = new URLSearchParams(location.search);
-  var BASE_URL = qs.get('url') || (location.origin.indexOf('file:') === 0 ? 'http://192.168.8.232:3055' : location.origin);
-  var TOKEN = qs.get('token') || 'HTN1nf62XSo48BJznbWBrQfm';
+  // O token abaixo é o da inbox "Suporte CHAT - SPX" da homologação (conta 3, inbox 6). Se ele
+  // parar de valer, o sintoma é confuso: o SDK carrega, o servidor responde 404, o navegador cai
+  // na home e o X-Frame-Options bloqueia — parece erro de rede, e não token morto. Para pegar um
+  // válido sem adivinhar, leia direto do banco (SELECT read-only, nunca escrita):
+  //   SELECT name, website_token FROM channel_web_widgets;
+  // Um token daqui já custou uma investigação inteira a uma trilha desta execução.
+  var BASE_URL = qs.get('url') || (location.origin.indexOf('file:') === 0 ? 'http://192.168.8.232:3000' : location.origin);
+  var TOKEN = qs.get('token') || '6dPgMBcE9W69x7hHgXQnwuPN';
 
   document.getElementById('cfg-url').textContent = BASE_URL;
   document.getElementById('cfg-token').textContent = TOKEN;
