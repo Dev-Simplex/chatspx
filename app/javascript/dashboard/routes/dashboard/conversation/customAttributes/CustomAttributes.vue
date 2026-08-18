@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import Draggable from 'vuedraggable';
 import { useToggle } from '@vueuse/core';
 import { useRoute } from 'vue-router';
@@ -73,18 +73,62 @@ const toggleButtonText = computed(() =>
     : t('CUSTOM_ATTRIBUTES.SHOW_LESS')
 );
 
-const filteredCustomAttributes = computed(() =>
-  attributes.value.map(attribute => {
-    // Check if the attribute key exists in customAttributes
-    const hasValue = attribute.attribute_key in customAttributes.value;
+const decorateAttribute = attribute => {
+  // Check if the attribute key exists in customAttributes
+  const hasValue = attribute.attribute_key in customAttributes.value;
 
-    return {
-      ...attribute,
-      type: 'custom_attribute',
-      key: attribute.attribute_key,
-      // Set value from customAttributes if it exists, otherwise use ''
-      value: hasValue ? customAttributes.value[attribute.attribute_key] : '',
-    };
+  return {
+    ...attribute,
+    type: 'custom_attribute',
+    key: attribute.attribute_key,
+    // Set value from customAttributes if it exists, otherwise use ''
+    value: hasValue ? customAttributes.value[attribute.attribute_key] : '',
+  };
+};
+
+// B6: atributos que o site mandou sem cadastro previo. O backend marca a
+// definicao no momento em que a provisiona
+// (CustomAttributes::AutoProvisionService), e a API devolve o booleano em
+// auto_provisioned_from_website. Eles saem da lista principal e ganham secao
+// propria, para o agente saber de onde o dado veio.
+const isFromWebsite = attribute => !!attribute.auto_provisioned_from_website;
+
+const websiteAttributes = computed(() =>
+  attributes.value.filter(isFromWebsite).map(decorateAttribute)
+);
+
+const filteredCustomAttributes = computed(() =>
+  attributes.value
+    .filter(attribute => !isFromWebsite(attribute))
+    .map(decorateAttribute)
+);
+
+// "aparece na mesma sessao": a lista de definicoes so e buscada no onMounted do
+// ContactPanel. Se o painel ja estiver aberto quando o site mandar uma chave
+// nova, o valor chega pelo websocket mas a DEFINICAO nao — e sem definicao nada
+// renderiza. Aqui, ao ver no jsonb uma chave que nenhuma definicao conhece,
+// pedimos a lista de novo. `askedFor` impede laco quando a chave nunca vai
+// ganhar definicao (chave reservada, por exemplo).
+const askedFor = new Set();
+
+watch(
+  [customAttributes, attributes],
+  ([values, definitions]) => {
+    const known = new Set(definitions.map(item => item.attribute_key));
+    const unknown = Object.keys(values || {}).filter(
+      key => !known.has(key) && !askedFor.has(key)
+    );
+    if (!unknown.length) return;
+
+    unknown.forEach(key => askedFor.add(key));
+    store.dispatch('attributes/get', 0);
+  },
+  { immediate: true }
+);
+
+const websiteSectionTitle = computed(() =>
+  t('CUSTOM_ATTRIBUTES.FROM_WEBSITE_SECTION', {
+    count: websiteAttributes.value.length,
   })
 );
 
@@ -302,8 +346,50 @@ const evenClass = [];
       </template>
     </Draggable>
 
+    <div v-if="websiteAttributes.length" class="pt-2">
+      <h4
+        class="px-3 pb-1 text-xs font-medium uppercase text-n-slate-10"
+        data-testid="from-website-section-title"
+      >
+        {{ websiteSectionTitle }}
+      </h4>
+      <div
+        v-for="element in websiteAttributes"
+        :key="element.id"
+        class="relative"
+        data-testid="from-website-attribute"
+      >
+        <CustomAttribute
+          :attribute-key="element.attribute_key"
+          :attribute-type="element.attribute_display_type"
+          :values="element.attribute_values"
+          :label="element.attribute_display_name"
+          :description="element.attribute_description"
+          :value="element.value"
+          show-actions
+          :attribute-regex="element.regex_pattern"
+          :regex-cue="element.regex_cue"
+          :contact-id="contactId"
+          @update="onUpdate"
+          @delete="onDelete"
+          @copy="onCopy"
+        />
+        <span
+          class="absolute px-1.5 py-0.5 text-xxs rounded-md top-2 ltr:right-3 rtl:left-3 text-n-slate-11 bg-n-slate-3 dark:bg-n-slate-4"
+          :title="$t('CUSTOM_ATTRIBUTES.FROM_WEBSITE_BADGE_TITLE')"
+          data-testid="from-website-badge"
+        >
+          {{ $t('CUSTOM_ATTRIBUTES.FROM_WEBSITE_BADGE') }}
+        </span>
+      </div>
+    </div>
+
     <p
-      v-if="!displayedElements.length && emptyStateMessage"
+      v-if="
+        !displayedElements.length &&
+        !websiteAttributes.length &&
+        emptyStateMessage
+      "
       class="p-3 text-center"
     >
       {{ emptyStateMessage }}
