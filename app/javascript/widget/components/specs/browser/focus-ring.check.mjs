@@ -141,7 +141,19 @@ check(
 );
 
 await composer.focus();
-await page.waitForFunction(() => document.activeElement?.id === 'composer');
+// `polling: 500` explícito, e não é firula: em headless o `waitForFunction`
+// do Playwright faz polling por `requestAnimationFrame`, que NÃO dispara de
+// forma confiável nesse modo. O sintoma é espera que estoura o timeout sem
+// motivo aparente, de forma intermitente. Achado de outra trilha, aplicado aqui
+// preventivamente — intermitente que ainda não apareceu é só intermitente que
+// ainda não apareceu.
+await page.waitForFunction(
+  () => document.activeElement?.id === 'composer',
+  undefined,
+  {
+    polling: 500,
+  }
+);
 
 // A asserção do aceite: nenhum elemento do composer pode ter anel de largura
 // visível E cor transparente. `outline-0` zera a largura; `outline-none` deixava

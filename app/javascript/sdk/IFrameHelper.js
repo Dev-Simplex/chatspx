@@ -23,6 +23,7 @@ import {
   removeUnreadClass,
 } from './bubbleHelpers';
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
+import { drenar } from './preBootQueue';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
 import {
   CHATWOOT_ERROR,
@@ -212,6 +213,11 @@ export const IFrameHelper = {
     loaded: message => {
       updateAuthCookie(message.config.authToken, window.$chatwoot.baseDomain);
       window.$chatwoot.hasLoaded = true;
+      // Bloco 1.23 — a partir daqui existe quem escute do outro lado da ponte.
+      // Tudo o que o site chamou antes do painel montar sai agora, na ordem de
+      // chegada. Antes disto, essas mensagens eram postadas para um iframe sem
+      // ouvinte e sumiam em silêncio.
+      const drenados = drenar();
       const campaignsSnoozedTill = Cookies.get('cw_snooze_campaigns_till');
       IFrameHelper.sendMessage('config-set', {
         locale: window.$chatwoot.locale,
@@ -242,8 +248,24 @@ export const IFrameHelper = {
       });
       IFrameHelper.toggleCloseButton();
 
-      if (window.$chatwoot.user) {
-        IFrameHelper.sendMessage('set-user', window.$chatwoot.user);
+      // RE-HIDRATAÇÃO, não fila. Serve ao caso em que o iframe recarrega com o
+      // SDK já identificado (`reset()`, navegação que recria o frame): o painel
+      // novo precisa saber quem é o visitante.
+      //
+      // Duas correções do bloco 1.23 aqui:
+      //
+      // 1. NÃO REENVIA O QUE A FILA ACABOU DE ENVIAR. Sem esta guarda, um
+      //    `setUser` chamado antes do boot sairia DUAS vezes — que é exatamente
+      //    a armadilha da segunda fila descrita na §12.1 do PLANO-MESTRE.
+      // 2. O FORMATO ESTAVA ERRADO. Esta linha mandava `window.$chatwoot.user`
+      //    cru, enquanto `setUser` manda `{ identifier, user }`. O painel recebia
+      //    um payload sem `identifier` — o mesmo evento com dois formatos,
+      //    dependendo de quem o emitiu.
+      if (window.$chatwoot.user && !drenados.includes('setUser')) {
+        IFrameHelper.sendMessage('set-user', {
+          identifier: window.$chatwoot.identifier,
+          user: window.$chatwoot.user,
+        });
       }
 
       window.playAudioAlert = () => {};

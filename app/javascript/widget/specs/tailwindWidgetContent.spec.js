@@ -116,7 +116,13 @@ describe('1.08 — o `content` do widget cobre tudo o que o widget renderiza', (
   it('o fecho de imports foi calculado de verdade', () => {
     // Piso alto: se o resolvedor quebrar e devolver só a entrada, os testes
     // abaixo passariam sem ter olhado nada.
-    expect(relevantes.length).toBeGreaterThan(150);
+    //
+    // Era 150 e passou a 140 quando o bloco 1.08 desacoplou a tela de não lidas
+    // do `Avatar` do dashboard: o fecho ENCOLHEU de 158 para 148 arquivos, e
+    // encolher é o efeito desejado. O piso acompanha a realidade; ele existe
+    // para pegar resolvedor quebrado (que devolveria ~1), não para congelar um
+    // número que o trabalho legitimamente reduz.
+    expect(relevantes.length).toBeGreaterThan(140);
     expect(relevantes).toContain(ENTRADA);
     // Âncoras conhecidas: componentes que o widget comprovadamente renderiza.
     expect(relevantes).toContain(
@@ -153,6 +159,30 @@ describe('1.08 — o `content` do widget cobre tudo o que o widget renderiza', (
     // `content`, a tela `unread` — uma das quatro dos 16 snapshots — chegaria
     // sem estilo, e o build não diria nada.
     expect(descobertos).toEqual([]);
+  });
+
+  it('o widget não carrega nenhum COMPONENTE do dashboard', () => {
+    // A prova do desacoplamento do 1.08, e a guarda que o mantém.
+    //
+    // O widget importava `dashboard/components-next/avatar/Avatar.vue` em três
+    // lugares (`UnreadMessage`, `AgentMessage`, `GroupedAvatars`), e aquele
+    // componente arrastava `Icon.vue`, `GalleryView.vue`, `button/Button.vue` e
+    // `spinner/Spinner.vue` — 27.619 B de utilitárias no CSS do widget, por
+    // cinco props. `WAvatar.vue` os substituiu.
+    //
+    // Se este teste vermelhecer, alguém reintroduziu um import de `dashboard/`
+    // no widget: ou o componente entra no `content` (e o CSS cresce, com o teto
+    // de 80 KB estourando de novo), ou o uso é substituído. Escolher em
+    // silêncio não é opção — daí o teste.
+    // `.vue`, não "qualquer arquivo de dashboard/": o widget ainda usa NOVE
+    // helpers `.js` de lá (`editorHelper`, `businessHour`, `languages`, …), e
+    // eles são irrelevantes para este bloco — helper sem classe não gera uma
+    // linha de CSS. Quem custa byte é componente, e a asserção de cobertura
+    // acima já pega o caso de um `.js` que porventura traga classe.
+    const componentesDoDashboard = relevantes.filter(
+      f => f.startsWith(`${RAIZ}/dashboard/`) && f.endsWith('.vue')
+    );
+    expect(componentesDoDashboard).toEqual([]);
   });
 
   it('nada de shared/components/ui/ entrou no fecho — é a exclusão do bloco', () => {
