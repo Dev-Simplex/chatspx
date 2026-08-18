@@ -22,6 +22,9 @@ class AsyncDispatcher < BaseDispatcher
       ParticipationListener.instance,
       Conversations::UnreadCounts::Listener.instance,
       ReportingEventListener.instance,
+      # Bloco 5.03: registro server-side de eventos de tracking. Async de proposito — no
+      # SyncDispatcher o mesmo fato seria registrado duas vezes.
+      TrackingEventListener.instance,
       WebhookListener.instance
     ]
   end
