@@ -21,7 +21,12 @@ class Api::V1::Widget::BaseController < ApplicationController
   end
 
   def create_conversation
-    ::Conversation.create!(conversation_params)
+    ::Conversation.create!(conversation_params).tap do
+      # Bloco 4.18 — a conversa nasceu, entao a resposta parcial desta sessao deixou de
+      # ser um lead incompleto: e um lead COMPLETO. A linha nao e apagada — o relatorio
+      # precisa do denominador para responder "quantos leads perdemos".
+      WidgetPartialLead.complete_for(inbox_id: inbox&.id, session_id: @contact_inbox&.source_id)
+    end
   end
 
   def inbox
