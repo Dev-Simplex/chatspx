@@ -98,6 +98,19 @@ export default {
 
 <template>
   <div class="chat-bubble-wrap">
+    <!-- `bg-white` SEM variante `dark:` é INTENCIONAL. Não "conserte".
+         Estas bolhas não vivem no painel: o holder do modo não-lidas é despido
+         (`.has-unread-view` zera sombra, borda e raio no `SDK_CSS`), então elas
+         flutuam sobre o SITE DO CLIENTE — cujo tema o widget não conhece e não
+         controla. Branco com `text-n-black` (#000000, fixo, aplicado em
+         `_conversation.scss` na regra `.unread-messages … .chat-bubble`) dá
+         21:1, o contraste máximo possível, e é legível sobre qualquer página.
+         A prova de que foi decisão e não esquecimento está na MESMA declaração
+         do SCSS: ela dá variante escura à BORDA (`dark:border-n-slate-11/50`)
+         para separar a bolha branca de um site escuro, e no mesmo gesto mantém
+         o par branco/preto. Quem pensou no modo escuro ali resolveu-o pela
+         borda, de propósito.
+         Travado por `specs/browser/unread-bubble-contrast.check.mjs`. -->
     <button class="chat-bubble agent bg-white" @click="onClickMessage">
       <div v-if="showSender" class="row--agent-block">
         <Avatar
