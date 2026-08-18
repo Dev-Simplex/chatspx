@@ -92,6 +92,53 @@
     "PREVIEW": {
       "DARK": "Escuro",
       "MOBILE": "Celular"
+    },
+    "PROFILE": {
+      "SUPPORT": {
+        "LABEL": "Suporte",
+        "DESCRIPTION": "Para quem já é cliente e precisa de ajuda. O widget espera o clique: sem convite, sem teaser, com CSAT no fim e histórico por e-mail."
+      },
+      "MARKETING": {
+        "LABEL": "Marketing",
+        "DESCRIPTION": "Para transformar visitante em cliente. O widget convida — teaser com gatilho, qualificação no pré-chat e evento de conversão no fim."
+      },
+      "QUESTION": "Para que serve esta caixa?",
+      "QUESTION_HELP": "Escolha agora para a caixa nascer certa. Dá para trocar depois, e trocar nunca apaga o que você já configurou.",
+      "SHOW_OTHER": "Mostrar configurações de {profile}",
+      "HIDE_OTHER": "Esconder configurações de {profile}",
+      "HIDDEN_HINT": "O perfil {profile} esconde estas seções — ele não as remove. Elas continuam gravadas e voltam se você trocar o perfil.",
+      "SWITCH_DIALOG": {
+        "TITLE": "Trocar o perfil desta caixa",
+        "DESCRIPTION": "O perfil {profile} propõe as mudanças abaixo. Marque o que você quer aplicar — o que ficar desmarcado não é tocado.",
+        "WILL_CHANGE": "O que vai mudar, se você marcar",
+        "WILL_KEEP": "O que continua gravado",
+        "KEEP_EXPLANATION": "Nada é apagado. Toda configuração do perfil anterior fica no banco, inerte, e volta se você voltar o perfil.",
+        "NOTHING_CHANGES": "Nada muda: esta caixa já está configurada como o novo perfil propõe.",
+        "CONFIRM": "Trocar o perfil",
+        "CANCEL": "Manter o perfil atual"
+      },
+      "PROPOSALS": {
+        "PRECHATFORMENABLED": {
+          "SUPPORT": "Desligar o formulário de pré-chat (o cliente fala primeiro, sem formulário)",
+          "MARKETING": "Ligar o formulário de pré-chat (para qualificar o visitante antes da conversa)"
+        },
+        "TRIGGERSPRESET": {
+          "SUPPORT": "Desligar os gatilhos: o widget passa a esperar o clique",
+          "MARKETING": "Ligar o teaser com o gatilho composto (8 segundos na página E 30% de rolagem)"
+        },
+        "CONTINUITYVIAEMAIL": {
+          "SUPPORT": "Ligar a continuidade por e-mail (o histórico segue na caixa de entrada do cliente)",
+          "MARKETING": "Desligar a continuidade por e-mail"
+        },
+        "CSATSURVEYENABLED": {
+          "SUPPORT": "Ligar a pesquisa de satisfação (CSAT) ao encerrar a conversa",
+          "MARKETING": "Desligar a pesquisa de satisfação (CSAT)"
+        },
+        "KNOWLEDGEBASE": {
+          "SUPPORT": "Mostrar a Central de Ajuda no painel inicial do widget",
+          "MARKETING": "Esconder a Central de Ajuda no painel inicial do widget"
+        }
+      }
     }
   }
 }

@@ -92,6 +92,53 @@
     "PREVIEW": {
       "DARK": "Dark",
       "MOBILE": "Mobile"
+    },
+    "PROFILE": {
+      "SUPPORT": {
+        "LABEL": "Support",
+        "DESCRIPTION": "For people who already are customers and need help. The widget waits for the click: no invitation, no teaser, CSAT at the end and history over email."
+      },
+      "MARKETING": {
+        "LABEL": "Marketing",
+        "DESCRIPTION": "To turn a visitor into a customer. The widget invites — teaser on a trigger, qualification in the pre-chat and a conversion event at the end."
+      },
+      "QUESTION": "What is this inbox for?",
+      "QUESTION_HELP": "Pick now so the inbox is born right. You can change it later, and changing never erases what you configured.",
+      "SHOW_OTHER": "Show {profile} settings",
+      "HIDE_OTHER": "Hide {profile} settings",
+      "HIDDEN_HINT": "The {profile} profile hides these sections — it does not remove them. They stay saved and come back if you switch the profile.",
+      "SWITCH_DIALOG": {
+        "TITLE": "Switch this inbox profile",
+        "DESCRIPTION": "The {profile} profile proposes the changes below. Check what you want applied — anything left unchecked is not touched.",
+        "WILL_CHANGE": "What changes, if you check it",
+        "WILL_KEEP": "What stays saved",
+        "KEEP_EXPLANATION": "Nothing is erased. Every setting of the previous profile stays in the database, inert, and comes back if you switch the profile back.",
+        "NOTHING_CHANGES": "Nothing changes: this inbox is already set the way the new profile proposes.",
+        "CONFIRM": "Switch the profile",
+        "CANCEL": "Keep the current profile"
+      },
+      "PROPOSALS": {
+        "PRECHATFORMENABLED": {
+          "SUPPORT": "Turn the pre-chat form off (the customer talks first, no form)",
+          "MARKETING": "Turn the pre-chat form on (to qualify the visitor before the conversation)"
+        },
+        "TRIGGERSPRESET": {
+          "SUPPORT": "Turn triggers off: the widget goes back to waiting for the click",
+          "MARKETING": "Turn the teaser on with the composite trigger (8 seconds on page AND 30% scroll)"
+        },
+        "CONTINUITYVIAEMAIL": {
+          "SUPPORT": "Turn email continuity on (history follows into the customer's inbox)",
+          "MARKETING": "Turn email continuity off"
+        },
+        "CSATSURVEYENABLED": {
+          "SUPPORT": "Turn the satisfaction survey (CSAT) on when a conversation is resolved",
+          "MARKETING": "Turn the satisfaction survey (CSAT) off"
+        },
+        "KNOWLEDGEBASE": {
+          "SUPPORT": "Show the Help Center on the widget home screen",
+          "MARKETING": "Hide the Help Center on the widget home screen"
+        }
+      }
     }
   }
 }
