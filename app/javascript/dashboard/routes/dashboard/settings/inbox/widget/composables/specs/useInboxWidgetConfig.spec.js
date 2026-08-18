@@ -49,8 +49,9 @@ describe('useInboxWidgetConfig', () => {
 
     expect(draft.value.name).toBe('Site da Simplex');
     expect(draft.value.profile).toBe('marketing');
-    // o que o banco nao tem vem do default de fabrica, nao de `undefined`
-    expect(draft.value.appearance.theme).toBe('auto');
+    // o que o banco nao tem vem do default de fabrica DO SERVIDOR, nao de
+    // `undefined` e nao de uma segunda opiniao da tela
+    expect(draft.value.appearance.theme).toBe('light');
     expect(draft.value.appearance.position).toBe('right');
     expect(isDirty.value).toBe(false);
     expect(dirtyCount.value).toBe(0);
@@ -62,15 +63,16 @@ describe('useInboxWidgetConfig', () => {
 
     expect(draft.value.profile).toBe('support');
     expect(draft.value.appearance).toEqual({
-      theme: 'auto',
+      theme: 'light',
       position: 'right',
-      offset_x: 20,
-      offset_y: 20,
+      offset_x: 0,
+      offset_y: 0,
       launcher_type: 'standard',
       launcher_text: '',
       hide_bubble: false,
       panel_style: 'standard',
       launcher_icon: 'default',
+      home_intents: [],
     });
     expect(draft.value.triggers.approach).toBe('bold');
     expect(isDirty.value).toBe(false);
@@ -142,15 +144,16 @@ describe('useInboxWidgetConfig', () => {
       formData: false,
       additional_attributes: {
         widget_appearance: {
-          theme: 'auto',
+          theme: 'light',
           position: 'left',
           offset_x: 20,
-          offset_y: 20,
+          offset_y: 0,
           launcher_type: 'standard',
           launcher_text: '',
           hide_bubble: false,
           panel_style: 'standard',
           launcher_icon: 'default',
+          home_intents: [],
         },
       },
     });

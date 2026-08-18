@@ -5,6 +5,7 @@ import RadioCard from 'dashboard/components-next/radioCard/RadioCard.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
+import { APPEARANCE_LIMITS } from '../composables/widgetAppearanceContract';
 
 /**
  * O lançador: posição, distância das bordas, formato, texto e esconder.
@@ -13,9 +14,10 @@ import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFie
  * no snippet. Aqui vira campo de configuração — o valor viaja em
  * `widget_appearance` e é o mesmo para todo administrador da conta.
  *
- * Os limites (0–120 px, 40 caracteres) são os do JSON Schema do bloco 3.18: a
- * tela avisa antes, o servidor recusa depois. Validação de verdade é a do
- * servidor; esta aqui é cortesia.
+ * Os limites vêm de `widgetAppearanceContract`, que espelha o JSON Schema do
+ * bloco 3.18 e é cruzado com o arquivo Ruby por teste: a tela avisa antes, o
+ * servidor recusa depois. Validação de verdade é a do servidor; esta é
+ * cortesia — e cortesia que mente é pior que nenhuma.
  */
 const props = defineProps({
   appearance: { type: Object, required: true },
@@ -29,9 +31,11 @@ const { t } = useI18n();
 
 const POSITIONS = ['left', 'right'];
 const TYPES = ['standard', 'expanded_bubble'];
-const OFFSET_MIN = 0;
-const OFFSET_MAX = 120;
-const LAUNCHER_TEXT_MAX = 40;
+const {
+  offsetMin: OFFSET_MIN,
+  offsetMax: OFFSET_MAX,
+  launcherTextMax: LAUNCHER_TEXT_MAX,
+} = APPEARANCE_LIMITS;
 
 const isExpanded = computed(
   () => props.appearance.launcher_type === 'expanded_bubble'

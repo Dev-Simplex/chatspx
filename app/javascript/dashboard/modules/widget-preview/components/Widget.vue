@@ -50,9 +50,9 @@ const props = defineProps({
   webWidgetScript: { type: String, default: '' },
   /** Tema configurado na inbox: `light`, `dark` ou `auto`. */
   themeMode: { type: String, default: 'auto' },
-  /** Distancia do lançador ate as bordas, em px. */
-  offsetX: { type: Number, default: 20 },
-  offsetY: { type: Number, default: 20 },
+  /** Distancia do lançador ate as bordas, em px (o default e o do servidor). */
+  offsetX: { type: Number, default: 0 },
+  offsetY: { type: Number, default: 0 },
   hideBubble: { type: Boolean, default: false },
   /**
    * Bloco 3.16 — o pré-chat como a tela 3 o configurou.

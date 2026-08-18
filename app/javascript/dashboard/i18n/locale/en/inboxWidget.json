@@ -162,6 +162,7 @@
       "APPEARANCE_HIDE_BUBBLE": "Hide the bubble",
       "APPEARANCE_PANEL_STYLE": "Panel style",
       "APPEARANCE_LAUNCHER_ICON": "Launcher icon",
+      "APPEARANCE_HOME_INTENTS": "Home screen options",
       "TRIGGERS_APPROACH": "Desktop approach",
       "TRIGGERS_APPROACH_MOBILE": "Mobile approach",
       "TRIGGERS_DEGRADE_ON_RETURN": "Soften approach on return",
