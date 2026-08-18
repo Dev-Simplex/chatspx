@@ -8,7 +8,12 @@ const allowedScenarios = new Set([
   'prechat-form',
   'unread',
 ]);
-const allowedThemes = new Set(['light', 'dark']);
+// `auto` é o cenário do bloco 2.10: o cliente NÃO escreveu `darkMode` no
+// snippet. Não é um terceiro tema — é a AUSÊNCIA de configuração, que é
+// justamente o que o aceite mede ("sem `darkMode` configurado e SO escuro").
+// Os 16 snapshots continuam saindo de `light`/`dark`, e a matriz de
+// `widget.spec.js` não muda.
+const allowedThemes = new Set(['light', 'dark', 'auto']);
 
 const server = http.createServer((request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1:8899');
@@ -36,7 +41,6 @@ const server = http.createServer((request, response) => {
   const theme = allowedThemes.has(requestedTheme) ? requestedTheme : 'light';
   const settings = {
     availableMessage: 'Estamos conectados.',
-    darkMode: theme,
     enableEmojiPicker: true,
     enableEndConversation: true,
     enableFileUpload: true,
@@ -47,6 +51,14 @@ const server = http.createServer((request, response) => {
     welcomeTitle: 'Como podemos ajudar?',
   };
 
+  // A chave só existe quando o cliente a configurou. Mandar `darkMode:
+  // undefined` não serviria: o `config-set` viaja por `postMessage`, que
+  // descarta `undefined` na serialização, mas o SDK ainda passaria pelo
+  // `getDarkMode` como se houvesse escolha. Aqui a ausência é ausência.
+  if (theme !== 'auto') {
+    settings.darkMode = theme;
+  }
+
   response.writeHead(200, {
     'Cache-Control': 'no-store',
     'Content-Type': 'text/html; charset=utf-8',
@@ -56,7 +68,7 @@ const server = http.createServer((request, response) => {
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="${theme}">
+    <meta name="color-scheme" content="${theme === 'auto' ? 'light dark' : theme}">
     <title>Host real do widget</title>
   </head>
   <body>

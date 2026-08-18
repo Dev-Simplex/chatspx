@@ -290,6 +290,33 @@
     --w-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15); // saída de superfície
   }
 
+  // ── `color-scheme` — bloco 2.10 ───────────────────────────────────────────
+  // Já havia um `color-scheme` no widget, mas só na `div` da conversa
+  // (`ConversationWrap.vue`, `.light-scheme`/`.dark-scheme`) — e ele seguia o
+  // `darkMode` CRU, então no modo `auto` ficava sempre claro. Duas lacunas,
+  // portanto: o valor errado, corrigido lá, e o ESCOPO errado, corrigido aqui.
+  //
+  // O escopo certo é o `:root` do documento do iframe: `color-scheme` governa o
+  // que a folha de estilo NÃO pinta — a barra de rolagem, o `caret` do campo de
+  // texto, o realce de seleção e os controles nativos de formulário. Numa `div`
+  // isso não alcança a barra de rolagem do documento, que é justamente onde a
+  // falta mais aparece: painel escuro com barra clara ao lado.
+  //
+  // O seletor é `:root.dark` (e não `.dark`) porque a classe `dark` também é
+  // aplicada às `div`s raiz de `App.vue`, e não faz sentido cada uma delas
+  // redeclarar o esquema do documento.
+  //
+  // Quem põe a classe no `<html>` é `helpers/documentTheme.js`: o tema chega do
+  // host por `postMessage`, depois de o documento existir, então o servidor não
+  // teria como marcá-lo no ERB.
+  :root {
+    color-scheme: light;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+  }
+
   .dark {
     // Sobre o fundo escuro do widget a marca já passa de 4,5:1 sozinha na
     // maioria dos casos; o servidor calcula os dois e o tema escolhe.
