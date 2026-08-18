@@ -1387,6 +1387,8 @@ export default {
                 :widget-bubble-launcher-title="widgetBubbleLauncherTitle"
                 :widget-bubble-type="widgetBubbleType"
                 :web-widget-script="inbox.web_widget_script"
+                :pre-chat-enabled="inbox.pre_chat_form_enabled"
+                :pre-chat-options="inbox.pre_chat_form_options"
               />
             </div>
           </div>

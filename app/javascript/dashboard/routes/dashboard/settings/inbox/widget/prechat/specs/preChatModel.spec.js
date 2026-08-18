@@ -18,6 +18,7 @@ import {
   stepOf,
   toBuilder,
   toSimple,
+  updateField,
 } from '../preChatModel';
 
 const field = (name, extra = {}) => ({
@@ -194,6 +195,28 @@ describe('preChatModel — condicional só de etapa anterior (aceite 27)', () =>
     expect(danglingConditions(broken)).toEqual([
       { name: 'cpf', target: 'nome' },
     ]);
+  });
+
+  it('remover a condicional APAGA a chave — `show_if: null` volta 422 do servidor', () => {
+    const fields = [
+      field('nome', { step: 1 }),
+      field('cpf', { step: 2, show_if: { field: 'nome', operator: 'filled' } }),
+    ];
+
+    const after = updateField(fields, 'cpf', { show_if: null });
+    const cpf = after.find(f => f.name === 'cpf');
+
+    expect('show_if' in cpf).toBe(false);
+    expect(cpf.step).toBe(2);
+  });
+
+  it('valor vazio de texto continua sendo gravado — só null some', () => {
+    const after = updateField([field('cpf')], 'cpf', {
+      help_text: '',
+      mask: 'cpf',
+    });
+
+    expect(after[0]).toMatchObject({ help_text: '', mask: 'cpf' });
   });
 
   it('desligar um campo limpa a condicional de quem dependia dele', () => {

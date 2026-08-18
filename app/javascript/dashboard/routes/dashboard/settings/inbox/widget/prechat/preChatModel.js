@@ -219,7 +219,22 @@ export const disableField = (fields, name) =>
     return { ...rest };
   });
 
+/**
+ * Aplica uma mudança num campo.
+ *
+ * Chave com valor `null` é REMOVIDA, não gravada como `null`. A razão é o
+ * servidor: no JSON Schema do 3.12, `show_if` é `type: object` com `field` e
+ * `operator` obrigatórios — `show_if: null` **não** é objeto e volta 422. É
+ * exatamente o que aconteceria ao clicar em "Sempre mostrar", que é a operação
+ * mais banal do editor de condicional.
+ */
 export const updateField = (fields, name, patch = {}) =>
-  fields.map(field =>
-    field?.name === name ? { ...field, ...patch } : { ...field }
-  );
+  fields.map(field => {
+    if (field?.name !== name) return { ...field };
+
+    const next = { ...field, ...patch };
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value === null || value === undefined) delete next[key];
+    });
+    return next;
+  });

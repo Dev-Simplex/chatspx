@@ -98,6 +98,17 @@ RSpec.describe Channel::WebWidget do
       expect(widget.errors[:pre_chat_form_options].join).to include('operator')
     end
 
+    # A outra ponta desta assercao esta em
+    # `prechat/preChatModel.js#updateField`, que APAGA a chave em vez de gravar
+    # `null` quando o administrador clica em "Sempre mostrar". Sem as duas, a
+    # operacao mais banal do editor de condicional voltaria 422.
+    it 'recusa show_if nulo — remover a condicional apaga a chave, nao grava null' do
+      widget = build_widget([base_field('show_if' => nil)])
+
+      expect(widget).not_to be_valid
+      expect(widget.errors[:pre_chat_form_options].join).to include('show_if')
+    end
+
     it 'recusa chave desconhecida dentro da condicional' do
       widget = build_widget([base_field('show_if' => { 'field' => 'cpf', 'operator' => 'is', 'value' => 'x', 'and' => [] })])
 
