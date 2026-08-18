@@ -75,6 +75,7 @@ pt_BR:
         detail_max_items: "passa do limite de %{count} itens"
         detail_unknown_field: "campo desconhecido"
         detail_type: "deve ser do tipo %{type}"
+        detail_mobile_aggressive: "abertura automática não é oferecida em celular — lá o painel cobre a tela inteira; use discreet ou bold"
         over_size_limit: "passa do limite de %{limit} bytes — ele é servido em toda página do site do cliente"
     private_chat:
       invalid_password: Senha inválida

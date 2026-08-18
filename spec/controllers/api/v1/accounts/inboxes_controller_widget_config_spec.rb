@@ -182,6 +182,35 @@ RSpec.describe 'Inbox widget configuration API', type: :request do
     end
   end
 
+  # Bloco 3.20 — a abordagem em tres niveis pela API.
+  describe 'the three approach levels over HTTP (3.20 / D1)' do
+    it 'persists approach: "bold" and returns it on the following GET' do
+      patch_inbox(widget_triggers: { approach: 'bold', degrade_on_return: true })
+
+      expect(response).to have_http_status(:success)
+      expect(stored_attributes['widget_triggers']).to eq({ 'approach' => 'bold', 'degrade_on_return' => true })
+    end
+
+    it 'answers 422 for approach: "agressivo"' do
+      patch_inbox(widget_triggers: { approach: 'agressivo' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('approach')
+      expect(inbox.reload.widget_triggers).to be_nil
+    end
+
+    it 'answers 422 for approach_mobile: "aggressive" saying why' do
+      patch_inbox(widget_triggers: { approach_mobile: 'aggressive' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('widget_triggers')
+      expect(response.parsed_body['message']).to eq(
+        'Widget triggers tem valor inválido em "approach_mobile": abertura automática não é oferecida em celular ' \
+        '— lá o painel cobre a tela inteira; use discreet ou bold'
+      )
+    end
+  end
+
   describe 'an inbox that never heard of the four keys' do
     it 'updates unrelated fields without any of them' do
       patch base_url,

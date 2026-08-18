@@ -25,22 +25,6 @@ module WidgetConfigurable
   # por uma leitura literal da lista do plano e sao o disfarce mais obvio.
   SECRET_KEY_PATTERN = /(\A|_)(token|secret)\z/i
 
-  # Cada violacao de schema vira uma frase que NOMEIA o campo e diz o que ele espera. O mapa evita
-  # um `case` de nove ramos e deixa obvio o que acontece com um tipo de erro ainda nao mapeado.
-  SCHEMA_DETAIL_BUILDERS = {
-    'enum' => ->(error) { ['detail_enum', { allowed: Array(error['schema']['enum']).join(', ') }] },
-    'required' => ->(error) { ['detail_required', { keys: Array(error.dig('details', 'missing_keys')).join(', ') }] },
-    'minimum' => ->(error) { ['detail_minimum', { limit: error['schema']['minimum'] }] },
-    'maximum' => ->(error) { ['detail_maximum', { limit: error['schema']['maximum'] }] },
-    'minLength' => ->(error) { ['detail_min_length', { count: error['schema']['minLength'] }] },
-    'maxLength' => ->(error) { ['detail_max_length', { count: error['schema']['maxLength'] }] },
-    'maxItems' => ->(error) { ['detail_max_items', { count: error['schema']['maxItems'] }] },
-    'schema' => ->(_error) { ['detail_unknown_field', {}] }
-  }.freeze
-
-  # Tipo nao mapeado cai no nome do proprio tipo — 'boolean', 'integer', 'object'.
-  SCHEMA_DETAIL_FALLBACK = ->(error) { ['detail_type', { type: error['type'] }] }
-
   included do
     store_accessor :additional_attributes, :widget_profile, :widget_triggers, :widget_tracking, :widget_appearance
 
@@ -56,6 +40,20 @@ module WidgetConfigurable
   # que e literalmente o comportamento de hoje.
   def resolved_widget_profile
     widget_profile.presence || 'support'
+  end
+
+  # Bloco 3.20 (D1): a abordagem lida de forma derivada. Inbox sem a chave e `bold` com degradacao
+  # ligada — que e a decisao de produto, nao o comportamento de hoje; nao ha migration nem backfill
+  # (A4), e o SDK recebe os tres campos porque a avaliacao e dele (A5).
+  # `approach_mobile` NUNCA herda `aggressive` do desktop: em celular o painel cobre a tela inteira.
+  def resolved_widget_approach
+    stored = widget_triggers.is_a?(Hash) ? widget_triggers : {}
+    desktop = stored['approach'].presence || WidgetTriggersSchema::DEFAULT_APPROACH
+    mobile = stored['approach_mobile'].presence || desktop
+    mobile = WidgetTriggersSchema::DEFAULT_APPROACH unless WidgetTriggersSchema::MOBILE_APPROACHES.include?(mobile)
+    degrade = stored.fetch('degrade_on_return', WidgetTriggersSchema::DEFAULT_DEGRADE_ON_RETURN)
+
+    { 'approach' => desktop, 'approach_mobile' => mobile, 'degrade_on_return' => degrade }
   end
 
   # A aparencia entregue ao widget e sempre COMPLETA: o banco e o padrao, e o padrao tem de existir
@@ -111,27 +109,8 @@ module WidgetConfigurable
     return unless value.is_a?(Hash)
 
     JSONSchemer.schema(schema).validate(value).each do |error|
-      errors.add(key, schema_violation_message(error))
+      errors.add(key, WidgetSchemaErrorMessage.for(error))
     end
-  end
-
-  def schema_violation_message(error)
-    I18n.t('errors.inbox.widget_config.schema_violation',
-           field: schema_error_field(error),
-           detail: schema_error_detail(error))
-  end
-
-  # `data_pointer` vem como "/triggers/0/desktop/value"; o caminho sem a barra inicial e o que o
-  # administrador reconhece na tela. Vazio significa que o erro e do objeto inteiro.
-  def schema_error_field(error)
-    pointer = error['data_pointer'].to_s.delete_prefix('/')
-    pointer.presence || 'root'
-  end
-
-  def schema_error_detail(error)
-    key, options = SCHEMA_DETAIL_BUILDERS.fetch(error['type'], SCHEMA_DETAIL_FALLBACK).call(error)
-
-    I18n.t("errors.inbox.widget_config.#{key}", **options)
   end
 
   def ensure_no_secret_in_widget_config

@@ -91,6 +91,7 @@ en:
         detail_max_items: "is over the limit of %{count} items"
         detail_unknown_field: "unknown field"
         detail_type: "must be of type %{type}"
+        detail_mobile_aggressive: "auto-open is not offered on mobile — the panel covers the whole screen there; use discreet or bold"
         over_size_limit: "is over the limit of %{limit} bytes — it is served on every page of the customer site"
     private_chat:
       invalid_password: Invalid password

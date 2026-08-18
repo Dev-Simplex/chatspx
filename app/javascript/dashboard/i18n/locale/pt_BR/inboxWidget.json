@@ -31,6 +31,31 @@
         "BODY": "O que você salva aqui é o padrão, e ele vale para toda a equipe — não fica mais guardado só neste navegador. Mas se o snippet do seu site definir chatwootSettings.position, type, launcherTitle, darkMode, hideMessageBubble ou widgetStyle, o valor do site vence.",
         "ACTION_HINT": "Se o widget não obedecer ao que você salvou aqui, procure por chatwootSettings no HTML do site — esta tela não consegue ler o código do seu site."
       }
+    },
+    "APPROACH": {
+      "TITLE": "Abordagem",
+      "LEVELS": {
+        "DISCREET": {
+          "LABEL": "Discreto",
+          "DESCRIPTION": "Um balão pequeno com uma frase, ao lado do lançador. Sem foto."
+        },
+        "BOLD": {
+          "LABEL": "Chamativo",
+          "DESCRIPTION": "Um balão maior, com foto de quem atende e atalhos. É o padrão."
+        },
+        "AGGRESSIVE": {
+          "LABEL": "Agressivo",
+          "DESCRIPTION": "O painel abre sozinho, uma vez por sessão, quando o gatilho dispara."
+        }
+      },
+      "DEGRADE_ON_RETURN": {
+        "LABEL": "Insistir menos com quem já foi abordado",
+        "DESCRIPTION": "Quem já viu a abordagem e não respondeu recebe o nível abaixo na visita seguinte, e depois nada."
+      },
+      "MOBILE": {
+        "LABEL": "Em celular",
+        "AGGRESSIVE_NOT_OFFERED": "Abertura automática não é oferecida em celular: lá o painel cobre a tela inteira."
+      }
     }
   }
 }
