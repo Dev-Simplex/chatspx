@@ -29,6 +29,10 @@ class CustomAttributeDefinition < ApplicationRecord
     :company => %w[name domain description contacts_count created_at updated_at last_activity_at]
   }.freeze
 
+  # Chave i18n da descricao que CustomAttributes::AutoProvisionService grava
+  # quando cria a definicao a partir de uma chave que o site mandou.
+  AUTO_PROVISIONED_DESCRIPTION_KEY = 'custom_attributes.auto_provisioned.description'.freeze
+
   scope :with_attribute_model, ->(attribute_model) { attribute_model.presence && where(attribute_model: attribute_model) }
   validates :attribute_display_name, presence: true
   before_validation :normalize_attribute_fields
@@ -50,6 +54,25 @@ class CustomAttributeDefinition < ApplicationRecord
   after_destroy :sync_widget_pre_chat_custom_fields, unless: :company_attribute?
   after_update_commit :invalidate_filtered_unread_count_filters_update, if: :conversation_attribute_before_or_after?
   after_destroy_commit :invalidate_filtered_unread_count_filters_destroy, if: :conversation_attribute?
+
+  # Selo de origem do painel (bloco 1.17). A comparacao e por igualdade exata
+  # contra o texto traduzido — de proposito: a descricao e devolvida na API
+  # exatamente como esta no banco, e o formulario de edicao a reenvia inteira.
+  # Transformar o valor na leitura faria o proprio salvamento apagar o sinal.
+  # Se o agente reescrever a descricao, o selo some — ele assumiu o atributo.
+  def auto_provisioned_from_website?
+    return false if attribute_description.blank?
+
+    self.class.auto_provisioned_descriptions.include?(attribute_description)
+  end
+
+  def self.auto_provisioned_descriptions
+    # A descricao e gravada com I18n.t no locale ativo da requisicao, entao a
+    # comparacao cobre todos os locales. Lista pequena e constante em runtime.
+    @auto_provisioned_descriptions ||= I18n.available_locales.filter_map do |locale|
+      I18n.t(AUTO_PROVISIONED_DESCRIPTION_KEY, locale: locale, default: nil).presence
+    end.uniq
+  end
 
   private
 
