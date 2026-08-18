@@ -7,6 +7,7 @@ import PageHeader from '../../SettingsSubPageHeader.vue';
 import GreetingsEditor from 'shared/components/GreetingsEditor.vue';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
 import { DEFAULT_WIDGET_COLOR } from 'dashboard/constants/widget';
+import WidgetProfileSelector from '../widget/WidgetProfileSelector.vue';
 
 export default {
   components: {
@@ -14,6 +15,7 @@ export default {
     GreetingsEditor,
     NextButton,
     Editor,
+    WidgetProfileSelector,
   },
   data() {
     return {
@@ -24,6 +26,10 @@ export default {
       channelWelcomeTagline: '',
       greetingEnabled: false,
       greetingMessage: '',
+      // Sem default pré-selecionado, de propósito: uma pergunta de uma linha
+      // evita a caixa nascer com o perfil errado, e um radio já marcado é a
+      // mesma coisa que não perguntar.
+      widgetProfile: '',
     };
   },
   computed: {
@@ -49,6 +55,9 @@ export default {
             name: this.inboxName?.trim(),
             greeting_enabled: this.greetingEnabled,
             greeting_message: this.greetingMessage,
+            additional_attributes: {
+              widget_profile: this.widgetProfile,
+            },
             channel: {
               type: 'web_widget',
               website_url: this.channelWebsiteUrl,
@@ -91,6 +100,15 @@ export default {
       class="flex flex-wrap flex-col mx-0"
       @submit.prevent="createChannel"
     >
+      <div class="w-full mb-4">
+        <span class="block mb-1 text-sm font-medium text-n-slate-12">
+          {{ $t('INBOX_WIDGET.PROFILE.QUESTION') }}
+        </span>
+        <p class="mb-2 text-sm text-n-slate-11">
+          {{ $t('INBOX_WIDGET.PROFILE.QUESTION_HELP') }}
+        </p>
+        <WidgetProfileSelector v-model="widgetProfile" allow-empty />
+      </div>
       <div class="w-full">
         <label>
           {{ $t('INBOX_MGMT.ADD.WEBSITE_NAME.LABEL') }}
@@ -195,7 +213,7 @@ export default {
           <NextButton
             type="submit"
             :is-loading="uiFlags.isCreating"
-            :disabled="!channelWebsiteUrl || !inboxName"
+            :disabled="!channelWebsiteUrl || !inboxName || !widgetProfile"
             solid
             blue
             :label="$t('INBOX_MGMT.ADD.WEBSITE_CHANNEL.SUBMIT_BUTTON')"

@@ -1,0 +1,25 @@
+{
+  "ORIGIN_REPORTS": {
+    "HEADER": "Origem dos atendimentos",
+    "DESCRIPTION": "De onde vieram as conversas do período: campanha, meio e classificação da origem.",
+    "ERROR": "Não foi possível carregar o relatório de origem.",
+    "UNAVAILABLE": "origem não disponível",
+    "EMPTY_MEASURED": "Nenhuma conversa no período depois do início da medição.",
+    "BEFORE_MEASUREMENT": {
+      "TITLE": "Antes da medição",
+      "WHOLE_RANGE": "{count} conversa(s) neste período são anteriores ao início da medição de origem. Elas existiram — a origem delas é que não era coletada.",
+      "PARTIAL": "{count} conversa(s) deste período são anteriores ao início da medição, em {date}. Elas existiram — a origem delas é que não era coletada."
+    },
+    "DIMENSIONS": {
+      "SOURCE": "Por origem da campanha (utm_source)",
+      "MEDIUM": "Por meio da campanha (utm_medium)",
+      "CAMPAIGN": "Por campanha (utm_campaign)",
+      "ORIGIN_KIND": "Por tipo de origem"
+    },
+    "TABLE": {
+      "VALUE": "Valor",
+      "CONVERSATIONS": "Conversas",
+      "SHARE": "Participação"
+    }
+  }
+}

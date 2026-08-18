@@ -98,6 +98,17 @@ RSpec.describe Channel::WebWidget do
       expect(widget.errors[:pre_chat_form_options].join).to include('operator')
     end
 
+    # A outra ponta desta assercao esta em
+    # `prechat/preChatModel.js#updateField`, que APAGA a chave em vez de gravar
+    # `null` quando o administrador clica em "Sempre mostrar". Sem as duas, a
+    # operacao mais banal do editor de condicional voltaria 422.
+    it 'recusa show_if nulo — remover a condicional apaga a chave, nao grava null' do
+      widget = build_widget([base_field('show_if' => nil)])
+
+      expect(widget).not_to be_valid
+      expect(widget.errors[:pre_chat_form_options].join).to include('show_if')
+    end
+
     it 'recusa chave desconhecida dentro da condicional' do
       widget = build_widget([base_field('show_if' => { 'field' => 'cpf', 'operator' => 'is', 'value' => 'x', 'and' => [] })])
 
@@ -109,6 +120,50 @@ RSpec.describe Channel::WebWidget do
 
       expect(widget).not_to be_valid
       expect(widget.errors[:pre_chat_form_options].join).to include('help_text')
+    end
+  end
+
+  describe 'o modo do formulario (bloco 3.14)' do
+    def widget_with_mode(mode)
+      described_class.new(
+        account: account,
+        website_url: 'https://exemplo.com.br',
+        pre_chat_form_options: { 'mode' => mode, 'pre_chat_fields' => [base_field] }
+      )
+    end
+
+    it 'aceita os tres modos previstos' do
+      %w[simple builder flow].each do |mode|
+        expect(widget_with_mode(mode)).to be_valid
+      end
+    end
+
+    it 'recusa modo fora do enum' do
+      widget = widget_with_mode('avancado')
+
+      expect(widget).not_to be_valid
+      expect(widget.errors[:pre_chat_form_options].join).to include('mode')
+    end
+
+    it 'aceita formulario SEM modo — a frota inteira esta assim, e o front deriva' do
+      widget = described_class.new(
+        account: account,
+        website_url: 'https://exemplo.com.br',
+        pre_chat_form_options: { 'pre_chat_fields' => [base_field] }
+      )
+
+      expect(widget).to be_valid
+    end
+
+    it 'NAO aceita flow_id: o alvo do fluxo se resolve pelo gatilho no servidor, nao aqui' do
+      widget = described_class.new(
+        account: account,
+        website_url: 'https://exemplo.com.br',
+        pre_chat_form_options: { 'mode' => 'flow', 'flow_id' => 7, 'pre_chat_fields' => [base_field] }
+      )
+
+      expect(widget).not_to be_valid
+      expect(widget.errors[:pre_chat_form_options].join).to include('flow_id')
     end
   end
 

@@ -1,61 +1,68 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToggle } from '@vueuse/core';
 import WidgetHead from './WidgetHead.vue';
 import WidgetBody from './WidgetBody.vue';
+import WidgetPreChatPreview from './WidgetPreChatPreview.vue';
 import WidgetFooter from './WidgetFooter.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import Code from 'dashboard/components/Code.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import { useBranding } from 'shared/composables/useBranding';
 import { useMapGetter } from 'dashboard/composables/store';
+import { brandTokens } from 'dashboard/routes/dashboard/settings/inbox/widget/composables/useContrast';
 
+/**
+ * O preview do widget.
+ *
+ * Duas coisas mudaram aqui, e as duas eram dividas medidas:
+ *
+ * **D4 — as ~74 custom properties literais.** Este arquivo carregava uma copia
+ * da paleta do widget dentro do proprio `<style>`. Duas copias da mesma paleta
+ * divergem sem ninguem perceber: quem muda o widget nao tem motivo para abrir o
+ * preview. Agora a paleta vem dos MIXINS de
+ * `widget/assets/scss/_tokens_values.scss` — o mesmo arquivo que pinta o widget
+ * de verdade. Nao ha segunda copia para divergir.
+ *
+ * **O tema do preview era o tema do PAINEL.** O escuro vinha de
+ * `.dark .widget-wrapper`, isto e, da classe que o dashboard poe no `<html>`:
+ * o cliente nao conseguia ver o widget escuro sem trocar o proprio painel.
+ * Agora o preview tem tema proprio, aplicado por classe no wrapper.
+ *
+ * E a cor da marca deixou de ser `background: props.color` cru: o preview
+ * aplica os tokens DERIVADOS (`--w-brand`, `--w-on-brand`, `--w-brand-readable`,
+ * `--w-focus-ring-color`), os mesmos que `WidgetTokens` emite no servidor. Era
+ * o preview reproduzindo o proprio defeito que esta onda conserta — texto
+ * branco sobre verde, 2,27:1.
+ */
 const props = defineProps({
-  welcomeHeading: {
-    type: String,
-    default: '',
-  },
-  welcomeTagline: {
-    type: String,
-    default: '',
-  },
-  websiteName: {
-    type: String,
-    required: true,
-  },
-  logo: {
-    type: String,
-    default: '',
-  },
-  isOnline: {
-    type: Boolean,
-    default: true,
-  },
-  replyTime: {
-    type: String,
-    default: '',
-  },
-  color: {
-    type: String,
-    default: '',
-  },
-  widgetBubblePosition: {
-    type: String,
-    default: '',
-  },
-  widgetBubbleLauncherTitle: {
-    type: String,
-    default: '',
-  },
-  widgetBubbleType: {
-    type: String,
-    default: '',
-  },
-  webWidgetScript: {
-    type: String,
-    default: '',
-  },
+  welcomeHeading: { type: String, default: '' },
+  welcomeTagline: { type: String, default: '' },
+  websiteName: { type: String, required: true },
+  logo: { type: String, default: '' },
+  isOnline: { type: Boolean, default: true },
+  replyTime: { type: String, default: '' },
+  color: { type: String, default: '' },
+  widgetBubblePosition: { type: String, default: '' },
+  widgetBubbleLauncherTitle: { type: String, default: '' },
+  widgetBubbleType: { type: String, default: '' },
+  webWidgetScript: { type: String, default: '' },
+  /** Tema configurado na inbox: `light`, `dark` ou `auto`. */
+  themeMode: { type: String, default: 'auto' },
+  /** Distancia do lançador ate as bordas, em px. */
+  offsetX: { type: Number, default: 20 },
+  offsetY: { type: Number, default: 20 },
+  hideBubble: { type: Boolean, default: false },
+  /**
+   * Bloco 3.16 — o pré-chat como a tela 3 o configurou.
+   *
+   * Duas props, e nenhuma delas é cor: o preview do pré-chat pinta com os
+   * mesmos tokens do resto (`--w-brand` / `--w-on-brand`). Sem isto, a única
+   * forma de saber como o formulário ficou era salvar e abrir o site.
+   */
+  preChatEnabled: { type: Boolean, default: false },
+  preChatOptions: { type: Object, default: () => ({}) },
 });
 
 const { t } = useI18n();
@@ -64,8 +71,28 @@ const globalConfig = useMapGetter('globalConfig/get');
 
 const isChatMode = ref(false);
 const [isWidgetVisible, toggleWidget] = useToggle(true);
-
 const activeTabIndex = ref(0);
+
+/**
+ * `auto` no preview mostra o claro por padrao: o preview e uma maquete, e a
+ * maquete precisa de um estado definido. Quem quiser ver o outro lado clica no
+ * toggle — que e justamente o que nao existia.
+ */
+const previewTheme = ref(props.themeMode === 'dark' ? 'dark' : 'light');
+watch(
+  () => props.themeMode,
+  mode => {
+    previewTheme.value = mode === 'dark' ? 'dark' : 'light';
+  }
+);
+const isDarkPreview = computed({
+  get: () => previewTheme.value === 'dark',
+  set: value => {
+    previewTheme.value = value ? 'dark' : 'light';
+  },
+});
+
+const isMobilePreview = ref(false);
 
 const tabs = computed(() => [
   {
@@ -82,24 +109,26 @@ const tabs = computed(() => [
 
 const isPreviewTab = computed(() => activeTabIndex.value === 0);
 
-const widgetScript = computed(() => {
-  if (!props.webWidgetScript) return '';
-
-  const options = {
-    position: props.widgetBubblePosition,
-    type: props.widgetBubbleType,
-    launcherTitle: props.widgetBubbleLauncherTitle,
-  };
-
-  const script = props.webWidgetScript;
-  return (
-    script.substring(0, 13) +
-    t('INBOX_MGMT.WIDGET_BUILDER.SCRIPT_SETTINGS', {
-      options: JSON.stringify(options),
-    }) +
-    script.substring(13)
-  );
-});
+/**
+ * O snippet que o cliente cola no site — **exatamente** como o servidor o
+ * escreve (`Channel::WebWidget#web_widget_script`).
+ *
+ * O que existia aqui era o defeito D3: o script era cortado no byte 13
+ * (`script.substring(0, 13)`) e no buraco entrava
+ * `t('INBOX_MGMT.WIDGET_BUILDER.SCRIPT_SETTINGS')` — uma string de i18n cujo
+ * conteúdo era JAVASCRIPT EXECUTÁVEL (`window.chatwootSettings = {options};`).
+ * Duas consequências, e as duas chegavam ao site do cliente: um tradutor
+ * mexendo numa chave de tradução quebrava o snippet de todo mundo naquele
+ * idioma, e o corte por posição fixa quebrava sozinho se o servidor mudasse
+ * um espaço no começo do script.
+ *
+ * As opções que aquele bloco injetava (posição, formato, texto do lançador)
+ * não precisam mais viajar no snippet: elas moram em `widget_appearance` e o
+ * servidor as entrega no boot. `chatwootSettings` continua funcionando no site
+ * do cliente como OVERRIDE deliberado — e quando ele existe, a tela de
+ * aparência avisa (3.09) em vez de mentir.
+ */
+const widgetScript = computed(() => props.webWidgetScript);
 
 const replyTimeText = computed(() => {
   switch (props.replyTime) {
@@ -120,11 +149,23 @@ const getWidgetConfig = computed(() => ({
   isDefaultScreen: !isChatMode.value,
   isOnline: props.isOnline,
   replyTime: replyTimeText.value,
-  color: props.color,
 }));
+
+/** Os tokens que o servidor vai emitir para esta cor — nao a cor crua. */
+const tokenStyle = computed(() => brandTokens(props.color || '#2dc46f'));
+
+const themeClass = computed(() =>
+  isDarkPreview.value ? 'wp-theme-dark' : 'wp-theme-light'
+);
+
+const surfaceWidth = computed(() =>
+  isMobilePreview.value ? 'w-[22.5rem]' : 'w-80'
+);
 
 const getBubblePositionStyle = computed(() => ({
   justifyContent: props.widgetBubblePosition === 'left' ? 'start' : 'end',
+  paddingInline: `${props.offsetX}px`,
+  paddingBottom: `${props.offsetY}px`,
 }));
 
 const isBubbleExpanded = computed(
@@ -158,11 +199,38 @@ const handleToggleWidget = () => {
         @tab-changed="handleTabChange"
       />
 
-      <div v-if="isPreviewTab" class="flex items-center gap-2">
-        <span class="text-heading-3 text-n-slate-11">
-          {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_SCREEN.CHAT') }}
-        </span>
-        <Switch v-model="isChatMode" />
+      <div v-if="isPreviewTab" class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <span class="text-heading-3 text-n-slate-11">
+            {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_SCREEN.CHAT') }}
+          </span>
+          <!-- O Switch e um <button role="switch">, nao um <input>: rotulo por
+               `aria-label`, porque `<label for>` so amarra em controle nativo. -->
+          <Switch
+            v-model="isChatMode"
+            :aria-label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_SCREEN.CHAT')"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-heading-3 text-n-slate-11">
+            {{ $t('INBOX_WIDGET.PREVIEW.DARK') }}
+          </span>
+          <Switch
+            v-model="isDarkPreview"
+            :aria-label="$t('INBOX_WIDGET.PREVIEW.DARK')"
+            data-testid="preview-theme-toggle"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-heading-3 text-n-slate-11">
+            {{ $t('INBOX_WIDGET.PREVIEW.MOBILE') }}
+          </span>
+          <Switch
+            v-model="isMobilePreview"
+            :aria-label="$t('INBOX_WIDGET.PREVIEW.MOBILE')"
+            data-testid="preview-device-toggle"
+          />
+        </div>
       </div>
     </div>
 
@@ -170,17 +238,24 @@ const handleToggleWidget = () => {
       <div
         v-if="isPreviewTab"
         class="flex-1 flex flex-col items-center justify-end pb-4"
+        :class="themeClass"
+        :style="tokenStyle"
+        data-testid="widget-preview-surface"
       >
         <div
           v-if="isWidgetVisible"
-          class="widget-wrapper flex flex-1 flex-shrink-0 flex-col justify-between rounded-lg shadow-md bg-n-slate-2 dark:bg-n-solid-1 h-[31.25rem] w-80 mb-4"
+          class="widget-wrapper flex flex-1 flex-shrink-0 flex-col justify-between rounded-lg shadow-md bg-n-solid-1 h-[31.25rem] mb-4"
+          :class="surfaceWidth"
         >
           <WidgetHead :config="getWidgetConfig" />
           <div>
-            <WidgetBody
-              v-if="!getWidgetConfig.isDefaultScreen"
-              :config="getWidgetConfig"
+            <!-- Na conversa, o visitante vê o pré-chat ANTES das mensagens —
+                 é a ordem do widget real. Sem pré-chat, as bolhas de sempre. -->
+            <WidgetPreChatPreview
+              v-if="!getWidgetConfig.isDefaultScreen && preChatEnabled"
+              :options="preChatOptions"
             />
+            <WidgetBody v-else-if="!getWidgetConfig.isDefaultScreen" />
             <WidgetFooter :config="getWidgetConfig" />
             <div class="py-2.5 flex justify-center">
               <a
@@ -202,15 +277,20 @@ const handleToggleWidget = () => {
           </div>
         </div>
 
-        <div class="flex w-[320px]" :style="getBubblePositionStyle">
+        <div
+          v-if="!hideBubble"
+          class="flex"
+          :class="surfaceWidth"
+          :style="getBubblePositionStyle"
+        >
           <button
-            class="relative flex items-center justify-center rounded-full cursor-pointer"
-            :style="{ background: props.color }"
+            class="relative flex items-center justify-center rounded-full cursor-pointer bg-w-brand text-w-on-brand"
             :class="
               isBubbleExpanded
-                ? 'w-auto font-medium text-base text-white dark:text-white h-12 px-4'
+                ? 'w-auto font-medium text-base h-12 px-4'
                 : 'w-16 h-16'
             "
+            data-testid="preview-launcher"
             @click="handleToggleWidget"
           >
             <img
@@ -225,10 +305,10 @@ const handleToggleWidget = () => {
             </div>
             <div v-if="isWidgetVisible" class="relative">
               <div
-                class="absolute w-0.5 h-8 rotate-45 -translate-y-1/2 bg-white"
+                class="absolute w-0.5 h-8 rotate-45 -translate-y-1/2 bg-current"
               />
               <div
-                class="absolute w-0.5 h-8 -rotate-45 -translate-y-1/2 bg-white"
+                class="absolute w-0.5 h-8 -rotate-45 -translate-y-1/2 bg-current"
               />
             </div>
           </button>
@@ -252,78 +332,17 @@ const handleToggleWidget = () => {
 </template>
 
 <style scoped lang="scss">
-// Widget-specific color variables to match actual widget appearance
-.widget-wrapper {
-  // Light mode - widget colors
-  --slate-1: 252 252 253;
-  --slate-2: 249 249 251;
-  --slate-3: 240 240 243;
-  --slate-4: 232 232 236;
-  --slate-5: 224 225 230;
-  --slate-6: 217 217 224;
-  --slate-7: 205 206 214;
-  --slate-8: 185 187 198;
-  --slate-9: 139 141 152;
-  --slate-10: 128 131 141;
-  --slate-11: 96 100 108;
-  --slate-12: 28 32 36;
+/* A paleta do widget, sem uma segunda copia dela: os mixins vem do arquivo que
+   pinta o widget de verdade. Aplicados em CLASSE — nunca em `:root` —, porque
+   `:root` aqui sobrescreveria a paleta do dashboard inteiro, e porque e a
+   classe que permite ao preview mostrar o tema OPOSTO ao do painel. */
+@import '../../../../widget/assets/scss/tokens_values';
 
-  --background-color: 253 253 253;
-  --text-blue: 8 109 224;
-  --border-container: 236 236 236;
-  --border-strong: 235 235 235;
-  --border-weak: 234 234 234;
-  --solid-1: 255 255 255;
-  --solid-2: 255 255 255;
-  --solid-3: 255 255 255;
-  --solid-active: 255 255 255;
-  --solid-amber: 252 232 193;
-  --solid-blue: 218 236 255;
-  --solid-iris: 230 231 255;
-
-  --alpha-1: 67, 67, 67, 0.06;
-  --alpha-2: 201, 202, 207, 0.15;
-  --alpha-3: 255, 255, 255, 0.96;
-  --black-alpha-1: 0, 0, 0, 0.12;
-  --black-alpha-2: 0, 0, 0, 0.04;
-  --border-blue: 39, 129, 246, 0.5;
-  --white-alpha: 255, 255, 255, 0.8;
+.wp-theme-light {
+  @include widget-palette-light;
 }
 
-// Dark mode - widget colors
-.dark .widget-wrapper {
-  --slate-1: 17 17 19;
-  --slate-2: 24 25 27;
-  --slate-3: 33 34 37;
-  --slate-4: 39 42 45;
-  --slate-5: 46 49 53;
-  --slate-6: 54 58 63;
-  --slate-7: 67 72 78;
-  --slate-8: 90 97 105;
-  --slate-9: 105 110 119;
-  --slate-10: 119 123 132;
-  --slate-11: 176 180 186;
-  --slate-12: 237 238 240;
-
-  --background-color: 18 18 19;
-  --border-strong: 52 52 52;
-  --border-weak: 38 38 42;
-  --solid-1: 23 23 26;
-  --solid-2: 29 30 36;
-  --solid-3: 44 45 54;
-  --solid-active: 53 57 66;
-  --solid-amber: 42 37 30;
-  --solid-blue: 16 49 91;
-  --solid-iris: 38 42 101;
-  --text-blue: 126 182 255;
-
-  --alpha-1: 36, 36, 36, 0.8;
-  --alpha-2: 139, 147, 182, 0.15;
-  --alpha-3: 36, 38, 45, 0.9;
-  --black-alpha-1: 0, 0, 0, 0.3;
-  --black-alpha-2: 0, 0, 0, 0.2;
-  --border-blue: 39, 129, 246, 0.5;
-  --border-container: 236, 236, 236, 0;
-  --white-alpha: 255, 255, 255, 0.1;
+.wp-theme-dark {
+  @include widget-palette-dark;
 }
 </style>

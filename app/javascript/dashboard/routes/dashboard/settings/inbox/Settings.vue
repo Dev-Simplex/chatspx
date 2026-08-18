@@ -43,6 +43,7 @@ import Editor from 'dashboard/components-next/Editor/Editor.vue';
 import ColorPicker from 'dashboard/components-next/colorpicker/ColorPicker.vue';
 import SelectInput from 'dashboard/components-next/select/Select.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
+import AppearancePage from './widget/appearance/AppearancePage.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
@@ -81,6 +82,7 @@ export default {
     WhatsappManualMigrationBanner,
     Widget,
     AccessToken,
+    AppearancePage,
   },
   mixins: [inboxMixin],
   setup() {
@@ -206,6 +208,10 @@ export default {
       if (this.isAWebWidgetInbox) {
         visibleToAllChannelTabs = [
           ...visibleToAllChannelTabs,
+          {
+            key: 'appearance',
+            name: this.$t('INBOX_WIDGET.TABS.APPEARANCE'),
+          },
           {
             key: 'pre-chat-form',
             name: this.$t('INBOX_MGMT.TABS.PRE_CHAT_FORM'),
@@ -616,6 +622,20 @@ export default {
       return [...selected, current];
     },
     onTabChange(selectedTabIndex) {
+      // A troca de aba NÃO passa pelo router (a URL muda por
+      // `history.replaceState`), então nenhum guard de rota a vê. A tela de
+      // aparência mantém rascunho: perguntar antes é o que impede o
+      // administrador de perder dez campos configurados num clique.
+      const appearance = this.$refs.appearancePage;
+      if (
+        appearance?.requestLeave &&
+        !appearance.requestLeave(() => this.applyTabChange(selectedTabIndex))
+      ) {
+        return;
+      }
+      this.applyTabChange(selectedTabIndex);
+    },
+    applyTabChange(selectedTabIndex) {
       this.selectedTabIndex = selectedTabIndex;
       this.updateRouteWithoutRefresh(selectedTabIndex);
     },
@@ -1387,6 +1407,8 @@ export default {
                 :widget-bubble-launcher-title="widgetBubbleLauncherTitle"
                 :widget-bubble-type="widgetBubbleType"
                 :web-widget-script="inbox.web_widget_script"
+                :pre-chat-enabled="inbox.pre_chat_form_enabled"
+                :pre-chat-options="inbox.pre_chat_form_options"
               />
             </div>
           </div>
@@ -1405,6 +1427,11 @@ export default {
         <div v-if="selectedTabKey === 'csat'">
           <CustomerSatisfactionPage :inbox="inbox" />
         </div>
+        <AppearancePage
+          v-if="selectedTabKey === 'appearance'"
+          ref="appearancePage"
+          :inbox-id="currentInboxId"
+        />
         <div v-if="selectedTabKey === 'pre-chat-form'">
           <PreChatFormSettings :inbox="inbox" />
         </div>

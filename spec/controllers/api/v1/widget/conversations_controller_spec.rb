@@ -345,6 +345,33 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
         # conversation custom attributes should have "product_name" key with value "Chatwoot"
         expect(conversation.custom_attributes).to include('product_name' => 'Chatwoot')
       end
+
+      # B6: a chave chegava e era gravada, mas sem CustomAttributeDefinition ela
+      # nao renderiza no painel e o filtro recusa a chave inteira.
+      it 'auto-provisiona a definicao da chave nova vinda do site' do
+        expect do
+          post '/api/v1/widget/conversations/set_custom_attributes',
+               headers: { 'X-Auth-Token' => token },
+               params: { website_token: web_widget.website_token, custom_attributes: { carrinho_valor: 4200 } },
+               as: :json
+        end.to change { account.custom_attribute_definitions.where(attribute_model: 'conversation_attribute').count }.by(1)
+
+        definition = account.custom_attribute_definitions.find_by(attribute_key: 'carrinho_valor')
+        expect(definition.attribute_model).to eq('conversation_attribute')
+        expect(definition.attribute_display_type).to eq('number')
+        expect(definition.attribute_display_name).to eq('Carrinho valor')
+      end
+
+      it 'nao cria definicao duplicada quando o site manda a mesma chave de novo' do
+        2.times do |index|
+          post '/api/v1/widget/conversations/set_custom_attributes',
+               headers: { 'X-Auth-Token' => token },
+               params: { website_token: web_widget.website_token, custom_attributes: { carrinho_valor: 4200 + index } },
+               as: :json
+        end
+
+        expect(account.custom_attribute_definitions.where(attribute_key: 'carrinho_valor').count).to eq(1)
+      end
     end
   end
 

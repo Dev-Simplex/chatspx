@@ -52,7 +52,7 @@ class Channel::WebWidget < ApplicationRecord
   # VALORES fica em `Channel::WebWidget::PreChatFormSchema`.
   EDITABLE_ATTRS = [:website_url, :widget_color, :welcome_title, :welcome_tagline, :reply_time, :pre_chat_form_enabled,
                     :continuity_via_email, :hmac_mandatory, :allowed_domains,
-                    { pre_chat_form_options: [:pre_chat_message, :require_email,
+                    { pre_chat_form_options: [:pre_chat_message, :require_email, :mode,
                                               { pre_chat_fields:
                                                 [:field_type, :label, :placeholder, :name, :enabled, :type, :enabled, :required,
                                                  :locale, { values: [] }, :regex_pattern, :regex_cue,

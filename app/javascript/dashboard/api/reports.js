@@ -127,6 +127,13 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  // Bloco 1.22 — de onde vieram os atendimentos no periodo.
+  getConversationOrigin({ from, to } = {}) {
+    return axios.get(`${this.baseUrl()}/origin_report`, {
+      params: { since: from, until: to, timezone_offset: getTimeOffset() },
+    });
+  }
+
   getBotMetrics({ from, to } = {}) {
     return axios.get(`${this.url}/bot_metrics`, {
       params: { since: from, until: to },
