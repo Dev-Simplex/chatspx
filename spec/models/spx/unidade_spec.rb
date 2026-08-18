@@ -60,22 +60,36 @@ RSpec.describe Spx::Unidade do
       expect(estado).to be_por_excecao
     end
 
-    it 'exceção de unidade vence exceção de etiqueta' do
-      excecao(domingo, etiqueta: 'MT', abre: '09:00', fecha: '15:00')
+    # As duas ordens de criação, de propósito: a específica criada DEPOIS ganharia igual pelo
+    # desempate, então só a ordem invertida prova que quem decidiu foi a especificidade.
+    it 'exceção de unidade vence exceção de etiqueta criada depois dela' do
       excecao(domingo, unidade: unidade, fechada: true, motivo: 'reforma')
+      excecao(domingo, etiqueta: 'MT', abre: '09:00', fecha: '15:00', motivo: 'campanha')
 
       expect(unidade.estado_em(domingo)).not_to be_aberta
       expect(unidade.estado_em(domingo).motivo).to eq('reforma')
     end
 
-    it 'exceção da conta inteira vale, e perde para a de etiqueta' do
+    it 'exceção de unidade vence exceção de etiqueta criada antes dela' do
+      excecao(domingo, etiqueta: 'MT', abre: '09:00', fecha: '15:00', motivo: 'campanha')
+      excecao(domingo, unidade: unidade, fechada: true, motivo: 'reforma')
+
+      expect(unidade.estado_em(domingo).motivo).to eq('reforma')
+    end
+
+    it 'exceção da conta inteira vale quando é a única' do
       conta_inteira = excecao(domingo, fechada: true, motivo: 'feriado nacional')
 
       expect(unidade.estado_em(domingo).motivo).to eq('feriado nacional')
-
-      excecao(domingo, etiqueta: 'MT', abre: '10:00', fecha: '14:00', motivo: 'exceção regional')
-      expect(unidade.estado_em(domingo).faixas.map(&:to_s)).to eq(['10:00 às 14:00'])
       expect(conta_inteira.especificidade).to be < 1
+    end
+
+    it 'exceção de etiqueta vence a da conta inteira criada depois dela' do
+      excecao(domingo, etiqueta: 'MT', abre: '10:00', fecha: '14:00', motivo: 'exceção regional')
+      excecao(domingo, fechada: true, motivo: 'feriado nacional')
+
+      expect(unidade.estado_em(domingo).faixas.map(&:to_s)).to eq(['10:00 às 14:00'])
+      expect(unidade.estado_em(domingo).motivo).to eq('exceção regional')
     end
 
     it 'no empate de especificidade vence a criada por último' do
@@ -86,8 +100,8 @@ RSpec.describe Spx::Unidade do
     end
 
     it 'exceção que não fecha e não traz horário devolve a unidade ao horário de sempre' do
-      excecao(domingo, fechada: true, motivo: 'feriado nacional')
       excecao(domingo, unidade: unidade, fechada: false, motivo: 'esta abre normal')
+      excecao(domingo, fechada: true, motivo: 'feriado nacional')
 
       estado = unidade.estado_em(domingo)
       expect(estado.faixas.map(&:to_s)).to eq(['08:00 às 12:00'])
