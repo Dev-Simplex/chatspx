@@ -112,6 +112,50 @@ RSpec.describe Channel::WebWidget do
     end
   end
 
+  describe 'o modo do formulario (bloco 3.14)' do
+    def widget_with_mode(mode)
+      described_class.new(
+        account: account,
+        website_url: 'https://exemplo.com.br',
+        pre_chat_form_options: { 'mode' => mode, 'pre_chat_fields' => [base_field] }
+      )
+    end
+
+    it 'aceita os tres modos previstos' do
+      %w[simple builder flow].each do |mode|
+        expect(widget_with_mode(mode)).to be_valid
+      end
+    end
+
+    it 'recusa modo fora do enum' do
+      widget = widget_with_mode('avancado')
+
+      expect(widget).not_to be_valid
+      expect(widget.errors[:pre_chat_form_options].join).to include('mode')
+    end
+
+    it 'aceita formulario SEM modo — a frota inteira esta assim, e o front deriva' do
+      widget = described_class.new(
+        account: account,
+        website_url: 'https://exemplo.com.br',
+        pre_chat_form_options: { 'pre_chat_fields' => [base_field] }
+      )
+
+      expect(widget).to be_valid
+    end
+
+    it 'NAO aceita flow_id: o alvo do fluxo se resolve pelo gatilho no servidor, nao aqui' do
+      widget = described_class.new(
+        account: account,
+        website_url: 'https://exemplo.com.br',
+        pre_chat_form_options: { 'mode' => 'flow', 'flow_id' => 7, 'pre_chat_fields' => [base_field] }
+      )
+
+      expect(widget).not_to be_valid
+      expect(widget.errors[:pre_chat_form_options].join).to include('flow_id')
+    end
+  end
+
   describe 'compatibilidade com o que ja esta gravado na frota' do
     # A tela antiga (`PreChatForm/Settings.vue:78`) grava TODOS os atributos
     # personalizados da conta no array, com `enabled: false`. Uma conta com 12
