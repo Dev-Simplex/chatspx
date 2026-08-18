@@ -161,5 +161,24 @@
     "OPEN_IN_NEW_WINDOW": "Open chat in a new window",
     "OPEN_WIDGET": "Open chat",
     "AGENT_TYPING": "Agent is typing a message"
+  },
+  "CAPTURE": {
+    "SUBMIT": "Send",
+    "OPTIONAL": "(optional)",
+    "CONTACT_GROUP_HINT": "Fill in email or WhatsApp — either one is enough.",
+    "VALIDATION": {
+      "REQUIRED": "This field is required.",
+      "CPF": "Invalid CPF.",
+      "CNPJ": "Invalid CNPJ.",
+      "CPF_CNPJ": "Invalid CPF or CNPJ.",
+      "CEP": "Invalid ZIP code.",
+      "UF": "Invalid state.",
+      "EMAIL": "Invalid email.",
+      "CORPORATE_EMAIL": "Please use your company email.",
+      "PHONE": "Invalid phone number. Include the country code, such as +55.",
+      "JUNK_NAME": "Please check the name you typed.",
+      "JUNK_PHONE": "Please check the phone number you typed.",
+      "JUNK_EMAIL": "Please check the email you typed."
+    }
   }
 }
