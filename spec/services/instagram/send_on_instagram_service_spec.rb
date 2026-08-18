@@ -80,16 +80,16 @@ describe Instagram::SendOnInstagramService do
 
           service = described_class.new(message: message)
 
-          allow(service).to receive(:send_message)
+          sent = []
+          allow(service).to receive(:send_message) { |params| sent << params }
           service.perform
 
-          expect(service).to have_received(:send_message).once
-          expect(service).to have_received(:send_message).with(
-            hash_including(message: hash_including(attachments: [
-                             { type: 'image', payload: { url: avatar.download_url } },
-                             { type: 'image', payload: { url: sample.download_url } }
-                           ]))
-          )
+          expect(sent.size).to eq(1)
+          # A URL assinada do Active Storage muda a cada chamada, então o que se afirma é a
+          # forma: um payload de imagem por anexo, na ordem, dentro da MESMA requisição.
+          expect(sent.first.dig(:message, :attachments).pluck(:type)).to eq(%w[image image])
+          expect(sent.first.dig(:message, :attachments).map { |part| part.dig(:payload, :url) })
+            .to contain_exactly(a_string_including(avatar.file.filename.to_s), a_string_including(sample.file.filename.to_s))
         end
 
         # Contraprova da capacidade: com o canal declarando que NÃO agrupa, o mesmo par de
