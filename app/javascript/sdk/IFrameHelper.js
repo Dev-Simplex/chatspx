@@ -29,6 +29,7 @@ import {
   CHATWOOT_ERROR,
   CHATWOOT_POSTBACK,
   CHATWOOT_READY,
+  CHATWOOT_RESET_COMPLETED,
 } from '../widget/constants/sdkEvents';
 import { SET_USER_ERROR } from '../widget/constants/errorTypes';
 import { getUserCookieName, setCookieWithDomain } from './cookieHelpers';
@@ -274,7 +275,22 @@ export const IFrameHelper = {
         document.addEventListener(e, IFrameHelper.setupAudioListeners, false);
       });
 
-      if (!window.$chatwoot.resetTriggered) {
+      // T-I4.5 (bloco 5.04) — o `reset()` era MUDO.
+      //
+      // O que existia era só a supressão: `resetTriggered` impedia o segundo
+      // `chatwoot:ready`, e o site que chamou `reset()` não recebia sinal
+      // nenhum de que a operação terminou. Quem precisava encadear alguma coisa
+      // depois do reset (identificar o novo visitante, por exemplo) só tinha
+      // `setTimeout` para adivinhar quando.
+      //
+      // Agora o reset ANUNCIA a conclusão, e a flag é limpa. Limpar importa:
+      // sem isso ela ficava `true` para sempre depois do primeiro reset, e
+      // qualquer recarga posterior do iframe deixava de emitir `chatwoot:ready`
+      // — a supressão valia uma vez e durava a vida da página.
+      if (window.$chatwoot.resetTriggered) {
+        window.$chatwoot.resetTriggered = false;
+        dispatchWindowEvent({ eventName: CHATWOOT_RESET_COMPLETED });
+      } else {
         dispatchWindowEvent({ eventName: CHATWOOT_READY });
       }
     },
