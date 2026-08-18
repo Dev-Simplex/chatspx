@@ -38,7 +38,7 @@ const containerClasses = computed(() => [
         v-if="avatarUrl"
         class="h-12 rounded-full"
         :src="avatarUrl"
-        alt="Avatar"
+        :alt="$t('A11Y.AGENT_AVATAR')"
       />
       <HeaderActions
         :show-popout-button="showPopoutButton"
