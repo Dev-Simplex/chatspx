@@ -87,6 +87,86 @@
         "LABEL": "Brand color",
         "HEX_LABEL": "Brand color in hexadecimal",
         "INVALID": "Use the #RRGGBB format."
+      },
+      "SAVED": "Appearance saved.",
+      "SAVE_ERROR": "Could not save the appearance.",
+      "SECTIONS": {
+        "BRAND": "Brand",
+        "THEME": "Theme",
+        "LAUNCHER": "Launcher",
+        "TEXTS": "Texts",
+        "FEATURES": "Features",
+        "ADVANCED": "Advanced"
+      },
+      "OVERRIDE": {
+        "TITLE": "The website overrides this setting",
+        "BODY": "The code installed on the website sets {fields} on its own. What is saved here is the default and the website wins — to make this screen's value count, remove the field from the chatwootSettings object on the site.",
+        "FIELD_HINT": "The website overrides this field."
+      },
+      "THEME": {
+        "LABEL": "Theme mode",
+        "HELP": "Automatic follows the visitor's system theme.",
+        "LIGHT": {
+          "LABEL": "Light",
+          "DESCRIPTION": "The widget always opens light."
+        },
+        "DARK": {
+          "LABEL": "Dark",
+          "DESCRIPTION": "The widget always opens dark."
+        },
+        "AUTO": {
+          "LABEL": "Automatic",
+          "DESCRIPTION": "Follows the system theme of whoever visits the site."
+        }
+      },
+      "LAUNCHER": {
+        "POSITION": "Position",
+        "POSITIONS": {
+          "LEFT": "Left",
+          "LEFT_HINT": "The bubble sits in the bottom-left corner.",
+          "RIGHT": "Right",
+          "RIGHT_HINT": "The bubble sits in the bottom-right corner."
+        },
+        "OFFSETS": "Distance from the edges",
+        "OFFSETS_HINT": "In pixels, from 0 to 120. Useful when another element of the site takes the corner.",
+        "OFFSET_X": "Side",
+        "OFFSET_Y": "Bottom",
+        "TYPE": "Shape",
+        "TYPES": {
+          "STANDARD": "Bubble",
+          "STANDARD_HINT": "Just the icon, in a circle.",
+          "EXPANDED_BUBBLE": "Bubble with text",
+          "EXPANDED_BUBBLE_HINT": "The icon with a call next to it."
+        },
+        "TEXT": "Launcher text",
+        "TEXT_PLACEHOLDER": "Talk to us",
+        "TEXT_TOO_LONG": "At most {max} characters.",
+        "HIDE_BUBBLE": "Hide the bubble",
+        "HIDE_BUBBLE_HINT": "Removes the launcher. Only do this if the site opens the chat from its own button — with no launcher and no button, the visitor is left with no way to reach you."
+      },
+      "TEXTS": {
+        "WELCOME_TITLE": "Welcome title",
+        "WELCOME_TAGLINE": "Welcome tagline",
+        "REPLY_TIME": "Reply time",
+        "REPLY_TIMES": {
+          "IN_A_FEW_MINUTES": "In a few minutes",
+          "IN_A_FEW_HOURS": "In a few hours",
+          "IN_A_DAY": "In a day"
+        }
+      },
+      "FEATURES": {
+        "ATTACHMENTS": "Allow attachments in the widget",
+        "EMOJI_PICKER": "Show the emoji picker",
+        "END_CONVERSATION": "Let the visitor end the conversation",
+        "USE_INBOX_AVATAR_FOR_BOT": "Use the inbox name and avatar for the bot"
+      },
+      "ADVANCED": {
+        "PANEL_STYLE": "Panel style",
+        "PANEL_STYLE_HINT": "Standard has the header in the brand color; flat uses a neutral background.",
+        "PANEL_STYLES": {
+          "STANDARD": "Standard",
+          "FLAT": "Flat"
+        }
       }
     },
     "PREVIEW": {
@@ -139,6 +219,9 @@
           "MARKETING": "Hide the Help Center on the widget home screen"
         }
       }
+    },
+    "TABS": {
+      "APPEARANCE": "Appearance"
     }
   }
 }

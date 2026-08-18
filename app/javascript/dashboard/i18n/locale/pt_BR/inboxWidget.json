@@ -87,6 +87,86 @@
         "LABEL": "Cor da marca",
         "HEX_LABEL": "Cor da marca em hexadecimal",
         "INVALID": "Use o formato #RRGGBB."
+      },
+      "SAVED": "Aparência salva.",
+      "SAVE_ERROR": "Não foi possível salvar a aparência.",
+      "SECTIONS": {
+        "BRAND": "Marca",
+        "THEME": "Tema",
+        "LAUNCHER": "Lançador",
+        "TEXTS": "Textos",
+        "FEATURES": "Recursos",
+        "ADVANCED": "Avançado"
+      },
+      "OVERRIDE": {
+        "TITLE": "O site sobrescreve esta configuração",
+        "BODY": "O código instalado no site define {fields} por conta própria. O que está gravado aqui é o padrão, e o site vence — para o valor desta tela valer, remova o campo do objeto chatwootSettings no site.",
+        "FIELD_HINT": "O site sobrescreve este campo."
+      },
+      "THEME": {
+        "LABEL": "Modo de tema",
+        "HELP": "Automático segue o tema do sistema do visitante.",
+        "LIGHT": {
+          "LABEL": "Claro",
+          "DESCRIPTION": "O widget abre sempre claro."
+        },
+        "DARK": {
+          "LABEL": "Escuro",
+          "DESCRIPTION": "O widget abre sempre escuro."
+        },
+        "AUTO": {
+          "LABEL": "Automático",
+          "DESCRIPTION": "Segue o tema do sistema de quem visita o site."
+        }
+      },
+      "LAUNCHER": {
+        "POSITION": "Posição",
+        "POSITIONS": {
+          "LEFT": "Esquerda",
+          "LEFT_HINT": "O balão fica no canto inferior esquerdo.",
+          "RIGHT": "Direita",
+          "RIGHT_HINT": "O balão fica no canto inferior direito."
+        },
+        "OFFSETS": "Distância das bordas",
+        "OFFSETS_HINT": "Em pixels, de 0 a 120. Útil quando outro elemento do site ocupa o canto.",
+        "OFFSET_X": "Lateral",
+        "OFFSET_Y": "Inferior",
+        "TYPE": "Formato",
+        "TYPES": {
+          "STANDARD": "Balão",
+          "STANDARD_HINT": "Só o ícone, em círculo.",
+          "EXPANDED_BUBBLE": "Balão com texto",
+          "EXPANDED_BUBBLE_HINT": "O ícone com uma chamada ao lado."
+        },
+        "TEXT": "Texto do lançador",
+        "TEXT_PLACEHOLDER": "Fale com a gente",
+        "TEXT_TOO_LONG": "No máximo {max} caracteres.",
+        "HIDE_BUBBLE": "Esconder o balão",
+        "HIDE_BUBBLE_HINT": "Some com o lançador. Só faça isso se o site abrir o chat por um botão próprio — sem lançador e sem botão, o visitante fica sem canal de contato."
+      },
+      "TEXTS": {
+        "WELCOME_TITLE": "Título de boas-vindas",
+        "WELCOME_TAGLINE": "Frase de boas-vindas",
+        "REPLY_TIME": "Tempo de resposta",
+        "REPLY_TIMES": {
+          "IN_A_FEW_MINUTES": "Em alguns minutos",
+          "IN_A_FEW_HOURS": "Em algumas horas",
+          "IN_A_DAY": "Em um dia"
+        }
+      },
+      "FEATURES": {
+        "ATTACHMENTS": "Permitir anexos no widget",
+        "EMOJI_PICKER": "Exibir seletor de emoji",
+        "END_CONVERSATION": "Permitir que o visitante encerre a conversa",
+        "USE_INBOX_AVATAR_FOR_BOT": "Usar o nome e o avatar da caixa para o bot"
+      },
+      "ADVANCED": {
+        "PANEL_STYLE": "Estilo do painel",
+        "PANEL_STYLE_HINT": "Padrão tem cabeçalho na cor da marca; plano usa fundo neutro.",
+        "PANEL_STYLES": {
+          "STANDARD": "Padrão",
+          "FLAT": "Plano"
+        }
       }
     },
     "PREVIEW": {
@@ -139,6 +219,9 @@
           "MARKETING": "Esconder a Central de Ajuda no painel inicial do widget"
         }
       }
+    },
+    "TABS": {
+      "APPEARANCE": "Aparência"
     }
   }
 }
