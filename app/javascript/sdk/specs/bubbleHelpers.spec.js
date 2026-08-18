@@ -15,11 +15,14 @@
  */
 import {
   bubbleSVG,
+  chatBubble,
+  closeBubble,
   createBubbleIcon,
-  launcherLabel,
   preloadLauncherImage,
   resolveLauncherIcon,
+  setBubbleAccessibleName,
 } from '../bubbleHelpers';
+import { IFrameHelper } from '../IFrameHelper';
 import { SDK_CSS } from '../sdk';
 
 // ── contraste WCAG, calculado aqui e só aqui ────────────────────────────────
@@ -119,45 +122,118 @@ describe('3.19 (metade W) — o ícone do lançador deixa de ser um path fixo', 
   });
 
   // ── ASSERÇÃO 9 ───────────────────────────────────────────────────────────
+  //
+  // REESCRITA NO MERGE COM O 1.06, e vale dizer por quê. A versão original deste
+  // bloco traduzia o nome no próprio SDK, com uma tabela de 4 locales. O 1.06
+  // trouxe algo melhor: a string atravessa a ponte já traduzida, vinda do painel,
+  // que tem 40 locales. A tabela foi APAGADA — duas fontes de i18n divergem, é só
+  // questão de tempo.
+  //
+  // O que a asserção 9 exige de verdade é que o nome acessível que o visitante
+  // recebe seja traduzido, e não o inglês cravado. Quem entrega isso agora é a
+  // ponte. Estes testes cobrem a ponte, a precedência e o provisório.
   describe('asserção 9 — nome acessível traduzido', () => {
-    it("o literal 'Open chat window' não existe mais no código do SDK", async () => {
+    it('o SDK NÃO carrega tabela de tradução própria — a fonte é o painel', async () => {
       const { readFileSync } = await import('node:fs');
       const { join } = await import('node:path');
       const source = readFileSync(
         join(process.cwd(), 'app/javascript/sdk/bubbleHelpers.js'),
         'utf8'
       );
-      expect(source).not.toContain('Open chat window');
+
+      // Se alguém reintroduzir um dicionário aqui, volta a haver duas verdades.
+      expect(source).not.toContain('Abrir chat');
+      expect(source).not.toContain('Falar com');
+      expect(source).not.toMatch(/LAUNCHER_LABELS|launcherLabel/);
     });
 
-    it('pt-BR sem nome é "Abrir chat"', () => {
-      expect(launcherLabel({ locale: 'pt_BR' })).toBe('Abrir chat');
-      expect(launcherLabel({ locale: 'pt' })).toBe('Abrir chat');
+    it('setBubbleAccessibleName pinta title E aria-label nos DOIS botões', () => {
+      setBubbleAccessibleName('Abrir o chat');
+
+      expect(chatBubble.title).toBe('Abrir o chat');
+      expect(chatBubble.getAttribute('aria-label')).toBe('Abrir o chat');
+      // O botão de fechar também: ele troca de papel com o de abrir.
+      expect(closeBubble.title).toBe('Abrir o chat');
+      expect(closeBubble.getAttribute('aria-label')).toBe('Abrir o chat');
     });
 
-    it('pt-BR com nome é "Falar com a Marina" — a forma que o plano nomeia', () => {
-      expect(launcherLabel({ locale: 'pt_BR', name: 'a Marina' })).toBe(
-        'Falar com a Marina'
-      );
+    it('nome vazio não apaga um nome já posto — botão sem nome é o pior caso', () => {
+      setBubbleAccessibleName('Abrir o chat');
+      setBubbleAccessibleName('');
+      setBubbleAccessibleName(undefined);
+
+      expect(chatBubble.title).toBe('Abrir o chat');
     });
 
-    it('en cai em "Open chat", e locale desconhecido também', () => {
-      expect(launcherLabel({ locale: 'en' })).toBe('Open chat');
-      expect(launcherLabel({ locale: 'kl_GL' })).toBe('Open chat');
-      expect(launcherLabel({})).toBe('Open chat');
-    });
-
-    it('o botão recebe title E aria-label com o nome traduzido', () => {
+    it('a ponte SUBSTITUI o provisório em inglês pelo traduzido do painel', () => {
+      window.$chatwoot = { position: 'right', type: 'standard' };
       const target = freshButton();
       createBubbleIcon({
         className: 'woot-widget-bubble',
         path: bubbleSVG,
         target,
-        launcherIcon: resolveLauncherIcon({ locale: 'pt_BR' }),
+        launcherIcon: resolveLauncherIcon({}),
       });
 
-      expect(target.title).toBe('Abrir chat');
-      expect(target.getAttribute('aria-label')).toBe('Abrir chat');
+      // O provisório existe de propósito: um botão sem nome é pior para o leitor
+      // de tela do que um botão com nome no idioma errado por milissegundos.
+      expect(target.title).toBe('Open chat window');
+
+      IFrameHelper.launcherIconLabel = null;
+      IFrameHelper.events.setBubbleLabel({
+        label: 'Converse conosco',
+        ariaLabel: 'Abrir o chat',
+      });
+
+      expect(chatBubble.title).toBe('Abrir o chat');
+      expect(chatBubble.getAttribute('aria-label')).toBe('Abrir o chat');
+    });
+
+    it('o rótulo da tela de aparência (3.19) SOBREVIVE à ponte', () => {
+      // Sem esta precedência, o lançador apareceria com a foto da Marina e o nome
+      // dela seria trocado pelo genérico milissegundos depois.
+      IFrameHelper.launcherIconLabel = 'Falar com a Marina';
+      IFrameHelper.events.setBubbleLabel({
+        label: 'Converse conosco',
+        ariaLabel: 'Abrir o chat',
+      });
+
+      expect(chatBubble.getAttribute('aria-label')).toBe('Falar com a Marina');
+    });
+
+    it('mas a opção pública do cliente vence até o rótulo da aparência', () => {
+      window.$chatwoot = {
+        position: 'right',
+        type: 'standard',
+        launcherTitle: 'Fale com o suporte',
+      };
+      IFrameHelper.launcherIconLabel = 'Falar com a Marina';
+      IFrameHelper.events.setBubbleLabel({
+        label: 'Converse conosco',
+        ariaLabel: 'Abrir o chat',
+      });
+
+      expect(chatBubble.getAttribute('aria-label')).toBe('Fale com o suporte');
+    });
+
+    it('resolveLauncherIcon repassa rótulo explícito, e só ele — não traduz', () => {
+      expect(
+        resolveLauncherIcon({
+          locale: 'pt_BR',
+          widgetAppearance: {
+            launcher_icon: { mode: 'agent_photo', label: 'Falar com a Marina' },
+          },
+          avatarUrl: '/avatar/marina.png',
+        }).label
+      ).toBe('Falar com a Marina');
+
+      // Sem rótulo configurado devolve `null`, e quem nomeia é a ponte.
+      expect(resolveLauncherIcon({ locale: 'pt_BR' }).label).toBeNull();
+      expect(
+        resolveLauncherIcon({
+          widgetAppearance: { launcher_icon_label: '   ' },
+        }).label
+      ).toBeNull();
     });
   });
 
@@ -173,12 +249,15 @@ describe('3.19 (metade W) — o ícone do lançador deixa de ser um path fixo', 
 
       const path = target.querySelector('svg#woot-widget-bubble-icon path');
       expect(path.getAttribute('d')).toBe(bubbleSVG);
-      expect(path.getAttribute('fill')).toBe('#FFFFFF');
+      // `currentColor`, valor do bloco 1.05: o ícone herda `--w-on-brand`, que o
+      // servidor calculou por luminância. Um `#FFFFFF` cravado aqui deixaria o
+      // ícone branco sobre marca clara, a 3,07:1.
+      expect(path.getAttribute('fill')).toBe('currentColor');
       expect(target.querySelector('img')).toBeNull();
       expect(target.className).not.toContain('has-photo');
     });
 
-    it('o fill continua ATRIBUTO, não style inline — a variante clara pinta por CSS', () => {
+    it('INVARIANTE: o fill continua ATRIBUTO de apresentação, nunca style inline', () => {
       const target = freshButton();
       createBubbleIcon({
         className: 'woot-widget-bubble',
@@ -187,8 +266,11 @@ describe('3.19 (metade W) — o ícone do lançador deixa de ser um path fixo', 
       });
 
       const path = target.querySelector('path');
-      // `.woot-widget-bubble-color--lighter path { fill: var(--s-700) }` só vence
-      // se o fill for atributo de apresentação. Style inline mataria a variante.
+      // `style` inline é a única forma que uma folha sem `!important` não
+      // sobrescreve. Enquanto for atributo, qualquer regra futura sobre `path`
+      // ainda alcança o ícone — e é o que permitiu ao 1.05 trocar o valor sem
+      // tocar na forma. Um merge "moderno" que trocasse por `style.fill` passaria
+      // em tudo e mataria a variante clara em silêncio.
       expect(path.style.fill).toBe('');
       expect(path.hasAttribute('fill')).toBe(true);
     });

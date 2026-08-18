@@ -1,9 +1,29 @@
 <!DOCTYPE html>
-<html>
+<%# `lang` é o primeiro requisito de a11y de um documento (WCAG 3.1.1) e o widget
+    não tinha nenhum: o leitor de tela lia português com fonemas de inglês. O
+    locale da conta usa `_` (`pt_BR`); BCP 47 exige `-` (`pt-BR`), daí o `tr`.
+    O visitante pode trocar de idioma em tempo de execução quando a inbox tem
+    mais de um habilitado — nesse caso `App.vue` reescreve este atributo no
+    mesmo watcher que já cuida do `dir` de RTL. %>
+<html lang="<%= @web_widget.account.locale.to_s.tr('_', '-') %>">
   <head>
     <title><%= @global_config['INSTALLATION_NAME'] %></title>
     <%= csrf_meta_tags %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <%# Bloco 1.02 — os tokens de marca calculados no SERVIDOR, emitidos ANTES
+        de qualquer script. É o que mata o flash de cor errada: hoje o widget
+        pinta verde, o `App.vue` corrige depois, e em conexão lenta isso se vê.
+
+        NÃO tem `html_safe`, de propósito. `widget_color` é string livre no
+        banco e este `<style>` seria um vetor novo de injeção de CSS. O
+        `WidgetTokens` já valida `#RRGGBB` e cai no default se não bater; o
+        escape do ERB é a segunda linha de defesa, e não altera a saída válida
+        (só há `-a-zA-Z0-9#:;{}.()` nela — nada que o escape toque).
+
+        Este `<style>` sai FORA de `@layer`, e `_tokens.scss` declara os
+        fallbacks DENTRO de `@layer base`: sem camada vence com camada, então
+        ele sobrescreve sem precisar de `!important`. %>
+    <style><%= WidgetTokens.for(@web_widget).css %></style>
     <script>
       window.chatwootWebChannel = {
         avatarUrl: '<%= @web_widget.inbox.avatar_url %>',
@@ -14,6 +34,10 @@
         welcomeTagline: <%= @web_widget.welcome_tagline.to_json.html_safe %>,
         welcomeTitle: '<%= @web_widget.welcome_title %>',
         widgetColor: '<%= @web_widget.widget_color %>',
+        // Mesma fonte que o `<style>` acima. O launcher vive FORA do iframe e
+        // não alcança este `:root`; ele recebe os tokens prontos por esta
+        // ponte (bloco 1.03) em vez de recalcular contraste em JS.
+        tokens: <%= WidgetTokens.for(@web_widget).to_h.to_json.html_safe %>,
         portal: <%= @web_widget.inbox.portal.to_json.html_safe %>,
         enabledFeatures: <%= @web_widget.selected_feature_flags.to_json.html_safe %>,
         enabledLanguages: <%= available_locales_with_name.to_json.html_safe %>,

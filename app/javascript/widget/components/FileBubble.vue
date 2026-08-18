@@ -1,6 +1,5 @@
 <script>
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
-import { getContrastingTextColor } from '@chatwoot/utils';
 
 export default {
   components: {
@@ -14,10 +13,6 @@ export default {
     isInProgress: {
       type: Boolean,
       default: false,
-    },
-    widgetColor: {
-      type: String,
-      default: '',
     },
     isUserBubble: {
       type: Boolean,
@@ -33,13 +28,13 @@ export default {
     fileName() {
       return this.url.substring(this.url.lastIndexOf('/') + 1);
     },
-    contrastingTextColor() {
-      return getContrastingTextColor(this.widgetColor);
-    },
     textColor() {
-      return this.isUserBubble && this.widgetColor
-        ? this.contrastingTextColor
-        : '';
+      // A bolha do visitante tem `--w-brand` como fundo, e a cor legível SOBRE
+      // a marca é decidida por luminância WCAG no servidor (bloco 1.02) — não
+      // mais por YIQ aqui. Vazio continua significando "herda do balão do
+      // agente", que é o comportamento de antes para a bolha que não é do
+      // visitante.
+      return this.isUserBubble ? 'var(--w-on-brand)' : '';
     },
   },
   methods: {
@@ -82,11 +77,11 @@ export default {
 <style lang="scss" scoped>
 .file {
   .icon-wrap {
-    @apply text-[2.5rem] text-n-brand leading-none ltr:ml-1 rtl:mr-1 ltr:mr-2 rtl:ml-2;
+    @apply text-[2.5rem] text-w-brand-readable leading-none ltr:ml-1 rtl:mr-1 ltr:mr-2 rtl:ml-2;
   }
 
   .download {
-    @apply text-n-brand font-medium p-0 m-0 text-xs no-underline;
+    @apply text-w-brand-readable font-medium p-0 m-0 text-xs no-underline;
   }
 }
 </style>

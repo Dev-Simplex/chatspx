@@ -26,33 +26,6 @@ const PHOTO_CLASS = 'woot-widget-bubble--has-photo';
 const PHOTO_IMG_CLASS = 'woot-widget-bubble__photo';
 
 /**
- * Nome acessível do lançador, traduzido (asserção 9).
- * Até aqui o botão nascia com um title cravado em inglês, igual para toda conta e
- * para todo idioma. É esse literal que este bloco mata — e o teste varre o arquivo
- * inteiro atrás dele, por isso ele não aparece nem em comentário.
- *
- * O SDK roda na página do cliente, fora do bundle de i18n do widget — por isso a
- * tabela vive aqui, com as duas formas que o plano nomeia: com o nome de alguém
- * ("Falar com a Marina") e a genérica ("Abrir chat").
- */
-const LAUNCHER_LABELS = {
-  pt_BR: { named: 'Falar com {name}', generic: 'Abrir chat' },
-  pt: { named: 'Falar com {name}', generic: 'Abrir chat' },
-  es: { named: 'Hablar con {name}', generic: 'Abrir chat' },
-  en: { named: 'Chat with {name}', generic: 'Open chat' },
-};
-
-export const launcherLabel = ({ locale, name } = {}) => {
-  const pack =
-    LAUNCHER_LABELS[locale] ||
-    LAUNCHER_LABELS[String(locale || '').split(/[_-]/)[0]] ||
-    LAUNCHER_LABELS.en;
-
-  const trimmed = typeof name === 'string' ? name.trim() : '';
-  return trimmed ? pack.named.replace('{name}', trimmed) : pack.generic;
-};
-
-/**
  * Normaliza `launcher_icon` contra o contrato, aceitando as duas formas que o schema
  * de 3.18 pode assumir: a string do modo, ou o objeto com modo e URL.
  *
@@ -60,6 +33,12 @@ export const launcherLabel = ({ locale, name } = {}) => {
  *  - chave ausente, modo desconhecido ou `image` sem URL → `default` (nunca um lançador vazio);
  *  - `agent_photo` reusa o `avatarUrl` que o canal já entrega, sem upload novo;
  *  - `agent_photo` sem avatar → `default`.
+ *
+ * SOBRE O `label`, e é o que mudou no merge com o 1.06: este resolvedor NÃO traduz.
+ * Ele só repassa um rótulo que o administrador tenha escrito explicitamente na tela
+ * de aparência, nomeando a pessoa da foto. A forma genérica traduzida vem do painel, pela
+ * ponte do 1.06, que tem 40 locales — uma tabela de idiomas aqui seria uma segunda
+ * fonte de i18n, condenada a divergir da primeira.
  */
 export const resolveLauncherIcon = (channelConfig = {}) => {
   const config = channelConfig || {};
@@ -68,10 +47,9 @@ export const resolveLauncherIcon = (channelConfig = {}) => {
   const asObject = raw && typeof raw === 'object' ? raw : {};
   const requested = typeof raw === 'string' ? raw : asObject.mode;
 
-  const label = launcherLabel({
-    locale: config.locale,
-    name: asObject.label || appearance.launcher_icon_label,
-  });
+  const explicit = asObject.label || appearance.launcher_icon_label;
+  const label =
+    typeof explicit === 'string' && explicit.trim() ? explicit.trim() : null;
 
   const mode = LAUNCHER_ICON_MODES.includes(requested) ? requested : 'default';
 
@@ -130,10 +108,23 @@ const buildBubbleSvgNode = (path, fill) => {
     'path'
   );
   bubblePath.setAttributeNS(null, 'd', path);
-  // O literal continua ATRIBUTO de propósito: `.woot-widget-bubble-color--lighter path`
-  // pinta por CSS, e CSS vence atributo de apresentação. Um `style` inline aqui mataria
-  // silenciosamente a variante clara. A troca por token é do bloco 1.05, que abre esta
-  // mesma linha — este bloco só a parametriza para o merge não brigar.
+  // VALOR do 1.05, FORMA do 3.19, e as duas coisas importam por motivos diferentes.
+  //
+  // VALOR — `currentColor`, não um branco cravado: a cor do ícone herda o `color`
+  // do lançador, que é `var(--w-on-brand)`, a decisão de contraste que o servidor
+  // calculou por luminância WCAG. Com marca clara o ícone escurece sozinho, em vez
+  // de ficar branco sobre claro a 3,07:1. Manter o `#FFFFFF` do 3.19 aqui teria
+  // desfeito o 1.05 em silêncio — sem erro, sem teste vermelho.
+  //
+  // FORMA — continua ATRIBUTO de apresentação, nunca `style` inline. O 1.05 apagou
+  // as regras `.woot-widget-bubble-color--lighter path`, então o motivo original
+  // ("CSS vence atributo") já não se aplica; o motivo que ficou é outro e continua
+  // valendo: `style` inline é a única coisa que uma folha sem `!important` não
+  // consegue sobrescrever. Enquanto for atributo, qualquer regra futura sobre `path`
+  // ainda alcança o ícone. Há teste travando isso.
+  //
+  // O parâmetro existe porque o caminho de `onerror` (asserção 6) reconstrói este
+  // mesmo nó, e os dois construtores têm de pintar igual.
   bubblePath.setAttributeNS(null, 'fill', fill);
 
   bubbleIcon.appendChild(bubblePath);
@@ -181,12 +172,35 @@ export const setBubbleText = bubbleText => {
   }
 };
 
+/**
+ * Nome acessível do lançador, que vive no documento do HOST.
+ *
+ * O lançador é um `<button>` só com ícone: sem nome, o leitor de tela anuncia
+ * "botão" e o visitante não descobre que ali abre o chat.
+ *
+ * A tradução não pode nascer neste arquivo: o SDK roda fora do bundle do widget
+ * e não alcança o i18n do Vue. Ela chega pela ponte que já existe para o texto
+ * do modo expandido (`setBubbleLabel`), com a string vinda do painel, que tem os
+ * 40 locales. `window.$chatwoot.launcherTitle` (opção pública do cliente)
+ * continua tendo precedência, como no texto expandido.
+ */
+export const setBubbleAccessibleName = name => {
+  if (!name) return;
+  [chatBubble, closeBubble].forEach(bubble => {
+    bubble.title = name;
+    bubble.setAttribute('aria-label', name);
+  });
+};
+
 export const createBubbleIcon = ({
   className,
   path,
   target,
   launcherIcon = { mode: 'default', src: null, label: null },
-  iconFill = '#FFFFFF',
+  // Default do 1.05, não o `#FFFFFF` que o 3.19 trazia: o branco cravado é
+  // exatamente o defeito que o 1.05 matou. Ver o comentário longo em
+  // `buildBubbleSvgNode`.
+  iconFill = 'currentColor',
 }) => {
   let bubbleClassName = `${className} woot-elements--${window.$chatwoot.position}`;
 
@@ -212,12 +226,21 @@ export const createBubbleIcon = ({
   }
 
   target.className = bubbleClassName;
-
-  // Asserção 9: nome acessível traduzido, nunca mais o title cravado em inglês.
-  const accessibleName = label || launcherLabel({});
-  target.title = accessibleName;
-  target.setAttribute('aria-label', accessibleName);
-
+  // Nome provisório, válido pelos milissegundos até o painel montar e a ponte
+  // entregar a string traduzida (ver `setBubbleAccessibleName`). Verificado que a
+  // ponte SEMPRE dispara: `bridge/handlers.js` chama `setBubbleLabel` em
+  // `config-set` e em `set-locale` — o inglês daqui nunca é o estado final.
+  // Não deixar `title` vazio é deliberado: um botão sem nome é pior para o
+  // leitor de tela do que um botão com nome no idioma errado.
+  //
+  // Precedência, do mais específico para o mais genérico:
+  //   1. `launcherTitle` — a opção pública que o cliente escreve no snippet;
+  //   2. `label` — o rótulo que o admin escreveu na tela de aparência (3.19), que
+  //      é onde mora a forma que nomeia a pessoa da foto: só quem configurou o
+  //      lançador sabe o nome da pessoa na foto;
+  //   3. o provisório, substituído pela ponte (40 locales) em milissegundos.
+  target.title = window.$chatwoot.launcherTitle || label || 'Open chat window';
+  target.setAttribute('aria-label', target.title);
   return target;
 };
 

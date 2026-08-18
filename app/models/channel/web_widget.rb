@@ -45,15 +45,23 @@ class Channel::WebWidget < ApplicationRecord
   DEFAULT_WIDGET_COLOR = '#2dc46f'.freeze
   attribute :widget_color, :string, default: DEFAULT_WIDGET_COLOR
 
+  # As sete chaves novas do bloco 3.12 (`step`, `show_if`, `mask`, `validator`,
+  # `help_text`, `error_message`, `position`) entram AQUI porque `permit` e lista
+  # fechada: chave nao declarada nao levanta erro, e descartada em silencio — o
+  # PATCH volta 200 e a mascara simplesmente nao existe no banco. A forma dos
+  # VALORES fica em `Channel::WebWidget::PreChatFormSchema`.
   EDITABLE_ATTRS = [:website_url, :widget_color, :welcome_title, :welcome_tagline, :reply_time, :pre_chat_form_enabled,
                     :continuity_via_email, :hmac_mandatory, :allowed_domains,
-                    { pre_chat_form_options: [:pre_chat_message, :require_email,
+                    { pre_chat_form_options: [:pre_chat_message, :require_email, :mode,
                                               { pre_chat_fields:
                                                 [:field_type, :label, :placeholder, :name, :enabled, :type, :enabled, :required,
-                                                 :locale, { values: [] }, :regex_pattern, :regex_cue] }] },
+                                                 :locale, { values: [] }, :regex_pattern, :regex_cue,
+                                                 :step, :position, :mask, :validator, :help_text, :error_message,
+                                                 { show_if: [:field, :operator, :value] }] }] },
                     { selected_feature_flags: [] }].freeze
 
   before_validation :validate_pre_chat_options
+  validate :pre_chat_form_options_shape
   validates :website_url, presence: true
   validates :widget_color, presence: true
   has_many :portals, foreign_key: 'channel_web_widget_id', dependent: :nullify, inverse_of: :channel_web_widget
@@ -112,6 +120,23 @@ class Channel::WebWidget < ApplicationRecord
         }
       ]
     }
+  end
+
+  # Bloco 3.12: a forma de `pre_chat_form_options` conferida por json_schemer.
+  # Roda DEPOIS de `validate_pre_chat_options` (que semeia o default de fabrica),
+  # de proposito: a semente tambem tem de passar pelo schema.
+  def pre_chat_form_options_shape
+    options = pre_chat_form_options.presence
+    return if options.blank?
+
+    schema_errors = Channel::WebWidget::PreChatFormSchema.validator.validate(options.as_json).to_a
+    return if schema_errors.empty?
+
+    # Teto de cinco: um array de oito campos com a mesma chave errada em todos
+    # geraria oito mensagens iguais, e a tela mostra o primeiro erro.
+    schema_errors.first(5).each do |schema_error|
+      errors.add(:pre_chat_form_options, Channel::WebWidget::PreChatFormSchema.humanize(schema_error))
+    end
   end
 
   def create_contact_inbox(additional_attributes = {})

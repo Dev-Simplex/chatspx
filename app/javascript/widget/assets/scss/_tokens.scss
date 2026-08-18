@@ -1,0 +1,68 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TOKENS DO WIDGET — a folha única de onde sai toda cor, curva e anel de foco.
+//
+// Bloco 1.01 do PLANO-MESTRE (§2.2 · W1.1). Este arquivo NASCEU do recorte
+// integral do `@layer base` que vivia no fim de `woot.scss`; nada de valor foi
+// alterado no recorte. O que `woot.scss` faz agora é `@import 'tokens';` na
+// mesma posição em que o bloco estava — a ordem de emissão do CSS é a mesma,
+// byte a byte, e por isso os 16 snapshots do widget não se movem por causa
+// deste bloco.
+//
+// POR QUE ARQUIVO PRÓPRIO: enquanto os tokens moravam dentro da folha de
+// estilo, toda tarefa que precisava de um token novo editava o mesmo arquivo
+// que o upstream edita. Aqui o `woot.scss` volta a ser só regra, e o namespace
+// `--w-*` (nosso) fica num arquivo que o upstream não conhece — conflito de
+// merge zero por construção.
+//
+// ⚠️ REGRA: `woot.scss` não declara valor de token. Nenhum. O aceite do bloco
+// 1.01 é exatamente isso, e ele é medido por grep.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// scss-lint:disable PropertySortOrder
+@import 'tokens_values';
+
+@layer base {
+  // NEXT COLORS START
+  :root {
+    @include widget-palette-light;
+  }
+
+  .dark {
+    @include widget-palette-dark;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NAMESPACE `--w-*` — a marca da inbox, o movimento e o foco
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Os seis tokens de MARCA abaixo são FALLBACK, não fonte. A fonte é o servidor:
+// `WidgetTokens` (bloco 1.02) recalcula os seis a partir de
+// `inbox.channel.widget_color` e os emite num `<style>` do `show.html.erb`,
+// FORA de qualquer `@layer`. Regra sem camada vence regra em camada no cascade
+// — por isso o servidor sobrescreve estes valores sem precisar de
+// `!important`, e por isso o widget pinta com a cor da inbox já no 1º paint.
+//
+// Os valores aqui são os do literal histórico `#2dc46f` (o antigo
+// `theme/colors.js › n.brand`), derivados PELA MESMA fórmula do serviço Ruby.
+// O spec `spec/services/widget_tokens_spec.rb` compara os dois: se alguém
+// mudar a fórmula de um lado só, o teste quebra.
+//
+//   L(#2dc46f) = 0,411854 > 0,17913 (limiar WCAG)  →  --w-on-brand: #000000
+//   contraste #2dc46f × #000000 = 9,2371:1   (contra o branco seriam 2,2734:1,
+//   que é a falha medida de contraste do balão do visitante)
+@layer base {
+  :root {
+    @include widget-brand-light;
+  }
+
+  .dark {
+    @include widget-brand-dark;
+  }
+
+  @media (prefers-contrast: more) {
+    :root {
+      --w-focus-ring-width: 3px;
+    }
+  }
+}

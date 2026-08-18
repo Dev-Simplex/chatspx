@@ -47,7 +47,14 @@ class Contact < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include Labelable
   include LlmFormattable
 
+  # O contato nao tinha teto nenhum de custom_attributes — nem de tamanho por
+  # valor, nem de quantidade de chaves. Como o widget escreve nele a partir do
+  # site do cliente (setCustomAttributes), qualquer script podia crescer o jsonb
+  # sem limite. Conversation e Company ja usavam o validador; o contato, nao.
+  CUSTOM_ATTRIBUTES_MAX_KEYS = 50
+
   validates :account_id, presence: true
+  validates :custom_attributes, jsonb_attributes_length: { max_keys: CUSTOM_ATTRIBUTES_MAX_KEYS }
   validates :email, allow_blank: true, uniqueness: { scope: [:account_id], case_sensitive: false },
                     format: { with: Devise.email_regexp, message: I18n.t('errors.contacts.email.invalid') }
   validates :identifier, allow_blank: true, uniqueness: { scope: [:account_id] }

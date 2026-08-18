@@ -205,6 +205,10 @@ class Conversation < ApplicationRecord
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
+  # Bloco 1.19 — parser de origem (C0). `before_create` porque o `referer` já saiu saneado pelo
+  # 1.20 nas validações, e as chaves entram no MESMO insert: o painel as tem na primeira leitura.
+  before_create :record_last_origin
+  after_create :record_first_origin
 
   # Status changes must use update! or save! (never update_column) so these callbacks run and
   # CONVERSATION_STATUS_CHANGED is dispatched (e.g. for NPS survey).
@@ -625,10 +629,30 @@ class Conversation < ApplicationRecord
     create_label_removed(user_name, previous_labels - current_labels)
   end
 
+  def record_last_origin
+    origin_recorder.record_conversation
+  rescue StandardError => e
+    # Origem é enriquecimento: um referer exótico não pode impedir a conversa de nascer.
+    ChatwootExceptionTracker.new(e, account: account).capture_exception
+  end
+
+  def record_first_origin
+    origin_recorder.ensure_definitions
+    origin_recorder.record_contact
+  rescue StandardError => e
+    ChatwootExceptionTracker.new(e, account: account).capture_exception
+  end
+
+  def origin_recorder
+    @origin_recorder ||= Tracking::OriginRecorder.new(self)
+  end
+
   def validate_referer_url
     return unless additional_attributes['referer']
 
-    self['additional_attributes']['referer'] = nil unless url_valid?(additional_attributes['referer'])
+    # Bloco 1.20 — a lógica vive em `lib/url_helper.rb` (arquivo 0/0 no merge do upstream); aqui
+    # fica só a chamada. Antes, URL mal escapada virava `nil` em silêncio e a origem do lead sumia.
+    sanitize_referer_attribute!(self['additional_attributes'])
   end
 
   def add_to_appropriate_funnel # rubocop:disable Metrics/AbcSize
