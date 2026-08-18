@@ -59,6 +59,88 @@ RSpec.describe Contact do
     end
   end
 
+  # O contato nao tinha teto NENHUM de custom_attributes — nem de tamanho por
+  # valor, nem de quantidade de chaves — apesar de o widget escrever nele a
+  # partir do site do cliente. Conversation e Company ja validavam; o contato nao.
+  describe 'teto de custom_attributes' do
+    let(:account) { create(:account) }
+    let(:max_keys) { described_class::CUSTOM_ATTRIBUTES_MAX_KEYS }
+
+    def attributes_with(count, prefix: 'chave')
+      (1..count).to_h { |index| ["#{prefix}_#{index}", "valor #{index}"] }
+    end
+
+    it 'aceita exatamente o teto de chaves' do
+      contact = build(:contact, account: account, custom_attributes: attributes_with(max_keys))
+
+      expect(contact).to be_valid
+      expect(contact.custom_attributes.size).to eq(50)
+    end
+
+    it 'recusa uma chave acima do teto, com erro legivel' do
+      contact = build(:contact, account: account, custom_attributes: attributes_with(max_keys + 1))
+
+      expect(contact).not_to be_valid
+      expect(contact.errors[:custom_attributes]).to eq(['cannot have more than 50 attributes (got 51)'])
+    end
+
+    it 'recusa valor de texto acima de 1500 caracteres' do
+      contact = build(:contact, account: account, custom_attributes: { 'bio' => 'a' * 1501 })
+
+      expect(contact).not_to be_valid
+      expect(contact.errors[:custom_attributes]).to eq(['bio length should be < 1500'])
+    end
+
+    it 'aceita valor de texto com exatamente 1500 caracteres' do
+      contact = build(:contact, account: account, custom_attributes: { 'bio' => 'a' * 1500 })
+
+      expect(contact).to be_valid
+    end
+
+    it 'recusa inteiro acima do teto' do
+      contact = build(:contact, account: account, custom_attributes: { 'saldo' => 10_000_000_000 })
+
+      expect(contact).not_to be_valid
+      expect(contact.errors[:custom_attributes]).to eq(['saldo value should be < 9999999999'])
+    end
+
+    # A validacao morde no CRESCIMENTO, nao no estado. Um teto novo nao pode
+    # travar a edicao de nome e telefone de contato historico que ja passou dele.
+    context 'when the contact already blew past the cap before the validation existed' do
+      let(:contact) do
+        record = build(:contact, account: account, custom_attributes: attributes_with(80))
+        record.save!(validate: false)
+        record.reload
+      end
+
+      it 'nasceu com 80 chaves, acima do teto' do
+        expect(contact.custom_attributes.size).to eq(80)
+      end
+
+      it 'continua salvando edicao que nao mexe no jsonb' do
+        contact.name = 'Nome novo'
+
+        expect(contact.save).to be(true)
+        expect(contact.reload.name).to eq('Nome novo')
+      end
+
+      it 'continua salvando quando o jsonb encolhe, mesmo seguindo acima do teto' do
+        contact.custom_attributes = attributes_with(70)
+
+        expect(contact.save).to be(true)
+        expect(contact.reload.custom_attributes.size).to eq(70)
+      end
+
+      it 'recusa quando o jsonb cresce' do
+        contact.custom_attributes = attributes_with(81)
+
+        expect(contact.save).to be(false)
+        expect(contact.errors[:custom_attributes]).to eq(['cannot have more than 50 attributes (got 81)'])
+        expect(contact.reload.custom_attributes.size).to eq(80)
+      end
+    end
+  end
+
   context 'when phone number format' do
     it 'will throw error for existing invalid phone number' do
       contact = create(:contact)
