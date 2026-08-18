@@ -66,6 +66,46 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
     end
   end
 
+  # O retorno da tool é o ÚNICO relato que o modelo tem do que saiu — ele não vê as fotos nem
+  # sabe quantas existem. A redação antiga dizia "fotos principais" e oferecia a "galeria completa
+  # no site" mesmo quando tinha mandado tudo. Medido na Tozi, conversa 49883: o imóvel 4586 tem UMA
+  # foto cadastrada, a IA relatou "Enviei as fotos!" e seguiu como se tivesse mostrado a casa.
+  describe 'what the tool reports back to the model' do
+    let(:channel) { create(:channel_instagram, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+
+    def detalhes_com(quantidade)
+      fotos = (1..quantidade).to_h { |i| [i.to_s, { 'Foto' => "https://cdn.example.com/#{i}.jpg" }] }
+      { 'Codigo' => '9434', 'Status' => 'VENDA', 'Categoria' => 'Casa', 'Foto' => fotos }
+    end
+
+    it 'says "foto" in the singular and denies a gallery when the property has only one' do
+      allow(tool).to receive(:fetch_detalhes).and_return(detalhes_com(1))
+      retorno = tool.perform(tool_context, codigo: '9434')
+
+      expect(retorno).to include('1 foto').and include('tudo que ele tem cadastrado')
+      expect(retorno).not_to include('1 fotos')
+      expect(retorno).not_to match(/galeria/i)
+    end
+
+    it 'does not promise more photos when it sent every one that exists' do
+      allow(tool).to receive(:fetch_detalhes).and_return(detalhes_com(3))
+      retorno = tool.perform(tool_context, codigo: '9434')
+
+      expect(retorno).to include('3 fotos').and include('não há outras nem no site')
+      expect(retorno).not_to match(/galeria/i)
+    end
+
+    # Aqui a oferta da galeria é honesta: o teto por imóvel cortou, e o site tem o resto.
+    it 'offers the gallery when the per-property cap truncated a property that has more' do
+      allow(tool).to receive(:fetch_detalhes).and_return(detalhes_com(12))
+      conversation.update!(custom_attributes: { 'fotos_offset_9434' => 6 })
+      retorno = tool.perform(tool_context, codigo: '9434')
+
+      expect(retorno).to include('9 fotos').and include('o imóvel tem mais')
+    end
+  end
+
   # A trava anti-alucinação compara o código pedido com o que a busca DESTA conversa
   # registrou. Ela lia só `codigos_buscados`, que guarda apenas o Codigo e corta em 40; o
   # `urls_imoveis` guarda Codigo E ImoCodigo e corta em 60. Como a IA cita ora um ora outro,
