@@ -28,6 +28,10 @@ module WidgetConfigurable
   included do
     store_accessor :additional_attributes, :widget_profile, :widget_triggers, :widget_tracking, :widget_appearance
 
+    # Regime 1 de A3: o perfil semeia o que nasce agora, e so na CRIACAO. Antes do INSERT, para que
+    # o valor semeado passe pelas mesmas validacoes de todo o resto.
+    before_create { WidgetProfile.seed_defaults(self) }
+
     validate :ensure_valid_widget_profile
     validate :ensure_widget_config_objects
     validate :ensure_no_secret_in_widget_config
