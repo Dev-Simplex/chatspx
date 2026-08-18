@@ -1,0 +1,168 @@
+<script setup>
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import RadioCard from 'dashboard/components-next/radioCard/RadioCard.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
+
+/**
+ * O lançador: posição, distância das bordas, formato, texto e esconder.
+ *
+ * Tudo isto vivia no `localStorage` do navegador do administrador (D1) ou só
+ * no snippet. Aqui vira campo de configuração — o valor viaja em
+ * `widget_appearance` e é o mesmo para todo administrador da conta.
+ *
+ * Os limites (0–120 px, 40 caracteres) são os do JSON Schema do bloco 3.18: a
+ * tela avisa antes, o servidor recusa depois. Validação de verdade é a do
+ * servidor; esta aqui é cortesia.
+ */
+const props = defineProps({
+  appearance: { type: Object, required: true },
+  /** Campos que o `chatwootSettings` do site sobrescreve. */
+  overriddenFields: { type: Array, default: () => [] },
+});
+
+const emit = defineEmits(['update']);
+
+const { t } = useI18n();
+
+const POSITIONS = ['left', 'right'];
+const TYPES = ['standard', 'expanded_bubble'];
+const OFFSET_MIN = 0;
+const OFFSET_MAX = 120;
+const LAUNCHER_TEXT_MAX = 40;
+
+const isExpanded = computed(
+  () => props.appearance.launcher_type === 'expanded_bubble'
+);
+
+const launcherTextTooLong = computed(
+  () => (props.appearance.launcher_text ?? '').length > LAUNCHER_TEXT_MAX
+);
+
+const set = (field, value) => emit('update', field, value);
+
+const setOffset = (field, raw) => {
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isNaN(parsed)) return;
+  set(field, Math.min(OFFSET_MAX, Math.max(OFFSET_MIN, parsed)));
+};
+
+const isOverridden = field => props.overriddenFields.includes(field);
+</script>
+
+<template>
+  <div class="flex flex-col">
+    <SettingsFieldSection
+      :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.POSITION')"
+      :help-text="
+        isOverridden('position')
+          ? t('INBOX_WIDGET.APPEARANCE.OVERRIDE.FIELD_HINT')
+          : ''
+      "
+    >
+      <div class="grid gap-3 sm:grid-cols-2">
+        <RadioCard
+          v-for="position in POSITIONS"
+          :id="`position-${position}`"
+          :key="position"
+          :label="
+            t(
+              `INBOX_WIDGET.APPEARANCE.LAUNCHER.POSITIONS.${position.toUpperCase()}`
+            )
+          "
+          :description="
+            t(
+              `INBOX_WIDGET.APPEARANCE.LAUNCHER.POSITIONS.${position.toUpperCase()}_HINT`
+            )
+          "
+          :is-active="appearance.position === position"
+          :data-testid="`position-${position}`"
+          @select="set('position', position)"
+        />
+      </div>
+    </SettingsFieldSection>
+
+    <SettingsFieldSection
+      :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.OFFSETS')"
+      :help-text="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.OFFSETS_HINT')"
+    >
+      <div class="flex gap-4">
+        <Input
+          id="offset-x"
+          type="number"
+          class="w-28"
+          :model-value="appearance.offset_x"
+          :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.OFFSET_X')"
+          data-testid="offset-x"
+          @update:model-value="setOffset('offset_x', $event)"
+        />
+        <Input
+          id="offset-y"
+          type="number"
+          class="w-28"
+          :model-value="appearance.offset_y"
+          :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.OFFSET_Y')"
+          data-testid="offset-y"
+          @update:model-value="setOffset('offset_y', $event)"
+        />
+      </div>
+    </SettingsFieldSection>
+
+    <SettingsFieldSection :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.TYPE')">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <RadioCard
+          v-for="type in TYPES"
+          :id="`launcher-${type}`"
+          :key="type"
+          :label="
+            t(`INBOX_WIDGET.APPEARANCE.LAUNCHER.TYPES.${type.toUpperCase()}`)
+          "
+          :description="
+            t(
+              `INBOX_WIDGET.APPEARANCE.LAUNCHER.TYPES.${type.toUpperCase()}_HINT`
+            )
+          "
+          :is-active="appearance.launcher_type === type"
+          :data-testid="`launcher-${type}`"
+          @select="set('launcher_type', type)"
+        />
+      </div>
+    </SettingsFieldSection>
+
+    <SettingsFieldSection
+      v-if="isExpanded"
+      :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.TEXT')"
+    >
+      <Input
+        id="launcher-text"
+        class="max-w-sm"
+        :model-value="appearance.launcher_text"
+        :placeholder="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.TEXT_PLACEHOLDER')"
+        :message="
+          launcherTextTooLong
+            ? t('INBOX_WIDGET.APPEARANCE.LAUNCHER.TEXT_TOO_LONG', {
+                max: LAUNCHER_TEXT_MAX,
+              })
+            : ''
+        "
+        :message-type="launcherTextTooLong ? 'error' : 'info'"
+        data-testid="launcher-text"
+        @update:model-value="set('launcher_text', $event)"
+      />
+    </SettingsFieldSection>
+
+    <SettingsFieldSection
+      :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.HIDE_BUBBLE')"
+      :help-text="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.HIDE_BUBBLE_HINT')"
+    >
+      <Switch
+        :model-value="appearance.hide_bubble"
+        :aria-label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.HIDE_BUBBLE')"
+        data-testid="hide-bubble"
+        @update:model-value="set('hide_bubble', $event)"
+      />
+    </SettingsFieldSection>
+  </div>
+</template>

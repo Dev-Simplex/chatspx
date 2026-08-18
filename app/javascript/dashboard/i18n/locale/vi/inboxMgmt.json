@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "Xin chào",
         "AGENT_MESSAGE": "Xin chào"
       },
-      "BRANDING_TEXT": "CC bởi Chatwoot",
-      "SCRIPT_SETTINGS": "\nwindow.chatwootSettings = {options};"
+      "BRANDING_TEXT": "CC bởi Chatwoot"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {
