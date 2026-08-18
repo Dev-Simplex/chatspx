@@ -24,7 +24,7 @@ describe('ContrastReadout', () => {
       'ajustamos'
     );
     expect(linha.find('[data-testid="adjusted-ratio"]').text()).toContain(
-      '5,09:1'
+      '4,83:1'
     );
   });
 
@@ -33,7 +33,7 @@ describe('ContrastReadout', () => {
 
     expect(wrapper.find('[data-testid="contrast-explanation"]').text()).toBe(
       'Em fundo claro, #2DC46F como texto dá 2,27:1 — abaixo do mínimo ' +
-        'legível. Links e rótulos usarão #00802F (5,09:1). O preenchimento ' +
+        'legível. Links e rótulos usarão #1D824A (4,83:1). O preenchimento ' +
         'continua #2DC46F.'
     );
   });

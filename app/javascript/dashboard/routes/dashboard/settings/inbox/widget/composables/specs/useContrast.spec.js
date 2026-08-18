@@ -8,13 +8,16 @@ import {
   isValidHex,
   luminance,
   onBrandColor,
+  readableOn,
+  SURFACE,
 } from '../useContrast';
 
 /**
- * A fixture NAO foi escrita a mao nem gerada por este mesmo codigo: ela e
- * medida no Chromium por pixel de canvas (`scripts/gerar-fixture-tokens-marca.mjs`),
- * que e a implementacao de referencia da spec CSS Color 4. Comparar contra ela
- * e comparar contra o que o visitante ve — nao contra a nossa propria opiniao.
+ * A fixture NAO foi escrita a mao nem gerada por este mesmo codigo: ela sai do
+ * SERVIDOR — `WidgetTokens` (Ruby), o mesmo objeto que escreve o `<style>` do
+ * widget em producao — por `scripts/gerar-fixture-tokens-marca.rb`. E o
+ * cruzamento que o aceite pede: a derivacao canonica e a do servidor, e a tela
+ * mente se calcular diferente dele.
  */
 const fixture = JSON.parse(
   fs.readFileSync(
@@ -39,8 +42,8 @@ describe('useContrast — os numeros que a tela exibe', () => {
   it('#2DC46F reprovado como texto ganha cor ajustada que passa', () => {
     const [, brandAsTextLight] = contrastPairs('#2dc46f');
 
-    expect(brandAsTextLight.adjustedColor).toBe('#00802f');
-    expect(brandAsTextLight.adjustedRatio).toBeCloseTo(5.0863, 2);
+    expect(brandAsTextLight.adjustedColor).toBe('#1d824a');
+    expect(brandAsTextLight.adjustedRatio).toBeCloseTo(4.8341, 2);
     expect(brandAsTextLight.resolvedPasses).toBe(true);
   });
 
@@ -87,76 +90,14 @@ describe('useContrast × a derivação medida no Chromium (20 cores)', () => {
     expect(fixture.limiar_on_brand).toBe(0.17913);
   });
 
-  /**
-   * UMA divergencia conhecida, e ela esta declarada aqui em vez de escondida
-   * num `toBeCloseTo` generoso: `#7c3aed` como texto no tema claro cai no canal
-   * R em 115,4985 — a 0,0015 do meio do intervalo. Nos arredondamos para 115
-   * (#73) e o Chromium mostra 116 (#74). Medido tambem em float32
-   * (115,49854), o que descarta precisao de ponto flutuante como causa. E
-   * 1/255 num canal, invisivel a olho e irrelevante para contraste; o que NAO
-   * pode passar despercebido e uma segunda divergencia aparecer, ou uma
-   * divergencia maior que 1/255 — e disso o teste abaixo cuida.
-   */
-  const EXCECAO_CONHECIDA = {
-    brand: '#7c3aed',
-    theme: 'light',
-    token: '--w-brand-readable',
-  };
-
-  const canais = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-  const deltaMaximo = (a, b) => {
-    const x = canais(a);
-    return Math.max(...canais(b).map((v, i) => Math.abs(v - x[i])));
-  };
-
   it.each(fixture.cores.map(c => c.brand))(
-    '%s — os 7 tokens batem nos dois temas',
+    '%s — os 7 tokens do servidor batem hex a hex',
     brand => {
-      const esperado = byBrand(brand);
+      const esperado = fixture.cores.find(c => c.brand === brand);
 
-      ['light', 'dark'].forEach(theme => {
-        const calculado = brandTokens(brand, theme);
-        Object.entries(esperado.tokens[theme]).forEach(([token, valor]) => {
-          const eExcecao =
-            brand === EXCECAO_CONHECIDA.brand &&
-            theme === EXCECAO_CONHECIDA.theme &&
-            token === EXCECAO_CONHECIDA.token;
-
-          if (eExcecao) {
-            expect(deltaMaximo(calculado[token], valor)).toBe(1);
-          } else {
-            expect({ brand, theme, token, hex: calculado[token] }).toEqual({
-              brand,
-              theme,
-              token,
-              hex: valor,
-            });
-          }
-        });
-      });
+      expect(brandTokens(brand)).toEqual(esperado.tokens);
     }
   );
-
-  it('a exceção é UMA em 280 valores, e é aquela — não outra', () => {
-    const divergentes = [];
-    fixture.cores.forEach(({ brand, tokens }) => {
-      ['light', 'dark'].forEach(theme => {
-        const calculado = brandTokens(brand, theme);
-        Object.entries(tokens[theme]).forEach(([token, valor]) => {
-          if (calculado[token] !== valor) {
-            divergentes.push({
-              brand,
-              theme,
-              token,
-              delta: deltaMaximo(calculado[token], valor),
-            });
-          }
-        });
-      });
-    });
-
-    expect(divergentes).toEqual([{ ...EXCECAO_CONHECIDA, delta: 1 }]);
-  });
 
   it.each(fixture.cores.map(c => c.brand))(
     '%s — a luminância e as razões batem com a conta WCAG da fixture',
@@ -176,10 +117,31 @@ describe('useContrast × a derivação medida no Chromium (20 cores)', () => {
         esperado.contrast.brand_as_text_dark,
         2
       );
+      // o par 4 mede a MESMA cor contra o mesmo fundo do par 2 — o que muda e
+      // o alvo (3:1 em vez de 4,5:1), porque borda nao e texto
       expect(pairs[3].ratio).toBeCloseTo(
-        esperado.contrast.brand_as_border_light,
+        esperado.contrast.brand_as_text_light,
         2
       );
+    }
+  );
+
+  it('a superfície escura da tela é a MESMA do servidor', () => {
+    expect(SURFACE.dark).toBe(fixture.surface_dark);
+    expect(SURFACE.light).toBe(fixture.surface_light);
+  });
+
+  it.each(fixture.cores.map(c => c.brand))(
+    '%s — o texto ajustado alcança 4,5:1 nos dois temas, como no servidor',
+    brand => {
+      const esperado = fixture.cores.find(c => c.brand === brand);
+
+      expect(
+        contrastRatio(readableOn(brand, SURFACE.light), SURFACE.light)
+      ).toBeCloseTo(esperado.contrast.readable_light_on_surface, 2);
+      expect(
+        contrastRatio(readableOn(brand, SURFACE.dark), SURFACE.dark)
+      ).toBeCloseTo(esperado.contrast.readable_dark_on_surface, 2);
     }
   );
 
