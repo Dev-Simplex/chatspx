@@ -33,6 +33,9 @@ shared_examples_for 'auto_assignment_handler' do
     end
 
     it 'will not auto assign agent if its a bot conversation' do
+      # Conversa pending só é válida se a inbox habilitou o status Pendente (pending_status_enabled)
+      inbox.update!(pending_status_enabled: true)
+
       conversation = create(
         :conversation,
         account: account,

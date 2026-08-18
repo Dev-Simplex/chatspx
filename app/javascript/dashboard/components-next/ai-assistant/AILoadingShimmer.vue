@@ -1,59 +1,50 @@
 <script setup>
-import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 /**
- * Shimmer skeleton displayed while the panel waits for an AI response or
- * loads thread history. Uses Tailwind utilities + a project-level
- * `animate-shimmer` keyframe (declared in `tailwind.config.js`).
+ * Estado "carregando" do copiloto, na linguagem da OpenAI: **três pontinhos
+ * monocromáticos, nunca um spinner** e nunca uma barra colorida
+ * (public/mockups/copiloto-v2.html, seletor `.thinking`).
  *
- * Reduced-motion fallback: three pulsing dots via Tailwind's
- * `animate-pulse`, with `aria-busy="true"` so SR announces the loading
- * state without horizontal-motion noise. Per-item animation-delay is
- * applied via Tailwind arbitrary values to avoid inline styles.
+ * Sem bolha — a resposta que virá também não tem, então o placeholder ocupa
+ * exatamente o mesmo lugar do texto e a tela não "pula" quando o primeiro
+ * token chega.
+ *
+ * Reduced-motion: a animação `oa-bob` é desligada por media query em
+ * `_copilot-oa.scss`; os pontos ficam estáticos e legíveis, sem duplicar a
+ * regra em JavaScript.
+ *
+ * a11y: `role="status"` + `aria-busy="true"`; o rótulo é texto visível de
+ * verdade (não sr-only), então o leitor de tela anuncia o mesmo que o agente
+ * enxerga e o estado não depende do movimento.
  */
 
+const props = defineProps({
+  /** Texto opcional do que está sendo feito ("consultando o pedido"). */
+  label: { type: String, default: '' },
+});
+
 const { t } = useI18n();
-const { prefersReducedMotion } = useReducedMotion();
+
+const loadingLabel = computed(
+  () => props.label || t('CONVERSATION.AI_ASSISTANT_PANEL.LOADING')
+);
 </script>
 
 <template>
   <div
     role="status"
     aria-busy="true"
-    :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.LOADING')"
+    :aria-label="loadingLabel"
     data-testid="ai-loading-shimmer"
-    class="flex w-full max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm bg-n-solid-1 px-3 py-3 shadow-sm dark:bg-n-slate-12"
+    class="flex w-full items-center gap-2 text-[13.5px] text-[var(--oa-ink-2)]"
   >
-    <span class="sr-only">
-      {{ t('CONVERSATION.AI_ASSISTANT_PANEL.LOADING') }}
+    <span class="flex gap-1" aria-hidden="true">
+      <i class="oa-dot" data-testid="ai-loading-dot" />
+      <i class="oa-dot oa-dot--2" data-testid="ai-loading-dot" />
+      <i class="oa-dot oa-dot--3" data-testid="ai-loading-dot" />
     </span>
-
-    <template v-if="!prefersReducedMotion">
-      <div
-        class="h-3 w-11/12 rounded bg-gradient-to-r from-purple-50 via-purple-100 to-purple-50 bg-[length:200%_100%] animate-shimmer dark:from-purple-900/20 dark:via-purple-800/40 dark:to-purple-900/20"
-        aria-hidden="true"
-      />
-      <div
-        class="h-3 w-9/12 rounded bg-gradient-to-r from-purple-50 via-purple-100 to-purple-50 bg-[length:200%_100%] animate-shimmer dark:from-purple-900/20 dark:via-purple-800/40 dark:to-purple-900/20 [animation-delay:150ms]"
-        aria-hidden="true"
-      />
-      <div
-        class="h-3 w-7/12 rounded bg-gradient-to-r from-purple-50 via-purple-100 to-purple-50 bg-[length:200%_100%] animate-shimmer dark:from-purple-900/20 dark:via-purple-800/40 dark:to-purple-900/20 [animation-delay:300ms]"
-        aria-hidden="true"
-      />
-    </template>
-
-    <template v-else>
-      <div class="flex items-center gap-1.5" aria-hidden="true">
-        <span class="size-2 rounded-full bg-purple-500 animate-pulse" />
-        <span
-          class="size-2 rounded-full bg-purple-500 animate-pulse [animation-delay:200ms]"
-        />
-        <span
-          class="size-2 rounded-full bg-purple-500 animate-pulse [animation-delay:400ms]"
-        />
-      </div>
-    </template>
+    <span>{{ loadingLabel }}</span>
   </div>
 </template>

@@ -8,7 +8,7 @@ class Api::V1::Accounts::Captain::CopilotMessagesController < Api::V1::Accounts:
     @copilot_messages = @copilot_thread
                         .copilot_messages
                         .includes(:copilot_thread)
-                        .order(created_at: :asc)
+                        .order(created_at: :asc, id: :asc)
                         .page(permitted_params[:page] || 1)
                         .per(1000)
   end

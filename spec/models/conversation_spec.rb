@@ -376,7 +376,9 @@ RSpec.describe Conversation do
     end
 
     it 'toggles conversation status to open when pending' do
-      conversation = create(:conversation, status: 'pending')
+      # Conversa pending só é válida se a inbox habilitou o status Pendente (pending_status_enabled)
+      pending_inbox = create(:inbox, pending_status_enabled: true)
+      conversation = create(:conversation, account: pending_inbox.account, inbox: pending_inbox, status: 'pending')
       expect(conversation.toggle_status).to be(true)
       expect(conversation.reload.status).to eq('open')
     end
@@ -389,7 +391,9 @@ RSpec.describe Conversation do
   end
 
   describe '#bot_handoff!' do
-    let(:conversation) { create(:conversation, status: :pending) }
+    # Conversa pending só é válida se a inbox habilitou o status Pendente (pending_status_enabled)
+    let(:pending_inbox) { create(:inbox, pending_status_enabled: true) }
+    let(:conversation) { create(:conversation, account: pending_inbox.account, inbox: pending_inbox, status: :pending) }
 
     before do
       allow(Rails.configuration.dispatcher).to receive(:dispatch)
@@ -546,7 +550,8 @@ RSpec.describe Conversation do
       unmute!
       expect(Conversations::ActivityMessageJob)
         .to(have_been_enqueued.at_least(:once).with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
-                                                                       message_type: :activity, content: "#{user.name} has unmuted the conversation" }))
+                                                                       message_type: :activity,
+                                                                       content: "#{user.name} has unmuted the conversation" }))
     end
 
     context 'when contact is missing' do
@@ -726,7 +731,8 @@ RSpec.describe Conversation do
   end
 
   describe '#botinbox: when conversation created inside inbox with agent bot' do
-    let!(:bot_inbox) { create(:agent_bot_inbox) }
+    # O bot só abre a conversa em pending se a inbox habilitou o status Pendente (pending_status_enabled)
+    let!(:bot_inbox) { create(:agent_bot_inbox, inbox: create(:inbox, pending_status_enabled: true)) }
     let(:conversation) { create(:conversation, inbox: bot_inbox.inbox) }
 
     it 'returns conversation status as pending' do
@@ -769,7 +775,8 @@ RSpec.describe Conversation do
   end
 
   describe '#botintegration: when conversation created in inbox with dialogflow integration' do
-    let(:inbox) { create(:inbox) }
+    # O bot só abre a conversa em pending se a inbox habilitou o status Pendente (pending_status_enabled)
+    let(:inbox) { create(:inbox, pending_status_enabled: true) }
     let(:hook) { create(:integrations_hook, :dialogflow, inbox: inbox) }
     let(:conversation) { create(:conversation, inbox: hook.inbox) }
 

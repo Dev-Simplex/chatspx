@@ -1,4 +1,9 @@
 class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesController
+  # Lista de transmissao. A app `chatwoot` da WAHA injeta o prefixo de autor
+  # quando `isJidGroup(chatId) || isJidBroadcast(chatId)` — ou seja, grupo E
+  # broadcast. O `Conversation#group?` (contrato C1) cobre so `@g.us`.
+  WHATSAPP_BROADCAST_JID_SUFFIX = '@broadcast'.freeze
+
   before_action :set_message, only: [:update]
 
   def index
@@ -11,6 +16,7 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
     @message = @conversation.messages.new(message_params)
     build_attachment
     @message.save!
+    schedule_group_sender_phone_resolution
   end
 
   def update
@@ -76,6 +82,10 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
   end
 
   def message_params
+    base_message_params.then { |attributes| with_group_sender(attributes) }
+  end
+
+  def base_message_params
     {
       account_id: @conversation.account_id,
       sender: @contact_inbox.contact,
@@ -85,6 +95,71 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
       source_id: permitted_params[:source_id],
       message_type: :incoming
     }
+  end
+
+  # Em conversa de GRUPO o autor vem embutido no texto — a app `chatwoot` da WAHA
+  # concatena nome + identificador no corpo porque o `sender` da mensagem e sempre
+  # o contato-grupo. Aqui o texto volta a ser so o texto e o autor vira dado.
+  #
+  # `content_attributes` e montado por NOS a partir do proprio conteudo; nada vem
+  # do cliente (`permitted_params` segue permitindo apenas content/echo_id/source_id).
+  # Em 1:1 este metodo e no-op: devolve os atributos exatamente como recebeu.
+  def with_group_sender(attributes)
+    return attributes unless waha_multi_participant_chat?
+
+    extracted = Whatsapp::GroupSenderExtractor.call(attributes[:content])
+    return attributes unless extracted.matched?
+
+    attributes[:content] = extracted.content
+    attributes[:content_attributes] = { 'group_sender' => resolve_sender_phone(extracted.sender) } if extracted.sender?
+    attributes
+  rescue StandardError => e
+    # Enriquecimento nunca pode derrubar a ingestao: na duvida, grava como antes.
+    Rails.logger.warn("[GroupSender] extracao falhou (conversation=#{@conversation&.id}): #{e.class} #{e.message}")
+    base_message_params
+  end
+
+  # Chat com mais de um participante possivel — e so nesses que a WAHA embute o
+  # autor no texto. O gatilho e SEMPRE estrutural (o JID do chat), nunca o texto:
+  # e isso que garante que uma conversa 1:1 de verdade nao muda em nada, mesmo que
+  # alguem digite algo parecido com o prefixo.
+  def waha_multi_participant_chat?
+    @conversation&.group? || waha_broadcast_chat?
+  end
+
+  # `Conversation#group?` e o ponto unico de verdade sobre `@g.us` e nao deve ser
+  # alargado (outros guards dependem dele). Broadcast fica so aqui, na ingestao.
+  def waha_broadcast_chat?
+    contact = @conversation&.contact
+    return false if contact.blank?
+
+    custom = contact.custom_attributes || {}
+    custom.values_at('waha_whatsapp_chat_id', 'waha_whatsapp_jid')
+          .any? { |jid| jid.to_s.end_with?(WHATSAPP_BROADCAST_JID_SUFFIX) }
+  end
+
+  # Acerto de cache: quando o telefone deste LID ja foi resolvido antes, ele entra
+  # junto com a mensagem e nenhum job e enfileirado.
+  def resolve_sender_phone(sender)
+    return sender if sender['lid'].blank? || sender['phone'].present?
+
+    phone = Whatsapp::LidPhoneCache.phone(group_waha_session_name, sender['lid'])
+    phone.present? ? sender.merge('phone' => phone) : sender
+  end
+
+  def group_waha_session_name
+    @conversation&.inbox&.waha_session_name
+  end
+
+  # Miss de cache: resolve fora do request. A WAHA pode estar lenta ou fora — a
+  # mensagem ja esta gravada, o telefone chega depois (ou nunca).
+  def schedule_group_sender_phone_resolution
+    sender = @message&.content_attributes&.dig('group_sender')
+    return if sender.blank? || sender['lid'].blank? || sender['phone'].present?
+
+    Whatsapp::ResolveGroupSenderPhoneJob.perform_later(@message.id)
+  rescue StandardError => e
+    Rails.logger.warn("[GroupSender] falha ao enfileirar resolucao de telefone: #{e.class} #{e.message}")
   end
 
   def check_csat_locked

@@ -151,6 +151,48 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
       end
     end
 
+    # Uma IA IMPEDIDA de falar deixava exatamente o mesmo rastro de uma IA que ESCOLHEU
+    # calar: `ignored` com raw vazio. Foi assim que uma chave da Anthropic sem saldo passou
+    # dias despercebida na conta 7 — no painel, parecia decisão do agente.
+    context 'when the agent run produces no output at all' do
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(true)
+        allow(mock_agent_runner_service).to receive(:generate_response)
+          .and_return({ 'response' => '', 'reasoning' => 'Error occurred: credit balance is too low' })
+      end
+
+      it 'records it as an error, carrying whatever the runner knew about the failure' do
+        described_class.perform_now(conversation, assistant)
+
+        log = Captain::AssistantLog.where(conversation_id: conversation.id, event_type: 'error').last
+        expect(log).to be_present
+        expect(log.payload['motivo']).to include('credit balance is too low')
+      end
+
+      it 'does not record it as deliberate silence' do
+        described_class.perform_now(conversation, assistant)
+
+        expect(Captain::AssistantLog.where(conversation_id: conversation.id, event_type: 'ignored')).to be_empty
+      end
+    end
+
+    context 'when the agent deliberately asks for silence' do
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(true)
+        allow(mock_agent_runner_service).to receive(:generate_response).and_return({ 'response' => '[IGNORAR]' })
+      end
+
+      it 'keeps recording it as ignored, with the marker in the trail' do
+        described_class.perform_now(conversation, assistant)
+
+        log = Captain::AssistantLog.where(conversation_id: conversation.id, event_type: 'ignored').last
+        expect(log).to be_present
+        expect(log.payload['raw']).to eq('[IGNORAR]')
+      end
+    end
+
     context 'when captain_v2 is enabled' do
       before do
         allow(account).to receive(:feature_enabled?).and_return(false)
@@ -436,7 +478,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
     before do
       create(:message, conversation: conversation, content: 'Hello with image', message_type: :incoming)
       allow(Captain::Llm::AssistantChatService).to receive(:new).and_return(mock_llm_chat_service)
-      allow(Captain::OpenAiMessageBuilderService).to receive(:new).with(message: anything).and_return(mock_message_builder)
+      allow(Captain::OpenAiMessageBuilderService).to receive(:new).with(hash_including(message: anything)).and_return(mock_message_builder)
       allow(mock_message_builder).to receive(:generate_content).and_return('Hello with image')
       allow(mock_llm_chat_service).to receive(:generate_response).and_return({ 'response' => 'Test response' })
     end
@@ -642,5 +684,6 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         end.not_to(change { conversation.messages.template.count })
       end
     end
+
   end
 end

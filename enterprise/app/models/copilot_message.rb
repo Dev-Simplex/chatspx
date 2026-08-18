@@ -61,7 +61,9 @@ class CopilotMessage < ApplicationRecord
   def validate_message_attributes
     return if message.blank?
 
-    allowed_keys = %w[content reasoning function_name reply_suggestion tool_event]
+    # `finish_reason` (stop/cancelled/error) e gravado pelo streaming SSE para o
+    # front saber que aquela resposta foi interrompida e oferecer refazer.
+    allowed_keys = %w[content reasoning function_name reply_suggestion tool_event finish_reason]
     invalid_keys = message.keys - allowed_keys
 
     errors.add(:message, "contains invalid attributes: #{invalid_keys.join(', ')}") if invalid_keys.any?

@@ -1109,7 +1109,12 @@ RSpec.describe 'Inboxes API', type: :request do
         quality_rating: 'GREEN',
         messaging_limit_tier: 'TIER_1000',
         account_mode: 'LIVE',
-        business_id: 'business123'
+        business_id: 'business123',
+        expected_webhook_url: 'https://app.example.com/webhooks/whatsapp/+556635317222',
+        acceptable_webhook_urls: [
+          'https://app.example.com/webhooks/whatsapp/+556635317222',
+          'https://app.example.com/webhooks/whatsapp/+556632114876'
+        ]
       }
     end
 
@@ -1143,6 +1148,20 @@ RSpec.describe 'Inboxes API', type: :request do
             'messaging_limit_tier' => 'TIER_1000',
             'account_mode' => 'LIVE',
             'business_id' => 'business123'
+          )
+        end
+
+        it 'exposes the sibling webhook urls so the UI can accept any of them' do
+          get "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/health",
+              headers: admin.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          expect(response.parsed_body['acceptable_webhook_urls']).to eq(
+            [
+              'https://app.example.com/webhooks/whatsapp/+556635317222',
+              'https://app.example.com/webhooks/whatsapp/+556632114876'
+            ]
           )
         end
 

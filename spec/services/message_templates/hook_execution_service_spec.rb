@@ -270,4 +270,62 @@ describe MessageTemplates::HookExecutionService do
       expect(out_of_office_service).not_to receive(:perform)
     end
   end
+
+  # Freio de GRUPO de WhatsApp. Greeting / fora-de-horario / coleta de e-mail sao mensagens
+  # dirigidas a UMA pessoa que acabou de chamar; num grupo de trabalho com N integrantes elas
+  # viram ruido para todo mundo — e o gatilho e a mensagem de QUALQUER participante.
+  # Caso real nesta base: a conv 12 (grupo) recebeu o texto de fora-de-horario duas vezes.
+  # Ver Conversation#group? — ponto unico de verdade.
+  context 'when the conversation is a WhatsApp group' do
+    let(:group_contact) { create(:contact, email: nil, identifier: '5566999991234-1634750731@g.us') }
+    let(:conversation) { create(:conversation, contact: group_contact) }
+
+    it 'does not call ::MessageTemplates::Template::Greeting' do
+      conversation.inbox.update(greeting_enabled: true, greeting_message: 'Hi, this is a greeting message', enable_email_collect: false)
+
+      greeting_service = double
+      allow(MessageTemplates::Template::Greeting).to receive(:new).and_return(greeting_service)
+      allow(greeting_service).to receive(:perform).and_return(true)
+
+      create(:message, conversation: conversation, account: conversation.account)
+
+      expect(MessageTemplates::Template::Greeting).not_to have_received(:new)
+    end
+
+    it 'does not call ::MessageTemplates::Template::OutOfOffice' do
+      conversation.inbox.update(working_hours_enabled: true, out_of_office_message: 'We are out of office')
+      conversation.inbox.working_hours.today.update!(closed_all_day: true)
+
+      out_of_office_service = double
+      allow(MessageTemplates::Template::OutOfOffice).to receive(:new).and_return(out_of_office_service)
+      allow(out_of_office_service).to receive(:perform).and_return(true)
+
+      create(:message, conversation: conversation, account: conversation.account)
+
+      expect(MessageTemplates::Template::OutOfOffice).not_to have_received(:new)
+    end
+
+    it 'does not call ::MessageTemplates::Template::EmailCollect' do
+      conversation.inbox.update(enable_email_collect: true)
+
+      allow(MessageTemplates::Template::EmailCollect).to receive(:new).and_return(true)
+
+      create(:message, conversation: conversation, account: conversation.account)
+
+      expect(MessageTemplates::Template::EmailCollect).not_to have_received(:new)
+    end
+
+    it 'keeps sending the greeting on a 1:1 conversation of the same inbox (nao-regressao)' do
+      one_to_one = create(:conversation, contact: create(:contact, email: nil), inbox: conversation.inbox)
+      conversation.inbox.update(greeting_enabled: true, greeting_message: 'Hi, this is a greeting message', enable_email_collect: false)
+
+      greeting_service = double
+      allow(MessageTemplates::Template::Greeting).to receive(:new).and_return(greeting_service)
+      allow(greeting_service).to receive(:perform).and_return(true)
+
+      create(:message, conversation: one_to_one, account: one_to_one.account)
+
+      expect(MessageTemplates::Template::Greeting).to have_received(:new).with(conversation: one_to_one)
+    end
+  end
 end

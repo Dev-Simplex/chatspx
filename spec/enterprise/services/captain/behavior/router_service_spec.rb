@@ -63,7 +63,7 @@ RSpec.describe Captain::Behavior::RouterService do
     end
   end
 
-  describe 'skip_groups (config-gated, preservado)' do
+  describe 'skip_groups (config-gated, padrão SEGURO)' do
     before do
       assistant.update!(behavior: { 'router' => { 'skip_groups' => true } })
     end
@@ -92,22 +92,82 @@ RSpec.describe Captain::Behavior::RouterService do
       expect(should_respond?).to be false
     end
 
-    it 'responds to group conversations when skip_groups is not configured' do
+    it 'keeps responding on 1:1 conversations even with skip_groups on' do
+      expect(should_respond?).to be true
+    end
+
+    # Padrão SEGURO: sem configuração explícita a IA NÃO fala dentro do grupo. Antes desta
+    # mudança a chave ausente liberava a resposta — 2 dos 8 assistants desta base estavam
+    # exatamente nesse estado (Helena e Lia, sem `skip_groups` no behavior).
+    it 'skips group conversations by default when skip_groups is not configured' do
       assistant.update!(behavior: { 'router' => {} })
+      conversation.update!(additional_attributes: { 'type' => 'group' })
+
+      expect(should_respond?).to be false
+    end
+
+    it 'skips group conversations by default when the router config is absent entirely' do
+      assistant.update!(behavior: {})
+      conversation.update!(additional_attributes: { 'type' => 'group' })
+
+      expect(should_respond?).to be false
+    end
+
+    it 'still responds on 1:1 conversations when skip_groups is not configured' do
+      assistant.update!(behavior: { 'router' => {} })
+
+      expect(should_respond?).to be true
+    end
+
+    # Quem DESLIGOU o guard de propósito continua mandando: é o escape hatch da conta que quer
+    # a IA dentro do grupo. Só a ausência da chave cai no default seguro.
+    it 'responds inside a group when skip_groups is explicitly false' do
+      assistant.update!(behavior: { 'router' => { 'skip_groups' => false } })
       conversation.update!(additional_attributes: { 'type' => 'group' })
 
       expect(should_respond?).to be true
     end
+
+    it 'responds inside a group when skip_groups is the string "false" (config vinda de JSON)' do
+      assistant.update!(behavior: { 'router' => { 'skip_groups' => 'false' } })
+      conversation.update!(additional_attributes: { 'type' => 'group' })
+
+      expect(should_respond?).to be true
+    end
+
+    it 'skips a group when skip_groups is the string "true" (config vinda de JSON)' do
+      assistant.update!(behavior: { 'router' => { 'skip_groups' => 'true' } })
+      conversation.update!(additional_attributes: { 'type' => 'group' })
+
+      expect(should_respond?).to be false
+    end
   end
 
-  describe 'guards de negócio mortos (papel assumido pelo gate por atribuição)' do
-    it 'responds even with a matching skip_labels config (guard morto)' do
+  # skip_labels NÃO é guard de negócio e não morreu com o gate por atribuição: ele foi
+  # RESSUSCITADO em 23/07 para o caso do interlocutor-robô (conversa marcada `bot-externo`,
+  # quando o outro lado é a URA de outra empresa). Cala a IA de forma determinística, sem
+  # gastar LLM. O exemplo que vivia aqui afirmava o contrário e estava vermelho desde então.
+  describe 'kill-switch por label (skip_labels)' do
+    it 'does not respond when a conversation label matches skip_labels' do
       assistant.update!(behavior: { 'router' => { 'skip_labels' => ['atendimento'] } })
+      conversation.update_labels(['atendimento'])
+
+      expect(should_respond?).to be false
+    end
+
+    it 'responds when no label matches' do
+      assistant.update!(behavior: { 'router' => { 'skip_labels' => ['bot-externo'] } })
       conversation.update_labels(['atendimento'])
 
       expect(should_respond?).to be true
     end
 
+    it 'responds when skip_labels is not configured' do
+      expect(should_respond?).to be true
+    end
+  end
+
+  describe 'guards de negócio mortos (papel assumido pelo gate por atribuição)' do
     it 'responds even when only_contact_phones whitelist does not match (guard morto)' do
       assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['+5511888887777'] } })
 
