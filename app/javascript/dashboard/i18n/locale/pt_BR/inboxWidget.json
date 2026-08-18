@@ -497,6 +497,19 @@
         },
         "DEVICE_EMPTY": "Escolha ao menos um dispositivo — sem nenhum, o convite não aparece em lugar nenhum.",
         "REMOVE": "Remover"
+      },
+      "TEASER": {
+        "SECTION": "Mensagem do convite",
+        "EXPLANATION": "A campanha é a mensagem; o gatilho é o momento. O texto abaixo é o da campanha de chat ao vivo desta caixa — editar aqui edita ela, e nenhuma campanha nova nasce por causa de um gatilho.",
+        "TITLE_LABEL": "Título",
+        "MESSAGE_LABEL": "Texto do convite",
+        "SAVE": "Salvar a mensagem",
+        "SAVED": "Mensagem do convite salva.",
+        "SAVE_ERROR": "Não foi possível salvar a mensagem do convite.",
+        "LINKED": "Vinculado à campanha \"{campaign}\".",
+        "EMPTY": "Esta caixa ainda não tem campanha de chat ao vivo. Crie uma em Campanhas para escrever o texto do convite — o gatilho decide quando ela aparece, e ela continua sendo editável no lugar de sempre.",
+        "SIMULATE": "Simular o gatilho no preview",
+        "SIMULATE_HINT": "Mostra o convite como o visitante vai vê-lo quando o gatilho disparar. É só a prévia — nada é enviado."
       }
     }
   }

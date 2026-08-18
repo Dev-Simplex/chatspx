@@ -497,6 +497,19 @@
         },
         "DEVICE_EMPTY": "Pick at least one device — with none, the invitation shows nowhere.",
         "REMOVE": "Remove"
+      },
+      "TEASER": {
+        "SECTION": "Invitation message",
+        "EXPLANATION": "The campaign is the message; the trigger is the moment. The text below belongs to this inbox's live chat campaign — editing it here edits that campaign, and no new campaign is born because of a trigger.",
+        "TITLE_LABEL": "Title",
+        "MESSAGE_LABEL": "Invitation text",
+        "SAVE": "Save the message",
+        "SAVED": "Invitation message saved.",
+        "SAVE_ERROR": "Could not save the invitation message.",
+        "LINKED": "Linked to the \"{campaign}\" campaign.",
+        "EMPTY": "This inbox has no live chat campaign yet. Create one under Campaigns to write the invitation text — the trigger decides when it shows, and it stays editable where it always was.",
+        "SIMULATE": "Simulate the trigger in the preview",
+        "SIMULATE_HINT": "Shows the invitation the way the visitor will see it when the trigger fires. Preview only — nothing is sent."
       }
     }
   }

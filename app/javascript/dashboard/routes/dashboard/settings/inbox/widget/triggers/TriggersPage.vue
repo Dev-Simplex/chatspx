@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
 import SettingsAccordion from 'dashboard/components-next/Settings/SettingsAccordion.vue';
@@ -11,6 +11,8 @@ import { useAlert } from 'dashboard/composables';
 import ApproachSelector from './ApproachSelector.vue';
 import TriggerRow from './TriggerRow.vue';
 import SegmentationField from './SegmentationField.vue';
+import TeaserComposer from './TeaserComposer.vue';
+import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 import WidgetSaveBar from '../WidgetSaveBar.vue';
 import WidgetUnsavedChangesDialog from '../WidgetUnsavedChangesDialog.vue';
 import { useInboxWidgetConfig } from '../composables/useInboxWidgetConfig';
@@ -39,7 +41,11 @@ const props = defineProps({
 
 const { t } = useI18n();
 
+const teaserComposer = ref(null);
+const simulandoGatilho = ref(false);
+
 const {
+  inbox,
   draft,
   isDirty,
   dirtyCount,
@@ -117,6 +123,31 @@ const linhas = computed(() =>
 
 const setDefaults = patch =>
   setTriggers({ defaults: { ...defaults.value, ...patch } });
+
+/**
+ * Bloco 4.07 — o teaser no preview, com o gatilho SIMULADO.
+ *
+ * O texto vem da campanha vinculada (4.05); os chips sao as opcoes nomeadas da
+ * inbox (`home_intents`, do schema da aparencia), que sao as MESMAS que o
+ * visitante ve — nao ha um segundo campo de chips a inventar, e o schema
+ * recusaria chave nova de qualquer forma.
+ */
+const teaserDoPreview = computed(() => {
+  const campanha = teaserComposer.value?.vinculada;
+  const rascunhoDaCampanha = teaserComposer.value?.rascunho;
+  const texto = rascunhoDaCampanha?.message || campanha?.message || '';
+  if (!texto) return null;
+
+  return {
+    // Em celular o nivel e outro, e o preview de computador mostra o do
+    // computador; `aggressive` nao tem teaser — ele e o auto-open (4.20).
+    level: triggers.value.approach === 'discreet' ? 'discreet' : 'bold',
+    text: texto,
+    senderName: campanha?.sender?.available_name ?? inbox.value?.name ?? '',
+    avatarUrl: campanha?.sender?.thumbnail ?? inbox.value?.avatar_url ?? '',
+    intents: draft.value.appearance?.home_intents ?? [],
+  };
+});
 
 const onSave = async () => {
   try {
@@ -209,6 +240,43 @@ defineExpose({ requestLeave: guard.requestLeave });
           />
         </div>
       </SettingsAccordion>
+
+      <h3 class="text-heading-2 text-n-slate-12">
+        {{ t('INBOX_WIDGET.TRIGGERS.TEASER.SECTION') }}
+      </h3>
+      <TeaserComposer ref="teaserComposer" :inbox-id="inboxId" />
+
+      <div class="flex flex-col gap-3 py-3">
+        <div class="flex items-center gap-3">
+          <Switch
+            :model-value="simulandoGatilho"
+            :aria-label="t('INBOX_WIDGET.TRIGGERS.TEASER.SIMULATE')"
+            data-testid="simulate-trigger"
+            @update:model-value="simulandoGatilho = $event"
+          />
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ t('INBOX_WIDGET.TRIGGERS.TEASER.SIMULATE') }}
+          </span>
+        </div>
+        <p class="text-sm text-n-slate-11">
+          {{ t('INBOX_WIDGET.TRIGGERS.TEASER.SIMULATE_HINT') }}
+        </p>
+        <div class="w-full max-w-md">
+          <Widget
+            :website-name="draft.name"
+            :welcome-heading="draft.welcomeTitle"
+            :welcome-tagline="draft.welcomeTagline"
+            :reply-time="draft.replyTime"
+            :color="draft.widgetColor"
+            :logo="inbox.avatar_url"
+            :theme-mode="draft.appearance?.theme"
+            :widget-bubble-position="draft.appearance?.position"
+            :hide-bubble="draft.appearance?.hide_bubble"
+            :teaser="teaserDoPreview"
+            :show-teaser="simulandoGatilho"
+          />
+        </div>
+      </div>
 
       <h3 class="text-heading-2 text-n-slate-12">
         {{ t('INBOX_WIDGET.TRIGGERS.SECTIONS.FREQUENCY') }}

@@ -16,15 +16,28 @@ const inbox = reactive({
 
 const dispatch = vi.fn().mockResolvedValue();
 
+// A pagina monta o TeaserComposer (4.05), que le as campanhas de chat ao vivo:
+// um mock que devolve a mesma coisa para toda chave faria `campanhas.find`
+// explodir antes de o teste chegar no que ele mede.
+const campanhas = [
+  { id: 31, title: 'Convite', message: 'Posso ajudar?', inbox: { id: 7 } },
+];
+
 vi.mock('dashboard/composables/store', () => ({
   useStore: () => ({
     getters: {
       'inboxes/getInbox': () => inbox,
       'inboxes/getUIFlags': {},
+      'globalConfig/get': { logoThumbnail: '' },
     },
     dispatch,
   }),
-  useMapGetter: () => ({ value: 'ltr' }),
+  useMapGetter: chave => {
+    if (chave === 'campaigns/getLiveChatCampaigns') return { value: campanhas };
+    if (chave === 'campaigns/getUIFlags') return { value: {} };
+    if (chave === 'globalConfig/get') return { value: { logoThumbnail: '' } };
+    return { value: 'ltr' };
+  },
 }));
 
 const alertas = [];
@@ -273,7 +286,9 @@ describe('4.04 — os sete gatilhos', () => {
 describe('4.04 — o seletor CSS', () => {
   it('inválido é rejeitado no BLUR, com a razão do parser', async () => {
     const wrapper = build();
-    const campo = wrapper.find('[data-testid="selector-input-element_click"]');
+    const campo = wrapper.find(
+      'input[data-testid="selector-input-element_click"]'
+    );
 
     await campo.setValue('#$%(((');
     // enquanto digita, nenhum erro
@@ -290,7 +305,9 @@ describe('4.04 — o seletor CSS', () => {
 
   it('válido não reclama', async () => {
     const wrapper = build();
-    const campo = wrapper.find('[data-testid="selector-input-element_click"]');
+    const campo = wrapper.find(
+      'input[data-testid="selector-input-element_click"]'
+    );
 
     await campo.setValue('[data-cta], #orcamento .btn');
     await campo.trigger('blur');
@@ -302,7 +319,9 @@ describe('4.04 — o seletor CSS', () => {
 
   it('vazio no blur também é erro — o gatilho não funcionaria', async () => {
     const wrapper = build();
-    const campo = wrapper.find('[data-testid="selector-input-element_click"]');
+    const campo = wrapper.find(
+      'input[data-testid="selector-input-element_click"]'
+    );
 
     await campo.setValue('  ');
     await campo.trigger('blur');
