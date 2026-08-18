@@ -14,6 +14,108 @@
           "LABEL": "Número de Telefone",
           "PLACEHOLDER": "Por favor, digite seu número de telefone"
         }
+      },
+      "BUILDER": {
+        "FIELD_COUNTER": "{count} de {max} campos",
+        "AT_LIMIT": "Você chegou ao limite de 8 campos. Formulário longo é a principal causa de abandono — para adicionar outro, remova um dos que já estão aqui.",
+        "ADD_FIELD": "Adicionar campo",
+        "REMOVE_FIELD": "Remover",
+        "ADD_STEP": "Nova etapa",
+        "STEP_TITLE": "Etapa {step}",
+        "STEP_COUNTER": "{count} de {max} etapas",
+        "EMPTY_STEP": "Esta etapa ainda não tem campo. Adicione um abaixo ou ela não será mostrada ao visitante.",
+        "NO_FIELD_AVAILABLE": "Todos os campos disponíveis já estão no formulário. Novos campos vêm dos atributos personalizados da conta."
+      },
+      "EDITOR": {
+        "NONE": "Nenhuma",
+        "LABEL": "Rótulo",
+        "LABEL_REQUIRED": "O rótulo é o que o visitante lê. Sem ele, o campo aparece com o nome interno.",
+        "PLACEHOLDER": "Texto de exemplo",
+        "HELP_TEXT": "Texto de ajuda",
+        "ERROR_MESSAGE": "Mensagem de erro própria",
+        "MASK": "Máscara",
+        "VALIDATOR": "Validação",
+        "REQUIRED": "Obrigatório",
+        "STANDARD_TYPE_LOCKED": "Campo padrão: o tipo não muda, porque ele alimenta o cadastro do contato.",
+        "PREVIEW": "Testar o campo",
+        "PREVIEW_HINT": "Digite aqui para ver a máscara e a validação como o visitante vai vê-las. A mensagem só aparece quando o campo perde o foco."
+      },
+      "MASKS": {
+        "CPF": "CPF",
+        "CNPJ": "CNPJ",
+        "CPF_CNPJ": "CPF ou CNPJ",
+        "CEP": "CEP",
+        "UF": "UF",
+        "PHONE": "Telefone"
+      },
+      "VALIDATORS": {
+        "CPF": "CPF válido",
+        "CNPJ": "CNPJ válido",
+        "CPF_CNPJ": "CPF ou CNPJ válido",
+        "CEP": "CEP válido",
+        "UF": "UF válida",
+        "EMAIL": "E-mail válido",
+        "CORPORATE_EMAIL": "E-mail corporativo",
+        "PHONE": "Telefone com DDI",
+        "JUNK_NAME": "Anti-lixo: nome",
+        "JUNK_PHONE": "Anti-lixo: telefone",
+        "JUNK_EMAIL": "Anti-lixo: e-mail descartável"
+      },
+      "VALIDATION": {
+        "REQUIRED": "Preencha este campo.",
+        "CPF": "Confira o CPF: os números não fecham.",
+        "CNPJ": "Confira o CNPJ: os números não fecham.",
+        "CPF_CNPJ": "Confira o documento: não é um CPF nem um CNPJ válido.",
+        "CEP": "Confira o CEP: são oito dígitos.",
+        "UF": "Escolha uma das 27 unidades da federação.",
+        "EMAIL": "Confira o e-mail.",
+        "CORPORATE_EMAIL": "Use o e-mail da empresa, não um provedor gratuito.",
+        "PHONE": "Informe o telefone com o código do país, começando por +.",
+        "JUNK_NAME": "Esse nome parece incompleto. Confere?",
+        "JUNK_PHONE": "Esse telefone parece de teste. Confere?",
+        "JUNK_EMAIL": "Esse e-mail é de um serviço temporário. Você recebe nossa resposta nele?"
+      },
+      "CONDITION": {
+        "ADD": "Mostrar só em certa condição",
+        "REMOVE": "Sempre mostrar",
+        "FIELD": "Quando o campo",
+        "OPERATOR": "For",
+        "VALUE": "Valor",
+        "NO_SOURCES": "A primeira etapa não tem campo anterior de onde depender. Condicional só olha etapa anterior.",
+        "DANGLING": "Estes campos dependem de um campo que saiu do formulário e nunca vão aparecer: {fields}",
+        "OPERATORS": {
+          "IS": "igual a",
+          "IS_NOT": "diferente de",
+          "CONTAINS": "contiver",
+          "FILLED": "estiver preenchido"
+        }
+      },
+      "MESSAGE": "Mensagem antes do formulário",
+      "MODES": {
+        "TITLE": "Como o pré-chat funciona nesta caixa",
+        "SIMPLE": {
+          "LABEL": "Simples",
+          "DESCRIPTION": "Uma etapa, os campos de sempre. É o que existe hoje e o que basta para a maioria das caixas de suporte."
+        },
+        "BUILDER": {
+          "LABEL": "Construtor",
+          "DESCRIPTION": "Etapas, condicionais, máscaras e validação por campo, com teto de 8 campos no total."
+        },
+        "FLOW": {
+          "LABEL": "Fluxo",
+          "DESCRIPTION": "O pré-chat vira o primeiro passo de um fluxo de Automações, com as ações e ramificações de lá."
+        }
+      },
+      "FLOW": {
+        "EXPLAINER": "Neste modo o pré-chat é o passo 1 de um fluxo: quem faz as perguntas e decide o caminho é o motor de Automações, não esta tela.",
+        "WHERE_TARGET_LIVES": "Qual fluxo atende esta caixa não se escolhe aqui. O motor resolve pelo gatilho do próprio fluxo — é isso que permite dois fluxos ativos atenderem páginas diferentes do seu site.",
+        "OPEN_AUTOMATIONS": "Abrir Automações"
+      },
+      "MIGRATION": {
+        "TITLE": "Voltar para o modo Simples?",
+        "DESCRIPTION": "Nenhum campo é apagado: todos passam para a etapa 1. O que deixa de valer são as etapas {steps} e as condicionais destes campos: {fields}.",
+        "CONFIRM": "Voltar para Simples",
+        "CANCEL": "Continuar no Construtor"
       }
     },
     "CONFIGURATION": {
@@ -60,7 +162,9 @@
       "TRIGGERS_DEGRADE_ON_RETURN": "Reduzir a abordagem em quem volta",
       "TRIGGERS_RULES": "Gatilhos",
       "TRACKING_DESTINATIONS": "Destinos de rastreio",
-      "TRACKING_EVENTS": "Eventos de rastreio"
+      "TRACKING_EVENTS": "Eventos de rastreio",
+      "PRE_CHAT_ENABLED": "Formulário de pré-chat",
+      "PRE_CHAT": "Campos do pré-chat"
     }
   }
 }

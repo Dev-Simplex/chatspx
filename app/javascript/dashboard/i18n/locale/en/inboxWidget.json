@@ -14,6 +14,108 @@
           "LABEL": "Phone Number",
           "PLACEHOLDER": "Please enter your phone number"
         }
+      },
+      "BUILDER": {
+        "FIELD_COUNTER": "{count} of {max} fields",
+        "AT_LIMIT": "You reached the limit of 8 fields. A long form is the main cause of abandonment — to add another one, remove one of those already here.",
+        "ADD_FIELD": "Add field",
+        "REMOVE_FIELD": "Remove",
+        "ADD_STEP": "New step",
+        "STEP_TITLE": "Step {step}",
+        "STEP_COUNTER": "{count} of {max} steps",
+        "EMPTY_STEP": "This step has no field yet. Add one below or it will not be shown to the visitor.",
+        "NO_FIELD_AVAILABLE": "Every available field is already in the form. New fields come from the account's custom attributes."
+      },
+      "EDITOR": {
+        "NONE": "None",
+        "LABEL": "Label",
+        "LABEL_REQUIRED": "The label is what the visitor reads. Without it, the field shows its internal name.",
+        "PLACEHOLDER": "Placeholder",
+        "HELP_TEXT": "Help text",
+        "ERROR_MESSAGE": "Custom error message",
+        "MASK": "Mask",
+        "VALIDATOR": "Validation",
+        "REQUIRED": "Required",
+        "STANDARD_TYPE_LOCKED": "Standard field: the type does not change, because it feeds the contact record.",
+        "PREVIEW": "Try the field",
+        "PREVIEW_HINT": "Type here to see the mask and the validation as the visitor will. The message only shows when the field loses focus."
+      },
+      "MASKS": {
+        "CPF": "CPF",
+        "CNPJ": "CNPJ",
+        "CPF_CNPJ": "CPF or CNPJ",
+        "CEP": "Postal code (CEP)",
+        "UF": "State (UF)",
+        "PHONE": "Phone"
+      },
+      "VALIDATORS": {
+        "CPF": "Valid CPF",
+        "CNPJ": "Valid CNPJ",
+        "CPF_CNPJ": "Valid CPF or CNPJ",
+        "CEP": "Valid postal code",
+        "UF": "Valid state",
+        "EMAIL": "Valid email",
+        "CORPORATE_EMAIL": "Work email",
+        "PHONE": "Phone with country code",
+        "JUNK_NAME": "Anti-junk: name",
+        "JUNK_PHONE": "Anti-junk: phone",
+        "JUNK_EMAIL": "Anti-junk: disposable email"
+      },
+      "VALIDATION": {
+        "REQUIRED": "Please fill in this field.",
+        "CPF": "Check the CPF: the digits do not add up.",
+        "CNPJ": "Check the CNPJ: the digits do not add up.",
+        "CPF_CNPJ": "Check the document: it is neither a valid CPF nor a valid CNPJ.",
+        "CEP": "Check the postal code: it has eight digits.",
+        "UF": "Pick one of the 27 states.",
+        "EMAIL": "Check the email address.",
+        "CORPORATE_EMAIL": "Use your work email, not a free provider.",
+        "PHONE": "Enter the phone with the country code, starting with +.",
+        "JUNK_NAME": "That name looks incomplete. Is it right?",
+        "JUNK_PHONE": "That phone looks like a test number. Is it right?",
+        "JUNK_EMAIL": "That email is from a temporary service. Will you get our reply there?"
+      },
+      "CONDITION": {
+        "ADD": "Show only under a condition",
+        "REMOVE": "Always show",
+        "FIELD": "When the field",
+        "OPERATOR": "Is",
+        "VALUE": "Value",
+        "NO_SOURCES": "The first step has no earlier field to depend on. A condition only looks at a previous step.",
+        "DANGLING": "These fields depend on a field that left the form and will never appear: {fields}",
+        "OPERATORS": {
+          "IS": "equal to",
+          "IS_NOT": "different from",
+          "CONTAINS": "contains",
+          "FILLED": "filled in"
+        }
+      },
+      "MESSAGE": "Message before the form",
+      "MODES": {
+        "TITLE": "How the pre-chat works in this inbox",
+        "SIMPLE": {
+          "LABEL": "Simple",
+          "DESCRIPTION": "One step, the usual fields. It is what exists today and what most support inboxes need."
+        },
+        "BUILDER": {
+          "LABEL": "Builder",
+          "DESCRIPTION": "Steps, conditions, masks and per-field validation, capped at 8 fields in total."
+        },
+        "FLOW": {
+          "LABEL": "Flow",
+          "DESCRIPTION": "The pre-chat becomes the first step of an Automations flow, with the actions and branches from there."
+        }
+      },
+      "FLOW": {
+        "EXPLAINER": "In this mode the pre-chat is step 1 of a flow: what asks the questions and picks the path is the Automations engine, not this screen.",
+        "WHERE_TARGET_LIVES": "Which flow serves this inbox is not chosen here. The engine resolves it from the flow's own trigger — that is what lets two active flows serve different pages of your site.",
+        "OPEN_AUTOMATIONS": "Open Automations"
+      },
+      "MIGRATION": {
+        "TITLE": "Go back to Simple mode?",
+        "DESCRIPTION": "No field is deleted: all of them move to step 1. What stops applying are steps {steps} and the conditions on these fields: {fields}.",
+        "CONFIRM": "Back to Simple",
+        "CANCEL": "Stay in Builder"
       }
     },
     "CONFIGURATION": {
@@ -60,7 +162,9 @@
       "TRIGGERS_DEGRADE_ON_RETURN": "Soften approach on return",
       "TRIGGERS_RULES": "Triggers",
       "TRACKING_DESTINATIONS": "Tracking destinations",
-      "TRACKING_EVENTS": "Tracking events"
+      "TRACKING_EVENTS": "Tracking events",
+      "PRE_CHAT_ENABLED": "Pre-chat form",
+      "PRE_CHAT": "Pre-chat fields"
     }
   }
 }

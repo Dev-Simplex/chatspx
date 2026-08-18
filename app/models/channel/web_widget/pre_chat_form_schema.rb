@@ -32,6 +32,16 @@ module Channel::WebWidget::PreChatFormSchema
 
   CONDITION_OPERATORS = %w[is is_not contains filled].freeze
 
+  # O modo do FORMULARIO (bloco 3.14), nao do campo. `simple` e o construtor de
+  # sempre; `builder` liga etapas, condicionais e mascaras; `flow` delega o
+  # pre-chat para o motor de Automacoes.
+  #
+  # POR QUE E GRAVADO E NAO DERIVADO DO CONTEUDO: derivar infere INTENCAO a
+  # partir de SINTOMA — um formulario montado no construtor que por acaso ficou
+  # com uma etapa e nenhum recurso avancado voltaria sozinho para "Simples", e o
+  # administrador veria a tela trocar de modo sem ter pedido.
+  MODES = %w[simple builder flow].freeze
+
   # Teto de etapas = teto de campos. Mais etapas do que campos possiveis nao e
   # configuracao, e engano.
   MAX_STEP = 8
@@ -69,6 +79,19 @@ module Channel::WebWidget::PreChatFormSchema
     'type' => 'object',
     'properties' => {
       'pre_chat_message' => { 'type' => %w[string null] },
+      'mode' => { 'type' => %w[string null], 'enum' => MODES + [nil, ''] },
+      # `false` como schema recusa a chave SEMPRE que ela aparecer.
+      #
+      # E deliberado, e a razao nao e escopo: no modo `flow`, QUAL fluxo
+      # atende o pre-chat NAO se decide aqui. O motor resolve pelo gatilho
+      # (`trigger_type` + `trigger_config` do proprio fluxo, com o indice
+      # `(account_id, trigger_type, active)` que existe para essa consulta), e e
+      # isso que permite dois fluxos ativos atenderem URLs diferentes. Um
+      # `flow_id` gravado do lado do formulario seria uma segunda fonte de
+      # verdade para a mesma pergunta — e contradiria o desenho do gatilho
+      # `widget_prechat`. Esta linha existe para que ninguem "complete" o schema
+      # depois sem saber disso.
+      'flow_id' => false,
       'pre_chat_fields' => { 'type' => 'array', 'items' => FIELD }
     },
     'additionalProperties' => true
