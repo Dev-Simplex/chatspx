@@ -12,8 +12,6 @@ class Spx::UnidadeHorario < ApplicationRecord
   # 0 = domingo ... 6 = sábado (convenção do Date#wday).
   validates :dia_semana, presence: true, inclusion: { in: 0..6 }
 
-  scope :do_dia, ->(dia_semana) { where(dia_semana: dia_semana) }
-
   def faixa
     Spx::Unidade.faixa(fechada: fechada?, abre: abre, fecha: fecha)
   end
