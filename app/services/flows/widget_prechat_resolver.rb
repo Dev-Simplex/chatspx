@@ -54,8 +54,26 @@ class Flows::WidgetPrechatResolver
 
   def candidates
     return [] if @account.blank? || @inbox.blank?
+    return [] unless prechat_delegated_to_flow?
 
     @account.flows.active.widget_prechat.to_a.select { |flow| matches?(flow) }
+  end
+
+  # O fluxo de captura so e entregue quando a inbox DECLARA que o pre-chat dela E um fluxo.
+  #
+  # A guarda espelha a tela do bloco 3.14: em `PreChatPage.vue` o seletor de modos so aparece
+  # DENTRO do interruptor mestre do pre-chat, e o modo `flow` grava
+  # `pre_chat_form_options['mode'] = 'flow'` (vocabulario de Channel::WebWidget::PreChatFormSchema::MODES).
+  # Sem ela, uma inbox no modo Simples rodaria o formulario classico E o fluxo — dois pre-chats
+  # para o mesmo visitante, que e captura em duplicidade, nao redundancia inofensiva.
+  #
+  # `mode` ausente e o estado de TODA a frota hoje (a chave nasceu no 3.14): ausencia ⇒ nada muda.
+  def prechat_delegated_to_flow?
+    channel = @inbox.channel
+    return false unless channel.respond_to?(:pre_chat_form_options)
+    return false unless channel.pre_chat_form_enabled?
+
+    channel.pre_chat_form_options.to_h['mode'].to_s == 'flow'
   end
 
   # DESEMPATE — a ordem esta publicada no contrato e e conferida por spec. `max_by` sobre a tupla:
