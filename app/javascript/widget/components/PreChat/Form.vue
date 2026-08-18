@@ -8,6 +8,7 @@ import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import configMixin from 'widget/mixins/configMixin';
 import { FormKit, createInput } from '@formkit/vue';
 import PhoneInput from 'widget/components/Form/PhoneInput.vue';
+import { getRequiredMessage as buildRequiredMessage } from 'widget/helpers/preChatFieldMessages';
 
 export default {
   components: {
@@ -154,6 +155,12 @@ export default {
     getPlaceHolder({ placeholder }) {
       return placeholder;
     },
+    // Bloco 2.17. A mensagem de obrigatoriedade deixa de ser a mesma palavra
+    // para todos os campos e passa a nomear o campo — ver o contrato em
+    // `widget/helpers/preChatFieldMessages.js`.
+    getRequiredMessage(field) {
+      return buildRequiredMessage({ field, t: this.$t });
+    },
     getValue({ name, type }) {
       if (type === 'select') {
         return this.enabledPreChatFields.find(option => option.name === name)
@@ -287,7 +294,7 @@ export default {
         ),
         isValidPhoneNumber: $t('PRE_CHAT_FORM.FIELDS.PHONE_NUMBER.VALID_ERROR'),
         email: $t('PRE_CHAT_FORM.FIELDS.EMAIL_ADDRESS.VALID_ERROR'),
-        required: $t('PRE_CHAT_FORM.REQUIRED'),
+        required: getRequiredMessage(item),
         matches: item.regex_cue
           ? item.regex_cue
           : $t('PRE_CHAT_FORM.REGEX_ERROR'),
