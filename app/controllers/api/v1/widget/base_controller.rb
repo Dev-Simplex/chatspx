@@ -92,6 +92,9 @@ class Api::V1::Widget::BaseController < ApplicationController
         in_reply_to: permitted_params[:message][:reply_to]
       },
       echo_id: permitted_params[:message][:echo_id],
+      # Bloco 2.15: `echo_id` e virtual (`message.rb:89`) e some depois do
+      # broadcast. Gravado aqui, ele vira a chave que o retry procura.
+      source_id: permitted_params[:message][:echo_id],
       message_type: :incoming
     }
   end

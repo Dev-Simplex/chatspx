@@ -23,7 +23,11 @@ const createConversation = params => {
   };
 };
 
-const sendMessage = (content, replyTo, { customAttributes, labels } = {}) => {
+const sendMessage = (
+  content,
+  replyTo,
+  { customAttributes, labels, echoId } = {}
+) => {
   const referrerURL = window.referrerURL || '';
   const search = buildSearchParamsWithLocale(window.location.search);
   const params = {
@@ -32,6 +36,10 @@ const sendMessage = (content, replyTo, { customAttributes, labels } = {}) => {
       reply_to: replyTo,
       timestamp: new Date().toString(),
       referer_url: referrerURL,
+      // Bloco 2.15: a chave de idempotencia. Ela nasce UMA vez por mensagem e
+      // e reusada no retry — gerar outra a cada tentativa seria o mesmo que
+      // nao ter chave, porque o servidor nao teria como reconhecer o reenvio.
+      echo_id: echoId,
     },
   };
   if (customAttributes && Object.keys(customAttributes).length > 0) {

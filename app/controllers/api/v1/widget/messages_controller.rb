@@ -12,9 +12,16 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
   end
 
   def create
-    @message = conversation.messages.new(message_params)
-    build_attachment
-    @message.save!
+    # Bloco 2.15 — idempotencia de envio.
+    #
+    # O caso real: a mensagem chega ao servidor e a RESPOSTA se perde na volta
+    # (tunel, elevador, troca de antena). O widget nao tem como saber que deu
+    # certo, e reenvia. Sem chave, o agente ve a mesma frase duas vezes.
+    #
+    # `echo_id` ja viajava do widget (`base_controller.rb`), mas era virtual no
+    # modelo — sumia depois do broadcast. Agora ele e gravado em `source_id`
+    # (coluna e indice que ja existiam) e conferido aqui.
+    @message = existing_message_for_retry || create_message
   end
 
   def update
@@ -164,6 +171,23 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
 
   def message_finder
     @message_finder ||= MessageFinder.new(conversation, message_finder_params)
+  end
+
+  # A mensagem que este mesmo envio ja criou, se houver. Escopo: a conversa —
+  # a mesma chave em OUTRA conversa e outra mensagem, e nao um retry.
+  def existing_message_for_retry
+    echo_id = permitted_params[:message][:echo_id]
+    return if echo_id.blank?
+
+    conversation.messages.find_by(source_id: echo_id)
+  end
+
+  def create_message
+    message = conversation.messages.new(message_params)
+    @message = message
+    build_attachment
+    message.save!
+    message
   end
 
   def message_update_params
