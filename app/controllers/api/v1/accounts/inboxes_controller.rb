@@ -261,7 +261,11 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      # As QUATRO chaves de configuracao do widget entram de uma vez (arbitragem A1, bloco 3.01):
      # a evolucao posterior acontece DENTRO dos jsonb, que sao hash aberto, sem voltar a este arquivo.
      # A validacao fina e do modelo (`WidgetConfigurable` + JSON Schema), que e onde ela da erro por campo.
-     { additional_attributes: [:pin_mode, :agent_signature_enabled, :widget_profile,
+     # Bloco 4.15: so o ESTADO entra na lista branca. `identity_enforcement_observed_since`
+     # fica de fora de proposito — quem pudesse gravar a marca de inicio da observacao
+     # poderia mover o corte do relatorio e fazer o numero que decide a virada mentir.
+     # A marca e do modelo, e nasce no instante da transicao.
+     { additional_attributes: [:pin_mode, :agent_signature_enabled, :widget_profile, :identity_enforcement,
                                { pinned_conversation_ids: [], allowed_template_names: [],
                                  widget_triggers: {}, widget_tracking: {}, widget_appearance: {} }] },
      { csat_config: [:display_type, :message, :button_text, :language,

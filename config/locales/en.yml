@@ -82,6 +82,8 @@ en:
     conversation:
       pending_status_disabled_for_inbox: "cannot be Pending — feature disabled for this inbox"
     inbox:
+      identity_enforcement:
+        invalid_state: "is not a valid identity enforcement state (accepted values: %{states})"
       widget_config:
         invalid_profile: "is not a valid widget profile (accepted values: %{profiles})"
         must_be_object: "must be a JSON object"
