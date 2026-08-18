@@ -20,6 +20,12 @@ RSpec.describe 'Entrega do fluxo de pre-chat pela URL (4.02)', type: :request do
 
   after { Current.reset }
 
+  # A inbox declara que o pre-chat dela e um fluxo — o modo que a tela 3.14 grava.
+  before do
+    web_widget.update!(pre_chat_form_enabled: true,
+                       pre_chat_form_options: web_widget.pre_chat_form_options.merge('mode' => 'flow'))
+  end
+
   def prechat_flow(name:, greeting:, trigger_config:)
     create(:flow, account: account, name: name, trigger_type: :widget_prechat,
                   trigger_config: trigger_config,
