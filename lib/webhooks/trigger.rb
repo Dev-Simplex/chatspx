@@ -2,6 +2,24 @@ class Webhooks::Trigger
   SUPPORTED_ERROR_HANDLE_EVENTS = %w[message_created message_updated].freeze
   RETRYABLE_AGENT_BOT_STATUSES = [429, 500].freeze
 
+  # Erros que nao melhoram na segunda tentativa. URL invalida e destino barrado
+  # pelo filtro SSRF sao configuracao, nao instabilidade. FileTooLarge e
+  # UnsupportedContentType so podem ser levantados DEPOIS de um 2xx
+  # (safe_fetch/fetcher.rb:35 corta o corpo em quem nao e Net::HTTPSuccess) —
+  # ou seja, a entrega ja aconteceu; reentregar duplicaria o webhook.
+  PERMANENT_ERRORS = [
+    SafeFetch::InvalidUrlError,
+    SafeFetch::UnsafeUrlError,
+    SafeFetch::UnsupportedMethodError,
+    SafeFetch::FileTooLargeError,
+    SafeFetch::UnsupportedContentTypeError
+  ].freeze
+
+  # 408 e 429 sao o proprio destino pedindo "tente de novo"; 5xx e o destino
+  # quebrado. Qualquer outro 4xx e o destino recusando o payload — cinco
+  # tentativas so multiplicam a recusa.
+  RETRYABLE_HTTP_STATUSES = [408, 429].freeze
+
   class RetryableError < StandardError
     attr_reader :status
 
@@ -27,6 +45,12 @@ class Webhooks::Trigger
     perform_request
   rescue StandardError => e
     raise RetryableError.new(status: http_status(e), message: e.message) if retryable_agent_bot_error?(e)
+    # B3: sem este `raise` a excecao morria aqui e o job terminava com sucesso —
+    # o webhook dizia que entregou sem ter entregado, e o `retry_on` do
+    # WebhookJob nunca via nada para reentregar. Quem decide reentregar e o
+    # ActiveJob; o efeito colateral (marcar mensagem falha / reabrir conversa)
+    # fica para o esgotamento das tentativas, em WebhookJob#handle_exhaustion.
+    raise e if retryable?(e)
 
     handle_failure(e)
   end
@@ -124,6 +148,20 @@ class Webhooks::Trigger
 
   def retryable_agent_bot_error?(error)
     @webhook_type == :agent_bot_webhook && RETRYABLE_AGENT_BOT_STATUSES.include?(http_status(error))
+  end
+
+  def retryable?(error)
+    return false if PERMANENT_ERRORS.any? { |klass| error.is_a?(klass) }
+    return retryable_http_status?(http_status(error)) if error.is_a?(SafeFetch::HttpError)
+
+    # Timeout, socket, DNS, TLS: transitorio ate prova em contrario.
+    true
+  end
+
+  def retryable_http_status?(status)
+    return false if status.blank?
+
+    RETRYABLE_HTTP_STATUSES.include?(status) || status >= 500
   end
 
   def http_status(error)

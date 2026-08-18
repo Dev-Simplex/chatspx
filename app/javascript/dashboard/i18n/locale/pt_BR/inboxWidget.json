@@ -24,6 +24,43 @@
           "ACTION_HINT": "Para fechar isso, liste aqui os domínios onde o widget deve funcionar — um por linha. Inclua todos: domínio principal, subdomínios, homologação e outros sites da mesma empresa. Um domínio que faltar deixa de exibir o widget."
         }
       }
+    },
+    "SAVE_BAR": {
+      "REGION_LABEL": "Alterações não salvas",
+      "PENDING": "Nenhuma alteração pendente | 1 alteração não salva | {count} alterações não salvas",
+      "DISCARD": "Descartar",
+      "SAVE": "Salvar"
+    },
+    "UNSAVED_DIALOG": {
+      "TITLE": "Sair sem salvar?",
+      "DESCRIPTION": "Estas alterações ainda não foram gravadas. Se você sair agora, elas se perdem.",
+      "STAY": "Continuar editando",
+      "LEAVE": "Sair e descartar",
+      "AND_MORE": "e mais {count}"
+    },
+    "FIELDS": {
+      "NAME": "Nome da caixa",
+      "WIDGET_COLOR": "Cor da marca",
+      "WELCOME_TITLE": "Título de boas-vindas",
+      "WELCOME_TAGLINE": "Frase de boas-vindas",
+      "REPLY_TIME": "Tempo de resposta",
+      "FEATURE_FLAGS": "Recursos do widget",
+      "PROFILE": "Perfil da caixa",
+      "APPEARANCE_THEME": "Modo de tema",
+      "APPEARANCE_POSITION": "Posição do lançador",
+      "APPEARANCE_OFFSET_X": "Distância da borda lateral",
+      "APPEARANCE_OFFSET_Y": "Distância da borda inferior",
+      "APPEARANCE_LAUNCHER_TYPE": "Formato do lançador",
+      "APPEARANCE_LAUNCHER_TEXT": "Texto do lançador",
+      "APPEARANCE_HIDE_BUBBLE": "Esconder a bolha",
+      "APPEARANCE_PANEL_STYLE": "Estilo do painel",
+      "APPEARANCE_LAUNCHER_ICON": "Ícone do lançador",
+      "TRIGGERS_APPROACH": "Abordagem no computador",
+      "TRIGGERS_APPROACH_MOBILE": "Abordagem no celular",
+      "TRIGGERS_DEGRADE_ON_RETURN": "Reduzir a abordagem em quem volta",
+      "TRIGGERS_RULES": "Gatilhos",
+      "TRACKING_DESTINATIONS": "Destinos de rastreio",
+      "TRACKING_EVENTS": "Eventos de rastreio"
     }
   }
 }

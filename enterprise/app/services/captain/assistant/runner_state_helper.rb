@@ -11,6 +11,12 @@ module Captain::Assistant::RunnerStateHelper
 
   CONTACT_INBOX_STATE_ATTRIBUTES = %i[id hmac_verified].freeze
 
+  # Bloco 1.20, asserção (5): `referer_raw` é o dado CRU do visitante — a URL que nem escapando
+  # virou http(s). Existe para diagnóstico. O snippet `prompts/snippets/conversation.liquid` itera
+  # `additional_attributes` inteiro dentro do system prompt, então sem este filtro o valor cru
+  # entraria literalmente no prompt da IA.
+  BLOCKED_ADDITIONAL_ATTRIBUTES = %w[referer_raw].freeze
+
   CAMPAIGN_STATE_ATTRIBUTES = %i[id title message campaign_type description].freeze
 
   private
@@ -41,6 +47,9 @@ module Captain::Assistant::RunnerStateHelper
   end
 
   def slice_attrs(record, keys)
-    record.attributes.symbolize_keys.slice(*keys)
+    attrs = record.attributes.symbolize_keys.slice(*keys)
+    return attrs unless attrs[:additional_attributes].is_a?(Hash)
+
+    attrs.merge(additional_attributes: attrs[:additional_attributes].except(*BLOCKED_ADDITIONAL_ATTRIBUTES))
   end
 end

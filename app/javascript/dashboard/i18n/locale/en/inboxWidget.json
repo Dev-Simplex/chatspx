@@ -24,6 +24,43 @@
           "ACTION_HINT": "To close this, list the domains where the widget should work — one per line. Include all of them: main domain, subdomains, staging, and any other site of the same company. A missing domain stops showing the widget."
         }
       }
+    },
+    "SAVE_BAR": {
+      "REGION_LABEL": "Unsaved changes",
+      "PENDING": "No pending changes | 1 unsaved change | {count} unsaved changes",
+      "DISCARD": "Discard",
+      "SAVE": "Save"
+    },
+    "UNSAVED_DIALOG": {
+      "TITLE": "Leave without saving?",
+      "DESCRIPTION": "These changes were not written yet. If you leave now, they are lost.",
+      "STAY": "Keep editing",
+      "LEAVE": "Leave and discard",
+      "AND_MORE": "and {count} more"
+    },
+    "FIELDS": {
+      "NAME": "Inbox name",
+      "WIDGET_COLOR": "Brand color",
+      "WELCOME_TITLE": "Welcome title",
+      "WELCOME_TAGLINE": "Welcome tagline",
+      "REPLY_TIME": "Reply time",
+      "FEATURE_FLAGS": "Widget features",
+      "PROFILE": "Inbox profile",
+      "APPEARANCE_THEME": "Theme mode",
+      "APPEARANCE_POSITION": "Launcher position",
+      "APPEARANCE_OFFSET_X": "Side offset",
+      "APPEARANCE_OFFSET_Y": "Bottom offset",
+      "APPEARANCE_LAUNCHER_TYPE": "Launcher shape",
+      "APPEARANCE_LAUNCHER_TEXT": "Launcher text",
+      "APPEARANCE_HIDE_BUBBLE": "Hide the bubble",
+      "APPEARANCE_PANEL_STYLE": "Panel style",
+      "APPEARANCE_LAUNCHER_ICON": "Launcher icon",
+      "TRIGGERS_APPROACH": "Desktop approach",
+      "TRIGGERS_APPROACH_MOBILE": "Mobile approach",
+      "TRIGGERS_DEGRADE_ON_RETURN": "Soften approach on return",
+      "TRIGGERS_RULES": "Triggers",
+      "TRACKING_DESTINATIONS": "Tracking destinations",
+      "TRACKING_EVENTS": "Tracking events"
     }
   }
 }
