@@ -9,6 +9,7 @@ import configMixin from 'widget/mixins/configMixin';
 import { FormKit, createInput } from '@formkit/vue';
 import PhoneInput from 'widget/components/Form/PhoneInput.vue';
 import { getRequiredMessage as buildRequiredMessage } from 'widget/helpers/preChatFieldMessages';
+import { savePartialLead } from 'widget/api/partialLead';
 
 export default {
   components: {
@@ -36,6 +37,11 @@ export default {
     return {
       locale: this.$root.$i18n.locale,
       hasErrorInPhoneInput: false,
+      // Bloco 4.18 — temporizador do rascunho do lead incompleto. Instância, não módulo:
+      // dois pré-chats montados (widget e campanha) não podem cancelar o rascunho um do
+      // outro.
+      partialLeadTimer: null,
+      partialLeadSent: '',
       message: '',
       formValues: {},
       labels: {
@@ -134,6 +140,17 @@ export default {
       });
       return contactAttributes;
     },
+  },
+  watch: {
+    formValues: {
+      deep: true,
+      handler() {
+        this.schedulePartialLead();
+      },
+    },
+  },
+  beforeUnmount() {
+    clearTimeout(this.partialLeadTimer);
   },
   methods: {
     inputClass(input) {
@@ -234,7 +251,56 @@ export default {
       }
       return {};
     },
+    /**
+     * Bloco 4.18 — LEAD INCOMPLETO.
+     *
+     * A cada campo respondido, o rascunho vai para o servidor ANTES de existir conversa.
+     * Sem isto, quem preenche nome e e-mail e fecha a aba no terceiro campo some sem
+     * deixar rastro — que é exatamente o buraco que o bloco fecha.
+     *
+     * Espera 1,2 s de silêncio para não mandar uma requisição por tecla, e não repete um
+     * rascunho idêntico ao último enviado. Se a captura estiver desligada na conta, o
+     * servidor simplesmente não grava — o widget não conhece essa configuração e não deve.
+     */
+    schedulePartialLead() {
+      clearTimeout(this.partialLeadTimer);
+      this.partialLeadTimer = setTimeout(() => this.sendPartialLead(), 1200);
+    },
+    sendPartialLead() {
+      const answers = this.filledAnswers();
+      if (!Object.keys(answers).length) return;
+
+      const payload = JSON.stringify(answers);
+      if (payload === this.partialLeadSent) return;
+      this.partialLeadSent = payload;
+
+      const { step, stepKey } = this.stoppedAt(answers);
+      savePartialLead({ answers, step, stepKey });
+    },
+    filledAnswers() {
+      const answers = {};
+      this.enabledPreChatFields.forEach(field => {
+        const value = this.formValues[field.name];
+        if (String(value ?? '').trim() !== '') answers[field.name] = value;
+      });
+      return answers;
+    },
+    /**
+     * A ETAPA EM QUE PAROU é o primeiro campo habilitado ainda vazio — é essa a resposta
+     * que o relatório precisa para dizer ONDE se perde o lead. Com tudo preenchido, a
+     * etapa é a última: a pessoa chegou ao fim e ainda assim não enviou.
+     */
+    stoppedAt(answers) {
+      const fields = this.enabledPreChatFields;
+      const index = fields.findIndex(field => !(field.name in answers));
+      return index === -1
+        ? { step: fields.length, stepKey: fields[fields.length - 1]?.name }
+        : { step: index + 1, stepKey: fields[index].name };
+    },
     onSubmit() {
+      // O envio conclui o pré-chat: o rascunho pendente não pode chegar DEPOIS e
+      // reabrir como incompleto um lead que já virou conversa.
+      clearTimeout(this.partialLeadTimer);
       const { emailAddress, fullName, phoneNumber, message } = this.formValues;
       this.$emit('submitPreChat', {
         fullName,

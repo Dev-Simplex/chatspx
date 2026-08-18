@@ -142,6 +142,31 @@ RSpec.describe Flows::ActionService do
       expect(last_outgoing(conversation)).to be_nil
     end
 
+    it 'preserva mascara e validador BR quando o nome esta no vocabulario do pre-chat (4.03)' do
+      conversation = web_conversation
+
+      run_on(conversation, 'send_form', [{
+               'content' => 'Seus dados',
+               'items' => [{ 'name' => 'cpf', 'label' => 'CPF', 'mask' => 'cpf', 'validator' => 'cpf' },
+                           { 'name' => 'zap', 'label' => 'WhatsApp', 'type' => 'phone', 'mask' => 'phone', 'validator' => 'phone' }]
+             }])
+
+      items = last_outgoing(conversation).content_attributes['items']
+      expect(items.first).to include('mask' => 'cpf', 'validator' => 'cpf')
+      expect(items.second).to include('type' => 'phone', 'mask' => 'phone', 'validator' => 'phone')
+    end
+
+    it 'DESCARTA mascara/validador fora do vocabulario — mandar `banana` ao widget nao mascara nada' do
+      conversation = web_conversation
+
+      run_on(conversation, 'send_form',
+             [{ 'content' => 'Dados', 'items' => [{ 'name' => 'x', 'mask' => 'banana', 'validator' => 'inventado' }] }])
+
+      item = last_outgoing(conversation).content_attributes['items'].first
+      expect(item).not_to have_key('mask')
+      expect(item).not_to have_key('validator')
+    end
+
     it 'pula quando nenhum campo sobrevive ao saneamento' do
       conversation = web_conversation
 
