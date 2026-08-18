@@ -82,11 +82,23 @@ const estiloDoPreview = () => {
 };
 
 describe('preview do widget — os tokens são os do widget (D4)', () => {
+  // DECLARAR a variável é a cópia da paleta que o D4 existe para matar;
+  // CONSUMIR (`var(--slate-12)`) é o oposto — é usar a fonte única, e foi o que
+  // o bloco 3.16 precisou fazer para escapar dos catch-alls `!important` do
+  // skin do dashboard, que prendem qualquer classe `n-*` na cor do PAINEL.
+  // O padrão exige os dois-pontos da declaração; a auto-verificação abaixo
+  // prova que ele não afrouxou.
+  const DECLARACAO_DE_COR = /--(?:slate|solid|iris|ruby|amber|alpha)-\w+\s*:/;
+
+  it('o padrão de busca ainda pega uma cópia de paleta, e ignora consumo', () => {
+    expect(DECLARACAO_DE_COR.test('--slate-1: 252 252 253;')).toBe(true);
+    expect(DECLARACAO_DE_COR.test('  --solid-1:var(--x);')).toBe(true);
+    expect(DECLARACAO_DE_COR.test('color: rgb(var(--slate-12));')).toBe(false);
+  });
+
   it('nenhuma custom property de cor literal sobrou no preview', () => {
     const culpados = arquivos(previewDir).filter(file =>
-      /--slate-|--solid-|--iris-|--ruby-|--amber-|--alpha-/.test(
-        fs.readFileSync(file, 'utf8')
-      )
+      DECLARACAO_DE_COR.test(fs.readFileSync(file, 'utf8'))
     );
 
     expect(culpados).toEqual([]);
