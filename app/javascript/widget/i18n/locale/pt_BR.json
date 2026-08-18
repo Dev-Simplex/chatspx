@@ -184,5 +184,10 @@
       "JUNK_PHONE": "Confira o telefone digitado.",
       "JUNK_EMAIL": "Confira o e-mail digitado."
     }
+  },
+  "WHATSAPP_EXIT": {
+    "BUTTON": "Continuar no WhatsApp",
+    "CONTEXT_PREFIX": "Olá! Vim pelo chat do site {site}.",
+    "CONTEXT_SUBJECT": "Eu perguntei: {subject}"
   }
 }

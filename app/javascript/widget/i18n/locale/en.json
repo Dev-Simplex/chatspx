@@ -184,5 +184,10 @@
       "JUNK_PHONE": "Please check the phone number you typed.",
       "JUNK_EMAIL": "Please check the email you typed."
     }
+  },
+  "WHATSAPP_EXIT": {
+    "BUTTON": "Continue on WhatsApp",
+    "CONTEXT_PREFIX": "Hi! I came from the chat on {site}.",
+    "CONTEXT_SUBJECT": "I asked: {subject}"
   }
 }
