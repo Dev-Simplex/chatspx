@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "안녕하세요",
         "AGENT_MESSAGE": "안녕하십니까"
       },
-      "BRANDING_TEXT": "Chatwoot 작동중",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "Chatwoot 작동중"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

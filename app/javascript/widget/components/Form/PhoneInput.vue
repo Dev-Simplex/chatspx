@@ -165,8 +165,13 @@ function onSelect() {
 
 <template>
   <div class="relative mt-2 phone-input--wrap">
+    <!-- `outline-none` saiu da classe abaixo: ele setava
+         `outline: 2px solid transparent` e contradizia o `outline outline-1` da
+         MESMA classe, deixando o contêiner com anel de largura 1px e cor
+         transparente. A cor de repouso vem de `outline-n-weak` no `:class`, e o
+         foco de `focus-within:outline-w-focus`. -->
     <div
-      class="flex items-center justify-start outline-none phone-input rounded-lg box-border bg-n-background dark:bg-n-alpha-2 border-none outline outline-1 outline-offset-[-1px] text-sm w-full text-n-slate-12 focus-within:outline-n-brand focus-within:ring-1 focus-within:ring-n-brand"
+      class="flex items-center justify-start phone-input rounded-lg box-border bg-n-background dark:bg-n-alpha-2 border-none outline outline-1 outline-offset-[-1px] text-sm w-full text-n-slate-12 focus-within:outline-w-focus focus-within:ring-1 focus-within:ring-w-focus"
       :class="{
         'outline-n-ruby-8 dark:outline-n-ruby-8 hover:outline-n-ruby-9 dark:hover:outline-n-ruby-9':
           hasErrorInPhoneInput,
@@ -192,7 +197,7 @@ function onSelect() {
       <input
         :value="phoneNumber"
         type="phoneInput"
-        class="w-full h-full !py-3 pl-2 pr-3 leading-tight rounded-r !outline-none focus:!ring-0 !bg-transparent dark:!bg-transparent"
+        class="w-full h-full !py-3 pl-2 pr-3 leading-tight rounded-r !outline-0 focus:!ring-0 !bg-transparent dark:!bg-transparent"
         name="phoneNumber"
         :placeholder="placeholder"
         @input="onChange"

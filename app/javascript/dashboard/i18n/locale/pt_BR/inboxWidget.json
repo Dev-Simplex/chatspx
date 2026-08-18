@@ -14,6 +14,113 @@
           "LABEL": "Número de Telefone",
           "PLACEHOLDER": "Por favor, digite seu número de telefone"
         }
+      },
+      "BUILDER": {
+        "FIELD_COUNTER": "{count} de {max} campos",
+        "AT_LIMIT": "Você chegou ao limite de 8 campos. Formulário longo é a principal causa de abandono — para adicionar outro, remova um dos que já estão aqui.",
+        "ADD_FIELD": "Adicionar campo",
+        "REMOVE_FIELD": "Remover",
+        "ADD_STEP": "Nova etapa",
+        "STEP_TITLE": "Etapa {step}",
+        "STEP_COUNTER": "{count} de {max} etapas",
+        "EMPTY_STEP": "Esta etapa ainda não tem campo. Adicione um abaixo ou ela não será mostrada ao visitante.",
+        "NO_FIELD_AVAILABLE": "Todos os campos disponíveis já estão no formulário. Novos campos vêm dos atributos personalizados da conta."
+      },
+      "EDITOR": {
+        "NONE": "Nenhuma",
+        "LABEL": "Rótulo",
+        "LABEL_REQUIRED": "O rótulo é o que o visitante lê. Sem ele, o campo aparece com o nome interno.",
+        "PLACEHOLDER": "Texto de exemplo",
+        "HELP_TEXT": "Texto de ajuda",
+        "ERROR_MESSAGE": "Mensagem de erro própria",
+        "MASK": "Máscara",
+        "VALIDATOR": "Validação",
+        "REQUIRED": "Obrigatório",
+        "STANDARD_TYPE_LOCKED": "Campo padrão: o tipo não muda, porque ele alimenta o cadastro do contato.",
+        "PREVIEW": "Testar o campo",
+        "PREVIEW_HINT": "Digite aqui para ver a máscara e a validação como o visitante vai vê-las. A mensagem só aparece quando o campo perde o foco."
+      },
+      "MASKS": {
+        "CPF": "CPF",
+        "CNPJ": "CNPJ",
+        "CPF_CNPJ": "CPF ou CNPJ",
+        "CEP": "CEP",
+        "UF": "UF",
+        "PHONE": "Telefone"
+      },
+      "VALIDATORS": {
+        "CPF": "CPF válido",
+        "CNPJ": "CNPJ válido",
+        "CPF_CNPJ": "CPF ou CNPJ válido",
+        "CEP": "CEP válido",
+        "UF": "UF válida",
+        "EMAIL": "E-mail válido",
+        "CORPORATE_EMAIL": "E-mail corporativo",
+        "PHONE": "Telefone com DDI",
+        "JUNK_NAME": "Anti-lixo: nome",
+        "JUNK_PHONE": "Anti-lixo: telefone",
+        "JUNK_EMAIL": "Anti-lixo: e-mail descartável"
+      },
+      "VALIDATION": {
+        "REQUIRED": "Preencha este campo.",
+        "CPF": "Confira o CPF: os números não fecham.",
+        "CNPJ": "Confira o CNPJ: os números não fecham.",
+        "CPF_CNPJ": "Confira o documento: não é um CPF nem um CNPJ válido.",
+        "CEP": "Confira o CEP: são oito dígitos.",
+        "UF": "Escolha uma das 27 unidades da federação.",
+        "EMAIL": "Confira o e-mail.",
+        "CORPORATE_EMAIL": "Use o e-mail da empresa, não um provedor gratuito.",
+        "PHONE": "Informe o telefone com o código do país, começando por +.",
+        "JUNK_NAME": "Esse nome parece incompleto. Confere?",
+        "JUNK_PHONE": "Esse telefone parece de teste. Confere?",
+        "JUNK_EMAIL": "Esse e-mail é de um serviço temporário. Você recebe nossa resposta nele?"
+      },
+      "CONDITION": {
+        "ADD": "Mostrar só em certa condição",
+        "REMOVE": "Sempre mostrar",
+        "FIELD": "Quando o campo",
+        "OPERATOR": "For",
+        "VALUE": "Valor",
+        "NO_SOURCES": "A primeira etapa não tem campo anterior de onde depender. Condicional só olha etapa anterior.",
+        "DANGLING": "Estes campos dependem de um campo que saiu do formulário e nunca vão aparecer: {fields}",
+        "OPERATORS": {
+          "IS": "igual a",
+          "IS_NOT": "diferente de",
+          "CONTAINS": "contiver",
+          "FILLED": "estiver preenchido"
+        }
+      },
+      "MESSAGE": "Mensagem antes do formulário",
+      "MODES": {
+        "TITLE": "Como o pré-chat funciona nesta caixa",
+        "SIMPLE": {
+          "LABEL": "Simples",
+          "DESCRIPTION": "Uma etapa, os campos de sempre. É o que existe hoje e o que basta para a maioria das caixas de suporte."
+        },
+        "BUILDER": {
+          "LABEL": "Construtor",
+          "DESCRIPTION": "Etapas, condicionais, máscaras e validação por campo, com teto de 8 campos no total."
+        },
+        "FLOW": {
+          "LABEL": "Fluxo",
+          "DESCRIPTION": "O pré-chat vira o primeiro passo de um fluxo de Automações, com as ações e ramificações de lá."
+        }
+      },
+      "FLOW": {
+        "EXPLAINER": "Neste modo o pré-chat é o passo 1 de um fluxo: quem faz as perguntas e decide o caminho é o motor de Automações, não esta tela.",
+        "WHERE_TARGET_LIVES": "Qual fluxo atende esta caixa não se escolhe aqui. O motor resolve pelo gatilho do próprio fluxo — é isso que permite dois fluxos ativos atenderem páginas diferentes do seu site.",
+        "OPEN_AUTOMATIONS": "Abrir Automações"
+      },
+      "MIGRATION": {
+        "TITLE": "Voltar para o modo Simples?",
+        "DESCRIPTION": "Nenhum campo é apagado: todos passam para a etapa 1. O que deixa de valer são as etapas {steps} e as condicionais destes campos: {fields}.",
+        "CONFIRM": "Voltar para Simples",
+        "CANCEL": "Continuar no Construtor"
+      },
+      "PREVIEW": {
+        "EMPTY": "Nenhum campo ligado: o visitante vai direto para a conversa.",
+        "START": "Iniciar conversa",
+        "STEP_OF": "Etapa {step} de {total} — as seguintes aparecem depois que esta for respondida."
       }
     },
     "CONFIGURATION": {
@@ -23,6 +130,253 @@
           "BODY": "Com este campo em branco, o servidor não envia o cabeçalho de proteção contra enquadramento, e qualquer página da internet pode carregar este widget dentro de um iframe — inclusive um site que imite o seu para coletar dados de quem acha que está falando com você.",
           "ACTION_HINT": "Para fechar isso, liste aqui os domínios onde o widget deve funcionar — um por linha. Inclua todos: domínio principal, subdomínios, homologação e outros sites da mesma empresa. Um domínio que faltar deixa de exibir o widget."
         }
+      }
+    },
+    "SAVE_BAR": {
+      "REGION_LABEL": "Alterações não salvas",
+      "PENDING": "Nenhuma alteração pendente | 1 alteração não salva | {count} alterações não salvas",
+      "DISCARD": "Descartar",
+      "SAVE": "Salvar"
+    },
+    "UNSAVED_DIALOG": {
+      "TITLE": "Sair sem salvar?",
+      "DESCRIPTION": "Estas alterações ainda não foram gravadas. Se você sair agora, elas se perdem.",
+      "STAY": "Continuar editando",
+      "LEAVE": "Sair e descartar",
+      "AND_MORE": "e mais {count}"
+    },
+    "FIELDS": {
+      "NAME": "Nome da caixa",
+      "WIDGET_COLOR": "Cor da marca",
+      "WELCOME_TITLE": "Título de boas-vindas",
+      "WELCOME_TAGLINE": "Frase de boas-vindas",
+      "REPLY_TIME": "Tempo de resposta",
+      "FEATURE_FLAGS": "Recursos do widget",
+      "PROFILE": "Perfil da caixa",
+      "APPEARANCE_THEME": "Modo de tema",
+      "APPEARANCE_POSITION": "Posição do lançador",
+      "APPEARANCE_OFFSET_X": "Distância da borda lateral",
+      "APPEARANCE_OFFSET_Y": "Distância da borda inferior",
+      "APPEARANCE_LAUNCHER_TYPE": "Formato do lançador",
+      "APPEARANCE_LAUNCHER_TEXT": "Texto do lançador",
+      "APPEARANCE_HIDE_BUBBLE": "Esconder a bolha",
+      "APPEARANCE_PANEL_STYLE": "Estilo do painel",
+      "APPEARANCE_LAUNCHER_ICON": "Ícone do lançador",
+      "APPEARANCE_HOME_INTENTS": "Opções da tela inicial",
+      "TRIGGERS_APPROACH": "Abordagem no computador",
+      "TRIGGERS_APPROACH_MOBILE": "Abordagem no celular",
+      "TRIGGERS_DEGRADE_ON_RETURN": "Reduzir a abordagem em quem volta",
+      "TRIGGERS_RULES": "Gatilhos",
+      "TRACKING_DESTINATIONS": "Destinos de rastreio",
+      "TRACKING_EVENTS": "Eventos de rastreio",
+      "PRE_CHAT_ENABLED": "Formulário de pré-chat",
+      "PRE_CHAT": "Campos do pré-chat"
+    },
+    "CONTRAST": {
+      "RATIO": "{value}:1",
+      "ADJUSTED_TO": "→ {value}:1",
+      "INVALID": "Digite uma cor em hexadecimal (por exemplo #2DC46F) para ver a leitura de contraste.",
+      "PAIRS": {
+        "TEXTONBRAND": "Texto sobre a marca",
+        "BRANDASTEXTLIGHT": "Marca como texto (fundo claro)",
+        "BRANDASTEXTDARK": "Marca como texto (fundo escuro)",
+        "BRANDASBORDER": "Borda e anel de foco"
+      },
+      "VERDICT": {
+        "PASS": "passa em AA",
+        "ADJUSTED": "ajustamos",
+        "FAIL": "abaixo do mínimo"
+      },
+      "EXPLANATION": {
+        "TEXT": "Em fundo claro, {brand} como texto dá {ratio}:1 — abaixo do mínimo legível. Links e rótulos usarão {adjusted} ({adjustedRatio}:1). O preenchimento continua {brand}.",
+        "BORDER": "Como borda e anel de foco, {brand} dá {ratio}:1 — abaixo dos 3:1 que um elemento de interface precisa. Bordas e foco usarão {adjusted} ({adjustedRatio}:1)."
+      }
+    },
+    "APPEARANCE": {
+      "BRAND_COLOR": {
+        "LABEL": "Cor da marca",
+        "HEX_LABEL": "Cor da marca em hexadecimal",
+        "INVALID": "Use o formato #RRGGBB."
+      },
+      "SAVED": "Aparência salva.",
+      "SAVE_ERROR": "Não foi possível salvar a aparência.",
+      "SECTIONS": {
+        "BRAND": "Marca",
+        "THEME": "Tema",
+        "LAUNCHER": "Lançador",
+        "TEXTS": "Textos",
+        "FEATURES": "Recursos",
+        "ADVANCED": "Avançado"
+      },
+      "OVERRIDE": {
+        "TITLE": "O site sobrescreve esta configuração",
+        "BODY": "O código instalado no site define {fields} por conta própria. O que está gravado aqui é o padrão, e o site vence — para o valor desta tela valer, remova o campo do objeto chatwootSettings no site.",
+        "FIELD_HINT": "O site sobrescreve este campo."
+      },
+      "THEME": {
+        "LABEL": "Modo de tema",
+        "HELP": "Automático segue o tema do sistema do visitante.",
+        "LIGHT": {
+          "LABEL": "Claro",
+          "DESCRIPTION": "O widget abre sempre claro."
+        },
+        "DARK": {
+          "LABEL": "Escuro",
+          "DESCRIPTION": "O widget abre sempre escuro."
+        },
+        "AUTO": {
+          "LABEL": "Automático",
+          "DESCRIPTION": "Segue o tema do sistema de quem visita o site."
+        }
+      },
+      "LAUNCHER": {
+        "POSITION": "Posição",
+        "POSITIONS": {
+          "LEFT": "Esquerda",
+          "LEFT_HINT": "O balão fica no canto inferior esquerdo.",
+          "RIGHT": "Direita",
+          "RIGHT_HINT": "O balão fica no canto inferior direito."
+        },
+        "OFFSETS": "Distância das bordas",
+        "OFFSETS_HINT": "Em pixels, de 0 a 120. Útil quando outro elemento do site ocupa o canto.",
+        "OFFSET_X": "Lateral",
+        "OFFSET_Y": "Inferior",
+        "TYPE": "Formato",
+        "TYPES": {
+          "STANDARD": "Balão",
+          "STANDARD_HINT": "Só o ícone, em círculo.",
+          "EXPANDED_BUBBLE": "Balão com texto",
+          "EXPANDED_BUBBLE_HINT": "O ícone com uma chamada ao lado."
+        },
+        "TEXT": "Texto do lançador",
+        "TEXT_PLACEHOLDER": "Fale com a gente",
+        "TEXT_TOO_LONG": "No máximo {max} caracteres.",
+        "HIDE_BUBBLE": "Esconder o balão",
+        "HIDE_BUBBLE_HINT": "Some com o lançador. Só faça isso se o site abrir o chat por um botão próprio — sem lançador e sem botão, o visitante fica sem canal de contato."
+      },
+      "TEXTS": {
+        "WELCOME_TITLE": "Título de boas-vindas",
+        "WELCOME_TAGLINE": "Frase de boas-vindas",
+        "REPLY_TIME": "Tempo de resposta",
+        "REPLY_TIMES": {
+          "IN_A_FEW_MINUTES": "Em alguns minutos",
+          "IN_A_FEW_HOURS": "Em algumas horas",
+          "IN_A_DAY": "Em um dia"
+        }
+      },
+      "FEATURES": {
+        "ATTACHMENTS": "Permitir anexos no widget",
+        "EMOJI_PICKER": "Exibir seletor de emoji",
+        "END_CONVERSATION": "Permitir que o visitante encerre a conversa",
+        "USE_INBOX_AVATAR_FOR_BOT": "Usar o nome e o avatar da caixa para o bot"
+      },
+      "ADVANCED": {
+        "PANEL_STYLE": "Estilo do painel",
+        "PANEL_STYLE_HINT": "Padrão tem cabeçalho na cor da marca; plano usa fundo neutro.",
+        "PANEL_STYLES": {
+          "STANDARD": "Padrão",
+          "FLAT": "Plano"
+        }
+      },
+      "SITE_OVERRIDE": {
+        "TITLE": "O código instalado no site pode sobrescrever isto",
+        "BODY": "O que você salva aqui é o padrão, e ele vale para toda a equipe — não fica mais guardado só neste navegador. Mas se o snippet do seu site definir chatwootSettings.position, type, launcherTitle, darkMode, hideMessageBubble ou widgetStyle, o valor do site vence.",
+        "ACTION_HINT": "Se o widget não obedecer ao que você salvou aqui, procure por chatwootSettings no HTML do site — esta tela não consegue ler o código do seu site."
+      }
+    },
+    "PREVIEW": {
+      "DARK": "Escuro",
+      "MOBILE": "Celular",
+      "OPEN_LAUNCHER": "Abrir o chat",
+      "CLOSE_LAUNCHER": "Fechar o chat"
+    },
+    "PROFILE": {
+      "SUPPORT": {
+        "LABEL": "Suporte",
+        "DESCRIPTION": "Para quem já é cliente e precisa de ajuda. O widget espera o clique: sem convite, sem teaser, com CSAT no fim e histórico por e-mail."
+      },
+      "MARKETING": {
+        "LABEL": "Marketing",
+        "DESCRIPTION": "Para transformar visitante em cliente. O widget convida — teaser com gatilho, qualificação no pré-chat e evento de conversão no fim."
+      },
+      "QUESTION": "Para que serve esta caixa?",
+      "QUESTION_HELP": "Escolha agora para a caixa nascer certa. Dá para trocar depois, e trocar nunca apaga o que você já configurou.",
+      "SHOW_OTHER": "Mostrar configurações de {profile}",
+      "HIDE_OTHER": "Esconder configurações de {profile}",
+      "HIDDEN_HINT": "O perfil {profile} esconde estas seções — ele não as remove. Elas continuam gravadas e voltam se você trocar o perfil.",
+      "SWITCH_DIALOG": {
+        "TITLE": "Trocar o perfil desta caixa",
+        "DESCRIPTION": "O perfil {profile} propõe as mudanças abaixo. Marque o que você quer aplicar — o que ficar desmarcado não é tocado.",
+        "WILL_CHANGE": "O que vai mudar, se você marcar",
+        "WILL_KEEP": "O que continua gravado",
+        "KEEP_EXPLANATION": "Nada é apagado. Toda configuração do perfil anterior fica no banco, inerte, e volta se você voltar o perfil.",
+        "NOTHING_CHANGES": "Nada muda: esta caixa já está configurada como o novo perfil propõe.",
+        "CONFIRM": "Trocar o perfil",
+        "CANCEL": "Manter o perfil atual"
+      },
+      "PROPOSALS": {
+        "PRECHATFORMENABLED": {
+          "SUPPORT": "Desligar o formulário de pré-chat (o cliente fala primeiro, sem formulário)",
+          "MARKETING": "Ligar o formulário de pré-chat (para qualificar o visitante antes da conversa)"
+        },
+        "TRIGGERSPRESET": {
+          "SUPPORT": "Desligar os gatilhos: o widget passa a esperar o clique",
+          "MARKETING": "Ligar o teaser com o gatilho composto (8 segundos na página E 30% de rolagem)"
+        },
+        "CONTINUITYVIAEMAIL": {
+          "SUPPORT": "Ligar a continuidade por e-mail (o histórico segue na caixa de entrada do cliente)",
+          "MARKETING": "Desligar a continuidade por e-mail"
+        },
+        "CSATSURVEYENABLED": {
+          "SUPPORT": "Ligar a pesquisa de satisfação (CSAT) ao encerrar a conversa",
+          "MARKETING": "Desligar a pesquisa de satisfação (CSAT)"
+        },
+        "KNOWLEDGEBASE": {
+          "SUPPORT": "Mostrar a Central de Ajuda no painel inicial do widget",
+          "MARKETING": "Esconder a Central de Ajuda no painel inicial do widget"
+        }
+      }
+    },
+    "TABS": {
+      "APPEARANCE": "Aparência"
+    },
+    "APPROACH": {
+      "TITLE": "Abordagem",
+      "LEVELS": {
+        "DISCREET": {
+          "LABEL": "Discreto",
+          "DESCRIPTION": "Um balão pequeno com uma frase, ao lado do lançador. Sem foto."
+        },
+        "BOLD": {
+          "LABEL": "Chamativo",
+          "DESCRIPTION": "Um balão maior, com foto de quem atende e atalhos. É o padrão."
+        },
+        "AGGRESSIVE": {
+          "LABEL": "Agressivo",
+          "DESCRIPTION": "O painel abre sozinho, uma vez por sessão, quando o gatilho dispara."
+        }
+      },
+      "DEGRADE_ON_RETURN": {
+        "LABEL": "Insistir menos com quem já foi abordado",
+        "DESCRIPTION": "Quem já viu a abordagem e não respondeu recebe o nível abaixo na visita seguinte, e depois nada."
+      },
+      "MOBILE": {
+        "LABEL": "Em celular",
+        "AGGRESSIVE_NOT_OFFERED": "Abertura automática não é oferecida em celular: lá o painel cobre a tela inteira."
+      }
+    },
+    "HOME_INTENTS": {
+      "LABEL": "Opções de intenção na tela inicial",
+      "DESCRIPTION": "De 2 a 4 opções nomeadas, no lugar de um \"Como posso ajudar?\". Quem chega decide em segundos se você resolve o problema dele.",
+      "HELP": "O texto é seu e aparece para o visitante. O identificador fica invisível e serve para você comparar o desempenho de cada opção nos relatórios.",
+      "SUGGESTIONS": {
+        "PRICING": "Quero um orçamento",
+        "SUPPORT": "Preciso de ajuda com um pedido",
+        "PRODUCT": "Quero conhecer o produto"
+      },
+      "ERRORS": {
+        "NEED_TWO": "Deixe de 2 a 4 opções, ou nenhuma — uma opção sozinha não é escolha.",
+        "DUPLICATED_ID": "Duas opções não podem ter o mesmo identificador."
       }
     }
   }

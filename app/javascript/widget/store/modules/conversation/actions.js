@@ -13,6 +13,7 @@ import {
 import { ON_CONVERSATION_CREATED } from 'widget/constants/widgetBusEvents';
 import { createTemporaryMessage, getNonDeletedMessages } from './helpers';
 import { emitter } from 'shared/helpers/mitt';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 export const actions = {
   createConversation: async ({ commit, dispatch }, params) => {
     commit('setConversationUIFlag', { isCreating: true });
@@ -25,7 +26,10 @@ export const actions = {
       // Emit event to notify that conversation is created and show the chat screen
       emitter.emit(ON_CONVERSATION_CREATED);
     } catch (error) {
-      // Ignore error
+      // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+      // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+      // visitante; passa apenas a ser CONTADO.
+      reportWidgetError(error, { origem: 'store/conversation' });
     } finally {
       commit('setConversationUIFlag', { isCreating: false });
     }

@@ -1,0 +1,227 @@
+require 'rails_helper'
+
+# Bloco 3.01 — a UNICA edicao de `inbox_attributes` (o `:217` do plano, `:260` nesta base) declara as
+# quatro chaves de uma vez. O que este spec cobre e a juncao: o `permit` e o merge raso do `#update`.
+RSpec.describe 'Inbox widget configuration API', type: :request do
+  let(:account) { create(:account) }
+  let(:admin) { create(:user, account: account, role: :administrator) }
+  let(:inbox) { create(:inbox, account: account) }
+  let(:base_url) { "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}" }
+
+  def patch_inbox(additional_attributes)
+    patch base_url,
+          headers: admin.create_new_auth_token,
+          params: { additional_attributes: additional_attributes },
+          as: :json
+  end
+
+  def stored_attributes
+    get base_url, headers: admin.create_new_auth_token, as: :json
+    expect(response).to have_http_status(:success)
+    response.parsed_body['additional_attributes']
+  end
+
+  describe 'PATCH with the four widget keys' do
+    it 'persists widget_profile and returns it on the following GET' do
+      patch_inbox(widget_profile: 'marketing')
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.widget_profile).to eq('marketing')
+      expect(stored_attributes['widget_profile']).to eq('marketing')
+    end
+
+    it 'persists widget_appearance and returns it on the following GET' do
+      patch_inbox(widget_appearance: { position: 'left' })
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.widget_appearance).to eq({ 'position' => 'left' })
+      expect(stored_attributes['widget_appearance']).to eq({ 'position' => 'left' })
+    end
+
+    it 'persists widget_triggers and widget_tracking as whole objects' do
+      patch_inbox(
+        widget_triggers: { version: 1, enabled: true, triggers: [{ id: 'time_on_page', desktop: { enabled: true, value: 15 } }] },
+        widget_tracking: { meta_pixel_id: '1234567890', event_map: { conversation_started: 'Lead' } }
+      )
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.widget_triggers['triggers'].first['desktop']).to eq({ 'enabled' => true, 'value' => 15 })
+      expect(inbox.widget_tracking).to eq({ 'meta_pixel_id' => '1234567890', 'event_map' => { 'conversation_started' => 'Lead' } })
+    end
+
+    it 'rejects an invalid widget_profile with 422 naming the field' do
+      patch_inbox(widget_profile: 'suporte')
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('widget_profile')
+      # A requisicao real responde no locale da instalacao (pt_BR, config/application.rb:48) — e nao no
+      # `with_locale(:en)` do rails_helper, que so envolve o exemplo. E o texto que o admin ve no dashboard.
+      expect(response.parsed_body['message']).to eq('Widget profile não é um perfil de widget válido (valores aceitos: support, marketing)')
+      expect(inbox.reload.widget_profile).to be_nil
+    end
+
+    it 'rejects a secret smuggled into widget_tracking with 422' do
+      patch_inbox(widget_tracking: { meta_pixel_id: '123', access_token: 'EAAG-should-never-land-here' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('widget_tracking')
+      expect(response.parsed_body['message']).to include('access_token')
+      expect(inbox.reload.widget_tracking).to be_nil
+    end
+  end
+
+  describe 'the shallow merge of #update (inboxes_controller.rb:52-56)' do
+    before do
+      inbox.update!(
+        widget_profile: 'marketing',
+        widget_triggers: { 'version' => 1 },
+        widget_tracking: { 'meta_pixel_id' => '123' },
+        widget_appearance: { 'position' => 'left' }
+      )
+    end
+
+    it 'a partial PATCH of one key does not wipe the other three' do
+      patch_inbox(widget_triggers: { version: 2 })
+
+      expect(response).to have_http_status(:success)
+      attributes = stored_attributes
+      expect(attributes['widget_triggers']).to eq({ 'version' => 2 })
+      expect(attributes['widget_profile']).to eq('marketing')
+      expect(attributes['widget_tracking']).to eq({ 'meta_pixel_id' => '123' })
+      expect(attributes['widget_appearance']).to eq({ 'position' => 'left' })
+    end
+
+    it 'preserves keys of additional_attributes that are not ours' do
+      inbox.update!(pin_mode: 'per_agent')
+
+      patch_inbox(widget_profile: 'support')
+
+      expect(stored_attributes['pin_mode']).to eq('per_agent')
+      expect(stored_attributes['widget_profile']).to eq('support')
+    end
+  end
+
+  describe 'the trigger schema over HTTP (3.02)' do
+    it 'accepts a valid trigger object' do
+      patch_inbox(widget_triggers: { version: 1, enabled: true,
+                                     triggers: [{ id: 'scroll_depth', desktop: { enabled: true, value: 50 } }] })
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.widget_triggers['triggers'].first['id']).to eq('scroll_depth')
+    end
+
+    it 'answers 422 naming the offending field for a negative value' do
+      patch_inbox(widget_triggers: { triggers: [{ id: 'time_on_page', desktop: { enabled: true, value: -1 } }] })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('widget_triggers')
+      expect(response.parsed_body['message'])
+        .to eq('Widget triggers tem valor inválido em "triggers/0/desktop/value": deve ser maior ou igual a 0')
+    end
+
+    it 'answers 422 for an unknown trigger id' do
+      patch_inbox(widget_triggers: { triggers: [{ id: 'mouse_shake' }] })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('triggers/0/id')
+      expect(inbox.reload.widget_triggers).to be_nil
+    end
+
+    it 'answers 422 for an empty selector' do
+      patch_inbox(widget_triggers: { triggers: [{ id: 'element_click', desktop: { enabled: true, selector: '' } }] })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('triggers/0/desktop/selector')
+    end
+  end
+
+  # Bloco 3.18 — o aceite que o defeito D1 quebra hoje. O valor tem de viver no SERVIDOR: enquanto ele
+  # morava no `localStorage` do admin, "outro navegador" e "outro administrador" viam o padrao de fabrica.
+  describe 'appearance survives the browser and the administrator (3.18 / D1)' do
+    let(:other_admin) { create(:user, account: account, role: :administrator) }
+
+    it 'admin B, in another session, reads exactly what admin A saved' do
+      patch base_url,
+            headers: admin.create_new_auth_token,
+            params: { additional_attributes: { widget_appearance: { position: 'left', launcher_text: 'Fale com a gente' } } },
+            as: :json
+      expect(response).to have_http_status(:success)
+
+      get base_url, headers: other_admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['additional_attributes']['widget_appearance'])
+        .to eq({ 'position' => 'left', 'launcher_text' => 'Fale com a gente' })
+    end
+
+    it 'answers 422 naming the field for position: "center"' do
+      patch_inbox(widget_appearance: { position: 'center' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message'])
+        .to eq('Widget appearance tem valor inválido em "position": valor não permitido (aceitos: left, right)')
+      expect(inbox.reload.widget_appearance).to be_nil
+    end
+
+    it 'answers 422 for an offset of 500 and for a 200 character launcher text' do
+      patch_inbox(widget_appearance: { offset_x: 500 })
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('offset_x')
+
+      patch_inbox(widget_appearance: { launcher_text: 'a' * 200 })
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('launcher_text')
+    end
+
+    it 'answers 422 when additional_attributes goes over the jsonb ceiling' do
+      patch_inbox(widget_tracking: { event_map: Array.new(400) { |i| ["event_#{i}", 'a' * 40] }.to_h })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('additional_attributes')
+      expect(response.parsed_body['message']).to include('16384')
+    end
+  end
+
+  # Bloco 3.20 — a abordagem em tres niveis pela API.
+  describe 'the three approach levels over HTTP (3.20 / D1)' do
+    it 'persists approach: "bold" and returns it on the following GET' do
+      patch_inbox(widget_triggers: { approach: 'bold', degrade_on_return: true })
+
+      expect(response).to have_http_status(:success)
+      expect(stored_attributes['widget_triggers']).to eq({ 'approach' => 'bold', 'degrade_on_return' => true })
+    end
+
+    it 'answers 422 for approach: "agressivo"' do
+      patch_inbox(widget_triggers: { approach: 'agressivo' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('approach')
+      expect(inbox.reload.widget_triggers).to be_nil
+    end
+
+    it 'answers 422 for approach_mobile: "aggressive" saying why' do
+      patch_inbox(widget_triggers: { approach_mobile: 'aggressive' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('widget_triggers')
+      expect(response.parsed_body['message']).to eq(
+        'Widget triggers tem valor inválido em "approach_mobile": abertura automática não é oferecida em celular ' \
+        '— lá o painel cobre a tela inteira; use discreet ou bold'
+      )
+    end
+  end
+
+  describe 'an inbox that never heard of the four keys' do
+    it 'updates unrelated fields without any of them' do
+      patch base_url,
+            headers: admin.create_new_auth_token,
+            params: { greeting_message: 'Olá' },
+            as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.greeting_message).to eq('Olá')
+      expect(inbox.additional_attributes.keys).not_to include('widget_profile', 'widget_triggers',
+                                                              'widget_tracking', 'widget_appearance')
+    end
+  end
+end

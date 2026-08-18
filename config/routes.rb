@@ -627,6 +627,11 @@ Rails.application.routes.draw do
       namespace :widget do
         resource :direct_uploads, only: [:create]
         resource :config, only: [:create]
+        # Bloco 2.13 — telemetria de erro do widget. `resource` no singular
+        # porque não há coleção para listar, só um POST de relatório; e
+        # `controller:` explícito porque o Rails pluralizaria `telemetry` para
+        # `telemetries`, que não é o nome de nenhum arquivo aqui.
+        resource :telemetry, only: [:create], controller: 'telemetry'
         resources :campaigns, only: [:index]
         resources :events, only: [:create]
         resources :messages, only: [:index, :create, :update]
@@ -689,6 +694,8 @@ Rails.application.routes.draw do
               get :outgoing_messages_count
             end
           end
+          # Bloco 1.22 — de onde vieram os atendimentos.
+          resource :origin_report, only: [:show]
           resource :year_in_review, only: [:show]
           resources :live_reports, only: [] do
             collection do

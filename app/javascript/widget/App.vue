@@ -18,9 +18,10 @@ import {
   ON_UNREAD_MESSAGE_CLICK,
 } from './constants/widgetBusEvents';
 import { useDarkMode } from 'widget/composables/useDarkMode';
+import { watchDocumentTheme } from 'widget/helpers/documentTheme';
 import { useRouter } from 'vue-router';
 import { useAvailability } from 'widget/composables/useAvailability';
-import { SDK_SET_BUBBLE_VISIBILITY } from '../shared/constants/sharedFrameEvents';
+import { registerBridgeListeners } from './bridge';
 import { emitter } from 'shared/helpers/mitt';
 
 export default {
@@ -33,6 +34,14 @@ export default {
     const { prefersDarkMode } = useDarkMode();
     const router = useRouter();
     const { isInWorkingHours } = useAvailability();
+
+    // Bloco 2.10. A classe `dark` também no `<html>`, e não só nas `div`s
+    // abaixo: é o que faz o fundo do DOCUMENTO acompanhar o tema e o que
+    // habilita o `color-scheme: dark` do `:root` (ver `helpers/documentTheme`).
+    // `immediate` porque o primeiro valor já precisa valer — sem ele o widget
+    // abriria claro e escureceria na primeira troca, que é o flash que este
+    // bloco existe para matar.
+    watchDocumentTheme(prefersDarkMode);
 
     return { prefersDarkMode, router, isInWorkingHours };
   },
@@ -69,6 +78,11 @@ export default {
     isUnreadOrCampaignView() {
       return ['unread-messages', 'campaigns'].includes(this.$route.name);
     },
+    documentLocale() {
+      return this.$root.$i18n.locale
+        ? String(this.$root.$i18n.locale).replace('_', '-')
+        : '';
+    },
   },
   watch: {
     activeCampaign() {
@@ -80,12 +94,24 @@ export default {
         document.documentElement.dir = value ? 'rtl' : 'ltr';
       },
     },
+    // O `lang` inicial vem do ERB, com o locale da conta. Aqui ele acompanha a
+    // troca em tempo de execução, que existe quando a inbox habilita mais de um
+    // idioma: sem isto o documento continuaria anunciando o idioma antigo e o
+    // leitor de tela leria o novo com a pronúncia errada (WCAG 3.1.1).
+    // `_` do locale interno vira `-` do BCP 47 — `pt_BR` → `pt-BR`.
+    documentLocale: {
+      immediate: true,
+      handler(value) {
+        if (value) {
+          document.documentElement.lang = value;
+        }
+      },
+    },
   },
   mounted() {
     const { websiteToken, locale, widgetColor } = window.chatwootWebChannel;
     this.setLocale(locale);
     this.setWidgetColor(widgetColor);
-    this.setWidgetColorVariable(widgetColor);
     setHeader(window.authToken);
     if (this.isIFrame) {
       this.registerListeners();
@@ -104,28 +130,12 @@ export default {
     this.registerCampaignEvents();
   },
   methods: {
-    ...mapActions('appConfig', [
-      'setAppConfig',
-      'setReferrerHost',
-      'setWidgetColor',
-      'setBubbleVisibility',
-      'setColorScheme',
-    ]),
+    // As ações que só o bridge usava saíram daqui: os handlers despacham direto
+    // na store (`appConfig/setAppConfig`, `campaign/initCampaigns`, …).
+    ...mapActions('appConfig', ['setWidgetColor']),
     ...mapActions('conversation', ['fetchOldConversations']),
-    ...mapActions('campaign', [
-      'initCampaigns',
-      'executeCampaign',
-      'resetCampaign',
-    ]),
+    ...mapActions('campaign', ['executeCampaign']),
     ...mapActions('agent', ['fetchAvailableAgents']),
-    setWidgetColorVariable(widgetColor) {
-      if (widgetColor) {
-        document.documentElement.style.setProperty(
-          '--widget-color',
-          widgetColor
-        );
-      }
-    },
     scrollConversationToBottom() {
       const container = this.$el.querySelector('.conversation-wrap');
       container.scrollTop = container.scrollHeight;
@@ -134,6 +144,10 @@ export default {
       IFrameHelper.sendMessage({
         event: 'setBubbleLabel',
         label: this.$t('BUBBLE.LABEL'),
+        // O lançador vive no documento do host, fora do bundle do widget, e por
+        // isso não alcança o i18n do Vue. O nome acessível dele atravessa a
+        // ponte já traduzido (bloco 1.06) — é este painel que tem os 40 locales.
+        ariaLabel: this.$t('A11Y.OPEN_WIDGET'),
       });
     },
     setIframeHeight(isFixedHeight) {
@@ -247,104 +261,8 @@ export default {
         });
       }
     },
-    createWidgetEvents(message) {
-      const { eventName } = message;
-      const isWidgetTriggerEvent = eventName === 'webwidget.triggered';
-      if (
-        isWidgetTriggerEvent &&
-        ['unread-messages', 'campaigns'].includes(this.$route.name)
-      ) {
-        return;
-      }
-      this.$store.dispatch('events/create', { name: eventName });
-    },
     registerListeners() {
-      const { websiteToken } = window.chatwootWebChannel;
-      window.addEventListener('message', e => {
-        if (!IFrameHelper.isAValidEvent(e)) {
-          return;
-        }
-        const message = IFrameHelper.getMessage(e);
-        if (message.event === 'config-set') {
-          this.setLocale(message.locale);
-          this.setBubbleLabel();
-          this.fetchOldConversations().then(() => this.setUnreadView());
-          this.fetchAvailableAgents(websiteToken);
-          this.setAppConfig(message);
-          this.$store.dispatch('contacts/get');
-          this.setCampaignReadData(message.campaignsSnoozedTill);
-        } else if (message.event === 'widget-visible') {
-          this.scrollConversationToBottom();
-        } else if (message.event === 'change-url') {
-          const { referrerURL, referrerHost } = message;
-          this.initCampaigns({
-            currentURL: referrerURL,
-            websiteToken,
-            isInBusinessHours: this.isInWorkingHours,
-          });
-          window.referrerURL = referrerURL;
-          this.setReferrerHost(referrerHost);
-        } else if (message.event === 'toggle-close-button') {
-          this.isMobile = message.isMobile;
-        } else if (message.event === 'push-event') {
-          this.createWidgetEvents(message);
-        } else if (message.event === 'set-label') {
-          this.$store.dispatch('conversationLabels/create', message.label);
-        } else if (message.event === 'remove-label') {
-          this.$store.dispatch('conversationLabels/destroy', message.label);
-        } else if (message.event === 'set-user') {
-          this.$store.dispatch('contacts/setUser', message);
-        } else if (message.event === 'set-custom-attributes') {
-          this.$store.dispatch(
-            'contacts/setCustomAttributes',
-            message.customAttributes
-          );
-        } else if (message.event === 'delete-custom-attribute') {
-          this.$store.dispatch(
-            'contacts/deleteCustomAttribute',
-            message.customAttribute
-          );
-        } else if (message.event === 'set-conversation-custom-attributes') {
-          this.$store.dispatch(
-            'conversation/setCustomAttributes',
-            message.customAttributes
-          );
-        } else if (message.event === 'delete-conversation-custom-attribute') {
-          this.$store.dispatch(
-            'conversation/deleteCustomAttribute',
-            message.customAttribute
-          );
-        } else if (message.event === 'set-locale') {
-          this.setLocale(message.locale);
-          this.setBubbleLabel();
-        } else if (message.event === 'set-color-scheme') {
-          this.setColorScheme(message.darkMode);
-        } else if (message.event === 'toggle-open') {
-          this.$store.dispatch('appConfig/toggleWidgetOpen', message.isOpen);
-
-          const shouldShowMessageView =
-            ['home'].includes(this.$route.name) &&
-            message.isOpen &&
-            this.messageCount;
-          const shouldShowHomeView =
-            !message.isOpen &&
-            ['unread-messages', 'campaigns'].includes(this.$route.name);
-
-          if (shouldShowMessageView) {
-            this.router.replace({ name: 'messages' });
-          }
-          if (shouldShowHomeView) {
-            this.$store.dispatch('conversation/setUserLastSeen');
-            this.unsetUnreadView();
-            this.router.replace({ name: 'home' });
-          }
-          if (!message.isOpen) {
-            this.resetCampaign();
-          }
-        } else if (message.event === SDK_SET_BUBBLE_VISIBILITY) {
-          this.setBubbleVisibility(message.hideMessageBubble);
-        }
-      });
+      registerBridgeListeners(this);
     },
     sendLoadedEvent() {
       IFrameHelper.sendMessage(loadedEventConfig());

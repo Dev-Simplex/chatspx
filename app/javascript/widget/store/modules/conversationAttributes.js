@@ -4,6 +4,7 @@ import {
   CLEAR_CONVERSATION_ATTRIBUTES,
 } from '../types';
 import { getConversationAPI } from '../../api/conversation';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 
 const state = {
   id: '',
@@ -22,7 +23,10 @@ export const actions = {
       commit(SET_CONVERSATION_ATTRIBUTES, data);
       commit('conversation/setMetaUserLastSeenAt', lastSeen, { root: true });
     } catch (error) {
-      // Ignore error
+      // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+      // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+      // visitante; passa apenas a ser CONTADO.
+      reportWidgetError(error, { origem: 'store/conversationAttributes' });
     }
   },
   update({ commit }, data) {

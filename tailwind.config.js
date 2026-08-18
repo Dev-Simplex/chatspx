@@ -235,10 +235,22 @@ const tailwindConfig = {
     },
     boxShadow: {
       ...defaultTheme.boxShadow,
-      overlay:
-        '0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
-      dropdown:
-        '0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04)',
+      overlay: '0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
+      dropdown: '0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04)',
+      // Bloco 1.06 — o anel de foco do composer.
+      //
+      // `shadow-focus` era usada em `ChatInputWrap.vue` e NÃO EXISTIA em config
+      // nenhum: o Tailwind descartava a classe silenciosamente, e o campo de
+      // texto do visitante ficava sem indicação de foco visível. Medido no CSS
+      // compilado: `.shadow-focus` → 0 ocorrências; `.shadow-overlay`, ao lado,
+      // → 1. Classe inexistente não avisa, só não desenha.
+      //
+      // Largura e cor vêm dos tokens de foco, então o anel acompanha a cor da
+      // inbox e engrossa em `prefers-contrast: more`. O fallback existe porque
+      // `_tokens.scss` só é carregado pelo CSS do widget (ver a nota R21 em
+      // `theme/colors.js`).
+      focus:
+        '0 0 0 var(--w-focus-ring-width, 2px) var(--w-focus-ring-color, #2dc46f)',
     },
     colors: {
       transparent: 'transparent',

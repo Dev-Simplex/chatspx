@@ -2,13 +2,13 @@
 import CustomButton from 'shared/components/Button.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import { mapGetters } from 'vuex';
-import { getContrastingTextColor } from '@chatwoot/utils';
 import { isEmptyObject } from 'widget/helpers/utils';
 import { getRegexp } from 'shared/helpers/Validators';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import configMixin from 'widget/mixins/configMixin';
 import { FormKit, createInput } from '@formkit/vue';
 import PhoneInput from 'widget/components/Form/PhoneInput.vue';
+import { getRequiredMessage as buildRequiredMessage } from 'widget/helpers/preChatFieldMessages';
 
 export default {
   components: {
@@ -47,7 +47,6 @@ export default {
   },
   computed: {
     ...mapGetters({
-      widgetColor: 'appConfig/getWidgetColor',
       isCreating: 'conversation/getIsCreating',
       isConversationRouting: 'appConfig/getIsUpdatingRoute',
       activeCampaign: 'campaign/getActiveCampaign',
@@ -55,9 +54,6 @@ export default {
     }),
     isCreatingConversation() {
       return this.isCreating || this.isConversationRouting;
-    },
-    textColor() {
-      return getContrastingTextColor(this.widgetColor);
     },
     hasActiveCampaign() {
       return !isEmptyObject(this.activeCampaign);
@@ -158,6 +154,12 @@ export default {
     },
     getPlaceHolder({ placeholder }) {
       return placeholder;
+    },
+    // Bloco 2.17. A mensagem de obrigatoriedade deixa de ser a mesma palavra
+    // para todos os campos e passa a nomear o campo — ver o contrato em
+    // `widget/helpers/preChatFieldMessages.js`.
+    getRequiredMessage(field) {
+      return buildRequiredMessage({ field, t: this.$t });
     },
     getValue({ name, type }) {
       if (type === 'select') {
@@ -264,7 +266,7 @@ export default {
     <div
       v-if="shouldShowHeaderMessage"
       v-dompurify-html="formatMessage(headerMessage, false)"
-      class="mb-4 text-base leading-5 text-n-slate-12 [&>p>.link]:text-n-brand [&>p>.link]:hover:underline"
+      class="mb-4 text-base leading-5 text-n-slate-12 [&>p>.link]:text-w-brand-readable [&>p>.link]:hover:underline"
     />
     <!-- Why do the v-bind shenanigan? Because Formkit API is really bad.
     If we just pass the options as is even with null or undefined or false,
@@ -292,7 +294,7 @@ export default {
         ),
         isValidPhoneNumber: $t('PRE_CHAT_FORM.FIELDS.PHONE_NUMBER.VALID_ERROR'),
         email: $t('PRE_CHAT_FORM.FIELDS.EMAIL_ADDRESS.VALID_ERROR'),
-        required: $t('PRE_CHAT_FORM.REQUIRED'),
+        required: getRequiredMessage(item),
         matches: item.regex_cue
           ? item.regex_cue
           : $t('PRE_CHAT_FORM.REGEX_ERROR'),
@@ -316,8 +318,6 @@ export default {
     <CustomButton
       class="mt-3 mb-5 font-medium flex items-center justify-center gap-2"
       block
-      :bg-color="widgetColor"
-      :text-color="textColor"
       :disabled="isCreatingConversation"
     >
       <Spinner v-if="isCreatingConversation" class="p-0" />

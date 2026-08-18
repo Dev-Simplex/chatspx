@@ -12,6 +12,7 @@ import { DirectUpload } from 'activestorage';
 import { mapGetters } from 'vuex';
 import { emitter } from 'shared/helpers/mitt';
 import { useAttachments } from '../composables/useAttachments';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 
 export default {
   components: { FluentIcon, FileUpload, Spinner },
@@ -111,7 +112,10 @@ export default {
           });
         }
       } catch (error) {
-        // Error
+        // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+        // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+        // visitante; passa apenas a ser CONTADO.
+        reportWidgetError(error, { origem: 'ChatAttachment#upload' });
       }
       this.isUploading = false;
     },
@@ -134,7 +138,10 @@ export default {
           });
         }
       } catch (error) {
-        // Error
+        // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+        // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+        // visitante; passa apenas a ser CONTADO.
+        reportWidgetError(error, { origem: 'ChatAttachment#directUpload' });
       }
       this.isUploading = false;
     },

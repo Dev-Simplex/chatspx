@@ -1,0 +1,159 @@
+# O lar da configuracao do widget (bloco 3.01, arbitragem A1 do PLANO-MESTRE).
+#
+# As quatro chaves de topo vivem em `inbox.additional_attributes` — sem coluna nova e sem migration:
+#
+#   widget_profile     escalar: "support" | "marketing" (nil e lido como "support", regra A4: sem backfill)
+#   widget_triggers    jsonb: gatilhos e abordagem      (schema em 3.02 + 3.20)
+#   widget_tracking    jsonb: identificadores PUBLICOS  (a projecao entregue ao widget e feita em 3.04)
+#   widget_appearance  jsonb: tema, posicao, lancador   (schema em 3.18)
+#
+# Sao chaves de TOPO separadas, e nao um sub-hash unico, porque o merge do `#update` e raso
+# (`inboxes_controller.rb:52-56`): com um `widget_config` unico, um PATCH parcial apagaria as outras tres.
+#
+# Regra dura herdada da A1: NENHUM segredo aqui. Sao DOIS publicos, e cada um por um caminho:
+# `_inbox.json.jbuilder:27` serve o hash INTEIRO a qualquer agente com a inbox atribuida, e
+# `show.html.erb` publica estas quatro chaves no HTML de toda pagina do site do cliente.
+# A lista negativa abaixo e o mecanismo — o bloco 5.01 apenas a amplia.
+module WidgetConfigurable
+  extend ActiveSupport::Concern
+
+  # A leitura derivada mora num modulo irmao: aqui fica o que RECUSA escrita errada, la o que
+  # ENTREGA leitura completa. Declarado no corpo do concern, que e a forma canonica de um concern
+  # depender de outro — quem incluir este ganha os dois.
+  include WidgetConfigResolvable
+
+  WIDGET_PROFILES = %w[support marketing].freeze
+
+  # As tres chaves que carregam objeto. `widget_profile` e escalar e valida por inclusao.
+  WIDGET_OBJECT_KEYS = %i[widget_triggers widget_tracking widget_appearance].freeze
+
+  # `*_token`, `*_secret`, `api_secret` — e as chaves nuas `token` e `secret`, que passariam
+  # por uma leitura literal da lista do plano e sao o disfarce mais obvio.
+  SECRET_KEY_PATTERN = /(\A|_)(token|secret)\z/i
+
+  included do
+    store_accessor :additional_attributes, :widget_profile, :widget_triggers, :widget_tracking, :widget_appearance
+
+    # Regime 1 de A3: o perfil semeia o que nasce agora, e so na CRIACAO. Antes do INSERT, para que
+    # o valor semeado passe pelas mesmas validacoes de todo o resto.
+    before_create { WidgetProfile.seed_defaults(self) }
+
+    validate :ensure_valid_widget_profile
+    validate :ensure_widget_config_objects
+    validate :ensure_no_secret_in_widget_config
+    validate :ensure_widget_triggers_match_schema
+    validate :ensure_widget_appearance_matches_schema
+    validate :ensure_home_intents_are_a_real_choice
+    validate :ensure_additional_attributes_fit_the_ceiling
+  end
+
+  private
+
+  def ensure_valid_widget_profile
+    return if widget_profile.blank?
+    return if WIDGET_PROFILES.include?(widget_profile)
+
+    errors.add(:widget_profile, I18n.t('errors.inbox.widget_config.invalid_profile', profiles: WIDGET_PROFILES.join(', ')))
+  end
+
+  def ensure_widget_config_objects
+    WIDGET_OBJECT_KEYS.each do |key|
+      value = public_send(key)
+      next if value.nil? || value.is_a?(Hash)
+
+      errors.add(key, I18n.t('errors.inbox.widget_config.must_be_object'))
+    end
+  end
+
+  # Bloco 3.02: o schema dos gatilhos. A validacao fina mora aqui, e nao no strong params, porque e
+  # aqui que ela consegue dizer QUAL campo esta errado.
+  def ensure_widget_triggers_match_schema
+    validate_against_schema(:widget_triggers, WidgetTriggersSchema::SCHEMA)
+  end
+
+  def ensure_widget_appearance_matches_schema
+    validate_against_schema(:widget_appearance, WidgetAppearanceSchema::SCHEMA)
+  end
+
+  def ensure_home_intents_are_a_real_choice
+    intents = widget_appearance.is_a?(Hash) ? widget_appearance['home_intents'] : nil
+
+    WidgetAppearanceSchema.home_intents_violations(intents).each { |message| errors.add(:widget_appearance, message) }
+  end
+
+  # O teto do jsonb (3.18). O hash inteiro e servido a qualquer agente com a inbox atribuida
+  # (`_inbox.json.jbuilder:27`), e as chaves do widget vao para o HTML de toda pagina do site do
+  # cliente — um hash aberto sem teto e o oposto do orcamento de bytes que este plano defende em
+  # outros seis lugares. O teto e do hash inteiro porque e ele que trafega no dashboard.
+  def ensure_additional_attributes_fit_the_ceiling
+    size = (additional_attributes || {}).to_json.bytesize
+    return if size <= Inbox::MAX_ADDITIONAL_ATTRIBUTES_BYTES
+    return if within_previous_size?(size)
+
+    errors.add(:additional_attributes,
+               I18n.t('errors.inbox.widget_config.over_size_limit', limit: Inbox::MAX_ADDITIONAL_ATTRIBUTES_BYTES))
+  end
+
+  # Uma inbox da frota que JA estava acima do teto antes deste teto existir nao pode ficar
+  # inatualizavel por causa dele: seria uma validacao que nasce vermelha em cliente real, e o
+  # sintoma seria "salvar a inbox parou de funcionar" sem que ninguem tivesse mexido nela.
+  # Ela continua podendo encolher ou ficar igual; o que o teto impede e CRESCER.
+  def within_previous_size?(size)
+    return false unless persisted?
+
+    previous = attribute_was('additional_attributes')
+    return false if previous.blank?
+
+    size <= previous.to_json.bytesize
+  end
+
+  def validate_against_schema(key, schema)
+    value = public_send(key)
+    return unless value.is_a?(Hash)
+
+    JSONSchemer.schema(schema).validate(value).each do |error|
+      errors.add(key, WidgetSchemaErrorMessage.for(error))
+    end
+  end
+
+  def ensure_no_secret_in_widget_config
+    WIDGET_OBJECT_KEYS.each do |key|
+      value = public_send(key)
+      next unless value.is_a?(Hash)
+
+      offender = find_secret_key(value)
+      next if offender.nil?
+
+      errors.add(key, I18n.t('errors.inbox.widget_config.secret_not_allowed', key: offender))
+    end
+  end
+
+  # Varre em profundidade: um segredo escondido dentro de um objeto aninhado ou de um array
+  # de objetos vaza exatamente como um de topo.
+  def find_secret_key(node)
+    return find_secret_key_in_hash(node) if node.is_a?(Hash)
+    return find_secret_key_in_array(node) if node.is_a?(Array)
+
+    nil
+  end
+
+  def find_secret_key_in_hash(hash)
+    hash.each do |key, value|
+      return key.to_s if key.to_s.match?(SECRET_KEY_PATTERN)
+
+      nested = find_secret_key(value)
+      return nested if nested
+    end
+
+    nil
+  end
+
+  def find_secret_key_in_array(array)
+    array.each do |item|
+      nested = find_secret_key(item)
+      return nested if nested
+    end
+
+    nil
+  end
+end

@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "გამარჯობა",
         "AGENT_MESSAGE": "სალამი"
       },
-      "BRANDING_TEXT": "მოძრავებულია Chatwoot-ის მიერ",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "მოძრავებულია Chatwoot-ის მიერ"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

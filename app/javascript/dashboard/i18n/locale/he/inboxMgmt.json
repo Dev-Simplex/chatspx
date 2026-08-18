@@ -1202,8 +1202,7 @@
         "USER_MESSAGE": "היי",
         "AGENT_MESSAGE": "שלום"
       },
-      "BRANDING_TEXT": "מופעל על ידי Chatwoot",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "מופעל על ידי Chatwoot"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

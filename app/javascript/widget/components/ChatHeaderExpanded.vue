@@ -31,14 +31,14 @@ const containerClasses = computed(() => [
 
 <template>
   <header
-    class="header-expanded pt-6 pb-4 px-5 relative box-border w-full bg-n-brand"
+    class="header-expanded pt-6 pb-4 px-5 relative box-border w-full bg-w-brand"
   >
     <div class="flex items-start" :class="containerClasses">
       <img
         v-if="avatarUrl"
         class="h-12 rounded-full"
         :src="avatarUrl"
-        alt="Avatar"
+        :alt="$t('A11Y.AGENT_AVATAR')"
       />
       <HeaderActions
         :show-popout-button="showPopoutButton"

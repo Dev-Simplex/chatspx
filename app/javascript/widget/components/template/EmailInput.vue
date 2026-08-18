@@ -1,11 +1,10 @@
 <script>
-import { mapGetters } from 'vuex';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email } from '@vuelidate/validators';
-import { getContrastingTextColor } from '@chatwoot/utils';
 
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import Spinner from 'shared/components/Spinner.vue';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 
 export default {
   components: {
@@ -32,12 +31,6 @@ export default {
     };
   },
   computed: {
-    ...mapGetters({
-      widgetColor: 'appConfig/getWidgetColor',
-    }),
-    textColor() {
-      return getContrastingTextColor(this.widgetColor);
-    },
     hasSubmitted() {
       return (
         this.messageContentAttributes &&
@@ -63,7 +56,10 @@ export default {
           messageId: this.messageId,
         });
       } catch (error) {
-        // Ignore error
+        // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+        // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+        // visitante; passa apenas a ser CONTADO.
+        reportWidgetError(error, { origem: 'EmailInput' });
       } finally {
         this.isUpdating = false;
       }
@@ -87,15 +83,7 @@ export default {
         @input="v$.email.$touch"
         @keydown.enter="onSubmit"
       />
-      <button
-        class="button small"
-        :disabled="v$.email.$invalid"
-        :style="{
-          background: widgetColor,
-          borderColor: widgetColor,
-          color: textColor,
-        }"
-      >
+      <button class="button small" :disabled="v$.email.$invalid">
         <FluentIcon v-if="!isUpdating" icon="chevron-right" />
         <Spinner v-else class="mx-2" />
       </button>
@@ -106,7 +94,7 @@ export default {
 <style lang="scss" scoped>
 .email-input-group {
   input {
-    @apply dark:bg-n-alpha-black1 rtl:rounded-tl-[0] ltr:rounded-tr-[0] rtl:rounded-bl-[0] ltr:rounded-br-[0] p-2.5 w-full focus:ring-0 focus:outline-n-brand;
+    @apply dark:bg-n-alpha-black1 rtl:rounded-tl-[0] ltr:rounded-tr-[0] rtl:rounded-bl-[0] ltr:rounded-br-[0] p-2.5 w-full focus:ring-0 focus:outline-w-focus;
 
     &::placeholder {
       @apply text-n-slate-10;
