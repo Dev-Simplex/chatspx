@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { DEFAULT_APPEARANCE } from '../widgetConfigFields';
+import {
+  DEFAULT_APPEARANCE,
+  WIDGET_CONFIG_FIELDS,
+} from '../widgetConfigFields';
 import {
   APPEARANCE_LIMITS,
   APPEARANCE_ENUMS,
@@ -53,6 +56,30 @@ const defaultsDoServidor = () => {
     })
   );
 };
+
+const strongParams = fs.readFileSync(
+  path.resolve(
+    process.cwd(),
+    'app/controllers/api/v1/accounts/inboxes_controller.rb'
+  ),
+  'utf8'
+);
+
+describe('o PATCH que a tela monta é o que o controller aceita', () => {
+  it.each(WIDGET_CONFIG_FIELDS.filter(f => f.scope === 'additional'))(
+    '`$path` está no strong params da inbox',
+    field => {
+      // Uma chave que a tela envia e o `permit` não conhece é descartada em
+      // SILÊNCIO: a tela mostra "salvo", o banco não muda, e o administrador só
+      // descobre ao recarregar. É o defeito mais caro desta superfície.
+      expect(strongParams).toMatch(new RegExp(`${field.path}(:|\\s|,|\\})`));
+    }
+  );
+
+  it('o sub-hash `channel` também é aceito', () => {
+    expect(strongParams).toMatch(/channel:/);
+  });
+});
 
 describe('a tela e o servidor concordam sobre a aparência', () => {
   it('o arquivo do servidor foi mesmo lido — senão o teste passaria vazio', () => {
