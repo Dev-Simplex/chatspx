@@ -61,6 +61,33 @@
       "TRIGGERS_RULES": "Triggers",
       "TRACKING_DESTINATIONS": "Tracking destinations",
       "TRACKING_EVENTS": "Tracking events"
+    },
+    "CONTRAST": {
+      "RATIO": "{value}:1",
+      "ADJUSTED_TO": "→ {value}:1",
+      "INVALID": "Enter a hex color (for example #2DC46F) to see the contrast readout.",
+      "PAIRS": {
+        "TEXTONBRAND": "Text on the brand color",
+        "BRANDASTEXTLIGHT": "Brand as text (light background)",
+        "BRANDASTEXTDARK": "Brand as text (dark background)",
+        "BRANDASBORDER": "Border and focus ring"
+      },
+      "VERDICT": {
+        "PASS": "passes AA",
+        "ADJUSTED": "adjusted",
+        "FAIL": "below the minimum"
+      },
+      "EXPLANATION": {
+        "TEXT": "On a light background, {brand} as text gives {ratio}:1 — below the legible minimum. Links and labels will use {adjusted} ({adjustedRatio}:1). The fill stays {brand}.",
+        "BORDER": "As a border and focus ring, {brand} gives {ratio}:1 — below the 3:1 an interface element needs. Borders and focus will use {adjusted} ({adjustedRatio}:1)."
+      }
+    },
+    "APPEARANCE": {
+      "BRAND_COLOR": {
+        "LABEL": "Brand color",
+        "HEX_LABEL": "Brand color in hexadecimal",
+        "INVALID": "Use the #RRGGBB format."
+      }
     }
   }
 }

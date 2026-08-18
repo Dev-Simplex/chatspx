@@ -7,6 +7,7 @@ import {
   KNOWN_FIELD_PATHS,
   fieldLabelKey,
 } from '../composables/widgetFieldLabels';
+import { PAIR_IDS } from '../composables/useContrast';
 
 /**
  * pt-BR e prioridade, e `en` nao pode ficar para tras: as duas arvores tem de
@@ -77,6 +78,23 @@ describe('i18n de INBOX_WIDGET', () => {
       const relative = fieldLabelKey(fieldPath).replace(/^INBOX_WIDGET\./, '');
       expect(lookup(ptBR.INBOX_WIDGET, relative)).toBeTypeOf('string');
       expect(lookup(en.INBOX_WIDGET, relative)).toBeTypeOf('string');
+    }
+  );
+
+  // As chaves montadas em tempo de execucao (`PAIRS.${pair.id}`) nao caem no
+  // grep acima; sao verificadas nominalmente aqui.
+  it.each(PAIR_IDS)('o par %s tem rótulo nos dois idiomas', pairId => {
+    const key = `CONTRAST.PAIRS.${pairId.toUpperCase()}`;
+    expect(lookup(ptBR.INBOX_WIDGET, key)).toBeTypeOf('string');
+    expect(lookup(en.INBOX_WIDGET, key)).toBeTypeOf('string');
+  });
+
+  it.each(['PASS', 'ADJUSTED', 'FAIL'])(
+    'o veredito %s tem texto nos dois idiomas',
+    verdict => {
+      const key = `CONTRAST.VERDICT.${verdict}`;
+      expect(lookup(ptBR.INBOX_WIDGET, key)).toBeTypeOf('string');
+      expect(lookup(en.INBOX_WIDGET, key)).toBeTypeOf('string');
     }
   );
 

@@ -61,6 +61,33 @@
       "TRIGGERS_RULES": "Gatilhos",
       "TRACKING_DESTINATIONS": "Destinos de rastreio",
       "TRACKING_EVENTS": "Eventos de rastreio"
+    },
+    "CONTRAST": {
+      "RATIO": "{value}:1",
+      "ADJUSTED_TO": "→ {value}:1",
+      "INVALID": "Digite uma cor em hexadecimal (por exemplo #2DC46F) para ver a leitura de contraste.",
+      "PAIRS": {
+        "TEXTONBRAND": "Texto sobre a marca",
+        "BRANDASTEXTLIGHT": "Marca como texto (fundo claro)",
+        "BRANDASTEXTDARK": "Marca como texto (fundo escuro)",
+        "BRANDASBORDER": "Borda e anel de foco"
+      },
+      "VERDICT": {
+        "PASS": "passa em AA",
+        "ADJUSTED": "ajustamos",
+        "FAIL": "abaixo do mínimo"
+      },
+      "EXPLANATION": {
+        "TEXT": "Em fundo claro, {brand} como texto dá {ratio}:1 — abaixo do mínimo legível. Links e rótulos usarão {adjusted} ({adjustedRatio}:1). O preenchimento continua {brand}.",
+        "BORDER": "Como borda e anel de foco, {brand} dá {ratio}:1 — abaixo dos 3:1 que um elemento de interface precisa. Bordas e foco usarão {adjusted} ({adjustedRatio}:1)."
+      }
+    },
+    "APPEARANCE": {
+      "BRAND_COLOR": {
+        "LABEL": "Cor da marca",
+        "HEX_LABEL": "Cor da marca em hexadecimal",
+        "INVALID": "Use o formato #RRGGBB."
+      }
     }
   }
 }
