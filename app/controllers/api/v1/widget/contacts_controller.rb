@@ -28,7 +28,12 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
       contact = @contact
     end
 
-    @contact_inbox.update(hmac_verified: true) if should_verify_hmac?
+    # Bloco 4.15: `should_verify_hmac?` deixou de implicar "assinatura conferida". Sob
+    # `observado` a requisicao chega ate aqui SEM assinatura valida — de proposito, para
+    # nao quebrar sessao — e marcar a sessao como verificada apagaria exatamente o sinal
+    # de que o relatorio de enforcement depende. Para `desativado` e `obrigatorio` isto e
+    # equivalente ao que ja acontecia: nos dois, chegar aqui ja significava assinatura ok.
+    @contact_inbox.update(hmac_verified: true) if should_verify_hmac? && valid_hmac?
 
     identify_contact(contact)
   end
@@ -68,22 +73,48 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
   # PORTA 1 (B5): so o identifier era tratado como identidade. email e
   # phone_number amarram a sessao do mesmo jeito, via merge, e passavam sem
   # assinatura mesmo com o modo obrigatorio ligado.
+  #
+  # Bloco 4.15: `observado` entra aqui junto com `obrigatorio` de proposito. Os dois
+  # precisam reconhecer o MESMO universo de requisicoes — se `observado` medisse um
+  # universo menor, o numero dele nao serviria para decidir a virada para estrito.
   def identity_binding_request?
-    return false unless @web_widget.hmac_mandatory
+    return false unless widget_inbox.identity_enforcement_watching?
 
     IDENTITY_BINDING_PARAMS.any? { |field| params[field].present? }
   end
 
   def validate_hmac
     return unless should_verify_hmac?
+    return if valid_hmac?
 
-    render json: { error: 'HMAC failed: Invalid Identifier Hash Provided' }, status: :unauthorized unless valid_hmac?
+    # Bloco 4.15: sob `observado` a requisicao SEGUE. Nenhuma sessao quebra — e por
+    # isso que ligar o estado do meio numa inbox com trafego e seguro. O que ela
+    # deixa atras de si e contabilidade, e a contabilidade e derivada de
+    # `contact_inboxes.hmac_verified` (Identity::EnforcementReport), nao deste log.
+    return observe_unverified_identity if widget_inbox.identity_enforcement_observed?
+
+    render json: { error: 'HMAC failed: Invalid Identifier Hash Provided' }, status: :unauthorized
+  end
+
+  def observe_unverified_identity
+    campos = IDENTITY_BINDING_PARAMS.select { |field| params[field].present? }.join(',')
+    Rails.logger.info(
+      "[identity_enforcement] observado inbox_id=#{widget_inbox.id} " \
+      "contact_inbox_id=#{@contact_inbox&.id} campos=#{campos}"
+    )
+    nil
+  end
+
+  # `set_web_widget` garante `@web_widget`; o `inbox` do BaseController depende do
+  # auth token, que nao esta garantido em todo caminho deste controller.
+  def widget_inbox
+    @widget_inbox ||= @web_widget.inbox
   end
 
   def should_verify_hmac?
-    # Modo obrigatorio: quem chegou ate aqui carrega campo de identidade, entao a
-    # checagem nao pode ser desligada por nada.
-    return true if @web_widget.hmac_mandatory
+    # Modos `obrigatorio` e `observado`: quem chegou ate aqui carrega campo de
+    # identidade, entao a checagem nao pode ser desligada por nada.
+    return true if widget_inbox.identity_enforcement_watching?
 
     return false if params[:identifier_hash].blank?
 

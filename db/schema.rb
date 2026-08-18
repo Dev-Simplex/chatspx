@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_23_000000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2205,6 +2205,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000000) do
     t.index ["account_id", "url"], name: "index_webhooks_on_account_id_and_url", unique: true
   end
 
+  create_table "widget_partial_leads", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.bigint "contact_id"
+    t.string "session_id", null: false
+    t.integer "step_reached", default: 0, null: false
+    t.string "step_key"
+    t.jsonb "answers", default: {}, null: false
+    t.datetime "last_answered_at", null: false
+    t.datetime "completed_at"
+    t.datetime "abandoned_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "completed_at", "last_answered_at"], name: "index_widget_partial_leads_on_account_and_state"
+    t.index ["contact_id"], name: "index_widget_partial_leads_on_contact_id"
+    t.index ["inbox_id", "session_id"], name: "index_widget_partial_leads_on_inbox_and_session", unique: true
+  end
+
   create_table "working_hours", force: :cascade do |t|
     t.bigint "inbox_id"
     t.bigint "account_id"
@@ -2315,6 +2333,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000000) do
   add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id"
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
   add_foreign_key "user_sessions", "users"
+  add_foreign_key "widget_partial_leads", "accounts", on_delete: :cascade
+  add_foreign_key "widget_partial_leads", "contacts", on_delete: :cascade
+  add_foreign_key "widget_partial_leads", "inboxes", on_delete: :cascade
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).

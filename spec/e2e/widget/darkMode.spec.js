@@ -54,42 +54,69 @@ const abrirWidget = async (page, { theme }) => {
   return frame;
 };
 
-// Lê o que o navegador REALMENTE aplicou ao `:root` do documento do iframe.
-const lerRaizDoWidget = frame =>
-  frame.locator('html').evaluate(raiz => ({
-    colorScheme: getComputedStyle(raiz).colorScheme,
-    temClasseDark: raiz.classList.contains('dark'),
-  }));
+// Lê o que o navegador REALMENTE aplicou ao documento do iframe.
+//
+// A classe fica no `<html>`; o `color-scheme` fica no container do app
+// (`.woot-widget-app`) e não no `:root`, por uma razão medida: no `:root` o
+// agente de usuário pinta o CANVAS do documento, e o documento do widget é
+// transparente de propósito — ver o comentário longo em `_tokens.scss`. O que o
+// visitante ganha com `color-scheme` (barra de rolagem, `caret`, controles
+// nativos) está todo DENTRO do container, e a propriedade é herdada.
+const lerRaizDoWidget = async frame => ({
+  colorScheme: await frame
+    .locator('.woot-widget-app')
+    .evaluate(el => getComputedStyle(el).colorScheme),
+  temClasseDark: await frame
+    .locator('html')
+    .evaluate(raiz => raiz.classList.contains('dark')),
+});
 
 // Luminância relativa WCAG do que o motor computou. `color-scheme: dark` e a
 // classe `dark` são SINAIS de tema; a cor que saiu é o EFEITO. Medir só os
 // sinais deixaria passar um `!important` de terceiro que prendesse a superfície
 // numa cor — a forma exata de defeito que já mordeu esta base três vezes, e que
 // passa verde em jsdom porque jsdom não resolve cascata.
-const luminanciaComputada = (frame, seletor) =>
-  frame.locator(seletor).evaluate(elemento => {
-    let alvo = elemento;
-    let fundo = getComputedStyle(alvo).backgroundColor;
-    while (
-      alvo.parentElement &&
-      (fundo === 'rgba(0, 0, 0, 0)' || fundo === 'transparent')
-    ) {
-      alvo = alvo.parentElement;
-      fundo = getComputedStyle(alvo).backgroundColor;
-    }
-    const canais = fundo
-      .match(/[\d.]+/g)
-      .slice(0, 3)
-      .map(Number);
-    const linear = canais.map(canal => {
-      const n = canal / 255;
-      return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+//
+// ⚠️ MEDE A SUPERFÍCIE QUE PINTA, NÃO `#app`. A primeira versão apontava para
+// `#app` e subia pelos ancestrais atrás de um fundo opaco. Só que o documento
+// do widget é transparente de propósito (o iframe flutua sobre o site do
+// cliente), então o laço chegava ao topo sem achar nada e devolvia
+// `rgba(0, 0, 0, 0)` → luminância 0. No tema CLARO isso reprovou; no ESCURO
+// PASSOU — pelo motivo errado, porque 0 < 0,1. Um falso verde perfeito: a
+// asserção certa, no elemento errado.
+//
+// Quem pinta o painel é a `div` raiz de `App.vue` (`bg-n-slate-2
+// dark:bg-n-solid-1`). É ela que o visitante vê, e é ela que se mede.
+const SUPERFICIE_DO_PAINEL = '#app > div';
+
+const luminanciaComputada = (frame, seletor = SUPERFICIE_DO_PAINEL) =>
+  frame
+    .locator(seletor)
+    .first()
+    .evaluate(elemento => {
+      const fundo = getComputedStyle(elemento).backgroundColor;
+      const canais = fundo.match(/[\d.]+/g).map(Number);
+      const alfa = canais.length > 3 ? canais[3] : 1;
+      const linear = canais.slice(0, 3).map(canal => {
+        const n = canal / 255;
+        return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+      });
+      return {
+        cor: fundo,
+        alfa,
+        luminancia:
+          0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2],
+      };
     });
-    return {
-      cor: fundo,
-      luminancia: 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2],
-    };
-  });
+
+// Guarda contra o falso verde acima: uma superfície transparente não tem cor
+// para medir, e `luminancia === 0` ali significa "não medi nada", não "escuro".
+const exigirSuperficieOpaca = medida => {
+  expect(
+    medida.alfa,
+    `superfície transparente (${medida.cor}) — não há cor computada para medir`
+  ).toBeGreaterThan(0.99);
+};
 
 test.describe('2.10 — dark mode no documento do widget', () => {
   test('sem `darkMode` configurado e SO ESCURO, o widget abre escuro', async ({
@@ -104,8 +131,9 @@ test.describe('2.10 — dark mode no documento do widget', () => {
 
     // E a superfície REALMENTE ficou escura. `color-scheme` é o sinal; esta é
     // a cor que o visitante enxerga.
-    const { luminancia } = await luminanciaComputada(frame, '#app');
-    expect(luminancia).toBeLessThan(0.1);
+    const medida = await luminanciaComputada(frame);
+    exigirSuperficieOpaca(medida);
+    expect(medida.luminancia).toBeLessThan(0.1);
   });
 
   test('sem `darkMode` configurado e SO CLARO, o widget abre claro', async ({
@@ -118,8 +146,9 @@ test.describe('2.10 — dark mode no documento do widget', () => {
     expect(raiz.temClasseDark).toBe(false);
     expect(raiz.colorScheme).toBe('light');
 
-    const { luminancia } = await luminanciaComputada(frame, '#app');
-    expect(luminancia).toBeGreaterThan(0.5);
+    const medida = await luminanciaComputada(frame);
+    exigirSuperficieOpaca(medida);
+    expect(medida.luminancia).toBeGreaterThan(0.5);
   });
 
   test('trocar o tema do SO reflete SEM REMOUNT', async ({ page }) => {
@@ -153,7 +182,8 @@ test.describe('2.10 — dark mode no documento do widget', () => {
     expect(marca).toBe('antes-da-troca');
 
     // A cor acompanhou de verdade, não só a classe.
-    const depoisDaTroca = await luminanciaComputada(frame, '#app');
+    const depoisDaTroca = await luminanciaComputada(frame);
+    exigirSuperficieOpaca(depoisDaTroca);
     expect(depoisDaTroca.luminancia).toBeLessThan(0.1);
 
     // E volta, na mesma instância.

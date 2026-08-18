@@ -49,6 +49,9 @@ class Inbox < ApplicationRecord
   include InboxBrandedEmailLayoutable
   # As quatro chaves de configuracao do widget em `additional_attributes` (bloco 3.01, arbitragem A1)
   include WidgetConfigurable
+  # Os tres estados de enforcement de identidade (bloco 4.15). Mora no mesmo jsonb, pela
+  # mesma convencao, e le `hmac_mandatory` como piso — sem migration e sem backfill.
+  include IdentityEnforceable
 
   store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
 

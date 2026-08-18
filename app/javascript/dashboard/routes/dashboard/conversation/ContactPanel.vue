@@ -129,8 +129,16 @@ const groupParticipantsTitle = computed(() =>
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
 const contact = computed(() => contactGetter.value(contactId.value));
+// A store de contatos cameliza o payload da API
+// (store/modules/contacts/mutations.js:5, camelcaseKeys deep), entao o registro
+// guarda `additionalAttributes`. Ler so `additional_attributes` devolvia SEMPRE
+// {} — e por isso a linha "Endereco IP" do painel nunca renderizava para
+// ninguem. Aceita as duas formas: nem todo caminho passa pela store.
 const contactAdditionalAttributes = computed(
-  () => contact.value.additional_attributes || {}
+  () =>
+    contact.value.additionalAttributes ||
+    contact.value.additional_attributes ||
+    {}
 );
 
 const getContactDetails = () => {
