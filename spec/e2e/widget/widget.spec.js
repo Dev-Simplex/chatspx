@@ -6,7 +6,7 @@ const HOST_URL = 'http://127.0.0.1:8899';
 const SDK_URL = 'http://127.0.0.1:3038';
 const WIDGET_URL = 'http://127.0.0.1:3999';
 const FROZEN_TIME = '2025-01-15T12:00:00.000Z';
-const views = ['home', 'messages', 'prechat-form', 'unread'];
+const views = ['home', 'messages', 'prechat-form', 'unread', 'rich-types'];
 const themes = ['light', 'dark'];
 const viewportNames = ['desktop', 'mobile'];
 const viewports = {
@@ -14,12 +14,132 @@ const viewports = {
   mobile: { width: 390, height: 844 },
 };
 
+// `rich-types` é um cenário de catálogo: ele existe para que os sete tipos
+// ricos apareçam JUNTOS num único pixel-diff. Nos viewports reais eles não
+// cabem — medido: 9 bolhas na conversa, apenas 3 a 5 dentro da área visível,
+// e o snapshot gravava só as últimas. Altura maior aqui não é "viewport
+// irreal": é o que faz o snapshot cobrir o que ele promete cobrir. A LARGURA
+// continua sendo a real de cada viewport, que é o que governa o layout.
+const viewportOverrides = {
+  'rich-types': {
+    desktop: { width: 1280, height: 1600 },
+    mobile: { width: 390, height: 1500 },
+  },
+};
+
+const viewportFor = (view, viewportName) =>
+  viewportOverrides[view]?.[viewportName] ?? viewports[viewportName];
+
 const anchorByView = {
   home: 'Estamos conectados.',
   messages: 'Mensagem determinística para o cenário.',
   'prechat-form': 'Conte um pouco sobre você.',
   unread: 'Resposta pendente número três.',
+  'rich-types': 'Que nota você dá para o atendimento?',
 };
+
+// `rich-types` desenha na mesma rota de `messages`; o que muda é o conteúdo.
+const routeByView = {
+  home: 'home',
+  messages: 'messages',
+  'prechat-form': 'prechat-form',
+  unread: 'unread-messages',
+  'rich-types': 'messages',
+};
+
+// Os sete `content_type` que têm desenho próprio no widget, numa conversa só.
+// O oitavo tipo — texto — já está coberto pelos outros quatro cenários: é o
+// único que o harness alimentava antes desta matriz crescer.
+//
+// Regras que estas mensagens seguem, todas por determinismo do snapshot:
+//   · `content` nunca vazio — `AgentMessage.shouldDisplayAgentMessage` esconde
+//     a bolha inteira quando o conteúdo é vazio;
+//   · nenhum `media_url` e nenhum link para fora — recurso de rede externa
+//     dentro de um snapshot é falha intermitente esperando acontecer;
+//   · `message_type: 3` (template), que é como o backend marca mensagem de bot.
+const RICH_TYPE_MESSAGES = [
+  {
+    id: 201,
+    content: 'Qual e-mail podemos usar para te responder?',
+    content_type: 'input_email',
+    created_at: 1736942400 - 700,
+    message_type: 3,
+    status: 'sent',
+    content_attributes: {},
+  },
+  {
+    id: 202,
+    content: 'Escolha o assunto:',
+    content_type: 'input_select',
+    created_at: 1736942400 - 600,
+    message_type: 3,
+    status: 'sent',
+    content_attributes: {
+      items: [
+        { title: 'Suporte técnico', value: 'suporte' },
+        { title: 'Financeiro', value: 'financeiro' },
+      ],
+    },
+  },
+  {
+    id: 203,
+    content: 'Confira nossos planos:',
+    content_type: 'cards',
+    created_at: 1736942400 - 500,
+    message_type: 3,
+    status: 'sent',
+    content_attributes: {
+      items: [
+        {
+          title: 'Plano Essencial',
+          description: 'Atendimento humano em horário comercial.',
+          actions: [{ type: 'link', text: 'Ver detalhes', uri: '#essencial' }],
+        },
+      ],
+    },
+  },
+  {
+    id: 204,
+    content: 'Preencha para abrirmos o chamado:',
+    content_type: 'form',
+    created_at: 1736942400 - 400,
+    message_type: 3,
+    status: 'sent',
+    content_attributes: {
+      button_label: 'Abrir chamado',
+      items: [{ name: 'pedido', label: 'Número do pedido', type: 'text' }],
+    },
+  },
+  {
+    id: 205,
+    content: 'Isto pode ajudar:',
+    content_type: 'article',
+    created_at: 1736942400 - 300,
+    message_type: 3,
+    status: 'sent',
+    content_attributes: {
+      items: [{ title: 'Como acompanhar meu pedido', link: '#artigo' }],
+    },
+  },
+  {
+    id: 206,
+    content: 'Entramos na sala de atendimento:',
+    content_type: 'integrations',
+    created_at: 1736942400 - 200,
+    message_type: 3,
+    status: 'sent',
+    content_attributes: { data: { room_name: 'sala-determinística' } },
+  },
+  {
+    id: 207,
+    content: 'Que nota você dá para o atendimento?',
+    content_type: 'input_csat',
+    created_at: 1736942400 - 100,
+    message_type: 3,
+    status: 'sent',
+    content_attributes: { display_type: 'star' },
+  },
+];
 
 const rgb = value =>
   value
@@ -81,7 +201,26 @@ const freezeTime = async page => {
 
 const prepareScenario = async (page, view, theme, viewportName) => {
   await freezeTime(page);
-  await page.setViewportSize(viewports[viewportName]);
+  if (view === 'rich-types') {
+    // Interceptar a API em vez de injetar no store depois de montado. A
+    // injeção perdia uma corrida real: o widget refaz a carga da conversa
+    // quando a configuração do SDK chega, e no primeiro cenário da suíte
+    // (cache frio, tudo mais lento) isso acontecia DEPOIS da injeção — o
+    // snapshot saía correto e a conversa aparecia vazia logo em seguida.
+    // Servindo a lista pela rota, qualquer carga — a inicial ou a tardia —
+    // devolve as mesmas sete mensagens, e não há ordem que quebre.
+    await page.route('**/api/v1/widget/messages*', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({
+          payload: RICH_TYPE_MESSAGES,
+          meta: { contact_last_seen_at: 1736942400 - 900 },
+        }),
+      })
+    );
+  }
+  await page.setViewportSize(viewportFor(view, viewportName));
   await page.goto(`${HOST_URL}/?scenario=${view}&theme=${theme}`, {
     waitUntil: 'domcontentloaded',
   });
@@ -114,7 +253,7 @@ const prepareScenario = async (page, view, theme, viewportName) => {
     );
     await frame.locator('body').evaluate(async (_body, routeName) => {
       await window.WOOT_WIDGET.$router.replace({ name: routeName });
-    }, view);
+    }, routeByView[view]);
   } else {
     await expect(page.locator('#cw-widget-holder')).toHaveClass(
       /has-unread-view/
@@ -129,7 +268,7 @@ const prepareScenario = async (page, view, theme, viewportName) => {
           .evaluate(() => window.WOOT_WIDGET?.$router?.currentRoute.value.name),
       { timeout: 30000 }
     )
-    .toBe(view === 'unread' ? 'unread-messages' : view);
+    .toBe(routeByView[view]);
   const anchor = frame.getByText(anchorByView[view], { exact: true });
   await expect(anchor).toBeVisible();
   if (view === 'unread') {
@@ -334,7 +473,13 @@ test('preserva a geometria original do unread no resize real', async ({
     });
 });
 
-test('baseline descreve exatamente a matriz de 16 cenários', async () => {
+// A matriz cresceu de 16 para 20 em 18/08, deliberadamente: `rich-types` ×
+// 2 temas × 2 viewports. Motivo em `execucao/onda-1-bridge.md` §3 — o harness
+// só alimentava `content_type: 'text'`, então os sete tipos ricos do widget
+// não tinham cobertura de pixel nenhuma. Este número não se ajusta para fazer
+// teste passar: se ele reprovar sem que alguém tenha decidido mudar a matriz,
+// o cenário entrou sem querer, e é isso que se corrige.
+test('baseline descreve exatamente a matriz de 20 cenários', async () => {
   const scenarios = views.flatMap(view =>
     themes.flatMap(theme =>
       viewportNames.map(viewportName => `${view}-${theme}-${viewportName}`)
