@@ -130,6 +130,35 @@ export const WIDGET_CONFIG_FIELDS = [
       ...(inbox?.additional_attributes?.widget_tracking ?? {}),
     }),
   },
+  // Os dois do pre-chat (bloco 3.14), acrescentados pela trilha PRE-CHAT com
+  // aval do coordenador e o contrato confirmado pela trilha TELAS.
+  //
+  // Nenhum dos dois e `group: true`, de proposito: `group` existe para as
+  // quatro chaves de `additional_attributes`, onde o update faz merge de
+  // primeiro nivel e a contagem por subcampo importa. `pre_chat_form_options`
+  // e coluna jsonb do CANAL e viaja INTEIRA no PATCH — nao ha merge raso a
+  // proteger. A consequencia esta declarada: mexer em cinco campos do pre-chat
+  // conta UMA alteracao nao salva, nao cinco. Contagem por subcampo aqui
+  // exigiria mudar a estrutura do mapa, que e territorio da trilha TELAS.
+  {
+    key: 'preChatEnabled',
+    scope: 'channel',
+    path: 'pre_chat_form_enabled',
+    read: inbox => Boolean(inbox?.pre_chat_form_enabled),
+  },
+  {
+    key: 'preChat',
+    scope: 'channel',
+    path: 'pre_chat_form_options',
+    // Inbox sem `pre_chat_form_options` nao existe na pratica — o modelo semeia
+    // o default em `before_validation` —, mas o rascunho nao pode nascer
+    // `undefined` e quebrar a tela no primeiro `.pre_chat_fields`.
+    read: inbox => ({
+      pre_chat_message: '',
+      pre_chat_fields: [],
+      ...(inbox?.pre_chat_form_options ?? {}),
+    }),
+  },
 ];
 
 export const FIELD_BY_KEY = Object.fromEntries(

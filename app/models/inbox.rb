@@ -47,8 +47,13 @@ class Inbox < ApplicationRecord
   include AccountCacheRevalidator
   include InboxAgentAvailability
   include InboxBrandedEmailLayoutable
+  # As quatro chaves de configuracao do widget em `additional_attributes` (bloco 3.01, arbitragem A1)
+  include WidgetConfigurable
 
   store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
+
+  # Teto do jsonb servido ao site do cliente e a todo agente da inbox (bloco 3.18).
+  MAX_ADDITIONAL_ATTRIBUTES_BYTES = 16_384
 
   # Not allowing characters:
   validates :name, presence: true

@@ -76,6 +76,25 @@ en:
   errors:
     conversation:
       pending_status_disabled_for_inbox: "cannot be Pending — feature disabled for this inbox"
+    inbox:
+      widget_config:
+        invalid_profile: "is not a valid widget profile (accepted values: %{profiles})"
+        must_be_object: "must be a JSON object"
+        secret_not_allowed: 'does not accept secrets: the key "%{key}" belongs in the credentials screen, never here'
+        schema_violation: 'has an invalid value at "%{field}": %{detail}'
+        detail_enum: "value is not allowed (accepted: %{allowed})"
+        detail_required: "missing required field: %{keys}"
+        detail_minimum: "must be greater than or equal to %{limit}"
+        detail_maximum: "must be less than or equal to %{limit}"
+        detail_min_length: "needs at least %{count} character"
+        detail_max_length: "is over the limit of %{count} characters"
+        detail_max_items: "is over the limit of %{count} items"
+        detail_unknown_field: "unknown field"
+        detail_type: "must be of type %{type}"
+        detail_mobile_aggressive: "auto-open is not offered on mobile — the panel covers the whole screen there; use discreet or bold"
+        over_size_limit: "is over the limit of %{limit} bytes — it is served on every page of the customer site"
+        home_intents_need_two: "needs %{minimum} to %{maximum} intent options, or none — a single option is not a choice"
+        home_intents_duplicated_id: "has intent options sharing the same id: %{ids}"
     private_chat:
       invalid_password: Invalid password
     account:
@@ -409,6 +428,9 @@ en:
   contacts:
     online:
       delete: '%{contact_name} is Online, please try again later'
+  custom_attributes:
+    auto_provisioned:
+      description: 'Received from the website'
   integration_apps:
     # Note: webhooks and dashboard_apps don't need short_description as they use different modal components
     dashboard_apps:

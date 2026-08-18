@@ -60,6 +60,25 @@ pt_BR:
   errors:
     conversation:
       pending_status_disabled_for_inbox: "não pode ser Pendente — recurso desativado para esta caixa de entrada"
+    inbox:
+      widget_config:
+        invalid_profile: "não é um perfil de widget válido (valores aceitos: %{profiles})"
+        must_be_object: "deve ser um objeto JSON"
+        secret_not_allowed: 'não aceita segredo: a chave "%{key}" deve ficar na tela de credenciais, nunca aqui'
+        schema_violation: 'tem valor inválido em "%{field}": %{detail}'
+        detail_enum: "valor não permitido (aceitos: %{allowed})"
+        detail_required: "campo obrigatório ausente: %{keys}"
+        detail_minimum: "deve ser maior ou igual a %{limit}"
+        detail_maximum: "deve ser menor ou igual a %{limit}"
+        detail_min_length: "precisa de pelo menos %{count} caractere"
+        detail_max_length: "passa do limite de %{count} caracteres"
+        detail_max_items: "passa do limite de %{count} itens"
+        detail_unknown_field: "campo desconhecido"
+        detail_type: "deve ser do tipo %{type}"
+        detail_mobile_aggressive: "abertura automática não é oferecida em celular — lá o painel cobre a tela inteira; use discreet ou bold"
+        over_size_limit: "passa do limite de %{limit} bytes — ele é servido em toda página do site do cliente"
+        home_intents_need_two: "precisa de %{minimum} a %{maximum} opções de intenção, ou nenhuma — uma opção sozinha não é escolha"
+        home_intents_duplicated_id: "tem opções de intenção com o mesmo id: %{ids}"
     private_chat:
       invalid_password: Senha inválida
     account:
@@ -410,6 +429,9 @@ pt_BR:
   contacts:
     online:
       delete: '%{contact_name} está Online, por favor, tente novamente mais tarde'
+  custom_attributes:
+    auto_provisioned:
+      description: 'Recebido do site'
   integration_apps:
     #Note: webhooks and dashboard_apps don't need short_description as they use different modal components
     dashboard_apps:

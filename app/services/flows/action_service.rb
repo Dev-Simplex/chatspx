@@ -35,6 +35,9 @@ class Flows::ActionService < ActionService
   # mantém a classe enxuta (Metrics/ClassLength). Ver Flows::InteractiveAction e o contrato em
   # plano/F1-contrato-send-interactive.md.
   include Flows::InteractiveAction
+  # send_form: mensagem `form` no canal web (4.02/BK-22) — o par de envio da resposta que o
+  # bloco 4.01 passou a receber. Ver Flows::FormAction.
+  include Flows::FormAction
   # send_cta_url / send_location_request: extras interativos "ricos" (F3) via passthrough genérico —
   # cada ação monta um objeto `interactive` Meta em content_attributes['interactive_payload'] e o
   # provider (WhatsappCloudService#send_raw_interactive) o POSTa cru. Ver Flows::RichInteractiveAction

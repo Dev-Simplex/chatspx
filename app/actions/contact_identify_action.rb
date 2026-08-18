@@ -105,7 +105,20 @@ class ContactIdentifyAction
     # TODO: replace reject { |_k, v| v.blank? } with compact_blank when rails is upgraded
     @contact.discard_invalid_attrs if discard_invalid_attrs
     @contact.save! if @contact.changed?
+    auto_provision_custom_attribute_definitions
     enqueue_avatar_job
+  end
+
+  # B6: sem definicao, a chave que o site mandou fica no jsonb e nao aparece em
+  # lugar nenhum do painel nem no filtro. Provisiona so o que veio nesta chamada.
+  def auto_provision_custom_attribute_definitions
+    return if params[:custom_attributes].blank?
+
+    CustomAttributes::AutoProvisionService.new(
+      account: account,
+      attribute_model: :contact_attribute,
+      custom_attributes: params[:custom_attributes]
+    ).perform
   end
 
   def enqueue_avatar_job

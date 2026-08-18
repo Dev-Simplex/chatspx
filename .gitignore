@@ -123,3 +123,8 @@ vault
 
 # Playwright MCP debug artifacts
 .playwright-mcp/
+
+# Saida do Playwright: reescrita a cada corrida. Versionar isso faz
+# test-results/.last-run.json conflitar em todo merge, e commita o
+# error-context.md de corridas que falharam como se fosse artefato do projeto.
+/test-results/

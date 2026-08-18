@@ -1,8 +1,10 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { getLanguageName } from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
 import ContactDetailsItem from './ContactDetailsItem.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
+import NextButton from 'dashboard/components-next/button/Button.vue';
 
 const props = defineProps({
   conversationAttributes: {
@@ -14,6 +16,8 @@ const props = defineProps({
     default: () => ({}),
   },
 });
+
+const { t } = useI18n();
 
 const referer = computed(() => props.conversationAttributes.referer);
 const initiatedAt = computed(
@@ -41,6 +45,29 @@ const platformName = computed(() => {
 });
 
 const createdAtIp = computed(() => props.contactAttributes.created_at_ip);
+
+// O IP do visitante e dado pessoal e ficava em claro no painel, visivel para
+// qualquer agente com a conversa aberta, sem nenhuma acao deliberada. Passa a
+// nascer mascarado; quem precisa dele revela por clique.
+const isIpRevealed = ref(false);
+const maskedIp = computed(() => {
+  if (!createdAtIp.value) return '';
+  // Mantem o primeiro octeto (ou o primeiro grupo, em IPv6) para dar contexto
+  // de rede sem entregar o endereco.
+  const separator = createdAtIp.value.includes(':') ? ':' : '.';
+  const [head] = createdAtIp.value.split(separator);
+  return `${head}${separator}•••`;
+});
+const displayedIp = computed(() =>
+  isIpRevealed.value ? createdAtIp.value : maskedIp.value
+);
+// Chaves literais de proposito: chave dinamica em $t esconde o texto do
+// extrator de i18n e do lint.
+const ipToggleLabel = computed(() =>
+  isIpRevealed.value
+    ? t('CONTACT_PANEL.IP_ADDRESS_HIDE')
+    : t('CONTACT_PANEL.IP_ADDRESS_REVEAL')
+);
 
 const staticElements = computed(() =>
   [
@@ -98,6 +125,17 @@ const staticElements = computed(() =>
           :title="$t(element.title)"
           :value="element.content.value"
         >
+          <template v-if="element.key === 'static-ip-address'" #button>
+            <NextButton
+              ghost
+              xs
+              :icon="isIpRevealed ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+              :title="ipToggleLabel"
+              :aria-label="ipToggleLabel"
+              data-testid="toggle-ip-address"
+              @click="isIpRevealed = !isIpRevealed"
+            />
+          </template>
           <a
             v-if="element.key === 'static-referer'"
             :href="element.content.value"
@@ -107,6 +145,12 @@ const staticElements = computed(() =>
           >
             {{ element.content.value }}
           </a>
+          <span
+            v-else-if="element.key === 'static-ip-address'"
+            data-testid="ip-address-value"
+          >
+            {{ displayedIp }}
+          </span>
         </ContactDetailsItem>
       </template>
     </CustomAttributes>

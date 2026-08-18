@@ -38,7 +38,7 @@ const onBackButtonClick = () => {
         v-if="avatarUrl"
         class="w-8 h-8 ltr:mr-3 rtl:ml-3 rounded-full"
         :src="avatarUrl"
-        alt="avatar"
+        :alt="$t('A11Y.AGENT_AVATAR')"
       />
       <div class="flex flex-col gap-1">
         <div

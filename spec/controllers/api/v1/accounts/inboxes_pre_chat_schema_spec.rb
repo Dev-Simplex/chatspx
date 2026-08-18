@@ -14,16 +14,20 @@ RSpec.describe 'Inboxes API — pre-chat com mascara, condicional e etapa', type
   let(:widget) { create(:channel_widget, account: account) }
   let(:inbox) { create(:inbox, account: account, channel: widget) }
 
-  def patch_pre_chat(fields)
+  def patch_pre_chat(fields, extra = {})
     patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
           headers: admin.create_new_auth_token,
           params: {
             channel: {
               pre_chat_form_enabled: true,
-              pre_chat_form_options: { pre_chat_message: 'Oi', pre_chat_fields: fields }
+              pre_chat_form_options: { pre_chat_message: 'Oi', pre_chat_fields: fields }.merge(extra)
             }
           },
           as: :json
+  end
+
+  def a_field(extra = {})
+    { field_type: 'standard', name: 'cpf', label: 'CPF', type: 'text', enabled: true }.merge(extra)
   end
 
   it 'grava mask, validator, step, position, help_text, error_message e show_if — nao descarta nenhum' do
@@ -64,6 +68,19 @@ RSpec.describe 'Inboxes API — pre-chat com mascara, condicional e etapa', type
 
     expect(response).to have_http_status(:unprocessable_entity)
     expect(widget.reload.pre_chat_form_options['pre_chat_fields'].first['mask']).to be_nil
+  end
+
+  it 'grava o modo escolhido — sem ele a tela teria de adivinhar a intencao pelo conteudo' do
+    patch_pre_chat([a_field], mode: 'builder')
+
+    expect(response).to have_http_status(:success)
+    expect(widget.reload.pre_chat_form_options['mode']).to eq('builder')
+  end
+
+  it 'devolve 422 para modo que nao existe' do
+    patch_pre_chat([a_field], mode: 'avancado')
+
+    expect(response).to have_http_status(:unprocessable_entity)
   end
 
   it 'devolve 422 quando a condicional vem sem operador' do

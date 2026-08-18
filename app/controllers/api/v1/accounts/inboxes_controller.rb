@@ -252,12 +252,18 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   def normalized_branded_email_layout = params[:branded_email_layout] == 'null' ? nil : params[:branded_email_layout]
+
   def inbox_attributes
     [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled, :nps_survey_enabled,
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :team_message_isolation,
      :agent_message_isolation, :agent_conversation_isolation, :pending_status_enabled,
-     { additional_attributes: [:pin_mode, :agent_signature_enabled, { pinned_conversation_ids: [], allowed_template_names: [] }] },
+     # As QUATRO chaves de configuracao do widget entram de uma vez (arbitragem A1, bloco 3.01):
+     # a evolucao posterior acontece DENTRO dos jsonb, que sao hash aberto, sem voltar a este arquivo.
+     # A validacao fina e do modelo (`WidgetConfigurable` + JSON Schema), que e onde ela da erro por campo.
+     { additional_attributes: [:pin_mode, :agent_signature_enabled, :widget_profile,
+                               { pinned_conversation_ids: [], allowed_template_names: [],
+                                 widget_triggers: {}, widget_tracking: {}, widget_appearance: {} }] },
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
                        template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },

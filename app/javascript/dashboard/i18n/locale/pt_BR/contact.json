@@ -15,6 +15,9 @@
     "INITIATED_FROM": "A partir de",
     "INITIATED_AT": "Iniciado em",
     "IP_ADDRESS": "Endereço IP",
+    "IP_ADDRESS_REVEAL": "Mostrar endereço IP",
+    "IP_ADDRESS_HIDE": "Ocultar endereço IP",
+    "IP_ADDRESS_MASKED": "Oculto",
     "CREATED_AT_LABEL": "Criado",
     "NEW_MESSAGE": "Nova Mensagem",
     "NEW_MESSAGE_SHORT": "Mensagem",
@@ -206,6 +209,9 @@
     }
   },
   "CUSTOM_ATTRIBUTES": {
+    "FROM_WEBSITE_SECTION": "Dados recebidos do site ({count})",
+    "FROM_WEBSITE_BADGE": "Do site",
+    "FROM_WEBSITE_BADGE_TITLE": "Enviado pelo seu site via setCustomAttributes, sem cadastro prévio",
     "BUTTON": "Criar atributo personalizado",
     "COPY_SUCCESSFUL": "Copiado para área de transferência com sucesso",
     "SHOW_MORE": "Mostrar todos os atributos",

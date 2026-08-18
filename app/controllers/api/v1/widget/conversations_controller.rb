@@ -66,6 +66,13 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
 
   def set_custom_attributes
     conversation.update!(custom_attributes: permitted_params[:custom_attributes])
+    # B6: mesma historia do contato — sem definicao a chave nao renderiza no
+    # painel (CustomAttributes.vue:76-89) nem entra no filtro.
+    CustomAttributes::AutoProvisionService.new(
+      account: conversation.account,
+      attribute_model: :conversation_attribute,
+      custom_attributes: permitted_params[:custom_attributes]
+    ).perform
   end
 
   def destroy_custom_attributes

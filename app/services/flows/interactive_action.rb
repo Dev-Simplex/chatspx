@@ -14,15 +14,15 @@
 # Formato do param: action_params = [{ content:, items: [{ title:, value:, description? }] }].
 # Ver o contrato (fonte de verdade) em plano/F1-contrato-send-interactive.md.
 module Flows::InteractiveAction
-  # Limites oficiais da Meta — enforçados aqui na persistência e, defensivamente, no canal
-  # (Whatsapp::Providers::BaseService, última linha de defesa contra erro Meta).
-  INTERACTIVE_ITEMS_LIMIT = 10        # 1..10 opções — acima disso a lista estoura na Meta
-  INTERACTIVE_TITLE_LIMIT = 24        # linha de lista máx 24 (botão máx 20; o front cuida do 20)
-  INTERACTIVE_VALUE_LIMIT = 200       # id da reply (o que a Meta devolve em button_reply.id/list_reply.id)
-  INTERACTIVE_DESCRIPTION_LIMIT = 72  # opcional, só aparece em lista (>3 opções)
-  INTERACTIVE_BODY_LIMIT = 1024       # corpo (body) da mensagem
-
   private
+
+  # Bloco 4.02/BK-22 — os limites saíram daqui e passaram a depender do CANAL
+  # (Flows::StructuredMessageLimits). No WhatsApp continuam os da Meta, enforçados na persistência
+  # e, defensivamente, no canal (Whatsapp::Providers::BaseService); no chat de site valem os do
+  # widget, que não tem o corte de 24 caracteres da Meta.
+  def structured_limits
+    @structured_limits ||= Flows::StructuredMessageLimits.for(@conversation)
+  end
 
   def send_interactive(action_params)
     return if conversation_a_tweet?
@@ -35,7 +35,7 @@ module Flows::InteractiveAction
     enforce_compliance!(category: 'utility', free_form: true)
 
     params = {
-      content: config['content']&.to_s&.slice(0, INTERACTIVE_BODY_LIMIT),
+      content: config['content']&.to_s&.slice(0, structured_limits[:body]),
       private: false,
       content_type: 'input_select',
       # GOTCHA: `items` PRECISA morar dentro de content_attributes p/ o MessageBuilder populá-lo
@@ -51,18 +51,21 @@ module Flows::InteractiveAction
   # (item['value']/['title']/['description']) e o ContentAttributeValidator esperam. description só
   # entra quando presente (aparece apenas em lista).
   def sanitize_interactive_items(raw_items)
-    Array(raw_items).filter_map do |raw|
-      item = raw.to_h.with_indifferent_access
-      title = item['title'].to_s.strip
-      next if title.blank?
+    limits = structured_limits
+    Array(raw_items).filter_map { |raw| sanitize_interactive_item(raw, limits) }.first(limits[:items])
+  end
 
-      entry = {
-        'title' => title[0, INTERACTIVE_TITLE_LIMIT],
-        'value' => (item['value'].to_s.strip.presence || title.parameterize.presence || title)[0, INTERACTIVE_VALUE_LIMIT]
-      }
-      description = item['description'].to_s.strip
-      entry['description'] = description[0, INTERACTIVE_DESCRIPTION_LIMIT] if description.present?
-      entry
-    end.first(INTERACTIVE_ITEMS_LIMIT)
+  def sanitize_interactive_item(raw, limits)
+    item = raw.to_h.with_indifferent_access
+    title = item['title'].to_s.strip
+    return if title.blank?
+
+    entry = {
+      'title' => title[0, limits[:title]],
+      'value' => (item['value'].to_s.strip.presence || title.parameterize.presence || title)[0, limits[:value]]
+    }
+    description = item['description'].to_s.strip
+    entry['description'] = description[0, limits[:description]] if description.present?
+    entry
   end
 end

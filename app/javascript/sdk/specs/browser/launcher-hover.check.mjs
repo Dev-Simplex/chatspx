@@ -82,8 +82,16 @@ check('lançador em repouso usa a cor da inbox', await bgOf(), EXPECTED);
 await bubble.hover();
 // Âncora de conteúdo forte em vez de espera cega: só seguimos quando o Chromium
 // confirma que o elemento casa `:hover`.
+// `polling: 500` explícito, e não é firula: em headless o `waitForFunction`
+// do Playwright faz polling por `requestAnimationFrame`, que NÃO dispara de
+// forma confiável nesse modo. O sintoma é espera que estoura o timeout sem
+// motivo aparente, de forma intermitente. Achado de outra trilha, aplicado aqui
+// preventivamente — intermitente que ainda não apareceu é só intermitente que
+// ainda não apareceu.
 await page.waitForFunction(
-  () => document.querySelector('.woot-widget-bubble:hover') !== null
+  () => document.querySelector('.woot-widget-bubble:hover') !== null,
+  undefined,
+  { polling: 500 }
 );
 check('lançador EM :hover continua na cor da inbox', await bgOf(), EXPECTED);
 

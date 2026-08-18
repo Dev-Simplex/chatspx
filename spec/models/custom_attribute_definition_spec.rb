@@ -115,4 +115,54 @@ RSpec.describe CustomAttributeDefinition do
       end
     end
   end
+
+  # Selo de origem do painel (bloco 1.17). O flag distingue a definicao que o
+  # CustomAttributes::AutoProvisionService criou sozinho, a partir de uma chave
+  # que o site do cliente mandou, da que um agente cadastrou.
+  describe '#auto_provisioned_from_website?' do
+    let(:account) { create(:account) }
+
+    def definition(description)
+      create(:custom_attribute_definition, account: account, attribute_model: 'contact_attribute',
+                                           attribute_key: "chave_#{SecureRandom.hex(4)}",
+                                           attribute_description: description)
+    end
+
+    it 'e verdadeiro para a descricao que o servico grava em ingles' do
+      expect(definition('Received from the website')).to be_auto_provisioned_from_website
+    end
+
+    it 'e verdadeiro para a descricao que o servico grava em pt-BR' do
+      expect(definition('Recebido do site')).to be_auto_provisioned_from_website
+    end
+
+    it 'e falso para descricao escrita por um agente' do
+      expect(definition('Valor do carrinho no checkout')).not_to be_auto_provisioned_from_website
+    end
+
+    it 'e falso quando nao ha descricao' do
+      expect(definition(nil)).not_to be_auto_provisioned_from_website
+      expect(definition('')).not_to be_auto_provisioned_from_website
+    end
+
+    it 'nasce verdadeiro quando o servico provisiona a chave vinda do site' do
+      CustomAttributes::AutoProvisionService.new(
+        account: account, attribute_model: :contact_attribute, custom_attributes: { 'carrinho_valor' => 4200 }
+      ).perform
+
+      expect(account.custom_attribute_definitions.find_by(attribute_key: 'carrinho_valor'))
+        .to be_auto_provisioned_from_website
+    end
+
+    it 'para de valer se o agente reescrever a descricao — ele assumiu o atributo' do
+      CustomAttributes::AutoProvisionService.new(
+        account: account, attribute_model: :contact_attribute, custom_attributes: { 'carrinho_valor' => 4200 }
+      ).perform
+      found = account.custom_attribute_definitions.find_by(attribute_key: 'carrinho_valor')
+
+      found.update!(attribute_description: 'Valor do carrinho, conferido pelo time')
+
+      expect(found.reload).not_to be_auto_provisioned_from_website
+    end
+  end
 end
