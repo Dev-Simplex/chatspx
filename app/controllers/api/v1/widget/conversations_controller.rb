@@ -16,12 +16,16 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
     end
   end
 
+  # PORTA 3 (bloco 4.16): este endpoint nao tem HMAC nenhum e nunca tera — o pre-chat e
+  # digitado pelo visitante, que nao possui o segredo. O estado da inbox vai junto para que
+  # a action recuse o MERGE sob enforcement estrito, sem recusar a conversa.
   def process_update_contact
     @contact = ContactIdentifyAction.new(
       contact: @contact,
       params: { email: contact_email, phone_number: contact_phone_number, name: contact_name, custom_attributes: contact_custom_attributes },
       retain_original_contact_name: true,
-      discard_invalid_attrs: true
+      discard_invalid_attrs: true,
+      identity_enforcement: inbox&.resolved_identity_enforcement
     ).perform
   end
 
