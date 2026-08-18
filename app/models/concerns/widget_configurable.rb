@@ -86,9 +86,23 @@ module WidgetConfigurable
   def ensure_additional_attributes_fit_the_ceiling
     size = (additional_attributes || {}).to_json.bytesize
     return if size <= Inbox::MAX_ADDITIONAL_ATTRIBUTES_BYTES
+    return if within_previous_size?(size)
 
     errors.add(:additional_attributes,
                I18n.t('errors.inbox.widget_config.over_size_limit', limit: Inbox::MAX_ADDITIONAL_ATTRIBUTES_BYTES))
+  end
+
+  # Uma inbox da frota que JA estava acima do teto antes deste teto existir nao pode ficar
+  # inatualizavel por causa dele: seria uma validacao que nasce vermelha em cliente real, e o
+  # sintoma seria "salvar a inbox parou de funcionar" sem que ninguem tivesse mexido nela.
+  # Ela continua podendo encolher ou ficar igual; o que o teto impede e CRESCER.
+  def within_previous_size?(size)
+    return false unless persisted?
+
+    previous = attribute_was('additional_attributes')
+    return false if previous.blank?
+
+    size <= previous.to_json.bytesize
   end
 
   def validate_against_schema(key, schema)

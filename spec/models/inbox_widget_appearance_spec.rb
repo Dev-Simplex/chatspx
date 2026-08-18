@@ -77,6 +77,44 @@ RSpec.describe Inbox, type: :model do
         .to eq(['is over the limit of 16384 bytes — it is served on every page of the customer site'])
     end
 
+    # A cicatriz nº 1 desta execucao: uma validacao que nasce vermelha em cliente real. Uma inbox da
+    # frota que ja estava acima do teto antes de o teto existir nao pode ficar inatualizavel por
+    # causa dele — o sintoma seria "salvar a inbox parou de funcionar" sem ninguem ter mexido nela.
+    context 'when the inbox was already over the ceiling before the ceiling existed' do
+      let(:oversized) { { 'allowed_template_names' => Array.new(600) { |i| "template_de_nome_bem_mais_longo_#{i}" } } }
+
+      before do
+        # rubocop:disable Rails/SkipsModelValidations -- gravar por baixo da validacao E o cenario:
+        # a inbox legada existe no banco da frota desde antes de este teto ter sido escrito.
+        inbox.update_column(:additional_attributes, oversized)
+        # rubocop:enable Rails/SkipsModelValidations
+        inbox.reload
+      end
+
+      it 'is really over the ceiling — sem isto, os tres exemplos abaixo passariam por engano' do
+        expect(inbox.additional_attributes.to_json.bytesize).to be > Inbox::MAX_ADDITIONAL_ATTRIBUTES_BYTES
+      end
+
+      it 'can still be updated as long as it does not grow' do
+        inbox.greeting_message = 'Olá'
+
+        expect(inbox).to be_valid
+      end
+
+      it 'can still shrink' do
+        inbox.additional_attributes = oversized.merge('allowed_template_names' => ['um_so'])
+
+        expect(inbox).to be_valid
+      end
+
+      it 'still cannot GROW' do
+        inbox.additional_attributes = oversized.merge('widget_appearance' => { 'launcher_text' => 'a' * 64 })
+
+        expect(inbox).not_to be_valid
+        expect(inbox.errors[:additional_attributes].first).to include('16384')
+      end
+    end
+
     it 'says the same thing in pt_BR' do
       inbox.widget_tracking = { 'event_map' => Array.new(400) { |i| ["event_#{i}", 'a' * 40] }.to_h }
 
