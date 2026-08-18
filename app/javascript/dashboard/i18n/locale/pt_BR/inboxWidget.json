@@ -162,6 +162,7 @@
       "APPEARANCE_HIDE_BUBBLE": "Esconder a bolha",
       "APPEARANCE_PANEL_STYLE": "Estilo do painel",
       "APPEARANCE_LAUNCHER_ICON": "Ícone do lançador",
+      "APPEARANCE_HOME_INTENTS": "Opções da tela inicial",
       "TRIGGERS_APPROACH": "Abordagem no computador",
       "TRIGGERS_APPROACH_MOBILE": "Abordagem no celular",
       "TRIGGERS_DEGRADE_ON_RETURN": "Reduzir a abordagem em quem volta",
@@ -285,7 +286,9 @@
     },
     "PREVIEW": {
       "DARK": "Escuro",
-      "MOBILE": "Celular"
+      "MOBILE": "Celular",
+      "OPEN_LAUNCHER": "Abrir o chat",
+      "CLOSE_LAUNCHER": "Fechar o chat"
     },
     "PROFILE": {
       "SUPPORT": {

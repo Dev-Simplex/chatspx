@@ -105,8 +105,9 @@ describe('AppearancePage — o que a tela grava', () => {
 
     await wrapper.find('[data-testid="offset-x"] input').setValue('500');
 
+    // 200 px é o teto do schema do servidor (MAX_OFFSET), não um número da tela
     expect(wrapper.find('[data-testid="offset-x"] input').element.value).toBe(
-      '120'
+      '200'
     );
   });
 

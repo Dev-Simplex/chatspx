@@ -320,6 +320,28 @@ export const colors = {
   // de hover na página de survey, que também renderiza `shared/Button.vue` e
   // não carrega `_tokens.scss` — trocar `brightness-110` por uma cor igual à
   // de repouso seria uma regressão de affordance.
+  // ── Namespace `wp` — as superfícies do PREVIEW do widget ──────────────────
+  //
+  // Por que ele existe, e não é preciosismo: o skin do dashboard
+  // (`_wa-skin.scss`, no tema escuro) força as classes `n-*` com `!important`
+  // — `.bg-n-solid-1 { background-color: #111b21 !important }`,
+  // `[class*='text-n-slate-12'] { color: #e9edef !important }` e irmãs. Dentro
+  // do preview isso é errado por construção: aquele retângulo tem de mostrar o
+  // WIDGET, no tema que o cliente escolher, e não o painel do agente. Com as
+  // classes `n-*` o preview ficava preso na cor do dashboard escuro mesmo com
+  // a custom property correta herdada — `!important` vence variável.
+  //
+  // Estes tokens leem as MESMAS custom properties do widget
+  // (`widget/assets/scss/_tokens_values.scss`); nenhum valor novo nasce aqui.
+  // [MEDIDO por CDP no Chromium, bloco 3.10]
+  wp: {
+    surface: 'rgb(var(--solid-1) / <alpha-value>)',
+    'surface-2': 'rgb(var(--solid-2) / <alpha-value>)',
+    text: 'rgb(var(--slate-12) / <alpha-value>)',
+    'text-muted': 'rgb(var(--slate-11) / <alpha-value>)',
+    online: 'rgb(var(--teal-10) / <alpha-value>)',
+  },
+
   w: {
     brand: {
       DEFAULT: 'var(--w-brand, #2dc46f)',
