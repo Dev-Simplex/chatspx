@@ -33,6 +33,7 @@ module WidgetConfigurable
     validate :ensure_no_secret_in_widget_config
     validate :ensure_widget_triggers_match_schema
     validate :ensure_widget_appearance_matches_schema
+    validate :ensure_home_intents_are_a_real_choice
     validate :ensure_additional_attributes_fit_the_ceiling
   end
 
@@ -91,6 +92,12 @@ module WidgetConfigurable
 
   def ensure_widget_appearance_matches_schema
     validate_against_schema(:widget_appearance, WidgetAppearanceSchema::SCHEMA)
+  end
+
+  def ensure_home_intents_are_a_real_choice
+    intents = widget_appearance.is_a?(Hash) ? widget_appearance['home_intents'] : nil
+
+    WidgetAppearanceSchema.home_intents_violations(intents).each { |message| errors.add(:widget_appearance, message) }
   end
 
   # O teto do jsonb (3.18). `additional_attributes` inteiro vai para o HTML de toda pagina do site do

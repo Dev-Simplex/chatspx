@@ -56,6 +56,20 @@
         "LABEL": "On mobile",
         "AGGRESSIVE_NOT_OFFERED": "Auto-open is not offered on mobile: the panel covers the whole screen there."
       }
+    },
+    "HOME_INTENTS": {
+      "LABEL": "Intent options on the home screen",
+      "DESCRIPTION": "2 to 4 named options, instead of a \"How can I help?\". Visitors decide in seconds whether you solve their problem.",
+      "HELP": "The text is yours and is shown to the visitor. The identifier stays invisible and lets you compare how each option performs in reports.",
+      "SUGGESTIONS": {
+        "PRICING": "I want a quote",
+        "SUPPORT": "I need help with an order",
+        "PRODUCT": "I want to know the product"
+      },
+      "ERRORS": {
+        "NEED_TWO": "Keep 2 to 4 options, or none — a single option is not a choice.",
+        "DUPLICATED_ID": "Two options cannot share the same identifier."
+      }
     }
   }
 }

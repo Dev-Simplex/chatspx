@@ -29,6 +29,16 @@ module WidgetAppearanceSchema
   # O texto do lancador expandido cabe numa linha; 200 caracteres nao cabem em lancador nenhum.
   MAX_LAUNCHER_TEXT = 64
 
+  # As opcoes de intencao nomeadas da tela inicial (plano 22 §B.4, perfil `marketing`): a NN/g mede
+  # que com 3 exemplos nomeados o visitante decide em 5 s se a ferramenta serve. Duas e o minimo para
+  # existir escolha; quatro e o teto antes de virar menu.
+  MIN_HOME_INTENTS = 2
+  MAX_HOME_INTENTS = 4
+  MAX_HOME_INTENT_LABEL = 48
+  # `id` e valor gravado: ingles snake_case (A2), estavel, e o que a telemetria de 4.21 agrupa.
+  # `label` e o texto que o VISITANTE le — conteudo do cliente, na lingua dele, nunca i18n do produto.
+  HOME_INTENT_ID_PATTERN = '^[a-z][a-z0-9_]{0,31}$'.freeze
+
   DEFAULTS = {
     'theme' => 'light',
     'position' => 'right',
@@ -38,7 +48,10 @@ module WidgetAppearanceSchema
     'launcher_text' => '',
     'hide_bubble' => false,
     'panel_style' => 'standard',
-    'launcher_icon' => 'default'
+    'launcher_icon' => 'default',
+    # Ausente e o mesmo que vazio: a tela inicial de hoje, sem opcoes nomeadas. Sem migration,
+    # sem backfill, e nenhuma inbox existente muda de comportamento (A4).
+    'home_intents' => [].freeze
   }.freeze
 
   # O que o snippet do site pode sobrescrever, e sob que nome ele aparece no `chatwootSettings`.
@@ -62,8 +75,47 @@ module WidgetAppearanceSchema
       'launcher_text' => { 'type' => 'string', 'maxLength' => MAX_LAUNCHER_TEXT },
       'hide_bubble' => { 'type' => 'boolean' },
       'panel_style' => { 'type' => 'string', 'enum' => PANEL_STYLES },
-      'launcher_icon' => { 'type' => 'string', 'enum' => LAUNCHER_ICONS }
+      'launcher_icon' => { 'type' => 'string', 'enum' => LAUNCHER_ICONS },
+      'home_intents' => {
+        'type' => 'array',
+        'maxItems' => MAX_HOME_INTENTS,
+        'items' => {
+          'type' => 'object',
+          'properties' => {
+            'id' => { 'type' => 'string', 'pattern' => HOME_INTENT_ID_PATTERN },
+            'label' => { 'type' => 'string', 'minLength' => 1, 'maxLength' => MAX_HOME_INTENT_LABEL }
+          },
+          'required' => %w[id label],
+          'additionalProperties' => false
+        }
+      }
     },
     'additionalProperties' => false
   }.freeze
+
+  module_function
+
+  # Plano 22 §B.4: "2 a 4 opcoes de intencao nomeadas". Duas regras que nao cabem em JSON Schema
+  # legivel: uma opcao sozinha nao e escolha, e ids repetidos quebram a telemetria por intencao
+  # (4.21) sem que o visitante veja erro nenhum. O teto de 4 e o formato ficam no SCHEMA.
+  def home_intents_violations(intents)
+    return [] unless intents.is_a?(Array)
+
+    [single_intent_violation(intents), duplicated_intent_ids_violation(intents)].compact
+  end
+
+  def single_intent_violation(intents)
+    return unless intents.size == 1
+
+    I18n.t('errors.inbox.widget_config.home_intents_need_two',
+           minimum: MIN_HOME_INTENTS, maximum: MAX_HOME_INTENTS)
+  end
+
+  def duplicated_intent_ids_violation(intents)
+    ids = intents.filter_map { |intent| intent['id'] if intent.is_a?(Hash) }
+    duplicated = ids.tally.select { |_id, count| count > 1 }.keys
+    return if duplicated.empty?
+
+    I18n.t('errors.inbox.widget_config.home_intents_duplicated_id', ids: duplicated.join(', '))
+  end
 end

@@ -77,6 +77,8 @@ pt_BR:
         detail_type: "deve ser do tipo %{type}"
         detail_mobile_aggressive: "abertura automática não é oferecida em celular — lá o painel cobre a tela inteira; use discreet ou bold"
         over_size_limit: "passa do limite de %{limit} bytes — ele é servido em toda página do site do cliente"
+        home_intents_need_two: "precisa de %{minimum} a %{maximum} opções de intenção, ou nenhuma — uma opção sozinha não é escolha"
+        home_intents_duplicated_id: "tem opções de intenção com o mesmo id: %{ids}"
     private_chat:
       invalid_password: Senha inválida
     account:
