@@ -67,6 +67,8 @@ describe Instagram::SendOnInstagramService do
           expect(response['message_id']).to eq('random_message_id')
         end
 
+        # O Instagram aceita até 30 imagens em `message.attachments[]` numa requisição só, e é
+        # o que a capacidade do canal declara: duas fotos viram UMA chamada, não duas.
         it 'if message is sent from chatwoot and is outgoing with multiple attachments' do
           message = build(:message, content: nil, message_type: 'outgoing', inbox: instagram_inbox, account: account,
                                     conversation: conversation)
@@ -78,12 +80,72 @@ describe Instagram::SendOnInstagramService do
 
           service = described_class.new(message: message)
 
-          # Stub the send_message method on the service instance
           allow(service).to receive(:send_message)
           service.perform
 
-          # Now you can set expectations on the stubbed method for each attachment
+          expect(service).to have_received(:send_message).once
+          expect(service).to have_received(:send_message).with(
+            hash_including(message: hash_including(attachments: [
+                             { type: 'image', payload: { url: avatar.download_url } },
+                             { type: 'image', payload: { url: sample.download_url } }
+                           ]))
+          )
+        end
+
+        # Contraprova da capacidade: com o canal declarando que NÃO agrupa, o mesmo par de
+        # fotos volta a sair numa requisição por anexo. (A contraprova de canal real é o
+        # Messenger, que herda o mesmo BaseSendService sem a capacidade.)
+        it 'sends one request per attachment when the channel does not group images' do
+          message = build(:message, content: nil, message_type: 'outgoing', inbox: instagram_inbox, account: account,
+                                    conversation: conversation)
+          2.times do |i|
+            attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+            attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: "avatar-#{i}.png",
+                                   content_type: 'image/png')
+          end
+          message.save!
+          allow(instagram_channel).to receive(:supports_multi_image_message?).and_return(false)
+
+          service = described_class.new(message: message)
+          allow(service).to receive(:send_message)
+          service.perform
+
           expect(service).to have_received(:send_message).exactly(:twice)
+        end
+
+        # Anexo que não é imagem no meio derrubaria a requisição inteira: `attachments[]` só
+        # aceita `image`. Nesse caso o envio volta pro caminho de sempre.
+        it 'sends one request per attachment when the batch is not made only of images' do
+          message = build(:message, content: nil, message_type: 'outgoing', inbox: instagram_inbox, account: account,
+                                    conversation: conversation)
+          image = message.attachments.new(account_id: message.account_id, file_type: :image)
+          image.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+          document = message.attachments.new(account_id: message.account_id, file_type: :file)
+          document.file.attach(io: Rails.root.join('spec/assets/sample.pdf').open, filename: 'sample.pdf', content_type: 'application/pdf')
+          message.save!
+
+          service = described_class.new(message: message)
+          allow(service).to receive(:send_message)
+          service.perform
+
+          expect(service).to have_received(:send_message).exactly(:twice)
+        end
+
+        # Anexo sem arquivo local (o tool aponta pra URL pública em vez de baixar) mandava
+        # `url: ""` — a Meta recusava e ninguém via.
+        it 'points the payload at the external url when the attachment has no local file' do
+          message = build(:message, content: nil, message_type: 'outgoing', inbox: instagram_inbox, account: account,
+                                    conversation: conversation)
+          message.attachments.new(account_id: message.account_id, file_type: :image, external_url: 'https://cdn.example.com/1.jpg')
+          message.save!
+
+          service = described_class.new(message: message)
+          allow(service).to receive(:send_message)
+          service.perform
+
+          expect(service).to have_received(:send_message).with(
+            hash_including(message: hash_including(attachment: hash_including(payload: { url: 'https://cdn.example.com/1.jpg' })))
+          )
         end
 
         it 'if message with attachment is sent from chatwoot and is outgoing' do

@@ -17,6 +17,13 @@ module Channelable
   def supports_interactive_payload?
     false
   end
+
+  # O canal entrega VÁRIAS imagens numa única mensagem? Quem não entrega manda uma
+  # requisição por anexo, como sempre — a pergunta só troca o empacotamento do envio,
+  # não o que é enviado.
+  def supports_multi_image_message?
+    false
+  end
 end
 
 Channelable.prepend_mod_with('Channelable')

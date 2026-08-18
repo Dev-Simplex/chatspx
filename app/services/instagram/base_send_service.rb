@@ -1,6 +1,9 @@
 class Instagram::BaseSendService < Base::SendOnChannelService
   pattr_initialize [:message!]
 
+  # Teto da Meta: 30 imagens por mensagem.
+  MAX_IMAGES_PER_MESSAGE = 30
+
   private
 
   delegate :additional_attributes, to: :contact
@@ -13,9 +16,38 @@ class Instagram::BaseSendService < Base::SendOnChannelService
   end
 
   def send_attachments
+    return send_grouped_images if group_images?
+
     message.attachments.each do |attachment|
       send_message(attachment_message_params(attachment))
     end
+  end
+
+  # Agrupa só quando TODO anexo é imagem: `attachments[]` aceita `image` e mais nada, e um
+  # tipo diferente no meio derrubaria a requisição inteira. Nesse caso o envio cai no
+  # caminho de sempre, um POST por anexo.
+  def group_images?
+    return false unless channel.supports_multi_image_message?
+    return false if message.attachments.size < 2
+
+    message.attachments.all? { |attachment| attachment_type(attachment) == 'image' }
+  end
+
+  def send_grouped_images
+    message.attachments.each_slice(MAX_IMAGES_PER_MESSAGE) do |group|
+      send_message(multi_image_message_params(group))
+    end
+  end
+
+  def multi_image_message_params(attachments)
+    params = {
+      recipient: { id: contact.get_source_id(inbox.id) },
+      message: {
+        attachments: attachments.map { |attachment| { type: 'image', payload: { url: attachment_url(attachment) } } }
+      }
+    }
+
+    merge_human_agent_tag(params)
   end
 
   def send_content
@@ -44,7 +76,7 @@ class Instagram::BaseSendService < Base::SendOnChannelService
         attachment: {
           type: attachment_type(attachment),
           payload: {
-            url: attachment.download_url
+            url: attachment_url(attachment)
           }
         }
       }
@@ -76,6 +108,12 @@ class Instagram::BaseSendService < Base::SendOnChannelService
     channel.authorization_error! if error_code == 190
 
     "#{error_code} - #{error_message}"
+  end
+
+  # A Meta busca a mídia pela URL. Anexo sem arquivo local (só `external_url`) devolvia
+  # string vazia no `download_url` e a requisição saía com url em branco.
+  def attachment_url(attachment)
+    attachment.download_url.presence || attachment.external_url
   end
 
   def attachment_type(attachment)
