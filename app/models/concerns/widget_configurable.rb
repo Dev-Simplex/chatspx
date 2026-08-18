@@ -25,12 +25,29 @@ module WidgetConfigurable
   # por uma leitura literal da lista do plano e sao o disfarce mais obvio.
   SECRET_KEY_PATTERN = /(\A|_)(token|secret)\z/i
 
+  # Cada violacao de schema vira uma frase que NOMEIA o campo e diz o que ele espera. O mapa evita
+  # um `case` de nove ramos e deixa obvio o que acontece com um tipo de erro ainda nao mapeado.
+  SCHEMA_DETAIL_BUILDERS = {
+    'enum' => ->(error) { ['detail_enum', { allowed: Array(error['schema']['enum']).join(', ') }] },
+    'required' => ->(error) { ['detail_required', { keys: Array(error.dig('details', 'missing_keys')).join(', ') }] },
+    'minimum' => ->(error) { ['detail_minimum', { limit: error['schema']['minimum'] }] },
+    'maximum' => ->(error) { ['detail_maximum', { limit: error['schema']['maximum'] }] },
+    'minLength' => ->(error) { ['detail_min_length', { count: error['schema']['minLength'] }] },
+    'maxLength' => ->(error) { ['detail_max_length', { count: error['schema']['maxLength'] }] },
+    'maxItems' => ->(error) { ['detail_max_items', { count: error['schema']['maxItems'] }] },
+    'schema' => ->(_error) { ['detail_unknown_field', {}] }
+  }.freeze
+
+  # Tipo nao mapeado cai no nome do proprio tipo — 'boolean', 'integer', 'object'.
+  SCHEMA_DETAIL_FALLBACK = ->(error) { ['detail_type', { type: error['type'] }] }
+
   included do
     store_accessor :additional_attributes, :widget_profile, :widget_triggers, :widget_tracking, :widget_appearance
 
     validate :ensure_valid_widget_profile
     validate :ensure_widget_config_objects
     validate :ensure_no_secret_in_widget_config
+    validate :ensure_widget_triggers_match_schema
   end
 
   # Leitura derivada, nunca backfill (A4): inbox sem a chave se comporta como "support",
@@ -55,6 +72,40 @@ module WidgetConfigurable
 
       errors.add(key, I18n.t('errors.inbox.widget_config.must_be_object'))
     end
+  end
+
+  # Bloco 3.02: o schema dos gatilhos. A validacao fina mora aqui, e nao no strong params, porque e
+  # aqui que ela consegue dizer QUAL campo esta errado.
+  def ensure_widget_triggers_match_schema
+    validate_against_schema(:widget_triggers, WidgetTriggersSchema::SCHEMA)
+  end
+
+  def validate_against_schema(key, schema)
+    value = public_send(key)
+    return unless value.is_a?(Hash)
+
+    JSONSchemer.schema(schema).validate(value).each do |error|
+      errors.add(key, schema_violation_message(error))
+    end
+  end
+
+  def schema_violation_message(error)
+    I18n.t('errors.inbox.widget_config.schema_violation',
+           field: schema_error_field(error),
+           detail: schema_error_detail(error))
+  end
+
+  # `data_pointer` vem como "/triggers/0/desktop/value"; o caminho sem a barra inicial e o que o
+  # administrador reconhece na tela. Vazio significa que o erro e do objeto inteiro.
+  def schema_error_field(error)
+    pointer = error['data_pointer'].to_s.delete_prefix('/')
+    pointer.presence || 'root'
+  end
+
+  def schema_error_detail(error)
+    key, options = SCHEMA_DETAIL_BUILDERS.fetch(error['type'], SCHEMA_DETAIL_FALLBACK).call(error)
+
+    I18n.t("errors.inbox.widget_config.#{key}", **options)
   end
 
   def ensure_no_secret_in_widget_config

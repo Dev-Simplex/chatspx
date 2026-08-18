@@ -97,8 +97,10 @@ RSpec.describe Inbox, type: :model do
       inbox.widget_triggers = { 'triggers' => [{ 'id' => 'time_on_page', 'webhook_secret' => 'shh' }] }
 
       expect(inbox).not_to be_valid
+      # O schema de 3.02 tambem recusa a chave como desconhecida; a mensagem de segredo tem de estar la
+      # de todo jeito, porque e ela que diz ao administrador ONDE a credencial deve morar.
       expect(inbox.errors[:widget_triggers])
-        .to eq(['does not accept secrets: the key "webhook_secret" belongs in the credentials screen, never here'])
+        .to include('does not accept secrets: the key "webhook_secret" belongs in the credentials screen, never here')
     end
 
     it 'rejects the bare keys token and secret' do

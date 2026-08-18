@@ -101,6 +101,40 @@ RSpec.describe 'Inbox widget configuration API', type: :request do
     end
   end
 
+  describe 'the trigger schema over HTTP (3.02)' do
+    it 'accepts a valid trigger object' do
+      patch_inbox(widget_triggers: { version: 1, enabled: true,
+                                     triggers: [{ id: 'scroll_depth', desktop: { enabled: true, value: 50 } }] })
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.widget_triggers['triggers'].first['id']).to eq('scroll_depth')
+    end
+
+    it 'answers 422 naming the offending field for a negative value' do
+      patch_inbox(widget_triggers: { triggers: [{ id: 'time_on_page', desktop: { enabled: true, value: -1 } }] })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('widget_triggers')
+      expect(response.parsed_body['message'])
+        .to eq('Widget triggers tem valor inválido em "triggers/0/desktop/value": deve ser maior ou igual a 0')
+    end
+
+    it 'answers 422 for an unknown trigger id' do
+      patch_inbox(widget_triggers: { triggers: [{ id: 'mouse_shake' }] })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('triggers/0/id')
+      expect(inbox.reload.widget_triggers).to be_nil
+    end
+
+    it 'answers 422 for an empty selector' do
+      patch_inbox(widget_triggers: { triggers: [{ id: 'element_click', desktop: { enabled: true, selector: '' } }] })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('triggers/0/desktop/selector')
+    end
+  end
+
   describe 'an inbox that never heard of the four keys' do
     it 'updates unrelated fields without any of them' do
       patch base_url,

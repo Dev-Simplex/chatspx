@@ -81,6 +81,16 @@ en:
         invalid_profile: "is not a valid widget profile (accepted values: %{profiles})"
         must_be_object: "must be a JSON object"
         secret_not_allowed: 'does not accept secrets: the key "%{key}" belongs in the credentials screen, never here'
+        schema_violation: 'has an invalid value at "%{field}": %{detail}'
+        detail_enum: "value is not allowed (accepted: %{allowed})"
+        detail_required: "missing required field: %{keys}"
+        detail_minimum: "must be greater than or equal to %{limit}"
+        detail_maximum: "must be less than or equal to %{limit}"
+        detail_min_length: "needs at least %{count} character"
+        detail_max_length: "is over the limit of %{count} characters"
+        detail_max_items: "is over the limit of %{count} items"
+        detail_unknown_field: "unknown field"
+        detail_type: "must be of type %{type}"
     private_chat:
       invalid_password: Invalid password
     account:

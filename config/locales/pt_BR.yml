@@ -65,6 +65,16 @@ pt_BR:
         invalid_profile: "não é um perfil de widget válido (valores aceitos: %{profiles})"
         must_be_object: "deve ser um objeto JSON"
         secret_not_allowed: 'não aceita segredo: a chave "%{key}" deve ficar na tela de credenciais, nunca aqui'
+        schema_violation: 'tem valor inválido em "%{field}": %{detail}'
+        detail_enum: "valor não permitido (aceitos: %{allowed})"
+        detail_required: "campo obrigatório ausente: %{keys}"
+        detail_minimum: "deve ser maior ou igual a %{limit}"
+        detail_maximum: "deve ser menor ou igual a %{limit}"
+        detail_min_length: "precisa de pelo menos %{count} caractere"
+        detail_max_length: "passa do limite de %{count} caracteres"
+        detail_max_items: "passa do limite de %{count} itens"
+        detail_unknown_field: "campo desconhecido"
+        detail_type: "deve ser do tipo %{type}"
     private_chat:
       invalid_password: Senha inválida
     account:
