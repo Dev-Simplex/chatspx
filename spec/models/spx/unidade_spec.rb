@@ -39,12 +39,22 @@ RSpec.describe Spx::Unidade do
       expect(unidade.estado_em(segunda).faixas.map(&:to_s)).to eq(['08:00 às 12:00', '14:00 às 18:00'])
     end
 
+    # A distinção precisa ser POR DIA: a unidade com a semana útil cadastrada "tem grade", e
+    # perguntar só isso faz o domingo sem linha passar por fechado.
     it 'distingue dia sem cadastro de dia fechado' do
       horario(1)
 
       expect(unidade.estado_em(domingo).faixas).to be_empty
       expect(unidade.horario_cadastrado?).to be(true)
+      expect(unidade.dia_cadastrado?(1)).to be(true)
+      expect(unidade.dia_cadastrado?(0)).to be(false)
       expect(create(:spx_unidade, account: account).horario_cadastrado?).to be(false)
+    end
+
+    it 'considera cadastrado o dia que só tem linha marcada como fechada' do
+      horario(0, fechada: true, abre: nil, fecha: nil)
+
+      expect(unidade.dia_cadastrado?(0)).to be(true)
     end
   end
 

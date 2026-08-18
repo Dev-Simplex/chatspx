@@ -95,8 +95,16 @@ class Spx::Unidade < ApplicationRecord
 
   # Ausência de grade cadastrada NÃO é "fechada": é "não sei". Quem lê precisa distinguir as
   # duas, senão a resposta ao cliente vira invenção com cara de dado.
+  #
+  # E a distinção é POR DIA, não pela unidade: quem cadastra só os dias úteis tem sábado
+  # desconhecido, não sábado fechado. Só a checagem por unidade deixava passar exatamente esse
+  # caso — a unidade "tem grade", então o sábado sem linha saía como fechado.
   def horario_cadastrado?
     horarios.any?
+  end
+
+  def dia_cadastrado?(dia_semana)
+    horarios.any? { |horario| horario.dia_semana == dia_semana }
   end
 
   def faixas_padrao(dia_semana)

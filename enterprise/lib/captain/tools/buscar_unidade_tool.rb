@@ -186,8 +186,11 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
 
   # Grade não cadastrada NÃO é loja fechada. Responder "fechada" aqui seria inventar um dado que
   # ninguém cadastrou — e invenção com formato de dado chega ao cliente como verdade.
+  #
+  # A checagem é do DIA pedido, não da unidade: quem cadastra só os dias úteis não está dizendo
+  # que fecha no sábado, está deixando o sábado sem informação.
   def sabe_o_horario?(unidade, estado)
-    unidade.horario_cadastrado? || estado.por_excecao?
+    unidade.dia_cadastrado?(estado.data.wday) || estado.por_excecao?
   end
 
   def ressalva(estado)
@@ -207,13 +210,19 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
 
   def agrupar_semana(unidade)
     ::Spx::Unidade::ORDEM_LEITURA.each_with_object([]) do |wday, acc|
-      texto = unidade.faixas_padrao(wday).map(&:to_s).join(' e ').presence || 'fechada'
+      texto = texto_do_dia(unidade, wday)
       if acc.last && acc.last[:texto] == texto
         acc.last[:dias] << wday
       else
         acc << { dias: [wday], texto: texto }
       end
     end
+  end
+
+  def texto_do_dia(unidade, wday)
+    return 'não cadastrado' unless unidade.dia_cadastrado?(wday)
+
+    unidade.faixas_padrao(wday).map(&:to_s).join(' e ').presence || 'fechada'
   end
 
   def rotulo_dias(dias)

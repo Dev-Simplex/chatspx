@@ -149,6 +149,29 @@ RSpec.describe Captain::Tools::BuscarUnidadeTool, type: :model do
       expect(resposta).to include('horário não cadastrado')
       expect(resposta).not_to include('fechada')
     end
+
+    # Achado no smoke test da carga, não nos testes: a unidade "tinha grade", então o dia sem
+    # linha nenhuma saía como fechado. Quem cadastra só os dias úteis não está dizendo que fecha
+    # no sábado — está deixando o sábado sem informação.
+    it 'não afirma que fecha no dia sem linha, mesmo com o resto da semana cadastrado' do
+      unidade = create(:spx_unidade, account: account, nome: 'Loja Útil')
+      (1..5).each { |dia| create(:spx_unidade_horario, unidade: unidade, dia_semana: dia, abre: '08:00', fecha: '18:00') }
+
+      resposta = em_quarta { tool.perform(tool_context, quando: 'sábado') }
+
+      expect(resposta).to include('Sábado, 22/08/2026: horário não cadastrado')
+      expect(resposta).not_to include('fechada')
+    end
+
+    it 'separa dia sem linha de dia fechado no horário habitual' do
+      unidade = create(:spx_unidade, account: account, nome: 'Loja Útil')
+      (1..5).each { |dia| create(:spx_unidade_horario, unidade: unidade, dia_semana: dia, abre: '08:00', fecha: '18:00') }
+      create(:spx_unidade_horario, unidade: unidade, dia_semana: 0, fechada: true, abre: nil, fecha: nil)
+
+      resposta = tool.perform(tool_context)
+
+      expect(resposta).to include('seg a sex 08:00 às 18:00 · sáb não cadastrado · dom fechada')
+    end
   end
 
   describe 'volume' do
