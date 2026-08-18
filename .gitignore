@@ -110,6 +110,14 @@ local/
 *.pem
 *.ppk
 *.png
+
+# ...MENOS as baselines visuais do widget. Sem esta excecao, snapshot NOVO nao
+# entra no commit e nao aparece em `git status`: o autor comita achando que
+# subiu, e na maquina de todo mundo a suite falha com baseline ausente. Os 16
+# atuais so estao versionados porque alguem usou `git add -f` — o proximo nao
+# tem como adivinhar isso. Achado pela trilha o1-bridge ao gravar 4 baselines novas.
+!spec/e2e/widget/snapshots/*.png
+
 nps_checker.rb
 deployment/fix_sudoers.sh
 Procfile.worktree
