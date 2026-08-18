@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_23_000000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_18_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1141,6 +1141,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000000) do
     t.jsonb "attribute_values", default: []
     t.string "regex_pattern"
     t.string "regex_cue"
+    t.string "origin"
+    t.boolean "requires_verified_origin"
+    t.index ["account_id", "attribute_model"], name: "index_cad_on_account_and_model_when_protected", where: "(requires_verified_origin IS TRUE)"
     t.index ["account_id"], name: "index_custom_attribute_definitions_on_account_id"
     t.index ["attribute_key", "attribute_model", "account_id"], name: "attribute_key_model_index", unique: true
   end
