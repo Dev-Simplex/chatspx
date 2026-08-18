@@ -99,7 +99,16 @@ export default {
         this.message.additional_attributes?.sender_avatar_url || displayImage
       );
     },
+    // 4.01 — quando o backend materializou a resposta do visitante como mensagem `incoming`
+    // (`reply_message_id`), ela chega pela lista e se desenha sozinha. O balão local seria
+    // uma DUPLICATA na tela. Sem o motor Flow a chave nunca existe e o widget é o de hoje.
+    hasVisitorReplyMessage() {
+      return !!this.messageContentAttributes.reply_message_id;
+    },
     hasRecordedResponse() {
+      if (this.hasVisitorReplyMessage) {
+        return false;
+      }
       return (
         this.messageContentAttributes.submitted_email ||
         (this.messageContentAttributes.submitted_values &&
@@ -121,6 +130,9 @@ export default {
       return '';
     },
     isASubmittedForm() {
+      if (this.hasVisitorReplyMessage) {
+        return false;
+      }
       return isASubmittedFormMessage(this.message);
     },
     submittedFormValues() {
