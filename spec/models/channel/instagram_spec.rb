@@ -46,10 +46,12 @@ RSpec.describe Channel::Instagram do
     end
 
     context 'when an extra field is configured for the installation' do
-      # O clear_cache é explícito porque a criação do canal, acima, já consultou a chave e
-      # deixou o "vazio" cacheado — em produção quem invalida é o commit do super_admin.
+      # `update!`, e não `first_or_create(value:)`: o ConfigLoader já semeia a chave sem
+      # valor no boot, e o create não roda numa linha que existe. O clear_cache é explícito
+      # porque a criação do canal, acima, já consultou a chave e deixou o "vazio" cacheado —
+      # em produção quem invalida é o commit do super_admin.
       before do
-        InstallationConfig.where(name: 'INSTAGRAM_WEBHOOK_EXTRA_FIELDS').first_or_create(value: 'messaging_postbacks')
+        InstallationConfig.where(name: 'INSTAGRAM_WEBHOOK_EXTRA_FIELDS').first_or_create!.update!(value: 'messaging_postbacks')
         GlobalConfig.clear_cache
       end
 
