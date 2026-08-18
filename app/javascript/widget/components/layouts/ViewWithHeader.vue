@@ -28,6 +28,7 @@ export default {
     ...mapGetters({
       appConfig: 'appConfig/getAppConfig',
       availableAgents: 'agent/availableAgents',
+      isWidgetOpen: 'appConfig/getIsWidgetOpen',
     }),
     portal() {
       return window.chatwootWebChannel.portal;
@@ -74,6 +75,25 @@ export default {
         return { 'opacity-90': true };
       }
       return {};
+    },
+  },
+  watch: {
+    /**
+     * Aceite 6 do bloco 2.05, a metade que NAO e do composer.
+     *
+     * Na view de mensagens quem toma o foco e o campo — `useComposer` cuida
+     * disso, e essa logica JA existia (a §C.9 alerta que reimplementar
+     * duplicaria). Na tela inicial nao ha campo: o composer nem esta montado. O
+     * foco vai para o `h1` do cabecalho, que por isso ganhou `tabindex="-1"` no
+     * bloco 2.06.
+     *
+     * E o motivo de nao focar um campo aqui e concreto: em celular, focar campo
+     * abre o teclado virtual e come metade da tela antes de o visitante ter lido
+     * qualquer coisa.
+     */
+    isWidgetOpen(aberto) {
+      if (!aberto || !this.isOnHomeView) return;
+      this.$nextTick(() => this.$el?.querySelector('h1')?.focus());
     },
   },
   mounted() {

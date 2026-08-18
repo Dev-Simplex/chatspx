@@ -164,7 +164,8 @@
     "AGENT_TYPING": "Agent is typing a message",
     "AGENT_AVATAR": "Agent avatar",
     "IMAGE_ATTACHMENT": "Image sent in the conversation",
-    "BACK": "Back"
+    "BACK": "Back",
+    "SEND_MESSAGE": "Send message"
   },
   "CAPTURE": {
     "SUBMIT": "Send",
