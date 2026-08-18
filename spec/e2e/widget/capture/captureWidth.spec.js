@@ -83,7 +83,7 @@ test.describe('4.03 — fluxo de captura de 4 campos em 375 px', () => {
     await expect(enviar).toBeEnabled();
     await enviar.click();
 
-    const enviado = await page.evaluate(() => window.__captureSubmitted);
+    const enviado = await page.evaluate(() => window.capturaEnviada);
     expect(enviado).toEqual([
       { name: 'nome', value: 'Walisson Ricieri' },
       { name: 'email', value: 'walisson@simplex.com.br' },
@@ -105,7 +105,9 @@ test.describe('4.03 — fluxo de captura de 4 campos em 375 px', () => {
     await expect(page.getByLabel('CPF')).toBeVisible({ timeout: 60000 });
 
     const excedentes = await page.evaluate(largura => {
-      const alvos = [...document.querySelectorAll('input, select, textarea, button')];
+      const alvos = [
+        ...document.querySelectorAll('input, select, textarea, button'),
+      ];
       return alvos
         .map(elemento => ({
           nome: elemento.name || elemento.type || elemento.tagName,
@@ -118,37 +120,53 @@ test.describe('4.03 — fluxo de captura de 4 campos em 375 px', () => {
   });
 
   /**
-   * ESTE TESTE NASCEU DE UMA SABOTAGEM QUE NÃO FALHOU.
+   * ESTE TESTE CUSTOU TRÊS TENTATIVAS, E A TERCEIRA CORRIGIU A MINHA PREMISSA.
    *
-   * A primeira versão do aceite media só `scrollWidth` do documento e a caixa de
-   * cada campo. Sabotei de propósito o botão (devolvendo o `whitespace-nowrap`
-   * que o `.button` do widget traz) e o teste **passou mesmo assim**: o botão é
-   * `block`, então a CAIXA dele continua com 100% da largura — quem estoura é o
-   * TEXTO dentro dela, e nem o `scrollWidth` do documento nem o `getBoundingClientRect`
-   * enxergam isso.
+   * 1ª — medindo `scrollWidth` do documento e `getBoundingClientRect` dos campos, devolvi
+   *      ao botão o `whitespace-nowrap` que o `.button` do widget traz, e o aceite passou.
+   * 2ª — acrescentei `scrollWidth > clientWidth` por elemento, e passou de novo. (E é um
+   *      cego útil de registrar: num elemento com `overflow: visible` — todo botão —
+   *      `scrollWidth` devolve a largura da CAIXA, nunca a do conteúdo que transborda.)
+   * 3ª — passei a medir o TEXTO por `Range`, e **passou uma terceira vez**. Aí, em vez de
+   *      afiar a medição de novo, fui MEDIR A PREMISSA: com o rótulo curto de antes, o
+   *      texto do botão tinha **272 px numa caixa de 343 px**. Ele cabia. Não havia defeito
+   *      algum a detectar — o teste estava certo e eu errado.
    *
-   * Um aceite que não falha quando o defeito existe não é aceite, é decoração.
-   * A medição certa é por elemento: `scrollWidth > clientWidth` significa
-   * conteúdo maior do que a caixa que o contém.
+   * A correção foi no CENÁRIO, não no medidor: o rótulo virou um CTA longo de administrador
+   * (452 px de texto na mesma caixa de 343 px), que é o pior caso realista. Com ele, tirar a
+   * proteção de quebra de linha reprova este teste E o de largura do documento; com ela,
+   * ambos passam. Verificado nos dois sentidos.
+   *
+   * A lição, que vale além deste arquivo: quando um mecanismo não pega o defeito, a suspeita
+   * seguinte não é "meço com mais precisão" — é **"o defeito existe mesmo?"**. Eu afiei o
+   * medidor duas vezes antes de conferir a premissa, e a premissa é que estava errada.
    */
-  test('nenhum elemento tem conteúdo maior que a própria caixa (o teste que a sabotagem exigiu)', async ({
+  test('nenhum TEXTO ultrapassa a largura da tela (tres tentativas ate medir a coisa certa)', async ({
     page,
   }) => {
     await page.goto(harness.url);
     await expect(page.getByLabel('CPF')).toBeVisible({ timeout: 60000 });
 
-    const transbordando = await page.evaluate(() =>
-      [...document.querySelectorAll('#app *')]
-        .map(elemento => ({
-          nome: elemento.getAttribute('data-testid') || elemento.tagName,
-          texto: (elemento.textContent || '').trim().slice(0, 40),
-          conteudo: elemento.scrollWidth,
-          caixa: elemento.clientWidth,
-        }))
-        // `clientWidth` é 0 em elemento sem caixa (inline); +1 absorve o
-        // arredondamento sub-pixel do layout, que não é transbordo.
-        .filter(medida => medida.caixa > 0 && medida.conteudo > medida.caixa + 1)
-    );
+    const transbordando = await page.evaluate(largura => {
+      const range = document.createRange();
+      return [...document.querySelectorAll('#app *')]
+        .filter(elemento =>
+          [...elemento.childNodes].some(
+            filho =>
+              filho.nodeType === Node.TEXT_NODE && filho.textContent.trim()
+          )
+        )
+        .map(elemento => {
+          range.selectNodeContents(elemento);
+          return {
+            nome: elemento.getAttribute('data-testid') || elemento.tagName,
+            texto: elemento.textContent.trim().slice(0, 40),
+            // +1 absorve o arredondamento sub-pixel do layout, que não é transbordo.
+            direita: Math.round(range.getBoundingClientRect().right),
+          };
+        })
+        .filter(medida => medida.direita > largura + 1);
+    }, LARGURA);
 
     expect(transbordando).toEqual([]);
   });
