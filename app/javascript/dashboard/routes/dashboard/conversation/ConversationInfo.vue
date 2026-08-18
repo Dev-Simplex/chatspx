@@ -44,7 +44,12 @@ const platformName = computed(() => {
   return `${name} ${version}`;
 });
 
-const createdAtIp = computed(() => props.contactAttributes.created_at_ip);
+// Mesma razao do ContactPanel: dependendo de por onde o contato veio, a chave
+// chega camelizada pela store ou crua da API.
+const createdAtIp = computed(
+  () =>
+    props.contactAttributes.created_at_ip || props.contactAttributes.createdAtIp
+);
 
 // O IP do visitante e dado pessoal e ficava em claro no painel, visivel para
 // qualquer agente com a conversa aberta, sem nenhuma acao deliberada. Passa a
