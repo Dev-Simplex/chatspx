@@ -127,19 +127,45 @@ export const IFrameHelper = {
       targetOrigin
     );
   },
+  // Origem confiável do lado do SITE: aqui ela é exata — a única janela de quem
+  // temos que aceitar mensagem é o iframe que nós mesmos criamos, e a origem
+  // dele é a do próprio `src`. Sem esta comparação, qualquer frame ou aba com
+  // referência a esta janela conseguia dirigir o widget por `postMessage`.
+  isTrustedFrameOrigin: origin => {
+    const element = IFrameHelper.getAppFrame();
+    if (!element?.src) return false;
+    try {
+      return origin === new URL(element.src).origin;
+    } catch (error) {
+      return false;
+    }
+  },
+  onPostMessage: e => {
+    if (
+      typeof e.data !== 'string' ||
+      e.data.indexOf('chatwoot-widget:') !== 0
+    ) {
+      return;
+    }
+    if (!IFrameHelper.isTrustedFrameOrigin(e.origin)) {
+      return;
+    }
+    let message;
+    try {
+      message = JSON.parse(e.data.replace('chatwoot-widget:', ''));
+    } catch (error) {
+      // JSON quebrado com o prefixo certo: descartar em silêncio é melhor que
+      // deixar a exceção subir para o window.onerror da página do cliente.
+      return;
+    }
+    if (typeof IFrameHelper.events[message.event] === 'function') {
+      IFrameHelper.events[message.event](message);
+    }
+  },
   initPostMessageCommunication: () => {
-    window.onmessage = e => {
-      if (
-        typeof e.data !== 'string' ||
-        e.data.indexOf('chatwoot-widget:') !== 0
-      ) {
-        return;
-      }
-      const message = JSON.parse(e.data.replace('chatwoot-widget:', ''));
-      if (typeof IFrameHelper.events[message.event] === 'function') {
-        IFrameHelper.events[message.event](message);
-      }
-    };
+    // `window.onmessage =` sequestrava o handler de mensagem do site do cliente
+    // (uma única propriedade, um único dono). `addEventListener` convive.
+    window.addEventListener('message', IFrameHelper.onPostMessage);
   },
   initWindowSizeListener: () => {
     window.addEventListener('resize', () => IFrameHelper.toggleCloseButton());

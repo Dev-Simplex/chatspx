@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Bloco 1.03 — "Launcher e painel derivam da mesma fonte; nenhuma fórmula de
 // contraste em JS".
@@ -181,5 +181,131 @@ describe('loadedEventConfig — a ponte carrega a fonte, não uma cópia', () =>
       '--w-on-brand': '#000000',
     });
     document.documentElement.removeAttribute('style');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNIÃO DE DOIS BLOCOS NESTE ARQUIVO — leia antes de mexer
+//
+// Este arquivo foi criado DUAS VEZES, em trilhas paralelas, com o mesmo caminho
+// e conteúdos disjuntos: a trilha do widget escreveu os testes do bloco 1.03
+// (acima) e a trilha do bridge escreveu os do 1.09 (abaixo). O merge acusou
+// conflito de add/add e o coordenador resolveu por UNIÃO, não por escolha:
+// ficar com um dos lados apagaria silenciosamente 7 ou 9 asserções que testam
+// coisas diferentes do mesmo módulo.
+//
+//   1.03 — `applyWidgetTokens`: os 7 tokens do servidor atravessam o
+//          postMessage e são escritos no elemento, token a token.
+//   1.09 — `isTrustedFrameOrigin` / `onPostMessage` /
+//          `initPostMessageCommunication`: a origem da mensagem é conferida e
+//          o `window.onmessage` do site não é sequestrado.
+//
+// Se um futuro merge voltar a conflitar aqui, a resolução correta continua
+// sendo união. Some as duas partes; não escolha uma.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { IFrameHelper } from '../IFrameHelper';
+
+const WIDGET_ORIGIN = 'https://chat.exemplo.com';
+const ATACANTE = 'https://evil.exemplo.net';
+
+const payload = message => `chatwoot-widget:${JSON.stringify(message)}`;
+
+describe('IFrameHelper — origem do postMessage no lado do SITE', () => {
+  let frame;
+
+  beforeEach(() => {
+    frame = document.createElement('iframe');
+    frame.id = 'chatwoot_live_chat_widget';
+    frame.src = `${WIDGET_ORIGIN}/widget?website_token=abc`;
+    document.body.appendChild(frame);
+  });
+
+  afterEach(() => {
+    frame.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('#isTrustedFrameOrigin', () => {
+    it('aceita a origem do iframe que o próprio SDK criou', () => {
+      expect(IFrameHelper.isTrustedFrameOrigin(WIDGET_ORIGIN)).toBe(true);
+    });
+
+    it('recusa qualquer outra origem', () => {
+      expect(IFrameHelper.isTrustedFrameOrigin(ATACANTE)).toBe(false);
+    });
+
+    it('recusa quando o iframe ainda não existe', () => {
+      frame.remove();
+      expect(IFrameHelper.isTrustedFrameOrigin(WIDGET_ORIGIN)).toBe(false);
+    });
+  });
+
+  describe('#onPostMessage', () => {
+    it('roda o handler quando a mensagem vem do iframe do widget', () => {
+      const handler = vi
+        .spyOn(IFrameHelper.events, 'setCampaignReadOn')
+        .mockImplementation(() => {});
+
+      IFrameHelper.onPostMessage({
+        origin: WIDGET_ORIGIN,
+        data: payload({ event: 'setCampaignReadOn' }),
+      });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('IGNORA a mensagem de origem estranha — o handler não roda', () => {
+      const handler = vi
+        .spyOn(IFrameHelper.events, 'setCampaignReadOn')
+        .mockImplementation(() => {});
+
+      IFrameHelper.onPostMessage({
+        origin: ATACANTE,
+        data: payload({ event: 'setCampaignReadOn' }),
+      });
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('ignora JSON quebrado sem lançar exceção na página do cliente', () => {
+      expect(() =>
+        IFrameHelper.onPostMessage({
+          origin: WIDGET_ORIGIN,
+          data: 'chatwoot-widget:{',
+        })
+      ).not.toThrow();
+    });
+  });
+
+  describe('#initPostMessageCommunication', () => {
+    it('usa addEventListener e NÃO sequestra o window.onmessage do site', () => {
+      // O código antigo fazia `window.onmessage = …`: uma propriedade, um único
+      // dono — instalar o widget apagava o handler de mensagem do site.
+      // (O jsdom não despacha para `window.onmessage`, então o que se afirma
+      //  aqui é a propriedade intacta, que é exatamente o que o antigo quebrava.)
+      const doSite = vi.fn();
+      window.onmessage = doSite;
+
+      IFrameHelper.initPostMessageCommunication();
+
+      expect(window.onmessage).toBe(doSite);
+
+      const handler = vi
+        .spyOn(IFrameHelper.events, 'setCampaignReadOn')
+        .mockImplementation(() => {});
+
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: WIDGET_ORIGIN,
+          data: payload({ event: 'setCampaignReadOn' }),
+        })
+      );
+
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      window.removeEventListener('message', IFrameHelper.onPostMessage);
+      window.onmessage = null;
+    });
   });
 });
