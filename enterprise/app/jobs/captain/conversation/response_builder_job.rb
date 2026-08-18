@@ -66,10 +66,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def collect_previous_messages
-    @conversation
-      .messages
-      .where(message_type: [:incoming, :outgoing])
-      .where(private: false)
+    current_session_messages
       .reject { |message| survey_message?(message) }
       .map do |message|
       # Blocos de imagem so podem ir em turnos de USER (a API rejeita 'image' em
@@ -84,11 +81,27 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
       # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
       # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
-      nota_humana = Captain::Conversation::HumanHistoryNote.new(conversation: @conversation).text
+      nota_humana = human_history_note
       history << { content: nota_humana, role: 'user' } if nota_humana.present?
       # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
       history << { content: @directive, role: 'user' } if @directive.present?
     end
+  end
+
+  def current_session_messages
+    scope = @conversation.messages
+                         .where(message_type: [:incoming, :outgoing])
+                         .where(private: false)
+    boundary_id = Captain::Conversation::SessionResetService.boundary_message_id(@conversation)
+    return scope unless boundary_id.positive?
+
+    scope.where('messages.id > ?', boundary_id)
+  end
+
+  def human_history_note
+    return if Captain::Conversation::SessionResetService.boundary_message_id(@conversation).positive?
+
+    Captain::Conversation::HumanHistoryNote.new(conversation: @conversation).text
   end
 
   # Mensagens de pesquisa (NPS/CSAT) NÃO são conversa real — são artefato do sistema. No

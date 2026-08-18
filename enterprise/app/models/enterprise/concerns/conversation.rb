@@ -12,6 +12,7 @@ module Enterprise::Concerns::Conversation
     # triagem re-atribui). Snooze NÃO limpa; bot webhook e assignee humano preservam
     # a regra atual do Chatwoot.
     before_save :release_captain_mirror_on_resolve, if: -> { status_changed? && resolved? }
+    before_save :reset_captain_session_on_resolve, if: -> { Captain::Conversation::SessionResetService.enabled_for_resolve?(self) }
     # A2d: quando o espelho captain é SETADO (nil/humano/outro espelho -> este espelho),
     # cutuca o pipeline para que a IA responda o incoming pendente já no 1º turno
     # (triagem assíncrona) e na transferência IA->IA. Desatribuição não dispara
@@ -36,6 +37,10 @@ module Enterprise::Concerns::Conversation
   end
 
   private
+
+  def reset_captain_session_on_resolve
+    Captain::Conversation::SessionResetService.new(conversation: self).perform
+  end
 
   def awaiting_human_clearable?
     return false unless (custom_attributes || {}).key?('aguardando_humano_desde')

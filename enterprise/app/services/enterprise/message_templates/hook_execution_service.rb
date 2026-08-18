@@ -155,11 +155,17 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
   # setor pegar a conversa de volta (senão a fila nunca existe). Modo Clássico (flag OFF):
   # comportamento D-12 intacto (a IA do setor reentra pra não deixar o cliente no silêncio).
   def orphan_captain_reentry?
-    return false if conversation.account.reply_assignment_gate_enabled?
+    return false unless captain_reentry_allowed?
 
     message.incoming? && !message.private? && conversation.open? &&
       conversation.assignee_id.nil? && conversation.assignee_agent_bot_id.nil? &&
       triage_assistant.present?
+  end
+
+  def captain_reentry_allowed?
+    return true unless conversation.account.reply_assignment_gate_enabled?
+
+    Captain::Conversation::SessionResetService.pending_reentry?(conversation)
   end
 
   def reattach_triage_assistant
@@ -168,7 +174,8 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
 
     # Reaberta volta pra TRIAGEM (Clara), com o time LIMPO: ela lê o histórico + a mensagem
     # nova e decide se continua o assunto anterior ou abre um novo, e roteia. Dispara o kick (A2d).
-    conversation.update!(assignee_agent_bot_id: mirror.id, team_id: nil)
+    attrs = (conversation.custom_attributes || {}).except('captain_session_pending_reentry')
+    conversation.update!(assignee_agent_bot_id: mirror.id, team_id: nil, custom_attributes: attrs)
   rescue StandardError => e
     Rails.logger.warn("[Captain] reentrada conv=#{conversation.id}: #{e.message}")
   end
