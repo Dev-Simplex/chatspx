@@ -16,7 +16,12 @@
 module Tracking::OriginAttributes
   UTM_KEYS = %w[utm_source utm_medium utm_campaign utm_term utm_content utm_id].freeze
   CLICK_ID_KEYS = %w[gclid gbraid wbraid fbclid msclkid ttclid].freeze
-  DERIVED_KEYS = %w[referrer_host landing_path origin_kind].freeze
+  # `page_host`/`page_path` são a página EM QUE O CHAT ABRIU, não a origem externa e não a landing
+  # page. O SDK manda `document.location.href` (`sdk/DOMHelpers.js:52` → `widget/api/endPoints.js:19`),
+  # nunca `document.referrer` — então em C0 o host é o do próprio site do cliente. Chamar isso de
+  # `referrer_host`/`landing_path` seria batizar de origem um dado que é destino: o referrer externo
+  # e a landing page real só existem a partir de C2 [R19 §B.3].
+  DERIVED_KEYS = %w[page_host page_path origin_kind].freeze
 
   CONVERSATION_PREFIX = 'last_'
   CONTACT_PREFIX = 'first_'

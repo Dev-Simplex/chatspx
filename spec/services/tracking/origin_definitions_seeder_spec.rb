@@ -23,11 +23,11 @@ RSpec.describe Tracking::OriginDefinitionsSeeder do
       expect(conversation_keys).to match_array(
         %w[last_utm_source last_utm_medium last_utm_campaign last_utm_term last_utm_content last_utm_id
            last_gclid last_gbraid last_wbraid last_fbclid last_msclkid last_ttclid
-           last_referrer_host last_landing_path last_origin_kind]
+           last_page_host last_page_path last_origin_kind]
       )
       expect(contact_keys).to match_array(
         %w[first_utm_source first_utm_medium first_utm_campaign first_utm_term first_utm_content first_utm_id
-           first_referrer_host first_landing_path first_origin_kind]
+           first_page_host first_page_path first_origin_kind]
       )
       expect(conversation_keys.size + contact_keys.size).to eq(24)
     end
