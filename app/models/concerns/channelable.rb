@@ -24,6 +24,15 @@ module Channelable
   def supports_multi_image_message?
     false
   end
+
+  # O canal desenha a vitrine de cards que a mensagem carrega em content_attributes['cards']
+  # (título, foto, subtítulo e um botão por card)? A lista é AGNÓSTICA de propósito: cada
+  # canal a traduz pro formato dele. Quem não desenha NÃO falha — manda o `content` como
+  # texto —, então, como no interactive_payload, a pergunta precisa ser feita por quem MONTA
+  # a lista, antes de montá-la.
+  def supports_card_carousel?
+    false
+  end
 end
 
 Channelable.prepend_mod_with('Channelable')

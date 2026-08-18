@@ -197,6 +197,59 @@ describe Instagram::SendOnInstagramService do
         end
       end
 
+      # A vitrine é AGNÓSTICA de canal: a mensagem carrega `cards` em content_attributes e
+      # cada canal traduz pro formato dele — aqui, generic template.
+      context 'with a card showcase' do
+        let(:cards) do
+          [{ 'title' => 'Casa 3 quartos — Centro', 'subtitle' => 'R$ 1.950/mês', 'image_url' => 'https://cdn.example.com/1.jpg',
+             'button' => { 'title' => 'Fotos do 5194', 'payload' => 'imovel:5194' } }]
+        end
+        let(:message) do
+          create(:message, message_type: 'outgoing', inbox: instagram_inbox, account: account, conversation: conversation,
+                           content: 'Separei 1 opção pra você', content_attributes: { 'cards' => cards })
+        end
+
+        before { InstallationConfig.where(name: 'ENABLE_INSTAGRAM_CHANNEL_HUMAN_AGENT').first_or_create(value: false) }
+
+        it 'sends a single generic template carrying every card' do
+          service = described_class.new(message: message)
+          allow(service).to receive(:send_message)
+          service.perform
+
+          expect(service).to have_received(:send_message).once
+          expect(service).to have_received(:send_message).with(
+            hash_including(message: {
+                             attachment: {
+                               type: 'template',
+                               payload: {
+                                 template_type: 'generic',
+                                 elements: [{
+                                   title: 'Casa 3 quartos — Centro',
+                                   image_url: 'https://cdn.example.com/1.jpg',
+                                   subtitle: 'R$ 1.950/mês',
+                                   buttons: [{ type: 'postback', title: 'Fotos do 5194', payload: 'imovel:5194' }]
+                                 }]
+                               }
+                             }
+                           })
+          )
+        end
+
+        # Contraprova: sem a capacidade, a vitrine NÃO sai como card — a mensagem cai no
+        # texto do `content`. É o oposto do interactive_payload, que saía vazio sem aviso.
+        it 'falls back to the plain text when the channel does not draw cards' do
+          allow(instagram_channel).to receive(:supports_card_carousel?).and_return(false)
+
+          service = described_class.new(message: message)
+          allow(service).to receive(:send_message)
+          service.perform
+
+          expect(service).to have_received(:send_message).with(
+            hash_including(message: { text: 'Separei 1 opção pra você' })
+          )
+        end
+      end
+
       context 'when handling errors' do
         it 'handles HTTP errors' do
           message = create(:message, message_type: 'outgoing', inbox: instagram_inbox, account: account, conversation: conversation)
