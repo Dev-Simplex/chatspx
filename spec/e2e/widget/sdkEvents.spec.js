@@ -47,6 +47,9 @@ const nomesDeEvento = () => {
     'CHATWOOT_PRECHAT_SUBMITTED',
     'CHATWOOT_LEAD_IDENTIFIED',
     'CHATWOOT_RESET_COMPLETED',
+    'CHATWOOT_MESSAGE_SENT',
+    'CHATWOOT_CSAT_SUBMITTED',
+    'CHATWOOT_CAMPAIGN_SHOWN',
   ];
   const faltando = exigidos.filter(nome => !mapa[nome]);
   if (faltando.length) {
@@ -67,6 +70,25 @@ const ORDEM_DO_ACEITE = [
 
 const EMAIL_DIGITADO = 'ana.prado@exemplo.com.br';
 const NOME_DIGITADO = 'Ana Prado';
+
+const MENSAGEM_DE_CSAT = {
+  id: 207,
+  content: 'Que nota você dá para o atendimento?',
+  content_type: 'input_csat',
+  created_at: 1736942400,
+  message_type: 3,
+  status: 'sent',
+  content_attributes: {},
+  conversation_id: 314,
+};
+
+// `time_on_page: 0` faz o temporizador da campanha disparar no proximo tick, em
+// vez de o teste esperar segundos reais por um `setTimeout` do produto.
+const CAMPANHA = {
+  id: 12,
+  title: 'Teaser determinístico',
+  trigger_rules: { time_on_page: 0, url: `${HOST_URL}/` },
+};
 
 const CONVERSA_CRIADA = {
   id: 314,
@@ -107,23 +129,60 @@ const escutarEventos = async (page, nomes) => {
   }, nomes);
 };
 
-/** Visitante NOVO: sem conversa anterior e sem mensagens. */
-const rotasDeVisitanteNovo = async page => {
-  await page.route('**/api/v1/widget/conversations*', route => {
-    const corpo = route.request().method() === 'POST' ? CONVERSA_CRIADA : {};
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify(corpo),
+const responder = (route, corpo) =>
+  route.fulfill({
+    status: 200,
+    contentType: 'application/json; charset=utf-8',
+    body: JSON.stringify(corpo),
+  });
+
+/**
+ * Visitante NOVO: sem conversa anterior e sem mensagens.
+ *
+ * `mensagens` permite semear a conversa (o CSAT precisa de uma mensagem
+ * `input_csat` renderizada para haver o que clicar).
+ */
+const rotasDeVisitanteNovo = async (page, mensagens = []) => {
+  // Padrao por EXPRESSAO REGULAR, e nao por glob: o `*` do glob do Playwright
+  // nao atravessa `/`, entao `**/widget/messages*` deixava passar
+  // `/widget/messages/207` (o PATCH do CSAT) e `/widget/conversations/toggle_typing`.
+  // As duas caiam no harness, que responde 500 a rota que nao conhece — e a
+  // fixture reprova por erro de console, mascarando o que o teste media.
+  await page.route(/\/api\/v1\/widget\/conversations/, route => {
+    const { pathname } = new URL(route.request().url());
+    const criando =
+      route.request().method() === 'POST' &&
+      pathname.endsWith('/widget/conversations');
+    return responder(route, criando ? CONVERSA_CRIADA : {});
+  });
+  await page.route(/\/api\/v1\/widget\/messages/, route => {
+    const metodo = route.request().method();
+    if (metodo === 'POST') {
+      return responder(route, {
+        id: 2001,
+        conversation_id: CONVERSA_CRIADA.id,
+        content: 'Mensagem do visitante',
+        content_type: 'text',
+        created_at: 1736942400,
+        message_type: 0,
+        status: 'sent',
+      });
+    }
+    if (metodo === 'PATCH' || metodo === 'PUT') return responder(route, {});
+    return responder(route, {
+      payload: mensagens,
+      meta: { contact_last_seen_at: 0 },
     });
   });
-  await page.route('**/api/v1/widget/messages*', route =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ payload: [], meta: {} }),
-    })
-  );
+};
+
+/** Leva o painel para a tela de conversa, que e onde vivem composer e CSAT. */
+const irParaMensagens = async frame => {
+  await frame
+    .locator('body')
+    .evaluate(async () =>
+      window.WOOT_WIDGET.$router.replace({ name: 'messages' })
+    );
 };
 
 const abrirWidget = async page => {
@@ -255,5 +314,87 @@ test.describe('contrato de eventos de window (bloco 5.04)', () => {
         timeout: 30000,
       })
       .toEqual([EVENTOS.CHATWOOT_RESET_COMPLETED]);
+  });
+  test('a mensagem do visitante sai como chatwoot:message-sent (T-C3.4)', async ({
+    page,
+  }) => {
+    await escutarEventos(page, [
+      EVENTOS.CHATWOOT_CONVERSATION_CREATED,
+      EVENTOS.CHATWOOT_MESSAGE_SENT,
+    ]);
+    await rotasDeVisitanteNovo(page);
+    const frame = await abrirWidget(page);
+    await irParaMensagens(frame);
+
+    await frame.locator('#chat-input').fill('Mensagem do visitante');
+    await frame.locator('#chat-input').press('Enter');
+
+    await expect
+      .poll(async () => (await eventosObservados(page)).map(e => e.nome), {
+        timeout: 30000,
+      })
+      // Sem pre-chat a conversa nasce COM a mensagem: o fato "conversa criada"
+      // precede o fato "mensagem enviada", mesmo tendo os dois vindo do mesmo
+      // POST.
+      .toEqual([
+        EVENTOS.CHATWOOT_CONVERSATION_CREATED,
+        EVENTOS.CHATWOOT_MESSAGE_SENT,
+      ]);
+
+    const observados = await eventosObservados(page);
+    expect(observados[1].detalhe).toEqual({
+      conversation_id: CONVERSA_CRIADA.id,
+    });
+  });
+
+  test('a nota do CSAT sai como chatwoot:csat-submitted (T-C3.5)', async ({
+    page,
+  }) => {
+    await escutarEventos(page, [EVENTOS.CHATWOOT_CSAT_SUBMITTED]);
+    await rotasDeVisitanteNovo(page, [MENSAGEM_DE_CSAT]);
+    const frame = await abrirWidget(page);
+    await irParaMensagens(frame);
+
+    await expect(
+      frame.getByText('Que nota você dá para o atendimento?', { exact: true })
+    ).toBeVisible();
+    // A ultima carinha e a nota 5 (CSAT_RATINGS em shared/constants/messages.js).
+    await frame.locator('.emoji-button').last().click();
+
+    await expect
+      .poll(() => eventosObservados(page), { timeout: 30000 })
+      .toEqual([
+        { nome: EVENTOS.CHATWOOT_CSAT_SUBMITTED, detalhe: { rating: 5 } },
+      ]);
+  });
+
+  test('a campanha exibida sai como chatwoot:campaign-shown (T-C3.6)', async ({
+    page,
+  }) => {
+    await escutarEventos(page, [EVENTOS.CHATWOOT_CAMPAIGN_SHOWN]);
+    await rotasDeVisitanteNovo(page);
+    await page.route('**/api/v1/widget/campaigns*', route =>
+      responder(route, [CAMPANHA])
+    );
+
+    // O widget fica FECHADO de proposito: campanha so e exibida para quem ainda
+    // nao abriu o chat, e `startCampaign` recusa com o painel aberto.
+    await page.goto(`${HOST_URL}/?scenario=home&theme=light`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await expect
+      .poll(() => page.evaluate(() => window.$chatwoot?.hasLoaded === true), {
+        timeout: 30000,
+      })
+      .toBe(true);
+
+    await expect
+      .poll(() => eventosObservados(page), { timeout: 30000 })
+      .toEqual([
+        {
+          nome: EVENTOS.CHATWOOT_CAMPAIGN_SHOWN,
+          detalhe: { campaign_id: CAMPANHA.id },
+        },
+      ]);
   });
 });
