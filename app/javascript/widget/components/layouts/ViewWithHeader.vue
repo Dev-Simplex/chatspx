@@ -136,7 +136,12 @@ export default {
         />
       </div>
       <Banner />
-      <router-view />
+      <!-- A regiao principal da tela. Sem ela, quem navega por leitor de tela
+           nao tem para onde pular: o widget e um documento inteiro dentro de um
+           iframe, e o cabecalho e o rodape ja sao landmarks. -->
+      <main class="flex flex-col flex-1 min-h-0">
+        <router-view />
+      </main>
 
       <Branding v-if="!isOnArticleViewer" :disable-branding="disableBranding" />
     </div>

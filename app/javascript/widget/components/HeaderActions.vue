@@ -87,12 +87,12 @@ export default {
         hasEndConversationEnabled &&
         showEndConversationButton
       "
-      class="button transparent compact"
+      class="button transparent compact flex items-center justify-center min-w-11 min-h-11 md:min-w-10 md:min-h-10"
       :title="$t('END_CONVERSATION')"
       :aria-label="$t('END_CONVERSATION')"
       @click="resolveConversation"
     >
-      <FluentIcon icon="sign-out" size="22" class="text-white" />
+      <FluentIcon icon="sign-out" size="22" class="text-w-on-brand" />
     </button>
     <!-- `title` E `aria-label`: o botão só tem ícone, então sem um nome ele é
          anunciado como "botão" e nada mais. `title` dá a dica visual no mouse;
@@ -100,15 +100,15 @@ export default {
          expor texto. -->
     <button
       v-if="showPopoutButton"
-      class="button transparent compact new-window--button"
+      class="button transparent compact new-window--button flex items-center justify-center min-w-11 min-h-11 md:min-w-10 md:min-h-10"
       :title="$t('A11Y.OPEN_IN_NEW_WINDOW')"
       :aria-label="$t('A11Y.OPEN_IN_NEW_WINDOW')"
       @click="popoutWindow"
     >
-      <FluentIcon icon="open" size="22" class="text-white" />
+      <FluentIcon icon="open" size="22" class="text-w-on-brand" />
     </button>
     <button
-      class="button transparent compact close-button"
+      class="button transparent compact close-button flex items-center justify-center min-w-11 min-h-11 md:min-w-10 md:min-h-10"
       :class="{
         'rn-close-button': isRNWebView,
       }"
@@ -116,7 +116,7 @@ export default {
       :aria-label="$t('A11Y.CLOSE_WIDGET')"
       @click="closeWindow"
     >
-      <FluentIcon icon="dismiss" size="24" class="text-white" />
+      <FluentIcon icon="dismiss" size="24" class="text-w-on-brand" />
     </button>
   </div>
 </template>

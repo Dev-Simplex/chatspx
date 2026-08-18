@@ -163,6 +163,7 @@
     "OPEN_WIDGET": "Open chat",
     "AGENT_TYPING": "Agent is typing a message",
     "AGENT_AVATAR": "Agent avatar",
-    "IMAGE_ATTACHMENT": "Image sent in the conversation"
+    "IMAGE_ATTACHMENT": "Image sent in the conversation",
+    "BACK": "Back"
   }
 }
