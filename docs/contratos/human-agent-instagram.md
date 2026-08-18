@@ -56,20 +56,34 @@ Verificado na doc oficial em 18/08:
 Ou seja: não é uma chave que se liga: é um pedido formal, e o que se promete no pedido tem que ser
 o que o código faz.
 
-## 4. ⚠️ A pergunta que precede tudo
+## 4. ✅ RESPONDIDO — a tag vale nesta API, e falta só App Review
 
-**A tag vale na API que o SPX usa?** O SPX conecta pelo *Instagram API with Instagram Login*
-(`graph.instagram.com`, `enable_fb_login: '0'`), enquanto a documentação da `HUMAN_AGENT` está no
-*Messenger Platform*. São produtos diferentes, e não está confirmado que o mesmo `messaging_type:
-MESSAGE_TAG` seja aceito no endpoint que usamos.
+A dúvida era se a `HUMAN_AGENT` valeria no *Instagram API with Instagram Login*
+(`graph.instagram.com`), já que a documentação dela vive no *Messenger Platform*.
 
-**Teste decisivo, barato e sem cliente no meio:** a inbox **56 (Midwest, conta 3)** é do próprio
-Paulo. A janela dela abriu em 18/08 14:47 (−04) e fecha 24h depois. Passado esse prazo, um envio
-**com** e outro **sem** a tag respondem a pergunta de uma vez: se o com-tag passa e o sem-tag é
-recusado, a capacidade existe.
+**Testado ao vivo em 18/08**, na conversa 1 da inbox 57 (contato do próprio Paulo, janela fechada
+havia 75h — sem cliente no meio). Dois envios, e o formato do erro é a resposta:
 
-**Não desenhar nada antes dessa resposta.** Se a tag não valer nesta API, todo o resto deste
-contrato é inútil e a janela de 24h é o teto real.
+```
+1. SEM a tag  → 403 · code 10 · subcode 2534022
+   "Essa mensagem foi enviada fora do período permitido."
+
+2. COM a tag  → 403 · code 10
+   "To use 'Human Agent', your use of this endpoint must be reviewed and
+    approved by Facebook."
+```
+
+O segundo erro **não recusa o parâmetro** — recusa a **feature não aprovada**, e ainda diz *"your
+use of **this endpoint**"*. Ou seja:
+
+- a janela de 24h é real e é a Meta que aplica (erro 1 prova);
+- **o caminho de 7 dias existe nesta API** e está a uma App Review de distância (erro 2 prova).
+
+Nenhuma das duas mensagens foi entregue (as duas voltaram 403).
+
+**Consequência de prioridade:** a App Review vira o **caminho crítico**, porque é o único item com
+prazo externo. O código do §5 é pequeno e pode ser feito em paralelo — mas sem a aprovação ele não
+muda nada na prática.
 
 ## 5. O desenho correto
 
@@ -95,15 +109,24 @@ Hoje isso ao menos **falha visível**, porque o PR #58 fez a exceção marcar a 
 `failed`. Mas falhar não é o objetivo: **o caminho automático deve continuar preso às 24h**,
 independente da janela da conta. Quem ganha os 7 dias é o humano, não o motor.
 
-## 7. Decisão do Paulo
+## 7. O que fazer, e por que é urgente
 
-1. **Pedir a feature Human Agent** no app `Business MW` (`478777497423728`)? Passa por App Review e
-   verificação de negócio — é o item de maior prazo externo deste contrato.
-2. Vale a pena **antes de o time migrar para o painel**? Hoje eles respondem pelo app do Instagram e
-   não sentem o bloqueio; o ganho aparece junto com a migração, não antes.
-3. Se a §4 responder que a tag **não** vale nesta API, aceitamos 24h como teto e o assunto morre —
-   ou vale reavaliar o produto (por exemplo, avisar o atendente antes de a janela fechar, em vez de
-   bloquear depois)?
+A urgência não estava clara para mim até o Paulo apontar a assimetria que decide tudo:
+
+> **No WhatsApp, janela fechada tem saída — o template (HSM). No Instagram não tem nenhuma.**
+
+Não existe template no Instagram. Passadas as 24h, o atendente simplesmente **não consegue
+responder** pelo painel, e o único jeito é sair do produto e usar o app do Instagram — que é
+exatamente o que o time da BigStore faz hoje, com 2.643 respostas por fora em 30 dias. O bloqueio
+não é inconveniência: é o produto perdendo o atendimento para o aplicativo do cliente.
+
+**Caminho crítico:** pedir a feature **Human Agent** no app `Business MW` (`478777497423728`), em
+`Revisão do app → Permissões e recursos`. Exige verificação de negócio. É o único item com prazo
+externo — o código do §5 é pequeno e sai em paralelo.
+
+**O que o pedido descreve é o §5, literalmente:** atendente humano respondendo manualmente, só
+fora da janela padrão, nunca automação. Se o pedido e o código contarem a mesma história, a
+aprovação é a descrição do comportamento real — não uma promessa a cumprir depois.
 
 ## 8. Não-objetivos
 
