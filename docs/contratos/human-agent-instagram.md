@@ -128,6 +128,46 @@ externo — o código do §5 é pequeno e sai em paralelo.
 fora da janela padrão, nunca automação. Se o pedido e o código contarem a mesma história, a
 aprovação é a descrição do comportamento real — não uma promessa a cumprir depois.
 
+## 7.1 Teste cruzado com o n8n — não existe atalho, e o loop estava quebrado
+
+O Paulo lembrava que no n8n **funcionava fora da janela**. O fluxo `Zap` confirma que ele de fato
+**enviava** fora dela: o gatilho não é o cliente, é o **lojista respondendo no WhatsApp**, e o tempo
+até isso é o tempo que a loja levar. Mas o payload é `messaging_type: RESPONSE`, sem tag — idêntico
+ao que a Meta recusa.
+
+**Testado lado a lado em 18/08**, mesmo destinatário (`1737491620526400`, janela fechada há 78h),
+mesmo corpo, apps diferentes:
+
+| origem | resultado |
+|---|---|
+| SPX (app Business MW) | `403 · code 10 · subcode 2534022` |
+| n8n (credencial Instagram - BigStore) | `403 · code 10 · subcode 2534022` |
+
+Idênticos. E o erro é de **janela**, não de autenticação (190) — ou seja, o token autenticou e a
+conta foi alcançada. **O n8n nunca teve capacidade a mais.**
+
+O que criava a impressão contrária era o nó com `onError: continueErrorOutput`: a falha ia para uma
+saída de erro que avisava a **loja** pelo WhatsApp, e nunca chegava ao Paulo.
+
+> **Consequência que vale mais que o teste:** o loop lojista→cliente da BigStore estava **quebrado
+> toda vez que a loja demorava mais de 24h para responder**. O cliente perguntava, a loja respondia,
+> e a resposta não chegava. Silenciosamente, desde sempre. Não é regressão da migração — é defeito
+> que a migração **revelou**.
+
+Isso muda o argumento da análise: pedir a feature não é melhoria, é **conserto de defeito conhecido**.
+
+⚠️ Também não é possível refazer esse teste no futuro: o app da BigStore foi desvinculado da conta.
+E, mesmo que tivesse alguma capacidade extra, o SPX **não poderia usá-lo** — a box tem um único
+`INSTAGRAM_APP_ID`, hoje o do Business MW, e trocá-lo afetaria toda conta de Instagram da box.
+
+## 7.2 A alternativa que não depende da Meta
+
+Ver [`ponte-whatsapp.md`](ponte-whatsapp.md): usar as 24h que existem para **levar a conversa ao
+WhatsApp**, que tem template. Resolve o mesmo caso sem análise, sem escopo e sem prazo externo — e
+atende o que o cliente pediu, que normalmente é justamente ser chamado no WhatsApp.
+
+A `HUMAN_AGENT` continua valendo para quem **não** quer dar o telefone.
+
 ## 8. Não-objetivos
 
 - **Não** é cadência proativa. A tag alarga a resposta a quem falou com você; passados os 7 dias,

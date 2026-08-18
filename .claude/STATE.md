@@ -10,6 +10,65 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-18] 🔴→🟢 A JANELA DE 24h DO INSTAGRAM: não há atalho, e o loop da BigStore estava quebrado
+
+> Fechado com medição, depois de duas correções minhas. Contratos:
+> `docs/contratos/human-agent-instagram.md` e `docs/contratos/ponte-whatsapp.md`.
+
+- **O mapa, todo testado ao vivo** (destinatário `1737491620526400`, janela fechada há 78h):
+  dentro de 24h funciona · **`HUMAN_AGENT` = 7 dias, existe nesta API e falta App Review** ·
+  Marketing Messages exige opt-in do usuário e parece ser do sabor Página · resposta privada a
+  comentário tem janela própria de 7 dias · **as outras 4 tags do Messenger a Meta ignora** ·
+  **abertura a frio não existe** (sem interação não há nem IGSID para endereçar).
+- **O erro distingue tudo:** sem tag → `403 subcode 2534022` ("fora do período permitido"); com
+  `HUMAN_AGENT` → `403` reclamando da **feature não aprovada**, citando "this endpoint". A API
+  conhece a tag. Testadas 4 grafias/formatos — mesmo erro nos quatro.
+- ⚠️ **O painel MENTE:** `Human Agent` aparece como `Standard access`, "pronto para usar", "nenhuma
+  análise solicitada" — e o endpoint recusa. Mesmo padrão dos comentários (permissão no app ≠
+  permissão no token). **Ler o painel não substitui testar por capacidade.**
+- **🔴 TESTE CRUZADO n8n × SPX — o achado do dia.** O Paulo lembrava que no n8n funcionava fora da
+  janela, e o fluxo `Zap` de fato **envia** fora dela (o gatilho é o **lojista respondendo no
+  WhatsApp**, não o cliente). Rodado lado a lado, mesmo destinatário e mesmo corpo: **os dois
+  levaram `403 subcode 2534022`**. O n8n nunca teve capacidade a mais — o nó tinha
+  `onError: continueErrorOutput`, então a falha virava aviso no WhatsApp **da loja** e nunca chegava
+  ao Paulo.
+  > **O loop lojista→cliente da BigStore estava quebrado toda vez que a loja demorava mais de 24h.**
+  > O cliente perguntava, a loja respondia, a resposta não chegava. Não é regressão da migração — é
+  > defeito que a migração revelou.
+- ⏭️ **A saída que não depende da Meta (ideia do Paulo):** usar as 24h que existem para **levar a
+  conversa ao WhatsApp**, que tem template. Duas formas — Tozi (tem WABA, conversa segue no SPX) e
+  BigStore (não tem WABA; o telefone vai para a loja falar do próprio número). Contrato escrito.
+- ⏭️ **Pedir a feature Human Agent** no `Business MW` (`478777497423728`) segue valendo, para quem
+  não quer dar o telefone. Agora com argumento melhor: é conserto de defeito, não melhoria.
+- ⚠️ Não dá para repetir o teste do app antigo: a BigStore foi desvinculada dele. E ainda que ele
+  tivesse algo a mais, a box tem **um** `INSTAGRAM_APP_ID` — trocá-lo atingiria toda conta dela.
+
+### [2026-08-18] 🟢 REAGIR / DIGITANDO / VISTO no Instagram — funcionam hoje, e o SPX não usa nenhum
+
+- Testado na inbox 56 (Midwest, conta do Paulo): `sender_action: react` com **`love` → 200 OK**,
+  `unreact` → OK, **`typing_on` → 200**, **`mark_seen` → 200**.
+- **`love` é a ÚNICA reação aceita** — testadas 15 (`wow`, `haha`, `like`, `thumbs_up`, `fire`…),
+  todas recusadas com "Reação inválida".
+- É o `reagir` que o n8n tinha e o SPX não tem: **nenhuma das quatro capacidades existe no código**.
+  Não depende de escopo, de aprovação nem de janela nova — é a lacuna mais barata da lista.
+- Bônus: o indicador "digitando" hoje só existe no WhatsApp Cloud; no Instagram responde 200.
+
+### [2026-08-18] 🟢 CARROSSEL NO INSTAGRAM: dois formatos provados ao vivo (frente `instagram-midia`)
+
+- Enviados de verdade pela inbox 56 (Midwest → @pauloseze), os dois com **HTTP 200**:
+  **generic template** (carrossel de cards com foto, título, subtítulo e botão) e **`attachments[]`**
+  (até 30 fotos numa mensagem só).
+- **No celular os dois renderizam bem** (confirmado pelo Paulo). No **Instagram Web** o generic
+  template mostra *"Mensagem não aceita — use o app do celular"*; o `attachments[]` renderiza.
+- ⚠️ A Meta **não devolve eco** do generic template (6 ocorrências de `attachments` no journal,
+  zero de `template_type`). Isso **não** é objeção para o produto — quando o SPX envia, ele cria a
+  `Message` local antes; o eco só importa para mensagem mandada por fora.
+- **Decisão do Paulo:** fazer os dois. `attachments[]` para as fotos de um imóvel; generic template
+  para a vitrine de 3 imóveis com botão. O clique volta por **`postback`** (`web_url` não volta).
+- Frente aberta: worktree `instagram-midia`, branch `PauloSeze/instagram-midia`.
+- ⏭️ **WhatsApp fica como está** (decisão do Paulo). Lá não existe álbum: o `WhatsappCloudService`
+  manda `attachments.first` — uma mídia por mensagem —, então o carrossel é o único agrupamento.
+
 ### [2026-08-17] 🔴→🟢 LEAD DE LOCAÇÃO NASCIA NA AGENTE DE VENDAS (conv 28230) — **PR #57 aberto** · rodízio mapeado · supervisor de locação criado
 
 > Sessão de queixa de cliente. Tudo medido na VM da prod Tozi (conta 6), read-only. Log completo do
