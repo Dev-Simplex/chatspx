@@ -94,7 +94,22 @@
     "IS_REQUIRED": "is required",
     "FIELD_IS_REQUIRED": "{label} is required",
     "REQUIRED": "Required",
-    "REGEX_ERROR": "Please provide a valid input"
+    "REGEX_ERROR": "Please provide a valid input",
+    "VALIDATION": {
+      "REQUIRED": "This field is required",
+      "CPF": "Invalid CPF — check the digits",
+      "CNPJ": "Invalid CNPJ — check the digits",
+      "CPF_CNPJ": "Invalid CPF or CNPJ — check the digits",
+      "CEP": "Invalid postal code — use 8 digits",
+      "UF": "Invalid state — use the two-letter code, such as SP",
+      "EMAIL": "Invalid email — check the address",
+      "CORPORATE_EMAIL": "Use a work email, not a personal one",
+      "PHONE": "Invalid phone — include the country code, such as +55",
+      "JUNK_NAME": "That name looks incomplete. Is it right?",
+      "JUNK_PHONE": "That phone looks incomplete. Is it right?",
+      "JUNK_EMAIL": "That email looks incomplete. Is it right?"
+    },
+    "CONTINUE": "Continue"
   },
   "FILE_SIZE_LIMIT": "File exceeds the {MAXIMUM_FILE_UPLOAD_SIZE} attachment limit",
   "CHAT_FORM": {

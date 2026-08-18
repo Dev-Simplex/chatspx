@@ -94,7 +94,22 @@
     "IS_REQUIRED": "é obrigatório",
     "FIELD_IS_REQUIRED": "O campo {label} é obrigatório",
     "REQUIRED": "Obrigatório",
-    "REGEX_ERROR": "Forneça uma entrada válida"
+    "REGEX_ERROR": "Forneça uma entrada válida",
+    "VALIDATION": {
+      "REQUIRED": "Este campo é obrigatório",
+      "CPF": "CPF inválido — confira os números",
+      "CNPJ": "CNPJ inválido — confira os números",
+      "CPF_CNPJ": "CPF ou CNPJ inválido — confira os números",
+      "CEP": "CEP inválido — use 8 dígitos",
+      "UF": "UF inválida — use a sigla do estado, como SP",
+      "EMAIL": "E-mail inválido — confira o endereço",
+      "CORPORATE_EMAIL": "Use um e-mail corporativo, não um pessoal",
+      "PHONE": "Telefone inválido — inclua o código do país, como +55",
+      "JUNK_NAME": "Esse nome parece incompleto. Confere?",
+      "JUNK_PHONE": "Esse telefone parece incompleto. Confere?",
+      "JUNK_EMAIL": "Esse e-mail parece incompleto. Confere?"
+    },
+    "CONTINUE": "Continuar"
   },
   "FILE_SIZE_LIMIT": "O arquivo excede o limite de anexos {MAXIMUM_FILE_UPLOAD_SIZE}",
   "CHAT_FORM": {
