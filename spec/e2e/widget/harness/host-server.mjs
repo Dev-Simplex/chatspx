@@ -3,6 +3,9 @@ import http from 'node:http';
 const SDK_URL = 'http://127.0.0.1:3038';
 const WIDGET_URL = 'http://127.0.0.1:3999';
 const allowedScenarios = new Set([
+  // `rich-types` reusa a rota de mensagens; o que o distingue são as mensagens
+  // dos sete content_type ricos, injetadas no store pelo spec.
+  'rich-types',
   'home',
   'messages',
   'prechat-form',
