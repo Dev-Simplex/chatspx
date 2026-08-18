@@ -76,10 +76,12 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
     exatas = unidades.select { |unidade| ::Spx::Unidade.normalizar(unidade.cidade) == alvo }
     return exatas if exatas.any? || alvo.length < MINIMO_CONTINENCIA
 
-    unidades.select do |unidade|
-      nome = ::Spx::Unidade.normalizar(unidade.cidade)
-      nome.present? && (nome.include?(alvo) || alvo.include?(nome))
-    end
+    unidades.select { |unidade| contem_cidade?(unidade, alvo) }
+  end
+
+  def contem_cidade?(unidade, alvo)
+    nome = ::Spx::Unidade.normalizar(unidade.cidade)
+    nome.present? && (nome.include?(alvo) || alvo.include?(nome))
   end
 
   # A ausência tem que ser inconfundível E dizer o que fazer com ela. Guarda que só devolve um
