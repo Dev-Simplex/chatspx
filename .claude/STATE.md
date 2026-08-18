@@ -10,6 +10,39 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-17] 🟡 FLOWS: o menu de opções sumia em canal que não desenha menu (PR #60) — armadilha latente, exposição ZERO hoje
+
+> O `send_interactive` é o **mais antigo** dos cinco nós de canal e o **único sem guarda**. As quatro
+> ações ricas (`send_cta_url`, `send_location_request`, `send_whatsapp_flow`, `send_template`) já
+> levantam `StepSkip('inbox_not_whatsapp')`; ele confiava que o canal saberia desenhar.
+
+- **Mesma classe do carrossel (#49) e do envio por exceção (#58):** canal que não implementa
+  `input_select`+`items` **não recusa** — manda só o `content` e as opções somem. A pessoa recebe
+  uma pergunta sem como responder, e nada registra falha.
+- **Não dá pra reusar o `whatsapp_cloud_inbox?`** — menu não é exclusividade do WhatsApp. Desenham
+  hoje: WhatsApp (cloud **e** 360dialog, pelo `create_payload_based_on_items`), Telegram
+  (`inline_keyboard`), Facebook (`quick_replies`), LINE, widget (nativo no front) e **Api** (WAHA
+  REST desenha; sem sessão WAHA o `WebhookListener` entrega os items ao consumidor). **Não** desenham:
+  Instagram, e-mail, SMS/Twilio, TikTok. Virou capacidade de canal:
+  `Channelable#supports_interactive_items?`, irmã da `supports_interactive_payload?` do #49,
+  **falsa por padrão**.
+- **Exposição medida antes de escrever código: zero.** Tozi prod tem **27 flows (25 ativos) e
+  nenhum** usa ação de canal; a `.232` tem 1 flow demo com `send_interactive` na conta 3; as **4**
+  mensagens `input_select` de 90 dias saíram todas em WhatsApp, todas `read`. Está declarado no PR —
+  é trava preventiva, não incidente. Vale porque o motor de Flow está em construção, o gatilho
+  **manual** roda qualquer flow sobre qualquer conversa, e a Tozi já tem inbox de Instagram viva.
+- **Medição:** ramo **311 exemplos / 0 falhas** × baseline **307 / 0**. **Mutação** (spec novo contra
+  código velho): **3 falhas**, exatamente as da guarda. O 4º exemplo novo — Telegram continua
+  entregando — passa dos dois lados **de propósito**: é a contraprova de que a guarda não virou
+  "só WhatsApp Cloud". Rubocop 0 nos 10 arquivos.
+
+### [2026-08-17] ✅ CORREÇÃO DE REGISTRO: os PRs #32–#39 foram MERGEADOS em 12/08
+
+> O STATE os listava como "fila do Walisson". Não estão mais. Entre eles o **#37**, que tirou a
+> **cidade fixa "Sinop MT"** das buscas do Google (`buscar_lugar`/`buscar_localizacao`) — o bug
+> compartilhado que atingia Fábrica e Tozi está **fechado**, não pendente. Fila real hoje:
+> **#40, #41, #42, #43, #44, #46, #53, #57, #58, #59, #60** + os zumbis #1–#7.
+
 ### [2026-08-17] 🟢 CTWA — 93% das conversas de anúncio chegavam sem dizer de onde vieram (PR #59) · e o #56 virou #58+#59
 
 > Lead de **formulário** já era carimbado desde julho; quem clica no anúncio e escreve primeiro
