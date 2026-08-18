@@ -119,7 +119,29 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     # event_name — por isso ficam fora do laço por-evento e só rodam em message_created (o
     # único evento que carrega a mensagem no payload). A gate `flows_engine_active?` já foi
     # aplicada por run_engine, então reaproveitamos o cache de flows sem re-checá-la.
+    run_non_event_flows(event_name, account, conversation, payload, event_direction)
+  end
+
+  # Gatilhos que NÃO casam por `event_name`: `keyword` (casa pelo CONTEÚDO da mensagem) e
+  # `widget_prechat` (casa pelo `trigger_config`, resolvido no servidor). Cada um roda no único
+  # evento que carrega o material de que precisa.
+  def run_non_event_flows(event_name, account, conversation, payload, event_direction)
     run_keyword_flows(account, conversation, payload, event_direction) if event_name == 'message_created'
+    run_widget_prechat_flow(conversation, payload) if event_name == 'conversation_created'
+  end
+
+  # Bloco 4.02 (BK-21) — o fluxo de CAPTURA do chat de site. Fica fora do laço por-evento porque
+  # `widget_prechat` NÃO casa por `event_name`: quem escolhe é o servidor, pelo `trigger_config`
+  # (URL de origem, UTM, dispositivo, horário), em Flows::WidgetPrechatResolver. Só corre em
+  # conversa NOVA de inbox Website — é fluxo de primeira interação, não de reabertura — e entrega
+  # um passo por vez, como MENSAGEM: o widget nunca vê a definição nem a lista de fluxos.
+  def run_widget_prechat_flow(conversation, payload)
+    return unless conversation&.inbox&.web_widget?
+
+    flow = ::Flows::WidgetPrechatResolver.for_conversation(conversation)&.perform
+    return if flow.blank?
+
+    ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload).perform
   end
 
   # Gatilho `keyword`: dispara os Flows keyword-triggered ativos quando o conteúdo de uma
