@@ -22,7 +22,7 @@ module Flows::FormAction
   # Os tipos que `ChatForm.vue` realmente desenha. Tipo desconhecido vira `text` em vez de
   # quebrar a tela: um campo que aparece como texto e recuperavel; um campo que nao renderiza
   # trava o fluxo do visitante.
-  FIELD_TYPES = %w[text email text_area select].freeze
+  FIELD_TYPES = %w[text email phone text_area select].freeze
   FIELD_NAME_LIMIT = 100
 
   private
@@ -78,6 +78,19 @@ module Flows::FormAction
     placeholder = item['placeholder'].to_s.strip
     entry['placeholder'] = placeholder[0, limits[:title]] if placeholder.present?
     entry['options'] = sanitize_form_options(item['options'], limits) if entry['type'] == 'select'
+    apply_br_rules(entry, item)
+  end
+
+  # Bloco 4.03 — mascara e validador brasileiros. O vocabulario NAO e definido aqui: sao as
+  # mesmas listas que o pre-chat ja valida no servidor (Channel::WebWidget::PreChatFormSchema)
+  # e que `shared/helpers/brMasks.js` implementa no widget. Nome fora da lista e DESCARTADO em
+  # silencio de proposito — mandar `mask: "banana"` ao widget nao mascara nada e ainda arrisca
+  # invalidar a Message no ContentAttributeValidator.
+  def apply_br_rules(entry, item)
+    mask = item['mask'].to_s
+    validator = item['validator'].to_s
+    entry['mask'] = mask if Channel::WebWidget::PreChatFormSchema::MASKS.include?(mask)
+    entry['validator'] = validator if Channel::WebWidget::PreChatFormSchema::VALIDATORS.include?(validator)
     entry
   end
 

@@ -68,6 +68,8 @@ pt_BR:
     conversation:
       pending_status_disabled_for_inbox: "não pode ser Pendente — recurso desativado para esta caixa de entrada"
     inbox:
+      identity_enforcement:
+        invalid_state: "não é um estado válido de enforcement de identidade (valores aceitos: %{states})"
       widget_config:
         invalid_profile: "não é um perfil de widget válido (valores aceitos: %{profiles})"
         must_be_object: "deve ser um objeto JSON"

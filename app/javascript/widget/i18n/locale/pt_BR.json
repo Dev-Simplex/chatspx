@@ -165,5 +165,24 @@
     "AGENT_TYPING": "O agente está digitando",
     "AGENT_AVATAR": "Foto do agente",
     "IMAGE_ATTACHMENT": "Imagem enviada na conversa"
+  },
+  "CAPTURE": {
+    "SUBMIT": "Enviar",
+    "OPTIONAL": "(opcional)",
+    "CONTACT_GROUP_HINT": "Preencha e-mail ou WhatsApp — um dos dois já basta.",
+    "VALIDATION": {
+      "REQUIRED": "Este campo é obrigatório.",
+      "CPF": "CPF inválido.",
+      "CNPJ": "CNPJ inválido.",
+      "CPF_CNPJ": "CPF ou CNPJ inválido.",
+      "CEP": "CEP inválido.",
+      "UF": "UF inválida.",
+      "EMAIL": "E-mail inválido.",
+      "CORPORATE_EMAIL": "Use o e-mail da empresa.",
+      "PHONE": "Telefone inválido. Inclua o DDI, como +55.",
+      "JUNK_NAME": "Confira o nome digitado.",
+      "JUNK_PHONE": "Confira o telefone digitado.",
+      "JUNK_EMAIL": "Confira o e-mail digitado."
+    }
   }
 }
