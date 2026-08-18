@@ -88,6 +88,10 @@
         "HEX_LABEL": "Brand color in hexadecimal",
         "INVALID": "Use the #RRGGBB format."
       }
+    },
+    "PREVIEW": {
+      "DARK": "Dark",
+      "MOBILE": "Mobile"
     }
   }
 }
