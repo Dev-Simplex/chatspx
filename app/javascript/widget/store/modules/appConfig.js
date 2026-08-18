@@ -24,7 +24,11 @@ const state = {
   showPopoutButton: false,
   widgetColor: '',
   widgetStyle: 'standard',
-  darkMode: 'light',
+  // Bloco 2.10. `auto` também aqui, e não só no SDK: este é o valor que vale no
+  // intervalo entre o mount do widget e a chegada do `config-set` do host. Em
+  // rede lenta esse intervalo é visível, e era ele que produzia o flash claro
+  // antes do painel escurecer.
+  darkMode: 'auto',
   isUpdatingRoute: false,
   welcomeTitle: '',
   welcomeDescription: '',
@@ -82,7 +86,7 @@ export const actions = {
       hideMessageBubble,
       showUnreadMessagesDialog,
       widgetStyle = 'rounded',
-      darkMode = 'light',
+      darkMode = 'auto',
       welcomeTitle = '',
       welcomeDescription = '',
       availableMessage = '',

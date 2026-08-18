@@ -18,6 +18,13 @@
 #available at https://guides.rubyonrails.org/i18n.html.
 pt_BR:
   hello: 'Olá, mundo'
+  widget:
+    fallback:
+      # Bloco 2.14. Rótulo do link que substitui o launcher quando o bundle do
+      # widget não carrega (bloqueador de conteúdo, CSP do site do cliente,
+      # rede). Vai interpolado dentro de uma string JavaScript no snippet, então
+      # é serializado com `to_json` — não escreva aspas soltas aqui.
+      label: 'Falar por outro canal'
   inbox:
     reauthorization:
       success: 'Canal reautenticado com sucesso'
