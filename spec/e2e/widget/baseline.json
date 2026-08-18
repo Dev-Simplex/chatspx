@@ -30,7 +30,7 @@
       "contrast": 16.1106
     },
     "home-light-mobile": {
-      "axe": { "critical": 1, "serious": 2 },
+      "axe": { "critical": 0, "serious": 2 },
       "contrast": 16.1106
     },
     "home-dark-desktop": {
@@ -38,7 +38,7 @@
       "contrast": 14.3174
     },
     "home-dark-mobile": {
-      "axe": { "critical": 1, "serious": 2 },
+      "axe": { "critical": 0, "serious": 2 },
       "contrast": 14.3174
     },
     "messages-light-desktop": {

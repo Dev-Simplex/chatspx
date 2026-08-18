@@ -190,7 +190,44 @@ views.forEach(view => {
           ).length,
         };
         const ratio = await computedContrast(anchor);
-        expect(axeCounts).toEqual(baseline.measurements[scenario].axe);
+
+        // TETO, não igualdade — autorizado pelo coordenador em 18/08.
+        //
+        // O aceite é "nenhuma REGRESSÃO crítica". `toEqual` também proíbe
+        // MELHORAR: quando o bloco 1.06 deu nome acessível ao botão de fechar,
+        // `critical` caiu de 1 para 0 em `home-*-mobile` e a régua reprovou a
+        // correção — estava exigindo que a violação continuasse existindo.
+        //
+        // Com teto, regressão continua reprovando exatamente como antes; o que
+        // deixa de reprovar é o conserto. E o número só desce por ATO
+        // DELIBERADO: a melhoria passa, mas é impressa, para quem a viu decidir
+        // baixar a linha de base em vez de o arquivo se ajustar sozinho.
+        const axeEsperado = baseline.measurements[scenario].axe;
+        Object.entries(axeCounts).forEach(([nivel, medido]) => {
+          expect(
+            medido,
+            `violações ${nivel} de acessibilidade em ${scenario}: ` +
+              `${medido} medidas contra o teto de ${axeEsperado[nivel]}`
+          ).toBeLessThanOrEqual(axeEsperado[nivel]);
+        });
+
+        const melhorou = Object.entries(axeCounts).filter(
+          ([nivel, medido]) => medido < axeEsperado[nivel]
+        );
+        if (melhorou.length) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[axe] ${scenario} MELHOROU — ` +
+              melhorou
+                .map(
+                  ([nivel, medido]) =>
+                    `${nivel}: ${axeEsperado[nivel]} → ${medido}`
+                )
+                .join(', ') +
+              `. Baixe a linha em spec/e2e/widget/baseline.json para travar o ganho.`
+          );
+        }
+
         expect(ratio).toBeCloseTo(baseline.measurements[scenario].contrast, 2);
 
         const geometry = await holder.evaluate(element => {
