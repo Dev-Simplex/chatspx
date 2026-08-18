@@ -20,6 +20,15 @@
       "VALUE": "Valor",
       "CONVERSATIONS": "Conversas",
       "SHARE": "Participação"
+    },
+    "ORIGIN_KINDS": {
+      "busca_paga": "Busca paga",
+      "busca_organica": "Busca orgânica",
+      "social": "Redes sociais",
+      "ia_generativa": "IA generativa",
+      "email": "E-mail",
+      "referencia": "Indicação de outro site",
+      "nao_disponivel": "origem não disponível"
     }
   }
 }

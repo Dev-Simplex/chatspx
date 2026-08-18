@@ -20,6 +20,15 @@
       "VALUE": "Value",
       "CONVERSATIONS": "Conversations",
       "SHARE": "Share"
+    },
+    "ORIGIN_KINDS": {
+      "busca_paga": "Paid search",
+      "busca_organica": "Organic search",
+      "social": "Social",
+      "ia_generativa": "Generative AI",
+      "email": "Email",
+      "referencia": "Referral",
+      "nao_disponivel": "origin not available"
     }
   }
 }
