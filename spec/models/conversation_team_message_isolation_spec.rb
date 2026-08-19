@@ -104,6 +104,37 @@ RSpec.describe Conversation do
       expect(visible_message_ids).not_to include(from_team_b.id)
     end
 
+    # O cenário medido na verificação adversarial: `admin_ve_oculta=false` para qualquer
+    # administrador, mas `promovido_ve_oculta=true` para o ex-agente que tinha exceção.
+    # Ele virava o ÚNICO administrador a escapar do isolamento por time, e a linha sumia
+    # da tela junto (a lista de participantes só mostra agentes), então ninguém conseguia
+    # removê-la. A guarda vive na LEITURA (User#fetch_isolation_exempt_inbox_ids), por
+    # isso a linha é gravada DEPOIS da promoção: assim o teste retrata a linha que já
+    # estava no banco antes da correção, que é o caso que nenhum evento alcança.
+    it 'keeps the filter for an agent promoted to administrator with an old exemption row' do
+      account.account_users.find_by(user_id: agent.id).update!(role: :administrator)
+      create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'team_message')
+
+      Current.user = User.find(agent.id)
+
+      expect(visible_message_ids).not_to include(from_team_b.id)
+      # e enxerga exatamente o que qualquer outro administrador enxerga
+      Current.user = admin
+      expect(visible_message_ids).not_to include(from_team_b.id)
+    end
+
+    # Complemento da guarda acima: a linha também é apagada no momento da promoção, para
+    # não voltar a valer calada se a pessoa for despromovida depois.
+    it 'drops the exemption when the agent becomes an administrator' do
+      create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'team_message')
+
+      account.account_users.find_by(user_id: agent.id).update!(role: :administrator)
+
+      expect(InboxIsolationExemption.where(user_id: agent.id)).to be_empty
+      Current.user = User.find(agent.id)
+      expect(visible_message_ids).not_to include(from_team_b.id)
+    end
+
     it 'does not leak the exemption to another inbox' do
       other_inbox = create(:inbox, account: account, team_message_isolation: true)
       other_conversation = create(:conversation, account: account, inbox: other_inbox, team: team_a)

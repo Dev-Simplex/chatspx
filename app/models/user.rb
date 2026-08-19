@@ -181,9 +181,7 @@ class User < ApplicationRecord
 
     @isolation_exempt_inbox_ids_for ||= {}
     @isolation_exempt_inbox_ids_for[[account_id.to_i, isolation_type.to_s]] ||=
-      inbox_isolation_exemptions.joins(:inbox)
-                                .where(inboxes: { account_id: account_id }, isolation_type: isolation_type)
-                                .pluck(:inbox_id)
+      fetch_isolation_exempt_inbox_ids(account_id, isolation_type)
   end
 
   # Invalida a memoização acima (admin salvando a caixa e a resposta ainda por serializar).
@@ -276,6 +274,23 @@ class User < ApplicationRecord
   end
 
   private
+
+  # Quem é ADMINISTRADOR da conta NÃO tem exceção nenhuma, mesmo com linha gravada.
+  # É a guarda que fecha o caso do agente isentado e depois PROMOVIDO: ele sai da lista
+  # de participantes da tela (só agentes entram lá), a linha vira invisível, e sem isto
+  # ele passaria a enxergar mensagem de outro time — coisa que nenhum outro administrador
+  # enxerga, porque o isolamento por TIME sempre valeu para o admin também
+  # (ver TeamMessageIsolation). A guarda mora na LEITURA de propósito: ela não depende de
+  # nenhum evento ter rodado no passado, então cobre também as linhas que já existirem no
+  # banco. A limpeza por evento (AccountUser#purge_isolation_exemptions) é complemento,
+  # não substituta.
+  def fetch_isolation_exempt_inbox_ids(account_id, isolation_type)
+    return [] if account_users.find_by(account_id: account_id)&.administrator?
+
+    inbox_isolation_exemptions.joins(:inbox)
+                              .where(inboxes: { account_id: account_id }, isolation_type: isolation_type)
+                              .pluck(:inbox_id)
+  end
 
   def remove_macros
     macros.personal.destroy_all

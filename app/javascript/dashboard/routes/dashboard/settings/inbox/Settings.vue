@@ -888,6 +888,7 @@ export default {
               <template v-if="teamMessageIsolation" #editor>
                 <IsolationParticipants
                   v-model="teamMessageIsolationParticipantIds"
+                  isolation-type="team_message"
                   :agents="isolationMembers"
                   :is-loading="isFetchingIsolationMembers"
                 />
@@ -905,6 +906,7 @@ export default {
               <template v-if="agentMessageIsolation" #editor>
                 <IsolationParticipants
                   v-model="agentMessageIsolationParticipantIds"
+                  isolation-type="agent_message"
                   :agents="isolationMembers"
                   :is-loading="isFetchingIsolationMembers"
                 />

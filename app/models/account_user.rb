@@ -40,6 +40,11 @@ class AccountUser < ApplicationRecord
   after_destroy :notify_deletion, :remove_user_from_account
   after_save :update_presence_in_redis, if: :saved_change_to_availability?
   after_commit :invalidate_admin_tokens_cache, if: -> { saved_change_to_role? || destroyed? || previously_new_record? }
+  # Virar administrador tira a pessoa da lista de participantes do isolamento (só agentes
+  # entram lá), então a exceção que ela tinha some da tela e ninguém consegue mais removê-la.
+  # A guarda de leitura (User#fetch_isolation_exempt_inbox_ids) já a torna inofensiva; isto
+  # aqui apaga a linha para ela não voltar a valer calada numa eventual despromoção.
+  after_commit :purge_isolation_exemptions, if: -> { saved_change_to_role? && administrator? }
 
   validates :user_id, uniqueness: { scope: :account_id }
 
@@ -99,6 +104,12 @@ class AccountUser < ApplicationRecord
 
   def invalidate_admin_tokens_cache
     Rails.cache.delete("account:#{account_id}:admin_pubsub_tokens")
+  end
+
+  # Só as caixas DESTA conta: o mesmo usuário pode ser agente isentado em outra conta,
+  # e virar administrador aqui não pode mexer no que ele enxerga lá.
+  def purge_isolation_exemptions
+    InboxIsolationExemption.where(user_id: user_id, inbox_id: Inbox.where(account_id: account_id).select(:id)).destroy_all
   end
 end
 

@@ -81,5 +81,18 @@ RSpec.describe TeamMessageIsolation do
       expect(described_class.exempt?(agent, inbox)).to be(true)
       expect(described_class.exempt?(agent, other_inbox)).to be(false)
     end
+
+    # Um agente isentado e depois PROMOVIDO sai da lista de participantes da tela (só
+    # agentes entram lá), então a linha vira invisível. Sem a guarda de papel ele seria o
+    # único administrador da conta a escapar do isolamento por time — que vale para o
+    # admin também. A linha é criada DEPOIS da promoção de propósito: é o retrato de uma
+    # linha que já estava no banco antes da correção, e é justamente ela que a limpeza
+    # por evento não alcança.
+    it 'is false for a promoted administrator even with an old exemption row' do
+      account.account_users.find_by(user_id: agent.id).update!(role: :administrator)
+      create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'team_message')
+
+      expect(described_class.exempt?(User.find(agent.id), inbox)).to be(false)
+    end
   end
 end

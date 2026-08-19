@@ -26,6 +26,17 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Qual das duas regras este card configura. Os dois isolamentos NÃO isentam a mesma
+  // gente, então o texto (e o realce) da tabela precisam saber de qual se trata:
+  // - 'agent_message': administrador e supervisor de time são isentos;
+  // - 'team_message': NINGUÉM é isento por natureza — nem administrador, nem supervisor.
+  //   O filtro por time sempre valeu para todo mundo e a saída sempre foi desligar a
+  //   chave da caixa (ver TeamMessageIsolation, no backend).
+  isolationType: {
+    type: String,
+    default: 'agent_message',
+    validator: value => ['agent_message', 'team_message'].includes(value),
+  },
   isLoading: {
     type: Boolean,
     default: false,
@@ -43,11 +54,15 @@ const { t } = useI18n();
 
 const teams = computed(() => store.getters['teams/getTeams']);
 
+const isTeamIsolation = computed(() => props.isolationType === 'team_message');
+
 const isAdministrator = agent => agent.role === 'administrator';
 const isSupervisor = agent => (agent.supervised_team_ids || []).length > 0;
 
-// Administrador fica FORA da tabela: ele já é isento das duas regras e a caixinha
-// sugeriria que dá para isolá-lo. Quem explica isso é a nota abaixo da tabela.
+// Administrador fica FORA da tabela: nas duas regras ele não é isentável por esta tela
+// — no isolamento por agente porque já é isento, no de time porque a única saída é
+// desligar a chave da caixa. A caixinha sugeriria que dá para escolher, e não dá. Quem
+// explica isso é a nota abaixo da tabela, que muda conforme o card.
 const candidates = computed(() =>
   props.agents.filter(a => !isAdministrator(a))
 );
@@ -57,8 +72,8 @@ const selectableAgents = computed(() =>
 );
 const supervisorAgents = computed(() => candidates.value.filter(isSupervisor));
 
-// Supervisores no fim da lista: eles não decidem nada, só aparecem para explicar
-// por que não estão isolados.
+// Supervisores no fim da lista: eles não decidem nada aqui, só aparecem para explicar
+// por que estão fora da escolha.
 const listedAgents = computed(() => [
   ...selectableAgents.value,
   ...supervisorAgents.value,
@@ -76,9 +91,17 @@ const selectedIds = computed(() =>
   selectableAgents.value.filter(agent => isSelected(agent.id)).map(a => a.id)
 );
 
-// O total conta TODA a lista, supervisor incluso: "4 de 6" responde quantos
-// agentes daquela caixa seguem isolados, e o supervisor não segue.
+// Base do "selecionar todos": só quem TEM caixinha entra na conta.
 const selectedCount = computed(() => selectedIds.value.length);
+
+// O que o contador mostra: quantos agentes daquela caixa seguem isolados, sobre a lista
+// inteira. O supervisor conta conforme a regra deste card — no de time ele segue isolado
+// como qualquer um, no de agente ele é isento nas conversas do time que supervisiona.
+const isolatedCount = computed(() =>
+  isTeamIsolation.value
+    ? selectedCount.value + supervisorAgents.value.length
+    : selectedCount.value
+);
 
 const allSelected = computed(
   () =>
@@ -90,10 +113,16 @@ const someSelected = computed(
 );
 
 /**
- * O supervisor de time NUNCA vira exceção por esta tela. A isenção dele é por
- * TIME (TeamSupervision) e gravar uma linha aqui a esticaria para a caixa
- * inteira — dois mecanismos diferentes que convivem. Por isso ele sobe sempre
- * como participante, mesmo aparecendo sem caixa de seleção.
+ * O supervisor de time NUNCA vira exceção por esta tela, nos DOIS cards, mas por
+ * motivos diferentes — e é por isso que o texto da linha dele muda:
+ *
+ * - isolamento por AGENTE: ele já é isento pela supervisão (TeamSupervision), só que
+ *   apenas nas conversas do time que supervisiona. Gravar uma exceção aqui esticaria
+ *   essa isenção para a caixa inteira: são dois mecanismos que convivem.
+ * - isolamento por TIME: a supervisão NÃO isenta. Ele participa como qualquer agente,
+ *   e continua sem caixinha porque poder desmarcá-lo é outra decisão, ainda não tomada.
+ *
+ * Nos dois casos ele sobe sempre como participante — a lista salva não muda.
  */
 const updateParticipants = ids => {
   modelValue.value = [...ids, ...supervisorAgents.value.map(a => a.id)];
@@ -135,7 +164,35 @@ const secondaryLabel = agent => {
   return agent.email || '--';
 };
 
-const isParticipating = agent => !isSupervisor(agent) && isSelected(agent.id);
+// Linha esmaecida = quem NÃO está sujeito ao isolamento DESTE card. O supervisor esmaece
+// só no de agente; no de time ele está sujeito como todo mundo.
+const isParticipating = agent =>
+  isSupervisor(agent) ? isTeamIsolation.value : isSelected(agent.id);
+
+// Os três textos que MENTIRIAM se fossem um só para os dois cards: o administrador não
+// escapa do isolamento de time, e o supervisor tampouco. As chaves vão literais (e não
+// montadas com o tipo) para o linter de i18n continuar enxergando quem usa o quê.
+const supervisorBadge = computed(() =>
+  isTeamIsolation.value
+    ? t(
+        'INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SUPERVISOR_BADGE_TEAM'
+      )
+    : t(
+        'INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SUPERVISOR_BADGE_AGENT'
+      )
+);
+const adminNote = computed(() =>
+  isTeamIsolation.value
+    ? t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.ADMIN_NOTE_TEAM')
+    : t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.ADMIN_NOTE_AGENT')
+);
+const supervisorNote = computed(() =>
+  isTeamIsolation.value
+    ? t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SUPERVISOR_NOTE_TEAM')
+    : t(
+        'INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SUPERVISOR_NOTE_AGENT'
+      )
+);
 
 const headers = computed(() => [
   '',
@@ -156,7 +213,7 @@ const headers = computed(() => [
       >
         {{
           $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.COUNT', {
-            selected: selectedCount,
+            selected: isolatedCount,
             total: listedAgents.length,
           })
         }}
@@ -225,11 +282,7 @@ const headers = computed(() => [
                   v-if="isSupervisor(agent)"
                   class="inline-block px-2 py-0.5 text-xs rounded-md whitespace-nowrap bg-n-slate-3 text-n-slate-11"
                 >
-                  {{
-                    $t(
-                      'INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.ALWAYS_EXEMPT'
-                    )
-                  }}
+                  {{ supervisorBadge }}
                 </span>
                 <span
                   v-else-if="!isSelected(agent.id)"
@@ -249,11 +302,9 @@ const headers = computed(() => [
     </div>
 
     <p class="mb-0 text-sm text-n-slate-10">
-      {{ $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.ADMIN_NOTE') }}
+      {{ adminNote }}
       <template v-if="supervisorAgents.length">
-        {{
-          $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SUPERVISOR_NOTE')
-        }}
+        {{ supervisorNote }}
       </template>
     </p>
   </div>

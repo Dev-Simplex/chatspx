@@ -108,6 +108,20 @@ RSpec.describe AgentMessageIsolation do
       it 'is false without an inbox' do
         expect(described_class.exempt?(agent, nil)).to be(false)
       end
+
+      # Mesma guarda de papel do isolamento por time (ver TeamMessageIsolation): a linha é
+      # criada DEPOIS da promoção porque o que precisa ficar inofensivo é a linha ANTIGA,
+      # a que a limpeza por evento não teve como alcançar. Aqui o administrador já era
+      # isento por outro caminho (viewer_restriction_id), então isto é cinto e suspensório
+      # — mas mantém as duas regras respondendo a mesma coisa sobre a mesma linha.
+      it 'is false for a promoted administrator even with an old exemption row' do
+        account.account_users.find_by(user_id: agent.id).update!(role: :administrator)
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+
+        promoted = User.find(agent.id)
+        expect(described_class.exempt?(promoted, inbox)).to be(false)
+        expect(described_class.exempt_inbox_ids(promoted, account)).to be_empty
+      end
     end
 
     describe '.exempt_inbox_ids' do
