@@ -8,6 +8,7 @@
  * na segunda visita ser menor que o da primeira, e o da terceira não existir.
  */
 import Cookies from 'js-cookie';
+import { MOBILE_BREAKPOINT } from '../viewport';
 
 const CANAL = {
   avatarUrl: 'https://exemplo.test/a.png',
@@ -15,7 +16,12 @@ const CANAL = {
   replyTime: 'Responde em minutos',
 };
 
-const CELULAR = 667;
+// O dublê de viewport NÃO carrega mais o número: ele vem de `viewport.js`, que é a fonte
+// única do bloco 2.09. Antes estava cravado `667` aqui e na consulta abaixo, e isso escondia
+// uma divergência real — o `IFrameHelper` consultava `667` (herdado do 4.06) enquanto o CSS
+// já usava 767, e um dublê que repete o número errado concorda com o defeito em vez de
+// denunciá-lo. Com a fonte importada, mudar o breakpoint num lugar só continua verde aqui.
+const CELULAR = MOBILE_BREAKPOINT - 1;
 
 // Cada visita remonta o grafo do SDK (`vi.resetModules()` + import dinâmico), e são
 // até três por exemplo. Sob a suíte inteira isso passa dos 5 s padrão do vitest —
@@ -46,7 +52,8 @@ describe('4.19 e 4.20 — a escada da abordagem', { timeout: 30_000 }, () => {
     window.$chatwoot = { baseDomain: undefined, position: 'right' };
     window.chatwootWebChannel = { ...CANAL, widgetTriggers: gatilhos };
     window.matchMedia = consulta => ({
-      matches: largura <= CELULAR && consulta.includes('max-width: 667px'),
+      matches:
+        largura <= CELULAR && consulta.includes(`max-width: ${CELULAR}px`),
     });
     global.requestAnimationFrame = cb => cb();
 

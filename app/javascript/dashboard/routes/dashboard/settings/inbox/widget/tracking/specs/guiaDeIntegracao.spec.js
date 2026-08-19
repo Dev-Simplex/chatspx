@@ -93,16 +93,28 @@ describe('5.15 — o guia de integração', () => {
   });
 
   it('declara o que AINDA NÃO existe, com o bloco que o entrega', () => {
-    // `track()` e do 5.16: o guia nao pode ensinar como se existisse
-    expect(guia).toMatch(
-      /track\([^)]*\)[\s\S]{0,120}(ainda não está disponível|5\.16)/
-    );
     expect(guia).toContain('5.02');
     expect(guia).toContain('5.14');
+  });
 
-    // e o SDK realmente NAO tem `track` — se um dia tiver, este teste avisa que
-    // o guia precisa mudar
-    expect(/\n {4}track\(/.test(sdk)).toBe(false);
+  /**
+   * Esta asserção era "o SDK realmente NAO tem `track`, e se um dia tiver este teste avisa que
+   * o guia precisa mudar". O 5.16 entregou `track()` e o teste avisou — mas o guia seguiu
+   * dizendo "ainda não está disponível", ou seja, a documentação pública passou a mentir e o
+   * vermelho ficou aberto. Ela continua existindo, INVERTIDA: agora cobra que o guia ensine o
+   * que o SDK passou a ter, e a regra de nome que ele ensina tem de ser a que o SDK valida.
+   */
+  it('ensina o `track()` que o 5.16 entregou, com a regra de nome que o SDK cobra', () => {
+    expect(/\n {4}track\(/.test(sdk)).toBe(true);
+    expect(guia).toMatch(/\$chatwoot\.track\(/);
+
+    // a expressão do guia é a MESMA que o SDK usa — documento e código não podem divergir
+    const doSdk = /const NOME_DE_EVENTO = (\/\^chatspx_.+?\/);/.exec(sdk)[1];
+    expect(guia).toContain(doSdk);
+
+    // e a recusa de PII, que é o que mais surpreende quem integra
+    expect(guia).toContain('phone_number');
+    expect(guia).toMatch(/recusa/i);
   });
 
   it('o trecho de instalação descreve o que o servidor realmente gera', () => {

@@ -143,21 +143,46 @@ diagnóstico que exibe e-mail de lead é um vazamento com interface.
 
 ### 3.4 Disparar um evento a partir do site
 
-Hoje o disparo por código do site (`window.chatwootSDK.track('meu_evento', { … })`) **ainda não está
-disponível** — é o bloco **5.16**, e o contrato dele já está escrito na §1 do
-[`contrato-de-eventos.md`](./contrato-de-eventos.md) (prefixo `chatspx_`, `snake_case`, ≤ 40
-caracteres).
+Para os fatos que só o seu site conhece — um orçamento pedido, um plano escolhido, um formulário
+enviado fora do chat — use `track()`:
 
-**O que funciona hoje, e é o caminho para ver um evento de ponta a ponta:**
+```js
+window.$chatwoot.track('chatspx_orcamento_pedido', { valor: 990, plano: 'pro' });
+```
+
+**Uma chamada, dois destinos.** O evento é gravado no nosso servidor (que gera um `event_id`
+próprio) e entra no `dataLayer` da sua página. Você não escreve `dataLayer.push` nenhum, e os dois
+lados falam do mesmo fato.
+
+**O nome tem de casar com `/^chatspx_[a-z0-9_]{0,32}$/`** — prefixo `chatspx_`, depois só
+minúsculas, dígitos e `_`, no máximo 32 caracteres (40 no total, que é o limite do GA4). São as
+mesmas regras da §1 do [`contrato-de-eventos.md`](./contrato-de-eventos.md).
+
+Nome fora disso é **recusado na hora**, com a expressão na mensagem de erro. Não há correção
+automática, e é de propósito: se `track('lead')` virasse `chatspx_lead` sozinho, o seu evento se
+misturaria ao Lead que o produto já emite, na sua conta de anúncios.
+
+**Não mande dado pessoal em `properties`.** E-mail, telefone e nome (`email`, `phone_number`,
+`first_name`, `em`, `ph`…) fazem o servidor recusar o evento com 422, e a ponte de tags os descarta
+antes de publicar — inclusive dentro de objetos aninhados. Não é implicância: o `dataLayer` é
+legível por qualquer script da página, inclusive os que você não instalou. Quando o dado pessoal é
+necessário para o destino (a Meta, por exemplo), quem o envia é o **servidor**, que normaliza e
+aplica hash antes.
+
+`track()` devolve uma `Promise` e **nunca lança**, mesmo com nome errado — um `throw` dentro de uma
+tag do GTM interromperia as tags seguintes do seu contêiner. O erro aparece no console e na
+`Promise` rejeitada, que você pode encadear com `.catch`.
+
+Chamar `track()` duas vezes com o mesmo nome cria **dois** eventos: cada chamada carrega a própria
+chave de idempotência. O que não duplica é o reenvio da **mesma** chamada quando a rede falha.
+
+**O caminho para ver um evento de ponta a ponta, sem escrever código:**
 
 1. instale (passo 1) e abra o chat no site;
 2. mande uma mensagem como visitante — isso cria a conversa;
 3. no painel, **resolva** a conversa;
 4. o servidor grava `chatspx_conversation_resolved` e o entrega aos destinos ativos;
 5. confira pela alínea (a) ou (c) acima.
-
-Se você precisa de um evento próprio antes do 5.16, use os atributos personalizados
-(`setCustomAttributes`) e leia-os no seu GTM a partir do evento que já sai.
 
 ---
 
@@ -189,7 +214,6 @@ vigente, mesmo sem poder mudá-la ali.
 | Assunto | Onde está / quando entra |
 |---|---|
 | campos e tipos de cada evento | [`contrato-de-eventos.md`](./contrato-de-eventos.md) |
-| `track()` para evento próprio do site | bloco **5.16** |
 | guardar token da Meta / API Secret do GA4 | bloco **5.02** (cofre cifrado) |
 | leitura do log de entregas na tela | bloco **5.14** |
 | instalação em WordPress, Wix e GTM, passo a passo | bloco **5.22** |
