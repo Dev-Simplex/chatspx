@@ -6,6 +6,7 @@ import WidgetHead from './WidgetHead.vue';
 import WidgetBody from './WidgetBody.vue';
 import WidgetPreChatPreview from './WidgetPreChatPreview.vue';
 import WidgetFooter from './WidgetFooter.vue';
+import WidgetTeaser from './WidgetTeaser.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import Code from 'dashboard/components/Code.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
@@ -278,6 +279,21 @@ const handleToggleWidget = () => {
               </a>
             </div>
           </div>
+        </div>
+
+        <div
+          v-if="showTeaser && teaser"
+          class="flex mb-2"
+          :class="surfaceWidth"
+          :style="getBubblePositionStyle"
+        >
+          <WidgetTeaser
+            :level="teaser.level"
+            :text="teaser.text"
+            :sender-name="teaser.senderName"
+            :avatar-url="teaser.avatarUrl"
+            :intents="teaser.intents"
+          />
         </div>
 
         <div

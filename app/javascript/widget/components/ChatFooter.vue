@@ -2,6 +2,7 @@
 import { mapActions, mapGetters } from 'vuex';
 import CustomButton from 'shared/components/Button.vue';
 import FooterReplyTo from 'widget/components/FooterReplyTo.vue';
+import WhatsAppExit from 'widget/components/WhatsAppExit.vue';
 import ChatInputWrap from 'widget/components/ChatInputWrap.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { sendEmailTranscript } from 'widget/api/conversation';
@@ -17,6 +18,7 @@ export default {
     ChatInputWrap,
     CustomButton,
     FooterReplyTo,
+    WhatsAppExit,
   },
   setup() {
     const router = useRouter();
@@ -150,6 +152,10 @@ export default {
     />
   </footer>
   <div v-else>
+    <!-- Bloco 4.08: a saida so existe no perfil de captura e so com destino
+         configurado; o proprio componente decide, e sem os dois ele nao
+         renderiza nada. -->
+    <WhatsAppExit />
     <CustomButton class="font-medium" block @click="startNewConversation">
       {{ $t('START_NEW_CONVERSATION') }}
     </CustomButton>

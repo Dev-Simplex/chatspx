@@ -358,11 +358,14 @@
       },
       "DEGRADE_ON_RETURN": {
         "LABEL": "Insist less with visitors already approached",
-        "DESCRIPTION": "Someone who already saw the approach and did not answer gets the level below on the next visit, then nothing."
+        "DESCRIPTION": "Someone who already saw the approach and did not answer gets the level below on the next visit, then nothing.",
+        "SENTENCE": "Someone who already got the invitation and did not answer sees a quieter version on the next visit — and after that, only the launcher. This is what keeps the invitation from becoming harassment.",
+        "OFF_WARNING": "With this off, the same visitor gets the full approach on every visit."
       },
       "MOBILE": {
         "LABEL": "On mobile",
-        "AGGRESSIVE_NOT_OFFERED": "Auto-open is not offered on mobile: the panel covers the whole screen there."
+        "AGGRESSIVE_NOT_OFFERED": "Auto-open is not offered on mobile: the panel covers the whole screen there.",
+        "APPLIED_LEVEL": "On mobile the applied level is {level} — the panel covers the whole screen, and opening it on its own takes the visitor away from what they were reading."
       }
     },
     "HOME_INTENTS": {
@@ -377,6 +380,136 @@
       "ERRORS": {
         "NEED_TWO": "Keep 2 to 4 options, or none — a single option is not a choice.",
         "DUPLICATED_ID": "Two options cannot share the same identifier."
+      }
+    },
+    "TRIGGERS": {
+      "TAB": "Triggers",
+      "SAVED": "Triggers saved.",
+      "SAVE_ERROR": "Could not save the triggers.",
+      "MASTER": {
+        "LABEL": "Enable proactive invitations",
+        "HINT": "While this is off, the widget only shows up when the visitor clicks. Turning it off does not erase what you set here."
+      },
+      "SECTIONS": {
+        "MODE": "Mode",
+        "TRIGGERS": "Triggers",
+        "FREQUENCY": "Frequency",
+        "AUDIENCE": "Where it shows"
+      },
+      "MODE": {
+        "RECOMMENDED": {
+          "LABEL": "Recommended",
+          "DESCRIPTION": "The invitation shows after 8 seconds on the page AND 30% scroll. Both together, and it is what the market study recommends."
+        },
+        "ADVANCED": {
+          "LABEL": "Advanced",
+          "DESCRIPTION": "Set the seven triggers one by one, with their own value and interval for desktop and mobile."
+        }
+      },
+      "AUTO_OPEN_DIALOG": {
+        "TITLE": "Open the panel on its own?",
+        "DESCRIPTION": "The Aggressive level opens the conversation without the visitor clicking. Three things that will happen:",
+        "POINT_INTERRUPTS": "The panel covers part of the page the visitor was reading, and they have to close it to go on.",
+        "POINT_ONCE": "It opens at most once per session, and only after the trigger you set — never as soon as the page loads.",
+        "POINT_MOBILE": "It is not applied on mobile: there the panel takes the whole screen. Mobile stays on the {level} level.",
+        "CONFIRM": "Turn it on anyway",
+        "CANCEL": "Keep the current level"
+      },
+      "COMPOSITE_WARNING": {
+        "TITLE": "Time on page alone is not enough",
+        "BODY": "With only time turned on, the invitation shows to whoever opened the page and left to get a coffee. Turn scroll on as well: someone who scrolled 30% is actually reading."
+      },
+      "PUBLIC_WARNING": "These rules are visible to anyone who inspects the website's code. Do not use a customer name, a contract value, or any data that cannot be read by any visitor.",
+      "LIST": {
+        "TRIGGER": "Trigger",
+        "DESKTOP": "Desktop",
+        "MOBILE": "Mobile",
+        "COOLDOWN": "Interval",
+        "NOT_AVAILABLE": "not applicable"
+      },
+      "ITEMS": {
+        "TIME_ON_PAGE": {
+          "LABEL": "Time on page",
+          "UNIT": "seconds",
+          "HINT": "How many seconds the visitor stays before the invitation."
+        },
+        "SCROLL_DEPTH": {
+          "LABEL": "Scroll",
+          "UNIT": "%",
+          "HINT": "How much of the page the visitor has scrolled."
+        },
+        "EXIT_INTENT": {
+          "LABEL": "Exit intent",
+          "UNIT": "",
+          "HINT": "The cursor leaves the page area toward the browser bar. It does not exist on mobile."
+        },
+        "IDLE": {
+          "LABEL": "Idle",
+          "UNIT": "seconds",
+          "HINT": "Seconds with no click, scroll or keystroke."
+        },
+        "ELEMENT_CLICK": {
+          "LABEL": "Element click",
+          "UNIT": "",
+          "HINT": "The visitor clicks something you pick with a CSS selector."
+        },
+        "ELEMENT_VISIBLE": {
+          "LABEL": "Element visible",
+          "UNIT": "",
+          "HINT": "A part of the page comes into view — the price, the form, the footer."
+        },
+        "RETURN_VISIT": {
+          "LABEL": "Returning visitor",
+          "UNIT": "",
+          "HINT": "Someone who has been on the site before."
+        }
+      },
+      "SELECTOR": {
+        "LABEL": "CSS selector",
+        "PLACEHOLDER": "[data-cta], #quote .btn",
+        "INVALID": "This selector is not valid: {reason}",
+        "EMPTY": "Enter the element's selector.",
+        "SYNTAX_ONLY": "We only check how the selector is written — the site is yours, and we have no way to know whether it exists on the page."
+      },
+      "FREQUENCY": {
+        "MAX_PER_SESSION": "Invitations per session",
+        "MAX_PER_SESSION_HINT": "At most {max}. Zero turns the invitation off without erasing the setup.",
+        "COOLDOWN": "Interval between invitations",
+        "COOLDOWN_HINT": "In seconds, up to {max} (30 days). It applies to triggers with no interval of their own."
+      },
+      "AUDIENCE": {
+        "URL_LABEL": "Page address",
+        "URL_HINT": "Leave it empty to apply on any page.",
+        "URL_ADD": "Add address",
+        "URL_PLACEHOLDER": "/plans",
+        "URL_TOO_MANY": "At most {max} addresses.",
+        "OPERATORS": {
+          "CONTAINS": "contains",
+          "NOT_CONTAINS": "does not contain",
+          "EQUALS": "equals",
+          "STARTS_WITH": "starts with",
+          "ENDS_WITH": "ends with"
+        },
+        "DEVICE_LABEL": "Device",
+        "DEVICES": {
+          "DESKTOP": "Desktop",
+          "MOBILE": "Mobile"
+        },
+        "DEVICE_EMPTY": "Pick at least one device — with none, the invitation shows nowhere.",
+        "REMOVE": "Remove"
+      },
+      "TEASER": {
+        "SECTION": "Invitation message",
+        "EXPLANATION": "The campaign is the message; the trigger is the moment. The text below belongs to this inbox's live chat campaign — editing it here edits that campaign, and no new campaign is born because of a trigger.",
+        "TITLE_LABEL": "Title",
+        "MESSAGE_LABEL": "Invitation text",
+        "SAVE": "Save the message",
+        "SAVED": "Invitation message saved.",
+        "SAVE_ERROR": "Could not save the invitation message.",
+        "LINKED": "Linked to the \"{campaign}\" campaign.",
+        "EMPTY": "This inbox has no live chat campaign yet. Create one under Campaigns to write the invitation text — the trigger decides when it shows, and it stays editable where it always was.",
+        "SIMULATE": "Simulate the trigger in the preview",
+        "SIMULATE_HINT": "Shows the invitation the way the visitor will see it when the trigger fires. Preview only — nothing is sent."
       }
     }
   }

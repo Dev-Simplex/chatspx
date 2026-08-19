@@ -39,6 +39,7 @@ import {
 import { isFlatWidgetStyle } from './settingsHelper';
 import { popoutChatWindow } from '../widget/helpers/popoutHelper';
 import addHours from 'date-fns/addHours';
+import { createTitleFlasher } from './titleFlasher';
 
 const updateAuthCookie = (cookieContent, baseDomain = '') =>
   setCookieWithDomain('cw_conversation', cookieContent, {
@@ -196,6 +197,22 @@ export const IFrameHelper = {
       iframe.setAttribute('style', `height: ${updatedIframeHeight} !important`);
   },
 
+  /**
+   * Bloco 4.11 — o som e OPT-IN por inbox, e o piscar do titulo e ligado.
+   *
+   * O som toca hoje por padrao: qualquer visitante que interaja com a pagina
+   * faz o SDK baixar o mp3, e toda mensagem de agente toca. A decisao de
+   * produto e o contrario — som desligado por default, opcao por inbox — e a
+   * politica mora AQUI, no lado que toca, e nao so no widget que pede: se um
+   * dia alguem esquecer o guard do outro lado, o som continua desligado.
+   */
+  notificationSoundEnabled: false,
+  titleFlasher: createTitleFlasher(),
+
+  isNotificationSoundEnabled: channelConfig =>
+    Array.isArray(channelConfig?.enabledFeatures) &&
+    channelConfig.enabledFeatures.includes('notification_sound'),
+
   setupAudioListeners: () => {
     const { baseUrl = '' } = window.$chatwoot;
     getAlertAudio(baseUrl, { type: 'widget', alertTone: 'ding' }).then(() =>
@@ -270,9 +287,19 @@ export const IFrameHelper = {
 
       window.playAudioAlert = () => {};
 
-      initOnEvents.forEach(e => {
-        document.addEventListener(e, IFrameHelper.setupAudioListeners, false);
-      });
+      IFrameHelper.notificationSoundEnabled =
+        IFrameHelper.isNotificationSoundEnabled(message.config?.channelConfig);
+
+      // O mp3 so e baixado quando a inbox pediu som: sem opt-in nao ha nem
+      // listener nem request — o visitante nao paga bytes por um recurso que
+      // ninguem ligou.
+      if (IFrameHelper.notificationSoundEnabled) {
+        initOnEvents.forEach(e => {
+          document.addEventListener(e, IFrameHelper.setupAudioListeners, false);
+        });
+      }
+
+      IFrameHelper.titleFlasher.attach();
 
       if (!window.$chatwoot.resetTriggered) {
         dispatchWindowEvent({ eventName: CHATWOOT_READY });
@@ -367,7 +394,10 @@ export const IFrameHelper = {
       onBubbleClick({ toggleValue: true });
     },
 
-    resetUnreadMode: () => removeUnreadClass(),
+    resetUnreadMode: () => {
+      IFrameHelper.titleFlasher.stop();
+      removeUnreadClass();
+    },
     handleNotificationDot: event => {
       if (window.$chatwoot.hideMessageBubble) {
         return;
@@ -388,7 +418,12 @@ export const IFrameHelper = {
       onBubbleClick({ toggleValue: false });
     },
 
-    playAudio: () => {
+    playAudio: message => {
+      // O piscar do titulo NAO depende do som: ele e o aviso de quem esta com
+      // a aba em segundo plano, e vale mesmo com o som desligado.
+      IFrameHelper.titleFlasher.start(message?.title);
+
+      if (!IFrameHelper.notificationSoundEnabled) return;
       window.playAudioAlert();
     },
   },

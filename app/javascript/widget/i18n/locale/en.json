@@ -48,6 +48,7 @@
   "YOU": "You",
   "START_NEW_CONVERSATION": "Start a new conversation",
   "VIEW_UNREAD_MESSAGES": "You have unread messages",
+  "TITLE_FLASH_ALERT": "New message",
   "UNREAD_VIEW": {
     "VIEW_MESSAGES_BUTTON": "See new messages",
     "CLOSE_MESSAGES_BUTTON": "Close",
@@ -183,5 +184,10 @@
       "JUNK_PHONE": "Please check the phone number you typed.",
       "JUNK_EMAIL": "Please check the email you typed."
     }
+  },
+  "WHATSAPP_EXIT": {
+    "BUTTON": "Continue on WhatsApp",
+    "CONTEXT_PREFIX": "Hi! I came from the chat on {site}.",
+    "CONTEXT_SUBJECT": "I asked: {subject}"
   }
 }
