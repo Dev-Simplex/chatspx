@@ -220,5 +220,16 @@
     "BUTTON": "Continuar no WhatsApp",
     "CONTEXT_PREFIX": "Olá! Vim pelo chat do site {site}.",
     "CONTEXT_SUBJECT": "Eu perguntei: {subject}"
+  },
+  "AI_IDENTITY": {
+    "AI_LABEL": "Assistente virtual",
+    "HUMAN_LABEL": "Equipe de atendimento",
+    "HEADER_AI": "Você está falando com o assistente virtual",
+    "HEADER_HUMAN": "Você está falando com a equipe",
+    "HANDOFF_TO_HUMAN": "A partir daqui, quem responde é a equipe",
+    "HANDOFF_TO_AI": "A partir daqui, quem responde é o assistente virtual",
+    "BUBBLE_FROM_AI": "Mensagem do assistente virtual",
+    "BUBBLE_FROM_HUMAN": "Mensagem da equipe",
+    "STREAMING": "O assistente está escrevendo"
   }
 }
