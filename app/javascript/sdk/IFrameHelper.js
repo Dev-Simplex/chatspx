@@ -28,6 +28,7 @@ import { drenar } from './preBootQueue';
 import { montarTeaser } from './teaser';
 import { degradar, gravarAbordagem, lerAbordagem } from './tracking/approach';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
+import { abordagemNovaNoAr } from 'shared/helpers/abordagemProativa';
 import {
   CHATWOOT_ERROR,
   CHATWOOT_MESSAGE_SENT,
@@ -148,7 +149,12 @@ export const IFrameHelper = {
     // CONTRATO DO 4.04, ao pé da letra: `enabled` ausente significa que o SDK
     // NÃO DISPARA NADA. Ausência não é `true` — é silêncio, e silêncio aqui é
     // não incomodar o visitante de uma conta que nunca configurou isto.
-    if (gatilhos.enabled !== true) return;
+    //
+    // Bloco 4.22: a expressão saiu daqui e virou `abordagemNovaNoAr`, que a
+    // supressão da campanha legada consome do OUTRO lado do iframe. Comportamento
+    // idêntico ao de antes; o que muda é não haver mais duas cópias da condição
+    // para divergirem. Ver o cabeçalho de `shared/helpers/abordagemProativa`.
+    if (!abordagemNovaNoAr(canal)) return;
 
     // O nível vem resolvido do servidor (`resolved_widget_approach`), que já
     // aplica o padrão `bold` e já derruba `aggressive` para `bold` no mobile.
