@@ -158,7 +158,8 @@ class WebhookListener < BaseListener
 
       WebhookJob.perform_later(webhook.url, payload, :account_webhook,
                                secret: webhook.secret,
-                               delivery_id: SecureRandom.uuid)
+                               delivery_id: SecureRandom.uuid,
+                               webhook_id: webhook.id)
     end
   end
 

@@ -508,7 +508,15 @@ Rails.application.routes.draw do
             resource :authorization, only: [:create]
           end
 
-          resources :webhooks, only: [:index, :create, :update, :destroy]
+          resources :webhooks, only: [:index, :create, :update, :destroy] do
+            member do
+              # Bloco 4.14: rotacao devolve o segredo novo uma vez; o log alimenta a tela
+              # de entregas; o replay reenvia com o MESMO delivery id.
+              post :rotate_secret
+              get :deliveries
+              post :replay
+            end
+          end
           namespace :integrations do
             resources :apps, only: [:index, :show]
             resources :hooks, only: [:show, :create, :update, :destroy] do

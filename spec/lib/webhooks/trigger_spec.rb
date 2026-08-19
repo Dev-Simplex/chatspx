@@ -262,7 +262,7 @@ describe Webhooks::Trigger do
           block.call(fetch_result)
         end
 
-        trigger.execute(url, payload, webhook_type, delivery_id: 'test-uuid')
+        trigger.execute(url, payload, webhook_type, delivery: described_class::Delivery.new(id: 'test-uuid'))
       end
     end
 
@@ -309,7 +309,8 @@ describe Webhooks::Trigger do
           block.call(fetch_result)
         end
 
-        trigger.execute(url, payload, webhook_type, secret: 'mysecret', delivery_id: 'abc-123')
+        trigger.execute(url, payload, webhook_type, secret: 'mysecret',
+                                                    delivery: described_class::Delivery.new(id: 'abc-123'))
       end
     end
   end

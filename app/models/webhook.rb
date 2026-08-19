@@ -21,6 +21,7 @@
 class Webhook < ApplicationRecord
   belongs_to :account
   belongs_to :inbox, optional: true
+  has_many :webhook_deliveries, dependent: :delete_all
 
   include WebhookSecretable
 
@@ -56,6 +57,21 @@ class Webhook < ApplicationRecord
   # se a conta REGISTROU aquela URL como webhook, existe segredo combinado com o destino e
   # a chamada e assinada com ele. Se nao registrou, nao ha segredo compartilhado — e
   # inventar um nao assinaria coisa alguma, so daria a impressao de que assinou.
+  # Bloco 4.14 — ping de validacao no cadastro.
+  #
+  # Dispara pelo MESMO caminho de uma entrega real: mesmo job, mesma assinatura, mesmo
+  # delivery id, mesmo registro no log. E de proposito — um ping que usasse outro caminho
+  # validaria o outro caminho, e nao aquele por onde os eventos vao passar.
+  def send_validation_ping!
+    WebhookJob.perform_later(url, ping_payload, :account_webhook,
+                             secret: secret, delivery_id: SecureRandom.uuid, webhook_id: id)
+  end
+
+  def ping_payload
+    { event: 'webhook.ping', account: { id: account_id }, webhook: { id: id, name: name },
+      sent_at: Time.zone.now.iso8601 }
+  end
+
   def self.signing_secret_for(account:, url:)
     return if account.blank? || url.blank?
 
