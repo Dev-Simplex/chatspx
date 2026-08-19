@@ -12,6 +12,7 @@ import ApproachSelector from './ApproachSelector.vue';
 import TriggerRow from './TriggerRow.vue';
 import SegmentationField from './SegmentationField.vue';
 import TeaserComposer from './TeaserComposer.vue';
+import LegacyCampaigns from './LegacyCampaigns.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 import WidgetSaveBar from '../WidgetSaveBar.vue';
 import WidgetUnsavedChangesDialog from '../WidgetUnsavedChangesDialog.vue';
@@ -61,6 +62,11 @@ const guard = useUnsavedChangesGuard({ isDirty, onDiscard: discard });
 const changedLabels = computed(() => labelsForFields(dirtyFields.value, t));
 
 const triggers = computed(() => draft.value.triggers ?? {});
+// 4.22 — o interruptor mestre lido do RASCUNHO, e nao do salvo: o aviso do modo antigo
+// tem de acompanhar o que o administrador acabou de marcar, antes de salvar. Ele decide
+// o texto do aviso, nunca a precedencia em si — quem decide isso e o widget, pelo que
+// esta gravado (`shared/helpers/abordagemProativa`).
+const gatilhoLigado = computed(() => Boolean(triggers.value.enabled));
 const lista = computed(() => triggers.value.triggers ?? []);
 const defaults = computed(() => triggers.value.defaults ?? {});
 
@@ -245,6 +251,11 @@ defineExpose({ requestLeave: guard.requestLeave });
         {{ t('INBOX_WIDGET.TRIGGERS.TEASER.SECTION') }}
       </h3>
       <TeaserComposer ref="teaserComposer" :inbox-id="inboxId" />
+
+      <!-- Bloco 4.22 — o modo antigo. Fica DEPOIS do convite de propósito: a ordem da
+        tela conta a precedência. O que fala com o visitante vem primeiro; o que está
+        em rampa de migração vem embaixo. -->
+      <LegacyCampaigns :inbox-id="inboxId" :gatilho-ativo="gatilhoLigado" />
 
       <div class="flex flex-col gap-3 py-3">
         <div class="flex items-center gap-3">
