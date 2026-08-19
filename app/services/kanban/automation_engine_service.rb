@@ -118,7 +118,9 @@ class Kanban::AutomationEngineService
     url = action['url']
     return if url.blank?
 
-    WebhookJob.perform_later(url, webhook_payload, :account_webhook)
+    # Bloco 4.13: disparava sem assinatura. Assinado quando a conta registrou a URL.
+    WebhookJob.perform_later(url, webhook_payload, :account_webhook,
+                             secret: Webhook.signing_secret_for(account: @conversation&.account, url: url))
   end
 
   # Follow-up drip (Módulo A, A3): enrolling a card's conversation into a sequence
