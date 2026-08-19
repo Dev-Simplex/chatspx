@@ -43,6 +43,9 @@ json.allowed_domains resource.channel.try(:allowed_domains)
 json.widget_color resource.channel.try(:widget_color)
 json.website_url resource.channel.try(:website_url)
 json.hmac_mandatory resource.channel.try(:hmac_mandatory)
+# Bloco 4.15: o estado RESOLVIDO, nao o gravado. Inbox sem a chave nao tem `nil` aqui —
+# ela tem o estado em que de fato opera hoje, e `hmac_mandatory` continua sendo o piso.
+json.identity_enforcement resource.resolved_identity_enforcement
 json.welcome_title resource.channel.try(:welcome_title)
 json.welcome_tagline resource.channel.try(:welcome_tagline)
 json.web_widget_script resource.channel.try(:web_widget_script)

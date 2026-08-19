@@ -1,0 +1,45 @@
+# frozen_string_literal: true
+
+# A porta de entrada do registro de eventos (bloco 5.03). Contrato em
+# docs/tracking/contrato-de-eventos.md §5 — e as outras trilhas chamam DAQUI, nao do modelo:
+# 5.04 (eventos do widget), 5.05 (event_id de volta ao widget), 5.16 (track() do site).
+#
+# `record!` e IDEMPOTENTE pela dedup_key. Registrar o mesmo fato duas vezes devolve o mesmo registro,
+# sem criar nada e sem levantar erro — que e o comportamento de que o AsyncDispatcher precisa, porque
+# `EventDispatcherJob.perform_later` e retentado quando falha. O `reporting_event_listener.rb:202-209`
+# desta base documenta o mesmo risco e convive com ele; aqui o banco resolve.
+class Tracking::EventRecorder
+  class << self
+    # A lista de campos nomeados E o contrato (docs/tracking/contrato-de-eventos.md §5). Trocar por um
+    # hash opaco encurtaria a assinatura e pioraria exatamente a juncao que este bloco existe para
+    # proteger: o consumidor deixaria de saber, pela propria chamada, o que pode mandar.
+    # rubocop:disable Metrics/ParameterLists
+    def record!(name:, account:, inbox: nil, conversation: nil, contact: nil,
+                occurred_at: nil, properties: nil, source: :server, dedup_key: nil)
+      # rubocop:enable Metrics/ParameterLists
+      moment = occurred_at || Time.current
+      key = dedup_key || TrackingEvent.derive_dedup_key(
+        name: name, occurred_at: moment,
+        conversation_id: conversation&.id, contact_id: contact&.id
+      )
+
+      create_or_find(name: name, account: account, inbox: inbox, conversation: conversation,
+                     contact: contact, occurred_at: moment, properties: properties || {},
+                     source: source, dedup_key: key)
+    end
+
+    private
+
+    # O savepoint mantem a transacao externa viva quando o indice unico recusa a segunda gravacao:
+    # no PostgreSQL, violacao de constraint aborta a transacao corrente, e sem `requires_new` o
+    # chamador receberia o registro certo dentro de uma transacao que nao aceita mais nada.
+    def create_or_find(attributes)
+      TrackingEvent.transaction(requires_new: true) do
+        TrackingEvent.create!(attributes)
+      end
+    rescue ActiveRecord::RecordNotUnique
+      TrackingEvent.find_by!(account_id: attributes[:account].id, name: attributes[:name],
+                             dedup_key: attributes[:dedup_key])
+    end
+  end
+end

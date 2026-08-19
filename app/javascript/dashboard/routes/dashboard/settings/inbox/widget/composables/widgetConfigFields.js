@@ -46,12 +46,27 @@ export const DEFAULT_APPEARANCE = Object.freeze({
   home_intents: [],
 });
 
-/** Valores de fabrica de `widget_triggers` (PLANO-MESTRE 3.02 e 3.20). */
+/**
+ * Valores de fabrica de `widget_triggers`.
+ *
+ * Sao os do SERVIDOR (`WidgetTriggersSchema`, blocos 3.02 e 3.20), conferidos
+ * por `specs/widgetTriggersContract.spec.js`, que le o arquivo Ruby. Tres
+ * escolhas aqui nao sao obvias e tem razao:
+ *
+ *  · **`enabled: false`.** Inbox que nunca abriu a tela nao dispara nada, e
+ *    salvar qualquer outro campo nao pode ligar o teaser sem alguem pedir (A4).
+ *  · **`approach_mobile` NAO entra.** O servidor resolve o celular herdando o
+ *    desktop (e recusando `aggressive`); fixar um valor aqui faria o admin
+ *    escolher "Chamativo" no computador e o celular ficar "Discreto" sozinho.
+ *  · **`triggers`, e nao `rules`.** O nome e do schema. Com
+ *    `additionalProperties: false`, uma chave a mais nao e ignorada: derruba o
+ *    PATCH INTEIRO com 422 — a tela diria "salvo" com o banco intacto.
+ */
 export const DEFAULT_TRIGGERS = Object.freeze({
+  enabled: false,
   approach: 'bold',
-  approach_mobile: 'discreet',
   degrade_on_return: true,
-  rules: [],
+  triggers: [],
 });
 
 /** Valores de fabrica de `widget_tracking` (PLANO-MESTRE 5.01). */
