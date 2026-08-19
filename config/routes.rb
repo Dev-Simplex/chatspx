@@ -176,6 +176,10 @@ Rails.application.routes.draw do
           end
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
+              # 4.22 — importa a campanha legada como gatilho do motor novo e DESATIVA a
+              # campanha, numa transacao. E rampa de migracao, nao corte: quem nao
+              # importar continua com a campanha listada e editavel.
+              post :import_to_trigger
               get :stats
               post :recipients
               post :start
