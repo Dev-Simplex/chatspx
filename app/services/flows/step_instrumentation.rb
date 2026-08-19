@@ -51,8 +51,18 @@ module Flows::StepInstrumentation
       error_code: error && error_code_for(error, node), error_message: error&.message,
       duration_ms: duration_ms, metadata: { 'node_type' => node['type'] }
     )
+    # 6.05 — a ETAPA alcancada, para o funil por variante. Fica DEPOIS do FlowStepLog e
+    # dentro do mesmo `rescue`: o log de auditoria e do produto e vale para toda conta; o
+    # evento de A/B so existe para fluxo em experimento, e nenhum dos dois pode derrubar o
+    # walk. So passo BEM-SUCEDIDO conta como etapa alcancada — contar um passo que falhou
+    # como "o visitante chegou aqui" inflaria o topo do funil da variante mais quebrada.
+    record_ab_step(node) if status.to_s == 'success'
   rescue StandardError => e
     ChatwootExceptionTracker.new(e, account: @flow.account).capture_exception
+  end
+
+  def record_ab_step(node)
+    Flows::AbTracking.record_step(flow: @flow, conversation: @conversation, node_id: node['id'])
   end
 
   # Mapeia a exceção capturada para um código legível e triável. Skips já trazem o código tipado;

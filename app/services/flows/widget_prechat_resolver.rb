@@ -30,21 +30,34 @@ class Flows::WidgetPrechatResolver
 
     attributes = conversation.additional_attributes || {}
     new(account: conversation.account, inbox: conversation.inbox,
-        url: attributes['referer'], browser: attributes['browser'])
+        url: attributes['referer'], browser: attributes['browser'],
+        # 6.05 — a chave de estabilidade do teste A/B. E o MESMO `source_id` que o 4.21 usa
+        # na dedup_key da abordagem e que o 4.18 grava como `session_id` do lead incompleto:
+        # o identificador do NAVEGADOR, nao da conversa. Usar o id da conversa faria o mesmo
+        # visitante trocar de variante a cada conversa nova, e o teste mediria o acaso.
+        visitor_key: conversation.contact_inbox&.source_id)
   end
 
-  def initialize(account:, inbox:, url: nil, browser: nil, at: nil)
+  # A lista nomeada E o contrato deste servico: cada parametro e um criterio que o 4.02
+  # publica. Trocar por um hash opaco encurtaria a assinatura e esconderia, de quem chama, o
+  # que ele pode mandar — o mesmo motivo pelo qual o Tracking::EventRecorder do 5.03
+  # desliga esta regra.
+  # rubocop:disable Metrics/ParameterLists
+  def initialize(account:, inbox:, url: nil, browser: nil, at: nil, visitor_key: nil)
+    # rubocop:enable Metrics/ParameterLists
     @account = account
     @inbox = inbox
     @url = url.to_s
     @browser = browser.is_a?(Hash) ? browser : {}
     @at = at || Time.current
+    @visitor_key = visitor_key
   end
 
   # O fluxo escolhido, ou nil quando nenhum casa. Nunca levanta: um `trigger_config` torto de uma
   # conta nao pode derrubar a criacao da conversa de um visitante.
   def perform
-    candidates.max_by { |flow| rank(flow) }
+    vencedor = candidates.max_by { |flow| rank(flow) }
+    variante_ab(vencedor) || vencedor
   rescue StandardError => e
     Rails.logger.error("Flows::WidgetPrechatResolver account=#{@account&.id} inbox=#{@inbox&.id}: #{e.message}")
     nil
@@ -52,7 +65,35 @@ class Flows::WidgetPrechatResolver
 
   private
 
+  # ─── 6.05 · teste A/B ────────────────────────────────────────────────────────────────
+  # O experimento so REDISTRIBUI trafego entre fluxos que o desempate do 4.02 ja
+  # considerava elegiveis — ele nao promove ninguem. Por isso a designacao roda DEPOIS do
+  # `max_by`: quem nao declara `experiment` continua caindo exatamente na regra de sempre
+  # (priority, especificidade, id), e o vencedor so cede o lugar para uma variante IRMA.
+  #
+  # `nil` (fluxo sem experimento, visitante sem chave estavel, experimento inteiro pausado)
+  # devolve o vencedor original e nao emite exposicao — ver Flow::AbExperiment#assign.
+  def variante_ab(vencedor)
+    return nil if vencedor.blank?
+
+    key = Flow::AbExperiment.key_for(vencedor)
+    return nil if key.blank?
+
+    Flow::AbExperiment.assign(
+      variants: Flow::AbExperiment.variants(candidates, key),
+      visitor_key: @visitor_key
+    )
+  end
+
+  # Memoizado porque `#perform` e `#variante_ab` percorrem a MESMA lista: sem isto a
+  # consulta e o casamento em memoria rodariam duas vezes por conversa criada.
   def candidates
+    return @candidates if defined?(@candidates)
+
+    @candidates = calcular_candidates
+  end
+
+  def calcular_candidates
     return [] if @account.blank? || @inbox.blank?
     return [] unless prechat_delegated_to_flow?
 
