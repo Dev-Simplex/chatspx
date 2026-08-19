@@ -63,6 +63,15 @@ export default {
         calcularAgrupamento(bloco.messages)
       );
     },
+    // ── Bloco 2.12 — a terceira chave do `v-memo` ─────────────────────────────
+    // As duas primeiras (a mensagem e a classe de agrupamento) cobrem o que
+    // muda a linha. Esta cobre o que muda o TEXTO da linha sem mudar a
+    // mensagem: o visitante trocando de idioma numa inbox com mais de um
+    // habilitado. Sem ela, `RETRY`, `DOWNLOAD` e os rótulos de anexo ficariam
+    // no idioma antigo até a mensagem se mexer — que pode ser nunca.
+    idiomaAtual() {
+      return this.$root.$i18n?.locale;
+    },
     showStatusIndicator() {
       const { status } = this.conversationAttributes;
       const isConversationInPendingStatus = status === 'pending';
@@ -157,12 +166,37 @@ export default {
         class="messages-wrap"
       >
         <DateSeparator :date="groupedMessage.date" />
+        <!-- `v-memo` — bloco 2.12. Cada linha renderiza markdown, e sem memo
+             toda mudança reativa fora dela (o agente começou a digitar, o
+             tema mudou, a lista rolou) refaz o `md.render` de TODAS as bolhas
+             para produzir o mesmo HTML.
+
+             A identidade de `message` é chave legítima aqui, e é por um
+             motivo que vale escrever: o getter `getGroupedConversation`
+             reconstrói cada mensagem (`{ showAvatar, ...message }`) sempre que
+             recomputa, então objeto igual significa "o store não mexeu nesta
+             conversa". O que ele NÃO cobre está nas outras duas chaves. -->
+        <!-- eslint-disable vue/valid-v-memo -- A regra guarda o caso
+             real (`v-memo` num descendente de `v-for`, que o Vue ignora), mas
+             ela rastreia só o `v-for` MAIS EXTERNO: `vForElement` só é
+             atribuído quando ainda é nulo, e depois exige que o `v-memo` esteja
+             nesse elemento. Com `v-for` aninhado — blocos de data por fora,
+             linhas por dentro — o de dentro nunca passa, embora este seja o
+             padrão documentado do Vue (`v-memo` no MESMO elemento do `v-for`).
+             Que ele funciona de fato está medido em
+             `specs/memoDaLinha.spec.js`, não afirmado aqui. -->
         <ChatMessage
           v-for="(message, indice) in groupedMessage.messages"
           :key="message.id"
+          v-memo="[
+            message,
+            classeAgrupamento(indiceBloco, message, indice),
+            idiomaAtual,
+          ]"
           :message="message"
           :classe-agrupamento="classeAgrupamento(indiceBloco, message, indice)"
         />
+        <!-- eslint-enable vue/valid-v-memo -->
       </div>
       <AgentTypingBubble v-if="showStatusIndicator" />
     </div>
