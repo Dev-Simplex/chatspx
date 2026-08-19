@@ -10,6 +10,41 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-19] 🔴→🟢 A IA DE LOCAÇÃO INVENTAVA PREÇO — 3 valores em 5 rodadas (banco conta 6, sem deploy)
+
+> Entrou como "atualizar dois fatos que o Léo passou" e a medição virou o assunto. Tudo em FAQ +
+> prompt da **Bruna #14** (a agente de locação), prod Tozi. Detalhe no vault:
+> `spx-os/clientes/tozi.md` e `aprendizados/prompt-nome-sem-fato-vira-invencao.md`.
+
+- **Fatos novos aplicados:** taxa de assinatura do contrato **R$ 21 → R$ 49** (estava em **duas**
+  FAQs, #284 e #288 — mexer numa só faria a IA dar valores diferentes conforme a pergunta) e o
+  **fiador digital** como **4ª garantia** (a Loft entra como fiadora, **12,5% do valor anual**,
+  conforme análise, até 12x, sem imóvel/caução/terceiros). FAQ **#307** nova entra pela dor
+  ("sem fiador e sem caução"), que é como o cliente pergunta. Re-embed automático conferido.
+- **`seguro fiança` deixou de ser beco sem saída:** a FAQ #291 segue dizendo que a Tozi não trabalha
+  com isso, mas agora oferece o fiador digital — que é exatamente o que quem pergunta procura.
+  ⚠️ Fiador digital **não é** seguro fiança; a proibição do prompt continua valendo.
+- **🔴 O ACHADO:** rodando a pergunta da taxa **5x** (transação revertida, nada enviado), a IA
+  **só consultava a base em 2/5**. Nas outras três **inventou preço: R$ 500, R$ 400 e "um aluguel"**.
+  O R$21 antigo **nunca aparecia** — ela não lia a FAQ nem antes. **Trocar o número sozinho
+  consertaria só 40% dos casos.**
+- **Causa:** o prompt tem regra anti-invenção para imóvel, link, localização, pet, horário e fotos —
+  e **nenhuma** para taxa/valor de contrato/percentual/garantia. Seção nova fecha a classe:
+  consulte ANTES de responder mesmo achando que sabe + valor que não veio da base não sai.
+  **Depois: 5/5 consultam e acertam.**
+- **🔴 Erro meu, medido e desfeito:** eu tinha posto *"fiador digital"* na **enumeração dentro do
+  prompt**. Medido: **3/5 diziam o nome e inventavam a descrição** ("análise feita online"), **0/5**
+  citavam Loft ou os 12,5%. **Nome no prompt + fatos só na base = recita o nome e inventa o resto** —
+  é a REGRA #1 valendo para **substantivo**, não só para frase de exemplo. Enumeração removida →
+  **5/5 citam Loft e 12,5%**.
+- ⚠️ **Armadilha de sonda (2ª vez nesta sessão):** `run_raw` devolve `output` **vazio** quando há
+  handoff — 5 respostas boas apareceram como 5 vazias e eu quase reportei regressão. Medir com o
+  fallback que o `ResponseBuilderJob` aplica.
+- **Reversão:** `/tmp/tozi_garantias.bak-20260819110810.restore.rb` e
+  `/tmp/assistant_14_ins_valores.bak-20260819112131.restore.rb` na VM.
+- ⏭️ **Pergunta ao Léo:** o fiador digital vale para todo contrato ou tem restrição por
+  imóvel/proprietário? Hoje a resposta diz "conforme análise" e manda confirmar com o consultor.
+
 ### [2026-08-19] 🟢 CONVERSA SEM DONO: a máquina já existia, vetada por UMA flag (PR #66) · e a fila presa (PR #65)
 
 > Queixa do time: conversa "some". Medido na prod Tozi (conta 6), read-only. Dois PRs, dois
@@ -588,7 +623,10 @@ armadilha do `subscribed_fields`.
 - 🔴 **GOTCHA que custou 6 pessoas:** `CampaignRecipient#template_params` é **`{'1' => valor}`** (documentado em `send_template_service.rb:23`), não `{'body' => [valor]}`. Com o formato errado o HSM sai **sem erro e sem o nome** ("Oi , sou a Kettlen..."). Peguei no 6º **lendo o texto enviado**, não o status — status só diz que a Meta aceitou. Era o primeiro template com variável nesta conta, não havia precedente para copiar. Corrigidos os 124 pendentes antes de retomar.
 - **🟢 Buraco de roteamento fechado — regra #73** `Disparo inbox 99 — time Kettlen → Kettlen` (`conversation_opened` + `inbox_id=99` + `team_id=62` → `assign_agent=126`), criada por `dup` da #72 para não inventar formato. **O time 62 tem `allow_auto_assign=false`** e não tinha regra: o lead respondia, a conversa reabria no time e ficava **sem dono** até alguém abrir o painel. Medido: João e Cibele estavam atribuindo à Kettlen **na mão**, uma a uma, com até 13 min de espera. A regra automatiza o que já era a prática. As campanhas anteriores já tinham as #70/#71/#72 (Francielli 68→138, Henrique 69→140, Weigler 70→139).
 - ⚠️ **`conversation_opened` só dispara na transição resolvida→aberta.** Conversa que já está aberta e recebe nova mensagem **não** passa pela regra — por isso a #73 não age nas que reabriram antes dela existir (essas seguem na mão).
-- **Levas seguintes:** **#8** (sáb 15/08, 8h–12h, `pacing 12s` = 5/min) → **998 enviadas / 2 falhas**, número seguiu GREEN; **6,6% de resposta (66 leads)** — a projeção feita a partir da #7 dizia 63. **#9** (300) agendada para **ter 18/08 08:00–09:00**. Sobram ~1.220 elegíveis na base.
+- **Levas seguintes:** **#8** (sáb 15/08, 8h–12h) → **998 enviadas / 2 falhas**, **6,6% de resposta (66 leads)** — a projeção feita a partir da #7 dizia 63. **#9** (ter 18/08, 8h–9h) → **300 enviadas / 0 falhas, 9% de resposta**. Número seguiu **GREEN** depois de 1.426 disparos.
+- **[19/08] Três campanhas configuradas de uma vez, dedup em cascata (0 telefone repetido entre elas):** **#10** Kettlen 500 (hoje 16h–17h40, 5/min) · **#11** Leandro 200 (hoje 16h30, 7/min) · **#12** Leandro 300 (qui 20/08 9h–9h50, 6/min). **Isso esgota a base: sobram 247 elegíveis.**
+- ⚠️ **A janela é por HORA CHEIA** — `quiet_hours?` compara `Time.current.hour`, então **16:30 não é expressável**. A #11 ficou `dispatch_paused` e precisa de um `dispatch_running!` na hora; as outras acordam sozinhas. Alternativa sem dependência humana: aceitar 16h–17h (começa às 16:00).
+- **Leandro Silva (#142, `ljscorretor@gmail.com`) já existia** com time **#71** (`auto_assign=true`) e a regra **#74** (inbox 99 + time 71 → `assign_agent=142`), montada no mesmo padrão da #73. Nada a criar.
 - **`quiet_hours` é a janela de SILÊNCIO, não a de envio** (`dispatch_scheduler_job.rb:63`): `{start: 12, end: 8}` cala das 12h às 8h, ou seja envia 08:00–11:59. Campanha criada já em `dispatch_running` fora da janela fica muda e acorda sozinha — não precisa de ninguém apertando botão na hora. Os scripts de criação **abortam** se, com a config escolhida, a campanha fosse enviar no instante da escrita.
 - **Receita que fechou o buraco do nome:** em vez de escrever o `template_params`, o script **lê um destinatário que já renderizou certo** na campanha anterior e aborta se a chave não for `'1'`. Também aborta com template não aprovado, imagem do header fora do ar, nome vazio na seleção ou elegíveis insuficientes.
 - **A inbox 99 não tem IA nenhuma.** A regra que mandaria pra Clara (#63) está escopada na **inbox 91**. As 583 abertas da 99 são todas de humano (Francielli 310, Weigler 192, Henrique 81). ⚠️ Não confundir com a queixa da equipe sobre "a Clara pega tudo" — aquela é da **91**. São duas filas com desenhos opostos.
