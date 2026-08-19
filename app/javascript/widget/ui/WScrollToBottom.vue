@@ -1,4 +1,5 @@
 <script>
+import { rotuloObrigatorio } from './rotulos';
 import WIconButton from './WIconButton.vue';
 
 /**
@@ -12,7 +13,11 @@ export default {
   name: 'WScrollToBottom',
   components: { WIconButton },
   props: {
-    label: { type: String, required: true },
+    label: {
+      type: String,
+      required: true,
+      validator: rotuloObrigatorio,
+    },
     count: {
       type: Number,
       default: 0,

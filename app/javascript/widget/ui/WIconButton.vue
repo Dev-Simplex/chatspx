@@ -1,4 +1,5 @@
 <script>
+import { rotuloObrigatorio } from './rotulos';
 /**
  * Botão que mostra só um ícone.
  *
@@ -12,7 +13,11 @@ const TAMANHOS = { sm: 'w-icon-button--sm', md: 'w-icon-button--md' };
 export default {
   name: 'WIconButton',
   props: {
-    label: { type: String, required: true },
+    label: {
+      type: String,
+      required: true,
+      validator: rotuloObrigatorio,
+    },
     size: {
       type: String,
       default: 'md',

@@ -1,4 +1,5 @@
 <script>
+import { rotuloObrigatorio } from './rotulos';
 import WIconButton from './WIconButton.vue';
 
 /**
@@ -13,7 +14,11 @@ export default {
   name: 'WTeaserCard',
   components: { WIconButton },
   props: {
-    dismissLabel: { type: String, required: true },
+    dismissLabel: {
+      type: String,
+      required: true,
+      validator: rotuloObrigatorio,
+    },
   },
   emits: ['dismiss', 'open'],
 };

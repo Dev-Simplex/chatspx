@@ -1,4 +1,5 @@
 <script>
+import { rotuloLimpo } from './rotulos';
 import WSpinner from './WSpinner.vue';
 
 /** Botão com texto. Para botão só de ícone use `WIconButton`. */
@@ -33,7 +34,7 @@ export default {
     disabled: { type: Boolean, default: false },
     loading: { type: Boolean, default: false },
     // Rótulo do estado de carregamento — anunciado enquanto `loading`.
-    loadingLabel: { type: String, default: '' },
+    loadingLabel: { type: String, default: '', validator: rotuloLimpo },
   },
   computed: {
     classes() {
