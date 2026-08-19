@@ -15,7 +15,10 @@
  *
  * Não usa `networkidle`: espera a âncora de conteúdo (o rótulo do 4º campo).
  */
-const { test, expect } = require('@playwright/test');
+// Bloco 0.11 — o fixture anti-erro. `spec/e2e/widget/**` importa DAQUI, nunca de
+// `@playwright/test` direto: um E2E que nao mede o console diz apenas que a pagina nao
+// travou, e a largura certa com `TypeError` no console passaria neste arquivo.
+const { test, expect } = require('../../fixtures');
 
 const LARGURA = 375;
 

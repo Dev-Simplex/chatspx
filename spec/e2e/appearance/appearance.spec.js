@@ -1,4 +1,5 @@
-const { test, expect } = require('@playwright/test');
+// Bloco 0.11 — fixture anti-erro. Import DAQUI, nunca de `@playwright/test`.
+const { test, expect } = require('../fixtures');
 const AxeBuilder = require('@axe-core/playwright').default;
 
 /**
