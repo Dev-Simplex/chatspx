@@ -93,16 +93,37 @@ describe('5.15 — o guia de integração', () => {
   });
 
   it('declara o que AINDA NÃO existe, com o bloco que o entrega', () => {
-    // `track()` e do 5.16: o guia nao pode ensinar como se existisse
-    expect(guia).toMatch(
-      /track\([^)]*\)[\s\S]{0,120}(ainda não está disponível|5\.16)/
-    );
     expect(guia).toContain('5.02');
     expect(guia).toContain('5.14');
+  });
 
-    // e o SDK realmente NAO tem `track` — se um dia tiver, este teste avisa que
-    // o guia precisa mudar
-    expect(/\n {4}track\(/.test(sdk)).toBe(false);
+  /**
+   * O SENTINELA VIROU DE LADO, e o motivo e a razao de ele existir.
+   *
+   * Ate o bloco 5.16 chegar, este arquivo cobrava o oposto: que o guia dissesse "ainda nao
+   * esta disponivel" e que o SDK nao tivesse `track`. O comentario de la dizia, com todas as
+   * letras, "se um dia tiver, este teste avisa que o guia precisa mudar". Teve, e avisou.
+   *
+   * Guia que ensina API imaginaria e o defeito que o 5.15 existe para impedir. Guia que NEGA
+   * uma API que ja existe e o mesmo defeito com o sinal trocado, e custa igual: o integrador
+   * le "nao disponivel", nao usa, e a funcionalidade que ele precisava fica na prateleira.
+   * Por isso a trava continua nos DOIS sentidos — o que muda e para onde ela aponta.
+   */
+  it('o que PASSOU a existir e ensinado, com a assinatura real', () => {
+    // o SDK tem `track` — e ele e metodo do objeto publico, com a indentacao dos demais
+    expect(/\n {4}track\(/.test(sdk)).toBe(true);
+
+    // e o guia o ensina no NAMESPACE certo. A versao anterior escrevia
+    // `window.chatwootSDK.track(...)`, que nao existe e nunca existiu: `chatwootSDK` so tem
+    // `run`. O exemplo "todo metodo do SDK que ele manda chamar existe" nao pegava isso,
+    // porque ele varre `$chatwoot.<metodo>(` e aquele texto passava ao largo.
+    expect(guia).toContain('window.$chatwoot.track(');
+    expect(guia).not.toContain('chatwootSDK.track');
+
+    // e nao sobrou promessa de futuro sobre uma coisa que ja e presente
+    expect(guia).not.toMatch(
+      /track\([^)]*\)[\s\S]{0,120}ainda não está disponível/
+    );
   });
 
   it('o trecho de instalação descreve o que o servidor realmente gera', () => {

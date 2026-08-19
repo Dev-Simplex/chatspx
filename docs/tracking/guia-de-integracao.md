@@ -143,21 +143,49 @@ diagnóstico que exibe e-mail de lead é um vazamento com interface.
 
 ### 3.4 Disparar um evento a partir do site
 
-Hoje o disparo por código do site (`window.chatwootSDK.track('meu_evento', { … })`) **ainda não está
-disponível** — é o bloco **5.16**, e o contrato dele já está escrito na §1 do
-[`contrato-de-eventos.md`](./contrato-de-eventos.md) (prefixo `chatspx_`, `snake_case`, ≤ 40
-caracteres).
+```js
+window.$chatwoot.track('chatspx_orcamento_pedido', { plano: 'pro', value: 199 });
+```
 
-**O que funciona hoje, e é o caminho para ver um evento de ponta a ponta:**
+**O nome obedece a três regras**, e são as mesmas do
+[`contrato-de-eventos.md`](./contrato-de-eventos.md) §1: prefixo `chatspx_`, `snake_case`
+(minúsculas, dígitos e `_`) e **no máximo 40 caracteres** — limite do GA4, não nosso. Nome fora do
+formato é recusado **na hora, no seu console**, com a regra escrita; ele não vira uma falha
+silenciosa que você descobriria semanas depois olhando um relatório vazio.
+
+**Não lança.** O método devolve uma `Promise` e nunca interrompe a execução — se você chama de dentro
+de uma tag do GTM, um erro aqui não derruba as tags seguintes do seu contêiner. Chamar antes de o
+chat terminar de carregar também funciona: a chamada entra na fila e sai quando ele sobe.
+
+**Para onde o seu evento vai.** Ele é gravado no servidor (que gera o `event_id`) e publicado no
+`dataLayer`:
+
+```js
+{ event: 'chatspx_orcamento_pedido', plano: 'pro', value: 199, chatspx_event_id: '…' }
+```
+
+**E para no `dataLayer`** — o evento próprio do site **não** dispara Meta, GA4 nem Google Ads
+sozinho. Isso é deliberado: quem decide o que fazer com ele é você, no seu GTM, com as regras da
+sua conta. Os eventos que disparam tags são os da tabela da sub-aba **Eventos**, porque para esses
+você configurou o nome de destino de cada um.
+
+**O que não passa:** dado pessoal cru. As chaves `email`, `phone`, `phone_number`, `first_name`,
+`last_name` (e as abreviações `em`, `ph`, `fn`, `ln`) são **recusadas** em `properties`, inclusive
+aninhadas. O `dataLayer` é legível por qualquer script de terceiro da sua página; identificar uma
+pessoa ali é vazamento. Quem precisa do dado pessoal é o servidor, que o transforma em hash antes de
+falar com a Meta. O limite de tamanho de `properties` é **4 KB**.
+
+**Chamar duas vezes são dois eventos; a mesma chamada reenviada pela rede é um só.** Cada chamada
+carrega uma chave de idempotência própria, então uma falha de rede que reenvie a requisição não conta
+a sua conversão em dobro.
+
+**Para ver um evento de ponta a ponta sem escrever código:**
 
 1. instale (passo 1) e abra o chat no site;
 2. mande uma mensagem como visitante — isso cria a conversa;
 3. no painel, **resolva** a conversa;
 4. o servidor grava `chatspx_conversation_resolved` e o entrega aos destinos ativos;
 5. confira pela alínea (a) ou (c) acima.
-
-Se você precisa de um evento próprio antes do 5.16, use os atributos personalizados
-(`setCustomAttributes`) e leia-os no seu GTM a partir do evento que já sai.
 
 ---
 
@@ -189,7 +217,6 @@ vigente, mesmo sem poder mudá-la ali.
 | Assunto | Onde está / quando entra |
 |---|---|
 | campos e tipos de cada evento | [`contrato-de-eventos.md`](./contrato-de-eventos.md) |
-| `track()` para evento próprio do site | bloco **5.16** |
 | guardar token da Meta / API Secret do GA4 | bloco **5.02** (cofre cifrado) |
 | leitura do log de entregas na tela | bloco **5.14** |
 | instalação em WordPress, Wix e GTM, passo a passo | bloco **5.22** |
