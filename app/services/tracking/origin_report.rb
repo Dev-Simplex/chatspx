@@ -79,13 +79,26 @@ class Tracking::OriginReport
              .merge(conversations_count: scope.count)
   end
 
+  # `nao_disponivel` (o parser rodou e não achou origem) e ausência da chave (a conversa nem
+  # passou pelo parser, por não ter referer) viram a MESMA linha em `origin_kind`. São causas
+  # diferentes, mas para o cliente dizem a mesma coisa — e duas linhas com o mesmo rótulo e
+  # contagens diferentes é uma tela que parece quebrada. A distinção continua no banco.
+  def unify_unavailable(linhas)
+    indisponiveis, resto = linhas.partition { |linha| linha[:value].nil? || linha[:value] == 'nao_disponivel' }
+    return resto if indisponiveis.empty?
+
+    (resto << { value: nil, count: indisponiveis.sum { |linha| linha[:count] } }).sort_by { |linha| -linha[:count] }
+  end
+
   # `value: nil` é a conversa medida que não trouxe aquele parâmetro. Ela conta — some daria um
   # total que não fecha com o número de conversas, e o cliente perderia a noção de cobertura.
   def grouped_counts(scope, attribute_key)
-    scope.group(Arel.sql("custom_attributes ->> #{ActiveRecord::Base.connection.quote(attribute_key)}"))
-         .order(Arel.sql('count_all DESC'))
-         .limit(MAX_ROWS)
-         .count
-         .map { |value, count| { value: value.presence, count: count } }
+    linhas = scope.group(Arel.sql("custom_attributes ->> #{ActiveRecord::Base.connection.quote(attribute_key)}"))
+                  .order(Arel.sql('count_all DESC'))
+                  .limit(MAX_ROWS)
+                  .count
+                  .map { |value, count| { value: value.presence, count: count } }
+
+    attribute_key == 'last_origin_kind' ? unify_unavailable(linhas) : linhas
   end
 end

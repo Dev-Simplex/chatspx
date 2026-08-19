@@ -162,6 +162,7 @@
       "APPEARANCE_HIDE_BUBBLE": "Esconder a bolha",
       "APPEARANCE_PANEL_STYLE": "Estilo do painel",
       "APPEARANCE_LAUNCHER_ICON": "Ícone do lançador",
+      "APPEARANCE_HOME_INTENTS": "Opções da tela inicial",
       "TRIGGERS_APPROACH": "Abordagem no computador",
       "TRIGGERS_APPROACH_MOBILE": "Abordagem no celular",
       "TRIGGERS_DEGRADE_ON_RETURN": "Reduzir a abordagem em quem volta",
@@ -285,7 +286,9 @@
     },
     "PREVIEW": {
       "DARK": "Escuro",
-      "MOBILE": "Celular"
+      "MOBILE": "Celular",
+      "OPEN_LAUNCHER": "Abrir o chat",
+      "CLOSE_LAUNCHER": "Fechar o chat"
     },
     "PROFILE": {
       "SUPPORT": {
@@ -355,11 +358,14 @@
       },
       "DEGRADE_ON_RETURN": {
         "LABEL": "Insistir menos com quem já foi abordado",
-        "DESCRIPTION": "Quem já viu a abordagem e não respondeu recebe o nível abaixo na visita seguinte, e depois nada."
+        "DESCRIPTION": "Quem já viu a abordagem e não respondeu recebe o nível abaixo na visita seguinte, e depois nada.",
+        "SENTENCE": "Quem já recebeu o convite e não respondeu vê, na próxima visita, uma versão mais discreta — e depois só o lançador. É o que impede o convite de virar perseguição.",
+        "OFF_WARNING": "Com isto desligado, o mesmo visitante recebe a abordagem cheia em toda visita."
       },
       "MOBILE": {
         "LABEL": "Em celular",
-        "AGGRESSIVE_NOT_OFFERED": "Abertura automática não é oferecida em celular: lá o painel cobre a tela inteira."
+        "AGGRESSIVE_NOT_OFFERED": "Abertura automática não é oferecida em celular: lá o painel cobre a tela inteira.",
+        "APPLIED_LEVEL": "Em celular, o nível aplicado é {level} — o painel cobre a tela inteira, e abrir sozinho ali tira o visitante do que ele estava lendo."
       }
     },
     "HOME_INTENTS": {
@@ -374,6 +380,136 @@
       "ERRORS": {
         "NEED_TWO": "Deixe de 2 a 4 opções, ou nenhuma — uma opção sozinha não é escolha.",
         "DUPLICATED_ID": "Duas opções não podem ter o mesmo identificador."
+      }
+    },
+    "TRIGGERS": {
+      "TAB": "Gatilhos",
+      "SAVED": "Gatilhos salvos.",
+      "SAVE_ERROR": "Não foi possível salvar os gatilhos.",
+      "MASTER": {
+        "LABEL": "Ativar convites proativos",
+        "HINT": "Enquanto estiver desligado, o widget só aparece quando o visitante clica. Desligar não apaga o que você configurou aqui."
+      },
+      "SECTIONS": {
+        "MODE": "Modo",
+        "TRIGGERS": "Gatilhos",
+        "FREQUENCY": "Frequência",
+        "AUDIENCE": "Onde aparecer"
+      },
+      "MODE": {
+        "RECOMMENDED": {
+          "LABEL": "Recomendado",
+          "DESCRIPTION": "O convite aparece depois de 8 segundos na página E 30% de rolagem. São os dois juntos, e é o que o estudo de mercado recomenda."
+        },
+        "ADVANCED": {
+          "LABEL": "Avançado",
+          "DESCRIPTION": "Configurar os sete gatilhos, um a um, com valor e intervalo próprios para computador e celular."
+        }
+      },
+      "AUTO_OPEN_DIALOG": {
+        "TITLE": "Abrir o painel sozinho?",
+        "DESCRIPTION": "O nível Agressivo abre a conversa sem o visitante clicar. Antes de ligar, três coisas que vão acontecer:",
+        "POINT_INTERRUPTS": "O painel cobre parte da página que o visitante estava lendo, e ele precisa fechar para continuar.",
+        "POINT_ONCE": "Abre no máximo uma vez por sessão, e só depois do gatilho configurado — nunca assim que a página carrega.",
+        "POINT_MOBILE": "Em celular não é aplicado: lá o painel ocupa a tela inteira. O celular continua no nível {level}.",
+        "CONFIRM": "Ligar mesmo assim",
+        "CANCEL": "Manter o nível atual"
+      },
+      "COMPOSITE_WARNING": {
+        "TITLE": "Só tempo na página é pouco",
+        "BODY": "Com apenas o tempo ligado, o convite aparece para quem abriu a página e saiu para pegar um café. Ligue também a rolagem: quem rolou 30% está lendo de verdade."
+      },
+      "PUBLIC_WARNING": "Estas regras ficam visíveis para quem inspecionar o código do site. Não use nome de cliente, valor de contrato ou qualquer dado que não possa ser lido por qualquer visitante.",
+      "LIST": {
+        "TRIGGER": "Gatilho",
+        "DESKTOP": "Computador",
+        "MOBILE": "Celular",
+        "COOLDOWN": "Intervalo",
+        "NOT_AVAILABLE": "não se aplica"
+      },
+      "ITEMS": {
+        "TIME_ON_PAGE": {
+          "LABEL": "Tempo na página",
+          "UNIT": "segundos",
+          "HINT": "Quantos segundos o visitante precisa ficar antes do convite."
+        },
+        "SCROLL_DEPTH": {
+          "LABEL": "Rolagem",
+          "UNIT": "%",
+          "HINT": "Quanto da página o visitante já rolou."
+        },
+        "EXIT_INTENT": {
+          "LABEL": "Intenção de saída",
+          "UNIT": "",
+          "HINT": "O cursor sai da área da página em direção à barra do navegador. Não existe em celular."
+        },
+        "IDLE": {
+          "LABEL": "Inatividade",
+          "UNIT": "segundos",
+          "HINT": "Segundos sem clique, rolagem ou tecla."
+        },
+        "ELEMENT_CLICK": {
+          "LABEL": "Clique em elemento",
+          "UNIT": "",
+          "HINT": "O visitante clica em algo que você escolhe pelo seletor CSS."
+        },
+        "ELEMENT_VISIBLE": {
+          "LABEL": "Elemento visível",
+          "UNIT": "",
+          "HINT": "Um trecho da página entra na tela — o preço, o formulário, o rodapé."
+        },
+        "RETURN_VISIT": {
+          "LABEL": "Visitante que voltou",
+          "UNIT": "",
+          "HINT": "Alguém que já esteve no site antes."
+        }
+      },
+      "SELECTOR": {
+        "LABEL": "Seletor CSS",
+        "PLACEHOLDER": "[data-cta], #orcamento .btn",
+        "INVALID": "Este seletor não é válido: {reason}",
+        "EMPTY": "Informe o seletor do elemento.",
+        "SYNTAX_ONLY": "Conferimos só a escrita do seletor — o site é seu, e não temos como saber se ele existe na página."
+      },
+      "FREQUENCY": {
+        "MAX_PER_SESSION": "Convites por sessão",
+        "MAX_PER_SESSION_HINT": "No máximo {max}. Zero desliga o convite sem apagar a configuração.",
+        "COOLDOWN": "Intervalo entre convites",
+        "COOLDOWN_HINT": "Em segundos, até {max} (30 dias). Vale para os gatilhos que não têm intervalo próprio."
+      },
+      "AUDIENCE": {
+        "URL_LABEL": "Endereço da página",
+        "URL_HINT": "Deixe em branco para valer em qualquer página.",
+        "URL_ADD": "Adicionar endereço",
+        "URL_PLACEHOLDER": "/planos",
+        "URL_TOO_MANY": "No máximo {max} endereços.",
+        "OPERATORS": {
+          "CONTAINS": "contém",
+          "NOT_CONTAINS": "não contém",
+          "EQUALS": "é igual a",
+          "STARTS_WITH": "começa com",
+          "ENDS_WITH": "termina com"
+        },
+        "DEVICE_LABEL": "Dispositivo",
+        "DEVICES": {
+          "DESKTOP": "Computador",
+          "MOBILE": "Celular"
+        },
+        "DEVICE_EMPTY": "Escolha ao menos um dispositivo — sem nenhum, o convite não aparece em lugar nenhum.",
+        "REMOVE": "Remover"
+      },
+      "TEASER": {
+        "SECTION": "Mensagem do convite",
+        "EXPLANATION": "A campanha é a mensagem; o gatilho é o momento. O texto abaixo é o da campanha de chat ao vivo desta caixa — editar aqui edita ela, e nenhuma campanha nova nasce por causa de um gatilho.",
+        "TITLE_LABEL": "Título",
+        "MESSAGE_LABEL": "Texto do convite",
+        "SAVE": "Salvar a mensagem",
+        "SAVED": "Mensagem do convite salva.",
+        "SAVE_ERROR": "Não foi possível salvar a mensagem do convite.",
+        "LINKED": "Vinculado à campanha \"{campaign}\".",
+        "EMPTY": "Esta caixa ainda não tem campanha de chat ao vivo. Crie uma em Campanhas para escrever o texto do convite — o gatilho decide quando ela aparece, e ela continua sendo editável no lugar de sempre.",
+        "SIMULATE": "Simular o gatilho no preview",
+        "SIMULATE_HINT": "Mostra o convite como o visitante vai vê-lo quando o gatilho disparar. É só a prévia — nada é enviado."
       }
     }
   }

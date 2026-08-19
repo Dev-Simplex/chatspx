@@ -84,4 +84,26 @@ describe('ConversationInfo — IP do visitante', () => {
     expect(link.attributes('href')).toBe('https://loja.exemplo.com/carrinho');
     expect(link.text()).toBe('https://loja.exemplo.com/carrinho');
   });
+  // A store de contatos cameliza o payload (mutations.js:5, camelcaseKeys deep),
+  // entao o registro guarda `createdAtIp`. Enquanto o componente lia so
+  // `created_at_ip`, a linha do IP nunca renderizava — o painel prometia um
+  // campo que nao existia na tela.
+  it('renderiza o IP tambem quando a chave chega camelizada pela store', () => {
+    const wrapper = mountInfo({ createdAtIp: '198.51.100.9' });
+
+    expect(wrapper.find('[data-testid="ip-address-value"]').text()).toBe(
+      '198.•••'
+    );
+    expect(wrapper.html()).not.toContain('198.51.100.9');
+  });
+
+  it('revela o IP camelizado no clique', async () => {
+    const wrapper = mountInfo({ createdAtIp: '198.51.100.9' });
+
+    await wrapper.find('[data-testid="toggle-ip-address"]').trigger('click');
+
+    expect(wrapper.find('[data-testid="ip-address-value"]').text()).toBe(
+      '198.51.100.9'
+    );
+  });
 });

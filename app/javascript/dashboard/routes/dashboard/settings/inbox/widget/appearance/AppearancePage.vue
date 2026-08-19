@@ -125,7 +125,10 @@ const onSave = async () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full min-h-0">
+  <!-- A tela define a própria cor de texto: `body` no dashboard não define
+       nenhuma, então um texto sem classe herdaria o preto do navegador — que
+       no tema escuro dá 1,13:1. Medido no Chromium. -->
+  <div class="flex flex-col h-full min-h-0 text-n-slate-12">
     <div
       class="flex flex-col flex-1 min-h-0 gap-6 px-6 py-4 overflow-y-auto lg:flex-row"
     >
@@ -176,10 +179,15 @@ const onSave = async () => {
         <SettingsFieldSection
           :label="t('INBOX_WIDGET.APPEARANCE.TEXTS.WELCOME_TITLE')"
         >
+          <!-- `aria-label` porque o rótulo do `SettingsFieldSection` é um
+               `<label>` SEM `for` (é assim no componente do dashboard). Sem
+               isto o campo fica sem nome acessível — o defeito que a §B.0.5
+               manda não repetir. -->
           <Input
             id="welcome-title"
             class="max-w-md"
             :model-value="draft.welcomeTitle"
+            :aria-label="t('INBOX_WIDGET.APPEARANCE.TEXTS.WELCOME_TITLE')"
             data-testid="welcome-title"
             @update:model-value="set('welcomeTitle', $event)"
           />
@@ -191,6 +199,7 @@ const onSave = async () => {
             id="welcome-tagline"
             class="max-w-md"
             :model-value="draft.welcomeTagline"
+            :aria-label="t('INBOX_WIDGET.APPEARANCE.TEXTS.WELCOME_TAGLINE')"
             data-testid="welcome-tagline"
             @update:model-value="set('welcomeTagline', $event)"
           />
@@ -198,14 +207,18 @@ const onSave = async () => {
         <SettingsFieldSection
           :label="t('INBOX_WIDGET.APPEARANCE.TEXTS.REPLY_TIME')"
         >
-          <SelectInput
-            id="reply-time"
-            class="max-w-xs"
-            :model-value="draft.replyTime"
-            :options="replyTimeOptions"
-            data-testid="reply-time"
-            @update:model-value="set('replyTime', $event)"
-          />
+          <label class="block max-w-xs">
+            <span class="sr-only">
+              {{ t('INBOX_WIDGET.APPEARANCE.TEXTS.REPLY_TIME') }}
+            </span>
+            <SelectInput
+              id="reply-time"
+              :model-value="draft.replyTime"
+              :options="replyTimeOptions"
+              data-testid="reply-time"
+              @update:model-value="set('replyTime', $event)"
+            />
+          </label>
         </SettingsFieldSection>
 
         <h3 class="text-heading-2 text-n-slate-12">
@@ -243,14 +256,18 @@ const onSave = async () => {
             :label="t('INBOX_WIDGET.APPEARANCE.ADVANCED.PANEL_STYLE')"
             :help-text="t('INBOX_WIDGET.APPEARANCE.ADVANCED.PANEL_STYLE_HINT')"
           >
-            <SelectInput
-              id="panel-style"
-              class="max-w-xs"
-              :model-value="draft.appearance.panel_style"
-              :options="panelStyleOptions"
-              data-testid="panel-style"
-              @update:model-value="setIn('appearance', 'panel_style', $event)"
-            />
+            <label class="block max-w-xs">
+              <span class="sr-only">
+                {{ t('INBOX_WIDGET.APPEARANCE.ADVANCED.PANEL_STYLE') }}
+              </span>
+              <SelectInput
+                id="panel-style"
+                :model-value="draft.appearance.panel_style"
+                :options="panelStyleOptions"
+                data-testid="panel-style"
+                @update:model-value="setIn('appearance', 'panel_style', $event)"
+              />
+            </label>
           </SettingsFieldSection>
         </SettingsAccordion>
       </div>

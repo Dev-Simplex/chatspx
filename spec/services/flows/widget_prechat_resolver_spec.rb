@@ -11,6 +11,15 @@ RSpec.describe Flows::WidgetPrechatResolver do
   let(:web_widget) { create(:channel_widget, account: account) }
   let(:inbox) { web_widget.inbox }
 
+  # A inbox precisa DECLARAR que o pre-chat dela e um fluxo — e o modo que a tela 3.14 grava.
+  # Sem isso o formulario classico e o fluxo rodariam os dois (captura em duplicidade).
+  before { delegate_prechat_to_flow!(web_widget) }
+
+  def delegate_prechat_to_flow!(channel)
+    channel.update!(pre_chat_form_enabled: true,
+                    pre_chat_form_options: channel.pre_chat_form_options.merge('mode' => 'flow'))
+  end
+
   def prechat_flow(config = {}, name: nil, active: true)
     create(:flow, account: account, active: active, trigger_type: :widget_prechat,
                   trigger_config: config, name: name || "Fluxo #{config.hash}")
@@ -99,6 +108,7 @@ RSpec.describe Flows::WidgetPrechatResolver do
   describe 'inbox_ids' do
     it 'limits the flow to the declared inboxes and, when absent, serves any website inbox' do
       other_widget = create(:channel_widget, account: account)
+      delegate_prechat_to_flow!(other_widget)
       escopado = prechat_flow({ 'inbox_ids' => [other_widget.inbox.id] })
 
       expect(resolve(url: 'https://site.com')).to be_nil
@@ -132,6 +142,29 @@ RSpec.describe Flows::WidgetPrechatResolver do
 
       expect(novo.id).to be > antigo.id
       expect(resolve(url: 'https://site.com/x')).to eq(antigo)
+    end
+  end
+
+  describe 'a guarda de modo (o pre-chat da inbox precisa ser um fluxo)' do
+    it 'nao entrega nada quando a inbox esta no modo classico — senao seriam dois pre-chats' do
+      prechat_flow({})
+      web_widget.update!(pre_chat_form_options: web_widget.pre_chat_form_options.merge('mode' => 'simple'))
+
+      expect(resolve(url: 'https://site.com')).to be_nil
+    end
+
+    it 'nao entrega nada quando a inbox nunca declarou modo (o estado de toda a frota hoje)' do
+      prechat_flow({})
+      web_widget.update!(pre_chat_form_options: web_widget.pre_chat_form_options.except('mode'))
+
+      expect(resolve(url: 'https://site.com')).to be_nil
+    end
+
+    it 'nao entrega nada com o pre-chat DESLIGADO, mesmo com mode flow gravado' do
+      prechat_flow({})
+      web_widget.update!(pre_chat_form_enabled: false)
+
+      expect(resolve(url: 'https://site.com')).to be_nil
     end
   end
 

@@ -10,9 +10,10 @@
 # Sao chaves de TOPO separadas, e nao um sub-hash unico, porque o merge do `#update` e raso
 # (`inboxes_controller.rb:52-56`): com um `widget_config` unico, um PATCH parcial apagaria as outras tres.
 #
-# Regra dura herdada da A1: NENHUM segredo aqui. `additional_attributes` e servido inteiro por
-# `_inbox.json.jbuilder:27` a qualquer agente com a inbox atribuida, e vai para o HTML de toda pagina
-# do site do cliente. A lista negativa abaixo e o mecanismo — o bloco 5.01 apenas a amplia.
+# Regra dura herdada da A1: NENHUM segredo aqui. Sao DOIS publicos, e cada um por um caminho:
+# `_inbox.json.jbuilder:27` serve o hash INTEIRO a qualquer agente com a inbox atribuida, e
+# `show.html.erb` publica estas quatro chaves no HTML de toda pagina do site do cliente.
+# A lista negativa abaixo e o mecanismo — o bloco 5.01 apenas a amplia.
 module WidgetConfigurable
   extend ActiveSupport::Concern
 
@@ -80,9 +81,10 @@ module WidgetConfigurable
     WidgetAppearanceSchema.home_intents_violations(intents).each { |message| errors.add(:widget_appearance, message) }
   end
 
-  # O teto do jsonb (3.18). `additional_attributes` inteiro vai para o HTML de toda pagina do site do
-  # cliente e e servido a qualquer agente com a inbox atribuida — um hash aberto sem teto e o oposto
-  # do orcamento de bytes que este plano defende em outros seis lugares.
+  # O teto do jsonb (3.18). O hash inteiro e servido a qualquer agente com a inbox atribuida
+  # (`_inbox.json.jbuilder:27`), e as chaves do widget vao para o HTML de toda pagina do site do
+  # cliente — um hash aberto sem teto e o oposto do orcamento de bytes que este plano defende em
+  # outros seis lugares. O teto e do hash inteiro porque e ele que trafega no dashboard.
   def ensure_additional_attributes_fit_the_ceiling
     size = (additional_attributes || {}).to_json.bytesize
     return if size <= Inbox::MAX_ADDITIONAL_ATTRIBUTES_BYTES

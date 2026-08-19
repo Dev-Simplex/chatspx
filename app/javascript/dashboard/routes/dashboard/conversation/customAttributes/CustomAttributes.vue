@@ -374,8 +374,14 @@ const evenClass = [];
           @delete="onDelete"
           @copy="onCopy"
         />
+        <!--
+          Ancorado embaixo, nao em cima: a linha do rotulo do CustomAttribute ja
+          tem o botao de excluir no canto direito (CustomAttribute.vue:28-36) e o
+          selo ficava POR BAIXO dele na tela. O DOM dizia que o selo existia e a
+          tela mostrava a lixeira.
+        -->
         <span
-          class="absolute px-1.5 py-0.5 text-xxs rounded-md top-2 ltr:right-3 rtl:left-3 text-n-slate-11 bg-n-slate-3 dark:bg-n-slate-4"
+          class="absolute px-1.5 py-0.5 text-xxs rounded-md bottom-3 ltr:right-3 rtl:left-3 text-n-slate-12 bg-n-slate-3 dark:bg-n-slate-4"
           :title="$t('CUSTOM_ATTRIBUTES.FROM_WEBSITE_BADGE_TITLE')"
           data-testid="from-website-badge"
         >

@@ -2,6 +2,7 @@
 import IntegrationAPIClient from 'widget/api/integration';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import { buildDyteURL } from 'shared/helpers/IntegrationHelper';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 
 export default {
   components: {
@@ -31,7 +32,10 @@ export default {
         const { data: { token } = {} } = response;
         this.dyteAuthToken = token;
       } catch (error) {
-        // Ignore Error for now
+        // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+        // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+        // visitante; passa apenas a ser CONTADO.
+        reportWidgetError(error, { origem: 'IntegrationCard' });
       } finally {
         this.isLoading = false;
       }

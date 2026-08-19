@@ -20,10 +20,14 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
   def update
     if @message.content_type == 'input_email'
       @message.update!(submitted_email: contact_email)
+      # PORTA 4 (bloco 4.16): mesma historia do pre-chat. O e-mail digitado fica gravado em
+      # `submitted_email` de qualquer forma, entao recusar o merge nao perde o dado — o
+      # agente continua vendo o que o visitante escreveu.
       ContactIdentifyAction.new(
         contact: @contact,
         params: { email: contact_email, name: contact_name },
-        retain_original_contact_name: true
+        retain_original_contact_name: true,
+        identity_enforcement: conversation&.inbox&.resolved_identity_enforcement
       ).perform
     else
       # Lido ANTES do update: depois dele `submitted_values` sempre existe, e a idempotência

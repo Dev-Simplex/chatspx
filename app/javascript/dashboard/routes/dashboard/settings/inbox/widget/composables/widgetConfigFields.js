@@ -22,25 +22,51 @@
  */
 import { DEFAULT_WIDGET_COLOR } from 'dashboard/constants/widget';
 
-/** Valores de fabrica de `widget_appearance` (PLANO-MESTRE 3.18). */
+/**
+ * Valores de fabrica de `widget_appearance`.
+ *
+ * Sao os do SERVIDOR (`WidgetAppearanceSchema::DEFAULTS`, bloco 3.18), e nao
+ * uma segunda opiniao: uma inbox sem a chave gravada vale exatamente isto, e a
+ * tela que mostrasse outro valor mentiria sobre o estado atual. O cruzamento e
+ * verificado em `specs/widgetAppearanceContract.spec.js`, que le o arquivo Ruby.
+ *
+ * `home_intents` viaja no rascunho para nao ser APAGADO por um PATCH que so
+ * mexeu na posicao (o objeto do grupo vai inteiro); a UI dele e de outro bloco.
+ */
 export const DEFAULT_APPEARANCE = Object.freeze({
-  theme: 'auto',
+  theme: 'light',
   position: 'right',
-  offset_x: 20,
-  offset_y: 20,
+  offset_x: 0,
+  offset_y: 0,
   launcher_type: 'standard',
   launcher_text: '',
   hide_bubble: false,
   panel_style: 'standard',
   launcher_icon: 'default',
+  home_intents: [],
 });
 
-/** Valores de fabrica de `widget_triggers` (PLANO-MESTRE 3.02 e 3.20). */
+/**
+ * Valores de fabrica de `widget_triggers`.
+ *
+ * Sao os do SERVIDOR (`WidgetTriggersSchema`, blocos 3.02 e 3.20), conferidos
+ * por `specs/widgetTriggersContract.spec.js`, que le o arquivo Ruby. Tres
+ * escolhas aqui nao sao obvias e tem razao:
+ *
+ *  · **`enabled: false`.** Inbox que nunca abriu a tela nao dispara nada, e
+ *    salvar qualquer outro campo nao pode ligar o teaser sem alguem pedir (A4).
+ *  · **`approach_mobile` NAO entra.** O servidor resolve o celular herdando o
+ *    desktop (e recusando `aggressive`); fixar um valor aqui faria o admin
+ *    escolher "Chamativo" no computador e o celular ficar "Discreto" sozinho.
+ *  · **`triggers`, e nao `rules`.** O nome e do schema. Com
+ *    `additionalProperties: false`, uma chave a mais nao e ignorada: derruba o
+ *    PATCH INTEIRO com 422 — a tela diria "salvo" com o banco intacto.
+ */
 export const DEFAULT_TRIGGERS = Object.freeze({
+  enabled: false,
   approach: 'bold',
-  approach_mobile: 'discreet',
   degrade_on_return: true,
-  rules: [],
+  triggers: [],
 });
 
 /** Valores de fabrica de `widget_tracking` (PLANO-MESTRE 5.01). */

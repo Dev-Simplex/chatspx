@@ -627,9 +627,18 @@ Rails.application.routes.draw do
       namespace :widget do
         resource :direct_uploads, only: [:create]
         resource :config, only: [:create]
+        # Bloco 2.13 — telemetria de erro do widget. `resource` no singular
+        # porque não há coleção para listar, só um POST de relatório; e
+        # `controller:` explícito porque o Rails pluralizaria `telemetry` para
+        # `telemetries`, que não é o nome de nenhum arquivo aqui.
+        resource :telemetry, only: [:create], controller: 'telemetry'
         resources :campaigns, only: [:index]
         resources :events, only: [:create]
         resources :messages, only: [:index, :create, :update]
+        # Bloco 4.18 — resposta parcial do pre-chat, gravada ANTES de existir conversa.
+        # `only: [:create]` porque o visitante so escreve: ler o proprio lead incompleto
+        # nao serve a ele e vazaria o que o painel do cliente sabe.
+        resources :partial_leads, only: [:create]
         resources :conversations, only: [:index, :create] do
           collection do
             post :destroy_custom_attributes
@@ -691,6 +700,9 @@ Rails.application.routes.draw do
           end
           # Bloco 1.22 — de onde vieram os atendimentos.
           resource :origin_report, only: [:show]
+          # Bloco 4.18 — quantos leads perdemos e onde. So contagens: as respostas do
+          # visitante que nao concluiu nunca saem da base por aqui.
+          resource :partial_lead_report, only: [:show]
           resource :year_in_review, only: [:show]
           resources :live_reports, only: [] do
             collection do

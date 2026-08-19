@@ -14,6 +14,21 @@ json.website_channel_config do
   json.pre_chat_form_options @web_widget.pre_chat_form_options
   json.reply_time @web_widget.reply_time
   json.timezone @web_widget.inbox.timezone
+  # Bloco 1.02 — os sete tokens de marca, calculados no SERVIDOR por luminância
+  # WCAG. MESMA FONTE que o `<style>` e o `window.chatwootWebChannel` do
+  # `show.html.erb`: `WidgetTokens.for(@web_widget)`. Duas chamadas ao mesmo
+  # serviço, nunca duas fórmulas — fórmula duplicada é fórmula que diverge, que
+  # é o defeito que a Onda 1 inteira existe para corrigir.
+  #
+  # Por que ISTO precisa existir aqui, e não é excesso de zelo: o
+  # `widgets_controller.rb:1` carrega um TODO do upstream dizendo para APAGAR o
+  # controller do ERB "once 'api/widget/config' end point is merged". Ou seja,
+  # este jbuilder é o SUBSTITUTO PLANEJADO do `show.html.erb`. No dia em que essa
+  # troca acontecer, um jbuilder sem `tokens` levaria junto o bloco 1.02 inteiro
+  # — e o flash de cor errada voltaria sem que um único teste ficasse vermelho.
+  #
+  # A suíte de paridade (0.6) é quem cobra as duas pontas.
+  json.tokens WidgetTokens.for(@web_widget).to_h
   json.utc_off_set ActiveSupport::TimeZone[@web_widget.inbox.timezone].now.formatted_offset
   json.website_name @web_widget.inbox.name
   json.website_token @web_widget.website_token

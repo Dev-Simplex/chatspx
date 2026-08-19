@@ -148,6 +148,47 @@ RSpec.describe 'Origem da conversa pelo widget (1.19)', type: :request do
     end
   end
 
+  # Achado da varredura de config (18/08): `create.json.jbuilder` do widget serializa
+  # `custom_attributes` da conversa — que é exatamente onde o 1.19 grava os `last_*`. Ou seja: a
+  # origem VOLTA para o visitante no payload de criação. É aceitável, e por um motivo estreito: o
+  # dado é dele, veio da query string da própria página que ele abriu; não há informação nova ali.
+  # O que NÃO pode voltar é dado cru não validado — esse fica em `additional_attributes`
+  # (`referer_raw`, bloco 1.20), que o jbuilder não serializa.
+  #
+  # Este spec fixa a superfície: se alguém amanhã gravar em `custom_attributes` da conversa algo
+  # que o visitante não deveria ver, ele fica vermelho e nomeia a chave.
+  describe 'o que a origem devolve ao visitante no payload do widget' do
+    it 'devolve os last_* (dado do próprio visitante) e NUNCA o referer cru' do
+      post '/api/v1/widget/conversations',
+           headers: { 'X-Auth-Token' => token },
+           params: {
+             website_token: web_widget.website_token,
+             contact: { name: 'visitante' },
+             message: { content: 'oi', referer_url: 'javascript:alert(document.cookie)' }
+           },
+           as: :json
+
+      expect(response).to have_http_status(:success)
+      corpo = response.body
+
+      expect(corpo).not_to include('referer_raw')
+      expect(corpo).not_to include('javascript:alert')
+      expect(response.parsed_body).to have_key('custom_attributes')
+    end
+
+    it 'a origem visível ao visitante é só o que ele mesmo trouxe na URL' do
+      display_id = abrir_chat_em('https://loja.exemplo.com.br/tenis?utm_source=google&gclid=Cj0KCQ')
+
+      get "/api/v1/widget/conversations?website_token=#{web_widget.website_token}",
+          headers: { 'X-Auth-Token' => token }, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(origem_no_banco(display_id)['last_utm_source']).to eq('google')
+      # o que sai ao visitante não contém chave de origem que ele não tenha fornecido
+      expect(response.body).not_to include('referer_raw')
+    end
+  end
+
   describe 'a origem não pode derrubar a conversa' do
     it 'conversa nasce mesmo quando o parser explode' do
       allow(Tracking::OriginParser).to receive(:new).and_raise(StandardError, 'boom')

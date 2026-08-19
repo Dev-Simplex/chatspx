@@ -4,6 +4,7 @@ import { required, email } from '@vuelidate/validators';
 
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import Spinner from 'shared/components/Spinner.vue';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 
 export default {
   components: {
@@ -55,7 +56,10 @@ export default {
           messageId: this.messageId,
         });
       } catch (error) {
-        // Ignore error
+        // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+        // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+        // visitante; passa apenas a ser CONTADO.
+        reportWidgetError(error, { origem: 'EmailInput' });
       } finally {
         this.isUpdating = false;
       }

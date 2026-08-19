@@ -18,6 +18,13 @@
 #available at https://guides.rubyonrails.org/i18n.html.
 pt_BR:
   hello: 'Olá, mundo'
+  widget:
+    fallback:
+      # Bloco 2.14. Rótulo do link que substitui o launcher quando o bundle do
+      # widget não carrega (bloqueador de conteúdo, CSP do site do cliente,
+      # rede). Vai interpolado dentro de uma string JavaScript no snippet, então
+      # é serializado com `to_json` — não escreva aspas soltas aqui.
+      label: 'Falar por outro canal'
   inbox:
     reauthorization:
       success: 'Canal reautenticado com sucesso'
@@ -61,6 +68,8 @@ pt_BR:
     conversation:
       pending_status_disabled_for_inbox: "não pode ser Pendente — recurso desativado para esta caixa de entrada"
     inbox:
+      identity_enforcement:
+        invalid_state: "não é um estado válido de enforcement de identidade (valores aceitos: %{states})"
       widget_config:
         invalid_profile: "não é um perfil de widget válido (valores aceitos: %{profiles})"
         must_be_object: "deve ser um objeto JSON"

@@ -48,6 +48,7 @@
   "YOU": "You",
   "START_NEW_CONVERSATION": "Start a new conversation",
   "VIEW_UNREAD_MESSAGES": "You have unread messages",
+  "TITLE_FLASH_ALERT": "New message",
   "UNREAD_VIEW": {
     "VIEW_MESSAGES_BUTTON": "See new messages",
     "CLOSE_MESSAGES_BUTTON": "Close",
@@ -164,5 +165,29 @@
     "AGENT_TYPING": "Agent is typing a message",
     "AGENT_AVATAR": "Agent avatar",
     "IMAGE_ATTACHMENT": "Image sent in the conversation"
+  },
+  "CAPTURE": {
+    "SUBMIT": "Send",
+    "OPTIONAL": "(optional)",
+    "CONTACT_GROUP_HINT": "Fill in email or WhatsApp — either one is enough.",
+    "VALIDATION": {
+      "REQUIRED": "This field is required.",
+      "CPF": "Invalid CPF.",
+      "CNPJ": "Invalid CNPJ.",
+      "CPF_CNPJ": "Invalid CPF or CNPJ.",
+      "CEP": "Invalid ZIP code.",
+      "UF": "Invalid state.",
+      "EMAIL": "Invalid email.",
+      "CORPORATE_EMAIL": "Please use your company email.",
+      "PHONE": "Invalid phone number. Include the country code, such as +55.",
+      "JUNK_NAME": "Please check the name you typed.",
+      "JUNK_PHONE": "Please check the phone number you typed.",
+      "JUNK_EMAIL": "Please check the email you typed."
+    }
+  },
+  "WHATSAPP_EXIT": {
+    "BUTTON": "Continue on WhatsApp",
+    "CONTEXT_PREFIX": "Hi! I came from the chat on {site}.",
+    "CONTEXT_SUBJECT": "I asked: {subject}"
   }
 }
