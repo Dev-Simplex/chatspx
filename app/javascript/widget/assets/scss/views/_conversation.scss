@@ -255,6 +255,42 @@
     // balão tem a MESMA caixa nos dois temas, e trocar de tema não move layout.
     border: 1px solid var(--w-bubble-border, transparent);
 
+    // ── A promessa do 2.03, cobrada aqui — bloco 2.08 ─────────────────────────
+    //
+    // O 2.03 tirou a sombra e escreveu que a borda do escuro NÃO chega a 3:1
+    // (WCAG 1.4.11): medida em Chromium, `--slate-7` sobre a superfície dá
+    // 1,72:1. A decisão de não subir foi de DESENHO — 3:1 exige um cinza perto
+    // de #6c6c6c, que é um contorno visível em volta de cada balão, e o plano
+    // não pediu isso para todo mundo.
+    //
+    // Sob `prefers-contrast: more` o visitante pediu. Aí o contorno visível
+    // deixa de ser um custo e passa a ser a entrega, e vale nos DOIS temas —
+    // no claro a separação hoje vem só do par branco × (240,240,243), que mede
+    // 1,14:1.
+    //
+    // Os dois valores são o cinza MAIS PRÓXIMO da superfície que ainda atinge
+    // 3:1, calculado sobre as cores reais: #8a8a8a dá 3,04:1 sobre
+    // (240,240,243) e #6c6c6c dá 3,03:1 sobre (33,34,37). Escolher o mínimo é
+    // deliberado: cumpre a norma sem transformar a lista numa grade.
+    //
+    // Eles são POR TEMA, então moram no token e não aqui: uma `border-color`
+    // escrita nesta regra venceria o `var()` da linha de cima e imporia a cor
+    // do claro aos dois temas. Isso chegou a acontecer — o escuro media
+    // 4,608:1 com o cinza do claro, passava no aceite de 3:1 e deixava o valor
+    // do escuro como código morto. Ver `_tokens_values.scss`.
+
+    // No `forced-colors` quem escolhe a cor é o sistema do visitante, e é por
+    // isso que aqui a borda pode ser FORTE sem ser decisão nossa. Sem ela o
+    // balão desaparece: o modo pinta o fundo do balão e o da lista com a mesma
+    // cor de canvas, e sem sombra (2.03) não sobra nada que os separe.
+    //
+    // `CanvasText` é a cor de texto do sistema — o par garantido de `Canvas`.
+    // `forced-color-adjust: none` NÃO é usado de propósito: ele mandaria o
+    // navegador respeitar as nossas cores, que é o oposto do que este modo é.
+    @media (forced-colors: active) {
+      border-color: CanvasText;
+    }
+
     .link {
       @apply text-w-brand-readable;
       word-break: break-word;

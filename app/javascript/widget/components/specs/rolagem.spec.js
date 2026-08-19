@@ -215,6 +215,57 @@ describe('2.04 — o botão "descer" e o contador', () => {
   });
 });
 
+describe('2.08 — o botão "descer" respeita `prefers-reduced-motion`', () => {
+  const original = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+
+  const comPreferencia = valor => {
+    window.matchMedia = vi.fn().mockImplementation(consulta => ({
+      matches: consulta === '(prefers-reduced-motion: reduce)' ? valor : false,
+      media: consulta,
+    }));
+  };
+
+  // O aceite do 2.08 é "mesmo estado final, sem o percurso". Estes dois
+  // exemplos são o par que prova isso: o DESTINO não muda entre eles, só o
+  // `behavior`. Um teste que olhasse apenas o `behavior` deixaria passar uma
+  // implementação que, com a preferência ligada, não rolasse nada.
+  const clicarEDescer = async valor => {
+    comPreferencia(valor);
+    const { wrapper, rolagem } = montar({ distanciaDoFim: 300 });
+    await rolar(wrapper, rolagem);
+    const chamadas = [];
+    rolagem.scrollTo = opcoes => {
+      chamadas.push(opcoes);
+      rolagem.scrollTop = opcoes.top;
+    };
+
+    wrapper.vm.descerPeloBotao();
+    await wrapper.vm.$nextTick();
+
+    return { chamadas, destino: rolagem.scrollTop };
+  };
+
+  it('sem a preferência, percorre até o fim', async () => {
+    const { chamadas, destino } = await clicarEDescer(false);
+
+    expect(chamadas).toHaveLength(1);
+    expect(chamadas[0].behavior).toBe('smooth');
+    expect(destino).toBe(ALTURA_TOTAL);
+  });
+
+  it('com a preferência, SALTA — e chega no mesmo lugar', async () => {
+    const { chamadas, destino } = await clicarEDescer(true);
+
+    expect(chamadas).toHaveLength(1);
+    expect(chamadas[0].behavior).toBe('auto');
+    // A linha que é o bloco inteiro: o destino é IDÊNTICO ao do caso acima.
+    expect(destino).toBe(ALTURA_TOTAL);
+  });
+});
+
 describe('2.04 — throttle do scroll', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
