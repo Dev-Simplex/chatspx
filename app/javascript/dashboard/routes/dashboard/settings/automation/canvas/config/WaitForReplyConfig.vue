@@ -25,6 +25,14 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // Opções do bloco `send_interactive` que desemboca neste nó (NodeConfigPanel deriva via
+  // interactiveOptionsForWait). Havendo opções, o campo "valor" vira um SELECT — o `key` tem de
+  // ser byte-a-byte igual ao `value` enviado, e digitá-lo à mão é a fonte clássica de erro
+  // (um acento, um espaço no fim) que joga a resposta certa no fallback.
+  sourceOptions: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const emit = defineEmits(['update']);
@@ -69,6 +77,82 @@ const addReply = () => {
 
 const removeReply = index => {
   replies.value = replies.value.filter((_, i) => i !== index);
+};
+
+// Reordena uma resposta (delta -1 sobe, +1 desce). A ordem aqui é a ordem das PORTAS de saída
+// desenhadas no nó; trocar de lugar não mexe em `key`, então nenhuma aresta conectada se perde.
+const moveReply = (index, delta) => {
+  const target = index + delta;
+  if (target < 0 || target >= replies.value.length) return;
+  const next = [...replies.value];
+  [next[index], next[target]] = [next[target], next[index]];
+  replies.value = next;
+};
+
+const hasSourceOptions = computed(() => props.sourceOptions.length > 0);
+
+// Chaves já usadas nas OUTRAS linhas: a mesma opção não pode virar duas portas (o Runner casaria
+// sempre a primeira e a segunda porta ficaria morta).
+const keysUsedElsewhere = index =>
+  new Set(
+    replies.value.filter((_, i) => i !== index).map(reply => String(reply.key))
+  );
+
+// Opções do select de uma linha: as do bloco interativo (menos as já usadas em outras linhas) +
+// a chave ATUAL da linha, mesmo que não exista mais no bloco — nunca descartamos em silêncio um
+// valor já salvo, senão a aresta conectada a ele sumiria ao abrir o editor.
+const keyOptionsFor = index => {
+  const used = keysUsedElsewhere(index);
+  const current = String(replies.value[index]?.key ?? '');
+  const options = props.sourceOptions
+    .filter(option => !used.has(String(option.key)))
+    .map(option => ({
+      id: String(option.key),
+      name: option.label
+        ? `${option.label} — ${option.key}`
+        : String(option.key),
+    }));
+  if (current && !options.some(option => option.id === current)) {
+    options.unshift({
+      id: current,
+      name: t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.KEY_CUSTOM', {
+        key: current,
+      }),
+    });
+  }
+  return options;
+};
+
+// SingleSelect trabalha com o OBJETO da opção ({ id, name }), não com o id cru.
+const keyOptionFor = index => {
+  const current = String(replies.value[index]?.key ?? '');
+  return (
+    keyOptionsFor(index).find(option => option.id === current) || {
+      id: '',
+      name: '',
+    }
+  );
+};
+
+const setKey = (index, option) => {
+  const key = String(option?.id ?? '');
+  replies.value = replies.value.map((reply, i) =>
+    i === index ? { ...reply, key } : reply
+  );
+};
+
+// Repõe as respostas a partir das opções do bloco interativo ligado (o mesmo pré-preenchimento
+// que o canvas faz ao criar o nó logo depois de um `send_interactive`). Serve para quando o
+// usuário edita as opções DEPOIS de já ter criado o wait — sem isso, sobra chave órfã.
+const syncFromSource = () => {
+  if (!hasSourceOptions.value) return;
+  const labelByKey = new Map(
+    replies.value.map(reply => [String(reply.key), reply.label])
+  );
+  replies.value = props.sourceOptions.map(option => ({
+    key: String(option.key),
+    label: labelByKey.get(String(option.key)) || option.label || '',
+  }));
 };
 
 const unitOptions = computed(() => [
@@ -171,6 +255,28 @@ watch(timeout, persist, { deep: true });
             </span>
             <span class="flex-1" />
             <NextButton
+              icon="i-lucide-arrow-up"
+              ghost
+              slate
+              xs
+              :disabled="ri === 0"
+              :aria-label="t('AUTOMATION.CANVAS.MOVE_UP')"
+              :title="t('AUTOMATION.CANVAS.MOVE_UP')"
+              :data-testid="`wait-for-reply-up-${ri}`"
+              @click="moveReply(ri, -1)"
+            />
+            <NextButton
+              icon="i-lucide-arrow-down"
+              ghost
+              slate
+              xs
+              :disabled="ri === replies.length - 1"
+              :aria-label="t('AUTOMATION.CANVAS.MOVE_DOWN')"
+              :title="t('AUTOMATION.CANVAS.MOVE_DOWN')"
+              :data-testid="`wait-for-reply-down-${ri}`"
+              @click="moveReply(ri, 1)"
+            />
+            <NextButton
               icon="i-lucide-trash"
               ghost
               ruby
@@ -178,6 +284,7 @@ watch(timeout, persist, { deep: true });
               :aria-label="
                 t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.REMOVE_REPLY')
               "
+              :data-testid="`wait-for-reply-remove-${ri}`"
               @click="removeReply(ri)"
             />
           </div>
@@ -189,7 +296,20 @@ watch(timeout, persist, { deep: true });
               t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.LABEL_PLACEHOLDER')
             "
           />
+          <template v-if="hasSourceOptions">
+            <SingleSelect
+              :model-value="keyOptionFor(ri)"
+              disable-deselect
+              :options="keyOptionsFor(ri)"
+              :data-testid="`wait-for-reply-key-select-${ri}`"
+              @update:model-value="setKey(ri, $event)"
+            />
+            <span class="text-xs leading-snug text-n-slate-10">
+              {{ t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.KEY_SELECT_HINT') }}
+            </span>
+          </template>
           <Input
+            v-else
             v-model="reply.key"
             size="sm"
             :placeholder="
@@ -201,16 +321,34 @@ watch(timeout, persist, { deep: true });
         </li>
       </ul>
 
-      <NextButton
-        icon="i-lucide-plus"
-        blue
-        faded
-        sm
-        class="mt-2.5"
-        :label="t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.ADD_REPLY')"
-        data-testid="wait-for-reply-add"
-        @click="addReply"
-      />
+      <div class="flex flex-wrap gap-2 mt-2.5">
+        <NextButton
+          icon="i-lucide-plus"
+          blue
+          faded
+          sm
+          :label="t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.ADD_REPLY')"
+          data-testid="wait-for-reply-add"
+          @click="addReply"
+        />
+        <NextButton
+          v-if="hasSourceOptions"
+          icon="i-lucide-refresh-cw"
+          slate
+          faded
+          sm
+          :label="
+            t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.SYNC_FROM_INTERACTIVE')
+          "
+          :title="
+            t(
+              'AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.SYNC_FROM_INTERACTIVE_HINT'
+            )
+          "
+          data-testid="wait-for-reply-sync"
+          @click="syncFromSource"
+        />
+      </div>
     </ConfigField>
 
     <div class="flex flex-col gap-3 pt-1 border-t border-n-weak">

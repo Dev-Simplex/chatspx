@@ -72,6 +72,50 @@ RSpec.describe Flow do
       ]
       expect(build_flow(nodes: nodes)).to be_valid
     end
+
+    # Meta recusa uma interativa sem corpo ("interactive.body.text is required"): a mensagem morre
+    # com status failed, o contato nao ve nada e o wait_for_reply seguinte arma a espera do mesmo
+    # jeito — atendente ve "menu enviado", cliente ve silencio. Barrado na gravacao.
+    describe 'send_interactive sendability' do
+      def interactive_node(content, items)
+        { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_interactive',
+          'action_params' => [{ 'content' => content, 'items' => items }] }
+      end
+
+      let(:items) { [{ 'title' => 'Boleto', 'value' => 'boleto' }] }
+
+      it 'accepts a node with body and one titled option' do
+        expect(build_flow(nodes: [interactive_node('Escolha uma opcao:', items)])).to be_valid
+      end
+
+      it 'rejects a blank body' do
+        flow = build_flow(nodes: [interactive_node('   ', items)])
+        expect(flow).not_to be_valid
+        expect(flow.errors[:definition].join).to include('node n1').and(include('non-blank content'))
+      end
+
+      it 'rejects a missing body' do
+        node = { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_interactive',
+                 'action_params' => [{ 'items' => items }] }
+        expect(build_flow(nodes: [node])).not_to be_valid
+      end
+
+      it 'rejects a node without any titled option' do
+        flow = build_flow(nodes: [interactive_node('Escolha:', [{ 'title' => '  ', 'value' => 'x' }])])
+        expect(flow).not_to be_valid
+        expect(flow.errors[:definition].join).to include('at least one option with a title')
+      end
+
+      it 'rejects a node with no action_params at all' do
+        node = { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_interactive' }
+        expect(build_flow(nodes: [node])).not_to be_valid
+      end
+
+      it 'ignores other action nodes' do
+        node = { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_message', 'action_params' => [''] }
+        expect(build_flow(nodes: [node])).to be_valid
+      end
+    end
   end
 
   describe '.active scope' do

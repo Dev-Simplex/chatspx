@@ -53,7 +53,18 @@
       "VALIDATION": {
         "NAME_REQUIRED": "Dê um nome ao fluxo antes de salvar",
         "TRIGGER_REQUIRED": "Adicione um gatilho para iniciar o fluxo",
-        "ACTION_REQUIRED": "Adicione ao menos uma ação ao fluxo"
+        "ACTION_REQUIRED": "Adicione ao menos uma ação ao fluxo",
+        "BLOCKED": "Corrija antes de salvar:",
+        "WARNINGS": "Dá para salvar, mas isto parece inacabado:",
+        "SAVE_ANYWAY": "Salvar mesmo assim?",
+        "INTERACTIVE_BODY_REQUIRED": "a mensagem está vazia. O WhatsApp recusa uma interativa sem texto, então o menu não chega ao contato.",
+        "INTERACTIVE_ITEMS_REQUIRED": "inclua ao menos uma opção com título.",
+        "INTERACTIVE_VALUE_REQUIRED": "toda opção precisa de um valor — é o id que o WhatsApp devolve e por onde o fluxo ramifica.",
+        "MESSAGE_BODY_REQUIRED": "o texto da mensagem está vazio.",
+        "WAIT_REPLIES_REQUIRED": "inclua ao menos uma resposta esperada, senão não há saída para ramificar.",
+        "WAIT_FALLBACK_MISSING": "a saída \"Sem correspondência\" não está conectada e não há tempo limite. Qualquer resposta fora da lista encerra o fluxo em silêncio.",
+        "WAIT_KEY_UNMATCHED": "o valor \"{key}\" não corresponde a nenhuma opção enviada pelo bloco anterior.",
+        "PORT_NOT_CONNECTED": "a saída \"{key}\" não está ligada a nada."
       },
       "EMPTY": "Escolha um bloco na paleta para começar",
       "FAMILIES": {
@@ -132,7 +143,8 @@
           "DESCRIPTION_PLACEHOLDER": "Descrição (só em lista, opcional)",
           "TITLE_REQUIRED": "O título é obrigatório",
           "VALUE_REQUIRED": "O valor é obrigatório",
-          "FORMAT_HINT": "Até 3 opções viram botões; 4 ou mais viram uma lista."
+          "FORMAT_HINT": "Até 3 opções viram botões; 4 ou mais viram uma lista.",
+          "BODY_REQUIRED": "Obrigatório. O WhatsApp recusa uma mensagem interativa sem texto."
         },
         "CTA_URL": {
           "BODY_LABEL": "Mensagem",
@@ -312,7 +324,11 @@
           "TIMEOUT_VALUE_PLACEHOLDER": "ex.: 1",
           "TIMEOUT_PORT": "Tempo esgotado",
           "FALLBACK_PORT": "Sem correspondência",
-          "OUTPUTS_HINT": "Cada resposta vira uma saída; conecte cada uma à ação desejada. 'Sem correspondência' e 'Tempo esgotado' têm saídas próprias."
+          "OUTPUTS_HINT": "Cada resposta vira uma saída; conecte cada uma à ação desejada. 'Sem correspondência' e 'Tempo esgotado' têm saídas próprias.",
+          "KEY_SELECT_HINT": "Vem das opções do bloco anterior — assim o valor casa sempre.",
+          "KEY_CUSTOM": "{key} (fora do bloco anterior)",
+          "SYNC_FROM_INTERACTIVE": "Sincronizar com as opções",
+          "SYNC_FROM_INTERACTIVE_HINT": "Refaz as respostas a partir das opções do bloco conectado."
         },
         "SNOOZE": {
           "VALUE_LABEL": "Adiar por",
@@ -434,7 +450,17 @@
         "GENERIC": {
           "NO_PARAMS": "Este bloco não tem parâmetros para configurar."
         }
-      }
+      },
+      "MOVE_UP": "Mover para cima",
+      "MOVE_DOWN": "Mover para baixo",
+      "DUPLICATE": "Duplicar bloco (Ctrl+D)",
+      "COPIED": "Bloco copiado. Use Ctrl+V para colar.",
+      "PASTED": "Bloco colado",
+      "EXPORT": "Exportar o fluxo para um arquivo",
+      "IMPORT": "Importar um fluxo de um arquivo",
+      "IMPORTED": "Fluxo importado",
+      "IMPORT_ERROR": "Este arquivo não é um fluxo válido.",
+      "IMPORT_CONFIRM": "Importar substitui todos os blocos do canvas. Continuar?"
     },
     "TEMPLATES": {
       "BUTTON": "Modelos",

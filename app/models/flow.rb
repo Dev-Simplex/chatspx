@@ -88,6 +88,7 @@ class Flow < ApplicationRecord
   validates :name, presence: true
   validate :definition_shape
   validate :definition_action_names
+  validate :interactive_nodes_are_sendable
 
   # F1 (R-2) — gatilho `external_webhook`: um endpoint PÚBLICO dispara o flow via POST externo.
   # A segurança inteira repousa sobre um token forte e não-adivinhável que IDENTIFICA o flow (o
@@ -197,6 +198,40 @@ class Flow < ApplicationRecord
       .select { |node| node.is_a?(Hash) && node['type'] == 'action' }
       .filter_map { |node| node['action_name'] }
       .uniq
+  end
+
+  # `send_interactive` sem corpo é ACEITO por aqui mas RECUSADO pela Meta na entrega
+  # ("The parameter interactive.body.text is required" — o body é obrigatório em interactive).
+  # A mensagem morre com status failed, o contato não vê nada e o `wait_for_reply` seguinte arma
+  # a espera do mesmo jeito: o atendente vê "menu enviado", o cliente vê silêncio e a conversa
+  # fica presa. Um nó sem nenhuma opção com título também não tem lista/botão a enviar
+  # (sanitize_interactive_items descarta item sem título e o serviço levanta StepSkip).
+  # Validar na gravação impede que a configuração quebrada chegue ao ar por qualquer cliente da
+  # API — o canvas valida antes, mas ele não é a única porta.
+  def interactive_nodes_are_sendable
+    return unless definition.is_a?(Hash) && definition['nodes'].is_a?(Array)
+
+    interactive_nodes.each { |node| validate_interactive_node(node) }
+  end
+
+  def interactive_nodes
+    definition['nodes'].select do |node|
+      node.is_a?(Hash) && node['type'] == 'action' && node['action_name'] == 'send_interactive'
+    end
+  end
+
+  def validate_interactive_node(node)
+    config = Array(node['action_params']).first
+    config = {} unless config.is_a?(Hash)
+
+    errors.add(:definition, "node #{node['id']}: send_interactive requires a non-blank content") if config['content'].to_s.strip.blank?
+    return if interactive_titled_item?(config)
+
+    errors.add(:definition, "node #{node['id']}: send_interactive requires at least one option with a title")
+  end
+
+  def interactive_titled_item?(config)
+    Array(config['items']).any? { |item| item.is_a?(Hash) && item['title'].to_s.strip.present? }
   end
 end
 

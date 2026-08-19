@@ -26,8 +26,18 @@ import {
   FAMILIES,
   PALETTE_SECTIONS,
   familyForNode,
+  labelForNode,
 } from './nodeCatalog';
 import { repliesFromInteractiveNode } from './waitForReply';
+import { validateDefinition, errorsOf, warningsOf } from './flowValidation';
+import {
+  serializeNodes,
+  parseNodesPayload,
+  pasteNodes,
+  serializeFlow,
+  parseFlowFile,
+  fileNameFor,
+} from './flowIO';
 import { flatToDefinition } from './flatToDefinition';
 import { flowTemplateByKey } from './flowTemplates';
 import { computeTreeLayout, H_SPACING, V_SPACING } from './flowLayout';
@@ -100,6 +110,13 @@ const showLogs = ref(false);
 // flow novo (sem id, nada a mostrar) — a ausência de stat é o estado padrão da pill.
 const nodeStats = ref({});
 
+// Área de transferência de BLOCOS. O ref interno é a fonte confiável (funciona sempre, mesmo sem
+// permissão de clipboard); o clipboard do SO é um espelho best-effort que permite colar entre
+// abas/fluxos, como no n8n. Ler o clipboard exige permissão do navegador — por isso o ref vem
+// primeiro e a leitura externa é só o fallback.
+const clipboard = ref(null);
+const fileInput = ref(null);
+
 // Histórico undo/redo da definition. `suppressHistory` blinda o watcher enquanto aplicamos um
 // snapshot (undo/redo) ou o echo read-only do webhook_token — mutações que NÃO são edições do
 // usuário e não devem virar passos de undo nem marcar o fluxo como sujo.
@@ -165,14 +182,94 @@ const onBeforeUnload = event => {
   event.returnValue = '';
 };
 
-// Ctrl/Cmd+Z = desfazer; Ctrl/Cmd+Shift+Z ou Ctrl+Y = refazer.
+const selectedNode = computed(
+  () =>
+    (definition.value.nodes || []).find(
+      node => String(node.id) === String(selectedNodeId.value)
+    ) || null
+);
+
+// ------------------------------------------------------------------ copiar / colar blocos
+
+// Ctrl/Cmd+C: guarda o bloco selecionado. Espelha no clipboard do SO para permitir colar em
+// OUTRO fluxo/aba; se o navegador negar a permissão, o ref interno já basta para colar aqui.
+const copySelectedNode = async () => {
+  const node = selectedNode.value;
+  if (!node) return;
+  const payload = serializeNodes([node]);
+  clipboard.value = payload;
+  try {
+    await navigator.clipboard?.writeText(JSON.stringify(payload));
+  } catch (error) {
+    // Sem permissão de clipboard: seguimos só com o ref interno.
+  }
+  useAlert(t('AUTOMATION.CANVAS.COPIED'));
+};
+
+// Ctrl/Cmd+V: o ref interno tem prioridade; sem ele, tenta o clipboard do SO (colar vindo de
+// outro fluxo). Qualquer conteúdo que não seja um payload de blocos é ignorado em silêncio —
+// colar um texto qualquer no canvas não pode virar erro na cara do usuário.
+const readClipboardPayload = async () => {
+  if (clipboard.value) return clipboard.value;
+  try {
+    return parseNodesPayload(await navigator.clipboard.readText());
+  } catch (error) {
+    return null;
+  }
+};
+
+const pasteFromClipboard = async () => {
+  const payload = await readClipboardPayload();
+  if (!payload) return;
+  const { definition: next, ids } = pasteNodes(definition.value, payload);
+  definition.value = next;
+  selectedNodeId.value = ids[0] ?? null;
+  useAlert(t('AUTOMATION.CANVAS.PASTED'));
+};
+
+// Duplicar = copiar+colar num passo (botão do painel e Ctrl/Cmd+D), sem tocar no clipboard.
+const duplicateSelectedNode = () => {
+  const node = selectedNode.value;
+  if (!node) return;
+  const { definition: next, ids } = pasteNodes(
+    definition.value,
+    serializeNodes([node])
+  );
+  definition.value = next;
+  selectedNodeId.value = ids[0] ?? null;
+};
+
+// Atalhos do canvas. TODOS são ignorados quando o foco está num campo de texto — lá o
+// Ctrl+C/V/Z do navegador tem de continuar valendo para o texto que o usuário está editando.
+//   Ctrl/Cmd+Z          desfazer          Ctrl/Cmd+Shift+Z / Ctrl+Y  refazer
+//   Ctrl/Cmd+C          copiar bloco      Ctrl/Cmd+V                 colar bloco
+//   Ctrl/Cmd+D          duplicar bloco
 const onKeydown = event => {
   if (!(event.ctrlKey || event.metaKey)) return;
+  if (isEditableTarget(event.target)) return;
   const key = event.key.toLowerCase();
+
+  if (key === 'c' && !event.shiftKey) {
+    if (!selectedNode.value) return;
+    event.preventDefault();
+    copySelectedNode();
+    return;
+  }
+  if (key === 'v' && !event.shiftKey) {
+    event.preventDefault();
+    pasteFromClipboard();
+    return;
+  }
+  if (key === 'd' && !event.shiftKey) {
+    if (!selectedNode.value) return;
+    event.preventDefault();
+    duplicateSelectedNode();
+    return;
+  }
+
   const wantsRedo = (key === 'z' && event.shiftKey) || key === 'y';
   const wantsUndo = key === 'z' && !event.shiftKey;
   if (!wantsRedo && !wantsUndo) return;
-  if (isEditableTarget(event.target)) return;
   event.preventDefault();
   if (wantsRedo) redo();
   else undo();
@@ -288,13 +385,6 @@ const branchMeta = edge => {
   }
   return { label: String(branch), color: null };
 };
-
-const selectedNode = computed(
-  () =>
-    (definition.value.nodes || []).find(
-      node => String(node.id) === String(selectedNodeId.value)
-    ) || null
-);
 
 // Uma posição é "manual" quando o usuário a arrastou (persistida em definition.node.position).
 // Essas são RESPEITADAS; os demais nós recebem a posição derivada do auto-layout em árvore.
@@ -623,25 +713,6 @@ const removeSelectedNode = () => {
   if (selectedNodeId.value != null) removeNodeIds([selectedNodeId.value]);
 };
 
-// Persiste a(s) posição(ões) após arrastar — assim o layout do usuário sobrevive ao reload.
-const onNodeDragStop = ({ nodes: dragged }) => {
-  if (!dragged?.length) return;
-  const moved = new Map(
-    dragged.map(n => [
-      String(n.id),
-      { x: Math.round(n.position.x), y: Math.round(n.position.y) },
-    ])
-  );
-  definition.value = {
-    ...definition.value,
-    nodes: (definition.value.nodes || []).map(node =>
-      moved.has(String(node.id))
-        ? { ...node, position: moved.get(String(node.id)) }
-        : node
-    ),
-  };
-};
-
 const onNodeClick = ({ node }) => {
   selectedNodeId.value = node?.id ?? null;
 };
@@ -727,6 +798,73 @@ const triggerPayload = triggerNode => {
   return { trigger_type: 'manual', trigger_config: {} };
 };
 
+// ------------------------------------------------------------------ exportar / importar
+
+const exportFlow = () => {
+  const triggerNode = (definition.value.nodes || []).find(
+    node => node.type === 'trigger'
+  );
+  const payload = serializeFlow({
+    name: name.value,
+    definition: definition.value,
+    ...triggerPayload(triggerNode),
+  });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileNameFor(name.value);
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
+const onImportFile = async event => {
+  const file = event.target.files?.[0];
+  event.target.value = ''; // permite reimportar o MESMO arquivo depois de corrigi-lo
+  if (!file) return;
+  // Substituir o grafo é destrutivo: confirma sempre que já houver algo no canvas.
+  if (
+    (definition.value.nodes || []).length &&
+    // eslint-disable-next-line no-alert
+    !window.confirm(t('AUTOMATION.CANVAS.IMPORT_CONFIRM'))
+  ) {
+    return;
+  }
+  try {
+    const imported = parseFlowFile(await file.text());
+    definition.value = imported.definition;
+    // O nome do arquivo importado só entra num fluxo NOVO; num fluxo existente manter o nome
+    // atual evita renomear sem querer um flow que já está no ar.
+    if (!isEdit.value && imported.name) name.value = imported.name;
+    selectedNodeId.value = null;
+    nextTick(() => flowInstance.value?.fitView({ padding: 0.2 }));
+    useAlert(t('AUTOMATION.CANVAS.IMPORTED'));
+  } catch (error) {
+    useAlert(t('AUTOMATION.CANVAS.IMPORT_ERROR'));
+  }
+};
+
+// Persiste a(s) posição(ões) após arrastar — assim o layout do usuário sobrevive ao reload.
+const onNodeDragStop = ({ nodes: dragged }) => {
+  if (!dragged?.length) return;
+  const moved = new Map(
+    dragged.map(n => [
+      String(n.id),
+      { x: Math.round(n.position.x), y: Math.round(n.position.y) },
+    ])
+  );
+  definition.value = {
+    ...definition.value,
+    nodes: (definition.value.nodes || []).map(node =>
+      moved.has(String(node.id))
+        ? { ...node, position: moved.get(String(node.id)) }
+        : node
+    ),
+  };
+};
+
 // Validação mínima antes de persistir: nome, ao menos um gatilho e uma ação. Evita criar um
 // fluxo vazio/inutilizável (o backend aceitaria, mas ele não faria nada).
 const validationError = () => {
@@ -740,6 +878,55 @@ const validationError = () => {
   return null;
 };
 
+// Nome legível do bloco para as mensagens de validação ("Enviar opções", "Aguardar resposta"…).
+const nodeLabel = nodeId => {
+  const node = (definition.value.nodes || []).find(
+    item => String(item.id) === String(nodeId)
+  );
+  return node ? t(labelForNode(node)) : String(nodeId);
+};
+
+const describeFinding = finding =>
+  `• ${nodeLabel(finding.nodeId)}: ${t(finding.key, finding.params)}`;
+
+// Leva o usuário até o bloco problemático em vez de só reclamar: seleciona (abre o painel de
+// configuração no campo em falta) e centraliza o canvas nele.
+const focusNode = nodeId => {
+  selectedNodeId.value = String(nodeId);
+  nextTick(() =>
+    flowInstance.value?.fitView({
+      nodes: [String(nodeId)],
+      padding: 0.6,
+      duration: 300,
+    })
+  );
+};
+
+// Portão de qualidade do grafo (ver flowValidation.js). Erros BLOQUEIAM — um campo obrigatório
+// em branco vira mensagem recusada pela Meta e conversa parada. Avisos só pedem confirmação.
+// Devolve true quando o save pode seguir.
+const graphGatePassed = () => {
+  const findings = validateDefinition(definition.value);
+  const errors = errorsOf(findings);
+  if (errors.length) {
+    focusNode(errors[0].nodeId);
+    useAlert(
+      `${t('AUTOMATION.CANVAS.VALIDATION.BLOCKED')}\n${errors
+        .map(describeFinding)
+        .join('\n')}`
+    );
+    return false;
+  }
+  const warnings = warningsOf(findings);
+  if (!warnings.length) return true;
+  // eslint-disable-next-line no-alert
+  return window.confirm(
+    `${t('AUTOMATION.CANVAS.VALIDATION.WARNINGS')}\n\n${warnings
+      .map(describeFinding)
+      .join('\n')}\n\n${t('AUTOMATION.CANVAS.VALIDATION.SAVE_ANYWAY')}`
+  );
+};
+
 const save = async () => {
   if (isSaving.value) return;
   const invalid = validationError();
@@ -747,6 +934,7 @@ const save = async () => {
     useAlert(invalid);
     return;
   }
+  if (!graphGatePassed()) return;
   isSaving.value = true;
   try {
     const triggerNodes = (definition.value.nodes || []).filter(
@@ -796,12 +984,19 @@ const save = async () => {
   }
 };
 
-onBeforeRouteLeave(
-  () =>
-    !isDirty.value ||
-    // eslint-disable-next-line no-alert
-    window.confirm(t('AUTOMATION.CANVAS.UNSAVED_CONFIRM'))
-);
+// Sair da tela com trabalho não salvo: confirma. Quando há CAMPO OBRIGATÓRIO em branco a
+// mensagem os lista pelo nome — sair ali significa perder o fluxo por um texto que faltou.
+onBeforeRouteLeave(() => {
+  if (!isDirty.value) return true;
+  const errors = errorsOf(validateDefinition(definition.value));
+  const message = errors.length
+    ? `${t('AUTOMATION.CANVAS.VALIDATION.BLOCKED')}\n${errors
+        .map(describeFinding)
+        .join('\n')}\n\n${t('AUTOMATION.CANVAS.UNSAVED_CONFIRM')}`
+    : t('AUTOMATION.CANVAS.UNSAVED_CONFIRM');
+  // eslint-disable-next-line no-alert
+  return window.confirm(message);
+});
 </script>
 
 <template>
@@ -870,6 +1065,34 @@ onBeforeRouteLeave(
         >
           <span class="i-lucide-redo-2" />
         </button>
+      </div>
+      <div class="flex items-center gap-0.5">
+        <button
+          class="grid rounded-lg size-8 place-items-center text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2"
+          :aria-label="t('AUTOMATION.CANVAS.EXPORT')"
+          :title="t('AUTOMATION.CANVAS.EXPORT')"
+          data-testid="canvas-export"
+          @click="exportFlow"
+        >
+          <span class="i-lucide-download" />
+        </button>
+        <button
+          class="grid rounded-lg size-8 place-items-center text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2"
+          :aria-label="t('AUTOMATION.CANVAS.IMPORT')"
+          :title="t('AUTOMATION.CANVAS.IMPORT')"
+          data-testid="canvas-import"
+          @click="fileInput?.click()"
+        >
+          <span class="i-lucide-upload" />
+        </button>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="application/json,.json"
+          class="hidden"
+          data-testid="canvas-import-input"
+          @change="onImportFile"
+        />
       </div>
       <button
         v-if="isEdit"
@@ -1001,9 +1224,11 @@ onBeforeRouteLeave(
       <ConfigPanel
         v-if="selectedNode"
         :node="selectedNode"
+        :definition="definition"
         @close="onPaneClick"
         @update="updateSelectedNode"
         @delete="removeSelectedNode"
+        @duplicate="duplicateSelectedNode"
       />
     </div>
 
