@@ -158,7 +158,13 @@ Rails.application.routes.draw do
               get :logs
               get :stats
             end
-            post :import, on: :collection
+            collection do
+              post :import
+              # 6.05 — o relatorio do teste A/B. E de COLECAO porque um experimento atravessa
+              # varios flows (as variantes); pendura-lo num flow so obrigaria a tela a escolher
+              # qual deles e "o dono" do experimento, que e uma pergunta sem resposta.
+              get :experiment
+            end
           end
           resources :sla_policies, only: [:index, :create, :show, :update, :destroy]
           resources :custom_roles, only: [:index, :create, :show, :update, :destroy]
