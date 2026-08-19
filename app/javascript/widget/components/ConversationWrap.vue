@@ -317,8 +317,11 @@ export default {
              Pôr o `v-memo` no PRÓPRIO `<template v-for>` mantém as duas coisas:
              `_isMemoSame` volta ao código gerado, o marcador continua irmão da
              mensagem, e nenhum nó extra entra no DOM. Que ele está ativo está
-             medido em `specs/memoDaLinha.spec.js` — pela render function
-             compilada, não pela leitura deste comentário.
+             medido em `specs/memoDaLinha.spec.js` — pelo TEMPLATE compilado,
+             não pela leitura deste comentário. E não pela contagem de renders
+             do filho: essa passa com o `v-memo` removido por completo, porque o
+             Vue já não re-renderiza filho de props inalteradas. O memo age uma
+             camada antes, no VNode, onde espião nenhum no filho enxerga.
 
              As três chaves: a mensagem (identidade nova = o store mexeu), a
              classe de agrupamento e o idioma. A mensagem aqui é a ANOTADA por
