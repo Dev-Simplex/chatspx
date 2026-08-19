@@ -5,6 +5,7 @@ import {
   getDarkMode,
   getWidgetStyle,
 } from '../sdk/settingsHelper';
+import { mergeSnippetConfig } from '../sdk/snippetConfig';
 import {
   publishDefaults,
   updateConsent,
@@ -113,7 +114,24 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     restoreWidgetInDOM(event.newDocument.body)
   );
 
-  const chatwootSettings = window.chatwootSettings || {};
+  // Bloco 5.18 — configuracao tambem pode vir por `data-*` no proprio snippet. Identidade e
+  // credencial NAO: o snippet e HTML, aparece no view-source e entra em cache de CDN. A recusa e
+  // ALTA E VISIVEL — recusa silenciosa faria o integrador achar que configurou.
+  const snippetEl =
+    document.currentScript ||
+    document.querySelector('script[data-chatspx-snippet]') ||
+    document.getElementById('chatwoot-sdk');
+  const { settings: chatwootSettings, rejected: recusadasDoSnippet } =
+    mergeSnippetConfig(window.chatwootSettings || {}, snippetEl?.dataset || {});
+
+  if (recusadasDoSnippet.length) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[ChatSPX] O snippet trouxe ${recusadasDoSnippet.length} atributo(s) que NAO viajam por data-*: ` +
+        `${recusadasDoSnippet.join(', ')}. Identidade e credencial so pela API JS (setUser/updateUser), ` +
+        'porque o snippet e HTML publico.'
+    );
+  }
   let locale = chatwootSettings.locale;
   let baseDomain = chatwootSettings.baseDomain;
 
