@@ -53,7 +53,18 @@
       "VALIDATION": {
         "NAME_REQUIRED": "Name the flow before saving",
         "TRIGGER_REQUIRED": "Add a trigger to start the flow",
-        "ACTION_REQUIRED": "Add at least one action to the flow"
+        "ACTION_REQUIRED": "Add at least one action to the flow",
+        "BLOCKED": "Fix these before saving:",
+        "WARNINGS": "The flow can be saved, but these look unfinished:",
+        "SAVE_ANYWAY": "Save anyway?",
+        "INTERACTIVE_BODY_REQUIRED": "the message body is empty. WhatsApp rejects an interactive message without body text, so the menu never reaches the contact.",
+        "INTERACTIVE_ITEMS_REQUIRED": "add at least one option with a title.",
+        "INTERACTIVE_VALUE_REQUIRED": "every option needs a value — it is the id WhatsApp returns and what the branch matches on.",
+        "MESSAGE_BODY_REQUIRED": "the message text is empty.",
+        "WAIT_REPLIES_REQUIRED": "add at least one expected reply, otherwise there is no output to branch to.",
+        "WAIT_FALLBACK_MISSING": "the \"No match\" output is not connected and there is no timeout. Any reply outside the list ends the flow silently.",
+        "WAIT_KEY_UNMATCHED": "the value \"{key}\" does not match any option sent by the previous block.",
+        "PORT_NOT_CONNECTED": "the \"{key}\" output is not connected to anything."
       },
       "EMPTY": "Pick a block from the palette to start",
       "FAMILIES": {
@@ -132,7 +143,8 @@
           "DESCRIPTION_PLACEHOLDER": "Description (list only, optional)",
           "TITLE_REQUIRED": "Title is required",
           "VALUE_REQUIRED": "Value is required",
-          "FORMAT_HINT": "Up to 3 options become buttons; 4 or more become a list."
+          "FORMAT_HINT": "Up to 3 options become buttons; 4 or more become a list.",
+          "BODY_REQUIRED": "Required. WhatsApp rejects an interactive message without body text."
         },
         "CTA_URL": {
           "BODY_LABEL": "Message",
@@ -312,7 +324,11 @@
           "TIMEOUT_VALUE_PLACEHOLDER": "e.g. 1",
           "TIMEOUT_PORT": "Timed out",
           "FALLBACK_PORT": "No match",
-          "OUTPUTS_HINT": "Each reply becomes an output; connect each to the desired action. 'No match' and 'Timed out' have their own outputs."
+          "OUTPUTS_HINT": "Each reply becomes an output; connect each to the desired action. 'No match' and 'Timed out' have their own outputs.",
+          "KEY_SELECT_HINT": "Taken from the options of the previous block, so the value always matches.",
+          "KEY_CUSTOM": "{key} (not in the previous block)",
+          "SYNC_FROM_INTERACTIVE": "Sync with the options",
+          "SYNC_FROM_INTERACTIVE_HINT": "Rebuilds the replies from the options of the connected block."
         },
         "SNOOZE": {
           "VALUE_LABEL": "Snooze for",
@@ -434,7 +450,17 @@
         "GENERIC": {
           "NO_PARAMS": "This block has no settings to configure."
         }
-      }
+      },
+      "MOVE_UP": "Move up",
+      "MOVE_DOWN": "Move down",
+      "DUPLICATE": "Duplicate block (Ctrl+D)",
+      "COPIED": "Block copied. Press Ctrl+V to paste it.",
+      "PASTED": "Block pasted",
+      "EXPORT": "Export flow to a file",
+      "IMPORT": "Import flow from a file",
+      "IMPORTED": "Flow imported",
+      "IMPORT_ERROR": "This file is not a valid flow.",
+      "IMPORT_CONFIRM": "Importing replaces every block on the canvas. Continue?"
     },
     "TEMPLATES": {
       "BUTTON": "Templates",
