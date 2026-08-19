@@ -176,6 +176,11 @@ tag do GTM interromperia as tags seguintes do seu contêiner. O erro aparece no 
 Chamar `track()` duas vezes com o mesmo nome cria **dois** eventos: cada chamada carrega a própria
 chave de idempotência. O que não duplica é o reenvio da **mesma** chamada quando a rede falha.
 
+**E para no `dataLayer`.** O evento próprio do seu site **não** dispara Meta, GA4 nem Google Ads
+sozinho — quem decide o que fazer com ele é você, no seu GTM, com as regras da sua conta. Os eventos
+que disparam tags são os da tabela da sub-aba **Eventos**, porque para esses você configurou o nome
+de destino de cada um.
+
 **O caminho para ver um evento de ponta a ponta, sem escrever código:**
 
 1. instale (passo 1) e abra o chat no site;
