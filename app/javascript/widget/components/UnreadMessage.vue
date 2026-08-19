@@ -35,6 +35,10 @@ export default {
       type: Number,
       default: null,
     },
+    classeAgrupamento: {
+      type: String,
+      default: null,
+    },
   },
   setup() {
     const { formatMessage, getPlainText, truncateMessage, highlightContent } =
@@ -97,7 +101,7 @@ export default {
 </script>
 
 <template>
-  <div class="chat-bubble-wrap">
+  <div class="chat-bubble-wrap" :class="classeAgrupamento">
     <!-- `bg-white` SEM variante `dark:` é INTENCIONAL. Não "conserte".
          Estas bolhas não vivem no painel: o holder do modo não-lidas é despido
          (`.has-unread-view` zera sombra, borda e raio no `SDK_CSS`), então elas

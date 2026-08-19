@@ -105,10 +105,20 @@ RSpec.describe WidgetTokens do
     end
   end
 
-  describe 'os fallbacks de _tokens.scss são os mesmos que este serviço calcula' do
+  describe 'os fallbacks do SCSS são os mesmos que este serviço calcula' do
     # Fórmula duplicada é fórmula que diverge. Aqui o SCSS e o Ruby são
     # comparados: mexer num só quebra este teste.
-    let(:scss) { File.read(File.expand_path('../../app/javascript/widget/assets/scss/_tokens.scss', __dir__)) }
+    #
+    # ⚠️ O CAMINHO MUDOU, e a guarda estava QUEBRADA — achado do bloco 2.03.
+    # O bloco 3.10 recortou os valores de `_tokens.scss` para
+    # `_tokens_values.scss` (para o preview do dashboard consumir os mesmos
+    # mixins) e não moveu este caminho junto. Desde `ce5b47aa6e` os seis
+    # exemplos abaixo liam um arquivo que já não declara token nenhum, a regex
+    # devolvia `nil` e os seis falhavam. Uma guarda contra divergência que está
+    # vermelha há semanas não guarda nada: ela vira ruído que se aprende a
+    # ignorar, e foi exatamente sob ela que `SURFACE_DARK` pôde ficar calibrado
+    # contra a superfície errada.
+    let(:scss) { File.read(File.expand_path('../../app/javascript/widget/assets/scss/_tokens_values.scss', __dir__)) }
     let(:tokens) { described_class.new('#2dc46f') }
 
     {
@@ -123,6 +133,43 @@ RSpec.describe WidgetTokens do
         declared = scss[/^\s*#{Regexp.escape(css_name)}:\s*([^;]+);/, 1]
         expect(declared).to eq(tokens.public_send(method))
       end
+    end
+
+    it 'a regex acha ALGUMA coisa — a guarda não pode voltar a comparar nil' do
+      # Sem esta linha, mover os valores de arquivo outra vez faria os seis
+      # exemplos acima falharem com `nil`, e alguém poderia lê-los como
+      # "divergiu" em vez de "a guarda perdeu o arquivo". Foi o que aconteceu.
+      expect(scss).to include('--w-brand:')
+    end
+  end
+
+  describe 'a superfície escura de referência é o BALÃO, não o painel' do
+    # Achado do bloco 2.03, medido em Chromium: `--w-brand-readable-dark` pinta
+    # o link dentro do balão do agente, e no tema escuro esse balão é
+    # `bg-n-solid-3` (#2c2d36) — mais claro que o painel (#121213). Calibrando
+    # contra o painel, o link chegava ao balão ABAIXO de 4,5:1.
+    it 'é a mesma cor que `--solid-3` do tema escuro' do
+      values = File.read(File.expand_path('../../app/javascript/widget/assets/scss/_tokens_values.scss', __dir__))
+      dark = values[/@mixin widget-palette-dark.*?\n\}/m]
+      channels = dark[/^\s*--solid-3:\s*([^;]+);/, 1].split.map(&:to_i)
+
+      expect(described_class.hex(channels)).to eq(described_class::SURFACE_DARK)
+    end
+
+    it 'as duas cores de teste e o DEFAULT cruzam 4,5:1 sobre o balão escuro' do
+      # `#1f93ff` é o default de `channel_web_widgets.widget_color`: antes do
+      # ajuste ele media 4,3470:1, ou seja, a inbox que ninguém configurou
+      # nascia reprovando o aceite 2 da §C.5.
+      ['#009CE0', '#2DC46F', described_class::DEFAULT_BRAND].each do |brand|
+        readable = described_class.new(brand).brand_readable_dark
+        expect(described_class.contrast_ratio(readable, described_class::SURFACE_DARK)).to be >= 4.5
+      end
+    end
+
+    it 'a marca que já passava volta INTACTA' do
+      # O serviço só altera a marca do cliente quando ela seria ilegível. Mudar
+      # a superfície de referência não pode transformar isso em "mexe sempre".
+      expect(described_class.new('#2dc46f').brand_readable_dark).to eq('#2dc46f')
     end
   end
 
