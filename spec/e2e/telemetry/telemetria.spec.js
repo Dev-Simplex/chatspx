@@ -19,7 +19,8 @@
  * pessoas, e está registrado no relatório como o passo que depende de
  * autorização.
  */
-const { test, expect } = require('@playwright/test');
+// Bloco 0.11 — fixture anti-erro. Import DAQUI, nunca de `@playwright/test`.
+const { test, expect } = require('../fixtures');
 const { iniciarServidor } = require('./harness/hostServer');
 
 let servidor;
@@ -134,6 +135,25 @@ test.describe('2.13 — o relatório sai, e sai raspado', () => {
 });
 
 test.describe('2.13 — nada vaza para o site do cliente', () => {
+  // Bloco 0.11 — ESCAPE POR CENÁRIO, não da lista global.
+  //
+  // Este describe DERRUBA o endpoint de telemetria de propósito: é exatamente o caminho de
+  // falha que ele existe para exercitar ("o endpoint fora do ar não gera `unhandledrejection`
+  // no pai"). O `POST` que não completa é o cenário, não defeito — e o que se está provando é
+  // justamente que ele NÃO vira erro visível no site do cliente.
+  //
+  // Por que aqui e não em `IGNORAR`: a lista global é só para AMBIENTE (dependência externa
+  // não provisionada). Isto é produto, é deliberado, e é deste describe. Pôr na lista global
+  // cegaria o fixture para uma falha real de telemetria em qualquer outro cenário.
+  test.use({
+    errosEsperados: {
+      padroes: [
+        /\/api\/v1\/widget\/telemetry — net::ERR_(ABORTED|FAILED)/,
+        /Failed to load resource: net::ERR_FAILED/,
+      ],
+    },
+  });
+
   test('o erro registrado não aparece no `window.onerror` do pai', async ({
     page,
   }) => {

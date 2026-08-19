@@ -20,7 +20,9 @@
  * no caminho — a cicatriz que proíbe validar por `127.0.0.1` é sobre requisição que
  * passa pelo Rails.
  */
-const { test, expect } = require('@playwright/test');
+// Bloco 0.11 — o fixture anti-erro (ver `spec/e2e/fixtures.js`). Import DAQUI, nunca de
+// `@playwright/test`: e a regra MUST do §10.3 do PLANO-MESTRE.
+const { test, expect } = require('../../fixtures');
 
 const TITULO_COM_EMOJI = '🔥 Política de trocas e devoluções';
 const TITULO_SEM_EMOJI = 'Política de trocas e devoluções';

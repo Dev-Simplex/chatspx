@@ -16,7 +16,8 @@
  * EFÊMERA dentro do processo do teste: este arquivo não encosta no harness de
  * porta fixa do widget (3038/3999/8899).
  */
-const { test, expect } = require('@playwright/test');
+// Bloco 0.11 — fixture anti-erro. Import DAQUI, nunca de `@playwright/test`.
+const { test, expect } = require('../fixtures');
 const { iniciarServidor } = require('./harness/hostServer');
 
 let servidor;
@@ -35,6 +36,21 @@ const bloquearBundle = page =>
 const linkDe = page => page.locator('#cw-fallback-link');
 
 test.describe('2.14 — o bundle falhou', () => {
+  // Bloco 0.11 — ESCAPE POR CENÁRIO. O título do describe é a justificativa: este bloco
+  // BLOQUEIA o `sdk.js` de propósito, para provar que o link de contato alternativo aparece
+  // quando o bundle não carrega. O `ERR_BLOCKED_BY_CLIENT` é o cenário sendo montado.
+  //
+  // O describe irmão ("o bundle carregou normalmente") NÃO tem escape nenhum, e é isso que
+  // mantém o fixture útil aqui: se o `sdk.js` passar a falhar no caminho feliz, reprova.
+  test.use({
+    errosEsperados: {
+      padroes: [
+        /\/packs\/js\/sdk\.js — net::ERR_BLOCKED_BY_CLIENT/,
+        /Failed to load resource: net::ERR_BLOCKED_BY_CLIENT/,
+      ],
+    },
+  });
+
   test('o link alternativo aparece, visível e clicável', async ({ page }) => {
     await bloquearBundle(page);
     await page.goto(servidor.origem, { waitUntil: 'domcontentloaded' });
