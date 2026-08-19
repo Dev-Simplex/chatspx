@@ -220,5 +220,16 @@
     "BUTTON": "Continue on WhatsApp",
     "CONTEXT_PREFIX": "Hi! I came from the chat on {site}.",
     "CONTEXT_SUBJECT": "I asked: {subject}"
+  },
+  "AI_IDENTITY": {
+    "AI_LABEL": "Virtual assistant",
+    "HUMAN_LABEL": "Support team",
+    "HEADER_AI": "You are talking to the virtual assistant",
+    "HEADER_HUMAN": "You are talking to the team",
+    "HANDOFF_TO_HUMAN": "From here on, the team is answering",
+    "HANDOFF_TO_AI": "From here on, the virtual assistant is answering",
+    "BUBBLE_FROM_AI": "Message from the virtual assistant",
+    "BUBBLE_FROM_HUMAN": "Message from the team",
+    "STREAMING": "The assistant is typing"
   }
 }

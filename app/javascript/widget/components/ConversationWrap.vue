@@ -5,6 +5,8 @@ import DateSeparator from 'shared/components/DateSeparator.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import { useDarkMode } from 'widget/composables/useDarkMode';
 import { MESSAGE_TYPE } from 'shared/constants/messages';
+import AiHandoffMark from 'widget/components/AiHandoffMark.vue';
+import { annotateHandoffs } from 'widget/helpers/aiIdentity';
 import { mapActions, mapGetters } from 'vuex';
 
 export default {
@@ -12,6 +14,7 @@ export default {
   components: {
     ChatMessage,
     AgentTypingBubble,
+    AiHandoffMark,
     DateSeparator,
     Spinner,
   },
@@ -48,6 +51,19 @@ export default {
     // sair da mesma fonte.
     colorSchemeClass() {
       return this.prefersDarkMode ? 'dark-scheme' : 'light-scheme';
+    },
+    /**
+     * Bloco 4.09 — a 1a das tres marcacoes: o marcador de SISTEMA no fluxo.
+     *
+     * A anotacao roda sobre o grupo INTEIRO e em ordem, porque handoff e uma
+     * TRANSICAO: so se sabe que a equipe entrou comparando com quem falou antes.
+     * Anotar mensagem por mensagem, dentro do filho, nao teria essa informacao.
+     */
+    groupedMessagesWithHandoff() {
+      return this.groupedMessages.map(grupo => ({
+        ...grupo,
+        messages: annotateHandoffs(grupo.messages),
+      }));
     },
     showStatusIndicator() {
       const { status } = this.conversationAttributes;
@@ -123,22 +139,25 @@ export default {
       class="conversation-wrap"
       role="log"
       :aria-label="$t('A11Y.CONVERSATION_LOG')"
+      :aria-busy="isAgentTyping ? 'true' : 'false'"
       :class="{ 'is-typing': isAgentTyping }"
     >
       <div v-if="isFetchingList" class="message--loader">
         <Spinner />
       </div>
       <div
-        v-for="groupedMessage in groupedMessages"
+        v-for="groupedMessage in groupedMessagesWithHandoff"
         :key="groupedMessage.date"
         class="messages-wrap"
       >
         <DateSeparator :date="groupedMessage.date" />
-        <ChatMessage
-          v-for="message in groupedMessage.messages"
-          :key="message.id"
-          :message="message"
-        />
+        <template v-for="message in groupedMessage.messages" :key="message.id">
+          <AiHandoffMark
+            v-if="message.handoffMark"
+            :kind="message.handoffMark.kind"
+          />
+          <ChatMessage :message="message" />
+        </template>
       </div>
       <AgentTypingBubble v-if="showStatusIndicator" />
     </div>

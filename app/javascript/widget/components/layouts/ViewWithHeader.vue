@@ -5,6 +5,7 @@ import ChatHeader from '../ChatHeader.vue';
 import ChatHeaderExpanded from '../ChatHeaderExpanded.vue';
 import configMixin from '../../mixins/configMixin';
 import { mapGetters } from 'vuex';
+import { currentAttendant } from 'widget/helpers/aiIdentity';
 import { IFrameHelper } from 'widget/helpers/utils';
 
 export default {
@@ -28,7 +29,24 @@ export default {
     ...mapGetters({
       appConfig: 'appConfig/getAppConfig',
       availableAgents: 'agent/availableAgents',
+      conversation: 'conversation/getConversation',
     }),
+    /**
+     * Bloco 4.09 — quem atende AGORA, para o rotulo persistente do cabecalho.
+     *
+     * Resolvido AQUI e passado pronto: o cabecalho nao sabe ler mensagem, e nao
+     * deve passar a saber.
+     *
+     * `getConversation` devolve um objeto indexado por `message.id`
+     * (`conversation/mutations.js:70`). A ordem de `Object.values` sobre chave
+     * INTEIRA e numerica ascendente, nao de insercao — e e por isso que isto
+     * funciona: carregar mensagens antigas insere ids MENORES depois, e ainda
+     * assim a lista sai cronologica. Depender de ordem de insercao daria o
+     * atendente errado no header logo apos rolar para tras.
+     */
+    currentAttendant() {
+      return currentAttendant(Object.values(this.conversation || {}));
+    },
     portal() {
       return window.chatwootWebChannel.portal;
     },
@@ -132,6 +150,7 @@ export default {
           :avatar-url="channelConfig.avatarUrl"
           :show-popout-button="appConfig.showPopoutButton"
           :available-agents="availableAgents"
+          :attendant="currentAttendant"
           :show-back-button="showBackButton"
         />
       </div>
