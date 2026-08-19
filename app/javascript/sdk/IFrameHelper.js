@@ -23,6 +23,7 @@ import {
   removeUnreadClass,
 } from './bubbleHelpers';
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
+import { isMobileViewport } from './viewport';
 import { drenar } from './preBootQueue';
 import { montarTeaser } from './teaser';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
@@ -580,10 +581,11 @@ export const IFrameHelper = {
     IFrameHelper.montarTeaserSeConfigurado(bubbleHolder);
   },
   toggleCloseButton: () => {
-    let isMobile = false;
-    if (window.matchMedia('(max-width: 668px)').matches) {
-      isMobile = true;
-    }
-    IFrameHelper.sendMessage('toggle-close-button', { isMobile });
+    // Bloco 2.09: o numero vem de `sdk/viewport.js`. Aqui havia um limite
+    // proprio, e ele nao batia com o do CSS — em 668 px o CSS ja tratava como
+    // desktop enquanto este JS avisava o widget que era celular.
+    IFrameHelper.sendMessage('toggle-close-button', {
+      isMobile: isMobileViewport(),
+    });
   },
 };

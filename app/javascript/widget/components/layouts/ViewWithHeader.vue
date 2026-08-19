@@ -30,6 +30,7 @@ export default {
       appConfig: 'appConfig/getAppConfig',
       availableAgents: 'agent/availableAgents',
       conversation: 'conversation/getConversation',
+      isWidgetOpen: 'appConfig/getIsWidgetOpen',
     }),
     /**
      * Bloco 4.09 — quem atende AGORA, para o rotulo persistente do cabecalho.
@@ -94,6 +95,25 @@ export default {
       return {};
     },
   },
+  watch: {
+    /**
+     * Aceite 6 do bloco 2.05, a metade que NAO e do composer.
+     *
+     * Na view de mensagens quem toma o foco e o campo — `useComposer` cuida
+     * disso, e essa logica JA existia (a §C.9 alerta que reimplementar
+     * duplicaria). Na tela inicial nao ha campo: o composer nem esta montado. O
+     * foco vai para o `h1` do cabecalho, que por isso ganhou `tabindex="-1"` no
+     * bloco 2.06.
+     *
+     * E o motivo de nao focar um campo aqui e concreto: em celular, focar campo
+     * abre o teclado virtual e come metade da tela antes de o visitante ter lido
+     * qualquer coisa.
+     */
+    isWidgetOpen(aberto) {
+      if (!aberto || !this.isOnHomeView) return;
+      this.$nextTick(() => this.$el?.querySelector('h1')?.focus());
+    },
+  },
   mounted() {
     this.$el.addEventListener('scroll', this.updateScrollPosition);
   },
@@ -155,7 +175,12 @@ export default {
         />
       </div>
       <Banner />
-      <router-view />
+      <!-- A regiao principal da tela. Sem ela, quem navega por leitor de tela
+           nao tem para onde pular: o widget e um documento inteiro dentro de um
+           iframe, e o cabecalho e o rodape ja sao landmarks. -->
+      <main class="flex flex-col flex-1 min-h-0">
+        <router-view />
+      </main>
 
       <Branding v-if="!isOnArticleViewer" :disable-branding="disableBranding" />
     </div>

@@ -21,7 +21,7 @@ import { useDarkMode } from 'widget/composables/useDarkMode';
 import { watchDocumentTheme } from 'widget/helpers/documentTheme';
 import { useRouter } from 'vue-router';
 import { useAvailability } from 'widget/composables/useAvailability';
-import { registerBridgeListeners } from './bridge';
+import { registerWidgetListeners } from './bridge';
 import { emitter } from 'shared/helpers/mitt';
 
 export default {
@@ -262,7 +262,7 @@ export default {
       }
     },
     registerListeners() {
-      registerBridgeListeners(this);
+      registerWidgetListeners(this);
     },
     sendLoadedEvent() {
       IFrameHelper.sendMessage(loadedEventConfig());

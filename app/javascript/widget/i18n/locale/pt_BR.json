@@ -195,7 +195,9 @@
     "OPEN_WIDGET": "Abrir o chat",
     "AGENT_TYPING": "O agente está digitando",
     "AGENT_AVATAR": "Foto do agente",
-    "IMAGE_ATTACHMENT": "Imagem enviada na conversa"
+    "IMAGE_ATTACHMENT": "Imagem enviada na conversa",
+    "BACK": "Voltar",
+    "SEND_MESSAGE": "Enviar mensagem"
   },
   "CAPTURE": {
     "SUBMIT": "Enviar",

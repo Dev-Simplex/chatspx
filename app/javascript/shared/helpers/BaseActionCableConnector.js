@@ -129,8 +129,14 @@ class BaseActionCableConnector {
         WindowVisibilityHelper.isWindowVisible();
       const isStale =
         Date.now() - this.lastEventReceivedAt > STALE_EVENT_THRESHOLD;
-      if (isTabVisible && isStale && window.reconnectService) {
-        window.reconnectService.handleRouteSpecificFetch?.();
+      if (isTabVisible && isStale) {
+        // O dashboard refaz o fetch pela rota; o WIDGET nao tem
+        // `window.reconnectService` (medido: zero ocorrencias em
+        // `app/javascript/widget/`), e por isso este temporizador rodava a cada
+        // 15 s sem fazer nada la. `onStaleConnection` e o gancho que da a cada
+        // superficie o seu proprio trabalho — bloco 2.07.
+        window.reconnectService?.handleRouteSpecificFetch?.();
+        this.onStaleConnection();
         this.lastEventReceivedAt = Date.now();
       }
       this.triggerStaleCheckInterval();
@@ -178,6 +184,10 @@ class BaseActionCableConnector {
 
   // eslint-disable-next-line class-methods-use-this
   onDisconnected = () => {};
+
+  /** Chamado quando o fluxo silencia com a aba visivel. Vazio por padrao. */
+  // eslint-disable-next-line class-methods-use-this
+  onStaleConnection = () => {};
 
   disconnect() {
     this.isDestroyed = true;
