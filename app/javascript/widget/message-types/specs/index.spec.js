@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { createStore } from 'vuex';
 import { h } from 'vue';
 
-import { MESSAGE_TYPES, resolveMessageType } from '../index';
+import { MESSAGE_TYPES, resolveMessageType, CitationList } from '../index';
 import AgentMessageBubble from 'widget/components/AgentMessageBubble.vue';
 import TextContent from '../TextContent.vue';
 import EmailContent from '../EmailContent.vue';
@@ -157,5 +157,26 @@ describe('registry de content_type', () => {
         messageId: 42,
       });
     });
+  });
+});
+
+/**
+ * Bloco 6.03 — a citação sai do registry, mas NÃO é um `content_type`.
+ *
+ * O mapa continua com os mesmos 8 tipos: uma resposta em cartões pode citar tanto
+ * quanto uma em texto, então a citação é rodapé da bolha, não tipo de conteúdo.
+ * Mora no diretório do registry para viajar no mesmo chunk (A13).
+ */
+describe('6.03 — CitationList vem do registry sem virar tipo', () => {
+  it('é exportada pelo registry', () => {
+    expect(CitationList).toBeTruthy();
+    expect(CitationList.name).toBe('CitationList');
+  });
+
+  it('não entra no mapa de content_type', () => {
+    expect(Object.values(MESSAGE_TYPES).map(c => c.name)).not.toContain(
+      'CitationList'
+    );
+    expect(resolveMessageType('citation').name).toBe('TextContent');
   });
 });

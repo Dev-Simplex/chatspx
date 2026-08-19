@@ -233,5 +233,10 @@
     "BUBBLE_FROM_AI": "Message from the virtual assistant",
     "BUBBLE_FROM_HUMAN": "Message from the team",
     "STREAMING": "The assistant is typing"
+  },
+  "CITATION": {
+    "SOURCE": "Source:",
+    "OPEN_LABEL": "Open the document {documento}",
+    "FALLBACK_NAME": "document"
   }
 }

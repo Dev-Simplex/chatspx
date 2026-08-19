@@ -33,6 +33,9 @@ module Current
   # janela, o TraceRecorder empurra pra dentro e o guardrail lê. Thread-local + Puma
   # reusa threads => quem abre TEM que fechar num `ensure` (Captain::ToolTraceWindow).
   thread_mattr_accessor :captain_tool_traces
+  # 6.03 (citação de fonte): as fontes recuperadas DESTA resposta, em memória, para
+  # virarem metadado da mensagem. Mesma disciplina do de cima (Captain::CitationWindow).
+  thread_mattr_accessor :captain_citations
 
   def self.reset
     Current.user = nil
@@ -46,5 +49,6 @@ module Current
     Current.takeover_approval_in_progress = nil
     Current.inbox = nil
     Current.captain_tool_traces = nil
+    Current.captain_citations = nil
   end
 end
