@@ -515,6 +515,16 @@
         "EMPTY": "Esta caixa ainda não tem campanha de chat ao vivo. Crie uma em Campanhas para escrever o texto do convite — o gatilho decide quando ela aparece, e ela continua sendo editável no lugar de sempre.",
         "SIMULATE": "Simular o gatilho no preview",
         "SIMULATE_HINT": "Mostra o convite como o visitante vai vê-lo quando o gatilho disparar. É só a prévia — nada é enviado."
+      },
+      "LEGACY": {
+        "SECTION": "Modo antigo — campanhas desta caixa",
+        "SUPPRESSED": "Com o gatilho ligado, quem fala com o visitante é o convite acima. Estas campanhas continuam salvas e editáveis, mas não disparam sozinhas — desligue o gatilho para que voltem a aparecer, sem republicar nada.",
+        "STILL_RUNNING": "O gatilho está desligado, então estas campanhas continuam disparando normalmente, como sempre fizeram.",
+        "IMPORT": "Importar",
+        "IMPORT_ARIA": "Importar a campanha {campanha} como gatilho",
+        "IMPORTED": "Campanha importada como gatilho. Ela foi desativada — as duas nunca ficam ligadas ao mesmo tempo.",
+        "IMPORT_ERROR": "Não foi possível importar esta campanha.",
+        "UNNAMED": "sem título"
       }
     },
     "TRACKING": {

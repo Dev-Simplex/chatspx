@@ -515,6 +515,16 @@
         "EMPTY": "This inbox has no live chat campaign yet. Create one under Campaigns to write the invitation text — the trigger decides when it shows, and it stays editable where it always was.",
         "SIMULATE": "Simulate the trigger in the preview",
         "SIMULATE_HINT": "Shows the invitation the way the visitor will see it when the trigger fires. Preview only — nothing is sent."
+      },
+      "LEGACY": {
+        "SECTION": "Legacy mode — campaigns in this inbox",
+        "SUPPRESSED": "With the trigger on, the invitation above is what talks to the visitor. These campaigns stay saved and editable, but they do not fire on their own — turn the trigger off and they come back, with nothing to republish.",
+        "STILL_RUNNING": "The trigger is off, so these campaigns keep firing normally, exactly as they always have.",
+        "IMPORT": "Import",
+        "IMPORT_ARIA": "Import the campaign {campanha} as a trigger",
+        "IMPORTED": "Campaign imported as a trigger. It was disabled — the two are never on at the same time.",
+        "IMPORT_ERROR": "Could not import this campaign.",
+        "UNNAMED": "untitled"
       }
     },
     "TRACKING": {
