@@ -192,6 +192,9 @@ const runSDK = ({ baseUrl, websiteToken }) => {
       });
     },
 
+    // Bloco 5.17 — LEGADO, mantido intacto: `setUser` SUBSTITUI o contato. Para corrigir um campo
+    // sem apagar os outros, use `updateUser`. O metodo continua funcionando exatamente como antes;
+    // o que mudou neste bloco foi o hash de dedupe, que agora enxerga telefone, empresa e o resto.
     setUser(identifier, user) {
       return chamadaDeDados(
         'setUser',
@@ -204,7 +207,7 @@ const runSDK = ({ baseUrl, websiteToken }) => {
           }
           if (!hasUserKeys(user)) {
             throw new Error(
-              'User object should have one of the keys [avatar_url, email, name]'
+              'User object should have one of the keys [avatar_url, email, name, phone_number]'
             );
           }
         },
@@ -223,6 +226,43 @@ const runSDK = ({ baseUrl, websiteToken }) => {
           setCookieWithDomain(userCookieName, hashToBeStored, { baseDomain });
         }
       );
+    },
+
+    // Bloco 5.17 — o verbo que MESCLA: campo que voce nao mandar NAO e apagado.
+    updateUser(identifier, user) {
+      return chamadaDeDados(
+        'updateUser',
+        () => {
+          if (
+            typeof identifier !== 'string' &&
+            typeof identifier !== 'number'
+          ) {
+            throw new Error('Identifier should be a string or a number');
+          }
+          if (!hasUserKeys(user)) {
+            throw new Error(
+              'User object should have one of the keys [avatar_url, email, name, phone_number]'
+            );
+          }
+        },
+        () => {
+          // Sem cookie de dedupe aqui de proposito: `updateUser` existe para corrigir um campo, e
+          // deduplicar por hash faria a segunda correcao do mesmo campo virar silencio.
+          window.$chatwoot.identifier = identifier;
+          window.$chatwoot.user = { ...(window.$chatwoot.user || {}), ...user };
+          IFrameHelper.sendMessage('update-user', { identifier, user });
+        }
+      );
+    },
+
+    // Bloco 5.17 — getters. Ler o que foi identificado era possivel so espiando
+    // `window.$chatwoot.user`, que e estado interno; agora ha leitura declarada.
+    getUser() {
+      return window.$chatwoot.user || null;
+    },
+
+    getIdentifier() {
+      return window.$chatwoot.identifier || null;
     },
 
     setCustomAttributes(customAttributes = {}) {
