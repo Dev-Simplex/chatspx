@@ -18,6 +18,7 @@ import ConversationMedia from './ConversationMedia.vue';
 import ConversationParticipant from './ConversationParticipant.vue';
 import GroupParticipants from './GroupParticipants.vue';
 import ContactInfo from './contact/ContactInfo.vue';
+import SiteContext from './contact/SiteContext.vue';
 import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
 import KanbanStatus from './KanbanStatus.vue';
@@ -140,6 +141,50 @@ const contactAdditionalAttributes = computed(
     contact.value.additional_attributes ||
     {}
 );
+
+// ── Bloco 5.23 — o que o site nos contou ──────────────────────────────────────────────
+//
+// TUDO abaixo já está na memória do painel: `custom_attributes` vêm no payload da conversa e
+// do contato, e as definições (de onde saem os rótulos, já traduzidos pelo servidor) a store
+// de atributos carrega para desenhar a lista de atributos personalizados. Nenhuma requisição
+// nova — é reorganização do que já chega, que é o aceite do bloco.
+//
+// MEDIDO NA MUTATION REAL da store (`specs/siteContextStoreShape.spec.js`), não presumido pela
+// forma do nome — que foi como o "Endereço IP" se perdeu no 1.17.
+//
+// O resultado surpreende e por isso está escrito aqui: `stopPaths: ['custom_attributes']`
+// protege o CONTEÚDO (as chaves `first_utm_source` sobrevivem), mas **não a chave do topo** —
+// ela vira `customAttributes` como qualquer outra. Então o registro guarda
+// `contato.customAttributes.first_utm_source`: camelizado por fora, snake_case por dentro.
+//
+// Aceitamos as duas formas porque nem todo caminho passa pela store (o `meta.sender` do payload
+// da conversa chega cru), e porque assim esta seção não depende de como o defeito irmão
+// descrito no relatório for resolvido.
+const contactCustomAttributes = computed(
+  () =>
+    contact.value?.customAttributes || contact.value?.custom_attributes || {}
+);
+// A store de CONVERSAS não cameliza o payload (só os filtros salvos), então aqui a chave é
+// snake_case mesmo. A assimetria entre as duas stores é real e é a origem desta classe de bug.
+const conversationCustomAttributes = computed(
+  () =>
+    currentChat.value?.custom_attributes ||
+    currentChat.value?.customAttributes ||
+    {}
+);
+
+const attributesByModel = useMapGetter('attributes/getAttributesByModel');
+const originDefinitions = computed(() => [
+  ...(attributesByModel.value('contact_attribute') || []),
+  ...(attributesByModel.value('conversation_attribute') || []),
+]);
+
+// Bloco 4.15: o identificador que o site mandou, e se ele veio ASSINADO. Os dois já chegam —
+// `hmac_verified` vem em `meta` (o `ConversationHeader` já o lê).
+const siteIdentifier = computed(
+  () => currentChat.value?.meta?.sender?.identifier || ''
+);
+const isHmacVerified = computed(() => !!currentChat.value?.meta?.hmac_verified);
 
 const getContactDetails = () => {
   if (contactId.value) {
@@ -276,6 +321,24 @@ onMounted(() => {
               <ConversationInfo
                 :conversation-attributes="conversationAdditionalAttributes"
                 :contact-attributes="contactAdditionalAttributes"
+              />
+            </AccordionItem>
+          </div>
+          <div v-else-if="element.name === 'site_context'">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SITE_CONTEXT')"
+              :is-open="isContactSidebarItemOpen('is_site_context_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_site_context_open', value)
+              "
+            >
+              <SiteContext
+                :contact-attributes="contactCustomAttributes"
+                :conversation-attributes="conversationCustomAttributes"
+                :definitions="originDefinitions"
+                :identifier="siteIdentifier"
+                :hmac-verified="isHmacVerified"
               />
             </AccordionItem>
           </div>

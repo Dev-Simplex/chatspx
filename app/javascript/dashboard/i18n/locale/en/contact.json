@@ -18,6 +18,26 @@
     "IP_ADDRESS_REVEAL": "Show IP address",
     "IP_ADDRESS_HIDE": "Hide IP address",
     "IP_ADDRESS_MASKED": "Hidden",
+    "SITE_CONTEXT": {
+      "BADGE": "Received from the website",
+      "BADGE_TITLE": "This data was sent by the website — none of it was typed by an agent.",
+      "FIRST_TOUCH": "Where this person came from",
+      "THIS_CONVERSATION": "What brought this conversation",
+      "IDENTITY": "Identity",
+      "IDENTIFIED_AS": "Identified by the website as",
+      "SIGNATURE": "Signature",
+      "SIGNATURE_VERIFIED": "Verified — the website proved who it is",
+      "SIGNATURE_ABSENT": "Unsigned — the website only claimed it",
+      "ORIGIN_KIND": {
+        "BUSCA_PAGA": "Paid search",
+        "BUSCA_ORGANICA": "Organic search",
+        "SOCIAL": "Social",
+        "IA_GENERATIVA": "Generative AI",
+        "EMAIL": "Email",
+        "REFERENCIA": "Referral",
+        "NAO_DISPONIVEL": "Not available"
+      }
+    },
     "CREATED_AT_LABEL": "Created",
     "NEW_MESSAGE": "New message",
     "NEW_MESSAGE_SHORT": "Message",

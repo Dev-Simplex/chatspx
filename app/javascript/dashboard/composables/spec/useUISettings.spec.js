@@ -80,6 +80,66 @@ describe('useUISettings', () => {
     );
   });
 
+  /**
+   * Bloco 5.23 — a seção "recebido do site" entra COLADA em `contact_attributes`, e não no fim.
+   *
+   * O `else` genérico da reconciliação empurra item novo para o fim da lista. Para quem já usa o
+   * produto — que é quase todo mundo, porque a ordem salva existe desde a primeira vez que
+   * alguém arrastou um item — o fim da lista é o mesmo que não existir, e o aceite do bloco é
+   * responder "de onde veio esta pessoa" SEM rolar a barra inteira.
+   */
+  describe('5.23 — posição da seção do site na ordem salva', () => {
+    const semSiteContext = DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER.filter(
+      item => item.name !== 'site_context'
+    );
+
+    afterEach(() => {
+      getUISettingsMock.value = {
+        ...getUISettingsMock.value,
+        conversation_sidebar_items_order:
+          DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER,
+      };
+    });
+
+    it('entra imediatamente ANTES de `contact_attributes`, não no fim', () => {
+      getUISettingsMock.value = {
+        ...getUISettingsMock.value,
+        conversation_sidebar_items_order: semSiteContext,
+      };
+
+      const { conversationSidebarItemsOrder } = useUISettings();
+      const nomes = conversationSidebarItemsOrder.value.map(i => i.name);
+
+      expect(nomes).toContain('site_context');
+      expect(nomes.indexOf('site_context')).toBe(
+        nomes.indexOf('contact_attributes') - 1
+      );
+      expect(nomes[nomes.length - 1]).not.toBe('site_context');
+    });
+
+    it('cai no fim só quando `contact_attributes` não está na lista', () => {
+      getUISettingsMock.value = {
+        ...getUISettingsMock.value,
+        conversation_sidebar_items_order: semSiteContext.filter(
+          item => item.name !== 'contact_attributes'
+        ),
+      };
+
+      const { conversationSidebarItemsOrder } = useUISettings();
+      const nomes = conversationSidebarItemsOrder.value.map(i => i.name);
+
+      expect(nomes).toContain('site_context');
+    });
+
+    it('está na ordem de fábrica, para quem nunca arrastou nada', () => {
+      const nomes = DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER.map(i => i.name);
+
+      expect(nomes.indexOf('site_context')).toBe(
+        nomes.indexOf('contact_attributes') - 1
+      );
+    });
+  });
+
   it('returns correct contact sidebar items order', () => {
     const { contactSidebarItemsOrder } = useUISettings();
     expect(contactSidebarItemsOrder.value).toEqual(
