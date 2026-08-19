@@ -57,6 +57,10 @@ Rails.application.routes.draw do
             resource :contact_merge, only: [:create]
           end
           resource :bulk_actions, only: [:create]
+          # Bloco 5.20 — mensagem proativa do backend do cliente em UMA chamada. `only: [:create]`
+          # porque nao ha colecao para listar: o registro do que foi disparado sao as proprias
+          # mensagens, dentro da conversa.
+          resources :proactive_messages, only: [:create]
           resource :onboarding, only: [:update] do
             get :help_center_generation
           end
