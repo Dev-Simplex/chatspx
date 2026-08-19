@@ -88,6 +88,7 @@ en:
         invalid_profile: "is not a valid widget profile (accepted values: %{profiles})"
         must_be_object: "must be a JSON object"
         secret_not_allowed: 'does not accept secrets: the key "%{key}" belongs in the credentials screen, never here'
+        secret_value_not_allowed: 'does not accept secrets: the value of "%{key}" looks like a credential and belongs in the credentials screen, never here'
         schema_violation: 'has an invalid value at "%{field}": %{detail}'
         detail_enum: "value is not allowed (accepted: %{allowed})"
         detail_required: "missing required field: %{keys}"
