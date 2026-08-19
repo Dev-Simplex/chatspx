@@ -470,4 +470,49 @@ describe ConversationFinder do
       end
     end
   end
+
+  # Descoberta de conversa PELO CONTEÚDO da mensagem (o `q` da lista). É o quarto ponto
+  # de leitura do isolamento por agente, e o que mais escapa.
+  describe '#perform with q and agent_message_isolation' do
+    let!(:iso_inbox) { create(:inbox, account: account, enable_auto_assignment: false, agent_message_isolation: true) }
+    let!(:iso_conversation) { create(:conversation, account: account, inbox: iso_inbox) }
+    let!(:params) { { q: 'palavra secreta' } }
+
+    before do
+      [user_1, user_2].each { |u| create(:inbox_member, user: u, inbox: iso_inbox) }
+      create(:message, account: account, inbox: iso_inbox, conversation: iso_conversation,
+                       message_type: :outgoing, sender: user_2, content: 'a palavra secreta do outro agente')
+    end
+
+    def found_ids_for(viewer)
+      described_class.new(viewer, params).perform[:conversations].map(&:id)
+    end
+
+    # lista de exceções vazia = comportamento de hoje
+    it 'does not surface the conversation to an agent who did not write it' do
+      expect(found_ids_for(user_1)).not_to include(iso_conversation.id)
+    end
+
+    it 'surfaces it to the agent who wrote it' do
+      expect(found_ids_for(user_2)).to include(iso_conversation.id)
+    end
+
+    it 'surfaces it to the exempt agent' do
+      create(:inbox_isolation_exemption, inbox: iso_inbox, user: user_1, isolation_type: 'agent_message')
+
+      expect(found_ids_for(user_1)).to include(iso_conversation.id)
+    end
+
+    it 'keeps hiding it from an agent who is not an exemption' do
+      create(:inbox_isolation_exemption, inbox: iso_inbox, user: user_1, isolation_type: 'agent_message')
+      outro = create(:user, account: account, role: :agent)
+      create(:inbox_member, user: outro, inbox: iso_inbox)
+
+      expect(found_ids_for(outro)).not_to include(iso_conversation.id)
+    end
+
+    it 'lets an administrator find it, as it always did' do
+      expect(found_ids_for(admin)).to include(iso_conversation.id)
+    end
+  end
 end

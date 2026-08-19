@@ -153,7 +153,11 @@ class SearchService # rubocop:disable Metrics/ClassLength
     agent_id = AgentMessageIsolation.viewer_restriction_id(current_user, current_account)
     return query if agent_id.nil?
 
+    # A EXCEÇÃO por caixa entra tirando a caixa da lista de isoladas para ESTE viewer: é a
+    # forma mais barata de dizer "aqui você não é isolado" numa busca que mistura caixas.
+    # Sem exceção nenhuma, a lista é idêntica à de antes e a query não muda.
     isolated_inbox_ids = current_account.inboxes.where(agent_message_isolation: true).pluck(:id)
+    isolated_inbox_ids -= AgentMessageIsolation.exempt_inbox_ids(current_user, current_account)
     return query if isolated_inbox_ids.empty?
 
     # Supervisor do time da conversa vê todas as bolhas dela (D2) — a cláusula só

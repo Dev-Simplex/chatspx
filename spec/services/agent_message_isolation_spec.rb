@@ -70,4 +70,86 @@ RSpec.describe AgentMessageIsolation do
       expect(ids).not_to include(other.id)
     end
   end
+
+  # EXCEÇÕES POR AGENTE: quem está na tabela volta a ver as mensagens dos outros NAQUELA
+  # caixa. Convive com os isentos que já existiam (admin, supervisor) sem substituí-los.
+  describe 'exemptions' do
+    let!(:other_inbox) { create(:inbox, account: account) }
+
+    before { inbox.update!(agent_message_isolation: true) }
+
+    describe '.exempt?' do
+      it 'is false when there is no exemption row (comportamento de hoje)' do
+        expect(described_class.exempt?(agent, inbox)).to be(false)
+      end
+
+      it 'is true for the agent listed as an exemption of that inbox' do
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+
+        expect(described_class.exempt?(agent, inbox)).to be(true)
+      end
+
+      it 'does not leak to another inbox' do
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+
+        expect(described_class.exempt?(agent, other_inbox)).to be(false)
+      end
+
+      it 'does not read the team isolation exemption' do
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'team_message')
+
+        expect(described_class.exempt?(agent, inbox)).to be(false)
+      end
+
+      it 'is false without a user (job/widget/public API)' do
+        expect(described_class.exempt?(nil, inbox)).to be(false)
+      end
+
+      it 'is false without an inbox' do
+        expect(described_class.exempt?(agent, nil)).to be(false)
+      end
+    end
+
+    describe '.exempt_inbox_ids' do
+      it 'is empty when nobody is an exemption' do
+        expect(described_class.exempt_inbox_ids(agent, account)).to be_empty
+      end
+
+      it 'lists the inboxes where the agent is an exemption' do
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+
+        expect(described_class.exempt_inbox_ids(agent, account)).to contain_exactly(inbox.id)
+      end
+
+      it 'accepts an account id and is empty for a blank account or no user' do
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+
+        expect(described_class.exempt_inbox_ids(agent, account.id)).to contain_exactly(inbox.id)
+        expect(described_class.exempt_inbox_ids(agent, nil)).to be_empty
+        expect(described_class.exempt_inbox_ids(nil, account)).to be_empty
+      end
+    end
+
+    describe '.restriction_id_for_inbox' do
+      it 'stops restricting the exempt agent' do
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+
+        expect(described_class.restriction_id_for_inbox(inbox, agent, account)).to be_nil
+      end
+
+      it 'keeps restricting an agent who is not an exemption' do
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+        outro = create(:user, account: account, role: :agent)
+
+        expect(described_class.restriction_id_for_inbox(inbox, outro, account)).to eq(outro.id)
+      end
+
+      it 'keeps restricting the exempt agent in the inboxes where he is not an exemption' do
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+        other_inbox.update!(agent_message_isolation: true)
+
+        expect(described_class.restriction_id_for_inbox(other_inbox, agent, account)).to eq(agent.id)
+      end
+    end
+  end
 end

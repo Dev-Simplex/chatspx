@@ -158,10 +158,17 @@ class Conversation < ApplicationRecord
     # Quando isolation esta ON e a conv pertence a um time, mensagens com team_id NULL ainda
     # aparecem (publicas) mais as do time atual. Mensagens com team_id stale (de team anterior)
     # ficam ocultas — o UpdateMessagesTeamIdJob deve sincroniza-las.
-    if conversation.team_id.nil? || !conversation.inbox&.team_message_isolation
-      all
-    else
+    #
+    # A decisão de aplicar ou não agora passa pelo TeamMessageIsolation porque ela ganhou um
+    # segundo eixo: quem for EXCEÇÃO nesta caixa volta a ver as mensagens dos outros times.
+    # Isso torna a regra dependente de QUEM olha dentro de uma association que não conhece o
+    # viewer — daí o Current.user. A guarda mora no módulo: Current.user nulo (job, API
+    # pública, widget) MANTÉM o filtro de hoje, senão um job de relatório passaria a enxergar
+    # mensagem de outro time.
+    if TeamMessageIsolation.apply?(conversation, Current.user)
       where('messages.team_id IS NULL OR messages.team_id = ?', conversation.team_id)
+    else
+      all
     end
   }, dependent: :destroy_async, autosave: true
   has_many :all_messages, class_name: 'Message', dependent: :destroy_async, autosave: true

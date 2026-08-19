@@ -276,25 +276,34 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       search: "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%",
       types: allowed_message_types,
       agent_id: agent_id,
-      supervised: query_supervised_team_ids
+      supervised: query_supervised_team_ids,
+      exempt_inboxes: query_exempt_inbox_ids
     )
   end
 
   # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
   # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia). O supervisor do
-  # time da conversa é isento (D2) e acha o conteúdo de qualquer agente do time.
+  # time da conversa é isento (D2) e acha o conteúdo de qualquer agente do time; quem for
+  # EXCEÇÃO numa caixa é isento nela (mesma forma da supervisão: cláusula só aparece
+  # quando existe isenção, senão o SQL fica idêntico ao de antes).
   def query_agent_clause(agent_id)
     return '' if agent_id.nil?
 
     supervised_or = query_supervised_team_ids.any? ? 'OR conversations.team_id IN (:supervised) ' : ''
+    exempt_or = query_exempt_inbox_ids.any? ? 'OR conversations.inbox_id IN (:exempt_inboxes) ' : ''
     'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
       "#{supervised_or}" \
+      "#{exempt_or}" \
       'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
       'AND inboxes.agent_message_isolation = true))'
   end
 
   def query_supervised_team_ids
     @query_supervised_team_ids ||= TeamSupervision.team_ids(@current_user, @current_account)
+  end
+
+  def query_exempt_inbox_ids
+    @query_exempt_inbox_ids ||= AgentMessageIsolation.exempt_inbox_ids(@current_user, @current_account)
   end
 
   def filter_by_status

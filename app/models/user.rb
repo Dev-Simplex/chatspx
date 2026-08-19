@@ -171,6 +171,26 @@ class User < ApplicationRecord
     @supervised_team_ids_for = nil
   end
 
+  # Ids das caixas em que este usuário é EXCEÇÃO do isolamento informado nesta conta.
+  # Memoizado por (conta, tipo) pelo mesmo motivo do cache acima, e com um agravante: o
+  # jbuilder da lista de conversas pergunta isto uma vez POR LINHA da lista — sem a
+  # memoização seria uma consulta por conversa. Use AgentMessageIsolation.exempt? /
+  # TeamMessageIsolation.exempt? como porta de entrada.
+  def isolation_exempt_inbox_ids_for(account_id, isolation_type)
+    return [] if account_id.blank?
+
+    @isolation_exempt_inbox_ids_for ||= {}
+    @isolation_exempt_inbox_ids_for[[account_id.to_i, isolation_type.to_s]] ||=
+      inbox_isolation_exemptions.joins(:inbox)
+                                .where(inboxes: { account_id: account_id }, isolation_type: isolation_type)
+                                .pluck(:inbox_id)
+  end
+
+  # Invalida a memoização acima (admin salvando a caixa e a resposta ainda por serializar).
+  def reset_isolation_exempt_inbox_ids_cache
+    @isolation_exempt_inbox_ids_for = nil
+  end
+
   def serializable_hash(options = nil)
     super(options).merge(confirmed: confirmed?)
   end
