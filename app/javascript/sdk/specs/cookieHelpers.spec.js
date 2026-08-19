@@ -14,6 +14,10 @@ describe('#getUserCookieName', () => {
 });
 
 describe('#getUserString', () => {
+  // Bloco 5.17: a string cresceu de proposito. Ela alimenta o hash de dedupe, e antes cobria so
+  // avatar_url/email/name/identifier_hash — entao mudar o telefone (ou empresa, cidade, pais,
+  // descricao, atributos) nao mudava o hash, e a atualizacao nunca saia do navegador. Os campos
+  // novos aparecem VAZIOS quando o site nao os manda, que e o caso destes dois exemplos.
   it('returns correct user string', () => {
     expect(
       getUserString({
@@ -26,7 +30,7 @@ describe('#getUserString', () => {
         identifier: '12345',
       })
     ).toBe(
-      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamePranavidentifier_hash12345identifier12345'
+      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamePranavphone_numberidentifier_hash12345company_namecitycountry_codedescriptionsigned_up_atsocial_profilescustom_attributesidentifier12345'
     );
 
     expect(
@@ -37,7 +41,7 @@ describe('#getUserString', () => {
         },
       })
     ).toBe(
-      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnameidentifier_hashidentifier'
+      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamephone_numberidentifier_hashcompany_namecitycountry_codedescriptionsigned_up_atsocial_profilescustom_attributesidentifier'
     );
   });
 });
