@@ -554,10 +554,6 @@
         "ON": "Active",
         "NOT_SENT": "do not send"
       },
-      "INSTALL_TAGS": {
-        "LABEL": "Install missing tag",
-        "HINT": "Off by default. When off, we only fire on the Meta/Google tags already present on the page. When on, we install the missing one — always without PageView, so your own page-view count stays untouched."
-      },
       "EVENTS": {
         "WIDGET_LOADED": "Widget loaded",
         "WIDGET_OPENED": "Widget opened",

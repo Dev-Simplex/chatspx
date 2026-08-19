@@ -56,6 +56,3 @@ export const originAttributes = async ({
 export { captureOrigin, storedOrigin } from './capture';
 // A entrega ao widget também mora aqui, e não no lado eager: ver o cabeçalho de `attach.js`.
 export { attachOriginAttributes } from './attach';
-// Bloco 5.10 — a ponte de tags. Ela viaja no MESMO artefato sob demanda que o coletor (T-C4.9),
-// e pelo mesmo motivo: só interessa a quem configurou destino, e o `sdk.js` é baixado por todos.
-export { createTagBridge } from './tags';

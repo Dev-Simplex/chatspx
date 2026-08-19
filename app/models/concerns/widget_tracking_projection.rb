@@ -16,7 +16,6 @@ module WidgetTrackingProjection
     event_map
     consent_mode
     test_mode
-    install_tags
   ].freeze
 
   module_function

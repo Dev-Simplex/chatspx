@@ -25,7 +25,6 @@ import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
 import { enfileirar } from '../sdk/preBootQueue';
 import { captureOrigin } from '../sdk/tracking/capture';
-import { nameViolation, piiViolation } from '../sdk/tracking/trackContract';
 
 /**
  * Contrato dos métodos de DADOS da API pública — bloco 1.23.
@@ -320,49 +319,6 @@ const runSDK = ({ baseUrl, websiteToken }) => {
 
     getIdentifier() {
       return window.$chatwoot.identifier || null;
-    },
-
-    /**
-     * Bloco 5.16 — `track(name, properties)`: o evento próprio do site.
-     *
-     * UMA CHAMADA, DOIS CAMINHOS, e é o aceite do bloco: o evento vira registro server-side (com
-     * `event_id` gerado pelo servidor, regra RC7) **e** entra no `dataLayer` — nunca um sem o
-     * outro. Quem faz os dois é o store do widget (`events/track`), que só publica no navegador
-     * depois de saber o id; a implementação é uma só, e não há um segundo caminho "rápido" que
-     * pularia o registro.
-     *
-     * A VALIDAÇÃO É IMEDIATA (contrato do 1.23): nome fora das três regras do contrato ou
-     * `properties` com chave de PII **recusa aqui**, com mensagem que nomeia a regra violada, sem
-     * gastar uma viagem de rede. E recusa em voz alta em vez de filtrar em silêncio — filtrar
-     * faria o integrador ver o evento chegar e concluir que o campo dele foi junto.
-     *
-     * NÃO LANÇA DE FORMA SÍNCRONA: como todo método de dados desde o 1.23, o erro vira `Promise`
-     * rejeitada. Um `throw` dentro de uma tag do GTM interrompe as tags seguintes do contêiner.
-     */
-    track(name, properties = {}) {
-      return chamadaDeDados(
-        'track',
-        () => {
-          const problemaNoNome = nameViolation(name);
-          if (problemaNoNome) throw new Error(problemaNoNome);
-
-          if (properties && typeof properties !== 'object') {
-            throw new Error('Properties must be an object');
-          }
-
-          const pii = piiViolation(properties);
-          if (pii) {
-            throw new Error(
-              `Property "${pii}" is personal data: the server hashes it, never the browser`
-            );
-          }
-        },
-        () =>
-          IFrameHelper.sendMessage('track-event', {
-            name,
-            properties: properties || {},
-          })
-      );
     },
 
     setCustomAttributes(customAttributes = {}) {

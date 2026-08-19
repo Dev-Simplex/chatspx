@@ -93,28 +93,16 @@ describe('5.15 — o guia de integração', () => {
   });
 
   it('declara o que AINDA NÃO existe, com o bloco que o entrega', () => {
+    // `track()` e do 5.16: o guia nao pode ensinar como se existisse
+    expect(guia).toMatch(
+      /track\([^)]*\)[\s\S]{0,120}(ainda não está disponível|5\.16)/
+    );
     expect(guia).toContain('5.02');
     expect(guia).toContain('5.14');
-  });
 
-  /**
-   * Esta era a asserção "o SDK realmente NAO tem `track`, e se um dia tiver este teste avisa que
-   * o guia precisa mudar". O 5.16 entregou `track()`, o teste avisou, e o guia mudou — que é
-   * exatamente o mecanismo funcionando. A asserção continua existindo, invertida: agora ela cobra
-   * que o guia ENSINE o que o SDK passou a ter.
-   */
-  it('ensina o `track()` que o 5.16 entregou, com as três regras do nome', () => {
-    expect(/\n {4}track\(/.test(sdk)).toBe(true);
-    expect(guia).toMatch(/\$chatwoot\.track\(/);
-
-    // as tres regras do contrato aparecem no guia, porque sao elas que fazem a chamada falhar
-    expect(guia).toContain('chatspx_');
-    expect(guia).toContain('snake_case');
-    expect(guia).toContain('40 caracteres');
-
-    // e a recusa de PII, que e o que mais surpreende quem integra
-    expect(guia).toMatch(/recusad[oa]s?/i);
-    expect(guia).toContain('phone_number');
+    // e o SDK realmente NAO tem `track` — se um dia tiver, este teste avisa que
+    // o guia precisa mudar
+    expect(/\n {4}track\(/.test(sdk)).toBe(false);
   });
 
   it('o trecho de instalação descreve o que o servidor realmente gera', () => {

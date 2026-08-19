@@ -107,27 +107,17 @@ RSpec.describe WidgetTrackingSchema do
   describe 'o outro lado: config publica legitima nao pode ser recusada' do
     # Falso positivo aqui impede o cliente que nao fez nada errado de salvar. Por isso a deteccao
     # por valor usa prefixos publicados pelas plataformas, nunca "string longa aleatoria".
-    it 'aceita as sete chaves publicas, juntas, com os formatos reais' do
+    it 'aceita as seis chaves publicas, juntas, com os formatos reais' do
       registro = grava(
         'meta_pixel_id' => '1234567890',
         'ga4_measurement_id' => 'G-ABC1234567',
         'google_ads_send_to' => 'AW-123456789/AbC-D_efGh12',
         'event_map' => { 'conversation_started' => 'Lead', 'conversation_resolved' => 'Purchase' },
         'consent_mode' => 'advanced',
-        'test_mode' => false,
-        'install_tags' => true
+        'test_mode' => false
       )
 
       expect(registro).to be_valid
-    end
-
-    # Bloco 5.10 (T-C4.3, decisao Q5). O toggle de instalacao de tag e PUBLICO — ele governa a
-    # ponte no navegador do visitante, entao precisa chegar la — e o default e a AUSENCIA, que le
-    # como desligado. Ver `Tracking` na tela e `createTagBridge` no SDK.
-    it 'install_tags aceita so booleano, e a ausencia dele significa desligado' do
-      expect(grava({ 'install_tags' => false })).to be_valid
-      expect(grava({ 'install_tags' => 'sim' })).to be_invalid
-      expect(grava({})).to be_valid
     end
 
     it 'google_ads_send_to comprido nao e confundido com token' do

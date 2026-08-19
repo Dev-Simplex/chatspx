@@ -19,12 +19,7 @@ const lerRaiz = relativo =>
 const projecaoRuby = lerRaiz(
   'app/models/concerns/widget_tracking_projection.rb'
 );
-// Bloco 5.01 extraiu a varredura de segredo de `widget_configurable.rb` para um concern proprio.
-// A regra continua sendo a MESMA e continua sendo a terceira fonte da verdade desta tela — mudou
-// o arquivo em que ela mora, e este spec segue o arquivo.
-const configuravelRuby = lerRaiz(
-  'app/models/concerns/widget_secret_scanner.rb'
-);
+const configuravelRuby = lerRaiz('app/models/concerns/widget_configurable.rb');
 const contratoMd = lerRaiz('docs/tracking/contrato-de-eventos.md');
 
 describe('a tela de rastreio e o servidor concordam', () => {

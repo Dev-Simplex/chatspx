@@ -41,10 +41,9 @@ import {
 } from 'shared/helpers/AudioNotificationHelper';
 import { isFlatWidgetStyle } from './settingsHelper';
 import { popoutChatWindow } from '../widget/helpers/popoutHelper';
+import addHours from 'date-fns/addHours';
 import { createTitleFlasher } from './titleFlasher';
 import { loadCollector } from './tracking/loader';
-import { pushToDataLayer } from './tracking/dataLayer';
-import { isAllowed } from './tracking/consent';
 
 const updateAuthCookie = (cookieContent, baseDomain = '') =>
   setCookieWithDomain('cw_conversation', cookieContent, {
@@ -77,11 +76,7 @@ export const applyWidgetTokens = (element, tokens = {}) => {
 };
 
 const updateCampaignReadStatus = baseDomain => {
-  // Uma hora à frente, sem biblioteca. Era `addHours(new Date(), 1)` do `date-fns`, e a linha de
-  // conveniência arrastava para o `sdk.js` o `toDate`, o `toInteger`, o `requiredArgs` e uma
-  // string de deprecação em inglês — bytes que 100% dos visitantes de todos os sites baixavam por
-  // uma soma. É a mesma troca que o bloco 4.19 fez do outro lado; este uso tinha sobrevivido.
-  const expireBy = new Date(Date.now() + 36e5);
+  const expireBy = addHours(new Date(), 1);
   setCookieWithDomain('cw_snooze_campaigns_till', Number(expireBy), {
     expires: expireBy,
     baseDomain,
@@ -159,12 +154,7 @@ export const IFrameHelper = {
   // O nível efetivo desta visita. Em 4.06 é o configurado; o bloco 4.19
   // acrescenta a degradação por familiaridade por cima deste ponto único.
   nivelDeAbordagem(gatilhos) {
-    // `isMobileViewport()` e nao um `matchMedia` proprio: o bloco 2.09 fez o widget ter UM
-    // breakpoint (768), e este uso — nascido em paralelo, no 4.06 — trouxe de volta o 667 que ele
-    // tinha eliminado. Duas trilhas, dois numeros, e na faixa de 668 a 767 o teaser decidia
-    // "desktop" enquanto o CSS ja tratava como celular. O merge foi quem revelou; o spec do 2.09
-    // foi quem cobrou.
-    const ehCelular = isMobileViewport();
+    const ehCelular = window.matchMedia('(max-width: 667px)').matches;
     const configurado = ehCelular
       ? gatilhos.approach_mobile || gatilhos.approach
       : gatilhos.approach;
@@ -378,19 +368,8 @@ export const IFrameHelper = {
         Cookies.remove(getUserCookieName());
       }
     },
-    onEvent({ eventIdentifier: eventName, data, tracking, eventId }) {
-      // DOIS VOCABULÁRIOS, UMA EMISSÃO (arbitragem A9, contrato §1). O evento de `window` é o
-      // contrato com o SITE — sai exatamente como saía antes deste bloco. O de tracking é o
-      // `chatspx_*` correspondente, que o widget resolve pelo `SDK_EVENT_CONTRACT` e manda junto
-      // no envelope; `null` ali significa "este fato não tem contrapartida de tracking", e é
-      // estado declarado no contrato, não omissão.
-      //
-      // O caminho inverso — `tracking` sem `eventIdentifier` — é o `track()` do site (bloco
-      // 5.16): evento que o cliente inventou não tem nome no vocabulário `chatwoot:*` e não vira
-      // evento de `window`; quem o chamou já sabe que o chamou.
-      if (eventName) dispatchWindowEvent({ eventName, data });
-
-      if (tracking) IFrameHelper.publishTrackingEvent(tracking, data, eventId);
+    onEvent({ eventIdentifier: eventName, data }) {
+      dispatchWindowEvent({ eventName, data });
     },
     setBubbleLabel(message) {
       setBubbleText(window.$chatwoot.launcherTitle || message.label);
@@ -508,38 +487,6 @@ export const IFrameHelper = {
     IFrameHelper.sendMessage('push-event', { eventName });
   },
 
-  // Bloco 5.10 — a ponte de tags, quando ela existe. `tagBridge` só é preenchida em `onLoad`, e
-  // só quando a inbox tem destino configurado (T-C4.9): o artefato dela não é nem baixado quando
-  // não tem.
-  tagBridge: null,
-
-  /**
-   * Publica um evento de tracking. É o ponto único por onde `chatspx_*` sai deste SDK.
-   *
-   * SEM A PONTE, O `dataLayer` AINDA RECEBE — e é isso que faz do "somente `dataLayer`" um modo
-   * de verdade (T-C4.10), e não uma promessa. Quem integra por GTM não cola Pixel ID nenhum na
-   * nossa tela: se o `push` dependesse do artefato da ponte, esse cliente ficaria sem evento
-   * algum, e ele é justamente o público que o modo padrão existe para atender.
-   *
-   * Não filtra PII aqui de propósito: quem monta o payload já o entrega limpo — o contrato de
-   * `SDK_EVENT_CONTRACT` (5.04) só deixa passar as chaves declaradas, e `track()` (5.16) RECUSA
-   * chave de PII na entrada, em voz alta, em vez de descartá-la em silêncio.
-   */
-  publishTrackingEvent: (name, properties = {}, eventId = null) => {
-    if (IFrameHelper.tagBridge) {
-      IFrameHelper.tagBridge(name, properties, eventId);
-      return;
-    }
-
-    // `...(x && {…})` em vez de ternário: `{...false}` é `{}`, e a chave só existe quando o id
-    // existe — `{ event_id: undefined }` viraria uma chave que às vezes aparece vazia.
-    pushToDataLayer({
-      event: name,
-      ...properties,
-      ...(eventId && { event_id: eventId }),
-    });
-  },
-
   onLoad: ({ widgetColor, tokens, channelConfig }) => {
     const iframe = IFrameHelper.getAppFrame();
     iframe.style.visibility = '';
@@ -576,22 +523,11 @@ export const IFrameHelper = {
     // a requisição acontece. A entrega usa dois eventos que o bridge do widget já trata.
     const tracking = channelConfig?.widgetTracking;
     loadCollector({ baseUrl: window.$chatwoot.baseUrl, tracking }).then(
-      collector => {
-        if (!collector) return;
-
-        // Bloco 5.10 — a ponte nasce aqui e recebe `isAllowed` de fora. O estado de consentimento
-        // (5.09) vive no módulo eager: se a ponte o importasse, o artefato traria uma SEGUNDA cópia
-        // do módulo, com um segundo estado, que nunca veria o `setConsent` do site.
-        IFrameHelper.tagBridge = collector.createTagBridge({
-          tracking,
-          isAllowed,
-        });
-
-        collector.attachOriginAttributes({
+      collector =>
+        collector?.attachOriginAttributes({
           tracking,
           sendMessage: IFrameHelper.sendMessage,
-        });
-      }
+        })
     );
 
     let className = 'woot-widget-bubble';
