@@ -33,6 +33,13 @@ class CustomAttributeDefinition < ApplicationRecord
   # quando cria a definicao a partir de uma chave que o site mandou.
   AUTO_PROVISIONED_DESCRIPTION_KEY = 'custom_attributes.auto_provisioned.description'.freeze
 
+  # Bloco 4.17 — origem da definicao. `nil` e a definicao anterior a coluna: nao se sabe
+  # quem a criou, e gravar 'agent' nela seria afirmar o que nao se mediu (regra A4, sem
+  # backfill).
+  ORIGIN_AGENT = 'agent'.freeze
+  ORIGIN_WEBSITE = 'website'.freeze
+  ORIGINS = [ORIGIN_AGENT, ORIGIN_WEBSITE].freeze
+
   scope :with_attribute_model, ->(attribute_model) { attribute_model.presence && where(attribute_model: attribute_model) }
   validates :attribute_display_name, presence: true
   before_validation :normalize_attribute_fields
@@ -43,6 +50,7 @@ class CustomAttributeDefinition < ApplicationRecord
             format: { with: /\A[\p{L}\p{N}_.\-]+\z/, message: I18n.t('errors.custom_attribute_definition.attribute_key_format') }
 
   validates :attribute_display_type, presence: true
+  validates :origin, inclusion: { in: ORIGINS }, allow_nil: true
   validates :attribute_model, presence: true
   validate :attribute_must_not_conflict, on: :create
 
@@ -61,9 +69,20 @@ class CustomAttributeDefinition < ApplicationRecord
   # Transformar o valor na leitura faria o proprio salvamento apagar o sinal.
   # Se o agente reescrever a descricao, o selo some — ele assumiu o atributo.
   def auto_provisioned_from_website?
+    # Bloco 4.17: a coluna e a fonte de verdade a partir daqui. A comparacao por descricao
+    # so responde pelas definicoes criadas ANTES da coluna existir — sem ela, o selo do
+    # 1.17 sumiria de toda linha antiga no dia da migration.
+    return origin == ORIGIN_WEBSITE if origin.present?
     return false if attribute_description.blank?
 
     self.class.auto_provisioned_descriptions.include?(attribute_description)
+  end
+
+  # As chaves desta conta que so aceitam escrita com origem verificada. Consulta estreita
+  # de proposito: e ela que roda no caminho quente de toda escrita vinda do site.
+  def self.protected_keys(account:, attribute_model:)
+    where(account_id: account.id, attribute_model: attribute_model, requires_verified_origin: true)
+      .pluck(:attribute_key)
   end
 
   def self.auto_provisioned_descriptions

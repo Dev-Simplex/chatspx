@@ -33,7 +33,9 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
               as: :json
 
         expect(response).to have_http_status(:success)
-        expected_params = { contact: contact, params: params, discard_invalid_attrs: true }
+        # `verified_origin` (bloco 4.17) diz se a sessao teve a identidade conferida por
+        # assinatura. Aqui a sessao nasce sem verificacao, entao false.
+        expected_params = { contact: contact, params: params, discard_invalid_attrs: true, verified_origin: false }
         expect(ContactIdentifyAction).to have_received(:new).with(expected_params)
         expect(identify_action).to have_received(:perform)
       end

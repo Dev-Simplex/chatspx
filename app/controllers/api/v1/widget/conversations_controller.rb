@@ -25,7 +25,8 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
       params: { email: contact_email, phone_number: contact_phone_number, name: contact_name, custom_attributes: contact_custom_attributes },
       retain_original_contact_name: true,
       discard_invalid_attrs: true,
-      identity_enforcement: inbox&.resolved_identity_enforcement
+      identity_enforcement: inbox&.resolved_identity_enforcement,
+      verified_origin: @contact_inbox&.hmac_verified?
     ).perform
   end
 
@@ -69,13 +70,22 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   end
 
   def set_custom_attributes
-    conversation.update!(custom_attributes: permitted_params[:custom_attributes])
+    # Bloco 4.17: este endpoint nao tem assinatura nenhuma — e a superficie onde o site
+    # escreve com mais liberdade. O portao recusa POR CHAVE, nunca a requisicao inteira, e
+    # o valor protegido fica exatamente como estava.
+    gate = CustomAttributes::OriginGate.new(
+      account: conversation.account,
+      attribute_model: :conversation_attribute,
+      verified: @contact_inbox&.hmac_verified?
+    ).replace(incoming: permitted_params[:custom_attributes], existing: conversation.custom_attributes)
+
+    conversation.update!(custom_attributes: gate.allowed)
     # B6: mesma historia do contato — sem definicao a chave nao renderiza no
     # painel (CustomAttributes.vue:76-89) nem entra no filtro.
     CustomAttributes::AutoProvisionService.new(
       account: conversation.account,
       attribute_model: :conversation_attribute,
-      custom_attributes: permitted_params[:custom_attributes]
+      custom_attributes: gate.allowed
     ).perform
   end
 
