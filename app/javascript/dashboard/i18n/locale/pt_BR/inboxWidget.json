@@ -511,6 +511,103 @@
         "SIMULATE": "Simular o gatilho no preview",
         "SIMULATE_HINT": "Mostra o convite como o visitante vai vê-lo quando o gatilho disparar. É só a prévia — nada é enviado."
       }
+    },
+    "TRACKING": {
+      "TAB": "Rastreio",
+      "SAVED": "Configuração de rastreio salva.",
+      "SAVE_ERROR": "Não foi possível salvar o rastreio.",
+      "BLOCKED_BY_502": "Guardar credencial ainda não está disponível: o cofre cifrado é do bloco 5.02, que espera as chaves de cifra (0.10). O identificador público acima já funciona e já vai para o site.",
+      "TABS": {
+        "META": "Meta",
+        "GOOGLE": "Google",
+        "EVENTS": "Eventos",
+        "DIAGNOSTICS": "Diagnóstico"
+      },
+      "META": {
+        "PIXEL_ID": "Pixel ID",
+        "PIXEL_ID_HINT": "É público: aparece no código de qualquer site que use o pixel. Só dígitos, 15 ou 16.",
+        "PIXEL_ID_INVALID": "Um Pixel ID tem 15 ou 16 dígitos, sem letras.",
+        "TOKEN": "Access Token",
+        "TEST_MODE": "Modo teste",
+        "TEST_MODE_HINT": "Manda os eventos como teste, para você conferir no Gerenciador de Eventos sem sujar o número real. Desliga sozinho em {days} dias.",
+        "TEST_CODE": "Código de teste",
+        "TEST_MODE_EXPIRED": "O modo teste passou de {days} dias e foi desligado sozinho. Ligue de novo se ainda estiver testando."
+      },
+      "GOOGLE": {
+        "MEASUREMENT_ID": "Measurement ID (GA4)",
+        "MEASUREMENT_ID_HINT": "É público: começa com G- e aparece na tag do site.",
+        "MEASUREMENT_ID_INVALID": "Um Measurement ID começa com G- seguido de letras e números.",
+        "API_SECRET": "API Secret",
+        "SEND_TO": "Conversão do Google Ads",
+        "SEND_TO_HINT": "No formato AW-000000000/RótuloDaConversão.",
+        "SEND_TO_INVALID": "Use o formato AW-000000000/RótuloDaConversão."
+      },
+      "EVENT_MAP": {
+        "EVENT": "Evento do ChatSPX",
+        "META": "Nome na Meta",
+        "GA4": "Nome no GA4",
+        "ON": "Ativo",
+        "NOT_SENT": "não enviar"
+      },
+      "EVENTS": {
+        "WIDGET_LOADED": "Widget carregou",
+        "WIDGET_OPENED": "Widget aberto",
+        "CONVERSATION_STARTED": "Conversa iniciada",
+        "PRECHAT_SUBMITTED": "Pré-chat enviado",
+        "LEAD": "Lead",
+        "LEAD_QUALIFIED": "Lead qualificado",
+        "LEAD_DISQUALIFIED": "Lead descartado",
+        "AGENT_ENGAGED": "Agente assumiu",
+        "MEETING_SCHEDULED": "Reunião agendada",
+        "CONVERSATION_RESOLVED": "Conversa resolvida",
+        "DEAL_WON": "Negócio ganho",
+        "DEAL_LOST": "Negócio perdido"
+      },
+      "LEAD_VALUE": {
+        "TITLE": "Valor do lead",
+        "OFF": "Desligado",
+        "OFF_HINT": "Os eventos vão sem valor. Use quando o ticket varia demais para uma média significar algo.",
+        "FIXED": "Valor fixo",
+        "FIXED_HINT": "Todo lead vale o mesmo. É o suficiente para o Ads otimizar por conversão.",
+        "BY_RULE": "Por regra",
+        "BY_RULE_HINT": "O valor vem do funil (bloco 5.21). Enquanto ele não existir, o evento vai sem valor.",
+        "AMOUNT": "Valor em reais"
+      },
+      "ACCOUNT": {
+        "TITLE": "Definido para a conta inteira",
+        "READ_ONLY": "somente leitura",
+        "CONSENT": "Modo de consentimento",
+        "KILL_SWITCH": "Interruptor geral",
+        "KILL_ON": "desligado por incidente",
+        "KILL_OFF": "normal",
+        "RETENTION": "Retenção do log",
+        "RETENTION_DAYS": "{days} dias",
+        "DPA": "Aceite de DPA",
+        "DPA_YES": "aceito",
+        "DPA_NO": "pendente",
+        "UNSET": "não definido",
+        "KILL_WARNING": "O interruptor geral da conta está acionado: nenhum evento sai de nenhuma caixa até que ele seja liberado."
+      },
+      "DIAGNOSTICS": {
+        "PRIVACY": "Este painel mostra os NOMES dos campos enviados, nunca os valores — nem em claro, nem com hash. Diagnóstico que exibe e-mail de lead é vazamento com interface.",
+        "EMPTY": "Nenhuma entrega registrada ainda para esta caixa.",
+        "UNAVAILABLE": "A leitura do log de entregas entra com o bloco 5.14 (auditoria e diagnóstico). As entregas já são gravadas pelo servidor desde o 5.03 — o que falta é o endpoint que as devolve para esta tela.",
+        "TIME": "Hora",
+        "EVENT": "Evento",
+        "DESTINATION": "Destino",
+        "STATUS": "Status",
+        "FIELDS": "Campos enviados"
+      },
+      "SECRET": {
+        "EMPTY": "não definido",
+        "NOT_SET": "Nenhum valor guardado.",
+        "SET": "Guardado. O valor não é exibido de novo.",
+        "SET_AT": "Guardado em {date}. O valor não é exibido de novo.",
+        "REPLACE": "Substituir",
+        "SET_BUTTON": "Definir",
+        "CONFIRM": "Guardar",
+        "CANCEL": "Cancelar"
+      }
     }
   }
 }
