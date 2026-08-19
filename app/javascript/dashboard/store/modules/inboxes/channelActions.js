@@ -7,7 +7,21 @@ export const buildInboxData = inboxParams => {
   const formData = new FormData();
   const { channel = {}, ...inboxProperties } = inboxParams;
   Object.keys(inboxProperties).forEach(key => {
-    formData.append(key, inboxProperties[key]);
+    const value = inboxProperties[key];
+    // FormData nao tem array: sem `key[]` a lista chega como a string "1,2,3" e o
+    // strong params, que permite `key: []`, descarta o escalar em silencio. Lista
+    // vazia manda um item vazio para a CHAVE existir no params (mesma manha do
+    // selected_feature_flags logo abaixo) — senao "desmarquei todo mundo" chegaria
+    // no servidor como "nao falei de lista nenhuma".
+    if (Array.isArray(value)) {
+      if (value.length) {
+        value.forEach(item => formData.append(`${key}[]`, item));
+      } else {
+        formData.append(`${key}[]`, '');
+      }
+      return;
+    }
+    formData.append(key, value);
   });
   const { selectedFeatureFlags, ...channelParams } = channel;
   // selectedFeatureFlags needs to be empty when creating a website channel

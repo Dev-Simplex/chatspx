@@ -31,6 +31,7 @@ import AccountHealth from './components/AccountHealth.vue';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import SenderNameExamplePreview from './components/SenderNameExamplePreview.vue';
 import LockToSingleConversationPreview from './components/LockToSingleConversationPreview.vue';
+import IsolationParticipants from './components/IsolationParticipants.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import SpinnerLoader from 'dashboard/components-next/spinner/Spinner.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
@@ -60,6 +61,7 @@ export default {
     WeeklyAvailability,
     SenderNameExamplePreview,
     LockToSingleConversationPreview,
+    IsolationParticipants,
     MicrosoftReauthorize,
     GoogleReauthorize,
     NextButton,
@@ -92,6 +94,13 @@ export default {
       teamMessageIsolation: false,
       agentMessageIsolation: false,
       agentConversationIsolation: false,
+      // Quem PARTICIPA de cada isolamento. A tela fala participantes, o banco
+      // guarda exceções — a inversão acontece no controller, no submit.
+      teamMessageIsolationParticipantIds: null,
+      agentMessageIsolationParticipantIds: null,
+      isolationMembers: [],
+      isolationMembersInboxId: null,
+      isFetchingIsolationMembers: false,
       pendingStatusEnabled: false,
       allowMessagesAfterResolved: true,
       continuityViaEmail: true,
@@ -270,6 +279,11 @@ export default {
         this.isATelegramChannel
       );
     },
+    // A lista de agentes é a novidade dos cards de isolamento: só existe com o
+    // toggle ligado, então com os dois desligados a tela fica igual à de hoje.
+    showIsolationParticipants() {
+      return this.teamMessageIsolation || this.agentMessageIsolation;
+    },
     inboxNameLabel() {
       if (this.isAWebWidgetInbox) {
         return this.$t('INBOX_MGMT.ADD.WEBSITE_NAME.LABEL');
@@ -361,6 +375,12 @@ export default {
         }
       }
     },
+    teamMessageIsolation() {
+      this.fetchIsolationMembers();
+    },
+    agentMessageIsolation() {
+      this.fetchIsolationMembers();
+    },
     inbox: {
       handler(newInbox, oldInbox) {
         if (newInbox?.id !== oldInbox?.id) {
@@ -410,6 +430,15 @@ export default {
       this.agentMessageIsolation = this.inbox.agent_message_isolation || false;
       this.agentConversationIsolation =
         this.inbox.agent_conversation_isolation || false;
+      // `null` (e não `[]`) quando a caixa não trouxe as listas: um payload antigo
+      // em cache não pode virar "isenta todo mundo" no primeiro salvamento.
+      this.teamMessageIsolationParticipantIds =
+        this.inbox.team_message_isolation_participant_ids ?? null;
+      this.agentMessageIsolationParticipantIds =
+        this.inbox.agent_message_isolation_participant_ids ?? null;
+      this.isolationMembers = [];
+      this.isolationMembersInboxId = null;
+      this.fetchIsolationMembers();
       this.pendingStatusEnabled = this.inbox.pending_status_enabled || false;
       this.selectedPortalSlug = this.inbox.help_center
         ? this.inbox.help_center.slug
@@ -427,6 +456,34 @@ export default {
         this.widgetBubblePosition = 'right';
         this.widgetBubbleType = 'standard';
         this.widgetBubbleLauncherTitle = '';
+      }
+    },
+    // A lista de agentes só é buscada quando algum isolamento está ligado: com os
+    // dois desligados nenhuma lista aparece e a requisição seria desperdício.
+    // `isolationMembersInboxId` guarda a caixa já pedida (ou em voo), então
+    // trocar de caixa refaz a busca e uma resposta atrasada da caixa anterior é
+    // descartada em vez de virar a lista errada na tela.
+    async fetchIsolationMembers() {
+      const inboxId = this.currentInboxId;
+      if (!inboxId || !this.showIsolationParticipants) return;
+      if (this.isolationMembersInboxId === inboxId) return;
+
+      this.isolationMembersInboxId = inboxId;
+      this.isFetchingIsolationMembers = true;
+      try {
+        const response = await this.$store.dispatch('inboxMembers/get', {
+          inboxId,
+        });
+        if (this.currentInboxId !== inboxId) return;
+        this.isolationMembers = response?.data?.payload || [];
+      } catch (error) {
+        if (this.isolationMembersInboxId === inboxId) {
+          this.isolationMembersInboxId = null;
+        }
+      } finally {
+        if (this.currentInboxId === inboxId) {
+          this.isFetchingIsolationMembers = false;
+        }
       }
     },
     async fetchHealthData() {
@@ -545,6 +602,23 @@ export default {
             continuity_via_email: this.continuityViaEmail,
           },
         };
+        // Participantes só sobem com o isolamento LIGADO. Chave ausente não mexe
+        // em exceção nenhuma (é o contrato do controller), então desligar o
+        // toggle preserva o que já estava marcado em vez de apagar calado.
+        if (
+          this.teamMessageIsolation &&
+          this.teamMessageIsolationParticipantIds
+        ) {
+          payload.team_message_isolation_participant_ids =
+            this.teamMessageIsolationParticipantIds;
+        }
+        if (
+          this.agentMessageIsolation &&
+          this.agentMessageIsolationParticipantIds
+        ) {
+          payload.agent_message_isolation_participant_ids =
+            this.agentMessageIsolationParticipantIds;
+        }
         if (this.avatarFile) {
           payload.avatar = this.avatarFile;
         }
@@ -810,7 +884,15 @@ export default {
                 $t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION_SUB_TEXT')
               "
               class="mb-4"
-            />
+            >
+              <template v-if="teamMessageIsolation" #editor>
+                <IsolationParticipants
+                  v-model="teamMessageIsolationParticipantIds"
+                  :agents="isolationMembers"
+                  :is-loading="isFetchingIsolationMembers"
+                />
+              </template>
+            </SettingsToggleSection>
 
             <SettingsToggleSection
               v-model="agentMessageIsolation"
@@ -819,7 +901,15 @@ export default {
                 $t('INBOX_MGMT.SETTINGS_POPUP.AGENT_MESSAGE_ISOLATION_SUB_TEXT')
               "
               class="mb-4"
-            />
+            >
+              <template v-if="agentMessageIsolation" #editor>
+                <IsolationParticipants
+                  v-model="agentMessageIsolationParticipantIds"
+                  :agents="isolationMembers"
+                  :is-loading="isFetchingIsolationMembers"
+                />
+              </template>
+            </SettingsToggleSection>
 
             <SettingsToggleSection
               v-model="agentConversationIsolation"

@@ -755,6 +755,19 @@
       "AGENT_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, each agent can only see the messages they sent themselves. Messages from other agents appear blurred with restricted access.",
       "AGENT_CONVERSATION_ISOLATION": "Agent conversation isolation",
       "AGENT_CONVERSATION_ISOLATION_SUB_TEXT": "When enabled, an agent can only open conversations assigned to them. Others show a request prompt instead. Unassigned conversations stay available to pick up; admins see everything.",
+      "ISOLATION_PARTICIPANTS": {
+        "TITLE": "Agentes que participam",
+        "COUNT": "{selected} de {total} marcados",
+        "SELECT_ALL": "Selecionar todos",
+        "SEES_EVERYTHING": "vê tudo",
+        "ALWAYS_EXEMPT": "isento sempre",
+        "SUPERVISOR_OF": "supervisor do time {name}",
+        "SUPERVISOR_OF_MANY": "supervisor de {count} times",
+        "ADMIN_NOTE": "Administradores não aparecem aqui: eles nunca são isolados.",
+        "SUPERVISOR_NOTE": "Supervisores de time também já enxergam tudo do time que supervisionam — por isso vêm marcados como isentos, sem caixa de seleção.",
+        "EMPTY": "Nenhum agente nesta caixa de entrada. Adicione agentes na aba Colaboradores.",
+        "LOADING": "Carregando os agentes da caixa..."
+      },
       "PENDING_STATUS": {
         "TITLE": "Allow Pending status",
         "SUB_TEXT": "When enabled, agents can mark conversations as Pending in this inbox. Conversations already pending remain visible even if disabled."
