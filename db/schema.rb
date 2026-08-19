@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_19_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -573,6 +573,56 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_130000) do
     t.index ["account_id"], name: "index_captain_documents_on_account_id"
     t.index ["assistant_id"], name: "index_captain_documents_on_assistant_id"
     t.index ["status"], name: "index_captain_documents_on_status"
+  end
+
+  create_table "captain_eval_case_results", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "eval_run_id", null: false
+    t.bigint "eval_case_id", null: false
+    t.boolean "passou", default: false, null: false
+    t.text "resposta"
+    t.jsonb "findings", default: [], null: false
+    t.jsonb "ferramentas", default: [], null: false
+    t.integer "duracao_ms"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_case_results_on_account_id"
+    t.index ["eval_case_id"], name: "index_captain_eval_case_results_on_eval_case_id"
+    t.index ["eval_run_id", "eval_case_id"], name: "idx_cap_eval_results_run_case", unique: true
+  end
+
+  create_table "captain_eval_cases", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "captain_assistant_id", null: false
+    t.string "titulo", null: false
+    t.jsonb "mensagens", default: [], null: false
+    t.jsonb "expectativas", default: {}, null: false
+    t.boolean "ativo", default: true, null: false
+    t.integer "posicao", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_cases_on_account_id"
+    t.index ["captain_assistant_id", "posicao"], name: "idx_cap_eval_cases_assistant_pos"
+  end
+
+  create_table "captain_eval_runs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "captain_assistant_id", null: false
+    t.string "status", default: "pendente", null: false
+    t.boolean "dry_run", default: true, null: false
+    t.string "prompt_fingerprint"
+    t.jsonb "prompt_snapshot", default: {}, null: false
+    t.string "modelo"
+    t.integer "casos_total", default: 0, null: false
+    t.integer "casos_ok", default: 0, null: false
+    t.integer "casos_falha", default: 0, null: false
+    t.jsonb "custo_estimado", default: {}, null: false
+    t.datetime "iniciado_em"
+    t.datetime "concluido_em"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_runs_on_account_id"
+    t.index ["captain_assistant_id", "created_at"], name: "idx_cap_eval_runs_assistant_created"
   end
 
   create_table "captain_faq_observations", force: :cascade do |t|

@@ -1,0 +1,13 @@
+json.id eval_run.id
+json.status eval_run.status
+json.dry_run eval_run.dry_run
+json.prompt_fingerprint eval_run.prompt_fingerprint
+json.modelo eval_run.modelo
+json.casos_total eval_run.casos_total
+json.casos_ok eval_run.casos_ok
+json.casos_falha eval_run.casos_falha
+json.aprovacao eval_run.aprovacao
+json.custo_estimado eval_run.custo_estimado
+json.iniciado_em eval_run.iniciado_em&.to_i
+json.concluido_em eval_run.concluido_em&.to_i
+json.created_at eval_run.created_at.to_i
