@@ -57,6 +57,10 @@ Rails.application.routes.draw do
             resource :contact_merge, only: [:create]
           end
           resource :bulk_actions, only: [:create]
+          # Bloco 5.20 — mensagem proativa do backend do cliente em UMA chamada. `only: [:create]`
+          # porque nao ha colecao para listar: o registro do que foi disparado sao as proprias
+          # mensagens, dentro da conversa.
+          resources :proactive_messages, only: [:create]
           resource :onboarding, only: [:update] do
             get :help_center_generation
           end
@@ -80,6 +84,14 @@ Rails.application.routes.draw do
               end
               resources :inboxes, only: [:index, :create, :destroy], param: :inbox_id
               resources :scenarios
+              # 6.02 — eval como produto: o conjunto de casos e o histórico de execuções.
+              resources :eval_cases, only: [:index, :create, :update, :destroy]
+              resources :eval_runs, only: [:index, :show, :create] do
+                collection do
+                  get :estimate
+                  get :compare
+                end
+              end
             end
             resources :assistant_logs, only: [:index]
             resources :agent_sessions, only: [:show]
@@ -508,7 +520,15 @@ Rails.application.routes.draw do
             resource :authorization, only: [:create]
           end
 
-          resources :webhooks, only: [:index, :create, :update, :destroy]
+          resources :webhooks, only: [:index, :create, :update, :destroy] do
+            member do
+              # Bloco 4.14: rotacao devolve o segredo novo uma vez; o log alimenta a tela
+              # de entregas; o replay reenvia com o MESMO delivery id.
+              post :rotate_secret
+              get :deliveries
+              post :replay
+            end
+          end
           namespace :integrations do
             resources :apps, only: [:index, :show]
             resources :hooks, only: [:show, :create, :update, :destroy] do

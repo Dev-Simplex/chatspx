@@ -33,3 +33,12 @@ export const MESSAGE_TYPES = {
  */
 export const resolveMessageType = contentType =>
   MESSAGE_TYPES[contentType] || MESSAGE_TYPES.text;
+
+/**
+ * A citação de fonte (6.03) NÃO é um `content_type`: é um rodapé que vale para
+ * qualquer tipo — uma resposta em cartões pode citar tanto quanto uma em texto. Por
+ * isso ela sai daqui como export próprio, e não como entrada do mapa. Mora no
+ * diretório do registry (e viaja no mesmo chunk) para não custar peso *eager* extra:
+ * é o mesmo grafo que a bolha já carrega, com um arquivo a mais (A13).
+ */
+export { default as CitationList } from './CitationList.vue';

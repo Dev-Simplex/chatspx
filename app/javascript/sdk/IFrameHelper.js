@@ -23,6 +23,7 @@ import {
   removeUnreadClass,
 } from './bubbleHelpers';
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
+import { isMobileViewport } from './viewport';
 import { drenar } from './preBootQueue';
 import { montarTeaser } from './teaser';
 import { degradar, gravarAbordagem, lerAbordagem } from './tracking/approach';
@@ -32,6 +33,7 @@ import {
   CHATWOOT_MESSAGE_SENT,
   CHATWOOT_POSTBACK,
   CHATWOOT_READY,
+  CHATWOOT_RESET_COMPLETED,
 } from '../widget/constants/sdkEvents';
 import { SET_USER_ERROR } from '../widget/constants/errorTypes';
 import { getUserCookieName, setCookieWithDomain } from './cookieHelpers';
@@ -42,6 +44,7 @@ import {
 import { isFlatWidgetStyle } from './settingsHelper';
 import { popoutChatWindow } from '../widget/helpers/popoutHelper';
 import { createTitleFlasher } from './titleFlasher';
+import { loadCollector } from './tracking/loader';
 
 const updateAuthCookie = (cookieContent, baseDomain = '') =>
   setCookieWithDomain('cw_conversation', cookieContent, {
@@ -405,7 +408,22 @@ export const IFrameHelper = {
 
       IFrameHelper.titleFlasher.attach();
 
-      if (!window.$chatwoot.resetTriggered) {
+      // T-I4.5 (bloco 5.04) — o `reset()` era MUDO.
+      //
+      // O que existia era só a supressão: `resetTriggered` impedia o segundo
+      // `chatwoot:ready`, e o site que chamou `reset()` não recebia sinal
+      // nenhum de que a operação terminou. Quem precisava encadear alguma coisa
+      // depois do reset (identificar o novo visitante, por exemplo) só tinha
+      // `setTimeout` para adivinhar quando.
+      //
+      // Agora o reset ANUNCIA a conclusão, e a flag é limpa. Limpar importa:
+      // sem isso ela ficava `true` para sempre depois do primeiro reset, e
+      // qualquer recarga posterior do iframe deixava de emitir `chatwoot:ready`
+      // — a supressão valia uma vez e durava a vida da página.
+      if (window.$chatwoot.resetTriggered) {
+        window.$chatwoot.resetTriggered = false;
+        dispatchWindowEvent({ eventName: CHATWOOT_RESET_COMPLETED });
+      } else {
         dispatchWindowEvent({ eventName: CHATWOOT_READY });
       }
     },
@@ -573,6 +591,18 @@ export const IFrameHelper = {
     applyWidgetTokens(bubbleHolder, effectiveTokens);
     onLocationChangeListener();
 
+    // Bloco 5.08 (T-C2.1) — a única linha deste bloco fora de `sdk/tracking/`.
+    // Só busca o coletor quando a inbox tem tracking configurado (T-C2.8); sem config, nem
+    // a requisição acontece. A entrega usa dois eventos que o bridge do widget já trata.
+    const tracking = channelConfig?.widgetTracking;
+    loadCollector({ baseUrl: window.$chatwoot.baseUrl, tracking }).then(
+      collector =>
+        collector?.attachOriginAttributes({
+          tracking,
+          sendMessage: IFrameHelper.sendMessage,
+        })
+    );
+
     let className = 'woot-widget-bubble';
     let closeBtnClassName = `woot-elements--${window.$chatwoot.position} woot-widget-bubble woot--close woot--hide`;
 
@@ -624,10 +654,11 @@ export const IFrameHelper = {
     IFrameHelper.montarTeaserSeConfigurado(bubbleHolder);
   },
   toggleCloseButton: () => {
-    let isMobile = false;
-    if (window.matchMedia('(max-width: 668px)').matches) {
-      isMobile = true;
-    }
-    IFrameHelper.sendMessage('toggle-close-button', { isMobile });
+    // Bloco 2.09: o numero vem de `sdk/viewport.js`. Aqui havia um limite
+    // proprio, e ele nao batia com o do CSS — em 668 px o CSS ja tratava como
+    // desktop enquanto este JS avisava o widget que era celular.
+    IFrameHelper.sendMessage('toggle-close-button', {
+      isMobile: isMobileViewport(),
+    });
   },
 };

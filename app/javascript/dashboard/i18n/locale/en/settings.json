@@ -41,7 +41,8 @@
       "SCENARIOS": "Scenarios",
       "INBOXES": "Inboxes",
       "LOGS": "Logs",
-      "SETTINGS": "Settings"
+      "SETTINGS": "Settings",
+      "EVAL": "Eval"
     }
   },
   "PROFILE_SETTINGS": {

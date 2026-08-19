@@ -27,9 +27,9 @@ module WidgetConfigurable
   # As tres chaves que carregam objeto. `widget_profile` e escalar e valida por inclusao.
   WIDGET_OBJECT_KEYS = %i[widget_triggers widget_tracking widget_appearance].freeze
 
-  # `*_token`, `*_secret`, `api_secret` — e as chaves nuas `token` e `secret`, que passariam
-  # por uma leitura literal da lista do plano e sao o disfarce mais obvio.
-  SECRET_KEY_PATTERN = /(\A|_)(token|secret)\z/i
+  # Bloco 5.01 — a varredura de segredo mora em `WidgetSecretScanner`: e responsabilidade propria,
+  # com duas camadas (nome e valor), e aqui fica so a decisao de o que fazer com o achado.
+  # A camada principal nao e ela — e o `additionalProperties: false` de cada schema.
 
   included do
     store_accessor :additional_attributes, :widget_profile, :widget_triggers, :widget_tracking, :widget_appearance
@@ -42,6 +42,7 @@ module WidgetConfigurable
     validate :ensure_widget_config_objects
     validate :ensure_no_secret_in_widget_config
     validate :ensure_widget_triggers_match_schema
+    validate :ensure_widget_tracking_matches_schema
     validate :ensure_widget_appearance_matches_schema
     validate :ensure_home_intents_are_a_real_choice
     validate :ensure_additional_attributes_fit_the_ceiling
@@ -69,6 +70,13 @@ module WidgetConfigurable
   # aqui que ela consegue dizer QUAL campo esta errado.
   def ensure_widget_triggers_match_schema
     validate_against_schema(:widget_triggers, WidgetTriggersSchema::SCHEMA)
+  end
+
+  # Bloco 5.01: `additionalProperties: false` recusa TUDO que nao foi declarado publico — inclusive
+  # o nome de segredo que ninguem previu na lista negativa. Ate 3.01, `widget_tracking` era a unica
+  # das tres chaves de objeto sem schema, e portanto a unica aberta.
+  def ensure_widget_tracking_matches_schema
+    validate_against_schema(:widget_tracking, WidgetTrackingSchema::SCHEMA)
   end
 
   def ensure_widget_appearance_matches_schema
@@ -121,39 +129,17 @@ module WidgetConfigurable
       value = public_send(key)
       next unless value.is_a?(Hash)
 
-      offender = find_secret_key(value)
-      next if offender.nil?
-
-      errors.add(key, I18n.t('errors.inbox.widget_config.secret_not_allowed', key: offender))
+      add_secret_error(key, value)
     end
   end
 
-  # Varre em profundidade: um segredo escondido dentro de um objeto aninhado ou de um array
-  # de objetos vaza exatamente como um de topo.
-  def find_secret_key(node)
-    return find_secret_key_in_hash(node) if node.is_a?(Hash)
-    return find_secret_key_in_array(node) if node.is_a?(Array)
+  def add_secret_error(key, value)
+    offender = WidgetSecretScanner.offending_key_name(value)
+    return errors.add(key, I18n.t('errors.inbox.widget_config.secret_not_allowed', key: offender)) if offender
 
-    nil
-  end
+    holder = WidgetSecretScanner.offending_value_holder(value)
+    return if holder.nil?
 
-  def find_secret_key_in_hash(hash)
-    hash.each do |key, value|
-      return key.to_s if key.to_s.match?(SECRET_KEY_PATTERN)
-
-      nested = find_secret_key(value)
-      return nested if nested
-    end
-
-    nil
-  end
-
-  def find_secret_key_in_array(array)
-    array.each do |item|
-      nested = find_secret_key(item)
-      return nested if nested
-    end
-
-    nil
+    errors.add(key, I18n.t('errors.inbox.widget_config.secret_value_not_allowed', key: holder))
   end
 end

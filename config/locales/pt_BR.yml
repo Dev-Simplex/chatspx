@@ -74,6 +74,7 @@ pt_BR:
         invalid_profile: "não é um perfil de widget válido (valores aceitos: %{profiles})"
         must_be_object: "deve ser um objeto JSON"
         secret_not_allowed: 'não aceita segredo: a chave "%{key}" deve ficar na tela de credenciais, nunca aqui'
+        secret_value_not_allowed: 'não aceita segredo: o valor de "%{key}" tem cara de credencial e deve ficar na tela de credenciais, nunca aqui'
         schema_violation: 'tem valor inválido em "%{field}": %{detail}'
         detail_enum: "valor não permitido (aceitos: %{allowed})"
         detail_required: "campo obrigatório ausente: %{keys}"
@@ -99,6 +100,7 @@ pt_BR:
     validations:
       presence: não pode ficar em branco
     webhook:
+      inbox_not_in_account: "não pertence a esta conta"
       invalid: Eventos inválidos
     signup:
       disposable_email: Não permitimos e-mails descartáveis

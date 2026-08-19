@@ -1,4 +1,9 @@
 import { addClasses, removeClasses, toggleClass } from './DOMHelpers';
+import {
+  applyInertBackground,
+  releaseInertBackground,
+} from './inertBackground';
+import { isMobileViewport } from './viewport';
 import { IFrameHelper } from './IFrameHelper';
 import { isExpandedView } from './settingsHelper';
 import {
@@ -258,9 +263,18 @@ const handleBubbleToggle = newIsOpen => {
   IFrameHelper.events.onBubbleToggle(newIsOpen);
 
   if (newIsOpen) {
+    // Bloco 2.11: em celular o painel e tela cheia, e sem `inert` o Tab e o
+    // leitor de tela continuam caminhando pela pagina do cliente ATRAS dele.
+    // Em desktop o widget e flutuante e o resto da pagina segue utilizavel de
+    // proposito — marcar tudo ali roubaria a pagina de quem so quer ler.
+    if (isMobileViewport()) applyInertBackground();
     dispatchWindowEvent({ eventName: CHATWOOT_OPENED });
   } else {
+    releaseInertBackground();
     dispatchWindowEvent({ eventName: CHATWOOT_CLOSED });
+    // O foco volta ao lancador. JA EXISTIA nesta base — o bloco 2.11 verifica,
+    // nao reimplementa: `toggleClass` roda ANTES daqui, entao o botao ja perdeu
+    // `woot--hide` e e focavel quando `.focus()` acontece.
     chatBubble.focus();
   }
 };

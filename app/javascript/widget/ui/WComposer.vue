@@ -1,4 +1,5 @@
 <script>
+import { rotuloObrigatorio } from './rotulos';
 /**
  * Casca da área de composição: o campo e as ações.
  *
@@ -11,20 +12,52 @@ export default {
   name: 'WComposer',
   inheritAttrs: false,
   props: {
-    label: { type: String, required: true },
+    label: {
+      type: String,
+      required: true,
+      validator: rotuloObrigatorio,
+    },
     modelValue: { type: String, default: '' },
     placeholder: { type: String, default: '' },
     disabled: { type: Boolean, default: false },
   },
   emits: ['update:modelValue', 'submit'],
+  data() {
+    return { compondo: false };
+  },
   methods: {
     aoTeclar(evento) {
       // Enter envia, Shift+Enter quebra linha. `keydown`, não `keypress`:
       // `keypress` está obsoleto e não dispara para todas as teclas.
-      if (evento.key === 'Enter' && !evento.shiftKey) {
-        evento.preventDefault();
-        this.$emit('submit');
+      if (evento.key !== 'Enter' || evento.shiftKey) return;
+
+      // Enquanto o IME compõe, o Enter CONFIRMA o caractere — não envia.
+      // Sem isto, quem digita "café" num teclado de celular em pt-BR manda
+      // "caf" no meio da composição, e depois manda de novo: duas mensagens,
+      // a primeira truncada.
+      //
+      // As três fontes são todas do evento nativo, nenhuma é timing:
+      //  · `isComposing` do próprio keydown — o sinal canônico;
+      //  · `keyCode === 229`, que é como vários navegadores marcam o Enter
+      //    que confirma a composição;
+      //  · a bandeira de `compositionstart`/`compositionend`, para o caso de
+      //    o keydown chegar sem nenhum dos dois marcados.
+      //
+      // Isto é do PRIMITIVO por decisão de contrato: defesa que cada
+      // consumidor precisa lembrar de repetir funciona só enquanto quem
+      // escreve conhece a história.
+      if (evento.isComposing || evento.keyCode === 229 || this.compondo) {
+        return;
       }
+
+      evento.preventDefault();
+      this.$emit('submit');
+    },
+    aoIniciarComposicao() {
+      this.compondo = true;
+    },
+    aoTerminarComposicao() {
+      this.compondo = false;
     },
   },
 };
@@ -44,6 +77,8 @@ export default {
       v-bind="$attrs"
       @input="$emit('update:modelValue', $event.target.value)"
       @keydown="aoTeclar"
+      @compositionstart="aoIniciarComposicao"
+      @compositionend="aoTerminarComposicao"
     />
     <div class="w-composer__acoes">
       <slot name="actions" />

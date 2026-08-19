@@ -1,4 +1,5 @@
 <script>
+import { rotuloObrigatorio } from './rotulos';
 /**
  * Campo de formulário com rótulo REALMENTE associado.
  *
@@ -13,7 +14,11 @@ export default {
   name: 'WField',
   inheritAttrs: false,
   props: {
-    label: { type: String, required: true },
+    label: {
+      type: String,
+      required: true,
+      validator: rotuloObrigatorio,
+    },
     modelValue: { type: String, default: '' },
     id: { type: String, default: '' },
     type: { type: String, default: 'text' },

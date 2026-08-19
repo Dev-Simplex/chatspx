@@ -164,13 +164,18 @@
       "APPEARANCE_LAUNCHER_ICON": "Launcher icon",
       "APPEARANCE_HOME_INTENTS": "Home screen options",
       "TRIGGERS_APPROACH": "Desktop approach",
-      "TRIGGERS_APPROACH_MOBILE": "Mobile approach",
       "TRIGGERS_DEGRADE_ON_RETURN": "Soften approach on return",
-      "TRIGGERS_RULES": "Triggers",
-      "TRACKING_DESTINATIONS": "Tracking destinations",
-      "TRACKING_EVENTS": "Tracking events",
       "PRE_CHAT_ENABLED": "Pre-chat form",
-      "PRE_CHAT": "Pre-chat fields"
+      "PRE_CHAT": "Pre-chat fields",
+      "TRACKING_META_PIXEL_ID": "Meta Pixel ID",
+      "TRACKING_GA4_MEASUREMENT_ID": "GA4 Measurement ID",
+      "TRACKING_GOOGLE_ADS_SEND_TO": "Google Ads conversion",
+      "TRACKING_EVENT_MAP": "Event map",
+      "TRACKING_CONSENT_MODE": "Consent mode",
+      "TRACKING_TEST_MODE": "Test mode",
+      "TRACKING_LEAD_VALUE": "Lead value",
+      "TRIGGERS_ENABLED": "Proactive invitations",
+      "TRIGGERS_TRIGGERS": "Configured triggers"
     },
     "CONTRAST": {
       "RATIO": "{value}:1",
@@ -510,6 +515,103 @@
         "EMPTY": "This inbox has no live chat campaign yet. Create one under Campaigns to write the invitation text — the trigger decides when it shows, and it stays editable where it always was.",
         "SIMULATE": "Simulate the trigger in the preview",
         "SIMULATE_HINT": "Shows the invitation the way the visitor will see it when the trigger fires. Preview only — nothing is sent."
+      }
+    },
+    "TRACKING": {
+      "TAB": "Tracking",
+      "SAVED": "Tracking settings saved.",
+      "SAVE_ERROR": "Could not save the tracking settings.",
+      "BLOCKED_BY_502": "Storing a credential is not available yet: the encrypted vault is block 5.02, which waits on the cipher keys (0.10). The public identifier above already works and already reaches the site.",
+      "TABS": {
+        "META": "Meta",
+        "GOOGLE": "Google",
+        "EVENTS": "Events",
+        "DIAGNOSTICS": "Diagnostics"
+      },
+      "META": {
+        "PIXEL_ID": "Pixel ID",
+        "PIXEL_ID_HINT": "It is public: it shows in the code of any site that uses the pixel. Digits only, 15 or 16.",
+        "PIXEL_ID_INVALID": "A Pixel ID has 15 or 16 digits, no letters.",
+        "TOKEN": "Access Token",
+        "TEST_MODE": "Test mode",
+        "TEST_MODE_HINT": "Sends events as tests so you can check them in Events Manager without polluting the real numbers. It turns itself off in {days} days.",
+        "TEST_CODE": "Test code",
+        "TEST_MODE_EXPIRED": "Test mode passed {days} days and turned itself off. Turn it on again if you are still testing."
+      },
+      "GOOGLE": {
+        "MEASUREMENT_ID": "Measurement ID (GA4)",
+        "MEASUREMENT_ID_HINT": "It is public: it starts with G- and shows in the site tag.",
+        "MEASUREMENT_ID_INVALID": "A Measurement ID starts with G- followed by letters and numbers.",
+        "API_SECRET": "API Secret",
+        "SEND_TO": "Google Ads conversion",
+        "SEND_TO_HINT": "In the AW-000000000/ConversionLabel format.",
+        "SEND_TO_INVALID": "Use the AW-000000000/ConversionLabel format."
+      },
+      "EVENT_MAP": {
+        "EVENT": "ChatSPX event",
+        "META": "Name on Meta",
+        "GA4": "Name on GA4",
+        "ON": "Active",
+        "NOT_SENT": "do not send"
+      },
+      "EVENTS": {
+        "WIDGET_LOADED": "Widget loaded",
+        "WIDGET_OPENED": "Widget opened",
+        "CONVERSATION_STARTED": "Conversation started",
+        "PRECHAT_SUBMITTED": "Pre-chat submitted",
+        "LEAD": "Lead",
+        "LEAD_QUALIFIED": "Lead qualified",
+        "LEAD_DISQUALIFIED": "Lead disqualified",
+        "AGENT_ENGAGED": "Agent engaged",
+        "MEETING_SCHEDULED": "Meeting scheduled",
+        "CONVERSATION_RESOLVED": "Conversation resolved",
+        "DEAL_WON": "Deal won",
+        "DEAL_LOST": "Deal lost"
+      },
+      "LEAD_VALUE": {
+        "TITLE": "Lead value",
+        "OFF": "Off",
+        "OFF_HINT": "Events go without a value. Use it when the ticket varies too much for an average to mean anything.",
+        "FIXED": "Fixed value",
+        "FIXED_HINT": "Every lead is worth the same. It is enough for Ads to optimise by conversion.",
+        "BY_RULE": "By rule",
+        "BY_RULE_HINT": "The value comes from the funnel (block 5.21). Until it exists, the event goes without a value.",
+        "AMOUNT": "Amount"
+      },
+      "ACCOUNT": {
+        "TITLE": "Set for the whole account",
+        "READ_ONLY": "read only",
+        "CONSENT": "Consent mode",
+        "KILL_SWITCH": "Master switch",
+        "KILL_ON": "off due to an incident",
+        "KILL_OFF": "normal",
+        "RETENTION": "Log retention",
+        "RETENTION_DAYS": "{days} days",
+        "DPA": "DPA acceptance",
+        "DPA_YES": "accepted",
+        "DPA_NO": "pending",
+        "UNSET": "not set",
+        "KILL_WARNING": "The account master switch is on: no event leaves any inbox until it is released."
+      },
+      "DIAGNOSTICS": {
+        "PRIVACY": "This panel shows the NAMES of the fields sent, never the values — neither in the clear nor hashed. Diagnostics that show a lead's email is a leak with an interface.",
+        "EMPTY": "No delivery recorded yet for this inbox.",
+        "UNAVAILABLE": "Reading the delivery log comes with block 5.14 (audit and diagnostics). Deliveries are already recorded by the server since 5.03 — what is missing is the endpoint that returns them to this screen.",
+        "TIME": "Time",
+        "EVENT": "Event",
+        "DESTINATION": "Destination",
+        "STATUS": "Status",
+        "FIELDS": "Fields sent"
+      },
+      "SECRET": {
+        "EMPTY": "not set",
+        "NOT_SET": "No value stored.",
+        "SET": "Stored. The value is never shown again.",
+        "SET_AT": "Stored on {date}. The value is never shown again.",
+        "REPLACE": "Replace",
+        "SET_BUTTON": "Set",
+        "CONFIRM": "Store",
+        "CANCEL": "Cancel"
       }
     }
   }

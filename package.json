@@ -13,6 +13,7 @@
     "dev": "overmind start -f ./Procfile.dev",
     "ruby:prettier": "bundle exec rubocop -a",
     "build:sdk": "vite build --config vite.lib.config.ts",
+    "build:tracking": "vite build --config vite.tracking.config.ts",
     "prepare": "husky install",
     "size": "size-limit; sl=$?; node scripts/widget-size.mjs; ws=$?; exit $((sl | ws))",
     "size:widget": "node scripts/widget-size.mjs",

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -573,6 +573,56 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
     t.index ["account_id"], name: "index_captain_documents_on_account_id"
     t.index ["assistant_id"], name: "index_captain_documents_on_assistant_id"
     t.index ["status"], name: "index_captain_documents_on_status"
+  end
+
+  create_table "captain_eval_case_results", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "eval_run_id", null: false
+    t.bigint "eval_case_id", null: false
+    t.boolean "passou", default: false, null: false
+    t.text "resposta"
+    t.jsonb "findings", default: [], null: false
+    t.jsonb "ferramentas", default: [], null: false
+    t.integer "duracao_ms"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_case_results_on_account_id"
+    t.index ["eval_case_id"], name: "index_captain_eval_case_results_on_eval_case_id"
+    t.index ["eval_run_id", "eval_case_id"], name: "idx_cap_eval_results_run_case", unique: true
+  end
+
+  create_table "captain_eval_cases", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "captain_assistant_id", null: false
+    t.string "titulo", null: false
+    t.jsonb "mensagens", default: [], null: false
+    t.jsonb "expectativas", default: {}, null: false
+    t.boolean "ativo", default: true, null: false
+    t.integer "posicao", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_cases_on_account_id"
+    t.index ["captain_assistant_id", "posicao"], name: "idx_cap_eval_cases_assistant_pos"
+  end
+
+  create_table "captain_eval_runs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "captain_assistant_id", null: false
+    t.string "status", default: "pendente", null: false
+    t.boolean "dry_run", default: true, null: false
+    t.string "prompt_fingerprint"
+    t.jsonb "prompt_snapshot", default: {}, null: false
+    t.string "modelo"
+    t.integer "casos_total", default: 0, null: false
+    t.integer "casos_ok", default: 0, null: false
+    t.integer "casos_falha", default: 0, null: false
+    t.jsonb "custo_estimado", default: {}, null: false
+    t.datetime "iniciado_em"
+    t.datetime "concluido_em"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_runs_on_account_id"
+    t.index ["captain_assistant_id", "created_at"], name: "idx_cap_eval_runs_assistant_created"
   end
 
   create_table "captain_faq_observations", force: :cascade do |t|
@@ -2235,6 +2285,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
     t.index ["uid", "provider"], name: "index_users_on_uid_and_provider", unique: true
   end
 
+  create_table "webhook_deliveries", force: :cascade do |t|
+    t.bigint "webhook_id", null: false
+    t.bigint "account_id", null: false
+    t.string "delivery_id", null: false
+    t.string "event"
+    t.integer "status", default: 0, null: false
+    t.integer "http_status"
+    t.integer "attempts", default: 1, null: false
+    t.text "error_message"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "delivery_id"], name: "index_webhook_deliveries_on_account_id_and_delivery_id"
+    t.index ["created_at"], name: "index_webhook_deliveries_on_created_at"
+    t.index ["webhook_id", "created_at"], name: "index_webhook_deliveries_on_webhook_id_and_created_at", order: { created_at: :desc }
+  end
+
   create_table "webhooks", force: :cascade do |t|
     t.integer "account_id"
     t.integer "inbox_id"
@@ -2245,7 +2313,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
     t.jsonb "subscriptions", default: ["conversation_status_changed", "conversation_updated", "conversation_created", "contact_created", "contact_updated", "message_created", "message_updated", "webwidget_triggered"]
     t.string "name"
     t.string "secret"
-    t.index ["account_id", "url"], name: "index_webhooks_on_account_id_and_url", unique: true
+    t.index ["account_id", "url", "inbox_id"], name: "index_webhooks_on_account_id_url_and_inbox_id", unique: true, nulls_not_distinct: true
   end
 
   create_table "widget_partial_leads", force: :cascade do |t|
@@ -2381,6 +2449,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
   add_foreign_key "tracking_events", "conversations", on_delete: :nullify
   add_foreign_key "tracking_events", "inboxes", on_delete: :nullify
   add_foreign_key "user_sessions", "users"
+  add_foreign_key "webhook_deliveries", "webhooks"
   add_foreign_key "widget_partial_leads", "accounts", on_delete: :cascade
   add_foreign_key "widget_partial_leads", "contacts", on_delete: :cascade
   add_foreign_key "widget_partial_leads", "inboxes", on_delete: :cascade

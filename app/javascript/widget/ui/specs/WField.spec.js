@@ -160,6 +160,56 @@ describe('WComposer', () => {
     expect(el.emitted('submit')).toHaveLength(1);
   });
 
+  describe('composição de IME — acentuação em teclado de celular', () => {
+    // Digitar "café" em pt-BR passa por composição. Se o Enter que CONFIRMA o
+    // acento for tratado como "enviar", a mensagem sai pela metade ("caf").
+    // A fonte é o evento nativo, nunca timing.
+    it('Enter durante a composição NÃO envia', async () => {
+      const el = montar();
+      const area = el.find('textarea');
+
+      await area.trigger('compositionstart');
+      await area.trigger('keydown', { key: 'Enter' });
+
+      expect(el.emitted('submit')).toBeUndefined();
+    });
+
+    it('encerrada a composição, o Enter volta a enviar', async () => {
+      const el = montar();
+      const area = el.find('textarea');
+
+      await area.trigger('compositionstart');
+      await area.trigger('keydown', { key: 'Enter' });
+      await area.trigger('compositionend');
+      await area.trigger('keydown', { key: 'Enter' });
+
+      expect(el.emitted('submit')).toHaveLength(1);
+    });
+
+    it('keydown com isComposing do próprio evento também barra', async () => {
+      // Navegador que não emitiu compositionstart ainda pode marcar o keydown.
+      const el = montar();
+
+      await el.find('textarea').trigger('keydown', {
+        key: 'Enter',
+        isComposing: true,
+      });
+
+      expect(el.emitted('submit')).toBeUndefined();
+    });
+
+    it('keyCode 229 — o Enter que confirma o IME em vários navegadores', async () => {
+      const el = montar();
+
+      await el.find('textarea').trigger('keydown', {
+        key: 'Enter',
+        keyCode: 229,
+      });
+
+      expect(el.emitted('submit')).toBeUndefined();
+    });
+  });
+
   it('Shift+Enter NÃO envia — quebra linha', async () => {
     const el = montar();
     await el

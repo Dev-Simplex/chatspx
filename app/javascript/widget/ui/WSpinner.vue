@@ -1,4 +1,5 @@
 <script>
+import { rotuloObrigatorio } from './rotulos';
 /**
  * Indicador de carregamento do widget.
  *
@@ -29,7 +30,11 @@ export default {
   inheritAttrs: false,
   props: {
     /** Nome acessível. Obrigatório: sem ele o leitor de tela anuncia nada. */
-    label: { type: String, required: true },
+    label: {
+      type: String,
+      required: true,
+      validator: rotuloObrigatorio,
+    },
     size: {
       type: String,
       default: 'small',

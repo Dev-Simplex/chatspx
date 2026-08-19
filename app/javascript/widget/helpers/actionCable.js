@@ -1,4 +1,5 @@
 import BaseActionCableConnector from '../../shared/helpers/BaseActionCableConnector';
+import { createConnectionMonitor } from 'widget/state/connectionMonitor';
 import { playNewMessageNotificationInWidget } from 'widget/helpers/WidgetAudioNotificationHelper';
 import { ON_AGENT_MESSAGE_RECEIVED } from '../constants/widgetBusEvents';
 import { IFrameHelper } from 'widget/helpers/utils';
@@ -14,6 +15,14 @@ const isMessageInActiveConversation = (getters, message) => {
 };
 
 const WIDGET_PRESENCE_INTERVAL = 60000;
+
+/**
+ * O monitor de conexao do widget, um por pagina.
+ *
+ * Exportado para que a tela (e o teste) leiam o estado sem alcancar o
+ * connector: quem observa a conexao nao deveria precisar conhecer o ActionCable.
+ */
+export const widgetConnectionMonitor = createConnectionMonitor();
 
 class ActionCableConnector extends BaseActionCableConnector {
   constructor(app, pubsubToken) {
@@ -32,9 +41,26 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onDisconnected = () => {
     this.setLastMessageId();
+    // Bloco 2.07: quem decide SE e QUANDO o visitante e avisado e o monitor —
+    // aqui so se relata o fato. A carencia de 3 s vive la, testada com relogio
+    // falso, em vez de espalhada por `setTimeout` dentro de componente.
+    widgetConnectionMonitor.reportDisconnected();
+  };
+
+  /**
+   * O watchdog de 15 s de `BaseActionCableConnector` chamava
+   * `window.reconnectService.handleRouteSpecificFetch?.()` — objeto que existe
+   * no dashboard e **nunca no widget** (medido: zero ocorrencias em
+   * `app/javascript/widget/`). O temporizador rodava a cada 15 s e nao fazia
+   * nada. Agora ele tem consumidor: o widget refaz o mesmo trabalho da
+   * reconexao, que e o que o visitante precisa quando o fluxo silencia.
+   */
+  onStaleConnection = () => {
+    this.syncLatestMessages();
   };
 
   onReconnect = () => {
+    widgetConnectionMonitor.reportConnected();
     this.syncLatestMessages();
     // Re-fetch conversation attributes so a status change (e.g. auto-resolve)
     // that happened while disconnected is reflected, keeping the reply box state correct.
