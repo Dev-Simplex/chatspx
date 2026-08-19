@@ -164,13 +164,18 @@
       "APPEARANCE_LAUNCHER_ICON": "Ícone do lançador",
       "APPEARANCE_HOME_INTENTS": "Opções da tela inicial",
       "TRIGGERS_APPROACH": "Abordagem no computador",
-      "TRIGGERS_APPROACH_MOBILE": "Abordagem no celular",
       "TRIGGERS_DEGRADE_ON_RETURN": "Reduzir a abordagem em quem volta",
-      "TRIGGERS_RULES": "Gatilhos",
-      "TRACKING_DESTINATIONS": "Destinos de rastreio",
-      "TRACKING_EVENTS": "Eventos de rastreio",
       "PRE_CHAT_ENABLED": "Formulário de pré-chat",
-      "PRE_CHAT": "Campos do pré-chat"
+      "PRE_CHAT": "Campos do pré-chat",
+      "TRACKING_META_PIXEL_ID": "Pixel ID da Meta",
+      "TRACKING_GA4_MEASUREMENT_ID": "Measurement ID do GA4",
+      "TRACKING_GOOGLE_ADS_SEND_TO": "Conversão do Google Ads",
+      "TRACKING_EVENT_MAP": "Mapa de eventos",
+      "TRACKING_CONSENT_MODE": "Modo de consentimento",
+      "TRACKING_TEST_MODE": "Modo teste",
+      "TRACKING_LEAD_VALUE": "Valor do lead",
+      "TRIGGERS_ENABLED": "Convites proativos",
+      "TRIGGERS_TRIGGERS": "Gatilhos configurados"
     },
     "CONTRAST": {
       "RATIO": "{value}:1",

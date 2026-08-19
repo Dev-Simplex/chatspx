@@ -60,9 +60,8 @@ const input = readFileSync(
   join(repoRoot, 'app/javascript/dashboard/components-next/input/Input.vue'),
   'utf8'
 );
-const messageClass = /const messageClass = computed\(\(\) => \{([\s\S]*?)\n\}\);/.exec(
-  input
-)[1];
+const messageClass =
+  /const messageClass = computed\(\(\) => \{([\s\S]*?)\n\}\);/.exec(input)[1];
 const classeDe = caso => {
   const bloco = new RegExp(`case '${caso}':\\s*return\\s*'([^']*)'`).exec(
     messageClass
@@ -80,7 +79,16 @@ const outCss = join(dir, 'out.css');
 writeFileSync(inCss, '@tailwind utilities;\n');
 execFileSync(
   'pnpm',
-  ['exec', 'tailwindcss', '-c', 'tailwind.config.js', '-i', inCss, '-o', outCss],
+  [
+    'exec',
+    'tailwindcss',
+    '-c',
+    'tailwind.config.js',
+    '-i',
+    inCss,
+    '-o',
+    outCss,
+  ],
   { cwd: repoRoot, stdio: 'pipe' }
 );
 const TAILWIND = readFileSync(outCss, 'utf8');
