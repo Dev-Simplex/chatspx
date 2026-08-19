@@ -27,6 +27,12 @@ module Current
   # Macros::ExecutionService).
   thread_mattr_accessor :takeover_approval_in_progress
   thread_mattr_accessor :inbox
+  # 6.01 (guardrail de pré-envio): janela de tool calls DESTA resposta, em memória.
+  # O trace persistido (captain_tool_calls) só existe quando a conta tem eval_enabled,
+  # e o guardrail precisa valer para toda conta — então quem gera a resposta abre a
+  # janela, o TraceRecorder empurra pra dentro e o guardrail lê. Thread-local + Puma
+  # reusa threads => quem abre TEM que fechar num `ensure` (Captain::ToolTraceWindow).
+  thread_mattr_accessor :captain_tool_traces
 
   def self.reset
     Current.user = nil
@@ -39,5 +45,6 @@ module Current
     Current.flow_depth = nil
     Current.takeover_approval_in_progress = nil
     Current.inbox = nil
+    Current.captain_tool_traces = nil
   end
 end

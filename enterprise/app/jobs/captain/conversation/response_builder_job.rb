@@ -18,12 +18,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     reset_followup_state if @directive.nil?
 
     Current.executed_by = @assistant
-
-    if captain_v2_enabled?
-      generate_response_with_v2
-    else
-      generate_and_process_response
-    end
+    # 6.01: janela das tool calls DESTA resposta, lida pelo guardrail de pré-envio.
+    Captain::ToolTraceWindow.open!
+    generate_by_engine
   rescue ActiveStorage::FileNotFoundError, Faraday::BadRequestError => e
     handle_error(e)
     raise e
@@ -31,11 +28,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     handle_error(e)
   ensure
     Current.executed_by = nil
+    Captain::ToolTraceWindow.close!
   end
 
   private
 
   delegate :account, :inbox, to: :@conversation
+
+  def generate_by_engine
+    captain_v2_enabled? ? generate_response_with_v2 : generate_and_process_response
+  end
 
   def generate_and_process_response
     message_history = collect_previous_messages
@@ -74,12 +76,22 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # no commit final, TODOS juntos -> corriam soltos e chegavam fora de ordem. Commitando
       # uma a uma, o wait_for_dispatch (espera o source_id) serializa o envio.
       message = create_messages
-      Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
-      account.increment_response_usage
-      ensure_handoff_if_promised
-      auto_schedule_followup if @did_send
-      capture_assistant_session(result_message: message, credits_consumed: 1.0)
+      # 6.01: se o guardrail reteve, nada foi enviado — então nada é cobrado, e o que
+      # existe agora é um handoff.
+      @guardrail_retained ? account_for_retention : account_for_delivery(message)
     end
+  end
+
+  def account_for_delivery(message)
+    Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
+    account.increment_response_usage
+    ensure_handoff_if_promised
+    auto_schedule_followup if @did_send
+    capture_assistant_session(result_message: message, credits_consumed: 1.0)
+  end
+
+  def account_for_retention
+    capture_assistant_session(result_message: @handoff_message, credits_consumed: 0.0)
   end
 
   def collect_previous_messages
@@ -327,7 +339,56 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       return if skip_duplicate?(content)
     end
 
+    return process_guardrail_handoff if guardrail_retains?(content)
+
     send_response(content)
+  end
+
+  # ─── 6.01 · guardrail de pré-envio ────────────────────────────────────────────────
+  # Última porta antes de a resposta virar mensagem. Depois do dedup de propósito: o que
+  # se verifica é o texto FINAL, o mesmo que o visitante veria — verificar o candidato
+  # anterior deixaria a regeneração passar sem gate.
+  #
+  # Falha do guardrail LIBERA a resposta (fail-open) e registra. A assimetria está no
+  # cabeçalho do serviço: bug meu não pode calar o atendimento de ninguém.
+  def guardrail_retains?(content)
+    result = Captain::ResponseGuardrailService.new(
+      conversation: @conversation,
+      candidate: content,
+      tool_calls: Captain::ToolTraceWindow.calls
+    ).perform
+    return false if result.passes?
+
+    @guardrail_reason = result.reason
+    @guardrail_findings = result.findings
+    true
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][guardrail] liberou por erro no proprio guardrail: #{e.class} #{e.message}")
+    false
+  end
+
+  # Reter não é silenciar: o visitante recebe a saída humana (mensagem de transferência,
+  # e o OOO quando fora do horário), que é o modo de falha barato.
+  def process_guardrail_handoff
+    @guardrail_retained = true
+    log_guardrail_retention
+    Rails.logger.warn(
+      "[CAPTAIN][guardrail] resposta retida em conversation=#{@conversation.display_id} motivo=#{@guardrail_reason}"
+    )
+    I18n.with_locale(@assistant.account.locale) do
+      create_handoff_message
+      @conversation.bot_handoff!
+      send_out_of_office_message_if_applicable
+    end
+    nil
+  end
+
+  # O motivo é registrado; falhar em registrá-lo não pode reverter a retenção (a
+  # decisão já foi tomada com o fato na mão, e o visitante já está com uma pessoa).
+  def log_guardrail_retention
+    log_behavior_event('guardrail_retained', { motivo: @guardrail_reason, findings: @guardrail_findings })
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][guardrail] retencao aconteceu mas o log falhou: #{e.class} #{e.message}")
   end
 
   # O agente decide quando NÃO responder (ex: cliente só mandou "ok"/"blz" e não há
