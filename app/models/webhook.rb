@@ -29,7 +29,11 @@ class Webhook < ApplicationRecord
   validate :validate_webhook_subscriptions
   enum webhook_type: { account_type: 0, inbox_type: 1 }
 
-  ALLOWED_WEBHOOK_EVENTS = %w[conversation_status_changed conversation_updated conversation_created contact_created contact_updated
+  # Bloco 4.12: `conversation_resolved` so chegava a agent bot
+  # (agent_bot_listener.rb:2). Webhook de conta nao podia nem se inscrever nele — e
+  # "a conversa foi resolvida" e justamente o gancho de CRM, NPS e billing.
+  ALLOWED_WEBHOOK_EVENTS = %w[conversation_status_changed conversation_updated conversation_created conversation_resolved
+                              contact_created contact_updated
                               message_created message_updated webwidget_triggered inbox_created inbox_updated
                               conversation_typing_on conversation_typing_off].freeze
 

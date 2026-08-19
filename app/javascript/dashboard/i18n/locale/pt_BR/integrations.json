@@ -90,6 +90,7 @@
             "CONVERSATION_CREATED": "Conversa Criada",
             "CONVERSATION_STATUS_CHANGED": "Status de conversa alterado",
             "CONVERSATION_UPDATED": "Conversa Atualizada",
+            "CONVERSATION_RESOLVED": "Conversa Resolvida",
             "MESSAGE_CREATED": "Mensagem criada",
             "MESSAGE_UPDATED": "Mensagem atualizada",
             "WEBWIDGET_TRIGGERED": "Widget de chat aberto pelo usuário",
