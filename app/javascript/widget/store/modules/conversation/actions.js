@@ -14,6 +14,38 @@ import { ON_CONVERSATION_CREATED } from 'widget/constants/widgetBusEvents';
 import { createTemporaryMessage, getNonDeletedMessages } from './helpers';
 import { emitter } from 'shared/helpers/mitt';
 import { reportWidgetError } from 'widget/helpers/telemetry';
+import {
+  emitLeadIdentified,
+  emitSdkEvent,
+  emitSdkEventOnce,
+} from 'widget/helpers/sdkEventEmitter';
+import {
+  CHATWOOT_CONVERSATION_CREATED,
+  CHATWOOT_MESSAGE_SENT,
+  CHATWOOT_PRECHAT_SUBMITTED,
+} from 'widget/constants/sdkEvents';
+
+// Bloco 5.04 — os NOMES dos campos que o visitante preencheu no pré-chat.
+// Nomes, nunca valores: o payload vai para o `window` do site, que qualquer
+// script de terceiro lê (regra dura de `24-plano-backend-dados.md` §17.1).
+// A lista é a dos campos padrão que `views/PreChatForm.vue` repassa; campo
+// customizado entra por `contactCustomAttributes`/`conversationCustomAttributes`
+// e é reportado pelo nome da chave, também sem valor.
+const CAMPOS_PADRAO_DO_PRECHAT = ['fullName', 'emailAddress', 'phoneNumber'];
+
+export const preChatFieldNames = (params = {}) => {
+  const preenchidos = CAMPOS_PADRAO_DO_PRECHAT.filter(campo => {
+    const valor = params[campo];
+    return typeof valor === 'string' && valor.trim() !== '';
+  });
+  const customizados = [
+    ...Object.keys(params.contactCustomAttributes || {}),
+    ...Object.keys(params.conversationCustomAttributes || {}),
+  ];
+
+  return [...preenchidos, ...customizados];
+};
+
 export const actions = {
   createConversation: async ({ commit, dispatch }, params) => {
     commit('setConversationUIFlag', { isCreating: true });
@@ -22,6 +54,29 @@ export const actions = {
       const { messages } = data;
       const [message = {}] = messages;
       commit('pushMessageToConversation', message);
+
+      // ── Bloco 5.04, e a ORDEM aqui é o aceite ────────────────────────────
+      //
+      // `widget_opened → conversation_created → prechat_submitted →
+      // lead_identified`. Os três últimos saem desta resposta, nesta ordem,
+      // porque é esta resposta que os torna verdadeiros ao mesmo tempo: o
+      // pré-chat só está CONCLUÍDO quando o servidor aceitou; se o POST
+      // falhasse, nenhum dos três teria acontecido.
+      //
+      // `data.id` é o `display_id` da conversa (ver
+      // `api/v1/widget/conversations/create.json.jbuilder`) — o mesmo id que a
+      // API pública usa em `/conversations/{id}/messages`, e portanto o único
+      // que serve para quem escuta do lado de fora.
+      emitSdkEventOnce(
+        CHATWOOT_CONVERSATION_CREATED,
+        { conversation_id: data.id, inbox_id: data.inbox_id },
+        CHATWOOT_CONVERSATION_CREATED
+      );
+      emitSdkEvent(CHATWOOT_PRECHAT_SUBMITTED, {
+        fields: preChatFieldNames(params),
+      });
+      emitLeadIdentified({ contact: data.contact, conversationId: data.id });
+
       dispatch('conversationAttributes/getAttributes', {}, { root: true });
       // Emit event to notify that conversation is created and show the chat screen
       emitter.emit(ON_CONVERSATION_CREATED);
@@ -45,13 +100,31 @@ export const actions = {
     });
   },
   sendMessageWithData: async (
-    { commit },
+    { commit, rootState },
     { message, pendingCustomAttributes = {}, pendingLabels = [] }
   ) => {
     const { id, content, replyTo, meta = {} } = message;
     const hasPendingMetadata =
       Object.keys(pendingCustomAttributes).length > 0 ||
       pendingLabels.length > 0;
+
+    // Bloco 5.04 — lido ANTES dos commits, e é a diferença entre um evento
+    // certo e um evento mentiroso.
+    //
+    // Sem pré-chat, a conversa nasce no servidor junto com a PRIMEIRA mensagem:
+    // não há POST /conversations, e sem esta leitura o
+    // `chatwoot:conversation-created` nunca sairia nesse caminho. Com pré-chat,
+    // ou para quem volta com conversa antiga, a conversa JÁ existe — e aí o
+    // evento não pode sair de novo.
+    //
+    // Duas leituras independentes porque nenhuma sozinha basta: `id` chega por
+    // `getAttributes`, que é assíncrono e pode não ter voltado; as mensagens
+    // antigas chegam por `fetchOldConversations`, que é outra chamada. Ler as
+    // duas antes do `pushMessageToConversation` é obrigatório — o commit abaixo
+    // insere a mensagem temporária e faria o mapa parecer não-vazio.
+    const conversaJaConhecida =
+      Boolean(rootState?.conversationAttributes?.id) ||
+      Object.keys(rootState?.conversation?.conversations || {}).length > 0;
 
     commit('pushMessageToConversation', message);
     commit('updateMessageMeta', { id, meta: { ...meta, error: '' } });
@@ -69,6 +142,21 @@ export const actions = {
       // [VITE] Don't delete this manually, since `pushMessageToConversation` does the replacement for us anyway
       // commit('deleteMessage', message.id);
       commit('pushMessageToConversation', { ...data, status: 'sent' });
+
+      // A conversa vem antes da mensagem: o fato "conversa criada" precede o
+      // fato "mensagem enviada", mesmo tendo os dois nascido do mesmo POST.
+      // `emitSdkEventOnce` usa a MESMA chave do caminho do pré-chat, então os
+      // dois caminhos nunca emitem dois `conversation-created`.
+      if (!conversaJaConhecida && data?.conversation_id) {
+        emitSdkEventOnce(
+          CHATWOOT_CONVERSATION_CREATED,
+          { conversation_id: data.conversation_id },
+          CHATWOOT_CONVERSATION_CREATED
+        );
+      }
+      emitSdkEvent(CHATWOOT_MESSAGE_SENT, {
+        conversation_id: data?.conversation_id,
+      });
     } catch (error) {
       commit('pushMessageToConversation', { ...message, status: 'failed' });
       commit('updateMessageMeta', {
