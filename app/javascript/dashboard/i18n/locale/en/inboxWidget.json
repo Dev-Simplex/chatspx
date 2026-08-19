@@ -164,13 +164,18 @@
       "APPEARANCE_LAUNCHER_ICON": "Launcher icon",
       "APPEARANCE_HOME_INTENTS": "Home screen options",
       "TRIGGERS_APPROACH": "Desktop approach",
-      "TRIGGERS_APPROACH_MOBILE": "Mobile approach",
       "TRIGGERS_DEGRADE_ON_RETURN": "Soften approach on return",
-      "TRIGGERS_RULES": "Triggers",
-      "TRACKING_DESTINATIONS": "Tracking destinations",
-      "TRACKING_EVENTS": "Tracking events",
       "PRE_CHAT_ENABLED": "Pre-chat form",
-      "PRE_CHAT": "Pre-chat fields"
+      "PRE_CHAT": "Pre-chat fields",
+      "TRACKING_META_PIXEL_ID": "Meta Pixel ID",
+      "TRACKING_GA4_MEASUREMENT_ID": "GA4 Measurement ID",
+      "TRACKING_GOOGLE_ADS_SEND_TO": "Google Ads conversion",
+      "TRACKING_EVENT_MAP": "Event map",
+      "TRACKING_CONSENT_MODE": "Consent mode",
+      "TRACKING_TEST_MODE": "Test mode",
+      "TRACKING_LEAD_VALUE": "Lead value",
+      "TRIGGERS_ENABLED": "Proactive invitations",
+      "TRIGGERS_TRIGGERS": "Configured triggers"
     },
     "CONTRAST": {
       "RATIO": "{value}:1",
