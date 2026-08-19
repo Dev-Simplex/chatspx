@@ -655,6 +655,10 @@ Rails.application.routes.draw do
         resources :campaigns, only: [:index]
         resources :events, only: [:create]
         resources :messages, only: [:index, :create, :update]
+        # Bloco 4.21 — a exibicao de cada nivel de abordagem vira dado. `only: [:create]`
+        # porque o visitante so escreve: ler quantas vezes a conta abordou alguem e
+        # relatorio do painel, nao coisa que o widget do site precise saber.
+        resources :approach_events, only: [:create]
         # Bloco 4.18 — resposta parcial do pre-chat, gravada ANTES de existir conversa.
         # `only: [:create]` porque o visitante so escreve: ler o proprio lead incompleto
         # nao serve a ele e vazaria o que o painel do cliente sabe.

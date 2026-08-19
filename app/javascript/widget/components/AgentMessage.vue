@@ -38,6 +38,10 @@ export default {
       type: Object,
       default: () => {},
     },
+    classeAgrupamento: {
+      type: String,
+      default: null,
+    },
   },
   data() {
     return {
@@ -196,12 +200,12 @@ export default {
 </script>
 
 <template>
-  <div
-    class="agent-message-wrap group"
-    :class="{
-      'has-response': hasRecordedResponse || isASubmittedForm,
-    }"
-  >
+  <!-- `has-response` SAIU com o bloco 2.03. Ela existia só para alimentar
+       `.has-response + .user-message-wrap`, um dos seis seletores de irmão que
+       decidiam agrupamento; quem decide agora é `useMessageGrouping.js`, e o
+       que chega aqui é a classe pronta. A informação não se perdeu — ela virou
+       `autorFinal`, que é o mesmo predicado com nome. -->
+  <div class="agent-message-wrap group" :class="classeAgrupamento">
     <div v-if="!isASubmittedForm" class="agent-message">
       <div class="avatar-wrap">
         <div class="user-thumbnail-box">
@@ -260,14 +264,12 @@ export default {
                   v-if="attachment.file_type === 'image' && !hasImageError"
                   :url="attachment.data_url"
                   :thumb="attachment.data_url"
-                  :readable-time="readableTime"
                   @error="onImageLoadError"
                 />
 
                 <VideoBubble
                   v-if="attachment.file_type === 'video' && !hasVideoError"
                   :url="attachment.data_url"
-                  :readable-time="readableTime"
                   @error="onVideoLoadError"
                 />
 
@@ -289,6 +291,15 @@ export default {
             />
           </div>
         </div>
+        <!-- Bloco 2.03 — o horário FORA do balão. Ele existia só dentro da
+             mídia (`ImageBubble`/`VideoBubble`), sobreposto à imagem e à barra
+             de controles do vídeo; agora é uma linha própria, irmã do nome do
+             agente, e nenhum horário mora mais dentro de um `.chat-bubble`.
+             A condição continua sendo "a linha tem anexo", que é exatamente
+             onde havia horário antes: este bloco MOVE o que existia, não
+             inventa carimbo em toda mensagem de texto — essa é decisão de
+             produto e não está no aceite. -->
+        <p v-if="hasAttachments" class="message-time">{{ readableTime }}</p>
         <p
           v-if="message.showAvatar || hasRecordedResponse"
           v-dompurify-html="agentName"
@@ -298,11 +309,16 @@ export default {
     </div>
 
     <UserMessage v-if="hasRecordedResponse" :message="responseMessage" />
+    <!-- Estes balões eram irmãos adjacentes de verdade, e o
+         `.user-message-wrap + .user-message-wrap` os agrupava. Aqui a
+         continuação não precisa de composable: são todos do visitante, em
+         sequência, então tudo que não é o primeiro continua. -->
     <div v-if="isASubmittedForm">
       <UserMessage
-        v-for="submittedValue in submittedFormValues"
+        v-for="(submittedValue, indice) in submittedFormValues"
         :key="submittedValue.id"
         :message="submittedValue"
+        :classe-agrupamento="indice > 0 ? 'is-continuacao' : null"
       />
     </div>
   </div>

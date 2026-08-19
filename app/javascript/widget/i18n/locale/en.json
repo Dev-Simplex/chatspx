@@ -196,6 +196,7 @@
     "AGENT_TYPING": "Agent is typing a message",
     "AGENT_AVATAR": "Agent avatar",
     "IMAGE_ATTACHMENT": "Image sent in the conversation",
+    "SCROLL_TO_LATEST": "Go to the latest messages",
     "BACK": "Back",
     "SEND_MESSAGE": "Send message"
   },

@@ -64,6 +64,51 @@ const createMarkdownInstance = (linkify = true) => {
     });
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// UMA INSTÂNCIA POR CONFIGURAÇÃO — bloco 2.12 (§2.2 · W2.15)
+//
+// Era uma instância por bolha, por render: o construtor de `MessageFormatter`
+// chamava `createMarkdownInstance()`, e `createMarkdownInstance` monta um
+// MarkdownIt do zero — parser, regras de core/block/inline, renderer — e ainda
+// aplica três plugins (`mentionPlugin`, `imgResizeManager`, `mila`). Numa
+// conversa de 40 mensagens que rerenderiza porque o agente começou a digitar,
+// isso são 40 construções para produzir o mesmo HTML de antes.
+//
+// Compartilhar é seguro porque `md.render(src)` cria um estado próprio a cada
+// chamada; o que a instância carrega é CONFIGURAÇÃO, e configuração é o que
+// entra na chave deste mapa.
+//
+// ⚠️ POR QUE A CHAVE NÃO É SÓ `linkify`, QUE É O QUE A LINHA DO BLOCO DIZ
+//
+// Porque `disableImageRendering()` MUTA a instância — `md.disable([...])` e
+// `md.renderer.rules.image = () => ''`. Com uma instância por bolha isso era
+// local e inofensivo. Com uma instância compartilhada, a primeira chamada
+// apagaria imagem de TODA superfície do SPA até o próximo reload: hoje quem
+// chama é `captain/.../DocumentDetails.vue`, e o efeito apareceria depois, na
+// conversa de outra tela, sem nada apontando para a causa.
+//
+// A prova de que o risco é real está no spec que já existia: em
+// `MessageFormatter.spec.js` o caso de `#disableImageRendering` roda DEPOIS dos
+// casos que esperam `<img>` renderizado. Com cache ingênuo por `linkify`, a
+// ordem dos arquivos passaria a decidir o resultado.
+//
+// Então "sem imagem" é outra configuração, e ganha entrada própria. São no
+// máximo quatro instâncias no processo inteiro; na prática, uma.
+const instanciasMarkdown = new Map();
+
+const instanciaMarkdown = (linkify, semImagens) => {
+  const chave = `${linkify ? 1 : 0}|${semImagens ? 1 : 0}`;
+  if (!instanciasMarkdown.has(chave)) {
+    const md = createMarkdownInstance(linkify);
+    if (semImagens) {
+      md.disable(['add-image-sizing']);
+      md.renderer.rules.image = () => '';
+    }
+    instanciasMarkdown.set(chave, md);
+  }
+  return instanciasMarkdown.get(chave);
+};
+
 /**
  * SANEAMENTO DE EXIBIÇÃO — histórico de grupos de WhatsApp (inbox WAHA).
  *
@@ -129,7 +174,13 @@ class MessageFormatter {
     this.isAPrivateNote = isAPrivateNote;
     this.isATweet = isATweet;
     this.linkify = linkify;
-    this.md = createMarkdownInstance(linkify);
+    this.semImagens = false;
+  }
+
+  // `md` vira derivado em vez de campo: assim `disableImageRendering()` não
+  // precisa desfazer nada, e nenhuma instância compartilhada é mutada.
+  get md() {
+    return instanciaMarkdown(this.linkify, this.semImagens);
   }
 
   formatMessage() {
@@ -148,8 +199,7 @@ class MessageFormatter {
   }
 
   disableImageRendering() {
-    this.md.disable(['add-image-sizing']);
-    this.md.renderer.rules.image = () => '';
+    this.semImagens = true;
   }
 
   get formattedMessage() {

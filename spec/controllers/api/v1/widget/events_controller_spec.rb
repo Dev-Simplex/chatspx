@@ -72,7 +72,11 @@ RSpec.describe '/api/v1/widget/events', type: :request do
         post_event('conversation.resolved')
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('name must be one of: webwidget.triggered, campaign.triggered')
+        # A mensagem passou a nomear as DUAS formas aceitas quando o bloco 5.16 abriu o endpoint
+        # para o `track()` do site. Mensagem que lista so metade da regra manda o integrador
+        # procurar defeito onde nao ha.
+        expect(response.parsed_body['error'])
+          .to eq('name must be one of: webwidget.triggered, campaign.triggered — or start with chatspx_ (track())')
         expect(Rails.configuration.dispatcher).not_to have_received(:dispatch)
       end
 

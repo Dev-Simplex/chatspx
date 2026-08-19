@@ -36,17 +36,36 @@ export default {
 
 <style scoped lang="scss">
 .w-bubble {
-  // 15/22 e 82% saem da §C; `shadow-none` é explícito porque a regra antiga
-  // deste balão tinha sombra e o aceite do 2.03 mede `boxShadow === 'none'`.
-  @apply max-w-[82%] px-3 py-2 text-[15px] leading-[22px] shadow-none
-    rounded-[20px] break-words;
+  // ── Correção do 2.03 sobre o que o 2.01 escreveu ─────────────────────────
+  //
+  // Este bloco nasceu com `@apply … shadow-none` e os cinco números cravados
+  // (82%, 15px, 22px, 20px, 6px). As duas coisas estavam erradas, e a primeira
+  // reprovava o próprio aceite que o comentário citava:
+  //
+  //   `shadow-none` do Tailwind NÃO produz `box-shadow: none`. Ele emite
+  //   `box-shadow: var(--tw-ring-offset-shadow,0 0 #0000),
+  //                var(--tw-ring-shadow,0 0 #0000), 0 0 #0000`,
+  //   que o navegador computa como `rgba(0, 0, 0, 0) 0px 0px 0px 0px`.
+  //   O aceite do 2.03 é `getComputedStyle(bolha).boxShadow === 'none'` — e
+  //   essa string não é essa. Medido em Chromium, não deduzido.
+  //
+  // Os números agora saem de `widget-shape` (`_tokens_values.scss`), que é a
+  // mesma fonte de `_conversation.scss`: um primitivo com a geometria cravada
+  // é uma segunda cópia livre para divergir do balão real sem ninguém ver.
+  @apply max-w-[var(--w-bubble-max-width)] px-3 py-2 break-words;
+
+  border-radius: var(--w-bubble-radius);
+  box-shadow: var(--w-bubble-shadow);
+  font-size: var(--w-bubble-font-size);
+  line-height: var(--w-bubble-line-height);
 
   &--incoming {
-    @apply bg-n-solid-1 text-n-slate-12 rounded-bl-[6px];
+    @apply bg-n-solid-1 text-n-slate-12
+      rounded-bl-[var(--w-bubble-radius-tail)];
   }
 
   &--outgoing {
-    @apply text-n-slate-12 rounded-br-[6px];
+    @apply rounded-br-[var(--w-bubble-radius-tail)];
 
     background-color: var(--w-brand);
     color: var(--w-on-brand);

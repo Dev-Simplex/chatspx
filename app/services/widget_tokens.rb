@@ -53,11 +53,30 @@ class WidgetTokens
   # Alvo de contraste para a marca quando ela vira TEXTO (WCAG 1.4.3 AA).
   READABLE_TARGET = 4.5
 
-  # As duas superfícies do widget, de `_tokens.scss`:
-  #   claro  → `--background-color: 253 253 253` ≈ #fdfdfd (uso #ffffff, o caso pior)
-  #   escuro → `--background-color: 18 18 19`   = #121213
+  # As duas superfícies do widget. Em cada tema, a que importa é a de PIOR caso
+  # para o texto — a mais clara no tema claro, a mais CLARA também no tema
+  # escuro, porque é ela que aproxima a cor do fundo.
+  #
+  #   claro  → `--background-color: 253 253 253` ≈ #fdfdfd (uso #ffffff)
+  #   escuro → o balão do agente, `--solid-3: 44 45 54` = #2c2d36
+  #
+  # ⚠️ `SURFACE_DARK` era `#121213`, o fundo do PAINEL, e estava errado — não
+  # por gosto, por medição. `--w-brand-readable-dark` é o que pinta o LINK
+  # dentro do balão do agente, e esse balão não é o painel: no escuro ele é
+  # `bg-n-solid-3`, que é mais claro. Uma cor calibrada contra #121213 chega ao
+  # balão abaixo do alvo. Medido em Chromium pelo check do bloco 2.03:
+  #
+  #   #009CE0 → 4,4486:1 sobre o balão (calibrado contra o painel)
+  #   #1f93ff → 4,3470:1  — e este é o DEFAULT de `channel_web_widgets`,
+  #                         ou seja, a inbox que ninguém configurou nascia
+  #                         reprovando o aceite 2 da §C.5
+  #
+  # Calibrando contra o balão, os dois cruzam (4,6970 e 4,5801) e a marca que já
+  # passava volta INTACTA — `#2dc46f` continua `#2dc46f`, com 6,0148:1. Trocar
+  # para a superfície mais clara só pode aumentar contraste no tema escuro:
+  # nenhum consumidor de `--w-brand-readable-dark` fica pior.
   SURFACE_LIGHT = '#ffffff'
-  SURFACE_DARK = '#121213'
+  SURFACE_DARK = '#2c2d36'
 
   # Passo do ajuste de legibilidade e da variação de hover/press.
   READABLE_STEP = 0.05

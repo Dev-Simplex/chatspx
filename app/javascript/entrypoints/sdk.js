@@ -27,6 +27,34 @@ import { enfileirar } from '../sdk/preBootQueue';
 import { captureOrigin } from '../sdk/tracking/capture';
 
 /**
+ * Bloco 5.16 — o formato do nome de evento, verificado NO NAVEGADOR.
+ *
+ * AS TRÊS REGRAS DO CONTRATO NUMA EXPRESSÃO SÓ (`docs/tracking/contrato-de-eventos.md` §1):
+ * prefixo `chatspx_`, `snake_case`, e no máximo 40 caracteres — que é limite do GA4, não
+ * preferência nossa. O `{0,32}` É o limite de 40: `chatspx_` já gasta 8. Escrever assim, em
+ * vez de um `if` de comprimento separado, custa menos bytes no arquivo com teto (A13) e
+ * ainda deixa as três regras visíveis num lugar só.
+ *
+ * O servidor as reaplica em `TrackingEvent` — este arquivo não é a autoridade, é o aviso
+ * ANTECIPADO (garantia 2 do bloco 1.23: a validação é imediata). Sem ele, o `chatspxLead` que
+ * o integrador digitou errado voltaria 422 de dentro de um `catch` que conta e não mostra, e
+ * ele ficaria olhando um evento que some sem dizer por quê.
+ */
+const NOME_DE_EVENTO = /^chatspx_[a-z0-9_]{0,32}$/;
+
+// A chave de IDEMPOTÊNCIA de uma chamada de `track()`. Ela vira `dedup_key` no servidor e
+// colide no índice único de 5.03: o reenvio da MESMA requisição (falha de rede) devolve o
+// mesmo `event_id`; uma segunda chamada de `track()` traz chave nova e é fato novo. Sem ela a
+// derivação padrão usaria `occurred_at.to_i`, e dois `track()` no mesmo segundo virariam um.
+//
+// `randomUUID` não existe em contexto inseguro (http) nem em navegador antigo, e widget em
+// site http existe. O reserva não precisa ser criptográfico: só precisa distinguir duas
+// chamadas do MESMO visitante, e a `dedup_key` do servidor já é prefixada pelo `source_id`.
+const chaveDoEvento = () =>
+  window.crypto?.randomUUID?.() ||
+  Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+/**
  * Contrato dos métodos de DADOS da API pública — bloco 1.23.
  *
  * Três garantias, e cada uma existe por um defeito medido:
@@ -319,6 +347,43 @@ const runSDK = ({ baseUrl, websiteToken }) => {
 
     getIdentifier() {
       return window.$chatwoot.identifier || null;
+    },
+
+    /**
+     * Bloco 5.16 — `track(name, properties)`: o evento tipado do site do cliente.
+     *
+     * UMA chamada, dois destinos, e é isso que o aceite mede: o fato entra no registro
+     * server-side (que gera o `event_id`) e sai no `dataLayer` — pela mesma chamada, sem o
+     * integrador precisar escrever `dataLayer.push` do lado dele nem saber que existe um.
+     *
+     * O VOCABULÁRIO É O DO TRACKING (`chatspx_*`), não o do barramento interno. `pushEvent`
+     * continua existindo, intocado, falando o vocabulário antigo — os dois verbos não se
+     * misturam porque não são o mesmo contrato.
+     *
+     * PII NÃO PASSA: o servidor recusa `email`/`phone_number` e afins em `properties` com 422,
+     * e a ponte de tags descarta as mesmas chaves antes de publicar. O `window` do site é
+     * legível por qualquer script de terceiro da página (regra RC5).
+     */
+    track(name, properties = {}) {
+      return chamadaDeDados(
+        'track',
+        () => {
+          if (typeof name !== 'string' || !NOME_DE_EVENTO.test(name)) {
+            throw new Error(
+              'Event name should match /^chatspx_[a-z0-9_]{0,32}$/ (e.g. chatspx_orcamento_pedido)'
+            );
+          }
+          if (properties && typeof properties !== 'object') {
+            throw new Error('Properties should be an object');
+          }
+        },
+        () =>
+          IFrameHelper.sendMessage('track-event', {
+            name,
+            properties: properties || {},
+            eventKey: chaveDoEvento(),
+          })
+      );
     },
 
     setCustomAttributes(customAttributes = {}) {

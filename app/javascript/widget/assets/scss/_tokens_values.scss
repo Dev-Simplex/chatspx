@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// VALORES DOS TOKENS DO WIDGET — quatro mixins, nenhum seletor.
+// VALORES DOS TOKENS DO WIDGET — sete mixins, nenhum seletor.
 //
 // Este arquivo NASCEU do recorte dos quatro blocos de declaração que viviam em
 // `_tokens.scss`; nenhum valor foi alterado. O `_tokens.scss` continua sendo
@@ -16,6 +16,11 @@
 // Quem consome:
 //   · `_tokens.scss`                            → `:root` / `.dark` do widget
 //   · `dashboard/modules/widget-preview/`       → `.wp-theme-light` / `--dark`
+//
+// O quinto mixin (`widget-shape`, bloco 2.03) é de FORMA, não de cor: não tem
+// par escuro porque a geometria do balão é a mesma nos dois temas. O sexto e o
+// sétimo (`widget-surface-*`, bloco 2.04) são a superfície da lista e a textura
+// — aí o par existe, porque a tinta da textura inverte entre os temas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 @mixin widget-palette-light {
@@ -126,7 +131,6 @@
   --black-alpha-2: 0, 0, 0, 0.04;
   --border-blue: 45, 196, 111, 0.5;
   --white-alpha: 255, 255, 255, 0.8;
-
 }
 
 @mixin widget-palette-dark {
@@ -237,7 +241,6 @@
   --border-blue: 45, 196, 111, 0.5;
   --border-container: 236, 236, 236, 0;
   --white-alpha: 255, 255, 255, 0.1;
-
 }
 
 @mixin widget-brand-light {
@@ -266,7 +269,6 @@
   --w-ease-standard: cubic-bezier(0.2, 0, 0, 1); // hover, press, cor, foco
   --w-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1); // entrada de superfície
   --w-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15); // saída de superfície
-
 }
 
 @mixin widget-brand-dark {
@@ -274,5 +276,95 @@
   // maioria dos casos; o servidor calcula os dois e o tema escolhe.
   --w-brand-readable: var(--w-brand-readable-dark);
   --w-focus-ring-color: var(--w-brand-readable-dark);
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FORMA DO BALÃO — bloco 2.03 (§2.2 · W2.6 · plano 22 §C.5)
+//
+// Geometria, não cor: por isso mixin próprio, e por isso ele NÃO tem variante
+// escura — a forma do balão é a mesma nos dois temas. O que muda entre temas é
+// a superfície, e ela já vem dos mixins de paleta acima.
+//
+// Os cinco valores são a linha do bloco 2.03 lida literalmente: "raio 20/6,
+// `max-width` 82%, sem sombra, corpo 15/22". Estão aqui, e não cravados em
+// `_conversation.scss`, porque três superfícies precisam dos MESMOS números —
+// a conversa, a lista de não lidas e o primitivo `widget/ui/WBubble.vue` — e
+// porque o preview do widget, no dashboard, consome estes mixins (é a defesa
+// contra a dívida D4, o preview divergir do widget sem ninguém ver).
+//
+// ⚠️ `--w-bubble-shadow: none` é literal, e a literalidade É o ponto. O aceite
+// do bloco é `getComputedStyle(bolha).boxShadow === 'none'`, e o utilitário
+// `shadow-none` do Tailwind NÃO produz isso: ele emite
+// `box-shadow: var(--tw-ring-offset-shadow,0 0 #0000), …, 0 0 #0000`, que o
+// navegador computa como `rgba(0, 0, 0, 0) 0px 0px 0px 0px`. Uma bolha com
+// `@apply shadow-none` passa em qualquer revisão de código e REPROVA o aceite
+// medido. Só `box-shadow: none` computa `none`.
+@mixin widget-shape {
+  --w-bubble-radius: 20px;
+  // O canto que aponta para o autor. Era 4px (`0.25rem`) em oito declarações
+  // espalhadas; o bloco 2.03 o leva a 6px em um lugar só.
+  --w-bubble-radius-tail: 6px;
+  --w-bubble-max-width: 82%;
+  --w-bubble-font-size: 15px;
+  --w-bubble-line-height: 22px;
+  --w-bubble-shadow: none;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUPERFÍCIE DA LISTA E TEXTURA — bloco 2.04 (§2.2 · W2.7 · plano 22 §C.4)
+//
+// Antes: `0.85` e `400px` cravados em `ConversationWrap.vue`, e a cor do fundo
+// saindo de um véu de `linear-gradient` sobre um PNG por tema. Três decisões
+// visuais dentro de um componente, sem nome e sem como serem lidas de fora.
+//
+// `--w-surface-sunken` sai de `--slate-3` e por isso resolve sozinha nos dois
+// temas — 240 240 243 no claro, 33 34 37 no escuro. Nos dois ela fica mais
+// escura que o balão do agente (branco no claro, `--solid-3` no escuro), que é
+// o que "rebaixada" quer dizer: depois que o 2.03 tirou a sombra, a separação
+// entre o balão e a lista passou a vir DAQUI.
+//
+// A TINTA é o único valor que precisa de par escuro. A textura virou UMA
+// máscara em vez de dois PNGs — o desenho é o mesmo nos dois temas, o que
+// mudava era a cor —, então a cor deixou de estar no arquivo e passou a estar
+// no token. Ver `ConversationWrap.vue`.
+// ── A INTENSIDADE, e por que ela tem um valor por tema ───────────────────────
+//
+// O aceite do bloco pede textura LEVE, e a régua de "leve" não é opinião: é a
+// textura que já estava no ar e passou pelos 20 snapshots. Ela foi MEDIDA nos
+// baselines, amostrando a faixa de fundo sem balões:
+//
+//   claro   superfície (254,254,254) → traço (226,226,226) = 1,284:1
+//   escuro  superfície (3,3,4)       → traço (31,31,31)    = 1,251:1
+//
+// Com um único `0.15` nos dois temas o traço saía a 1,424:1 no claro e 1,608:1
+// no escuro — mais marcado que o original, e no escuro em quase 30%. O olho não
+// compõe igual nos dois sentidos: clarear um fundo escuro pesa mais que
+// escurecer um claro, com a mesma opacidade. Por isso o valor é POR TEMA, e
+// cada um foi resolvido para reencontrar o número acima.
+@mixin widget-surface-light {
+  --w-surface-sunken: rgb(var(--slate-3));
+  --w-texture-ink: 0 0 0;
+  --w-texture-opacity: 0.11; // traço (213,213,216) = 1,283:1
+  --w-texture-size: 400px;
+}
+
+@mixin widget-surface-dark {
+  --w-texture-ink: 255 255 255;
+  --w-texture-opacity: 0.075; // traço (50,51,53) = 1,251:1
+
+  // A BORDA DO BALÃO, e por que ela só existe no escuro.
+  //
+  // É a segunda metade da linha do bloco 2.03: *"sombra removida; a separação
+  // vem do par de superfícies e, no escuro e sob `forced-colors`, de borda de
+  // 1 px"*. No claro o par branco × `--slate-3` já desenha a aresta; no escuro
+  // as duas superfícies são vizinhas demais (`--slate-3` = #212225 contra o
+  // balão `--solid-3` = #2c2d36) e sem a borda o balão dissolve no fundo.
+  //
+  // ⚠️ Ela NÃO chega a 3:1 (WCAG 1.4.11) — medida em Chromium, `--slate-7`
+  // sobre a superfície dá 1,70:1, e o número está no relatório do bloco em vez
+  // de escondido. Chegar a 3:1 exigiria um cinza perto de #6a6f77, que é um
+  // contorno visível em volta de cada balão, e isso é decisão de desenho que o
+  // plano não tomou. A versão forte fica para `forced-colors` (bloco 2.08),
+  // onde quem escolhe a cor é o sistema do visitante e não nós.
+  --w-bubble-border: rgb(var(--slate-7));
 }

@@ -14,6 +14,7 @@ import { ON_CONVERSATION_CREATED } from 'widget/constants/widgetBusEvents';
 import { createTemporaryMessage, getNonDeletedMessages } from './helpers';
 import { emitter } from 'shared/helpers/mitt';
 import { reportWidgetError } from 'widget/helpers/telemetry';
+import { registrarConversaoDaAbordagem } from 'widget/api/approachEvent';
 import {
   emitLeadIdentified,
   emitSdkEvent,
@@ -157,6 +158,12 @@ export const actions = {
       emitSdkEvent(CHATWOOT_MESSAGE_SENT, {
         conversation_id: data?.conversation_id,
       });
+      // Bloco 4.21 — a CONVERSAO da abordagem. O visitante ENVIOU: e este o fato
+      // que atribui a mensagem ao nivel de abordagem que a conquistou. Mora aqui
+      // e nao no `ChatFooter` pela mesma razao do 5.04: componente monta e
+      // desmonta a cada troca de rota, o store nao. E fica DEPOIS do `await` do
+      // POST, porque conversao que o servidor recusou nao aconteceu.
+      registrarConversaoDaAbordagem();
     } catch (error) {
       commit('pushMessageToConversation', { ...message, status: 'failed' });
       commit('updateMessageMeta', {

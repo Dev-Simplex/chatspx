@@ -54,6 +54,12 @@
 @layer base {
   :root {
     @include widget-brand-light;
+    // Bloco 2.03 — a forma do balão. Fica no mesmo `:root` da marca porque é
+    // consumida pelas mesmas três superfícies (conversa, não lidas, `WBubble`),
+    // e fora de `.dark` porque geometria não muda com o tema.
+    @include widget-shape;
+    // Bloco 2.04 — superfície da lista e textura.
+    @include widget-surface-light;
   }
 
   // ── `color-scheme` — bloco 2.10 ───────────────────────────────────────────
@@ -111,6 +117,7 @@
 
   .dark {
     @include widget-brand-dark;
+    @include widget-surface-dark;
   }
 
   @media (prefers-contrast: more) {

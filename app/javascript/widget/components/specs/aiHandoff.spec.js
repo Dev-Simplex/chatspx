@@ -81,7 +81,13 @@ const montarConversa = (messages, { isAgentTyping = false } = {}) => {
           template:
             '<div class="cm" :data-id="message.id" :data-attendant="message.attendant" />',
         },
-        DateSeparator: true,
+        // `WDateSeparator` e não `DateSeparator`: o bloco 2.04 trocou o
+        // separador compartilhado por um primitivo do widget (a pílula). Com o
+        // nome antigo o stub não pega, o componente real monta e `formatDate`
+        // estoura com "Invalid time value" na data simbólica `'hoje'` deste
+        // arquivo — que não é data e não precisa ser, porque o separador não é
+        // o objeto deste teste.
+        WDateSeparator: true,
         Spinner: true,
         AgentTypingBubble: true,
       },

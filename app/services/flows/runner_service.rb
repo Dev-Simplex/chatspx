@@ -72,6 +72,12 @@ class Flows::RunnerService
   # o #perform roda FORA de transação: cada update! já commitou (e seus after_commit já rodaram)
   # antes de chegarmos no reset. Na retomada NÃO é — ver #resume_from.
   def perform
+    # 6.05 — a EXPOSICAO, e ela e o denominador do teste A/B. Emitida no comeco do disparo
+    # real, e nao na hora da designacao (Flows::WidgetPrechatResolver): designar sem rodar
+    # nao e o visitante ter visto a variante, e um denominador inflado faz toda taxa de
+    # conversao parecer pior do que e. No `resume_from` NAO se emite — a retomada e o mesmo
+    # visitante voltando, nao um novo. No-op para fluxo fora de experimento.
+    Flows::AbTracking.record_assignment(flow: @flow, conversation: @conversation) unless @dry_run
     with_depth_guard { walk(start_node_id) }
   ensure
     Current.reset
@@ -236,6 +242,10 @@ class Flows::RunnerService
   # linear sem wait @flow_run é nil e isto é no-op — nenhum row é criado.
   def finish_run
     @flow_run&.complete!
+    # 6.05 — a CONVERSAO. Fica aqui, e nao no `@flow_run&.complete!`, porque `@flow_run` e
+    # nil no fluxo linear que nunca suspendeu: pendurar a conversao nele contaria zero
+    # justamente na variante mais curta, que e a que um A/B costuma estar testando.
+    Flows::AbTracking.record_conversion(flow: @flow, conversation: @conversation)
   end
 
   # Executa o nó e devolve o branch tomado (condition/router) ou nil (action). Cada nó

@@ -34,6 +34,10 @@ export default {
       type: Object,
       default: () => {},
     },
+    classeAgrupamento: {
+      type: String,
+      default: null,
+    },
   },
   data() {
     return {
@@ -98,7 +102,7 @@ export default {
 </script>
 
 <template>
-  <div class="user-message-wrap group">
+  <div class="user-message-wrap group" :class="classeAgrupamento">
     <div class="flex gap-1 user-message">
       <div
         class="message-wrap"
@@ -133,14 +137,12 @@ export default {
                   v-if="attachment.file_type === 'image' && !hasImageError"
                   :url="attachment.data_url"
                   :thumb="attachment.data_url"
-                  :readable-time="readableTime"
                   @error="onImageLoadError"
                 />
 
                 <VideoBubble
                   v-if="attachment.file_type === 'video' && !hasVideoError"
                   :url="attachment.data_url"
-                  :readable-time="readableTime"
                   @error="onVideoLoadError"
                 />
 
@@ -154,6 +156,10 @@ export default {
             </div>
           </DragWrapper>
         </div>
+        <!-- Bloco 2.03 — o horário fora do balão, do lado do visitante. -->
+        <p v-if="hasAttachments" class="message-time message-time--fim">
+          {{ readableTime }}
+        </p>
         <div
           v-if="isFailed"
           class="flex justify-end px-4 py-2 text-n-ruby-9 align-middle"

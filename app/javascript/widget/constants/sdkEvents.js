@@ -39,6 +39,11 @@ export const CHATWOOT_CLOSED = 'chatwoot:closed';
 // quando o servidor respondeu e traz o `conversation_id`.
 export const CHATWOOT_CONVERSATION_CREATED = 'chatwoot:conversation-created';
 export const CHATWOOT_PRECHAT_SUBMITTED = 'chatwoot:prechat-submitted';
+// `chatwoot:message-sent` é NOVO — não estava entre os sete de produção. Ele
+// nasce no 5.04 e o 4.19 depende dele: é a conversão que zera o contador de
+// familiaridade do host (`IFrameHelper.events.onEvent`). Uma declaração só:
+// declarar o mesmo nome duas vezes neste módulo é `SyntaxError` de ESM, e o
+// merge das duas trilhas já chegou a produzir exatamente isso.
 export const CHATWOOT_MESSAGE_SENT = 'chatwoot:message-sent';
 export const CHATWOOT_CSAT_SUBMITTED = 'chatwoot:csat-submitted';
 export const CHATWOOT_CAMPAIGN_SHOWN = 'chatwoot:campaign-shown';
