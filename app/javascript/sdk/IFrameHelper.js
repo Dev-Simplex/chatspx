@@ -40,6 +40,7 @@ import { isFlatWidgetStyle } from './settingsHelper';
 import { popoutChatWindow } from '../widget/helpers/popoutHelper';
 import addHours from 'date-fns/addHours';
 import { createTitleFlasher } from './titleFlasher';
+import { loadCollector } from './tracking/loader';
 
 const updateAuthCookie = (cookieContent, baseDomain = '') =>
   setCookieWithDomain('cw_conversation', cookieContent, {
@@ -461,6 +462,18 @@ export const IFrameHelper = {
     createBubbleHolder(window.$chatwoot.hideMessageBubble);
     applyWidgetTokens(bubbleHolder, effectiveTokens);
     onLocationChangeListener();
+
+    // Bloco 5.08 (T-C2.1) — a única linha deste bloco fora de `sdk/tracking/`.
+    // Só busca o coletor quando a inbox tem tracking configurado (T-C2.8); sem config, nem
+    // a requisição acontece. A entrega usa dois eventos que o bridge do widget já trata.
+    const tracking = channelConfig?.widgetTracking;
+    loadCollector({ baseUrl: window.$chatwoot.baseUrl, tracking }).then(
+      collector =>
+        collector?.attachOriginAttributes({
+          tracking,
+          sendMessage: IFrameHelper.sendMessage,
+        })
+    );
 
     let className = 'woot-widget-bubble';
     let closeBtnClassName = `woot-elements--${window.$chatwoot.position} woot-widget-bubble woot--close woot--hide`;
