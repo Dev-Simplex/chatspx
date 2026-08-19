@@ -84,6 +84,14 @@ Rails.application.routes.draw do
               end
               resources :inboxes, only: [:index, :create, :destroy], param: :inbox_id
               resources :scenarios
+              # 6.02 — eval como produto: o conjunto de casos e o histórico de execuções.
+              resources :eval_cases, only: [:index, :create, :update, :destroy]
+              resources :eval_runs, only: [:index, :show, :create] do
+                collection do
+                  get :estimate
+                  get :compare
+                end
+              end
             end
             resources :assistant_logs, only: [:index]
             resources :agent_sessions, only: [:show]
