@@ -60,6 +60,19 @@ export const handlers = {
     createWidgetEvents(message, ctx);
   },
 
+  // Bloco 5.16 — o evento tipado do site. `push-event` continua existindo e continua
+  // intocado (e isso e aceite do 5.05): ele fala o vocabulario ANTIGO, o do barramento
+  // interno. Este fala o vocabulario de TRACKING, leva `properties` e volta com `event_id`.
+  // Dois verbos porque sao dois contratos — juntar os dois num so obrigaria o servidor a
+  // adivinhar qual dos dois o chamador quis.
+  'track-event': (message, ctx) => {
+    ctx.$store.dispatch('events/track', {
+      name: message.name,
+      properties: message.properties,
+      eventKey: message.eventKey,
+    });
+  },
+
   // Bloco 4.21 — a abordagem aconteceu no host; o registro server-side sai daqui,
   // que e onde ja existem o token da sessao e o cliente HTTP.
   'approach-event': message => {

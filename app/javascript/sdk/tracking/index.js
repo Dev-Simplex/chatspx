@@ -56,3 +56,8 @@ export const originAttributes = async ({
 export { captureOrigin, storedOrigin } from './capture';
 // A entrega ao widget também mora aqui, e não no lado eager: ver o cabeçalho de `attach.js`.
 export { attachOriginAttributes } from './attach';
+// Bloco 5.10 — a ponte de tags. Ela sai por aqui pelo MESMO motivo do `attach.js`: é código de
+// `window` do cliente que só serve a quem configurou tracking, e o `sdk.js` tem teto (A13).
+// Quem a instancia é `IFrameHelper`, com o `isAllowed` do consentimento INJETADO — ver o
+// cabeçalho de `tags.js` para o defeito de dois bundles que isso evita.
+export { createTagsBridge } from './tags';

@@ -28,6 +28,7 @@ const CONTRACT_EVENTS = [
   'toggle-open',
   'sdk-set-bubble-visibility',
   'update-user', // 5.17
+  'track-event', // 5.16
 ];
 
 const buildContext = (overrides = {}) => ({
@@ -58,7 +59,7 @@ describe('bridge/handlers', () => {
     delete window.referrerURL;
   });
 
-  it('cobre exatamente os 18 eventos do contrato, sem sobra nem falta', () => {
+  it('cobre exatamente os 19 eventos do contrato, sem sobra nem falta', () => {
     expect(Object.keys(handlers).sort()).toEqual([...CONTRACT_EVENTS].sort());
   });
 
@@ -105,6 +106,47 @@ describe('bridge/handlers', () => {
         user: { phone_number: '+5511' },
       }
     );
+  });
+
+  // Bloco 5.16 — `track()` do site. O verbo NOVO nao pode cair na acao do verbo antigo:
+  // `push-event` vai ao barramento interno pelo nome, `track-event` vai ao registro de
+  // tracking com properties e volta com `event_id`. Um teste de nome nao pegaria a troca.
+  it('track-event despacha events/track com nome, properties e a chave de idempotencia', () => {
+    const ctx = buildContext();
+
+    handlers['track-event'](
+      {
+        event: 'track-event',
+        name: 'chatspx_orcamento_pedido',
+        properties: { plano: 'pro' },
+        eventKey: 'k-1',
+      },
+      ctx
+    );
+
+    expect(ctx.$store.dispatch).toHaveBeenCalledWith('events/track', {
+      name: 'chatspx_orcamento_pedido',
+      properties: { plano: 'pro' },
+      eventKey: 'k-1',
+    });
+  });
+
+  it('push-event e track-event vao para acoes DIFERENTES do store', () => {
+    const ctx = buildContext();
+
+    handlers['push-event'](
+      { event: 'push-event', eventName: 'webwidget.triggered' },
+      ctx
+    );
+    handlers['track-event'](
+      { event: 'track-event', name: 'chatspx_x', eventKey: 'k' },
+      ctx
+    );
+
+    expect(ctx.$store.dispatch.mock.calls.map(c => c[0])).toEqual([
+      'events/create',
+      'events/track',
+    ]);
   });
 
   it('config-set aplica locale, rótulo, config e busca as conversas antigas', async () => {

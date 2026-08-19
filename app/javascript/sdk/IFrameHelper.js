@@ -45,6 +45,10 @@ import { isFlatWidgetStyle } from './settingsHelper';
 import { popoutChatWindow } from '../widget/helpers/popoutHelper';
 import { createTitleFlasher } from './titleFlasher';
 import { loadCollector } from './tracking/loader';
+// Bloco 5.10 — o gate de 5.09 e lido AQUI e passado para a ponte de tags. Aqui, e nao dentro
+// da ponte: `entrypoints/sdk.js` ja importa este modulo, entao esta e a MESMA instancia que
+// `$chatwoot.setConsent()` atualiza. A ponte mora noutro bundle e teria um segundo estado.
+import { applyInboxConsentMode, isAllowed } from './tracking/consent';
 
 const updateAuthCookie = (cookieContent, baseDomain = '') =>
   setCookieWithDomain('cw_conversation', cookieContent, {
@@ -442,7 +446,20 @@ export const IFrameHelper = {
       if (eventName === CHATWOOT_MESSAGE_SENT) {
         gravarAbordagem(0, true, window.$chatwoot.baseDomain);
       }
+      // Bloco 5.10 — o mesmo evento que vai ao `window` do site alimenta a ponte de tags.
+      // A traducao `chatwoot:*` -> `chatspx_*` mora em `tags.js` (artefato sob demanda), e
+      // nao aqui, porque o mapa e o `SDK_EVENT_CONTRACT` inteiro e ele nao cabe no orcamento
+      // de bytes do `sdk.js` (A13). Vai ANTES do `dispatchWindowEvent` para que uma tag do
+      // cliente que lance nao impeca a nossa medicao — a reciproca ja e garantida por
+      // `tags.js`, que nunca lanca.
+      IFrameHelper.tags?.onWindowEvent(eventName, data);
       dispatchWindowEvent({ eventName, data });
+    },
+
+    // Bloco 5.16/5.05 — o fato ja registrado no servidor volta do iframe com o `event_id`,
+    // e e aqui que ele encontra as tags do cliente.
+    trackingEvent(message) {
+      IFrameHelper.tags?.onTrackingEvent(message);
     },
     setBubbleLabel(message) {
       setBubbleText(window.$chatwoot.launcherTitle || message.label);
@@ -595,12 +612,29 @@ export const IFrameHelper = {
     // Só busca o coletor quando a inbox tem tracking configurado (T-C2.8); sem config, nem
     // a requisição acontece. A entrega usa dois eventos que o bridge do widget já trata.
     const tracking = channelConfig?.widgetTracking;
+
+    // Bloco 5.09 — o modo de consentimento da inbox precisa ser APLICADO, nao so validado.
+    // Sem esta linha `consentModeIsActive()` fica falso para sempre e `isAllowed` devolve
+    // `true` para tudo: o gate existe e nao gateia nada. Fica FORA do `then` do coletor de
+    // proposito — uma conta pode ter `consent_mode` sem ter pixel nenhum, e nesse caso o
+    // coletor nunca e buscado.
+    applyInboxConsentMode(tracking?.consent_mode);
+
     loadCollector({ baseUrl: window.$chatwoot.baseUrl, tracking }).then(
-      collector =>
+      collector => {
         collector?.attachOriginAttributes({
           tracking,
           sendMessage: IFrameHelper.sendMessage,
-        })
+        });
+        // Bloco 5.10 — a ponte de tags. Fica guardada porque os eventos chegam DEPOIS: o
+        // `onEvent` e o `trackingEvent` consultam `IFrameHelper.tags`, que e `undefined`
+        // enquanto o artefato nao chegou (ou quando a inbox nao tem tracking) — e `?.` ali e
+        // o que faz "sem configuracao, nenhuma tag nossa" custar zero linha de decisao.
+        IFrameHelper.tags = collector?.createTagsBridge({
+          tracking,
+          isAllowed,
+        });
+      }
     );
 
     let className = 'woot-widget-bubble';
