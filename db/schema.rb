@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_19_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_130000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2235,6 +2235,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_120000) do
     t.index ["uid", "provider"], name: "index_users_on_uid_and_provider", unique: true
   end
 
+  create_table "webhook_deliveries", force: :cascade do |t|
+    t.bigint "webhook_id", null: false
+    t.bigint "account_id", null: false
+    t.string "delivery_id", null: false
+    t.string "event"
+    t.integer "status", default: 0, null: false
+    t.integer "http_status"
+    t.integer "attempts", default: 1, null: false
+    t.text "error_message"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "delivery_id"], name: "index_webhook_deliveries_on_account_id_and_delivery_id"
+    t.index ["created_at"], name: "index_webhook_deliveries_on_created_at"
+    t.index ["webhook_id", "created_at"], name: "index_webhook_deliveries_on_webhook_id_and_created_at", order: { created_at: :desc }
+  end
+
   create_table "webhooks", force: :cascade do |t|
     t.integer "account_id"
     t.integer "inbox_id"
@@ -2381,6 +2399,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_120000) do
   add_foreign_key "tracking_events", "conversations", on_delete: :nullify
   add_foreign_key "tracking_events", "inboxes", on_delete: :nullify
   add_foreign_key "user_sessions", "users"
+  add_foreign_key "webhook_deliveries", "webhooks"
   add_foreign_key "widget_partial_leads", "accounts", on_delete: :cascade
   add_foreign_key "widget_partial_leads", "contacts", on_delete: :cascade
   add_foreign_key "widget_partial_leads", "inboxes", on_delete: :cascade
