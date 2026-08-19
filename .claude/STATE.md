@@ -10,6 +10,70 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-19] 🟢 CONVERSA SEM DONO: a máquina já existia, vetada por UMA flag (PR #66) · e a fila presa (PR #65)
+
+> Queixa do time: conversa "some". Medido na prod Tozi (conta 6), read-only. Dois PRs, dois
+> defeitos diferentes — um de entrada na fila, outro de saída dela.
+
+- **🔴 A flag `reply_assignment_gate` faz DUAS coisas de sinais opostos.** Ela obriga o humano a
+  estar atribuído para responder (**a favor** de todo mundo ter dono) e proíbe a IA de reassumir
+  órfã (**contra**), porque no modelo FILA a conversa devia esperar alguém puxar. Quem abandonou a
+  fila quer a primeira metade e não a segunda — e não conseguia: era tudo ou nada.
+- **A reentrada JÁ ESTÁ CONSTRUÍDA e diz exatamente o modelo do Paulo.** Comentário no próprio
+  código do `orphan_captain_reentry?`: *"Reaberta volta pra TRIAGEM, com o time LIMPO: ela lê o
+  histórico + a mensagem nova e decide se continua o assunto anterior ou abre um novo, e roteia."*
+  O `OrphanRetriageJob` também já re-executa as regras a cada 15 min. **Os dois estavam vetados
+  pela mesma flag.**
+- **✅ [PR #66](https://github.com/Dev-Simplex/chatspx/pull/66)** (`PauloSeze/toda-conversa-com-dono`):
+  chave `ia_reentra_orfa` por conta separa as duas. **Sem a chave nada muda** — deriva do
+  `reply_assignment_gate` como antes, e os specs existentes que cobrem os dois lados continuam
+  valendo sem alteração (é a prova de que o default não mudou). Rubocop 0 nos 7 arquivos.
+  ⚠️ **Specs NÃO rodados** (6 exemplos novos) — a box de CI é LAN e a sessão estava fora dela.
+- **Medição (28 órfãs agora):** inbox 91=12 · 101=6 · **99=6** · 61=2 · 62=2. A Clara (#7) é a
+  triagem e está elegível em 91/61/62/101 → **22 das 28 ganham dono ligando a chave**. As 6 da
+  **99 não têm IA nenhuma** (inbox de disparo) — são de gente, tratamento à parte.
+- **Isso NÃO come a fila de espera:** conversa aguardando humano depois de handoff **não é órfã**
+  (o `HumanHandoffService` não solta o espelho de propósito), e `still_orphan?` exige assignee nil
+  **e** sem espelho. O receio registrado no F1.4 não se aplica.
+- **✅ [PR #65](https://github.com/Dev-Simplex/chatspx/pull/65)** (`PauloSeze/aguardando-preso`) — o
+  outro lado: conversa com dono humano ficava **presa para sempre** em "Aguardando atendimento".
+  `aguardando_humano_desde` é limpo por **mudança** (assignee muda, espelho solto, resolve); com
+  humano já dono no instante em que o marcador nasce, não sobra mudança a observar. Corrida de
+  ordem — alguém puxa a conversa no meio do turno em que a IA produz o handoff. Medido na conv
+  4854: atribuída 09:33, marcada 09:34, fila mentindo enquanto a consultora respondia. 4 specs.
+
+### [2026-08-19] 🟡 CONV 4285 — a IA mandou o carrossel SEM UMA PALAVRA. É a corrida do takeover, 1 em 217
+
+> A cliente mandou **6 mensagens em 33s** (incluindo "Boa tarde", uma foto e "Este imóvel está
+> disponível?"); a IA respondeu **só com o carrossel**. Um humano assumiu e saudou 5 min depois.
+
+- **Aquele `📷 Carrossel: 9 fotos do imóvel 6767` é o texto da PRÓPRIA TOOL, não fala da IA.**
+- **O log do turno conta tudo:** `09:39:45 debounce_fire` → `09:39:50 human_takeover` →
+  `09:39:56 carrossel` → `09:39:57 handoff`. Alguém assumiu **no meio do turno**.
+- **Causa estrutural:** `captain_can_respond?` (`response_builder_job.rb:51`) relê o espelho fresco
+  do banco **depois** da rodada do modelo e cala a fala. Mas a tool de fotos **escreve a mensagem
+  ela mesma, dentro da rodada**, sem passar por esse portão — o mesmo vale para o `HumanHandoffService`
+  (a nota privada saiu). **O portão protege as palavras, não os atos.**
+- **Escala medida (60 dias): 217 carrosséis, 1 mudo (0,5%) — é esta.** Não é comportamento
+  sistêmico nem falha de conduta; é corrida rara. Vale fechar porque é barato e o sintoma para o
+  cliente é feio, mas **não é urgência**. ⏭️ Conserto: checar o portão imediatamente antes de a
+  tool escrever (fecha ~a janela inteira: o takeover foi 6s antes da escrita).
+
+### [2026-08-19] 🔵 CARROSSEL INVISÍVEL NO PAINEL — e não é só o carrossel: **NENHUMA** mensagem rica é desenhada
+
+> Queixa do time: não conseguem ver pelo SPX as imagens enviadas em carrossel.
+
+- **`rg interactive_payload app/javascript` = ZERO.** O front não sabe que essa chave existe.
+  Toda mensagem rica que o SPX manda — carrossel, botão de CTA, pedido de localização, Flow —
+  chega ao time como **uma linha de texto seca**. O carrossel é só o caso que dói mais.
+- **O dado já está todo lá, e é público.** Cada card do payload traz
+  `header.image.link` (CDN da Vista), `body.text` e `action.parameters.url`. A mensagem é gravada
+  com **`attachments` vazio** de propósito (o carrossel é passthrough da Meta).
+- **Logo NÃO precisa baixar nem armazenar nada** — a alternativa de anexar as imagens custaria
+  storage, dobraria o download e ainda **mentiria** sobre o que foi enviado (o cliente recebeu
+  cards com botão, não fotos soltas). ⏭️ O conserto é **1 componente de bolha** que lê
+  `content_attributes.interactive_payload` e desenha os cards; mesmo componente serve os 4 tipos.
+
 ### [2026-08-18] 🔴→🟢 A JANELA DE 24h DO INSTAGRAM: não há atalho, e o loop da BigStore estava quebrado
 
 > Fechado com medição, depois de duas correções minhas. Contratos:
