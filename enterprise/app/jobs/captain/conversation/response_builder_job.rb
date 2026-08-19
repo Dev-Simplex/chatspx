@@ -20,6 +20,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     Current.executed_by = @assistant
     # 6.01: janela das tool calls DESTA resposta, lida pelo guardrail de pré-envio.
     Captain::ToolTraceWindow.open!
+    # 6.03: janela das fontes recuperadas, lida na hora de criar a mensagem.
+    Captain::CitationWindow.open!
     generate_by_engine
   rescue ActiveStorage::FileNotFoundError, Faraday::BadRequestError => e
     handle_error(e)
@@ -29,6 +31,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   ensure
     Current.executed_by = nil
     Captain::ToolTraceWindow.close!
+    Captain::CitationWindow.close!
   end
 
   private
@@ -436,7 +439,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     if humanizer_enabled?
       send_humanized_response(content)
     else
-      create_outgoing_message(content, agent_name: @response['agent_name'])
+      create_outgoing_message(content, agent_name: @response['agent_name'], citations: citations_for(content))
     end
   end
 
@@ -482,7 +485,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
     sent = 0
     last_message = nil
-    chunks.each do |chunk|
+    # 6.03: numa rajada, a citação vai na ÚLTIMA bolha — é rodapé da resposta inteira,
+    # não de um pedaço dela.
+    ultima_bolha = chunks.rindex(&:present?)
+    citacoes = citations_for(content)
+    chunks.each_with_index do |chunk, indice|
       next if chunk.blank? # bolha vazia (ex: sobra de sentinela [IGNORAR] removido) -> não envia
 
       # "digitando..." em rajada curta antes de CADA mensagem (proporcional ao
@@ -495,7 +502,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # pick e o create!) aceito — lock pessimista por mensagem seria desproporcional.
       break unless captain_can_respond?
 
-      last_message = create_outgoing_message(chunk, agent_name: @response['agent_name'])
+      last_message = create_outgoing_message(
+        chunk, agent_name: @response['agent_name'], citations: (indice == ultima_bolha ? citacoes : nil)
+      )
       wait_for_dispatch(last_message)
       sent += 1
     end
@@ -548,9 +557,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     raise ArgumentError, 'Message content cannot be blank' if content.blank?
   end
 
-  def create_outgoing_message(message_content, agent_name: nil, preserve_waiting_since: false)
+  def create_outgoing_message(message_content, agent_name: nil, preserve_waiting_since: false, citations: nil)
     additional_attrs = {}
     additional_attrs[:agent_name] = agent_name if agent_name.present?
+    content_attrs = citations.present? ? { citations: citations } : {}
 
     @conversation.messages.create!(
       message_type: :outgoing,
@@ -559,8 +569,25 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       sender: @assistant,
       content: message_content,
       additional_attributes: additional_attrs,
+      content_attributes: content_attrs,
       preserve_waiting_since: preserve_waiting_since
     )
+  end
+
+  # ─── 6.03 · citação de fonte ──────────────────────────────────────────────────────
+  # As fontes que a busca REALMENTE recuperou nesta resposta. Duas guardas, e as duas
+  # existem porque o modo de falha que importa é a citação inventada:
+  #
+  #   1. sem retrieval não há citação — a lista só tem o que a ferramenta trouxe;
+  #   2. resposta que NEGA ter encontrado não leva citação — exibir "fonte: X" embaixo
+  #      de "não encontrei" é incoerente, e é o que faria o visitante desconfiar da
+  #      referência justamente quando ela está certa.
+  def citations_for(content)
+    fontes = Captain::CitationWindow.citations
+    return nil if fontes.blank?
+    return nil if Captain::GateAsserts.negative_reply?(content)
+
+    fontes
   end
 
   # Capture runs outside the delivery transaction and never raises (the service

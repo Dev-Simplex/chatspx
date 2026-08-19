@@ -1,8 +1,9 @@
 <script>
-import { resolveMessageType } from 'widget/message-types';
+import { resolveMessageType, CitationList } from 'widget/message-types';
 
 export default {
   name: 'AgentMessageBubble',
+  components: { CitationList },
   // O call-site ainda passa `message-type`, que nenhum tipo consome (o
   // computed `isTemplate` que a lia nunca foi usado no template). Sem isto
   // ele desceria para o DOM como atributo solto.
@@ -19,6 +20,11 @@ export default {
   computed: {
     contentComponent() {
       return resolveMessageType(this.contentType);
+    },
+    // 6.03: as fontes que a resposta usou, quando o servidor as gravou. Rodapé da
+    // bolha, e não parte do tipo — qualquer `content_type` pode citar.
+    citations() {
+      return this.messageContentAttributes?.citations || [];
     },
   },
   methods: {
@@ -38,5 +44,6 @@ export default {
       :message-content-attributes="messageContentAttributes"
       @response="onResponse"
     />
+    <CitationList v-if="citations.length" :citations="citations" />
   </div>
 </template>
