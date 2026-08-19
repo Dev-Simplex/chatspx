@@ -24,6 +24,7 @@ import {
 } from './bubbleHelpers';
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
 import { drenar } from './preBootQueue';
+import { montarTeaser } from './teaser';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
 import {
   CHATWOOT_ERROR,
@@ -119,6 +120,43 @@ export const IFrameHelper = {
     IFrameHelper.preventDefaultScroll();
   },
   getAppFrame: () => document.getElementById('chatwoot_live_chat_widget'),
+
+  // Bloco 4.06 — o teaser. Fica aqui, e não no `entrypoints/sdk.js`, porque
+  // depende do `bubbleHolder`, que só existe depois do `onLoad`.
+  desmontarTeaser: null,
+
+  montarTeaserSeConfigurado(holder) {
+    const canal = window.chatwootWebChannel || {};
+    const gatilhos = canal.widgetTriggers || {};
+
+    // CONTRATO DO 4.04, ao pé da letra: `enabled` ausente significa que o SDK
+    // NÃO DISPARA NADA. Ausência não é `true` — é silêncio, e silêncio aqui é
+    // não incomodar o visitante de uma conta que nunca configurou isto.
+    if (gatilhos.enabled !== true) return;
+
+    // O nível vem resolvido do servidor (`resolved_widget_approach`), que já
+    // aplica o padrão `bold` e já derruba `aggressive` para `bold` no mobile.
+    // O host não recalcula política — consome a decisão, como no 1.03 com a cor.
+    const nivel = IFrameHelper.nivelDeAbordagem(gatilhos);
+
+    IFrameHelper.desmontarTeaser = montarTeaser({
+      holder,
+      canal,
+      nivel,
+      baseDomain: window.$chatwoot.baseDomain,
+      aoAbrir: () => IFrameHelper.events.toggleBubble('open'),
+    });
+  },
+
+  // O nível efetivo desta visita. Em 4.06 é o configurado; o bloco 4.19
+  // acrescenta a degradação por familiaridade por cima deste ponto único.
+  nivelDeAbordagem(gatilhos) {
+    const ehCelular = window.matchMedia('(max-width: 667px)').matches;
+    const configurado = ehCelular
+      ? gatilhos.approach_mobile || gatilhos.approach
+      : gatilhos.approach;
+    return configurado || 'bold';
+  },
   getBubbleHolder: () => document.getElementsByClassName('woot--bubble-holder'),
   sendMessage: (key, value) => {
     const element = IFrameHelper.getAppFrame();
@@ -509,6 +547,8 @@ export const IFrameHelper = {
     bubbleHolder.appendChild(chatIcon);
     bubbleHolder.appendChild(closeBubble);
     onClickChatBubble();
+
+    IFrameHelper.montarTeaserSeConfigurado(bubbleHolder);
   },
   toggleCloseButton: () => {
     let isMobile = false;
