@@ -50,6 +50,13 @@ export default {
       return this.messageContentAttributes?.csat_survey_response
         ?.feedback_message;
     },
+    isLocked() {
+      return !!(this.isFeedbackSubmitted || this.isUpdating);
+    },
+    // O grupo tem UM ponto de parada no Tab; sem escolha, e a primeira opcao.
+    focusableRating() {
+      return this.selectedRating || this.ratings[0]?.value;
+    },
     isButtonDisabled() {
       if (!(this.selectedRating && this.feedback)) return true;
       if (this.isUpdating) return true;
@@ -83,13 +90,45 @@ export default {
 
   methods: {
     buttonClass(rating) {
-      const isLocked = this.isFeedbackSubmitted || this.isUpdating;
       return [
         { selected: rating.value === this.selectedRating },
-        { disabled: isLocked },
-        { hover: isLocked },
+        { disabled: this.isLocked },
+        { hover: this.isLocked },
         'emoji-button',
       ];
+    },
+    /**
+     * Bloco 4.10 — o rotulo TEXTUAL da opcao.
+     *
+     * `translationKey` sai da constante `CSAT_RATINGS`, que e literal e fechada:
+     * as cinco chaves estao escritas la, nao montadas aqui. O teste do bloco
+     * exige as cinco presentes em pt_BR E em en — o componente e compartilhado
+     * com o dashboard, e as chaves existiam so num dos dois bundles.
+     */
+    ratingLabel(rating) {
+      // A chave sai de CSAT_RATINGS, constante literal e fechada em
+      // `shared/constants/messages.js`. O que o lint nao consegue conferir aqui
+      // esta conferido por TESTE: o spec do bloco exige as cinco chaves em pt_BR
+      // E em en — elas existiam so no bundle do dashboard, e o componente e
+      // compartilhado com o widget.
+      // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+      return this.$t(rating.translationKey);
+    },
+    /**
+     * Setas escolhem, e nao so movem o foco: e o comportamento do papel
+     * `radiogroup`, e e o que evita o estado em que a opcao esta focada mas nao
+     * marcada — que para o leitor de tela e indistinguivel de nada ter acontecido.
+     */
+    moveRatingFocus(delta) {
+      if (this.isLocked) return;
+      const indiceAtual = this.ratings.findIndex(
+        rating => rating.value === this.focusableRating
+      );
+      const proximo =
+        this.ratings[
+          Math.min(this.ratings.length - 1, Math.max(0, indiceAtual + delta))
+        ];
+      if (proximo) this.selectRating(proximo);
     },
     async onSubmit() {
       if (this.isUpdating) return;
@@ -133,14 +172,39 @@ export default {
       v-dompurify-html="formattedTitle"
       class="text-n-slate-12 text-sm font-medium pt-5 px-2.5 text-center csat-title"
     />
-    <div v-if="isEmojiType" class="ratings flex justify-around py-5 px-4">
+    <!--
+      Bloco 4.10 — os cinco emojis viram um grupo de radio.
+
+      Antes eram cinco <button> cujo conteudo era SO o emoji: o leitor de tela
+      anunciava o simbolo, nao "Ruim", e nao dizia que escolher um desmarca os
+      outros. O rotulo textual ja existia em CSAT_RATINGS[].translationKey e
+      ninguem o usava — ver a nota do relatorio sobre a chave que existia num
+      bundle so.
+    -->
+    <div
+      v-if="isEmojiType"
+      class="ratings flex justify-around py-5 px-4"
+      role="radiogroup"
+      :aria-label="$t('CSAT.RATING_GROUP_LABEL')"
+      :aria-disabled="isLocked ? 'true' : undefined"
+      @keydown.right.prevent="moveRatingFocus(1)"
+      @keydown.down.prevent="moveRatingFocus(1)"
+      @keydown.left.prevent="moveRatingFocus(-1)"
+      @keydown.up.prevent="moveRatingFocus(-1)"
+    >
       <button
         v-for="rating in ratings"
         :key="rating.key"
+        type="button"
+        role="radio"
         :class="buttonClass(rating)"
+        :disabled="isLocked"
+        :aria-checked="rating.value === selectedRating ? 'true' : 'false'"
+        :aria-label="ratingLabel(rating)"
+        :tabindex="focusableRating === rating.value ? 0 : -1"
         @click="selectRating(rating)"
       >
-        {{ rating.emoji }}
+        <span aria-hidden="true">{{ rating.emoji }}</span>
       </button>
     </div>
     <StarRating
@@ -209,7 +273,22 @@ export default {
 .customer-satisfaction {
   .ratings {
     .emoji-button {
-      @apply shadow-none grayscale text-2xl outline-none transition-all duration-200;
+      @apply shadow-none grayscale text-2xl transition-all duration-200
+        inline-flex items-center justify-center;
+
+      // Bloco 4.10 — SC 2.5.8: alvo minimo de 44x44. O emoji continua com 24 px;
+      // o que cresce e a area clicavel, entao nada muda visualmente e o polegar
+      // para de errar a carinha vizinha.
+      min-width: 44px;
+      min-height: 44px;
+
+      // O `outline-none` de antes apagava o anel de foco do teclado — num
+      // controle que agora e `radiogroup`, isso deixaria quem navega por teclado
+      // sem saber em que opcao esta. O anel sai dos tokens da inbox.
+      &:focus-visible {
+        outline: var(--w-focus-ring-width) solid var(--w-focus-ring-color);
+        outline-offset: var(--w-focus-ring-offset);
+      }
 
       &.selected,
       &:hover,
