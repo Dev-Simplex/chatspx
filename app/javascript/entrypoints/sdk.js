@@ -6,6 +6,11 @@ import {
   getWidgetStyle,
 } from '../sdk/settingsHelper';
 import {
+  publishDefaults,
+  updateConsent,
+  consentState,
+} from '../sdk/tracking/consent';
+import {
   computeHashForUserData,
   getUserCookieName,
   hasUserKeys,
@@ -226,6 +231,27 @@ const runSDK = ({ baseUrl, websiteToken }) => {
           setCookieWithDomain(userCookieName, hashToBeStored, { baseDomain });
         }
       );
+    },
+
+    // Bloco 5.09 — consentimento. Publica a linha de base do Consent Mode v2. O padrao e NEGADO
+    // em tudo: sob LGPD o tratamento precisa de base legal ANTES de acontecer, e disparo que ja
+    // saiu do navegador nao volta.
+    setConsent(consent = {}) {
+      return chamadaDeDados('setConsent', undefined, () =>
+        publishDefaults(consent)
+      );
+    },
+
+    // Bloco 5.09 — a decisao do visitante, depois que a CMP responde. Se o default ainda nao tiver
+    // sido publicado, ele vai ANTES: update sem linha de base a plataforma le como desconhecido.
+    updateConsent(consent = {}) {
+      return chamadaDeDados('updateConsent', undefined, () =>
+        updateConsent(consent)
+      );
+    },
+
+    getConsent() {
+      return consentState();
     },
 
     // Bloco 5.17 — o verbo que MESCLA: campo que voce nao mandar NAO e apagado.
