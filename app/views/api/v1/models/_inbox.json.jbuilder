@@ -22,6 +22,11 @@ json.lock_to_single_conversation resource.lock_to_single_conversation
 json.pending_status_enabled resource.pending_status_enabled
 json.team_message_isolation resource.team_message_isolation
 json.agent_message_isolation resource.agent_message_isolation
+## Isolamento: a tela fala PARTICIPANTES, o banco guarda EXCEÇÕES. Estas duas listas são
+## DERIVADAS (agentes não-admin da caixa menos as exceções), então uma caixa sem nenhuma
+## exceção devolve todo mundo marcado — que é exatamente o comportamento de hoje.
+json.agent_message_isolation_participant_ids resource.isolation_participant_ids('agent_message')
+json.team_message_isolation_participant_ids resource.isolation_participant_ids('team_message')
 json.sender_name_type resource.sender_name_type
 json.business_name resource.business_name
 json.additional_attributes resource.additional_attributes

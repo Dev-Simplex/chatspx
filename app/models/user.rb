@@ -116,6 +116,10 @@ class User < ApplicationRecord
   # é ser membro. Ver TeamSupervision para a regra de leitura.
   has_many :team_supervisions, class_name: 'TeamSupervisor', dependent: :destroy_async
   has_many :supervised_teams, through: :team_supervisions, source: :team
+  # Isenção de isolamento por caixa: agente removido da conta some da lista sozinho.
+  # :destroy (e não _async) porque é regra de VISIBILIDADE — deixar a linha sobreviver
+  # ao dono enquanto um job não roda é justo o tipo de janela que vaza.
+  has_many :inbox_isolation_exemptions, dependent: :destroy
   has_many :articles, foreign_key: 'author_id', dependent: :nullify, inverse_of: :author
   # Chat interno: sem estas duas, as FKs (que não têm on_delete e cujas colunas são
   # NOT NULL) impediam apagar o usuário — o DeleteObjectJob morria com

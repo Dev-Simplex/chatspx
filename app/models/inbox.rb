@@ -66,6 +66,9 @@ class Inbox < ApplicationRecord
 
   has_many :inbox_members, dependent: :destroy_async
   has_many :members, through: :inbox_members, source: :user
+  # Quem NÃO participa de cada isolamento desta caixa. Lista vazia = comportamento
+  # de hoje; ver InboxIsolationExemption para a inversão participantes/exceções.
+  has_many :inbox_isolation_exemptions, dependent: :destroy
   has_many :conversations, dependent: :destroy_async
   has_many :messages, dependent: :destroy_async
 
@@ -99,6 +102,26 @@ class Inbox < ApplicationRecord
   def remove_members(user_ids)
     inbox_members.where(user_id: user_ids).destroy_all
     update_account_cache
+  end
+
+  # Candidatos ao isolamento: membros da caixa que NÃO são administradores. O admin já é
+  # isento das duas regras por natureza; incluí-lo faria a tela sugerir que dá para isolar
+  # um administrador (não dá) e encheria a tabela de linhas que nunca decidem nada.
+  # @return [Array<Integer>]
+  def isolation_candidate_user_ids
+    @isolation_candidate_user_ids ||= begin
+      member_ids = inbox_members.map(&:user_id)
+      member_ids.blank? ? [] : account.account_users.where(user_id: member_ids, role: :agent).pluck(:user_id)
+    end
+  end
+
+  # PARTICIPANTES do isolamento (o que a tela mostra) = candidatos MENOS as exceções.
+  # Derivado de propósito: o banco só guarda quem escapa.
+  # @param isolation_type [String] 'agent_message' ou 'team_message'
+  # @return [Array<Integer>]
+  def isolation_participant_ids(isolation_type)
+    exempt_ids = inbox_isolation_exemptions.select { |exemption| exemption.isolation_type == isolation_type.to_s }.map(&:user_id)
+    isolation_candidate_user_ids - exempt_ids
   end
 
   # Sanitizes inbox name for balanced email provider compatibility

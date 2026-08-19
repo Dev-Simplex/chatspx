@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_11_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1444,6 +1444,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_11_120000) do
     t.index ["inbox_id"], name: "index_inbox_capacity_limits_on_inbox_id"
   end
 
+  create_table "inbox_isolation_exemptions", force: :cascade do |t|
+    t.bigint "inbox_id", null: false
+    t.bigint "user_id", null: false
+    t.string "isolation_type", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["inbox_id", "user_id", "isolation_type"], name: "index_inbox_isolation_exemptions_on_inbox_user_type", unique: true
+    t.index ["user_id"], name: "index_inbox_isolation_exemptions_on_user_id"
+  end
+
   create_table "inbox_members", id: :serial, force: :cascade do |t|
     t.integer "user_id", null: false
     t.integer "inbox_id", null: false
@@ -2165,6 +2175,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_11_120000) do
   add_foreign_key "funnel_views", "users"
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
+  add_foreign_key "inbox_isolation_exemptions", "inboxes", on_delete: :cascade
+  add_foreign_key "inbox_isolation_exemptions", "users", on_delete: :cascade
   add_foreign_key "inboxes", "portals"
   add_foreign_key "internal_channel_members", "internal_channels"
   add_foreign_key "internal_channel_members", "users"
