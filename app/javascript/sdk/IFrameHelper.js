@@ -215,7 +215,12 @@ export const IFrameHelper = {
   // o celular nunca. O servidor já fecha esse caminho em `resolved_widget_approach`
   // e o schema 3.20 o recusa com 422 — esta linha é a terceira ponta, de graça.
   nivelDeAbordagem(gatilhos) {
-    const ehCelular = window.matchMedia('(max-width: 667px)').matches;
+    // `isMobileViewport()` e nao um `matchMedia` proprio. O bloco 2.09 fez o widget ter UM
+    // breakpoint (768) porque a base tinha tres numeros para a mesma pergunta; este uso nasceu
+    // no 4.06, em paralelo, e trouxe o 667 de volta. Na faixa de 668 a 767 px o teaser decidia
+    // "desktop" enquanto o CSS ja tratava como celular. O merge das trilhas foi quem revelou, e
+    // o spec do 2.09 foi quem cobrou.
+    const ehCelular = isMobileViewport();
     const configurado =
       (ehCelular ? gatilhos.approach_mobile : gatilhos.approach) || 'bold';
     const [abordagens] = lerAbordagem();

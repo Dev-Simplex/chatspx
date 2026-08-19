@@ -107,9 +107,14 @@ describe('superfície 3 — o `index` da inbox', () => {
     // problema filtrando aqui e ache que resolveu na origem.
     expect(inboxJbuilder).toContain('json.additional_attributes');
 
+    // A varredura saiu para `WidgetSecretScanner` no bloco 5.01 (responsabilidade propria, com
+    // deteccao tambem por VALOR); quem a chama continua sendo a validacao de
+    // `WidgetConfigurable`. O spec passou a cobrar as DUAS pontas, que e o que a garantia exige.
+    const scanner = lerRaiz('app/models/concerns/widget_secret_scanner.rb');
     const configuravel = lerRaiz('app/models/concerns/widget_configurable.rb');
-    expect(configuravel).toContain('SECRET_KEY_PATTERN');
+    expect(scanner).toContain('SECRET_KEY_PATTERN');
     expect(configuravel).toContain('ensure_no_secret_in_widget_config');
+    expect(configuravel).toContain('WidgetSecretScanner');
   });
 
   it('as chaves que a tela grava não casam com o padrão recusado', () => {
