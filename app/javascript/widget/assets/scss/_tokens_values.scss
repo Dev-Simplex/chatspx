@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// VALORES DOS TOKENS DO WIDGET — quatro mixins, nenhum seletor.
+// VALORES DOS TOKENS DO WIDGET — cinco mixins, nenhum seletor.
 //
 // Este arquivo NASCEU do recorte dos quatro blocos de declaração que viviam em
 // `_tokens.scss`; nenhum valor foi alterado. O `_tokens.scss` continua sendo
@@ -16,6 +16,10 @@
 // Quem consome:
 //   · `_tokens.scss`                            → `:root` / `.dark` do widget
 //   · `dashboard/modules/widget-preview/`       → `.wp-theme-light` / `--dark`
+//
+// O quinto mixin (`widget-shape`, bloco 2.03) chegou depois e é de FORMA, não
+// de cor: ele não tem par escuro porque a geometria do balão é a mesma nos dois
+// temas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 @mixin widget-palette-light {
@@ -126,7 +130,6 @@
   --black-alpha-2: 0, 0, 0, 0.04;
   --border-blue: 45, 196, 111, 0.5;
   --white-alpha: 255, 255, 255, 0.8;
-
 }
 
 @mixin widget-palette-dark {
@@ -237,7 +240,6 @@
   --border-blue: 45, 196, 111, 0.5;
   --border-container: 236, 236, 236, 0;
   --white-alpha: 255, 255, 255, 0.1;
-
 }
 
 @mixin widget-brand-light {
@@ -266,7 +268,6 @@
   --w-ease-standard: cubic-bezier(0.2, 0, 0, 1); // hover, press, cor, foco
   --w-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1); // entrada de superfície
   --w-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15); // saída de superfície
-
 }
 
 @mixin widget-brand-dark {
@@ -274,5 +275,36 @@
   // maioria dos casos; o servidor calcula os dois e o tema escolhe.
   --w-brand-readable: var(--w-brand-readable-dark);
   --w-focus-ring-color: var(--w-brand-readable-dark);
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FORMA DO BALÃO — bloco 2.03 (§2.2 · W2.6 · plano 22 §C.5)
+//
+// Geometria, não cor: por isso mixin próprio, e por isso ele NÃO tem variante
+// escura — a forma do balão é a mesma nos dois temas. O que muda entre temas é
+// a superfície, e ela já vem dos mixins de paleta acima.
+//
+// Os cinco valores são a linha do bloco 2.03 lida literalmente: "raio 20/6,
+// `max-width` 82%, sem sombra, corpo 15/22". Estão aqui, e não cravados em
+// `_conversation.scss`, porque três superfícies precisam dos MESMOS números —
+// a conversa, a lista de não lidas e o primitivo `widget/ui/WBubble.vue` — e
+// porque o preview do widget, no dashboard, consome estes mixins (é a defesa
+// contra a dívida D4, o preview divergir do widget sem ninguém ver).
+//
+// ⚠️ `--w-bubble-shadow: none` é literal, e a literalidade É o ponto. O aceite
+// do bloco é `getComputedStyle(bolha).boxShadow === 'none'`, e o utilitário
+// `shadow-none` do Tailwind NÃO produz isso: ele emite
+// `box-shadow: var(--tw-ring-offset-shadow,0 0 #0000), …, 0 0 #0000`, que o
+// navegador computa como `rgba(0, 0, 0, 0) 0px 0px 0px 0px`. Uma bolha com
+// `@apply shadow-none` passa em qualquer revisão de código e REPROVA o aceite
+// medido. Só `box-shadow: none` computa `none`.
+@mixin widget-shape {
+  --w-bubble-radius: 20px;
+  // O canto que aponta para o autor. Era 4px (`0.25rem`) em oito declarações
+  // espalhadas; o bloco 2.03 o leva a 6px em um lugar só.
+  --w-bubble-radius-tail: 6px;
+  --w-bubble-max-width: 82%;
+  --w-bubble-font-size: 15px;
+  --w-bubble-line-height: 22px;
+  --w-bubble-shadow: none;
 }

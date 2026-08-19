@@ -66,6 +66,10 @@ export default {
       </button>
     </div>
     <div class="unread-messages">
+      <!-- `classe-agrupamento` — bloco 2.03. Era `.chat-bubble-wrap +
+           .chat-bubble-wrap` em `_conversation.scss`. Aqui a conta é trivial e
+           não precisa do composable: toda linha desta lista é do agente, então
+           tudo que não é a primeira continua o grupo. -->
       <UnreadMessage
         v-for="(message, index) in messages"
         :key="message.id"
@@ -75,6 +79,7 @@ export default {
         :sender="message.sender"
         :message="getMessageContent(message)"
         :campaign-id="message.campaignId"
+        :classe-agrupamento="index > 0 ? 'is-continuacao' : null"
       />
     </div>
 

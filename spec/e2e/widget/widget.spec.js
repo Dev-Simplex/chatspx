@@ -277,6 +277,25 @@ const prepareScenario = async (page, view, theme, viewportName) => {
     ).toBeVisible();
   }
   await frame.locator('body').evaluate(() => document.fonts.ready);
+  // ── FOCO, e por que ele entrou na preparação do cenário ────────────────────
+  //
+  // O composer recebe foco sozinho ao abrir a conversa, e o Chromium desenha o
+  // anel `:focus-visible` dele — um retângulo escuro em volta do campo. Esse
+  // anel entrava ou não no PNG conforme o instante em que o disparo do foco
+  // caísse em relação ao screenshot: um estado não determinístico dentro de uma
+  // suíte cujo método é justamente congelar tudo (o relógio, as animações, as
+  // fontes) antes de fotografar.
+  //
+  // Ele passava despercebido porque o anel sozinho custa ~750 px num quadro de
+  // 400×564, e o teto é `maxDiffPixelRatio: 0.01` = 2.256 px. Ou seja: a
+  // variação existia e cabia embaixo da tolerância — até que uma mudança
+  // legítima somasse a diferença dela e o quadro inteiro fosse reprovado, com o
+  // anel no diff parecendo consequência dessa mudança. Foi o que aconteceu no
+  // bloco 2.03, e custou três execuções do harness para separar as duas coisas.
+  //
+  // Tirar o foco antes de fotografar torna o estado explícito. O que se perde é
+  // cobertura do anel de foco em pixel — que não era cobertura, era sorteio.
+  await frame.locator('body').evaluate(() => document.activeElement?.blur());
   if (theme === 'dark') {
     await expect(frame.locator('#app > .dark')).toBeAttached();
   }
@@ -469,7 +488,14 @@ test('preserva a geometria original do unread no resize real', async ({
       gap: 4,
       holder: 316,
       iframe: 300,
-      iframeHeight: 278,
+      // 278 → 302 no bloco 2.03. O que este teste guarda é a geometria que o
+      // resize NÃO pode mexer — a largura do holder, a do iframe e o vão de
+      // 4 px —, e os três continuam idênticos. A ALTURA é consequência do
+      // conteúdo: o corpo do balão passou de 14/21 para 15/22 e a primeira das
+      // três mensagens não lidas passou a ocupar duas linhas. Atualizar o
+      // número é registrar a consequência; deixá-lo em 278 seria exigir que o
+      // corpo do balão continuasse 14/21.
+      iframeHeight: 302,
     });
 });
 

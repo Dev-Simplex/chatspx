@@ -4,7 +4,12 @@
 
 .conversation-wrap {
   .agent-message {
-    @apply items-end flex flex-row justify-start mt-0 ltr:mr-0 rtl:mr-2 mb-0.5 ltr:ml-2 rtl:ml-0 max-w-[88%];
+    @apply items-end flex flex-row justify-start mt-0 ltr:mr-0 rtl:mr-2 mb-0.5 ltr:ml-2 rtl:ml-0;
+
+    // Bloco 2.03 — era `max-w-[88%]`. O 82% é o teto do BALÃO, e ele só vale
+    // se o `.message-wrap` interno parar de aplicar o seu próprio 90%: 88% ×
+    // 90% dava 79,2% efetivos, ou seja, o número declarado nunca foi o medido.
+    max-width: var(--w-bubble-max-width);
 
     .avatar-wrap {
       @apply flex-shrink-0 h-6 w-6;
@@ -15,7 +20,7 @@
     }
 
     .message-wrap {
-      @apply flex-grow flex-shrink-0 ltr:ml-2 rtl:mr-2 max-w-[90%];
+      @apply flex-grow flex-shrink-0 ltr:ml-2 rtl:mr-2 max-w-full;
     }
   }
 
@@ -35,6 +40,16 @@
     @apply text-xs font-medium my-2 ltr:pl-0.5 rtl:pr-0.5;
   }
 
+  // Bloco 2.03 — o horário, FORA do balão. Segue o molde do `.agent-name`, que
+  // é o outro metadado da linha e já vivia fora.
+  .message-time {
+    @apply text-xs mt-1 text-n-slate-11 ltr:pl-0.5 rtl:pr-0.5;
+
+    &--fim {
+      @apply ltr:text-right rtl:text-left ltr:pl-0 rtl:pr-0 ltr:pr-0.5 rtl:pl-0.5;
+    }
+  }
+
   .has-attachment {
     overflow: hidden;
 
@@ -47,34 +62,51 @@
     }
   }
 
-  .agent-message-wrap {
-    + .agent-message-wrap {
+  // ── Agrupamento — bloco 2.02, fechado pelo 2.03 ────────────────────────────
+  //
+  // Aqui viviam SEIS regras de irmão adjacente (`.agent-message-wrap +
+  // .agent-message-wrap`, `.has-response + .user-message-wrap` e companhia) que
+  // decidiam a margem e o canto quebrado de cada balão. Seletor de irmão é uma
+  // regra que o componente não enxerga: ele não sabe se é continuação, e não há
+  // como testá-lo sem montar a lista inteira e ler CSS computado.
+  //
+  // As seis viraram UMA, em `widget/composables/useMessageGrouping.js`:
+  //
+  //   se o autor FINAL da linha anterior é o mesmo TIPO da linha atual,
+  //   então esta linha continua o grupo; senão, abre bloco novo.
+  //
+  // O que sobra no CSS são as duas classes que a linha recebe pronta. E elas
+  // são TRÊS estados, não dois: `is-continuacao`, `is-abertura` e — a primeira
+  // linha de cada bloco de data — nenhuma das duas, que é exatamente o que o
+  // seletor de irmão fazia por não ter com quem casar.
+  .agent-message-wrap,
+  .user-message-wrap {
+    &.is-continuacao {
       @apply mt-0.5;
-
-      .agent-message .chat-bubble {
-        @apply ltr:rounded-tl-[0.25rem] rtl:rounded-tr-[0.25rem];
-      }
     }
 
-    + .user-message-wrap {
-      @apply mt-4;
-    }
-
-    &.has-response + .user-message-wrap {
-      @apply mt-0.5;
-
-      .chat-bubble {
-        @apply ltr:rounded-tr-[0.25rem] rtl:rounded-tl-[0.25rem];
-      }
-    }
-
-    &.has-response + .agent-message-wrap {
+    &.is-abertura {
       @apply mt-4;
     }
   }
 
+  // O canto quebrado da CONTINUAÇÃO. `>` em vez de descendente porque uma
+  // resposta do visitante embutida na linha do agente (`input_select` já
+  // respondido, formulário enviado) também é um `.user-message-wrap`, dentro
+  // do `.agent-message-wrap` — e ela nunca teve este canto.
+  .agent-message-wrap.is-continuacao > .agent-message .chat-bubble {
+    @apply ltr:rounded-tl-[var(--w-bubble-radius-tail)] rtl:rounded-tr-[var(--w-bubble-radius-tail)];
+  }
+
+  .user-message-wrap.is-continuacao > .user-message .chat-bubble {
+    @apply ltr:rounded-tr-[var(--w-bubble-radius-tail)] rtl:rounded-tl-[var(--w-bubble-radius-tail)];
+  }
+
   .user-message {
-    @apply flex items-end flex-row justify-end max-w-[85%] ltr:text-right rtl:text-left mt-0 ltr:ml-auto rtl:mr-auto ltr:mr-1 rtl:ml-1 mb-0.5;
+    @apply flex items-end flex-row justify-end ltr:text-right rtl:text-left mt-0 ltr:ml-auto rtl:mr-auto ltr:mr-1 rtl:ml-1 mb-0.5;
+
+    // Bloco 2.03 — era `max-w-[85%]`; agora os dois lados saem do mesmo token.
+    max-width: var(--w-bubble-max-width);
 
     .message-wrap {
       @apply max-w-full ltr:mr-2 rtl:ml-2;
@@ -93,27 +125,17 @@
     }
   }
 
+  // Bloco 2.03 — era `text-white` nas duas. Hoje o `FileBubble` já aplica
+  // `var(--w-on-brand)` por `:style` (bloco 1.04) e vence estas regras, então a
+  // troca não move pixel nenhum; o que ela tira é o branco cravado, que voltaria
+  // a valer no dia em que alguém removesse o `:style`.
   .user.has-attachment {
     .icon-wrap {
-      @apply text-white;
+      color: var(--w-on-brand);
     }
 
     .download {
-      @apply text-white;
-    }
-  }
-
-  .user-message-wrap {
-    + .user-message-wrap {
-      @apply mt-0.5;
-
-      .user-message .chat-bubble {
-        @apply ltr:rounded-tr-[0.25rem] rtl:rounded-tl-[0.25rem];
-      }
-    }
-
-    + .agent-message-wrap {
-      @apply mt-4;
+      color: var(--w-on-brand);
     }
   }
 
@@ -136,14 +158,16 @@
       @apply border border-solid border-n-slate-5 dark:border-n-slate-11/50 text-n-black;
     }
 
-    + .chat-bubble-wrap {
-      .chat-bubble {
-        @apply ltr:rounded-tl-[0.25rem] rtl:rounded-tr-[0.25rem];
-      }
+    // Mesma regra de agrupamento da conversa, mesma classe, e aqui ela é ainda
+    // mais direta: na lista de não lidas toda linha é do agente, então tudo que
+    // não é a primeira continua o grupo. `UnreadMessageList.vue` a aplica pelo
+    // índice; era o que o `+ .chat-bubble-wrap` fazia.
+    &.is-continuacao .chat-bubble {
+      @apply ltr:rounded-tl-[var(--w-bubble-radius-tail)] rtl:rounded-tr-[var(--w-bubble-radius-tail)];
     }
 
     &:last-child .chat-bubble {
-      @apply ltr:rounded-bl-[1.25rem] rtl:rounded-br-[1.25rem];
+      @apply ltr:rounded-bl-[var(--w-bubble-radius)] rtl:rounded-br-[var(--w-bubble-radius)];
     }
   }
 }
@@ -153,17 +177,15 @@
 
   .chat-bubble-wrap {
     .chat-bubble {
-      @apply ltr:rounded-br-[0.25rem] rtl:rounded-bl-[0.25rem] rounded-[1.25rem];
+      @apply ltr:rounded-br-[var(--w-bubble-radius-tail)] rtl:rounded-bl-[var(--w-bubble-radius-tail)] rounded-[var(--w-bubble-radius)];
     }
 
-    + .chat-bubble-wrap {
-      .chat-bubble {
-        @apply ltr:rounded-tr-[0.25rem] rtl:rounded-tl-[0.25rem];
-      }
+    &.is-continuacao .chat-bubble {
+      @apply ltr:rounded-tr-[var(--w-bubble-radius-tail)] rtl:rounded-tl-[var(--w-bubble-radius-tail)];
     }
 
     &:last-child .chat-bubble {
-      @apply ltr:rounded-br-[1.25rem] rtl:rounded-bl-[1.25rem];
+      @apply ltr:rounded-br-[var(--w-bubble-radius)] rtl:rounded-bl-[var(--w-bubble-radius)];
     }
   }
 
@@ -173,8 +195,31 @@
 }
 
 .chat-bubble {
-  @apply shadow-[0_0.25rem_6px_rgba(50,50,93,0.08),0_1px_3px_rgba(0,0,0,0.05)] rounded-[1.25rem] inline-block text-sm leading-[1.5] max-w-full ltr:text-left rtl:text-right py-3 px-4 text-white;
+  // Bloco 2.03 — a geometria vem toda do mixin `widget-shape`.
+  //
+  // SOMBRA: era `rgba(50,50,93,.08) 0 4px 6px, rgba(0,0,0,.05) 0 1px 3px`,
+  // idêntica nos dois temas — no escuro ela não separava nada, só sujava. Sai;
+  // a separação passa a vir do par de superfícies (§C.4) e, sob `forced-colors`,
+  // da borda de 1 px (bloco 2.08).
+  //
+  // ⚠️ `box-shadow: none` LITERAL, e não `@apply shadow-none`. O utilitário do
+  // Tailwind emite a cadeia de `--tw-*` e o navegador computa
+  // `rgba(0, 0, 0, 0) 0px 0px 0px 0px` — o aceite do bloco é
+  // `getComputedStyle(bolha).boxShadow === 'none'` e reprovaria.
+  //
+  // CORPO: era `text-sm leading-[1.5]` — 14/21. Vira 15/22 (Q1 do plano 22).
+  //
+  // TEXTO: a base era `text-white`, e ela mordia de verdade: a bolha de ANEXO do
+  // visitante (`chat-bubble has-attachment user`) não declara cor própria e
+  // herdava branco sobre `--w-brand` — 2,27:1 na marca verde, que é a falha
+  // medida em 15 §A5.4. Agora a base é a cor sobre superfície e cada lado
+  // declara a sua.
+  @apply inline-block max-w-full ltr:text-left rtl:text-right py-3 px-4 text-n-slate-12;
 
+  border-radius: var(--w-bubble-radius);
+  box-shadow: var(--w-bubble-shadow);
+  font-size: var(--w-bubble-font-size);
+  line-height: var(--w-bubble-line-height);
   word-break: break-word;
 
   :not([audio]) {
@@ -191,15 +236,17 @@
   }
 
   &.user {
-    @apply ltr:rounded-br-[0.25rem] rtl:rounded-bl-[0.25rem];
+    @apply ltr:rounded-br-[var(--w-bubble-radius-tail)] rtl:rounded-bl-[var(--w-bubble-radius-tail)];
+
+    color: var(--w-on-brand);
 
     > a {
-      @apply text-white;
+      color: var(--w-on-brand);
     }
   }
 
   &.agent {
-    @apply ltr:rounded-bl-[0.25rem] rtl:rounded-br-[0.25rem] text-n-slate-12;
+    @apply ltr:rounded-bl-[var(--w-bubble-radius-tail)] rtl:rounded-br-[var(--w-bubble-radius-tail)] text-n-slate-12;
 
     .link {
       @apply text-w-brand-readable;

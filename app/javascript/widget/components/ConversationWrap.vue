@@ -4,6 +4,7 @@ import AgentTypingBubble from 'widget/components/AgentTypingBubble.vue';
 import DateSeparator from 'shared/components/DateSeparator.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import { useDarkMode } from 'widget/composables/useDarkMode';
+import { calcularAgrupamento } from 'widget/composables/useMessageGrouping';
 import { MESSAGE_TYPE } from 'shared/constants/messages';
 import { mapActions, mapGetters } from 'vuex';
 
@@ -49,6 +50,19 @@ export default {
     colorSchemeClass() {
       return this.prefersDarkMode ? 'dark-scheme' : 'light-scheme';
     },
+    // ── Bloco 2.02/2.03 — o agrupamento, calculado POR BLOCO DE DATA ─────────
+    //
+    // Este recorte não é detalhe: era o que o seletor de irmão adjacente fazia
+    // sem dizer. Cada bloco de data é uma `<div class="messages-wrap">`
+    // própria, então a primeira linha de um dia NUNCA teve irmão anterior — e
+    // portanto nunca continuou o grupo do dia anterior. Rodar
+    // `calcularAgrupamento` na conversa achatada mudaria justamente essa linha,
+    // que é a mais visível da lista.
+    agrupamentoPorBloco() {
+      return this.groupedMessages.map(bloco =>
+        calcularAgrupamento(bloco.messages)
+      );
+    },
     showStatusIndicator() {
       const { status } = this.conversationAttributes;
       const isConversationInPendingStatus = status === 'pending';
@@ -80,6 +94,15 @@ export default {
   },
   methods: {
     ...mapActions('conversation', ['fetchOldConversations']),
+    // Três estados, não dois — e o terceiro é o que o `+` fazia por omissão.
+    // A primeira linha de cada bloco de data não recebe classe nenhuma, porque
+    // não havia irmão anterior com quem casar e portanto nenhuma das seis
+    // regras se aplicava a ela.
+    classeAgrupamento(indiceBloco, mensagem, indice) {
+      const info = this.agrupamentoPorBloco[indiceBloco]?.[mensagem.id];
+      if (!info || indice === 0) return null;
+      return info.continuaGrupo ? 'is-continuacao' : 'is-abertura';
+    },
     scrollToBottom() {
       const container = this.$el;
       container.scrollTop = container.scrollHeight - this.previousScrollHeight;
@@ -129,15 +152,16 @@ export default {
         <Spinner />
       </div>
       <div
-        v-for="groupedMessage in groupedMessages"
+        v-for="(groupedMessage, indiceBloco) in groupedMessages"
         :key="groupedMessage.date"
         class="messages-wrap"
       >
         <DateSeparator :date="groupedMessage.date" />
         <ChatMessage
-          v-for="message in groupedMessage.messages"
+          v-for="(message, indice) in groupedMessage.messages"
           :key="message.id"
           :message="message"
+          :classe-agrupamento="classeAgrupamento(indiceBloco, message, indice)"
         />
       </div>
       <AgentTypingBubble v-if="showStatusIndicator" />
