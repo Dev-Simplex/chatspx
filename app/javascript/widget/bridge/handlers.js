@@ -1,4 +1,5 @@
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
+import { registrarEtapaDaAbordagem } from 'widget/api/approachEvent';
 
 /**
  * Handlers do bridge site → widget.
@@ -59,6 +60,12 @@ export const handlers = {
     createWidgetEvents(message, ctx);
   },
 
+  // Bloco 4.21 — a abordagem aconteceu no host; o registro server-side sai daqui,
+  // que e onde ja existem o token da sessao e o cliente HTTP.
+  'approach-event': message => {
+    registrarEtapaDaAbordagem(message);
+  },
+
   'set-label': (message, ctx) => {
     ctx.$store.dispatch('conversationLabels/create', message.label);
   },
@@ -69,6 +76,12 @@ export const handlers = {
 
   'set-user': (message, ctx) => {
     ctx.$store.dispatch('contacts/setUser', message);
+  },
+
+  // Bloco 5.17 — o verbo que MESCLA. `set-user` substitui (legado, comportamento historico);
+  // `update-user` deixa de fora do payload o que o site nao mandou, para o servidor nao apagar.
+  'update-user': (message, ctx) => {
+    ctx.$store.dispatch('contacts/updateUser', message);
   },
 
   'set-custom-attributes': (message, ctx) => {

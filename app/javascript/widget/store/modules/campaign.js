@@ -5,6 +5,8 @@ import {
   filterCampaigns,
 } from 'widget/helpers/campaignHelper';
 import { getFromCache, setCache } from 'shared/helpers/cache';
+import { emitSdkEventOnce } from 'widget/helpers/sdkEventEmitter';
+import { CHATWOOT_CAMPAIGN_SHOWN } from 'widget/constants/sdkEvents';
 
 const CACHE_KEY_PREFIX = 'chatwoot_campaigns_';
 
@@ -118,6 +120,16 @@ export const actions = {
       const campaign = campaigns.find(item => item.id === campaignId);
       if (campaign) {
         commit('setActiveCampaign', campaign);
+        // Bloco 5.04 — `chatwoot:campaign-shown`. Aqui, e não no componente do
+        // teaser: o `resetCampaign` do fechamento do widget zera
+        // `activeCampaign`, e um `mounted`/`watch` no componente re-emitiria a
+        // cada abertura. O fato "esta campanha foi exibida" acontece uma vez
+        // por campanha, e a chave do `once` é o id dela.
+        emitSdkEventOnce(
+          CHATWOOT_CAMPAIGN_SHOWN,
+          { campaign_id: campaign.id },
+          `${CHATWOOT_CAMPAIGN_SHOWN}:${campaign.id}`
+        );
       }
     }
   },

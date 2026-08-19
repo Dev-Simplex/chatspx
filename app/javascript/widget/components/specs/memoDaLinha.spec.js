@@ -19,7 +19,24 @@ import { createStore } from 'vuex';
 import { createI18n } from 'vue-i18n';
 import { h, ref } from 'vue';
 import ptBR from 'widget/i18n/locale/pt_BR.json';
+import { readFileSync } from 'node:fs';
+import { parse, compileTemplate } from '@vue/compiler-sfc';
 import ConversationWrap from '../ConversationWrap.vue';
+
+const ARQUIVO = 'app/javascript/widget/components/ConversationWrap.vue';
+
+// O template REAL do arquivo, passado pelo compilador real. Comentários fora,
+// porque eles não são código — e porque foi por eles que este exame já se
+// enganou uma vez.
+const compilarTemplate = () => {
+  const { descriptor } = parse(readFileSync(ARQUIVO, 'utf8'));
+  return compileTemplate({
+    source: descriptor.template.content,
+    filename: ARQUIVO,
+    id: 'memo-da-linha',
+    compilerOptions: { comments: false },
+  }).code;
+};
 
 const i18n = createI18n({
   legacy: true,
@@ -92,6 +109,48 @@ const montar = () => {
 };
 
 describe('2.12 — o `v-memo` da linha', () => {
+  // ── O TESTE QUE FALTAVA, e por que os outros três não bastavam ────────────
+  //
+  // Os três exemplos abaixo continuam válidos, mas nenhum deles MEDE o
+  // `v-memo`: medido em 19/08/2026, eles passam com o `v-memo` REMOVIDO por
+  // completo. A razão é que o Vue já traz a economia que eles observam — um
+  // componente filho cujas props não mudaram não re-renderiza, com memo ou sem
+  // (`shouldUpdateComponent`). O espião conta o render do FILHO, e esse render
+  // já não acontecia.
+  //
+  // O `v-memo` age uma camada antes: ele evita CRIAR o VNode e diferenciá-lo,
+  // trabalho que é do PAI e que espião nenhum no filho enxerga. Por isso a
+  // medição correta é sobre o artefato que roda — a render function compilada.
+  //
+  // Isto não é preciosismo de teste. É o que separa as duas formas de escrever
+  // o mesmo template: com o `v-memo` num descendente do `<template v-for>` em
+  // vez de nele próprio, o Vue IGNORA o memo, sem erro e sem aviso, e
+  // `_isMemoSame` desaparece do código gerado. Os três exemplos de baixo
+  // continuam verdes nessa forma quebrada. Este não.
+  //
+  // ── E por que a medição é o TEMPLATE COMPILADO, e não `render.toString()` ──
+  //
+  // A primeira versão deste exemplo lia `ConversationWrap.render.toString()` e
+  // procurava `isMemoSame`. Ela passava nas DUAS formas — inclusive na
+  // quebrada. O motivo: em dev o Vue preserva os comentários do template dentro
+  // da render function, e o comentário que explica a armadilha escreve
+  // `_isMemoSame` por extenso. O teste estava lendo a própria documentação e se
+  // declarando satisfeito.
+  //
+  // Compilar o template com `comments: false` tira essa saída: o que sobra é só
+  // o código que roda.
+  it('o `v-memo` está ATIVO no template compilado', () => {
+    const codigo = compilarTemplate();
+
+    expect(
+      codigo,
+      'o template compilado de ConversationWrap não chama `_isMemoSame` — o ' +
+        '`v-memo` foi compilado para nada. A causa quase certa é ele estar ' +
+        'num descendente do `v-for` em vez de no próprio elemento que itera: ' +
+        'nessa forma o Vue o ignora sem erro e sem aviso.'
+    ).toMatch(/_isMemoSame\(/);
+  });
+
   it('mudança fora da linha NÃO refaz a linha', async () => {
     const { wrapper, renders, digitando } = montar();
 
@@ -105,7 +164,10 @@ describe('2.12 — o `v-memo` da linha', () => {
     expect(wrapper.findComponent({ name: 'AgentTypingBubble' }).exists()).toBe(
       true
     );
-    // E as bolhas não foram refeitas. Sem o memo, este número seria 4.
+    // E as bolhas não foram refeitas. ATENÇÃO ao ler esta linha: ela seria
+    // verde mesmo sem o memo, porque o Vue já evita re-renderizar filho de
+    // props inalteradas. Quem prova o memo é o exemplo do topo; este prova que
+    // a linha não é refeita — que é o efeito desejado, por qualquer caminho.
     expect(renders.total).toBe(naMontagem);
   });
 

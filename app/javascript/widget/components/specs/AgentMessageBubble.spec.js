@@ -50,6 +50,7 @@ describe('AgentMessageBubble', () => {
       },
       global: {
         plugins: [store],
+        mocks: { $t: chave => chave },
         directives: { 'dompurify-html': { mounted: () => {} } },
         stubs: {
           EmailInput: true,
@@ -326,6 +327,58 @@ describe('AgentMessageBubble', () => {
         ],
         messageId: 7,
       });
+    });
+  });
+
+  // Bloco 6.03 — a citação é rodapé da BOLHA, não de um tipo: ela vale para
+  // qualquer `content_type`, e some quando o servidor não gravou fonte nenhuma.
+  describe('6.03 — citação de fonte', () => {
+    const comFonte = {
+      citations: [
+        {
+          title: 'Política de trocas',
+          url: 'https://exemplo.com/trocas',
+          excerpt: '30 dias',
+        },
+      ],
+    };
+
+    it('não desenha nada quando a mensagem não tem fonte', () => {
+      expect(
+        mountBubble().findComponent({ name: 'CitationList' }).exists()
+      ).toBe(false);
+    });
+
+    it('desenha a fonte que o servidor gravou', () => {
+      const wrapper = mountBubble({ messageContentAttributes: comFonte });
+
+      expect(wrapper.get('.citation-list').text()).toContain(
+        'Política de trocas'
+      );
+      expect(wrapper.get('.citation-list a').attributes('href')).toBe(
+        'https://exemplo.com/trocas'
+      );
+    });
+
+    it('vale também para um tipo rico, e não substitui o conteúdo dele', () => {
+      const wrapper = mountBubble({
+        contentType: 'cards',
+        messageContentAttributes: { ...comFonte, items: [{ title: 'Casa' }] },
+      });
+
+      expect(wrapper.findComponent(ChatCard).exists()).toBe(true);
+      expect(wrapper.find('.citation-list').exists()).toBe(true);
+    });
+
+    it('a bolha continua sendo a única dona do rodapé (fica fora do .chat-bubble)', () => {
+      const wrapper = mountBubble({ messageContentAttributes: comFonte });
+
+      expect(wrapper.find('.chat-bubble.agent .citation-list').exists()).toBe(
+        false
+      );
+      expect(wrapper.find('.chat-bubble-wrap > .citation-list').exists()).toBe(
+        true
+      );
     });
   });
 });

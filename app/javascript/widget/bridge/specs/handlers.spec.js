@@ -1,9 +1,16 @@
 import { handlers } from '../handlers';
 
-// Os 16 nomes de evento do contrato site → widget, copiados da cadeia de
-// `else if` que existia em App.vue:261-348 ANTES desta refatoração. A lista é a
-// régua: se um nome sumir ou nascer sem querer, este arquivo reprova.
+// Os nomes de evento do contrato site → widget: os 16 copiados da cadeia de
+// `else if` que existia em App.vue:261-348 ANTES desta refatoração, mais os que
+// blocos posteriores acrescentaram — cada um com o bloco anotado ao lado. A lista
+// é a régua: se um nome sumir ou nascer sem querer, este arquivo reprova — e foi o
+// que ele fez quando `update-user` chegou.
+//
+// Bloco 5.17 acrescentou `update-user`, o verbo que MESCLA. `set-user` continua sendo
+// o que SUBSTITUI (legado). Dois verbos porque o site que só quer corrigir o telefone
+// não deveria precisar reenviar o objeto inteiro e torcer para não esquecer um campo.
 const CONTRACT_EVENTS = [
+  'approach-event', // 4.21
   'config-set',
   'widget-visible',
   'change-url',
@@ -20,6 +27,7 @@ const CONTRACT_EVENTS = [
   'set-color-scheme',
   'toggle-open',
   'sdk-set-bubble-visibility',
+  'update-user', // 5.17
 ];
 
 const buildContext = (overrides = {}) => ({
@@ -40,14 +48,63 @@ const buildContext = (overrides = {}) => ({
   ...overrides,
 });
 
+vi.mock('widget/api/approachEvent', () => ({
+  registrarEtapaDaAbordagem: vi.fn(),
+}));
+
 describe('bridge/handlers', () => {
   beforeEach(() => {
     window.chatwootWebChannel = { websiteToken: 'token-do-site' };
     delete window.referrerURL;
   });
 
-  it('cobre exatamente os 16 eventos do contrato, sem sobra nem falta', () => {
+  it('cobre exatamente os 18 eventos do contrato, sem sobra nem falta', () => {
     expect(Object.keys(handlers).sort()).toEqual([...CONTRACT_EVENTS].sort());
+  });
+
+  it('approach-event repassa o que o host mediu, sem tocar no store (4.21)', async () => {
+    const { registrarEtapaDaAbordagem } = await import(
+      'widget/api/approachEvent'
+    );
+    const ctx = buildContext();
+    const mensagem = {
+      event: 'approach-event',
+      etapa: 'shown',
+      approach: 'discreet',
+      approach_configured: 'bold',
+      ordinal: 2,
+    };
+
+    handlers['approach-event'](mensagem, ctx);
+
+    expect(registrarEtapaDaAbordagem).toHaveBeenCalledWith(mensagem);
+    expect(ctx.$store.dispatch).not.toHaveBeenCalled();
+  });
+
+  // Bloco 5.17 — os dois verbos vao para acoes DIFERENTES do store. Se ambos caissem em
+  // `contacts/setUser`, o `update-user` mesclaria nada e o campo omitido seria apagado — o
+  // defeito que o verbo novo existe para evitar, e que nenhum teste de nome pegaria.
+  it('set-user e update-user despacham acoes distintas', () => {
+    const ctx = buildContext();
+
+    handlers['set-user']({ identifier: 'u-1', user: { name: 'Ana' } }, ctx);
+    handlers['update-user'](
+      { identifier: 'u-1', user: { phone_number: '+5511' } },
+      ctx
+    );
+
+    expect(ctx.$store.dispatch).toHaveBeenNthCalledWith(1, 'contacts/setUser', {
+      identifier: 'u-1',
+      user: { name: 'Ana' },
+    });
+    expect(ctx.$store.dispatch).toHaveBeenNthCalledWith(
+      2,
+      'contacts/updateUser',
+      {
+        identifier: 'u-1',
+        user: { phone_number: '+5511' },
+      }
+    );
   });
 
   it('config-set aplica locale, rótulo, config e busca as conversas antigas', async () => {

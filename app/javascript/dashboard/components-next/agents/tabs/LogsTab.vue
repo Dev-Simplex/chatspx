@@ -38,6 +38,8 @@ const eventTypeConfig = {
   mirror_assigned: { color: 'bg-blue-500', icon: 'i-lucide-bot' },
   mirror_released: { color: 'bg-slate-500', icon: 'i-lucide-bot-off' },
   human_takeover: { color: 'bg-amber-500', icon: 'i-lucide-user-round-check' },
+  // 6.01: a resposta que o guardrail de pré-envio impediu de sair.
+  guardrail_retained: { color: 'bg-red-500', icon: 'i-lucide-shield-alert' },
 };
 
 const filterOptions = computed(() => [

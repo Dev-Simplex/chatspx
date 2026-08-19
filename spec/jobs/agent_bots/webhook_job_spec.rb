@@ -28,7 +28,7 @@ RSpec.describe AgentBots::WebhookJob do
   # B3: sem delivery_id do chamador, WebhookJob#perform cai no job_id — que e
   # estavel entre as tentativas, ao contrario de um uuid sorteado por tentativa.
   it 'executes perform' do
-    expect(Webhooks::Trigger).to receive(:execute).with(url, payload, webhook_type, secret: nil, delivery_id: kind_of(String))
+    expect(Webhooks::Trigger).to receive(:execute).with(url, payload, webhook_type, secret: nil, delivery: kind_of(Webhooks::Trigger::Delivery))
     perform_enqueued_jobs { job }
   end
 

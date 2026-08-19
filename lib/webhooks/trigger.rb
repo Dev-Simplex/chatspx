@@ -29,21 +29,32 @@ class Webhooks::Trigger
     end
   end
 
-  def initialize(url, payload, webhook_type, secret: nil, delivery_id: nil)
+  # Identidade da entrega: o id que vai no cabecalho X-Chatwoot-Delivery e, quando existe,
+  # o registro Webhook a que ela pertence. Sao um conceito so — o que se esta entregando e
+  # para quem — e por isso viajam juntos em vez de como dois argumentos soltos.
+  Delivery = Struct.new(:id, :webhook_id, keyword_init: true)
+
+  def initialize(url, payload, webhook_type, secret: nil, delivery: nil)
     @url = url
     @payload = payload
     @webhook_type = webhook_type
     @secret = secret
-    @delivery_id = delivery_id
+    @delivery = delivery || Delivery.new
   end
 
-  def self.execute(url, payload, webhook_type, secret: nil, delivery_id: nil)
-    new(url, payload, webhook_type, secret: secret, delivery_id: delivery_id).execute
+  def self.execute(url, payload, webhook_type, secret: nil, delivery: nil)
+    new(url, payload, webhook_type, secret: secret, delivery: delivery).execute
   end
 
   def execute
     perform_request
+    # Bloco 4.14: o registro nasce AQUI, e nao numa camada acima, porque este e o unico
+    # ponto que sabe o resultado real da requisicao. Ate o 1.13 a excecao morria dentro
+    # deste metodo e o job terminava com sucesso — um log alimentado por "o job nao
+    # explodiu" gravaria "entregue" para entrega que nunca aconteceu.
+    record_delivery(:delivered)
   rescue StandardError => e
+    record_delivery(:failed, e)
     raise RetryableError.new(status: http_status(e), message: e.message) if retryable_agent_bot_error?(e)
     # B3: sem este `raise` a excecao morria aqui e o job terminava com sucesso —
     # o webhook dizia que entregou sem ter entregado, e o `retry_on` do
@@ -77,7 +88,7 @@ class Webhooks::Trigger
 
   def request_headers(body)
     headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
-    headers['X-Chatwoot-Delivery'] = @delivery_id if @delivery_id.present?
+    headers['X-Chatwoot-Delivery'] = @delivery.id if @delivery.id.present?
     if @secret.present?
       ts = Time.now.to_i.to_s
       headers['X-Chatwoot-Timestamp'] = ts
@@ -144,6 +155,33 @@ class Webhooks::Trigger
     timeout = raw_timeout.presence&.to_i
 
     timeout&.positive? ? timeout : 5
+  end
+
+  # Registrar nao pode derrubar entrega: se a gravacao falhar, o webhook ja foi (ou ja
+  # falhou) e o resultado disso nao muda por causa do log.
+  def record_delivery(status, error = nil)
+    return if @delivery.webhook_id.blank? || @delivery.id.blank?
+
+    webhook = Webhook.find_by(id: @delivery.webhook_id)
+    return if webhook.blank?
+
+    webhook.webhook_deliveries
+           .find_or_initialize_by(delivery_id: @delivery.id)
+           .update!(delivery_attributes(webhook, status, error))
+  rescue StandardError => e
+    Rails.logger.warn("[webhook_delivery] nao registrou #{@delivery.id}: #{e.message}")
+  end
+
+  def delivery_attributes(webhook, status, error)
+    {
+      account_id: webhook.account_id,
+      event: @payload[:event] || @payload['event'],
+      payload: @payload,
+      status: status,
+      http_status: http_status(error),
+      error_message: error&.message&.truncate(1000),
+      delivered_at: (Time.zone.now if status == :delivered)
+    }
   end
 
   def retryable_agent_bot_error?(error)

@@ -1,5 +1,6 @@
 import { IFrameHelper } from 'widget/helpers/utils';
 import { handlers } from './handlers';
+import { registerCloseOnEscape } from './closeOnEscape';
 
 /**
  * Porta única de entrada do bridge site → widget.
@@ -34,6 +35,26 @@ export const registerBridgeListeners = ctx => {
   const listener = event => handleFrameMessage(event, ctx);
   window.addEventListener('message', listener);
   return listener;
+};
+
+/**
+ * A fiação completa do widget: a ponte site -> widget e o `Esc` (bloco 2.11).
+ *
+ * Os dois entram pela MESMA porta de propósito. Registrar o `Esc` direto no
+ * `App.vue` funcionaria, mas deixaria a ligação verificável só montando o app
+ * inteiro — e ligação não testada é como recurso desligado: ninguém percebe.
+ * Aqui um teste chama esta função e prova os dois comportamentos.
+ *
+ * Devolve uma função que desfaz tudo o que foi registrado.
+ */
+export const registerWidgetListeners = ctx => {
+  const messageListener = registerBridgeListeners(ctx);
+  const removeCloseOnEscape = registerCloseOnEscape();
+
+  return () => {
+    window.removeEventListener('message', messageListener);
+    removeCloseOnEscape();
+  };
 };
 
 export { handlers };

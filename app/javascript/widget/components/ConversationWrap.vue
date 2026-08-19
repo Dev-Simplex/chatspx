@@ -8,6 +8,8 @@ import Spinner from 'shared/components/Spinner.vue';
 import { useDarkMode } from 'widget/composables/useDarkMode';
 import { calcularAgrupamento } from 'widget/composables/useMessageGrouping';
 import { MESSAGE_TYPE } from 'shared/constants/messages';
+import AiHandoffMark from 'widget/components/AiHandoffMark.vue';
+import { annotateHandoffs } from 'widget/helpers/aiIdentity';
 import { mapActions, mapGetters } from 'vuex';
 
 // ── Bloco 2.04 — os três números do scroll ────────────────────────────────────
@@ -38,6 +40,7 @@ export default {
     WDateSeparator,
     WScrollToBottom,
     FluentIcon,
+    AiHandoffMark,
     Spinner,
   },
   props: {
@@ -90,7 +93,7 @@ export default {
     // `calcularAgrupamento` na conversa achatada mudaria justamente essa linha,
     // que é a mais visível da lista.
     agrupamentoPorBloco() {
-      return this.groupedMessages.map(bloco =>
+      return this.groupedMessagesWithHandoff.map(bloco =>
         calcularAgrupamento(bloco.messages)
       );
     },
@@ -102,6 +105,30 @@ export default {
     // no idioma antigo até a mensagem se mexer — que pode ser nunca.
     idiomaAtual() {
       return this.$root.$i18n?.locale;
+    },
+    /**
+     * Bloco 4.09 — a 1a das tres marcacoes: o marcador de SISTEMA no fluxo.
+     *
+     * A anotacao roda sobre o grupo INTEIRO e em ordem, porque handoff e uma
+     * TRANSICAO: so se sabe que a equipe entrou comparando com quem falou antes.
+     * Anotar mensagem por mensagem, dentro do filho, nao teria essa informacao.
+     *
+     * ── E por que ele passou a alimentar o `v-for` do template (2.04/2.12) ────
+     *
+     * `annotateHandoffs` DEVOLVE MENSAGENS NOVAS: cada linha vira um objeto
+     * recriado a cada recomputo. Isso é exatamente o sinal que o `v-memo` da
+     * linha usa como primeira chave — "objeto igual = o store não mexeu" —,
+     * então as duas coisas se encaixam sem contrato extra, desde que o `v-for`
+     * itere ESTA lista e não `groupedMessages` crua. Iterar a crua deixaria a
+     * marcação de handoff sem efeito; iterar esta com um memo que compara por
+     * identidade continua correto porque o computed só recalcula quando
+     * `groupedMessages` muda.
+     */
+    groupedMessagesWithHandoff() {
+      return this.groupedMessages.map(grupo => ({
+        ...grupo,
+        messages: annotateHandoffs(grupo.messages),
+      }));
     },
     showStatusIndicator() {
       const { status } = this.conversationAttributes;
@@ -263,37 +290,53 @@ export default {
       class="conversation-wrap"
       role="log"
       :aria-label="$t('A11Y.CONVERSATION_LOG')"
+      :aria-busy="isAgentTyping ? 'true' : 'false'"
       :class="{ 'is-typing': isAgentTyping }"
     >
       <div v-if="isFetchingList" class="message--loader">
         <Spinner />
       </div>
       <div
-        v-for="(groupedMessage, indiceBloco) in groupedMessages"
+        v-for="(groupedMessage, indiceBloco) in groupedMessagesWithHandoff"
         :key="groupedMessage.date"
         class="messages-wrap"
       >
         <WDateSeparator :date="groupedMessage.date" />
-        <!-- `v-memo` — bloco 2.12. Cada linha renderiza markdown, e sem memo
-             toda mudança reativa fora dela (o agente começou a digitar, o
-             tema mudou, a lista rolou) refaz o `md.render` de TODAS as bolhas
-             para produzir o mesmo HTML.
+        <!-- ── A JUNÇÃO DO 2.12 COM O 4.09, e por que o `v-memo` está AQUI ────
+             O 4.09 precisa renderizar o marcador de handoff ANTES da mensagem
+             que o carrega, o que pede um `<template>` em volta dos dois. O 2.12
+             precisa do `v-memo` para não refazer o `md.render` de todas as
+             bolhas a cada mudança reativa de fora.
 
-             A identidade de `message` é chave legítima aqui, e é por um
-             motivo que vale escrever: o getter `getGroupedConversation`
-             reconstrói cada mensagem (`{ showAvatar, ...message }`) sempre que
-             recomputa, então objeto igual significa "o store não mexeu nesta
-             conversa". O que ele NÃO cobre está nas outras duas chaves. -->
-        <!-- eslint-disable vue/valid-v-memo -- A regra guarda o caso
-             real (`v-memo` num descendente de `v-for`, que o Vue ignora), mas
-             ela rastreia só o `v-for` MAIS EXTERNO: `vForElement` só é
-             atribuído quando ainda é nulo, e depois exige que o `v-memo` esteja
-             nesse elemento. Com `v-for` aninhado — blocos de data por fora,
-             linhas por dentro — o de dentro nunca passa, embora este seja o
-             padrão documentado do Vue (`v-memo` no MESMO elemento do `v-for`).
-             Que ele funciona de fato está medido em
-             `specs/memoDaLinha.spec.js`, não afirmado aqui. -->
-        <ChatMessage
+             A armadilha: com o `v-memo` no `ChatMessage` DENTRO do
+             `<template v-for>`, ele deixa de estar no elemento do `v-for` e o
+             Vue o IGNORA — sem erro, sem aviso, sem nada quebrar. Compilando as
+             formas com o compilador do Vue 3.5.12, `_isMemoSame` simplesmente
+             não aparece no código gerado. O memo viraria decoração.
+
+             Pôr o `v-memo` no PRÓPRIO `<template v-for>` mantém as duas coisas:
+             `_isMemoSame` volta ao código gerado, o marcador continua irmão da
+             mensagem, e nenhum nó extra entra no DOM. Que ele está ativo está
+             medido em `specs/memoDaLinha.spec.js` — pela render function
+             compilada, não pela leitura deste comentário.
+
+             As três chaves: a mensagem (identidade nova = o store mexeu), a
+             classe de agrupamento e o idioma. A mensagem aqui é a ANOTADA por
+             `annotateHandoffs`, que também recria o objeto — então a marcação
+             de handoff entra na mesma chave, sem contrato extra. -->
+        <!-- eslint-disable vue/no-useless-template-attributes -- A regra
+             considera INUTIL toda diretiva num `<template>` que não seja
+             `v-if`/`v-for`/`v-slot`. Aqui ela erra, e a prova não é textual:
+             compilado com o Vue 3.5.12, este template gera `_isMemoSame(` no
+             código, e a mesma marcação com o `v-memo` no filho não gera. O
+             exame que trava isso é `specs/memoDaLinha.spec.js`. -->
+        <!-- eslint-disable vue/valid-v-memo -- A regra guarda o caso real
+             (`v-memo` num descendente de `v-for`), mas rastreia só o `v-for`
+             MAIS EXTERNO: `vForElement` só é atribuído quando ainda é nulo, e
+             depois exige que o `v-memo` esteja nesse elemento. Com `v-for`
+             aninhado — blocos de data por fora, linhas por dentro — o de dentro
+             nunca passa, embora seja o padrão documentado do Vue. -->
+        <template
           v-for="(message, indice) in groupedMessage.messages"
           :key="message.id"
           v-memo="[
@@ -301,10 +344,19 @@ export default {
             classeAgrupamento(indiceBloco, message, indice),
             idiomaAtual,
           ]"
-          :message="message"
-          :classe-agrupamento="classeAgrupamento(indiceBloco, message, indice)"
-        />
-        <!-- eslint-enable vue/valid-v-memo -->
+        >
+          <AiHandoffMark
+            v-if="message.handoffMark"
+            :kind="message.handoffMark.kind"
+          />
+          <ChatMessage
+            :message="message"
+            :classe-agrupamento="
+              classeAgrupamento(indiceBloco, message, indice)
+            "
+          />
+        </template>
+        <!-- eslint-enable vue/valid-v-memo, vue/no-useless-template-attributes -->
       </div>
       <AgentTypingBubble v-if="showStatusIndicator" />
     </div>

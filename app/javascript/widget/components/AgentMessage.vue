@@ -13,6 +13,7 @@ import messageMixin from '../mixins/messageMixin';
 import { isASubmittedFormMessage } from 'shared/helpers/MessageTypeHelper';
 import ReplyToChip from 'widget/components/ReplyToChip.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
+import { ATTENDANT, attendantOf } from 'widget/helpers/aiIdentity';
 import { emitter } from 'shared/helpers/mitt';
 
 export default {
@@ -58,6 +59,24 @@ export default {
         return false;
       }
       return this.message.content;
+    },
+    // Bloco 4.09 — a 3a das tres marcacoes: o rotulo colado na BOLHA.
+    //
+    // Derivado da propria mensagem, nao herdado do pai: numa conversa que trocou
+    // de atendente, cada bolha tem de dizer quem a escreveu — inclusive as
+    // antigas, quando o visitante rola para tras. Herdar do estado atual faria a
+    // conversa inteira parecer ter vindo de quem atende agora.
+    attendant() {
+      return attendantOf(this.message);
+    },
+    isFromAI() {
+      return this.attendant === ATTENDANT.AI;
+    },
+    // `aiLabelPersistent` e uma das 11 flags planas da secao B.3 (bloco 3.05).
+    // Sem a chave, o resolvedor devolve `true` — o rotulo aparece por padrao,
+    // que e a decisao de produto: quem fala com maquina tem direito de saber.
+    shouldShowAiLabel() {
+      return this.isFromAI && this.isAiLabelPersistent;
     },
     readableTime() {
       const { created_at: createdAt = '' } = this.message;
@@ -200,6 +219,18 @@ export default {
         </div>
       </div>
       <div class="message-wrap">
+        <!--
+          Rotulo persistente de IA. Texto LIMPO, sem simbolo: ele e lido por
+          leitor de tela, e emoji dentro do nome acessivel faz anunciar o desenho
+          antes da palavra — foi o que esta trilha achou no CSAT.RATINGS.
+        -->
+        <div
+          v-if="shouldShowAiLabel"
+          class="agent-message__ai-label"
+          data-ai-label="true"
+        >
+          {{ $t('AI_IDENTITY.AI_LABEL') }}
+        </div>
         <div v-if="hasReplyTo" class="flex mt-2 mb-1 text-xs">
           <ReplyToChip :reply-to="replyTo" />
         </div>
@@ -292,3 +323,13 @@ export default {
     </div>
   </div>
 </template>
+
+<style scoped lang="scss">
+.agent-message__ai-label {
+  // Sem cor propria de "marca de IA": o rotulo e TEXTO, e texto e o que sobrevive
+  // a daltonismo, a sol na tela e a leitor de tela. O aceite proibe roxo porque
+  // ele colapsa contra o azul em deuteranopia — mas trocar de cor so mudaria a
+  // colisao de lugar. A resposta e nao depender de cor nenhuma para distinguir.
+  @apply text-[0.6875rem] leading-3 text-n-slate-11 mb-1 ltr:ml-1 rtl:mr-1;
+}
+</style>

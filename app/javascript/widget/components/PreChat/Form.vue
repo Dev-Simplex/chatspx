@@ -10,6 +10,16 @@ import { FormKit, createInput } from '@formkit/vue';
 import PhoneInput from 'widget/components/Form/PhoneInput.vue';
 import { getRequiredMessage as buildRequiredMessage } from 'widget/helpers/preChatFieldMessages';
 import { savePartialLead } from 'widget/api/partialLead';
+// Bloco 3.15. TODA a regra de show_if / step / mask / validator mora no helper;
+// este componente continua sendo casca. Ver o contrato em
+// `widget/helpers/preChatFieldRules.js`.
+import {
+  fieldErrorFor,
+  fieldsForStep,
+  maskFieldValue,
+  stepsOf,
+  visibleFields,
+} from 'widget/helpers/preChatFieldRules';
 
 export default {
   components: {
@@ -44,6 +54,11 @@ export default {
       partialLeadSent: '',
       message: '',
       formValues: {},
+      // Bloco 3.15 — etapa corrente e campos já visitados. `touchedFields` existe
+      // porque erro de formato tem de aparecer no BLUR: acusar "CPF inválido" no
+      // terceiro dígito é ruído, não ajuda.
+      currentStep: 1,
+      touchedFields: [],
       labels: {
         emailAddress: 'EMAIL_ADDRESS',
         fullName: 'FULL_NAME',
@@ -106,15 +121,35 @@ export default {
       });
     },
     enabledPreChatFields() {
-      return this.filteredPreChatFields
-        .filter(field => field.enabled)
-        .map(field => ({
-          ...field,
-          type:
-            field.name === 'phoneNumber'
-              ? this.phoneInput
-              : this.findFieldType(field.type),
-        }));
+      // Bloco 3.15, e é a linha que carrega o bloco: filtrar AQUI faz o `show_if`
+      // valer para tudo que deriva daqui — o que renderiza, o que é validado, o
+      // que é enviado e o que conta para o rascunho de lead. Campo escondido não
+      // existe para nenhum deles, que é a única leitura coerente de "escondido".
+      return visibleFields(
+        this.filteredPreChatFields.filter(field => field.enabled),
+        this.formValues
+      ).map(field => ({
+        ...field,
+        type:
+          field.name === 'phoneNumber'
+            ? this.phoneInput
+            : this.findFieldType(field.type),
+      }));
+    },
+    // Bloco 3.15 — as etapas ocupadas, já depois do `show_if`: um condicional
+    // escondido não pode criar etapa vazia.
+    visibleSteps() {
+      return stepsOf(this.enabledPreChatFields);
+    },
+    fieldsOfCurrentStep() {
+      return fieldsForStep(this.enabledPreChatFields, this.currentStep);
+    },
+    isLastStep() {
+      const steps = this.visibleSteps;
+      return this.currentStep >= steps[steps.length - 1];
+    },
+    hasMultipleSteps() {
+      return this.visibleSteps.length > 1;
     },
     conversationCustomAttributes() {
       let conversationAttributes = {};
@@ -145,8 +180,16 @@ export default {
     formValues: {
       deep: true,
       handler() {
+        this.applyFieldMasks();
         this.schedulePartialLead();
       },
+    },
+    // O `show_if` pode esconder a etapa em que estamos (o gatilho mudou de
+    // resposta). Sem isto o visitante fica numa etapa que já não tem campo.
+    visibleSteps() {
+      if (!this.visibleSteps.includes(this.currentStep)) {
+        this.currentStep = this.visibleSteps[0] ?? 1;
+      }
     },
   },
   beforeUnmount() {
@@ -297,11 +340,81 @@ export default {
         ? { step: fields.length, stepKey: fields[fields.length - 1]?.name }
         : { step: index + 1, stepKey: fields[index].name };
     },
+    /**
+     * Bloco 3.15 — máscara enquanto digita, delegada ao helper do 3.13.
+     *
+     * Roda no watcher que já existia, e é reentrante de propósito: reescrever
+     * `formValues` dispara o watcher outra vez, mas a segunda passada devolve o
+     * mesmo texto e a recursão para na comparação. Máscara desconhecida devolve o
+     * valor intacto — máscara que não existe não pode comer o que foi digitado.
+     */
+    applyFieldMasks() {
+      this.enabledPreChatFields.forEach(field => {
+        const atual = this.formValues[field.name];
+        if (typeof atual !== 'string' || !atual) return;
+        const mascarado = maskFieldValue(atual, field);
+        if (mascarado !== atual) this.formValues[field.name] = mascarado;
+      });
+    },
+    markTouched(name) {
+      if (!this.touchedFields.includes(name)) this.touchedFields.push(name);
+    },
+    /**
+     * Bloco 3.15 — o erro ESPECÍFICO do campo, que é metade do aceite.
+     *
+     * Só aparece depois do blur e só com conteúdo escrito: o campo obrigatório
+     * vazio já é assunto da regra `required` do FormKit, e acusar formato em campo
+     * intocado é ruído. `error_message` do administrador vence o catálogo — quem
+     * escreveu a regra sabe explicá-la melhor que uma mensagem genérica.
+     */
+    delegatedErrors(field) {
+      if (!this.touchedFields.includes(field.name)) return [];
+      const valor = this.formValues[field.name];
+      if (String(valor ?? '').trim() === '') return [];
+      const erro = fieldErrorFor(field, valor, { t: this.$t });
+      return erro ? [erro.message] : [];
+    },
+    /**
+     * Avança de etapa. Só passa quando a etapa atual não tem obrigatório vazio
+     * nem erro de formato — validar no avanço é o que impede alguém chegar ao fim
+     * e descobrir que o problema estava três telas atrás.
+     */
+    canLeaveCurrentStep() {
+      return this.fieldsOfCurrentStep.every(field => {
+        const valor = this.formValues[field.name];
+        const vazio = String(valor ?? '').trim() === '';
+        if (field.required && vazio) return false;
+        if (vazio) return true;
+        const erro = fieldErrorFor(field, valor, { t: this.$t });
+        return !erro || erro.severity === 'warning';
+      });
+    },
+    goToNextStep() {
+      this.fieldsOfCurrentStep.forEach(field => this.markTouched(field.name));
+      if (!this.canLeaveCurrentStep()) return;
+      const proxima = this.visibleSteps.find(step => step > this.currentStep);
+      if (proxima) this.currentStep = proxima;
+    },
     onSubmit() {
       // O envio conclui o pré-chat: o rascunho pendente não pode chegar DEPOIS e
       // reabrir como incompleto um lead que já virou conversa.
       clearTimeout(this.partialLeadTimer);
-      const { emailAddress, fullName, phoneNumber, message } = this.formValues;
+      const { message } = this.formValues;
+      // Bloco 3.15. Os quatro campos padrão saíam de `formValues` direto, sem
+      // passar por `enabledPreChatFields` — então um campo que FICOU escondido
+      // depois de preenchido (o gatilho mudou de resposta) ainda viajava com o
+      // valor velho. Escondido é escondido para o envio também.
+      const visivel = nome =>
+        this.enabledPreChatFields.some(field => field.name === nome);
+      const emailAddress = visivel('emailAddress')
+        ? this.formValues.emailAddress
+        : undefined;
+      const fullName = visivel('fullName')
+        ? this.formValues.fullName
+        : undefined;
+      const phoneNumber = visivel('phoneNumber')
+        ? this.formValues.phoneNumber
+        : undefined;
       this.$emit('submitPreChat', {
         fullName,
         phoneNumber,
@@ -338,7 +451,7 @@ export default {
     If we just pass the options as is even with null or undefined or false,
     it assumes we are trying to make a multicheckbox. This is the best we have for now -->
     <FormKit
-      v-for="item in enabledPreChatFields"
+      v-for="item in fieldsOfCurrentStep"
       :key="item.name"
       :name="item.name"
       :type="item.type"
@@ -366,9 +479,12 @@ export default {
           : $t('PRE_CHAT_FORM.REGEX_ERROR'),
       }"
       :has-error-in-phone-input="hasErrorInPhoneInput"
+      :errors="delegatedErrors(item)"
+      :help="item.help_text || undefined"
+      @blur="markTouched(item.name)"
     />
     <FormKit
-      v-if="!hasActiveCampaign"
+      v-if="!hasActiveCampaign && isLastStep"
       name="message"
       type="textarea"
       label-class="text-sm font-medium text-n-slate-12"
@@ -381,7 +497,22 @@ export default {
       }"
     />
 
+    <!--
+      Bloco 3.15 — com etapas, o botao avanca em vez de enviar ate a ultima.
+      `type="button"` e o que impede o FormKit de submeter o formulario antes
+      de o visitante ter visto os campos das etapas seguintes.
+    -->
     <CustomButton
+      v-if="hasMultipleSteps && !isLastStep"
+      class="mt-3 mb-5 font-medium flex items-center justify-center gap-2"
+      block
+      type="button"
+      @click="goToNextStep"
+    >
+      {{ $t('PRE_CHAT_FORM.CONTINUE') }}
+    </CustomButton>
+    <CustomButton
+      v-else
       class="mt-3 mb-5 font-medium flex items-center justify-center gap-2"
       block
       :disabled="isCreatingConversation"

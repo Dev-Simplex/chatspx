@@ -1,6 +1,7 @@
 # Contrato de eventos de tracking — ChatSPX
 
-**Bloco 5.03** do `PLANO-MESTRE` (origem: T-C3.1, T-C3.9, BK-31). Versão **1**, 18/08/2026.
+**Bloco 5.03** do `PLANO-MESTRE` (origem: T-C3.1, T-C3.9, BK-31). Versão **2**, 19/08/2026
+(v1 em 18/08; a v2 acrescenta a §2.1, a família da abordagem do bloco **4.21**).
 
 Este documento é a **fonte da verdade do contrato**. Quem for emitir, consumir ou entregar um evento
 lê daqui — não do código. Mudança de nome, tipo ou default de campo **muda este arquivo primeiro**.
@@ -8,7 +9,8 @@ lê daqui — não do código. Mudança de nome, tipo ou default de campo **muda
 Consumidores conhecidos, todos em outras trilhas: **5.04** (emissão dos eventos do widget), **5.05**
 (`event_id` de volta ao widget), **5.16** (`track(name, properties)` do site do cliente), **5.10**
 (ponte de tags client-side), **5.11** (fila server-side), **5.13** (deduplicação), **5.14**
-(auditoria e diagnóstico), **5.15** (contrato público).
+(auditoria e diagnóstico), **5.15** (contrato público) — e **4.21**, a instrumentação dos três níveis
+de abordagem, que é o primeiro consumidor a ter entrado (ver §2.1).
 
 ---
 
@@ -63,8 +65,49 @@ propagado** responde *"este evento vai pelos dois caminhos com o mesmo id, para 
 
 **O que o 5.03 emite hoje:** apenas o **#10**, `chatspx_conversation_resolved`, que é o aceite deste
 bloco e um fato que **só o servidor conhece**. Os #1 a #9 são do widget e do store — bloco **5.04**,
-outra trilha. O #11 e o #12 dependem do funil (bloco 5.21). Acrescentar um evento ao listener custa
-**uma linha** no mapa de `TrackingEventListener`; a infraestrutura já aceita todos.
+outra trilha. O #11 e o #12 dependem do funil (bloco 5.21). Acrescentar um fato server-side custa
+**um método** em `TrackingEventListener`, no formato do `BaseListener`; a infraestrutura já aceita
+todos.
+
+### 2.1 A família da abordagem — bloco 4.21 (13→19/08/2026)
+
+Quatro nomes, um por fato da abordagem em três níveis (decisão **D1**). Eles **não** estão na tabela
+de doze porque não são fatos do funil: são a instrumentação da superfície que produz o funil, e é ela
+que responde *"qual nível converte mais nesta conta"*. Entram por
+`POST /api/v1/widget/approach_events`, com a mesma autenticação de sessão do resto do widget.
+
+| Evento | Quando dispara | Server-side | `event_id` propagado | PII |
+|---|---|:---:|:---:|:---:|
+| `chatspx_approach_shown` | teaser apareceu, ou o painel abriu sozinho (`aggressive`) | **sim** | não | não |
+| `chatspx_approach_dismissed` | o visitante fechou o teaser | **sim** | não | não |
+| `chatspx_approach_opened` | o painel abriu a partir da abordagem | **sim** | não | não |
+| `chatspx_approach_converted` | o visitante **enviou mensagem** depois de ter sido abordado | **sim** | não | não |
+
+**Parâmetros, iguais nos quatro** — e são exatamente três, todos vocabulário fechado da configuração
+(`WidgetTriggersSchema::APPROACHES`), nenhum vindo do cliente em texto livre:
+
+| Campo | O que é |
+|---|---|
+| `approach` | o nível **efetivo** desta abordagem, depois da degradação por familiaridade (4.19) |
+| `approach_configured` | o nível que o administrador escolheu |
+| `degraded` | derivado — `approach != approach_configured`. Existe para separar *o efeito do nível* do *efeito da degradação* numa consulta só |
+
+**A `dedup_key` desta família é `approach:<source_id>:<ordinal>`**, e o `ordinal` é a ordem da
+abordagem na vida daquele navegador — vem do cookie do 4.19, que já contava. Ele é passado
+**explicitamente** porque a derivação padrão da §4.2 erra nos dois sentidos aqui, e os dois foram
+medidos removendo a linha e vendo o spec ficar vermelho:
+
+- **conta demais** — a derivação usa `occurred_at.to_i`, e o reenvio cai noutro segundo: três
+  mensagens seguidas do visitante viram três conversões;
+- **conta de menos** — duas abordagens genuínas ao mesmo visitante dentro do mesmo segundo
+  compartilham a chave derivada e viram uma linha só.
+
+O que a derivação padrão **não** erra: ela não mistura visitantes diferentes, porque o assunto dela
+cai para `contact_id`, que este endpoint passa.
+
+**O `converted` não dispara sem `shown` na mesma página.** Quem abriu o painel pelo lançador não
+converteu *por* uma abordagem, e contá-lo inflaria o numerador do nível que estava configurado sem
+ter sido usado.
 
 ---
 
@@ -159,6 +202,12 @@ criar nada e sem levantar erro.
 Consequência para quem chama: **se você tem uma chave natural do fato, passe `dedup_key`.** Sem ela,
 a derivação usa `occurred_at.to_i` — o que resolve o retry, mas não distingue dois fatos genuínos
 ocorridos no mesmo segundo para a mesma conversa.
+
+E há um segundo caminho de retentativa, que o 4.21 encontrou e que esta seção não previa: **o
+cliente**. Uma requisição HTTP do navegador pode ser reenviada por falha de rede, e o mesmo gesto do
+visitante pode virar três chamadas (mandar três mensagens seguidas dispara `converted` três vezes). A
+regra é a mesma e a trava é a mesma — quem tem chave natural, passa `dedup_key`. A §2.1 é o exemplo
+de como fica.
 
 ### 4.3 O índice único é o que impede entrega dupla
 

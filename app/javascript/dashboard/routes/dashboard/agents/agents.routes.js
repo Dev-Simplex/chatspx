@@ -23,6 +23,9 @@ const LogsTab = () =>
   import('dashboard/components-next/agents/tabs/LogsTab.vue');
 const SettingsTab = () =>
   import('dashboard/components-next/agents/tabs/SettingsTab.vue');
+// 6.02 — eval como produto.
+const EvalTab = () =>
+  import('dashboard/components-next/agents/tabs/EvalTab.vue');
 
 const meta = {
   permissions: ['administrator'],
@@ -70,6 +73,12 @@ const agentDetailChildren = [
     path: 'logs',
     component: LogsTab,
     name: 'agents_assistant_logs',
+    meta,
+  },
+  {
+    path: 'eval',
+    component: EvalTab,
+    name: 'agents_assistant_eval',
     meta,
   },
   {

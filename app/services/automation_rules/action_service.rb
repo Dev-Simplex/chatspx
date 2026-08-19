@@ -35,9 +35,12 @@ class AutomationRules::ActionService < ActionService
     Messages::MessageBuilder.new(nil, @conversation, params).perform
   end
 
+  # Bloco 4.13: disparava sem assinatura. Assinado quando a conta registrou a URL.
   def send_webhook_event(webhook_url)
     payload = @conversation.webhook_data.merge(event: "automation_event.#{@rule.event_name}")
-    WebhookJob.perform_later(webhook_url[0], payload)
+    url = webhook_url[0]
+    WebhookJob.perform_later(url, payload, :account_webhook,
+                             secret: Webhook.signing_secret_for(account: @conversation.account, url: url))
   end
 
   def send_message(message)

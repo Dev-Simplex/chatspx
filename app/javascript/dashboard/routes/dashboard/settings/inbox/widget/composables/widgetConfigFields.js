@@ -69,10 +69,30 @@ export const DEFAULT_TRIGGERS = Object.freeze({
   triggers: [],
 });
 
-/** Valores de fabrica de `widget_tracking` (PLANO-MESTRE 5.01). */
+/**
+ * Valores de fabrica de `widget_tracking`.
+ *
+ * As chaves sao as de `WidgetTrackingProjection::PUBLIC_KEYS` — e so elas. O
+ * que estiver fora da projecao PODE ser gravado (o jsonb aceita), mas nunca
+ * chega ao widget: viraria lixo no banco com a tela parecendo funcionar. O
+ * spec `specs/widgetTrackingContract.spec.js` le o arquivo Ruby e falha
+ * nomeando a chave que sobrar.
+ *
+ * `event_map` nasce vazio e e gravado COMPLETO quando o administrador salva
+ * (os doze eventos): quem consome le o que esta la, sem precisar conhecer os
+ * defaults da tela — o mesmo principio de `resolved_widget_appearance`.
+ *
+ * NENHUM SEGREDO AQUI. `widget_tracking` e publicado no HTML de toda pagina do
+ * site do cliente; access token e api secret moram em tabela cifrada (5.02) e
+ * a gravacao os recusa com 422 (`SECRET_KEY_PATTERN`).
+ */
 export const DEFAULT_TRACKING = Object.freeze({
-  destinations: [],
-  events: {},
+  meta_pixel_id: '',
+  ga4_measurement_id: '',
+  google_ads_send_to: '',
+  event_map: {},
+  consent_mode: '',
+  test_mode: {},
 });
 
 /**

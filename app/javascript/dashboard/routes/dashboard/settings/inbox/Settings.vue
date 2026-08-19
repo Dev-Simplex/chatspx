@@ -44,6 +44,7 @@ import Banner from 'dashboard/components-next/banner/Banner.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 import AppearancePage from './widget/appearance/AppearancePage.vue';
 import TriggersPage from './widget/triggers/TriggersPage.vue';
+import TrackingPage from './widget/tracking/TrackingPage.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
@@ -85,6 +86,7 @@ export default {
     AccessToken,
     AppearancePage,
     TriggersPage,
+    TrackingPage,
   },
   mixins: [inboxMixin],
   setup() {
@@ -217,6 +219,10 @@ export default {
           {
             key: 'triggers',
             name: this.$t('INBOX_WIDGET.TRIGGERS.TAB'),
+          },
+          {
+            key: 'tracking',
+            name: this.$t('INBOX_WIDGET.TRACKING.TAB'),
           },
           {
             key: 'pre-chat-form',
@@ -627,7 +633,11 @@ export default {
       // administrador de perder dez campos configurados num clique.
       // Só UMA das telas de rascunho está montada por vez (cada uma tem o seu
       // `v-if`), então a primeira que responder é a que está na tela.
-      const comRascunho = [this.$refs.appearancePage, this.$refs.triggersPage];
+      const comRascunho = [
+        this.$refs.appearancePage,
+        this.$refs.triggersPage,
+        this.$refs.trackingPage,
+      ];
       const atual = comRascunho.find(tela => tela?.requestLeave);
       if (
         atual &&
@@ -1466,6 +1476,11 @@ export default {
         <TriggersPage
           v-if="selectedTabKey === 'triggers'"
           ref="triggersPage"
+          :inbox-id="currentInboxId"
+        />
+        <TrackingPage
+          v-if="selectedTabKey === 'tracking'"
+          ref="trackingPage"
           :inbox-id="currentInboxId"
         />
         <div v-if="selectedTabKey === 'pre-chat-form'">

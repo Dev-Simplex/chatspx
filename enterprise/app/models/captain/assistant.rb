@@ -49,6 +49,12 @@ class Captain::Assistant < ApplicationRecord
   has_many :assistant_logs, class_name: 'Captain::AssistantLog', foreign_key: :captain_assistant_id, dependent: :destroy
   has_many :document_chunks, class_name: 'Captain::DocumentChunk', dependent: :destroy_async
   has_many :agent_sessions, class_name: 'Captain::AgentSession', dependent: :destroy_async
+  # 6.02 (eval como produto): o conjunto de casos e o histórico de execuções são DO
+  # assistente — apagar o assistente apaga os dois.
+  has_many :eval_cases, class_name: 'Captain::EvalCase', foreign_key: :captain_assistant_id,
+                        inverse_of: :captain_assistant, dependent: :destroy
+  has_many :eval_runs, class_name: 'Captain::EvalRun', foreign_key: :captain_assistant_id,
+                       inverse_of: :captain_assistant, dependent: :destroy
 
   store_accessor :config, :temperature, :feature_faq, :feature_memory, :feature_contact_attributes, :product_name
   store_accessor :behavior, :debounce_seconds, :business_hours_config, :humanizer_config, :media_pipeline_config,

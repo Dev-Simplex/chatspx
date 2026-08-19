@@ -22,6 +22,17 @@ class WebhookListener < BaseListener
     deliver_webhook_payloads(payload, inbox)
   end
 
+  # Bloco 4.12. `conversation_status_changed` ja existia, mas obriga o destino a
+  # inspecionar o payload para descobrir SE virou resolvida — e a inscricao nele traz
+  # junto todo o resto das mudancas de status. Quem so quer o fechamento assinava tudo e
+  # filtrava do outro lado.
+  def conversation_resolved(event)
+    conversation = extract_conversation_and_account(event)[0]
+    inbox = conversation.inbox
+    payload = conversation.webhook_data.merge(event: __method__.to_s)
+    deliver_webhook_payloads(payload, inbox)
+  end
+
   def message_created(event)
     message = extract_message_and_account(event)[0]
     inbox = message.inbox
@@ -34,7 +45,7 @@ class WebhookListener < BaseListener
     # Despachamos via REST direto e ainda assim entregamos os webhooks de account.
     if waha_direct_case?(message, inbox)
       Waha::OutboundSpecialMessageService.new(message).perform
-      deliver_account_webhooks(payload, inbox.account)
+      deliver_account_webhooks(payload, inbox.account, inbox)
       return
     end
 
@@ -55,7 +66,7 @@ class WebhookListener < BaseListener
     # devemos reenviar via REST nem entregar webhook (app externo renderiza
     # como texto pseudo-card e duplica).
     if waha_direct_case?(message, inbox)
-      deliver_account_webhooks(payload, inbox.account)
+      deliver_account_webhooks(payload, inbox.account, inbox)
       return
     end
 
@@ -90,7 +101,7 @@ class WebhookListener < BaseListener
     inbox, account = extract_inbox_and_account(event)
     inbox_webhook_data = Inbox::EventDataPresenter.new(inbox).webhook_data
     payload = inbox_webhook_data.merge(event: __method__.to_s)
-    deliver_account_webhooks(payload, account)
+    deliver_account_webhooks(payload, account, inbox)
   end
 
   def inbox_updated(event)
@@ -100,7 +111,7 @@ class WebhookListener < BaseListener
 
     inbox_webhook_data = Inbox::EventDataPresenter.new(inbox).webhook_data
     payload = inbox_webhook_data.merge(event: __method__.to_s, changed_attributes: changed_attributes)
-    deliver_account_webhooks(payload, account)
+    deliver_account_webhooks(payload, account, inbox)
   end
 
   def conversation_typing_on(event)
@@ -127,16 +138,38 @@ class WebhookListener < BaseListener
     deliver_webhook_payloads(payload, inbox)
   end
 
-  def deliver_account_webhooks(payload, account)
+  # Bloco 4.13 — o filtro por inbox era letra morta, e falhava nos DOIS sentidos:
+  #
+  #   webhook com inbox_id e webhook_type account_type (o que a tela cria, porque o
+  #     controller permite :inbox_id mas nao :webhook_type) recebia os eventos de TODAS as
+  #     inboxes — o inbox_id nao era lido por ninguem;
+  #   webhook com webhook_type inbox_type ficava fora do escopo `account_type` e nao
+  #     recebia NADA, em silencio.
+  #
+  # Agora o inbox_id vale de verdade, e o escopo deixou de ser por webhook_type: o que
+  # decide a entrega e ter ou nao inbox_id. Sem inbox_id, continua recebendo tudo — que e
+  # o comportamento de hoje de quem nao preencheu o campo.
+  def deliver_account_webhooks(payload, account, inbox = nil)
     return unless account.api_and_webhooks_enabled?
 
-    account.webhooks.account_type.each do |webhook|
+    account.webhooks.each do |webhook|
       next unless webhook.subscriptions.include?(payload[:event])
+      next unless webhook_covers_inbox?(webhook, inbox)
 
       WebhookJob.perform_later(webhook.url, payload, :account_webhook,
                                secret: webhook.secret,
-                               delivery_id: SecureRandom.uuid)
+                               delivery_id: SecureRandom.uuid,
+                               webhook_id: webhook.id)
     end
+  end
+
+  # Webhook preso a uma inbox nao recebe evento de outra, e tambem nao recebe evento que
+  # nao pertence a inbox nenhuma (contato e conta): quem escolheu uma inbox pediu o que
+  # acontece NELA, e entregar o resto seria devolver mais do que foi pedido.
+  def webhook_covers_inbox?(webhook, inbox)
+    return true if webhook.inbox_id.blank?
+
+    webhook.inbox_id == inbox&.id
   end
 
   def deliver_api_inbox_webhooks(payload, inbox)
@@ -164,7 +197,7 @@ class WebhookListener < BaseListener
   end
 
   def deliver_webhook_payloads(payload, inbox)
-    deliver_account_webhooks(payload, inbox.account)
+    deliver_account_webhooks(payload, inbox.account, inbox)
     deliver_api_inbox_webhooks(payload, inbox)
   end
 end

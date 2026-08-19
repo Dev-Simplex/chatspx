@@ -5,6 +5,12 @@ import {
   getDarkMode,
   getWidgetStyle,
 } from '../sdk/settingsHelper';
+import { mergeSnippetConfig } from '../sdk/snippetConfig';
+import {
+  publishDefaults,
+  updateConsent,
+  consentState,
+} from '../sdk/tracking/consent';
 import {
   computeHashForUserData,
   getUserCookieName,
@@ -18,6 +24,7 @@ import {
 import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
 import { enfileirar } from '../sdk/preBootQueue';
+import { captureOrigin } from '../sdk/tracking/capture';
 
 /**
  * Contrato dos métodos de DADOS da API pública — bloco 1.23.
@@ -84,6 +91,17 @@ const runSDK = ({ baseUrl, websiteToken }) => {
   // quebraria o widget deles no primeiro deploy.
   window.chatwootFallback?.hide?.();
 
+  // Bloco 5.08 — a CAPTURA de origem, e ela é eager por necessidade, não por descuido.
+  //
+  // O aceite é "chega por anúncio, navega 5 páginas e só então abre o chat". Quando o chat
+  // abre, `location.search` já não tem o `gclid` há cinco páginas e o referrer já é interno:
+  // se a captura esperasse a abertura, a origem já estaria perdida — e não há como
+  // recuperá-la depois. Por isso ela roda aqui, no boot de toda página, e por isso o resto
+  // do coletor (cookies, `_fbc`, `client_id`) fica num artefato buscado sob demanda.
+  //
+  // Não lança e não bloqueia: ver `sdk/tracking/capture.js`.
+  captureOrigin();
+
   // if this is a Rails Turbo app
   document.addEventListener('turbo:before-render', event => {
     // when morphing the page, this typically happens on reload like events
@@ -108,7 +126,24 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     restoreWidgetInDOM(event.newDocument.body)
   );
 
-  const chatwootSettings = window.chatwootSettings || {};
+  // Bloco 5.18 — configuracao tambem pode vir por `data-*` no proprio snippet. Identidade e
+  // credencial NAO: o snippet e HTML, aparece no view-source e entra em cache de CDN. A recusa e
+  // ALTA E VISIVEL — recusa silenciosa faria o integrador achar que configurou.
+  const snippetEl =
+    document.currentScript ||
+    document.querySelector('script[data-chatspx-snippet]') ||
+    document.getElementById('chatwoot-sdk');
+  const { settings: chatwootSettings, rejected: recusadasDoSnippet } =
+    mergeSnippetConfig(window.chatwootSettings || {}, snippetEl?.dataset || {});
+
+  if (recusadasDoSnippet.length) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[ChatSPX] O snippet trouxe ${recusadasDoSnippet.length} atributo(s) que NAO viajam por data-*: ` +
+        `${recusadasDoSnippet.join(', ')}. Identidade e credencial so pela API JS (setUser/updateUser), ` +
+        'porque o snippet e HTML publico.'
+    );
+  }
   let locale = chatwootSettings.locale;
   let baseDomain = chatwootSettings.baseDomain;
 
@@ -192,6 +227,9 @@ const runSDK = ({ baseUrl, websiteToken }) => {
       });
     },
 
+    // Bloco 5.17 — LEGADO, mantido intacto: `setUser` SUBSTITUI o contato. Para corrigir um campo
+    // sem apagar os outros, use `updateUser`. O metodo continua funcionando exatamente como antes;
+    // o que mudou neste bloco foi o hash de dedupe, que agora enxerga telefone, empresa e o resto.
     setUser(identifier, user) {
       return chamadaDeDados(
         'setUser',
@@ -204,7 +242,7 @@ const runSDK = ({ baseUrl, websiteToken }) => {
           }
           if (!hasUserKeys(user)) {
             throw new Error(
-              'User object should have one of the keys [avatar_url, email, name]'
+              'User object should have one of the keys [avatar_url, email, name, phone_number]'
             );
           }
         },
@@ -223,6 +261,64 @@ const runSDK = ({ baseUrl, websiteToken }) => {
           setCookieWithDomain(userCookieName, hashToBeStored, { baseDomain });
         }
       );
+    },
+
+    // Bloco 5.09 — consentimento. Publica a linha de base do Consent Mode v2. O padrao e NEGADO
+    // em tudo: sob LGPD o tratamento precisa de base legal ANTES de acontecer, e disparo que ja
+    // saiu do navegador nao volta.
+    setConsent(consent = {}) {
+      return chamadaDeDados('setConsent', undefined, () =>
+        publishDefaults(consent)
+      );
+    },
+
+    // Bloco 5.09 — a decisao do visitante, depois que a CMP responde. Se o default ainda nao tiver
+    // sido publicado, ele vai ANTES: update sem linha de base a plataforma le como desconhecido.
+    updateConsent(consent = {}) {
+      return chamadaDeDados('updateConsent', undefined, () =>
+        updateConsent(consent)
+      );
+    },
+
+    getConsent() {
+      return consentState();
+    },
+
+    // Bloco 5.17 — o verbo que MESCLA: campo que voce nao mandar NAO e apagado.
+    updateUser(identifier, user) {
+      return chamadaDeDados(
+        'updateUser',
+        () => {
+          if (
+            typeof identifier !== 'string' &&
+            typeof identifier !== 'number'
+          ) {
+            throw new Error('Identifier should be a string or a number');
+          }
+          if (!hasUserKeys(user)) {
+            throw new Error(
+              'User object should have one of the keys [avatar_url, email, name, phone_number]'
+            );
+          }
+        },
+        () => {
+          // Sem cookie de dedupe aqui de proposito: `updateUser` existe para corrigir um campo, e
+          // deduplicar por hash faria a segunda correcao do mesmo campo virar silencio.
+          window.$chatwoot.identifier = identifier;
+          window.$chatwoot.user = { ...(window.$chatwoot.user || {}), ...user };
+          IFrameHelper.sendMessage('update-user', { identifier, user });
+        }
+      );
+    },
+
+    // Bloco 5.17 — getters. Ler o que foi identificado era possivel so espiando
+    // `window.$chatwoot.user`, que e estado interno; agora ha leitura declarada.
+    getUser() {
+      return window.$chatwoot.user || null;
+    },
+
+    getIdentifier() {
+      return window.$chatwoot.identifier || null;
     },
 
     setCustomAttributes(customAttributes = {}) {
