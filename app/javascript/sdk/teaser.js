@@ -16,13 +16,21 @@
  *     `replyTime`). Nada de campo novo, nada de i18n duplicado no host.
  *   · Nenhuma biblioteca. DOM cru, com as helpers que o SDK já tem.
  *
- * O QUE NÃO ESTÁ AQUI, E POR QUÊ
+ * O QUE MUDOU COM O 4.20, E POR QUE MUDOU AQUI
  *
- * Nada de auto-open: os níveis `discreet` e `bold` **nunca** abrem o painel
- * sozinhos (aceite 4). O `aggressive` é o bloco 4.20 e mora fora deste arquivo.
+ * O `aggressive` **abre o painel sozinho**, e o aceite manda que ele respeite o
+ * MESMO gatilho composto do teaser. Um segundo relógio, um segundo listener de
+ * rolagem e uma segunda detecção de banner de cookie seriam três chances de os
+ * dois níveis divergirem — e o dobro de bytes no arquivo com teto (A13).
+ *
+ * Então o gatilho saiu de dentro do teaser e virou `armarGatilho`, que os três
+ * níveis consomem. `montarTeaser` continua sendo a porta única: é lá que moram as
+ * duas recusas que valem para os três (`teaserEnabled: false` e dispensa
+ * persistida), e uma porta só é o que impede o Agressivo de escapar delas.
  */
 import { setCookieWithDomain } from './cookieHelpers';
 import Cookies from 'js-cookie';
+import { podeAbrirSozinho } from './tracking/approach';
 
 const COOKIE_DISPENSA = 'cw_teaser_dismissed';
 // 30 dias, o mesmo prazo do estado de familiaridade (4.19).
@@ -65,7 +73,52 @@ const bannerDeCookieVisivel = () => {
 };
 
 /**
- * Monta o teaser e devolve uma função de limpeza — ou `null` quando ele não
+ * O GATILHO COMPOSTO — 8 s **E** 30 % de rolagem, uma vez só.
+ *
+ * Chama `quandoDisparar` no instante em que as duas condições valem, e devolve a
+ * função de limpeza. O banner de cookie é conferido no INSTANTE do disparo, não
+ * na montagem: ele pode aparecer depois dos 8 segundos (aceite 3 do 4.06).
+ */
+const armarGatilho = quandoDisparar => {
+  let disparou = false;
+  let segundosOk = false;
+  let rolagemOk = false;
+
+  const tentar = () => {
+    if (disparou || !segundosOk || !rolagemOk || bannerDeCookieVisivel())
+      return;
+    disparou = true;
+    quandoDisparar();
+  };
+
+  const aoRolar = () => {
+    const alcance = document.documentElement.scrollHeight - window.innerHeight;
+    // Página que não rola satisfaz a condição: exigir 30% de uma página de uma
+    // tela só seria exigir o impossível, e o gatilho nunca dispararia.
+    const proporcao = alcance <= 0 ? 1 : window.scrollY / alcance;
+    if (proporcao >= ROLAGEM) {
+      rolagemOk = true;
+      window.removeEventListener('scroll', aoRolar);
+      tentar();
+    }
+  };
+
+  const relogio = setTimeout(() => {
+    segundosOk = true;
+    tentar();
+  }, SEGUNDOS * 1000);
+
+  window.addEventListener('scroll', aoRolar, { passive: true });
+  aoRolar();
+
+  return () => {
+    clearTimeout(relogio);
+    window.removeEventListener('scroll', aoRolar);
+  };
+};
+
+/**
+ * Monta a abordagem e devolve uma função de limpeza — ou `null` quando ela não
  * deve existir.
  *
  * ⚠️ Aceite 8: com `teaserEnabled: false` o código **não é montado**, não é só
@@ -83,8 +136,28 @@ export const montarTeaser = ({
   aoDispensar,
 } = {}) => {
   if (!holder || canal.teaserEnabled === false) return null;
-  if (nivel !== 'bold' && nivel !== 'discreet') return null;
+  const agressivo = nivel === 'aggressive';
+  if (!agressivo && nivel !== 'bold' && nivel !== 'discreet') return null;
   if (jaDispensou()) return null;
+
+  // ── O NÍVEL AGRESSIVO (4.20) — e ele sai ANTES de qualquer `createElement`.
+  //
+  // Não é economia de estilo. Construir o cartão para descartá-lo faria
+  // `foto.src = canal.avatarUrl` numa `<img>` que nunca entra na página — e o
+  // navegador BAIXA a imagem assim mesmo. Seria uma requisição de rede por
+  // carregamento de página, em todo visitante, para um elemento invisível.
+  //
+  // A "exibição" do Agressivo é o painel abrindo: uma vez por sessão, e só
+  // depois do gatilho composto. `podeAbrirSozinho` é quem marca a sessão, e ele
+  // vem ANTES do `aoExibir` de propósito — sessão já usada não é abordagem, e
+  // não pode gastar um degrau da escada de familiaridade do 4.19.
+  if (agressivo) {
+    return armarGatilho(() => {
+      if (!podeAbrirSozinho()) return;
+      if (aoExibir) aoExibir();
+      if (aoAbrir) aoAbrir();
+    });
+  }
 
   const cartao = document.createElement('div');
   // `all: revert` no contêiner e prefixo `woot-` em tudo: o teaser vive FORA do
@@ -126,16 +199,9 @@ export const montarTeaser = ({
 
   cartao.append(foto, corpo, fechar);
 
-  let armado = false;
   let visivel = false;
-  let segundosOk = false;
-  let rolagemOk = false;
 
   const exibir = () => {
-    if (visivel || !segundosOk || !rolagemOk) return;
-    // Aceite 3, verificado no instante da exibição e não na montagem: o banner
-    // pode aparecer depois dos 8 segundos.
-    if (bannerDeCookieVisivel()) return;
     visivel = true;
     holder.appendChild(cartao);
     // Um quadro depois, para a transição de entrada ter estado inicial.
@@ -163,33 +229,13 @@ export const montarTeaser = ({
     if (aoAbrir) aoAbrir();
   };
 
-  const aoRolar = () => {
-    const alcance = document.documentElement.scrollHeight - window.innerHeight;
-    // Página que não rola satisfaz a condição: exigir 30% de uma página de uma
-    // tela só seria exigir o impossível, e o gatilho nunca dispararia.
-    const proporcao = alcance <= 0 ? 1 : window.scrollY / alcance;
-    if (proporcao >= ROLAGEM) {
-      rolagemOk = true;
-      window.removeEventListener('scroll', aoRolar);
-      exibir();
-    }
-  };
-
-  const relogio = setTimeout(() => {
-    segundosOk = true;
-    exibir();
-  }, SEGUNDOS * 1000);
-
   fechar.addEventListener('click', dispensar);
   cartao.addEventListener('click', abrir);
-  window.addEventListener('scroll', aoRolar, { passive: true });
-  aoRolar();
-  armado = true;
+
+  const desarmar = armarGatilho(exibir);
 
   return () => {
-    if (!armado) return;
-    clearTimeout(relogio);
-    window.removeEventListener('scroll', aoRolar);
+    desarmar();
     cartao.remove();
   };
 };

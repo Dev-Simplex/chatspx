@@ -32,6 +32,16 @@ export const setCookieWithDomain = (
     expires,
     sameSite: 'Lax',
     domain: baseDomain,
+    // Bloco 4.19 absorveu o item 46 do gap analysis (P0): TODO cookie que o SDK
+    // grava sai `secure` quando a pagina e HTTPS. Nao e um parametro do bloco
+    // novo de proposito — o defeito era do helper, e resolve-lo aqui cobre os
+    // tres cookies do SDK (`cw_conversation`, `cw_teaser_dismissed`,
+    // `cw_approach`) por uma linha, em vez de uma por chamador.
+    //
+    // A condicao existe para NAO quebrar site em HTTP: la `secure` faria o
+    // navegador descartar o cookie em silencio, e o widget perderia a sessao do
+    // visitante sem um unico erro no console.
+    secure: window.location.protocol === 'https:',
   };
 
   // if type of value is object, stringify it

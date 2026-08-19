@@ -25,9 +25,11 @@ import {
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
 import { drenar } from './preBootQueue';
 import { montarTeaser } from './teaser';
+import { degradar, gravarAbordagem, lerAbordagem } from './tracking/approach';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
 import {
   CHATWOOT_ERROR,
+  CHATWOOT_MESSAGE_SENT,
   CHATWOOT_POSTBACK,
   CHATWOOT_READY,
 } from '../widget/constants/sdkEvents';
@@ -39,7 +41,6 @@ import {
 } from 'shared/helpers/AudioNotificationHelper';
 import { isFlatWidgetStyle } from './settingsHelper';
 import { popoutChatWindow } from '../widget/helpers/popoutHelper';
-import addHours from 'date-fns/addHours';
 import { createTitleFlasher } from './titleFlasher';
 
 const updateAuthCookie = (cookieContent, baseDomain = '') =>
@@ -72,8 +73,16 @@ export const applyWidgetTokens = (element, tokens = {}) => {
   return applied;
 };
 
+// Uma hora a partir de agora. ERA `addHours(new Date(), 1)` do `date-fns`, e a
+// troca nao e estilo: aquele import arrastava `toDate` + `toInteger` +
+// `requiredArgs` para dentro do `sdk.js` — inclusive uma string de deprecacao em
+// ingles de 180 caracteres que nenhum visitante jamais le. O arquivo tem teto
+// (A13) e e baixado por 100% dos visitantes de todos os sites de todos os
+// clientes; o delta medido esta no relatorio do o3-abordagem.
+const UMA_HORA_MS = 36e5;
+
 const updateCampaignReadStatus = baseDomain => {
-  const expireBy = addHours(new Date(), 1);
+  const expireBy = new Date(Date.now() + UMA_HORA_MS);
   setCookieWithDomain('cw_snooze_campaigns_till', Number(expireBy), {
     expires: expireBy,
     baseDomain,
@@ -137,25 +146,82 @@ export const IFrameHelper = {
     // O nível vem resolvido do servidor (`resolved_widget_approach`), que já
     // aplica o padrão `bold` e já derruba `aggressive` para `bold` no mobile.
     // O host não recalcula política — consome a decisão, como no 1.03 com a cor.
-    const nivel = IFrameHelper.nivelDeAbordagem(gatilhos);
+    const abordagem = IFrameHelper.nivelDeAbordagem(gatilhos);
+    IFrameHelper.abordagem = abordagem;
+    const { baseDomain } = window.$chatwoot;
 
     IFrameHelper.desmontarTeaser = montarTeaser({
       holder,
       canal,
-      nivel,
-      baseDomain: window.$chatwoot.baseDomain,
-      aoAbrir: () => IFrameHelper.events.toggleBubble('open'),
+      nivel: abordagem.nivel,
+      baseDomain,
+      aoAbrir: () => {
+        IFrameHelper.events.toggleBubble('open');
+        IFrameHelper.registrarAbordagem('opened');
+      },
+      aoDispensar: () => IFrameHelper.registrarAbordagem('dismissed'),
+      // Bloco 4.19: a conta sobe quando ABORDAMOS de fato, não quando a página
+      // carrega. Quem nunca viu o teaser — banner de cookie na tela, visitante
+      // que não rolou — não gasta um degrau da escada por uma abordagem que não
+      // aconteceu. `false` no segundo campo é o ciclo recomeçando: ver a §4.19
+      // do relatório para por que "já converteu" não sobrevive a uma abordagem
+      // nova.
+      aoExibir: () => {
+        gravarAbordagem(abordagem.ordinal, false, baseDomain);
+        IFrameHelper.registrarAbordagem('shown');
+      },
     });
   },
 
-  // O nível efetivo desta visita. Em 4.06 é o configurado; o bloco 4.19
-  // acrescenta a degradação por familiaridade por cima deste ponto único.
+  // Bloco 4.21 — a EXIBIÇÃO vira dado, e é ela que faz os três níveis medíveis.
+  //
+  // O host não fala com o servidor: ele empurra o fato pela ponte que já existe e
+  // o iframe grava. Duas razões, e as duas são do teto de bytes (A13): o iframe
+  // já tem `axios`, o token de sessão e o tratamento de erro — replicar isso aqui
+  // custaria bytes a 100% dos visitantes de todos os sites; e o `X-Auth-Token`
+  // mora no iframe, que é onde ele deve morar.
+  //
+  // Sem abordagem montada (`enabled !== true`), não há o que registrar: sai em
+  // silêncio. Exibição SEM abertura também é registrada — sem denominador não há
+  // medição, e é a `shown` que responde "de quantos".
+  registrarAbordagem(etapa) {
+    const abordagem = IFrameHelper.abordagem;
+    if (!abordagem) return;
+
+    IFrameHelper.sendMessage('approach-event', {
+      etapa,
+      approach: abordagem.nivel,
+      approach_configured: abordagem.configurado,
+      // A ordem desta abordagem na vida deste navegador. Ela é a chave natural
+      // do fato: é o que vira `dedup_key` no servidor, e é por isso que o retry
+      // de uma requisição não vira uma conversão contada duas vezes.
+      ordinal: abordagem.ordinal,
+    });
+  },
+
+  // O nível efetivo desta visita — o configurado (4.06) com a degradação por
+  // familiaridade do 4.19 por cima. Ponto ÚNICO: o teaser (4.06) e o auto-open
+  // (4.20) leem a mesma decisão, e por isso não podem divergir.
+  //
+  // No celular lê-se `approach_mobile` E SÓ ELE. Cair para `approach` seria a
+  // brecha que o aceite do 4.20 manda conferir: o desktop pode ser `aggressive`,
+  // o celular nunca. O servidor já fecha esse caminho em `resolved_widget_approach`
+  // e o schema 3.20 o recusa com 422 — esta linha é a terceira ponta, de graça.
   nivelDeAbordagem(gatilhos) {
     const ehCelular = window.matchMedia('(max-width: 667px)').matches;
-    const configurado = ehCelular
-      ? gatilhos.approach_mobile || gatilhos.approach
-      : gatilhos.approach;
-    return configurado || 'bold';
+    const configurado =
+      (ehCelular ? gatilhos.approach_mobile : gatilhos.approach) || 'bold';
+    const [abordagens] = lerAbordagem();
+
+    return {
+      configurado,
+      // 1-based: a abordagem que está para acontecer, não a que já aconteceu.
+      ordinal: abordagens + 1,
+      nivel:
+        gatilhos.degrade_on_return === false
+          ? configurado
+          : degradar(configurado, abordagens),
+    };
   },
   getBubbleHolder: () => document.getElementsByClassName('woot--bubble-holder'),
   sendMessage: (key, value) => {
@@ -351,6 +417,13 @@ export const IFrameHelper = {
       }
     },
     onEvent({ eventIdentifier: eventName, data }) {
+      // Bloco 4.19 — CONVERTER ZERA O CONTADOR. Entra pela ponte que ja existe
+      // em vez de um listener novo: `onEvent` ja e o caminho de todo evento que
+      // o iframe manda ao host, e um `window.addEventListener` proprio custaria
+      // bytes no arquivo com teto (A13) para escutar o que ja chega aqui.
+      if (eventName === CHATWOOT_MESSAGE_SENT) {
+        gravarAbordagem(0, true, window.$chatwoot.baseDomain);
+      }
       dispatchWindowEvent({ eventName, data });
     },
     setBubbleLabel(message) {

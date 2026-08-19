@@ -6,9 +6,13 @@ import WhatsAppExit from 'widget/components/WhatsAppExit.vue';
 import ChatInputWrap from 'widget/components/ChatInputWrap.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { sendEmailTranscript } from 'widget/api/conversation';
+import { registrarConversaoDaAbordagem } from 'widget/api/approachEvent';
 import { useRouter } from 'vue-router';
 import { IFrameHelper } from '../helpers/utils';
-import { CHATWOOT_ON_START_CONVERSATION } from '../constants/sdkEvents';
+import {
+  CHATWOOT_MESSAGE_SENT,
+  CHATWOOT_ON_START_CONVERSATION,
+} from '../constants/sdkEvents';
 import { emitter } from 'shared/helpers/mitt';
 
 const TRANSCRIPT_COOLDOWN_MS = 15000;
@@ -72,10 +76,24 @@ export default {
       });
       // reset replyTo message after sending
       this.inReplyTo = null;
+      // O visitante ENVIOU. E este o fato que o 4.19 chama de conversao — nao
+      // "abriu o painel", nao "clicou em iniciar conversa" (esse ja tinha nome,
+      // CHATWOOT_ON_START_CONVERSATION, e dispara antes de existir mensagem).
+      this.avisarConversao();
       // Update conversation attributes on new conversation
       if (this.conversationSize === 0) {
         this.getAttributes();
       }
+    },
+    avisarConversao() {
+      // Duas pontas, um fato: o host zera o contador de familiaridade (4.19) e o
+      // registro server-side ganha a conversao com o nivel que a produziu (4.21).
+      IFrameHelper.sendMessage({
+        event: 'onEvent',
+        eventIdentifier: CHATWOOT_MESSAGE_SENT,
+        data: {},
+      });
+      registrarConversaoDaAbordagem();
     },
     async handleSendAttachment(attachment) {
       await this.sendAttachment({
