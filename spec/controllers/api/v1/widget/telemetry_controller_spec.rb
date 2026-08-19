@@ -99,27 +99,73 @@ RSpec.describe 'Api::V1::Widget::Telemetry', type: :request do
       Rack::Attack.cache.store = previous_store
     end
 
-    it 'deixa passar as 20 primeiras e bloqueia a 21ª do mesmo IP' do
-      statuses = Array.new(20) { post_report(payload) }
+    # ⚠️ O RELÓGIO É PARTE DO SUJEITO, e ignorá-lo produz falha intermitente.
+    #
+    # `Rack::Attack` conta por JANELA FIXA: a chave do contador é
+    # `Time.now.to_i / period`. Vinte requisições no fim de um minuto e a 21ª no
+    # minuto seguinte caem em contadores DIFERENTES — a 21ª devolve 204 com o IP
+    # certo e o throttle funcionando perfeitamente.
+    #
+    # Foi exatamente esse o sintoma relatado na branch integrada
+    # ("a 21ª devolve 204, o teste espera 429"), e a suspeita inicial recaiu
+    # sobre a safelist de `127.0.0.1`. Não era: este arquivo sempre mandou
+    # `REMOTE_ADDR` fora da safelist. Medido e reproduzido com relógio
+    # controlado: dentro da mesma janela a 21ª dá 429; cruzando a virada do
+    # minuto ela dá 204.
+    #
+    # `travel_to` prende as 21 requisições na MESMA janela, que é a condição sob
+    # a qual o limite existe. Sem isso o teste tem uma janela de falha de
+    # ~1 em 60 execuções — rara o bastante para passar na revisão e voltar
+    # depois, no pipeline de outra pessoa.
+    let(:instante_estavel) { Time.zone.parse('2026-01-15 12:00:10') }
 
-      expect(statuses.count(429)).to eq(0)
-      expect(post_report(payload)).to eq(429)
+    it 'deixa passar as 20 primeiras e bloqueia a 21ª do mesmo IP' do
+      travel_to(instante_estavel) do
+        statuses = Array.new(20) { post_report(payload) }
+
+        expect(statuses.count(429)).to eq(0)
+        expect(post_report(payload)).to eq(429)
+      end
     end
 
     it 'não bloqueia outro IP que ainda não gastou a cota' do
-      21.times { post_report(payload) }
-      expect(post_report(payload)).to eq(429)
+      travel_to(instante_estavel) do
+        21.times { post_report(payload) }
+        expect(post_report(payload)).to eq(429)
 
-      expect(post_report(payload, ip: '198.51.100.31')).not_to eq(429)
+        expect(post_report(payload, ip: '198.51.100.31')).not_to eq(429)
+      end
+    end
+
+    it 'a cota reabre na janela seguinte — e isso é comportamento, não defeito' do
+      # O outro lado da janela fixa, agora afirmado de propósito em vez de
+      # sofrido: quem esgotou a cota volta a passar no minuto seguinte. Na
+      # prática o teto é 20 por janela, não 20 por minuto corrido — ao redor da
+      # virada cabem até 40 em poucos segundos. Para telemetria isso é
+      # aceitável, e agora está escrito em vez de descoberto.
+      travel_to(Time.zone.parse('2026-01-15 12:00:59')) do
+        20.times { post_report(payload) }
+        expect(post_report(payload)).to eq(429)
+      end
+
+      travel_to(Time.zone.parse('2026-01-15 12:01:00')) do
+        expect(post_report(payload)).to eq(204)
+      end
     end
 
     it 'o throttle é INVISÍVEL a partir de 127.0.0.1 — e é por isso que não validamos de lá' do
       # Asserção deliberadamente estranha: ela documenta a armadilha. Se um dia
       # a safelist de localhost sair, este exemplo falha e avisa que os outros
-      # dois podem ser simplificados.
-      statuses = Array.new(25) { post_report(payload, ip: '127.0.0.1') }
+      # podem ser simplificados.
+      #
+      # Este é o único exemplo do arquivo que NÃO precisa de `travel_to`: ele
+      # afirma a AUSÊNCIA de 429, e cruzar a virada da janela só reforçaria a
+      # ausência. Um teste imune ao relógio por construção, não por sorte.
+      travel_to(instante_estavel) do
+        statuses = Array.new(25) { post_report(payload, ip: '127.0.0.1') }
 
-      expect(statuses.count(429)).to eq(0)
+        expect(statuses.count(429)).to eq(0)
+      end
     end
   end
 end
