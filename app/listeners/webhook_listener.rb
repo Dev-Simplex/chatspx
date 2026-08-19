@@ -22,6 +22,17 @@ class WebhookListener < BaseListener
     deliver_webhook_payloads(payload, inbox)
   end
 
+  # Bloco 4.12. `conversation_status_changed` ja existia, mas obriga o destino a
+  # inspecionar o payload para descobrir SE virou resolvida — e a inscricao nele traz
+  # junto todo o resto das mudancas de status. Quem so quer o fechamento assinava tudo e
+  # filtrava do outro lado.
+  def conversation_resolved(event)
+    conversation = extract_conversation_and_account(event)[0]
+    inbox = conversation.inbox
+    payload = conversation.webhook_data.merge(event: __method__.to_s)
+    deliver_webhook_payloads(payload, inbox)
+  end
+
   def message_created(event)
     message = extract_message_and_account(event)[0]
     inbox = message.inbox
