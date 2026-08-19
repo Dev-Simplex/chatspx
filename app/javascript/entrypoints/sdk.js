@@ -18,6 +18,7 @@ import {
 import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
 import { enfileirar } from '../sdk/preBootQueue';
+import { captureOrigin } from '../sdk/tracking/capture';
 
 /**
  * Contrato dos métodos de DADOS da API pública — bloco 1.23.
@@ -83,6 +84,17 @@ const runSDK = ({ baseUrl, websiteToken }) => {
   // que existem hoje, NÃO define `chatwootFallback`. Uma chamada direta
   // quebraria o widget deles no primeiro deploy.
   window.chatwootFallback?.hide?.();
+
+  // Bloco 5.08 — a CAPTURA de origem, e ela é eager por necessidade, não por descuido.
+  //
+  // O aceite é "chega por anúncio, navega 5 páginas e só então abre o chat". Quando o chat
+  // abre, `location.search` já não tem o `gclid` há cinco páginas e o referrer já é interno:
+  // se a captura esperasse a abertura, a origem já estaria perdida — e não há como
+  // recuperá-la depois. Por isso ela roda aqui, no boot de toda página, e por isso o resto
+  // do coletor (cookies, `_fbc`, `client_id`) fica num artefato buscado sob demanda.
+  //
+  // Não lança e não bloqueia: ver `sdk/tracking/capture.js`.
+  captureOrigin();
 
   // if this is a Rails Turbo app
   document.addEventListener('turbo:before-render', event => {
