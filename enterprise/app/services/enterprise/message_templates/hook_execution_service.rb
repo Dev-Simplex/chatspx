@@ -149,13 +149,20 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
 
   # D-12: reentrada da IA do setor em conversa órfã (sem humano E sem IA).
   #
-  # F1.2 🔴 (modo FILA, reply_assignment_gate ON): a re-captura automática está DESLIGADA.
-  # No modo fila, a IA solta a conversa numa fila por time no handoff (F1.1) e ela deve
-  # PERMANECER aguardando humano — a próxima mensagem do cliente NÃO pode fazer a IA do
-  # setor pegar a conversa de volta (senão a fila nunca existe). Modo Clássico (flag OFF):
-  # comportamento D-12 intacto (a IA do setor reentra pra não deixar o cliente no silêncio).
+  # F1.2 (modo FILA): a re-captura automática nasceu DESLIGADA. No modo fila, a IA solta a
+  # conversa numa fila por time no handoff (F1.1) e ela deve PERMANECER aguardando humano —
+  # a próxima mensagem do cliente NÃO podia fazer a IA do setor pegar a conversa de volta,
+  # senão a fila nunca existe. Modo Clássico: comportamento D-12 (a IA do setor reentra pra
+  # não deixar o cliente no silêncio).
+  #
+  # Quem abandona a fila e adota "toda conversa tem dono" liga `ia_reentra_orfa` e recupera
+  # a reentrada SEM perder a exigência de atribuição para o humano responder — as duas coisas
+  # vinham na mesma chave. Ver Account#ia_reentra_orfa_enabled?.
+  #
+  # Nota: conversa aguardando humano depois de um handoff NÃO é órfã (o handoff não solta o
+  # espelho), então ligar isto não come a fila de espera — só as que ficaram sem dono nenhum.
   def orphan_captain_reentry?
-    return false if conversation.account.reply_assignment_gate_enabled?
+    return false unless conversation.account.ia_reentra_orfa_enabled?
 
     message.incoming? && !message.private? && conversation.open? &&
       conversation.assignee_id.nil? && conversation.assignee_agent_bot_id.nil? &&
