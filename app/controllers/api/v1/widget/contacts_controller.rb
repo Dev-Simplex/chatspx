@@ -50,7 +50,7 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
   def identify_contact(contact)
     contact_identify_action = ContactIdentifyAction.new(
       contact: contact,
-      params: permitted_params.to_h.deep_symbolize_keys,
+      params: identified_params.to_h.deep_symbolize_keys,
       discard_invalid_attrs: true,
       # Bloco 4.17: quem escreve daqui e o site. Atributo protegido so passa em sessao
       # com assinatura conferida.
@@ -60,7 +60,7 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
   end
 
   def a_different_contact?
-    @contact.identifier.present? && @contact.identifier != permitted_params[:identifier]
+    @contact.identifier.present? && @contact.identifier != identified_params[:identifier]
   end
 
   # O update tambem serve ao prechat anonimo e ao setCustomAttributes
@@ -82,6 +82,10 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
   # universo menor, o numero dele nao serviria para decidir a virada para estrito.
   def identity_binding_request?
     return false unless widget_inbox.identity_enforcement_watching?
+
+    # Bloco 5.19: o token e campo de identidade como os outros tres — ele amarra a sessao a um
+    # `sub`. Fora daqui ele nao teria como ser conferido no `update`.
+    return true if params[:identity_token].present?
 
     IDENTITY_BINDING_PARAMS.any? { |field| params[field].present? }
   end
@@ -119,6 +123,13 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
     # identidade, entao a checagem nao pode ser desligada por nada.
     return true if widget_inbox.identity_enforcement_watching?
 
+    # Bloco 5.19: o que pede verificacao e o token que PROVA, nao o token que apareceu. A diferenca
+    # e o aceite do bloco: se a presenca bastasse, um token expirado numa inbox `desativado` viraria
+    # 401 — e o contrato diz que ele degrada para anonimo, nao para erro. Como so entra aqui o token
+    # ja verificado, esta linha nunca cria uma recusa nova: ela so faz a sessao ser MARCADA como
+    # verificada quando ha prova.
+    return true if identity_token_result.verified?
+
     return false if params[:identifier_hash].blank?
 
     # PORTA 2 (B5): daqui saiu um early return que devolvia false quando
@@ -127,7 +138,23 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
     true
   end
 
+  # Bloco 5.19: duas provas possiveis, UMA porta de decisao. O JWT e formato adicional — quem
+  # decide o que fazer com a ausencia de prova continua sendo a maquina de estados do 4.15, e nao
+  # existe caminho paralelo por onde um token entre sem passar por aqui.
   def valid_hmac?
+    valid_identifier_hash? || identity_token_result.verified?
+  end
+
+  # Bloco 5.19: o token de identidade emitido pelo SERVIDOR DO CLIENTE, assinado com o mesmo
+  # segredo do HMAC. O visitante nao assina nada — so carrega o que recebeu pronto.
+  def identity_token_result
+    @identity_token_result ||= Widget::IdentityTokenService.new(
+      token: params[:identity_token],
+      hmac_token: @web_widget.hmac_token
+    ).perform
+  end
+
+  def valid_identifier_hash?
     # Nao se prova uma identidade que nao foi declarada: sem identifier nao existe
     # hash valido possivel, e assinar a string vazia nao pode valer como prova.
     return false if params[:identifier].blank? || params[:identifier_hash].blank?
@@ -146,5 +173,19 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
   def permitted_params
     params.permit(:website_token, :identifier, :identifier_hash, :email, :name, :avatar_url, :phone_number, custom_attributes: {},
                                                                                                             additional_attributes: {})
+  end
+
+  # Bloco 5.19: o que o token ASSINADO prova vence o que o corpo apenas afirma. O corpo chega do
+  # navegador do visitante e nao e prova de nada; o payload do token foi assinado pelo servidor do
+  # cliente. Token nao verificado nao contribui com campo nenhum — e assim que "expirado degrada
+  # para anonimo" acontece: os campos dele simplesmente nao existem para o resto do fluxo.
+  #
+  # Separado de `permitted_params` de proposito: `set_web_widget` (WebsiteTokenHelper) chama
+  # `permitted_params` para ACHAR o canal, entao ele nao pode depender do canal para existir.
+  def identified_params
+    result = identity_token_result
+    return permitted_params unless result.verified?
+
+    permitted_params.merge(result.attributes).merge('identifier' => result.identifier)
   end
 end
