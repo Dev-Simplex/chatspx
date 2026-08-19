@@ -23,6 +23,15 @@ flows_resume_job:
   class: 'Flows::ResumeJob'
   queue: scheduled_jobs
 
+# A cada 5 minutos.
+# Vence as designacoes paradas do Motor de Distribuicao e repassa ao proximo do rodizio (ou
+# escala ao responsavel fixo). NO-OP enquanto nenhuma politica tiver `repasse_automatico`
+# ligado -- o default e false, entao ligar o job nao muda nada em conta nenhuma.
+spx_distribuicao_varrer_sla_job:
+  cron: '*/5 * * * *'
+  class: 'Spx::Distribuicao::VarrerSlaJob'
+  queue: scheduled_jobs
+
 # executed At every minute..
 trigger_imap_email_inboxes_job:
   cron: '*/1 * * * *'
