@@ -10,7 +10,14 @@ vi.mock('widget/helpers/availabilityHelpers', () => ({
   isInWorkingHours: (...args) => mockIsInWorkingHours(...args),
 }));
 
-vi.mock('dashboard/composables/useTransformKeys', () => ({
+// O alvo acompanha o especificador que `useAvailability.js` importa: o bloco
+// 2.18 cortou a aresta para `dashboard/composables/useTransformKeys` (era por
+// onde o `@sentry/vue` entrava no grafo de first-paint do widget) e pos uma
+// copia local no lugar. `vi.mock` casa por especificador, e um `vi.mock` de
+// modulo que ninguem importa NAO reprova: ele simplesmente nao faz nada, e os
+// exemplos passam a exercitar a implementacao real sem avisar. Este mock ficou
+// orfao por uma corrida inteira de 2.529 exemplos verdes.
+vi.mock('widget/composables/useTransformKeys', () => ({
   useCamelCase: obj => mockUseCamelCase(obj),
 }));
 

@@ -1,85 +1,40 @@
-import ar from './locale/ar.json';
-import bg from './locale/bg.json';
-import ca from './locale/ca.json';
-import cs from './locale/cs.json';
-import da from './locale/da.json';
-import de from './locale/de.json';
-import el from './locale/el.json';
+/**
+ * Traduções do widget — carregadas SOB DEMANDA (bloco 2.18).
+ *
+ * O arquivo anterior tinha 41 `import` estáticos de JSON, um por idioma. Import
+ * estático é first-paint: cada visitante baixava as 41 traduções para ler UMA.
+ * Medido no grafo de produção: 213.027 B crus só de locale, ~9,4% do fecho
+ * eager do widget.
+ *
+ * O `en` continua estático de propósito — ele é o fallback do vue-i18n, e um
+ * fallback que chega pela rede tarde demais não é fallback. Os outros 40 viram
+ * um chunk cada, e o boot busca UM: `entrypoints/widget.js` espera
+ * `carregarLocale()` antes de montar, para que o primeiro render já saia no
+ * idioma certo em vez de piscar em inglês.
+ *
+ * `mensagens` é o MESMO objeto do começo ao fim, e é por isso que ele é mutado
+ * em vez de recriado: `WidgetAudioNotificationHelper` o recebe como valor
+ * padrão de parâmetro, e uma troca de referência o deixaria lendo uma tabela
+ * congelada no boot.
+ */
 import en from './locale/en.json';
-import es from './locale/es.json';
-import fa from './locale/fa.json';
-import fi from './locale/fi.json';
-import fr from './locale/fr.json';
-import he from './locale/he.json';
-import hi from './locale/hi.json';
-import hu from './locale/hu.json';
-import id from './locale/id.json';
-import is from './locale/is.json';
-import it from './locale/it.json';
-import ja from './locale/ja.json';
-import ko from './locale/ko.json';
-import lt from './locale/lt.json';
-import lv from './locale/lv.json';
-import ml from './locale/ml.json';
-import nl from './locale/nl.json';
-import no from './locale/no.json';
-import pl from './locale/pl.json';
-import pt from './locale/pt.json';
-import pt_BR from './locale/pt_BR.json';
-import ro from './locale/ro.json';
-import ru from './locale/ru.json';
-import sk from './locale/sk.json';
-import sr from './locale/sr.json';
-import sv from './locale/sv.json';
-import ta from './locale/ta.json';
-import th from './locale/th.json';
-import tr from './locale/tr.json';
-import uk from './locale/uk.json';
-import uz from './locale/uz.json';
-import vi from './locale/vi.json';
-import zh_CN from './locale/zh_CN.json';
-import zh_TW from './locale/zh_TW.json';
 
-export default {
-  ar,
-  bg,
-  ca,
-  cs,
-  da,
-  de,
-  el,
-  en,
-  es,
-  fa,
-  fi,
-  fr,
-  he,
-  hi,
-  hu,
-  id,
-  is,
-  it,
-  ja,
-  ko,
-  lt,
-  lv,
-  ml,
-  nl,
-  no,
-  pl,
-  pt_BR,
-  pt,
-  ro,
-  ru,
-  sk,
-  sr,
-  sv,
-  ta,
-  th,
-  tr,
-  uk,
-  uz,
-  vi,
-  zh_CN,
-  zh_TW,
+// `import.meta.glob` sem `eager`: o Vite emite um chunk por arquivo e devolve
+// aqui um mapa de funções que os buscam. Nenhum deles entra no fecho estático.
+const carregadores = import.meta.glob('./locale/*.json');
+
+export const mensagens = { en };
+
+export const carregarLocale = async codigo => {
+  if (!codigo) return undefined;
+  if (mensagens[codigo]) return mensagens[codigo];
+  const carregar = carregadores[`./locale/${codigo}.json`];
+  // Código desconhecido não é erro: o widget cai no fallback `en`, que é o
+  // mesmo comportamento de antes para um idioma que não existisse na tabela.
+  if (!carregar) return undefined;
+  const modulo = await carregar();
+  mensagens[codigo] = modulo.default ?? modulo;
+  return mensagens[codigo];
 };
+
+export default mensagens;

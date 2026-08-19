@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getTime } from 'dashboard/routes/dashboard/settings/inbox/helpers/businessHour.js';
+import { getTime } from 'widget/helpers/horaLegivel';
 import { findNextAvailableSlotDetails } from 'widget/helpers/availabilityHelpers';
 
 const props = defineProps({

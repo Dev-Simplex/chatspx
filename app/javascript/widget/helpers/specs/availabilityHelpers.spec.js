@@ -1,4 +1,4 @@
-import { utcToZonedTime } from 'date-fns-tz';
+import { utcToZonedTime } from 'date-fns-tz/esm';
 import {
   isOpenAllDay,
   isClosedAllDay,
@@ -8,8 +8,12 @@ import {
   isOnline,
 } from '../availabilityHelpers';
 
-// Mock date-fns-tz
-vi.mock('date-fns-tz', () => ({
+// O alvo do mock acompanha o especificador que o codigo importa: o bloco 2.18
+// trocou `date-fns-tz` por `date-fns-tz/esm` em `availabilityHelpers.js`, e
+// `vi.mock` casa por especificador. Apontado para o modulo errado, o mock nao
+// se aplica, a funcao REAL roda e 19 destes 33 exemplos passam a medir o
+// relogio da maquina em vez do que declaram medir — foi o que aconteceu.
+vi.mock('date-fns-tz/esm', () => ({
   utcToZonedTime: vi.fn(),
 }));
 

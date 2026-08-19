@@ -1,11 +1,13 @@
 <script>
 import { mapGetters, mapActions } from 'vuex';
 import { setHeader } from 'widget/helpers/axios';
-import addHours from 'date-fns/addHours';
+import { addHours } from 'date-fns';
 import { IFrameHelper, RNHelper } from 'widget/helpers/utils';
 import configMixin from './mixins/configMixin';
 import { getLocale } from './helpers/urlParamsHelper';
-import { getLanguageDirection } from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
+import { carregarLocale } from './i18n';
+import { registrarLocale } from './i18n/instancia';
+import { getLanguageDirection } from 'widget/helpers/languageDirection';
 import { isEmptyObject } from 'widget/helpers/utils';
 import Spinner from 'shared/components/Spinner.vue';
 import {
@@ -160,7 +162,7 @@ export default {
         });
       });
     },
-    setLocale(localeWithVariation) {
+    async setLocale(localeWithVariation) {
       if (!localeWithVariation) return;
       const { enabledLanguages } = window.chatwootWebChannel;
       const localeWithoutVariation = localeWithVariation.split('_')[0];
@@ -171,11 +173,19 @@ export default {
         lang => lang.iso_639_1_code === localeWithVariation
       );
 
+      let escolhido = null;
       if (hasLocaleWithVariation) {
-        this.$root.$i18n.locale = localeWithVariation;
+        escolhido = localeWithVariation;
       } else if (hasLocaleWithoutVariation) {
-        this.$root.$i18n.locale = localeWithoutVariation;
+        escolhido = localeWithoutVariation;
       }
+      if (!escolhido) return;
+
+      // Bloco 2.18: as traducoes deixaram de vir todas no first-paint. O boot ja
+      // buscou o idioma da inbox antes do mount; esta espera cobre as trocas de
+      // idioma em runtime (a ponte do SDK e o parametro da URL).
+      registrarLocale(escolhido, await carregarLocale(escolhido));
+      this.$root.$i18n.locale = escolhido;
     },
     registerUnreadEvents() {
       emitter.on(ON_AGENT_MESSAGE_RECEIVED, () => {

@@ -1,19 +1,34 @@
 <script>
+import { defineAsyncComponent, getCurrentInstance, ref } from 'vue';
 import { mapActions } from 'vuex';
 import { useRouter } from 'vue-router';
-import PreChatForm from '../components/PreChat/Form.vue';
 import configMixin from '../mixins/configMixin';
 import { ON_CONVERSATION_CREATED } from '../constants/widgetBusEvents';
 import { emitter } from 'shared/helpers/mitt';
+import { garantirFormKit } from '../helpers/formkitLazy';
 
 export default {
   components: {
-    PreChatForm,
+    // Assincrono de proposito (bloco 2.18): `Form.vue` importa `@formkit/vue`,
+    // e um import estatico aqui traria a biblioteca de volta para o chunk desta
+    // rota antes de o plugin existir. Assim o modulo do formulario so e buscado
+    // depois que `garantirFormKit` registrou o plugin na app.
+    PreChatForm: defineAsyncComponent(
+      () => import('../components/PreChat/Form.vue')
+    ),
   },
   mixins: [configMixin],
   setup() {
     const router = useRouter();
-    return { router };
+    // O plugin do FormKit precisa estar na app ANTES do primeiro `<FormKit>`.
+    // `app.use()` nao exige ser chamado antes de `mount()`; exige ser chamado
+    // antes do render — e e o `v-if` abaixo que garante a ordem.
+    const formKitPronto = ref(false);
+    const app = getCurrentInstance().appContext.app;
+    garantirFormKit(app).then(() => {
+      formKitPronto.value = true;
+    });
+    return { router, formKitPronto };
   },
   mounted() {
     // Register event listener for conversation creation
@@ -77,6 +92,10 @@ export default {
 
 <template>
   <div class="flex flex-1 overflow-auto">
-    <PreChatForm :options="preChatFormOptions" @submit-pre-chat="onSubmit" />
+    <PreChatForm
+      v-if="formKitPronto"
+      :options="preChatFormOptions"
+      @submit-pre-chat="onSubmit"
+    />
   </div>
 </template>

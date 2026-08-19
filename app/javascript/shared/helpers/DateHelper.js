@@ -1,8 +1,16 @@
-import fromUnixTime from 'date-fns/fromUnixTime';
-import format from 'date-fns/format';
-import isToday from 'date-fns/isToday';
-import isYesterday from 'date-fns/isYesterday';
-import { endOfDay, getUnixTime, startOfDay } from 'date-fns';
+// Tudo pelo barrel `date-fns`, e nao por `date-fns/format` (bloco 2.18): os
+// dois caminhos resolvem para ARQUIVOS DIFERENTES do mesmo pacote (`/format/`
+// e `/esm/format/`), e o bundle acabava com duas copias da biblioteca inteira
+// no mesmo grafo — 176.811 B crus de pura duplicata, medidos.
+import {
+  endOfDay,
+  format,
+  fromUnixTime,
+  getUnixTime,
+  isToday,
+  isYesterday,
+  startOfDay,
+} from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const formatUnixDate = (date, dateFormat = 'MMM dd, yyyy') => {

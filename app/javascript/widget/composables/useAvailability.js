@@ -3,7 +3,7 @@ import {
   isOnline as checkIsOnline,
   isInWorkingHours as checkInWorkingHours,
 } from 'widget/helpers/availabilityHelpers';
-import { useCamelCase } from 'dashboard/composables/useTransformKeys';
+import { useCamelCase } from 'widget/composables/useTransformKeys';
 
 const DEFAULT_TIMEZONE = 'UTC';
 const DEFAULT_REPLY_TIME = 'in_a_few_minutes';

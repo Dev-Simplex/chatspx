@@ -1,4 +1,9 @@
-import { utcToZonedTime } from 'date-fns-tz';
+// `date-fns-tz/esm`, e nao `date-fns-tz` (bloco 2.18): a entrada padrao do
+// pacote importa `date-fns/format` na forma NAO-esm, e isso trazia a SEGUNDA
+// arvore do date-fns para o bundle — 176.811 B crus de duplicata, medidos no
+// grafo de producao. A variante `esm` do mesmo pacote importa `date-fns/esm/*`,
+// que e a arvore que o resto do codigo ja usa.
+import { utcToZonedTime } from 'date-fns-tz/esm';
 
 // Constants
 const DAYS_IN_WEEK = 7;

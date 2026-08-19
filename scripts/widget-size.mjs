@@ -90,9 +90,9 @@ const LIMITS = {
 // número (1.08 → CSS; 2.18 → JS eager ≤ 150 KB gzip). Subir este valor para
 // acomodar código novo é o mesmo afrouxamento que o teto proíbe.
 const GRAPH_BASELINE = {
-  gzip: 422_599,
-  date: '17/08/2026',
-  where: 'redesenho-build @ 301bbdfdf9 (bloco 0.3), `bin/vite build` limpo',
+  gzip: 250_757,
+  date: '19/08/2026',
+  where: 'o2-config-prechat (bloco 2.18), `bin/vite build` + `pnpm build:sdk` limpos',
   // Tolerância do eixo de REGRESSÃO — não do teto, que não tem nenhuma.
   //
   // O gzip do grafo não é bit-a-bit reprodutível entre dois builds do MESMO
