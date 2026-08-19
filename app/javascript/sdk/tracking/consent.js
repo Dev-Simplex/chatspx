@@ -12,6 +12,8 @@
 
 // Os quatro sinais do Consent Mode v2. `functionality_storage` e afins ficam de fora: o widget nao
 // os usa, e declarar sinal que nao se respeita e pior que nao declarar.
+import { pushToDataLayer } from './dataLayer';
+
 export const PURPOSES = [
   'ad_storage',
   'ad_user_data',
@@ -39,10 +41,9 @@ const push = payload => {
     state.sink(payload);
     return;
   }
-  if (typeof window !== 'undefined') {
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push(payload);
-  }
+  // Mesma porta da ponte de tags (5.10): duas implementacoes do mesmo `push` sao duas chances de
+  // uma delas reatribuir o `window.dataLayer` do cliente em vez de estende-lo (RC2).
+  if (typeof window !== 'undefined') pushToDataLayer(payload);
 };
 
 const sanitize = partial =>

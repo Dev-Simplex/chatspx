@@ -41,6 +41,10 @@ describe('sdkEventEmitter (bloco 5.04)', () => {
         event: 'onEvent',
         eventIdentifier: 'chatwoot:conversation-created',
         data: { conversation_id: 42, inbox_id: 7 },
+        // Bloco 5.10 — o MESMO fato no vocabulário de tracking, resolvido aqui
+        // porque é aqui que o mapa vive. O host não duplica o mapa: ele leva o
+        // nome pronto ao `dataLayer` e às tags.
+        tracking: 'chatspx_conversation_started',
       });
     });
 
@@ -166,6 +170,7 @@ describe('sdkEventEmitter (bloco 5.04)', () => {
           conversation_id: 12,
           identifiers: ['email', 'phone_number'],
         },
+        tracking: 'chatspx_lead',
       });
 
       const [[mensagem]] = IFrameHelper.sendMessage.mock.calls;

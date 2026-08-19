@@ -554,6 +554,10 @@
         "ON": "Ativo",
         "NOT_SENT": "não enviar"
       },
+      "INSTALL_TAGS": {
+        "LABEL": "Instalar a tag que falta",
+        "HINT": "Desligado por padrão. Desligado, só disparamos nas tags da Meta/Google que já existem na página. Ligado, instalamos a que falta — sempre sem PageView, para não mexer na contagem de visitas do seu site."
+      },
       "EVENTS": {
         "WIDGET_LOADED": "Widget carregou",
         "WIDGET_OPENED": "Widget aberto",

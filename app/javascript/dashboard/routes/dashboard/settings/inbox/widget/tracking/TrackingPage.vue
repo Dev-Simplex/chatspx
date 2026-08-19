@@ -311,6 +311,26 @@ defineExpose({ requestLeave: guard.requestLeave });
           @update="salvarMapa"
         />
 
+        <!--
+          Bloco 5.10 (T-C4.3, decisao Q5). O toggle governa a PONTE, nao um destino — por isso
+          mora aqui, junto do mapa de eventos, e nao repetido nas abas Meta e Google.
+
+          Desligado, a ponte so dispara nas tags que JA existem na pagina do cliente. Ligado, ela
+          instala a que falta — e mesmo assim sem `PageView`, porque a pagina do cliente ja conta
+          a visita dela e contar de novo estraga o numero que ele mais olha.
+        -->
+        <SettingsFieldSection
+          :label="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.LABEL')"
+          :help-text="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.HINT')"
+        >
+          <Switch
+            :model-value="tracking.install_tags === true"
+            :aria-label="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.LABEL')"
+            data-testid="install-tags"
+            @update:model-value="set('install_tags', $event)"
+          />
+        </SettingsFieldSection>
+
         <h4 class="text-sm font-medium text-n-slate-12">
           {{ t('INBOX_WIDGET.TRACKING.LEAD_VALUE.TITLE') }}
         </h4>

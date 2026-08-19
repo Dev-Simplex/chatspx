@@ -25,6 +25,10 @@ const CONTRACT_EVENTS = [
   'toggle-open',
   'sdk-set-bubble-visibility',
   'update-user',
+  // Bloco 5.16 — o 18º: `track-event`, o evento tipado do site. Separado de `push-event` porque
+  // o outro lado é outro: `push-event` publica no barramento do Rails (webhook, agent bot),
+  // `track-event` vira registro de tracking e volta com `event_id`.
+  'track-event',
 ];
 
 const buildContext = (overrides = {}) => ({
@@ -51,7 +55,7 @@ describe('bridge/handlers', () => {
     delete window.referrerURL;
   });
 
-  it('cobre exatamente os 17 eventos do contrato, sem sobra nem falta', () => {
+  it('cobre exatamente os 18 eventos do contrato, sem sobra nem falta', () => {
     expect(Object.keys(handlers).sort()).toEqual([...CONTRACT_EVENTS].sort());
   });
 

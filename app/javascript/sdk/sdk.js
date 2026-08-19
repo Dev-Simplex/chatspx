@@ -115,6 +115,20 @@
  * ── @media (prefers-reduced-motion: reduce)
  *   Movimento é preferência: com 'reduce' o cartão aparece, sem animar.
  *
+ * ── @media (max-width: 767px) .woot-widget-holder — height/width duplicados
+ *   Dupla declaração de propósito, e a ordem importa: quem não conhece as
+ *   unidades dinâmicas ignora a segunda linha e fica com a antiga. A unidade
+ *   antiga (100vh) mede em celular a viewport COM a barra do navegador
+ *   recolhida — o rodapé do widget fica embaixo dela, e o botão de enviar some
+ *   atrás do Chrome.
+ *   O 'env(safe-area-inset-*)' logo abaixo é o recorte do aparelho (notch,
+ *   barra de gestos): sem ele o composer fica debaixo da barra inferior do
+ *   iPhone e o visitante não consegue tocá-lo.
+ *   Estas duas explicações VIVIAM dentro do 'SDK_CSS', e foi medido o que isso
+ *   custava: 599 B crus baixados por 100% dos visitantes de todos os sites.
+ *   Comentário dentro de template string é DADO — é a mesma lição do bloco
+ *   4.06, e ela vale toda vez que alguém for documentar uma regra ali dentro.
+ *
  */
 export const SDK_CSS = `
 #cw-widget-holder, #cw-bubble-holder {
@@ -404,10 +418,6 @@ export const SDK_CSS = `
 .woot-teaser--discreet .woot-teaser__foto,
 .woot-teaser--discreet .woot-teaser__chip { display: none; }
 
-@media only screen and (max-width: 667px) {
-  .woot-teaser { width: min(320px, 100vw - 32px); bottom: 88px; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .woot-teaser, .woot-teaser--saindo { transition: none; transform: none; }
 }
@@ -473,20 +483,12 @@ export const SDK_CSS = `
 
 @media only screen and (max-width: 767px) {
   .woot-widget-holder {
-    /* Dupla declaracao de proposito, e a ordem importa: quem nao conhece as
-       unidades dinamicas ignora a segunda linha e fica com a antiga. A unidade
-       antiga (100vh) mede em celular a viewport COM a barra do navegador
-       recolhida — o rodape do widget fica embaixo dela, e o botao de enviar
-       some atras do Chrome. Sem crase neste arquivo: o CSS inteiro vive dentro
-       de uma template string, e uma crase aqui a FECHA no meio. */
     height: 100%;
     height: 100dvh;
     right: 0;
     top: 0;
     width: 100%;
     width: 100dvw;
-    /* O recorte do aparelho (notch, barra de gestos): sem isto o composer fica
-       debaixo da barra inferior do iPhone e o visitante nao consegue toca-lo. */
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
@@ -520,6 +522,8 @@ export const SDK_CSS = `
     visibility: hidden !important;
     z-index: -1 !important;
   }
+
+  .woot-teaser { width: min(320px, 100vw - 32px); bottom: 88px; }
 }
 
 @media only screen and (min-width: 768px) {

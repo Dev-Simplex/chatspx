@@ -90,6 +90,35 @@ export const emitSdkEvent = (eventName, data = {}) => {
       event: 'onEvent',
       eventIdentifier: eventName,
       data: filterByContract(eventName, data),
+      // Bloco 5.10 — o nome do MESMO fato no vocabulário de tracking, resolvido aqui porque é
+      // aqui que o mapa vive. O host não o duplica: ele recebe `null` (o fato não tem
+      // contrapartida) ou o nome pronto, e leva ao `dataLayer` e às tags. Dois vocabulários,
+      // uma emissão — arbitragem A9, contrato §1.
+      tracking: SDK_EVENT_CONTRACT[eventName]?.tracking || null,
+    });
+    return true;
+  } catch (error) {
+    reportWidgetError(error, { origem: 'sdkEventEmitter' });
+    return false;
+  }
+};
+
+/**
+ * Bloco 5.16 — o evento próprio do site, vindo de `window.$chatwoot.track()`.
+ *
+ * Ele NÃO vira evento de `window`: o nome é do vocabulário `chatspx_*`, inventado pelo cliente, e
+ * não tem contrapartida em `chatwoot:*` — inventar uma faria o site escutar um nome que o
+ * contrato não declara. Sai só pelo caminho de tracking, já com o `event_id` que o servidor
+ * gerou (bloco 5.05), para que o `dataLayer` e o registro falem do MESMO fato.
+ */
+export const emitTrackedEvent = (name, properties = {}, eventId = null) => {
+  try {
+    IFrameHelper.sendMessage({
+      event: 'onEvent',
+      eventIdentifier: null,
+      data: properties,
+      tracking: name,
+      eventId,
     });
     return true;
   } catch (error) {

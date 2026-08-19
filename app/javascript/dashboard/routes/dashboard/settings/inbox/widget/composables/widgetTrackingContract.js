@@ -28,6 +28,7 @@ export const PUBLIC_TRACKING_KEYS = Object.freeze([
   'event_map',
   'consent_mode',
   'test_mode',
+  'install_tags',
 ]);
 
 /** Os doze eventos do contrato (5.03), na ordem do documento. */

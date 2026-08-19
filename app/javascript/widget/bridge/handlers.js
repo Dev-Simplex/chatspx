@@ -59,6 +59,16 @@ export const handlers = {
     createWidgetEvents(message, ctx);
   },
 
+  // Bloco 5.16 — o evento tipado do site. Separado de `push-event` porque os dois vocabulários
+  // fazem coisas diferentes do outro lado: `push-event` vai ao barramento do Rails (webhook,
+  // agent bot); `track-event` vira registro de tracking e volta com `event_id`.
+  'track-event': (message, ctx) => {
+    ctx.$store.dispatch('events/track', {
+      name: message.name,
+      properties: message.properties,
+    });
+  },
+
   'set-label': (message, ctx) => {
     ctx.$store.dispatch('conversationLabels/create', message.label);
   },

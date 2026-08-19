@@ -50,7 +50,12 @@ module WidgetTrackingSchema
         'additionalProperties' => { 'type' => 'string', 'minLength' => 1, 'maxLength' => MAX_EVENT_NAME_LENGTH }
       },
       'consent_mode' => { 'type' => 'string', 'enum' => CONSENT_MODES },
-      'test_mode' => { 'type' => 'boolean' }
+      'test_mode' => { 'type' => 'boolean' },
+      # Bloco 5.10 (T-C4.3, decisao Q5) — "instalar a tag que falta na pagina". Booleano, publico,
+      # default DESLIGADO por ausencia. Injetar o `fbevents.js`/`gtag.js` no site de alguem e
+      # mexer na medicao dele: quando a tag ja esta la, a ponte apenas dispara nela; quando nao
+      # esta, so instala se o cliente pediu, explicitamente, uma vez. Ausencia significa nao.
+      'install_tags' => { 'type' => 'boolean' }
     },
     'additionalProperties' => false
   }.freeze
