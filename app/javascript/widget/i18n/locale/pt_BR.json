@@ -164,7 +164,8 @@
     "OPEN_WIDGET": "Abrir o chat",
     "AGENT_TYPING": "O agente está digitando",
     "AGENT_AVATAR": "Foto do agente",
-    "IMAGE_ATTACHMENT": "Imagem enviada na conversa"
+    "IMAGE_ATTACHMENT": "Imagem enviada na conversa",
+    "SCROLL_TO_LATEST": "Ir para as mensagens mais recentes"
   },
   "CAPTURE": {
     "SUBMIT": "Enviar",

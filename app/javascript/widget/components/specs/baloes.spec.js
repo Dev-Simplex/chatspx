@@ -65,7 +65,7 @@ const montar = groupedMessages =>
     props: { groupedMessages },
     global: {
       plugins: [criarStore(), i18n],
-      stubs: { ChatMessage: true, DateSeparator: true, Spinner: true },
+      stubs: { ChatMessage: true, WDateSeparator: true, Spinner: true },
       mocks: { $t: chave => i18n.global.t(chave) },
     },
   });
@@ -95,7 +95,7 @@ const visitante = (extra = {}) => ({
   content: 'Do visitante',
   ...extra,
 });
-const umDia = (...mensagens) => [{ date: '15/01/2025', messages: mensagens }];
+const umDia = (...mensagens) => [{ date: 'Jan 15, 2025', messages: mensagens }];
 
 // Agente que TERMINA com fala do visitante — o antigo `.has-response`.
 const agenteComResposta = () =>
@@ -156,8 +156,8 @@ describe('2.03 · o recorte por bloco de data', () => {
     // agrupamento na conversa achatada, esta linha viraria `is-continuacao` e
     // colaria no último balão do dia anterior — atravessando o separador.
     const wrapper = montar([
-      { date: '14/01/2025', messages: [agente(), agente()] },
-      { date: '15/01/2025', messages: [agente(), visitante()] },
+      { date: 'Jan 14, 2025', messages: [agente(), agente()] },
+      { date: 'Jan 15, 2025', messages: [agente(), visitante()] },
     ]);
 
     expect(classesDasLinhas(wrapper)).toEqual([

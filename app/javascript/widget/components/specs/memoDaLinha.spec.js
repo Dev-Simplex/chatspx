@@ -81,10 +81,10 @@ const montar = () => {
   const digitando = ref(false);
   const { renders, componente } = criarEspiaoDeLinha();
   const wrapper = mount(ConversationWrap, {
-    props: { groupedMessages: [{ date: '15/01/2025', messages: mensagens }] },
+    props: { groupedMessages: [{ date: 'Jan 15, 2025', messages: mensagens }] },
     global: {
       plugins: [criarStore(digitando), i18n],
-      stubs: { ChatMessage: componente, DateSeparator: true, Spinner: true },
+      stubs: { ChatMessage: componente, WDateSeparator: true, Spinner: true },
       mocks: { $t: chave => i18n.global.t(chave) },
     },
   });
@@ -120,7 +120,7 @@ describe('2.12 — o `v-memo` da linha', () => {
     await wrapper.setProps({
       groupedMessages: [
         {
-          date: '15/01/2025',
+          date: 'Jan 15, 2025',
           messages: [
             { ...mensagens[0], content: 'Texto editado' },
             { ...mensagens[1] },

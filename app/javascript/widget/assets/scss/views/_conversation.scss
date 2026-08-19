@@ -248,6 +248,13 @@
   &.agent {
     @apply ltr:rounded-bl-[var(--w-bubble-radius-tail)] rtl:rounded-br-[var(--w-bubble-radius-tail)] text-n-slate-12;
 
+    // `--w-bubble-border` só é declarada no tema escuro (ver `_tokens_values`),
+    // então no claro a `border-color` cai no fallback `transparent` e a borda
+    // não desenha. `border-width: 1px` fica dos dois lados de propósito: com
+    // `box-sizing: border-box` — que o preflight do Tailwind aplica a tudo — o
+    // balão tem a MESMA caixa nos dois temas, e trocar de tema não move layout.
+    border: 1px solid var(--w-bubble-border, transparent);
+
     .link {
       @apply text-w-brand-readable;
       word-break: break-word;
