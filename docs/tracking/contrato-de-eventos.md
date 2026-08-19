@@ -109,6 +109,43 @@ cai para `contact_id`, que este endpoint passa.
 converteu *por* uma abordagem, e contá-lo inflaria o numerador do nível que estava configurado sem
 ter sido usado.
 
+### 2.2 A família do teste A/B de fluxo — bloco 6.05 (19/08/2026)
+
+Três nomes, um por fato do experimento. Como a família da abordagem, eles **não** estão na tabela de
+doze: não são fatos do funil do cliente, são a instrumentação que responde *"qual variante deste
+fluxo converte mais"*. Todos são **server-side** — quem os emite é o motor de fluxos
+(`Flows::AbTracking`), nunca o navegador — e **nenhum propaga `event_id`**: não são fatos de
+conversão do negócio, e mandá-los à Meta ou ao GA4 encheria a conta do cliente de evento interno.
+
+| Evento | Quando dispara | Onde, no código |
+|---|---|---|
+| `chatspx_flow_variant_assigned` | o motor **começa** a rodar a variante para este visitante — é o **denominador** | `Flows::RunnerService#perform` |
+| `chatspx_flow_variant_step` | um nó do fluxo foi executado **com sucesso** | `Flows::StepInstrumentation#record_step` |
+| `chatspx_flow_variant_converted` | o walk **chegou ao fim** | `Flows::RunnerService#finish_run` |
+
+**Parâmetros, iguais nos três** — vocabulário fechado, tudo vindo da configuração e do próprio fluxo,
+nada de texto livre do visitante:
+
+| Campo | O que é |
+|---|---|
+| `experiment` | a chave declarada em `trigger_config.experiment.key`; flows que a compartilham são variantes |
+| `variant` | o `flows.id` da variante — **a variante é o próprio fluxo**, então quem roda já sabe qual é |
+| `variant_version` | `flows.version` [M20]. É o que faz publicar uma variante nova **não** invalidar o histórico da anterior: a linha antiga guarda a versão sob a qual aquele número foi obtido |
+| `node_id` | **só no `_step`** — qual nó foi alcançado. A **ordem** das etapas não viaja no evento: quem ordena é o relatório, pela posição do nó em `flow.definition` |
+
+**A `dedup_key` desta família é `flow_ab:<flow_id>:<conversation_id>:<sufixo>`**, com sufixo
+`assigned`, `converted` ou `step:<node_id>`. Ela é passada **explicitamente** pela razão da §4.2, e
+aqui o dano tem nome: num A/B, conversão contada duas vezes **é a variante errada ganhando**, porque
+quem retenta mais é quem falhou mais. Medido removendo a linha e vendo o spec ficar vermelho nos dois
+sentidos — retry 30 s depois vira duas conversões, e duas etapas genuínas no mesmo segundo viram uma.
+
+**Consequência que é aceite, não efeito colateral:** o mesmo visitante que passa duas vezes pelo mesmo
+nó (uma retomada depois de um `wait`, um retry do job) conta **uma** vez. O denominador é
+*"visitantes que viram a variante"*, não *"vezes que o motor rodou"*.
+
+**Fluxo fora de experimento não emite nada** — que é o estado de toda a frota hoje. `experiment`
+ausente em `trigger_config` significa exatamente "nada muda".
+
 ---
 
 ## 3. Onde o evento é gravado
