@@ -13,6 +13,16 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
     render json: campaign_stats
   end
 
+  # 4.22 — a rampa. Cria o gatilho equivalente na inbox e desativa a campanha, numa
+  # transacao so: nunca as duas ligadas, e nunca nenhuma das duas por falha no meio.
+  def import_to_trigger
+    inbox = ::Widget::CampaignImportService.new(campaign: @campaign).perform
+    render json: { inbox_id: inbox.id, widget_triggers: inbox.additional_attributes['widget_triggers'],
+                   campaign: { id: @campaign.id, enabled: @campaign.reload.enabled } }
+  rescue ::Widget::CampaignImportService::NotImportable => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   # Carrega a lista (upload) de destinatarios na campanha de disparo.
   def recipients
     inserted = Campaigns::Whatsapp::ListLoaderService.new(campaign: @campaign, rows: recipient_rows).perform
