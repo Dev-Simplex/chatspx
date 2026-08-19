@@ -53,35 +53,40 @@ export const iniciar = async () => {
     vite.middlewares(request, response);
   });
 
-  // O Vite em middlewareMode transforma sob demanda. Sem aquecer, o PRIMEIRO
-  // `page.goto` paga sozinho a compilação do grafo inteiro do widget (dezenas de
-  // segundos) e estoura o timeout de navegação — o custo pertence ao boot, não à
-  // medição. Mesmo procedimento do harness oficial (`harness/widget-server.mjs`).
-  const aquecer = async entrada => {
-    const visitados = new Set();
-    const visitar = async url => {
-      if (!url || visitados.has(url)) return;
-      visitados.add(url);
-      try {
-        await vite.transformRequest(url);
-      } catch {
-        return; // asset estático / dependência externa: o browser também não transformaria
-      }
-      const no = await vite.moduleGraph.getModuleByUrl(url);
-      if (!no) return;
-      await Promise.all([...no.importedModules].map(filho => visitar(filho.url)));
-    };
-    await visitar(entrada);
-  };
-  await aquecer('/spec/e2e/widget/capture/mount.js');
+  // AQUECIMENTO DIRIGIDO — e a palavra "dirigido" custou uma medicao para chegar aqui.
+  //
+  // A primeira versao aquecia o grafo INTEIRO, andando por `importedModules` a partir do
+  // mount. Medido em 18/08/2026: **3.863 modulos e 235 s**, contra os 120 s de teto do
+  // projeto `widget` no Playwright — e o `beforeAll` estourava.
+  //
+  // A causa nao era o `createViteServer` (7,9 s dos 235) nem o `App.vue`: tirar o App.vue
+  // nao mudou UM modulo. O que explodia era o proprio `importedModules` do CSS — o Vite
+  // registra como dependencia do modulo de estilo TODO arquivo que o `content` do Tailwind
+  // varre, e a quebra por diretorio mostrou 2.621 modulos de `dashboard/` e dezenas de
+  // `.erb` de `app/views/**`. Andar por essas arestas era percorrer o projeto inteiro para
+  // medir a largura de um formulario.
+  //
+  // Aqui aquecemos so o que o navegador de fato pede primeiro: o modulo de entrada e o CSS.
+  // O resto o Vite transforma sob demanda, que e barato porque o grafo JS desta pagina tem
+  // dezenas de modulos, nao milhares.
+  await Promise.all(
+    [
+      '/spec/e2e/widget/capture/mount.js',
+      '/app/javascript/widget/wootStyles.harness.scss',
+    ].map(url => vite.transformRequest(url).catch(() => null))
+  );
 
-  await new Promise(resolve => servidor.listen(0, '127.0.0.1', resolve));
+  await new Promise(resolve => {
+    servidor.listen(0, '127.0.0.1', resolve);
+  });
   const { port } = servidor.address();
 
   return {
     url: `http://127.0.0.1:${port}/captura`,
     encerrar: async () => {
-      await new Promise(resolve => servidor.close(resolve));
+      await new Promise(resolve => {
+        servidor.close(resolve);
+      });
       await vite.close();
     },
   };

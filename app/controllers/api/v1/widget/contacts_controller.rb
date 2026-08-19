@@ -51,7 +51,10 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
     contact_identify_action = ContactIdentifyAction.new(
       contact: contact,
       params: permitted_params.to_h.deep_symbolize_keys,
-      discard_invalid_attrs: true
+      discard_invalid_attrs: true,
+      # Bloco 4.17: quem escreve daqui e o site. Atributo protegido so passa em sessao
+      # com assinatura conferida.
+      verified_origin: @contact_inbox&.hmac_verified?
     )
     @contact = contact_identify_action.perform
   end

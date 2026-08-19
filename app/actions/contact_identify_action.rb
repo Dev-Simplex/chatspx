@@ -9,8 +9,11 @@ class ContactIdentifyAction
   include UrlHelper
   # `identity_enforcement` (bloco 4.16) e o estado RESOLVIDO da inbox que originou a
   # chamada — `nil` para quem chama de fora do widget, e nil se comporta como hoje.
+  # `verified_origin` (bloco 4.17) diz se a sessao que originou a chamada teve a identidade
+  # conferida por assinatura. `nil` de quem chama de fora do widget — o painel do agente e a
+  # API de conta ja passaram por autenticacao propria, entao la o portao nao morde.
   pattr_initialize [:contact!, :params!, { retain_original_contact_name: false, discard_invalid_attrs: false,
-                                           identity_enforcement: nil }]
+                                           identity_enforcement: nil, verified_origin: true }]
 
   def perform
     @attributes_to_update = [:identifier, :name, :email, :phone_number]
@@ -173,10 +176,18 @@ class ContactIdentifyAction
     ).perform
   end
 
+  # Bloco 4.17: chave marcada como "exige origem verificada" nao e escrita por sessao sem
+  # assinatura conferida. A recusa e por chave: as demais do mesmo payload seguem gravando.
   def custom_attributes
     return @contact.custom_attributes if params[:custom_attributes].blank?
 
-    (@contact.custom_attributes || {}).deep_merge(params[:custom_attributes].stringify_keys)
+    permitidas = CustomAttributes::OriginGate.new(
+      account: account,
+      attribute_model: :contact_attribute,
+      verified: verified_origin
+    ).filter(params[:custom_attributes]).allowed
+
+    (@contact.custom_attributes || {}).deep_merge(permitidas)
   end
 
   def additional_attributes

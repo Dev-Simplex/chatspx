@@ -76,7 +76,10 @@ class CustomAttributes::AutoProvisionService
       attribute_display_name: key.tr('_.-', '   ').squish.upcase_first,
       attribute_display_type: display_type_for(value),
       attribute_model: @attribute_model,
-      attribute_description: I18n.t('custom_attributes.auto_provisioned.description')
+      attribute_description: I18n.t('custom_attributes.auto_provisioned.description'),
+      # Bloco 4.17: a origem passa a ser gravada em coluna. Antes o selo do 1.17 dependia
+      # de casar o texto da descricao, que o agente pode reescrever a qualquer momento.
+      origin: CustomAttributeDefinition::ORIGIN_WEBSITE
     )
   rescue ActiveRecord::RecordNotUnique
     # Corrida: outra requisicao commitou a mesma chave entre o nosso SELECT e o

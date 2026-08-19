@@ -43,6 +43,7 @@ import SelectInput from 'dashboard/components-next/select/Select.vue';
 import Banner from 'dashboard/components-next/banner/Banner.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 import AppearancePage from './widget/appearance/AppearancePage.vue';
+import TriggersPage from './widget/triggers/TriggersPage.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
@@ -83,6 +84,7 @@ export default {
     Widget,
     AccessToken,
     AppearancePage,
+    TriggersPage,
   },
   mixins: [inboxMixin],
   setup() {
@@ -211,6 +213,10 @@ export default {
           {
             key: 'appearance',
             name: this.$t('INBOX_WIDGET.TABS.APPEARANCE'),
+          },
+          {
+            key: 'triggers',
+            name: this.$t('INBOX_WIDGET.TRIGGERS.TAB'),
           },
           {
             key: 'pre-chat-form',
@@ -619,10 +625,13 @@ export default {
       // `history.replaceState`), então nenhum guard de rota a vê. A tela de
       // aparência mantém rascunho: perguntar antes é o que impede o
       // administrador de perder dez campos configurados num clique.
-      const appearance = this.$refs.appearancePage;
+      // Só UMA das telas de rascunho está montada por vez (cada uma tem o seu
+      // `v-if`), então a primeira que responder é a que está na tela.
+      const comRascunho = [this.$refs.appearancePage, this.$refs.triggersPage];
+      const atual = comRascunho.find(tela => tela?.requestLeave);
       if (
-        appearance?.requestLeave &&
-        !appearance.requestLeave(() => this.applyTabChange(selectedTabIndex))
+        atual &&
+        !atual.requestLeave(() => this.applyTabChange(selectedTabIndex))
       ) {
         return;
       }
@@ -1452,6 +1461,11 @@ export default {
         <AppearancePage
           v-if="selectedTabKey === 'appearance'"
           ref="appearancePage"
+          :inbox-id="currentInboxId"
+        />
+        <TriggersPage
+          v-if="selectedTabKey === 'triggers'"
+          ref="triggersPage"
           :inbox-id="currentInboxId"
         />
         <div v-if="selectedTabKey === 'pre-chat-form'">

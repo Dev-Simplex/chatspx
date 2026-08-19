@@ -1141,6 +1141,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
     t.jsonb "attribute_values", default: []
     t.string "regex_pattern"
     t.string "regex_cue"
+    t.string "origin"
+    t.boolean "requires_verified_origin"
+    t.index ["account_id", "attribute_model"], name: "index_cad_on_account_and_model_when_protected", where: "(requires_verified_origin IS TRUE)"
     t.index ["account_id"], name: "index_custom_attribute_definitions_on_account_id"
     t.index ["attribute_key", "attribute_model", "account_id"], name: "attribute_key_model_index", unique: true
   end
@@ -2132,6 +2135,46 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
     t.index ["name", "account_id"], name: "index_teams_on_name_and_account_id", unique: true
   end
 
+  create_table "tracking_deliveries", force: :cascade do |t|
+    t.bigint "tracking_event_id", null: false
+    t.integer "destination", null: false
+    t.integer "status", default: 0, null: false
+    t.integer "attempts", default: 0, null: false
+    t.integer "http_status"
+    t.string "error_code"
+    t.text "error_message"
+    t.jsonb "field_names", default: [], null: false
+    t.decimal "emq", precision: 3, scale: 1
+    t.datetime "last_attempted_at"
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_tracking_deliveries_on_status"
+    t.index ["tracking_event_id", "destination"], name: "index_tracking_deliveries_on_event_and_destination", unique: true
+  end
+
+  create_table "tracking_events", force: :cascade do |t|
+    t.string "event_id", null: false
+    t.string "name", null: false
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id"
+    t.bigint "conversation_id"
+    t.bigint "contact_id"
+    t.datetime "occurred_at", null: false
+    t.jsonb "properties", default: {}, null: false
+    t.integer "source", default: 0, null: false
+    t.string "dedup_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name", "dedup_key"], name: "index_tracking_events_on_dedup", unique: true
+    t.index ["account_id", "name", "occurred_at"], name: "index_tracking_events_on_account_name_time"
+    t.index ["contact_id"], name: "index_tracking_events_on_contact_id"
+    t.index ["conversation_id"], name: "index_tracking_events_on_conversation_id"
+    t.index ["event_id"], name: "index_tracking_events_on_event_id", unique: true
+    t.index ["inbox_id"], name: "index_tracking_events_on_inbox_id"
+    t.index ["occurred_at"], name: "index_tracking_events_on_occurred_at_brin", using: :brin
+  end
+
   create_table "user_sessions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "client_id", null: false
@@ -2332,6 +2375,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_18_150000) do
   add_foreign_key "scheduled_messages", "messages"
   add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id"
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
+  add_foreign_key "tracking_deliveries", "tracking_events", on_delete: :cascade
+  add_foreign_key "tracking_events", "accounts", on_delete: :cascade
+  add_foreign_key "tracking_events", "contacts", on_delete: :nullify
+  add_foreign_key "tracking_events", "conversations", on_delete: :nullify
+  add_foreign_key "tracking_events", "inboxes", on_delete: :nullify
   add_foreign_key "user_sessions", "users"
   add_foreign_key "widget_partial_leads", "accounts", on_delete: :cascade
   add_foreign_key "widget_partial_leads", "contacts", on_delete: :cascade

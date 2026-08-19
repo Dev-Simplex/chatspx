@@ -154,15 +154,38 @@ RSpec.describe CustomAttributeDefinition do
         .to be_auto_provisioned_from_website
     end
 
-    it 'para de valer se o agente reescrever a descricao — ele assumiu o atributo' do
+    # Bloco 4.17: a origem virou coluna, e com isso o selo passou a ser DURAVEL. Antes ele
+    # dependia de casar o texto da descricao, entao o agente que editasse a descricao
+    # apagava sem querer a informacao de onde o dado tinha vindo.
+    it 'sobrevive ao agente reescrever a descricao, porque a origem agora e coluna' do
       CustomAttributes::AutoProvisionService.new(
         account: account, attribute_model: :contact_attribute, custom_attributes: { 'carrinho_valor' => 4200 }
       ).perform
       found = account.custom_attribute_definitions.find_by(attribute_key: 'carrinho_valor')
+      expect(found.origin).to eq('website')
 
       found.update!(attribute_description: 'Valor do carrinho, conferido pelo time')
 
-      expect(found.reload).not_to be_auto_provisioned_from_website
+      expect(found.reload).to be_auto_provisioned_from_website
+    end
+
+    # As definicoes criadas ANTES da coluna existir continuam respondendo pela descricao —
+    # sem isso, o selo do 1.17 sumiria de toda linha antiga no dia da migration.
+    it 'ainda le a descricao na definicao anterior a coluna de origem' do
+      legada = definition('Recebido do site')
+      expect(legada.origin).to be_nil
+      expect(legada).to be_auto_provisioned_from_website
+
+      legada.update!(attribute_description: 'Escrito pelo time')
+
+      expect(legada.reload).not_to be_auto_provisioned_from_website
+    end
+
+    it 'origin agent vence a descricao: quem marcou como do agente nao carrega selo de site' do
+      cadastrada = definition('Recebido do site')
+      cadastrada.update!(origin: 'agent')
+
+      expect(cadastrada.reload).not_to be_auto_provisioned_from_website
     end
   end
 end

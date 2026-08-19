@@ -16,11 +16,12 @@ module.exports = defineConfig({
   testMatch: /captureWidth\.spec\.js/,
   fullyParallel: false,
   retries: 0,
-  // 600 s pelo MESMO motivo do config raiz: o Vite em middlewareMode compila o
-  // grafo do widget sob demanda, e em cache frio o aquecimento leva minutos. O
-  // teto e folga sobre o medido, nao custo fixo — com o cache quente o hook
-  // termina em segundos.
-  timeout: 600000,
+  // 120 s, o MESMO teto do projeto `widget` do config raiz — de propósito, para que este
+  // arquivo não passe aqui e falhe lá. Procedência do número: com o aquecimento dirigido
+  // (ver `harness.mjs`), medido em 18/08/2026 nesta máquina com outras trilhas ativas, o
+  // `beforeAll` leva **22,4 s** e o fluxo inteiro **33,2 s**. A folga é de ~3,5x sobre o
+  // medido. Se um dia estourar, o conserto é medir de novo — não subir o teto.
+  timeout: 120000,
   reporter: [['list']],
   use: {
     ...devices['Desktop Chrome'],
