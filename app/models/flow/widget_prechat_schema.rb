@@ -40,7 +40,11 @@ module Flow::WidgetPrechatSchema
     'utm' => {},              # {} => nao filtra por UTM
     'devices' => [],          # [] => qualquer dispositivo
     'business_hours_only' => false,
-    'priority' => 0           # desempate declarado pelo admin; maior vence
+    'priority' => 0,          # desempate declarado pelo admin; maior vence
+    # Bloco 6.05 — teste A/B. `nil` => o fluxo NAO participa de experimento nenhum, que e o
+    # estado de toda a frota: o desempate acima decide sozinho, como sempre decidiu, e
+    # nenhum evento de A/B e emitido. Contrato em Flow::AbExperiment.
+    'experiment' => nil
   }.freeze
 
   URL_CONDITION = {
@@ -62,7 +66,10 @@ module Flow::WidgetPrechatSchema
       'utm' => { 'type' => 'object', 'additionalProperties' => { 'type' => %w[string null] } },
       'devices' => { 'type' => 'array', 'items' => { 'type' => 'string', 'enum' => DEVICES } },
       'business_hours_only' => { 'type' => 'boolean' },
-      'priority' => { 'type' => 'integer', 'minimum' => -1000, 'maximum' => 1000 }
+      'priority' => { 'type' => 'integer', 'minimum' => -1000, 'maximum' => 1000 },
+      # 6.05 — duas variantes sao dois fluxos com a MESMA `experiment.key`. `null` e
+      # aceito de proposito: e como a tela desliga o experimento sem apagar a chave.
+      'experiment' => Flow::AbExperiment::SCHEMA
     },
     'additionalProperties' => true
   }.freeze
