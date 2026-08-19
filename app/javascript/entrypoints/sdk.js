@@ -79,7 +79,14 @@ const reportarErro = (nome, erro) => console.error(`[chatwoot] ${nome}:`, erro);
 const chamadaDeDados = (nome, validar, despachar) => {
   let promessa;
   try {
-    validar();
+    // `validar?.()` e nao `validar()`: METODO SEM VALIDACAO E CASO LEGITIMO — `setConsent` e
+    // `updateConsent` (5.09) nao tem o que validar, e passavam `undefined` aqui. O `validar()`
+    // cru lancava `TypeError` dentro do try, virava `Promise.reject`, e `enfileirar(despachar)`
+    // NUNCA era chamado: os dois metodos rejeitavam sempre e o consentimento nunca era publicado.
+    // Medido em navegador: `setConsent({analytics_storage:'granted'})` deixava o estado em
+    // `denied` e o `dataLayer` sem nenhuma entrada de consent. Um site com CMP que aceita ficava
+    // com a medicao inteira desligada, em silencio.
+    validar?.();
     promessa = enfileirar(despachar, nome);
   } catch (erro) {
     promessa = Promise.reject(erro);

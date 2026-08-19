@@ -28,6 +28,10 @@ O trecho já vem pronto com o endereço do servidor e o token público do site. 
 **Como saber que funcionou:** abra o site, abra o console do navegador e digite `window.$chatwoot`.
 Se aparecer um objeto, está instalado.
 
+> **Usa WordPress, Wix ou Google Tag Manager?** O lugar exato onde colar — e a armadilha de cada
+> plataforma, que faz a instalação parecer certa e não funcionar — está em
+> [`instalacao-por-plataforma.md`](./instalacao-por-plataforma.md).
+
 ### 1.1 Ajustar pelo próprio site (opcional)
 
 Antes do trecho, você pode definir `window.chatwootSettings`. O que estiver aí **vence** o que está
@@ -221,4 +225,4 @@ vigente, mesmo sem poder mudá-la ali.
 | campos e tipos de cada evento | [`contrato-de-eventos.md`](./contrato-de-eventos.md) |
 | guardar token da Meta / API Secret do GA4 | bloco **5.02** (cofre cifrado) |
 | leitura do log de entregas na tela | bloco **5.14** |
-| instalação em WordPress, Wix e GTM, passo a passo | bloco **5.22** |
+| instalação em WordPress, Wix e GTM, passo a passo | [`instalacao-por-plataforma.md`](./instalacao-por-plataforma.md) |
