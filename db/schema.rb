@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_150000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1144,6 +1144,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.datetime "encerrado_em"
     t.jsonb "policy_snapshot", default: {}, null: false
     t.string "vista_negocio_codigo"
+    t.integer "repasse_n", default: 0, null: false
     t.index ["conversation_id"], name: "index_distribuicao_logs_on_conversation_id"
     t.index ["status", "designado_em"], name: "index_distribuicao_logs_on_status_and_designado_em"
   end
@@ -1163,6 +1164,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.boolean "espelho_vista", default: false, null: false
     t.jsonb "vista_padrao", default: {}, null: false
     t.integer "sla_assumir_minutos", default: 30, null: false
+    t.boolean "repasse_automatico", default: false, null: false
+    t.integer "max_repasses", default: 2, null: false
+    t.bigint "pool_esgotado_destino_user_id"
+    t.boolean "gatilho_sem_ia", default: false, null: false
     t.index ["account_id", "team_id"], name: "index_distribuicao_policies_on_account_id_and_team_id", unique: true
   end
 

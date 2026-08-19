@@ -9,7 +9,16 @@ module Spx
       belongs_to :account
       belongs_to :team
 
-      MODOS = %w[rodizio online off].freeze
+      # rodizio — push: o Motor escolhe a pessoa e (conforme modo_posse) atribui ou designa.
+      # fila    — pull: o Motor NÃO escolhe ninguém; a conversa fica sem dono na aba
+      #           "Aguardando atendimento" e o primeiro que puxar leva. Existe como MODO (e não
+      #           só como "não configurar política") para que a fila também tenha relógio: abre
+      #           uma designação sem `chosen_user_id`, e é isso que dá ao pull o mesmo
+      #           `sla_assumir_minutos` e a mesma escalação do push. Sem ninguém para quem
+      #           repassar, o vencimento de uma fila escala direto ao destino de pool esgotado.
+      # online  — reservado (F2 da MOTOR-DISTRIBUICAO): distribuir só a quem está online.
+      # off     — no-op explícito.
+      MODOS = %w[rodizio fila online off].freeze
       # Quem fica com a POSSE da conversa depois que o Motor escolhe alguém:
       #   assignee   — atribui o humano (o espelho captain cai pelo callback de
       #                exclusividade e a IA cala). É o comportamento de sempre.
@@ -20,6 +29,12 @@ module Spx
       validates :modo, inclusion: { in: MODOS }
       validates :modo_posse, inclusion: { in: MODOS_POSSE }
       validates :team_id, uniqueness: { scope: :account_id }
+      validates :sla_assumir_minutos, numericality: { greater_than: 0 }
+      # 0 = repassa indefinidamente enquanto houver pool. O teto existe para o caso oposto:
+      # rodar o pool inteiro num lead que ninguém quer é ruído para todo mundo.
+      validates :max_repasses, numericality: { greater_than_or_equal_to: 0 }
+
+      belongs_to :pool_esgotado_destino, class_name: 'User', optional: true
 
       scope :ativas, -> { where(ativo: true) }
 
@@ -37,6 +52,26 @@ module Spx
 
       def designacao?
         modo_posse == 'designacao'
+      end
+
+      def fila?
+        modo == 'fila'
+      end
+
+      # O Motor só age nestes modos. `online` e `off` seguem no-op.
+      def distribui?
+        %w[rodizio fila].include?(modo)
+      end
+
+      # A AÇÃO de repasse. Desligado (default), `sla_assumir_minutos` continua sendo apenas a
+      # medida que a tela do gestor lê — o comportamento de quem já está no ar.
+      def repassa?
+        ativo? && repasse_automatico?
+      end
+
+      # Teto de repasses atingido? `max_repasses` zero = sem teto.
+      def esgotou_repasses?(repasse_n)
+        max_repasses.to_i.positive? && repasse_n.to_i >= max_repasses.to_i
       end
     end
   end
