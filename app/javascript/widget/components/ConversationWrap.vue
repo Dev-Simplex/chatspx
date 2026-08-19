@@ -7,6 +7,7 @@ import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import { useDarkMode } from 'widget/composables/useDarkMode';
 import { calcularAgrupamento } from 'widget/composables/useMessageGrouping';
+import { comportamentoDeRolagem } from 'widget/composables/useReducedMotion';
 import { MESSAGE_TYPE } from 'shared/constants/messages';
 import AiHandoffMark from 'widget/components/AiHandoffMark.vue';
 import { annotateHandoffs } from 'widget/helpers/aiIdentity';
@@ -216,7 +217,15 @@ export default {
       const elemento = this.$refs.rolagem;
       if (!elemento) return;
       this.previousScrollHeight = 0;
-      elemento.scrollTo({ top: elemento.scrollHeight, behavior: 'smooth' });
+      // Bloco 2.08. O DESTINO é o mesmo nas duas preferências — o fim da lista,
+      // que é o que o visitante pediu ao clicar. O que a preferência muda é só
+      // o percurso: `smooth` percorre, `auto` salta. Trocar isto por "não
+      // rolar" seria ler `prefers-reduced-motion` como "cancele a ação", e aí o
+      // botão simplesmente não funcionaria para quem tem a preferência ligada.
+      elemento.scrollTo({
+        top: elemento.scrollHeight,
+        behavior: comportamentoDeRolagem(),
+      });
       this.estaNoFim = true;
       this.naoLidasAbaixo = 0;
     },
@@ -423,6 +432,35 @@ export default {
     mask-repeat: repeat;
   }
 
+  // ── `forced-colors` — bloco 2.08 ───────────────────────────────────────────
+  //
+  // No modo de alto contraste do sistema, o visitante ESCOLHEU um par de cores
+  // e o navegador substitui as nossas. A textura não sobrevive a isso de forma
+  // útil: a máscara continua recortando, mas a tinta vira uma cor do sistema —
+  // o rabisco passa a competir com o texto na mesma cor dele, que é exatamente
+  // o ruído que o modo existe para eliminar.
+  //
+  // Isto é uma linha porque a textura virou máscara no 2.04. Com os dois PNG
+  // antigos seria preciso desenhar um terceiro arquivo, ou conviver com o
+  // ruído.
+  @media (forced-colors: active) {
+    &::before {
+      display: none;
+    }
+  }
+
+  // ── `prefers-contrast: more` — bloco 2.08 ──────────────────────────────────
+  //
+  // Aqui o sistema NÃO troca as cores; quem decide somos nós, e o pedido é
+  // "separe mais as coisas". A textura é a primeira a ceder: ela é decoração
+  // sobre a superfície onde o texto vive, e reduzir o ruído de fundo aumenta a
+  // separação entre o texto e o que está atrás dele sem mexer em cor nenhuma.
+  @media (prefers-contrast: more) {
+    &::before {
+      opacity: 0;
+    }
+  }
+
   &.light-scheme {
     color-scheme: light;
   }
@@ -446,6 +484,41 @@ export default {
 
 .conversation--descer {
   @apply absolute z-10 ltr:right-3 rtl:left-3 bottom-3;
+
+  // ── Movimento, bloco 2.08 ──────────────────────────────────────────────────
+  //
+  // O botão entra quando o visitante sobe e sai quando ele volta ao fim. Sem
+  // percurso ele PISCA — aparece e some no meio de um gesto de rolagem, que é o
+  // momento em que a tela já está se mexendo. O movimento aqui não é enfeite:
+  // ele diz de onde o botão veio (de baixo, que é para onde ele leva).
+  animation: conversa-descer-entra 160ms ease-out;
+}
+
+@keyframes conversa-descer-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ── `prefers-reduced-motion` — bloco 2.08 ────────────────────────────────────
+//
+// O ESTADO FINAL é o mesmo: o botão visível, opaco, na posição de repouso. O
+// que sai é o percurso até ele.
+//
+// `animation: none` faria isso aqui por acidente — o estado final desta
+// animação por acaso coincide com o estado natural do elemento. Mas escrever
+// `duration: 0s` é o que continua correto quando a animação NÃO termina no
+// estado natural, e é a forma que não vira armadilha para quem editar depois.
+// Um teste que só verifica `animation: none` passaria com o botão invisível.
+@media (prefers-reduced-motion: reduce) {
+  .conversation--descer {
+    animation-duration: 0s;
+  }
 }
 
 .message--loader {

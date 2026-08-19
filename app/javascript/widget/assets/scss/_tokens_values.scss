@@ -346,11 +346,27 @@
   --w-texture-ink: 0 0 0;
   --w-texture-opacity: 0.11; // traço (213,213,216) = 1,283:1
   --w-texture-size: 400px;
+
+  // Bloco 2.08. No claro a borda do balão não desenha (o par branco ×
+  // (240,240,243) basta para o desenho padrão), mas ele mede 1,14:1 — abaixo de
+  // 1.4.11. Sob `prefers-contrast: more` o visitante pediu a aresta, e ela sai
+  // no cinza mais próximo da superfície que ainda cumpre 3:1: #8a8a8a = 3,04:1.
+  @media (prefers-contrast: more) {
+    --w-bubble-border: #8a8a8a;
+  }
 }
 
 @mixin widget-surface-dark {
   --w-texture-ink: 255 255 255;
   --w-texture-opacity: 0.075; // traço (50,51,53) = 1,251:1
+
+  // Bloco 2.08: sob `prefers-contrast: more` a borda do escuro sobe para o
+  // cinza mais próximo da superfície que ainda dá 3:1 — #6c6c6c mede 3,03:1
+  // sobre (33,34,37). O par claro está em `views/_conversation.scss`, junto da
+  // regra que o consome; este fica aqui porque só o escuro declara o token.
+  @media (prefers-contrast: more) {
+    --w-bubble-border: #6c6c6c;
+  }
 
   // A BORDA DO BALÃO, e por que ela só existe no escuro.
   //

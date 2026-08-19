@@ -77,7 +77,29 @@ const medir = frame =>
   frame.locator('.conversation--container').evaluate(container => {
     const balao = container.querySelector('.chat-bubble.agent');
     const estiloBalao = getComputedStyle(balao);
+    const lista = container.querySelector('.conversation-wrap');
+    const estiloLista = getComputedStyle(lista);
+    const pilula = container.querySelector('.w-date-separator__pilula');
+    const caixaPilula = pilula.getBoundingClientRect();
     return {
+      // ── As três mudanças que os snapshots do 2.04 registram ───────────────
+      // Elas estão aqui porque baseline defendida só por imagem depende de
+      // alguém olhar; defendida por medição, se defende sozinha. Cada uma tem
+      // o seu exame lá embaixo.
+      padding: [
+        estiloLista.paddingTop,
+        estiloLista.paddingLeft,
+        estiloLista.paddingRight,
+        estiloLista.paddingBottom,
+      ],
+      pilula: {
+        raio: getComputedStyle(pilula).borderRadius,
+        altura: Math.round(caixaPilula.height),
+        largura: Math.round(caixaPilula.width),
+        fundo: getComputedStyle(pilula).backgroundColor,
+        alturaDaLinha: getComputedStyle(pilula).lineHeight,
+        etiqueta: pilula.tagName,
+      },
       superficie: getComputedStyle(container).backgroundColor,
       balao: estiloBalao.backgroundColor,
       sombraDoBalao: estiloBalao.boxShadow,
@@ -195,4 +217,75 @@ const TETO_DO_TRACO = 1.3;
         `o teto de "leve" é ${TETO_DO_TRACO}:1`
     ).toBeLessThanOrEqual(TETO_DO_TRACO);
   });
+});
+
+// ── CONDIÇÃO 1 DA REGRAVAÇÃO DOS 8 SNAPSHOTS ─────────────────────────────────
+//
+// Os 8 baselines de `messages` e `rich-types` mudaram por TRÊS causas, e só
+// três. Enquanto elas viviam apenas na imagem, "a mudança é a esperada" era
+// palavra de quem regravou. Aqui cada uma vira número, medido do app montado.
+//
+// A quarta causa — a intensidade da textura — já tem o seu exame acima, e foi
+// justamente ela que apareceu ERRADA quando se olhou os PNG.
+
+test('2.04 — a lista pinta a superfície tokenizada, não o fundo antigo', async ({
+  page,
+}) => {
+  // CAUSA 1 dos snapshots. Antes: branco quase puro no claro e quase preto no
+  // escuro, vindos de um `background-image` com véu. Agora `--w-surface-sunken`,
+  // que sai de `--slate-3` e resolve sozinha nos dois temas.
+  const claro = await medir(await abrir(page, 'light'));
+  const escuro = await medir(await abrir(page, 'dark'));
+
+  expect(claro.superficie).toBe('rgb(240, 240, 243)');
+  expect(escuro.superficie).toBe('rgb(33, 34, 37)');
+});
+
+['light', 'dark'].forEach(tema => {
+  test(`2.04 — o separador é uma PÍLULA, e sem altura fixa (${tema})`, async ({
+    page,
+  }) => {
+    // CAUSA 2. O separador compartilhado desenhava a data solta entre duas
+    // linhas horizontais, com `h-[50px] leading-[50px]` — altura fixa em
+    // elemento com texto, que é o que quebra quando o visitante aumenta a fonte
+    // do navegador.
+    const m = await medir(await abrir(page, tema));
+    // eslint-disable-next-line no-console
+    console.log(
+      `[pílula ${tema}] ${m.pilula.largura}×${m.pilula.altura} ` +
+        `raio=${m.pilula.raio} fundo=${m.pilula.fundo} ` +
+        `line-height=${m.pilula.alturaDaLinha} <${m.pilula.etiqueta}>`
+    );
+
+    // Pílula: o raio é maior que a metade da altura, que é a definição
+    // geométrica de "as pontas são semicírculos". Verificar `border-radius:
+    // 9999px` seria verificar a escrita; isto verifica a forma.
+    const raio = Number.parseFloat(m.pilula.raio);
+    expect(raio).toBeGreaterThanOrEqual(m.pilula.altura / 2);
+    // Fundo próprio — sem ele a "pílula" seria só texto centralizado.
+    expect(m.pilula.fundo).not.toBe('rgba(0, 0, 0, 0)');
+    // E a altura fixa de 50 px se foi, junto com o `line-height` que a
+    // acompanhava. A caixa agora é o texto mais o padding.
+    expect(m.pilula.altura).toBeLessThan(50);
+    expect(m.pilula.alturaDaLinha).not.toBe('50px');
+    // `<time>`, porque é data: o leitor de tela anuncia como etiqueta em vez de
+    // parágrafo solto no meio da conversa.
+    expect(m.pilula.etiqueta).toBe('TIME');
+  });
+});
+
+test('2.04 — o padding da lista é 16/12/8, e não o 32/8/8 de antes', async ({
+  page,
+}) => {
+  // CAUSA 3, e a que desloca TODAS as linhas verticalmente nos 8 baselines —
+  // por isso o diff parece maior do que a mudança é.
+  const m = await medir(await abrir(page, 'light'));
+  // eslint-disable-next-line no-console
+  console.log(`[padding] ${m.padding.join(' / ')}`);
+
+  const [topo, esquerda, direita, base] = m.padding;
+  expect(topo).toBe('16px');
+  expect(esquerda).toBe('12px');
+  expect(direita).toBe('12px');
+  expect(base).toBe('8px');
 });
