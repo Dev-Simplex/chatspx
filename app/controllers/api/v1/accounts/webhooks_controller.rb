@@ -23,6 +23,10 @@ class Api::V1::Accounts::WebhooksController < Api::V1::Accounts::BaseController
   private
 
   def webhook_params
+    # `:inbox_id` ja era permitido; o que faltava era ele SIGNIFICAR alguma coisa na
+    # entrega (bloco 4.13). `:webhook_type` segue de fora de proposito: o tipo passou a ser
+    # irrelevante para a entrega, e deixar a tela grava-lo so recriaria o modo de falha em
+    # que um webhook some da entrega sem ninguem entender por que.
     params.require(:webhook).permit(:inbox_id, :name, :url, subscriptions: [])
   end
 

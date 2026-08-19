@@ -114,6 +114,7 @@ en:
     validations:
       presence: must not be blank
     webhook:
+      inbox_not_in_account: "does not belong to this account"
       invalid: Invalid events
     signup:
       disposable_email: We do not allow disposable emails
