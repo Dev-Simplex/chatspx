@@ -757,6 +757,10 @@
         "GENERIC": {
           "TITLE": "Não consegui responder",
           "BODY": "Algo travou no caminho até o serviço de IA. Tente de novo; se continuar, avise quem administra a conta."
+        },
+        "NO_ASSISTANT": {
+          "TITLE": "Nenhum agente configurado",
+          "BODY": "Esta conta ainda não tem um agente de IA, então não consigo abrir uma conversa. Quem administra a conta pode criar um em Agentes IA."
         }
       },
       "QUICK_PROMPTS": {
@@ -964,7 +968,8 @@
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Pedidos do Shopify",
       "KANBAN_STATUS": "Situação no Kanban",
-      "GROUP_PARTICIPANTS": "Integrantes do grupo"
+      "GROUP_PARTICIPANTS": "Integrantes do grupo",
+      "SHARED_FILES": "Anexos"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Não está em nenhum funil",
@@ -1045,6 +1050,18 @@
         "PARTIALLY_FULFILLED": "Parcialmente Concluído",
         "UNFULFILLED": "Não concluído"
       }
+    },
+    "SHARED_FILES": {
+      "DOWNLOAD": "Baixar arquivo",
+      "DOWNLOAD_ERROR": "Não foi possível baixar o arquivo. Por favor, tente novamente.",
+      "EMPTY": "Nenhum anexo ainda",
+      "FILES_HEADING": "Arquivos",
+      "JUMP_TO_MESSAGE": "Ir para mensagem",
+      "MEDIA_HEADING": "Mídia",
+      "MORE_COUNT": "+{count}",
+      "SHOW_LESS": "Mostrar menos",
+      "UNTITLED_FILE": "Arquivo sem nome",
+      "VIEW_ALL": "Visualizar tudo"
     }
   },
   "CONVERSATION_CUSTOM_ATTRIBUTES": {
@@ -1122,150 +1139,6 @@
     "CONFIRM": "Quero conhecer",
     "DISMISS": "Mais tarde",
     "TOAST_CONFIRMED": "Beleza! O Copilot fica sempre nesse botão"
-  },
-  "COPILOT_ERRORS": {
-    "PRIVATE_MODE": "Modo privado: IA desativada para evitar vazamento da nota interna",
-    "CTA_RETRY": "Tentar de novo",
-    "CTA_DISMISS": "Fechar",
-    "RATE_LIMIT": {
-      "TITLE": "Muitas solicitações",
-      "BODY": "Aguarde {seconds}s e tente outra vez",
-      "CTA_COUNTDOWN": "Aguarde {seconds}s"
-    },
-    "CAPTAIN_UNSTABLE": {
-      "TITLE": "Copilot indisponível",
-      "BODY": "Tente de novo em alguns minutos"
-    },
-    "TIMEOUT": {
-      "TITLE": "Demorando mais que o normal",
-      "BODY": "A resposta está demorando. Você pode esperar ou cancelar.",
-      "CTA_PRIMARY": "Continuar esperando",
-      "CTA_CANCEL": "Cancelar"
-    },
-    "EMPTY_RESPONSE": {
-      "TITLE": "Não recebi resposta válida",
-      "BODY": "Algo deu errado no Copilot. Quer tentar gerar de novo?"
-    },
-    "NETWORK": {
-      "TITLE": "Sem conexão",
-      "BODY": "Verifique sua internet e tente de novo"
-    }
-  },
-  "AI_ASSISTANT_PANEL": {
-    "TITLE": "Copilot",
-    "CLOSE": "Fechar painel",
-    "SEND": "Enviar pergunta",
-    "LOADING": "Gerando resposta...",
-    "STREAM_COMPLETE": "Resposta gerada",
-    "HISTORY_LABEL": "Histórico do Copilot",
-    "EMPTY": {
-      "GREETING_EMOJI": "👋 ",
-      "GREETING_NAMED": "Olá, {name}! Como posso ajudar?",
-      "GREETING_GENERIC": "Olá! Como posso ajudar?",
-      "SUBTITLE": "Escolha uma ação rápida ou pergunte algo direto."
-    },
-    "SECTIONS": {
-      "UNDERSTAND": "ENTENDER A CONVERSA",
-      "REWRITE": "AJUSTAR MINHA RESPOSTA",
-      "CREATE": "CRIAR RESPOSTA"
-    },
-    "PROMPTS": {
-      "SENTIMENT": {
-        "LABEL": "Analisar tom do cliente",
-        "DESCRIPTION": "Analiso o tom do cliente"
-      },
-      "SUMMARIZE": {
-        "LABEL": "Resumir esta conversa",
-        "DESCRIPTION": "Vê os pontos principais"
-      },
-      "REPLY_SUGGESTION": {
-        "LABEL": "Sugerir uma resposta",
-        "DESCRIPTION": "Crio um rascunho pra você"
-      }
-    },
-    "TEXTAREA": {
-      "PLACEHOLDER": "Pergunte ou peça algo (ex: \"resuma os últimos pedidos\")",
-      "HINT": "Enter envia · Shift+Enter quebra linha"
-    },
-    "ACTIONS": {
-      "COPY": "Copiar",
-      "APPLY": "Usar no composer",
-      "RETRY": "Gerar outra",
-      "CANCEL": "Cancelar",
-      "FEEDBACK_GOOD": "Resposta útil",
-      "FEEDBACK_BAD": "Resposta ruim",
-      "COPIED_TOAST": "Copiado para a área de transferência",
-      "APPLIED_TOAST": "Resposta aplicada no composer",
-      "COPY_FAILED": "Não consegui copiar"
-    },
-    "EDGE_CASES": {
-      "EMPTY_CONVERSATION_TITLE": "Cliente novo, conversa começando.",
-      "EMPTY_CONVERSATION_BODY": "Quando tiver mensagens, posso resumir, analisar tom ou sugerir respostas.",
-      "PRIVATE_MODE_TITLE": "Modo nota privada",
-      "PRIVATE_MODE_BODY": "O conteúdo não vai pro Copilot pra evitar vazamento. Volte pra \"Resposta\" pra usar a IA.",
-      "WHATSAPP_EXPIRED_TITLE": "WhatsApp desconectado",
-      "WHATSAPP_EXPIRED_BODY": "Algumas ações ficam indisponíveis até reconectar a sessão.",
-      "LONG_CONVERSATION_HINT": "Considero as últimas 50 mensagens"
-    },
-    "TOAST": {
-      "COPIED": "Copiado para a área de transferência",
-      "APPLIED": "Resposta aplicada no composer",
-      "COPY_FAILED": "Não consegui copiar",
-      "FEEDBACK_SAVED": "Feedback registrado, valeu!",
-      "PRIVATE_MODE_BLOCKED": "Modo nota privada — Copilot indisponível"
-    },
-    "TOUR": {
-      "NEXT": "Próximo",
-      "SKIP": "Pular tour",
-      "FINISH": "Entendi, fechar",
-      "CLOSE": "Fechar tour",
-      "SKIP_TOAST": "Pode chamar o tour quando quiser nas configurações da conta.",
-      "STEP_LABEL": "Passo {current} de {total}: {title}",
-      "STEP_1": {
-        "TITLE": "Tudo começa aqui",
-        "BODY": "Esse é o seu atalho de IA, no botão sparkles do composer. Toda vez que precisar ajustar uma resposta ou pedir uma sugestão, é só clicar."
-      },
-      "STEP_2": {
-        "TITLE": "Use os atalhos rápidos",
-        "BODY": "São ações prontas em pt-BR. Passe o mouse pra ver o que cada uma faz antes de clicar."
-      },
-      "STEP_3": {
-        "TITLE": "Revise antes de enviar",
-        "BODY": "A IA gera, mas quem decide é você. Use, edite ou descarte — o cliente só recebe quando você apertar Enviar."
-      },
-      "STEP_4": {
-        "TITLE": "Painel lateral pro que precisar",
-        "BODY": "Conversa longa? Cliente complicado? Abra o painel pelo botão Copilot do header e converse com a IA direto. Atalho: Ctrl+J."
-      }
-    },
-    "SMART_BANNER": {
-      "DISMISS_TOOLTIP": "Dispensar",
-      "DISMISSED_TOAST": "Ok, não mostro mais nessa conversa",
-      "LONG_THREAD": {
-        "BODY": "Conversa longa ({count} msgs). Quer um resumo?",
-        "CTA": "Resumir agora"
-      },
-      "SENTIMENT": {
-        "BODY": "Parece que o cliente está frustrado. Quer ajuda pra responder com empatia?",
-        "CTA": "Sugerir resposta"
-      },
-      "WAITING": {
-        "BODY": "Cliente aguardando há {minutes} min. Posso preparar uma resposta rápida?",
-        "CTA": "Resposta rápida"
-      }
-    },
-    "SUGGESTION_CHIP": {
-      "HEADER": "Sugestão do Copilot",
-      "SUBTITLE": "Revise antes de enviar",
-      "USE": "Usar essa",
-      "EDIT": "Editar",
-      "DISCARD": "Descartar",
-      "EDIT_TOOLTIP": "Coloca no campo e seleciona tudo pra você ajustar",
-      "DISCARD_TOOLTIP": "Apaga a sugestão (Esc)",
-      "USED_TOAST": "Pronto, é só revisar e enviar",
-      "EDIT_TOAST": "Sugestão pronta pra editar",
-      "DISCARDED_TOAST": "Sugestão descartada"
-    }
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Não foi possível baixar o anexo. Por favor, tente novamente",

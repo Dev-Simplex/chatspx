@@ -6,6 +6,10 @@ import ReportsAPI from 'dashboard/api/reports';
 // Bloco 1.22 — a tela nao pode mentir em dois pontos:
 //   1. conversa sem origem = "origem nao disponivel", NUNCA "origem direta";
 //   2. periodo anterior a medicao = rotulado e contado, NUNCA vazio nem zerado.
+vi.mock('lottie-web', () => ({
+  default: { loadAnimation: vi.fn(() => ({ destroy: vi.fn() })) },
+}));
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: key => key }),
 }));

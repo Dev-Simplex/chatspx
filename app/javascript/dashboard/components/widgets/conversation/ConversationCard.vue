@@ -20,7 +20,7 @@ import VoiceCallStatus from './VoiceCallStatus.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
-  currentContact: { type: Object, required: true },
+  currentContact: { type: Object, default: null },
   assignee: { type: Object, default: () => ({}) },
   inbox: { type: Object, default: () => ({}) },
   selected: { type: Boolean, default: false },
@@ -40,12 +40,84 @@ const emit = defineEmits([
 
 const hovered = ref(false);
 const currentUser = useMapGetter('getCurrentUser');
+const getContactById = useMapGetter('contacts/getContact');
+const selectedChat = useMapGetter('getSelectedChat');
+const getInboxById = useMapGetter('inboxes/getInbox');
+const inboxesList = useMapGetter('inboxes/getInboxes');
+const selectedInbox = useMapGetter('getSelectedInbox');
 const { t } = useI18n();
 const { isMessageRestricted } = useAgentIsolation();
 
 const unreadCount = computed(() => props.chat.unread_count || 0);
 const hasUnread = computed(() => unreadCount.value > 0);
 const chatMetadata = computed(() => props.chat.meta || {});
+
+// Quem renderiza o card passa so `:chat` (ConversationItem e ContactConversations).
+// A prop `currentContact` existe como override — sem ela, o contato sai da propria
+// conversa e cai num objeto vazio nomeado, nunca em undefined: o template le
+// `.name` direto, e um undefined aqui derruba a lista inteira no render.
+const resolvedContact = computed(() => {
+  if (props.currentContact) return props.currentContact;
+
+  const raw =
+    props.chat.contact ||
+    chatMetadata.value.contact ||
+    chatMetadata.value.sender ||
+    props.chat.sender ||
+    props.chat.meta?.sender;
+
+  if (!raw)
+    return {
+      id: null,
+      name: 'Unknown',
+      thumbnail: '',
+      availability_status: 'offline',
+    };
+
+  const id = raw.id || null;
+  const storeContact = id ? getContactById.value(id) : null;
+
+  return {
+    id,
+    name: storeContact?.name || raw.name || raw.full_name || 'Unknown',
+    thumbnail:
+      storeContact?.thumbnail ||
+      raw.thumbnail ||
+      raw.avatar_url ||
+      raw.avatar ||
+      raw.profile_image_url ||
+      '',
+    availability_status:
+      storeContact?.availability_status || raw.availability_status || 'offline',
+  };
+});
+
+// Mesma historia de `resolvedContact`: estes quatro eram computed antes de virarem
+// prop, e nenhum pai os passa. Com o default vazio o card nao quebra — apenas some
+// com o chip de IA, o nome do responsavel, o nome da caixa e o destaque da conversa
+// aberta, tudo em silencio. E `inbox` alimenta `isMessageRestricted`, o isolamento
+// por agente. As props seguem valendo como override (os specs usam).
+const resolvedAssignee = computed(() =>
+  props.assignee && Object.keys(props.assignee).length
+    ? props.assignee
+    : chatMetadata.value.assignee || {}
+);
+
+const resolvedInbox = computed(() =>
+  props.inbox && Object.keys(props.inbox).length
+    ? props.inbox
+    : getInboxById.value(props.chat.inbox_id) || {}
+);
+
+const resolvedIsActiveChat = computed(
+  () => props.isActiveChat || selectedChat.value?.id === props.chat.id
+);
+
+const resolvedShowInboxName = computed(
+  () =>
+    props.showInboxName ||
+    (!selectedInbox.value && (inboxesList.value?.length || 0) > 1)
+);
 
 const hasValidContent = message => {
   if (!message) return false;
@@ -70,7 +142,8 @@ const lastMessageInChat = computed(() => {
 
 const previewMessage = computed(() => {
   const message = lastMessageInChat.value;
-  if (!message || !isMessageRestricted(message, props.inbox)) return message;
+  if (!message || !isMessageRestricted(message, resolvedInbox.value))
+    return message;
 
   // ChatSPX (A4-5): o merge deixou só o cadeado. Sem o texto, o agente vê um 🔒 solto e não sabe
   // se a conversa está vazia ou restrita a outro agente. A chave já existe e está traduzida.
@@ -92,20 +165,20 @@ const voiceCallData = computed(() => {
 
 const isAIAssignee = computed(
   () =>
-    props.assignee?.type === 'agent_bot' ||
+    resolvedAssignee.value?.type === 'agent_bot' ||
     chatMetadata.value.assignee_type === 'AgentBot'
 );
 
 const aiChipStyle = computed(() =>
-  isAIAssignee.value && props.assignee?.id
-    ? aiAccentVars(props.assignee.id)
+  isAIAssignee.value && resolvedAssignee.value?.id
+    ? aiAccentVars(resolvedAssignee.value.id)
     : {}
 );
 
 const isUnattendedAndMine = computed(() => {
   const waitingSince =
     props.chat.waiting_since ?? chatMetadata.value.waiting_since ?? 0;
-  const assigneeId = props.assignee?.id;
+  const assigneeId = resolvedAssignee.value?.id;
 
   return Boolean(
     Number(waitingSince) > 0 &&
@@ -118,14 +191,14 @@ const isUnattendedAndMine = computed(() => {
 
 const showMetaSection = computed(
   () =>
-    props.showInboxName ||
-    (props.showAssignee && props.assignee.name) ||
+    resolvedShowInboxName.value ||
+    (props.showAssignee && resolvedAssignee.value.name) ||
     isAIAssignee.value ||
     props.chat.priority
 );
 
 const hasSlaPolicyId = computed(
-  () => props.chat?.applied_sla?.id && !props.currentContact?.blocked
+  () => props.chat?.applied_sla?.id && !resolvedContact.value?.blocked
 );
 
 const showLabelsSection = computed(
@@ -148,9 +221,9 @@ const onThumbnailLeave = () => {
 
 const onSelectConversation = checked => {
   if (checked) {
-    emit('selectConversation', props.chat.id, props.inbox.id);
+    emit('selectConversation', props.chat.id, resolvedInbox.value?.id);
   } else {
-    emit('deSelectConversation', props.chat.id, props.inbox.id);
+    emit('deSelectConversation', props.chat.id, resolvedInbox.value?.id);
   }
 };
 
@@ -172,14 +245,17 @@ watch(
     class="icon-animated relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full py-0 cursor-pointer conversation border-b border-n-slate-3 hover:border-n-surface-1 hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group hover:z-[1] before:content-[none] before:absolute before:-top-px before:inset-x-0 before:h-px before:bg-n-surface-1 before:pointer-events-none hover:before:content-['']"
     :class="{
       'active animate-card-select bg-n-background !border-n-surface-1':
-        isActiveChat,
+        resolvedIsActiveChat,
       'selected bg-n-slate-2 !border-n-surface-1': selected,
       'px-0': compact,
       'px-3': !compact,
       'ltr:border-l-2 rtl:border-r-2 !border-n-amber-7 bg-n-amber-5/25 ring-1 ring-n-amber-6/50 ring-inset animate-sidebar-attention motion-reduce:animate-none':
-        isUnattendedAndMine && !isActiveChat && !selected,
+        isUnattendedAndMine && !resolvedIsActiveChat && !selected,
       'ltr:border-l-2 rtl:border-r-2 !border-n-violet-7 bg-n-violet-3/40':
-        isAIAssignee && !isActiveChat && !selected && !isUnattendedAndMine,
+        isAIAssignee &&
+        !resolvedIsActiveChat &&
+        !selected &&
+        !isUnattendedAndMine,
     }"
     @click="$emit('click', $event)"
     @contextmenu="$emit('contextmenu', $event)"
@@ -191,11 +267,11 @@ watch(
     >
       <Avatar
         v-if="!hideThumbnail"
-        :name="currentContact.name || ''"
-        :src="currentContact.thumbnail"
+        :name="resolvedContact.name"
+        :src="resolvedContact.thumbnail"
         :size="32"
-        :status="currentContact.availability_status"
-        :class="!showInboxName ? 'mt-4' : 'mt-8'"
+        :status="resolvedContact.availability_status"
+        :class="!resolvedShowInboxName ? 'mt-4' : 'mt-8'"
       >
         <template #overlay="{ size }">
           <label
@@ -215,13 +291,17 @@ watch(
         class="flex items-center min-w-0 gap-1"
         :class="{ 'ltr:ml-2 rtl:mr-2': !compact, 'mx-2': compact }"
       >
-        <InboxName v-if="showInboxName" :inbox="inbox" class="flex-1 min-w-0" />
+        <InboxName
+          v-if="resolvedShowInboxName"
+          :inbox="resolvedInbox"
+          class="flex-1 min-w-0"
+        />
         <div
           class="flex items-baseline gap-2 flex-shrink-0"
-          :class="{ 'flex-1 justify-between': !showInboxName }"
+          :class="{ 'flex-1 justify-between': !resolvedShowInboxName }"
         >
           <span
-            v-if="isAIAssignee && assignee.name"
+            v-if="isAIAssignee && resolvedAssignee.name"
             class="ai-chip inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-3 whitespace-nowrap bg-[var(--ai-bg)] text-[var(--ai-text)] dark:bg-[var(--ai-dark-bg)] dark:text-[var(--ai-dark-text)]"
             :style="aiChipStyle"
           >
@@ -229,17 +309,17 @@ watch(
               icon="i-lucide-sparkles"
               class="i-lucide-sparkles size-3 flex-shrink-0"
             />
-            {{ assignee.name }}
+            {{ resolvedAssignee.name }}
           </span>
           <span
-            v-else-if="showAssignee && assignee.name"
+            v-else-if="showAssignee && resolvedAssignee.name"
             class="conversation--assignee text-n-slate-11 text-xs font-medium leading-3 py-0.5 px-0 inline-flex items-center gap-px truncate"
           >
             <Icon
               icon="i-lucide-user-round"
               class="i-lucide-user size-3 flex-shrink-0"
             />
-            <span class="truncate">{{ assignee.name }}</span>
+            <span class="truncate">{{ resolvedAssignee.name }}</span>
           </span>
           <CardPriorityIcon
             :priority="chat.priority"
@@ -248,11 +328,11 @@ watch(
         </div>
       </div>
       <h4
-        v-if="currentContact"
+        v-if="resolvedContact"
         class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0 ltr:pr-16 rtl:pl-16 text-n-slate-12"
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
       >
-        {{ currentContact.name }}
+        {{ resolvedContact.name }}
       </h4>
       <VoiceCallStatus
         v-if="voiceCallData.status"

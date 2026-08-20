@@ -2,6 +2,10 @@ import { config, mount } from '@vue/test-utils';
 import { createStore } from 'vuex';
 import Website from '../Website.vue';
 
+vi.mock('lottie-web', () => ({
+  default: { loadAnimation: vi.fn(() => ({ destroy: vi.fn() })) },
+}));
+
 vi.mock('dashboard/composables/store', () => ({
   useMapGetter: () => ({ value: 'ltr' }),
   useStore: () => ({ getters: {}, dispatch: vi.fn() }),
