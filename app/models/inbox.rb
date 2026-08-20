@@ -107,11 +107,15 @@ class Inbox < ApplicationRecord
   # Candidatos ao isolamento: membros da caixa que NÃO são administradores. O admin já é
   # isento das duas regras por natureza; incluí-lo faria a tela sugerir que dá para isolar
   # um administrador (não dá) e encheria a tabela de linhas que nunca decidem nada.
+  # O `joins(:user)` não é enfeite: contas antigas guardam account_users/inbox_members de
+  # usuários já excluídos, e esses ids fantasma (1) não aparecem na tela, que lista membros
+  # de verdade, e (2) viravam exceção no submit, estourando "User must exist" e derrubando
+  # o salvamento inteiro. Aqui a lista passa a ser exatamente a que o administrador vê.
   # @return [Array<Integer>]
   def isolation_candidate_user_ids
     @isolation_candidate_user_ids ||= begin
       member_ids = inbox_members.map(&:user_id)
-      member_ids.blank? ? [] : account.account_users.where(user_id: member_ids, role: :agent).pluck(:user_id)
+      member_ids.blank? ? [] : account.account_users.joins(:user).where(user_id: member_ids, role: :agent).pluck(:user_id)
     end
   end
 
