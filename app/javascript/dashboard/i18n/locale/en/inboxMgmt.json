@@ -769,7 +769,12 @@
         "SUPERVISOR_NOTE_AGENT": "Supervisores de time já enxergam as mensagens de qualquer agente nas conversas do time que supervisionam — por isso vêm marcados como isentos, sem caixa de seleção.",
         "SUPERVISOR_NOTE_TEAM": "A supervisão de time isenta do isolamento por agente, não deste: aqui o supervisor participa como qualquer outro, e por isso vem marcado e sem caixa de seleção.",
         "EMPTY": "Nenhum agente nesta caixa de entrada. Adicione agentes na aba Colaboradores.",
-        "LOADING": "Carregando os agentes da caixa..."
+        "LOADING": "Carregando os agentes da caixa...",
+        "SAVE": "Salvar lista",
+        "SAVING": "Salvando...",
+        "UNSAVED": "Alterações ainda não salvas",
+        "SAVED": "Lista de participantes atualizada",
+        "SAVE_ERROR": "Não foi possível salvar a lista. Tente de novo."
       },
       "PENDING_STATUS": {
         "TITLE": "Allow Pending status",

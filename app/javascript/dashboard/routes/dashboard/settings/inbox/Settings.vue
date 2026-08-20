@@ -98,6 +98,12 @@ export default {
       // guarda exceções — a inversão acontece no controller, no submit.
       teamMessageIsolationParticipantIds: null,
       agentMessageIsolationParticipantIds: null,
+      // Cópia do que está GRAVADO, para saber se a lista tem mudança pendente.
+      // O botão da lista salva só a própria chave; o botão geral da tela segue
+      // salvando tudo, e os dois convivem.
+      savedTeamIsolationParticipantIds: null,
+      savedAgentIsolationParticipantIds: null,
+      savingIsolationType: null,
       isolationMembers: [],
       isolationMembersInboxId: null,
       isFetchingIsolationMembers: false,
@@ -284,6 +290,18 @@ export default {
     showIsolationParticipants() {
       return this.teamMessageIsolation || this.agentMessageIsolation;
     },
+    isTeamIsolationListDirty() {
+      return this.isolationListChanged(
+        this.teamMessageIsolationParticipantIds,
+        this.savedTeamIsolationParticipantIds
+      );
+    },
+    isAgentIsolationListDirty() {
+      return this.isolationListChanged(
+        this.agentMessageIsolationParticipantIds,
+        this.savedAgentIsolationParticipantIds
+      );
+    },
     inboxNameLabel() {
       if (this.isAWebWidgetInbox) {
         return this.$t('INBOX_MGMT.ADD.WEBSITE_NAME.LABEL');
@@ -436,6 +454,12 @@ export default {
         this.inbox.team_message_isolation_participant_ids ?? null;
       this.agentMessageIsolationParticipantIds =
         this.inbox.agent_message_isolation_participant_ids ?? null;
+      this.savedTeamIsolationParticipantIds = this.cloneIds(
+        this.teamMessageIsolationParticipantIds
+      );
+      this.savedAgentIsolationParticipantIds = this.cloneIds(
+        this.agentMessageIsolationParticipantIds
+      );
       this.isolationMembers = [];
       this.isolationMembersInboxId = null;
       this.fetchIsolationMembers();
@@ -559,6 +583,49 @@ export default {
       }
       const tabIndex = this.tabs.findIndex(tab => tab.key === tabParam);
       this.selectedTabIndex = tabIndex === -1 ? 0 : tabIndex;
+    },
+    cloneIds(ids) {
+      return Array.isArray(ids) ? [...ids] : null;
+    },
+    // Compara ignorando a ordem: marcar e desmarcar o mesmo agente não deve
+    // deixar o botão aceso.
+    isolationListChanged(atual, salvo) {
+      if (atual === null || salvo === null) return atual !== salvo;
+      if (atual.length !== salvo.length) return true;
+      const a = [...atual].sort();
+      const b = [...salvo].sort();
+      return a.some((id, i) => id !== b[i]);
+    },
+    // Salva SÓ a lista daquele card. O controller ignora as chaves que não vêm
+    // no PATCH, então nada mais da caixa é tocado.
+    async saveIsolationParticipants(isolationType) {
+      const isTeam = isolationType === 'team_message';
+      const ids = isTeam
+        ? this.teamMessageIsolationParticipantIds
+        : this.agentMessageIsolationParticipantIds;
+      if (ids === null) return;
+
+      this.savingIsolationType = isolationType;
+      try {
+        await this.$store.dispatch('inboxes/updateInbox', {
+          id: this.currentInboxId,
+          [`${isolationType}_isolation_participant_ids`]: ids,
+        });
+        if (isTeam) {
+          this.savedTeamIsolationParticipantIds = this.cloneIds(ids);
+        } else {
+          this.savedAgentIsolationParticipantIds = this.cloneIds(ids);
+        }
+        useAlert(
+          this.$t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SAVED')
+        );
+      } catch (error) {
+        useAlert(
+          this.$t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SAVE_ERROR')
+        );
+      } finally {
+        this.savingIsolationType = null;
+      }
     },
     async updateInbox() {
       const bubbleSettings = {
@@ -891,6 +958,9 @@ export default {
                   isolation-type="team_message"
                   :agents="isolationMembers"
                   :is-loading="isFetchingIsolationMembers"
+                  :is-dirty="isTeamIsolationListDirty"
+                  :is-saving="savingIsolationType === 'team_message'"
+                  @save="saveIsolationParticipants('team_message')"
                 />
               </template>
             </SettingsToggleSection>
@@ -909,6 +979,9 @@ export default {
                   isolation-type="agent_message"
                   :agents="isolationMembers"
                   :is-loading="isFetchingIsolationMembers"
+                  :is-dirty="isAgentIsolationListDirty"
+                  :is-saving="savingIsolationType === 'agent_message'"
+                  @save="saveIsolationParticipants('agent_message')"
                 />
               </template>
             </SettingsToggleSection>

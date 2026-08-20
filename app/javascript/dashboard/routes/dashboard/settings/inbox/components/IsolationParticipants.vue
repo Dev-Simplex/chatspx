@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import NextButton from 'dashboard/components-next/button/Button.vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import Avatar from 'next/avatar/Avatar.vue';
@@ -41,7 +42,20 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // A lista tem botão PRÓPRIO de salvar, além do botão geral da tela. Sem ele, a
+  // marcação parece aplicada no clique e o agente só descobre que não salvou ao
+  // recarregar — o botão geral fica no fim de uma página longa, fora de vista.
+  isDirty: {
+    type: Boolean,
+    default: false,
+  },
+  isSaving: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const emit = defineEmits(['save']);
 
 // `null` = a caixa ainda não disse quem participa (payload antigo em cache, por
 // exemplo). Nesse caso a tela mostra TODO MUNDO marcado — o comportamento de
@@ -301,11 +315,31 @@ const headers = computed(() => [
       </BaseTable>
     </div>
 
-    <p class="mb-0 text-sm text-n-slate-10">
-      {{ adminNote }}
-      <template v-if="supervisorAgents.length">
-        {{ supervisorNote }}
-      </template>
-    </p>
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <p class="mb-0 text-sm text-n-slate-10 flex-1 min-w-[16rem]">
+        {{ adminNote }}
+        <template v-if="supervisorAgents.length">
+          {{ supervisorNote }}
+        </template>
+      </p>
+
+      <div class="flex items-center gap-3 flex-shrink-0">
+        <span v-if="isDirty && !isSaving" class="text-sm text-n-amber-11">
+          {{ $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.UNSAVED') }}
+        </span>
+        <NextButton
+          sm
+          :label="
+            isSaving
+              ? $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SAVING')
+              : $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_PARTICIPANTS.SAVE')
+          "
+          :is-loading="isSaving"
+          :disabled="!isDirty || isSaving"
+          data-testid="isolation-participants-save"
+          @click="emit('save')"
+        />
+      </div>
+    </div>
   </div>
 </template>
