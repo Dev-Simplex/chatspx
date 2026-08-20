@@ -108,6 +108,7 @@ class Whatsapp::HealthService
       last_onboarded_time
       is_on_biz_app
       platform_type
+      certificate
     ].join(',')
   end
 
@@ -147,14 +148,34 @@ class Whatsapp::HealthService
       code_verification_status: phone_response['code_verification_status'],
       webhook_configuration: phone_response['webhook_configuration'],
       expected_webhook_url: build_expected_webhook_url,
+      # RECONCILIACAO homologacao × v4.16.2 — UNIAO, e cada linha tem dono.
+      #
+      # `acceptable_webhook_urls` e da equipe e NAO PODE SAIR: a Meta aceita um unico
+      # `override_callback_uri` por WABA, e com varios numeros no mesmo WABA a URL registrada
+      # pertence a so um deles — mesmo sendo valida para todos, porque a entrada resolve o canal
+      # pelo `phone_number_id` do payload. Sem este campo, `AccountHealth.vue` (que veio no
+      # merge, com spec proprio) volta a acusar "webhook url mismatch" num canal que funciona.
+      # Os metodos `build_acceptable_webhook_urls`/`sibling_phone_numbers` ja estao neste
+      # arquivo: sem esta linha eles seriam codigo morto.
+      acceptable_webhook_urls: build_acceptable_webhook_urls,
       throughput: phone_response['throughput'],
+      # `throughput_level` e `is_on_biz_app` sao do upstream, e entram em PERSISTED_FIELDS.
       throughput_level: phone_response.dig('throughput', 'level'),
       last_onboarded_time: phone_response['last_onboarded_time'],
       is_on_biz_app: phone_response['is_on_biz_app'],
-      platform_type: phone_response['platform_type']
+      platform_type: phone_response['platform_type'],
+      # `certificate` e da equipe. Ele NAO esta em PERSISTED_FIELDS de proposito: o upstream
+      # define ali o que fica gravado no canal, e acrescentar campo aquela lista muda o que a
+      # frota inteira persiste — decisao que nao e desta reconciliacao. Ele volta a cada fetch.
+      certificate: phone_response['certificate']
     }
   end
 
+  # `business_id` da homologacao NAO foi trazido, e a razao e que ele deixou de ser necessario:
+  # ele repetia `provider_config['business_account_id']`, e o upstream passou a buscar o dado na
+  # FONTE (segunda chamada Graph, abaixo), entregando `business_account_id` mais
+  # `business_account_name` e o portfolio. O `AccountHealth.vue` do merge ja le a forma nova
+  # (`business_portfolio_id`). Nada se perdeu — o mesmo dado passou a ter nome melhor e vizinhos.
   def format_business_account_response(business_account_response)
     owner_business_info = business_account_response['owner_business_info'] || {}
 
@@ -167,10 +188,37 @@ class Whatsapp::HealthService
   end
 
   def build_expected_webhook_url
+    build_webhook_url(@channel.phone_number)
+  end
+
+  def build_webhook_url(phone_number)
     frontend_url = ENV.fetch('FRONTEND_URL', nil)
     return nil if frontend_url.blank?
 
-    "#{frontend_url}/webhooks/whatsapp/#{@channel.phone_number}"
+    "#{frontend_url}/webhooks/whatsapp/#{phone_number}"
+  end
+
+  # A Meta aceita apenas UM override_callback_uri por WABA (POST /<WABA_ID>/subscribed_apps),
+  # mas o Chatwoot registra nele a URL de um numero especifico. Com varios numeros no mesmo
+  # WABA, a URL efetivamente registrada pertence a apenas um deles -- e mesmo assim e valida
+  # para todos, porque o roteamento de entrada resolve o canal pelo phone_number_id do payload
+  # e nao pela URL (ver Webhooks::WhatsappEventsJob#get_channel_from_wb_payload).
+  # Sem isso, um dos numeros sempre acusaria "webhook url mismatch" mesmo funcionando.
+  def build_acceptable_webhook_urls
+    sibling_phone_numbers.filter_map { |phone_number| build_webhook_url(phone_number) }.uniq
+  end
+
+  def sibling_phone_numbers
+    waba_id = @channel.provider_config['business_account_id']
+    return [@channel.phone_number] if waba_id.blank?
+
+    # Escopo restrito a mesma Account de proposito: um WABA pertence a um unico negocio, e
+    # limitar a busca evita que a URL de outro tenant seja aceita como valida.
+    siblings = Channel::Whatsapp.where(account_id: @channel.account_id, provider: 'whatsapp_cloud')
+                                .where("provider_config->>'business_account_id' = ?", waba_id)
+                                .pluck(:phone_number)
+
+    (siblings + [@channel.phone_number]).compact.uniq
   end
 
   def persist_health_status(health_status, attempted_at)

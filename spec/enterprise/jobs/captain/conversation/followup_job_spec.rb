@@ -21,6 +21,15 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
     travel_to Time.utc(2026, 6, 11, 15, 0)
   end
 
+  # ARMADILHA: o travel_to acima roda DEPOIS da outgoing, então tudo criado dentro dos exemplos
+  # nasce com created_at ANTERIOR a ela e `order(:created_at).last` devolve a mensagem da IA.
+  # Quem precisa que a última mensagem seja do cliente tem que carimbar a data explicitamente.
+  def responde_por_ultimo(texto)
+    create(:message, conversation: conversation, account: account, inbox: inbox,
+                     message_type: :incoming, content: texto,
+                     created_at: conversation.messages.maximum(:created_at) + 1.second)
+  end
+
   context 'when the conversation is still owned by the assistant mirror' do
     it 'fires the nudge from the owner assistant and consumes token/followup_count' do
       described_class.perform_now(conversation, token)
@@ -112,6 +121,130 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
 
       expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
       expect(conversation.reload.custom_attributes['followup_count']).to eq(1)
+    end
+  end
+
+  # Regressao (conv 20320): a cutucada existia pra cumprir um COMPROMISSO — o cliente ficou de
+  # confirmar algo num horario combinado. Ele fechou a conversa socialmente ("obrigada, boa
+  # noite") e isso matava a cutucada em duas camadas: lead_replied? cancelava so por a ultima
+  # mensagem ser dele, e a directive mandava o modelo responder [IGNORAR] porque ele "encerrou
+  # ou agradeceu". Despedida educada nao desmarca o que ficou combinado.
+  context 'when a commitment is pending and the lead only closed socially' do
+    let(:motivo) { 'cliente ia confirmar com o marido e responder ate as 19h' }
+
+    before do
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_motivo' => motivo))
+      responde_por_ultimo('Obrigada, boa noite!')
+    end
+
+    it 'still fires the nudge' do
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).to have_received(:perform_now)
+    end
+
+    it 'carries the commitment and drops the order to ignore a social close' do
+      captured = nil
+      allow(Captain::Conversation::ResponseBuilderJob).to receive(:perform_now) { |_c, _a, directive:| captured = directive }
+
+      described_class.perform_now(conversation, token)
+
+      expect(captured).to include(motivo)
+      expect(captured).not_to include('agradeceu')
+    end
+
+    it 'consumes the commitment so it does not leak into later preventive nudges' do
+      described_class.perform_now(conversation, token)
+
+      expect(conversation.reload.custom_attributes['followup_motivo']).to be_blank
+    end
+  end
+
+  # Controle: sem compromisso, a cutucada e so preventiva — resposta do cliente cancela mesmo.
+  context 'when there is no commitment and the lead replied' do
+    it 'still cancels the preventive nudge' do
+      responde_por_ultimo('Oi, me manda mais fotos?')
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(conversation.reload.custom_attributes['followup_token']).to eq(token)
+    end
+  end
+
+  # BORDA DA JANELA (contrato do eixo, regra 1). Cutucada e engrenagem in-window; fora da janela
+  # quem bate na porta e a repescagem — template pago, escolhido pelo operador — que ainda nao
+  # existe. Texto livre fora da janela nao vira repescagem disfarcada: vira envio recusado.
+  context 'when the messaging window has already closed' do
+    let(:inbox) { create(:channel_api, account: account, additional_attributes: { agent_reply_time_window: '24' }).inbox }
+
+    before do
+      # A ancora da janela e a ultima mensagem do CLIENTE (regra 3), nao a da IA: 25h -> fechada.
+      create(:message, conversation: conversation, account: account, inbox: inbox,
+                       message_type: :incoming, content: 'Vou pensar e te falo', created_at: 25.hours.ago)
+    end
+
+    it 'dies without firing and without consuming token or followup_count' do
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(conversation.reload.custom_attributes['followup_count']).to eq(1)
+      expect(conversation.reload.custom_attributes['followup_token']).to eq(token)
+    end
+
+    # Morte definitiva, nao adiamento: a manha das quiet hours chega sozinha, a janela nao — so a
+    # resposta do cliente reabre, e a cutucada e justamente o que nao pode causar esse evento.
+    it 'does not reschedule itself for whenever the window might reopen' do
+      expect { described_class.perform_now(conversation, token) }.not_to have_enqueued_job(described_class)
+    end
+
+    # A borda vem ANTES do cool_down porque o HumanHandoffService termina no OutOfOffice, que cria
+    # mensagem sem checar can_reply? — seria exatamente o "outro caminho de envio" que a regra 1 veta.
+    it 'does not escalate to a human either, even with the followups exhausted' do
+      allow(Spx::Tozi::FunnelPlacementService).to receive(:move)
+      allow(Captain::Conversation::HumanHandoffService).to receive(:new)
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_count' => described_class::MAX_FOLLOWUPS))
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::HumanHandoffService).not_to have_received(:new)
+      expect(Spx::Tozi::FunnelPlacementService).not_to have_received(:move)
+    end
+
+    # Compromisso tambem nao atravessa: fora da janela ele muda de FORMA (vira template), e essa
+    # forma nao existe ainda. O motivo fica armado pra quando existir, em vez de ser consumido.
+    it 'holds the border even with a pending commitment, keeping the commitment armed' do
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_motivo' => 'ia confirmar com o marido'))
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(conversation.reload.custom_attributes['followup_motivo']).to be_present
+    end
+  end
+
+  context 'when the messaging window is still open' do
+    let(:inbox) { create(:channel_api, account: account, additional_attributes: { agent_reply_time_window: '24' }).inbox }
+
+    it 'fires the nudge normally' do
+      create(:message, conversation: conversation, account: account, inbox: inbox,
+                       message_type: :incoming, content: 'Manda os detalhes', created_at: 2.hours.ago)
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).to have_received(:perform_now)
+    end
+  end
+
+  # Armadilha do can_reply?: ele devolve TRUE quando o canal nao tem janela configurada. E de
+  # proposito — a guarda nao pode calar a cutucada em canal que nao tem janela nenhuma.
+  context 'when the channel has no messaging window at all' do
+    it 'fires the nudge even without any incoming message to anchor a window' do
+      expect(conversation.messages.incoming).to be_empty
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).to have_received(:perform_now)
     end
   end
 end

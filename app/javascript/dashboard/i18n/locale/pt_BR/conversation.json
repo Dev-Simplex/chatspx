@@ -91,8 +91,6 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "Você só pode responder a esta conversa usando um modelo de mensagem devido a",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "Restrições de janela de mensagem de 24 horas",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "Esta conta do Instagram foi migrada para a nova caixa de entrada do canal do Instagram. Todas as novas mensagens serão mostradas lá. Você não poderá mais enviar mensagens desta conversa.",
-    "INSTAGRAM_RESTRICTION_BANNER": "O Instagram está com restrições no momento. Algumas mensagens ou ações podem sofrer atrasos ou/e ficar indisponíveis enquanto restauramos o funcionamento completo.",
-    "INSTAGRAM_RESTRICTION_STATUS_LINK": "Ver atualização de status",
     "REPLYING_TO": "Você está respondendo a:",
     "REMOVE_SELECTION": "Remover seleção",
     "DOWNLOAD": "Baixar",
@@ -116,7 +114,6 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "Esta mensagem não é suportada. Você pode ver esta mensagem no aplicativo Facebook Messenger.",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "Esta mensagem não é suportada. Você pode ver esta mensagem no aplicativo do Instagram.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "Esta mensagem não é compatível. Você pode visualizá-la no aplicativo do TikTok.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "Esta mensagem não é suportada. Você pode visualizar esta mensagem no aplicativo do WhatsApp.",
     "SUCCESS_DELETE_MESSAGE": "Mensagem excluída com sucesso",
     "FAIL_DELETE_MESSSAGE": "Não foi possível excluir a mensagem! Tente novamente",
     "NO_RESPONSE": "Sem resposta",
@@ -128,8 +125,7 @@
     "SCHEDULED_BY_UNKNOWN": "Sistema",
     "CARD": {
       "SHOW_LABELS": "Mostrar etiquetas",
-      "HIDE_LABELS": "Ocultar as etiquetas",
-      "LABELS_COUNT": "{count} etiquetas"
+      "HIDE_LABELS": "Ocultar as etiquetas"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Chamada recebida",
@@ -153,7 +149,6 @@
       "OPEN": "Mais",
       "CLOSE": "Fechar",
       "DETAILS": "detalhes",
-      "COPY_ID_SUCCESS": "ID da conversa copiado para área de transferência",
       "SNOOZED_UNTIL": "Adiar até",
       "SNOOZED_UNTIL_TOMORROW": "Adiado até amanhã",
       "SNOOZED_UNTIL_NEXT_WEEK": "Adiada até a próxima semana",
@@ -389,9 +384,7 @@
       "TIP_AUDIORECORDER_ICON": "Gravar áudio",
       "TIP_AUDIORECORDER_PERMISSION": "Permitir acesso ao áudio",
       "TIP_AUDIORECORDER_ERROR": "Não foi possível abrir o áudio",
-      "AUDIO_CONVERSION_FAILED": "Falha na conversão do áudio. Tente novamente.",
       "DRAG_DROP": "Arraste e solte aqui para anexar",
-      "IMAGE_UPLOAD_SUCCESS": "Imagem enviada com sucesso",
       "START_AUDIO_RECORDING": "Iniciar gravação de áudio",
       "STOP_AUDIO_RECORDING": "Parar gravação de áudio",
       "DISCARD_AUDIO_RECORDING": "Descartar gravação",
@@ -506,25 +499,6 @@
         "MESSAGE": "Você não pode desfazer essa ação",
         "DELETE": "Excluir",
         "CANCEL": "Cancelar"
-      },
-      "REPORT_MESSAGE": {
-        "LABEL": "Reportar mensagem",
-        "TITLE": "Reportar mensagem do Capitão",
-        "DESCRIPTION": "Encontrou algum problema com esta resposta da IA? Conte-nos o que deu errado e nossa equipe irá analisar para ajudar a melhorar a precisão do Capitão.",
-        "PROBLEM_TYPE": "Tipo de problema",
-        "PROBLEM_TYPE_PLACEHOLDER": "Selecione um tipo de problema",
-        "DESCRIPTION_LABEL": "Descrição",
-        "DESCRIPTION_PLACEHOLDER": "Descreva o problema detalhadamente",
-        "SUBMIT": "Reportar",
-        "SUCCESS": "Obrigado pelo seu relato. Nossa equipe irá analisá-lo.",
-        "ERROR": "Não foi possível enviar o relato desta mensagem. Tente novamente.",
-        "REASONS": {
-          "incorrect_information": "Informação incorreta",
-          "inappropriate_response": "Resposta inadequada",
-          "incomplete_response": "Resposta incompleta",
-          "outdated_information": "Informação desatualizada",
-          "other": "Outro"
-        }
       }
     },
     "EDIT_MESSAGE": {
@@ -663,7 +637,7 @@
       "DENIED_WITH_NOTE": "Seu pedido de atendimento foi negado: {note}",
       "SUPERSEDED": "Seu pedido não é mais necessário — outra pessoa assumiu a conversa."
     },
-      "ACCESS_BLOCKED": {
+    "ACCESS_BLOCKED": {
       "TITLE": "Esta conversa não está atribuída a você",
       "BODY": "Está atribuída a {name}.",
       "BODY_WITH_TEAM": "Está atribuída a {name} ({team}).",
@@ -672,8 +646,259 @@
       "REQUEST_SENT": "Pedido enviado",
       "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
-        "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
+      "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
+    },
+    "SCHEDULE_MESSAGE": {
+      "TOOLTIP": "Agendar mensagem",
+      "TITLE": "Agendar mensagem",
+      "INBOX": "Caixa de entrada",
+      "INBOX_HINT": "Começa na caixa desta conversa. Você pode escolher outra.",
+      "WHEN": "Data e hora do envio",
+      "MESSAGE": "Mensagem",
+      "MESSAGE_PLACEHOLDER": "O que será enviado no horário marcado…",
+      "TEMPLATE": "Modelo (template)",
+      "TEMPLATE_PLACEHOLDER": "Escolha um modelo",
+      "TEMPLATE_REQUIRED_HINT": "Esta caixa é WhatsApp Oficial. Fora da janela de 24 horas só modelo aprovado é entregue, e no agendamento não há como saber se a janela estará aberta — por isso o modelo é obrigatório aqui.",
+      "NO_TEMPLATES": "Esta caixa não tem nenhum modelo aprovado. Cadastre um modelo no WhatsApp antes de agendar por ela.",
+      "SUBMIT": "Agendar",
+      "PENDING_TITLE": "Agendamentos desta conversa",
+      "LOADING": "Carregando…",
+      "EMPTY": "Nada agendado para esta conversa.",
+      "CANCEL_ITEM": "Cancelar",
+      "ERRORS": {
+        "TEMPLATE_INCOMPLETE": "Preencha todas as variáveis do modelo antes de agendar."
+      },
+      "API": {
+        "SUCCESS": "Mensagem agendada.",
+        "ERROR": "Não foi possível agendar a mensagem.",
+        "CANCELLED": "Agendamento cancelado.",
+        "CANCEL_ERROR": "Não foi possível cancelar o agendamento."
+      },
+      "OTHER_INBOX_WARNING": "Em outra caixa o envio vai para a conversa desse mesmo contato naquela caixa — se não existir, uma é criada. Por isso ele não aparece na lista desta conversa aqui embaixo.",
+      "MISSING": {
+        "INBOX": "Escolha a caixa de entrada.",
+        "WHEN": "Informe a data e a hora do envio.",
+        "PAST": "A data escolhida já passou. Escolha um horário futuro.",
+        "TEMPLATE": "Escolha um modelo — esta caixa é WhatsApp Oficial.",
+        "MESSAGE": "Escreva a mensagem."
       }
+    },
+    "COPILOT_ERRORS": {
+      "PRIVATE_MODE": "Em nota privada o Copilot fica desligado, para o conteúdo interno não sair daqui.",
+      "CTA_RETRY": "Tentar de novo",
+      "CTA_DISMISS": "Fechar",
+      "UNAUTHORIZED": {
+        "TITLE": "Credencial recusada",
+        "BODY": "Não consegui responder agora: o serviço de IA recusou a credencial. Isso não é problema da sua conexão — avise quem administra a conta."
+      },
+      "RATE_LIMITED": {
+        "TITLE": "Muitos pedidos em pouco tempo",
+        "BODY": "O serviço de IA pediu uma pausa. Espere {seconds}s e peça de novo.",
+        "CTA_COUNTDOWN": "Aguarde {seconds}s"
+      },
+      "TIMEOUT": {
+        "TITLE": "Está demorando mais que o normal",
+        "BODY": "O serviço de IA ainda não respondeu. Você pode esperar mais um pouco ou cancelar.",
+        "CTA_PRIMARY": "Continuar esperando",
+        "CTA_CANCEL": "Cancelar"
+      },
+      "PROVIDER_DOWN": {
+        "TITLE": "O serviço de IA está fora do ar",
+        "BODY": "O provedor não respondeu. Isso não é problema da sua conexão — tente de novo em alguns minutos."
+      },
+      "CANCELLED": {
+        "TITLE": "Resposta interrompida",
+        "BODY": "Você parou a geração. O trecho que já apareceu continua aqui.",
+        "CTA_PRIMARY": "Gerar de novo"
+      },
+      "RATE_LIMIT": {
+        "TITLE": "Muitos pedidos em pouco tempo",
+        "BODY": "O serviço de IA pediu uma pausa. Espere {seconds}s e peça de novo.",
+        "CTA_COUNTDOWN": "Aguarde {seconds}s"
+      },
+      "CAPTAIN_UNSTABLE": {
+        "TITLE": "O Copilot está fora do ar",
+        "BODY": "O serviço de IA não respondeu. Isso não é problema da sua conexão — tente de novo em alguns minutos."
+      },
+      "EMPTY_RESPONSE": {
+        "TITLE": "A resposta veio vazia",
+        "BODY": "O serviço de IA devolveu um texto em branco. Peça de novo — costuma resolver."
+      },
+      "NETWORK": {
+        "TITLE": "Sem conexão",
+        "BODY": "Não consegui falar com o servidor. Confira sua internet e tente de novo."
+      }
+    },
+    "AI_ASSISTANT_PANEL": {
+      "TITLE": "Copiloto",
+      "CLOSE": "Fechar painel",
+      "SEND": "Enviar pergunta",
+      "LOADING": "Escrevendo…",
+      "STREAM_COMPLETE": "Resposta pronta",
+      "HISTORY_LABEL": "Histórico do Copilot",
+      "NEW_THREAD": "Nova conversa",
+      "LOADING_THREAD": "Carregando a conversa",
+      "APPLIED_TOAST": "Resposta jogada no campo de mensagem",
+      "CANCELLED_NOTICE": "Você parou aqui.",
+      "EDIT_QUESTION": "Editar pergunta",
+      "EDITING_NOTICE": "Editando a pergunta",
+      "EDIT_CANCEL": "Cancelar",
+      "REGENERATE": "Refazer",
+      "USE_AS_REPLY": "Usar como resposta",
+      "STOP": "Parar",
+      "SHORTCUTS_HINT": "Enter envia · Shift+Enter quebra linha · Esc fecha",
+      "ERRORS": {
+        "RETRY": "Tentar de novo",
+        "DISMISS": "Fechar",
+        "UNAUTHORIZED": {
+          "TITLE": "Credencial recusada",
+          "BODY": "Não consegui responder agora: o serviço de IA recusou a credencial. Isso não é problema da sua conexão — avise quem administra a conta."
+        },
+        "GENERIC": {
+          "TITLE": "Não consegui responder",
+          "BODY": "Algo travou no caminho até o serviço de IA. Tente de novo; se continuar, avise quem administra a conta."
+        }
+      },
+      "QUICK_PROMPTS": {
+        "SUMMARIZE": {
+          "LABEL": "Resumir a conversa",
+          "HINT": "Os pontos principais em poucas linhas",
+          "PROMPT": "Resuma esta conversa em tópicos curtos: o que o cliente pediu, o que já foi respondido e o que ficou pendente."
+        },
+        "NEXT_STEP": {
+          "LABEL": "Qual o próximo passo",
+          "HINT": "O que fazer agora, na prática",
+          "PROMPT": "Com base nesta conversa, diga qual é o próximo passo que eu devo dar agora. Seja específico e direto."
+        },
+        "DRAFT_REPLY": {
+          "LABEL": "Rascunhar uma resposta",
+          "HINT": "Um texto pronto para você revisar",
+          "PROMPT": "Escreva uma resposta para o cliente desta conversa. Mantenha o tom que já venho usando e não prometa nada que não esteja confirmado aqui."
+        },
+        "POLICY": {
+          "LABEL": "Consultar a política",
+          "HINT": "O que a base de conhecimento diz",
+          "PROMPT": "Consulte a base de conhecimento e diga qual política ou procedimento se aplica a este caso. Cite a fonte."
+        }
+      },
+      "EMPTY": {
+        "GREETING_EMOJI": "👋 ",
+        "GREETING_NAMED": "Olá, {name}! Como posso ajudar?",
+        "GREETING_GENERIC": "Olá! Como posso ajudar?",
+        "SUBTITLE": "Escolha uma ação rápida ou escreva sua pergunta."
+      },
+      "SECTIONS": {
+        "UNDERSTAND": "Entender a conversa",
+        "REWRITE": "Ajustar minha resposta",
+        "CREATE": "Criar resposta"
+      },
+      "PROMPTS": {
+        "SENTIMENT": {
+          "LABEL": "Analisar tom do cliente",
+          "DESCRIPTION": "Digo se ele está calmo, com pressa ou irritado"
+        },
+        "SUMMARIZE": {
+          "LABEL": "Resumir esta conversa",
+          "DESCRIPTION": "Entrego os pontos principais em poucas linhas"
+        },
+        "REPLY_SUGGESTION": {
+          "LABEL": "Sugerir uma resposta",
+          "DESCRIPTION": "Escrevo um rascunho pra você revisar"
+        }
+      },
+      "TEXTAREA": {
+        "PLACEHOLDER": "Pergunte alguma coisa",
+        "HINT": "Enter envia · Shift+Enter quebra linha"
+      },
+      "ACTIONS": {
+        "COPY": "Copiar",
+        "APPLY": "Usar como resposta",
+        "USE_AS_REPLY": "Usar como resposta",
+        "RETRY": "Refazer",
+        "STOP": "Parar",
+        "CANCEL": "Cancelar",
+        "FEEDBACK_GOOD": "Boa resposta",
+        "FEEDBACK_BAD": "Resposta ruim",
+        "COPIED_TOAST": "Copiado para a área de transferência",
+        "APPLIED_TOAST": "Resposta jogada no campo de mensagem",
+        "COPY_FAILED": "Não consegui copiar"
+      },
+      "CODE": {
+        "COPY": "Copiar",
+        "COPIED": "Copiado"
+      },
+      "SOURCE": {
+        "ARIA": "Abrir a fonte citada: {source}"
+      },
+      "EDGE_CASES": {
+        "EMPTY_CONVERSATION_TITLE": "Cliente novo, conversa começando.",
+        "EMPTY_CONVERSATION_BODY": "Quando tiver mensagens, posso resumir, analisar o tom ou sugerir respostas.",
+        "PRIVATE_MODE_TITLE": "Modo nota privada",
+        "PRIVATE_MODE_BODY": "O conteúdo não vai para o Copilot, para a nota interna não vazar. Volte para \"Resposta\" para usar a IA.",
+        "WHATSAPP_EXPIRED_TITLE": "Janela do WhatsApp fechada",
+        "WHATSAPP_EXPIRED_BODY": "Passaram-se 24h da última mensagem do cliente. Dá para rascunhar aqui, mas o envio só sai por modelo aprovado.",
+        "LONG_CONVERSATION_HINT": "Leio as últimas 50 mensagens"
+      },
+      "TOAST": {
+        "COPIED": "Copiado para a área de transferência",
+        "APPLIED": "Resposta jogada no campo de mensagem",
+        "COPY_FAILED": "Não consegui copiar",
+        "FEEDBACK_SAVED": "Feedback registrado, valeu!",
+        "PRIVATE_MODE_BLOCKED": "Em nota privada o Copilot fica desligado"
+      },
+      "TOUR": {
+        "NEXT": "Próximo",
+        "SKIP": "Pular tour",
+        "FINISH": "Entendi, fechar",
+        "CLOSE": "Fechar tour",
+        "SKIP_TOAST": "Pode chamar o tour quando quiser, nas configurações da conta.",
+        "STEP_LABEL": "Passo {current} de {total}: {title}",
+        "STEP_1": {
+          "TITLE": "Tudo começa aqui",
+          "BODY": "Esse é o seu atalho de IA, no botão de estrelinhas do campo de mensagem. Toda vez que precisar ajustar uma resposta ou pedir uma sugestão, é só clicar."
+        },
+        "STEP_2": {
+          "TITLE": "Use os atalhos rápidos",
+          "BODY": "São ações prontas. Passe o mouse para ver o que cada uma faz antes de clicar."
+        },
+        "STEP_3": {
+          "TITLE": "Revise antes de enviar",
+          "BODY": "A IA escreve, mas quem decide é você. Use, edite ou descarte — o cliente só recebe quando você apertar Enviar."
+        },
+        "STEP_4": {
+          "TITLE": "Painel lateral para o que precisar",
+          "BODY": "Conversa longa? Cliente complicado? Abra o painel pelo botão Copilot do topo e converse com a IA direto. Atalho: Ctrl+J."
+        }
+      },
+      "SMART_BANNER": {
+        "DISMISS_TOOLTIP": "Dispensar",
+        "DISMISSED_TOAST": "Ok, não mostro mais nesta conversa",
+        "LONG_THREAD": {
+          "BODY": "Conversa longa ({count} mensagens). Quer um resumo?",
+          "CTA": "Resumir agora"
+        },
+        "SENTIMENT": {
+          "BODY": "O cliente parece irritado. Quer ajuda para responder com calma?",
+          "CTA": "Sugerir resposta"
+        },
+        "WAITING": {
+          "BODY": "Cliente esperando há {minutes} min. Preparo uma resposta rápida?",
+          "CTA": "Resposta rápida"
+        }
+      },
+      "SUGGESTION_CHIP": {
+        "HEADER": "Sugestão do Copilot",
+        "SUBTITLE": "Revise antes de enviar",
+        "USE": "Usar essa",
+        "EDIT": "Editar",
+        "DISCARD": "Descartar",
+        "EDIT_TOOLTIP": "Joga no campo de mensagem e seleciona tudo para você ajustar",
+        "DISCARD_TOOLTIP": "Apaga a sugestão (Esc)",
+        "USED_TOAST": "Pronto, é só revisar e enviar",
+        "EDIT_TOAST": "Sugestão pronta para editar",
+        "DISCARDED_TOAST": "Sugestão descartada"
+      }
+    }
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Enviar transcrição de conversa",
@@ -739,8 +964,7 @@
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Pedidos do Shopify",
       "KANBAN_STATUS": "Situação no Kanban",
-      "GROUP_PARTICIPANTS": "Integrantes do grupo",
-      "SHARED_FILES": "Anexos"
+      "GROUP_PARTICIPANTS": "Integrantes do grupo"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Não está em nenhum funil",
@@ -749,13 +973,13 @@
     "SUMMARY": {
       "AI_TITLE": "Resumo da IA",
       "AI_EMPTY": "A IA ainda não resumiu este atendimento.",
+      "READ_MORE": "Ler mais",
+      "READ_LESS": "Ler menos",
       "HUMAN_TITLE": "Resumo do humano",
       "HUMAN_EMPTY": "Adicione um resumo do atendimento humano.",
       "EDIT": "Editar",
       "SAVE": "Salvar",
       "CANCEL": "Cancelar",
-      "READ_MORE": "Ler mais",
-      "READ_LESS": "Ler menos",
       "SAVE_ERROR": "Não foi possível salvar o resumo."
     },
     "CHECKLIST": {
@@ -777,27 +1001,31 @@
       "LINKS": "Links"
     },
     "MEDIA_EMPTY": "Nenhuma mídia ou arquivo nesta conversa",
+    "MEDIA_STRIP": {
+      "TITLE": "Mídia, links e docs",
+      "EMPTY": "Nenhuma mídia",
+      "MORE_COUNT": "+{count}",
+      "PANEL_TITLE": "Mídia, links e docs",
+      "TABS": {
+        "MEDIA": "Mídia",
+        "DOCS": "Docs",
+        "LINKS": "Links"
+      },
+      "EMPTY_TABS": {
+        "MEDIA": "Nenhuma foto ou vídeo",
+        "DOCS": "Nenhum documento",
+        "LINKS": "Nenhum link"
+      }
+    },
     "SHOW_MORE": "Ver mais {count}",
-      "BULK": {
+    "BULK": {
       "DOWNLOAD_ALL": "Baixar todas ({count})",
       "SELECT": "Selecionar",
       "SELECTED_COUNT": "{count} selecionada(s)",
       "DOWNLOAD_SELECTED": "Baixar selecionadas (.zip)",
       "CANCEL": "Cancelar",
       "PREPARING": "Preparando… ({processed}/{total})",
-        "PREPARING_INDEFINITE": "Preparando…"
-      },
-    "SHARED_FILES": {
-      "EMPTY": "Nenhum anexo ainda",
-      "DOWNLOAD": "Baixar arquivo",
-      "DOWNLOAD_ERROR": "Não foi possível baixar o arquivo. Por favor, tente novamente.",
-      "MEDIA_HEADING": "Mídia",
-      "FILES_HEADING": "Arquivos",
-      "VIEW_ALL": "Visualizar tudo",
-      "SHOW_LESS": "Mostrar menos",
-      "MORE_COUNT": "+{count}",
-      "UNTITLED_FILE": "Arquivo sem nome",
-      "JUMP_TO_MESSAGE": "Ir para mensagem"
+      "PREPARING_INDEFINITE": "Preparando…"
     },
     "SHOPIFY": {
       "ORDER_ID": "Pedido #{id}",
@@ -865,50 +1093,6 @@
       "ERROR_MESSAGE": "Não foi possível atualizar, tente novamente!",
       "SUCCESS_MESSAGE": "Participantes atualizados!"
     }
-  },
-  "GROUP_INFO": {
-    "BADGE": "Grupo",
-    "BADGE_TOOLTIP": "Conversa de grupo do WhatsApp",
-    "PARTICIPANTS_COUNT": "{count} participantes",
-    "PARTICIPANTS_COUNT_ONE": "1 participante",
-    "HEADER_NOT_SYNCED": "Grupo · integrantes não sincronizados",
-    "SIDEBAR_TITLE": "Integrantes",
-    "SIDEBAR_TITLE_WITH_COUNT": "Integrantes ({count})",
-    "SEARCH_PLACEHOLDER": "Buscar integrante…",
-    "ADMIN_BADGE": "Admin",
-    "SUPER_ADMIN_BADGE": "Criador",
-    "SHOW_ALL": "Ver todos os {count} integrantes",
-    "SHOW_LESS": "Ver menos",
-    "UNKNOWN_PARTICIPANT": "Participante não identificado",
-    "UNKNOWN_PARTICIPANT_HINT": "O WhatsApp não informou quem enviou esta mensagem. Sincronize os integrantes do grupo para tentar identificar.",
-    "NO_PHONE": "Telefone não disponível",
-    "LEFT_GROUP": "saiu do grupo",
-    "LEFT_GROUP_SECTION": "Saíram do grupo ({count})",
-    "NOT_IN_GROUP_BANNER": "Você não faz mais parte deste grupo. Não é possível enviar mensagens.",
-    "EMPTY_TITLE": "Integrantes ainda não sincronizados",
-    "EMPTY_BODY": "O ChatSPX ainda não recebeu a lista de participantes deste grupo.",
-    "SYNC_NOW": "Sincronizar agora",
-    "SYNCING": "Sincronizando…",
-    "SYNC_TOOLTIP": "Sincronizar integrantes",
-    "SYNC_SUCCESS": "Integrantes atualizados",
-    "SYNC_THROTTLED": "Aguarde alguns segundos antes de sincronizar de novo",
-    "SYNCED_AT": "Sincronizado {relative}",
-    "NOT_SYNCED": "Integrantes não sincronizados",
-    "PARTIALLY_RESOLVED": "{unresolved} de {total} integrantes ainda não identificados",
-    "LOAD_ERROR": "Não foi possível carregar os integrantes",
-    "LOAD_ERROR_KEEPING_LIST": "Não foi possível atualizar os integrantes. Mostrando a última lista recebida.",
-    "LOAD_ERROR_RETRY": "Tentar novamente",
-    "STALE_WARNING": "Esta lista pode estar desatualizada",
-    "ACTIONS": {
-      "OPEN_DM": "Abrir conversa 1:1",
-      "OPEN_DM_DISABLED": "Este integrante ainda não tem um contato no ChatSPX",
-      "VIEW_CONTACT": "Ver contato",
-      "COPY_PHONE": "Copiar telefone",
-      "COPY_PHONE_DISABLED": "Este integrante não tem telefone conhecido",
-      "PHONE_COPIED": "Telefone copiado"
-    },
-    "SENT_BY_IN_GROUP": "Enviado por {name} neste grupo",
-    "REPLYING_TO": "Respondendo a {name}"
   },
   "TRANSLATE_MODAL": {
     "TITLE": "Ver conteúdo traduzido",
@@ -1158,5 +1342,68 @@
     "ERASER": "Borracha",
     "APPLY": "Aplicar",
     "CANCEL": "Cancelar"
+  },
+  "EVALUATE_EPISODE": {
+    "MENU_ITEM": "Avaliar atendimento",
+    "TITLE": "Avaliar atendimento",
+    "DESC": "A conversa é contínua, mas cada ciclo de atendimento (episódio) é avaliado separadamente. Escolha qual você está avaliando.",
+    "LOADING": "Carregando atendimentos...",
+    "NO_EPISODES": "Ainda não há atendimentos segmentados nesta conversa.",
+    "EPISODE": "Atendimento #{seq}",
+    "CURRENT": "Em andamento",
+    "MESSAGES": "{count} mensagens",
+    "NOTA": "nota {nota}",
+    "ANNOTATED": "{count} observação(ões)",
+    "PLACEHOLDER": "O que você observou neste atendimento? Sua observação tem peso máximo na avaliação da IA.",
+    "SUBMIT": "Enviar avaliação",
+    "CANCEL": "Cancelar",
+    "SUCCESS": "Avaliação registrada — o Eval vai re-julgar este atendimento agora.",
+    "SUCCESS_OPEN": "Avaliação registrada — entra no julgamento quando este atendimento fechar.",
+    "ERROR": "Não foi possível registrar a avaliação.",
+    "MENU_ITEM_MESSAGE": "Avaliar esta resposta"
+  },
+  "GROUP_INFO": {
+    "BADGE": "Grupo",
+    "BADGE_TOOLTIP": "Conversa de grupo do WhatsApp",
+    "PARTICIPANTS_COUNT": "{count} participantes",
+    "PARTICIPANTS_COUNT_ONE": "1 participante",
+    "HEADER_NOT_SYNCED": "Grupo · integrantes não sincronizados",
+    "SIDEBAR_TITLE": "Integrantes",
+    "SIDEBAR_TITLE_WITH_COUNT": "Integrantes ({count})",
+    "SEARCH_PLACEHOLDER": "Buscar integrante…",
+    "ADMIN_BADGE": "Admin",
+    "SUPER_ADMIN_BADGE": "Criador",
+    "SHOW_ALL": "Ver todos os {count} integrantes",
+    "SHOW_LESS": "Ver menos",
+    "UNKNOWN_PARTICIPANT": "Participante não identificado",
+    "UNKNOWN_PARTICIPANT_HINT": "O WhatsApp não informou quem enviou esta mensagem. Sincronize os integrantes do grupo para tentar identificar.",
+    "NO_PHONE": "Telefone não disponível",
+    "LEFT_GROUP": "saiu do grupo",
+    "LEFT_GROUP_SECTION": "Saíram do grupo ({count})",
+    "NOT_IN_GROUP_BANNER": "Você não faz mais parte deste grupo. Não é possível enviar mensagens.",
+    "EMPTY_TITLE": "Integrantes ainda não sincronizados",
+    "EMPTY_BODY": "O ChatSPX ainda não recebeu a lista de participantes deste grupo.",
+    "SYNC_NOW": "Sincronizar agora",
+    "SYNCING": "Sincronizando…",
+    "SYNC_TOOLTIP": "Sincronizar integrantes",
+    "SYNC_SUCCESS": "Integrantes atualizados",
+    "SYNC_THROTTLED": "Aguarde alguns segundos antes de sincronizar de novo",
+    "SYNCED_AT": "Sincronizado {relative}",
+    "NOT_SYNCED": "Integrantes não sincronizados",
+    "PARTIALLY_RESOLVED": "{unresolved} de {total} integrantes ainda não identificados",
+    "LOAD_ERROR": "Não foi possível carregar os integrantes",
+    "LOAD_ERROR_KEEPING_LIST": "Não foi possível atualizar os integrantes. Mostrando a última lista recebida.",
+    "LOAD_ERROR_RETRY": "Tentar novamente",
+    "STALE_WARNING": "Esta lista pode estar desatualizada",
+    "ACTIONS": {
+      "OPEN_DM": "Abrir conversa 1:1",
+      "OPEN_DM_DISABLED": "Este integrante ainda não tem um contato no ChatSPX",
+      "VIEW_CONTACT": "Ver contato",
+      "COPY_PHONE": "Copiar telefone",
+      "COPY_PHONE_DISABLED": "Este integrante não tem telefone conhecido",
+      "PHONE_COPIED": "Telefone copiado"
+    },
+    "SENT_BY_IN_GROUP": "Enviado por {name} neste grupo",
+    "REPLYING_TO": "Respondendo a {name}"
   }
 }

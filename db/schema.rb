@@ -366,6 +366,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
     t.datetime "sent_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "canonical_phone"
+    t.index ["account_id", "canonical_phone"], name: "index_campaign_recipients_on_account_id_and_canonical_phone"
     t.index ["account_id", "phone_number"], name: "index_campaign_recipients_on_account_id_and_phone_number"
     t.index ["campaign_id", "status"], name: "index_campaign_recipients_on_campaign_id_and_status"
     t.index ["conversation_id"], name: "index_campaign_recipients_on_conversation_id"
@@ -395,9 +397,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
     t.integer "pacing_seconds", default: 5, null: false
     t.integer "dispatch_status", default: 0, null: false
     t.jsonb "dispatch_config", default: {}, null: false
+    t.bigint "dispatch_assignee_id"
     t.index ["account_id"], name: "index_campaigns_on_account_id"
     t.index ["campaign_status"], name: "index_campaigns_on_campaign_status"
     t.index ["campaign_type"], name: "index_campaigns_on_campaign_type"
+    t.index ["dispatch_assignee_id"], name: "index_campaigns_on_dispatch_assignee_id"
     t.index ["dispatch_status"], name: "index_campaigns_on_dispatch_status"
     t.index ["inbox_id"], name: "index_campaigns_on_inbox_id"
     t.index ["scheduled_at"], name: "index_campaigns_on_scheduled_at"
@@ -481,6 +485,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
     t.integer "segmenter_version", default: 1, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "turnos_ia"
+    t.integer "turnos_cliente"
+    t.integer "chars_resposta_media"
+    t.integer "ferramentas_usadas"
+    t.boolean "enviou_midia"
+    t.integer "duracao_segundos"
+    t.string "campanha"
+    t.index ["account_id", "campanha"], name: "idx_cap_conv_episodes_acct_campanha"
     t.index ["account_id", "ended_at"], name: "index_captain_conversation_episodes_on_account_id_and_ended_at"
     t.index ["account_id"], name: "index_captain_conversation_episodes_on_account_id"
     t.index ["conversation_id", "seq"], name: "idx_cap_conv_episodes_conv_seq", unique: true
@@ -573,6 +585,29 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
     t.index ["account_id"], name: "index_captain_documents_on_account_id"
     t.index ["assistant_id"], name: "index_captain_documents_on_assistant_id"
     t.index ["status"], name: "index_captain_documents_on_status"
+  end
+
+  create_table "captain_episode_outcomes", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "episode_id", null: false
+    t.string "degrau", null: false
+    t.string "causado_por", null: false
+    t.bigint "ator_id"
+    t.string "origem", null: false
+    t.jsonb "detalhe", default: {}, null: false
+    t.datetime "ocorreu_em", null: false
+    t.string "campanha"
+    t.string "anuncio"
+    t.string "publico"
+    t.string "empreendimento"
+    t.string "lead_tipo"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "campanha"], name: "idx_cap_ep_outcomes_acct_campanha"
+    t.index ["account_id", "degrau", "ocorreu_em"], name: "idx_cap_ep_outcomes_acct_degrau"
+    t.index ["conversation_id"], name: "index_captain_episode_outcomes_on_conversation_id"
+    t.index ["episode_id", "degrau"], name: "idx_cap_ep_outcomes_ep_degrau", unique: true
   end
 
   create_table "captain_eval_case_results", force: :cascade do |t|
@@ -1316,7 +1351,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
     t.string "motivo", null: false
     t.jsonb "candidatos", default: [], null: false
     t.datetime "created_at", null: false
+    t.string "produto_slug"
+    t.string "status"
+    t.datetime "designado_em"
+    t.datetime "encerrado_em"
+    t.jsonb "policy_snapshot", default: {}, null: false
+    t.string "vista_negocio_codigo"
     t.index ["conversation_id"], name: "index_distribuicao_logs_on_conversation_id"
+    t.index ["status", "designado_em"], name: "index_distribuicao_logs_on_status_and_designado_em"
   end
 
   create_table "distribuicao_policies", force: :cascade do |t|
@@ -1330,7 +1372,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
     t.jsonb "pool", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "modo_posse", default: "assignee", null: false
+    t.boolean "espelho_vista", default: false, null: false
+    t.jsonb "vista_padrao", default: {}, null: false
+    t.integer "sla_assumir_minutos", default: 30, null: false
     t.index ["account_id", "team_id"], name: "index_distribuicao_policies_on_account_id_and_team_id", unique: true
+  end
+
+  create_table "distribuicao_produtos", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "slug", null: false
+    t.string "nome", null: false
+    t.boolean "ativo", default: true, null: false
+    t.jsonb "matchers", default: {}, null: false
+    t.jsonb "vista", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "apresentacao", default: {}, null: false
+    t.index ["account_id", "slug"], name: "index_distribuicao_produtos_on_account_id_and_slug", unique: true
   end
 
   create_table "distribuicao_states", force: :cascade do |t|
@@ -2172,6 +2231,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
     t.index ["user_id"], name: "index_team_members_on_user_id"
   end
 
+  create_table "team_supervisors", force: :cascade do |t|
+    t.bigint "team_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["team_id", "user_id"], name: "index_team_supervisors_on_team_id_and_user_id", unique: true
+    t.index ["user_id"], name: "index_team_supervisors_on_user_id"
+  end
+
   create_table "teams", force: :cascade do |t|
     t.string "name", null: false
     t.text "description"
@@ -2443,6 +2511,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
   add_foreign_key "scheduled_messages", "messages"
   add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id"
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
+  add_foreign_key "team_supervisors", "teams", on_delete: :cascade
+  add_foreign_key "team_supervisors", "users", on_delete: :cascade
   add_foreign_key "tracking_deliveries", "tracking_events", on_delete: :cascade
   add_foreign_key "tracking_events", "accounts", on_delete: :cascade
   add_foreign_key "tracking_events", "contacts", on_delete: :nullify

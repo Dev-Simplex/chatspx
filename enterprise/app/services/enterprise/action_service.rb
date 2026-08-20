@@ -20,14 +20,20 @@ module Enterprise::ActionService
     # F1.4 (modo FILA): a re-triagem de órfãs não reanexa a IA (senão a fila some). A triagem
     # inicial nunca seta esta flag — só o OrphanRetriageJob no modo fila.
     return if Current.skip_ai_agent_assignment
-    # Reopen de conversa cuja ÚLTIMA fala (humano×IA) foi de um HUMANO não acorda a IA:
-    # o humano/time estava tratando, reabriu por resposta do cliente/NPS -> volta pro
-    # humano, não pra IA roubar da mão dele. Triagem inicial não tem outgoing -> não barra.
-    return if last_outgoing_by_human?
+    # A IA é a porta de entrada TAMBÉM na reentrada: cliente que volta depois de um
+    # atendimento humano encerrado pode estar agradecendo (nada a fazer), trazendo assunto
+    # novo (triar) ou dando sequência ao caso de antes (devolver pro time/pessoa que cuidava).
+    # Quem separa os três é ela — sem isso, toda reentrada cai na fila geral e é distribuída
+    # na mão. O contexto de quem atendeu antes vai pro agente em HumanHistoryNote.
+    #
+    # O que ela NÃO faz é tomar conversa que está NA MÃO de alguém: com assignee humano
+    # presente o dono é ele, e a IA não entra (senão a conversa some da fila do atendente).
+    return if @conversation.assignee_id.present?
+
     # Procedência (opt-in por conta): se a conversa nasceu de uma resposta a um template que um
     # HUMANO mandou 1:1 pro contato (<24h), o dono é esse humano -> a IA não assume. Cobre o caso
-    # do incidente 22/07 (o template saiu de OUTRA conversa/ficha do mesmo contato, então a
-    # guarda `last_outgoing_by_human?` — que só olha ESTA conversa — não pega).
+    # do incidente 22/07, em que o template saiu de OUTRA conversa/ficha do mesmo contato — a
+    # checagem de assignee, que só olha ESTA conversa, não pegaria.
     return if reassigned_to_human_template_sender?
 
     assistant = eligible_captain_assistant(assistant_ids.first) # params chegam como ARRAY
@@ -57,18 +63,6 @@ module Enterprise::ActionService
     return nil unless @conversation.inbox.captain_assistants.exists?(assistant.id)
 
     assistant
-  end
-
-  # Última mensagem enviada por HUMANO×IA (ignora NPS/template/atividade): se o último
-  # a falar foi um humano (User), a conversa estava na mão dele — a reentrada não deve
-  # reatribuir pra IA. Sem nenhuma mensagem (triagem inicial) retorna false (não barra).
-  def last_outgoing_by_human?
-    last = @conversation.messages
-                        .where(message_type: :outgoing)
-                        .where(sender_type: %w[User Captain::Assistant])
-                        .order(created_at: :desc)
-                        .first
-    last&.sender_type == 'User'
   end
 
   # Procedência da triagem (OPT-IN por conta, default OFF via custom_attribute):

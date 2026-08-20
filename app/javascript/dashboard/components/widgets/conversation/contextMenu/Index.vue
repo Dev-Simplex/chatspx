@@ -51,6 +51,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    canMarkAsRead: {
+      type: Boolean,
+      default: true,
+    },
     inboxId: {
       type: Number,
       default: null,
@@ -177,6 +181,13 @@ export default {
       currentUser: 'getCurrentUser',
       currentAccountId: 'getCurrentAccountId',
     }),
+    // "Marcar como lida" some para quem não é o atribuído, porque o backend
+    // recusa a escrita (só o dono limpa o "não lida") e um item que não faz
+    // nada confunde mais do que ajuda. "Marcar como não lida" segue para todos:
+    // ela cria o marcador, não rouba o de ninguém.
+    showReadToggle() {
+      return !this.hasUnreadMessages || this.canMarkAsRead;
+    },
     filteredAgentOnAvailability() {
       const agents = this.$store.getters[
         'inboxAssignableAgents/getAssignableAgents'
@@ -319,7 +330,11 @@ export default {
   <div
     class="p-1 rounded-md shadow-[0_2px_8px_rgba(11,20,26,0.12)] bg-n-solid-1 dark:bg-[#233138] border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)]"
   >
-    <template v-if="isAllowed([MENU.MARK_AS_READ, MENU.MARK_AS_UNREAD])">
+    <template
+      v-if="
+        isAllowed([MENU.MARK_AS_READ, MENU.MARK_AS_UNREAD]) && showReadToggle
+      "
+    >
       <MenuItem
         v-if="!hasUnreadMessages"
         :option="unreadOption"

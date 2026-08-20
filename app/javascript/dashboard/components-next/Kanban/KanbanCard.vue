@@ -68,6 +68,7 @@ const inboxById = useMapGetter('inboxes/getInboxById');
 const agentsList = useMapGetter('agents/getAgents');
 const labelsGetter = useMapGetter('labels/getLabels');
 const kanbanViewFilters = useMapGetter('kanban/getViewFilters');
+const remoteActivityGetter = useMapGetter('kanban/getRemoteActivity');
 const scheduledByConversation = useMapGetter(
   'kanban/getScheduledMessagesByConversation'
 );
@@ -77,6 +78,23 @@ const { isMessageRestricted: isAgentMessageRestricted } = useAgentIsolation();
 const dateLocale = computed(() =>
   String(locale.value || '').startsWith('pt') ? ptBR : enUS
 );
+
+// Tempo real (Fase 5.2): este card acabou de mudar por ação de OUTRA pessoa.
+// `performer` é nil quando o move veio de job (automação, SLA, backfill) —
+// `Current.user` só existe dentro do request —, daí "movido automaticamente".
+const remoteActivity = computed(() => {
+  const getter = remoteActivityGetter.value;
+  if (typeof getter !== 'function') return null;
+  return getter(props.item?.id);
+});
+
+const remoteActivityLabel = computed(() => {
+  const activity = remoteActivity.value;
+  if (!activity) return '';
+  return activity.name
+    ? t('KANBAN.CARD.MOVED_BY', { name: activity.name })
+    : t('KANBAN.CARD.MOVED_AUTOMATICALLY');
+});
 
 const contactId = computed(() => {
   return (
@@ -138,7 +156,8 @@ const lastMessage = computed(() => {
 
   if (
     isMessageRestricted(message, inbox.value) ||
-    isAgentMessageRestricted(message, inbox.value)
+    // 3º argumento = a conversa (time que isenta o supervisor).
+    isAgentMessageRestricted(message, inbox.value, props.conversation)
   )
     return '🔒';
 
@@ -734,11 +753,20 @@ const handleCardClick = event => {
 <template>
   <div
     class="kanban-card kanban-focusable group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col overflow-hidden bg-n-solid-1"
-    :class="{ 'has-cover': primaryLabel, 'kanban-card--urgent': isUrgent }"
+    :class="{
+      'has-cover': primaryLabel,
+      'kanban-card--urgent': isUrgent,
+      'kanban-card--remote': Boolean(remoteActivity),
+    }"
     :style="cardStyleVars"
     @click="handleCardClick"
     @mousedown="handleMouseDown"
   >
+    <!-- Tempo real: alguém MAIS mexeu neste card agora. Sem isso o card
+         teleporta sem explicação e o colega acha que bugou. -->
+    <div v-if="remoteActivity" class="kanban-card__remote-badge">
+      {{ remoteActivityLabel }}
+    </div>
     <!-- Wait rail — strongest signal, takes precedence over SLA/heat rails -->
     <div
       v-if="waitInfo.kind === 'awaiting'"

@@ -490,6 +490,10 @@ en:
       name: 'Meta Lead Ads'
       short_description: 'Receive Facebook/Instagram Lead Ads as conversations.'
       description: 'When a user submits a Lead Form on Facebook or Instagram Ads, Chatwoot creates a conversation in the target inbox and sends the initial outgoing message. Supports multiple pages (one hook per page) and uses System User Token (preferred) or Page Access Token.'
+    site_leads:
+      name: 'Site Leads'
+      short_description: 'Receive website form submissions as conversations.'
+      description: 'When someone submits a form on your website, the site posts the lead to a webhook and a conversation is opened in the target inbox with the approved template. The property code of the page the visitor was on opens the conversation already on that property, and the browsing journey is carried to the AI as context.'
   captain:
     errors:
       missing_api_key: 'OpenAI API key is not configured for this account. Please configure it in Captain settings.'

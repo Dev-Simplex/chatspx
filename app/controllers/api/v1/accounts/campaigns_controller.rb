@@ -2,6 +2,9 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   before_action :campaign, except: [:index, :create]
   before_action :check_authorization
 
+  # Quantas linhas da audiencia voltam como amostra (o total vai sempre nas stats).
+  SAMPLE_SIZE = 50
+
   def index
     @campaigns = Current.account.campaigns.includes(:inbox, sender: [:teams, { avatar_attachment: :blob }]).order(created_at: :desc)
     @campaigns = @campaigns.page(params[:page]).per(25) if params[:page].present?
@@ -23,11 +26,26 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
-  # Carrega a lista (upload) de destinatarios na campanha de disparo.
+  # Higiene da audiencia em DRY-RUN: mostra quem entra, quem sai e por que, sem
+  # gravar destinatario nenhum. E o que impede planejar um disparo em cima de
+  # numero errado — o nome do arquivo mente (listas "200" e "380" tinham 100 e 81).
+  def audience_preview
+    result = Campaigns::Whatsapp::AudienceBuilderService.new(
+      campaign: @campaign, rows: recipient_rows, blocklist_phones: blocklist_phones
+    ).perform
+    render json: audience_payload(result)
+  end
+
+  # Carrega a lista (upload) de destinatarios na campanha de disparo, aplicando as
+  # MESMAS regras do preview.
   def recipients
-    inserted = Campaigns::Whatsapp::ListLoaderService.new(campaign: @campaign, rows: recipient_rows).perform
-    render json: { inserted: inserted, total: @campaign.campaign_recipients.count,
-                   pending: @campaign.campaign_recipients.pending.count }
+    result = Campaigns::Whatsapp::ListLoaderService.new(
+      campaign: @campaign, rows: recipient_rows, blocklist_phones: blocklist_phones
+    ).perform
+    render json: audience_payload(result).merge(
+      total: @campaign.campaign_recipients.count,
+      pending: @campaign.campaign_recipients.pending.count
+    )
   end
 
   # Inicia/retoma o disparo (dispatch_status: running). O scheduler despacha no pacing.
@@ -67,12 +85,31 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   def campaign_params
     params.require(:campaign).permit(:title, :description, :message, :enabled, :trigger_only_during_business_hours, :inbox_id, :sender_id,
                                      :scheduled_at, :template_name, :template_language, :target_team_id, :pacing_seconds,
+                                     :dispatch_assignee_id,
                                      audience: [:type, :id], trigger_rules: {}, template_params: {}, dispatch_config: {})
   end
 
-  # Linhas da lista enviada (upload): [{name, phone}]. ListLoaderService normaliza e deduplica.
+  # Linhas da lista enviada (upload): [{name, phone}]. A higiene (normalizacao,
+  # descarte e deduplicacao) fica no AudienceBuilderService.
   def recipient_rows
     params.permit(rows: %i[name phone nome telefone])[:rows]&.map(&:to_h) || []
+  end
+
+  # Telefones a excluir vindos de fora da base (ex.: CSV de corretores). A exclusao
+  # por etiqueta de contato mora em `dispatch_config['blocklist_labels']`.
+  def blocklist_phones
+    params.permit(blocklist: [])[:blocklist] || []
+  end
+
+  # Amostra + contagem completa. O truncamento e explicito: audiencia que parece
+  # limpa porque a lista foi cortada em silencio e pior do que audiencia suja.
+  def audience_payload(result)
+    {
+      stats: result.stats,
+      accepted_sample: result.accepted.first(SAMPLE_SIZE).map { |entry| entry.slice(:name, :phone) },
+      rejected_sample: result.rejected.first(SAMPLE_SIZE),
+      rejected_omitted: [result.rejected.size - SAMPLE_SIZE, 0].max
+    }
   end
 
   def dispatch_state

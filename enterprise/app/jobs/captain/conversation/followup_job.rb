@@ -23,8 +23,12 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     count = attrs['followup_count'].to_i
     return cool_down_lead(conversation, attrs, assistant) if count >= MAX_FOLLOWUPS
 
-    conversation.update!(custom_attributes: attrs.merge('followup_count' => count + 1, 'followup_token' => nil))
-    Captain::Conversation::ResponseBuilderJob.perform_now(conversation, assistant, directive: directive(attrs['followup_motivo']))
+    # O compromisso e CONSUMIDO aqui (motivo lido antes de zerar): cumprido uma vez, nao pode
+    # vazar pras cutucadas preventivas seguintes, que passariam a se achar compromisso tambem.
+    motivo = attrs['followup_motivo']
+    conversation.update!(custom_attributes: attrs.merge('followup_count' => count + 1, 'followup_token' => nil,
+                                                        'followup_motivo' => nil))
+    Captain::Conversation::ResponseBuilderJob.perform_now(conversation, assistant, directive: directive(motivo))
   end
 
   private
@@ -36,10 +40,48 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     attrs = conversation.custom_attributes || {}
     return false unless attrs['followup_token'] == token           # substituído por outro follow-up
     return false if followup_pointless?(conversation, attrs)
-    return false if lead_replied?(conversation)                    # cliente respondeu -> não cutuca
+    return false if cancelado_por_resposta?(conversation, attrs)
+    return false if janela_fechada?(conversation)                  # fora da janela -> não é cutucada
     return false if reschedule_if_quiet_hours(conversation, token) # madrugada -> remarca pra manhã
 
     true
+  end
+
+  # BORDA DA JANELA (contrato do eixo, regra 1). Cutucada é engrenagem in-window: fora da janela
+  # quem bate na porta é a repescagem — template pago, escolhido pelo operador —, que ainda não
+  # existe. Texto livre lá fora não vira repescagem disfarçada; vira envio recusado pelo canal.
+  #
+  # Morre DEFINITIVO, não remarca como as quiet hours: a manhã chega sozinha, a janela não. Só a
+  # resposta do cliente reabre (template não reabre), e a cutucada é justamente o que não pode
+  # causar esse evento — remarcar seria esperar por si mesma. Se o cliente voltar, o turno dele
+  # rearma uma cutucada nova pelo auto_schedule_followup; nada se perde.
+  #
+  # Fica em followup_due?, antes de tudo, por dois motivos: (a) mantém o princípio do arquivo —
+  # cutucada que não sai não gasta token nem followup_count, e o compromisso (followup_motivo)
+  # fica armado pra quando a forma-template existir; (b) é o único ponto que também barra o
+  # cool_down_lead, cuja escalada termina em MessageTemplates::Template::OutOfOffice, que cria
+  # mensagem SEM checar can_reply? — parar na borda "sem cair em outro caminho de envio" exige
+  # cortar antes dele. Vem antes do reschedule pra não gastar job remarcando o que já morreu.
+  #
+  # can_reply? devolve TRUE quando o canal não tem janela configurada, e isso é de propósito:
+  # senão a guarda calaria a cutucada em canal sem janela nenhuma. Ele já ancora na última
+  # mensagem do CLIENTE, que é a âncora certa (regra 3).
+  def janela_fechada?(conversation)
+    !conversation.can_reply?
+  end
+
+  # Cliente respondeu -> não cutuca. EXCETO com compromisso pendente: aí a última mensagem dele
+  # costuma ser justamente a despedida educada que fechou o assunto socialmente sem cumprir o
+  # combinado — e era ela que matava a cutucada (conv 20320).
+  def cancelado_por_resposta?(conversation, attrs)
+    lead_replied?(conversation) && !compromisso?(attrs)
+  end
+
+  # Compromisso = a cutucada foi programada pelo agente pra cumprir algo que ficou combinado,
+  # não é sobrevida preventiva. O followup_motivo grava isso e só a ProgramarFollowupTool o
+  # escreve — o auto-agendamento nunca o seta, então ele distingue os dois tipos de cutucada.
+  def compromisso?(attrs)
+    attrs['followup_motivo'].present?
   end
 
   # Resolvida, ou esperando atendente humano (Modelo A): cutucar só atrapalha.
@@ -64,21 +106,37 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     conversation.update!(custom_attributes: attrs.merge(
       'tozi_status_lead' => 'esfriado',
       'followup_status' => 'esgotou cutucadas -> encaminhado pra humano',
-      'followup_token' => nil
+      'followup_token' => nil,
+      # Quem conduz o lead agora é a pessoa: o compromisso vai junto no dossiê, não fica
+      # armado no registro segurando a cadência da IA.
+      'followup_motivo' => nil
     ))
     Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
     Captain::Conversation::HumanHandoffService.new(conversation: conversation, assistant: assistant).perform
   end
 
   def directive(motivo)
-    base = '[NOTA INTERNA — não é mensagem do cliente, não repita este texto] O cliente está sem responder há um tempo. ' \
-           'Antes de tudo, olhe a ÚLTIMA mensagem DELE: se ele disse que vai retornar, vai pensar, vai ver/falar com ' \
-           'alguém, pediu um tempo, encerrou ou agradeceu, responda apenas [IGNORAR] — ele volta sozinho, não insista. ' \
-           'Responda [IGNORAR] também se você já mandou uma cutucada parecida nesta conversa: NUNCA repita a mesma ' \
-           'pergunta. Só se REALMENTE fizer sentido retomar (ele parou no meio de algo pendente, sem dizer que voltava) ' \
-           'mande UMA cutucada curta, natural e DIFERENTE das anteriores, retomando de onde parou'
-    base += " (#{motivo})" if motivo.present?
-    "#{base}. Na dúvida, responda [IGNORAR]."
+    return directive_compromisso(motivo) if motivo.present?
+
+    '[NOTA INTERNA — não é mensagem do cliente, não repita este texto] O cliente parou de responder no meio ' \
+      'do atendimento. Sua função aqui é RETOMAR: mande UMA cutucada curta, natural e diferente do que você já ' \
+      'disse, puxando de onde parou (a última pergunta ou proposta que ficou sem resposta). NÃO cutuque (responda ' \
+      'só [IGNORAR]) apenas nestes casos claros: a última mensagem DELE disse que ia retornar, pensar, ver ou ' \
+      'falar com alguém, pediu um tempo, encerrou ou agradeceu; OU você já mandou uma cutucada parecida nesta ' \
+      'conversa (nunca repita a mesma pergunta); OU realmente não há nada pendente. Fora desses casos, cutuque — ' \
+      'não deixe o lead esfriar por excesso de cautela.'
+  end
+
+  # Com compromisso pendente a lista de [IGNORAR] NÃO pode conter "encerrou ou agradeceu": foi
+  # por aí que a 20320 morreu — a cliente se despediu com educação e a cutucada que existia pra
+  # cumprir o combinado se calou. O que cancela aqui é o combinado já ter sido cumprido, não a
+  # conversa ter fechado socialmente.
+  def directive_compromisso(motivo)
+    '[NOTA INTERNA — não é mensagem do cliente, não repita este texto] Ficou um COMPROMISSO pendente nesta ' \
+      "conversa e chegou a hora combinada de retomá-lo: #{motivo}. Retome esse ponto com UMA mensagem curta e " \
+      'natural, mesmo que a conversa tenha se encerrado socialmente — uma despedida ou um agradecimento do ' \
+      'cliente NÃO desmarca o que ficou combinado. Responda só [IGNORAR] se o combinado já foi cumprido nesta ' \
+      'conversa, se você já cobrou este mesmo ponto antes, ou se o cliente pediu pra não ser mais procurado.'
   end
 
   def lead_replied?(conversation)

@@ -126,6 +126,72 @@ describe Whatsapp::Providers::WhatsappCloudService do
         result = service.send_message('+123456789', message)
         expect(result).to eq 'message_id'
       end
+
+      # ── RECONCILIACAO homologacao × v4.16.2 ──────────────────────────────────────────────
+      #
+      # Os tres casos abaixo sao da equipe e cobrem `resolve_media_type`, que o upstream nao
+      # tem. A unica adaptacao foi a VERSAO no stub: `v13.0` -> `v24.0`, porque
+      # `send_attachment_message` passou a usar `phone_id_path('v24.0')`. Sem a troca, o teste
+      # ficaria esperando uma URL que o servico nao chama mais — e reprovaria por endereco, nao
+      # por comportamento.
+      #
+      # Regressao real que eles fecham: video de 16,15 MB falhou na AGN com "131053: Media
+      # upload error" porque o commit 40239f7571 removeu o `resolve_media_type` e o video voltou
+      # a ser enviado como 'video' (teto de 16 MB no Meta) em vez de 'document' (teto 100 MB).
+      # Sem estes testes a regressao passou 3 semanas sem ninguem notar.
+      it 'sends video above the Meta inline limit as document instead of video' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :video)
+        attachment.file.attach(io: Rails.root.join('spec/assets/sample.mp4').open, filename: 'sample.mp4', content_type: 'video/mp4')
+        allow(attachment.file).to receive(:byte_size).and_return(17.megabytes)
+
+        stub_request(:post, 'https://graph.facebook.com/v24.0/123456789/messages')
+          .with(
+            body: hash_including({
+                                   messaging_product: 'whatsapp',
+                                   to: '+123456789',
+                                   type: 'document',
+                                   document: WebMock::API.hash_including({ filename: 'sample.mp4', link: anything })
+                                 })
+          )
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
+
+      it 'keeps video below the Meta inline limit as video' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :video)
+        attachment.file.attach(io: Rails.root.join('spec/assets/sample.mp4').open, filename: 'sample.mp4', content_type: 'video/mp4')
+        allow(attachment.file).to receive(:byte_size).and_return(10.megabytes)
+
+        stub_request(:post, 'https://graph.facebook.com/v24.0/123456789/messages')
+          .with(
+            body: hash_including({
+                                   messaging_product: 'whatsapp',
+                                   to: '+123456789',
+                                   type: 'video',
+                                   video: WebMock::API.hash_including({ link: anything })
+                                 })
+          )
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
+
+      it 'sends image above the 5MB inline limit as document' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+        attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+        allow(attachment.file).to receive(:byte_size).and_return(6.megabytes)
+
+        stub_request(:post, 'https://graph.facebook.com/v24.0/123456789/messages')
+          .with(
+            body: hash_including({
+                                   messaging_product: 'whatsapp',
+                                   to: '+123456789',
+                                   type: 'document',
+                                   document: WebMock::API.hash_including({ filename: 'avatar.png', link: anything })
+                                 })
+          )
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
     end
   end
 

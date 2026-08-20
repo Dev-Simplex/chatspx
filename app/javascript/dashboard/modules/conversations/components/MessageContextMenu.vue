@@ -1,12 +1,19 @@
 <script>
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { mapGetters } from 'vuex';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import AddCannedModal from 'dashboard/routes/dashboard/settings/canned/AddCanned.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
+// União obrigatória: o corpo já mesclado usa os TRÊS símbolos —
+// `parseAPIErrorResponse` na linha do `useAlert`, e `emitter`/`BUS_EVENTS` no
+// `emit(OPEN_EVAL_MODAL)`. Ficar com um dos lados deixaria o outro indefinido em
+// tempo de execução, e só na hora em que o agente clicasse no item do menu.
 import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { conversationUrl, frontendURL } from '../../../helper/URLHelper';
 import {
   ACCOUNT_EVENTS,
@@ -50,9 +57,11 @@ export default {
   emits: ['open', 'close', 'replyTo', 'forward', 'star', 'unstar', 'edit'],
   setup() {
     const { getPlainText } = useMessageFormatter();
+    const { isAdmin } = useAdmin();
 
     return {
       getPlainText,
+      isAdmin,
     };
   },
   data() {
@@ -141,6 +150,16 @@ export default {
     },
     handleReplyTo() {
       this.$emit('replyTo', this.message);
+      this.handleClose();
+    },
+    // F4.2 (Eval humano): abre o modal "Avaliar atendimento" com o episódio desta
+    // mensagem pré-selecionado e o trecho citado — a avaliação fica ancorada na
+    // resposta exata sem o gestor precisar adivinhar o episódio.
+    handleEvalMessage() {
+      emitter.emit(BUS_EVENTS.OPEN_EVAL_MODAL, {
+        messageId: this.messageId,
+        trecho: (this.plainTextContent || '').trim().slice(0, 140),
+      });
       this.handleClose();
     },
     handleForward() {
@@ -281,6 +300,15 @@ export default {
           }"
           variant="icon"
           @click.stop="showCannedResponseModal"
+        />
+        <MenuItem
+          v-if="isAdmin"
+          :option="{
+            icon: 'i-lucide-clipboard-check',
+            label: $t('EVALUATE_EPISODE.MENU_ITEM_MESSAGE'),
+          }"
+          variant="icon"
+          @click.stop="handleEvalMessage"
         />
         <MenuItem
           v-if="enabledOptions['edit']"

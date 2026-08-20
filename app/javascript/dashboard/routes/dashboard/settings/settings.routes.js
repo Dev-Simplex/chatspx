@@ -27,7 +27,6 @@ import security from './security/security.routes';
 import wahaConnections from './wahaConnections/wahaConnections.routes';
 import messageSequences from './messageSequences/messageSequences.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
-import captain from './captain/captain.routes';
 import data from './data/data.routes';
 
 export default {
@@ -72,6 +71,5 @@ export default {
     ...wahaConnections.routes,
     ...messageSequences.routes,
     ...conversationWorkflow.routes,
-    ...captain.routes,
   ],
 };

@@ -1459,7 +1459,18 @@
       "TITLE": "Activity Logs"
     },
     "AGENT_TABS": {
+      "FLOW": {
+        "VIEW_SIMPLE": "Simple view",
+        "VIEW_TECH": "Technical view",
+        "HINT": "Generated from the agent's real configuration — change the config, change the flow."
+      },
       "OVERVIEW": {
+        "KPI_HANDLED": "Handled conversations",
+        "KPI_CSAT": "Satisfaction (CSAT)",
+        "KPI_RESOLVED": "Resolved",
+        "KPI_HANDOFFS": "Handed off to human",
+        "HERO_CAPTION": "of {count} conversations the AI resolved without a human",
+        "HERO_EMPTY": "Once the AI handles conversations, real metrics show up here.",
         "RESPONSES": "Responses",
         "DOCUMENTS": "Documents",
         "INBOXES": "Inboxes",
@@ -1571,6 +1582,8 @@
         "NO_LOGS": "No logs found."
       },
       "SETTINGS": {
+        "SAVE_SUCCESS": "Settings saved successfully.",
+        "SAVE_ERROR": "Couldn't save. Please try again.",
         "INFO_TITLE": "Information",
         "NAME": "Name",
         "DESCRIPTION": "Description",

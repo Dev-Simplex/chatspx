@@ -988,7 +988,22 @@ RSpec.describe 'Conversations API', type: :request do
         create(:inbox_member, user: agent, inbox: conversation.inbox)
       end
 
+      # `explicit: true` porque a conversa não tem dono: leitura IMPLÍCITA deixou de limpar o
+      # "não lida" de conversa que não é sua (ver `may_clear_unread_marker?`). O que este
+      # exemplo cobre é a mecânica do last_seen, não o gate — então usa o caminho deliberado.
       it 'updates last seen' do
+        conversation.update!(agent_last_seen_at: nil)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(conversation.reload.agent_last_seen_at).not_to be_nil
+      end
+
+      it 'keeps the conversation unread when a non-assignee just opens it' do
         conversation.update!(agent_last_seen_at: nil)
 
         post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
@@ -996,7 +1011,7 @@ RSpec.describe 'Conversations API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:success)
-        expect(conversation.reload.agent_last_seen_at).not_to be_nil
+        expect(conversation.reload.agent_last_seen_at).to be_nil
       end
 
       it 'updates assignee last seen' do
@@ -1038,6 +1053,7 @@ RSpec.describe 'Conversations API', type: :request do
         initial_last_seen = conversation.agent_last_seen_at
 
         post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
              headers: agent.create_new_auth_token,
              as: :json
 
@@ -1052,6 +1068,7 @@ RSpec.describe 'Conversations API', type: :request do
         initial_last_seen = conversation.agent_last_seen_at
 
         post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
              headers: agent.create_new_auth_token,
              as: :json
 

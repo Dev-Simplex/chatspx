@@ -107,17 +107,48 @@ const emit = defineEmits([
               @update:sort="emit('update:sort', $event)"
             />
             <ContactMoreActions
-              @add="emit('add')"
               @import="emit('import')"
               @export="emit('export')"
             />
           </div>
           <div class="w-px h-4 bg-n-strong" />
-          <ComposeConversation>
-            <template #trigger>
-              <Button :label="buttonLabel" size="sm" />
-            </template>
-          </ComposeConversation>
+          <!-- RECONCILIAÇÃO: fica o lado da homologação, e por dois motivos
+               independentes. (1) O botão "adicionar contato" é feature deles —
+               `emit('add')` já está declarado no `defineEmits` deste arquivo e a
+               chave CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ADD_CONTACT
+               existe no contact.json; sem ele o emit fica sem emissor. (2) O
+               `#trigger="{ toggle }"` + `@click="toggle"` é a API VIGENTE do
+               ComposeConversation, que expõe `:toggle="toggle"` no slot — o
+               outro lado não chamava o toggle, e é assim que o Sidebar.vue:1394
+               já o usa. -->
+          <div class="flex items-center gap-2">
+            <Button
+              color="slate"
+              variant="faded"
+              size="sm"
+              icon="i-lucide-user-plus"
+              class="max-md:w-7 max-md:!px-0"
+              :title="
+                $t(
+                  'CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ADD_CONTACT'
+                )
+              "
+              @click="emit('add')"
+            >
+              <span class="hidden md:inline min-w-0 truncate">
+                {{
+                  $t(
+                    'CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ADD_CONTACT'
+                  )
+                }}
+              </span>
+            </Button>
+            <ComposeConversation>
+              <template #trigger="{ toggle }">
+                <Button :label="buttonLabel" size="sm" @click="toggle" />
+              </template>
+            </ComposeConversation>
+          </div>
         </div>
       </div>
     </div>

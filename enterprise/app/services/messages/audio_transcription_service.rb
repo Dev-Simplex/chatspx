@@ -26,14 +26,15 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     Rails.logger.info "Audio transcription successful: #{transcriptions}"
     { success: true, transcriptions: transcriptions }
   rescue Faraday::UnauthorizedError
-    Rails.logger.warn('Skipping audio transcription: OpenAI configuration is invalid or disabled (401 Unauthorized).')
+    Rails.logger.warn("[AudioTranscription] 401 OpenAI (chave inválida/desabilitada) att=#{attachment&.id} acc=#{account&.id}")
     { error: 'OpenAI configuration is invalid or disabled (401)' }
   rescue Faraday::Error => e
     # Transcrição é best-effort: rate limit (429), 5xx, timeout ou falha de conexão da
     # OpenAI NÃO podem abortar o atendimento. Sem este rescue, o erro sobe pelo builder
     # de histórico e derruba a resposta inteira (IA fica muda). Degrada para "sem
-    # transcrição" — o chamador já trata `{ error: ... }` como texto vazio.
-    Rails.logger.warn("Skipping audio transcription: OpenAI request failed (#{e.class}).")
+    # transcrição" — o chamador já trata `{ error: ... }` como texto vazio. Log VISÍVEL
+    # (att/acc) porque era exatamente esse erro que sumia sem rastro (rate limit da key).
+    Rails.logger.warn("[AudioTranscription] FALHOU após retry: #{e.class} att=#{attachment&.id} acc=#{account&.id}")
     { error: "OpenAI request failed (#{e.class})" }
   end
 
@@ -88,26 +89,48 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     return transcribed_text if transcribed_text.present?
 
     temp_file_path = fetch_audio_file
-    transcribed_text = nil
-
-    File.open(temp_file_path, 'rb') do |file|
-      # temperature: 0.0 minimises hallucinations on silence / near-silent
-      # audio; non-zero values trigger spiraling repeats — well-documented
-      # behaviour across OpenAI transcription models.
-      response = @client.audio.transcribe(
-        parameters: {
-          model: transcription_model,
-          file: file,
-          temperature: 0.0
-        }
-      )
-      transcribed_text = response['text']
-    end
+    transcribed_text = whisper_with_retry(temp_file_path)
 
     update_transcription(transcribed_text)
     transcribed_text
   ensure
     FileUtils.rm_f(temp_file_path) if temp_file_path.present?
+  end
+
+  # 1 retry: um 429/timeout/5xx transitório da OpenAI deixava o áudio SEM transcrição em
+  # silêncio (best-effort). Agora tenta de novo antes de desistir. 401/400 não repete.
+  #
+  # RECONCILIAÇÃO homologacao × v4.16.2 — dois ajustes, e cada um veio de um lado:
+  #
+  #  · `WHISPER_MODEL` NÃO EXISTE MAIS AQUI. O upstream trocou a constante fixa
+  #    ('whisper-1') pelo modelo que o `Llm::FeatureRouter` resolve por conta
+  #    (`transcription_model`, definido no `initialize`). Manter a constante faria a primeira
+  #    transcrição levantar `NameError` — em runtime, não no boot, porque Ruby só resolve
+  #    constante quando a linha executa. O arquivo carregaria, os testes do lado antigo
+  #    passariam, e o defeito apareceria no áudio de um cliente.
+  #  · `temperature: 0.0`, e não 0.4. É melhoria do upstream com razão medida: em áudio
+  #    silencioso ou quase silencioso, temperatura > 0 dispara repetição em espiral — o
+  #    modelo "alucina" texto que não foi dito. O comportamento é documentado em todos os
+  #    modelos de transcrição da OpenAI.
+  #
+  # O QUE NÃO MUDOU é a razão de este método existir: o retry é da equipe, e sem ele um 429
+  # transitório deixava o áudio sem transcrição em silêncio.
+  def whisper_with_retry(path)
+    tries = 0
+    begin
+      tries += 1
+      File.open(path, 'rb') do |file|
+        @client.audio.transcribe(parameters: { model: transcription_model, file: file, temperature: 0.0 })['text']
+      end
+    rescue Faraday::UnauthorizedError, Faraday::BadRequestError
+      raise
+    rescue Faraday::Error => e
+      raise if tries >= 2
+
+      Rails.logger.warn("[AudioTranscription] retry após #{e.class} (att=#{attachment&.id} acc=#{account&.id})")
+      sleep(1)
+      retry
+    end
   end
 
   def instrumentation_params(file_path)

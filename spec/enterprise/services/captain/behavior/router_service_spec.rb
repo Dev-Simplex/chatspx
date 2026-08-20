@@ -12,6 +12,39 @@ RSpec.describe Captain::Behavior::RouterService do
     described_class.new(assistant: assistant, conversation: conversation, message: msg).should_respond?
   end
 
+  # Menção não é mensagem: é notificação que o Instagram entrega em forma de mensagem, e o
+  # texto é gerado por nós. Medido na Tozi (inbox 101), 60 dias: 53 dessas viraram 48 respostas
+  # da IA, várias perguntando a corretores da própria casa se queriam alugar ou comprar.
+  describe 'menção da marca no story de outra pessoa' do
+    def com_tipo(tipo)
+      build(:message, conversation: conversation, message_type: :incoming, account: account,
+                      content: 'fulano mencionou você na conversa:', content_attributes: { 'image_type' => tipo })
+    end
+
+    it 'does not respond to a story mention' do
+      expect(should_respond?(com_tipo('story_mention'))).to be false
+    end
+
+    # As três abaixo são conversa de verdade: em todas a pessoa mandou algo para nós de
+    # propósito. Se caírem no mesmo balde, a IA fica muda com quem respondeu ao story da marca
+    # — que é justamente o lead que este canal produz.
+    it 'still responds to a reply to our own story' do
+      expect(should_respond?(com_tipo('ig_story_reply'))).to be true
+    end
+
+    it 'still responds to a story shared into the direct' do
+      expect(should_respond?(com_tipo('ig_story'))).to be true
+    end
+
+    it 'still responds to a post shared into the direct' do
+      expect(should_respond?(com_tipo('ig_post'))).to be true
+    end
+
+    it 'is inert on channels that have no image_type at all' do
+      expect(should_respond?).to be true
+    end
+  end
+
   describe 'guards técnicos (sobrevivem ao D-6)' do
     it 'responds to a regular incoming message' do
       expect(should_respond?).to be true
@@ -110,14 +143,31 @@ RSpec.describe Captain::Behavior::RouterService do
     end
   end
 
-  describe 'guards de negócio mortos (papel assumido pelo gate por atribuição)' do
-    it 'responds even with a matching skip_labels config (guard morto)' do
+  # skip_labels NÃO é guard de negócio e não morreu com o gate por atribuição: ele foi
+  # RESSUSCITADO em 23/07 para o caso do interlocutor-robô (conversa marcada `bot-externo`,
+  # quando o outro lado é a URA de outra empresa). Cala a IA de forma determinística, sem
+  # gastar LLM. O exemplo que vivia aqui afirmava o contrário e estava vermelho desde então.
+  describe 'kill-switch por label (skip_labels)' do
+    it 'does not respond when a conversation label matches skip_labels' do
       assistant.update!(behavior: { 'router' => { 'skip_labels' => ['atendimento'] } })
+      conversation.update_labels(['atendimento'])
+
+      expect(should_respond?).to be false
+    end
+
+    it 'responds when no label matches' do
+      assistant.update!(behavior: { 'router' => { 'skip_labels' => ['bot-externo'] } })
       conversation.update_labels(['atendimento'])
 
       expect(should_respond?).to be true
     end
 
+    it 'responds when skip_labels is not configured' do
+      expect(should_respond?).to be true
+    end
+  end
+
+  describe 'guards de negócio mortos (papel assumido pelo gate por atribuição)' do
     it 'responds even when only_contact_phones whitelist does not match (guard morto)' do
       assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['+5511888887777'] } })
 

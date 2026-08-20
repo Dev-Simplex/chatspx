@@ -11,19 +11,20 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
   param :codigo, type: 'string',
                  desc: 'Código do imóvel que o cliente informar (do anúncio, da placa do imóvel, ou do site). Quando presente, busca o imóvel EXATO por esse código — ignore os outros filtros.', required: false
-  param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
+  param :categoria, type: 'string',
+                    desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
   param :endereco, type: 'string',
-                   desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
+                   desc: 'Rua, avenida ou logradouro, quando o cliente especificar. Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
   param :piscina, type: 'boolean', desc: 'true SÓ quando o cliente pedir imóvel COM piscina — filtra pra retornar só os que têm.', required: false
   param :lat, type: 'string', desc: 'Latitude do ponto de referência (do buscar_localizacao ou da localização enviada pelo cliente).', required: false
   param :lng, type: 'string', desc: 'Longitude do ponto de referência.', required: false
-  param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância (ex: "até 2 km"). Sem isso, lista os mais próximos.', required: false
+  param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância. Sem isso, lista os mais próximos.', required: false
 
   VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite
-                    ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
+                    Condominio ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
@@ -31,7 +32,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
     if codigo.present?
       cod = codigo.to_s.gsub(/\D/, '')
+      # O número que o cliente passa (placa/site/anúncio) às vezes é o Codigo interno,
+      # às vezes o ImoCodigo do site — tenta os dois antes de dizer que não achou.
       achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
+      achados = fetch_vista({ 'ImoCodigo' => cod }, quantidade: 1) if achados.blank?
       return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)
@@ -60,7 +64,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     geo = lat.present? && lng.present?
     # O Vista compara Latitude/Longitude como STRING (lexicográfico) — com coordenadas
     # negativas o range nunca casa. Proximidade é calculada AQUI (Haversine), não lá.
-    imoveis = fetch_vista(filter, quantidade: geo ? 50 : 5)
+    imoveis = fetch_vista(filter, quantidade: geo ? 50 : 5, venda: venda)
     Rails.logger.info("[BuscarImovel] status=#{status_tipo} categoria=#{categoria.inspect} bairro=#{bairro.inspect} " \
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
@@ -83,20 +87,19 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   private
 
-  def fetch_vista(filter, quantidade: 5)
+  def fetch_vista(filter, quantidade: 5, venda: false)
     base = vista_base_url
+    # Ordena por PREÇO crescente (o mais em conta dentro do filtro primeiro), não por
+    # Codigo desc (arbitrário, que escondia opções boas de código baixo — ex.: casa cód
+    # 5474 barata no bairro pedido ficava fora do top 5). O Vista ordena ValorLocacao/
+    # ValorVenda numericamente (testado). Geo re-ordena por distância depois.
     pesquisa = {
       fields: VISTA_FIELDS,
       filter: filter,
-      order: { 'Codigo' => 'desc' },
+      order: { (venda ? 'ValorVenda' : 'ValorLocacao') => 'asc' },
       paginacao: { pagina: 1, quantidade: quantidade }
     }
-    resp = HTTParty.get(
-      "#{base}/imoveis/listar",
-      query: { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json },
-      headers: { 'Accept' => 'application/json' },
-      timeout: 15
-    )
+    resp = vista_get("#{base}/imoveis/listar", { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json })
     return [] unless resp.code == 200
 
     data = resp.parsed_response
@@ -104,6 +107,16 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return [] unless data.is_a?(Hash)
 
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
+  end
+
+  # 1 retry no GET do Vista: um timeout transitório fazia a IA dizer "não consegui / dificuldade
+  # de acesso" num imóvel que EXISTE (conv 18960, 19099). Se a 2ª tentativa também falhar, o erro
+  # sobe pro rescue do perform ("não consegui buscar agora"), não vira "não achei".
+  def vista_get(url, query)
+    HTTParty.get(url, query: query, headers: { 'Accept' => 'application/json' }, timeout: 15)
+  rescue StandardError
+    sleep(0.6)
+    HTTParty.get(url, query: query, headers: { 'Accept' => 'application/json' }, timeout: 15)
   end
 
   # Registra na conversa os códigos que a busca retornou. A enviar_fotos_imovel só
@@ -125,21 +138,49 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Guarda o mapa codigo/ImoCodigo -> URL canônica (build_url) na conversa (urls_imoveis),
   # pra o sanitizador de saída (fix_property_links) manter os links que a IA manda e remover
   # só os inventados. Sem isso, urls_imoveis fica vazio e TODO link da Tozi é apagado.
+  #
+  # Junto vai `dados_imoveis` (preço e bairro por código), que deixa o sanitizador conferir
+  # se o link pertence ao imóvel descrito na frase — e não só se ele existe. É mapa IRMÃO,
+  # não um novo formato do urls_imoveis: este é lido em dois lugares (fix_property_links e
+  # enviar_fotos_imovel_tool), nenhum deles com spec, e um é o carrossel que está em
+  # produção. Trocar o valor por hash quebraria os dois de uma vez.
   def track_urls(tool_context, imoveis, venda)
     conv = find_conversation(tool_context&.state)
     return unless conv
 
     novos = {}
-    imoveis.each do |im|
-      url = build_url(im, venda)
-      [im['Codigo'], im['ImoCodigo']].each { |k| novos[k.to_s] = url if k.to_s.strip.present? }
-    end
+    dados = {}
+    imoveis.each { |im| registra_imovel(im, venda, novos, dados) }
     return if novos.empty?
 
-    atual = conv.custom_attributes['urls_imoveis'] || {}
-    conv.update!(custom_attributes: conv.custom_attributes.merge('urls_imoveis' => atual.merge(novos).to_a.last(60).to_h))
+    atuais = conv.custom_attributes
+    # `|| {}` e não `fetch(k, {})`: o default do fetch só entra quando a chave está AUSENTE.
+    # Chave presente valendo nil (a API de custom_attributes aceita gravar isso) devolve nil,
+    # o merge estoura e o rescue abaixo engole — os mapas param de ser escritos sem sinal
+    # nenhum na tela, e sem urls_imoveis o fix_property_links apaga TODO link da Tozi.
+    mapas = {
+      'urls_imoveis' => (atuais['urls_imoveis'] || {}).merge(novos).to_a.last(60).to_h,
+      'dados_imoveis' => (atuais['dados_imoveis'] || {}).merge(dados).to_a.last(60).to_h
+    }
+    conv.update!(custom_attributes: atuais.merge(mapas))
   rescue StandardError => e
-    Rails.logger.warn("[BuscarImovel] track_urls: #{e.message}")
+    # error, não warn (como no track_codigos): falhar aqui não degrada a busca, apaga o link
+    # de todo imóvel da resposta. É invisível pro operador, então precisa aparecer no log.
+    Rails.logger.error("[BuscarImovel] track_urls: #{e.message}")
+  end
+
+  # O imóvel entra nos dois mapas pelas duas chaves (Codigo e ImoCodigo), porque a IA cita
+  # ora uma ora outra. Preço zero (imóvel só de locação numa busca de venda, ou vice-versa)
+  # fica de fora do dados_imoveis: sem preço confiável, a guarda não deve opinar.
+  def registra_imovel(imovel, venda, novos, dados)
+    url = build_url(imovel, venda)
+    preco = (venda ? imovel['ValorVenda'] : imovel['ValorLocacao']).to_f
+    [imovel['Codigo'], imovel['ImoCodigo']].each do |k|
+      next if k.to_s.strip.blank?
+
+      novos[k.to_s] = url
+      dados[k.to_s] = { 'preco' => preco, 'bairro' => imovel['Bairro'].to_s.strip } if preco.positive?
+    end
   end
 
   # Fallback determinístico: quando a busca COM filtro de bairro/endereço vem vazia, refaz
@@ -152,7 +193,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
     return if bairro.blank? && endereco.blank?
 
-    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: 5)
+    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: 5, venda: venda)
     return if imoveis.blank?
 
     track_codigos(tool_context, imoveis)
@@ -209,9 +250,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
       dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      linha = "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{dist}. #{build_url(
-        im, venda
-      )}"
+      linha = "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}" \
+              "#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{format_condominio(im)}#{dist}. #{build_url(im, venda)}"
       desc = detalhado ? descricao_limpa(im['DescricaoWeb']) : ''
       linha += "\n#{desc}" if desc.present?
       linha
@@ -225,6 +265,17 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     parts << "condomínio R$ #{im['ValorCondominio']}" if im['ValorCondominio'].to_f.positive?
     parts << "IPTU R$ #{im['ValorIptu']}" if im['ValorIptu'].to_f.positive?
     parts.any? ? " (#{parts.join(', ')})" : ''
+  end
+
+  # Vista diz se o imóvel está EM condomínio (campo Condominio). Antes a IA chutava
+  # "condomínio fechado" pelo nome do bairro ("Residencial X") e errava a regra de
+  # visita/chave (conv 19092); com o dado real ela acerta. Só mostra quando o Vista responde.
+  def format_condominio(imovel)
+    case imovel['Condominio'].to_s.strip.downcase
+    when 'sim' then ' [em condomínio fechado]'
+    when 'nao', 'não' then ' [imóvel avulso, sem condomínio]'
+    else ''
+    end
   end
 
   # Área/metragem em m²: AreaTotal é a metragem do terreno/lote (essencial pra terreno);
@@ -292,5 +343,4 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def sim?(val)
     val.to_s.strip.casecmp('sim').zero?
   end
-
 end

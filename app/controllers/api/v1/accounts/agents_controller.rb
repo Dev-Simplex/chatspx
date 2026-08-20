@@ -1,8 +1,32 @@
 class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   before_action :fetch_agent, except: [:create, :index, :bulk_create]
   before_action :check_authorization
+  # RECONCILIACAO homologacao × v4.16.2 — dois dos quatro `before_action` da homologacao
+  # ficam, e dois SAEM. Nao e escolha de lado: e o que cada um faz hoje.
+  #
+  # FICAM (feature do supervisor, da equipe): os dois metodos existem neste arquivo
+  # (`authorize_supervision_change`, `authorize_supervisor_update`). Sem estas duas linhas eles
+  # viram CODIGO MORTO — a autorizacao de quem pode mudar supervisao simplesmente nao roda, e
+  # nenhum teste do lado do upstream notaria, porque para ele a feature nao existe.
+  #
+  # SAEM `validate_limit` e `validate_limit_for_bulk_create`: o upstream removeu os dois metodos
+  # e moveu a checagem de limite para DENTRO do `AgentBuilder`, que levanta
+  # `AgentBuilder::LimitExceededError` de dentro de um `account.with_lock` — e `create` e
+  # `bulk_create` ja a capturam aqui. Manter os `before_action` levantaria `NoMethodError` em
+  # toda criacao de agente. A funcionalidade nao se perdeu; ela melhorou: sob lock, duas
+  # criacoes simultaneas nao furam mais o limite, o que o `before_action` permitia.
+  before_action :authorize_supervision_change, only: [:update]
+  before_action :authorize_supervisor_update, only: [:update]
 
   def index
+    # Devolve a conta inteira para TODO MUNDO, como sempre foi (UserPolicy#index? é
+    # `true` para qualquer agente — este endpoint nunca foi controle de segurança).
+    # T4: não recorte aqui. Esta resposta alimenta a store `agents` do dashboard
+    # inteiro (participantes da conversa, menções do chat interno, Kanban, filtro de
+    # responsável da lista); estreitá-la para o supervisor tirava gente dessas telas,
+    # e um supervisor de time sem membros ficava com a lista VAZIA em todas elas.
+    # O recorte de "agentes dos meus times" é da TELA de Agentes e mora no front
+    # (settings/agents/Index.vue), que cruza `team_ids` com os times supervisionados.
     @agents = agents
   end
 
@@ -25,6 +49,7 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   def update
     @agent.update!(agent_params.slice(:name).compact)
     @agent.current_account_user.update!(agent_params.slice(*account_user_attributes).compact)
+    sync_supervised_teams
   end
 
   def destroy
@@ -59,6 +84,80 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
     [:role, :availability, :auto_offline]
   end
 
+  # D7: marcar supervisor é exclusivo de admin. O endpoint já é admin-only pela
+  # UserPolicy#update?, mas a guarda explícita impede que um afrouxamento futuro da
+  # política (custom_role com agent_manage, p.ex.) deixe um agente se autopromover.
+  # Roda como before_action para barrar ANTES de qualquer escrita no agente.
+  def authorize_supervision_change
+    return if supervised_team_ids_param.nil?
+
+    raise Pundit::NotAuthorizedError unless Current.account_user.administrator?
+  end
+
+  # T1: com a UserPolicy#update? afrouxada para deixar o supervisor entrar, TUDO o que
+  # limita o que ele pode fazer mora aqui. Três recusas, todas antes de qualquer
+  # escrita:
+  #   1. chave diferente de `name` (role/availability/custom_role_id/...) → seria troca
+  #      de função/disponibilidade, que ele não tem;
+  #   2. alvo fora dos times supervisionados → renomear quem ele nem enxerga;
+  #   3. alvo administrador → um supervisor jamais edita quem está acima dele.
+  # Admin não passa por nada disso (caminho idêntico ao de antes).
+  def authorize_supervisor_update
+    return unless supervisor_scope?
+
+    raise Pundit::NotAuthorizedError if forbidden_supervisor_keys.any?
+    raise Pundit::NotAuthorizedError unless manageable_agent_ids.include?(@agent.id)
+    raise Pundit::NotAuthorizedError if @agent.administrator?
+  end
+
+  # Whitelist de uma chave só. Olhamos o hash aninhado (o ParamsWrapper copia o corpo
+  # inteiro para `agent`, porque não existe modelo `Agent`) e ainda o `custom_role_id`
+  # de topo, que é de onde o módulo enterprise o lê.
+  def forbidden_supervisor_keys
+    submitted = params[:agent].present? ? params[:agent].keys.map(&:to_s) : []
+    submitted |= ['custom_role_id'] if params.key?(:custom_role_id)
+
+    submitted - ['name']
+  end
+
+  # "Este request é de um supervisor puro?" — admin e quem não supervisiona nada
+  # respondem `false` e passam pelo caminho de sempre (D5: inerte enquanto ninguém
+  # for marcado supervisor).
+  def supervisor_scope?
+    return false if Current.account_user&.administrator?
+
+    TeamSupervision.supervisor?(current_user, Current.account)
+  end
+
+  def manageable_agent_ids
+    @manageable_agent_ids ||= TeamSupervision.manageable_agent_ids(current_user, Current.account)
+  end
+
+  # Marcação de supervisor (F1). Só no update — o create fica enxuto de propósito.
+  # Substitui o conjunto inteiro (diff add/remove) numa transação; ausência da chave
+  # significa "não mexa", array vazio significa "não supervisiona mais nada".
+  def sync_supervised_teams
+    requested_ids = supervised_team_ids_param
+    return if requested_ids.nil?
+
+    # ids de times de outra conta são ignorados em silêncio (nunca viram supervisão)
+    target_ids = Current.account.teams.where(id: requested_ids).pluck(:id)
+    current_ids = @agent.supervised_team_ids_for(Current.account.id)
+
+    ActiveRecord::Base.transaction do
+      @agent.team_supervisions.where(team_id: current_ids - target_ids).destroy_all
+      (target_ids - current_ids).each { |team_id| @agent.team_supervisions.create!(team_id: team_id) }
+    end
+
+    # a resposta ainda vai serializar supervised_team_ids a partir deste mesmo objeto
+    @agent.reset_supervised_team_ids_cache
+    @agent.association(:supervised_teams).reset
+  end
+
+  def supervised_team_ids_param
+    params.require(:agent).permit(supervised_team_ids: [])[:supervised_team_ids]
+  end
+
   def allowed_agent_params
     [:name, :email, :role, :availability, :auto_offline]
   end
@@ -72,7 +171,9 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   end
 
   def agents
-    @agents ||= Current.account.users.order_by_full_name.includes(:account_users, :teams, { avatar_attachment: [:blob] })
+    # supervised_teams entra no includes pelo mesmo motivo de :teams — o partial do
+    # agente serializa os ids e a listagem inteira viraria N+1 sem isso.
+    @agents ||= Current.account.users.order_by_full_name.includes(:account_users, :teams, :supervised_teams, { avatar_attachment: [:blob] })
   end
 
   def bulk_create_agents(emails)

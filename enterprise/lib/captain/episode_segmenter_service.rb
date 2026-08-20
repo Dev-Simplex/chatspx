@@ -28,6 +28,16 @@ class Captain::EpisodeSegmenterService
     persist(segments)
   end
 
+  # Fronteiras EM MEMÓRIA, sem gravar nada. O runtime da IA precisa da fronteira NO INSTANTE
+  # do turno, e o cron só passa depois — medido na conv 20215: cliente às 09:40:07, IA às
+  # 09:41:55, episódios criados às 10:07:17. Quem depende da tabela fica sem fronteira
+  # exatamente no primeiro turno da reentrada, que é onde o dano acontece.
+  #
+  # Mesmo cálculo do #perform; o que muda é só não persistir.
+  def preview
+    build_segments
+  end
+
   private
 
   def account

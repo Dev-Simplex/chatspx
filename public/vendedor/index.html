@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academy Comercial — Como vender o Chat SPX</title>
+<link rel="icon" type="image/svg+xml" href="/brand-assets/logo_thumbnail.svg">
+<link rel="stylesheet" href="/vendedor/assets/reset.css?v=1">
+<link rel="stylesheet" href="/vendedor/assets/reveal.css?v=1">
+<link rel="stylesheet" href="/vendedor/assets/spx-theme.css?v=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ===== extensões locais (não altera o tema base) ===== */
+  .cards.g4{ grid-template-columns:repeat(4,1fr); gap:1rem; }
+  .cards.g4 .card{ padding:1.4rem 1.35rem; gap:.3rem; }
+  .cards.g4 .card h3{ font-size:1.02rem; }
+  .cards.g4 .card p{ font-size:.82rem; line-height:1.4; }
+  .cards.g4 .card .ico .ic{ width:1.7rem; height:1.7rem; }
+
+  .tags{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem; }
+  .tags span{ font-size:.74rem; font-weight:600; color:var(--ink-2); background:rgba(255,255,255,.55);
+    border:1px solid rgba(255,255,255,.7); padding:.24rem .6rem; border-radius:100px; }
+
+  .pillnum{ display:inline-grid; place-items:center; width:1.55rem; height:1.55rem; border-radius:.5rem;
+    background:linear-gradient(135deg,#2dc46f,#25d366); color:#fff; font-weight:800; font-size:.85rem;
+    box-shadow:0 4px 12px rgba(45,196,111,.4); margin-right:.45rem; vertical-align:-.25em; }
+
+  /* pitch / destaque */
+  .bigquote{ font-family:var(--fd); font-size:1.7rem; font-weight:600; line-height:1.42; color:var(--ink); max-width:26ch; }
+  .bigquote b{ color:var(--green-d); }
+  .center-wrap > .wrap, .slide.pitch .wrap{ align-items:center; justify-content:center; text-align:center; }
+
+  /* Q&A objeções */
+  .qa{ display:grid; grid-template-columns:1fr 1fr; gap:1rem 1.6rem; }
+  .qa .item{ }
+  .qa .q{ font-family:var(--fd); font-weight:600; font-size:1.02rem; color:var(--ink); margin-bottom:.2rem; }
+  .qa .q em{ color:#e54666; font-style:normal; font-weight:800; margin-right:.3rem; }
+  .qa .a{ font-size:.9rem; color:var(--ink-2); line-height:1.42; }
+  .qa .a b{ color:var(--green-d); font-weight:600; }
+
+  /* glossário */
+  .gl{ display:grid; grid-template-columns:1fr 1fr; gap:.5rem 1.6rem; }
+  .gl dt{ font-family:var(--fd); font-weight:600; color:var(--ink); font-size:.98rem; margin-top:.55rem; }
+  .gl dd{ margin:.05rem 0 0; color:var(--ink-2); font-size:.84rem; line-height:1.4; }
+
+  /* plano 30-60-90 */
+  .plan{ display:flex; gap:1rem; }
+  .plan .p{ flex:1; }
+  .plan .d{ font-family:var(--fd); font-weight:800; font-size:1.5rem; color:#fff;
+    background:linear-gradient(135deg,#1a8f55,#2dc46f); border-radius:14px; padding:.5rem 0; text-align:center;
+    box-shadow:0 8px 20px rgba(45,196,111,.3); margin-bottom:.7rem; }
+  .plan .d small{ display:block; font-size:.6rem; font-weight:700; letter-spacing:.08em; opacity:.85; }
+  .plan h3{ font-family:var(--fd); font-size:1.08rem; font-weight:600; margin-bottom:.25rem; }
+  .plan p{ font-size:.85rem; color:var(--ink-2); line-height:1.42; }
+  .plan p b{ color:var(--ink); }
+
+  /* chat mockup */
+  .chatframe{ background:linear-gradient(160deg,#d9f4e4,#cfeef5); border-radius:16px; padding:1.1rem 1.2rem;
+    border:1px solid rgba(255,255,255,.7); box-shadow:0 14px 44px rgba(31,41,55,.16); max-width:560px; }
+  .bub{ max-width:82%; padding:.55rem .8rem; border-radius:14px; font-size:.86rem; margin-bottom:.45rem; line-height:1.38;
+    box-shadow:0 1px 2px rgba(0,0,0,.06); font-family:var(--ft); }
+  .bub.in{ background:#fff; border-top-left-radius:4px; }
+  .bub.out{ background:#d9fdd3; margin-left:auto; border-top-right-radius:4px; }
+  .bub.bot{ background:#eae6ff; border-top-left-radius:4px; }
+  .bub small{ display:block; font-size:.64rem; color:#86868b; margin-top:.15rem; font-weight:600; }
+  .bub b{ color:var(--green-d); }
+  .demo-two{ display:grid; grid-template-columns:1fr 1.05fr; gap:1.6rem; align-items:center; }
+
+  .lead-note{ font-size:.9rem; color:var(--ink-2); margin-top:.5rem; }
+  .lead-note b{ color:var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- ÍCONES -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.5 8.5 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></symbol>
+  <symbol id="i-robot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="2.4"/><path d="M12 8V4.5M9.5 4.5h5"/><path d="M9 13h.01M15 13h.01"/><path d="M9.5 16h5"/></symbol>
+  <symbol id="i-team" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-4-5.6"/></symbol>
+  <symbol id="i-flow" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="16" width="7" height="5" rx="1.5"/><rect x="8.5" y="9.5" width="7" height="5" rx="1.5"/><path d="M6.5 8v1.5M12 14.5V16"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2l3 6.5 7 .9-5 4.8 1.3 7L12 18l-6.3 3.2L7 14.2l-5-4.8 7-.9z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 20h18M6 20v-6M12 20V5M18 20v-9"/></symbol>
+  <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8a5 5 0 0 1 0 8"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5C17.7 10.2 18 9 18 8a6 6 0 0 0-12 0c0 1 .3 2.2 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6M10 22h4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.8"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+</defs></svg>
+
+<div class="reveal"><div class="slides">
+
+<!-- 1. CAPA -->
+<section class="slide cover"><div class="wrap">
+  <img class="brandmark" src="/vendedor/assets/brand/logo.svg?v=1" alt="Chat SPX">
+  <h1>Como vender o Chat SPX</h1>
+  <p class="hero">Tudo que um vendedor precisa: o que é, para quem serve, como demonstrar, como responder objeções e por que o cliente escolhe a gente.</p>
+  <p class="tagline">Academy Comercial · treinamento de <strong>comercial &amp; marketing</strong></p>
+</div></section>
+
+<!-- 2. O QUE É -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Módulo 1 · O essencial</span>
+    <h2 class="s-title">O que é o Chat SPX?</h2></div>
+  <div class="body">
+    <div class="cards g3">
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-chat"/></svg></div><h3>Não é um WhatsApp comum</h3><p>É uma plataforma profissional sobre o WhatsApp. O cliente continua no número de sempre — quem muda é o lado da empresa.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-team"/></svg></div><h3>Feito para equipes</h3><p>Vários atendentes no mesmo número, cada um vê o que é seu. Fim do "celular da empresa" que só uma pessoa mexe.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-robot"/></svg></div><h3>Com inteligência artificial</h3><p>Uma IA treinada atende sozinha, tira dúvida, qualifica o lead e chama o humano na hora certa. Trabalha de madrugada.</p></div>
+    </div>
+    <div class="tip"><svg class="ic"><use href="#i-bulb"/></svg><span>Em uma frase para o cliente: <strong>é a central de atendimento no WhatsApp da empresa</strong> — organizada, com equipe, IA e relatórios.</span></div>
+  </div>
+</div></section>
+
+<!-- 3. PITCH -->
+<section class="slide pitch"><div class="wrap">
+  <span class="eyebrow"><span class="dot"></span>Decore este · pitch de 15 segundos</span>
+  <p class="bigquote" style="margin-top:1.2rem">"Sabe quando várias pessoas respondem o WhatsApp da empresa e vira bagunça — mensagem perdida, cliente sem resposta? O <b>Chat SPX</b> resolve: um número, o time inteiro junto, IA ajudando e relatório de tudo. Seu cliente nem percebe — pra ele é o WhatsApp normal, só que ninguém fica sem resposta."</p>
+</div></section>
+
+<!-- 4. DIVISOR -->
+<section class="slide divider"><div class="wrap">
+  <img class="brandmark" src="/vendedor/assets/brand/logo.svg?v=1" alt="Chat SPX">
+  <div class="num">Módulos 2 e 3</div>
+  <h1>Por que vendemos, e para quem</h1>
+  <p>A dor que o cliente sente — e como reconhecer o cliente ideal na conversa.</p>
+</div></section>
+
+<!-- 5. O PROBLEMA -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Módulo 2 · A dor</span>
+    <h2 class="s-title">O problema que a gente resolve</h2></div>
+  <div class="body">
+    <div class="cards g4">
+      <div class="card"><h3>😩 Só uma pessoa mexe</h3><p>O número fica preso num celular. A pessoa falta ou sai — o atendimento para e o histórico some.</p></div>
+      <div class="card"><h3>📵 Mensagem some</h3><p>Some no meio de centenas. Lead esfria, cliente reclama, venda se perde. Ninguém sabe onde falhou.</p></div>
+      <div class="card"><h3>🤷 Zero controle</h3><p>O dono não tem relatório, não sabe quem produz nem se o cliente saiu satisfeito.</p></div>
+      <div class="card"><h3>🌙 Fora do horário</h3><p>Lead chega às 22h e espera até amanhã — quando o concorrente já respondeu.</p></div>
+    </div>
+    <div class="tip"><svg class="ic"><use href="#i-bulb"/></svg><span>Todo cliente que precisa do Chat SPX vive pelo menos uma dessas dores. <strong>Reconhecê-la na conversa é onde a venda começa.</strong></span></div>
+  </div>
+</div></section>
+
+<!-- 6. PARA QUEM -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Módulo 3 · Cliente ideal</span>
+    <h2 class="s-title">Para quem vendemos</h2></div>
+  <div class="body">
+    <div class="cards g3">
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-team"/></svg></div><h3>Imobiliárias</h3><p>Locação, vendas, cadastro, cobrança — cada setor com seu time. O corretor recebe o lead certo, direto. <b style="color:var(--ink)">Nosso caso mais forte.</b></p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-robot"/></svg></div><h3>Contabilidades &amp; certificado digital</h3><p>Muitos clientes, muita dúvida repetida. A IA responde o básico e o time cuida do que importa.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-chat"/></svg></div><h3>Comércio &amp; serviços</h3><p>Lojas, clínicas, escritórios — qualquer negócio que vende no WhatsApp e não pode perder mensagem.</p></div>
+    </div>
+    <div class="tip"><svg class="ic"><use href="#i-search"/></svg><span>Regra simples: <strong>tem mais de uma pessoa respondendo o WhatsApp? É cliente.</strong> Quanto mais volume, mais o Chat SPX vale a pena.</span></div>
+  </div>
+</div></section>
+
+<!-- 7. QUALIFICAÇÃO -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Módulo 3 · Na prática</span>
+    <h2 class="s-title">4 perguntas para qualificar o lead</h2></div>
+  <div class="body">
+    <ul class="checks" style="font-size:1.08rem;gap:1.15rem">
+      <li><b>"Quantas pessoas respondem o WhatsApp de vocês hoje?"</b> — se for mais de uma, é cliente.</li>
+      <li><b>"Já aconteceu de perder mensagem de cliente?"</b> — a dor mora aqui.</li>
+      <li><b>"Como você sabe se o cliente foi bem atendido?"</b> — se não sabe, mostramos o relatório e o NPS.</li>
+      <li><b>"O que acontece com a mensagem que chega fora do horário?"</b> — abre a porta para a IA.</li>
+    </ul>
+  </div>
+</div></section>
+
+<!-- 8. DIVISOR PILARES -->
+<section class="slide divider"><div class="wrap">
+  <img class="brandmark" src="/vendedor/assets/brand/logo.svg?v=1" alt="Chat SPX">
+  <div class="num">Módulo 4 · O produto por dentro</div>
+  <h1>Os 7 pilares do Chat SPX</h1>
+  <p>Você não precisa ser técnico — precisa saber o que cada um faz pelo cliente. Cada pilar é uma "arma" na sua demonstração.</p>
+</div></section>
+
+<!-- 9. PILARES 1-4 -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Os 7 pilares · 1 a 4</span>
+    <h2 class="s-title">Atendimento, IA, automação e times</h2></div>
+  <div class="body">
+    <div class="cards g4">
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-chat"/></svg></div><h3><span class="pillnum">1</span>WhatsApp multiatendente</h3><p>Um número, o time inteiro junto — sem clonar chip, sem perder histórico. Oficial (Meta) ou não. Resposta sai assinada.</p><div class="tags"><span>1 número, N pessoas</span><span>Resposta assinada</span></div></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-robot"/></svg></div><h3><span class="pillnum">2</span>Captain — a IA</h3><p>IA treinada com dados da empresa. Atende, qualifica o lead, manda foto de imóvel, entende áudio e passa pro humano.</p><div class="tags"><span>24/7</span><span>Qualifica lead</span><span>Entende áudio</span></div></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-flow"/></svg></div><h3><span class="pillnum">3</span>Automações &amp; fluxos</h3><p>O menu "digite 1 para Vendas…" montado no visual. O cliente escolhe e cai no setor certo. Boas-vindas e LGPD automáticas.</p><div class="tags"><span>Roteia por setor</span><span>Sem programar</span></div></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-team"/></svg></div><h3><span class="pillnum">4</span>Times &amp; funil (Kanban)</h3><p>Triagem, vendas, cobrança, cadastro — cada time vê o seu. Um quadro visual mostra o lead andando pelas etapas.</p><div class="tags"><span>Setores separados</span><span>Funil visual</span></div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 10. PILARES 5-7 -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Os 7 pilares · 5 a 7</span>
+    <h2 class="s-title">Satisfação, relatórios e campanhas</h2></div>
+  <div class="body">
+    <div class="cards g3">
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-star"/></svg></div><h3><span class="pillnum">5</span>Pesquisa de satisfação (NPS)</h3><p>No fim do atendimento o cliente recebe "de 0 a 10, como foi?". Vira relatório. O dono <b style="color:var(--ink)">finalmente sabe</b> se o cliente saiu feliz.</p><div class="tags"><span>Automática</span><span>No WhatsApp</span></div></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-chart"/></svg></div><h3><span class="pillnum">6</span>Relatórios</h3><p>Conversas, tempo de resposta, desempenho por atendente e por time, satisfação. Em tela e em PDF. Para de "achar", passa a "saber".</p><div class="tags"><span>Por atendente</span><span>Exporta PDF</span></div></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-mega"/></svg></div><h3><span class="pillnum">7</span>Campanhas &amp; disparos</h3><p>Enviar mensagem para muitos de uma vez com modelos aprovados, e trazer os leads do Instagram/Facebook já organizados.</p><div class="tags"><span>Envio em massa</span><span>Leads do Meta Ads</span></div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 11. DIVISOR DEMO -->
+<section class="slide divider"><div class="wrap">
+  <img class="brandmark" src="/vendedor/assets/brand/logo.svg?v=1" alt="Chat SPX">
+  <div class="num">Módulo 5 · A hora do show</div>
+  <h1>Como fazer uma demo matadora</h1>
+  <p>Regra de ouro: mostre a dor sendo resolvida, não a tela cheia de botões.</p>
+</div></section>
+
+<!-- 12. DEMO — 5 PASSOS -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Roteiro de 5 passos</span>
+    <h2 class="s-title">A demonstração vende sozinha</h2></div>
+  <div class="body">
+    <ul class="checks" style="font-size:1.05rem;gap:1rem">
+      <li><b>1. Abra pela dor.</b> "Você disse que perde mensagem de cliente, certo? Olha como isso não acontece mais."</li>
+      <li><b>2. Mande uma mensagem de verdade.</b> Peça o número dele, mande um "oi" e mostre chegando na hora.</li>
+      <li><b>3. Mostre o menu automático.</b> A conversa caindo no setor certo sozinha.</li>
+      <li><b>4. Deixe a IA responder.</b> Pergunte como se fosse cliente — costuma ser o momento "uau".</li>
+      <li><b>5. Feche com o relatório.</b> Número de conversas e satisfação. É o que o dono quer ver.</li>
+    </ul>
+  </div>
+</div></section>
+
+<!-- 13. DEMO — CHAT -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>O "filme" que vende</span>
+    <h2 class="s-title">Simule algo assim na frente do cliente</h2></div>
+  <div class="body">
+    <div class="demo-two">
+      <div class="chatframe">
+        <div class="bub in">Boa tarde! Vocês têm apartamento de 2 quartos pra alugar?<small>Cliente · 14:02</small></div>
+        <div class="bub bot">Oi! 👋 Você procura para <b>alugar</b> ou <b>comprar</b>?<small>🤖 IA Captain · 14:02</small></div>
+        <div class="bub in">Alugar<small>Cliente · 14:02</small></div>
+        <div class="bub bot">Encontrei 3 opções de 2 quartos na sua região 🏡. Vou te passar para a <b>Amanda</b>, da Locação.<small>🤖 IA Captain · 14:03</small></div>
+        <div class="bub out">Oi! Aqui é a Amanda 😊 Posso te mandar as fotos?<small>*Amanda*: · Locação · 14:05</small></div>
+      </div>
+      <div>
+        <ul class="checks" style="font-size:1rem;gap:.8rem">
+          <li>A <b>IA atendeu</b> na hora, de madrugada ou no fim de semana.</li>
+          <li><b>Qualificou</b> sozinha: alugar ou comprar?</li>
+          <li>Passou pro <b>humano certo</b> — a Amanda, da Locação.</li>
+          <li>A resposta já saiu <b>assinada</b> pela atendente.</li>
+        </ul>
+        <p class="lead-note"><b>Esse é o filme que vende.</b> O cliente sente o atendimento; o dono vê a organização.</p>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 14. DIVISOR OBJEÇÕES -->
+<section class="slide divider"><div class="wrap">
+  <img class="brandmark" src="/vendedor/assets/brand/logo.svg?v=1" alt="Chat SPX">
+  <div class="num">Módulo 6 · Blindagem</div>
+  <h1>Objeções &amp; como responder</h1>
+  <p>Toda objeção é um pedido de segurança. Concorde, esclareça e traga de volta para o valor. Nunca discuta — tranquilize.</p>
+</div></section>
+
+<!-- 15. OBJEÇÕES 1 -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Objeções · parte 1</span>
+    <h2 class="s-title">As 3 mais comuns</h2></div>
+  <div class="body">
+    <div class="qa">
+      <div class="item"><div class="q"><em>“</em>Meu cliente vai ter que instalar algo?</div><div class="a"><b>Não.</b> Pro cliente é o WhatsApp normal, o mesmo número. Quem ganha a plataforma é a empresa.</div></div>
+      <div class="item"><div class="q"><em>“</em>Isso é caro?</div><div class="a">Compare com o custo de <b>uma venda perdida</b> por mês por falta de resposta. Ele se paga com um lead que escaparia.</div></div>
+      <div class="item"><div class="q"><em>“</em>Vou perder minhas conversas antigas?</div><div class="a">Não. A partir da entrada tudo fica registrado e ninguém mais perde histórico. É só ganho.</div></div>
+      <div class="item"><div class="q"><em>“</em>Preciso de um número novo?</div><div class="a">Pode usar o número que a empresa já tem. A gente conecta. O cliente chama no mesmo lugar de sempre.</div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 16. OBJEÇÕES 2 -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Objeções · parte 2</span>
+    <h2 class="s-title">IA e equipe</h2></div>
+  <div class="body">
+    <div class="qa" style="grid-template-columns:1fr;max-width:52rem">
+      <div class="item"><div class="q"><em>“</em>A IA vai responder besteira pro meu cliente?</div><div class="a">A IA é treinada com as informações <b>da empresa</b> e, na dúvida, passa para um humano. Você controla o que ela pode dizer. Ela ajuda, não substitui.</div></div>
+      <div class="item"><div class="q"><em>“</em>Minha equipe é leiga, não vai saber usar.</div><div class="a">A tela é parecida com o WhatsApp que todo mundo já usa. E temos <b>treinamento pronto</b>. Em um dia a equipe está atendendo.</div></div>
+    </div>
+    <div class="tip"><svg class="ic"><use href="#i-bulb"/></svg><span>Nunca discuta a objeção. <strong>Concorde, esclareça e volte para o valor</strong> — o cliente só quer se sentir seguro.</span></div>
+  </div>
+</div></section>
+
+<!-- 17. DIFERENCIAIS -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Módulo 7 · Por que a gente</span>
+    <h2 class="s-title">Por que Chat SPX e não "só o WhatsApp"</h2></div>
+  <div class="body">
+    <div class="cards g3">
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-bolt"/></svg></div><h3>WhatsApp comum</h3><p>Um celular, uma pessoa. Sem relatório, sem IA, sem organização. Some quando o funcionário sai.</p></div>
+      <div class="card" style="border:1.5px solid #2dc46f"><div class="ico"><svg class="ic"><use href="#i-shield"/></svg></div><h3>Chat SPX</h3><p><b style="color:var(--ink)">Time inteiro</b>, IA, setores, relatórios, satisfação e campanhas. Tudo fica na empresa, organizado e medido.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-team"/></svg></div><h3>Suporte de perto</h3><p>A SPX instala, treina e acompanha. Não é um app que você baixa e se vira sozinho — é parceria.</p></div>
+    </div>
+    <div class="tip"><svg class="ic"><use href="#i-target"/></svg><span>O WhatsApp comum organiza <em>uma pessoa</em>. O Chat SPX organiza <strong>a empresa inteira</strong> — e mostra em número que ela atende melhor.</span></div>
+  </div>
+</div></section>
+
+<!-- 18. GLOSSÁRIO -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Módulo 8 · Vocabulário</span>
+    <h2 class="s-title">Glossário — fale a língua certa</h2></div>
+  <div class="body">
+    <dl class="gl">
+      <dt>Caixa de entrada (Inbox)</dt><dd>O canal conectado — o WhatsApp, o e-mail ou o site da empresa.</dd>
+      <dt>Captain</dt><dd>A inteligência artificial do Chat SPX — o atendente virtual.</dd>
+      <dt>Conversa</dt><dd>Cada atendimento. Tem status: aberta, pendente, adiada ou resolvida.</dd>
+      <dt>Automação / Fluxo</dt><dd>Regras automáticas: menu, boas-vindas, roteamento. Sem programar.</dd>
+      <dt>Time / Setor</dt><dd>Grupo de atendentes — Vendas, Cobrança, Locação. A conversa vai ao time certo.</dd>
+      <dt>NPS</dt><dd>A pesquisa "de 0 a 10, como foi?" enviada automaticamente ao cliente.</dd>
+      <dt>Triagem</dt><dd>O primeiro contato: onde a conversa nasce e é encaminhada ao setor.</dd>
+      <dt>Template &amp; WhatsApp Oficial</dt><dd>Modelo aprovado pela Meta; conexão oficial, mais estável e segura.</dd>
+    </dl>
+  </div>
+</div></section>
+
+<!-- 19. PLANO 30-60-90 -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Módulo 9 · Seu plano</span>
+    <h2 class="s-title">Seus primeiros 30 · 60 · 90 dias</h2></div>
+  <div class="body">
+    <div class="plan">
+      <div class="p"><div class="d">30<small>DIAS</small></div><h3>Entender o produto</h3><p>Leia este deck. Peça acesso de teste e brinque como se fosse cliente. <b>Meta: decorar o pitch e os 7 pilares.</b></p></div>
+      <div class="p"><div class="d">60<small>DIAS</small></div><h3>Praticar a demo</h3><p>Faça a demo para o time interno até fluir. Acompanhe visitas. Responda objeções sem olhar. <b>Meta: conduzir uma demo sozinho.</b></p></div>
+      <div class="p"><div class="d">90<small>DIAS</small></div><h3>Vender</h3><p>Prospecção, qualificação, demo e fechamento. Use relatório e NPS como argumento. <b>Meta: primeiros contratos.</b></p></div>
+    </div>
+    <div class="tip"><svg class="ic"><use href="#i-target"/></svg><span>Checklist "eu consigo": explicar em 15s · citar os 7 pilares · conduzir a demo · responder as objeções · mostrar relatório e NPS.</span></div>
+  </div>
+</div></section>
+
+<!-- 20. ENCERRAMENTO -->
+<section class="slide cover"><div class="wrap">
+  <img class="brandmark" src="/vendedor/assets/brand/logo.svg?v=1" alt="Chat SPX">
+  <h1>Agora é com você.</h1>
+  <p class="hero">Releia sempre que precisar. No fim, você fala de Chat SPX como quem usa há anos — e é isso que fecha negócio.</p>
+  <p class="tagline">Uma plataforma <strong>SPX · Simplex Soluções</strong></p>
+</div></section>
+
+</div></div>
+
+<script src="/vendedor/assets/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    width: 1280, height: 720, margin: 0.04, minScale: 0.2, maxScale: 2.0,
+    center: false, hash: true, slideNumber: 'c/t',
+    controls: true, progress: true, transition: 'fade', backgroundTransition: 'fade'
+  });
+</script>
+</body>
+</html>

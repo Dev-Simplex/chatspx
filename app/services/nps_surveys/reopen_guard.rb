@@ -61,10 +61,12 @@ class NpsSurveys::ReopenGuard
     nps_message_id = active_nps.metadata&.dig('message_id')
     return false unless nps_message_id
 
+    # Mesma query do ResponseBuilder — os dois lados TEM que concordar (ver cabecalho).
+    # content_attributes e JSON serializado como STRING: ver Message::CONTENT_ATTRIBUTES_JSON.
     conversation.messages
                 .where(message_type: :outgoing)
                 .where('id > ?', nps_message_id)
-                .where.not("content_attributes ->> 'nps_survey' = 'true'")
+                .where("COALESCE(#{Message::CONTENT_ATTRIBUTES_JSON} ->> 'nps_survey', '') <> 'true'")
                 .exists?
   end
 

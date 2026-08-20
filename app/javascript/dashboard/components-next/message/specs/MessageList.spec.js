@@ -1,27 +1,10 @@
+import { createStore } from 'vuex';
 import { shallowMount } from '@vue/test-utils';
 import MessageList from '../MessageList.vue';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 
 vi.mock('dashboard/composables/useTransformKeys', () => ({
   useCamelCase: vi.fn(message => message),
-}));
-
-// O componente lê o chat selecionado para saber se é conversa de grupo; sem store o
-// setup quebra antes de renderizar.
-const storeState = vi.hoisted(() => ({ selectedChat: {} }));
-
-vi.mock('dashboard/composables/store', () => ({
-  useStore: () => ({
-    getters: {
-      get getSelectedChat() {
-        return storeState.selectedChat;
-      },
-      getCurrentUser: {},
-      getCurrentAccount: {},
-      'inboxes/getInbox': () => ({}),
-    },
-  }),
-  useMapGetter: () => ({ value: [] }),
 }));
 
 const MessageStub = {
@@ -35,21 +18,9 @@ const MessageStub = {
       type: Object,
       default: null,
     },
-    groupWithNext: {
-      type: Boolean,
-      default: false,
-    },
-    groupWithPrevious: {
-      type: Boolean,
-      default: false,
-    },
-    isGroupConversation: {
-      type: Boolean,
-      default: false,
-    },
   },
   template:
-    '<div class="message-stub" :data-id="id" :data-in-reply-to="inReplyTo?.id || null" :data-group-with-next="String(groupWithNext)" :data-group-with-previous="String(groupWithPrevious)" :data-is-group="String(isGroupConversation)" />',
+    '<div class="message-stub" :data-id="id" :data-in-reply-to="inReplyTo?.id || null" />',
 };
 
 const DateSeparatorStub = {
@@ -74,24 +45,38 @@ const buildMessage = ({
   contentAttributes,
 });
 
-// Em grupo o senderId é sempre o contato-grupo: quem diferencia as pessoas é o
-// group_sender gravado na ingestão.
-const buildGroupMessage = ({ id, createdAt, lid, content = 'message' }) =>
-  buildMessage({
-    id,
-    createdAt,
-    content,
-    contentAttributes: {
-      groupSender: { name: `Pessoa ${lid}`, lid, phone: null },
+// MessageList lê o store (conversa/caixa selecionadas) para decidir o isolamento por
+// agente do mapa de reply/quote — sem um $store instalado os computeds estouram.
+const buildStore = ({
+  chat = { id: 55, inbox_id: 3 },
+  agentIsolation = false,
+  supervisedTeams = [],
+} = {}) =>
+  createStore({
+    getters: {
+      getSelectedChat: () => chat,
+      getCurrentUser: () => ({
+        id: 1,
+        accounts: [{ id: 100, role: 'agent' }],
+      }),
+      getCurrentAccount: () => ({ id: 100 }),
+      getConversationById: () => () => chat,
+    },
+    modules: {
+      inboxes: {
+        namespaced: true,
+        getters: {
+          getInbox: () => () => ({ agent_message_isolation: agentIsolation }),
+        },
+      },
+      teams: {
+        namespaced: true,
+        getters: { getSupervisedTeams: () => supervisedTeams },
+      },
     },
   });
 
-const GROUP_CHAT = {
-  id: 12,
-  meta: { sender: { identifier: '120363040285567246@g.us' } },
-};
-
-const mountComponent = props =>
+const mountComponent = (props, storeOptions) =>
   shallowMount(MessageList, {
     props: {
       currentUserId: 1,
@@ -99,6 +84,7 @@ const mountComponent = props =>
       ...props,
     },
     global: {
+      plugins: [buildStore(storeOptions)],
       stubs: {
         Message: MessageStub,
         DateSeparator: DateSeparatorStub,
@@ -106,16 +92,9 @@ const mountComponent = props =>
     },
   });
 
-const groupingFlags = wrapper =>
-  wrapper.findAll('.message-stub').map(stub => ({
-    withNext: stub.attributes()['data-group-with-next'],
-    withPrevious: stub.attributes()['data-group-with-previous'],
-  }));
-
 describe('MessageList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    storeState.selectedChat = {};
   });
 
   it('reuses cached camelCase conversion for existing messages', async () => {
@@ -159,101 +138,44 @@ describe('MessageList', () => {
     expect(renderedMessages[1].attributes()['data-in-reply-to']).toBe('1');
   });
 
-  describe('grouping in a 1:1 conversation', () => {
-    it('keeps grouping consecutive messages from the same sender', () => {
-      const wrapper = mountComponent({
-        messages: [
-          buildMessage({ id: 1, createdAt: 120 }),
-          buildMessage({ id: 2, createdAt: 130 }),
-        ],
-      });
+  // Isolamento por agente x supervisão: a mensagem citada é de OUTRO agente. O agente
+  // comum não pode ver o quote; o supervisor do time da conversa pode (o backend já
+  // devolve a bolha inteira para ele).
+  describe('quote/reply sob agent_message_isolation', () => {
+    const quotedFromAnotherAgent = () => [
+      { ...buildMessage({ id: 1, createdAt: 120 }), agentId: 2 },
+      buildMessage({
+        id: 2,
+        createdAt: 240,
+        contentAttributes: { inReplyTo: 1 },
+      }),
+    ];
 
-      expect(
-        wrapper.findAll('.message-stub')[0].attributes()['data-is-group']
-      ).toBe('false');
-      expect(groupingFlags(wrapper)).toEqual([
-        { withNext: 'true', withPrevious: 'false' },
-        { withNext: 'false', withPrevious: 'true' },
-      ]);
-    });
-  });
-
-  describe('grouping in a group conversation', () => {
-    beforeEach(() => {
-      storeState.selectedChat = GROUP_CHAT;
-    });
-
-    it('detects the group conversation from the contact JID', () => {
-      const wrapper = mountComponent({
-        messages: [buildGroupMessage({ id: 1, createdAt: 120, lid: '111' })],
-      });
-
-      expect(wrapper.find('.message-stub').attributes()['data-is-group']).toBe(
-        'true'
+    it('esconde o quote do agente comum', () => {
+      const wrapper = mountComponent(
+        { messages: quotedFromAnotherAgent() },
+        { agentIsolation: true }
       );
+
+      // sem quote o stub nem renderiza o atributo (inReplyTo === null)
+      const renderedMessages = wrapper.findAll('.message-stub');
+      expect(
+        renderedMessages[1].attributes()['data-in-reply-to']
+      ).toBeUndefined();
     });
 
-    it('groups consecutive messages from the same participant', () => {
-      const wrapper = mountComponent({
-        messages: [
-          buildGroupMessage({ id: 1, createdAt: 120, lid: '111' }),
-          buildGroupMessage({ id: 2, createdAt: 130, lid: '111' }),
-        ],
-      });
+    it('mostra o quote para o supervisor do time da conversa', () => {
+      const wrapper = mountComponent(
+        { messages: quotedFromAnotherAgent() },
+        {
+          chat: { id: 55, inbox_id: 3, meta: { team: { id: 7 } } },
+          agentIsolation: true,
+          supervisedTeams: [{ id: 7 }],
+        }
+      );
 
-      expect(groupingFlags(wrapper)).toEqual([
-        { withNext: 'true', withPrevious: 'false' },
-        { withNext: 'false', withPrevious: 'true' },
-      ]);
-    });
-
-    it('never merges different participants into the same visual block', () => {
-      const wrapper = mountComponent({
-        messages: [
-          buildGroupMessage({ id: 1, createdAt: 120, lid: '111' }),
-          buildGroupMessage({ id: 2, createdAt: 130, lid: '222' }),
-        ],
-      });
-
-      expect(groupingFlags(wrapper)).toEqual([
-        { withNext: 'false', withPrevious: 'false' },
-        { withNext: 'false', withPrevious: 'false' },
-      ]);
-    });
-
-    it('leaves legacy messages grouping exactly as they do today', () => {
-      // Sem group_sender em nenhuma das duas o autor ainda está dentro do texto, em
-      // cada bolha. Mudar o agrupamento aqui só mexeria no histórico sem ganho — e o
-      // chat interno compartilha esta mesma lista.
-      const wrapper = mountComponent({
-        messages: [
-          buildMessage({ id: 1, createdAt: 120, content: '👥 *A*\n\noi' }),
-          buildMessage({
-            id: 2,
-            createdAt: 130,
-            content: '👥 *B*\n\ntudo bem',
-          }),
-        ],
-      });
-
-      expect(groupingFlags(wrapper)).toEqual([
-        { withNext: 'true', withPrevious: 'false' },
-        { withNext: 'false', withPrevious: 'true' },
-      ]);
-    });
-
-    it('does not group a legacy message with a message that has an author', () => {
-      const wrapper = mountComponent({
-        messages: [
-          buildMessage({ id: 1, createdAt: 120, content: '👥 *A*\n\noi' }),
-          buildGroupMessage({ id: 2, createdAt: 130, lid: '111' }),
-        ],
-      });
-
-      expect(groupingFlags(wrapper)).toEqual([
-        { withNext: 'false', withPrevious: 'false' },
-        { withNext: 'false', withPrevious: 'false' },
-      ]);
+      const renderedMessages = wrapper.findAll('.message-stub');
+      expect(renderedMessages[1].attributes()['data-in-reply-to']).toBe('1');
     });
   });
 });

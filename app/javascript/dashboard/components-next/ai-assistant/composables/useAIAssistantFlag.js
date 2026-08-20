@@ -24,13 +24,25 @@ function safeRead(storageKey, key) {
  * Reactive composable that resolves whether the AI Assistant v2 panel should
  * be shown to the current account.
  *
- * Resolution order (highest priority first):
- *   1. Server-side feature flag `ai_assistant_v2` as the rollout kill-switch.
- *   2. `sessionStorage.chatspx_ai_panel_v2_session === 'on'|'off'` (one-shot
- *      override set by `?aiv2=1` / `?aiv2=0` — see `applyAIAssistantQueryOverride`).
- *   3. `localStorage.chatspx_ai_panel_v2 === 'on'|'off'` (sticky per-browser
- *      override, useful for canary testing).
- *   4. Default: OFF.
+ * RECONCILIAÇÃO: as duas descrições foram conferidas contra o código, e as duas
+ * implementações são EQUIVALENTES — `theirs` não tem `if (local === 'on') return
+ * true`, mas o `return true` final entrega o mesmo resultado. Ficou esta redação
+ * porque a outra afirmava "Default: OFF", o que contradizia o próprio código dela
+ * (com a flag ligada e sem override, o painel abre). Esta descreve o que os dois
+ * lados fazem, e ainda registra o kill-switch e a posição no bitmask.
+ * Resolution order:
+ *   1. Server-side feature flag `ai_assistant_v2`. Se estiver desligada, o painel
+ *      NÃO abre — nenhum override do navegador liga. Isso é o kill-switch: se a
+ *      feature quebrar em produção, desligar a flag da conta tira todo mundo do
+ *      ar, inclusive quem tem override no navegador.
+ *   2. `sessionStorage.chatspx_ai_panel_v2_session === 'off'` (one-shot,
+ *      via `?aiv2=0` — ver `applyAIAssistantQueryOverride`).
+ *   3. `localStorage.chatspx_ai_panel_v2 === 'off'` (fixo por navegador).
+ *
+ * Os overrides só RESTRINGEM: servem para um testador voltar ao painel antigo
+ * sem mexer no banco. Ligar contra a vontade do servidor não é permitido — e
+ * não é necessário, porque a flag é acionável por conta
+ * (`ai_assistant_v2` ocupa a 39ª posição de 65 no bitmask, com folga no bigint).
  */
 export function useAIAssistantFlag() {
   const isFeatureEnabledonAccount = useMapGetter(
@@ -39,19 +51,19 @@ export function useAIAssistantFlag() {
   const currentAccountId = useMapGetter('getCurrentAccountId');
 
   return computed(() => {
-    const accountId = currentAccountId.value;
-    const serverEnabled = isFeatureEnabledonAccount.value(
-      accountId,
-      FEATURE_FLAGS.AI_ASSISTANT_V2
+    const serverEnabled = Boolean(
+      isFeatureEnabledonAccount.value(
+        currentAccountId.value,
+        FEATURE_FLAGS.AI_ASSISTANT_V2
+      )
     );
     if (!serverEnabled) return false;
 
     const session = safeRead('sessionStorage', SESSION_KEY);
-    if (session === 'on') return true;
     if (session === 'off') return false;
+    if (session === 'on') return true;
 
     const local = safeRead('localStorage', LOCAL_KEY);
-    if (local === 'on') return true;
     if (local === 'off') return false;
 
     return true;

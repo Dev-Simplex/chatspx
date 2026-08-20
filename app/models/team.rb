@@ -23,8 +23,18 @@ class Team < ApplicationRecord
   belongs_to :account
   has_many :team_members, dependent: :destroy_async
   has_many :members, through: :team_members, source: :user
+  # Supervisão (D1): coleção separada dos membros de propósito — supervisor não conta
+  # como membro em nada (auto-assign, chat interno, etiquetas "de-time").
+  has_many :team_supervisors, dependent: :destroy_async
+  has_many :supervisors, through: :team_supervisors, source: :user
   has_many :conversations, dependent: :nullify
 
+  after_create :create_default_funnel
+  # Chat interno: todo time tem um "grupo de time" no chat interno, com os membros
+  # espelhando a equipe. Cria o grupo ao criar o time e renomeia se o time muda de
+  # nome. Best-effort — uma falha no chat nunca pode bloquear o CRUD do time.
+  after_create :sync_internal_team_channel
+  after_update :sync_internal_team_channel, if: :saved_change_to_name?
   before_destroy :capture_filtered_unread_count_member_ids, prepend: true
   after_destroy_commit :invalidate_filtered_unread_counts_after_destroy
 
@@ -36,12 +46,6 @@ class Team < ApplicationRecord
     self.name = name.gsub(/[[:cntrl:]]/, '').strip.downcase if attribute_present?('name')
   end
 
-  after_create :create_default_funnel
-  # Chat interno: todo time tem um "grupo de time" no chat interno, com os membros
-  # espelhando a equipe. Cria o grupo ao criar o time e renomeia se o time muda de
-  # nome. Best-effort — uma falha no chat nunca pode bloquear o CRUD do time.
-  after_create :sync_internal_team_channel
-  after_update :sync_internal_team_channel, if: :saved_change_to_name?
   # A FK de Label.team já faz nullify, mas isso deixaria labels "de-time" com
   # visibility=team e team_id=NULL (inválidas na próxima validação). Rebaixa para
   # everyone antes do destroy (roda antes do dependent: :destroy_async dos membros).

@@ -57,12 +57,14 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :audio_transcriptions, :auto_resolve_label
   store_accessor :settings, :chat_wallpaper_url, :show_dashboard_kpi_strip
   store_accessor :settings, :onboarding_completed_steps, :onboarding_dismissed
-  store_accessor :settings, :openai_api_key, :openai_model_default, :openai_model_advanced
+  store_accessor :settings, :openai_api_key, :openai_model_default, :openai_model_advanced, :openai_model_vision
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
   store_accessor :settings, :captain_auto_resolve_mode, :captain_false_promise_harness_enabled
   store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
+  store_accessor :settings, :template_reply_routing
+  store_accessor :settings, :contact_invite
   store_accessor :settings, :resolve_assignment_gate
   # Modo "só troca de mãos via pedido aprovado" (D1). Independente do
   # reply_assignment_gate de propósito: acoplar no backend seria surpresa.

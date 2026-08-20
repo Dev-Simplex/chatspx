@@ -234,11 +234,39 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     process_response(response, message)
   end
 
+  # Limites INLINE do Meta por tipo (MB). Acima disso o Meta rejeita o envio inline com
+  # "131053: Media upload error", entao mandamos como 'document' (limite 100 MB) p/ nao
+  # falhar. Ex.: video >16 MB. Introduzido em c24110c8d5 e perdido na regressao de
+  # 40239f7571 (que tambem levou o with_agent_prefix, restaurado em 1f1d789f12).
+  META_INLINE_LIMITS_MB = { 'image' => 5, 'audio' => 16, 'video' => 16 }.freeze
+
   def send_attachment_message(phone_number, message)
     attachment = message.attachments.first
+    # RECONCILIACAO homologacao × v4.16.2 — as tres linhas vem de lados diferentes, e cada
+    # uma resolve um problema que a outra ponta nao resolve:
+    #
+    # 1. `normalize_opus_content_type` e do UPSTREAM. O Marcel re-detecta OGG/Opus como
+    #    `audio/opus` depois do attach, e o Meta exige `audio/ogg`. Sem isto, o Content-Type do
+    #    download URL sai errado. Ele tambem AJUDA o passo 3, porque normaliza o blob antes.
+    # 2. `resolve_media_type` e da EQUIPE, e substitui o `include?(...) ? ... : 'document'` do
+    #    upstream. A diferenca e o limite inline do Meta (`META_INLINE_LIMITS_MB`): video acima
+    #    de 16 MB e imagem acima de 5 MB precisam ir como `document`, senao a Meta RECUSA e a
+    #    mensagem nao chega. Usar a versao do upstream aqui reintroduziria a regressao que o
+    #    commit `fix(whatsapp): restaura video >16MB como documento` fechou.
+    # 3. `voice_note_content` e da EQUIPE, e vem ANTES do fallback do upstream. Nota de voz
+    #    (PTT) so sai como PTT quando a midia vai por ID (upload em /media) com `voice: true`;
+    #    pelo `link` ela chega como ARQUIVO de audio — testado em producao com `audio/ogg` e com
+    #    `audio/ogg; codecs=opus`, e os dois vieram como arquivo. Quando o upload falha, o
+    #    metodo devolve `nil` e o fluxo cai no caminho do upstream: o audio chega como arquivo
+    #    em vez de nao chegar.
+    #
+    # `build_attachment_content` (upstream) e o fallback e cobre link + legenda com assinatura
+    # do agente + `filename` de documento — as tres coisas que o lado da equipe fazia em linhas
+    # separadas com `apply_caption`. Por isso `apply_caption` foi removido: ele passaria a ser
+    # uma duplicata exata, sem chamador.
     normalize_opus_content_type(attachment)
-    type = %w[image audio video].include?(attachment.file_type) ? attachment.file_type : 'document'
-    type_content = build_attachment_content(type, attachment, message)
+    type = resolve_media_type(attachment)
+    type_content = voice_note_content(attachment, type) || build_attachment_content(type, attachment, message)
     response = HTTParty.post(
       "#{phone_id_path('v24.0')}/messages",
       headers: api_headers,
@@ -252,6 +280,65 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     )
 
     process_response(response, message)
+  end
+
+  # VOICE NOTE (PTT). O Meta so entrega audio como NOTA DE VOZ — bolha com onda, play na
+  # hora — quando a midia vai por ID (upload em /media) e o objeto audio traz voice:true.
+  # Pelo `link`, que e o caminho de toda midia aqui, ela chega como ARQUIVO de audio.
+  # Isso NAO se resolve pelo mime: testado em producao com `audio/ogg` e com
+  # `audio/ogg; codecs=opus` (o header chega intacto no Meta) e os dois vieram como arquivo.
+  # So OGG/Opus vira PTT; qualquer outro formato segue pelo link, como antes.
+  #
+  # Falhou o upload -> nil -> cai no link. O audio chega como arquivo em vez de nao chegar.
+  def voice_note_content(attachment, type)
+    return unless type == 'audio' && ogg_opus?(attachment)
+
+    media_id = upload_media(attachment)
+    media_id.present? ? { 'id' => media_id, 'voice' => true } : nil
+  end
+
+  # `audio/opus` entra junto porque e assim que o Marcel rotula OGG/Opus — inclusive o audio
+  # que o proprio cliente gravou no WhatsApp e que o Chatwoot baixou. Encaminhar essa nota
+  # de voz deve sair como nota de voz.
+  def ogg_opus?(attachment)
+    attachment.file.attached? && attachment.file.content_type.to_s.start_with?('audio/ogg', 'audio/opus')
+  end
+
+  # HTTParty nao monta o multipart aceito pelo Meta aqui (devolve "(#100) The parameter file
+  # is required"), por isso Net::HTTP — que e o que o endpoint aceitou nos testes.
+  def upload_media(attachment)
+    uri = URI("#{phone_id_path}/media")
+    attachment.file.blob.open do |file|
+      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
+        http.request(media_upload_request(uri, attachment, file))
+      end
+      JSON.parse(response.body)['id'] if response.is_a?(Net::HTTPSuccess)
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[WhatsApp Cloud] upload de voice note falhou, enviando pelo link: #{e.class}: #{e.message}")
+    nil
+  end
+
+  def media_upload_request(uri, attachment, file)
+    request = Net::HTTP::Post.new(uri)
+    request['Authorization'] = "Bearer #{whatsapp_channel.provider_config['api_key']}"
+    request.set_form(
+      [['messaging_product', 'whatsapp'],
+       ['type', 'audio/ogg'],
+       ['file', file, { filename: attachment.file.filename.to_s, content_type: 'audio/ogg; codecs=opus' }]],
+      'multipart/form-data'
+    )
+    request
+  end
+
+  # Decide o 'type' do Meta: mantem image/audio/video se dentro do limite inline;
+  # senao (ou tipo nao-midia) manda como 'document' (video >16 MB, imagem >5 MB, etc.).
+  def resolve_media_type(attachment)
+    base = %w[image audio video].include?(attachment.file_type) ? attachment.file_type : 'document'
+    limit_mb = META_INLINE_LIMITS_MB[base]
+    return base unless limit_mb && attachment.file.attached?
+
+    attachment.file.byte_size > limit_mb.megabytes ? 'document' : base
   end
 
   def error_message(response)

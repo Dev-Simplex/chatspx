@@ -9,6 +9,11 @@
 # conversa que o usuário não acha na lista (e que retorna 403 se ele abrir) é o bug que este
 # service existe para fechar.
 #
+# ÚNICA EXCEÇÃO, DELIBERADA: a SUPERVISÃO DE TIME (TeamSupervision / team_supervisors) entra no
+# PermissionFilterService mas NÃO entra aqui — o sino foi estreitado de propósito para "só o
+# assignee" (D4 de task/supervisor-de-time.md) e supervisor de time grande viraria spam.
+# NÃO "conserte" esta assimetria: ela é a decisão, não um esquecimento.
+#
 # NÃO aplicar esta regra dentro do NotificationBuilder: ele é o choke point dos 9 call sites e
 # mataria a menção cross-team, que é deliberada (Messages::MentionService monta a audiência sem
 # filtro de time de propósito — menção é consentimento explícito). Escopar na SELEÇÃO DE AUDIÊNCIA.

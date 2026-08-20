@@ -15,7 +15,17 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
     }
   end
 
+  # Incremento ATÔMICO via jsonb_set: roda a cada resposta do Captain e o antigo
+  # read-modify-write da hash inteira clobberava chaves recém-gravadas por outros
+  # processos em custom_attributes (ex.: eval_unit sumiu em produção — mesma classe
+  # de bug do reetiqueta team_id). Toca SÓ a própria chave, sem full-write.
   def increment_response_usage
+    # RECONCILIACAO homologacao × v4.16.2 — o upstream EXTRAIU esta logica para
+    # `increment_custom_attribute` (linha ~167 deste arquivo), e o helper faz exatamente o que a
+    # homologacao fazia inline: `update_all` com `jsonb_set` atomico mais a atualizacao do objeto
+    # em memoria. O incremento continua sendo ATOMICO — que era o ponto da versao da equipe, e o
+    # que impede duas respostas simultaneas de contarem uma so. O helper ainda usa bind param no
+    # lugar de interpolar a chave no SQL.
     increment_custom_attribute(CAPTAIN_RESPONSES_USAGE)
   end
 

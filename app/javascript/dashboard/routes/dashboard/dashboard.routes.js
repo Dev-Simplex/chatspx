@@ -8,7 +8,6 @@ import { routes as inboxRoutes } from './inbox/routes';
 import { frontendURL } from '../../helper/URLHelper';
 import helpcenterRoutes from './helpcenter/helpcenter.routes';
 import campaignsRoutes from './campaigns/campaigns.routes';
-import { routes as captainRoutes } from './captain/captain.routes';
 import { routes as agentsRoutes } from './agents/agents.routes';
 import { routes as kanbanRoutes } from './kanban/routes';
 import { routes as internalChatRoutes } from './internalChat/routes';
@@ -27,7 +26,6 @@ export default {
       path: frontendURL('accounts/:accountId'),
       component: AppContainer,
       children: [
-        ...captainRoutes,
         ...agentsRoutes,
         ...kanbanRoutes,
         ...internalChatRoutes,

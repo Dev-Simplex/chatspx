@@ -7,4 +7,7 @@ export const LOCAL_STORAGE_KEYS = {
   MESSAGE_REPLY_TO: 'messageReplyTo',
   RECENT_SEARCHES: 'recentSearches',
   SIDEBAR_MINIMIZED_SECTIONS: 'sidebarMinimizedSections',
+  // Fonte da verdade em shared/helpers/recentEmojis.js (o picker é compartilhado
+  // com o widget e não pode importar do dashboard).
+  RECENT_EMOJIS: 'recentEmojis',
 };

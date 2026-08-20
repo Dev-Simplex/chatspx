@@ -33,7 +33,7 @@ module Campaigns
         end
 
         conversation = find_or_create_conversation(inbox, contact_inbox)
-        send_hsm(conversation, inbox.channel)
+        send_hsm(conversation)
         close_with_team(conversation)
 
         recipient.update!(
@@ -55,7 +55,14 @@ module Campaigns
         ContactInboxWithContactBuilder.new(
           inbox: inbox,
           contact_attributes: {
-            name: recipient.name.presence || first_name,
+            # Sem nome na lista, o contato fica SEM NOME — o painel identifica pelo telefone
+            # e quem descobre o nome é a conversa (a IA ou o atendente pergunta e confirma).
+            # Nada de fallback aqui: `contact.name` é área de trabalho do time humano (eles
+            # anotam "Fulano / Casa do Beltrano"), então fabricar um nome escreve lixo num
+            # campo de trabalho. Foi assim que 110 contatos viraram "tudo bem".
+            # String VAZIA, nunca nil: o builder faz `name || Haikunator.haikunate`, então
+            # nil viraria um apelido aleatório.
+            name: recipient.name.to_s.strip,
             phone_number: recipient.phone_number,
             additional_attributes: { source: "campaign_#{campaign.id}" }
           },
@@ -93,17 +100,14 @@ module Campaigns
         )
       end
 
-      def send_hsm(conversation, channel)
-        body_params = default_params.merge(stringify(recipient.template_params))
-        params = {
-          content: render_body_mirror(channel, body_params),
-          content_type: :text, message_type: 'outgoing', private: false,
-          template_params: {
-            'name' => campaign.template_name, 'language' => campaign.template_language,
-            'processed_params' => processed_params(body_params)
-          }
-        }
-        Messages::MessageBuilder.new(nil, conversation, params.with_indifferent_access).perform
+      def send_hsm(conversation)
+        ::Whatsapp::SendTemplateService.new(
+          conversation: conversation,
+          name: campaign.template_name,
+          language: campaign.template_language,
+          body_params: default_params.merge(stringify(recipient.template_params)),
+          header: campaign.dispatch_config['header']
+        ).perform
       end
 
       # Modelo de atribuicao (decisao do Paulo): seta o TIME e FECHA, sem agente.
@@ -119,40 +123,12 @@ module Campaigns
         conversation.update!(assignee_id: nil) if conversation.assignee_id.present?
       end
 
-      def processed_params(body_params)
-        processed = {}
-        processed['body'] = body_params if body_params.present?
-        header = campaign.dispatch_config['header']
-        if header.is_a?(Hash) && header['media_url'].present?
-          processed['header'] = { 'media_url' => header['media_url'], 'media_type' => header['media_type'] || 'image' }
-        end
-        processed
-      end
-
-      # Espelho na transcricao do Chatwoot: renderiza o corpo do template
-      # SINCRONIZADO (substitui {{n}}). Acaba o hash PREVIEWS hardcoded.
-      def render_body_mirror(channel, body_params)
-        tmpl = Array(channel.message_templates).find do |t|
-          t['name'] == campaign.template_name &&
-            t['language'].to_s.casecmp?(campaign.template_language.to_s) &&
-            t['status'].to_s.casecmp?('approved')
-        end
-        body = tmpl && Array(tmpl['components']).find { |c| c['type'].to_s.casecmp?('body') }&.dig('text')
-        return body_params.values.join(' ').presence || '(mensagem)' if body.blank?
-
-        body.gsub(/\{\{(\d+)\}\}/) { body_params[Regexp.last_match(1)].to_s }
-      end
-
       def default_params
         stringify(campaign.dispatch_config['default_params'])
       end
 
       def stringify(hash)
         (hash || {}).to_h { |k, v| [k.to_s, v.to_s] }
-      end
-
-      def first_name
-        recipient.name.to_s.strip.split.first.presence || 'tudo bem'
       end
     end
   end

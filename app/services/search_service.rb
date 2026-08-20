@@ -1,4 +1,4 @@
-class SearchService
+class SearchService # rubocop:disable Metrics/ClassLength
   pattr_initialize [:current_user!, :current_account!, :params!, :search_type!]
 
   def perform
@@ -22,14 +22,44 @@ class SearchService
     @accessable_inbox_ids ||= @current_user.assigned_inboxes.pluck(:id)
   end
 
+  # SUPERVISÃO DE TIME (D2): o supervisor acha na busca as conversas dos times que
+  # supervisiona mesmo em caixas das quais não é membro. Vazio => tudo abaixo é no-op.
+  def supervised_team_ids
+    @supervised_team_ids ||= TeamSupervision.team_ids(current_user, current_account)
+  end
+
+  # Subconsulta (e não pluck) p/ não carregar o time inteiro em memória; só inteiros do banco.
+  def supervised_conversations_sql
+    Conversation.where(account_id: current_account.id, team_id: supervised_team_ids).select(:id).to_sql
+  end
+
+  def scope_conversations_to_access(relation)
+    return relation.where(inbox_id: accessable_inbox_ids) if supervised_team_ids.empty?
+
+    relation.where('conversations.inbox_id IN (:ids) OR conversations.team_id IN (:teams)',
+                   ids: accessable_inbox_ids, teams: supervised_team_ids)
+  end
+
+  # Do lado das mensagens não há team_id da conversa: o alcance vira subconsulta.
+  def scope_messages_to_access(relation)
+    return relation.where(inbox_id: accessable_inbox_ids) if supervised_team_ids.empty?
+
+    relation.where("messages.inbox_id IN (:ids) OR messages.conversation_id IN (#{supervised_conversations_sql})",
+                   ids: accessable_inbox_ids)
+  end
+
+  def conversation_accessible?(conversation)
+    accessable_inbox_ids.include?(conversation.inbox_id) || supervised_team_ids.include?(conversation.team_id)
+  end
+
   def search_query
     @search_query ||= params[:q].to_s.strip
   end
 
   def filter_conversations
-    conversations_query = current_account.conversations.where(inbox_id: accessable_inbox_ids)
-                                         .joins('INNER JOIN contacts ON conversations.contact_id = contacts.id')
-                                         .where("cast(conversations.display_id as text) ILIKE :search OR contacts.name ILIKE :search OR contacts.email
+    conversations_query = scope_conversations_to_access(current_account.conversations)
+                          .joins('INNER JOIN contacts ON conversations.contact_id = contacts.id')
+                          .where("cast(conversations.display_id as text) ILIKE :search OR contacts.name ILIKE :search OR contacts.email
                             ILIKE :search OR contacts.phone_number ILIKE :search OR contacts.identifier ILIKE :search", search: "%#{search_query}%")
 
     if current_account.feature_enabled?('advanced_search')
@@ -96,15 +126,15 @@ class SearchService
   end
 
   def message_base_query
-    query = current_account.messages.where(inbox_id: accessable_inbox_ids)
-                           .where('created_at >= ?', 3.months.ago)
+    query = scope_messages_to_access(current_account.messages)
+            .where('created_at >= ?', 3.months.ago)
 
     # Filter by conversation_id if provided
     if params[:conversation_id].present?
       conv_display_id = params[:conversation_id].to_i
       # Verify user has access to this conversation (frontend sends display_id, not internal id)
       conversation = current_account.conversations.find_by(display_id: conv_display_id)
-      query = if conversation && accessable_inbox_ids.include?(conversation.inbox_id)
+      query = if conversation && conversation_accessible?(conversation)
                 query.where(conversation_id: conversation.id)
               else
                 # If conversation_id is provided but user doesn't have access,
@@ -126,8 +156,11 @@ class SearchService
     isolated_inbox_ids = current_account.inboxes.where(agent_message_isolation: true).pluck(:id)
     return query if isolated_inbox_ids.empty?
 
+    # Supervisor do time da conversa vê todas as bolhas dela (D2) — a cláusula só
+    # aparece quando há supervisão, senão a query fica idêntica à de antes.
+    supervised_or = supervised_team_ids.any? ? " OR messages.conversation_id IN (#{supervised_conversations_sql})" : ''
     query.where(
-      'messages.agent_id IS NULL OR messages.agent_id = :uid OR messages.inbox_id NOT IN (:isolated)',
+      "messages.agent_id IS NULL OR messages.agent_id = :uid OR messages.inbox_id NOT IN (:isolated)#{supervised_or}",
       uid: agent_id, isolated: isolated_inbox_ids
     )
   end

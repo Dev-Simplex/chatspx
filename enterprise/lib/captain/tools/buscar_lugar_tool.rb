@@ -1,21 +1,28 @@
 class Captain::Tools::BuscarLugarTool < Captain::Tools::BasePublicTool
-  description 'Busca lugares/comércios/pontos de referência por NOME em Sinop (ex: "Mercado Machado", "Unifasipe", "Hospital Regional"). ' \
+  description 'Busca lugares/comércios/pontos de referência por NOME na cidade de atendimento. ' \
               'Retorna a LISTA de unidades encontradas, cada uma com nome, endereço e coordenadas (lat/lng). ' \
               'Use quando o cliente citar um lugar como referência de proximidade — em especial redes com várias unidades. ' \
               'Mostre as opções, pergunte ao cliente QUAL ele quer, e então passe a lat/lng da escolhida pro buscar_imovel.'
 
   param :referencia, type: 'string',
-                     desc: 'Nome do lugar/comércio/ponto de referência (ex: "Mercado Machado", "Unifasipe", "aeroporto").',
+                     desc: 'Nome do lugar/comércio/ponto de referência que o cliente citou.',
                      required: true
 
   FIELD_MASK = 'places.displayName,places.formattedAddress,places.location'.freeze
+
+  # RubyLLM::Tool delega description da instância para a classe — override de instância pra
+  # nomear a cidade REAL da conta (mesmo idioma do HandoffTool; tools são instanciadas a cada
+  # run, então chega fresco no LLM). Sem config, geo_city é a cidade que estava fixa no código.
+  def description
+    "#{self.class.description} A busca é feita em #{geo_city}."
+  end
 
   def perform(_tool_context, referencia:)
     key = google_key
     return 'Busca de lugares indisponível no momento.' if key.blank?
 
     lugares = places_search(referencia, key)
-    return "Não achei nenhum lugar com \"#{referencia}\" em Sinop." if lugares.blank?
+    return "Não achei nenhum lugar com \"#{referencia}\" em #{geo_city}." if lugares.blank?
 
     linhas = lugares.first(8).map.with_index(1) do |p, i|
       loc = p['location'] || {}
@@ -54,7 +61,7 @@ class Captain::Tools::BuscarLugarTool < Captain::Tools::BasePublicTool
         'X-Goog-Api-Key' => key,
         'X-Goog-FieldMask' => FIELD_MASK
       },
-      body: { textQuery: "#{query} Sinop MT", languageCode: 'pt-BR', regionCode: 'BR' }.to_json,
+      body: { textQuery: "#{query} #{geo_city}", languageCode: 'pt-BR', regionCode: 'BR' }.to_json,
       timeout: 15
     )
     return [] unless resp.code == 200

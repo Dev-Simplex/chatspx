@@ -9,7 +9,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   RESPONSE_SCHEMA = Captain::ConversationEvalSchema
   TRANSCRIPT_CHAR_LIMIT = 60_000
 
-  pattr_initialize [:account!, :conversation_display_id!, :episode]
+  pattr_initialize [:account!, :conversation_display_id!, :episode, :model_override]
 
   def perform
     transcript, response_map = build_transcript
@@ -18,8 +18,8 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     response = make_api_call(
       model: eval_model,
       messages: [
-        { role: 'system', content: prompt_from_file('conversation_eval') },
-        { role: 'user', content: [carryover_context, system_events_summary, transcript].compact.join("\n\n") }
+        { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context].compact.join("\n\n") },
+        { role: 'user', content: [carryover_context, system_events_summary, human_annotations_context, transcript].compact.join("\n\n") }
       ],
       schema: RESPONSE_SCHEMA
     )
@@ -48,7 +48,8 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   end
 
   def eval_model
-    InstallationConfig.find_by(name: 'EVAL_OPEN_AI_MODEL')&.value.presence ||
+    model_override.presence ||
+      InstallationConfig.find_by(name: 'EVAL_OPEN_AI_MODEL')&.value.presence ||
       InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || GPT_MODEL
   end
 
@@ -69,6 +70,33 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     scope.reorder('id asc')
   end
 
+  SPEC_CHAR_LIMIT = 14_000
+
+  # Spec-grounded judging (padrão Model Spec Evals): o juiz recebe as NORMAS do
+  # agente de IA que atendeu o episódio (instructions da conta, lidas do banco) e
+  # julga CONFORMIDADE — divergência factual ou de conduta em relação à spec vira
+  # falha mesmo quando o juiz não conhece o negócio. Multi-tenant de graça: cada
+  # conta injeta a própria spec.
+  def spec_context
+    instructions = episode_assistant&.config&.dig('instructions').to_s
+    return if instructions.blank?
+
+    "NORMAS DO AGENTE DE IA AVALIADO (#{episode_assistant.name}). A conduta e as afirmações da IA devem " \
+      'CONFORMAR com estas normas: contradizer um fato ou uma regra daqui é falha (info_incorreta ou ' \
+      "quebrou_regra). As normas valem só para as respostas da IA, não para as dos humanos.\n---\n" \
+      "#{instructions[0, SPEC_CHAR_LIMIT]}\n---"
+  end
+
+  # O assistente dominante da janela avaliada (episódio) ou da conversa (legado).
+  def episode_assistant
+    @episode_assistant ||= begin
+      scope = conversation.messages.where(sender_type: 'Captain::Assistant')
+      scope = scope.where(id: episode.first_message_id..episode.last_message_id) if episode.present?
+      sender_id = scope.reorder(:created_at).last&.sender_id
+      Captain::Assistant.find_by(id: sender_id) if sender_id
+    end
+  end
+
   # Carryover (unidade episódio): resumo dos atendimentos ANTERIORES do mesmo contato,
   # pra o juiz não marcar falso "ignorou contexto" quando a IA referencia algo combinado
   # antes. Vem dos vereditos já gravados — custo zero de LLM.
@@ -86,6 +114,32 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
 
     "Contexto (NÃO avaliar): atendimentos anteriores deste contato, do mais recente ao mais antigo:\n" \
       "#{resumos.join("\n")}\nAvalie SOMENTE o atendimento transcrito abaixo."
+  end
+
+  ANNOTATION_CHAR_LIMIT = 500
+
+  # F4.2 (Eval humano): notas privadas da gestão com o marcador #eval são veredito
+  # humano — quem opera o negócio apontou o problema (ou o acerto). Entram no prompt
+  # com peso máximo, acima de qualquer inferência do próprio juiz.
+  def human_annotations_context
+    notes = annotation_scope.limit(10).filter_map do |message|
+      texto = message.content.to_s.gsub(/#eval\b/i, ' ').gsub(/\s+/, ' ').strip
+      "- [#{message.sender&.name.presence || 'gestor'}] #{texto[0, ANNOTATION_CHAR_LIMIT]}" if texto.present?
+    end
+    return if notes.empty?
+
+    'AVALIAÇÃO HUMANA DA GESTÃO sobre este atendimento (peso MÁXIMO — a gestão conhece o negócio; ' \
+      'incorpore estes apontamentos ao veredito, refletindo-os na nota, nas respostas_problematicas ' \
+      "e no resumo; não os contradiga sem evidência forte no transcript):\n#{notes.join("\n")}"
+  end
+
+  def annotation_scope
+    return episode.human_annotations if episode.present?
+
+    conversation.messages
+                .where(private: true, sender_type: 'User')
+                .where('content ILIKE ?', '%#eval%')
+                .reorder(:created_at)
   end
 
   def build_transcript
@@ -123,7 +177,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     from = messages.first.created_at
     to = messages.last.created_at + 2.minutes
     Captain::ToolCall.for_conversation(conversation.id).in_window(from, to).order(:created_at).map do |call|
-      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 400]
+      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 1200]
       { at: call.created_at, line: "[TOOL #{call.tool_name} args=#{call.args.to_json[0, 200]} => #{resultado}]" }
     end
   end
@@ -131,9 +185,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   # Conversas longas: mantém a cauda (mensagens mais recentes) dentro do teto de chars.
   def trim_to_limit(messages)
     total = messages.sum { |m| message_text(m).length }
-    while total > TRANSCRIPT_CHAR_LIMIT && messages.size > 1
-      total -= message_text(messages.shift).length
-    end
+    total -= message_text(messages.shift).length while total > TRANSCRIPT_CHAR_LIMIT && messages.size > 1
     messages
   end
 

@@ -47,6 +47,11 @@ const state = {
     listQueueStageIds: [],
   },
   wahaInboxes: [],
+  // Kanban tempo real (Fase 5.2): cards que acabaram de mudar por ação de
+  // OUTRA pessoa — `{ [itemId]: { name, automated } }`. O card usa isto para
+  // piscar e dizer quem moveu; a entrada se apaga sozinha (ver
+  // `flagRemoteActivity`).
+  remoteActivity: {},
   uiFlags: {
     isFetching: false,
     isFetchingScheduledMessages: false,

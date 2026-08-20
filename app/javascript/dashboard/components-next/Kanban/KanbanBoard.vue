@@ -1,7 +1,9 @@
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue';
+import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 import draggable from 'vuedraggable';
 import KanbanColumn from './KanbanColumn.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -56,6 +58,27 @@ const openPreview = conversation => {
   previewConversation.value = conversation;
   showPreview.value = true;
 };
+
+// Tempo real: enquanto o websocket está caído o board pode estar defasado. O
+// resync é do ReconnectService; aqui só damos o aviso, para "parado" não ser
+// confundido com "travado".
+const isSocketDown = ref(false);
+const markSocketDown = () => {
+  isSocketDown.value = true;
+};
+const markSocketUp = () => {
+  isSocketDown.value = false;
+};
+
+onMounted(() => {
+  emitter.on(BUS_EVENTS.WEBSOCKET_DISCONNECT, markSocketDown);
+  emitter.on(BUS_EVENTS.WEBSOCKET_RECONNECT_COMPLETED, markSocketUp);
+});
+
+onUnmounted(() => {
+  emitter.off(BUS_EVENTS.WEBSOCKET_DISCONNECT, markSocketDown);
+  emitter.off(BUS_EVENTS.WEBSOCKET_RECONNECT_COMPLETED, markSocketUp);
+});
 
 watch(
   () => stages.value,
@@ -557,6 +580,17 @@ const handleDeleteStage = stage => {
     </div>
 
     <div v-else class="flex h-full min-h-0 flex-col">
+      <!-- Tempo real: o websocket caiu. Avisa que a tela pode estar defasada em
+           vez de deixar o usuário achar que travou; o ReconnectService
+           reconcilia o board sozinho quando volta. -->
+      <div
+        v-if="isSocketDown"
+        class="mx-5 mt-3 flex shrink-0 items-center gap-2 rounded-[var(--kanban-radius-md)] bg-n-amber-3 px-3 py-1.5 text-xs font-medium text-n-amber-11"
+      >
+        <Icon icon="i-lucide-loader-2" class="size-3.5 animate-spin" />
+        {{ t('KANBAN.RECONNECTING') }}
+      </div>
+
       <!-- Funnel distribution bar -->
       <div
         v-if="stages.length >= 2 && totalFunnelCards"

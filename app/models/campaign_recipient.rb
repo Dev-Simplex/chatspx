@@ -3,6 +3,7 @@
 # Table name: campaign_recipients
 #
 #  id              :bigint           not null, primary key
+#  canonical_phone :string
 #  external_error  :string
 #  name            :string
 #  phone_number    :string           not null
@@ -18,9 +19,10 @@
 #
 # Indexes
 #
-#  index_campaign_recipients_on_account_id_and_phone_number  (account_id,phone_number)
-#  index_campaign_recipients_on_campaign_id_and_status       (campaign_id,status)
-#  index_campaign_recipients_on_conversation_id              (conversation_id)
+#  index_campaign_recipients_on_account_id_and_canonical_phone  (account_id,canonical_phone)
+#  index_campaign_recipients_on_account_id_and_phone_number     (account_id,phone_number)
+#  index_campaign_recipients_on_campaign_id_and_status          (campaign_id,status)
+#  index_campaign_recipients_on_conversation_id                 (conversation_id)
 #
 class CampaignRecipient < ApplicationRecord
   belongs_to :campaign
@@ -40,7 +42,7 @@ class CampaignRecipient < ApplicationRecord
   # scheduler. Reflete o estado em memoria quando ganha a corrida.
   def claim!
     won = self.class.where(id: id, status: :pending)
-                    .update_all(status: self.class.statuses[:processing], updated_at: Time.current) == 1
+              .update_all(status: self.class.statuses[:processing], updated_at: Time.current) == 1
     self.status = :processing if won
     won
   end

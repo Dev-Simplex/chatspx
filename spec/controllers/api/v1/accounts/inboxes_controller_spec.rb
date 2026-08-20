@@ -1359,7 +1359,16 @@ RSpec.describe 'Inboxes API', type: :request do
         business_account_id: 'waba123',
         business_account_name: 'Test WABA',
         business_portfolio_id: 'business123',
-        business_portfolio_name: 'Test Business Portfolio'
+        business_portfolio_name: 'Test Business Portfolio',
+        # RECONCILIACAO: o duble espelha o que `Whatsapp::HealthService` devolve DEPOIS do
+        # merge — os campos do upstream mais os que a equipe acrescentou. `business_id` saiu
+        # junto com o campo: o servico passou a buscar o dado na fonte e o entrega como
+        # `business_account_id` (ver o comentario em `format_business_account_response`).
+        expected_webhook_url: 'https://app.example.com/webhooks/whatsapp/+556635317222',
+        acceptable_webhook_urls: [
+          'https://app.example.com/webhooks/whatsapp/+556635317222',
+          'https://app.example.com/webhooks/whatsapp/+556632114876'
+        ]
       }
     end
 
@@ -1398,6 +1407,20 @@ RSpec.describe 'Inboxes API', type: :request do
             'business_account_name' => 'Test WABA',
             'business_portfolio_id' => 'business123',
             'business_portfolio_name' => 'Test Business Portfolio'
+          )
+        end
+
+        it 'exposes the sibling webhook urls so the UI can accept any of them' do
+          get "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/health",
+              headers: admin.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          expect(response.parsed_body['acceptable_webhook_urls']).to eq(
+            [
+              'https://app.example.com/webhooks/whatsapp/+556635317222',
+              'https://app.example.com/webhooks/whatsapp/+556632114876'
+            ]
           )
         end
 

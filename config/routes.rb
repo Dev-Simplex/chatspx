@@ -68,8 +68,23 @@ Rails.application.routes.draw do
             post :bulk_create, on: :collection
           end
           resource :agent_stats, only: [:show]
+          resource :distribuicao_dashboard, only: [:show], controller: 'distribuicao_dashboard' do
+            get :designacoes
+          end
+
+          # Alias do contrato C1 do briefing (sem o prefixo /captain). A rota
+          # canonica e a de dentro do namespace :captain, onde o recurso vive;
+          # este alias existe para quem implementou o cliente pelo caminho
+          # literal do contrato.
+          post 'copilot_threads/:copilot_thread_id/stream', to: 'captain/copilot_streams#create'
+          delete 'copilot_threads/:copilot_thread_id/stream', to: 'captain/copilot_streams#destroy'
           namespace :captain do
             resource :preferences, only: [:show, :update]
+            resource :eval_dashboard, only: [:show], controller: 'eval_dashboard' do
+              get :episodes
+              get :conversation_episodes
+              post :annotate
+            end
             resources :assistants do
               member do
                 post :playground
@@ -104,6 +119,10 @@ Rails.application.routes.draw do
             resources :bulk_actions, only: [:create]
             resources :copilot_threads, only: [:index, :create] do
               resources :copilot_messages, only: [:index, :create]
+              # Streaming SSE do copiloto (contrato C1).
+              # POST   .../captain/copilot_threads/:copilot_thread_id/stream  -> gera
+              # DELETE .../captain/copilot_threads/:copilot_thread_id/stream  -> "parar"
+              resource :stream, only: [:create, :destroy], controller: 'copilot_streams'
             end
             resources :custom_tools do
               member do
@@ -174,6 +193,9 @@ Rails.application.routes.draw do
               resources :inbox_limits, only: [:create, :update, :destroy]
             end
           end
+          # Campanhas de captação (lead ads / formulário): viewer só-leitura do volume por
+          # campanha e da configuração do hook que a atende.
+          resource :lead_campaigns, only: [:show], controller: 'lead_campaigns'
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               # 4.22 — importa a campanha legada como gatilho do motor novo e DESATIVA a
@@ -181,6 +203,7 @@ Rails.application.routes.draw do
               # importar continua com a campanha listada e editavel.
               post :import_to_trigger
               get :stats
+              post :audience_preview
               post :recipients
               post :start
               post :pause
@@ -872,6 +895,7 @@ Rails.application.routes.draw do
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
   get 'webhooks/meta_lead_ads', to: 'webhooks/meta_lead_ads#verify'
   post 'webhooks/meta_lead_ads', to: 'webhooks/meta_lead_ads#process_payload'
+  post 'webhooks/site_leads', to: 'webhooks/site_leads#process_payload'
   # F1 (R-2): gatilho `external_webhook` do motor Flow — endpoint PÚBLICO identificado por token
   # forte (não pelo id). Rate-limitado por IP no rack_attack.rb. Ver Webhooks::FlowsController.
   post 'webhooks/flows/:token', to: 'webhooks/flows#create'

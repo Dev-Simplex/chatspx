@@ -157,7 +157,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     # de filter_by_team) — não fica trancado fora da única fila que poderia atender.
     if force_team_queue_scope?
       @team = nil
-      @team_ids = current_user.teams.pluck(:id)
+      @team_ids = scoping_team_ids
       return
     end
 
@@ -166,13 +166,27 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     if parsed_team_id.present? && parsed_team_id.positive?
       @team = current_account.teams.find_by(id: parsed_team_id)
       @team_ids = @team ? [@team.id] : []
-    elsif !@is_admin && current_user.teams.any?
+    elsif !@is_admin && member_team_ids.any?
       @team = nil
-      @team_ids = current_user.teams.pluck(:id)
+      @team_ids = scoping_team_ids
     else
       @team = nil
       @team_ids = []
     end
+  end
+
+  def member_team_ids
+    @member_team_ids ||= current_user.teams.pluck(:id)
+  end
+
+  # Times que ESCOPAM a lista = membro ∪ supervisionado. A supervisão só AMPLIA:
+  # se o agente não é membro de nenhum time, a lista continua SEM filtro de time
+  # (quem já garante o conjunto acessível é a PermissionFilterService) — do
+  # contrário virar supervisor ESTREITARIA a visão dele, o oposto da feature.
+  def scoping_team_ids
+    return [] if member_team_ids.empty?
+
+    TeamSupervision.accessible_team_ids(current_user, current_account)
   end
 
   # Força o escopo por time na fila (aba unassigned) somente quando:
@@ -256,23 +270,32 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     return unless params[:q].is_a?(String) && params[:q].present?
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
-    # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
-    # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia).
     agent_id = AgentMessageIsolation.viewer_restriction_id(@current_user, @current_account)
-    agent_clause = if agent_id
-                     'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
-                       'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
-                       'AND inboxes.agent_message_isolation = true))'
-                   else
-                     ''
-                   end
     @conversations = @conversations.where(
       'EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id ' \
-      "AND messages.content ILIKE :search AND messages.message_type IN (:types) #{agent_clause})",
+      "AND messages.content ILIKE :search AND messages.message_type IN (:types) #{query_agent_clause(agent_id)})",
       search: "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%",
       types: allowed_message_types,
-      agent_id: agent_id
+      agent_id: agent_id,
+      supervised: query_supervised_team_ids
     )
+  end
+
+  # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
+  # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia). O supervisor do
+  # time da conversa é isento (D2) e acha o conteúdo de qualquer agente do time.
+  def query_agent_clause(agent_id)
+    return '' if agent_id.nil?
+
+    supervised_or = query_supervised_team_ids.any? ? 'OR conversations.team_id IN (:supervised) ' : ''
+    'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
+      "#{supervised_or}" \
+      'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
+      'AND inboxes.agent_message_isolation = true))'
+  end
+
+  def query_supervised_team_ids
+    @query_supervised_team_ids ||= TeamSupervision.team_ids(@current_user, @current_account)
   end
 
   def filter_by_status

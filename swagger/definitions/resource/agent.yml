@@ -34,6 +34,11 @@ properties:
   thumbnail:
     type: string
     description: The thumbnail of the agent
+  supervised_team_ids:
+    type: array
+    items:
+      type: integer
+    description: Ids of the teams this agent supervises. Supervising is not the same as being a team member.
   custom_role_id:
     type:
       - integer

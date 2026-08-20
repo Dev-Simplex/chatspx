@@ -26,9 +26,18 @@ module AgentConversationIsolation
   def hidden_from?(conversation, user, account = nil)
     return false unless conversation&.inbox&.agent_conversation_isolation
 
-    restriction_id = viewer_restriction_id(user, account || conversation.account)
+    scope = account || conversation.account
+    restriction_id = viewer_restriction_id(user, scope)
     return false if restriction_id.nil? # admin / sem User -> acessa tudo
+    # Supervisão de time (D2) vence o isolamento por agente: o supervisor abre a
+    # conversa do time que supervisiona mesmo com a flag ON e dono humano diferente.
+    return false if TeamSupervision.supervises?(user, conversation.team_id, scope)
 
+    blocked_owner?(conversation, restriction_id)
+  end
+
+  # Dono humano diferente de quem olha = bloqueado. Sem dono humano (fila/IA) passa.
+  def blocked_owner?(conversation, restriction_id)
     owner = conversation.assignee_id
     owner.present? && owner != restriction_id
   end
@@ -42,10 +51,15 @@ module AgentConversationIsolation
     restriction_id = viewer_restriction_id(user, account)
     return relation if restriction_id.nil?
 
+    # Espelho SQL da exceção de supervisão de `hidden_from?`: a conversa do time
+    # supervisionado nunca é removida. Sem supervisão a cláusula some (no-op).
+    supervised = TeamSupervision.team_ids(user, account)
+    supervised_clause = supervised.any? ? ' OR conversations.team_id IN (:supervised)' : ''
+
     relation.where(
       'NOT (inboxes.agent_conversation_isolation AND conversations.assignee_id IS NOT NULL ' \
-      'AND conversations.assignee_id <> ?)',
-      restriction_id
+      "AND conversations.assignee_id <> :restriction_id)#{supervised_clause}",
+      restriction_id: restriction_id, supervised: supervised
     )
   end
 end

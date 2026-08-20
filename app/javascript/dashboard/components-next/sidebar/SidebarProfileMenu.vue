@@ -21,7 +21,7 @@ defineProps({
   isCollapsed: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['close', 'openKeyShortcutModal']);
+const emit = defineEmits(['close', 'openKeyShortcutModal', 'enterReorderMode']);
 
 defineOptions({
   inheritAttrs: false,
@@ -96,6 +96,15 @@ const menuItems = computed(() => {
         document
           .querySelector('ninja-keys')
           ?.open?.({ parent: 'appearance_settings' });
+      },
+    },
+    {
+      show: true,
+      showOnCustomBrandedInstance: true,
+      label: t('SIDEBAR_ITEMS.REORDER_SIDEBAR'),
+      icon: 'i-lucide-arrow-up-down',
+      click: () => {
+        emit('enterReorderMode');
       },
     },
     // WA-fidelity: itens administrativos (Kanban/Contatos/Relatórios/Ao Vivo/

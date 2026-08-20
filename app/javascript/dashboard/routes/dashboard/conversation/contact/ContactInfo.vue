@@ -20,20 +20,26 @@ import ContactInfoRow from './ContactInfoRow.vue';
 import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
 import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
+// União dos dois lados, com dois cuidados: `VoiceCallButton` aparecia nos DOIS
+// (entra uma vez só) e `BUS_EVENTS` já está importado acima, fora deste bloco —
+// repeti-lo aqui seria import duplicado — assim como `stripGroupSuffix` e o
+// bloco de `routeHelpers`, que o merge automático já havia trazido acima.
 import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
+import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
 
 export default {
   components: {
     ContactInfoRow,
     EditContact,
     Thumbnail,
-    ComposeConversation,
     SocialIcons,
+    ComposeConversation,
     ContactMergeModal,
     InlineInput,
+    ExportConversationModal,
     VoiceCallButton,
   },
   props: {
@@ -55,6 +61,12 @@ export default {
     return {
       showEditModal: false,
       showDeleteModal: false,
+      // Do lado da homologação, junto com o ExportConversationModal abaixo. O
+      // merge automático ficou com este `data()` do nosso lado e a variável
+      // sumiu, deixando o template a referenciar algo que não existe.
+      // ⚠️ Nem no lado deles há quem a ponha em `true` — o modal existe e o
+      // gatilho não. Preservado como estava; não inventei o acionador.
+      showExportModal: false,
       isEditingName: false,
       editName: '',
     };
@@ -119,6 +131,12 @@ export default {
     dynamicTime,
     toggleEditModal() {
       this.showEditModal = !this.showEditModal;
+    },
+    // Restaurado: o merge automático ficou com o bloco `methods` do outro lado e
+    // levou este junto. Sem ele, `ref="mergeModal"` fica sem quem o abra — foi o
+    // eslint ("'mergeModal' is defined as ref, but never used") que denunciou.
+    openMergeModal() {
+      this.$refs.mergeModal?.open();
     },
     openComposeConversationModal(toggle) {
       toggle();
@@ -201,9 +219,6 @@ export default {
       } catch (error) {
         useAlert(error.message || this.$t('DELETE_CONTACT.API.ERROR_MESSAGE'));
       }
-    },
-    openMergeModal() {
-      this.$refs.mergeModal?.open();
     },
   },
 };
@@ -324,6 +339,8 @@ export default {
             {{ $t('EDIT_CONTACT.BUTTON_LABEL_SHORT') }}
           </span>
         </button>
+        <!-- Restaurado junto com `openMergeModal`: o modal de mesclar sobreviveu
+             ao merge, mas o botão e o método que o abrem não. -->
         <button
           v-tooltip.top-end="$t('CONTACT_PANEL.MERGE_CONTACT')"
           class="wa-action-btn"
@@ -398,6 +415,11 @@ export default {
       @cancel="toggleEditModal"
     />
     <ContactMergeModal ref="mergeModal" :primary-contact="contact" />
+    <ExportConversationModal
+      :show="showExportModal"
+      :conversations="currentChat?.id ? [currentChat] : []"
+      @close="showExportModal = false"
+    />
     <woot-delete-modal
       v-if="showDeleteModal"
       v-model:show="showDeleteModal"

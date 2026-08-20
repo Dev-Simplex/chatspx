@@ -257,6 +257,91 @@ RSpec.describe Whatsapp::HealthService do
 
         service.sync_health_status!
       end
+
+      # ── RECONCILIACAO homologacao × v4.16.2 ────────────────────────────────────────────────
+      #
+      # Estes casos vieram do spec que a equipe escreveu para `acceptable_webhook_urls` (add/add:
+      # os dois lados escreveram o arquivo inteiro). Eles NAO foram copiados — foram reescritos
+      # sobre o setup do upstream, porque o servico mudou de forma: agora sao DUAS chamadas ao
+      # Graph (numero + WABA) e `validate_channel!` recusa antes quando falta `business_account_id`.
+      #
+      # O que eles protegem continua igual: a Meta aceita UM `override_callback_uri` por WABA, e com
+      # varios numeros no mesmo WABA a URL registrada e a de um deles so — valida para todos, porque
+      # a entrada resolve o canal pelo `phone_number_id` do payload. Sem isto, `AccountHealth.vue`
+      # acusa "webhook url mismatch" num canal que funciona.
+      describe 'acceptable webhook urls (varios numeros no mesmo WABA)' do
+        let(:own_url) { 'https://example.test/webhooks/whatsapp/+15550001111' }
+
+        def sibling(phone_number:, waba: 'test_waba_id', owner: channel.account)
+          create(
+            :channel_whatsapp,
+            account: owner,
+            phone_number: phone_number,
+            provider: 'whatsapp_cloud',
+            sync_templates: false,
+            validate_provider_config: false
+          ).tap do |record|
+            record.update_column( # rubocop:disable Rails/SkipsModelValidations
+              :provider_config,
+              provider_config.merge('business_account_id' => waba, 'phone_number_id' => "pn-#{phone_number}")
+            )
+          end
+        end
+
+        def health
+          with_modified_env(FRONTEND_URL: 'https://example.test') { service.fetch_health_status }
+        end
+
+        it 'accepts only its own url when the WABA has a single number' do
+          expect(health[:acceptable_webhook_urls]).to contain_exactly(own_url)
+        end
+
+        it 'accepts the url of either number when a sibling shares the WABA' do
+          sibling(phone_number: '+15550002222')
+
+          expect(health[:acceptable_webhook_urls]).to contain_exactly(
+            own_url, 'https://example.test/webhooks/whatsapp/+15550002222'
+          )
+        end
+
+        it 'still reports its OWN url as the expected one' do
+          sibling(phone_number: '+15550002222')
+
+          expect(health[:expected_webhook_url]).to eq(own_url)
+        end
+
+        it 'ignores a channel of another WABA' do
+          sibling(phone_number: '+15550003333', waba: 'outro-waba')
+
+          expect(health[:acceptable_webhook_urls]).to contain_exactly(own_url)
+        end
+
+        # O escopo por account e deliberado: um WABA pertence a um negocio so, e sem o recorte a
+        # URL de outro tenant seria aceita como valida.
+        it 'does not leak the url of a channel from another account' do
+          sibling(phone_number: '+15550004444', owner: create(:account))
+
+          expect(health[:acceptable_webhook_urls]).to contain_exactly(own_url)
+        end
+
+        it 'returns an empty list when FRONTEND_URL is blank' do
+          expect(service.fetch_health_status[:acceptable_webhook_urls]).to eq([])
+        end
+
+        # MUDANCA DE COMPORTAMENTO DO UPSTREAM, e o caso da equipe foi reescrito por causa dela: o
+        # spec antigo esperava que a ausencia de `business_account_id` caisse na propria URL. Agora
+        # `validate_channel!` recusa ANTES de qualquer chamada ao Graph. O fallback continua dentro
+        # de `sibling_phone_numbers` para quem chame o metodo direto, mas por este caminho a
+        # recusa vem primeiro — e falhar cedo, com o motivo, e melhor que seguir com meia config.
+        it 'refuses upfront when business_account_id is missing' do
+          channel.update_column( # rubocop:disable Rails/SkipsModelValidations
+            :provider_config, provider_config.except('business_account_id')
+          )
+          channel.reload
+
+          expect { service.fetch_health_status }.to raise_error(ArgumentError, /Business account ID is missing/)
+        end
+      end
     end
   end
 end

@@ -194,6 +194,51 @@ const sanitizeStageQueue = stageIds => [
   ),
 ];
 
+// ── Tempo real do board (plano task/kanban-tempo-real.md) ─────────────
+//
+// Invariantes de TODO handler remoto:
+//   1. só reage ao funil que está na tela (`funnel_id === activeFunnelId`);
+//   2. é IDEMPOTENTE (aplicar duas vezes = aplicar uma) — é isto, e não "quem
+//      fez", que protege contra o eco da própria ação;
+//   3. é best-effort: nunca lança para fora do websocket.
+//
+// ⚠️ NÃO volte a descartar evento por `performer.id === currentUserId`.
+// Existia esse guard e ele quebrava o caso real de uma pessoa com o board aberto
+// em DUAS janelas (ou desktop + notebook): o evento chegava e era jogado fora
+// porque "fui eu quem fez", então a segunda janela nunca acompanhava — sintoma
+// "atualiza uma vez e depois nunca mais". Quem faz a ação já aplicou o
+// otimismo local, então o eco cai sozinho na guarda de idempotência (mesma
+// etapa = no-op) sem precisar saber quem foi. O `performer` continua vindo no
+// payload, mas só para dizer "movido por fulano" no destaque do card.
+//
+// Onde NÃO precisa de guarda:
+//   • filtro da view — `viewFilters` é aplicado na RENDERIZAÇÃO
+//     (`KanbanBoard.getFilteredItemsForStage` / `ListView`), não no store. Card
+//     que não passa no filtro entra no cache e simplesmente não desenha; e volta
+//     a aparecer sozinho quando o usuário limpa o filtro. Filtrar aqui deixaria
+//     o cache mentindo para o resto da tela (contadores, busca, preview);
+//   • dedupe por telefone — `assignItemToStage` (mutations.js) já espelha o
+//     `deduplicate_by_contact_phone` do controller, inclusive o 9º dígito BR,
+//     por etapa e resolvendo pelo mais recente. Inserir por aqui passa pelo
+//     mesmo caminho.
+
+// Um card do socket só é INSERÍVEL se vier com o que desenhar. Payload antigo
+// (só ids, de uma VM ainda não deployada) cai fora e o card aparece no próximo
+// load — o mesmo comportamento de antes, sem card-esqueleto na tela.
+const isRenderableRemoteItem = data =>
+  Boolean(data?.conversation || data?.title || data?.is_task);
+
+// O envelope do broadcast carrega `account_id`/`performer` (metadado do
+// transporte). Não são campos do card — ficam de fora do store.
+const remoteItemPayload = data => {
+  const { account_id: _accountId, performer: _performer, ...item } = data || {};
+  return item;
+};
+
+// Quanto tempo o card fica destacado depois de mudar por ação remota. Casado
+// com a animação de `.kanban-card--remote` em kanban-theme.css.
+const REMOTE_HIGHLIGHT_MS = 2600;
+
 export const actions = {
   async fetchFunnels({ commit }) {
     commit(types.SET_KANBAN_UI_FLAG, { isFetching: true });
@@ -793,32 +838,43 @@ export const actions = {
     if (view.view_mode) commit(types.SET_VIEW_MODE, view.view_mode);
   },
 
-  // Real-time (Fase 4): another user moved a card. Relocate our local copy.
-  // Best-effort and defensive — must never break websocket handling or the board.
-  applyRemoteMove({ state, commit, rootGetters }, data) {
+  // Tempo real: outra pessoa moveu um card. Reloca a cópia local — ou INSERE,
+  // quando não temos o card.
+  //
+  // O `return` no card desconhecido era a causa nº 1 do "só o F5 resolve": com
+  // `kanban_cursor_loading` ligado cada coluna carrega uma página, então o
+  // receptor quase nunca tem o card que estava lá embaixo, e o evento era
+  // descartado em silêncio. Agora o payload vem completo (FunnelItem#push_event_data)
+  // e o card entra desenhado.
+  applyRemoteMove({ state, commit, dispatch }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       // Only react when this board is showing the affected funnel.
       if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
 
-      // Skip our own move — it was already applied optimistically.
-      const currentUserId = rootGetters.getCurrentUserID;
-      if (
-        data.performer?.id &&
-        Number(data.performer.id) === Number(currentUserId)
-      ) {
+      const targetStage = Number(data.funnel_stage_id);
+      if (!targetStage) return;
+
+      const existing = state.funnelItems[data.id];
+      if (!existing) {
+        if (!isRenderableRemoteItem(data)) return;
+        // Idempotente: `assignItemToStage` reinsere o mesmo id no mesmo lugar.
+        commit(types.ADD_FUNNEL_ITEM, remoteItemPayload(data));
+        dispatch('flagRemoteActivity', {
+          itemId: data.id,
+          performer: data.performer,
+        });
         return;
       }
 
-      // We can only relocate an item we already hold; otherwise it shows on next load.
-      const existing = state.funnelItems[data.id];
-      if (!existing) return;
-
-      const targetStage = Number(data.funnel_stage_id);
+      // ESTA é a guarda contra o eco da própria ação: quem arrastou já aplicou o
+      // movimento otimista, então o evento chega com a etapa que o card já tem e
+      // vira no-op (sem o segundo salto na tela). Quem NÃO arrastou — inclusive
+      // a outra janela da mesma pessoa — ainda está na etapa antiga e aplica.
       const currentStage = Number(
         existing.funnelStageId ?? existing.funnel_stage_id
       );
-      if (!targetStage || targetStage === currentStage) return;
+      if (targetStage === currentStage) return;
 
       // Last-write-wins: ignore an out-of-order older move.
       const localMovedAt = existing.movedAt ?? existing.moved_at;
@@ -830,15 +886,200 @@ export const actions = {
         return;
       }
 
+      // Preserva o que já temos (ex.: `lastMessage`, que não vem no broadcast) e
+      // só reloca. `position` vem do backend para o card cair no topo da coluna
+      // de destino, igual ao que quem arrastou está vendo.
       commit(types.UPDATE_FUNNEL_ITEM, {
         ...existing,
         funnel_stage_id: targetStage,
         funnelStageId: targetStage,
         moved_at: data.moved_at,
         movedAt: data.moved_at,
+        ...(data.position == null ? {} : { position: Number(data.position) }),
+      });
+      dispatch('flagRemoteActivity', {
+        itemId: data.id,
+        performer: data.performer,
       });
     } catch (_) {
       // Real-time is best-effort; never throw out of a websocket handler.
+    }
+  },
+
+  // Tempo real (Fase 2.1): cartão de TAREFA criado por outra pessoa.
+  // Card de conversa NÃO passa por aqui — ele nasce pelo MoveService, que já
+  // dispara `funnel_item.moved`, e o `applyRemoteMove` insere. A assimetria é
+  // de propósito: os dois eventos juntos inseririam o card duas vezes.
+  applyRemoteCreate({ state, commit, dispatch }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
+      if (!isRenderableRemoteItem(data)) return;
+
+      // Idempotente: `assignItemToStage` faz upsert pelo id.
+      const jaTinhamos = Boolean(state.funnelItems?.[data.id]);
+      commit(types.ADD_FUNNEL_ITEM, remoteItemPayload(data));
+
+      // Só destaca o que é NOVO na tela. Quem criou o cartão já o inseriu
+      // localmente, então o eco não deve fazer o próprio card piscar.
+      if (jaTinhamos) return;
+      dispatch('flagRemoteActivity', {
+        itemId: data.id,
+        performer: data.performer,
+      });
+    } catch (_) {
+      // best-effort
+    }
+  },
+
+  // Tempo real (Fase 2.2): card apagado por outra pessoa. Sem isto ele virava
+  // fantasma — sumia para quem apagou e continuava clicável (404) para o resto.
+  applyRemoteDelete({ state, commit }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
+
+      const itemId = Number(data.id);
+      if (!itemId) return;
+      // Idempotente: apagar o que já não existe é no-op na mutation.
+      commit(types.DELETE_FUNNEL_ITEM, itemId);
+    } catch (_) {
+      // best-effort
+    }
+  },
+
+  // Tempo real (Fase 2.3): UM evento para o bulk move inteiro. Cada item é
+  // aplicado pelo mesmo caminho do move solto (insere ou reloca, idempotente);
+  // acima do teto do backend vem `refetch: true` e recarregamos só as colunas
+  // afetadas, em vez de receber um payload gigante pelo websocket.
+  async applyRemoteBulk({ state, dispatch }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      const funnelId = Number(data.funnel_id);
+      if (funnelId !== Number(state.activeFunnelId)) return;
+
+      if (data.refetch) {
+        // Quem disparou o bulk também cai aqui e refaz o fetch das mesmas
+        // colunas que o `bulkMoveItems` já recarregou. É desperdício pequeno e
+        // idempotente — preferível a voltar a decidir por "quem fez", que era o
+        // que quebrava a segunda janela da mesma pessoa.
+        const stageIds = sanitizeStageQueue(data.stage_ids);
+        await Promise.all(
+          stageIds.map(stageId =>
+            dispatch('fetchFunnelItemsPage', {
+              funnelId,
+              stageId,
+              excludeAutomationType: 'resolved',
+              append: false,
+            })
+          )
+        );
+        return;
+      }
+
+      // `performer` viaja junto para o destaque do card dizer quem moveu. Para
+      // quem disparou o bulk cada item cai na guarda de idempotência do
+      // `applyRemoteMove` (etapa de destino já é a atual) e nada pisca.
+      (data.items || []).forEach(item =>
+        dispatch('applyRemoteMove', { ...item, performer: data.performer })
+      );
+    } catch (_) {
+      // best-effort
+    }
+  },
+
+  // Tempo real (Fase 3): outra pessoa reordenou os cards dentro de uma coluna.
+  // Reusa a MESMA mutação do otimismo local (`reorderItems`), então a ordem
+  // converge sem o card "pular" para quem arrastou.
+  applyRemoteReorder({ state, commit }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
+
+      // Ignora ids que não temos: reorder de card desconhecido não justifica
+      // refetch (ele chega completo no próximo load ou num move).
+      const positions = (data.positions || [])
+        .map(entry => ({
+          id: Number(entry?.id),
+          position: Number(entry?.position),
+        }))
+        .filter(
+          entry =>
+            entry.id &&
+            Number.isFinite(entry.position) &&
+            state.funnelItems?.[entry.id]
+        );
+      if (!positions.length) return;
+
+      // Idempotente: gravar a mesma position duas vezes é o mesmo estado.
+      commit(types.SET_FUNNEL_ITEM_POSITIONS, { positions });
+    } catch (_) {
+      // best-effort
+    }
+  },
+
+  // Tempo real (Fase 5.2): marca o card que acabou de mudar por ação de outra
+  // pessoa, para o KanbanCard piscar e mostrar "movido por {nome}". Sem isto o
+  // card teleporta sem explicação e o colega acha que bugou (ou desfaz o move
+  // do outro por cima).
+  //
+  // `performer` vem de graça do broadcast, MAS é nil quando o move veio de job
+  // (automação, SLA, backfill) — `Current.user` só existe no request. Nesse caso
+  // o card diz "movido automaticamente".
+  flagRemoteActivity({ commit }, { itemId, performer } = {}) {
+    const id = Number(itemId);
+    if (!id) return;
+
+    commit(types.SET_REMOTE_ACTIVITY, {
+      itemId: id,
+      name: performer?.name || null,
+      automated: !performer?.id,
+    });
+    setTimeout(
+      () => commit(types.CLEAR_REMOTE_ACTIVITY, id),
+      REMOTE_HIGHLIGHT_MS
+    );
+  },
+
+  // Tempo real (Fase 4): as colunas do funil mudaram. Evento grosso e
+  // idempotente — recebemos a lista completa e ordenada, então não há ordem de
+  // chegada nem estado parcial para gerenciar.
+  //
+  // Dois cuidados que o `SET_FUNNEL_STAGES` sozinho não cobre:
+  //   • cards órfãos: a mutação troca o mapa de colunas, mas os cards da coluna
+  //     apagada continuariam no store (no banco eles já foram — FunnelStage
+  //     has_many :funnel_items, dependent: :destroy);
+  //   • tela vazia: se o filtro de coluna apontava para a coluna que sumiu, o
+  //     board ficaria sem nada e parecendo travado.
+  applyRemoteStages({ state, commit }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      const funnelId = Number(data.funnel_id);
+      if (funnelId !== Number(state.activeFunnelId)) return;
+
+      const stages = Array.isArray(data.stages) ? data.stages : [];
+      const nextIds = new Set(stages.map(stage => Number(stage?.id)));
+
+      const removedIds = Object.keys(state.funnelStages?.[funnelId] || {})
+        .map(Number)
+        .filter(stageId => !nextIds.has(stageId));
+      removedIds.forEach(stageId =>
+        commit(types.DELETE_FUNNEL_STAGE, { funnelId, stageId })
+      );
+
+      commit(types.SET_FUNNEL_STAGES, { funnelId, stages });
+
+      if (!removedIds.length) return;
+
+      const activeStageFilter = state.viewFilters?.stageIds || [];
+      const survivingFilter = activeStageFilter.filter(stageId =>
+        nextIds.has(Number(stageId))
+      );
+      if (survivingFilter.length !== activeStageFilter.length) {
+        commit(types.SET_VIEW_FILTERS, { stageIds: survivingFilter });
+      }
+    } catch (_) {
+      // best-effort
     }
   },
 

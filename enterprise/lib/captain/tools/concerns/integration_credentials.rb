@@ -29,6 +29,9 @@ module Captain
       # Public site domain (link builder) --------------------------------------
       DEFAULT_SITE_DOMAIN = 'toziimoveis.com.br'.freeze
 
+      # Cidade de atendimento (viés das buscas no Google) — legacy Tozi ---------
+      DEFAULT_GEO_CITY = 'Sinop MT'.freeze
+
       def vista_api_key
         integration_setting('vista', 'vista_api_key') ||
           custom_attribute('vista_api_key') ||
@@ -62,6 +65,35 @@ module Captain
         integration_setting('vista', 'site_domain') ||
           custom_attribute('site_domain') ||
           DEFAULT_SITE_DOMAIN
+      end
+
+      # API do site do cliente que resolve código do imóvel -> URL da página.
+      # Por padrão mora no próprio domínio público, então configurar `site_domain`
+      # já basta; `site_api_url` existe pra apontar pra outro host quando preciso.
+      def site_api_url
+        integration_setting('vista', 'site_api_url') ||
+          custom_attribute('site_api_url') ||
+          ENV['SITE_API_URL'].presence ||
+          "https://www.#{site_domain}/functions/v1/api"
+      end
+
+      # Cidade que enviesa a busca de lugares e o geocoding ("<termo> <cidade>"). Sem
+      # config na conta cai no DEFAULT_GEO_CITY, que é exatamente o texto que estava
+      # fixo no código — nenhuma conta muda de comportamento sem ser configurada.
+      # Mesma ordem de prioridade dos demais (integração -> custom_attributes ->
+      # constante); sem camada de ENV de propósito: uma variável global mudaria a
+      # cidade de TODAS as contas do box de uma vez.
+      def geo_city
+        integration_setting('google', 'geo_city') ||
+          custom_attribute('geo_city') ||
+          DEFAULT_GEO_CITY
+      end
+
+      # Sem chave, o link cai no formato montado localmente (ver VistaImovelUrl).
+      def site_api_key
+        integration_setting('vista', 'site_api_key') ||
+          custom_attribute('site_api_key') ||
+          ENV['SITE_API_KEY'].presence
       end
 
       private

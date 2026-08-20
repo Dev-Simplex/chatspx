@@ -20,6 +20,7 @@ class Captain::EpisodeGateService
   def perform
     findings = []
     findings.concat(contradicted_tool_findings)
+    findings.concat(phantom_photo_findings)
     findings.concat(tool_error_findings)
     findings.concat(literal_repetition_findings)
     findings
@@ -57,6 +58,28 @@ class Captain::EpisodeGateService
 
       gate_finding('contradisse_tool', reply,
                    "a ferramenta #{call.tool_name} devolveu resultados e a resposta seguinte negou tê-los encontrado")
+    end
+  end
+
+  # Foto de imóvel-fantasma (caso real conv 19863): a IA pediu fotos de um código
+  # que NENHUMA busca do episódio retornou — código alucinado/transcrito errado; o
+  # cliente vê fotos de um imóvel enquanto a IA descreve outro. Determinístico:
+  # compara o arg da enviar_fotos com os códigos presentes nos retornos das buscas.
+  def phantom_photo_findings
+    searches = tool_calls.select { |c| c.tool_name.start_with?('buscar') && c.status == 'ok' }
+    return [] if searches.empty?
+
+    known = searches.flat_map { |c| c.result_preview.to_s.scan(/c[óo]d\.?\s*(\d{3,6})/i).flatten }.uniq
+    return [] if known.empty?
+
+    tool_calls.select { |c| c.tool_name.include?('enviar_fotos') && c.status == 'ok' }.filter_map do |call|
+      codigo = call.args['codigo'].to_s[/\d{3,6}/]
+      next if codigo.blank? || known.include?(codigo)
+      next if call.result_preview.to_s.match?(/n[ãa]o apareceu|n[ãa]o envie/i) # a trava da tool já barrou
+
+      gate_finding('usou_tool_errada', nil,
+                   "enviou fotos do imóvel #{codigo}, que não apareceu em nenhuma busca deste atendimento " \
+                   '(código provável de outro imóvel — cliente vê fotos de um imóvel enquanto a conversa descreve outro)')
     end
   end
 

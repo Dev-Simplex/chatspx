@@ -2,6 +2,13 @@
 # abre Conversation em status pending (Captain dispara) e envia 1a mensagem
 # outgoing renderizada a partir do template Liquid do hook.
 #
+# ⚠️ O NAMESPACE MENTE, de propósito. Este serviço não é mais só do Meta: ele é a engine
+# de "lead de formulário" e atende também os leads do site (Webhooks::SiteLeadJob). Ele
+# sempre foi genérico — recebe `hook:` e `lead:`, e tudo que é específico de uma origem
+# vive no job que chama, não aqui. Renomear para algo como LeadIntake::* seria mais
+# honesto, mas move código que processa ~1.652 conversas/mês: risco sem retorno.
+# Ao mexer aqui, lembre que há mais de uma origem chamando.
+#
 # Flag de teste: `settings.skip_initial_message = true` cria a conversa mas
 # NÃO envia a 1ª mensagem outgoing. Útil enquanto valida o fluxo sem
 # incomodar leads reais.
@@ -9,9 +16,24 @@ module Meta
   module LeadAds
     class CreateConversationService
       DEFAULT_TEMPLATE = 'Olá {{first_name}}! Vi seu interesse no anúncio "{{ad_name}}". Sou da equipe e estou aqui pra ajudar. Pode me contar um pouco mais sobre o que você procura?'.freeze
-      # Mesmo formato exigido por Contact (app/models/contact.rb): '+' + 1 a 15 digitos,
-      # o primeiro diferente de zero.
-      E164_FORMAT = /\A\+[1-9]\d{1,14}\z/
+      # Mesmo formato que o Contact exige em `phone_number` (app/models/contact.rb).
+      # Espelhado aqui porque quem grava é este serviço: telefone reprovado tem que
+      # virar nil ANTES do Contact, senão o RecordInvalid mata o job e o lead se perde.
+      CONTACT_E164_FORMAT = /\+[1-9]\d{1,14}\z/
+      # Teto da jornada de navegação — ela entra no contexto do LLM a cada turno.
+      JORNADA_MAX_CHARS = 600
+      # `whatsapp_template_body_fields = none` declara template SEM variável no corpo.
+      NO_BODY_FIELDS = 'none'.freeze
+      # Código do imóvel escondido no NOME DO ANÚNCIO. Campanha de catálogo entrega o código
+      # no `retailer_item_id`; campanha de FORMULÁRIO não tem catálogo, e aí o único lugar onde
+      # o código existe é o nome que o anunciante deu à peça ("IMÓVEL 9817 - TELHADO APARENTE").
+      #
+      # As duas formas exigem âncora, nunca "algum número no meio do texto": ou vem precedido de
+      # um marcador explícito, ou o nome inteiro É o código. É o que separa "IMÓVEL 9817" de
+      # "RMKT VENDAS 2026" e "CASAS 300-900K" — nome de anúncio é cheio de número que não é imóvel.
+      # Casa contra o nome já normalizado (minúsculo, sem acento) por `normalized_ad_name`.
+      AD_NAME_CODE_MARKER = /\b(?:imove(?:l|is)|cod(?:igo)?)\b\W{0,3}(\d{3,6})\b/
+      AD_NAME_CODE_ONLY = /\A(\d{3,6})\z/
 
       def initialize(hook:, lead:)
         @hook = hook
@@ -28,7 +50,12 @@ module Meta
         normalized_phone = @lead[:phone_number].present? ? normalize_phone(@lead[:phone_number]) : nil
 
         if normalized_phone.blank?
-          Rails.logger.warn("Meta Lead Ads: lead sem phone_number hook=#{@hook.id} leadgen=#{@lead[:leadgen_id]} form=#{@lead[:form_id]}")
+          # Loga o telefone CRU e o e-mail: este log é o único rastro de um lead pago que não
+          # vira conversa. Sem ele, recuperar exige garimpar o Lead Center da Meta.
+          Rails.logger.warn(
+            "Meta Lead Ads: lead sem phone_number utilizavel hook=#{@hook.id} leadgen=#{@lead[:leadgen_id]} " \
+            "form=#{@lead[:form_id]} telefone_cru=#{@lead[:phone_number].inspect} email=#{@lead[:email].inspect}"
+          )
           # Inbox Cloud API (Channel::Whatsapp) valida o source_id como wa_id so-digitos.
           # Sem telefone nao ha ContactInbox valido nem como enviar — pula limpo (o job nao
           # estoura). Os dados do form ficam na Meta pra follow-up manual. Leads de teste
@@ -149,7 +176,8 @@ module Meta
           'meta_origem' => platform_label,
           'meta_tipo' => lead_tipo_label,
           'meta_imovel_codigo' => im && im[:codigo],
-          'meta_imovel' => im && im[:descricao]
+          'meta_imovel' => im && im[:descricao],
+          'jornada' => jornada
         }.compact
         return if attrs.empty?
 
@@ -164,6 +192,19 @@ module Meta
         Rails.logger.warn("Meta Lead Ads: falha ao carimbar visibilidade conv=#{conversation.id}: #{e.class}: #{e.message}")
       end
 
+      # O que a pessoa viu e curtiu antes de preencher o formulário (leads de site).
+      # É ESTADO — o caminho que ela percorreu — e por isso pode ir ao agente junto do
+      # resto dos custom_attributes, que chegam inteiros ao LLM a cada turno.
+      #
+      # ⚠️ NUNCA colocar aqui identidade de pessoa (nome de corretor/atendente) nem
+      # marcador de espera: a IA repassa ao cliente. Regra vinda de incidente — ver o
+      # vault, `aprendizados/captain-custom-attributes-chegam-ao-llm.md`.
+      #
+      # Truncado porque entra no contexto do modelo em TODA mensagem, não só na primeira.
+      def jornada
+        @lead[:jornada].to_s.strip.presence&.truncate(JORNADA_MAX_CHARS)
+      end
+
       def platform_label
         case @lead[:platform].to_s.downcase
         when 'fb', 'facebook' then 'Facebook'
@@ -172,13 +213,41 @@ module Meta
         end
       end
 
-      # Imóvel específico do lead (catálogo/dynamic ads): retailer_item_id = código no Vista.
-      # Busca descrição curta + foto de destaque. Memoizado. No-op (nil) se não houver
-      # retailer_item_id ou credencial Vista — aí o lead segue sem imóvel (fluxo normal).
+      # Imóvel específico do lead: busca descrição curta + foto de destaque no Vista. Memoizado.
+      # No-op (nil) se não houver código, credencial Vista, ou se o código não resolver — aí o
+      # lead segue sem imóvel (fluxo normal, opener genérico).
       def imovel_info
         return @imovel_info if defined?(@imovel_info)
 
-        @imovel_info = fetch_imovel(@lead[:retailer_item_id])
+        @imovel_info = fetch_imovel(imovel_codigo)
+      end
+
+      # Duas origens para o mesmo código. Catálogo (dynamic ads) entrega no `retailer_item_id` —
+      # é a fonte confiável e tem precedência. Campanha de formulário não tem catálogo e o campo
+      # vem vazio; aí o código só existe no nome do anúncio, e ler dali é opt-in por hook/campanha
+      # (`imovel_codigo_from_ad_name`), porque depende de como o anunciante nomeia as peças.
+      def imovel_codigo
+        @lead[:retailer_item_id].to_s.strip.presence || codigo_from_ad_name
+      end
+
+      def codigo_from_ad_name
+        return nil unless read_codigo_from_ad_name?
+
+        name = normalized_ad_name
+        return nil if name.blank?
+
+        match = name.match(AD_NAME_CODE_ONLY) || name.match(AD_NAME_CODE_MARKER)
+        match && match[1]
+      end
+
+      def read_codigo_from_ad_name?
+        ActiveModel::Type::Boolean.new.cast(hook_setting('imovel_codigo_from_ad_name'))
+      end
+
+      # Minúsculo e sem acento: o marcador é escrito "IMÓVEL", "Imovel", "imóvel" conforme quem
+      # cadastrou o anúncio, e a regex casa uma forma só.
+      def normalized_ad_name
+        @lead[:ad_name].to_s.downcase.tr('áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc').strip
       end
 
       def fetch_imovel(codigo)
@@ -265,29 +334,24 @@ module Meta
         digits = phone.to_s.gsub(/\D/, '')
         return nil if digits.blank?
 
+        # Zero de tronco da discagem nacional ("066 99963-6866"): não existe em e164 e é o
+        # que mais aparece no formulário. Sem tirar, o número vira "+066..." e o lead se perde
+        # — sendo que o telefone é perfeitamente válido.
+        digits = digits.sub(/\A0+/, '')
         # Número sem DDD (só o celular de 8-9 dígitos, ex.: "996926393"): prefixa o DDD padrão
         # do hook (ex.: 66 = Sinop). Muita gente digita o número sem o DDD no formulário do Meta.
         ddd = default_ddd
         digits = "#{ddd}#{digits}" if ddd.present? && digits.length.between?(8, 9)
         # Com DDD mas sem o código do país (10-11 dígitos): prefixa 55.
         digits = "55#{digits}" if digits.length.between?(10, 11)
-        # O normalizer NAO e filtro: ele devolve a entrada intacta quando nao reconhece o
-        # formato (nunca nil). Sem validar o resultado, lixo do formulario aberto do Meta
-        # (zero a esquerda, dois numeros colados) chegava ao Contact e estourava RecordInvalid
-        # no builder, derrubando o job em retry infinito. Validamos aqui e devolvemos nil —
-        # o perform ja trata "lead sem phone_number" (loga e segue / pula em inbox Cloud API).
-        normalized = Contacts::BrazilPhoneNormalizer.normalize("+#{digits}").to_s
-        return normalized if normalized.match?(E164_FORMAT)
-
-        Rails.logger.warn("Meta Lead Ads: telefone fora do formato E.164 descartado hook=#{@hook.id} " \
-                          "leadgen=#{@lead[:leadgen_id]} valor=#{mask_phone(normalized)}")
-        nil
-      end
-
-      # Mascara tudo menos os 4 ultimos digitos — o log precisa ser diagnosticavel sem
-      # despejar o telefone do lead inteiro.
-      def mask_phone(value)
-        value.gsub(/\d(?=\d{4})/, '*')
+        formatted = "+#{digits}"
+        candidate = Contacts::BrazilPhoneNormalizer.normalize(formatted) || formatted
+        # O BrazilPhoneNormalizer NÃO valida — ele só acrescenta o 9º dígito e devolve a
+        # entrada intacta quando não reconhece o padrão. Quem valida é o Contact, e lá o
+        # estouro MATA o job e o LEAD SOME. O campo telefone do formulário recebe de tudo
+        # ("2 mil de entrada", "6......"), então a validação tem que acontecer aqui: telefone
+        # impossível vira nil e o lead segue pelo caminho de "sem telefone".
+        candidate.match?(CONTACT_E164_FORMAT) ? candidate : nil
       end
 
       # DDD padrão do hook (dinâmico, por conta/campanha) pra completar número sem DDD.
@@ -299,7 +363,7 @@ module Meta
         ContactInboxWithContactBuilder.new(
           inbox: @inbox,
           contact_attributes: {
-            name: contact_name(normalized_phone),
+            name: contact_name,
             phone_number: normalized_phone,
             email: @lead[:email],
             additional_attributes: {
@@ -321,12 +385,18 @@ module Meta
         ).perform
       end
 
-      def contact_name(normalized_phone)
-        return @lead[:full_name] if @lead[:full_name].present?
-        return "Lead Meta #{normalized_phone}" if normalized_phone.present?
-        return "Lead Meta #{@lead[:email]}" if @lead[:email].present?
-
-        "Lead Meta #{@lead[:leadgen_id]}"
+      # Sem nome confiável, o contato fica SEM NOME — o painel identifica pelo telefone e
+      # quem descobre o nome é a conversa (a IA ou o atendente pergunta e confirma).
+      #
+      # Nada de marcador fabricado ("Lead Meta <telefone>", que era o que estava aqui):
+      # `contact.name` é área de trabalho do time humano — eles anotam ali de que se trata
+      # o contato ("Fulano / Casa do Beltrano"). Escrever qualquer coisa nossa nesse campo
+      # apaga a referência que o corretor usa. Mesma regra do disparo.
+      #
+      # String VAZIA, nunca nil: o builder faz `name || Haikunator.haikunate`, e SÓ o nil
+      # cai no apelido aleatório — '' é truthy em Ruby e passa intacto.
+      def contact_name
+        @lead[:full_name].to_s.strip
       end
 
       def source_id_for(phone)
@@ -398,8 +468,17 @@ module Meta
 
       # A abertura automatica carrega content_attributes.meta_lead_ads_initial=true —
       # se ja existe nessa conversa, um redelivery/retry nao deve reenviar.
+      #
+      # ⚠️ `content_attributes` é jsonb NA TABELA mas `store ... coder: JSON` NO MODELO: o Rails
+      # serializa o Hash e o banco guarda uma STRING JSON, não um objeto. Contra uma string,
+      # `@>` e `->>` nunca casam — a checagem devolvia false sempre e 26 leads receberam a
+      # abertura duas vezes em 90 dias. `#>> '{}'` desembrulha a string e o `::jsonb` reparseia;
+      # é o mesmo padrão do `EPISODE_ANCHOR_SQL` (enterprise/app/models/captain/conversation_episode.rb),
+      # e funciona tanto pra linha duplo-serializada quanto pra objeto jsonb de verdade.
+      INITIAL_MESSAGE_SQL = "(content_attributes #>> '{}')::jsonb ->> 'meta_lead_ads_initial' = 'true'".freeze
+
       def initial_message_already_sent?(conversation)
-        conversation.messages.where('content_attributes @> ?', { meta_lead_ads_initial: true }.to_json).exists?
+        conversation.messages.where(INITIAL_MESSAGE_SQL).exists?
       end
 
       # Cloud API (WhatsApp oficial) fora da janela 24h só aceita HSM aprovado — texto
@@ -433,7 +512,7 @@ module Meta
 
       def create_imovel_opener(conversation)
         d = imovel_info
-        first = template_render_context['first_name'].presence || 'tudo bem'
+        first = first_name
         # {{2}} carrega a descrição + o código do imóvel, pra o lead/corretor referenciar o imóvel exato.
         imovel_txt = "#{d[:descricao]} (cód #{d[:codigo]})"
         Messages::MessageBuilder.new(
@@ -493,10 +572,17 @@ module Meta
       end
 
       # {{1}}, {{2}}, ... vêm de whatsapp_template_body_fields (campos do lead, em ordem;
-      # default first_name). Vazio → template sem variáveis de corpo.
+      # default first_name).
+      #
+      # `none` declara explicitamente um template SEM variável no corpo — o opener
+      # genérico, que só abre a porta. Precisa ser explícito porque o default é
+      # 'first_name': deixar o campo em branco mandaria {{1}} para um template que não
+      # tem variável, e a Meta responde #132000.
       def template_body_params
-        fields = (hook_setting('whatsapp_template_body_fields').presence || 'first_name')
-                 .to_s.split(',').map(&:strip).reject(&:blank?)
+        configured = hook_setting('whatsapp_template_body_fields').to_s.strip
+        return {} if configured.casecmp?(NO_BODY_FIELDS)
+
+        fields = (configured.presence || 'first_name').split(',').map(&:strip).reject(&:blank?)
         return {} if fields.empty?
 
         ctx = template_render_context
@@ -515,15 +601,27 @@ module Meta
         Liquid::Template.parse(template).render(template_render_context)
       end
 
+      # Saudação neutra quando o lead não trouxe nome confiável (o FetchLeadService
+      # devolve nil quando o campo veio com algo que não é nome). Sem isso a abertura
+      # renderizaria "Oi !" — e usar um nome errado é pior ainda: o lead lê como
+      # sistema quebrado. Mesmo fallback do opener de imóvel e do motor de disparo.
+      NEUTRAL_GREETING = 'tudo bem'.freeze
+
+      def first_name
+        @lead[:full_name].to_s.split.first.presence || NEUTRAL_GREETING
+      end
+
       def template_render_context
         {
           'full_name' => @lead[:full_name].to_s,
-          'first_name' => @lead[:full_name].to_s.split.first.to_s,
+          'first_name' => first_name,
           'ad_name' => @lead[:ad_name].to_s,
           'campaign_name' => @lead[:campaign_name].to_s,
           'city' => @lead[:city].to_s,
           'email' => @lead[:email].to_s,
-          'phone' => @lead[:phone_number].to_s
+          'phone' => @lead[:phone_number].to_s,
+          # nome do empreendimento p/ o opener ancorado (ex.: "ETNA BY SPL"), setado por override de campanha
+          'empreendimento' => hook_setting('empreendimento').to_s
         }
       end
     end

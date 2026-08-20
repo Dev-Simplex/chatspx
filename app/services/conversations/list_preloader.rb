@@ -63,11 +63,22 @@ class Conversations::ListPreloader
     @agent_filter_id = AgentMessageIsolation.viewer_restriction_id(@user, @conversations.first&.account_id)
   end
 
+  # Times supervisionados (D2): nas conversas desses times o supervisor vê a última
+  # mensagem REAL, sem o filtro por agente. Vazio para quem não supervisiona nada.
+  def supervised_team_ids
+    return @supervised_team_ids if defined?(@supervised_team_ids)
+
+    @supervised_team_ids = TeamSupervision.team_ids(@user, @conversations.first&.account_id)
+  end
+
   def fetch_combined_last_message_rows # rubocop:disable Metrics/MethodLength
     uid = agent_filter_id
+    supervised = uid ? supervised_team_ids : []
     # Filtra a última mensagem por agente SÓ nos inboxes com a flag ON (a lista mistura inboxes).
+    # `c.team_id IN (:supervised)` é a isenção do supervisor — cláusula ausente quando não há supervisão.
+    supervised_or = supervised.any? ? ' OR c.team_id IN (:supervised)' : ''
     inbox_join  = uid ? 'INNER JOIN inboxes i ON i.id = c.inbox_id' : ''
-    agent_where = uid ? 'AND (i.agent_message_isolation IS NOT TRUE OR m.agent_id IS NULL OR m.agent_id = :uid)' : ''
+    agent_where = uid ? "AND (i.agent_message_isolation IS NOT TRUE OR m.agent_id IS NULL OR m.agent_id = :uid#{supervised_or})" : ''
 
     sql = <<~SQL.squish
       WITH last_all AS (
@@ -100,6 +111,7 @@ class Conversations::ListPreloader
 
     binds = { ids: @conversation_ids }
     binds[:uid] = uid if uid
+    binds[:supervised] = supervised if supervised.any?
     Conversation.connection.select_all(
       Conversation.sanitize_sql_array([sql, binds])
     ).to_a

@@ -1,3 +1,9 @@
+# ⚠️ MANTENHA EM SINCRONIA com `FunnelItem#push_event_data` (app/models/funnel_item.rb).
+# Este partial é o card vindo do GET; o push_event_data é o MESMO card vindo do
+# websocket. Campo que só existe aqui vira card "meio desenhado" quando ele chega
+# pelo socket. Única diferença deliberada: `last_message` não vai no broadcast
+# (query extra no caminho síncrono do arraste). Travado por
+# spec/models/funnel_item_push_event_data_spec.rb.
 json.id resource.id
 json.conversation_id resource.conversation_id
 json.funnel_id resource.funnel_id

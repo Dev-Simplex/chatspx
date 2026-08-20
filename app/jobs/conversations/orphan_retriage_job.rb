@@ -7,12 +7,47 @@ class Conversations::OrphanRetriageJob < ApplicationJob
   DEFAULT_RETRIAGE_AFTER_MINUTES = 15
   BATCH_LIMIT = 100
 
+  # Conversa cujo dono está trabalhando o lead FORA do SPX (engajou no card do Vista) tem a
+  # cara exata de uma órfã — open, sem assignee, sem espelho captain — mas não é. Sem este
+  # filtro, cada lead designado vira uma notificação `conversation_orphaned` por administrador,
+  # o que afoga justamente o sinal que existe pra achar órfã de verdade.
+  #
+  # A comparação com `last_activity_at` é o que impede a exclusão de virar permanente: se o
+  # cliente voltar a falar DEPOIS do engajamento, a conversa é órfã de novo e volta pro fluxo.
+  # Também mantém a exclusão fora do BATCH_LIMIT, senão as designadas ocupariam o lote e as
+  # órfãs reais ficariam sem re-triagem.
+  TRABALHADA_FORA_DO_SPX = <<~SQL.squish.freeze
+    NOT EXISTS (
+      SELECT 1 FROM distribuicao_logs dl
+      WHERE dl.conversation_id = conversations.id
+        AND dl.status = 'engajado'
+        AND dl.encerrado_em >= conversations.last_activity_at
+    )
+  SQL
+
   def perform(account)
-    orphan_scope(account).each do |conversation|
+    threshold = retriage_after(account).minutes.ago
+    # órfã = open + SEM humano + SEM espelho captain (os DOIS nils — scope :unassigned não basta;
+    # janela em last_activity_at: cobre conversa que ficou órfã DEPOIS, ex. user deletado)
+    #
+    # `joins(:contact)` (INNER JOIN) exclui conversa cujo contato não existe mais (resíduo de
+    # consolidação feita com delete/update_columns). Essas são órfãs de DADO, não de atribuição:
+    # não há quem notificar nem o que triar, e o `update!` do carimbo estourava RecordInvalid
+    # (Contact must exist) abortando o lote inteiro.
+    account.conversations.open
+           .joins(:contact)
+           .where(assignee_id: nil).without_captain_assignee
+           .where('conversations.last_activity_at < ?', threshold)
+           .where(TRABALHADA_FORA_DO_SPX)
+           .limit(BATCH_LIMIT)
+           .each do |conversation|
+      # Uma conversa problemática não pode abortar o lote: sem isto, a exceção sobe pelo
+      # `each` e as conversas seguintes ficam sem re-triagem até alguém notar (o cron
+      # rodou 288x/dia por semanas assim). Mesmo tratamento do loop de regras abaixo.
       process_orphan(conversation, account)
     rescue StandardError => e
-      # blindagem do laço: uma conversa problemática NÃO pode impedir o processamento das
-      # demais (antes, a exceção subia pelo .each e deixava a vigia inoperante na conta).
+      # Nomeia a conversa no log: sem o id, "uma conversa do lote falhou" não é
+      # diagnosticável, e este laço roda 288x/dia.
       Rails.logger.error("[OrphanRetriageJob] account=#{account.id} conversation=#{conversation.id} " \
                          "falhou: #{e.class}: #{e.message}")
       ChatwootExceptionTracker.new(e, account: account).capture_exception
@@ -20,21 +55,6 @@ class Conversations::OrphanRetriageJob < ApplicationJob
   end
 
   private
-
-  # órfã = open + SEM humano + SEM espelho captain (os DOIS nils — scope :unassigned não basta;
-  # janela em last_activity_at: cobre conversa que ficou órfã DEPOIS, ex. user deletado).
-  #
-  # where.not(contact_id: nil): mesmo guard do Conversations::ResolutionJob (resolution_job.rb:28-29)
-  # — conversa cujo contato foi apagado (cleanup pendente / migration de FK que nulificou a coluna)
-  # é inválida no model (contact_id presence) e irrecuperável por definição: não há para quem
-  # responder. Sem o filtro, o update! do marcador reprovava e derrubava o batch inteiro.
-  def orphan_scope(account)
-    account.conversations.open
-           .where(assignee_id: nil).without_captain_assignee
-           .where.not(contact_id: nil)
-           .where('conversations.last_activity_at < ?', retriage_after(account).minutes.ago)
-           .limit(BATCH_LIMIT)
-  end
 
   def retriage_after(account)
     (account.orphan_retriage_after.presence || DEFAULT_RETRIAGE_AFTER_MINUTES).to_i

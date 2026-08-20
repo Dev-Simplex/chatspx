@@ -66,7 +66,14 @@ class AccountUser < ApplicationRecord
   end
 
   def permissions
-    administrator? ? ['administrator'] : ['agent']
+    (administrator? ? ['administrator'] : ['agent']) + supervision_permissions
+  end
+
+  # D6: supervisor de time vira uma permissão do front (reusa o `permissions:` das
+  # rotas em vez de inventar um sistema paralelo). Inerte quando ninguém supervisiona
+  # nada: uma consulta indexada que devolve [] e some.
+  def supervision_permissions
+    TeamSupervision.supervisor?(user, account_id) ? ['team_supervisor'] : []
   end
 
   def push_event_data

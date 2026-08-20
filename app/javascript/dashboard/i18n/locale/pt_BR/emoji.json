@@ -2,7 +2,19 @@
   "EMOJI": {
     "PLACEHOLDER": "Pesquisar emojis",
     "NOT_FOUND": "Nenhum emoji corresponde à sua pesquisa",
-    "REMOVE": "Excluir"
+    "REMOVE": "Excluir",
+    "RECENT": "Recentes",
+    "CATEGORIES": {
+      "SMILEYS_EMOTION": "Carinhas e emoções",
+      "PEOPLE_BODY": "Pessoas e corpo",
+      "ANIMALS_NATURE": "Animais e natureza",
+      "FOOD_DRINK": "Comidas e bebidas",
+      "TRAVEL_PLACES": "Viagens e lugares",
+      "ACTIVITIES": "Atividades",
+      "OBJECTS": "Objetos",
+      "SYMBOLS": "Símbolos",
+      "FLAGS": "Bandeiras"
+    }
   },
   "EMOJI_ICON_PICKER": {
     "TABS": {

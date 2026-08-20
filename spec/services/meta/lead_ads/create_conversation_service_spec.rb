@@ -1,105 +1,183 @@
 require 'rails_helper'
 
-RSpec.describe Meta::LeadAds::CreateConversationService, type: :service do
+RSpec.describe Meta::LeadAds::CreateConversationService do
   let(:account) { create(:account) }
-  let(:api_channel) { create(:channel_api, account: account) }
-  let(:inbox) { create(:inbox, channel: api_channel, account: account, waha_session_name: 'TestSession') }
-  let(:hook_settings) do
-    { 'page_id' => '5395008152', 'verify_token' => 'vt', 'app_secret' => 'sec',
-      'page_access_token' => 'tok', 'target_inbox_id' => inbox.id, 'skip_initial_message' => true }
-  end
-  let(:hook) do
-    create(:integrations_hook, account: account, app_id: 'meta_lead_ads', settings: hook_settings)
-  end
-  let(:lead) do
-    { leadgen_id: '1563000004237', form_id: '2545984', ad_id: '1202544',
-      full_name: 'Maria Souza', email: 'maria@example.com', phone_number: phone }
-  end
-  let(:phone) { nil }
-  let(:service) { described_class.new(hook: hook, lead: lead) }
+  let(:inbox) { create(:inbox, account: account) }
 
-  def normalize(value)
-    described_class.new(hook: hook, lead: lead.merge(phone_number: value)).send(:normalize_phone, value)
+  # settings_json_schema (config/integration/apps.yml) exige os 5 campos do formulário.
+  # As chaves de operador (campaign_overrides, imovel_*) passam por additionalProperties.
+  def hook_with(settings)
+    create(:integrations_hook, account: account,
+                               app_id: 'meta_lead_ads',
+                               settings: {
+                                 'page_id' => '539594042748152',
+                                 'verify_token' => 'verify',
+                                 'app_secret' => 'secret',
+                                 'page_access_token' => 'token',
+                                 'target_inbox_id' => inbox.id
+                               }.merge(settings))
   end
 
-  describe '#normalize_phone' do
-    context 'with numbers that already are (or become) valid E.164' do
-      it 'keeps a Brazilian mobile that already has the ninth digit' do
-        expect(normalize('(66) 99999-9999')).to eq('+5566999999999')
-      end
+  def lead_with(attrs)
+    { leadgen_id: '1', phone_number: '+5566999990000', full_name: 'Maria' }.merge(attrs)
+  end
 
-      # Caso pedido explicitamente: legado sem o nono dígito. Quem completa é o
-      # BrazilPhoneNormalizer — a validação nova não pode barrar este caminho.
-      it 'adds the ninth digit to a legacy Brazilian mobile (DDD + 8 digits)' do
-        expect(normalize('66 9999-9999')).to eq('+5566999999999')
-      end
+  def service(hook:, lead:)
+    described_class.new(hook: hook, lead: lead)
+  end
 
-      it 'leaves a Brazilian landline untouched (no ninth digit)' do
-        expect(normalize('66 3531-1930')).to eq('+556635311930')
-      end
+  describe 'resolving the imovel code' do
+    # Os 7 nomes de anuncio distintos que a campanha de formulario realmente produziu
+    # (16 leads, nenhum com retailer_item_id — formulario nao tem catalogo).
+    real_ad_names = {
+      'IMÓVEL 9817 - TELHADO APARENTE' => '9817',
+      '9817' => '9817',
+      'IMÓVEL 9629 - PLATIBANDA' => '9629',
+      'IMÓVEL 9621' => '9621',
+      'IMÓVEL 9502 - MOBILIADO' => '9502',
+      'IMÓVEL 7275' => '7275',
+      '7275' => '7275'
+    }
 
-      # Número estrangeiro: 12+ dígitos não recebem o prefixo 55 e passam intactos.
-      it 'accepts a foreign number and does not brazilianize it' do
-        expect(normalize('+351 912 345 678')).to eq('+351912345678')
-      end
+    # Nome de anuncio e cheio de numero que nao e codigo de imovel. Um match aqui manda o
+    # lead pro imovel errado — ou pior, abre com a foto de um imovel que ele nunca viu.
+    not_a_code = [
+      'CASAS 300-900K',
+      '[FORMS] - PACAEMBU',
+      'RMKT VENDAS 2026',
+      'Casas a partir de 250 mil',
+      'APTO 2 QUARTOS - ENTREGA 2027',
+      'IMÓVEL PRONTO PARA MORAR 2026',
+      'Campanha 01/2026',
+      'IMÓVEL DE 3 QUARTOS',
+      ''
+    ]
 
-      context 'when the hook has a default DDD' do
-        let(:hook_settings) { super().merge('default_ddd' => '66') }
+    context 'when the hook enables reading the ad name' do
+      let(:hook) { hook_with('imovel_codigo_from_ad_name' => true) }
 
-        it 'prefixes the DDD on a number typed without it' do
-          expect(normalize('99692-6393')).to eq('+5566996926393')
+      real_ad_names.each do |ad_name, expected|
+        it "extracts #{expected.inspect} from #{ad_name.inspect}" do
+          svc = service(hook: hook, lead: lead_with(ad_name: ad_name))
+          expect(svc.send(:imovel_codigo)).to eq(expected)
         end
       end
+
+      not_a_code.each do |ad_name|
+        it "extracts nothing from #{ad_name.inspect}" do
+          svc = service(hook: hook, lead: lead_with(ad_name: ad_name))
+          expect(svc.send(:imovel_codigo)).to be_nil
+        end
+      end
+
+      it 'accepts the marker lowercased and unaccented' do
+        svc = service(hook: hook, lead: lead_with(ad_name: 'imovel 9817 - telhado'))
+        expect(svc.send(:imovel_codigo)).to eq('9817')
+      end
+
+      it 'accepts "cód" as a marker' do
+        svc = service(hook: hook, lead: lead_with(ad_name: 'Casa nova (cód 5194)'))
+        expect(svc.send(:imovel_codigo)).to eq('5194')
+      end
+
+      it 'gives precedence to the catalog retailer_item_id' do
+        svc = service(hook: hook, lead: lead_with(ad_name: 'IMÓVEL 9817', retailer_item_id: '7686'))
+        expect(svc.send(:imovel_codigo)).to eq('7686')
+      end
+
+      it 'does not reach the Vista API when there is no code' do
+        svc = service(hook: hook, lead: lead_with(ad_name: 'CASAS 300-900K'))
+        expect(svc).not_to receive(:vista_get)
+        expect(svc.send(:imovel_info)).to be_nil
+      end
     end
 
-    # Antes, tudo o que entrava saía: o normalizer nunca devolve nil, então lixo de
-    # formulário aberto chegava ao Contact e estourava RecordInvalid dentro do job.
-    context 'with input that cannot become valid E.164' do
-      it 'rejects a number with a leading zero from the country code' do
-        expect(normalize('0055 66 99999-9999')).to be_nil
+    context 'without the hook setting (the default for every account)' do
+      let(:hook) { hook_with({}) }
+
+      real_ad_names.each_key do |ad_name|
+        it "ignores the ad name #{ad_name.inspect}" do
+          svc = service(hook: hook, lead: lead_with(ad_name: ad_name))
+          expect(svc.send(:imovel_codigo)).to be_nil
+        end
       end
 
-      it 'rejects a number that keeps a leading zero after normalization' do
-        expect(normalize('0 9999-9999')).to be_nil
+      it 'still uses the catalog retailer_item_id' do
+        svc = service(hook: hook, lead: lead_with(ad_name: 'IMÓVEL 9817', retailer_item_id: '7686'))
+        expect(svc.send(:imovel_codigo)).to eq('7686')
+      end
+    end
+
+    context 'when the setting comes from a campaign override' do
+      let(:hook) do
+        hook_with('campaign_overrides' => { '120243133255210544' => { 'imovel_codigo_from_ad_name' => 'true' } })
       end
 
-      it 'rejects two numbers pasted into the same field (over 15 digits)' do
-        expect(normalize('66999999999 66988888888')).to be_nil
+      it 'reads the ad name on the overridden campaign' do
+        lead = lead_with(ad_name: 'IMÓVEL 9502 - MOBILIADO', campaign_id: '120243133255210544')
+        expect(service(hook: hook, lead: lead).send(:imovel_codigo)).to eq('9502')
       end
 
-      it 'returns nil for blank input' do
-        expect(normalize('   ')).to be_nil
-      end
-
-      it 'logs the rejected value masked' do
-        allow(Rails.logger).to receive(:warn)
-
-        normalize('0055 66 99999-9999')
-
-        expect(Rails.logger).to have_received(:warn).with(/E\.164 descartado.*valor=\+\*+9999\z/)
+      it 'ignores the ad name on the other campaigns of the same hook' do
+        lead = lead_with(ad_name: 'IMÓVEL 9502 - MOBILIADO', campaign_id: '999')
+        expect(service(hook: hook, lead: lead).send(:imovel_codigo)).to be_nil
       end
     end
   end
 
-  describe '#perform with an unusable phone number' do
-    let(:phone) { '0055 66 99999-9999' }
+  describe '#initial_message_already_sent?' do
+    let(:hook) { hook_with({}) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+    let(:svc) { service(hook: hook, lead: lead_with({})) }
 
-    it 'does not raise RecordInvalid and falls back to the existing "lead without phone" path' do
-      expect { service.perform }.not_to raise_error
+    def initial_message_on(conv)
+      create(:message, account: account, inbox: inbox, conversation: conv,
+                       message_type: :outgoing, content: 'Olá!',
+                       content_attributes: { meta_lead_ads_initial: true })
     end
 
-    it 'creates the contact without a phone number and keys the contact inbox by leadgen_id' do
-      conversation = service.perform
-
-      expect(conversation).to be_present
-      expect(conversation.contact.phone_number).to be_blank
-      expect(conversation.contact_inbox.source_id).to eq("meta_lead:#{lead[:leadgen_id]}")
+    it 'is false on a conversation without the opener' do
+      expect(svc.send(:initial_message_already_sent?, conversation)).to be false
     end
 
-    it 'does not send the initial message' do
-      conversation = service.perform
+    # A regressao: content_attributes e jsonb NA TABELA mas o modelo grava uma STRING JSON
+    # (store coder: JSON), entao a consulta antiga (`@>`) nunca casava e a abertura era reenviada.
+    it 'is true after the opener, despite the double serialization' do
+      initial_message_on(conversation)
 
-      expect(conversation.messages).to be_empty
+      expect(svc.send(:initial_message_already_sent?, conversation)).to be true
+    end
+
+    it 'ignores messages carrying other content_attributes' do
+      create(:message, account: account, inbox: inbox, conversation: conversation,
+                       message_type: :outgoing, content: 'Olá!',
+                       content_attributes: { nps_survey: true })
+
+      expect(svc.send(:initial_message_already_sent?, conversation)).to be false
+    end
+
+    it 'does not see the opener of another conversation' do
+      initial_message_on(create(:conversation, account: account, inbox: inbox))
+
+      expect(svc.send(:initial_message_already_sent?, conversation)).to be false
+    end
+  end
+
+  describe 'opener idempotency' do
+    let(:hook) { hook_with('initial_message_template' => 'Olá {{first_name}}!') }
+    let(:lead) { lead_with(full_name: 'Maria Silva') }
+
+    def openers(conversation)
+      conversation.messages.select { |m| m.content_attributes['meta_lead_ads_initial'] }
+    end
+
+    it 'does not resend the opener on a webhook redelivery' do
+      conversation = service(hook: hook, lead: lead).perform
+      expect(openers(conversation).size).to eq(1)
+
+      again = service(hook: hook, lead: lead).perform
+      expect(again.id).to eq(conversation.id)
+      expect(openers(again.reload).size).to eq(1)
     end
   end
 end

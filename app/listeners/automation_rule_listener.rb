@@ -23,6 +23,13 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     process_conversation_event(event, 'conversation_updated')
   end
 
+  # Um agente humano ASSUMIR a conversa ja encerra o menu do bot - nao da pra esperar ele digitar. O
+  # cancelamento por MENSAGEM deixava aberta a janela entre "assumi" e "mandei a primeira mensagem":
+  # a resposta do cliente nesse meio era capturada pelo wait_for_reply velho e virava "Nao entendi".
+  def assignee_changed(event)
+    cancel_pending_flow_waits_on_assignment(event.data[:conversation])
+  end
+
   def conversation_created(event)
     process_conversation_event(event, 'conversation_created')
   end
@@ -297,7 +304,23 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     return if account.blank? || !flows_engine_active?(account)
     return unless human_agent_takeover?(message)
 
-    FlowRun.where(conversation_id: message.conversation_id, status: :waiting).find_each(&:complete!)
+    cancel_pending_flow_waits(message.conversation_id)
+  end
+
+  # Idem, pelo caminho da ATRIBUICAO. Desatribuir (assignee_id -> nil) NAO cancela: a conversa volta
+  # para a fila e o fluxo do bot segue valendo.
+  def cancel_pending_flow_waits_on_assignment(conversation)
+    return if conversation.blank? || conversation.assignee_id.blank?
+
+    account = conversation.account
+    return if account.blank? || !flows_engine_active?(account)
+
+    cancel_pending_flow_waits(conversation.id)
+  end
+
+  # Ponto UNICO de cancelamento - os dois caminhos (mensagem e atribuicao) passam por aqui.
+  def cancel_pending_flow_waits(conversation_id)
+    FlowRun.where(conversation_id: conversation_id, status: :waiting).find_each(&:complete!)
   end
 
   # Mensagem que representa um agente HUMANO assumindo a conversa: outgoing, de User real, nao

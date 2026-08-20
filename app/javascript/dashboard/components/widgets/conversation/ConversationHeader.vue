@@ -1,4 +1,8 @@
 <script setup>
+// `watch` e `nextTick` entram aqui pelo editor inline de prioridade (Fase 3.5):
+// o merge automático trouxe o TEMPLATE e o SCRIPT desse editor do nosso lado, mas
+// esta linha de import veio do lado da homologação, que não o tem. Sem eles o
+// arquivo passa no build e estoura em runtime ao abrir o menu de prioridade.
 import {
   computed,
   nextTick,
@@ -10,7 +14,7 @@ import {
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useElementSize } from '@vueuse/core';
-import { MESSAGE_TYPE } from 'shared/constants/messages';
+import { MESSAGE_TYPE, CONVERSATION_PRIORITY } from 'shared/constants/messages';
 import BackButton from '../BackButton.vue';
 import InboxName from '../InboxName.vue';
 import MoreActions from './MoreActions.vue';
@@ -26,7 +30,6 @@ import { useInbox } from 'dashboard/composables/useInbox';
 import { useGroupConversation } from 'dashboard/composables/useGroupConversation';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
-import { CONVERSATION_PRIORITY } from 'shared/constants/messages';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useAlert } from 'dashboard/composables';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
@@ -47,6 +50,16 @@ const store = useStore();
 const route = useRoute();
 const conversationHeader = ref(null);
 const { width } = useElementSize(conversationHeader);
+
+// Identidade antes de enfeite. O bloco de ações da direita ocupa 323px que não
+// encolhem; somando avatar (40+12), nome (até 172) e etiqueta "Grupo" (66+4), o
+// conjunto só cabe a partir de ~617px de largura ÚTIL de cabeçalho. Abaixo
+// disso o nome de quem está do outro lado era o único a ceder — chegava a 0px
+// em 1280. Acima do limite nada muda. Ver plano/captain-v2/relatos/C1.md.
+const HEADER_WIDTH_FOR_CHIPS = 620;
+const hasRoomForChips = computed(
+  () => width.value === 0 || width.value >= HEADER_WIDTH_FOR_CHIPS
+);
 const { isAWebWidgetInbox } = useInbox();
 const { uiSettings, updateUISettings } = useUISettings();
 const showMessageSearch = ref(false);
@@ -444,7 +457,7 @@ const copyConversationId = async () => {
             {{ displayName }}
           </span>
           <span
-            v-if="isGroup"
+            v-if="isGroup && hasRoomForChips"
             v-tooltip="$t('GROUP_INFO.BADGE_TOOLTIP')"
             class="wa-group-badge inline-flex items-center gap-1 flex-shrink-0 px-[7px] py-px rounded-full border border-n-weak text-[10.5px] font-semibold tracking-wide text-n-slate-11"
           >
@@ -472,6 +485,7 @@ const copyConversationId = async () => {
         </div>
 
         <div
+          v-if="hasMultipleInboxes || isSnoozed || whatsAppWindowDisplay"
           class="wa-contact-subtitle flex items-center gap-2 overflow-hidden text-xs conversation--header--actions text-n-slate-11 text-ellipsis whitespace-nowrap"
         >
           <button
@@ -496,6 +510,13 @@ const copyConversationId = async () => {
             <span class="size-3" :class="whatsAppWindowIcon" />
             {{ whatsAppWindowDisplay.text }}
           </span>
+          <!-- RECONCILIAÇÃO: este editor inline de prioridade (Fase 3.5) foi
+               PERDIDO pelo merge automático — o lado da homologação reescreveu a
+               div acima e o git resolveu esta região por lá, descartando o bloco
+               sem marcar conflito. O `<script>` dele sobreviveu no hunk e ficou
+               órfão; foi o eslint, acusando `currentPriorityOption`,
+               `togglePriorityMenu` e `setPriority` como "never used", que
+               denunciou a metade que faltava. -->
           <span ref="priorityWrapper" class="relative inline-flex">
             <button
               :title="$t('CONVERSATION.PRIORITY.LABEL')"
@@ -539,7 +560,7 @@ const copyConversationId = async () => {
     </div>
     <div class="flex items-center gap-1 flex-shrink-0">
       <ConversationStatusActions
-        v-if="currentChat.id"
+        v-if="currentChat.id && hasRoomForChips"
         :chat="currentChat"
         class="hidden md:inline-flex"
       />

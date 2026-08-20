@@ -131,6 +131,11 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def update_last_seen
+    # Numa conversa que tem dono, só o dono limpa o "não lida" — ver
+    # `may_clear_unread_marker?`. Sem isso, quem só passa o olho apaga o
+    # marcador de quem precisa responder.
+    return unless may_clear_unread_marker?
+
     # High-traffic accounts generate excessive DB writes when agents frequently switch between conversations.
     # Throttle last_seen updates to once per hour when there are no unread messages to reduce DB load.
     # Always update immediately if there are unread messages to maintain accurate read/unread state.
@@ -264,6 +269,31 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def assignee?
     @conversation.assignee_id? && Current.user == @conversation.assignee
+  end
+
+  # `agent_last_seen_at` é global por conversa: quem abre limpa o "não lida" de
+  # TODO mundo. Regra: **só o atribuído limpa lendo**. Quem abre uma conversa que
+  # não é dele — da IA ou de outra pessoa — deixa ela não-lida.
+  #
+  # A exceção antiga (`assignee_id.blank?` liberava geral) partia da premissa de
+  # que "sem atribuído não há marcador de ninguém pra apagar". A premissa não se
+  # sustenta: medido na conta 6, são 574 conversas abertas sem `assignee_id`, e
+  # das 33 que aguardam humano, 32 não têm dono — 97%. A regra protegia o caso
+  # raro e deixava aberto o comum, que é justamente a fila do que falta atender.
+  # Sem dono, ninguém limpa lendo: fica não-lida até alguém assumir.
+  #
+  # ⚠️ Abrir a conversa e clicar em "marcar como lida" chamam o MESMO endpoint
+  # (`update_last_seen`). Gatear só por `assignee?` mataria os dois, e conversa
+  # sem dono nunca mais ficaria lida. Por isso o gate separa a INTENÇÃO, não o
+  # ator: leitura implícita (abrir) é gateada; o ato deliberado passa.
+  def may_clear_unread_marker?
+    assignee? || explicit_mark_as_read?
+  end
+
+  # Marcado pelo frontend só na ação deliberada (botão "marcar como lida"), nunca
+  # ao abrir a conversa.
+  def explicit_mark_as_read?
+    ActiveModel::Type::Boolean.new.cast(params[:explicit])
   end
 
   # `authorize_team_access` e `team_access_exempt?` vêm do ConversationTeamAccessConcern.

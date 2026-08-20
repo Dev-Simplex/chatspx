@@ -117,8 +117,11 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/${conversationId}/retriage`);
   }
 
-  markMessageRead({ id }) {
-    return axios.post(`${this.url}/${id}/update_last_seen`);
+  // `explicit` separa o ato deliberado ("marcar como lida") da leitura implícita
+  // (abrir a conversa) — os dois batem neste mesmo endpoint. Só o deliberado limpa
+  // o "não lida" de conversa que não é sua. Ver `may_clear_unread_marker?`.
+  markMessageRead({ id, explicit = false }) {
+    return axios.post(`${this.url}/${id}/update_last_seen`, { explicit });
   }
 
   markMessagesUnread({ id }) {

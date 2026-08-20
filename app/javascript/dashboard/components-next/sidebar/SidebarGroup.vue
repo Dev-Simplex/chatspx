@@ -30,6 +30,7 @@ const {
   isAllowed,
   isCollapsed,
   isResizing,
+  reorderMode,
 } = useSidebarContext();
 
 const {
@@ -80,6 +81,8 @@ const closePopover = () => {
 };
 
 const handleMouseEnter = () => {
+  // No modo reordenar não abrimos o popover de filhos (o hover é só arraste).
+  if (reorderMode?.value) return;
   if (!hasChildren.value || isResizing.value) return;
   cancelClose();
   openPopover();
@@ -256,6 +259,8 @@ const countLabel = computed(() => {
 });
 
 const handleCollapsedClick = () => {
+  // No modo reordenar o clique não navega — o ícone só serve de alça de arraste.
+  if (reorderMode?.value) return;
   if (hasChildren.value && hasAccessibleChildren.value) {
     const firstItem = accessibleItems.value[0];
     router.push(firstItem.to);
@@ -326,20 +331,25 @@ watch(
         @mouseleave="handleMouseLeave"
       >
         <component
-          :is="to && !hasChildren ? 'router-link' : 'button'"
+          :is="
+            reorderMode ? 'div' : to && !hasChildren ? 'router-link' : 'button'
+          "
           ref="triggerRef"
-          v-tooltip.right="hasChildren ? undefined : label"
+          v-tooltip.right="hasChildren || reorderMode ? undefined : label"
           data-hover-host
           :data-sidebar-active="String(isActive || hasActiveChild)"
-          :to="to && !hasChildren ? to : undefined"
+          :to="!reorderMode && to && !hasChildren ? to : undefined"
           type="button"
           class="flex items-center justify-center size-10 rounded-lg"
-          :class="{
-            'text-n-slate-12 bg-n-alpha-2 [&_svg]:opacity-100 [&_svg]:text-n-brand':
-              isActive || hasActiveChild,
-            'text-n-slate-11 hover:bg-n-alpha-2 [&_svg]:opacity-60':
-              !isActive && !hasActiveChild,
-          }"
+          :class="[
+            {
+              'text-n-slate-12 bg-n-alpha-2 [&_svg]:opacity-100 [&_svg]:text-n-brand':
+                isActive || hasActiveChild,
+              'text-n-slate-11 hover:bg-n-alpha-2 [&_svg]:opacity-60':
+                !isActive && !hasActiveChild,
+            },
+            reorderMode ? 'sidebar-reorder-item' : '',
+          ]"
           @click="hasChildren ? handleCollapsedClick() : undefined"
         >
           <div v-if="icon" class="relative flex items-center">
@@ -420,3 +430,53 @@ watch(
     </template>
   </Policy>
 </template>
+
+<style>
+/* RECONCILIAÇÃO — deste bloco veio SÓ a metade do modo "reordenar".
+   O lado da homologação trazia também as regras de árvore
+   (`.sidebar-group-children`, `.child-item::before/::after` e a variante RTL),
+   e essas ficaram de fora de propósito: o upstream as reescreveu como
+   utilitárias Tailwind em `SidebarGroupLeaf.vue:44`, com equivalência conferida
+   linha a linha — `before:w-0.5` = 0.125rem, `last:before:h-1/5` = 20%,
+   `last:after:h-3 w-2.5` = 12px×10px — e ainda com as cores (`bg-n-slate-4`,
+   `border-n-slate-4`) que o CSS antigo não tinha e com `start-0`, que resolve o
+   RTL sem a regra `#app[dir='rtl']` separada. Trazê-las de volta significaria
+   duas fontes desenhando o mesmo `::before`.
+
+   O que segue abaixo NÃO tem equivalente em utilitária: `animation` com
+   `@keyframes` próprio, `animation-play-state` e a alternativa de
+   `prefers-reduced-motion`. E a classe é usada — `SidebarGroup.vue` a aplica no
+   template quando `reorderMode` está ligado. */
+
+/* Modo "reordenar barra lateral": ícone treme (estilo tela inicial de celular)
+   pra sinalizar que dá pra arrastar, com cursor de alça. */
+@keyframes sidebar-reorder-jiggle {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+
+.sidebar-reorder-item {
+  animation: sidebar-reorder-jiggle 0.32s ease-in-out infinite;
+  cursor: grab;
+}
+
+.sidebar-reorder-item:active {
+  cursor: grabbing;
+  animation-play-state: paused;
+}
+
+/* Acessibilidade: sem animação pra quem pede menos movimento — mantém uma
+   moldura tracejada como affordance de "arrastável". */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-reorder-item {
+    animation: none;
+    outline: 1px dashed currentColor;
+    outline-offset: 2px;
+  }
+}
+</style>

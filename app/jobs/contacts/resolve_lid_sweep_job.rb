@@ -33,15 +33,25 @@ class Contacts::ResolveLidSweepJob < ApplicationJob
   # (nunca truncado em silencio).
   DEFAULT_MAX_PER_RUN = 1_000
 
+  # Prazo de desistencia, vindo da outra metade desta reconciliacao: o sweep existe para o
+  # caso do WAHA REAPRENDER o mapeamento LID->PN depois de uma migracao/restart, o que
+  # acontece em dias. Passado o prazo o LID nao volta mais. Compoe com os dois freios acima
+  # em vez de substitui-los — os tres so SUBTRAEM candidatos, e o corte por idade e o unico
+  # que para de olhar para o registro em definitivo, em vez de reagendar para sempre.
+  ABANDON_AFTER = 30.days
+
   def perform(max_per_run = DEFAULT_MAX_PER_RUN)
-    relation = stuck_contact_inboxes
-    total = relation.count
+    todos = stuck_contact_inboxes
+    total = todos.count
+    relation = todos.where('contact_inboxes.created_at >= ?', ABANDON_AFTER.ago)
+    abandonados = total - relation.count
     rows = relation.limit(max_per_run).pluck(
       'contact_inboxes.id', 'contact_inboxes.inbox_id', 'contact_inboxes.source_id', 'contacts.identifier'
     )
     @session_names = session_names_for(rows)
 
     stats = Hash.new(0)
+    stats[:abandonados_por_idade] = abandonados
     rows.each { |row| enqueue_or_skip(row, stats) }
 
     log_run(total, rows.size, max_per_run, stats)
@@ -86,6 +96,7 @@ class Contacts::ResolveLidSweepJob < ApplicationJob
     Rails.logger.info(
       "[ResolveLidSweepJob] presos=#{total} reenfileirados=#{stats[:reenfileirados]} " \
       "pulados_sessao=#{stats[:sessao_nao_working]} pulados_backoff=#{stats[:backoff]} " \
+      "abandonados=#{stats[:abandonados_por_idade]} (>#{ABANDON_AFTER.inspect}) " \
       "restantes=#{remaining} teto=#{max_per_run}"
     )
   end

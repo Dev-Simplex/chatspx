@@ -384,6 +384,16 @@ describe('#actions', () => {
       axios.post.mockResolvedValue({
         data: { id: 1, agent_last_seen_at: lastSeen },
       });
+      // RECONCILIAÇÃO — os dois lados são necessários, e a implementação mesclada
+      // prova por quê (`messageReadActions.js:67`): a action agora recebe
+      // `{ commit, dispatch, rootGetters }` (upstream — o `clearMatchingNotification`
+      // usa os dois últimos) E consome `data.explicit` (homologação).
+      //
+      // `explicit` porque estes exemplos cobrem a mecânica de API/mutation, não o
+      // gate: sem dono na conversa, a leitura implícita passou a NÃO limpar o "não
+      // lida". Sem ele, `canClearUnreadMarker` devolve false — estes `rootGetters`
+      // não têm `getConversationById` —, a action SAI antes de chamar a API, e o
+      // exame falharia medindo uma chamada que nunca aconteceu.
       await actions.markMessagesRead(
         {
           commit,
@@ -393,7 +403,7 @@ describe('#actions', () => {
             'notifications/getUnreadCount': 0,
           },
         },
-        { id: 1 }
+        { id: 1, explicit: true }
       );
       vi.runAllTimers();
       expect(commit).toHaveBeenCalledTimes(1);
@@ -403,7 +413,7 @@ describe('#actions', () => {
     });
     it('sends correct mutations if api is unsuccessful', async () => {
       axios.post.mockRejectedValue({ message: 'Incorrect header' });
-      await actions.markMessagesRead({ commit }, { id: 1 });
+      await actions.markMessagesRead({ commit }, { id: 1, explicit: true });
       expect(commit.mock.calls).toEqual([]);
     });
   });

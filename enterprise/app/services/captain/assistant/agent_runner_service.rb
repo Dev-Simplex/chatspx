@@ -164,14 +164,30 @@ class Captain::Assistant::AgentRunnerService
     content = last && (last[:content] || last['content'])
     return '' if content.blank?
 
+    unwrap_agent_output(content)
+  end
+
+  # Estrutura de saída serializada no formato cru do inspect, com hash-rocket.
+  SERIALIZED_OUTPUT = /\A\{.*["']response["']\s*=>/m
+  SERIALIZED_RESPONSE_FIELD = /["']response["']\s*=>\s*"((?:[^"\\]|\\.)*)"/m
+
+  # O modelo às vezes serializa a PRÓPRIA estrutura de saída ({"response"=>"...",
+  # "reasoning"=>"..."}) em vez de devolver só o texto. Em JSON válido o parse abaixo
+  # resolve; em hash-rocket, não — e a estrutura inteira viraria a fala do agente.
+  # Acontece sobretudo quando o turno termina em transferência: o response sai vazio,
+  # cai neste fallback e o hash cru seguiria como mensagem pro cliente. Desembrulhado,
+  # o turno de transferência devolve vazio, que é o certo — quem fala em seguida é a
+  # agente que assumiu.
+  def unwrap_agent_output(content)
     parsed = begin
       JSON.parse(content)
     rescue StandardError
       nil
     end
     return parsed['response'].to_s if parsed.is_a?(Hash) && parsed['response'].present?
+    return content.to_s unless content.to_s.strip.match?(SERIALIZED_OUTPUT)
 
-    content.to_s
+    content.to_s.match(SERIALIZED_RESPONSE_FIELD)&.captures&.first.to_s
   end
 
   def error_response(error_message)
@@ -180,6 +196,101 @@ class Captain::Assistant::AgentRunnerService
       'reasoning' => "Error occurred: #{error_message}",
       'handoff_tool_called' => @handoff_tool_called
     }
+  end
+
+  # ─── RECONCILIAÇÃO — leia antes de mexer ────────────────────────────────────────
+  #
+  # O upstream v4.16.2 EXTRAIU estes métodos para o concern
+  # `Captain::Assistant::RunnerStateHelper` (incluído no topo desta classe). A homologação
+  # os tem inline, com duas features que o concern não conhece. Métodos definidos na classe
+  # têm precedência sobre os do módulo incluído, então o que está aqui VENCE o concern — e é
+  # por isso que estes corpos precisam carregar também o que o concern fazia:
+  #
+  #   do concern (upstream)   `timezone` no state  ·  o filtro BLOCKED_ADDITIONAL_ATTRIBUTES
+  #                           em `slice_attrs` (bloco 1.20, asserção 5)
+  #   da homologação          `sem_maquinario`  ·  `channel_number`
+  #
+  # Copiar o lado da homologação cru levaria embora as duas do upstream sem quebrar nada:
+  # o state perderia o fuso, e `referer_raw` — a URL CRUA do visitante — voltaria a entrar
+  # no system prompt, porque `prompts/snippets/conversation.liquid` itera
+  # `additional_attributes` inteiro. Nenhum teste dos dois lados pegaria isso.
+  #
+  # `sem_maquinario` já contém o `except('aguardando_humano_desde')` do concern: a lista
+  # MAQUINARIO abre com esse mesmo atributo.
+  def build_state
+    state = {
+      account_id: @assistant.account_id,
+      assistant_id: @assistant.id,
+      assistant_config: @assistant.config,
+      timezone: @conversation&.inbox&.timezone.presence || 'UTC'
+    }
+    state[:source] = @source if @source.present?
+
+    build_conversation_state(state) if @conversation
+    state
+  end
+
+  def build_conversation_state(state)
+    state[:conversation] = slice_attrs(@conversation, CONVERSATION_STATE_ATTRIBUTES)
+    # O marcador de espera por humano NÃO entra no contexto do agente: a presença dele empurra
+    # o LLM pro silêncio ([IGNORAR]) mesmo quando o cliente traz pergunta nova. Ele segue no
+    # banco pros outros usos (guard do follow-up + filtro "Aguardando atendimento").
+    #
+    # `rodizio_corretor` sai pelo motivo oposto: o NOME do corretor no contexto faz o LLM
+    # anunciar o repasse ("o Fulano vai te procurar"), e o rodízio proíbe anunciar — o handoff
+    # é evento de sistema, silencioso. O ESTADO da designação (rodizio_designado_em /
+    # rodizio_produto) continua visível: é ele que a conduta de "modo contido" lê.
+    state[:conversation][:custom_attributes] = sem_maquinario(state[:conversation][:custom_attributes])
+    state[:channel_type] = @conversation.inbox&.channel_type
+    state[:channel_number] = channel_number
+    state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
+    state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
+    state[:contact_inbox] = slice_attrs(@conversation.contact_inbox, CONTACT_INBOX_STATE_ATTRIBUTES) if @conversation.contact_inbox
+  end
+
+  # Estado de MAQUINÁRIO da conversa: escrito por tool/job pra ser lido por tool/job, sempre do
+  # BANCO — nenhum destes é lido do prompt (`urls_imoveis` pelo fix_property_links,
+  # `codigos_buscados` pela enviar_fotos_imovel, `fotos_ultimo_envio_at` pelo cooldown dela,
+  # `followup_*` pelo FollowupJob, `resumo_atendimento_ia` pelo painel do time). Tirá-los do
+  # contexto não muda função nenhuma; deixá-los custa duas coisas:
+  #
+  #  - RUÍDO: token hex, epoch e mapa de URLs ocupam contexto sem informar nada ao modelo;
+  #  - VAZAMENTO ENTRE ATENDIMENTOS: `custom_attributes` vive na CONVERSA, e com
+  #    `lock_to_single_conversation` o fio do contato é perpétuo. A janela por episódio
+  #    (ResponseBuilderJob#mensagens_do_contexto) corta os TURNOS, não os atributos — então o
+  #    resumo e os códigos do atendimento de meses atrás atravessavam a fronteira mesmo com a
+  #    janela ligada, e o modelo voltava a falar de um imóvel que ninguém mencionou hoje.
+  #
+  # `followup_` por prefixo porque a família cresce (o `followup_janela` nasceu depois dos
+  # outros três); lista exata nomearia só os de hoje e o próximo voltaria a vazar em silêncio.
+  MAQUINARIO = %w[
+    aguardando_humano_desde rodizio_corretor
+    resumo_atendimento_ia codigos_buscados urls_imoveis fotos_ultimo_envio_at
+  ].freeze
+  MAQUINARIO_PREFIXOS = %w[followup_].freeze
+
+  def sem_maquinario(atributos)
+    (atributos || {}).reject do |chave, _|
+      nome = chave.to_s
+      MAQUINARIO.include?(nome) || MAQUINARIO_PREFIXOS.any? { |prefixo| nome.start_with?(prefixo) }
+    end
+  end
+
+  # Número em que o atendimento acontece. Sem ele o agente não tem NENHUM telefone em
+  # contexto e, ao ser cobrado pelo "número de vocês", confabula um (caso 20314).
+  def channel_number
+    @conversation.inbox&.channel.try(:phone_number)
+  end
+
+  # O filtro de `additional_attributes` é do concern do upstream (bloco 1.20, asserção 5):
+  # `referer_raw` é a URL crua do visitante, guardada para diagnóstico, e o snippet
+  # `prompts/snippets/conversation.liquid` itera `additional_attributes` INTEIRO dentro do
+  # system prompt. Sem este `except`, o valor cru entra literalmente no prompt da IA.
+  def slice_attrs(record, keys)
+    attrs = record.attributes.symbolize_keys.slice(*keys)
+    return attrs unless attrs[:additional_attributes].is_a?(Hash)
+
+    attrs.merge(additional_attributes: attrs[:additional_attributes].except(*BLOCKED_ADDITIONAL_ATTRIBUTES))
   end
 
   def build_and_wire_agents

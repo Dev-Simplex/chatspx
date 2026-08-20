@@ -1,12 +1,11 @@
 class Captain::Tools::RegistrarAssuntoTool < Captain::Tools::BasePublicTool
   description 'Registra um ASSUNTO/tarefa identificado na conversa, que vira um item de checklist visível pra equipe. ' \
-              'Chame quando o cliente trouxer mais de um assunto/pedido na mesma conversa (ex.: quer alugar uma casa ' \
-              'e também vender outro imóvel): registre cada assunto ALÉM do principal, pra nada se perder no handoff. ' \
+              'Chame quando o cliente trouxer mais de um assunto/pedido na mesma conversa: registre cada assunto ' \
+              'ALÉM do principal, pra nada se perder no handoff. ' \
               'Uma chamada por assunto. Não duplica itens com o mesmo texto.'
 
   param :assunto, type: 'string',
-                  desc: 'Um assunto ou tarefa curta e objetiva (ex.: "Vender apartamento no Centro", ' \
-                        '"Dúvida sobre 2ª via de boleto"). Escreva só o assunto, sem explicação.',
+                  desc: 'Um assunto ou tarefa curta e objetiva. Escreva só o assunto, sem explicação.',
                   required: true
 
   def perform(tool_context, assunto:)

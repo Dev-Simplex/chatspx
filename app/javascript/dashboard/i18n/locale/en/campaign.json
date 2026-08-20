@@ -238,6 +238,50 @@
         "SUCCESS_MESSAGE": "Campaign deleted successfully",
         "ERROR_MESSAGE": "There was an error. Please try again."
       }
+    },
+    "LEAD_ADS": {
+      "HEADER_TITLE": "Lead campaigns",
+      "SUBTITLE": "Campaigns that brought leads in the period and how each one is set up. Counts leads that opened a conversation in the period.",
+      "ERROR": "Could not load the campaigns.",
+      "EMPTY_VALUE": "—",
+      "EMPTY_PERIOD": "No leads came in through a form in this period.",
+      "NO_CAMPAIGN": "Without campaign",
+      "FOOTNOTE": "Read only. Overrides are edited in the lead capture integration.",
+      "DISABLED": {
+        "TITLE": "Lead capture is not set up",
+        "SUBTITLE": "Set up a lead capture integration to see campaigns here."
+      },
+      "FILTER": {
+        "FROM": "From",
+        "TO": "To",
+        "APPLY": "Apply"
+      },
+      "TOTALS": {
+        "LEADS": "Leads in the period",
+        "CAMPAIGNS": "Campaigns"
+      },
+      "HOOK": {
+        "ACTIVE": "Capture active",
+        "INACTIVE": "Capture off"
+      },
+      "SOURCE": {
+        "OVERRIDE": "Override",
+        "DEFAULT": "Hook default",
+        "UNKNOWN": "Undefined"
+      },
+      "TABLE": {
+        "CAMPAIGN": "Campaign",
+        "LEADS": "Leads",
+        "CONFIGURED_TEMPLATE": "Configured template",
+        "SENT_TEMPLATE": "Template actually sent",
+        "ASSIGNED_TO": "Handled by",
+        "LEAD_TYPE": "Lead type",
+        "BLOCKED": "Out of the allowlist",
+        "AMBIGUOUS_ID": "More than one id",
+        "TEMPLATE_MISSING": "Not synced on the channel",
+        "CATALOG_TEMPLATE": "Catalog ad: {nome}",
+        "CONFIGURED_TYPE": "Set as: {tipo}"
+      }
     }
   }
 }

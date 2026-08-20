@@ -6,18 +6,20 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import { usePolicy } from 'dashboard/composables/usePolicy';
 
-const emit = defineEmits(['add', 'import', 'export']);
+const emit = defineEmits(['import', 'export']);
 
 const { t } = useI18n();
 const { checkPermissions } = usePolicy();
-
+// RECONCILIAÇÃO — este é o par do ContactHeader.vue, e por isso NÃO é "um lado".
+// Da homologação vem a AUSÊNCIA do item 'add': lá ele foi promovido a botão
+// próprio no header, e o `defineEmits` deste arquivo (já mesclado acima) também
+// veio de lá, sem 'add' — manter o item no menu deixaria um emit não declarado.
+// O ContactHeader confirma: ele escuta só @import e @export.
+// De ours fica o `checkPermissions`, que a homologação não tem: sem ele,
+// exportar e importar contatos aparecem para qualquer papel. Controle de acesso
+// não se perde numa reconciliação de menu — e é por isso que o
+// `contactMenuItems` continua `computed`, já que a permissão é reativa.
 const contactMenuItems = computed(() => [
-  {
-    label: t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ADD_CONTACT'),
-    action: 'add',
-    value: 'add',
-    icon: 'i-lucide-plus',
-  },
   ...(checkPermissions(['administrator', 'contact_manage'])
     ? [
         {
@@ -46,9 +48,7 @@ const contactMenuItems = computed(() => [
 const showActionsDropdown = ref(false);
 
 const handleContactAction = ({ action }) => {
-  if (action === 'add') {
-    emit('add');
-  } else if (action === 'import') {
+  if (action === 'import') {
     emit('import');
   } else if (action === 'export') {
     emit('export');

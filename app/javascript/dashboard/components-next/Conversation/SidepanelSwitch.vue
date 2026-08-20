@@ -2,6 +2,7 @@
 import Button from 'dashboard/components-next/button/Button.vue';
 import ButtonGroup from 'dashboard/components-next/buttonGroup/ButtonGroup.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
+import ScheduleMessageDialog from 'dashboard/components/widgets/conversation/ScheduleMessageDialog.vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { computed, ref } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -18,6 +19,7 @@ const isContactSidebarOpen = computed(
   () => uiSettings.value.is_contact_sidebar_open
 );
 const showScheduledMessageForm = ref(false);
+const showScheduleDialog = ref(false);
 
 const hasActiveConversation = computed(() => Boolean(currentChat.value?.id));
 
@@ -81,7 +83,29 @@ useKeyboardEvents(keyboardEvents);
       icon="i-lucide-user"
       @click="handleConversationSidebarToggle"
     />
+    <Button
+      v-if="hasActiveConversation"
+      v-tooltip.top="$t('CONVERSATION.SCHEDULE_MESSAGE.TOOLTIP')"
+      data-testid="conversation-schedule-message-toggle"
+      ghost
+      slate
+      sm
+      class="!rounded-full transition-all duration-[250ms] ease-out active:!scale-95 active:!brightness-105 active:duration-75"
+      :class="{ 'bg-n-alpha-2 active:shadow-sm': showScheduleDialog }"
+      icon="i-lucide-calendar-clock"
+      @click="showScheduleDialog = true"
+    />
   </ButtonGroup>
+  <!-- Diálogo próprio da conversa: ao contrário do ScheduledMessageForm do Kanban
+       (que só lista caixas WAHA), este oferece todas as caixas e exige template
+       quando a escolhida é WhatsApp Oficial. -->
+  <ScheduleMessageDialog
+    v-if="showScheduleDialog && hasActiveConversation"
+    :conversation-id="currentChat.id"
+    :inbox-id="currentChat.inbox_id"
+    :contact-id="currentChat?.meta?.sender?.id"
+    @close="showScheduleDialog = false"
+  />
   <ScheduledMessageForm
     :show="showScheduledMessageForm"
     :conversation="conversationForSchedule"

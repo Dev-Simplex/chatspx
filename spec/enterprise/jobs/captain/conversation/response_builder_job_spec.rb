@@ -452,6 +452,48 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
       end
     end
 
+    # Uma IA IMPEDIDA de falar deixava exatamente o mesmo rastro de uma IA que ESCOLHEU
+    # calar: `ignored` com raw vazio. Foi assim que uma chave da Anthropic sem saldo passou
+    # dias despercebida na conta 7 — no painel, parecia decisão do agente.
+    context 'when the agent run produces no output at all' do
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(true)
+        allow(mock_agent_runner_service).to receive(:generate_response)
+          .and_return({ 'response' => '', 'reasoning' => 'Error occurred: credit balance is too low' })
+      end
+
+      it 'records it as an error, carrying whatever the runner knew about the failure' do
+        described_class.perform_now(conversation, assistant)
+
+        log = Captain::AssistantLog.where(conversation_id: conversation.id, event_type: 'error').last
+        expect(log).to be_present
+        expect(log.payload['motivo']).to include('credit balance is too low')
+      end
+
+      it 'does not record it as deliberate silence' do
+        described_class.perform_now(conversation, assistant)
+
+        expect(Captain::AssistantLog.where(conversation_id: conversation.id, event_type: 'ignored')).to be_empty
+      end
+    end
+
+    context 'when the agent deliberately asks for silence' do
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(true)
+        allow(mock_agent_runner_service).to receive(:generate_response).and_return({ 'response' => '[IGNORAR]' })
+      end
+
+      it 'keeps recording it as ignored, with the marker in the trail' do
+        described_class.perform_now(conversation, assistant)
+
+        log = Captain::AssistantLog.where(conversation_id: conversation.id, event_type: 'ignored').last
+        expect(log).to be_present
+        expect(log.payload['raw']).to eq('[IGNORAR]')
+      end
+    end
+
     context 'when captain_v2 is enabled' do
       before do
         allow(account).to receive(:feature_enabled?).and_return(false)
@@ -811,6 +853,109 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
                          sender: agent, account: account, inbox: inbox)
         expect(conversation.reload.waiting_since).to be_nil
       end
+
+      # Regressao (frente spx/followup): este caminho tambem chamava bot_handoff! puro. Em v2 ele
+      # e o do error_response E o de handle_error — ou seja, toda vez que o runner quebra a
+      # conversa prometia humano sem entrar em fila nenhuma, justo quando o cliente mais precisa.
+      it 'goes through HumanHandoffService so the dossie and the rodizio engine run' do
+        expect(Spx::Distribuicao::DistribuirService).to receive(:new).with(conversation).and_call_original
+
+        described_class.perform_now(conversation, assistant)
+
+        conversation.reload
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+        expect(conversation.messages.where(private: true).last.content).to include('pediu passagem')
+      end
+    end
+
+    # Regressao (frente spx/followup): o safety-net de handoff chamava bot_handoff! puro, entao
+    # todo handoff disparado por ele pulava o dossie, o roteamento de time e o motor de rodizio
+    # (Spx::Distribuicao::DistribuirService) — o lead ouvia que um humano assume e nao entrava na
+    # fila de ninguem. A deteccao tambem nao via 'corretor' (a palavra do vertical imobiliario)
+    # nem a promessa no presente ("eu passo pro corretor"), que exigia auxiliar (vou/vamos).
+    context 'when the agent promises a human without firing the handoff' do
+      let(:conversation) do
+        create(:conversation, inbox: inbox, account: account, status: :pending, assignee_agent_bot: assistant.mirror_agent_bot)
+      end
+
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(false)
+      end
+
+      def responde(texto)
+        allow(mock_llm_chat_service).to receive(:generate_response).and_return({ 'response' => texto })
+        described_class.perform_now(conversation, assistant)
+        conversation.reload
+      end
+
+      it 'fires the handoff on a first-person present promise naming a corretor' do
+        responde('Perfeito! Eu passo pro corretor te dar os detalhes.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+
+      it 'goes through HumanHandoffService so the dossie and the rodizio engine run' do
+        expect(Spx::Distribuicao::DistribuirService).to receive(:new).with(conversation).and_call_original
+
+        responde('A corretora vai entrar em contato com voce ainda hoje.')
+
+        expect(conversation.messages.where(private: true).last.content).to include('handoff foi disparado automaticamente')
+      end
+
+      it 'stays quiet when the agent is only introducing herself as consultora' do
+        responde('Meu nome e Julia, sou a consultora que vai te atender.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_nil
+      end
+
+      it 'still fires when a real promise follows the introduction' do
+        responde('Sou a Julia, consultora virtual. O corretor te chama amanha.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+    end
+
+    # Regressao (conv 20320) — a camada mais letal do cancelamento indevido da cutucada, e a que
+    # nem estava mapeada: o reset zerava o token a CADA resposta do cliente, entao o compromisso
+    # combinado morria aqui, antes de o FollowupJob sequer rodar.
+    context 'when the client replies while a commitment follow-up is armed' do
+      let(:conversation) do
+        create(:conversation, inbox: inbox, account: account, status: :pending,
+                              assignee_agent_bot: assistant.mirror_agent_bot,
+                              custom_attributes: { 'followup_token' => 'compromisso-1', 'followup_count' => 2,
+                                                   'followup_motivo' => 'ia confirmar com o marido ate as 19h' })
+      end
+
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(false)
+      end
+
+      it 'keeps the commitment armed and only zeroes the attempt count' do
+        described_class.perform_now(conversation, assistant)
+
+        attrs = conversation.reload.custom_attributes
+        expect(attrs['followup_token']).to eq('compromisso-1')
+        expect(attrs['followup_motivo']).to be_present
+        expect(attrs['followup_count']).to eq(0)
+      end
+
+      it 'does not let a preventive nudge steal the commitment slot' do
+        assistant.update!(config: (assistant.config || {}).merge('tools' => ['programar_followup']))
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(conversation.reload.custom_attributes['followup_token']).to eq('compromisso-1')
+      end
+
+      it 'goes back to resetting the preventive nudge when there is no commitment' do
+        conversation.update!(custom_attributes: { 'followup_token' => 'auto-1', 'followup_count' => 2 })
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(conversation.reload.custom_attributes['followup_count']).to eq(0)
+      end
     end
 
     context 'when message contains an image' do
@@ -849,7 +994,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
     before do
       create(:message, conversation: conversation, content: 'Hello with image', message_type: :incoming)
       allow(Captain::Llm::AssistantChatService).to receive(:new).and_return(mock_llm_chat_service)
-      allow(Captain::OpenAiMessageBuilderService).to receive(:new).with(message: anything).and_return(mock_message_builder)
+      allow(Captain::OpenAiMessageBuilderService).to receive(:new).with(hash_including(message: anything)).and_return(mock_message_builder)
       allow(mock_message_builder).to receive(:generate_content).and_return('Hello with image')
       allow(mock_llm_chat_service).to receive(:generate_response).and_return({ 'response' => 'Test response' })
     end
