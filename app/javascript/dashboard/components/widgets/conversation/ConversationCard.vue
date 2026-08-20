@@ -587,7 +587,7 @@ export default {
         </span>
       </p>
       <div
-        class="absolute flex flex-col mt-4 ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200"
+        class="absolute flex flex-col ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200"
       >
         <!-- Alfinete: sempre visível quando fixada; no toque também, porque lá
              não existe hover (por isso o md: nas classes de opacidade). -->

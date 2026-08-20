@@ -229,6 +229,8 @@ pt_BR:
     attachment: 'Anexo'
     no_content: 'Sem conteúdo'
   conversations:
+    team_access:
+      forbidden: 'Esta conversa é de outro time. Só quem faz parte dele pode abri-la.'
     reply_assignment_gate:
       assignment_required: 'Você precisa assumir a conversa antes de responder'
     takeover_request_gate:

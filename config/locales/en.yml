@@ -243,6 +243,8 @@ en:
     attachment: 'Attachment'
     no_content: 'No content'
   conversations:
+    team_access:
+      forbidden: 'You do not have permission to access this conversation.'
     reply_assignment_gate:
       assignment_required: 'You must take over this conversation before replying'
     takeover_request_gate:
