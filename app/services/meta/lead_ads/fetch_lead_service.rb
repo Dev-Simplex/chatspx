@@ -17,7 +17,7 @@ module Meta
       CITY_HINTS = %w[city cidade].freeze
 
       # Filtra dummy data do Lead Ads Testing Tool (`<test lead: dummy data for X>`)
-      TEST_DUMMY_REGEX = /\A\s*<test lead:.*?>\s*\z/i
+      TEST_DUMMY_REGEX = /\A\s*<test lead:.*?>\s*\z/i.freeze
 
       # Valores que aparecem no campo NOME do formulário e nunca são o nome de alguém.
       #
@@ -89,8 +89,8 @@ module Meta
       # Normaliza: lowercase, remove ? e caracteres especiais, normaliza acentos
       def normalize_key(name)
         s = name.to_s.downcase
-        s = s.tr('áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc')
-        s.gsub(/[^a-z0-9_]/, '_')
+        s = s.tr("áàâãäéèêëíìîïóòôõöúùûüç", "aaaaaeeeeiiiiooooouuuuc")
+        s.gsub(/[^a-z0-9_]/, "_")
       end
 
       # Match por substring: campo "qual_seu_telefone_" casa com hint "telefone"

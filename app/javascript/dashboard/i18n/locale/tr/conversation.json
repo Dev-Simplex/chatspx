@@ -44,8 +44,6 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "Bu konuşmaya yalnızca şablon mesaj kullanarak yanıt verebilirsiniz, çünkü",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "24 saat mesaj penceresi kısıtlaması",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "Bu Instagram hesabı, yeni Instagram kanal gelen kutusuna taşındı. Tüm yeni mesajlar orada görünecektir. Artık bu konuşmadan mesaj gönderemeyeceksiniz.",
-    "INSTAGRAM_RESTRICTION_BANNER": "Instagram is currently restricted. Some messages or actions may be delayed or unavailable while we restore full support.",
-    "INSTAGRAM_RESTRICTION_STATUS_LINK": "View status update",
     "REPLYING_TO": "Cevap veriyorsun:",
     "REMOVE_SELECTION": "Seçimi Kaldır",
     "DOWNLOAD": "İndir",
@@ -64,7 +62,6 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "Bu mesaj desteklenmiyor. Bu mesajı Facebook Messenger uygulamasında görüntüleyebilirsiniz.",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "Bu mesaj desteklenmiyor. Bu mesajı Instagram uygulamasında görüntüleyebilirsiniz.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "This message is unsupported. You can view this message on the TikTok app.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "This message is unsupported. You can view this message on the WhatsApp app.",
     "SUCCESS_DELETE_MESSAGE": "Mesaj başarıyla silindi",
     "FAIL_DELETE_MESSSAGE": "Mesaj silinemiyor. Tekrar deneyin",
     "NO_RESPONSE": "Cevap Yok",
@@ -74,8 +71,7 @@
     "REPLY_MESSAGE_NOT_FOUND": "Mesaj bulunamadı",
     "CARD": {
       "SHOW_LABELS": "Etiketleri Göster",
-      "HIDE_LABELS": "Etiketleri Gizle",
-      "LABELS_COUNT": "{count} labels"
+      "HIDE_LABELS": "Etiketleri Gizle"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Gelen arama",
@@ -96,7 +92,6 @@
       "OPEN": "Devamı",
       "CLOSE": "Kapat",
       "DETAILS": "detaylar",
-      "COPY_ID_SUCCESS": "Conversation ID copied to clipboard",
       "SNOOZED_UNTIL": "Susturulacak kadar ertelendi",
       "SNOOZED_UNTIL_TOMORROW": "yarına ertelendi",
       "SNOOZED_UNTIL_NEXT_WEEK": "Önümüzdeki haftaya ertelendi",
@@ -199,7 +194,7 @@
       "MESSAGING_RESTRICTED_WHATSAPP": "You can only reply using a template message due to 24-hour message window restriction",
       "MESSAGING_RESTRICTED_API": "You can only reply using a template message due to message window restriction",
       "MESSAGE_SIGNATURE_NOT_CONFIGURED": "Mesaj imzası yapılandırılmamış, lütfen profil ayarlarında yapılandırın.",
-      "COPILOT_MSG_INPUT": "Copilot için ek komutlar verin veya başka bir şey sorun... Takip için gönder tuşuna basın",
+      "COPILOT_MSG_INPUT": "Give copilot additional prompts, or ask anything else... Press enter to send follow-up",
       "CLICK_HERE": "Güncellemek için tıklayın",
       "WHATSAPP_TEMPLATES": "WhatsApp Şablonları"
     },
@@ -216,12 +211,10 @@
       "TIP_AUDIORECORDER_ICON": "Ses kaydet",
       "TIP_AUDIORECORDER_PERMISSION": "Mikrofon erişimine izin ver",
       "TIP_AUDIORECORDER_ERROR": "Mikrofon açılamadı",
-      "AUDIO_CONVERSION_FAILED": "Audio conversion failed. Please try again.",
       "DRAG_DROP": "Eklemek için buraya sürükleyip bırakın",
-      "IMAGE_UPLOAD_SUCCESS": "Resim başarıyla yüklendi",
       "START_AUDIO_RECORDING": "Ses kaydına başla",
       "STOP_AUDIO_RECORDING": "Ses kaydını durdur",
-      "COPILOT_THINKING": "Copilot düşünüyor",
+      "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
         "TO": "TO",
         "ADD_BCC": "Bcc ekle",
@@ -289,25 +282,6 @@
         "MESSAGE": "Bu eylemi geri alamazsınız",
         "DELETE": "Sil",
         "CANCEL": "İptal Et"
-      },
-      "REPORT_MESSAGE": {
-        "LABEL": "Report message",
-        "TITLE": "Report Captain message",
-        "DESCRIPTION": "Found an issue with this AI response? Let us know what went wrong and our team will review it to help improve Captain's accuracy.",
-        "PROBLEM_TYPE": "Problem type",
-        "PROBLEM_TYPE_PLACEHOLDER": "Select a problem type",
-        "DESCRIPTION_LABEL": "Açıklama",
-        "DESCRIPTION_PLACEHOLDER": "Describe the problem in detail",
-        "SUBMIT": "Report",
-        "SUCCESS": "Thanks for reporting. Our team will take a look.",
-        "ERROR": "Could not report this message. Please try again.",
-        "REASONS": {
-          "incorrect_information": "Incorrect information",
-          "inappropriate_response": "Inappropriate response",
-          "incomplete_response": "Incomplete response",
-          "outdated_information": "Outdated information",
-          "other": "Other"
-        }
       }
     },
     "SIDEBAR": {
@@ -322,11 +296,7 @@
       "HANDLED_IN_ANOTHER_TAB": "Being handled in another tab",
       "REJECT_CALL": "Reject",
       "JOIN_CALL": "Join call",
-      "END_CALL": "End call",
-      "MUTE": "Mute mic",
-      "UNMUTE": "Unmute mic",
-      "VIEW_CHAT_HISTORY": "View chat history",
-      "GO_TO_CONVERSATION": "Go to conversation thread"
+      "END_CALL": "End call"
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -364,20 +334,7 @@
       "PREVIOUS_CONVERSATION": "Önceki Konuşmalar",
       "MACROS": "Kısayollar",
       "LINEAR_ISSUES": "Bağlantılı Linear Sorunları",
-      "SHOPIFY_ORDERS": "Shopify Orders",
-      "SHARED_FILES": "Attachments"
-    },
-    "SHARED_FILES": {
-      "EMPTY": "No attachments yet",
-      "DOWNLOAD": "Download file",
-      "DOWNLOAD_ERROR": "Could not download the file. Please try again.",
-      "MEDIA_HEADING": "Medya",
-      "FILES_HEADING": "Files",
-      "VIEW_ALL": "Tümünü Görüntüle",
-      "SHOW_LESS": "Show less",
-      "MORE_COUNT": "+{count}",
-      "UNTITLED_FILE": "Untitled file",
-      "JUMP_TO_MESSAGE": "Jump to message"
+      "SHOPIFY_ORDERS": "Shopify Orders"
     },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",

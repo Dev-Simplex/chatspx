@@ -81,7 +81,7 @@ const formData = computed(() => ({
       ...(selectedPolicy.value?.exclusionRules?.excludedLabels || []),
     ],
     excludeOlderThanHours:
-      selectedPolicy.value?.exclusionRules?.excludeOlderThanHours ?? null,
+      selectedPolicy.value?.exclusionRules?.excludeOlderThanHours || 10,
   },
   inboxCapacityLimits:
     selectedPolicy.value?.inboxCapacityLimits?.map(limit => ({

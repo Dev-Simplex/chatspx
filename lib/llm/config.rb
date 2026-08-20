@@ -22,7 +22,6 @@ module Llm::Config
     end
 
     def with_api_key(api_key, api_base: nil)
-      initialize!
       context = RubyLLM.context do |config|
         config.openai_api_key = api_key
         config.openai_api_base = api_base
@@ -54,7 +53,6 @@ module Llm::Config
         config.openai_api_key = system_api_key if system_api_key.present?
         config.openai_api_base = openai_endpoint.chomp('/') if openai_endpoint.present?
         config.anthropic_api_key = system_anthropic_key if system_anthropic_key.present?
-        config.model_registry_file = Rails.root.join('config/llm_models.json').to_s
         config.logger = Rails.logger
       end
     end

@@ -4,13 +4,12 @@ import { computed } from 'vue';
 import MessageMeta from '../MessageMeta.vue';
 import ReplyPreview from './ReplyPreview.vue';
 import GroupAuthorName from './GroupAuthorName.vue';
-import CaptainGenerationDetails from '../CaptainGenerationDetails.vue';
 
 import { emitter } from 'shared/helpers/mitt';
 import { useMessageContext } from '../provider.js';
 
 import { BUS_EVENTS } from 'shared/constants/busEvents';
-import { MESSAGE_VARIANTS, ORIENTATION, SENDER_TYPES } from '../constants';
+import { MESSAGE_VARIANTS, ORIENTATION } from '../constants';
 
 const props = defineProps({
   hideMeta: { type: Boolean, default: false },
@@ -23,31 +22,12 @@ const {
   shouldGroupWithNext,
   groupAuthor,
   groupWithPrevious,
-  id,
-  sender,
-  senderType,
 } = useMessageContext();
 
 // Grupo: o nome abre o bloco (padrão WhatsApp). `groupAuthor` só existe em conversa de
 // grupo com mensagem recebida — em 1:1 é sempre null e nada aqui muda.
 const shouldShowGroupAuthor = computed(
   () => !!groupAuthor?.value && !groupWithPrevious?.value
-);
-
-const isCaptainMessage = computed(
-  () =>
-    (sender?.value?.type ?? senderType?.value) ===
-    SENDER_TYPES.CAPTAIN_ASSISTANT
-);
-
-const metaColorClass = computed(() =>
-  variant.value === MESSAGE_VARIANTS.PRIVATE
-    ? 'text-n-amber-12/50'
-    : 'text-n-slate-11'
-);
-
-const emailMetaClass = computed(() =>
-  variant.value === MESSAGE_VARIANTS.EMAIL ? 'px-3 pb-3' : ''
 );
 
 const varaintBaseMap = {
@@ -112,7 +92,7 @@ const shouldShowMeta = computed(
 
 <template>
   <div
-    class="text-sm min-w-0"
+    class="text-sm"
     :class="[
       messageClass,
       {
@@ -129,23 +109,16 @@ const shouldShowMeta = computed(
       <ReplyPreview :in-reply-to="inReplyTo" />
     </div>
     <slot />
-    <template v-if="shouldShowMeta">
-      <CaptainGenerationDetails
-        v-if="isCaptainMessage"
-        :message-id="id"
-        class="mt-2"
-      >
-        <template #meta>
-          <MessageMeta
-            :class="[flexOrientationClass, emailMetaClass, metaColorClass]"
-          />
-        </template>
-      </CaptainGenerationDetails>
-      <MessageMeta
-        v-else
-        :class="[flexOrientationClass, emailMetaClass, metaColorClass]"
-        class="mt-2"
-      />
-    </template>
+    <MessageMeta
+      v-if="shouldShowMeta"
+      :class="[
+        flexOrientationClass,
+        variant === MESSAGE_VARIANTS.EMAIL ? 'px-3 pb-3' : '',
+        [MESSAGE_VARIANTS.PRIVATE, MESSAGE_VARIANTS.SCHEDULED].includes(variant)
+          ? 'text-n-amber-12/50'
+          : 'text-n-slate-11',
+      ]"
+      class="mt-2"
+    />
   </div>
 </template>

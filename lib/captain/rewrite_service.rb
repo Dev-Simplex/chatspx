@@ -60,7 +60,7 @@ class Captain::RewriteService < Captain::BaseTaskService
   def call_llm_with_prompt(system_content, user_content = nil)
     sanitized_user = Captain::PiiSanitizer.sanitize(user_content || content)
     make_api_call(
-      feature: 'editor',
+      model: GPT_MODEL,
       messages: [
         { role: 'system', content: system_content },
         { role: 'user', content: sanitized_user }
@@ -79,9 +79,5 @@ class Captain::RewriteService < Captain::BaseTaskService
 
   def event_name
     operation
-  end
-
-  def use_account_openai_hook?
-    true
   end
 end

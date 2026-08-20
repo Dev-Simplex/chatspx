@@ -2,23 +2,19 @@ import {
   DuplicateContactException,
   ExceptionWithMessage,
 } from 'shared/helpers/CustomErrors';
+import types from '../../mutation-types';
+import ContactAPI from '../../../api/contacts';
 import snakecaseKeys from 'snakecase-keys';
 import AccountActionsAPI from '../../../api/accountActions';
-import ContactAPI from '../../../api/contacts';
 import AnalyticsHelper from '../../../helper/AnalyticsHelper';
 import { CONTACTS_EVENTS } from '../../../helper/AnalyticsHelper/events';
-import types from '../../mutation-types';
 
 const buildContactFormData = contactParams => {
   const formData = new FormData();
   const { additional_attributes = {}, ...contactProperties } = contactParams;
   Object.keys(contactProperties).forEach(key => {
-    const value = contactProperties[key];
-    const shouldAppendBlankCompanyId =
-      key === 'company_id' && value !== undefined;
-
-    if (value || shouldAppendBlankCompanyId) {
-      formData.append(key, value ?? '');
+    if (contactProperties[key]) {
+      formData.append(key, contactProperties[key]);
     }
   });
   const { social_profiles, ...additionalAttributesProperties } =
@@ -44,9 +40,7 @@ export const handleContactOperationErrors = error => {
 
   if (error.response?.status === 422) {
     if (responseAttributes) {
-      const exception = new DuplicateContactException(responseAttributes);
-      exception.message = responseMessage || exception.message;
-      throw exception;
+      throw new DuplicateContactException(responseAttributes);
     }
     if (responseMessage) {
       throw new ExceptionWithMessage(responseMessage);
@@ -124,19 +118,6 @@ export const actions = {
       commit(types.SET_CONTACT_UI_FLAG, {
         isFetchingItem: false,
       });
-    }
-  },
-
-  fetchAttachments: async ({ commit }, id) => {
-    commit(types.SET_CONTACT_UI_FLAG, { isFetchingAttachments: true });
-    try {
-      const response = await ContactAPI.getAttachments(id);
-      commit(types.SET_CONTACT_ATTACHMENTS, {
-        id,
-        data: response.data.payload,
-      });
-    } finally {
-      commit(types.SET_CONTACT_UI_FLAG, { isFetchingAttachments: false });
     }
   },
 

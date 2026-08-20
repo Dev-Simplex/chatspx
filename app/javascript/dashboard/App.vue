@@ -4,7 +4,6 @@ import LoadingState from './components/widgets/LoadingState.vue';
 import NetworkNotification from './components/NetworkNotification.vue';
 import UpdateBanner from './components/app/UpdateBanner.vue';
 import WahaConnectionsBanner from './components/app/WahaConnectionsBanner.vue';
-import StatusBanner from './components/app/StatusBanner.vue';
 import PaymentPendingBanner from './components/app/PaymentPendingBanner.vue';
 import PendingEmailVerificationBanner from './components/app/PendingEmailVerificationBanner.vue';
 import vueActionCable from './helper/actionCable';
@@ -46,7 +45,6 @@ export default {
     UpdateBanner,
     AppVersionBanner,
     WahaConnectionsBanner,
-    StatusBanner,
     PaymentPendingBanner,
     WootSnackbarBox,
     PendingEmailVerificationBanner,
@@ -92,6 +90,7 @@ export default {
       isRTL: 'accounts/isRTL',
       currentUser: 'getCurrentUser',
       authUIFlags: 'getAuthUIFlags',
+      accountUIFlags: 'accounts/getUIFlags',
     }),
     hideOnOnboardingView() {
       return !isOnOnboardingView(this.$route);
@@ -142,9 +141,7 @@ export default {
       mql.onchange = e => setColorTheme(e.matches);
     },
     setLocale(locale) {
-      if (locale) {
-        this.$root.$i18n.locale = locale;
-      }
+      this.$root.$i18n.locale = locale;
     },
     async initializeAccount() {
       if (this.reconnectService) {
@@ -160,13 +157,12 @@ export default {
       this.$store.dispatch('setActiveAccount', {
         accountId: this.currentAccountId,
       });
-      const account = this.getAccount(this.currentAccountId);
       const {
         locale,
         latest_chatwoot_version: latestChatwootVersion,
         maintenance_banner: maintenanceBanner,
         update_banner: updateBanner,
-      } = account;
+      } = this.getAccount(this.currentAccountId);
       const { pubsub_token: pubsubToken } = this.currentUser || {};
       // If user locale is set, use it; otherwise use account locale
       this.setLocale(this.uiSettings?.locale || locale);
@@ -191,7 +187,7 @@ export default {
 
 <template>
   <div
-    v-if="!authUIFlags.isFetching"
+    v-if="!authUIFlags.isFetching && !accountUIFlags.isFetchingItem"
     id="app"
     class="flex flex-col w-full h-screen min-h-0 bg-n-background"
     :dir="isRTL ? 'rtl' : 'ltr'"
@@ -210,7 +206,6 @@ export default {
         :maintenance-banner="maintenanceBanner"
         :update-banner="updateBanner"
       />
-      <StatusBanner />
       <template v-if="currentAccountId">
         <WahaConnectionsBanner />
         <PendingEmailVerificationBanner v-if="hideOnOnboardingView" />

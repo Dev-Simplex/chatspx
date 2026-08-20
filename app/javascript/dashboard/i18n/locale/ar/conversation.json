@@ -44,8 +44,6 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "يمكنك فقط الرد على هذه المحادثة باستخدام رسالة قالب بسبب",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "قيد نافذة الـ 24 ساعة",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "This Instagram account was migrated to the new Instagram channel inbox. All new messages will show up there. You won’t be able to send messages from this conversation anymore.",
-    "INSTAGRAM_RESTRICTION_BANNER": "Instagram is currently restricted. Some messages or actions may be delayed or unavailable while we restore full support.",
-    "INSTAGRAM_RESTRICTION_STATUS_LINK": "View status update",
     "REPLYING_TO": "أنت ترد على:",
     "REMOVE_SELECTION": "إزالة التحديد",
     "DOWNLOAD": "تحميل",
@@ -64,7 +62,6 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "هذه الرسالة غير مدعومة، يمكنك مشاهدة هذه الرسالة على تطبيق فيسبوك (Messenger).",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "هذه الرسالة غير مدعومة، يمكنك عرض هذه الرسالة على تطبيق Instagram.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "هذه الرسالة غير مدعومة. يمكنك مشاهدة هذه الرسالة على تطبيق TikTok.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "This message is unsupported. You can view this message on the WhatsApp app.",
     "SUCCESS_DELETE_MESSAGE": "تم حذف الرسالة بنجاح",
     "FAIL_DELETE_MESSSAGE": "تعذر حذف الرسالة! حاول مرة أخرى",
     "NO_RESPONSE": "لا توجد استجابة",
@@ -74,8 +71,7 @@
     "REPLY_MESSAGE_NOT_FOUND": "الرسالة غير متوفرة",
     "CARD": {
       "SHOW_LABELS": "إظهار السمات",
-      "HIDE_LABELS": "إخفاء السمات",
-      "LABELS_COUNT": "{count} علامة"
+      "HIDE_LABELS": "إخفاء السمات"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Incoming call",
@@ -96,7 +92,6 @@
       "OPEN": "المزيد",
       "CLOSE": "أغلق",
       "DETAILS": "التفاصيل",
-      "COPY_ID_SUCCESS": "Conversation ID copied to clipboard",
       "SNOOZED_UNTIL": "غفوة حتى",
       "SNOOZED_UNTIL_TOMORROW": "تأجيل حتى الغد",
       "SNOOZED_UNTIL_NEXT_WEEK": "تأجيل حتى الأسبوع القادم",
@@ -216,9 +211,7 @@
       "TIP_AUDIORECORDER_ICON": "تسجيل الصوت",
       "TIP_AUDIORECORDER_PERMISSION": "السماح بالوصول إلى الصوت",
       "TIP_AUDIORECORDER_ERROR": "تعذر فتح الصوت",
-      "AUDIO_CONVERSION_FAILED": "Audio conversion failed. Please try again.",
       "DRAG_DROP": "اسحب و أسقط هنا للإرفاق",
-      "IMAGE_UPLOAD_SUCCESS": "تم رفع الصورة بنجاح",
       "START_AUDIO_RECORDING": "بدء التسجيل الصوتي",
       "STOP_AUDIO_RECORDING": "إيقاف التسجيل الصوتي",
       "COPILOT_THINKING": "Copilot يفكر",
@@ -289,25 +282,6 @@
         "MESSAGE": "لا يمكنك التراجع عن هذا الإجراء",
         "DELETE": "حذف",
         "CANCEL": "إلغاء"
-      },
-      "REPORT_MESSAGE": {
-        "LABEL": "Report message",
-        "TITLE": "Report Captain message",
-        "DESCRIPTION": "Found an issue with this AI response? Let us know what went wrong and our team will review it to help improve Captain's accuracy.",
-        "PROBLEM_TYPE": "Problem type",
-        "PROBLEM_TYPE_PLACEHOLDER": "Select a problem type",
-        "DESCRIPTION_LABEL": "الوصف",
-        "DESCRIPTION_PLACEHOLDER": "Describe the problem in detail",
-        "SUBMIT": "Report",
-        "SUCCESS": "Thanks for reporting. Our team will take a look.",
-        "ERROR": "Could not report this message. Please try again.",
-        "REASONS": {
-          "incorrect_information": "Incorrect information",
-          "inappropriate_response": "Inappropriate response",
-          "incomplete_response": "Incomplete response",
-          "outdated_information": "Outdated information",
-          "other": "Other"
-        }
       }
     },
     "SIDEBAR": {
@@ -322,11 +296,7 @@
       "HANDLED_IN_ANOTHER_TAB": "يتم التعامل معها في علامة تبويب أخرى",
       "REJECT_CALL": "رفض",
       "JOIN_CALL": "انضم إلى المكالمة",
-      "END_CALL": "إنهاء المكالمة",
-      "MUTE": "Mute mic",
-      "UNMUTE": "Unmute mic",
-      "VIEW_CHAT_HISTORY": "View chat history",
-      "GO_TO_CONVERSATION": "Go to conversation thread"
+      "END_CALL": "إنهاء المكالمة"
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -364,20 +334,7 @@
       "PREVIOUS_CONVERSATION": "المحادثات السابقة",
       "MACROS": "ماكروس",
       "LINEAR_ISSUES": "Linked Linear Issues",
-      "SHOPIFY_ORDERS": "Shopify Orders",
-      "SHARED_FILES": "Attachments"
-    },
-    "SHARED_FILES": {
-      "EMPTY": "No attachments yet",
-      "DOWNLOAD": "Download file",
-      "DOWNLOAD_ERROR": "Could not download the file. Please try again.",
-      "MEDIA_HEADING": "Media",
-      "FILES_HEADING": "Files",
-      "VIEW_ALL": "عرض الكل",
-      "SHOW_LESS": "Show less",
-      "MORE_COUNT": "+{count}",
-      "UNTITLED_FILE": "Untitled file",
-      "JUMP_TO_MESSAGE": "Jump to message"
+      "SHOPIFY_ORDERS": "Shopify Orders"
     },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",

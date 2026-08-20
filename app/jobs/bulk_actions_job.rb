@@ -15,7 +15,6 @@ class BulkActionsJob < ApplicationJob
     user = User.find_by(id: user_id)
     return unless user
 
-    @user = user
     Current.user = user
     @params = params
     @records = records_to_updated(params[:ids])
@@ -134,8 +133,7 @@ class BulkActionsJob < ApplicationJob
     current_model = @params[:type].camelcase
     return unless MODEL_TYPE.include?(current_model)
 
-    scope = current_model.constantize.where(account_id: @account.id, display_id: ids)
-    permitted_scope = Conversations::PermissionFilterService.new(scope, @user, @account).perform
-    permitted_scope.includes(:inbox, :contact, :team, :assignee, :account)
+    current_model.constantize&.where(account_id: @account.id, display_id: ids)
+                 &.includes(:inbox, :contact, :team, :assignee, :account)
   end
 end

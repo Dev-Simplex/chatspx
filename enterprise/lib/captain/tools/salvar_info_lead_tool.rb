@@ -21,15 +21,15 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
               'Atualiza o que já existir, sem apagar o resto.'
 
   param :status, type: 'string',
-                 desc: 'Status do lead: novo, em_contato, qualificado, esfriado, perdido, nao_qualificado ou convertido.', required: false
+        desc: 'Status do lead: novo, em_contato, qualificado, esfriado, perdido, nao_qualificado ou convertido.', required: false
   param :sobre_cliente, type: 'string',
-                        desc: 'Descrição curta (1 a 2 frases) sobre o cliente: o que procura, perfil e situação.', required: false
+        desc: 'Descrição curta (1 a 2 frases) sobre o cliente: o que procura, perfil e situação.', required: false
   param :precisa_followup, type: 'boolean',
-                           desc: 'true quando a conversa precisa de reabordagem depois (cliente esfriou, pediu pra pensar, sem resposta).', required: false
+        desc: 'true quando a conversa precisa de reabordagem depois (cliente esfriou, pediu pra pensar, sem resposta).', required: false
   param :nome_cliente, type: 'string',
-                       desc: 'Como a pessoa disse que se chama, quando ela informou o nome NESTA conversa. ' \
-                             'Só o que veio da própria pessoa — nunca o nome que aparece no cadastro do contato, ' \
-                             'que costuma ser anotação interna da equipe. Vazio se ela não disse o nome.', required: false
+        desc: 'Como a pessoa disse que se chama, quando ela informou o nome NESTA conversa. ' \
+              'Só o que veio da própria pessoa — nunca o nome que aparece no cadastro do contato, ' \
+              'que costuma ser anotação interna da equipe. Vazio se ela não disse o nome.', required: false
   param :prioridade,
         type: 'string',
         desc: 'Chance de aprovação de crédito deste lead: quente quando ele declarou renda comprovável e não ' \

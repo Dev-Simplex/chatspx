@@ -19,7 +19,6 @@ const DEFAULT_ROUTE = 'portals_articles_index';
 const CATEGORY_ROUTE = 'portals_categories_index';
 const CATEGORY_SUB_ROUTES = [
   'portals_categories_articles_index',
-  'portals_categories_articles_new',
   'portals_categories_articles_edit',
 ];
 

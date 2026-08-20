@@ -59,10 +59,7 @@ module Enterprise::AutoAssignment::AssignmentService
   def unassigned_conversations(limit)
     scope = inbox.conversations.unassigned.open.where(assignee_agent_bot_id: nil)
 
-    # First apply the assignment policy's age exclusion (defaults to 7 days)
-    scope = apply_age_exclusions(scope, age_exclusion_hours(policy))
-
-    # Then apply the capacity policy's exclusion rules (labels and age)
+    # Apply exclusion rules from capacity policy or assignment policy
     scope = apply_exclusion_rules(scope)
 
     # Apply conversation priority using enum methods if policy exists
@@ -88,5 +85,14 @@ module Enterprise::AutoAssignment::AssignmentService
     return scope if excluded_labels.blank?
 
     scope.tagged_with(excluded_labels, exclude: true, on: :labels)
+  end
+
+  def apply_age_exclusions(scope, hours_threshold)
+    return scope if hours_threshold.blank?
+
+    hours = hours_threshold.to_i
+    return scope unless hours.positive?
+
+    scope.where('conversations.created_at >= ?', hours.hours.ago)
   end
 end

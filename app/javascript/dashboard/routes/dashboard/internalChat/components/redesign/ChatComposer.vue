@@ -15,8 +15,8 @@ const props = defineProps({
 
 const emit = defineEmits(['send', 'cancelReply']);
 
-const EmojiPicker = defineAsyncComponent(
-  () => import('shared/components/emoji/EmojiPicker.vue')
+const EmojiInput = defineAsyncComponent(
+  () => import('shared/components/emoji/EmojiInput.vue')
 );
 const AudioRecorder = defineAsyncComponent(
   () => import('dashboard/components/widgets/WootWriter/AudioRecorder.vue')
@@ -67,8 +67,8 @@ const toggleEmoji = () => {
   showEmoji.value = !showEmoji.value;
 };
 
-const onEmojiSelect = ({ value }) => {
-  draft.value += value;
+const onEmojiSelect = emoji => {
+  draft.value += emoji;
   showEmoji.value = false;
   nextTick(() => {
     textareaRef.value?.focus();
@@ -230,7 +230,7 @@ const onEnter = () => {
         <template v-if="showEmoji">
           <div class="fixed inset-0 z-10" @click="showEmoji = false" />
           <div class="absolute z-30 emoji-anchor bottom-full mb-2 left-0">
-            <EmojiPicker class="!static" @select="onEmojiSelect" />
+            <EmojiInput :on-click="onEmojiSelect" />
           </div>
         </template>
       </div>
@@ -280,3 +280,13 @@ const onEnter = () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* O EmojiInput já vem com posição própria (absolute right-0 -top-[95px]).
+   Neutralizamos para o nosso wrapper (.emoji-anchor) mandar: o quadro abre
+   ACIMA do ícone de emoji, alinhado à esquerda, dentro da conversa. */
+.emoji-anchor :deep(.emoji-dialog) {
+  position: static;
+  inset: auto;
+}
+</style>

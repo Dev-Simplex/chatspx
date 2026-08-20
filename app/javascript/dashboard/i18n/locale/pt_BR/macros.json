@@ -49,9 +49,6 @@
         "ERROR_MESSAGE": "Ocorreu um erro ao excluir a macro. Por favor, tente novamente mais tarde"
       }
     },
-    "VIEW": {
-      "TOOLTIP": "Ver macro"
-    },
     "EDIT": {
       "TOOLTIP": "Editar macro",
       "API": {
@@ -69,9 +66,7 @@
         "LABEL": "Visibilidade da Macro",
         "GLOBAL": {
           "LABEL": "Publico",
-          "DESCRIPTION": "Esta macro está disponível publicamente para todos os agentes desta conta.",
-          "CREATE_DISABLED_DESCRIPTION": "Somente administradores podem criar macros públicos.",
-          "EDIT_DISABLED_DESCRIPTION": "Somente administradores podem editar macros públicos."
+          "DESCRIPTION": "Esta macro está disponível publicamente para todos os agentes desta conta."
         },
         "PERSONAL": {
           "LABEL": "Privada",
@@ -99,7 +94,6 @@
       "ASSIGN_AI_AGENT": "Atribuir agente IA",
       "ADD_LABEL": "Adicionar uma Etiqueta",
       "REMOVE_LABEL": "Remover uma Etiqueta",
-      "REMOVE_ASSIGNED_AGENT": "Remove Assigned Agent",
       "REMOVE_ASSIGNED_TEAM": "Remover Time Atribuído",
       "SEND_EMAIL_TRANSCRIPT": "Enviar uma transcrição por e-mail",
       "MUTE_CONVERSATION": "Silenciar Conversa",

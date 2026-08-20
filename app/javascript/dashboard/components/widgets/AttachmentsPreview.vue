@@ -19,11 +19,11 @@ const emit = defineEmits(['removeAttachment', 'retryUpload']);
 const { t } = useI18n();
 
 const nonRecordedAudioAttachments = computed(() => {
-  return props.attachments.filter(attachment => !attachment?.isVoiceMessage);
+  return props.attachments.filter(attachment => !attachment?.isRecordedAudio);
 });
 
 const recordedAudioAttachments = computed(() =>
-  props.attachments.filter(attachment => attachment.isVoiceMessage)
+  props.attachments.filter(attachment => attachment.isRecordedAudio)
 );
 
 const onRemoveAttachment = itemIndex => {

@@ -261,10 +261,7 @@ const MIN_SEARCH_LENGTH = 2;
 export const createContactSearcher = () => {
   let controller = null;
 
-  return async (
-    query,
-    { skipMinLength = false, reachableOnly = true } = {}
-  ) => {
+  return async (query, { skipMinLength = false } = {}) => {
     const trimmed = typeof query === 'string' ? query.trim() : '';
 
     controller?.abort();
@@ -281,8 +278,6 @@ export const createContactSearcher = () => {
       } = await ContactAPI.search(trimmed, 1, 'name', '', { signal });
 
       const camelCasedPayload = camelcaseKeys(payload, { deep: true });
-      if (!reachableOnly) return camelCasedPayload || [];
-
       // Filter contacts that have either phone_number or email
       const filteredPayload = camelCasedPayload?.filter(
         contact => contact.phoneNumber || contact.email

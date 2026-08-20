@@ -7,11 +7,6 @@ import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import AddCannedModal from 'dashboard/routes/dashboard/settings/canned/AddCanned.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
-// União obrigatória: o corpo já mesclado usa os TRÊS símbolos —
-// `parseAPIErrorResponse` na linha do `useAlert`, e `emitter`/`BUS_EVENTS` no
-// `emit(OPEN_EVAL_MODAL)`. Ficar com um dos lados deixaria o outro indefinido em
-// tempo de execução, e só na hora em que o agente clicasse no item do menu.
-import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { conversationUrl, frontendURL } from '../../../helper/URLHelper';
@@ -22,7 +17,6 @@ import {
 import MenuItem from '../../../components/widgets/conversation/contextMenu/menuItem.vue';
 import { useTrack } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
-import ReportCaptainMessageDialog from './ReportCaptainMessageDialog.vue';
 
 export default {
   components: {
@@ -30,7 +24,6 @@ export default {
     MenuItem,
     ContextMenu,
     NextButton,
-    ReportCaptainMessageDialog,
   },
   props: {
     message: {
@@ -132,20 +125,16 @@ export default {
     handleClose(e) {
       this.$emit('close', e);
     },
-    async handleTranslate() {
+    handleTranslate() {
       const { locale: accountLocale } = this.getAccount(this.currentAccountId);
       const agentLocale = this.getUISettings?.locale;
       const targetLanguage = agentLocale || accountLocale || 'en';
-      try {
-        await this.$store.dispatch('translateMessage', {
-          conversationId: this.conversationId,
-          messageId: this.messageId,
-          targetLanguage,
-        });
-        useTrack(CONVERSATION_EVENTS.TRANSLATE_A_MESSAGE);
-      } catch (error) {
-        useAlert(parseAPIErrorResponse(error));
-      }
+      this.$store.dispatch('translateMessage', {
+        conversationId: this.conversationId,
+        messageId: this.messageId,
+        targetLanguage,
+      });
+      useTrack(CONVERSATION_EVENTS.TRANSLATE_A_MESSAGE);
       this.handleClose();
     },
     handleReplyTo() {
@@ -196,10 +185,6 @@ export default {
     },
     closeDeleteModal() {
       this.showDeleteModal = false;
-    },
-    openReportDialog() {
-      this.handleClose();
-      this.$refs.reportDialog?.open();
     },
   },
 };
@@ -363,16 +348,6 @@ export default {
             class="opacity-50 cursor-not-allowed pointer-events-none"
           />
         </div>
-        <hr v-if="enabledOptions['report']" />
-        <MenuItem
-          v-if="enabledOptions['report']"
-          :option="{
-            icon: 'warning',
-            label: $t('CONVERSATION.CONTEXT_MENU.REPORT_MESSAGE.LABEL'),
-          }"
-          variant="icon"
-          @click.stop="openReportDialog"
-        />
         <hr v-if="enabledOptions['delete']" />
         <MenuItem
           v-if="enabledOptions['delete']"
@@ -385,11 +360,6 @@ export default {
         />
       </div>
     </ContextMenu>
-    <ReportCaptainMessageDialog
-      v-if="enabledOptions['report']"
-      ref="reportDialog"
-      :message-id="messageId"
-    />
   </div>
 </template>
 
@@ -407,11 +377,13 @@ export default {
 }
 
 .context-menu--delete-modal {
-  :deep(.modal-container) {
-    @apply max-w-[30rem];
+  ::v-deep {
+    .modal-container {
+      @apply max-w-[30rem];
 
-    h2 {
-      @apply font-medium text-base;
+      h2 {
+        @apply font-medium text-base;
+      }
     }
   }
 }

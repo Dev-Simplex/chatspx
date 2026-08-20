@@ -14,10 +14,6 @@ class EnterpriseAccountAPI extends ApiClient {
     return axios.post(`${this.baseUrl()}/subscription`);
   }
 
-  selectBillingCurrency(currency) {
-    return axios.post(`${this.url}select_billing_currency`, { currency });
-  }
-
   getLimits() {
     return axios.get(`${this.baseUrl()}/limits`);
   }
@@ -30,11 +26,6 @@ class EnterpriseAccountAPI extends ApiClient {
 
   createTopupCheckout(credits) {
     return axios.post(`${this.baseUrl()}/topup_checkout`, { credits });
-  }
-
-  // Topup packages for the account's billing currency.
-  getTopupOptions() {
-    return axios.get(`${this.url}topup_options`);
   }
 }
 

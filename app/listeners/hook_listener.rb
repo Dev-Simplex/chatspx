@@ -43,7 +43,7 @@ class HookListener < BaseListener
       next if hook.inbox.present? && hook.inbox != message.inbox
       next unless supported_hook_event?(hook, event.name)
 
-      HookJob.perform_later(hook.id, event.name, message_id: message.id, previous_changes: event.data[:previous_changes])
+      HookJob.perform_later(hook.id, event.name, message_id: message.id)
     end
   end
 
@@ -68,11 +68,10 @@ class HookListener < BaseListener
     return false if hook.disabled?
 
     supported_events_map = {
-      'slack' => ['message.created', 'message.updated'],
+      'slack' => ['message.created'],
       'dialogflow' => ['message.created', 'message.updated'],
       'google_translate' => ['message.created'],
-      'leadsquared' => ['contact.updated', 'conversation.created', 'conversation.resolved'],
-      'linear' => ['message.created']
+      'leadsquared' => ['contact.updated', 'conversation.created', 'conversation.resolved']
     }
 
     return false unless supported_events_map.key?(hook.app_id)

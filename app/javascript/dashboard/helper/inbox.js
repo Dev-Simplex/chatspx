@@ -14,24 +14,6 @@ export const INBOX_TYPES = {
   VOICE: 'Channel::Voice',
 };
 
-// Short channel-type slugs used to identify a channel without leaning on its
-// Channel:: class name — e.g. onboarding channel cards and OAuth provider maps.
-export const CHANNEL_TYPES = {
-  WEBSITE: 'website',
-  WHATSAPP: 'whatsapp',
-  FACEBOOK: 'facebook',
-  INSTAGRAM: 'instagram',
-  TIKTOK: 'tiktok',
-  TELEGRAM: 'telegram',
-  LINE: 'line',
-  GMAIL: 'gmail',
-  OUTLOOK: 'outlook',
-  SMS: 'sms',
-  API: 'api',
-  VOICE: 'voice',
-  EMAIL: 'email',
-};
-
 export const TWILIO_CHANNEL_MEDIUM = {
   WHATSAPP: 'whatsapp',
   SMS: 'sms',
@@ -63,8 +45,8 @@ const INBOX_ICON_MAP_LINE = {
   [INBOX_TYPES.TELEGRAM]: 'i-woot-telegram',
   [INBOX_TYPES.LINE]: 'i-woot-line',
   [INBOX_TYPES.INSTAGRAM]: 'i-woot-instagram',
-  [INBOX_TYPES.TIKTOK]: 'i-woot-tiktok',
   [INBOX_TYPES.VOICE]: 'i-woot-voice',
+  [INBOX_TYPES.TIKTOK]: 'i-woot-tiktok',
 };
 
 const DEFAULT_ICON_LINE = 'i-ri-chat-1-line';

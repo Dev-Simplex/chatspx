@@ -62,8 +62,8 @@ if episodios.empty?
   exit
 end
 conv_ids = episodios.map(&:conversation_id).uniq
-puts "episódios fechados: #{Captain::ConversationEpisode.where(account_id: ACCOUNT_ID).where.not(ended_at: nil).count} " \
-     "— analisando os #{episodios.size} mais recentes (#{conv_ids.size} conversas)"
+puts "episódios fechados: #{Captain::ConversationEpisode.where(account_id: ACCOUNT_ID).where.not(ended_at: nil).count}" \
+     " — analisando os #{episodios.size} mais recentes (#{conv_ids.size} conversas)"
 
 # ── SANIDADE DOS SINAIS (é aqui que se descobre detector cego) ──────────────
 puts "\n#{'─' * 78}\nSANIDADE DOS SINAIS"
@@ -81,8 +81,8 @@ end
 
 logs = Captain::AssistantLog.where(conversation_id: conv_ids).group(:event_type).count
 puts "  AssistantLog nestas conversas: #{logs.sort_by { |_, v| -v }.map { |k, v| "#{k} #{v}" }.join(' · ')}"
-puts '    (event_type "handoff" existe em EVENT_TYPES mas NADA no repo o escreve — ' \
-     'log_tool_usage só loga no Rails.logger)'
+puts '    (event_type "handoff" existe em EVENT_TYPES mas NADA no repo o escreve —' \
+     ' log_tool_usage só loga no Rails.logger)'
 
 com_assignee = Conversation.where(id: conv_ids).where.not(assignee_id: nil).count
 puts "  conversas com assignee humano: #{com_assignee} de #{conv_ids.size}"
@@ -133,7 +133,7 @@ episodios.each do |ep|
   ia_msg_ids.concat(respostas_ia.map { |m| m[:id] })
 
   degraus = {}
-  registrar = ->(degrau, quem) { degraus[degrau] ||= quem if degrau }
+  registrar = lambda { |degrau, quem| degraus[degrau] ||= quem if degrau }
 
   registrar.call('respondeu', 'contato') if msgs.any? { |m| m[:tipo].zero? }
 
@@ -180,7 +180,7 @@ DEGRAUS.each do |degrau|
   autoria = atingiram.group_by { |r| r[:degraus][degrau] }.map { |q, l| "#{q} #{l.size}" }
                      .sort_by { |s| -s.split.last.to_i }.join(' · ')
   puts format('    %<d>-12s %<n>5d  %<p>5.1f%%   (%<a>s)', d: degrau, n: atingiram.size,
-                                                           p: 100.0 * atingiram.size / analisados, a: autoria)
+              p: 100.0 * atingiram.size / analisados, a: autoria)
 end
 
 com_ia = resultados.count { |r| r[:assumido_com_ia] }
@@ -213,8 +213,8 @@ end
 
 converteu = ->(r) { r[:degraus].key?('qualificado') || r[:assumido_com_ia] }
 puts "\n#{'─' * 78}\nCONDUTA × DESFECHO (corte B) — correlação, NÃO causalidade"
-puts "  cobertura do F2: #{analisados - sem_tool_call} de #{analisados} episódios com tool call " \
-     '— a média de tools vale só sobre esse subconjunto (n=)'
+puts "  cobertura do F2: #{analisados - sem_tool_call} de #{analisados} episódios com tool call" \
+     ' — a média de tools vale só sobre esse subconjunto (n=)'
 puts linha_conduta('converteu', resultados.select(&converteu))
 puts linha_conduta('não converteu', resultados.reject(&converteu))
 

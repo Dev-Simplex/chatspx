@@ -208,21 +208,6 @@ describe('getConditionOptions', () => {
       })
     ).toEqual(testOptions);
   });
-
-  it('returns boolean options for private_note', () => {
-    const booleanOptions = [
-      { id: true, name: 'True' },
-      { id: false, name: 'False' },
-    ];
-
-    expect(
-      helpers.getConditionOptions({
-        booleanFilterOptions: booleanOptions,
-        customAttributes,
-        type: 'private_note',
-      })
-    ).toEqual(booleanOptions);
-  });
 });
 
 describe('getFileName', () => {

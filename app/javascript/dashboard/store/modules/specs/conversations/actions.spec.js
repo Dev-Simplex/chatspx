@@ -96,7 +96,6 @@ describe('#actions', () => {
       expect(commit.mock.calls).toEqual([
         [types.SET_PREVIOUS_CONVERSATIONS, { id: 7, data: [{ id: 20 }] }],
         [types.SET_ALL_MESSAGES_LOADED, 7],
-        [types.CLEAR_CONVERSATION_ACCESS_BLOCKED, 7],
       ]);
     });
 
@@ -128,7 +127,6 @@ describe('#actions', () => {
           },
         ],
         [types.SET_PREVIOUS_CONVERSATIONS, { id: 7, data: [{ id: 21 }] }],
-        [types.CLEAR_CONVERSATION_ACCESS_BLOCKED, 7],
       ]);
     });
   });
@@ -384,27 +382,9 @@ describe('#actions', () => {
       axios.post.mockResolvedValue({
         data: { id: 1, agent_last_seen_at: lastSeen },
       });
-      // RECONCILIAÇÃO — os dois lados são necessários, e a implementação mesclada
-      // prova por quê (`messageReadActions.js:67`): a action agora recebe
-      // `{ commit, dispatch, rootGetters }` (upstream — o `clearMatchingNotification`
-      // usa os dois últimos) E consome `data.explicit` (homologação).
-      //
-      // `explicit` porque estes exemplos cobrem a mecânica de API/mutation, não o
-      // gate: sem dono na conversa, a leitura implícita passou a NÃO limpar o "não
-      // lida". Sem ele, `canClearUnreadMarker` devolve false — estes `rootGetters`
-      // não têm `getConversationById` —, a action SAI antes de chamar a API, e o
-      // exame falharia medindo uma chamada que nunca aconteceu.
-      await actions.markMessagesRead(
-        {
-          commit,
-          dispatch,
-          rootGetters: {
-            'notifications/getNotifications': [],
-            'notifications/getUnreadCount': 0,
-          },
-        },
-        { id: 1, explicit: true }
-      );
+      // `explicit` porque estes exemplos cobrem a mecânica de API/mutation, não o gate:
+      // sem dono na conversa, a leitura implícita passou a NÃO limpar o "não lida".
+      await actions.markMessagesRead({ commit }, { id: 1, explicit: true });
       vi.runAllTimers();
       expect(commit).toHaveBeenCalledTimes(1);
       expect(commit.mock.calls).toEqual([
@@ -461,12 +441,11 @@ describe('#actions', () => {
       });
       await actions.assignAgent(
         { dispatch },
-        { conversationId: 1, agentId: 1, assigneeType: 'AgentBot' }
+        { conversationId: 1, agentId: 1 }
       );
       expect(dispatch).toHaveBeenCalledWith('setCurrentChatAssignee', {
         conversationId: 1,
         assignee: { id: 1, name: 'User' },
-        assigneeType: 'AgentBot',
       });
     });
 
@@ -499,7 +478,6 @@ describe('#actions', () => {
       expect(dispatch).toHaveBeenCalledWith('setCurrentChatAssignee', {
         conversationId: 1,
         assignee: botAssignee,
-        assigneeType: 'AgentBot',
       });
     });
 
@@ -598,7 +576,6 @@ describe('#actions', () => {
       const payload = {
         conversationId: 1,
         assignee: { id: 1, name: 'User' },
-        assigneeType: 'AgentBot',
       };
       await actions.setCurrentChatAssignee({ commit }, payload);
       expect(commit).toHaveBeenCalledTimes(1);
@@ -910,12 +887,8 @@ describe('#addMentions', () => {
           ],
         },
       });
-      await actions.fetchAllAttachments(
-        { commit, state: { attachments: {} } },
-        1
-      );
+      await actions.fetchAllAttachments({ commit }, 1);
       expect(commit.mock.calls).toEqual([
-        [types.SET_ALL_ATTACHMENTS, { id: 1, data: [], meta: null }],
         [
           types.SET_ALL_ATTACHMENTS,
           {
@@ -929,7 +902,6 @@ describe('#addMentions', () => {
                 thumb_url: '',
               },
             ],
-            meta: {},
           },
         ],
       ]);
@@ -985,7 +957,6 @@ describe('#addMentions', () => {
       expect(localCommit.mock.calls).toEqual([
         [types.SET_CURRENT_CHAT_WINDOW, data],
         [types.CLEAR_ALL_MESSAGES_LOADED, 42],
-        [types.CLEAR_NEWER_MESSAGES_FLAG, 42],
         [types.SET_CHAT_DATA_FETCHED, 42],
       ]);
       expect(localDispatch).toHaveBeenCalledWith('fetchPreviousMessages', {
@@ -1009,7 +980,6 @@ describe('#addMentions', () => {
       expect(localCommit.mock.calls).toEqual([
         [types.SET_CURRENT_CHAT_WINDOW, data],
         [types.CLEAR_ALL_MESSAGES_LOADED, 42],
-        [types.CLEAR_NEWER_MESSAGES_FLAG, 42],
       ]);
       expect(localDispatch).not.toHaveBeenCalled();
     });

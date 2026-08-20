@@ -37,10 +37,6 @@ class ConversationApi extends ApiClient {
   clearCopilotHistory(conversationID) {
     return axios.delete(`${this.url}/${conversationID}/copilot_chat`);
   }
-
-  getUnreadCounts() {
-    return axios.get(`${this.url}/unread_counts`);
-  }
 }
 
 export default new ConversationApi();

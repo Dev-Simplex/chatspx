@@ -196,14 +196,9 @@ const closeMobileSidebar = () => {
     <!-- Desktop sidebar -->
     <div
       v-if="slots.sidebar"
-      class="hidden lg:flex flex-col min-w-52 w-full max-w-md border-l border-n-weak bg-n-solid-2"
+      class="hidden lg:block overflow-y-auto justify-end min-w-52 w-full py-6 max-w-md border-l border-n-weak bg-n-solid-2"
     >
-      <div class="shrink-0">
-        <slot name="sidebarHeader" />
-      </div>
-      <div class="flex-1 min-h-0 overflow-y-auto pb-6 pt-3">
-        <slot name="sidebar" />
-      </div>
+      <slot name="sidebar" />
     </div>
 
     <!-- Mobile sidebar container -->
@@ -252,14 +247,9 @@ const closeMobileSidebar = () => {
         <div
           v-if="isContactSidebarOpen"
           id="contact-sidebar-content"
-          class="order-2 w-[85%] sm:w-[50%] flex flex-col bg-n-solid-2 ltr:border-l rtl:border-r border-n-weak shadow-lg"
+          class="order-2 w-[85%] sm:w-[50%] bg-n-solid-2 ltr:border-l rtl:border-r border-n-weak overflow-y-auto py-6 shadow-lg"
         >
-          <div class="shrink-0">
-            <slot name="sidebarHeader" />
-          </div>
-          <div class="flex-1 min-h-0 overflow-y-auto pb-6 pt-3">
-            <slot name="sidebar" />
-          </div>
+          <slot name="sidebar" />
         </div>
       </Transition>
     </div>

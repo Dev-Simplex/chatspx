@@ -122,19 +122,8 @@ export default function useAutomationValues() {
    * @returns {Array} An array of action dropdown values.
    */
   const getActionDropdownValues = type => {
-    let agentsList = agents.value;
-    if (type === 'assign_agent') {
-      agentsList = [
-        {
-          id: 'last_responding_agent',
-          name: t('AUTOMATION.LAST_RESPONDING_AGENT'),
-        },
-        ...agentsList,
-      ];
-    }
-
     return getActionOptions({
-      agents: agentsList,
+      agents: agents.value,
       aiAgents: aiAgents.value,
       labels: labels.value,
       teams: teams.value,

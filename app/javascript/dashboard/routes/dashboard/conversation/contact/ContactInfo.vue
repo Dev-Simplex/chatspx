@@ -1,34 +1,22 @@
 <script>
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
-import {
-  DuplicateContactException,
-  ExceptionWithMessage,
-} from 'shared/helpers/CustomErrors';
 import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useAdmin } from 'dashboard/composables/useAdmin';
+import ContactInfoRow from './ContactInfoRow.vue';
+import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
+import SocialIcons from './SocialIcons.vue';
+import EditContact from './EditContact.vue';
+import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
+import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { stripGroupSuffix } from 'dashboard/helper/whatsappGroupHelper';
-import { emitter } from 'shared/helpers/mitt';
+
 import {
   isAConversationRoute,
   isAInboxViewRoute,
   getConversationDashboardRoute,
 } from '../../../../helper/routeHelpers';
-
-import ContactInfoRow from './ContactInfoRow.vue';
-import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
-import SocialIcons from './SocialIcons.vue';
-import EditContact from './EditContact.vue';
-// União dos dois lados, com dois cuidados: `VoiceCallButton` aparecia nos DOIS
-// (entra uma vez só) e `BUS_EVENTS` já está importado acima, fora deste bloco —
-// repeti-lo aqui seria import duplicado — assim como `stripGroupSuffix` e o
-// bloco de `routeHelpers`, que o merge automático já havia trazido acima.
-import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
-import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
-import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
-import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
-import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
 
 export default {
   components: {
@@ -36,9 +24,6 @@ export default {
     EditContact,
     Thumbnail,
     SocialIcons,
-    ComposeConversation,
-    ContactMergeModal,
-    InlineInput,
     ExportConversationModal,
     VoiceCallButton,
   },
@@ -55,25 +40,21 @@ export default {
   emits: ['panelClose'],
   setup() {
     const { isAdmin } = useAdmin();
-    return { isAdmin };
+    return {
+      isAdmin,
+    };
   },
   data() {
     return {
       showEditModal: false,
       showDeleteModal: false,
-      // Do lado da homologação, junto com o ExportConversationModal abaixo. O
-      // merge automático ficou com este `data()` do nosso lado e a variável
-      // sumiu, deixando o template a referenciar algo que não existe.
-      // ⚠️ Nem no lado deles há quem a ponha em `true` — o modal existe e o
-      // gatilho não. Preservado como estava; não inventei o acionador.
       showExportModal: false,
-      isEditingName: false,
-      editName: '',
     };
   },
   computed: {
     ...mapGetters({
       uiFlags: 'contacts/getUIFlags',
+      currentChat: 'getSelectedChat',
     }),
     contactProfileLink() {
       return `/app/accounts/${this.$route.params.accountId}/contacts/${this.contact.id}`;
@@ -81,12 +62,16 @@ export default {
     additionalAttributes() {
       return this.contact.additional_attributes || {};
     },
+    // O contato de uma conversa de grupo é o próprio grupo. Ele carrega dois dados
+    // que não servem ao agente: o sufixo "(GROUP)"/"(Grupo)" que integrações grudam
+    // no nome, e o JID técnico no identificador. Ambos são tratados só na exibição.
     isWhatsappGroup() {
       return String(this.contact.identifier || '').endsWith('@g.us');
     },
     displayName() {
       return stripGroupSuffix(this.contact.name || '');
     },
+    // Identificador técnico não é informação de atendimento: em grupo, escondemos.
     visibleIdentifier() {
       return this.isWhatsappGroup ? '' : this.contact.identifier;
     },
@@ -96,11 +81,12 @@ export default {
         city = '',
         country_code: countryCode,
       } = this.additionalAttributes;
-      const cityAndCountry = [city, country].filter(Boolean).join(', ');
+      const cityAndCountry = [city, country].filter(item => !!item).join(', ');
 
-      return cityAndCountry
-        ? this.findCountryFlag(countryCode, cityAndCountry)
-        : '';
+      if (!cityAndCountry) {
+        return '';
+      }
+      return this.findCountryFlag(countryCode, cityAndCountry);
     },
     socialProfiles() {
       const {
@@ -109,12 +95,16 @@ export default {
         social_telegram_user_name: telegramUsername,
       } = this.additionalAttributes;
 
+      const telegram = socialProfiles?.telegram || telegramUsername || '';
+      const twitter = socialProfiles?.twitter || twitterScreenName || '';
+
       return {
         ...(socialProfiles || {}),
-        twitter: socialProfiles?.twitter || twitterScreenName || '',
-        telegram: socialProfiles?.telegram || telegramUsername || '',
+        twitter,
+        telegram,
       };
     },
+    // Delete Modal
     confirmDeleteMessage() {
       return ` ${this.contact.name}?`;
     },
@@ -132,19 +122,6 @@ export default {
     toggleEditModal() {
       this.showEditModal = !this.showEditModal;
     },
-    // Restaurado: o merge automático ficou com o bloco `methods` do outro lado e
-    // levou este junto. Sem ele, `ref="mergeModal"` fica sem quem o abra — foi o
-    // eslint ("'mergeModal' is defined as ref, but never used") que denunciou.
-    openMergeModal() {
-      this.$refs.mergeModal?.open();
-    },
-    openComposeConversationModal(toggle) {
-      toggle();
-      emitter.emit(BUS_EVENTS.NEW_CONVERSATION_MODAL, true);
-    },
-    closeComposeConversationModal() {
-      emitter.emit(BUS_EVENTS.NEW_CONVERSATION_MODAL, false);
-    },
     toggleDeleteModal() {
       this.showDeleteModal = !this.showDeleteModal;
     },
@@ -158,47 +135,14 @@ export default {
     },
     findCountryFlag(countryCode, cityAndCountry) {
       try {
-        if (!countryCode) return `${cityAndCountry} 🌎`;
-        return `${cityAndCountry} <span class="fi fi-${countryCode.toLowerCase()} size-3.5"></span>`;
-      } catch {
-        return '';
-      }
-    },
-    startEditingName() {
-      this.editName = this.contact.name || '';
-      this.isEditingName = true;
-      this.$nextTick(() => this.$refs.nameInput?.focus());
-    },
-    cancelNameEdit() {
-      this.isEditingName = false;
-    },
-    saveNameEdit() {
-      if (!this.isEditingName) return;
-      this.isEditingName = false;
-      const name = this.editName.trim();
-      if (name && name !== this.contact.name) this.updateContactField({ name });
-    },
-    async updateContactField(attributes) {
-      try {
-        await this.$store.dispatch('contacts/update', {
-          id: this.contact.id,
-          ...attributes,
-        });
-        useAlert(this.$t('CONTACT_FORM.SUCCESS_MESSAGE'));
-        await this.$store.dispatch(
-          'contacts/fetchContactableInbox',
-          this.contact.id
-        );
-      } catch (error) {
-        if (error instanceof DuplicateContactException) {
-          useAlert(
-            error.contactErrorDetail || this.$t('CONTACT_FORM.ERROR_MESSAGE')
-          );
-        } else if (error instanceof ExceptionWithMessage) {
-          useAlert(error.data);
-        } else {
-          useAlert(error.message || this.$t('CONTACT_FORM.ERROR_MESSAGE'));
+        if (!countryCode) {
+          return `${cityAndCountry} 🌎`;
         }
+
+        const code = countryCode?.toLowerCase();
+        return `${cityAndCountry} <span class="fi fi-${code} size-3.5"></span>`;
+      } catch (error) {
+        return '';
       }
     },
     async deleteContact({ id }) {
@@ -212,12 +156,20 @@ export default {
             name: getConversationDashboardRoute(this.$route.name),
           });
         } else if (isAInboxViewRoute(this.$route.name)) {
-          this.$router.push({ name: 'inbox_view' });
+          this.$router.push({
+            name: 'inbox_view',
+          });
         } else if (this.$route.name !== 'contacts_dashboard') {
-          this.$router.push({ name: 'contacts_dashboard' });
+          this.$router.push({
+            name: 'contacts_dashboard',
+          });
         }
       } catch (error) {
-        useAlert(error.message || this.$t('DELETE_CONTACT.API.ERROR_MESSAGE'));
+        useAlert(
+          error.message
+            ? error.message
+            : this.$t('DELETE_CONTACT.API.ERROR_MESSAGE')
+        );
       }
     },
   },
@@ -227,6 +179,7 @@ export default {
 <template>
   <div class="relative w-full pt-10 pb-6 px-6">
     <div class="flex flex-col items-center w-full">
+      <!-- Avatar centered 120px -->
       <Thumbnail
         v-if="showAvatar"
         :src="contact.thumbnail"
@@ -236,27 +189,12 @@ export default {
         allow-preview
       />
 
+      <!-- Name centered -->
       <div v-if="showAvatar" class="flex items-center gap-2 mt-3">
-        <InlineInput
-          v-if="isEditingName"
-          ref="nameInput"
-          v-model="editName"
-          custom-input-class="!text-[19px] !font-semibold !text-center"
-          class="!w-fit"
-          @enter-press="saveNameEdit"
-          @escape-press="cancelNameEdit"
-          @blur="saveNameEdit"
-        />
         <h3
-          v-else
-          class="group/name my-0 text-[19px] font-semibold capitalize break-words text-n-slate-12 text-center cursor-pointer hover:text-n-slate-12/80"
-          :title="$t('CONTACT_PANEL.CLICK_TO_EDIT')"
-          @click="startEditingName"
+          class="my-0 text-[19px] font-semibold capitalize break-words text-n-slate-12 text-center"
         >
           {{ displayName }}
-          <span
-            class="i-lucide-pencil text-xs text-n-slate-10 opacity-0 group-hover/name:opacity-100 transition-opacity ml-1 align-middle"
-          />
         </h3>
         <span
           v-if="contact.created_at"
@@ -277,6 +215,7 @@ export default {
         </a>
       </div>
 
+      <!-- Email/Phone centered -->
       <div class="flex flex-col items-center gap-0.5 mt-1">
         <span
           v-if="contact.email"
@@ -292,33 +231,15 @@ export default {
         </span>
       </div>
 
+      <!-- Social icons -->
       <div class="mt-3">
         <SocialIcons :social-profiles="socialProfiles" />
       </div>
 
+      <!-- Action buttons (flex, WA style — auto-distributes when some are hidden) -->
       <div
         class="flex items-stretch justify-center gap-1.5 mt-6 w-full max-w-[300px] mx-auto"
       >
-        <div class="flex-1 min-w-0">
-          <ComposeConversation
-            :contact-id="String(contact.id)"
-            @close="closeComposeConversationModal"
-          >
-            <template #trigger="{ toggle }">
-              <button
-                v-tooltip.top-end="$t('CONTACT_PANEL.NEW_MESSAGE')"
-                class="wa-action-btn"
-                :aria-label="$t('CONTACT_PANEL.NEW_MESSAGE')"
-                @click="openComposeConversationModal(toggle)"
-              >
-                <span class="i-lucide-message-circle size-5" />
-                <span class="wa-action-label">
-                  {{ $t('CONTACT_PANEL.NEW_MESSAGE_SHORT') }}
-                </span>
-              </button>
-            </template>
-          </ComposeConversation>
-        </div>
         <VoiceCallButton
           :phone="contact.phoneNumber"
           :contact-id="contact.id"
@@ -339,20 +260,6 @@ export default {
             {{ $t('EDIT_CONTACT.BUTTON_LABEL_SHORT') }}
           </span>
         </button>
-        <!-- Restaurado junto com `openMergeModal`: o modal de mesclar sobreviveu
-             ao merge, mas o botão e o método que o abrem não. -->
-        <button
-          v-tooltip.top-end="$t('CONTACT_PANEL.MERGE_CONTACT')"
-          class="wa-action-btn"
-          :aria-label="$t('CONTACT_PANEL.MERGE_CONTACT')"
-          :disabled="uiFlags.isMerging"
-          @click="openMergeModal"
-        >
-          <span class="i-lucide-merge size-5" />
-          <span class="wa-action-label">
-            {{ $t('CONTACT_PANEL.MERGE_CONTACT_SHORT') }}
-          </span>
-        </button>
         <button
           v-if="isAdmin"
           v-tooltip.top-end="$t('DELETE_CONTACT.BUTTON_LABEL')"
@@ -368,6 +275,7 @@ export default {
         </button>
       </div>
 
+      <!-- Additional info rows -->
       <div
         v-if="
           visibleIdentifier ||
@@ -414,7 +322,6 @@ export default {
       :contact="contact"
       @cancel="toggleEditModal"
     />
-    <ContactMergeModal ref="mergeModal" :primary-contact="contact" />
     <ExportConversationModal
       :show="showExportModal"
       :conversations="currentChat?.id ? [currentChat] : []"

@@ -42,7 +42,7 @@ class CampaignRecipient < ApplicationRecord
   # scheduler. Reflete o estado em memoria quando ganha a corrida.
   def claim!
     won = self.class.where(id: id, status: :pending)
-              .update_all(status: self.class.statuses[:processing], updated_at: Time.current) == 1
+                    .update_all(status: self.class.statuses[:processing], updated_at: Time.current) == 1
     self.status = :processing if won
     won
   end

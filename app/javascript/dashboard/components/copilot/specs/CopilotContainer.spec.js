@@ -71,7 +71,7 @@ vi.mock('dashboard/api/captain/copilotMessages', () => ({
 }));
 
 const CopilotStub = {
-  name: 'CopilotPanel',
+  name: 'Copilot',
   props: [
     'isAwaitingResponse',
     'hasTimedOut',
@@ -141,7 +141,7 @@ const mountComponent = (captainEnabled = true) => {
     global: {
       plugins: [store],
       stubs: {
-        CopilotPanel: CopilotStub,
+        Copilot: CopilotStub,
         CaptainApiKeyMissingModal: CaptainApiKeyMissingModalStub,
       },
     },

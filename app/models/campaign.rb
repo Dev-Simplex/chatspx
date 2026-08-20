@@ -56,7 +56,7 @@ class Campaign < ApplicationRecord
 
   enum campaign_type: { ongoing: 0, one_off: 1 }
   # TODO : enabled attribute is unneccessary . lets move that to the campaign status with additional statuses like draft, disabled etc.
-  enum campaign_status: { active: 0, completed: 1, processing: 2 }
+  enum campaign_status: { active: 0, completed: 1 }
   # Estado da engine de disparo em massa (Campaigns::Whatsapp::*). Independente
   # do campaign_status nativo. Prefixo evita colisao com :completed do campaign_status.
   enum dispatch_status: { draft: 0, scheduled: 1, running: 2, paused: 3, completed: 4, failed: 5 },
@@ -67,12 +67,10 @@ class Campaign < ApplicationRecord
 
   before_validation :ensure_correct_campaign_attributes
   after_commit :set_display_id, unless: :display_id?
-  after_destroy_commit :invalidate_filtered_unread_count_filters
 
   def trigger!
     return unless one_off?
-    return unless feature_enabled?
-    return unless mark_processing!
+    return if completed?
 
     execute_campaign
   end
@@ -85,19 +83,6 @@ class Campaign < ApplicationRecord
   end
 
   private
-
-  def feature_enabled?
-    inbox.inbox_type != 'Whatsapp' || account.feature_enabled?(:whatsapp_campaign)
-  end
-
-  def mark_processing!
-    # Multiple scheduler jobs can pick the same active campaign; lock before flipping status to avoid duplicate sends.
-    with_lock do
-      next if completed? || processing?
-
-      processing!
-    end
-  end
 
   def execute_campaign
     case inbox.inbox_type
@@ -112,15 +97,6 @@ class Campaign < ApplicationRecord
       # qualidade/tier do WABA. Campanhas WhatsApp existem so como ancora/registro.
       Rails.logger.warn("[Campaign ##{id}] WhatsApp one-off nativo desativado — envio via orquestrador SPX.")
     end
-  end
-
-  def invalidate_filtered_unread_count_filters
-    filters_changed = ::Conversations::UnreadCounts::FilteredCountInvalidator.new(account).conversation_changed!
-    dispatch_account_cache_invalidated if filters_changed
-  end
-
-  def dispatch_account_cache_invalidated
-    Rails.configuration.dispatcher.dispatch(ACCOUNT_CACHE_INVALIDATED, Time.zone.now, account: account, cache_keys: account.cache_keys)
   end
 
   def set_display_id

@@ -7,20 +7,19 @@
     "COPY_SUCCESSFUL": "Kopeerimine lõikelauale õnnestus",
     "COMPANY": "Ettevõte",
     "LOCATION": "Asukoht",
-    "BROWSER_LANGUAGE": "Brauseri keel",
+    "BROWSER_LANGUAGE": "Browser Language",
     "CONVERSATION_TITLE": "Vestluse üksikasjad",
     "VIEW_PROFILE": "Vaata profiili",
     "BROWSER": "Brauser",
     "OS": "Operatsioonisüsteem",
     "INITIATED_FROM": "Algatatud kohast",
     "INITIATED_AT": "Algatatud ajal",
-    "IP_ADDRESS": "IP-aadress",
+    "IP_ADDRESS": "IP Address",
     "CREATED_AT_LABEL": "Loodud",
     "NEW_MESSAGE": "Uus sõnum",
     "CALL": "Helista",
     "CALL_INITIATED": "Helistatakse kontaktile…",
     "CALL_FAILED": "Kõne alustamine ebaõnnestus. Palun proovi uuesti.",
-    "CLICK_TO_EDIT": "Click to edit",
     "VOICE_INBOX_PICKER": {
       "TITLE": "Vali häälpostkast"
     },
@@ -92,7 +91,7 @@
       },
       "BIO": {
         "PLACEHOLDER": "Sisesta kontakti elulugu",
-        "LABEL": "Tutvustus"
+        "LABEL": "Bio"
       },
       "EMAIL_ADDRESS": {
         "PLACEHOLDER": "Sisesta kontakti e-posti aadress",
@@ -129,19 +128,19 @@
       },
       "SOCIAL_PROFILES": {
         "FACEBOOK": {
-          "PLACEHOLDER": "Sisesta Facebooki kasutajanimi",
+          "PLACEHOLDER": "Enter the Facebook username",
           "LABEL": "Facebook"
         },
         "TWITTER": {
-          "PLACEHOLDER": "Sisesta Twitteri kasutajanimi",
+          "PLACEHOLDER": "Enter the Twitter username",
           "LABEL": "Twitter"
         },
         "LINKEDIN": {
-          "PLACEHOLDER": "Sisesta LinkedIni kasutajanimi",
+          "PLACEHOLDER": "Enter the LinkedIn username",
           "LABEL": "LinkedIn"
         },
         "GITHUB": {
-          "PLACEHOLDER": "Sisesta GitHubi kasutajanimi",
+          "PLACEHOLDER": "Enter the Github username",
           "LABEL": "Github"
         }
       }
@@ -193,7 +192,7 @@
   "CONTACTS_PAGE": {
     "LIST": {
       "TABLE_HEADER": {
-        "SOCIAL_PROFILES": "Sotsiaalmeedia profiilid"
+        "SOCIAL_PROFILES": "Social Profiles"
       }
     }
   },
@@ -216,7 +215,7 @@
       "CANCEL": "Tühista",
       "NAME": {
         "LABEL": "Kohandatud atribuudi nimi",
-        "PLACEHOLDER": "Nt: Shopify ID",
+        "PLACEHOLDER": "Eg: shopify id",
         "ERROR": "Vigane kohandatud atribuudi nimi"
       },
       "VALUE": {
@@ -318,9 +317,9 @@
         "UNBLOCK_ERROR_MESSAGE": "Kontakti blokeeringust vabaks tegemine ebaõnnestus. Palun proovi hiljem uuesti.",
         "IMPORT_CONTACT": {
           "TITLE": "Impordi kontaktid",
-          "DESCRIPTION": "Impordi kontaktid CSV-faili kaudu.",
-          "DOWNLOAD_LABEL": "Laadi alla näidis-CSV.",
-          "LABEL": "CSV-fail:",
+          "DESCRIPTION": "Import contacts through a CSV file.",
+          "DOWNLOAD_LABEL": "Download a sample csv.",
+          "LABEL": "CSV File:",
           "CHOOSE_FILE": "Vali fail",
           "CHANGE": "Muuda",
           "CANCEL": "Tühista",
@@ -386,7 +385,6 @@
       "IDENTIFIER": "Identifikaator",
       "COUNTRY": "Riik",
       "CITY": "Linn",
-      "COMPANY": "Ettevõte",
       "CREATED_AT": "Loodud",
       "LAST_ACTIVITY": "Viimane tegevus",
       "REFERER_LINK": "Viitaja link",
@@ -437,7 +435,7 @@
             "PLACEHOLDER": "Vali riik"
           },
           "BIO": {
-            "PLACEHOLDER": "Sisesta tutvustus"
+            "PLACEHOLDER": "Enter the bio"
           },
           "COMPANY_NAME": {
             "PLACEHOLDER": "Sisesta ettevõtte nimi"
@@ -448,28 +446,28 @@
         "ERROR_MESSAGE": "Kontakti ei õnnestunud uuendada. Palun proovi hiljem uuesti."
       },
       "SOCIAL_MEDIA": {
-        "TITLE": "Muuda sotsiaalmeedia linke",
+        "TITLE": "Edit social links",
         "FORM": {
           "FACEBOOK": {
-            "PLACEHOLDER": "Lisa Facebook"
+            "PLACEHOLDER": "Add Facebook"
           },
           "GITHUB": {
-            "PLACEHOLDER": "Lisa GitHub"
+            "PLACEHOLDER": "Add Github"
           },
           "INSTAGRAM": {
-            "PLACEHOLDER": "Lisa Instagram"
+            "PLACEHOLDER": "Add Instagram"
           },
           "TELEGRAM": {
-            "PLACEHOLDER": "Lisa Telegram"
+            "PLACEHOLDER": "Add Telegram"
           },
           "TIKTOK": {
-            "PLACEHOLDER": "Lisa TikTok"
+            "PLACEHOLDER": "Add TikTok"
           },
           "LINKEDIN": {
-            "PLACEHOLDER": "Lisa LinkedIn"
+            "PLACEHOLDER": "Add LinkedIn"
           },
           "TWITTER": {
-            "PLACEHOLDER": "Lisa Twitter"
+            "PLACEHOLDER": "Add Twitter"
           }
         }
       },
@@ -494,12 +492,12 @@
       },
       "AVATAR": {
         "UPLOAD": {
-          "ERROR_MESSAGE": "Avatari üleslaadimine ebaõnnestus. Palun proovi hiljem uuesti.",
+          "ERROR_MESSAGE": "Could not upload avatar. Please try again later.",
           "SUCCESS_MESSAGE": "Avatar üles laaditud edukalt"
         },
         "DELETE": {
           "SUCCESS_MESSAGE": "Avatar kustutatud edukalt",
-          "ERROR_MESSAGE": "Avatari kustutamine ebaõnnestus. Palun proovi hiljem uuesti."
+          "ERROR_MESSAGE": "Could not delete avatar. Please try again later."
         }
       }
     },
@@ -508,7 +506,6 @@
         "ATTRIBUTES": "Atribuudid",
         "HISTORY": "Ajalugu",
         "NOTES": "Märkmed",
-        "MEDIA": "Media",
         "MERGE": "Ühenda"
       },
       "HISTORY": {
@@ -541,7 +538,7 @@
       },
       "MERGE": {
         "TITLE": "Ühenda kontakt",
-        "DESCRIPTION": "Ühenda kaks profiili üheks, sealhulgas kõik atribuudid ja vestlused. Vastuolu korral eelistatakse peamise kontakti atribuute.",
+        "DESCRIPTION": "Combine two profiles into one, including all attributes and conversations. In case of conflict, the primary contact’s attributes will take precedence.",
         "PRIMARY": "Peamine kontakt",
         "PRIMARY_HELP_LABEL": "Salvestamiseks",
         "PRIMARY_REQUIRED_ERROR": "Palun valige ühendamiseks kontakt enne jätkamist",
@@ -584,11 +581,8 @@
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Märgendite määramine",
-    "REMOVE_LABELS": "Remove Labels",
     "ASSIGN_LABELS_SUCCESS": "Märgendid määrati edukalt.",
     "ASSIGN_LABELS_FAILED": "Märgendite määramine ebaõnnestus",
-    "REMOVE_LABELS_SUCCESS": "Labels removed successfully.",
-    "REMOVE_LABELS_FAILED": "Failed to remove labels",
     "DESCRIPTION": "Valige sildid, mida soovite valitud kontaktidele lisada.",
     "NO_LABELS_FOUND": "Silte pole veel saadaval.",
     "SELECTED_COUNT": "{count} valitud",

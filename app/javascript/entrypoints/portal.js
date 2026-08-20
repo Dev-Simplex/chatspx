@@ -1,9 +1,9 @@
 import Rails from '@rails/ujs';
-import { Turbo } from '@hotwired/turbo-rails';
+import Turbolinks from 'turbolinks';
 import '../portal/application.scss';
 import { InitializationHelpers } from '../portal/portalHelpers';
 
 Rails.start();
-Turbo.start();
+Turbolinks.start();
 
-document.addEventListener('turbo:load', InitializationHelpers.onLoad);
+document.addEventListener('turbolinks:load', InitializationHelpers.onLoad);

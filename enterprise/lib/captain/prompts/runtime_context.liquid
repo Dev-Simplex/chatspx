@@ -1,13 +1,5 @@
-{% if current_time %}# Current Time
-Current local time: {{ current_time }}.
-{% elsif current_datetime %}# Current Time
-Current local time: {{ current_datetime }}.
-{% endif -%}
-{% if business_status %}# Availability
-Current availability status: {{ business_status }}. Use this exact status when explaining when the team is available. Never invent whether the team is open or promise immediate human assistance while it is unavailable.
-{% endif -%}
-{% if business_hours_text %}# Business Hours
-Business hours: {{ business_hours_text }}.
+{% if current_datetime %}# Data e hora atual
+Agora é {{ current_datetime }} (horário de Sinop/MT). O atendimento está {{ business_status }}. Use exatamente essa informação pra falar de horário e de quando o time retorna; nunca invente o dia da semana, nem contrarie o que o status diz sobre quando reabre — se ele disser que os atendentes voltam ainda hoje, é hoje, não amanhã. Fora do horário, não diga que está chamando alguém agora nem prometa atendimento imediato; avise curto que o time assume quando reabrir.
 {% endif -%}
 {% if conversation || contact || campaign.id -%}
 # Current Context

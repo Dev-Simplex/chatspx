@@ -56,12 +56,6 @@ const lordIcon = (srcKey, fallback = '') => {
   });
 };
 
-const toggleChatSupport = () => {
-  if (window.$chatwoot) {
-    window.$chatwoot.toggle();
-  }
-};
-
 const menuItems = computed(() => {
   return [
     {
@@ -69,7 +63,9 @@ const menuItems = computed(() => {
       showOnCustomBrandedInstance: false,
       label: t('SIDEBAR_ITEMS.CONTACT_SUPPORT'),
       icon: lordIcon('support', 'i-lucide-life-buoy'),
-      click: toggleChatSupport,
+      click: () => {
+        window.$chatwoot.toggle();
+      },
     },
     {
       show: true,
@@ -174,6 +170,7 @@ const allowedMenuItems = computed(() => {
           :src="currentUser.avatar_url"
           :status="currentUserAvailability"
           class="flex-shrink-0"
+          rounded-full
         />
         <div v-if="!isCollapsed" class="min-w-0">
           <div class="text-sm font-medium leading-4 truncate text-n-slate-12">

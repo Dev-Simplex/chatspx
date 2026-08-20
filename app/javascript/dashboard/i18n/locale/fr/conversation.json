@@ -44,8 +44,6 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "Vous pouvez seulement répondre à cette conversation en utilisant un modèle de message en raison de",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "Restriction de fenêtre de message de 24 heures",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "Ce compte Instagram a été migré vers la nouvelle boîte de réception du canal Instagram. Tous les nouveaux messages y apparaîtront. Vous ne pourrez plus envoyer de messages depuis cette conversation.",
-    "INSTAGRAM_RESTRICTION_BANNER": "Instagram is currently restricted. Some messages or actions may be delayed or unavailable while we restore full support.",
-    "INSTAGRAM_RESTRICTION_STATUS_LINK": "View status update",
     "REPLYING_TO": "Vous répondez à :",
     "REMOVE_SELECTION": "Supprimer la sélection",
     "DOWNLOAD": "Télécharger",
@@ -64,7 +62,6 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "Ce message n'est pas pris en charge. Vous pouvez voir ce message sur l'application Facebook Messenger.",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "Ce message n'est pas pris en charge. Vous pouvez voir ce message sur l'application Instagram.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "This message is unsupported. You can view this message on the TikTok app.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "This message is unsupported. You can view this message on the WhatsApp app.",
     "SUCCESS_DELETE_MESSAGE": "Le message a bien été supprimé",
     "FAIL_DELETE_MESSSAGE": "Impossible de supprimer le message ! Veuillez réessayez",
     "NO_RESPONSE": "Pas de réponse",
@@ -74,8 +71,7 @@
     "REPLY_MESSAGE_NOT_FOUND": "Message indisponible",
     "CARD": {
       "SHOW_LABELS": "Afficher les étiquettes",
-      "HIDE_LABELS": "Masquer les étiquettes",
-      "LABELS_COUNT": "{count} labels"
+      "HIDE_LABELS": "Masquer les étiquettes"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Appel entrant",
@@ -96,7 +92,6 @@
       "OPEN": "Plus",
       "CLOSE": "Fermer",
       "DETAILS": "détails",
-      "COPY_ID_SUCCESS": "Conversation ID copied to clipboard",
       "SNOOZED_UNTIL": "Reporter jusqu'à",
       "SNOOZED_UNTIL_TOMORROW": "Reporté jusqu'à demain",
       "SNOOZED_UNTIL_NEXT_WEEK": "Reporté jusqu'à la semaine prochaine",
@@ -199,7 +194,7 @@
       "MESSAGING_RESTRICTED_WHATSAPP": "You can only reply using a template message due to 24-hour message window restriction",
       "MESSAGING_RESTRICTED_API": "You can only reply using a template message due to message window restriction",
       "MESSAGE_SIGNATURE_NOT_CONFIGURED": "La signature du message n'est pas configurée, veuillez le configurer dans les paramètres du profil.",
-      "COPILOT_MSG_INPUT": "Donnez à Copilot des consignes supplémentaires ou posez toute autre question... Appuyez sur Entrée pour envoyer un message de suivi",
+      "COPILOT_MSG_INPUT": "Give copilot additional prompts, or ask anything else... Press enter to send follow-up",
       "CLICK_HERE": "Cliquez ici pour mettre à jour",
       "WHATSAPP_TEMPLATES": "Modèles WhatsApp"
     },
@@ -216,12 +211,10 @@
       "TIP_AUDIORECORDER_ICON": "Enregistrer l'audio",
       "TIP_AUDIORECORDER_PERMISSION": "Autoriser l'accès à l'audio",
       "TIP_AUDIORECORDER_ERROR": "Impossible d'ouvrir l'audio",
-      "AUDIO_CONVERSION_FAILED": "Audio conversion failed. Please try again.",
       "DRAG_DROP": "Glissez et déposez ici pour lier",
-      "IMAGE_UPLOAD_SUCCESS": "Image téléchargée avec succès",
       "START_AUDIO_RECORDING": "Démarrer l'enregistrement audio",
       "STOP_AUDIO_RECORDING": "Arrêter l'enregistrement audio",
-      "COPILOT_THINKING": "Copilot réfléchit",
+      "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
         "TO": "À",
         "ADD_BCC": "Ajouter cci",
@@ -289,25 +282,6 @@
         "MESSAGE": "Vous ne pouvez pas annuler cette action",
         "DELETE": "Supprimer",
         "CANCEL": "Annuler"
-      },
-      "REPORT_MESSAGE": {
-        "LABEL": "Report message",
-        "TITLE": "Report Captain message",
-        "DESCRIPTION": "Found an issue with this AI response? Let us know what went wrong and our team will review it to help improve Captain's accuracy.",
-        "PROBLEM_TYPE": "Problem type",
-        "PROBLEM_TYPE_PLACEHOLDER": "Select a problem type",
-        "DESCRIPTION_LABEL": "Description",
-        "DESCRIPTION_PLACEHOLDER": "Describe the problem in detail",
-        "SUBMIT": "Report",
-        "SUCCESS": "Thanks for reporting. Our team will take a look.",
-        "ERROR": "Could not report this message. Please try again.",
-        "REASONS": {
-          "incorrect_information": "Incorrect information",
-          "inappropriate_response": "Inappropriate response",
-          "incomplete_response": "Incomplete response",
-          "outdated_information": "Outdated information",
-          "other": "Other"
-        }
       }
     },
     "SIDEBAR": {
@@ -322,11 +296,7 @@
       "HANDLED_IN_ANOTHER_TAB": "Being handled in another tab",
       "REJECT_CALL": "Reject",
       "JOIN_CALL": "Join call",
-      "END_CALL": "End call",
-      "MUTE": "Mute mic",
-      "UNMUTE": "Unmute mic",
-      "VIEW_CHAT_HISTORY": "View chat history",
-      "GO_TO_CONVERSATION": "Go to conversation thread"
+      "END_CALL": "End call"
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -364,20 +334,7 @@
       "PREVIOUS_CONVERSATION": "Conversations précédentes",
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Problèmes Linear liés",
-      "SHOPIFY_ORDERS": "Shopify Orders",
-      "SHARED_FILES": "Attachments"
-    },
-    "SHARED_FILES": {
-      "EMPTY": "No attachments yet",
-      "DOWNLOAD": "Download file",
-      "DOWNLOAD_ERROR": "Could not download the file. Please try again.",
-      "MEDIA_HEADING": "Média",
-      "FILES_HEADING": "Files",
-      "VIEW_ALL": "Tout afficher",
-      "SHOW_LESS": "Show less",
-      "MORE_COUNT": "+{count}",
-      "UNTITLED_FILE": "Untitled file",
-      "JUMP_TO_MESSAGE": "Jump to message"
+      "SHOPIFY_ORDERS": "Shopify Orders"
     },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",

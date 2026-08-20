@@ -54,20 +54,7 @@ module ActivityMessageHandler
                 user_status_change_activity_content(user_name)
               end
 
-    return if content.blank?
-
-    ::Conversations::ActivityMessageJob.perform_later(
-      id,
-      activity_message_params(
-        content,
-        content_attributes: {
-          activity: {
-            type: 'conversation_status_changed',
-            status: status
-          }
-        }
-      )
-    )
+    ::Conversations::ActivityMessageJob.perform_later(id, activity_message_params(content)) if content
   end
 
   def auto_resolve_message_key(minutes)
@@ -100,10 +87,8 @@ module ActivityMessageHandler
     end
   end
 
-  def activity_message_params(content, content_attributes: nil)
-    params = { account_id: account_id, inbox_id: inbox_id, message_type: :activity, content: content }
-    params[:content_attributes] = content_attributes if content_attributes.present?
-    params
+  def activity_message_params(content)
+    { account_id: account_id, inbox_id: inbox_id, message_type: :activity, content: content }
   end
 
   def create_muted_message

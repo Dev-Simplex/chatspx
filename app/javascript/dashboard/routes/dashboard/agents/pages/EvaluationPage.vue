@@ -165,13 +165,9 @@ const campanhas = computed(() => desfechos.value.campanhas || []);
 // atendimentos assumidos foram só-humano. Sem separar isso na tela, a gestão
 // atribui à IA resultado que é de gente.
 const atendimentoPct = computed(() => {
-  const {
-    com_ia: comIa = 0,
-    so_humano: soHumano = 0,
-    total = 0,
-  } = desfechos.value.atendimento || {};
-  if (!total)
-    return { comIa: 0, soHumano: 0, total: 0, pctIa: 0, pctHumano: 0 };
+  const { com_ia: comIa = 0, so_humano: soHumano = 0, total = 0 } =
+    desfechos.value.atendimento || {};
+  if (!total) return { comIa: 0, soHumano: 0, total: 0, pctIa: 0, pctHumano: 0 };
   const pctIa = Math.round((comIa / total) * 100);
   return {
     comIa,
@@ -286,9 +282,7 @@ const openConversation = displayId => {
         v-if="escadaBars.length"
         class="p-4 mt-3 rounded-2xl border border-n-weak bg-n-solid-1/70"
       >
-        <div
-          class="flex flex-wrap gap-x-3 gap-y-1 justify-between items-baseline"
-        >
+        <div class="flex flex-wrap gap-x-3 gap-y-1 justify-between items-baseline">
           <h2 class="text-xs font-bold tracking-wide uppercase text-n-slate-11">
             {{ t('AGENTS_EVALUATION.SECTION_DESFECHO') }}
           </h2>
@@ -314,9 +308,7 @@ const openConversation = displayId => {
         <!-- Quem conduziu o atendimento. Fica ANTES da escada de propósito: sem
              este split, a gestão lê a conversão como se fosse toda da IA. -->
         <div v-if="atendimentoPct.total" class="mb-5">
-          <div
-            class="flex flex-wrap gap-x-2 gap-y-1 justify-between items-baseline mb-1.5"
-          >
+          <div class="flex flex-wrap gap-x-2 gap-y-1 justify-between items-baseline mb-1.5">
             <span class="text-[12.5px] font-semibold text-n-slate-12">
               {{ t('AGENTS_EVALUATION.SECTION_ATENDIMENTO') }}
             </span>
@@ -443,9 +435,7 @@ const openConversation = displayId => {
         </div>
 
         <div v-if="campanhas.length" class="pt-4 mt-4 border-t border-n-weak">
-          <h3
-            class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11"
-          >
+          <h3 class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11">
             {{ t('AGENTS_EVALUATION.SECTION_CAMPANHAS') }}
           </h3>
           <div class="overflow-x-auto">

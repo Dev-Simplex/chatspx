@@ -64,16 +64,7 @@ export const mutations = {
   },
 
   [types.EDIT_CONTACT]: ($state, data) => {
-    const existingAttachments = $state.records[data.id]?.attachments;
-    const normalizedContact = normalizeContact(data);
-    $state.records[data.id] = existingAttachments
-      ? { ...normalizedContact, attachments: existingAttachments }
-      : normalizedContact;
-  },
-
-  [types.SET_CONTACT_ATTACHMENTS]: ($state, { id, data }) => {
-    if (!$state.records[id]) $state.records[id] = {};
-    $state.records[id].attachments = data;
+    $state.records[data.id] = normalizeContact(data);
   },
 
   [types.DELETE_CONTACT]: ($state, id) => {

@@ -37,7 +37,6 @@ module Chatwoot
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 7.0
-    config.rails_i18n.enabled_modules = [:pluralization]
 
     # Fuso horário da aplicação (Manaus = UTC-4). Time.current e validações usam este fuso.
     # Sobrescreva com ENV['TIME_ZONE'] se necessário (ex: Europe/London).

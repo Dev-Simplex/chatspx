@@ -40,10 +40,9 @@ class Agents::DestroyJob < ApplicationJob
     # NOTA (Fase E/D-12): bulk update_all não dispara CONVERSATION_UPDATED — as conversas
     # viram órfãs silenciosas. Mitigação estrutural: vigia de órfãs (C10) re-triagem + notifica.
     # rubocop:disable Rails/SkipsModelValidations
-    unassigned_count = user.assigned_conversations.where(account: account).in_batches.update_all(assignee_id: nil)
+    user.assigned_conversations.where(account: account).in_batches.update_all(assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations
     supersede_takeover_requests(account, user)
-    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(account).conversation_changed! if unassigned_count.positive?
   end
 
   # D1 (Fase 3): o update_all acima PULA o after_commit que supersederia os

@@ -24,12 +24,6 @@ function safeRead(storageKey, key) {
  * Reactive composable that resolves whether the AI Assistant v2 panel should
  * be shown to the current account.
  *
- * RECONCILIAÇÃO: as duas descrições foram conferidas contra o código, e as duas
- * implementações são EQUIVALENTES — `theirs` não tem `if (local === 'on') return
- * true`, mas o `return true` final entrega o mesmo resultado. Ficou esta redação
- * porque a outra afirmava "Default: OFF", o que contradizia o próprio código dela
- * (com a flag ligada e sem override, o painel abre). Esta descreve o que os dois
- * lados fazem, e ainda registra o kill-switch e a posição no bitmask.
  * Resolution order:
  *   1. Server-side feature flag `ai_assistant_v2`. Se estiver desligada, o painel
  *      NÃO abre — nenhum override do navegador liga. Isso é o kill-switch: se a

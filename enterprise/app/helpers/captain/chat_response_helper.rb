@@ -35,10 +35,7 @@ module Captain::ChatResponseHelper
 
   def credit_used_for_response?(parsed_response)
     response = parsed_response['response']
-
-    # The classifier can still decide to hand off after this trace is written.
-    # Actual response usage is charged later in ResponseBuilderJob, so billing stays correct.
-    response.present? && response != 'conversation_handoff' && parsed_response['action'] != 'handoff'
+    response.present? && response != 'conversation_handoff'
   end
 
   def captain_v1_assistant?

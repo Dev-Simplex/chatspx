@@ -112,7 +112,6 @@ class AutomationRules::ConditionsFilterService < FilterService
     query_operator = query_hash['query_operator']
 
     attribute_key = 'processed_message_content' if attribute_key == 'content'
-    attribute_key = 'private' if attribute_key == 'private_note'
 
     filter_operator_value = filter_operation(query_hash, current_index)
 

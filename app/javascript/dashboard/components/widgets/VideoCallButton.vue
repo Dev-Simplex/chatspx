@@ -40,22 +40,12 @@ export default {
     }
   },
   methods: {
-    createErrorMessage(error) {
-      const responseError = error?.response?.data?.error;
-      if (typeof responseError === 'string') return responseError;
-
-      return (
-        responseError?.error?.message ||
-        responseError?.message ||
-        this.$t('INTEGRATION_SETTINGS.DYTE.CREATE_ERROR')
-      );
-    },
     async onClick() {
       this.isLoading = true;
       try {
         await DyteAPI.createAMeeting(this.conversationId);
       } catch (error) {
-        useAlert(this.createErrorMessage(error));
+        useAlert(this.$t('INTEGRATION_SETTINGS.DYTE.CREATE_ERROR'));
       } finally {
         this.isLoading = false;
       }

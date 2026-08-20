@@ -5,14 +5,12 @@ class AutoAssignment::AssignmentService
     return 0 unless inbox.auto_assignment_v2_enabled?
     return 0 unless inbox.enable_auto_assignment?
 
-    conversations = unassigned_conversations(limit).to_a
-    return 0 if conversations.empty?
-    return 0 if inbox.available_agents.empty?
-
     assigned_count = 0
-    conversations.each do |conversation|
+
+    unassigned_conversations(limit).each do |conversation|
       assigned_count += 1 if perform_for_conversation(conversation)
     end
+
     assigned_count
   end
 
@@ -36,11 +34,8 @@ class AutoAssignment::AssignmentService
   def unassigned_conversations(limit)
     scope = inbox.conversations.unassigned.open.where(assignee_agent_bot_id: nil)
 
-    # Skip stale backlog with no activity beyond the age threshold
-    policy = inbox.assignment_policy
-    scope = apply_age_exclusions(scope, age_exclusion_hours(policy))
-
     # Apply conversation priority using assignment policy if available
+    policy = inbox.assignment_policy
     scope = if policy&.longest_waiting?
               scope.reorder(last_activity_at: :asc, created_at: :asc)
             else
@@ -48,22 +43,6 @@ class AutoAssignment::AssignmentService
             end
 
     scope.limit(limit)
-  end
-
-  def age_exclusion_hours(policy)
-    return policy.exclude_older_than_hours if policy
-
-    AssignmentPolicy::DEFAULT_EXCLUDE_OLDER_THAN_HOURS
-  end
-
-  def apply_age_exclusions(scope, hours_threshold)
-    return scope if hours_threshold.blank?
-
-    hours = hours_threshold.to_i
-    return scope unless hours.positive?
-
-    # Use last_activity_at so reopened/active conversations aren't excluded by their original created_at
-    scope.where('conversations.last_activity_at >= ?', hours.hours.ago)
   end
 
   def find_available_agent(conversation = nil)
@@ -94,32 +73,15 @@ class AutoAssignment::AssignmentService
   end
 
   def assign_conversation(conversation, agent)
-    return false unless claim_and_assign(conversation, agent)
-
-    conversation.reload
+    Current.executed_by = inbox.assignment_policy || inbox
+    conversation.update!(assignee: agent)
+    Current.executed_by = nil
 
     rate_limiter = build_rate_limiter(agent)
     rate_limiter.track_assignment(conversation)
 
     dispatch_assignment_event(conversation, agent)
     true
-  end
-
-  # Atomically claim the row so two bulk runs that overlap (the in-flight gate
-  # is best-effort and can lapse on TTL) can't both assign the same conversation.
-  def claim_and_assign(conversation, agent)
-    Current.executed_by = inbox.assignment_policy || inbox
-
-    Conversation.transaction do
-      locked = inbox.conversations
-                    .where(id: conversation.id, assignee_id: nil)
-                    .lock('FOR UPDATE SKIP LOCKED')
-                    .first
-      next false unless locked
-
-      locked.update!(assignee: agent)
-      true
-    end
   ensure
     Current.executed_by = nil
   end

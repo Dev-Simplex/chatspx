@@ -1,7 +1,6 @@
 import * as MutationHelpers from 'shared/helpers/vuex/mutationHelpers';
 import * as types from '../mutation-types';
 import AccountAPI from '../../api/account';
-import OnboardingAPI from '../../api/onboarding';
 import { differenceInDays } from 'date-fns';
 import EnterpriseAccountAPI from '../../api/enterprise/account';
 import { throwErrorMessage } from '../utils/api';
@@ -61,19 +60,18 @@ export const getters = {
 };
 
 export const actions = {
-  get: async ({ commit }, { silent } = {}) => {
-    if (!silent) {
-      commit(types.default.SET_ACCOUNT_UI_FLAG, { isFetchingItem: true });
-    }
+  get: async ({ commit }) => {
+    commit(types.default.SET_ACCOUNT_UI_FLAG, { isFetchingItem: true });
     try {
       const response = await AccountAPI.get();
       commit(types.default.ADD_ACCOUNT, response.data);
-    } catch {
-      // silent failure
-    } finally {
-      if (!silent) {
-        commit(types.default.SET_ACCOUNT_UI_FLAG, { isFetchingItem: false });
-      }
+      commit(types.default.SET_ACCOUNT_UI_FLAG, {
+        isFetchingItem: false,
+      });
+    } catch (error) {
+      commit(types.default.SET_ACCOUNT_UI_FLAG, {
+        isFetchingItem: false,
+      });
     }
   },
   update: async ({ commit }, { options, ...updateObj }) => {
@@ -88,15 +86,6 @@ export const actions = {
     } catch (error) {
       commit(types.default.SET_ACCOUNT_UI_FLAG, { isUpdating: false });
       throw new Error(error);
-    }
-  },
-  finishOnboarding: async ({ commit }, payload) => {
-    commit(types.default.SET_ACCOUNT_UI_FLAG, { isUpdating: true });
-    try {
-      const response = await OnboardingAPI.update(payload);
-      commit(types.default.EDIT_ACCOUNT, response.data);
-    } finally {
-      commit(types.default.SET_ACCOUNT_UI_FLAG, { isUpdating: false });
     }
   },
   delete: async ({ commit }, { id }) => {
@@ -150,20 +139,7 @@ export const actions = {
   subscription: async ({ commit }) => {
     commit(types.default.SET_ACCOUNT_UI_FLAG, { isCheckoutInProcess: true });
     try {
-      const response = await EnterpriseAccountAPI.subscription();
-      return response.data;
-    } catch (error) {
-      throwErrorMessage(error);
-      return null;
-    } finally {
-      commit(types.default.SET_ACCOUNT_UI_FLAG, { isCheckoutInProcess: false });
-    }
-  },
-
-  selectBillingCurrency: async ({ commit }, currency) => {
-    commit(types.default.SET_ACCOUNT_UI_FLAG, { isCheckoutInProcess: true });
-    try {
-      await EnterpriseAccountAPI.selectBillingCurrency(currency);
+      await EnterpriseAccountAPI.subscription();
     } catch (error) {
       throwErrorMessage(error);
     } finally {

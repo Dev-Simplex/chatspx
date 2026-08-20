@@ -30,8 +30,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     request_body = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual', # Only individual messages supported (not group messages)
-      # BSUID -> `recipient`; phone number -> `to` (see recipient_params in the base provider).
-      **recipient_params(phone_number),
+      to: phone_number,
       type: 'template',
       template: template_body
     }
@@ -54,11 +53,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
 
   def fetch_whatsapp_templates(url)
     response = HTTParty.get(url)
-    unless response.success?
-      Rails.logger.warn "[WHATSAPP] Template sync failed for account #{whatsapp_channel.account_id} " \
-                        "inbox #{whatsapp_channel.inbox&.id}: #{response.code} #{error_message(response)}"
-      return []
-    end
+    return [] unless response.success?
 
     next_url = next_url(response)
 
@@ -72,17 +67,8 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
   end
 
   def validate_provider_config?
-    config = whatsapp_channel.provider_config
-    response = HTTParty.get("#{business_account_path}/message_templates?access_token=#{config['api_key']}")
-    return log_transfer_failure('waba_or_token_check', response) unless response.success?
-    # The templates check only proves the WABA/token pair, so verify the phone_number_id belongs to this WABA when it changes.
-    return true unless whatsapp_channel.provider_config_changed?
-
-    phone_response = HTTParty.get("#{business_account_path}/phone_numbers?fields=id&limit=100&access_token=#{config['api_key']}")
-    ids = phone_response.parsed_response.is_a?(Hash) ? Array(phone_response.parsed_response['data']) : []
-    return true if phone_response.success? && ids.any? { |number| number['id'] == config['phone_number_id'].to_s }
-
-    log_transfer_failure('phone_number_id_check', phone_response)
+    response = HTTParty.get("#{business_account_path}/message_templates?access_token=#{whatsapp_channel.provider_config['api_key']}")
+    response.success?
   end
 
   def api_headers
@@ -128,16 +114,6 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
 
   private
 
-  # Only saves dropping the embedded_signup source marker are transfer attempts; creation/rotation failures are setup errors. Returns false.
-  def log_transfer_failure(check, response)
-    return false unless whatsapp_channel.embedded_to_manual_transfer_pending?
-
-    error_message = response.parsed_response.is_a?(Hash) ? response.parsed_response.dig('error', 'message') : nil
-    Rails.logger.warn("[WHATSAPP_EMBEDDED_TO_MANUAL] failure account_id=#{whatsapp_channel.account_id} channel_id=#{whatsapp_channel.id} " \
-                      "check=#{check} http_status=#{response.code} meta_error=#{error_message}")
-    false
-  end
-
   def csat_template_service
     @csat_template_service ||= Whatsapp::CsatTemplateService.new(whatsapp_channel)
   end
@@ -147,8 +123,8 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
   end
 
   # TODO: See if we can unify the API versions and for both paths and make it consistent with out facebook app API versions
-  def phone_id_path(version = 'v13.0')
-    "#{api_base_path}/#{version}/#{whatsapp_channel.provider_config['phone_number_id']}"
+  def phone_id_path
+    "#{api_base_path}/v13.0/#{whatsapp_channel.provider_config['phone_number_id']}"
   end
 
   # Interativos do passthrough saem numa versão mais nova da Graph API: o carrossel de mídia
@@ -169,7 +145,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
       body: {
         messaging_product: 'whatsapp',
         context: whatsapp_reply_context(message),
-        **recipient_params(phone_number),
+        to: phone_number,
         text: { body: with_agent_prefix(message, message.outgoing_content) },
         type: 'text'
       }.to_json
@@ -242,38 +218,17 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
 
   def send_attachment_message(phone_number, message)
     attachment = message.attachments.first
-    # RECONCILIACAO homologacao × v4.16.2 — as tres linhas vem de lados diferentes, e cada
-    # uma resolve um problema que a outra ponta nao resolve:
-    #
-    # 1. `normalize_opus_content_type` e do UPSTREAM. O Marcel re-detecta OGG/Opus como
-    #    `audio/opus` depois do attach, e o Meta exige `audio/ogg`. Sem isto, o Content-Type do
-    #    download URL sai errado. Ele tambem AJUDA o passo 3, porque normaliza o blob antes.
-    # 2. `resolve_media_type` e da EQUIPE, e substitui o `include?(...) ? ... : 'document'` do
-    #    upstream. A diferenca e o limite inline do Meta (`META_INLINE_LIMITS_MB`): video acima
-    #    de 16 MB e imagem acima de 5 MB precisam ir como `document`, senao a Meta RECUSA e a
-    #    mensagem nao chega. Usar a versao do upstream aqui reintroduziria a regressao que o
-    #    commit `fix(whatsapp): restaura video >16MB como documento` fechou.
-    # 3. `voice_note_content` e da EQUIPE, e vem ANTES do fallback do upstream. Nota de voz
-    #    (PTT) so sai como PTT quando a midia vai por ID (upload em /media) com `voice: true`;
-    #    pelo `link` ela chega como ARQUIVO de audio — testado em producao com `audio/ogg` e com
-    #    `audio/ogg; codecs=opus`, e os dois vieram como arquivo. Quando o upload falha, o
-    #    metodo devolve `nil` e o fluxo cai no caminho do upstream: o audio chega como arquivo
-    #    em vez de nao chegar.
-    #
-    # `build_attachment_content` (upstream) e o fallback e cobre link + legenda com assinatura
-    # do agente + `filename` de documento — as tres coisas que o lado da equipe fazia em linhas
-    # separadas com `apply_caption`. Por isso `apply_caption` foi removido: ele passaria a ser
-    # uma duplicata exata, sem chamador.
-    normalize_opus_content_type(attachment)
     type = resolve_media_type(attachment)
-    type_content = voice_note_content(attachment, type) || build_attachment_content(type, attachment, message)
+    type_content = voice_note_content(attachment, type) || { 'link': attachment.download_url }
+    apply_caption(type_content, type, message)
+    type_content['filename'] = attachment.file.filename if type == 'document'
     response = HTTParty.post(
-      "#{phone_id_path('v24.0')}/messages",
+      "#{phone_id_path}/messages",
       headers: api_headers,
       body: {
         :messaging_product => 'whatsapp',
         :context => whatsapp_reply_context(message),
-        **recipient_params(phone_number),
+        'to' => phone_number,
         'type' => type,
         type.to_s => type_content
       }.to_json
@@ -341,36 +296,18 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     attachment.file.byte_size > limit_mb.megabytes ? 'document' : base
   end
 
+  # Define a legenda (com assinatura do agente, se ligada). Opcao B: midia sem
+  # conteudo fica sem legenda. Audio/sticker nao levam legenda.
+  def apply_caption(type_content, type, message)
+    return if %w[audio sticker].include?(type)
+
+    caption = with_agent_prefix(message, message.outgoing_content)
+    type_content['caption'] = caption if caption.present?
+  end
+
   def error_message(response)
     # https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/#sample-response
-    response.parsed_response.dig('error', 'message') if response.parsed_response.is_a?(Hash)
-  end
-
-  def voice_message?(type, attachment)
-    type == 'audio' && attachment.meta&.dig('is_voice_message') && attachment.file.content_type == 'audio/ogg'
-  end
-
-  # Marcel gem may re-detect OGG/Opus files as audio/opus after ActiveStorage
-  # blob attachment, but WhatsApp Cloud API requires audio/ogg content type
-  # for voice messages. Normalize so the download URL serves the correct
-  # Content-Type header. No-op when the frontend already uploads as audio/ogg.
-  def normalize_opus_content_type(attachment)
-    return unless attachment.file.attached?
-
-    blob = attachment.file.blob
-    return unless blob.content_type == 'audio/opus'
-
-    return if blob.update(content_type: 'audio/ogg')
-
-    Rails.logger.error("Failed to normalize blob #{blob.id} content_type from audio/opus to audio/ogg")
-  end
-
-  def build_attachment_content(type, attachment, message)
-    type_content = { 'link' => attachment.download_url }
-    type_content['caption'] = with_agent_prefix(message, message.outgoing_content) unless %w[audio sticker].include?(type)
-    type_content['filename'] = attachment.file.filename if type == 'document'
-    type_content['voice'] = true if voice_message?(type, attachment)
-    type_content
+    response.parsed_response&.dig('error', 'message')
   end
 
   def template_body_parameters(template_info)
@@ -446,7 +383,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
       headers: api_headers,
       body: {
         messaging_product: 'whatsapp',
-        **recipient_params(phone_number),
+        to: phone_number,
         interactive: payload,
         type: 'interactive'
       }.to_json

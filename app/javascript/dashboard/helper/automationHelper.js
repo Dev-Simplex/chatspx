@@ -152,7 +152,6 @@ export const getConditionOptions = ({
     conversation_language: languages,
     country_code: countries,
     message_type: messageTypeOptions,
-    private_note: booleanFilterOptions,
     priority: priorityOptions,
     labels: generateConditionOptions(labels, 'title'),
   };

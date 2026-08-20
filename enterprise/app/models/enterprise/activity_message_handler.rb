@@ -22,14 +22,12 @@ module Enterprise::ActivityMessageHandler
 
   # F3: marca a atividade como feita por uma IA (content_attributes.ai_actor),
   # capturado no contexto sync — o front estiliza essas atividades em roxo + ícone.
-  def activity_message_params(content, content_attributes: nil)
+  def activity_message_params(content)
     params = super
     return params unless Current.executed_by.instance_of?(Captain::Assistant)
 
     params.merge(
-      content_attributes: (content_attributes || {}).merge(
-        ai_actor: { id: Current.executed_by.id, name: Current.executed_by.name }
-      )
+      content_attributes: { ai_actor: { id: Current.executed_by.id, name: Current.executed_by.name } }
     )
   end
 

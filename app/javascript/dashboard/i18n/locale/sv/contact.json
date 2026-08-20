@@ -20,7 +20,6 @@
     "CALL": "Call",
     "CALL_INITIATED": "Calling the contact…",
     "CALL_FAILED": "Unable to start the call. Please try again.",
-    "CLICK_TO_EDIT": "Click to edit",
     "VOICE_INBOX_PICKER": {
       "TITLE": "Choose a voice inbox"
     },
@@ -386,7 +385,6 @@
       "IDENTIFIER": "Identifier",
       "COUNTRY": "Country",
       "CITY": "City",
-      "COMPANY": "Företag",
       "CREATED_AT": "Skapad den",
       "LAST_ACTIVITY": "Senaste aktivitet",
       "REFERER_LINK": "Referer link",
@@ -508,7 +506,6 @@
         "ATTRIBUTES": "Attributes",
         "HISTORY": "History",
         "NOTES": "Notes",
-        "MEDIA": "Media",
         "MERGE": "Merge"
       },
       "HISTORY": {
@@ -584,11 +581,8 @@
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Assign Labels",
-    "REMOVE_LABELS": "Remove Labels",
     "ASSIGN_LABELS_SUCCESS": "Labels assigned successfully.",
     "ASSIGN_LABELS_FAILED": "Failed to assign labels",
-    "REMOVE_LABELS_SUCCESS": "Labels removed successfully.",
-    "REMOVE_LABELS_FAILED": "Failed to remove labels",
     "DESCRIPTION": "Select the labels you want to add to the selected contacts.",
     "NO_LABELS_FOUND": "No labels available yet.",
     "SELECTED_COUNT": "{count} selected",

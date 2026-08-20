@@ -6,7 +6,6 @@ import { createPendingMessage } from 'dashboard/helper/commons';
 import {
   buildConversationList,
   isOnMentionsView,
-  isOnParticipatingView,
   isOnUnattendedView,
   isOnFoldersView,
 } from './helpers/actionHelpers';
@@ -359,18 +358,16 @@ const actions = {
 
   assignAgent: async (
     { dispatch },
-    { conversationId, agentId, assigneeType, rethrow = false }
+    { conversationId, agentId, rethrow = false }
   ) => {
     try {
       const response = await ConversationApi.assignAgent({
         conversationId,
         agentId,
-        assigneeType,
       });
       dispatch('setCurrentChatAssignee', {
         conversationId,
         assignee: response.data,
-        assigneeType,
       });
     } catch (error) {
       if (rethrow) {
@@ -393,7 +390,6 @@ const actions = {
       dispatch('setCurrentChatAssignee', {
         conversationId,
         assignee: response.data,
-        assigneeType: response.data?.assignee_type || 'AgentBot',
       });
     } catch (error) {
       if (rethrow) {
@@ -402,11 +398,8 @@ const actions = {
     }
   },
 
-  setCurrentChatAssignee(
-    { commit },
-    { conversationId, assignee, assigneeType }
-  ) {
-    commit(types.ASSIGN_AGENT, { conversationId, assignee, assigneeType });
+  setCurrentChatAssignee({ commit }, { conversationId, assignee }) {
+    commit(types.ASSIGN_AGENT, { conversationId, assignee });
   },
 
   assignTeam: async (
@@ -783,7 +776,6 @@ const actions = {
       !hasAppliedFilters &&
       !isOnFoldersView(rootState) &&
       !isOnMentionsView(rootState) &&
-      !isOnParticipatingView(rootState) &&
       !isOnUnattendedView(rootState) &&
       isMatchingInboxFilter
     ) {
@@ -805,8 +797,9 @@ const actions = {
   },
 
   updateConversation({ commit, dispatch }, conversation) {
-    const sender = conversation.meta?.sender;
-
+    const {
+      meta: { sender },
+    } = conversation;
     commit(types.UPDATE_CONVERSATION, conversation);
 
     dispatch('conversationLabels/setConversationLabel', {
@@ -814,7 +807,7 @@ const actions = {
       data: conversation.labels,
     });
 
-    if (sender) dispatch('contacts/setContact', sender);
+    dispatch('contacts/setContact', sender);
   },
 
   updateConversationLastActivity(

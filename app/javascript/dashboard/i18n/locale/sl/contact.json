@@ -10,7 +10,7 @@
     "BROWSER_LANGUAGE": "Jezik brskalnika",
     "CONVERSATION_TITLE": "Podrobnosti pogovora",
     "VIEW_PROFILE": "Ogled profila",
-    "BROWSER": "Brskalnik",
+    "BROWSER": "Browser",
     "OS": "Operacijski sistem",
     "INITIATED_FROM": "Začetek iz",
     "INITIATED_AT": "Začeto ob",
@@ -20,13 +20,12 @@
     "CALL": "Pokliči",
     "CALL_INITIATED": "Calling the contact…",
     "CALL_FAILED": "Klica ni bilo mogoče začeti. Poskusite znova.",
-    "CLICK_TO_EDIT": "Click to edit",
     "VOICE_INBOX_PICKER": {
       "TITLE": "Izberi glasovni predal"
     },
     "CONVERSATIONS": {
       "NO_RECORDS_FOUND": "S tem stikom ni povezanih nobenih prejšnjih pogovorov.",
-      "TITLE": "Prejšnji pogovori"
+      "TITLE": "Previous Conversations"
     },
     "LABELS": {
       "CONTACT": {
@@ -51,7 +50,7 @@
     "MUTED_SUCCESS": "Ta stik je bil uspešno blokiran. O prihodnjih pogovorih ne boste obveščeni.",
     "UNMUTED_SUCCESS": "Ta stik je bil uspešno odklenjen.",
     "SEND_TRANSCRIPT": "Pošlji prepis",
-    "EDIT_LABEL": "Uredi",
+    "EDIT_LABEL": "Edit",
     "SIDEBAR_SECTIONS": {
       "CUSTOM_ATTRIBUTES": "Lastne lastnosti",
       "CONTACT_LABELS": "Oznake stika",
@@ -386,7 +385,6 @@
       "IDENTIFIER": "Identifikator",
       "COUNTRY": "Država",
       "CITY": "Mesto",
-      "COMPANY": "Podjetje",
       "CREATED_AT": "Ustvarjeno ob",
       "LAST_ACTIVITY": "Zadnja aktivnost",
       "REFERER_LINK": "Napotitvena povezava",
@@ -508,7 +506,6 @@
         "ATTRIBUTES": "Atributi",
         "HISTORY": "Zgodovina",
         "NOTES": "Beležke",
-        "MEDIA": "Media",
         "MERGE": "Združi"
       },
       "HISTORY": {
@@ -584,11 +581,8 @@
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Dodeli oznake",
-    "REMOVE_LABELS": "Remove Labels",
     "ASSIGN_LABELS_SUCCESS": "Oznake so bile uspešno dodeljene.",
     "ASSIGN_LABELS_FAILED": "Dodeljevanje oznak ni uspelo",
-    "REMOVE_LABELS_SUCCESS": "Labels removed successfully.",
-    "REMOVE_LABELS_FAILED": "Failed to remove labels",
     "DESCRIPTION": "Izberite oznake, ki jih želite dodati izbranim stikom.",
     "NO_LABELS_FOUND": "Še ni na voljo nobenih oznak.",
     "SELECTED_COUNT": "{count} izbranih",

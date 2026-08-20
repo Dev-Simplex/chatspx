@@ -25,13 +25,11 @@ describe('Summary Reports Store', () => {
       expect(initialState).toEqual({
         inboxSummaryReports: [],
         agentSummaryReports: [],
-        agentAssignmentReports: [],
         teamSummaryReports: [],
         labelSummaryReports: [],
         uiFlags: {
           isFetchingInboxSummaryReports: false,
           isFetchingAgentSummaryReports: false,
-          isFetchingAgentAssignmentReports: false,
           isFetchingTeamSummaryReports: false,
           isFetchingLabelSummaryReports: false,
         },

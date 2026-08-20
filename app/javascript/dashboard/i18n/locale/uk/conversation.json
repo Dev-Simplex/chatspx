@@ -44,8 +44,6 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "Ви можете відповісти на цю розмову тільки за допомогою шаблонного повідомлення через",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "24-годинне обмеження на повідомлення",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "This Instagram account was migrated to the new Instagram channel inbox. All new messages will show up there. You won’t be able to send messages from this conversation anymore.",
-    "INSTAGRAM_RESTRICTION_BANNER": "Instagram is currently restricted. Some messages or actions may be delayed or unavailable while we restore full support.",
-    "INSTAGRAM_RESTRICTION_STATUS_LINK": "View status update",
     "REPLYING_TO": "Ви відповідаєте:",
     "REMOVE_SELECTION": "Видалити вибране",
     "DOWNLOAD": "Звантажити",
@@ -64,7 +62,6 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "Це повідомлення не підтримується. Ви можете переглянути це повідомлення у додатку Facebook Messenger",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "Це повідомлення не підтримується. Ви можете переглянути це повідомлення у додатку Instagram.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "This message is unsupported. You can view this message on the TikTok app.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "This message is unsupported. You can view this message on the WhatsApp app.",
     "SUCCESS_DELETE_MESSAGE": "Повідомлення успішно видалено",
     "FAIL_DELETE_MESSSAGE": "Не вдалося видалити повідомлення! Спробуйте ще раз",
     "NO_RESPONSE": "Немає відповіді",
@@ -74,8 +71,7 @@
     "REPLY_MESSAGE_NOT_FOUND": "Повідомлення недоступне",
     "CARD": {
       "SHOW_LABELS": "Показати мітки",
-      "HIDE_LABELS": "Сховати мітки",
-      "LABELS_COUNT": "{count} labels"
+      "HIDE_LABELS": "Сховати мітки"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Incoming call",
@@ -96,7 +92,6 @@
       "OPEN": "Ще",
       "CLOSE": "Закрити",
       "DETAILS": "подробиці",
-      "COPY_ID_SUCCESS": "Conversation ID copied to clipboard",
       "SNOOZED_UNTIL": "Відкладено до",
       "SNOOZED_UNTIL_TOMORROW": "Відкладено до завтра",
       "SNOOZED_UNTIL_NEXT_WEEK": "Відкладено до наступного тижня",
@@ -199,7 +194,7 @@
       "MESSAGING_RESTRICTED_WHATSAPP": "You can only reply using a template message due to 24-hour message window restriction",
       "MESSAGING_RESTRICTED_API": "You can only reply using a template message due to message window restriction",
       "MESSAGE_SIGNATURE_NOT_CONFIGURED": "Не налаштовано підпис повідомлення, будь ласка, налаштуйте його в налаштуваннях профілю.",
-      "COPILOT_MSG_INPUT": "Надайте Copilot додаткові підказки або запитайте що-небудь ще... Натисніть Enter для відправлення відповіді",
+      "COPILOT_MSG_INPUT": "Give copilot additional prompts, or ask anything else... Press enter to send follow-up",
       "CLICK_HERE": "Натисніть тут для оновлення",
       "WHATSAPP_TEMPLATES": "Шаблони Whatsapp"
     },
@@ -216,12 +211,10 @@
       "TIP_AUDIORECORDER_ICON": "Записати аудіо",
       "TIP_AUDIORECORDER_PERMISSION": "Надати доступ до аудіо",
       "TIP_AUDIORECORDER_ERROR": "Не вдалося відкрити аудіо",
-      "AUDIO_CONVERSION_FAILED": "Audio conversion failed. Please try again.",
       "DRAG_DROP": "Перетягніть сюди, щоб прикріпити",
-      "IMAGE_UPLOAD_SUCCESS": "Зображення успішно завантажено",
       "START_AUDIO_RECORDING": "Почати аудіозапис",
       "STOP_AUDIO_RECORDING": "Зупинити аудіозапис",
-      "COPILOT_THINKING": "Copilot думає",
+      "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
         "TO": "На",
         "ADD_BCC": "Додати bcc",
@@ -289,25 +282,6 @@
         "MESSAGE": "Ви не зможете скасувати цю дію",
         "DELETE": "Видалити",
         "CANCEL": "Скасувати"
-      },
-      "REPORT_MESSAGE": {
-        "LABEL": "Report message",
-        "TITLE": "Report Captain message",
-        "DESCRIPTION": "Found an issue with this AI response? Let us know what went wrong and our team will review it to help improve Captain's accuracy.",
-        "PROBLEM_TYPE": "Problem type",
-        "PROBLEM_TYPE_PLACEHOLDER": "Select a problem type",
-        "DESCRIPTION_LABEL": "Опис",
-        "DESCRIPTION_PLACEHOLDER": "Describe the problem in detail",
-        "SUBMIT": "Report",
-        "SUCCESS": "Thanks for reporting. Our team will take a look.",
-        "ERROR": "Could not report this message. Please try again.",
-        "REASONS": {
-          "incorrect_information": "Incorrect information",
-          "inappropriate_response": "Inappropriate response",
-          "incomplete_response": "Incomplete response",
-          "outdated_information": "Outdated information",
-          "other": "Other"
-        }
       }
     },
     "SIDEBAR": {
@@ -322,11 +296,7 @@
       "HANDLED_IN_ANOTHER_TAB": "Оброблюється в іншій вкладці",
       "REJECT_CALL": "Відхилити",
       "JOIN_CALL": "Доєднатися до виклику",
-      "END_CALL": "Завершити виклик",
-      "MUTE": "Mute mic",
-      "UNMUTE": "Unmute mic",
-      "VIEW_CHAT_HISTORY": "View chat history",
-      "GO_TO_CONVERSATION": "Go to conversation thread"
+      "END_CALL": "Завершити виклик"
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -364,20 +334,7 @@
       "PREVIOUS_CONVERSATION": "Попередні бесіди",
       "MACROS": "Макрос",
       "LINEAR_ISSUES": "Linked Linear Issues",
-      "SHOPIFY_ORDERS": "Shopify Orders",
-      "SHARED_FILES": "Attachments"
-    },
-    "SHARED_FILES": {
-      "EMPTY": "No attachments yet",
-      "DOWNLOAD": "Download file",
-      "DOWNLOAD_ERROR": "Could not download the file. Please try again.",
-      "MEDIA_HEADING": "Media",
-      "FILES_HEADING": "Files",
-      "VIEW_ALL": "Переглянути все",
-      "SHOW_LESS": "Show less",
-      "MORE_COUNT": "+{count}",
-      "UNTITLED_FILE": "Untitled file",
-      "JUMP_TO_MESSAGE": "Jump to message"
+      "SHOPIFY_ORDERS": "Shopify Orders"
     },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",

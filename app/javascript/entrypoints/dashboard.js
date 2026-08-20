@@ -94,7 +94,6 @@ app.use(FloatingVue, {
   disposeTimeout: 5000000,
   themes: {
     tooltip: {
-      strategy: 'fixed',
       placement: 'top',
       distance: 10,
       delay: { show: 250, hide: 0 },

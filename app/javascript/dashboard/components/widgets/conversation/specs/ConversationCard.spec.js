@@ -3,6 +3,8 @@ import { createStore } from 'vuex';
 import { describe, it, expect, vi } from 'vitest';
 import ConversationCard from '../ConversationCard.vue';
 
+// lottie-web creates a canvas at import time, which jsdom does not implement —
+// it enters the module graph transitively through the dashboard routes.
 vi.mock('lottie-web', () => ({
   default: { loadAnimation: vi.fn(() => ({ destroy: vi.fn() })) },
 }));
@@ -10,69 +12,51 @@ vi.mock('lottie-web', () => ({
 const buildStore = () =>
   createStore({
     getters: {
-      getCurrentAccount: () => ({ id: 1 }),
-      getCurrentUser: () => ({ id: 1, accounts: [] }),
+      getSelectedChat: () => ({ id: 999 }),
+      getSelectedInbox: () => 0,
+      getCurrentAccountId: () => 1,
+      getCurrentUser: () => ({ id: 1 }),
+    },
+    modules: {
+      inboxes: {
+        namespaced: true,
+        getters: {
+          getInboxes: () => [],
+          getInbox: () => () => ({}),
+        },
+      },
+      contacts: {
+        namespaced: true,
+        getters: {
+          getContact: () => () => null,
+        },
+      },
     },
   });
 
-const defaultChat = {
+const buildChat = (assignee, overrides = {}) => ({
   id: 1,
+  inbox_id: 2,
+  status: 'open',
   labels: [],
-  messages: [],
-  priority: null,
-  unread_count: 0,
-  timestamp: 1700000000,
-  created_at: 1700000000,
-  meta: {},
-};
+  meta: {
+    assignee,
+    sender: { id: 7, name: 'John Doe' },
+  },
+  ...overrides,
+});
 
-const mountComponent = (
-  chat = {},
-  currentContact = {},
-  assignee = chat.meta?.assignee
-) =>
+const mountCard = (assignee, props = {}, chatOverrides = {}) =>
   shallowMount(ConversationCard, {
-    props: {
-      chat: { ...defaultChat, ...chat },
-      currentContact: {
-        name: 'Jane Doe',
-        thumbnail: '',
-        availability_status: 'offline',
-        ...currentContact,
-      },
-      assignee: assignee || {},
-      inbox: { id: 1 },
-    },
+    props: { chat: buildChat(assignee, chatOverrides), ...props },
     global: { plugins: [buildStore()] },
   });
 
 describe('ConversationCard — AI assignee chip', () => {
-  const mountWithAssignee = (assignee, props = {}, chat = {}) =>
-    shallowMount(ConversationCard, {
-      props: {
-        chat: {
-          ...defaultChat,
-          ...chat,
-          meta: { ...(chat.meta || {}), assignee },
-        },
-        currentContact: {
-          name: 'John Doe',
-          thumbnail: '',
-          availability_status: 'offline',
-        },
-        inbox: { id: 2 },
-        assignee: assignee || {},
-        ...props,
-      },
-      global: { plugins: [buildStore()] },
-    });
-
-  it('renders the AI chip when the assignee is an AI agent', () => {
-    const wrapper = mountWithAssignee({
-      id: 9,
-      name: 'Aria',
-      type: 'agent_bot',
-    });
+  // Chip consolidado: um único elemento com o sparkle (ícone universal de IA)
+  // + o nome da IA, na cor própria do agente. Sem badge "IA" redundante.
+  it('renders the AI chip when the assignee is an AI agent (mirror bot)', () => {
+    const wrapper = mountCard({ id: 9, name: 'Aria', type: 'agent_bot' });
     const aiChip = wrapper.find('.ai-chip');
     expect(aiChip.exists()).toBe(true);
     expect(aiChip.find('.i-lucide-sparkles').exists()).toBe(true);
@@ -80,7 +64,7 @@ describe('ConversationCard — AI assignee chip', () => {
   });
 
   it('renders the AI chip even when showAssignee is false', () => {
-    const wrapper = mountWithAssignee(
+    const wrapper = mountCard(
       { id: 9, name: 'Aria', type: 'agent_bot' },
       { showAssignee: false }
     );
@@ -88,36 +72,35 @@ describe('ConversationCard — AI assignee chip', () => {
   });
 
   it('does not render the AI chip for a human assignee', () => {
-    const wrapper = mountWithAssignee({ id: 9, name: 'Jane' });
+    const wrapper = mountCard({ id: 9, name: 'Jane' });
     expect(wrapper.find('.ai-chip').exists()).toBe(false);
   });
 
   it('does not render the AI chip when there is no assignee', () => {
-    const wrapper = mountWithAssignee(undefined);
+    const wrapper = mountCard(undefined);
     expect(wrapper.find('.ai-chip').exists()).toBe(false);
   });
 
-  it('uses the sparkles icon instead of the bot icon', () => {
-    const wrapper = mountWithAssignee({
-      id: 9,
-      name: 'Aria',
-      type: 'agent_bot',
-    });
+  it('uses the sparkles icon (not bot) on the AI chip', () => {
+    const wrapper = mountCard(
+      { id: 9, name: 'Aria', type: 'agent_bot' },
+      { showAssignee: true }
+    );
     expect(wrapper.find('.ai-chip .i-lucide-sparkles').exists()).toBe(true);
     expect(wrapper.find('.i-lucide-bot').exists()).toBe(false);
   });
 
-  it('uses the user icon for a human assignee', () => {
-    const wrapper = mountWithAssignee(
-      { id: 9, name: 'Jane' },
-      { showAssignee: true }
-    );
-    expect(wrapper.find('.conversation--assignee').exists()).toBe(true);
-    expect(wrapper.find('.i-lucide-user').exists()).toBe(true);
+  it('uses the user icon on the assignee name for a human assignee', () => {
+    const wrapper = mountCard({ id: 9, name: 'Jane' }, { showAssignee: true });
+    const assigneeLabel = wrapper.find('.conversation--assignee');
+    expect(assigneeLabel.exists()).toBe(true);
+    expect(assigneeLabel.find('.i-lucide-user').exists()).toBe(true);
   });
+});
 
-  it('marks an unattended conversation assigned to the current user', () => {
-    const wrapper = mountWithAssignee(
+describe('ConversationCard — isUnattendedAndMine guard', () => {
+  it('is true for an unattended conversation assigned to the current user', () => {
+    const wrapper = mountCard(
       { id: 1, name: 'Jane' },
       {},
       { waiting_since: 1234 }
@@ -125,35 +108,14 @@ describe('ConversationCard — AI assignee chip', () => {
     expect(wrapper.vm.isUnattendedAndMine).toBe(true);
   });
 
-  it('does not mistake an AI assignee id collision for the current user', () => {
-    const wrapper = mountWithAssignee(
+  it('is false for an AI assignee whose id collides with the current user id', () => {
+    // Current user id is 1; a captain mirror bot sharing that id must NOT be
+    // counted as "unattended and mine" (User × AgentBot id collision guard).
+    const wrapper = mountCard(
       { id: 1, name: 'Aria', type: 'agent_bot' },
       {},
       { waiting_since: 1234 }
     );
     expect(wrapper.vm.isUnattendedAndMine).toBe(false);
-  });
-});
-
-describe('ConversationCard — SLA labels row', () => {
-  it('does not reserve the row for only a persisted SLA policy id', () => {
-    const wrapper = mountComponent({ sla_policy_id: 1, applied_sla: null });
-    expect(wrapper.findComponent({ name: 'CardLabels' }).exists()).toBe(false);
-  });
-
-  it('shows the row for an active applied SLA', () => {
-    const wrapper = mountComponent({
-      sla_policy_id: 1,
-      applied_sla: { id: 1 },
-    });
-    expect(wrapper.findComponent({ name: 'CardLabels' }).exists()).toBe(true);
-  });
-
-  it('does not reserve the row when the contact is blocked', () => {
-    const wrapper = mountComponent(
-      { sla_policy_id: 1, applied_sla: { id: 1 } },
-      { blocked: true }
-    );
-    expect(wrapper.findComponent({ name: 'CardLabels' }).exists()).toBe(false);
   });
 });

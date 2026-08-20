@@ -13,7 +13,6 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
     @account = conversation.account
     @message_type = params[:message_type] || 'outgoing'
     @attachments = params[:attachments]
-    @is_voice_message = ActiveModel::Type::Boolean.new.cast(params[:is_voice_message])
     @automation_rule = content_attributes&.dig(:automation_rule_id)
     # `in_reply_to`/`items` são lidos do content_attributes JÁ normalizado (o método content_attributes
     # cobre ActionController::Parameters E Hash), então valem também para callers da camada de serviço
@@ -97,23 +96,14 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
         file: uploaded_attachment
       )
 
-      attachment.file_type = attachment_file_type(uploaded_attachment)
-      tag_voice_message(attachment)
+      attachment.file_type = if uploaded_attachment.is_a?(String)
+                               file_type_by_signed_id(
+                                 uploaded_attachment
+                               )
+                             else
+                               file_type(uploaded_attachment&.content_type)
+                             end
     end
-  end
-
-  def attachment_file_type(uploaded_attachment)
-    if uploaded_attachment.is_a?(String)
-      file_type_by_signed_id(uploaded_attachment)
-    else
-      file_type(uploaded_attachment&.content_type)
-    end
-  end
-
-  def tag_voice_message(attachment)
-    return unless @is_voice_message && attachment.file_type == 'audio'
-
-    attachment.meta = (attachment.meta || {}).merge('is_voice_message' => true)
   end
 
   def process_emails

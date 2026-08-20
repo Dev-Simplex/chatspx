@@ -8,17 +8,14 @@ class Llm::BaseAiService
 
   attr_reader :model, :temperature, :account
 
-  def initialize(feature: nil, account: nil, fallback_model: nil)
-    @llm_feature = feature
-    @llm_account = account
-    @fallback_model = fallback_model
+  def initialize(account: nil)
     Llm::Config.initialize!
     @account = account
     setup_model
     setup_temperature
   end
 
-  def chat(model: @model, temperature: @temperature)
+  def chat(model: nil, temperature: @temperature)
     selected_model = model.presence || model_for_feature
     @model = selected_model
     context_for_account.chat(model: Llm::Models.runtime_id_for(selected_model)).with_temperature(temperature)
@@ -42,31 +39,13 @@ class Llm::BaseAiService
     @model = model_for_feature
   end
 
-  def feature_route(feature_key = @llm_feature)
-    return if feature_key.blank?
-
-    Llm::FeatureRouter.resolve(feature: feature_key, account: resolved_account)
-  end
-
-  def installation_model
-    InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value
-  end
-
   def setup_temperature
     @temperature = DEFAULT_TEMPERATURE
   end
 
   def model_for_feature
-    key = @llm_feature.presence || feature_name.presence || 'assistant'
-    route = feature_route(key)
-    preferred_route_model = route&.dig(:model) if account_override_route?(route) || captain_v2_assistant?(key)
-    candidates = [
-      preferred_route_model,
-      @fallback_model,
-      installation_model,
-      route&.dig(:model),
-      *model_candidates_for_feature(key)
-    ].compact_blank.uniq
+    key = feature_name.presence || 'assistant'
+    candidates = model_candidates_for_feature(key)
     selected_model = Llm::Models.first_runtime_supported(*candidates)
     fallback_model = selected_model.presence || DEFAULT_MODEL
 
@@ -77,14 +56,6 @@ class Llm::BaseAiService
     )
 
     fallback_model
-  end
-
-  def account_override_route?(route)
-    route&.dig(:source) == :account_override
-  end
-
-  def captain_v2_assistant?(feature_key)
-    feature_key.to_s == 'assistant' && resolved_account&.feature_enabled?('captain_integration_v2')
   end
 
   def model_from_account_preferences(feature_key)

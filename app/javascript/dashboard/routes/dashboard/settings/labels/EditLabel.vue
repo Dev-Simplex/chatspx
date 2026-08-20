@@ -182,8 +182,10 @@ export default {
 <style lang="scss" scoped>
 // Label API supports only lowercase letters
 .label-name--input {
-  :deep(input) {
-    @apply lowercase;
+  ::v-deep {
+    input {
+      @apply lowercase;
+    }
   }
 }
 </style>

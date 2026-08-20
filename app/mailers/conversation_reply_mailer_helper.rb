@@ -54,7 +54,8 @@ module ConversationReplyMailerHelper
       tls: false,
       enable_starttls_auto: true,
       openssl_verify_mode: 'peer',
-      **smtp_timeout_settings,
+      open_timeout: 15,
+      read_timeout: 15,
       authentication: 'xoauth2'
     }
   end
@@ -71,19 +72,11 @@ module ConversationReplyMailerHelper
       tls: @channel.smtp_enable_ssl_tls,
       enable_starttls_auto: @channel.smtp_enable_starttls_auto,
       openssl_verify_mode: @channel.smtp_openssl_verify_mode,
-      **smtp_timeout_settings,
       authentication: @channel.smtp_authentication
     }
 
     @options[:delivery_method] = :smtp
     @options[:delivery_method_options] = smtp_settings
-  end
-
-  def smtp_timeout_settings
-    {
-      open_timeout: ENV['SMTP_OPEN_TIMEOUT'].presence || 15,
-      read_timeout: ENV['SMTP_READ_TIMEOUT'].presence || 30
-    }.transform_values(&:to_i)
   end
 
   def email_smtp_enabled?

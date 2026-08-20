@@ -31,7 +31,6 @@ describe('#mutations', () => {
         numberOfSLAMisses: 1,
         hitRate: '100%',
         numberOfConversations: 1,
-        signals: [],
       });
     });
   });

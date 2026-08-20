@@ -124,7 +124,7 @@ export const actions = {
       commit(types.default.SET_INTEGRATIONS_UI_FLAG, { isCreatingHook: false });
     } catch (error) {
       commit(types.default.SET_INTEGRATIONS_UI_FLAG, { isCreatingHook: false });
-      throw error;
+      throw new Error(error);
     }
   },
   updateHook: async ({ commit }, { hookId, hookData }) => {

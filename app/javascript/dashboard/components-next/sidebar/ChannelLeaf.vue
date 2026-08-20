@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import Icon from 'next/icon/Icon.vue';
 import ChannelIcon from 'next/icon/ChannelIcon.vue';
-import SidebarUnreadBadge from './SidebarUnreadBadge.vue';
 
 const props = defineProps({
   label: {
@@ -22,10 +21,6 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  badgeCount: {
-    type: [Number, String],
-    default: 0,
-  },
 });
 
 const reauthorizationRequired = computed(() => {
@@ -38,7 +33,6 @@ const reauthorizationRequired = computed(() => {
     <ChannelIcon :inbox="inbox" class="size-4" />
   </span>
   <div v-if="!isCollapsed" class="flex-1 truncate min-w-0">{{ label }}</div>
-  <SidebarUnreadBadge v-if="!isCollapsed" :count="badgeCount" />
   <div
     v-if="reauthorizationRequired && !isCollapsed"
     v-tooltip.top-end="$t('SIDEBAR.REAUTHORIZE')"

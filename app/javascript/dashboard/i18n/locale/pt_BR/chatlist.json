@@ -97,9 +97,6 @@
       },
       "priority_desc_created_at_asc": {
         "TEXT": "Prioridade: Maior primeiro, Criação: Mais antiga primeiro"
-      },
-      "unread": {
-        "TEXT": "Contagem de não lidas: Maior primeiro"
       }
     },
     "ATTACHMENTS": {
@@ -152,7 +149,7 @@
     "RECEIVED_VIA_EMAIL": "Recebido por e-mail",
     "VIEW_TWEET_IN_TWITTER": "Ver tweet no Twitter",
     "REPLY_TO_TWEET": "Responder a este tweet",
-    "LINK_TO_STORY": "Ir para o Story do Instagram",
+    "LINK_TO_STORY": "Vá para o Story do Instagram",
     "SENT": "Enviado com sucesso",
     "READ": "Lido com sucesso",
     "DELIVERED": "Entregue com sucesso",
@@ -161,7 +158,6 @@
     "HIDE_QUOTED_TEXT": "Ocultar Texto Citado",
     "SHOW_QUOTED_TEXT": "Mostrar Texto Citado",
     "MESSAGE_READ": "Lida",
-    "SENDING": "Enviando",
-    "UNREAD_COUNT_OVERFLOW": "9+"
+    "SENDING": "Enviando"
   }
 }

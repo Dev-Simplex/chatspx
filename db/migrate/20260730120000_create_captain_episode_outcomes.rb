@@ -38,7 +38,7 @@ class CreateCaptainEpisodeOutcomes < ActiveRecord::Migration[7.1]
     end
 
     add_index :captain_episode_outcomes, %i[episode_id degrau], unique: true,
-                                                                name: 'idx_cap_ep_outcomes_ep_degrau', if_not_exists: true
+                                         name: 'idx_cap_ep_outcomes_ep_degrau', if_not_exists: true
     add_index :captain_episode_outcomes, %i[account_id degrau ocorreu_em],
               name: 'idx_cap_ep_outcomes_acct_degrau', if_not_exists: true
     # segmentação da conversão por campanha (a pergunta que originou o F3)

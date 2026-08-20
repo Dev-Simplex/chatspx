@@ -6,12 +6,12 @@
     "SWITCH_VIEW_LAYOUT": "Switch the layout",
     "DASHBOARD_APP_TAB_MESSAGES": "Messages",
     "UNVERIFIED_SESSION": "The identity of this user is not verified",
-    "NO_MESSAGE_1": "የደንበኞች መልእክቶች በኢንቦክስዎ አልተገኙም።",
-    "NO_MESSAGE_2": " ወደ ገፅዎ መልእክት ለመላክ!",
-    "NO_INBOX_1": "እሺ! አሁን ምንም ኢንቦክስ አልጨመሩም።",
-    "NO_INBOX_2": " ለመጀመር",
-    "NO_INBOX_AGENT": "ወይ! ምንም ኢንቦክስ አባል አይደለህም። እባክዎ አስተዳዳሪዎን ያነጋግሩ",
-    "SEARCH_MESSAGES": "መልእክቶችን በውይይቶች ውስጥ ይፈልጉ",
+    "NO_MESSAGE_1": "Uh oh! Looks like there are no messages from customers in your inbox.",
+    "NO_MESSAGE_2": " to send a message to your page!",
+    "NO_INBOX_1": "Hola! Looks like you haven't added any inboxes yet.",
+    "NO_INBOX_2": " to get started",
+    "NO_INBOX_AGENT": "Uh Oh! Looks like you are not part of any inbox. Please contact your administrator",
+    "SEARCH_MESSAGES": "Search for messages in conversations",
     "VIEW_ORIGINAL": "View original",
     "VIEW_TRANSLATED": "View translated",
     "EMPTY_STATE": {
@@ -19,19 +19,19 @@
       "KEYBOARD_SHORTCUTS": "to view keyboard shortcuts"
     },
     "SEARCH": {
-      "TITLE": "መልእክቶችን ይፈልጉ",
+      "TITLE": "Search messages",
       "RESULT_TITLE": "Search Results",
-      "LOADING_MESSAGE": "መረጃ በማስተናገድ ላይ...",
+      "LOADING_MESSAGE": "Crunching data...",
       "PLACEHOLDER": "Type any text to search messages",
       "NO_MATCHING_RESULTS": "No results found."
     },
     "UNREAD_MESSAGES": "Unread Messages",
     "UNREAD_MESSAGE": "Unread Message",
-    "CLICK_HERE": "እዚህ ጠቅ ያድርጉ",
-    "LOADING_INBOXES": "ኢንቦክሶች በመጫን ላይ",
-    "LOADING_CONVERSATIONS": "ውይይቶች በመጫን ላይ",
-    "CANNOT_REPLY": "ምክንያቱን በመነሳት መልስ ማድረግ አይችሉም",
-    "24_HOURS_WINDOW": "የ24 ሰዓት መልእክት ጊዜ ገደብ",
+    "CLICK_HERE": "Click here",
+    "LOADING_INBOXES": "Loading inboxes",
+    "LOADING_CONVERSATIONS": "Loading Conversations",
+    "CANNOT_REPLY": "You cannot reply due to",
+    "24_HOURS_WINDOW": "24 hour message window restriction",
     "48_HOURS_WINDOW": "48 hour message window restriction",
     "API_HOURS_WINDOW": "ለዚህ ውይይት መመለስ በ{hours} ሰአታት ውስጥ ብቻ ይቻላል",
     "NOT_ASSIGNED_TO_YOU": "This conversation is not assigned to you. Would you like to assign this conversation to yourself?",
@@ -44,11 +44,9 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "You can only reply to this conversation using a template message due to",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "24 hour message window restriction",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "ይህ የInstagram መለያ ወደ አዲሱ የInstagram ቻናል ገቢ ሳጥን ተዛውሯል። ሁሉም አዲስ መልዕክቶች በዚያ ይታያሉ። ከአሁን ጀምሮ ከዚህ ውይይት መልዕክቶች መላክ አትችሉም።",
-    "INSTAGRAM_RESTRICTION_BANNER": "Instagram is currently restricted. Some messages or actions may be delayed or unavailable while we restore full support.",
-    "INSTAGRAM_RESTRICTION_STATUS_LINK": "View status update",
-    "REPLYING_TO": "ለዚህ ትመልሳለህ፦",
-    "REMOVE_SELECTION": "ምርጫ አስወግድ",
-    "DOWNLOAD": "አውርድ",
+    "REPLYING_TO": "You are replying to:",
+    "REMOVE_SELECTION": "Remove Selection",
+    "DOWNLOAD": "Download",
     "UNKNOWN_FILE_TYPE": "Unknown File",
     "SAVE_CONTACT": "Save Contact",
     "NO_CONTENT": "No content to display",
@@ -64,7 +62,6 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "This message is unsupported. You can view this message on the Facebook Messenger app.",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "This message is unsupported. You can view this message on the Instagram app.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "This message is unsupported. You can view this message on the TikTok app.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "This message is unsupported. You can view this message on the WhatsApp app.",
     "SUCCESS_DELETE_MESSAGE": "Message deleted successfully",
     "FAIL_DELETE_MESSSAGE": "Couldn't delete message! Try again",
     "NO_RESPONSE": "No response",
@@ -74,8 +71,7 @@
     "REPLY_MESSAGE_NOT_FOUND": "Message not available",
     "CARD": {
       "SHOW_LABELS": "Show labels",
-      "HIDE_LABELS": "Hide labels",
-      "LABELS_COUNT": "{count} labels"
+      "HIDE_LABELS": "Hide labels"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Incoming call",
@@ -89,14 +85,13 @@
       "YOU_ANSWERED": "You answered"
     },
     "HEADER": {
-      "RESOLVE_ACTION": "ተፈትኗል",
-      "REOPEN_ACTION": "እንደገና ክፈት",
+      "RESOLVE_ACTION": "Resolve",
+      "REOPEN_ACTION": "Reopen",
       "OPEN_ACTION": "Open",
       "MORE_ACTIONS": "ተጨማሪ እርምጃዎች",
-      "OPEN": "ተጨማሪ",
-      "CLOSE": "ዝጋ",
-      "DETAILS": "ዝርዝሮች",
-      "COPY_ID_SUCCESS": "Conversation ID copied to clipboard",
+      "OPEN": "More",
+      "CLOSE": "Close",
+      "DETAILS": "details",
       "SNOOZED_UNTIL": "Snoozed until",
       "SNOOZED_UNTIL_TOMORROW": "Snoozed until tomorrow",
       "SNOOZED_UNTIL_NEXT_WEEK": "Snoozed until next week",
@@ -193,21 +188,21 @@
       "MESSAGE_SIGN_TOOLTIP": "Message signature",
       "ENABLE_SIGN_TOOLTIP": "Enable signature",
       "DISABLE_SIGN_TOOLTIP": "Disable signature",
-      "MSG_INPUT": "አዲስ መስመር ለማስገባት Shift + enter ይጠቀሙ። '/' በመጀመር የተዘጋጀ ምላሽ ይምረጡ።",
-      "PRIVATE_MSG_INPUT": "አዲስ መስመር ለማስገባት Shift + enter ይጠቀሙ። ይህ ለወኪሎች ብቻ ይታያል",
+      "MSG_INPUT": "Shift + enter for new line. Start with '/' to select a Canned Response.",
+      "PRIVATE_MSG_INPUT": "Shift + enter for new line. This will be visible only to Agents",
       "MESSAGING_RESTRICTED": "You cannot reply to this conversation",
       "MESSAGING_RESTRICTED_WHATSAPP": "You can only reply using a template message due to 24-hour message window restriction",
       "MESSAGING_RESTRICTED_API": "You can only reply using a template message due to message window restriction",
       "MESSAGE_SIGNATURE_NOT_CONFIGURED": "Message signature is not configured, please configure it in profile settings.",
-      "COPILOT_MSG_INPUT": "ኮፒሎት ተጨማሪ እባብነቶች ስጡው, ወይም ሌላ ማንኛውንም ጥያቄ ያቀርቡ... ተከትሎ ለማስተላለፊያ ኤንተር ይጫኑ።",
+      "COPILOT_MSG_INPUT": "Give copilot additional prompts, or ask anything else... Press enter to send follow-up",
       "CLICK_HERE": "Click here to update",
       "WHATSAPP_TEMPLATES": "Whatsapp Templates"
     },
     "REPLYBOX": {
-      "REPLY": "መልስ",
-      "PRIVATE_NOTE": "የግል ማስታወሻ",
-      "SEND": "ላክ",
-      "CREATE": "ማስታወሻ አክል",
+      "REPLY": "Reply",
+      "PRIVATE_NOTE": "Private Note",
+      "SEND": "Send",
+      "CREATE": "Add Note",
       "INSERT_READ_MORE": "Read more",
       "DISMISS_REPLY": "Dismiss reply",
       "REPLYING_TO": "Replying to:",
@@ -216,12 +211,10 @@
       "TIP_AUDIORECORDER_ICON": "Record audio",
       "TIP_AUDIORECORDER_PERMISSION": "Allow access to audio",
       "TIP_AUDIORECORDER_ERROR": "Could not open the audio",
-      "AUDIO_CONVERSION_FAILED": "Audio conversion failed. Please try again.",
       "DRAG_DROP": "Drag and drop here to attach",
-      "IMAGE_UPLOAD_SUCCESS": "ምስል በተሳካ ሁኔታ ተሰብስቧል",
       "START_AUDIO_RECORDING": "Start audio recording",
       "STOP_AUDIO_RECORDING": "Stop audio recording",
-      "COPILOT_THINKING": "ኮፒሎት እየሰማራ ነው",
+      "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
         "TO": "TO",
         "ADD_BCC": "Add bcc",
@@ -252,10 +245,10 @@
         "EXPAND": "Expand preview"
       }
     },
-    "VISIBLE_TO_AGENTS": "የግል ማስታወሻ፡ ለአንተና ቡድንህ ብቻ ይታያል",
-    "CHANGE_STATUS": "የውይይቱ ሁኔታ ተቀይሯል",
+    "VISIBLE_TO_AGENTS": "Private Note: Only visible to you and your team",
+    "CHANGE_STATUS": "Conversation status changed",
     "CHANGE_STATUS_FAILED": "Conversation status change failed",
-    "CHANGE_AGENT": "የውይይቱ ተመድብ ተቀይሯል",
+    "CHANGE_AGENT": "Conversation Assignee changed",
     "CHANGE_AGENT_FAILED": "Assignee change failed",
     "ASSIGN_LABEL_SUCCESFUL": "Label assigned successfully",
     "ASSIGN_LABEL_FAILED": "Label assignment failed",
@@ -289,25 +282,6 @@
         "MESSAGE": "You cannot undo this action",
         "DELETE": "Delete",
         "CANCEL": "Cancel"
-      },
-      "REPORT_MESSAGE": {
-        "LABEL": "Report message",
-        "TITLE": "Report Captain message",
-        "DESCRIPTION": "Found an issue with this AI response? Let us know what went wrong and our team will review it to help improve Captain's accuracy.",
-        "PROBLEM_TYPE": "Problem type",
-        "PROBLEM_TYPE_PLACEHOLDER": "Select a problem type",
-        "DESCRIPTION_LABEL": "Description",
-        "DESCRIPTION_PLACEHOLDER": "Describe the problem in detail",
-        "SUBMIT": "Report",
-        "SUCCESS": "Thanks for reporting. Our team will take a look.",
-        "ERROR": "Could not report this message. Please try again.",
-        "REASONS": {
-          "incorrect_information": "Incorrect information",
-          "inappropriate_response": "Inappropriate response",
-          "incomplete_response": "Incomplete response",
-          "outdated_information": "Outdated information",
-          "other": "Other"
-        }
       }
     },
     "SIDEBAR": {
@@ -322,28 +296,24 @@
       "HANDLED_IN_ANOTHER_TAB": "Being handled in another tab",
       "REJECT_CALL": "Reject",
       "JOIN_CALL": "Join call",
-      "END_CALL": "End call",
-      "MUTE": "Mute mic",
-      "UNMUTE": "Unmute mic",
-      "VIEW_CHAT_HISTORY": "View chat history",
-      "GO_TO_CONVERSATION": "Go to conversation thread"
+      "END_CALL": "End call"
     }
   },
   "EMAIL_TRANSCRIPT": {
-    "TITLE": "የውይይት ጽሑፍ ላክ",
-    "DESC": "የውይይቱን ጽሑፍ ቅጂ ወደ ተጠቃሚው ኢሜይል ላክ",
-    "SUBMIT": "አስገባ",
-    "CANCEL": "ይቅር",
-    "SEND_EMAIL_SUCCESS": "የቻት አጭር መግለጫው በተሳካ ሁኔታ ተልኳል",
-    "SEND_EMAIL_ERROR": "ስህተት ተፈጥሯል፣ እባክዎ ደግመው ይሞክሩ",
+    "TITLE": "Send conversation transcript",
+    "DESC": "Send a copy of the conversation transcript to the specified email address",
+    "SUBMIT": "Submit",
+    "CANCEL": "Cancel",
+    "SEND_EMAIL_SUCCESS": "The chat transcript was sent successfully",
+    "SEND_EMAIL_ERROR": "There was an error, please try again",
     "SEND_EMAIL_PAYMENT_REQUIRED": "Email transcript is not available on your current plan. Please upgrade to use this feature.",
     "FORM": {
-      "SEND_TO_CONTACT": "መግለጫውን ለደንበኛው ይላኩ",
+      "SEND_TO_CONTACT": "Send the transcript to the customer",
       "SEND_TO_AGENT": "Send the transcript to the assigned agent",
-      "SEND_TO_OTHER_EMAIL_ADDRESS": "መግለጫውን ወደ ሌላ ኢሜይል አድራሻ ይላኩ",
+      "SEND_TO_OTHER_EMAIL_ADDRESS": "Send the transcript to another email address",
       "EMAIL": {
-        "PLACEHOLDER": "ኢሜይል አድራሻ ያስገቡ",
-        "ERROR": "ትክክለኛ ኢሜይል አድራሻ ያስገቡ"
+        "PLACEHOLDER": "Enter an email address",
+        "ERROR": "Please enter a valid email address"
       }
     }
   },
@@ -364,20 +334,7 @@
       "PREVIOUS_CONVERSATION": "Previous Conversations",
       "MACROS": "Macros",
       "LINEAR_ISSUES": "የተገናኙ የLinear ጉዳዮች",
-      "SHOPIFY_ORDERS": "Shopify Orders",
-      "SHARED_FILES": "Attachments"
-    },
-    "SHARED_FILES": {
-      "EMPTY": "No attachments yet",
-      "DOWNLOAD": "Download file",
-      "DOWNLOAD_ERROR": "Could not download the file. Please try again.",
-      "MEDIA_HEADING": "Media",
-      "FILES_HEADING": "Files",
-      "VIEW_ALL": "View all",
-      "SHOW_LESS": "Show less",
-      "MORE_COUNT": "+{count}",
-      "UNTITLED_FILE": "Untitled file",
-      "JUMP_TO_MESSAGE": "Jump to message"
+      "SHOPIFY_ORDERS": "Shopify Orders"
     },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",

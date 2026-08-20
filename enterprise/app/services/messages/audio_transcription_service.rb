@@ -1,26 +1,20 @@
 class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   include Integrations::LlmInstrumentation
 
-  # OpenAI's transcription endpoint hard limit is 25 MB *decimal* (25_000_000), not
-  # binary (25.megabytes = 26_214_400) — using the binary form leaks the 25.0–26.2 MB
-  # range to the API as 413s. Long audio (~70+ min Opus) keeps the attachment but skips
-  # transcription.
-  TRANSCRIPTION_BYTE_LIMIT = 25_000_000
+  WHISPER_MODEL = 'whisper-1'.freeze
 
-  attr_reader :attachment, :message, :account, :transcription_model
+  attr_reader :attachment, :message, :account
 
   def initialize(attachment)
     @attachment = attachment
     @message = attachment.message
     @account = message.account
     super()
-    @transcription_model = Llm::FeatureRouter.resolve(feature: 'audio_transcription', account: account)[:model]
   end
 
   def perform
     return { error: 'Transcription limit exceeded' } unless can_transcribe?
     return { error: 'Message not found' } if message.blank?
-    return { error: 'Audio too large for Whisper' } if audio_too_large?
 
     transcriptions = transcribe_audio
     Rails.logger.info "Audio transcription successful: #{transcriptions}"
@@ -53,13 +47,6 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     return false if account.audio_transcriptions.blank?
 
     account.usage_limits[:captain][:responses][:current_available].positive?
-  end
-
-  def audio_too_large?
-    blob = attachment.file&.blob
-    return false unless blob
-
-    blob.byte_size > TRANSCRIPTION_BYTE_LIMIT
   end
 
   def fetch_audio_file
@@ -99,28 +86,12 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
 
   # 1 retry: um 429/timeout/5xx transitório da OpenAI deixava o áudio SEM transcrição em
   # silêncio (best-effort). Agora tenta de novo antes de desistir. 401/400 não repete.
-  #
-  # RECONCILIAÇÃO homologacao × v4.16.2 — dois ajustes, e cada um veio de um lado:
-  #
-  #  · `WHISPER_MODEL` NÃO EXISTE MAIS AQUI. O upstream trocou a constante fixa
-  #    ('whisper-1') pelo modelo que o `Llm::FeatureRouter` resolve por conta
-  #    (`transcription_model`, definido no `initialize`). Manter a constante faria a primeira
-  #    transcrição levantar `NameError` — em runtime, não no boot, porque Ruby só resolve
-  #    constante quando a linha executa. O arquivo carregaria, os testes do lado antigo
-  #    passariam, e o defeito apareceria no áudio de um cliente.
-  #  · `temperature: 0.0`, e não 0.4. É melhoria do upstream com razão medida: em áudio
-  #    silencioso ou quase silencioso, temperatura > 0 dispara repetição em espiral — o
-  #    modelo "alucina" texto que não foi dito. O comportamento é documentado em todos os
-  #    modelos de transcrição da OpenAI.
-  #
-  # O QUE NÃO MUDOU é a razão de este método existir: o retry é da equipe, e sem ele um 429
-  # transitório deixava o áudio sem transcrição em silêncio.
   def whisper_with_retry(path)
     tries = 0
     begin
       tries += 1
       File.open(path, 'rb') do |file|
-        @client.audio.transcribe(parameters: { model: transcription_model, file: file, temperature: 0.0 })['text']
+        @client.audio.transcribe(parameters: { model: WHISPER_MODEL, file: file, temperature: 0.4 })['text']
       end
     rescue Faraday::UnauthorizedError, Faraday::BadRequestError
       raise
@@ -136,7 +107,7 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   def instrumentation_params(file_path)
     {
       span_name: 'llm.messages.audio_transcription',
-      model: transcription_model,
+      model: WHISPER_MODEL,
       account_id: account&.id,
       feature_name: 'audio_transcription',
       file_path: file_path

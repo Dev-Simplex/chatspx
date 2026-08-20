@@ -82,7 +82,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     return if instructions.blank?
 
     "NORMAS DO AGENTE DE IA AVALIADO (#{episode_assistant.name}). A conduta e as afirmações da IA devem " \
-      'CONFORMAR com estas normas: contradizer um fato ou uma regra daqui é falha (info_incorreta ou ' \
+      "CONFORMAR com estas normas: contradizer um fato ou uma regra daqui é falha (info_incorreta ou " \
       "quebrou_regra). As normas valem só para as respostas da IA, não para as dos humanos.\n---\n" \
       "#{instructions[0, SPEC_CHAR_LIMIT]}\n---"
   end
@@ -128,8 +128,8 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     end
     return if notes.empty?
 
-    'AVALIAÇÃO HUMANA DA GESTÃO sobre este atendimento (peso MÁXIMO — a gestão conhece o negócio; ' \
-      'incorpore estes apontamentos ao veredito, refletindo-os na nota, nas respostas_problematicas ' \
+    "AVALIAÇÃO HUMANA DA GESTÃO sobre este atendimento (peso MÁXIMO — a gestão conhece o negócio; " \
+      "incorpore estes apontamentos ao veredito, refletindo-os na nota, nas respostas_problematicas " \
       "e no resumo; não os contradiga sem evidência forte no transcript):\n#{notes.join("\n")}"
   end
 
@@ -185,7 +185,9 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   # Conversas longas: mantém a cauda (mensagens mais recentes) dentro do teto de chars.
   def trim_to_limit(messages)
     total = messages.sum { |m| message_text(m).length }
-    total -= message_text(messages.shift).length while total > TRANSCRIPT_CHAR_LIMIT && messages.size > 1
+    while total > TRANSCRIPT_CHAR_LIMIT && messages.size > 1
+      total -= message_text(messages.shift).length
+    end
     messages
   end
 

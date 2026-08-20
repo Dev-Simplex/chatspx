@@ -1,4 +1,5 @@
 class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
+  before_action :current_account
   before_action :check_authorization
   before_action :agent_bot, except: [:index, :create]
   before_action :ensure_mutable_bot, only: [:update, :destroy, :avatar, :reset_access_token]
@@ -33,10 +34,6 @@ class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
   def reset_access_token
     @agent_bot.access_token.regenerate_token
     @agent_bot.reload
-  end
-
-  def reset_secret
-    @agent_bot.reset_secret!
   end
 
   private

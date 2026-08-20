@@ -10,6 +10,7 @@ import { buildAttachmentThumbUrl } from 'shared/helpers/FileHelper';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import FileUpload from 'vue-upload-component';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
+
 import Button from 'dashboard/components-next/button/Button.vue';
 import WhatsAppOptions from './WhatsAppOptions.vue';
 import ContentTemplateSelector from './ContentTemplateSelector.vue';
@@ -20,7 +21,6 @@ const props = defineProps({
   isEmailOrWebWidgetInbox: { type: Boolean, default: false },
   isApiInbox: { type: Boolean, default: false },
   isTwilioWhatsAppInbox: { type: Boolean, default: false },
-  // eslint-disable-next-line vue/no-unused-properties
   messageTemplates: { type: Array, default: () => [] },
   channelType: { type: String, default: '' },
   medium: { type: String, default: '' },
@@ -55,9 +55,8 @@ const generateUid = () => {
 const uploadAttachment = ref(null);
 const isEmojiPickerOpen = ref(false);
 
-const EmojiIconPicker = defineAsyncComponent(
-  () =>
-    import('dashboard/components-next/emoji-icon-picker/EmojiIconPicker.vue')
+const EmojiInput = defineAsyncComponent(
+  () => import('shared/components/emoji/EmojiInput.vue')
 );
 
 const {
@@ -219,6 +218,7 @@ useEventListener(document, 'paste', onPaste);
       <WhatsAppOptions
         v-if="isWhatsappInbox"
         :inbox-id="inboxId"
+        :message-templates="messageTemplates"
         @send-message="emit('sendWhatsappMessage', $event)"
       />
       <ContentTemplateSelector
@@ -238,11 +238,10 @@ useEventListener(document, 'paste', onPaste);
           class="!w-10"
           @click="isEmojiPickerOpen = !isEmojiPickerOpen"
         />
-        <EmojiIconPicker
+        <EmojiInput
           v-if="isEmojiPickerOpen"
-          mode="emoji"
-          class="!top-auto !bottom-full mb-1.5 ltr:left-0 rtl:right-0"
-          @select="onClickInsertEmoji($event.value)"
+          class="top-full mt-1.5 ltr:left-0 rtl:right-0"
+          :on-click="onClickInsertEmoji"
         />
       </div>
       <FileUpload

@@ -34,30 +34,21 @@ describe('ChatTypeTabs', () => {
     expect(wrapper.findAllComponents(TabsItem).length).toBe(4);
   });
 
-  it('groups awaiting queues after the primary tabs for natural wrapping', () => {
+  it('groups queue tabs (awaiting/ai) on a second row via a flex row-break', () => {
+    // me, all (primary, row 1) + awaiting, ai (queue, row 2)
     const wrapper = mountComponent([
       { key: 'me', name: 'Mine', count: 1, icon: 'i-lucide-user' },
       { key: 'awaiting', name: 'Awaiting', count: 2, icon: 'i-lucide-clock' },
-      {
-        key: 'pending_closure',
-        name: 'Pending closure',
-        count: 2,
-        icon: 'i-lucide-clock',
-      },
       { key: 'ai', name: 'AI', count: 3, icon: 'i-lucide-sparkles' },
       { key: 'all', name: 'All', count: 4, icon: 'i-lucide-users' },
     ]);
-    expect(wrapper.findAll('.wa-tab-row-break').length).toBe(0);
+    const breaks = wrapper.findAll('.wa-tab-row-break');
+    expect(breaks.length).toBe(1);
+    // Rendered order: me, all (primary) | break | awaiting, ai (queue)
     const tabNames = wrapper
       .findAllComponents(TabsItem)
       .map(c => c.props('name'));
-    expect(tabNames).toEqual([
-      'Mine',
-      'AI',
-      'All',
-      'Awaiting',
-      'Pending closure',
-    ]);
+    expect(tabNames).toEqual(['Mine', 'All', 'Awaiting', 'AI']);
   });
 
   it('does not render a row-break when there are no queue tabs (single row)', () => {
@@ -71,10 +62,11 @@ describe('ChatTypeTabs', () => {
   it('applies the tab-alert class only to items with the alert variant', () => {
     const wrapper = mountComponent(items);
     const tabs = wrapper.findAllComponents(TabsItem);
+    // Reordered: me, unassigned, all (primary) | ai (queue)
     expect(tabs[0].classes()).not.toContain('tab-alert'); // me
     expect(tabs[1].classes()).toContain('tab-alert'); // unassigned
-    expect(tabs[2].classes()).not.toContain('tab-alert'); // ai
-    expect(tabs[3].classes()).not.toContain('tab-alert'); // all
+    expect(tabs[2].classes()).not.toContain('tab-alert'); // all
+    expect(tabs[3].classes()).not.toContain('tab-alert'); // ai
   });
 
   it('does not apply tab-alert when no item carries the alert variant', () => {
@@ -87,14 +79,16 @@ describe('ChatTypeTabs', () => {
 
   it('emits chatTabChange with the item key on tab click', async () => {
     const wrapper = mountComponent(items);
-    await wrapper.findAll('button[role="tab"]')[2].trigger('click');
+    // Reordered order of buttons: me, unassigned, all, ai → index 3 is 'ai'
+    await wrapper.findAll('button[role="tab"]')[3].trigger('click');
     expect(wrapper.emitted('chatTabChange')[0]).toEqual(['ai']);
   });
 
   it('keeps the active tab correct after reordering (active follows key)', () => {
     const wrapper = mountComponent(items, 'ai');
     const tabs = wrapper.findAllComponents(TabsItem);
-    expect(tabs[2].props('name')).toBe('AI');
+    // 'ai' is the last (queue) tab after reordering — index 3
+    expect(tabs[3].props('name')).toBe('AI');
     const activeButton = wrapper.find('button[aria-selected="true"]');
     expect(activeButton.text()).toContain('AI');
   });

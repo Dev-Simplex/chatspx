@@ -73,9 +73,7 @@ const data_hora = valor => (valor ? new Date(valor).toLocaleString() : '—');
 const conversa = displayId => `#${displayId}`;
 
 const resumoDesignacao = registro =>
-  [registro.corretor || '—', registro.motivo, registro.status || '—'].join(
-    ' · '
-  );
+  [registro.corretor || '—', registro.motivo, registro.status || '—'].join(' · ');
 </script>
 
 <template>
@@ -118,9 +116,7 @@ const resumoDesignacao = registro =>
 
     <template v-else>
       <section class="flex flex-wrap gap-4">
-        <div
-          class="px-4 py-3 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
-        >
+        <div class="px-4 py-3 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak">
           <p class="text-xs uppercase text-n-slate-10">
             {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
           </p>
@@ -128,21 +124,13 @@ const resumoDesignacao = registro =>
             {{ totais.recebidos || 0 }}
           </p>
         </div>
-        <div
-          class="px-4 py-3 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
-        >
+        <div class="px-4 py-3 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak">
           <p class="text-xs uppercase text-n-slate-10">
             {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
           </p>
-          <p class="text-2xl font-medium text-n-slate-12">
-            {{ parados.total }}
-          </p>
+          <p class="text-2xl font-medium text-n-slate-12">{{ parados.total }}</p>
           <p class="text-xs text-n-slate-10">
-            {{
-              t('AGENTS_RODIZIO.STALLED.THRESHOLD', {
-                min: parados.limiar_minutos,
-              })
-            }}
+            {{ t('AGENTS_RODIZIO.STALLED.THRESHOLD', { min: parados.limiar_minutos }) }}
           </p>
         </div>
       </section>
@@ -191,12 +179,8 @@ const resumoDesignacao = registro =>
               :key="linha.user_id"
               class="border-t border-n-weak"
             >
-              <td class="px-3 py-2 text-n-slate-12">
-                {{ linha.nome || linha.user_id }}
-              </td>
-              <td class="px-3 py-2 text-right text-n-slate-12">
-                {{ linha.recebidos }}
-              </td>
+              <td class="px-3 py-2 text-n-slate-12">{{ linha.nome || linha.user_id }}</td>
+              <td class="px-3 py-2 text-right text-n-slate-12">{{ linha.recebidos }}</td>
               <td class="px-3 py-2 text-right text-n-slate-11">
                 {{ motivo(linha, 'rodizio') }}
               </td>
@@ -209,9 +193,7 @@ const resumoDesignacao = registro =>
               <td class="px-3 py-2 text-right text-n-slate-11">
                 {{ motivo(linha, 'manual_gestor') }}
               </td>
-              <td class="px-3 py-2 text-right text-n-slate-11">
-                {{ linha.abertos }}
-              </td>
+              <td class="px-3 py-2 text-right text-n-slate-11">{{ linha.abertos }}</td>
               <td class="px-3 py-2 text-n-slate-10">{{ canais(linha) }}</td>
               <td class="px-3 py-2 text-n-slate-10">{{ produtos(linha) }}</td>
             </tr>
@@ -238,15 +220,9 @@ const resumoDesignacao = registro =>
             <span class="text-sm text-n-slate-12">
               {{ conversa(lead.display_id) }}
             </span>
-            <span class="text-sm text-n-slate-11">{{
-              lead.corretor || '—'
-            }}</span>
+            <span class="text-sm text-n-slate-11">{{ lead.corretor || '—' }}</span>
             <span class="text-sm text-n-slate-10">
-              {{
-                t('AGENTS_RODIZIO.STALLED.MINUTES', {
-                  min: lead.minutos_parado,
-                })
-              }}
+              {{ t('AGENTS_RODIZIO.STALLED.MINUTES', { min: lead.minutos_parado }) }}
             </span>
             <span v-if="lead.produto" class="text-xs text-n-slate-10">
               {{ lead.produto }}
@@ -267,9 +243,7 @@ const resumoDesignacao = registro =>
       >
         <div class="flex items-center justify-between">
           <h2 class="text-base font-medium text-n-slate-12">
-            {{
-              t('AGENTS_RODIZIO.DETAIL.TITLE', { id: detalhe.lead.display_id })
-            }}
+            {{ t('AGENTS_RODIZIO.DETAIL.TITLE', { id: detalhe.lead.display_id }) }}
           </h2>
           <button class="text-sm text-n-slate-11" @click="detalhe = null">
             {{ t('AGENTS_RODIZIO.DETAIL.CLOSE') }}

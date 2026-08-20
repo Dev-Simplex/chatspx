@@ -22,12 +22,6 @@ const props = defineProps({
     type: String,
     default: undefined,
   },
-  // Signature-aware emptiness can be supplied by the parent. Null preserves
-  // the per-editor/global-draft fallback for callers that do not supply it.
-  hasContent: {
-    type: Boolean,
-    default: null,
-  },
   conversationId: {
     type: Number,
     default: null,
@@ -59,9 +53,7 @@ const isReplyMode = computed(
   () => replyMode.value === REPLY_EDITOR_MODES.REPLY
 );
 const isNoteMode = computed(() => replyMode.value === REPLY_EDITOR_MODES.NOTE);
-const hasInputContent = computed(() =>
-  props.hasContent === null ? Boolean(effectiveContent.value) : props.hasContent
-);
+const hasInputContent = computed(() => Boolean(effectiveContent.value));
 
 // 3 categorias visiveis sempre (estados disabled controlam interacao).
 // Ordem de "Sobre a conversa": Analisar tom (1o, conforme reordenacao §15).

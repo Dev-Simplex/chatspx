@@ -12,9 +12,6 @@ import { useI18n } from 'vue-i18n';
 import Avatar from 'next/avatar/Avatar.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
-// União: o EmojiIcon é do ícone por time (upstream) e o resto é da tela de
-// supervisor (homologação). Os seis símbolos são usados no template mesclado.
-import EmojiIcon from 'dashboard/components-next/emoji-icon-picker/EmojiIcon.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
@@ -341,29 +338,13 @@ const confirmPlaceHolderText = computed(() =>
         v-else
         class="divide-y divide-n-weak border border-n-weak rounded-xl"
       >
-        <!-- RECONCILIAÇÃO: os dois lados mexeram nesta região com intenções
-             DIFERENTES, e as duas cabem. Da homologação vem a ESTRUTURA — o
-             `v-for` virou um wrapper `px-4 py-4` com a linha do time dentro,
-             que é o que permite a lista de membros expandir ABAIXO dela
-             (`expandedTeamId`, botão MOSTRAR/OCULTAR do supervisor logo
-             adiante). Do upstream vem o ÍCONE do time (`EmojiIcon` quando
-             `team.icon` existe, `i-lucide-users-round` como fallback), que a
-             estrutura nova acomoda sem mudança. O `text-lg` do contêiner do
-             ícone veio junto: é ele que dá tamanho ao emoji. -->
         <div v-for="team in filteredTeamsList" :key="team.id" class="px-4 py-4">
           <div class="flex justify-between flex-row items-start gap-4">
             <div class="flex items-start gap-4">
               <div
-                class="flex items-center flex-shrink-0 size-10 justify-center rounded-xl outline outline-1 outline-n-weak -outline-offset-1 text-lg"
+                class="flex items-center flex-shrink-0 size-10 justify-center rounded-xl outline outline-1 outline-n-weak -outline-offset-1"
               >
-                <EmojiIcon
-                  v-if="team.icon"
-                  :value="team.icon"
-                  :color="team.icon_color"
-                  class="size-5"
-                />
                 <Icon
-                  v-else
                   icon="i-lucide-users-round"
                   class="size-4 text-n-slate-11"
                 />

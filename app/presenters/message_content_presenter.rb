@@ -8,7 +8,7 @@ class MessageContentPresenter < SimpleDelegator
   end
 
   def webhook_content
-    Messages::WebhookContentNormalizer.normalize(content_with_survey_link)
+    content_with_survey_link
   end
 
   private

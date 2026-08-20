@@ -128,10 +128,7 @@ describe('#actions', () => {
       await actions.limits({
         commit,
         state: { limitsEndpointUnavailableByAccount: {} },
-        rootGetters: {
-          getCurrentAccountId: 1,
-          'globalConfig/isOnChatwootCloud': true,
-        },
+        rootGetters: { getCurrentAccountId: 1 },
       });
 
       expect(commit).toHaveBeenCalledWith(types.default.SET_ACCOUNT_UI_FLAG, {

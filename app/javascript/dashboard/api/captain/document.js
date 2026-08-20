@@ -6,15 +6,12 @@ class CaptainDocument extends ApiClient {
     super('captain/documents', { accountScoped: true });
   }
 
-  get({ page = 1, searchKey, assistantId, filter, source, sort } = {}) {
+  get({ page = 1, searchKey, assistantId } = {}) {
     return axios.get(this.url, {
       params: {
         page,
-        search_key: searchKey,
+        searchKey,
         assistant_id: assistantId,
-        filter,
-        source,
-        sort,
       },
     });
   }
@@ -39,10 +36,6 @@ class CaptainDocument extends ApiClient {
     return axios.post(this.url, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-  }
-
-  sync(id) {
-    return axios.post(`${this.url}/${id}/sync`);
   }
 }
 

@@ -97,9 +97,6 @@
       },
       "priority_desc_created_at_asc": {
         "TEXT": "Priority: Highest first, Created: Oldest first"
-      },
-      "unread": {
-        "TEXT": "Unread Count: Highest first"
       }
     },
     "ATTACHMENTS": {
@@ -161,7 +158,6 @@
     "HIDE_QUOTED_TEXT": "Hide Quoted Text",
     "SHOW_QUOTED_TEXT": "Show Quoted Text",
     "MESSAGE_READ": "Read",
-    "SENDING": "Sending",
-    "UNREAD_COUNT_OVERFLOW": "9+"
+    "SENDING": "Sending"
   }
 }

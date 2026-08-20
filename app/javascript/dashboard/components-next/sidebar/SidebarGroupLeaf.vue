@@ -3,7 +3,6 @@ import { isVNode, computed } from 'vue';
 import Icon from 'next/icon/Icon.vue';
 import Policy from 'dashboard/components/policy.vue';
 import { useSidebarContext } from './provider';
-import SidebarUnreadBadge from './SidebarUnreadBadge.vue';
 
 const props = defineProps({
   label: { type: String, required: true },
@@ -14,9 +13,6 @@ const props = defineProps({
   count: { type: Number, default: 0 },
   highlight: { type: Boolean, default: false },
   isCollapsed: { type: Boolean, default: false },
-  badgeCount: { type: [Number, String], default: 0 },
-  hideTreeLine: { type: Boolean, default: false },
-  thinTreeLine: { type: Boolean, default: false },
 });
 
 const { resolvePermissions, resolveFeatureFlag } = useSidebarContext();
@@ -25,44 +21,23 @@ const shouldRenderComponent = computed(() => {
   return typeof props.component === 'function' || isVNode(props.component);
 });
 
-const CustomLeaf = () => {
-  if (isVNode(props.component)) return props.component;
-
-  return props.component({
-    label: props.label,
-    icon: props.icon,
-    active: props.active,
-    isCollapsed: props.isCollapsed,
-    badgeCount: props.badgeCount,
-  });
-};
-
 const displayCount = computed(() => (props.count > 99 ? '99+' : props.count));
-// Tree-line connector per leaf: vertical line (::before) + rounded elbow on the
-// last child (::after). Logical props (start / border-s / rounded-es)
-const TREE_CONNECTOR =
-  "child-item before:content-[''] before:absolute before:start-0 before:w-0.5 before:h-full before:bg-n-slate-4 first:before:rounded-t last:before:h-1/5 last:after:content-[''] last:after:absolute last:after:start-0 last:after:bottom-[calc(50%_-_2px)] last:after:h-3 last:after:w-2.5 last:after:border-b-2 last:after:border-s-2 last:after:rounded-es last:after:border-n-slate-4";
 </script>
 
+<!-- eslint-disable-next-line vue/no-root-v-if -->
 <template>
   <Policy
     :permissions="resolvePermissions(to)"
     :feature-flag="resolveFeatureFlag(to)"
     as="li"
-    class="py-0.5 ps-2 ms-3 relative text-n-slate-11 min-w-0"
-    :class="{
-      [TREE_CONNECTOR]: !hideTreeLine,
-      'before:!w-px last:after:!border-b last:after:!border-s':
-        !hideTreeLine && thinTreeLine,
-    }"
+    class="py-0.5 ltr:pl-2 rtl:pr-2 rtl:mr-3 ltr:ml-3 relative text-n-slate-11 child-item before:bg-n-slate-4 after:bg-transparent after:border-n-slate-4 before:left-0 rtl:before:right-0 min-w-0"
   >
     <component
       :is="to ? 'router-link' : 'div'"
       :to="to"
       data-hover-host
       :data-sidebar-active="String(active)"
-      :title="label"
-      class="icon-animated flex h-8 items-center gap-2 px-2 py-1 rounded-lg ltr:hover:bg-gradient-to-r rtl:hover:bg-gradient-to-l from-transparent via-n-slate-3/70 to-n-slate-3/70 group min-w-0 transition-colors duration-150"
+      class="icon-animated flex h-8 items-center gap-2 px-2 py-1 rounded-lg hover:bg-gradient-to-r from-transparent via-n-slate-3/70 to-n-slate-3/70 group min-w-0 transition-colors duration-150"
       :class="{
         'text-n-slate-12 bg-n-alpha-2 active [&_svg]:opacity-100 [&_svg]:text-n-brand':
           active,
@@ -70,7 +45,14 @@ const TREE_CONNECTOR =
           highlight && !active,
       }"
     >
-      <CustomLeaf v-if="shouldRenderComponent" />
+      <component
+        :is="component"
+        v-if="shouldRenderComponent"
+        :label
+        :icon
+        :active
+        :is-collapsed="isCollapsed"
+      />
       <template v-else>
         <span v-if="icon" class="size-4 grid place-content-center rounded-full">
           <Icon :icon="icon" class="size-4 inline-block" />
@@ -95,7 +77,6 @@ const TREE_CONNECTOR =
             <span>{{ displayCount }}</span>
           </div>
         </div>
-        <SidebarUnreadBadge v-else :count="badgeCount" />
       </template>
     </component>
   </Policy>

@@ -1,6 +1,6 @@
 <script setup>
 // [TODO] Use Teleport to move the modal to the end of the body
-import { ref, computed } from 'vue';
+import { ref, computed, defineEmits } from 'vue';
 import { useEventListener } from '@vueuse/core';
 import Button from 'dashboard/components-next/button/Button.vue';
 
@@ -35,7 +35,7 @@ const handleMouseDown = () => {
 const close = () => {
   show.value = false;
   emit('close');
-  onClose?.();
+  if (typeof onClose === 'function') onClose();
 };
 
 const onMouseUp = () => {
@@ -111,10 +111,6 @@ useEventListener(document, 'keydown', onKeydown);
 
       a {
         @apply p-4;
-      }
-
-      .ProseMirror a {
-        @apply p-0;
       }
     }
   }

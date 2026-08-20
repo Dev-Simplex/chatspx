@@ -147,11 +147,6 @@ export default {
     />
     <ReportNarrativeSummary :signals="accountSummary.signals || []" />
     <SpeedInsightsPanel />
-    <ReportContainer
-      :group-by="groupBy"
-      :from="from"
-      :to="to"
-      :business-hours="businessHours"
-    />
+    <ReportContainer :group-by="groupBy" />
   </div>
 </template>

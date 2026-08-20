@@ -17,36 +17,8 @@ export default {
       type: String,
       default: 'global',
     },
-    canManagePublicMacros: {
-      type: Boolean,
-      default: true,
-    },
-    readOnly: {
-      type: Boolean,
-      default: false,
-    },
   },
   emits: ['update:name', 'update:visibility', 'submit'],
-  computed: {
-    isPublicVisibilityDisabled() {
-      return !this.canManagePublicMacros;
-    },
-    publicVisibilityDescription() {
-      if (this.readOnly) {
-        return this.$t(
-          'MACROS.EDITOR.VISIBILITY.GLOBAL.EDIT_DISABLED_DESCRIPTION'
-        );
-      }
-
-      if (this.isPublicVisibilityDisabled) {
-        return this.$t(
-          'MACROS.EDITOR.VISIBILITY.GLOBAL.CREATE_DISABLED_DESCRIPTION'
-        );
-      }
-
-      return this.$t('MACROS.EDITOR.VISIBILITY.GLOBAL.DESCRIPTION');
-    },
-  },
   methods: {
     isActive(key) {
       return this.macroVisibility === key
@@ -54,14 +26,9 @@ export default {
         : 'bg-n-solid-1 border-n-weak dark:border-n-strong';
     },
     onUpdateName(value) {
-      if (this.readOnly) return;
-
       this.$emit('update:name', value);
     },
     onUpdateVisibility(value) {
-      if (this.readOnly) return;
-      if (value === 'global' && this.isPublicVisibilityDisabled) return;
-
       this.$emit('update:visibility', value);
     },
   },
@@ -79,7 +46,6 @@ export default {
         :placeholder="$t('MACROS.ADD.FORM.NAME.PLACEHOLDER')"
         :error="v$.macro.name.$error ? $t('MACROS.ADD.FORM.NAME.ERROR') : null"
         :class="{ error: v$.macro.name.$error }"
-        :readonly="readOnly"
         @update:model-value="onUpdateName"
       />
     </div>
@@ -89,13 +55,8 @@ export default {
       </p>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <button
-          type="button"
-          class="p-2 relative rounded-md border border-solid justify-between items-start gap-2 flex flex-col text-start"
+          class="p-2 relative rounded-md border border-solid justify-between items-start gap-2 flex flex-col text-start cursor-default"
           :class="isActive('global')"
-          :disabled="isPublicVisibilityDisabled || readOnly"
-          :aria-describedby="
-            isPublicVisibilityDisabled ? 'macro-public-visibility-help' : null
-          "
           @click="onUpdateVisibility('global')"
         >
           <div class="flex items-center gap-2 min-w-0 justify-between w-full">
@@ -108,18 +69,13 @@ export default {
               class="text-n-brand size-4"
             />
           </div>
-          <p
-            id="macro-public-visibility-help"
-            class="text-n-slate-11 text-label-small"
-          >
-            {{ publicVisibilityDescription }}
+          <p class="text-n-slate-11 text-label-small">
+            {{ $t('MACROS.EDITOR.VISIBILITY.GLOBAL.DESCRIPTION') }}
           </p>
         </button>
         <button
-          type="button"
-          class="p-2 relative rounded-md border border-solid justify-between items-start gap-2 flex flex-col text-start"
+          class="p-2 relative rounded-md border border-solid justify-between items-start gap-2 flex flex-col text-start cursor-default"
           :class="isActive('personal')"
-          :disabled="readOnly"
           @click="onUpdateVisibility('personal')"
         >
           <div class="flex items-center gap-2 min-w-0 justify-between w-full">
@@ -155,7 +111,6 @@ export default {
         solid
         :label="$t('MACROS.HEADER_BTN_TXT_SAVE')"
         class="w-full"
-        :disabled="readOnly"
         @click="$emit('submit')"
       />
     </div>
@@ -163,11 +118,11 @@ export default {
 </template>
 
 <style scoped lang="scss">
-:deep(input[type='text']) {
+::v-deep input[type='text'] {
   @apply mb-0;
 }
 
-:deep(.error) {
+::v-deep .error {
   .message {
     @apply mb-0;
   }

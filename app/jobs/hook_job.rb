@@ -3,22 +3,22 @@ class HookJob < MutexApplicationJob
 
   queue_as :medium
 
-  INTEGRATION_PROCESSORS = {
-    'slack' => :process_slack_integration,
-    'dialogflow' => :process_dialogflow_integration,
-    'google_translate' => :google_translate_integration,
-    'leadsquared' => :process_leadsquared_integration_with_lock,
-    'linear' => :process_linear_integration
-  }.freeze
-
   def perform(hook_id, event_name, event_data = {})
     return unless (hook = Integrations::Hook.find_by(id: hook_id))
     return if hook.disabled?
 
     event_data = resolve_event_data(event_data)
 
-    processor = INTEGRATION_PROCESSORS[hook.app_id]
-    send(processor, hook, event_name, event_data) if processor
+    case hook.app_id
+    when 'slack'
+      process_slack_integration(hook, event_name, event_data)
+    when 'dialogflow'
+      process_dialogflow_integration(hook, event_name, event_data)
+    when 'google_translate'
+      google_translate_integration(hook, event_name, event_data)
+    when 'leadsquared'
+      process_leadsquared_integration_with_lock(hook, event_name, event_data)
+    end
   rescue StandardError => e
     Rails.logger.error e
   end
@@ -30,30 +30,19 @@ class HookJob < MutexApplicationJob
     resolved[:message] = Message.find_by(id: event_data[:message_id]) if event_data[:message_id]
     resolved[:contact] = Contact.find_by(id: event_data[:contact_id]) if event_data[:contact_id]
     resolved[:conversation] = Conversation.find_by(id: event_data[:conversation_id]) if event_data[:conversation_id]
-    resolved[:previous_changes] = event_data[:previous_changes] if event_data[:previous_changes]
     resolved
   end
 
   def process_slack_integration(hook, event_name, event_data)
+    return unless ['message.created'].include?(event_name)
+
     message = event_data[:message]
     return unless message
 
-    case event_name
-    when 'message.created'
-      if message.attachments.blank?
-        ::SendOnSlackJob.perform_later(message.id, hook.id)
-      else
-        ::SendOnSlackJob.set(wait: 2.seconds).perform_later(message.id, hook.id)
-      end
-    when 'message.updated'
-      # Only interactive bot messages store responses via content_attributes (submitted_values / submitted_email).
-      # Skip other content types to avoid unnecessary job enqueues on every message update.
-      return unless message.content_type.in?(Integrations::Slack::UpdateSlackMessageService::SUPPORTED_CONTENT_TYPES)
-      # Guard against redundant Slack updates when unrelated attributes change (e.g. status)
-      # while submitted_values is already present on the message.
-      return unless event_data[:previous_changes]&.key?('content_attributes')
-
-      ::UpdateSlackMessageJob.perform_later(message, hook)
+    if message.attachments.blank?
+      ::SendOnSlackJob.perform_later(message.id, hook.id)
+    else
+      ::SendOnSlackJob.set(wait: 2.seconds).perform_later(message.id, hook.id)
     end
   end
 
@@ -70,13 +59,6 @@ class HookJob < MutexApplicationJob
     return unless message
 
     Integrations::GoogleTranslate::DetectLanguageService.new(hook: hook, message: message).perform
-  end
-
-  def process_linear_integration(hook, event_name, event_data)
-    return unless event_name == 'message.created'
-
-    message = event_data[:message]
-    Integrations::Linear::AutoLinkService.new(account: hook.account, message: message).perform
   end
 
   def process_leadsquared_integration_with_lock(hook, event_name, event_data)

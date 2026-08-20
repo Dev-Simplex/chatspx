@@ -21,7 +21,6 @@ import CopilotReplyBottomPanel from 'dashboard/components/widgets/WootWriter/Cop
 import ArticleSearchPopover from 'dashboard/routes/dashboard/helpcenter/components/ArticleSearch/SearchPopover.vue';
 import CopilotEditorSection from './CopilotEditorSection.vue';
 import CopilotMenuBar from 'dashboard/components/widgets/WootWriter/CopilotMenuBar.vue';
-import MessageSignatureMissingAlert from './MessageSignatureMissingAlert.vue';
 import { vOnClickOutside } from '@vueuse/components';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
 import AssignToReplyDialog from 'dashboard/components-next/Conversation/AssignToReplyDialog.vue';
@@ -70,8 +69,6 @@ import {
   appendSignature,
   removeSignature,
   getEffectiveChannelType,
-  getAgentVariables,
-  getContactVariables,
 } from 'dashboard/helper/editorHelper';
 import { useCopilotReply } from 'dashboard/composables/useCopilotReply';
 import { useCaptain } from 'dashboard/composables/useCaptain';
@@ -99,9 +96,8 @@ import {
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { emitter } from 'shared/helpers/mitt';
-const EmojiIconPicker = defineAsyncComponent(
-  () =>
-    import('dashboard/components-next/emoji-icon-picker/EmojiIconPicker.vue')
+const EmojiInput = defineAsyncComponent(
+  () => import('shared/components/emoji/EmojiInput.vue')
 );
 
 const isWhatsAppValidationMessage = message =>
@@ -126,8 +122,7 @@ export default {
     ImageEditor,
     ReplyBoxBanner,
     AssignToReplyDialog,
-    EmojiIconPicker,
-    MessageSignatureMissingAlert,
+    EmojiInput,
     ReplyBottomPanel,
     ReplyEmailHead,
     ReplyToMessage,
@@ -160,7 +155,7 @@ export default {
       default: false,
     },
   },
-  emits: ['update:popOutReplyBox', 'toggleEditorSize'],
+  emits: ['update:popOutReplyBox'],
   setup() {
     const {
       uiSettings,
@@ -298,6 +293,8 @@ export default {
       currentUser: 'getCurrentUser',
       lastEmail: 'getLastEmailInSelectedChat',
       globalConfig: 'globalConfig/get',
+      accountId: 'getCurrentAccountId',
+      isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
     }),
     currentContact() {
       const senderId = this.currentChat?.meta?.sender?.id;
@@ -391,21 +388,6 @@ export default {
       if (assignee.type === 'agent_bot') return true; // (c) dona IA
       return assignee.id !== this.currentUser.id; // (b)/(d) colega/fora do time
     },
-    hasMeaningfulEditorContent() {
-      const body = this.message || '';
-      // Only strip the signature when it's actually being auto-appended.
-      // If the toggle is off, the agent's text might happen to match their
-      // saved signature and we'd incorrectly treat it as empty.
-      const shouldStripSignature =
-        !this.isPrivate && this.sendWithSignature && !!this.messageSignature;
-      if (!shouldStripSignature) return !!body.trim();
-      const stripped = removeSignature(
-        body,
-        this.messageSignature,
-        getEffectiveChannelType(this.channelType, this.inbox?.medium || '')
-      );
-      return !!stripped.trim();
-    },
     isReplyRestricted() {
       return (
         !this.currentChat?.can_reply &&
@@ -489,9 +471,6 @@ export default {
       if (this.isAnInstagramChannel) {
         return MESSAGE_MAX_LENGTH.INSTAGRAM;
       }
-      if (this.isATelegramChannel) {
-        return MESSAGE_MAX_LENGTH.TELEGRAM;
-      }
       if (this.isATiktokChannel) {
         return MESSAGE_MAX_LENGTH.TIKTOK;
       }
@@ -516,10 +495,6 @@ export default {
       return MESSAGE_MAX_LENGTH.GENERAL;
     },
     showFileUpload() {
-      const { image_send: imageSend } =
-        this.currentChat?.additional_attributes?.tiktok_capabilities ?? {};
-      const tiktokAttachmentSupported = imageSend ?? true;
-
       return (
         this.isAWebWidgetInbox ||
         this.isAFacebookInbox ||
@@ -530,7 +505,7 @@ export default {
         this.isATelegramChannel ||
         this.isALineChannel ||
         this.isAnInstagramChannel ||
-        (this.isATiktokChannel && tiktokAttachmentSupported)
+        this.isATiktokChannel
       );
     },
     replyButtonLabel() {
@@ -671,9 +646,6 @@ export default {
       return `draft-${this.conversationIdByRoute}-${this.replyType}`;
     },
     audioRecordFormat() {
-      if (this.isAWhatsAppCloudChannel) {
-        return AUDIO_FORMATS.OGG;
-      }
       if (this.isAWhatsAppChannel || this.isATelegramChannel) {
         return AUDIO_FORMATS.MP3;
       }
@@ -688,21 +660,21 @@ export default {
         contact: this.currentContact,
         inbox: this.inbox,
       });
-      // Match the backend drops: names are Ruby-capitalized and
-      // {{agent.*}} is the message sender, not the assignee.
-      return {
-        ...variables,
-        ...getContactVariables(this.currentContact),
-        ...getAgentVariables(this.currentUser),
-      };
+      return variables;
     },
     connectedPortalSlug() {
       const { help_center: portal = {} } = this.inbox;
       const { slug = '' } = portal;
       return slug;
     },
+    isQuotedEmailReplyEnabled() {
+      return this.isFeatureEnabledonAccount(
+        this.accountId,
+        FEATURE_FLAGS.QUOTED_EMAIL_REPLY
+      );
+    },
     quotedReplyPreference() {
-      if (!this.isAnEmailChannel) {
+      if (!this.isAnEmailChannel || !this.isQuotedEmailReplyEnabled) {
         return false;
       }
 
@@ -727,7 +699,11 @@ export default {
       return truncatePreviewText(this.quotedEmailText, 80);
     },
     shouldShowQuotedReplyToggle() {
-      return this.isAnEmailChannel && !this.isOnPrivateNote;
+      return (
+        this.isAnEmailChannel &&
+        !this.isOnPrivateNote &&
+        this.isQuotedEmailReplyEnabled
+      );
     },
     shouldShowQuotedPreview() {
       return (
@@ -1158,10 +1134,7 @@ export default {
     },
     setCopilotAcceptedMessage(message, replyType = this.replyType) {
       const key = this.getDraftKey(this.conversationIdByRoute, replyType);
-      this.copilotAcceptedMessages[key] = trimContent(
-        message || '',
-        this.maxLength
-      );
+      this.copilotAcceptedMessages[key] = trimContent(message || '');
     },
     clearCopilotAcceptedMessage(replyType = this.replyType) {
       const key = this.getDraftKey(this.conversationIdByRoute, replyType);
@@ -1190,6 +1163,7 @@ export default {
     },
     shouldIncludeQuotedEmail() {
       return (
+        this.isQuotedEmailReplyEnabled &&
         this.quotedReplyPreference &&
         this.shouldShowQuotedReplyToggle &&
         !!this.quotedEmailText
@@ -1218,7 +1192,7 @@ export default {
     saveDraft(conversationId, replyType) {
       if (this.message || this.message === '') {
         const key = this.getDraftKey(conversationId, replyType);
-        const draftToSave = trimContent(this.message || '', this.maxLength);
+        const draftToSave = trimContent(this.message || '');
 
         this.$store.dispatch('draftMessages/set', {
           key,
@@ -1245,17 +1219,10 @@ export default {
         return message;
       }
 
-      // Even when editor is disabled (e.g. WhatsApp/API can't reply), we must
-      // still normalize stale signatures out of drafts when signature is off.
-      if (this.isEditorDisabled && this.sendWithSignature) {
-        return message;
-      }
-
       const effectiveChannelType = getEffectiveChannelType(
         this.channelType,
         this.inbox?.medium || ''
       );
-
       return this.sendWithSignature
         ? appendSignature(message, this.messageSignature, effectiveChannelType)
         : removeSignature(message, this.messageSignature, effectiveChannelType);
@@ -1334,7 +1301,6 @@ export default {
 
       // Don't handle paste if editor is disabled
       if (this.isEditorDisabled) return;
-      if (!this.showFileUpload && !this.isOnPrivateNote) return;
 
       // Filter valid files (non-zero size)
       Array.from(e.clipboardData.files)
@@ -2381,7 +2347,6 @@ export default {
       const autoRecordedFile = {
         ...file,
         isRecordedAudio: true,
-        isVoiceMessage: true,
       };
       return file && this.onFileUpload(autoRecordedFile);
     },
@@ -2425,7 +2390,6 @@ export default {
         uploadStatus: uploadStatus || (blob ? 'uploaded' : undefined),
         uploadProgress,
         isRecordedAudio: file?.isRecordedAudio || false,
-        isVoiceMessage: file?.isVoiceMessage || false,
       });
 
       if (file?.isRecordedAudio) {
@@ -2608,7 +2572,6 @@ export default {
             private: false,
             message: caption,
             sender: this.sender,
-            isVoiceMessage: attachment.isVoiceMessage || false,
           };
 
           attachmentPayload = this.setReplyToInPayload(attachmentPayload);
@@ -2670,9 +2633,6 @@ export default {
             // mandar files:[undefined] de um anexo ainda subindo/falho.
             if (attachment.blobSignedId) {
               messagePayload.files.push(attachment.blobSignedId);
-              if (attachment.isVoiceMessage) {
-                messagePayload.isVoiceMessage = true;
-              }
             }
           } else {
             messagePayload.files.push(attachment.resource.file);
@@ -2766,7 +2726,7 @@ export default {
       this.isUploadingAudio = false;
       // Only clear the recorded audio when we click toggle button.
       this.attachedFiles = this.attachedFiles.filter(
-        file => !file?.isVoiceMessage
+        file => !file?.isRecordedAudio
       );
     },
     onRecordError() {
@@ -2777,10 +2737,6 @@ export default {
     },
     togglePopout() {
       this.$emit('update:popOutReplyBox', !this.popOutReplyBox);
-    },
-    toggleEditorSize() {
-      this.$emit('toggleEditorSize');
-      this.$nextTick(() => this.messageEditor?.focusEditorInputField());
     },
     onSubmitCopilotReply() {
       const acceptedMessage = this.copilot.accept();
@@ -2819,10 +2775,10 @@ export default {
       :characters-remaining="charactersRemaining"
       :pop-out-reply-box="popOutReplyBox"
       :editor-content="message"
-      :has-content="hasMeaningfulEditorContent"
+      :is-copilot-active="copilot.isActive.value"
       @set-reply-mode="setReplyMode"
       @close-popout="$emit('update:popOutReplyBox', false)"
-      @toggle-editor-size="toggleEditorSize"
+      @toggle-popout="togglePopout"
       @toggle-copilot="copilot.toggleEditor"
       @execute-copilot-action="executeCopilotAction"
     />
@@ -2909,15 +2865,13 @@ export default {
             :message="inReplyTo"
             @dismiss="resetReplyToMessage"
           />
-          <EmojiIconPicker
+          <EmojiInput
             v-if="showEmojiPicker"
             v-on-clickaway="hideEmojiPicker"
-            mode="emoji"
-            class="emoji-dialog"
             :class="{
               'emoji-dialog--expanded': isOnExpandedLayout || popOutReplyBox,
             }"
-            @select="addIntoEditor($event.value)"
+            :on-click="addIntoEditor"
           />
           <ReplyEmailHead
             v-if="showReplyHead && isDefaultEditorMode"
@@ -3021,14 +2975,6 @@ export default {
               @retry-upload="retryAttachmentUpload"
             />
           </div>
-          <MessageSignatureMissingAlert
-            v-if="
-              isSignatureEnabledForInbox &&
-              !isSignatureAvailable &&
-              isDefaultEditorMode
-            "
-            class="mb-2"
-          />
         </template>
       </div>
     </Transition>
@@ -3384,6 +3330,7 @@ export default {
         :new-conversation-modal-active="newConversationModalActive"
         @select-whatsapp-template="openWhatsappTemplateModal"
         @select-content-template="openContentTemplateModal"
+        @replace-text="replaceText"
         @toggle-insert-article="toggleInsertArticle"
         @toggle-popout="togglePopout"
         @toggle-quoted-reply="toggleQuotedReply"

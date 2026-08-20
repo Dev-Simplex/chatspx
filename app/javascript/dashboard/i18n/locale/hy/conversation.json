@@ -6,12 +6,12 @@
     "SWITCH_VIEW_LAYOUT": "Switch the layout",
     "DASHBOARD_APP_TAB_MESSAGES": "Messages",
     "UNVERIFIED_SESSION": "The identity of this user is not verified",
-    "NO_MESSAGE_1": "Վայ, ձեր մուտքի արկղում հաճախորդներից հաղորդագրություններ չկան։",
-    "NO_MESSAGE_2": " ՝ ձեր էջին հաղորդագրություն ուղարկելու համար։",
-    "NO_INBOX_1": "Բարև, դուք դեռ մուտքի արկղեր չեք ավելացրել։",
-    "NO_INBOX_2": " ՝ սկսելու համար",
-    "NO_INBOX_AGENT": "Վայ, դուք որևէ մուտքի արկղի մաս չեք կազմում։ Խնդրում ենք կապ հաստատել ձեր ադմինիստրատորի հետ։",
-    "SEARCH_MESSAGES": "Որոնել հաղորդագրություններ զրույցներում",
+    "NO_MESSAGE_1": "Uh oh! Looks like there are no messages from customers in your inbox.",
+    "NO_MESSAGE_2": " to send a message to your page!",
+    "NO_INBOX_1": "Hola! Looks like you haven't added any inboxes yet.",
+    "NO_INBOX_2": " to get started",
+    "NO_INBOX_AGENT": "Uh Oh! Looks like you are not part of any inbox. Please contact your administrator",
+    "SEARCH_MESSAGES": "Search for messages in conversations",
     "VIEW_ORIGINAL": "View original",
     "VIEW_TRANSLATED": "View translated",
     "EMPTY_STATE": {
@@ -19,19 +19,19 @@
       "KEYBOARD_SHORTCUTS": "to view keyboard shortcuts"
     },
     "SEARCH": {
-      "TITLE": "Որոնել հաղորդագրություններ",
-      "RESULT_TITLE": "Որոնման արդյունքներ",
-      "LOADING_MESSAGE": "Տվյալները մշակվում են...",
-      "PLACEHOLDER": "Մուտքագրեք տեքստ՝ հաղորդագրություններում որոնելու համար",
-      "NO_MATCHING_RESULTS": "Արդյունքներ չեն գտնվել։"
+      "TITLE": "Search messages",
+      "RESULT_TITLE": "Search Results",
+      "LOADING_MESSAGE": "Crunching data...",
+      "PLACEHOLDER": "Type any text to search messages",
+      "NO_MATCHING_RESULTS": "No results found."
     },
-    "UNREAD_MESSAGES": "Չկարդացված հաղորդագրություններ",
-    "UNREAD_MESSAGE": "Չկարդացված հաղորդագրություն",
-    "CLICK_HERE": "Սեղմեք այստեղ",
-    "LOADING_INBOXES": "Մուտքի արկղերի բեռնում",
-    "LOADING_CONVERSATIONS": "Զրույցների բեռնում",
-    "CANNOT_REPLY": "Չեք կարող պատասխանել, քանի որ",
-    "24_HOURS_WINDOW": "24-ժամյա հաղորդագրության սահմանափակում",
+    "UNREAD_MESSAGES": "Unread Messages",
+    "UNREAD_MESSAGE": "Unread Message",
+    "CLICK_HERE": "Click here",
+    "LOADING_INBOXES": "Loading inboxes",
+    "LOADING_CONVERSATIONS": "Loading Conversations",
+    "CANNOT_REPLY": "You cannot reply due to",
+    "24_HOURS_WINDOW": "24 hour message window restriction",
     "48_HOURS_WINDOW": "48 hour message window restriction",
     "API_HOURS_WINDOW": "You can only reply to this conversation within {hours} hours",
     "NOT_ASSIGNED_TO_YOU": "This conversation is not assigned to you. Would you like to assign this conversation to yourself?",
@@ -41,14 +41,12 @@
     "BOT_HANDOFF_REOPEN_ACTION": "Mark conversation open",
     "BOT_HANDOFF_SUCCESS": "Conversation has been handed over to you",
     "BOT_HANDOFF_ERROR": "Failed to take over the conversation. Please try again.",
-    "TWILIO_WHATSAPP_CAN_REPLY": "Այս զրույցին կարող եք պատասխանել միայն կաղապար հաղորդագրությամբ՝",
-    "TWILIO_WHATSAPP_24_HOURS_WINDOW": "24-ժամյա պատուհանի սահմանափակում",
+    "TWILIO_WHATSAPP_CAN_REPLY": "You can only reply to this conversation using a template message due to",
+    "TWILIO_WHATSAPP_24_HOURS_WINDOW": "24 hour message window restriction",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "This Instagram account was migrated to the new Instagram channel inbox. All new messages will show up there. You won’t be able to send messages from this conversation anymore.",
-    "INSTAGRAM_RESTRICTION_BANNER": "Instagram is currently restricted. Some messages or actions may be delayed or unavailable while we restore full support.",
-    "INSTAGRAM_RESTRICTION_STATUS_LINK": "View status update",
-    "REPLYING_TO": "Դուք պատասխանում եք՝",
-    "REMOVE_SELECTION": "Հեռացնել ընտրությունը",
-    "DOWNLOAD": "Ներբեռնել",
+    "REPLYING_TO": "You are replying to:",
+    "REMOVE_SELECTION": "Remove Selection",
+    "DOWNLOAD": "Download",
     "UNKNOWN_FILE_TYPE": "Unknown File",
     "SAVE_CONTACT": "Save Contact",
     "NO_CONTENT": "No content to display",
@@ -58,24 +56,22 @@
       "FILE": "{sender} has shared a file",
       "MEETING": "{sender} has started a meeting"
     },
-    "UPLOADING_ATTACHMENTS": "Կցորդների բեռնում...",
+    "UPLOADING_ATTACHMENTS": "Uploading attachments...",
     "REPLIED_TO_STORY": "Replied to your story",
     "UNSUPPORTED_MESSAGE": "This message is unsupported. You can view this message on the Facebook / Instagram app.",
     "UNSUPPORTED_MESSAGE_FACEBOOK": "This message is unsupported. You can view this message on the Facebook Messenger app.",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "This message is unsupported. You can view this message on the Instagram app.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "This message is unsupported. You can view this message on the TikTok app.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "This message is unsupported. You can view this message on the WhatsApp app.",
-    "SUCCESS_DELETE_MESSAGE": "Հաղորդագրությունը հաջողությամբ ջնջվեց",
-    "FAIL_DELETE_MESSSAGE": "Չհաջողվեց ջնջել հաղորդագրությունը։ Փորձեք կրկին",
-    "NO_RESPONSE": "Պատասխան չկա",
+    "SUCCESS_DELETE_MESSAGE": "Message deleted successfully",
+    "FAIL_DELETE_MESSSAGE": "Couldn't delete message! Try again",
+    "NO_RESPONSE": "No response",
     "RESPONSE": "Response",
-    "RATING_TITLE": "Գնահատական",
-    "FEEDBACK_TITLE": "Կարծիք",
+    "RATING_TITLE": "Rating",
+    "FEEDBACK_TITLE": "Feedback",
     "REPLY_MESSAGE_NOT_FOUND": "Message not available",
     "CARD": {
       "SHOW_LABELS": "Show labels",
-      "HIDE_LABELS": "Hide labels",
-      "LABELS_COUNT": "{count} labels"
+      "HIDE_LABELS": "Hide labels"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Incoming call",
@@ -89,17 +85,16 @@
       "YOU_ANSWERED": "You answered"
     },
     "HEADER": {
-      "RESOLVE_ACTION": "Փակել",
-      "REOPEN_ACTION": "Վերաբացել",
-      "OPEN_ACTION": "Բացել",
+      "RESOLVE_ACTION": "Resolve",
+      "REOPEN_ACTION": "Reopen",
+      "OPEN_ACTION": "Open",
       "MORE_ACTIONS": "More actions",
-      "OPEN": "Ավելին",
-      "CLOSE": "Փակել",
-      "DETAILS": "մանրամասներ",
-      "COPY_ID_SUCCESS": "Conversation ID copied to clipboard",
+      "OPEN": "More",
+      "CLOSE": "Close",
+      "DETAILS": "details",
       "SNOOZED_UNTIL": "Snoozed until",
-      "SNOOZED_UNTIL_TOMORROW": "Հետաձգված է մինչև վաղը",
-      "SNOOZED_UNTIL_NEXT_WEEK": "Հետաձգված է մինչև հաջորդ շաբաթ",
+      "SNOOZED_UNTIL_TOMORROW": "Snoozed until tomorrow",
+      "SNOOZED_UNTIL_NEXT_WEEK": "Snoozed until next week",
       "SNOOZED_UNTIL_NEXT_REPLY": "Snoozed until next reply",
       "SLA_STATUS": {
         "FRT": "FRT {status}",
@@ -110,13 +105,13 @@
       }
     },
     "RESOLVE_DROPDOWN": {
-      "MARK_PENDING": "Նշել որպես սպասվող",
+      "MARK_PENDING": "Mark as pending",
       "SNOOZE_UNTIL": "Snooze",
       "SNOOZE": {
-        "TITLE": "Հետաձգել մինչև",
-        "NEXT_REPLY": "Հաջորդ պատասխան",
-        "TOMORROW": "Վաղը",
-        "NEXT_WEEK": "Հաջորդ շաբաթ"
+        "TITLE": "Snooze until",
+        "NEXT_REPLY": "Next reply",
+        "TOMORROW": "Tomorrow",
+        "NEXT_WEEK": "Next week"
       }
     },
     "MENTION": {
@@ -193,47 +188,45 @@
       "MESSAGE_SIGN_TOOLTIP": "Message signature",
       "ENABLE_SIGN_TOOLTIP": "Enable signature",
       "DISABLE_SIGN_TOOLTIP": "Disable signature",
-      "MSG_INPUT": "Shift + enter՝ նոր տողի համար։ Սկսեք '/'-ով՝ պատրաստի պատասխան ընտրելու համար։",
-      "PRIVATE_MSG_INPUT": "Shift + enter՝ նոր տողի համար։ Սա տեսանելի կլինի միայն գործակալներին",
+      "MSG_INPUT": "Shift + enter for new line. Start with '/' to select a Canned Response.",
+      "PRIVATE_MSG_INPUT": "Shift + enter for new line. This will be visible only to Agents",
       "MESSAGING_RESTRICTED": "You cannot reply to this conversation",
       "MESSAGING_RESTRICTED_WHATSAPP": "You can only reply using a template message due to 24-hour message window restriction",
       "MESSAGING_RESTRICTED_API": "You can only reply using a template message due to message window restriction",
       "MESSAGE_SIGNATURE_NOT_CONFIGURED": "Message signature is not configured, please configure it in profile settings.",
-      "COPILOT_MSG_INPUT": "Նվիրեք Copilot-ին լրացուցիչ հրահանգներ կամ հարցրեք բան ավել... Սեղմեք enter՝ շարունակական ուղարկելու համար",
+      "COPILOT_MSG_INPUT": "Give copilot additional prompts, or ask anything else... Press enter to send follow-up",
       "CLICK_HERE": "Click here to update",
       "WHATSAPP_TEMPLATES": "Whatsapp Templates"
     },
     "REPLYBOX": {
-      "REPLY": "Պատասխանել",
-      "PRIVATE_NOTE": "Գաղտնի նշում",
-      "SEND": "Ուղարկել",
-      "CREATE": "Ավելացնել նշում",
+      "REPLY": "Reply",
+      "PRIVATE_NOTE": "Private Note",
+      "SEND": "Send",
+      "CREATE": "Add Note",
       "INSERT_READ_MORE": "Read more",
       "DISMISS_REPLY": "Dismiss reply",
       "REPLYING_TO": "Replying to:",
-      "TIP_EMOJI_ICON": "Ցուցադրել էմոջի ընտրիչը",
-      "TIP_ATTACH_ICON": "Կցել ֆայլեր",
+      "TIP_EMOJI_ICON": "Show emoji selector",
+      "TIP_ATTACH_ICON": "Attach files",
       "TIP_AUDIORECORDER_ICON": "Record audio",
       "TIP_AUDIORECORDER_PERMISSION": "Allow access to audio",
       "TIP_AUDIORECORDER_ERROR": "Could not open the audio",
-      "AUDIO_CONVERSION_FAILED": "Audio conversion failed. Please try again.",
-      "DRAG_DROP": "Քաշեք և գցեք այստեղ կցելու համար",
-      "IMAGE_UPLOAD_SUCCESS": "Պատկերը հաջողությամբ ներբեռնվեց",
+      "DRAG_DROP": "Drag and drop here to attach",
       "START_AUDIO_RECORDING": "Start audio recording",
       "STOP_AUDIO_RECORDING": "Stop audio recording",
-      "COPILOT_THINKING": "Copilot-ը մտածում է",
+      "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
         "TO": "TO",
-        "ADD_BCC": "Ավելացնել թաքն. պատճեն",
+        "ADD_BCC": "Add bcc",
         "CC": {
           "LABEL": "CC",
-          "PLACEHOLDER": "Էլ. հասցեները՝ ստորակետերով բաժանված",
-          "ERROR": "Մուտքագրեք վավեր էլ. հասցեներ"
+          "PLACEHOLDER": "Emails separated by commas",
+          "ERROR": "Please enter valid email addresses"
         },
         "BCC": {
           "LABEL": "BCC",
-          "PLACEHOLDER": "Էլ. հասցեները՝ ստորակետերով բաժանված",
-          "ERROR": "Մուտքագրեք վավեր էլ. հասցեներ"
+          "PLACEHOLDER": "Emails separated by commas",
+          "ERROR": "Please enter valid email addresses"
         }
       },
       "UNDEFINED_VARIABLES": {
@@ -252,34 +245,34 @@
         "EXPAND": "Expand preview"
       }
     },
-    "VISIBLE_TO_AGENTS": "Գաղտնի նշում․ տեսանելի է միայն ձեզ և ձեր թիմին",
-    "CHANGE_STATUS": "Զրույցի կարգավիճակը փոխվեց",
+    "VISIBLE_TO_AGENTS": "Private Note: Only visible to you and your team",
+    "CHANGE_STATUS": "Conversation status changed",
     "CHANGE_STATUS_FAILED": "Conversation status change failed",
-    "CHANGE_AGENT": "Զրույցի պատասխանատուն փոխվեց",
+    "CHANGE_AGENT": "Conversation Assignee changed",
     "CHANGE_AGENT_FAILED": "Assignee change failed",
     "ASSIGN_LABEL_SUCCESFUL": "Label assigned successfully",
     "ASSIGN_LABEL_FAILED": "Label assignment failed",
-    "CHANGE_TEAM": "Խմբի փոփոխություն կատարվեց",
+    "CHANGE_TEAM": "Conversation team changed",
     "SUCCESS_DELETE_CONVERSATION": "Conversation deleted successfully",
     "FAIL_DELETE_CONVERSATION": "Couldn't delete conversation! Try again",
     "FILE_SIZE_LIMIT": "File exceeds the {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB attachment limit",
     "FILE_TYPE_NOT_SUPPORTED": "This {fileName} file type is not supported in this conversation",
-    "MESSAGE_ERROR": "Հնարավոր չէ ուղարկել այս հաղորդագրությունը, փորձեք ավելի ուշ",
-    "SENT_BY": "Ուղարկողը՝",
+    "MESSAGE_ERROR": "Unable to send this message, please try again later",
+    "SENT_BY": "Sent by:",
     "BOT": "Bot",
     "NATIVE_APP": "Native app",
     "NATIVE_APP_ADVISORY": "This message was sent from the native app. Reply from Chatwoot to maintain the message window.",
     "SEND_FAILED": "Couldn't send message! Try again",
     "TRY_AGAIN": "retry",
     "ASSIGNMENT": {
-      "SELECT_AGENT": "Ընտրել գործակալին",
-      "REMOVE": "Հեռացնել",
-      "ASSIGN": "Նշանակել"
+      "SELECT_AGENT": "Select Agent",
+      "REMOVE": "Remove",
+      "ASSIGN": "Assign"
     },
     "CONTEXT_MENU": {
-      "COPY": "Պատճենել",
+      "COPY": "Copy",
       "REPLY_TO": "Reply to this message",
-      "DELETE": "Ջնջել",
+      "DELETE": "Delete",
       "CREATE_A_CANNED_RESPONSE": "Add to canned responses",
       "TRANSLATE": "Translate",
       "COPY_PERMALINK": "Copy link to the message",
@@ -289,25 +282,6 @@
         "MESSAGE": "You cannot undo this action",
         "DELETE": "Delete",
         "CANCEL": "Cancel"
-      },
-      "REPORT_MESSAGE": {
-        "LABEL": "Report message",
-        "TITLE": "Report Captain message",
-        "DESCRIPTION": "Found an issue with this AI response? Let us know what went wrong and our team will review it to help improve Captain's accuracy.",
-        "PROBLEM_TYPE": "Problem type",
-        "PROBLEM_TYPE_PLACEHOLDER": "Select a problem type",
-        "DESCRIPTION_LABEL": "Description",
-        "DESCRIPTION_PLACEHOLDER": "Describe the problem in detail",
-        "SUBMIT": "Report",
-        "SUCCESS": "Thanks for reporting. Our team will take a look.",
-        "ERROR": "Could not report this message. Please try again.",
-        "REASONS": {
-          "incorrect_information": "Incorrect information",
-          "inappropriate_response": "Inappropriate response",
-          "incomplete_response": "Incomplete response",
-          "outdated_information": "Outdated information",
-          "other": "Other"
-        }
       }
     },
     "SIDEBAR": {
@@ -322,90 +296,45 @@
       "HANDLED_IN_ANOTHER_TAB": "Being handled in another tab",
       "REJECT_CALL": "Reject",
       "JOIN_CALL": "Join call",
-      "END_CALL": "End call",
-      "MUTE": "Mute mic",
-      "UNMUTE": "Unmute mic",
-      "VIEW_CHAT_HISTORY": "View chat history",
-      "GO_TO_CONVERSATION": "Go to conversation thread"
+      "END_CALL": "End call"
     }
   },
   "EMAIL_TRANSCRIPT": {
-    "TITLE": "Ուղարկել զրույցի արձանագրությունը",
-    "DESC": "Ուղարկել զրույցի արձանագրության պատճենը նշված էլ. հասցեին",
-    "SUBMIT": "Ուղարկել",
-    "CANCEL": "Չեղարկել",
-    "SEND_EMAIL_SUCCESS": "Զրույցի արձանագրությունը հաջողությամբ ուղարկվեց",
-    "SEND_EMAIL_ERROR": "Սխալ տեղի ունեցավ, խնդրում ենք փորձել կրկին",
+    "TITLE": "Send conversation transcript",
+    "DESC": "Send a copy of the conversation transcript to the specified email address",
+    "SUBMIT": "Submit",
+    "CANCEL": "Cancel",
+    "SEND_EMAIL_SUCCESS": "The chat transcript was sent successfully",
+    "SEND_EMAIL_ERROR": "There was an error, please try again",
     "SEND_EMAIL_PAYMENT_REQUIRED": "Email transcript is not available on your current plan. Please upgrade to use this feature.",
     "FORM": {
-      "SEND_TO_CONTACT": "Ուղարկել արձանագրությունը հաճախորդին",
-      "SEND_TO_AGENT": "Ուղարկել արձանագրությունը նշանակված գործակալին",
-      "SEND_TO_OTHER_EMAIL_ADDRESS": "Ուղարկել արձանագրությունը այլ էլ. հասցե",
+      "SEND_TO_CONTACT": "Send the transcript to the customer",
+      "SEND_TO_AGENT": "Send the transcript to the assigned agent",
+      "SEND_TO_OTHER_EMAIL_ADDRESS": "Send the transcript to another email address",
       "EMAIL": {
-        "PLACEHOLDER": "Մուտքագրեք էլ. հասցե",
-        "ERROR": "Մուտքագրեք վավեր էլ. հասցե"
+        "PLACEHOLDER": "Enter an email address",
+        "ERROR": "Please enter a valid email address"
       }
     }
   },
-  "ONBOARDING": {
-    "TITLE": "Hey 👋, Welcome to {installationName}!",
-    "DESCRIPTION": "Thanks for signing up. We want you to get the most out of {installationName}. Here are a few things you can do in {installationName} to make the experience delightful.",
-    "GREETING_MORNING": "👋 Good morning, {name}. Welcome to {installationName}.",
-    "GREETING_AFTERNOON": "👋 Good afternoon, {name}. Welcome to {installationName}.",
-    "GREETING_EVENING": "👋 Good evening, {name}. Welcome to {installationName}.",
-    "READ_LATEST_UPDATES": "Կարդացեք մեր վերջին նորությունները",
-    "ALL_CONVERSATION": {
-      "TITLE": "Ձեր բոլոր զրույցները մեկ տեղում",
-      "DESCRIPTION": "Տեսեք ձեր հաճախորդների բոլոր զրույցները մեկ վահանակում։ Կարող եք զտել զրույցները մուտքային ալիքով, պիտակով և կարգավիճակով։",
-      "NEW_LINK": "Click here to create an inbox"
-    },
-    "TEAM_MEMBERS": {
-      "TITLE": "Հրավիրեք թիմի անդամներին",
-      "DESCRIPTION": "Since you are getting ready to talk to your customer, bring in your teammates to assist you. You can invite your teammates by adding their email addresses to the agent list.",
-      "NEW_LINK": "Սեղմեք այստեղ՝ թիմի անդամ հրավիրելու համար"
-    },
-    "LABELS": {
-      "TITLE": "Կազմակերպեք զրույցները պիտակներով",
-      "DESCRIPTION": "Պիտակները հեշտացնում են զրույցների դասակարգումը։ Ստեղծեք օրինակ՝ #support-enquiry, #billing-question և այլն, որպեսզի հետագայում օգտագործեք զրույցներում։",
-      "NEW_LINK": "Սեղմեք այստեղ՝ պիտակներ ստեղծելու համար"
-    },
-    "CANNED_RESPONSES": {
-      "TITLE": "Create canned responses",
-      "DESCRIPTION": "Pre-written quick reply templates help you quickly respond to a conversation. Agents can type the '/' character followed by the shortcode to insert a response.",
-      "NEW_LINK": "Click here to create a canned response"
-    }
-  },
   "CONVERSATION_SIDEBAR": {
-    "ASSIGNEE_LABEL": "Նշանակված գործակալ",
-    "SELF_ASSIGN": "Նշանակել ինձ",
-    "TEAM_LABEL": "Նշանակված թիմ",
+    "ASSIGNEE_LABEL": "Assigned Agent",
+    "SELF_ASSIGN": "Assign to me",
+    "TEAM_LABEL": "Assigned Team",
     "SELECT": {
-      "PLACEHOLDER": "Չկա"
+      "PLACEHOLDER": "None"
     },
     "ACCORDION": {
-      "CONTACT_DETAILS": "Կոնտակտի տվյալներ",
-      "CONVERSATION_ACTIONS": "Զրույցի գործողություններ",
-      "CONVERSATION_LABELS": "Զրույցի պիտակներ",
-      "CONVERSATION_INFO": "Զրույցի տեղեկություն",
+      "CONTACT_DETAILS": "Contact Details",
+      "CONVERSATION_ACTIONS": "Conversation Actions",
+      "CONVERSATION_LABELS": "Conversation Labels",
+      "CONVERSATION_INFO": "Conversation Information",
       "CONTACT_NOTES": "Contact Notes",
-      "CONTACT_ATTRIBUTES": "Կոնտակտի հատկություններ",
-      "PREVIOUS_CONVERSATION": "Նախորդ զրույցներ",
+      "CONTACT_ATTRIBUTES": "Contact Attributes",
+      "PREVIOUS_CONVERSATION": "Previous Conversations",
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Linked Linear Issues",
-      "SHOPIFY_ORDERS": "Shopify Orders",
-      "SHARED_FILES": "Attachments"
-    },
-    "SHARED_FILES": {
-      "EMPTY": "No attachments yet",
-      "DOWNLOAD": "Download file",
-      "DOWNLOAD_ERROR": "Could not download the file. Please try again.",
-      "MEDIA_HEADING": "Media",
-      "FILES_HEADING": "Files",
-      "VIEW_ALL": "Դիտել բոլորը",
-      "SHOW_LESS": "Show less",
-      "MORE_COUNT": "+{count}",
-      "UNTITLED_FILE": "Untitled file",
-      "JUMP_TO_MESSAGE": "Jump to message"
+      "SHOPIFY_ORDERS": "Shopify Orders"
     },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",
@@ -451,10 +380,10 @@
   },
   "EMAIL_HEADER": {
     "FROM": "From",
-    "TO": "Ում",
-    "BCC": "Թաքն. պատճեն",
-    "CC": "Պատճեն",
-    "SUBJECT": "Վերնագիր",
+    "TO": "To",
+    "BCC": "Bcc",
+    "CC": "Cc",
+    "SUBJECT": "Subject",
     "EXPAND": "Expand email"
   },
   "CONVERSATION_PARTICIPANTS": {

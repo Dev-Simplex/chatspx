@@ -20,7 +20,6 @@
     "CALL": "Вызов",
     "CALL_INITIATED": "Вызов контакта…",
     "CALL_FAILED": "Не удалось начать вызов. Повторите попытку.",
-    "CLICK_TO_EDIT": "Click to edit",
     "VOICE_INBOX_PICKER": {
       "TITLE": "Выберите голосовую почту"
     },
@@ -386,7 +385,6 @@
       "IDENTIFIER": "Идентификатор",
       "COUNTRY": "Страна",
       "CITY": "Город",
-      "COMPANY": "Компания",
       "CREATED_AT": "Дата создания",
       "LAST_ACTIVITY": "Последние действия",
       "REFERER_LINK": "Ссылка реферера",
@@ -508,7 +506,6 @@
         "ATTRIBUTES": "Свойства",
         "HISTORY": "История",
         "NOTES": "Заметки",
-        "MEDIA": "Медиа",
         "MERGE": "Объединить"
       },
       "HISTORY": {
@@ -584,11 +581,8 @@
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Назначить метки",
-    "REMOVE_LABELS": "Remove Labels",
     "ASSIGN_LABELS_SUCCESS": "Метки успешно назначены.",
     "ASSIGN_LABELS_FAILED": "Failed to assign labels",
-    "REMOVE_LABELS_SUCCESS": "Labels removed successfully.",
-    "REMOVE_LABELS_FAILED": "Failed to remove labels",
     "DESCRIPTION": "Select the labels you want to add to the selected contacts.",
     "NO_LABELS_FOUND": "No labels available yet.",
     "SELECTED_COUNT": "Выбрано {count}",

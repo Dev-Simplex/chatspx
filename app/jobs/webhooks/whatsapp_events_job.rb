@@ -91,54 +91,22 @@ class Webhooks::WhatsappEventsJob < MutexApplicationJob
 
   private
 
-  # Echo payloads reverse the fields — `from` is the business number and `to` is the contact.
-  # Returns nil for status-only webhooks so they bypass the lock.
+  # Payloads de echo invertem os campos -- `from` e o numero do negocio e `to` e o contato.
+  # Retorna nil para webhooks que sao so status (statuses), para que eles ignorem o lock.
   def contact_sender_id(params)
     value = params.dig(:entry, 0, :changes, 0, :value) || params
-    return contact_sender_id_from_message_echoes(value[:message_echoes]) if value[:message_echoes].present?
-
-    contact_sender_id_from_messages(value[:messages], value[:contacts])
-  end
-
-  # Echo payloads are outbound messages from the WhatsApp Business app, so `to`
-  # points to the contact. Prefer parent BSUID when present so payloads that have
-  # both regular+parent BSUIDs serialize with parent-BSUID-only payloads.
-  def contact_sender_id_from_message_echoes(message_echoes)
-    message = message_echoes&.first
+    message = (value[:messages] || value[:message_echoes])&.first
     return if message.blank?
 
-    [message[:to_parent_user_id], message[:to_user_id], message[:to]].compact_blank.first
-  end
-
-  # Regular inbound payloads are sent by the contact, so `from` points to the
-  # contact. Prefer parent BSUID when present so payloads that have both
-  # regular+parent BSUIDs serialize with parent-BSUID-only payloads.
-  def contact_sender_id_from_messages(messages, contacts)
-    message = messages&.first
-    return if message.blank?
-
-    contact = contacts&.first || {}
-
-    [
-      message[:from_parent_user_id],
-      contact[:parent_user_id],
-      message[:from_user_id],
-      contact[:user_id],
-      message[:from]
-    ].compact_blank.first
+    message[:to] || message[:from]
   end
 
   def channel_is_inactive?(channel)
     return true if channel.blank?
-    # Only skip for embedded signup when reauth is required; manual flow uses API keys and should still receive webhooks
-    return true if channel.reauthorization_required? && embedded_signup_channel?(channel)
+    return true if channel.reauthorization_required?
     return true unless channel.account.active?
 
     false
-  end
-
-  def embedded_signup_channel?(channel)
-    (channel.provider_config || {}).to_h['source'] == 'embedded_signup'
   end
 
   def find_channel_by_url_param(params)
@@ -157,10 +125,10 @@ class Webhooks::WhatsappEventsJob < MutexApplicationJob
   end
 
   def get_channel_from_wb_payload(wb_params)
-    metadata = wb_params[:entry].first[:changes].first.dig(:value, :metadata) || {}
-    Whatsapp::WebhookChannelFinderService.new(
-      display_phone_number: metadata[:display_phone_number],
-      phone_number_id: metadata[:phone_number_id]
-    ).perform
+    phone_number = "+#{wb_params[:entry].first[:changes].first.dig(:value, :metadata, :display_phone_number)}"
+    phone_number_id = wb_params[:entry].first[:changes].first.dig(:value, :metadata, :phone_number_id)
+    channel = Channel::Whatsapp.find_by(phone_number: phone_number)
+    # validate to ensure the phone number id matches the whatsapp channel
+    return channel if channel && channel.provider_config['phone_number_id'] == phone_number_id
   end
 end

@@ -12,7 +12,6 @@
 #  updated_at           :datetime         not null
 #  account_id           :bigint
 #  captain_assistant_id :bigint
-#  secret               :string
 #
 # Indexes
 #
@@ -28,8 +27,6 @@ class AgentBot < ApplicationRecord
   include AccessTokenable
   include Avatarable
 
-  include WebhookSecretable
-
   scope :accessible_to, lambda { |account|
     account_id = account&.id
     where(account_id: [nil, account_id])
@@ -38,7 +35,6 @@ class AgentBot < ApplicationRecord
   has_many :agent_bot_inboxes, dependent: :destroy_async
   has_many :inboxes, through: :agent_bot_inboxes
   has_many :messages, as: :sender, dependent: :nullify
-  has_many :platform_app_permissibles, as: :permissible, dependent: :destroy
   has_many :assigned_conversations, class_name: 'Conversation',
                                     foreign_key: :assignee_agent_bot_id,
                                     dependent: :nullify,
@@ -82,5 +78,3 @@ class AgentBot < ApplicationRecord
     account.nil?
   end
 end
-
-AgentBot.include_mod_with('Audit::AgentBot')

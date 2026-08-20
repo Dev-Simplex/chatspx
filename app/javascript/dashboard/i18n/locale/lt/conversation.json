@@ -44,8 +44,6 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "Į šį pokalbį galite atsakyti tik naudodami šablono pranešimą, nes",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "Pranešimų apribojimas 24 valandoms",
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "This Instagram account was migrated to the new Instagram channel inbox. All new messages will show up there. You won’t be able to send messages from this conversation anymore.",
-    "INSTAGRAM_RESTRICTION_BANNER": "Instagram is currently restricted. Some messages or actions may be delayed or unavailable while we restore full support.",
-    "INSTAGRAM_RESTRICTION_STATUS_LINK": "View status update",
     "REPLYING_TO": "Jūs atsakote į:",
     "REMOVE_SELECTION": "Pašalinti Pasirinkimą",
     "DOWNLOAD": "Parsisiųsti",
@@ -64,7 +62,6 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "Ši žinutė nepalaikoma. Jūs galite peržiūrėti šią žinutę Facebook Messenger programėlėje.",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "Ši žinutė nepalaikoma. Jūs galite peržiūrėti šią žinutę Instagram programėlėje.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "This message is unsupported. You can view this message on the TikTok app.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "This message is unsupported. You can view this message on the WhatsApp app.",
     "SUCCESS_DELETE_MESSAGE": "Pranešimas ištrintas sėkmingai",
     "FAIL_DELETE_MESSSAGE": "Nepavyko ištrinti pranešimo! Bandykite dar kartą",
     "NO_RESPONSE": "Nėra atsakymo",
@@ -74,8 +71,7 @@
     "REPLY_MESSAGE_NOT_FOUND": "Pranešimas nepasiekiamas",
     "CARD": {
       "SHOW_LABELS": "Rodyti etiketes",
-      "HIDE_LABELS": "Slėpti etiketes",
-      "LABELS_COUNT": "{count} labels"
+      "HIDE_LABELS": "Slėpti etiketes"
     },
     "VOICE_CALL": {
       "INCOMING_CALL": "Incoming call",
@@ -96,7 +92,6 @@
       "OPEN": "Daugiau",
       "CLOSE": "Uždaryti",
       "DETAILS": "smulkesnė informacija",
-      "COPY_ID_SUCCESS": "Conversation ID copied to clipboard",
       "SNOOZED_UNTIL": "Atidėta iki",
       "SNOOZED_UNTIL_TOMORROW": "Atidėta iki rytojaus",
       "SNOOZED_UNTIL_NEXT_WEEK": "Atidėta iki kitos savaitės",
@@ -199,7 +194,7 @@
       "MESSAGING_RESTRICTED_WHATSAPP": "You can only reply using a template message due to 24-hour message window restriction",
       "MESSAGING_RESTRICTED_API": "You can only reply using a template message due to message window restriction",
       "MESSAGE_SIGNATURE_NOT_CONFIGURED": "Pranešimo parašas nesukonfigūruotas, sukonfigūruokite jį profilio nustatymuose.",
-      "COPILOT_MSG_INPUT": "Duokite copiloto papildomų nurodymų arba klauskite dar ko nors... Paspauskite Enter, kad išsiųstumėte papildomą žinutę",
+      "COPILOT_MSG_INPUT": "Give copilot additional prompts, or ask anything else... Press enter to send follow-up",
       "CLICK_HERE": "Spausti čia kad atnaujinti",
       "WHATSAPP_TEMPLATES": "Whatsapp Šablonai"
     },
@@ -216,12 +211,10 @@
       "TIP_AUDIORECORDER_ICON": "Įrašyti audio",
       "TIP_AUDIORECORDER_PERMISSION": "Leisti prieiti prie audio",
       "TIP_AUDIORECORDER_ERROR": "Nepavyko atidaryti audio",
-      "AUDIO_CONVERSION_FAILED": "Audio conversion failed. Please try again.",
       "DRAG_DROP": "Norėdami pridėti, vilkite ir numeskite čia",
-      "IMAGE_UPLOAD_SUCCESS": "Paveiksliukas sėkmingai įkeltas",
       "START_AUDIO_RECORDING": "Pradėti audio įrašymą",
       "STOP_AUDIO_RECORDING": "Baigti audio įrašymą",
-      "COPILOT_THINKING": "Copilot galvoja",
+      "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
         "TO": "Kam",
         "ADD_BCC": "Pridėti bcc",
@@ -289,25 +282,6 @@
         "MESSAGE": "Negalite anuliuoti šio veiksmo",
         "DELETE": "Ištrinti",
         "CANCEL": "Atšaukti"
-      },
-      "REPORT_MESSAGE": {
-        "LABEL": "Report message",
-        "TITLE": "Report Captain message",
-        "DESCRIPTION": "Found an issue with this AI response? Let us know what went wrong and our team will review it to help improve Captain's accuracy.",
-        "PROBLEM_TYPE": "Problem type",
-        "PROBLEM_TYPE_PLACEHOLDER": "Select a problem type",
-        "DESCRIPTION_LABEL": "Aprašymas",
-        "DESCRIPTION_PLACEHOLDER": "Describe the problem in detail",
-        "SUBMIT": "Report",
-        "SUCCESS": "Thanks for reporting. Our team will take a look.",
-        "ERROR": "Could not report this message. Please try again.",
-        "REASONS": {
-          "incorrect_information": "Incorrect information",
-          "inappropriate_response": "Inappropriate response",
-          "incomplete_response": "Incomplete response",
-          "outdated_information": "Outdated information",
-          "other": "Other"
-        }
       }
     },
     "SIDEBAR": {
@@ -322,11 +296,7 @@
       "HANDLED_IN_ANOTHER_TAB": "Being handled in another tab",
       "REJECT_CALL": "Reject",
       "JOIN_CALL": "Join call",
-      "END_CALL": "End call",
-      "MUTE": "Mute mic",
-      "UNMUTE": "Unmute mic",
-      "VIEW_CHAT_HISTORY": "View chat history",
-      "GO_TO_CONVERSATION": "Go to conversation thread"
+      "END_CALL": "End call"
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -364,20 +334,7 @@
       "PREVIOUS_CONVERSATION": "Ankstesni pokalbiai",
       "MACROS": "Makrokomandos",
       "LINEAR_ISSUES": "Linked Linear Issues",
-      "SHOPIFY_ORDERS": "Shopify Orders",
-      "SHARED_FILES": "Attachments"
-    },
-    "SHARED_FILES": {
-      "EMPTY": "No attachments yet",
-      "DOWNLOAD": "Download file",
-      "DOWNLOAD_ERROR": "Could not download the file. Please try again.",
-      "MEDIA_HEADING": "Media",
-      "FILES_HEADING": "Files",
-      "VIEW_ALL": "Peržiūrėti visus",
-      "SHOW_LESS": "Show less",
-      "MORE_COUNT": "+{count}",
-      "UNTITLED_FILE": "Untitled file",
-      "JUMP_TO_MESSAGE": "Jump to message"
+      "SHOPIFY_ORDERS": "Shopify Orders"
     },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",

@@ -28,6 +28,10 @@ import {
 import { useAccount } from 'dashboard/composables/useAccount';
 
 const props = defineProps({
+  alignPosition: {
+    type: String,
+    default: 'left',
+  },
   contactId: {
     type: String,
     default: null,
@@ -74,13 +78,17 @@ const resolveContactCreateErrorMessage = error => {
   return t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ERROR_MESSAGE');
 };
 
-const showComposeNewConversation = ref(false);
+// Always render as centered modal overlay (desktop + mobile)
+// Legacy popover behavior removed for consistent UX.
+const viewInModal = computed(() => true);
+
 const contacts = ref([]);
 const selectedContact = ref(null);
 const targetInbox = ref(null);
 const isCreatingContact = ref(false);
 const isFetchingInboxes = ref(false);
 const isSearching = ref(false);
+const showComposeNewConversation = ref(false);
 
 const formState = reactive({
   message: '',
@@ -125,6 +133,14 @@ const directUploadsEnabled = computed(
 );
 
 const activeContact = computed(() => contactById.value(props.contactId));
+
+const composePopoverClass = computed(() => {
+  if (viewInModal.value) return '';
+
+  return props.alignPosition === 'right'
+    ? 'absolute ltr:left-0 ltr:right-[unset] rtl:right-0 rtl:left-[unset]'
+    : 'absolute rtl:left-0 rtl:right-[unset] ltr:right-0 ltr:left-[unset]';
+});
 
 const onContactSearch = debounce(
   async query => {
@@ -208,6 +224,7 @@ const closeCompose = () => {
   }
   targetInbox.value = null;
   resetContacts();
+  emit('close');
 };
 
 const discardCompose = () => {
@@ -405,6 +422,7 @@ const handleClickOutside = () => {
 };
 
 const onModalBackdropClick = () => {
+  if (!viewInModal.value) return;
   handleClickOutside();
 };
 
@@ -442,9 +460,14 @@ useKeyboardEvents(keyboardEvents);
   <div
     v-on-click-outside="[
       handleClickOutside,
+      // Fixed and edge case https://github.com/chatwoot/chatwoot/issues/10785
+      // This will prevent closing the compose conversation modal when the editor Create link popup is open
       { ignore: ['dialog.ProseMirror-prompt-backdrop'] },
     ]"
     class="relative"
+    :class="{
+      'z-50': showComposeNewConversation && !viewInModal,
+    }"
   >
     <slot
       name="trigger"
@@ -453,11 +476,15 @@ useKeyboardEvents(keyboardEvents);
     />
     <div
       v-if="showComposeNewConversation"
-      class="fixed z-50 bg-n-alpha-black1 backdrop-blur-[4px] flex items-start pt-[clamp(3rem,15vh,12rem)] justify-center inset-0"
+      :class="{
+        'fixed z-50 bg-n-alpha-black1 backdrop-blur-[4px] flex items-start pt-[clamp(3rem,15vh,12rem)] justify-center inset-0':
+          viewInModal,
+      }"
       @click.self="onModalBackdropClick"
     >
       <ComposeNewConversationForm
         :form-state="formState"
+        :class="[{ 'mt-2': !viewInModal }, composePopoverClass]"
         :contacts="contacts"
         :contact-id="contactId"
         :is-loading="isSearching"

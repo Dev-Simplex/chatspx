@@ -106,18 +106,8 @@ export default {
       return this.getAccount(this.accountId) || {};
     },
   },
-  watch: {
-    'currentAccount.id'(id) {
-      if (id) {
-        this.initializeAccount();
-      }
-    },
-  },
   mounted() {
-    // Account already in the store (navigated in): seed immediately.
-    if (this.currentAccount.id) {
-      this.initializeAccount();
-    }
+    this.initializeAccount();
   },
   methods: {
     async initializeAccount() {
@@ -125,10 +115,7 @@ export default {
         const { name, locale, id, domain, support_email, features } =
           this.getAccount(this.accountId);
 
-        const effectiveLocale = this.uiSettings?.locale || locale;
-        if (effectiveLocale) {
-          this.$root.$i18n.locale = effectiveLocale;
-        }
+        this.$root.$i18n.locale = this.uiSettings?.locale || locale;
         this.name = name;
         this.locale = locale;
         this.id = id;
@@ -154,9 +141,11 @@ export default {
           support_email: this.supportEmail,
         });
         // If user locale is set, update the locale with user locale
-        const updatedLocale = this.uiSettings?.locale || this.locale;
-        if (updatedLocale) {
-          this.$root.$i18n.locale = updatedLocale;
+        if (this.uiSettings?.locale) {
+          this.$root.$i18n.locale = this.uiSettings?.locale;
+        } else {
+          // If user locale is not set, update the locale with account locale
+          this.$root.$i18n.locale = this.locale;
         }
         this.getAccount(this.id).locale = this.locale;
         useAlert(this.$t('GENERAL_SETTINGS.UPDATE.SUCCESS'));

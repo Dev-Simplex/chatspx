@@ -5,8 +5,6 @@
 # além do handoff pedido pelo agente (tool://handoff), o FollowupJob escala pra humano
 # quando as cutucadas in-window esgotam.
 class Captain::Conversation::HumanHandoffService
-  attr_reader :handoff_note
-
   def initialize(conversation:, assistant:, reason: nil, team_id: nil)
     @conversation = conversation
     @assistant = assistant
@@ -76,7 +74,7 @@ class Captain::Conversation::HumanHandoffService
 
   # post the reason as a private note (dossiê pro humano que assumir)
   def create_handoff_note
-    @handoff_note = @conversation.messages.create!(
+    @conversation.messages.create!(
       message_type: :outgoing,
       private: true,
       sender: @assistant,

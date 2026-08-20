@@ -53,7 +53,6 @@ const emit = defineEmits(['edit', 'delete', 'view']);
 const { t } = useI18n();
 
 const STATUS_COMPLETED = 'completed';
-const STATUS_PROCESSING = 'processing';
 
 const { formatMessage } = useMessageFormatter();
 
@@ -73,15 +72,9 @@ const campaignStatus = computed(() => {
       : t('CAMPAIGN.LIVE_CHAT.CARD.STATUS.DISABLED');
   }
 
-  if (props.status === STATUS_COMPLETED) {
-    return t('CAMPAIGN.SMS.CARD.STATUS.COMPLETED');
-  }
-
-  if (props.status === STATUS_PROCESSING) {
-    return t('CAMPAIGN.SMS.CARD.STATUS.PROCESSING');
-  }
-
-  return t('CAMPAIGN.SMS.CARD.STATUS.SCHEDULED');
+  return props.status === STATUS_COMPLETED
+    ? t('CAMPAIGN.SMS.CARD.STATUS.COMPLETED')
+    : t('CAMPAIGN.SMS.CARD.STATUS.SCHEDULED');
 });
 
 const inboxName = computed(() => props.inbox?.name || '');

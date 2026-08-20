@@ -20,7 +20,6 @@
     "CALL": "Дзвінок",
     "CALL_INITIATED": "Викликаємо контакт…",
     "CALL_FAILED": "Не можливо розпочати виклик. Будь ласка, спробуйте пізніше.",
-    "CLICK_TO_EDIT": "Click to edit",
     "VOICE_INBOX_PICKER": {
       "TITLE": "Оберіть голосову теку"
     },
@@ -386,7 +385,6 @@
       "IDENTIFIER": "Ідентифікатор",
       "COUNTRY": "Країна",
       "CITY": "Місто",
-      "COMPANY": "Організація",
       "CREATED_AT": "Створений в",
       "LAST_ACTIVITY": "Остання активність",
       "REFERER_LINK": "Посилання",
@@ -508,7 +506,6 @@
         "ATTRIBUTES": "Атрибути",
         "HISTORY": "History",
         "NOTES": "Нотатки",
-        "MEDIA": "Media",
         "MERGE": "Merge"
       },
       "HISTORY": {
@@ -584,11 +581,8 @@
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Призначити мітки",
-    "REMOVE_LABELS": "Remove Labels",
     "ASSIGN_LABELS_SUCCESS": "Мітки додано успішно.",
     "ASSIGN_LABELS_FAILED": "Failed to assign labels",
-    "REMOVE_LABELS_SUCCESS": "Labels removed successfully.",
-    "REMOVE_LABELS_FAILED": "Failed to remove labels",
     "DESCRIPTION": "Select the labels you want to add to the selected contacts.",
     "NO_LABELS_FOUND": "No labels available yet.",
     "SELECTED_COUNT": "{count} selected",

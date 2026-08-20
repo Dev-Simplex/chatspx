@@ -7,7 +7,6 @@ import FBChannel from '../../api/channel/fbChannel';
 import TwilioChannel from '../../api/channel/twilioChannel';
 import WhatsappChannel from '../../api/channel/whatsappChannel';
 import { throwErrorMessage } from '../utils/api';
-import { isSendableTemplate } from '@chatwoot/utils';
 import AnalyticsHelper from '../../helper/AnalyticsHelper';
 import { ACCOUNT_EVENTS } from '../../helper/AnalyticsHelper/events';
 import { channelActions, buildInboxData } from './inboxes/channelActions';
@@ -68,11 +67,50 @@ export const getters = {
     const hasAllowlist =
       Array.isArray(allowedTemplateNames) && allowedTemplateNames.length > 0;
 
-    // Sendable-template filtering is shared with the mobile app via @chatwoot/utils.
     return templates.filter(template => {
-      const isAllowed =
-        !hasAllowlist || allowedTemplateNames.includes(template?.name);
-      return isAllowed && isSendableTemplate(template);
+      // Ensure template has required properties
+      if (!template || !template.status || !template.components) {
+        return false;
+      }
+
+      // When an allowlist is configured for the inbox, only those templates
+      // appear in conversation replies
+      if (hasAllowlist && !allowedTemplateNames.includes(template.name)) {
+        return false;
+      }
+
+      // Only show approved templates
+      if (template.status.toLowerCase() !== 'approved') {
+        return false;
+      }
+
+      // Filter out authentication templates
+      if (template.category === 'AUTHENTICATION') {
+        return false;
+      }
+
+      // Filter out CSAT templates (customer_satisfaction_survey and its versions)
+      if (
+        template.name &&
+        template.name.startsWith('customer_satisfaction_survey')
+      ) {
+        return false;
+      }
+
+      // Filter out interactive templates (LIST, PRODUCT, CATALOG), location templates, and call permission templates
+      const hasUnsupportedComponents = template.components.some(
+        component =>
+          ['LIST', 'PRODUCT', 'CATALOG', 'CALL_PERMISSION_REQUEST'].includes(
+            component.type
+          ) ||
+          (component.type === 'HEADER' && component.format === 'LOCATION')
+      );
+
+      if (hasUnsupportedComponents) {
+        return false;
+      }
+
+      return true;
     });
   },
   getNewConversationInboxes($state) {
@@ -184,8 +222,9 @@ export const actions = {
       sendAnalyticsEvent(channel.type);
       return response.data;
     } catch (error) {
+      const errorMessage = error?.response?.data?.message;
       commit(types.default.SET_INBOXES_UI_FLAG, { isCreating: false });
-      return throwErrorMessage(error);
+      throw new Error(errorMessage);
     }
   },
   createWebsiteChannel: async ({ commit }, params) => {
@@ -329,16 +368,6 @@ export const actions = {
       template
     );
     return response.data;
-  },
-  resetSecret: async ({ commit }, inboxId) => {
-    try {
-      const response = await InboxesAPI.resetSecret(inboxId);
-      commit(types.default.EDIT_INBOXES, response.data);
-      return response.data;
-    } catch (error) {
-      throwErrorMessage(error);
-      return null;
-    }
   },
 };
 

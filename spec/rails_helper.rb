@@ -7,10 +7,6 @@ require 'rspec/rails'
 require 'pundit/rspec'
 require 'sidekiq/testing'
 
-# Load Rake tasks
-require 'rake'
-Rails.application.load_tasks
-
 # test-prof helpers for tests optimization
 require 'test_prof/recipes/rspec/before_all'
 require 'test_prof/recipes/rspec/let_it_be'
@@ -85,7 +81,6 @@ RSpec.configure do |config|
   config.include FileUploadHelpers
   config.include CsvSpecHelpers
   config.include InstagramSpecHelpers
-  config.include ConversationsUnreadCountsHelpers
   config.include Devise::Test::IntegrationHelpers, type: :request
   config.include ActiveSupport::Testing::TimeHelpers
   config.include ActionCable::TestHelper

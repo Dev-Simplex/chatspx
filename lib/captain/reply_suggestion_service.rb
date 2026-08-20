@@ -3,7 +3,7 @@ class Captain::ReplySuggestionService < Captain::BaseTaskService
 
   def perform
     make_api_call(
-      feature: 'editor',
+      model: GPT_MODEL,
       messages: [
         { role: 'system', content: system_prompt },
         { role: 'user', content: formatted_conversation }
@@ -37,10 +37,6 @@ class Captain::ReplySuggestionService < Captain::BaseTaskService
 
   def event_name
     'reply_suggestion'
-  end
-
-  def use_account_openai_hook?
-    true
   end
 end
 
