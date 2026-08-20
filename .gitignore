@@ -101,3 +101,7 @@ CLAUDE.local.md
 .histoire
 .pnpm-store/*
 local/
+
+# telas de verificação e cache do navegador de testes (não versionados)
+telas-verificacao/
+.playwright-mcp/
