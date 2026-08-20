@@ -550,13 +550,6 @@ const menuItems = computed(() => {
       to: accountScopedRoute('gallery_index'),
       activeOn: ['gallery_index'],
     },
-    {
-      name: 'Assessments',
-      label: t('SIDEBAR.ASSESSMENTS'),
-      icon: 'i-lucide-brain-circuit',
-      to: accountScopedRoute('assessments_index'),
-      activeOn: ['assessments_index'],
-    },
     ...(takeoverRequestCount.value > 0
       ? [
           {
