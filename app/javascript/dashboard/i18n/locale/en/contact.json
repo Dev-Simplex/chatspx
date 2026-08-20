@@ -15,6 +15,9 @@
     "INITIATED_FROM": "Initiated from",
     "INITIATED_AT": "Initiated at",
     "IP_ADDRESS": "IP Address",
+    "IP_ADDRESS_REVEAL": "Show IP address",
+    "IP_ADDRESS_HIDE": "Hide IP address",
+    "IP_ADDRESS_MASKED": "Hidden",
     "CREATED_AT_LABEL": "Created",
     "NEW_MESSAGE": "New message",
     "NEW_MESSAGE_SHORT": "Message",
@@ -22,6 +25,7 @@
     "CALL_SHORT": "Call",
     "CALL_INITIATED": "Calling the contact…",
     "CALL_FAILED": "Unable to start the call. Please try again.",
+    "CLICK_TO_EDIT": "Click to edit",
     "VOICE_INBOX_PICKER": {
       "TITLE": "Choose a voice inbox"
     },
@@ -205,6 +209,9 @@
     }
   },
   "CUSTOM_ATTRIBUTES": {
+    "FROM_WEBSITE_SECTION": "Data received from the website ({count})",
+    "FROM_WEBSITE_BADGE": "From the website",
+    "FROM_WEBSITE_BADGE_TITLE": "Sent by your website through setCustomAttributes, with no prior setup",
     "BUTTON": "Add custom attribute",
     "COPY_SUCCESSFUL": "Copied to clipboard successfully",
     "SHOW_MORE": "Show all attributes",
@@ -399,6 +406,7 @@
       "IDENTIFIER": "Identifier",
       "COUNTRY": "Country",
       "CITY": "City",
+      "COMPANY": "Company",
       "CREATED_AT": "Created at",
       "LAST_ACTIVITY": "Last activity",
       "REFERER_LINK": "Referer link",
@@ -530,6 +538,7 @@
         "ATTRIBUTES": "Attributes",
         "HISTORY": "History",
         "NOTES": "Notes",
+        "MEDIA": "Media",
         "MERGE": "Merge",
         "ATTENDANCE": "Attendance"
       },
@@ -660,8 +669,11 @@
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Assign Labels",
+    "REMOVE_LABELS": "Remove Labels",
     "ASSIGN_LABELS_SUCCESS": "Labels assigned successfully.",
     "ASSIGN_LABELS_FAILED": "Failed to assign labels",
+    "REMOVE_LABELS_SUCCESS": "Labels removed successfully.",
+    "REMOVE_LABELS_FAILED": "Failed to remove labels",
     "DESCRIPTION": "Select the labels you want to add to the selected contacts.",
     "NO_LABELS_FOUND": "No labels available yet.",
     "SELECTED_COUNT": "{count} selected",

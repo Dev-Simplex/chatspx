@@ -1,8 +1,44 @@
 import md5 from 'md5';
 import Cookies from 'js-cookie';
 
-const REQUIRED_USER_KEYS = ['avatar_url', 'email', 'name'];
-const ALLOWED_USER_ATTRIBUTES = [...REQUIRED_USER_KEYS, 'identifier_hash'];
+// Bloco 5.17 — quem identifica sozinho. `phone_number` entrou: um site que so tem o telefone do
+// visitante (formulario de WhatsApp, checkout por celular) nao conseguia identificar ninguem, e a
+// chamada morria com "should have one of the keys [avatar_url, email, name]".
+const REQUIRED_USER_KEYS = ['avatar_url', 'email', 'name', 'phone_number'];
+
+// Bloco 5.17 — o que entra no hash de dedupe.
+//
+// Antes eram so os quatro de cima. Consequencia medida: mudar SO o telefone produzia o MESMO hash,
+// o SDK comparava com o cookie e retornava cedo — a atualizacao NAO saia do navegador. O mesmo
+// valia para empresa, cidade, pais, descricao e atributos personalizados: campos que o widget
+// envia (`widget/store/modules/contacts.js:52-80`) mas que o dedupe nao enxergava.
+//
+// A lista tem de cobrir TUDO o que o widget manda. Um campo que o widget envia e o hash ignora e,
+// por construcao, um campo que nunca atualiza depois da primeira vez.
+const ALLOWED_USER_ATTRIBUTES = [
+  ...REQUIRED_USER_KEYS,
+  'identifier_hash',
+  'company_name',
+  'city',
+  'country_code',
+  'description',
+  'signed_up_at',
+  'social_profiles',
+  'custom_attributes',
+];
+
+// Objeto vira texto com as chaves ORDENADAS: sem isso, o mesmo conteudo em outra ordem produziria
+// hash diferente e o dedupe reenviaria a cada chamada — o defeito oposto, e igualmente silencioso.
+const stableString = value => {
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'object') return String(value);
+  if (Array.isArray(value)) return value.map(stableString).join(',');
+
+  return Object.keys(value)
+    .sort()
+    .map(key => `${key}:${stableString(value[key])}`)
+    .join(',');
+};
 
 export const getUserCookieName = () => {
   const SET_USER_COOKIE_PREFIX = 'cw_user_';
@@ -12,7 +48,7 @@ export const getUserCookieName = () => {
 
 export const getUserString = ({ identifier = '', user }) => {
   const userStringWithSortedKeys = ALLOWED_USER_ATTRIBUTES.reduce(
-    (acc, key) => `${acc}${key}${user[key] || ''}`,
+    (acc, key) => `${acc}${key}${stableString(user[key])}`,
     ''
   );
   return `${userStringWithSortedKeys}identifier${identifier}`;
@@ -32,6 +68,16 @@ export const setCookieWithDomain = (
     expires,
     sameSite: 'Lax',
     domain: baseDomain,
+    // Bloco 4.19 absorveu o item 46 do gap analysis (P0): TODO cookie que o SDK
+    // grava sai `secure` quando a pagina e HTTPS. Nao e um parametro do bloco
+    // novo de proposito — o defeito era do helper, e resolve-lo aqui cobre os
+    // tres cookies do SDK (`cw_conversation`, `cw_teaser_dismissed`,
+    // `cw_approach`) por uma linha, em vez de uma por chamador.
+    //
+    // A condicao existe para NAO quebrar site em HTTP: la `secure` faria o
+    // navegador descartar o cookie em silencio, e o widget perderia a sessao do
+    // visitante sem um unico erro no console.
+    secure: window.location.protocol === 'https:',
   };
 
   // if type of value is object, stringify it

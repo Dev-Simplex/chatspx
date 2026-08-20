@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Página manual do live chat — teste do widget</title>
+<style>
+  :root { --verde: #2dc46f; --tinta: #17171a; --papel: #f9f9fb; --linha: #e3e3e8; }
+  @media (prefers-color-scheme: dark) { :root { --tinta: #f9f9fb; --papel: #17171a; --linha: #2b2b31; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--papel); color: var(--tinta); }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 40px 20px 120px; }
+  h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -.02em; }
+  h2 { font-size: 18px; margin: 32px 0 10px; letter-spacing: -.01em; }
+  p  { margin: 0 0 14px; }
+  .lead { color: color-mix(in srgb, var(--tinta) 70%, transparent); }
+  .cfg { border: 1px solid var(--linha); border-radius: 12px; padding: 16px; margin: 20px 0;
+         background: color-mix(in srgb, var(--tinta) 4%, transparent); }
+  .cfg code { font-size: 13px; word-break: break-all; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+  button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+           border: 1px solid var(--linha); background: transparent; color: var(--tinta); }
+  button:hover { border-color: var(--verde); }
+  button.primario { background: var(--verde); border-color: var(--verde); color: #000; font-weight: 600; }
+  #log { border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; margin-top: 12px;
+         font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 260px;
+         overflow: auto; white-space: pre-wrap; }
+  .ok { color: var(--verde); } .err { color: #e5484d; }
+  ol { padding-left: 20px; } li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Página manual do live chat</h1>
+  <p class="lead">Esta página existe para testar o widget <strong>como visitante</strong>, fora do
+  painel. Ela carrega o SDK real do servidor configurado abaixo — nada aqui é simulado.</p>
+
+  <div class="cfg">
+    <strong>Servidor:</strong> <code id="cfg-url"></code><br />
+    <strong>Token da inbox:</strong> <code id="cfg-token"></code><br />
+    <strong>Status do SDK:</strong> <span id="cfg-status">carregando…</span>
+  </div>
+
+  <h2>O que testar</h2>
+  <ol>
+    <li>O <strong>lançador</strong> aparece no canto e abre o painel.</li>
+    <li>A cor do lançador e do cabeçalho é a da inbox — aqui, o verde <code>#2dc46f</code>.</li>
+    <li>Escreva uma mensagem: ela chega no painel, na conversa da inbox.</li>
+    <li>Alterne o tema do sistema (claro/escuro) e reabra: o painel acompanha.</li>
+    <li>Reduza a janela para largura de celular: o painel ocupa a tela.</li>
+    <li>Abra o console do navegador. <strong>Erro de console reprova o teste</strong> — é a mesma
+        régua que o fixture anti-erro aplica nos testes automatizados.</li>
+  </ol>
+
+  <h2>API pública do SDK</h2>
+  <p class="lead">Os botões abaixo chamam o SDK de verdade. O retorno de cada chamada aparece no
+  registro.</p>
+  <div class="btns">
+    <button class="primario" onclick="acao('toggle', () => window.$chatwoot.toggle())">abrir / fechar</button>
+    <button onclick="acao('popoutChatWindow', () => window.$chatwoot.popoutChatWindow())">destacar janela</button>
+    <button onclick="acao('setUser', () => window.$chatwoot.setUser('visitante-teste', { name: 'Visitante de Teste', email: 'visitante@teste.local' }))">identificar visitante</button>
+    <button onclick="acao('setCustomAttributes', () => window.$chatwoot.setCustomAttributes({ origem_teste: 'pagina-manual', carrinho_valor: 4200 }))">atributos do site</button>
+    <button onclick="acao('setLocale pt_BR', () => window.$chatwoot.setLocale('pt_BR'))">idioma pt-BR</button>
+    <button onclick="acao('setLocale en', () => window.$chatwoot.setLocale('en'))">idioma en</button>
+    <button onclick="acao('reset', () => window.$chatwoot.reset())">reiniciar conversa</button>
+  </div>
+
+  <div id="log">registro:</div>
+</div>
+
+<script>
+  // Configuração por querystring, para a página servir a qualquer ambiente:
+  //   ?url=http://192.168.8.232:3055&token=SEU_TOKEN
+  var qs = new URLSearchParams(location.search);
+  // O token abaixo é o da inbox "Suporte CHAT - SPX" da homologação (conta 3, inbox 6). Se ele
+  // parar de valer, o sintoma é confuso: o SDK carrega, o servidor responde 404, o navegador cai
+  // na home e o X-Frame-Options bloqueia — parece erro de rede, e não token morto. Para pegar um
+  // válido sem adivinhar, leia direto do banco (SELECT read-only, nunca escrita):
+  //   SELECT name, website_token FROM channel_web_widgets;
+  // Um token daqui já custou uma investigação inteira a uma trilha desta execução.
+  var BASE_URL = qs.get('url') || (location.origin.indexOf('file:') === 0 ? 'http://192.168.8.232:3000' : location.origin);
+  var TOKEN = qs.get('token') || '6dPgMBcE9W69x7hHgXQnwuPN';
+
+  document.getElementById('cfg-url').textContent = BASE_URL;
+  document.getElementById('cfg-token').textContent = TOKEN;
+
+  var logEl = document.getElementById('log');
+  function log(msg, cls) {
+    var t = new Date().toLocaleTimeString('pt-BR');
+    logEl.innerHTML += '\n<span class="' + (cls || '') + '">' + t + '  ' + msg + '</span>';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function acao(nome, fn) {
+    if (!window.$chatwoot) { log('$chatwoot ainda não existe — o SDK não carregou', 'err'); return; }
+    try {
+      var r = fn();
+      if (r && typeof r.then === 'function') {
+        log(nome + ' → Promise pendente…');
+        r.then(function (v) { log(nome + ' → resolvida: ' + JSON.stringify(v), 'ok'); })
+         .catch(function (e) { log(nome + ' → rejeitada: ' + e, 'err'); });
+      } else {
+        log(nome + ' → ' + (r === undefined ? 'ok (sem retorno)' : JSON.stringify(r)), 'ok');
+      }
+    } catch (e) { log(nome + ' → exceção: ' + e.message, 'err'); }
+  }
+
+  // Erro de console reprova: registra aqui também, para ficar visível sem abrir o devtools.
+  window.addEventListener('error', function (e) { log('window.error: ' + e.message, 'err'); });
+  window.addEventListener('unhandledrejection', function (e) { log('promise rejeitada: ' + e.reason, 'err'); });
+
+  window.chatwootSettings = { position: 'right', type: 'standard', launcherTitle: 'Fale com a gente' };
+
+  (function (d, t) {
+    var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
+    g.src = BASE_URL + '/packs/js/sdk.js';
+    g.defer = true; g.async = true;
+    s.parentNode.insertBefore(g, s);
+    g.onerror = function () {
+      document.getElementById('cfg-status').innerHTML = '<span class="err">falhou ao baixar o sdk.js</span>';
+      log('não consegui baixar ' + g.src, 'err');
+    };
+    g.onload = function () {
+      window.chatwootSDK.run({ websiteToken: TOKEN, baseUrl: BASE_URL });
+      document.getElementById('cfg-status').innerHTML = '<span class="ok">sdk.js carregado</span>';
+      log('sdk.js carregado de ' + g.src, 'ok');
+    };
+  })(document, 'script');
+
+  window.addEventListener('chatwoot:ready', function () {
+    document.getElementById('cfg-status').innerHTML = '<span class="ok">widget pronto</span>';
+    log('evento chatwoot:ready — o widget montou', 'ok');
+  });
+  window.addEventListener('chatwoot:error', function (e) {
+    log('evento chatwoot:error — ' + JSON.stringify(e.detail || {}), 'err');
+  });
+</script>
+</body>
+</html>

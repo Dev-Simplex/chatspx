@@ -20,25 +20,21 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
   # processos em custom_attributes (ex.: eval_unit sumiu em produção — mesma classe
   # de bug do reetiqueta team_id). Toca SÓ a própria chave, sem full-write.
   def increment_response_usage
-    self.class.where(id: id).update_all(
-      Arel.sql(
-        "custom_attributes = jsonb_set(COALESCE(custom_attributes, '{}'::jsonb), " \
-        "'{#{CAPTAIN_RESPONSES_USAGE}}', " \
-        "(COALESCE(custom_attributes->>'#{CAPTAIN_RESPONSES_USAGE}', '0')::int + 1)::text::jsonb)"
-      )
-    )
-    custom_attributes[CAPTAIN_RESPONSES_USAGE] = custom_attributes[CAPTAIN_RESPONSES_USAGE].to_i + 1
+    # RECONCILIACAO homologacao × v4.16.2 — o upstream EXTRAIU esta logica para
+    # `increment_custom_attribute` (linha ~167 deste arquivo), e o helper faz exatamente o que a
+    # homologacao fazia inline: `update_all` com `jsonb_set` atomico mais a atualizacao do objeto
+    # em memoria. O incremento continua sendo ATOMICO — que era o ponto da versao da equipe, e o
+    # que impede duas respostas simultaneas de contarem uma so. O helper ainda usa bind param no
+    # lugar de interpolar a chave no SQL.
+    increment_custom_attribute(CAPTAIN_RESPONSES_USAGE)
   end
 
   def reset_response_usage
-    custom_attributes[CAPTAIN_RESPONSES_USAGE] = 0
-    save
+    update_custom_attribute(CAPTAIN_RESPONSES_USAGE, 0)
   end
 
   def update_document_usage
-    # this will ensure that the document count is always accurate
-    custom_attributes[CAPTAIN_DOCUMENTS_USAGE] = captain_documents.count
-    save
+    update_custom_attribute(CAPTAIN_DOCUMENTS_USAGE, captain_documents.count)
   end
 
   def email_transcript_enabled?
@@ -89,6 +85,14 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
   end
 
   def plan_email_limit
+    base_limit = plan_base_email_limit
+    return nil if base_limit.nil?
+    return base_limit if free_plan?
+
+    base_limit * [agent_limits.to_i, 1].max
+  end
+
+  def plan_base_email_limit
     config = InstallationConfig.find_by(name: 'ACCOUNT_EMAILS_PLAN_LIMITS')&.value
     return nil if config.blank? || plan_name.blank?
 
@@ -96,6 +100,11 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
     parsed[plan_name.downcase]&.to_i
   rescue StandardError
     nil
+  end
+
+  def free_plan?
+    default_plan = InstallationConfig.find_by(name: 'CHATWOOT_CLOUD_PLANS')&.value&.first
+    default_plan.present? && plan_name&.downcase == default_plan['name']&.downcase
   end
 
   def default_captain_limits
@@ -138,6 +147,27 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
 
     ChatwootApp.max_limit
   end
+
+  # Atomic jsonb_set to avoid clobbering concurrent writes to other custom_attributes keys.
+  # Goes through Account relation (rather than raw connection) so shard routing is respected.
+  # rubocop:disable Rails/SkipsModelValidations
+  def update_custom_attribute(key, value)
+    Account.where(id: id).update_all([
+                                       "custom_attributes = jsonb_set(COALESCE(custom_attributes, '{}'), ARRAY[:key], :value::jsonb)",
+                                       { key: key, value: value.to_json }
+                                     ])
+    custom_attributes[key] = value
+  end
+
+  def increment_custom_attribute(key)
+    Account.where(id: id).update_all([
+                                       "custom_attributes = jsonb_set(COALESCE(custom_attributes, '{}'), ARRAY[:key], " \
+                                       '(COALESCE((custom_attributes ->> :key)::int, 0) + 1)::text::jsonb)',
+                                       { key: key }
+                                     ])
+    custom_attributes[key] = custom_attributes[key].to_i + 1
+  end
+  # rubocop:enable Rails/SkipsModelValidations
 
   def validate_limit_keys
     errors.add(:limits, ': Invalid data') unless self[:limits].is_a? Hash

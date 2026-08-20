@@ -28,6 +28,8 @@ import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
 import MessageTemplatesPage from './settingsPage/messageTemplates/MessageTemplatesPage.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
 import AccountHealth from './components/AccountHealth.vue';
+import WhatsappManualMigrationDialog from './components/WhatsappManualMigrationDialog.vue';
+import WhatsappManualMigrationBanner from './components/WhatsappManualMigrationBanner.vue';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import SenderNameExamplePreview from './components/SenderNameExamplePreview.vue';
 import LockToSingleConversationPreview from './components/LockToSingleConversationPreview.vue';
@@ -35,15 +37,20 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import SpinnerLoader from 'dashboard/components-next/spinner/Spinner.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
-import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
-import { LocalStorage } from 'shared/helpers/localStorage';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
 import ColorPicker from 'dashboard/components-next/colorpicker/ColorPicker.vue';
 import SelectInput from 'dashboard/components-next/select/Select.vue';
+import Banner from 'dashboard/components-next/banner/Banner.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
+import AppearancePage from './widget/appearance/AppearancePage.vue';
+import TriggersPage from './widget/triggers/TriggersPage.vue';
+import TrackingPage from './widget/tracking/TrackingPage.vue';
+import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
 export default {
   components: {
+    Banner,
     BotConfiguration,
     CollaboratorsPage,
     ConfigurationPage,
@@ -73,7 +80,13 @@ export default {
     ColorPicker,
     SelectInput,
     AccountHealth,
+    WhatsappManualMigrationDialog,
+    WhatsappManualMigrationBanner,
     Widget,
+    AccessToken,
+    AppearancePage,
+    TriggersPage,
+    TrackingPage,
   },
   mixins: [inboxMixin],
   setup() {
@@ -98,6 +111,7 @@ export default {
       selectedInboxName: '',
       channelWebsiteUrl: '',
       webhookUrl: '',
+      channelWidgetColor: '',
       channelWelcomeTitle: '',
       channelWelcomeTagline: '',
       selectedFeatureFlags: [],
@@ -109,6 +123,7 @@ export default {
       isLoadingHealth: false,
       healthError: null,
       isRegisteringWebhook: false,
+      isTransferringWhatsAppToManual: false,
       widgetBubblePosition: 'right',
       widgetBubbleType: 'standard',
       widgetBubbleLauncherTitle: '',
@@ -118,9 +133,33 @@ export default {
     ...mapGetters({
       accountId: 'getCurrentAccountId',
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
+      isOnChatwootCloud: 'globalConfig/isOnChatwootCloud',
       uiFlags: 'inboxes/getUIFlags',
       portals: 'portals/allPortals',
     }),
+    isInboundEmailEnabled() {
+      return this.isFeatureEnabledonAccount(
+        this.accountId,
+        FEATURE_FLAGS.INBOUND_EMAILS
+      );
+    },
+    showContinuityToggle() {
+      if (this.isInboundEmailEnabled) return true;
+      return this.isOnChatwootCloud;
+    },
+    isContinuityDisabled() {
+      return this.isOnChatwootCloud && !this.isInboundEmailEnabled;
+    },
+    continuityDescription() {
+      if (this.isContinuityDisabled) {
+        return this.$t(
+          'INBOX_MGMT.SETTINGS_POPUP.ENABLE_CONTINUITY_VIA_EMAIL_DISABLED_TEXT'
+        );
+      }
+      return this.$t(
+        'INBOX_MGMT.SETTINGS_POPUP.ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT'
+      );
+    },
     selectedTabKey() {
       const key = this.tabs[this.selectedTabIndex]?.key;
       return key;
@@ -173,6 +212,18 @@ export default {
       if (this.isAWebWidgetInbox) {
         visibleToAllChannelTabs = [
           ...visibleToAllChannelTabs,
+          {
+            key: 'appearance',
+            name: this.$t('INBOX_WIDGET.TABS.APPEARANCE'),
+          },
+          {
+            key: 'triggers',
+            name: this.$t('INBOX_WIDGET.TRIGGERS.TAB'),
+          },
+          {
+            key: 'tracking',
+            name: this.$t('INBOX_WIDGET.TRACKING.TAB'),
+          },
           {
             key: 'pre-chat-form',
             name: this.$t('INBOX_MGMT.TABS.PRE_CHAT_FORM'),
@@ -330,6 +381,11 @@ export default {
       return (
         this.isAWhatsAppCloudChannel &&
         this.isEmbeddedSignupWhatsApp &&
+        (!this.isOnChatwootCloud ||
+          this.isFeatureEnabledonAccount(
+            this.accountId,
+            FEATURE_FLAGS.WHATSAPP_EMBEDDED_SIGNUP_FLOW
+          )) &&
         this.inbox.reauthorization_required
       );
     },
@@ -347,8 +403,21 @@ export default {
         this.healthData.throughput?.level === 'NOT_APPLICABLE'
       );
     },
-    widgetBuilderStorageKey() {
-      return `${LOCAL_STORAGE_KEYS.WIDGET_BUILDER}${this.inbox.id}`;
+    showWhatsAppManualMigration() {
+      return (
+        this.isAWhatsAppCloudChannel &&
+        this.isEmbeddedSignupWhatsApp &&
+        this.healthError?.type !== 'authorization' &&
+        this.isFeatureEnabledonAccount(
+          this.accountId,
+          FEATURE_FLAGS.WHATSAPP_MANUAL_TRANSFER
+        )
+      );
+    },
+    // Bloco 3.18: a aparencia mora no banco, nao no localStorage deste navegador (defeito D1).
+    // O objeto gravado e devolvido inteiro por `_inbox.json.jbuilder:27`.
+    storedWidgetAppearance() {
+      return this.inbox?.additional_attributes?.widget_appearance || {};
     },
   },
   watch: {
@@ -358,6 +427,7 @@ export default {
         if (inboxChanged) {
           this.syncInboxData();
           this.setTabFromRouteParam();
+          this.openWhatsAppManualMigrationIfRequested();
         }
       }
     },
@@ -368,6 +438,7 @@ export default {
           this.fetchHealthData();
           this.$nextTick(() => {
             this.setTabFromRouteParam();
+            this.openWhatsAppManualMigrationIfRequested();
           });
         } else {
           this.selectedFeatureFlags = newInbox?.selected_feature_flags || [];
@@ -378,8 +449,79 @@ export default {
   },
   mounted() {
     this.fetchSharedData();
+    this.openWhatsAppManualMigrationIfRequested();
   },
   methods: {
+    openWhatsAppManualMigrationDialog() {
+      this.$refs.whatsappManualMigrationDialog?.open();
+    },
+    openWhatsAppManualMigrationIfRequested() {
+      if (
+        this.showWhatsAppManualMigration &&
+        this.$route.query.migration === 'whatsapp_manual'
+      ) {
+        this.$nextTick(() => {
+          this.openWhatsAppManualMigrationDialog();
+        });
+      }
+    },
+    async transferWhatsAppToManualSetup(form) {
+      this.isTransferringWhatsAppToManual = true;
+      try {
+        const providerConfig = { ...(this.inbox.provider_config || {}) };
+        delete providerConfig.source;
+        const payload = {
+          id: this.inbox.id,
+          formData: false,
+          channel: {
+            provider_config: {
+              ...providerConfig,
+              phone_number_id: form.phoneNumberId,
+              business_account_id: form.wabaId,
+              api_key: form.accessToken,
+            },
+          },
+        };
+        await this.$store.dispatch('inboxes/updateInbox', payload);
+        useAlert(
+          this.$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_MANUAL_TRANSFER_SUCCESS')
+        );
+        this.$refs.whatsappManualMigrationDialog?.close();
+      } catch (error) {
+        useAlert(
+          this.$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_MANUAL_TRANSFER_ERROR')
+        );
+      } finally {
+        this.isTransferringWhatsAppToManual = false;
+      }
+    },
+    async copyWebhookSecret(value) {
+      await copyTextToClipboard(value);
+      useAlert(
+        this.$t(
+          'INBOX_MGMT.ADD.WEBSITE_CHANNEL.CHANNEL_WEBHOOK_SECRET.COPY_SUCCESS'
+        )
+      );
+    },
+    async resetWebhookSecret() {
+      const response = await this.$store.dispatch(
+        'inboxes/resetSecret',
+        this.inbox.id
+      );
+      if (response) {
+        useAlert(
+          this.$t(
+            'INBOX_MGMT.ADD.WEBSITE_CHANNEL.CHANNEL_WEBHOOK_SECRET.RESET_SUCCESS'
+          )
+        );
+      } else {
+        useAlert(
+          this.$t(
+            'INBOX_MGMT.ADD.WEBSITE_CHANNEL.CHANNEL_WEBHOOK_SECRET.RESET_ERROR'
+          )
+        );
+      }
+    },
     fetchSharedData() {
       this.$store.dispatch('agents/get');
       this.$store.dispatch('teams/get');
@@ -401,6 +543,7 @@ export default {
         this.inbox.allow_messages_after_resolved;
       this.continuityViaEmail = this.inbox.continuity_via_email;
       this.channelWebsiteUrl = this.inbox.website_url;
+      this.channelWidgetColor = this.inbox.widget_color;
       this.channelWelcomeTitle = this.inbox.welcome_title;
       this.channelWelcomeTagline = this.inbox.welcome_tagline || '';
       this.selectedFeatureFlags = this.inbox.selected_feature_flags || [];
@@ -415,19 +558,10 @@ export default {
         ? this.inbox.help_center.slug
         : '';
 
-      const savedBubbleSettings = LocalStorage.get(
-        this.widgetBuilderStorageKey
-      );
-      if (savedBubbleSettings) {
-        this.widgetBubblePosition = savedBubbleSettings.position || 'right';
-        this.widgetBubbleType = savedBubbleSettings.type || 'standard';
-        this.widgetBubbleLauncherTitle =
-          savedBubbleSettings.launcherTitle || '';
-      } else {
-        this.widgetBubblePosition = 'right';
-        this.widgetBubbleType = 'standard';
-        this.widgetBubbleLauncherTitle = '';
-      }
+      const appearance = this.storedWidgetAppearance;
+      this.widgetBubblePosition = appearance.position || 'right';
+      this.widgetBubbleType = appearance.launcher_type || 'standard';
+      this.widgetBubbleLauncherTitle = appearance.launcher_text || '';
     },
     async fetchHealthData() {
       if (!this.inbox) return;
@@ -442,9 +576,24 @@ export default {
         const response = await InboxHealthAPI.getHealthStatus(this.inbox.id);
         this.healthData = response.data;
       } catch (error) {
-        this.healthError = error.message || 'Failed to fetch health data';
+        const apiError = error.response?.data?.error;
+        this.healthError =
+          typeof apiError === 'object'
+            ? apiError
+            : {
+                type: 'generic',
+                message: apiError || error.message,
+              };
       } finally {
         this.isLoadingHealth = false;
+      }
+    },
+    goToWhatsAppConfiguration() {
+      const configurationTabIndex = this.tabs.findIndex(
+        tab => tab.key === 'configuration'
+      );
+      if (configurationTabIndex !== -1) {
+        this.onTabChange(configurationTabIndex);
       }
     },
     async registerWebhook() {
@@ -478,6 +627,27 @@ export default {
       return [...selected, current];
     },
     onTabChange(selectedTabIndex) {
+      // A troca de aba NÃO passa pelo router (a URL muda por
+      // `history.replaceState`), então nenhum guard de rota a vê. A tela de
+      // aparência mantém rascunho: perguntar antes é o que impede o
+      // administrador de perder dez campos configurados num clique.
+      // Só UMA das telas de rascunho está montada por vez (cada uma tem o seu
+      // `v-if`), então a primeira que responder é a que está na tela.
+      const comRascunho = [
+        this.$refs.appearancePage,
+        this.$refs.triggersPage,
+        this.$refs.trackingPage,
+      ];
+      const atual = comRascunho.find(tela => tela?.requestLeave);
+      if (
+        atual &&
+        !atual.requestLeave(() => this.applyTabChange(selectedTabIndex))
+      ) {
+        return;
+      }
+      this.applyTabChange(selectedTabIndex);
+    },
+    applyTabChange(selectedTabIndex) {
       this.selectedTabIndex = selectedTabIndex;
       this.updateRouteWithoutRefresh(selectedTabIndex);
     },
@@ -504,13 +674,6 @@ export default {
       this.selectedTabIndex = tabIndex === -1 ? 0 : tabIndex;
     },
     async updateInbox() {
-      const bubbleSettings = {
-        position: this.widgetBubblePosition,
-        type: this.widgetBubbleType,
-        launcherTitle: this.widgetBubbleLauncherTitle,
-      };
-      LocalStorage.set(this.widgetBuilderStorageKey, bubbleSettings);
-
       try {
         this.$nextTick(() => {
           this.setTabFromRouteParam();
@@ -534,15 +697,31 @@ export default {
           pending_status_enabled: this.pendingStatusEnabled,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
+          // O merge do servidor e raso no primeiro nivel (`inboxes_controller.rb:52-56`): mandar
+          // apenas os tres campos desta tela apagaria os que ela ainda nao edita (tema, offsets,
+          // icone). Por isso o objeto vai INTEIRO, com o que ja estava gravado por baixo.
+          ...(this.isAWebWidgetInbox
+            ? {
+                additional_attributes: {
+                  widget_appearance: {
+                    ...this.storedWidgetAppearance,
+                    position: this.widgetBubblePosition,
+                    launcher_type: this.widgetBubbleType,
+                    launcher_text: this.widgetBubbleLauncherTitle || '',
+                  },
+                },
+              }
+            : {}),
           channel: {
-            widget_color: this.inbox.widget_color,
+            widget_color: this.channelWidgetColor,
             website_url: this.channelWebsiteUrl,
             webhook_url: this.webhookUrl,
             welcome_title: this.channelWelcomeTitle || '',
             welcome_tagline: this.channelWelcomeTagline || '',
             selectedFeatureFlags: this.selectedFeatureFlags,
             reply_time: this.replyTime || 'in_a_few_minutes',
-            continuity_via_email: this.continuityViaEmail,
+            continuity_via_email:
+              this.isInboundEmailEnabled && this.continuityViaEmail,
           },
         };
         if (this.avatarFile) {
@@ -679,6 +858,12 @@ export default {
           class="mx-6 mb-4"
           :class="bannerMaxWidth"
         />
+        <WhatsappManualMigrationBanner
+          v-if="showWhatsAppManualMigration"
+          class="mx-6 mb-6"
+          :class="bannerMaxWidth"
+          @start="openWhatsAppManualMigrationDialog"
+        />
 
         <div
           v-if="selectedTabKey === 'inbox-settings'"
@@ -743,6 +928,21 @@ export default {
                     : ''
                 "
                 @blur="v$.webhookUrl.$touch"
+              />
+            </SettingsFieldSection>
+
+            <SettingsFieldSection
+              v-if="isAPIInbox && inbox.secret"
+              :label="
+                $t(
+                  'INBOX_MGMT.ADD.WEBSITE_CHANNEL.CHANNEL_WEBHOOK_SECRET.LABEL'
+                )
+              "
+            >
+              <AccessToken
+                :value="inbox.secret"
+                @on-copy="copyWebhookSecret"
+                @on-reset="resetWebhookSecret"
               />
             </SettingsFieldSection>
 
@@ -945,7 +1145,7 @@ export default {
                 :label="$t('INBOX_MGMT.ADD.WEBSITE_CHANNEL.WIDGET_COLOR.LABEL')"
               >
                 <div class="justify-start">
-                  <ColorPicker v-model="inbox.widget_color" />
+                  <ColorPicker v-model="channelWidgetColor" />
                 </div>
               </SettingsFieldSection>
               <SettingsFieldSection
@@ -953,6 +1153,27 @@ export default {
                   $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.WIDGET_BUBBLE')
                 "
               >
+                <!--
+                  Bloco 3.18 — a regra de precedencia, escrita onde ela e decidida: o banco e o
+                  padrao, o `chatwootSettings` do site sobrescreve. Esta tela nao le o HTML do site
+                  do cliente, entao ela declara a REGRA em vez de afirmar um override que nao pode
+                  verificar. Declarar override ATIVO por campo depende do SDK reportar (bloco 3.09).
+                -->
+                <Banner color="blue" class="mb-3 !items-start">
+                  <div class="flex flex-col gap-1">
+                    <span class="font-medium">
+                      {{ $t('INBOX_WIDGET.APPEARANCE.SITE_OVERRIDE.TITLE') }}
+                    </span>
+                    <span>
+                      {{ $t('INBOX_WIDGET.APPEARANCE.SITE_OVERRIDE.BODY') }}
+                    </span>
+                    <span>
+                      {{
+                        $t('INBOX_WIDGET.APPEARANCE.SITE_OVERRIDE.ACTION_HINT')
+                      }}
+                    </span>
+                  </div>
+                </Banner>
                 <div class="flex items-center gap-6">
                   <div class="flex items-center gap-2">
                     <label class="text-n-slate-11 text-heading-3">
@@ -1175,15 +1396,15 @@ export default {
               />
 
               <SettingsToggleSection
-                v-if="isAWebWidgetInbox"
+                v-if="isAWebWidgetInbox && showContinuityToggle"
                 v-model="continuityViaEmail"
                 :header="
                   $t('INBOX_MGMT.SETTINGS_POPUP.ENABLE_CONTINUITY_VIA_EMAIL')
                 "
-                :description="
-                  $t(
-                    'INBOX_MGMT.SETTINGS_POPUP.ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT'
-                  )
+                :description="continuityDescription"
+                :hide-toggle="isContinuityDisabled"
+                :class="
+                  isContinuityDisabled ? 'cursor-not-allowed opacity-50' : ''
                 "
               />
             </SettingsAccordion>
@@ -1222,11 +1443,13 @@ export default {
                 :logo="avatarUrl"
                 is-online
                 :reply-time="replyTime"
-                :color="inbox.widget_color"
+                :color="channelWidgetColor"
                 :widget-bubble-position="widgetBubblePosition"
                 :widget-bubble-launcher-title="widgetBubbleLauncherTitle"
                 :widget-bubble-type="widgetBubbleType"
                 :web-widget-script="inbox.web_widget_script"
+                :pre-chat-enabled="inbox.pre_chat_form_enabled"
+                :pre-chat-options="inbox.pre_chat_form_options"
               />
             </div>
           </div>
@@ -1245,6 +1468,21 @@ export default {
         <div v-if="selectedTabKey === 'csat'">
           <CustomerSatisfactionPage :inbox="inbox" />
         </div>
+        <AppearancePage
+          v-if="selectedTabKey === 'appearance'"
+          ref="appearancePage"
+          :inbox-id="currentInboxId"
+        />
+        <TriggersPage
+          v-if="selectedTabKey === 'triggers'"
+          ref="triggersPage"
+          :inbox-id="currentInboxId"
+        />
+        <TrackingPage
+          v-if="selectedTabKey === 'tracking'"
+          ref="trackingPage"
+          :inbox-id="currentInboxId"
+        />
         <div v-if="selectedTabKey === 'pre-chat-form'">
           <PreChatFormSettings :inbox="inbox" />
         </div>
@@ -1260,8 +1498,11 @@ export default {
         <div v-if="selectedTabKey === 'whatsapp-health'">
           <AccountHealth
             :health-data="healthData"
+            :health-error="healthError"
+            :is-embedded-signup="isEmbeddedSignupWhatsApp"
             :is-registering-webhook="isRegisteringWebhook"
             @register-webhook="registerWebhook"
+            @go-to-configuration="goToWhatsAppConfiguration"
           />
         </div>
         <div
@@ -1270,6 +1511,13 @@ export default {
         >
           <MessageTemplatesPage :inbox="inbox" />
         </div>
+        <WhatsappManualMigrationDialog
+          v-if="showWhatsAppManualMigration"
+          ref="whatsappManualMigrationDialog"
+          :inbox="inbox"
+          :is-loading="isTransferringWhatsAppToManual"
+          @reconnect="transferWhatsAppToManualSetup"
+        />
       </div>
     </section>
   </div>

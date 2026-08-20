@@ -3,7 +3,7 @@ import { LocalStorage } from './localStorage';
 /**
  * Emojis usados recentemente.
  *
- * Vive em `shared/` porque o picker (EmojiInput.vue) é compartilhado entre o
+ * Vive em `shared/` porque o picker (EmojiPicker.vue) é compartilhado entre o
  * dashboard e o widget — logo não pode depender do store/ui_settings do
  * dashboard. A persistência é local ao navegador, no mesmo padrão de
  * "Buscas recentes" (RecentSearches.vue).

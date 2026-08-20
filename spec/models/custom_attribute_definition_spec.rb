@@ -42,6 +42,17 @@ RSpec.describe CustomAttributeDefinition do
         cad = build(:custom_attribute_definition, account: account, attribute_key: 'key()')
         expect(cad).not_to be_valid
       end
+
+      it 'allows company custom attributes' do
+        cad = build(:custom_attribute_definition, account: account, attribute_model: 'company_attribute')
+        expect(cad).to be_valid
+      end
+
+      it 'rejects company custom attributes that conflict with standard company fields' do
+        cad = build(:custom_attribute_definition, account: account, attribute_model: 'company_attribute', attribute_key: 'domain')
+        expect(cad).not_to be_valid
+        expect(cad.errors[:attribute_key]).to be_present
+      end
     end
   end
 
@@ -56,6 +67,125 @@ RSpec.describe CustomAttributeDefinition do
         cad = create(:custom_attribute_definition, account: account, attribute_display_name: '  Order Date  ')
         expect(cad.attribute_display_name).to eq('Order Date')
       end
+    end
+
+    describe 'filtered unread count invalidation' do
+      let(:invalidator) { instance_double(Conversations::UnreadCounts::FilteredCountInvalidator, custom_attribute_definition_changed!: true) }
+
+      before do
+        allow(Conversations::UnreadCounts::FilteredCountInvalidator).to receive(:new).with(account).and_return(invalidator)
+        allow(Rails.configuration.dispatcher).to receive(:dispatch)
+      end
+
+      it 'invalidates conversation filters when a conversation custom attribute definition changes' do
+        cad = create(:custom_attribute_definition, account: account, attribute_model: 'conversation_attribute')
+
+        cad.update!(attribute_display_name: 'Updated Order Date')
+
+        expect(invalidator).to have_received(:custom_attribute_definition_changed!).with(cad)
+        expect(Rails.configuration.dispatcher).to have_received(:dispatch).with(
+          'account.cache_invalidated',
+          kind_of(Time),
+          account: account,
+          cache_keys: account.cache_keys
+        )
+      end
+
+      it 'invalidates conversation filters when a conversation custom attribute definition is deleted' do
+        cad = create(:custom_attribute_definition, account: account, attribute_model: 'conversation_attribute')
+
+        cad.destroy!
+
+        expect(invalidator).to have_received(:custom_attribute_definition_changed!).with(cad)
+        expect(Rails.configuration.dispatcher).to have_received(:dispatch).with(
+          'account.cache_invalidated',
+          kind_of(Time),
+          account: account,
+          cache_keys: account.cache_keys
+        )
+      end
+
+      it 'ignores contact custom attribute definition changes' do
+        cad = create(:custom_attribute_definition, account: account, attribute_model: 'contact_attribute')
+
+        cad.update!(attribute_display_name: 'Updated Contact Field')
+
+        expect(invalidator).not_to have_received(:custom_attribute_definition_changed!)
+        expect(Rails.configuration.dispatcher).not_to have_received(:dispatch)
+      end
+    end
+  end
+
+  # Selo de origem do painel (bloco 1.17). O flag distingue a definicao que o
+  # CustomAttributes::AutoProvisionService criou sozinho, a partir de uma chave
+  # que o site do cliente mandou, da que um agente cadastrou.
+  describe '#auto_provisioned_from_website?' do
+    let(:account) { create(:account) }
+
+    def definition(description)
+      create(:custom_attribute_definition, account: account, attribute_model: 'contact_attribute',
+                                           attribute_key: "chave_#{SecureRandom.hex(4)}",
+                                           attribute_description: description)
+    end
+
+    it 'e verdadeiro para a descricao que o servico grava em ingles' do
+      expect(definition('Received from the website')).to be_auto_provisioned_from_website
+    end
+
+    it 'e verdadeiro para a descricao que o servico grava em pt-BR' do
+      expect(definition('Recebido do site')).to be_auto_provisioned_from_website
+    end
+
+    it 'e falso para descricao escrita por um agente' do
+      expect(definition('Valor do carrinho no checkout')).not_to be_auto_provisioned_from_website
+    end
+
+    it 'e falso quando nao ha descricao' do
+      expect(definition(nil)).not_to be_auto_provisioned_from_website
+      expect(definition('')).not_to be_auto_provisioned_from_website
+    end
+
+    it 'nasce verdadeiro quando o servico provisiona a chave vinda do site' do
+      CustomAttributes::AutoProvisionService.new(
+        account: account, attribute_model: :contact_attribute, custom_attributes: { 'carrinho_valor' => 4200 }
+      ).perform
+
+      expect(account.custom_attribute_definitions.find_by(attribute_key: 'carrinho_valor'))
+        .to be_auto_provisioned_from_website
+    end
+
+    # Bloco 4.17: a origem virou coluna, e com isso o selo passou a ser DURAVEL. Antes ele
+    # dependia de casar o texto da descricao, entao o agente que editasse a descricao
+    # apagava sem querer a informacao de onde o dado tinha vindo.
+    it 'sobrevive ao agente reescrever a descricao, porque a origem agora e coluna' do
+      CustomAttributes::AutoProvisionService.new(
+        account: account, attribute_model: :contact_attribute, custom_attributes: { 'carrinho_valor' => 4200 }
+      ).perform
+      found = account.custom_attribute_definitions.find_by(attribute_key: 'carrinho_valor')
+      expect(found.origin).to eq('website')
+
+      found.update!(attribute_description: 'Valor do carrinho, conferido pelo time')
+
+      expect(found.reload).to be_auto_provisioned_from_website
+    end
+
+    # As definicoes criadas ANTES da coluna existir continuam respondendo pela descricao —
+    # sem isso, o selo do 1.17 sumiria de toda linha antiga no dia da migration.
+    it 'ainda le a descricao na definicao anterior a coluna de origem' do
+      legada = definition('Recebido do site')
+      expect(legada.origin).to be_nil
+      expect(legada).to be_auto_provisioned_from_website
+
+      legada.update!(attribute_description: 'Escrito pelo time')
+
+      expect(legada.reload).not_to be_auto_provisioned_from_website
+    end
+
+    it 'origin agent vence a descricao: quem marcou como do agente nao carrega selo de site' do
+      cadastrada = definition('Recebido do site')
+      cadastrada.update!(origin: 'agent')
+
+      expect(cadastrada.reload).not_to be_auto_provisioned_from_website
     end
   end
 end

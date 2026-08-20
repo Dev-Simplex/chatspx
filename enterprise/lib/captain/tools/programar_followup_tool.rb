@@ -7,9 +7,9 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
               'Programar de novo substitui o follow-up anterior.'
 
   param :minutos, type: 'number',
-        desc: 'Em quantos minutos cutucar, se o cliente não responder até lá. Ex: 5 a 15 pra lead quente; 120-480 pra algumas horas; até 2880 (2 dias).', required: true
+                  desc: 'Em quantos minutos cutucar, se o cliente não responder até lá. Ex: 5 a 15 pra lead quente; 120-480 pra algumas horas; até 2880 (2 dias).', required: true
   param :motivo, type: 'string',
-        desc: 'Em que ponto a conversa parou e o que retomar na cutucada. Ex: "estava escolhendo entre as duas casas que mandei".', required: true
+                 desc: 'Em que ponto a conversa parou e o que retomar na cutucada. Ex: "estava escolhendo entre as duas casas que mandei".', required: true
   param :janela,
         type: 'string',
         desc: 'O momento que o PRÓPRIO cliente disse preferir pro retorno, com as palavras dele. ' \

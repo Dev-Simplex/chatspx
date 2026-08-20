@@ -118,6 +118,11 @@
       "FLAGS": "Bandeiras"
     }
   },
+  "EMOJI_ICON_PICKER": {
+    "SEARCH_EMOJI": "Search emoji…",
+    "FREQUENTLY_USED": "Frequently used",
+    "NO_EMOJI": "Nenhum emoji corresponde à sua pesquisa"
+  },
   "CSAT": {
     "TITLE": "Avalie a sua conversa",
     "SUBMITTED_TITLE": "Obrigado pela sua avaliação",

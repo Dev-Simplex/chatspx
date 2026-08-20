@@ -15,6 +15,9 @@
     "INITIATED_FROM": "A partir de",
     "INITIATED_AT": "Iniciado em",
     "IP_ADDRESS": "Endereço IP",
+    "IP_ADDRESS_REVEAL": "Mostrar endereço IP",
+    "IP_ADDRESS_HIDE": "Ocultar endereço IP",
+    "IP_ADDRESS_MASKED": "Oculto",
     "CREATED_AT_LABEL": "Criado",
     "NEW_MESSAGE": "Nova Mensagem",
     "NEW_MESSAGE_SHORT": "Mensagem",
@@ -22,6 +25,7 @@
     "CALL_SHORT": "Ligar",
     "CALL_INITIATED": "Efetuando chamada…",
     "CALL_FAILED": "Não foi possível iniciar a chamada. Tente novamente.",
+    "CLICK_TO_EDIT": "Click to edit",
     "VOICE_INBOX_PICKER": {
       "TITLE": "Escolha uma caixa de entrada de voz"
     },
@@ -205,6 +209,9 @@
     }
   },
   "CUSTOM_ATTRIBUTES": {
+    "FROM_WEBSITE_SECTION": "Dados recebidos do site ({count})",
+    "FROM_WEBSITE_BADGE": "Do site",
+    "FROM_WEBSITE_BADGE_TITLE": "Enviado pelo seu site via setCustomAttributes, sem cadastro prévio",
     "BUTTON": "Criar atributo personalizado",
     "COPY_SUCCESSFUL": "Copiado para área de transferência com sucesso",
     "SHOW_MORE": "Mostrar todos os atributos",
@@ -399,6 +406,7 @@
       "IDENTIFIER": "Identificador",
       "COUNTRY": "País/região",
       "CITY": "Cidade",
+      "COMPANY": "Empresa",
       "CREATED_AT": "Criado em",
       "LAST_ACTIVITY": "Última atividade",
       "REFERER_LINK": "Link de origem",
@@ -530,6 +538,7 @@
         "ATTRIBUTES": "Atributos",
         "HISTORY": "Histórico",
         "NOTES": "Notas",
+        "MEDIA": "Mídia",
         "MERGE": "Mesclar",
         "ATTENDANCE": "Andamento"
       },
@@ -660,8 +669,11 @@
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Atribuir rótulo",
+    "REMOVE_LABELS": "Remover Etiquetas",
     "ASSIGN_LABELS_SUCCESS": "Rótulos atribuídos com sucesso.",
     "ASSIGN_LABELS_FAILED": "Falha ao atribuir etiquetas",
+    "REMOVE_LABELS_SUCCESS": "Etiquetas removidas com sucesso.",
+    "REMOVE_LABELS_FAILED": "Falha ao remover etiquetas",
     "DESCRIPTION": "Selecione as etiquetas que deseja adicionar aos contatos selecionados.",
     "NO_LABELS_FOUND": "Nenhuma etiqueta disponível ainda.",
     "SELECTED_COUNT": "{count} selecionado",

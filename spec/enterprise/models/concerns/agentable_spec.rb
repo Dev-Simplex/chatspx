@@ -9,9 +9,10 @@ RSpec.describe Concerns::Agentable do
 
       attr_accessor :temperature, :account
 
-      def initialize(name: 'Test Agent', temperature: 0.8)
+      def initialize(name: 'Test Agent', temperature: 0.8, account: nil)
         @name = name
         @temperature = temperature
+        @account = account
       end
 
       def self.name
@@ -30,14 +31,14 @@ RSpec.describe Concerns::Agentable do
     end
   end
 
-  let(:dummy_instance) { dummy_class.new }
+  let(:account) { create(:account) }
+  let(:dummy_instance) { dummy_class.new(account: account) }
   let(:mock_agents_agent) { instance_double(Agents::Agent) }
-  let(:mock_account) { double('Account', captain_assistant_model: 'gpt-4-turbo') }
 
   before do
+    InstallationConfig.where(name: 'CAPTAIN_OPEN_AI_MODEL').destroy_all
     allow(Agents::Agent).to receive(:new).and_return(mock_agents_agent)
     allow(Captain::PromptRenderer).to receive(:render).and_return('rendered_template')
-    dummy_instance.account = mock_account
   end
 
   describe '#agent' do
@@ -46,7 +47,7 @@ RSpec.describe Concerns::Agentable do
         name: 'Test Agent',
         instructions: instance_of(Proc),
         tools: [],
-        model: 'gpt-4-turbo',
+        model: Llm::Models.default_model_for('assistant'),
         temperature: 0.8,
         response_schema: Captain::ResponseSchema
       )
@@ -54,11 +55,11 @@ RSpec.describe Concerns::Agentable do
       dummy_instance.agent
     end
 
-    it 'converts nil temperature to 0.0' do
+    it 'uses default temperature when temperature is nil' do
       dummy_instance.temperature = nil
 
       expect(Agents::Agent).to receive(:new).with(
-        hash_including(temperature: 0.0)
+        hash_including(temperature: 0.5)
       )
 
       dummy_instance.agent
@@ -160,20 +161,55 @@ RSpec.describe Concerns::Agentable do
   end
 
   describe '#agent_model' do
-    it 'returns value from account captain_assistant_model when present' do
-      expect(dummy_instance.send(:agent_model)).to eq('gpt-4-turbo')
+    it 'returns the assistant feature default model' do
+      expect(dummy_instance.send(:agent_model)).to eq(Llm::Models.default_model_for('assistant'))
     end
 
-    it 'returns default model when account is nil' do
-      dummy_instance.account = nil
+    it 'returns account override model when present' do
+      create(:installation_config, name: 'CAPTAIN_OPEN_AI_MODEL', value: 'gpt-4.1-nano')
+      account.update!(captain_models: { 'assistant' => 'gpt-5' })
 
-      expect(dummy_instance.send(:agent_model)).to eq('gpt-4.1')
+      expect(dummy_instance.send(:agent_model)).to eq('gpt-5')
     end
 
-    it 'returns default model when captain_assistant_model is nil' do
-      allow(mock_account).to receive(:captain_assistant_model).and_return(nil)
+    it 'returns the installation model when account override is absent' do
+      create(:installation_config, name: 'CAPTAIN_OPEN_AI_MODEL', value: 'gpt-4.1-nano')
 
-      expect(dummy_instance.send(:agent_model)).to eq('gpt-4.1')
+      expect(dummy_instance.send(:agent_model)).to eq('gpt-4.1-nano')
+    end
+
+    it 'returns the Captain V2 default when Captain V2 is enabled' do
+      create(:installation_config, name: 'CAPTAIN_OPEN_AI_MODEL', value: 'gpt-4.1-nano')
+      account.enable_features!('captain_integration_v2')
+
+      expect(dummy_instance.send(:agent_model)).to eq(Llm::FeatureRouter::CAPTAIN_V2_ASSISTANT_MODEL)
+      expect(account.reload.captain_models).to be_nil
+    end
+
+    it 'returns the assistant feature default model when account is nil' do
+      agent = dummy_class.new(account: nil)
+
+      expect(agent.send(:agent_model)).to eq(Llm::Models.default_model_for('assistant'))
+    end
+
+    # ChatSPX (C-9): o llm.yml guarda o modelo Claude com PONTO (branding/UI) e o RubyLLM só conhece
+    # a forma com HÍFEN. `agent_model` alimenta Agents::Agent.new(model:), e a gem ai-agents passa o
+    # valor direto pra RubyLLM.chat com assume_model_exists: false — sem a tradução, toda conta cujo
+    # assistant seja um Claude do nosso llm.yml derruba o Captain com RubyLLM::ModelNotFoundError.
+    # A cobertura que o merge trouxe não exercita nenhum modelo Claude, então a suíte passava verde
+    # com o defeito dentro.
+    it 'translates dotted Claude aliases to the RubyLLM runtime id' do
+      account.update!(captain_models: { 'assistant' => 'claude-sonnet-4.5' })
+
+      expect(dummy_instance.send(:agent_model)).to eq('claude-sonnet-4-5')
+    end
+
+    # ChatSPX (C-9): mesmo guarda-chuva que Llm::BaseAiService#model_for_feature já usa — um default
+    # que o runtime não conhece cai para o default da feature em vez de derrubar o Captain.
+    it 'falls back to the assistant default when the preferred model is unknown to the runtime' do
+      create(:installation_config, name: 'CAPTAIN_OPEN_AI_MODEL', value: 'modelo-que-nao-existe')
+
+      expect(dummy_instance.send(:agent_model)).to eq(Llm::Models.default_model_for('assistant'))
     end
   end
 

@@ -48,6 +48,7 @@
   "YOU": "Você",
   "START_NEW_CONVERSATION": "Iniciar uma nova conversa",
   "VIEW_UNREAD_MESSAGES": "Você tem mensagens não lidas",
+  "TITLE_FLASH_ALERT": "Nova mensagem",
   "UNREAD_VIEW": {
     "VIEW_MESSAGES_BUTTON": "Ver novas mensagens",
     "CLOSE_MESSAGES_BUTTON": "Fechar",
@@ -65,9 +66,9 @@
   "PRE_CHAT_FORM": {
     "FIELDS": {
       "FULL_NAME": {
-        "LABEL": "Nome Completo",
+        "LABEL": "Nome completo",
         "PLACEHOLDER": "Por favor, digite seu nome completo",
-        "REQUIRED_ERROR": "Nome Completo é mandatório"
+        "REQUIRED_ERROR": "Nome completo é obrigatório"
       },
       "EMAIL_ADDRESS": {
         "LABEL": "Endereço de e-mail",
@@ -76,7 +77,7 @@
         "VALID_ERROR": "Por favor, insira um endereço de e-mail válido"
       },
       "PHONE_NUMBER": {
-        "LABEL": "Número de Telefone",
+        "LABEL": "Número de telefone",
         "PLACEHOLDER": "Por favor, digite seu número de telefone",
         "REQUIRED_ERROR": "O número de telefone é obrigatório",
         "DIAL_CODE_VALID_ERROR": "Por favor, selecione um código de país",
@@ -92,8 +93,24 @@
     },
     "CAMPAIGN_HEADER": "Por favor, forneça seu nome e e-mail antes de iniciar a conversa",
     "IS_REQUIRED": "é obrigatório",
+    "FIELD_IS_REQUIRED": "O campo {label} é obrigatório",
     "REQUIRED": "Obrigatório",
-    "REGEX_ERROR": "Forneça uma entrada válida"
+    "REGEX_ERROR": "Forneça uma entrada válida",
+    "VALIDATION": {
+      "REQUIRED": "Este campo é obrigatório",
+      "CPF": "CPF inválido — confira os números",
+      "CNPJ": "CNPJ inválido — confira os números",
+      "CPF_CNPJ": "CPF ou CNPJ inválido — confira os números",
+      "CEP": "CEP inválido — use 8 dígitos",
+      "UF": "UF inválida — use a sigla do estado, como SP",
+      "EMAIL": "E-mail inválido — confira o endereço",
+      "CORPORATE_EMAIL": "Use um e-mail corporativo, não um pessoal",
+      "PHONE": "Telefone inválido — inclua o código do país, como +55",
+      "JUNK_NAME": "Esse nome parece incompleto. Confere?",
+      "JUNK_PHONE": "Esse telefone parece incompleto. Confere?",
+      "JUNK_EMAIL": "Esse e-mail parece incompleto. Confere?"
+    },
+    "CONTINUE": "Continuar"
   },
   "FILE_SIZE_LIMIT": "O arquivo excede o limite de anexos {MAXIMUM_FILE_UPLOAD_SIZE}",
   "CHAT_FORM": {
@@ -118,10 +135,31 @@
       "FLAGS": "Bandeiras"
     }
   },
+  "EMOJI_ICON_PICKER": {
+    "SEARCH_EMOJI": "Pesquisar emoji…",
+    "FREQUENTLY_USED": "Usados com frequência",
+    "NO_EMOJI": "Nenhum emoji corresponde à sua pesquisa"
+  },
   "CSAT": {
     "TITLE": "Avalie sua conversa",
     "SUBMITTED_TITLE": "Obrigado por enviar a classificação",
-    "PLACEHOLDER": "Conte-nos mais..."
+    "PLACEHOLDER": "Conte-nos mais...",
+    "RATING_GROUP_LABEL": "Como foi o atendimento?",
+    "RATING_SELECTED": "Avaliação enviada: {label}",
+    "RATINGS": {
+      "POOR": "Ruim",
+      "FAIR": "Neutro",
+      "AVERAGE": "Mediano",
+      "GOOD": "Bom",
+      "EXCELLENT": "Excelente"
+    },
+    "STARS": {
+      "ONE": "1 estrela de 5",
+      "TWO": "2 estrelas de 5",
+      "THREE": "3 estrelas de 5",
+      "FOUR": "4 estrelas de 5",
+      "FIVE": "5 estrelas de 5"
+    }
   },
   "EMAIL_TRANSCRIPT": {
     "BUTTON_TEXT": "Solicitar uma transcrição de conversa",
@@ -161,5 +199,57 @@
   },
   "FOOTER_REPLY_TO": {
     "REPLY_TO": "Respondendo a:"
+  },
+  "A11Y": {
+    "CONVERSATION_LOG": "Histórico da conversa",
+    "CLOSE_WIDGET": "Fechar o chat",
+    "OPEN_IN_NEW_WINDOW": "Abrir o chat em uma nova janela",
+    "OPEN_WIDGET": "Abrir o chat",
+    "AGENT_TYPING": "O agente está digitando",
+    "AGENT_AVATAR": "Foto do agente",
+    "IMAGE_ATTACHMENT": "Imagem enviada na conversa",
+    "SCROLL_TO_LATEST": "Ir para as mensagens mais recentes",
+    "BACK": "Voltar",
+    "SEND_MESSAGE": "Enviar mensagem"
+  },
+  "CAPTURE": {
+    "SUBMIT": "Enviar",
+    "OPTIONAL": "(opcional)",
+    "CONTACT_GROUP_HINT": "Preencha e-mail ou WhatsApp — um dos dois já basta.",
+    "VALIDATION": {
+      "REQUIRED": "Este campo é obrigatório.",
+      "CPF": "CPF inválido.",
+      "CNPJ": "CNPJ inválido.",
+      "CPF_CNPJ": "CPF ou CNPJ inválido.",
+      "CEP": "CEP inválido.",
+      "UF": "UF inválida.",
+      "EMAIL": "E-mail inválido.",
+      "CORPORATE_EMAIL": "Use o e-mail da empresa.",
+      "PHONE": "Telefone inválido. Inclua o DDI, como +55.",
+      "JUNK_NAME": "Confira o nome digitado.",
+      "JUNK_PHONE": "Confira o telefone digitado.",
+      "JUNK_EMAIL": "Confira o e-mail digitado."
+    }
+  },
+  "WHATSAPP_EXIT": {
+    "BUTTON": "Continuar no WhatsApp",
+    "CONTEXT_PREFIX": "Olá! Vim pelo chat do site {site}.",
+    "CONTEXT_SUBJECT": "Eu perguntei: {subject}"
+  },
+  "AI_IDENTITY": {
+    "AI_LABEL": "Assistente virtual",
+    "HUMAN_LABEL": "Equipe de atendimento",
+    "HEADER_AI": "Você está falando com o assistente virtual",
+    "HEADER_HUMAN": "Você está falando com a equipe",
+    "HANDOFF_TO_HUMAN": "A partir daqui, quem responde é a equipe",
+    "HANDOFF_TO_AI": "A partir daqui, quem responde é o assistente virtual",
+    "BUBBLE_FROM_AI": "Mensagem do assistente virtual",
+    "BUBBLE_FROM_HUMAN": "Mensagem da equipe",
+    "STREAMING": "O assistente está escrevendo"
+  },
+  "CITATION": {
+    "SOURCE": "Fonte:",
+    "OPEN_LABEL": "Abrir o documento {documento}",
+    "FALLBACK_NAME": "documento"
   }
 }

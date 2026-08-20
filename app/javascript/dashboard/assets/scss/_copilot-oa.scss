@@ -210,13 +210,13 @@
     background: var(--oa-code);
     border: 1px solid var(--oa-line-soft);
     border-radius: 10px;
-  }
 
-  pre code {
-    padding: 0;
-    font-size: inherit;
-    background: none;
-    border-radius: 0;
+    code {
+      padding: 0;
+      font-size: inherit;
+      background: none;
+      border-radius: 0;
+    }
   }
 
   // Tabela — os modelos emitem comparativo o tempo todo. Mesmo tratamento do

@@ -69,8 +69,11 @@ class Macros::ExecutionService < ActionService
     mb.perform
   end
 
+  # Bloco 4.13: disparava sem assinatura. Assinado quando a conta registrou a URL.
   def send_webhook_event(webhook_url)
     payload = @conversation.webhook_data.merge(event: 'macro.executed')
-    WebhookJob.perform_later(webhook_url.first, payload)
+    url = webhook_url.first
+    WebhookJob.perform_later(url, payload, :account_webhook,
+                             secret: Webhook.signing_secret_for(account: @conversation.account, url: url))
   end
 end

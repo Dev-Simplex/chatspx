@@ -28,6 +28,7 @@ class Whatsapp::WebhookSetupService
     raise ArgumentError, 'Channel is required' if @channel.blank?
     raise ArgumentError, 'WABA ID is required' if @waba_id.blank?
     raise ArgumentError, 'Access token is required' if @access_token.blank?
+    raise ArgumentError, 'Phone number ID is required' if @channel.provider_config['phone_number_id'].blank?
   end
 
   def register_phone_number
@@ -58,12 +59,16 @@ class Whatsapp::WebhookSetupService
   def setup_webhook
     callback_url = build_callback_url
     verify_token = @channel.provider_config['webhook_verify_token']
+    phone_number_id = @channel.provider_config['phone_number_id']
 
-    @api_client.subscribe_waba_webhook(@waba_id, callback_url, verify_token)
-
+    @api_client.subscribe_phone_number_webhook(@waba_id, phone_number_id, callback_url, verify_token, subscribed_fields: subscribed_fields)
   rescue StandardError => e
     Rails.logger.error("[WHATSAPP] Webhook setup failed: #{e.message}")
     raise "Webhook setup failed: #{e.message}"
+  end
+
+  def subscribed_fields
+    %w[messages smb_message_echoes]
   end
 
   def build_callback_url

@@ -97,7 +97,10 @@ export default {
       immediate: true,
       handler(inboxId) {
         if (inboxId) {
-          this.$store.dispatch('inboxAssignableAgents/fetch', [inboxId]);
+          this.$store.dispatch('inboxAssignableAgents/fetch', {
+            inboxIds: [inboxId],
+            includeAgentBots: true,
+          });
         }
       },
     },

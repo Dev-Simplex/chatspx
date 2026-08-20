@@ -1,10 +1,22 @@
 class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   before_action :fetch_agent, except: [:create, :index, :bulk_create]
   before_action :check_authorization
+  # RECONCILIACAO homologacao × v4.16.2 — dois dos quatro `before_action` da homologacao
+  # ficam, e dois SAEM. Nao e escolha de lado: e o que cada um faz hoje.
+  #
+  # FICAM (feature do supervisor, da equipe): os dois metodos existem neste arquivo
+  # (`authorize_supervision_change`, `authorize_supervisor_update`). Sem estas duas linhas eles
+  # viram CODIGO MORTO — a autorizacao de quem pode mudar supervisao simplesmente nao roda, e
+  # nenhum teste do lado do upstream notaria, porque para ele a feature nao existe.
+  #
+  # SAEM `validate_limit` e `validate_limit_for_bulk_create`: o upstream removeu os dois metodos
+  # e moveu a checagem de limite para DENTRO do `AgentBuilder`, que levanta
+  # `AgentBuilder::LimitExceededError` de dentro de um `account.with_lock` — e `create` e
+  # `bulk_create` ja a capturam aqui. Manter os `before_action` levantaria `NoMethodError` em
+  # toda criacao de agente. A funcionalidade nao se perdeu; ela melhorou: sob lock, duas
+  # criacoes simultaneas nao furam mais o limite, o que o `before_action` permitia.
   before_action :authorize_supervision_change, only: [:update]
   before_action :authorize_supervisor_update, only: [:update]
-  before_action :validate_limit, only: [:create]
-  before_action :validate_limit_for_bulk_create, only: [:bulk_create]
 
   def index
     # Devolve a conta inteira para TODO MUNDO, como sempre foi (UserPolicy#index? é
@@ -30,6 +42,8 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
     )
 
     @agent = builder.perform
+  rescue AgentBuilder::LimitExceededError => e
+    render_payment_required(e.message)
   end
 
   def update
@@ -47,25 +61,13 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   def bulk_create
     emails = params[:emails]
 
-    emails.each do |email|
-      builder = AgentBuilder.new(
-        email: email,
-        name: email.split('@').first,
-        inviter: current_user,
-        account: Current.account
-      )
-      begin
-        builder.perform
-      rescue ActiveRecord::RecordInvalid => e
-        Rails.logger.info "[Agent#bulk_create] ignoring email #{email}, errors: #{e.record.errors}"
-      end
-    end
-
+    bulk_create_agents(emails)
     # This endpoint is used to bulk create agents during onboarding
     # onboarding_step key in present in Current account custom attributes, since this is a one time operation
-    Current.account.custom_attributes.delete('onboarding_step')
-    Current.account.save!
+    clear_onboarding_step
     head :ok
+  rescue AgentBuilder::LimitExceededError => e
+    render_payment_required(e.message)
   end
 
   private
@@ -174,22 +176,41 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
     @agents ||= Current.account.users.order_by_full_name.includes(:account_users, :teams, :supervised_teams, { avatar_attachment: [:blob] })
   end
 
-  def validate_limit_for_bulk_create
-    limit_available = params[:emails].count <= available_agent_count
+  def bulk_create_agents(emails)
+    email_limit_error = nil
 
-    render_payment_required('Account limit exceeded. Please purchase more licenses') unless limit_available
+    Current.account.with_lock do
+      raise AgentBuilder::LimitExceededError if emails.count > available_agent_count
+
+      emails.each do |email|
+        create_agent_from_email(email)
+      rescue CustomExceptions::Account::EmailLimitExceeded => e
+        email_limit_error = e
+      end
+    end
+
+    raise email_limit_error if email_limit_error
   end
 
-  def validate_limit
-    render_payment_required('Account limit exceeded. Please purchase more licenses') unless can_add_agent?
+  def create_agent_from_email(email)
+    builder = AgentBuilder.new(
+      email: email,
+      name: email.split('@').first,
+      inviter: current_user,
+      account: Current.account
+    )
+    builder.perform
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.info "[Agent#bulk_create] ignoring email #{email}, errors: #{e.record.errors}"
+  end
+
+  def clear_onboarding_step
+    Current.account.custom_attributes.delete('onboarding_step')
+    Current.account.save!
   end
 
   def available_agent_count
-    Current.account.usage_limits[:agents] - agents.count
-  end
-
-  def can_add_agent?
-    available_agent_count.positive?
+    Current.account.usage_limits[:agents] - Current.account.account_users.count
   end
 
   def delete_user_record(agent)

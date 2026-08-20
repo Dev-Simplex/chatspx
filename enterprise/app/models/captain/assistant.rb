@@ -4,7 +4,7 @@
 #
 #  id                  :bigint           not null, primary key
 #  config              :jsonb            not null
-#  description         :string
+#  description         :text
 #  guardrails          :jsonb
 #  name                :string           not null
 #  response_guidelines :jsonb
@@ -17,6 +17,8 @@
 #  index_captain_assistants_on_account_id  (account_id)
 #
 class Captain::Assistant < ApplicationRecord
+  DESCRIPTION_LENGTH_LIMIT = 500
+
   include Avatarable
   include Concerns::CaptainToolsHelpers
   include Concerns::Agentable
@@ -27,6 +29,7 @@ class Captain::Assistant < ApplicationRecord
   has_one :agent_bot, foreign_key: :captain_assistant_id, dependent: :destroy, inverse_of: :captain_assistant
   has_many :documents, class_name: 'Captain::Document', dependent: :destroy_async
   has_many :responses, class_name: 'Captain::AssistantResponse', dependent: :destroy_async
+  has_many :faq_suggestions, class_name: 'Captain::FaqSuggestion', dependent: :destroy_async
   has_many :captain_inboxes,
            class_name: 'CaptainInbox',
            foreign_key: :captain_assistant_id,
@@ -36,15 +39,29 @@ class Captain::Assistant < ApplicationRecord
   has_many :messages, as: :sender, dependent: :nullify
   has_many :copilot_threads, dependent: :destroy_async
   has_many :scenarios, class_name: 'Captain::Scenario', dependent: :destroy_async
-  has_many :assistant_logs, class_name: 'Captain::AssistantLog', foreign_key: :captain_assistant_id, dependent: :destroy_async
+  # C-18 NÃO aplicado, e a medição é a razão: `dependent: :destroy_async` (que era o nosso) apaga o
+  # captain_assistant primeiro e só depois enfileira a remoção dos logs — mas a FK
+  # `fk_rails_abeee9b5ea` de captain_assistant_logs NÃO tem cascade, então o destroy estoura
+  # PG::ForeignKeyViolation na hora (provado por spec/enterprise/models/captain/assistant_spec.rb:37).
+  # O `:destroy` do upstream é o correto para este schema. A preocupação do auditor (apagar assistant
+  # com histórico longo bloqueia a request) é real, mas o conserto dela é ON DELETE CASCADE na FK,
+  # via migration — trabalho próprio. Ver onda-0-correcoes-aplicadas.md, item C-18.
+  has_many :assistant_logs, class_name: 'Captain::AssistantLog', foreign_key: :captain_assistant_id, dependent: :destroy
   has_many :document_chunks, class_name: 'Captain::DocumentChunk', dependent: :destroy_async
+  has_many :agent_sessions, class_name: 'Captain::AgentSession', dependent: :destroy_async
+  # 6.02 (eval como produto): o conjunto de casos e o histórico de execuções são DO
+  # assistente — apagar o assistente apaga os dois.
+  has_many :eval_cases, class_name: 'Captain::EvalCase', foreign_key: :captain_assistant_id,
+                        inverse_of: :captain_assistant, dependent: :destroy
+  has_many :eval_runs, class_name: 'Captain::EvalRun', foreign_key: :captain_assistant_id,
+                       inverse_of: :captain_assistant, dependent: :destroy
 
   store_accessor :config, :temperature, :feature_faq, :feature_memory, :feature_contact_attributes, :product_name
   store_accessor :behavior, :debounce_seconds, :business_hours_config, :humanizer_config, :media_pipeline_config,
                  :router_config, :copilot_trigger_config, :dedup_config
 
   validates :name, presence: true
-  validates :description, presence: true
+  validates :description, presence: true, length: { maximum: DESCRIPTION_LENGTH_LIMIT }
   validates :account_id, presence: true
 
   scope :ordered, -> { order(created_at: :desc) }
@@ -132,7 +149,8 @@ class Captain::Assistant < ApplicationRecord
   def agent_tools
     tools = [
       self.class.resolve_tool_class('faq_lookup').new(self),
-      self.class.resolve_tool_class('handoff').new(self)
+      self.class.resolve_tool_class('handoff').new(self),
+      *account.captain_custom_tools.enabled.map { |custom_tool| custom_tool.tool(self) }
     ]
 
     if chunk_knowledge_enabled? && (knowledge_tool = self.class.resolve_tool_class('search_knowledge'))
@@ -140,7 +158,7 @@ class Captain::Assistant < ApplicationRecord
     end
 
     tools.concat(configured_agent_tools)
-    tools
+    tools.uniq(&:name)
   end
 
   # B3 do modelo IA-como-agente: tools de negocio armadas direto no assistant via

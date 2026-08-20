@@ -1,0 +1,628 @@
+{
+  "INBOX_WIDGET": {
+    "PRE_CHAT_FORM": {
+      "FIELDS": {
+        "EMAIL_ADDRESS": {
+          "LABEL": "Email Address",
+          "PLACEHOLDER": "Please enter your email address"
+        },
+        "FULL_NAME": {
+          "LABEL": "Full Name",
+          "PLACEHOLDER": "Please enter your full name"
+        },
+        "PHONE_NUMBER": {
+          "LABEL": "Phone Number",
+          "PLACEHOLDER": "Please enter your phone number"
+        }
+      },
+      "BUILDER": {
+        "FIELD_COUNTER": "{count} of {max} fields",
+        "AT_LIMIT": "You reached the limit of 8 fields. A long form is the main cause of abandonment — to add another one, remove one of those already here.",
+        "ADD_FIELD": "Add field",
+        "REMOVE_FIELD": "Remove",
+        "ADD_STEP": "New step",
+        "STEP_TITLE": "Step {step}",
+        "STEP_COUNTER": "{count} of {max} steps",
+        "EMPTY_STEP": "This step has no field yet. Add one below or it will not be shown to the visitor.",
+        "NO_FIELD_AVAILABLE": "Every available field is already in the form. New fields come from the account's custom attributes."
+      },
+      "EDITOR": {
+        "NONE": "None",
+        "LABEL": "Label",
+        "LABEL_REQUIRED": "The label is what the visitor reads. Without it, the field shows its internal name.",
+        "PLACEHOLDER": "Placeholder",
+        "HELP_TEXT": "Help text",
+        "ERROR_MESSAGE": "Custom error message",
+        "MASK": "Mask",
+        "VALIDATOR": "Validation",
+        "REQUIRED": "Required",
+        "STANDARD_TYPE_LOCKED": "Standard field: the type does not change, because it feeds the contact record.",
+        "PREVIEW": "Try the field",
+        "PREVIEW_HINT": "Type here to see the mask and the validation as the visitor will. The message only shows when the field loses focus."
+      },
+      "MASKS": {
+        "CPF": "CPF",
+        "CNPJ": "CNPJ",
+        "CPF_CNPJ": "CPF or CNPJ",
+        "CEP": "Postal code (CEP)",
+        "UF": "State (UF)",
+        "PHONE": "Phone"
+      },
+      "VALIDATORS": {
+        "CPF": "Valid CPF",
+        "CNPJ": "Valid CNPJ",
+        "CPF_CNPJ": "Valid CPF or CNPJ",
+        "CEP": "Valid postal code",
+        "UF": "Valid state",
+        "EMAIL": "Valid email",
+        "CORPORATE_EMAIL": "Work email",
+        "PHONE": "Phone with country code",
+        "JUNK_NAME": "Anti-junk: name",
+        "JUNK_PHONE": "Anti-junk: phone",
+        "JUNK_EMAIL": "Anti-junk: disposable email"
+      },
+      "VALIDATION": {
+        "REQUIRED": "Please fill in this field.",
+        "CPF": "Check the CPF: the digits do not add up.",
+        "CNPJ": "Check the CNPJ: the digits do not add up.",
+        "CPF_CNPJ": "Check the document: it is neither a valid CPF nor a valid CNPJ.",
+        "CEP": "Check the postal code: it has eight digits.",
+        "UF": "Pick one of the 27 states.",
+        "EMAIL": "Check the email address.",
+        "CORPORATE_EMAIL": "Use your work email, not a free provider.",
+        "PHONE": "Enter the phone with the country code, starting with +.",
+        "JUNK_NAME": "That name looks incomplete. Is it right?",
+        "JUNK_PHONE": "That phone looks like a test number. Is it right?",
+        "JUNK_EMAIL": "That email is from a temporary service. Will you get our reply there?"
+      },
+      "CONDITION": {
+        "ADD": "Show only under a condition",
+        "REMOVE": "Always show",
+        "FIELD": "When the field",
+        "OPERATOR": "Is",
+        "VALUE": "Value",
+        "NO_SOURCES": "The first step has no earlier field to depend on. A condition only looks at a previous step.",
+        "DANGLING": "These fields depend on a field that left the form and will never appear: {fields}",
+        "OPERATORS": {
+          "IS": "equal to",
+          "IS_NOT": "different from",
+          "CONTAINS": "contains",
+          "FILLED": "filled in"
+        }
+      },
+      "MESSAGE": "Message before the form",
+      "MODES": {
+        "TITLE": "How the pre-chat works in this inbox",
+        "SIMPLE": {
+          "LABEL": "Simple",
+          "DESCRIPTION": "One step, the usual fields. It is what exists today and what most support inboxes need."
+        },
+        "BUILDER": {
+          "LABEL": "Builder",
+          "DESCRIPTION": "Steps, conditions, masks and per-field validation, capped at 8 fields in total."
+        },
+        "FLOW": {
+          "LABEL": "Flow",
+          "DESCRIPTION": "The pre-chat becomes the first step of an Automations flow, with the actions and branches from there."
+        }
+      },
+      "FLOW": {
+        "EXPLAINER": "In this mode the pre-chat is step 1 of a flow: what asks the questions and picks the path is the Automations engine, not this screen.",
+        "WHERE_TARGET_LIVES": "Which flow serves this inbox is not chosen here. The engine resolves it from the flow's own trigger — that is what lets two active flows serve different pages of your site.",
+        "OPEN_AUTOMATIONS": "Open Automations"
+      },
+      "MIGRATION": {
+        "TITLE": "Go back to Simple mode?",
+        "DESCRIPTION": "No field is deleted: all of them move to step 1. What stops applying are steps {steps} and the conditions on these fields: {fields}.",
+        "CONFIRM": "Back to Simple",
+        "CANCEL": "Stay in Builder"
+      },
+      "PREVIEW": {
+        "EMPTY": "No field is on: the visitor goes straight to the conversation.",
+        "START": "Start conversation",
+        "STEP_OF": "Step {step} of {total} — the next ones show up after this one is answered."
+      }
+    },
+    "CONFIGURATION": {
+      "ALLOWED_DOMAINS": {
+        "EMPTY_WARNING": {
+          "TITLE": "Any website can embed this widget",
+          "BODY": "While this field is blank, the server sends no frame-protection header, and any page on the internet can load this widget inside an iframe — including a site impersonating yours to collect data from people who believe they are talking to you.",
+          "ACTION_HINT": "To close this, list the domains where the widget should work — one per line. Include all of them: main domain, subdomains, staging, and any other site of the same company. A missing domain stops showing the widget."
+        }
+      }
+    },
+    "SAVE_BAR": {
+      "REGION_LABEL": "Unsaved changes",
+      "PENDING": "No pending changes | 1 unsaved change | {count} unsaved changes",
+      "DISCARD": "Discard",
+      "SAVE": "Save"
+    },
+    "UNSAVED_DIALOG": {
+      "TITLE": "Leave without saving?",
+      "DESCRIPTION": "These changes were not written yet. If you leave now, they are lost.",
+      "STAY": "Keep editing",
+      "LEAVE": "Leave and discard",
+      "AND_MORE": "and {count} more"
+    },
+    "FIELDS": {
+      "NAME": "Inbox name",
+      "WIDGET_COLOR": "Brand color",
+      "WELCOME_TITLE": "Welcome title",
+      "WELCOME_TAGLINE": "Welcome tagline",
+      "REPLY_TIME": "Reply time",
+      "FEATURE_FLAGS": "Widget features",
+      "PROFILE": "Inbox profile",
+      "APPEARANCE_THEME": "Theme mode",
+      "APPEARANCE_POSITION": "Launcher position",
+      "APPEARANCE_OFFSET_X": "Side offset",
+      "APPEARANCE_OFFSET_Y": "Bottom offset",
+      "APPEARANCE_LAUNCHER_TYPE": "Launcher shape",
+      "APPEARANCE_LAUNCHER_TEXT": "Launcher text",
+      "APPEARANCE_HIDE_BUBBLE": "Hide the bubble",
+      "APPEARANCE_PANEL_STYLE": "Panel style",
+      "APPEARANCE_LAUNCHER_ICON": "Launcher icon",
+      "APPEARANCE_HOME_INTENTS": "Home screen options",
+      "TRIGGERS_APPROACH": "Desktop approach",
+      "TRIGGERS_DEGRADE_ON_RETURN": "Soften approach on return",
+      "PRE_CHAT_ENABLED": "Pre-chat form",
+      "PRE_CHAT": "Pre-chat fields",
+      "TRACKING_META_PIXEL_ID": "Meta Pixel ID",
+      "TRACKING_GA4_MEASUREMENT_ID": "GA4 Measurement ID",
+      "TRACKING_GOOGLE_ADS_SEND_TO": "Google Ads conversion",
+      "TRACKING_EVENT_MAP": "Event map",
+      "TRACKING_CONSENT_MODE": "Consent mode",
+      "TRACKING_TEST_MODE": "Test mode",
+      "TRACKING_LEAD_VALUE": "Lead value",
+      "TRIGGERS_ENABLED": "Proactive invitations",
+      "TRIGGERS_TRIGGERS": "Configured triggers"
+    },
+    "CONTRAST": {
+      "RATIO": "{value}:1",
+      "ADJUSTED_TO": "→ {value}:1",
+      "INVALID": "Enter a hex color (for example #2DC46F) to see the contrast readout.",
+      "PAIRS": {
+        "TEXTONBRAND": "Text on the brand color",
+        "BRANDASTEXTLIGHT": "Brand as text (light background)",
+        "BRANDASTEXTDARK": "Brand as text (dark background)",
+        "BRANDASBORDER": "Border and focus ring"
+      },
+      "VERDICT": {
+        "PASS": "passes AA",
+        "ADJUSTED": "adjusted",
+        "FAIL": "below the minimum"
+      },
+      "EXPLANATION": {
+        "TEXT": "On a light background, {brand} as text gives {ratio}:1 — below the legible minimum. Links and labels will use {adjusted} ({adjustedRatio}:1). The fill stays {brand}.",
+        "BORDER": "As a border and focus ring, {brand} gives {ratio}:1 — below the 3:1 an interface element needs. Borders and focus will use {adjusted} ({adjustedRatio}:1)."
+      }
+    },
+    "APPEARANCE": {
+      "BRAND_COLOR": {
+        "LABEL": "Brand color",
+        "HEX_LABEL": "Brand color in hexadecimal",
+        "INVALID": "Use the #RRGGBB format."
+      },
+      "SAVED": "Appearance saved.",
+      "SAVE_ERROR": "Could not save the appearance.",
+      "SECTIONS": {
+        "BRAND": "Brand",
+        "THEME": "Theme",
+        "LAUNCHER": "Launcher",
+        "TEXTS": "Texts",
+        "FEATURES": "Features",
+        "ADVANCED": "Advanced"
+      },
+      "OVERRIDE": {
+        "TITLE": "The website overrides this setting",
+        "BODY": "The code installed on the website sets {fields} on its own. What is saved here is the default and the website wins — to make this screen's value count, remove the field from the chatwootSettings object on the site.",
+        "FIELD_HINT": "The website overrides this field."
+      },
+      "THEME": {
+        "LABEL": "Theme mode",
+        "HELP": "Automatic follows the visitor's system theme.",
+        "LIGHT": {
+          "LABEL": "Light",
+          "DESCRIPTION": "The widget always opens light."
+        },
+        "DARK": {
+          "LABEL": "Dark",
+          "DESCRIPTION": "The widget always opens dark."
+        },
+        "AUTO": {
+          "LABEL": "Automatic",
+          "DESCRIPTION": "Follows the system theme of whoever visits the site."
+        }
+      },
+      "LAUNCHER": {
+        "POSITION": "Position",
+        "POSITIONS": {
+          "LEFT": "Left",
+          "LEFT_HINT": "The bubble sits in the bottom-left corner.",
+          "RIGHT": "Right",
+          "RIGHT_HINT": "The bubble sits in the bottom-right corner."
+        },
+        "OFFSETS": "Distance from the edges",
+        "OFFSETS_HINT": "In pixels, from 0 to 120. Useful when another element of the site takes the corner.",
+        "OFFSET_X": "Side",
+        "OFFSET_Y": "Bottom",
+        "TYPE": "Shape",
+        "TYPES": {
+          "STANDARD": "Bubble",
+          "STANDARD_HINT": "Just the icon, in a circle.",
+          "EXPANDED_BUBBLE": "Bubble with text",
+          "EXPANDED_BUBBLE_HINT": "The icon with a call next to it."
+        },
+        "TEXT": "Launcher text",
+        "TEXT_PLACEHOLDER": "Talk to us",
+        "TEXT_TOO_LONG": "At most {max} characters.",
+        "HIDE_BUBBLE": "Hide the bubble",
+        "HIDE_BUBBLE_HINT": "Removes the launcher. Only do this if the site opens the chat from its own button — with no launcher and no button, the visitor is left with no way to reach you."
+      },
+      "TEXTS": {
+        "WELCOME_TITLE": "Welcome title",
+        "WELCOME_TAGLINE": "Welcome tagline",
+        "REPLY_TIME": "Reply time",
+        "REPLY_TIMES": {
+          "IN_A_FEW_MINUTES": "In a few minutes",
+          "IN_A_FEW_HOURS": "In a few hours",
+          "IN_A_DAY": "In a day"
+        }
+      },
+      "FEATURES": {
+        "ATTACHMENTS": "Allow attachments in the widget",
+        "EMOJI_PICKER": "Show the emoji picker",
+        "END_CONVERSATION": "Let the visitor end the conversation",
+        "USE_INBOX_AVATAR_FOR_BOT": "Use the inbox name and avatar for the bot"
+      },
+      "ADVANCED": {
+        "PANEL_STYLE": "Panel style",
+        "PANEL_STYLE_HINT": "Standard has the header in the brand color; flat uses a neutral background.",
+        "PANEL_STYLES": {
+          "STANDARD": "Standard",
+          "FLAT": "Flat"
+        }
+      },
+      "SITE_OVERRIDE": {
+        "TITLE": "The snippet on your site can override this",
+        "BODY": "What you save here is the default, and it now applies to the whole team — it is no longer kept in this browser alone. But if the snippet on your site sets chatwootSettings.position, type, launcherTitle, darkMode, hideMessageBubble or widgetStyle, the site value wins.",
+        "ACTION_HINT": "If the widget ignores what you saved here, look for chatwootSettings in your site HTML — this screen cannot read your site code."
+      }
+    },
+    "PREVIEW": {
+      "DARK": "Dark",
+      "MOBILE": "Mobile",
+      "OPEN_LAUNCHER": "Open the chat",
+      "CLOSE_LAUNCHER": "Close the chat"
+    },
+    "PROFILE": {
+      "SUPPORT": {
+        "LABEL": "Support",
+        "DESCRIPTION": "For people who already are customers and need help. The widget waits for the click: no invitation, no teaser, CSAT at the end and history over email."
+      },
+      "MARKETING": {
+        "LABEL": "Marketing",
+        "DESCRIPTION": "To turn a visitor into a customer. The widget invites — teaser on a trigger, qualification in the pre-chat and a conversion event at the end."
+      },
+      "QUESTION": "What is this inbox for?",
+      "QUESTION_HELP": "Pick now so the inbox is born right. You can change it later, and changing never erases what you configured.",
+      "SHOW_OTHER": "Show {profile} settings",
+      "HIDE_OTHER": "Hide {profile} settings",
+      "HIDDEN_HINT": "The {profile} profile hides these sections — it does not remove them. They stay saved and come back if you switch the profile.",
+      "SWITCH_DIALOG": {
+        "TITLE": "Switch this inbox profile",
+        "DESCRIPTION": "The {profile} profile proposes the changes below. Check what you want applied — anything left unchecked is not touched.",
+        "WILL_CHANGE": "What changes, if you check it",
+        "WILL_KEEP": "What stays saved",
+        "KEEP_EXPLANATION": "Nothing is erased. Every setting of the previous profile stays in the database, inert, and comes back if you switch the profile back.",
+        "NOTHING_CHANGES": "Nothing changes: this inbox is already set the way the new profile proposes.",
+        "CONFIRM": "Switch the profile",
+        "CANCEL": "Keep the current profile"
+      },
+      "PROPOSALS": {
+        "PRECHATFORMENABLED": {
+          "SUPPORT": "Turn the pre-chat form off (the customer talks first, no form)",
+          "MARKETING": "Turn the pre-chat form on (to qualify the visitor before the conversation)"
+        },
+        "TRIGGERSPRESET": {
+          "SUPPORT": "Turn triggers off: the widget goes back to waiting for the click",
+          "MARKETING": "Turn the teaser on with the composite trigger (8 seconds on page AND 30% scroll)"
+        },
+        "CONTINUITYVIAEMAIL": {
+          "SUPPORT": "Turn email continuity on (history follows into the customer's inbox)",
+          "MARKETING": "Turn email continuity off"
+        },
+        "CSATSURVEYENABLED": {
+          "SUPPORT": "Turn the satisfaction survey (CSAT) on when a conversation is resolved",
+          "MARKETING": "Turn the satisfaction survey (CSAT) off"
+        },
+        "KNOWLEDGEBASE": {
+          "SUPPORT": "Show the Help Center on the widget home screen",
+          "MARKETING": "Hide the Help Center on the widget home screen"
+        }
+      }
+    },
+    "TABS": {
+      "APPEARANCE": "Appearance"
+    },
+    "APPROACH": {
+      "TITLE": "Approach",
+      "LEVELS": {
+        "DISCREET": {
+          "LABEL": "Discreet",
+          "DESCRIPTION": "A small bubble with one sentence, next to the launcher. No photo."
+        },
+        "BOLD": {
+          "LABEL": "Bold",
+          "DESCRIPTION": "A larger bubble, with the photo of whoever answers and shortcuts. This is the default."
+        },
+        "AGGRESSIVE": {
+          "LABEL": "Aggressive",
+          "DESCRIPTION": "The panel opens by itself, once per session, when the trigger fires."
+        }
+      },
+      "DEGRADE_ON_RETURN": {
+        "LABEL": "Insist less with visitors already approached",
+        "DESCRIPTION": "Someone who already saw the approach and did not answer gets the level below on the next visit, then nothing.",
+        "SENTENCE": "Someone who already got the invitation and did not answer sees a quieter version on the next visit — and after that, only the launcher. This is what keeps the invitation from becoming harassment.",
+        "OFF_WARNING": "With this off, the same visitor gets the full approach on every visit."
+      },
+      "MOBILE": {
+        "LABEL": "On mobile",
+        "AGGRESSIVE_NOT_OFFERED": "Auto-open is not offered on mobile: the panel covers the whole screen there.",
+        "APPLIED_LEVEL": "On mobile the applied level is {level} — the panel covers the whole screen, and opening it on its own takes the visitor away from what they were reading."
+      }
+    },
+    "HOME_INTENTS": {
+      "LABEL": "Intent options on the home screen",
+      "DESCRIPTION": "2 to 4 named options, instead of a \"How can I help?\". Visitors decide in seconds whether you solve their problem.",
+      "HELP": "The text is yours and is shown to the visitor. The identifier stays invisible and lets you compare how each option performs in reports.",
+      "SUGGESTIONS": {
+        "PRICING": "I want a quote",
+        "SUPPORT": "I need help with an order",
+        "PRODUCT": "I want to know the product"
+      },
+      "ERRORS": {
+        "NEED_TWO": "Keep 2 to 4 options, or none — a single option is not a choice.",
+        "DUPLICATED_ID": "Two options cannot share the same identifier."
+      }
+    },
+    "TRIGGERS": {
+      "TAB": "Triggers",
+      "SAVED": "Triggers saved.",
+      "SAVE_ERROR": "Could not save the triggers.",
+      "MASTER": {
+        "LABEL": "Enable proactive invitations",
+        "HINT": "While this is off, the widget only shows up when the visitor clicks. Turning it off does not erase what you set here."
+      },
+      "SECTIONS": {
+        "MODE": "Mode",
+        "TRIGGERS": "Triggers",
+        "FREQUENCY": "Frequency",
+        "AUDIENCE": "Where it shows"
+      },
+      "MODE": {
+        "RECOMMENDED": {
+          "LABEL": "Recommended",
+          "DESCRIPTION": "The invitation shows after 8 seconds on the page AND 30% scroll. Both together, and it is what the market study recommends."
+        },
+        "ADVANCED": {
+          "LABEL": "Advanced",
+          "DESCRIPTION": "Set the seven triggers one by one, with their own value and interval for desktop and mobile."
+        }
+      },
+      "AUTO_OPEN_DIALOG": {
+        "TITLE": "Open the panel on its own?",
+        "DESCRIPTION": "The Aggressive level opens the conversation without the visitor clicking. Three things that will happen:",
+        "POINT_INTERRUPTS": "The panel covers part of the page the visitor was reading, and they have to close it to go on.",
+        "POINT_ONCE": "It opens at most once per session, and only after the trigger you set — never as soon as the page loads.",
+        "POINT_MOBILE": "It is not applied on mobile: there the panel takes the whole screen. Mobile stays on the {level} level.",
+        "CONFIRM": "Turn it on anyway",
+        "CANCEL": "Keep the current level"
+      },
+      "COMPOSITE_WARNING": {
+        "TITLE": "Time on page alone is not enough",
+        "BODY": "With only time turned on, the invitation shows to whoever opened the page and left to get a coffee. Turn scroll on as well: someone who scrolled 30% is actually reading."
+      },
+      "PUBLIC_WARNING": "These rules are visible to anyone who inspects the website's code. Do not use a customer name, a contract value, or any data that cannot be read by any visitor.",
+      "LIST": {
+        "TRIGGER": "Trigger",
+        "DESKTOP": "Desktop",
+        "MOBILE": "Mobile",
+        "COOLDOWN": "Interval",
+        "NOT_AVAILABLE": "not applicable"
+      },
+      "ITEMS": {
+        "TIME_ON_PAGE": {
+          "LABEL": "Time on page",
+          "UNIT": "seconds",
+          "HINT": "How many seconds the visitor stays before the invitation."
+        },
+        "SCROLL_DEPTH": {
+          "LABEL": "Scroll",
+          "UNIT": "%",
+          "HINT": "How much of the page the visitor has scrolled."
+        },
+        "EXIT_INTENT": {
+          "LABEL": "Exit intent",
+          "UNIT": "",
+          "HINT": "The cursor leaves the page area toward the browser bar. It does not exist on mobile."
+        },
+        "IDLE": {
+          "LABEL": "Idle",
+          "UNIT": "seconds",
+          "HINT": "Seconds with no click, scroll or keystroke."
+        },
+        "ELEMENT_CLICK": {
+          "LABEL": "Element click",
+          "UNIT": "",
+          "HINT": "The visitor clicks something you pick with a CSS selector."
+        },
+        "ELEMENT_VISIBLE": {
+          "LABEL": "Element visible",
+          "UNIT": "",
+          "HINT": "A part of the page comes into view — the price, the form, the footer."
+        },
+        "RETURN_VISIT": {
+          "LABEL": "Returning visitor",
+          "UNIT": "",
+          "HINT": "Someone who has been on the site before."
+        }
+      },
+      "SELECTOR": {
+        "LABEL": "CSS selector",
+        "PLACEHOLDER": "[data-cta], #quote .btn",
+        "INVALID": "This selector is not valid: {reason}",
+        "EMPTY": "Enter the element's selector.",
+        "SYNTAX_ONLY": "We only check how the selector is written — the site is yours, and we have no way to know whether it exists on the page."
+      },
+      "FREQUENCY": {
+        "MAX_PER_SESSION": "Invitations per session",
+        "MAX_PER_SESSION_HINT": "At most {max}. Zero turns the invitation off without erasing the setup.",
+        "COOLDOWN": "Interval between invitations",
+        "COOLDOWN_HINT": "In seconds, up to {max} (30 days). It applies to triggers with no interval of their own."
+      },
+      "AUDIENCE": {
+        "URL_LABEL": "Page address",
+        "URL_HINT": "Leave it empty to apply on any page.",
+        "URL_ADD": "Add address",
+        "URL_PLACEHOLDER": "/plans",
+        "URL_TOO_MANY": "At most {max} addresses.",
+        "OPERATORS": {
+          "CONTAINS": "contains",
+          "NOT_CONTAINS": "does not contain",
+          "EQUALS": "equals",
+          "STARTS_WITH": "starts with",
+          "ENDS_WITH": "ends with"
+        },
+        "DEVICE_LABEL": "Device",
+        "DEVICES": {
+          "DESKTOP": "Desktop",
+          "MOBILE": "Mobile"
+        },
+        "DEVICE_EMPTY": "Pick at least one device — with none, the invitation shows nowhere.",
+        "REMOVE": "Remove"
+      },
+      "TEASER": {
+        "SECTION": "Invitation message",
+        "EXPLANATION": "The campaign is the message; the trigger is the moment. The text below belongs to this inbox's live chat campaign — editing it here edits that campaign, and no new campaign is born because of a trigger.",
+        "TITLE_LABEL": "Title",
+        "MESSAGE_LABEL": "Invitation text",
+        "SAVE": "Save the message",
+        "SAVED": "Invitation message saved.",
+        "SAVE_ERROR": "Could not save the invitation message.",
+        "LINKED": "Linked to the \"{campaign}\" campaign.",
+        "EMPTY": "This inbox has no live chat campaign yet. Create one under Campaigns to write the invitation text — the trigger decides when it shows, and it stays editable where it always was.",
+        "SIMULATE": "Simulate the trigger in the preview",
+        "SIMULATE_HINT": "Shows the invitation the way the visitor will see it when the trigger fires. Preview only — nothing is sent."
+      },
+      "LEGACY": {
+        "SECTION": "Legacy mode — campaigns in this inbox",
+        "SUPPRESSED": "With the trigger on, the invitation above is what talks to the visitor. These campaigns stay saved and editable, but they do not fire on their own — turn the trigger off and they come back, with nothing to republish.",
+        "STILL_RUNNING": "The trigger is off, so these campaigns keep firing normally, exactly as they always have.",
+        "IMPORT": "Import",
+        "IMPORT_ARIA": "Import the campaign {campanha} as a trigger",
+        "IMPORTED": "Campaign imported as a trigger. It was disabled — the two are never on at the same time.",
+        "IMPORT_ERROR": "Could not import this campaign.",
+        "UNNAMED": "untitled"
+      }
+    },
+    "TRACKING": {
+      "TAB": "Tracking",
+      "SAVED": "Tracking settings saved.",
+      "SAVE_ERROR": "Could not save the tracking settings.",
+      "BLOCKED_BY_502": "Storing a credential is not available yet: the encrypted vault is block 5.02, which waits on the cipher keys (0.10). The public identifier above already works and already reaches the site.",
+      "TABS": {
+        "META": "Meta",
+        "GOOGLE": "Google",
+        "EVENTS": "Events",
+        "DIAGNOSTICS": "Diagnostics"
+      },
+      "META": {
+        "PIXEL_ID": "Pixel ID",
+        "PIXEL_ID_HINT": "It is public: it shows in the code of any site that uses the pixel. Digits only, 15 or 16.",
+        "PIXEL_ID_INVALID": "A Pixel ID has 15 or 16 digits, no letters.",
+        "TOKEN": "Access Token",
+        "TEST_MODE": "Test mode",
+        "TEST_MODE_HINT": "Sends events as tests so you can check them in Events Manager without polluting the real numbers. It turns itself off in {days} days.",
+        "TEST_CODE": "Test code",
+        "TEST_MODE_EXPIRED": "Test mode passed {days} days and turned itself off. Turn it on again if you are still testing."
+      },
+      "GOOGLE": {
+        "MEASUREMENT_ID": "Measurement ID (GA4)",
+        "MEASUREMENT_ID_HINT": "It is public: it starts with G- and shows in the site tag.",
+        "MEASUREMENT_ID_INVALID": "A Measurement ID starts with G- followed by letters and numbers.",
+        "API_SECRET": "API Secret",
+        "SEND_TO": "Google Ads conversion",
+        "SEND_TO_HINT": "In the AW-000000000/ConversionLabel format.",
+        "SEND_TO_INVALID": "Use the AW-000000000/ConversionLabel format."
+      },
+      "EVENT_MAP": {
+        "EVENT": "ChatSPX event",
+        "META": "Name on Meta",
+        "GA4": "Name on GA4",
+        "ON": "Active",
+        "NOT_SENT": "do not send"
+      },
+      "EVENTS": {
+        "WIDGET_LOADED": "Widget loaded",
+        "WIDGET_OPENED": "Widget opened",
+        "CONVERSATION_STARTED": "Conversation started",
+        "PRECHAT_SUBMITTED": "Pre-chat submitted",
+        "LEAD": "Lead",
+        "LEAD_QUALIFIED": "Lead qualified",
+        "LEAD_DISQUALIFIED": "Lead disqualified",
+        "AGENT_ENGAGED": "Agent engaged",
+        "MEETING_SCHEDULED": "Meeting scheduled",
+        "CONVERSATION_RESOLVED": "Conversation resolved",
+        "DEAL_WON": "Deal won",
+        "DEAL_LOST": "Deal lost"
+      },
+      "LEAD_VALUE": {
+        "TITLE": "Lead value",
+        "OFF": "Off",
+        "OFF_HINT": "Events go without a value. Use it when the ticket varies too much for an average to mean anything.",
+        "FIXED": "Fixed value",
+        "FIXED_HINT": "Every lead is worth the same. It is enough for Ads to optimise by conversion.",
+        "BY_RULE": "By rule",
+        "BY_RULE_HINT": "The value comes from the funnel (block 5.21). Until it exists, the event goes without a value.",
+        "AMOUNT": "Amount"
+      },
+      "ACCOUNT": {
+        "TITLE": "Set for the whole account",
+        "READ_ONLY": "read only",
+        "CONSENT": "Consent mode",
+        "KILL_SWITCH": "Master switch",
+        "KILL_ON": "off due to an incident",
+        "KILL_OFF": "normal",
+        "RETENTION": "Log retention",
+        "RETENTION_DAYS": "{days} days",
+        "DPA": "DPA acceptance",
+        "DPA_YES": "accepted",
+        "DPA_NO": "pending",
+        "UNSET": "not set",
+        "KILL_WARNING": "The account master switch is on: no event leaves any inbox until it is released."
+      },
+      "DIAGNOSTICS": {
+        "PRIVACY": "This panel shows the NAMES of the fields sent, never the values — neither in the clear nor hashed. Diagnostics that show a lead's email is a leak with an interface.",
+        "EMPTY": "No delivery recorded yet for this inbox.",
+        "UNAVAILABLE": "Reading the delivery log comes with block 5.14 (audit and diagnostics). Deliveries are already recorded by the server since 5.03 — what is missing is the endpoint that returns them to this screen.",
+        "TIME": "Time",
+        "EVENT": "Event",
+        "DESTINATION": "Destination",
+        "STATUS": "Status",
+        "FIELDS": "Fields sent"
+      },
+      "SECRET": {
+        "EMPTY": "not set",
+        "NOT_SET": "No value stored.",
+        "SET": "Stored. The value is never shown again.",
+        "SET_AT": "Stored on {date}. The value is never shown again.",
+        "REPLACE": "Replace",
+        "SET_BUTTON": "Set",
+        "CONFIRM": "Store",
+        "CANCEL": "Cancel"
+      }
+    }
+  }
+}

@@ -46049,6 +46049,241 @@
           }
         }
       }
+    },
+    "/accounts/{account_id}/conversations/{conversation_id}/messages": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/account_id"
+        },
+        {
+          "name": "conversation_id",
+          "in": "path",
+          "description": "ID of the conversation",
+          "required": true,
+          "schema": {
+            "type": "number"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "Get messages from a conversation",
+        "description": "Returns all messages from a specific conversation",
+        "operationId": "getConversationMessages",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/conversation_messages"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/branded_email_layout": {
+      "get": {
+        "tags": [
+          "Inboxes"
+        ],
+        "operationId": "getAccountBrandedEmailLayout",
+        "summary": "Get account branded email layout",
+        "security": [
+          {
+            "userApiKey": []
+          }
+        ],
+        "description": "Get the account-scoped Liquid HTML layout used as the fallback for branded email replies.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/account_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/branded_email_layout"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Inboxes"
+        ],
+        "operationId": "updateAccountBrandedEmailLayout",
+        "summary": "Update account branded email layout",
+        "security": [
+          {
+            "userApiKey": []
+          }
+        ],
+        "description": "Update or clear the account-scoped Liquid HTML layout used as the fallback for branded email replies.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/account_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/account_branded_email_layout_payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/branded_email_layout"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/accounts/{account_id}/reports/conversations/": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/account_id"
+        },
+        {
+          "in": "query",
+          "name": "type",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "agent"
+            ]
+          },
+          "required": true,
+          "description": "Type of report"
+        },
+        {
+          "in": "query",
+          "name": "user_id",
+          "schema": {
+            "type": "string"
+          },
+          "description": "The numeric ID of the user"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "get-agent-conversation-metrics",
+        "summary": "Agent Conversation Metrics",
+        "security": [
+          {
+            "userApiKey": []
+          }
+        ],
+        "description": "Get conversation metrics for Agent",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "description": "Array of agent based conversation metrics",
+                  "items": {
+                    "$ref": "#/components/schemas/agent_conversation_metrics"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "reports not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/survey/responses/{conversation_uuid}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/conversation_uuid"
+        }
+      ],
+      "get": {
+        "tags": [
+          "CSAT Survey Page"
+        ],
+        "operationId": "get-csat-survey-page",
+        "summary": "Get CSAT survey page",
+        "description": "You can redirect the client to this URL, instead of implementing the CSAT survey component yourself.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -46081,6 +46316,15 @@
         },
         "required": true,
         "description": "O ID numérico da conta"
+      },
+      "conversation_uuid": {
+        "in": "path",
+        "name": "conversation_uuid",
+        "schema": {
+          "type": "integer"
+        },
+        "required": true,
+        "description": "The uuid of the conversation"
       }
     },
     "schemas": {
@@ -66101,6 +66345,451 @@
             },
             "example": [
               "Erro ao processar a requisicao"
+            ]
+          }
+        }
+      },
+      "account_branded_email_layout_payload": {
+        "type": "object",
+        "properties": {
+          "branded_email_layout": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 262144,
+            "description": "Account-scoped Liquid HTML layout for branded email replies. Maximum length is 262,144 characters. Blank or null removes the account override.",
+            "example": "<html><body>{{ content_for_layout }}</body></html>"
+          }
+        }
+      },
+      "agent_conversation_metrics": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "thumbnail": {
+            "type": "string"
+          },
+          "availability": {
+            "type": "string"
+          },
+          "metric": {
+            "type": "object",
+            "properties": {
+              "open": {
+                "type": "number"
+              },
+              "unattended": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "branded_email_layout": {
+        "type": "object",
+        "properties": {
+          "branded_email_layout": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Account-scoped Liquid HTML layout for branded email replies.",
+            "example": "<html><body>{{ content_for_layout }}</body></html>"
+          }
+        }
+      },
+      "conversation_messages": {
+        "type": "object",
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/conversation_meta"
+          },
+          "payload": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/message_detailed"
+            },
+            "description": "List of messages in the conversation"
+          }
+        }
+      },
+      "conversation_meta": {
+        "type": "object",
+        "properties": {
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Labels associated with the conversation"
+          },
+          "additional_attributes": {
+            "type": "object",
+            "properties": {
+              "browser": {
+                "type": "object",
+                "properties": {
+                  "device_name": {
+                    "type": "string",
+                    "description": "Name of the device"
+                  },
+                  "browser_name": {
+                    "type": "string",
+                    "description": "Name of the browser"
+                  },
+                  "platform_name": {
+                    "type": "string",
+                    "description": "Name of the platform"
+                  },
+                  "browser_version": {
+                    "type": "string",
+                    "description": "Version of the browser"
+                  },
+                  "platform_version": {
+                    "type": "string",
+                    "description": "Version of the platform"
+                  }
+                }
+              },
+              "referer": {
+                "type": "string",
+                "description": "Referrer URL"
+              },
+              "initiated_at": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "string",
+                    "description": "Timestamp when the conversation was initiated"
+                  }
+                }
+              },
+              "browser_language": {
+                "type": "string",
+                "description": "Browser language setting"
+              },
+              "conversation_language": {
+                "type": "string",
+                "description": "Conversation language"
+              }
+            },
+            "description": "Additional attributes of the conversation"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/contact_detail"
+          },
+          "assignee": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/agent"
+              }
+            ],
+            "description": "The agent assigned to the conversation",
+            "nullable": true
+          },
+          "agent_last_seen_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the agent last saw the conversation"
+          },
+          "assignee_last_seen_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the assignee last saw the conversation"
+          }
+        }
+      },
+      "message_detailed": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "The ID of the message"
+          },
+          "content": {
+            "type": "string",
+            "description": "The text content of the message"
+          },
+          "inbox_id": {
+            "type": "number",
+            "description": "The ID of the inbox"
+          },
+          "conversation_id": {
+            "type": "number",
+            "description": "The ID of the conversation"
+          },
+          "message_type": {
+            "type": "integer",
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "description": "The type of the message (0: incoming, 1: outgoing, 2: activity, 3: template)"
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "input_text",
+              "input_textarea",
+              "input_email",
+              "input_select",
+              "cards",
+              "form",
+              "article",
+              "incoming_email",
+              "input_csat",
+              "integrations",
+              "sticker",
+              "voice_call"
+            ],
+            "description": "The type of the message content"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "sent",
+              "delivered",
+              "read",
+              "failed"
+            ],
+            "description": "The status of the message"
+          },
+          "content_attributes": {
+            "type": "object",
+            "description": "The content attributes for each content_type",
+            "properties": {
+              "in_reply_to": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ID of the message this is replying to"
+              }
+            }
+          },
+          "echo_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The echo ID of the message, used for deduplication"
+          },
+          "created_at": {
+            "type": "integer",
+            "description": "The timestamp when message was created"
+          },
+          "private": {
+            "type": "boolean",
+            "description": "The flag which shows whether the message is private or not"
+          },
+          "source_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The source ID of the message"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/contact_detail"
+          },
+          "attachments": {
+            "type": "array",
+            "description": "The list of attachments associated with the message",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "number",
+                  "description": "The ID of the attachment"
+                },
+                "message_id": {
+                  "type": "number",
+                  "description": "The ID of the message"
+                },
+                "file_type": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "video",
+                    "audio",
+                    "file",
+                    "location",
+                    "fallback",
+                    "share",
+                    "story_mention",
+                    "contact",
+                    "ig_reel"
+                  ],
+                  "description": "The type of the attached file"
+                },
+                "account_id": {
+                  "type": "number",
+                  "description": "The ID of the account"
+                },
+                "data_url": {
+                  "type": "string",
+                  "description": "The URL of the attached file"
+                },
+                "thumb_url": {
+                  "type": "string",
+                  "description": "The thumbnail URL of the attached file"
+                },
+                "file_size": {
+                  "type": "number",
+                  "description": "The size of the attached file in bytes"
+                }
+              }
+            }
+          }
+        }
+      },
+      "agent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "account_id": {
+            "type": "integer"
+          },
+          "availability_status": {
+            "type": "string",
+            "enum": [
+              "online",
+              "busy",
+              "offline"
+            ],
+            "readOnly": true,
+            "description": "The effective availability status of the agent, derived from the configured availability, auto-offline setting, and current presence. To update an agent's configured availability, use the availability field in create or update requests."
+          },
+          "auto_offline": {
+            "type": "boolean",
+            "description": "Whether the agent is automatically marked offline when they are away."
+          },
+          "confirmed": {
+            "type": "boolean",
+            "description": "Whether the agent has confirmed their email address."
+          },
+          "email": {
+            "type": "string",
+            "description": "The email of the agent"
+          },
+          "available_name": {
+            "type": "string",
+            "description": "The available name of the agent"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the agent"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "administrator"
+            ],
+            "description": "The role of the agent"
+          },
+          "thumbnail": {
+            "type": "string",
+            "description": "The thumbnail of the agent"
+          },
+          "custom_role_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The custom role id of the agent"
+          }
+        }
+      },
+      "contact_detail": {
+        "type": "object",
+        "properties": {
+          "additional_attributes": {
+            "type": "object",
+            "description": "The object containing additional attributes related to the contact",
+            "properties": {
+              "city": {
+                "type": "string",
+                "description": "City of the contact"
+              },
+              "country": {
+                "type": "string",
+                "description": "Country of the contact"
+              },
+              "country_code": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Country code of the contact"
+              },
+              "created_at_ip": {
+                "type": "string",
+                "description": "IP address when the contact was created"
+              }
+            }
+          },
+          "custom_attributes": {
+            "type": "object",
+            "description": "The custom attributes of the contact"
+          },
+          "email": {
+            "type": "string",
+            "description": "The email address of the contact"
+          },
+          "id": {
+            "type": "integer",
+            "description": "The ID of the contact"
+          },
+          "identifier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The identifier of the contact"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the contact"
+          },
+          "phone_number": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The phone number of the contact"
+          },
+          "thumbnail": {
+            "type": "string",
+            "description": "The thumbnail of the contact"
+          },
+          "blocked": {
+            "type": "boolean",
+            "description": "Whether the contact is blocked"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of entity",
+            "enum": [
+              "contact"
             ]
           }
         }

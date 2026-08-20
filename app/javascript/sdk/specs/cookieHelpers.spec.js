@@ -14,6 +14,10 @@ describe('#getUserCookieName', () => {
 });
 
 describe('#getUserString', () => {
+  // Bloco 5.17: a string cresceu de proposito. Ela alimenta o hash de dedupe, e antes cobria so
+  // avatar_url/email/name/identifier_hash — entao mudar o telefone (ou empresa, cidade, pais,
+  // descricao, atributos) nao mudava o hash, e a atualizacao nunca saia do navegador. Os campos
+  // novos aparecem VAZIOS quando o site nao os manda, que e o caso destes dois exemplos.
   it('returns correct user string', () => {
     expect(
       getUserString({
@@ -26,7 +30,7 @@ describe('#getUserString', () => {
         identifier: '12345',
       })
     ).toBe(
-      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamePranavidentifier_hash12345identifier12345'
+      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamePranavphone_numberidentifier_hash12345company_namecitycountry_codedescriptionsigned_up_atsocial_profilescustom_attributesidentifier12345'
     );
 
     expect(
@@ -37,7 +41,7 @@ describe('#getUserString', () => {
         },
       })
     ).toBe(
-      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnameidentifier_hashidentifier'
+      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamephone_numberidentifier_hashcompany_namecitycountry_codedescriptionsigned_up_atsocial_profilescustom_attributesidentifier'
     );
   });
 });
@@ -68,6 +72,7 @@ describe('setCookieWithDomain', () => {
       expires: 365,
       sameSite: 'Lax',
       domain: undefined,
+      secure: false,
     });
   });
 
@@ -80,6 +85,7 @@ describe('setCookieWithDomain', () => {
       expires: 30,
       sameSite: 'Lax',
       domain: undefined,
+      secure: false,
     });
   });
 
@@ -92,6 +98,7 @@ describe('setCookieWithDomain', () => {
       expires: 365,
       sameSite: 'Lax',
       domain: 'example.com',
+      secure: false,
     });
   });
 
@@ -111,8 +118,41 @@ describe('setCookieWithDomain', () => {
         expires: 365,
         sameSite: 'Lax',
         domain: 'example.com',
+        secure: false,
       }
     );
+  });
+
+  /**
+   * Item 46 do gap analysis (P0), absorvido pelo bloco 4.19.
+   *
+   * O par de asserções é o ponto: `secure` liga em HTTPS E fica desligado em HTTP.
+   * Só a primeira metade seria uma armadilha — cravar `secure: true` faria o
+   * navegador DESCARTAR o cookie em todo site que ainda serve HTTP, e o widget
+   * perderia a sessão do visitante sem um único erro no console.
+   */
+  it('marca `secure` quando a página é HTTPS, e NÃO marca em HTTP', () => {
+    const localOriginal = Object.getOwnPropertyDescriptor(window, 'location');
+    const comProtocolo = protocol => {
+      Cookies.set.mockClear();
+      // jsdom não deixa reatribuir `location`; redefinir a propriedade é o
+      // caminho que o próprio jsdom documenta.
+      Object.defineProperty(window, 'location', {
+        value: { protocol },
+        writable: true,
+        configurable: true,
+      });
+      setCookieWithDomain('c', 'v', { baseDomain: 'example.com' });
+      return Cookies.set.mock.calls[0][2].secure;
+    };
+
+    expect(comProtocolo('https:')).toBe(true);
+    expect(comProtocolo('http:')).toBe(false);
+
+    // Devolve a `location` do jsdom. Sem isto, todo arquivo que rodar depois
+    // neste mesmo ambiente herda uma página fantasma — e o defeito aparece longe
+    // daqui, num teste que não fala de cookie.
+    Object.defineProperty(window, 'location', localOriginal);
   });
 
   it('should set a cookie with custom expiration, sameSite attribute, and specific base domain', () => {
@@ -125,6 +165,7 @@ describe('setCookieWithDomain', () => {
       expires: 7,
       sameSite: 'Lax',
       domain: 'example.com',
+      secure: false,
     });
   });
 });

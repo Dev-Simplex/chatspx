@@ -74,6 +74,21 @@ class Api::V1::Accounts::FlowsController < Api::V1::Accounts::BaseController
     @total_entries = @stats.map(&:executions).max || 0
   end
 
+  # 6.05 — o relatorio do teste A/B de fluxo. Le `tracking_events` (o registro do 5.03) e
+  # nada mais: nao ha contador proprio a manter em dia.
+  #
+  # `index?` e a autorizacao certa e nao `show?`: o experimento nao e de um flow, e do
+  # conjunto de variantes, e `show?` pediria a autoria de UMA delas para ler o numero das
+  # duas. Quem pode listar os fluxos da conta pode ler o resultado do experimento dela.
+  def experiment
+    authorize(Flow.new(account: Current.account), :index?)
+    return render_could_not_create_error(['experiment: falta a chave do experimento']) if params[:key].blank?
+
+    @report = ::Flows::AbReportService.new(
+      account: Current.account, experiment: params[:key], period: experiment_period
+    ).perform
+  end
+
   # Importa as Macros e AutomationRules legadas da conta como Flows equivalentes, rodando o
   # Flows::BackfillService (idempotente via marcador trigger_config.backfill_source). Com
   # `dry_run: true` valida sem gravar. Autorização classe-nível na FlowPolicy#create? (importar
@@ -86,6 +101,20 @@ class Api::V1::Accounts::FlowsController < Api::V1::Accounts::BaseController
   end
 
   private
+
+  # Janela do relatorio. AUSENCIA = todo o historico, de proposito: um experimento que rodou
+  # mes passado tem de continuar legivel sem que a tela precise adivinhar as datas dele.
+  # Data ilegivel tambem cai em "todo o historico" — recusar o relatorio inteiro por causa de
+  # um parametro torto seria trocar um numero por uma tela de erro.
+  def experiment_period
+    return nil if params[:since].blank? && params[:until].blank?
+
+    inicio = Time.zone.parse(params[:since].to_s) || Time.zone.at(0)
+    fim = Time.zone.parse(params[:until].to_s) || Time.current
+    inicio..fim
+  rescue ArgumentError, TypeError
+    nil
+  end
 
   # Todos os flows nascidos de um backfill (o service marca trigger_config.backfill_source).
   # Em dry_run nada foi gravado, então reflete só o que já existia de execuções anteriores.

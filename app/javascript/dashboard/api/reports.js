@@ -31,6 +31,42 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  getDrilldown({
+    metric,
+    bucketTimestamp,
+    from,
+    to,
+    type = 'account',
+    id,
+    groupBy,
+    businessHours,
+    page,
+    perPage,
+    signal,
+  }) {
+    const requestConfig = {
+      params: {
+        metric,
+        bucket_timestamp: bucketTimestamp,
+        since: from,
+        until: to,
+        type,
+        id,
+        group_by: groupBy,
+        business_hours: businessHours,
+        timezone_offset: getTimeOffset(),
+        page,
+        per_page: perPage,
+      },
+    };
+
+    if (signal) {
+      requestConfig.signal = signal;
+    }
+
+    return axios.get(`${this.url}/drilldown`, requestConfig);
+  }
+
   // eslint-disable-next-line default-param-last
   getSummary(since, until, type = 'account', id, groupBy, businessHours) {
     return axios.get(`${this.url}/summary`, {
@@ -88,6 +124,13 @@ class ReportsAPI extends ApiClient {
   getTeamReports({ from: since, to: until, businessHours }) {
     return axios.get(`${this.url}/teams`, {
       params: { since, until, business_hours: businessHours },
+    });
+  }
+
+  // Bloco 1.22 — de onde vieram os atendimentos no periodo.
+  getConversationOrigin({ from, to } = {}) {
+    return axios.get(`${this.baseUrl()}/origin_report`, {
+      params: { since: from, until: to, timezone_offset: getTimeOffset() },
     });
   }
 

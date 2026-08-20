@@ -1,13 +1,15 @@
 module Concerns::Agentable
   extend ActiveSupport::Concern
 
+  DEFAULT_TEMPERATURE = 0.5
+
   def agent
     Agents::Agent.new(
       name: agent_name,
       instructions: ->(context) { agent_instructions(context) },
       tools: agent_tools,
       model: agent_model,
-      temperature: temperature.to_f || 0.7,
+      temperature: temperature.presence&.to_f || DEFAULT_TEMPERATURE,
       response_schema: agent_response_schema
     )
   end
@@ -19,6 +21,7 @@ module Concerns::Agentable
       state = context.context[:state] || {}
       config = state[:assistant_config] || {}
       enhanced_context = enhanced_context.merge(
+        current_time: format_current_time(state[:timezone]),
         conversation: state[:conversation] || {},
         contact: config['feature_contact_attributes'].present? ? state[:contact] : nil,
         campaign: state[:campaign] || {},
@@ -29,6 +32,23 @@ module Concerns::Agentable
     return split_instructions_for_cache(enhanced_context) if prompt_cache_system_enabled?
 
     Captain::PromptRenderer.render(template_name, enhanced_context.with_indifferent_access)
+  end
+
+  def agent_model
+    route = Llm::FeatureRouter.resolve(feature: 'assistant', account: account)
+    preferred = if route[:source] == :account_override || account&.feature_enabled?('captain_integration_v2')
+                  route[:model]
+                else
+                  installation_model.presence || route[:model]
+                end
+
+    # `runtime_id_for`: o llm.yml guarda o modelo com ponto (claude-sonnet-4.5, branding/UI) e o
+    # RubyLLM só conhece a forma com hífen — sem isso, Agents::Agent quebra com ModelNotFoundError
+    # (ai-agents passa o valor direto pra RubyLLM.chat com assume_model_exists: false).
+    # `first_runtime_supported`: mesmo guarda-chuva que Llm::BaseAiService#model_for_feature já usa,
+    # pra um default novo do upstream (ex.: gpt-5.2) não derrubar o Captain onde a chave não o tem.
+    selected = Llm::Models.first_runtime_supported(preferred, Llm::Models.default_model_for('assistant'))
+    Llm::Models.runtime_id_for(selected.presence || preferred)
   end
 
   private
@@ -45,17 +65,18 @@ module Concerns::Agentable
     []  # Default implementation, override if needed
   end
 
-  def agent_model
-    raw = account&.captain_assistant_model.presence || LlmConstants::DEFAULT_MODEL
-    Llm::Models.runtime_id_for(raw)
-  end
-
   # Injeta data/hora atual e status do horário comercial no contexto do prompt,
   # pra o agente não adivinhar/alucinar horário (ex: dizer "volta segunda" numa quarta).
   def time_awareness
-    asst = is_a?(Captain::Assistant) ? self : assistant
+    asst = is_a?(Captain::Assistant) ? self : (assistant if respond_to?(:assistant))
+    return {} unless asst
+
     bh = asst.behavior['business_hours'] || {}
-    tz = ActiveSupport::TimeZone[bh['timezone'].presence || 'America/Cuiaba'] || ActiveSupport::TimeZone['UTC']
+    # O fallback final é nosso: sem ele, conta sem business_hours.timezone E sem
+    # reporting_timezone cai em TimeZone[nil] -> nil -> UTC, e a IA informa horário 3-4h
+    # adiantado ao cliente. Ver onda-0-auditoria-enterprise.md C-11.
+    timezone = bh['timezone'].presence || account&.reporting_timezone.presence || 'America/Cuiaba'
+    tz = ActiveSupport::TimeZone[timezone] || ActiveSupport::TimeZone['UTC']
     now = Time.current.in_time_zone(tz)
     dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
     inside = Captain::Behavior::BusinessHoursChecker.new(assistant: asst).status == :inside
@@ -151,7 +172,7 @@ module Concerns::Agentable
   # Chaves de contexto que MUDAM durante a conversa (data/hora com resolucao de
   # minuto + estado da conversa/contato/campanha, incluindo custom_attributes que
   # as tools escrevem mid-conversa). Precisam ficar FORA do bloco cacheado.
-  VOLATILE_PROMPT_KEYS = %w[current_datetime business_status conversation contact campaign].freeze
+  VOLATILE_PROMPT_KEYS = %w[current_time current_datetime business_status business_hours_text conversation contact campaign].freeze
 
   # Prompt caching (Fase 2): separa o prefixo ESTAVEL do prompt (identidade,
   # persona, regras, guardrails, cenarios) do VOLATIL (data/hora + contexto da
@@ -178,15 +199,29 @@ module Concerns::Agentable
   # setarem custom_attributes['prompt_cache_system']=true. Fallback global via ENV
   # SPX_PROMPT_CACHE_SYSTEM pra teste. Default (nenhum dos dois) = OFF.
   def prompt_cache_system_enabled?
-    asst = is_a?(Captain::Assistant) ? self : assistant
+    asst = is_a?(Captain::Assistant) ? self : (assistant if respond_to?(:assistant))
     per_account = asst&.account&.custom_attributes&.dig('prompt_cache_system')
     return ActiveModel::Type::Boolean.new.cast(per_account) unless per_account.nil?
 
     ActiveModel::Type::Boolean.new.cast(ENV.fetch('SPX_PROMPT_CACHE_SYSTEM', nil))
   end
 
+  def installation_model
+    InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value
+  end
+
   def agent_response_schema
     Captain::ResponseSchema
+  end
+
+  # Em pt-BR (C-12): o upstream formata em inglês ("Monday, August 17, 2026 12:00 PM") enquanto o
+  # nosso `current_datetime` é pt-BR. Com os dois no prompt (o snippet current_time do upstream e o
+  # runtime_context nosso), a IA recebia a hora duas vezes, em dois idiomas e dois formatos.
+  def format_current_time(timezone)
+    tz = ActiveSupport::TimeZone[timezone] if timezone.present?
+    time = tz ? Time.current.in_time_zone(tz) : Time.current
+    dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
+    "#{dias[time.wday]}, #{time.strftime('%d/%m/%Y às %H:%M %Z')}"
   end
 
   def prompt_context

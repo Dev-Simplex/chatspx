@@ -29,6 +29,7 @@ class ConversationParticipant < ApplicationRecord
 
   before_validation :ensure_account_id
   after_commit :invalidate_participant_tokens_cache
+  after_commit :invalidate_filtered_unread_count_visibility, on: [:create, :destroy]
 
   private
 
@@ -42,5 +43,9 @@ class ConversationParticipant < ApplicationRecord
 
   def ensure_inbox_access
     errors.add(:user, 'must have inbox access') if conversation && conversation.inbox.assignable_agents.exclude?(user)
+  end
+
+  def invalidate_filtered_unread_count_visibility
+    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(account).user_visibility_changed!(user_id: user_id)
   end
 end

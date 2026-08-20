@@ -23,6 +23,7 @@ import ConversationInfo from './ConversationInfo.vue';
 import KanbanStatus from './KanbanStatus.vue';
 import MessageSequenceWidget from './MessageSequenceWidget.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
+import SharedFiles from './SharedFiles.vue';
 import Draggable from 'vuedraggable';
 import ConversationSummary from './ConversationSummary.vue';
 import ConversationChecklist from './ConversationChecklist.vue';
@@ -128,8 +129,16 @@ const groupParticipantsTitle = computed(() =>
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
 const contact = computed(() => contactGetter.value(contactId.value));
+// A store de contatos cameliza o payload da API
+// (store/modules/contacts/mutations.js:5, camelcaseKeys deep), entao o registro
+// guarda `additionalAttributes`. Ler so `additional_attributes` devolvia SEMPRE
+// {} — e por isso a linha "Endereco IP" do painel nunca renderizava para
+// ninguem. Aceita as duas formas: nem todo caminho passa pela store.
 const contactAdditionalAttributes = computed(
-  () => contact.value.additional_attributes || {}
+  () =>
+    contact.value.additionalAttributes ||
+    contact.value.additional_attributes ||
+    {}
 );
 
 const getContactDetails = () => {
@@ -378,6 +387,18 @@ onMounted(() => {
               "
             >
               <KanbanStatus :conversation-id="conversationId" />
+            </AccordionItem>
+          </div>
+          <div v-else-if="element.name === 'shared_files'">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SHARED_FILES')"
+              :is-open="isContactSidebarItemOpen('is_shared_files_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_shared_files_open', value)
+              "
+            >
+              <SharedFiles />
             </AccordionItem>
           </div>
         </template>

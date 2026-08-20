@@ -46,8 +46,17 @@ class Inbox < ApplicationRecord
   include OutOfOffisable
   include AccountCacheRevalidator
   include InboxAgentAvailability
+  include InboxBrandedEmailLayoutable
+  # As quatro chaves de configuracao do widget em `additional_attributes` (bloco 3.01, arbitragem A1)
+  include WidgetConfigurable
+  # Os tres estados de enforcement de identidade (bloco 4.15). Mora no mesmo jsonb, pela
+  # mesma convencao, e le `hmac_mandatory` como piso — sem migration e sem backfill.
+  include IdentityEnforceable
 
   store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
+
+  # Teto do jsonb servido ao site do cliente e a todo agente da inbox (bloco 3.18).
+  MAX_ADDITIONAL_ATTRIBUTES_BYTES = 16_384
 
   # Not allowing characters:
   validates :name, presence: true
@@ -70,6 +79,7 @@ class Inbox < ApplicationRecord
   has_many :members, through: :inbox_members, source: :user
   has_many :conversations, dependent: :destroy_async
   has_many :messages, dependent: :destroy_async
+  has_many :email_templates, dependent: :destroy_async
 
   has_one :inbox_assignment_policy, dependent: :destroy
   has_one :assignment_policy, through: :inbox_assignment_policy
@@ -80,10 +90,12 @@ class Inbox < ApplicationRecord
 
   enum sender_name_type: { friendly: 0, professional: 1 }
 
+  before_destroy :capture_filtered_unread_count_user_ids, prepend: true
   after_destroy :delete_round_robin_agents
 
   after_create_commit :dispatch_create_event
   after_update_commit :dispatch_update_event
+  after_destroy_commit :invalidate_filtered_unread_counts_after_destroy
 
   scope :order_by_name, -> { order('lower(name) ASC') }
 
@@ -105,12 +117,16 @@ class Inbox < ApplicationRecord
 
   # Sanitizes inbox name for balanced email provider compatibility
   # ALLOWS: /'._- and Unicode letters/numbers/emojis
-  # REMOVES: Forbidden chars (\<>@") + spam-trigger symbols (!#$%&*+=?^`{|}~)
+  # REMOVES: Forbidden chars (\<>@"()) + spam-trigger symbols (!#$%&*+=?^`{|}~)
   def sanitized_name
     return default_name_for_blank_name if name.blank?
 
     sanitized = apply_sanitization_rules(name)
     sanitized.blank? && email? ? display_name_from_email : sanitized
+  end
+
+  def sanitized_business_name
+    sanitize_raw_name(business_name) || sanitized_name
   end
 
   def sms?
@@ -206,14 +222,30 @@ class Inbox < ApplicationRecord
     account.feature_enabled?('assignment_v2')
   end
 
+  # Callers (Reauthorizable) only invoke this on a real transition, so the previous
+  # value is always the inverse of the new boolean value.
+  def dispatch_reauthorization_event(reauthorization_required)
+    return if ENV['ENABLE_INBOX_EVENTS'].blank?
+
+    changed_attributes = { reauthorization_required: [!reauthorization_required, reauthorization_required] }
+    Rails.configuration.dispatcher.dispatch(INBOX_UPDATED, Time.zone.now, inbox: self, changed_attributes: changed_attributes)
+  end
+
   private
 
   def default_name_for_blank_name
     email? ? display_name_from_email : ''
   end
 
+  def sanitize_raw_name(raw)
+    return nil if raw.blank?
+
+    result = apply_sanitization_rules(raw)
+    result.presence
+  end
+
   def apply_sanitization_rules(name)
-    name.gsub(/[\\<>@"!#$%&*+=?^`{|}~:;]/, '')         # Remove forbidden chars
+    name.gsub(/[\\<>@"!#$%&*+=?^`{|}~:;()]/, '')        # Remove forbidden chars
         .gsub(/[\x00-\x1F\x7F]/, ' ')                   # Replace control chars with spaces
         .gsub(/\A[[:punct:]]+|[[:punct:]]+\z/, '')      # Remove leading/trailing punctuation
         .gsub(/\s+/, ' ')                               # Normalize spaces
@@ -242,6 +274,18 @@ class Inbox < ApplicationRecord
 
   def delete_round_robin_agents
     ::AutoAssignment::InboxRoundRobinService.new(inbox: self).clear_queue
+  end
+
+  def capture_filtered_unread_count_user_ids
+    return if account.blank?
+
+    @filtered_unread_count_user_ids = (inbox_members.pluck(:user_id) + account.account_users.administrator.pluck(:user_id)).uniq
+  end
+
+  def invalidate_filtered_unread_counts_after_destroy
+    invalidator = ::Conversations::UnreadCounts::FilteredCountInvalidator.new(account)
+    invalidator.conversation_changed!
+    invalidator.users_visibility_changed!(user_ids: @filtered_unread_count_user_ids)
   end
 
   def check_channel_type?

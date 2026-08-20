@@ -3,7 +3,6 @@ import {
   getMaxUploadSizeByChannel as getMaxUploadSizeByChannelBase,
 } from '@chatwoot/utils';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
-import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
 
 export const DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE = 40;
 
@@ -143,9 +142,8 @@ export const isFileTypeAllowedForChannel = (file, options = {}) => {
     isOnPrivateNote,
   } = options;
 
-  // Use broader file types for private notes (matches file picker behavior)
   const allowedFileTypes = isOnPrivateNote
-    ? ALLOWED_FILE_TYPES
+    ? getAllowedFileTypesByChannel()
     : getAllowedFileTypesByChannel({
         channelType:
           isInstagramChannel || conversationType === 'instagram_direct_message'

@@ -45,7 +45,9 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     limite = [fotos.size, MAX_POR_IMOVEL].min
     if sent >= limite
       # Já enviou o teto (ou todas): NÃO reenvia do zero (evita foto repetida) — avança.
-      return "Já enviei as fotos que dá pra mandar aqui do imóvel #{codigo}. Se o cliente quiser ver TODAS, ofereça o link do imóvel#{link_galeria(conversation, cod)} — a galeria completa está no site. NÃO reenvie as mesmas — avance a conversa (interesse, visita)."
+      return "Já enviei as fotos que dá pra mandar aqui do imóvel #{codigo}. Se o cliente quiser ver TODAS, ofereça o link do imóvel#{link_galeria(
+        conversation, cod
+      )} — a galeria completa está no site. NÃO reenvie as mesmas — avance a conversa (interesse, visita)."
     end
 
     # Opt-in por conta (assistant.config['fotos_carrossel']): manda as fotos numa ÚNICA

@@ -140,6 +140,51 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
       expect(json_response['messages'][0]['content']).to eq 'This is a test message'
     end
 
+    it 'saves contact custom attributes on the widget contact' do
+      post '/api/v1/widget/conversations',
+           headers: { 'X-Auth-Token' => token },
+           params: {
+             website_token: web_widget.website_token,
+             contact: {
+               name: 'contact-name',
+               email: 'contact-email@chatwoot.com',
+               custom_attributes: { cpf: '123.456.789-09' }
+             },
+             message: {
+               content: 'This is a test message'
+             }
+           },
+           as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(contact.reload.custom_attributes['cpf']).to eq('123.456.789-09')
+    end
+
+    it 'saves contact custom attributes on the surviving contact when merged into an existing contact' do
+      existing_contact = create(:contact, account: account, email: 'contact-email@chatwoot.com', custom_attributes: { 'cpf' => 'old-value' })
+
+      post '/api/v1/widget/conversations',
+           headers: { 'X-Auth-Token' => token },
+           params: {
+             website_token: web_widget.website_token,
+             contact: {
+               name: 'contact-name',
+               email: existing_contact.email,
+               custom_attributes: { cpf: '123.456.789-09' }
+             },
+             message: {
+               content: 'This is a test message'
+             }
+           },
+           as: :json
+
+      expect(response).to have_http_status(:success)
+      # the widget contact is merged into the existing contact; the freshly
+      # submitted value must land on the surviving contact and win over stale data
+      expect(Contact.exists?(contact.id)).to be(false)
+      expect(existing_contact.reload.custom_attributes['cpf']).to eq('123.456.789-09')
+    end
+
     it 'doesnt not add phone number if the invalid phone number is provided' do
       existing_contact = create(:contact, account: account)
 
@@ -240,7 +285,8 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
             account_id: conversation.account_id,
             inbox_id: conversation.inbox_id,
             message_type: :activity,
-            content: "Conversation was resolved by #{contact.name}"
+            content: "Conversation was resolved by #{contact.name}",
+            content_attributes: { activity: { type: 'conversation_status_changed', status: 'resolved' } }
           }
         )
       end
@@ -298,6 +344,33 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
         conversation.reload
         # conversation custom attributes should have "product_name" key with value "Chatwoot"
         expect(conversation.custom_attributes).to include('product_name' => 'Chatwoot')
+      end
+
+      # B6: a chave chegava e era gravada, mas sem CustomAttributeDefinition ela
+      # nao renderiza no painel e o filtro recusa a chave inteira.
+      it 'auto-provisiona a definicao da chave nova vinda do site' do
+        expect do
+          post '/api/v1/widget/conversations/set_custom_attributes',
+               headers: { 'X-Auth-Token' => token },
+               params: { website_token: web_widget.website_token, custom_attributes: { carrinho_valor: 4200 } },
+               as: :json
+        end.to change { account.custom_attribute_definitions.where(attribute_model: 'conversation_attribute').count }.by(1)
+
+        definition = account.custom_attribute_definitions.find_by(attribute_key: 'carrinho_valor')
+        expect(definition.attribute_model).to eq('conversation_attribute')
+        expect(definition.attribute_display_type).to eq('number')
+        expect(definition.attribute_display_name).to eq('Carrinho valor')
+      end
+
+      it 'nao cria definicao duplicada quando o site manda a mesma chave de novo' do
+        2.times do |index|
+          post '/api/v1/widget/conversations/set_custom_attributes',
+               headers: { 'X-Auth-Token' => token },
+               params: { website_token: web_widget.website_token, custom_attributes: { carrinho_valor: 4200 + index } },
+               as: :json
+        end
+
+        expect(account.custom_attribute_definitions.where(attribute_key: 'carrinho_valor').count).to eq(1)
       end
     end
   end

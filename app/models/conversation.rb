@@ -72,6 +72,14 @@ class Conversation < ApplicationRecord
   # reply_assignment_gate está ON; modo Clássico nunca seta (auto-assign segue normal).
   attr_accessor :skip_auto_assignment
 
+  CONVERSATION_UPDATED_ADDITIONAL_ATTRIBUTE_KEYS = %w[conversation_language].freeze
+  FILTERED_UNREAD_COUNT_ADDITIONAL_ATTRIBUTE_KEYS = %w[browser_language conversation_language mail_subject referer].freeze
+  FILTERED_UNREAD_COUNT_UPDATE_KEYS = %w[
+    cached_label_list campaign_id custom_attributes first_reply_created_at label_list last_activity_at priority snoozed_until waiting_since
+  ].freeze
+  private_constant :CONVERSATION_UPDATED_ADDITIONAL_ATTRIBUTE_KEYS, :FILTERED_UNREAD_COUNT_ADDITIONAL_ATTRIBUTE_KEYS,
+                   :FILTERED_UNREAD_COUNT_UPDATE_KEYS
+
   validates :account_id, presence: true
   validates :inbox_id, presence: true
   validates :contact_id, presence: true
@@ -113,6 +121,9 @@ class Conversation < ApplicationRecord
   # cliente volta a falar (waiting_since repopulado) ou a conversa resolve.
   scope :awaiting_closure, lambda {
     where("conversations.custom_attributes->>'aguardando_encerramento_desde' IS NOT NULL")
+  }
+  scope :sort_on_unread, lambda { |_direction|
+    order(unread_messages_count_arel.desc).sort_on_last_activity_at('desc')
   }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
   # Conversas com mensagem recebida (incoming) ainda nao vista pelo agente:
@@ -179,10 +190,25 @@ class Conversation < ApplicationRecord
   has_many :reporting_events, dependent: :destroy_async
   has_many :funnel_items, dependent: :destroy
   has_many :scheduled_messages, dependent: :destroy_async
+  # ChatSPX (item 23): este `dependent: :nullify` NÃO é redundante com o `ON DELETE SET NULL` da FK
+  # (migration 20260723000000) — ele existe porque a FK sozinha depende da ORDEM DOS TRIGGERS.
+  # Ao apagar a conversa o Postgres dispara duas ações sobre a MESMA linha de flow_step_logs:
+  # o CASCADE de `flow_runs.conversation_id` (que remove a run) e o SET NULL de
+  # `flow_step_logs.conversation_id` (que faz UPDATE na linha). Se o UPDATE roda DEPOIS do delete
+  # da run, o Postgres revalida `flow_run_id` contra uma linha que ele mesmo apagou na transação e
+  # levanta InvalidForeignKey. Qual das duas roda primeiro depende da ordem de criação das
+  # constraints, e ela DIVERGE entre os dois caminhos: um banco carregado de schema.rb (a suíte de
+  # teste) passa; um banco onde a migration correu por cima (toda a frota) falha. Testes verdes,
+  # produção quebrada. Nullificar aqui acontece ANTES do DELETE e é determinístico.
+  has_many :flow_step_logs, dependent: :nullify
 
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
+  # Bloco 1.19 — parser de origem (C0). `before_create` porque o `referer` já saiu saneado pelo
+  # 1.20 nas validações, e as chaves entram no MESMO insert: o painel as tem na primeira leitura.
+  before_create :record_last_origin
+  after_create :record_first_origin
 
   # Status changes must use update! or save! (never update_column) so these callbacks run and
   # CONVERSATION_STATUS_CHANGED is dispatched (e.g. for NPS survey).
@@ -198,6 +224,8 @@ class Conversation < ApplicationRecord
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
   after_create_commit :add_to_appropriate_funnel
+  before_destroy :set_unread_count_deletion_data
+  after_destroy_commit :notify_conversation_deletion
 
   delegate :auto_resolve_after, to: :account
 
@@ -257,8 +285,17 @@ class Conversation < ApplicationRecord
 
   def bot_handoff!
     update(waiting_since: Time.current) if waiting_since.blank?
+    release_agent_bot_for_handoff
     open!
     dispatcher_dispatch(CONVERSATION_BOT_HANDOFF)
+  end
+
+  def release_agent_bot_for_handoff
+    return self.assignee_agent_bot = nil unless assignee_agent_bot&.captain?
+    return unless account.reply_assignment_gate_enabled?
+
+    self.skip_auto_assignment = true
+    self.assignee_agent_bot = nil
   end
 
   def unread_messages
@@ -308,6 +345,26 @@ class Conversation < ApplicationRecord
     inbox.inbox_type == 'Twitter' && additional_attributes['type'] == 'tweet'
   end
 
+  def self.unread_messages_count_arel
+    messages = Message.arel_table
+    conversations = arel_table
+    unread_messages = messages
+                      .project(messages[:id].count)
+                      .where(unread_messages_condition(messages, conversations))
+
+    Arel::Nodes::Grouping.new(unread_messages.ast)
+  end
+
+  def self.unread_messages_condition(messages, conversations)
+    messages[:conversation_id].eq(conversations[:id])
+                              .and(messages[:account_id].eq(conversations[:account_id]))
+                              .and(messages[:message_type].eq(Message.message_types[:incoming]))
+                              .and(
+                                conversations[:agent_last_seen_at].eq(nil)
+                                  .or(messages[:created_at].gt(conversations[:agent_last_seen_at]))
+                              )
+  end
+
   def recent_messages
     messages.chat.last(5)
   end
@@ -343,6 +400,7 @@ class Conversation < ApplicationRecord
     handle_resolved_status_change
     notify_status_change
     create_activity
+    invalidate_filtered_unread_count_conversation
     notify_conversation_updation
     update_messages_team_id
   end
@@ -417,12 +475,20 @@ class Conversation < ApplicationRecord
 
     return handle_campaign_status if campaign.present?
 
-    self.status = :pending if inbox.active_bot? && inbox.pending_status_enabled?
+    set_active_bot_conversation if inbox.active_bot?
   end
 
   def handle_campaign_status
-    # If campaign has no sender (bot-initiated) and inbox has active bot, let bot handle it
-    self.status = :pending if campaign.sender_id.nil? && inbox.active_bot? && inbox.pending_status_enabled?
+    set_active_bot_conversation if campaign.sender_id.nil? && inbox.active_bot?
+  end
+
+  def set_active_bot_conversation
+    return unless inbox.pending_status_enabled?
+
+    self.status = :pending
+    return unless inbox.agent_bot_inbox&.active? && assignee_id.blank?
+
+    self.assignee_agent_bot = inbox.agent_bot
   end
 
   def notify_conversation_creation
@@ -453,6 +519,12 @@ class Conversation < ApplicationRecord
     end
   end
 
+  def notify_conversation_deletion
+    return if @unread_count_deletion_data.blank?
+
+    Rails.configuration.dispatcher.dispatch(CONVERSATION_DELETED, Time.zone.now, conversation_data: @unread_count_deletion_data)
+  end
+
   def notify_conversation_updation
     return unless previous_changes.keys.present? && allowed_keys?
     # Skip generic CONVERSATION_UPDATED only for status changes (which have dedicated events:
@@ -469,10 +541,23 @@ class Conversation < ApplicationRecord
   end
 
   def allowed_keys?
-    (
-      previous_changes.keys.intersect?(list_of_keys) ||
-      (previous_changes['additional_attributes'].present? && previous_changes['additional_attributes'][1].keys.intersect?(%w[conversation_language]))
-    )
+    previous_changes.keys.intersect?(list_of_keys) ||
+      additional_attributes_changed?(CONVERSATION_UPDATED_ADDITIONAL_ATTRIBUTE_KEYS)
+  end
+
+  def invalidate_filtered_unread_count_conversation
+    return unless filtered_unread_count_update?
+
+    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(account).conversation_changed!
+  end
+
+  def filtered_unread_count_update?
+    previous_changes.keys.intersect?(FILTERED_UNREAD_COUNT_UPDATE_KEYS) ||
+      additional_attributes_changed?(FILTERED_UNREAD_COUNT_ADDITIONAL_ATTRIBUTE_KEYS)
+  end
+
+  def additional_attributes_changed?(keys)
+    Array(previous_changes['additional_attributes']).compact.any? { |attributes| attributes.keys.intersect?(keys) }
   end
 
   def load_attributes_created_by_db_triggers
@@ -517,6 +602,17 @@ class Conversation < ApplicationRecord
     }.merge(extra_data))
   end
 
+  def set_unread_count_deletion_data
+    @unread_count_deletion_data = {
+      id: id,
+      account_id: account_id,
+      inbox_id: inbox_id,
+      assignee_id: assignee_id,
+      team_id: team_id,
+      cached_label_list: cached_label_list
+    }
+  end
+
   def conversation_status_changed_to_open?
     return false unless open?
     # saved_change_to_status? method only works in case of update
@@ -533,10 +629,30 @@ class Conversation < ApplicationRecord
     create_label_removed(user_name, previous_labels - current_labels)
   end
 
+  def record_last_origin
+    origin_recorder.record_conversation
+  rescue StandardError => e
+    # Origem é enriquecimento: um referer exótico não pode impedir a conversa de nascer.
+    ChatwootExceptionTracker.new(e, account: account).capture_exception
+  end
+
+  def record_first_origin
+    origin_recorder.ensure_definitions
+    origin_recorder.record_contact
+  rescue StandardError => e
+    ChatwootExceptionTracker.new(e, account: account).capture_exception
+  end
+
+  def origin_recorder
+    @origin_recorder ||= Tracking::OriginRecorder.new(self)
+  end
+
   def validate_referer_url
     return unless additional_attributes['referer']
 
-    self['additional_attributes']['referer'] = nil unless url_valid?(additional_attributes['referer'])
+    # Bloco 1.20 — a lógica vive em `lib/url_helper.rb` (arquivo 0/0 no merge do upstream); aqui
+    # fica só a chamada. Antes, URL mal escapada virava `nil` em silêncio e a origem do lead sumia.
+    sanitize_referer_attribute!(self['additional_attributes'])
   end
 
   def add_to_appropriate_funnel # rubocop:disable Metrics/AbcSize

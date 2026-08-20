@@ -34,7 +34,6 @@ disable_branding:
   enabled: <%= (ChatwootHub.pricing_plan != 'community') %>
   icon: 'icon-sailbot-fill'
   enterprise: true
-
 # ------- Product Features ------- #
 help_center:
   name: 'Help Center'

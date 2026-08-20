@@ -1,0 +1,1181 @@
+/* =============================================================================
+   ChatSPX — Redesenho do chat de site
+   primitivos.css — os componentes mínimos (Task 21)
+
+   DEPENDE DE tokens.css. Carregue os dois, nesta ordem:
+     <link rel="stylesheet" href="../shared/tokens.css">
+     <link rel="stylesheet" href="../shared/primitivos.css">
+
+   Prefixo de classe: `wui-` (widget UI). Escolhido para não colidir com o
+   Tailwind do dashboard (`w-full`, `w-4`…) nem com o `woot-` do widget atual.
+
+   Regras que valem para tudo aqui:
+     · Nenhuma cor literal, nenhuma medida literal — tudo sai de token.
+     · Nenhum `outline: none` em lugar nenhum do arquivo. Foco sempre visível.
+     · Alvo de toque: ≥ 24×24 sempre (SC 2.5.8, AA); ≥ 44×44 no viewport mobile
+       (SC 2.5.5 / exigência da §8.3 do 16). O piso mora no primitivo, não no
+       modificador de tamanho — usar `.wui-btn` cru já entrega o alvo.
+     · Anel e elevação nunca vivem só de `box-shadow`. Todo componente que
+       precisa ser uma CAIXA tem `border` real, transparente no modo normal, e
+       a §19 só acende a cor. `box-shadow` é descartado por inteiro em
+       `forced-colors: active` [MEDIDO — auditoria 32 G3, reproduzido].
+     · Estado nunca é `opacity` sobre a cor da marca — opacidade muda a
+       luminância e invalida o cálculo de contraste (regra C10, 16 §2.5.1).
+     · Duração e curva sempre por token: `prefers-reduced-motion` já está
+       resolvido em tokens.css §4.1 e nenhum primitivo repete a media query.
+     · Todo `<button>` que não envia formulário leva `type="button"` — regra de
+       MARCAÇÃO, não de CSS; está no LEIA-ME §4 regra 9 e vale para os mockups.
+   ============================================================================= */
+
+
+/* -----------------------------------------------------------------------------
+   0. BASE
+   -------------------------------------------------------------------------- */
+
+.wui,
+.wui *,
+.wui *::before,
+.wui *::after { box-sizing: border-box; }
+
+.wui {
+  font: var(--w-text-message);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+  background: var(--w-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Foco. `outline` (não `box-shadow`) porque em `forced-colors: active` o
+   navegador só preserva o outline. `outline-offset` deixa a superfície
+   aparecer entre o controle e o anel — é o que garante os 3:1 contra o
+   elemento E contra o fundo (16 §8.1), inclusive quando o controle é a
+   própria cor da marca. */
+.wui :focus-visible {
+  outline: var(--w-focus-width) solid var(--w-focus-ring);
+  outline-offset: var(--w-focus-offset);
+  border-radius: inherit;
+}
+
+/* Utilitário: horário, contador, recibo. Sem isso a largura do mesmo horário
+   varia 52% na Inter [MEDIDO — 13 §2.5]. */
+.wui-tabular { font-variant-numeric: var(--w-numeric-tabular); }
+
+/* Rótulo só para leitor de tela — usado no lugar do que a cor sozinha diria
+   (regra C7 / SC 1.4.1). */
+.wui-sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/* -----------------------------------------------------------------------------
+   1. BOTÃO — 3 variantes × 3 tamanhos
+   -----------------------------------------------------------------------------
+   Variantes: `wui-btn--primary` (superfície de marca), `wui-btn--secondary`
+   (contorno), `wui-btn--ghost` (sem superfície em repouso).
+
+   O pressed AFUNDA por movimento e sombra interna, não por cor: a direção da
+   cor está travada pela acessibilidade (ver a DIVERGÊNCIA documentada em
+   tokens.css §1.2), então a profundidade tem de vir do outro canal.
+   -------------------------------------------------------------------------- */
+
+.wui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--w-space-2);
+  font: var(--w-text-button);
+  letter-spacing: var(--w-tracking);
+  text-decoration: none;
+  white-space: nowrap;
+  border: var(--w-border-width) solid transparent;
+  border-radius: var(--w-radius-2);
+  cursor: pointer;
+  user-select: none;
+  /* Piso de alvo, no PRIMITIVO e não no modificador de tamanho.
+     [CALIBRADO 12/08/2026] `<button class="wui-btn wui-btn--primary">X</button>`
+     sem `--sm/--md/--lg` media **23,6 × 24** em 1280, e o `--icon` sem tamanho
+     media **24 × 22** — os dois abaixo do piso de 24×24 que o cabeçalho deste
+     arquivo promete (SC 2.5.8, AA). O tamanho era obrigatório e nada dizia isso.
+     Agora o piso vem de graça; o modificador só sobe dele. */
+  min-height: var(--w-touch-min);
+  min-width:  var(--w-touch-min);
+  transition:
+    background-color var(--w-dur-2) var(--w-ease-standard),
+    border-color     var(--w-dur-2) var(--w-ease-standard),
+    color            var(--w-dur-2) var(--w-ease-standard),
+    box-shadow       var(--w-dur-2) var(--w-ease-standard),
+    transform        var(--w-dur-1) var(--w-ease-press);
+}
+
+/* Tamanhos. A altura mínima é o alvo; o padding é o desenho. */
+.wui-btn--sm { min-height: 32px; padding: 0 var(--w-space-3); border-radius: var(--w-radius-15); }
+.wui-btn--md { min-height: 40px; padding: 0 var(--w-space-4); }
+.wui-btn--lg { min-height: 48px; padding: 0 var(--w-space-5); font: var(--w-text-title);
+               border-radius: var(--w-radius-3); }
+
+/* Primário — superfície de marca, texto pelo cálculo WCAG */
+.wui-btn--primary {
+  background: var(--w-brand);
+  color: var(--w-on-brand);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+}
+.wui-btn--primary:hover:not(:disabled)  { background: var(--w-brand-hover); }
+.wui-btn--primary:active:not(:disabled) {
+  background: var(--w-brand-pressed);
+  transform: translateY(1px);
+  box-shadow: var(--w-shadow-press-inset);
+}
+
+/* Secundário — contorno. A borda usa `--w-brand-border` (≥ 3:1 garantido) e o
+   texto usa `--w-brand-readable` (≥ 4,5:1 garantido). São dois tokens porque
+   são dois requisitos diferentes: SC 1.4.11 e SC 1.4.3 (regra C4). */
+.wui-btn--secondary {
+  background: var(--w-surface);
+  color: var(--w-brand-readable);
+  border-color: var(--w-brand-border);
+}
+.wui-btn--secondary:hover:not(:disabled)  { background: var(--w-brand-subtle); }
+.wui-btn--secondary:active:not(:disabled) { background: var(--w-brand-subtle); transform: translateY(1px); }
+
+/* Fantasma — sem superfície em repouso */
+.wui-btn--ghost {
+  background: transparent;
+  color: var(--w-text);
+}
+.wui-btn--ghost:hover:not(:disabled)  { background: var(--w-surface-hover); }
+.wui-btn--ghost:active:not(:disabled) { background: var(--w-surface-active); transform: translateY(1px); }
+
+/* Destrutivo — a cor semântica nunca é o único canal: o rótulo diz o que faz */
+.wui-btn--danger {
+  background: var(--w-danger);
+  color: var(--w-on-danger);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+}
+.wui-btn--danger:hover:not(:disabled)  { background: color-mix(in oklab, var(--w-danger), var(--w-text) 12%); }
+.wui-btn--danger:active:not(:disabled) { transform: translateY(1px); }
+
+/* Desabilitado. Não usamos `opacity` sobre a marca (C10): trocamos por
+   superfície neutra, o que mantém a razão de contraste previsível. */
+.wui-btn:disabled,
+.wui-btn[aria-disabled="true"] {
+  background: var(--w-surface-hover);
+  color: var(--w-text-subtle);
+  border-color: var(--w-border);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Carregando: o spinner substitui o ícone, o rótulo continua legível. */
+.wui-btn[data-loading="true"] { cursor: progress; }
+.wui-btn[data-loading="true"] .wui-btn__label { opacity: 0.75; }
+
+/* Botão só de ícone: o desenho pode ser pequeno, a área de acerto não
+   ("o alvo de toque se estende além dos limites visuais do elemento"
+   [FATO — 13 §1.1, M3]). */
+.wui-btn--icon {
+  padding: 0;
+  width: var(--w-touch-min);
+  min-width: var(--w-touch-min);
+  border-radius: var(--w-radius-full);
+}
+.wui-btn--icon.wui-btn--md { width: 40px; min-width: 40px; }
+.wui-btn--icon.wui-btn--lg { width: 48px; min-width: 48px; }
+
+
+/* -----------------------------------------------------------------------------
+   2. CAMPO DE TEXTO
+   -------------------------------------------------------------------------- */
+
+.wui-field { display: flex; flex-direction: column; gap: var(--w-space-1); }
+
+.wui-label {
+  font: var(--w-text-author);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+}
+
+.wui-hint {
+  font: var(--w-text-meta);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+}
+
+.wui-input,
+.wui-textarea,
+.wui-select {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--w-space-2) var(--w-space-3);
+  /* 16px SEMPRE no campo de digitação: abaixo disso o Safari iOS dá zoom ao
+     focar e o layout do widget salta [16 §2.1]. */
+  font: var(--w-text-input);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+  background: var(--w-surface);
+  /* Borda de input precisa de ≥ 3:1 contra o fundo do painel (SC 1.4.11) —
+     é um dos itens que o 16 §8.1 lista como falha frequente. */
+  border: var(--w-border-width) solid var(--w-border-strong);
+  border-radius: var(--w-radius-3);
+  transition:
+    border-color var(--w-dur-focus) var(--w-ease-standard),
+    background   var(--w-dur-focus) var(--w-ease-standard);
+}
+
+/* Placeholder é texto ATIVO e não tem isenção no SC 1.4.3: usa `--w-text-muted`
+   (5,3:1), nunca `--w-text-subtle` (que só vale para componente inativo). */
+.wui-input::placeholder,
+.wui-textarea::placeholder { color: var(--w-text-muted); }
+
+.wui-input:hover:not(:disabled),
+.wui-textarea:hover:not(:disabled),
+.wui-select:hover:not(:disabled) { border-color: var(--w-text-muted); }
+
+.wui-input:focus-visible,
+.wui-textarea:focus-visible,
+.wui-select:focus-visible { border-color: var(--w-brand-border); }
+
+.wui-input:disabled,
+.wui-textarea:disabled,
+.wui-select:disabled {
+  background: var(--w-surface-hover);
+  color: var(--w-text-subtle);
+  cursor: not-allowed;
+}
+
+/* Erro: cor E ícone E texto. Nunca só a cor (regra C7 / SC 1.4.1) — e o par
+   vermelho/verde colapsa para ΔE 7,9 em deuteranopia [MEDIDO — 13 §3.4]. */
+.wui-input[aria-invalid="true"],
+.wui-textarea[aria-invalid="true"],
+.wui-select[aria-invalid="true"] { border-color: var(--w-danger); }
+
+.wui-error {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-1);
+  font: var(--w-text-meta);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-danger);
+}
+.wui-error::before { content: "⚠"; font-size: 1.1em; line-height: 1; }
+
+.wui-textarea { min-height: 88px; resize: vertical; }
+
+
+/* -----------------------------------------------------------------------------
+   3. SELECT
+   -----------------------------------------------------------------------------
+   A seta é desenhada em CSS (nada de imagem remota) e `appearance: none`
+   remove a nativa — sem isso o campo mostra duas setas.
+   -------------------------------------------------------------------------- */
+
+.wui-select {
+  appearance: none;
+  padding-right: var(--w-space-8);
+  background-image:
+    linear-gradient(45deg,  transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - var(--w-space-5)) calc(50% + 1px),
+    calc(100% - var(--w-space-4)) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+
+/* -----------------------------------------------------------------------------
+   4. TOGGLE / SWITCH
+   -----------------------------------------------------------------------------
+   Estado nunca só por cor: o knob muda de POSIÇÃO, que é o segundo canal
+   (SC 1.4.1). O `input` real fica por baixo, então teclado e leitor de tela
+   funcionam sem `role` inventado.
+   -------------------------------------------------------------------------- */
+
+.wui-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-2);
+  cursor: pointer;
+  /* O alvo é a linha inteira, não só o trilho de 44×24 */
+  min-height: var(--w-touch-min);
+}
+
+.wui-switch__input {
+  position: absolute;
+  opacity: 0;
+  width: 44px; height: 24px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.wui-switch__track {
+  position: relative;
+  flex: none;
+  width: 44px; height: 24px;
+  background: var(--w-surface-active);
+  border: var(--w-border-width) solid var(--w-border-strong);
+  border-radius: var(--w-radius-full);
+  transition: background var(--w-dur-2) var(--w-ease-standard),
+              border-color var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: var(--w-surface);
+  border-radius: var(--w-radius-full);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+  transition: transform var(--w-dur-3) var(--w-ease-standard),
+              background var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-switch__input:checked + .wui-switch__track {
+  background: var(--w-brand);
+  border-color: var(--w-brand-border);
+}
+.wui-switch__input:checked + .wui-switch__track::after { transform: translateX(20px); }
+
+.wui-switch__input:focus-visible + .wui-switch__track {
+  outline: var(--w-focus-width) solid var(--w-focus-ring);
+  outline-offset: var(--w-focus-offset);
+}
+
+.wui-switch__input:disabled + .wui-switch__track { background: var(--w-surface-hover); }
+.wui-switch__input:disabled ~ .wui-switch__label { color: var(--w-text-subtle); }
+.wui-switch:has(.wui-switch__input:disabled) { cursor: not-allowed; }
+
+.wui-switch__label { font: var(--w-text-button); letter-spacing: var(--w-tracking); }
+
+
+/* -----------------------------------------------------------------------------
+   5. CHECKBOX E RADIO
+   -----------------------------------------------------------------------------
+   `appearance: none` sobre o input real — o controle continua sendo um
+   `<input>`, com semântica e teclado nativos. O GOV.UK resolve o alvo com
+   `input` de 44×44 literais [FATO — 13 §1.1]; aqui o alvo é o rótulo inteiro,
+   que é maior e não obriga a desenhar um quadrado de 44px.
+   -------------------------------------------------------------------------- */
+
+.wui-check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--w-space-2);
+  min-height: var(--w-touch-min);
+  padding: var(--w-space-1) 0;
+  cursor: pointer;
+  font: var(--w-text-button);
+  letter-spacing: var(--w-tracking);
+}
+
+.wui-check__input {
+  appearance: none;
+  flex: none;
+  width: 20px; height: 20px;
+  margin: 0;
+  background: var(--w-surface);
+  border: var(--w-border-width) solid var(--w-border-strong);
+  border-radius: var(--w-radius-1);
+  cursor: pointer;
+  display: grid;
+  place-content: center;
+  transition: background var(--w-dur-2) var(--w-ease-standard),
+              border-color var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-check__input[type="radio"] { border-radius: var(--w-radius-full); }
+
+.wui-check__input::before {
+  content: "";
+  width: 12px; height: 12px;
+  transform: scale(0);
+  transition: transform var(--w-dur-2) var(--w-ease-standard);
+  background: var(--w-on-brand);
+  /* o "tique" é uma forma, não um caractere: escala com o zoom e não depende
+     de fonte instalada */
+  clip-path: polygon(14% 46%, 0 60%, 40% 100%, 100% 22%, 86% 8%, 38% 70%);
+}
+.wui-check__input[type="radio"]::before {
+  width: 8px; height: 8px;
+  border-radius: var(--w-radius-full);
+  clip-path: none;
+}
+
+.wui-check__input:checked {
+  background: var(--w-brand);
+  border-color: var(--w-brand-border);
+}
+.wui-check__input:checked::before { transform: scale(1); }
+
+.wui-check__input:hover:not(:disabled) { border-color: var(--w-text-muted); }
+
+.wui-check__input:disabled {
+  background: var(--w-surface-hover);
+  border-color: var(--w-border);
+  cursor: not-allowed;
+}
+.wui-check:has(.wui-check__input:disabled) { color: var(--w-text-subtle); cursor: not-allowed; }
+
+
+/* -----------------------------------------------------------------------------
+   6. CHIP / TAG
+   -----------------------------------------------------------------------------
+   Altura 40px: é o alvo de toque (06 §4.4). O mercado usa 34–36 [11 §A2, §A6]
+   — aqui vale a nossa régua, não a deles. Selecionado é distinguido por
+   preenchimento E por borda, não só por matiz.
+   -------------------------------------------------------------------------- */
+
+.wui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-1);
+  min-height: 40px;
+  padding: 0 var(--w-space-4);
+  font: var(--w-text-button);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-brand-readable);
+  background: var(--w-surface-raised);
+  border: var(--w-border-width) solid var(--w-brand-border);
+  border-radius: var(--w-radius-full);
+  cursor: pointer;
+  transition: background var(--w-dur-chip) var(--w-ease-standard),
+              border-color var(--w-dur-chip) var(--w-ease-standard),
+              color var(--w-dur-chip) var(--w-ease-standard);
+}
+
+.wui-chip:hover:not(:disabled) { background: var(--w-brand-subtle); }
+
+.wui-chip[aria-pressed="true"],
+.wui-chip--selected {
+  background: var(--w-brand);
+  color: var(--w-on-brand);
+  border-color: var(--w-brand);
+}
+
+/* Chip em mensagem antiga: não clicável, e o `disabled` diz isso ao leitor de
+   tela — a opacidade sozinha não diria [06 §4.4]. */
+.wui-chip:disabled {
+  color: var(--w-text-subtle);
+  border-color: var(--w-border);
+  background: var(--w-surface);
+  cursor: not-allowed;
+}
+
+/* Grupo: gap de 8px é a exceção "Spacing" do SC 2.5.8 [13 §4.1] */
+.wui-chip-group { display: flex; flex-wrap: wrap; gap: var(--w-touch-gap); }
+
+
+/* -----------------------------------------------------------------------------
+   7. BADGE — rótulo estático, não clicável
+   -----------------------------------------------------------------------------
+   Cada variante carrega um ponto colorido E o texto. O ponto sozinho não serve:
+   verde × vermelho colapsa para ΔE 7,9 em deuteranopia [MEDIDO — 13 §3.4], e é
+   exatamente a base de todo indicador de presença.
+   -------------------------------------------------------------------------- */
+
+.wui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-1);
+  padding: var(--w-space-05) var(--w-space-2);
+  font: var(--w-text-meta);
+  letter-spacing: var(--w-tracking);
+  border-radius: var(--w-radius-full);
+  background: var(--w-surface-hover);
+  color: var(--w-text);
+  white-space: nowrap;
+  /* Borda real, transparente no modo normal: o badge é distinguido por
+     PREENCHIMENTO, e preenchimento colapsa em `forced-colors` — a auditoria 32
+     G3 mediu "sem delimitação (texto sobrevive)". O texto sobreviver não basta:
+     o badge é uma cápsula, e sem contorno ela vira texto solto. */
+  border: var(--w-border-width) solid transparent;
+}
+
+.wui-badge::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: var(--w-radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+/* [DIVERGÊNCIA medida] O desenho óbvio — texto na cor semântica sobre o fundo
+   `-subtle` da mesma família — NÃO passa: `--w-danger` sobre `--w-danger-subtle`
+   dá 4,36:1, `--w-warning` 4,26:1 e `--w-info` 4,32:1 [CALIBRADO]. Para chegar a
+   4,5:1 seria preciso clarear o fundo até quase branco (94–98% de branco), o que
+   apaga o próprio tingimento.
+   Resolvido invertendo os papéis: o TEXTO é neutro (`--w-text`, 14,4:1 sobre
+   qualquer um dos fundos) e a cor semântica fica no PONTO, onde o requisito é
+   3:1 de componente (SC 1.4.11) e a folga é confortável. O rótulo textual
+   continua sendo o canal principal — exigência do SC 1.4.1. */
+.wui-badge--neutral { background: var(--w-surface-hover);  color: var(--w-text); }
+.wui-badge--success { background: var(--w-success-subtle); color: var(--w-text); }
+.wui-badge--warning { background: var(--w-warning-subtle); color: var(--w-text); }
+.wui-badge--danger  { background: var(--w-danger-subtle);  color: var(--w-text); }
+.wui-badge--info    { background: var(--w-info-subtle);    color: var(--w-text); }
+.wui-badge--brand   { background: var(--w-brand-subtle);   color: var(--w-text); }
+
+.wui-badge--neutral::before { background: var(--w-text-muted); }
+.wui-badge--success::before { background: var(--w-success); }
+.wui-badge--warning::before { background: var(--w-warning); }
+.wui-badge--danger::before  { background: var(--w-danger); }
+.wui-badge--info::before    { background: var(--w-info); }
+.wui-badge--brand::before   { background: var(--w-brand-border); }
+
+/* Contador (número sobre o launcher, mensagens não lidas) */
+.wui-badge--count {
+  min-width: 20px; height: 20px;
+  padding: 0 var(--w-space-1);
+  justify-content: center;
+  background: var(--w-danger);
+  color: var(--w-on-danger);
+  font-variant-numeric: var(--w-numeric-tabular);
+}
+.wui-badge--count::before { display: none; }
+
+
+/* -----------------------------------------------------------------------------
+   8. CARD
+   -------------------------------------------------------------------------- */
+
+.wui-card {
+  background: var(--w-surface-raised);
+  border: var(--w-border-width) solid var(--w-border);
+  border-radius: var(--w-radius-3);
+  padding: var(--w-space-4);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+}
+
+.wui-card__title {
+  font: var(--w-text-title);
+  letter-spacing: var(--w-tracking);
+  margin: 0 0 var(--w-space-1);
+}
+
+.wui-card__body {
+  font: var(--w-text-message);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+  margin: 0;
+}
+
+.wui-card--flat { box-shadow: none; }
+
+/* Card clicável: o alvo é o card inteiro, e ele responde ao ponteiro */
+.wui-card--interactive { cursor: pointer;
+  transition: border-color var(--w-dur-2) var(--w-ease-standard),
+              background   var(--w-dur-2) var(--w-ease-standard); }
+.wui-card--interactive:hover { border-color: var(--w-brand-border); background: var(--w-surface-hover); }
+
+
+/* -----------------------------------------------------------------------------
+   9. TABELA — telas de configuração
+   -----------------------------------------------------------------------------
+   [DECISÃO desta task] O 16 especifica o widget; tabela é das telas de config.
+   Rola dentro do próprio container: a página nunca rola na horizontal.
+   -------------------------------------------------------------------------- */
+
+.wui-table-wrap {
+  overflow-x: auto;
+  border: var(--w-border-width) solid var(--w-border);
+  border-radius: var(--w-radius-3);
+  background: var(--w-surface-raised);
+}
+
+.wui-table {
+  width: 100%;
+  min-width: max-content;   /* rola DENTRO do wrap; a página nunca rola na horizontal */
+  border-collapse: collapse;
+  font: var(--w-text-message-sm);
+  letter-spacing: var(--w-tracking);
+}
+
+.wui-table caption {
+  text-align: left;
+  padding: var(--w-space-3) var(--w-space-4);
+  font: var(--w-text-title);
+  letter-spacing: var(--w-tracking);
+}
+
+.wui-table th {
+  text-align: left;
+  font: var(--w-text-author);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+  text-transform: uppercase;
+  padding: var(--w-space-2) var(--w-space-4);
+  background: var(--w-surface-hover);
+  border-bottom: var(--w-border-width) solid var(--w-border);
+  white-space: nowrap;
+}
+
+.wui-table td {
+  padding: var(--w-space-3) var(--w-space-4);
+  border-bottom: var(--w-border-width) solid var(--w-border);
+  color: var(--w-text);
+  vertical-align: middle;
+}
+
+.wui-table tbody tr:last-child td { border-bottom: 0; }
+.wui-table tbody tr:hover td { background: var(--w-surface-hover); }
+.wui-table td.wui-num { text-align: right; font-variant-numeric: var(--w-numeric-tabular); }
+
+
+/* -----------------------------------------------------------------------------
+   10. ABAS
+   -----------------------------------------------------------------------------
+   A aba ativa é marcada por sublinhado E por peso E por cor — três canais.
+   `aria-selected` é o que o leitor de tela lê; a classe só pinta.
+   -------------------------------------------------------------------------- */
+
+.wui-tabs {
+  display: flex;
+  gap: var(--w-space-1);
+  border-bottom: var(--w-border-width) solid var(--w-border);
+  overflow-x: auto;
+}
+
+.wui-tab {
+  position: relative;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: var(--w-space-3) var(--w-space-4);
+  min-height: var(--w-touch-min);
+  font: var(--w-text-button);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: var(--w-radius-2) var(--w-radius-2) 0 0;
+  transition: color var(--w-dur-2) var(--w-ease-standard),
+              background var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-tab::after {
+  content: "";
+  position: absolute;
+  left: var(--w-space-3); right: var(--w-space-3); bottom: -1px;
+  height: 2px;
+  background: transparent;
+  border-radius: var(--w-radius-full);
+  transition: background var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-tab:hover { color: var(--w-text); background: var(--w-surface-hover); }
+
+.wui-tab[aria-selected="true"] {
+  color: var(--w-brand-readable);
+  font-weight: 600;
+}
+.wui-tab[aria-selected="true"]::after { background: var(--w-brand-border); }
+
+.wui-tab:disabled { color: var(--w-text-subtle); cursor: not-allowed; }
+
+
+/* -----------------------------------------------------------------------------
+   11. TOOLTIP
+   -----------------------------------------------------------------------------
+   Superfície invertida, para separar do conteúdo em qualquer tema. Só aparece
+   em hover E em foco — tooltip que só responde ao mouse é inalcançável por
+   teclado (SC 2.1.1).
+   -------------------------------------------------------------------------- */
+
+.wui-tip { position: relative; display: inline-flex; }
+
+.wui-tip__bubble {
+  position: absolute;
+  bottom: calc(100% + var(--w-space-2));
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: var(--w-space-2) var(--w-space-3);
+  background: var(--w-surface-inverse);
+  color: var(--w-on-inverse);
+  font: var(--w-text-meta);
+  letter-spacing: var(--w-tracking);
+  border-radius: var(--w-radius-2);
+  /* Borda REAL, transparente no modo normal. Ela existe por causa de
+     `forced-colors: active`: ali o `box-shadow` inteiro é descartado, e o
+     tooltip — que se separava do conteúdo só por superfície invertida + anel —
+     saía Canvas sobre Canvas, invisível [MEDIDO — auditoria 32 G3, reproduzido
+     nesta task]. Com a borda declarada aqui, a §19 só precisa acender a cor, e
+     a caixa não muda de tamanho entre um modo e outro. */
+  border: var(--w-border-width) solid transparent;
+  box-shadow: var(--w-elev-2), var(--w-elev-2-ring);
+  /* Largura: `max-content` mantém o texto curto numa linha só; o `max-width`
+     impede que a bolha empurre a página na horizontal em tela estreita —
+     medido: com `white-space: nowrap` a bolha chegava a 307px de largura e
+     levava o `scrollWidth` do documento a 418px num viewport de 390px
+     [CALIBRADO]. Reflow em 320px é obrigatório (SC 1.4.10).
+     Nota: o alinhamento quando o gatilho está colado na borda da tela pede
+     posicionamento dinâmico (anchor positioning ou JS) — [NÃO VERIFICADO] aqui,
+     porque a página de referência não tem esse caso. */
+  width: max-content;
+  max-width: min(260px, calc(100vw - var(--w-space-8)));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--w-dur-2) var(--w-ease-standard),
+              transform var(--w-dur-2) var(--w-ease-standard);
+  z-index: 2;
+}
+
+.wui-tip:hover .wui-tip__bubble,
+.wui-tip:focus-within .wui-tip__bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Alinhamento explícito para quando o gatilho está perto da borda da tela.
+   Sem isso, um tooltip centrado num gatilho encostado na direita empurra a
+   página: medido, o documento ia a 394px de `scrollWidth` num viewport de
+   390px [CALIBRADO]. Quem escreve a tela sabe onde o gatilho está — o
+   primitivo oferece as três âncoras em vez de tentar adivinhar. */
+.wui-tip__bubble--start { left: 0;    right: auto; transform: translateX(0) translateY(4px); }
+.wui-tip__bubble--end   { left: auto; right: 0;    transform: translateX(0) translateY(4px); }
+
+.wui-tip:hover .wui-tip__bubble--start,
+.wui-tip:focus-within .wui-tip__bubble--start,
+.wui-tip:hover .wui-tip__bubble--end,
+.wui-tip:focus-within .wui-tip__bubble--end { transform: translateX(0) translateY(0); }
+
+/* Em tela estreita o tooltip DEIXA DE FLUTUAR e vira um bloco abaixo do gatilho.
+   Razão medida: flutuando, ele se ancora ao gatilho, e a posição do gatilho muda
+   com o viewport — com o mesmo alinhamento que cabe em 320px, o documento ia a
+   441px de `scrollWidth` em 390px [CALIBRADO]. Escolher a âncora estaticamente
+   não resolve, porque a âncora certa depende de onde o gatilho caiu na quebra.
+   No fluxo, o problema não existe: nunca ultrapassa o container, e o reflow em
+   320px continua valendo (SC 1.4.10). */
+@media (max-width: 767.98px) {
+  .wui-tip { flex-wrap: wrap; }
+
+  .wui-tip__bubble,
+  .wui-tip__bubble--start,
+  .wui-tip__bubble--end {
+    display: none;
+    position: static;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    margin-top: var(--w-space-1);
+    opacity: 1;
+  }
+
+  .wui-tip:hover .wui-tip__bubble,
+  .wui-tip:focus-within .wui-tip__bubble { display: block; transform: none; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   12. BANNER DE AVISO — info / sucesso / alerta / erro
+   -----------------------------------------------------------------------------
+   Cada variante tem ícone próprio além da cor. O ícone é caractere de texto
+   por decisão: escala com o zoom, herda a cor e não custa requisição.
+   Use `role="status"` em info/sucesso e `role="alert"` só em erro — `alert`
+   interrompe o leitor de tela e não serve para confirmação [13 §4.3].
+   -------------------------------------------------------------------------- */
+
+.wui-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--w-space-2);
+  padding: var(--w-space-3) var(--w-space-4);
+  border-radius: var(--w-radius-3);
+  border: var(--w-border-width) solid transparent;
+  font: var(--w-text-message-sm);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+}
+
+.wui-banner::before {
+  flex: none;
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.wui-banner__title { font-weight: 600; display: block; }
+
+.wui-banner--info    { background: var(--w-info-subtle);    border-color: var(--w-info); }
+.wui-banner--info::before    { content: "ℹ"; color: var(--w-info); }
+.wui-banner--success { background: var(--w-success-subtle); border-color: var(--w-success); }
+.wui-banner--success::before { content: "✓"; color: var(--w-success); }
+.wui-banner--warning { background: var(--w-warning-subtle); border-color: var(--w-warning); }
+.wui-banner--warning::before { content: "▲"; color: var(--w-warning); }
+.wui-banner--danger  { background: var(--w-danger-subtle);  border-color: var(--w-danger); }
+.wui-banner--danger::before  { content: "✕"; color: var(--w-danger); }
+
+
+/* -----------------------------------------------------------------------------
+   13. SKELETON
+   -----------------------------------------------------------------------------
+   Shimmer de 1200ms `linear` — a única categoria em que `linear` é permitido
+   junto do spinner [12 §A1]. Só deve entrar depois de `--w-delay-skeleton`
+   (600ms) de espera: abaixo disso o carregamento não é percebido e o shimmer
+   só pisca [12 §9]. Sob `prefers-reduced-motion` a duração vira 0s pelo token
+   e a barra fica estática — sem regra extra aqui.
+   -------------------------------------------------------------------------- */
+
+.wui-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--w-skeleton-base);
+  border-radius: var(--w-radius-2);
+  min-height: 12px;
+  /* Borda REAL, transparente no modo normal — mesma razão do tooltip. Em
+     `forced-colors` o preenchimento vira Canvas e o `::after` está desligado:
+     sem borda, o skeleton é uma área branca sobre fundo branco, e quem espera
+     um carregamento não vê sinal nenhum [MEDIDO — auditoria 32 G3, reproduzido
+     nesta task]. `box-sizing: border-box` (§0) mantém a altura declarada nos
+     modificadores `--text` / `--title` / `--avatar` / `--bubble`. */
+  border: var(--w-border-width) solid transparent;
+}
+
+.wui-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--w-skeleton-sheen) 50%,
+    transparent 100%);
+  animation: wui-shimmer var(--w-dur-skeleton) linear infinite;
+}
+
+@keyframes wui-shimmer { to { transform: translateX(100%); } }
+
+/* Sem duração (reduced-motion) a animação não roda; o brilho fica parado no
+   lugar errado, então some. */
+@media (prefers-reduced-motion: reduce) {
+  .wui-skeleton::after { display: none; }
+}
+
+.wui-skeleton--text   { height: 15px; border-radius: var(--w-radius-1); }
+.wui-skeleton--title  { height: 22px; border-radius: var(--w-radius-1); }
+.wui-skeleton--avatar { width: 40px; height: 40px; border-radius: var(--w-radius-15); }
+.wui-skeleton--bubble { height: 56px; border-radius: var(--w-radius-5); }
+
+
+/* -----------------------------------------------------------------------------
+   14. SPINNER
+   -----------------------------------------------------------------------------
+   600ms `linear` — exatamente o que o Intercom usa [12 §9]. Rotação contínua é
+   a segunda exceção à proibição do `linear`.
+   -------------------------------------------------------------------------- */
+
+.wui-spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: var(--w-radius-full);
+  animation: wui-spin var(--w-dur-spinner) linear infinite;
+  vertical-align: -2px;
+}
+
+@keyframes wui-spin { to { transform: rotate(360deg); } }
+
+.wui-spinner--lg { width: 24px; height: 24px; border-width: 3px; }
+
+/* Sem movimento, o anel parado não comunica nada — vira um traço estático e
+   quem informa é o texto ao lado (`role="status"`). */
+@media (prefers-reduced-motion: reduce) {
+  .wui-spinner { animation: none; border-top-color: currentColor; opacity: 0.5; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   15. AVATAR — com fallback de inicial
+   -----------------------------------------------------------------------------
+   Raio 6px, quadrado arredondado: 3 de 7 concorrentes já abandonaram o círculo
+   (Intercom 16,7%, Tidio 4px, tawk.to 15px em 40) [MEDIDO — 11 §C11].
+   A inicial fica no fundo; a imagem, quando carrega, cobre. Se a imagem falhar,
+   a inicial reaparece sozinha — sem JS.
+   -------------------------------------------------------------------------- */
+
+.wui-avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  flex: none;
+  border-radius: var(--w-radius-15);
+  background: var(--w-brand-subtle);
+  color: var(--w-brand-readable);
+  font: var(--w-text-author);
+  letter-spacing: var(--w-tracking);
+  text-transform: uppercase;
+  overflow: hidden;
+  user-select: none;
+}
+
+.wui-avatar__img {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.wui-avatar--sm { width: 28px; height: 28px; font-size: 11px; border-radius: var(--w-radius-1); }
+.wui-avatar--lg { width: 56px; height: 56px; font: var(--w-text-title); }
+
+/* Presença: o ponto é reforço, o rótulo é a informação (SC 1.4.1 / 13 §3.4).
+   O ponto já nasce com borda real (o anel que o separa do avatar), então em
+   `forced-colors` a forma sobrevive — o que faltava era o PREENCHIMENTO:
+   `--w-success` não estava mapeado e virava Canvas, o mesmo branco da borda,
+   e o ponto inteiro desaparecia [MEDIDO — auditoria 32 G3, reproduzido nesta
+   task]. Com `--w-success: CanvasText` (tokens.css §4.3) ele volta. */
+.wui-avatar__dot {
+  position: absolute;
+  right: -1px; bottom: -1px;
+  width: 10px; height: 10px;
+  border-radius: var(--w-radius-full);
+  border: 2px solid var(--w-surface);
+  background: var(--w-text-muted);
+}
+.wui-avatar__dot--online  { background: var(--w-success); }
+.wui-avatar__dot--offline { background: var(--w-text-muted); }
+
+
+/* -----------------------------------------------------------------------------
+   16. DIVISOR
+   -------------------------------------------------------------------------- */
+
+.wui-divider {
+  border: 0;
+  border-top: var(--w-border-width) solid var(--w-border);
+  margin: var(--w-space-4) 0;
+}
+
+/* Divisor com rótulo — o marcador de data da conversa ("Hoje") */
+.wui-divider--labelled {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-3);
+  border: 0;
+  font: var(--w-text-system);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+}
+.wui-divider--labelled::before,
+.wui-divider--labelled::after {
+  content: "";
+  flex: 1;
+  border-top: var(--w-border-width) solid var(--w-border);
+}
+
+
+/* -----------------------------------------------------------------------------
+   17. INDICADOR DE "DIGITANDO" — CSS puro
+   -----------------------------------------------------------------------------
+   SUBSTITUI `assets/images/typing.gif`, 19.296 B — a única implementação em
+   raster de todo o corpus medido [MEDIDO — 12 §5.6, 15 §A6.3]. Um GIF não
+   herda a cor da marca, não tem versão escura, NÃO É ALCANÇADO POR NENHUMA
+   MEDIA QUERY (portanto ignora `prefers-reduced-motion`), não escala com a
+   fonte e custa uma requisição.
+
+   Desenho de referência: Octadesk/WhatsApp — o único do corpus que "lê como
+   digitação" e não como carregamento [12 §5.4]. Números literais do 16 §3.6:
+
+     pontos    3 × 7px, redondos, cor `--w-text-muted`
+     gap       4px
+     ciclo     1200ms, `ease-in-out`, infinito
+     stagger   150ms entre pontos
+     movimento translateY(-4px) no pico (0,57× o diâmetro) + opacidade 0,5 → 1
+     keyframe  0%, 60%, 100% em repouso; 30% no pico (40% do ciclo parado)
+
+   Evitamos o salto de 2× o diâmetro do tawk.to (`translateY(-10px)` com pontos
+   de 5px): transforma um estado de espera em animação chamativa [12 §C15].
+   -------------------------------------------------------------------------- */
+
+.wui-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--w-space-3) var(--w-space-4);
+  background: var(--w-surface-raised);
+  border-radius: var(--w-radius-5);
+  border-bottom-left-radius: var(--w-radius-15);
+  /* Borda real transparente: a §19 só troca a COR em forced-colors, e assim o
+     balão não cresce 2px ao entrar em alto contraste. */
+  border: var(--w-border-width) solid transparent;
+  box-shadow: var(--w-elev-0), var(--w-elev-1-ring);
+}
+
+.wui-typing__dot {
+  width: 7px; height: 7px;
+  flex: none;
+  border-radius: var(--w-radius-full);
+  background: var(--w-text-muted);
+  opacity: 0.5;
+  animation: wui-typing var(--w-dur-typing) ease-in-out infinite;
+}
+
+.wui-typing__dot:nth-child(2) { animation-delay: var(--w-dur-typing-stagger); }
+.wui-typing__dot:nth-child(3) { animation-delay: calc(var(--w-dur-typing-stagger) * 2); }
+
+@keyframes wui-typing {
+  0%, 60%, 100% { transform: translateY(0);     opacity: 0.5; }
+  30%           { transform: translateY(-4px);  opacity: 1; }
+}
+
+/* O rótulo textual fica escondido por padrão e aparece sob reduced-motion —
+   assim a informação "está digitando" nunca depende só do movimento. Isso
+   também satisfaz o SC 2.2.2 (nível A), que exige mecanismo de pausar para
+   qualquer movimento acima de 5s [FATO — 13 §4.2]. */
+.wui-typing__label { display: none; font: var(--w-text-meta);
+                     letter-spacing: var(--w-tracking); color: var(--w-text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wui-typing__dot   { animation: none; opacity: 0.5; }
+  .wui-typing__label { display: inline; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   18. MOBILE — alvo de toque de 44×44
+   -----------------------------------------------------------------------------
+   O 16 §8.3 exige "alvos ≥ 44×44 no viewport mobile". O ponto de corte é o
+   único da casa: 768px, escrito sem sobreposição (16 §2.7.1) — hoje o `sdk.js`
+   tem `max-width:667px` E `min-width:667px` ao mesmo tempo, e em 667px exato as
+   duas regras aplicam [FATO — 11 §A16].
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 767.98px) {
+  .wui-btn,
+  .wui-tab,
+  .wui-chip { min-height: var(--w-touch-mobile); }
+
+  .wui-btn--sm { min-height: var(--w-touch-mobile); }
+
+  /* O `--sm` entra na lista porque `--icon.--sm` não tem largura própria: sem
+     ele, um botão de ícone pequeno ficaria com os 44 de altura e a largura do
+     `--icon` cru. */
+  .wui-btn--icon,
+  .wui-btn--icon.wui-btn--sm,
+  .wui-btn--icon.wui-btn--md,
+  .wui-btn--icon.wui-btn--lg {
+    width: var(--w-touch-mobile);
+    min-width: var(--w-touch-mobile);
+  }
+
+  .wui-input,
+  .wui-textarea,
+  .wui-select { min-height: var(--w-touch-mobile); }
+
+  .wui-check,
+  .wui-switch { min-height: var(--w-touch-mobile); }
+
+  /* A área de acerto do checkbox cresce sem o quadrado crescer: o pseudo cobre
+     a linha inteira ("o alvo se estende além dos limites visuais" — 13 §1.1). */
+  .wui-check__input { width: 24px; height: 24px; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   19. `forced-colors: active`
+   -----------------------------------------------------------------------------
+   Os tokens já apontam para as system colors (tokens.css §4.3). Aqui sobra o
+   que é estrutura: superfícies decorativas somem e o que era distinguido por
+   preenchimento passa a ser distinguido por borda.
+
+   A REGRA DESTE BLOCO, reescrita em 12/08/2026 depois da auditoria 32 G3:
+   **nada aqui pode depender de `box-shadow`.** O navegador descarta a
+   propriedade inteira neste modo — medido `none` em seis componentes, incluindo
+   os que declaravam anel. Quem separa superfície é `border`, e a borda é
+   declarada no próprio primitivo, transparente, no modo normal. Aqui só se
+   acende a COR. Consequências: nenhum componente muda de tamanho ao entrar em
+   alto contraste, e nenhum depende de uma media query para ter caixa.
+   -------------------------------------------------------------------------- */
+
+@media (forced-colors: active) {
+  /* Todos já têm `border` declarada no primitivo. Aqui só acende. */
+  .wui-btn,
+  .wui-card,
+  .wui-chip,
+  .wui-banner,
+  .wui-typing,
+  .wui-badge,
+  .wui-skeleton,
+  .wui-tip__bubble { border-color: CanvasText; }
+
+  /* Preenchimento de marca preservado como sistema, não como cor de autor. */
+  .wui-btn--primary,
+  .wui-chip--selected,
+  .wui-chip[aria-pressed="true"] { forced-color-adjust: none;
+                                   background: Highlight; color: HighlightText; }
+
+  /* O brilho do skeleton é gradiente; num modo sem cor de autor ele não tem o
+     que dizer. Quem informa "carregando" é a caixa contornada. */
+  .wui-skeleton::after { display: none; }
+
+  /* O anel do spinner é `currentColor` com o topo transparente — o vão é o que
+     comunica a rotação. Declarado explicitamente para o anel não sair no mesmo
+     tom do fundo. */
+  .wui-spinner { border-color: CanvasText; border-top-color: transparent; }
+}
+
+
+/* =============================================================================
+   CORREÇÕES APLICADAS EM 12/08/2026 (PÓS-AUDITORIA)
+   -----------------------------------------------------------------------------
+   Resposta a `plano/redesenho/auditoria/32-mockups.md` G3 e §10 (itens 4 e 6).
+   Validado com Playwright + Chromium 145 sobre `mockups/00-sistema-visual.html`,
+   em 1280×900 e 390×844, claro e escuro, mais `forced-colors: active`, medindo
+   o preenchimento dominante da caixa de cada componente no pixel renderizado.
+
+   1. BORDA REAL onde havia só sombra. `.wui-tip__bubble` (§11), `.wui-skeleton`
+      (§13), `.wui-badge` (§7) e `.wui-typing` (§17) passam a declarar
+      `border: var(--w-border-width) solid transparent`. Em `forced-colors` o
+      navegador descarta `box-shadow` por inteiro; sem borda, esses componentes
+      eram Canvas sobre Canvas. Medido, antes → depois:
+
+        .wui-skeleton      100% Canvas          →  95% Canvas + 5% CanvasText
+        .wui-tip__bubble    85% Canvas          →  56% CanvasText + 37% Canvas
+        .wui-avatar__dot   100% Canvas          →  62% Canvas (anel) + 16% CanvasText
+        .wui-badge         sem delimitação      →  cápsula contornada
+
+      Na captura da página inteira em alto contraste, a §8.10 do catálogo
+      ("Skeleton e spinner") era uma coluna vazia.
+
+   2. §19 REESCRITA. Como a borda agora nasce no primitivo, o bloco só acende a
+      COR (`border-color: CanvasText`) em vez de declarar `border` do zero. Dois
+      ganhos: nenhum componente muda de tamanho ao entrar em alto contraste, e
+      nenhum depende de media query para ter caixa. Entraram na lista
+      `.wui-badge`, `.wui-skeleton`, `.wui-tip__bubble` e `.wui-spinner`.
+
+   3. §15 — o ponto de presença já tinha borda; o que faltava era PREENCHIMENTO.
+      `--w-success` não estava mapeado em `forced-colors` e virava Canvas, o
+      mesmo branco do anel. Corrigido no `tokens.css` §4.3, comentado aqui.
+
+   4. §1 — piso de alvo no PRIMITIVO: `.wui-btn` ganha `min-height` e
+      `min-width` de `--w-touch-min`. [CALIBRADO] `<button class="wui-btn
+      wui-btn--primary">` sem modificador de tamanho media 23,6 × 24 em 1280, e
+      o `--icon` sem tamanho media 24 × 22 — abaixo do piso de 24×24 que o
+      cabeçalho deste arquivo promete. O tamanho era obrigatório e nada dizia.
+
+   5. §18 — `.wui-btn--icon.wui-btn--sm` entra na lista do bloco mobile; sem
+      ele, um botão de ícone pequeno ficava com 44 de altura e a largura do
+      `--icon` cru. Os doze primitivos medidos em 390×844 dão 44px.
+
+   6. Cabeçalho — duas regras novas, explícitas: "anel e elevação nunca vivem só
+      de box-shadow" e `type="button"` em todo botão que não envia formulário
+      (0 de 43 no catálogo, segundo a auditoria — é marcação, não CSS, e a
+      correção é dos mockups).
+
+   7. §1 — `rgb(0 0 0 / 0.18)` do `.wui-btn--primary:active` vira
+      `var(--w-shadow-press-inset)`. Era o **único** literal de cor de toda a
+      fundação, listado nominalmente na auditoria 32 §3. Agora são zero: o
+      arquivo inteiro só usa token.
+
+   NÃO FEITO AQUI: os nove mockups embutem este arquivo em `<style id="primitivos">`
+   e continuam com a versão anterior. Precisam ser regerados.
+   ============================================================================= */

@@ -105,8 +105,7 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     scope = scope.where(funil: params[:funil]) if params[:funil].present?
     scope = scope.where(handoff_timing: params[:handoff_timing]) if params[:handoff_timing].present?
     scope = scope.where(nota: NOTA_FAIXAS[params[:nota_faixa]]) if NOTA_FAIXAS.key?(params[:nota_faixa])
-    scope = filter_by_finding(scope)
-    scope
+    filter_by_finding(scope)
   end
 
   # jsonb containment: acha evals cujo response_findings contém um finding com
@@ -142,7 +141,15 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     com_nota = escopo.where.not(nota: nil)
     dist = { '0-4' => 0, '5-6' => 0, '7-8' => 0, '9-10' => 0 }
     com_nota.pluck(:nota).each do |n|
-      dist[n <= 4 ? '0-4' : (n <= 6 ? '5-6' : (n <= 8 ? '7-8' : '9-10'))] += 1
+      dist[if n <= 4
+             '0-4'
+           else
+             (if n <= 6
+                '5-6'
+              else
+                (n <= 8 ? '7-8' : '9-10')
+              end)
+           end] += 1
     end
     { media: com_nota.average(:nota)&.round(2), dist: dist }
   rescue StandardError

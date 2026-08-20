@@ -7,15 +7,21 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::LegacyBaseOpenAiService
 
   attr_reader :total_pages_processed, :iterations_completed
 
+  # Mesmo defeito e mesmo conserto do Captain::Llm::PdfProcessingService: o
+  # `super(account:)` ficou orfao no merge cb0d3d999f (31/03/2026) e quebrava toda
+  # instanciacao. `@account` antes do `super()`; a chave segue sendo a
+  # CAPTAIN_OPEN_AI_API_KEY, deliberadamente. O `@model` continua vindo do FeatureRouter,
+  # logo abaixo, e nao do base.
   def initialize(document, options = {})
     @document = document
-    super(account: document.account)
+    @account = document.account
+    super()
     @language = options[:language] || 'english'
     @pages_per_chunk = options[:pages_per_chunk] || DEFAULT_PAGES_PER_CHUNK
     @max_pages = options[:max_pages] # Optional limit from UI
     @total_pages_processed = 0
     @iterations_completed = 0
-    @model = LlmConstants::PDF_PROCESSING_MODEL
+    @model = Llm::FeatureRouter.resolve(feature: 'pdf_faq_generation', account: @account)[:model]
   end
 
   def generate
@@ -51,7 +57,8 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::LegacyBaseOpenAiService
       account_id: @document&.account_id,
       feature_name: 'faq_generation',
       model: @model,
-      messages: params[:messages]
+      messages: params[:messages],
+      metadata: document_metadata
     }
 
     response = instrument_llm_call(instrumentation_params) do
@@ -214,12 +221,11 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::LegacyBaseOpenAiService
       feature_name: 'paginated_faq_generation',
       model: @model,
       messages: params[:messages],
-      metadata: {
-        document_id: @document&.id,
-        start_page: start_page,
-        end_page: end_page,
-        iteration: @iterations_completed + 1
-      }
+      metadata: document_metadata.merge(start_page: start_page, end_page: end_page, iteration: @iterations_completed + 1)
     }
+  end
+
+  def document_metadata
+    @document&.to_llm_metadata || {}
   end
 end

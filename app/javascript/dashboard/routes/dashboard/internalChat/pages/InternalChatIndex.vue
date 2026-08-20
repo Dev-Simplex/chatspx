@@ -24,8 +24,8 @@ import {
 } from 'shared/helpers/FileHelper';
 import ManageChannelDialog from '../components/ManageChannelDialog.vue';
 
-const EmojiInput = defineAsyncComponent(
-  () => import('shared/components/emoji/EmojiInput.vue')
+const EmojiPicker = defineAsyncComponent(
+  () => import('shared/components/emoji/EmojiPicker.vue')
 );
 
 const store = useStore();
@@ -551,8 +551,8 @@ const toggleGroupMember = id => {
   else groupMemberIds.value.splice(idx, 1);
 };
 
-const onEmojiSelect = emoji => {
-  draft.value += emoji;
+const onEmojiSelect = ({ value }) => {
+  draft.value += value;
   showEmoji.value = false;
   focusComposer();
   nextTick(autoResize);
@@ -1941,10 +1941,9 @@ onBeforeUnmount(() => {
           <template v-if="showEmoji">
             <!-- click-outside backdrop: close the emoji picker without picking -->
             <div class="fixed inset-0 z-10" @click="showEmoji = false" />
-            <EmojiInput
-              class="absolute bottom-16 left-4 z-20"
-              :on-click="onEmojiSelect"
-            />
+            <div class="absolute bottom-16 left-4 z-20">
+              <EmojiPicker class="!static" @select="onEmojiSelect" />
+            </div>
           </template>
 
           <!-- WhatsApp-style composer: tool cluster + input live inside one

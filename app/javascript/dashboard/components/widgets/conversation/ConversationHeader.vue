@@ -1,9 +1,20 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+// `watch` e `nextTick` entram aqui pelo editor inline de prioridade (Fase 3.5):
+// o merge automático trouxe o TEMPLATE e o SCRIPT desse editor do nosso lado, mas
+// esta linha de import veio do lado da homologação, que não o tem. Sem eles o
+// arquivo passa no build e estoura em runtime ao abrir o menu de prioridade.
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useElementSize } from '@vueuse/core';
-import { MESSAGE_TYPE } from 'shared/constants/messages';
+import { MESSAGE_TYPE, CONVERSATION_PRIORITY } from 'shared/constants/messages';
 import BackButton from '../BackButton.vue';
 import InboxName from '../InboxName.vue';
 import MoreActions from './MoreActions.vue';
@@ -20,6 +31,8 @@ import { useGroupConversation } from 'dashboard/composables/useGroupConversation
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { useAlert } from 'dashboard/composables';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
 const props = defineProps({
   chat: {
@@ -71,6 +84,7 @@ const backButtonUrl = computed(() => {
 
   const conversationTypeMap = {
     conversation_through_mentions: 'mention',
+    conversation_through_participating: 'participating',
     conversation_through_unattended: 'unattended',
     conversation_through_unread: 'unread',
   };
@@ -190,7 +204,11 @@ const hasMultipleInboxes = computed(
   () => store.getters['inboxes/getInboxes'].length > 1
 );
 
-const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
+const hasSlaPolicyId = computed(
+  () =>
+    (props.chat?.applied_sla?.id || props.chat?.sla_policy_id) &&
+    !currentContact.value?.blocked
+);
 
 // --- WhatsApp 24h window timer -------------------------------------------
 // Re-render every 60s so "remaining" stays fresh without per-component timers.
@@ -306,6 +324,105 @@ const whatsAppWindowIcon = computed(() => {
 
 // Status badge agora é informativo (read-only) — ações de mudança de status
 // ficam em ResolveAction (botão primário) + MoreActions (kebab).
+
+// --- Inline priority editor (Fase 3.5) -----------------------------------
+const PRIORITY_OPTIONS = [
+  {
+    value: '',
+    icon: 'i-lucide-circle-dashed',
+    label: 'CONVERSATION.PRIORITY.NO_PRIORITY',
+  },
+  {
+    value: CONVERSATION_PRIORITY.URGENT,
+    icon: 'i-lucide-flame',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.URGENT',
+  },
+  {
+    value: CONVERSATION_PRIORITY.HIGH,
+    icon: 'i-lucide-arrow-up',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.HIGH',
+  },
+  {
+    value: CONVERSATION_PRIORITY.MEDIUM,
+    icon: 'i-lucide-equal',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.MEDIUM',
+  },
+  {
+    value: CONVERSATION_PRIORITY.LOW,
+    icon: 'i-lucide-arrow-down',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.LOW',
+  },
+];
+
+const showPriorityMenu = ref(false);
+const priorityWrapper = ref(null);
+const priorityMenu = ref(null);
+const priorityMenuStyle = ref({});
+
+const currentPriorityOption = computed(() => {
+  const value = currentChat.value?.priority || '';
+  return PRIORITY_OPTIONS.find(o => o.value === value) || PRIORITY_OPTIONS[0];
+});
+
+const updatePriorityMenuPosition = () => {
+  const el = priorityWrapper.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  priorityMenuStyle.value = {
+    position: 'fixed',
+    top: `${rect.bottom + 4}px`,
+    left: `${rect.left}px`,
+    minWidth: '160px',
+    zIndex: 9999,
+  };
+};
+
+const togglePriorityMenu = () => {
+  if (!showPriorityMenu.value) updatePriorityMenuPosition();
+  showPriorityMenu.value = !showPriorityMenu.value;
+};
+
+const closePriorityMenu = () => {
+  showPriorityMenu.value = false;
+};
+
+const handlePriorityOutsideClick = e => {
+  const inWrapper = priorityWrapper.value?.contains(e.target);
+  const inMenu = priorityMenu.value?.contains(e.target);
+  if (!inWrapper && !inMenu) closePriorityMenu();
+};
+
+watch(showPriorityMenu, async open => {
+  await nextTick();
+  if (open) {
+    document.addEventListener('click', handlePriorityOutsideClick);
+  } else {
+    document.removeEventListener('click', handlePriorityOutsideClick);
+  }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handlePriorityOutsideClick);
+});
+
+const setPriority = async value => {
+  const id = currentChat.value?.id;
+  if (!id) return;
+  await store.dispatch('assignPriority', {
+    conversationId: id,
+    priority: value || null,
+  });
+  closePriorityMenu();
+};
+
+const copyConversationId = async () => {
+  try {
+    await copyTextToClipboard(String(props.chat.id));
+    useAlert(t('CONVERSATION.HEADER.COPY_ID_SUCCESS'));
+  } catch (error) {
+    // error
+  }
+};
 </script>
 
 <template>
@@ -369,9 +486,18 @@ const whatsAppWindowIcon = computed(() => {
 
         <div
           v-if="hasMultipleInboxes || isSnoozed || whatsAppWindowDisplay"
-          class="wa-contact-subtitle flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap"
+          class="wa-contact-subtitle flex items-center gap-2 overflow-hidden text-xs conversation--header--actions text-n-slate-11 text-ellipsis whitespace-nowrap"
         >
+          <button
+            type="button"
+            class="truncate text-label-small text-n-slate-11 hover:text-n-slate-12 !p-0 cucursor-pointer"
+            @click="copyConversationId"
+          >
+            {{ `#${chat.id}` }}
+          </button>
+          <span v-if="hasMultipleInboxes">•</span>
           <InboxName v-if="hasMultipleInboxes" :inbox="inbox" class="!mx-0" />
+          <span v-if="isSnoozed">•</span>
           <span v-if="isSnoozed" class="font-medium text-n-amber-10">
             {{ snoozedDisplayText }}
           </span>
@@ -383,6 +509,51 @@ const whatsAppWindowIcon = computed(() => {
           >
             <span class="size-3" :class="whatsAppWindowIcon" />
             {{ whatsAppWindowDisplay.text }}
+          </span>
+          <!-- RECONCILIAÇÃO: este editor inline de prioridade (Fase 3.5) foi
+               PERDIDO pelo merge automático — o lado da homologação reescreveu a
+               div acima e o git resolveu esta região por lá, descartando o bloco
+               sem marcar conflito. O `<script>` dele sobreviveu no hunk e ficou
+               órfão; foi o eslint, acusando `currentPriorityOption`,
+               `togglePriorityMenu` e `setPriority` como "never used", que
+               denunciou a metade que faltava. -->
+          <span ref="priorityWrapper" class="relative inline-flex">
+            <button
+              :title="$t('CONVERSATION.PRIORITY.LABEL')"
+              type="button"
+              class="!p-0 !border-0 inline-flex items-center gap-1 px-1.5 h-5 rounded-md text-[11px] font-medium text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
+              :class="{ 'bg-n-alpha-2': showPriorityMenu }"
+              @click="togglePriorityMenu"
+            >
+              <span
+                class="size-3 pointer-events-none"
+                :class="currentPriorityOption.icon"
+              />
+              <span class="truncate max-w-[80px] pointer-events-none">
+                {{ $t(currentPriorityOption.label) }}
+              </span>
+            </button>
+            <div
+              v-if="showPriorityMenu"
+              ref="priorityMenu"
+              :style="priorityMenuStyle"
+              class="rounded-lg border border-n-weak bg-n-solid-1 dark:bg-n-solid-2 shadow-md py-1"
+            >
+              <button
+                v-for="option in PRIORITY_OPTIONS"
+                :key="option.value || 'none'"
+                type="button"
+                class="!border-0 w-full flex items-center gap-2 px-3 py-1.5 text-sm text-n-slate-12 hover:bg-n-alpha-2"
+                :class="{
+                  'bg-n-alpha-2 font-medium':
+                    option.value === currentPriorityOption.value,
+                }"
+                @click.stop="setPriority(option.value)"
+              >
+                <span class="size-3.5 text-n-slate-11" :class="option.icon" />
+                <span>{{ $t(option.label) }}</span>
+              </button>
+            </div>
           </span>
         </div>
       </div>

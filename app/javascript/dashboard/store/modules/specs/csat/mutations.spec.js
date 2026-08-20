@@ -34,6 +34,7 @@ describe('#mutations', () => {
         totalResponseCount: 29,
         ratingsCount: { 1: 10, 2: 10, 3: 3, 4: 3, 5: 3 },
         totalSentMessagesCount: 120,
+        signals: [],
       });
     });
 
@@ -46,6 +47,7 @@ describe('#mutations', () => {
         totalResponseCount: 0,
         ratingsCount: { 1: 5, 2: 0, 3: 0, 4: 0, 5: 0 },
         totalSentMessagesCount: 0,
+        signals: [],
       });
     });
   });

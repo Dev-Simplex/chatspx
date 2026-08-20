@@ -57,6 +57,9 @@ const hasChildren = computed(
 const isPopoverOpen = computed(() => activePopover.value === props.name);
 const triggerRef = ref(null);
 const triggerRect = ref({ top: 0, left: 0, bottom: 0, right: 0 });
+// The sort dropdown teleports outside the popover; keep the popover open while
+// it is showing so moving the cursor onto it does not close everything.
+const isSortMenuOpen = ref(false);
 
 const openPopover = () => {
   if (triggerRef.value) {
@@ -86,7 +89,7 @@ const handleMouseEnter = () => {
 };
 
 const handleMouseLeave = () => {
-  if (!hasChildren.value) return;
+  if (!hasChildren.value || isSortMenuOpen.value) return;
   scheduleClose(200);
 };
 
@@ -95,7 +98,13 @@ const handlePopoverMouseEnter = () => {
 };
 
 const handlePopoverMouseLeave = () => {
+  if (isSortMenuOpen.value) return;
   scheduleClose(100);
+};
+
+const handleSortToggle = isOpen => {
+  isSortMenuOpen.value = isOpen;
+  cancelClose();
 };
 
 // Close popover when mouse leaves the window
@@ -103,23 +112,38 @@ const handleWindowBlur = () => {
   closeActivePopover();
 };
 
-const accessibleItems = computed(() => {
+const hasAccessibleSubChildren = child => {
+  return child.children?.some(
+    subChild => subChild.to && isAllowed(subChild.to)
+  );
+};
+
+const visibleChildren = computed(() => {
   if (!hasChildren.value) return [];
+
   return props.children.filter(child => {
-    // Se tem children, verificar se tem pelo menos um filho acessível
-    if (child.children && Array.isArray(child.children)) {
-      return child.children.some(
-        subChild => subChild.to && isAllowed(subChild.to)
-      );
-    }
-    // Se não tem children, verificar se tem to e é permitido
+    if (child.children) return hasAccessibleSubChildren(child);
+
     return child.to && isAllowed(child.to);
   });
 });
 
-const hasAccessibleChildren = computed(() => {
-  return accessibleItems.value.length > 0;
+const accessibleItems = computed(() => {
+  if (!hasChildren.value) return [];
+
+  return visibleChildren.value
+    .flatMap(child => child.children || child)
+    .filter(child => child.to && isAllowed(child.to));
 });
+
+const hasAccessibleChildren = computed(() => {
+  return visibleChildren.value.length > 0;
+});
+
+const isLastVisibleChild = child => {
+  const lastChild = visibleChildren.value[visibleChildren.value.length - 1];
+  return lastChild === child;
+};
 
 const isActive = computed(() => {
   if (props.to) {
@@ -203,9 +227,11 @@ const activeChild = computed(() => {
     return rankedPage ?? activeOnPages[0];
   }
 
-  return navigableChildren.value.find(
-    child => child.to && route.path.startsWith(resolvePath(child.to))
-  );
+  return navigableChildren.value.find(child => {
+    if (!child.to) return false;
+    const childPath = resolvePath(child.to);
+    return route.path === childPath || route.path.startsWith(`${childPath}/`);
+  });
 });
 
 const hasActiveChild = computed(() => {
@@ -351,6 +377,7 @@ watch(
           @close="closePopover"
           @mouseenter="handlePopoverMouseEnter"
           @mouseleave="handlePopoverMouseLeave"
+          @sort-toggle="handleSortToggle"
         />
       </div>
     </template>
@@ -371,18 +398,23 @@ watch(
       <ul
         v-if="hasChildren"
         v-show="isExpanded || hasActiveChild"
-        class="grid m-0 list-none sidebar-group-children min-w-0"
+        class="grid m-0 list-none min-w-0"
       >
-        <template v-for="child in children" :key="child.name">
+        <template v-for="child in visibleChildren" :key="child.name">
           <SidebarSubGroup
             v-if="child.children"
-            :name="child.name"
-            :parent-name="name"
+            :name="`${name}:${child.name}`"
             :label="child.label"
             :icon="child.icon"
             :children="child.children"
+            :collapsible="child.collapsible"
+            :show-tree-line="child.showTreeLine"
+            :end-tree-line="child.showTreeLine && isLastVisibleChild(child)"
             :is-expanded="isExpanded"
             :active-child="activeChild"
+            :sort-options="child.sortOptions"
+            :active-sort="child.activeSort"
+            @update-sort="child.onSortChange"
           />
           <SidebarGroupLeaf
             v-else-if="isAllowed(child.to)"
@@ -400,6 +432,22 @@ watch(
 </template>
 
 <style>
+/* RECONCILIAÇÃO — deste bloco veio SÓ a metade do modo "reordenar".
+   O lado da homologação trazia também as regras de árvore
+   (`.sidebar-group-children`, `.child-item::before/::after` e a variante RTL),
+   e essas ficaram de fora de propósito: o upstream as reescreveu como
+   utilitárias Tailwind em `SidebarGroupLeaf.vue:44`, com equivalência conferida
+   linha a linha — `before:w-0.5` = 0.125rem, `last:before:h-1/5` = 20%,
+   `last:after:h-3 w-2.5` = 12px×10px — e ainda com as cores (`bg-n-slate-4`,
+   `border-n-slate-4`) que o CSS antigo não tinha e com `start-0`, que resolve o
+   RTL sem a regra `#app[dir='rtl']` separada. Trazê-las de volta significaria
+   duas fontes desenhando o mesmo `::before`.
+
+   O que segue abaixo NÃO tem equivalente em utilitária: `animation` com
+   `@keyframes` próprio, `animation-play-state` e a alternativa de
+   `prefers-reduced-motion`. E a classe é usada — `SidebarGroup.vue` a aplica no
+   template quando `reorderMode` está ligado. */
+
 /* Modo "reordenar barra lateral": ícone treme (estilo tela inicial de celular)
    pra sinalizar que dá pra arrastar, com cursor de alça. */
 @keyframes sidebar-reorder-jiggle {
@@ -430,59 +478,5 @@ watch(
     outline: 1px dashed currentColor;
     outline-offset: 2px;
   }
-}
-
-.sidebar-group-children .child-item::before {
-  content: '';
-  position: absolute;
-  width: 0.125rem;
-  /* 0.5px */
-  height: 100%;
-}
-
-.sidebar-group-children .child-item:first-child::before {
-  border-radius: 4px 4px 0 0;
-}
-
-/* This selects the last child in a group */
-/* https://codepen.io/scmmishra/pen/yLmKNLW */
-.sidebar-group-children > .child-item:last-child::before,
-.sidebar-group-children
-  > *:last-child
-  > *:last-child
-  > .child-item:last-child::before {
-  height: 20%;
-}
-
-.sidebar-group-children > .child-item:last-child::after,
-.sidebar-group-children
-  > *:last-child
-  > *:last-child
-  > .child-item:last-child::after {
-  content: '';
-  position: absolute;
-  width: 10px;
-  height: 12px;
-  bottom: calc(50% - 2px);
-  border-bottom-width: 0.125rem;
-  border-left-width: 0.125rem;
-  border-right-width: 0px;
-  border-top-width: 0px;
-  border-radius: 0 0 0 4px;
-  left: 0;
-}
-
-#app[dir='rtl'] .sidebar-group-children > .child-item:last-child::after,
-#app[dir='rtl']
-  .sidebar-group-children
-  > *:last-child
-  > *:last-child
-  > .child-item:last-child::after {
-  right: 0;
-  border-bottom-width: 0.125rem;
-  border-right-width: 0.125rem;
-  border-left-width: 0px;
-  border-top-width: 0px;
-  border-radius: 0 0 4px 0px;
 }
 </style>

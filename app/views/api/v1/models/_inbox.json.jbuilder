@@ -43,6 +43,9 @@ json.allowed_domains resource.channel.try(:allowed_domains)
 json.widget_color resource.channel.try(:widget_color)
 json.website_url resource.channel.try(:website_url)
 json.hmac_mandatory resource.channel.try(:hmac_mandatory)
+# Bloco 4.15: o estado RESOLVIDO, nao o gravado. Inbox sem a chave nao tem `nil` aqui —
+# ela tem o estado em que de fato opera hoje, e `hmac_mandatory` continua sendo o piso.
+json.identity_enforcement resource.resolved_identity_enforcement
 json.welcome_title resource.channel.try(:welcome_title)
 json.welcome_tagline resource.channel.try(:welcome_tagline)
 json.web_widget_script resource.channel.try(:web_widget_script)
@@ -86,6 +89,10 @@ if resource.email?
   json.email resource.channel.try(:email)
   json.forwarding_enabled ENV.fetch('MAILER_INBOUND_EMAIL_DOMAIN', '').present?
   json.forward_to_email resource.channel.try(:forward_to_email) if ENV.fetch('MAILER_INBOUND_EMAIL_DOMAIN', '').present?
+  if Current.account_user&.administrator? && defined?(with_branded_email_layout) && with_branded_email_layout.present? &&
+     Current.account.feature_enabled?(:branded_email_templates)
+    json.branded_email_layout resource.branded_email_layout
+  end
 
   ## IMAP
   if Current.account_user&.administrator?
@@ -95,6 +102,7 @@ if resource.email?
     json.imap_port resource.channel.try(:imap_port)
     json.imap_enabled resource.channel.try(:imap_enabled)
     json.imap_enable_ssl resource.channel.try(:imap_enable_ssl)
+    json.imap_authentication resource.channel.try(:imap_authentication)
 
     if resource.channel.try(:microsoft?) || resource.channel.try(:google?) || resource.channel.try(:legacy_google?)
       json.reauthorization_required resource.channel.try(:provider_config).empty? || resource.channel.try(:reauthorization_required?)
@@ -119,6 +127,7 @@ end
 ## API Channel Attributes
 if resource.api?
   json.hmac_token resource.channel.try(:hmac_token) if Current.account_user&.administrator?
+  json.secret resource.channel.try(:secret) if Current.account_user&.administrator?
   json.webhook_url resource.channel.try(:webhook_url)
   json.inbox_identifier resource.channel.try(:identifier)
   json.additional_attributes resource.channel.try(:additional_attributes)
@@ -134,7 +143,11 @@ json.bot_name resource.channel.try(:bot_name) if resource.telegram?
 if resource.whatsapp?
   json.message_templates resource.channel.try(:message_templates)
   json.provider_config resource.channel.try(:provider_config) if Current.account_user&.administrator?
-  json.reauthorization_required resource.channel.try(:reauthorization_required?)
+  # Only show reauthorization for embedded signup; manual flow uses API keys, not OAuth
+  json.reauthorization_required(
+    (resource.channel.try(:provider_config) || {}).to_h['source'] == 'embedded_signup' &&
+    resource.channel.try(:reauthorization_required?)
+  )
 end
 
 ## Voice Channel Attributes

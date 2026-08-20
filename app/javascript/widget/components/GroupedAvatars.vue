@@ -1,6 +1,6 @@
 <script setup>
-import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
-import { defineProps, computed } from 'vue';
+import Avatar from 'widget/components/WAvatar.vue';
+import { computed } from 'vue';
 
 const props = defineProps({
   users: {

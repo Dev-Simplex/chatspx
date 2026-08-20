@@ -3,7 +3,12 @@ class ContentAttributeValidator < ActiveModel::Validator
   ALLOWED_SELECT_ITEM_KEYS = [:title, :value, :description].freeze
   ALLOWED_CARD_ITEM_KEYS = [:title, :description, :media_url, :actions].freeze
   ALLOWED_CARD_ITEM_ACTION_KEYS = [:text, :type, :payload, :uri].freeze
-  ALLOWED_FORM_ITEM_KEYS = [:type, :placeholder, :label, :name, :options, :default, :required, :pattern, :title, :pattern_error].freeze
+  # `mask` e `validator` (bloco 4.03): o vocabulario e o de
+  # Channel::WebWidget::PreChatFormSchema::MASKS/VALIDATORS, o mesmo de
+  # `shared/helpers/brMasks.js`. Sem eles aqui, uma mensagem `form` com mascara e
+  # invalidada INTEIRA na persistencia — o passo simplesmente nao chega ao visitante.
+  ALLOWED_FORM_ITEM_KEYS = [:type, :placeholder, :label, :name, :options, :default, :required, :pattern, :title, :pattern_error,
+                            :mask, :validator].freeze
   ALLOWED_ARTICLE_KEYS = [:title, :description, :link].freeze
 
   def validate(record)

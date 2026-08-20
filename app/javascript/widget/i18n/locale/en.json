@@ -48,6 +48,7 @@
   "YOU": "You",
   "START_NEW_CONVERSATION": "Start a new conversation",
   "VIEW_UNREAD_MESSAGES": "You have unread messages",
+  "TITLE_FLASH_ALERT": "New message",
   "UNREAD_VIEW": {
     "VIEW_MESSAGES_BUTTON": "See new messages",
     "CLOSE_MESSAGES_BUTTON": "Close",
@@ -92,8 +93,24 @@
     },
     "CAMPAIGN_HEADER": "Please provide your name and email before starting the conversation",
     "IS_REQUIRED": "is required",
+    "FIELD_IS_REQUIRED": "{label} is required",
     "REQUIRED": "Required",
-    "REGEX_ERROR": "Please provide a valid input"
+    "REGEX_ERROR": "Please provide a valid input",
+    "VALIDATION": {
+      "REQUIRED": "This field is required",
+      "CPF": "Invalid CPF — check the digits",
+      "CNPJ": "Invalid CNPJ — check the digits",
+      "CPF_CNPJ": "Invalid CPF or CNPJ — check the digits",
+      "CEP": "Invalid postal code — use 8 digits",
+      "UF": "Invalid state — use the two-letter code, such as SP",
+      "EMAIL": "Invalid email — check the address",
+      "CORPORATE_EMAIL": "Use a work email, not a personal one",
+      "PHONE": "Invalid phone — include the country code, such as +55",
+      "JUNK_NAME": "That name looks incomplete. Is it right?",
+      "JUNK_PHONE": "That phone looks incomplete. Is it right?",
+      "JUNK_EMAIL": "That email looks incomplete. Is it right?"
+    },
+    "CONTINUE": "Continue"
   },
   "FILE_SIZE_LIMIT": "File exceeds the {MAXIMUM_FILE_UPLOAD_SIZE} attachment limit",
   "CHAT_FORM": {
@@ -118,10 +135,31 @@
       "FLAGS": "Flags"
     }
   },
+  "EMOJI_ICON_PICKER": {
+    "SEARCH_EMOJI": "Search emoji…",
+    "FREQUENTLY_USED": "Frequently used",
+    "NO_EMOJI": "No emoji match your search"
+  },
   "CSAT": {
     "TITLE": "Rate your conversation",
     "SUBMITTED_TITLE": "Thank you for submitting the rating",
-    "PLACEHOLDER": "Tell us more..."
+    "PLACEHOLDER": "Tell us more...",
+    "RATING_GROUP_LABEL": "How was the support?",
+    "RATING_SELECTED": "Rating submitted: {label}",
+    "RATINGS": {
+      "POOR": "Poor",
+      "FAIR": "Fair",
+      "AVERAGE": "Average",
+      "GOOD": "Good",
+      "EXCELLENT": "Excellent"
+    },
+    "STARS": {
+      "ONE": "1 star out of 5",
+      "TWO": "2 stars out of 5",
+      "THREE": "3 stars out of 5",
+      "FOUR": "4 stars out of 5",
+      "FIVE": "5 stars out of 5"
+    }
   },
   "EMAIL_TRANSCRIPT": {
     "BUTTON_TEXT": "Request a conversation transcript",
@@ -161,5 +199,57 @@
   },
   "FOOTER_REPLY_TO": {
     "REPLY_TO": "Replying to:"
+  },
+  "A11Y": {
+    "CONVERSATION_LOG": "Conversation history",
+    "CLOSE_WIDGET": "Close chat",
+    "OPEN_IN_NEW_WINDOW": "Open chat in a new window",
+    "OPEN_WIDGET": "Open chat",
+    "AGENT_TYPING": "Agent is typing a message",
+    "AGENT_AVATAR": "Agent avatar",
+    "IMAGE_ATTACHMENT": "Image sent in the conversation",
+    "SCROLL_TO_LATEST": "Go to the latest messages",
+    "BACK": "Back",
+    "SEND_MESSAGE": "Send message"
+  },
+  "CAPTURE": {
+    "SUBMIT": "Send",
+    "OPTIONAL": "(optional)",
+    "CONTACT_GROUP_HINT": "Fill in email or WhatsApp — either one is enough.",
+    "VALIDATION": {
+      "REQUIRED": "This field is required.",
+      "CPF": "Invalid CPF.",
+      "CNPJ": "Invalid CNPJ.",
+      "CPF_CNPJ": "Invalid CPF or CNPJ.",
+      "CEP": "Invalid ZIP code.",
+      "UF": "Invalid state.",
+      "EMAIL": "Invalid email.",
+      "CORPORATE_EMAIL": "Please use your company email.",
+      "PHONE": "Invalid phone number. Include the country code, such as +55.",
+      "JUNK_NAME": "Please check the name you typed.",
+      "JUNK_PHONE": "Please check the phone number you typed.",
+      "JUNK_EMAIL": "Please check the email you typed."
+    }
+  },
+  "WHATSAPP_EXIT": {
+    "BUTTON": "Continue on WhatsApp",
+    "CONTEXT_PREFIX": "Hi! I came from the chat on {site}.",
+    "CONTEXT_SUBJECT": "I asked: {subject}"
+  },
+  "AI_IDENTITY": {
+    "AI_LABEL": "Virtual assistant",
+    "HUMAN_LABEL": "Support team",
+    "HEADER_AI": "You are talking to the virtual assistant",
+    "HEADER_HUMAN": "You are talking to the team",
+    "HANDOFF_TO_HUMAN": "From here on, the team is answering",
+    "HANDOFF_TO_AI": "From here on, the virtual assistant is answering",
+    "BUBBLE_FROM_AI": "Message from the virtual assistant",
+    "BUBBLE_FROM_HUMAN": "Message from the team",
+    "STREAMING": "The assistant is typing"
+  },
+  "CITATION": {
+    "SOURCE": "Source:",
+    "OPEN_LABEL": "Open the document {documento}",
+    "FALLBACK_NAME": "document"
   }
 }

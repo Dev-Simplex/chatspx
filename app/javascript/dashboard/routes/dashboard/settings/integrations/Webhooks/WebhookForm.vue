@@ -5,6 +5,7 @@ import wootConstants from 'dashboard/constants/globals';
 import { getI18nKey } from 'dashboard/routes/dashboard/settings/helper/settingsHelper';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useAlert } from 'dashboard/composables';
+import { useConfig } from 'dashboard/composables/useConfig';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 const { EXAMPLE_WEBHOOK_URL } = wootConstants;
@@ -13,6 +14,7 @@ const SUPPORTED_WEBHOOK_EVENTS = [
   'conversation_created',
   'conversation_status_changed',
   'conversation_updated',
+  'conversation_resolved',
   'message_created',
   'message_updated',
   'webwidget_triggered',
@@ -55,12 +57,15 @@ export default {
     },
   },
   data() {
+    const { inboxEventsEnabled } = useConfig();
     return {
       url: this.value.url || '',
       name: this.value.name || '',
       subscriptions: this.value.subscriptions || [],
       secretVisible: false,
-      supportedWebhookEvents: SUPPORTED_WEBHOOK_EVENTS,
+      supportedWebhookEvents: inboxEventsEnabled
+        ? [...SUPPORTED_WEBHOOK_EVENTS, 'inbox_updated']
+        : SUPPORTED_WEBHOOK_EVENTS,
     };
   },
   computed: {

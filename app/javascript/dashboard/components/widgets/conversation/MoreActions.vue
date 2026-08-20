@@ -53,8 +53,8 @@ const isAssignedToMe = computed(() => {
   const assignee = currentChat.value?.meta?.assignee;
   return Boolean(
     assignee &&
-    assignee.type !== 'agent_bot' &&
-    assignee.id === currentUser.value?.id
+      assignee.type !== 'agent_bot' &&
+      assignee.id === currentUser.value?.id
   );
 });
 

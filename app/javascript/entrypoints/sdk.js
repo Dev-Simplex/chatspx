@@ -5,6 +5,12 @@ import {
   getDarkMode,
   getWidgetStyle,
 } from '../sdk/settingsHelper';
+import { mergeSnippetConfig } from '../sdk/snippetConfig';
+import {
+  publishDefaults,
+  updateConsent,
+  consentState,
+} from '../sdk/tracking/consent';
 import {
   computeHashForUserData,
   getUserCookieName,
@@ -17,11 +23,119 @@ import {
 } from '../sdk/DOMHelpers';
 import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
+import { enfileirar } from '../sdk/preBootQueue';
+import { captureOrigin } from '../sdk/tracking/capture';
+
+/**
+ * Bloco 5.16 — o formato do nome de evento, verificado NO NAVEGADOR.
+ *
+ * AS TRÊS REGRAS DO CONTRATO NUMA EXPRESSÃO SÓ (`docs/tracking/contrato-de-eventos.md` §1):
+ * prefixo `chatspx_`, `snake_case`, e no máximo 40 caracteres — que é limite do GA4, não
+ * preferência nossa. O `{0,32}` É o limite de 40: `chatspx_` já gasta 8. Escrever assim, em
+ * vez de um `if` de comprimento separado, custa menos bytes no arquivo com teto (A13) e
+ * ainda deixa as três regras visíveis num lugar só.
+ *
+ * O servidor as reaplica em `TrackingEvent` — este arquivo não é a autoridade, é o aviso
+ * ANTECIPADO (garantia 2 do bloco 1.23: a validação é imediata). Sem ele, o `chatspxLead` que
+ * o integrador digitou errado voltaria 422 de dentro de um `catch` que conta e não mostra, e
+ * ele ficaria olhando um evento que some sem dizer por quê.
+ */
+const NOME_DE_EVENTO = /^chatspx_[a-z0-9_]{0,32}$/;
+
+// A chave de IDEMPOTÊNCIA de uma chamada de `track()`. Ela vira `dedup_key` no servidor e
+// colide no índice único de 5.03: o reenvio da MESMA requisição (falha de rede) devolve o
+// mesmo `event_id`; uma segunda chamada de `track()` traz chave nova e é fato novo. Sem ela a
+// derivação padrão usaria `occurred_at.to_i`, e dois `track()` no mesmo segundo virariam um.
+//
+// `randomUUID` não existe em contexto inseguro (http) nem em navegador antigo, e widget em
+// site http existe. O reserva não precisa ser criptográfico: só precisa distinguir duas
+// chamadas do MESMO visitante, e a `dedup_key` do servidor já é prefixada pelo `source_id`.
+const chaveDoEvento = () =>
+  window.crypto?.randomUUID?.() ||
+  Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+/**
+ * Contrato dos métodos de DADOS da API pública — bloco 1.23.
+ *
+ * Três garantias, e cada uma existe por um defeito medido:
+ *
+ * 1. NUNCA LANÇA DE FORMA SÍNCRONA. Um container do GTM executa as tags em
+ *    sequência no mesmo contexto: um `throw` numa tag impede as seguintes de
+ *    rodar. Hoje `setUser({}, …)` derruba o resto do container. Aqui o erro vira
+ *    `Promise` rejeitada, que não interrompe ninguém.
+ * 2. A VALIDAÇÃO É IMEDIATA, o despacho é que espera. Adiar a validação junto
+ *    com o envio faria o erro de digitação do integrador aparecer 300 ms depois,
+ *    desligado da linha que o causou.
+ * 3. RETORNA `Promise` QUE RESOLVE QUANDO A MENSAGEM SAIU DE FATO — inclusive
+ *    quando ela ficou na fila pré-boot. É o que permite ao integrador encadear
+ *    (`.then`) em vez de adivinhar com `setTimeout`.
+ */
+// O SDK "deixar de ser mudo" inclui não engolir o próprio erro. Sem isto, um
+// integrador com a chave errada não recebe sinal nenhum — que é o defeito que
+// este bloco fecha, não um log esquecido.
+// eslint-disable-next-line no-console
+const reportarErro = (nome, erro) => console.error(`[chatwoot] ${nome}:`, erro);
+
+const chamadaDeDados = (nome, validar, despachar) => {
+  let promessa;
+  try {
+    // `validar?.()` e nao `validar()`: METODO SEM VALIDACAO E CASO LEGITIMO — `setConsent` e
+    // `updateConsent` (5.09) nao tem o que validar, e passavam `undefined` aqui. O `validar()`
+    // cru lancava `TypeError` dentro do try, virava `Promise.reject`, e `enfileirar(despachar)`
+    // NUNCA era chamado: os dois metodos rejeitavam sempre e o consentimento nunca era publicado.
+    // Medido em navegador: `setConsent({analytics_storage:'granted'})` deixava o estado em
+    // `denied` e o `dataLayer` sem nenhuma entrada de consent. Um site com CMP que aceita ficava
+    // com a medicao inteira desligada, em silencio.
+    validar?.();
+    promessa = enfileirar(despachar, nome);
+  } catch (erro) {
+    promessa = Promise.reject(erro);
+  }
+
+  promessa.catch(erro => reportarErro(nome, erro));
+
+  // A LINHA ACIMA NÃO É DECORATIVA, e a ordem importa.
+  //
+  // O aceite pede "nenhuma exceção não capturada", e uma `Promise` rejeitada que
+  // ninguém observa É uma: o navegador dispara `unhandledrejection`, que vai
+  // parar no rastreador de erros do CLIENTE como se o site dele tivesse um bug.
+  // Quem integra por GTM chama `setUser(...)` e não encadeia nada — é o caso
+  // comum, não o descuidado.
+  //
+  // Anexar um handler aqui marca a rejeição como tratada e ainda reporta o erro
+  // no console. Devolvemos a promessa ORIGINAL, não a derivada do `catch`: assim
+  // quem quiser tratar continua podendo (`.catch` do integrador funciona), e
+  // quem não quiser não polui o console alheio.
+  return promessa;
+};
 
 const runSDK = ({ baseUrl, websiteToken }) => {
   if (window.$chatwoot) {
     return;
   }
+
+  // Bloco 2.14. O snippet mostra um link de contato alternativo quando o
+  // bundle não carrega — e um dos gatilhos dele é um PRAZO, porque parte dos
+  // bloqueadores de conteúdo apenas descarta a requisição sem disparar
+  // `onerror`. Em rede muito lenta esse prazo produz falso positivo: o link
+  // aparece e, segundos depois, o SDK chega. Chamar `hide()` aqui é o que
+  // impede o link de conviver com um widget que passou a funcionar.
+  //
+  // `?.` em tudo de propósito: o snippet antigo, já colado no site de clientes
+  // que existem hoje, NÃO define `chatwootFallback`. Uma chamada direta
+  // quebraria o widget deles no primeiro deploy.
+  window.chatwootFallback?.hide?.();
+
+  // Bloco 5.08 — a CAPTURA de origem, e ela é eager por necessidade, não por descuido.
+  //
+  // O aceite é "chega por anúncio, navega 5 páginas e só então abre o chat". Quando o chat
+  // abre, `location.search` já não tem o `gclid` há cinco páginas e o referrer já é interno:
+  // se a captura esperasse a abertura, a origem já estaria perdida — e não há como
+  // recuperá-la depois. Por isso ela roda aqui, no boot de toda página, e por isso o resto
+  // do coletor (cookies, `_fbc`, `client_id`) fica num artefato buscado sob demanda.
+  //
+  // Não lança e não bloqueia: ver `sdk/tracking/capture.js`.
+  captureOrigin();
 
   // if this is a Rails Turbo app
   document.addEventListener('turbo:before-render', event => {
@@ -47,7 +161,24 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     restoreWidgetInDOM(event.newDocument.body)
   );
 
-  const chatwootSettings = window.chatwootSettings || {};
+  // Bloco 5.18 — configuracao tambem pode vir por `data-*` no proprio snippet. Identidade e
+  // credencial NAO: o snippet e HTML, aparece no view-source e entra em cache de CDN. A recusa e
+  // ALTA E VISIVEL — recusa silenciosa faria o integrador achar que configurou.
+  const snippetEl =
+    document.currentScript ||
+    document.querySelector('script[data-chatspx-snippet]') ||
+    document.getElementById('chatwoot-sdk');
+  const { settings: chatwootSettings, rejected: recusadasDoSnippet } =
+    mergeSnippetConfig(window.chatwootSettings || {}, snippetEl?.dataset || {});
+
+  if (recusadasDoSnippet.length) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[ChatSPX] O snippet trouxe ${recusadasDoSnippet.length} atributo(s) que NAO viajam por data-*: ` +
+        `${recusadasDoSnippet.join(', ')}. Identidade e credencial so pela API JS (setUser/updateUser), ` +
+        'porque o snippet e HTML publico.'
+    );
+  }
   let locale = chatwootSettings.locale;
   let baseDomain = chatwootSettings.baseDomain;
 
@@ -84,6 +215,28 @@ const runSDK = ({ baseUrl, websiteToken }) => {
       IFrameHelper.events.toggleBubble(state);
     },
 
+    /**
+     * `open()` e `close()` IDEMPOTENTES — item 37 da §8.1, que o plano manda
+     * entrar junto deste bloco.
+     *
+     * Até aqui a API pública só tinha `toggle`, e `toggle` obriga quem chama a
+     * saber o estado atual. Numa automação — GTM, teste E2E, botão do site —
+     * ninguém sabe: chamar duas vezes fechava o que se queria abrir. Os 20
+     * widgets globais do corpus medido têm os dois métodos; nós não tínhamos.
+     *
+     * Idempotente aqui quer dizer o que a palavra quer dizer: chamar `open()`
+     * com o painel já aberto não faz nada, e não é erro.
+     */
+    open() {
+      if (window.$chatwoot.isOpen) return;
+      IFrameHelper.events.toggleBubble('open');
+    },
+
+    close() {
+      if (!window.$chatwoot.isOpen) return;
+      IFrameHelper.events.toggleBubble('close');
+    },
+
     toggleBubbleVisibility(visibility) {
       let widgetElm = document.querySelector('.woot--bubble-holder');
       let widgetHolder = document.querySelector('.woot-widget-holder');
@@ -109,77 +262,215 @@ const runSDK = ({ baseUrl, websiteToken }) => {
       });
     },
 
+    // Bloco 5.17 — LEGADO, mantido intacto: `setUser` SUBSTITUI o contato. Para corrigir um campo
+    // sem apagar os outros, use `updateUser`. O metodo continua funcionando exatamente como antes;
+    // o que mudou neste bloco foi o hash de dedupe, que agora enxerga telefone, empresa e o resto.
     setUser(identifier, user) {
-      if (typeof identifier !== 'string' && typeof identifier !== 'number') {
-        throw new Error('Identifier should be a string or a number');
-      }
+      return chamadaDeDados(
+        'setUser',
+        () => {
+          if (
+            typeof identifier !== 'string' &&
+            typeof identifier !== 'number'
+          ) {
+            throw new Error('Identifier should be a string or a number');
+          }
+          if (!hasUserKeys(user)) {
+            throw new Error(
+              'User object should have one of the keys [avatar_url, email, name, phone_number]'
+            );
+          }
+        },
+        () => {
+          // O cookie de dedupe é gravado no DESPACHO, não na chamada: se a
+          // mensagem ficou na fila e o visitante saiu da página antes do boot,
+          // gravar o hash antes faria a próxima visita achar que já identificou.
+          const userCookieName = getUserCookieName();
+          const hashToBeStored = computeHashForUserData({ identifier, user });
+          if (hashToBeStored === Cookies.get(userCookieName)) {
+            return;
+          }
+          window.$chatwoot.identifier = identifier;
+          window.$chatwoot.user = user;
+          IFrameHelper.sendMessage('set-user', { identifier, user });
+          setCookieWithDomain(userCookieName, hashToBeStored, { baseDomain });
+        }
+      );
+    },
 
-      if (!hasUserKeys(user)) {
-        throw new Error(
-          'User object should have one of the keys [avatar_url, email, name]'
-        );
-      }
+    // Bloco 5.09 — consentimento. Publica a linha de base do Consent Mode v2. O padrao e NEGADO
+    // em tudo: sob LGPD o tratamento precisa de base legal ANTES de acontecer, e disparo que ja
+    // saiu do navegador nao volta.
+    setConsent(consent = {}) {
+      return chamadaDeDados('setConsent', undefined, () =>
+        publishDefaults(consent)
+      );
+    },
 
-      const userCookieName = getUserCookieName();
-      const existingCookieValue = Cookies.get(userCookieName);
-      const hashToBeStored = computeHashForUserData({ identifier, user });
-      if (hashToBeStored === existingCookieValue) {
-        return;
-      }
+    // Bloco 5.09 — a decisao do visitante, depois que a CMP responde. Se o default ainda nao tiver
+    // sido publicado, ele vai ANTES: update sem linha de base a plataforma le como desconhecido.
+    updateConsent(consent = {}) {
+      return chamadaDeDados('updateConsent', undefined, () =>
+        updateConsent(consent)
+      );
+    },
 
-      window.$chatwoot.identifier = identifier;
-      window.$chatwoot.user = user;
-      IFrameHelper.sendMessage('set-user', { identifier, user });
+    getConsent() {
+      return consentState();
+    },
 
-      setCookieWithDomain(userCookieName, hashToBeStored, {
-        baseDomain,
-      });
+    // Bloco 5.17 — o verbo que MESCLA: campo que voce nao mandar NAO e apagado.
+    updateUser(identifier, user) {
+      return chamadaDeDados(
+        'updateUser',
+        () => {
+          if (
+            typeof identifier !== 'string' &&
+            typeof identifier !== 'number'
+          ) {
+            throw new Error('Identifier should be a string or a number');
+          }
+          if (!hasUserKeys(user)) {
+            throw new Error(
+              'User object should have one of the keys [avatar_url, email, name, phone_number]'
+            );
+          }
+        },
+        () => {
+          // Sem cookie de dedupe aqui de proposito: `updateUser` existe para corrigir um campo, e
+          // deduplicar por hash faria a segunda correcao do mesmo campo virar silencio.
+          window.$chatwoot.identifier = identifier;
+          window.$chatwoot.user = { ...(window.$chatwoot.user || {}), ...user };
+          IFrameHelper.sendMessage('update-user', { identifier, user });
+        }
+      );
+    },
+
+    // Bloco 5.17 — getters. Ler o que foi identificado era possivel so espiando
+    // `window.$chatwoot.user`, que e estado interno; agora ha leitura declarada.
+    getUser() {
+      return window.$chatwoot.user || null;
+    },
+
+    getIdentifier() {
+      return window.$chatwoot.identifier || null;
+    },
+
+    /**
+     * Bloco 5.16 — `track(name, properties)`: o evento tipado do site do cliente.
+     *
+     * UMA chamada, dois destinos, e é isso que o aceite mede: o fato entra no registro
+     * server-side (que gera o `event_id`) e sai no `dataLayer` — pela mesma chamada, sem o
+     * integrador precisar escrever `dataLayer.push` do lado dele nem saber que existe um.
+     *
+     * O VOCABULÁRIO É O DO TRACKING (`chatspx_*`), não o do barramento interno. `pushEvent`
+     * continua existindo, intocado, falando o vocabulário antigo — os dois verbos não se
+     * misturam porque não são o mesmo contrato.
+     *
+     * PII NÃO PASSA: o servidor recusa `email`/`phone_number` e afins em `properties` com 422,
+     * e a ponte de tags descarta as mesmas chaves antes de publicar. O `window` do site é
+     * legível por qualquer script de terceiro da página (regra RC5).
+     */
+    track(name, properties = {}) {
+      return chamadaDeDados(
+        'track',
+        () => {
+          if (typeof name !== 'string' || !NOME_DE_EVENTO.test(name)) {
+            throw new Error(
+              'Event name should match /^chatspx_[a-z0-9_]{0,32}$/ (e.g. chatspx_orcamento_pedido)'
+            );
+          }
+          if (properties && typeof properties !== 'object') {
+            throw new Error('Properties should be an object');
+          }
+        },
+        () =>
+          IFrameHelper.sendMessage('track-event', {
+            name,
+            properties: properties || {},
+            eventKey: chaveDoEvento(),
+          })
+      );
     },
 
     setCustomAttributes(customAttributes = {}) {
-      if (!customAttributes || !Object.keys(customAttributes).length) {
-        throw new Error('Custom attributes should have atleast one key');
-      } else {
-        IFrameHelper.sendMessage('set-custom-attributes', { customAttributes });
-      }
+      return chamadaDeDados(
+        'setCustomAttributes',
+        () => {
+          if (!customAttributes || !Object.keys(customAttributes).length) {
+            throw new Error('Custom attributes should have atleast one key');
+          }
+        },
+        () =>
+          IFrameHelper.sendMessage('set-custom-attributes', {
+            customAttributes,
+          })
+      );
     },
 
     deleteCustomAttribute(customAttribute = '') {
-      if (!customAttribute) {
-        throw new Error('Custom attribute is required');
-      } else {
-        IFrameHelper.sendMessage('delete-custom-attribute', {
-          customAttribute,
-        });
-      }
+      return chamadaDeDados(
+        'deleteCustomAttribute',
+        () => {
+          if (!customAttribute) {
+            throw new Error('Custom attribute is required');
+          }
+        },
+        () =>
+          IFrameHelper.sendMessage('delete-custom-attribute', {
+            customAttribute,
+          })
+      );
     },
 
     setConversationCustomAttributes(customAttributes = {}) {
-      if (!customAttributes || !Object.keys(customAttributes).length) {
-        throw new Error('Custom attributes should have atleast one key');
-      } else {
-        IFrameHelper.sendMessage('set-conversation-custom-attributes', {
-          customAttributes,
-        });
-      }
+      return chamadaDeDados(
+        'setConversationCustomAttributes',
+        () => {
+          if (!customAttributes || !Object.keys(customAttributes).length) {
+            throw new Error('Custom attributes should have atleast one key');
+          }
+        },
+        () =>
+          IFrameHelper.sendMessage('set-conversation-custom-attributes', {
+            customAttributes,
+          })
+      );
     },
 
     deleteConversationCustomAttribute(customAttribute = '') {
-      if (!customAttribute) {
-        throw new Error('Custom attribute is required');
-      } else {
-        IFrameHelper.sendMessage('delete-conversation-custom-attribute', {
-          customAttribute,
-        });
-      }
+      return chamadaDeDados(
+        'deleteConversationCustomAttribute',
+        () => {
+          if (!customAttribute) {
+            throw new Error('Custom attribute is required');
+          }
+        },
+        () =>
+          IFrameHelper.sendMessage('delete-conversation-custom-attribute', {
+            customAttribute,
+          })
+      );
     },
 
     setLabel(label = '') {
-      IFrameHelper.sendMessage('set-label', { label });
+      return chamadaDeDados(
+        'setLabel',
+        () => {
+          // sem validação: rótulo vazio é no-op no painel, não erro
+        },
+        () => IFrameHelper.sendMessage('set-label', { label })
+      );
     },
 
     removeLabel(label = '') {
-      IFrameHelper.sendMessage('remove-label', { label });
+      return chamadaDeDados(
+        'removeLabel',
+        () => {
+          // sem validação: rótulo vazio é no-op no painel, não erro
+        },
+        () => IFrameHelper.sendMessage('remove-label', { label })
+      );
     },
 
     setLocale(localeToBeUsed = 'en') {

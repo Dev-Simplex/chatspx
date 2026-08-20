@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -84,6 +84,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.integer "status", default: 0
     t.jsonb "internal_attributes", default: {}, null: false
     t.jsonb "settings", default: {}
+    t.bigint "feature_flags_ext_1", default: 0, null: false
     t.index ["status"], name: "index_accounts_on_status"
   end
 
@@ -146,6 +147,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.integer "bot_type", default: 0
     t.jsonb "bot_config", default: {}
     t.bigint "captain_assistant_id"
+    t.string "secret"
     t.index ["account_id"], name: "index_agent_bots_on_account_id"
     t.index ["captain_assistant_id"], name: "index_agent_bots_on_captain_assistant_id", unique: true, where: "(captain_assistant_id IS NOT NULL)"
   end
@@ -158,6 +160,31 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_agent_capacity_policies_on_account_id"
+  end
+
+  create_table "agent_sessions", force: :cascade do |t|
+    t.integer "session_type", null: false
+    t.string "subject_type", null: false
+    t.bigint "subject_id", null: false
+    t.string "result_type"
+    t.bigint "result_id"
+    t.bigint "account_id", null: false
+    t.bigint "assistant_id", null: false
+    t.bigint "user_id"
+    t.string "llm_model"
+    t.float "credits_consumed"
+    t.jsonb "faq_ids", default: []
+    t.jsonb "document_ids", default: []
+    t.jsonb "scenario_ids", default: []
+    t.jsonb "run_context", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "result_type", "result_id"], name: "idx_on_account_id_result_type_result_id_ca66c00cd7"
+    t.index ["account_id", "session_type", "created_at"], name: "idx_on_account_id_session_type_created_at_c20a14bd4e"
+    t.index ["account_id", "subject_type", "subject_id"], name: "idx_on_account_id_subject_type_subject_id_6d60963b3d"
+    t.index ["account_id"], name: "index_agent_sessions_on_account_id"
+    t.index ["assistant_id"], name: "index_agent_sessions_on_assistant_id"
+    t.index ["user_id"], name: "index_agent_sessions_on_user_id"
   end
 
   create_table "ai_config_changes", force: :cascade do |t|
@@ -222,6 +249,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.string "slug", null: false
     t.integer "position"
     t.string "locale", default: "en", null: false
+    t.string "draft_title"
+    t.text "draft_content"
     t.index ["account_id"], name: "index_articles_on_account_id"
     t.index ["associated_article_id"], name: "index_articles_on_associated_article_id"
     t.index ["author_id"], name: "index_articles_on_author_id"
@@ -242,6 +271,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.boolean "enabled", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "exclude_older_than_hours", default: 168
     t.index ["account_id", "name"], name: "index_assignment_policies_on_account_id_and_name", unique: true
     t.index ["account_id"], name: "index_assignment_policies_on_account_id"
     t.index ["enabled"], name: "index_assignment_policies_on_enabled"
@@ -420,6 +450,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.datetime "updated_at", null: false
     t.integer "status", default: 1, null: false
     t.string "documentable_type"
+    t.boolean "edited", default: false, null: false
     t.index ["account_id"], name: "index_captain_assistant_responses_on_account_id"
     t.index ["assistant_id"], name: "index_captain_assistant_responses_on_assistant_id"
     t.index ["documentable_id", "documentable_type"], name: "idx_cap_asst_resp_on_documentable"
@@ -430,7 +461,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
   create_table "captain_assistants", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "account_id", null: false
-    t.string "description"
+    t.text "description"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "config", default: {}, null: false
@@ -537,7 +568,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
 
   create_table "captain_documents", force: :cascade do |t|
     t.string "name"
-    t.string "external_link", null: false
+    t.text "external_link", null: false
     t.text "content"
     t.bigint "assistant_id", null: false
     t.bigint "account_id", null: false
@@ -545,8 +576,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.datetime "updated_at", null: false
     t.integer "status", default: 0, null: false
     t.jsonb "metadata", default: {}
+    t.integer "sync_status"
+    t.datetime "last_synced_at"
+    t.datetime "last_sync_attempted_at"
+    t.index "assistant_id, md5(external_link)", name: "idx_captain_documents_on_assistant_id_and_external_link_md5", unique: true
+    t.index ["account_id", "assistant_id", "sync_status", "last_synced_at"], name: "idx_captain_documents_on_account_assistant_sync_stats"
+    t.index ["account_id", "sync_status"], name: "index_captain_documents_on_account_id_and_sync_status"
     t.index ["account_id"], name: "index_captain_documents_on_account_id"
-    t.index ["assistant_id", "external_link"], name: "index_captain_documents_on_assistant_id_and_external_link", unique: true
     t.index ["assistant_id"], name: "index_captain_documents_on_assistant_id"
     t.index ["status"], name: "index_captain_documents_on_status"
   end
@@ -574,6 +610,89 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.index ["episode_id", "degrau"], name: "idx_cap_ep_outcomes_ep_degrau", unique: true
   end
 
+  create_table "captain_eval_case_results", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "eval_run_id", null: false
+    t.bigint "eval_case_id", null: false
+    t.boolean "passou", default: false, null: false
+    t.text "resposta"
+    t.jsonb "findings", default: [], null: false
+    t.jsonb "ferramentas", default: [], null: false
+    t.integer "duracao_ms"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_case_results_on_account_id"
+    t.index ["eval_case_id"], name: "index_captain_eval_case_results_on_eval_case_id"
+    t.index ["eval_run_id", "eval_case_id"], name: "idx_cap_eval_results_run_case", unique: true
+  end
+
+  create_table "captain_eval_cases", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "captain_assistant_id", null: false
+    t.string "titulo", null: false
+    t.jsonb "mensagens", default: [], null: false
+    t.jsonb "expectativas", default: {}, null: false
+    t.boolean "ativo", default: true, null: false
+    t.integer "posicao", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_cases_on_account_id"
+    t.index ["captain_assistant_id", "posicao"], name: "idx_cap_eval_cases_assistant_pos"
+  end
+
+  create_table "captain_eval_runs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "captain_assistant_id", null: false
+    t.string "status", default: "pendente", null: false
+    t.boolean "dry_run", default: true, null: false
+    t.string "prompt_fingerprint"
+    t.jsonb "prompt_snapshot", default: {}, null: false
+    t.string "modelo"
+    t.integer "casos_total", default: 0, null: false
+    t.integer "casos_ok", default: 0, null: false
+    t.integer "casos_falha", default: 0, null: false
+    t.jsonb "custo_estimado", default: {}, null: false
+    t.datetime "iniciado_em"
+    t.datetime "concluido_em"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_eval_runs_on_account_id"
+    t.index ["captain_assistant_id", "created_at"], name: "idx_cap_eval_runs_assistant_created"
+  end
+
+  create_table "captain_faq_observations", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "faq_suggestion_id"
+    t.string "generated_question", null: false
+    t.text "generated_answer", null: false
+    t.string "language", default: "en", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_faq_observations_on_account_id"
+    t.index ["conversation_id", "faq_suggestion_id"], name: "idx_captain_faq_observations_on_conversation_and_suggestion", unique: true, where: "(faq_suggestion_id IS NOT NULL)"
+    t.index ["conversation_id"], name: "index_captain_faq_observations_on_conversation_id"
+    t.index ["faq_suggestion_id"], name: "index_captain_faq_observations_on_faq_suggestion_id"
+  end
+
+  create_table "captain_faq_suggestions", force: :cascade do |t|
+    t.string "question", null: false
+    t.text "answer", null: false
+    t.vector "embedding", limit: 1536
+    t.bigint "assistant_id", null: false
+    t.bigint "account_id", null: false
+    t.string "language", default: "en", null: false
+    t.integer "source_count", default: 0, null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "assistant_id", "status", "language"], name: "idx_cap_faq_suggestions_on_account_assistant_status_language"
+    t.index ["account_id"], name: "index_captain_faq_suggestions_on_account_id"
+    t.index ["assistant_id"], name: "index_captain_faq_suggestions_on_assistant_id"
+    t.index ["embedding"], name: "vector_idx_captain_faq_suggestions_embedding", opclass: :vector_cosine_ops, using: :ivfflat
+  end
+
   create_table "captain_inboxes", force: :cascade do |t|
     t.bigint "captain_assistant_id", null: false
     t.bigint "inbox_id", null: false
@@ -582,6 +701,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.index ["captain_assistant_id", "inbox_id"], name: "index_captain_inboxes_on_captain_assistant_id_and_inbox_id", unique: true
     t.index ["captain_assistant_id"], name: "index_captain_inboxes_on_captain_assistant_id"
     t.index ["inbox_id"], name: "index_captain_inboxes_on_inbox_id"
+  end
+
+  create_table "captain_message_reports", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "message_id", null: false
+    t.bigint "user_id", null: false
+    t.string "report_reason", null: false
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_message_reports_on_account_id"
+    t.index ["conversation_id"], name: "index_captain_message_reports_on_conversation_id"
+    t.index ["message_id"], name: "index_captain_message_reports_on_message_id"
+    t.index ["user_id"], name: "index_captain_message_reports_on_user_id"
   end
 
   create_table "captain_scenarios", force: :cascade do |t|
@@ -628,6 +762,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.bigint "parent_category_id"
     t.bigint "associated_category_id"
     t.string "icon", default: ""
+    t.string "icon_color", default: ""
     t.index ["associated_category_id"], name: "index_categories_on_associated_category_id"
     t.index ["locale", "account_id"], name: "index_categories_on_locale_and_account_id"
     t.index ["locale"], name: "index_categories_on_locale"
@@ -644,6 +779,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.string "hmac_token"
     t.boolean "hmac_mandatory", default: false
     t.jsonb "additional_attributes", default: {}
+    t.string "secret"
     t.index ["hmac_token"], name: "index_channel_api_on_hmac_token", unique: true
     t.index ["identifier"], name: "index_channel_api_on_identifier", unique: true
   end
@@ -673,6 +809,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.jsonb "provider_config", default: {}
     t.string "provider"
     t.boolean "verified_for_sending", default: false, null: false
+    t.string "imap_authentication", default: "plain"
     t.index ["email"], name: "index_channel_email_on_email", unique: true
     t.index ["forward_to_email"], name: "index_channel_email_on_forward_to_email", unique: true
   end
@@ -810,7 +947,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.datetime "updated_at", precision: nil, null: false
     t.jsonb "message_templates", default: {}
     t.datetime "message_templates_last_updated", precision: nil
+    t.jsonb "phone_number_health", default: {}, null: false
+    t.datetime "phone_number_health_checked_at"
+    t.string "phone_number_health_error", limit: 500
     t.index ["phone_number"], name: "index_channel_whatsapp_on_phone_number", unique: true
+    t.index ["phone_number_health_checked_at"], name: "index_channel_whatsapp_on_phone_number_health_checked_at"
   end
 
   create_table "companies", force: :cascade do |t|
@@ -821,6 +962,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "contacts_count", default: 0, null: false
+    t.jsonb "additional_attributes", default: {}
+    t.jsonb "custom_attributes", default: {}
+    t.datetime "last_activity_at", precision: nil
     t.index ["account_id", "domain"], name: "index_companies_on_account_and_domain", unique: true, where: "(domain IS NOT NULL)"
     t.index ["account_id"], name: "index_companies_on_account_id"
     t.index ["name", "account_id"], name: "index_companies_on_name_and_account_id"
@@ -1082,6 +1226,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.jsonb "attribute_values", default: []
     t.string "regex_pattern"
     t.string "regex_cue"
+    t.string "origin"
+    t.boolean "requires_verified_origin"
+    t.index ["account_id", "attribute_model"], name: "index_cad_on_account_and_model_when_protected", where: "(requires_verified_origin IS TRUE)"
     t.index ["account_id"], name: "index_custom_attribute_definitions_on_account_id"
     t.index ["attribute_key", "attribute_model", "account_id"], name: "attribute_key_model_index", unique: true
   end
@@ -1119,6 +1266,57 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.index ["user_id"], name: "index_dashboard_apps_on_user_id"
   end
 
+  create_table "data_import_errors", force: :cascade do |t|
+    t.bigint "data_import_id", null: false
+    t.bigint "data_import_item_id"
+    t.string "source_object_type"
+    t.string "source_object_id"
+    t.string "error_code", null: false
+    t.text "message"
+    t.jsonb "details", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["data_import_id"], name: "index_data_import_errors_on_data_import_id"
+    t.index ["data_import_item_id"], name: "index_data_import_errors_on_data_import_item_id"
+    t.index ["source_object_type", "source_object_id"], name: "idx_data_import_errors_on_source"
+  end
+
+  create_table "data_import_items", force: :cascade do |t|
+    t.bigint "data_import_id", null: false
+    t.string "source_provider", null: false
+    t.string "source_object_type", null: false
+    t.string "source_object_id", null: false
+    t.integer "status", default: 0, null: false
+    t.string "chatwoot_record_type"
+    t.bigint "chatwoot_record_id"
+    t.integer "attempt_count", default: 0, null: false
+    t.string "last_error_code"
+    t.text "last_error_message"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chatwoot_record_type", "chatwoot_record_id"], name: "idx_data_import_items_on_record"
+    t.index ["data_import_id", "source_object_type", "source_object_id"], name: "idx_data_import_items_on_import_and_source", unique: true
+    t.index ["data_import_id"], name: "index_data_import_items_on_data_import_id"
+    t.index ["source_provider", "source_object_type", "source_object_id"], name: "idx_data_import_items_on_source"
+  end
+
+  create_table "data_import_mappings", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.bigint "data_import_id", null: false
+    t.string "source_provider", null: false
+    t.string "source_object_type", null: false
+    t.string "source_object_id", null: false
+    t.string "chatwoot_record_type", null: false
+    t.bigint "chatwoot_record_id", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "source_provider", "source_object_type", "source_object_id"], name: "idx_data_import_mappings_on_account_and_source", unique: true
+    t.index ["chatwoot_record_type", "chatwoot_record_id"], name: "idx_data_import_mappings_on_record"
+    t.index ["data_import_id"], name: "index_data_import_mappings_on_data_import_id"
+  end
+
   create_table "data_imports", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "data_type", null: false
@@ -1128,7 +1326,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.integer "processed_records"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.string "name"
+    t.string "source_type"
+    t.string "source_provider"
+    t.jsonb "import_types", default: [], null: false
+    t.integer "initiated_by_id"
+    t.text "access_token"
+    t.jsonb "source_metadata", default: {}, null: false
+    t.jsonb "stats", default: {}, null: false
+    t.jsonb "cursor", default: {}, null: false
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "abandoned_at"
+    t.datetime "last_error_at"
     t.index ["account_id"], name: "index_data_imports_on_account_id"
+    t.index ["initiated_by_id"], name: "index_data_imports_on_initiated_by_id"
+    t.index ["source_provider"], name: "index_data_imports_on_source_provider"
   end
 
   create_table "distribuicao_logs", force: :cascade do |t|
@@ -1195,7 +1408,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.integer "locale", default: 0, null: false
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
-    t.index ["name", "account_id"], name: "index_email_templates_on_name_and_account_id", unique: true
+    t.integer "inbox_id"
+    t.index ["account_id", "name", "template_type", "locale"], name: "index_email_templates_on_account_scope", unique: true, where: "((account_id IS NOT NULL) AND (inbox_id IS NULL))"
+    t.index ["inbox_id", "name", "template_type", "locale"], name: "index_email_templates_on_inbox_scope", unique: true, where: "(inbox_id IS NOT NULL)"
+    t.index ["inbox_id"], name: "index_email_templates_on_inbox_id"
+    t.index ["name", "template_type", "locale"], name: "index_email_templates_on_installation_scope", unique: true, where: "((account_id IS NULL) AND (inbox_id IS NULL))"
   end
 
   create_table "flow_node_stats", force: :cascade do |t|
@@ -1706,6 +1923,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.index ["created_at"], name: "index_messages_on_created_at_brin", using: :brin
     t.index ["forwarded_from_message_id"], name: "index_messages_on_forwarded_from_message_id"
     t.index ["inbox_id"], name: "index_messages_on_inbox_id"
+    t.index ["sender_type", "sender_id", "created_at"], name: "index_messages_on_sender_and_created"
     t.index ["sender_type", "sender_id"], name: "index_messages_on_sender_type_and_sender_id"
     t.index ["source_id"], name: "index_messages_on_source_id"
     t.index ["starred"], name: "index_messages_on_starred"
@@ -1817,6 +2035,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.string "name", null: false
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+  end
+
+  create_table "platform_banners", force: :cascade do |t|
+    t.text "banner_message", null: false
+    t.integer "banner_type", default: 0, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "portals", force: :cascade do |t|
@@ -2021,8 +2247,70 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.bigint "account_id", null: false
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.string "icon", default: ""
+    t.string "icon_color", default: ""
     t.index ["account_id"], name: "index_teams_on_account_id"
     t.index ["name", "account_id"], name: "index_teams_on_name_and_account_id", unique: true
+  end
+
+  create_table "tracking_deliveries", force: :cascade do |t|
+    t.bigint "tracking_event_id", null: false
+    t.integer "destination", null: false
+    t.integer "status", default: 0, null: false
+    t.integer "attempts", default: 0, null: false
+    t.integer "http_status"
+    t.string "error_code"
+    t.text "error_message"
+    t.jsonb "field_names", default: [], null: false
+    t.decimal "emq", precision: 3, scale: 1
+    t.datetime "last_attempted_at"
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_tracking_deliveries_on_status"
+    t.index ["tracking_event_id", "destination"], name: "index_tracking_deliveries_on_event_and_destination", unique: true
+  end
+
+  create_table "tracking_events", force: :cascade do |t|
+    t.string "event_id", null: false
+    t.string "name", null: false
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id"
+    t.bigint "conversation_id"
+    t.bigint "contact_id"
+    t.datetime "occurred_at", null: false
+    t.jsonb "properties", default: {}, null: false
+    t.integer "source", default: 0, null: false
+    t.string "dedup_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name", "dedup_key"], name: "index_tracking_events_on_dedup", unique: true
+    t.index ["account_id", "name", "occurred_at"], name: "index_tracking_events_on_account_name_time"
+    t.index ["contact_id"], name: "index_tracking_events_on_contact_id"
+    t.index ["conversation_id"], name: "index_tracking_events_on_conversation_id"
+    t.index ["event_id"], name: "index_tracking_events_on_event_id", unique: true
+    t.index ["inbox_id"], name: "index_tracking_events_on_inbox_id"
+    t.index ["occurred_at"], name: "index_tracking_events_on_occurred_at_brin", using: :brin
+  end
+
+  create_table "user_sessions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "client_id", null: false
+    t.string "ip_address"
+    t.string "user_agent"
+    t.string "browser_name"
+    t.string "browser_version"
+    t.string "device_name"
+    t.string "platform_name"
+    t.string "platform_version"
+    t.string "city"
+    t.string "country"
+    t.string "country_code"
+    t.datetime "last_activity_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "client_id"], name: "index_user_sessions_on_user_id_and_client_id", unique: true
+    t.index ["user_id"], name: "index_user_sessions_on_user_id"
   end
 
   create_table "users", id: :serial, force: :cascade do |t|
@@ -2065,6 +2353,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.index ["uid", "provider"], name: "index_users_on_uid_and_provider", unique: true
   end
 
+  create_table "webhook_deliveries", force: :cascade do |t|
+    t.bigint "webhook_id", null: false
+    t.bigint "account_id", null: false
+    t.string "delivery_id", null: false
+    t.string "event"
+    t.integer "status", default: 0, null: false
+    t.integer "http_status"
+    t.integer "attempts", default: 1, null: false
+    t.text "error_message"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "delivery_id"], name: "index_webhook_deliveries_on_account_id_and_delivery_id"
+    t.index ["created_at"], name: "index_webhook_deliveries_on_created_at"
+    t.index ["webhook_id", "created_at"], name: "index_webhook_deliveries_on_webhook_id_and_created_at", order: { created_at: :desc }
+  end
+
   create_table "webhooks", force: :cascade do |t|
     t.integer "account_id"
     t.integer "inbox_id"
@@ -2075,7 +2381,25 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.jsonb "subscriptions", default: ["conversation_status_changed", "conversation_updated", "conversation_created", "contact_created", "contact_updated", "message_created", "message_updated", "webwidget_triggered"]
     t.string "name"
     t.string "secret"
-    t.index ["account_id", "url"], name: "index_webhooks_on_account_id_and_url", unique: true
+    t.index ["account_id", "url", "inbox_id"], name: "index_webhooks_on_account_id_url_and_inbox_id", unique: true, nulls_not_distinct: true
+  end
+
+  create_table "widget_partial_leads", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.bigint "contact_id"
+    t.string "session_id", null: false
+    t.integer "step_reached", default: 0, null: false
+    t.string "step_key"
+    t.jsonb "answers", default: {}, null: false
+    t.datetime "last_answered_at", null: false
+    t.datetime "completed_at"
+    t.datetime "abandoned_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "completed_at", "last_answered_at"], name: "index_widget_partial_leads_on_account_and_state"
+    t.index ["contact_id"], name: "index_widget_partial_leads_on_contact_id"
+    t.index ["inbox_id", "session_id"], name: "index_widget_partial_leads_on_inbox_and_session", unique: true
   end
 
   create_table "working_hours", force: :cascade do |t|
@@ -2102,7 +2426,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
   add_foreign_key "canned_responses", "teams", on_delete: :nullify
   add_foreign_key "canned_responses", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants"
-  add_foreign_key "captain_assistant_logs", "conversations"
+  add_foreign_key "captain_assistant_logs", "conversations", on_delete: :nullify
   add_foreign_key "contact_flow_suppressions", "accounts"
   add_foreign_key "contact_flow_suppressions", "contacts"
   add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
@@ -2131,11 +2455,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
   add_foreign_key "flow_node_stats", "flows"
   add_foreign_key "flow_runs", "accounts"
   add_foreign_key "flow_runs", "contacts"
-  add_foreign_key "flow_runs", "conversations"
+  add_foreign_key "flow_runs", "conversations", on_delete: :cascade
   add_foreign_key "flow_runs", "flows"
   add_foreign_key "flow_step_logs", "accounts"
-  add_foreign_key "flow_step_logs", "conversations"
-  add_foreign_key "flow_step_logs", "flow_runs"
+  add_foreign_key "flow_step_logs", "conversations", on_delete: :nullify
+  add_foreign_key "flow_step_logs", "flow_runs", on_delete: :nullify
   add_foreign_key "flow_step_logs", "flows"
   add_foreign_key "funnel_automations", "funnel_stages"
   add_foreign_key "funnel_automations", "funnels"
@@ -2168,7 +2492,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
   add_foreign_key "mentions", "conversations", on_delete: :cascade
   add_foreign_key "message_reactions", "accounts"
   add_foreign_key "message_reactions", "messages"
-  add_foreign_key "message_sequence_enrollments", "conversations"
+  add_foreign_key "message_sequence_enrollments", "conversations", on_delete: :cascade
   add_foreign_key "message_sequence_enrollments", "message_sequences"
   add_foreign_key "message_sequence_steps", "message_sequences"
   add_foreign_key "message_sequences", "accounts"
@@ -2189,6 +2513,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
   add_foreign_key "team_supervisors", "teams", on_delete: :cascade
   add_foreign_key "team_supervisors", "users", on_delete: :cascade
+  add_foreign_key "tracking_deliveries", "tracking_events", on_delete: :cascade
+  add_foreign_key "tracking_events", "accounts", on_delete: :cascade
+  add_foreign_key "tracking_events", "contacts", on_delete: :nullify
+  add_foreign_key "tracking_events", "conversations", on_delete: :nullify
+  add_foreign_key "tracking_events", "inboxes", on_delete: :nullify
+  add_foreign_key "user_sessions", "users"
+  add_foreign_key "webhook_deliveries", "webhooks"
+  add_foreign_key "widget_partial_leads", "accounts", on_delete: :cascade
+  add_foreign_key "widget_partial_leads", "contacts", on_delete: :cascade
+  add_foreign_key "widget_partial_leads", "inboxes", on_delete: :cascade
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).

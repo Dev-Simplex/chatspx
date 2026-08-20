@@ -6,13 +6,14 @@ import { messageStamp } from 'shared/helpers/timeHelper';
 import ImageBubble from 'widget/components/ImageBubble.vue';
 import VideoBubble from 'widget/components/VideoBubble.vue';
 import FileBubble from 'widget/components/FileBubble.vue';
-import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import Avatar from 'widget/components/WAvatar.vue';
 import { MESSAGE_TYPE } from 'widget/helpers/constants';
 import configMixin from '../mixins/configMixin';
 import messageMixin from '../mixins/messageMixin';
 import { isASubmittedFormMessage } from 'shared/helpers/MessageTypeHelper';
 import ReplyToChip from 'widget/components/ReplyToChip.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
+import { ATTENDANT, attendantOf } from 'widget/helpers/aiIdentity';
 import { emitter } from 'shared/helpers/mitt';
 
 export default {
@@ -37,6 +38,10 @@ export default {
       type: Object,
       default: () => {},
     },
+    classeAgrupamento: {
+      type: String,
+      default: null,
+    },
   },
   data() {
     return {
@@ -54,6 +59,24 @@ export default {
         return false;
       }
       return this.message.content;
+    },
+    // Bloco 4.09 — a 3a das tres marcacoes: o rotulo colado na BOLHA.
+    //
+    // Derivado da propria mensagem, nao herdado do pai: numa conversa que trocou
+    // de atendente, cada bolha tem de dizer quem a escreveu — inclusive as
+    // antigas, quando o visitante rola para tras. Herdar do estado atual faria a
+    // conversa inteira parecer ter vindo de quem atende agora.
+    attendant() {
+      return attendantOf(this.message);
+    },
+    isFromAI() {
+      return this.attendant === ATTENDANT.AI;
+    },
+    // `aiLabelPersistent` e uma das 11 flags planas da secao B.3 (bloco 3.05).
+    // Sem a chave, o resolvedor devolve `true` — o rotulo aparece por padrao,
+    // que e a decisao de produto: quem fala com maquina tem direito de saber.
+    shouldShowAiLabel() {
+      return this.isFromAI && this.isAiLabelPersistent;
     },
     readableTime() {
       const { created_at: createdAt = '' } = this.message;
@@ -99,7 +122,16 @@ export default {
         this.message.additional_attributes?.sender_avatar_url || displayImage
       );
     },
+    // 4.01 — quando o backend materializou a resposta do visitante como mensagem `incoming`
+    // (`reply_message_id`), ela chega pela lista e se desenha sozinha. O balão local seria
+    // uma DUPLICATA na tela. Sem o motor Flow a chave nunca existe e o widget é o de hoje.
+    hasVisitorReplyMessage() {
+      return !!this.messageContentAttributes.reply_message_id;
+    },
     hasRecordedResponse() {
+      if (this.hasVisitorReplyMessage) {
+        return false;
+      }
       return (
         this.messageContentAttributes.submitted_email ||
         (this.messageContentAttributes.submitted_values &&
@@ -121,6 +153,9 @@ export default {
       return '';
     },
     isASubmittedForm() {
+      if (this.hasVisitorReplyMessage) {
+        return false;
+      }
       return isASubmittedFormMessage(this.message);
     },
     submittedFormValues() {
@@ -165,12 +200,12 @@ export default {
 </script>
 
 <template>
-  <div
-    class="agent-message-wrap group"
-    :class="{
-      'has-response': hasRecordedResponse || isASubmittedForm,
-    }"
-  >
+  <!-- `has-response` SAIU com o bloco 2.03. Ela existia só para alimentar
+       `.has-response + .user-message-wrap`, um dos seis seletores de irmão que
+       decidiam agrupamento; quem decide agora é `useMessageGrouping.js`, e o
+       que chega aqui é a classe pronta. A informação não se perdeu — ela virou
+       `autorFinal`, que é o mesmo predicado com nome. -->
+  <div class="agent-message-wrap group" :class="classeAgrupamento">
     <div v-if="!isASubmittedForm" class="agent-message">
       <div class="avatar-wrap">
         <div class="user-thumbnail-box">
@@ -184,6 +219,18 @@ export default {
         </div>
       </div>
       <div class="message-wrap">
+        <!--
+          Rotulo persistente de IA. Texto LIMPO, sem simbolo: ele e lido por
+          leitor de tela, e emoji dentro do nome acessivel faz anunciar o desenho
+          antes da palavra — foi o que esta trilha achou no CSAT.RATINGS.
+        -->
+        <div
+          v-if="shouldShowAiLabel"
+          class="agent-message__ai-label"
+          data-ai-label="true"
+        >
+          {{ $t('AI_IDENTITY.AI_LABEL') }}
+        </div>
         <div v-if="hasReplyTo" class="flex mt-2 mb-1 text-xs">
           <ReplyToChip :reply-to="replyTo" />
         </div>
@@ -217,14 +264,12 @@ export default {
                   v-if="attachment.file_type === 'image' && !hasImageError"
                   :url="attachment.data_url"
                   :thumb="attachment.data_url"
-                  :readable-time="readableTime"
                   @error="onImageLoadError"
                 />
 
                 <VideoBubble
                   v-if="attachment.file_type === 'video' && !hasVideoError"
                   :url="attachment.data_url"
-                  :readable-time="readableTime"
                   @error="onVideoLoadError"
                 />
 
@@ -246,6 +291,15 @@ export default {
             />
           </div>
         </div>
+        <!-- Bloco 2.03 — o horário FORA do balão. Ele existia só dentro da
+             mídia (`ImageBubble`/`VideoBubble`), sobreposto à imagem e à barra
+             de controles do vídeo; agora é uma linha própria, irmã do nome do
+             agente, e nenhum horário mora mais dentro de um `.chat-bubble`.
+             A condição continua sendo "a linha tem anexo", que é exatamente
+             onde havia horário antes: este bloco MOVE o que existia, não
+             inventa carimbo em toda mensagem de texto — essa é decisão de
+             produto e não está no aceite. -->
+        <p v-if="hasAttachments" class="message-time">{{ readableTime }}</p>
         <p
           v-if="message.showAvatar || hasRecordedResponse"
           v-dompurify-html="agentName"
@@ -255,12 +309,27 @@ export default {
     </div>
 
     <UserMessage v-if="hasRecordedResponse" :message="responseMessage" />
+    <!-- Estes balões eram irmãos adjacentes de verdade, e o
+         `.user-message-wrap + .user-message-wrap` os agrupava. Aqui a
+         continuação não precisa de composable: são todos do visitante, em
+         sequência, então tudo que não é o primeiro continua. -->
     <div v-if="isASubmittedForm">
       <UserMessage
-        v-for="submittedValue in submittedFormValues"
+        v-for="(submittedValue, indice) in submittedFormValues"
         :key="submittedValue.id"
         :message="submittedValue"
+        :classe-agrupamento="indice > 0 ? 'is-continuacao' : null"
       />
     </div>
   </div>
 </template>
+
+<style scoped lang="scss">
+.agent-message__ai-label {
+  // Sem cor propria de "marca de IA": o rotulo e TEXTO, e texto e o que sobrevive
+  // a daltonismo, a sol na tela e a leitor de tela. O aceite proibe roxo porque
+  // ele colapsa contra o azul em deuteranopia — mas trocar de cor so mudaria a
+  // colisao de lugar. A resposta e nao depender de cor nenhuma para distinguir.
+  @apply text-[0.6875rem] leading-3 text-n-slate-11 mb-1 ltr:ml-1 rtl:mr-1;
+}
+</style>

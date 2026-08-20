@@ -11,9 +11,13 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
   let(:tool_context) { Struct.new(:state).new({ conversation: { id: conversation.id } }) }
 
   describe '#description' do
-    # Gatilho POSITIVO: a descrição antiga ("when unable to assist further") fazia a IA
-    # quase nunca chamar o tool — uma IA que atende bem nunca se considera "unable" —
-    # e nenhum lead chegava ao humano. Passar o lead qualificado é o caminho normal.
+    # A descrição é o texto que o LLM lê para decidir transferir, e as DUAS redações que este
+    # exemplo recusa falham pelo mesmo motivo, por caminhos diferentes:
+    #  · a antiga ("when unable to assist further") — uma IA que atende bem nunca se considera
+    #    "unable", então nenhum lead chegava ao humano;
+    #  · a do upstream v4.16.2 (C-15), consent-first ("only when the customer requests…") —
+    #    espera o cliente pedir, e quem qualificou e está pronto para fechar não pede.
+    # Passar o lead qualificado é o passo NORMAL. Este assert trava a nossa redação.
     it 'frames the handoff as a normal step, not as giving up' do
       expect(tool.description).to include('Passa a conversa para um ATENDENTE HUMANO')
       expect(tool.description).to include('A IA continua respondendo normalmente até um humano assumir')
@@ -115,6 +119,12 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           )
 
           tool.perform(tool_context, reason: reason)
+        end
+
+        it 'records the handoff note id in the run state for session capture' do
+          tool.perform(tool_context, reason: 'Customer needs specialized support')
+
+          expect(tool_context.state[:cw_metadata][:handoff_note_id]).to eq(Message.last.id)
         end
       end
 
@@ -257,6 +267,12 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           )
 
           tool.perform(tool_context)
+        end
+
+        it 'does not record a handoff note id since the empty note never renders' do
+          tool.perform(tool_context)
+
+          expect(tool_context.state[:cw_metadata]).to be_nil
         end
       end
 

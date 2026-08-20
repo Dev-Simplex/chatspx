@@ -152,9 +152,7 @@ if depois_iv.empty? || antes_iv.empty?
   puts "\n  Janela vazia (deploy no futuro, ou só fim de semana desde então). Nada a medir."
   exit
 end
-if depois_seg < 6 * 3600
-  puts "\n  ⚠ menos de 6h de expediente pós-deploy. Rode de novo com um dia útil cheio."
-end
+puts "\n  ⚠ menos de 6h de expediente pós-deploy. Rode de novo com um dia útil cheio." if depois_seg < 6 * 3600
 
 # ── carga de mensagens (só nas janelas, + folga pra achar a resposta) ─────────
 todos_iv = antes_iv + depois_iv
@@ -252,7 +250,11 @@ end
 adiamentos = classificar_adiamentos(por_conversa, IA_SENDERS, RESPOSTA_JANELA,
                                     BOTOES_ADIAMENTO, ADIAMENTO, PERGUNTA_HORARIO)
 adiamentos.each do |e|
-  e[:janela] = dentro?(antes_iv, e[:at]) ? :antes : (dentro?(depois_iv, e[:at]) ? :depois : nil)
+  e[:janela] = if dentro?(antes_iv, e[:at])
+                 :antes
+               else
+                 (dentro?(depois_iv, e[:at]) ? :depois : nil)
+               end
 end
 adiamentos.select! { |e| e[:janela] }
 # Denominador da regra = só quem adiou SEM dizer quando. Quem já deu o horário vira
@@ -281,14 +283,14 @@ puts linha_cumprimento('GERAL', adiamentos)
 if com_horario.any?
   ca = com_horario.count { |e| e[:janela] == :antes }
   cd = com_horario.count { |e| e[:janela] == :depois }
-  puts "    (fora do denominador: #{ca + cd} adiamento(s) em que o CLIENTE já deu o horário" \
-       " — antes #{ca} · depois #{cd}. Ali a conduta certa é usar, não perguntar.)"
+  puts "    (fora do denominador: #{ca + cd} adiamento(s) em que o CLIENTE já deu o horário " \
+       "— antes #{ca} · depois #{cd}. Ali a conduta certa é usar, não perguntar.)"
 end
 if do_humano.any?
   ha = do_humano.count { |e| e[:janela] == :antes }
   hd = do_humano.count { |e| e[:janela] == :depois }
-  puts "    (fora do denominador: #{ha + hd} adiamento(s) em conversa que um HUMANO já conduzia" \
-       " — antes #{ha} · depois #{hd}. A IA calou por design, não por falha.)"
+  puts "    (fora do denominador: #{ha + hd} adiamento(s) em conversa que um HUMANO já conduzia " \
+       "— antes #{ha} · depois #{hd}. A IA calou por design, não por falha.)"
 end
 puts "\n  por agente — a Júlia é o alvo do prompt; os outros são CONTROLE:"
 puts linha_cumprimento('Júlia (alvo)', adiamentos.select { |e| julia_ids.include?(e[:assistant_id]) })
@@ -314,8 +316,8 @@ end
 
 sem_resposta = adiamentos.reject { |e| e[:respondeu] }
 puts "\n  adiamentos SEM resposta da IA em #{RESPOSTA_JANELA / 60}min: " \
-     "antes #{sem_resposta.count { |e| e[:janela] == :antes }} · depois #{sem_resposta.count { |e| e[:janela] == :depois }}" \
-     ' (ficam no denominador como não-cumprimento)'
+     "antes #{sem_resposta.count { |e| e[:janela] == :antes }} · depois #{sem_resposta.count { |e| e[:janela] == :depois }} " \
+     '(ficam no denominador como não-cumprimento)'
 
 fu = lambda do |jan|
   adiamentos.count do |e|

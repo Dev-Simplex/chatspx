@@ -56,6 +56,11 @@ const tabs = computed(() => [
     icon: 'i-lucide-activity',
   },
   {
+    name: 'agents_assistant_eval',
+    label: t('AGENT_DETAIL.TABS.EVAL'),
+    icon: 'i-lucide-list-checks',
+  },
+  {
     name: 'agents_assistant_settings',
     label: t('AGENT_DETAIL.TABS.SETTINGS'),
     icon: 'i-lucide-settings',

@@ -11,7 +11,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
   param :codigo, type: 'string',
                  desc: 'Código do imóvel que o cliente informar (do anúncio, da placa do imóvel, ou do site). Quando presente, busca o imóvel EXATO por esse código — ignore os outros filtros.', required: false
-  param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
+  param :categoria, type: 'string',
+                    desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
   param :endereco, type: 'string',
                    desc: 'Rua, avenida ou logradouro, quando o cliente especificar. Estreita a busca dentro do bairro.', required: false
@@ -342,5 +343,4 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def sim?(val)
     val.to_s.strip.casecmp('sim').zero?
   end
-
 end

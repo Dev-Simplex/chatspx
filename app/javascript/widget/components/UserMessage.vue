@@ -11,7 +11,6 @@ import ReplyToChip from 'widget/components/ReplyToChip.vue';
 import DragWrapper from 'widget/components/DragWrapper.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { emitter } from 'shared/helpers/mitt';
-import { mapGetters } from 'vuex';
 
 export default {
   name: 'UserMessage',
@@ -35,6 +34,10 @@ export default {
       type: Object,
       default: () => {},
     },
+    classeAgrupamento: {
+      type: String,
+      default: null,
+    },
   },
   data() {
     return {
@@ -43,10 +46,6 @@ export default {
     };
   },
   computed: {
-    ...mapGetters({
-      widgetColor: 'appConfig/getWidgetColor',
-    }),
-
     isInProgress() {
       const { status = '' } = this.message;
       return status === 'in_progress';
@@ -85,10 +84,9 @@ export default {
   },
   methods: {
     async retrySendMessage() {
-      await this.$store.dispatch(
-        'conversation/sendMessageWithData',
-        this.message
-      );
+      await this.$store.dispatch('conversation/sendMessageWithData', {
+        message: this.message,
+      });
     },
     onImageLoadError() {
       this.hasImageError = true;
@@ -104,7 +102,7 @@ export default {
 </script>
 
 <template>
-  <div class="user-message-wrap group">
+  <div class="user-message-wrap group" :class="classeAgrupamento">
     <div class="flex gap-1 user-message">
       <div
         class="message-wrap"
@@ -126,12 +124,10 @@ export default {
               v-if="showTextBubble"
               :message="message.content"
               :status="message.status"
-              :widget-color="widgetColor"
             />
             <div
               v-if="hasAttachments"
-              class="chat-bubble has-attachment user"
-              :style="{ backgroundColor: widgetColor }"
+              class="chat-bubble has-attachment user bg-w-brand"
             >
               <div
                 v-for="attachment in message.attachments"
@@ -141,14 +137,12 @@ export default {
                   v-if="attachment.file_type === 'image' && !hasImageError"
                   :url="attachment.data_url"
                   :thumb="attachment.data_url"
-                  :readable-time="readableTime"
                   @error="onImageLoadError"
                 />
 
                 <VideoBubble
                   v-if="attachment.file_type === 'video' && !hasVideoError"
                   :url="attachment.data_url"
-                  :readable-time="readableTime"
                   @error="onVideoLoadError"
                 />
 
@@ -156,13 +150,16 @@ export default {
                   v-else
                   :url="attachment.data_url"
                   :is-in-progress="isInProgress"
-                  :widget-color="widgetColor"
                   is-user-bubble
                 />
               </div>
             </div>
           </DragWrapper>
         </div>
+        <!-- Bloco 2.03 — o horário fora do balão, do lado do visitante. -->
+        <p v-if="hasAttachments" class="message-time message-time--fim">
+          {{ readableTime }}
+        </p>
         <div
           v-if="isFailed"
           class="flex justify-end px-4 py-2 text-n-ruby-9 align-middle"

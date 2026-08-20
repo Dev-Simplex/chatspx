@@ -26,6 +26,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  autoPlay: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['close', 'loadMore']);
@@ -417,9 +421,20 @@ onMounted(() => {
               controls
               preload="metadata"
               playsInline
+              :autoplay="autoPlay"
               class="max-h-full max-w-full object-contain"
               @click.stop
             />
+            <audio
+              v-if="isAudio"
+              :key="activeAttachment.message_id"
+              controls
+              :autoplay="autoPlay"
+              class="w-full max-w-md"
+              @click.stop
+            >
+              <source :src="`${activeAttachment.data_url}?t=${Date.now()}`" />
+            </audio>
           </div>
 
           <div class="flex items-center justify-center w-16 shrink-0">

@@ -8,7 +8,7 @@ class CaptainListener < BaseListener
     return unless conversation.inbox.captain_active?
 
     Captain::Llm::ContactNotesService.new(assistant, conversation).generate_and_update_notes if assistant.config['feature_memory'].present?
-    Captain::Llm::ConversationFaqService.new(assistant, conversation).generate_and_deduplicate if assistant.config['feature_faq'].present?
+    Captain::Llm::ConversationFaqJob.perform_later(conversation, assistant) if assistant.config['feature_faq'].present?
   end
 
   # F4.2 (Eval humano): nota privada de gestor com o marcador #eval é um veredito
@@ -36,9 +36,7 @@ class CaptainListener < BaseListener
   # nota #eval solta cai na heurística temporal (último episódio iniciado antes dela).
   def annotation_target_episode(message)
     explicit_id = message.content_attributes&.dig('eval_episode_id')
-    if explicit_id.present?
-      return Captain::ConversationEpisode.find_by(id: explicit_id, conversation_id: message.conversation_id)
-    end
+    return Captain::ConversationEpisode.find_by(id: explicit_id, conversation_id: message.conversation_id) if explicit_id.present?
 
     Captain::ConversationEpisode.where(conversation_id: message.conversation_id)
                                 .where(started_at: ..message.created_at)

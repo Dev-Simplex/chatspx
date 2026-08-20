@@ -32,7 +32,7 @@ const emit = defineEmits([
 </script>
 
 <template>
-  <header class="sticky top-0 z-10 px-6">
+  <header class="sticky top-0 z-20 px-6">
     <div
       class="flex items-start sm:items-center justify-between w-full py-6 gap-2 mx-auto max-w-5xl"
     >
@@ -112,6 +112,15 @@ const emit = defineEmits([
             />
           </div>
           <div class="w-px h-4 bg-n-strong" />
+          <!-- RECONCILIAÇÃO: fica o lado da homologação, e por dois motivos
+               independentes. (1) O botão "adicionar contato" é feature deles —
+               `emit('add')` já está declarado no `defineEmits` deste arquivo e a
+               chave CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ADD_CONTACT
+               existe no contact.json; sem ele o emit fica sem emissor. (2) O
+               `#trigger="{ toggle }"` + `@click="toggle"` é a API VIGENTE do
+               ComposeConversation, que expõe `:toggle="toggle"` no slot — o
+               outro lado não chamava o toggle, e é assim que o Sidebar.vue:1394
+               já o usa. -->
           <div class="flex items-center gap-2">
             <Button
               color="slate"

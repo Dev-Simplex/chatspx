@@ -1,4 +1,8 @@
 class Captain::Conversation::ResponseBuilderJob < ApplicationJob
+  include Captain::Conversation::V1ActionClassifier
+  include Captain::Conversation::V1FalsePromiseHandler
+  include Captain::Conversation::MessageBuilder
+
   MAX_MESSAGE_LENGTH = 10_000
   # Tolerância ao comparar o preço citado na frase com o do imóvel do link — a mesma ~2% da
   # medição do caso 42952. Absorve o arredondamento que a IA faz ("520 mil" para 519.900).
@@ -22,12 +26,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     reset_followup_state if @directive.nil?
 
     Current.executed_by = @assistant
-
-    if captain_v2_enabled?
-      generate_response_with_v2
-    else
-      generate_and_process_response
-    end
+    # 6.01: janela das tool calls DESTA resposta, lida pelo guardrail de pré-envio.
+    Captain::ToolTraceWindow.open!
+    # 6.03: janela das fontes recuperadas, lida na hora de criar a mensagem.
+    Captain::CitationWindow.open!
+    generate_by_engine
   rescue ActiveStorage::FileNotFoundError, Faraday::BadRequestError => e
     handle_error(e)
     raise e
@@ -35,42 +38,79 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     handle_error(e)
   ensure
     Current.executed_by = nil
+    Captain::ToolTraceWindow.close!
+    Captain::CitationWindow.close!
   end
 
   private
 
   delegate :account, :inbox, to: :@conversation
 
+  def generate_by_engine
+    captain_v2_enabled? ? generate_response_with_v2 : generate_and_process_response
+  end
+
   def generate_and_process_response
+    message_history = collect_previous_messages
     @response = Captain::Llm::AssistantChatService.new(assistant: @assistant, conversation: @conversation).generate_response(
-      message_history: collect_previous_messages
+      message_history: message_history
     )
+    classify_v1_response_action(message_history) if conversation_pending?
+    repair_v1_false_promise_response(message_history) if conversation_pending?
     process_response
   end
 
   def generate_response_with_v2
-    @response = Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation).generate_response(
-      message_history: collect_previous_messages
-    )
+    runner_service = Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation)
+    message_history = Captain::Conversation::MessageHistoryBuilderService.new(
+      conversation: @conversation,
+      assistant: @assistant,
+      directive: @directive
+    ).perform
+    @response = runner_service.generate_response(message_history: message_history)
+    @run_result = runner_service.last_run_result
+
     process_response
   end
 
   def process_response
     return unless captain_can_respond?
 
-    if handoff_requested?
-      process_action('handoff')
+    if v2_handoff_tool_fired?
+      conversation_pending? ? process_v1_handoff : process_v2_handoff
+      capture_assistant_session(result_message: @handoff_message, credits_consumed: 0.0)
+    elsif v1_handoff_requested?
+      process_v1_handoff
     else
       # Sem transacao envolvendo a rajada: cada bolha precisa COMMITAR pra disparar o
       # SendReplyJob (after_create_commit). Dentro de uma transacao os sends so disparariam
       # no commit final, TODOS juntos -> corriam soltos e chegavam fora de ordem. Commitando
       # uma a uma, o wait_for_dispatch (espera o source_id) serializa o envio.
-      create_messages
-      Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
-      account.increment_response_usage
-      ensure_handoff_if_promised
-      auto_schedule_followup if @did_send || sent_media_this_turn?
+      message = create_messages
+      # 6.01: se o guardrail reteve, nada foi enviado — então nada é cobrado, e o que
+      # existe agora é um handoff.
+      #
+      # RECONCILIAÇÃO: o corpo que a homologação tinha aqui (increment_response_usage,
+      # ensure_handoff_if_promised, auto_schedule_followup) não sumiu — ele é exatamente o
+      # que `account_for_delivery` faz, e lá dentro ganhou a contabilização de sessão e
+      # créditos do upstream. O `|| sent_media_this_turn?` da homologação foi para lá junto.
+      @guardrail_retained ? account_for_retention : account_for_delivery(message)
     end
+  end
+
+  def account_for_delivery(message)
+    Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
+    account.increment_response_usage
+    ensure_handoff_if_promised
+    # `sent_media_this_turn?` vem da homologação: um turno que entregou SÓ mídia (áudio,
+    # imagem) não marca `@did_send`, e sem esta segunda condição o followup não era agendado
+    # justamente nas conversas que mandaram material e ficaram esperando resposta.
+    auto_schedule_followup if @did_send || sent_media_this_turn?
+    capture_assistant_session(result_message: message, credits_consumed: 1.0)
+  end
+
+  def account_for_retention
+    capture_assistant_session(result_message: @handoff_message, credits_consumed: 0.0)
   end
 
   def collect_previous_messages
@@ -244,7 +284,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return '' unless message.attachments.any?
 
     code = message.additional_attributes&.dig('property_code')
-    code.present? ? "[foto do imóvel #{code} enviada]" : '[foto do imóvel enviada]'
+    code.present? ? "[foto do imóvel #{code} enviada]" : '[attachment sent]'
   end
 
   # Forward do agent_name das additional_attributes para o histórico da gem.
@@ -266,9 +306,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     @own_agent_names.include?(agent_name)
   end
 
-  # Quando o cliente responde (reply) a uma mensagem específica do WhatsApp,
-  # injeta o texto citado no contexto pra o agente saber a qual imóvel/mensagem
-  # ele se refere. Sem isso, "é essa" / "quero essa" ficavam sem referência.
+  # Include the quoted message so short replies retain their reference.
   def with_reply_context(message, content)
     attrs = message.content_attributes || {}
     reply_id = attrs['in_reply_to']
@@ -289,9 +327,6 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     end
   end
 
-  # A msg citada pode ser uma FOTO (outgoing de conteudo vazio). Antes, content.blank?
-  # descartava a citacao e o "esse e qual?" ficava sem referencia — resolve pelo
-  # property_code carimbado na foto; senao, ao menos sinaliza que e uma foto.
   def quoted_description(quoted)
     text = quoted.content.to_s.gsub(/\s+/, ' ').strip
     return text[0, 180] if text.present?
@@ -386,6 +421,22 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     Rails.logger.warn("[Captain] ensure_handoff_if_promised falhou: #{e.message}")
   end
 
+  def v1_handoff_requested?
+    legacy_v1_handoff_token? || classifier_v1_handoff_requested?
+  end
+
+  def classifier_v1_handoff_requested?
+    @response['action'] == 'handoff'
+  end
+
+  def legacy_v1_handoff_token?
+    @response['response'] == 'conversation_handoff'
+  end
+
+  def v2_handoff_tool_fired?
+    @response['handoff_tool_called']
+  end
+
   # Dossie pro humano que assumir: sem isso ele recebe a conversa sem saber por que chegou.
   def auto_handoff_reason
     'A IA avisou o cliente que uma pessoa do time assume, mas nao acionou a passagem — ' \
@@ -393,23 +444,45 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       "Trecho enviado: \"#{@response['response'].to_s[0, 160]}\""
   end
 
-  def process_action(action)
-    case action
-    when 'handoff'
-      I18n.with_locale(@assistant.account.locale) do
-        # A fala pro cliente sai ANTES e FORA de transacao: o after_create_commit dela precisa
-        # disparar antes do handoff setar waiting_since (regressao do PR #13417).
-        create_handoff_message
-        # Pelo service, mesmo motivo do safety-net: com bot_handoff! puro este caminho tambem
-        # pulava dossie, time e rodizio. E em v2 ele e o do error_response — ou seja, toda vez
-        # que o runner quebra a conversa prometia humano sem entrar em fila nenhuma, justo
-        # quando o cliente mais precisa de alguem. O service e idempotente (sai cedo se ja
-        # aguarda humano) e ja cuida do out-of-office.
-        Captain::Conversation::HumanHandoffService.new(
-          conversation: @conversation, assistant: @assistant,
-          reason: handoff_action_reason, team_id: @conversation.team_id
-        ).perform
-      end
+  # ─── RECONCILIAÇÃO — este método é a junção das duas metades ────────────────────
+  #
+  # Do upstream v4.16.2 vem a ESTRUTURA: a separação v1/v2 (aqui o handoff pedido pela
+  # resposta; no `process_v2_handoff`, o que o HandoffTool já executou dentro do loop), o
+  # log com `action_source`/`action_reason` e o `report_v1_handoff_not_executed`.
+  #
+  # Da homologação vem o COMPORTAMENTO: passar pelo `HumanHandoffService` em vez de
+  # `bot_handoff!` puro. Isso não é preferência — com `bot_handoff!` direto este caminho
+  # pula o dossiê, o time e o rodízio (`Spx::Distribuicao::DistribuirService`), e como ele
+  # também é o caminho do `handle_error`, toda vez que o runner quebrava a conversa prometia
+  # humano sem entrar na fila de ninguém, justo quando o cliente mais precisa.
+  #
+  # O `send_out_of_office_message_if_applicable` do upstream saiu daqui porque o service já
+  # chama `OutOfOffice.perform_if_applicable`; mantê-lo mandaria o template duas vezes.
+  # `process_action('handoff')` da homologação deixou de existir como método: seus dois
+  # chamadores (`process_response` e `handle_error`) agora entram por aqui, e o corpo dele
+  # está inteiro nestas linhas.
+  def process_v1_handoff
+    I18n.with_locale(@assistant.account.locale) do
+      Rails.logger.info(
+        "[CAPTAIN][ResponseBuilderJob] V1 handoff requested for account=#{account.id} conversation=#{@conversation.display_id} " \
+        "source=#{@response&.dig('action_source') || 'legacy'} reason=#{@response&.dig('action_reason')}"
+      )
+      # A fala pro cliente sai ANTES e FORA de transacao: o after_create_commit dela precisa
+      # disparar antes do handoff setar waiting_since (regressao do PR #13417).
+      create_handoff_message
+      Captain::Conversation::HumanHandoffService.new(
+        conversation: @conversation, assistant: @assistant,
+        reason: handoff_action_reason, team_id: @conversation.team_id
+      ).perform
+      report_v1_handoff_not_executed if conversation_pending?
+    end
+  end
+
+  def process_v2_handoff
+    # HandoffTool already ran bot_handoff! + OOO inside the agent loop. Preserve
+    # waiting_since so this message doesn't clear the timestamp it left in place.
+    I18n.with_locale(@assistant.account.locale) do
+      create_handoff_message(preserve_waiting_since: true)
     end
   end
 
@@ -421,9 +494,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     motivo ? "#{base} Motivo registrado: #{motivo.to_s[0, 300]}" : base
   end
 
-  def create_handoff_message
-    create_outgoing_message(
-      @assistant.config['handoff_message'].presence || I18n.t('conversations.captain.handoff')
+  def create_handoff_message(preserve_waiting_since: false)
+    @handoff_message = create_outgoing_message(
+      @assistant.config['handoff_message'].presence || I18n.t('conversations.captain.handoff'),
+      preserve_waiting_since: preserve_waiting_since
     )
   end
 
@@ -446,7 +520,71 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       return if skip_duplicate?(content)
     end
 
+    return process_guardrail_handoff if guardrail_retains?(content)
+
     send_response(content)
+  end
+
+  # ─── 6.01 · guardrail de pré-envio ────────────────────────────────────────────────
+  # Última porta antes de a resposta virar mensagem. Depois do dedup de propósito: o que
+  # se verifica é o texto FINAL, o mesmo que o visitante veria — verificar o candidato
+  # anterior deixaria a regeneração passar sem gate.
+  #
+  # Falha do guardrail LIBERA a resposta (fail-open) e registra. A assimetria está no
+  # cabeçalho do serviço: bug meu não pode calar o atendimento de ninguém.
+  def guardrail_retains?(content)
+    result = Captain::ResponseGuardrailService.new(
+      conversation: @conversation,
+      candidate: content,
+      tool_calls: Captain::ToolTraceWindow.calls
+    ).perform
+    return false if result.passes?
+
+    @guardrail_reason = result.reason
+    @guardrail_findings = result.findings
+    true
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][guardrail] liberou por erro no proprio guardrail: #{e.class} #{e.message}")
+    false
+  end
+
+  # Reter não é silenciar: o visitante recebe a saída humana (mensagem de transferência,
+  # e o OOO quando fora do horário), que é o modo de falha barato.
+  def process_guardrail_handoff
+    @guardrail_retained = true
+    log_guardrail_retention
+    Rails.logger.warn(
+      "[CAPTAIN][guardrail] resposta retida em conversation=#{@conversation.display_id} motivo=#{@guardrail_reason}"
+    )
+    # RECONCILIAÇÃO: aqui estava `bot_handoff!` puro + OOO explícito. Esse é exatamente o
+    # defeito que a homologação corrigiu em todos os outros caminhos de handoff — sem o
+    # service, a retenção não registra dossiê, não roteia time e NÃO ENTRA NO RODÍZIO. Como
+    # o guardrail é caminho novo (6.01) e nunca rodou na frota, mantê-lo como estava
+    # introduziria na frota um handoff sem fila que nenhum dos dois lados tinha sozinho.
+    # O service já cuida do out-of-office e é idempotente.
+    I18n.with_locale(@assistant.account.locale) do
+      create_handoff_message
+      Captain::Conversation::HumanHandoffService.new(
+        conversation: @conversation, assistant: @assistant,
+        reason: guardrail_handoff_reason, team_id: @conversation.team_id
+      ).perform
+    end
+    nil
+  end
+
+  # O humano que recebe precisa saber que a conversa chegou por retenção do guardrail, e por
+  # quê — senão ele lê um handoff sem causa aparente e sem a resposta que foi barrada.
+  def guardrail_handoff_reason
+    base = 'A resposta gerada foi retida pelo guardrail de pré-envio e a conversa foi passada para uma pessoa.'
+    @guardrail_reason.present? ? "#{base} Motivo: #{@guardrail_reason.to_s[0, 300]}" : base
+  end
+
+  # O motivo é registrado; falhar em registrá-lo não pode reverter a retenção (a
+  # decisão já foi tomada com o fato na mão, e o visitante já está com uma pessoa).
+  def log_guardrail_retention
+    log_behavior_event('guardrail_retained', { motivo: @guardrail_reason, findings: @guardrail_findings })
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][guardrail] retencao aconteceu mas o log falhou: #{e.class} #{e.message}")
   end
 
   # Silêncio deliberado do agente ([IGNORAR]) deixa rastro auditável: sem isso, uma
@@ -601,7 +739,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     if humanizer_enabled?
       send_humanized_response(content)
     else
-      create_outgoing_message(content, agent_name: @response['agent_name'])
+      create_outgoing_message(content, agent_name: @response['agent_name'], citations: citations_for(content))
     end
   end
 
@@ -613,7 +751,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
     content = fix_property_links(content)
     content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
-           .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
+           .gsub(/\[\s*attachments?\s+sent\s*\]/i, '')       # placeholder novo (upstream)
+           .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '')  # placeholder pt-BR, já gravado no histórico da frota
            .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
            .gsub(/__(.*?)__/m, '\1')        # __negrito__ -> negrito
            .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
@@ -682,7 +821,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     chunks = Captain::Behavior::HumanizerService.new(config: @assistant.behavior['humanizer']).split(content)
 
     sent = 0
-    chunks.each do |chunk|
+    last_message = nil
+    # 6.03: numa rajada, a citação vai na ÚLTIMA bolha — é rodapé da resposta inteira,
+    # não de um pedaço dela.
+    ultima_bolha = chunks.rindex(&:present?)
+    citacoes = citations_for(content)
+    chunks.each_with_index do |chunk, indice|
       next if chunk.blank? # bolha vazia (ex: sobra de sentinela [IGNORAR] removido) -> não envia
 
       # "digitando..." em rajada curta antes de CADA mensagem (proporcional ao
@@ -695,11 +839,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # pick e o create!) aceito — lock pessimista por mensagem seria desproporcional.
       break unless captain_can_respond?
 
-      message = create_outgoing_message(chunk, agent_name: @response['agent_name'])
-      wait_for_dispatch(message)
+      last_message = create_outgoing_message(
+        chunk, agent_name: @response['agent_name'], citations: (indice == ultima_bolha ? citacoes : nil)
+      )
+      wait_for_dispatch(last_message)
       sent += 1
     end
     log_behavior_event('humanizer_split', { chunks: chunks.size, sent: sent }) if chunks.size > 1
+    last_message
   end
 
   # Espera a bolha ser despachada pro WhatsApp (ganhar source_id) antes de criar a proxima,
@@ -747,9 +894,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     raise ArgumentError, 'Message content cannot be blank' if content.blank?
   end
 
-  def create_outgoing_message(message_content, agent_name: nil)
+  def create_outgoing_message(message_content, agent_name: nil, preserve_waiting_since: false, citations: nil)
     additional_attrs = {}
     additional_attrs[:agent_name] = agent_name if agent_name.present?
+    content_attrs = citations.present? ? { citations: citations } : {}
 
     @conversation.messages.create!(
       message_type: :outgoing,
@@ -757,18 +905,51 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       inbox_id: inbox.id,
       sender: @assistant,
       content: message_content,
-      additional_attributes: additional_attrs
+      additional_attributes: additional_attrs,
+      content_attributes: content_attrs,
+      preserve_waiting_since: preserve_waiting_since
     )
+  end
+
+  # ─── 6.03 · citação de fonte ──────────────────────────────────────────────────────
+  # As fontes que a busca REALMENTE recuperou nesta resposta. Duas guardas, e as duas
+  # existem porque o modo de falha que importa é a citação inventada:
+  #
+  #   1. sem retrieval não há citação — a lista só tem o que a ferramenta trouxe;
+  #   2. resposta que NEGA ter encontrado não leva citação — exibir "fonte: X" embaixo
+  #      de "não encontrei" é incoerente, e é o que faria o visitante desconfiar da
+  #      referência justamente quando ela está certa.
+  def citations_for(content)
+    fontes = Captain::CitationWindow.citations
+    return nil if fontes.blank?
+    return nil if Captain::GateAsserts.negative_reply?(content)
+
+    fontes
+  end
+
+  # Capture runs outside the delivery transaction and never raises (the service
+  # swallows its own failures): a session-logging bug must never roll back the
+  # customer reply or trigger the top-level handle_error handoff on top of it.
+  def capture_assistant_session(result_message:, credits_consumed:)
+    Captain::Assistant::SessionCaptureService.new(assistant: @assistant, conversation: @conversation, run_result: @run_result,
+                                                  result_message: result_message, credits_consumed: credits_consumed).capture
   end
 
   def handle_error(error)
     log_error(error)
-    process_action('handoff') if conversation_pending?
+    @response ||= {}
+    @response['action_source'] ||= 'error'
+    @response['action_reason'] ||= error_action_reason(error)
+    process_v1_handoff if conversation_pending?
     true
   end
 
   def log_error(error)
     ChatwootExceptionTracker.new(error, account: account).capture_exception
+  end
+
+  def error_action_reason(error)
+    error.class.name.underscore.tr('/', '_')
   end
 
   def captain_v2_enabled?
@@ -796,6 +977,15 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     )
   rescue StandardError => e
     Rails.logger.warn("[Captain] log_behavior_event(#{event_type}): #{e.message}")
+  end
+
+  def report_v1_handoff_not_executed
+    error = StandardError.new("Captain V1 handoff requested but conversation #{@conversation.display_id} is still pending")
+    ChatwootExceptionTracker.new(error, account: account).capture_exception
+    Rails.logger.error(
+      "[CAPTAIN][ResponseBuilderJob] V1 handoff requested but not executed for account=#{account.id} " \
+      "conversation=#{@conversation.display_id}"
+    )
   end
 
   def conversation_pending?

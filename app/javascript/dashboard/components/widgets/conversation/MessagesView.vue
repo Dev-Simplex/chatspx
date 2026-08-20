@@ -1,5 +1,6 @@
 <script>
-import { ref, provide } from 'vue';
+import { ref, provide, useTemplateRef } from 'vue';
+import { useElementSize } from '@vueuse/core';
 // composable
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import { useLabelSuggestions } from 'dashboard/composables/useLabelSuggestions';
@@ -15,6 +16,7 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import TakeoverApprovalBanner from 'dashboard/components-next/Conversation/TakeoverApprovalBanner.vue';
 import TypingIndicator from 'next/message/TypingIndicator.vue';
 import { useAlert } from 'dashboard/composables';
+import ResizableEditorWrapper from './ResizableEditorWrapper.vue';
 
 // stores and apis
 import { mapGetters } from 'vuex';
@@ -50,21 +52,25 @@ export default {
     ConversationLabelSuggestion,
     Spinner,
     TypingIndicator,
+    ResizableEditorWrapper,
   },
   mixins: [inboxMixin],
   setup() {
     const isPopOutReplyBox = ref(false);
     const conversationPanelRef = ref(null);
+    const resizableEditorWrapperRef = ref(null);
+    const messagesViewRef = useTemplateRef('messagesViewRef');
+    const topBannerRef = useTemplateRef('topBannerRef');
+    const { height: containerHeight } = useElementSize(messagesViewRef);
+    const { height: topBannerHeight } = useElementSize(topBannerRef);
 
-    const keyboardEvents = {
+    useKeyboardEvents({
       Escape: {
         action: () => {
           isPopOutReplyBox.value = false;
         },
       },
-    };
-
-    useKeyboardEvents(keyboardEvents);
+    });
 
     const {
       captainTasksEnabled,
@@ -80,6 +86,11 @@ export default {
       getLabelSuggestions,
       isLabelSuggestionFeatureEnabled,
       conversationPanelRef,
+      resizableEditorWrapperRef,
+      messagesViewRef,
+      topBannerRef,
+      containerHeight,
+      topBannerHeight,
     };
   },
   data() {
@@ -211,7 +222,6 @@ export default {
         instagramInbox
       );
     },
-
     replyWindowBannerMessage() {
       if (this.isAWhatsAppChannel) {
         return this.$t('CONVERSATION.TWILIO_WHATSAPP_CAN_REPLY');
@@ -298,6 +308,7 @@ export default {
       this.forwardSelectionMode = false;
       this.forwardSelectedMessageIds = [];
       this.showForwardModal = false;
+      this.resetReplyEditorHeight();
     },
   },
 
@@ -605,35 +616,45 @@ export default {
         this.themeObserver = null;
       }
     },
+    toggleReplyEditorSize() {
+      this.resizableEditorWrapperRef?.toggleEditorExpand?.();
+    },
+    resetReplyEditorHeight() {
+      this.resizableEditorWrapperRef?.resetEditorHeight?.();
+    },
   },
 };
 </script>
 
 <template>
-  <div class="flex flex-col justify-between flex-grow h-full min-w-0 m-0">
-    <!-- D1 (Fase 3): pedido de atendimento pendente p/ o dono. Auto-suficiente
-         (lê o store); só renderiza p/ o dono da conversa com pedido pendente. -->
-    <TakeoverApprovalBanner />
-    <Banner
-      v-if="!currentChat.can_reply"
-      color-scheme="alert"
-      class="mx-2 mt-2 overflow-hidden rounded-lg relative z-10"
-      :banner-message="replyWindowBannerMessage"
-      :href-link="replyWindowLink"
-      :href-link-text="replyWindowLinkText"
-      :has-action-button="isAWhatsAppChannel"
-      :action-button-label="
-        $t('CONVERSATION.WHATSAPP_WINDOW_EXPIRED.SEND_TEMPLATE_ACTION')
-      "
-      action-button-icon="i-ph-whatsapp-logo"
-      @primary-action="openWhatsappTemplateFromBanner"
-    />
-    <Banner
-      v-else-if="hasDuplicateInstagramInbox"
-      color-scheme="alert"
-      class="mx-2 mt-2 overflow-hidden rounded-lg relative z-10"
-      :banner-message="$t('CONVERSATION.OLD_INSTAGRAM_INBOX_REPLY_BANNER')"
-    />
+  <div
+    ref="messagesViewRef"
+    class="flex flex-col justify-between flex-grow h-full min-w-0 m-0"
+  >
+    <div ref="topBannerRef">
+      <!-- D1: pedido de atendimento pendente para o dono da conversa. -->
+      <TakeoverApprovalBanner />
+      <Banner
+        v-if="!currentChat.can_reply"
+        color-scheme="alert"
+        class="mx-2 mt-2 overflow-hidden rounded-lg relative z-10"
+        :banner-message="replyWindowBannerMessage"
+        :href-link="replyWindowLink"
+        :href-link-text="replyWindowLinkText"
+        :has-action-button="isAWhatsAppChannel"
+        :action-button-label="
+          $t('CONVERSATION.WHATSAPP_WINDOW_EXPIRED.SEND_TEMPLATE_ACTION')
+        "
+        action-button-icon="i-ph-whatsapp-logo"
+        @primary-action="openWhatsappTemplateFromBanner"
+      />
+      <Banner
+        v-else-if="hasDuplicateInstagramInbox"
+        color-scheme="alert"
+        class="mx-2 mt-2 overflow-hidden rounded-lg relative z-10"
+        :banner-message="$t('CONVERSATION.OLD_INSTAGRAM_INBOX_REPLY_BANNER')"
+      />
+    </div>
     <MessageList
       ref="conversationPanelRef"
       class="conversation-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto overflow-x-hidden relative h-full m-0 pb-4"
@@ -763,17 +784,21 @@ export default {
         </div>
       </div>
       <div
-        class="relative z-10"
-        :class="{
-          'w-full flex justify-center items-start overflow-auto min-h-0':
-            isPopOutReplyBox,
-        }"
+        v-if="isPopOutReplyBox"
+        class="relative z-10 w-full flex justify-center items-start overflow-auto min-h-0"
       >
         <ReplyBox
           :pop-out-reply-box="isPopOutReplyBox"
           @update:pop-out-reply-box="isPopOutReplyBox = $event"
         />
       </div>
+      <ResizableEditorWrapper
+        v-else
+        ref="resizableEditorWrapperRef"
+        :container-height="Math.max(0, containerHeight - topBannerHeight)"
+      >
+        <ReplyBox @toggle-editor-size="toggleReplyEditorSize" />
+      </ResizableEditorWrapper>
     </div>
     <ForwardMessageModal
       :show="showForwardModal"

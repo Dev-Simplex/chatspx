@@ -31,8 +31,8 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   # RubyLLM::Tool delega description da instância para a classe — override de instância,
   # DINÂMICO por conta (tools são instanciadas a cada run: assistant.agent → agent_tools →
   # .new(self), então chega sempre fresco no LLM):
-  #  - modo "time fixo" (account.custom_attributes['handoff_team_id'] setado, ex.: Tozi →
-  #    recepção): a IA NÃO escolhe o time — todo handoff cai no time configurado. Não enumera
+  #  - modo "time fixo" (account.custom_attributes['handoff_team_id'] setado): a IA NÃO
+  #    escolhe o time — todo handoff cai no time configurado. Não enumera
   #    times (senão a IA tentaria escolher à toa).
   #  - modo "IA decide" (sem config, DEFAULT): enumera os times pra IA rotear pelo assunto
   #    (param team_id) — comportamento pra clientes que querem a IA definindo o setor.
@@ -67,7 +67,7 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
     recusa = portao_do_segmento(conversation)
     return recusa if recusa
 
-    registrar_e_disparar(conversation, reason, team_id)
+    registrar_e_disparar(tool_context, conversation, reason, team_id)
 
     'Time humano acionado: dossiê registrado e conversa marcada como aguardando atendente. ' \
       'Na SUA resposta, avise o cliente que uma pessoa do time vai assumir e CONTINUE atendendo ' \
@@ -79,14 +79,20 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
 
   private
 
-  def registrar_e_disparar(conversation, reason, team_id)
+  # RECONCILIAÇÃO: o `tool_context` atravessa esta camada sem ser usado aqui — ele é do
+  # upstream v4.16.2, que passou a gravar o id da nota de handoff em
+  # `tool_context.state[:cw_metadata]` (ver `trigger_handoff`). O dossiê, o log com segmento
+  # e o portão continuam sendo nossos; o que mudou é que o disparo final agora precisa do
+  # contexto para atribuir a run à nota. Sem repassar, o `handoff_note_id` some e a inspeção
+  # do caminho de geração volta a cair na mensagem canned.
+  def registrar_e_disparar(tool_context, conversation, reason, team_id)
     log_tool_usage('tool_handoff', {
                      conversation_id: conversation.id,
                      segmento: segmento(conversation),
                      prioridade: conversation.custom_attributes&.dig('prioridade'),
                      reason: reason || 'Agent requested handoff'
                    })
-    trigger_handoff(conversation, montar_dossie(conversation, reason), team_id)
+    trigger_handoff(tool_context, conversation, montar_dossie(conversation, reason), team_id)
   end
 
   def segmento(conversation)
@@ -153,10 +159,18 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   # respondendo até um humano PUXAR a atribuição. A lógica (abrir a conversa, rotear pro
   # time, marcar `aguardando_humano_desde`, distribuir) vive no HumanHandoffService, fonte
   # única reusada também pelo FollowupJob quando as cutucadas in-window esgotam.
-  def trigger_handoff(conversation, reason, team_id = nil)
-    Captain::Conversation::HumanHandoffService.new(
+  def trigger_handoff(tool_context, conversation, reason, team_id = nil)
+    service = Captain::Conversation::HumanHandoffService.new(
       conversation: conversation, assistant: @assistant, reason: reason, team_id: team_id
-    ).perform
+    )
+    service.perform
+
+    # Session capture attributes the run to this note so agents can inspect the
+    # generation path on the handoff reason instead of the canned follow-up message.
+    return if service.handoff_note.blank?
+
+    metadata = tool_context.state[:cw_metadata] ||= {}
+    metadata[:handoff_note_id] = service.handoff_note.id
   end
 
   # TODO: Future enhancement

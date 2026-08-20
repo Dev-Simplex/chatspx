@@ -47,27 +47,27 @@ export default {
         {
           id: null,
           name: this.$t('CONVERSATION.PRIORITY.OPTIONS.NONE'),
-          thumbnail: `/assets/images/dashboard/priority/none.svg`,
+          icon: 'i-woot-priority-empty',
         },
         {
           id: CONVERSATION_PRIORITY.URGENT,
           name: this.$t('CONVERSATION.PRIORITY.OPTIONS.URGENT'),
-          thumbnail: `/assets/images/dashboard/priority/${CONVERSATION_PRIORITY.URGENT}.svg`,
+          icon: 'i-woot-priority-urgent',
         },
         {
           id: CONVERSATION_PRIORITY.HIGH,
           name: this.$t('CONVERSATION.PRIORITY.OPTIONS.HIGH'),
-          thumbnail: `/assets/images/dashboard/priority/${CONVERSATION_PRIORITY.HIGH}.svg`,
+          icon: 'i-woot-priority-high',
         },
         {
           id: CONVERSATION_PRIORITY.MEDIUM,
           name: this.$t('CONVERSATION.PRIORITY.OPTIONS.MEDIUM'),
-          thumbnail: `/assets/images/dashboard/priority/${CONVERSATION_PRIORITY.MEDIUM}.svg`,
+          icon: 'i-woot-priority-medium',
         },
         {
           id: CONVERSATION_PRIORITY.LOW,
           name: this.$t('CONVERSATION.PRIORITY.OPTIONS.LOW'),
-          thumbnail: `/assets/images/dashboard/priority/${CONVERSATION_PRIORITY.LOW}.svg`,
+          icon: 'i-woot-priority-low',
         },
       ],
       showTransferTeamModal: false,
@@ -192,7 +192,7 @@ export default {
       set(priorityItem) {
         const conversationId = this.currentChat.id;
         const oldValue = this.currentChat?.priority;
-        const priority = priorityItem ? priorityItem.id : null;
+        const priority = priorityItem.id;
 
         this.$store.dispatch('setCurrentChatPriority', {
           priority,
@@ -520,7 +520,9 @@ export default {
         this.assignedPriority &&
         this.assignedPriority.id === selectedPriorityItem.id;
 
-      this.assignedPriority = isSamePriority ? null : selectedPriorityItem;
+      this.assignedPriority = isSamePriority
+        ? this.priorityOptions[0]
+        : selectedPriorityItem;
     },
 
     // "Devolver para a IA": re-tria a conversa (Clara, time limpo). Confirma antes
@@ -599,6 +601,7 @@ export default {
       <MultiselectDropdown
         :options="teamsList"
         :selected-item="assignedTeam"
+        show-emoji-icon
         :multiselector-title="$t('AGENT_MGMT.MULTI_SELECTOR.TITLE.TEAM')"
         :multiselector-placeholder="$t('AGENT_MGMT.MULTI_SELECTOR.PLACEHOLDER')"
         :no-search-result="

@@ -1,6 +1,6 @@
 {
   "name": "@chatwoot/chatwoot",
-  "version": "4.12.1",
+  "version": "4.16.2",
   "license": "MIT",
   "scripts": {
     "eslint": "eslint app/**/*.{js,vue}",
@@ -12,9 +12,11 @@
     "start:test": "RAILS_ENV=test foreman start -f ./Procfile.test",
     "dev": "overmind start -f ./Procfile.dev",
     "ruby:prettier": "bundle exec rubocop -a",
-    "build:sdk": "BUILD_MODE=library vite build",
+    "build:sdk": "vite build --config vite.lib.config.ts",
+    "build:tracking": "vite build --config vite.tracking.config.ts",
     "prepare": "husky install",
-    "size": "size-limit",
+    "size": "size-limit; sl=$?; node scripts/widget-size.mjs; ws=$?; exit $((sl | ws))",
+    "size:widget": "node scripts/widget-size.mjs",
     "story:dev": "histoire dev",
     "story:build": "histoire build",
     "story:preview": "histoire preview",
@@ -22,26 +24,30 @@
   },
   "size-limit": [
     {
-      "path": "public/vite/assets/widget-*.js",
-      "limit": "300 KB"
+      "name": "sdk.js cru (protege o parse)",
+      "path": "public/packs/js/sdk.js",
+      "gzip": false,
+      "limit": "40 KB"
     },
     {
+      "name": "sdk.js gzip (protege o visitante)",
       "path": "public/packs/js/sdk.js",
-      "limit": "40 KB"
+      "limit": "15 KB"
     }
   ],
   "dependencies": {
     "@amplitude/analytics-browser": "^2.11.10",
     "@breezystack/lamejs": "^1.2.7",
     "@chatwoot/ninja-keys": "1.2.3",
-    "@chatwoot/prosemirror-schema": "1.3.7",
-    "@chatwoot/utils": "^0.0.52",
+    "@chatwoot/prosemirror-schema": "1.3.23",
+    "@chatwoot/utils": "^0.0.56",
     "@formkit/auto-animate": "0.9.0",
     "@formkit/core": "^1.7.2",
     "@formkit/vue": "^1.7.2",
     "@hcaptcha/vue3-hcaptcha": "^1.3.0",
     "@headlessui/vue": "^1.7.23",
     "@highlightjs/vue-plugin": "^2.1.0",
+    "@hotwired/turbo-rails": "^8.0.13",
     "@iconify-json/fluent": "^1.2.32",
     "@iconify-json/material-symbols": "^1.2.10",
     "@lk77/vue3-color": "^3.0.6",
@@ -56,7 +62,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/vue-table": "^8.20.5",
     "@twilio/voice-sdk": "^2.12.4",
-    "@vitejs/plugin-vue": "^5.1.4",
+    "@vitejs/plugin-vue": "^5.2.4",
     "@vue-flow/background": "^1.3.2",
     "@vue-flow/controls": "^1.1.3",
     "@vue-flow/core": "^1.48.2",
@@ -67,7 +73,7 @@
     "@vueuse/components": "^12.0.0",
     "@vueuse/core": "^12.0.0",
     "activestorage": "^5.2.6",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "camelcase-keys": "^9.1.3",
     "canvas-confetti": "1.9.4",
     "chart.js": "~4.4.4",
@@ -78,7 +84,7 @@
     "cropperjs": "^1.6",
     "date-fns": "2.21.1",
     "date-fns-tz": "^1.3.3",
-    "dompurify": "3.3.2",
+    "dompurify": "3.4.11",
     "flag-icons": "^7.2.3",
     "floating-vue": "^5.2.2",
     "highlight.js": "^11.10.0",
@@ -107,9 +113,8 @@
     "tailwindcss-animated": "2.1.0",
     "timezone-phone-codes": "^0.0.2",
     "tinykeys": "^3.0.0",
-    "turbolinks": "^5.2.0",
     "urlpattern-polyfill": "^10.0.0",
-    "video.js": "7.18.1",
+    "video.js": "7.21.1",
     "videojs-record": "4.5.0",
     "videojs-wavesurfer": "3.8.0",
     "virtua": "^0.48.6",
@@ -131,6 +136,7 @@
     "wavesurfer.js": "7.8.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@egoist/tailwindcss-icons": "^1.9.2",
     "@histoire/plugin-vue": "0.17.15",
     "@iconify-json/logos": "^1.2.10",
@@ -139,6 +145,8 @@
     "@iconify-json/ri": "^1.2.6",
     "@iconify-json/teenyicons": "^1.2.2",
     "@intlify/eslint-plugin-vue-i18n": "^3.2.0",
+    "@playwright/test": "1.59.1",
+    "@rollup/plugin-yaml": "^4.1.2",
     "@size-limit/file": "^8.2.4",
     "@vitest/coverage-v8": "3.0.5",
     "@vue/test-utils": "^2.4.6",
@@ -159,14 +167,16 @@
     "lint-staged": "^16.2.7",
     "playwright": "^1.59.1",
     "postcss": "^8.4.47",
+    "postcss-import": "15.1.0",
     "postcss-preset-env": "^8.5.1",
     "prettier": "^3.3.3",
     "prosemirror-model": "^1.22.3",
     "size-limit": "^8.2.4",
     "tailwindcss": "^3.4.19",
-    "vite": "^5.4.21",
-    "vite-plugin-ruby": "^5.0.0",
-    "vitest": "3.0.5"
+    "vite": "6.4.2",
+    "vite-plugin-ruby": "^5.2.1",
+    "vitest": "3.0.5",
+    "ws": "8.18.3"
   },
   "engines": {
     "node": "24.x",
@@ -179,8 +189,7 @@
   },
   "pnpm": {
     "overrides": {
-      "vite-node": "2.0.1",
-      "vite": "5.4.21",
+      "vite": "6.4.2",
       "vitest": "3.0.5",
       "minimatch@<4": "3.1.5",
       "minimatch@>=9.0.0 <9.0.7": "9.0.9",

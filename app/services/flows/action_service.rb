@@ -35,6 +35,9 @@ class Flows::ActionService < ActionService
   # mantém a classe enxuta (Metrics/ClassLength). Ver Flows::InteractiveAction e o contrato em
   # plano/F1-contrato-send-interactive.md.
   include Flows::InteractiveAction
+  # send_form: mensagem `form` no canal web (4.02/BK-22) — o par de envio da resposta que o
+  # bloco 4.01 passou a receber. Ver Flows::FormAction.
+  include Flows::FormAction
   # send_cta_url / send_location_request: extras interativos "ricos" (F3) via passthrough genérico —
   # cada ação monta um objeto `interactive` Meta em content_attributes['interactive_payload'] e o
   # provider (WhatsappCloudService#send_raw_interactive) o POSTa cru. Ver Flows::RichInteractiveAction
@@ -129,9 +132,12 @@ class Flows::ActionService < ActionService
     Messages::MessageBuilder.new(author, @conversation.reload, params).perform
   end
 
+  # Bloco 4.13: disparava sem assinatura. Assinado quando a conta registrou a URL.
   def send_webhook_event(webhook_url)
     payload = @conversation.webhook_data.merge(event: webhook_event_name)
-    WebhookJob.perform_later(webhook_url[0], payload)
+    url = webhook_url[0]
+    WebhookJob.perform_later(url, payload, :account_webhook,
+                             secret: Webhook.signing_secret_for(account: @conversation.account, url: url))
   end
 
   # Exclusivo da automação hoje (automation_rules/action_service.rb:57); no Flow vale para

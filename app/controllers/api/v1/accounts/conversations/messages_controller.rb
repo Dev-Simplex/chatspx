@@ -110,6 +110,9 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     return head :ok if translated_content.nil?
 
     render json: { content: translated_content }
+  rescue Google::Cloud::Error => e
+    # `details` carries the clean human message; `message` includes gRPC debug noise
+    render_could_not_create_error(e.details.presence || e.message)
   end
 
   def share_location # rubocop:disable Metrics/AbcSize, Metrics/MethodLength

@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, computed, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { isSameDay } from 'date-fns';
 import { useI18n } from 'vue-i18n';
 import Message from './Message.vue';
