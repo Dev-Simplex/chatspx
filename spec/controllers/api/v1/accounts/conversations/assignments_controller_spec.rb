@@ -172,7 +172,12 @@ RSpec.describe 'Conversation Assignment API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:forbidden)
-        expect(response.parsed_body['error']).to eq(I18n.t('conversations.captain.assignment_forbidden'))
+        # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a resposta
+        # sai no idioma da CONTA. Os exemplos logo abaixo, que comparam en x pt_BR, ja passavam
+        # justamente porque dizem o locale. Ver 4cab065b87.
+        expect(response.parsed_body['error']).to eq(
+          I18n.t('conversations.captain.assignment_forbidden', locale: account.locale)
+        )
         expect(conversation.reload.assignee_agent_bot).to be_nil
       end
 
@@ -236,7 +241,9 @@ RSpec.describe 'Conversation Assignment API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq(I18n.t('conversations.captain.assignment_not_eligible'))
+        expect(response.parsed_body['error']).to eq(
+          I18n.t('conversations.captain.assignment_not_eligible', locale: account.locale)
+        )
         expect(conversation.reload.assignee_agent_bot).to be_nil
       end
 
@@ -294,7 +301,8 @@ RSpec.describe 'Conversation Assignment API', type: :request do
         expect(Conversations::ActivityMessageJob)
           .to(have_been_enqueued.at_least(:once)
         .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                                 content: "Conversation unassigned by #{agent.name}" }))
+                                 content: I18n.t('conversations.activity.assignee.removed', user_name: agent.name,
+                                                                                            locale: account.locale) }))
       end
     end
 

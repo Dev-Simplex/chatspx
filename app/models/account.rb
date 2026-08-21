@@ -46,6 +46,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'reply_assignment_gate': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
+        'queue_escalation_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
         'template_reply_routing': {
           'type': %w[object null],
           'properties': {
@@ -118,7 +119,16 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # interno do handler engolia e mandava pro ChatwootExceptionTracker, entao o sintoma
   # visivel era so ruido no GlitchTip — uma excecao por resposta da IA.
   store_accessor :settings, :captain_false_promise_harness_enabled
-  store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
+  # `queue_escalation_after` era aceita em `permitted_settings_attributes` (accounts_controller)
+  # mas NAO existia aqui nem no schema acima: a API recebia o valor e o descartava calada, e
+  # `account.queue_escalation_after` levantava NoMethodError em quem tentasse ler.
+  # A invariante que o proprio spec do controller enuncia vale nos DOIS sentidos: setting
+  # permitida pela API precisa existir no modelo, e vice-versa.
+  #
+  # AVISO: por enquanto NENHUM codigo consome esta configuracao — o irmao
+  # `orphan_retriage_after` e lido pelo OrphanRetriageJob, este ainda nao tem consumidor.
+  # Ela grava e le; nao muda comportamento nenhum ate o recurso de escalonamento existir.
+  store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after, :queue_escalation_after
   store_accessor :settings, :template_reply_routing
   store_accessor :settings, :contact_invite
   store_accessor :settings, :resolve_assignment_gate

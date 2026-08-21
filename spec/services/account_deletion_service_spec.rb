@@ -15,7 +15,9 @@ RSpec.describe AccountDeletionService do
     it 'enqueues DeleteObjectJob with the account' do
       described_class.new(account: account).perform
 
-      expect(DeleteObjectJob).to have_received(:perform_later).with(account)
+      # `DeleteObjectJob#perform(object_type, object_id, ...)` — nome da classe + id, nunca o
+      # registro (que estouraria GlobalID justamente num job cujo trabalho e APAGAR o objeto).
+      expect(DeleteObjectJob).to have_received(:perform_later).with(account.class.name, account.id)
     end
 
     it 'sends a compliance notification email' do

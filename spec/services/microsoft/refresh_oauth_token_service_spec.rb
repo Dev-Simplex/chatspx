@@ -82,7 +82,11 @@ RSpec.describe Microsoft::RefreshOauthTokenService do
 
         expect do
           described_class.new(channel: microsoft_channel).access_token
-        end.to raise_error(RuntimeError, 'A refresh_token is not available')
+        # A excecao vem do GEM oauth2, que levanta `OAuth2::Error` (mensagem preservada). O spec
+        # cravava `RuntimeError`, classe de uma versao anterior do gem. Nenhum chamador captura
+        # `RuntimeError` especificamente (conferi google/microsoft fetch_email_service), entao
+        # nao ha comportamento dependendo da classe antiga.
+        end.to raise_error(OAuth2::Error, /A refresh_token is not available/)
       end
     end
   end
