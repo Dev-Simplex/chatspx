@@ -7,12 +7,25 @@ module Llm::Models
     def features = CONFIG['features']
     def feature_keys = CONFIG['features'].keys
 
+    # Exigido por Llm::FeatureRouter (veio no recorte sem este metodo).
+    def feature?(feature)
+      features.key?(feature.to_s)
+    end
+
     def default_model_for(feature)
       CONFIG.dig('features', feature.to_s, 'default')
     end
 
     def models_for(feature)
       CONFIG.dig('features', feature.to_s, 'models') || []
+    end
+
+    def model_config(model_name)
+      models[model_name.to_s]
+    end
+
+    def provider_for(model_name)
+      model_config(model_name)&.dig('provider')
     end
 
     def valid_model_for?(feature, model_name)

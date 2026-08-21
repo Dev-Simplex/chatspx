@@ -1,6 +1,15 @@
 module Enterprise::Account
+  # Chave em internal_attributes usada por Billing::ReconcilePlanFeaturesService (veio no recorte sem esta constante).
+  CAPTAIN_V2_DEFAULT_ELIGIBLE = 'captain_v2_default_eligible'.freeze
+
   # TODO: Remove this when we upgrade administrate gem to the latest version
   # this is a temporary method since current administrate doesn't support virtual attributes
+  def api_and_webhooks_enabled?
+    return true unless ChatwootApp.chatwoot_cloud?
+
+    feature_enabled?('api_and_webhooks')
+  end
+
   def manually_managed_features; end
 
   # Auto-sync advanced_assignment with assignment_v2 when features are bulk-updated via admin UI

@@ -248,6 +248,12 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     }
   end
 
+  # Gate que o webhook_listener (vindo no recorte) consulta. No self-hosted e sempre true;
+  # a versao enterprise consulta a flag apenas em cloud.
+  def api_and_webhooks_enabled?
+    true
+  end
+
   def locale_english_name
     # the locale can also be something like pt_BR, en_US, fr_FR, etc.
     # the format is `<locale_code>_<country_code>`
