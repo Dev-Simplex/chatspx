@@ -2,7 +2,9 @@ require 'rails_helper'
 
 RSpec.describe V2::Reports::ChannelSummaryBuilder do
   let!(:account) { create(:account) }
-  let!(:web_widget_inbox) { create(:inbox, account: account) }
+  # pending_status_enabled: `pending_status_allowed_by_inbox` (nossa, da2ea07ed1)
+  # recusa Pendente em caixa sem o recurso; spec herdado presume que sempre funciona.
+  let!(:web_widget_inbox) { create(:inbox, account: account, pending_status_enabled: true) }
   let!(:email_inbox) { create(:inbox, :with_email, account: account) }
   let(:params) do
     {

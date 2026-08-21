@@ -8,7 +8,10 @@ describe Conversations::FilterService do
   let!(:user_2) { create(:user, account: account) }
   let!(:campaign_1) { create(:campaign, title: 'Test Campaign', account: account) }
   let!(:campaign_2) { create(:campaign, title: 'Campaign', account: account) }
-  let!(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
+  # pending_status_enabled: `Conversation#pending_status_allowed_by_inbox` (nossa, commit
+  # da2ea07ed1) recusa status Pendente em caixa que nao habilitou o recurso. Specs
+  # herdados do upstream presumem que Pendente sempre funciona.
+  let!(:inbox) { create(:inbox, account: account, enable_auto_assignment: false, pending_status_enabled: true) }
 
   let!(:user_2_assigned_conversation) { create(:conversation, account: account, inbox: inbox, assignee: user_2) }
   let!(:en_conversation_1) do

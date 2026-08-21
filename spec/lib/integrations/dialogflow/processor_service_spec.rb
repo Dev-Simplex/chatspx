@@ -2,9 +2,11 @@ require 'rails_helper'
 
 describe Integrations::Dialogflow::ProcessorService do
   let(:account) { create(:account) }
-  let(:inbox) { create(:inbox, account: account) }
+  # pending_status_enabled: `pending_status_allowed_by_inbox` (nossa, da2ea07ed1)
+  # recusa Pendente em caixa sem o recurso; spec herdado presume que sempre funciona.
+  let(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
   let(:hook) { create(:integrations_hook, :dialogflow, inbox: inbox, account: account) }
-  let(:conversation) { create(:conversation, account: account, status: :pending) }
+  let(:conversation) { create(:conversation, account: account, inbox: inbox, status: :pending) }
   let(:message) { create(:message, account: account, conversation: conversation) }
   let(:template_message) { create(:message, account: account, conversation: conversation, message_type: :template, content: 'Bot message') }
   let(:event_name) { 'message.created' }

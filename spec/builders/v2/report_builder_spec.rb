@@ -12,7 +12,7 @@ describe V2::ReportBuilder do
     before_all do
       travel_to(Time.zone.today) do
         user = create(:user, account: account)
-        inbox = create(:inbox, account: account)
+        inbox = create(:inbox, account: account, pending_status_enabled: true)
         create(:inbox_member, user: user, inbox: inbox)
 
         gravatar_url = 'https://www.gravatar.com'

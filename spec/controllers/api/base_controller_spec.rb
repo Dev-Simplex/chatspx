@@ -68,7 +68,9 @@ RSpec.describe 'API Base', type: :request do
 
   describe 'request with api_access_token for bot' do
     let!(:agent_bot) { create(:agent_bot) }
-    let!(:inbox) { create(:inbox, account: account) }
+    # pending_status_enabled: `pending_status_allowed_by_inbox` (nossa, da2ea07ed1)
+  # recusa Pendente em caixa sem o recurso; spec herdado presume que sempre funciona.
+  let!(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
     let!(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: user, status: 'pending') }
 
     context 'when it is an unauthorized url' do
