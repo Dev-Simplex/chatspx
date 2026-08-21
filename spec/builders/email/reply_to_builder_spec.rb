@@ -90,7 +90,17 @@ RSpec.describe Email::ReplyToBuilder do
         end
       end
 
+      # `Account#inbound_email_domain` e `domain.presence || GlobalConfig(...) || ENV(...)`: zerar
+      # apenas `account.domain` NAO deixa o dominio ausente onde `MAILER_INBOUND_EMAIL_DOMAIN`
+      # esta setado (nesta VM esta). O contexto precisa ESTABELECER a premissa, nao torcer para a
+      # maquina nao ter a variavel. Mesmo idioma de spec/models/account_spec.rb.
       context 'when inbound email domain is missing' do
+        around do |example|
+          with_modified_env MAILER_INBOUND_EMAIL_DOMAIN: nil do
+            example.run
+          end
+        end
+
         before do
           account.enable_features('inbound_emails')
           account.update!(domain: nil)
