@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Lista (e opcionalmente apaga) chunks de build que o manifest NAO referencia.
+
+POR QUE: cada `assets:precompile` empilha ~110 MB em public/vite e public/packs, e
+nada limpa. Em 21/08/2026 o disco estava em 90% com ~1,8 GB de orfaos — dos quais
+public/packs/vite (908 MB) e copia MORTA de public/vite: nenhum arquivo exclusivo,
+nada no codigo a referencia, e esta INCOMPLETA (739 de 762 vivos).
+
+CUIDADO: public/packs NAO e descartavel. Ele serve /packs/js/sdk.js, que os sites dos
+clientes carregam. O que e lixo e a subarvore packs/vite, nao packs.
+
+SEGURO POR PADRAO: so lista. Para apagar de verdade, passe --apagar.
+Recomendado comecar por --dias 7, que preserva o que um rollback recente alcancaria.
+"""
+import argparse, json, os, time, sys
+
+RAIZES = [('public/vite', 'public/vite/.vite/manifest.json'),
+          ('public/packs/vite', None)]  # packs/vite nao tem manifest proprio: e copia
+
+def referenciados(manifest):
+    if not manifest or not os.path.exists(manifest):
+        return set()
+    d = json.load(open(manifest, encoding='utf-8'))
+    refs = set()
+    for v in d.values():
+        for campo in ('file', 'css', 'assets'):
+            x = v.get(campo)
+            if isinstance(x, str):
+                refs.add(x)
+            elif isinstance(x, list):
+                refs.update(x)
+    return refs
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--dias', type=int, default=7,
+                   help='so considera orfaos com mais de N dias (padrao 7)')
+    p.add_argument('--apagar', action='store_true',
+                   help='APAGA de verdade; sem isso, apenas lista')
+    a = p.parse_args()
+
+    agora = time.time()
+    total_n = total_b = 0
+    vivos = referenciados('public/vite/.vite/manifest.json')
+
+    for raiz, manifest in RAIZES:
+        if not os.path.isdir(raiz):
+            continue
+        # packs/vite e copia: o que vale ali e o manifest de public/vite
+        refs = referenciados(manifest) if manifest else vivos
+        assets = os.path.join(raiz, 'assets')
+        if not os.path.isdir(assets):
+            continue
+        n = b = 0
+        for nome in os.listdir(assets):
+            caminho = os.path.join(assets, nome)
+            if not os.path.isfile(caminho):
+                continue
+            rel = os.path.relpath(caminho, raiz)
+            if rel in refs:
+                continue
+            if (agora - os.path.getmtime(caminho)) < a.dias * 86400:
+                continue
+            tam = os.path.getsize(caminho)
+            n += 1; b += tam
+            if a.apagar:
+                os.remove(caminho)
+        total_n += n; total_b += b
+        print(f"  {raiz}: {n} orfaos com mais de {a.dias} dias  ({b/1e6:.0f} MB)")
+
+    print(f"  ----\n  TOTAL: {total_n} arquivos, {total_b/1e6:.0f} MB")
+    print("  APAGADOS." if a.apagar else "  (nada foi apagado — use --apagar para efetivar)")
+
+if __name__ == '__main__':
+    main()
