@@ -82,22 +82,32 @@ RSpec.describe Flows::ActionService do
   end
 
   describe 'send_webhook_event' do
+    # O bloco 4.13 passou a ASSINAR o webhook: a chamada deixou de ser `(url, payload)` e virou
+    # `(url, payload, :account_webhook, secret:)`. Estas expectativas ficaram na forma antiga e
+    # por isso nunca casavam. O que elas provam — o rotulo do evento — segue intacto; o resto
+    # da assinatura entra como `hash_including(:secret)` para nao cravar o valor do segredo.
     it 'labels the event flow_event.<event> in automation mode' do
       flow.update!(trigger_type: :conversation_event, trigger_config: { 'event_name' => 'conversation_created' })
       service = described_class.new(flow: flow, conversation: conversation)
-      expect(WebhookJob).to receive(:perform_later).with('https://example.com', hash_including(event: 'flow_event.conversation_created'))
+      expect(WebhookJob).to receive(:perform_later).with(
+        'https://example.com', hash_including(event: 'flow_event.conversation_created'), :account_webhook, hash_including(:secret)
+      )
       service.execute(action('send_webhook_event', ['https://example.com']))
     end
 
     it 'labels the event flow.executed in manual mode' do
       service = described_class.new(flow: flow, conversation: conversation, actor: agent)
-      expect(WebhookJob).to receive(:perform_later).with('https://example.com', hash_including(event: 'flow.executed'))
+      expect(WebhookJob).to receive(:perform_later).with(
+        'https://example.com', hash_including(event: 'flow.executed'), :account_webhook, hash_including(:secret)
+      )
       service.execute(action('send_webhook_event', ['https://example.com']))
     end
 
     it 'falls back to flow.executed when an automation-mode flow has no event_name' do
       service = described_class.new(flow: flow, conversation: conversation)
-      expect(WebhookJob).to receive(:perform_later).with('https://example.com', hash_including(event: 'flow.executed'))
+      expect(WebhookJob).to receive(:perform_later).with(
+        'https://example.com', hash_including(event: 'flow.executed'), :account_webhook, hash_including(:secret)
+      )
       service.execute(action('send_webhook_event', ['https://example.com']))
     end
   end

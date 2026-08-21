@@ -16,7 +16,11 @@ describe Messages::ForwardService do
   let(:source_conversation) do
     create(:conversation, account: account, inbox: inbox, contact: source_contact, contact_inbox: source_contact_inbox)
   end
-  let(:message) do
+  # `let!` de proposito: `message` encadeia `source_conversation`, que CRIA uma conversa. Sendo
+  # preguicoso, ele so era avaliado dentro do bloco `expect { ... }.to change(Conversation, :count)`
+  # — ou seja, a conversa de ORIGEM entrava na contagem junto com a de destino e todo exemplo
+  # media um a mais. Materializando antes, a medicao passa a contar so o que o forward cria.
+  let!(:message) do
     create(:message, conversation: source_conversation, account: account, content: 'forward me', message_type: :incoming)
   end
 

@@ -22,10 +22,7 @@ if defined?(MockRedis)
     # chegar como kwargs OU como dois arrays posicionais OU como um unico Hash posicional.
     # Aceitamos as tres formas: fixar uma so quebra conforme a versao do gem.
     def eval(script, *args, **kwargs)
-      opcoes = kwargs
-      opcoes = args.first if opcoes.empty? && args.first.is_a?(Hash)
-      keys = opcoes[:keys] || opcoes['keys'] || (args[0] if args[0].is_a?(Array)) || []
-      argv = opcoes[:argv] || opcoes['argv'] || (args[1] if args[1].is_a?(Array)) || []
+      keys, argv = normaliza_argumentos(args, kwargs)
       texto = script.to_s.strip
       return inflight_acquire_simulado(keys, argv) if texto == Waha::MessageStatusSyncService::INFLIGHT_ACQUIRE.strip
 
@@ -35,6 +32,17 @@ if defined?(MockRedis)
     end
 
     private
+
+    def normaliza_argumentos(args, kwargs)
+      opcoes = kwargs.empty? && args.first.is_a?(Hash) ? args.first : kwargs
+      keys = opcoes[:keys] || opcoes['keys'] || posicional_array(args, 0)
+      argv = opcoes[:argv] || opcoes['argv'] || posicional_array(args, 1)
+      [keys, argv]
+    end
+
+    def posicional_array(args, indice)
+      args[indice].is_a?(Array) ? args[indice] : []
+    end
 
     # Equivalente Ruby do INFLIGHT_ACQUIRE: poda os membros vencidos por score, recusa se
     # o conjunto ja esta no teto, senao reserva a vaga e renova o TTL.

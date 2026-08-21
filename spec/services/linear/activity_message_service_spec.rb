@@ -1,6 +1,10 @@
 require 'rails_helper'
 
 RSpec.describe Linear::ActivityMessageService, type: :service do
+  # `Conversations::ActivityMessageJob#perform` recebe `conversation_id`, e o servico enfileira
+  # `perform_later(conversation.id, ...)`. Passar o OBJETO faria o ActiveJob serializar por
+  # GlobalID e reidratar na execucao um registro possivelmente obsoleto. As expectativas
+  # cravavam a forma antiga e por isso nunca casavam. Mesmo caso do hook_listener_spec.
   let(:account) { create(:account) }
   let(:inbox) { create(:inbox, account: account) }
   let(:conversation) { create(:conversation, account: account, inbox: inbox) }
@@ -21,7 +25,7 @@ RSpec.describe Linear::ActivityMessageService, type: :service do
         expect do
           service.perform
         end.to have_enqueued_job(Conversations::ActivityMessageJob)
-          .with(conversation, {
+          .with(conversation.id, {
                   account_id: conversation.account_id,
                   inbox_id: conversation.inbox_id,
                   message_type: :activity,
@@ -96,7 +100,7 @@ RSpec.describe Linear::ActivityMessageService, type: :service do
         expect do
           service.perform
         end.to have_enqueued_job(Conversations::ActivityMessageJob)
-          .with(conversation, {
+          .with(conversation.id, {
                   account_id: conversation.account_id,
                   inbox_id: conversation.inbox_id,
                   message_type: :activity,
@@ -132,7 +136,7 @@ RSpec.describe Linear::ActivityMessageService, type: :service do
         expect do
           service.perform
         end.to have_enqueued_job(Conversations::ActivityMessageJob)
-          .with(conversation, {
+          .with(conversation.id, {
                   account_id: conversation.account_id,
                   inbox_id: conversation.inbox_id,
                   message_type: :activity,
