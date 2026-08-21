@@ -8,7 +8,10 @@ RSpec.describe Captain::Tools::SearchKnowledgeTool, type: :model do
   let(:tool_context) { Struct.new(:state).new({}) }
 
   def chunk_duplo(metadata, content)
-    instance_double(Captain::DocumentChunk, metadata: metadata, content: content, id: 1)
+    # `format_chunk` le `contextual_content.presence || content`: sem este stub o
+    # instance_double recusa a mensagem e derruba o teste. nil = cai no conteudo puro,
+    # que e o caso de conta sem contextual retrieval.
+    instance_double(Captain::DocumentChunk, metadata: metadata, content: content, id: 1, contextual_content: nil)
   end
 
   before { Captain::CitationWindow.open! }

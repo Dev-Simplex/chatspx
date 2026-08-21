@@ -1,6 +1,10 @@
 require 'rake'
 require 'rails_helper'
 
+# As rake tasks nao sao carregadas pelo rails_helper; sem isto o `Rake::Task[...]` levanta
+# "Don't know how to build task" e o bloco 1.18 nunca chegou a ser exercitado.
+Rails.application.load_tasks if Rake::Task.tasks.empty?
+
 RSpec.describe Rake::Task do
   describe 'tracking:seed_origin_definitions (bloco 1.18)' do
     subject(:task) { described_class['tracking:seed_origin_definitions'] }
