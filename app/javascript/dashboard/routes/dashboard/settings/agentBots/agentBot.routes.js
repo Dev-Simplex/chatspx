@@ -1,6 +1,7 @@
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import Bot from './Index.vue';
 import { frontendURL } from '../../../../helper/URLHelper';
+import { NOT_TEAM_SUPERVISOR } from 'dashboard/constants/permissions.js';
 import SettingsWrapper from '../SettingsWrapper.vue';
 
 export default {
@@ -8,7 +9,7 @@ export default {
     {
       path: frontendURL('accounts/:accountId/settings/agent-bots'),
       meta: {
-        permissions: ['administrator'],
+        permissions: ['administrator', NOT_TEAM_SUPERVISOR],
       },
       component: SettingsWrapper,
       children: [
@@ -18,7 +19,7 @@ export default {
           component: Bot,
           meta: {
             featureFlag: FEATURE_FLAGS.AGENT_BOTS,
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
         },
       ],

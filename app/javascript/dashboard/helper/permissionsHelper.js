@@ -1,10 +1,24 @@
+// Uma entrada com prefixo `!` em requiredPermissions é uma NEGAÇÃO: quem tiver
+// aquela permissão não passa, mesmo satisfazendo alguma das entradas positivas
+// (ver denyPermission em constants/permissions.js). A negação vence porque este
+// helper é a fonte única do menu lateral (Policy -> usePolicy) E da guarda de
+// rota (routeHelpers) — mexer só num dos dois deixa a URL viva.
 export const hasPermissions = (
   requiredPermissions = [],
   availablePermissions = []
 ) => {
-  return requiredPermissions.some(permission =>
-    availablePermissions.includes(permission)
-  );
+  const isDenial = permission => permission.startsWith('!');
+
+  const denied = requiredPermissions
+    .filter(isDenial)
+    .map(permission => permission.slice(1));
+  if (denied.some(permission => availablePermissions.includes(permission))) {
+    return false;
+  }
+
+  return requiredPermissions
+    .filter(permission => !isDenial(permission))
+    .some(permission => availablePermissions.includes(permission));
 };
 
 export const getCurrentAccount = ({ accounts } = {}, accountId = null) => {

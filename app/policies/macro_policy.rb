@@ -1,10 +1,12 @@
 class MacroPolicy < ApplicationPolicy
+  # `index?` e `execute?` seguem abertos ao supervisor: agente executa macro dentro da
+  # conversa e isso é uso legítimo. Só a GESTÃO (criar/editar/apagar) sai do alcance.
   def index?
     true
   end
 
   def create?
-    true
+    !supervisor_settings_blocked?
   end
 
   def show?
@@ -12,10 +14,14 @@ class MacroPolicy < ApplicationPolicy
   end
 
   def update?
+    return false if supervisor_settings_blocked?
+
     author? || (@account_user.administrator? && @record.global?)
   end
 
   def destroy?
+    return false if supervisor_settings_blocked?
+
     author? || orphan_record?
   end
 

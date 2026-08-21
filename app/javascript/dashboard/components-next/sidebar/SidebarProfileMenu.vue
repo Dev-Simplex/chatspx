@@ -8,6 +8,8 @@ import SidebarProfileMenuStatus from './SidebarProfileMenuStatus.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import LordIconIcon from 'next/icon/LordIconIcon.vue';
 import { LORDICON } from 'dashboard/constants/lordicons';
+import { usePolicy } from 'dashboard/composables/usePolicy';
+import { TEAM_SUPERVISOR } from 'dashboard/constants/permissions.js';
 
 import {
   DropdownContainer,
@@ -28,6 +30,7 @@ defineOptions({
 });
 
 const { t } = useI18n();
+const { checkPermissions } = usePolicy();
 
 const currentUser = useMapGetter('getCurrentUser');
 const currentUserAvailability = useMapGetter('getCurrentUserAvailability');
@@ -125,7 +128,11 @@ const menuItems = computed(() => {
       target: '_blank',
     },
     {
-      show: currentUser.value.type === 'SuperAdmin',
+      // Quem supervisiona time não administra a instalação. Esconder aqui é só a
+      // metade visível: SuperAdmin::ApplicationController recusa a URL /super_admin.
+      show:
+        currentUser.value.type === 'SuperAdmin' &&
+        !checkPermissions([TEAM_SUPERVISOR]),
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.SUPER_ADMIN_CONSOLE'),
       icon: lordIcon('superAdmin', 'i-lucide-castle'),

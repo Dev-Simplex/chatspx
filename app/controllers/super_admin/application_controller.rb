@@ -12,6 +12,10 @@ class SuperAdmin::ApplicationController < Administrate::ApplicationController
   helper_method :render_vue_component, :settings_open?, :settings_pages
   # authenticiation done via devise : SuperAdmin Model
   before_action :authenticate_super_admin!
+  # Esconder o item do menu não tira o acesso: /super_admin é um escopo Devise próprio
+  # e quem tem users.type = 'SuperAdmin' entra pela URL. Quem supervisiona time perde o
+  # Console — inclusive numa sessão que já estava aberta quando a supervisão foi criada.
+  before_action :deny_team_supervisor!
 
   # Override this value to specify the number of elements to display at a time
   # on index pages. Defaults to 20.
@@ -27,6 +31,13 @@ class SuperAdmin::ApplicationController < Administrate::ApplicationController
   end
 
   private
+
+  def deny_team_supervisor!
+    return unless SupervisorSettingsScope.blocked_from_console?(current_super_admin)
+
+    sign_out(:super_admin)
+    redirect_to new_super_admin_session_path, flash: { error: I18n.t('errors.super_admin.team_supervisor_denied') }
+  end
 
   def render_vue_component(component_name, props = {})
     html_options = {
