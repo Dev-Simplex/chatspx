@@ -60,4 +60,21 @@ class Redis::LockManager
   def locked?(key)
     Redis::Alfred.exists?(key)
   end
+
+  # Executa o bloco segurando o lock e libera SEMPRE ao final. Exigido pelo
+  # Conversations::UnreadCounts::Counter, que veio no recorte sem este metodo.
+  #
+  # === Returns
+  # * +false+ se nao conseguiu o lock (o bloco NAO roda); +true+ caso contrario.
+  def with_lock(key, timeout = LOCK_TIMEOUT)
+    return false unless lock(key, timeout)
+
+    begin
+      yield
+    ensure
+      unlock(key)
+    end
+
+    true
+  end
 end
