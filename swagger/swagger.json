@@ -46895,7 +46895,7 @@
                 "description": "channel_type da caixa de entrada."
               },
               "assignee": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/conversations-messages_agent"
                   },
