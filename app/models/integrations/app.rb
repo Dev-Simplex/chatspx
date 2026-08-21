@@ -30,6 +30,16 @@ class Integrations::App
     params[:fields]
   end
 
+  # Declarado em `config/integration/apps.yml` para 7 das 13 integracoes, mas o modelo nunca
+  # expunha a chave — `app.visible_properties` levantava NoMethodError.
+  # `HooksController#blanking_a_key_the_client_never_saw?` chama exatamente este metodo, e so
+  # quando o cliente manda um valor VAZIO: ou seja, a protecao contra apagar a credencial
+  # estourava justamente no caso para o qual foi escrita (500 + erro no GlitchTip).
+  # `EditHook.vue` foi escrito contra o mesmo contrato.
+  def visible_properties
+    params[:visible_properties]
+  end
+
   # There is no way to get the account_id from the linear callback
   # so we are using the generate_linear_token method to generate a token and encode it in the state parameter
   def encode_state
