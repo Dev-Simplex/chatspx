@@ -136,10 +136,14 @@ describe Messages::PinService do
     end
 
     it 'does not dispatch when id is not present (idempotent no-op)' do
+      # `message_c` e preguicoso e cria contato/mensagem — que DISPARAM eventos. Avaliado depois
+      # da expectativa negativa, o `contact.created` do proprio arranjo caia nela e o exemplo
+      # falhava por um evento que o servico nem emitiu. Materializa antes.
+      mensagem = message_c
       dispatcher = Rails.configuration.dispatcher
       expect(dispatcher).not_to receive(:dispatch)
 
-      described_class.new(conversation: conversation, message_id: message_c.id).remove
+      described_class.new(conversation: conversation, message_id: mensagem.id).remove
     end
   end
 
