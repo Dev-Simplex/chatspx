@@ -266,7 +266,10 @@ RSpec.describe 'Conversations API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:forbidden)
-        expect(response.parsed_body['error']).to eq('Conversation unread counts feature not enabled for this account')
+        # A mensagem sai no idioma da CONTA, nao no da suite: conta nova nasce em pt-BR
+        # (decisao nossa), entao comparar com a string em ingles do upstream falha aqui.
+        expect(response.parsed_body['error'])
+          .to eq(I18n.t('errors.conversations.unread_counts.feature_not_enabled', locale: account.locale))
       end
     end
   end
