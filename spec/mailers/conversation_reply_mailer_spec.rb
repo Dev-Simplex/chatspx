@@ -3,6 +3,8 @@
 require 'rails_helper'
 
 RSpec.describe ConversationReplyMailer do
+  # O assunto sai no idioma da CONTA (conta nova nasce em pt-BR, decisao nossa).
+  # Comparar com a string em ingles cravada falha. Ver 685bb23752 e 4cab065b87.
   describe 'reply' do
     let!(:account) { create(:account) }
     let!(:agent) { create(:user, email: 'agent1@example.com', account: account) }
@@ -50,7 +52,7 @@ RSpec.describe ConversationReplyMailer do
       let(:cc_mail) { described_class.reply_with_summary(cc_message.conversation, message.id).deliver_now }
 
       it 'renders the default subject' do
-        expect(mail.subject).to eq("[##{message.conversation.display_id}] New messages on this conversation")
+        expect(mail.subject).to eq("[##{message.conversation.display_id}] #{I18n.t('conversations.reply.email_subject', locale: account.locale)}")
       end
 
       it 'renders the subject in conversation as reply' do
@@ -109,7 +111,7 @@ RSpec.describe ConversationReplyMailer do
       end
 
       it 'renders the default subject' do
-        expect(mail.subject).to eq("[##{message_2.conversation.display_id}] New messages on this conversation")
+        expect(mail.subject).to eq("[##{message_2.conversation.display_id}] #{I18n.t('conversations.reply.email_subject', locale: account.locale)}")
       end
 
       it 'renders the subject in conversation' do
@@ -236,7 +238,7 @@ RSpec.describe ConversationReplyMailer do
       let(:mail) { described_class.email_reply(message).deliver_now }
 
       it 'renders the subject' do
-        expect(mail.subject).to eq("[##{message.conversation.display_id}] New messages on this conversation")
+        expect(mail.subject).to eq("[##{message.conversation.display_id}] #{I18n.t('conversations.reply.email_subject', locale: account.locale)}")
       end
 
       it 'renders the body' do
