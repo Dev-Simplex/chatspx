@@ -70,12 +70,33 @@ RSpec.describe 'Conversation Messages Star API', type: :request do
       end
     end
 
-    context 'when authenticated but without access to the conversation' do
+    # O exemplo original dizia provar que "a busca da conversa e escopada por conta", mas o
+    # usuario que ele criava era de OUTRA conta — e esse nunca chega na busca da conversa:
+    # `ensure_current_account` barra antes, no acesso a CONTA, com 401. Eram duas situacoes
+    # diferentes com o mesmo nome. Aqui elas ficam separadas, cada uma provando a sua.
+    context 'when the user does not belong to the account' do
       let(:other_account) { create(:account) }
       let(:outsider) { create(:user, account: other_account, role: :agent) }
 
-      it 'returns 404 (conversation lookup is account-scoped)' do
+      it 'returns 401 (barrado no acesso a conta, antes de qualquer busca)' do
         post star_url, headers: outsider.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when the conversation belongs to another account' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:other_account) { create(:account) }
+      # `display_id` e sequencial POR CONTA. Usando a primeira conversa da outra conta o numero
+      # colidiria com o da conta do agente, a busca ACHARIA um registro e a barreira viraria
+      # autorizacao (401) — provando outra coisa. Criando duas la, o display_id 2 existe na outra
+      # conta e NAO existe nesta: e exatamente o escopo por conta que queremos provar.
+      let(:other_conversation) { create_list(:conversation, 2, account: other_account).last }
+
+      it 'returns 404 (a busca da conversa e escopada por conta)' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{other_conversation.display_id}/messages/#{message.id}/star",
+             headers: agent.create_new_auth_token, as: :json
 
         expect(response).to have_http_status(:not_found)
       end

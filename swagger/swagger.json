@@ -48478,7 +48478,6 @@
           "thumbnail": {
             "type": "string",
             "example": "https://chat.example.com/avatar.png",
-            "format": "uri",
             "description": "URL do avatar do agente"
           }
         }
@@ -48876,7 +48875,6 @@
           "thumbnail": {
             "type": "string",
             "example": "https://chat.example.com/avatar.png",
-            "format": "uri",
             "description": "URL do avatar do agente"
           },
           "availability_status": {
@@ -49261,8 +49259,7 @@
           "thumbnail": {
             "type": "string",
             "description": "URL do avatar.",
-            "example": "https://chat.simplexsolucoes.com.br/rails/active_storage/.../avatar.png",
-            "format": "uri"
+            "example": "https://chat.simplexsolucoes.com.br/rails/active_storage/.../avatar.png"
           },
           "availability_status": {
             "type": "string",
@@ -49451,7 +49448,6 @@
                 },
                 "thumbnail": {
                   "type": "string",
-                  "format": "uri",
                   "description": "URL do avatar do agente"
                 },
                 "primary_conversation": {
@@ -50582,7 +50578,6 @@
                   },
                   "thumbnail": {
                     "type": "string",
-                    "format": "uri",
                     "description": "URL do avatar do agente"
                   }
                 },
@@ -50868,8 +50863,7 @@
           },
           "avatar_url": {
             "type": "string",
-            "description": "URL do avatar do assistente.",
-            "format": "uri"
+            "description": "URL do avatar do assistente."
           },
           "name": {
             "type": "string",
@@ -52865,8 +52859,7 @@
           },
           "thumbnail": {
             "type": "string",
-            "description": "URL do avatar do agente.",
-            "format": "uri"
+            "description": "URL do avatar do agente."
           },
           "availability": {
             "type": "string",
@@ -53935,8 +53928,7 @@
           },
           "thumbnail": {
             "type": "string",
-            "description": "URL do avatar do agente.",
-            "format": "uri"
+            "description": "URL do avatar do agente."
           },
           "team_ids": {
             "type": "array",
@@ -53983,8 +53975,7 @@
           },
           "thumbnail": {
             "type": "string",
-            "description": "URL do avatar do agent bot.",
-            "format": "uri"
+            "description": "URL do avatar do agent bot."
           },
           "outgoing_url": {
             "type": "string",
@@ -54310,8 +54301,7 @@
           },
           "avatar_url": {
             "type": "string",
-            "description": "URL do avatar da caixa de entrada.",
-            "format": "uri"
+            "description": "URL do avatar da caixa de entrada."
           }
         }
       },
@@ -54354,8 +54344,7 @@
           },
           "avatar_url": {
             "type": "string",
-            "description": "URL do avatar do usuário.",
-            "format": "uri"
+            "description": "URL do avatar do usuário."
           },
           "confirmed": {
             "type": "boolean",
@@ -54960,7 +54949,6 @@
           },
           "thumbnail": {
             "type": "string",
-            "format": "uri",
             "description": "URL do avatar."
           }
         }
@@ -56510,7 +56498,6 @@
           "avatar_url": {
             "type": "string",
             "example": "https://chat.simplexsolucoes.com.br/avatar.png",
-            "format": "uri",
             "description": "URL do avatar"
           },
           "greeting_enabled": {
@@ -57290,8 +57277,7 @@
           "thumbnail": {
             "type": "string",
             "description": "URL do avatar.",
-            "example": "https://chat.simplexsolucoes.com.br/avatar.png",
-            "format": "uri"
+            "example": "https://chat.simplexsolucoes.com.br/avatar.png"
           },
           "custom_attributes": {
             "type": "object",
@@ -58466,7 +58452,6 @@
           },
           "thumbnail": {
             "type": "string",
-            "format": "uri",
             "description": "URL do avatar."
           }
         }
@@ -58503,7 +58488,6 @@
           },
           "avatar_url": {
             "type": "string",
-            "format": "uri",
             "description": "URL do avatar"
           }
         }
@@ -61628,7 +61612,6 @@
               },
               "avatar_url": {
                 "type": "string",
-                "format": "uri",
                 "description": "URL do avatar"
               },
               "access_token": {
@@ -62038,7 +62021,6 @@
           },
           "avatar_url": {
             "type": "string",
-            "format": "uri",
             "description": "URL do avatar"
           },
           "message_signature": {
@@ -63233,8 +63215,7 @@
           "avatar_url": {
             "type": "string",
             "description": "URL do avatar do usuário (string vazia quando não houver).",
-            "example": "https://chat.example.com/avatars/jane.png",
-            "format": "uri"
+            "example": "https://chat.example.com/avatars/jane.png"
           },
           "message_signature": {
             "type": [
@@ -64267,13 +64248,11 @@
           },
           "avatar_url": {
             "type": "string",
-            "description": "URL do avatar para remetentes user, agent_bot e captain_assistant.",
-            "format": "uri"
+            "description": "URL do avatar para remetentes user, agent_bot e captain_assistant."
           },
           "thumbnail": {
             "type": "string",
-            "description": "URL do avatar/miniatura usada por remetentes do tipo contato.",
-            "format": "uri"
+            "description": "URL do avatar/miniatura usada por remetentes do tipo contato."
           },
           "type": {
             "type": "string",
@@ -64764,8 +64743,7 @@
           },
           "thumbnail": {
             "type": "string",
-            "description": "URL do avatar do autor.",
-            "format": "uri"
+            "description": "URL do avatar do autor."
           }
         }
       },

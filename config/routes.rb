@@ -292,7 +292,11 @@ Rails.application.routes.draw do
                   # PR B1 — persisted reactions (index/create/destroy). Plural `resources`
                   # so each reaction has its own id for destroy.
                   resources :reactions, only: [:index, :create, :destroy]
-                  resource :star, only: [:create, :destroy]
+                  # `controller:` EXPLICITO: `resource` no singular faz o Rails procurar o
+                  # controller no PLURAL (`messages/stars#create`), mas a classe existente e
+                  # `Messages::StarController`. Sem isto a rota apontava para um controller
+                  # inexistente e TODO request no endpoint respondia 404 — autenticado ou nao.
+                  resource :star, only: [:create, :destroy], controller: 'star'
                 end
               end
               resources :assignments, only: [:create]
