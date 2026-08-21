@@ -15,3 +15,23 @@
 # Dado de teste nao deve depender do idioma da aplicacao: fixamos o Faker em :en para ele ser
 # deterministico e ASCII, sem mexer no locale do app.
 Faker::Config.locale = :en
+
+# ...e a atribuicao acima NAO basta. `Faker::Config.locale=` grava em
+# `Thread.current[:faker_config_locale]` — e o getter cai em `I18n.locale` quando a chave nao
+# existe. Ou seja: vale so para a thread que executou esta linha. Qualquer exemplo que crie uma
+# thread (o de corrida em `send_email_notification_service_spec`, por exemplo) monta a fabrica
+# de usuario com Faker em pt_BR de novo, e volta o mesmo `RecordInvalid: Email nao e valido` --
+# de forma INTERMITENTE, porque so quebra quando o nome sorteado tem acento. Passou 3 vezes
+# seguidas e falhou 4 seguidas na mesma arvore; parecia carga da maquina e nao era: e o sorteio.
+#
+# Corrigir o VALOR numa thread nao resolve para as proximas. Corrigimos o FALLBACK: sem chave
+# thread-local, o padrao passa a ser :en em vez de `I18n.locale`. Atribuicao explicita
+# (`Faker::Config.locale = :pt_BR` num spec) continua vencendo, porque a chave thread-local
+# tem prioridade.
+module FakerLocalePadraoEn
+  def locale
+    Thread.current[:faker_config_locale] || :en
+  end
+end
+
+Faker::Config.singleton_class.prepend(FakerLocalePadraoEn)
