@@ -111,20 +111,32 @@ describe('#actions', () => {
           search: '?param=1',
         },
       }));
+      // `state` e obrigatorio: a action le `pendingCustomAttributes`/`pendingLabels`
+      // dali para enviar junto com a PRIMEIRA mensagem (plano o3-flows-captura).
+      // Sem ele a chamada lanca ANTES do `mockRestore` abaixo e deixa os spies de
+      // `Date`/`window` presos, derrubando os exemplos seguintes do arquivo.
       await actions.sendMessage(
-        { commit, dispatch },
+        {
+          commit,
+          dispatch,
+          state: { pendingCustomAttributes: {}, pendingLabels: [] },
+        },
         { content: 'hello', replyTo: 124 }
       );
       spy.mockRestore();
       windowSpy.mockRestore();
       expect(dispatch).toBeCalledWith('sendMessageWithData', {
-        attachments: undefined,
-        content: 'hello',
-        created_at: 1466424490,
-        id: '1111',
-        message_type: 0,
-        replyTo: 124,
-        status: 'in_progress',
+        message: {
+          attachments: undefined,
+          content: 'hello',
+          created_at: 1466424490,
+          id: '1111',
+          message_type: 0,
+          replyTo: 124,
+          status: 'in_progress',
+        },
+        pendingCustomAttributes: {},
+        pendingLabels: [],
       });
     });
   });
@@ -138,7 +150,11 @@ describe('#actions', () => {
       const attachment = { thumbUrl, fileType: 'file' };
 
       actions.sendAttachment(
-        { commit, dispatch },
+        {
+          commit,
+          dispatch,
+          state: { pendingCustomAttributes: {}, pendingLabels: [] },
+        },
         { attachment, replyTo: 135 }
       );
       spy.mockRestore();
