@@ -111,7 +111,23 @@ class BulkActionsJob < ApplicationJob
   def available_params(params)
     return unless params[:fields]
 
-    params[:fields].delete_if { |key, value| value.nil? && key == 'status' }
+    campos = params[:fields].delete_if { |key, value| value.nil? && key == 'status' }
+    normalizar_time(campos)
+  end
+
+  # "Sem time" chega da API como `team_id: 0`. O caminho de UMA conversa ja trata isso — por
+  # acidente feliz: `Current.account.teams.find_by(id: 0)` devolve nil e o update grava nil. O
+  # bulk passava o 0 CRU para `conversation.update`, violando a foreign key de `teams` e
+  # derrubando a requisicao inteira com 500 (`PG::ForeignKeyViolation`).
+  #
+  # Resolver contra a CONTA, e nao apenas trocar 0 por nil, fecha junto a porta de atribuir em
+  # massa um time de outra conta: id que nao pertence a ela vira nil em vez de ser gravado.
+  def normalizar_time(campos)
+    chave = [:team_id, 'team_id'].find { |k| campos.key?(k) }
+    return campos if chave.nil?
+
+    campos[chave] = @account.teams.find_by(id: campos[chave])&.id
+    campos
   end
 
   def bulk_add_labels(conversation)

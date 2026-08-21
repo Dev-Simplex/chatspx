@@ -1,6 +1,14 @@
 require 'rails_helper'
 
 describe ContactIdentifyAction do
+  # CONTRATO: `Avatar::AvatarFromUrlJob#perform(avatarable_type, avatarable_id, avatar_url)` —
+  # NOME DA CLASSE + ID + url, nunca o registro. Os 10 chamadores do codigo usam essa forma; so
+  # este spec ficou na antiga (`(contact, url)`).
+  #
+  # As assercoes POSITIVAS falhavam, o que era o sinal. As NEGATIVAS
+  # (`not_to receive(:perform_later).with(contact, url)`) passavam sem verificar nada: o job ERA
+  # chamado, apenas com outros argumentos — entao "nao recebeu COM ESSES argumentos" era verdade
+  # por acidente. Tres exemplos verdes que nao provavam o que diziam.
   subject(:contact_identify) { described_class.new(contact: contact, params: params).perform }
 
   let!(:account) { create(:account) }
@@ -13,7 +21,8 @@ describe ContactIdentifyAction do
 
   describe '#perform' do
     it 'updates the contact' do
-      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later).with(contact, params[:avatar_url])
+      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later)
+        .with(contact.class.name, contact.id, params[:avatar_url])
       contact_identify
       expect(contact.reload.name).to eq 'test'
       # custom attributes are merged properly without overwriting existing ones
@@ -24,7 +33,8 @@ describe ContactIdentifyAction do
 
     it 'will not call avatar job if avatar is already attached' do
       contact.avatar.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
-      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later).with(contact, params[:avatar_url])
+      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later)
+        .with(contact.class.name, contact.id, params[:avatar_url])
       contact_identify
     end
 
@@ -38,7 +48,8 @@ describe ContactIdentifyAction do
 
     it 'enqueues avatar job when valid avatar url parameter is passed' do
       params = { name: 'test', avatar_url: 'https://chatwoot-assets.local/sample.png' }
-      expect(Avatar::AvatarFromUrlJob).to receive(:perform_later).with(contact, params[:avatar_url]).once
+      expect(Avatar::AvatarFromUrlJob).to receive(:perform_later)
+        .with(contact.class.name, contact.id, params[:avatar_url]).once
       described_class.new(contact: contact, params: params).perform
     end
 
@@ -160,7 +171,8 @@ describe ContactIdentifyAction do
         contact.update!(name: 'test')
         params = { name: 'test', avatar_url: 'https://chatwoot-assets.local/sample.png' }
 
-        expect(Avatar::AvatarFromUrlJob).to receive(:perform_later).with(contact, params[:avatar_url]).once
+        expect(Avatar::AvatarFromUrlJob).to receive(:perform_later)
+          .with(contact.class.name, contact.id, params[:avatar_url]).once
         described_class.new(contact: contact, params: params).perform
       end
     end

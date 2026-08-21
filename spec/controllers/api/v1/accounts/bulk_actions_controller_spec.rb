@@ -76,7 +76,10 @@ RSpec.describe 'Api::V1::Accounts::BulkActionsController', type: :request do
 
         last_activity_message = Conversation.first.messages.activity.last
 
-        expect(last_activity_message.content).to eq("Unassigned from #{team_1.name} by #{agent.name}")
+        expect(last_activity_message.content).to eq(
+          I18n.t('conversations.activity.team.removed', team_name: team_1.name, user_name: agent.name,
+                                                        locale: account.locale)
+        )
       end
 
       it 'Bulk update conversation team id to team' do
@@ -95,7 +98,12 @@ RSpec.describe 'Api::V1::Accounts::BulkActionsController', type: :request do
 
         last_activity_message = Conversation.last.messages.activity.last
 
-        expect(last_activity_message.content).to eq("Assigned to #{team_1.name} by #{agent.name}")
+        # A atividade sai no idioma da CONTA (pt-BR por padrao nosso); cravar a frase inglesa
+        # testava o idioma, nao a atribuicao de time. Ver 4cab065b87.
+        expect(last_activity_message.content).to eq(
+          I18n.t('conversations.activity.team.assigned', team_name: team_1.name, user_name: agent.name,
+                                                         locale: account.locale)
+        )
       end
 
       it 'Bulk update conversation assignee id' do
