@@ -113,7 +113,10 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     begin
       tries += 1
       File.open(path, 'rb') do |file|
-        @client.audio.transcribe(parameters: { model: WHISPER_MODEL, file: file, temperature: 0.4 })['text']
+        # temperature 0.0 reduz alucinacao em audio silencioso ou quase-silencioso. O 0.4 veio
+        # do commit original do upstream (#11670) e foi corrigido la depois; nunca foi escolha
+        # nossa.
+        @client.audio.transcribe(parameters: { model: WHISPER_MODEL, file: file, temperature: 0.0 })['text']
       end
     rescue Faraday::UnauthorizedError, Faraday::BadRequestError
       raise

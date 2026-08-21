@@ -125,12 +125,16 @@ RSpec.describe Widget::ErrorReport do
   end
 
   describe '#perform numa instalação SEM Sentry' do
-    # O caso mais comum da frota: VM sem `SENTRY_DSN`, onde a gem nem é
-    # carregada e a constante não existe. Sem o `defined?` no serviço, o
-    # endpoint de telemetria devolveria 500 exatamente nas instalações que não
-    # têm observabilidade nenhuma. Este exemplo roda sem `stub_const` de
-    # propósito — é o ambiente de teste cru.
+    # VM sem `SENTRY_DSN`: a gem nem e carregada e a constante nao existe. Sem o
+    # `defined?` no servico, o endpoint de telemetria devolveria 500 exatamente nas
+    # instalacoes sem observabilidade nenhuma.
+    #
+    # Antes este exemplo contava com o ambiente cru (`expect(defined?(Sentry)).to be_nil`).
+    # Deixou de valer quando o GlitchTip entrou na frota: ele usa a gem sentry-ruby, entao
+    # a constante existe aqui e o teste media o ambiente, nao o servico. `hide_const` torna
+    # a ausencia explicita e deterministica, em qualquer maquina.
     it 'devolve false em silêncio, sem NameError' do
+      hide_const('Sentry')
       expect(defined?(Sentry)).to be_nil
 
       expect do
