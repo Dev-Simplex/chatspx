@@ -385,10 +385,26 @@ RSpec.describe MessageTemplates::HookExecutionService do
     end
 
     context 'when in classic mode (reply_assignment_gate OFF)' do
-      it 'reattaches the sector assistant (D-12 — IA do setor reentra)' do
+      # O exemplo dizia "IA do setor reentra" e e de 21/06. Em 29/06 a regra MUDOU (555ebd36b3,
+      # "reentrada de conversa reaberta volta pra triagem (Clara) com time limpo, EM VEZ do
+      # especialista do ultimo time"): `reattach_triage_assistant` procura o assistente de TRIAGEM
+      # (`config['triage'] == true`) e LIMPA o time, porque o cliente pode ter voltado por outro
+      # assunto e quem reavalia e a triagem.
+      #
+      # Sem assistente de triagem no arranjo, `triage_assistant` era nil e o portao nem abria —
+      # o exemplo acusava "nao reatou" por falta de sujeito, nao por defeito.
+      let!(:triagem) do
+        create(:captain_assistant, account: account, config: { 'triage' => true }).tap do |a|
+          create(:captain_inbox, captain_assistant: a, inbox: inbox)
+        end
+      end
+
+      it 'reattaches the TRIAGE assistant and clears the team (555ebd36b3)' do
         expect do
           create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
-        end.to change { orphan_conversation.reload.assignee_agent_bot_id }.from(nil).to(assistant.mirror_agent_bot.id)
+        end.to change { orphan_conversation.reload.assignee_agent_bot_id }.from(nil).to(triagem.mirror_agent_bot.id)
+
+        expect(orphan_conversation.reload.team_id).to be_nil
       end
     end
 
