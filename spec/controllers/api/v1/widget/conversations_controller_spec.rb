@@ -274,19 +274,30 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
 
         get '/api/v1/widget/conversations/toggle_status',
             headers: { 'X-Auth-Token' => token },
-            params: { website_token: web_widget.website_token },
+            params: { website_token: web_widget.website_token, locale: 'en' },
             as: :json
 
         expect(response).to have_http_status(:success)
         expect(conversation.reload.resolved?).to be true
+        # ChatSPX: o `locale: 'en'` acima nao e enfeite. `SwitchLocale#switch_locale` (caminho do
+        # widget) NAO olha o locale da conta -- prioridade e query string > usuario > dominio custom
+        # > ENV['DEFAULT_LOCALE'] > I18n.default_locale, que aqui e pt_BR. Sem ele a atividade sai
+        # "A conversa foi resolvida por ...". A query string e como o proprio SDK do widget manda.
+        #
+        # E DUAS correcoes de contrato:
+        #   1. `Conversations::ActivityMessageJob#perform(conversation_id, params)` recebe o ID.
+        #      Os 16 chamadores do app ja passam assim; payload de ActiveJob nao carrega registro AR.
+        #   2. `content_attributes: { activity: ... }` e feature DO UPSTREAM (chegou em 354c2cab6b,
+        #      que NAO esta na nossa linha) e nao foi adotada no recorte -- o `activity_message_params`
+        #      de producao devolve so account_id/inbox_id/message_type/content. Este exemplo entrou
+        #      junto com o planejamento cobrando o que o nosso codigo nao produz.
         expect(Conversations::ActivityMessageJob).to have_been_enqueued.at_least(:once).with(
-          conversation,
+          conversation.id,
           {
             account_id: conversation.account_id,
             inbox_id: conversation.inbox_id,
             message_type: :activity,
-            content: "Conversation was resolved by #{contact.name}",
-            content_attributes: { activity: { type: 'conversation_status_changed', status: 'resolved' } }
+            content: "Conversation was resolved by #{contact.name}"
           }
         )
       end
