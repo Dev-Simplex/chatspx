@@ -19,6 +19,9 @@ class Captain::Assistant::AgentRunnerService
   CONTACT_INBOX_STATE_ATTRIBUTES = %i[id hmac_verified].freeze
 
   CAMPAIGN_STATE_ATTRIBUTES = %i[id title message campaign_type description].freeze
+  # Exposto para o ResponseBuilderJob e os specs do upstream inspecionarem o RunResult cru.
+  attr_reader :last_run_result
+
   def initialize(assistant:, conversation: nil, callbacks: {}, source: nil)
     @assistant = assistant
     @conversation = conversation
@@ -28,9 +31,9 @@ class Captain::Assistant::AgentRunnerService
 
   def generate_response(message_history: [])
     message_to_process, context = run_payload(message_history)
-    result = runner.run(message_to_process, context: context, max_turns: 100)
+    @last_run_result = runner.run(message_to_process, context: context, max_turns: 100)
 
-    process_agent_result(result)
+    process_agent_result(@last_run_result)
   rescue StandardError => e
     handle_run_error(e)
   end
