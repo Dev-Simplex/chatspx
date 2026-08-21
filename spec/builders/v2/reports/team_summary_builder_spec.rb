@@ -1,6 +1,10 @@
 require 'rails_helper'
 
 RSpec.describe V2::Reports::TeamSummaryBuilder do
+  # `avg_first_response_time_after_assignment` foi acrescentada ao retorno dos summary
+  # builders (base_summary_builder.rb) e estes specs comparam o hash INTEIRO, entao
+  # precisam da chave nova. Nenhum exemplo aqui gera evento
+  # `first_response_after_assignment`, por isso o valor esperado e nil.
   let(:account) { create(:account) }
   let(:team1) { create(:team, account: account, name: 'team-1') }
   let(:team2) { create(:team, account: account, name: 'team-2') }
@@ -70,6 +74,7 @@ RSpec.describe V2::Reports::TeamSummaryBuilder do
                 resolved_conversations_count: 0,
                 avg_resolution_time: nil,
                 avg_first_response_time: 20.0,
+                avg_first_response_time_after_assignment: nil,
                 avg_reply_time: 35.0
               },
               {
@@ -78,6 +83,7 @@ RSpec.describe V2::Reports::TeamSummaryBuilder do
                 resolved_conversations_count: 1,
                 avg_resolution_time: 50.0,
                 avg_first_response_time: nil,
+                avg_first_response_time_after_assignment: nil,
                 avg_reply_time: nil
               }
             ]
@@ -99,6 +105,7 @@ RSpec.describe V2::Reports::TeamSummaryBuilder do
                 resolved_conversations_count: 0,
                 avg_resolution_time: nil,
                 avg_first_response_time: 10.0,
+                avg_first_response_time_after_assignment: nil,
                 avg_reply_time: 20.0
               },
               {
@@ -107,6 +114,7 @@ RSpec.describe V2::Reports::TeamSummaryBuilder do
                 resolved_conversations_count: 1,
                 avg_resolution_time: 40.0,
                 avg_first_response_time: nil,
+                avg_first_response_time_after_assignment: nil,
                 avg_reply_time: nil
               }
             ]
@@ -129,6 +137,7 @@ RSpec.describe V2::Reports::TeamSummaryBuilder do
             resolved_conversations_count: 0,
             avg_resolution_time: nil,
             avg_first_response_time: nil,
+            avg_first_response_time_after_assignment: nil,
             avg_reply_time: nil
           }
         )

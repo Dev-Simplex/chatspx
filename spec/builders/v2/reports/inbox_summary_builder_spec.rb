@@ -1,6 +1,10 @@
 require 'rails_helper'
 
 RSpec.describe V2::Reports::InboxSummaryBuilder do
+  # `avg_first_response_time_after_assignment` foi acrescentada ao retorno dos summary
+  # builders (base_summary_builder.rb) e estes specs comparam o hash INTEIRO, entao
+  # precisam da chave nova. Nenhum exemplo aqui gera evento
+  # `first_response_after_assignment`, por isso o valor esperado e nil.
   let(:account) { create(:account) }
   let(:i1) { create(:inbox, account: account) }
   let(:i2) { create(:inbox, account: account) }
@@ -40,6 +44,7 @@ RSpec.describe V2::Reports::InboxSummaryBuilder do
                                             resolved_conversations_count: 0,
                                             avg_resolution_time: nil,
                                             avg_first_response_time: 50.0,
+                                            avg_first_response_time_after_assignment: nil,
                                             avg_reply_time: 35.0
                                           }, {
                                             id: i2.id,
@@ -47,6 +52,7 @@ RSpec.describe V2::Reports::InboxSummaryBuilder do
                                             resolved_conversations_count: 1,
                                             avg_resolution_time: 100.0,
                                             avg_first_response_time: nil,
+                                            avg_first_response_time_after_assignment: nil,
                                             avg_reply_time: nil
                                           })
       end
@@ -62,6 +68,7 @@ RSpec.describe V2::Reports::InboxSummaryBuilder do
                                             resolved_conversations_count: 0,
                                             avg_resolution_time: nil,
                                             avg_first_response_time: 30.0,
+                                            avg_first_response_time_after_assignment: nil,
                                             avg_reply_time: 15.0
                                           }, {
                                             id: i2.id,
@@ -69,6 +76,7 @@ RSpec.describe V2::Reports::InboxSummaryBuilder do
                                             resolved_conversations_count: 1,
                                             avg_resolution_time: 60.0,
                                             avg_first_response_time: nil,
+                                            avg_first_response_time_after_assignment: nil,
                                             avg_reply_time: nil
                                           })
       end
@@ -85,6 +93,7 @@ RSpec.describe V2::Reports::InboxSummaryBuilder do
           resolved_conversations_count: 0,
           avg_resolution_time: nil,
           avg_first_response_time: nil,
+          avg_first_response_time_after_assignment: nil,
           avg_reply_time: nil
         )
       end
