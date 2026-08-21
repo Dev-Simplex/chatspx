@@ -105,8 +105,19 @@ describe ActionCableListener do
         a_collection_containing_exactly(
           admin.pubsub_token, agent.pubsub_token, conversation.contact_inbox.pubsub_token
         ),
-        'conversation.typing_on', { conversation: conversation.push_event_data,
-                                    user: agent_bot.push_event_data,
+        # Evento de digitacao leva payload ENXUTO — `{ id: display_id }` — e nao o
+        # `push_event_data` inteiro (ver action_cable_listener.rb:107). Os outros tres exemplos
+        # deste arquivo (linhas 68, 88 e o typing_off) ja usam a forma certa; so este destoava.
+        # O payload de digitacao classifica o autor em apenas DUAS categorias
+        # (`user.is_a?(Contact) ? 'contact' : 'user'`), entao um agent bot e reportado como
+        # 'user' e vai com o hash minimo — nao com o `push_event_data`. Os outros tres exemplos
+        # deste arquivo ja usam essa forma.
+        #
+        # OBSERVACAO registrada, nao consertada aqui: o painel nao consegue distinguir "a IA
+        # esta digitando" de "um agente esta digitando". Mudar isso altera o payload consumido
+        # em tempo real pelo dashboard — e decisao de produto, nao de triagem.
+        'conversation.typing_on', { conversation: { id: conversation.display_id },
+                                    user: { id: agent_bot.id, name: agent_bot.name, type: 'user' },
                                     account_id: account.id,
                                     is_private: false }
       )

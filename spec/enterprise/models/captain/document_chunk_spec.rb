@@ -35,7 +35,14 @@ RSpec.describe Captain::DocumentChunk do
 
   describe 'embedding callback' do
     it 'enqueues embedding job using contextual_content when present' do
-      chunk = build(:captain_document_chunk, content: 'puro', contextual_content: 'contexto\n\npuro')
+      # `document` CRIADO, nao construido: com `build`, o FactoryBot propaga a estrategia para as
+      # associacoes (use_parent_strategy), entao o documento e o assistente DELE nasciam sem id.
+      # Ao salvar o chunk, a cascata gravava o documento com `assistant_id` nulo e o banco
+      # recusava (`PG::NotNullViolation` em captain_documents.assistant_id).
+      documento = create(:captain_document)
+      chunk = build(:captain_document_chunk, document: documento, assistant: documento.assistant,
+                                             account: documento.account,
+                                             content: 'puro', contextual_content: 'contexto\n\npuro')
       expect(Captain::Llm::UpdateEmbeddingJob).to receive(:perform_later).with(chunk, chunk.embed_text)
       chunk.save!
     end
