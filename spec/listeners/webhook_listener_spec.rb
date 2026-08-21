@@ -1,5 +1,14 @@
 require 'rails_helper'
 describe WebhookListener do
+  # CONTRATO: todo webhook de CONTA leva os dados da conta em `payload[:account]`
+  # (`WebhookListener#deliver_account_webhooks`). Quem consome costuma atender mais de um Chat SPX
+  # — ou mais de uma conta no mesmo — e sem isso teria que adivinhar a origem pelo segredo.
+  #
+  # Os dois exemplos "includes account details ..." vieram do upstream no recorte SEM a
+  # implementacao; quando ela entrou, os outros seis (que fixam o payload EXATO) passaram a
+  # divergir por uma chave. As oito assercoes deste arquivo descrevem o mesmo contrato.
+  # Webhook de INBOX API (`:api_inbox_webhook`) segue sem a chave, de proposito: ali o destino
+  # ja e por caixa.
   let(:listener) { described_class.instance }
   let!(:account) { create(:account) }
   let(:report_identity) { Reports::UpdateAccountIdentity.new(account, Time.zone.now) }
@@ -29,7 +38,7 @@ describe WebhookListener do
       it 'triggers the webhook event' do
         webhook = create(:webhook, inbox: inbox, account: account)
         expect(WebhookJob).to receive(:perform_later).with(
-          webhook.url, message.webhook_data.merge(event: 'message_created'), :account_webhook,
+          webhook.url, message.webhook_data.merge(event: 'message_created', account: account.webhook_data), :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
         ).once
         listener.message_created(message_created_event)
@@ -80,7 +89,7 @@ describe WebhookListener do
         webhook = create(:webhook, inbox: inbox, account: account)
 
         expect(WebhookJob).to receive(:perform_later).with(
-          webhook.url, message.webhook_data.merge(event: 'message_created'), :account_webhook,
+          webhook.url, message.webhook_data.merge(event: 'message_created', account: account.webhook_data), :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
         ).once
 
@@ -253,7 +262,8 @@ describe WebhookListener do
       it 'triggers webhook' do
         webhook = create(:webhook, inbox: inbox, account: account)
         expect(WebhookJob).to receive(:perform_later).with(
-          webhook.url, conversation.webhook_data.merge(event: 'conversation_created'), :account_webhook,
+          webhook.url, conversation.webhook_data.merge(event: 'conversation_created', account: account.webhook_data),
+          :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
         ).once
         listener.conversation_created(conversation_created_event)
@@ -333,7 +343,8 @@ describe WebhookListener do
                   current_value: { test: 'testing custom attri webhook' }
                 }
               }
-            ]
+            ],
+            account: account.webhook_data
           ),
           :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
@@ -358,7 +369,7 @@ describe WebhookListener do
       it 'triggers webhook' do
         webhook = create(:webhook, account: account)
         expect(WebhookJob).to receive(:perform_later).with(
-          webhook.url, contact.webhook_data.merge(event: 'contact_created'), :account_webhook,
+          webhook.url, contact.webhook_data.merge(event: 'contact_created', account: account.webhook_data), :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
         ).once
         listener.contact_created(contact_event)
@@ -421,7 +432,7 @@ describe WebhookListener do
         inbox_data = Inbox::EventDataPresenter.new(inbox).webhook_data
         webhook = create(:webhook, account: account, subscriptions: ['inbox_created'])
         expect(WebhookJob).to receive(:perform_later).with(
-          webhook.url, inbox_data.merge(event: 'inbox_created'), :account_webhook,
+          webhook.url, inbox_data.merge(event: 'inbox_created', account: account.webhook_data), :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
         ).once
         listener.inbox_created(inbox_created_event)
@@ -471,7 +482,8 @@ describe WebhookListener do
 
         expect(WebhookJob).to receive(:perform_later).with(
           webhook.url,
-          inbox_data.merge(event: 'inbox_updated', changed_attributes: changed_attributes_data),
+          inbox_data.merge(event: 'inbox_updated', changed_attributes: changed_attributes_data,
+                           account: account.webhook_data),
           :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
         ).once
@@ -504,7 +516,7 @@ describe WebhookListener do
         }
 
         expect(WebhookJob).to receive(:perform_later).with(
-          webhook.url, payload, :account_webhook,
+          webhook.url, payload.merge(account: account.webhook_data), :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
         ).once
         listener.conversation_typing_on(typing_event)
@@ -557,7 +569,7 @@ describe WebhookListener do
         }
 
         expect(WebhookJob).to receive(:perform_later).with(
-          webhook.url, payload, :account_webhook,
+          webhook.url, payload.merge(account: account.webhook_data), :account_webhook,
           secret: webhook.secret, delivery_id: instance_of(String), webhook_id: webhook.id
         ).once
         listener.conversation_typing_off(typing_event)

@@ -152,11 +152,16 @@ class WebhookListener < BaseListener
   def deliver_account_webhooks(payload, account, inbox = nil)
     return unless account.api_and_webhooks_enabled?
 
+    # Os dados da CONTA vao em todo webhook de conta: quem recebe o evento costuma atender mais
+    # de um Chat SPX (ou mais de uma conta no mesmo), e sem isso precisa adivinhar a origem pelo
+    # segredo. Entra aqui, e nao em cada evento, para nao existir payload de conta sem ele.
+    dados_da_conta = account.webhook_data
+
     account.webhooks.each do |webhook|
       next unless webhook.subscriptions.include?(payload[:event])
       next unless webhook_covers_inbox?(webhook, inbox)
 
-      WebhookJob.perform_later(webhook.url, payload, :account_webhook,
+      WebhookJob.perform_later(webhook.url, payload.merge(account: dados_da_conta), :account_webhook,
                                secret: webhook.secret,
                                delivery_id: SecureRandom.uuid,
                                webhook_id: webhook.id)
