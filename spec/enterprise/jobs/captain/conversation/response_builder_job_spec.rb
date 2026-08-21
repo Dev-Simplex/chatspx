@@ -7,6 +7,14 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
   let(:captain_inbox_association) { create(:captain_inbox, captain_assistant: assistant, inbox: inbox) }
   let(:handoff_message) { I18n.t('conversations.captain.handoff', locale: account.locale) }
 
+  # `messages.outgoing` INCLUI as notas privadas (nota privada e outgoing com private: true).
+  # No handoff o job cria a mensagem ao cliente e, logo depois, o HumanHandoffService grava a
+  # nota com o motivo — entao `outgoing.last` devolve a NOTA, nao o que o cliente recebeu.
+  # Estas assercoes falavam de "mensagem enviada", entao precisam da ultima NAO privada.
+  def ultima_mensagem_ao_cliente(conversation)
+    conversation.messages.outgoing.where(private: false).last
+  end
+
   describe '#perform' do
     let(:conversation) do
       create(:conversation, inbox: inbox, account: account, status: :pending, assignee_agent_bot: assistant.mirror_agent_bot)
@@ -177,7 +185,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
           described_class.perform_now(conversation, assistant)
 
           expect(conversation.reload.status).to eq('open')
-          expect(conversation.messages.outgoing.last.content).to eq(handoff_message)
+          expect(ultima_mensagem_ao_cliente(conversation).content).to eq(handoff_message)
           expect(conversation.messages.outgoing.pluck(:content)).not_to include('Let me check and get back to you.')
           expect(account.reload.usage_limits[:captain][:responses][:consumed]).to eq(0)
         end
@@ -206,7 +214,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
           described_class.perform_now(conversation, assistant)
 
           expect(conversation.reload.status).to eq('open')
-          expect(conversation.messages.outgoing.last.content).to eq(handoff_message)
+          expect(ultima_mensagem_ao_cliente(conversation).content).to eq(handoff_message)
           expect(conversation.messages.outgoing.pluck(:content)).not_to include('Could you share the exact error message you see?')
           expect(account.reload.usage_limits[:captain][:responses][:consumed]).to eq(0)
         end
@@ -226,7 +234,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
           described_class.perform_now(conversation, assistant)
 
           expect(conversation.reload.status).to eq('open')
-          expect(conversation.messages.outgoing.last.content).to eq(handoff_message)
+          expect(ultima_mensagem_ao_cliente(conversation).content).to eq(handoff_message)
           expect(account.reload.usage_limits[:captain][:responses][:consumed]).to eq(0)
         end
 
@@ -245,7 +253,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
           described_class.perform_now(conversation, assistant)
 
           expect(conversation.reload.status).to eq('open')
-          expect(conversation.messages.outgoing.last.content).to eq(handoff_message)
+          expect(ultima_mensagem_ao_cliente(conversation).content).to eq(handoff_message)
         end
       end
 
@@ -287,7 +295,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
           described_class.perform_now(conversation, assistant)
 
           expect(conversation.reload.status).to eq('open')
-          expect(conversation.messages.outgoing.last.content).to eq(handoff_message)
+          expect(ultima_mensagem_ao_cliente(conversation).content).to eq(handoff_message)
           expect(account.reload.usage_limits[:captain][:responses][:consumed]).to eq(0)
         end
 
@@ -298,7 +306,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
           described_class.perform_now(conversation, assistant)
 
           expect(conversation.reload.status).to eq('open')
-          expect(conversation.messages.outgoing.last.content).to eq(handoff_message)
+          expect(ultima_mensagem_ao_cliente(conversation).content).to eq(handoff_message)
         end
 
         it 'falls back to the assistant response when the classifier fails' do
@@ -511,7 +519,18 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         expect(conversation.messages.last.content).to eq('Hey, welcome to Captain V2')
       end
 
-      it 'passes message history with resolution markers to agent runner service' do
+      # DIVERGENCIA DELIBERADA. O upstream injeta um `RESOLUTION_MARKER` no historico atraves de
+      # `Captain::Conversation::MessageHistoryBuilderService` — classe que NAO existe nesta arvore.
+      # Adota-la quebrou toda resposta v2 (ela aceita so `conversation:`, entao a chamada levantava
+      # ArgumentError, caia no rescue e virava handoff); ver o comentario em
+      # `response_builder_job.rb#generate_response_with_v2`. O v2 daqui usa o mesmo
+      # `collect_previous_messages` do v1, e `mensagens_do_contexto` filtra por
+      # `message_type: [:incoming, :outgoing]` — mensagem de ATIVIDADE nunca chega ao LLM. A
+      # reentrada e sinalizada por EpisodeContinuityNote/HumanHistoryNote, nao por marcador.
+      #
+      # O exemplo passa a fixar ESSE contrato (atividade fora do contexto), que e o que protege
+      # o modelo de ler "Conversation was marked resolved by Alice" como fala de alguem.
+      it 'mantem mensagens de atividade fora do historico enviado ao agent runner' do
         same_second = Time.current.change(usec: 0)
         conversation.messages.find_by!(content: 'Hello').update!(created_at: same_second, updated_at: same_second)
         create(
@@ -530,10 +549,6 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
 
         expected_messages = [
           { content: 'Hello', role: 'user' },
-          {
-            content: Captain::Conversation::MessageHistoryBuilderService::RESOLUTION_MARKER,
-            role: 'assistant'
-          },
           { content: 'Fresh question', role: 'user' }
         ]
 

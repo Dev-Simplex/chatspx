@@ -6,6 +6,11 @@ RSpec.describe Captain::Llm::ConversationFaqService do
   let(:service) { described_class.new(captain_assistant, conversation) }
   let(:embedding_service) { instance_double(Captain::Llm::EmbeddingService) }
   let(:mock_chat) { instance_double(RubyLLM::Chat) }
+  # O servico NAO chama `RubyLLM.chat`: chama `chat` do `Llm::BaseAiService`, que faz
+  # `Llm::Config.context_for_account(...).chat(...)`. Mockar `RubyLLM.chat` nao intercepta
+  # nada — o contexto nasce com a chave real e a requisicao vaza pro WebMock. O dublê tem
+  # que ficar onde o cliente e construido. Mesmo conserto do faq_generator_service_spec.
+  let(:mock_context) { instance_double(RubyLLM::Context) }
   let(:sample_faqs) do
     [
       { 'question' => 'What is the purpose?', 'answer' => 'To help users.' },
@@ -19,7 +24,8 @@ RSpec.describe Captain::Llm::ConversationFaqService do
   before do
     create(:installation_config, name: 'CAPTAIN_OPEN_AI_API_KEY', value: 'test-key')
     allow(Captain::Llm::EmbeddingService).to receive(:new).and_return(embedding_service)
-    allow(RubyLLM).to receive(:chat).and_return(mock_chat)
+    allow(Llm::Config).to receive(:context_for_account).and_return(mock_context)
+    allow(mock_context).to receive(:chat).and_return(mock_chat)
     allow(mock_chat).to receive(:with_temperature).and_return(mock_chat)
     allow(mock_chat).to receive(:with_params).and_return(mock_chat)
     allow(mock_chat).to receive(:with_instructions).and_return(mock_chat)
@@ -58,7 +64,7 @@ RSpec.describe Captain::Llm::ConversationFaqService do
       end
 
       it 'does not call the LLM API' do
-        expect(RubyLLM).not_to receive(:chat)
+        expect(mock_context).not_to receive(:chat)
         service.generate_and_deduplicate
       end
     end

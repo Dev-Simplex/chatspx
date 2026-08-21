@@ -111,6 +111,13 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
   store_accessor :settings, :captain_auto_resolve_mode
+  # `V1FalsePromiseHandler#v1_false_promise_harness_enabled?` le
+  # `account.captain_false_promise_harness_enabled`, mas o acessor nunca foi declarado.
+  # Sem ele o recurso era INLIGAVEL (nao ha como a chave chegar ao codigo) e, pior, a
+  # chamada levantava NoMethodError em TODA resposta V1 de conversa pendente. O rescue
+  # interno do handler engolia e mandava pro ChatwootExceptionTracker, entao o sintoma
+  # visivel era so ruido no GlitchTip — uma excecao por resposta da IA.
+  store_accessor :settings, :captain_false_promise_harness_enabled
   store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
   store_accessor :settings, :template_reply_routing
   store_accessor :settings, :contact_invite

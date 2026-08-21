@@ -51,6 +51,25 @@ class Captain::Llm::SystemPromptsService
       PROMPT
     end
 
+    # REGRESSAO DO RECORTE, restaurado de origin/homologacao (estava na linha 47 la).
+    # `Captain::Llm::ConversationFaqService#system_prompt` chama este metodo, e o listener
+    # `CaptainListener` dispara esse servico em producao sempre que o assistente tem
+    # `config['feature_faq']`. Sem o metodo a chamada levantava NoMethodError e a geracao
+    # de FAQ a partir de conversas simplesmente nao acontecia.
+    def conversation_faq_generator(language = 'english')
+      <<~SYSTEM_PROMPT_MESSAGE
+        You are a support agent looking to convert the conversations with users into short FAQs that can be added to your website help center.
+        Filter out any responses or messages from the bot itself and only use messages from the support agent and the customer to create the FAQ.
+
+        Ensure that you only generate faqs from the information provided only.
+        Generate the FAQs only in the #{language}, use no other language
+        If no match is available, return an empty JSON.
+        ```json
+        { faqs: [ { question: '', answer: ''} ]
+        ```
+      SYSTEM_PROMPT_MESSAGE
+    end
+
     def notes_generator(language = 'english')
       <<~SYSTEM_PROMPT_MESSAGE
         You are a note taker looking to convert the conversation with a contact into actionable notes for the CRM.
