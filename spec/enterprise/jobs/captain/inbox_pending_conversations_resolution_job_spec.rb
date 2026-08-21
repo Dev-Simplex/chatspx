@@ -139,7 +139,11 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
       described_class.perform_now(inbox)
 
       public_message = resolvable_pending_conversation.messages.where(private: false).outgoing.last
-      expect(public_message.content).to eq(I18n.t('conversations.activity.auto_resolution_message'))
+      # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en, fixado no rails_helper),
+      # mas a mensagem e gerada no idioma da CONTA — pt-BR por padrao, decisao nossa. Ver 4cab065b87.
+      expect(public_message.content).to eq(
+        I18n.t('conversations.activity.auto_resolution_message', locale: inbox.account.locale)
+      )
     end
 
     it 'adds the correct activity message after resolution' do
@@ -148,16 +152,22 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
       expected_content = I18n.t(
         'conversations.activity.captain.resolved_with_reason',
         user_name: captain_assistant.name,
-        reason: 'no outstanding questions'
+        reason: 'no outstanding questions',
+        locale: inbox.account.locale
       )
       expect(Conversations::ActivityMessageJob)
         .to have_been_enqueued.with(
-          resolvable_pending_conversation,
+          resolvable_pending_conversation.id,
           {
             account_id: resolvable_pending_conversation.account_id,
             inbox_id: resolvable_pending_conversation.inbox_id,
             message_type: :activity,
-            content: expected_content
+            content: expected_content,
+            # F3 (nosso): atividade executada por IA carrega `ai_actor`, e o front usa isso
+            # para estilizar a linha em roxo com icone. O spec e anterior a esse campo e
+            # comparava um hash sem ele, entao NENHUM teste cobria o `ai_actor` — quebra-lo
+            # passaria despercebido. Ver enterprise/app/models/enterprise/activity_message_handler.rb.
+            content_attributes: { ai_actor: { id: captain_assistant.id, name: captain_assistant.name } }
           }
         )
     end
@@ -246,16 +256,22 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
       expected_content = I18n.t(
         'conversations.activity.captain.open_with_reason',
         user_name: captain_assistant.name,
-        reason: 'pending clarification from customer'
+        reason: 'pending clarification from customer',
+        locale: inbox.account.locale
       )
       expect(Conversations::ActivityMessageJob)
         .to have_been_enqueued.with(
-          resolvable_pending_conversation,
+          resolvable_pending_conversation.id,
           {
             account_id: resolvable_pending_conversation.account_id,
             inbox_id: resolvable_pending_conversation.inbox_id,
             message_type: :activity,
-            content: expected_content
+            content: expected_content,
+            # F3 (nosso): atividade executada por IA carrega `ai_actor`, e o front usa isso
+            # para estilizar a linha em roxo com icone. O spec e anterior a esse campo e
+            # comparava um hash sem ele, entao NENHUM teste cobria o `ai_actor` — quebra-lo
+            # passaria despercebido. Ver enterprise/app/models/enterprise/activity_message_handler.rb.
+            content_attributes: { ai_actor: { id: captain_assistant.id, name: captain_assistant.name } }
           }
         )
     end
