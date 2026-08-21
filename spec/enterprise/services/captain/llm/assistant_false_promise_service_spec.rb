@@ -6,6 +6,11 @@ RSpec.describe Captain::Llm::AssistantFalsePromiseService do
   let(:conversation) { create(:conversation, account: account) }
   let(:service) { described_class.new(assistant: assistant, conversation: conversation) }
   let(:mock_chat) { instance_double(RubyLLM::Chat) }
+  # O servico NAO chama `RubyLLM.chat`: herda `Llm::BaseAiService#chat`, que faz
+  # `Llm::Config.context_for_account(...).chat(...)`. Dublar `RubyLLM.chat` nao intercepta nada.
+  # Quinta ocorrencia do mesmo engano nesta triagem (faq_generator, conversation_faq,
+  # assistant_action_classifier, website_analyzer e aqui).
+  let(:mock_context) { instance_double(RubyLLM::Context) }
   let(:mock_response) do
     instance_double(
       RubyLLM::Message,
@@ -14,7 +19,8 @@ RSpec.describe Captain::Llm::AssistantFalsePromiseService do
   end
 
   before do
-    allow(RubyLLM).to receive(:chat).and_return(mock_chat)
+    allow(Llm::Config).to receive(:context_for_account).and_return(mock_context)
+    allow(mock_context).to receive(:chat).and_return(mock_chat)
     allow(mock_chat).to receive(:with_temperature).and_return(mock_chat)
     allow(mock_chat).to receive(:with_schema).and_return(mock_chat)
     allow(mock_chat).to receive(:with_instructions).and_return(mock_chat)
@@ -31,7 +37,7 @@ RSpec.describe Captain::Llm::AssistantFalsePromiseService do
     it 'uses the detector model even when the assistant feature model is overridden' do
       account.update!(captain_models: { 'assistant' => 'gpt-5-mini' })
 
-      expect(RubyLLM).to receive(:chat).with(model: 'gpt-5.2').and_return(mock_chat)
+      expect(mock_context).to receive(:chat).with(model: 'gpt-5.2').and_return(mock_chat)
       allow(mock_chat).to receive(:ask).and_return(mock_response)
 
       result = service.detect(message_history: message_history, assistant_response: 'Try restarting the app.')
