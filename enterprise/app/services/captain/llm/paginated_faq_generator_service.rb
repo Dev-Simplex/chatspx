@@ -225,7 +225,13 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::LegacyBaseOpenAiService
     }
   end
 
+  # `Captain::Document#to_llm_metadata` NUNCA existiu — nem aqui, nem em origin/homologacao.
+  # O refactor que centralizou o metadata do documento passou a chamar um metodo que ninguem
+  # escreveu, entao a chamada levantava NoMethodError em TODA geracao de FAQ paginada.
+  # Devolve o mesmo conteudo que a base montava inline, mantendo a centralizacao pretendida.
   def document_metadata
-    @document&.to_llm_metadata || {}
+    return {} if @document.blank?
+
+    { document_id: @document.id }
   end
 end

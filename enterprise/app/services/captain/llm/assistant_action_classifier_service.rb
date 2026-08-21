@@ -3,7 +3,11 @@ class Captain::Llm::AssistantActionClassifierService < Llm::BaseAiService
   include Captain::Llm::AssistantResponseInspectionHelpers
 
   def initialize(assistant:, conversation:)
-    super(feature: 'assistant', account: conversation.account)
+    # `Llm::BaseAiService#initialize` aceita SO `account:` — nao existe argumento `feature:`.
+    # A escolha do modelo por feature e feita sobrescrevendo o metodo `feature_name`, cujo
+    # padrao em `model_for_feature` ja e 'assistant'. Com o `feature:` a chamada levantava
+    # ArgumentError e o servico nao podia sequer ser instanciado.
+    super(account: conversation.account)
     @assistant = assistant
     @conversation = conversation
     @temperature = 0.0
