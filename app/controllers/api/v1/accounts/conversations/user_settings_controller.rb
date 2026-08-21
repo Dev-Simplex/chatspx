@@ -30,7 +30,11 @@ class Api::V1::Accounts::Conversations::UserSettingsController < Api::V1::Accoun
     )
   end
 
+  # `.to_h` NAO e cosmetico: `permit(...).fetch(...)` devolve `ActionController::Parameters`,
+  # que desde o Rails 5 NAO herda de Hash. O service faz `patch.is_a?(Hash) ? ... : {}` — ou
+  # seja, recebia Parameters, caia no ramo do `{}` e descartava o patch INTEIRO. Sanitizado
+  # vazio -> ValidationError -> 422. O endpoint respondia 422 para toda requisicao valida.
   def user_setting_params
-    params.permit(user_setting: [:pinned, :archived_at, :muted_until, :theme_key]).fetch(:user_setting, {})
+    params.permit(user_setting: [:pinned, :archived_at, :muted_until, :theme_key]).fetch(:user_setting, {}).to_h
   end
 end
