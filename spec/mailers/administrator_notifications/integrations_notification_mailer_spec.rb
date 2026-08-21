@@ -20,7 +20,7 @@ RSpec.describe AdministratorNotifications::IntegrationsNotificationMailer do
     end
 
     it 'includes reconnect instructions in the body' do
-      expect(mail.body.encoded).to include('To continue receiving messages on Slack, please delete the integration and connect your workspace again')
+      expect(mail.body.encoded).to include('Sua integração com o Slack expirou.')
     end
   end
 
@@ -28,11 +28,11 @@ RSpec.describe AdministratorNotifications::IntegrationsNotificationMailer do
     let(:mail) { described_class.with(account: account).dialogflow_disconnect.deliver_now }
 
     it 'renders the subject' do
-      expect(mail.subject).to eq('Your Dialogflow integration was disconnected')
+      expect(mail.subject).to eq('Your Dialogflow integration has been disconnected')
     end
 
     it 'renders the content' do
-      expect(mail.body.encoded).to include('Your Dialogflow integration was disconnected because of permission issues')
+      expect(mail.body.encoded).to include('Sua integração com o Dialogflow foi desconectada devido a problemas de')
     end
 
     it 'renders the receiver email' do
