@@ -45,7 +45,12 @@ RSpec.describe 'DeviseOverrides::OmniauthCallbacksController', type: :request do
                                                              account_name: 'example',
                                                              user_full_name: 'test',
                                                              email: 'test_not_preset@example.com',
-                                                             locale: I18n.locale,
+                                                             # O controller passa `I18n.locale` resolvido DENTRO da
+                                                            # requisicao: cadastro nao tem conta ainda, entao
+                                                            # `switch_locale` cai no `I18n.default_locale` (pt_BR,
+                                                            # decisao nossa). O rails_helper roda o exemplo em :en,
+                                                            # entao `I18n.locale` aqui vale outra coisa.
+                                                            locale: I18n.default_locale,
                                                              confirmed: nil
                                                            })
         expect(account_builder).to have_received(:perform)

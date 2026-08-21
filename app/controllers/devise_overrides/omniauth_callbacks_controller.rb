@@ -48,7 +48,12 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
     create_account_for_user
     token = @resource.send(:set_reset_password_token)
     frontend_url = ENV.fetch('FRONTEND_URL', nil)
-    redirect_to "#{frontend_url}/app/auth/password/edit?config=default&reset_password_token=#{token}"
+    # Mesmo caso dos redirects de `login_page_url` logo acima: URL montada com FRONTEND_URL, que
+    # por desenho pode ser outro host que o da requisicao. Sem a flag, UnsafeRedirectError -> 500
+    # no lugar da tela de redefinicao de senha. O token vai em QUERY PARAM; o host vem so da
+    # configuracao, entao nao ha redirecionamento aberto.
+    redirect_to "#{frontend_url}/app/auth/password/edit?config=default&reset_password_token=#{token}",
+                allow_other_host: true
   end
 
   def login_page_url(error: nil, email: nil, sso_auth_token: nil)
