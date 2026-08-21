@@ -16,9 +16,20 @@ RSpec.describe 'Devise::Mailer' do
     end
 
     it 'has the correct header data' do
-      expect(mail.reply_to).to contain_exactly('accounts@chatwoot.com')
+      # `Devise.mailer_sender` e lido no BOOT a partir de MAILER_SENDER_EMAIL
+      # (config/initializers/devise.rb:15), entao `with_modified_env` nao alcanca. O spec
+      # cravava 'accounts@chatwoot.com', que e o valor de FALLBACK: so passava em maquina
+      # SEM a variavel. Lendo a mesma fonte que o codigo le, passa em qualquer lugar.
+      # Mesmo idioma de app/presenters/mail_presenter.rb:178.
+      expected_reply_to = Mail::Address.new(ENV.fetch('MAILER_SENDER_EMAIL', 'SPX - CHAT <accounts@chatwoot.com>')).address
+      expect(mail.reply_to).to contain_exactly(expected_reply_to)
       expect(mail.to).to contain_exactly(confirmable_user.email)
-      expect(mail.subject).to eq('Confirmation Instructions')
+      # `Devise.parent_mailer = ApplicationMailer`, e este envio nao carrega conta, entao
+      # `switch_locale` cai em `I18n.default_locale` — pt_BR por decisao nossa. O assunto vem
+      # do proprio i18n do Devise; cravar o ingles testava o locale, nao o mailer.
+      expect(mail.subject).to eq(
+        I18n.t('devise.mailer.confirmation_instructions.subject', locale: I18n.default_locale)
+      )
     end
 
     it 'uses the user\'s name' do

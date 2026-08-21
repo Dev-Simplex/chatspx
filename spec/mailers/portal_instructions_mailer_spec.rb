@@ -20,7 +20,12 @@ RSpec.describe PortalInstructionsMailer do
           mail = described_class.send_cname_instructions(portal: portal, recipient_email: recipient_email).deliver_now
 
           expect(mail.to).to eq([recipient_email])
-          expect(mail.subject).to eq("Finish setting up #{portal.custom_domain}")
+          # O assunto vem de `portals.send_instructions.subject`. Este mailer nao tem conta,
+          # entao `ApplicationMailer#switch_locale` cai em `I18n.default_locale` — que e pt_BR
+          # por decisao nossa (config/application.rb:47). Cravar o ingles testava o locale.
+          expect(mail.subject).to eq(
+            I18n.t('portals.send_instructions.subject', custom_domain: portal.custom_domain, locale: I18n.default_locale)
+          )
           expect(mail.body.encoded).to include('help.example.com CNAME help.chatwoot.com')
         end
       end
