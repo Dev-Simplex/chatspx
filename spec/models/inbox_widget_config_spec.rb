@@ -110,10 +110,16 @@ RSpec.describe Inbox, type: :model do
       expect(inbox.errors[:widget_appearance].first).to include('"token"')
     end
 
+    # A garantia do 3.01 continua: a lista negativa NAO pode marcar como segredo um nome que
+    # apenas contem "token" no meio. O que mudou e o mecanismo do teste — o 5.01 fechou o
+    # schema de `widget_tracking` com `additionalProperties: false`, entao um campo inventado
+    # como `tokenizer_mode` passa a ser recusado por NAO SER DECLARADO, nao por parecer segredo.
+    # Testar pela validade do modelo passou a medir a outra coisa; aqui se pergunta ao scanner.
     it 'accepts public identifiers that merely contain the word token in the middle' do
-      inbox.widget_tracking = { 'tokenizer_mode' => 'strict', 'meta_pixel_id' => '123' }
+      valor = { 'tokenizer_mode' => 'strict', 'meta_pixel_id' => '123' }
 
-      expect(inbox).to be_valid
+      expect(WidgetSecretScanner.offending_key_name(valor)).to be_nil
+      expect(WidgetSecretScanner.offending_value_holder(valor)).to be_nil
     end
 
     it 'does not police keys outside the four widget keys' do

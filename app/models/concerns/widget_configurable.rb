@@ -76,6 +76,11 @@ module WidgetConfigurable
   # o nome de segredo que ninguem previu na lista negativa. Ate 3.01, `widget_tracking` era a unica
   # das tres chaves de objeto sem schema, e portanto a unica aberta.
   def ensure_widget_tracking_matches_schema
+    # A lista negativa roda ANTES e ja falou sobre esta chave com a mensagem util ("pertence a
+    # tela de credenciais"). O schema, com `additionalProperties: false`, falaria de novo com o
+    # generico "unknown field" — duas mensagens para o mesmo problema, e a pior delas por ultimo.
+    return if errors[:widget_tracking].any?
+
     validate_against_schema(:widget_tracking, WidgetTrackingSchema::SCHEMA)
   end
 
