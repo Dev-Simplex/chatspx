@@ -21,6 +21,18 @@ module Llm::FeatureRouter
       }
     end
 
+    # O default de uma feature NAO e so o do llm.yml: para `assistant` numa conta com
+    # `captain_integration_v2` ele e o CAPTAIN_V2_ASSISTANT_MODEL. `resolve` ja sabe disso, mas
+    # devolve o modelo EFETIVO — que vira a sobrescrita da conta quando existe. A tela de
+    # preferencias precisa das duas coisas separadas (o default e o selecionado), para poder
+    # dizer "voce escolheu X, o padrao seria Y".
+    def default_for(feature:, account: nil)
+      feature_key = feature.to_s
+      raise UnknownFeatureError, "Unknown LLM feature: #{feature_key}" unless Llm::Models.feature?(feature_key)
+
+      captain_v2_assistant_model(account, feature_key) || Llm::Models.default_model_for(feature_key)
+    end
+
     private
 
     def account_model_override(account, feature_key)

@@ -8,8 +8,10 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
 
   def update
     params_to_update = captain_params
-    @current_account.captain_models = params_to_update[:captain_models] if params_to_update[:captain_models]
-    @current_account.captain_features = params_to_update[:captain_features] if params_to_update[:captain_features]
+    # `key?` e nao truthiness: remover todas as sobrescritas produz nil, e o guard antigo
+    # (`if params_to_update[:captain_models]`) pulava justamente a atribuicao que faz a remocao.
+    @current_account.captain_models = params_to_update[:captain_models] if params_to_update.key?(:captain_models)
+    @current_account.captain_features = params_to_update[:captain_features] if params_to_update.key?(:captain_features)
     @current_account.save! if @current_account.changed?
 
     update_llm_connection(params_to_update[:llm_connection]) if params_to_update[:llm_connection]
@@ -42,9 +44,13 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
     permitted
   end
 
+  # Valor em BRANCO significa "remover a sobrescrita", nao "gravar vazio". Sem o `compact_blank`
+  # o merge deixava `{"editor" => ""}` gravado, e `account_model_override` tratava string vazia
+  # como escolha da conta — a tela passava a mostrar modelo vazio como selecionado. O `presence`
+  # transforma o hash vazio em nil, para a conta voltar ao estado de "sem sobrescrita nenhuma".
   def merged_captain_models
     existing_models = @current_account.captain_models || {}
-    existing_models.merge(permitted_captain_models)
+    existing_models.merge(permitted_captain_models).compact_blank.presence
   end
 
   def merged_captain_features
@@ -66,13 +72,23 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
   def features_with_account_preferences
     preferences = Current.account.captain_preferences
     account_features = preferences[:features] || {}
-    account_models = preferences[:models] || {}
+    # `preferences[:models]` deixou de ser lido aqui: quem resolve a sobrescrita da conta agora
+    # e o `Llm::FeatureRouter` (que tambem valida o modelo contra a feature antes de aceita-lo).
 
     Llm::Models.feature_keys.index_with do |feature_key|
       config = Llm::Models.feature_config(feature_key)
+      # `Llm::FeatureRouter` e quem sabe resolver modelo/provedor/origem — inclusive o default
+      # especial do assistant em contas v2. Calcular `selected` a mao aqui repetia (mal) essa
+      # regra: ignorava o v2 e nao dizia de ONDE veio o modelo, entao a tela nao tinha como
+      # distinguir "padrao" de "escolha da conta".
+      resolvido = Llm::FeatureRouter.resolve(feature: feature_key, account: Current.account)
       config.merge(
         enabled: account_features[feature_key] == true,
-        selected: account_models[feature_key] || config[:default]
+        default: Llm::FeatureRouter.default_for(feature: feature_key, account: Current.account),
+        selected: resolvido[:model],
+        model: resolvido[:model],
+        provider: resolvido[:provider],
+        source: resolvido[:source].to_s
       )
     end
   end

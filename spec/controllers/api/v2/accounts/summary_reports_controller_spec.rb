@@ -1,6 +1,11 @@
 require 'rails_helper'
 
 RSpec.describe 'Summary Reports API', type: :request do
+  # O controller SEMPRE monta `team_id` e `inbox_id` no hash entregue ao builder
+  # (summary_reports_controller.rb:46-47), mesmo quando ausentes na query — vem nil. O `params`
+  # deste spec e usado nas DUAS pontas (o que a requisicao envia e o que se espera no builder),
+  # entao acrescentar as chaves nele mudaria tambem o que e ENVIADO. O merge fica so no lado
+  # esperado.
   let(:account) { create(:account) }
   let(:admin) { create(:user, account: account, role: :administrator) }
   let(:agent) { create(:user, account: account, role: :agent) }
@@ -45,7 +50,9 @@ RSpec.describe 'Summary Reports API', type: :request do
             headers: admin.create_new_auth_token,
             as: :json
 
-        expect(V2::Reports::AgentSummaryBuilder).to have_received(:new).with(account: account, params: params)
+        expect(V2::Reports::AgentSummaryBuilder).to have_received(:new).with(
+          account: account, params: params.merge(team_id: nil, inbox_id: nil)
+        )
         expect(agent_summary_builder).to have_received(:build)
 
         expect(response).to have_http_status(:success)
@@ -96,7 +103,9 @@ RSpec.describe 'Summary Reports API', type: :request do
             headers: admin.create_new_auth_token,
             as: :json
 
-        expect(V2::Reports::InboxSummaryBuilder).to have_received(:new).with(account: account, params: params)
+        expect(V2::Reports::InboxSummaryBuilder).to have_received(:new).with(
+          account: account, params: params.merge(team_id: nil, inbox_id: nil)
+        )
         expect(inbox_summary_builder).to have_received(:build)
 
         expect(response).to have_http_status(:success)
@@ -147,7 +156,9 @@ RSpec.describe 'Summary Reports API', type: :request do
             headers: admin.create_new_auth_token,
             as: :json
 
-        expect(V2::Reports::TeamSummaryBuilder).to have_received(:new).with(account: account, params: params)
+        expect(V2::Reports::TeamSummaryBuilder).to have_received(:new).with(
+          account: account, params: params.merge(team_id: nil, inbox_id: nil)
+        )
         expect(team_summary_builder).to have_received(:build)
 
         expect(response).to have_http_status(:success)

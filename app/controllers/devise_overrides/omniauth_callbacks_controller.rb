@@ -16,7 +16,15 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
     # we can just send them to the login page again with the SSO params
     # that will log them in
     encoded_email = ERB::Util.url_encode(@resource.email)
-    redirect_to login_page_url(email: encoded_email, sso_auth_token: @resource.generate_sso_auth_token)
+    # `allow_other_host:` e necessario, nao cosmetico: `login_page_url` monta a URL a partir
+    # de FRONTEND_URL, que POR DESENHO pode ser um host diferente do que atendeu a
+    # requisicao — e nesta frota isso acontece de verdade (o mesmo ambiente responde por
+    # mais de um dominio). Sem a flag, o Rails levanta UnsafeRedirectError e o usuario
+    # recebe 500 em vez de ir para a tela de login. O que varia na URL sao QUERY PARAMS
+    # (email, sso_auth_token, error); o host vem so da configuracao, entao nao ha
+    # redirecionamento aberto aqui.
+    redirect_to login_page_url(email: encoded_email, sso_auth_token: @resource.generate_sso_auth_token),
+                allow_other_host: true
   end
 
   def sign_in_user_on_mobile
@@ -33,8 +41,9 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
   end
 
   def sign_up_user
-    return redirect_to login_page_url(error: 'no-account-found') unless account_signup_allowed?
-    return redirect_to login_page_url(error: 'business-account-only') unless validate_signup_email_is_business_domain?
+    return redirect_to login_page_url(error: 'no-account-found'), allow_other_host: true unless account_signup_allowed?
+    return redirect_to login_page_url(error: 'business-account-only'), allow_other_host: true unless
+      validate_signup_email_is_business_domain?
 
     create_account_for_user
     token = @resource.send(:set_reset_password_token)

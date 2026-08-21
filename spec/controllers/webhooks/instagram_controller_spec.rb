@@ -1,22 +1,30 @@
 require 'rails_helper'
 
 RSpec.describe 'Webhooks::InstagramController', type: :request do
-  describe 'GET /webhooks/verify' do
+  # A rota da verificacao e `get 'webhooks/instagram'` (routes.rb) — o mesmo caminho do POST,
+  # como a Meta exige. Os tres exemplos batiam em `/webhooks/instagram/verify`, que NAO EXISTE.
+  #
+  # Os dois primeiros passavam por isso: esperavam 404 e recebiam o 404 da ROTA AUSENTE, nunca
+  # chegando ao controller — token nenhum foi conferido em nenhum momento. Verde por ausencia de
+  # sujeito. Os proprios NOMES ja diziam "returns 401", que e o que `MetaTokenVerifyConcern#verify`
+  # devolve para token invalido; so a assercao e que tinha sido ajustada ao 404 acidental.
+  describe 'GET /webhooks/instagram (verificacao da Meta)' do
     it 'returns 401 when valid params are not present' do
-      get '/webhooks/instagram/verify'
-      expect(response).to have_http_status(:not_found)
+      get '/webhooks/instagram'
+      expect(response).to have_http_status(:unauthorized)
     end
 
     it 'returns 401 when invalid params' do
       with_modified_env IG_VERIFY_TOKEN: '123456' do
-        get '/webhooks/instagram/verify', params: { 'hub.challenge' => '123456', 'hub.mode' => 'subscribe', 'hub.verify_token' => 'invalid' }
-        expect(response).to have_http_status(:not_found)
+        get '/webhooks/instagram', params: { 'hub.challenge' => '123456', 'hub.mode' => 'subscribe', 'hub.verify_token' => 'invalid' }
+        expect(response).to have_http_status(:unauthorized)
       end
     end
 
     it 'returns challenge when valid params' do
       with_modified_env IG_VERIFY_TOKEN: '123456' do
-        get '/webhooks/instagram/verify', params: { 'hub.challenge' => '123456', 'hub.mode' => 'subscribe', 'hub.verify_token' => '123456' }
+        get '/webhooks/instagram', params: { 'hub.challenge' => '123456', 'hub.mode' => 'subscribe', 'hub.verify_token' => '123456' }
+        expect(response).to have_http_status(:success)
         expect(response.body).to include '123456'
       end
     end
