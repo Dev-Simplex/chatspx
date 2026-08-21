@@ -37,6 +37,9 @@
       "ACTIONS": "Ações",
       "DELETE": {
         "BUTTON_TEXT": "Excluir"
+      },
+      "EDIT": {
+        "BUTTON_TEXT": "Editar"
       }
     },
     "ADD": {
@@ -60,7 +63,19 @@
       "BUTTON_TEXT": "Desconectado"
     },
     "SIDEBAR_DESCRIPTION": {
-      "DIALOGFLOW": "Dialogflow é uma plataforma de processamento de linguagem natural para a construção de interfaces conversais. Integrá-lo com {installationName} permite que os bots lidem primeiro com consultas e transfiram para os agentes quando necessário. Ele ajuda a qualificar leads e reduzir a carga de trabalho dos agentes respondendo às FAQ. Para adicionar um fluxo de diálogo (Dialogflow), crie uma Conta de Serviço no Google Console e compartilhe as credenciais. Consulte sua documentação para obter detalhes"
+      "DIALOGFLOW": "Dialogflow é uma plataforma de processamento de linguagem natural para a construção de interfaces conversais. Integrá-lo com {installationName} permite que os bots lidem primeiro com consultas e transfiram para os agentes quando necessário. Ele ajuda a qualificar leads e reduzir a carga de trabalho dos agentes respondendo às FAQ. Para adicionar um fluxo de diálogo (Dialogflow), crie uma Conta de Serviço no Google Console e compartilhe as credenciais. Consulte sua documentação para obter detalhes",
+      "META LEAD ADS": "Receba os Lead Ads do Facebook/Instagram como conversas automáticas. Quando alguém envia um formulário de Lead Ads, o {installationName} cria o contato e abre a conversa na caixa de entrada alvo. Suporta várias páginas (um hook por página). Configure o webhook no Meta for Developers usando a URL de callback indicada na documentação."
+    },
+    "EDIT": {
+      "TITLE": "Editar",
+      "FORM": {
+        "SUBMIT": "Salvar alterações",
+        "CANCEL": "Cancelar"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Hook da integração atualizado com sucesso",
+        "ERROR_MESSAGE": "Não foi possível atualizar o hook da integração. Tente novamente mais tarde"
+      }
     }
   }
 }

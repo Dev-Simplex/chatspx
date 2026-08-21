@@ -578,7 +578,8 @@
         "COVERAGE": "{pct}% aprovado",
         "APPROVED": "FAQs Aprovadas",
         "PENDING": "FAQs pendentes",
-        "DOCUMENTS": "Documentos"
+        "DOCUMENTS": "Documentos",
+        "SUGGESTIONS": "Sugestões de FAQ"
       },
       "LINKS": {
         "DOCS": {
@@ -1347,6 +1348,13 @@
           "TITLE": "FAQ do Agente IA",
           "NOTE": "O Agente IA detecta perguntas comuns dos clientes—sejam elas ausentes da sua base de conhecimento ou frequentemente feitas—e gera FAQs relevantes para melhorar o suporte. Você pode revisar cada sugestão e decidir se aprova ou rejeita."
         }
+      },
+      "ERRORS": {
+        "LOAD": "Ocorreu um erro ao carregar as FAQs. Tente novamente."
+      },
+      "SUGGESTIONS_BANNER": {
+        "TITLE": "O Captain agrupou perguntas recorrentes dos clientes em sugestões de FAQ.",
+        "ACTION": "Revisar sugestões"
       }
     },
     "INBOXES": {
@@ -1638,6 +1646,43 @@
           "SEGUE_FALHANDO": "segue falhando",
           "SO_EM_UMA": "só existe em uma das execuções"
         }
+      }
+    },
+    "FAQ_SUGGESTIONS": {
+      "HEADER": "Sugestões de FAQ",
+      "APPROVE": "Aprovar",
+      "APPROVE_FAQ": "Aprovar FAQ",
+      "DISMISS": "Recusar",
+      "REVIEW": "Ver origens",
+      "SAVE": "Salvar alterações",
+      "SEARCH_PLACEHOLDER": "Buscar sugestões...",
+      "QUEUE_COUNT": "{count} sugestão para revisar | {count} sugestões para revisar",
+      "QUEUE_HINT": "Ordenadas por demanda dos clientes",
+      "SOURCE_COUNT": "{count} conversa | {count} conversas",
+      "DETAILS": {
+        "TITLE": "Revisar sugestão de FAQ",
+        "DESCRIPTION": "O Captain agrupou {count} conversa nesta sugestão. Revise as evidências e ajuste a FAQ antes de aprovar. | O Captain agrupou {count} conversas nesta sugestão. Revise as evidências e ajuste a FAQ antes de aprovar.",
+        "SOURCES": "Conversas de origem",
+        "SOURCE_PROGRESS": "{visible} de {total}",
+        "NO_SOURCES": "Nenhuma conversa de origem acessível foi encontrada.",
+        "RETRY": "Tentar novamente"
+      },
+      "EMPTY_STATE": {
+        "TITLE": "A fila de revisão está vazia",
+        "SUBTITLE": "Novas sugestões de FAQ aparecem aqui quando estiverem prontas para revisão.",
+        "CLEAR_SEARCH": "Limpar busca"
+      },
+      "ERRORS": {
+        "LOAD": "Ocorreu um erro ao carregar as sugestões de FAQ. Tente novamente.",
+        "LOAD_DETAILS": "Ocorreu um erro ao carregar as conversas de origem.",
+        "APPROVE": "Ocorreu um erro ao aprovar a FAQ. Tente novamente.",
+        "DISMISS": "Ocorreu um erro ao recusar a sugestão. Tente novamente.",
+        "SAVE": "Ocorreu um erro ao salvar a sugestão. Tente novamente."
+      },
+      "SUCCESS": {
+        "APPROVED": "FAQ aprovada e adicionada ao conhecimento do Captain.",
+        "DISMISSED": "Sugestão recusada.",
+        "SAVED": "Sugestão atualizada."
       }
     }
   }

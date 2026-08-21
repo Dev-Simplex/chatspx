@@ -902,6 +902,14 @@
         "EDIT_TOAST": "Sugestão pronta para editar",
         "DISCARDED_TOAST": "Sugestão descartada"
       }
+    },
+    "NEWEST_MESSAGE": "Mensagens recentes",
+    "WHATSAPP_WINDOW_EXPIRED": {
+      "TITLE": "Janela de 24 horas expirada",
+      "DESCRIPTION": "O WhatsApp só permite mensagens livres dentro de 24 horas após a última mensagem do cliente. Para retomar, envie um template aprovado.",
+      "SEND_TEMPLATE": "Enviar Template",
+      "SEND_TEMPLATE_ACTION": "Enviar Template",
+      "PRIVATE_NOTE": "Nota Privada"
     }
   },
   "EMAIL_TRANSCRIPT": {

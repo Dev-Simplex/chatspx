@@ -578,7 +578,8 @@
         "COVERAGE": "{pct}% approved",
         "APPROVED": "Approved FAQs",
         "SUGGESTIONS": "FAQ suggestions",
-        "DOCUMENTS": "Documents"
+        "DOCUMENTS": "Documents",
+        "PENDING": "Pending FAQs"
       },
       "LINKS": {
         "DOCS": {
@@ -660,6 +661,21 @@
           "LABEL": "List contacts",
           "HINT": "Overview of your contact base",
           "CONTENT": "Show me the list of top 10 contacts. Include name, email or phone number (if available), last seen time, tags (if any)."
+        }
+      },
+      "THINKING": {
+        "STARTED": "Searching {target}...",
+        "COMPLETED": "Search complete: {target}.",
+        "TOOLS": {
+          "FALLBACK": "information",
+          "GET_ARTICLE": "article",
+          "GET_CONTACT": "contact",
+          "GET_CONVERSATION": "conversation",
+          "SEARCH_ARTICLES": "articles",
+          "SEARCH_CONTACTS": "contacts",
+          "SEARCH_CONVERSATION": "conversations",
+          "SEARCH_DOCUMENTATION": "knowledge base",
+          "SEARCH_LINEAR_ISSUES": "issues"
         }
       }
     },
@@ -1090,7 +1106,6 @@
         "SUCCESS_MESSAGE": "The document has been successfully deleted",
         "ERROR_MESSAGE": "There was an error deleting the document, please try again."
       },
-
       "OPTIONS": {
         "VIEW_DOCUMENT": "View document",
         "VIEW_RELATED_RESPONSES": "View Related Responses",
@@ -1332,7 +1347,14 @@
         "FEATURE_SPOTLIGHT": {
           "TITLE": "AI Agent FAQ",
           "NOTE": "AI Agent FAQs detects common customer questions—whether missing from your knowledge base or frequently asked—and generates relevant FAQs to improve support. You can review each suggestion and decide whether to approve or reject it."
-        }
+        },
+        "NO_PENDING_TITLE": "No FAQs pending review"
+      },
+      "PENDING_FAQS": "Pending FAQs",
+      "BULK_APPROVE_BUTTON": "Approve",
+      "BULK_APPROVE": {
+        "SUCCESS_MESSAGE": "FAQs approved successfully",
+        "ERROR_MESSAGE": "There was an error approving the FAQs, please try again."
       }
     },
     "FAQ_SUGGESTIONS": {

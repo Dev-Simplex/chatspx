@@ -676,6 +676,46 @@
         "ACCOUNT_MODE": {
           "LABEL": "Modo da conta",
           "TOOLTIP": "Modo de operação atual da sua conta do WhatsApp"
+        },
+        "BUSINESS_ACCOUNT_ID": {
+          "LABEL": "ID da Conta do WhatsApp Business",
+          "TOOLTIP": "Identificador da Meta para a Conta do WhatsApp Business vinculada"
+        },
+        "BUSINESS_ACCOUNT_NAME": {
+          "LABEL": "Nome da Conta do WhatsApp Business",
+          "TOOLTIP": "Nome da Conta do WhatsApp Business vinculada a este número"
+        },
+        "BUSINESS_PORTFOLIO_ID": {
+          "LABEL": "ID do portfólio empresarial",
+          "TOOLTIP": "Identificador da Meta para o portfólio empresarial dono da Conta do WhatsApp Business"
+        },
+        "BUSINESS_PORTFOLIO_NAME": {
+          "LABEL": "Nome do portfólio empresarial",
+          "TOOLTIP": "Nome do portfólio empresarial da Meta dono da Conta do WhatsApp Business"
+        },
+        "CODE_VERIFICATION_STATUS": {
+          "LABEL": "Verificação por código",
+          "TOOLTIP": "Status do código de verificação informado pela Meta para este número"
+        },
+        "COEXISTENCE": {
+          "LABEL": "Coexistência",
+          "TOOLTIP": "Este número está conectado ao app WhatsApp Business e à Cloud API ao mesmo tempo"
+        },
+        "LAST_ONBOARDED_TIME": {
+          "LABEL": "Último cadastro",
+          "TOOLTIP": "Última vez em que a Meta cadastrou este número"
+        },
+        "PHONE_NUMBER_ID": {
+          "LABEL": "ID do número",
+          "TOOLTIP": "Identificador da Meta para este número do WhatsApp"
+        },
+        "PHONE_NUMBER_STATUS": {
+          "LABEL": "Status do número",
+          "TOOLTIP": "Status atual da conexão deste número no WhatsApp"
+        },
+        "THROUGHPUT_LEVEL": {
+          "LABEL": "Capacidade de envio",
+          "TOOLTIP": "Nível de capacidade de envio atribuído a este número"
         }
       },
       "VALUES": {
@@ -686,7 +726,8 @@
           "TIER_10K": "10K clientes a cada 24h",
           "TIER_100K": "100K clientes a cada 24h",
           "TIER_UNLIMITED": "Clientes ilimitados a cada 24h",
-          "UNKNOWN": "Classificação não disponível"
+          "UNKNOWN": "Classificação não disponível",
+          "TIER_2K": "2 mil clientes por 24h"
         },
         "STATUSES": {
           "APPROVED": "Aceito",
@@ -694,12 +735,23 @@
           "AVAILABLE_WITHOUT_REVIEW": "Disponível sem revisão",
           "REJECTED": "Rejeitado",
           "DECLINED": "Sandbox",
-          "NON_EXISTS": "Não existe"
+          "NON_EXISTS": "Não existe",
+          "ACTIVE": "Ativo",
+          "BANNED": "Banido",
+          "CONNECTED": "Conectado",
+          "DISCONNECTED": "Desconectado",
+          "EXPIRED": "Expirado",
+          "FLAGGED": "Sinalizado",
+          "RESTRICTED": "Restrito",
+          "STANDARD": "Padrão",
+          "UNKNOWN": "Indisponível",
+          "VERIFIED": "Verificado"
         },
         "MODES": {
           "SANDBOX": "Sandbox",
           "LIVE": "Em tempo real"
-        }
+        },
+        "NOT_AVAILABLE": "Indisponível"
       },
       "WEBHOOK": {
         "TITLE": "Configuração do Webhook",
@@ -709,7 +761,27 @@
         "REGISTER_SUCCESS": "Webhook cadastrado com sucesso",
         "REGISTER_ERROR": "Falha ao cadastrar webhook. Por favor, tente novamente.",
         "CONFIGURED_SUCCESS": "Webhook configurado com sucesso",
-        "URL_MISMATCH": "Incompatibilidade na URL do webhook"
+        "URL_MISMATCH": "Incompatibilidade na URL do webhook",
+        "CONFIGURED_URL": "URL configurada",
+        "EXPECTED_URL": "URL esperada",
+        "COPY_URL": "Copiar URL do webhook",
+        "COPY_SUCCESS": "URL do webhook copiada"
+      },
+      "ERRORS": {
+        "AUTHORIZATION": {
+          "EMBEDDED_TITLE": "A conexão do WhatsApp precisa ser renovada",
+          "EMBEDDED_DESCRIPTION": "A Meta não conseguiu validar a conexão desta caixa de entrada. Vá em Configuração para reconfigurá-la usando o Embedded Signup.",
+          "MANUAL_TITLE": "O token de acesso do WhatsApp precisa de atenção",
+          "MANUAL_DESCRIPTION": "A Meta não conseguiu validar o token de acesso desta caixa de entrada. Vá em Configuração para conferir ou substituí-lo."
+        },
+        "GENERIC_TITLE": "Dados de saúde do WhatsApp indisponíveis",
+        "GENERIC_DESCRIPTION": "A Meta não retornou os dados de saúde agora. Confira o erro abaixo e tente de novo mais tarde.",
+        "GO_TO_CONFIGURATION": "Ir para Configuração"
+      },
+      "SECTIONS": {
+        "BUSINESS_ACCOUNT": "Conta empresarial",
+        "HEALTH_AND_CAPACITY": "Saúde e capacidade",
+        "PHONE_NUMBER": "Número de telefone"
       }
     },
     "SETTINGS": "Configurações",

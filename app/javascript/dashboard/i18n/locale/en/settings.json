@@ -767,7 +767,8 @@
     "NEW_CONVERSATION": "New conversation",
     "ADVANCED_SEARCH": "Advanced search",
     "CAPTAIN_AI": "AI Agents",
-    "CONVERSATION_WORKFLOW": "Conversation Workflow"
+    "CONVERSATION_WORKFLOW": "Conversation Workflow",
+    "NPS": "NPS"
   },
   "DATA_IMPORTS": {
     "HEADER": "Data",

@@ -219,7 +219,10 @@
     "PAYMENT_PENDING": "Your payment is pending. Please update your payment information to continue using Chatwoot",
     "UPGRADE": "Upgrade to continue using Chatwoot",
     "LIMITS_UPGRADE": "Your account has exceeded the usage limits, please upgrade your plan to continue using Chatwoot",
-    "OPEN_BILLING": "Open billing"
+    "OPEN_BILLING": "Open billing",
+    "HELP_CENTER": "Help Center",
+    "MAINTENANCE_BANNER": "System under maintenance",
+    "MAINTENANCE_SCHEDULED": "Maintenance scheduled for {scheduledAt}"
   },
   "FORMS": {
     "MULTISELECT": {

@@ -584,7 +584,8 @@
     "EMAIL_VERIFICATION_SENT": "O e-mail de verificação foi enviado. Por favor, verifique sua caixa de entrada.",
     "ACCOUNT_SUSPENDED": {
       "TITLE": "Conta Suspensa",
-      "MESSAGE": "Sua conta está suspensa. Entre em contato com a equipe de suporte para obter mais informações."
+      "MESSAGE": "Sua conta está suspensa. Entre em contato com a equipe de suporte para obter mais informações.",
+      "MANAGE_BILLING": "Gerenciar cobrança"
     },
     "NO_ACCOUNTS": {
       "TITLE": "Nenhuma conta encontrada",
@@ -817,7 +818,8 @@
       "STATUS": "Status",
       "IMPORTED": "Importado",
       "CREATED": "Criado",
-      "ABANDON": "Descartar"
+      "ABANDON": "Descartar",
+      "RETRY": "Tentar novamente"
     },
     "DETAIL": {
       "BACK": "Voltar às importações",
@@ -864,7 +866,9 @@
     "ALERTS": {
       "IMPORT_STARTED": "Importação Intercom iniciada.",
       "IMPORT_ABANDONED": "A importação de Intercom foi abandonada.",
-      "IMPORT_FAILED": "Não foi possível iniciar a importação de Intercom."
+      "IMPORT_FAILED": "Não foi possível iniciar a importação de Intercom.",
+      "IMPORT_RETRIED": "A importação do Intercom foi colocada na fila para continuar.",
+      "IMPORT_RETRY_FAILED": "Não foi possível repetir a importação do Intercom."
     }
   },
   "CAPTAIN_SETTINGS": {
