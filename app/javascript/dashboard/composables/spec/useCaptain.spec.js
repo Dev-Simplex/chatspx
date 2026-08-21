@@ -14,12 +14,13 @@ vi.mock('dashboard/composables/useAccount');
 vi.mock('dashboard/composables/useConfig');
 vi.mock('vue-i18n');
 vi.mock('dashboard/api/captain/tasks');
+// `importOriginal()` devolve o NAMESPACE do modulo ESM, que e somente-leitura:
+// escrever `actual.default` lanca `Cannot set property default of [object Module]
+// which has only a getter` e mata a suite inteira no carregamento — o arquivo some
+// da contagem como "(0 test)". Devolver um objeto novo resolve.
 vi.mock('dashboard/helper/AnalyticsHelper/index', async importOriginal => {
   const actual = await importOriginal();
-  actual.default = {
-    track: vi.fn(),
-  };
-  return actual;
+  return { ...actual, default: { track: vi.fn() } };
 });
 vi.mock('dashboard/helper/AnalyticsHelper/events', () => ({
   CAPTAIN_EVENTS: {
