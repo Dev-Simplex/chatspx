@@ -37836,6 +37836,117 @@
           }
         }
       },
+      "put": {
+        "tags": [
+          "Conta, Perfil, Autenticação & Notificações"
+        ],
+        "operationId": "account-profile-auth-update-profilePut",
+        "summary": "Atualizar o perfil do usuário atual",
+        "description": "Atualiza os campos do perfil do usuário autenticado (nome, nome de exibição, e-mail, assinatura de mensagem, avatar, número de telefone, configurações de UI) e, opcionalmente, a senha. Alterar a senha requer o `current_password` correspondente. A rota também aceita PUT.",
+        "security": [
+          {
+            "userApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/account-profile-auth_profile_update_payload"
+              },
+              "example": {
+                "profile": {
+                  "name": "Bruna Tozi",
+                  "display_name": "Bruna",
+                  "email": "bruna@tozi.com.br",
+                  "message_signature": "Atenciosamente, Bruna - Imobiliária Tozi",
+                  "phone_number": "+5566999887766",
+                  "current_password": "Sinop@2026!",
+                  "password": "NovaSenha@2026!",
+                  "password_confirmation": "NovaSenha@2026!"
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/account-profile-auth_profile_update_multipart_payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/account-profile-auth_user"
+                },
+                "example": {
+                  "access_token": "9xVtq3sZn1Lp7Hf2Kd8MwYb",
+                  "account_id": 6,
+                  "available_name": "Bruna",
+                  "avatar_url": "https://tozi.chatspx.app/rails/active_storage/blobs/redirect/.../bruna.png",
+                  "confirmed": true,
+                  "display_name": "Bruna",
+                  "message_signature": "Atenciosamente, Bruna - Imobiliária Tozi",
+                  "email": "bruna@tozi.com.br",
+                  "id": 42,
+                  "inviter_id": null,
+                  "name": "Bruna Tozi",
+                  "provider": "email",
+                  "pubsub_token": "k8sZpQx2hT4nRf9mLwVcYbAa",
+                  "custom_attributes": {
+                    "phone_number": "+5566999887766"
+                  },
+                  "role": "administrator",
+                  "ui_settings": {
+                    "theme_preference": "light"
+                  },
+                  "uid": "bruna@tozi.com.br",
+                  "type": "User",
+                  "accounts": [
+                    {
+                      "id": 6,
+                      "name": "Imobiliária Tozi",
+                      "status": "active",
+                      "active_at": "2026-06-30T13:40:00.000Z",
+                      "role": "administrator",
+                      "permissions": [
+                        "administrator"
+                      ],
+                      "availability": "online",
+                      "availability_status": "online",
+                      "auto_offline": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autorizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Senha atual inválida ou erro de validação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "Conta, Perfil, Autenticação & Notificações"
