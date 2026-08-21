@@ -162,7 +162,10 @@ RSpec.describe 'Enterprise SLA API', type: :request do
 
     context 'when it is an authenticated user' do
       it 'queues the sla_policy for deletion' do
-        expect(DeleteObjectJob).to receive(:perform_later).with(sla_policy, administrator, kind_of(String))
+        # `DeleteObjectJob#perform(object_type, object_id, user_id, ip)` — nome da classe + IDs.
+        # Todos os chamadores do codigo usam essa forma; o dublê ficou na antiga, com objetos.
+        expect(DeleteObjectJob).to receive(:perform_later)
+          .with(sla_policy.class.name, sla_policy.id, administrator.id, kind_of(String))
 
         delete "/api/v1/accounts/#{account.id}/sla_policies/#{sla_policy.id}",
                headers: administrator.create_new_auth_token

@@ -1,8 +1,19 @@
-# List of the premium features in EE edition
+# Lista das features PREMIUM da edicao EE.
+#
+# CUIDADO: esta lista tem efeito destrutivo agendado. `Internal::ReconcilePlanConfigService`
+# roda dentro do `CheckNewVersionsJob`, disparado DIARIAMENTE (config/schedule.yml, 0 0 * * *),
+# e quando `ChatwootHub.pricing_plan == 'community'` executa
+# `account.disable_features!(*premium_features)` em TODAS as contas. Toda flag listada aqui e
+# apagada da frota inteira, toda noite.
+#
+# `captain_integration` foi REMOVIDO daqui: o plano desta instalacao e 'community' (conferido em
+# runtime), entao o job desligava o Captain de todas as contas — e o Captain nao e add-on pago
+# nesta base, e o produto. O upstream ja fez o mesmo movimento; o spec
+# `reconcile_plan_config_service_spec` afirma explicitamente que `captain_integration` SOBREVIVE
+# a reconciliacao, e era o unico sinal de que a lista estava desalinhada.
 - disable_branding
 - audit_logs
 - sla
 - custom_roles
-- captain_integration
 - csat_review_notes
 - conversation_required_attributes
