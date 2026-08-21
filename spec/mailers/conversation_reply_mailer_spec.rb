@@ -3,6 +3,27 @@
 require 'rails_helper'
 
 RSpec.describe ConversationReplyMailer do
+  # O cabecalho `from`/`reply-to` e montado por I18n (`header.friendly_name`) e o mailer
+  # troca para o idioma da CONTA em `ApplicationMailer#switch_locale`. Conta nova nasce em
+  # pt-BR (decisao nossa), entao o conector sai "de", nao "from". Cravar a frase inglesa
+  # testava o IDIOMA; o que estes exemplos querem provar e QUAL NOME vence (remetente,
+  # responsavel, notificacoes, nome comercial). Montando o esperado pela mesma chave, o
+  # sujeito do teste e preservado e o spec deixa de depender do locale.
+  def friendly_from(sender_name, business_name, from_email, locale)
+    I18n.t('conversations.reply.email.header.friendly_name',
+           sender_name: sender_name, business_name: business_name, from_email: from_email, locale: locale)
+  end
+
+  # `display_names` devolve so o trecho anterior ao `<email>`; montamos pela mesma chave e
+  # descartamos a parte do endereco, em vez de reescrever a frase a mao.
+  def friendly_display_name(sender_name, business_name, locale)
+    friendly_from(sender_name, business_name, 'placeholder@example.com', locale).sub(' <placeholder@example.com>', '')
+  end
+
+  def notifications_name(locale)
+    I18n.t('conversations.reply.email.header.notifications', locale: locale)
+  end
+
   # O assunto sai no idioma da CONTA (conta nova nasce em pt-BR, decisao nossa).
   # Comparar com a string em ingles cravada falha. Ver 685bb23752 e 4cab065b87.
   describe 'reply' do
@@ -89,7 +110,10 @@ RSpec.describe ConversationReplyMailer do
       let(:mail) { described_class.reply_with_summary(message.conversation, message.id).deliver_now }
 
       it 'has correct name' do
-        expect(mail[:from].display_names).to eq(["#{message.sender.available_name} from #{message.conversation.inbox.sanitized_name}"])
+        expect(mail[:from].display_names).to eq(
+          [friendly_display_name(message.sender.available_name, message.conversation.inbox.sanitized_name,
+                                 message.conversation.account.locale)]
+        )
       end
     end
 
@@ -265,7 +289,13 @@ RSpec.describe ConversationReplyMailer do
         it 'uses outgoing_content for CSAT message body' do
           with_modified_env 'FRONTEND_URL' => 'https://app.chatwoot.com' do
             mail = described_class.email_reply(csat_message).deliver_now
-            expect(mail.decoded).to include csat_message.outgoing_content
+            # `Message#outgoing_content` monta a frase por I18n SEM `locale:`, entao resolve no
+            # idioma do PROCESSO (:en, fixado no rails_helper). O mailer, porem, renderiza
+            # dentro de `ApplicationMailer#switch_locale`, no idioma da CONTA (pt-BR). Chamado
+            # cru, o esperado saia em ingles e o corpo em portugues. Avaliamos o esperado no
+            # mesmo locale do mailer: o sujeito (corpo vem de outgoing_content) fica intacto.
+            esperado = I18n.with_locale(conversation.account.locale) { csat_message.outgoing_content }
+            expect(mail.decoded).to include esperado
           end
         end
       end
@@ -468,19 +498,22 @@ RSpec.describe ConversationReplyMailer do
 
       it 'renders sender name in the from address' do
         mail = described_class.email_reply(message)
-        expect(mail['from'].value).to eq "#{message.sender.available_name} from #{smtp_channel.inbox.sanitized_name} <#{smtp_channel.email}>"
+        expect(mail['from'].value).to eq friendly_from(message.sender.available_name, smtp_channel.inbox.sanitized_name,
+                                                       smtp_channel.email, account.locale)
       end
 
       it 'renders sender name even when assignee is not present' do
         conversation.update(assignee_id: nil)
         mail = described_class.email_reply(message)
-        expect(mail['from'].value).to eq "#{message.sender.available_name} from #{smtp_channel.inbox.sanitized_name} <#{smtp_channel.email}>"
+        expect(mail['from'].value).to eq friendly_from(message.sender.available_name, smtp_channel.inbox.sanitized_name,
+                                                       smtp_channel.email, account.locale)
       end
 
       it 'renders assignee name in the from address when sender_name not available' do
         message.update(sender_id: nil)
         mail = described_class.email_reply(message)
-        expect(mail['from'].value).to eq "#{conversation.assignee.available_name} from #{smtp_channel.inbox.sanitized_name} <#{smtp_channel.email}>"
+        expect(mail['from'].value).to eq friendly_from(conversation.assignee.available_name, smtp_channel.inbox.sanitized_name,
+                                                       smtp_channel.email, account.locale)
       end
 
       it 'renders inbox name as sender and assignee or business_name not present' do
@@ -488,7 +521,8 @@ RSpec.describe ConversationReplyMailer do
         conversation.update(assignee_id: nil)
 
         mail = described_class.email_reply(message)
-        expect(mail['from'].value).to eq "Notifications from #{smtp_channel.inbox.sanitized_name} <#{smtp_channel.email}>"
+        expect(mail['from'].value).to eq friendly_from(notifications_name(account.locale), smtp_channel.inbox.sanitized_name,
+                                                       smtp_channel.email, account.locale)
       end
 
       context 'when friendly name enabled' do
@@ -504,7 +538,8 @@ RSpec.describe ConversationReplyMailer do
 
           mail = described_class.email_reply(message)
 
-          expect(mail['from'].value).to eq "Notifications from #{conversation.inbox.sanitized_name} <#{smtp_channel.email}>"
+          expect(mail['from'].value).to eq friendly_from(notifications_name(account.locale), conversation.inbox.sanitized_name,
+                                                         smtp_channel.email, account.locale)
         end
 
         it 'renders sender name as sender and assignee nil and business_name present' do
@@ -514,7 +549,7 @@ RSpec.describe ConversationReplyMailer do
           mail = described_class.email_reply(message)
 
           expect(mail['from'].value).to eq(
-            "Notifications from #{conversation.inbox.business_name} <#{smtp_channel.email}>"
+            friendly_from(notifications_name(account.locale), conversation.inbox.business_name, smtp_channel.email, account.locale)
           )
         end
 
@@ -523,7 +558,8 @@ RSpec.describe ConversationReplyMailer do
           conversation.update(assignee_id: agent.id)
 
           mail = described_class.email_reply(message)
-          expect(mail['from'].value).to eq "#{agent.available_name} from #{conversation.inbox.business_name} <#{smtp_channel.email}>"
+          expect(mail['from'].value).to eq friendly_from(agent.available_name, conversation.inbox.business_name,
+                                                         smtp_channel.email, account.locale)
         end
 
         it 'renders sender name as sender and assignee and business_name present' do
@@ -532,7 +568,8 @@ RSpec.describe ConversationReplyMailer do
           conversation.update(assignee_id: agent.id)
 
           mail = described_class.email_reply(message)
-          expect(mail['from'].value).to eq "#{agent_2.available_name} from #{conversation.inbox.business_name} <#{smtp_channel.email}>"
+          expect(mail['from'].value).to eq friendly_from(agent_2.available_name, conversation.inbox.business_name,
+                                                         smtp_channel.email, account.locale)
         end
       end
 
@@ -682,13 +719,15 @@ RSpec.describe ConversationReplyMailer do
 
       it 'sets reply to email to be based on the domain' do
         reply_to_email = "reply+#{message.conversation.uuid}@#{conversation.account.domain}"
-        reply_to = "#{message.sender.available_name} from #{conversation.inbox.sanitized_name} <#{reply_to_email}>"
+        reply_to = friendly_from(message.sender.available_name, conversation.inbox.sanitized_name, reply_to_email, account.locale)
         expect(mail['REPLY-TO'].value).to eq(reply_to)
         expect(mail.reply_to).to eq([reply_to_email])
       end
 
       it 'sets the from email to be the support email' do
-        expect(mail['FROM'].value).to eq("#{conversation.messages.last.sender.available_name} from Inbox <#{conversation.account.support_email}>")
+        expect(mail['FROM'].value).to eq(
+          friendly_from(conversation.messages.last.sender.available_name, 'Inbox', conversation.account.support_email, account.locale)
+        )
         expect(mail.from).to eq([conversation.account.support_email])
       end
 
@@ -711,12 +750,21 @@ RSpec.describe ConversationReplyMailer do
       let(:mail) { described_class.reply_with_summary(message.conversation, message.id).deliver_now }
       let(:domain) { inbox.channel.email.split('@').last }
 
+      # Este contexto so tem sentido quando NAO existe dominio global configurado: e o
+      # fallback para o dominio do canal que esta sob teste. O contexto nunca estabelecia
+      # essa premissa, apenas torcia para a maquina nao ter MAILER_INBOUND_EMAIL_DOMAIN.
+      # Onde a variavel esta setada (como nesta VM), `inbound_email_domain` responde antes
+      # e o fallback jamais e alcancado. Mesmo idioma ja usado em spec/models/account_spec.rb.
       it 'sets the correct custom message id' do
-        expect(mail.message_id).to eq("conversation/#{conversation.uuid}/messages/#{message.id}@#{domain}")
+        with_modified_env MAILER_INBOUND_EMAIL_DOMAIN: nil do
+          expect(mail.message_id).to eq("conversation/#{conversation.uuid}/messages/#{message.id}@#{domain}")
+        end
       end
 
       it 'sets the correct in reply to id' do
-        expect(mail.in_reply_to).to eq("account/#{conversation.account.id}/conversation/#{conversation.uuid}@#{domain}")
+        with_modified_env MAILER_INBOUND_EMAIL_DOMAIN: nil do
+          expect(mail.in_reply_to).to eq("account/#{conversation.account.id}/conversation/#{conversation.uuid}@#{domain}")
+        end
       end
     end
   end
