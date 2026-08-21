@@ -58,7 +58,13 @@ describe ActionService do
         create(:captain_inbox, captain_assistant: assistant, inbox: inbox)
       end
 
-      it 'assigns the captain mirror clearing the human assignee in the same save' do
+      # Este exemplo afirmava o CONTRARIO ("clearing the human assignee") e falhava desde sempre,
+      # tambem em origin/homologacao. A regra vigente entrou depois dele: o guard
+      # `return if @conversation.assignee_id.present?` foi reforcado em 44ed8f6e5b (29/07),
+      # cujo titulo e literalmente "IA tria a reentrada do cliente em vez de silenciar ou ROUBAR
+      # DO HUMANO". Conversa que esta na mao de alguem nao e tomada pela IA — senao ela some da
+      # fila do atendente. O spec e de 21/06, anterior a decisao.
+      it 'nao toma a conversa quando ja ha um humano responsavel' do
         agent = create(:user, account: account)
         create(:inbox_member, inbox: inbox, user: agent)
         conversation.update!(assignee: agent)
@@ -66,8 +72,8 @@ describe ActionService do
         action_service.assign_ai_agent([assistant.id])
 
         conversation.reload
-        expect(conversation.assignee_agent_bot).to eq(assistant.mirror_agent_bot)
-        expect(conversation.assignee_id).to be_nil
+        expect(conversation.assignee_agent_bot).to be_nil
+        expect(conversation.assignee_id).to eq(agent.id)
       end
 
       it 'creates the mirror on demand when missing' do
@@ -134,6 +140,13 @@ describe ActionService do
     end
 
     it 'ends with the mirror as owner, the team set and no human assignee (guard A2b)' do
+      # A conversa e criada DEPOIS do `inbox_member` do bloco `before`, entao nasce com dono
+      # humano por auto-atribuicao — e o guard de `assign_ai_agent` (que nao toma conversa na mao
+      # de alguem) fazia o exemplo sair pela porta errada, sem nunca exercitar o A2b. O que este
+      # exemplo quer provar e outra coisa: que `assign_team`, rodando DEPOIS, nao rouba a conversa
+      # do espelho. Para isso a conversa precisa comecar sem dono.
+      conversation.update!(assignee: nil)
+
       rule = create(:automation_rule, account: account, event_name: 'conversation_created',
                                       actions: [
                                         { 'action_name' => 'assign_ai_agent', 'action_params' => [assistant.id] },
