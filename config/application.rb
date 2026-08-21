@@ -46,6 +46,24 @@ module Chatwoot
     # mensagens do backend nascem em português. Sobrescreva com ENV['DEFAULT_LOCALE'] se preciso.
     config.i18n.default_locale = ENV.fetch('DEFAULT_LOCALE', 'pt_BR').to_sym
 
+    # O Chatwoot nomeia locales com SUBLINHADO (`pt_BR`, `zh_CN`, `zh_TW`), enquanto o gem
+    # `rails-i18n` publica os arquivos com HIFEN (`pt-BR.yml`, ...) — a grafia padrao de tag de
+    # idioma. As chaves nao batem, entao TODA mensagem de framework nesses idiomas ficava sem
+    # traducao: validacoes do ActiveRecord, formatos de data, de numero e de moeda.
+    #
+    # O sintoma era literal: uma conta em pt-BR (nosso padrao) recebia, no lugar do erro,
+    # "Translation missing: pt_BR.activerecord.errors.messages.record_invalid" na resposta da
+    # API. Idem para `errors.messages.blank`, `taken`, `too_long`, `date.formats.default`.
+    #
+    # O fallback aponta SO para a grafia com hifen, de proposito. Acrescentar `:en` na lista
+    # faria as nossas proprias lacunas de traducao saírem em ingles em vez de aparecerem — e a
+    # lacuna visivel e o que faz alguem consertá-la.
+    config.i18n.fallbacks = {
+      pt_BR: [:'pt-BR'],
+      zh_CN: [:'zh-CN'],
+      zh_TW: [:'zh-TW']
+    }
+
     config.eager_load_paths << Rails.root.join('lib')
     config.eager_load_paths << Rails.root.join('enterprise/lib')
     config.eager_load_paths << Rails.root.join('enterprise/listeners')

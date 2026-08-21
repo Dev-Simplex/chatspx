@@ -64,7 +64,9 @@ RSpec.describe 'Api::V1::Accounts::Integrations::Slacks' do
 
         expect(response).to have_http_status(:unprocessable_entity)
         json_response = response.parsed_body
-        expect(json_response['error']).to eql('Invalid slack channel. Please try again')
+        # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a resposta
+        # sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
+        expect(json_response['error']).to eql(I18n.t('errors.slack.invalid_channel_id', locale: account.locale))
       end
     end
   end

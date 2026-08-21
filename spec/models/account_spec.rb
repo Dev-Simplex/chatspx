@@ -105,7 +105,9 @@ RSpec.describe Account do
       account = create(:account)
       query = "select * from information_schema.sequences where sequence_name in  ('camp_dpid_seq_#{account.id}', 'conv_dpid_seq_#{account.id}');"
       expect(ActiveRecord::Base.connection.execute(query).count).to eq(2)
-      expect(account.locale).to eq('en')
+      # Assercao incidental num exemplo sobre SEQUENCES. Conta nova nasce em pt-BR por decisao
+      # nossa (default da coluna, ver migration do enum locale) — 'en' era o padrao do upstream.
+      expect(account.locale).to eq('pt_BR')
       account.destroy
       expect(ActiveRecord::Base.connection.execute(query).count).to eq(0)
     end

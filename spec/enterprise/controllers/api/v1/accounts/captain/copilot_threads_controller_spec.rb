@@ -75,7 +75,9 @@ RSpec.describe 'Api::V1::Accounts::Captain::CopilotThreads', type: :request do
                as: :json
 
           expect(response).to have_http_status(:unprocessable_entity)
-          expect(json_response[:error]).to eq('Message is required')
+          # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a resposta
+          # sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
+          expect(json_response[:error]).to eq(I18n.t('captain.copilot_message_required', locale: account.locale))
         end
 
         it 'returns error when assistant_id is invalid' do
@@ -125,7 +127,7 @@ RSpec.describe 'Api::V1::Accounts::Captain::CopilotThreads', type: :request do
           expect(response).to have_http_status(:success)
 
           expect(CopilotMessage.last.message['content']).to eq(
-            'You are out of Copilot credits. You can buy more credits from the billing section.'
+            I18n.t('captain.copilot_limit', locale: account.locale)
           )
         end
 

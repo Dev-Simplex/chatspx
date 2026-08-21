@@ -41,16 +41,14 @@ RSpec.describe 'DeviseOverrides::OmniauthCallbacksController', type: :request do
         expect(response).to redirect_to('http://www.example.com/auth/google_oauth2/callback')
         follow_redirect!
 
+        # `locale:` — o controller passa o `I18n.locale` resolvido DENTRO da requisicao. Cadastro
+        # nao tem conta ainda, entao `switch_locale` cai no `I18n.default_locale` (pt_BR, decisao
+        # nossa); o rails_helper roda o exemplo em :en, e ali `I18n.locale` vale outra coisa.
         expect(AccountBuilder).to have_received(:new).with({
                                                              account_name: 'example',
                                                              user_full_name: 'test',
                                                              email: 'test_not_preset@example.com',
-                                                             # O controller passa `I18n.locale` resolvido DENTRO da
-                                                            # requisicao: cadastro nao tem conta ainda, entao
-                                                            # `switch_locale` cai no `I18n.default_locale` (pt_BR,
-                                                            # decisao nossa). O rails_helper roda o exemplo em :en,
-                                                            # entao `I18n.locale` aqui vale outra coisa.
-                                                            locale: I18n.default_locale,
+                                                             locale: I18n.default_locale,
                                                              confirmed: nil
                                                            })
         expect(account_builder).to have_received(:perform)
