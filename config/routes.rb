@@ -951,10 +951,6 @@ Rails.application.routes.draw do
       root to: 'dashboard#index'
 
       resource :app_config, only: [:show, :create]
-      resource :push_diagnostics, only: [:show, :create] do
-        post :destroy_subscriptions, on: :collection
-      end
-
       # order of resources affect the order of sidebar navigation in super admin
       resources :accounts, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         post :seed, on: :member
@@ -970,7 +966,6 @@ Rails.application.routes.draw do
         delete :avatar, on: :member, action: :destroy_avatar
       end
       resources :platform_apps, only: [:index, :new, :create, :show, :edit, :update, :destroy]
-      resources :platform_banners
       resource :instance_status, only: [:show]
 
       resource :settings, only: [:show] do
