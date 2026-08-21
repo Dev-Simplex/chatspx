@@ -474,7 +474,11 @@ RSpec.describe 'Reports API', type: :request do
             headers: admin.create_new_auth_token
 
         expect(response).to have_http_status(:success)
-        expect(response.parsed_body.keys).to match_array(%w[conversation_count message_count resolution_rate handoff_rate])
+        # `signals` e acrescimo NOSSO ao bot_metrics (Reports::SummarySignals); o spec ficou no
+        # conjunto antigo de chaves.
+        expect(response.parsed_body.keys).to match_array(
+          %w[conversation_count message_count resolution_rate handoff_rate signals]
+        )
       end
     end
   end
