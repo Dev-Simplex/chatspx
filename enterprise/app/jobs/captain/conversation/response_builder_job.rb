@@ -62,11 +62,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def generate_response_with_v2
     runner_service = Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation)
-    message_history = Captain::Conversation::MessageHistoryBuilderService.new(
-      conversation: @conversation,
-      assistant: @assistant,
-      directive: @directive
-    ).perform
+    # O caminho v2 monta o historico com o MESMO `collect_previous_messages` do v1: e ele que
+    # aplica a guarda C7.4 (`with_forwardable_agent_name` — agent_name de outra IA nao roteia
+    # persona) e injeta a nota de reentrada humana e a diretiva de follow-up. O recorte tinha
+    # trocado por `MessageHistoryBuilderService`, que nem existia aqui e aceita so `conversation:`
+    # — a chamada levantava ArgumentError em TODA resposta v2, caia no rescue e virava handoff.
+    message_history = collect_previous_messages
     @response = runner_service.generate_response(message_history: message_history)
     @run_result = runner_service.last_run_result
 
