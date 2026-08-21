@@ -172,7 +172,7 @@ describe WebhookListener do
         expect(Waha::OutboundSpecialMessageService).not_to receive(:new)
         expect(WebhookJob).to receive(:perform_later).with(
           channel_api.webhook_url, api_message.webhook_data.merge(event: 'message_created'),
-          :api_inbox_webhook, delivery_id: instance_of(String)
+          :api_inbox_webhook, secret: channel_api.secret, delivery_id: instance_of(String)
         ).once
 
         listener.message_created(api_event)
@@ -231,7 +231,7 @@ describe WebhookListener do
 
         expect(Waha::OutboundSpecialMessageService).not_to receive(:new)
         expect(WebhookJob).to receive(:perform_later).with(
-          channel_api.webhook_url, anything, :api_inbox_webhook, delivery_id: instance_of(String)
+          channel_api.webhook_url, anything, :api_inbox_webhook, secret: channel_api.secret, delivery_id: instance_of(String)
         ).once
 
         listener.message_updated(api_event)
