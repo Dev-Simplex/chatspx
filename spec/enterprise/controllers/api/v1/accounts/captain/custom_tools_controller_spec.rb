@@ -55,7 +55,7 @@ RSpec.describe 'Api::V1::Accounts::Captain::CustomTools', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(json_response[:payload].length).to eq(2)
-        expect(json_response[:payload].map { |t| t[:enabled] }).to match_array([true, false])
+        expect(json_response[:payload].map { |t| t[:enabled] }).to contain_exactly(true, false)
       end
     end
   end
