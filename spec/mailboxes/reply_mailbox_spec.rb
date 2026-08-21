@@ -352,9 +352,22 @@ RSpec.describe ReplyMailbox do
     let(:described_subject) { described_class.receive notification_mail }
     let(:conversation) { Conversation.where(inbox_id: channel_email.inbox).last }
 
-    it 'shouldnt create a conversation in the channel' do
+    # O exemplo e anterior a `NewConversationStrategy`, que hoje encerra a cadeia do
+    # `Mailbox::ConversationFinder`: e-mail que nao casa com conversa existente ABRE uma nova —
+    # que e o proposito de uma caixa de e-mail. Antes dela o ReplyMailbox so tratava RESPOSTAS e
+    # descartava o resto; dai o "shouldnt create".
+    #
+    # O exemplo homonimo logo abaixo continua correto e nao muda: la a conta esta SUSPENSA, e a
+    # estrategia recusa antes de criar qualquer coisa.
+    #
+    # OBSERVACAO registrada: uma notificacao do proprio Chatwoot entregue a uma caixa de e-mail
+    # vira conversa. Nao ha protecao por CABECALHO (a fixture nao tem marcador nosso), so a
+    # separacao de enderecos. Fechar isso exigiria marcar as notificacoes na saida e reconhece-las
+    # na entrada — decisao de produto, nao conserto de triagem.
+    it 'creates a conversation via NewConversationStrategy (no reply reference to match)' do
       described_subject
-      expect(conversation.present?).to be(false)
+      expect(conversation.present?).to be(true)
+      expect(conversation.inbox_id).to eq(channel_email.inbox.id)
     end
   end
 
