@@ -118,6 +118,13 @@ local/
 # tem como adivinhar isso. Achado pela trilha o1-bridge ao gravar 4 baselines novas.
 !spec/e2e/widget/snapshots/*.png
 
+# ...e MENOS os icones das integracoes, que sao asset de produto e vao para a tela
+# em `/dashboard/images/integrations/<id>.png`. Mesmo laco de cima: o `site_leads`
+# foi entregue em 03/08 (8a98768753) SEM os dois PNGs, porque o `git add` os pulou
+# em silencio — resultado, 404 na pagina de Integracoes desde entao. Os 26 icones
+# antigos so estao versionados por terem entrado antes desta regra.
+!public/dashboard/images/integrations/*.png
+
 nps_checker.rb
 deployment/fix_sudoers.sh
 Procfile.worktree
