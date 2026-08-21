@@ -48,7 +48,14 @@ RSpec.describe 'Conversation Messages API', type: :request do
 
         json_response = response.parsed_body
 
-        expect(json_response['error']).to eq('Validation failed: Content is too long (maximum is 150000 characters)')
+        # Mensagem de VALIDACAO do ActiveRecord, montada pelo framework no idioma da CONTA.
+        # Cravar a frase inglesa testava o idioma; e ate a versao pt-BR mudou quando o fallback
+        # de locale passou a resolver corretamente (antes caia no portugues de Portugal).
+        expect(json_response['error']).to eq(
+          I18n.t('activerecord.errors.messages.record_invalid',
+                 errors: "Content #{I18n.t('errors.messages.too_long', count: 150_000, locale: account.locale)}",
+                 locale: account.locale)
+        )
       end
 
       it 'creates an outgoing text message with a specific bot sender' do
@@ -181,8 +188,10 @@ RSpec.describe 'Conversation Messages API', type: :request do
           expect(conversation.reload.status).to eq('open')
           expect(Conversations::ActivityMessageJob)
             .to(have_been_enqueued.at_least(:once)
-              .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                                    content: 'System reopened the conversation due to a new incoming message.' }))
+              .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
+                                       message_type: :activity,
+                                       content: I18n.t('conversations.activity.status.system_auto_open',
+                                                       locale: account.locale) }))
         end
 
         context 'when waha session is bound and content matches a WAHA echo' do
@@ -652,7 +661,7 @@ RSpec.describe 'Conversation Messages API', type: :request do
                as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq I18n.t('errors.messages.update.timeout')
+        expect(response.parsed_body['error']).to eq I18n.t('errors.messages.update.timeout', locale: account.locale)
       end
 
       it 'returns 422 for NPS/CSAT messages' do
@@ -740,7 +749,9 @@ RSpec.describe 'Conversation Messages API', type: :request do
              headers: agent.create_new_auth_token,
              as: :json
 
-        expect(response).to have_http_status(:unprocessable_entity)
+        # O NOME do exemplo ja dizia 404 e o controller devolve 404 (a mensagem nao existe na
+        # conversa). Era a assercao que estava fora de lugar, exigindo 422.
+        expect(response).to have_http_status(:not_found)
       end
     end
 
