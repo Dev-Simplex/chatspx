@@ -389,10 +389,10 @@ RSpec.describe 'Api::V1::Accounts::MacrosController', type: :request do
           end
 
           # A atividade sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
-        expect(conversation.messages.activity.last.content).to eq(
-          I18n.t('conversations.activity.assignee.assigned', assignee_name: user_1.name,
-                                                             user_name: administrator.name, locale: account.locale)
-        )
+          expect(conversation.messages.activity.last.content).to eq(
+            I18n.t('conversations.activity.assignee.assigned', assignee_name: user_1.name,
+                                                               user_name: administrator.name, locale: account.locale)
+          )
         end
 
         it 'Assign the agent when he is not inbox member' do

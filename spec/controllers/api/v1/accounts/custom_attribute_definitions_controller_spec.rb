@@ -111,8 +111,8 @@ RSpec.describe 'Custom Attribute Definitions API', type: :request do
           expect(response).to have_http_status(:unprocessable_entity)
           json_response = response.parsed_body
           expect(json_response['message']).to include(
-          I18n.t('errors.custom_attribute_definition.key_conflict', locale: account.locale)
-        )
+            I18n.t('errors.custom_attribute_definition.key_conflict', locale: account.locale)
+          )
         end
       end
     end
