@@ -4,8 +4,15 @@ require 'sentry-ruby'
 
 describe ChatwootExceptionTracker do
   it 'use rails logger if no tracker is configured' do
-    expect(Rails.logger).to receive(:error).with('random')
-    described_class.new('random').capture_exception
+    # O exemplo PRESSUPOE que nao ha tracker, mas nunca estabelecia isso: `capture_exception`
+    # decide por `ENV['SENTRY_DSN'].present?`, e esta VM tem o DSN preenchido (GlitchTip). Onde a
+    # variavel existe, o caminho do Sentry rodava e o exemplo falhava com
+    # `ArgumentError: expect the argument to be a Exception, got String`.
+    # Passava so em maquina sem observabilidade configurada — o oposto de producao.
+    with_modified_env SENTRY_DSN: nil do
+      expect(Rails.logger).to receive(:error).with('random')
+      described_class.new('random').capture_exception
+    end
   end
 
   context 'with sentry DSN' do
