@@ -631,7 +631,9 @@ RSpec.describe 'Conversation Messages API', type: :request do
 
         expect(response).to have_http_status(:success)
         message.reload
-        expect(message.content).to eq 'This message was deleted'
+        # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a
+        # resposta sai no idioma da CONTA (pt-BR por padrao, decisao nossa). Ver 4cab065b87.
+        expect(message.content).to eq I18n.t('conversations.messages.deleted', locale: account.locale)
         expect(message.deleted).to be true
         expect(message.content_attributes['previous_content']).to eq original_content
         expect(message.content_attributes['deleted_at']).to be_present

@@ -286,7 +286,9 @@ RSpec.describe 'Api::V1::Accounts::Portals', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('Email is required')
+        # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a
+        # resposta sai no idioma da CONTA (pt-BR por padrao, decisao nossa). Ver 4cab065b87.
+        expect(response.parsed_body['error']).to eq(I18n.t('portals.send_instructions.email_required', locale: account.locale))
       end
 
       it 'returns error when email is invalid' do
@@ -296,7 +298,7 @@ RSpec.describe 'Api::V1::Accounts::Portals', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('Invalid email format')
+        expect(response.parsed_body['error']).to eq(I18n.t('portals.send_instructions.invalid_email_format', locale: account.locale))
       end
 
       it 'returns error when custom domain is not configured' do
@@ -306,7 +308,9 @@ RSpec.describe 'Api::V1::Accounts::Portals', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('Custom domain is not configured')
+        expect(response.parsed_body['error']).to eq(
+          I18n.t('portals.send_instructions.custom_domain_not_configured', locale: account.locale)
+        )
       end
 
       it 'sends instructions successfully' do
@@ -320,7 +324,9 @@ RSpec.describe 'Api::V1::Accounts::Portals', type: :request do
              as: :json
 
         expect(response).to have_http_status(:success)
-        expect(response.parsed_body['message']).to eq('Instructions sent successfully')
+        expect(response.parsed_body['message']).to eq(
+          I18n.t('portals.send_instructions.instructions_sent_successfully', locale: account.locale)
+        )
         expect(PortalInstructionsMailer).to have_received(:send_cname_instructions)
           .with(portal: portal_with_domain, recipient_email: 'dev@example.com')
       end
