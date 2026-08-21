@@ -315,13 +315,14 @@ export default {
     },
 
     // Mensagem a exibir no preview. Se restrita por agente, troca o conteúdo por 🔒 +
-    // "Conteúdo restrito" e remove anexos/atributos, mantendo só quem enviou poder ver.
+    // um aviso CURTO (a explicação inteira fica no balão, aqui só cabe uma linha) e
+    // remove anexos/atributos, mantendo só quem enviou poder ver.
     previewMessage() {
       const msg = this.lastMessageInChat;
       if (!msg || !this.isLastMessageRestrictedByAgent) return msg;
       return {
         ...msg,
-        content: `🔒 ${this.$t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_SUBTITLE')}`,
+        content: `🔒 ${this.$t('CONVERSATION.AGENT_ISOLATION.PREVIEW')}`,
         attachments: [],
         content_attributes: {},
         content_type: 'text',

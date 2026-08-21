@@ -590,12 +590,14 @@
       "END_CALL": "Encerrar chamada"
     },
     "TEAM_ISOLATION": {
-      "RESTRICTED_TITLE": "Time: {team}",
-      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+      "RESTRICTED_TITLE": "Mensagem do time {team}",
+      "RESTRICTED_SUBTITLE": "Nesta caixa, cada time vê só as mensagens do próprio time.",
+      "PREVIEW": "Mensagem de outro time"
     },
     "AGENT_ISOLATION": {
-      "RESTRICTED_TITLE": "Agente: {agent}",
-      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+      "RESTRICTED_TITLE": "Mensagem de {agent}",
+      "RESTRICTED_SUBTITLE": "Nesta caixa, cada agente vê só as mensagens que ele mesmo enviou.",
+      "PREVIEW": "Mensagem de outro agente"
     },
     "TAKEOVER_REQUEST": {
       "TITLE": "Solicitar esta conversa",

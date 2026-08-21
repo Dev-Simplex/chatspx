@@ -607,12 +607,14 @@
       "END_CALL": "End call"
     },
     "TEAM_ISOLATION": {
-      "RESTRICTED_TITLE": "Team: {team}",
-      "RESTRICTED_SUBTITLE": "Restricted content"
+      "RESTRICTED_TITLE": "Message from the {team} team",
+      "RESTRICTED_SUBTITLE": "In this inbox, each team only sees its own messages.",
+      "PREVIEW": "Message from another team"
     },
     "AGENT_ISOLATION": {
-      "RESTRICTED_TITLE": "Agent: {agent}",
-      "RESTRICTED_SUBTITLE": "Restricted content"
+      "RESTRICTED_TITLE": "Message from {agent}",
+      "RESTRICTED_SUBTITLE": "In this inbox, each agent only sees the messages they sent.",
+      "PREVIEW": "Message from another agent"
     },
     "TAKEOVER_REQUEST": {
       "TITLE": "Request this conversation",
