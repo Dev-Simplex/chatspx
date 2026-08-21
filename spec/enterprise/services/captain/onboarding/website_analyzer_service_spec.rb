@@ -5,6 +5,11 @@ RSpec.describe Captain::Onboarding::WebsiteAnalyzerService do
   let(:service) { described_class.new(website_url) }
   let(:mock_crawler) { instance_double(Captain::Tools::SimplePageCrawlService) }
   let(:mock_chat) { instance_double(RubyLLM::Chat) }
+  # O servico NAO chama `RubyLLM.chat`: herda `Llm::BaseAiService#chat`, que faz
+  # `Llm::Config.context_for_account(...).chat(...)`. Dublar `RubyLLM.chat` nao intercepta
+  # nada e a requisicao vaza para a OpenAI de verdade (WebMock barra). Mesmo conserto ja
+  # aplicado em faq_generator, conversation_faq e assistant_action_classifier.
+  let(:mock_context) { instance_double(RubyLLM::Context) }
   let(:business_info) do
     {
       'business_name' => 'Example Corp',
@@ -19,7 +24,8 @@ RSpec.describe Captain::Onboarding::WebsiteAnalyzerService do
   before do
     create(:installation_config, name: 'CAPTAIN_OPEN_AI_API_KEY', value: 'test-key')
     allow(Captain::Tools::SimplePageCrawlService).to receive(:new).and_return(mock_crawler)
-    allow(RubyLLM).to receive(:chat).and_return(mock_chat)
+    allow(Llm::Config).to receive(:context_for_account).and_return(mock_context)
+    allow(mock_context).to receive(:chat).and_return(mock_chat)
     allow(mock_chat).to receive(:with_temperature).and_return(mock_chat)
     allow(mock_chat).to receive(:with_params).and_return(mock_chat)
     allow(mock_chat).to receive(:with_instructions).and_return(mock_chat)
