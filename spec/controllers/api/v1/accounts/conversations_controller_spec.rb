@@ -358,7 +358,12 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         response_data = JSON.parse(response.body, symbolize_names: true)
-        expect(response_data[:error]).to include('Invalid attribute key - [phone_number]')
+        # A mensagem sai no idioma da CONTA (conta nova nasce em pt-BR — decisao nossa),
+        # entao comparar com a string em ingles do upstream falha aqui. Ver 685bb23752.
+        expect(response_data[:error]).to include(
+          I18n.t('errors.custom_filters.invalid_attribute',
+                 key: 'phone_number', allowed_keys: '', locale: account.locale).split('. ').first
+        )
       end
 
       it 'returns error if the filters contain invalid operator' do
@@ -375,7 +380,10 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         response_data = JSON.parse(response.body, symbolize_names: true)
-        expect(response_data[:error]).to eq('Invalid operator. The allowed operators for status are [equal_to,not_equal_to].')
+        expect(response_data[:error]).to eq(
+          I18n.t('errors.custom_filters.invalid_operator', attribute_name: 'status',
+                                                           allowed_keys: 'equal_to,not_equal_to', locale: account.locale)
+        )
       end
     end
   end
@@ -538,7 +546,10 @@ RSpec.describe 'Conversations API', type: :request do
 
   describe 'POST /api/v1/accounts/{account.id}/conversations' do
     let(:contact) { create(:contact, account: account) }
-    let(:inbox) { create(:inbox, account: account) }
+    # pending_status_enabled: `Conversation#pending_status_allowed_by_inbox` (nossa,
+    # commit da2ea07ed1) recusa status Pendente em caixa que nao habilitou o recurso.
+    # Sem isso os exemplos herdados do upstream levantam RecordInvalid / 422.
+    let(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
     let!(:contact_inbox) { create(:contact_inbox, contact: contact, inbox: inbox) }
 
     context 'when it is an unauthenticated user' do
@@ -650,8 +661,11 @@ RSpec.describe 'Conversations API', type: :request do
   end
 
   describe 'POST /api/v1/accounts/{account.id}/conversations/:id/toggle_status' do
-    let(:conversation) { create(:conversation, account: account) }
-    let(:inbox) { create(:inbox, account: account) }
+    # pending_status_enabled: `Conversation#pending_status_allowed_by_inbox` (nossa,
+    # commit da2ea07ed1) recusa status Pendente em caixa que nao habilitou o recurso.
+    # Sem isso os exemplos herdados do upstream levantam RecordInvalid / 422.
+    let(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox) }
     let(:pending_conversation) { create(:conversation, inbox: inbox, account: account, status: 'pending') }
     let(:agent_bot) { create(:agent_bot, account: account) }
 
@@ -1080,6 +1094,10 @@ RSpec.describe 'Conversations API', type: :request do
         expect(conversation.reload.agent_last_seen_at).to be > initial_last_seen
       end
 
+      # Os quatro exemplos abaixo exercitam a MECANICA do contador de nao lidas, nao a
+      # trava de quem pode limpar o marcador. Como a conversa nao tem dono, `explicit: true`
+      # e obrigatorio para passar por `may_clear_unread_marker?` — mesmo motivo do
+      # exemplo `updates last seen` acima.
       it 'refreshes unread count cache when conversation is marked read' do
         account.enable_features!(:conversation_unread_counts)
         conversation.update!(agent_last_seen_at: 1.hour.ago)
@@ -1087,6 +1105,7 @@ RSpec.describe 'Conversations API', type: :request do
         Conversations::UnreadCounts::Builder.new(account).build_base!
 
         post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
              headers: agent.create_new_auth_token,
              as: :json
 
@@ -1110,6 +1129,7 @@ RSpec.describe 'Conversations API', type: :request do
         expect(invalidator).to receive(:conversation_changed!).ordered.and_return(true)
 
         post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
              headers: agent.create_new_auth_token,
              as: :json
 
@@ -1123,6 +1143,7 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect do
           post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+               params: { explicit: true },
                headers: agent.create_new_auth_token,
                as: :json
         end.to change { Conversations::UnreadCounts::FilteredCountStore.conversation_version(account.id) }.by(1)
@@ -1139,6 +1160,7 @@ RSpec.describe 'Conversations API', type: :request do
         allow(Rails.configuration.dispatcher).to receive(:dispatch)
 
         post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
              headers: agent.create_new_auth_token,
              as: :json
 
