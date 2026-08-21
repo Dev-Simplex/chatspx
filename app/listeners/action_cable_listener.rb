@@ -268,7 +268,6 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
 
   def message_reaction_removed(event)
     message, account = extract_message_and_account(event)
-    reaction = event.data[:reaction]
     conversation = message.conversation
     tokens = user_tokens(account, conversation.inbox.members) +
              participant_tokens(conversation) +
@@ -277,10 +276,10 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, tokens, MESSAGE_REACTION_REMOVED, {
                 message_id: message.id,
                 conversation_id: conversation.display_id,
-                reaction_id: reaction.id,
-                emoji: reaction.emoji,
-                user_id: reaction.user_id,
-                user_type: reaction.user_type
+                reaction_id: event.data[:reaction_id],
+                emoji: event.data[:emoji],
+                user_id: event.data[:user_id],
+                user_type: event.data[:user_type]
               })
   end
 

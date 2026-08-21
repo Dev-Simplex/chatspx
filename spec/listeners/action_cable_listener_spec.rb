@@ -316,7 +316,14 @@ describe ActionCableListener do
     let(:event_name) { :'message.reaction_removed' }
     let!(:message) { create(:message, account: account, inbox: inbox, conversation: conversation, message_type: 'outgoing') }
     let!(:reaction) { create(:message_reaction, message: message, account: account, reactor: agent, emoji: '👍') }
-    let!(:event) { Events::Base.new(event_name, Time.zone.now, message: message, reaction: reaction) }
+    # O evento de remocao carrega VALORES, nao o registro — no `destroy` a linha ja foi apagada
+    # e o job estouraria ao reidratar por GlobalID; na troca de emoji o registro sobrevive com o
+    # emoji NOVO, que e o oposto do que o assinante precisa.
+    let!(:event) do
+      Events::Base.new(event_name, Time.zone.now, message: message, reaction_id: reaction.id,
+                                                  emoji: reaction.emoji, user_id: reaction.user_id,
+                                                  user_type: reaction.user_type)
+    end
 
     it 'broadcasts MESSAGE_REACTION_REMOVED with reaction_id and emoji' do
       expect(conversation.inbox.reload.inbox_members.count).to eq(1)
