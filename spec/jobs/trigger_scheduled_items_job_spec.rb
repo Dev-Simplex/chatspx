@@ -37,7 +37,10 @@ RSpec.describe TriggerScheduledItemsJob do
     it 'triggers Campaigns::TriggerOneoffCampaignJob' do
       campaign = create(:campaign, inbox: twilio_inbox, account: account)
       create(:campaign, inbox: twilio_inbox, account: account, scheduled_at: 10.days.after)
-      expect(Campaigns::TriggerOneoffCampaignJob).to receive(:perform_later).with(campaign).once
+      # `TriggerOneoffCampaignJob#perform(campaign_id)` recebe o ID e reidrata com `find_by`.
+      # Passar o OBJETO faria o ActiveJob serializar por GlobalID e estourar se a campanha
+      # sumisse antes de a fila rodar — e este job existe justamente para rodar depois.
+      expect(Campaigns::TriggerOneoffCampaignJob).to receive(:perform_later).with(campaign.id).once
       described_class.perform_now
     end
   end

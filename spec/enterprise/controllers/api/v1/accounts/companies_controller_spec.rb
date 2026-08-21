@@ -140,7 +140,10 @@ RSpec.describe 'Companies API', type: :request do
             headers: admin.create_new_auth_token,
             as: :json
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('Specify search string with parameter q')
+        # Sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
+        expect(response.parsed_body['error']).to eq(
+          I18n.t('errors.companies.search.query_missing', locale: account.locale)
+        )
       end
 
       it 'searches companies by name' do

@@ -401,15 +401,28 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
         expect(response.parsed_body['payload'].length).to eq(5)
       end
 
+      # O arranjo anterior criava a conversa "excluida" SEM time e contava que ela ficasse assim.
+      # Nao fica: `AssignmentHandler#sync_team_from_assignee` poe o time do responsavel quando ele
+      # pertence a EXATAMENTE UM — e assignee1 acabara de virar membro de `team`. As duas conversas
+      # terminavam no mesmo time e o filtro nunca era exercitado.
+      #
+      # Com o agente em DOIS times, o sync nao sobrescreve um team_id que ja e de um deles, entao
+      # as duas conversas ficam com o MESMO responsavel e times DIFERENTES — que e exatamente o que
+      # isola o filtro por time do filtro por responsavel.
       it 'applies team filter when provided' do
+        outro_time = create(:team, account: account)
         create(:team_member, team: team, user: assignee1)
+        create(:team_member, team: outro_time, user: assignee1)
         included = create(:conversation, account: account, status: :open, assignee_id: assignee1.id, team_id: team.id)
-        excluded = create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
+        excluded = create(:conversation, account: account, status: :open, assignee_id: assignee1.id,
+                                         team_id: outro_time.id)
 
+        # SEM `as: :json`: num GET esse modificador manda os params no CORPO e a query string
+        # fica vazia — o `team_id` nunca chegava ao controller, entao o filtro por time nao era
+        # exercitado e a conversa sem time aparecia no resultado. Mesmo caso do contacts/search.
         get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
             params: { scope: 'agent', assignee_id: assignee1.id, team_id: team.id },
-            headers: admin.create_new_auth_token,
-            as: :json
+            headers: admin.create_new_auth_token
 
         expect(response).to have_http_status(:success)
 

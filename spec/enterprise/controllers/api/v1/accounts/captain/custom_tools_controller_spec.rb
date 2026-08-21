@@ -40,7 +40,13 @@ RSpec.describe 'Api::V1::Accounts::Captain::CustomTools', type: :request do
         expect(json_response[:payload].length).to eq(5)
       end
 
-      it 'returns only enabled custom tools' do
+      # O index devolve TODAS as ferramentas, habilitadas ou nao — decisao documentada no proprio
+      # controller ("so the UI can reactivate disabled ones") e coerente com o exemplo acima, que
+      # espera as 5 criadas. Este exemplo afirmava o contrario e contradizia o vizinho.
+      #
+      # O que continua sob teste e o que importa: a flag `enabled` chega serializada, para a tela
+      # conseguir distinguir uma da outra.
+      it 'returns enabled and disabled custom tools, with the enabled flag serialized' do
         create(:captain_custom_tool, account: account, enabled: true)
         create(:captain_custom_tool, account: account, enabled: false)
         get "/api/v1/accounts/#{account.id}/captain/custom_tools",
@@ -48,8 +54,8 @@ RSpec.describe 'Api::V1::Accounts::Captain::CustomTools', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
-        expect(json_response[:payload].length).to eq(1)
-        expect(json_response[:payload].first[:enabled]).to be(true)
+        expect(json_response[:payload].length).to eq(2)
+        expect(json_response[:payload].map { |t| t[:enabled] }).to match_array([true, false])
       end
     end
   end
