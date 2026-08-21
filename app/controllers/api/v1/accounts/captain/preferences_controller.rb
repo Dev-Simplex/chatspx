@@ -52,18 +52,15 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
     existing_features.merge(permitted_captain_features)
   end
 
+  # Derivado do config/llm.yml em vez de lista fixa: o recorte levou o arquivo de 6 para 13
+  # features e esta lista ficou em 6 — as 7 novas (FAQ de documento/conversa/PDF, artigo da
+  # central, onboarding, traducao de busca, matching) eram DESCARTADAS em silencio ao salvar.
   def permitted_captain_models
-    params.require(:captain_models).permit(
-      :editor, :assistant, :copilot, :label_suggestion,
-      :audio_transcription, :help_center_search
-    ).to_h.stringify_keys
+    params.require(:captain_models).permit(*Llm::Models.feature_keys.map(&:to_sym)).to_h.stringify_keys
   end
 
   def permitted_captain_features
-    params.require(:captain_features).permit(
-      :editor, :assistant, :copilot, :label_suggestion,
-      :audio_transcription, :help_center_search
-    ).to_h.stringify_keys
+    params.require(:captain_features).permit(*Llm::Models.feature_keys.map(&:to_sym)).to_h.stringify_keys
   end
 
   def features_with_account_preferences

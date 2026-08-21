@@ -5,6 +5,10 @@
 # além do handoff pedido pelo agente (tool://handoff), o FollowupJob escala pra humano
 # quando as cutucadas in-window esgotam.
 class Captain::Conversation::HumanHandoffService
+  # A HandoffTool grava o id desta nota em `tool_context.state[:cw_metadata]` para o
+  # session capture atribuir a run ao dossie, e nao a mensagem canned de follow-up.
+  attr_reader :handoff_note
+
   def initialize(conversation:, assistant:, reason: nil, team_id: nil)
     @conversation = conversation
     @assistant = assistant
@@ -17,7 +21,7 @@ class Captain::Conversation::HumanHandoffService
     # gera nota/dossiê duplicado e reseta o marcador a cada passagem).
     return if @conversation.custom_attributes&.dig('aguardando_humano_desde').present?
 
-    create_handoff_note if @reason.present?
+    @handoff_note = create_handoff_note if @reason.present?
 
     # Abre a conversa + dispara eventos. NÃO solta o espelho — a IA continua dona/respondendo.
     @conversation.bot_handoff!

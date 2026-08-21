@@ -71,28 +71,17 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
           'type': %w[array null],
           'items': { 'type': 'string' }
         },
+        # Derivado do config/llm.yml: a lista fixa aqui tinha 6 features enquanto o yml passou
+        # a declarar 13, e o `additionalProperties: false` rejeitava as outras 7 com
+        # "must be of type schema" — a tela salvava e o backend recusava.
         'captain_models': {
           'type': %w[object null],
-          'properties': {
-            'editor': { 'type': %w[string null] },
-            'assistant': { 'type': %w[string null] },
-            'copilot': { 'type': %w[string null] },
-            'label_suggestion': { 'type': %w[string null] },
-            'audio_transcription': { 'type': %w[string null] },
-            'help_center_search': { 'type': %w[string null] }
-          },
+          'properties': Llm::Models.feature_keys.map(&:to_sym).index_with { { 'type': %w[string null] } },
           'additionalProperties': false
         },
         'captain_features': {
           'type': %w[object null],
-          'properties': {
-            'editor': { 'type': %w[boolean null] },
-            'assistant': { 'type': %w[boolean null] },
-            'copilot': { 'type': %w[boolean null] },
-            'label_suggestion': { 'type': %w[boolean null] },
-            'audio_transcription': { 'type': %w[boolean null] },
-            'help_center_search': { 'type': %w[boolean null] }
-          },
+          'properties': Llm::Models.feature_keys.map(&:to_sym).index_with { { 'type': %w[boolean null] } },
           'additionalProperties': false
         }
       },

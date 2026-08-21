@@ -204,15 +204,15 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
             .and_return({ team_user.id.to_s => 'online' })
         end
 
-        # Modelo A (decisão do Paulo): a IA NÃO solta a conversa no handoff — segue dona e
-        # respondendo até um humano PUXAR a atribuição. Soltar o espelho aqui deixaria o
-        # cliente sem ninguém no intervalo entre o handoff e alguém assumir de fato.
-        it 'keeps the AI mirror, which goes on answering until a human takes over' do
+        # F1.1 (plano/ia-progresso.md:204): no modo FILA a IA SOLTA o espelho — o oposto do
+        # Modelo A, que vale no Modo Clássico (contexto acima). O comentário do Modelo A
+        # estava colado aqui por engano e contradizia o cabeçalho deste proprio contexto.
+        it 'releases the AI mirror so the conversation waits in the team queue' do
           perform_enqueued_jobs do
             tool.perform(tool_context, reason: 'Customer needs a broker', team_id: team.id.to_s)
           end
 
-          expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+          expect(conversation.reload.assignee_agent_bot_id).to be_nil
         end
 
         it 'keeps the team (conversation lands in the team queue)' do
@@ -231,7 +231,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           expect(conversation.reload.assignee).to be_nil
         end
 
-        it 'leaves the conversation open + team + no owner, with the AI still on duty (estável, F1.3)' do
+        it 'leaves the conversation open + team + no owner + no mirror (estável, F1.3)' do
           perform_enqueued_jobs do
             tool.perform(tool_context, reason: 'Precisa de humano', team_id: team.id.to_s)
           end
@@ -240,7 +240,8 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           expect(conversation.status).to eq('open')
           expect(conversation.team_id).to eq(team.id)
           expect(conversation.assignee_id).to be_nil
-          expect(conversation.assignee_agent_bot_id).to eq(mirror.id)
+          # F1.3 (plano/ia-progresso.md:206): "open + team + sem dono + SEM espelho".
+          expect(conversation.assignee_agent_bot_id).to be_nil
         end
 
         it 'sets the aguardando_humano_desde marker' do
