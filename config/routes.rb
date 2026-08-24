@@ -480,6 +480,13 @@ Rails.application.routes.draw do
             end
 
             resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates'
+
+            # Bloco 5.02 — o cofre das credenciais de rastreio da inbox. `resource` singular porque
+            # ha no maximo uma por inbox (UNIQUE no banco); o controller e PLURAL, que e como o
+            # Rails resolve o singular — nomear no singular daria 404 uniforme.
+            resource :tracking_credential, only: [:show, :update], module: :inboxes do
+              post :verify
+            end
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
             member do
