@@ -33,7 +33,12 @@ RSpec.describe Channel::Instagram do
     end
   end
 
+  # O canal é materializado ANTES de qualquer re-stub: `create` dispara `after_create_commit
+  # :subscribe`, e o factory registra o stub daquela chamada. Configurar ou re-stubar antes disso
+  # faria o próprio `create` bater num stub que não existe.
   describe '#subscribed_fields' do
+    before { channel }
+
     it 'devolve só o núcleo quando não há configuração' do
       expect(channel.subscribed_fields).to eq(%w[messages message_reactions messaging_seen])
     end
@@ -53,7 +58,17 @@ RSpec.describe Channel::Instagram do
   end
 
   describe '#subscribe' do
-    let(:url) { "https://graph.instagram.com/v22.0/#{channel.instagram_id}/subscribed_apps" }
+    # Regex, e não URL literal: o stub precisa casar independentemente da query, que é justamente
+    # o que varia entre a tentativa com os campos extras e o recuo para o núcleo.
+    let(:url) { %r{https://graph\.instagram\.com/v22\.0/#{channel.instagram_id}/subscribed_apps} }
+
+    before do
+      # Criar o canal JÁ dispara um `subscribe` (`after_create_commit`). Sem zerar o registro, a
+      # contagem de requisições de cada exemplo começaria em 1. Isto limpa o que foi requisitado,
+      # não os stubs.
+      channel
+      WebMock::RequestRegistry.instance.reset!
+    end
 
     # O defeito de fundo: `HTTParty.post` NÃO levanta exceção em HTTP 400, então o
     # `rescue StandardError` de antes só pegava falha de rede. Recusa da Meta passava por sucesso
@@ -81,23 +96,29 @@ RSpec.describe Channel::Instagram do
     # não tem derrubava o lote e o canal ficava sem assinatura NENHUMA — DM morta em silêncio.
     it 'recua para o núcleo quando o lote completo é recusado, e diz o que perdeu' do
       configurar('comments')
-      stub_request(:post, url)
-        .with(query: hash_including({ 'subscribed_fields' => %w[messages message_reactions messaging_seen comments] }))
-        .to_return(status: 400, body: { error: { message: 'Invalid parameter' } }.to_json)
-      nucleo = stub_request(:post, url)
-               .with(query: hash_including({ 'subscribed_fields' => %w[messages message_reactions messaging_seen] }))
-               .to_return(status: 200, body: '')
+      stub_request(:post, url).to_return do |request|
+        if request.uri.query.to_s.include?('comments')
+          { status: 400, body: { error: { message: 'Invalid parameter' } }.to_json }
+        else
+          { status: 200, body: '' }
+        end
+      end
 
+      # São DUAS linhas de log, e as duas importam: a recusa (com o corpo da resposta da Meta) e
+      # o recuo (dizendo que os campos extras ficaram de fora).
+      allow(Rails.logger).to receive(:error).and_call_original
+      expect(Rails.logger).to receive(:error).with(/falha ao assinar .*comments/).and_call_original
       expect(Rails.logger).to receive(:error).with(/recuando para/).and_call_original
+
       expect(channel.subscribe).to be true
-      expect(nucleo).to have_been_requested
+      expect(a_request(:post, url)).to have_been_made.twice
     end
 
     it 'não tenta o núcleo duas vezes quando não há campo extra configurado' do
-      pedido = stub_request(:post, url).to_return(status: 400, body: '')
+      stub_request(:post, url).to_return(status: 400, body: '')
 
       expect(channel.subscribe).to be false
-      expect(pedido).to have_been_requested.once
+      expect(a_request(:post, url)).to have_been_made.once
     end
   end
 
