@@ -315,6 +315,13 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     @conversations = @conversations.tagged_with(params[:labels], any: true)
   end
 
+  # `joins` (INNER JOIN) tira da lista tanto o contato bloqueado quanto a conversa ORFA
+  # (contact_id apontando pra contato ja apagado) — a orfa nao tem contato nem contact_inbox,
+  # entao nao ha canal pra responder e `belongs_to :contact` (obrigatorio) faz qualquer
+  # update! estourar RecordInvalid; mostra-la na fila daria uma linha impossivel de encerrar.
+  # Espelhado em LiveReports::InServiceQueryService#reachable_by_agents para o painel Ao Vivo
+  # nao contar o que a fila esconde. SE MUDAR A REGRA AQUI, MUDE LA TAMBEM.
+  # Para achar/limpar orfas: `rake chatwoot:ops:cleanup_orphan_conversations`.
   def filter_blocked_contacts
     @conversations = @conversations.joins(:contact).where(contacts: { blocked: [false, nil] })
   end

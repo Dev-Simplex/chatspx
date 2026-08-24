@@ -61,7 +61,18 @@ class LiveReports::InServiceQueryService # rubocop:disable Metrics/ClassLength
   def base_scope
     scope = account.conversations.where(status: [Conversation.statuses[:open], Conversation.statuses[:pending]])
     scope = scope.where(team_id: parsed_team_id) if parsed_team_id.present?
-    scope
+    reachable_by_agents(scope)
+  end
+
+  # Espelha ConversationFinder#filter_blocked_contacts: o painel nao pode contar conversa que
+  # NENHUM agente acha na fila. Sao dois casos, e o INNER JOIN cobre os dois:
+  #   - contato bloqueado  -> `blocked = true` cai fora do WHERE;
+  #   - conversa orfa      -> `contact_id` apontando pra contato apagado nao casa no JOIN.
+  # Sem isto o supervisor ve "Sem nome" com data de meses atras e um total maior que o
+  # "Minhas" do agente, cobrando um chamado que ninguem consegue abrir.
+  # SE A REGRA DE VISIBILIDADE MUDAR NO FINDER, MUDE AQUI TAMBEM.
+  def reachable_by_agents(scope)
+    scope.joins(:contact).where(contacts: { blocked: [false, nil] })
   end
 
   def waiting_scope(scope)
