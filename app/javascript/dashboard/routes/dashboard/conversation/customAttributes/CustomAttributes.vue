@@ -44,8 +44,14 @@ const dragging = ref(false);
 const [showAllAttributes, toggleShowAllAttributes] = useToggle(false);
 
 const currentChat = computed(() => getters.getSelectedChat.value);
+// "Ocultar": some do painel DENTRO da conversa, e só daqui. O filtro fica fora do
+// getter de propósito — os mesmos getters alimentam Configurações → Atributos
+// Personalizados, o construtor de filtros e as automações, onde o atributo precisa
+// continuar visível.
 const attributes = computed(() =>
-  getters['attributes/getAttributesByModel'].value(props.attributeType)
+  getters['attributes/getAttributesByModel']
+    .value(props.attributeType)
+    .filter(attribute => !attribute.hidden)
 );
 
 const contactIdentifier = computed(

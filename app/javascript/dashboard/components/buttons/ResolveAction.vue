@@ -27,7 +27,8 @@ import ConversationResolveAttributesModal from 'dashboard/components-next/Conver
 const store = useStore();
 const getters = useStoreGetters();
 const { t } = useI18n();
-const { checkMissingAttributes } = useConversationRequiredAttributes();
+const { checkMissingAttributes, splitAttributesByModel } =
+  useConversationRequiredAttributes();
 
 const {
   showTeamModal,
@@ -48,8 +49,15 @@ const {
 const arrowDownButtonRef = ref(null);
 const isLoading = ref(false);
 const resolveAttributesModalRef = ref(null);
+// Definições mostradas no modal — guardadas para saber, na volta, qual valor é da
+// conversa e qual é do contato.
+const pendingRequiredAttributes = ref([]);
 
 const currentChat = computed(() => getters.getSelectedChat.value);
+const contactId = computed(() => currentChat.value?.meta?.sender?.id);
+const contactCustomAttributes = computed(
+  () => currentChat.value?.meta?.sender?.custom_attributes || {}
+);
 
 // "Atribuição obrigatória" — assign-and-resolve dialog state.
 const showAssignResolveDialog = ref(false);
@@ -182,16 +190,57 @@ const toggleStatus = async (status, snoozedUntil, customAttributes = null) => {
   }
 };
 
-const handleResolveWithAttributes = ({ attributes, context }) => {
-  if (context) {
-    const currentCustomAttributes = currentChat.value.custom_attributes || {};
-    const mergedAttributes = { ...currentCustomAttributes, ...attributes };
-    toggleStatus(
-      wootConstants.STATUS_TYPE.RESOLVED,
-      context.snoozedUntil,
-      mergedAttributes
-    );
+const handleResolveWithAttributes = async ({ attributes, context }) => {
+  if (!context) return;
+
+  const { conversation: conversationValues, contact: contactValues } =
+    splitAttributesByModel(pendingRequiredAttributes.value, attributes);
+
+  // Contato e conversa são chamadas distintas. Se a do contato falhar, a conversa
+  // NÃO resolve — nada de encerrar em silêncio com o atributo vazio.
+  if (Object.keys(contactValues).length) {
+    if (!contactId.value) {
+      useAlert(
+        t(
+          'CONVERSATION_WORKFLOW.REQUIRED_ATTRIBUTES.MODAL.ERRORS.CONTACT_MISSING'
+        )
+      );
+      return;
+    }
+
+    isLoading.value = true;
+    try {
+      await store.dispatch('contacts/update', {
+        id: contactId.value,
+        customAttributes: {
+          ...contactCustomAttributes.value,
+          ...contactValues,
+        },
+      });
+    } catch (error) {
+      useAlert(
+        t(
+          'CONVERSATION_WORKFLOW.REQUIRED_ATTRIBUTES.MODAL.ERRORS.CONTACT_UPDATE_FAILED'
+        )
+      );
+      return;
+    } finally {
+      isLoading.value = false;
+    }
   }
+
+  // Só desvia do caminho normal de resolver quando há atributo de conversa para
+  // gravar; caso contrário a validação de time continua valendo.
+  const currentCustomAttributes = currentChat.value.custom_attributes || {};
+  const mergedAttributes = Object.keys(conversationValues).length
+    ? { ...currentCustomAttributes, ...conversationValues }
+    : null;
+
+  toggleStatus(
+    wootConstants.STATUS_TYPE.RESOLVED,
+    context.snoozedUntil,
+    mergedAttributes
+  );
 };
 
 const onCmdOpenConversation = () => {
@@ -208,7 +257,8 @@ const onCmdResolveConversation = () => {
 
   const currentCustomAttributes = currentChat.value.custom_attributes || {};
   const { hasMissing, missing } = checkMissingAttributes(
-    currentCustomAttributes
+    currentCustomAttributes,
+    contactCustomAttributes.value
   );
 
   if (hasMissing) {
@@ -216,9 +266,10 @@ const onCmdResolveConversation = () => {
       id: currentChat.value.id,
       snoozedUntil: null,
     };
+    pendingRequiredAttributes.value = missing;
     resolveAttributesModalRef.value?.open(
       missing,
-      currentCustomAttributes,
+      { ...contactCustomAttributes.value, ...currentCustomAttributes },
       conversationContext
     );
   } else {

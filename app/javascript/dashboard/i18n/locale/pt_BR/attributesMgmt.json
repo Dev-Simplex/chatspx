@@ -67,6 +67,12 @@
         "ENABLE_REGEX": {
           "LABEL": "Habilitar validação do regex"
         },
+        "REQUIRED": {
+          "LABEL": "Preenchimento obrigatório"
+        },
+        "HIDDEN": {
+          "LABEL": "Ocultar dentro da conversa"
+        },
         "BADGES": {
           "PRE_CHAT": "Pré-chat",
           "RESOLUTION": "Resolução"

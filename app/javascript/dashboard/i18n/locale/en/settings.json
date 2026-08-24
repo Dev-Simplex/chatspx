@@ -992,6 +992,10 @@
         "CHECKBOX": {
           "YES": "Yes",
           "NO": "No"
+        },
+        "ERRORS": {
+          "CONTACT_MISSING": "Could not identify this conversation's contact, so the required contact attributes can't be saved. Reload the page and try again.",
+          "CONTACT_UPDATE_FAILED": "Could not save the contact attributes. The conversation was not resolved."
         }
       },
       "PAYWALL": {

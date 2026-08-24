@@ -42,6 +42,8 @@ export default {
       regexPattern: null,
       regexCue: null,
       regexEnabled: false,
+      isRequired: false,
+      isHidden: false,
       values: [],
       show: true,
       tagInputTouched: false,
@@ -155,6 +157,8 @@ export default {
             ? new RegExp(this.regexPattern).toString()
             : null,
           regex_cue: this.regexCue,
+          required: this.isRequired,
+          hidden: this.isHidden,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.ADD.API.SUCCESS_MESSAGE');
         this.onClose();
@@ -283,6 +287,14 @@ export default {
             type="text"
             :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.REGEX_CUE.PLACEHOLDER')"
           />
+          <div>
+            <input v-model="isRequired" type="checkbox" />
+            {{ $t('ATTRIBUTES_MGMT.ADD.FORM.REQUIRED.LABEL') }}
+          </div>
+          <div>
+            <input v-model="isHidden" type="checkbox" />
+            {{ $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL') }}
+          </div>
           <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
             <NextButton
               faded
