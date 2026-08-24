@@ -144,10 +144,6 @@ class AccountUser < ApplicationRecord
 
   private
 
-  # Só roda quando o formulário mandou o campo — um save vindo de qualquer outro
-  # lugar (availability, papel, convite) não encosta na supervisão. Usa destroy/create
-  # em vez de delete_all porque TeamSupervisor invalida o cache de times num
-  # after_commit: sem isso a tela do supervisor nasce vazia com a linha já gravada.
   # Escolher "supervisor" e desmarcar todos os times deixaria a pessoa como agente
   # comum sem dizer nada — o seletor mostraria uma coisa e o banco guardaria outra.
   # Só morde quando o campo VEIO vazio; ausente é o formulário que nem tem o seletor.
@@ -159,6 +155,10 @@ class AccountUser < ApplicationRecord
     errors.add(:supervised_team_ids, I18n.t('errors.account_user.supervisor_without_team'))
   end
 
+  # Só roda quando o formulário mandou o campo — um save vindo de qualquer outro
+  # lugar (availability, papel, convite) não encosta na supervisão. Usa destroy/create
+  # em vez de delete_all porque TeamSupervisor invalida o cache de times num
+  # after_commit: sem isso a tela do supervisor nasce vazia com a linha já gravada.
   def sync_supervised_teams
     # A distinção que importa: campo AUSENTE ≠ campo VAZIO.
     #   * ausente (`defined?` falso) é o formulário da página do USUÁRIO, onde a conta só
