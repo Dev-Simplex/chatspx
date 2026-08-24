@@ -606,12 +606,23 @@
       "DIAGNOSTICS": {
         "PRIVACY": "This panel shows the NAMES of the fields sent, never the values — neither in the clear nor hashed. Diagnostics that show a lead's email is a leak with an interface.",
         "EMPTY": "No delivery recorded yet for this inbox.",
-        "UNAVAILABLE": "Reading the delivery log comes with block 5.14 (audit and diagnostics). Deliveries are already recorded by the server since 5.03 — what is missing is the endpoint that returns them to this screen.",
+        "UNAVAILABLE": "The delivery log is not available on this installation yet: route {path} did not respond. Talk to whoever operates the platform.",
         "TIME": "Time",
         "EVENT": "Event",
         "DESTINATION": "Destination",
         "STATUS": "Status",
-        "FIELDS": "Fields sent"
+        "FIELDS": "Fields sent",
+        "RATE": "Delivery rate",
+        "EMQ": "Average EMQ",
+        "EMQ_HINT": "Meta event match quality. {healthy} and above is the healthy band.",
+        "RETENTION": "Log retention",
+        "NO_DATA": "no data",
+        "SEND_TEST": "Send test event",
+        "REFRESH": "Refresh",
+        "TEST_RESULT": "Result: {status} (HTTP {http})",
+        "ERRORS": "Grouped errors",
+        "TIMES": "{count}×",
+        "EVENT_ID": "Event ID"
       },
       "SECRET": {
         "EMPTY": "not set",
@@ -622,6 +633,13 @@
         "SET_BUTTON": "Set",
         "CONFIRM": "Store",
         "CANCEL": "Cancel"
+      },
+      "OAUTH_PENDING": "One-click connect (Meta Login for Business and Google) depends on registering the app with both platforms — block 5.02/T-C1.7. Until then, paste the credential above.",
+      "KILL_SWITCH": {
+        "TITLE": "Turn off tracking for this inbox",
+        "HINT": "Stops sending events to every destination for this inbox, without erasing the configuration. Use it when the site is sending the wrong events.",
+        "ACCOUNT_WINS": "The account-wide switch is on: while it is, no event leaves this inbox anyway.",
+        "BLOCKED_BY_501": "Not available yet: to take effect this key must reach the widget, and it is not in the server public projection yet (block 5.01). A switch that turns nothing off would be worse than none. Use the account-wide switch meanwhile."
       }
     }
   }
