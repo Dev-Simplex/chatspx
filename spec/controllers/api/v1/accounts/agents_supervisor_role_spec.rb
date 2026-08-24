@@ -11,13 +11,13 @@ RSpec.describe 'Agents API: papel supervisor', type: :request do
   let(:account_user) { agent.account_users.find_by(account_id: account.id) }
 
   describe 'PATCH /api/v1/accounts/{account.id}/agents/{id}' do
-    it 'aceita supervisor e grava agente + supervisão dos times informados' do
+    it 'aceita supervisor e grava administrador + supervisão dos times informados' do
       patch "/api/v1/accounts/#{account.id}/agents/#{agent.id}",
             params: { role: 'supervisor', supervised_team_ids: [team.id] },
             headers: admin.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:success)
-      expect(account_user.reload.role).to eq('agent')
+      expect(account_user.reload.role).to eq('administrator')
       expect(account_user.supervised_team_ids).to contain_exactly(team.id)
       expect(account_user.console_role).to eq('supervisor')
     end
@@ -46,14 +46,14 @@ RSpec.describe 'Agents API: papel supervisor', type: :request do
   end
 
   describe 'POST /api/v1/accounts/{account.id}/agents' do
-    it 'cria como agente supervisor em vez de estourar' do
+    it 'cria como administrador supervisor em vez de estourar' do
       post "/api/v1/accounts/#{account.id}/agents",
            params: { name: 'Nova', email: 'nova.supervisora@exemplo.test', role: 'supervisor' },
            headers: admin.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:success)
       novo = AccountUser.find_by(account_id: account.id, user_id: User.from_email('nova.supervisora@exemplo.test').id)
-      expect(novo.role).to eq('agent')
+      expect(novo.role).to eq('administrator')
       expect(novo.supervised_team_ids).to contain_exactly(team.id)
     end
   end

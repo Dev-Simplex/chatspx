@@ -34,12 +34,11 @@ class AccountUser < ApplicationRecord
   enum role: { agent: 0, administrator: 1 }
   enum availability: { online: 0, offline: 1, busy: 2 }
 
-  # "Supervisor" NÃO é um papel no banco: é AGENTE com linha em team_supervisors.
-  # A tela de Agentes já expõe essa combinação como uma função só (EditAgent.vue);
-  # o par console_role/supervised_team_ids dá a MESMA opção ao Console de Super
-  # Admin. Um terceiro valor no enum faria `agent?` devolver false e derrubaria as
-  # 37 checagens espalhadas por policies e controllers — por isso a opção vive na
-  # camada de apresentação, não no enum.
+  # "Supervisor" NÃO é um papel no banco: é ADMINISTRADOR com linha em team_supervisors —
+  # quase tudo que um admin faz, menos as seis configurações de plataforma que o
+  # SupervisorSettingsScope tira. Um terceiro valor no enum faria `administrator?`
+  # devolver false e derrubaria as 199 checagens espalhadas por policies e controllers,
+  # então a opção vive na camada de apresentação e o banco segue com dois papéis.
   SUPERVISOR_ROLE = 'supervisor'.freeze
   CONSOLE_ROLES = (roles.keys + [SUPERVISOR_ROLE]).freeze
 
@@ -59,9 +58,16 @@ class AccountUser < ApplicationRecord
   validates :user_id, uniqueness: { scope: :account_id }
   validate :supervisor_needs_a_team
 
-  # Papel como o console mostra: 'supervisor' quando é agente que supervisiona time.
+  # Papel como o console mostra: 'supervisor' é o ADMINISTRADOR que supervisiona time —
+  # "quase tudo que um admin faz, menos as configurações de plataforma".
+  #
+  # ATENÇÃO à divergência: a tela de Agentes do dashboard (EditAgent.vue) usa a mesma
+  # palavra para AGENTE + times, que é outro perfil e continua existindo. Os dois são
+  # supervisores de verdade (linha em team_supervisors, os dois perdem as seis telas);
+  # o que muda é a base — um parte de admin, o outro de agente. Agente que supervisiona
+  # aparece aqui como `agent`, com os times visíveis no campo ao lado.
   def console_role
-    agent? && supervised_team_ids.any? ? SUPERVISOR_ROLE : role
+    administrator? && supervised_team_ids.any? ? SUPERVISOR_ROLE : role
   end
 
   # Um ponto só entende "supervisor", e com isso TODA superfície que atribui papel
@@ -70,20 +76,24 @@ class AccountUser < ApplicationRecord
   # ArgumentError e virava 500 — este writer é aditivo, só transforma o que já
   # explodia em atribuição válida, sem tocar em 'agent'/'administrator'.
   #
-  # Grava `agent`: supervisionar é ter linha em team_supervisors, e é `supervised_team_ids`
-  # que diz quais times. Sem times informados, a supervisão passa a valer para todos
-  # os da conta (ver sync_supervised_teams).
+  # Grava `administrator`: supervisionar é ter linha em team_supervisors, e é
+  # `supervised_team_ids` que diz quais times. Sem times informados, a supervisão passa
+  # a valer para todos os da conta (ver sync_supervised_teams).
+  #
+  # Trocar papel já é exclusivo de administrador em todo endpoint que aceita a chave
+  # (AgentsController#authorize_supervisor_update), então isto não abre caminho novo
+  # para alguém se autopromover.
   def role=(value)
     if value.to_s == SUPERVISOR_ROLE
       @console_supervisor = true
-      super(:agent)
+      super(:administrator)
     else
       super
     end
   end
 
   # O formulário do console posta este nome; a tradução é a mesma do writer acima.
-  # Escolher "administrator" ou "agent" NÃO mexe na supervisão: quem quiser tirá-la
+  # Escolher "agent" ou "administrator" NÃO mexe na supervisão: quem quiser tirá-la
   # esvazia o campo de times, que é onde ela mora.
   def console_role=(value)
     self.role = value

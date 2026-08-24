@@ -1,8 +1,8 @@
 require 'rails_helper'
 
 # O papel "supervisor" no Console de Super Admin é uma opção de TELA sobre
-# agente + team_supervisors. Como isso mora em views do Administrate, o spec
-# exercita o render junto com o round-trip de gravação.
+# administrador + team_supervisors. Como isso mora em views do Administrate, o
+# spec exercita o render junto com o round-trip de gravação.
 RSpec.describe 'Super Admin: papel supervisor', type: :request do
   let(:super_admin) { create(:super_admin) }
   let!(:account) { create(:account) }
@@ -39,7 +39,7 @@ RSpec.describe 'Super Admin: papel supervisor', type: :request do
   end
 
   describe 'gravação' do
-    it 'cria como agente no banco, com a supervisão escolhida' do
+    it 'cria como administrador no banco, com a supervisão escolhida' do
       novo = create(:user)
 
       post '/super_admin/account_users', params: {
@@ -47,7 +47,7 @@ RSpec.describe 'Super Admin: papel supervisor', type: :request do
       }
 
       vinculo = AccountUser.find_by(account_id: account.id, user_id: novo.id)
-      expect(vinculo.role).to eq('agent')
+      expect(vinculo.role).to eq('administrator')
       expect(vinculo.supervised_team_ids).to contain_exactly(team.id)
       expect(vinculo.console_role).to eq('supervisor')
     end
