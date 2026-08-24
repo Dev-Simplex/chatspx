@@ -2283,6 +2283,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_24_120000) do
     t.datetime "delivered_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "suppressed_field_names", default: [], null: false
     t.index ["status"], name: "index_tracking_deliveries_on_status"
     t.index ["tracking_event_id", "destination"], name: "index_tracking_deliveries_on_event_and_destination", unique: true
   end
