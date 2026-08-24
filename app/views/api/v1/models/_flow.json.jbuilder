@@ -2,7 +2,11 @@ json.id flow.id
 json.name flow.name
 json.description flow.description
 json.trigger_type flow.trigger_type
-json.trigger_config flow.trigger_config
+# O `webhook_token` dentro do trigger_config é a credencial do endpoint PÚBLICO
+# (Webhooks::FlowsController) — quem o tem dispara o flow de fora, sem sessão. Um flow `global`
+# aparece para a conta inteira, então o token sai só para o AUTOR e para o ADMINISTRADOR (quem
+# pode editá-lo); para os demais a chave é omitida. Ver Flow#trigger_config_for.
+json.trigger_config flow.trigger_config_for(Current.user, Current.account_user)
 json.definition flow.definition
 json.active flow.active
 json.version flow.version

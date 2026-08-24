@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_19_150000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_24_201600) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1275,6 +1275,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_150000) do
     t.bigint "updated_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index "((trigger_config ->> 'webhook_token'::text))", name: "index_flows_on_webhook_token", unique: true, where: "((trigger_config ->> 'webhook_token'::text) IS NOT NULL)"
     t.index ["account_id", "trigger_type", "active"], name: "index_flows_on_account_id_and_trigger_type_and_active"
     t.index ["account_id"], name: "index_flows_on_account_id"
   end

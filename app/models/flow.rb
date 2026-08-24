@@ -85,6 +85,14 @@ class Flow < ApplicationRecord
   # pausa e segue. Ver Flows::RunnerService#suspend_on_wait_for_reply e plano/F2-contrato-wait-for-reply.md.
   NODE_TYPES = %w[trigger action condition router wait wait_for_reply].freeze
 
+  # Forma do token que o BACKEND gera (SecureRandom.hex(24) = 48 hex minúsculos) — a única que
+  # existiu. Serve de ASSINATURA: um `webhook_token` persistido fora desta forma só pode ter vindo
+  # do cliente (dado sujo gravado antes do descarte em #ensure_webhook_token), e é descartado em
+  # vez de reusado. Sem isto o "1" que já está no jsonb de um flow `manual` viraria a credencial
+  # definitiva na primeira vez que esse flow virasse external_webhook — o mesmo ataque, só que
+  # com a primeira das duas requisições já feita.
+  WEBHOOK_TOKEN_FORMAT = /\A[0-9a-f]{48}\z/
+
   validates :name, presence: true
   validate :definition_shape
   validate :definition_action_names
@@ -96,6 +104,18 @@ class Flow < ApplicationRecord
   before_save :ensure_webhook_token
 
   scope :active, -> { where(active: true) }
+
+  # Visibilidade da LISTAGEM — espelha `Macro.with_visibility` (macro.rb:42): `global` é de toda a
+  # conta, `personal` só aparece para o próprio autor. Sem isto o #index entregava o flow pessoal
+  # ALHEIO inteiro (trigger_config + definition, com o token do webhook e os headers dos nós
+  # http_request dentro) a qualquer agente, enquanto a FlowPolicy#show? já barrava o acesso
+  # individual. Sempre chamado sobre a relação da conta (Current.account.flows.with_visibility) —
+  # o escopo de conta vem de fora, como em qualquer scope.
+  def self.with_visibility(user)
+    return global if user.blank?
+
+    global.or(personal.where(created_by_id: user.id))
+  end
 
   # Localiza o flow pelo token público do webhook. Espelha Funnel.for_form_token (lookup por
   # igualdade no jsonb). Restringe a `external_webhook` — um token não pode disparar um flow de
@@ -126,6 +146,27 @@ class Flow < ApplicationRecord
     trigger_config['webhook_token'] if trigger_config.is_a?(Hash)
   end
 
+  # `trigger_config` como pode ser ENTREGUE a `user` — sem o `webhook_token` para quem não tem
+  # direito a ele. O token é a credencial INTEIRA do endpoint público (Webhooks::FlowsController:
+  # quem o tem dispara o flow de qualquer lugar da internet, sem sessão). Um flow `global` é
+  # visível à conta toda, então o partial não pode devolver a credencial junto: só o AUTOR (quem
+  # criou) e o ADMINISTRADOR (quem pode editar um flow global — FlowPolicy#update?) a enxergam.
+  # Sem usuário identificado, omite. Ver app/views/api/v1/models/_flow.json.jbuilder.
+  def trigger_config_for(user, account_user = nil)
+    config = trigger_config
+    return config unless config.is_a?(Hash) && config.key?('webhook_token')
+    return config if webhook_token_visible_to?(user, account_user)
+
+    config.except('webhook_token')
+  end
+
+  def webhook_token_visible_to?(user, account_user)
+    return false if user.blank?
+    return true if created_by_id.present? && created_by_id == user.id
+
+    account_user.present? && account_user.administrator?
+  end
+
   def file_base_data
     files.map do |file|
       {
@@ -149,19 +190,33 @@ class Flow < ApplicationRecord
   # Assim o cliente não define nem rotaciona o token, e a URL é ESTÁVEL entre edições. Ao sair de
   # external_webhook o token é preservado (a mesma URL volta a valer se reativar); não vaza porque
   # for_webhook_token filtra por external_webhook. TODO(F2): endpoint autenticado de rotação.
+  #
+  # O descarte roda para TODO trigger_type, não só para webhook: com um `return unless
+  # external_webhook?` o cliente escolhia o token em DUAS requisições — cria como `manual` com
+  # `webhook_token: "1"` (nada a materializar, o valor entrava cru no jsonb) e depois muda para
+  # `external_webhook`, quando o "1" já era o valor PERSISTIDO e virava o token definitivo. Um
+  # token escolhido pelo atacante é um endpoint público adivinhável: os 192 bits de entropia só
+  # valem se NENHUM caminho de escrita aceitar a chave vinda de fora.
   def ensure_webhook_token
-    return unless external_webhook?
+    config = trigger_config.is_a?(Hash) ? trigger_config : {}
+    token = persisted_webhook_token.presence
+    token ||= SecureRandom.hex(24) if external_webhook?
 
-    token = persisted_webhook_token.presence || SecureRandom.hex(24)
-    self.trigger_config = trigger_config.to_h.merge('webhook_token' => token)
+    sanitized = config.except('webhook_token')
+    sanitized = sanitized.merge('webhook_token' => token) if token.present?
+    return if sanitized == config
+
+    self.trigger_config = sanitized
   end
 
   # O token como está PERSISTIDO (valor pré-alteração da atribuição atual). Numa criação é nil
   # (gera-se um novo); num update é o token do banco (preserva-se), mesmo que o cliente tente
-  # sobrescrevê-lo no payload.
+  # sobrescrevê-lo no payload. Só conta o que tem a forma do gerador (WEBHOOK_TOKEN_FORMAT):
+  # o resto é resíduo do cliente e não pode ser herdado.
   def persisted_webhook_token
     previous = trigger_config_was
-    previous['webhook_token'] if previous.is_a?(Hash)
+    token = previous['webhook_token'] if previous.is_a?(Hash)
+    token if token.to_s.match?(WEBHOOK_TOKEN_FORMAT)
   end
 
   def definition_hash
