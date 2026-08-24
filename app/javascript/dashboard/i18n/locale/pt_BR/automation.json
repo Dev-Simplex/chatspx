@@ -419,6 +419,10 @@
             "BOTH": "Ambas",
             "INBOUND": "Entrada (contato inicia)",
             "OUTBOUND": "Saída (agente inicia)"
+          },
+          "INBOXES": {
+            "LABEL": "Caixas de entrada",
+            "HINT": "Restringe este gatilho a caixas específicas. Deixe vazio para valer em todas as caixas."
           }
         },
         "SEND_EMAIL_TO_TEAM": {

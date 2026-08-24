@@ -1,3 +1,207 @@
+<script>
+// Helpers PUROS do canvas (sem estado nem refs): vivem neste bloco `<script>` normal — ao lado
+// do `<script setup>` — para que as specs os exercitem sem montar o canvas inteiro.
+
+// Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
+// verdade continua sendo o nó na definition (round-trip pelo canvas); aqui só derivamos o
+// que o motor consome. Sem nó de gatilho o flow é `manual`.
+//  • trigger_kind 'keyword'  → trigger_type keyword  + { keywords[], match }
+//  • trigger_kind 'schedule' → trigger_type schedule + { mode, cron | every, unit }
+//  • trigger_kind 'webhook'  → trigger_type external_webhook + {} (o backend gera/preserva o
+//    webhook_token — nunca o cliente; ver Flow#ensure_webhook_token)
+//  • event_name definido      → trigger_type conversation_event + { event_name }
+export const triggerPayload = triggerNode => {
+  if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
+  if (triggerNode.trigger_kind === 'webhook') {
+    return { trigger_type: 'external_webhook', trigger_config: {} };
+  }
+  if (triggerNode.trigger_kind === 'keyword') {
+    return {
+      trigger_type: 'keyword',
+      trigger_config: {
+        keywords: (triggerNode.keywords || [])
+          .map(kw => (kw || '').trim())
+          .filter(Boolean),
+        match: triggerNode.match === 'exact' ? 'exact' : 'contains',
+        direction: triggerNode.direction || 'both',
+      },
+    };
+  }
+  if (triggerNode.trigger_kind === 'schedule') {
+    const sched = triggerNode.schedule || {};
+    if (sched.mode === 'interval') {
+      const every = Number.parseInt(sched.every, 10);
+      return {
+        trigger_type: 'schedule',
+        trigger_config: {
+          mode: 'interval',
+          every: Number.isNaN(every) || every < 1 ? 1 : every,
+          unit: ['minutes', 'hours', 'days'].includes(sched.unit)
+            ? sched.unit
+            : 'days',
+        },
+      };
+    }
+    return {
+      trigger_type: 'schedule',
+      trigger_config: { mode: 'cron', cron: String(sched.cron ?? '').trim() },
+    };
+  }
+  if (triggerNode.event_name) {
+    return {
+      trigger_type: 'conversation_event',
+      trigger_config: {
+        event_name: triggerNode.event_name,
+        direction: triggerNode.direction || 'both',
+      },
+    };
+  }
+  return { trigger_type: 'manual', trigger_config: {} };
+};
+
+// Espelha o TriggerConfig.vue: nó de gatilho sem `trigger_kind` é 'event' (retrocompatível).
+export const triggerKindOf = node =>
+  ['keyword', 'schedule', 'webhook'].includes(node?.trigger_kind)
+    ? node.trigger_kind
+    : 'event';
+
+// O seletor de CAIXA DE ENTRADA existe só nos gatilhos por evento e por palavra-chave (mesma
+// regra do seletor de direção, em TriggerConfig#showDirection); nos demais o canvas não tem
+// como editar a condição de inbox e o trigger_config.conditions passa intacto.
+export const supportsInboxFilter = node =>
+  ['event', 'keyword'].includes(triggerKindOf(node));
+
+// Chaves de `trigger_config` que a projeção acima GOVERNA: o valor delas vem sempre do nó
+// `trigger` — e some quando o gatilho muda de tipo. TODO o resto do trigger_config gravado é
+// PRESERVADO no save, porque o controller SUBSTITUI a coluna jsonb inteira (flows_controller
+// #assign_jsonb_attributes) e o que não voltar no payload é apagado. Ali moram `conditions`
+// (a única gate dos flows migrados de AutomationRule — sem ela o flow passa a disparar em
+// TODA conversa), `backfill_source` (marcador de idempotência: sem ele o próximo backfill
+// duplica o flow) e `last_fired_at`.
+export const CANVAS_TRIGGER_KEYS = [
+  'event_name',
+  'event_names',
+  'keywords',
+  'match',
+  'direction',
+  'mode',
+  'cron',
+  'every',
+  'unit',
+];
+
+export const mergeTriggerConfig = (original, projected) => {
+  const preserved =
+    original && typeof original === 'object' ? { ...original } : {};
+  CANVAS_TRIGGER_KEYS.forEach(key => {
+    delete preserved[key];
+  });
+  return { ...preserved, ...projected };
+};
+
+// Só a condição `inbox_id` + `equal_to` pertence ao seletor de caixa. Uma condição de inbox com
+// outro operador (ex.: `not_equal_to`, herdada de uma AutomationRule migrada) é INVISÍVEL para o
+// seletor: não hidrata o campo nem é sobrescrita no save — inverter o sentido dela em silêncio
+// seria a mesma perda de dado que estamos corrigindo.
+const isInboxCondition = condition =>
+  condition?.attribute_key === 'inbox_id' &&
+  condition?.filter_operator === 'equal_to';
+
+// O ConditionsFilterService concatena o `query_operator` DEPOIS de cada condição: só a última
+// pode ficar sem operador (um "AND" sobrando quebra o SQL, o serviço engole a exceção e a gate
+// passa a reprovar TODA conversa — o flow silencia).
+const normalizeQueryOperators = conditions =>
+  conditions.map((condition, index, all) => ({
+    ...condition,
+    query_operator:
+      index === all.length - 1 ? null : condition.query_operator || 'and',
+  }));
+
+// `trigger_config.conditions` → `node.inbox_ids` (hidratação ao abrir o fluxo).
+export const inboxIdsFromConditions = conditions => {
+  const found = (Array.isArray(conditions) ? conditions : []).find(
+    isInboxCondition
+  );
+  return Array.isArray(found?.values) ? [...found.values] : [];
+};
+
+// `node.inbox_ids` → `trigger_config.conditions`, no formato que o backend já consome
+// (automation_rule_listener#run_flows → Flows::RuleAdapter). SUBSTITUI a condição de inbox NO
+// LUGAR dela, preservando as demais e a ordem original; lista VAZIA remove a condição — sem
+// condição de inbox o flow vale para TODAS as caixas (comportamento de sempre).
+export const projectInboxCondition = (conditions, inboxIds) => {
+  const original = Array.isArray(conditions) ? conditions : [];
+  const values = Array.isArray(inboxIds)
+    ? inboxIds.filter(id => id !== null && id !== undefined && id !== '')
+    : [];
+  const index = original.findIndex(isInboxCondition);
+  if (!values.length) {
+    if (index === -1) return original;
+    return normalizeQueryOperators(original.filter((_, i) => i !== index));
+  }
+  const inboxCondition = {
+    attribute_key: 'inbox_id',
+    filter_operator: 'equal_to',
+    values,
+    custom_attribute_type: '',
+  };
+  const next =
+    index === -1
+      ? [...original, inboxCondition]
+      : original.map((condition, i) =>
+          i === index
+            ? { ...inboxCondition, query_operator: condition.query_operator }
+            : condition
+        );
+  return normalizeQueryOperators(next);
+};
+
+// Payload de gatilho COMPLETO para o backend: projeção do(s) nó(s) `trigger` sobre o
+// trigger_config ORIGINAL (o que veio do servidor no load), para nada do que o canvas não
+// projeta ser apagado no save. Ver mergeTriggerConfig.
+export const buildTriggerPayload = (triggerNodes, originalConfig) => {
+  const nodes = Array.isArray(triggerNodes) ? triggerNodes.filter(Boolean) : [];
+  const projected = triggerPayload(nodes[0]);
+  const config = mergeTriggerConfig(originalConfig, projected.trigger_config);
+  // Multi-gatilho: com mais de um nó `trigger` de evento, grava TODOS os event_names em
+  // trigger_config.event_names — o backend (current_account_flows) casa qualquer um.
+  // Retrocompat: com 1 só, mantém apenas event_name (event_names ausente).
+  if (projected.trigger_type === 'conversation_event') {
+    const eventNames = [
+      ...new Set(nodes.map(node => node.event_name).filter(Boolean)),
+    ];
+    if (eventNames.length > 1) config.event_names = eventNames;
+  }
+  if (supportsInboxFilter(nodes[0])) {
+    const conditions = projectInboxCondition(
+      config.conditions,
+      nodes[0]?.inbox_ids
+    );
+    if (conditions.length) config.conditions = conditions;
+    else delete config.conditions;
+  }
+  return { trigger_type: projected.trigger_type, trigger_config: config };
+};
+
+// Blocos de RAMIFICAÇÃO: têm mais de uma porta de saída, então cada ramo é ligado À MÃO pelo
+// usuário — nunca auto-ligamos a partir deles.
+export const BRANCHING_TYPES = ['condition', 'router', 'wait_for_reply'];
+
+// A quem o bloco novo se liga: ao bloco SELECIONADO (o usuário acabou de clicar nele) ou, sem
+// seleção, ao último da lista. Auto-liga só o caso linear seguro — o anterior não ramifica e
+// ainda não tem aresta de saída.
+export const autoConnectTarget = (selected, existing, edges) => {
+  const nodes = existing || [];
+  const prev = selected || nodes[nodes.length - 1] || null;
+  if (!prev) return { prev: null, autoConnected: false };
+  const isBranch = BRANCHING_TYPES.includes(prev.type);
+  const hasOutgoing = (edges || []).some(
+    edge => String(edge.from) === String(prev.id)
+  );
+  return { prev, autoConnected: !isBranch && !hasOutgoing };
+};
+</script>
+
 <script setup>
 import {
   ref,
@@ -461,6 +665,11 @@ const loadConfigOptions = () => {
   store.dispatch('captainAssistants/get').catch(() => {});
 };
 
+// `trigger_config` COMO O SERVIDOR O ENTREGOU. O save o usa de base (mergeTriggerConfig) para
+// não apagar o que o canvas não projeta — `conditions`, `backfill_source`, `last_fired_at`.
+// Fica {} num fluxo novo e é reatualizado com a resposta de cada save.
+const loadedTriggerConfig = ref({});
+
 // O webhook_token é backend-autoritativo e vive em flow.trigger_config; injetamo-lo no nó
 // `trigger` (in-memory) para o TriggerConfig exibir a URL read-only. É só um ECHO de exibição —
 // o backend ignora qualquer token vindo no payload (Flow#ensure_webhook_token).
@@ -471,6 +680,20 @@ const syncWebhookToken = flow => {
     ...definition.value,
     nodes: (definition.value.nodes || []).map(node =>
       node.type === 'trigger' ? { ...node, webhook_token: token } : node
+    ),
+  };
+};
+
+// A condição `inbox_id` de trigger_config.conditions é a gate REAL do backend; espelhamo-la em
+// `node.inbox_ids` para o TriggerConfig editá-la. Como o webhook_token, é um ECHO do que o
+// servidor devolveu — entra sem histórico, para o eco não sujar o undo.
+const syncInboxIds = flow => {
+  const inboxIds = inboxIdsFromConditions(flow?.trigger_config?.conditions);
+  if (!inboxIds.length) return;
+  definition.value = {
+    ...definition.value,
+    nodes: (definition.value.nodes || []).map(node =>
+      node.type === 'trigger' ? { ...node, inbox_ids: inboxIds } : node
     ),
   };
 };
@@ -559,7 +782,11 @@ onMounted(async () => {
   }
   name.value = flow.name;
   definition.value = flow.definition || { nodes: [], edges: [] };
-  withoutHistory(() => syncWebhookToken(flow));
+  loadedTriggerConfig.value = flow.trigger_config || {};
+  withoutHistory(() => {
+    syncWebhookToken(flow);
+    syncInboxIds(flow);
+  });
   history.commit(definition.value);
   loadStats();
 });
@@ -599,13 +826,14 @@ const addNode = item => {
   const existing = definition.value.nodes || [];
   const edges = [...(definition.value.edges || [])];
 
-  // Auto-liga só o caso linear seguro: o nó anterior é de saída única (não condition/router) e
-  // ainda não tem aresta de saída. Ramos são sempre conectados manualmente pelo usuário.
-  const prev = existing[existing.length - 1];
-  const prevIsBranch = prev && ['condition', 'router'].includes(prev.type);
-  const prevHasOutgoing =
-    prev && edges.some(e => String(e.from) === String(prev.id));
-  const autoConnected = Boolean(prev && !prevIsBranch && !prevHasOutgoing);
+  // Auto-liga só o caso linear seguro: o bloco anterior — o SELECIONADO, ou o último quando não
+  // há seleção — é de saída única (ver BRANCHING_TYPES) e ainda não tem aresta de saída. Ramos
+  // são sempre conectados manualmente pelo usuário.
+  const { prev, autoConnected } = autoConnectTarget(
+    selectedNode.value,
+    existing,
+    edges
+  );
 
   const node = { id, type: item.type };
   const position = positionForNewNode(prev, autoConnected, existing);
@@ -739,63 +967,6 @@ const updateSelectedNode = patch => {
     return !from || validBranchKeys(from).includes(String(edge.branch));
   });
   definition.value = { ...definition.value, nodes, edges };
-};
-
-// Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
-// verdade continua sendo o nó na definition (round-trip pelo canvas); aqui só derivamos o
-// que o motor consome. Sem nó de gatilho o flow é `manual`.
-//  • trigger_kind 'keyword'  → trigger_type keyword  + { keywords[], match }
-//  • trigger_kind 'schedule' → trigger_type schedule + { mode, cron | every, unit }
-//  • trigger_kind 'webhook'  → trigger_type external_webhook + {} (o backend gera/preserva o
-//    webhook_token — nunca o cliente; ver Flow#ensure_webhook_token)
-//  • event_name definido      → trigger_type conversation_event + { event_name }
-const triggerPayload = triggerNode => {
-  if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
-  if (triggerNode.trigger_kind === 'webhook') {
-    return { trigger_type: 'external_webhook', trigger_config: {} };
-  }
-  if (triggerNode.trigger_kind === 'keyword') {
-    return {
-      trigger_type: 'keyword',
-      trigger_config: {
-        keywords: (triggerNode.keywords || [])
-          .map(kw => (kw || '').trim())
-          .filter(Boolean),
-        match: triggerNode.match === 'exact' ? 'exact' : 'contains',
-        direction: triggerNode.direction || 'both',
-      },
-    };
-  }
-  if (triggerNode.trigger_kind === 'schedule') {
-    const sched = triggerNode.schedule || {};
-    if (sched.mode === 'interval') {
-      const every = Number.parseInt(sched.every, 10);
-      return {
-        trigger_type: 'schedule',
-        trigger_config: {
-          mode: 'interval',
-          every: Number.isNaN(every) || every < 1 ? 1 : every,
-          unit: ['minutes', 'hours', 'days'].includes(sched.unit)
-            ? sched.unit
-            : 'days',
-        },
-      };
-    }
-    return {
-      trigger_type: 'schedule',
-      trigger_config: { mode: 'cron', cron: String(sched.cron ?? '').trim() },
-    };
-  }
-  if (triggerNode.event_name) {
-    return {
-      trigger_type: 'conversation_event',
-      trigger_config: {
-        event_name: triggerNode.event_name,
-        direction: triggerNode.direction || 'both',
-      },
-    };
-  }
-  return { trigger_type: 'manual', trigger_config: {} };
 };
 
 // ------------------------------------------------------------------ exportar / importar
@@ -943,32 +1114,20 @@ const save = async () => {
     const payload = {
       name: name.value,
       definition: definition.value,
-      ...triggerPayload(triggerNodes[0]),
+      ...buildTriggerPayload(triggerNodes, loadedTriggerConfig.value),
     };
-    // Multi-gatilho: com mais de um nó `trigger` de evento, grava TODOS os event_names
-    // em trigger_config.event_names — o backend (current_account_flows) casa qualquer um.
-    // Retrocompat: com 1 só, mantém apenas event_name (event_names ausente).
-    if (payload.trigger_type === 'conversation_event') {
-      const eventNames = [
-        ...new Set(triggerNodes.map(n => n.event_name).filter(Boolean)),
-      ];
-      if (eventNames.length > 1) {
-        payload.trigger_config = {
-          ...payload.trigger_config,
-          event_names: eventNames,
-        };
-      }
-    }
     if (isEdit.value) {
       const updated = await store.dispatch('flows/update', {
         id: flowId.value,
         ...payload,
       });
+      loadedTriggerConfig.value = updated?.trigger_config || {};
       withoutHistory(() => syncWebhookToken(updated));
       history.markSaved(definition.value);
       useAlert(t('AUTOMATION.CANVAS.SAVED'));
     } else {
       const created = await store.dispatch('flows/create', payload);
+      loadedTriggerConfig.value = created?.trigger_config || {};
       withoutHistory(() => syncWebhookToken(created));
       history.markSaved(definition.value);
       useAlert(t('AUTOMATION.CANVAS.CREATED'));

@@ -419,6 +419,10 @@
             "BOTH": "Both",
             "INBOUND": "Inbound (contact starts)",
             "OUTBOUND": "Outbound (agent starts)"
+          },
+          "INBOXES": {
+            "LABEL": "Inboxes",
+            "HINT": "Restrict this trigger to specific inboxes. Leave it empty to run on every inbox."
           }
         },
         "SEND_EMAIL_TO_TEAM": {
