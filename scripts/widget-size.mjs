@@ -90,9 +90,24 @@ const LIMITS = {
 // número (1.08 → CSS; 2.18 → JS eager ≤ 150 KB gzip). Subir este valor para
 // acomodar código novo é o mesmo afrouxamento que o teto proíbe.
 const GRAPH_BASELINE = {
-  gzip: 422_599,
-  date: '17/08/2026',
-  where: 'redesenho-build @ 301bbdfdf9 (bloco 0.3), `bin/vite build` limpo',
+  // BAIXADA PELO BLOCO 2.18, e só para baixo — é o que a própria mensagem de
+  // sucesso deste gate manda fazer quando o grafo entra no teto: sem isso a
+  // régua de regressão ficaria frouxa em 132.968 B e qualquer PR poderia
+  // devolver todo o emagrecimento sem o gate dizer nada.
+  //
+  // O que derrubou os 132.968 B (medido com `chunk.modules` do Rollup, não com
+  // grep no bundle):
+  //   · i18n sob demanda — 39 dos 40 idiomas viraram `import()`  ......  ~193 kB renderizados
+  //   · FormKit só na rota do pré-chat  ................................  ~203 kB renderizados
+  //   · `vue` na build runtime-only (o compilador de template só no portal)   ~169 kB renderizados
+  //
+  // O teto de 300.000 CONTINUA INTOCADO. O aceite do 2.18 pede JS eager
+  // ≤ 150 KB gzip e ele ainda NÃO foi alcançado: faltam Sentry, date-fns,
+  // markdown-it, axios e urlpattern saírem do first-paint, e os cinco moram em
+  // arquivo de outra trilha.
+  gzip: 289_631,
+  date: '24/08/2026',
+  where: 'worktree do bloco 2.18, `bin/vite build --force` limpo',
   // Tolerância do eixo de REGRESSÃO — não do teto, que não tem nenhuma.
   //
   // O gzip do grafo não é bit-a-bit reprodutível entre dois builds do MESMO
