@@ -10,6 +10,24 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-24] 🟢 VOCABULÁRIO POR ESPECIALIDADE — vendas fala CORRETOR, locação fala CONSULTOR (banco conta 6)
+
+> Queixa do time. Medido por agente antes de mexer; só prompt, sem deploy, sem tocar FAQ.
+
+- **O defeito não era a palavra errada, era as DUAS palavras.** A **Júlia #13 (vendas)** tinha
+  **16 "consultor" e 39 "corretor" no mesmo prompt** — o cliente ouvia os dois nomes da mesma
+  pessoa. As 16 foram conferidas uma a uma (todas do fluxo de venda) e viraram "corretor".
+- **Quem já estava certo não foi tocado:** Sofia #19 (vendas) 42× "corretor" e zero "consultor";
+  Bruna #14 e Letícia #15 (locação) o inverso.
+- **Clara #7 (triagem) não tem palavra certa** — ela roteia pros dois lados. As frases genéricas
+  viraram neutras ("o time"); a linha sobre **garantia de locação** manteve "consultor". As **31
+  FAQs dela com "corretor" são todas de venda** (MCMV, FGTS, planta) — falso positivo, nada a fazer.
+- **Marina #16:** só a frase genérica. *"consultora de captação"* é o **título** dela — preservado.
+- **Provado:** Júlia 3/3 "corretor" · Bruna 3/3 "consultor" (transação revertida, nada enviado).
+- ⚠️ **Dívida:** a frase da pausa do almoço está **copiada idêntica em 5 prompts** e a palavra certa
+  difere em cada um. Mesma classe do R$21 em duas FAQs — **texto duplicado diverge**.
+- Backups: `/tmp/assistant_{7,13,16,17}_ins_vocab.bak-20260824165419.restore.rb`.
+
 ### [2026-08-19] 🔴→🟢 A IA DE LOCAÇÃO INVENTAVA PREÇO — 3 valores em 5 rodadas (banco conta 6, sem deploy)
 
 > Entrou como "atualizar dois fatos que o Léo passou" e a medição virou o assunto. Tudo em FAQ +
@@ -624,8 +642,17 @@ armadilha do `subscribed_fields`.
 - **🟢 Buraco de roteamento fechado — regra #73** `Disparo inbox 99 — time Kettlen → Kettlen` (`conversation_opened` + `inbox_id=99` + `team_id=62` → `assign_agent=126`), criada por `dup` da #72 para não inventar formato. **O time 62 tem `allow_auto_assign=false`** e não tinha regra: o lead respondia, a conversa reabria no time e ficava **sem dono** até alguém abrir o painel. Medido: João e Cibele estavam atribuindo à Kettlen **na mão**, uma a uma, com até 13 min de espera. A regra automatiza o que já era a prática. As campanhas anteriores já tinham as #70/#71/#72 (Francielli 68→138, Henrique 69→140, Weigler 70→139).
 - ⚠️ **`conversation_opened` só dispara na transição resolvida→aberta.** Conversa que já está aberta e recebe nova mensagem **não** passa pela regra — por isso a #73 não age nas que reabriram antes dela existir (essas seguem na mão).
 - **Levas seguintes:** **#8** (sáb 15/08, 8h–12h) → **998 enviadas / 2 falhas**, **6,6% de resposta (66 leads)** — a projeção feita a partir da #7 dizia 63. **#9** (ter 18/08, 8h–9h) → **300 enviadas / 0 falhas, 9% de resposta**. Número seguiu **GREEN** depois de 1.426 disparos.
-- **[19/08] Três campanhas configuradas de uma vez, dedup em cascata (0 telefone repetido entre elas):** **#10** Kettlen 500 (hoje 16h–17h40, 5/min) · **#11** Leandro 200 (hoje 16h30, 7/min) · **#12** Leandro 300 (qui 20/08 9h–9h50, 6/min). **Isso esgota a base: sobram 247 elegíveis.**
-- ⚠️ **A janela é por HORA CHEIA** — `quiet_hours?` compara `Time.current.hour`, então **16:30 não é expressável**. A #11 ficou `dispatch_paused` e precisa de um `dispatch_running!` na hora; as outras acordam sozinhas. Alternativa sem dependência humana: aceitar 16h–17h (começa às 16:00).
+- **[19/08] Três campanhas configuradas de uma vez, dedup em cascata (0 telefone repetido entre elas):** **#10** Kettlen 500 · **#11** Leandro 200 · **#12** Leandro 300 (qui 20/08). Fecharam **500 + 200 + 298, 2 falhas**.
+- **🟢 [21/08] TETO DE VELOCIDADE MEDIDO — `pacing_seconds: 1` = 60/min, e passa liso.** Campanha **#13** (Kettlen, 200): **200 enviadas em 4 minutos** (17:52:50 → 17:56:50), **zero falha**, zero throttle, número **GREEN** imediatamente depois. É **5× o ritmo mais rápido já provado** (12/min do `DisparoLeadJob` antigo). O limite do motor é `batch_size = 60 / pacing_seconds` com `MAX_BATCH = 200` por tick de 1 min — então 60/min é o máximo prático, não uma escolha conservadora.
+- **Urban DeVille encerrado: 2.624 enviadas, 6 falhas** (todas `131026`, número sem WhatsApp) + **#14** com os **25 últimos** agendada para sáb 22/08 8h → total **2.649**. ⚠️ Fila da Kettlen em **148 abertas** ao fim.
+- 🔴 **A base acabou, e o gargalo seguinte é COPY, não lista.** Existem **4.825** pessoas que receberam disparo anterior (Casas Pacaembu 4.863 · Motoristas de app 603) e nunca receberam o Urban. **Não dá para mandar o template atual para elas:** a copy afirma *"há um tempo você procurava **apartamento** para comprar"*, e esse público veio de campanha de **casa MCMV** — a frase é falsa sobre a pessoa, que é a classe de erro da REGRA #1 e o caminho mais curto para bloqueio/queda de qualidade. Retomar volume exige **template novo com copy honesta** (casa → apartamento), não uma lista nova. Decisão do Paulo em 21/08: por ora, só os 25.
+- ⚠️ **O pool encolhe sozinho:** os "livres" caíram de 47 para 25 em um dia porque o corte *conversa aberta* subiu de 90 para 210. Contagem de elegíveis vale para o instante da medição — recontar sempre na hora de montar a campanha.
+- **[22/08] Lista de indicações da Maria Alice (`Untitled spreadsheet (1).xlsx`, 112 contatos): campanha #16, 103 enviadas / 0 falhas**, 11:02→11:22 a 5/min, número GREEN depois. Cortes: 9 já disparados, 1 em conversa aberta, 0 recusas, 0 duplicados. DDDs de 18 a 96 — **não é lista de Sinop**. **Total do Urban: 2.752.**
+  - ⚠️ **Decisão do Paulo contra recomendação registrada:** eu propus `tozi_convite_whatsapp` (aprovado, `{{2}}` livre, permitiria dizer a verdade sobre a origem do contato); ele escolheu o `tozi_urban_lancamento`. Então 103 pessoas que **nunca falaram com a Tozi** receberam *"há um tempo você procurava apartamento para comprar"*. Se a qualidade do número cair, é o primeiro lugar a olhar; o `health_gate` pausa sozinho.
+- 🔴 **[22/08] A DEDUP TINHA UM PONTO CEGO — os disparos de junho eram invisíveis.** As campanhas **1 e 2** (motor antigo `DisparoLeadJob`, ~6.100 pessoas) carimbam `campaign_id` **na conversa** e **não criam `campaign_recipients`**; todos os meus cortes liam só a tabela nova. **294 pessoas receberam disparo em junho e o Urban agora.** Correção: o conjunto de exclusão precisa unir `CampaignRecipient` **e** `Conversation.where.not(campaign_id: nil)`.
+- **Inventário real de audiência (22/08, dois motores somados):** 30.292 contatos com telefone · **13.980 já receberam algum disparo** · 361 recusaram · **15.276 nunca receberam nada**. ⚠️ Os 15.276 **não são uma base**: é todo mundo que já falou com a Tozi por qualquer canal, sem produto, segmento nem recência. Prontas para virar volume: **4.823** (Pacaembu/motoristas, nunca receberam Urban) + **~5.800** (junho, nunca receberam Urban) — as duas travadas na mesma coisa, a copy.
+- 🟢 **A guarda de janela pegou um erro meu de verdade (22/08):** eu montei a campanha achando que era sexta 19h e o script abortou com *"enviaria AGORA (11h)"* — era **sábado 11h**. Transação revertida, nada criado. **Nunca deduzir a hora do fio da conversa: ler o relógio da VM.**
+- ⚠️ **A janela é por HORA CHEIA** — `quiet_hours?` compara `Time.current.hour`, então **16:30 não é expressável**. O pedido original da #11 era 16h30; virou 16h por decisão do Paulo, para não depender de alguém dar `dispatch_running!` na hora.
 - **Leandro Silva (#142, `ljscorretor@gmail.com`) já existia** com time **#71** (`auto_assign=true`) e a regra **#74** (inbox 99 + time 71 → `assign_agent=142`), montada no mesmo padrão da #73. Nada a criar.
 - **`quiet_hours` é a janela de SILÊNCIO, não a de envio** (`dispatch_scheduler_job.rb:63`): `{start: 12, end: 8}` cala das 12h às 8h, ou seja envia 08:00–11:59. Campanha criada já em `dispatch_running` fora da janela fica muda e acorda sozinha — não precisa de ninguém apertando botão na hora. Os scripts de criação **abortam** se, com a config escolhida, a campanha fosse enviar no instante da escrita.
 - **Receita que fechou o buraco do nome:** em vez de escrever o `template_params`, o script **lê um destinatário que já renderizou certo** na campanha anterior e aborta se a chave não for `'1'`. Também aborta com template não aprovado, imagem do header fora do ar, nome vazio na seleção ou elegíveis insuficientes.
