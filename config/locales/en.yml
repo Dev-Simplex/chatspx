@@ -55,6 +55,8 @@ en:
         supervised_team_ids: Supervised teams
 
   errors:
+    account_user:
+      supervisor_without_team: must include at least one team when the role is supervisor
     super_admin:
       team_supervisor_denied: Team supervisors do not have access to the Super Admin Console.
     conversation:

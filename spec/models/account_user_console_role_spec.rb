@@ -72,6 +72,38 @@ RSpec.describe AccountUser do
       expect(account_user.reload.supervised_team_ids).to contain_exactly(team_a.id, team_b.id)
     end
 
+    it 'preserva a supervisão que já existia em vez de expandir' do
+      account_user.update!(supervised_team_ids: [team_a.id])
+
+      recarregado = described_class.find(account_user.id)
+      recarregado.console_role = 'supervisor'
+      recarregado.save!
+
+      expect(recarregado.reload.supervised_team_ids).to contain_exactly(team_a.id)
+    end
+
+    # Campo AUSENTE ≠ campo VAZIO. Desmarcar tudo no seletor e mesmo assim conceder a
+    # conta inteira seria conceder o oposto do que o admin fez na tela.
+    it 'recusa supervisor com o seletor de times esvaziado, em vez de conceder tudo' do
+      account_user.console_role = 'supervisor'
+      account_user.supervised_team_ids = ['']
+
+      expect(account_user.save).to be(false)
+      expect(account_user.errors[:supervised_team_ids]).to be_present
+      expect(account_user.reload.supervised_team_ids).to be_empty
+    end
+
+    it 'deixa esvaziar o seletor quando o papel não é supervisor' do
+      account_user.update!(supervised_team_ids: [team_a.id])
+
+      recarregado = described_class.find(account_user.id)
+      recarregado.console_role = 'agent'
+      recarregado.supervised_team_ids = ['']
+
+      expect(recarregado.save).to be(true)
+      expect(recarregado.reload.supervised_team_ids).to be_empty
+    end
+
     it 'não encosta na supervisão num save que não mandou o campo' do
       create(:team_supervisor, team: team_a, user: user)
       account_user.update!(availability: :busy)

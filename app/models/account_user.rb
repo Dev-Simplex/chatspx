@@ -57,6 +57,7 @@ class AccountUser < ApplicationRecord
   after_commit :purge_isolation_exemptions, if: -> { saved_change_to_role? && administrator? }
 
   validates :user_id, uniqueness: { scope: :account_id }
+  validate :supervisor_needs_a_team
 
   # Papel como o console mostra: 'supervisor' quando é agente que supervisiona time.
   def console_role
@@ -147,12 +148,26 @@ class AccountUser < ApplicationRecord
   # lugar (availability, papel, convite) não encosta na supervisão. Usa destroy/create
   # em vez de delete_all porque TeamSupervisor invalida o cache de times num
   # after_commit: sem isso a tela do supervisor nasce vazia com a linha já gravada.
+  # Escolher "supervisor" e desmarcar todos os times deixaria a pessoa como agente
+  # comum sem dizer nada — o seletor mostraria uma coisa e o banco guardaria outra.
+  # Só morde quando o campo VEIO vazio; ausente é o formulário que nem tem o seletor.
+  def supervisor_needs_a_team
+    return unless @console_supervisor
+    return unless defined?(@supervised_team_ids)
+    return if @supervised_team_ids.any?
+
+    errors.add(:supervised_team_ids, I18n.t('errors.account_user.supervisor_without_team'))
+  end
+
   def sync_supervised_teams
-    # "supervisor" sem time escolhido acontece no formulário da página do USUÁRIO, onde a
-    # conta só é conhecida no submit e a lista de times não existe para escolher. Nesse
-    # caso a opção passa a valer para todos os times da conta — dito na tela, para não
-    # ser uma concessão silenciosa. Refino por time: Configurações → Agentes.
-    @supervised_team_ids = account.teams.pluck(:id) if @console_supervisor && supervised_team_ids.empty?
+    # A distinção que importa: campo AUSENTE ≠ campo VAZIO.
+    #   * ausente (`defined?` falso) é o formulário da página do USUÁRIO, onde a conta só
+    #     é conhecida no submit e não há lista de times para escolher — só aí "supervisor"
+    #     passa a valer para a conta toda, e a tela diz isso;
+    #   * vazio é o admin que ABRIU o seletor e desmarcou tudo. Expandir para todos os
+    #     times ali seria conceder justamente o oposto do que ele fez na tela.
+    # Quem já supervisiona algum time também não expande: preserva o que tinha.
+    @supervised_team_ids = account.teams.pluck(:id) if @console_supervisor && !defined?(@supervised_team_ids) && supervised_team_ids.empty?
     return unless defined?(@supervised_team_ids)
 
     desired = account.teams.where(id: @supervised_team_ids).pluck(:id)
