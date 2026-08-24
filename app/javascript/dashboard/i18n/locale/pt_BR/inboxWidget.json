@@ -606,12 +606,23 @@
       "DIAGNOSTICS": {
         "PRIVACY": "Este painel mostra os NOMES dos campos enviados, nunca os valores — nem em claro, nem com hash. Diagnóstico que exibe e-mail de lead é vazamento com interface.",
         "EMPTY": "Nenhuma entrega registrada ainda para esta caixa.",
-        "UNAVAILABLE": "A leitura do log de entregas entra com o bloco 5.14 (auditoria e diagnóstico). As entregas já são gravadas pelo servidor desde o 5.03 — o que falta é o endpoint que as devolve para esta tela.",
+        "UNAVAILABLE": "O log de entregas ainda não está disponível nesta instalação: a rota {path} não respondeu. Fale com quem opera a plataforma.",
         "TIME": "Hora",
         "EVENT": "Evento",
         "DESTINATION": "Destino",
         "STATUS": "Status",
-        "FIELDS": "Campos enviados"
+        "FIELDS": "Campos enviados",
+        "RATE": "Taxa de entrega",
+        "EMQ": "EMQ médio",
+        "EMQ_HINT": "Qualidade do casamento na Meta. De {healthy} para cima é a faixa boa.",
+        "RETENTION": "Retenção do log",
+        "NO_DATA": "sem dados",
+        "SEND_TEST": "Enviar evento de teste",
+        "REFRESH": "Atualizar",
+        "TEST_RESULT": "Resultado: {status} (HTTP {http})",
+        "ERRORS": "Erros agrupados",
+        "TIMES": "{count}×",
+        "EVENT_ID": "Identificador"
       },
       "SECRET": {
         "EMPTY": "não definido",
@@ -622,6 +633,13 @@
         "SET_BUTTON": "Definir",
         "CONFIRM": "Guardar",
         "CANCEL": "Cancelar"
+      },
+      "OAUTH_PENDING": "Conectar com um clique (Login da Meta para Empresas e Google) depende de cadastro do app nas duas plataformas — bloco 5.02/T-C1.7. Até lá, cole a credencial acima.",
+      "KILL_SWITCH": {
+        "TITLE": "Desligar o rastreio desta caixa",
+        "HINT": "Para de enviar evento para todos os destinos desta caixa, sem apagar a configuração. Use quando o site estiver mandando evento errado.",
+        "ACCOUNT_WINS": "O interruptor geral da conta está acionado: enquanto ele estiver, nenhum evento sai desta caixa de qualquer forma.",
+        "BLOCKED_BY_501": "Ainda não disponível: para valer, esta chave precisa chegar ao widget, e ela ainda não está na projeção pública do servidor (bloco 5.01). Um botão que não desliga nada seria pior que nenhum. Enquanto isso, use o interruptor da conta."
       }
     }
   }

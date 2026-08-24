@@ -31,6 +31,17 @@ const props = defineProps({
   label: { type: String, required: true },
   /** Se ja existe segredo gravado. O VALOR nunca chega aqui. */
   isDefined: { type: Boolean, default: false },
+  /**
+   * Os QUATRO ultimos caracteres do que esta guardado — o unico pedaco do
+   * segredo que o servidor devolve (`last_four` do contrato do 5.02).
+   *
+   * Existe para uma pergunta que o administrador faz de verdade: "o token que
+   * esta ai e o novo que acabei de gerar ou o antigo?". Sem isso, dois tokens
+   * validos sao indistinguiveis na tela e a unica forma de conferir e
+   * substituir — que e justamente a operacao arriscada. Quatro caracteres
+   * respondem e nao reconstituem nada.
+   */
+  lastFour: { type: String, default: '' },
   /** Quando foi definido, para a tela poder dizer. */
   definedAt: { type: String, default: '' },
   helpText: { type: String, default: '' },
@@ -49,9 +60,20 @@ const { t } = useI18n();
 const emEdicao = ref(false);
 const valor = ref('');
 
-const mascara = computed(() =>
-  props.isDefined ? '••••••••••••' : t('INBOX_WIDGET.TRACKING.SECRET.EMPTY')
-);
+/**
+ * A mascara tem tamanho FIXO — ela nao acompanha o comprimento do segredo.
+ * Bolinha por caractere entregaria de graca quantos caracteres tem o token, que
+ * e informacao que um atacante usa para escolher por onde comecar.
+ *
+ * Quando o servidor manda `last_four`, os quatro pontos finais dao lugar aos
+ * quatro caracteres reais: `••••••••9f2a`. O total de doze nao muda.
+ */
+const mascara = computed(() => {
+  if (!props.isDefined) return t('INBOX_WIDGET.TRACKING.SECRET.EMPTY');
+
+  const fim = props.lastFour.slice(-4);
+  return fim ? `${'•'.repeat(12 - fim.length)}${fim}` : '••••••••••••';
+});
 
 const estado = computed(() => {
   if (!props.isDefined) return t('INBOX_WIDGET.TRACKING.SECRET.NOT_SET');

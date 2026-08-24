@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
@@ -24,6 +24,8 @@ import {
   TRACKING_LIMITS,
   isTestModeExpired,
 } from '../composables/widgetTrackingContract';
+import { useTrackingDiagnostics } from './useTrackingDiagnostics';
+import { useTrackingCredentials } from './useTrackingCredentials';
 
 /**
  * Tela 4 — rastreio e conversoes (bloco 5.06).
@@ -61,6 +63,23 @@ const {
 const guard = useUnsavedChangesGuard({ isDirty, onDiscard: discard });
 const changedLabels = computed(() => labelsForFields(dirtyFields.value, t));
 
+/**
+ * O diagnostico (5.14) e o cofre (5.02) sao LEITURAS PROPRIAS, fora do rascunho
+ * da tela. Nao entram em `useInboxWidgetConfig` de proposito: nenhum dos dois e
+ * configuracao editavel da inbox — um e log, o outro e segredo que a tela nunca
+ * ve. Misturar os tres no mesmo rascunho faria a barra de salvar contar como
+ * "alteracao pendente" um evento que chegou do servidor.
+ */
+const diagnostics = useTrackingDiagnostics(props.inboxId);
+const credentials = useTrackingCredentials(props.inboxId);
+
+onMounted(() => {
+  diagnostics.carregar();
+  credentials.carregar();
+});
+
+const guardarCredencial = (chave, valor) => credentials.guardar(chave, valor);
+
 const abaAtiva = ref(0);
 const abas = computed(() => [
   { label: t('INBOX_WIDGET.TRACKING.TABS.META') },
@@ -93,6 +112,29 @@ const alternarModoTeste = ligado =>
     // "7 dias" seria uma frase na tela e nada no dado.
     started_at: ligado ? new Date().toISOString() : null,
   });
+
+/**
+ * O interruptor DESTA caixa (T-C8.4: kill switch por conta **e** por inbox).
+ *
+ * Os dois niveis existem porque respondem a incidentes diferentes. O da conta e
+ * do operador da plataforma: "pare tudo agora". O da inbox e do administrador
+ * do cliente: "este site esta mandando evento errado, desliga so ele" — sem
+ * precisar apagar o Pixel ID e reconfigurar tudo depois.
+ *
+ * POR QUE ELE AINDA NAO TEM CONTROLE, e por que isso NAO e um esquecimento:
+ * `kill_switch` so vale se chegar ao widget, e o que chega ao widget e a lista
+ * branca `WidgetTrackingProjection::PUBLIC_KEYS` do bloco 5.01. A chave nao
+ * esta la, e o schema recusa a gravacao com 422 (`additionalProperties:
+ * false`). Pintar um botao que grava nada seria pior que nao ter botao: o
+ * administrador desligaria o rastreio num incidente, veria o controle mudar de
+ * estado, e os eventos continuariam saindo.
+ *
+ * Entao a tela diz o que ele faz, diz que ainda nao esta disponivel e nomeia o
+ * bloco — a mesma convencao do campo de segredo com o 5.02, logo acima.
+ */
+const killSwitchDaConta = computed(() =>
+  Boolean(inbox.value.additional_attributes?.tracking_kill_switch)
+);
 
 const pixelIdInvalido = computed(
   () =>
@@ -173,6 +215,32 @@ defineExpose({ requestLeave: guard.requestLeave });
         "
       />
 
+      <!-- ── O interruptor DESTA caixa (T-C8.4) ────────────────────────── -->
+      <div
+        class="flex flex-col gap-1 p-4 border rounded-xl border-n-weak"
+        data-testid="inbox-kill-switch-card"
+      >
+        <span class="text-sm font-medium text-n-slate-12">
+          {{ t('INBOX_WIDGET.TRACKING.KILL_SWITCH.TITLE') }}
+        </span>
+        <span class="text-sm text-n-slate-11">
+          {{ t('INBOX_WIDGET.TRACKING.KILL_SWITCH.HINT') }}
+        </span>
+        <span
+          class="text-sm text-n-amber-12"
+          data-testid="kill-switch-blocked"
+        >
+          {{ t('INBOX_WIDGET.TRACKING.KILL_SWITCH.BLOCKED_BY_501') }}
+        </span>
+        <span
+          v-if="killSwitchDaConta"
+          class="text-sm text-n-amber-12"
+          data-testid="kill-switch-account-wins"
+        >
+          {{ t('INBOX_WIDGET.TRACKING.KILL_SWITCH.ACCOUNT_WINS') }}
+        </span>
+      </div>
+
       <!-- ── Meta ─────────────────────────────────────────────────────── -->
       <div v-if="abaAtiva === 0" class="flex flex-col" data-testid="tab-meta">
         <SettingsFieldSection
@@ -197,11 +265,20 @@ defineExpose({ requestLeave: guard.requestLeave });
         <SettingsFieldSection :label="t('INBOX_WIDGET.TRACKING.META.TOKEN')">
           <SecretField
             :label="t('INBOX_WIDGET.TRACKING.META.TOKEN')"
-            :is-defined="false"
-            disabled
-            :disabled-reason="t('INBOX_WIDGET.TRACKING.BLOCKED_BY_502')"
+            :is-defined="credentials.credentials.value.meta_access_token.configured"
+            :last-four="credentials.credentials.value.meta_access_token.lastFour"
+            :disabled="credentials.vaultUnavailable.value"
+            :disabled-reason="
+              credentials.vaultUnavailable.value
+                ? t('INBOX_WIDGET.TRACKING.BLOCKED_BY_502')
+                : ''
+            "
             data-testid="meta-token"
+            @change="guardarCredencial('meta_access_token', $event)"
           />
+          <p class="mt-2 text-sm text-n-slate-11" data-testid="meta-oauth">
+            {{ t('INBOX_WIDGET.TRACKING.OAUTH_PENDING') }}
+          </p>
         </SettingsFieldSection>
 
         <SettingsFieldSection
@@ -273,11 +350,20 @@ defineExpose({ requestLeave: guard.requestLeave });
         >
           <SecretField
             :label="t('INBOX_WIDGET.TRACKING.GOOGLE.API_SECRET')"
-            :is-defined="false"
-            disabled
-            :disabled-reason="t('INBOX_WIDGET.TRACKING.BLOCKED_BY_502')"
+            :is-defined="credentials.credentials.value.ga4_api_secret.configured"
+            :last-four="credentials.credentials.value.ga4_api_secret.lastFour"
+            :disabled="credentials.vaultUnavailable.value"
+            :disabled-reason="
+              credentials.vaultUnavailable.value
+                ? t('INBOX_WIDGET.TRACKING.BLOCKED_BY_502')
+                : ''
+            "
             data-testid="ga4-api-secret"
+            @change="guardarCredencial('ga4_api_secret', $event)"
           />
+          <p class="mt-2 text-sm text-n-slate-11" data-testid="google-oauth">
+            {{ t('INBOX_WIDGET.TRACKING.OAUTH_PENDING') }}
+          </p>
         </SettingsFieldSection>
 
         <SettingsFieldSection
@@ -340,10 +426,18 @@ defineExpose({ requestLeave: guard.requestLeave });
       <!-- ── Diagnóstico ──────────────────────────────────────────────── -->
       <div v-if="abaAtiva === 3" data-testid="tab-diagnostics">
         <DiagnosticsPanel
-          :deliveries="[]"
-          :unavailable-reason="
-            t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.UNAVAILABLE')
-          "
+          :deliveries="diagnostics.deliveries.value"
+          :delivery-rate="diagnostics.deliveryRate.value"
+          :error-groups="diagnostics.errorGroups.value"
+          :emq-average="diagnostics.emqAverage.value"
+          :retention-days="diagnostics.retentionDays.value"
+          :is-loading="diagnostics.isLoading.value"
+          :is-sending-test="diagnostics.isSendingTest.value"
+          :missing-endpoint="diagnostics.missingEndpoint.value"
+          :load-error="diagnostics.loadError.value"
+          :test-result="diagnostics.testResult.value"
+          @test="diagnostics.enviarEventoDeTeste"
+          @refresh="diagnostics.carregar"
         />
       </div>
     </div>
