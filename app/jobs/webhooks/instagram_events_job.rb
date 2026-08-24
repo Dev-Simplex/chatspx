@@ -5,10 +5,14 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   # @return [Array] We will support further events like reaction or seen in future
   SUPPORTED_EVENTS = [:message, :read].freeze
 
+  # Campos que chegam em `changes` (e não em `messaging`) e que sabemos tratar. Campo fora desta
+  # lista é registrado e ignorado — nunca silenciosamente descartado, que era o defeito antigo.
+  SUPPORTED_CHANGE_FIELDS = %w[comments].freeze
+
   def perform(entries)
     @entries = entries
 
-    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: contact_instagram_id, ig_account_id: ig_account_id)
+    key = format(::Redis::Alfred::IG_MESSAGE_MUTEX, sender_id: lock_subject, ig_account_id: ig_account_id)
     with_lock(key) do
       process_entries(entries)
     end
@@ -26,10 +30,47 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   def process_single_entry(entry)
     if test_event?(entry)
       process_test_event(entry)
-      return
+    elsif entry[:changes].present?
+      process_changes(entry)
+    else
+      process_messages(entry)
     end
+  end
 
-    process_messages(entry)
+  # Eventos que a Meta entrega em `changes` — hoje, comentário público.
+  #
+  # O canal se acha por `entry[:id]` (o id da conta de Instagram), e NÃO por
+  # `messaging.recipient.id` como nas DMs: comentário não tem destinatário.
+  def process_changes(entry)
+    channel = find_channel(entry[:id])
+    return if channel.blank?
+
+    entry[:changes].each do |change|
+      field = change[:field].to_s
+
+      unless SUPPORTED_CHANGE_FIELDS.include?(field)
+        Rails.logger.info("Instagram Events Job: campo `#{field}` ainda sem tratamento, ignorado")
+        next
+      end
+
+      comment(change[:value], channel, entry[:time])
+    end
+  end
+
+  def comment(value, channel, time)
+    return if value.blank?
+
+    ::Spx::Social::InstagramComentarioService.new(
+      value: value,
+      channel: channel,
+      ocorrido_em: event_time(time)
+    ).perform
+  end
+
+  def event_time(time)
+    return if time.blank?
+
+    Time.zone.at(time.to_i)
   end
 
   def process_messages(entry)
@@ -51,8 +92,15 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
     messaging[:message].present? && messaging[:message][:is_echo].present?
   end
 
+  # O payload de teste do painel da Meta chega com `entry.id == "0"` — está descrito no comentário
+  # no fim deste arquivo desde que ele existe, e o `TestEventService` ainda confere o sender
+  # `12334` por cima disso.
+  #
+  # O discriminador anterior era `entry[:changes].present?`, e essa é a razão de TODO comentário
+  # público ser descartado em silêncio: comentário real também chega em `changes`, então passava
+  # por evento de teste, não casava com o sender de teste e morria sem rastro nenhum.
   def test_event?(entry)
-    entry[:changes].present?
+    entry[:id].to_s == '0'
   end
 
   def process_test_event(entry)
@@ -75,6 +123,19 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
 
   def ig_account_id
     @entries&.first&.dig(:id)
+  end
+
+  # Numa DM o lock serializa por CONTATO; num comentário, pelo próprio comentário.
+  #
+  # Sem essa distinção `contact_instagram_id` seria nil e todo comentário da conta disputaria a
+  # mesma chave: uma publicação com muitos comentários ao mesmo tempo perderia comentário por
+  # falha de lock — exatamente o que este job deixou de fazer.
+  def lock_subject
+    contact_instagram_id || first_change_id
+  end
+
+  def first_change_id
+    @entries&.first&.dig(:changes, 0, :value, :id)
   end
 
   def contact_instagram_id
