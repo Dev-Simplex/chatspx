@@ -861,7 +861,9 @@ Rails.application.routes.draw do
       end
 
       # resources that doesn't appear in primary navigation in super admin
-      resources :account_users, only: [:new, :create, :show, :destroy]
+      # edit/update entram para dar onde ajustar papel e times supervisionados de um
+      # vínculo que já existe — antes só dava para criar e apagar.
+      resources :account_users, only: [:new, :create, :edit, :update, :show, :destroy]
     end
     authenticated :super_admin do
       mount Sidekiq::Web => '/monitoring/sidekiq'

@@ -34,11 +34,21 @@ class AccountUser < ApplicationRecord
   enum role: { agent: 0, administrator: 1 }
   enum availability: { online: 0, offline: 1, busy: 2 }
 
+  # "Supervisor" NÃO é um papel no banco: é AGENTE com linha em team_supervisors.
+  # A tela de Agentes já expõe essa combinação como uma função só (EditAgent.vue);
+  # o par console_role/supervised_team_ids dá a MESMA opção ao Console de Super
+  # Admin. Um terceiro valor no enum faria `agent?` devolver false e derrubaria as
+  # 37 checagens espalhadas por policies e controllers — por isso a opção vive na
+  # camada de apresentação, não no enum.
+  SUPERVISOR_ROLE = 'supervisor'.freeze
+  CONSOLE_ROLES = (roles.keys + [SUPERVISOR_ROLE]).freeze
+
   accepts_nested_attributes_for :account
 
   after_create_commit :notify_creation, :create_notification_setting
   after_destroy :notify_deletion, :remove_user_from_account
   after_save :update_presence_in_redis, if: :saved_change_to_availability?
+  after_save :sync_supervised_teams
   after_commit :invalidate_admin_tokens_cache, if: -> { saved_change_to_role? || destroyed? || previously_new_record? }
   # Virar administrador tira a pessoa da lista de participantes do isolamento (só agentes
   # entram lá), então a exceção que ela tinha some da tela e ninguém consegue mais removê-la.
@@ -47,6 +57,32 @@ class AccountUser < ApplicationRecord
   after_commit :purge_isolation_exemptions, if: -> { saved_change_to_role? && administrator? }
 
   validates :user_id, uniqueness: { scope: :account_id }
+
+  # Papel como o console mostra: 'supervisor' quando é agente que supervisiona time.
+  def console_role
+    agent? && supervised_team_ids.any? ? SUPERVISOR_ROLE : role
+  end
+
+  # Escolher "supervisor" grava `agent` — a supervisão em si vem de supervised_team_ids.
+  # Escolher "administrator" ou "agent" não mexe na supervisão: quem quiser tirá-la
+  # esvazia o campo de times, que é onde ela mora.
+  def console_role=(value)
+    @console_supervisor = value.to_s == SUPERVISOR_ROLE
+    self.role = @console_supervisor ? :agent : value
+  end
+
+  # Times DESTA conta que o usuário supervisiona. Enquanto o formulário não gravar,
+  # devolve o que está no banco; depois de atribuir, devolve o pendente.
+  def supervised_team_ids
+    return @supervised_team_ids if defined?(@supervised_team_ids)
+    return [] if user_id.blank? || account_id.blank?
+
+    TeamSupervisor.joins(:team).where(user_id: user_id, teams: { account_id: account_id }).pluck(:team_id)
+  end
+
+  def supervised_team_ids=(ids)
+    @supervised_team_ids = Array(ids).reject(&:blank?).map(&:to_i)
+  end
 
   def create_notification_setting
     setting = user.notification_settings.new(account_id: account.id)
@@ -89,6 +125,27 @@ class AccountUser < ApplicationRecord
   end
 
   private
+
+  # Só roda quando o formulário mandou o campo — um save vindo de qualquer outro
+  # lugar (availability, papel, convite) não encosta na supervisão. Usa destroy/create
+  # em vez de delete_all porque TeamSupervisor invalida o cache de times num
+  # after_commit: sem isso a tela do supervisor nasce vazia com a linha já gravada.
+  def sync_supervised_teams
+    # "supervisor" sem time escolhido acontece no formulário da página do USUÁRIO, onde a
+    # conta só é conhecida no submit e a lista de times não existe para escolher. Nesse
+    # caso a opção passa a valer para todos os times da conta — dito na tela, para não
+    # ser uma concessão silenciosa. Refino por time: Configurações → Agentes.
+    @supervised_team_ids = account.teams.pluck(:id) if @console_supervisor && supervised_team_ids.empty?
+    return unless defined?(@supervised_team_ids)
+
+    desired = account.teams.where(id: @supervised_team_ids).pluck(:id)
+    current = TeamSupervisor.joins(:team).where(user_id: user_id, teams: { account_id: account_id }).pluck(:team_id)
+
+    TeamSupervisor.where(user_id: user_id, team_id: current - desired).destroy_all
+    (desired - current).each { |team_id| TeamSupervisor.create!(user_id: user_id, team_id: team_id) }
+
+    remove_instance_variable(:@supervised_team_ids)
+  end
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(AGENT_ADDED, Time.zone.now, account: account)

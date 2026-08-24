@@ -47,6 +47,13 @@ en:
     saml_not_available: SAML authentication is not available in this installation.
     inbox_deletetion_response: Your inbox deletion request will be processed in some time.
 
+  # Rótulos dos campos do Console de Super Admin (Rails resolve f.label por esta chave).
+  helpers:
+    label:
+      account_user:
+        console_role: Role
+        supervised_team_ids: Supervised teams
+
   errors:
     super_admin:
       team_supervisor_denied: Team supervisors do not have access to the Super Admin Console.
