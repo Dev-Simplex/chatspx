@@ -28,7 +28,7 @@ class CreateSocialComentarios < ActiveRecord::Migration[7.1]
   def criar_publicacoes
     create_table :social_publicacoes do |t|
       t.bigint :account_id, null: false
-      t.bigint :inbox_id,   null: false
+      t.bigint :inbox_id, null: false
       # Id da mídia na Meta. Vem no próprio payload do comentário (`value.media.id`), então a
       # publicação nasce da primeira pessoa que comenta nela — não de uma varredura periódica.
       t.string :external_id, null: false
@@ -36,13 +36,13 @@ class CreateSocialComentarios < ActiveRecord::Migration[7.1]
       t.string :tipo
       # Sem legenda a IA responde "quanto custa?" sem saber do quê, e a tela mostra um comentário
       # órfão de contexto. É o dado que faz tela e cérebro serem a mesma obra.
-      t.text   :legenda
+      t.text :legenda
       t.string :permalink
       t.string :thumbnail_url
       t.datetime :publicada_em
       # like_count / comments_count. Fica em jsonb porque a lista de métricas muda com o escopo
       # de insights (alcance, salvamentos, compartilhamentos) e não vale uma coluna por métrica.
-      t.jsonb  :metricas, null: false, default: {}
+      t.jsonb :metricas, null: false, default: {}
       # Quando falamos com a Graph pela última vez. Nulo = nasceu só com o que o webhook deu.
       t.datetime :sincronizada_em
       t.timestamps
@@ -54,7 +54,7 @@ class CreateSocialComentarios < ActiveRecord::Migration[7.1]
   def criar_comentarios
     create_table :social_comentarios do |t|
       t.bigint :account_id, null: false
-      t.bigint :inbox_id,   null: false
+      t.bigint :inbox_id, null: false
       # Nulo enquanto a publicação não foi resolvida. O comentário NÃO espera pela Graph pra ser
       # gravado — perder o comentário porque a API demorou seria repetir o defeito que isto
       # conserta. O `publicacao_external_id` segura o vínculo até a resolução acontecer.
@@ -63,14 +63,14 @@ class CreateSocialComentarios < ActiveRecord::Migration[7.1]
       t.string :external_id, null: false
       t.string :autor_external_id
       t.string :autor_username
-      t.text   :texto
+      t.text :texto
       # Comentário feito pela própria conta — resposta do time, não pergunta de cliente.
       t.boolean :proprio, null: false, default: false
       t.datetime :comentado_em
       # Payload cru. A Meta OMITE campo em silêncio quando falta permissão (devolve 200 sem o
       # campo, não erro) — guardar o que chegou é a única forma de diagnosticar depois por que
       # um comentário veio sem autor.
-      t.jsonb  :payload, null: false, default: {}
+      t.jsonb :payload, null: false, default: {}
       t.timestamps
     end
     add_index :social_comentarios, %i[account_id external_id], unique: true
