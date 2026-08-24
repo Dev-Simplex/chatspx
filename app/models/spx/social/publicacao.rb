@@ -5,24 +5,21 @@
 # Nasce do PRIMEIRO comentário que chega nela (o payload traz `value.media.id` e o
 # `media_product_type`), não de varredura periódica. Publicação sem comentário nenhum não
 # interessa a esta superfície.
-module Spx
-  module Social
-    class Publicacao < ApplicationRecord
-      self.table_name = 'social_publicacoes'
+class Spx::Social::Publicacao < ApplicationRecord
+  self.table_name = 'social_publicacoes'
 
-      belongs_to :account
-      belongs_to :inbox
-      has_many :comentarios, class_name: 'Spx::Social::Comentario', dependent: :nullify,
-                             foreign_key: :publicacao_id, inverse_of: :publicacao
+  belongs_to :account
+  belongs_to :inbox
+  has_many :comentarios, class_name: 'Spx::Social::Comentario', dependent: :nullify,
+                         inverse_of: :publicacao
 
-      validates :external_id, presence: true, uniqueness: { scope: :account_id }
+  # Unicidade é do índice do banco — ver o porquê em Spx::Social::Comentario.
+  validates :external_id, presence: true
 
-      # Só o webhook alimentou esta linha — ninguém falou com a Graph ainda, então legenda,
-      # permalink e miniatura estão vazios. É estado normal, não erro: o comentário é gravado
-      # sem esperar a API.
-      def sincronizada?
-        sincronizada_em.present?
-      end
-    end
+  # Só o webhook alimentou esta linha — ninguém falou com a Graph ainda, então legenda,
+  # permalink e miniatura estão vazios. É estado normal, não erro: o comentário é gravado
+  # sem esperar a API.
+  def sincronizada?
+    sincronizada_em.present?
   end
 end
