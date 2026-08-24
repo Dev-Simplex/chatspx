@@ -63,12 +63,29 @@ class AccountUser < ApplicationRecord
     agent? && supervised_team_ids.any? ? SUPERVISOR_ROLE : role
   end
 
-  # Escolher "supervisor" grava `agent` — a supervisão em si vem de supervised_team_ids.
-  # Escolher "administrator" ou "agent" não mexe na supervisão: quem quiser tirá-la
+  # Um ponto só entende "supervisor", e com isso TODA superfície que atribui papel
+  # passa a aceitá-lo: Console de Super Admin, API de agentes (create e update),
+  # API de plataforma, seeds e console do Rails. Antes, qualquer uma delas levantava
+  # ArgumentError e virava 500 — este writer é aditivo, só transforma o que já
+  # explodia em atribuição válida, sem tocar em 'agent'/'administrator'.
+  #
+  # Grava `agent`: supervisionar é ter linha em team_supervisors, e é `supervised_team_ids`
+  # que diz quais times. Sem times informados, a supervisão passa a valer para todos
+  # os da conta (ver sync_supervised_teams).
+  def role=(value)
+    if value.to_s == SUPERVISOR_ROLE
+      @console_supervisor = true
+      super(:agent)
+    else
+      super
+    end
+  end
+
+  # O formulário do console posta este nome; a tradução é a mesma do writer acima.
+  # Escolher "administrator" ou "agent" NÃO mexe na supervisão: quem quiser tirá-la
   # esvazia o campo de times, que é onde ela mora.
   def console_role=(value)
-    @console_supervisor = value.to_s == SUPERVISOR_ROLE
-    self.role = @console_supervisor ? :agent : value
+    self.role = value
   end
 
   # Times DESTA conta que o usuário supervisiona. Enquanto o formulário não gravar,
@@ -145,6 +162,7 @@ class AccountUser < ApplicationRecord
     (desired - current).each { |team_id| TeamSupervisor.create!(user_id: user_id, team_id: team_id) }
 
     remove_instance_variable(:@supervised_team_ids)
+    @console_supervisor = false
   end
 
   def notify_creation

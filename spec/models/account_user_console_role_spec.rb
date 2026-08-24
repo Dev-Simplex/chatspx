@@ -80,6 +80,41 @@ RSpec.describe AccountUser do
     end
   end
 
+  # O writer é o ponto único que faz "supervisor" valer em TODA superfície que
+  # atribui papel. Antes, qualquer uma levantava ArgumentError e virava 500.
+  describe 'role= aceitando supervisor' do
+    it 'não levanta ArgumentError' do
+      expect { account_user.update!(role: 'supervisor') }.not_to raise_error
+    end
+
+    it 'grava agente e supervisiona os times da conta' do
+      account_user.update!(role: 'supervisor')
+
+      expect(account_user.reload.role).to eq('agent')
+      expect(account_user).to be_agent
+      expect(account_user.supervised_team_ids).to contain_exactly(team_a.id, team_b.id)
+    end
+
+    it 'respeita os times informados junto' do
+      account_user.update!(role: 'supervisor', supervised_team_ids: [team_b.id])
+
+      expect(account_user.reload.supervised_team_ids).to contain_exactly(team_b.id)
+    end
+
+    it 'não mexe no comportamento de agent e administrator' do
+      account_user.update!(role: 'administrator')
+      expect(account_user.reload).to be_administrator
+      expect(account_user.supervised_team_ids).to be_empty
+
+      account_user.update!(role: 'agent')
+      expect(account_user.reload).to be_agent
+    end
+
+    it 'recusa papel inexistente como sempre' do
+      expect { account_user.update!(role: 'chefe') }.to raise_error(ArgumentError)
+    end
+  end
+
   describe 'permissions' do
     it 'soma team_supervisor ao papel do enum' do
       account_user.update!(supervised_team_ids: [team_a.id])
