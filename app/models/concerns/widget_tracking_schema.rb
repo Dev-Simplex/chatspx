@@ -38,6 +38,92 @@ module WidgetTrackingSchema
   MAX_EVENT_MAP_ENTRIES = 50
   MAX_EVENT_NAME_LENGTH = 100
 
+  # T-C4.3 — instalar a tag que FALTA na pagina do cliente. Opt-in, e o default e a AUSENCIA
+  # da chave, que le-se como desligado nos dois alvos (decisao Q5: nunca por padrao).
+  #
+  # POR QUE E UM OBJETO, e nao um booleano so: instalar o pixel da Meta e instalar o gtag do
+  # Google sao duas autorizacoes diferentes. O cliente que ja tem GTM no site quer o Google
+  # vindo do container DELE e pode querer o pixel da Meta vindo de nos; um booleano unico
+  # obrigaria a escolher entre nao receber nada na Meta e deixar-nos injetar um segundo gtag
+  # numa pagina que ja tem governanca de tags.
+  #
+  # E POR QUE ELE TEM `additionalProperties: false` NO NIVEL DELE TAMBEM: a defesa da raiz nao
+  # desce sozinha. Sem esta linha, `install_tags` viraria um saco aberto dentro de um objeto
+  # que e publicado no HTML de TODA pagina do site do cliente — `{ meta: true, access_token:
+  # "EAA…" }` seria gravado, projetado e servido em texto claro. A lista negativa de nomes
+  # pegaria `access_token`; nao pegaria o nome de segredo que ninguem previu, que e exatamente
+  # o buraco que `additionalProperties: false` fecha.
+  INSTALL_TAG_TARGETS = %w[meta google].freeze
+
+  # Modos de valor do lead. Espelham `LEAD_VALUE_MODES` de `widgetTrackingContract.js`.
+  LEAD_VALUE_MODES = %w[off fixed by_rule].freeze
+
+  # ── O FORMATO QUE A TELA GRAVA ────────────────────────────────────────────────────────
+  #
+  # Ate aqui este schema declarava `event_map` como `nome => string`, `test_mode` como
+  # booleano, e nao declarava `lead_value`. A Tela 4 (bloco 5.06) grava objeto nos tres. O
+  # resultado era 422 em TODO salvamento da tela: o administrador mexia no mapa de eventos,
+  # clicava em salvar e nao salvava nada.
+  #
+  # POR QUE NENHUM TESTE PEGAVA: cada trilha testava o SEU formato. O spec deste arquivo
+  # gravava `'event_map' => { 'conversation_started' => 'Lead' }` e passava; o spec da tela
+  # montava o objeto e passava. Ninguem rodava o payload da tela contra o validador. O
+  # exemplo "a Tela 4 salva" no fim deste spec existe exatamente para fechar esse vao.
+  #
+  # QUAL FORMATO VENCE, e por que nao foi moeda ao ar: o objeto carrega o que a string nao
+  # consegue dizer. `{ enabled: false, meta: nil, ga4: "widget_open" }` e "manda so ao GA4,
+  # e com este nome, e desligado por padrao" — tres decisoes que uma string unica apaga. O
+  # mesmo vale para `test_mode`: um booleano nao guarda o `test_event_code` da Meta nem o
+  # `started_at`, e sem `started_at` o desligamento automatico de 7 dias vira uma frase na
+  # tela e nada no dado.
+  #
+  # A STRING CONTINUA ACEITA, e nao por indecisao: uma inbox pode ja te-la gravada por API, e
+  # `sdk/tracking/tags.js` (`entradaDoMapa`) ja le as duas — ela significa "renomeie este
+  # evento assim nos dois destinos". Recusa-la agora quebraria quem nao fez nada errado.
+  EVENT_MAP_STRING = { 'type' => 'string', 'minLength' => 1, 'maxLength' => MAX_EVENT_NAME_LENGTH }.freeze
+
+  # `meta`/`ga4` aceitam `null` porque `null` E o dado: significa "nao mandar para este
+  # destino", que e diferente de "mandar com o nome vazio". Onze das doze entradas de fabrica
+  # usam isso em pelo menos um dos destinos.
+  EVENT_MAP_DESTINO = {
+    'type' => %w[string null], 'minLength' => 1, 'maxLength' => MAX_EVENT_NAME_LENGTH
+  }.freeze
+
+  EVENT_MAP_OBJECT = {
+    'type' => 'object',
+    'properties' => {
+      'enabled' => { 'type' => 'boolean' },
+      'meta' => EVENT_MAP_DESTINO,
+      'ga4' => EVENT_MAP_DESTINO
+    },
+    'additionalProperties' => false
+  }.freeze
+
+  # `code` e o `test_event_code` da Meta — publico no sentido deste schema (nao autoriza
+  # nada; so marca o evento como teste), e por isso ele pode morar aqui. `started_at` e o que
+  # faz o prazo de 7 dias existir no DADO, e nao so na tela.
+  TEST_MODE_OBJECT = {
+    'type' => 'object',
+    'properties' => {
+      'enabled' => { 'type' => 'boolean' },
+      'code' => { 'type' => %w[string null], 'maxLength' => 32 },
+      'started_at' => { 'type' => %w[string null] }
+    },
+    'additionalProperties' => false
+  }.freeze
+
+  # Sem teto e sem minimo de proposito: a tela nao valida faixa nenhuma, e um limite aqui que
+  # ela nao conhece devolveria de novo um 422 que o administrador nao consegue explicar — que
+  # e o defeito que este bloco esta consertando.
+  LEAD_VALUE_OBJECT = {
+    'type' => 'object',
+    'properties' => {
+      'mode' => { 'type' => 'string', 'enum' => LEAD_VALUE_MODES },
+      'amount' => { 'type' => %w[number null] }
+    },
+    'additionalProperties' => false
+  }.freeze
+
   SCHEMA = {
     'type' => 'object',
     'properties' => {
@@ -47,10 +133,16 @@ module WidgetTrackingSchema
       'event_map' => {
         'type' => 'object',
         'maxProperties' => MAX_EVENT_MAP_ENTRIES,
-        'additionalProperties' => { 'type' => 'string', 'minLength' => 1, 'maxLength' => MAX_EVENT_NAME_LENGTH }
+        'additionalProperties' => { 'anyOf' => [EVENT_MAP_STRING, EVENT_MAP_OBJECT] }
+      },
+      'install_tags' => {
+        'type' => 'object',
+        'properties' => INSTALL_TAG_TARGETS.index_with { |_alvo| { 'type' => 'boolean' } },
+        'additionalProperties' => false
       },
       'consent_mode' => { 'type' => 'string', 'enum' => CONSENT_MODES },
-      'test_mode' => { 'type' => 'boolean' }
+      'test_mode' => { 'anyOf' => [{ 'type' => 'boolean' }, TEST_MODE_OBJECT] },
+      'lead_value' => LEAD_VALUE_OBJECT
     },
     'additionalProperties' => false
   }.freeze

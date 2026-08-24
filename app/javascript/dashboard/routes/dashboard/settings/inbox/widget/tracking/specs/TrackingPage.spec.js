@@ -192,6 +192,35 @@ describe('5.06 — o modo teste desliga sozinho', () => {
     expect(Date.parse(testMode.started_at)).not.toBeNaN();
   });
 
+  it('`test_mode: true` gravado por API aparece LIGADO, e não silenciosamente desligado', () => {
+    // O schema de 5.01 declarava `test_mode` como booleano ate esta trilha. Sem a
+    // normalizacao, `true.enabled` e `undefined`: a tela mostraria DESLIGADO para quem
+    // esta com o modo teste ligado, e o cliente seguiria mandando evento de teste para a
+    // Meta achando que nao estava.
+    inbox.additional_attributes = { widget_tracking: { test_mode: true } };
+    const wrapper = build();
+
+    expect(
+      wrapper.find('[data-testid="test-mode"]').attributes('aria-checked')
+    ).toBe('true');
+  });
+
+  it('e ligar por cima do booleano grava o OBJETO, com a data que faz o prazo existir', async () => {
+    inbox.additional_attributes = { widget_tracking: { test_mode: true } };
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="test-mode"]').trigger('click');
+    await wrapper.find('[data-testid="test-mode"]').trigger('click');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const { test_mode: testMode } =
+      dispatch.mock.calls.at(-1)[1].additional_attributes.widget_tracking;
+
+    expect(testMode.enabled).toBe(true);
+    expect(Date.parse(testMode.started_at)).not.toBeNaN();
+  });
+
   it('ligado há mais de 7 dias aparece como expirado, e o aviso explica', () => {
     inbox.additional_attributes = {
       widget_tracking: {
@@ -260,6 +289,144 @@ describe('5.06 — o mapa dos doze eventos', () => {
     expect(
       payload.additional_attributes.widget_tracking.event_map.chatspx_lead.meta
     ).toBeNull();
+  });
+});
+
+/**
+ * T-C4.3 — o interruptor de "instalar a tag que falta".
+ *
+ * Estes exemplos guardam a decisao **Q5** contra a forma mais provavel de ela ser
+ * desfeita: alguem "melhorar a experiencia" ligando o padrao para que o cliente
+ * "nao precise configurar". O que esta em jogo nao e uma preferencia de tela — e
+ * um script de terceiro carregado no site de quem nunca pediu.
+ *
+ * Por isso cada afirmacao de AUSENCIA aqui vem em par com o exemplo que LIGA o
+ * interruptor e exige o efeito: sem o par, "nao mandou install_tags ligado"
+ * passaria tambem numa tela que nao tem interruptor nenhum — que era exatamente
+ * o estado de ontem.
+ */
+describe('5.06 / T-C4.3 — instalar a tag que falta é opt-in', () => {
+  const trackingDoPatch = () =>
+    dispatch.mock.calls.at(-1)[1].additional_attributes.widget_tracking;
+
+  it('o interruptor da Meta existe na aba Meta e nasce DESLIGADO', () => {
+    const wrapper = build();
+    const toggle = wrapper.find('[data-testid="install-tags-meta"]');
+
+    expect(toggle.exists()).toBe(true);
+    expect(toggle.attributes('aria-checked')).toBe('false');
+  });
+
+  it('o interruptor do Google existe na aba Google e nasce DESLIGADO', async () => {
+    const wrapper = build();
+    await irParaAba(wrapper, 1);
+    const toggle = wrapper.find('[data-testid="install-tags-google"]');
+
+    expect(toggle.exists()).toBe(true);
+    expect(toggle.attributes('aria-checked')).toBe('false');
+  });
+
+  it('salvar sem tocar no interruptor NÃO liga instalação nenhuma', async () => {
+    const wrapper = build();
+
+    await wrapper
+      .find('[data-testid="meta-pixel-id"] input')
+      .setValue('123456789012345');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    // A ausencia so vale porque o exemplo seguinte prova que o interruptor
+    // GRAVA quando e acionado.
+    expect(trackingDoPatch().install_tags?.meta).toBeFalsy();
+    expect(trackingDoPatch().install_tags?.google).toBeFalsy();
+  });
+
+  it('ligar o da Meta grava `install_tags.meta` e deixa o Google desligado', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="install-tags-meta"]').trigger('click');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    expect(trackingDoPatch().install_tags).toEqual({
+      meta: true,
+      google: false,
+    });
+  });
+
+  it('ligar o do Google grava só o Google — as duas autorizações são separadas', async () => {
+    const wrapper = build();
+    await irParaAba(wrapper, 1);
+
+    await wrapper.find('[data-testid="install-tags-google"]').trigger('click');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    expect(trackingDoPatch().install_tags).toEqual({
+      meta: false,
+      google: true,
+    });
+  });
+
+  it('desligar de volta grava `false`, e não some com a chave', async () => {
+    // Sumir com a chave tambem desligaria — mas a tela deixaria de conseguir
+    // distinguir "nunca decidiu" de "decidiu que nao", e o proximo default
+    // ligado passaria por cima da decisao do cliente sem deixar rastro.
+    inbox.additional_attributes = {
+      widget_tracking: { install_tags: { meta: true, google: true } },
+    };
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="install-tags-meta"]').trigger('click');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    expect(trackingDoPatch().install_tags).toEqual({
+      meta: false,
+      google: true,
+    });
+  });
+
+  it('o que já está gravado aparece ligado — a tela lê, não inventa', () => {
+    inbox.additional_attributes = {
+      widget_tracking: { install_tags: { meta: true } },
+    };
+    const wrapper = build();
+
+    expect(
+      wrapper
+        .find('[data-testid="install-tags-meta"]')
+        .attributes('aria-checked')
+    ).toBe('true');
+  });
+
+  it('ligado, a tela avisa que passa a carregar script de terceiro', async () => {
+    const wrapper = build();
+    expect(
+      wrapper.find('[data-testid="install-tags-meta-warning"]').exists()
+    ).toBe(false);
+
+    await wrapper.find('[data-testid="install-tags-meta"]').trigger('click');
+
+    const aviso = wrapper.find('[data-testid="install-tags-meta-warning"]');
+    expect(aviso.exists()).toBe(true);
+    expect(aviso.text()).toContain('terceiro');
+  });
+
+  it('o PATCH não leva sub-chave que o schema recusaria com 422', async () => {
+    // `install_tags` tem `additionalProperties: false` no nivel dele. A tela que
+    // mandar um terceiro alvo derruba a gravacao INTEIRA da inbox, nao so o
+    // campo — e o administrador ve "erro ao salvar" sem saber por que.
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="install-tags-meta"]').trigger('click');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    expect(Object.keys(trackingDoPatch().install_tags).sort()).toEqual([
+      'google',
+      'meta',
+    ]);
   });
 });
 
