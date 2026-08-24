@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_24_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2253,6 +2253,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
     t.index ["name", "account_id"], name: "index_teams_on_name_and_account_id", unique: true
   end
 
+  create_table "tracking_credentials", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.text "meta_access_token"
+    t.text "ga4_api_secret"
+    t.text "google_ads_refresh_token"
+    t.text "google_ads_developer_token"
+    t.string "meta_test_event_code"
+    t.jsonb "oauth_metadata", default: {}, null: false
+    t.datetime "last_verified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_tracking_credentials_on_account_id"
+    t.index ["inbox_id"], name: "index_tracking_credentials_on_inbox_id", unique: true
+  end
+
   create_table "tracking_deliveries", force: :cascade do |t|
     t.bigint "tracking_event_id", null: false
     t.integer "destination", null: false
@@ -2513,6 +2529,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_160000) do
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
   add_foreign_key "team_supervisors", "teams", on_delete: :cascade
   add_foreign_key "team_supervisors", "users", on_delete: :cascade
+  add_foreign_key "tracking_credentials", "accounts", on_delete: :cascade
+  add_foreign_key "tracking_credentials", "inboxes", on_delete: :cascade
   add_foreign_key "tracking_deliveries", "tracking_events", on_delete: :cascade
   add_foreign_key "tracking_events", "accounts", on_delete: :cascade
   add_foreign_key "tracking_events", "contacts", on_delete: :nullify

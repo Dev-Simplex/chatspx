@@ -103,6 +103,23 @@ en:
         over_size_limit: "is over the limit of %{limit} bytes — it is served on every page of the customer site"
         home_intents_need_two: "needs %{minimum} to %{maximum} intent options, or none — a single option is not a choice"
         home_intents_duplicated_id: "has intent options sharing the same id: %{ids}"
+    tracking_credential:
+      inbox_not_in_account: "does not belong to this account"
+      secret_too_short: "needs at least %{count} characters"
+      encryption_not_configured: "ACTIVE_RECORD_ENCRYPTION_* is not configured: a secret must never be stored in plain text"
+      verify:
+        unknown_provider: "unknown provider"
+        provider_unreachable: "could not reach the provider: %{message}"
+        meta_missing_pixel_id: "set the Meta Pixel ID before testing"
+        meta_missing_access_token: "set the Meta access token before testing"
+        meta_missing_test_event_code: "test mode requires Meta's test_event_code: without it the event would count as real"
+        meta_rejected: "Meta rejected the credential"
+        meta_accepted: "credential accepted by Meta in test mode"
+        ga4_missing_measurement_id: "set the GA4 Measurement ID before testing"
+        ga4_missing_api_secret: "set the GA4 api_secret before testing"
+        ga4_no_response: "GA4 did not answer the test"
+        ga4_rejected: "GA4 rejected the credential"
+        ga4_accepted: "credential accepted by GA4 in debug mode"
     private_chat:
       invalid_password: Invalid password
     account:
