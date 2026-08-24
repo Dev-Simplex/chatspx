@@ -18,6 +18,8 @@ O recorte acrescenta **+1.142 exemplos** à suíte. Medição por 6 grupos em pa
 com banco dedicado.
 
 As **17 falhas finais são todas escaladas** — nenhuma é minha para decidir (última seção).
+Confirmado por medição limpa na árvore `521a92b763`: 14 do `change_set_applier` e 3 do grupo de
+controllers, e nada além disso. Os commits posteriores a essa árvore só tocam markdown.
 
 Duas outras eu havia classificado como "instáveis por natureza". **Estavam erradas essa
 classificação e eu.** Cada uma tinha causa determinável, e uma delas escondia um buraco bem
@@ -73,6 +75,47 @@ Elas mudam a leitura dos números:
   leva de 11 falhas era fantasma — o log era anterior a 449 arquivos alterados;
 - **"passa isolado, falha no lote" não é sinônimo de instável.** Foi o que eu escrevi de duas
   falhas, e as duas tinham causa determinável. Vale gastar a hora antes de aceitar o rótulo.
+
+## A suíte JS — 26 falhas, todas herdadas
+
+A suíte Ruby ficou verde e eu tinha parado ali. A de JavaScript não estava: **26 testes
+falhando em 11 arquivos**, de 6.286.
+
+**A/B antes de consertar.** Nem os specs nem os sujeitos deles foram tocados pelo recorte —
+mas inferir por diff é cego para dependência compartilhada. Rodei os 11 arquivos numa worktree
+de `origin/homologacao`: **as mesmas 26 falhas, nos mesmos 11 arquivos**. Herdadas; o recorte
+não introduziu nenhuma.
+
+(A primeira tentativa dessa worktree deu `11 failed / no tests` — não coletou, porque
+`node_modules` por symlink não resolve. Isso mede o ambiente, não o código; refeito com
+`cp -al`, que custa quase nada.)
+
+| categoria | arquivos | o que era |
+|---|---:|---|
+| campo novo × igualdade exata | 5 | `signals`, `agentAssignmentReports`, dois commits novos na lista |
+| contrato de chamada mudou | 2 | `{ explicit }` no corpo, paginação, `URLSearchParams` |
+| premissa não estabelecida | 2 | guarda de Chatwoot Cloud e cache de anexos |
+| nome errado, falha em cascata | 2 | uma mutation virou duas; stub com o nome do componente antigo |
+| design que nunca existiu | 1 | `.wa-tab-row-break`, `ai` como fila, fixture com uma fila só |
+
+**Três exemplos passavam pelo motivo errado** — o mesmo "verde por ausência de sujeito" da
+suíte Ruby:
+
+- `'skips request when endpoint was previously marked as unavailable'` passava pela **guarda de
+  nuvem**, não pelo flag que ele diz cobrir. A lógica do flag podia estar quebrada e ninguém
+  saberia. Agora há um exemplo para cada guarda;
+- `'does not touch a reconciled message that shares the echo_id'` chamava a mutation errada,
+  que não achava a conversa e retornava. Não exercitava nada;
+- dois exemplos do `ChatTypeTabs` mediam reordenação com a reordenação **desligada** (o fixture
+  tinha uma fila só, e o componente exige duas) — passavam porque a aba com `alert` calha de
+  cair no mesmo índice nas duas ordens.
+
+Também havia uma **rejeição não tratada** que o próprio Vitest sinaliza como *"might cause
+false positive tests"*: `markMessagesRead` indexa `rootGetters['notifications/...']`, e sem
+`rootGetters` a indexação estoura **antes** do `|| []` do código — dentro de uma promise, o que
+vira rejeição em vez de falha.
+
+Resultado medido: **565 arquivos, 6.292 testes, 0 falhas, 0 erros não tratados.**
 
 ## O que motivou
 

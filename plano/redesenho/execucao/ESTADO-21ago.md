@@ -33,6 +33,18 @@ o dublê de Redis **não era compartilhado entre as conexões do pool** — `SET
 `true` para duas conexões concorrentes, ou seja, toda invariante de exclusão mútua via Redis
 estava passando no vácuo. Corrigido e provado por contraprova.
 
+### Suíte JS
+
+| momento | arquivos | testes | falhas |
+|---|---:|---:|---:|
+| antes | 565 | 6.286 | **26** |
+| **agora** | **565** | **6.292** | **0** |
+
+As 26 eram **todas herdadas**: rodei os 11 arquivos numa worktree de `origin/homologacao` e ela
+falha exatamente os mesmos 26. Nem os specs nem os sujeitos deles tinham sido tocados pelo
+recorte. Também some uma **rejeição não tratada** que o próprio Vitest sinalizava como capaz de
+produzir falso positivo.
+
 Detalhamento completo em **`plano/triagem-suite-21ago.md`**.
 
 ## 3. O que a triagem achou
