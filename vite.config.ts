@@ -119,6 +119,35 @@ export default defineConfig({
       },
     },
   },
+  /* ──────────────────────────────────────────────────────────────────────────
+   * FLAGS DE COMPILAÇÃO DO vue-i18n — bloco 2.18
+   *
+   * O `vue-i18n` publica a build esm-bundler com trechos guardados por flags
+   * que o BUNDLER deve definir. Sem defini-las o esm-bundler assume o default
+   * permissivo e os ganchos de devtools viajam para produção.
+   *
+   * `__VUE_I18N_LEGACY_API__: false` FOI TESTADA E REJEITADA, e o registro
+   * fica aqui para ninguém a "descobrir" de novo. Ela vale 3.447 B gzip do
+   * grafo eager (289.631 → 286.184), e por auditoria de produção PARECE
+   * segura: as quatro chamadas de `createI18n` dos entrypoints passam
+   * `legacy: false`. Não é. A flag remove a API legada do bundle INTEIRO, e a
+   * suíte provou que ainda há consumidor dela — `memoDaLinha.spec.js:42` cria
+   * o i18n com `legacy: true` de propósito e escreve `i18n.global.locale`.
+   * Sem a API legada esse `locale` é um `WritableComputedRef`: a atribuição
+   * SUBSTITUI o ref em vez de escrever nele e a reatividade morre em silêncio
+   * — o teste caiu com «expected 2 to be greater than 2», que é exatamente um
+   * render que deixou de acontecer. 3 kB não pagam esse risco com o grafo já
+   * 10 kB abaixo do teto; a flag entra junto da migração dos consumidores
+   * legados, não antes.
+   *
+   * `__VUE_I18N_FULL_INSTALL__` também NÃO é desligada: removeria o registro
+   * global de `<i18n-t>` e da diretiva `v-t`, e o painel usa `<I18nT>` em pelo
+   * menos 8 componentes.
+   * ────────────────────────────────────────────────────────────────────────── */
+  define: {
+    __VUE_I18N_PROD_DEVTOOLS__: 'false',
+    __INTLIFY_PROD_DEVTOOLS__: 'false',
+  },
   css: {
     preprocessorOptions: {
       scss: {

@@ -92,10 +92,10 @@ const LIMITS = {
 const GRAPH_BASELINE = {
   // BAIXADA PELO BLOCO 2.18, e só para baixo — é o que a própria mensagem de
   // sucesso deste gate manda fazer quando o grafo entra no teto: sem isso a
-  // régua de regressão ficaria frouxa em 132.968 B e qualquer PR poderia
+  // régua de regressão ficaria frouxa em 132.985 B e qualquer PR poderia
   // devolver todo o emagrecimento sem o gate dizer nada.
   //
-  // O que derrubou os 132.968 B (medido com `chunk.modules` do Rollup, não com
+  // O que derrubou os 132.985 B (medido com `chunk.modules` do Rollup, não com
   // grep no bundle):
   //   · i18n sob demanda — 39 dos 40 idiomas viraram `import()`  ......  ~193 kB renderizados
   //   · FormKit só na rota do pré-chat  ................................  ~203 kB renderizados
@@ -105,7 +105,7 @@ const GRAPH_BASELINE = {
   // ≤ 150 KB gzip e ele ainda NÃO foi alcançado: faltam Sentry, date-fns,
   // markdown-it, axios e urlpattern saírem do first-paint, e os cinco moram em
   // arquivo de outra trilha.
-  gzip: 289_631,
+  gzip: 289_614,
   date: '24/08/2026',
   where: 'worktree do bloco 2.18, `bin/vite build --force` limpo',
   // Tolerância do eixo de REGRESSÃO — não do teto, que não tem nenhuma.
