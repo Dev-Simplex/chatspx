@@ -4,7 +4,7 @@ import AgentTypingBubble from 'widget/components/AgentTypingBubble.vue';
 import WDateSeparator from 'widget/ui/WDateSeparator.vue';
 import WScrollToBottom from 'widget/ui/WScrollToBottom.vue';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
-import Spinner from 'shared/components/Spinner.vue';
+import ConversationSkeleton from 'widget/components/ConversationSkeleton.vue';
 import { useDarkMode } from 'widget/composables/useDarkMode';
 import { calcularAgrupamento } from 'widget/composables/useMessageGrouping';
 import { comportamentoDeRolagem } from 'widget/composables/useReducedMotion';
@@ -42,7 +42,7 @@ export default {
     WScrollToBottom,
     FluentIcon,
     AiHandoffMark,
-    Spinner,
+    ConversationSkeleton,
   },
   props: {
     groupedMessages: {
@@ -302,9 +302,11 @@ export default {
       :aria-busy="isAgentTyping ? 'true' : 'false'"
       :class="{ 'is-typing': isAgentTyping }"
     >
-      <div v-if="isFetchingList" class="message--loader">
-        <Spinner />
-      </div>
+      <!-- Bloco 2.07 — o esqueleto no lugar do spinner imediato. O `Spinner`
+           aparecia no primeiro milissegundo de qualquer busca, inclusive a
+           paginação que volta em 80 ms: um flash cinza no topo da lista a cada
+           rolagem para trás. Quem segura os 600 ms é `widgetLoadingGate`. -->
+      <ConversationSkeleton :loading="isFetchingList" />
       <div
         v-for="(groupedMessage, indiceBloco) in groupedMessagesWithHandoff"
         :key="groupedMessage.date"

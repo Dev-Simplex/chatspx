@@ -1,5 +1,5 @@
 <script setup>
-import Avatar from 'widget/components/WAvatar.vue';
+import Avatar from 'widget/ui/WAvatar.vue';
 import { computed } from 'vue';
 
 const props = defineProps({

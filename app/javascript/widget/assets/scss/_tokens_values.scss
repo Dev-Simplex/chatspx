@@ -243,6 +243,67 @@
   --white-alpha: 255, 255, 255, 0.1;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PALETA DE INICIAIS DO AVATAR — bloco 2.01
+//
+// Ela entra aqui, e não no componente, porque foi exatamente onde ela estava:
+// `WAvatar.vue` carregava 26 literais hexadecimais no corpo do arquivo. Enquanto
+// ele morava em `widget/components/`, o lint dos primitivos não o alcançava;
+// mudado para `widget/ui/`, os 26 reprovaram — que é o trabalho do bloco, não um
+// acidente dele.
+//
+// ⚠️ OS VALORES SÃO OS DO ORIGINAL, COPIADOS, NÃO RECALCULADOS. A tela de
+// mensagens não lidas é uma das cinco que os 20 snapshots do widget cobrem, e a
+// régua não se move para acomodar refatoração: cada par abaixo é o mesmo
+// hexadecimal que estava no componente, só que num lugar onde o tema pode
+// trocá-lo. O ganho não é de cor, é de escopo — o par escuro deixa de viajar
+// por uma custom property escrita em `:style` (`--dark-bg`/`--dark-text`) e
+// passa a resolver por cascata, como toda outra cor do widget.
+//
+// O ÍNDICE é `nome.length % 6`, de 1 a 6. O par 0 é o neutro, usado quando não
+// há nome — e ele é DELIBERADAMENTE igual nos dois temas, porque era assim que
+// o original se comportava: sem nome, `colors` devolvia o par claro sem
+// `darkBg`/`darkText`, e o `var(--dark-bg)` do tema escuro resolvia vazio. Com
+// os call-sites de hoje esse ramo é inalcançável (o nome do agente sempre cai
+// em `UNREAD_VIEW.BOT` quando falta), então "corrigir" o tom escuro aqui seria
+// mudar pixel sem ninguém conseguir observar a mudança.
+@mixin widget-avatar-light {
+  --w-avatar-outline: rgb(0 0 0 / 0.03);
+
+  --w-avatar-0-bg: #e8e8e8;
+  --w-avatar-0-fg: #60646c;
+  --w-avatar-1-bg: #fbdcef;
+  --w-avatar-1-fg: #c2298a;
+  --w-avatar-2-bg: #ffe0bb;
+  --w-avatar-2-fg: #99543a;
+  --w-avatar-3-bg: #e8e8e8;
+  --w-avatar-3-fg: #60646c;
+  --w-avatar-4-bg: #ccf3ea;
+  --w-avatar-4-fg: #008573;
+  --w-avatar-5-bg: #ebebfe;
+  --w-avatar-5-fg: #4747c2;
+  --w-avatar-6-bg: #e1e9ff;
+  --w-avatar-6-fg: #3a5bc7;
+}
+
+@mixin widget-avatar-dark {
+  --w-avatar-outline: rgb(255 255 255 / 0.04);
+
+  // O par 0 NÃO é redeclarado: ver a nota acima.
+  --w-avatar-1-bg: #4b143d;
+  --w-avatar-1-fg: #ff8dcc;
+  --w-avatar-2-bg: #3f220d;
+  --w-avatar-2-fg: #ffa366;
+  --w-avatar-3-bg: #2a2a2a;
+  --w-avatar-3-fg: #adb1b8;
+  --w-avatar-4-bg: #023b37;
+  --w-avatar-4-fg: #0bd8b6;
+  --w-avatar-5-bg: #27264d;
+  --w-avatar-5-fg: #a19eff;
+  --w-avatar-6-bg: #1d2e62;
+  --w-avatar-6-fg: #9eb1ff;
+}
+
 @mixin widget-brand-light {
   --w-brand: #2dc46f;
   --w-brand-hover: #29b064;

@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { globSync } from 'node:fs';
 import ptBR from 'widget/i18n/locale/pt_BR.json';
 import AgentTypingBubble from '../AgentTypingBubble.vue';
-import WTypingDots from '../WTypingDots.vue';
+import WTypingDots from 'widget/ui/WTypingDots.vue';
 
 const i18n = createI18n({
   legacy: true,

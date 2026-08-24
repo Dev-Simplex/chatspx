@@ -1,5 +1,5 @@
 import BaseActionCableConnector from '../../shared/helpers/BaseActionCableConnector';
-import { createConnectionMonitor } from 'widget/state/connectionMonitor';
+import { widgetConnectionMonitor } from 'widget/state';
 import { playNewMessageNotificationInWidget } from 'widget/helpers/WidgetAudioNotificationHelper';
 import { ON_AGENT_MESSAGE_RECEIVED } from '../constants/widgetBusEvents';
 import { IFrameHelper } from 'widget/helpers/utils';
@@ -19,10 +19,11 @@ const WIDGET_PRESENCE_INTERVAL = 60000;
 /**
  * O monitor de conexao do widget, um por pagina.
  *
- * Exportado para que a tela (e o teste) leiam o estado sem alcancar o
- * connector: quem observa a conexao nao deveria precisar conhecer o ActionCable.
+ * Reexportado para quem ja o importava daqui. A INSTANCIA vive em
+ * `widget/state`, para que a tela leia o estado sem arrastar o ActionCable
+ * junto — ver a nota daquele arquivo.
  */
-export const widgetConnectionMonitor = createConnectionMonitor();
+export { widgetConnectionMonitor };
 
 class ActionCableConnector extends BaseActionCableConnector {
   constructor(app, pubsubToken) {

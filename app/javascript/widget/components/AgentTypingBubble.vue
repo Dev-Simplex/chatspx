@@ -1,5 +1,5 @@
 <script>
-import WTypingDots from 'widget/components/WTypingDots.vue';
+import WTypingDots from 'widget/ui/WTypingDots.vue';
 
 export default {
   name: 'AgentTypingBubble',

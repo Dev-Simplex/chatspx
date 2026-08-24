@@ -9,21 +9,40 @@
  * Este spec mede as duas metades:
  *  · com `reply_message_id` → o balão local NÃO é desenhado (quem desenha é a mensagem real);
  *  · sem `reply_message_id` (motor desligado) → comportamento idêntico ao de hoje.
+ *
+ * ── Por que ele monta e olha o DOM, e não lê `wrapper.vm` (bloco 2.02) ────────
+ *
+ * A versão anterior lia os computados `hasRecordedResponse`/`isASubmittedForm` de
+ * `AgentMessage`. Isso amarrava o teste ao lugar onde a decisão está escrita —
+ * e a decisão mudou de arquivo quando as duas linhas viraram `MessageRow`. Uma
+ * asserção sobre `.user-message-wrap` na árvore renderizada mede o EFEITO que o
+ * bloco 4.01 promete: o balão local existe, ou não existe.
  */
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import AgentMessage from '../AgentMessage.vue';
 
 const montar = message =>
-  shallowMount(AgentMessage, {
+  mount(AgentMessage, {
     props: { message },
     global: {
       mocks: { $t: k => k },
-      stubs: { Avatar: true, MessageReplyButton: true, ReplyToChip: true },
+      stubs: {
+        Avatar: true,
+        MessageReplyButton: true,
+        ReplyToChip: true,
+        AgentMessageBubble: true,
+        UserMessageBubble: true,
+        DragWrapper: true,
+        FluentIcon: true,
+      },
       // A diretiva vem do plugin vue-dompurify-html, registrado só no app real; sem ela o Vue
       // emitiria um warn de diretiva não resolvida a cada mount (ruído, não defeito).
       directives: { 'dompurify-html': {} },
     },
   });
+
+/** Quantos balões LOCAIS de visitante a linha do agente desenhou. */
+const baloesLocais = wrapper => wrapper.findAll('.user-message-wrap').length;
 
 beforeEach(() => {
   window.chatwootWebChannel = {
@@ -47,8 +66,7 @@ describe('4.01 — o widget não duplica a resposta do visitante', () => {
       optionMessage({ submitted_values: [{ title: 'Sim', value: 'yes' }] })
     );
 
-    expect(wrapper.vm.hasRecordedResponse).toBe(true);
-    expect(wrapper.findComponent({ name: 'UserMessage' }).exists()).toBe(true);
+    expect(baloesLocais(wrapper)).toBe(1);
   });
 
   it('some com o balão local quando a resposta virou mensagem incoming (reply_message_id)', () => {
@@ -59,8 +77,7 @@ describe('4.01 — o widget não duplica a resposta do visitante', () => {
       })
     );
 
-    expect(wrapper.vm.hasRecordedResponse).toBe(false);
-    expect(wrapper.findComponent({ name: 'UserMessage' }).exists()).toBe(false);
+    expect(baloesLocais(wrapper)).toBe(0);
   });
 
   const formMessage = contentAttributes => ({
@@ -73,21 +90,30 @@ describe('4.01 — o widget não duplica a resposta do visitante', () => {
 
   it('formulário: mantém os balões locais sem reply_message_id', () => {
     const wrapper = montar(
-      formMessage({ submitted_values: [{ name: 'nome', value: 'Walisson' }] })
+      formMessage({
+        submitted_values: [
+          { name: 'nome', value: 'Walisson' },
+          { name: 'email', value: 'w@exemplo.com' },
+        ],
+      })
     );
 
-    expect(wrapper.vm.isASubmittedForm).toBe(true);
+    // Um balão por valor enviado — e é isto que a segunda metade do aceite
+    // proíbe de aparecer quando o backend já materializou a resposta.
+    expect(baloesLocais(wrapper)).toBe(2);
   });
 
   it('formulário: não repete os valores quando a resposta virou mensagem incoming', () => {
     const wrapper = montar(
       formMessage({
-        submitted_values: [{ name: 'nome', value: 'Walisson' }],
+        submitted_values: [
+          { name: 'nome', value: 'Walisson' },
+          { name: 'email', value: 'w@exemplo.com' },
+        ],
         reply_message_id: 78,
       })
     );
 
-    expect(wrapper.vm.isASubmittedForm).toBe(false);
-    expect(wrapper.findComponent({ name: 'UserMessage' }).exists()).toBe(false);
+    expect(baloesLocais(wrapper)).toBe(0);
   });
 });
