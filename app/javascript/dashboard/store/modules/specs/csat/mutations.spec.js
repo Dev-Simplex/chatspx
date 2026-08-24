@@ -30,10 +30,13 @@ describe('#mutations', () => {
         ratings_count: { 1: 10, 2: 10, 3: 3, 4: 3, 5: 3 },
         total_sent_messages_count: 120,
       });
+      // ChatSPX: a mutation passou a gravar `signals` (sempre array, `signals || []`).
+      // Igualdade EXATA quebra a cada campo novo, mesmo quando o campo esta certo.
       expect(state.metrics).toEqual({
         totalResponseCount: 29,
         ratingsCount: { 1: 10, 2: 10, 3: 3, 4: 3, 5: 3 },
         totalSentMessagesCount: 120,
+        signals: [],
       });
     });
 
@@ -46,6 +49,7 @@ describe('#mutations', () => {
         totalResponseCount: 0,
         ratingsCount: { 1: 5, 2: 0, 3: 0, 4: 0, 5: 0 },
         totalSentMessagesCount: 0,
+        signals: [],
       });
     });
   });

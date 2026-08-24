@@ -22,14 +22,19 @@ describe('Summary Reports Store', () => {
 
   describe('Initial State', () => {
     it('should have the correct initial state structure', () => {
+      // ChatSPX: `agentAssignmentReports` e a flag dele entraram com os relatorios de
+      // atribuicao. Como a assercao e igualdade EXATA, ela quebra a cada campo novo do
+      // store -- e o campo esta em producao dos dois lados (base e recorte).
       expect(initialState).toEqual({
         inboxSummaryReports: [],
         agentSummaryReports: [],
+        agentAssignmentReports: [],
         teamSummaryReports: [],
         labelSummaryReports: [],
         uiFlags: {
           isFetchingInboxSummaryReports: false,
           isFetchingAgentSummaryReports: false,
+          isFetchingAgentAssignmentReports: false,
           isFetchingTeamSummaryReports: false,
           isFetchingLabelSummaryReports: false,
         },

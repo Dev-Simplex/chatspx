@@ -122,13 +122,23 @@ describe('#actions', () => {
   });
 
   describe('#limits', () => {
+    // ChatSPX: `actions.limits` comeca com uma guarda nossa —
+    // `if (!rootGetters['globalConfig/isOnChatwootCloud']) return null`, porque
+    // /enterprise/.../limits e exclusivo do Chatwoot Cloud e devolve 404 self-hosted.
+    // Sem declarar a nuvem, a action retorna ANTES de qualquer commit e os exemplos abaixo
+    // deixam de medir o que anunciam.
+    const naNuvem = {
+      getCurrentAccountId: 1,
+      'globalConfig/isOnChatwootCloud': true,
+    };
+
     it('marks endpoint as unavailable when limits route returns 404', async () => {
       axios.get.mockRejectedValue({ response: { status: 404 } });
 
       await actions.limits({
         commit,
         state: { limitsEndpointUnavailableByAccount: {} },
-        rootGetters: { getCurrentAccountId: 1 },
+        rootGetters: naNuvem,
       });
 
       expect(commit).toHaveBeenCalledWith(types.default.SET_ACCOUNT_UI_FLAG, {
@@ -150,7 +160,24 @@ describe('#actions', () => {
       await actions.limits({
         commit,
         state: { limitsEndpointUnavailableByAccount: { 1: true } },
-        rootGetters: { getCurrentAccountId: 1 },
+        rootGetters: naNuvem,
+      });
+
+      expect(axios.get).not.toHaveBeenCalled();
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    // Este exemplo existe porque o de cima passava pelo motivo ERRADO: sem `naNuvem`, a
+    // guarda de nuvem retornava primeiro e a assercao negativa ficava verde mesmo que a
+    // logica do flag `unavailable` estivesse quebrada. Agora um exemplo cobre cada guarda.
+    it('skips request entirely when the install is not on Chatwoot Cloud', async () => {
+      await actions.limits({
+        commit,
+        state: { limitsEndpointUnavailableByAccount: {} },
+        rootGetters: {
+          getCurrentAccountId: 1,
+          'globalConfig/isOnChatwootCloud': false,
+        },
       });
 
       expect(axios.get).not.toHaveBeenCalled();

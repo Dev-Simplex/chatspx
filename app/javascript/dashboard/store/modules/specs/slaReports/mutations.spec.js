@@ -27,10 +27,13 @@ describe('#mutations', () => {
         hit_rate: '100%',
         total_applied_slas: 1,
       });
+      // ChatSPX: a mutation passou a gravar `signals` (sempre um array, `signals || []`).
+      // A assercao e igualdade EXATA, entao o campo novo a derruba mesmo estando correto.
       expect(state.metrics).toEqual({
         numberOfSLAMisses: 1,
         hitRate: '100%',
         numberOfConversations: 1,
+        signals: [],
       });
     });
   });

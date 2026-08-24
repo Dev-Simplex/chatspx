@@ -125,9 +125,21 @@ describe('#ConversationAPI', () => {
     });
 
     it('#markMessageRead', () => {
+      // ChatSPX: o corpo leva `explicit`, que o backend le em
+      // `ConversationsController#explicit_mark_as_read?` para decidir se quem NAO e o dono
+      // pode limpar o marcador de nao lida. Contrato conferido nas duas pontas.
       conversationAPI.markMessageRead({ id: 12 });
       expect(axiosMock.post).toHaveBeenCalledWith(
-        `/api/v1/conversations/12/update_last_seen`
+        `/api/v1/conversations/12/update_last_seen`,
+        { explicit: false }
+      );
+    });
+
+    it('#markMessageRead passes explicit through when the agent asks for it', () => {
+      conversationAPI.markMessageRead({ id: 12, explicit: true });
+      expect(axiosMock.post).toHaveBeenCalledWith(
+        `/api/v1/conversations/12/update_last_seen`,
+        { explicit: true }
       );
     });
 
@@ -238,9 +250,11 @@ describe('#ConversationAPI', () => {
     });
 
     it('#getAllAttachments', () => {
+      // ChatSPX: a listagem de anexos passou a ser paginada; o default e a pagina 1.
       conversationAPI.getAllAttachments(1);
       expect(axiosMock.get).toHaveBeenCalledWith(
-        '/api/v1/conversations/1/attachments'
+        '/api/v1/conversations/1/attachments',
+        { params: { page: 1 } }
       );
     });
   });
