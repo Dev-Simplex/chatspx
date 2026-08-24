@@ -1,5 +1,24 @@
 module Instagram::IntegrationHelper
+  # O MÍNIMO pra existir canal de Instagram: ler o perfil e trocar DM. Nunca some da tela de
+  # consentimento, venha o que vier na configuração.
   REQUIRED_SCOPES = %w[instagram_business_basic instagram_business_manage_messages].freeze
+
+  # Escopo é propriedade do APP da Meta, e o app é POR BOX (`INSTAGRAM_APP_ID` é
+  # InstallationConfig). A .232 usa o `Business MW`, que tem a permissão de comentários; a Tozi
+  # usa o `SPX Lead Ads Tozi`, que não tem. Enquanto a lista foi uma constante global, as duas
+  # pediam a mesma coisa — e escopo que o app não possui faz o OAuth falhar por escopo inválido,
+  # ou seja, ninguém mais conecta Instagram naquela box.
+  #
+  # Consequência prática que isto conserta: em 18/08 a permissão de comentários da BigStore foi
+  # obtida montando a URL de consentimento à mão. Reconectar a inbox pelo botão do SPX pedia só
+  # os dois escopos daqui e PERDIA a permissão conquistada, em silêncio.
+  #
+  # A configuração ACRESCENTA; nunca remove. Lista mal preenchida não derruba o DM.
+  def instagram_scopes
+    extras = GlobalConfigService.load('INSTAGRAM_SCOPES', '').to_s.split(',').map(&:strip).compact_blank
+
+    (REQUIRED_SCOPES + extras).uniq
+  end
 
   # Generates a signed JWT token for Instagram integration
   #
