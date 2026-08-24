@@ -15,7 +15,7 @@ class Tracking::EventRecorder
     # proteger: o consumidor deixaria de saber, pela propria chamada, o que pode mandar.
     # rubocop:disable Metrics/ParameterLists
     def record!(name:, account:, inbox: nil, conversation: nil, contact: nil,
-                occurred_at: nil, properties: nil, source: :server, dedup_key: nil)
+                occurred_at: nil, properties: nil, source: :server, dedup_key: nil, deliver: true)
       # rubocop:enable Metrics/ParameterLists
       moment = occurred_at || Time.current
       key = dedup_key || TrackingEvent.derive_dedup_key(
@@ -23,12 +23,31 @@ class Tracking::EventRecorder
         conversation_id: conversation&.id, contact_id: contact&.id
       )
 
-      create_or_find(name: name, account: account, inbox: inbox, conversation: conversation,
-                     contact: contact, occurred_at: moment, properties: properties || {},
-                     source: source, dedup_key: key)
+      event = create_or_find(name: name, account: account, inbox: inbox, conversation: conversation,
+                             contact: contact, occurred_at: moment, properties: properties || {},
+                             source: source, dedup_key: key)
+
+      dispatch(event) if deliver
+      event
     end
 
     private
+
+    # Bloco 5.11 — o registro do fato e a unica porta por onde a fila server-side entra.
+    #
+    # Ela e segura de ligar HOJE porque `Tracking::CredentialResolver` ainda devolve `nil` (o bloco
+    # 5.02 nao aterrissou): o leque nao reserva nada, nao enfileira nada e nao escreve nada. Quando
+    # a credencial existir, a fila comeca a andar sem que nenhuma outra trilha precise mudar de
+    # chamada.
+    #
+    # O `rescue` segue a doutrina que o `TrackingEventListener` desta base ja escreveu: observabilidade
+    # nunca quebra o produto. Falha ao ENTREGAR o evento nao pode desfazer o registro do fato nem
+    # derrubar a resolucao de uma conversa.
+    def dispatch(event)
+      Tracking::DeliveryDispatcher.call(event)
+    rescue StandardError => e
+      ChatwootExceptionTracker.new(e, account: event.account).capture_exception
+    end
 
     # O savepoint mantem a transacao externa viva quando o indice unico recusa a segunda gravacao:
     # no PostgreSQL, violacao de constraint aborta a transacao corrente, e sem `requires_new` o

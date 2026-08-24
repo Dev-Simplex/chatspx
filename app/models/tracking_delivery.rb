@@ -15,6 +15,7 @@
 #  http_status       :integer
 #  last_attempted_at :datetime
 #  status            :integer          default("pending"), not null
+#  suppressed_field_names :jsonb       not null
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
 #  tracking_event_id :bigint           not null
@@ -30,6 +31,10 @@
 # `field_names` guarda os NOMES dos campos enviados, nunca os valores (T-C8.1). E dele que o bloco
 # 5.12 tira a prova de que o modo "sem PII" nao mandou `em`/`ph`/`fn`/`ln` — e por isso a validacao
 # recusa qualquer coisa que nao seja uma lista rasa de strings: um hash aqui seria valor disfarcado.
+#
+# `suppressed_field_names` e o OUTRO lado da mesma frase (bloco 5.12): os nomes dos campos de pessoa
+# que a base TINHA e que o modo sem PII reteve. Sem ele, "nao ha `em` em `field_names`" seria
+# verdade tambem para um contato sem e-mail — a afirmacao negativa passaria no vacuo.
 class TrackingDelivery < ApplicationRecord
   belongs_to :tracking_event
 
@@ -37,6 +42,10 @@ class TrackingDelivery < ApplicationRecord
   enum destination: { data_layer: 0, meta_pixel: 1, ga4_gtag: 2, meta_capi: 3, ga4_mp: 4, google_ads: 5 }
   # `dead` e a DLQ: acabaram as tentativas e o evento NAO some — fica visivel no painel de 5.14.
   enum status: { pending: 0, sent: 1, failed: 2, skipped: 3, dead: 4 }
+
+  # A DLQ do 5.11: o que morreu depois da ultima tentativa, mais recente primeiro. E a consulta que
+  # o painel de 5.14 faz, e a razao de `dead` ser um status e nao uma linha de log.
+  scope :dead_letter_queue, -> { dead.order(updated_at: :desc) }
 
   before_validation :ensure_field_names
 
@@ -46,11 +55,19 @@ class TrackingDelivery < ApplicationRecord
 
   def ensure_field_names
     self.field_names = [] if field_names.blank?
+    self.suppressed_field_names = [] if suppressed_field_names.blank?
   end
 
   def ensure_field_names_are_names
-    return if field_names.is_a?(Array) && field_names.all?(String)
+    add_names_error(:field_names) unless flat_list_of_names?(field_names)
+    add_names_error(:suppressed_field_names) unless flat_list_of_names?(suppressed_field_names)
+  end
 
-    errors.add(:field_names, 'deve ser uma lista de nomes de campo, nunca valores')
+  def flat_list_of_names?(value)
+    value.is_a?(Array) && value.all?(String)
+  end
+
+  def add_names_error(attribute)
+    errors.add(attribute, 'deve ser uma lista de nomes de campo, nunca valores')
   end
 end
