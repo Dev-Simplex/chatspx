@@ -195,9 +195,14 @@ describe('validarPolitica', () => {
   });
 
   it('só cobra dias quando a continuidade está ligada', () => {
-    expect(validarPolitica(formValido({ continuidade_dias: 0 }))).not.toContain(
-      'CONTINUIDADE_DIAS'
-    );
+    // `continuidade_ativa: false` vai EXPLICITO: antes este caso dependia de o padrao da tela vir
+    // desligado, e o padrao passou a espelhar a coluna (default true). Teste que se apoia em valor
+    // padrao passa a testar o padrao, nao a regra.
+    expect(
+      validarPolitica(
+        formValido({ continuidade_ativa: false, continuidade_dias: 0 })
+      )
+    ).not.toContain('CONTINUIDADE_DIAS');
     expect(
       validarPolitica(
         formValido({ continuidade_ativa: true, continuidade_dias: 0 })

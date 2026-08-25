@@ -10,15 +10,23 @@ export const MODOS = ['rodizio', 'fila', 'online', 'off'];
 export const MODOS_OFERECIDOS = ['rodizio', 'fila'];
 export const MODOS_POSSE = ['assignee', 'designacao'];
 
+// Espelha os defaults da COLUNA (db/schema.rb, distribuicao_policies) — de proposito. Uma politica
+// criada por esta tela tem que se comportar igual a uma criada por `rake spx:distribuicao:policy`;
+// divergir aqui faria a mesma configuracao render resultados diferentes conforme a porta de entrada,
+// e ninguem olhando a tela desconfiaria. As duas excecoes sao intencionais e comentadas.
 export const politicaPadrao = () => ({
+  // `ativo` nasce FALSE (a coluna e true): a tela e um formulario em branco, e ligar o motor num
+  // time e uma decisao explicita — o estado vazio diz "preencha e salve para ligar".
   ativo: false,
   modo: 'rodizio',
-  modo_posse: 'designacao',
-  continuidade_ativa: false,
+  modo_posse: 'assignee',
+  continuidade_ativa: true,
   continuidade_dias: 30,
-  sla_assumir_minutos: 10,
+  sla_assumir_minutos: 30,
+  // `repasse_automatico` nasce FALSE (igual a coluna): repassar lead sozinho e comportamento que o
+  // gestor precisa pedir, nao herdar.
   repasse_automatico: false,
-  max_repasses: 0,
+  max_repasses: 2,
   pool_esgotado_destino_user_id: null,
   gatilho_sem_ia: false,
   pool: [],
