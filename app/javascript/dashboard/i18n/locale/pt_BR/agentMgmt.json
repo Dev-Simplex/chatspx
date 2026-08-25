@@ -94,10 +94,7 @@
           "ERROR": "A disponibilidade é necessária"
         },
         "SUPERVISED_TEAMS": {
-          "LABEL": "Times que ele supervisiona",
-          "DESCRIPTION": "Opcional: marque times apenas para restringir. Em branco, o supervisor abrange todos. O supervisor vê todas as conversas dos times marcados, inclusive as atribuídas a outros agentes e as de caixas de entrada das quais ele não é membro. Supervisionar não é o mesmo que ser membro do time.",
-          "EMPTY": "Ainda não existem times nesta conta.",
-          "ALL_TEAMS": "Nenhum time marcado — ele vai supervisionar todos os times."
+          "EMPTY": "Crie ao menos um time antes de atribuir o cargo de Supervisor — a supervisão é registrada por time."
         },
         "SUBMIT": "Editar agente"
       },

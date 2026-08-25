@@ -94,10 +94,7 @@
           "ERROR": "Availability is required"
         },
         "SUPERVISED_TEAMS": {
-          "LABEL": "Teams they supervise",
-          "DESCRIPTION": "Optional: pick teams only to narrow it down. Leave it blank and the supervisor covers every team. The supervisor sees every conversation of the selected teams, even the ones assigned to other agents or in inboxes they are not a member of. Supervising is not the same as being a team member.",
-          "EMPTY": "There are no teams in this account yet.",
-          "ALL_TEAMS": "No team selected — they will supervise every team."
+          "EMPTY": "Create at least one team before assigning the Supervisor role — supervision is recorded per team."
         },
         "SUBMIT": "Edit Agent"
       },
