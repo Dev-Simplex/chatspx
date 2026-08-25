@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::SendTemplateService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'send_template'
   end
@@ -9,8 +11,8 @@ class Captain::Tools::Copilot::SendTemplateService < Captain::Tools::BaseTool
   param :template_params, type: :string, desc: 'JSON array of template parameter values (optional)'
 
   def execute(conversation_id:, template_name:, template_params: nil)
-    conversation = @assistant.account.conversations.find_by(display_id: conversation_id)
-    return 'Conversation not found' if conversation.blank?
+    conversation = find_permissible_conversation(conversation_id)
+    return conversation_refusal(conversation_id) if conversation.blank?
     return 'Conversation inbox is not a WhatsApp channel' unless conversation.inbox&.channel_type == 'Channel::Whatsapp'
 
     parsed_params = parse_template_params(template_params)
