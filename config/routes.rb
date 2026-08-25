@@ -872,6 +872,25 @@ Rails.application.routes.draw do
         post :force_refresh, on: :collection
       end
 
+      # Politica de Distribuicao (rodizio/fila por time). O caminho aninhado NAO e enfeite: o
+      # Administrate::ResourceResolver deriva o modelo e o dashboard do controller_path, entao
+      # super_admin/spx/distribuicao/policies e o que resolve Spx::Distribuicao::Policy.
+      namespace :spx do
+        namespace :distribuicao do
+          resources :policies, only: [:index, :new, :create, :show, :edit, :update, :destroy]
+        end
+      end
+
+      # Politica de Distribuicao (rodizio/fila por time). Aninhado em spx/distribuicao porque o
+      # Administrate resolve modelo e dashboard pelo CAMINHO do controller
+      # (Administrate::ResourceResolver): super_admin/spx/distribuicao/policies ->
+      # Spx::Distribuicao::Policy + Spx::Distribuicao::PolicyDashboard.
+      namespace :spx do
+        namespace :distribuicao do
+          resources :policies, only: [:index, :new, :create, :show, :edit, :update, :destroy]
+        end
+      end
+
       # resources that doesn't appear in primary navigation in super admin
       resources :account_users, only: [:new, :create, :show, :destroy]
     end

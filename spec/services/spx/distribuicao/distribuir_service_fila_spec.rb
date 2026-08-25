@@ -60,7 +60,7 @@ RSpec.describe Spx::Distribuicao::DistribuirService do
     end
 
     it 'com repasse, a linha nasce ABERTA — "atribuído e ainda sem primeira resposta"' do
-      create(:distribuicao_policy, :com_repasse, account: account, team: team, pool: pool)
+      create(:distribuicao_policy, account: account, team: team, pool: pool)
 
       described_class.new(conversation).call
 
@@ -71,7 +71,7 @@ RSpec.describe Spx::Distribuicao::DistribuirService do
   end
 
   describe 'reuso pelo repasse' do
-    before { create(:distribuicao_policy, :com_repasse, account: account, team: team, pool: pool) }
+    before { create(:distribuicao_policy, account: account, team: team, pool: pool) }
 
     it 'exclui do pool quem já queimou a vez' do
       resultado = described_class.new(conversation, excluir: [corretores[0].id],

@@ -1164,10 +1164,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_19_150000) do
     t.boolean "espelho_vista", default: false, null: false
     t.jsonb "vista_padrao", default: {}, null: false
     t.integer "sla_assumir_minutos", default: 30, null: false
-    t.boolean "repasse_automatico", default: false, null: false
     t.integer "max_repasses", default: 2, null: false
     t.bigint "pool_esgotado_destino_user_id"
-    t.boolean "gatilho_sem_ia", default: false, null: false
     t.index ["account_id", "team_id"], name: "index_distribuicao_policies_on_account_id_and_team_id", unique: true
   end
 

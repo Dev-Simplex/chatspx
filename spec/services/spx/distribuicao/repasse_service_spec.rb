@@ -15,7 +15,7 @@ RSpec.describe Spx::Distribuicao::RepasseService do
   end
 
   let(:policy) do
-    create(:distribuicao_policy, :com_repasse, account: account, team: team,
+    create(:distribuicao_policy, account: account, team: team,
                                                pool: corretores.map { |u| { 'user_id' => u.id, 'ativo' => true } })
   end
 
@@ -122,8 +122,8 @@ RSpec.describe Spx::Distribuicao::RepasseService do
   end
 
   describe 'guardas' do
-    it 'não faz nada com o repasse desligado (SLA segue só como medida)' do
-      policy.update!(repasse_automatico: false)
+    it 'não faz nada em time com espelho no Vista (SLA segue só como medida)' do
+      policy.update!(espelho_vista: true)
       log = designacao(corretores[0])
 
       expect(described_class.new(log).call.motivo).to eq('sem_policy')

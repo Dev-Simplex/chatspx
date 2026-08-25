@@ -321,7 +321,7 @@ module Spx
 
       def snapshot_repasse
         {
-          'automatico' => @policy&.repasse_automatico,
+          'repassa' => @policy&.repassa?,
           'sla_minutos' => @policy&.sla_assumir_minutos,
           'max' => @policy&.max_repasses,
           'destino_esgotado' => @policy&.pool_esgotado_destino_user_id

@@ -7,13 +7,12 @@ RSpec.describe Spx::Distribuicao::Policy do
   let(:team) { create(:team, account: account) }
 
   describe 'defaults' do
-    # O contrato mais importante do pacote: quem já roda hoje não muda de comportamento ao
-    # subir esta versão. O repasse e o gatilho novo nascem DESLIGADOS.
-    it 'nasce sem repasse automático e sem gatilho sem IA' do
+    # Não há interruptor: política ativa que distribui já repassa. O que existe é EXCLUSÃO por
+    # motivo (espelho no Vista), não toggle.
+    it 'repassa por padrão' do
       policy.save!
-      expect(policy.repasse_automatico).to be(false)
-      expect(policy.gatilho_sem_ia).to be(false)
-      expect(policy.repassa?).to be(false)
+      expect(policy.repassa?).to be(true)
+      expect(policy.max_repasses).to eq(2)
     end
   end
 
@@ -38,7 +37,19 @@ RSpec.describe Spx::Distribuicao::Policy do
 
   describe '#repassa?' do
     it 'exige a política ativa — desativar o time desliga o repasse junto' do
-      policy.update!(repasse_automatico: true, ativo: false)
+      policy.update!(ativo: false)
+      expect(policy.repassa?).to be(false)
+    end
+
+    # A única exclusão, e é por MOTIVO: o card do lead já existe no Vista no nome do corretor
+    # e o DELETE de lá responde 401 — não há como desfazer um repasse errado.
+    it 'não repassa em time com espelho no Vista' do
+      policy.update!(espelho_vista: true)
+      expect(policy.repassa?).to be(false)
+    end
+
+    it 'não repassa em modo inerte' do
+      policy.update!(modo: 'off')
       expect(policy.repassa?).to be(false)
     end
   end

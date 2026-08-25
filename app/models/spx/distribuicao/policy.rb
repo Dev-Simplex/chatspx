@@ -59,14 +59,22 @@ module Spx
       end
 
       # O Motor só age nestes modos. `online` e `off` seguem no-op.
+      MODOS_QUE_DISTRIBUEM = %w[rodizio fila].freeze
+
       def distribui?
-        %w[rodizio fila].include?(modo)
+        MODOS_QUE_DISTRIBUEM.include?(modo)
       end
 
-      # A AÇÃO de repasse. Desligado (default), `sla_assumir_minutos` continua sendo apenas a
-      # medida que a tela do gestor lê — o comportamento de quem já está no ar.
+      # O repasse por SLA vale para toda política ativa que distribui — não há interruptor.
+      #
+      # A ÚNICA exclusão é por motivo, não por toggle: política com `espelho_vista` não repassa
+      # porque o card do lead já existe no Vista no nome do corretor escolhido. Passar o lead
+      # adiante exigiria reescrever o `CorretorNegocio` de um card existente (capacidade não
+      # testada) e o `DELETE` do Vista responde 401 — não há como desfazer. Errar aí custa um
+      # lead que o corretor já estava trabalhando, o que é pior que o lead ficar parado.
+      # Nesses times o `sla_assumir_minutos` segue valendo como MEDIDA na tela do gestor.
       def repassa?
-        ativo? && repasse_automatico?
+        ativo? && distribui? && !espelho_vista? && sla_assumir_minutos.to_i.positive?
       end
 
       # Teto de repasses atingido? `max_repasses` zero = sem teto.

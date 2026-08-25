@@ -48,10 +48,10 @@ module Spx
         Rails.logger.error("[Spx::Distribuicao::DesignacaoListener] mensagem conv=#{message&.conversation_id}: #{e.message}")
       end
 
-      # Gatilho SEM IA (opt-in por política, `gatilho_sem_ia`). O Motor nasceu pendurado no
-      # handoff do Captain, então um time que recebe conversa por FLOW ou REGRA (`assign_team`)
-      # nunca distribuía — a conversa caía no time e ficava parada até alguém pegar na mão.
-      # Aqui o TEAM_CHANGED passa a acionar o Motor nesse caminho.
+      # O Motor nasceu pendurado no handoff do Captain, então um time que recebe conversa por
+      # FLOW ou REGRA (`assign_team`) nunca distribuía — a conversa caía no time e ficava parada
+      # até alguém pegar na mão. Aqui o TEAM_CHANGED passa a acionar o Motor nesse caminho, sem
+      # interruptor: ter política de distribuição no time JÁ é a intenção de distribuir.
       def team_changed(event)
         conversation, _account = extract_conversation_and_account(event)
         return unless distribuivel_sem_ia?(conversation)
@@ -122,8 +122,7 @@ module Spx
       end
 
       def gatilho_ligado?(conversation)
-        policy = Policy.for_team(conversation.account_id, conversation.team_id)
-        policy.present? && policy.gatilho_sem_ia? && policy.distribui?
+        Policy.for_team(conversation.account_id, conversation.team_id)&.distribui? || false
       end
 
       # Soltar o espelho é o jeito NATIVO de calar a IA: todo o pipeline do Captain gateia em

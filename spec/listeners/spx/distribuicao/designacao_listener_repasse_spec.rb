@@ -112,17 +112,17 @@ RSpec.describe Spx::Distribuicao::DesignacaoListener do
                                    pool: [{ 'user_id' => corretor.id, 'ativo' => true }])
     end
 
-    it 'distribui quando o gatilho está LIGADO e a conversa caiu no time sem dono' do
-      policy.update!(gatilho_sem_ia: true)
+    it 'distribui quando a conversa cai no time sem dono' do
+      policy
 
       listener.team_changed(evento('team.changed', conversation: conversation))
 
       expect(conversation.reload.assignee_id).to eq(corretor.id)
     end
 
-    # Default: o Motor segue só no handoff do Captain — ligar o job não muda conta nenhuma.
-    it 'não faz nada com o gatilho desligado' do
-      policy.update!(gatilho_sem_ia: false)
+    # Sem política no time não há intenção de distribuir — o Motor segue inerte.
+    it 'não faz nada em time sem política' do
+      policy.update!(modo: 'off')
 
       listener.team_changed(evento('team.changed', conversation: conversation))
 
@@ -130,7 +130,7 @@ RSpec.describe Spx::Distribuicao::DesignacaoListener do
     end
 
     it 'não atropela a IA que está atendendo' do
-      policy.update!(gatilho_sem_ia: true)
+      policy
       bot = create(:agent_bot, account: account)
       conversation.update!(assignee_agent_bot_id: bot.id)
 
@@ -140,7 +140,7 @@ RSpec.describe Spx::Distribuicao::DesignacaoListener do
     end
 
     it 'não redesigna quando já existe designação viva' do
-      policy.update!(gatilho_sem_ia: true)
+      policy
       designacao_push(outro)
 
       listener.team_changed(evento('team.changed', conversation: conversation))

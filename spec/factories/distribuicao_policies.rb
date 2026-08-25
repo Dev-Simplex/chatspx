@@ -11,12 +11,12 @@ FactoryBot.define do
     continuidade_dias { 30 }
     pool { [] }
     sla_assumir_minutos { 30 }
+    max_repasses { 2 }
 
-    # Repasse por SLA ligado. Nasce desligado no banco de propósito (ninguém que já roda hoje
-    # muda de comportamento), então o teste que quer a AÇÃO pede este trait explicitamente.
-    trait :com_repasse do
-      repasse_automatico { true }
-      max_repasses { 2 }
+    # Espelho no Vista: o card do lead já existe no nome do corretor e o DELETE de lá é 401,
+    # então esta política NÃO repassa — o SLA volta a ser só medida.
+    trait :espelho_vista do
+      espelho_vista { true }
     end
 
     trait :fila do

@@ -2,21 +2,21 @@
 # passa ao PRÓXIMO do rodízio e, esgotadas as tentativas, escala para um responsável fixo.
 #
 # Até aqui `sla_assumir_minutos` era MEDIDA — a tela do gestor contava "N leads parados há mais
-# de X" e nada acontecia. A amarra que segurou a AÇÃO é da conta 6 (repassar exigiria reescrever
-# o CorretorNegocio de um card já criado no Vista, e o DELETE de lá responde 401). Estes campos
-# tornam a ação POSSÍVEL sem torná-la automática: `repasse_automatico` nasce FALSE, então quem já
-# roda hoje continua exatamente como está — a conta 6 segue só medindo.
+# de X" e nada acontecia. Estas colunas são a AÇÃO, e são CONFIGURAÇÃO, não interruptor: o
+# repasse vale para toda política de distribuição ativa, sem flag para ligar.
 #
-# `gatilho_sem_ia` é ortogonal e também opt-in: hoje o Motor só é chamado no handoff do Captain
-# (HumanHandoffService), então um time que recebe conversa por flow/regra (`assign_team`) nunca
-# distribui. Ligado, o TEAM_CHANGED passa a acionar o Motor.
+# A única exclusão é por MOTIVO, não por toggle: política com `espelho_vista` não repassa,
+# porque o card do lead já existe no Vista no nome do corretor e reescrevê-lo exigiria um
+# `CorretorNegocio` novo sobre card existente (não testado) — e o DELETE do Vista responde 401.
+# Sem desfazer, errar custa um lead que o corretor já trabalhava. Ver Policy#repassa?.
 class AddRepasseToDistribuicao < ActiveRecord::Migration[7.1]
   def change
     change_table :distribuicao_policies, bulk: true do |t|
-      t.boolean :repasse_automatico, null: false, default: false
+      # Quantas vezes o lead pode andar antes de escalar. 0 = sem teto.
       t.integer :max_repasses, null: false, default: 2
+      # Para quem vai quando o teto estoura ou o pool acaba. Sem destino, a conversa apenas
+      # volta a ficar sem dono — inventar um destino seria pior que devolvê-la à fila.
       t.bigint :pool_esgotado_destino_user_id
-      t.boolean :gatilho_sem_ia, null: false, default: false
     end
 
     # Quantas vezes ESTA designação já foi repassada. Zero = escolha original do Motor. É o

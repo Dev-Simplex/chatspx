@@ -9,8 +9,8 @@
 #      calendário em SQL; conferir sobre a tabela inteira seria caro. Sobre dezenas de linhas
 #      é barato e fica num lugar só.
 #
-# Só olha políticas com `repasse_automatico` LIGADO. Quem usa o SLA apenas como medida (a conta
-# 6, e qualquer política nova, já que o default é false) nunca é tocado por este job.
+# Só olha políticas que REPASSAM (ver Policy#repassa?): ativas, que distribuem e sem espelho no
+# Vista. Time espelhado segue usando o SLA apenas como medida na tela do gestor.
 module Spx
   module Distribuicao
     class VarrerSlaJob < ApplicationJob
@@ -21,7 +21,7 @@ module Spx
       LOTE = 200
 
       def perform
-        policies = Policy.ativas.where(repasse_automatico: true)
+        policies = Policy.ativas.where(espelho_vista: false, modo: Policy::MODOS_QUE_DISTRIBUEM)
         return if policies.empty?
 
         menor_sla = policies.minimum(:sla_assumir_minutos).to_i
@@ -34,7 +34,7 @@ module Spx
 
       private
 
-      # `designado_em` no relógio de PAREDE com o MENOR sla de todas as políticas: é o limite
+      # `designado_em` no relógio de PAREDE com o MENOR sla das políticas: é o limite
       # inferior seguro — nenhuma designação pode ter vencido em horário comercial antes de
       # ter vencido na parede. O RepasseService descarta as que ainda não venceram de fato.
       def candidatas(policies, menor_sla)
