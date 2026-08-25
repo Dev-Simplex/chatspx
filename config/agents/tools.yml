@@ -125,6 +125,11 @@
   description: 'Registra uma observação como nota privada, pro humano notar ao ler o histórico'
   icon: 'note'
 
+- id: registrar_preferencia_atendente
+  title: 'Registrar Preferência de Atendente'
+  description: 'Registra que o cliente pediu um atendente pelo nome, para a distribuição honrar o pedido'
+  icon: 'user'
+
 - id: registrar_assunto
   title: 'Registrar Assunto'
   description: 'Registra um assunto/tarefa identificado na conversa, que vira item de checklist pra equipe'
