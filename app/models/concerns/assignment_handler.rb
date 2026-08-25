@@ -87,9 +87,16 @@ module AssignmentHandler
   # executou a (re)atribuição precisa ser CAPTURADA aqui, no contexto sync (Current.user presente),
   # e propagada pelo event data. Sem isso o guard "auto-desatribuição não notifica" morre no worker.
   # Gated pela flag (AD-15/OQ-D2): contas Clássico não pagam o custo nem mudam de comportamento.
+  # `assignee_changed_by` NAO e mais gated pela reply_assignment_gate: alem da notificacao de
+  # takeover (que tem portao PROPRIO em NotificationListener#notify_previous_assignee), este ator e
+  # o UNICO sinal que prova "um humano de carne e osso reatribuiu" para o
+  # AutomationRuleListener#human_assignment_takeover?, que decide se cancela o menu do bot em
+  # espera. `performed_by` (= Current.executed_by) nao serve: so a automacao o preenche, entao
+  # prova AUTOMACAO e nunca prova HUMANO. Com o gate aqui, as contas que rodam o motor de flows
+  # (Catatau e AGN, ambas com a flag DESLIGADA) nunca veriam ator nenhum e a atribuicao humana
+  # deixaria de encerrar o menu — perdendo o proposito da guarda. Fora do ASSIGNEE_CHANGED segue {}.
   def assignment_change_event_data(event)
     return {} unless event == ASSIGNEE_CHANGED
-    return {} unless account.reply_assignment_gate_enabled?
 
     { assignee_changed_by: Current.user }
   end
