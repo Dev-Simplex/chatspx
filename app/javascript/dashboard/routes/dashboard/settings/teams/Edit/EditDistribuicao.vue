@@ -103,6 +103,12 @@ function abrirSuspensao(entrada) {
   suspensaoMotivo.value = entrada.motivo || '';
 }
 
+function atualizar(entrada, mudancas) {
+  pool.value = pool.value.map(e =>
+    e.user_id === entrada.user_id ? { ...e, ...mudancas } : e
+  );
+}
+
 function confirmarSuspensao(entrada) {
   atualizar(entrada, {
     ativo: true,
@@ -125,12 +131,6 @@ function reativar(entrada) {
     motivo: null,
     estado: 'ativo',
   });
-}
-
-function atualizar(entrada, mudancas) {
-  pool.value = pool.value.map(e =>
-    e.user_id === entrada.user_id ? { ...e, ...mudancas } : e
-  );
 }
 
 async function salvar() {
@@ -354,7 +354,10 @@ async function salvar() {
           {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.EMPTY') }}
         </p>
 
-        <ul v-else class="flex flex-col divide-y divide-n-weak rounded-lg border border-n-weak">
+        <ul
+          v-else
+          class="flex flex-col divide-y divide-n-weak rounded-lg border border-n-weak"
+        >
           <li
             v-for="(entrada, indice) in pool"
             :key="entrada.user_id"
@@ -394,53 +397,59 @@ async function salvar() {
               </span>
 
               <div class="flex items-center gap-1">
-                <button
+                <NextButton
                   type="button"
-                  class="text-xs text-n-slate-11 px-1"
+                  ghost
+                  slate
+                  size="xs"
+                  icon="i-lucide-chevron-up"
                   :title="$t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.UP')"
                   @click="mover(indice, -1)"
-                >
-                  ↑
-                </button>
-                <button
+                />
+                <NextButton
                   type="button"
-                  class="text-xs text-n-slate-11 px-1"
+                  ghost
+                  slate
+                  size="xs"
+                  icon="i-lucide-chevron-down"
                   :title="$t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.DOWN')"
                   @click="mover(indice, 1)"
-                >
-                  ↓
-                </button>
-                <button
+                />
+                <NextButton
                   v-if="entrada.estado === 'ativo'"
                   type="button"
-                  class="text-xs text-n-slate-11 px-2"
+                  ghost
+                  slate
+                  size="xs"
+                  :label="$t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.SUSPEND')"
                   @click="abrirSuspensao(entrada)"
-                >
-                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.SUSPEND') }}
-                </button>
-                <button
+                />
+                <NextButton
                   v-else
                   type="button"
-                  class="text-xs text-n-blue-11 px-2"
+                  ghost
+                  blue
+                  size="xs"
+                  :label="$t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.REACTIVATE')"
                   @click="reativar(entrada)"
-                >
-                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.REACTIVATE') }}
-                </button>
-                <button
+                />
+                <NextButton
                   v-if="entrada.ativo"
                   type="button"
-                  class="text-xs text-n-slate-11 px-2"
+                  ghost
+                  slate
+                  size="xs"
+                  :label="$t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.DISABLE')"
                   @click="desligar(entrada)"
-                >
-                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.DISABLE') }}
-                </button>
-                <button
+                />
+                <NextButton
                   type="button"
-                  class="text-xs text-n-ruby-11 px-2"
+                  ghost
+                  ruby
+                  size="xs"
+                  :label="$t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.REMOVE')"
                   @click="remover(entrada)"
-                >
-                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.REMOVE') }}
-                </button>
+                />
               </div>
             </div>
 
@@ -468,30 +477,35 @@ async function salvar() {
                   class="w-full rounded-lg border border-n-weak bg-n-solid-1 text-sm"
                 />
               </label>
-              <button
+              <NextButton
                 type="button"
-                class="text-xs text-n-blue-11 px-2 py-2"
+                blue
+                size="xs"
+                :label="$t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.SUSPEND')"
                 @click="confirmarSuspensao(entrada)"
-              >
-                {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.SUSPEND') }}
-              </button>
+              />
             </div>
           </li>
         </ul>
 
-        <div v-if="candidatos.length" class="flex items-center gap-2 flex-wrap pt-2">
+        <div
+          v-if="candidatos.length"
+          class="flex items-center gap-2 flex-wrap pt-2"
+        >
           <span class="text-xs text-n-slate-11">
             {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.ADD') }}
           </span>
-          <button
+          <NextButton
             v-for="candidato in candidatos"
             :key="candidato.user_id"
             type="button"
-            class="text-xs text-n-blue-11 border border-n-weak rounded-lg px-2 py-1"
+            faded
+            blue
+            size="xs"
+            icon="i-lucide-user-plus"
+            :label="candidato.nome"
             @click="adicionar(candidato)"
-          >
-            + {{ candidato.nome }}
-          </button>
+          />
         </div>
       </div>
 
