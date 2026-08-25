@@ -109,6 +109,11 @@ const findCustomRole = agent =>
   customRoles.value.find(role => role.id === agent.custom_role_id);
 
 const getAgentRoleName = agent => {
+  // Quem supervisiona aparece como "Supervisor" no lugar do papel de origem: é o
+  // recorte que importa na lista, e a mesma opcao que o modal de edicao oferece.
+  if (isSupervisor(agent)) {
+    return t('AGENT_MGMT.AGENT_TYPES.SUPERVISOR');
+  }
   if (!agent.custom_role_id) {
     return t(`AGENT_MGMT.AGENT_TYPES.${agent.role.toUpperCase()}`);
   }
@@ -283,6 +288,9 @@ const confirmDeletion = () => {
                 </span>
                 <div class="w-px h-3 bg-n-strong rounded-lg" />
                 <span
+                  v-tooltip.top="
+                    isSupervisor(agent) ? supervisedTeamNames(agent) : ''
+                  "
                   class="block w-fit text-body-main text-n-slate-11 relative"
                   :class="{
                     'hover:text-n-slate-12 group cursor-pointer':
@@ -327,13 +335,6 @@ const confirmDeletion = () => {
                   class="text-body-main text-n-slate-11"
                 >
                   {{ $t('AGENT_MGMT.LIST.VERIFICATION_PENDING') }}
-                </span>
-                <span
-                  v-if="isSupervisor(agent)"
-                  v-tooltip.top="supervisedTeamNames(agent)"
-                  class="px-1.5 py-0.5 rounded-md bg-n-teal-3 text-n-teal-11 text-label-small"
-                >
-                  {{ $t('AGENT_MGMT.LIST.SUPERVISOR') }}
                 </span>
               </div>
             </div>
