@@ -92,15 +92,18 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
         expect(attrs['dados_imoveis']).to include('9908')
       end
 
-      # O rescue é o que torna a regressão invisível: sem esta asserção, uma falha aqui
-      # continuaria passando despercebida se as demais fossem afrouxadas.
+      # O rescue é o que torna a regressão invisível. Os dois níveis são conferidos de
+      # propósito: assim a asserção pega a exceção engolida independente de em qual nível
+      # ela for logada, e não vira refém da escolha entre warn e error.
       it 'does not swallow an exception on the way' do
         conversation.update!(custom_attributes: { 'urls_imoveis' => nil })
         allow(Rails.logger).to receive(:error)
+        allow(Rails.logger).to receive(:warn)
 
         track
 
         expect(Rails.logger).not_to have_received(:error).with(/track_urls/)
+        expect(Rails.logger).not_to have_received(:warn).with(/track_urls/)
       end
     end
 
