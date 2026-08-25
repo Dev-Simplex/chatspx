@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_25_101025) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1163,6 +1163,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
     t.boolean "espelho_vista", default: false, null: false
     t.jsonb "vista_padrao", default: {}, null: false
     t.integer "sla_assumir_minutos", default: 30, null: false
+    t.boolean "repasse_automatico", default: false, null: false
+    t.integer "max_repasses", default: 3, null: false
+    t.boolean "sla_respeita_horario", default: true, null: false
+    t.boolean "expirado_conta_como_recebido", default: true, null: false
+    t.bigint "pool_esgotado_destino_user_id"
+    t.jsonb "horario", default: {}, null: false
     t.index ["account_id", "team_id"], name: "index_distribuicao_policies_on_account_id_and_team_id", unique: true
   end
 
