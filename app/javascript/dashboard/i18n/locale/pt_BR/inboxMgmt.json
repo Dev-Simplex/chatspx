@@ -769,11 +769,11 @@
       "AGENT_CONVERSATION_ISOLATION_SUB_TEXT": "Quando ativado, o agente só abre as conversas atribuídas a ele; as demais mostram um aviso para solicitar o atendimento. Conversas sem dono seguem disponíveis para assumir; o admin vê tudo.",
       "ISOLATION_TEAMS": {
         "LABEL": "Times em que esta regra vale",
-        "ALL_TEAMS": "Lista vazia: a regra vale para TODOS os times — é o padrão e é o comportamento de hoje.",
+        "ALL_TEAMS": "Lista vazia: a regra vale para TODOS os times. É o padrão e é o comportamento de hoje.",
         "SCOPED": "A regra vale só para conversas dos times escolhidos. Nos outros times ninguém fica isolado.",
         "NO_TEAM_NEVER_ISOLATED": "Conversa sem time nunca é isolada, mesmo com a regra ligada: ela nasce sem time antes da triagem.",
-        "NO_TEAM_STILL_ISOLATED": "Conversa sem time CONTINUA isolada nesta regra — aqui o bloqueio é por dono, não por time. Ao escolher times, a conversa sem time sai do escopo e volta a abrir.",
-        "NO_TEAMS": "Nenhum time cadastrado nesta conta — a regra vale para todos."
+        "NO_TEAM_STILL_ISOLATED": "Conversa sem time CONTINUA isolada nesta regra, com ou sem times escolhidos: aqui o bloqueio é por dono, não por time.",
+        "NO_TEAMS": "Nenhum time cadastrado nesta conta, então a regra vale para todos."
       },
       "PENDING_STATUS": {
         "TITLE": "Permitir status Pendente",
