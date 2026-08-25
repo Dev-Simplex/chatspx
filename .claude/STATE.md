@@ -10,6 +10,77 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-24] 🔴 A BIGSTORE NÃO TEM BOT NENHUM — e os comentários chegavam e eram jogados fora (branch `PauloSeze/instagram-comentarios`)
+
+> Sessão de retomada do módulo de Instagram com foco na BigStore. Tudo medido read-only na `.232`
+> (conta 7, inbox 57). Detalhe no vault: `spx-os/clientes/bigstore.md`.
+
+- **🔴 O achado que inverte a premissa: não há automação atendendo a BigStore.** Desde que o SPX
+  enxerga o canal (03/08) **nunca houve resposta automática**. Mediana de resposta por semana:
+  **48min · 19min · 80min · 20min**; p90 de **5h45**; respostas em menos de 30s ficam entre 3,5% e
+  8,7%. As saídas existem **só das 08h às 18h** e a saudação varia o emoji na mão (`Oie, bom dia 😃`
+  44x, `🌞` 36x, `☀️` 35x). É **uma pessoa** respondendo ~1.300 mensagens por semana.
+- **A Bia (#18) está desligada de fato:** prompt de 5.520 chars, `config['tools']` **nil**, 0
+  documentos, 10 FAQs, elegível na inbox 57 — e **1 conversa de 1.577 com o espelho atribuído**.
+  Falou **9 vezes em 60 dias, todas na conversa 2675 (a do Paulo)**, a última em 15/08.
+- **O trabalho da pessoa é triagem geográfica, e é quase todo automatizável.** Frases mais repetidas
+  em 7 dias: `Entre em contato com a loja pelo WhatsApp` 55x · `Qual das lojas?` 26x · o telefone de
+  Cacoal **26x** · `Qual cidade seria?` 22x. É exatamente o que a `buscar_unidades` (PR #61) devolve.
+- 🔴 **As 10 FAQs no ar dizem o CONTRÁRIO do que o humano faz.** A #88 afirma que *"a lista de
+  cidades, o endereço e o telefone não são consultáveis pelo direct"*. Com a tool, isso vira mentira
+  sobre a própria capacidade.
+- 🔴 **Na BigStore handoff não tem para onde ir:** a conta 7 tem **0 automation rules, 0 times e 2
+  usuários — Paulo (#51) e Simplex (#1)**. Ninguém do cliente tem conta no SPX. Ou a IA resolve, ou
+  a mensagem morre. É o oposto da Tozi, e muda a conduta inteira.
+- **O canal é de mídia:** 30 dias = 3.667 entradas, **1.691 com anexo (46%)** — **1.126 `ig_story`**,
+  455 vídeo, 73 imagem. Justifica o `media_pipeline` que já está ligado.
+
+- **🟢 COMENTÁRIOS: a precondição está provada ao vivo, e o defeito era nosso.** Payload real
+  capturado em 24/08 (`field: comments`, com `from.id`/`username`, `media.id`, texto). Em 7 dias:
+  **51 entregas, 39 comentários distintos, 16 publicações — todos descartados** pelo
+  `test_event?`, que classifica qualquer `changes` como evento de teste do painel da Meta.
+- **Fase 1 implementada** (6 commits, worktree `orca/workspaces/chatspx/instagram-comentarios`):
+  discriminador de teste vira `entry.id == "0"` (o que a doc no rodapé do próprio arquivo sempre
+  disse) + roteamento por `field` + tabelas `social_comentarios`/`social_publicacoes` + cache de
+  publicação pela Graph. **Nada é enviado; esta fatia só captura.**
+- **Três decisões vieram da medição, não da documentação:** (a) 51 entregas para 39 comentários — a
+  Meta **reentrega**, então idempotência por índice único é o caso normal, não zelo; (b) **22 das 51
+  eram da própria `@bigstoreutilidades`** — o webhook devolve o que a conta comenta, e sem a marca
+  `proprio` um agente responderia a si mesmo; (c) comentário não tem destinatário, então o canal se
+  acha por `entry.id`.
+- **Bloco 0 junto (dívida do STATE de 18/08):** `INSTAGRAM_SCOPES` e `INSTAGRAM_SUBSCRIBED_FIELDS`
+  viram config de instalação, que **acrescenta e nunca remove** o núcleo. E o `subscribe` para de
+  mentir: `HTTParty.post` **não** levanta exceção em 400, então o `rescue StandardError` só pegava
+  falha de rede e recusa da Meta passava por sucesso; agora a resposta é conferida e, se o lote
+  completo for recusado, recua-se pro núcleo em vez de deixar o canal sem assinatura nenhuma.
+- **Medido:** suíte de Instagram **135 exemplos / 0 falhas** · rubocop **0** nos 14 arquivos ·
+  `zeitwerk:check` "All is good!" · `schema.rb` (escrito à mão) carrega em banco novo criando as
+  duas tabelas · `installation_config.yml` parseia com 97 entradas e zero chave duplicada ·
+  `global_config_service` 2/0 e `global_config` 3/0. ⚠️ **O dump automático do schema é armadilha:**
+  o `chatwoot_test` da box é compartilhado e o dump saiu com **405 inserções**, arrastando 17
+  tabelas de outras frentes.
+- ⚠️ **`installation_configs_controller_spec.rb` NÃO foi rodado, de propósito** — ver o incidente
+  abaixo. Conferido por leitura: ele cria o próprio `TESTCONFIG` por factory e só checa HTTP 200;
+  não conta entradas nem lê o `installation_config.yml`, e as duas chaves novas (`locked: false`)
+  só aumentam o conjunto `InstallationConfig.editable`.
+- 🔴 **INCIDENTE QUE EU CAUSEI NA `.232`, contido:** spec de super_admin que renderiza view dispara
+  um `vite build --mode test` por exemplo, e **eles não terminam**. Cinco execuções daquele arquivo
+  deixaram **94 builds presos**, levando o Postgres a **104 conexões com `max_connections=100`** —
+  93 no `chatwoot_test`, sobrando **5 para o `chatwoot_production`** da box, que atende contas
+  reais. A partir daí todo rspec morria em `PG::ConnectionBad`, inclusive produzindo "3 falhas"
+  falsas que não eram do código. **Resolvido com autorização do Paulo:** matar os builds devolveu
+  as conexões sozinho (104 → **9**, `chatwoot_test` em zero), sem tocar no banco; app em HTTP 200,
+  web e worker ativos. Receita e diagnóstico na memória `reference-ci-232-chatspx`.
+- ⏭️ **Falta:** a tela (abas Comentários e Publicações) e a resposta pública. **PR ainda não
+  aberto** — corpo pronto no scratchpad.
+- ⏭️ **Duas perguntas de fato para o cliente, agora com gente esperando nos comentários:**
+  **Rondonópolis está aberta?** (FAQ #84 diz que foi transferida; `bigstore-lojas.md`, corrigido
+  pelo Paulo em 17/08, lista como ativa — e **duas pessoas perguntaram sobre ela em 24/08**) e
+  **domingo** (FAQ #80 diz "não abre"; 5 das 20 abrem 08h–13h).
+- ⚠️ **Deixado na box:** worktree de CI `/tmp/ci-igcom` e o banco descartável `chatwoot_schemacheck`.
+- ⚠️ **Limitação a declarar antes de prometer cobertura:** post em colab **não entrega comentário**
+  para o app da conta, e a BigStore usa colab em lançamento.
+
 ### [2026-08-24] 🟢 VOCABULÁRIO POR ESPECIALIDADE — vendas fala CORRETOR, locação fala CONSULTOR (banco conta 6)
 
 > Queixa do time. Medido por agente antes de mexer; só prompt, sem deploy, sem tocar FAQ.
