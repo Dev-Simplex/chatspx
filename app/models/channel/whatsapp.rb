@@ -40,6 +40,12 @@ class Channel::Whatsapp < ApplicationRecord
     'Whatsapp'
   end
 
+  # Menu de opcoes: os dois providers montam botoes/lista a partir de content_attributes['items']
+  # (Whatsapp::Providers::BaseService#create_payload_based_on_items) — vale para cloud e 360dialog.
+  def supports_interactive_items?
+    true
+  end
+
   # Quem lê content_attributes['interactive_payload'] é o WhatsappCloudService#send_message.
   # O 360Dialog (todo provider que não seja whatsapp_cloud) ignora a chave e cai no ramo de
   # texto/anexo — o payload some sem erro.

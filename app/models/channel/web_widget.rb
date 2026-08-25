@@ -81,6 +81,11 @@ class Channel::WebWidget < ApplicationRecord
     'Website'
   end
 
+  # Menu de opcoes: o widget renderiza input_select nativamente no front.
+  def supports_interactive_items?
+    true
+  end
+
   def web_widget_script(sdk_version: nil, persist_conversation_to_parent: false)
     sdk_path = '/packs/js/sdk.js'
     sdk_path += "?v=#{ERB::Util.url_encode(sdk_version)}" if sdk_version.present?

@@ -17,6 +17,18 @@ module Channelable
   def supports_interactive_payload?
     false
   end
+
+  # O canal transforma `content_type: input_select` + content_attributes['items'] em menu
+  # (botões/lista/quick replies)? É a MESMA armadilha da pergunta acima, uma camada abaixo:
+  # quem não implementa não falha, manda só o `content` e as opções somem — a pessoa recebe
+  # uma pergunta sem resposta possível.
+  #
+  # Falso por padrão de propósito. Errar para o `false` custa um passo `skipped` triável no
+  # Flow; errar para o `true` custa uma mensagem muda no cliente. Canal novo entra aqui de
+  # forma explícita, junto do código que de fato desenha o menu.
+  def supports_interactive_items?
+    false
+  end
 end
 
 Channelable.prepend_mod_with('Channelable')

@@ -287,6 +287,12 @@ class Flows::ActionService < ActionService
     channel.is_a?(Channel::Whatsapp) && channel.provider == 'whatsapp_cloud'
   end
 
+  # Diferente do whatsapp_cloud_inbox?: menu de opções não é exclusividade do WhatsApp — Telegram,
+  # Facebook, LINE, widget e Api (WAHA) também desenham. Quem responde é o canal (Channelable).
+  def inbox_supports_interactive_items?
+    @conversation.inbox.channel.try(:supports_interactive_items?) || false
+  end
+
   def approved_template?(template)
     templates = @conversation.inbox.channel.message_templates
     templates.present? && templates.any? { |candidate| template_matches?(candidate, template) }

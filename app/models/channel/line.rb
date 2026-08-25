@@ -35,6 +35,11 @@ class Channel::Line < ApplicationRecord
     'LINE'
   end
 
+  # Menu de opcoes: vira template de botoes em Line::SendOnLineService.
+  def supports_interactive_items?
+    true
+  end
+
   def client
     @client ||= Line::Bot::Client.new do |config|
       config.channel_id = line_channel_id
