@@ -54,6 +54,13 @@ dia — **conferir se fechou e abrir o PR dela**, do mesmo jeito que os outros t
 
 ## 3. Como despachar (receita testada em 11/08)
 
+> ⚠️ **ESTA SEÇÃO ESTÁ SUPERADA.** Use **`docs/ORQUESTRACAO-ORCA.md`**, escrito em 12/08 a partir do
+> guia oficial (`orca skills get orchestration --full`) e dos erros medidos. Dois pontos abaixo são
+> comprovadamente errados: o caminho de baixo nível funciona mas **não tem ciclo de vida** (workers
+> que terminam ficam pendurados emitindo batimento, porque `worker-release` não os enxerga), e a
+> dica de se identificar pelo `preview` do `terminal list` **engana** — foi ela que fez esta sessão
+> vincular o Run ao terminal errado.
+
 O atalho oficial `orca orchestration worker-start` **falha neste host** com `selector_not_found`
 para todos os agentes conhecidos, em qualquer worktree. Causa não identificada. O caminho de baixo
 nível, que o próprio guia sanciona, funciona:
