@@ -38,11 +38,35 @@
 - **[PR #61](https://github.com/Dev-Simplex/chatspx/pull/61)** virou Fases 1+2: 9 commits, 34
   arquivos. **Os 7 primeiros commits são a Fase 1 e podem ser mergeados sozinhos** — é onde está o
   ganho maior (a IA respondendo sobre unidade), e está dito no corpo do PR.
-- ⏭️ **A tela de Rede Social / comentários também não existe.** O desenho está em
-  `docs/SPEC-instagram-social.md` §5 (6 abas), e o [PR #68](https://github.com/Dev-Simplex/chatspx/pull/68)
-  já entrega o dado que as abas ① Comentários e ② Publicações precisam. Falta o front + um endpoint
-  de leitura. ⚠️ **Os dois documentos de desenho só existem na `conciliacao/higiene-11ago`** — não
+- ✅ **A tela de Rede Social também foi construída**, no mesmo dia, dentro do PR #68 — ver a entrada
+  abaixo. ⚠️ **Os dois documentos de desenho só existem na `conciliacao/higiene-11ago`** — não
   estão na `homologacao` nem na `producao`.
+
+### [2026-08-25] 🟢 PÁGINA REDE SOCIAL — o comentário capturado deixa de ser invisível (no PR #68)
+
+> Fase 1 da `docs/SPEC-instagram-social.md` §6: abas ① Comentários e ② Publicações. Sem ela o
+> PR #68 capturava comentário que ninguém via.
+
+- **Item de topo na sidebar**, ao lado de Conversas e Kanban — **não em Configurações**, porque é
+  operação diária (a SPEC pede assim na §5). Mesmo **gate por dado** da tela de unidades: só
+  aparece para conta que tem comentário capturado. Admin-only.
+- **Aba Comentários:** quem comentou, o quê, quando, em que publicação (miniatura + link), e se já
+  foi respondido. Filtros por publicação, "só os sem resposta" e incluir as respostas do time.
+- **Aba Publicações:** legenda, tipo, link, curtidas, e **quantos comentários NÓS capturamos**
+  separando cliente de resposta do time — ao lado do total que a Meta reporta. A diferença entre
+  os dois é o que a assinatura não trouxe (comentário anterior a 18/08, ou publicação em colab).
+- 🔵 **O "respondido" é INFERÊNCIA, e a tela diz isso.** O webhook **não traz `parent_id`** — a
+  resposta da conta chega como comentário comum na mesma publicação. O que liga uma à outra é a
+  convenção do `@usuario` no começo, observada em **todas** as respostas medidas em 24/08.
+  `Spx::Social::Respondidos` casa **só menção no começo** (no meio é citação, não endereçamento) e
+  **não atravessa publicação**. Erra para o lado de sobrar trabalho na tela, nunca para o de
+  esconder cliente sem resposta. ⏭️ **Conserto durável: buscar `parent_id` na Graph ao gravar.**
+- **Medido:** **111 exemplos / 0 falhas** · rubocop **0** em 8 arquivos · eslint **exit 0** em 7 ·
+  rotas conferidas com `rails routes` · zero vite vazado. ⚠️ **Tela NÃO verificada visualmente.**
+- **[PR #68](https://github.com/Dev-Simplex/chatspx/pull/68)** agora tem 7 commits e 38 arquivos.
+- ⏭️ **Fora desta fatia:** responder comentário · as outras 4 abas da §5 (campanhas "comente X",
+  marcações/UGC, agenda, painel) · **se a pessoa segue a conta** — o dado existe na Graph
+  (`is_user_follow_business`, provado em 18/08) mas não é capturado ao gravar.
 
 ### [2026-08-24] 🔴 A BIGSTORE NÃO TEM BOT NENHUM — e os comentários chegavam e eram jogados fora (branch `PauloSeze/instagram-comentarios`)
 
