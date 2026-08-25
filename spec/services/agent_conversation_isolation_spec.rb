@@ -126,12 +126,15 @@ RSpec.describe AgentConversationIsolation do
         expect(described_class.hidden_from?(conv, admin, account)).to be(false)
       end
 
-      # Uma vez que o admin RESTRINGE a lista a times, a conversa sem time deixa de casar
-      # a lista e sai do escopo — decisao explicita do admin, nao efeito colateral do deploy.
-      it 'stops hiding it once the admin restricts the list to specific teams' do
+      # Restringir a lista NAO libera a conversa sem time nesta regra. Aqui o que fecha a conversa
+      # e "tem outro dono", criterio que nao e o time: "sem time" nao e um time que o admin
+      # excluiu. Se escolher "so Vendas" abrisse as conversas sem time, apertar o escopo
+      # AFROUXARIA o acesso e o deploy desta feature abriria a conversa do colega ainda sem
+      # triagem. Por isso agent_conversation_isolation fica fora de TEAMLESS_EXEMPT_RULES.
+      it 'keeps hiding it even after the admin restricts the list to specific teams' do
         inbox.update!(agent_conversation_isolation_team_ids: [team.id])
         conv = create(:conversation, account: account, inbox: inbox, team: nil, assignee: owner)
-        expect(described_class.hidden_from?(conv, agent, account)).to be(false)
+        expect(described_class.hidden_from?(conv, agent, account)).to be(true)
       end
     end
   end

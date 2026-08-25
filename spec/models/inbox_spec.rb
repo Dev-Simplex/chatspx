@@ -407,6 +407,49 @@ RSpec.describe Inbox do
     end
   end
 
+  # A lista de times chega da tela por multipart, que nao tem tipo: cada id vem como string e
+  # "lista vazia" vem como um item em branco. Sem a normalizacao na escrita o branco viraria 0 e a
+  # regra passaria a valer para "o time 0", isto e, para NENHUM time — a regra se desligaria em
+  # silencio com a tela mostrando ela LIGADA. Estes exemplos travam esse caminho.
+  describe 'normalizacao da lista de times na escrita' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+
+    Inbox::ISOLATION_RULES.each_value do |list_column|
+      context "with #{list_column}" do
+        it 'converte id em string para inteiro' do
+          inbox.update!(list_column => %w[7 12])
+          expect(inbox.reload[list_column]).to eq([7, 12])
+        end
+
+        it 'descarta o item em branco que o multipart usa para dizer "lista vazia"' do
+          inbox.update!(list_column => [''])
+          expect(inbox.reload[list_column]).to eq([])
+        end
+
+        it 'descarta zero e lixo, que virariam "time 0" e desligariam a regra em silencio' do
+          inbox.update!(list_column => ['0', 'abc', nil, 9])
+          expect(inbox.reload[list_column]).to eq([9])
+        end
+
+        it 'nao repete time escolhido duas vezes' do
+          inbox.update!(list_column => [5, '5', 5])
+          expect(inbox.reload[list_column]).to eq([5])
+        end
+      end
+    end
+
+    it 'lista limpa pelo multipart volta a valer para TODOS os times, nao para nenhum' do
+      team = create(:team, account: account)
+      inbox.update!(team_message_isolation: true, team_message_isolation_team_ids: [team.id])
+      expect(inbox.isolation_applies_to_team?(:team_message_isolation, create(:team, account: account).id)).to be(false)
+
+      # e o que a tela manda quando o admin remove todos os chips
+      inbox.update!(team_message_isolation_team_ids: [''])
+      expect(inbox.isolation_applies_to_team?(:team_message_isolation, create(:team, account: account).id)).to be(true)
+    end
+  end
+
   # ESCOPO POR TIME DAS 3 REGRAS DE ISOLAMENTO — a matriz da regra, no unico lugar
   # onde ela existe. Os 7 pontos de aplicacao sao testados em
   # spec/services/isolation_team_scope_spec.rb; aqui e a regra pura.
@@ -450,7 +493,7 @@ RSpec.describe Inbox do
         # a tela promete.
         it 'follows the rule family for a conversation without a team once the list is restricted' do
           inbox.update!(rule => true, list_column => [team.id])
-          esperado = !Inbox::TEAMLESS_EXEMPT_RULES.include?(rule)
+          esperado = Inbox::TEAMLESS_EXEMPT_RULES.exclude?(rule)
           expect(inbox.isolation_applies_to_team?(rule, nil)).to be(esperado)
         end
 

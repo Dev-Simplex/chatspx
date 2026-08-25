@@ -8,28 +8,39 @@
 module InboxIsolationScope
   extend ActiveSupport::Concern
 
-  included do
   # ESCOPO POR TIME DAS 3 REGRAS DE ISOLAMENTO — a regra mora AQUI e so aqui.
-    # A flag booleana LIGA a regra na caixa; a lista de times diz EM QUAIS times ela vale.
-    # Chave = a coluna booleana, valor = a coluna com a lista de times.
-    ISOLATION_RULES = {
-      team_message_isolation: :team_message_isolation_team_ids,
-      agent_message_isolation: :agent_message_isolation_team_ids,
-      agent_conversation_isolation: :agent_conversation_isolation_team_ids
-    }.freeze
+  # A flag booleana LIGA a regra na caixa; a lista de times diz EM QUAIS times ela vale.
+  # Chave = a coluna booleana, valor = a coluna com a lista de times.
+  ISOLATION_RULES = {
+    team_message_isolation: :team_message_isolation_team_ids,
+    agent_message_isolation: :agent_message_isolation_team_ids,
+    agent_conversation_isolation: :agent_conversation_isolation_team_ids
+  }.freeze
 
-    # Regras em que conversa SEM time NAO e isolada. Vale so para as duas de MENSAGEM: a
-    # conversa nasce sem time, antes da triagem, e esconder as bolhas dela esconderia o lead
-    # novo de quem precisa atender.
+  # Regras em que conversa SEM time NAO e isolada. Vale so para as duas de MENSAGEM: a
+  # conversa nasce sem time, antes da triagem, e esconder as bolhas dela esconderia o lead
+  # novo de quem precisa atender.
+  #
+  # `agent_conversation_isolation` fica DE FORA de proposito. Ali o criterio de fechamento
+  # nao e o time, e sim "esta atribuida a outra pessoa" — hoje, com a flag ligada, a conversa
+  # de um colega e bloqueada tenha ela time ou nao. Se o escopo por time abrisse a conversa
+  # sem time, o deploy desta feature ABRIRIA para todo agente a conversa atribuida ao colega
+  # que ainda nao passou pela triagem: regressao de seguranca, nao relaxamento pedido.
+  # Principio: o escopo por time so pode RELAXAR a regra nos times que o admin excluiu —
+  # nunca abrir o que hoje esta fechado por um criterio que nao e o time.
+  TEAMLESS_EXEMPT_RULES = %i[team_message_isolation agent_message_isolation].freeze
+
+  included do
+    # A lista chega da tela por multipart, e multipart nao tem tipo: "lista vazia" viaja como um
+    # `chave[]` em branco e cada id viaja como string. Sem normalizar na ESCRITA, o `""` viraria
+    # `0` na leitura (`Array(...).compact.map(&:to_i)`), a lista deixaria de ser vazia e a regra
+    # passaria a valer para "o time 0" — ou seja, para NENHUM time. A regra se desligaria sozinha
+    # e em silencio, no pior sentido: a tela mostraria a regra LIGADA.
     #
-    # `agent_conversation_isolation` fica DE FORA de proposito. Ali o criterio de fechamento
-    # nao e o time, e sim "esta atribuida a outra pessoa" — hoje, com a flag ligada, a conversa
-    # de um colega e bloqueada tenha ela time ou nao. Se o escopo por time abrisse a conversa
-    # sem time, o deploy desta feature ABRIRIA para todo agente a conversa atribuida ao colega
-    # que ainda nao passou pela triagem: regressao de seguranca, nao relaxamento pedido.
-    # Principio: o escopo por time so pode RELAXAR a regra nos times que o admin excluiu —
-    # nunca abrir o que hoje esta fechado por um criterio que nao e o time.
-    TEAMLESS_EXEMPT_RULES = %i[team_message_isolation agent_message_isolation].freeze
+    # `positive?` porque id de time e sempre > 0, entao ele descarta de uma vez o branco, o zero e
+    # qualquer lixo que nao seja numero. `uniq` porque escolher o mesmo time duas vezes nao e erro
+    # do admin, e a lista e um conjunto.
+    before_validation :normalize_isolation_team_ids
 
     # "Esta caixa isola ESTE time por ESTA regra?" — pergunta unica de todos os pontos de
     # aplicacao. Saidas para FALSE, todas errando para o lado de MOSTRAR:
@@ -92,6 +103,14 @@ module InboxIsolationScope
                  "(#{conversation_alias}.team_id IS NULL OR #{vazia} OR #{casa})"
                end
       "(COALESCE(#{inbox_alias}.#{key}, FALSE) AND #{escopo})"
+    end
+  end
+
+  # Definido no corpo do modulo (e nao dentro do `included do`) so para o bloco nao estourar o
+  # Metrics/BlockLength: como metodo de instancia do concern ele chega no Inbox do mesmo jeito.
+  def normalize_isolation_team_ids
+    ISOLATION_RULES.each_value do |column|
+      self[column] = Array(self[column]).map { |id| id.to_s.strip.to_i }.select(&:positive?).uniq
     end
   end
 end
