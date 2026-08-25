@@ -135,6 +135,14 @@ conversations_orphan_watch_job:
   cron: '*/5 * * * *'
   class: 'Account::OrphanConversationsWatchJob'
   queue: scheduled_jobs
+# executed every 5 minutes
+# repasse por SLA: lead que ninguém tocou no prazo vai pro próximo do pool. Inerte enquanto
+# nenhuma política tiver `repasse_automatico` (o default é false), e inerte em time sem
+# expediente configurado — o relógio do SLA só anda dentro do horário do time.
+distribuicao_repasse_job:
+  cron: '*/5 * * * *'
+  class: 'Spx::Distribuicao::RepasseJob'
+  queue: scheduled_jobs
 # executed daily at 0400 UTC
 # purge expired bulk media downloads (zip blob + record) after 7-day retention
 purge_expired_bulk_downloads_job:

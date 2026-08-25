@@ -130,7 +130,8 @@
         "DESTINO": "Depois disso, vai para",
         "DESTINO_NONE": "Ninguém — fica onde está",
         "HORARIO": "Contar só no horário de trabalho",
-        "EXPIRADO": "Quem deixa vencer gastou a vez"
+        "EXPIRADO": "Quem deixa vencer gastou a vez",
+        "SEM_HORARIO": "Este time não tem horário de funcionamento definido, então o relógio não anda e nada é repassado. Defina o horário primeiro."
       },
       "POOL": {
         "TITLE": "Quem entra no rodízio",

@@ -61,8 +61,20 @@ class Api::V1::Accounts::Teams::DistribuicaoController < Api::V1::Accounts::Base
       time: { id: @team.id, nome: @team.name },
       politica: politica_json(p),
       pool: pool_json(p),
-      candidatos: candidatos_json(p)
+      candidatos: candidatos_json(p),
+      # O repasse por SLA NÃO age em time sem expediente conhecido (o relógio não anda). Sem
+      # este sinal a tela ligaria o repasse e nada aconteceria — falha silenciosa, que é
+      # exatamente o que esta frente existe para acabar.
+      horario_definido: horario_definido?(p)
     }
+  end
+
+  def horario_definido?(politica)
+    return false if politica.blank?
+
+    Spx::Distribuicao::JanelaService.new(policy: politica).horario_definido?
+  rescue StandardError
+    false
   end
 
   # Os mesmos defaults do banco, declarados uma vez. Time ainda não configurado devolve ISTO,
@@ -72,7 +84,8 @@ class Api::V1::Accounts::Teams::DistribuicaoController < Api::V1::Accounts::Base
     ativo: false, modo: 'rodizio', modo_posse: 'assignee', so_online: false,
     continuidade_ativa: true, continuidade_dias: 30, sla_assumir_minutos: 30,
     repasse_automatico: false, max_repasses: 3, sla_respeita_horario: true,
-    expirado_conta_como_recebido: true, pool_esgotado_destino_user_id: nil, espelho_vista: false
+    expirado_conta_como_recebido: true, pool_esgotado_destino_user_id: nil, espelho_vista: false,
+    horario: {}
   }.freeze
 
   def politica_json(politica)
@@ -123,7 +136,8 @@ class Api::V1::Accounts::Teams::DistribuicaoController < Api::V1::Accounts::Base
     params.permit(
       :ativo, :modo, :modo_posse, :so_online, :continuidade_ativa, :continuidade_dias,
       :sla_assumir_minutos, :repasse_automatico, :max_repasses, :sla_respeita_horario,
-      :expirado_conta_como_recebido, :pool_esgotado_destino_user_id, :espelho_vista
+      :expirado_conta_como_recebido, :pool_esgotado_destino_user_id, :espelho_vista,
+      horario: {}
     )
   end
 

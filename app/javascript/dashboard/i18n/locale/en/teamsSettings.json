@@ -130,7 +130,8 @@
         "DESTINO": "After that, it goes to",
         "DESTINO_NONE": "Nobody — it stays put",
         "HORARIO": "Count only during working hours",
-        "EXPIRADO": "Whoever lets it expire has used their turn"
+        "EXPIRADO": "Whoever lets it expire has used their turn",
+        "SEM_HORARIO": "This team has no working hours set, so the clock never runs and nothing is passed on. Set the hours first."
       },
       "POOL": {
         "TITLE": "Who is in the rotation",

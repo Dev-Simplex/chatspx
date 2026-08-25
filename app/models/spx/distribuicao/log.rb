@@ -13,7 +13,9 @@ module Spx
       belongs_to :conversation, optional: true
       belongs_to :chosen_user, class_name: 'User', optional: true
 
-      MOTIVOS = %w[continuidade rodizio sem_pool preferencia_cliente manual_gestor].freeze
+      # repasse       — o anterior deixou o SLA vencer e a vez passou (Spx::Distribuicao::RepasseJob)
+      # pool_esgotado — acabaram os repasses; foi pro dono final configurado na política
+      MOTIVOS = %w[continuidade rodizio sem_pool preferencia_cliente manual_gestor repasse pool_esgotado].freeze
       # designado   — escolhido, ninguém assumiu ainda (só existe em modo_posse=designacao)
       # assumido    — um humano pegou a conversa dentro do SPX
       # engajado    — o corretor mexeu no card do Vista (sinal escrito pela frente spx/eval)

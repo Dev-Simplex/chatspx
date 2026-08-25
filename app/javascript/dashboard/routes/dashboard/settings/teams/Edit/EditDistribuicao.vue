@@ -21,6 +21,9 @@ const politica = ref({});
 const pool = ref([]);
 const candidatos = ref([]);
 const nomeTime = ref('');
+// O repasse por SLA não age em time sem expediente conhecido — o relógio não anda. Sem este
+// aviso, ligar o repasse pareceria funcionar e não faria nada.
+const horarioDefinido = ref(true);
 // Linha do pool cujo formulário de suspensão está aberto (user_id), ou null.
 const suspendendo = ref(null);
 const suspensaoAte = ref('');
@@ -41,6 +44,7 @@ function aplicar(dados) {
   pool.value = [...dados.pool];
   candidatos.value = [...dados.candidatos];
   nomeTime.value = dados.time?.nome || '';
+  horarioDefinido.value = dados.horario_definido !== false;
 }
 
 async function carregar() {
@@ -289,6 +293,13 @@ async function salvar() {
               />
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.ALERT') }}
             </label>
+
+            <p
+              v-if="politica.repasse_automatico && !horarioDefinido"
+              class="text-xs text-n-amber-11 border-l-2 border-n-amber-9 pl-3"
+            >
+              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.SEM_HORARIO') }}
+            </p>
 
             <div
               v-if="politica.repasse_automatico"
