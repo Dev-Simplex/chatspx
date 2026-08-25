@@ -34,6 +34,9 @@ module Campaigns
       # Status que provam que o numero JA levou um disparo (nao bater de novo).
       DISPATCHED_STATUSES = %i[sent delivered read replied].freeze
 
+      # Os dois lugares onde "ja disparou" pode estar gravado. Ver `dedup_config`.
+      DEDUP_SOURCES = %w[recipients conversations].freeze
+
       Result = Struct.new(:accepted, :rejected, :stats, keyword_init: true) do
         def total
           accepted.size + rejected.size
@@ -137,13 +140,79 @@ module Campaigns
         @active = active_canonicals(canonicals)
       end
 
+      # Quem JA levou disparo — lido por DOIS motores, porque eles gravam em lugares
+      # diferentes. O motor novo cria `campaign_recipients`; o antigo
+      # (Spx::Tozi::DisparoLeadJob, campanhas 1 e 2, ~6.100 pessoas em junho/2026)
+      # carimba `campaign_id` na CONVERSA e nao cria linha nenhuma na tabela nova.
+      # Ler so a tabela nova deixou 294 pessoas levarem o Urban depois de ja terem
+      # levado o disparo de junho.
       def dispatched_canonicals(canonicals)
         return Set.new if canonicals.empty?
 
-        CampaignRecipient.where(account_id: campaign.account_id, status: DISPATCHED_STATUSES)
-                         .where(canonical_phone: canonicals)
-                         .where.not(campaign_id: campaign.id)
-                         .distinct.pluck(:canonical_phone).to_set
+        dispatched_by_recipients(canonicals) | dispatched_by_conversations(canonicals)
+      end
+
+      def dispatched_by_recipients(canonicals)
+        return Set.new unless dedup_source?('recipients')
+
+        scope = CampaignRecipient.where(account_id: campaign.account_id, status: DISPATCHED_STATUSES)
+                                 .where(canonical_phone: canonicals)
+                                 .where.not(campaign_id: campaign.id)
+        scope = scope.where(campaign_id: dedup_campaign_ids) if dedup_campaign_ids
+        # COALESCE porque `sent_at` so e gravado no envio: linha que chegou a delivered/read
+        # por webhook sem ter passado por ali ficaria FORA da janela — e o numero levaria
+        # disparo em dobro, que e exatamente o erro que esta consulta existe pra evitar.
+        scope = scope.where('COALESCE(campaign_recipients.sent_at, campaign_recipients.created_at) >= ?', dedup_since) if dedup_since
+        scope.distinct.pluck(:canonical_phone).to_set
+      end
+
+      # A data do disparo vem da CAMPANHA, nao da conversa: o motor antigo REUSA a conversa
+      # que ja existe e so carimba o `campaign_id` (disparo_lead_job.rb), entao
+      # `conversations.created_at` pode ser meses ANTERIOR ao envio. Datar por ele encolheria
+      # a janela em silencio e liberaria quem nao devia sair.
+      def dispatched_by_conversations(canonicals)
+        return Set.new unless dedup_source?('conversations')
+
+        ids_by_canonical = contact_ids_by_canonical(canonicals)
+        return Set.new if ids_by_canonical.empty?
+
+        scope = Conversation.joins(:campaign)
+                            .where(contact_id: ids_by_canonical.values.flatten)
+                            .where.not(conversations: { campaign_id: campaign.id })
+        scope = scope.where(conversations: { campaign_id: dedup_campaign_ids }) if dedup_campaign_ids
+        scope = scope.where('COALESCE(campaigns.scheduled_at, campaigns.created_at) >= ?', dedup_since) if dedup_since
+
+        hit = scope.distinct.pluck(:contact_id).to_set
+        ids_by_canonical.select { |_, ids| ids.any? { |id| hit.include?(id) } }.keys.to_set
+      end
+
+      # --------------------------------------------------------- corte da dedup
+      #
+      # `dispatch_config['dedup']` escolhe COMO cortar. Tudo e opcional e a ausencia
+      # significa o corte mais largo — "ja disparou alguma vez, por qualquer motor, sai":
+      #
+      #   window_days  => so conta disparo dos ultimos N dias. Ausente = historico inteiro.
+      #   campaign_ids => so conta disparo DESTAS campanhas. Ausente = todas.
+      #   sources      => quais motores entram ('recipients' / 'conversations'). Ausente = os dois.
+      #
+      # Sem isto o corte e "pra sempre", e as ~10.600 pessoas que so receberam disparo em
+      # junho ficariam inelegiveis para sempre — o que nao e decisao de codigo, e de campanha.
+      def dedup_config
+        @dedup_config ||= campaign.dispatch_config['dedup'].presence || {}
+      end
+
+      def dedup_source?(name)
+        configured = Array(dedup_config['sources']).map(&:to_s) & DEDUP_SOURCES
+        configured.empty? || configured.include?(name)
+      end
+
+      def dedup_campaign_ids
+        Array(dedup_config['campaign_ids']).map(&:to_i).reject(&:zero?).presence
+      end
+
+      def dedup_since
+        days = dedup_config['window_days'].to_i
+        days.positive? ? days.days.ago : nil
       end
 
       def in_campaign_canonicals(canonicals)
