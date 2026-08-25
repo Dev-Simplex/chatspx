@@ -154,11 +154,18 @@ const canSuperviseTeams = computed(
   () => !props.isSupervisorView && selectedRole.value?.name === SUPERVISOR_ROLE
 );
 
-// Supervisor sem time nenhum seria um administrador comum, com quem configurou
-// achando que deu visibilidade de time. Bloqueia o envio.
-const isSupervisorWithoutTeams = computed(
+// Marcar time é OPCIONAL: supervisor enxerga todos os times, e o campo só serve
+// para recortar. Em branco = supervisiona TODOS — e é isso que o payload manda,
+// porque a restrição das seis telas nasce de EXISTIR linha em team_supervisors:
+// supervisor sem nenhuma linha seria um administrador comum, sem restrição.
+const supervisesEveryTeam = computed(
   () => canSuperviseTeams.value && supervisedTeamIds.value.length === 0
 );
+
+const teamIdsToSubmit = () =>
+  supervisesEveryTeam.value
+    ? teams.value.map(team => team.id)
+    : supervisedTeamIds.value;
 
 const statusList = computed(() => {
   return [
@@ -178,7 +185,7 @@ const availabilityStatuses = computed(() =>
 
 const editAgent = async () => {
   v$.value.$touch();
-  if (v$.value.$invalid || isSupervisorWithoutTeams.value) return;
+  if (v$.value.$invalid) return;
 
   try {
     const payload = { id: props.id, name: agentName.value };
@@ -203,7 +210,7 @@ const editAgent = async () => {
       // Sempre enviado: o que está na tela é o que fica gravado. Sair da função
       // Supervisor manda lista vazia e é assim que se tira a supervisão.
       payload.supervised_team_ids = canSuperviseTeams.value
-        ? supervisedTeamIds.value
+        ? teamIdsToSubmit()
         : [];
     }
 
@@ -294,10 +301,10 @@ const resetPassword = async () => {
           {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.EMPTY') }}
         </p>
         <p
-          v-if="teams.length && isSupervisorWithoutTeams"
-          class="mt-2 mb-4 text-n-ruby-11 text-label-small"
+          v-if="teams.length && supervisesEveryTeam"
+          class="mt-2 mb-4 text-n-slate-11 text-label-small"
         >
-          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.REQUIRED') }}
+          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.ALL_TEAMS') }}
         </p>
         <div v-else class="mb-4" />
       </div>
@@ -346,9 +353,7 @@ const resetPassword = async () => {
           <Button
             type="submit"
             :label="$t('AGENT_MGMT.EDIT.FORM.SUBMIT')"
-            :disabled="
-              v$.$invalid || isSupervisorWithoutTeams || uiFlags.isUpdating
-            "
+            :disabled="v$.$invalid || uiFlags.isUpdating"
             :is-loading="uiFlags.isUpdating"
           />
         </div>
