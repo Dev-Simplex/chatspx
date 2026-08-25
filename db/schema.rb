@@ -1978,6 +1978,43 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_25_120000) do
     t.index ["account_id"], name: "index_sla_policies_on_account_id"
   end
 
+  create_table "social_comentarios", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.bigint "publicacao_id"
+    t.string "publicacao_external_id"
+    t.string "external_id", null: false
+    t.string "autor_external_id"
+    t.string "autor_username"
+    t.text "texto"
+    t.boolean "proprio", default: false, null: false
+    t.datetime "comentado_em"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "respostas", default: {}, null: false
+    t.index ["account_id", "external_id"], name: "index_social_comentarios_on_account_id_and_external_id", unique: true
+    t.index ["inbox_id", "created_at"], name: "index_social_comentarios_on_inbox_id_and_created_at"
+    t.index ["publicacao_id"], name: "index_social_comentarios_on_publicacao_id"
+  end
+
+  create_table "social_publicacoes", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.string "external_id", null: false
+    t.string "tipo"
+    t.text "legenda"
+    t.string "permalink"
+    t.string "thumbnail_url"
+    t.datetime "publicada_em"
+    t.jsonb "metricas", default: {}, null: false
+    t.datetime "sincronizada_em"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "external_id"], name: "index_social_publicacoes_on_account_id_and_external_id", unique: true
+    t.index ["inbox_id"], name: "index_social_publicacoes_on_inbox_id"
+  end
+
   create_table "taggings", id: :serial, force: :cascade do |t|
     t.integer "tag_id"
     t.string "taggable_type"

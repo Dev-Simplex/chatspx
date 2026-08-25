@@ -208,6 +208,16 @@ Rails.application.routes.draw do
           # toda semana. Sem `update` na exceção: corrigir é apagar e criar outra.
           resources :unidades, only: [:index]
           resources :unidade_excecoes, only: [:index, :create, :destroy]
+          # Superficie de rede social — SPEC em docs/SPEC-instagram-social.md.
+          # A captura vem do webhook; a leitura e a resposta manual moram aqui.
+          resources :social_comentarios, only: [:index] do
+            member do
+              # Unico caminho de escrita do modulo. Passa pelo portao do piloto ate quando o
+              # clique e humano — ver Spx::Social::PoliticaDeResposta.
+              post :responder
+            end
+          end
+          resources :social_publicacoes, only: [:index]
           resources :internal_channels, only: [:index, :show, :create, :update] do
             collection do
               get :mentions

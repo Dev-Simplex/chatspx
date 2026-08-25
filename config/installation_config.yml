@@ -414,6 +414,16 @@
   description: 'Configure this if you want to use a different Instagram API version. Make sure its prefixed with `v`'
   value: 'v22.0'
   locked: true
+- name: INSTAGRAM_SCOPES
+  display_title: 'Escopos extras do Instagram'
+  description: 'Escopos ADICIONAIS pedidos na tela de consentimento, separados por vírgula (ex.: instagram_business_manage_comments). Os escopos básicos de perfil e mensagem entram sempre. Só peça escopo que o app Meta desta instalação tenha — escopo inválido faz o OAuth falhar e ninguém mais conecta Instagram nesta box.'
+  value: ''
+  locked: false
+- name: INSTAGRAM_SUBSCRIBED_FIELDS
+  display_title: 'Campos extras do webhook do Instagram'
+  description: 'Campos ADICIONAIS assinados no webhook da conta, separados por vírgula (ex.: comments). Mensagens, reações e visto entram sempre. Se a Meta recusar a lista completa, a assinatura recua para o mínimo e registra o que ficou de fora.'
+  value: ''
+  locked: false
 # ------- End of Instagram Channel Related Config ------- #
 
 # ------- TikTok Channel Related Config ------- #

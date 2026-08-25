@@ -8,6 +8,7 @@ import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import unidadesAPI from 'dashboard/api/unidades';
+import socialPublicacoesAPI from 'dashboard/api/socialPublicacoes';
 import { internalChatNotify } from 'dashboard/helper/internalChatNotify';
 import draggable from 'vuedraggable';
 import { useStore } from 'vuex';
@@ -105,6 +106,10 @@ const { isAdmin } = useAdmin();
 // tela, e nao ha um segundo interruptor para alguem esquecer de ligar. Ver §7 do contrato
 // docs/contratos/unidades.md.
 const temUnidades = ref(false);
+// Gate por DADO, como o item "Campanhas" logo abaixo: a pagina de Rede Social so aparece para
+// conta que tem comentario capturado. Conta sem canal de Instagram, ou com o campo `comments`
+// nao assinado, nao ganha item nenhum. Ver docs/SPEC-instagram-social.md §7.
+const temRedeSocial = ref(false);
 
 // A tela de campanhas só existe para conta que captura lead por formulário: sem hook
 // configurado, não há campanha nenhuma para mostrar e o item não aparece.
@@ -308,6 +313,16 @@ onMounted(() => {
       .getAll()
       .then(({ data }) => {
         temUnidades.value = Boolean(data?.unidades?.length);
+      })
+      .catch(() => {});
+  }
+  // So para saber se a conta tem comentario publico capturado (o item "Rede Social" some quando
+  // nao tem). Admin-only porque o endpoint tambem e.
+  if (isAdmin.value) {
+    socialPublicacoesAPI
+      .getAll()
+      .then(({ data }) => {
+        temRedeSocial.value = Boolean(data?.length);
       })
       .catch(() => {});
   }
@@ -596,6 +611,17 @@ const menuItems = computed(() => {
       to: accountScopedRoute('gallery_index'),
       activeOn: ['gallery_index'],
     },
+    ...(temRedeSocial.value
+      ? [
+          {
+            name: 'Rede Social',
+            label: t('SIDEBAR.REDE_SOCIAL'),
+            icon: lordIcon('megaphone', 'i-lucide-message-circle'),
+            to: accountScopedRoute('social_index'),
+            activeOn: ['social_index'],
+          },
+        ]
+      : []),
     ...(takeoverRequestCount.value > 0
       ? [
           {
