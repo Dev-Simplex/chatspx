@@ -25,7 +25,7 @@ class Captain::Conversation::HumanHandoffService
     # Time + marcador "aguardando humano" no MESMO save. Com o espelho captain presente,
     # o auto-assign de time fica bloqueado, então o time é só roteamento (fila do setor).
     team = resolve_team
-    attrs = (@conversation.custom_attributes || {}).merge('aguardando_humano_desde' => Time.current.iso8601)
+    attrs = marca_espera((@conversation.custom_attributes || {}))
     update_attrs = { custom_attributes: attrs }
     update_attrs[:team] = team if team
     @conversation.update!(update_attrs)
@@ -40,6 +40,24 @@ class Captain::Conversation::HumanHandoffService
   end
 
   private
+
+  # O marcador é o que põe a conversa na fila "Aguardando atendimento", e a limpeza dele
+  # (Enterprise::Concerns::Conversation) reage a MUDANÇAS: o assignee mudar, o espelho ser
+  # solto, a conversa resolver. Se um humano JÁ era dono no instante em que o marcador nasce,
+  # não sobra mudança futura a observar — e a conversa fica presa na fila para sempre.
+  #
+  # Medido na conv 4854 da Tozi: a recepção atribuiu à consultora às 09:33, a IA escreveu o
+  # marcador às 09:34, e a fila seguia dizendo "aguardando atendimento" enquanto a consultora
+  # respondia o cliente. É corrida de ordem — acontece quando alguém puxa a conversa no meio
+  # do turno em que a IA está produzindo o handoff.
+  #
+  # Com dono humano não há espera nenhuma a anunciar: o resto do handoff (nota, time, dossiê)
+  # continua valendo, porque o contexto serve a quem vai atender.
+  def marca_espera(attrs)
+    return attrs if @conversation.assignee_id.present?
+
+    attrs.merge('aguardando_humano_desde' => Time.current.iso8601)
+  end
 
   # Sinal DURÁVEL de que a IA passou o bastão.
   #
