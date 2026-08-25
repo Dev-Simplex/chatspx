@@ -69,12 +69,22 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     if limite - new_sent > 0
       # Nao despejar fotos por conta propria (prende o lead num loop de midia): avancar a
       # conversa. Pra "ver todas", a IA oferece o LINK da galeria, nao mais fotos no chat.
-      "Enviei #{batch.size} fotos do imóvel #{codigo}. Se o cliente quiser ver TODAS as fotos, " \
+      "Enviei #{batch.size} #{pluralizar_foto(batch.size)} do imóvel #{codigo}. Se o cliente quiser ver TODAS as fotos, " \
         "ofereça o link do imóvel#{link_galeria(conversation, cod)} — o site tem a galeria completa. " \
         'NÃO despeje mais fotos por conta própria; se ele pedir mais fotos aqui, chame esta ferramenta de novo.'
+    elsif fotos.size > limite
+      # Bateu o teto por imóvel: o site REALMENTE tem mais do que coube aqui, então oferecer a
+      # galeria é oferta honesta.
+      "Enviei #{new_sent} #{pluralizar_foto(new_sent)} do imóvel #{codigo} — é o máximo que dá pra mandar por aqui, " \
+        "e o imóvel tem mais. Se o cliente quiser ver todas, ofereça o link#{link_galeria(conversation, cod)}. " \
+        'Avance a conversa.'
     else
-      "Enviei as fotos principais do imóvel #{codigo}. Se o cliente quiser ver todas, " \
-        "ofereça o link do imóvel#{link_galeria(conversation, cod)} (galeria completa no site). Avance a conversa."
+      # Mandou TUDO que existe cadastrado. A redação anterior dizia "fotos principais" e oferecia a
+      # "galeria completa no site" também aqui — prometendo o que não existe. Num imóvel de foto
+      # única a IA ainda falava no plural de uma coisa só, e o cliente ficava esperando o resto.
+      "Enviei #{new_sent} #{pluralizar_foto(new_sent)} do imóvel #{codigo} — é tudo que ele tem cadastrado, " \
+        'não há outras nem no site. Se o cliente pedir mais, diga com naturalidade que este imóvel só tem essa ' \
+        'quantidade e ofereça o próximo passo (visita, ou imóveis parecidos). NÃO prometa mais fotos nem galeria.'
     end
   rescue StandardError => e
     Rails.logger.warn("[EnviarFotosImovelTool] #{e.message}")
@@ -89,6 +99,11 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   # ImoCodigo, ou quando a conversa é longa, o código real fica de fora e o cliente leva um
   # "não" que ele não vê. Somar os dois mapas não afrouxa a trava: código que busca nenhuma
   # retornou continua ausente dos dois.
+  # O retorno da tool é lido pelo MODELO: "1 fotos" vaza como concordância errada na fala dele.
+  def pluralizar_foto(quantidade)
+    quantidade == 1 ? 'foto' : 'fotos'
+  end
+
   def codigos_conhecidos(conversation)
     attrs = conversation.custom_attributes || {}
     mapa = attrs['urls_imoveis']
