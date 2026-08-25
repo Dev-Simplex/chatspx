@@ -159,4 +159,40 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
       expect(retorno).to include('9 fotos').and include('o imóvel tem mais')
     end
   end
+
+  # Os dois espaços de código se CRUZAM: na Tozi, `4586` é o ImoCodigo da casa de aluguel 4629 e,
+  # ao mesmo tempo, o Codigo de um terreno à venda em outro bairro. Como o /imoveis/detalhes
+  # resolve por Codigo, pedir fotos citando o ImoCodigo trazia o imóvel errado — a cliente da
+  # conv 28684 pediu foto de uma casa de 2 quartos e recebeu a foto de um terreno.
+  describe 'resolving the code the search actually showed' do
+    let(:channel) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
+                                validate_provider_config: false, sync_templates: false)
+    end
+    let(:url) { 'https://www.toziimoveis.com.br/imovel/aluguel-casa-jardim-bella-morada-ii-sinop-4629' }
+    let(:conversation) do
+      create(:conversation, account: account, inbox: channel.inbox,
+                            custom_attributes: { 'urls_imoveis' => { '4586' => url, '4629' => url } })
+    end
+
+    it 'fetches by the canonical Codigo when the model cites the ImoCodigo' do
+      expect(tool).to receive(:fetch_detalhes).with('4629').and_return(detalhes)
+
+      tool.perform(tool_context, codigo: '4586')
+    end
+
+    it 'records the offset under the canonical code, so the next call advances the right property' do
+      tool.perform(tool_context, codigo: '4586')
+
+      expect(conversation.reload.custom_attributes).to include('fotos_offset_4629')
+      expect(conversation.reload.custom_attributes).not_to include('fotos_offset_4586')
+    end
+
+    # Contraprova: código sem alias registrado passa intacto — o mapa resolve, não reescreve.
+    it 'leaves a code that is already canonical untouched' do
+      expect(tool).to receive(:fetch_detalhes).with('4629').and_return(detalhes)
+
+      tool.perform(tool_context, codigo: '4629')
+    end
+  end
 end

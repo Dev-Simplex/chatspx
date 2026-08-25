@@ -37,6 +37,10 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
       return "O código #{cod} não apareceu na busca desta conversa. Use buscar_imovel primeiro e envie fotos SÓ de um código que a busca retornou — nunca de um código que você supôs ou lembrou de outro imóvel."
     end
 
+    # O código que a IA cita pode ser o ImoCodigo — e o ImoCodigo de um imóvel é o Codigo de
+    # OUTRO. Resolver pelo mapa da própria conversa antes de buscar (ver codigo_canonico).
+    codigo = codigo_canonico(conversation, cod)
+
     dados = fetch_detalhes(codigo)
     fotos = extract_fotos(dados)
     return 'Não encontrei fotos desse imóvel.' if fotos.blank?
@@ -93,6 +97,20 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   # O retorno da tool é lido pelo MODELO: "1 fotos" vaza como concordância errada na fala dele.
   def pluralizar_foto(quantidade)
     quantidade == 1 ? 'foto' : 'fotos'
+  end
+
+  # O `urls_imoveis` guarda **Codigo E ImoCodigo apontando para a MESMA URL** (track_urls do
+  # buscar_imovel), e essa URL termina no Codigo canônico. Isso importa porque os dois espaços
+  # de código se cruzam: medido na Tozi, `4586` é o ImoCodigo da CASA de aluguel 4629 e, ao
+  # mesmo tempo, o Codigo de um TERRENO à venda em outro bairro. Como o `/imoveis/detalhes`
+  # resolve por Codigo, pedir fotos citando o ImoCodigo trazia o imóvel errado — a cliente da
+  # conv 28684 pediu foto de uma casa e recebeu a foto de um terreno.
+  #
+  # Resolver pelo mapa da PRÓPRIA conversa devolve sempre o imóvel que a busca mostrou; sem
+  # registro (busca antiga, conversa migrada), devolve o que veio e o comportamento é o de antes.
+  def codigo_canonico(conversation, cod)
+    url = conversation.custom_attributes.to_h['urls_imoveis'].to_h[cod.to_s].to_s
+    url[/-(\d+)\z/, 1].presence || cod.to_s
   end
 
   # Entrega a URL canônica que a busca já registrou (urls_imoveis, alimentado pelo
