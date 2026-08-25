@@ -96,7 +96,8 @@
         "SUPERVISED_TEAMS": {
           "LABEL": "Teams they supervise",
           "DESCRIPTION": "The supervisor sees every conversation of the selected teams, even the ones assigned to other agents or in inboxes they are not a member of. Supervising is not the same as being a team member.",
-          "EMPTY": "There are no teams in this account yet."
+          "EMPTY": "There are no teams in this account yet.",
+          "REQUIRED": "Select at least one team — a supervisor with no team is just a regular agent."
         },
         "SUBMIT": "Edit Agent"
       },
