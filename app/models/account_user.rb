@@ -56,7 +56,6 @@ class AccountUser < ApplicationRecord
   after_commit :purge_isolation_exemptions, if: -> { saved_change_to_role? && administrator? }
 
   validates :user_id, uniqueness: { scope: :account_id }
-  validate :supervisor_needs_a_team
 
   # Papel como o console mostra: 'supervisor' é o ADMINISTRADOR que supervisiona time —
   # "quase tudo que um admin faz, menos as configurações de plataforma".
@@ -67,6 +66,8 @@ class AccountUser < ApplicationRecord
   # o que muda é a base — um parte de admin, o outro de agente. Agente que supervisiona
   # aparece aqui como `agent`, com os times visíveis no campo ao lado.
   def console_role
+    return SUPERVISOR_ROLE if supervisor?
+
     administrator? && supervised_team_ids.any? ? SUPERVISOR_ROLE : role
   end
 
@@ -85,9 +86,12 @@ class AccountUser < ApplicationRecord
   # para alguém se autopromover.
   def role=(value)
     if value.to_s == SUPERVISOR_ROLE
-      @console_supervisor = true
+      self.supervisor = true
       super(:administrator)
     else
+      # Escolher Administrador ou Agente TIRA o cargo: são cargos distintos, e é
+      # assim que a tela de Agentes remove a supervisão de alguém.
+      self.supervisor = false
       super
     end
   end
@@ -154,30 +158,15 @@ class AccountUser < ApplicationRecord
 
   private
 
-  # Escolher "supervisor" e desmarcar todos os times deixaria a pessoa como agente
-  # comum sem dizer nada — o seletor mostraria uma coisa e o banco guardaria outra.
-  # Só morde quando o campo VEIO vazio; ausente é o formulário que nem tem o seletor.
-  def supervisor_needs_a_team
-    return unless @console_supervisor
-    return unless defined?(@supervised_team_ids)
-    return if @supervised_team_ids.any?
-
-    errors.add(:supervised_team_ids, I18n.t('errors.account_user.supervisor_without_team'))
-  end
-
   # Só roda quando o formulário mandou o campo — um save vindo de qualquer outro
   # lugar (availability, papel, convite) não encosta na supervisão. Usa destroy/create
   # em vez de delete_all porque TeamSupervisor invalida o cache de times num
   # after_commit: sem isso a tela do supervisor nasce vazia com a linha já gravada.
   def sync_supervised_teams
-    # A distinção que importa: campo AUSENTE ≠ campo VAZIO.
-    #   * ausente (`defined?` falso) é o formulário da página do USUÁRIO, onde a conta só
-    #     é conhecida no submit e não há lista de times para escolher — só aí "supervisor"
-    #     passa a valer para a conta toda, e a tela diz isso;
-    #   * vazio é o admin que ABRIU o seletor e desmarcou tudo. Expandir para todos os
-    #     times ali seria conceder justamente o oposto do que ele fez na tela.
-    # Quem já supervisiona algum time também não expande: preserva o que tinha.
-    @supervised_team_ids = account.teams.pluck(:id) if @console_supervisor && !defined?(@supervised_team_ids) && supervised_team_ids.empty?
+    # O CARGO de supervisor não precisa de linha nenhuma — quem alcança a conta inteira
+    # é a coluna `supervisor`. Aqui sobra apenas a supervisão POR TIME, que só mexe
+    # quando o formulário mandou o campo: um save vindo de outro lugar (papel,
+    # disponibilidade, convite) não encosta nela.
     return unless defined?(@supervised_team_ids)
 
     desired = account.teams.where(id: @supervised_team_ids).pluck(:id)
@@ -187,7 +176,6 @@ class AccountUser < ApplicationRecord
     (desired - current).each { |team_id| TeamSupervisor.create!(user_id: user_id, team_id: team_id) }
 
     remove_instance_variable(:@supervised_team_ids)
-    @console_supervisor = false
   end
 
   def notify_creation

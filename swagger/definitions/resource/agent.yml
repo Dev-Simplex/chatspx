@@ -30,6 +30,9 @@ properties:
   thumbnail:
     type: string
     description: The thumbnail of the agent
+  supervisor:
+    type: boolean
+    description: Whether this agent holds the Supervisor role — supervises the whole account and loses the platform settings screens.
   supervised_team_ids:
     type: array
     items:

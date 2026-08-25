@@ -161,14 +161,35 @@ class User < ApplicationRecord
     return [] if account_id.blank?
 
     @supervised_team_ids_for ||= {}
-    @supervised_team_ids_for[account_id.to_i] ||=
-      team_supervisions.joins(:team).where(teams: { account_id: account_id }).pluck(:team_id)
+    @supervised_team_ids_for[account_id.to_i] ||= fetch_supervised_team_ids(account_id)
+  end
+
+  # O CARGO de supervisor (coluna em account_users) alcança a conta inteira, inclusive
+  # times criados depois — por isso responde antes das linhas por time, que continuam
+  # servindo o outro perfil: o agente que supervisiona times específicos.
+  def fetch_supervised_team_ids(account_id)
+    return Team.where(account_id: account_id).pluck(:id) if supervisor_of_account?(account_id)
+
+    team_supervisions.joins(:team).where(teams: { account_id: account_id }).pluck(:team_id)
+  end
+
+  # Memoizado pelo mesmo motivo do cache acima: a pergunta é feita em vários pontos da
+  # mesma requisição. Vale mesmo quando a conta não tem time nenhum — é o que separa o
+  # cargo da supervisão por time.
+  def supervisor_of_account?(account_id)
+    return false if account_id.blank?
+
+    @supervisor_of_account ||= {}
+    return @supervisor_of_account[account_id.to_i] if @supervisor_of_account.key?(account_id.to_i)
+
+    @supervisor_of_account[account_id.to_i] = account_users.exists?(account_id: account_id, supervisor: true)
   end
 
   # Invalida a memoização acima. Necessário quando as supervisões mudam DENTRO do
   # mesmo request (admin salvando o agente) e a resposta ainda vai ser serializada.
   def reset_supervised_team_ids_cache
     @supervised_team_ids_for = nil
+    @supervisor_of_account = nil
   end
 
   # Ids das caixas em que este usuário é EXCEÇÃO do isolamento informado nesta conta.

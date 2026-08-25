@@ -35,6 +35,6 @@ module SupervisorSettingsScope
   def blocked_from_console?(user)
     return false unless user.is_a?(User)
 
-    TeamSupervisor.exists?(user_id: user.id)
+    TeamSupervisor.exists?(user_id: user.id) || AccountUser.exists?(user_id: user.id, supervisor: true)
   end
 end

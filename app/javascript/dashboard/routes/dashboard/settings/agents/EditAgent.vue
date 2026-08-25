@@ -38,10 +38,17 @@ const props = defineProps({
     type: Number,
     default: null,
   },
-  // ids dos times que este agente SUPERVISIONA (supervisionar ≠ ser membro)
+  // ids dos times que este agente SUPERVISIONA (supervisionar ≠ ser membro).
+  // Perfil legado: agente com times específicos. O CARGO de supervisor é a prop
+  // `supervisor` abaixo, e alcança a conta inteira.
   supervisedTeamIds: {
     type: Array,
     default: () => [],
+  },
+  // cargo de Supervisor (coluna em account_users)
+  supervisor: {
+    type: Boolean,
+    default: false,
   },
   // quem ABRIU o modal é supervisor (não admin): renomear é tudo o que pode.
   // Não confundir com o agente EDITADO ser supervisor — isso é supervisedTeamIds.
@@ -67,15 +74,15 @@ const agentCredentials = ref({ email: props.email });
 // SupervisorSettingsScope bloqueia (Console de Super Admin, Atributos
 // Personalizados, Robôs, Macros, Integrações e Fluxo de Conversa).
 //
-// No banco não existe papel `supervisor`: grava-se `role: administrator` mais
-// uma linha em team_supervisors para cada time — e é a EXISTÊNCIA dessas linhas
-// que dispara a restrição. Por isso o salvar manda todos os times da conta:
-// supervisor sem linha nenhuma voltaria a ser administrador comum.
+// O backend guarda o cargo na coluna `account_users.supervisor` e traduz sozinho:
+// mandar `role: supervisor` grava administrador + a marca (AccountUser#role=), e
+// mandar Administrador/Agente limpa a marca. Por isso a tela envia a palavra
+// "supervisor" direto, sem traduzir nada aqui.
 const SUPERVISOR_ROLE = 'supervisor';
-// Quem supervisiona algum time abre o modal como Supervisor, qualquer que seja o
-// papel gravado: é o que a pessoa É hoje.
+// O cargo manda; a lista de times por agente é o perfil legado e também abre como
+// Supervisor, porque é o que a pessoa é hoje.
 const selectedRoleId = ref(
-  props.supervisedTeamIds.length
+  props.supervisor || props.supervisedTeamIds.length
     ? SUPERVISOR_ROLE
     : props.customRoleId || props.type
 );
@@ -154,13 +161,6 @@ const isSupervisorRole = computed(
   () => !props.isSupervisorView && selectedRole.value?.name === SUPERVISOR_ROLE
 );
 
-// Conta sem nenhum time não consegue registrar supervisão — as linhas de
-// team_supervisors são por time. Sem esta guarda o salvar passaria e criaria um
-// administrador comum, com as seis telas de volta, sem ninguém perceber.
-const supervisorWithoutTeamsInAccount = computed(
-  () => isSupervisorRole.value && teams.value.length === 0
-);
-
 const statusList = computed(() => {
   return [
     t('PROFILE_SETTINGS.FORM.AVAILABILITY.STATUS.ONLINE'),
@@ -179,7 +179,7 @@ const availabilityStatuses = computed(() =>
 
 const editAgent = async () => {
   v$.value.$touch();
-  if (v$.value.$invalid || supervisorWithoutTeamsInAccount.value) return;
+  if (v$.value.$invalid) return;
 
   try {
     const payload = { id: props.id, name: agentName.value };
@@ -195,18 +195,16 @@ const editAgent = async () => {
       if (isCustomRole) {
         payload.custom_role_id = selectedRole.value.id;
       } else {
-        // Supervisor É administrador no backend; a diferenca esta nos times.
-        payload.role =
-          roleName === SUPERVISOR_ROLE ? 'administrator' : roleName;
+        // O backend traduz "supervisor" para administrador + marca do cargo.
+        payload.role = roleName;
         payload.custom_role_id = null;
       }
 
-      // Sempre enviado: o que está na tela é o que fica gravado. Sair da função
-      // Supervisor manda lista vazia e é assim que se tira a supervisão.
-      // Supervisor abrange a conta inteira; qualquer outro cargo zera a supervisão.
-      payload.supervised_team_ids = isSupervisorRole.value
-        ? teams.value.map(team => team.id)
-        : [];
+      // Sair do cargo também limpa a supervisão POR TIME do perfil legado; sem isso
+      // ela ficaria valendo sem aparecer em lugar nenhum.
+      if (!isSupervisorRole.value && props.supervisedTeamIds.length) {
+        payload.supervised_team_ids = [];
+      }
     }
 
     await store.dispatch('agents/update', payload);
@@ -259,15 +257,6 @@ const resetPassword = async () => {
         </label>
       </div>
 
-      <!-- Supervisor abrange a conta inteira: não há time a escolher. Só resta
-           avisar quando a conta ainda não tem time nenhum, caso em que não há
-           como registrar a supervisão. -->
-      <div v-if="supervisorWithoutTeamsInAccount" class="w-full">
-        <p class="mb-4 text-n-ruby-11 text-label-small">
-          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.EMPTY') }}
-        </p>
-      </div>
-
       <div v-if="!isSupervisorView" class="w-full">
         <label :class="{ error: v$.agentAvailability.$error }">
           {{ $t('PROFILE_SETTINGS.FORM.AVAILABILITY.LABEL') }}
@@ -312,11 +301,7 @@ const resetPassword = async () => {
           <Button
             type="submit"
             :label="$t('AGENT_MGMT.EDIT.FORM.SUBMIT')"
-            :disabled="
-              v$.$invalid ||
-              supervisorWithoutTeamsInAccount ||
-              uiFlags.isUpdating
-            "
+            :disabled="v$.$invalid || uiFlags.isUpdating"
             :is-loading="uiFlags.isUpdating"
           />
         </div>

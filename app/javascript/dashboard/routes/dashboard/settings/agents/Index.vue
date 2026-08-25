@@ -97,7 +97,10 @@ onMounted(() => {
 });
 
 // supervisionar ≠ ser membro: a lista vem separada de team_ids
-const isSupervisor = agent => !!agent.supervised_team_ids?.length;
+// O cargo (coluna em account_users) manda; a lista de times cobre o perfil legado
+// do agente que supervisiona times específicos.
+const isSupervisor = agent =>
+  !!agent.supervisor || !!agent.supervised_team_ids?.length;
 
 const supervisedTeamNames = agent =>
   (agent.supervised_team_ids || [])
@@ -379,6 +382,7 @@ const confirmDeletion = () => {
         :availability="currentAgent.availability_status"
         :custom-role-id="currentAgent.custom_role_id"
         :supervised-team-ids="currentAgent.supervised_team_ids || []"
+        :supervisor="!!currentAgent.supervisor"
         :is-supervisor-view="isSupervisorView"
         @close="hideEditPopup"
       />

@@ -93,9 +93,6 @@
           "PLACEHOLDER": "Please select an availability status",
           "ERROR": "Availability is required"
         },
-        "SUPERVISED_TEAMS": {
-          "EMPTY": "Create at least one team before assigning the Supervisor role — supervision is recorded per team."
-        },
         "SUBMIT": "Edit Agent"
       },
       "BUTTON_TEXT": "Edit",

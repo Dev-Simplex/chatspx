@@ -87,9 +87,15 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   # política (custom_role com agent_manage, p.ex.) deixe um agente se autopromover.
   # Roda como before_action para barrar ANTES de qualquer escrita no agente.
   def authorize_supervision_change
-    return if supervised_team_ids_param.nil?
+    return if supervised_team_ids_param.nil? && !supervisor_role_requested?
 
     raise Pundit::NotAuthorizedError unless Current.account_user.administrator?
+  end
+
+  # `role: supervisor` grava o CARGO (AccountUser#role=), então precisa da mesma guarda
+  # que a lista de times: só administrador promove alguém a supervisor.
+  def supervisor_role_requested?
+    params.dig(:agent, :role).to_s == AccountUser::SUPERVISOR_ROLE
   end
 
   # T1: com a UserPolicy#update? afrouxada para deixar o supervisor entrar, TUDO o que
