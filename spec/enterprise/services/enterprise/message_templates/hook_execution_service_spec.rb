@@ -419,6 +419,36 @@ RSpec.describe MessageTemplates::HookExecutionService do
         create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
       end
     end
+
+    # A conta que abandonou a fila quer a exigência de atribuição para o humano responder E a
+    # reentrada da IA — as duas vinham na MESMA chave, então era tudo ou nada. Aqui a conta
+    # segue em modo fila (o humano continua obrigado a se atribuir) e a órfã volta a ter dono.
+    context 'when the account opted into ia_reentra_orfa while still in fila mode' do
+      before { account.update!(settings: { reply_assignment_gate: true, ia_reentra_orfa: true }) }
+
+      it 'reattaches the sector assistant, so the conversation has an owner again' do
+        expect do
+          create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
+        end.to change { orphan_conversation.reload.assignee_agent_bot_id }.from(nil).to(assistant.mirror_agent_bot.id)
+      end
+
+      # A exigência de atribuição para o humano responder é a OUTRA metade da flag e não pode
+      # cair junto: é o que impede alguém responder uma conversa que não é sua.
+      it 'keeps the reply assignment gate on' do
+        expect(account.reload.reply_assignment_gate_enabled?).to be(true)
+      end
+    end
+
+    # Desligar explicitamente vale mesmo fora do modo fila — a conta escolhe, não deduz.
+    context 'when the account opted OUT of ia_reentra_orfa in classic mode' do
+      before { account.update!(settings: { reply_assignment_gate: false, ia_reentra_orfa: false }) }
+
+      it 'does not reattach the sector assistant' do
+        expect do
+          create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
+        end.not_to(change { orphan_conversation.reload.assignee_agent_bot_id })
+      end
+    end
   end
 
   describe 'integração A2c × gate (sucessor do skip_after_human_response)' do
