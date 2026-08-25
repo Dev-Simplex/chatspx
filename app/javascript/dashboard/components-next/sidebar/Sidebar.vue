@@ -6,6 +6,8 @@ import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
+import socialPublicacoesAPI from 'dashboard/api/socialPublicacoes';
 import { internalChatNotify } from 'dashboard/helper/internalChatNotify';
 import draggable from 'vuedraggable';
 import { useStore } from 'vuex';
@@ -95,6 +97,13 @@ const hasInternalChat = computed(() => {
 const LEAD_INTAKE_APPS = ['meta_lead_ads', 'site_leads'];
 
 const appIntegrations = useMapGetter('integrations/getAppIntegrations');
+
+const { isAdmin } = useAdmin();
+
+// Gate por DADO, como o item "Campanhas" logo abaixo: a pagina de Rede Social so aparece para
+// conta que tem comentario capturado. Conta sem canal de Instagram, ou com o campo `comments`
+// nao assinado, nao ganha item nenhum. Ver docs/SPEC-instagram-social.md §7.
+const temRedeSocial = ref(false);
 
 // A tela de campanhas só existe para conta que captura lead por formulário: sem hook
 // configurado, não há campanha nenhuma para mostrar e o item não aparece.
@@ -291,6 +300,16 @@ onMounted(() => {
   // Só para saber se a conta tem captação de lead configurada (o item "Campanhas"
   // some quando não tem). O payload não expõe settings de hook para não-admin.
   if (!appIntegrations.value.length) store.dispatch('integrations/get');
+  // So para saber se a conta tem comentario publico capturado (o item "Rede Social" some quando
+  // nao tem). Admin-only porque o endpoint tambem e.
+  if (isAdmin.value) {
+    socialPublicacoesAPI
+      .getAll()
+      .then(({ data }) => {
+        temRedeSocial.value = Boolean(data?.length);
+      })
+      .catch(() => {});
+  }
   setTimeout(() => {
     store.dispatch('conversationStats/get', {});
   }, 2000);
@@ -566,6 +585,17 @@ const menuItems = computed(() => {
       to: accountScopedRoute('gallery_index'),
       activeOn: ['gallery_index'],
     },
+    ...(temRedeSocial.value
+      ? [
+          {
+            name: 'Rede Social',
+            label: t('SIDEBAR.REDE_SOCIAL'),
+            icon: lordIcon('megaphone', 'i-lucide-message-circle'),
+            to: accountScopedRoute('social_index'),
+            activeOn: ['social_index'],
+          },
+        ]
+      : []),
     ...(takeoverRequestCount.value > 0
       ? [
           {

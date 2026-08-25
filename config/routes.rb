@@ -201,6 +201,10 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
+          # Superficie de rede social — SPEC em docs/SPEC-instagram-social.md.
+          # Leitura apenas na Fase 1: a captura e do webhook, e responder e a fatia seguinte.
+          resources :social_comentarios, only: [:index]
+          resources :social_publicacoes, only: [:index]
           resources :internal_channels, only: [:index, :show, :create, :update] do
             collection do
               get :mentions

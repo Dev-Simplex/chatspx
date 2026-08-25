@@ -1,0 +1,27 @@
+{
+  "REDE_SOCIAL": {
+    "TITULO": "Rede Social",
+    "DESCRICAO": "Os comentários públicos que chegam nas publicações do Instagram, e as publicações em que eles caíram.",
+    "CARREGANDO": "Carregando...",
+    "ERRO_CARREGAR": "Não foi possível carregar os comentários.",
+    "ABAS": {
+      "COMENTARIOS": "Comentários",
+      "PUBLICACOES": "Publicações"
+    },
+    "FILTRO_PUBLICACAO": "Publicação",
+    "TODAS_PUBLICACOES": "Todas",
+    "SO_NAO_RESPONDIDOS": "Só os sem resposta ({total})",
+    "INCLUIR_PROPRIOS": "Mostrar as respostas do time",
+    "SEM_COMENTARIOS": "Nenhum comentário capturado ainda.",
+    "SEM_PUBLICACOES": "Nenhuma publicação com comentário ainda.",
+    "AUTOR_DESCONHECIDO": "sem autor",
+    "RESPOSTA_DA_CONTA": "resposta do time",
+    "RESPONDIDO": "respondido",
+    "RESPONDIDO_AJUDA": "Deduzido do @ no começo da resposta do time — o Instagram não diz a qual comentário uma resposta pertence.",
+    "TIPO_DESCONHECIDO": "publicação",
+    "NAO_SINCRONIZADA": "sem legenda",
+    "VER_PUBLICACAO": "Ver no Instagram",
+    "CONTAGEM": "{clientes} de clientes · {respostas} do time",
+    "NO_INSTAGRAM": "{total} no Instagram"
+  }
+}

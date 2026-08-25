@@ -1,0 +1,27 @@
+{
+  "REDE_SOCIAL": {
+    "TITULO": "Social",
+    "DESCRICAO": "Public comments arriving on Instagram posts, and the posts they landed on.",
+    "CARREGANDO": "Loading...",
+    "ERRO_CARREGAR": "Could not load the comments.",
+    "ABAS": {
+      "COMENTARIOS": "Comments",
+      "PUBLICACOES": "Posts"
+    },
+    "FILTRO_PUBLICACAO": "Post",
+    "TODAS_PUBLICACOES": "All",
+    "SO_NAO_RESPONDIDOS": "Only unanswered ({total})",
+    "INCLUIR_PROPRIOS": "Show the team's replies",
+    "SEM_COMENTARIOS": "No comment captured yet.",
+    "SEM_PUBLICACOES": "No post with comments yet.",
+    "AUTOR_DESCONHECIDO": "no author",
+    "RESPOSTA_DA_CONTA": "team reply",
+    "RESPONDIDO": "answered",
+    "RESPONDIDO_AJUDA": "Inferred from the @ at the start of the team's reply — Instagram does not say which comment a reply belongs to.",
+    "TIPO_DESCONHECIDO": "post",
+    "NAO_SINCRONIZADA": "no caption",
+    "VER_PUBLICACAO": "View on Instagram",
+    "CONTAGEM": "{clientes} from customers · {respostas} from the team",
+    "NO_INSTAGRAM": "{total} on Instagram"
+  }
+}
