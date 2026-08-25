@@ -43,6 +43,83 @@
       "CLOSE": "Close",
       "DESIGNATED_AT": "Designated at",
       "CANDIDATES": "Candidates:"
+    },
+    "CONFIGURE": "Set up rotation",
+    "POLICY": {
+      "TITLE": "Rotation setup",
+      "SUBTITLE": "Who receives, in which order, and what happens when nobody picks it up.",
+      "BACK": "Back to the panel",
+      "SELECT_TEAM": "Pick a team",
+      "NO_TEAM": "Pick a team above to set up its rotation.",
+      "LOADING": "Loading...",
+      "ERROR": "Could not load the rotation setup",
+      "EMPTY": "No policy configured for this team yet. The engine is off here — fill this in and save to turn it on.",
+      "SAVE": "Save",
+      "SAVING": "Saving...",
+      "SAVED": "Rotation setup saved",
+      "SAVE_ERROR": "Could not save the rotation setup",
+      "REMOVE": "Remove policy",
+      "REMOVE_CONFIRM": "Yes, remove it",
+      "REMOVE_CANCEL": "Cancel",
+      "REMOVE_HINT": "Removing the policy turns the engine off for this team.",
+      "REMOVED": "Policy removed. The engine is off for this team.",
+      "REMOVE_ERROR": "Could not remove the policy",
+      "ENGINE": {
+        "TITLE": "Engine",
+        "ACTIVE": "Rotation on for this team",
+        "ACTIVE_HINT": "Off means this team keeps working exactly the way it does today.",
+        "MODE": "Mode",
+        "MODE_RODIZIO": "Rotation — the engine picks the next person and hands the lead to them",
+        "MODE_FILA": "Queue — nobody is picked; the lead waits and whoever takes it first keeps it",
+        "MODE_RAW": "Mode set outside this screen: {modo}"
+      },
+      "POOL": {
+        "TITLE": "Rotation pool",
+        "SUBTITLE": "Top to bottom is the order the rotation walks. Only members of this team show up here — and joining the team does NOT put someone in the rotation: you have to switch the person on below.",
+        "EMPTY": "This team has no members yet.",
+        "ON": "In the rotation",
+        "CAP": "Cap",
+        "CAP_HINT": "Cap is the top of simultaneous leads that person can hold. Leave it empty for no limit.",
+        "UP": "Move up",
+        "DOWN": "Move down",
+        "POSITION": "#{n}"
+      },
+      "CONTINUITY": {
+        "TITLE": "Continuity",
+        "ACTIVE": "A returning contact goes back to the same person",
+        "DAYS": "For how many days",
+        "HINT": "Counted from the last time that person served the contact."
+      },
+      "SLA": {
+        "TITLE": "SLA and hand-off",
+        "MINUTES": "Minutes to take the lead",
+        "MINUTES_HINT": "After this, the lead counts as not picked up.",
+        "AUTO": "Hand the lead to the next person automatically",
+        "MAX": "Maximum hand-offs",
+        "MAX_HINT": "0 means no limit.",
+        "FALLBACK": "When the pool runs out, send to",
+        "FALLBACK_NONE": "Nobody — the lead stays waiting"
+      },
+      "OWNERSHIP": {
+        "TITLE": "Who owns the conversation",
+        "ASSIGNEE": "Assign — the person becomes the assignee and takes the conversation over",
+        "DESIGNATION": "Designate only — the AI keeps answering until the person steps in"
+      },
+      "TRIGGER": {
+        "TITLE": "Trigger without AI",
+        "ACTIVE": "Distribute when a flow or a rule changes the team",
+        "HINT": "For teams where the lead arrives from a flow instead of the AI."
+      },
+      "ERRORS": {
+        "TITLE": "Fix this before saving:",
+        "MODO": "Pick a valid mode.",
+        "MODO_POSSE": "Pick who owns the conversation.",
+        "SLA": "Minutes to take the lead must be a whole number above zero.",
+        "MAX_REPASSES": "Maximum hand-offs must be zero or more.",
+        "CONTINUIDADE_DIAS": "Continuity days must be a whole number above zero.",
+        "CAP": "A cap must be above zero. Leave it empty for no limit.",
+        "POOL_VAZIO": "The rotation is on but nobody is in the pool — no lead would be distributed."
+      }
     }
   },
   "AGENTS_EVALUATION": {

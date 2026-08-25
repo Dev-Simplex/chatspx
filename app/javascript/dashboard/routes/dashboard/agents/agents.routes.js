@@ -8,6 +8,7 @@ const ToolsView = () => import('./pages/ToolsView.vue');
 const AgentDetailView = () => import('./pages/AgentDetailView.vue');
 const EvaluationPage = () => import('./pages/EvaluationPage.vue');
 const RodizioPage = () => import('./pages/RodizioPage.vue');
+const RodizioPoliticaPage = () => import('./pages/RodizioPoliticaPage.vue');
 
 const OverviewTab = () =>
   import('dashboard/components-next/agents/tabs/OverviewTab.vue');
@@ -122,6 +123,12 @@ export const routes = [
         path: 'rodizio',
         component: RodizioPage,
         name: 'agents_rodizio',
+        meta,
+      },
+      {
+        path: 'rodizio/politica',
+        component: RodizioPoliticaPage,
+        name: 'agents_rodizio_politica',
         meta,
       },
       {

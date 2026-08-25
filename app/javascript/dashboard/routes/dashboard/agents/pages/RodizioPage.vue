@@ -1,11 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
 
 defineOptions({ name: 'RodizioPage' });
 
 const { t } = useI18n();
+const router = useRouter();
+const { accountId } = useAccount();
 
 const loading = ref(true);
 const loadError = ref(false);
@@ -74,6 +78,13 @@ const conversa = displayId => `#${displayId}`;
 
 const resumoDesignacao = registro =>
   [registro.corretor || '—', registro.motivo, registro.status || '—'].join(' · ');
+
+// Este painel só CONTA o que já aconteceu; quem monta a política é a tela irmã.
+const irParaPolitica = () =>
+  router.push({
+    name: 'agents_rodizio_politica',
+    params: { accountId: accountId.value },
+  });
 </script>
 
 <template>
@@ -103,6 +114,12 @@ const resumoDesignacao = registro =>
           @click="carregar"
         >
           {{ t('AGENTS_RODIZIO.RELOAD') }}
+        </button>
+        <button
+          class="h-9 px-3 text-sm rounded-lg border border-n-weak text-n-slate-11"
+          @click="irParaPolitica"
+        >
+          {{ t('AGENTS_RODIZIO.CONFIGURE') }}
         </button>
       </div>
     </header>
