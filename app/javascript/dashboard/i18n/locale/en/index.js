@@ -45,6 +45,7 @@ import whatsappTemplates from './whatsappTemplates.json';
 import whatsappTemplatesMgmt from './whatsappTemplatesMgmt.json';
 import contentTemplates from './contentTemplates.json';
 import mfa from './mfa.json';
+import unidades from './unidades.json';
 import yearInReview from './yearInReview.json';
 
 export default {
@@ -95,5 +96,6 @@ export default {
   ...whatsappTemplatesMgmt,
   ...contentTemplates,
   ...mfa,
+  ...unidades,
   ...yearInReview,
 };
