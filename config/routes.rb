@@ -203,6 +203,11 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
+          # Unidades físicas do cliente — contrato em docs/contratos/unidades.md.
+          # Unidade é leitura (a carga é por rake); a escrita é da exceção, que é o que muda
+          # toda semana. Sem `update` na exceção: corrigir é apagar e criar outra.
+          resources :unidades, only: [:index]
+          resources :unidade_excecoes, only: [:index, :create, :destroy]
           resources :internal_channels, only: [:index, :show, :create, :update] do
             collection do
               get :mentions

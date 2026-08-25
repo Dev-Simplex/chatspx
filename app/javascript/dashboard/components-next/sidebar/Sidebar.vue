@@ -6,6 +6,8 @@ import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
+import unidadesAPI from 'dashboard/api/unidades';
 import { internalChatNotify } from 'dashboard/helper/internalChatNotify';
 import draggable from 'vuedraggable';
 import { useStore } from 'vuex';
@@ -95,6 +97,14 @@ const hasInternalChat = computed(() => {
 const LEAD_INTAKE_APPS = ['meta_lead_ads', 'site_leads'];
 
 const appIntegrations = useMapGetter('integrations/getAppIntegrations');
+
+const { isAdmin } = useAdmin();
+
+// Mesma ideia do `hasLeadIntake` logo abaixo: o item some quando a conta nao tem o dado.
+// Aqui o gate e por DADO e nao por feature flag de proposito — carregar as unidades liga a
+// tela, e nao ha um segundo interruptor para alguem esquecer de ligar. Ver §7 do contrato
+// docs/contratos/unidades.md.
+const temUnidades = ref(false);
 
 // A tela de campanhas só existe para conta que captura lead por formulário: sem hook
 // configurado, não há campanha nenhuma para mostrar e o item não aparece.
@@ -291,6 +301,16 @@ onMounted(() => {
   // Só para saber se a conta tem captação de lead configurada (o item "Campanhas"
   // some quando não tem). O payload não expõe settings de hook para não-admin.
   if (!appIntegrations.value.length) store.dispatch('integrations/get');
+  // So para saber se a conta tem unidade cadastrada (o item "Unidades" some quando nao tem).
+  // Admin-only porque o endpoint tambem e — pedir como agente so geraria um 401 por sessao.
+  if (isAdmin.value) {
+    unidadesAPI
+      .getAll()
+      .then(({ data }) => {
+        temUnidades.value = Boolean(data?.unidades?.length);
+      })
+      .catch(() => {});
+  }
   setTimeout(() => {
     store.dispatch('conversationStats/get', {});
   }, 2000);
@@ -871,6 +891,17 @@ const menuItems = computed(() => {
           icon: lordIcon('waha'),
           to: accountScopedRoute('waha_connections_list'),
         },
+        ...(temUnidades.value
+          ? [
+              {
+                name: 'Settings Unidades',
+                label: t('SIDEBAR.UNIDADES'),
+                icon: lordIcon('companies', 'i-lucide-store'),
+                activeOn: ['unidades_list'],
+                to: accountScopedRoute('unidades_list'),
+              },
+            ]
+          : []),
         ...(hasMessageSequences.value
           ? [
               {
