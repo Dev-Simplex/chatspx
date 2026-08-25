@@ -98,6 +98,7 @@
         "ADD_PRIVATE_NOTE": "Nota interna",
         "ASSIGN_AGENT": "Atribuir agente",
         "ASSIGN_TEAM": "Atribuir time",
+        "DISTRIBUIR": "Distribuir pelo rodízio",
         "ADD_LABEL": "Etiqueta",
         "CHANGE_STATUS": "Mudar status",
         "CHANGE_PRIORITY": "Prioridade",
@@ -249,6 +250,12 @@
         "ASSIGN_TEAM": {
           "LABEL": "Time",
           "PLACEHOLDER": "Selecione um time"
+        },
+        "DISTRIBUIR": {
+          "EXPLANATION": "Distribui entre as pessoas do time atual da conversa, na ordem configurada em Agentes › Rodízio.",
+          "HINT": "Não há o que configurar aqui: use um bloco “Atribuir time” antes deste para escolher o time.",
+          "NO_POLICY": "Nenhum time tem política de distribuição ativa. Configure em Agentes › Rodízio — até lá este bloco é pulado em toda execução.",
+          "TEAMS_WITH_POLICY": "Times com política ativa: {teams}"
         },
         "ASSIGN_AI_AGENT": {
           "LABEL": "Agente IA",

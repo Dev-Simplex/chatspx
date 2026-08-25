@@ -20,6 +20,7 @@ import HttpRequestConfig from './config/HttpRequestConfig.vue';
 import AssignAgentConfig from './config/AssignAgentConfig.vue';
 import AssignTeamConfig from './config/AssignTeamConfig.vue';
 import AddParticipantConfig from './config/AddParticipantConfig.vue';
+import DistribuirConfig from './config/DistribuirConfig.vue';
 import EnrollSequenceConfig from './config/EnrollSequenceConfig.vue';
 import AssignAiAgentConfig from './config/AssignAiAgentConfig.vue';
 import AiClassifyConfig from './config/AiClassifyConfig.vue';
@@ -67,6 +68,7 @@ const ACTION_EDITORS = {
   assign_agent: markRaw(AssignAgentConfig),
   assign_team: markRaw(AssignTeamConfig),
   add_participant: markRaw(AddParticipantConfig),
+  distribuir: markRaw(DistribuirConfig),
   enroll_in_sequence: markRaw(EnrollSequenceConfig),
   assign_ai_agent: markRaw(AssignAiAgentConfig),
   ai_classify: markRaw(AiClassifyConfig),

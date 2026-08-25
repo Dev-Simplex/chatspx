@@ -45,6 +45,11 @@ class Flows::ActionService < ActionService
   # (interactive:flow) e o entrega pelo MESMO passthrough (create_interactive_message →
   # interactive_payload → provider). Ver Flows::WhatsappFlowAction.
   include Flows::WhatsappFlowAction
+  # distribuir: aciona o Motor de Distribuição (rodízio/fila) no time atual da conversa via
+  # Spx::Distribuicao::DistribuirService. Guardas TIPADAS (StepSkip) em vez do noop mudo do
+  # serviço, para o painel Execuções não reportar "distribuiu" quando ninguém recebeu nada.
+  # Ver Flows::DistribuicaoAction.
+  include Flows::DistribuicaoAction
 
   # Outcome of ONE action node, consumed by the Flows::RunnerService to build a FlowStepLog.
   # `error` carries the captured exception (failed) or the Flows::StepSkip (skipped); nil on

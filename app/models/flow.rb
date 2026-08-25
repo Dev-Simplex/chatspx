@@ -68,6 +68,12 @@ class Flow < ApplicationRecord
   # Flows). Os três saem pelo passthrough genérico do provider (send_raw_interactive) via
   # content_attributes['interactive_payload']. send_whatsapp_flow, antes um TODO que sempre pulava,
   # agora ENVIA de verdade (integração concluída em Flows::WhatsappFlowAction) — por isso entrou.
+  #
+  # `distribuir` — dispara o Motor de Distribuição (rodízio/fila) no time ATUAL da conversa, via
+  # Spx::Distribuicao::DistribuirService. Existe para tirar o QUANDO da distribuição de uma flag
+  # global invisível (`gatilho_sem_ia` na política) e trazê-lo para o DESENHO do fluxo:
+  # `assign_team` → `distribuir`. Sem parâmetro (o time da conversa é quem carrega a política) e
+  # com guardas tipadas — ver Flows::DistribuicaoAction.
   BASE_ACTION_NAMES = %w[
     send_message add_private_note send_attachment send_webhook_event send_email_to_team
     add_label remove_label assign_agent assign_team remove_assigned_team
@@ -77,6 +83,7 @@ class Flow < ApplicationRecord
     move_funnel_stage call_macro send_csat
     add_participant enroll_in_sequence http_request
     send_cta_url send_location_request send_whatsapp_flow
+    distribuir
   ].freeze
 
   # `wait_for_reply` (F2): suspende o walk ESPERANDO a resposta do contato e ramifica pela opção

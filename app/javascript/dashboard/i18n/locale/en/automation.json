@@ -98,6 +98,7 @@
         "ADD_PRIVATE_NOTE": "Private note",
         "ASSIGN_AGENT": "Assign agent",
         "ASSIGN_TEAM": "Assign team",
+        "DISTRIBUIR": "Distribute (round robin)",
         "ADD_LABEL": "Label",
         "CHANGE_STATUS": "Change status",
         "CHANGE_PRIORITY": "Priority",
@@ -249,6 +250,12 @@
         "ASSIGN_TEAM": {
           "LABEL": "Team",
           "PLACEHOLDER": "Select a team"
+        },
+        "DISTRIBUIR": {
+          "EXPLANATION": "Distributes among the people on the conversation’s current team, in the order set under Agents › Round robin.",
+          "HINT": "No settings here: put an “Assign team” block before this one to choose the team.",
+          "NO_POLICY": "No team has an active distribution policy yet. Set one up under Agents › Round robin — until then this block is skipped on every run.",
+          "TEAMS_WITH_POLICY": "Teams with an active policy: {teams}"
         },
         "ASSIGN_AI_AGENT": {
           "LABEL": "AI agent",
