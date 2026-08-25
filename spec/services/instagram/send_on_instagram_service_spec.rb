@@ -105,6 +105,31 @@ describe Instagram::SendOnInstagramService do
           expect(message.reload.status).to eq('failed')
           expect(message.reload.external_error).to eq('400 - The Instagram account is restricted.')
         end
+
+        # A Meta respondendo erro já marcava `failed`. O caminho da EXCEÇÃO — timeout, conexão
+        # derrubada, anexo que não baixa — só ia para o tracker: a mensagem seguia como enviada,
+        # e nem o time nem o agente sabiam que ela não chegou.
+        it 'marks the message as failed when the send raises instead of answering' do
+          message = create(:message, message_type: 'outgoing', inbox: instagram_inbox, account: account, conversation: conversation)
+          allow(HTTParty).to receive(:post).and_raise(Net::ReadTimeout.new('execution expired'))
+
+          described_class.new(message: message).perform
+
+          expect(message.reload.status).to eq('failed')
+          expect(message.reload.external_error).to include('Net::ReadTimeout')
+        end
+
+        # Falha tardia não pode apagar entrega que comprovadamente aconteceu — a guarda vive no
+        # StatusUpdateService, e este exemplo existe para que ela não se perca numa refatoração.
+        it 'does not downgrade a message already confirmed as read' do
+          message = create(:message, message_type: 'outgoing', inbox: instagram_inbox, account: account,
+                                     conversation: conversation, status: :read)
+          allow(HTTParty).to receive(:post).and_raise(Net::ReadTimeout.new('execution expired'))
+
+          described_class.new(message: message).perform
+
+          expect(message.reload.status).to eq('read')
+        end
       end
 
       context 'with message_tag HUMAN_AGENT' do
