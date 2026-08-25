@@ -317,6 +317,16 @@ const newReportRoutes = () => [
     label: t('SIDEBAR.REPORTS_AGENT_ASSIGNMENT'),
     to: accountScopedRoute('agent_assignment_reports'),
   },
+  // Aponta para o PAINEL do rodizio, nao para a politica: dali o botao
+  // "Configurar rodizio" leva a configuracao. Ate aqui a tela so existia por URL
+  // digitada. O item some sozinho para quem nao e admin — o SidebarGroup le
+  // `meta.permissions` da rota (provider.js `resolvePermissions`).
+  {
+    name: 'Reports Rodizio',
+    label: t('SIDEBAR.REPORTS_RODIZIO'),
+    to: accountScopedRoute('agents_rodizio'),
+    activeOn: ['agents_rodizio_politica'],
+  },
   {
     name: 'Reports Label',
     label: t('SIDEBAR.REPORTS_LABEL'),

@@ -88,7 +88,10 @@ const irParaPolitica = () =>
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6 overflow-y-auto">
+  <!-- `w-full h-full` porque esta tela deixou de ser filha do AgentsPageView: agora
+       ela e o proprio filho do <main> do Dashboard (flex row, overflow-hidden), e sem
+       isso encolheria para a largura do conteudo e nao rolaria. -->
+  <div class="flex flex-col w-full h-full gap-6 p-6 overflow-y-auto">
     <header class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 class="text-xl font-medium text-n-slate-12">

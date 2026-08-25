@@ -335,7 +335,13 @@ const remover = async () => {
 </script>
 
 <template>
-  <div class="flex overflow-y-auto flex-col gap-6 p-6">
+  <!-- `max-w-[960px] mx-auto` e a largura que SettingsLayout/Wrapper usam nas telas
+       de configuracao; sem ela o formulario esticava de ponta a ponta do monitor.
+       `w-full h-full` porque a tela deixou de ser filha do AgentsPageView e agora e
+       filha direta do <main> do Dashboard (flex row, overflow-hidden). -->
+  <div
+    class="flex overflow-y-auto flex-col gap-6 p-6 mx-auto w-full h-full max-w-[960px]"
+  >
     <header class="flex flex-wrap gap-4 justify-between items-end">
       <div>
         <h1 class="text-xl font-medium text-n-slate-12">
@@ -348,7 +354,7 @@ const remover = async () => {
       <div class="flex gap-2 items-center">
         <select
           v-model="teamId"
-          class="px-2 h-9 text-sm bg-white rounded-lg border dark:bg-n-solid-2 border-n-weak text-n-slate-12"
+          class="px-2 mb-0 w-56 h-9 text-sm bg-white rounded-lg border dark:bg-n-solid-2 border-n-weak text-n-slate-12"
           @change="carregarTime"
         >
           <option value="">
@@ -402,7 +408,7 @@ const remover = async () => {
           {{ t('AGENTS_RODIZIO.POLICY.ENGINE.MODE') }}
           <select
             v-model="form.modo"
-            class="px-2 h-9 max-w-2xl text-sm bg-white rounded-lg border dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            class="px-2 mb-0 h-9 max-w-xs text-sm bg-white rounded-lg border dark:bg-n-solid-3 border-n-weak text-n-slate-12"
           >
             <option v-for="modo in modosDisponiveis" :key="modo" :value="modo">
               {{ rotuloModo(modo) }}
@@ -463,7 +469,7 @@ const remover = async () => {
                 v-model="linha.cap"
                 type="number"
                 min="1"
-                class="px-2 w-20 h-8 text-sm bg-white rounded-lg border dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+                class="px-2 w-20 h-8 text-sm bg-white rounded-lg border reset-base dark:bg-n-solid-3 border-n-weak text-n-slate-12"
               />
             </label>
           </li>
@@ -490,7 +496,7 @@ const remover = async () => {
             type="number"
             min="1"
             :disabled="!form.continuidade_ativa"
-            class="px-2 w-24 h-8 text-sm bg-white rounded-lg border dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            class="px-2 w-24 h-8 text-sm bg-white rounded-lg border reset-base dark:bg-n-solid-3 border-n-weak text-n-slate-12 disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </label>
         <p class="text-xs text-n-slate-10">
@@ -510,7 +516,7 @@ const remover = async () => {
             v-model="form.sla_assumir_minutos"
             type="number"
             min="1"
-            class="px-2 w-24 h-8 text-sm bg-white rounded-lg border dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            class="px-2 w-24 h-8 text-sm bg-white rounded-lg border reset-base dark:bg-n-solid-3 border-n-weak text-n-slate-12"
           />
         </label>
         <p class="text-xs text-n-slate-10">
@@ -527,7 +533,7 @@ const remover = async () => {
             type="number"
             min="0"
             :disabled="!form.repasse_automatico"
-            class="px-2 w-24 h-8 text-sm bg-white rounded-lg border dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            class="px-2 w-24 h-8 text-sm bg-white rounded-lg border reset-base dark:bg-n-solid-3 border-n-weak text-n-slate-12 disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </label>
         <p class="text-xs text-n-slate-10">
@@ -537,7 +543,7 @@ const remover = async () => {
           {{ t('AGENTS_RODIZIO.POLICY.SLA.FALLBACK') }}
           <select
             v-model="form.pool_esgotado_destino_user_id"
-            class="px-2 h-9 max-w-md text-sm bg-white rounded-lg border dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            class="px-2 mb-0 h-9 max-w-md text-sm bg-white rounded-lg border dark:bg-n-solid-3 border-n-weak text-n-slate-12"
           >
             <option :value="null">
               {{ t('AGENTS_RODIZIO.POLICY.SLA.FALLBACK_NONE') }}
