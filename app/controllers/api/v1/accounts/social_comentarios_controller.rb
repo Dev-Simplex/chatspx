@@ -17,9 +17,27 @@ class Api::V1::Accounts::SocialComentariosController < Api::V1::Accounts::BaseCo
     # A inferência de "respondido" precisa das respostas da conta, que o filtro padrão esconde.
     # Por isso ela é calculada sobre as publicações EM TELA, e não sobre a página filtrada.
     @respondidos = Spx::Social::Respondidos.new(comentarios_das_publicacoes_em_tela)
+    @politica = Spx::Social::PoliticaDeResposta.new(account: Current.account)
+  end
+
+  # Responder é o ÚNICO caminho de escrita deste módulo, e ele passa pelo portão do piloto —
+  # inclusive quando o clique é humano. Durante o piloto isso é de propósito: o objetivo é que
+  # nada chegue a cliente real por acidente, nem por automação nem por engano de quem opera.
+  def responder
+    resultado = Spx::Social::ResponderComentario.new(
+      comentario: comentario, texto: params[:texto], forma: params[:forma]
+    ).perform
+
+    return render json: { erro: resultado.recusa || resultado.erro }, status: :unprocessable_entity unless resultado.ok?
+
+    render json: { external_id: resultado.external_id, forma: params[:forma] }
   end
 
   private
+
+  def comentario
+    @comentario ||= base.find(params[:id])
+  end
 
   def pagina
     escopo = base

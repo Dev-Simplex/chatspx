@@ -22,6 +22,22 @@
     "NAO_SINCRONIZADA": "no caption",
     "VER_PUBLICACAO": "View on Instagram",
     "CONTAGEM": "{clientes} from customers · {respostas} from the team",
-    "NO_INSTAGRAM": "{total} on Instagram"
+    "NO_INSTAGRAM": "{total} on Instagram",
+    "RESPOSTA": {
+      "PLACEHOLDER": "Write the reply...",
+      "BOTAO_PUBLICA": "Reply on the post",
+      "BOTAO_PRIVADA": "Reply in the direct",
+      "ENVIADA_PUBLICA": "Replied on the post",
+      "ENVIADA_PRIVADA": "Replied in the direct"
+    },
+    "RECUSA": {
+      "GENERICA": "Could not reply.",
+      "FORMA_DESLIGADA": "This reply channel is not enabled for this account.",
+      "FORMA_DESCONHECIDA": "Invalid reply channel.",
+      "COMENTARIO_DA_PROPRIA_CONTA": "This comment is from the account itself.",
+      "FORA_DO_PILOTO": "This author is outside the pilot list.",
+      "JA_RESPONDIDO": "Already replied this way — Instagram does not accept a second one.",
+      "TEXTO_VAZIO": "Write the reply before sending."
+    }
   }
 }

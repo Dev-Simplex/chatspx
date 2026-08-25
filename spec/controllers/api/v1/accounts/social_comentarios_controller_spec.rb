@@ -30,7 +30,7 @@ RSpec.describe 'Api::V1::Accounts::SocialComentariosController', type: :request 
       get "/api/v1/accounts/#{account.id}/social_comentarios", headers: administrator.create_new_auth_token
 
       expect(response).to have_http_status(:success)
-      body = response.parsed_body
+      body = response.parsed_body['comentarios']
       expect(body.length).to eq(1)
       expect(body.first['autor_username']).to eq('nilgloria')
       expect(body.first['publicacao']['legenda']).to eq('Promoção de agosto')
@@ -44,7 +44,7 @@ RSpec.describe 'Api::V1::Accounts::SocialComentariosController', type: :request 
 
       get "/api/v1/accounts/#{account.id}/social_comentarios", headers: administrator.create_new_auth_token
 
-      expect(response.parsed_body.pluck('proprio')).to eq([false])
+      expect(response.parsed_body['comentarios'].pluck('proprio')).to eq([false])
     end
 
     it 'inclui as respostas da conta quando pedido' do
@@ -54,7 +54,7 @@ RSpec.describe 'Api::V1::Accounts::SocialComentariosController', type: :request 
       get "/api/v1/accounts/#{account.id}/social_comentarios?incluir_proprios=true",
           headers: administrator.create_new_auth_token
 
-      expect(response.parsed_body.length).to eq(2)
+      expect(response.parsed_body['comentarios'].length).to eq(2)
     end
 
     # O ponto da tela: dizer o que falta responder. A resposta da conta está escondida da
@@ -65,7 +65,7 @@ RSpec.describe 'Api::V1::Accounts::SocialComentariosController', type: :request 
 
       get "/api/v1/accounts/#{account.id}/social_comentarios", headers: administrator.create_new_auth_token
 
-      expect(response.parsed_body.first['respondido']).to be true
+      expect(response.parsed_body['comentarios'].first['respondido']).to be true
     end
 
     it 'mostra como não respondido quem ninguém endereçou' do
@@ -73,7 +73,7 @@ RSpec.describe 'Api::V1::Accounts::SocialComentariosController', type: :request 
 
       get "/api/v1/accounts/#{account.id}/social_comentarios", headers: administrator.create_new_auth_token
 
-      expect(response.parsed_body.first['respondido']).to be false
+      expect(response.parsed_body['comentarios'].first['respondido']).to be false
     end
 
     it 'filtra por publicação' do
@@ -85,7 +85,7 @@ RSpec.describe 'Api::V1::Accounts::SocialComentariosController', type: :request 
       get "/api/v1/accounts/#{account.id}/social_comentarios?publicacao_id=#{publicacao.id}",
           headers: administrator.create_new_auth_token
 
-      expect(response.parsed_body.pluck('autor_username')).to eq(['daqui'])
+      expect(response.parsed_body['comentarios'].pluck('autor_username')).to eq(['daqui'])
     end
 
     it 'não enxerga comentário de outra conta' do
@@ -95,7 +95,7 @@ RSpec.describe 'Api::V1::Accounts::SocialComentariosController', type: :request 
 
       get "/api/v1/accounts/#{account.id}/social_comentarios", headers: administrator.create_new_auth_token
 
-      expect(response.parsed_body.pluck('autor_username')).not_to include('de-outro-cliente')
+      expect(response.parsed_body['comentarios'].pluck('autor_username')).not_to include('de-outro-cliente')
     end
 
     it 'devolve os mais recentes primeiro' do
@@ -104,7 +104,7 @@ RSpec.describe 'Api::V1::Accounts::SocialComentariosController', type: :request 
 
       get "/api/v1/accounts/#{account.id}/social_comentarios", headers: administrator.create_new_auth_token
 
-      expect(response.parsed_body.pluck('autor_username')).to eq(%w[recente antigo])
+      expect(response.parsed_body['comentarios'].pluck('autor_username')).to eq(%w[recente antigo])
     end
   end
 end

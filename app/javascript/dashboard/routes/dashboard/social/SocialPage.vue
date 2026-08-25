@@ -7,8 +7,9 @@ import socialPublicacoesAPI from 'dashboard/api/socialPublicacoes';
 
 const { t } = useI18n();
 
-// Fase 1 da SPEC: ver o que chegou. Responder é a fatia seguinte, e as abas de campanha,
-// marcações, agenda e painel vêm depois — ver docs/SPEC-instagram-social.md §6.
+// Ver o que chegou e responder à mão. As abas de campanha, marcações, agenda e painel vêm
+// depois — ver docs/SPEC-instagram-social.md §6. A resposta passa pelo portão do piloto no
+// servidor, então esta tela oferece só o que a conta habilitou.
 const ABAS = ['comentarios', 'publicacoes'];
 const abaAtiva = ref('comentarios');
 
@@ -16,6 +17,7 @@ const comentarios = ref([]);
 const publicacoes = ref([]);
 const carregando = ref(false);
 
+const formas = ref({});
 const publicacaoId = ref('');
 const incluirProprios = ref(false);
 const soNaoRespondidos = ref(false);
@@ -25,7 +27,44 @@ const carregarComentarios = async () => {
     publicacaoId: publicacaoId.value || undefined,
     incluirProprios: incluirProprios.value || undefined,
   });
-  comentarios.value = data || [];
+  comentarios.value = data?.comentarios || [];
+  // Quais formas de resposta a conta habilitou. A tela só oferece o que existe: botão que
+  // aparece e sempre recusa é pior que botão ausente.
+  formas.value = data?.formas || {};
+};
+
+// Rascunho por comentário, para o texto não se perder ao trocar de aba ou refiltrar.
+const rascunhos = ref({});
+const enviando = ref(null);
+
+const podeResponder = (comentario, forma) =>
+  formas.value[forma] && !comentario.recusas?.[forma];
+
+const jaEnviado = (comentario, forma) =>
+  comentario.respostas?.[forma]?.external_id;
+
+const responder = async (comentario, forma) => {
+  enviando.value = `${comentario.id}-${forma}`;
+  try {
+    await socialComentariosAPI.responder(comentario.id, {
+      forma,
+      texto: rascunhos.value[comentario.id],
+    });
+    rascunhos.value[comentario.id] = '';
+    await carregarComentarios();
+    useAlert(t(`REDE_SOCIAL.RESPOSTA.ENVIADA_${forma.toUpperCase()}`));
+  } catch (error) {
+    // O servidor devolve o MOTIVO da recusa; mostrá-lo é o ponto — "não aconteceu nada" é a
+    // pior resposta possível para quem opera.
+    const motivo = error?.response?.data?.erro;
+    useAlert(
+      motivo
+        ? t(`REDE_SOCIAL.RECUSA.${motivo.toUpperCase()}`, t('REDE_SOCIAL.RECUSA.GENERICA'))
+        : t('REDE_SOCIAL.RECUSA.GENERICA')
+    );
+  } finally {
+    enviando.value = null;
+  }
 };
 
 const carregar = async () => {
@@ -196,6 +235,64 @@ onMounted(carregar);
             >
               {{ legendaCurta(comentario.publicacao) || $t('REDE_SOCIAL.VER_PUBLICACAO') }}
             </a>
+
+            <!-- O que já saiu daqui, por forma. Registro da tentativa, não só "respondido" -->
+            <p
+              v-for="forma in ['publica', 'privada']"
+              v-show="jaEnviado(comentario, forma)"
+              :key="`enviado-${forma}`"
+              class="mt-1 text-xs text-n-slate-10"
+            >
+              {{ $t(`REDE_SOCIAL.RESPOSTA.ENVIADA_${forma.toUpperCase()}`) }}
+            </p>
+
+            <div
+              v-if="!comentario.proprio && (formas.publica || formas.privada)"
+              class="mt-2"
+            >
+              <textarea
+                v-model="rascunhos[comentario.id]"
+                rows="2"
+                :placeholder="$t('REDE_SOCIAL.RESPOSTA.PLACEHOLDER')"
+                class="w-full px-3 py-2 text-sm border rounded bg-n-solid-1 border-n-weak text-n-slate-12"
+              />
+              <div class="flex flex-wrap items-center gap-2 mt-1">
+                <button
+                  v-for="forma in ['publica', 'privada']"
+                  v-show="formas[forma]"
+                  :key="forma"
+                  class="px-3 py-1 text-xs font-medium rounded text-white bg-n-brand disabled:opacity-40"
+                  :disabled="
+                    !podeResponder(comentario, forma) ||
+                    !rascunhos[comentario.id] ||
+                    enviando === `${comentario.id}-${forma}`
+                  "
+                  :title="
+                    comentario.recusas?.[forma]
+                      ? $t(
+                          `REDE_SOCIAL.RECUSA.${comentario.recusas[forma].toUpperCase()}`,
+                          $t('REDE_SOCIAL.RECUSA.GENERICA')
+                        )
+                      : ''
+                  "
+                  @click="responder(comentario, forma)"
+                >
+                  {{ $t(`REDE_SOCIAL.RESPOSTA.BOTAO_${forma.toUpperCase()}`) }}
+                </button>
+                <!-- Diz POR QUE não dá, em vez de só desabilitar em silêncio. -->
+                <span
+                  v-if="comentario.recusas?.privada && comentario.recusas?.publica"
+                  class="text-xs text-n-slate-10"
+                >
+                  {{
+                    $t(
+                      `REDE_SOCIAL.RECUSA.${comentario.recusas.privada.toUpperCase()}`,
+                      $t('REDE_SOCIAL.RECUSA.GENERICA')
+                    )
+                  }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

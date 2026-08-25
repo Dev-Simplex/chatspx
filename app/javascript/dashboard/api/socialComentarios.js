@@ -17,6 +17,12 @@ class SocialComentariosAPI extends ApiClient {
       },
     });
   }
+
+  // `forma` é 'publica' (aparece embaixo do post) ou 'privada' (cai no direct do autor).
+  // Passa pelo portão do piloto no servidor mesmo vindo de clique humano.
+  responder(id, { forma, texto }) {
+    return axios.post(`${this.url}/${id}/responder`, { forma, texto });
+  }
 }
 
 export default new SocialComentariosAPI();
