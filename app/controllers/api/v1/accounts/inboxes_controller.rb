@@ -214,6 +214,11 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :team_message_isolation,
      :agent_message_isolation, :agent_conversation_isolation, :pending_status_enabled,
+     # Escopo por time das 3 regras de isolamento. Lista VAZIA = a regra vale para TODOS os
+     # times (comportamento historico); com times escolhidos, so vale neles.
+     { team_message_isolation_team_ids: [] },
+     { agent_message_isolation_team_ids: [] },
+     { agent_conversation_isolation_team_ids: [] },
      { additional_attributes: [:pin_mode, :agent_signature_enabled, { pinned_conversation_ids: [], allowed_template_names: [] }] },
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],

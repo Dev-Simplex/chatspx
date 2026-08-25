@@ -406,4 +406,169 @@ RSpec.describe Inbox do
       end
     end
   end
+
+  # ESCOPO POR TIME DAS 3 REGRAS DE ISOLAMENTO — a matriz da regra, no unico lugar
+  # onde ela existe. Os 7 pontos de aplicacao sao testados em
+  # spec/services/isolation_team_scope_spec.rb; aqui e a regra pura.
+  describe '#isolation_applies_to_team?' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:team) { create(:team, account: account) }
+    let(:other_team) { create(:team, account: account) }
+
+    Inbox::ISOLATION_RULES.each_key do |rule|
+      context "with the #{rule} rule" do
+        let(:list_column) { Inbox::ISOLATION_RULES.fetch(rule) }
+
+        it 'is false when the flag is off, whatever the list says' do
+          inbox.update!(rule => false, list_column => [team.id])
+          expect(inbox.isolation_applies_to_team?(rule, team.id)).to be(false)
+        end
+
+        # RETROCOMPAT: e o estado de TODA caixa ja configurada no dia do deploy.
+        it 'is true for any team when the list is empty' do
+          inbox.update!(rule => true, list_column => [])
+          expect(inbox.isolation_applies_to_team?(rule, team.id)).to be(true)
+          expect(inbox.isolation_applies_to_team?(rule, other_team.id)).to be(true)
+        end
+
+        it 'is true for a team inside the chosen list' do
+          inbox.update!(rule => true, list_column => [team.id])
+          expect(inbox.isolation_applies_to_team?(rule, team.id)).to be(true)
+        end
+
+        it 'is false for a team outside the chosen list' do
+          inbox.update!(rule => true, list_column => [team.id])
+          expect(inbox.isolation_applies_to_team?(rule, other_team.id)).to be(false)
+        end
+
+        # Conversa SEM time com a lista JA restrita: as familias se separam AQUI, nao so no
+        # caso da lista vazia. Nas 2 regras de MENSAGEM a regra nao alcanca (mostrar as bolhas
+        # de quem ainda nao passou pela triagem). Em agent_conversation_isolation ela ALCANCA:
+        # "sem time" nao e um time que o admin excluiu, e se restringir o escopo abrisse a
+        # conversa sem time do colega, apertar a regra AFROUXARIA o acesso — o oposto do que
+        # a tela promete.
+        it 'follows the rule family for a conversation without a team once the list is restricted' do
+          inbox.update!(rule => true, list_column => [team.id])
+          esperado = !Inbox::TEAMLESS_EXEMPT_RULES.include?(rule)
+          expect(inbox.isolation_applies_to_team?(rule, nil)).to be(esperado)
+        end
+
+        it 'accepts the team id as a string' do
+          inbox.update!(rule => true, list_column => [team.id])
+          expect(inbox.isolation_applies_to_team?(rule, team.id.to_s)).to be(true)
+        end
+      end
+    end
+
+    # A DISTINCAO QUE O ESCOPO POR TIME NAO PODE APAGAR — conversa SEM time com a lista
+    # VAZIA (o estado de TODA caixa ja configurada no dia do deploy).
+    #
+    # As duas regras de MENSAGEM sao isentas (Inbox::TEAMLESS_EXEMPT_RULES): a conversa
+    # nasce sem time, antes da triagem, e esconder as bolhas dela esconderia o lead novo.
+    # `agent_conversation_isolation` NAO e isenta: ali o criterio de fechamento nao e o
+    # time, e sim "esta atribuida a outra pessoa". Se ela virasse isenta, o deploy desta
+    # feature ABRIRIA para todo agente a conversa do colega ainda sem triagem — regressao
+    # de seguranca, nao o relaxamento que o admin pediu.
+    context 'with a conversation that has no team yet and an empty list' do
+      before do
+        inbox.update!(
+          team_message_isolation: true,
+          agent_message_isolation: true,
+          agent_conversation_isolation: true
+        )
+      end
+
+      it 'exempts the two MESSAGE rules so the untriaged lead stays readable' do
+        expect(inbox.isolation_applies_to_team?(:team_message_isolation, nil)).to be(false)
+        expect(inbox.isolation_applies_to_team?(:agent_message_isolation, nil)).to be(false)
+      end
+
+      it 'keeps agent_conversation_isolation applying (it closes by owner, not by team)' do
+        expect(inbox.isolation_applies_to_team?(:agent_conversation_isolation, nil)).to be(true)
+      end
+
+      it 'lists exactly the two message rules as teamless-exempt' do
+        expect(Inbox::TEAMLESS_EXEMPT_RULES).to contain_exactly(:team_message_isolation, :agent_message_isolation)
+      end
+    end
+
+    it 'defaults every list to empty so no configured inbox changes on deploy' do
+      expect(inbox.team_message_isolation_team_ids).to eq([])
+      expect(inbox.agent_message_isolation_team_ids).to eq([])
+      expect(inbox.agent_conversation_isolation_team_ids).to eq([])
+    end
+
+    it 'raises on an unknown rule instead of silently answering "does not isolate"' do
+      expect { inbox.isolation_applies_to_team?(:nope, team.id) }.to raise_error(KeyError)
+    end
+  end
+
+  describe '.isolation_applies_sql' do
+    it 'raises on an unknown rule' do
+      expect { described_class.isolation_applies_sql(:nope) }.to raise_error(KeyError)
+    end
+
+    # O SQL e o espelho da regra Ruby; se os dois divergirem, a listagem esconde o que a
+    # conversa aberta mostra (ou o contrario). Aqui so garantimos que ele RODA e concorda
+    # com o helper nos 3 casos que mais importam.
+    it 'agrees with the ruby helper for empty list / chosen team / other team' do
+      account = create(:account)
+      inbox = create(:inbox, account: account, agent_message_isolation: true)
+      team = create(:team, account: account)
+      other_team = create(:team, account: account)
+      chosen = create(:conversation, account: account, inbox: inbox, team: team)
+      outside = create(:conversation, account: account, inbox: inbox, team: other_team)
+      teamless = create(:conversation, account: account, inbox: inbox, team: nil)
+
+      matching = lambda {
+        Conversation.joins(:inbox)
+                    .where(id: [chosen.id, outside.id, teamless.id])
+                    .where(described_class.isolation_applies_sql(:agent_message_isolation))
+                    .pluck(:id)
+      }
+
+      expect(matching.call).to contain_exactly(chosen.id, outside.id)
+
+      inbox.update!(agent_message_isolation_team_ids: [team.id])
+      expect(matching.call).to contain_exactly(chosen.id)
+    end
+
+    # O SQL espelha a EXCECAO do time nulo, nao a inverte: se ele isentasse a conversa sem
+    # time tambem em agent_conversation_isolation, a galeria / o download em massa / o
+    # bulk passariam a entregar a conversa do colega ainda sem triagem — exatamente o
+    # vazamento que TEAMLESS_EXEMPT_RULES existe para nao abrir.
+    it 'keeps the teamless conversation inside agent_conversation_isolation with an empty list' do
+      account = create(:account)
+      inbox = create(:inbox, account: account, agent_message_isolation: true, agent_conversation_isolation: true)
+      team = create(:team, account: account)
+      with_team = create(:conversation, account: account, inbox: inbox, team: team)
+      teamless = create(:conversation, account: account, inbox: inbox, team: nil)
+
+      matching = lambda { |rule|
+        Conversation.joins(:inbox)
+                    .where(id: [with_team.id, teamless.id])
+                    .where(described_class.isolation_applies_sql(rule))
+                    .pluck(:id)
+      }
+
+      expect(matching.call(:agent_message_isolation)).to contain_exactly(with_team.id)
+      expect(matching.call(:agent_conversation_isolation)).to contain_exactly(with_team.id, teamless.id)
+    end
+
+    # E o Ruby e o SQL tem que responder a MESMA coisa nesse ponto — divergir aqui e como
+    # a lista passa a esconder o que a conversa aberta mostra (ou o contrario).
+    it 'agrees with the ruby helper on the teamless conversation, rule by rule' do
+      account = create(:account)
+      inbox = create(:inbox, account: account)
+      Inbox::ISOLATION_RULES.each_key { |rule| inbox.update!(rule => true) }
+      teamless = create(:conversation, account: account, inbox: inbox, team: nil)
+
+      Inbox::ISOLATION_RULES.each_key do |rule|
+        in_sql = Conversation.joins(:inbox).where(id: teamless.id)
+                             .where(described_class.isolation_applies_sql(rule)).exists?
+        expect(in_sql).to be(inbox.isolation_applies_to_team?(rule, nil))
+      end
+    end
+  end
 end

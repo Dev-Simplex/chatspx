@@ -155,16 +155,20 @@ class Conversation < ApplicationRecord
 
   has_many :mentions, dependent: :destroy_async
   has_many :messages, lambda { |conversation| # rubocop:disable Rails/InverseOf
-    # Filtragem por team_id so se aplica quando o inbox tem team_message_isolation ATIVADO.
+    # Filtragem por team_id so se aplica quando a regra ALCANCA esta conversa:
+    # `Inbox#isolation_applies_to_team?` = flag ligada + conversa COM time + time dentro
+    # da lista escolhida (lista vazia = todos os times = comportamento historico).
     # Caso contrario (default), retorna todas as mensagens — alinhando o backend com o frontend
     # (Message.vue isRestrictedByTeam) e com a expectativa do admin que desabilita o setting.
     # Quando isolation esta ON e a conv pertence a um time, mensagens com team_id NULL ainda
     # aparecem (publicas) mais as do time atual. Mensagens com team_id stale (de team anterior)
-    # ficam ocultas — o UpdateMessagesTeamIdJob deve sincroniza-las.
-    if conversation.team_id.nil? || !conversation.inbox&.team_message_isolation
-      all
-    else
+    # ficam ocultas — o UpdateMessagesTeamIdJob deve sincroniza-las. Foi esse "ficam ocultas"
+    # que derrubou em silencio o no de mensagem do flow, CSAT, NPS e o encerramento automatico:
+    # quem precisa da conversa INTEIRA usa `all_messages` (ver message_window_service.rb).
+    if conversation.inbox&.isolation_applies_to_team?(:team_message_isolation, conversation.team_id)
       where('messages.team_id IS NULL OR messages.team_id = ?', conversation.team_id)
+    else
+      all
     end
   }, dependent: :destroy_async, autosave: true
   has_many :all_messages, class_name: 'Message', dependent: :destroy_async, autosave: true

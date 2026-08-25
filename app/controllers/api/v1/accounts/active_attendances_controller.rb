@@ -77,15 +77,24 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
     end
   end
 
-  # Inbox isolado + dono humano ≠ eu → não posso abrir (só solicitar).
+  # Regra alcança esta conversa (caixa isolada + time no escopo) + dono humano ≠ eu →
+  # não posso abrir (só solicitar). Conversa de time FORA da lista escolhida na caixa não
+  # é isolada: a linha volta a oferecer "Abrir". Conversa SEM time continua isolada nesta
+  # regra (ela não está em Inbox::TEAMLESS_EXEMPT_RULES) — ver agent_conversation_isolation.rb.
   def isolated_and_foreign?(conversation, ctx)
-    return false unless isolated_inbox_ids.include?(conversation.inbox_id)
+    inbox = isolated_inboxes[conversation.inbox_id]
+    return false unless inbox&.isolation_applies_to_team?(:agent_conversation_isolation, conversation.team_id)
 
     conversation.assignee_id.present? && conversation.assignee_id != ctx[:user_id]
   end
 
-  def isolated_inbox_ids
-    @isolated_inbox_ids ||= Current.account.inboxes.where(agent_conversation_isolation: true).pluck(:id).to_set
+  # Caixas isoladas da conta indexadas por id, carregadas UMA vez (a capacidade é por linha).
+  # `select` enxuto: só o que `isolation_applies_to_team?` lê.
+  def isolated_inboxes
+    @isolated_inboxes ||= Current.account.inboxes
+                                 .where(agent_conversation_isolation: true)
+                                 .select(:id, :agent_conversation_isolation, :agent_conversation_isolation_team_ids)
+                                 .index_by(&:id)
   end
 
   # "Assumir sem pedir": só conversa SEM dono humano (fila ou IA — nos dois casos

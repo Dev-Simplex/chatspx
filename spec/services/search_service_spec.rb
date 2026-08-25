@@ -763,7 +763,11 @@ describe SearchService do
     let!(:agent_b) { create(:user, account: iso_account, role: :agent) }
     let!(:iso_admin) { create(:user, account: iso_account, role: :administrator) }
     let!(:iso_inbox) { create(:inbox, account: iso_account, enable_auto_assignment: false) }
-    let!(:iso_conversation) { create(:conversation, inbox: iso_inbox, account: iso_account) }
+    let!(:iso_team) { create(:team, account: iso_account) }
+    let!(:iso_other_team) { create(:team, account: iso_account) }
+    # COM time de proposito: o isolamento e escopado pelo time da CONVERSA, e conversa
+    # sem time nunca e isolada (Inbox#isolation_applies_to_team?).
+    let!(:iso_conversation) { create(:conversation, inbox: iso_inbox, account: iso_account, team: iso_team) }
     let!(:secret) do
       create(:message, account: iso_account, inbox: iso_inbox, conversation: iso_conversation,
                        message_type: :outgoing, sender: agent_a, content: 'classified wizardry secret')
@@ -793,6 +797,35 @@ describe SearchService do
 
     it 'lets an administrator find any message' do
       expect(message_ids_for(iso_admin)).to include(secret.id)
+    end
+
+    # ESCOPO POR TIME: a flag liga a regra na caixa, a lista diz em QUAIS times ela vale.
+    context 'when isolation is scoped to teams' do # rubocop:disable RSpec/MultipleMemoizedHelpers
+      it 'hides the colleague message when the team list is empty (retrocompat)' do
+        iso_inbox.update!(agent_message_isolation_team_ids: [])
+        expect(message_ids_for(agent_b)).not_to include(secret.id)
+      end
+
+      it 'hides the colleague message when the conversation team is in the list' do
+        iso_inbox.update!(agent_message_isolation_team_ids: [iso_team.id])
+        expect(message_ids_for(agent_b)).not_to include(secret.id)
+      end
+
+      it 'finds the message when the conversation team is NOT in the list' do
+        iso_inbox.update!(agent_message_isolation_team_ids: [iso_other_team.id])
+        expect(message_ids_for(agent_b)).to include(secret.id)
+      end
+
+      it 'finds the message on a conversation without a team' do
+        iso_inbox.update!(agent_message_isolation_team_ids: [iso_team.id])
+        iso_conversation.update!(team: nil)
+        expect(message_ids_for(agent_b)).to include(secret.id)
+      end
+
+      it 'lets an administrator find the message whatever the list' do
+        iso_inbox.update!(agent_message_isolation_team_ids: [iso_team.id])
+        expect(message_ids_for(iso_admin)).to include(secret.id)
+      end
     end
   end
 end

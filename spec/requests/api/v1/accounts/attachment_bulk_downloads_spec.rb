@@ -142,11 +142,32 @@ RSpec.describe 'Attachment Bulk Downloads API', type: :request do
         _attachment, conversation = create_attachment(inbox)
         create(:inbox_member, user: other_agent, inbox: inbox)
         inbox.update!(agent_conversation_isolation: true)
-        conversation.update!(assignee: other_agent)
+        # COM time: o isolamento e escopado pelo time da conversa
+        # (Inbox#isolation_applies_to_team?), e o dono precisa ser membro do time
+        # senao o AssignmentHandler zera o assignee ao carimbar o time.
+        iso_team = create(:team, account: account, allow_auto_assign: false)
+        create(:team_member, team: iso_team, user: other_agent)
+        conversation.update!(team: iso_team, assignee: other_agent)
 
         post "/api/v1/accounts/#{account.id}/attachment_bulk_downloads",
              headers: agent.create_new_auth_token, params: { conversation_id: conversation.display_id }, as: :json
 
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      # CONVERSA SEM TIME (antes da triagem): esta regra NAO e isenta do time nulo (fica
+      # fora de Inbox::TEAMLESS_EXEMPT_RULES), entao o download em massa continua negado.
+      # Baixar a midia da conversa do colega e o mesmo vazamento da tela, so que em ZIP.
+      it 'STILL forbids the download when the isolated conversation has no team yet' do
+        _attachment, conversation = create_attachment(inbox)
+        create(:inbox_member, user: other_agent, inbox: inbox)
+        inbox.update!(agent_conversation_isolation: true)
+        conversation.update!(team: nil, assignee: other_agent)
+
+        post "/api/v1/accounts/#{account.id}/attachment_bulk_downloads",
+             headers: agent.create_new_auth_token, params: { conversation_id: conversation.display_id }, as: :json
+
+        expect(conversation.reload.team_id).to be_nil
         expect(response).to have_http_status(:unauthorized)
       end
 

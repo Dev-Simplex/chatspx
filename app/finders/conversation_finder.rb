@@ -283,6 +283,9 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
   # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia). O supervisor do
   # time da conversa é isento (D2) e acha o conteúdo de qualquer agente do time.
+  # O `NOT EXISTS` é a válvula de escape: se a regra NÃO alcança esta conversa — flag off,
+  # conversa sem time, ou time fora da lista escolhida na caixa — o conteúdo continua
+  # achável por todo mundo, exatamente como antes desta feature.
   def query_agent_clause(agent_id)
     return '' if agent_id.nil?
 
@@ -290,7 +293,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
       "#{supervised_or}" \
       'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
-      'AND inboxes.agent_message_isolation = true))'
+      "AND #{Inbox.isolation_applies_sql(:agent_message_isolation)}))"
   end
 
   def query_supervised_team_ids
