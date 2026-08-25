@@ -287,14 +287,14 @@ export default {
             type="text"
             :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.REGEX_CUE.PLACEHOLDER')"
           />
-          <div>
-            <input v-model="isRequired" type="checkbox" />
+          <label class="flex gap-2 items-center w-fit cursor-pointer">
+            <input v-model="isRequired" type="checkbox" class="m-0" />
             {{ $t('ATTRIBUTES_MGMT.ADD.FORM.REQUIRED.LABEL') }}
-          </div>
-          <div>
-            <input v-model="isHidden" type="checkbox" />
+          </label>
+          <label class="flex gap-2 items-center w-fit cursor-pointer">
+            <input v-model="isHidden" type="checkbox" class="m-0" />
             {{ $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL') }}
-          </div>
+          </label>
           <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
             <NextButton
               faded
