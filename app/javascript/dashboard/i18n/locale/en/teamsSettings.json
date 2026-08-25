@@ -87,11 +87,76 @@
         "ROUTE": "settings_teams_edit_members",
         "BODY": "Edit agents in your team."
       },
+      "EDIT_WIZARD_DISTRIBUICAO": {
+        "TITLE": "Distribution",
+        "ROUTE": "settings_teams_edit_distribuicao",
+        "BODY": "Decide who receives each conversation."
+      },
       "EDIT_WIZARD_FINISH": {
         "TITLE": "Finish",
         "ROUTE": "settings_teams_edit_finish",
         "BODY": "You are all set to go!"
       }
+    },
+    "DISTRIBUICAO": {
+      "TITLE": "Distribution",
+      "DESC": "Who receives each conversation of this team, and what happens when nobody takes it.",
+      "ENABLE": "Distribute automatically",
+      "ENABLE_HELP": "With this off, conversations wait in the team queue until someone picks them up.",
+      "CASCATA": "Order of choice: customer's request → whoever attended before → rotation.",
+      "MODO": {
+        "LABEL": "How to choose",
+        "RODIZIO": "Rotation — one at a time, in order",
+        "ONLINE": "Only whoever is online",
+        "OFF": "Off"
+      },
+      "POSSE": {
+        "LABEL": "After choosing",
+        "ASSIGNEE": "Assign the person (the AI goes quiet)",
+        "DESIGNACAO": "Only register it (the AI keeps answering until someone takes over)"
+      },
+      "CONTINUIDADE": {
+        "LABEL": "Keep with whoever attended before",
+        "DAYS": "Window (days)",
+        "HELP": "A returning customer goes back to the same person, and it does not consume anyone's turn."
+      },
+      "SLA": {
+        "LABEL": "Time to take over",
+        "MINUTES": "minutes",
+        "ON_EXPIRY": "When it expires",
+        "REPASSE": "Pass to the next one",
+        "ALERT": "Only notify the manager",
+        "MAX": "Max hand-offs",
+        "DESTINO": "After that, it goes to",
+        "DESTINO_NONE": "Nobody — it stays put",
+        "HORARIO": "Count only during working hours",
+        "EXPIRADO": "Whoever lets it expire has used their turn",
+        "SEM_HORARIO": "This team has no working hours set, so the clock never runs and nothing is passed on. Set the hours first."
+      },
+      "POOL": {
+        "TITLE": "Who is in the rotation",
+        "EMPTY": "Nobody yet — add members of this team.",
+        "ADD": "Add member",
+        "ORDER_HELP": "The order here is the order of the rotation.",
+        "CAP": "Cap",
+        "CAP_NONE": "no cap",
+        "UP": "Move up",
+        "DOWN": "Move down",
+        "ATIVO": "active",
+        "SUSPENSO": "suspended until {date}",
+        "DESATIVADO": "off",
+        "SUSPEND": "Suspend",
+        "UNTIL": "Until",
+        "REASON": "Reason",
+        "REACTIVATE": "Reactivate",
+        "DISABLE": "Turn off",
+        "REMOVE": "Remove",
+        "NOT_MEMBER": "Not a member of this team — will never receive"
+      },
+      "SAVE": "Save distribution",
+      "SAVED": "Distribution saved",
+      "ERROR": "Could not save the distribution",
+      "FORBIDDEN": "Only an admin or this team's manager can change the distribution."
     },
     "TEAM_FORM": {
       "ERROR_MESSAGE": "Couldn't save the team details. Try again."

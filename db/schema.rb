@@ -1168,6 +1168,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_25_120000) do
     t.integer "max_repasses", default: 2, null: false
     t.bigint "pool_esgotado_destino_user_id"
     t.boolean "gatilho_sem_ia", default: false, null: false
+    t.boolean "sla_respeita_horario", default: true, null: false
+    t.boolean "expirado_conta_como_recebido", default: true, null: false
+    t.jsonb "horario", default: {}, null: false
     t.index ["account_id", "team_id"], name: "index_distribuicao_policies_on_account_id_and_team_id", unique: true
   end
 

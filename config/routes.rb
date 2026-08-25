@@ -472,6 +472,9 @@ Rails.application.routes.draw do
                 patch :update
               end
             end
+            # Configuração da distribuição DO TIME (passo "Distribuição" da tela de edição).
+            # Singular porque é uma política por time — `distribuicao_policies.team_id` é único.
+            resource :distribuicao, only: [:show, :update], controller: 'teams/distribuicao'
           end
 
           # Assignment V2 Routes
