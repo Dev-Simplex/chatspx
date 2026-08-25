@@ -71,8 +71,9 @@
   falsas que não eram do código. **Resolvido com autorização do Paulo:** matar os builds devolveu
   as conexões sozinho (104 → **9**, `chatwoot_test` em zero), sem tocar no banco; app em HTTP 200,
   web e worker ativos. Receita e diagnóstico na memória `reference-ci-232-chatspx`.
-- ⏭️ **Falta:** a tela (abas Comentários e Publicações) e a resposta pública. **PR ainda não
-  aberto** — corpo pronto no scratchpad.
+- ✅ **[PR #68](https://github.com/Dev-Simplex/chatspx/pull/68)** aberto contra a `homologacao`
+  (6 commits, 16 arquivos, +795/−17). ⏭️ **Falta:** a tela (abas Comentários e Publicações) e a
+  resposta pública — as duas fatias seguintes.
 - ⏭️ **Duas perguntas de fato para o cliente, agora com gente esperando nos comentários:**
   **Rondonópolis está aberta?** (FAQ #84 diz que foi transferida; `bigstore-lojas.md`, corrigido
   pelo Paulo em 17/08, lista como ativa — e **duas pessoas perguntaram sobre ela em 24/08**) e
