@@ -107,6 +107,33 @@ describe Webhooks::InstagramEventsJob do
     end
   end
 
+  describe 'gatilho da IA' do
+    it 'acorda a IA no comentário novo' do
+      evento = build(:instagram_comment_event).with_indifferent_access
+
+      expect { instagram_webhook.perform_now(evento[:entry]) }
+        .to have_enqueued_job(Spx::Social::ResponderComentarioComIaJob)
+    end
+
+    # A Meta reentrega: 51 entregas para 39 comentários em 7 dias. Sem esta guarda, cada
+    # reentrega geraria outra resposta — e a privada é uma por comentário, sem segunda chance.
+    it 'não acorda de novo na reentrega do mesmo comentário' do
+      evento = build(:instagram_comment_event).with_indifferent_access
+      instagram_webhook.perform_now(evento[:entry])
+
+      expect { instagram_webhook.perform_now(evento[:entry]) }
+        .not_to have_enqueued_job(Spx::Social::ResponderComentarioComIaJob)
+    end
+
+    it 'não acorda a IA no comentário da própria conta' do
+      evento = build(:instagram_comment_event, author_id: '17841468839878751',
+                                               author_username: 'bigstoreutilidades').with_indifferent_access
+
+      expect { instagram_webhook.perform_now(evento[:entry]) }
+        .not_to have_enqueued_job(Spx::Social::ResponderComentarioComIaJob)
+    end
+  end
+
   describe 'campo desconhecido' do
     it 'ignora sem estourar e sem gravar nada' do
       evento = build(:instagram_comment_event, field: 'live_comments').with_indifferent_access
