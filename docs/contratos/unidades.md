@@ -1,6 +1,6 @@
 ---
 titulo: Contrato — unidades do cliente (`unidades`, `unidade_horarios`, `unidade_excecoes`)
-status: PROPOSTA — aguardando decisão do Paulo nas questões da §9
+status: DECIDIDO — §9 respondida pelo Paulo em 25/08/2026; Fase 1 no PR #61, Fase 2 (tela) em construção
 motivador: BigStore (conta 7), mas o desenho nasce agnóstico
 data: 2026-08-17
 ---
@@ -157,15 +157,22 @@ sistema do cliente. **Não substitui o MTM** — o estoque e a agenda continuam 
   motivo do `distribuicao_produtos`: hierarquia rígida quebra na primeira exceção.
 - **Não** faz roteamento nesta fase. Mandar conversa para o time da unidade é outra frente.
 
-## 9. Questões em aberto — decisão do Paulo
+## 9. Questões — DECIDIDAS pelo Paulo em 25/08/2026
 
-1. **Fases.** Proposta: (1) tabelas + tool + carga por rake, e a IA já responde; (2) tela de
-   **exceções**, que é o que muda toda semana; (3) CRUD de unidades. A prioridade é invertida de
-   propósito — endereço muda uma vez por ano e eu carrego; exceção muda toda semana e **precisa**
-   ser do cliente, senão a gente reconstruiu a dor do n8n com mais passos.
-2. **Quem edita a exceção do lado do cliente?** Se for uma pessoa só, a tela é trivial. Se for o
-   gerente de cada unidade, entra permissão por unidade e o desenho cresce.
-3. **Exceção precisa de aprovação?** Uma unidade se declarar aberta num domingo em que não abre
-   custa cliente na porta fechada.
-4. **A IA pode dizer o `motivo` da exceção?** *"Neste domingo abre por causa da campanha de
-   aniversário"* é melhor atendimento, mas expõe calendário comercial no direct.
+1. **Fases** — *"Decida"*, delegado. **Decisão: a Fase 2 é a tela, com a aba Exceções completa e a
+   aba Unidades em LEITURA. CRUD de unidade fica para a Fase 3.**
+   - Exceção é o que muda toda semana e é onde a rake dói (seis argumentos posicionais); unidade
+     muda uma vez por ano e a carga por CSV já é idempotente por slug.
+   - Mas uma tela só de exceções seria cega: para criar uma exceção é preciso escolher o **alvo**
+     (slug ou etiqueta), e não há de onde tirar a lista — nem como conferir se a carga entrou
+     certa. Daí a aba de leitura vir junto; ela é pré-requisito da outra, não escopo extra.
+2. **Quem edita** — **perfis admin.** Sem permissão por unidade, sem escopo por gerente. Isso
+   mantém a tela trivial e casa com o `admin-only` já previsto na §3.
+3. **Aprovação de exceção** — **não.** Quem é admin publica direto.
+4. **A IA pode dizer o `motivo`** — **sim.** A §5 já previa o `motivo` na saída da tool; fica
+   confirmado que ele pode ser dito ao cliente.
+
+> **Contexto que o Paulo deu junto e que muda a leitura da §7:** a **conta 7 ainda é de teste —
+> ninguém da BigStore usa o SPX hoje.** Então a tela não nasce sem usuário por defeito de desenho;
+> ela nasce **antes** de o cliente entrar, que é a ordem certa. O primeiro usuário é o time da
+> SimplexIA, e o cliente entra depois.

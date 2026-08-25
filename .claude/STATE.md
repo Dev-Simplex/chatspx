@@ -10,6 +10,40 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-25] 🟢 UNIDADES GANHOU TELA — as 4 questões da §9 decididas, Fase 2 no PR #61
+
+> O Paulo perguntou onde estavam a tela de lojas e a de Rede Social. **Nenhuma das duas existia** —
+> zero arquivo de frontend nos dois PRs. A de lojas estava travada em 4 decisões dele; ele
+> respondeu e a tela foi construída.
+
+- **Decisões (§9 de `docs/contratos/unidades.md`, agora status DECIDIDO):** fases → *"Decida"*
+  (delegado) · quem edita → **perfis admin** · aprovação → **não** · IA pode dizer o motivo → **sim**.
+- **Contexto que ele deu junto e que muda a leitura da §7: a conta 7 ainda é DE TESTE, ninguém da
+  BigStore usa o SPX.** Então a tela não nasce sem usuário por defeito — ela nasce **antes** de o
+  cliente entrar, que é a ordem certa. O primeiro usuário é o time da SimplexIA.
+- **Minha decisão na #1: a Fase 2 é a tela com a aba Exceções completa e a aba Unidades em
+  LEITURA.** CRUD de unidade fica para a Fase 3. A aba de leitura **não é escopo extra** — é
+  pré-requisito: sem a lista não há de onde escolher o alvo da exceção nem como conferir a carga.
+- **🔵 Gate da sidebar é por DADO, não por feature flag** — some quando a conta não tem unidade
+  (§7). Carregar as unidades liga a tela; não há segundo interruptor para esquecer. E evita
+  encostar na máquina de feature flags que **quebrou a criação de conta na instância inteira em
+  04/08** (as 4 features órfãs). Precedente literal: o item "Campanhas", no mesmo menu.
+- **Entregue** (2 commits em `PauloSeze/unidades`): `GET /unidades` (lista + etiquetas + grade da
+  semana na ordem de leitura, distinguindo dia **não cadastrado** de **fechado**) ·
+  `GET/POST/DELETE /unidade_excecoes` · tela `Configurações › Unidades` com as duas abas · i18n
+  `en` e `pt_BR`. **Sem `update` de exceção**, de propósito: corrigir é apagar e criar outra.
+- **Medido:** 18 request specs / 0 falhas · rubocop **0** em 5 arquivos · eslint **exit 0** em 7 ·
+  zero vite vazado (specs de API JSON não disparam build — a armadilha é só de spec que renderiza
+  view). ⚠️ **Tela NÃO verificada visualmente** — só fecha depois de deploy.
+- **[PR #61](https://github.com/Dev-Simplex/chatspx/pull/61)** virou Fases 1+2: 9 commits, 34
+  arquivos. **Os 7 primeiros commits são a Fase 1 e podem ser mergeados sozinhos** — é onde está o
+  ganho maior (a IA respondendo sobre unidade), e está dito no corpo do PR.
+- ⏭️ **A tela de Rede Social / comentários também não existe.** O desenho está em
+  `docs/SPEC-instagram-social.md` §5 (6 abas), e o [PR #68](https://github.com/Dev-Simplex/chatspx/pull/68)
+  já entrega o dado que as abas ① Comentários e ② Publicações precisam. Falta o front + um endpoint
+  de leitura. ⚠️ **Os dois documentos de desenho só existem na `conciliacao/higiene-11ago`** — não
+  estão na `homologacao` nem na `producao`.
+
 ### [2026-08-24] 🔴 A BIGSTORE NÃO TEM BOT NENHUM — e os comentários chegavam e eram jogados fora (branch `PauloSeze/instagram-comentarios`)
 
 > Sessão de retomada do módulo de Instagram com foco na BigStore. Tudo medido read-only na `.232`
