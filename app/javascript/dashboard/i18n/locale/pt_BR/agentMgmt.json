@@ -96,8 +96,7 @@
         "SUPERVISED_TEAMS": {
           "LABEL": "Times que ele supervisiona",
           "DESCRIPTION": "O supervisor vê todas as conversas dos times marcados, inclusive as atribuídas a outros agentes e as de caixas de entrada das quais ele não é membro. Supervisionar não é o mesmo que ser membro do time.",
-          "EMPTY": "Ainda não existem times nesta conta.",
-          "REQUIRED": "Marque ao menos um time — supervisor sem time é igual a um agente comum."
+          "EMPTY": "Ainda não existem times nesta conta."
         },
         "SUBMIT": "Editar agente"
       },
