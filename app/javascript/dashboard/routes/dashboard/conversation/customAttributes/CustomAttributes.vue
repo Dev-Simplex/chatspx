@@ -68,7 +68,12 @@ const contact = computed(() =>
 const customAttributes = computed(() => {
   if (props.attributeType === 'conversation_attribute')
     return currentChat.value.custom_attributes || {};
-  return contact.value.custom_attributes || {};
+  // O contato vem da store `contacts/getContact`, que normaliza via camelcaseKeys
+  // — a chave chega como `customAttributes`. Lemos camelCase primeiro e mantemos
+  // snake_case como reserva para quando o objeto vem cru da API.
+  return (
+    contact.value.customAttributes || contact.value.custom_attributes || {}
+  );
 });
 
 const conversationId = computed(() => currentChat.value.id);
