@@ -44,25 +44,79 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
     end
   end
 
-  # O Instagram é o caso medido, mas a regra vale para todo canal que não leia a chave
-  # (WAHA, Messenger): sem carrossel, o fluxo cai no envio foto a foto — que o Instagram
-  # entrega normalmente, porque a Meta busca a imagem pela URL do anexo.
-  context 'when the channel does not deliver interactive payloads (Instagram)' do
+  # O Instagram não lê a chave do carrossel, mas entrega N imagens numa mensagem só. O lote
+  # continua sendo o mesmo (3 fotos, mesmo offset, mesmo cooldown) — muda o empacotamento:
+  # uma mensagem com 3 anexos, no lugar de 3 mensagens com intervalo entre elas.
+  context 'when the channel delivers several images in one message (Instagram)' do
     let(:channel) { create(:channel_instagram, account: account) }
     let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
 
-    it 'falls back to one message per photo, each carrying the image' do
+    it 'sends a single message carrying every photo of the batch' do
       tool.perform(tool_context, codigo: '9434')
 
-      expect(outgoing.count).to eq(3)
-      expect(outgoing.map { |m| m.attachments.size }).to eq([1, 1, 1])
+      expect(outgoing.count).to eq(1)
+      expect(outgoing.first.attachments.size).to eq(3)
       expect(outgoing.flat_map { |m| (m.content_attributes || {}).keys }).not_to include('interactive_payload')
+    end
+
+    # A Meta busca a foto pela URL pública do Vista: sem download local não há o teto de
+    # 15 MB do envio um-a-um, que é maior que os 8 MB por imagem que o Instagram aceita.
+    it 'points at the public photo URL instead of downloading each file' do
+      tool.perform(tool_context, codigo: '9434')
+
+      expect(outgoing.first.attachments.map(&:external_url)).to eq(
+        ['https://cdn.example.com/1.jpg', 'https://cdn.example.com/2.jpg', 'https://cdn.example.com/3.jpg']
+      )
+      expect(Down).not_to have_received(:download)
     end
 
     it 'records what it sent, so the next call advances instead of repeating' do
       tool.perform(tool_context, codigo: '9434')
 
       expect(conversation.reload.custom_attributes['fotos_offset_9434']).to eq(3)
+    end
+  end
+
+  # Contraprova: canal que NÃO agrupa (WAHA) segue mandando uma mensagem por foto, com o
+  # download local de sempre. A capacidade é do canal, não uma troca global de comportamento.
+  context 'when the channel does not deliver several images in one message (WAHA)' do
+    let(:channel) { create(:channel_api, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+
+    it 'keeps one message per photo' do
+      tool.perform(tool_context, codigo: '9434')
+
+      expect(outgoing.count).to eq(3)
+      expect(outgoing.map { |m| m.attachments.size }).to eq([1, 1, 1])
+      expect(Down).to have_received(:download).exactly(3).times
+    end
+  end
+
+  # A trava anti-alucinação compara o código pedido com o que a busca DESTA conversa
+  # registrou. Ela lia só `codigos_buscados`, que guarda apenas o Codigo e corta em 40; o
+  # `urls_imoveis` guarda Codigo E ImoCodigo e corta em 60. Como a IA cita ora um ora outro,
+  # a trava recusava foto de imóvel legítimo — aconteceu na conversa 48182 da Tozi, com a
+  # cliente pedindo fotos de três casas e levando "não" silencioso em todas.
+  describe 'the anti-hallucination guard' do
+    let(:channel) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
+                                validate_provider_config: false, sync_templates: false)
+    end
+    let(:conversation) do
+      create(:conversation, account: account, inbox: channel.inbox,
+                            custom_attributes: { 'codigos_buscados' => ['9434'],
+                                                 'urls_imoveis' => { '9434' => 'https://site/9434',
+                                                                     '9391' => 'https://site/9434' } })
+    end
+
+    it 'accepts the ImoCodigo that the search recorded only in urls_imoveis' do
+      expect(tool.perform(tool_context, codigo: '9391')).not_to include('não apareceu na busca')
+      expect(outgoing.count).to eq(1)
+    end
+
+    it 'still refuses a code that no search of this conversation returned' do
+      expect(tool.perform(tool_context, codigo: '1234')).to include('não apareceu na busca')
+      expect(outgoing).to be_empty
     end
   end
 
@@ -103,34 +157,6 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
       retorno = tool.perform(tool_context, codigo: '9434')
 
       expect(retorno).to include('9 fotos').and include('o imóvel tem mais')
-    end
-  end
-
-  # A trava anti-alucinação compara o código pedido com o que a busca DESTA conversa
-  # registrou. Ela lia só `codigos_buscados`, que guarda apenas o Codigo e corta em 40; o
-  # `urls_imoveis` guarda Codigo E ImoCodigo e corta em 60. Como a IA cita ora um ora outro,
-  # a trava recusava foto de imóvel legítimo — aconteceu na conversa 48182 da Tozi, com a
-  # cliente pedindo fotos de três casas e levando "não" silencioso em todas.
-  describe 'the anti-hallucination guard' do
-    let(:channel) do
-      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
-                                validate_provider_config: false, sync_templates: false)
-    end
-    let(:conversation) do
-      create(:conversation, account: account, inbox: channel.inbox,
-                            custom_attributes: { 'codigos_buscados' => ['9434'],
-                                                 'urls_imoveis' => { '9434' => 'https://site/9434',
-                                                                     '9391' => 'https://site/9434' } })
-    end
-
-    it 'accepts the ImoCodigo that the search recorded only in urls_imoveis' do
-      expect(tool.perform(tool_context, codigo: '9391')).not_to include('não apareceu na busca')
-      expect(outgoing.count).to eq(1)
-    end
-
-    it 'still refuses a code that no search of this conversation returned' do
-      expect(tool.perform(tool_context, codigo: '1234')).to include('não apareceu na busca')
-      expect(outgoing).to be_empty
     end
   end
 end

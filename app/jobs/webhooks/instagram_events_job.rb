@@ -3,7 +3,7 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
   retry_on LockAcquisitionError, wait: 1.second, attempts: 8
 
   # @return [Array] We will support further events like reaction or seen in future
-  SUPPORTED_EVENTS = [:message, :read].freeze
+  SUPPORTED_EVENTS = [:message, :postback, :read].freeze
 
   # Campos que chegam em `changes` (e não em `messaging`) e que sabemos tratar. Campo fora desta
   # lista é registrado e ignorado — nunca silenciosamente descartado, que era o defeito antigo.
@@ -170,8 +170,11 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
     channel
   end
 
+  # Sem memoização: um entry pode trazer mais de um messaging, e com três tipos de evento o
+  # primeiro passaria a decidir o handler de todos — um clique de botão seria despachado
+  # como `message` (ou vice-versa) só por ter vindo no mesmo lote.
   def event_name(messaging)
-    @event_name ||= SUPPORTED_EVENTS.find { |key| messaging.key?(key) }
+    SUPPORTED_EVENTS.find { |key| messaging.key?(key) }
   end
 
   def message(messaging, channel)
@@ -180,6 +183,23 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
     else
       ::Instagram::Messenger::MessageText.new(messaging, channel).perform
     end
+  end
+
+  # Clique no botão de um card. Só processa em canal que DESENHA card: onde a vitrine não
+  # existe, um postback vem de outra coisa (menu fixo, ice breaker) e virar mensagem mudaria
+  # o comportamento de quem nunca pediu isso.
+  def postback(messaging, channel)
+    return unless channel.supports_card_carousel?
+
+    message(normalize_postback(messaging), channel)
+  end
+
+  # O postback não traz `message`, mas traz mid, título e payload. Normalizado pro formato de
+  # mensagem, reusa o caminho inteiro (contato, conversa, dedupe por mid): o título vira o
+  # conteúdo e o payload fica em content_attributes, como o botão do WhatsApp já faz.
+  def normalize_postback(messaging)
+    data = messaging[:postback]
+    messaging.merge(message: { mid: data[:mid], text: data[:title] })
   end
 
   def read(messaging, channel)

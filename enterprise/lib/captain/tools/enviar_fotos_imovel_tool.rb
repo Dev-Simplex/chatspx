@@ -1,5 +1,6 @@
 class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   include Captain::Tools::VistaImovelUrl
+  include Captain::Tools::ImoveisConhecidos
 
   description 'Envia ao cliente as fotos reais de um imóvel pelo WhatsApp, em lotes de 3. ' \
               'Chame quando o cliente pedir fotos de um imóvel, informando o código (vem do resultado da busca). ' \
@@ -56,11 +57,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     batch = fotos[sent, BATCH] || []
     return 'Não encontrei fotos desse imóvel.' if batch.empty?
 
-    # Envia uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
-    batch.each_with_index do |url, i|
-      send_photo(conversation, url, codigo)
-      sleep(SEND_INTERVAL) if i < batch.size - 1
-    end
+    send_batch(conversation, batch, codigo)
     new_sent = sent + batch.size
     conversation.update!(custom_attributes: conversation.custom_attributes.merge(
       key => new_sent, 'fotos_ultimo_envio_at' => Time.current.to_i
@@ -93,21 +90,9 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
   private
 
-  # O que a busca DESTA conversa já devolveu, pelas duas chaves que a IA pode citar. Ler só
-  # `codigos_buscados` recusava imóvel legítimo: o track_codigos grava apenas o Codigo e corta
-  # em 40, enquanto o track_urls grava Codigo E ImoCodigo e corta em 60 — quando a IA cita o
-  # ImoCodigo, ou quando a conversa é longa, o código real fica de fora e o cliente leva um
-  # "não" que ele não vê. Somar os dois mapas não afrouxa a trava: código que busca nenhuma
-  # retornou continua ausente dos dois.
   # O retorno da tool é lido pelo MODELO: "1 fotos" vaza como concordância errada na fala dele.
   def pluralizar_foto(quantidade)
     quantidade == 1 ? 'foto' : 'fotos'
-  end
-
-  def codigos_conhecidos(conversation)
-    attrs = conversation.custom_attributes || {}
-    mapa = attrs['urls_imoveis']
-    Array(attrs['codigos_buscados']).map(&:to_s) + (mapa.is_a?(Hash) ? mapa.keys.map(&:to_s) : [])
   end
 
   # Entrega a URL canônica que a busca já registrou (urls_imoveis, alimentado pelo
@@ -226,6 +211,41 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     build_url(dados, dados['Status'].to_s.match?(/vend/i))
   rescue StandardError
     nil
+  end
+
+  # Quantas fotos vão, e a que imóvel pertencem, é o mesmo dos dois lados — muda só o
+  # empacotamento. Onde o canal entrega várias imagens numa mensagem só (Instagram), o lote
+  # vira UMA mensagem com N anexos: acaba a rajada de N mensagens com intervalo entre elas,
+  # que prendia o lead num loop de mídia.
+  def send_batch(conversation, urls, codigo)
+    return send_photos_grouped(conversation, urls, codigo) if agrupa_fotos?(conversation) && urls.size >= 2
+
+    # Uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
+    urls.each_with_index do |url, i|
+      send_photo(conversation, url, codigo)
+      sleep(SEND_INTERVAL) if i < urls.size - 1
+    end
+  end
+
+  def agrupa_fotos?(conversation)
+    conversation.inbox.channel.supports_multi_image_message?
+  end
+
+  # Sem Down.download: a Meta busca cada foto pela URL pública do Vista, como o carrossel do
+  # WhatsApp já faz. Além de poupar N downloads, tira do caminho o teto local de 15 MB do
+  # `send_photo`, que é maior que os 8 MB por imagem que o Instagram aceita.
+  def send_photos_grouped(conversation, urls, codigo)
+    msg = conversation.messages.build(
+      message_type: :outgoing,
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      sender: @assistant,
+      additional_attributes: { 'property_code' => codigo }
+    )
+    urls.each do |url|
+      msg.attachments.build(account_id: conversation.account_id, file_type: :image, external_url: url)
+    end
+    msg.save!
   end
 
   def send_photo(conversation, url, codigo)
