@@ -244,7 +244,7 @@
       "EMPTY_VALUE": "—",
       "EMPTY_PERIOD": "No leads came in through a form in this period.",
       "NO_CAMPAIGN": "Without campaign",
-      "FOOTNOTE": "Read only. Overrides are edited in the lead capture integration.",
+      "FOOTNOTE": "Volume is read only. Routing per campaign — template, agent and team — is edited here by administrators.",
       "DISABLED": {
         "TITLE": "Lead capture is not set up",
         "SUBTITLE": "Set up a lead capture integration to see campaigns here."
@@ -278,7 +278,45 @@
         "AMBIGUOUS_ID": "More than one id",
         "TEMPLATE_MISSING": "Not synced on the channel",
         "CATALOG_TEMPLATE": "Catalog ad: {nome}",
-        "CONFIGURED_TYPE": "Set as: {tipo}"
+        "CONFIGURED_TYPE": "Set as: {tipo}",
+        "ACTIONS": "Actions",
+        "EDIT": "Edit routing"
+      },
+      "EDIT": {
+        "TITLE": "Campaign routing",
+        "SAVE": "Save routing",
+        "SAVE_ERROR": "Could not save the routing.",
+        "INHERIT": "Use the integration default",
+        "HOOK_DEFAULT": "Integration default: {valor}",
+        "HOOK_DEFAULT_EMPTY": "The integration has no default for this.",
+        "TEMPLATE": "Opening template",
+        "VARIABLE_COUNT": "{total} variable(s)",
+        "VARIABLE": "Variable {numero}",
+        "NO_VARIABLES": "This template has no variable in the body, so there is nothing to fill in.",
+        "NO_TEMPLATE_CHANNEL": "The target inbox does not use the official WhatsApp API, so it does not send templates. The opening message there is free text, set on the integration.",
+        "BLOCKED_TITLE": "Templates this screen cannot use:",
+        "BLOCKED": {
+          "cabecalho_de_midia": "has a media header",
+          "cabecalho_com_variavel": "has a variable in the header",
+          "botao_com_variavel": "has a button with a variable",
+          "parametro_nomeado": "uses named parameters",
+          "generico": "asks for parameters the lead opening message does not send"
+        },
+        "AGENT": "Agent",
+        "AGENT_NOT_ELIGIBLE": "not enabled on this inbox",
+        "TEAM": "Team",
+        "LAST_CHANGE": "Last changed by {quem} on {quando}.",
+        "LAST_CHANGE_ANON": "Last changed on {quando}.",
+        "FIELDS": {
+          "first_name": "First name",
+          "full_name": "Full name",
+          "ad_name": "Ad name",
+          "campaign_name": "Campaign name",
+          "city": "City",
+          "email": "Email",
+          "phone": "Phone",
+          "empreendimento": "Development"
+        }
       }
     }
   }

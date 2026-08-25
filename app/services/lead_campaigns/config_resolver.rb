@@ -5,7 +5,9 @@
 # espelhando — o valor da tela está em mostrar o que a engine REALMENTE usa; um chute
 # diferente aqui vira relatório que mente.
 #
-# Só lê. É consumido pelo viewer de campanhas (`Api::V1::Accounts::LeadCampaignsController`).
+# Só lê. É consumido pelo viewer de campanhas (`Api::V1::Accounts::LeadCampaignsController`)
+# e pela escrita do roteamento (`LeadCampaigns::RoutingUpdater`), que resolve por aqui o
+# hook e a configuração vigente antes de validar a mudança.
 class LeadCampaigns::ConfigResolver
   # Apps de captação de lead por formulário. Todos entregam pela mesma engine e por
   # isso compartilham o formato de settings — inclusive `campaign_overrides`.
@@ -15,6 +17,14 @@ class LeadCampaigns::ConfigResolver
   # entregam lead sem campanha nenhuma — é o que separa um hook do outro quando a
   # conta tem mais de um.
   CAMPAIGN_APP_ID = 'meta_lead_ads'.freeze
+
+  # Autoria da última edição, gravada dentro do override pela tela. Começa com `_` para
+  # não se confundir com configuração: a engine nunca lê estas chaves, e elas não contam
+  # como "esta campanha sobrescreve algo".
+  METADADO = /\A_/
+
+  # O mesmo default do envio: quem valida tem que assumir o idioma que a engine assume.
+  DEFAULT_LOCALE = Meta::LeadAds::CreateConversationService::DEFAULT_TEMPLATE_LOCALE
 
   INDEFINIDA = { hook_id: nil, origem: 'indefinido', sobrescritos: [] }.freeze
 
@@ -36,12 +46,16 @@ class LeadCampaigns::ConfigResolver
     hook = hook_para(campaign_id)
     return INDEFINIDA.dup if hook.nil?
 
-    override = overrides(hook)[campaign_id.to_s] || {}
+    bruto = overrides(hook)[campaign_id.to_s] || {}
+    override = configuracao_do_override(bruto)
     {
       hook_id: hook.id,
       origem: override.present? ? 'override' : 'padrao',
       sobrescritos: override.keys.sort,
-      bloqueada: bloqueada?(hook, campaign_id)
+      bloqueada: bloqueada?(hook, campaign_id),
+      editavel: editavel?(hook),
+      atualizado_por: bruto['_atualizado_por'].presence,
+      atualizado_em: bruto['_atualizado_em'].presence
     }.merge(valores(hook, override))
   end
 
@@ -49,7 +63,67 @@ class LeadCampaigns::ConfigResolver
     hooks.map { |hook| hook_payload(hook) }
   end
 
+  # Quem responde por esta campanha, para a escrita saber ONDE gravar o override. Público
+  # porque a validação precisa exatamente do mesmo hook que a leitura mostra na tela —
+  # resolver de outro jeito seria salvar num lugar e exibir outro.
+  def hook_de(campaign_id)
+    hook_para(campaign_id)
+  end
+
+  def inbox_de(hook)
+    inbox_do(hook)
+  end
+
+  def catalogo_de(hook)
+    catalogos[hook.id] ||= LeadCampaigns::TemplateCatalog.new(inbox_do(hook))
+  end
+
+  # As escolhas que a tela pode oferecer para este hook. Templates saem do próprio canal
+  # (aprovados e sincronizados); agente e time, da conta. Vai junto do resumo do hook, que
+  # já é payload de admin — é a mesma informação de roteamento.
+  def opcoes_de(hook)
+    {
+      inbox: inbox_do(hook)&.slice(:id, :name),
+      template_editavel: editavel?(hook),
+      templates: catalogo_de(hook).aprovados,
+      campos: Meta::LeadAds::CreateConversationService::BODY_FIELDS,
+      agentes: AgentBot.accessible_to(@account).order(:name).map { |bot| agente_payload(bot, hook) },
+      times: @account.teams.order(:name).map { |time| { id: time.id, nome: time.name } }
+    }
+  end
+
+  # "Existe na conta" não é "a inbox aceita": espelho de IA não elegível à inbox alvo é
+  # recusado pelo `Conversations::AssignmentService` em SILÊNCIO — a conversa entra sem
+  # ninguém e a configuração parece certa na tela. Regra única: a tela oferece por aqui e
+  # a escrita recusa por aqui.
+  def agente_elegivel?(bot, hook)
+    return true unless bot.captain?
+
+    inbox = inbox_do(hook)
+    inbox.present? && inbox.captain_assistants.exists?(id: bot.captain_assistant_id)
+  rescue StandardError
+    false
+  end
+
   private
+
+  def catalogos
+    @catalogos ||= {}
+  end
+
+  # Template só entra em jogo em inbox Cloud API: nas demais a engine manda texto livre e
+  # o campo é ignorado. A tela precisa saber disso para não oferecer o que não vale.
+  def editavel?(hook)
+    catalogo_de(hook).disponivel?
+  end
+
+  def configuracao_do_override(bruto)
+    bruto.reject { |chave, _valor| chave.to_s.match?(METADADO) }
+  end
+
+  def agente_payload(bot, hook)
+    { id: bot.id, nome: bot.name, elegivel: agente_elegivel?(bot, hook) }
+  end
 
   # Hook desabilitado continua na lista: ele não roteia mais nada, mas é a configuração
   # dele que explica os leads que já entraram no período.
@@ -66,9 +140,12 @@ class LeadCampaigns::ConfigResolver
   def valores(hook, override)
     resolve = resolvedor(hook, override)
     template = resolve.call('whatsapp_template_name')
+    locale = resolve.call('whatsapp_template_locale')
     {
       template: template,
-      template_sincronizado: template_sincronizado?(hook, template),
+      template_locale: locale,
+      template_sincronizado: template_sincronizado?(hook, template, locale),
+      template_campos: resolve.call('whatsapp_template_body_fields'),
       template_imovel: resolve.call('imovel_template_name'),
       lead_tipo: resolve.call('lead_tipo'),
       agente: agent_bots[resolve.call('assign_agent_bot_id').to_i],
@@ -133,32 +210,18 @@ class LeadCampaigns::ConfigResolver
 
   # --------------------------------------------------------------- templates
 
-  # O template configurado existe entre os aprovados que o canal já sincronizou? Quando
-  # não existe, a abertura simplesmente não sai — e hoje isso só aparece no log.
+  # O template configurado está entre os APROVADOS que o canal sincronizou, no idioma
+  # configurado? Quando não está, a abertura simplesmente não sai — e hoje isso só aparece
+  # no log. Nome e idioma juntos porque a Meta trata o par como templates diferentes, e é
+  # assim que o envio procura (`Whatsapp::TemplateProcessorService#find_template`).
   # `nil` = o canal não expõe templates, então não dá para afirmar nada.
-  def template_sincronizado?(hook, nome)
+  def template_sincronizado?(hook, nome, locale)
     return nil if nome.blank?
 
-    aprovados = templates_do_canal(hook)
-    aprovados&.include?(nome)
-  end
+    catalogo = catalogo_de(hook)
+    return nil unless catalogo.disponivel?
 
-  def templates_do_canal(hook)
-    @templates_do_canal ||= {}
-    return @templates_do_canal[hook.id] if @templates_do_canal.key?(hook.id)
-
-    @templates_do_canal[hook.id] = buscar_templates(hook)
-  end
-
-  def buscar_templates(hook)
-    canal = inbox_do(hook)&.channel
-    # `try`: só o canal WhatsApp guarda templates sincronizados; os demais não respondem.
-    lista = canal.try(:message_templates)
-    return nil unless lista.is_a?(Array)
-
-    lista.filter_map { |template| template['name'] if template.is_a?(Hash) }
-  rescue StandardError
-    nil
+    catalogo.encontrar(nome, locale.presence || DEFAULT_LOCALE).present?
   end
 
   def inbox_do(hook)
@@ -204,7 +267,8 @@ class LeadCampaigns::ConfigResolver
       agente: agent_bots[configuracao['assign_agent_bot_id'].to_i],
       time: times[configuracao['assign_team_id'].to_i],
       campanhas_com_override: overrides(hook).keys.size,
-      allowlist: allowlist(hook)
+      allowlist: allowlist(hook),
+      opcoes: opcoes_de(hook)
     }
   end
 end
