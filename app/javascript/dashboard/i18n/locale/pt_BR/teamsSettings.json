@@ -211,7 +211,9 @@
         "PLACEHOLDER": "Breve descrição sobre este time."
       },
       "AUTO_ASSIGN": {
-        "LABEL": "Permitir atribuição automática para este time."
+        "LABEL": "Permitir atribuição automática para este time.",
+        "CONFLITO_RODIZIO": "Atenção: a atribuição automática e o rodízio estão os dois ligados neste time. São motores diferentes e um pode desfazer a escolha do outro. O normal é usar só um.",
+        "RODIZIO_DEPOIS": "A fila do rodízio se monta depois de adicionar os membros, na edição do time."
       },
       "SUBMIT_CREATE": "Criar novo time"
     }

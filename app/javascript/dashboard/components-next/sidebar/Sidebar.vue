@@ -360,7 +360,6 @@ const newReportRoutes = () => [
     name: 'Reports Rodizio',
     label: t('SIDEBAR.REPORTS_RODIZIO'),
     to: accountScopedRoute('agents_rodizio'),
-    activeOn: ['agents_rodizio_politica'],
   },
   {
     name: 'Reports Label',

@@ -79,10 +79,11 @@ const conversa = displayId => `#${displayId}`;
 const resumoDesignacao = registro =>
   [registro.corretor || '—', registro.motivo, registro.status || '—'].join(' · ');
 
-// Este painel só CONTA o que já aconteceu; quem monta a política é a tela irmã.
+// Este painel só CONTA o que já aconteceu. Quem MONTA a política é a tela do time: ela é
+// por time, e a lista de times é onde se escolhe qual configurar.
 const irParaPolitica = () =>
   router.push({
-    name: 'agents_rodizio_politica',
+    name: 'settings_teams_list',
     params: { accountId: accountId.value },
   });
 </script>

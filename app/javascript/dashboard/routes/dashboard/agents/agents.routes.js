@@ -8,7 +8,6 @@ const ToolsView = () => import('./pages/ToolsView.vue');
 const AgentDetailView = () => import('./pages/AgentDetailView.vue');
 const EvaluationPage = () => import('./pages/EvaluationPage.vue');
 const RodizioPage = () => import('./pages/RodizioPage.vue');
-const RodizioPoliticaPage = () => import('./pages/RodizioPoliticaPage.vue');
 
 const OverviewTab = () =>
   import('dashboard/components-next/agents/tabs/OverviewTab.vue');
@@ -105,11 +104,17 @@ export const routes = [
     name: 'agents_rodizio',
     meta: rodizioMeta,
   },
+  // A política do rodízio deixou de ter tela global: ela é POR TIME e passou a morar na edição
+  // do time, junto do checkbox de atribuição automática, que é onde o gestor já está quando pensa
+  // em quem atende o quê. Duas telas editando a mesma tabela era o achado A4 da auditoria de
+  // 26/08 — nenhuma das duas mostrava o que a outra tinha configurado.
+  //
+  // A rota fica como REDIRECT em vez de sumir: link salvo e favorito de gestor não podem virar
+  // 404. Cai na lista de times, que é de onde se escolhe qual time configurar.
   {
     path: frontendURL('accounts/:accountId/agents/rodizio/politica'),
-    component: RodizioPoliticaPage,
     name: 'agents_rodizio_politica',
-    meta: rodizioMeta,
+    redirect: to => ({ name: 'settings_teams_list', params: to.params }),
   },
   {
     path: frontendURL('accounts/:accountId/agents'),

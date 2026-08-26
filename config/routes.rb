@@ -61,8 +61,6 @@ Rails.application.routes.draw do
           resource :distribuicao_dashboard, only: [:show], controller: 'distribuicao_dashboard' do
             get :designacoes
           end
-          # Politica de distribuicao e 1-por-time: o time E o id do recurso, e o PUT e upsert.
-          resources :distribuicao_policies, only: [:index, :show, :update, :destroy], param: :team_id
 
           # Alias do contrato C1 do briefing (sem o prefixo /captain). A rota
           # canonica e a de dentro do namespace :captain, onde o recurso vive;

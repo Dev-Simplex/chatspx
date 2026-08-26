@@ -137,6 +137,11 @@ class Api::V1::Accounts::Teams::DistribuicaoController < Api::V1::Accounts::Base
       :ativo, :modo, :modo_posse, :so_online, :continuidade_ativa, :continuidade_dias,
       :sla_assumir_minutos, :repasse_automatico, :max_repasses, :sla_respeita_horario,
       :expirado_conta_como_recebido, :pool_esgotado_destino_user_id, :espelho_vista,
+      # Veio da tela global, que saiu: o Motor só era chamado no handoff da IA, então um time que
+      # recebe conversa por flow ou regra (`assign_team`) nunca distribuía. Ligado, o TEAM_CHANGED
+      # passa a acionar o Motor. Sem esta chave o campo ficaria no banco sem nenhuma tela capaz de
+      # editá-lo.
+      :gatilho_sem_ia,
       horario: {}
     )
   end

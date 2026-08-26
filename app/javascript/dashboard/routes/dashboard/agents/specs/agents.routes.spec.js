@@ -12,36 +12,47 @@ const politica = byName(routes, 'agents_rodizio_politica');
 
 describe('rotas do rodízio', () => {
   it('não moram dentro do AgentsPageView', () => {
-    // A regressão que isso trava: como filhas, as duas telas renderizavam com a
-    // barra "Agentes IA / Nenhum agente encontrado" comendo um terço da largura.
+    // A regressão que isso trava: como filha, a tela renderizava com a barra
+    // "Agentes IA / Nenhum agente encontrado" comendo um terço da largura.
     const filhas = (paiDeAgents?.children || []).map(rota => rota.name);
     expect(filhas).not.toContain('agents_rodizio');
-    expect(filhas).not.toContain('agents_rodizio_politica');
     expect(painel).toBeDefined();
-    expect(politica).toBeDefined();
   });
 
-  it('mantém as URLs e os nomes que o resto do app já empurra', () => {
-    // `agents_rodizio` é para onde o item do Sidebar e o botão "Voltar" da política
-    // apontam; `agents_rodizio_politica` é o destino do botão "Configurar rodízio".
+  it('mantém a URL e o nome que o resto do app já empurra', () => {
+    // `agents_rodizio` é para onde o item do Sidebar aponta.
     expect(painel.path).toBe('/app/accounts/:accountId/agents/rodizio');
-    expect(politica.path).toBe(
-      '/app/accounts/:accountId/agents/rodizio/politica'
-    );
   });
 
-  it('não ficam atrás da flag do Captain — rodízio não é IA', () => {
+  it('não fica atrás da flag do Captain — rodízio não é IA', () => {
     // Sob CAPTAIN_V2 a tela sumia em qualquer conta sem o Captain ligado.
     expect(painel.meta.featureFlag).toBeUndefined();
-    expect(politica.meta.featureFlag).toBeUndefined();
   });
 
-  it('continuam sendo só para administrador', () => {
+  it('continua sendo só para administrador', () => {
     expect(painel.meta.permissions).toEqual(['administrator']);
-    expect(politica.meta.permissions).toEqual(['administrator']);
   });
 
-  it('não arrastam junto as telas de IA, que seguem sob a flag do Captain', () => {
+  // A política do rodízio é POR TIME e passou a morar na edição do time, junto do checkbox de
+  // atribuição automática. A rota antiga não pode sumir: link salvo e favorito de gestor virariam
+  // 404. Ela fica como redirect para a lista de times, que é de onde se escolhe qual configurar.
+  describe('a tela global de política, que foi removida', () => {
+    it('não aponta mais para um componente', () => {
+      expect(politica).toBeDefined();
+      expect(politica.component).toBeUndefined();
+    });
+
+    it('redireciona para a lista de times, preservando a conta', () => {
+      const destino = politica.redirect({ params: { accountId: '7' } });
+
+      expect(destino).toEqual({
+        name: 'settings_teams_list',
+        params: { accountId: '7' },
+      });
+    });
+  });
+
+  it('não arrasta junto as telas de IA, que seguem sob a flag do Captain', () => {
     const dashboard = byName(paiDeAgents.children, 'agents_dashboard');
     expect(dashboard.meta.featureFlag).toBe(FEATURE_FLAGS.CAPTAIN_V2);
   });

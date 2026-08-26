@@ -211,7 +211,9 @@
         "PLACEHOLDER": "Short description about this team."
       },
       "AUTO_ASSIGN": {
-        "LABEL": "Allow auto assign for this team."
+        "LABEL": "Allow auto assign for this team.",
+        "CONFLITO_RODIZIO": "Heads up: auto assignment and the round-robin queue are both on for this team. They are different engines and one can undo the other one choice. Usually you want only one.",
+        "RODIZIO_DEPOIS": "The round-robin queue is set up after you add members, when editing the team."
       },
       "SUBMIT_CREATE": "Create team"
     }
