@@ -31,8 +31,17 @@ export const CREDENTIAL_KEYS = Object.freeze([
   'ga4_api_secret',
 ]);
 
+// O caminho e SINGULAR de proposito. A rota e `resource :tracking_credential` (nao `resources`),
+// porque ha no maximo uma credencial por inbox — UNIQUE no banco. O Rails resolve o `resource`
+// singular para um controller PLURAL, e essa assimetria confunde: o controller se chama
+// TrackingCredentialsController, mas a URL que ele serve e /tracking_credential.
+//
+// Esta linha dizia `tracking_credentials` e dava 404 em toda chamada — front e backend foram
+// escritos por trilhas diferentes, cada uma com a sua suposicao, e nenhum teste cruzava as duas.
+// Achado em navegador real; nenhum spec pegava, porque o do front dubla a chamada HTTP e o do
+// backend chama o controller direto, sem passar pela rota.
 const baseUrl = (accountId, inboxId) =>
-  `/api/v1/accounts/${accountId}/inboxes/${inboxId}/tracking_credentials`;
+  `/api/v1/accounts/${accountId}/inboxes/${inboxId}/tracking_credential`;
 
 const accountIdFromRoute = () => {
   const { pathname } = window.location;
