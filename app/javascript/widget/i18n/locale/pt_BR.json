@@ -251,5 +251,10 @@
     "SOURCE": "Fonte:",
     "OPEN_LABEL": "Abrir o documento {documento}",
     "FALLBACK_NAME": "documento"
+  },
+  "CONNECTION": {
+    "RECONNECTING": "Reconectando...",
+    "OFFLINE": "Você está sem conexão. Suas mensagens serão enviadas quando a rede voltar.",
+    "LOADING": "Carregando a conversa"
   }
 }

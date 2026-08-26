@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { removeEmoji } from 'shared/helpers/emoji';
 
 /**
- * Avatar do WIDGET — bloco 1.08.
+ * Avatar do WIDGET — bloco 1.08, tokenizado pelo 2.01.
  *
  * Existe para o widget parar de importar `dashboard/components-next/avatar/Avatar.vue`.
  * Aquele componente tem 364 linhas e arrasta, por import estático, `Icon.vue`,
@@ -14,12 +14,26 @@ import { removeEmoji } from 'shared/helpers/emoji';
  *
  * ⚠️ ESTE COMPONENTE É UMA RÉPLICA PIXEL A PIXEL, NÃO UM REDESENHO.
  *
- * A tela de mensagens não lidas é uma das quatro que os 16 snapshots do widget
+ * A tela de mensagens não lidas é uma das cinco que os 20 snapshots do widget
  * cobrem, e a régua não se move para acomodar refatoração. Por isso os valores
- * abaixo — as doze cores de iniciais, o `outline` de 1px com alfa 0.03/0.04, o
+ * — as doze cores de iniciais, o `outline` de 1px com alfa 0.03/0.04, o
  * badge a 35% do tamanho com mínimo de 8px e o topo/esquerda em `size - badge/1.1`
  * — são os do original, copiados, não recalculados. Mudar qualquer um deles é
  * mudar pixel de uma tela coberta por snapshot.
+ *
+ * ── O QUE O BLOCO 2.01 MUDOU AQUI (e o que ele NÃO mudou) ────────────────────
+ *
+ * O arquivo saiu de `widget/components/` para `widget/ui/`, e com isso passou a
+ * ser varrido pelo lint dos primitivos — que reprovou os **26 literais
+ * hexadecimais da paleta de iniciais** mais os **2 `rgb()` do `outline`**. Os 28
+ * viraram tokens em `_tokens_values.scss` (`widget-avatar-light`/`-dark`), com
+ * os MESMOS valores. Nenhum pixel se move: o que muda é de onde a cor vem.
+ *
+ * E some um mecanismo: o par escuro viajava por duas custom properties escritas
+ * em `:style` (`--dark-bg`/`--dark-text`) e aplicadas por `dark:!bg-[var(…)]`
+ * com `!important`. Agora o tema escuro redeclara o token, e a cascata faz o
+ * trabalho — sem `!important`, sem propriedade intermediária, e o mesmo
+ * componente serve a uma inbox com tema trocado em tempo de execução.
  *
  * A ÚNICA divergência deliberada é a cor do badge `online`: o original usa
  * `bg-n-brand`, o literal `#2dc46f` que o bloco 1.04 baniu de `widget/`,
@@ -37,26 +51,10 @@ const props = defineProps({
   status: { type: String, default: null },
 });
 
-// As doze cores do original. `light[i]` e `dark[i]` são pares [fundo, texto].
-const AVATAR_COLORS = {
-  dark: [
-    ['#4B143D', '#FF8DCC'],
-    ['#3F220D', '#FFA366'],
-    ['#2A2A2A', '#ADB1B8'],
-    ['#023B37', '#0BD8B6'],
-    ['#27264D', '#A19EFF'],
-    ['#1D2E62', '#9EB1FF'],
-  ],
-  light: [
-    ['#FBDCEF', '#C2298A'],
-    ['#FFE0BB', '#99543A'],
-    ['#E8E8E8', '#60646C'],
-    ['#CCF3EA', '#008573'],
-    ['#EBEBFE', '#4747C2'],
-    ['#E1E9FF', '#3A5BC7'],
-  ],
-  default: { bg: '#E8E8E8', text: '#60646C' },
-};
+// O TOM é só um índice agora: `nome.length % 6`, de 1 a 6, e 0 para o par
+// neutro de quem não tem nome. As cores dos sete pares moram em
+// `_tokens_values.scss` — ver a nota do cabeçalho.
+const TONS_DE_INICIAIS = 6;
 
 const STATUS_CLASSES = {
   online: 'bg-w-brand',
@@ -80,16 +78,9 @@ const initials = computed(() => {
         .toUpperCase();
 });
 
-const colors = computed(() => {
-  if (!props.name) return AVATAR_COLORS.default;
-  const index = props.name.length % AVATAR_COLORS.light.length;
-  return {
-    bg: AVATAR_COLORS.light[index][0],
-    darkBg: AVATAR_COLORS.dark[index][0],
-    text: AVATAR_COLORS.light[index][1],
-    darkText: AVATAR_COLORS.dark[index][1],
-  };
-});
+const tomDeIniciais = computed(() =>
+  props.name ? (props.name.length % TONS_DE_INICIAIS) + 1 : 0
+);
 
 const containerStyles = computed(() => ({
   width: `${props.size}px`,
@@ -111,10 +102,12 @@ const borderRadiusClass = computed(() => {
 
 const avatarStyles = computed(() => ({
   ...containerStyles.value,
-  backgroundColor: usaIniciais.value ? colors.value.bg : undefined,
-  color: usaIniciais.value ? colors.value.text : undefined,
-  '--dark-bg': colors.value.darkBg,
-  '--dark-text': colors.value.darkText,
+  backgroundColor: usaIniciais.value
+    ? `var(--w-avatar-${tomDeIniciais.value}-bg)`
+    : undefined,
+  color: usaIniciais.value
+    ? `var(--w-avatar-${tomDeIniciais.value}-fg)`
+    : undefined,
 }));
 
 const badgeStyles = computed(() => {
@@ -169,14 +162,10 @@ watch(
     <span
       role="img"
       :aria-label="name || undefined"
-      class="relative inline-flex items-center justify-center object-cover overflow-hidden font-medium outline outline-1 -outline-offset-1 outline-[rgb(0_0_0_/_0.03)] dark:outline-[rgb(255_255_255_/_0.04)]"
+      class="w-avatar__face relative inline-flex items-center justify-center object-cover overflow-hidden font-medium outline outline-1 -outline-offset-1"
       :class="[
         borderRadiusClass,
-        {
-          'dark:!bg-[var(--dark-bg)] dark:!text-[var(--dark-text)]':
-            usaIniciais,
-          'bg-n-slate-3 dark:bg-n-slate-4': showDefaultAvatar,
-        },
+        { 'bg-n-slate-3 dark:bg-n-slate-4': showDefaultAvatar },
       ]"
       :style="avatarStyles"
     >
@@ -213,3 +202,12 @@ watch(
     </span>
   </span>
 </template>
+
+<style scoped lang="scss">
+// A única cor que este arquivo declara, e ela vem do token: o `outline` de 1px
+// que separa o avatar do fundo. Era `outline-[rgb(0_0_0_/_0.03)]` com o par
+// escuro ao lado, dois dos 28 literais que o lint dos primitivos reprova.
+.w-avatar__face {
+  outline-color: var(--w-avatar-outline);
+}
+</style>

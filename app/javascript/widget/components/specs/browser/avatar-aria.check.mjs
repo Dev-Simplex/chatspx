@@ -35,7 +35,7 @@ const check = (name, actual, expected) => {
 // A marcação vem do componente real, não é escrita aqui: extrai o `role="img"`
 // e o `aria-label` de `WAvatar.vue`.
 const componente = readFileSync(
-  new URL('../../WAvatar.vue', import.meta.url),
+  new URL('../../../ui/WAvatar.vue', import.meta.url),
   'utf8'
 );
 check(

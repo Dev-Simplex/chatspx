@@ -251,5 +251,10 @@
     "SOURCE": "Source:",
     "OPEN_LABEL": "Open the document {documento}",
     "FALLBACK_NAME": "document"
+  },
+  "CONNECTION": {
+    "RECONNECTING": "Reconnecting...",
+    "OFFLINE": "You are offline. Your messages will be sent when the network is back.",
+    "LOADING": "Loading the conversation"
   }
 }

@@ -5,7 +5,7 @@ import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 // `button/Button.vue` e `spinner/Spinner.vue`, e com eles 27.619 B de
 // utilitárias para o CSS do widget — por cinco props. `WAvatar` é a réplica
 // pixel a pixel do subconjunto que esta tela usa.
-import Avatar from 'widget/components/WAvatar.vue';
+import Avatar from 'widget/ui/WAvatar.vue';
 import configMixin from '../mixins/configMixin';
 import { isEmptyObject } from 'widget/helpers/utils';
 import {

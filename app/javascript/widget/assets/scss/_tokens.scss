@@ -60,6 +60,8 @@
     @include widget-shape;
     // Bloco 2.04 — superfície da lista e textura.
     @include widget-surface-light;
+    // Bloco 2.01 — a paleta de iniciais do avatar.
+    @include widget-avatar-light;
   }
 
   // ── `color-scheme` — bloco 2.10 ───────────────────────────────────────────
@@ -118,6 +120,7 @@
   .dark {
     @include widget-brand-dark;
     @include widget-surface-dark;
+    @include widget-avatar-dark;
   }
 
   @media (prefers-contrast: more) {
