@@ -117,9 +117,13 @@ RSpec.describe Campaigns::Whatsapp::AudienceBuilderService do
   describe 'dedup pelos dois motores' do
     let!(:contact) { create(:contact, account: account, phone_number: phone) }
 
+    # `resolved` de proposito: a conversa nasce `open` no factory, e conversa aberta na
+    # inbox da campanha e descartada antes como `atendimento_ativo` — o disparo nao
+    # atropela atendimento. Disparo antigo, que e o cenario aqui, ja esta encerrado.
     def dispatched_by_old_engine!(scheduled_at: Time.current)
       other = create(:campaign, account: account, inbox: inbox, scheduled_at: scheduled_at)
-      create(:conversation, account: account, inbox: inbox, contact: contact, campaign: other)
+      create(:conversation, account: account, inbox: inbox, contact: contact,
+                            campaign: other, status: :resolved)
       other
     end
 
@@ -131,7 +135,8 @@ RSpec.describe Campaigns::Whatsapp::AudienceBuilderService do
     end
 
     it 'nao descarta pelo carimbo da PROPRIA campanha' do
-      create(:conversation, account: account, inbox: inbox, contact: contact, campaign: campaign)
+      create(:conversation, account: account, inbox: inbox, contact: contact,
+                            campaign: campaign, status: :resolved)
 
       expect(build_audience.accepted.size).to eq(1)
     end
@@ -151,9 +156,13 @@ RSpec.describe Campaigns::Whatsapp::AudienceBuilderService do
       campaign.update!(dispatch_config: (campaign.dispatch_config || {}).merge('dedup' => config))
     end
 
+    # `resolved` de proposito: a conversa nasce `open` no factory, e conversa aberta na
+    # inbox da campanha e descartada antes como `atendimento_ativo` — o disparo nao
+    # atropela atendimento. Disparo antigo, que e o cenario aqui, ja esta encerrado.
     def dispatched_by_old_engine!(scheduled_at: Time.current)
       other = create(:campaign, account: account, inbox: inbox, scheduled_at: scheduled_at)
-      create(:conversation, account: account, inbox: inbox, contact: contact, campaign: other)
+      create(:conversation, account: account, inbox: inbox, contact: contact,
+                            campaign: other, status: :resolved)
       other
     end
 
