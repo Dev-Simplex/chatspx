@@ -13,6 +13,14 @@ json.website_channel_config do
   json.pre_chat_form_enabled @web_widget.pre_chat_form_enabled
   json.pre_chat_form_options @web_widget.pre_chat_form_options
   json.reply_time @web_widget.reply_time
+  # Bloco 4.05 — o texto do teaser JA RESOLVIDO no servidor (campanha vinculada ->
+  # welcome_tagline -> welcome_title). MESMA FONTE do `show.html.erb`: `#teaser_text`.
+  #
+  # Precisa existir AQUI pelo motivo que o comentario dos tokens abaixo ja explica: este
+  # jbuilder e o substituto planejado do ERB. Chave que existe so num dos dois lados morre
+  # em silencio no dia da troca — foi a suite de paridade (0.6) que cobrou, acusando
+  # `teaserText` presente no ERB e ausente aqui.
+  json.teaser_text @web_widget.teaser_text
   json.timezone @web_widget.inbox.timezone
   # Bloco 1.02 — os sete tokens de marca, calculados no SERVIDOR por luminância
   # WCAG. MESMA FONTE que o `<style>` e o `window.chatwootWebChannel` do
