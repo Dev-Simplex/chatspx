@@ -176,14 +176,18 @@ module Campaigns
         ids_by_canonical = contact_ids_by_canonical(canonicals)
         return Set.new if ids_by_canonical.empty?
 
+        hit = conversations_dispatched_scope(ids_by_canonical.values.flatten).distinct.pluck(:contact_id).to_set
+        ids_by_canonical.select { |_, ids| ids.any? { |id| hit.include?(id) } }.keys.to_set
+      end
+
+      def conversations_dispatched_scope(contact_ids)
         scope = Conversation.joins(:campaign)
-                            .where(contact_id: ids_by_canonical.values.flatten)
+                            .where(contact_id: contact_ids)
                             .where.not(conversations: { campaign_id: campaign.id })
         scope = scope.where(conversations: { campaign_id: dedup_campaign_ids }) if dedup_campaign_ids
-        scope = scope.where('COALESCE(campaigns.scheduled_at, campaigns.created_at) >= ?', dedup_since) if dedup_since
+        return scope unless dedup_since
 
-        hit = scope.distinct.pluck(:contact_id).to_set
-        ids_by_canonical.select { |_, ids| ids.any? { |id| hit.include?(id) } }.keys.to_set
+        scope.where('COALESCE(campaigns.scheduled_at, campaigns.created_at) >= ?', dedup_since)
       end
 
       # --------------------------------------------------------- corte da dedup
