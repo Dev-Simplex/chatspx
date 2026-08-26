@@ -12,7 +12,8 @@ import { MOBILE_BREAKPOINT } from '../viewport';
 
 const CANAL = {
   avatarUrl: 'https://exemplo.test/a.png',
-  welcomeTagline: 'Fale com a gente',
+  // Ver a nota do 4.05 em `teaser.spec.js`: o balão lê `teaserText`, não `welcomeTagline`.
+  teaserText: 'Fale com a gente',
   replyTime: 'Responde em minutos',
 };
 

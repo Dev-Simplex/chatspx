@@ -18,6 +18,26 @@
     "IP_ADDRESS_REVEAL": "Mostrar endereço IP",
     "IP_ADDRESS_HIDE": "Ocultar endereço IP",
     "IP_ADDRESS_MASKED": "Oculto",
+    "SITE_CONTEXT": {
+      "BADGE": "Recebido do site",
+      "BADGE_TITLE": "Estes dados foram enviados pelo site — nenhum deles foi digitado por um agente.",
+      "FIRST_TOUCH": "De onde veio esta pessoa",
+      "THIS_CONVERSATION": "O que trouxe esta conversa",
+      "IDENTITY": "Identidade",
+      "IDENTIFIED_AS": "Identificado pelo site como",
+      "SIGNATURE": "Assinatura",
+      "SIGNATURE_VERIFIED": "Verificada — o site provou quem é",
+      "SIGNATURE_ABSENT": "Sem assinatura — o site apenas informou",
+      "ORIGIN_KIND": {
+        "BUSCA_PAGA": "Busca paga",
+        "BUSCA_ORGANICA": "Busca orgânica",
+        "SOCIAL": "Rede social",
+        "IA_GENERATIVA": "IA generativa",
+        "EMAIL": "E-mail",
+        "REFERENCIA": "Indicação de outro site",
+        "NAO_DISPONIVEL": "Não disponível"
+      }
+    },
     "CREATED_AT_LABEL": "Criado",
     "NEW_MESSAGE": "Nova Mensagem",
     "NEW_MESSAGE_SHORT": "Mensagem",

@@ -10,7 +10,10 @@ import { montarTeaser } from '../teaser';
 
 const CANAL = {
   avatarUrl: 'https://exemplo.test/a.png',
-  welcomeTagline: 'Fale com a gente',
+  // Bloco 4.05: o texto do balão passou a ser `teaserText`, resolvido no servidor
+  // (`Channel::WebWidget#teaser_text`). `welcomeTagline` aqui viraria fixture morta —
+  // presente no objeto, ignorada pelo código, e enganando quem ler depois.
+  teaserText: 'Fale com a gente',
   replyTime: 'Responde em minutos',
 };
 

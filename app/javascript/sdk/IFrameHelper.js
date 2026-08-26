@@ -142,8 +142,24 @@ export const IFrameHelper = {
   // depende do `bubbleHolder`, que só existe depois do `onLoad`.
   desmontarTeaser: null,
 
-  montarTeaserSeConfigurado(holder) {
-    const canal = window.chatwootWebChannel || {};
+  // Bloco 4.05 — `canalDoBoot` é o `channelConfig` que atravessou a ponte.
+  //
+  // NÃO existe `window.chatwootWebChannel` neste documento. Aquele objeto é escrito por
+  // `app/views/widgets/show.html.erb`, que é o documento do IFRAME; a página do site do
+  // cliente nunca o teve. Enquanto esta linha lia o global, `abordagemNovaNoAr({})` era
+  // falso em todo site real e o teaser NÃO era montado em lugar nenhum — junto com a
+  // degradação do 4.19, o auto-open do 4.20 e a telemetria do 4.21, que pendem daqui.
+  //
+  // Os dois verificadores do 4.06 são cegos para isto, e vale saber por quê: o spec de
+  // `approach` cria o global à mão antes de chamar este método, e o verificador em
+  // Chromium mede CSS sobre HTML escrito dentro do próprio arquivo — ele nunca boota o
+  // SDK. Nenhum dos dois responde "este objeto existe NESTE documento?".
+  //
+  // O canal chega em `IframeEventHelper.loadedEventConfig` (`config.channelConfig`) e
+  // desce por `onLoad`, que é o único chamador daqui. O `||` do global fica como
+  // degradação para o teste que ainda fixa a variável; em produção ele nunca resolve.
+  montarTeaserSeConfigurado(holder, canalDoBoot) {
+    const canal = canalDoBoot || window.chatwootWebChannel || {};
     const gatilhos = canal.widgetTriggers || {};
 
     // CONTRATO DO 4.04, ao pé da letra: `enabled` ausente significa que o SDK
@@ -696,7 +712,7 @@ export const IFrameHelper = {
     bubbleHolder.appendChild(closeBubble);
     onClickChatBubble();
 
-    IFrameHelper.montarTeaserSeConfigurado(bubbleHolder);
+    IFrameHelper.montarTeaserSeConfigurado(bubbleHolder, channelConfig);
   },
   toggleCloseButton: () => {
     // Bloco 2.09: o numero vem de `sdk/viewport.js`. Aqui havia um limite

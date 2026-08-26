@@ -83,6 +83,49 @@ class Channel::WebWidget < ApplicationRecord
     'Website'
   end
 
+  # BLOCO 4.05 — a MENSAGEM do convite, e por que ela é resolvida AQUI.
+  #
+  # "Campanha é mensagem, gatilho é momento". A Tela 2 (`TeaserComposer.vue`) não cria
+  # campanha nenhuma: ela EDITA a campanha de chat ao vivo que a inbox já tem, porque duas
+  # listas concorrentes de "mensagem proativa" no mesmo produto são o caminho conhecido para o
+  # cliente editar uma e o visitante receber a outra.
+  #
+  # Só que o teaser do host (4.06) mostrava `welcome_tagline`, que é OUTRO campo, editado em
+  # OUTRA tela. O cliente escrevia na Tela 2 e o visitante lia a Tela 1 — e o preview da
+  # própria Tela 2 (`TriggersPage.vue:143-145`, bloco 4.07) já mostrava `campanha.message`,
+  # então o preview mentia. Com o gatilho novo ligado (4.22) a campanha legada para de
+  # disparar sozinha, e aí o texto escrito no compositor não aparece em lugar NENHUM.
+  #
+  # RESOLVIDO NO SERVIDOR, não no host, pelas duas razões que já governam este payload:
+  #
+  #   1. É o padrão do projeto desde o 1.02/1.03 e o 3.19 — o host CONSOME a decisão
+  #      (`resolved_widget_approach`, `tokens`, `launcher_icon`), nunca recalcula política.
+  #      Uma precedência escrita em dois lugares diverge no primeiro ajuste, e essa
+  #      divergência é literalmente o defeito descrito acima.
+  #   2. `sdk.js` tem teto de peso (bloco 0.5, aceite A13) e a folga medida em 24/08 é de
+  #      SEIS bytes no gzip. Resolver aqui deixa o host com UMA leitura em vez de uma cadeia
+  #      de três, o que devolve bytes em vez de gastar.
+  def teaser_text
+    (teaser_campaign&.message.presence || welcome_tagline.presence || welcome_title.presence).to_s
+  end
+
+  # A campanha vinculada: a de chat ao vivo desta inbox. Espelha exatamente o que o
+  # compositor considera vinculada (`campaigns/getLiveChatCampaigns` filtra `ongoing` + canal
+  # web e ordena por `id`, e a tela pega a desta inbox) — se as duas regras divergirem, o
+  # cliente edita uma campanha e o visitante recebe a outra, que é o defeito que o bloco
+  # inteiro existe para não ter.
+  #
+  # NÃO filtra por `enabled`, e a ausência é decisão: `enabled` governa o DISPARO do motor
+  # legado, e quem liga e desliga o teaser é `widget_triggers.enabled` (4.22). Filtrar aqui
+  # faria o texto que o cliente acabou de salvar sumir por causa de um interruptor de outro
+  # motor — sem nenhum aviso na tela que ele estava usando.
+  #
+  # `one_off` fica de fora porque é disparo em massa (lista + template), não a mensagem
+  # permanente do convite.
+  def teaser_campaign
+    inbox.campaigns.where(campaign_type: :ongoing).order(:id).first
+  end
+
   # Rótulo do link de contato alternativo (bloco 2.14), no idioma da CONTA — é
   # o idioma em que o site do cliente atende, não o do visitante, porque este
   # texto é gerado no servidor uma vez e colado no HTML dele.

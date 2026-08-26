@@ -38,6 +38,10 @@
         websiteName: '<%= @web_widget.inbox.name %>',
         websiteToken: '<%= @web_widget.website_token %>',
         welcomeTagline: <%= @web_widget.welcome_tagline.to_json.html_safe %>,
+        <%# Bloco 4.05 — o texto do teaser JA RESOLVIDO: a mensagem da campanha vinculada, %>
+        <%# com `welcome_tagline`/`welcome_title` de reserva. O host consome a decisao, como %>
+        <%# faz com `tokens` (1.02) e com o nivel de abordagem (3.20). Ver `#teaser_text`. %>
+        teaserText: <%= @web_widget.teaser_text.to_json.html_safe %>,
         welcomeTitle: '<%= @web_widget.welcome_title %>',
         widgetColor: '<%= @web_widget.widget_color %>',
         // Mesma fonte que o `<style>` acima. O launcher vive FORA do iframe e

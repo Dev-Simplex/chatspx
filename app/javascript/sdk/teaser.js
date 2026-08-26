@@ -14,6 +14,9 @@
  *   · ZERO dado novo na ponte. Foto, texto e tempo de resposta já viajam em
  *     `chatwootWebChannel` desde sempre (`avatarUrl`, `welcomeTagline`,
  *     `replyTime`). Nada de campo novo, nada de i18n duplicado no host.
+ *     — Emenda do 4.05: o texto passou a ser `teaserText`, a mensagem da campanha
+ *       vinculada já resolvida no servidor. Continua sendo um campo do MESMO
+ *       objeto, e o host ficou com uma leitura em vez de três.
  *   · Nenhuma biblioteca. DOM cru, com as helpers que o SDK já tem.
  *
  * O QUE MUDOU COM O 4.20, E POR QUE MUDOU AQUI
@@ -177,7 +180,20 @@ export const montarTeaser = ({
 
   const texto = document.createElement('p');
   texto.className = 'woot-teaser__texto';
-  texto.textContent = canal.welcomeTagline || canal.welcomeTitle || '';
+  // Bloco 4.05 — a MENSAGEM da campanha vinculada, e uma leitura só.
+  //
+  // O que estava aqui era `canal.welcomeTagline || canal.welcomeTitle`: o cliente escrevia
+  // o convite no compositor da Tela 2 — que edita a CAMPANHA — e o balão mostrava o campo
+  // da Tela 1. Editar o texto não mudava o que o visitante via, e o preview da própria
+  // Tela 2 já mostrava `campanha.message`, então o preview mentia.
+  //
+  // A precedência inteira (campanha → tagline → título) é resolvida no servidor, em
+  // `Channel::WebWidget#teaser_text`, pelo mesmo motivo do 1.03 e do 3.19: o host consome a
+  // decisão, nunca recalcula política. Uma segunda cadeia de precedência aqui seria
+  // exatamente o defeito acima, de novo. E há o efeito colateral que este arquivo
+  // agradece — três leituras viraram uma, e o `sdk.js` tem seis bytes de folga no gzip
+  // (A13).
+  texto.textContent = canal.teaserText || '';
 
   corpo.appendChild(texto);
 
