@@ -720,6 +720,9 @@
       "INBOX_SELECTOR": {
         "BUTTON": "Choose an inbox"
       },
+      "TEAM_SELECTOR": {
+        "BUTTON": "Choose a team (optional)"
+      },
       "EMAIL_OPTIONS": {
         "SUBJECT_LABEL": "Subject :",
         "SUBJECT_PLACEHOLDER": "Enter your email subject here",

@@ -19,12 +19,14 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
   def create
     @unit = Current.account.units.create!(unit_params)
     sincronizar_caixas
+    sincronizar_excecoes
     render :show, status: :created
   end
 
   def update
     @unit.update!(unit_params)
     sincronizar_caixas
+    sincronizar_excecoes
     render :show
   end
 
@@ -43,10 +45,15 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
     params.require(:unit).permit(
       :name, :city, :state, :address, :phone, :timezone, :notes, :active,
       working_hours_attributes: [:id, :day_of_week, :closed_all_day, :open_all_day,
-                                 :open_hour, :open_minutes, :close_hour, :close_minutes],
-      exceptions_attributes: [:id, :date, :name, :closed_all_day, :annual,
-                              :open_hour, :open_minutes, :close_hour, :close_minutes, :_destroy]
+                                 :open_hour, :open_minutes, :close_hour, :close_minutes]
     )
+  end
+
+  def excecoes_params
+    params.require(:unit).permit(
+      exceptions: [:date, :name, :closed_all_day, :annual,
+                   :open_hour, :open_minutes, :close_hour, :close_minutes]
+    )[:exceptions]
   end
 
   # Chave ausente = não mexe. Só reatribui caixas DESTA conta; id de fora é ignorado
@@ -58,6 +65,17 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
     Current.account.inboxes.where(unit_id: @unit.id).where.not(id: desejadas).update_all(unit_id: nil) # rubocop:disable Rails/SkipsModelValidations
     Current.account.inboxes.where(id: desejadas).update_all(unit_id: @unit.id) # rubocop:disable Rails/SkipsModelValidations
     @unit.association(:inboxes).reset
+  end
+
+  # Substitui o conjunto inteiro. Chave ausente = não mexe; lista vazia = apagou todas.
+  # Vale porque exceção não é referenciada por ninguém — recriar não quebra nada.
+  def sincronizar_excecoes
+    desejadas = excecoes_params
+    return if desejadas.nil?
+
+    @unit.exceptions.destroy_all
+    desejadas.each { |atributos| @unit.exceptions.create!(atributos) }
+    @unit.association(:exceptions).reset
   end
 
   def check_authorization

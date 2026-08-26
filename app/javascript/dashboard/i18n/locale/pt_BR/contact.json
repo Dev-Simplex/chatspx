@@ -720,6 +720,9 @@
       "INBOX_SELECTOR": {
         "BUTTON": "Escolher caixa de entrada"
       },
+      "TEAM_SELECTOR": {
+        "BUTTON": "Escolher time (opcional)"
+      },
       "EMAIL_OPTIONS": {
         "SUBJECT_LABEL": "Assunto:",
         "SUBJECT_PLACEHOLDER": "Digite o assunto do seu e-mail aqui",

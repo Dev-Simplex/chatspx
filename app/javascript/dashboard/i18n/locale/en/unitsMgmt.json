@@ -1,0 +1,115 @@
+{
+  "UNITS_MGMT": {
+    "HEADER": "Units",
+    "DESCRIPTION": "Your branches: where each one is, what time it opens, and the days it closes.",
+    "SEARCH_PLACEHOLDER": "Search units",
+    "LOADING": "Loading units",
+    "COUNT": "{n} units",
+    "WEEKDAYS": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "WEEKDAYS_SHORT": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "LIST": {
+      "EMPTY": "No unit registered yet. Create one to describe where your company operates.",
+      "NO_RESULTS": "No unit matches this search",
+      "NO_INBOX": "No inbox",
+      "ALL_CLOSED": "Closed every day",
+      "HEADERS": {
+        "NAME": "Unit",
+        "LOCATION": "City/State",
+        "INBOXES": "Inboxes",
+        "OPEN_DAYS": "Open on"
+      }
+    },
+    "ADD": {
+      "BUTTON": "Add unit",
+      "TITLE": "Add unit",
+      "API": {
+        "SUCCESS": "Unit created",
+        "ERROR": "Could not create the unit"
+      }
+    },
+    "EDIT": {
+      "BUTTON": "Edit",
+      "TITLE": "Edit unit",
+      "API": {
+        "SUCCESS": "Unit updated",
+        "ERROR": "Could not update the unit"
+      }
+    },
+    "DELETE": {
+      "BUTTON": "Delete",
+      "API": {
+        "SUCCESS": "Unit deleted",
+        "ERROR": "Could not delete the unit"
+      },
+      "CONFIRM": {
+        "TITLE": "Delete unit",
+        "MESSAGE": "Are you sure you want to delete ",
+        "YES": "Yes, delete ",
+        "NO": "No, keep it"
+      }
+    },
+    "FORM": {
+      "NAME": {
+        "LABEL": "Name",
+        "PLACEHOLDER": "Downtown branch"
+      },
+      "PHONE": {
+        "LABEL": "Phone",
+        "PLACEHOLDER": "(66) 3531-0000"
+      },
+      "CITY": {
+        "LABEL": "City",
+        "PLACEHOLDER": "Sinop"
+      },
+      "STATE": {
+        "LABEL": "State",
+        "PLACEHOLDER": "MT"
+      },
+      "ADDRESS": {
+        "LABEL": "Address",
+        "PLACEHOLDER": "Av. das Itaúbas, 1234"
+      },
+      "TIMEZONE": {
+        "LABEL": "Time zone"
+      },
+      "INBOXES": {
+        "LABEL": "Inboxes of this unit",
+        "HELP": "The WhatsApp line of this branch. An inbox belongs to one unit at most.",
+        "EMPTY": "This account has no inbox yet."
+      },
+      "HOURS": {
+        "LABEL": "Opening hours",
+        "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages."
+      },
+      "EXCEPTIONS": {
+        "LABEL": "Holidays and exceptions",
+        "HELP": "Dates when this unit does not follow the weekly schedule.",
+        "DATE": "Date",
+        "NAME": "Reason",
+        "NAME_PLACEHOLDER": "Christmas",
+        "ADD": "Add",
+        "CLOSED": "Closed",
+        "SPECIAL_HOURS": "Special hours",
+        "ANNUAL": "Every year"
+      },
+      "SUBMIT": "Save unit",
+      "CANCEL": "Cancel"
+    }
+  }
+}

@@ -736,7 +736,8 @@
     "NEW_CONVERSATION": "Nova conversa",
     "ADVANCED_SEARCH": "Pesquisa avançada",
     "CAPTAIN_AI": "Agentes IA",
-    "CONVERSATION_WORKFLOW": "Fluxo de Conversa"
+    "CONVERSATION_WORKFLOW": "Fluxo de Conversa",
+    "UNITS": "Unidades"
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "Configurações de Agentes IA",

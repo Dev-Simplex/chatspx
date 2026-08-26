@@ -795,6 +795,12 @@ const menuItems = computed(() => {
           ],
           to: accountScopedRoute('settings_teams_list'),
         },
+        {
+          name: 'Settings Units',
+          label: t('SIDEBAR.UNITS'),
+          icon: lordIcon('inbox', 'i-lucide-map-pin'),
+          to: accountScopedRoute('units_list'),
+        },
         ...(hasAdvancedAssignment.value
           ? [
               {

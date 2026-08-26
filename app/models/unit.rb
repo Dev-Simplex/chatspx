@@ -18,8 +18,10 @@ class Unit < ApplicationRecord
   # Nullify no banco (a FK cuida): apagar a unidade não pode levar a caixa junto.
   has_many :inboxes, dependent: :nullify
 
-  accepts_nested_attributes_for :working_hours, allow_destroy: true
-  accepts_nested_attributes_for :exceptions, allow_destroy: true
+  # Só o horário é nested: são sempre os mesmos 7 dias, atualizados por id. As
+  # exceções o controller substitui em bloco — são poucas, sempre editadas como lista,
+  # e assim a tela não precisa carregar `_destroy` de um lado para o outro.
+  accepts_nested_attributes_for :working_hours
 
   validates :name, presence: true, uniqueness: { scope: :account_id, case_sensitive: false }
   validates :timezone, presence: true

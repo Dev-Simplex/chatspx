@@ -1,0 +1,115 @@
+{
+  "UNITS_MGMT": {
+    "HEADER": "Unidades",
+    "DESCRIPTION": "Suas filiais: onde cada uma fica, que horas abre e os dias em que fecha.",
+    "SEARCH_PLACEHOLDER": "Pesquisar unidades",
+    "LOADING": "Carregando unidades",
+    "COUNT": "{n} unidades",
+    "WEEKDAYS": {
+      "0": "Domingo",
+      "1": "Segunda-feira",
+      "2": "Terça-feira",
+      "3": "Quarta-feira",
+      "4": "Quinta-feira",
+      "5": "Sexta-feira",
+      "6": "Sábado"
+    },
+    "WEEKDAYS_SHORT": {
+      "0": "Dom",
+      "1": "Seg",
+      "2": "Ter",
+      "3": "Qua",
+      "4": "Qui",
+      "5": "Sex",
+      "6": "Sáb"
+    },
+    "LIST": {
+      "EMPTY": "Nenhuma unidade cadastrada. Crie uma para descrever onde a sua empresa atende.",
+      "NO_RESULTS": "Nenhuma unidade encontrada",
+      "NO_INBOX": "Sem caixa",
+      "ALL_CLOSED": "Fechada todos os dias",
+      "HEADERS": {
+        "NAME": "Unidade",
+        "LOCATION": "Cidade/UF",
+        "INBOXES": "Caixas de entrada",
+        "OPEN_DAYS": "Abre em"
+      }
+    },
+    "ADD": {
+      "BUTTON": "Adicionar unidade",
+      "TITLE": "Adicionar unidade",
+      "API": {
+        "SUCCESS": "Unidade criada",
+        "ERROR": "Não foi possível criar a unidade"
+      }
+    },
+    "EDIT": {
+      "BUTTON": "Editar",
+      "TITLE": "Editar unidade",
+      "API": {
+        "SUCCESS": "Unidade atualizada",
+        "ERROR": "Não foi possível atualizar a unidade"
+      }
+    },
+    "DELETE": {
+      "BUTTON": "Excluir",
+      "API": {
+        "SUCCESS": "Unidade excluída",
+        "ERROR": "Não foi possível excluir a unidade"
+      },
+      "CONFIRM": {
+        "TITLE": "Excluir unidade",
+        "MESSAGE": "Tem certeza de que deseja excluir ",
+        "YES": "Sim, excluir ",
+        "NO": "Não, manter"
+      }
+    },
+    "FORM": {
+      "NAME": {
+        "LABEL": "Nome",
+        "PLACEHOLDER": "Filial Centro"
+      },
+      "PHONE": {
+        "LABEL": "Telefone",
+        "PLACEHOLDER": "(66) 3531-0000"
+      },
+      "CITY": {
+        "LABEL": "Cidade",
+        "PLACEHOLDER": "Sinop"
+      },
+      "STATE": {
+        "LABEL": "UF",
+        "PLACEHOLDER": "MT"
+      },
+      "ADDRESS": {
+        "LABEL": "Endereço",
+        "PLACEHOLDER": "Av. das Itaúbas, 1234"
+      },
+      "TIMEZONE": {
+        "LABEL": "Fuso horário"
+      },
+      "INBOXES": {
+        "LABEL": "Caixas de entrada desta unidade",
+        "HELP": "A linha de WhatsApp desta filial. Uma caixa pertence a no máximo uma unidade.",
+        "EMPTY": "Esta conta ainda não tem caixa de entrada."
+      },
+      "HOURS": {
+        "LABEL": "Horário de funcionamento",
+        "HELP": "Informativo: serve para o atendente saber o que responder. Não dispara mensagem automática."
+      },
+      "EXCEPTIONS": {
+        "LABEL": "Feriados e exceções",
+        "HELP": "Datas em que esta unidade não segue o horário da semana.",
+        "DATE": "Data",
+        "NAME": "Motivo",
+        "NAME_PLACEHOLDER": "Natal",
+        "ADD": "Adicionar",
+        "CLOSED": "Fechada",
+        "SPECIAL_HOURS": "Horário especial",
+        "ANNUAL": "Todo ano"
+      },
+      "SUBMIT": "Salvar unidade",
+      "CANCEL": "Cancelar"
+    }
+  }
+}
