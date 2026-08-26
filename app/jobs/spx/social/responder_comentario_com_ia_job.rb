@@ -10,13 +10,29 @@ class Spx::Social::ResponderComentarioComIaJob < ApplicationJob
     comentario = Spx::Social::Comentario.find_by(id: comentario_id)
     return if comentario.blank?
 
-    resultado = Spx::Social::ResponderComentarioComIa.new(comentario: comentario).perform
+    # A leitura das imagens vem ANTES da resposta, e no mesmo job de propósito: sem ela a IA
+    # responde "consulte no direct" a uma pergunta cujo preço está na frente de quem perguntou
+    # (medido em 26/08). Ler é lento; por isso este job vive na fila `low`.
+    ler_midia(comentario.publicacao)
+
+    resultado = Spx::Social::ResponderComentarioComIa.new(comentario: comentario.reload).perform
     # O motivo de não ter respondido é o que interessa no piloto — "não aconteceu nada" é a
     # pior resposta possível para quem está testando.
     Rails.logger.info("[social] IA no comentário #{comentario.external_id}: #{resumo(resultado)}")
   end
 
   private
+
+  # Best-effort: publicação sem leitura ainda responde, só com menos contexto. Falha aqui não
+  # pode calar a IA — seria trocar uma resposta pobre por resposta nenhuma.
+  def ler_midia(publicacao)
+    return if publicacao.blank?
+
+    resultado = Spx::Social::LerMidiaDaPublicacao.new(publicacao: publicacao).perform
+    Rails.logger.info("[social] leitura da publicacao #{publicacao.external_id}: #{resultado}")
+  rescue StandardError => e
+    Rails.logger.error("[social] leitura falhou: #{e.class} #{e.message}")
+  end
 
   def resumo(resultado)
     return resultado.to_s unless resultado.respond_to?(:ok?)

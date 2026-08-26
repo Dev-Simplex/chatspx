@@ -69,8 +69,18 @@ class Spx::Social::ResponderComentarioComIa
     [
       ("Autor do comentário: @#{comentario.autor_username}" if comentario.autor_username.present?),
       ("Tipo da publicação: #{publicacao.tipo}" if publicacao&.tipo.present?),
-      ("Legenda da publicação: #{publicacao.legenda}" if publicacao&.legenda.present?)
+      ("Legenda da publicação: #{publicacao.legenda}" if publicacao&.legenda.present?),
+      # O que está ESCRITO nas imagens. Rotulado como leitura, e não apresentado como fato da
+      # casa: se a visão errar um número, quem lê precisa saber de onde ele veio. Mesma
+      # disciplina do rótulo de transcrição de áudio, que existe desde o falso positivo de 25/07.
+      ("Texto lido nas imagens da publicação: #{leitura(publicacao)}" if leitura(publicacao).present?)
     ].compact
+  end
+
+  def leitura(publicacao)
+    return nil unless publicacao&.has_attribute?(:leitura_midia)
+
+    publicacao.leitura_midia
   end
 
   # `[IGNORAR]` é como o agente diz "não é pra responder isso" em todo o resto do produto.
