@@ -67,6 +67,10 @@ en:
         invalid: is not a valid timezone
     validations:
       presence: must not be blank
+      invalid: is invalid
+    units:
+      close_before_open: cannot be earlier than the opening time
+      open_and_closed: cannot be open all day and closed all day at the same time
     webhook:
       invalid: Invalid events
     signup:

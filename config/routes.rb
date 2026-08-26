@@ -436,6 +436,7 @@ Rails.application.routes.draw do
           end
           resource :notification_settings, only: [:show, :update]
 
+          resources :units, only: [:index, :show, :create, :update, :destroy]
           resources :teams do
             resources :team_members, only: [:index, :create] do
               collection do

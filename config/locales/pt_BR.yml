@@ -43,6 +43,10 @@ pt_BR:
         invalid: não é um fuso horário válido
     validations:
       presence: não pode ficar em branco
+      invalid: é inválido
+    units:
+      close_before_open: não pode ser anterior ao horário de abertura
+      open_and_closed: não pode abrir o dia todo e fechar o dia todo ao mesmo tempo
     webhook:
       invalid: Eventos inválidos
     signup:
