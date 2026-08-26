@@ -3,6 +3,7 @@ import ruby from 'vite-plugin-ruby';
 import vue from '@vitejs/plugin-vue';
 import { aliases, vueOptions } from './vite.shared';
 import yaml from '@rollup/plugin-yaml';
+import { chunkStats } from './vite.stats';
 
 // O harness E2E do widget (`spec/e2e/widget/harness/widget-server.mjs`) sobe o Vite
 // em middlewareMode com `root` na raiz do repositório e carrega ESTE arquivo como
@@ -13,10 +14,93 @@ import yaml from '@rollup/plugin-yaml';
 // pedido pelo harness prevalece.
 const isTestMode = process.env.TEST === 'true';
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * VUE RUNTIME × VUE COMPLETO — bloco 2.18
+ *
+ * `vite.shared.ts` aponta `vue` para `vue/dist/vue.esm-bundler.js`, a build
+ * COMPLETA: runtime + compilador de template. O compilador serve para compilar
+ * `template:` em tempo de execução, e ele custa `@vue/compiler-dom` +
+ * `@vue/compiler-core` — 168.582 B renderizados no fecho de first-paint do
+ * widget, que NÃO compila template nenhum: todo `.vue` já sai compilado do
+ * `@vitejs/plugin-vue`, em tempo de build.
+ *
+ * O ÚNICO consumidor de compilação em runtime de todo o `app/javascript` que
+ * entra em bundle de produção é `portal/portalHelpers.js:86,104`, que monta
+ * dois apps com `template:` string. Ele — e só ele — continua recebendo a
+ * build completa.
+ *
+ * Os dois arquivos são cascas finas sobre o MESMO `@vue/runtime-dom`, então
+ * conviver na mesma página não duplica o Vue: a completa apenas registra o
+ * compilador (`registerRuntimeCompiler`) por cima do runtime compartilhado.
+ *
+ * Isto vale só para o build de produção. `vitest.config.ts` continua com o
+ * alias de `vite.shared.ts`, porque dezenas de specs montam dublês com
+ * `template: '<div />'` e precisam do compilador.
+ * ──────────────────────────────────────────────────────────────────────────── */
+const VUE_RUNTIME = 'vue/dist/vue.runtime.esm-bundler.js';
+const VUE_COMPLETO = 'vue/dist/vue.esm-bundler.js';
+const PRECISA_DO_COMPILADOR = '/app/javascript/portal/';
+
+const alias = [
+  {
+    // `^vue$` e não a forma de objeto de propósito: com a chave `vue` o
+    // `@rollup/plugin-alias` também casa `vue/dist/...` por prefixo, e a
+    // substituição produziria caminho duplicado.
+    find: /^vue$/,
+    replacement: VUE_RUNTIME,
+    async customResolver(_source: string, importer: string | undefined) {
+      const alvo =
+        importer && importer.includes(PRECISA_DO_COMPILADOR)
+          ? VUE_COMPLETO
+          : VUE_RUNTIME;
+      const resolvido = await this.resolve(alvo, importer, { skipSelf: true });
+      return resolvido || { id: alvo };
+    },
+  },
+  ...Object.entries(aliases)
+    .filter(([find]) => find !== 'vue')
+    .map(([find, replacement]) => ({ find, replacement })),
+];
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * CHUNK DE VENDOR PRÓPRIO — MEDIDO E REJEITADO (bloco 2.18)
+ *
+ * A terceira frente do bloco no PLANO-MESTRE §2.2 é "chunk de vendor próprio".
+ * Ela foi implementada e MEDIDA contra build real, e CUSTA bytes em vez de
+ * economizar — por isso não está aqui, e este comentário existe para que a
+ * próxima pessoa não repita o experimento achando que ninguém tentou.
+ *
+ * O agrupamento testado (conservador: `vendor-vue`, `vendor-i18n`,
+ * `vendor-markdown`, `vendor-sanitize`, `vendor-http`, `vendor-routing`; sem
+ * `date-fns` e sem `@sentry/*`, que o Rollup já divide por alcançabilidade):
+ *
+ *     sem manualChunks .... 289.629 B gzip de JS eager   (12 chunks)
+ *     com manualChunks .... 316.365 B gzip de JS eager   (19 chunks)
+ *     custo ...............  +26.736 B gzip  (+9,2%)
+ *
+ * SÃO DUAS CAUSAS, e as duas são estruturais:
+ *
+ *   1. gzip não é aditivo. Cada chunk é comprimido sozinho, com dicionário
+ *      próprio; quebrar 12 arquivos em 19 tira do compressor a redundância
+ *      entre eles. O gate cobra a SOMA dos gzip, que é o que a rede entrega.
+ *   2. Agrupar por PACOTE desfaz o agrupamento por ALCANÇABILIDADE que o
+ *      Rollup já faz. Um pacote usado tanto por caminho eager quanto por
+ *      caminho lazy vira um chunk só, e o first-paint passa a baixar também
+ *      a parte que só a rota lazy usava.
+ *
+ * O problema real que a frente queria resolver — nome de chunk que MENTE
+ * (`Validators-*.js` continha `@sentry/core`, `vue-router` e `date-fns`) —
+ * está resolvido por `scripts/widget-eager.check.mjs`, que lê `chunk.modules`
+ * do Rollup e imprime o inventário por pacote. Diagnóstico sem custo de rede.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
 export default defineConfig({
-  plugins: isTestMode
-    ? [vue(vueOptions), yaml()]
-    : [ruby(), vue(vueOptions), yaml()],
+  plugins: [
+    ...(isTestMode ? [] : [ruby()]),
+    vue(vueOptions),
+    yaml(),
+    chunkStats(),
+  ],
   optimizeDeps: {
     // Deps do canvas de Automações que leem `process.env.*`. Como o canvas é lazy-loaded,
     // sem incluí-las o vite dev não substitui `process` no pré-bundle e o chunk quebra com
@@ -35,6 +119,35 @@ export default defineConfig({
       },
     },
   },
+  /* ──────────────────────────────────────────────────────────────────────────
+   * FLAGS DE COMPILAÇÃO DO vue-i18n — bloco 2.18
+   *
+   * O `vue-i18n` publica a build esm-bundler com trechos guardados por flags
+   * que o BUNDLER deve definir. Sem defini-las o esm-bundler assume o default
+   * permissivo e os ganchos de devtools viajam para produção.
+   *
+   * `__VUE_I18N_LEGACY_API__: false` FOI TESTADA E REJEITADA, e o registro
+   * fica aqui para ninguém a "descobrir" de novo. Ela vale 3.447 B gzip do
+   * grafo eager (289.631 → 286.184), e por auditoria de produção PARECE
+   * segura: as quatro chamadas de `createI18n` dos entrypoints passam
+   * `legacy: false`. Não é. A flag remove a API legada do bundle INTEIRO, e a
+   * suíte provou que ainda há consumidor dela — `memoDaLinha.spec.js:42` cria
+   * o i18n com `legacy: true` de propósito e escreve `i18n.global.locale`.
+   * Sem a API legada esse `locale` é um `WritableComputedRef`: a atribuição
+   * SUBSTITUI o ref em vez de escrever nele e a reatividade morre em silêncio
+   * — o teste caiu com «expected 2 to be greater than 2», que é exatamente um
+   * render que deixou de acontecer. 3 kB não pagam esse risco com o grafo já
+   * 10 kB abaixo do teto; a flag entra junto da migração dos consumidores
+   * legados, não antes.
+   *
+   * `__VUE_I18N_FULL_INSTALL__` também NÃO é desligada: removeria o registro
+   * global de `<i18n-t>` e da diretiva `v-t`, e o painel usa `<I18nT>` em pelo
+   * menos 8 componentes.
+   * ────────────────────────────────────────────────────────────────────────── */
+  define: {
+    __VUE_I18N_PROD_DEVTOOLS__: 'false',
+    __INTLIFY_PROD_DEVTOOLS__: 'false',
+  },
   css: {
     preprocessorOptions: {
       scss: {
@@ -44,5 +157,5 @@ export default defineConfig({
   },
   // `dedupe` impede duas cópias de html2pdf.js no grafo (jsPDF/html2canvas entram
   // como transitivos), que produzem PDF em branco na exportação de conversas.
-  resolve: { alias: aliases, dedupe: ['html2pdf.js'] },
+  resolve: { alias, dedupe: ['html2pdf.js'] },
 });
