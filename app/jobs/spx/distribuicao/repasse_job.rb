@@ -110,8 +110,18 @@ module Spx
         Log.where(conversation_id: conv.id).where.not(chosen_user_id: nil).distinct.pluck(:chosen_user_id)
       end
 
+      # Teto de repasses: UMA definicao so, a do Policy#esgotou_repasses?, que e a que a migration
+      # documenta ("0 = sem teto") e a que o caminho de vendas ja usava.
+      #
+      # A versao anterior daqui era `count + 1 >= max_repasses`, e divergia dela em DOIS pontos:
+      #   - `max_repasses = 0` virava `1 >= 0`, ou seja SEMPRE esgotado — o oposto de "sem teto",
+      #     entao configurar "sem teto" escalava o lead direto para o gestor no primeiro
+      #     vencimento;
+      #   - com `max_repasses = 2` escalava depois de UM repasse, nao de dois.
+      #
+      # O contador equivalente ao `repasse_n` aqui e quantas linhas ja expiraram nesta conversa.
       def esgotou?(conv, policy)
-        Log.where(conversation_id: conv.id, status: 'expirado').count + 1 >= policy.max_repasses.to_i
+        policy.esgotou_repasses?(Log.where(conversation_id: conv.id, status: 'expirado').count)
       end
 
       # Próximo do pool que ainda não recebeu ESTA conversa. Reusar o DistribuirService aqui
