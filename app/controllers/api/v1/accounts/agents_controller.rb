@@ -34,7 +34,7 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
 
   def update
     @agent.update!(agent_params.slice(:name).compact)
-    @agent.current_account_user.update!(agent_params.slice(*account_user_attributes).compact)
+    @agent.current_account_user.update!(account_user_payload)
     sync_supervised_teams
   end
 
@@ -80,6 +80,17 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
 
   def account_user_attributes
     [:role, :availability, :auto_offline]
+  end
+
+  # O papel vindo desta tela é escolha deliberada de cargo, então entra por
+  # `console_role=` — que LIGA e DESLIGA a marca de supervisor. O writer cru
+  # (`role=`) só liga, para que API de plataforma, SAML e scripts não rebaixem um
+  # supervisor sem querer.
+  def account_user_payload
+    payload = agent_params.slice(*account_user_attributes).compact
+    role = payload.delete(:role)
+    payload[:console_role] = role if role.present?
+    payload
   end
 
   # D7: marcar supervisor é exclusivo de admin. O endpoint já é admin-only pela

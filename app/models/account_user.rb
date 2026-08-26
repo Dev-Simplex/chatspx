@@ -84,22 +84,26 @@ class AccountUser < ApplicationRecord
   # Trocar papel já é exclusivo de administrador em todo endpoint que aceita a chave
   # (AgentsController#authorize_supervisor_update), então isto não abre caminho novo
   # para alguém se autopromover.
+  # ATENÇÃO: este writer só LIGA o cargo, nunca o desliga. Ele é chamado por
+  # superfícies que gravam papel por outros motivos — API de plataforma, mapeamento
+  # de papel do SAML (que roda a CADA login), builders e scripts. Se desligasse aqui,
+  # qualquer uma delas rebaixaria um supervisor em silêncio, sem ninguém pedir.
+  # Quem tira o cargo é `console_role=`, usado pelas duas telas em que a escolha é
+  # deliberada: o console de Super Admin e a tela de Agentes.
   def role=(value)
     if value.to_s == SUPERVISOR_ROLE
       self.supervisor = true
       super(:administrator)
     else
-      # Escolher Administrador ou Agente TIRA o cargo: são cargos distintos, e é
-      # assim que a tela de Agentes remove a supervisão de alguém.
-      self.supervisor = false
       super
     end
   end
 
-  # O formulário do console posta este nome; a tradução é a mesma do writer acima.
-  # Escolher "agent" ou "administrator" NÃO mexe na supervisão: quem quiser tirá-la
-  # esvazia o campo de times, que é onde ela mora.
+  # Escolha DELIBERADA de cargo, vinda de tela: console de Super Admin e tela de
+  # Agentes. Diferente de `role=`, aqui escolher Administrador ou Agente TIRA o
+  # cargo de supervisor — são cargos distintos, e é assim que se remove o de alguém.
   def console_role=(value)
+    self.supervisor = value.to_s == SUPERVISOR_ROLE
     self.role = value
   end
 
