@@ -26,6 +26,25 @@ module Spx
         @produto_slug = produto_slug
       end
 
+      # O card JÁ existe e este serviço não vai reescrevê-lo: o lead andou no SPX e o Vista
+      # ficou no corretor ANTERIOR.
+      #
+      # Acontece em repasse (`repasse_n > 0`) num time com `espelho_vista`, porque o `perform` é
+      # idempotente por conversa (ver `ja_espelhado?`). E não PODE deixar de ser: o Vista não tem
+      # DELETE (responde 401), então card no corretor errado é pior que card ausente. É decisão
+      # de produto assumida, não descuido.
+      #
+      # Público porque quem registra a divergência é o DistribuirService, no `policy_snapshot` do
+      # log. O que não podia continuar é ela ser INVISÍVEL: assim quem lê o log vê que aquela
+      # linha moveu o lead sabendo que o Vista ficou para trás, em vez de descobrir pelo corretor
+      # antigo reclamando que o lead sumiu da mão dele.
+      def self.desatualizado?(conversation, policy, repasse_n)
+        return false unless repasse_n.to_i.positive?
+        return false unless policy&.espelho_vista?
+
+        conversation.custom_attributes.to_h[CARIMBO].present?
+      end
+
       def perform
         return unless @policy.espelho_vista?
         return if ja_espelhado?

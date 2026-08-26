@@ -324,7 +324,8 @@ module Spx
           'automatico' => @policy&.repasse_automatico,
           'sla_minutos' => @policy&.sla_assumir_minutos,
           'max' => @policy&.max_repasses,
-          'destino_esgotado' => @policy&.pool_esgotado_destino_user_id
+          'destino_esgotado' => @policy&.pool_esgotado_destino_user_id,
+          'vista_desatualizado' => VistaCardService.desatualizado?(@conversation, @policy, @repasse_n)
         }
       end
     end

@@ -4,7 +4,7 @@
 #   1. GROSSO, no banco — `status = 'designado' AND designado_em <= agora - menor_sla`, usando o
 #      índice (status, designado_em) que já existe. Traz poucas dezenas de linhas mesmo numa
 #      instância grande.
-#   2. FINO, em memória — o prazo de verdade é conferido pelo RelogioComercial, política por
+#   2. FINO, em memória — o prazo de verdade é conferido pelo JanelaService, política por
 #      política, dentro do RepasseService. Conferir expediente na query exigiria replicar o
 #      calendário em SQL; conferir sobre a tabela inteira seria caro. Sobre dezenas de linhas
 #      é barato e fica num lugar só.

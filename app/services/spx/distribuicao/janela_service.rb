@@ -10,11 +10,21 @@
 # Fonte do expediente, nesta ordem:
 #   1. `policy.horario` — o expediente do time, configurado na tela
 #   2. `inbox.working_hours` — só se `working_hours_enabled`, para reaproveitar o que já existe
-#   3. nenhuma — devolve nil e o chamador NÃO age
+#   3. nenhuma — decidido pelo CHAMADOR, via `sem_agenda:`
 #
-# O passo 3 é fail-closed de propósito. Um time sem expediente conhecido é um time sobre o qual
-# não sabemos nada; expirar 24/7 faria o lead circular pelo pool de madrugada e aterrissar no
-# destino final sem ninguém ver. Recusar agir aparece na tela; agir errado às 3h da manhã não.
+# Sem agenda em lugar nenhum, os dois chamadores precisam de coisas OPOSTAS, e por isso a escolha
+# é explícita em vez de embutida aqui:
+#
+#   `:nao_vence` (default, modo `assignee`/locação) — fail-closed. Um time sem expediente
+#   conhecido é um time sobre o qual não sabemos nada; expirar 24/7 faria o lead circular pelo
+#   pool de madrugada e aterrissar no destino final sem ninguém ver. Recusar agir aparece na
+#   tela; agir errado às 3h da manhã não. É como este serviço nasceu no PR #67.
+#
+#   `:parede` (modo `designacao`/vendas) — relógio de parede. NÃO é preferência de desenho, é
+#   PRESERVAÇÃO: o repasse de vendas está em produção desde 19/08 com o antigo RelogioComercial,
+#   que caía no relógio de parede quando a caixa não tinha expediente. Unificar os dois relógios
+#   adotando o default fail-closed desligaria o repasse EM SILÊNCIO em todo time sem expediente
+#   configurado — a correção apagaria a funcionalidade que ela veio consertar.
 module Spx
   module Distribuicao
     class JanelaService
@@ -23,9 +33,14 @@ module Spx
       # mal configurado (todos os dias fechados) termine em nil em vez de girar para sempre.
       MAX_DIAS = 30
 
-      def initialize(policy:, inbox: nil)
+      SEM_AGENDA = %i[nao_vence parede].freeze
+
+      def initialize(policy:, inbox: nil, sem_agenda: :nao_vence)
+        raise ArgumentError, "sem_agenda invalido: #{sem_agenda.inspect}" unless SEM_AGENDA.include?(sem_agenda)
+
         @policy = policy
         @inbox = inbox
+        @sem_agenda = sem_agenda
       end
 
       # Existe expediente conhecido? A tela usa isto para avisar que o repasse não vai agir.
@@ -44,7 +59,7 @@ module Spx
         # pediu 24/7 explicitamente, entao nao ter agenda deixa de ser motivo para nao agir.
         return inicio + minutos.to_i.minutes if @policy && !@policy.sla_respeita_horario
 
-        return nil if agenda.blank?
+        return sem_agenda_prazo(inicio, minutos) if agenda.nil?
 
         restante = minutos.to_i
         cursor = inicio.in_time_zone(fuso)
@@ -67,6 +82,13 @@ module Spx
 
       private
 
+      # Sem expediente conhecido em lugar nenhum: quem decide é o chamador (ver o cabeçalho).
+      def sem_agenda_prazo(inicio, minutos)
+        return nil if @sem_agenda == :nao_vence
+
+        inicio + minutos.to_i.minutes
+      end
+
       # Consome o expediente do dia do cursor. Devolve [vencimento, restante]; com vencimento
       # preenchido, o SLA acabou dentro deste dia.
       def consumir_dia(cursor, restante)
@@ -82,27 +104,42 @@ module Spx
         [nil, restante]
       end
 
+      # TRÊS estados, e a diferença entre os dois últimos é o que impede punir quem estava
+      # legitimamente fora do trabalho:
+      #
+      #   nil  — NENHUMA fonte configurada. Não sabemos nada; quem decide é o `sem_agenda`.
+      #   {}   — fonte CONFIGURADA e sempre fechada (todos os dias marcados como fechados). O
+      #          expediente é conhecido: é "nunca". Então nada vence, e isso NÃO é caso de
+      #          `sem_agenda` — o operador respondeu, e a resposta foi "este time não atende".
+      #   hash — expediente com faixas abertas.
+      #
+      # Colapsar {} em nil (que é o que `.presence` fazia) faria o time que marcou todos os dias
+      # como fechados cair no relógio de parede e ver seus leads repassados de madrugada.
       def agenda
         return @agenda if defined?(@agenda)
 
-        @agenda = do_policy.presence || da_inbox.presence
+        @agenda = do_policy || da_inbox
       end
 
+      # `horario` nasce `{}` (jsonb default, null: false), então a coluna existir não quer dizer
+      # que alguém configurou: o sinal de "configurado" é ter `schedule`.
       def do_policy
         bruto = @policy&.horario
-        return nil unless bruto.is_a?(Hash)
+        return nil unless bruto.is_a?(Hash) && bruto['schedule'].present?
 
-        normalizar(bruto['schedule'])
+        normalizar(bruto['schedule']) || {}
       end
 
       # Reaproveita o expediente da inbox quando o operador o ligou de verdade. Desligado, ele
       # carrega os valores default de fábrica do Chatwoot — usá-los seria inventar um horário.
+      # Ligado mas com todos os dias fechados devolve `{}`, e não nil: ver #agenda.
       def da_inbox
         return nil unless @inbox.respond_to?(:working_hours_enabled) && @inbox.working_hours_enabled
+        return nil unless @inbox.working_hours.exists?
 
         @inbox.working_hours.reject(&:closed_all_day).to_h do |w|
           [w.day_of_week, [[minuto(w.open_hour, w.open_minutes), minuto(w.close_hour, w.close_minutes)]]]
-        end.presence
+        end
       end
 
       # { dia_da_semana => [[minuto_inicial, minuto_final], ...] }, minutos desde a meia-noite.

@@ -77,9 +77,19 @@ module Spx
         true
       end
 
+      # Relógio ÚNICO do SLA, o mesmo que o caminho `assignee` (RepasseJob) usa. Antes daqui este
+      # método usava o RelogioComercial, que só sabia ler o expediente da CAIXA — então
+      # `policy.horario` e `policy.sla_respeita_horario`, gravados pela tela do time, não eram
+      # lidos por ninguém em vendas: o gerente configurava o expediente, funcionava na locação e
+      # não funcionava aqui, sem nada indicar.
+      #
+      # `sem_agenda: :parede` PRESERVA o comportamento de vendas que está em produção desde
+      # 19/08 (sem expediente configurado, o prazo corre no relógio de parede). O default do
+      # JanelaService é `:nao_vence`, e adotá-lo aqui desligaria o repasse EM SILÊNCIO em todo
+      # time que ainda não configurou expediente — a correção apagaria o que veio consertar.
       def vencido?(conversation)
-        RelogioComercial.new(conversation.inbox)
-                        .vencido?(@log.designado_em, @policy.sla_assumir_minutos)
+        JanelaService.new(policy: @policy, inbox: conversation.inbox, sem_agenda: :parede)
+                     .vencido?(@log.designado_em, @policy.sla_assumir_minutos)
       end
 
       # Alguém encostou entre a varredura e agora? No modo assignee o sinal é a primeira

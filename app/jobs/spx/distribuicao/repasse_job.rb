@@ -25,9 +25,17 @@ module Spx
       LOOKBACK = 7.days
 
       # SO o modo `assignee`. O modo `designacao` ja e varrido pelo VarrerSlaJob, que esta em
-      # producao desde 19/08 e delega ao RepasseService (SPEC-RODIZIO §7.2, com RelogioComercial
-      # e a guarda do espelho_vista). Deixar os dois jobs olhando `designacao` faria cada lead
-      # vencido ser repassado DUAS vezes a cada 5 minutos, cada um para um corretor diferente.
+      # producao desde 19/08 e delega ao RepasseService, que usa o MESMO JanelaService daqui
+      # (com `sem_agenda: :parede`, que preserva o comportamento de vendas). Deixar os dois jobs
+      # olhando `designacao` faria cada lead vencido ser repassado DUAS vezes a cada 5 minutos,
+      # cada um para um corretor diferente.
+      #
+      # NAO existe guarda de `espelho_vista` em caminho nenhum, e a versao anterior deste
+      # comentario afirmava que existia. Em time com o espelho ligado o repasse ACONTECE: o lead
+      # passa ao proximo no SPX e o card do Vista fica no corretor anterior, porque o
+      # VistaCardService para no `ja_espelhado?`. E decisao de produto (o Vista nao tem DELETE,
+      # responde 401, entao reescrever card e pior que divergir); o RepasseService carimba isso
+      # no log para a divergencia deixar de ser silenciosa.
       #
       # A divisao nao e arbitraria: `assignee` (locacao) e justamente o caminho que o motor
       # antigo nao sabe percorrer, porque la o SLA mede "nao respondeu ao cliente" e nao
