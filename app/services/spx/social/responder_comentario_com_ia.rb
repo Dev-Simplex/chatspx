@@ -37,10 +37,24 @@ class Spx::Social::ResponderComentarioComIa
     resposta = Captain::Assistant::AgentRunnerService
                .new(assistant: assistant, source: 'social_comment')
                .generate_response(message_history: [{ role: 'user', content: contexto }])
-    limpar(resposta.is_a?(Hash) ? resposta[:response] : resposta)
+    limpar(extrair(resposta))
   rescue StandardError => e
     Rails.logger.error("[social] IA falhou no comentário #{comentario.external_id}: #{e.class} #{e.message}")
     nil
+  end
+
+  # O runner devolve um Hash de chaves STRING (`{"response" => ..., "agent_name" => ...}`), e a
+  # primeira versão disto buscava com símbolo — resultado sempre nil, ou seja, a IA gerava a
+  # resposta certa e nada era enviado.
+  #
+  # Passou despercebido porque o primeiro caso testado ao vivo era um `[IGNORAR]`: os dois
+  # caminhos davam nil e se mascararam. E o spec não pegou porque o dublê devolvia String,
+  # nunca exercitando o ramo de Hash — o dublê mentia sobre a forma do retorno real.
+  def extrair(resposta)
+    return resposta if resposta.is_a?(String)
+    return nil unless resposta.is_a?(Hash)
+
+    resposta.with_indifferent_access[:response]
   end
 
   # Os FATOS, rotulados. Sem exemplo de fala e sem molde de resposta: exemplo no contexto vira

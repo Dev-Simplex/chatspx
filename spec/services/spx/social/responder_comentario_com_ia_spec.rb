@@ -20,7 +20,23 @@ RSpec.describe Spx::Social::ResponderComentarioComIa do
     account.reload
   end
 
+  # ⚠️ A FORMA REAL do retorno: Hash de chaves STRING. Medido ao vivo em 25/08 —
+  # `{"response" => "...", "reasoning" => "...", "agent_name" => "..."}`.
+  #
+  # A primeira versão deste dublê devolvia String, e por isso passou verde enquanto o código
+  # buscava `[:response]` (símbolo) num hash de chaves string e recebia nil sempre. O dublê
+  # mentia sobre a forma, e o spec verde escondia uma IA que gerava a resposta certa e nunca
+  # enviava. Se este dublê voltar a ser String, o buraco volta com ele.
   def responder_com(texto)
+    runner = instance_double(Captain::Assistant::AgentRunnerService,
+                             generate_response: { 'response' => texto, 'reasoning' => 'Processed by agent',
+                                                  'agent_name' => 'bia_comentarios' })
+    allow(Captain::Assistant::AgentRunnerService).to receive(:new).and_return(runner)
+    runner
+  end
+
+  # O runner também pode devolver String pura em outros caminhos; os dois têm que funcionar.
+  def responder_com_string(texto)
     runner = instance_double(Captain::Assistant::AgentRunnerService, generate_response: texto)
     allow(Captain::Assistant::AgentRunnerService).to receive(:new).and_return(runner)
     runner
@@ -69,6 +85,22 @@ RSpec.describe Spx::Social::ResponderComentarioComIa do
 
       expect(resultado.ok?).to be true
       expect(comentario.reload.respostas_registradas.dig('privada', 'external_id')).to eq('m-1')
+    end
+
+    # Regressão do bug de 25/08: hash de chaves string lido com símbolo devolvia nil, a IA
+    # gerava a resposta certa e nada saía.
+    it 'lê a resposta de um hash de chaves string' do
+      runner = instance_double(Captain::Assistant::AgentRunnerService,
+                               generate_response: { 'response' => 'Chama a gente no direct' })
+      allow(Captain::Assistant::AgentRunnerService).to receive(:new).and_return(runner)
+
+      expect(described_class.new(comentario: comentario).perform.ok?).to be true
+    end
+
+    it 'aceita também o retorno em String pura' do
+      responder_com_string('Chama a gente no direct')
+
+      expect(described_class.new(comentario: comentario).perform.ok?).to be true
     end
 
     # `[IGNORAR]` é silêncio deliberado em todo o resto do produto, e vale igual aqui.

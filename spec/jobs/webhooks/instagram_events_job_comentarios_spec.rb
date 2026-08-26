@@ -107,6 +107,34 @@ describe Webhooks::InstagramEventsJob do
     end
   end
 
+  # Pego em execução ao vivo em 25/08: o CDN da Meta devolve `thumbnail_url` com assinatura e
+  # expiração, muito acima dos 255 de um `string`. O `update!` estourava no meio da captura e
+  # a exceção subia, MATANDO o gatilho da IA — o comentário ficava gravado e ninguém respondia.
+  describe 'URL de mídia muito longa' do
+    let(:url_gigante) { "https://cdn.example/#{'a' * 900}.jpg" }
+
+    before do
+      stub_request(:get, %r{https://graph\.instagram\.com/v22\.0/18103036610158975})
+        .to_return(status: 200,
+                   body: { caption: 'Promoção', thumbnail_url: url_gigante, permalink: url_gigante }.to_json,
+                   headers: { 'Content-Type' => 'application/json' })
+    end
+
+    it 'grava o comentário mesmo assim' do
+      evento = build(:instagram_comment_event).with_indifferent_access
+
+      expect { instagram_webhook.perform_now(evento[:entry]) }.not_to raise_error
+      expect(Spx::Social::Comentario.count).to eq(1)
+    end
+
+    it 'não deixa de acordar a IA por causa da publicação' do
+      evento = build(:instagram_comment_event).with_indifferent_access
+
+      expect { instagram_webhook.perform_now(evento[:entry]) }
+        .to have_enqueued_job(Spx::Social::ResponderComentarioComIaJob)
+    end
+  end
+
   describe 'gatilho da IA' do
     it 'acorda a IA no comentário novo' do
       evento = build(:instagram_comment_event).with_indifferent_access
