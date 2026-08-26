@@ -171,6 +171,7 @@
       "TRACKING_GA4_MEASUREMENT_ID": "Measurement ID do GA4",
       "TRACKING_GOOGLE_ADS_SEND_TO": "Conversão do Google Ads",
       "TRACKING_EVENT_MAP": "Mapa de eventos",
+      "TRACKING_INSTALL_TAGS": "Instalar a tag que falta",
       "TRACKING_CONSENT_MODE": "Modo de consentimento",
       "TRACKING_TEST_MODE": "Modo teste",
       "TRACKING_LEAD_VALUE": "Valor do lead",
@@ -640,6 +641,14 @@
         "HINT": "Para de enviar evento para todos os destinos desta caixa, sem apagar a configuração. Use quando o site estiver mandando evento errado.",
         "ACCOUNT_WINS": "O interruptor geral da conta está acionado: enquanto ele estiver, nenhum evento sai desta caixa de qualquer forma.",
         "BLOCKED_BY_501": "Ainda não disponível: para valer, esta chave precisa chegar ao widget, e ela ainda não está na projeção pública do servidor (bloco 5.01). Um botão que não desliga nada seria pior que nenhum. Enquanto isso, use o interruptor da conta."
+      },
+      "INSTALL_TAGS": {
+        "TITLE": "Instalar a tag que falta",
+        "META": "Instalar o Pixel da Meta quando ele não estiver na página",
+        "META_HINT": "Desligado por padrão. Ligado, o widget instala o Pixel da Meta com o ID acima — sem disparar PageView, para não dobrar a contagem de visitas do seu site. Se a página já tiver o Pixel, nada é instalado: usamos o que está lá.",
+        "GOOGLE": "Instalar a tag do Google quando ela não estiver na página",
+        "GOOGLE_HINT": "Desligado por padrão. Ligado, o widget instala o gtag.js com o Measurement ID e a conta do Google Ads acima, sempre com send_page_view: false. Se a página já tiver gtag ou GTM, nada é instalado.",
+        "WARNING": "Com isto ligado, um script de terceiro passa a ser carregado no seu site pelo widget. Deixe desligado se você já gerencia as tags por GTM."
       }
     }
   }

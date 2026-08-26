@@ -171,6 +171,7 @@
       "TRACKING_GA4_MEASUREMENT_ID": "GA4 Measurement ID",
       "TRACKING_GOOGLE_ADS_SEND_TO": "Google Ads conversion",
       "TRACKING_EVENT_MAP": "Event map",
+      "TRACKING_INSTALL_TAGS": "Install the missing tag",
       "TRACKING_CONSENT_MODE": "Consent mode",
       "TRACKING_TEST_MODE": "Test mode",
       "TRACKING_LEAD_VALUE": "Lead value",
@@ -640,6 +641,14 @@
         "HINT": "Stops sending events to every destination for this inbox, without erasing the configuration. Use it when the site is sending the wrong events.",
         "ACCOUNT_WINS": "The account-wide switch is on: while it is, no event leaves this inbox anyway.",
         "BLOCKED_BY_501": "Not available yet: to take effect this key must reach the widget, and it is not in the server public projection yet (block 5.01). A switch that turns nothing off would be worse than none. Use the account-wide switch meanwhile."
+      },
+      "INSTALL_TAGS": {
+        "TITLE": "Install the missing tag",
+        "META": "Install the Meta Pixel when it is not on the page",
+        "META_HINT": "Off by default. When on, the widget installs the Meta Pixel with the ID above — without firing PageView, so your site visit count is not doubled. If the page already has the Pixel, nothing is installed: we use the one that is there.",
+        "GOOGLE": "Install the Google tag when it is not on the page",
+        "GOOGLE_HINT": "Off by default. When on, the widget installs gtag.js with the Measurement ID and the Google Ads account above, always with send_page_view: false. If the page already has gtag or GTM, nothing is installed.",
+        "WARNING": "With this on, a third-party script starts loading on your site through the widget. Leave it off if you already manage tags through GTM."
       }
     }
   }

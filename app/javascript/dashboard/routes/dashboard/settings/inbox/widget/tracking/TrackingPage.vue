@@ -19,6 +19,7 @@ import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard';
 import { labelsForFields } from '../composables/widgetFieldLabels';
 import {
   DEFAULT_EVENT_MAP,
+  DEFAULT_INSTALL_TAGS,
   LEAD_VALUE_MODES,
   TEST_MODE_MAX_DAYS,
   TRACKING_LIMITS,
@@ -92,7 +93,22 @@ const trocarAba = aba => {
 };
 
 const tracking = computed(() => draft.value.tracking ?? {});
-const testMode = computed(() => tracking.value.test_mode ?? {});
+/**
+ * O modo teste e um OBJETO — `{ enabled, code, started_at }`. O schema de 5.01
+ * declarava um booleano ate esta trilha, e por isso uma inbox pode ter
+ * `test_mode: true` gravado por API.
+ *
+ * Sem a normalizacao abaixo, `true.enabled` e `undefined` e a tela mostraria o
+ * interruptor DESLIGADO para quem tem o modo teste ligado — o cliente veria
+ * "desligado" e continuaria mandando evento marcado como teste para a Meta. Ler
+ * o formato antigo custa uma linha; a alternativa e uma mentira silenciosa.
+ */
+const testMode = computed(() => {
+  const bruto = tracking.value.test_mode;
+  if (typeof bruto === 'boolean')
+    return { enabled: bruto, code: null, started_at: null };
+  return bruto ?? {};
+});
 
 const set = (campo, valor) => setIn('tracking', campo, valor);
 
@@ -135,6 +151,35 @@ const alternarModoTeste = ligado =>
 const killSwitchDaConta = computed(() =>
   Boolean(inbox.value.additional_attributes?.tracking_kill_switch)
 );
+
+/**
+ * T-C4.3 — "instalar a tag que falta". OPT-IN, e desligado ate alguem marcar
+ * (decisao **Q5**, ja tomada: nunca por padrao).
+ *
+ * O QUE ESTE INTERRUPTOR AUTORIZA, e por que ele nao e um detalhe de tela: com
+ * ele ligado, o nosso SDK INJETA um script de terceiro na pagina do cliente —
+ * `fbevents.js` da Meta ou `gtag.js` do Google. Sem ele, o SDK so conversa com
+ * a tag que o cliente ja tem; se nao houver nenhuma, o evento vai so ao
+ * `dataLayer` e nada e instalado.
+ *
+ * POR QUE DOIS, E NAO UM: instalar o pixel da Meta e instalar o gtag do Google
+ * sao autorizacoes diferentes. O cliente com GTM no site quer o Google vindo do
+ * container DELE — e ainda assim pode querer o pixel da Meta vindo de nos. Um
+ * booleano so o obrigaria a escolher entre nao medir na Meta e deixar um
+ * segundo gtag numa pagina que ja tem governanca de tags.
+ *
+ * E ELE NAO E O `kill_switch` LOGO ACIMA: aquele nao tem controle porque a
+ * chave nao existe na projecao publica. Esta existe — `install_tags` entrou em
+ * `WidgetTrackingSchema` e em `WidgetTrackingProjection::PUBLIC_KEYS`, chega ao
+ * widget e a ponte de tags a le. Por isso aqui ha botao, e la ha aviso.
+ */
+const installTags = computed(() => ({
+  ...DEFAULT_INSTALL_TAGS,
+  ...(tracking.value.install_tags ?? {}),
+}));
+
+const alternarInstalacao = (alvo, ligado) =>
+  set('install_tags', { ...installTags.value, [alvo]: ligado });
 
 const pixelIdInvalido = computed(
   () =>
@@ -226,10 +271,7 @@ defineExpose({ requestLeave: guard.requestLeave });
         <span class="text-sm text-n-slate-11">
           {{ t('INBOX_WIDGET.TRACKING.KILL_SWITCH.HINT') }}
         </span>
-        <span
-          class="text-sm text-n-amber-12"
-          data-testid="kill-switch-blocked"
-        >
+        <span class="text-sm text-n-amber-12" data-testid="kill-switch-blocked">
           {{ t('INBOX_WIDGET.TRACKING.KILL_SWITCH.BLOCKED_BY_501') }}
         </span>
         <span
@@ -265,8 +307,12 @@ defineExpose({ requestLeave: guard.requestLeave });
         <SettingsFieldSection :label="t('INBOX_WIDGET.TRACKING.META.TOKEN')">
           <SecretField
             :label="t('INBOX_WIDGET.TRACKING.META.TOKEN')"
-            :is-defined="credentials.credentials.value.meta_access_token.configured"
-            :last-four="credentials.credentials.value.meta_access_token.lastFour"
+            :is-defined="
+              credentials.credentials.value.meta_access_token.configured
+            "
+            :last-four="
+              credentials.credentials.value.meta_access_token.lastFour
+            "
             :disabled="credentials.vaultUnavailable.value"
             :disabled-reason="
               credentials.vaultUnavailable.value
@@ -322,6 +368,27 @@ defineExpose({ requestLeave: guard.requestLeave });
             </Banner>
           </div>
         </SettingsFieldSection>
+
+        <SettingsFieldSection
+          :label="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.META')"
+          :help-text="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.META_HINT')"
+        >
+          <div class="flex flex-col gap-2">
+            <Switch
+              :model-value="installTags.meta"
+              :aria-label="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.META')"
+              data-testid="install-tags-meta"
+              @update:model-value="alternarInstalacao('meta', $event)"
+            />
+            <span
+              v-if="installTags.meta"
+              class="text-sm text-n-amber-12"
+              data-testid="install-tags-meta-warning"
+            >
+              {{ t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.WARNING') }}
+            </span>
+          </div>
+        </SettingsFieldSection>
       </div>
 
       <!-- ── Google ───────────────────────────────────────────────────── -->
@@ -350,7 +417,9 @@ defineExpose({ requestLeave: guard.requestLeave });
         >
           <SecretField
             :label="t('INBOX_WIDGET.TRACKING.GOOGLE.API_SECRET')"
-            :is-defined="credentials.credentials.value.ga4_api_secret.configured"
+            :is-defined="
+              credentials.credentials.value.ga4_api_secret.configured
+            "
             :last-four="credentials.credentials.value.ga4_api_secret.lastFour"
             :disabled="credentials.vaultUnavailable.value"
             :disabled-reason="
@@ -383,6 +452,27 @@ defineExpose({ requestLeave: guard.requestLeave });
             data-testid="google-ads-send-to"
             @update:model-value="set('google_ads_send_to', $event)"
           />
+        </SettingsFieldSection>
+
+        <SettingsFieldSection
+          :label="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.GOOGLE')"
+          :help-text="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.GOOGLE_HINT')"
+        >
+          <div class="flex flex-col gap-2">
+            <Switch
+              :model-value="installTags.google"
+              :aria-label="t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.GOOGLE')"
+              data-testid="install-tags-google"
+              @update:model-value="alternarInstalacao('google', $event)"
+            />
+            <span
+              v-if="installTags.google"
+              class="text-sm text-n-amber-12"
+              data-testid="install-tags-google-warning"
+            >
+              {{ t('INBOX_WIDGET.TRACKING.INSTALL_TAGS.WARNING') }}
+            </span>
+          </div>
         </SettingsFieldSection>
       </div>
 

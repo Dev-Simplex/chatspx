@@ -108,23 +108,46 @@ const base = `http://127.0.0.1:${servidor.address().port}`;
 const browser = await chromium.launch();
 const contexto = await browser.newContext();
 
-const abrir = async caminho => {
+/**
+ * `terceirosServidos` existe por causa do cenário 4 (T-C4.3), e a distinção é o ponto:
+ *
+ *  · nos cenários 1–3 e 5, QUALQUER requisição externa é uma reprovação — o aceite é
+ *    "nada instalado, nada pedido para fora", e abortar registra a tentativa;
+ *  · no cenário 4 o opt-in está ligado e a requisição ao `fbevents.js`/`gtag.js` É o efeito
+ *    esperado. Ela é servida por um dublê LOCAL (corpo vazio), porque o que se mede é a
+ *    NOSSA sequência de comandos, não o comportamento da Meta nem o do Google. Sair para a
+ *    internet de verdade tornaria o verificador dependente de rede e do humor de dois
+ *    terceiros — e ele deixaria de medir o que diz medir.
+ *
+ * O que foi servido continua sendo REGISTRADO, em `servidas`: um cenário que autoriza o
+ * terceiro ainda tem de provar QUAIS terceiros foram chamados, e não mais que esses.
+ */
+const abrir = async (caminho, terceirosServidos = []) => {
   const pagina = await contexto.newPage();
   const mensagens = [];
   pagina.on('console', m => mensagens.push(`${m.type()}: ${m.text()}`));
   pagina.on('pageerror', e => mensagens.push(`pageerror: ${e.message}`));
   // Nenhuma requisição externa deve acontecer; se alguma tentar, ela é registrada e reprovada.
   const externas = [];
+  const servidas = [];
   await pagina.route('**/*', rota => {
     const url = rota.request().url();
     if (!url.startsWith(base)) {
+      if (terceirosServidos.some(host => url.includes(host))) {
+        servidas.push(url);
+        return rota.fulfill({
+          status: 200,
+          contentType: 'text/javascript; charset=utf-8',
+          body: '/* dublê local do script de terceiro */',
+        });
+      }
       externas.push(url);
       return rota.abort();
     }
     return rota.continue();
   });
   await pagina.goto(`${base}${caminho}`, { waitUntil: 'networkidle' });
-  return { pagina, mensagens, externas };
+  return { pagina, mensagens, externas, servidas };
 };
 
 const MAPA = {
@@ -471,6 +494,176 @@ check(
   ['generate_lead']
 );
 check('console do navegador vazio', c3.mensagens, []);
+
+// ═══ CENÁRIO 4 — T-C4.3: o opt-in LIGADO, na página que não tem tag nenhuma ═════════════
+//
+// O cenário 2 provou que sem opt-in nada é instalado. Sozinho, ele passaria também numa
+// versão do código que não sabe instalar coisa nenhuma — que era o estado de ontem. Este
+// cenário é o par dele: LIGA o interruptor e exige o efeito, para que a ausência do 2
+// signifique "está desligado" e não "não faz nada".
+//
+// E aqui mora o aceite mais caro do bloco: `init` sai, `PageView` NÃO. Instalar o pixel
+// disparando `PageView` dobraria a contagem de visitas do site do cliente — o número do
+// painel dele sobe sem que nada tenha acontecido.
+const c4 = await abrir('/cru', [
+  'connect.facebook.net',
+  'googletagmanager.com',
+]);
+const r4 = await c4.pagina.evaluate(
+  async ({ origem, mapa }) => {
+    const { createTagsBridge } = await import(`${origem}/packs/js/tracking.js`);
+
+    const ponte = createTagsBridge({
+      tracking: {
+        meta_pixel_id: '999',
+        ga4_measurement_id: 'G-NOVO',
+        google_ads_send_to: 'AW-123456789/rotulo',
+        event_map: mapa,
+        install_tags: { meta: true, google: true },
+      },
+      isAllowed: () => true,
+    });
+
+    ponte.onTrackingEvent({
+      name: 'chatspx_lead',
+      properties: { value: 50, currency: 'BRL', email: 'ana@exemplo.com.br' },
+      eventId: 'uuid-instalado',
+    });
+    // segundo evento: a instalação tem de ser idempotente
+    ponte.onTrackingEvent({ name: 'chatspx_conversation_started' });
+
+    const comandosGtag = (window.dataLayer || [])
+      .filter(e => e && typeof e.length === 'number' && !Array.isArray(e))
+      .map(a => [...a].map(v => (v instanceof Date ? '<Date>' : v)));
+
+    return {
+      criouFbq: typeof window.fbq === 'function',
+      criouGtag: typeof window.gtag === 'function',
+      filaDoFbq: [...(window.fbq.queue || [])].map(a => [...a]),
+      comandosGtag,
+      scripts: [...document.querySelectorAll('script[src]')].map(s => s.src),
+      publicados: window.dataLayer
+        .filter(e => e && typeof e.event === 'string')
+        .map(e => e.event),
+      autorizado: ponte.instalacaoAutorizada(),
+    };
+  },
+  { origem: base, mapa: MAPA }
+);
+
+console.log('\n· cenário 4 — T-C4.3: com opt-in, a tag que falta é instalada');
+check('o `fbq` foi criado por nós', r4.criouFbq, true);
+check('o `gtag` foi criado por nós', r4.criouGtag, true);
+check(
+  'o `init` saiu com o pixel do cliente, UMA vez só (dois eventos, uma instalação)',
+  r4.filaDoFbq.filter(c => c[0] === 'init'),
+  [['init', '999']]
+);
+// ═══ O ACEITE: "sem pixel: nenhum PageView duplicado" ═══
+check(
+  'NENHUM `PageView` — é a linha do snippet da Meta que deliberadamente não escrevemos',
+  r4.filaDoFbq.flat().includes('PageView'),
+  false
+);
+check(
+  'e nenhum `track`/`trackCustom`: instalado ou não, o disparo continua sendo `trackSingle`',
+  r4.filaDoFbq.map(c => c[0]).filter(v => v === 'track' || v === 'trackCustom'),
+  []
+);
+check(
+  'o disparo saiu por `trackSingle` no pixel instalado',
+  r4.filaDoFbq.filter(c => c[0] === 'trackSingle').map(c => [c[1], c[2]]),
+  [
+    ['999', 'Lead'],
+    ['999', 'Contact'],
+  ]
+);
+check(
+  'o `send_page_view: false` está em TODO `config` — o `skipPageView` do lado do Google',
+  r4.comandosGtag.filter(c => c[0] === 'config'),
+  [
+    ['config', 'G-NOVO', { send_page_view: false }],
+    ['config', 'AW-123456789', { send_page_view: false }],
+  ]
+);
+check(
+  'os dois scripts de terceiro entraram, e nada além deles',
+  r4.scripts.map(s => s.split('?')[0]).sort(),
+  [
+    'https://connect.facebook.net/en_US/fbevents.js',
+    'https://www.googletagmanager.com/gtag/js',
+  ]
+);
+check(
+  'e foram exatamente esses dois os terceiros chamados',
+  [...new Set(c4.servidas.map(u => new URL(u).host))].sort(),
+  ['connect.facebook.net', 'www.googletagmanager.com']
+);
+check('nenhum OUTRO terceiro tentado', c4.externas, []);
+check('o `dataLayer` continua recebendo os dois fatos', r4.publicados, [
+  'chatspx_lead',
+  'chatspx_conversation_started',
+]);
+check('a ponte reporta os dois alvos autorizados', r4.autorizado, {
+  meta: true,
+  google: true,
+});
+check('console do navegador vazio', c4.mensagens, []);
+
+// ═══ CENÁRIO 5 — o opt-in NÃO passa por cima do consentimento ═══════════════════════════
+//
+// Injetar `fbevents.js` é uma requisição a um terceiro que lê cookie. Fazer isso antes do
+// consentimento vazaria o visitante justamente pelo caminho que o bloco 5.09 existe para
+// fechar — e nenhum `isAllowed` posterior desfaz um script já carregado.
+const c5 = await abrir('/cru', [
+  'connect.facebook.net',
+  'googletagmanager.com',
+]);
+const r5 = await c5.pagina.evaluate(
+  async ({ origem, mapa }) => {
+    const { createTagsBridge } = await import(`${origem}/packs/js/tracking.js`);
+
+    createTagsBridge({
+      tracking: {
+        meta_pixel_id: '999',
+        ga4_measurement_id: 'G-NOVO',
+        google_ads_send_to: 'AW-123456789/rotulo',
+        event_map: mapa,
+        install_tags: { meta: true, google: true },
+      },
+      isAllowed: () => false,
+    }).onTrackingEvent({
+      name: 'chatspx_lead',
+      properties: { value: 50 },
+      eventId: 'u5',
+    });
+
+    return {
+      criouFbq: typeof window.fbq !== 'undefined',
+      criouGtag: typeof window.gtag !== 'undefined',
+      scripts: [...document.querySelectorAll('script[src]')].map(s => s.src),
+      publicados: window.dataLayer.filter(e => e && e.event).length,
+    };
+  },
+  { origem: base, mapa: MAPA }
+);
+
+console.log('\n· cenário 5 — o consentimento vem ANTES da instalação');
+check(
+  'com o consentimento negado, nenhum `fbq` foi criado',
+  r5.criouFbq,
+  false
+);
+check('nenhum `gtag` foi criado', r5.criouGtag, false);
+check('nenhum script de terceiro injetado', r5.scripts, []);
+check('nenhum terceiro chamado, nem servido', c5.servidas, []);
+check('nem abortado — não houve tentativa nenhuma', c5.externas, []);
+check(
+  'e o `dataLayer` recebeu assim mesmo — publicar não é disparar',
+  r5.publicados,
+  1
+);
+check('console do navegador vazio', c5.mensagens, []);
 
 await browser.close();
 servidor.close();

@@ -5,6 +5,9 @@ import {
   metaPixelInicializado,
   ga4Configurado,
   semPii,
+  instalarMetaPixel,
+  instalarGoogleTag,
+  contaDoAds,
   PII_KEYS,
 } from '../tags';
 import { SDK_EVENT_CONTRACT } from 'widget/constants/sdkEvents';
@@ -519,5 +522,255 @@ describe('5.10 — o mapa de eventos aceita as duas formas que as pontas escreve
   it('ausente: nulo, que significa somente dataLayer', () => {
     expect(entradaDoMapa({}, 'a')).toBeNull();
     expect(entradaDoMapa(undefined, 'a')).toBeNull();
+  });
+});
+
+/**
+ * T-C4.3 — a instalacao CONDICIONAL da tag que falta.
+ *
+ * Estes exemplos existem porque este e o unico caminho do arquivo que ESCREVE no `window` do
+ * cliente. Os outros so leem e chamam o que ja esta la; este cria `fbq`/`gtag` e injeta script
+ * de terceiro. Duas coisas tem de ficar provadas o tempo todo:
+ *
+ *   · sem o opt-in, NADA acontece — e o "sem pixel: nenhum PageView duplicado" do aceite;
+ *   · com o opt-in, o `init` sai e o `PageView` NAO — que e o `skipPageView` propriamente.
+ *
+ * Um exemplo que so afirma ausencia ("nao instalou") passa tambem quando a funcao nem existe.
+ * Por isso cada ausencia aqui tem, ao lado, o exemplo que LIGA o interruptor e exige o efeito:
+ * o par e que distingue "esta desligado" de "nao faz nada".
+ */
+const scriptsInjetados = () =>
+  [...document.querySelectorAll('script[src]')].map(s => s.getAttribute('src'));
+
+const chamadasDaFila = () => [...(window.fbq?.queue ?? [])].map(a => [...a]);
+
+const comandosDoGtag = () =>
+  (window.dataLayer || [])
+    .filter(
+      item => item && typeof item.length === 'number' && !Array.isArray(item)
+    )
+    .map(a => [...a]);
+
+describe('5.10 / T-C4.3 — instalar a tag que falta, so com opt-in', () => {
+  beforeEach(() => {
+    document.querySelectorAll('script[src]').forEach(el => el.remove());
+    // eslint-disable-next-line no-underscore-dangle -- `_fbq` e nome do snippet da Meta
+    delete window._fbq;
+  });
+
+  describe('o padrao de fabrica: desligado', () => {
+    it('sem `install_tags`, pagina crua: nenhum fbq, nenhum gtag, nenhum script', () => {
+      ponte().onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+        eventId: 'u1',
+      });
+
+      expect(window.fbq).toBeUndefined();
+      expect(window.gtag).toBeUndefined();
+      expect(scriptsInjetados()).toEqual([]);
+      // e o dataLayer continua recebendo — "somente dataLayer" e um modo de verdade
+      expect(eventosDoDataLayer()).toHaveLength(1);
+    });
+
+    it('`install_tags` presente e com os dois FALSOS nao instala nada', () => {
+      ponte({
+        tracking: { install_tags: { meta: false, google: false } },
+      }).onTrackingEvent({ name: 'chatspx_lead', properties: { value: 10 } });
+
+      expect(window.fbq).toBeUndefined();
+      expect(window.gtag).toBeUndefined();
+    });
+
+    it('opt-in da Meta NAO instala o Google, e vice-versa', () => {
+      ponte({ tracking: { install_tags: { meta: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+      });
+
+      expect(typeof window.fbq).toBe('function');
+      expect(window.gtag).toBeUndefined();
+    });
+  });
+
+  describe('ligado: o `init` sai, o `PageView` NAO', () => {
+    it('instala o pixel e dispara trackSingle — sem nenhum PageView', () => {
+      ponte({ tracking: { install_tags: { meta: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+        eventId: 'u1',
+      });
+
+      const chamadas = chamadasDaFila();
+      expect(chamadas[0]).toEqual(['init', PIXEL]);
+      expect(chamadas.map(c => c[0])).not.toContain('track');
+      expect(chamadas.flat()).not.toContain('PageView');
+      expect(chamadas.some(c => c[0] === 'trackSingle' && c[1] === PIXEL)).toBe(
+        true
+      );
+    });
+
+    it('injeta o `fbevents.js`, uma vez so, mesmo com dois eventos', () => {
+      const p = ponte({ tracking: { install_tags: { meta: true } } });
+      p.onTrackingEvent({ name: 'chatspx_lead', properties: { value: 1 } });
+      p.onTrackingEvent({ name: 'chatspx_conversation_started' });
+
+      expect(scriptsInjetados()).toEqual([
+        'https://connect.facebook.net/en_US/fbevents.js',
+      ]);
+      expect(chamadasDaFila().filter(c => c[0] === 'init')).toHaveLength(1);
+    });
+
+    it('o Google entra com `send_page_view: false` — no GA4 E na conta do Ads', () => {
+      ponte({ tracking: { install_tags: { google: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10, currency: 'BRL' },
+        eventId: 'u1',
+      });
+
+      const configs = comandosDoGtag().filter(c => c[0] === 'config');
+      expect(configs).toEqual([
+        ['config', GA4, { send_page_view: false }],
+        ['config', 'AW-123456789', { send_page_view: false }],
+      ]);
+      expect(scriptsInjetados()).toEqual([
+        `https://www.googletagmanager.com/gtag/js?id=${GA4}`,
+      ]);
+    });
+
+    it('e depois de instalado o evento sai com `send_to`, como em tag que ja existia', () => {
+      ponte({ tracking: { install_tags: { google: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+        eventId: 'u1',
+      });
+
+      const evento = comandosDoGtag().find(c => c[1] === 'generate_lead');
+      expect(evento?.[2]).toMatchObject({ send_to: GA4 });
+    });
+  });
+
+  describe('aditivo: quem ja tem a tag nao ganha outra (R9)', () => {
+    it('com `fbq` do cliente na pagina, o opt-in nao instala nem sobrescreve', () => {
+      comTresPixels();
+      const antes = window.fbq;
+
+      ponte({ tracking: { install_tags: { meta: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 1 },
+        eventId: 'u1',
+      });
+
+      expect(window.fbq).toBe(antes);
+      expect(scriptsInjetados()).toEqual([]);
+      expect(fbq.mock.calls.flat()).not.toContain('init');
+    });
+
+    it('com `gtag` do cliente na pagina, idem', () => {
+      comGtag();
+      const antes = window.gtag;
+
+      ponte({ tracking: { install_tags: { google: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 1 },
+        eventId: 'u1',
+      });
+
+      expect(window.gtag).toBe(antes);
+      expect(scriptsInjetados()).toEqual([]);
+    });
+  });
+
+  describe('o consentimento vem ANTES da instalacao', () => {
+    it('negado + opt-in ligado: nada e instalado e nada e pedido para fora', () => {
+      ponte({
+        tracking: { install_tags: { meta: true, google: true } },
+        isAllowed: () => false,
+      }).onTrackingEvent({ name: 'chatspx_lead', properties: { value: 10 } });
+
+      expect(window.fbq).toBeUndefined();
+      expect(window.gtag).toBeUndefined();
+      expect(scriptsInjetados()).toEqual([]);
+      // mas o dataLayer continua: publicar nao e disparar
+      expect(eventosDoDataLayer()).toHaveLength(1);
+    });
+
+    it('so `analytics_storage` concedido instala o Google e NAO instala a Meta', () => {
+      ponte({
+        tracking: { install_tags: { meta: true, google: true } },
+        isAllowed: proposito => proposito === 'analytics_storage',
+      }).onTrackingEvent({ name: 'chatspx_lead', properties: { value: 10 } });
+
+      expect(window.fbq).toBeUndefined();
+      expect(typeof window.gtag).toBe('function');
+      // e o Ads (que e `ad_storage`) nao disparou, mesmo com o gtag ja instalado
+      expect(comandosDoGtag().some(c => c[1] === 'conversion')).toBe(false);
+    });
+  });
+
+  describe('as funcoes de instalacao, isoladas', () => {
+    it('`instalarMetaPixel` sem pixel id nao escreve nada', () => {
+      expect(instalarMetaPixel(null)).toBe(false);
+      expect(window.fbq).toBeUndefined();
+    });
+
+    it('`instalarMetaPixel` com `fbq` existente devolve true sem tocar em nada', () => {
+      comTresPixels();
+      const antes = window.fbq;
+
+      expect(instalarMetaPixel(PIXEL)).toBe(true);
+      expect(window.fbq).toBe(antes);
+      expect(scriptsInjetados()).toEqual([]);
+    });
+
+    it('`instalarGoogleTag` sem destino nenhum nao cria gtag', () => {
+      expect(instalarGoogleTag([])).toBe(false);
+      expect(instalarGoogleTag([null, undefined])).toBe(false);
+      expect(window.gtag).toBeUndefined();
+    });
+
+    it('`contaDoAds` separa a conta do rotulo — e o rotulo pertence a conversao', () => {
+      expect(contaDoAds('AW-123456789/AbCdEf')).toBe('AW-123456789');
+      expect(contaDoAds('AW-123456789')).toBe('AW-123456789');
+      expect(contaDoAds(null)).toBeNull();
+    });
+
+    it('instalar nunca lanca, mesmo com o documento hostil', () => {
+      const original = document.getElementsByTagName;
+      document.getElementsByTagName = () => {
+        throw new Error('tag de terceiro quebrada');
+      };
+
+      expect(() =>
+        ponte({ tracking: { install_tags: { meta: true } } }).onTrackingEvent({
+          name: 'chatspx_lead',
+          properties: { value: 1 },
+        })
+      ).not.toThrow();
+
+      document.getElementsByTagName = original;
+    });
+  });
+
+  it('console limpo: instalar nao escreve no console do cliente', () => {
+    ponte({
+      tracking: { install_tags: { meta: true, google: true } },
+    }).onTrackingEvent({ name: 'chatspx_lead', properties: { value: 10 } });
+
+    consoleSpies.forEach(spy => expect(spy).not.toHaveBeenCalled());
+  });
+
+  it('a projecao publica de 5.01 e a unica fonte do interruptor', () => {
+    // Se alguem trocar a leitura por um default ligado, este exemplo pega: a ponte montada
+    // SEM `install_tags` tem de reportar os dois alvos como nao autorizados.
+    expect(ponte().instalacaoAutorizada()).toEqual({
+      meta: false,
+      google: false,
+    });
+    expect(
+      ponte({
+        tracking: { install_tags: { meta: true } },
+      }).instalacaoAutorizada()
+    ).toEqual({ meta: true, google: false });
   });
 });

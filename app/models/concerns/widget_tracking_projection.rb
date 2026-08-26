@@ -14,8 +14,10 @@ module WidgetTrackingProjection
     ga4_measurement_id
     google_ads_send_to
     event_map
+    install_tags
     consent_mode
     test_mode
+    lead_value
   ].freeze
 
   module_function

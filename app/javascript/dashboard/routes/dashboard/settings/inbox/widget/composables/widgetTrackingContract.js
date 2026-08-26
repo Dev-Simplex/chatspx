@@ -26,9 +26,35 @@ export const PUBLIC_TRACKING_KEYS = Object.freeze([
   'ga4_measurement_id',
   'google_ads_send_to',
   'event_map',
+  'install_tags',
   'consent_mode',
   'test_mode',
+  'lead_value',
 ]);
+
+/**
+ * T-C4.3 — os dois alvos de "instalar a tag que falta". Espelham
+ * `WidgetTrackingSchema::INSTALL_TAG_TARGETS`, e o schema recusa qualquer
+ * outro nome com 422 (`additionalProperties: false` dentro de
+ * `install_tags`). Sao dois e nao um porque instalar o pixel da Meta e
+ * instalar o gtag do Google sao autorizacoes diferentes: quem ja tem GTM quer
+ * o Google vindo do container dele.
+ */
+export const INSTALL_TAG_TARGETS = Object.freeze(['meta', 'google']);
+
+/**
+ * DESLIGADO nos dois, e a ausencia da chave significa o mesmo (decisao **Q5**:
+ * opt-in explicito, nunca por padrao). Este objeto e o valor de PARTIDA da
+ * tela, nao um valor gravado: quem nunca marcou nada continua sem
+ * `install_tags` no banco, e o widget le a ausencia como desligado.
+ *
+ * A consequencia de errar aqui nao e cosmetica — e um script de terceiro
+ * injetado no site de um cliente que nunca pediu.
+ */
+export const DEFAULT_INSTALL_TAGS = Object.freeze({
+  meta: false,
+  google: false,
+});
 
 /** Os doze eventos do contrato (5.03), na ordem do documento. */
 export const TRACKING_EVENTS = Object.freeze([

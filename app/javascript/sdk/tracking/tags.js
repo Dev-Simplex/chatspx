@@ -101,6 +101,118 @@ export const ga4Configurado = measurementId => {
 };
 
 /**
+ * T-C4.3 — INSTALAR A TAG QUE FALTA. O unico caminho deste arquivo que escreve no `window`
+ * do cliente, e por isso o unico que exige opt-in explicito (decisao Q5).
+ *
+ * ── A PRECEDENCIA, que e a razao de a funcao existir ────────────────────────────────────
+ *
+ *   1. Pixel configurado E `fbq` na pagina  -> `trackSingle` naquele id. Nada e instalado.
+ *   2. Pixel configurado e `fbq` AUSENTE    -> instalar, sem `PageView`, e so com opt-in.
+ *   3. Sempre, e independente de 1 e 2      -> `dataLayer.push`.
+ *
+ * Sem o caminho 2, o cliente que cola o Pixel ID na nossa tela e nao tem o pixel no site
+ * NAO RECEBE NADA na Meta — e nada avisa. Era o buraco de aceite que este bloco tinha.
+ *
+ * ── POR QUE `skipPageView` E O CORACAO DISTO ────────────────────────────────────────────
+ *
+ * O snippet publicado pela Meta termina em `fbq('init', id)` SEGUIDO de
+ * `fbq('track', 'PageView')`. Rodar os dois numa pagina que ja mede tráfego dobra a contagem
+ * de visitas do cliente — o numero do painel dele sobe sem que nada tenha acontecido, e a
+ * culpa cai no chat. Aqui o `init` sai e o `PageView` NAO: e literalmente a linha que nao
+ * escrevemos. O equivalente do Google e `send_page_view: false` no `config`.
+ *
+ * ── E POR QUE TUDO E ADITIVO ────────────────────────────────────────────────────────────
+ *
+ * `if (typeof window.fbq === 'function') return true` antes de qualquer escrita. Sobrescrever
+ * o `fbq` ou o `gtag` do cliente e a forma mais rapida de quebrar a medicao do site inteiro
+ * (R9): a fila que ele ja tinha some, e as tags do container dele passam a chamar a nossa
+ * funcao. Quem ja tem a tag nao ganha outra — ganha `trackSingle`/`send_to` na que existe.
+ */
+
+const FBEVENTS_SRC = 'https://connect.facebook.net/en_US/fbevents.js';
+const GTAG_SRC = 'https://www.googletagmanager.com/gtag/js?id=';
+
+/** Insere o script assincrono, do jeito que os dois fornecedores publicam. Nunca lanca. */
+const injetarScript = src => {
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = src;
+  const primeiro = document.getElementsByTagName('script')[0];
+  if (primeiro && primeiro.parentNode)
+    primeiro.parentNode.insertBefore(script, primeiro);
+  else document.head.appendChild(script);
+};
+
+/**
+ * O snippet da Meta, menos o `PageView`.
+ *
+ * Devolve `true` quando ha um `fbq` utilizavel ao fim — o que inclui o caso "ja existia", que
+ * e o que torna esta funcao idempotente sem guardar estado de modulo nenhum. Estado de modulo
+ * aqui seria um segundo lugar para a verdade divergir do `window`.
+ */
+export const instalarMetaPixel = pixelId => {
+  if (!pixelId) return false;
+  if (typeof window.fbq === 'function') return true;
+
+  /* eslint-disable prefer-rest-params, func-names, no-underscore-dangle --
+     Este bloco e o snippet PUBLICADO pela Meta, com uma unica alteracao nossa (a ausencia do
+     `PageView`). `arguments`, a funcao anonima e o nome `_fbq` sao contrato do `fbevents.js`,
+     que le a fila que fica aqui. "Modernizar" qualquer um dos tres e uma mudanca cujo unico
+     lugar de descobrir o erro e a conta de anuncio do cliente. */
+  const fila = function () {
+    // eslint-disable-next-line no-unused-expressions
+    fila.callMethod
+      ? fila.callMethod.apply(fila, arguments)
+      : fila.queue.push(arguments);
+  };
+  window.fbq = fila;
+  if (!window._fbq) window._fbq = fila;
+  /* eslint-enable prefer-rest-params, func-names, no-underscore-dangle */
+  fila.push = fila;
+  fila.loaded = true;
+  fila.version = '2.0';
+  fila.queue = [];
+
+  injetarScript(FBEVENTS_SRC);
+  window.fbq('init', pixelId);
+  // AQUI nao vem `window.fbq('track', 'PageView')`. E o `skipPageView` do T-C4.3.
+
+  return true;
+};
+
+/**
+ * O snippet do Google, com `send_page_view: false` em todo `config`.
+ *
+ * Recebe a LISTA de destinos porque um `gtag` serve os dois: o GA4 (`G-…`) e a conta do
+ * Google Ads (`AW-…`, a parte do `send_to` antes da barra). Instalar so o GA4 deixaria a
+ * conversao de Ads sem transporte — o mesmo silencio que o T-C4.3 existe para acabar.
+ */
+export const instalarGoogleTag = destinos => {
+  const alvos = (destinos || []).filter(Boolean);
+  if (!alvos.length) return false;
+  if (typeof window.gtag === 'function') return true;
+
+  window.dataLayer = window.dataLayer || [];
+  /* eslint-disable prefer-rest-params, func-names -- mesma razao do `fbq`: o `gtag.js` le o
+     `dataLayer` e distingue um objeto `arguments` de um array comum. */
+  window.gtag = function () {
+    window.dataLayer.push(arguments);
+  };
+  /* eslint-enable prefer-rest-params, func-names */
+
+  injetarScript(`${GTAG_SRC}${encodeURIComponent(alvos[0])}`);
+  window.gtag('js', new Date());
+  // `send_page_view: false` em TODOS: e o `skipPageView` do lado do Google.
+  alvos.forEach(id => window.gtag('config', id, { send_page_view: false }));
+
+  return true;
+};
+
+/** `AW-123456789/rotulo` -> `AW-123456789`. E a conta; o rotulo pertence a conversao. */
+export const contaDoAds = sendTo =>
+  sendTo ? String(sendTo).split('/')[0] || null : null;
+
+/**
  * A entrada do `event_map` para um evento, normalizada.
  *
  * DUAS FORMAS, e a tolerancia e deliberada — as duas pontas do produto escrevem diferente:
@@ -162,6 +274,35 @@ export const createTagsBridge = ({
   const measurementId = tracking.ga4_measurement_id || null;
   const adsSendTo = tracking.google_ads_send_to || null;
 
+  /**
+   * T-C4.3 — o opt-in, vindo da projecao publica de 5.01 (`WidgetTrackingSchema`).
+   *
+   * AUSENTE E DESLIGADO, e nao ha valor de fabrica em lugar nenhum: quem nunca marcou o
+   * interruptor nao tem a chave, e `undefined` cai no `!` abaixo. E a decisao Q5 escrita como
+   * ausencia de codigo, que e a unica forma dela que nao pode ser desfeita por engano.
+   */
+  const installTags = tracking.install_tags || {};
+
+  /**
+   * "Ha um `fbq`/`gtag` utilizavel?" — e, se nao houver, "posso criar um?".
+   *
+   * As duas sao chamadas DEPOIS do gate de consentimento de cada disparo, nunca antes.
+   * Injetar `fbevents.js` ou `gtag.js` e uma requisicao a um terceiro que le cookie: fazer
+   * isso antes do consentimento seria vazar o visitante justamente pelo caminho que o bloco
+   * 5.09 existe para fechar — e o `isAllowed` nao teria como desfazer.
+   */
+  const garantirMeta = () => {
+    if (typeof window.fbq === 'function') return true;
+    if (!installTags.meta) return false;
+    return instalarMetaPixel(pixelId);
+  };
+
+  const garantirGoogle = () => {
+    if (typeof window.gtag === 'function') return true;
+    if (!installTags.google) return false;
+    return instalarGoogleTag([measurementId, contaDoAds(adsSendTo)]);
+  };
+
   const paraDataLayer = (nome, params, eventId) =>
     protegido(() => {
       window.dataLayer = window.dataLayer || [];
@@ -177,8 +318,10 @@ export const createTagsBridge = ({
   const paraMeta = (entrada, params, eventId) =>
     protegido(() => {
       if (!pixelId || !entrada?.enabled || !entrada.meta) return;
-      if (typeof window.fbq !== 'function') return;
       if (!isAllowed('ad_storage')) return;
+      // Ordem deliberada: o gate vem ANTES de `garantirMeta`, senao o opt-in de instalar
+      // passaria por cima do consentimento negado.
+      if (!garantirMeta()) return;
 
       window.fbq('trackSingle', pixelId, entrada.meta, params, {
         ...(eventId ? { eventID: eventId } : {}),
@@ -190,8 +333,8 @@ export const createTagsBridge = ({
   const paraGa4 = (entrada, params) =>
     protegido(() => {
       if (!measurementId || !entrada?.enabled || !entrada.ga4) return;
-      if (typeof window.gtag !== 'function') return;
       if (!isAllowed('analytics_storage')) return;
+      if (!garantirGoogle()) return;
 
       window.gtag('event', entrada.ga4, { ...params, send_to: measurementId });
     });
@@ -210,11 +353,13 @@ export const createTagsBridge = ({
   const paraGoogleAds = (entrada, params, eventId) =>
     protegido(() => {
       if (!adsSendTo || !entrada?.enabled) return;
-      if (typeof window.gtag !== 'function') return;
       if (!isAllowed('ad_storage')) return;
 
       const valor = numero(params.value);
       if (valor === null) return;
+      // `garantirGoogle` por ultimo: sem valor nao ha conversao, e sem conversao nao ha
+      // razao para injetar script de terceiro na pagina de quem nao vai disparar nada.
+      if (!garantirGoogle()) return;
 
       window.gtag('event', 'conversion', {
         send_to: adsSendTo,
@@ -255,5 +400,11 @@ export const createTagsBridge = ({
 
     metaPixelInicializado: () => metaPixelInicializado(pixelId),
     ga4Configurado: () => ga4Configurado(measurementId),
+
+    /** T-C4.3 — o que o opt-in autoriza nesta inbox. Leitura, nao efeito. */
+    instalacaoAutorizada: () => ({
+      meta: Boolean(installTags.meta),
+      google: Boolean(installTags.google),
+    }),
   };
 };
