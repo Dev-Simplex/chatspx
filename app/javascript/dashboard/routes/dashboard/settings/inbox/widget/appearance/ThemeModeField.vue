@@ -15,7 +15,15 @@ const MODES = ['light', 'dark', 'auto'];
 </script>
 
 <template>
-  <div class="grid gap-3 sm:grid-cols-3">
+  <!-- `sm:grid-cols-3` era cego para a largura REAL disponivel: os cartoes
+       moram na coluna de 6/8 da `SettingsFieldSection`, que no widget da 351 px
+       independentemente do viewport. Tres colunas ali viram 109 px por cartao,
+       e "O widget abre sempre claro." quebrava em 4 linhas (a do automatico, em
+       6) — medido em 1280 e 1440. `auto-fit` decide pela largura do container,
+       nao pela da janela: cai para uma coluna quando so cabe uma. -->
+  <div
+    class="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]"
+  >
     <RadioCard
       v-for="mode in MODES"
       :id="`theme-${mode}`"

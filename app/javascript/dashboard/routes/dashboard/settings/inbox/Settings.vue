@@ -4,7 +4,6 @@ import { mapGetters } from 'vuex';
 import { shouldBeUrl } from 'shared/helpers/Validators';
 import { useAlert } from 'dashboard/composables';
 import { useVuelidate } from '@vuelidate/core';
-import Avatar from 'next/avatar/Avatar.vue';
 import SettingIntroBanner from 'dashboard/components/widgets/SettingIntroBanner.vue';
 import SettingsToggleSection from 'dashboard/components-next/Settings/SettingsToggleSection.vue';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
@@ -27,6 +26,7 @@ import NetPromoterScorePage from './settingsPage/NetPromoterScorePage.vue';
 import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
 import MessageTemplatesPage from './settingsPage/messageTemplates/MessageTemplatesPage.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
+import ChannelAvatarField from './components/ChannelAvatarField.vue';
 import AccountHealth from './components/AccountHealth.vue';
 import WhatsappManualMigrationDialog from './components/WhatsappManualMigrationDialog.vue';
 import WhatsappManualMigrationBanner from './components/WhatsappManualMigrationBanner.vue';
@@ -52,6 +52,7 @@ export default {
   components: {
     Banner,
     BotConfiguration,
+    ChannelAvatarField,
     CollaboratorsPage,
     ConfigurationPage,
     MessageTemplatesPage,
@@ -76,7 +77,6 @@ export default {
     WhatsappReauthorize,
     DuplicateInboxBanner,
     Editor,
-    Avatar,
     ColorPicker,
     SelectInput,
     AccountHealth,
@@ -876,21 +876,15 @@ export default {
               'max-w-4xl': !isAWebWidgetInbox,
             }"
           >
-            <div class="flex flex-col gap-1 items-start mb-4">
-              <label class="text-heading-3 text-n-slate-12">
-                {{ $t('INBOX_MGMT.ADD.WEBSITE_CHANNEL.CHANNEL_AVATAR.LABEL') }}
-              </label>
-              <Avatar
-                :src="avatarUrl"
-                :size="64"
-                :icon-name="inboxIcon"
-                name=""
-                allow-upload
-                rounded-full
-                @upload="handleImageUpload"
-                @delete="handleAvatarDelete"
-              />
-            </div>
+            <ChannelAvatarField
+              class="mb-4"
+              :src="avatarUrl"
+              :icon-name="inboxIcon"
+              name=""
+              :show-placement-hint="isAWebWidgetInbox"
+              @upload="handleImageUpload"
+              @delete="handleAvatarDelete"
+            />
             <SettingsFieldSection :label="inboxNameLabel">
               <woot-input
                 v-model="selectedInboxName"

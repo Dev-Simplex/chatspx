@@ -125,6 +125,12 @@ local/
 # antigos so estao versionados por terem entrado antes desta regra.
 !public/dashboard/images/integrations/*.png
 
+# ...e MENOS os avatares padrao da caixa de entrada, que sao asset de produto:
+# a galeria da aba "Geral" busca cada PNG por URL e o transforma no arquivo que
+# vai para o ActiveStorage. Mesmo laco das duas excecoes acima — sem esta linha
+# o `git add` pula os 8 arquivos em silencio e a galeria abre com 8 quadros 404.
+!public/dashboard/images/inbox-avatars/*.png
+
 nps_checker.rb
 deployment/fix_sudoers.sh
 Procfile.worktree

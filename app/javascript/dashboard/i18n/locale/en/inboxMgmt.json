@@ -82,7 +82,14 @@
         "DESC": "Create a channel for your website and start supporting your customers via our website widget.",
         "LOADING_MESSAGE": "Creating Website Support Channel",
         "CHANNEL_AVATAR": {
-          "LABEL": "Channel Avatar"
+          "LABEL": "Support photo",
+          "WHERE_IT_SHOWS": "Shows in the chat header on the customer's website and in the agent message bubble.",
+          "UPLOAD": "Upload my image",
+          "REMOVE": "Remove",
+          "SPECS": "PNG, JPG or GIF · square, at least 250 × 250 px · up to 15 MB",
+          "GALLERY_LABEL": "Or pick a default photo",
+          "GALLERY_ITEM": "Default avatar {number}",
+          "GALLERY_ERROR": "Could not load this avatar. Try again or upload your own image."
         },
         "CHANNEL_WEBHOOK_URL": {
           "LABEL": "Webhook URL",
@@ -634,12 +641,12 @@
       }
     },
     "TABS": {
-      "SETTINGS": "Settings",
+      "SETTINGS": "General",
       "COLLABORATORS": "Collaborators",
-      "CONFIGURATION": "Configuration",
-      "PRE_CHAT_FORM": "Pre Chat Form",
+      "CONFIGURATION": "Installation",
+      "PRE_CHAT_FORM": "Pre-chat",
       "BUSINESS_HOURS": "Business Hours",
-      "BOT_CONFIGURATION": "Bot Configuration",
+      "BOT_CONFIGURATION": "Bot",
       "ACCOUNT_HEALTH": "Account Health",
       "CSAT": "CSAT",
       "NPS": "NPS",
