@@ -35,10 +35,12 @@ class Tracking::EventRecorder
 
     # Bloco 5.11 — o registro do fato e a unica porta por onde a fila server-side entra.
     #
-    # Ela e segura de ligar HOJE porque `Tracking::CredentialResolver` ainda devolve `nil` (o bloco
-    # 5.02 nao aterrissou): o leque nao reserva nada, nao enfileira nada e nao escreve nada. Quando
-    # a credencial existir, a fila comeca a andar sem que nenhuma outra trilha precise mudar de
-    # chamada.
+    # ATUALIZADO em 26/08: o bloco 5.02 ATERRISSOU e a junta foi fechada, entao
+    # `Tracking::CredentialResolver` nao devolve mais `nil` por construcao — ele le
+    # `TrackingCredential` por (account_id, inbox_id). A fila anda quando ha credencial gravada e
+    # segue inerte quando nao ha. O que mudou foi a RAZAO da inercia: antes nao havia com o que
+    # falar; agora e ausencia de configuracao, que e o comportamento certo. O texto anterior
+    # afirmava o oposto e teria enganado quem lesse este arquivo para decidir se podia ligar.
     #
     # O `rescue` segue a doutrina que o `TrackingEventListener` desta base ja escreveu: observabilidade
     # nunca quebra o produto. Falha ao ENTREGAR o evento nao pode desfazer o registro do fato nem
