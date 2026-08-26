@@ -1,0 +1,48 @@
+{
+  "UNIDADES": {
+    "TITULO": "Locations",
+    "DESCRICAO": "The customer's stores, branches or offices — this is where the AI answers address, phone and opening hours from.",
+    "CARREGANDO": "Loading...",
+    "VAZIO": "No location registered for this account.",
+    "INATIVA": "inactive",
+    "NAO_CADASTRADO": "not set",
+    "FECHADA": "closed",
+    "ERRO_CARREGAR": "Could not load the locations.",
+    "ABAS": {
+      "UNIDADES": "Locations",
+      "EXCECOES": "Exceptions"
+    },
+    "DIAS": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "EXCECOES": {
+      "NOVA": "New exception",
+      "ALVO": "Applies to",
+      "ALVO_CONTA": "All locations",
+      "ALVO_ETIQUETA": "Tag: {etiqueta}",
+      "ESTADO": "During the period",
+      "ESTADO_FECHADA": "Closed",
+      "ESTADO_HORARIO": "Opens with special hours",
+      "ESTADO_NORMAL": "Opens as usual",
+      "DATA_INICIO": "From",
+      "DATA_FIM": "To",
+      "ABRE": "Opens",
+      "FECHA": "Closes",
+      "MOTIVO": "Reason",
+      "MOTIVO_AJUDA": "The AI may tell this to the customer. Write it the way you would say it.",
+      "CRIAR": "Create exception",
+      "CRIADA": "Exception created.",
+      "APAGAR": "Delete",
+      "APAGADA": "Exception deleted.",
+      "VAZIO": "No current or future exception. Past ones expire on their own.",
+      "ERRO_CRIAR": "Could not create the exception.",
+      "ERRO_APAGAR": "Could not delete the exception."
+    }
+  }
+}

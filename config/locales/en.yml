@@ -538,6 +538,25 @@ en:
 
       Transcript:
       %{format_messages}
+  lead_campaigns:
+    errors:
+      campanha_sem_id: 'This campaign has no id yet, so there is nothing to configure. It gets one as soon as a lead comes in through it.'
+      campanha_sem_hook: 'No lead intake integration answers for this campaign.'
+      template_sem_canal: 'The target inbox does not use the official WhatsApp API, so it does not send templates. The opening message there is free text, set on the integration.'
+      template_nao_aprovado: 'The template "%{template}" is not among the approved ones this channel has synced.'
+      template_ambiguo: 'The template "%{template}" is approved in more than one language. Pick the language too — Meta treats each one as a separate template.'
+      template_cabecalho_de_midia: 'The template "%{template}" has a media header, and the lead opening message only sends body parameters. The image would arrive empty and Meta would reject the message.'
+      template_cabecalho_com_variavel: 'The template "%{template}" has a variable in the header, and the lead opening message only sends body parameters.'
+      template_botao_com_variavel: 'The template "%{template}" has a button with a variable, and the lead opening message only sends body parameters.'
+      template_parametro_nomeado: 'The template "%{template}" uses named parameters, and the lead opening message sends numbered ones.'
+      template_ausente: 'No template configured. On the official WhatsApp API the opening message is blocked without an approved template, and the lead comes in with no message at all.'
+      template_efetivo_invalido: 'Without an override this campaign falls back to "%{template}", which this channel does not have approved. Pick a template for the campaign or fix the integration default.'
+      campos_invalidos: 'These fields do not exist on the lead: %{campos}.'
+      campos_quantidade: 'The template takes %{esperadas} variable(s) and %{recebidos} field(s) were sent. Meta rejects the message when the count does not match.'
+      campos_quantidade_efetiva: 'The template "%{template}" takes %{esperadas} variable(s) and the effective configuration sends %{recebidos}. Meta rejects the message when the count does not match.'
+      agente_inexistente: 'This agent does not exist in this account.'
+      agente_nao_elegivel: '%{agente} is not enabled on the target inbox, so the lead would come in with nobody assigned.'
+      time_inexistente: 'This team does not exist in this account.'
   agent_bots:
     captain_mirror_immutable: 'AI mirror bots are managed automatically and cannot be modified.'
   agent_capacity_policy:

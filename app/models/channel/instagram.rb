@@ -34,6 +34,20 @@ class Channel::Instagram < ApplicationRecord
     'Instagram'
   end
 
+  # `message.attachments[]` aceita até 30 imagens numa requisição só (medido ao vivo em
+  # 18/08: HTTP 200 com message_id, renderiza em todo lugar e volta como eco).
+  def supports_multi_image_message?
+    true
+  end
+
+  # Generic template, até 10 cards (medido ao vivo em 18/08). Duas limitações conhecidas e
+  # aceitas: renderiza no app do celular, mas o Instagram Web mostra "Mensagem não aceita —
+  # use o app do Instagram para celular"; e a Meta NÃO devolve eco dele — o painel só não
+  # fica cego porque o SPX cria a Message local antes de entregar.
+  def supports_card_carousel?
+    true
+  end
+
   def create_contact_inbox(instagram_id, name)
     @contact_inbox = ::ContactInboxWithContactBuilder.new({
                                                             source_id: instagram_id,

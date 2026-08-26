@@ -124,10 +124,16 @@ RSpec.describe BulkActionsJob do
     context 'when agent conversation isolation is enabled on the inbox' do
       let!(:owner) { create(:user, account: account, role: :agent) }
 
+      # COM time: o isolamento e escopado pelo time da conversa
+      # (Inbox#isolation_applies_to_team?), e o dono precisa ser membro do time senao
+      # o AssignmentHandler zera o assignee ao carimbar o time.
+      let!(:iso_team) { create(:team, account: account, allow_auto_assign: false) }
+
       before do
         create(:inbox_member, inbox: conversation_1.inbox, user: owner)
+        create(:team_member, team: iso_team, user: owner)
         conversation_1.inbox.update!(agent_conversation_isolation: true)
-        conversation_1.update!(assignee: owner)
+        conversation_1.update!(team: iso_team, assignee: owner)
       end
 
       it 'skips assignee/status/label changes on a colleague-owned isolated conversation' do
@@ -150,6 +156,27 @@ RSpec.describe BulkActionsJob do
         params = { type: 'Conversation', fields: { status: 'snoozed' }, ids: [conversation_1.display_id] }
         described_class.perform_now(account_id: account.id, params: params, user_id: owner.id)
         expect(conversation_1.reload.status).to eq('snoozed')
+      end
+
+      # CONVERSA SEM TIME (antes da triagem): esta regra NAO e isenta do time nulo
+      # (fica fora de Inbox::TEAMLESS_EXEMPT_RULES), entao o bulk continua pulando a
+      # conversa do colega. Se abrisse, um agente MUTARIA em massa (roubar dono,
+      # resolver, etiquetar) conversas que ele nem consegue abrir na tela.
+      it 'STILL skips a colleague-owned conversation that has no team yet' do
+        conversation_1.update!(team: nil)
+        params = {
+          type: 'Conversation',
+          fields: { status: 'snoozed', assignee_id: agent.id },
+          labels: { add: ['roubada'] },
+          ids: [conversation_1.display_id]
+        }
+
+        described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
+
+        conversation_1.reload
+        expect(conversation_1.assignee_id).to eq(owner.id)
+        expect(conversation_1.status).to eq('open')
+        expect(conversation_1.label_list).not_to include('roubada')
       end
 
       it 'still lets an administrator act' do

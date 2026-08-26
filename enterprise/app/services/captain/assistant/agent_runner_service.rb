@@ -232,10 +232,10 @@ class Captain::Assistant::AgentRunnerService
   end
 
   # Estado de MAQUINÁRIO da conversa: escrito por tool/job pra ser lido por tool/job, sempre do
-  # BANCO — nenhum destes é lido do prompt (`urls_imoveis` pelo fix_property_links,
-  # `codigos_buscados` pela enviar_fotos_imovel, `fotos_ultimo_envio_at` pelo cooldown dela,
-  # `followup_*` pelo FollowupJob, `resumo_atendimento_ia` pelo painel do time). Tirá-los do
-  # contexto não muda função nenhuma; deixá-los custa duas coisas:
+  # BANCO — nenhum destes é lido do prompt (`urls_imoveis` e `dados_imoveis` pelo
+  # fix_property_links, `codigos_buscados` pela enviar_fotos_imovel, `fotos_ultimo_envio_at`
+  # pelo cooldown dela, `followup_*` pelo FollowupJob, `resumo_atendimento_ia` pelo painel do
+  # time). Tirá-los do contexto não muda função nenhuma; deixá-los custa duas coisas:
   #
   #  - RUÍDO: token hex, epoch e mapa de URLs ocupam contexto sem informar nada ao modelo;
   #  - VAZAMENTO ENTRE ATENDIMENTOS: `custom_attributes` vive na CONVERSA, e com
@@ -244,19 +244,30 @@ class Captain::Assistant::AgentRunnerService
   #    resumo e os códigos do atendimento de meses atrás atravessavam a fronteira mesmo com a
   #    janela ligada, e o modelo voltava a falar de um imóvel que ninguém mencionou hoje.
   #
-  # `followup_` por prefixo porque a família cresce (o `followup_janela` nasceu depois dos
-  # outros três); lista exata nomearia só os de hoje e o próximo voltaria a vazar em silêncio.
+  # Famílias entram por AFIXO, nunca por lista exata: lista nomeia só os membros de hoje e o
+  # próximo vaza em silêncio. Já aconteceu duas vezes — o `followup_janela` nasceu depois dos
+  # outros três `followup_*`, e o `dados_imoveis` (preço e bairro por código, que alimenta a
+  # guarda de pareamento do link) nasceu irmão do `urls_imoveis`, gravado pelo MESMO método da
+  # busca (`BuscarImovelTool#track_urls`) e no mesmo save. Por isso `_imoveis` é SUFIXO: é o
+  # sufixo que nomeia a família (mapa por código de imóvel), e é o começo que varia.
+  #
+  # O sufixo não colide com o que o agente PRECISA ler: os atributos do imóvel do anúncio são
+  # `meta_imovel` e `meta_imovel_codigo`, no SINGULAR — nenhum termina em `_imoveis`.
   MAQUINARIO = %w[
     aguardando_humano_desde rodizio_corretor
-    resumo_atendimento_ia codigos_buscados urls_imoveis fotos_ultimo_envio_at
+    resumo_atendimento_ia codigos_buscados fotos_ultimo_envio_at
   ].freeze
   MAQUINARIO_PREFIXOS = %w[followup_].freeze
+  MAQUINARIO_SUFIXOS = %w[_imoveis].freeze
 
   def sem_maquinario(atributos)
-    (atributos || {}).reject do |chave, _|
-      nome = chave.to_s
-      MAQUINARIO.include?(nome) || MAQUINARIO_PREFIXOS.any? { |prefixo| nome.start_with?(prefixo) }
-    end
+    (atributos || {}).reject { |chave, _| maquinario?(chave.to_s) }
+  end
+
+  def maquinario?(nome)
+    MAQUINARIO.include?(nome) ||
+      MAQUINARIO_PREFIXOS.any? { |prefixo| nome.start_with?(prefixo) } ||
+      MAQUINARIO_SUFIXOS.any? { |sufixo| nome.end_with?(sufixo) }
   end
 
   # Número em que o atendimento acontece. Sem ele o agente não tem NENHUM telefone em

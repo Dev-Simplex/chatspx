@@ -40,6 +40,12 @@ import { LocalStorage } from 'shared/helpers/localStorage';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
 import ColorPicker from 'dashboard/components-next/colorpicker/ColorPicker.vue';
 import SelectInput from 'dashboard/components-next/select/Select.vue';
+import MultiSelect from 'dashboard/components-next/filter/inputs/MultiSelect.vue';
+import {
+  buildIsolationTeamIdsPayload,
+  normalizeTeamIds,
+  teamIdsToOptions,
+} from './helpers/isolationTeams';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 
 export default {
@@ -72,6 +78,7 @@ export default {
     Avatar,
     ColorPicker,
     SelectInput,
+    MultiSelect,
     AccountHealth,
     Widget,
   },
@@ -92,6 +99,10 @@ export default {
       teamMessageIsolation: false,
       agentMessageIsolation: false,
       agentConversationIsolation: false,
+      // Lista VAZIA = a regra vale para todos os times (é o comportamento de hoje).
+      teamMessageIsolationTeamIds: [],
+      agentMessageIsolationTeamIds: [],
+      agentConversationIsolationTeamIds: [],
       pendingStatusEnabled: false,
       allowMessagesAfterResolved: true,
       continuityViaEmail: true,
@@ -120,7 +131,62 @@ export default {
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
       uiFlags: 'inboxes/getUIFlags',
       portals: 'portals/allPortals',
+      teams: 'teams/getTeams',
     }),
+    // Vale para as DUAS regras de mensagem: a conversa nasce sem time, antes da triagem,
+    // e esconder as bolhas dela esconderia o lead novo de quem precisa atender.
+    isolationNoTeamHint() {
+      return this.$t(
+        'INBOX_MGMT.SETTINGS_POPUP.ISOLATION_TEAMS.NO_TEAM_NEVER_ISOLATED'
+      );
+    },
+    // O isolamento de CONVERSA é a exceção (backend: Inbox::TEAMLESS_EXEMPT_RULES não o
+    // inclui). Ali o que fecha a conversa é "tem outro dono", critério que não é o time,
+    // então a conversa sem time segue bloqueada. Mostrar o texto das outras duas aqui
+    // faria a tela mentir sobre o que o guard aplica.
+    isolationNoTeamStillIsolatedHint() {
+      return this.$t(
+        'INBOX_MGMT.SETTINGS_POPUP.ISOLATION_TEAMS.NO_TEAM_STILL_ISOLATED'
+      );
+    },
+    isolationNoTeamsHint() {
+      return this.$t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_TEAMS.NO_TEAMS');
+    },
+    isolationTeamOptions() {
+      return (this.teams || []).map(team => ({
+        id: team.id,
+        name: team.name,
+      }));
+    },
+    // O MultiSelect fala em objetos `{ id, name }` e a inbox fala em ids: estes três computeds são
+    // a tradução, e o setter é o único ponto que escreve a lista.
+    teamMessageIsolationTeams: {
+      get() {
+        return teamIdsToOptions(this.teamMessageIsolationTeamIds, this.teams);
+      },
+      set(value) {
+        this.teamMessageIsolationTeamIds = normalizeTeamIds(value);
+      },
+    },
+    agentMessageIsolationTeams: {
+      get() {
+        return teamIdsToOptions(this.agentMessageIsolationTeamIds, this.teams);
+      },
+      set(value) {
+        this.agentMessageIsolationTeamIds = normalizeTeamIds(value);
+      },
+    },
+    agentConversationIsolationTeams: {
+      get() {
+        return teamIdsToOptions(
+          this.agentConversationIsolationTeamIds,
+          this.teams
+        );
+      },
+      set(value) {
+        this.agentConversationIsolationTeamIds = normalizeTeamIds(value);
+      },
+    },
     selectedTabKey() {
       const key = this.tabs[this.selectedTabIndex]?.key;
       return key;
@@ -410,6 +476,15 @@ export default {
       this.agentMessageIsolation = this.inbox.agent_message_isolation || false;
       this.agentConversationIsolation =
         this.inbox.agent_conversation_isolation || false;
+      this.teamMessageIsolationTeamIds = normalizeTeamIds(
+        this.inbox.team_message_isolation_team_ids
+      );
+      this.agentMessageIsolationTeamIds = normalizeTeamIds(
+        this.inbox.agent_message_isolation_team_ids
+      );
+      this.agentConversationIsolationTeamIds = normalizeTeamIds(
+        this.inbox.agent_conversation_isolation_team_ids
+      );
       this.pendingStatusEnabled = this.inbox.pending_status_enabled || false;
       this.selectedPortalSlug = this.inbox.help_center
         ? this.inbox.help_center.slug
@@ -463,6 +538,13 @@ export default {
       } finally {
         this.isRegisteringWebhook = false;
       }
+    },
+    // Vazio não é "nenhum time": a linha embaixo do seletor tem que dizer isso, senão o admin
+    // acha que a regra está desligada quando ela está valendo para a caixa inteira.
+    isolationScopeHint(teamIds) {
+      return teamIds.length
+        ? this.$t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_TEAMS.SCOPED')
+        : this.$t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_TEAMS.ALL_TEAMS');
     },
     handleFeatureFlag(e) {
       this.selectedFeatureFlags = this.toggleInput(
@@ -531,6 +613,15 @@ export default {
           team_message_isolation: this.teamMessageIsolation,
           agent_message_isolation: this.agentMessageIsolation,
           agent_conversation_isolation: this.agentConversationIsolation,
+          // Espalhado (e não escrito chave a chave) de propósito: quando a inbox não trouxe a
+          // lista, a chave NÃO entra no payload. Mandar `[]` de um campo que a tela nunca recebeu
+          // apagaria o escopo de quem já tinha configurado.
+          ...buildIsolationTeamIdsPayload(this.inbox, {
+            team_message_isolation_team_ids: this.teamMessageIsolationTeamIds,
+            agent_message_isolation_team_ids: this.agentMessageIsolationTeamIds,
+            agent_conversation_isolation_team_ids:
+              this.agentConversationIsolationTeamIds,
+          }),
           pending_status_enabled: this.pendingStatusEnabled,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
@@ -810,7 +901,33 @@ export default {
                 $t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION_SUB_TEXT')
               "
               class="mb-4"
-            />
+            >
+              <!-- O slot vive num <template v-if>: regra desligada não tem escopo para
+                   escolher, e o seletor sumindo junto com o interruptor deixa isso óbvio. -->
+              <template v-if="teamMessageIsolation" #editor>
+                <div class="flex flex-col items-start gap-2">
+                  <span class="text-sm font-medium text-n-slate-12">
+                    {{ $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_TEAMS.LABEL') }}
+                  </span>
+                  <MultiSelect
+                    v-model="teamMessageIsolationTeams"
+                    :options="isolationTeamOptions"
+                  />
+                  <p class="mb-0 text-sm text-n-slate-11">
+                    {{ isolationScopeHint(teamMessageIsolationTeamIds) }}
+                  </p>
+                  <p class="mb-0 text-sm text-n-slate-10">
+                    {{ isolationNoTeamHint }}
+                  </p>
+                  <p
+                    v-if="!isolationTeamOptions.length"
+                    class="mb-0 text-sm text-n-slate-10"
+                  >
+                    {{ isolationNoTeamsHint }}
+                  </p>
+                </div>
+              </template>
+            </SettingsToggleSection>
 
             <SettingsToggleSection
               v-model="agentMessageIsolation"
@@ -819,7 +936,31 @@ export default {
                 $t('INBOX_MGMT.SETTINGS_POPUP.AGENT_MESSAGE_ISOLATION_SUB_TEXT')
               "
               class="mb-4"
-            />
+            >
+              <template v-if="agentMessageIsolation" #editor>
+                <div class="flex flex-col items-start gap-2">
+                  <span class="text-sm font-medium text-n-slate-12">
+                    {{ $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_TEAMS.LABEL') }}
+                  </span>
+                  <MultiSelect
+                    v-model="agentMessageIsolationTeams"
+                    :options="isolationTeamOptions"
+                  />
+                  <p class="mb-0 text-sm text-n-slate-11">
+                    {{ isolationScopeHint(agentMessageIsolationTeamIds) }}
+                  </p>
+                  <p class="mb-0 text-sm text-n-slate-10">
+                    {{ isolationNoTeamHint }}
+                  </p>
+                  <p
+                    v-if="!isolationTeamOptions.length"
+                    class="mb-0 text-sm text-n-slate-10"
+                  >
+                    {{ isolationNoTeamsHint }}
+                  </p>
+                </div>
+              </template>
+            </SettingsToggleSection>
 
             <SettingsToggleSection
               v-model="agentConversationIsolation"
@@ -832,7 +973,31 @@ export default {
                 )
               "
               class="mb-4"
-            />
+            >
+              <template v-if="agentConversationIsolation" #editor>
+                <div class="flex flex-col items-start gap-2">
+                  <span class="text-sm font-medium text-n-slate-12">
+                    {{ $t('INBOX_MGMT.SETTINGS_POPUP.ISOLATION_TEAMS.LABEL') }}
+                  </span>
+                  <MultiSelect
+                    v-model="agentConversationIsolationTeams"
+                    :options="isolationTeamOptions"
+                  />
+                  <p class="mb-0 text-sm text-n-slate-11">
+                    {{ isolationScopeHint(agentConversationIsolationTeamIds) }}
+                  </p>
+                  <p class="mb-0 text-sm text-n-slate-10">
+                    {{ isolationNoTeamStillIsolatedHint }}
+                  </p>
+                  <p
+                    v-if="!isolationTeamOptions.length"
+                    class="mb-0 text-sm text-n-slate-10"
+                  >
+                    {{ isolationNoTeamsHint }}
+                  </p>
+                </div>
+              </template>
+            </SettingsToggleSection>
 
             <SettingsToggleSection
               v-model="pendingStatusEnabled"

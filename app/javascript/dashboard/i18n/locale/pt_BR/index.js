@@ -46,6 +46,7 @@ import teamsSettings from './teamsSettings.json';
 import webhooks from './webhooks.json';
 import whatsappTemplates from './whatsappTemplates.json';
 import whatsappTemplatesMgmt from './whatsappTemplatesMgmt.json';
+import unidades from './unidades.json';
 import redeSocial from './redeSocial.json';
 import yearInReview from './yearInReview.json';
 
@@ -98,6 +99,7 @@ export default {
   ...webhooks,
   ...whatsappTemplates,
   ...whatsappTemplatesMgmt,
+  ...unidades,
   ...redeSocial,
   ...yearInReview,
 };

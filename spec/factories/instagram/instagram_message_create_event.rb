@@ -30,6 +30,40 @@ FactoryBot.define do
     initialize_with { attributes }
   end
 
+  # Clique num botão de card: chega em `messaging`, como uma mensagem, mas sob a chave
+  # `postback` — sem `message`, com o título do botão e o payload que nós definimos.
+  factory :instagram_postback_event, class: Hash do
+    transient do
+      ig_entry_id { SecureRandom.uuid }
+      sender_id { "Sender-id-#{SecureRandom.hex(4)}" }
+    end
+    entry do
+      [
+        {
+          'id': ig_entry_id,
+          'time': '2021-09-08T06:34:04+0000',
+          'messaging': [
+            {
+              'sender': {
+                'id': sender_id
+              },
+              'recipient': {
+                'id': 'chatwoot-app-user-id-1'
+              },
+              'timestamp': '2021-09-08T06:34:04+0000',
+              'postback': {
+                'mid': 'postback-message-id-1',
+                'title': 'Fotos do 5194',
+                'payload': 'imovel:5194'
+              }
+            }
+          ]
+        }
+      ]
+    end
+    initialize_with { attributes }
+  end
+
   factory :instagram_message_standby_event, class: Hash do
     transient do
       ig_entry_id { SecureRandom.uuid }

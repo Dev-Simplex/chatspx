@@ -282,16 +282,32 @@ RSpec.describe 'Active Attendances API', type: :request do
       # Inbox isolado: colega não ABRE, mas ainda PODE pedir (o decouple
       # reachable? vs can_open?). A aba continua listando tudo (awareness).
       describe 'agent_conversation_isolation' do
+        # A conversa tem TIME: o isolamento e escopado pelo time da conversa
+        # (Inbox#isolation_applies_to_team?), e `reachable?` tambem exige o time.
+        # `allow_auto_assign: false` para o AssignmentHandler nao inventar um assignee
+        # no caso "sem dono" — e para nao zerar o dono de quem nao e do time.
+        let(:iso_team) { create(:team, account: account, allow_auto_assign: false) }
+        let(:other_team) { create(:team, account: account, allow_auto_assign: false) }
+
         def iso_row_for(conversation, user: agent)
           get "/api/v1/accounts/#{account.id}/active_attendances", headers: user.create_new_auth_token, as: :json
           response.parsed_body['payload'].find { |p| p['id'] == conversation.display_id }
         end
 
-        before { inbox.update!(agent_conversation_isolation: true) }
+        def colleague_conversation(team: iso_team)
+          create(:conversation, account: account, inbox: inbox, assignee: owner, team: team, status: :open)
+        end
+
+        before do
+          inbox.update!(agent_conversation_isolation: true)
+          [agent, owner].each do |user|
+            create(:team_member, team: iso_team, user: user)
+            create(:team_member, team: other_team, user: user)
+          end
+        end
 
         it 'vetoes opening a colleague conversation but still offers request (gate on)' do
-          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
-          row = iso_row_for(conv)
+          row = iso_row_for(colleague_conversation)
           expect(row['can_open']).to be(false)
           expect(row['can_assume']).to be(false)
           expect(row['can_request']).to be(true)
@@ -299,22 +315,57 @@ RSpec.describe 'Active Attendances API', type: :request do
 
         it 'degrades to blocked (no open, no request) for a colleague when the gate is off' do
           account.update!(takeover_request_gate: false)
-          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
-          row = iso_row_for(conv)
+          row = iso_row_for(colleague_conversation)
           expect(row['can_open']).to be(false)
           expect(row['can_request']).to be(false)
         end
 
         it 'still lets me open my own and assume the unowned queue' do
-          mine = create(:conversation, account: account, inbox: inbox, assignee: agent, team: nil, status: :open)
-          unowned = create(:conversation, account: account, inbox: inbox, assignee: nil, team: nil, status: :open)
+          mine = create(:conversation, account: account, inbox: inbox, assignee: agent, team: iso_team, status: :open)
+          unowned = create(:conversation, account: account, inbox: inbox, assignee: nil, team: iso_team, status: :open)
           expect(iso_row_for(mine)['can_open']).to be(true)
           expect(iso_row_for(unowned)['can_assume']).to be(true)
         end
 
         it 'still lists the colleague attendance (awareness intact)' do
-          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
-          expect(iso_row_for(conv)).to be_present
+          expect(iso_row_for(colleague_conversation)).to be_present
+        end
+
+        # ESCOPO POR TIME: a flag liga a regra na caixa, a lista diz em QUAIS times ela vale.
+        # Aqui o erro tem cara de botao que mente: ou oferece "Abrir" e o clique da 403,
+        # ou esconde "Abrir" de uma conversa que a pessoa PODE abrir.
+        it 'vetoes opening when the team list is empty (retrocompat)' do
+          inbox.update!(agent_conversation_isolation_team_ids: [])
+          expect(iso_row_for(colleague_conversation)['can_open']).to be(false)
+        end
+
+        it 'vetoes opening when the conversation team is in the scope list' do
+          inbox.update!(agent_conversation_isolation_team_ids: [iso_team.id])
+          expect(iso_row_for(colleague_conversation)['can_open']).to be(false)
+        end
+
+        it 'allows opening when the conversation team is NOT in the scope list' do
+          inbox.update!(agent_conversation_isolation_team_ids: [other_team.id])
+          expect(iso_row_for(colleague_conversation)['can_open']).to be(true)
+        end
+
+        it 'keeps the administrator able to open whatever the scope list' do
+          inbox.update!(agent_conversation_isolation_team_ids: [iso_team.id])
+          admin = create(:user, account: account, role: :administrator)
+          expect(iso_row_for(colleague_conversation, user: admin)['can_open']).to be(true)
+        end
+
+        # CONVERSA SEM TIME (antes da triagem): esta regra NAO e isenta do time nulo (fica
+        # fora de Inbox::TEAMLESS_EXEMPT_RULES), entao a aba continua NAO oferecendo
+        # "Abrir" na conversa do colega — o botao tem que dizer a verdade que o guard
+        # aplica (senao o clique leva a um 403). `reachable?` cai no inbox quando nao ha
+        # time, entao "Solicitar" continua de pe.
+        it 'STILL vetoes opening a colleague conversation that has no team yet' do
+          conv = colleague_conversation(team: nil)
+          expect(conv.reload.team_id).to be_nil
+          row = iso_row_for(conv)
+          expect(row['can_open']).to be(false)
+          expect(row['can_request']).to be(true)
         end
       end
 

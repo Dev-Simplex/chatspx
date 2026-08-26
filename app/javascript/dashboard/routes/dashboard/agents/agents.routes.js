@@ -31,6 +31,15 @@ const meta = {
   featureFlag: FEATURE_FLAGS.CAPTAIN_V2,
 };
 
+// O rodizio distribui lead entre corretores; nao tem nada a ver com IA. Herdar o
+// `meta` acima o deixava invisivel em qualquer conta sem o Captain ligado - so
+// aparecia onde `captain_integration_v2` estava ligada por acaso. Sem featureFlag:
+// nenhuma das flags existentes descreve distribuicao de lead (ADVANCED_ASSIGNMENT e
+// paywall premium de outro recurso), entao o gate e a permissao de administrador.
+const rodizioMeta = {
+  permissions: ['administrator'],
+};
+
 const agentDetailChildren = [
   {
     path: 'overview',
@@ -83,6 +92,30 @@ const agentDetailChildren = [
 ];
 
 export const routes = [
+  // Irmas (e nao filhas) da rota de /agents DE PROPOSITO: como filhas elas
+  // renderizavam dentro do AgentsPageView, com a barra lateral "Agentes IA /
+  // Nenhum agente encontrado" comendo um terco da tela ao lado de um formulario
+  // que nao fala de IA. Vem antes do pai so por leitura; quem garante o casamento
+  // e o vue-router, que pontua segmento estatico (`rodizio`) acima de parametro
+  // (`:assistantId`).
+  {
+    path: frontendURL('accounts/:accountId/agents/rodizio'),
+    component: RodizioPage,
+    name: 'agents_rodizio',
+    meta: rodizioMeta,
+  },
+  // A política do rodízio deixou de ter tela global: ela é POR TIME e passou a morar na edição
+  // do time, junto do checkbox de atribuição automática, que é onde o gestor já está quando pensa
+  // em quem atende o quê. Duas telas editando a mesma tabela era o achado A4 da auditoria de
+  // 26/08 — nenhuma das duas mostrava o que a outra tinha configurado.
+  //
+  // A rota fica como REDIRECT em vez de sumir: link salvo e favorito de gestor não podem virar
+  // 404. Cai na lista de times, que é de onde se escolhe qual time configurar.
+  {
+    path: frontendURL('accounts/:accountId/agents/rodizio/politica'),
+    name: 'agents_rodizio_politica',
+    redirect: to => ({ name: 'settings_teams_list', params: to.params }),
+  },
   {
     path: frontendURL('accounts/:accountId/agents'),
     component: AgentsPageView,
@@ -116,12 +149,6 @@ export const routes = [
         path: 'evaluation',
         component: EvaluationPage,
         name: 'agents_evaluation',
-        meta,
-      },
-      {
-        path: 'rodizio',
-        component: RodizioPage,
-        name: 'agents_rodizio',
         meta,
       },
       {

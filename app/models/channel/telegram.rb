@@ -31,6 +31,11 @@ class Channel::Telegram < ApplicationRecord
     'Telegram'
   end
 
+  # Menu de opcoes: vira inline_keyboard no proprio send_message deste modelo.
+  def supports_interactive_items?
+    true
+  end
+
   def telegram_api_url
     "https://api.telegram.org/bot#{bot_token}"
   end

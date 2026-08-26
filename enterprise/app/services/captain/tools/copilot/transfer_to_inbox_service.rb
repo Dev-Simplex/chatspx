@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::TransferToInboxService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'transfer_to_inbox'
   end
@@ -8,8 +10,8 @@ class Captain::Tools::Copilot::TransferToInboxService < Captain::Tools::BaseTool
   param :inbox_id, type: :integer, desc: 'ID of the target inbox', required: true
 
   def execute(conversation_id:, inbox_id:)
-    conversation = @assistant.account.conversations.find_by(display_id: conversation_id)
-    return 'Conversation not found' if conversation.blank?
+    conversation = find_permissible_conversation(conversation_id)
+    return conversation_refusal(conversation_id) if conversation.blank?
 
     inbox = @assistant.account.inboxes.find_by(id: inbox_id)
     return 'Inbox not found' if inbox.blank?

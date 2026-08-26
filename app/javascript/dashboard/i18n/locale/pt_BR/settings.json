@@ -43,6 +43,83 @@
       "CLOSE": "Fechar",
       "DESIGNATED_AT": "Designado em",
       "CANDIDATES": "Candidatos:"
+    },
+    "CONFIGURE": "Configurar rodízio",
+    "POLICY": {
+      "TITLE": "Configuração do rodízio",
+      "SUBTITLE": "Quem recebe, em que ordem, e o que acontece quando ninguém pega.",
+      "BACK": "Voltar ao painel",
+      "SELECT_TEAM": "Escolha um time",
+      "NO_TEAM": "Escolha um time acima para configurar o rodízio dele.",
+      "LOADING": "Carregando...",
+      "ERROR": "Não foi possível carregar a configuração do rodízio",
+      "EMPTY": "Nenhuma política configurada para este time. O motor está desligado aqui — preencha e salve para ligar.",
+      "SAVE": "Salvar",
+      "SAVING": "Salvando...",
+      "SAVED": "Configuração do rodízio salva",
+      "SAVE_ERROR": "Não foi possível salvar a configuração do rodízio",
+      "REMOVE": "Remover política",
+      "REMOVE_CONFIRM": "Sim, remover",
+      "REMOVE_CANCEL": "Cancelar",
+      "REMOVE_HINT": "Remover a política desliga o motor neste time.",
+      "REMOVED": "Política removida. O motor está desligado neste time.",
+      "REMOVE_ERROR": "Não foi possível remover a política",
+      "ENGINE": {
+        "TITLE": "Motor",
+        "ACTIVE": "Rodízio ligado neste time",
+        "ACTIVE_HINT": "Desligado, o time continua trabalhando exatamente como trabalha hoje.",
+        "MODE": "Modo",
+        "MODE_RODIZIO": "Rodízio — o motor escolhe a próxima pessoa e entrega o lead para ela",
+        "MODE_FILA": "Fila — ninguém é escolhido; o lead fica aguardando e o primeiro que puxar leva",
+        "MODE_RAW": "Modo definido fora desta tela: {modo}"
+      },
+      "POOL": {
+        "TITLE": "Pool do rodízio",
+        "SUBTITLE": "De cima para baixo é a ordem em que o rodízio anda. Só aparecem aqui os membros deste time — e entrar no time NÃO coloca a pessoa no rodízio: é preciso ligar a pessoa abaixo.",
+        "EMPTY": "Este time ainda não tem membros.",
+        "ON": "No rodízio",
+        "CAP": "Teto",
+        "CAP_HINT": "Teto é o máximo de leads simultâneos que a pessoa segura. Deixe vazio para não limitar.",
+        "UP": "Subir",
+        "DOWN": "Descer",
+        "POSITION": "#{n}"
+      },
+      "CONTINUITY": {
+        "TITLE": "Continuidade",
+        "ACTIVE": "Contato que já foi atendido volta para a mesma pessoa",
+        "DAYS": "Por quantos dias",
+        "HINT": "Contados a partir da última vez que aquela pessoa atendeu o contato."
+      },
+      "SLA": {
+        "TITLE": "SLA e repasse",
+        "MINUTES": "Minutos para assumir o lead",
+        "MINUTES_HINT": "Passou disso, o lead conta como não assumido.",
+        "AUTO": "Repassar o lead para a próxima pessoa automaticamente",
+        "MAX": "Máximo de repasses",
+        "MAX_HINT": "0 significa sem teto.",
+        "FALLBACK": "Quando o pool acabar, mandar para",
+        "FALLBACK_NONE": "Ninguém — o lead fica aguardando"
+      },
+      "OWNERSHIP": {
+        "TITLE": "Quem fica com a conversa",
+        "ASSIGNEE": "Atribuir — a pessoa vira a responsável e assume a conversa",
+        "DESIGNATION": "Só designar — a IA continua respondendo até a pessoa entrar"
+      },
+      "TRIGGER": {
+        "TITLE": "Gatilho sem IA",
+        "ACTIVE": "Distribuir quando um fluxo ou uma regra trocar o time",
+        "HINT": "Para times em que o lead chega por um fluxo, e não pela IA."
+      },
+      "ERRORS": {
+        "TITLE": "Corrija antes de salvar:",
+        "MODO": "Escolha um modo válido.",
+        "MODO_POSSE": "Escolha quem fica com a conversa.",
+        "SLA": "Os minutos para assumir precisam ser um número inteiro maior que zero.",
+        "MAX_REPASSES": "O máximo de repasses precisa ser zero ou mais.",
+        "CONTINUIDADE_DIAS": "Os dias de continuidade precisam ser um número inteiro maior que zero.",
+        "CAP": "O teto precisa ser maior que zero. Deixe vazio para não limitar.",
+        "POOL_VAZIO": "O rodízio está ligado mas não há ninguém no pool — nenhum lead seria distribuído."
+      }
     }
   },
   "AGENTS_EVALUATION": {
@@ -669,6 +746,7 @@
     "AUDIT_LOGS": "Auditoria",
     "INBOXES": "Caixas de Entrada",
     "WAHA_CONNECTIONS": "Conexões WhatsApp",
+    "UNIDADES": "Unidades",
     "MESSAGE_SEQUENCES": "Sequências de Follow-up",
     "NOTIFICATIONS": "Notificações",
     "CANNED_RESPONSES": "Respostas Prontas",
@@ -703,6 +781,7 @@
     "REPORTS_BOT": "Robôs",
     "REPORTS_AGENT": "Agentes",
     "REPORTS_AGENT_ASSIGNMENT": "Atribuições",
+    "REPORTS_RODIZIO": "Rodízio",
     "REPORTS_LABEL": "Etiquetas",
     "REPORTS_INBOX": "Caixa de Entrada",
     "REPORTS_TEAM": "Time",

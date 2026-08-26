@@ -27,6 +27,7 @@ import security from './security/security.routes';
 import wahaConnections from './wahaConnections/wahaConnections.routes';
 import messageSequences from './messageSequences/messageSequences.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
+import unidades from './unidades/unidades.routes';
 
 export default {
   routes: [
@@ -69,5 +70,6 @@ export default {
     ...wahaConnections.routes,
     ...messageSequences.routes,
     ...conversationWorkflow.routes,
+    ...unidades.routes,
   ],
 };

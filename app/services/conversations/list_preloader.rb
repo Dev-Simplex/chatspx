@@ -30,10 +30,11 @@ class Conversations::ListPreloader
     sql = <<~SQL.squish
       SELECT c.id AS conversation_id, COUNT(m.id)::int AS cnt
       FROM conversations c
+      INNER JOIN inboxes i ON i.id = c.inbox_id
       LEFT JOIN messages m ON m.conversation_id = c.id
         AND m.account_id = c.account_id
         AND m.message_type = 0
-        AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
+        AND #{team_isolation_where}
         AND (c.agent_last_seen_at IS NULL OR m.created_at > c.agent_last_seen_at)
       WHERE c.id IN (?)
       GROUP BY c.id
@@ -41,9 +42,13 @@ class Conversations::ListPreloader
     rows = Conversation.connection.select_all(
       Conversation.sanitize_sql_array([sql, @conversation_ids])
     )
+    capped_unread_counts(rows)
+  end
+
+  # A UI mostra "9+" acima de 10; o teto vive aqui para o SQL nao carregar essa regra.
+  def capped_unread_counts(rows)
     rows.to_a.each_with_object({}) do |row, h|
-      cnt = row['cnt'].to_i
-      h[row['conversation_id'].to_i] = [cnt, 10].min
+      h[row['conversation_id'].to_i] = [row['cnt'].to_i, 10].min
     end
   end
 
@@ -71,24 +76,54 @@ class Conversations::ListPreloader
     @supervised_team_ids = TeamSupervision.team_ids(@user, @conversations.first&.account_id)
   end
 
+  # Filtro por TIME da mensagem (team_message_isolation) — o espelho, na PREVIA, do que a
+  # association `Conversation#messages` faz na conversa aberta.
+  #
+  # Era `(c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)`, INCONDICIONAL:
+  # nao olhava a flag nenhuma. Uma mensagem com team_id defasado (a conversa trocou de time
+  # e o UpdateMessagesTeamIdJob ainda nao rodou) sumia da previa mesmo na caixa com o
+  # isolamento DESLIGADO — e a lista mostrava uma mensagem antiga como se fosse a ultima.
+  # E o mesmo bug do `messages` vs `all_messages` que derrubou em silencio o no de mensagem
+  # do flow, o CSAT e o NPS (ver conversations/message_window_service.rb), aqui na previa.
+  #
+  # Agora exige a regra ALCANCAR a conversa: flag ligada E time no escopo. `NOT <alcanca>`
+  # ja cobre a conversa SEM time (team_message_isolation esta em Inbox::TEAMLESS_EXEMPT_RULES),
+  # entao o `c.team_id IS NULL` solto sai daqui.
+  # O COALESCE nao e enfeite: `inboxes.team_message_isolation` e a UNICA das 3 flags que
+  # ficou NULLABLE (as outras duas sao NOT NULL). Numa linha com a flag NULL, `flag = true`
+  # da NULL, `NOT NULL` da NULL, e a mensagem com time defasado seria descartada em
+  # silencio — justamente o bug que este metodo existe para fechar. O Ruby
+  # (`isolation_applies_to_team?`) ja trata NULL como false (`unless self[key]`); aqui o SQL
+  # passa a concordar com ele.
+  def team_isolation_where
+    applies = Inbox.isolation_applies_sql(:team_message_isolation, inbox_alias: 'i', conversation_alias: 'c')
+    "(NOT COALESCE(#{applies}, FALSE) OR m.team_id IS NULL OR m.team_id = c.team_id)"
+  end
+
   def fetch_combined_last_message_rows # rubocop:disable Metrics/MethodLength
     uid = agent_filter_id
     supervised = uid ? supervised_team_ids : []
     # Filtra a última mensagem por agente SÓ nos inboxes com a flag ON (a lista mistura inboxes).
     # `c.team_id IN (:supervised)` é a isenção do supervisor — cláusula ausente quando não há supervisão.
     supervised_or = supervised.any? ? ' OR c.team_id IN (:supervised)' : ''
-    inbox_join  = uid ? 'INNER JOIN inboxes i ON i.id = c.inbox_id' : ''
-    agent_where = uid ? "AND (i.agent_message_isolation IS NOT TRUE OR m.agent_id IS NULL OR m.agent_id = :uid#{supervised_or})" : ''
+    # `NOT <regra alcanca>` no lugar do antigo `i.agent_message_isolation IS NOT TRUE`: a
+    # previa volta a ser a mensagem REAL quando a regra nao alcanca a conversa (flag off,
+    # conversa sem time, ou time fora da lista escolhida na caixa).
+    applies = Inbox.isolation_applies_sql(:agent_message_isolation, inbox_alias: 'i', conversation_alias: 'c')
+    agent_where = uid ? "AND (NOT #{applies} OR m.agent_id IS NULL OR m.agent_id = :uid#{supervised_or})" : ''
+    # O JOIN com `inboxes` deixou de ser condicional ao `uid`: o filtro por time tambem
+    # pergunta a caixa (flag + lista), entao a tabela precisa estar unida SEMPRE.
+    team_where = team_isolation_where
 
     sql = <<~SQL.squish
       WITH last_all AS (
         SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id
         FROM messages m
         INNER JOIN conversations c ON c.id = m.conversation_id
-        #{inbox_join}
+        INNER JOIN inboxes i ON i.id = c.inbox_id
         WHERE m.conversation_id IN (:ids)
           AND m.account_id = c.account_id
-          AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
+          AND #{team_where}
           #{agent_where}
         ORDER BY m.conversation_id, m.created_at DESC, m.id DESC
       ),
@@ -96,11 +131,11 @@ class Conversations::ListPreloader
         SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id
         FROM messages m
         INNER JOIN conversations c ON c.id = m.conversation_id
-        #{inbox_join}
+        INNER JOIN inboxes i ON i.id = c.inbox_id
         WHERE m.conversation_id IN (:ids)
           AND m.account_id = c.account_id
           AND m.message_type != 2
-          AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
+          AND #{team_where}
           #{agent_where}
         ORDER BY m.conversation_id, m.id DESC
       )

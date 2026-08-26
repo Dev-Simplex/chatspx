@@ -1144,6 +1144,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.datetime "encerrado_em"
     t.jsonb "policy_snapshot", default: {}, null: false
     t.string "vista_negocio_codigo"
+    t.integer "repasse_n", default: 0, null: false
     t.index ["conversation_id"], name: "index_distribuicao_logs_on_conversation_id"
     t.index ["status", "designado_em"], name: "index_distribuicao_logs_on_status_and_designado_em"
   end
@@ -1163,6 +1164,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.boolean "espelho_vista", default: false, null: false
     t.jsonb "vista_padrao", default: {}, null: false
     t.integer "sla_assumir_minutos", default: 30, null: false
+    t.boolean "repasse_automatico", default: false, null: false
+    t.integer "max_repasses", default: 2, null: false
+    t.bigint "pool_esgotado_destino_user_id"
+    t.boolean "gatilho_sem_ia", default: false, null: false
+    t.boolean "sla_respeita_horario", default: true, null: false
+    t.boolean "expirado_conta_como_recebido", default: true, null: false
+    t.jsonb "horario", default: {}, null: false
     t.index ["account_id", "team_id"], name: "index_distribuicao_policies_on_account_id_and_team_id", unique: true
   end
 
@@ -1270,6 +1278,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.bigint "updated_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index "((trigger_config ->> 'webhook_token'::text))", name: "index_flows_on_webhook_token", unique: true, where: "((trigger_config ->> 'webhook_token'::text) IS NOT NULL)"
     t.index ["account_id", "trigger_type", "active"], name: "index_flows_on_account_id_and_trigger_type_and_active"
     t.index ["account_id"], name: "index_flows_on_account_id"
   end
@@ -1474,6 +1483,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.jsonb "additional_attributes", default: {}, null: false
     t.boolean "agent_message_isolation", default: false, null: false
     t.boolean "agent_conversation_isolation", default: false, null: false
+    t.bigint "team_message_isolation_team_ids", default: [], null: false, array: true
+    t.bigint "agent_message_isolation_team_ids", default: [], null: false, array: true
+    t.bigint "agent_conversation_isolation_team_ids", default: [], null: false, array: true
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
@@ -2062,6 +2074,51 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.datetime "updated_at", precision: nil, null: false
     t.index ["account_id"], name: "index_teams_on_account_id"
     t.index ["name", "account_id"], name: "index_teams_on_name_and_account_id", unique: true
+  end
+
+  create_table "unidade_excecoes", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "unidade_id"
+    t.string "etiqueta"
+    t.date "data_inicio", null: false
+    t.date "data_fim", null: false
+    t.boolean "fechada", default: false, null: false
+    t.time "abre"
+    t.time "fecha"
+    t.string "motivo"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "data_fim"], name: "index_unidade_excecoes_on_account_id_and_data_fim"
+    t.index ["unidade_id"], name: "index_unidade_excecoes_on_unidade_id"
+  end
+
+  create_table "unidade_horarios", force: :cascade do |t|
+    t.bigint "unidade_id", null: false
+    t.integer "dia_semana", null: false
+    t.time "abre"
+    t.time "fecha"
+    t.boolean "fechada", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["unidade_id", "dia_semana"], name: "index_unidade_horarios_on_unidade_id_and_dia_semana"
+  end
+
+  create_table "unidades", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "slug", null: false
+    t.string "nome", null: false
+    t.string "cidade"
+    t.string "uf"
+    t.boolean "ativa", default: true, null: false
+    t.text "endereco"
+    t.string "telefone"
+    t.string "timezone", default: "America/Cuiaba", null: false
+    t.jsonb "etiquetas", default: [], null: false
+    t.jsonb "atributos", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "ativa"], name: "index_unidades_on_account_id_and_ativa"
+    t.index ["account_id", "slug"], name: "index_unidades_on_account_id_and_slug", unique: true
   end
 
   create_table "users", id: :serial, force: :cascade do |t|

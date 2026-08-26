@@ -308,6 +308,33 @@ RSpec.describe Account do
       end
     end
 
+    # A reentrada da IA em órfã era DERIVADA do reply_assignment_gate, e aquela flag faz duas
+    # coisas de sinais opostos: obriga o humano a se atribuir para responder (a favor de todo
+    # mundo ter dono) e proíbe a IA de reassumir órfã (contra). Quem quer só a primeira metade
+    # não conseguia. A chave própria separa as duas SEM mudar quem nunca a definiu.
+    describe '#ia_reentra_orfa_enabled?' do
+      it 'derives from the fila mode when the account never declared it' do
+        account.update!(reply_assignment_gate: true)
+        expect(account.ia_reentra_orfa_enabled?).to be false
+
+        account.update!(reply_assignment_gate: false)
+        expect(account.ia_reentra_orfa_enabled?).to be true
+      end
+
+      it 'lets a fila-mode account turn the reentry back on' do
+        account.update!(reply_assignment_gate: true, ia_reentra_orfa: true)
+
+        expect(account.ia_reentra_orfa_enabled?).to be true
+        expect(account.reply_assignment_gate_enabled?).to be true
+      end
+
+      it 'lets a classic-mode account turn the reentry off' do
+        account.update!(reply_assignment_gate: false, ia_reentra_orfa: false)
+
+        expect(account.ia_reentra_orfa_enabled?).to be false
+      end
+    end
+
     describe '#reply_assignment_gate_enabled?' do
       it 'defaults to false when the setting is absent' do
         expect(account.reply_assignment_gate_enabled?).to be false

@@ -157,7 +157,7 @@ Rails.application.routes.draw do
           end
           # Campanhas de captação (lead ads / formulário): viewer só-leitura do volume por
           # campanha e da configuração do hook que a atende.
-          resource :lead_campaigns, only: [:show], controller: 'lead_campaigns'
+          resource :lead_campaigns, only: [:show, :update], controller: 'lead_campaigns'
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :stats
@@ -201,6 +201,11 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
+          # Unidades físicas do cliente — contrato em docs/contratos/unidades.md.
+          # Unidade é leitura (a carga é por rake); a escrita é da exceção, que é o que muda
+          # toda semana. Sem `update` na exceção: corrigir é apagar e criar outra.
+          resources :unidades, only: [:index]
+          resources :unidade_excecoes, only: [:index, :create, :destroy]
           # Superficie de rede social — SPEC em docs/SPEC-instagram-social.md.
           # A captura vem do webhook; a leitura e a resposta manual moram aqui.
           resources :social_comentarios, only: [:index] do
@@ -465,6 +470,9 @@ Rails.application.routes.draw do
                 patch :update
               end
             end
+            # Configuração da distribuição DO TIME (passo "Distribuição" da tela de edição).
+            # Singular porque é uma política por time — `distribuicao_policies.team_id` é único.
+            resource :distribuicao, only: [:show, :update], controller: 'teams/distribuicao'
           end
 
           # Assignment V2 Routes

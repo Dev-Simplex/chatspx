@@ -11,6 +11,9 @@
 export const HELP_CENTER_PORTAL_URL =
   'https://chat.simplexsolucoes.com.br/hc/chatspx/pt_BR';
 
+const HELP_CENTER_CONVERSATION_STORAGE_KEY = 'spx_help_center_conversation';
+const HELP_CENTER_CONVERSATION_TTL = 365 * 24 * 60 * 60 * 1000;
+
 // Deploy "de casa": precisa bater com o FRONTEND_URL da box de produção
 // (window.chatwootConfig.hostURL vem do FRONTEND_URL). Nesta homolog o
 // hostURL é https://chatspx.app, por isso a homolog NÃO é autora.
@@ -42,10 +45,48 @@ export const isHelpCenterAuthoringAccount = accountId => {
  * @param {{ dark?: boolean }} [options]
  * @returns {string}
  */
-export const buildHelpCenterEmbedUrl = ({ dark = false } = {}) => {
+export const getHelpCenterConversationToken = () => {
+  try {
+    const storedValue = window.localStorage.getItem(
+      HELP_CENTER_CONVERSATION_STORAGE_KEY
+    );
+    if (!storedValue) return undefined;
+
+    const { token, expiresAt } = JSON.parse(storedValue);
+    if (token && expiresAt > Date.now()) return token;
+
+    window.localStorage.removeItem(HELP_CENTER_CONVERSATION_STORAGE_KEY);
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+};
+
+export const persistHelpCenterConversationToken = token => {
+  try {
+    window.localStorage.setItem(
+      HELP_CENTER_CONVERSATION_STORAGE_KEY,
+      JSON.stringify({
+        token,
+        expiresAt: Date.now() + HELP_CENTER_CONVERSATION_TTL,
+      })
+    );
+  } catch {
+    // O painel segue funcional mesmo se o navegador bloquear storage.
+  }
+};
+
+export const buildHelpCenterEmbedUrl = ({
+  dark = false,
+  conversationToken,
+} = {}) => {
   const params = new URLSearchParams({
     embed: 'true',
     theme: dark ? 'dark' : 'light',
   });
-  return `${HELP_CENTER_PORTAL_URL}?${params.toString()}`;
+  const fragment = conversationToken
+    ? `#${new URLSearchParams({ cw_conversation: conversationToken })}`
+    : '';
+  return `${HELP_CENTER_PORTAL_URL}?${params.toString()}${fragment}`;
 };

@@ -1,0 +1,48 @@
+{
+  "UNIDADES": {
+    "TITULO": "Unidades",
+    "DESCRICAO": "As lojas, filiais ou escritórios do cliente — é daqui que a IA responde endereço, telefone e horário.",
+    "CARREGANDO": "Carregando...",
+    "VAZIO": "Nenhuma unidade cadastrada nesta conta.",
+    "INATIVA": "inativa",
+    "NAO_CADASTRADO": "não cadastrado",
+    "FECHADA": "fechada",
+    "ERRO_CARREGAR": "Não foi possível carregar as unidades.",
+    "ABAS": {
+      "UNIDADES": "Unidades",
+      "EXCECOES": "Exceções"
+    },
+    "DIAS": {
+      "0": "Domingo",
+      "1": "Segunda",
+      "2": "Terça",
+      "3": "Quarta",
+      "4": "Quinta",
+      "5": "Sexta",
+      "6": "Sábado"
+    },
+    "EXCECOES": {
+      "NOVA": "Nova exceção",
+      "ALVO": "Vale para",
+      "ALVO_CONTA": "Todas as unidades",
+      "ALVO_ETIQUETA": "Etiqueta: {etiqueta}",
+      "ESTADO": "No período",
+      "ESTADO_FECHADA": "Fechada",
+      "ESTADO_HORARIO": "Abre em horário especial",
+      "ESTADO_NORMAL": "Abre no horário de sempre",
+      "DATA_INICIO": "De",
+      "DATA_FIM": "Até",
+      "ABRE": "Abre",
+      "FECHA": "Fecha",
+      "MOTIVO": "Motivo",
+      "MOTIVO_AJUDA": "A IA pode dizer isto ao cliente. Escreva como você diria a ele.",
+      "CRIAR": "Criar exceção",
+      "CRIADA": "Exceção criada.",
+      "APAGAR": "Apagar",
+      "APAGADA": "Exceção apagada.",
+      "VAZIO": "Nenhuma exceção em vigor ou futura. As que já passaram somem sozinhas.",
+      "ERRO_CRIAR": "Não foi possível criar a exceção.",
+      "ERRO_APAGAR": "Não foi possível apagar a exceção."
+    }
+  }
+}

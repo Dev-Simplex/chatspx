@@ -283,6 +283,9 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
   # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia). O supervisor do
   # time da conversa é isento (D2) e acha o conteúdo de qualquer agente do time.
+  # O `NOT EXISTS` é a válvula de escape: se a regra NÃO alcança esta conversa — flag off,
+  # conversa sem time, ou time fora da lista escolhida na caixa — o conteúdo continua
+  # achável por todo mundo, exatamente como antes desta feature.
   def query_agent_clause(agent_id)
     return '' if agent_id.nil?
 
@@ -290,7 +293,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
       "#{supervised_or}" \
       'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
-      'AND inboxes.agent_message_isolation = true))'
+      "AND #{Inbox.isolation_applies_sql(:agent_message_isolation)}))"
   end
 
   def query_supervised_team_ids
@@ -315,6 +318,13 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     @conversations = @conversations.tagged_with(params[:labels], any: true)
   end
 
+  # `joins` (INNER JOIN) tira da lista tanto o contato bloqueado quanto a conversa ORFA
+  # (contact_id apontando pra contato ja apagado) — a orfa nao tem contato nem contact_inbox,
+  # entao nao ha canal pra responder e `belongs_to :contact` (obrigatorio) faz qualquer
+  # update! estourar RecordInvalid; mostra-la na fila daria uma linha impossivel de encerrar.
+  # Espelhado em LiveReports::InServiceQueryService#reachable_by_agents para o painel Ao Vivo
+  # nao contar o que a fila esconde. SE MUDAR A REGRA AQUI, MUDE LA TAMBEM.
+  # Para achar/limpar orfas: `rake chatwoot:ops:cleanup_orphan_conversations`.
   def filter_blocked_contacts
     @conversations = @conversations.joins(:contact).where(contacts: { blocked: [false, nil] })
   end
