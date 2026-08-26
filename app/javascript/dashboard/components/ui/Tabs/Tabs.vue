@@ -182,16 +182,22 @@ watch(
     />
 
     <!-- Chevron esquerdo: somente desktop (md+) e quando há overflow real.
-         Posicionado absoluto para não ser > button:first-child do .wa-tabs. -->
+         Posicionado absoluto para não ser > button:first-child do .wa-tabs.
+         `!p-0` e `shrink-0` não são enfeite: a regra global de <button>
+         (_base.scss) empurra `padding: 4px 10px` para dentro deste botão de
+         24 px, sobram 4 px de caixa de conteúdo, e o ícone — flex-item com
+         `flex-shrink: 1` — encolhia para 4x16 px. Medido em hmlchat e no
+         harness: virava um risco vertical invisível, e a barra ficava sem
+         nenhuma indicação de que havia mais abas. -->
     <button
       v-show="hasOverflowLeft"
       type="button"
       tabindex="-1"
       :aria-label="t('TABS.SCROLL_LEFT')"
-      class="wa-tabs-chevron wa-tabs-chevron-left hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-[2] items-center justify-center w-6 h-6 rounded-full opacity-45 hover:opacity-90 transition-opacity cursor-pointer bg-transparent border-0"
+      class="wa-tabs-chevron wa-tabs-chevron-left hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-[2] items-center justify-center w-6 h-6 !p-0 rounded-full opacity-70 hover:opacity-100 transition-opacity cursor-pointer bg-transparent border-0"
       @click="onScrollClick('left')"
     >
-      <span class="i-lucide-chevron-left size-4" />
+      <span class="i-lucide-chevron-left size-4 shrink-0" />
     </button>
 
     <ul
@@ -208,10 +214,10 @@ watch(
       type="button"
       tabindex="-1"
       :aria-label="t('TABS.SCROLL_RIGHT')"
-      class="wa-tabs-chevron wa-tabs-chevron-right hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-[2] items-center justify-center w-6 h-6 rounded-full opacity-45 hover:opacity-90 transition-opacity cursor-pointer bg-transparent border-0"
+      class="wa-tabs-chevron wa-tabs-chevron-right hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-[2] items-center justify-center w-6 h-6 !p-0 rounded-full opacity-70 hover:opacity-100 transition-opacity cursor-pointer bg-transparent border-0"
       @click="onScrollClick('right')"
     >
-      <span class="i-lucide-chevron-right size-4" />
+      <span class="i-lucide-chevron-right size-4 shrink-0" />
     </button>
 
     <!-- Fade gradient direito -->
