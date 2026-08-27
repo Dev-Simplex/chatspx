@@ -145,9 +145,8 @@
   description: 'Responde o cliente com voice note (voz exclusiva do agente via ElevenLabs) quando ele pede áudio, ou por iniciativa do agente em explicação longa — o proativo é opt-in'
   icon: 'mic'
 
-# ⚠️ A classe é Captain::Tools::BuscarUnidadeTool, no SINGULAR: resolve_tool_class faz
-# `id.classify`, que singulariza a última palavra. Id no plural com classe no plural = tool
-# descartada em silêncio no carregamento.
+# Classe: Captain::Tools::BuscarUnidadesTool. O id e o nome da classe têm que casar palavra por
+# palavra, plural incluído (resolve_tool_class usa `camelize`).
 - id: buscar_unidades
   title: 'Buscar Unidades'
   description: 'Consulta as unidades físicas da conta: endereço, telefone e se abre na data pedida, já com feriado e exceção de calendário aplicados'

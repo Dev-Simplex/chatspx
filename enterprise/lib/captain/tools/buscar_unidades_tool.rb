@@ -1,13 +1,15 @@
 # Consulta as unidades físicas da conta — contrato em docs/contratos/unidades.md.
 #
-# ⚠️ O id em config/agents/tools.yml é `buscar_unidades`, mas a CLASSE tem que ser SINGULAR:
-# `resolve_tool_class` monta `Captain::Tools::#{id.classify}Tool` e `classify` singulariza, então
-# `buscar_unidades` resolve pra `BuscarUnidadeTool`. Classe no plural = tool descartada em
-# silêncio no carregamento (é o que acontece hoje com `listar_pecas`, que nunca entra no toolset).
+# Nome de classe segue o id do YAML como ele está escrito: id `buscar_unidades` (plural) =>
+# `Captain::Tools::BuscarUnidadesTool`. `resolve_tool_class` usa `camelize`, não `classify`: a
+# versão antiga singularizava a última palavra e descartava a tool em silêncio, então esta classe
+# precisava se chamar `BuscarUnidadeTool` pra ser encontrada. Isso acabou, e agora há spec de
+# invariante (spec/enterprise/models/concerns/captain_tools_registry_spec.rb) que quebra se
+# alguém renomear a classe ou o id sem renomear o outro.
 #
 # Multi-tenant e opt-in: `active?` nega quando a conta não tem unidade ativa, e aí a tool nem
 # entra no toolset do agente. Conta sem unidade cadastrada não muda de comportamento em nada.
-class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
+class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   description 'Consulta as unidades físicas desta empresa: nome, cidade, endereço, telefone e se ' \
               'abre na data que a pessoa pediu, já com feriado e exceção de calendário aplicados. ' \
               'A conta de calendário é feita aqui dentro — repasse a expressão de tempo do jeito ' \
@@ -41,7 +43,7 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
   def active?
     ::Spx::Unidade.ativas.exists?(account_id: @assistant.account_id)
   rescue StandardError => e
-    Rails.logger.warn("[BuscarUnidade] active? indisponível: #{e.class} #{e.message}")
+    Rails.logger.warn("[BuscarUnidades] active? indisponível: #{e.class} #{e.message}")
     false
   end
 
@@ -54,7 +56,7 @@ class Captain::Tools::BuscarUnidadeTool < Captain::Tools::BasePublicTool
 
     montar_resposta(encontradas, unidades.size, quando)
   rescue StandardError => e
-    Rails.logger.warn("[BuscarUnidade] #{e.class} #{e.message}")
+    Rails.logger.warn("[BuscarUnidades] #{e.class} #{e.message}")
     FALHA
   end
 

@@ -5,7 +5,7 @@ require 'rails_helper'
 #   2. ausência e "não entendi a data" saem EXPLÍCITAS, porque guarda que devolve só um código o
 #      agente ignora — foi assim que uma IA seguiu qualificando o cliente até ele descobrir no
 #      fim que não havia loja.
-RSpec.describe Captain::Tools::BuscarUnidadeTool, type: :model do
+RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
   let(:account) { create(:account) }
   let(:assistant) { create(:captain_assistant, account: account) }
   let(:tool) { described_class.new(assistant) }

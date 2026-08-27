@@ -7,6 +7,11 @@ module Concerns::CaptainToolsHelpers
   # Matches patterns like [Tool name](tool://tool_id) following markdown link syntax.
   TOOL_REFERENCE_REGEX = %r{\[[^\]]+\]\(tool://([^/)]+)\)}
 
+  # Levantada quando um id de config/agents/tools.yml não tem classe correspondente.
+  # Só sobe em test/development: em produção derrubar o boot por causa de uma tool seria
+  # pior que a tool faltar, então lá o erro vira log (ver #load_agent_tools).
+  class UnresolvableToolError < StandardError; end
+
   class_methods do
     # Returns all built-in agent tools with their metadata.
     # Only includes tools that have corresponding class files and can be resolved.
@@ -16,14 +21,26 @@ module Concerns::CaptainToolsHelpers
       @built_in_agent_tools ||= load_agent_tools
     end
 
+    # Monta o nome de classe esperado para um id de tool.
+    #
+    # Usa `camelize`, NUNCA `classify`: `classify` singulariza a última palavra, então id no
+    # plural (`apresentar_imoveis`, `listar_pecas`, `buscar_unidades`) procurava uma classe no
+    # singular que não existe e a tool sumia em silêncio do registro. Regra única e sem exceção:
+    # o nome do arquivo e o da classe seguem o id como ele está escrito no YAML.
+    #
+    # @param tool_id [String] The snake_case tool identifier
+    # @return [String] The fully qualified class name expected for the tool
+    def tool_class_name(tool_id)
+      "Captain::Tools::#{tool_id.camelize}Tool"
+    end
+
     # Resolves a tool class from a tool ID.
     # Converts snake_case tool IDs to PascalCase class names and constantizes them.
     #
     # @param tool_id [String] The snake_case tool identifier
     # @return [Class, nil] The tool class if found, nil if not resolvable
     def resolve_tool_class(tool_id)
-      class_name = "Captain::Tools::#{tool_id.classify}Tool"
-      class_name.safe_constantize
+      tool_class_name(tool_id).safe_constantize
     end
 
     # Returns an array of all built-in tool IDs.
@@ -37,7 +54,8 @@ module Concerns::CaptainToolsHelpers
     private
 
     # Loads agent tools from the YAML configuration file.
-    # Filters out tools that cannot be resolved to actual classes.
+    # Um id que não resolve para classe nenhuma levanta em test/development e é pulado (com log
+    # de erro) em produção: ver #report_unresolvable_tool.
     #
     # @return [Array<Hash>] Array of resolvable tools with metadata
     # @api private
@@ -45,20 +63,30 @@ module Concerns::CaptainToolsHelpers
       tools_config = YAML.load_file(Rails.root.join('config/agents/tools.yml'))
 
       tools_config.filter_map do |tool_config|
-        tool_class = resolve_tool_class(tool_config['id'])
+        tool_id = tool_config['id']
+        next report_unresolvable_tool(tool_id) unless resolve_tool_class(tool_id)
 
-        if tool_class
-          {
-            id: tool_config['id'],
-            title: tool_config['title'],
-            description: tool_config['description'],
-            icon: tool_config['icon']
-          }
-        else
-          Rails.logger.warn "Tool class not found for ID: #{tool_config['id']}"
-          nil
-        end
+        { id: tool_id, title: tool_config['title'], description: tool_config['description'], icon: tool_config['icon'] }
       end
+    end
+
+    # Reage a um id do YAML que não resolve para classe nenhuma.
+    #
+    # Em test/development levanta: o descarte silencioso é justamente o bug que essa mudança
+    # fecha, e quem renomeia uma tool tem que descobrir na hora, não meses depois pela tela.
+    # Em produção NÃO pode levantar (uma tool quebrada derrubaria o app inteiro): mantém o
+    # comportamento antigo de seguir sem ela, mas em `error` para aparecer no monitoramento.
+    #
+    # @param tool_id [String] The unresolvable tool identifier
+    # @return [nil]
+    # @api private
+    def report_unresolvable_tool(tool_id)
+      message = "Tool class not found for ID: #{tool_id} (esperava #{tool_class_name(tool_id)})"
+
+      raise UnresolvableToolError, message if Rails.env.test? || Rails.env.development?
+
+      Rails.logger.error message
+      nil
     end
   end
 
