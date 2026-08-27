@@ -25,6 +25,12 @@ const comoData = texto => {
   return new Date(ano, mes - 1, dia, 12);
 };
 
+// Normaliza qualquer Date para o meio-dia do MESMO dia do calendário: quem chama
+// pode mandar meia-noite (é o que o `eachDayOfInterval` devolve) e a comparação
+// continua sendo entre dias, não entre instantes.
+const aoMeioDia = data =>
+  new Date(data.getFullYear(), data.getMonth(), data.getDate(), 12);
+
 export const comoTextoISO = data =>
   `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(data.getDate())}`;
 
@@ -121,7 +127,8 @@ const casaAnual = (regra, data) => {
   );
 };
 
-export const regraValeNoDia = (regra, data) => {
+export const regraValeNoDia = (regra, dataBruta) => {
+  const data = aoMeioDia(dataBruta);
   if (!dentroDaJanela(regra, data)) return false;
 
   switch (regra.frequency) {

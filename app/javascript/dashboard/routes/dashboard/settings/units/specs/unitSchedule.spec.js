@@ -42,6 +42,14 @@ describe('#regraValeNoDia', () => {
     expect(regraValeNoDia(natal, dia('2027-12-25'))).toBe(false);
   });
 
+  it('casa também com data construída à meia-noite (é o que o calendário monta)', () => {
+    const natal = regra({ starts_on: '2026-12-25' });
+    const meiaNoite = new Date(2026, 11, 25);
+    expect(regraValeNoDia(natal, meiaNoite)).toBe(true);
+    const fimDoDia = new Date(2026, 11, 25, 23, 59);
+    expect(regraValeNoDia(natal, fimDoDia)).toBe(true);
+  });
+
   it('período cobre todos os dias entre início e fim, inclusive a virada do ano', () => {
     const ferias = regra({ starts_on: '2026-12-20', ends_on: '2027-01-05' });
     expect(regraValeNoDia(ferias, dia('2026-12-20'))).toBe(true);

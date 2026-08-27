@@ -17,6 +17,7 @@ import {
   dataDaEnesimaOcorrencia,
   proximasOcorrencias,
 } from './unitSchedule';
+import UnitCalendar from './UnitCalendar.vue';
 
 const props = defineProps({
   // Unidade existente quando é edição; nulo quando é criação.
@@ -25,7 +26,7 @@ const props = defineProps({
 });
 const emit = defineEmits(['submit', 'cancel']);
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const inboxes = useMapGetter('inboxes/getInboxes');
 
 // A grade nasce com a semana inteira mesmo na criação: o backend cria os sete dias,
@@ -66,6 +67,7 @@ const REGRA_VAZIA = {
   weekdays: [],
   mensalPor: 'posicao',
   month_day: 1,
+  mensalUltimoDia: false,
   week_positions: [],
   termino: 'nunca',
   until_date: '',
@@ -86,6 +88,9 @@ const horaIds = ref({});
 const selectedInboxIds = ref([]);
 const rules = ref([]);
 const novaRegra = ref({ ...REGRA_VAZIA });
+
+// -1 = criando; >= 0 = editando a regra daquela posição.
+const editandoIndex = ref(-1);
 
 const rascunhoLimpo = () => ({
   ...REGRA_VAZIA,
@@ -205,7 +210,7 @@ const comoRegra = rascunho => {
       : [],
     month_days:
       rascunho.frequency === 'mensal' && rascunho.mensalPor === 'dia_do_mes'
-        ? [Number(rascunho.month_day)]
+        ? [rascunho.mensalUltimoDia ? -1 : Number(rascunho.month_day)]
         : [],
     until_date: null,
     open_hour: fechada ? null : openHour,
@@ -331,17 +336,79 @@ const faixaDaRegra = regra =>
     ? t('UNITS_MGMT.FORM.RULES.EFFECT.CLOSED')
     : `${String(regra.open_hour).padStart(2, '0')}:${String(regra.open_minutes).padStart(2, '0')} – ${String(regra.close_hour).padStart(2, '0')}:${String(regra.close_minutes).padStart(2, '0')}`;
 
-const adicionarRegra = () => {
-  if (!podeAdicionar.value) return;
-  rules.value.push(comoRegra(novaRegra.value));
+// Caminho de volta: a regra gravada vira rascunho de novo quando se clica nela.
+const comoRascunho = regra => ({
+  ...rascunhoLimpo(),
+  name: regra.name,
+  category: regra.category,
+  closed_all_day: regra.closed_all_day,
+  from:
+    regra.open_hour === null || regra.open_hour === undefined
+      ? '08:00'
+      : getTime(regra.open_hour, regra.open_minutes),
+  to:
+    regra.close_hour === null || regra.close_hour === undefined
+      ? '12:00'
+      : getTime(regra.close_hour, regra.close_minutes),
+  starts_on: regra.starts_on,
+  temPeriodo: !!regra.ends_on,
+  ends_on: regra.ends_on || '',
+  frequency: regra.frequency,
+  repeat_interval: regra.repeat_interval,
+  weekdays: [...regra.weekdays],
+  mensalPor: regra.month_days.length ? 'dia_do_mes' : 'posicao',
+  month_day: regra.month_days[0] > 0 ? regra.month_days[0] : 1,
+  mensalUltimoDia: regra.month_days.includes(-1),
+  week_positions: [...regra.week_positions],
+  termino: regra.until_date ? 'data' : 'nunca',
+  until_date: regra.until_date || '',
+});
+
+const escolherDia = iso => {
+  editandoIndex.value = -1;
+  novaRegra.value = { ...rascunhoLimpo(), starts_on: iso };
+};
+
+const editarRegra = index => {
+  editandoIndex.value = index;
+  novaRegra.value = comoRascunho(rules.value[index]);
+};
+
+const fecharPainel = () => {
+  editandoIndex.value = -1;
   novaRegra.value = rascunhoLimpo();
+};
+
+const salvarRegra = () => {
+  if (!podeAdicionar.value) return;
+  const regra = comoRegra(novaRegra.value);
+  if (editandoIndex.value > -1)
+    rules.value.splice(editandoIndex.value, 1, regra);
+  else rules.value.push(regra);
+  fecharPainel();
 };
 
 // O backend substitui o conjunto inteiro, então remover é tirar da lista: o que
 // sobra é o que fica gravado.
 const removerRegra = index => {
   rules.value.splice(index, 1);
+  if (editandoIndex.value === index) fecharPainel();
 };
+
+const diaEscolhido = computed(() => novaRegra.value.starts_on);
+
+const diaPorExtenso = computed(() => {
+  if (!diaEscolhido.value) return '';
+  return new Intl.DateTimeFormat(locale.value.replace('_', '-'), {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${diaEscolhido.value}T12:00:00`));
+});
+
+// A grade da semana no formato que o calendário entende (dia fechado fica marcado).
+const gradeParaCalendario = computed(() => timeSlotTransform(timeSlots.value));
 
 const regrasVisiveis = computed(() =>
   rules.value
@@ -513,56 +580,49 @@ const onSubmit = () => {
 
     <section>
       <span class="text-heading-3">{{
-        t('UNITS_MGMT.FORM.EXCEPTIONS.LABEL')
+        t('UNITS_MGMT.FORM.CALENDAR.LABEL')
       }}</span>
-      <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
-        {{ t('UNITS_MGMT.FORM.EXCEPTIONS.HELP') }}
+      <p class="mt-0.5 mb-3 text-n-slate-11 text-label-small">
+        {{ t('UNITS_MGMT.FORM.CALENDAR.HELP') }}
       </p>
 
-      <ul
-        v-if="regrasVisiveis.length"
-        class="p-0 mx-0 mt-0 mb-3 list-none border rounded-lg divide-y divide-n-weak border-n-weak"
-      >
-        <li
-          v-for="regra in regrasVisiveis"
-          :key="regra.index"
-          class="flex flex-wrap items-center gap-3 px-3 py-2"
-        >
-          <span
-            class="px-2 py-1 rounded-lg text-label-small whitespace-nowrap"
-            :class="regra.cor"
-          >
-            {{ regra.rotulo }}
-          </span>
-          <span class="text-sm font-medium text-n-slate-12">{{
-            regra.name
-          }}</span>
-          <span class="flex-1 min-w-32 text-n-slate-11 text-label-small">
-            {{ regra.resumo }}
-          </span>
-          <span
-            class="px-2 py-1 rounded-lg text-label-small whitespace-nowrap"
-            :class="
-              regra.closed_all_day
-                ? 'bg-n-slate-3 text-n-slate-11'
-                : 'bg-n-blue-3 text-n-blue-11'
-            "
-          >
-            {{ regra.faixa }}
-          </span>
-          <Button
-            ghost
-            slate
-            xs
-            icon="i-lucide-trash-2"
-            @click.prevent="removerRegra(regra.index)"
-          />
-        </li>
-      </ul>
+      <UnitCalendar
+        :rules="rules"
+        :working-hours="gradeParaCalendario"
+        :selected="diaEscolhido"
+        :cores="COR_DA_CATEGORIA"
+        @select="escolherDia"
+        @edit="editarRegra"
+      />
 
       <div
-        class="flex flex-col gap-4 p-4 border rounded-xl border-n-weak bg-n-solid-1"
+        v-if="diaEscolhido"
+        class="flex flex-col gap-4 p-4 mt-3 border rounded-xl border-n-brand/40 bg-n-solid-1"
       >
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-heading-3 text-n-slate-12 first-letter:uppercase">
+            {{ diaPorExtenso }}
+          </span>
+          <div class="flex items-center gap-1">
+            <Button
+              v-if="editandoIndex > -1"
+              ghost
+              ruby
+              xs
+              icon="i-lucide-trash-2"
+              :title="t('UNITS_MGMT.FORM.RULES.DELETE')"
+              @click.prevent="removerRegra(editandoIndex)"
+            />
+            <Button
+              ghost
+              slate
+              xs
+              icon="i-lucide-x"
+              :title="t('UNITS_MGMT.FORM.RULES.CLOSE')"
+              @click.prevent="fecharPainel"
+            />
+          </div>
+        </div>
         <div class="flex flex-wrap items-end gap-3">
           <div class="flex flex-col gap-1">
             <span class="text-heading-3">
@@ -617,12 +677,6 @@ const onSubmit = () => {
         </div>
 
         <div class="flex flex-wrap items-end gap-3">
-          <woot-input
-            v-model="novaRegra.starts_on"
-            type="date"
-            class="mb-0 w-44"
-            :label="t('UNITS_MGMT.FORM.RULES.STARTS_ON')"
-          />
           <div class="flex flex-col gap-1">
             <span class="text-heading-3">
               {{ t('UNITS_MGMT.FORM.RULES.REPEAT.LABEL') }}
@@ -699,7 +753,7 @@ const onSubmit = () => {
             </label>
             <div
               v-if="novaRegra.mensalPor === 'dia_do_mes'"
-              class="flex items-center gap-2"
+              class="flex flex-wrap items-center gap-2"
             >
               <span class="text-sm text-n-slate-11">
                 {{ t('UNITS_MGMT.FORM.RULES.MONTHLY.DAY') }}
@@ -709,8 +763,19 @@ const onSubmit = () => {
                 type="number"
                 min="1"
                 max="31"
-                class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
+                :disabled="novaRegra.mensalUltimoDia"
+                class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 disabled:opacity-50"
               />
+              <label class="flex items-center gap-2 mb-0 cursor-pointer">
+                <input
+                  v-model="novaRegra.mensalUltimoDia"
+                  type="checkbox"
+                  class="m-0"
+                />
+                <span class="text-sm text-n-slate-12">
+                  {{ t('UNITS_MGMT.FORM.RULES.MONTHLY.LAST_DAY') }}
+                </span>
+              </label>
             </div>
           </div>
 
@@ -837,16 +902,66 @@ const onSubmit = () => {
             </template>
           </span>
           <Button
-            :label="t('UNITS_MGMT.FORM.RULES.ADD')"
+            :label="
+              editandoIndex > -1
+                ? t('UNITS_MGMT.FORM.RULES.SAVE')
+                : t('UNITS_MGMT.FORM.RULES.ADD')
+            "
             sm
             :disabled="!podeAdicionar"
-            @click.prevent="adicionarRegra"
+            @click.prevent="salvarRegra"
           />
         </div>
 
         <p v-if="erroDaRegra" class="m-0 text-n-ruby-9 text-label-small">
           {{ erroDaRegra }}
         </p>
+      </div>
+
+      <div v-if="regrasVisiveis.length" class="mt-3">
+        <span class="text-n-slate-11 text-label-small">
+          {{ t('UNITS_MGMT.FORM.CALENDAR.RULES_TITLE') }}
+        </span>
+        <ul
+          class="p-0 mx-0 mt-1 mb-0 list-none border rounded-lg divide-y divide-n-weak border-n-weak"
+        >
+          <li
+            v-for="regra in regrasVisiveis"
+            :key="regra.index"
+            class="flex flex-wrap items-center gap-3 px-3 py-2 cursor-pointer hover:bg-n-alpha-1"
+            @click="editarRegra(regra.index)"
+          >
+            <span
+              class="px-2 py-1 rounded-lg text-label-small whitespace-nowrap"
+              :class="regra.cor"
+            >
+              {{ regra.rotulo }}
+            </span>
+            <span class="text-sm font-medium text-n-slate-12">
+              {{ regra.name }}
+            </span>
+            <span class="flex-1 min-w-32 text-n-slate-11 text-label-small">
+              {{ regra.resumo }}
+            </span>
+            <span
+              class="px-2 py-1 rounded-lg text-label-small whitespace-nowrap"
+              :class="
+                regra.closed_all_day
+                  ? 'bg-n-slate-3 text-n-slate-11'
+                  : 'bg-n-blue-3 text-n-blue-11'
+              "
+            >
+              {{ regra.faixa }}
+            </span>
+            <Button
+              ghost
+              slate
+              xs
+              icon="i-lucide-trash-2"
+              @click.stop.prevent="removerRegra(regra.index)"
+            />
+          </li>
+        </ul>
       </div>
 
       <p class="mt-2 mb-0 text-n-slate-11 text-label-small">

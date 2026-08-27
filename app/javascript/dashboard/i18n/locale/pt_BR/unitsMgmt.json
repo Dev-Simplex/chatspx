@@ -107,8 +107,6 @@
         "HELP": "Informativo: serve para o atendente saber o que responder. Não dispara mensagem automática."
       },
       "EXCEPTIONS": {
-        "LABEL": "Feriados e exceções",
-        "HELP": "Datas em que esta unidade não segue o horário da semana.",
         "NAME": "Motivo",
         "NAME_PLACEHOLDER": "Natal"
       },
@@ -126,7 +124,6 @@
           "CLOSED": "Fecha o dia",
           "SPECIAL": "Abre em horário especial"
         },
-        "STARTS_ON": "Começa em",
         "PERIOD": "Dura vários dias",
         "ENDS_ON": "Até",
         "REPEAT": {
@@ -143,7 +140,8 @@
         "MONTHLY": {
           "BY_POSITION": "Pela posição no mês",
           "BY_DAY": "Pelo dia do mês",
-          "DAY": "Dia"
+          "DAY": "Dia",
+          "LAST_DAY": "Último dia do mês"
         },
         "POSITIONS": {
           "1": "1ª",
@@ -178,7 +176,18 @@
           "MONTHLY_REQUIRED": "Escolha a posição e o dia da semana.",
           "INVALID_RANGE": "O horário de fechar precisa ser depois do de abrir.",
           "END_BEFORE_START": "A data final não pode ser anterior à inicial."
-        }
+        },
+        "SAVE": "Salvar regra",
+        "DELETE": "Excluir regra",
+        "CLOSE": "Fechar"
+      },
+      "CALENDAR": {
+        "LABEL": "Calendário da unidade",
+        "HELP": "Clique no dia para marcar um feriado, um evento ou um horário especial. Clique numa marcação para editá-la.",
+        "PREVIOUS": "Mês anterior",
+        "NEXT": "Próximo mês",
+        "TODAY": "Hoje",
+        "RULES_TITLE": "Tudo que está marcado"
       }
     }
   }
