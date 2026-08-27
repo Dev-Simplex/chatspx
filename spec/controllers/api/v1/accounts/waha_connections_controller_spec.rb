@@ -136,16 +136,49 @@ RSpec.describe 'Api::V1::Accounts::WahaConnections', type: :request do
     end
   end
 
+  # Medido na Catatau em 27/08/2026: a sessao "Vendas" travou num lock interno do WAHA
+  # ("async-lock timed out in queue Vendas") e o DELETE respondia 500 mesmo chamado DIRETO, sem
+  # passar por aqui. O controller devolvia 422 e nao fazia mais nada, entao a conexao ficava
+  # IMPOSSIVEL de remover pela tela ate alguem consertar o outro lado.
   describe 'quando o WAHA falha' do
     before { allow(waha).to receive(:delete_session).and_raise(Waha::ApiService::Error, 'boom') }
 
-    # A sessão não foi apagada lá, então apagar a caixa aqui deixaria os dois lados divergentes.
-    it 'não mexe na caixa se a sessão não pôde ser apagada' do
+    it 'nao deixa o operador preso: desvincula a caixa mesmo assim' do
+      delete url, headers: admin.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.waha_session_name).to be_nil
+    end
+
+    it 'avisa que a sessao ficou para tras no servidor' do
+      delete url, headers: admin.create_new_auth_token
+
+      expect(response.parsed_body['waha_session_deleted']).to be(false)
+    end
+
+    # A sessao continua viva la e ainda pode voltar a receber. Destruir o historico nesse cenario
+    # e o pior desfecho possivel, e o operador nao pediu "apague mesmo se der errado".
+    it 'NAO apaga a caixa mesmo com delete_inbox=true' do
+      conversa = conversa_com_mensagem
+
       delete url, params: { delete_inbox: true }, headers: admin.create_new_auth_token
 
-      expect(response).to have_http_status(:unprocessable_entity)
       expect(Inbox.exists?(inbox.id)).to be(true)
-      expect(inbox.reload.waha_session_name).to eq(sessao)
+      expect(Conversation.exists?(conversa.id)).to be(true)
+      expect(response.parsed_body['inbox_deleted']).to be(false)
+    end
+  end
+
+  # O estado desejado ja e esse: nao ha o que apagar.
+  describe 'quando a sessao ja nao existe no WAHA' do
+    before { allow(waha).to receive(:delete_session).and_raise(Waha::ApiService::NotFoundError) }
+
+    it 'trata como sucesso e apaga a caixa se foi pedido' do
+      delete url, params: { delete_inbox: true }, headers: admin.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['waha_session_deleted']).to be(true)
+      expect(Inbox.exists?(inbox.id)).to be(false)
     end
   end
 end

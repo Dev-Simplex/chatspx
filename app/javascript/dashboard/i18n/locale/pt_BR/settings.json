@@ -1543,7 +1543,8 @@
       "DELETE_INBOX_TOO": "Excluir também a caixa de entrada",
       "DELETE_INBOX_WARNING": "Isso apaga TODAS as conversas e mensagens dessa caixa. Não tem como desfazer.",
       "KEEP_INBOX_HINT": "A caixa continua em Caixas de Entrada, com o histórico, e some daqui. Depois dá para conectar outro número nela.",
-      "DELETE_SUCCESS_KEPT_INBOX": "Conexão excluída. A caixa de entrada e o histórico foram mantidos."
+      "DELETE_SUCCESS_KEPT_INBOX": "Conexão excluída. A caixa de entrada e o histórico foram mantidos.",
+      "DELETE_WAHA_FAILED": "O número foi desvinculado e a caixa de entrada foi mantida, mas o servidor WhatsApp não conseguiu apagar a sessão. Ela continua lá e precisa ser limpa pelo suporte."
     }
   },
   "PRIVATE_CHAT": {

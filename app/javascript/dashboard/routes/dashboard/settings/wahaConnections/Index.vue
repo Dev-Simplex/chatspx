@@ -189,16 +189,23 @@ const openDelete = connection => {
 const confirmDeletion = async () => {
   const levouCaixa = apagarCaixa.value;
   try {
-    await wahaConnectionsAPI.delete(selectedConnection.value.id, {
-      deleteInbox: levouCaixa,
-    });
+    const { data } = await wahaConnectionsAPI.delete(
+      selectedConnection.value.id,
+      { deleteInbox: levouCaixa }
+    );
     // Chaves literais (e nao uma expressao dentro do `t`) porque o extrator de i18n do repo so
     // enxerga chave estatica: com chave dinamica a string sai como nao usada e some numa limpeza.
-    useAlert(
-      levouCaixa
-        ? t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS')
-        : t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS_KEPT_INBOX')
-    );
+    //
+    // O WAHA pode ter falhado (sessao travada la). Nesse caso a caixa foi desvinculada, a conexao
+    // sai da tela, mas a sessao continua viva no servidor e ALGUEM precisa saber disso — senao a
+    // pessoa acha que limpou tudo.
+    if (data?.waha_session_deleted === false) {
+      useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_WAHA_FAILED'));
+    } else if (data?.inbox_deleted) {
+      useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS'));
+    } else {
+      useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS_KEPT_INBOX'));
+    }
     loadConnections(true);
   } catch (error) {
     useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_ERROR'));

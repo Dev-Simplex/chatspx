@@ -1542,7 +1542,8 @@
       "DELETE_INBOX_TOO": "Also delete the inbox",
       "DELETE_INBOX_WARNING": "This deletes ALL conversations and messages in that inbox. It cannot be undone.",
       "KEEP_INBOX_HINT": "The inbox stays under Inboxes with its history and disappears from here. You can connect another number to it later.",
-      "DELETE_SUCCESS_KEPT_INBOX": "Connection deleted. The inbox and its history were kept."
+      "DELETE_SUCCESS_KEPT_INBOX": "Connection deleted. The inbox and its history were kept.",
+      "DELETE_WAHA_FAILED": "The number was unlinked and the inbox was kept, but the WhatsApp server could not delete the session. It is still there and needs to be cleaned up by support."
     }
   },
   "PRIVATE_CHAT": {

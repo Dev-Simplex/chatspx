@@ -236,27 +236,47 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
   def destroy
     session_name = params[:id]
 
-    @waha_service.delete_session(session_name)
+    # O WAHA pode falhar e o operador NÃO pode ficar preso por causa disso. Medido na Catatau em
+    # 27/08/2026: a sessão "Vendas" ficou travada num lock interno do WAHA ("async-lock timed out
+    # in queue Vendas") e o DELETE respondia 500 — mesmo chamado direto, sem passar por aqui.
+    # Antes disto o controller devolvia 422 e não fazia mais nada, então a conexão era
+    # IMPOSSÍVEL de remover pela tela enquanto o outro lado não fosse consertado.
+    sessao_apagada = apagar_sessao_waha(session_name)
 
-    if apagar_caixa?
+    # Apagar a CAIXA exige que o WAHA tenha confirmado. Quando ele falhou, a sessão continua viva
+    # lá e ainda pode voltar a receber: destruir o histórico nesse cenário é o pior desfecho
+    # possível, e o operador não pediu "apague mesmo se der errado".
+    if apagar_caixa? && sessao_apagada
       @inbox.destroy
-    else
-      # `update_column` de propósito: pular validação e callback aqui é o ponto. A caixa não está
-      # sendo editada, está sendo desvinculada, e um callback de canal poderia recusar o save e
-      # deixar a caixa apontando para uma sessão que já não existe.
-      @inbox.update_column(:waha_session_name, nil) # rubocop:disable Rails/SkipsModelValidations
+      return render json: { inbox_deleted: true, waha_session_deleted: true }
     end
 
-    render json: { inbox_deleted: apagar_caixa?, inbox_id: @inbox.id }
-  rescue Waha::ApiService::Error => e
-    Rails.logger.error("WAHA API error deleting session #{params[:id]}: #{e.message}")
-    render json: { error: 'Failed to delete WAHA connection' }, status: :unprocessable_entity
+    # `update_column` de propósito: pular validação e callback aqui é o ponto. A caixa não está
+    # sendo editada, está sendo desvinculada, e um callback de canal poderia recusar o save e
+    # deixar a caixa apontando para uma sessão que já não existe.
+    @inbox.update_column(:waha_session_name, nil) # rubocop:disable Rails/SkipsModelValidations
+
+    render json: { inbox_deleted: false, waha_session_deleted: sessao_apagada, inbox_id: @inbox.id }
   end
 
   private
 
   def check_authorization
     authorize :waha_connection
+  end
+
+  # Pede ao WAHA para apagar a sessão. Devolve se ele CONFIRMOU, em vez de estourar: a falha do
+  # outro lado não pode virar um beco sem saída na tela.
+  #
+  # Sessão que já não existe lá (404) conta como sucesso: o estado desejado é justamente esse.
+  def apagar_sessao_waha(session_name)
+    @waha_service.delete_session(session_name)
+    true
+  rescue Waha::ApiService::NotFoundError
+    true
+  rescue Waha::ApiService::Error => e
+    Rails.logger.error("WAHA API error deleting session #{session_name}: #{e.message}")
+    false
   end
 
   # Valores que contam como "sim, apague a caixa". Lista FECHADA de propósito, e não
