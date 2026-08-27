@@ -221,16 +221,33 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     end
   end
 
+  # Excluir a conexão SEMPRE apaga a sessão no WAHA. O que passou a ser opcional é levar a CAIXA
+  # junto, e o default é NÃO levar.
+  #
+  # O motivo é o tamanho do estrago: `inbox.destroy` cascateia `conversations` e `messages`
+  # (dependent: :destroy_async no Inbox). Medido na Catatau em 27/08/2026, a conexão "Vendas"
+  # arrastaria 69 conversas e 7.621 mensagens — sem desfazer, e sem que a tela dissesse isso: o
+  # aviso só falava em "a caixa de entrada associada também será excluída", que ninguém lê como
+  # "você vai perder o histórico inteiro".
+  #
+  # Mantendo a caixa, ela apenas perde o `waha_session_name`. Some da tela de Conexões (o #index
+  # parte das sessões do WAHA e casa por esse campo), continua em Caixas de Entrada com todo o
+  # histórico legível, e fica livre para receber outro número depois.
   def destroy
     session_name = params[:id]
 
-    # Delete WAHA session
     @waha_service.delete_session(session_name)
 
-    # Delete associated inbox
-    @inbox.destroy
+    if apagar_caixa?
+      @inbox.destroy
+    else
+      # `update_column` de propósito: pular validação e callback aqui é o ponto. A caixa não está
+      # sendo editada, está sendo desvinculada, e um callback de canal poderia recusar o save e
+      # deixar a caixa apontando para uma sessão que já não existe.
+      @inbox.update_column(:waha_session_name, nil) # rubocop:disable Rails/SkipsModelValidations
+    end
 
-    head :ok
+    render json: { inbox_deleted: apagar_caixa?, inbox_id: @inbox.id }
   rescue Waha::ApiService::Error => e
     Rails.logger.error("WAHA API error deleting session #{params[:id]}: #{e.message}")
     render json: { error: 'Failed to delete WAHA connection' }, status: :unprocessable_entity
@@ -240,6 +257,22 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
 
   def check_authorization
     authorize :waha_connection
+  end
+
+  # Valores que contam como "sim, apague a caixa". Lista FECHADA de propósito, e não
+  # `ActiveModel::Type::Boolean`: aquele cast reconhece um conjunto fixo de valores falsos e trata
+  # QUALQUER outra string como verdadeira, então `delete_inbox=talvez` (ou `null`, ou um typo)
+  # apagaria o histórico. Aqui é o contrário: o que não estiver nesta lista preserva.
+  SIM = %w[true 1 yes on].freeze
+
+  # Fechado no NÃO: só apaga a caixa quando o cliente pede de forma inequívoca. Chave ausente,
+  # string vazia, valor estranho ou cliente antigo que ainda não manda o parâmetro preservam o
+  # histórico. Errar para "manter" custa uma caixa órfã, que se apaga depois em dois cliques;
+  # errar para "apagar" custa milhares de mensagens que não voltam.
+  def apagar_caixa?
+    return @apagar_caixa if defined?(@apagar_caixa)
+
+    @apagar_caixa = SIM.include?(params[:delete_inbox].to_s.strip.downcase)
   end
 
   def set_waha_service

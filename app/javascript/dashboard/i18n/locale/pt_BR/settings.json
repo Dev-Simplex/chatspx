@@ -1534,11 +1534,16 @@
       "DISCONNECT_ERROR": "Erro ao desconectar. Tente novamente",
       "DELETE_SUCCESS": "Conexão excluída com sucesso",
       "DELETE_ERROR": "Erro ao excluir conexão. Tente novamente",
-      "DELETE_CONFIRM": "Tem certeza que deseja excluir esta conexão? A caixa de entrada associada também será excluída.",
+      "DELETE_CONFIRM": "O número será desconectado e a sessão apagada. Por padrão a caixa de entrada é mantida, com todo o histórico.",
       "RESTART_SUCCESS": "Conexão reiniciada com sucesso. Escaneie o QR code novamente.",
       "RESTART_ERROR": "Erro ao reiniciar conexão. Tente novamente.",
       "LOADING": "Carregando conexões...",
-      "API_ERROR": "Não foi possível conectar ao serviço. Verifique sua configuração e tente novamente."
+      "API_ERROR": "Não foi possível conectar ao serviço. Verifique sua configuração e tente novamente.",
+      "DELETE_TITLE": "Excluir conexão",
+      "DELETE_INBOX_TOO": "Excluir também a caixa de entrada",
+      "DELETE_INBOX_WARNING": "Isso apaga TODAS as conversas e mensagens dessa caixa. Não tem como desfazer.",
+      "KEEP_INBOX_HINT": "A caixa continua em Caixas de Entrada, com o histórico, e some daqui. Depois dá para conectar outro número nela.",
+      "DELETE_SUCCESS_KEPT_INBOX": "Conexão excluída. A caixa de entrada e o histórico foram mantidos."
     }
   },
   "PRIVATE_CHAT": {

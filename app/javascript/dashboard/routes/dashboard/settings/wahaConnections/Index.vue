@@ -175,21 +175,37 @@ const handleRestart = async connection => {
   }
 };
 
+// Levar a CAIXA junto e opcional, e nasce DESMARCADO a cada abertura do modal: `inbox.destroy`
+// cascateia conversas e mensagens, sem desfazer. O caminho seguro tem de ser o que acontece
+// quando a pessoa so clica em Excluir com pressa.
+const apagarCaixa = ref(false);
+
 const openDelete = connection => {
   selectedConnection.value = connection;
+  apagarCaixa.value = false;
   showDeletePopup.value = true;
 };
 
 const confirmDeletion = async () => {
+  const levouCaixa = apagarCaixa.value;
   try {
-    await wahaConnectionsAPI.delete(selectedConnection.value.id);
-    useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS'));
+    await wahaConnectionsAPI.delete(selectedConnection.value.id, {
+      deleteInbox: levouCaixa,
+    });
+    // Chaves literais (e nao uma expressao dentro do `t`) porque o extrator de i18n do repo so
+    // enxerga chave estatica: com chave dinamica a string sai como nao usada e some numa limpeza.
+    useAlert(
+      levouCaixa
+        ? t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS')
+        : t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS_KEPT_INBOX')
+    );
     loadConnections(true);
   } catch (error) {
     useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_ERROR'));
   } finally {
     showDeletePopup.value = false;
     selectedConnection.value = null;
+    apagarCaixa.value = false;
   }
 };
 
@@ -505,10 +521,29 @@ onUnmounted(() => {
       v-model:show="showDeletePopup"
       :on-close="closeDelete"
       :on-confirm="confirmDeletion"
-      :title="$t('WAHA_CONNECTIONS.MESSAGES.DELETE_CONFIRM')"
+      :title="$t('WAHA_CONNECTIONS.MESSAGES.DELETE_TITLE')"
       :message="$t('WAHA_CONNECTIONS.MESSAGES.DELETE_CONFIRM')"
       :confirm-text="$t('WAHA_CONNECTIONS.ACTIONS.DELETE')"
       :reject-text="$t('WAHA_CONNECTIONS.ADD_MODAL.CANCEL')"
-    />
+    >
+      <label class="flex items-start gap-2">
+        <input v-model="apagarCaixa" type="checkbox" class="mt-1" />
+        <span>
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ $t('WAHA_CONNECTIONS.MESSAGES.DELETE_INBOX_TOO') }}
+          </span>
+          <span
+            class="block text-xs"
+            :class="apagarCaixa ? 'text-n-ruby-11' : 'text-n-slate-11'"
+          >
+            {{
+              apagarCaixa
+                ? $t('WAHA_CONNECTIONS.MESSAGES.DELETE_INBOX_WARNING')
+                : $t('WAHA_CONNECTIONS.MESSAGES.KEEP_INBOX_HINT')
+            }}
+          </span>
+        </span>
+      </label>
+    </woot-delete-modal>
   </div>
 </template>

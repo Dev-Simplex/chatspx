@@ -1533,11 +1533,16 @@
       "DISCONNECT_ERROR": "Error disconnecting. Please try again",
       "DELETE_SUCCESS": "Connection deleted successfully",
       "DELETE_ERROR": "Error deleting connection. Please try again",
-      "DELETE_CONFIRM": "Are you sure you want to delete this connection? The associated inbox will also be deleted.",
+      "DELETE_CONFIRM": "The number will be disconnected and the session deleted. By default the inbox is kept, with its full history.",
       "RESTART_SUCCESS": "Connection restarted successfully. Please scan the QR code again.",
       "RESTART_ERROR": "Error restarting connection. Please try again.",
       "LOADING": "Loading connections...",
-      "API_ERROR": "Could not connect to the service. Please check your configuration and try again."
+      "API_ERROR": "Could not connect to the service. Please check your configuration and try again.",
+      "DELETE_TITLE": "Delete connection",
+      "DELETE_INBOX_TOO": "Also delete the inbox",
+      "DELETE_INBOX_WARNING": "This deletes ALL conversations and messages in that inbox. It cannot be undone.",
+      "KEEP_INBOX_HINT": "The inbox stays under Inboxes with its history and disappears from here. You can connect another number to it later.",
+      "DELETE_SUCCESS_KEPT_INBOX": "Connection deleted. The inbox and its history were kept."
     }
   },
   "PRIVATE_CHAT": {
