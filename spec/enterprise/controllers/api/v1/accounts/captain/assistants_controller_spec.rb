@@ -251,6 +251,106 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
         expect(json_response[:config][:feature_citation]).to be(false)
       end
     end
+
+    # Regressão: `config` é jsonb e `update!` substitui o hash inteiro. Com o strong params
+    # de lista fechada, salvar um único campo pela tela apagava calado todas as chaves de
+    # fora da lista (na Tozi os 8 agentes perderam `team_id`, a Clara perdeu `triage`).
+    # O teste é de INVARIANTE: nenhum conjunto de chaves pode encolher num PATCH parcial.
+    context 'when an admin updates a single config field' do
+      # Tudo que hoje mora em captain_assistants.config em produção: o que a tela edita,
+      # o que só o backend lê (team_id, triage, voice_id, fotos_carrossel*) e uma chave
+      # desconhecida, que representa qualquer config futura que ninguém declarou aqui.
+      let(:full_config) do
+        {
+          'product_name' => 'Imobiliária SPX',
+          'feature_faq' => true,
+          'feature_memory' => true,
+          'feature_citation' => true,
+          'feature_contact_attributes' => false,
+          'welcome_message' => 'Olá, tudo bem?',
+          'handoff_message' => 'Vou te transferir para um atendente.',
+          'resolution_message' => 'Posso ajudar em mais alguma coisa?',
+          'instructions' => 'Instrução original',
+          'temperature' => 0.7,
+          'knowledge_mode' => 'hybrid',
+          'contextual_chunks' => 5,
+          'tools' => %w[buscar_imovel transferir_para_agente],
+          'team_id' => 42,
+          'triage' => true,
+          'voice_id' => 'voz-eleven-labs-123',
+          'fotos_carrossel' => true,
+          'fotos_carrossel_botoes' => 'ver_detalhes',
+          'chave_desconhecida' => 'valor que nenhuma tela conhece'
+        }
+      end
+
+      before { assistant.update!(config: full_config) }
+
+      it 'keeps every other config key untouched' do
+        patch "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}",
+              params: { assistant: { config: { instructions: 'Instrução nova' } } },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+
+        saved_config = assistant.reload.config
+
+        # nenhuma chave sumiu
+        expect(saved_config.keys).to match_array(full_config.keys)
+        # o campo editado mudou
+        expect(saved_config['instructions']).to eq('Instrução nova')
+        # e todo o resto continua com o MESMO valor
+        expect(saved_config.except('instructions')).to eq(full_config.except('instructions'))
+      end
+
+      it 'returns the whole config in the response, not just the edited field' do
+        patch "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}",
+              params: { assistant: { config: { instructions: 'Instrução nova' } } },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(json_response[:config].keys.map(&:to_s)).to match_array(full_config.keys)
+      end
+
+      it 'keeps config intact when the payload has no config at all' do
+        patch "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}",
+              params: { assistant: { name: 'Só o nome mudou' } },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(assistant.reload.config).to eq(full_config)
+      end
+
+      it 'persists the backend-only keys when the screen sends them' do
+        patch "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}",
+              params: {
+                assistant: {
+                  config: {
+                    team_id: 99, triage: false, voice_id: 'outra-voz',
+                    fotos_carrossel: false, fotos_carrossel_botoes: 'quick_replies'
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+
+        saved_config = assistant.reload.config
+
+        expect(saved_config.keys).to match_array(full_config.keys)
+        expect(saved_config).to include(
+          'team_id' => 99,
+          'triage' => false,
+          'voice_id' => 'outra-voz',
+          'fotos_carrossel' => false,
+          'fotos_carrossel_botoes' => 'quick_replies'
+        )
+      end
+    end
   end
 
   describe 'DELETE /api/v1/accounts/{account.id}/captain/assistants/{id}' do

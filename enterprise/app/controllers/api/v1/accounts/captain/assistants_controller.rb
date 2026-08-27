@@ -18,7 +18,7 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
   end
 
   def update
-    @assistant.update!(assistant_params)
+    @assistant.update!(update_params)
   end
 
   def destroy
@@ -103,6 +103,20 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
     @account_assistants ||= Captain::Assistant.for_account(Current.account.id)
   end
 
+  # `config` é jsonb: `update!` SUBSTITUI o hash inteiro, não mescla. Junte isso a um
+  # strong params de lista fechada e QUALQUER save pela tela apagava calado as chaves de
+  # config fora da lista (team_id, triage, voice_id, fotos_carrossel...). Aqui o payload
+  # entra POR CIMA do config já gravado, então o que não foi editado permanece.
+  #
+  # Efeito colateral aceito: pela tela dá para sobrescrever uma chave de config, mas não
+  # mais para APAGAR uma (mandar o config sem ela não a remove). Nenhuma tela faz isso hoje.
+  def update_params
+    permitted = assistant_params
+    return permitted unless permitted.key?(:config)
+
+    permitted.merge(config: @assistant.config.to_h.merge(permitted[:config].to_h))
+  end
+
   def assistant_params
     permitted = params.require(:assistant).permit(:name, :description,
                                                   config: [
@@ -111,6 +125,10 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
                                                     :welcome_message, :handoff_message, :resolution_message,
                                                     :instructions, :temperature,
                                                     :knowledge_mode, :contextual_chunks,
+                                                    # lidas fora da tela e antes ausentes daqui: sem elas o handoff
+                                                    # entrega a conversa sem time/fila e a triagem para de reentrar
+                                                    :team_id, :triage, :voice_id,
+                                                    :fotos_carrossel, :fotos_carrossel_botoes,
                                                     { tools: [] }
                                                   ],
                                                   behavior: {})
