@@ -179,7 +179,8 @@
         },
         "SAVE": "Salvar regra",
         "DELETE": "Excluir regra",
-        "CLOSE": "Fechar"
+        "CLOSE": "Fechar",
+        "EDIT": "Editar regra"
       },
       "CALENDAR": {
         "LABEL": "Calendário da unidade",

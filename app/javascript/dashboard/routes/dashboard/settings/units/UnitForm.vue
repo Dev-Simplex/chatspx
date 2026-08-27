@@ -986,7 +986,16 @@ const onSubmit = () => {
               ghost
               slate
               xs
+              icon="i-woot-edit-pen"
+              :title="t('UNITS_MGMT.FORM.RULES.EDIT')"
+              @click.stop.prevent="editarRegra(regra.index)"
+            />
+            <Button
+              ghost
+              slate
+              xs
               icon="i-lucide-trash-2"
+              :title="t('UNITS_MGMT.FORM.RULES.DELETE')"
               @click.stop.prevent="removerRegra(regra.index)"
             />
           </li>

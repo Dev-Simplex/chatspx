@@ -179,7 +179,8 @@
         },
         "SAVE": "Save rule",
         "DELETE": "Delete rule",
-        "CLOSE": "Close"
+        "CLOSE": "Close",
+        "EDIT": "Edit rule"
       },
       "CALENDAR": {
         "LABEL": "Unit calendar",
