@@ -53,6 +53,16 @@ const COR_DA_CATEGORIA = {
   temporada: 'bg-n-teal-3 text-n-teal-11',
 };
 
+// Todo campo do painel usa a MESMA altura e o mesmo desenho. O desalinhamento vinha
+// justamente disso: `woot-input` monta rótulo e caixa com espaçamento próprio e 40px de
+// altura, enquanto o seletor nativo fica em 38px — alinhados pela base, os rótulos
+// saíam em linhas diferentes.
+const CAMPO =
+  'reset-base h-10 w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10';
+const CAMPO_ESTREITO =
+  'reset-base h-10 w-20 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12';
+const SELETOR = 'w-full [&>select]:h-10 [&>select]:w-full';
+
 const REGRA_VAZIA = {
   name: '',
   category: 'feriado',
@@ -623,19 +633,28 @@ const onSubmit = () => {
             />
           </div>
         </div>
-        <div class="flex flex-wrap items-end gap-3">
+        <div class="grid gap-3 sm:grid-cols-[minmax(0,13rem)_1fr]">
           <div class="flex flex-col gap-1">
             <span class="text-heading-3">
               {{ t('UNITS_MGMT.FORM.RULES.CATEGORY.LABEL') }}
             </span>
-            <NextSelect v-model="novaRegra.category" :options="categorias" />
+            <NextSelect
+              v-model="novaRegra.category"
+              :options="categorias"
+              :class="SELETOR"
+            />
           </div>
-          <woot-input
-            v-model="novaRegra.name"
-            class="flex-1 mb-0 min-w-48"
-            :label="t('UNITS_MGMT.FORM.EXCEPTIONS.NAME')"
-            :placeholder="t('UNITS_MGMT.FORM.EXCEPTIONS.NAME_PLACEHOLDER')"
-          />
+          <div class="flex flex-col gap-1">
+            <span class="text-heading-3">
+              {{ t('UNITS_MGMT.FORM.EXCEPTIONS.NAME') }}
+            </span>
+            <input
+              v-model="novaRegra.name"
+              type="text"
+              :class="CAMPO"
+              :placeholder="t('UNITS_MGMT.FORM.EXCEPTIONS.NAME_PLACEHOLDER')"
+            />
+          </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -665,23 +684,29 @@ const onSubmit = () => {
             <input
               v-model="novaRegra.from"
               type="time"
-              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
+              class="w-28"
+              :class="[CAMPO]"
             />
             <span class="text-n-slate-11">–</span>
             <input
               v-model="novaRegra.to"
               type="time"
-              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
+              class="w-28"
+              :class="[CAMPO]"
             />
           </div>
         </div>
 
-        <div class="flex flex-wrap items-end gap-3">
-          <div class="flex flex-col gap-1">
+        <div class="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <div class="flex flex-col gap-1 w-44">
             <span class="text-heading-3">
               {{ t('UNITS_MGMT.FORM.RULES.REPEAT.LABEL') }}
             </span>
-            <NextSelect v-model="novaRegra.frequency" :options="frequencias" />
+            <NextSelect
+              v-model="novaRegra.frequency"
+              :options="frequencias"
+              :class="SELETOR"
+            />
           </div>
           <label
             v-if="novaRegra.frequency === 'nao_repete'"
@@ -692,13 +717,15 @@ const onSubmit = () => {
               {{ t('UNITS_MGMT.FORM.RULES.PERIOD') }}
             </span>
           </label>
-          <woot-input
+          <div
             v-if="novaRegra.frequency === 'nao_repete' && novaRegra.temPeriodo"
-            v-model="novaRegra.ends_on"
-            type="date"
-            class="mb-0 w-44"
-            :label="t('UNITS_MGMT.FORM.RULES.ENDS_ON')"
-          />
+            class="flex flex-col gap-1 w-44"
+          >
+            <span class="text-heading-3">
+              {{ t('UNITS_MGMT.FORM.RULES.ENDS_ON') }}
+            </span>
+            <input v-model="novaRegra.ends_on" type="date" :class="CAMPO" />
+          </div>
         </div>
 
         <div
@@ -714,7 +741,7 @@ const onSubmit = () => {
               type="number"
               min="1"
               max="52"
-              class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
+              :class="CAMPO_ESTREITO"
             />
             <span class="text-sm text-n-slate-11">
               {{
@@ -764,7 +791,8 @@ const onSubmit = () => {
                 min="1"
                 max="31"
                 :disabled="novaRegra.mensalUltimoDia"
-                class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 disabled:opacity-50"
+                class="disabled:opacity-50"
+                :class="[CAMPO_ESTREITO]"
               />
               <label class="flex items-center gap-2 mb-0 cursor-pointer">
                 <input
@@ -856,7 +884,8 @@ const onSubmit = () => {
               v-if="novaRegra.termino === 'data'"
               v-model="novaRegra.until_date"
               type="date"
-              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
+              class="w-44"
+              :class="[CAMPO]"
             />
             <label class="flex items-center gap-2 mb-0 cursor-pointer">
               <input
