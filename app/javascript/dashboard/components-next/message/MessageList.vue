@@ -92,7 +92,16 @@ const isNewMessage = messageId => {
 
 const CAMEL_CASE_OPTIONS = {
   deep: true,
-  stopPaths: ['content_attributes.translations'],
+  // `interactive_payload` é o objeto `interactive` da Meta (carrossel, cta_url,
+  // location_request, Flow) e precisa chegar CRU na bolha que o desenha. Sem este stopPath o
+  // `deep: true` reescreve `card_index` -> `cardIndex` e `quick_reply` -> `quickReply`, o
+  // componente lê undefined e renderiza vazio — sem erro, sem teste vermelho.
+  // Atenção: stopPaths protege o CONTEÚDO, não a chave do topo; ela chega como
+  // `interactivePayload` de qualquer forma.
+  stopPaths: [
+    'content_attributes.translations',
+    'content_attributes.interactive_payload',
+  ],
 };
 const camelizedMessageCache = new WeakMap();
 
