@@ -80,12 +80,22 @@ class Api::V1::Accounts::Teams::DistribuicaoController < Api::V1::Accounts::Base
   # Os mesmos defaults do banco, declarados uma vez. Time ainda não configurado devolve ISTO,
   # então a tela mostra o que ele VAI ser ao salvar — e não campos vazios que o operador
   # precisa adivinhar.
+  # Estes valores TÊM de espelhar os defaults das colunas em db/schema.rb. Quando divergem, o time
+  # ainda não configurado vê na tela um número que não é o que o banco vai gravar, e o primeiro
+  # save persiste o da tela — a divergência vira dado.
+  #
+  # `max_repasses` estava 3 aqui contra 2 na coluna: o PR #67 pedia 3, mas a coluna nasceu com 2
+  # (migration 20260819150000) e ficou com 2, para não divergir das linhas que já existem.
+  #
+  # `gatilho_sem_ia` FALTAVA nesta lista, e como `politica_json` serializa exatamente as chaves
+  # daqui, o campo nunca voltava na resposta: a tela o lia como indefinido e o salvava como falso,
+  # desligando em silêncio quem o tivesse ligado por console.
   PADROES = {
     ativo: false, modo: 'rodizio', modo_posse: 'assignee', so_online: false,
     continuidade_ativa: true, continuidade_dias: 30, sla_assumir_minutos: 30,
-    repasse_automatico: false, max_repasses: 3, sla_respeita_horario: true,
+    repasse_automatico: false, max_repasses: 2, sla_respeita_horario: true,
     expirado_conta_como_recebido: true, pool_esgotado_destino_user_id: nil, espelho_vista: false,
-    horario: {}
+    gatilho_sem_ia: false, horario: {}
   }.freeze
 
   def politica_json(politica)

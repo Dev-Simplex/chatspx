@@ -156,7 +156,11 @@
       "SAVE": "Save distribution",
       "SAVED": "Distribution saved",
       "ERROR": "Could not save the distribution",
-      "FORBIDDEN": "Only an admin or this team's manager can change the distribution."
+      "FORBIDDEN": "Only an admin or this team's manager can change the distribution.",
+      "GATILHO_SEM_IA": {
+        "LABEL": "Also distribute when a conversation lands on the team without the AI",
+        "HELP": "Covers an agent transferring by hand, and also a flow or rule changing the team. It only acts on conversations that have no assignee yet. When off, the queue only fires on the AI handoff to a human."
+      }
     },
     "TEAM_FORM": {
       "ERROR_MESSAGE": "Couldn't save the team details. Try again."

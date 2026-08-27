@@ -156,7 +156,11 @@
       "SAVE": "Salvar distribuição",
       "SAVED": "Distribuição salva",
       "ERROR": "Não foi possível salvar a distribuição",
-      "FORBIDDEN": "Só um admin ou o gerente deste time pode alterar a distribuição."
+      "FORBIDDEN": "Só um admin ou o gerente deste time pode alterar a distribuição.",
+      "GATILHO_SEM_IA": {
+        "LABEL": "Distribuir também quando a conversa cair no time sem ser pela IA",
+        "HELP": "Vale para transferência manual de um agente, e também para fluxo ou regra que troque o time. Só age em conversa que ainda não tem responsável. Desligado, o rodízio só dispara no repasse da IA para humano."
+      }
     },
     "TEAM_FORM": {
       "ERROR_MESSAGE": "Não foi possível salvar os detalhes do time. Tente novamente."

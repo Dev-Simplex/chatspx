@@ -257,6 +257,27 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
           </select>
         </div>
 
+        <!-- O Motor nasceu pendurado no handoff da IA, entao time que recebe conversa por
+             transferencia manual, fluxo ou regra nunca distribuia: o lead caia no time e ficava
+             parado ate alguem pegar na mao. Este e o interruptor desse caminho. -->
+        <div class="flex flex-col gap-1">
+          <label class="flex items-start gap-2">
+            <input
+              v-model="politica.gatilho_sem_ia"
+              type="checkbox"
+              class="mt-1"
+            />
+            <span>
+              <span class="text-sm font-medium text-n-slate-12">
+                {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.GATILHO_SEM_IA.LABEL') }}
+              </span>
+              <span class="block text-xs text-n-slate-11">
+                {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.GATILHO_SEM_IA.HELP') }}
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div class="flex flex-col gap-1">
           <label class="flex items-center gap-2">
             <input v-model="politica.continuidade_ativa" type="checkbox" />

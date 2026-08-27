@@ -125,4 +125,63 @@ RSpec.describe 'Api::V1::Accounts::Teams::Distribuicao', type: :request do
       expect(entrada['motivo']).to eq('ferias')
     end
   end
+
+  # Os defaults da tela TEM de espelhar os das colunas: divergindo, o time ainda nao configurado
+  # ve um numero que nao e o que o banco vai gravar, e o primeiro save persiste o da tela.
+  describe 'defaults do esqueleto' do
+    let(:colunas) { Spx::Distribuicao::Policy.columns_hash }
+
+    def esqueleto
+      get url, headers: admin.create_new_auth_token
+      response.parsed_body['politica']
+    end
+
+    it 'max_repasses bate com o default da coluna (era 3 na tela contra 2 no banco)' do
+      esperado = colunas['max_repasses'].default.to_i
+
+      expect(esqueleto['max_repasses']).to eq(esperado)
+      expect(esperado).to eq(2)
+    end
+
+    # Serializado a partir das chaves de PADROES: faltando ali, o campo NAO volta na resposta, a
+    # tela o le como indefinido e o salva como falso — desligando em silencio quem o tinha ligado.
+    it 'devolve gatilho_sem_ia, senao a tela nao consegue nem mostrar nem preservar o valor' do
+      expect(esqueleto).to have_key('gatilho_sem_ia')
+    end
+
+    it 'todo campo booleano do esqueleto bate com o default da coluna' do
+      atual = esqueleto
+      %w[repasse_automatico sla_respeita_horario expirado_conta_como_recebido
+         gatilho_sem_ia espelho_vista so_online].each do |campo|
+        expect(atual[campo]).to eq(colunas[campo].default == 'true'), "#{campo} divergiu do banco"
+      end
+    end
+
+    # A UNICA excecao, e de proposito: a coluna nasce `true`, mas time SEM politica tem de aparecer
+    # DESLIGADO. Espelhar o banco aqui faria a tela afirmar que o rodizio esta ativo num time que
+    # nao tem politica nenhuma, e o primeiro save o ligaria sem ninguem ter pedido.
+    it 'ativo e a excecao: nasce desligado na tela mesmo com a coluna default true' do
+      expect(colunas['ativo'].default).to eq('true')
+      expect(esqueleto['ativo']).to be(false)
+    end
+  end
+
+  describe 'gatilho sem IA' do
+    # E o interruptor do caminho "a conversa caiu no time por transferencia manual, fluxo ou
+    # regra" — sem ele o Motor so agia no handoff da IA.
+    it 'grava e devolve o valor ligado' do
+      patch url, params: { ativo: true, gatilho_sem_ia: true },
+                 headers: admin.create_new_auth_token
+
+      expect(Spx::Distribuicao::Policy.last.gatilho_sem_ia).to be(true)
+      expect(response.parsed_body['politica']['gatilho_sem_ia']).to be(true)
+    end
+
+    it 'nao desliga sozinho num save que nao fala dele' do
+      patch url, params: { ativo: true, gatilho_sem_ia: true }, headers: admin.create_new_auth_token
+      patch url, params: { sla_assumir_minutos: 45 }, headers: admin.create_new_auth_token
+
+      expect(Spx::Distribuicao::Policy.last.gatilho_sem_ia).to be(true)
+    end
+  end
 end
