@@ -57,10 +57,14 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
     )
   end
 
+  # As regras de agenda (feriado, evento, temporada) e a repetição de cada uma. Array
+  # em strong params exige a chave declarada como lista: `weekdays: []`.
   def excecoes_params
     params.require(:unit).permit(
-      exceptions: [:date, :name, :closed_all_day, :annual,
-                   :open_hour, :open_minutes, :close_hour, :close_minutes]
+      exceptions: [:starts_on, :ends_on, :name, :category, :closed_all_day,
+                   :frequency, :repeat_interval, :until_date,
+                   :open_hour, :open_minutes, :close_hour, :close_minutes,
+                   { weekdays: [], week_positions: [], month_days: [] }]
     )[:exceptions]
   end
 

@@ -69,6 +69,13 @@ en:
       presence: must not be blank
       invalid: is invalid
     units:
+      invalid_weekday: has a day outside Sunday–Saturday
+      invalid_week_position: has a week position outside 1st–5th or last
+      invalid_month_day: has a day outside 1–31 or last
+      weekday_required: pick at least one day of the week
+      monthly_rule_required: a monthly rule needs a day of the month, or a weekday and its position
+      range_only_without_repeat: only a rule that does not repeat can span a period
+      end_before_start: cannot be earlier than the start date
       close_before_open: cannot be earlier than the opening time
       open_and_closed: cannot be open all day and closed all day at the same time
     webhook:

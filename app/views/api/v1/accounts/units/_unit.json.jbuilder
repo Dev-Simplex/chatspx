@@ -24,14 +24,21 @@ json.working_hours unit.working_hours.sort_by(&:day_of_week) do |hora|
   json.close_minutes hora.close_minutes
 end
 
-json.exceptions unit.exceptions.sort_by(&:date) do |excecao|
-  json.id excecao.id
-  json.date excecao.date
-  json.name excecao.name
-  json.closed_all_day excecao.closed_all_day
-  json.annual excecao.annual
-  json.open_hour excecao.open_hour
-  json.open_minutes excecao.open_minutes
-  json.close_hour excecao.close_hour
-  json.close_minutes excecao.close_minutes
+json.exceptions unit.exceptions.sort_by(&:starts_on) do |regra|
+  json.id regra.id
+  json.starts_on regra.starts_on
+  json.ends_on regra.ends_on
+  json.name regra.name
+  json.category regra.category
+  json.closed_all_day regra.closed_all_day
+  json.frequency regra.frequency
+  json.repeat_interval regra.repeat_interval
+  json.weekdays regra.weekdays
+  json.week_positions regra.week_positions
+  json.month_days regra.month_days
+  json.until_date regra.until_date
+  json.open_hour regra.open_hour
+  json.open_minutes regra.open_minutes
+  json.close_hour regra.close_hour
+  json.close_minutes regra.close_minutes
 end

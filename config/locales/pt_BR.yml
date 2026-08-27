@@ -71,6 +71,13 @@ pt_BR:
       presence: não pode ficar em branco
       invalid: é inválido
     units:
+      invalid_weekday: tem dia fora de domingo–sábado
+      invalid_week_position: tem posição fora de 1ª–5ª ou última
+      invalid_month_day: tem dia fora de 1–31 ou último
+      weekday_required: escolha ao menos um dia da semana
+      monthly_rule_required: regra mensal precisa de um dia do mês, ou de um dia da semana com a posição dele
+      range_only_without_repeat: só uma regra que não se repete pode durar um período
+      end_before_start: não pode ser anterior à data de início
       close_before_open: não pode ser anterior ao horário de abertura
       open_and_closed: não pode abrir o dia todo e fechar o dia todo ao mesmo tempo
     webhook:
