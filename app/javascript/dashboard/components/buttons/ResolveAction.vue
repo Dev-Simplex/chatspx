@@ -43,7 +43,7 @@ const {
   getResolveVariant,
   getAssignee,
   hasTeam,
-  assignSelfAndResolve,
+  assignSelfForResolve,
 } = useResolveAssignmentGate();
 
 const arrowDownButtonRef = ref(null);
@@ -87,19 +87,6 @@ const openAssignResolveDialog = (conversation, overrides = {}) => {
 
 const closeAssignResolveDialog = () => {
   showAssignResolveDialog.value = false;
-};
-
-const handleAssignAndResolve = async ({ teamId }) => {
-  closeAssignResolveDialog();
-  isLoading.value = true;
-  try {
-    await assignSelfAndResolve(currentChat.value.id, { teamId });
-    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
-  } catch (error) {
-    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
-  } finally {
-    isLoading.value = false;
-  }
 };
 
 const [showActionsDropdown, toggleDropdown] = useToggle();
@@ -185,6 +172,40 @@ const toggleStatus = async (status, snoozedUntil, customAttributes = null) => {
     } else if (error.message !== 'TEAM_REQUIRED') {
       useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
     }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const handleAssignAndResolve = async ({ teamId }) => {
+  closeAssignResolveDialog();
+  isLoading.value = true;
+  try {
+    // Assume primeiro; o encerramento vem depois — e no meio entram os atributos
+    // obrigatórios. Antes este caminho encerrava direto, e quem passasse pelo gate
+    // fechava a conversa sem preencher nada.
+    await assignSelfForResolve(currentChat.value.id, { teamId });
+
+    const conversationAttributes = currentChat.value.custom_attributes || {};
+    const { hasMissing, missing } = checkMissingAttributes(
+      conversationAttributes,
+      contactCustomAttributes.value
+    );
+
+    if (hasMissing) {
+      pendingRequiredAttributes.value = missing;
+      resolveAttributesModalRef.value?.open(
+        missing,
+        { ...contactCustomAttributes.value, ...conversationAttributes },
+        { id: currentChat.value.id, snoozedUntil: null }
+      );
+      return;
+    }
+
+    await toggleStatus(wootConstants.STATUS_TYPE.RESOLVED);
+    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
   } finally {
     isLoading.value = false;
   }

@@ -985,7 +985,7 @@
           "CANCEL": "Cancelar"
         },
         "PLACEHOLDERS": {
-          "TEXT": "Escreva uma nota...",
+          "TEXT": "Digite a resposta",
           "NUMBER": "Insira um número",
           "LINK": "Adicione um link",
           "DATE": "Selecione uma data",

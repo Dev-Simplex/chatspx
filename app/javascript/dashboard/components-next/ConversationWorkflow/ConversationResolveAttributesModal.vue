@@ -5,7 +5,6 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, url, helpers } from '@vuelidate/validators';
 import { getRegexp } from 'shared/helpers/Validators';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
-import TextArea from 'next/textarea/TextArea.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import ChoiceToggle from 'dashboard/components-next/input/ChoiceToggle.vue';
@@ -30,7 +29,10 @@ const placeholders = computed(() => ({
   list: t('CONVERSATION_WORKFLOW.REQUIRED_ATTRIBUTES.MODAL.PLACEHOLDERS.LIST'),
 }));
 
-const getPlaceholder = type => placeholders.value[type] || '';
+// A dica de formato do proprio atributo vale mais que o texto generico: num CPF ela
+// mostra "000.000.000-00" dentro da caixa, que e o que o atendente precisa ver.
+const getPlaceholder = (type, attribute = null) =>
+  attribute?.regexCue || placeholders.value[type] || '';
 
 const validationRules = computed(() => {
   const rules = {};
@@ -181,22 +183,31 @@ defineExpose({ open, close });
         </div>
 
         <template v-if="attribute.type === ATTRIBUTE_TYPES.TEXT">
-          <TextArea
+          <Input
             v-model="formValues[attribute.value]"
-            class="w-full"
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.TEXT)"
+            type="text"
+            size="md"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.TEXT, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             @blur="v$[attribute.value].$touch"
           />
         </template>
 
-        <template v-else-if="attribute.type === ATTRIBUTE_TYPES.NUMBER">
+        <template
+          v-else-if="
+            [
+              ATTRIBUTE_TYPES.NUMBER,
+              ATTRIBUTE_TYPES.CURRENCY,
+              ATTRIBUTE_TYPES.PERCENT,
+            ].includes(attribute.type)
+          "
+        >
           <Input
             v-model="formValues[attribute.value]"
             type="number"
             size="md"
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.NUMBER)"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.NUMBER, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             @blur="v$[attribute.value].$touch"
@@ -208,7 +219,7 @@ defineExpose({ open, close });
             v-model="formValues[attribute.value]"
             type="url"
             size="md"
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LINK)"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LINK, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             @blur="v$[attribute.value].$touch"
@@ -220,7 +231,7 @@ defineExpose({ open, close });
             v-model="formValues[attribute.value]"
             type="date"
             size="md"
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.DATE)"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.DATE, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             @blur="v$[attribute.value].$touch"
@@ -232,7 +243,7 @@ defineExpose({ open, close });
             v-model="formValues[attribute.value]"
             :options="comboBoxOptions[attribute.value]"
             creatable
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LIST)"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LIST, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             :has-error="v$[attribute.value].$error"

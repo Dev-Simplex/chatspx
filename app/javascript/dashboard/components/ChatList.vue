@@ -208,7 +208,7 @@ const {
   getResolveVariant,
   getAssignee,
   hasTeam,
-  assignSelfAndResolve,
+  assignSelfForResolve,
 } = useResolveAssignmentGate();
 
 // "Atribuição obrigatória" — assign-and-resolve dialog state for the context menu.
@@ -240,17 +240,6 @@ function openAssignResolveDialog(conversation, snoozedUntil) {
 
 function closeAssignResolveDialog() {
   showAssignResolveDialog.value = false;
-}
-
-async function handleAssignAndResolve({ teamId }) {
-  const { conversationId, snoozedUntil } = assignResolveContext.value;
-  closeAssignResolveDialog();
-  try {
-    await assignSelfAndResolve(conversationId, { teamId, snoozedUntil });
-    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
-  } catch (error) {
-    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
-  }
 }
 
 // computed
@@ -1102,6 +1091,44 @@ function toggleConversationStatus(
   store.dispatch('toggleStatus', payload).then(() => {
     useAlert(t('CONVERSATION.CHANGE_STATUS'));
   });
+}
+
+async function handleAssignAndResolve({ teamId }) {
+  const { conversationId, snoozedUntil } = assignResolveContext.value;
+  closeAssignResolveDialog();
+  try {
+    // Mesmo encadeamento do botão da conversa: assume, checa os atributos
+    // obrigatórios e só então encerra. Antes o gate encerrava direto.
+    await assignSelfForResolve(conversationId, { teamId });
+
+    const conversation = getConversationById.value(conversationId);
+    const currentCustomAttributes = conversation?.custom_attributes || {};
+    const contactCustomAttributes =
+      conversation?.meta?.sender?.custom_attributes || {};
+    const { hasMissing, missing } = checkMissingAttributes(
+      currentCustomAttributes,
+      contactCustomAttributes
+    );
+
+    if (hasMissing) {
+      pendingRequiredAttributes.value = missing;
+      resolveAttributesModalRef.value?.open(
+        missing,
+        { ...contactCustomAttributes, ...currentCustomAttributes },
+        { id: conversationId, snoozedUntil }
+      );
+      return;
+    }
+
+    await toggleConversationStatus(
+      conversationId,
+      wootConstants.STATUS_TYPE.RESOLVED,
+      snoozedUntil
+    );
+    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
+  }
 }
 
 function handleResolveConversation(conversationId, status, snoozedUntil) {
