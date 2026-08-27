@@ -44,7 +44,9 @@ class CustomAttributeDefinition < ApplicationRecord
   validate :attribute_must_not_conflict, on: :create
 
   enum attribute_model: { conversation_attribute: 0, contact_attribute: 1 }
-  enum attribute_display_type: { text: 0, number: 1, currency: 2, percent: 3, link: 4, date: 5, list: 6, checkbox: 7 }
+  # `cpf` (8) e do fork: documento tem formato e digito verificador, entao merece campo
+  # proprio em vez de virar texto livre. Aditivo — nenhum atributo existente muda.
+  enum attribute_display_type: { text: 0, number: 1, currency: 2, percent: 3, link: 4, date: 5, list: 6, checkbox: 7, cpf: 8 }
 
   belongs_to :account
   after_update :update_widget_pre_chat_custom_fields

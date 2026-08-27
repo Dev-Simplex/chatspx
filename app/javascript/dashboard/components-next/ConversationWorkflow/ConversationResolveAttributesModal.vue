@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { required, url, helpers } from '@vuelidate/validators';
 import { getRegexp } from 'shared/helpers/Validators';
+import { formatarCpf, cpfValido, CPF_PLACEHOLDER } from 'shared/helpers/cpf';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
@@ -39,6 +40,12 @@ const validationRules = computed(() => {
   visibleAttributes.value.forEach(attribute => {
     if (attribute.type === ATTRIBUTE_TYPES.LINK) {
       rules[attribute.value] = { required, url };
+    } else if (attribute.type === ATTRIBUTE_TYPES.CPF) {
+      // Formato E dígito verificador: um CPF digitado errado não fecha a conversa.
+      rules[attribute.value] = {
+        required,
+        cpfValidation: value => !value || cpfValido(value),
+      };
     } else if (attribute.type === ATTRIBUTE_TYPES.CHECKBOX) {
       // Checkbox doesn't need validation - any selection is valid
       rules[attribute.value] = {};
@@ -69,6 +76,9 @@ const getErrorMessage = attributeKey => {
       field.regexValidation.$params?.regexCue ||
       t('CUSTOM_ATTRIBUTES.VALIDATIONS.INVALID_INPUT')
     );
+  }
+  if (field.cpfValidation && field.cpfValidation.$invalid) {
+    return t('CUSTOM_ATTRIBUTES.VALIDATIONS.INVALID_CPF');
   }
   if (field.required && field.required.$invalid) {
     return t('CUSTOM_ATTRIBUTES.VALIDATIONS.REQUIRED');
@@ -182,7 +192,26 @@ defineExpose({ open, close });
           </label>
         </div>
 
-        <template v-if="attribute.type === ATTRIBUTE_TYPES.TEXT">
+        <template v-if="attribute.type === ATTRIBUTE_TYPES.CPF">
+          <Input
+            :model-value="formValues[attribute.value]"
+            type="text"
+            size="md"
+            inputmode="numeric"
+            maxlength="14"
+            :placeholder="CPF_PLACEHOLDER"
+            :message="getErrorMessage(attribute.value)"
+            :message-type="v$[attribute.value].$error ? 'error' : 'info'"
+            @update:model-value="
+              valor => {
+                formValues[attribute.value] = formatarCpf(valor);
+              }
+            "
+            @blur="v$[attribute.value].$touch"
+          />
+        </template>
+
+        <template v-else-if="attribute.type === ATTRIBUTE_TYPES.TEXT">
           <Input
             v-model="formValues[attribute.value]"
             type="text"

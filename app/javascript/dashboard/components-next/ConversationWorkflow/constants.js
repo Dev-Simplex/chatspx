@@ -7,4 +7,5 @@ export const ATTRIBUTE_TYPES = {
   DATE: 'date',
   LIST: 'list',
   CHECKBOX: 'checkbox',
+  CPF: 'cpf',
 };

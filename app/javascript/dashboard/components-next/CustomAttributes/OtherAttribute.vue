@@ -1,6 +1,7 @@
 <!-- Attribute type "Text, URL, Number" -->
 <script setup>
 import { ref, computed } from 'vue';
+import { formatarCpf, cpfValido, CPF_PLACEHOLDER } from 'shared/helpers/cpf';
 import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
@@ -39,11 +40,18 @@ const isAttributeTypeNumber = computed(
   () => props.attribute.attributeDisplayType === 'number'
 );
 
+const isAttributeTypeCpf = computed(
+  () => props.attribute.attributeDisplayType === 'cpf'
+);
+
 const rules = computed(() => ({
   editedValue: {
     required,
     ...(isAttributeTypeLink.value && {
       url: value => !value || isValidURL(value),
+    }),
+    ...(isAttributeTypeCpf.value && {
+      cpfValidation: value => !value || cpfValido(value),
     }),
     ...(isAttributeTypeText.value &&
       props.attribute.regexPattern && {
@@ -75,6 +83,13 @@ const attributeErrorMessage = computed(() => {
       props.attribute.regexCue ||
       t('CONTACTS_LAYOUT.SIDEBAR.ATTRIBUTES.VALIDATIONS.INVALID_INPUT')
     );
+  }
+
+  if (
+    isAttributeTypeCpf.value &&
+    v$.value.editedValue.cpfValidation?.$invalid
+  ) {
+    return t('CUSTOM_ATTRIBUTES.VALIDATIONS.INVALID_CPF');
   }
 
   if (isAttributeTypeNumber.value && v$.value.editedValue.required?.$invalid) {
@@ -179,14 +194,24 @@ const handleInputUpdate = async () => {
       class="flex items-center w-full"
     >
       <Input
-        v-model="editedValue"
-        :placeholder="t('CONTACTS_LAYOUT.SIDEBAR.ATTRIBUTES.TRIGGER.INPUT')"
+        :model-value="editedValue"
+        :placeholder="
+          isAttributeTypeCpf
+            ? CPF_PLACEHOLDER
+            : t('CONTACTS_LAYOUT.SIDEBAR.ATTRIBUTES.TRIGGER.INPUT')
+        "
         :type="getInputType"
+        :maxlength="isAttributeTypeCpf ? 14 : undefined"
         class="w-full [&>p]:absolute [&>p]:mt-0.5 [&>p]:top-8 ltr:[&>p]:left-0 rtl:[&>p]:right-0"
         autofocus
         :message="attributeErrorMessage"
         :message-type="hasError ? 'error' : 'info'"
         custom-input-class="h-8 ltr:rounded-r-none rtl:rounded-l-none"
+        @update:model-value="
+          valor => {
+            editedValue = isAttributeTypeCpf ? formatarCpf(valor) : valor;
+          }
+        "
         @keyup.enter="handleInputUpdate"
       />
       <Button

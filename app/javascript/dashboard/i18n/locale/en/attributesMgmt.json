@@ -18,7 +18,8 @@
       "LINK": "Link",
       "DATE": "Date",
       "LIST": "List",
-      "CHECKBOX": "Checkbox"
+      "CHECKBOX": "Checkbox",
+      "CPF": "CPF"
     },
     "ADD": {
       "TITLE": "Add Custom Attribute",
