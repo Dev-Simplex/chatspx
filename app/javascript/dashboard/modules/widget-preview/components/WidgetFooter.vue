@@ -38,10 +38,20 @@ const getStatusText = computed(() => {
             {{ config.replyTime }}
           </div>
         </div>
-        <!-- ilustrativo: quem lê a tela por leitor de tela não ganha nada com
-             "avatar C", e um role="img" sem nome é violação séria -->
+        <!-- Era `<Avatar name="C">`, com o "C" CRAVADO: o preview mostrava essa
+             inicial para todo mundo, com foto ou sem, e nunca correspondeu a
+             caixa nenhuma. Agora ele mostra a foto do atendimento de verdade —
+             que e o unico jeito de o preview responder "como isso vai aparecer
+             no meu site". Sem foto, cai na inicial do nome da caixa.
+             `aria-hidden` fica: e ilustracao, e um role="img" sem nome util e
+             violacao seria. -->
         <span aria-hidden="true">
-          <Avatar name="C" :size="34" rounded-full />
+          <Avatar
+            :src="config.logo"
+            :name="config.websiteName || ''"
+            :size="34"
+            rounded-full
+          />
         </span>
       </div>
       <button

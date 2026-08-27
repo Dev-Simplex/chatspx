@@ -193,16 +193,28 @@ const handleToggleWidget = () => {
 
 <template>
   <div class="flex flex-col h-full min-h-0 flex-1">
-    <div class="flex items-center justify-between mb-6 flex-shrink-0">
+    <!-- A barra transbordava: medido, scrollWidth 489 x clientWidth 416 em 1280
+         (412 em 1440). Sem `flex-wrap` o navegador so tinha uma saida — espremer
+         os rotulos — e "Modo do chat" virava 3 linhas de 39 px enquanto "Celular"
+         era cortado em "Celu". `shrink-0` nos rotulos tira essa saida; o `wrap`
+         da a segunda linha quando de fato nao cabe. -->
+    <div
+      class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-6 flex-shrink-0"
+    >
       <TabBar
         :tabs="tabs"
         :initial-active-tab="activeTabIndex"
         @tab-changed="handleTabChange"
       />
 
-      <div v-if="isPreviewTab" class="flex items-center gap-4">
+      <div
+        v-if="isPreviewTab"
+        class="flex flex-wrap items-center gap-x-4 gap-y-2"
+      >
         <div class="flex items-center gap-2">
-          <span class="text-heading-3 text-n-slate-11">
+          <span
+            class="text-heading-3 text-n-slate-12 shrink-0 whitespace-nowrap"
+          >
             {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_SCREEN.CHAT') }}
           </span>
           <!-- O Switch e um <button role="switch">, nao um <input>: rotulo por
@@ -214,7 +226,9 @@ const handleToggleWidget = () => {
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-heading-3 text-n-slate-11">
+          <span
+            class="text-heading-3 text-n-slate-12 shrink-0 whitespace-nowrap"
+          >
             {{ $t('INBOX_WIDGET.PREVIEW.DARK') }}
           </span>
           <Switch
@@ -224,7 +238,9 @@ const handleToggleWidget = () => {
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-heading-3 text-n-slate-11">
+          <span
+            class="text-heading-3 text-n-slate-12 shrink-0 whitespace-nowrap"
+          >
             {{ $t('INBOX_WIDGET.PREVIEW.MOBILE') }}
           </span>
           <Switch

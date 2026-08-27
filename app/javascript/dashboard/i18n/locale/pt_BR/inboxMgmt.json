@@ -82,7 +82,14 @@
         "DESC": "Crie um canal para seu site e comece a oferecer suporte a seus clientes através do nosso widget do site.",
         "LOADING_MESSAGE": "Criando canal de suporte ao site",
         "CHANNEL_AVATAR": {
-          "LABEL": "Imagem do Canal"
+          "LABEL": "Foto do atendimento",
+          "WHERE_IT_SHOWS": "Aparece no cabeçalho do chat no site do cliente e no balão das mensagens do atendente.",
+          "UPLOAD": "Enviar minha imagem",
+          "REMOVE": "Remover",
+          "SPECS": "PNG, JPG ou GIF · quadrada, a partir de 250 × 250 px · até 15 MB",
+          "GALLERY_LABEL": "Ou escolha uma foto padrão",
+          "GALLERY_ITEM": "Avatar padrão {number}",
+          "GALLERY_ERROR": "Não foi possível carregar este avatar. Tente de novo ou envie a sua imagem."
         },
         "CHANNEL_WEBHOOK_URL": {
           "LABEL": "URL do webhook",
@@ -634,12 +641,12 @@
       }
     },
     "TABS": {
-      "SETTINGS": "Configurações",
+      "SETTINGS": "Geral",
       "COLLABORATORS": "Agentes",
-      "CONFIGURATION": "Configuração",
-      "PRE_CHAT_FORM": "Formulário Chat Pré",
+      "CONFIGURATION": "Instalação",
+      "PRE_CHAT_FORM": "Pré-chat",
       "BUSINESS_HOURS": "Horário de funcionamento",
-      "BOT_CONFIGURATION": "Configuração do Bot",
+      "BOT_CONFIGURATION": "Bot",
       "ACCOUNT_HEALTH": "Saúde da conta",
       "CSAT": "CSAT",
       "NPS": "NPS",
