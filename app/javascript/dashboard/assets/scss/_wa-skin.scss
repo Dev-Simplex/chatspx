@@ -37,6 +37,15 @@
   --wa-check-read: #53bdeb;
   --wa-check-delivered: #8696a0;
   --wa-primary: #2dc46f;
+  // Cards do carrossel de mídia: sobre a bolha verde eles precisam de fundo PRÓPRIO (é o que
+  // o WhatsApp faz) — translúcido some no verde. A ação do card usa o azul de link do WA, que
+  // contrasta nos dois temas; o verde da marca sobre a bolha verde não se lê.
+  --wa-card-bg: #ffffff;
+  --wa-card-bg-dark: #111b21;
+  --wa-card-action: #027eb5;
+  --wa-card-action-dark: #53bdeb;
+  --wa-card-divider: rgba(11, 20, 26, 0.11);
+  --wa-card-divider-dark: rgba(233, 237, 239, 0.13);
   --wa-chat-bg: #efeae2;
   --wa-chat-bg-dark: #0b141a;
   --wa-composer-bg: #ffffff;

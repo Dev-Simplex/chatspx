@@ -47,6 +47,7 @@ import EmbedBubble from './bubbles/Embed.vue';
 import InstagramStoryBubble from './bubbles/InstagramStory.vue';
 import EmailBubble from './bubbles/Email/Index.vue';
 import UnsupportedBubble from './bubbles/Unsupported.vue';
+import CarouselBubble from './bubbles/Carousel.vue';
 import ContactBubble from './bubbles/Contact.vue';
 import DyteBubble from './bubbles/Dyte.vue';
 import LocationBubble from './bubbles/Location.vue';
@@ -490,6 +491,17 @@ const componentToRender = computed(() => {
 
   if (props.contentAttributes?.isUnsupported) {
     return UnsupportedBubble;
+  }
+
+  // Carrossel de mídia do WhatsApp Cloud. A mensagem chega SEM attachments (a Meta baixa a
+  // foto pela URL pública), então sem este ramo ela cai no TextBubble e o time vê só o
+  // `content`. Escopo deliberado: apenas `carousel` — cta_url, location_request e flow
+  // continuam no texto de hoje. Carrossel sem card também cai no fallback.
+  if (
+    props.contentAttributes?.interactivePayload?.type === 'carousel' &&
+    props.contentAttributes.interactivePayload?.action?.cards?.length
+  ) {
+    return CarouselBubble;
   }
 
   if (props.contentAttributes.type === 'dyte') {
