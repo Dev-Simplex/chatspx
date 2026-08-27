@@ -37,7 +37,12 @@ import {
   CHATWOOT_RESET_COMPLETED,
 } from '../widget/constants/sdkEvents';
 import { SET_USER_ERROR } from '../widget/constants/errorTypes';
-import { getUserCookieName, setCookieWithDomain } from './cookieHelpers';
+import {
+  getConversationToken,
+  getUserCookieName,
+  setConversationToken,
+  setCookieWithDomain,
+} from './cookieHelpers';
 import {
   getAlertAudio,
   initOnEvents,
@@ -50,11 +55,34 @@ import { loadCollector } from './tracking/loader';
 // da ponte: `entrypoints/sdk.js` ja importa este modulo, entao esta e a MESMA instancia que
 // `$chatwoot.setConsent()` atualiza. A ponte mora noutro bundle e teria um segundo estado.
 import { applyInboxConsentMode, isAllowed } from './tracking/consent';
+import addHours from 'date-fns/addHours';
+import { HELP_CENTER_CONVERSATION_TOKEN } from 'shared/constants/helpCenter';
 
-const updateAuthCookie = (cookieContent, baseDomain = '') =>
-  setCookieWithDomain('cw_conversation', cookieContent, {
+const notifyParentOfConversationToken = token => {
+  if (!window.$chatwoot.persistConversationToParent) return;
+  if (window.parent === window || !document.referrer) return;
+
+  try {
+    const parentOrigin = new URL(document.referrer).origin;
+    window.parent.postMessage(
+      {
+        event: HELP_CENTER_CONVERSATION_TOKEN,
+        token,
+      },
+      parentOrigin
+    );
+  } catch {
+    // O cookie/storage local continua sendo o fallback padrão do widget.
+  }
+};
+
+const updateAuthCookie = (cookieContent, baseDomain = '') => {
+  setConversationToken(cookieContent, {
     baseDomain,
+    websiteToken: window.$chatwoot.websiteToken,
   });
+  notifyParentOfConversationToken(cookieContent);
+};
 
 // Bloco 1.03 — os tokens do servidor pintam o launcher, que vive no host.
 //
@@ -101,14 +129,14 @@ export const IFrameHelper = {
   getUrl({ baseUrl, websiteToken }) {
     return `${baseUrl}/widget?website_token=${websiteToken}`;
   },
-  createFrame: ({ baseUrl, websiteToken }) => {
+  createFrame: ({ baseUrl, websiteToken, conversationToken }) => {
     if (IFrameHelper.getAppFrame()) {
       return;
     }
 
     loadCSS();
     const iframe = document.createElement('iframe');
-    const cwCookie = Cookies.get('cw_conversation');
+    const cwCookie = conversationToken || getConversationToken(websiteToken);
     let widgetUrl = IFrameHelper.getUrl({ baseUrl, websiteToken });
     if (cwCookie) {
       widgetUrl = `${widgetUrl}&cw_conversation=${cwCookie}`;
@@ -534,7 +562,7 @@ export const IFrameHelper = {
     },
 
     popoutChatWindow: ({ baseUrl, websiteToken, locale }) => {
-      const cwCookie = Cookies.get('cw_conversation');
+      const cwCookie = getConversationToken(window.$chatwoot.websiteToken);
       window.$chatwoot.toggle('close');
       popoutChatWindow(baseUrl, websiteToken, locale, cwCookie);
     },

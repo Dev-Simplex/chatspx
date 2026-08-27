@@ -693,6 +693,25 @@ pt_BR:
 
       Transcrição:
       %{format_messages}
+  lead_campaigns:
+    errors:
+      campanha_sem_id: 'Esta campanha ainda não tem id, então não há o que configurar. Ela ganha um assim que entrar um lead por ela.'
+      campanha_sem_hook: 'Nenhuma integração de captação responde por esta campanha.'
+      template_sem_canal: 'A inbox alvo não usa a API oficial do WhatsApp, então não envia template. A abertura ali é texto livre, definido na integração.'
+      template_nao_aprovado: 'O template "%{template}" não está entre os aprovados que este canal sincronizou.'
+      template_ambiguo: 'O template "%{template}" está aprovado em mais de um idioma. Escolha também o idioma — a Meta trata cada um como um template diferente.'
+      template_cabecalho_de_midia: 'O template "%{template}" tem cabeçalho de mídia, e a abertura do lead só envia os parâmetros do corpo. A imagem chegaria vazia e a Meta recusaria a mensagem.'
+      template_cabecalho_com_variavel: 'O template "%{template}" tem variável no cabeçalho, e a abertura do lead só envia os parâmetros do corpo.'
+      template_botao_com_variavel: 'O template "%{template}" tem botão com variável, e a abertura do lead só envia os parâmetros do corpo.'
+      template_parametro_nomeado: 'O template "%{template}" usa parâmetros nomeados, e a abertura do lead envia parâmetros numerados.'
+      template_ausente: 'Nenhum template configurado. Na API oficial do WhatsApp a abertura é bloqueada sem template aprovado, e o lead entra sem mensagem nenhuma.'
+      template_efetivo_invalido: 'Sem override, esta campanha cai no "%{template}", que este canal não tem aprovado. Escolha um template para a campanha ou corrija o padrão da integração.'
+      campos_invalidos: 'Estes campos não existem no lead: %{campos}.'
+      campos_quantidade: 'O template pede %{esperadas} variável(is) e vieram %{recebidos} campo(s). A Meta recusa a mensagem quando a conta não bate.'
+      campos_quantidade_efetiva: 'O template "%{template}" pede %{esperadas} variável(is) e a configuração resultante manda %{recebidos}. A Meta recusa a mensagem quando a conta não bate.'
+      agente_inexistente: 'Este agente não existe nesta conta.'
+      agente_nao_elegivel: '%{agente} não está habilitado na inbox alvo, então o lead entraria sem ninguém atribuído.'
+      time_inexistente: 'Este time não existe nesta conta.'
   agent_bots:
     captain_mirror_immutable: 'Bots-espelho de agentes IA são gerenciados automaticamente e não podem ser alterados.'
   agent_capacity_policy:

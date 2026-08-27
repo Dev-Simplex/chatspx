@@ -49,6 +49,8 @@ import contentTemplates from './contentTemplates.json';
 import mfa from './mfa.json';
 import onboarding from './onboarding.json';
 import sessionLimit from './sessionLimit.json';
+import unidades from './unidades.json';
+import redeSocial from './redeSocial.json';
 import yearInReview from './yearInReview.json';
 
 export default {
@@ -103,5 +105,7 @@ export default {
   ...mfa,
   ...onboarding,
   ...sessionLimit,
+  ...unidades,
+  ...redeSocial,
   ...yearInReview,
 };

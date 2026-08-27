@@ -10,6 +10,814 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-25] 🟢 UNIDADES GANHOU TELA — as 4 questões da §9 decididas, Fase 2 no PR #61
+
+> O Paulo perguntou onde estavam a tela de lojas e a de Rede Social. **Nenhuma das duas existia** —
+> zero arquivo de frontend nos dois PRs. A de lojas estava travada em 4 decisões dele; ele
+> respondeu e a tela foi construída.
+
+- **Decisões (§9 de `docs/contratos/unidades.md`, agora status DECIDIDO):** fases → *"Decida"*
+  (delegado) · quem edita → **perfis admin** · aprovação → **não** · IA pode dizer o motivo → **sim**.
+- **Contexto que ele deu junto e que muda a leitura da §7: a conta 7 ainda é DE TESTE, ninguém da
+  BigStore usa o SPX.** Então a tela não nasce sem usuário por defeito — ela nasce **antes** de o
+  cliente entrar, que é a ordem certa. O primeiro usuário é o time da SimplexIA.
+- **Minha decisão na #1: a Fase 2 é a tela com a aba Exceções completa e a aba Unidades em
+  LEITURA.** CRUD de unidade fica para a Fase 3. A aba de leitura **não é escopo extra** — é
+  pré-requisito: sem a lista não há de onde escolher o alvo da exceção nem como conferir a carga.
+- **🔵 Gate da sidebar é por DADO, não por feature flag** — some quando a conta não tem unidade
+  (§7). Carregar as unidades liga a tela; não há segundo interruptor para esquecer. E evita
+  encostar na máquina de feature flags que **quebrou a criação de conta na instância inteira em
+  04/08** (as 4 features órfãs). Precedente literal: o item "Campanhas", no mesmo menu.
+- **Entregue** (2 commits em `PauloSeze/unidades`): `GET /unidades` (lista + etiquetas + grade da
+  semana na ordem de leitura, distinguindo dia **não cadastrado** de **fechado**) ·
+  `GET/POST/DELETE /unidade_excecoes` · tela `Configurações › Unidades` com as duas abas · i18n
+  `en` e `pt_BR`. **Sem `update` de exceção**, de propósito: corrigir é apagar e criar outra.
+- **Medido:** 18 request specs / 0 falhas · rubocop **0** em 5 arquivos · eslint **exit 0** em 7 ·
+  zero vite vazado (specs de API JSON não disparam build — a armadilha é só de spec que renderiza
+  view). ⚠️ **Tela NÃO verificada visualmente** — só fecha depois de deploy.
+- **[PR #61](https://github.com/Dev-Simplex/chatspx/pull/61)** virou Fases 1+2: 9 commits, 34
+  arquivos. **Os 7 primeiros commits são a Fase 1 e podem ser mergeados sozinhos** — é onde está o
+  ganho maior (a IA respondendo sobre unidade), e está dito no corpo do PR.
+- ✅ **A tela de Rede Social também foi construída**, no mesmo dia, dentro do PR #68 — ver a entrada
+  abaixo. ⚠️ **Os dois documentos de desenho só existem na `conciliacao/higiene-11ago`** — não
+  estão na `homologacao` nem na `producao`.
+
+### [2026-08-25] 🟢 PÁGINA REDE SOCIAL — o comentário capturado deixa de ser invisível (no PR #68)
+
+> Fase 1 da `docs/SPEC-instagram-social.md` §6: abas ① Comentários e ② Publicações. Sem ela o
+> PR #68 capturava comentário que ninguém via.
+
+- **Item de topo na sidebar**, ao lado de Conversas e Kanban — **não em Configurações**, porque é
+  operação diária (a SPEC pede assim na §5). Mesmo **gate por dado** da tela de unidades: só
+  aparece para conta que tem comentário capturado. Admin-only.
+- **Aba Comentários:** quem comentou, o quê, quando, em que publicação (miniatura + link), e se já
+  foi respondido. Filtros por publicação, "só os sem resposta" e incluir as respostas do time.
+- **Aba Publicações:** legenda, tipo, link, curtidas, e **quantos comentários NÓS capturamos**
+  separando cliente de resposta do time — ao lado do total que a Meta reporta. A diferença entre
+  os dois é o que a assinatura não trouxe (comentário anterior a 18/08, ou publicação em colab).
+- 🔵 **O "respondido" é INFERÊNCIA, e a tela diz isso.** O webhook **não traz `parent_id`** — a
+  resposta da conta chega como comentário comum na mesma publicação. O que liga uma à outra é a
+  convenção do `@usuario` no começo, observada em **todas** as respostas medidas em 24/08.
+  `Spx::Social::Respondidos` casa **só menção no começo** (no meio é citação, não endereçamento) e
+  **não atravessa publicação**. Erra para o lado de sobrar trabalho na tela, nunca para o de
+  esconder cliente sem resposta. ⏭️ **Conserto durável: buscar `parent_id` na Graph ao gravar.**
+- **Medido:** **111 exemplos / 0 falhas** · rubocop **0** em 8 arquivos · eslint **exit 0** em 7 ·
+  rotas conferidas com `rails routes` · zero vite vazado. ⚠️ **Tela NÃO verificada visualmente.**
+- **[PR #68](https://github.com/Dev-Simplex/chatspx/pull/68)** agora tem 7 commits e 38 arquivos.
+- ⏭️ **Fora desta fatia:** responder comentário · as outras 4 abas da §5 (campanhas "comente X",
+  marcações/UGC, agenda, painel) · **se a pessoa segue a conta** — o dado existe na Graph
+  (`is_user_follow_business`, provado em 18/08) mas não é capturado ao gravar.
+
+### [2026-08-24] 🔴 A BIGSTORE NÃO TEM BOT NENHUM — e os comentários chegavam e eram jogados fora (branch `PauloSeze/instagram-comentarios`)
+
+> Sessão de retomada do módulo de Instagram com foco na BigStore. Tudo medido read-only na `.232`
+> (conta 7, inbox 57). Detalhe no vault: `spx-os/clientes/bigstore.md`.
+
+- **🔴 O achado que inverte a premissa: não há automação atendendo a BigStore.** Desde que o SPX
+  enxerga o canal (03/08) **nunca houve resposta automática**. Mediana de resposta por semana:
+  **48min · 19min · 80min · 20min**; p90 de **5h45**; respostas em menos de 30s ficam entre 3,5% e
+  8,7%. As saídas existem **só das 08h às 18h** e a saudação varia o emoji na mão (`Oie, bom dia 😃`
+  44x, `🌞` 36x, `☀️` 35x). É **uma pessoa** respondendo ~1.300 mensagens por semana.
+- **A Bia (#18) está desligada de fato:** prompt de 5.520 chars, `config['tools']` **nil**, 0
+  documentos, 10 FAQs, elegível na inbox 57 — e **1 conversa de 1.577 com o espelho atribuído**.
+  Falou **9 vezes em 60 dias, todas na conversa 2675 (a do Paulo)**, a última em 15/08.
+- **O trabalho da pessoa é triagem geográfica, e é quase todo automatizável.** Frases mais repetidas
+  em 7 dias: `Entre em contato com a loja pelo WhatsApp` 55x · `Qual das lojas?` 26x · o telefone de
+  Cacoal **26x** · `Qual cidade seria?` 22x. É exatamente o que a `buscar_unidades` (PR #61) devolve.
+- 🔴 **As 10 FAQs no ar dizem o CONTRÁRIO do que o humano faz.** A #88 afirma que *"a lista de
+  cidades, o endereço e o telefone não são consultáveis pelo direct"*. Com a tool, isso vira mentira
+  sobre a própria capacidade.
+- 🔴 **Na BigStore handoff não tem para onde ir:** a conta 7 tem **0 automation rules, 0 times e 2
+  usuários — Paulo (#51) e Simplex (#1)**. Ninguém do cliente tem conta no SPX. Ou a IA resolve, ou
+  a mensagem morre. É o oposto da Tozi, e muda a conduta inteira.
+- **O canal é de mídia:** 30 dias = 3.667 entradas, **1.691 com anexo (46%)** — **1.126 `ig_story`**,
+  455 vídeo, 73 imagem. Justifica o `media_pipeline` que já está ligado.
+
+- **🟢 COMENTÁRIOS: a precondição está provada ao vivo, e o defeito era nosso.** Payload real
+  capturado em 24/08 (`field: comments`, com `from.id`/`username`, `media.id`, texto). Em 7 dias:
+  **51 entregas, 39 comentários distintos, 16 publicações — todos descartados** pelo
+  `test_event?`, que classifica qualquer `changes` como evento de teste do painel da Meta.
+- **Fase 1 implementada** (6 commits, worktree `orca/workspaces/chatspx/instagram-comentarios`):
+  discriminador de teste vira `entry.id == "0"` (o que a doc no rodapé do próprio arquivo sempre
+  disse) + roteamento por `field` + tabelas `social_comentarios`/`social_publicacoes` + cache de
+  publicação pela Graph. **Nada é enviado; esta fatia só captura.**
+- **Três decisões vieram da medição, não da documentação:** (a) 51 entregas para 39 comentários — a
+  Meta **reentrega**, então idempotência por índice único é o caso normal, não zelo; (b) **22 das 51
+  eram da própria `@bigstoreutilidades`** — o webhook devolve o que a conta comenta, e sem a marca
+  `proprio` um agente responderia a si mesmo; (c) comentário não tem destinatário, então o canal se
+  acha por `entry.id`.
+- **Bloco 0 junto (dívida do STATE de 18/08):** `INSTAGRAM_SCOPES` e `INSTAGRAM_SUBSCRIBED_FIELDS`
+  viram config de instalação, que **acrescenta e nunca remove** o núcleo. E o `subscribe` para de
+  mentir: `HTTParty.post` **não** levanta exceção em 400, então o `rescue StandardError` só pegava
+  falha de rede e recusa da Meta passava por sucesso; agora a resposta é conferida e, se o lote
+  completo for recusado, recua-se pro núcleo em vez de deixar o canal sem assinatura nenhuma.
+- **Medido:** suíte de Instagram **135 exemplos / 0 falhas** · rubocop **0** nos 14 arquivos ·
+  `zeitwerk:check` "All is good!" · `schema.rb` (escrito à mão) carrega em banco novo criando as
+  duas tabelas · `installation_config.yml` parseia com 97 entradas e zero chave duplicada ·
+  `global_config_service` 2/0 e `global_config` 3/0. ⚠️ **O dump automático do schema é armadilha:**
+  o `chatwoot_test` da box é compartilhado e o dump saiu com **405 inserções**, arrastando 17
+  tabelas de outras frentes.
+- ⚠️ **`installation_configs_controller_spec.rb` NÃO foi rodado, de propósito** — ver o incidente
+  abaixo. Conferido por leitura: ele cria o próprio `TESTCONFIG` por factory e só checa HTTP 200;
+  não conta entradas nem lê o `installation_config.yml`, e as duas chaves novas (`locked: false`)
+  só aumentam o conjunto `InstallationConfig.editable`.
+- 🔴 **INCIDENTE QUE EU CAUSEI NA `.232`, contido:** spec de super_admin que renderiza view dispara
+  um `vite build --mode test` por exemplo, e **eles não terminam**. Cinco execuções daquele arquivo
+  deixaram **94 builds presos**, levando o Postgres a **104 conexões com `max_connections=100`** —
+  93 no `chatwoot_test`, sobrando **5 para o `chatwoot_production`** da box, que atende contas
+  reais. A partir daí todo rspec morria em `PG::ConnectionBad`, inclusive produzindo "3 falhas"
+  falsas que não eram do código. **Resolvido com autorização do Paulo:** matar os builds devolveu
+  as conexões sozinho (104 → **9**, `chatwoot_test` em zero), sem tocar no banco; app em HTTP 200,
+  web e worker ativos. Receita e diagnóstico na memória `reference-ci-232-chatspx`.
+- ✅ **[PR #68](https://github.com/Dev-Simplex/chatspx/pull/68)** aberto contra a `homologacao`
+  (6 commits, 16 arquivos, +795/−17). ⏭️ **Falta:** a tela (abas Comentários e Publicações) e a
+  resposta pública — as duas fatias seguintes.
+- ⏭️ **Duas perguntas de fato para o cliente, agora com gente esperando nos comentários:**
+  **Rondonópolis está aberta?** (FAQ #84 diz que foi transferida; `bigstore-lojas.md`, corrigido
+  pelo Paulo em 17/08, lista como ativa — e **duas pessoas perguntaram sobre ela em 24/08**) e
+  **domingo** (FAQ #80 diz "não abre"; 5 das 20 abrem 08h–13h).
+- ⚠️ **Deixado na box:** worktree de CI `/tmp/ci-igcom` e o banco descartável `chatwoot_schemacheck`.
+- ⚠️ **Limitação a declarar antes de prometer cobertura:** post em colab **não entrega comentário**
+  para o app da conta, e a BigStore usa colab em lançamento.
+
+### [2026-08-24] 🟢 VOCABULÁRIO POR ESPECIALIDADE — vendas fala CORRETOR, locação fala CONSULTOR (banco conta 6)
+
+> Queixa do time. Medido por agente antes de mexer; só prompt, sem deploy, sem tocar FAQ.
+
+- **O defeito não era a palavra errada, era as DUAS palavras.** A **Júlia #13 (vendas)** tinha
+  **16 "consultor" e 39 "corretor" no mesmo prompt** — o cliente ouvia os dois nomes da mesma
+  pessoa. As 16 foram conferidas uma a uma (todas do fluxo de venda) e viraram "corretor".
+- **Quem já estava certo não foi tocado:** Sofia #19 (vendas) 42× "corretor" e zero "consultor";
+  Bruna #14 e Letícia #15 (locação) o inverso.
+- **Clara #7 (triagem) não tem palavra certa** — ela roteia pros dois lados. As frases genéricas
+  viraram neutras ("o time"); a linha sobre **garantia de locação** manteve "consultor". As **31
+  FAQs dela com "corretor" são todas de venda** (MCMV, FGTS, planta) — falso positivo, nada a fazer.
+- **Marina #16:** só a frase genérica. *"consultora de captação"* é o **título** dela — preservado.
+- **Provado:** Júlia 3/3 "corretor" · Bruna 3/3 "consultor" (transação revertida, nada enviado).
+- ⚠️ **Dívida:** a frase da pausa do almoço está **copiada idêntica em 5 prompts** e a palavra certa
+  difere em cada um. Mesma classe do R$21 em duas FAQs — **texto duplicado diverge**.
+- Backups: `/tmp/assistant_{7,13,16,17}_ins_vocab.bak-20260824165419.restore.rb`.
+
+### [2026-08-19] 🔴→🟢 A IA DE LOCAÇÃO INVENTAVA PREÇO — 3 valores em 5 rodadas (banco conta 6, sem deploy)
+
+> Entrou como "atualizar dois fatos que o Léo passou" e a medição virou o assunto. Tudo em FAQ +
+> prompt da **Bruna #14** (a agente de locação), prod Tozi. Detalhe no vault:
+> `spx-os/clientes/tozi.md` e `aprendizados/prompt-nome-sem-fato-vira-invencao.md`.
+
+- **Fatos novos aplicados:** taxa de assinatura do contrato **R$ 21 → R$ 49** (estava em **duas**
+  FAQs, #284 e #288 — mexer numa só faria a IA dar valores diferentes conforme a pergunta) e o
+  **fiador digital** como **4ª garantia** (a Loft entra como fiadora, **12,5% do valor anual**,
+  conforme análise, até 12x, sem imóvel/caução/terceiros). FAQ **#307** nova entra pela dor
+  ("sem fiador e sem caução"), que é como o cliente pergunta. Re-embed automático conferido.
+- **`seguro fiança` deixou de ser beco sem saída:** a FAQ #291 segue dizendo que a Tozi não trabalha
+  com isso, mas agora oferece o fiador digital — que é exatamente o que quem pergunta procura.
+  ⚠️ Fiador digital **não é** seguro fiança; a proibição do prompt continua valendo.
+- **🔴 O ACHADO:** rodando a pergunta da taxa **5x** (transação revertida, nada enviado), a IA
+  **só consultava a base em 2/5**. Nas outras três **inventou preço: R$ 500, R$ 400 e "um aluguel"**.
+  O R$21 antigo **nunca aparecia** — ela não lia a FAQ nem antes. **Trocar o número sozinho
+  consertaria só 40% dos casos.**
+- **Causa:** o prompt tem regra anti-invenção para imóvel, link, localização, pet, horário e fotos —
+  e **nenhuma** para taxa/valor de contrato/percentual/garantia. Seção nova fecha a classe:
+  consulte ANTES de responder mesmo achando que sabe + valor que não veio da base não sai.
+  **Depois: 5/5 consultam e acertam.**
+- **🔴 Erro meu, medido e desfeito:** eu tinha posto *"fiador digital"* na **enumeração dentro do
+  prompt**. Medido: **3/5 diziam o nome e inventavam a descrição** ("análise feita online"), **0/5**
+  citavam Loft ou os 12,5%. **Nome no prompt + fatos só na base = recita o nome e inventa o resto** —
+  é a REGRA #1 valendo para **substantivo**, não só para frase de exemplo. Enumeração removida →
+  **5/5 citam Loft e 12,5%**.
+- ⚠️ **Armadilha de sonda (2ª vez nesta sessão):** `run_raw` devolve `output` **vazio** quando há
+  handoff — 5 respostas boas apareceram como 5 vazias e eu quase reportei regressão. Medir com o
+  fallback que o `ResponseBuilderJob` aplica.
+- **Reversão:** `/tmp/tozi_garantias.bak-20260819110810.restore.rb` e
+  `/tmp/assistant_14_ins_valores.bak-20260819112131.restore.rb` na VM.
+- ⏭️ **Pergunta ao Léo:** o fiador digital vale para todo contrato ou tem restrição por
+  imóvel/proprietário? Hoje a resposta diz "conforme análise" e manda confirmar com o consultor.
+
+### [2026-08-19] 🟢 CONVERSA SEM DONO: a máquina já existia, vetada por UMA flag (PR #66) · e a fila presa (PR #65)
+
+> Queixa do time: conversa "some". Medido na prod Tozi (conta 6), read-only. Dois PRs, dois
+> defeitos diferentes — um de entrada na fila, outro de saída dela.
+
+- **🔴 A flag `reply_assignment_gate` faz DUAS coisas de sinais opostos.** Ela obriga o humano a
+  estar atribuído para responder (**a favor** de todo mundo ter dono) e proíbe a IA de reassumir
+  órfã (**contra**), porque no modelo FILA a conversa devia esperar alguém puxar. Quem abandonou a
+  fila quer a primeira metade e não a segunda — e não conseguia: era tudo ou nada.
+- **A reentrada JÁ ESTÁ CONSTRUÍDA e diz exatamente o modelo do Paulo.** Comentário no próprio
+  código do `orphan_captain_reentry?`: *"Reaberta volta pra TRIAGEM, com o time LIMPO: ela lê o
+  histórico + a mensagem nova e decide se continua o assunto anterior ou abre um novo, e roteia."*
+  O `OrphanRetriageJob` também já re-executa as regras a cada 15 min. **Os dois estavam vetados
+  pela mesma flag.**
+- **✅ [PR #66](https://github.com/Dev-Simplex/chatspx/pull/66)** (`PauloSeze/toda-conversa-com-dono`):
+  chave `ia_reentra_orfa` por conta separa as duas. **Sem a chave nada muda** — deriva do
+  `reply_assignment_gate` como antes, e os specs existentes que cobrem os dois lados continuam
+  valendo sem alteração (é a prova de que o default não mudou). Rubocop 0 nos 7 arquivos.
+  ⚠️ **Specs NÃO rodados** (6 exemplos novos) — a box de CI é LAN e a sessão estava fora dela.
+- **Medição (28 órfãs agora):** inbox 91=12 · 101=6 · **99=6** · 61=2 · 62=2. A Clara (#7) é a
+  triagem e está elegível em 91/61/62/101 → **22 das 28 ganham dono ligando a chave**. As 6 da
+  **99 não têm IA nenhuma** (inbox de disparo) — são de gente, tratamento à parte.
+- **Isso NÃO come a fila de espera:** conversa aguardando humano depois de handoff **não é órfã**
+  (o `HumanHandoffService` não solta o espelho de propósito), e `still_orphan?` exige assignee nil
+  **e** sem espelho. O receio registrado no F1.4 não se aplica.
+- **✅ [PR #65](https://github.com/Dev-Simplex/chatspx/pull/65)** (`PauloSeze/aguardando-preso`) — o
+  outro lado: conversa com dono humano ficava **presa para sempre** em "Aguardando atendimento".
+  `aguardando_humano_desde` é limpo por **mudança** (assignee muda, espelho solto, resolve); com
+  humano já dono no instante em que o marcador nasce, não sobra mudança a observar. Corrida de
+  ordem — alguém puxa a conversa no meio do turno em que a IA produz o handoff. Medido na conv
+  4854: atribuída 09:33, marcada 09:34, fila mentindo enquanto a consultora respondia. 4 specs.
+
+### [2026-08-19] 🟡 CONV 4285 — a IA mandou o carrossel SEM UMA PALAVRA. É a corrida do takeover, 1 em 217
+
+> A cliente mandou **6 mensagens em 33s** (incluindo "Boa tarde", uma foto e "Este imóvel está
+> disponível?"); a IA respondeu **só com o carrossel**. Um humano assumiu e saudou 5 min depois.
+
+- **Aquele `📷 Carrossel: 9 fotos do imóvel 6767` é o texto da PRÓPRIA TOOL, não fala da IA.**
+- **O log do turno conta tudo:** `09:39:45 debounce_fire` → `09:39:50 human_takeover` →
+  `09:39:56 carrossel` → `09:39:57 handoff`. Alguém assumiu **no meio do turno**.
+- **Causa estrutural:** `captain_can_respond?` (`response_builder_job.rb:51`) relê o espelho fresco
+  do banco **depois** da rodada do modelo e cala a fala. Mas a tool de fotos **escreve a mensagem
+  ela mesma, dentro da rodada**, sem passar por esse portão — o mesmo vale para o `HumanHandoffService`
+  (a nota privada saiu). **O portão protege as palavras, não os atos.**
+- **Escala medida (60 dias): 217 carrosséis, 1 mudo (0,5%) — é esta.** Não é comportamento
+  sistêmico nem falha de conduta; é corrida rara. Vale fechar porque é barato e o sintoma para o
+  cliente é feio, mas **não é urgência**. ⏭️ Conserto: checar o portão imediatamente antes de a
+  tool escrever (fecha ~a janela inteira: o takeover foi 6s antes da escrita).
+
+### [2026-08-19] 🔵 CARROSSEL INVISÍVEL NO PAINEL — e não é só o carrossel: **NENHUMA** mensagem rica é desenhada
+
+> Queixa do time: não conseguem ver pelo SPX as imagens enviadas em carrossel.
+
+- **`rg interactive_payload app/javascript` = ZERO.** O front não sabe que essa chave existe.
+  Toda mensagem rica que o SPX manda — carrossel, botão de CTA, pedido de localização, Flow —
+  chega ao time como **uma linha de texto seca**. O carrossel é só o caso que dói mais.
+- **O dado já está todo lá, e é público.** Cada card do payload traz
+  `header.image.link` (CDN da Vista), `body.text` e `action.parameters.url`. A mensagem é gravada
+  com **`attachments` vazio** de propósito (o carrossel é passthrough da Meta).
+- **Logo NÃO precisa baixar nem armazenar nada** — a alternativa de anexar as imagens custaria
+  storage, dobraria o download e ainda **mentiria** sobre o que foi enviado (o cliente recebeu
+  cards com botão, não fotos soltas). ⏭️ O conserto é **1 componente de bolha** que lê
+  `content_attributes.interactive_payload` e desenha os cards; mesmo componente serve os 4 tipos.
+
+### [2026-08-18] 🔴→🟢 A JANELA DE 24h DO INSTAGRAM: não há atalho, e o loop da BigStore estava quebrado
+
+> Fechado com medição, depois de duas correções minhas. Contratos:
+> `docs/contratos/human-agent-instagram.md` e `docs/contratos/ponte-whatsapp.md`.
+
+- **O mapa, todo testado ao vivo** (destinatário `1737491620526400`, janela fechada há 78h):
+  dentro de 24h funciona · **`HUMAN_AGENT` = 7 dias, existe nesta API e falta App Review** ·
+  Marketing Messages exige opt-in do usuário e parece ser do sabor Página · resposta privada a
+  comentário tem janela própria de 7 dias · **as outras 4 tags do Messenger a Meta ignora** ·
+  **abertura a frio não existe** (sem interação não há nem IGSID para endereçar).
+- **O erro distingue tudo:** sem tag → `403 subcode 2534022` ("fora do período permitido"); com
+  `HUMAN_AGENT` → `403` reclamando da **feature não aprovada**, citando "this endpoint". A API
+  conhece a tag. Testadas 4 grafias/formatos — mesmo erro nos quatro.
+- ⚠️ **O painel MENTE:** `Human Agent` aparece como `Standard access`, "pronto para usar", "nenhuma
+  análise solicitada" — e o endpoint recusa. Mesmo padrão dos comentários (permissão no app ≠
+  permissão no token). **Ler o painel não substitui testar por capacidade.**
+- **🔴 TESTE CRUZADO n8n × SPX — o achado do dia.** O Paulo lembrava que no n8n funcionava fora da
+  janela, e o fluxo `Zap` de fato **envia** fora dela (o gatilho é o **lojista respondendo no
+  WhatsApp**, não o cliente). Rodado lado a lado, mesmo destinatário e mesmo corpo: **os dois
+  levaram `403 subcode 2534022`**. O n8n nunca teve capacidade a mais — o nó tinha
+  `onError: continueErrorOutput`, então a falha virava aviso no WhatsApp **da loja** e nunca chegava
+  ao Paulo.
+  > **O loop lojista→cliente da BigStore estava quebrado toda vez que a loja demorava mais de 24h.**
+  > O cliente perguntava, a loja respondia, a resposta não chegava. Não é regressão da migração — é
+  > defeito que a migração revelou.
+- ⏭️ **A saída que não depende da Meta (ideia do Paulo):** usar as 24h que existem para **levar a
+  conversa ao WhatsApp**, que tem template. Duas formas — Tozi (tem WABA, conversa segue no SPX) e
+  BigStore (não tem WABA; o telefone vai para a loja falar do próprio número). Contrato escrito.
+- ⏭️ **Pedir a feature Human Agent** no `Business MW` (`478777497423728`) segue valendo, para quem
+  não quer dar o telefone. Agora com argumento melhor: é conserto de defeito, não melhoria.
+- ⚠️ Não dá para repetir o teste do app antigo: a BigStore foi desvinculada dele. E ainda que ele
+  tivesse algo a mais, a box tem **um** `INSTAGRAM_APP_ID` — trocá-lo atingiria toda conta dela.
+
+### [2026-08-18] 🟢 REAGIR / DIGITANDO / VISTO no Instagram — funcionam hoje, e o SPX não usa nenhum
+
+- Testado na inbox 56 (Midwest, conta do Paulo): `sender_action: react` com **`love` → 200 OK**,
+  `unreact` → OK, **`typing_on` → 200**, **`mark_seen` → 200**.
+- **`love` é a ÚNICA reação aceita** — testadas 15 (`wow`, `haha`, `like`, `thumbs_up`, `fire`…),
+  todas recusadas com "Reação inválida".
+- É o `reagir` que o n8n tinha e o SPX não tem: **nenhuma das quatro capacidades existe no código**.
+  Não depende de escopo, de aprovação nem de janela nova — é a lacuna mais barata da lista.
+- Bônus: o indicador "digitando" hoje só existe no WhatsApp Cloud; no Instagram responde 200.
+
+### [2026-08-18] 🟢 CARROSSEL NO INSTAGRAM: dois formatos provados ao vivo (frente `instagram-midia`)
+
+- Enviados de verdade pela inbox 56 (Midwest → @pauloseze), os dois com **HTTP 200**:
+  **generic template** (carrossel de cards com foto, título, subtítulo e botão) e **`attachments[]`**
+  (até 30 fotos numa mensagem só).
+- **No celular os dois renderizam bem** (confirmado pelo Paulo). No **Instagram Web** o generic
+  template mostra *"Mensagem não aceita — use o app do celular"*; o `attachments[]` renderiza.
+- ⚠️ A Meta **não devolve eco** do generic template (6 ocorrências de `attachments` no journal,
+  zero de `template_type`). Isso **não** é objeção para o produto — quando o SPX envia, ele cria a
+  `Message` local antes; o eco só importa para mensagem mandada por fora.
+- **Decisão do Paulo:** fazer os dois. `attachments[]` para as fotos de um imóvel; generic template
+  para a vitrine de 3 imóveis com botão. O clique volta por **`postback`** (`web_url` não volta).
+- Frente aberta: worktree `instagram-midia`, branch `PauloSeze/instagram-midia`.
+- ⏭️ **WhatsApp fica como está** (decisão do Paulo). Lá não existe álbum: o `WhatsappCloudService`
+  manda `attachments.first` — uma mídia por mensagem —, então o carrossel é o único agrupamento.
+
+### [2026-08-17] 🔴→🟢 LEAD DE LOCAÇÃO NASCIA NA AGENTE DE VENDAS (conv 28230) — **PR #57 aberto** · rodízio mapeado · supervisor de locação criado
+
+> Sessão de queixa de cliente. Tudo medido na VM da prod Tozi (conta 6), read-only. Log completo do
+> caso no vault: `spx-os/clientes/tozi-conversation-log.md` (3 blocos de 17/08).
+
+- **O caso:** lead do site com `jornada` começando em *"Interesse em locação"* foi atendido pela
+  **Júlia (vendas)** e encaminhado ao time **vendas**; a Maria Vitoria corrigiu na mão 12 min depois.
+- **Três defeitos empilhados:**
+  1. **Origem:** o `SiteLeadJob` monta o lead **sem `campaign_id`**, e `hook_setting` só resolve
+     override **por campanha** → **todo** lead de site cai no global do hook #8 (bot 17 = Júlia).
+     Não existia caminho de configuração para o site.
+  2. **🔴 `handoff_team_id` da conta é IGNORADO.** A chave (=60, recepção) só desliga a enumeração de
+     times no `HandoffTool`; o `HumanHandoffService#resolve_team` **nunca a lê** e cai no
+     `assistant.config['team_id']`. Medido: **641 handoffs/60d, só 81 pra recepção — e os 81 são da
+     Clara**, cujo padrão já é 60. Era paliativo até o rodízio ficar pronto e **nunca funcionou** —
+     e ainda tirou da Júlia a capacidade de rotear. Comentário corrigido no PR #57 (`f862aa5e`).
+  3. Conduta manda transferir locação pra Bruna (usa 93x/60d), mas o gatilho positivo do `handoff`
+     vence quando o cliente pede fotos/visita.
+- **Escala:** 40 conversas/60d com busca de locação + handoff pra vendas. **28 corrigidas por humano**
+  (mediana **78 min**; 15 casos >1h, pior **17h30**), 11 pela própria IA (mediana 3 min), 1 nunca.
+- **✅ [PR #57](https://github.com/Dev-Simplex/chatspx/pull/57)** (branch `PauloSeze/leads-site-fotos`,
+  4 commits, **81 specs / 0 falhas**, rubocop 35=35 contra baseline):
+  - **`intent_overrides` no hook** (opt-in, genérico): `[{match, assign_agent_bot_id, assign_team_id}]`
+    casado por substring contra a `jornada`, sem acento/caixa. Precedência **campanha > intenção >
+    global**. Provado por **replay das 100 jornadas reais**: sem a chave = idêntico a hoje; com ela,
+    57 mudam e **43 desses 57 o time humano de fato levou pra locação** (91,5% dos decididos).
+  - **Carrossel deixa de virar fala do agente:** mensagem com `interactive_payload` entra no histórico
+    como `[carrossel de fotos do imóvel X enviado]`. Causa medida: o modelo **copiou** o texto do
+    rótulo e mandou uma linha sem foto 7s depois do carrossel real. Alcance: 149/56.870 msgs em 30d.
+  - **`docs/SPEC-fila-envio-fotos.md`** — o `COOLDOWN=90` recusou os outros 2 imóveis que o cliente
+    pediu (9ms e 3ms, e as 3 chamadas gravaram `status=ok`). Spec de enfileirar em vez de recusar.
+    **Não implementada** — decisão do Paulo: estudar e criar.
+  - ⏭️ Só vale na Tozi **depois** de mergear + promover + deployar. Ligar a chave no hook #8 é config.
+- **🟢 RODÍZIO: motor 100% construído, 0% configurado.** As 4 tabelas (`distribuicao_policies/states/
+  logs/produtos`) estão **vazias** — nunca rodou. Tem pool ordenado, preferência do cliente por nome,
+  teto, continuidade 30d, SLA 30min, espelho Vista e `modo_posse=designacao` pro corretor que não vive
+  no SPX. **O código já está na prod** — ligar é config, não deploy.
+  - **Locação (#27) pronta:** os 5 membros formais são os 5 atendentes reais; **96%** das conversas
+    atribuídas tiveram fala do dono → `modo_posse: assignee`. Pool proposto: **Adrian #63, Gelson #72,
+    Evellyn #137, Camila #110**. **Maria Vitoria #66 fora** — 1,6 msg/conversa em 1.080 conversas, ela
+    despacha, não atende. ⏳ aguarda aval dos nomes.
+  - **Vendas (#26) NÃO dá pra ligar:** o time tem **2 membros e nenhum corretor** (eles vivem no
+    Vista). O `build_pool` **intersecta com os membros do time** → pool vazio → `sem_pool` em silêncio.
+  - ⚠️ Cap: começar **sem**. Evellyn tem **185 conversas abertas** contra 35/15/7 — parece acúmulo, não
+    carga; com cap ela seria excluída por um número que não significa o que parece. (Olhar em separado.)
+- **🟢 SUPERVISOR DE LOCAÇÃO CRIADO — usuário #141 Leonardo Rimoli**
+  (`supervisor.locacao@toziimoveis.com.br`). Identificado por prova: cartão compartilhado pela Angela
+  em 13/07 — *"Leonardo Gerente Comercial De Locacao"*, +55 66 99243-3029, LID `157784347828264@lid`.
+  Ele **não tinha conta** e operava só por 3 grupos de WhatsApp que caem na inbox.
+  - **Config canônica:** `role=agent` + linha em `team_supervisors` (time 27).
+    `permissions=["agent","team_supervisor"]`. Enxerga **7.998 conversas, todas de locação, zero fora**.
+  - ⚠️ **A frente "Supervisor de Time" JÁ EXISTIA** (`task/supervisor-de-time.md`, F1–F5 entregues, já
+    em produção). **"Supervisor" é rótulo de UI, não role do backend** (D1/D6). Um custom role que eu
+    havia criado foi **revertido e apagado** por duplicar o conceito.
+  - ⏳ **`agent` não vê relatório** (`ReportPolicy#view?` exige admin) e *"relatórios escopados por
+    supervisão"* está em **Fora de escopo (deferido)** no doc deles. **Paulo levantou com o Walisson
+    em 17/08; resposta esperada 18/08.**
+- ⏭️ **Sobras:** worktree de CI em `/tmp/ci-leads-site` na `.232` · as **31 conversas** poluídas pelo
+  incidente de menção do Instagram seguem abertas · a `producao` local deste notebook está **297
+  commits atrás** (sair sempre de `origin/producao`).
+
+### [2026-08-18] 🟢 COMENTÁRIOS DO INSTAGRAM DESTRAVADOS — eram DUAS coisas nossas, nenhuma da Meta
+
+> Inverte o diagnóstico de 11/08 (`docs/SPEC-instagram-comentarios.md`), que dava o escopo como
+> bloqueio com prazo de App Review. **Não havia App Review nenhuma.** Faltavam duas coisas, ambas
+> do lado do SPX: a assinatura de conta e o escopo no token. As duas resolvidas hoje, sem deploy.
+
+**O caminho do diagnóstico, porque ele erra duas vezes antes de acertar:**
+1. Achei que era só a assinatura de conta → liguei `comments` → **webhook continuou sem disparar**.
+2. Achei então que o escopo gateava a entrega e que teria App Review → **o painel mostrou
+   `Standard access`, ativo, sem análise pendente**.
+3. O teste que fechou foi **por capacidade, não por declaração**: pedir
+   `fields=username,from{id,username}` num comentário devolvia **HTTP 200 com os campos
+   simplesmente ausentes**. A Meta não erra quando falta permissão — ela **omite em silêncio**.
+   Mesma família das outras falhas caladas da semana.
+
+**✅ Resolvido (18/08, sem tocar em código):** reconexão da inbox 57 por uma URL de consentimento
+montada à mão com o escopo a mais, usando o `redirect_uri` e o `state` do próprio SPX — o callback
+dele fez a troca e gravou o token. Zero off-git, zero escrita manual no banco.
+
+Conferido depois: conta 7 segue com **uma** inbox (`[57]`, nenhuma fantasma — o risco real era
+autorizar na conta errada, que foi o incidente de 04/08); token novo com 60 dias; a assinatura de
+`comments` **sobreviveu** (o `subscribe` é `after_create_commit`, não roda em update); e o autor
+dos comentários **passou a aparecer** (`@pauloseze`, `@mayarabalbino6`…) onde antes vinha vazio.
+
+⏭️ **Falta a prova do webhook** — o comentário de teste foi feito antes da reconexão.
+
+⏭️ **A dívida de código que fica:** `Instagram::IntegrationHelper::REQUIRED_SCOPES` é constante
+global. A reconexão pela TELA continua mintando só dois escopos, então este token é melhor que o
+que a UI produz. Acrescentar o escopo ali muda a tela de consentimento de **toda conta em toda
+box**, e onde o app não tiver a permissão o OAuth passa a falhar por escopo inválido — a Tozi usa
+outro app (`SPX Lead Ads Tozi`). Tem que virar configurável, não constante. Mesmo padrão da
+armadilha do `subscribed_fields`.
+
+> **Registro antigo, mantido porque explica os números:**
+
+- **O app do SPX na `.232` é o `Business MW` (`478777497423728`)** — confirmado pelo print do painel:
+  callback `https://chatspx.app/webhooks/instagram`, conta `bigstoreutilidades`
+  (`17841468839878751`) com assinatura ativada, e o campo **`comments` já Assinado no nível do app**.
+  ⚠️ O `INSTAGRAM_APP_ID` gravado na box é `1147598410038941` — é o *ID do app do Instagram* do
+  produto, não o id do app pai; não confundir com o WABA TOZI (`1147301410628990`).
+- **São DUAS camadas de assinatura**, e quem manda é a de **conta**: `GET /{ig}/subscribed_apps`
+  devolvia `["messages","message_reactions","messaging_seen"]`. Essa lista é escrita pelo **próprio
+  SPX**, no array fixo do `Channel::Instagram#subscribe`, e é sobrescrita a cada conexão de inbox.
+- **Provado nos dois lados antes de mexer:** 7 dias de journal = **4.418** eventos de webhook do
+  Instagram e **zero** evento de `changes` (nenhum `TestEventService`). Os únicos `changes` no log
+  são do WhatsApp, que é outro produto.
+- ✅ **`comments` LIGADO para a BigStore em 18/08**, por chamada de API, **sem deploy**, com snapshot
+  e reversão automática embutida. Estado final:
+  `["comments","message_reactions","messages","messaging_seen"]`.
+  **Reverter:** `POST /17841468839878751/subscribed_apps?subscribed_fields=message_reactions,messages,messaging_seen`
+  (script em `/tmp/liga_comments.rb` na box).
+- **Por que foi seguro:** o SPX **não consegue responder** comentário (sem código e sem escopo), então
+  ligar o recebimento **não** cria resposta dobrada com o n8n — aquele risco é só da resposta. O
+  comentário chega, o job classifica como evento de teste e descarta. Nada muda para o cliente.
+- ⏭️ **Falta provar com comentário real.** O rastro será a linha de `Parameters:` do
+  `Webhooks::InstagramController` com `"field" => "comments"` no journal.
+- 🔴 **A armadilha da frente, para quando ela abrir:** aquele array de `subscribed_fields` é
+  **compartilhado por toda inbox de Instagram de toda conta em toda box** — inclui a Tozi, com a
+  Clara viva na inbox 101. E o `subscribe` manda a lista inteira numa chamada só, com
+  `rescue StandardError; true`: numa box cujo app não tenha o campo, a chamada falha, o erro é
+  engolido e **o canal pode ficar sem assinatura nenhuma, matando o DM em silêncio**. Tem que ser
+  condicional por canal e com a falha visível.
+- ⏭️ **Responder** comentário continua dependendo de `instagram_business_manage_comments` no token →
+  reconectar a inbox por OAuth. Aí sim é decisão + janela de manutenção.
+- ⏭️ **Decisão de modelagem tomada pelo Paulo:** comentário **não vira conversa**. Vira superfície
+  própria — uma página de rede social com o comentário, a publicação, e o que a IA respondeu (ou não,
+  e por quê). O cache de publicações que essa tela precisa é **o mesmo dado** que a IA precisa para
+  responder, então tela e cérebro são a mesma obra.
+
+### [2026-08-18] 🔵 FRENTE ABERTA: `unidades` — onde moram as lojas do cliente (Fase 1)
+
+> Worktree `orca/workspaces/chatspx/unidades`, branch **`PauloSeze/unidades`**, agente Claude
+> rodando. Contrato: **`docs/contratos/unidades.md`** (está na branch de docs / PR #42, ainda não
+> na `homologacao` — o worker lê por `git show origin/conciliacao/higiene-11ago:...`).
+
+- **Por que existe:** o SPX **não tem lugar nenhum** para as unidades físicas de um cliente —
+  verificado no código. `WorkingHour` é por *inbox* (quando o SPX atende, não quando a loja abre) e
+  **não existe conceito de exceção/feriado em lugar nenhum do repositório**; `Captain::CustomTool`
+  exige `endpoint_url`, então consulta mas não guarda; knowledge responde por similaridade, que é
+  ruim em listagem e incapaz de fazer conta de data. Resultado medido na BigStore: o prompt da Bia
+  diz *"você não tem nenhuma fonte de dados conectada"* e **toda** pergunta de horário, endereço,
+  telefone ou preço vira handoff — no n8n a mesma IA respondia, porque tinha uma Data Table.
+- **O princípio:** regra padrão e exceção são coisas diferentes, e **a exceção tem data e morre
+  sozinha**. A dor do n8n não era guardar, era que exceção virava regra (`abre_domingo: true`) e
+  alguém tinha que lembrar de desfazer. Exceção vale para um **conjunto** (etiqueta), senão
+  "editar 20 linhas" só vira "criar 20 exceções".
+- **Escopo da Fase 1:** 3 tabelas + models com a regra de resolução + tool `buscar_unidades` +
+  rake de carga + specs. **Sem UI** — a tela é Fase 2 e depende das 4 questões da §9.
+- **A prioridade da UI é invertida de propósito:** endereço muda uma vez por ano e a gente carrega;
+  **exceção muda toda semana e precisa ser do cliente**, senão reconstruímos o n8n com mais passos.
+- **Ganho de projeto sobre o n8n:** lá a instrução era o **modelo** converter "abre amanhã?" em data
+  absoluta antes de consultar. Aqui a data se resolve **em Ruby**, no fuso da unidade. E expressão
+  não resolvível tem que dizer isso — não pode virar "hoje" por omissão.
+- ⚠️ **Armadilha evitada na criação:** a `homologacao` **local** deste notebook está **156 commits
+  atrás** da origin. Worktree criada com `--base-branch origin/homologacao` explícito (`ce3adb2be9`).
+  É a mesma pegadinha que em 15/08 fez um cherry-pick nascer sobre base velha.
+- **Sem Run de orquestração**, de propósito: é **uma** frente, e a fila de mensagens do Run polui a
+  conversa do Paulo. Supervisão por leitura do terminal.
+
+### [2026-08-17] 🟡 FLOWS: o menu de opções sumia em canal que não desenha menu (PR #60) — armadilha latente, exposição ZERO hoje
+
+> O `send_interactive` é o **mais antigo** dos cinco nós de canal e o **único sem guarda**. As quatro
+> ações ricas (`send_cta_url`, `send_location_request`, `send_whatsapp_flow`, `send_template`) já
+> levantam `StepSkip('inbox_not_whatsapp')`; ele confiava que o canal saberia desenhar.
+
+- **Mesma classe do carrossel (#49) e do envio por exceção (#58):** canal que não implementa
+  `input_select`+`items` **não recusa** — manda só o `content` e as opções somem. A pessoa recebe
+  uma pergunta sem como responder, e nada registra falha.
+- **Não dá pra reusar o `whatsapp_cloud_inbox?`** — menu não é exclusividade do WhatsApp. Desenham
+  hoje: WhatsApp (cloud **e** 360dialog, pelo `create_payload_based_on_items`), Telegram
+  (`inline_keyboard`), Facebook (`quick_replies`), LINE, widget (nativo no front) e **Api** (WAHA
+  REST desenha; sem sessão WAHA o `WebhookListener` entrega os items ao consumidor). **Não** desenham:
+  Instagram, e-mail, SMS/Twilio, TikTok. Virou capacidade de canal:
+  `Channelable#supports_interactive_items?`, irmã da `supports_interactive_payload?` do #49,
+  **falsa por padrão**.
+- **Exposição medida antes de escrever código: zero.** Tozi prod tem **27 flows (25 ativos) e
+  nenhum** usa ação de canal; a `.232` tem 1 flow demo com `send_interactive` na conta 3; as **4**
+  mensagens `input_select` de 90 dias saíram todas em WhatsApp, todas `read`. Está declarado no PR —
+  é trava preventiva, não incidente. Vale porque o motor de Flow está em construção, o gatilho
+  **manual** roda qualquer flow sobre qualquer conversa, e a Tozi já tem inbox de Instagram viva.
+- **Medição:** ramo **311 exemplos / 0 falhas** × baseline **307 / 0**. **Mutação** (spec novo contra
+  código velho): **3 falhas**, exatamente as da guarda. O 4º exemplo novo — Telegram continua
+  entregando — passa dos dois lados **de propósito**: é a contraprova de que a guarda não virou
+  "só WhatsApp Cloud". Rubocop 0 nos 10 arquivos.
+
+### [2026-08-17] ✅ CORREÇÃO DE REGISTRO: os PRs #32–#39 foram MERGEADOS em 12/08
+
+> O STATE os listava como "fila do Walisson". Não estão mais. Entre eles o **#37**, que tirou a
+> **cidade fixa "Sinop MT"** das buscas do Google (`buscar_lugar`/`buscar_localizacao`) — o bug
+> compartilhado que atingia Fábrica e Tozi está **fechado**, não pendente. Fila real hoje:
+> **#40, #41, #42, #43, #44, #46, #53, #57, #58, #59, #60** + os zumbis #1–#7.
+
+### [2026-08-17] 🟢 CTWA — 93% das conversas de anúncio chegavam sem dizer de onde vieram (PR #59) · e o #56 virou #58+#59
+
+> Lead de **formulário** já era carimbado desde julho; quem clica no anúncio e escreve primeiro
+> entra por **outra porta** (pipeline de mensagem recebida) e ficava invisível. Medido na Tozi
+> (conta 6, inbox 91), 45 dias: **167 conversas vindas de anúncio, 155 sem nenhum atributo de
+> campanha (93%)**, de **17 criativos distintos**.
+
+- **O dado sempre esteve lá** — no `referral` que a Meta manda junto da primeira mensagem. Ninguém
+  o lia. Traz `source_id` (id do **anúncio**, não da campanha), `source_type`, `source_url`,
+  `headline`, `body`, `media_type`, `image_url`, `ctwa_clid`. **Não vem nome de campanha nem de
+  conjunto** — isso exigiria consultar a Graph. Mas vem o `headline`, legível, então a visibilidade
+  não depende de chamada externa nenhuma.
+- **PR #59 (fase 1, só visibilidade):** `Whatsapp::ReferralVisibilityService` +
+  `Spx::CtwaVisibilityListener` no `AsyncDispatcher`. Carimba **as mesmas chaves** do fluxo de
+  formulário (`meta_anuncio`, `meta_anuncio_id`, `meta_origem`, `meta_tipo`) de propósito — o
+  marketing não pode ter duas taxonomias pra mesma pergunta. **Primeiro clique manda** (a conversa é
+  única por contato; reescrever apagaria a origem em silêncio). **Uma label só** (`anuncio`), senão
+  17 criativos viram 17 labels. Sem opt-in por conta: só age quando há `referral`, e o que grava é
+  fato, não comportamento.
+- **Medido na `.232`, banco dedicado, contra baseline (o próprio ramo com o commit revertido):**
+  ramo **296 exemplos / 11 falhas** × baseline **289 / 11**, **lista de falhas idêntica** (as 11 são
+  pré-existentes na box). +7 exemplos novos passando, zero regressão. Rubocop 0 nos 4 arquivos
+  (a 1ª medição pegou `CyclomaticComplexity 8/7` no listener — era a navegação segura do log, não a
+  regra; extraída em commit separado).
+- ⏭️ **Fase 2 (rotear por `source_id`) NÃO foi feita** e depende de ler o **PR #44** antes, pra não
+  duplicar `campaign_overrides`. É a fase que muda comportamento — decisão do Paulo.
+- ⚠️ **Erro meu, corrigido:** commitei o CTWA em cima da branch do **#56** (conserto do envio
+  silencioso no Instagram), misturando dois assuntos num PR só. Separado **sem force-push**: duas
+  branches novas a partir da `homologacao`, **#58** (Instagram) e **#59** (CTWA), e o #56 fechado
+  apontando pros dois.
+
+### [2026-08-15 04:20] ✅ DEPLOY DA `.232` EXECUTADO — e o off-git dela virou código de verdade (PR #51 mergeado)
+
+> O deploy estava **suspenso** desde 13/08 porque a box tinha trabalho vivo fora do git. Saiu hoje,
+> depois de o trabalho ser resgatado, conciliado e mergeado. Box em `e14d711bc0`, 10 migrations
+> aplicadas, assets recompilados, web+worker reiniciados, **zero erro no log**.
+
+- **O que a box escondia:** 328 commits atrás, 2 à frente, 70 entradas sujas — e não era resíduo:
+  **streaming SSE do Copilot**, painel de IA, **grupos de WhatsApp com autor por mensagem** e o
+  **gate de sessão + backoff do LID** (`Waha::SessionStatusCache`). Um deploy direto apagava os 27
+  arquivos rastreados em silêncio.
+- **Resgate sem tocar na box** (havia 3+ sessões de agente rodando nela): commit montado com
+  `GIT_INDEX_FILE` temporário, sem mexer em HEAD, working tree ou índice → branch
+  **`backup/232-offgit-20260814`** (`b55d1045ee`, 66 arquivos, 11.184 inserções). Conferido depois:
+  HEAD e as 70 entradas intactos.
+- **PR #51 (mergeado):** as **16 colisões** (não 7 — a contagem inicial ignorou que os 2 commits da
+  box também colidiam) resolvidas por um critério só: *isto já chegou à `homologacao` por outro
+  caminho?* Chegou em parte. Ficou a homologação onde houve implementação em paralelo
+  (`acceptable_webhook_urls`, `create_conversation_service`, `orphan_retriage`); ficou a box no que
+  não existia lá (participantes de grupo, `SessionStatusCache`, rescue por episódio); ficaram **os
+  dois** em `routes.rb`, no `router_service` (`skip_labeled?` **e** default tri-estado de grupo) e no
+  i18n (fusão **por chave**, porque a fronteira do conflito cortava o meio de um objeto e concatenar
+  gerava JSON inválido).
+- **🔴 O que a suíte pegou e o merge textual não pegaria:** ficar com a versão da homologação do
+  `orphan_retriage_job.rb` trazia de volta um bug que a box já tinha consertado — `notify_admins`
+  roda **antes** do `update!` do marcador; com conversa inválida o alerta sai, o update estoura, o
+  dedupe nunca existe e **todos os admins levam push/e-mail a cada tick do cron, para sempre**.
+  Corrigido em `c7fbfc8836`. Conflito **semântico**: só apareceu rodando os testes do lado perdedor.
+- **⚠️ O Almirante MENTE sobre esta VM.** `dry_run homologacao` disse *"ee87f5e799 → aaf5f8354
+  (1 commits atras)"* e *"🟢 migrations em dia, nada pendente"*. O real: **328 commits** e
+  **10 migrations**. Ele mede **antes** do checkout. Quem apertar o botão dele nessa VM acreditando
+  no verde leva 328 commits e 10 migrations sem saber. **Deploy dessa box: medir na box.**
+- **Receita que funcionou (sem `reset --hard`):** depois do #51 mergeado a box ficou *332 atrás e
+  **0 à frente*** → `git stash push` nos 27 modificados + mover para `/tmp/pre-deploy-untracked/` os
+  **39 não rastreados que passaram a existir na homologação** (senão o checkout recusa por colisão)
+  → `git merge --ff-only` → `db:migrate` → precompile → restart. Nada destrutivo.
+- **Gotcha do precompile:** `NODE_OPTIONS=--max-old-space-size=4096` **estoura o heap** nesta box
+  (`Build with Vite failed!`, rastro de node sem mensagem clara). Com **8192** passa. A box tem 31 GB
+  livres — o limite era o do Node, não o do SO.
+- **Provado no processo vivo, não só no disco:** `SessionStatusCache`, `CopilotStreamsController`,
+  `Conversation#group?` e `RouterService#skip_labeled?` todos carregados; **as 2 rotas de SSE
+  existem** (era o motivo de mergear o #51 *antes* de deployar); 5 contas de pé (BigStore com 865
+  conversas). `db:migrate:status` = 0 pendentes.
+- ⚠️ **Lacuna declarada:** `MessageList.spec.js` — a homologação tem 4 testes de isolamento por
+  agente e a box tinha 8 de agrupamento em grupo, com bancadas de store incompatíveis no mesmo
+  arquivo. **O código de grupo veio; os 8 testes dele não.** Estão em `backup/232-offgit-20260814`.
+- ⚠️ **Ainda no `/tmp` da box:** `pre-deploy-untracked/` (39 arquivos), `resgate232/` e as worktrees
+  de CI `ci-fotos`/`ci-video`/`ci-conc`. Só apagar depois de alguém confirmar que não quer nada de lá.
+
+### [2026-08-15 05:40] ✅ SEGUNDO DEPLOY DA `.232` — vídeo virou contexto e a BigStore está LENDO os stories
+
+> Mergeados **#45, #50, #52, #49** e deployado: box em `59aba4a89f`. Sem migration nova, sem mudança
+> de dependência, e o vite pulou o build corretamente (**0 arquivo de front** nos 11 commits).
+> Receita já conhecida: ff-merge → migrate → precompile (heap **8192**) → restart. HTTP 200 nos dois.
+
+- **Eram QUATRO portas, não uma** — e é por isso que "está pronto" não significava "está vendo":
+  #45 não mergeado (`MediaDescriptionService` ausente) · #50 não mergeado (`VideoFrameExtractor`
+  ausente) · o deploy anterior parava antes dos dois · e a chave `media_pipeline` da conta.
+- **Ligado na BigStore** (conta 7, assistente 18): `media_pipeline = {video_description: true,
+  video_transcription: true}`. Antes era `nil`.
+- **🟢 PROVADO em vídeo real do story deles** (anexo 8322, 60s, 8,4 MB), e o caso resume tudo: o
+  cliente escreveu só **"Tem em Sorriso?"**. Os **quadros** trouxeram o produto (caixa térmica
+  vermelha de 5 litros, loja em Peixoto de Azevedo); a **transcrição** trouxe o que a imagem não
+  tinha: *"garrafa térmica, dois litros e meio… pelo valor de trinta reais essa semana"*. **O preço
+  só existe na fala** — é a justificativa medida para as duas chaves serem independentes.
+- **Volume que justifica:** inbox 57 em 30 dias = **2.010 entradas, 915 com anexo (45%), 751
+  `video/mp4`, 866 story replies**. Na Tozi vídeo era borda (9 chamadas em 60d); na BigStore é o
+  meio do fluxo. Custo estimado: poucos dólares/mês (visão no modelo pequeno, 3 quadros a 768px).
+- ✅ **Crédito da Anthropic da `.232` comprado pelo Paulo** — `claude-sonnet-4-5 → OK`. As chaves das
+  duas boxes são **diferentes** (digest `ab7b103c…` × `c5778e20…`) e não compartilham balanço; a da
+  OpenAI é a mesma. Isso destrava as contas **1, 3 e 7**.
+- 🔴 **A IA da `.232` esteve MUDA e ninguém viu**, porque falha e silêncio deliberado tinham o mesmo
+  rastro: `ignored {raw: ""}`. Foi o que motivou o segundo commit do #52.
+
+### [2026-08-15 22:20] ✅ A TRAVA DA MENÇÃO ESTÁ NO AR NA PRODUÇÃO DA TOZI (PR #54 → #55), sem carregar mais nada
+
+> Pedido: subir só o #54, sem prejuízo à Tozi nem ao que aguarda o Walisson. Feito por
+> **cherry-pick cirúrgico**: a `producao` recebeu **1 commit, 2 arquivos, 53 inserções** — os 21
+> commits da promoção continuam parados, esperando ele.
+
+- **Caminho:** #54 mergeado na `homologacao` (para não se perder na promoção futura) → cherry-pick
+  numa branch a partir de `origin/producao` → **PR #55** → merge → VM.
+- ⚠️ **Armadilha que quase me pegou:** o Orca criou a worktree com `--base-branch producao` e pegou a
+  branch **LOCAL**, que está **297 commits atrás** de `origin/producao`. O cherry-pick foi parar em
+  cima de base velha. Refeito a partir de `origin/producao`. **A `producao` local deste notebook
+  está podre — e a worktree `chatspx-clientes/tozi-prod` está nela.**
+- **Transporte por `git bundle`**, porque a VM **não tem credencial git** (`could not read Username
+  for github.com` — dívida antiga confirmada de novo). O bundle mantém o git da VM consistente, ao
+  contrário do scp de arquivo solto que já criou o off-git de junho. A VM saiu de **detached HEAD**
+  e ficou na branch `producao`, em `142564790`.
+- **Sem migration (0 pendentes, conferido antes do restart), sem mudança de dependência e sem
+  arquivo de front** — mudança só de Ruby, então nada de precompile. Restart do **worker primeiro**
+  (não derruba requisição) e depois do web. HTTP 200 local e público, zero erro no log.
+- **Provado no processo vivo, com as mensagens REAIS do incidente:** constante e método presentes ·
+  a menção que gerou a ligação (msg **1652245**) → `should_respond? = false` · a resposta a story da
+  **mesma conversa** (msg **1652242**) → `true` · texto comum do WhatsApp (inbox 91) → `true`.
+- Medição antes de subir, contra o código da **produção** (que difere da homologação):
+  **17 exemplos / 1 falha no ramo × 12 / 1 na base** — a falha é o spec obsoleto de `skip_labels`,
+  pré-existente lá e já corrigido no #52, que está só na homologação.
+
+### [2026-08-15 21:48] 🔴→🟢 INCIDENTE TOZI IG: a Clara respondia MENÇÃO de story — inclusive dos próprios corretores
+
+> Cliente ligou. Tozi PROD, conta 6, inbox 101. **Contido por conduta no banco** (sem deploy),
+> com prova na conversa real. Backup: `/tmp/assistant_7_ins_mencao.bak-20260815214805`.
+
+- **O que acontecia:** quem **recompartilha** um story da Tozi gera um `story_mention`, e quem
+  responde a story manda `ig_story_reply` — muitos sem texto. A regra **#68** (`conversation_created`
+  → `assign_ai_agent` Clara) atribui a Clara, que responde qualquer coisa.
+- **Escala medida (60 dias):** **53 mensagens de menção, 33 conversas, a IA falou em 31 — 48
+  mensagens**, todas da **Clara #7** (nenhum outro agente). Frases mais repetidas: *"Vi que você
+  enviou um arquivo. Como posso te ajudar?"* (12x) e variações.
+- 🔴 **Quem estava sendo abordado:** `viniciustiago.ocorretortozi`, `lucassouza.ocorretor`,
+  `adrianomachado01`, `rosivanecorretora_tozi` — **os próprios corretores da casa divulgando**. A IA
+  perguntava a eles se queriam alugar ou comprar.
+- **Caso que gerou a ligação (conv 49383 / display 28174, 13h26–13h30):** a pessoa respondeu a três
+  stories e recompartilhou um; levou **5 mensagens em 4 minutos**, uma delas em resposta a *"Eles
+  arrasam!!!"*.
+- **Causa de fundo:** o prompt da Clara tem **24 mil chars e ZERO menção** a Instagram, story,
+  menção, imagem ou vídeo. Ela foi escrita para WhatsApp e herdou a inbox do Instagram — é a
+  cegueira de canal já mapeada. Some-se a isso que a prod **não tem a camada de mídia** (#45/#50 só
+  na homologação), então ela é de fato cega a vídeo lá.
+- **Conduta aplicada** (+1.099 chars): menção não é atendimento → `[IGNORAR]`; resposta a story sem
+  pergunta nem pedido → `[IGNORAR]`; e **nunca dizer que não conseguiu ver** — se a mídia não chegou,
+  o problema é nosso, não da pessoa.
+- **Provado sem enviar:** o histórico real da 49383 → `[IGNORAR]` **3/3**; a mesma conversa com uma
+  pergunta de locação → atende e transfere para a Bruna **2/2**.
+- ⏭️ **Conserto durável é código, não conduta:** `story_mention` não deveria nem acordar a IA — o
+  router precisa ignorar por tipo, como o n8n da BigStore já faz num ramo dedicado. Conduta é
+  mitigação: ela ainda roda o modelo para depois calar.
+- ⏭️ As 31 conversas já poluídas seguem abertas com as mensagens da IA; ninguém as tocou.
+
+### [2026-08-15 02:50] 🟢 BIA LENDO VÍDEO DE STORY — provado ponta a ponta, e a conduta ajustada no banco
+
+> Conta 7 · inbox 57 · assistente 18 · VM `.232`. Nada enviado ao cliente: prova por
+> `generate_response`, que não cria mensagem.
+
+- **Funciona:** a camada leu o story do Paulo (fruteira com tampa, **R$ 20 à vista, R$ 22 em 3x**,
+  tirado dos quadros) e o contexto do agente passou a conter a leitura rotulada.
+- ⚠️ **Duas conclusões minhas que a medição derrubou** — as duas por sonda mal feita, não por
+  defeito do sistema:
+  1. *"A Bia ignora o contexto"* — falso. Minha sonda montava o histórico como **texto puro**,
+     enquanto o `ResponseBuilderJob` monta com `prepare_multimodal_message_content`. A leitura
+     nunca chegava ao modelo no teste. **Lição: replicar o caminho do job, não improvisar histórico.**
+  2. *"A conduta velha impedia o uso do vídeo"* — falso. Mesmo dizendo `você não enxerga nada`, o
+     modelo **seguiu a evidência do contexto** e usou a leitura. A instrução obsoleta não bloqueou.
+- **Conduta ajustada assim mesmo**, porque prompt que mente sobre a capacidade é frágil (hoje o
+  modelo ignora, amanhã obedece e alucina "não vi"). Backups em `/tmp/assistant_18_ins_video*.bak-*`
+  com linha de RESTORE.
+- **A/B com o texto real das três versões** (mesma mensagem, mesmo contexto):
+  - velha → dá o preço **como fato próprio** (`À vista R$20…`)
+  - minha 1ª versão → **empobreceu**: sumiu o preço e sumiu o município que ela puxara do histórico
+  - **final** → `O story mostrava R$20 à vista … Pra confirmar se ainda tem na unidade de Sinop,
+    uma pessoa do time vai responder` — dá o preço **atribuindo à origem** e deixa disponibilidade
+    com o humano. Story expira em 24h, então o preço lido é de no máximo ontem.
+- **Pronto para teste ao vivo:** fila `low` (a do job de mídia) está sendo consumida, hook devolve
+  `true` para a conta 7, e o espelho segue atribuído só na conversa do Paulo.
+- ⏭️ **PR #53 (cache por story) ainda não deployado:** enquanto não for, duas pessoas respondendo
+  ao mesmo story fazem o vídeo ser lido duas vezes.
+
+### [2026-08-15] ✅ QUATRO SPECS PARADOS NO TEMPO — **PR #52 mergeado**, homologação sai de 4 falhas para 0
+
+> Medido nos dois lados: `origin/homologacao` (`e14d711bc0`) = **38 exemplos, 4 falhas**; o ramo do
+> #52 = **40 exemplos, 0 falhas**. Rubocop 4 × 4. Nenhuma mudança de comportamento — a única linha
+> fora de spec extrai o rótulo do áudio para a constante `AUDIO_TRANSCRIPTION_LABEL`, que é o que
+> impede a divergência de voltar (era string literal solta, e por isso o spec pôde derivar em
+> silêncio). Conferido que nenhum outro ponto do código ou do front usa o literal.
+
+> Não é bug de código: em todos, o código mudou por decisão deliberada e o teste ficou afirmando o
+> contrário. Medido nos dois lados (o mesmo spec falha num ramo sem as mudanças).
+
+- `open_ai_message_builder_service_spec.rb:78`, `:145`, `:275` — esperam a transcrição de áudio
+  **crua**; o código a entrega **rotulada**, e o rótulo é de 25/07, do fix do falso positivo que
+  silenciou um cliente por 16h.
+- `router_service_spec.rb` (`:71` na homologação, `:114` depois do #51) — afirma que `skip_labels` é
+  *guard morto*; ele foi **ressuscitado em 23/07** para o interlocutor-robô (label `bot-externo`) e
+  está vivo no `should_respond?`.
+- ⚠️ O handoff de 14/08 atribuía a vermelhidão ao **PR #41**. Não é: o fix funcional e o spec do #41
+  já estavam na `homologacao` (`aaf5f8354b`). A confusão veio de comparar com `git diff A...B` (três
+  pontos), que mede contra a **base de merge**, não contra o topo. **#41 é refactor, não urgência.**
+
+### [2026-08-14] 🔴→✅ FOTOS DA IA NO INSTAGRAM: o carrossel saía como TEXTO (PR #49) · vídeo vira contexto (PR #50)
+
+- **A tool era chamada e não entregava imagem, sem registrar falha.** O carrossel monta
+  `content_attributes['interactive_payload']`, lido **só** pelo `WhatsappCloudService#send_message`;
+  em qualquer outro canal a mensagem sai como o `content` — o cliente recebia a frase
+  `📷 Carrossel: 9 fotos do imóvel X` e nada mais. Medido na Tozi (conta 6, inbox 101), 60 dias:
+  **9 chamadas, 2 conversas, 0 imagem, 0 falha**; no WhatsApp, 931 chamadas entregando. Os clientes
+  responderam *"Não apareceu"*, *"Só a mensagem"*, *"Fotos não carrega"* — e a IA insistiu que tinha
+  mandado, porque a tool devolve "enviei".
+- **PR #49:** `Channelable#supports_interactive_payload?` (false por padrão; true só em
+  `Channel::Whatsapp` com provider `whatsapp_cloud`) + a trava anti-alucinação passando a ler
+  **`urls_imoveis` além de `codigos_buscados`** — o primeiro guarda Codigo **e** ImoCodigo e corta em
+  60, o segundo só o Codigo e corta em 40, então a IA citando o ImoCodigo levava "não" silencioso
+  (aconteceu na conv 48182 com 3 códigos seguidos). ⚠️ Os **Flows** têm o mesmo buraco e não foram
+  tocados.
+- **PR #50 (empilhado no #45):** vídeo → contexto, **duas chaves independentes por conta**.
+  Medido no story real da conv 48193 antes de escrever código: 3 quadros a 768px com `gpt-4.1-mini`
+  leram **o código do imóvel (9718)**, preço, metragem e telefone — e o Whisper, no mesmo arquivo,
+  devolveu `🎵Music Plays🎵` e setenta emojis de fogo. Por isso `video_description` e
+  `video_transcription` são separadas: na Tozi o dado está **escrito**, na BigStore é **narrado**.
+  **`ffmpeg` 6.1.1 já estava na frota** (o ActiveStorage o usa) — a objeção de infra não existia.
+  Story de **foto** já funcionava; o buraco era só vídeo, que é **61 dos 83 anexos** daquela inbox.
+
+### [2026-08-14] 🟡 BIGSTORE: a Bia NÃO está desconectada — está elegível e muda
+
+> Corrige o handoff de 14/08, que a dava por desconectada. Muda o risco: ligar virou **uma automation
+> de distância**, não um trabalho.
+
+- `CaptainInbox #15` existe desde **12/08 16:42**, `active_bot? = true` na inbox 57 (conta 7).
+- Ela falou **4 vezes, todas em 12/08, numa conversa só** — a **2675, do contato #2206 "Paulo Seze"**.
+  Em 7 dias: **1.252 mensagens de clientes, 1.432 respostas do time pelo app do Instagram**
+  (`external_echo: true`) e **4 da IA**.
+- **O que segura é o gate por atribuição:** só a 2675 tem o espelho atribuído; as outras 844 estão
+  com `bot=nil` e **não há automation nenhuma na conta 7**. Ou seja, o "piloto restrito ao contato do
+  Paulo" que ele pediu **já é o estado de fato** — não há o que configurar.
+- ⚠️ **A whitelist antiga não existe mais:** o `RouterService` declara em comentário que
+  `only_contact_phones`, `skip_labels` e `skip_after_human_response` morreram com o gate por
+  atribuição. Pedido de "ligar só para o meu contato" hoje se resolve **atribuindo o espelho**.
+- Buraco real do canal, medido: conv 2676 — cliente pergunta **21h12**, resposta **08h21** do dia
+  seguinte.
+
+### [2026-08-14] 🟢 DISPARO URBAN DEVILLE (Tozi c6, inbox 99) concluído + regra #73 fecha o buraco de roteamento dos disparos
+
+> Campanha #7 pelo motor nativo (`Campaigns::Whatsapp`), não pelo `DisparoLeadJob`. Base
+> `LEADS_PRODUTO_VERTICAL2026_SEM_DUPLICADOS.xlsx`: 2.759 linhas → 2.756 aptas → **2.649 elegíveis**
+> após cortar 79 já-disparados, 15 recusas explícitas e 17 com conversa aberta. Enviados os 130 primeiros.
+
+- **Resultado: 128 enviadas / 2 falhas** (`131026` número sem WhatsApp — não é cobrado). Ritmo 3/min (`pacing_seconds: 20`), `target_team_id: 62`, `quiet_hours 18h–8h`, header de imagem em `public/urban-ago26.jpg`.
+- **Template `tozi_urban_lancamento`** (id `925689729922756`, APPROVED) — header IMAGE via resumable upload (`POST /{APP_ID}/uploads` → `POST /{upload_id}` com `Authorization: OAuth` + `file_offset: 0` → handle), 1 variável, 2 quick replies. Corpo começa com texto porque a Meta rejeita variável na abertura (`2388299`).
+- 🔴 **GOTCHA que custou 6 pessoas:** `CampaignRecipient#template_params` é **`{'1' => valor}`** (documentado em `send_template_service.rb:23`), não `{'body' => [valor]}`. Com o formato errado o HSM sai **sem erro e sem o nome** ("Oi , sou a Kettlen..."). Peguei no 6º **lendo o texto enviado**, não o status — status só diz que a Meta aceitou. Era o primeiro template com variável nesta conta, não havia precedente para copiar. Corrigidos os 124 pendentes antes de retomar.
+- **🟢 Buraco de roteamento fechado — regra #73** `Disparo inbox 99 — time Kettlen → Kettlen` (`conversation_opened` + `inbox_id=99` + `team_id=62` → `assign_agent=126`), criada por `dup` da #72 para não inventar formato. **O time 62 tem `allow_auto_assign=false`** e não tinha regra: o lead respondia, a conversa reabria no time e ficava **sem dono** até alguém abrir o painel. Medido: João e Cibele estavam atribuindo à Kettlen **na mão**, uma a uma, com até 13 min de espera. A regra automatiza o que já era a prática. As campanhas anteriores já tinham as #70/#71/#72 (Francielli 68→138, Henrique 69→140, Weigler 70→139).
+- ⚠️ **`conversation_opened` só dispara na transição resolvida→aberta.** Conversa que já está aberta e recebe nova mensagem **não** passa pela regra — por isso a #73 não age nas que reabriram antes dela existir (essas seguem na mão).
+- **Levas seguintes:** **#8** (sáb 15/08, 8h–12h) → **998 enviadas / 2 falhas**, **6,6% de resposta (66 leads)** — a projeção feita a partir da #7 dizia 63. **#9** (ter 18/08, 8h–9h) → **300 enviadas / 0 falhas, 9% de resposta**. Número seguiu **GREEN** depois de 1.426 disparos.
+- **[19/08] Três campanhas configuradas de uma vez, dedup em cascata (0 telefone repetido entre elas):** **#10** Kettlen 500 · **#11** Leandro 200 · **#12** Leandro 300 (qui 20/08). Fecharam **500 + 200 + 298, 2 falhas**.
+- **🟢 [21/08] TETO DE VELOCIDADE MEDIDO — `pacing_seconds: 1` = 60/min, e passa liso.** Campanha **#13** (Kettlen, 200): **200 enviadas em 4 minutos** (17:52:50 → 17:56:50), **zero falha**, zero throttle, número **GREEN** imediatamente depois. É **5× o ritmo mais rápido já provado** (12/min do `DisparoLeadJob` antigo). O limite do motor é `batch_size = 60 / pacing_seconds` com `MAX_BATCH = 200` por tick de 1 min — então 60/min é o máximo prático, não uma escolha conservadora.
+- **Urban DeVille encerrado: 2.624 enviadas, 6 falhas** (todas `131026`, número sem WhatsApp) + **#14** com os **25 últimos** agendada para sáb 22/08 8h → total **2.649**. ⚠️ Fila da Kettlen em **148 abertas** ao fim.
+- 🔴 **A base acabou, e o gargalo seguinte é COPY, não lista.** Existem **4.825** pessoas que receberam disparo anterior (Casas Pacaembu 4.863 · Motoristas de app 603) e nunca receberam o Urban. **Não dá para mandar o template atual para elas:** a copy afirma *"há um tempo você procurava **apartamento** para comprar"*, e esse público veio de campanha de **casa MCMV** — a frase é falsa sobre a pessoa, que é a classe de erro da REGRA #1 e o caminho mais curto para bloqueio/queda de qualidade. Retomar volume exige **template novo com copy honesta** (casa → apartamento), não uma lista nova. Decisão do Paulo em 21/08: por ora, só os 25.
+- ⚠️ **O pool encolhe sozinho:** os "livres" caíram de 47 para 25 em um dia porque o corte *conversa aberta* subiu de 90 para 210. Contagem de elegíveis vale para o instante da medição — recontar sempre na hora de montar a campanha.
+- **[22/08] Lista de indicações da Maria Alice (`Untitled spreadsheet (1).xlsx`, 112 contatos): campanha #16, 103 enviadas / 0 falhas**, 11:02→11:22 a 5/min, número GREEN depois. Cortes: 9 já disparados, 1 em conversa aberta, 0 recusas, 0 duplicados. DDDs de 18 a 96 — **não é lista de Sinop**. **Total do Urban: 2.752.**
+  - ⚠️ **Decisão do Paulo contra recomendação registrada:** eu propus `tozi_convite_whatsapp` (aprovado, `{{2}}` livre, permitiria dizer a verdade sobre a origem do contato); ele escolheu o `tozi_urban_lancamento`. Então 103 pessoas que **nunca falaram com a Tozi** receberam *"há um tempo você procurava apartamento para comprar"*. Se a qualidade do número cair, é o primeiro lugar a olhar; o `health_gate` pausa sozinho.
+- 🔴 **[22/08] A DEDUP TINHA UM PONTO CEGO — os disparos de junho eram invisíveis.** As campanhas **1 e 2** (motor antigo `DisparoLeadJob`, ~6.100 pessoas) carimbam `campaign_id` **na conversa** e **não criam `campaign_recipients`**; todos os meus cortes liam só a tabela nova. **294 pessoas receberam disparo em junho e o Urban agora.** Correção: o conjunto de exclusão precisa unir `CampaignRecipient` **e** `Conversation.where.not(campaign_id: nil)`.
+- **Inventário real de audiência (22/08, dois motores somados):** 30.292 contatos com telefone · **13.980 já receberam algum disparo** · 361 recusaram · **15.276 nunca receberam nada**. ⚠️ Os 15.276 **não são uma base**: é todo mundo que já falou com a Tozi por qualquer canal, sem produto, segmento nem recência. Prontas para virar volume: **4.823** (Pacaembu/motoristas, nunca receberam Urban) + **~5.800** (junho, nunca receberam Urban) — as duas travadas na mesma coisa, a copy.
+- 🟢 **A guarda de janela pegou um erro meu de verdade (22/08):** eu montei a campanha achando que era sexta 19h e o script abortou com *"enviaria AGORA (11h)"* — era **sábado 11h**. Transação revertida, nada criado. **Nunca deduzir a hora do fio da conversa: ler o relógio da VM.**
+- ⚠️ **A janela é por HORA CHEIA** — `quiet_hours?` compara `Time.current.hour`, então **16:30 não é expressável**. O pedido original da #11 era 16h30; virou 16h por decisão do Paulo, para não depender de alguém dar `dispatch_running!` na hora.
+- **Leandro Silva (#142, `ljscorretor@gmail.com`) já existia** com time **#71** (`auto_assign=true`) e a regra **#74** (inbox 99 + time 71 → `assign_agent=142`), montada no mesmo padrão da #73. Nada a criar.
+- **`quiet_hours` é a janela de SILÊNCIO, não a de envio** (`dispatch_scheduler_job.rb:63`): `{start: 12, end: 8}` cala das 12h às 8h, ou seja envia 08:00–11:59. Campanha criada já em `dispatch_running` fora da janela fica muda e acorda sozinha — não precisa de ninguém apertando botão na hora. Os scripts de criação **abortam** se, com a config escolhida, a campanha fosse enviar no instante da escrita.
+- **Receita que fechou o buraco do nome:** em vez de escrever o `template_params`, o script **lê um destinatário que já renderizou certo** na campanha anterior e aborta se a chave não for `'1'`. Também aborta com template não aprovado, imagem do header fora do ar, nome vazio na seleção ou elegíveis insuficientes.
+- **A inbox 99 não tem IA nenhuma.** A regra que mandaria pra Clara (#63) está escopada na **inbox 91**. As 583 abertas da 99 são todas de humano (Francielli 310, Weigler 192, Henrique 81). ⚠️ Não confundir com a queixa da equipe sobre "a Clara pega tudo" — aquela é da **91**. São duas filas com desenhos opostos.
+
+### [2026-08-12] 🔴→🟡 FÁBRICA: vazamento de marca contido no SPX (causa raiz segue no MTM) · Tozi: override do Pacaembu · BigStore: agente criado desconectado
+
+> Sessão orquestradora geral. Tudo medido na VM, não deduzido. Relatórios completos em `Temp/` das
+> worktrees `chatspx-clientes/fabrica`, `chatspx-clientes/tozi-prod` e `orca/workspaces/chatspx/instagram-comentarios`.
+
+- **🔴 FÁBRICA — as IAs mandavam cliente para loja do Atacadão.** Os 4 prompts dizem "óticas Fábrica dos Óculos" e a `mtm_loja_mais_proxima` envia `departamento=fabrica`, mas **o MTM ignora o filtro**: 3 de 3 chamadas voltaram `departamento=atacadao` (Várzea Grande `shop_id=3`, Cuiabá `shop_id=5`, Pedra 90 `shop_id=8`), com endereço que a IA passava ao cliente e `shop_id` que ela usava para agendar. **Contido no response_template** (guarda por departamento) — 3/3 agora devolvem `NAO_ACHOU_LOJA`, sem regressão (Sinop empate/referência e Sorriso intactos). ⚠️ **A causa raiz continua no MTM** e Cuiabá/VG passam a ficar sem loja pela IA da Fábrica até a conta 2 existir.
+- **🟡 A guarda criou beco sem saída:** `NAO_ACHOU_LOJA` não existe no prompt da Bia — ela ignora e segue qualificando (gênero, presente, CPF) até o cliente descobrir no fim que não há loja. A Elen acerta por **não** ter o fluxo de loja. Correção de conduta em andamento no bloco `# Cidade e loja` (byte-idêntico em Bia/Carol/Sofia).
+- **Aplicado na conta 1** (config, prompts byte a byte intactos, backup em scratchpad + `RESTORE`): calendário expõe `agora.*`; `mtm_criar_proposta` manda hora XOR período (**enum confirmado por sonda com data no passado + controle negativo**: `manha`/`tarde`/`sem_preferencia` — e `morning`/`afternoon` também passam); Sofia ganhou `mtm_calendario`; Elen perdeu `buscar_lugar`/`buscar_localizacao`. **Vale sem restart** (provado: uptime 21h anterior à escrita, toolset remontado no processo quente, sem memoização).
+- **⚠️ Almirante é CEGO para a VM da Fábrica** (`ai_get_agent` → `sem aiconfig_url`, `ai_history` → null, enquanto tozi devolve 1,9M chars). Não há rollback governado ali: backup manual é a única rede.
+- **Código off-git do box resgatado e pushado:** `backup/fabrica-box-offgit-20260812` (`b6000bcc113b`, pai `2d2d2eaef`). São 5 arquivos + `SessionResetService` novo, com a feature **ATIVA** na conta 1 — deploy por cima apaga em silêncio. 34/34 hashes conferidos. Prompts ficaram **fora** do git (conduta de cliente não vai para repo compartilhado; vão para o vault).
+- **🔴 Bug compartilhado (atinge a Tozi também):** `buscar_lugar_tool.rb:57` monta `textQuery: "#{query} Sinop MT"` e `buscar_localizacao_tool.rb:18` faz `geocode('#{local} Sinop MT')` — **cidade fixa na consulta ao Google**. Referência em Sorriso é geocodificada como Sinop. Vira issue.
+- **TOZI — override do Pacaembu aplicado** (Hook #8, `campaign_overrides`), provado sem enviar mensagem: Pacaembu passa a usar `tozi_lead_pacaembu_abertura` (APPROVED, 1 variável, `body_fields` casando — sem rota de `#132000`) e as outras 7 campanhas seguem idênticas. **CASAS 300-900K ficou sem override**: nenhum dos 34 aprovados serve.
+- **Mapa das campanhas (90d, 1.270 leads):** Pacaembu 668 · RMKT 2026 398 · Site 102 · ETNA 21 · CASAS 20 · RMKT 4 · ACQUA 0. **`assign_agent_bot_id` e `assign_team_id` são honrados POR CAMPANHA** (`create_conversation_service.rb:112-119`) — hoje todos nil, então tudo cai no bot 17 (Júlia).
+- **Locação — premissa corrigida:** das 126 conversas no time 27, **58% (73) foram movidas pela própria IA** (Júlia 57, Sofia 15, Marina 1), não à mão. A Júlia já tem `transferir_para_agente` e a conduta já manda transferir para a Bruna. O sinal (`jornada` = "Interesse em locação") **já chega ao modelo a cada turno** e é determinístico no Site (46 de 83); ela só não é instruída a agir. Perda concreta hoje: **7 leads**. Override no hook #9 é **impossível** (resolve por `campaign_id`, lead de site não tem).
+- **`{nome_anuncio}` do CASAS é nome interno** — "IMÓVEL 9817 - TELHADO APARENTE", "9817" (16/16 sem catálogo, `meta_imovel_codigo` = 0). Mas **o código do imóvel está no nome do anúncio**, e o SPX já sabe resolver código → descrição + foto (é o `tozi_rmkt_imovel`, **65,5% de resposta contra 35,0%** do só-texto). Frente `PauloSeze/meta-leads` aberta para derivar o código do nome do anúncio + corrigir a **abertura duplicada** (`initial_message_already_sent?` usa `content_attributes @>` em campo com dupla serialização → sempre falso → **26 leads receberam o HSM duas vezes em 90d**).
+- **BIGSTORE — o DM não é canal de venda, é mesa de triagem geográfica.** Censo de 1.389 entradas e 1.611 respostas humanas: mediana de resposta **17 caracteres**, 27,8% encaminham para o WhatsApp da loja, 13,7% são só um telefone, a pergunta mais repetida é "qual cidade?", preço aparece em 0,4%. **Assistant #18 criado na conta 7, DESCONECTADO e sem triagem** (provado: `CaptainInbox` vazio dos dois lados, `active_bot?` false). ⚠️ **Não ligar**: a única saída dele é handoff, e o time trabalha **99,9% pelo app do Instagram** (1 mensagem com sender User em 1.611) — ninguém leria. 518 das 626 conversas estão fora da janela de 24h e o Instagram **não tem HSM**.
+- **PRs abertos hoje (fila do Walisson):** **#36** imóvel pelo nome do anúncio (opt-in por campanha, extração ancorada provada em 7 valores reais + 9 negativos) + abertura duplicada (bug provado ao vivo: sem o fix o redelivery gera 2 aberturas) · **#37** dupla serialização do NPS nos 3 pontos + cidade das buscas do Google saindo de config por conta (⚠️ **o NPS muda comportamento ao vivo**: o filtro casa com 0 linhas hoje e passaria a casar com 8.194 de 12.844; 581 pesquisas ativas mudam se o cliente responder depois do deploy — **decisão do Paulo**, e os 2 commits são revertíveis em separado) · **#38** tela de campanhas fatia 1 (só leitura: template configurado × o que de fato saiu, override × padrão, quem atende).
+- **🔵 DOIS "NÃO" QUE VALEM MAIS QUE UM SIM** — as duas frentes mediram e **se recusaram a aplicar**:
+  1. **Conduta da Júlia para locação NÃO funciona** (3 versões, 8 rodadas cada, ~200 execuções, nada escrito). No formato dominante do dado real (`"...último imóvel visto NNNN (Casa)"`) a transferência **nunca dispara** — 0/8 no baseline e 0/8 nas três versões. Causa isolada: o que decide é o **verbo** da jornada, não a declaração — "Pediu agendamento de visita" dá 5-6/8; "último imóvel visto" dá 0-1/8 **mesmo começando com "Interesse em locação"**. Ser mais explícito **piorou** (7/8 → 3/8). Regressões novas observadas: Júlia transferindo **para si mesma** (suja `ia_transferencias` e conta no trilho anti-ping-pong) e um `[IGNORAR]` = lead real silenciado.
+  2. **Regra de string sobre a jornada também não serve:** 89,7% de precisão com **4 FP, 2 deles terminando em vendas**. FP **irredutível**, provado: 3 conversas com jornada **byte a byte idêntica** foram para financeiro, locação e vendas. A informação que decide o destino **não está no campo**.
+  - **Escopo que limita tudo:** `jornada` existe em **83/83 leads de Site e 0 de 1.169 de campanha Meta** — 6,6% dos leads. Os 88 de locação vindos de campanha não têm sinal estruturado.
+  - **Conserto durável = na origem:** o site sabe a intenção no clique e manda como prosa num campo narrativo. Um campo de intenção com valor fechado faria o hook discriminar no ponto mais cedo. É código (site + `PERMITTED` do `site_leads_controller.rb:12`) — **decisão do Paulo**. Ganho sem risco hoje: fila/alerta para os **7 leads** com jornada de locação parados no time de entrada.
+- **Vazamento de marca no nível de TIME (Fábrica): medido, não houve.** Das 15 chamadas de handoff no histórico (31/07–11/08), 8 passaram `team_id` e **as 8 foram para time da Fábrica**; 7 não passaram time. ⚠️ Limite honesto: janela curta, tráfego quase todo de teste, nenhum cliente real de Cuiabá/VG chegou ao handoff. A IA **oferecia** verbalmente "a equipe de Cuiabá"; a execução nunca ocorreu. Corrigir a **descrição** dos times é inócuo (a HandoffTool publica só `id: nome`). Em andamento: renomear os 3 times do Atacadão para carregarem a marca. **Buraco vizinho:** em 7 dos 15 handoffs a IA não passou time e a conversa fica **sem fila**.
+- **PR #39 — allowlist de times por conta** (fecha a 2ª camada do vazamento de marca). `Account#handoff_teams` lê `custom_attributes['handoff_allowed_team_ids']` e é ligada em **dois** pontos: a enumeração do `handoff_tool` (advisory) **e** o `resolve_team` do `human_handoff_service` — este é o que fecha, porque o modelo pode passar id que ninguém enumerou. Time recusado se comporta como id inválido e **não derruba o handoff**: cai no time padrão do agente e, se esse também estiver fora, segue sem time (caminho que já existe). ⚠️ **Consequência declarada: a allowlist precisa incluir os times padrão dos agentes.** Opt-in: conta sem a chave não muda. Suíte: 300/26 no ramo × 293/26 no baseline, **lista de falhas idêntica** (as 26 são pré-existentes na box) → +7 exemplos novos passando, zero regressão.
+  - 🔴 **Buraco maior registrado no PR, não relacionado:** `copilot/assign_conversation_service.rb:27` seta `team_id` **sem nenhuma validação de conta**.
+  - **Por que o renome não bastou** (medido): a IA lê "atacadão" no nome do time e roteia assim mesmo, **3/3**, inclusive reconhecendo na mesma resposta que não há loja na cidade. Renome aplicado e mantido só por deixar a marca visível ao humano no painel — **não conta como conserto**. Reversão no relatório.
+  - **Remover os times não é opção:** `destroy` falha com FK de funnels (todo time ganha funil no `after_create`, sem `dependent:`), não existe conceito de desativar na tabela, e duas usuárias ficariam sem time. Mover para a conta 2 deixa 6 registros órfãos entre contas. **A conta 2 já tem os 3 times equivalentes** (#11/#12/#13) — os da conta 1 são resíduo de cadastro.
+- **Prática de orquestração documentada:** `docs/ORQUESTRACAO-ORCA.md`. A causa da poluição de hoje foi usar `dispatch --inject` de baixo nível, que **não tem ciclo de vida** — `worker-release` só enxerga dispatch de `worker-start`, então worker que termina fica pendurado emitindo batimento rejeitado. A receita do handoff de 11/08 está marcada como superada.
+- **INSTAGRAM/comentários:** `docs/SPEC-instagram-comentarios.md` (na `homologacao`) mapeou o código. Gargalo único: **`instagram_business_manage_comments`**, que o SPX não pede (`integration_helper.rb:2`) e destrava as 4 capacidades de uma vez; `private_replies` usa o **mesmo** `POST /{ig_id}/messages`, trocando `recipient {id}` por `{comment_id}` (7 dias, 1 por comentário, 750/h). `HUMAN_AGENT` = **false nos 3 boxes**; decisão do Paulo: **não mexer**. Brief para o painel da Meta em `instagram-comentarios/Temp/BRIEF-META-escopo-comentarios.md`.
+
 ### [2026-08-11] 🟢 ALUCINAÇÃO DE LOCALIZAÇÃO CORRIGIDA na raiz — o exemplo do prompt ERA a invenção (banco conta 6, agentes 13 e 14)
 
 > Caso Catatau, conv **2159** (prod Tozi). Cliente pediu casa perto de um comércio; a Bruna citou **duas avenidas que não existem** pra aquela rede, e depois costurou o endereço real dentro da invenção. Diagnóstico com prova, correção no banco, medição antes/depois.

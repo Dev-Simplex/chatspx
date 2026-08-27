@@ -45,6 +45,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'takeover_request_gate': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'reply_assignment_gate': { 'type': %w[boolean null] },
+        'ia_reentra_orfa': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
         'queue_escalation_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
         'template_reply_routing': {
@@ -129,6 +130,9 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # `orphan_retriage_after` e lido pelo OrphanRetriageJob, este ainda nao tem consumidor.
   # Ela grava e le; nao muda comportamento nenhum ate o recurso de escalonamento existir.
   store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after, :queue_escalation_after
+  # Reentrada da IA de triagem em conversa órfã. Nasceu derivada do reply_assignment_gate
+  # (modo fila), que a vetava; ver #ia_reentra_orfa_enabled? para o porquê de separar.
+  store_accessor :settings, :ia_reentra_orfa
   store_accessor :settings, :template_reply_routing
   store_accessor :settings, :contact_invite
   store_accessor :settings, :resolve_assignment_gate
@@ -214,6 +218,22 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
 
   def reply_assignment_gate_enabled?
     ActiveModel::Type::Boolean.new.cast(reply_assignment_gate) || false
+  end
+
+  # A IA de triagem pode reassumir uma conversa ÓRFÃ (sem humano e sem espelho)?
+  #
+  # Isto era derivado do `reply_assignment_gate`, e é por isso que precisa de chave própria:
+  # aquela flag faz DUAS coisas de sinais opostos. Ela obriga o humano a estar atribuído para
+  # responder (a favor de todo mundo ter dono) e, ao mesmo tempo, proíbe a IA de reassumir
+  # órfã (contra) — porque no modelo FILA a conversa devia ficar esperando um humano puxar.
+  # Quem abandona a fila e adota "toda conversa tem dono, humano ou IA" quer a primeira
+  # metade e não a segunda, e hoje não consegue: é tudo ou nada.
+  #
+  # Sem a chave, nada muda: quem está no modo fila continua com a reentrada desligada.
+  def ia_reentra_orfa_enabled?
+    return ActiveModel::Type::Boolean.new.cast(ia_reentra_orfa) unless ia_reentra_orfa.nil?
+
+    !reply_assignment_gate_enabled?
   end
 
   # Gate do motor Flow (F1). NÃO usa o bitmask de features (`feature_flags` já está no

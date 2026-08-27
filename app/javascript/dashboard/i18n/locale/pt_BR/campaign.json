@@ -244,7 +244,7 @@
       "EMPTY_VALUE": "—",
       "EMPTY_PERIOD": "Nenhum lead entrou por formulário neste período.",
       "NO_CAMPAIGN": "Sem campanha",
-      "FOOTNOTE": "Somente leitura. Os overrides são editados na integração de captação de leads.",
+      "FOOTNOTE": "O volume é só leitura. O roteamento por campanha — template, agente e time — é editado aqui por administradores.",
       "DISABLED": {
         "TITLE": "Captação de leads não configurada",
         "SUBTITLE": "Configure uma integração de captação de leads para ver as campanhas aqui."
@@ -278,7 +278,45 @@
         "AMBIGUOUS_ID": "Mais de um id",
         "TEMPLATE_MISSING": "Não sincronizado no canal",
         "CATALOG_TEMPLATE": "Anúncio de catálogo: {nome}",
-        "CONFIGURED_TYPE": "Configurado como: {tipo}"
+        "CONFIGURED_TYPE": "Configurado como: {tipo}",
+        "ACTIONS": "Ações",
+        "EDIT": "Editar roteamento"
+      },
+      "EDIT": {
+        "TITLE": "Roteamento da campanha",
+        "SAVE": "Salvar roteamento",
+        "SAVE_ERROR": "Não foi possível salvar o roteamento.",
+        "INHERIT": "Usar o padrão da integração",
+        "HOOK_DEFAULT": "Padrão da integração: {valor}",
+        "HOOK_DEFAULT_EMPTY": "A integração não tem padrão para isto.",
+        "TEMPLATE": "Template da abertura",
+        "VARIABLE_COUNT": "{total} variável(is)",
+        "VARIABLE": "Variável {numero}",
+        "NO_VARIABLES": "Este template não tem variável no corpo, então não há o que preencher.",
+        "NO_TEMPLATE_CHANNEL": "A inbox alvo não usa a API oficial do WhatsApp, então não envia template. A abertura ali é texto livre, definido na integração.",
+        "BLOCKED_TITLE": "Templates que esta tela não consegue usar:",
+        "BLOCKED": {
+          "cabecalho_de_midia": "tem cabeçalho de mídia",
+          "cabecalho_com_variavel": "tem variável no cabeçalho",
+          "botao_com_variavel": "tem botão com variável",
+          "parametro_nomeado": "usa parâmetros nomeados",
+          "generico": "pede parâmetros que a abertura do lead não envia"
+        },
+        "AGENT": "Agente",
+        "AGENT_NOT_ELIGIBLE": "não habilitado nesta inbox",
+        "TEAM": "Time",
+        "LAST_CHANGE": "Alterado por {quem} em {quando}.",
+        "LAST_CHANGE_ANON": "Alterado em {quando}.",
+        "FIELDS": {
+          "first_name": "Primeiro nome",
+          "full_name": "Nome completo",
+          "ad_name": "Nome do anúncio",
+          "campaign_name": "Nome da campanha",
+          "city": "Cidade",
+          "email": "E-mail",
+          "phone": "Telefone",
+          "empreendimento": "Empreendimento"
+        }
       }
     }
   }

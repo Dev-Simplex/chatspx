@@ -72,6 +72,12 @@ class Flow < ApplicationRecord
   # Flows). Os três saem pelo passthrough genérico do provider (send_raw_interactive) via
   # content_attributes['interactive_payload']. send_whatsapp_flow, antes um TODO que sempre pulava,
   # agora ENVIA de verdade (integração concluída em Flows::WhatsappFlowAction) — por isso entrou.
+  #
+  # `distribuir` — dispara o Motor de Distribuição (rodízio/fila) no time ATUAL da conversa, via
+  # Spx::Distribuicao::DistribuirService. Existe para tirar o QUANDO da distribuição de uma flag
+  # global invisível (`gatilho_sem_ia` na política) e trazê-lo para o DESENHO do fluxo:
+  # `assign_team` → `distribuir`. Sem parâmetro (o time da conversa é quem carrega a política) e
+  # com guardas tipadas — ver Flows::DistribuicaoAction.
   BASE_ACTION_NAMES = %w[
     send_message add_private_note send_attachment send_webhook_event send_email_to_team
     add_label remove_label assign_agent assign_team remove_assigned_team
@@ -82,6 +88,7 @@ class Flow < ApplicationRecord
     add_participant enroll_in_sequence http_request
     send_cta_url send_location_request send_whatsapp_flow
     send_form
+    distribuir
   ].freeze
 
   # `wait_for_reply` (F2): suspende o walk ESPERANDO a resposta do contato e ramifica pela opção
@@ -90,11 +97,20 @@ class Flow < ApplicationRecord
   # pausa e segue. Ver Flows::RunnerService#suspend_on_wait_for_reply e plano/F2-contrato-wait-for-reply.md.
   NODE_TYPES = %w[trigger action condition router wait wait_for_reply].freeze
 
+  # Forma do token que o BACKEND gera (SecureRandom.hex(24) = 48 hex minúsculos) — a única que
+  # existiu. Serve de ASSINATURA: um `webhook_token` persistido fora desta forma só pode ter vindo
+  # do cliente (dado sujo gravado antes do descarte em #ensure_webhook_token), e é descartado em
+  # vez de reusado. Sem isto o "1" que já está no jsonb de um flow `manual` viraria a credencial
+  # definitiva na primeira vez que esse flow virasse external_webhook — o mesmo ataque, só que
+  # com a primeira das duas requisições já feita.
+  WEBHOOK_TOKEN_FORMAT = /\A[0-9a-f]{48}\z/
+
   validates :name, presence: true
   validate :definition_shape
   validate :definition_action_names
   validate :widget_prechat_trigger_config_shape
   validate :widget_prechat_collected_fields_cap
+  validate :interactive_nodes_are_sendable
 
   # F1 (R-2) — gatilho `external_webhook`: um endpoint PÚBLICO dispara o flow via POST externo.
   # A segurança inteira repousa sobre um token forte e não-adivinhável que IDENTIFICA o flow (o
@@ -102,6 +118,18 @@ class Flow < ApplicationRecord
   before_save :ensure_webhook_token
 
   scope :active, -> { where(active: true) }
+
+  # Visibilidade da LISTAGEM — espelha `Macro.with_visibility` (macro.rb:42): `global` é de toda a
+  # conta, `personal` só aparece para o próprio autor. Sem isto o #index entregava o flow pessoal
+  # ALHEIO inteiro (trigger_config + definition, com o token do webhook e os headers dos nós
+  # http_request dentro) a qualquer agente, enquanto a FlowPolicy#show? já barrava o acesso
+  # individual. Sempre chamado sobre a relação da conta (Current.account.flows.with_visibility) —
+  # o escopo de conta vem de fora, como em qualquer scope.
+  def self.with_visibility(user)
+    return global if user.blank?
+
+    global.or(personal.where(created_by_id: user.id))
+  end
 
   # Localiza o flow pelo token público do webhook. Espelha Funnel.for_form_token (lookup por
   # igualdade no jsonb). Restringe a `external_webhook` — um token não pode disparar um flow de
@@ -141,6 +169,27 @@ class Flow < ApplicationRecord
     trigger_config['webhook_token'] if trigger_config.is_a?(Hash)
   end
 
+  # `trigger_config` como pode ser ENTREGUE a `user` — sem o `webhook_token` para quem não tem
+  # direito a ele. O token é a credencial INTEIRA do endpoint público (Webhooks::FlowsController:
+  # quem o tem dispara o flow de qualquer lugar da internet, sem sessão). Um flow `global` é
+  # visível à conta toda, então o partial não pode devolver a credencial junto: só o AUTOR (quem
+  # criou) e o ADMINISTRADOR (quem pode editar um flow global — FlowPolicy#update?) a enxergam.
+  # Sem usuário identificado, omite. Ver app/views/api/v1/models/_flow.json.jbuilder.
+  def trigger_config_for(user, account_user = nil)
+    config = trigger_config
+    return config unless config.is_a?(Hash) && config.key?('webhook_token')
+    return config if webhook_token_visible_to?(user, account_user)
+
+    config.except('webhook_token')
+  end
+
+  def webhook_token_visible_to?(user, account_user)
+    return false if user.blank?
+    return true if created_by_id.present? && created_by_id == user.id
+
+    account_user.present? && account_user.administrator?
+  end
+
   def file_base_data
     files.map do |file|
       {
@@ -164,19 +213,33 @@ class Flow < ApplicationRecord
   # Assim o cliente não define nem rotaciona o token, e a URL é ESTÁVEL entre edições. Ao sair de
   # external_webhook o token é preservado (a mesma URL volta a valer se reativar); não vaza porque
   # for_webhook_token filtra por external_webhook. TODO(F2): endpoint autenticado de rotação.
+  #
+  # O descarte roda para TODO trigger_type, não só para webhook: com um `return unless
+  # external_webhook?` o cliente escolhia o token em DUAS requisições — cria como `manual` com
+  # `webhook_token: "1"` (nada a materializar, o valor entrava cru no jsonb) e depois muda para
+  # `external_webhook`, quando o "1" já era o valor PERSISTIDO e virava o token definitivo. Um
+  # token escolhido pelo atacante é um endpoint público adivinhável: os 192 bits de entropia só
+  # valem se NENHUM caminho de escrita aceitar a chave vinda de fora.
   def ensure_webhook_token
-    return unless external_webhook?
+    config = trigger_config.is_a?(Hash) ? trigger_config : {}
+    token = persisted_webhook_token.presence
+    token ||= SecureRandom.hex(24) if external_webhook?
 
-    token = persisted_webhook_token.presence || SecureRandom.hex(24)
-    self.trigger_config = trigger_config.to_h.merge('webhook_token' => token)
+    sanitized = config.except('webhook_token')
+    sanitized = sanitized.merge('webhook_token' => token) if token.present?
+    return if sanitized == config
+
+    self.trigger_config = sanitized
   end
 
   # O token como está PERSISTIDO (valor pré-alteração da atribuição atual). Numa criação é nil
   # (gera-se um novo); num update é o token do banco (preserva-se), mesmo que o cliente tente
-  # sobrescrevê-lo no payload.
+  # sobrescrevê-lo no payload. Só conta o que tem a forma do gerador (WEBHOOK_TOKEN_FORMAT):
+  # o resto é resíduo do cliente e não pode ser herdado.
   def persisted_webhook_token
     previous = trigger_config_was
-    previous['webhook_token'] if previous.is_a?(Hash)
+    token = previous['webhook_token'] if previous.is_a?(Hash)
+    token if token.to_s.match?(WEBHOOK_TOKEN_FORMAT)
   end
 
   # Bloco 4.02 — a forma do `trigger_config` do gatilho `widget_prechat`, conferida por
@@ -255,6 +318,40 @@ class Flow < ApplicationRecord
       .select { |node| node.is_a?(Hash) && node['type'] == 'action' }
       .filter_map { |node| node['action_name'] }
       .uniq
+  end
+
+  # `send_interactive` sem corpo é ACEITO por aqui mas RECUSADO pela Meta na entrega
+  # ("The parameter interactive.body.text is required" — o body é obrigatório em interactive).
+  # A mensagem morre com status failed, o contato não vê nada e o `wait_for_reply` seguinte arma
+  # a espera do mesmo jeito: o atendente vê "menu enviado", o cliente vê silêncio e a conversa
+  # fica presa. Um nó sem nenhuma opção com título também não tem lista/botão a enviar
+  # (sanitize_interactive_items descarta item sem título e o serviço levanta StepSkip).
+  # Validar na gravação impede que a configuração quebrada chegue ao ar por qualquer cliente da
+  # API — o canvas valida antes, mas ele não é a única porta.
+  def interactive_nodes_are_sendable
+    return unless definition.is_a?(Hash) && definition['nodes'].is_a?(Array)
+
+    interactive_nodes.each { |node| validate_interactive_node(node) }
+  end
+
+  def interactive_nodes
+    definition['nodes'].select do |node|
+      node.is_a?(Hash) && node['type'] == 'action' && node['action_name'] == 'send_interactive'
+    end
+  end
+
+  def validate_interactive_node(node)
+    config = Array(node['action_params']).first
+    config = {} unless config.is_a?(Hash)
+
+    errors.add(:definition, "node #{node['id']}: send_interactive requires a non-blank content") if config['content'].to_s.strip.blank?
+    return if interactive_titled_item?(config)
+
+    errors.add(:definition, "node #{node['id']}: send_interactive requires at least one option with a title")
+  end
+
+  def interactive_titled_item?(config)
+    Array(config['items']).any? { |item| item.is_a?(Hash) && item['title'].to_s.strip.present? }
   end
 end
 

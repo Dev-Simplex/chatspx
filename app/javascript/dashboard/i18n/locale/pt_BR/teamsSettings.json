@@ -87,11 +87,76 @@
         "ROUTE": "ajustes_times_editar_membros",
         "BODY": "Gerenciar agentes do seu time."
       },
+      "EDIT_WIZARD_DISTRIBUICAO": {
+        "TITLE": "Distribuição",
+        "ROUTE": "settings_teams_edit_distribuicao",
+        "BODY": "Defina quem recebe cada conversa."
+      },
       "EDIT_WIZARD_FINISH": {
         "TITLE": "Finalizar",
         "ROUTE": "ajustes_times_editar_finalizar",
         "BODY": "Está tudo pronto para começar!"
       }
+    },
+    "DISTRIBUICAO": {
+      "TITLE": "Distribuição",
+      "DESC": "Quem recebe cada conversa deste time, e o que acontece quando ninguém assume.",
+      "ENABLE": "Distribuir automaticamente",
+      "ENABLE_HELP": "Desligado, as conversas ficam na fila do time esperando alguém pegar.",
+      "CASCATA": "Ordem de escolha: pedido do cliente → quem já atendeu → rodízio.",
+      "MODO": {
+        "LABEL": "Como escolher",
+        "RODIZIO": "Rodízio — um de cada vez, na ordem",
+        "ONLINE": "Só quem está online",
+        "OFF": "Desligado"
+      },
+      "POSSE": {
+        "LABEL": "Depois de escolher",
+        "ASSIGNEE": "Atribuir a pessoa (a IA cala)",
+        "DESIGNACAO": "Só registrar (a IA continua atendendo até alguém assumir)"
+      },
+      "CONTINUIDADE": {
+        "LABEL": "Manter com quem já atendeu",
+        "DAYS": "Janela (dias)",
+        "HELP": "Cliente que volta cai com a mesma pessoa, e isso não consome a vez de ninguém."
+      },
+      "SLA": {
+        "LABEL": "Tempo para assumir",
+        "MINUTES": "minutos",
+        "ON_EXPIRY": "Ao estourar",
+        "REPASSE": "Passar para o próximo",
+        "ALERT": "Só avisar o gerente",
+        "MAX": "Máximo de repasses",
+        "DESTINO": "Depois disso, vai para",
+        "DESTINO_NONE": "Ninguém — fica onde está",
+        "HORARIO": "Contar só no horário de trabalho",
+        "EXPIRADO": "Quem deixa vencer gastou a vez",
+        "SEM_HORARIO": "Este time não tem horário de funcionamento definido, então o relógio não anda e nada é repassado. Defina o horário primeiro."
+      },
+      "POOL": {
+        "TITLE": "Quem entra no rodízio",
+        "EMPTY": "Ninguém ainda — adicione membros deste time.",
+        "ADD": "Adicionar membro",
+        "ORDER_HELP": "A ordem aqui é a ordem do rodízio.",
+        "CAP": "Teto",
+        "CAP_NONE": "sem teto",
+        "UP": "Subir",
+        "DOWN": "Descer",
+        "ATIVO": "ativo",
+        "SUSPENSO": "suspenso até {date}",
+        "DESATIVADO": "desligado",
+        "SUSPEND": "Suspender",
+        "UNTIL": "Até",
+        "REASON": "Motivo",
+        "REACTIVATE": "Reativar",
+        "DISABLE": "Desligar",
+        "REMOVE": "Remover",
+        "NOT_MEMBER": "Não é membro deste time — nunca vai receber"
+      },
+      "SAVE": "Salvar distribuição",
+      "SAVED": "Distribuição salva",
+      "ERROR": "Não foi possível salvar a distribuição",
+      "FORBIDDEN": "Só um admin ou o gerente deste time pode alterar a distribuição."
     },
     "TEAM_FORM": {
       "ERROR_MESSAGE": "Não foi possível salvar os detalhes do time. Tente novamente."
@@ -146,7 +211,9 @@
         "PLACEHOLDER": "Breve descrição sobre este time."
       },
       "AUTO_ASSIGN": {
-        "LABEL": "Permitir atribuição automática para este time."
+        "LABEL": "Permitir atribuição automática para este time.",
+        "CONFLITO_RODIZIO": "Atenção: a atribuição automática e o rodízio estão os dois ligados neste time. São motores diferentes e um pode desfazer a escolha do outro. O normal é usar só um.",
+        "RODIZIO_DEPOIS": "A fila do rodízio se monta depois de adicionar os membros, na edição do time."
       },
       "SUBMIT_CREATE": "Criar novo time"
     }

@@ -122,7 +122,11 @@ describe MessageFinder do
     let!(:agent_b) { create(:user, account: account, role: :agent) }
     let!(:admin) { create(:user, account: account, role: :administrator) }
     let!(:inbox) { create(:inbox, account: account) }
-    let!(:iso_conversation) { create(:conversation, account: account, inbox: inbox) }
+    let!(:team) { create(:team, account: account) }
+    let!(:other_team) { create(:team, account: account) }
+    # COM time de proposito: o isolamento e escopado pelo time da CONVERSA, e conversa
+    # sem time nunca e isolada (Inbox#isolation_applies_to_team?).
+    let!(:iso_conversation) { create(:conversation, account: account, inbox: inbox, team: team) }
 
     let!(:incoming) { create(:message, message_type: :incoming, conversation: iso_conversation, account: account, inbox: inbox) }
     let!(:from_a) do
@@ -162,6 +166,41 @@ describe MessageFinder do
         Current.user = agent_a
         ids = finder.perform.map(&:id)
         expect(ids).to include(incoming.id, from_a.id, from_b.id)
+      end
+    end
+
+    # ESCOPO POR TIME: a flag liga a regra na caixa, a lista diz em QUAIS times ela vale.
+    context 'when isolation is scoped to teams' do
+      before do
+        inbox.update!(agent_message_isolation: true)
+        Current.user = agent_a
+      end
+
+      it 'hides the colleague bubble when the team list is empty (retrocompat)' do
+        inbox.update!(agent_message_isolation_team_ids: [])
+        expect(finder.perform.map(&:id)).not_to include(from_b.id)
+      end
+
+      it 'hides the colleague bubble when the conversation team is in the list' do
+        inbox.update!(agent_message_isolation_team_ids: [team.id])
+        expect(finder.perform.map(&:id)).not_to include(from_b.id)
+      end
+
+      it 'shows every bubble when the conversation team is NOT in the list' do
+        inbox.update!(agent_message_isolation_team_ids: [other_team.id])
+        expect(finder.perform.map(&:id)).to include(incoming.id, from_a.id, from_b.id)
+      end
+
+      it 'shows every bubble on a conversation without a team' do
+        inbox.update!(agent_message_isolation_team_ids: [team.id])
+        iso_conversation.update!(team: nil)
+        expect(finder.perform.map(&:id)).to include(incoming.id, from_a.id, from_b.id)
+      end
+
+      it 'shows every bubble to an administrator whatever the list' do
+        inbox.update!(agent_message_isolation_team_ids: [team.id])
+        Current.user = admin
+        expect(finder.perform.map(&:id)).to include(incoming.id, from_a.id, from_b.id)
       end
     end
   end

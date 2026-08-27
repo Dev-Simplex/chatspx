@@ -76,6 +76,50 @@ RSpec.describe Flow do
       ]
       expect(build_flow(nodes: nodes)).to be_valid
     end
+
+    # Meta recusa uma interativa sem corpo ("interactive.body.text is required"): a mensagem morre
+    # com status failed, o contato nao ve nada e o wait_for_reply seguinte arma a espera do mesmo
+    # jeito — atendente ve "menu enviado", cliente ve silencio. Barrado na gravacao.
+    describe 'send_interactive sendability' do
+      def interactive_node(content, items)
+        { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_interactive',
+          'action_params' => [{ 'content' => content, 'items' => items }] }
+      end
+
+      let(:items) { [{ 'title' => 'Boleto', 'value' => 'boleto' }] }
+
+      it 'accepts a node with body and one titled option' do
+        expect(build_flow(nodes: [interactive_node('Escolha uma opcao:', items)])).to be_valid
+      end
+
+      it 'rejects a blank body' do
+        flow = build_flow(nodes: [interactive_node('   ', items)])
+        expect(flow).not_to be_valid
+        expect(flow.errors[:definition].join).to include('node n1').and(include('non-blank content'))
+      end
+
+      it 'rejects a missing body' do
+        node = { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_interactive',
+                 'action_params' => [{ 'items' => items }] }
+        expect(build_flow(nodes: [node])).not_to be_valid
+      end
+
+      it 'rejects a node without any titled option' do
+        flow = build_flow(nodes: [interactive_node('Escolha:', [{ 'title' => '  ', 'value' => 'x' }])])
+        expect(flow).not_to be_valid
+        expect(flow.errors[:definition].join).to include('at least one option with a title')
+      end
+
+      it 'rejects a node with no action_params at all' do
+        node = { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_interactive' }
+        expect(build_flow(nodes: [node])).not_to be_valid
+      end
+
+      it 'ignores other action nodes' do
+        node = { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_message', 'action_params' => [''] }
+        expect(build_flow(nodes: [node])).to be_valid
+      end
+    end
   end
 
   describe '.active scope' do
@@ -83,6 +127,37 @@ RSpec.describe Flow do
       active = create(:flow, account: account, active: true)
       create(:flow, account: account, active: false)
       expect(described_class.active).to eq([active])
+    end
+  end
+
+  # O #index listava TODOS os flows da conta, enquanto a FlowPolicy#show? ja exigia global? ||
+  # author? — o flow pessoal alheio saia inteiro (trigger_config + definition) na listagem.
+  describe '.with_visibility' do
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:other_agent) { create(:user, account: account, role: :agent) }
+
+    it 'returns the global flows plus the personal ones of this user' do
+      shared = create(:flow, account: account, visibility: :global)
+      mine = create(:flow, account: account, visibility: :personal, created_by: agent)
+      theirs = create(:flow, account: account, visibility: :personal, created_by: other_agent)
+
+      visible = account.flows.with_visibility(agent)
+      expect(visible).to include(shared, mine)
+      expect(visible).not_to include(theirs)
+    end
+
+    it 'keeps the account scope it was chained on' do
+      other_account_flow = create(:flow, account: create(:account), visibility: :global)
+      create(:flow, account: account, visibility: :global)
+
+      expect(account.flows.with_visibility(agent)).not_to include(other_account_flow)
+    end
+
+    it 'falls back to the global flows when there is no user' do
+      create(:flow, account: account, visibility: :personal, created_by: agent)
+      shared = create(:flow, account: account, visibility: :global)
+
+      expect(account.flows.with_visibility(nil)).to eq([shared])
     end
   end
 
@@ -129,6 +204,35 @@ RSpec.describe Flow do
       expect(flow.reload.webhook_token).to eq(original)
     end
 
+    it 'strips a client-supplied token from a flow that is NOT a webhook' do
+      flow = create(:flow, account: account, trigger_type: :manual,
+                           trigger_config: { 'webhook_token' => '1', 'foo' => 'bar' })
+      expect(flow.reload.trigger_config).to eq('foo' => 'bar')
+    end
+
+    # O caminho de DUAS requisicoes: com o antigo `return unless external_webhook?` o "1" entrava
+    # cru no jsonb da criacao `manual` e, ao virar webhook, ja era o valor PERSISTIDO — ou seja, o
+    # cliente escolhia a credencial do endpoint publico.
+    it 'does not let the client fix the token in two steps (manual then external_webhook)' do
+      flow = create(:flow, account: account, trigger_type: :manual, trigger_config: { 'webhook_token' => '1' })
+      expect(flow.reload.webhook_token).to be_nil
+
+      flow.update!(trigger_type: :external_webhook, trigger_config: { 'webhook_token' => '1' })
+      expect(flow.reload.webhook_token).not_to eq('1')
+      expect(flow.webhook_token).to match(/\A[0-9a-f]{48}\z/)
+    end
+
+    # Dado sujo GRAVADO antes do descarte (a primeira das duas requisicoes ja feita em producao):
+    # o token do cliente nao pode ser herdado so por estar persistido.
+    it 'does not inherit a legacy client-injected token when the flow becomes a webhook' do
+      flow = create(:flow, account: account, trigger_type: :manual)
+      flow.update_column(:trigger_config, { 'webhook_token' => '1' }) # rubocop:disable Rails/SkipsModelValidations
+
+      flow.reload.update!(trigger_type: :external_webhook)
+      expect(flow.reload.webhook_token).not_to eq('1')
+      expect(flow.webhook_token).to match(/\A[0-9a-f]{48}\z/)
+    end
+
     describe '.for_webhook_token' do
       it 'finds an active webhook flow by its token' do
         flow = webhook_flow
@@ -141,9 +245,47 @@ RSpec.describe Flow do
       end
 
       it 'does not match a flow of another trigger type' do
-        other = create(:flow, account: account, trigger_type: :manual, trigger_config: { 'webhook_token' => 'x' })
-        expect(described_class.for_webhook_token('x')).not_to eq(other)
+        flow = webhook_flow
+        token = flow.webhook_token
+        flow.update!(trigger_type: :manual)
+
+        expect(flow.reload.webhook_token).to eq(token) # preservado: a mesma URL volta se reativar
+        expect(described_class.for_webhook_token(token)).to be_nil
       end
+    end
+  end
+
+  # O partial serializa o trigger_config inteiro para todo mundo da conta que enxerga o flow; o
+  # webhook_token dentro dele e a credencial do endpoint publico.
+  describe '#trigger_config_for' do
+    let(:author) { create(:user, account: account, role: :agent) }
+    let(:flow) { create(:flow, account: account, trigger_type: :external_webhook, created_by: author) }
+
+    def account_user_for(user)
+      account.account_users.find_by(user_id: user.id)
+    end
+
+    it 'gives the whole config to the author' do
+      expect(flow.trigger_config_for(author, account_user_for(author))['webhook_token']).to eq(flow.webhook_token)
+    end
+
+    it 'gives the whole config to an administrator' do
+      admin = create(:user, account: account, role: :administrator)
+      expect(flow.trigger_config_for(admin, account_user_for(admin))['webhook_token']).to eq(flow.webhook_token)
+    end
+
+    it 'omits the token for another agent' do
+      other = create(:user, account: account, role: :agent)
+      expect(flow.trigger_config_for(other, account_user_for(other))).not_to have_key('webhook_token')
+    end
+
+    it 'omits the token when there is no identified user' do
+      expect(flow.trigger_config_for(nil, nil)).not_to have_key('webhook_token')
+    end
+
+    it 'leaves a config without a token untouched' do
+      plain = create(:flow, account: account, trigger_config: { 'event_name' => 'conversation_created' })
+      expect(plain.trigger_config_for(nil, nil)).to eq('event_name' => 'conversation_created')
     end
   end
 

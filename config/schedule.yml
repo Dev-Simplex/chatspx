@@ -23,6 +23,15 @@ flows_resume_job:
   class: 'Flows::ResumeJob'
   queue: scheduled_jobs
 
+# A cada 5 minutos.
+# Vence as designacoes paradas do Motor de Distribuicao e repassa ao proximo do rodizio (ou
+# escala ao responsavel fixo). NO-OP enquanto nenhuma politica tiver `repasse_automatico`
+# ligado -- o default e false, entao ligar o job nao muda nada em conta nenhuma.
+spx_distribuicao_varrer_sla_job:
+  cron: '*/5 * * * *'
+  class: 'Spx::Distribuicao::VarrerSlaJob'
+  queue: scheduled_jobs
+
 # executed At every minute..
 trigger_imap_email_inboxes_job:
   cron: '*/1 * * * *'
@@ -134,6 +143,16 @@ remove_orphan_conversations_job:
 conversations_orphan_watch_job:
   cron: '*/5 * * * *'
   class: 'Account::OrphanConversationsWatchJob'
+  queue: scheduled_jobs
+# executed every 5 minutes
+# repasse por SLA no modo ASSIGNEE (locação): a pessoa já é dona e o prazo mede "não respondeu
+# ao cliente". O modo `designacao` NÃO passa por aqui — quem varre aquele é o
+# spx_distribuicao_varrer_sla_job, acima; os dois olhando o mesmo modo repassariam cada lead
+# duas vezes. Inerte enquanto nenhuma política tiver `repasse_automatico` (o default é false),
+# e inerte em time sem expediente configurado — o relógio do SLA só anda dentro do horário.
+distribuicao_repasse_job:
+  cron: '*/5 * * * *'
+  class: 'Spx::Distribuicao::RepasseJob'
   queue: scheduled_jobs
 # executed daily at 0400 UTC
 # purge expired bulk media downloads (zip blob + record) after 7-day retention

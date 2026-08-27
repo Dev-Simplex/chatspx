@@ -186,6 +186,17 @@ export const NODE_CATALOG = [
     labelKey: 'AUTOMATION.CANVAS.NODES.ASSIGN_TEAM',
     icon: 'i-lucide-users',
   },
+  // Vem logo depois do `assign_team` de propósito: a dupla `Atribuir time` → `Distribuir pelo
+  // rodízio` é o desenho que o bloco existe para tornar legível (antes, o rodízio disparava por
+  // uma flag global da política e não aparecia em lugar nenhum do grafo).
+  {
+    key: 'distribuir',
+    type: 'action',
+    actionName: 'distribuir',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.DISTRIBUIR',
+    icon: 'i-lucide-shuffle',
+  },
   {
     key: 'add_participant',
     type: 'action',

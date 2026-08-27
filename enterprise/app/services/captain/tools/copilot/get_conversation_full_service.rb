@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::GetConversationFullService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'get_conversation_full'
   end
@@ -7,8 +9,8 @@ class Captain::Tools::Copilot::GetConversationFullService < Captain::Tools::Base
   param :conversation_id, type: :integer, desc: 'Display ID of the conversation', required: true
 
   def execute(conversation_id:)
-    conversation = @assistant.account.conversations.find_by(display_id: conversation_id)
-    return 'Conversation not found' if conversation.blank?
+    conversation = find_permissible_conversation(conversation_id)
+    return conversation_refusal(conversation_id) if conversation.blank?
 
     [
       format_conversation_meta(conversation),
@@ -43,7 +45,9 @@ class Captain::Tools::Copilot::GetConversationFullService < Captain::Tools::Base
   def format_contact_info(contact)
     return 'Contact: unknown' if contact.blank?
 
-    total_convs = @assistant.account.conversations.where(contact_id: contact.id).count
+    # Conta dentro do alcance do usuário pelo mesmo motivo do resto do tool: o total cru
+    # da conta é um número que ele não teria como obter na tela.
+    total_convs = permissible_conversations.where(contact_id: contact.id).count
     "Contact: #{contact.name} | Email: #{contact.email || 'N/A'} | Phone: #{contact.phone_number || 'N/A'} | Total conversations: #{total_convs}"
   end
 end

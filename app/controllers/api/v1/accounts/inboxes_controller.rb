@@ -258,6 +258,11 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :team_message_isolation,
      :agent_message_isolation, :agent_conversation_isolation, :pending_status_enabled,
+     # Escopo por time das 3 regras de isolamento. Lista VAZIA = a regra vale para TODOS os
+     # times (comportamento historico); com times escolhidos, so vale neles.
+     { team_message_isolation_team_ids: [] },
+     { agent_message_isolation_team_ids: [] },
+     { agent_conversation_isolation_team_ids: [] },
      # As QUATRO chaves de configuracao do widget entram de uma vez (arbitragem A1, bloco 3.01):
      # a evolucao posterior acontece DENTRO dos jsonb, que sao hash aberto, sem voltar a este arquivo.
      # A validacao fina e do modelo (`WidgetConfigurable` + JSON Schema), que e onde ela da erro por campo.

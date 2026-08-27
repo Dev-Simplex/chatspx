@@ -11,7 +11,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
   param :codigo, type: 'string',
                  desc: 'Código do imóvel que o cliente informar (do anúncio, da placa do imóvel, ou do site). Quando presente, busca o imóvel EXATO por esse código — ignore os outros filtros.', required: false
-  param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
+  param :categoria, type: 'string',
+                    desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
   param :endereco, type: 'string',
                    desc: 'Rua, avenida ou logradouro, quando o cliente especificar. Estreita a busca dentro do bairro.', required: false
@@ -153,19 +154,22 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return if novos.empty?
 
     atuais = conv.custom_attributes
-    # `|| {}` e não `fetch(k, {})`: o default do fetch só entra quando a chave está AUSENTE.
-    # Chave presente valendo nil (a API de custom_attributes aceita gravar isso) devolve nil,
-    # o merge estoura e o rescue abaixo engole — os mapas param de ser escritos sem sinal
-    # nenhum na tela, e sem urls_imoveis o fix_property_links apaga TODO link da Tozi.
-    mapas = {
-      'urls_imoveis' => (atuais['urls_imoveis'] || {}).merge(novos).to_a.last(60).to_h,
-      'dados_imoveis' => (atuais['dados_imoveis'] || {}).merge(dados).to_a.last(60).to_h
-    }
+    mapas = { 'urls_imoveis' => mescla_mapa(atuais, 'urls_imoveis', novos),
+              'dados_imoveis' => mescla_mapa(atuais, 'dados_imoveis', dados) }
     conv.update!(custom_attributes: atuais.merge(mapas))
   rescue StandardError => e
     # error, não warn (como no track_codigos): falhar aqui não degrada a busca, apaga o link
     # de todo imóvel da resposta. É invisível pro operador, então precisa aparecer no log.
     Rails.logger.error("[BuscarImovel] track_urls: #{e.message}")
+  end
+
+  # `|| {}` e não `fetch(chave, {})`: o default do fetch só entra quando a chave está
+  # AUSENTE. Chave presente valendo nil (a API de custom_attributes aceita gravar isso)
+  # devolve o nil, o merge estoura e o rescue do track_urls engole — os mapas param de ser
+  # escritos sem sinal nenhum na tela, e sem urls_imoveis o fix_property_links não acha
+  # código nenhum e apaga TODO link da Tozi. Guarda os 60 últimos.
+  def mescla_mapa(atuais, chave, novos)
+    (atuais[chave] || {}).merge(novos).to_a.last(60).to_h
   end
 
   # O imóvel entra nos dois mapas pelas duas chaves (Codigo e ImoCodigo), porque a IA cita
@@ -342,5 +346,4 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def sim?(val)
     val.to_s.strip.casecmp('sim').zero?
   end
-
 end

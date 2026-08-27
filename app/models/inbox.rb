@@ -41,6 +41,8 @@
 #
 
 class Inbox < ApplicationRecord
+  include InboxIsolationScope
+
   include Reportable
   include Avatarable
   include OutOfOffisable

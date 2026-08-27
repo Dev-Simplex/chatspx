@@ -180,4 +180,15 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
       expect(openers(again.reload).size).to eq(1)
     end
   end
+
+  # A tela de campanhas oferece `BODY_FIELDS` como as opções para preencher {{1}}, {{2}}...
+  # e recusa qualquer outra. Se a lista e o contexto real se separarem, a tela passa a
+  # oferecer um campo que renderiza VAZIO — e template com parâmetro vazio a Meta recusa.
+  describe 'the lead fields offered to fill the template body' do
+    it 'is exactly what the render context provides' do
+      contexto = service(hook: hook_with({}), lead: lead_with({})).send(:template_render_context)
+
+      expect(described_class::BODY_FIELDS).to match_array(contexto.keys)
+    end
+  end
 end

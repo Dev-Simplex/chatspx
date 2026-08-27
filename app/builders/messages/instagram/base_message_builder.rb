@@ -169,7 +169,18 @@ class Messages::Instagram::BaseMessageBuilder < Messages::Messenger::MessageBuil
 
     params[:content_attributes][:external_echo] = true if @outgoing_echo
     params[:content_attributes][:is_unsupported] = true if message_is_unsupported?
+    params[:content_attributes][:selected_option] = selected_option if selected_option.present?
     params
+  end
+
+  # Clique no botão de um card: o conteúdo é o TÍTULO (o que a pessoa vê, e o que a IA lê) e
+  # o payload fica guardado no mesmo formato do botão do WhatsApp, que o listener de
+  # automação já sabe ler.
+  def selected_option
+    postback = @messaging[:postback]
+    return if postback.blank?
+
+    { 'id' => postback[:payload], 'title' => postback[:title] }
   end
 
   def message_already_exists?

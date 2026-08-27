@@ -233,6 +233,24 @@ RSpec.describe Conversations::OrphanRetriageJob do
 
       expect(Current.skip_ai_agent_assignment).to be_nil
     end
+
+    # Quem adota "toda conversa tem dono" liga a chave e a re-triagem passa a poder devolver a
+    # órfã pra IA — sem abrir mão da exigência de atribuição para o humano responder, que é a
+    # outra metade do reply_assignment_gate e continua ligada.
+    context 'when the account opted into ia_reentra_orfa' do
+      before { account.update!(settings: account.settings.merge('ia_reentra_orfa' => true)) }
+
+      it 'reassigns the IA, giving the orphan an owner again' do
+        create(:automation_rule, account: account, event_name: 'conversation_created',
+                                 conditions: matching_conditions,
+                                 actions: [{ 'action_name' => 'assign_ai_agent', 'action_params' => [assistant.id] }])
+        conversation = create_orphan
+
+        described_class.perform_now(account)
+
+        expect(conversation.reload.assignee_agent_bot_id).to eq(assistant.mirror_agent_bot.id)
+      end
+    end
   end
 
   describe 'classic mode: assign_ai_agent action still attaches the IA (not gated)' do

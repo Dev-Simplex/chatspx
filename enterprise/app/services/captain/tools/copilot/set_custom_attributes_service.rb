@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::SetCustomAttributesService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'set_custom_attributes'
   end
@@ -13,6 +15,7 @@ class Captain::Tools::Copilot::SetCustomAttributesService < Captain::Tools::Base
     return 'Attributes must be a JSON object' unless parsed_attrs.is_a?(Hash)
 
     target = find_target(target_type, target_id)
+    return conversation_refusal(target_id) if target.nil? && target_type == 'conversation'
     return "#{target_type.capitalize} not found" if target.nil?
 
     merged = (target.custom_attributes || {}).merge(parsed_attrs)
@@ -31,7 +34,7 @@ class Captain::Tools::Copilot::SetCustomAttributesService < Captain::Tools::Base
   def find_target(target_type, target_id)
     case target_type
     when 'conversation'
-      @assistant.account.conversations.find_by(display_id: target_id)
+      find_permissible_conversation(target_id)
     when 'contact'
       Contact.find_by(id: target_id, account_id: @assistant.account_id)
     end

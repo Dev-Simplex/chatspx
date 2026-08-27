@@ -625,4 +625,119 @@ RSpec.describe Conversations::MessageWindowService do
       expect(service.can_reply?).to be true
     end
   end
+
+  # D0: a janela de 24h nao pode ser lida por consulta filtrada por time.
+  #
+  # `Conversation#messages` filtra por team_id quando o inbox tem `team_message_isolation` ligado
+  # (conversation.rb). Mensagens recebidas ficam carimbadas com o time da epoca; quando algo troca o
+  # time da conversa (flow, regra, agente), elas somem daquela consulta. Se o service ler `messages`,
+  # `last_incoming_message` vira nil e `can_reply?` responde false com o cliente tendo escrito
+  # segundos antes — template obrigatorio, CSAT/NPS engolidos, flow parado. O fix e ler
+  # `all_messages` (associacao sem filtro): permissao de VER a mensagem nao muda o fato de que ela
+  # chegou.
+  describe 'when the inbox isolates messages by team' do
+    let!(:whatsapp_channel) { create(:channel_whatsapp, provider: 'whatsapp_cloud', sync_templates: false, validate_provider_config: false) }
+    let!(:account) { whatsapp_channel.account }
+    let!(:team_a) { create(:team, account: account, name: 'triagem') }
+    let!(:team_b) { create(:team, account: account, name: 'cobranca') }
+
+    context 'when team_message_isolation is enabled' do
+      let!(:isolated_inbox) do
+        create(:inbox, channel: whatsapp_channel, account: account, team_message_isolation: true)
+      end
+
+      it 'keeps the window open after the conversation moves to another team' do
+        conversation = create(:conversation, inbox: isolated_inbox, account: account, team: team_a)
+
+        # Carimbada com o time A pelo before_create do Message.
+        message = create(
+          :message,
+          account: account,
+          inbox: isolated_inbox,
+          conversation: conversation,
+          message_type: :incoming,
+          created_at: 1.hour.ago
+        )
+        expect(message.team_id).to eq team_a.id
+
+        conversation.update!(team: team_b)
+        conversation.reload
+
+        # A associacao filtrada ja nao enxerga a mensagem — essa e a armadilha.
+        expect(conversation.messages.incoming).to be_empty
+        expect(conversation.all_messages.incoming).to contain_exactly(message)
+
+        expect(described_class.new(conversation).can_reply?).to be true
+      end
+
+      it 'still closes the window when the last incoming message of another team is old' do
+        conversation = create(:conversation, inbox: isolated_inbox, account: account, team: team_a)
+        create(
+          :message,
+          account: account,
+          inbox: isolated_inbox,
+          conversation: conversation,
+          message_type: :incoming,
+          created_at: 25.hours.ago
+        )
+
+        conversation.update!(team: team_b)
+        conversation.reload
+
+        expect(described_class.new(conversation).can_reply?).to be false
+      end
+
+      it 'keeps the window open while the conversation stays on the same team' do
+        conversation = create(:conversation, inbox: isolated_inbox, account: account, team: team_a)
+        create(
+          :message,
+          account: account,
+          inbox: isolated_inbox,
+          conversation: conversation,
+          message_type: :incoming,
+          created_at: 1.hour.ago
+        )
+
+        expect(described_class.new(conversation.reload).can_reply?).to be true
+      end
+    end
+
+    context 'when team_message_isolation is disabled' do
+      let!(:open_inbox) do
+        create(:inbox, channel: whatsapp_channel, account: account, team_message_isolation: false)
+      end
+
+      it 'keeps the window open after the conversation moves to another team' do
+        conversation = create(:conversation, inbox: open_inbox, account: account, team: team_a)
+        create(
+          :message,
+          account: account,
+          inbox: open_inbox,
+          conversation: conversation,
+          message_type: :incoming,
+          created_at: 1.hour.ago
+        )
+
+        conversation.update!(team: team_b)
+
+        expect(described_class.new(conversation.reload).can_reply?).to be true
+      end
+
+      it 'closes the window when the last incoming message is outside the 24h window' do
+        conversation = create(:conversation, inbox: open_inbox, account: account, team: team_a)
+        create(
+          :message,
+          account: account,
+          inbox: open_inbox,
+          conversation: conversation,
+          message_type: :incoming,
+          created_at: 25.hours.ago
+        )
+
+        conversation.update!(team: team_b)
+
+        expect(described_class.new(conversation.reload).can_reply?).to be false
+      end
+    end
+  end
 end

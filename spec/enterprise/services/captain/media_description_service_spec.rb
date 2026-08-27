@@ -98,4 +98,61 @@ RSpec.describe Captain::MediaDescriptionService, type: :service do
       end
     end
   end
+
+  # O mesmo story do Instagram vira um anexo NOVO a cada pessoa que responde — arquivo byte a
+  # byte idêntico, registro diferente. Medido na conta 7: 865 respostas para 479 stories em 30
+  # dias, um deles baixado 20 vezes. Sem herança, o mesmo vídeo ia para a visão e para o
+  # Whisper uma vez por pessoa.
+  describe 'herança entre respostas ao mesmo story' do
+    def anexo_de_story(story_id, meta: {})
+      msg = create(:message, conversation: conversation, account: account, message_type: :incoming,
+                             content_attributes: { 'story_id' => story_id })
+      att = msg.attachments.create!(account: account, file_type: :image,
+                                    external_url: 'https://cdn.example.com/story.jpg')
+      att.update!(meta: meta) if meta.present?
+      att
+    end
+
+    it 'inherits the description from a sibling reply instead of paying for it again' do
+      anexo_de_story('STORY-1', meta: { described_class::META_KEY => 'Uma caixa térmica vermelha.',
+                                        'story_id' => 'STORY-1' })
+      novo = anexo_de_story('STORY-1')
+
+      expect(described_class.new(attachment: novo).perform).to eq('Uma caixa térmica vermelha.')
+      expect(novo.reload.meta[described_class::META_KEY]).to eq('Uma caixa térmica vermelha.')
+      expect(openai_client).not_to have_received(:chat)
+    end
+
+    it 'does not inherit across different stories' do
+      anexo_de_story('STORY-1', meta: { described_class::META_KEY => 'Uma caixa térmica vermelha.',
+                                        'story_id' => 'STORY-1' })
+      novo = anexo_de_story('STORY-2')
+
+      described_class.new(attachment: novo).perform
+
+      expect(openai_client).to have_received(:chat)
+      expect(novo.reload.meta[described_class::META_KEY]).not_to eq('Uma caixa térmica vermelha.')
+    end
+
+    # Vídeo comum (fora de story) não tem irmão: seguir herdando por qualquer critério
+    # frouxo colaria a leitura de uma mídia na outra.
+    it 'does not inherit when the attachment has no story' do
+      anexo_de_story('STORY-1', meta: { described_class::META_KEY => 'Uma caixa térmica vermelha.',
+                                        'story_id' => 'STORY-1' })
+
+      described_class.new(attachment: attachment).perform
+
+      expect(openai_client).to have_received(:chat)
+    end
+
+    # Sem este carimbo a herança nunca começa: o primeiro anexo grava a descrição e some do
+    # alcance dos irmãos, e cada resposta seguinte volta a pagar.
+    it 'stamps the story on the first read, so the next reply can find it' do
+      primeiro = anexo_de_story('STORY-3')
+
+      described_class.new(attachment: primeiro).perform
+
+      expect(primeiro.reload.meta['story_id']).to eq('STORY-3')
+    end
+  end
 end

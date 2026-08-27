@@ -13,6 +13,7 @@ class AsyncDispatcher < BaseDispatcher
       AutomationRuleListener.instance,
       Spx::Tozi::FunnelAutomationListener.instance,
       Spx::TemplateReplyRouterListener.instance,
+      Spx::CtwaVisibilityListener.instance,
       Spx::Distribuicao::DesignacaoListener.instance,
       MessageSequences::ExitListener.instance,
       CampaignListener.instance,

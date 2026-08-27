@@ -83,6 +83,15 @@ class Channel::WebWidget < ApplicationRecord
     'Website'
   end
 
+  # Menu de opcoes: o widget renderiza input_select nativamente no front.
+  #
+  # RECOLOCADO na reconciliacao de 26/08: veio do PR #60 e nao existia na arvore do
+  # redesenho. Sem ele o widget cairia no default `false` do Channelable e pararia de
+  # desenhar menu — em silencio, que e o modo de falha que aquele PR existe para fechar.
+  def supports_interactive_items?
+    true
+  end
+
   # BLOCO 4.05 — a MENSAGEM do convite, e por que ela é resolvida AQUI.
   #
   # "Campanha é mensagem, gatilho é momento". A Tela 2 (`TeaserComposer.vue`) não cria

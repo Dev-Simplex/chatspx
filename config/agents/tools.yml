@@ -65,6 +65,11 @@
   description: 'Envia ao cliente as fotos de um imóvel em lotes de 3'
   icon: 'image'
 
+- id: apresentar_imoveis
+  title: 'Apresentar Imóveis (vitrine)'
+  description: 'Apresenta várias opções de imóvel numa mensagem só, cada uma como card com foto e botão de escolha (canais que desenham card)'
+  icon: 'library'
+
 - id: listar_pecas
   title: 'Listar Material de Apoio'
   description: 'Lista as peças de marketing disponíveis para o produto do lead (o que cada uma explica e pra quem serve)'
@@ -125,6 +130,11 @@
   description: 'Registra uma observação como nota privada, pro humano notar ao ler o histórico'
   icon: 'note'
 
+- id: registrar_preferencia_atendente
+  title: 'Registrar Preferência de Atendente'
+  description: 'Registra que o cliente pediu um atendente pelo nome, para a distribuição honrar o pedido'
+  icon: 'user'
+
 - id: registrar_assunto
   title: 'Registrar Assunto'
   description: 'Registra um assunto/tarefa identificado na conversa, que vira item de checklist pra equipe'
@@ -134,3 +144,11 @@
   title: 'Responder em Áudio (voz)'
   description: 'Responde o cliente com voice note (voz exclusiva do agente via ElevenLabs) quando ele pede áudio, ou por iniciativa do agente em explicação longa — o proativo é opt-in'
   icon: 'mic'
+
+# ⚠️ A classe é Captain::Tools::BuscarUnidadeTool, no SINGULAR: resolve_tool_class faz
+# `id.classify`, que singulariza a última palavra. Id no plural com classe no plural = tool
+# descartada em silêncio no carregamento.
+- id: buscar_unidades
+  title: 'Buscar Unidades'
+  description: 'Consulta as unidades físicas da conta: endereço, telefone e se abre na data pedida, já com feriado e exceção de calendário aplicados'
+  icon: 'building'

@@ -31,6 +31,11 @@ module Flows::InteractiveAction
     items = sanitize_interactive_items(config['items'])
     # Sem opção válida não há lista/botão a enviar — skip triável (guarda, não falha), sem Sentry.
     raise Flows::StepSkip.new('interactive_no_items', 'no valid interactive items to send') if items.blank?
+    # Canal que não desenha menu não recusa: manda só o `content` e as opções somem sem erro.
+    # Melhor um passo `skipped` visível do que uma pergunta que o cliente não tem como responder.
+    unless inbox_supports_interactive_items?
+      raise Flows::StepSkip.new('inbox_no_interactive_items', 'inbox channel does not render interactive items')
+    end
 
     enforce_compliance!(category: 'utility', free_form: true)
 

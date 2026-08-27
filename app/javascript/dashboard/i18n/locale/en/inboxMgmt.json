@@ -849,6 +849,14 @@
       "AGENT_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, each agent can only see the messages they sent themselves. Messages from other agents appear blurred with restricted access.",
       "AGENT_CONVERSATION_ISOLATION": "Agent conversation isolation",
       "AGENT_CONVERSATION_ISOLATION_SUB_TEXT": "When enabled, an agent can only open conversations assigned to them. Others show a request prompt instead. Unassigned conversations stay available to pick up; admins see everything.",
+      "ISOLATION_TEAMS": {
+        "LABEL": "Teams this rule applies to",
+        "ALL_TEAMS": "Empty list: the rule applies to ALL teams. That is the default and how it works today.",
+        "SCOPED": "The rule applies only to conversations in the selected teams. Nobody is isolated in the other teams.",
+        "NO_TEAM_NEVER_ISOLATED": "A conversation with no team is never isolated, even with the rule on: it starts without a team, before triage.",
+        "NO_TEAM_STILL_ISOLATED": "A conversation with no team STAYS isolated in this rule, whether or not you pick teams: here the block is by owner, not by team.",
+        "NO_TEAMS": "No teams in this account yet, so the rule applies to all of them."
+      },
       "PENDING_STATUS": {
         "TITLE": "Allow Pending status",
         "SUB_TEXT": "When enabled, agents can mark conversations as Pending in this inbox. Conversations already pending remain visible even if disabled."

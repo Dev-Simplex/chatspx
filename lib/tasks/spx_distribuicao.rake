@@ -47,6 +47,38 @@ namespace :spx do
       puts "  membros do time=#{team&.members&.pluck(:id).inspect}"
     end
 
+    desc 'Liga/desliga o repasse por SLA. args: account, team, on|off, sla_min, max_repasses, destino_user_id'
+    task :repasse, %i[account_id team_id ligado sla_minutos max_repasses destino_user_id] => :environment do |_t, args|
+      pol = Spx::Distribuicao::Policy.for_team(args[:account_id].to_i, args[:team_id].to_i)
+      if pol.nil?
+        puts "sem política ativa (conta=#{args[:account_id]} time=#{args[:team_id]}) — crie com spx:distribuicao:policy antes"
+        next
+      end
+      attrs = { repasse_automatico: %w[on true sim 1].include?(args[:ligado].to_s.downcase) }
+      attrs[:sla_assumir_minutos] = args[:sla_minutos].to_i if args[:sla_minutos].present?
+      attrs[:max_repasses] = args[:max_repasses].to_i if args[:max_repasses].present?
+      attrs[:pool_esgotado_destino_user_id] = args[:destino_user_id].presence&.to_i if args[:destino_user_id]
+      pol.update!(attrs)
+      destino = pol.pool_esgotado_destino_user_id
+      membro = destino && Team.find_by(id: pol.team_id)&.members&.exists?(id: destino)
+      puts "OK policy ##{pol.id} repasse=#{pol.repasse_automatico} sla=#{pol.sla_assumir_minutos}min " \
+           "max_repasses=#{pol.max_repasses} destino=#{destino.inspect}"
+      puts '  ⚠️  destino NÃO é membro do time — a escalação seria descartada' if destino && !membro
+      puts '  (repasse desligado: sla_assumir_minutos segue valendo só como MEDIDA na tela)' unless pol.repasse_automatico
+    end
+
+    desc 'Liga/desliga o gatilho sem IA (distribuir quando um flow/regra troca o time). args: account, team, on|off'
+    task :gatilho, %i[account_id team_id ligado] => :environment do |_t, args|
+      pol = Spx::Distribuicao::Policy.for_team(args[:account_id].to_i, args[:team_id].to_i)
+      if pol.nil?
+        puts "sem política ativa (conta=#{args[:account_id]} time=#{args[:team_id]})"
+        next
+      end
+      pol.update!(gatilho_sem_ia: %w[on true sim 1].include?(args[:ligado].to_s.downcase))
+      puts "OK policy ##{pol.id} gatilho_sem_ia=#{pol.gatilho_sem_ia}"
+      puts '  desligado: o Motor só roda no handoff do Captain' unless pol.gatilho_sem_ia
+    end
+
     desc 'Mostra a política + estado do rodízio de um time'
     task :show, %i[account_id team_id] => :environment do |_t, args|
       pol = Spx::Distribuicao::Policy.for_team(args[:account_id].to_i, args[:team_id].to_i)
@@ -57,6 +89,8 @@ namespace :spx do
       st = Spx::Distribuicao::State.find_by(team_id: pol.team_id)
       puts "policy ##{pol.id} modo=#{pol.modo} posse=#{pol.modo_posse} ativo=#{pol.ativo} " \
            "continuidade=#{pol.continuidade_ativa}/#{pol.continuidade_dias}d"
+      puts "  repasse=#{pol.repasse_automatico} sla=#{pol.sla_assumir_minutos}min max=#{pol.max_repasses} " \
+           "destino=#{pol.pool_esgotado_destino_user_id.inspect} gatilho_sem_ia=#{pol.gatilho_sem_ia}"
       puts "  pool=#{pol.pool.inspect}"
       puts "  último escolhido (rodízio)=#{st&.last_user_id.inspect}"
       abertas = Spx::Distribuicao::Log.abertas

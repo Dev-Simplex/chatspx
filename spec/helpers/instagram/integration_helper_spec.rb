@@ -101,4 +101,39 @@ RSpec.describe Instagram::IntegrationHelper do
       end
     end
   end
+
+  describe '#instagram_scopes' do
+    def configurar(valor)
+      allow(GlobalConfigService).to receive(:load).and_call_original
+      allow(GlobalConfigService).to receive(:load).with('INSTAGRAM_SCOPES', '').and_return(valor)
+    end
+
+    it 'devolve só os escopos básicos quando não há configuração' do
+      expect(instagram_scopes).to eq(Instagram::IntegrationHelper::REQUIRED_SCOPES)
+    end
+
+    it 'acrescenta os escopos configurados na instalação' do
+      configurar('instagram_business_manage_comments')
+
+      expect(instagram_scopes).to eq(
+        %w[instagram_business_basic instagram_business_manage_messages instagram_business_manage_comments]
+      )
+    end
+
+    it 'tolera espaço e vírgula sobrando' do
+      configurar(' instagram_business_manage_comments , , instagram_business_manage_insights ')
+
+      expect(instagram_scopes.last(2)).to eq(
+        %w[instagram_business_manage_comments instagram_business_manage_insights]
+      )
+    end
+
+    # Escopo básico fora da tela de consentimento = canal que não conecta. A configuração
+    # acrescenta e nunca remove.
+    it 'não deixa a configuração remover os escopos básicos' do
+      configurar('instagram_business_basic')
+
+      expect(instagram_scopes).to eq(Instagram::IntegrationHelper::REQUIRED_SCOPES)
+    end
+  end
 end

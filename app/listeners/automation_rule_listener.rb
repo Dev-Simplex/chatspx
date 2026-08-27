@@ -27,7 +27,7 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # cancelamento por MENSAGEM deixava aberta a janela entre "assumi" e "mandei a primeira mensagem":
   # a resposta do cliente nesse meio era capturada pelo wait_for_reply velho e virava "Nao entendi".
   def assignee_changed(event)
-    cancel_pending_flow_waits_on_assignment(event.data[:conversation])
+    cancel_pending_flow_waits_on_assignment(event)
   end
 
   def conversation_created(event)
@@ -307,10 +307,21 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     cancel_pending_flow_waits(message.conversation_id)
   end
 
-  # Idem, pelo caminho da ATRIBUICAO. Desatribuir (assignee_id -> nil) NAO cancela: a conversa volta
-  # para a fila e o fluxo do bot segue valendo.
-  def cancel_pending_flow_waits_on_assignment(conversation)
+  # Idem, pelo caminho da ATRIBUICAO - mas SO quando esta PROVADO que um humano de carne e osso
+  # assumiu. A guarda e POSITIVA de proposito, igual a do caminho por MENSAGEM logo acima: cancela
+  # com prova de humano, em vez de "cancela sempre, a menos que...". A logica negativa era o defeito:
+  # QUALQUER troca de responsavel matava o menu em espera, inclusive as AUTOMATICAS (o assign_agent
+  # do proprio flow, o round-robin, o PeriodicAssignmentJob e o Motor de Distribuicao) - o cliente
+  # ficava no meio do menu, algo assumia, e a resposta dele caia no vazio. Errar para o lado do
+  # cancelamento mata conversa viva; errar para o outro lado so deixa o wait armado um pouco mais,
+  # e o caminho por MENSAGEM captura o takeover real assim que o agente digita.
+  #
+  # Desatribuir (assignee_id -> nil) continua NAO cancelando: a conversa volta para a fila e o fluxo
+  # do bot segue valendo.
+  def cancel_pending_flow_waits_on_assignment(event)
+    conversation = event.data[:conversation]
     return if conversation.blank? || conversation.assignee_id.blank?
+    return unless human_assignment_takeover?(event)
 
     account = conversation.account
     return if account.blank? || !flows_engine_active?(account)
@@ -321,6 +332,37 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # Ponto UNICO de cancelamento - os dois caminhos (mensagem e atribuicao) passam por aqui.
   def cancel_pending_flow_waits(conversation_id)
     FlowRun.where(conversation_id: conversation_id, status: :waiting).find_each(&:complete!)
+  end
+
+  # Prova de que um humano de carne e osso executou ESTA atribuicao.
+  #
+  # POR QUE `assignee_changed_by` e nao `performed_by`: `performed_by` e o `Current.executed_by`
+  # (conversation.rb#dispatcher_dispatch), e ele SO e preenchido por quem executa automacao -
+  # AutomationRule (automation_rules/action_service.rb), Flow (flows/action_service.rb) e
+  # AssignmentPolicy/Inbox (auto_assignment/assignment_service.rb). O caminho humano nunca o seta:
+  # o controller seta `Current.user` (application_controller.rb#set_current_user). Ou seja,
+  # `performed_by` prova AUTOMACAO, nunca prova HUMANO - e chega NIL justamente nos dois casos que
+  # precisamos separar: o agente atribuindo pela API E o Motor de Distribuicao
+  # (Spx::Distribuicao::DistribuirService -> Conversations::AssignmentService), que roda DENTRO do
+  # Sidekiq, onde o thread-local nasce zerado e portanto nao e nem AutomationRule nem Flow.
+  #
+  # `assignee_changed_by` e o proprio `Current.user`, capturado no contexto SINCRONO do request e
+  # carregado no payload por AssignmentHandler#assignment_change_event_data - existe exatamente
+  # porque aqui, no worker async (EventDispatcherJob/Sidekiq), `Current.user` ja e nil. Mesmo sinal,
+  # com o mesmo `is_a?(User)`, que o NotificationListener#takeover_actor usa para decidir quem
+  # "roubou" a conversa: automacao e round-robin passam nil, e token de AgentBot passa um nao-User.
+  #
+  # O contexto de automacao VENCE um `Current.user` ambiente (mesma regra do
+  # Conversations::AssignmentHistoryService#derive_source): quando a automacao roda INLINE dentro de
+  # um request — o motor de funil do Kanban re-entra sincrono, ver Current.funnel_automation_depth —
+  # o payload sai com performed_by = AutomationRule E assignee_changed_by = o agente que apertou o
+  # botao. Quem decidiu a atribuicao foi a regra, nao a pessoa: o menu nao pode morrer por isso.
+  # `performed_by_automation?` cobre AutomationRule/Flow, que sao os unicos que re-entram sincrono;
+  # AssignmentPolicy/Inbox so aparecem de dentro de job, onde `Current.user` ja e nil de qualquer jeito.
+  def human_assignment_takeover?(event)
+    return false if performed_by_automation?(event)
+
+    event.data[:assignee_changed_by].is_a?(User)
   end
 
   # Mensagem que representa um agente HUMANO assumindo a conversa: outgoing, de User real, nao

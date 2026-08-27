@@ -65,9 +65,14 @@ RSpec.describe Attachments::GalleryScopeBuilder, type: :service do
   # da conversa de OUTRO agente (a superfície de conta não passa pelo guard).
   describe 'agent conversation isolation' do
     let(:owner) { create(:user, account: account, role: :agent) }
+    # COM time: o isolamento e escopado pelo time da conversa
+    # (Inbox#isolation_applies_to_team?). `allow_auto_assign: false` para o
+    # AssignmentHandler nao inventar dono no caso "sem dono".
+    let(:iso_team) { create(:team, account: account, allow_auto_assign: false) }
 
-    def create_owned_attachment(assignee:, content: 'veja https://exemplo.com/x')
-      conversation = create(:conversation, account: account, inbox: inbox, assignee: assignee)
+    def create_owned_attachment(assignee:, content: 'veja https://exemplo.com/x', team: iso_team)
+      create(:team_member, team: team, user: assignee) if assignee && team && team.members.exclude?(assignee)
+      conversation = create(:conversation, account: account, inbox: inbox, team: team, assignee: assignee)
       message = create(:message, account: account, conversation: conversation, inbox: inbox, content: content)
       attachment = message.attachments.new(account_id: account.id, file_type: :image)
       attachment.file.attach(io: Rails.root.join('spec/assets/sample.png').open, filename: 'sample.png', content_type: 'image/png')
@@ -105,6 +110,24 @@ RSpec.describe Attachments::GalleryScopeBuilder, type: :service do
       _c, _m, foreign = create_owned_attachment(assignee: owner)
       admin_builder = described_class.new(user: admin, account: account, filters: { type: 'image' })
       expect(admin_builder.deduped_scope.pluck(:id)).to include(foreign.id)
+    end
+
+    # CONVERSA SEM TIME (antes da triagem). Esta regra NAO e isenta do time nulo (fica
+    # fora de Inbox::TEAMLESS_EXEMPT_RULES) — e aqui quem responde e o espelho SQL
+    # (`exclude_hidden`), nao o guard por-conversa. Se o SQL isentasse, a midia e os links
+    # da conversa do colega ainda sem triagem vazariam pela galeria com o guard bloqueando
+    # a abertura: as duas superficies discordando, que e o que a regra unica evita.
+    it 'STILL hides the attachment of a colleague conversation that has no team yet' do
+      _c, _m, foreign = create_owned_attachment(assignee: owner, team: nil)
+      _c2, _m2, mine = create_owned_attachment(assignee: agent, team: nil)
+      ids = builder.deduped_scope.pluck(:id)
+      expect(ids).to include(mine.id)
+      expect(ids).not_to include(foreign.id)
+    end
+
+    it 'STILL hides the link of a colleague conversation that has no team yet' do
+      _c, foreign_msg, = create_owned_attachment(assignee: owner, team: nil)
+      expect(builder.links_scope.pluck(:id)).not_to include(foreign_msg.id)
     end
   end
 end

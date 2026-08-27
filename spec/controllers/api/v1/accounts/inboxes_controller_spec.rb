@@ -503,6 +503,54 @@ RSpec.describe 'Inboxes API', type: :request do
         expect(response.parsed_body['agent_message_isolation']).to be(true)
       end
 
+      # ESCOPO POR TIME das 3 regras: o admin escolhe EM QUAIS times cada uma vale.
+      it 'updates the isolation team scope lists when administrator' do
+        team = create(:team, account: account)
+        other_team = create(:team, account: account)
+
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+              headers: admin.create_new_auth_token,
+              params: { team_message_isolation_team_ids: [team.id],
+                        agent_message_isolation_team_ids: [team.id, other_team.id],
+                        agent_conversation_isolation_team_ids: [other_team.id] },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(inbox.reload.team_message_isolation_team_ids).to eq([team.id])
+        expect(inbox.agent_message_isolation_team_ids).to contain_exactly(team.id, other_team.id)
+        expect(inbox.agent_conversation_isolation_team_ids).to eq([other_team.id])
+      end
+
+      # Voltar para "todos os times" e mandar lista VAZIA — o caminho de desfazer a escolha.
+      it 'clears the isolation team scope back to every team' do
+        team = create(:team, account: account)
+        inbox.update!(agent_message_isolation_team_ids: [team.id])
+
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+              headers: admin.create_new_auth_token,
+              params: { agent_message_isolation_team_ids: [] },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(inbox.reload.agent_message_isolation_team_ids).to eq([])
+      end
+
+      # O front precisa LER as listas para desenhar a tela; sem isso a escolha some no F5.
+      it 'exposes the three isolation flags and their team scope in the payload' do
+        team = create(:team, account: account)
+        inbox.update!(agent_conversation_isolation: true, agent_conversation_isolation_team_ids: [team.id])
+
+        get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['agent_conversation_isolation']).to be(true)
+        expect(response.parsed_body['agent_conversation_isolation_team_ids']).to eq([team.id])
+        expect(response.parsed_body['team_message_isolation_team_ids']).to eq([])
+        expect(response.parsed_body['agent_message_isolation_team_ids']).to eq([])
+      end
+
       it 'updates api inbox when administrator' do
         api_channel = create(:channel_api, account: account)
         api_inbox = create(:inbox, channel: api_channel, account: account)
