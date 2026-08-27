@@ -17,7 +17,11 @@ FRONT_URL_CONTRACTS = {
   'app/javascript/dashboard/routes/dashboard/settings/inbox/widget/tracking/useTrackingCredentials.js' => [
     [:get,   '/api/v1/accounts/1/inboxes/2/tracking_credential'],
     [:patch, '/api/v1/accounts/1/inboxes/2/tracking_credential'],
-    [:post,  '/api/v1/accounts/1/inboxes/2/tracking_credential/verify']
+    [:post,  '/api/v1/accounts/1/inboxes/2/tracking_credential/verify'],
+    # PUT no RECURSO, com o objeto no corpo — nao uma rota por chave. O front montava
+    # `PUT .../tracking_credential/<chave>` e essa rota nunca existiu; o spec do front
+    # ficava verde porque o dublê casava a URL por `includes`.
+    [:put,   '/api/v1/accounts/1/inboxes/2/tracking_credential']
   ]
 }.freeze
 
@@ -38,6 +42,10 @@ RSpec.describe 'URLs que o front monta tem rota no Rails', type: :routing do
         end
       end
     end
+  end
+
+  it 'a rota POR CHAVE, que o front inventou, continua sem existir' do
+    expect(put: '/api/v1/accounts/1/inboxes/2/tracking_credential/meta_access_token').not_to be_routable
   end
 
   it 'o caminho PLURAL, que era o defeito, continua sem rota' do

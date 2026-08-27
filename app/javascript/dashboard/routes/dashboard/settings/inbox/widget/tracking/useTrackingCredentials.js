@@ -98,13 +98,22 @@ export function useTrackingCredentials(inboxId) {
   const guardar = async (key, value) => {
     saveError.value = '';
     try {
-      const { data } = await axios.put(
-        `${baseUrl(accountIdFromRoute(), inboxId)}/${key}`,
-        { value }
-      );
+      // O contrato do backend e UM update no recurso, com o objeto `tracking_credential` —
+      // nao uma rota por chave. O front montava `PUT .../tracking_credential/<chave>` com
+      // corpo `{ value }`, e essa rota NUNCA existiu: `resource :tracking_credential` declara
+      // apenas show, update e o member `verify`. Achado rodando a tela contra o backend
+      // integrado; o spec do front nao pegava porque dubla o axios, e o do backend nao pegava
+      // porque chama o controller direto, sem montar URL.
+      //
+      // Mandar uma chave por vez continua sendo o comportamento certo: `update_params` DESCARTA
+      // atributo que chega vazio, entao o que nao vai no corpo permanece guardado. E a mesma
+      // regra que impede o formulario de apagar credencial com string vazia.
+      const { data } = await axios.put(baseUrl(accountIdFromRoute(), inboxId), {
+        tracking_credential: { [key]: value },
+      });
       credentials.value = {
         ...credentials.value,
-        [key]: readState(data?.credential),
+        [key]: readState(data?.[key] ?? data?.credential),
       };
       return true;
     } catch (error) {

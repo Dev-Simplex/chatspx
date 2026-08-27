@@ -72,11 +72,14 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/app/accounts/3/settings/inboxes/7');
   global.axios = {
     get: url =>
-      url.includes('tracking_credentials')
+      url.includes('tracking_credential')
         ? respostaDoCofre(url)
         : respostaDoLog(url),
     post: url => respostaDoLog(url),
-    put: url => respostaDoCofre(url),
+    // Repassa o CORPO tambem: o contrato do cofre e `PUT <recurso>` com
+    // `{ tracking_credential: { <chave>: valor } }`. Um dublê que descarta o corpo
+    // nao consegue provar QUE chave foi gravada — so que alguma chamada aconteceu.
+    put: (url, body) => respostaDoCofre(url, body),
   };
 });
 afterEach(() => {
@@ -685,8 +688,16 @@ describe('5.06 — o campo de segredo consome o contrato do 5.02', () => {
     await flushPromises();
 
     // foi pelo PUT do cofre...
+    //
+    // O contrato e UM update no recurso: a rota e `resource :tracking_credential`
+    // (SINGULAR, porque ha no maximo uma por inbox) e o corpo leva o objeto
+    // `tracking_credential`. Este spec cravava `.../tracking_credentials/<chave>` —
+    // uma URL por chave que NUNCA existiu em rota nenhuma. Como o dublê casava por
+    // `includes`, o spec ficava verde contra um endpoint imaginario, e o 404 so
+    // aparecia na instalacao real.
     expect(respostaDoCofre).toHaveBeenCalledWith(
-      '/api/v1/accounts/3/inboxes/7/tracking_credentials/meta_access_token'
+      '/api/v1/accounts/3/inboxes/7/tracking_credential',
+      { tracking_credential: { meta_access_token: expect.anything() } }
     );
     // ...e o PATCH da inbox nem aconteceu: nada mudou no rascunho
     expect(dispatch).not.toHaveBeenCalled();
