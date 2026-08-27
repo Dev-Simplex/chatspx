@@ -85,6 +85,25 @@ const isOverridden = field => props.overriddenFields.includes(field);
           :data-testid="`position-${position}`"
           @select="set('position', position)"
         />
+
+        <!-- Rotulo acessivel do radio do `RadioCard` — a razao completa esta em
+             `ThemeModeField.vue`, junto do numero medido. Em resumo: o
+             componente nao amarra o `<h3>` ao `<input>`, o axe reprova com
+             `label` [critical], e a correcao de raiz (em
+             `components-next/radioCard/`) esta escalada por ser de outra
+             trilha. `sr-only` e absoluto: nao ocupa celula do grid. -->
+        <label
+          v-for="position in POSITIONS"
+          :key="`label-${position}`"
+          :for="`position-${position}`"
+          class="sr-only"
+        >
+          {{
+            t(
+              `INBOX_WIDGET.APPEARANCE.LAUNCHER.POSITIONS.${position.toUpperCase()}`
+            )
+          }}
+        </label>
       </div>
     </SettingsFieldSection>
 
@@ -132,6 +151,18 @@ const isOverridden = field => props.overriddenFields.includes(field);
           :data-testid="`launcher-${type}`"
           @select="set('launcher_type', type)"
         />
+
+        <!-- Idem: rotulo acessivel do radio. Ver `ThemeModeField.vue`. -->
+        <label
+          v-for="type in TYPES"
+          :key="`label-${type}`"
+          :for="`launcher-${type}`"
+          class="sr-only"
+        >
+          {{
+            t(`INBOX_WIDGET.APPEARANCE.LAUNCHER.TYPES.${type.toUpperCase()}`)
+          }}
+        </label>
       </div>
     </SettingsFieldSection>
 
