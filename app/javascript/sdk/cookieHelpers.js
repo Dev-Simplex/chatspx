@@ -1,5 +1,5 @@
-import md5 from 'md5';
 import Cookies from 'js-cookie';
+import { dedupeHash } from './dedupeHash';
 
 // Bloco 5.17 — quem identifica sozinho. `phone_number` entrou: um site que so tem o telefone do
 // visitante (formulario de WhatsApp, checkout por celular) nao conseguia identificar ninguem, e a
@@ -54,7 +54,12 @@ export const getUserString = ({ identifier = '', user }) => {
   return `${userStringWithSortedKeys}identifier${identifier}`;
 };
 
-export const computeHashForUserData = (...args) => md5(getUserString(...args));
+// Bloco 2.18 — era `md5(...)`. O pacote `md5` custava 5.562 B CRUS no `sdk.js`
+// para responder "os dados mudaram?" dentro do navegador do próprio visitante.
+// O porquê da troca, o que ela preserva e o que muda para quem já tem o cookie
+// estão em `dedupeHash.js`.
+export const computeHashForUserData = (...args) =>
+  dedupeHash(getUserString(...args));
 
 export const hasUserKeys = user =>
   REQUIRED_USER_KEYS.reduce((acc, key) => acc || !!user[key], false);
