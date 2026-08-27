@@ -3,6 +3,11 @@
 const path = require('path');
 const { defineConfig, devices } = require('@playwright/test');
 
+// Mesma razão do comentário no `triggers-server.mjs`: com várias worktrees na
+// máquina, a porta fixa é um slot disputado, e `reuseExistingServer` adotaria o
+// servidor de outra árvore sem avisar. `TRIGGERS_PORT` dá a cada trilha a sua.
+const PORT = Number(process.env.TRIGGERS_PORT || 3062);
+
 module.exports = defineConfig({
   testDir: __dirname,
   testMatch: /.*\.spec\.js/,
@@ -11,7 +16,7 @@ module.exports = defineConfig({
   timeout: 60000,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:3062',
+    baseURL: `http://127.0.0.1:${PORT}`,
     locale: 'pt-BR',
     timezoneId: 'America/Cuiaba',
     viewport: { width: 1440, height: 900 },
@@ -23,8 +28,9 @@ module.exports = defineConfig({
   webServer: [
     {
       command: 'node spec/e2e/triggers/harness/triggers-server.mjs',
+      env: { ...process.env, TRIGGERS_PORT: String(PORT) },
       cwd: path.resolve(__dirname, '../../..'),
-      url: 'http://127.0.0.1:3062/__ready',
+      url: `http://127.0.0.1:${PORT}/__ready`,
       reuseExistingServer: true,
       timeout: 600000,
     },

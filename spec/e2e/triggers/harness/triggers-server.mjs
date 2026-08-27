@@ -8,7 +8,15 @@ const { createServer: createViteServer } = await import('vite');
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(currentDirectory, '../../../..');
 
-const PORT = 3062;
+/**
+ * Porta configurável por `TRIGGERS_PORT`. O default continua 3062, então nada
+ * muda para quem roda de um checkout só. A variável existe porque este arquivo
+ * calcula `repositoryRoot` a partir do próprio caminho: um servidor de OUTRA
+ * worktree que já esteja com a porta serve o código DELA, e o
+ * `reuseExistingServer` da config o adotaria em silêncio — a suíte ficaria
+ * medindo a árvore errada sem uma linha de aviso.
+ */
+const PORT = Number(process.env.TRIGGERS_PORT || 3062);
 
 const page = theme => `<!doctype html>
 <html lang="pt-BR"${theme === 'dark' ? ' class="dark"' : ''}>
@@ -31,7 +39,7 @@ const vite = await createViteServer({
   configFile: path.join(repositoryRoot, 'vite.config.ts'),
   appType: 'custom',
   logLevel: 'warn',
-  server: { hmr: { port: 4062 }, middlewareMode: true },
+  server: { hmr: { port: PORT + 1000 }, middlewareMode: true },
 });
 
 // Mesma razão do harness do widget: o Vite em middlewareMode compila sob
@@ -62,7 +70,11 @@ const server = http.createServer((request, response) => {
     response.writeHead(warmed ? 200 : 503, {
       'Content-Type': 'text/plain; charset=utf-8',
     });
-    response.end(warmed ? 'triggers-ready' : 'triggers-warming');
+    // Diz QUAL árvore este servidor serve: é o único jeito de conferir, de
+    // fora, que a porta não pertence a outra worktree.
+    response.end(
+      `${warmed ? 'triggers-ready' : 'triggers-warming'} ${repositoryRoot}`
+    );
     return;
   }
   if (url.pathname === '/triggers') {

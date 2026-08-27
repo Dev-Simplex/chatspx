@@ -135,24 +135,20 @@ test.describe('2.13 — o relatório sai, e sai raspado', () => {
 });
 
 test.describe('2.13 — nada vaza para o site do cliente', () => {
-  // Bloco 0.11 — ESCAPE POR CENÁRIO, não da lista global.
+  // ESTES DOIS TESTES NÃO DECLARAM ESCAPE NENHUM, E ISSO É O ACEITE.
   //
-  // Este describe DERRUBA o endpoint de telemetria de propósito: é exatamente o caminho de
-  // falha que ele existe para exercitar ("o endpoint fora do ar não gera `unhandledrejection`
-  // no pai"). O `POST` que não completa é o cenário, não defeito — e o que se está provando é
-  // justamente que ele NÃO vira erro visível no site do cliente.
+  // Eles já declararam — e por isso reprovavam. O escape morava no describe INTEIRO, com dois
+  // padrões que só UM dos três cenários provoca; o fixture do bloco 0.11 reprova escape
+  // declarado que não acontece, e reprovava aqui, com o teste em si passando (`vazamentos`
+  // medido `[]`, `pageerror=0`). O escape estava no lugar errado.
   //
-  // Por que aqui e não em `IGNORAR`: a lista global é só para AMBIENTE (dependência externa
-  // não provisionada). Isto é produto, é deliberado, e é deste describe. Pôr na lista global
-  // cegaria o fixture para uma falha real de telemetria em qualquer outro cenário.
-  test.use({
-    errosEsperados: {
-      padroes: [
-        /\/api\/v1\/widget\/telemetry — net::ERR_(ABORTED|FAILED)/,
-        /Failed to load resource: net::ERR_FAILED/,
-      ],
-    },
-  });
+  // Ao mover o escape para o cenário que o justifica, sobrou um erro de verdade nos outros
+  // dois: um `net::ERR_ABORTED` no NOSSO `POST` de telemetria, 40 ms DEPOIS do 204 e com a
+  // página ainda viva — o Chromium cancelando o corpo de resposta que o reporter nunca lia.
+  // Dez deles no cenário do teto. Isso é a nossa telemetria pintada de vermelho no devtools
+  // do site do cliente, e a correção foi no PRODUTO (`telemetry.js` drena a resposta), não
+  // aqui. Sem aquela linha, estes dois testes ficam vermelhos de novo — é o que os torna
+  // acusadores em vez de decorativos.
 
   test('o erro registrado não aparece no `window.onerror` do pai', async ({
     page,
@@ -167,23 +163,47 @@ test.describe('2.13 — nada vaza para o site do cliente', () => {
     expect(vazamentos).toEqual([]);
   });
 
-  test('o endpoint fora do ar não gera `unhandledrejection` no pai', async ({
-    page,
-  }) => {
-    // O caso que mais assusta: o reporter roda dentro de `catch`. Se a rejeição
-    // dele escapasse, um erro REGISTRADO viraria um erro NÃO TRATADO — o
-    // oposto do bloco, e no documento de outra empresa.
-    await abrir(page);
-    await page.route('**/api/v1/widget/telemetry', rota =>
-      rota.abort('failed')
-    );
+  // Bloco 0.11 — ESCAPE POR CENÁRIO, e o cenário é ESTE, sozinho num describe próprio.
+  //
+  // Aqui o endpoint de telemetria é derrubado de propósito: é o caminho de falha que este
+  // teste existe para exercitar. O `POST` que não completa é o cenário, não defeito — e o que
+  // se prova é justamente que ele NÃO vira erro visível no site do cliente.
+  //
+  // Por que num describe só dele: `test.use` não vale para um teste isolado, e pendurar o
+  // escape no describe de cima o daria também aos dois vizinhos, que não derrubam nada. Foi
+  // exatamente esse erro de escopo que deixou os dois reprovando.
+  //
+  // Por que aqui e não em `IGNORAR`: a lista global é só para AMBIENTE (dependência externa
+  // não provisionada). Isto é produto, é deliberado, e é deste cenário. Pôr na lista global
+  // cegaria o fixture para uma falha real de telemetria em qualquer outro cenário.
+  test.describe('com o endpoint derrubado de propósito', () => {
+    test.use({
+      errosEsperados: {
+        padroes: [
+          /\/api\/v1\/widget\/telemetry — net::ERR_FAILED/,
+          /Failed to load resource: net::ERR_FAILED/,
+        ],
+      },
+    });
 
-    await forcarErroNoWidget(page, 'erro com endpoint fora do ar');
-    await page.waitForTimeout(1000);
+    test('o endpoint fora do ar não gera `unhandledrejection` no pai', async ({
+      page,
+    }) => {
+      // O caso que mais assusta: o reporter roda dentro de `catch`. Se a rejeição
+      // dele escapasse, um erro REGISTRADO viraria um erro NÃO TRATADO — o
+      // oposto do bloco, e no documento de outra empresa.
+      await abrir(page);
+      await page.route('**/api/v1/widget/telemetry', rota =>
+        rota.abort('failed')
+      );
 
-    const vazamentos = await page.evaluate(() => window.vazamentos);
-    expect(vazamentos).toEqual([]);
-    expect(servidor.recebidos).toHaveLength(0);
+      await forcarErroNoWidget(page, 'erro com endpoint fora do ar');
+      await page.waitForTimeout(1000);
+
+      const vazamentos = await page.evaluate(() => window.vazamentos);
+      expect(vazamentos).toEqual([]);
+      expect(servidor.recebidos).toHaveLength(0);
+    });
   });
 
   test('o teto por sessão impede o widget de virar amplificador', async ({

@@ -149,14 +149,18 @@ describe('2.13 — o envelope enviado', () => {
 
 describe('2.13 — nada vaza para o site do cliente', () => {
   let enviados;
+  let corpoLido;
 
   beforeEach(() => {
     __resetTelemetryForTests();
     enviados = [];
     global.chatwootWebChannel = { websiteToken: 'token-abc' };
+    corpoLido = vi.fn(() => Promise.resolve(''));
     global.fetch = vi.fn((url, opcoes) => {
       enviados.push({ url, opcoes });
-      return Promise.resolve({ ok: true });
+      // Dublê com `text`: um `Response` de verdade TEM corpo, e o reporter
+      // precisa drená-lo — ver o teste `drena a resposta` logo abaixo.
+      return Promise.resolve({ ok: true, text: corpoLido });
     });
   });
 
@@ -173,6 +177,21 @@ describe('2.13 — nada vaza para o site do cliente', () => {
 
     const corpo = JSON.parse(enviados[0].opcoes.body);
     expect(corpo.message).toBe('falhou');
+  });
+
+  it('drena a resposta — corpo não lido vira `ERR_ABORTED` no site do cliente', async () => {
+    // Não é zelo com stream: é o aceite «nada vaza para o site do cliente».
+    // [MEDIDO em Chromium 145, `spec/e2e/telemetry`] uma resposta que ninguém
+    // lê é cancelada pelo navegador 40 ms DEPOIS do 204, com a página ainda
+    // viva, e o `POST` da NOSSA telemetria aparece em vermelho no devtools do
+    // cliente — dez vezes seguidas no cenário do teto por sessão.
+    //
+    // Este teste ACUSA: tirando o `await resposta?.text?.()` de
+    // `reportWidgetError`, ele fica vermelho aqui e os dois cenários de
+    // navegador de `telemetria.spec.js` ficam vermelhos lá.
+    await reportWidgetError(new Error('falhou'), { origem: 'teste' });
+
+    expect(corpoLido).toHaveBeenCalledTimes(1);
   });
 
   it('engole a própria falha de rede em vez de propagar', async () => {
