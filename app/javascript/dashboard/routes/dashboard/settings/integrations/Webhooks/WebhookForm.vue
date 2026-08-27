@@ -3,8 +3,6 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, url, minLength } from '@vuelidate/validators';
 import wootConstants from 'dashboard/constants/globals';
 import { getI18nKey } from 'dashboard/routes/dashboard/settings/helper/settingsHelper';
-import { copyTextToClipboard } from 'shared/helpers/clipboard';
-import { useAlert } from 'dashboard/composables';
 import { useConfig } from 'dashboard/composables/useConfig';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
@@ -62,15 +60,26 @@ export default {
       url: this.value.url || '',
       name: this.value.name || '',
       subscriptions: this.value.subscriptions || [],
-      secretVisible: false,
       supportedWebhookEvents: inboxEventsEnabled
         ? [...SUPPORTED_WEBHOOK_EVENTS, 'inbox_updated']
         : SUPPORTED_WEBHOOK_EVENTS,
     };
   },
   computed: {
+    /**
+     * Bloco 4.14. Lia `value.secret`, e isso estava errado nos DOIS sentidos:
+     *
+     *  · logo depois de criar, o registro que o store guarda ainda carrega o segredo (a
+     *    criacao o devolve uma vez), entao o formulario o DESENHAVA — o vazamento;
+     *  · depois de um F5, `GET /webhooks` nao devolve segredo nenhum, entao este bloco
+     *    sumia inteiro e o texto "voce tambem podera encontra-lo depois no formulario de
+     *    edicao" virava mentira.
+     *
+     * `has_secret` e o campo que o `index` devolve de proposito (`_webhook.json.jbuilder`):
+     * diz que EXISTE um segredo, sem dizer qual.
+     */
     hasSecret() {
-      return !!this.value.secret;
+      return !!this.value.has_secret;
     },
     webhookURLInputPlaceholder() {
       return this.$t(
@@ -91,10 +100,6 @@ export default {
         name: this.name,
         subscriptions: this.subscriptions,
       });
-    },
-    async copySecret() {
-      await copyTextToClipboard(this.value.secret);
-      useAlert(this.$t('INTEGRATION_SETTINGS.WEBHOOK.SECRET.COPY_SUCCESS'));
     },
     getI18nKey,
   },
@@ -126,34 +131,26 @@ export default {
           :placeholder="webhookNameInputPlaceholder"
         />
       </label>
+      <!--
+        Bloco 4.14 — o segredo NAO e desenhado aqui, em nenhum estado. Nao ha `v-if` que o
+        mostre, nao ha botao de "revelar" e nao ha copia: o que existe e a AFIRMACAO de que
+        um segredo esta configurado. O valor so aparece na criacao, uma vez, que e o unico
+        momento em que ele existe do lado de fora do banco.
+      -->
       <label v-if="hasSecret" class="mb-4">
         {{ $t('INTEGRATION_SETTINGS.WEBHOOK.SECRET.LABEL') }}
         <div class="flex items-center gap-2">
           <input
-            :value="
-              secretVisible ? value.secret : '••••••••••••••••••••••••••••••••'
-            "
+            value="••••••••••••••••••••••••••••••••"
             type="text"
             readonly
+            disabled
             class="!mb-0 font-mono"
           />
-          <NextButton
-            v-tooltip.top="$t('INTEGRATION_SETTINGS.WEBHOOK.SECRET.TOGGLE')"
-            type="button"
-            :icon="secretVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-            slate
-            faded
-            @click="secretVisible = !secretVisible"
-          />
-          <NextButton
-            v-tooltip.top="$t('INTEGRATION_SETTINGS.WEBHOOK.SECRET.COPY')"
-            type="button"
-            icon="i-lucide-copy"
-            slate
-            faded
-            @click="copySecret"
-          />
         </div>
+        <span class="text-xs text-n-slate-11">
+          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.SECRET.CONFIGURED_DESC') }}
+        </span>
       </label>
       <label :class="{ error: v$.url.$error }" class="mb-2">
         {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.SUBSCRIPTIONS.LABEL') }}

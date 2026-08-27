@@ -74,9 +74,9 @@
         "LABEL": "Segredo",
         "COPY": "Copiar segredo para a área de transferência",
         "COPY_SUCCESS": "Segredo copiado para a área de transferência",
-        "TOGGLE": "Alternar visibilidade do segredo",
-        "CREATED_DESC": "Seu webhook foi criado. Use o segredo abaixo para verificar as assinaturas do webhook. Copie-o agora — você também poderá encontrá-lo posteriormente no formulário de edição do webhook.",
-        "DONE": "Concluído"
+        "CREATED_DESC": "Seu webhook foi criado. Use o segredo abaixo para verificar as assinaturas do webhook. Copie-o agora — ele é mostrado uma única vez e não pode ser recuperado depois.",
+        "DONE": "Concluído",
+        "CONFIGURED_DESC": "Há um segredo configurado para este webhook. O valor não é mostrado de novo depois da criação — rotacione se você o perdeu."
       },
       "COUNT": "{n} webhook | {n} webhooks",
       "SEARCH_PLACEHOLDER": "Pesquisar webhooks...",
@@ -155,6 +155,27 @@
           "MESSAGE": "Tem certeza que deseja excluir o webhook? ({webhookURL})",
           "YES": "Sim, excluir ",
           "NO": "Não, mantenha"
+        }
+      },
+      "DELIVERIES": {
+        "BUTTON_TEXT": "Log de entregas",
+        "TITLE": "Entregas do webhook",
+        "DESC": "As últimas entregas tentadas para {webhookURL}. As entregas ficam guardadas por 7 dias.",
+        "EMPTY": "Ainda não há entregas registradas para este webhook.",
+        "LOAD_ERROR": "Não foi possível carregar o log de entregas. Tente novamente.",
+        "REFRESH": "Atualizar",
+        "CLOSE": "Fechar",
+        "ATTEMPTS": "{count} tentativas",
+        "HEADER": {
+          "EVENT": "Evento",
+          "STATUS": "Status",
+          "WHEN": "Quando",
+          "ACTIONS": "Ações"
+        },
+        "REPLAY": {
+          "BUTTON": "Reenviar",
+          "SUCCESS": "Entrega reenviada com o mesmo id ({deliveryId}), para que o destino consiga deduplicar.",
+          "ERROR": "Não foi possível reenviar esta entrega. Tente novamente."
         }
       }
     },

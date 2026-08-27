@@ -22,6 +22,21 @@ FRONT_URL_CONTRACTS = {
     # `PUT .../tracking_credential/<chave>` e essa rota nunca existiu; o spec do front
     # ficava verde porque o dublê casava a URL por `includes`.
     [:put,   '/api/v1/accounts/1/inboxes/2/tracking_credential']
+  ],
+  # Bloco 5.14 — o painel de diagnostico. Estas duas eram chamadas contra um roteador que
+  # NAO as tinha: 404 nas duas, medido em navegador. Aqui o PLURAL e o certo (ha muitas
+  # entregas por inbox), o oposto do caso acima — e e exatamente por os dois casos serem
+  # opostos que nenhum deles pode ser decidido de cabeca.
+  'app/javascript/dashboard/routes/dashboard/settings/inbox/widget/tracking/trackingDiagnosticsApi.js' => [
+    [:get,  '/api/v1/accounts/1/inboxes/2/tracking_deliveries'],
+    [:post, '/api/v1/accounts/1/inboxes/2/tracking_deliveries/test']
+  ],
+  # Bloco 4.14 — as acoes de membro do webhook. O CRUD ja existia; estas tres sao o log de
+  # entregas, o reenvio e a rotacao do segredo, e todas sao POST/GET em `/:id/<acao>`.
+  'app/javascript/dashboard/api/webhooks.js' => [
+    [:get,  '/api/v1/accounts/1/webhooks/2/deliveries'],
+    [:post, '/api/v1/accounts/1/webhooks/2/replay'],
+    [:post, '/api/v1/accounts/1/webhooks/2/rotate_secret']
   ]
 }.freeze
 
@@ -50,5 +65,20 @@ RSpec.describe 'URLs que o front monta tem rota no Rails', type: :routing do
 
   it 'o caminho PLURAL, que era o defeito, continua sem rota' do
     expect(get: '/api/v1/accounts/1/inboxes/2/tracking_credentials').not_to be_routable
+  end
+
+  # O espelho do caso acima, e a razao de ele estar escrito: em `tracking_deliveries` o
+  # plural e que e o certo. Trocar um pelo outro "para ficar igual ao vizinho" reproduz o
+  # mesmo 404 pelo motivo inverso.
+  it 'o SINGULAR de tracking_delivery nao existe — aqui o plural e que e o certo' do
+    expect(get: '/api/v1/accounts/1/inboxes/2/tracking_delivery').not_to be_routable
+  end
+
+  # `replay` e `rotate_secret` sao acoes de MEMBRO. Como acao de colecao elas roteariam para
+  # o webhook de id "replay", que responderia 404 de registro — um 404 que se le como
+  # "webhook nao existe" em vez de "a rota esta errada", que e a pior forma de errar.
+  it 'as acoes do webhook sao de MEMBRO, nao de colecao' do
+    expect(post: '/api/v1/accounts/1/webhooks/replay').not_to be_routable
+    expect(post: '/api/v1/accounts/1/webhooks/rotate_secret').not_to be_routable
   end
 end

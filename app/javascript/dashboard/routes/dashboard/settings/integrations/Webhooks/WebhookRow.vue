@@ -17,7 +17,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['edit', 'delete']);
+const emit = defineEmits(['edit', 'delete', 'deliveries']);
 const { t } = useI18n();
 const subscribedEvents = computed(() => {
   const { subscriptions } = props.webhook;
@@ -57,8 +57,22 @@ const subscribedEvents = computed(() => {
         </div>
       </BaseTableCell>
 
-      <BaseTableCell align="end" class="w-24">
+      <BaseTableCell align="end" class="w-32">
         <div class="flex justify-end gap-3 flex-shrink-0">
+          <!--
+            Bloco 4.14 — a porta para o log de entregas. Ela fica na LINHA, e nao dentro do
+            formulario de edicao, porque a pergunta que ela responde ("chegou?") e feita
+            olhando a lista, nao editando o cadastro.
+          -->
+          <Button
+            v-tooltip.top="
+              $t('INTEGRATION_SETTINGS.WEBHOOK.DELIVERIES.BUTTON_TEXT')
+            "
+            icon="i-lucide-list-checks"
+            slate
+            sm
+            @click="emit('deliveries', webhook)"
+          />
           <Button
             v-tooltip.top="$t('INTEGRATION_SETTINGS.WEBHOOK.EDIT.BUTTON_TEXT')"
             icon="i-woot-edit-pen"
