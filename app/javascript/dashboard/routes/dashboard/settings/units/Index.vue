@@ -49,6 +49,14 @@ const ROTULO_DO_FUSO = Object.fromEntries(
   timeZoneOptions().map(fuso => [fuso.value, fuso.label])
 );
 
+// Mesma paleta do editor de regras: a etiqueta diz de que natureza é o dia de hoje.
+const COR_DA_CATEGORIA = {
+  feriado: 'bg-n-ruby-3 text-n-ruby-11',
+  evento: 'bg-n-blue-3 text-n-blue-11',
+  manutencao: 'bg-n-amber-3 text-n-amber-11',
+  temporada: 'bg-n-teal-3 text-n-teal-11',
+};
+
 const DIAS_CURTOS = [0, 1, 2, 3, 4, 5, 6];
 
 // Resumo de uma linha para a lista: quantos dias abrem e quais fecham. A grade
@@ -225,20 +233,33 @@ const isSaving = computed(
             </BaseTableCell>
             <BaseTableCell>
               <div class="flex flex-col gap-1 items-start">
-                <span
-                  class="px-2 py-1 rounded-lg text-label-small whitespace-nowrap"
-                  :class="
-                    unit.situacao.aberta
-                      ? 'bg-n-teal-3 text-n-teal-11'
-                      : 'bg-n-slate-3 text-n-slate-11'
-                  "
-                >
-                  {{
-                    unit.situacao.aberta
-                      ? $t('UNITS_MGMT.LIST.OPEN_NOW')
-                      : $t('UNITS_MGMT.LIST.CLOSED_NOW')
-                  }}
-                </span>
+                <div class="flex items-center gap-1.5">
+                  <span
+                    class="px-2 py-1 rounded-lg text-label-small whitespace-nowrap"
+                    :class="
+                      unit.situacao.aberta
+                        ? 'bg-n-teal-3 text-n-teal-11'
+                        : 'bg-n-slate-3 text-n-slate-11'
+                    "
+                  >
+                    {{
+                      unit.situacao.aberta
+                        ? $t('UNITS_MGMT.LIST.OPEN_NOW')
+                        : $t('UNITS_MGMT.LIST.CLOSED_NOW')
+                    }}
+                  </span>
+                  <span
+                    v-if="unit.situacao.categoria"
+                    class="px-2 py-1 rounded-lg text-label-small whitespace-nowrap"
+                    :class="COR_DA_CATEGORIA[unit.situacao.categoria]"
+                  >
+                    {{
+                      $t(
+                        `UNITS_MGMT.FORM.RULES.CATEGORY.${unit.situacao.categoria.toUpperCase()}`
+                      )
+                    }}
+                  </span>
+                </div>
                 <span
                   class="whitespace-nowrap text-n-slate-11 text-label-small"
                 >

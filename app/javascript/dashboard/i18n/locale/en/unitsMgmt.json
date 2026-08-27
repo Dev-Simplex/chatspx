@@ -108,19 +108,77 @@
       "EXCEPTIONS": {
         "LABEL": "Holidays and exceptions",
         "HELP": "Dates when this unit does not follow the weekly schedule.",
-        "DATE": "Date",
         "NAME": "Reason",
-        "NAME_PLACEHOLDER": "Christmas",
-        "ADD": "Add",
-        "CLOSED": "Closed",
-        "SPECIAL_HOURS": "Special hours",
-        "ANNUAL": "Every year",
-        "ANNUAL_HELP": "Repeats on the same day every year",
-        "DUPLICATE": "There is already an exception on this date.",
-        "INVALID_RANGE": "The closing time must be after the opening time."
+        "NAME_PLACEHOLDER": "Christmas"
       },
       "SUBMIT": "Save unit",
-      "CANCEL": "Cancel"
+      "CANCEL": "Cancel",
+      "RULES": {
+        "CATEGORY": {
+          "LABEL": "Category",
+          "FERIADO": "Holiday",
+          "EVENTO": "Event",
+          "MANUTENCAO": "Maintenance",
+          "TEMPORADA": "Season"
+        },
+        "EFFECT": {
+          "CLOSED": "Closes the day",
+          "SPECIAL": "Opens with special hours"
+        },
+        "STARTS_ON": "Starts on",
+        "PERIOD": "Spans several days",
+        "ENDS_ON": "Until",
+        "REPEAT": {
+          "LABEL": "Repeats",
+          "NAO_REPETE": "Does not repeat",
+          "SEMANAL": "Weekly",
+          "MENSAL": "Monthly",
+          "ANUAL": "Yearly",
+          "EVERY": "Every",
+          "UNIT_SEMANAL": "week(s)",
+          "UNIT_MENSAL": "month(s)",
+          "UNIT_ANUAL": "year(s)"
+        },
+        "MONTHLY": {
+          "BY_POSITION": "By position in the month",
+          "BY_DAY": "By day of the month",
+          "DAY": "Day"
+        },
+        "POSITIONS": {
+          "1": "1st",
+          "2": "2nd",
+          "3": "3rd",
+          "4": "4th",
+          "-1": "last"
+        },
+        "END": {
+          "LABEL": "Ends",
+          "NEVER": "Never",
+          "ON": "On",
+          "AFTER": "After",
+          "OCCURRENCES": "occurrences"
+        },
+        "PREVIEW": "Next",
+        "PREVIEW_EMPTY": "No future date matches this rule.",
+        "ADD": "Add rule",
+        "PRECEDENCE": "When two rules land on the same day, the most specific one wins; on a tie, the one that closes wins.",
+        "SUMMARY": {
+          "WEEKLY": "Every week: {dias}",
+          "WEEKLY_EVERY": "Every {n} weeks: {dias}",
+          "MONTHLY_DAY": "Day {dia} of every month",
+          "MONTHLY_LAST_DAY": "Last day of every month",
+          "MONTHLY_POSITION": "{posicoes} {dias} of every month",
+          "YEARLY": "Every year on {data}",
+          "PERIOD": "{inicio} to {fim}",
+          "UNTIL": "until {data}"
+        },
+        "ERRORS": {
+          "WEEKDAY_REQUIRED": "Pick at least one day of the week.",
+          "MONTHLY_REQUIRED": "Pick the position and the weekday.",
+          "INVALID_RANGE": "The closing time must be after the opening time.",
+          "END_BEFORE_START": "The end date cannot be earlier than the start date."
+        }
+      }
     }
   }
 }

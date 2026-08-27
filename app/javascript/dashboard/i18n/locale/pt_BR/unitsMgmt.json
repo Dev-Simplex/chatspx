@@ -108,19 +108,77 @@
       "EXCEPTIONS": {
         "LABEL": "Feriados e exceções",
         "HELP": "Datas em que esta unidade não segue o horário da semana.",
-        "DATE": "Data",
         "NAME": "Motivo",
-        "NAME_PLACEHOLDER": "Natal",
-        "ADD": "Adicionar",
-        "CLOSED": "Fechada",
-        "SPECIAL_HOURS": "Horário especial",
-        "ANNUAL": "Todo ano",
-        "ANNUAL_HELP": "Repete no mesmo dia todo ano",
-        "DUPLICATE": "Já existe uma exceção nesta data.",
-        "INVALID_RANGE": "O horário de fechar precisa ser depois do de abrir."
+        "NAME_PLACEHOLDER": "Natal"
       },
       "SUBMIT": "Salvar unidade",
-      "CANCEL": "Cancelar"
+      "CANCEL": "Cancelar",
+      "RULES": {
+        "CATEGORY": {
+          "LABEL": "Categoria",
+          "FERIADO": "Feriado",
+          "EVENTO": "Evento",
+          "MANUTENCAO": "Manutenção",
+          "TEMPORADA": "Temporada"
+        },
+        "EFFECT": {
+          "CLOSED": "Fecha o dia",
+          "SPECIAL": "Abre em horário especial"
+        },
+        "STARTS_ON": "Começa em",
+        "PERIOD": "Dura vários dias",
+        "ENDS_ON": "Até",
+        "REPEAT": {
+          "LABEL": "Repete",
+          "NAO_REPETE": "Não repete",
+          "SEMANAL": "Semanalmente",
+          "MENSAL": "Mensalmente",
+          "ANUAL": "Anualmente",
+          "EVERY": "A cada",
+          "UNIT_SEMANAL": "semana(s)",
+          "UNIT_MENSAL": "mês(es)",
+          "UNIT_ANUAL": "ano(s)"
+        },
+        "MONTHLY": {
+          "BY_POSITION": "Pela posição no mês",
+          "BY_DAY": "Pelo dia do mês",
+          "DAY": "Dia"
+        },
+        "POSITIONS": {
+          "1": "1ª",
+          "2": "2ª",
+          "3": "3ª",
+          "4": "4ª",
+          "-1": "última"
+        },
+        "END": {
+          "LABEL": "Termina",
+          "NEVER": "Nunca",
+          "ON": "Em",
+          "AFTER": "Após",
+          "OCCURRENCES": "ocorrências"
+        },
+        "PREVIEW": "Próximas",
+        "PREVIEW_EMPTY": "Nenhuma data futura com essa regra.",
+        "ADD": "Adicionar regra",
+        "PRECEDENCE": "Se duas regras caírem no mesmo dia, vale a mais específica; empatando, vale a que fecha.",
+        "SUMMARY": {
+          "WEEKLY": "Toda semana: {dias}",
+          "WEEKLY_EVERY": "A cada {n} semanas: {dias}",
+          "MONTHLY_DAY": "Todo dia {dia}",
+          "MONTHLY_LAST_DAY": "Todo último dia do mês",
+          "MONTHLY_POSITION": "{posicoes} {dias} de cada mês",
+          "YEARLY": "Todo ano em {data}",
+          "PERIOD": "{inicio} a {fim}",
+          "UNTIL": "até {data}"
+        },
+        "ERRORS": {
+          "WEEKDAY_REQUIRED": "Escolha ao menos um dia da semana.",
+          "MONTHLY_REQUIRED": "Escolha a posição e o dia da semana.",
+          "INVALID_RANGE": "O horário de fechar precisa ser depois do de abrir.",
+          "END_BEFORE_START": "A data final não pode ser anterior à inicial."
+        }
+      }
     }
   }
 }
