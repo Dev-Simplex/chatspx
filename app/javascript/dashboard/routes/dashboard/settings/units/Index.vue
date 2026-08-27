@@ -62,20 +62,30 @@ const resumoDaGrade = unit => {
   return abertos.map(dia => t(`UNITS_MGMT.WEEKDAYS_SHORT.${dia}`)).join(', ');
 };
 
+// Uma linha só: o feriado do dia (quando há) e a faixa que vale hoje.
+const resumoDeHoje = situacao => {
+  const partes = [situacao.excecao, situacao.faixa].filter(Boolean);
+  return partes.length ? partes.join(' · ') : t('UNITS_MGMT.LIST.CLOSED_TODAY');
+};
+
 const nomesDasCaixas = unit =>
   (unit.inbox_ids || [])
     .map(id => inboxes.value.find(i => i.id === id)?.name)
     .filter(Boolean);
 
 const derivadas = computed(() =>
-  units.value.map(unit => ({
-    ...unit,
-    local: [unit.city, unit.state].filter(Boolean).join('/') || '—',
-    fuso: ROTULO_DO_FUSO[unit.timezone] || unit.timezone,
-    resumo: resumoDaGrade(unit),
-    caixas: nomesDasCaixas(unit),
-    situacao: situacaoDaUnidade(unit, agora.value),
-  }))
+  units.value.map(unit => {
+    const situacao = situacaoDaUnidade(unit, agora.value);
+    return {
+      ...unit,
+      local: [unit.city, unit.state].filter(Boolean).join('/') || '—',
+      fuso: ROTULO_DO_FUSO[unit.timezone] || unit.timezone,
+      resumo: resumoDaGrade(unit),
+      caixas: nomesDasCaixas(unit),
+      situacao,
+      hoje: resumoDeHoje(situacao),
+    };
+  })
 );
 
 const filtradas = computed(() => {
@@ -229,13 +239,14 @@ const isSaving = computed(
                       : $t('UNITS_MGMT.LIST.CLOSED_NOW')
                   }}
                 </span>
-                <span class="text-n-slate-11 text-label-small">
-                  {{
-                    unit.situacao.excecao ||
-                    unit.situacao.faixa ||
-                    $t('UNITS_MGMT.LIST.CLOSED_TODAY')
-                  }}
-                  ·
+                <span
+                  class="whitespace-nowrap text-n-slate-11 text-label-small"
+                >
+                  {{ unit.hoje }}
+                </span>
+                <span
+                  class="whitespace-nowrap text-n-slate-10 text-label-small"
+                >
                   {{
                     $t('UNITS_MGMT.LIST.LOCAL_TIME', {
                       time: unit.situacao.horaLocal,
