@@ -32,8 +32,13 @@
         "NAME": "Unit",
         "LOCATION": "City/State",
         "INBOXES": "Inboxes",
-        "OPEN_DAYS": "Open on"
-      }
+        "OPEN_DAYS": "Open on",
+        "STATUS": "Status"
+      },
+      "OPEN_NOW": "Open now",
+      "CLOSED_NOW": "Closed now",
+      "CLOSED_TODAY": "Closed today",
+      "LOCAL_TIME": "{time} local time"
     },
     "ADD": {
       "BUTTON": "Add unit",
@@ -86,7 +91,10 @@
         "PLACEHOLDER": "Av. das Itaúbas, 1234"
       },
       "TIMEZONE": {
-        "LABEL": "Time zone"
+        "LABEL": "Time zone",
+        "PLACEHOLDER": "Select a timezone",
+        "SEARCH": "Search timezone",
+        "HELP": "The timezone tells whether this unit is open right now — each branch answers on its own clock."
       },
       "INBOXES": {
         "LABEL": "Inboxes of this unit",
@@ -106,7 +114,10 @@
         "ADD": "Add",
         "CLOSED": "Closed",
         "SPECIAL_HOURS": "Special hours",
-        "ANNUAL": "Every year"
+        "ANNUAL": "Every year",
+        "ANNUAL_HELP": "Repeats on the same day every year",
+        "DUPLICATE": "There is already an exception on this date.",
+        "INVALID_RANGE": "The closing time must be after the opening time."
       },
       "SUBMIT": "Save unit",
       "CANCEL": "Cancel"

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToggle } from '@vueuse/core';
 import { useAlert } from 'dashboard/composables';
@@ -15,6 +15,8 @@ import {
   BaseTableCell,
 } from 'dashboard/components-next/table';
 import UnitForm from './UnitForm.vue';
+import { timeZoneOptions } from '../inbox/helpers/businessHour.js';
+import { situacaoDaUnidade } from './unitSchedule';
 
 const { t } = useI18n();
 const store = useStore();
@@ -25,6 +27,10 @@ const uiFlags = useMapGetter('units/getUIFlags');
 const inboxes = useMapGetter('inboxes/getInboxes');
 
 const searchQuery = ref('');
+// Relógio da tela: a situação da unidade vira sozinha quando dá a hora de fechar, e
+// sem o tique a lista continuaria dizendo "aberta" até alguém recarregar a página.
+const agora = ref(new Date());
+let cronometro = null;
 const selectedUnit = ref(null);
 const [showFormPopup, toggleFormPopup] = useToggle(false);
 const [showDeletePopup, toggleDeletePopup] = useToggle(false);
@@ -32,7 +38,16 @@ const [showDeletePopup, toggleDeletePopup] = useToggle(false);
 onMounted(() => {
   store.dispatch('units/get');
   if (!inboxes.value.length) store.dispatch('inboxes/get');
+  cronometro = setInterval(() => {
+    agora.value = new Date();
+  }, 60000);
 });
+
+onBeforeUnmount(() => clearInterval(cronometro));
+
+const ROTULO_DO_FUSO = Object.fromEntries(
+  timeZoneOptions().map(fuso => [fuso.value, fuso.label])
+);
 
 const DIAS_CURTOS = [0, 1, 2, 3, 4, 5, 6];
 
@@ -56,8 +71,10 @@ const derivadas = computed(() =>
   units.value.map(unit => ({
     ...unit,
     local: [unit.city, unit.state].filter(Boolean).join('/') || '—',
+    fuso: ROTULO_DO_FUSO[unit.timezone] || unit.timezone,
     resumo: resumoDaGrade(unit),
     caixas: nomesDasCaixas(unit),
+    situacao: situacaoDaUnidade(unit, agora.value),
   }))
 );
 
@@ -75,8 +92,9 @@ const filtradas = computed(() => {
 const cabecalhos = computed(() => [
   t('UNITS_MGMT.LIST.HEADERS.NAME'),
   t('UNITS_MGMT.LIST.HEADERS.LOCATION'),
-  t('UNITS_MGMT.LIST.HEADERS.INBOXES'),
+  t('UNITS_MGMT.LIST.HEADERS.STATUS'),
   t('UNITS_MGMT.LIST.HEADERS.OPEN_DAYS'),
+  t('UNITS_MGMT.LIST.HEADERS.INBOXES'),
   '',
 ]);
 
@@ -177,10 +195,57 @@ const isSaving = computed(
         <template #row="{ items }">
           <BaseTableRow v-for="unit in items" :key="unit.id">
             <BaseTableCell>
-              <span class="font-medium text-n-slate-12">{{ unit.name }}</span>
+              <div class="flex flex-col">
+                <span class="font-medium text-n-slate-12">{{ unit.name }}</span>
+                <span
+                  v-if="unit.address || unit.phone"
+                  class="truncate text-n-slate-11 text-label-small max-w-64"
+                >
+                  {{ [unit.address, unit.phone].filter(Boolean).join(' · ') }}
+                </span>
+              </div>
             </BaseTableCell>
             <BaseTableCell>
-              <span class="text-n-slate-11">{{ unit.local }}</span>
+              <div class="flex flex-col">
+                <span class="text-n-slate-11">{{ unit.local }}</span>
+                <span class="text-n-slate-11 text-label-small">
+                  {{ unit.fuso }}
+                </span>
+              </div>
+            </BaseTableCell>
+            <BaseTableCell>
+              <div class="flex flex-col gap-1 items-start">
+                <span
+                  class="px-2 py-1 rounded-lg text-label-small whitespace-nowrap"
+                  :class="
+                    unit.situacao.aberta
+                      ? 'bg-n-teal-3 text-n-teal-11'
+                      : 'bg-n-slate-3 text-n-slate-11'
+                  "
+                >
+                  {{
+                    unit.situacao.aberta
+                      ? $t('UNITS_MGMT.LIST.OPEN_NOW')
+                      : $t('UNITS_MGMT.LIST.CLOSED_NOW')
+                  }}
+                </span>
+                <span class="text-n-slate-11 text-label-small">
+                  {{
+                    unit.situacao.excecao ||
+                    unit.situacao.faixa ||
+                    $t('UNITS_MGMT.LIST.CLOSED_TODAY')
+                  }}
+                  ·
+                  {{
+                    $t('UNITS_MGMT.LIST.LOCAL_TIME', {
+                      time: unit.situacao.horaLocal,
+                    })
+                  }}
+                </span>
+              </div>
+            </BaseTableCell>
+            <BaseTableCell>
+              <span class="text-n-slate-11">{{ unit.resumo }}</span>
             </BaseTableCell>
             <BaseTableCell>
               <span class="text-n-slate-11">
@@ -190,9 +255,6 @@ const isSaving = computed(
                     : $t('UNITS_MGMT.LIST.NO_INBOX')
                 }}
               </span>
-            </BaseTableCell>
-            <BaseTableCell>
-              <span class="text-n-slate-11">{{ unit.resumo }}</span>
             </BaseTableCell>
             <BaseTableCell>
               <div v-if="isAdmin" class="flex gap-2 justify-end">

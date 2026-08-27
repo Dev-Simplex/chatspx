@@ -32,8 +32,13 @@
         "NAME": "Unidade",
         "LOCATION": "Cidade/UF",
         "INBOXES": "Caixas de entrada",
-        "OPEN_DAYS": "Abre em"
-      }
+        "OPEN_DAYS": "Abre em",
+        "STATUS": "Situação"
+      },
+      "OPEN_NOW": "Aberta agora",
+      "CLOSED_NOW": "Fechada agora",
+      "CLOSED_TODAY": "Fechada hoje",
+      "LOCAL_TIME": "{time} na unidade"
     },
     "ADD": {
       "BUTTON": "Adicionar unidade",
@@ -86,7 +91,10 @@
         "PLACEHOLDER": "Av. das Itaúbas, 1234"
       },
       "TIMEZONE": {
-        "LABEL": "Fuso horário"
+        "LABEL": "Fuso horário",
+        "PLACEHOLDER": "Escolha o fuso horário",
+        "SEARCH": "Buscar fuso",
+        "HELP": "É pelo fuso que a lista diz se a unidade está aberta agora — cada filial responde pelo próprio relógio."
       },
       "INBOXES": {
         "LABEL": "Caixas de entrada desta unidade",
@@ -106,7 +114,10 @@
         "ADD": "Adicionar",
         "CLOSED": "Fechada",
         "SPECIAL_HOURS": "Horário especial",
-        "ANNUAL": "Todo ano"
+        "ANNUAL": "Todo ano",
+        "ANNUAL_HELP": "Repete no mesmo dia todo ano",
+        "DUPLICATE": "Já existe uma exceção nesta data.",
+        "INVALID_RANGE": "O horário de fechar precisa ser depois do de abrir."
       },
       "SUBMIT": "Salvar unidade",
       "CANCEL": "Cancelar"
