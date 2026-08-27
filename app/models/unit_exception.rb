@@ -16,8 +16,4 @@ class UnitException < ApplicationRecord
     validates :open_hour, :close_hour, presence: true, inclusion: 0..23
     validates :open_minutes, :close_minutes, presence: true, inclusion: 0..59
   end
-
-  scope :da_data, lambda { |data|
-    where(date: data).or(where(annual: true).where('EXTRACT(MONTH FROM date) = ? AND EXTRACT(DAY FROM date) = ?', data.month, data.day))
-  }
 end

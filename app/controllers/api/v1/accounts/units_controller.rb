@@ -16,17 +16,25 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
 
   def show; end
 
+  # As três gravações vão juntas ou não vão: as exceções são substituídas em bloco
+  # (destroy_all + create!), e sem a transação um feriado inválido apagava os antigos
+  # e ainda devolvia 422 — o usuário via o erro E perdia o que tinha. No create, sem
+  # ela, a unidade ficava gravada pela metade depois de a tela mostrar a falha.
   def create
-    @unit = Current.account.units.create!(unit_params)
-    sincronizar_caixas
-    sincronizar_excecoes
+    ActiveRecord::Base.transaction do
+      @unit = Current.account.units.create!(unit_params)
+      sincronizar_caixas
+      sincronizar_excecoes
+    end
     render :show, status: :created
   end
 
   def update
-    @unit.update!(unit_params)
-    sincronizar_caixas
-    sincronizar_excecoes
+    ActiveRecord::Base.transaction do
+      @unit.update!(unit_params)
+      sincronizar_caixas
+      sincronizar_excecoes
+    end
     render :show
   end
 

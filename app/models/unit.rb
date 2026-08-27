@@ -27,8 +27,6 @@ class Unit < ApplicationRecord
   validates :timezone, presence: true
   validate :timezone_deve_existir
 
-  scope :ativas, -> { where(active: true) }
-
   after_create :criar_grade_padrao
 
   private
