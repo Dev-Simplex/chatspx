@@ -42,7 +42,13 @@ class Unit < ApplicationRecord
   # Nasce com a semana inteira, como a caixa de entrada faz em OutOfOffisable: seg-sex
   # 08:00-18:00, sábado e domingo fechados. Sem isso a tela abriria vazia e quem
   # cadastra teria que criar sete linhas na mão.
+  #
+  # Quem já mandou a grade (a tela sempre manda, também ao criar) não recebe a padrão
+  # por cima: as sete linhas do nested attributes já estão gravadas quando este
+  # callback roda, e criar de novo esbarra no índice único (unidade, dia).
   def criar_grade_padrao
+    return if working_hours.any?
+
     DIAS_DA_SEMANA.each do |dia|
       fim_de_semana = [0, 6].include?(dia)
       working_hours.create!(

@@ -33,6 +33,32 @@ pt_BR:
     login_saml_user: Esta conta usa autenticação SAML. Por favor, faça login através do provedor SAML da sua organização.
     saml_not_available: A autenticação SAML não está disponível nesta instalação.
     inbox_deletetion_response: Seu pedido de exclusão da caixa de entrada será processado dentro de algum tempo.
+  activerecord:
+    models:
+      unit: Unidade
+      unit_working_hour: Horário da unidade
+      unit_exception: Exceção da unidade
+    attributes:
+      unit:
+        name: Nome
+        city: Cidade
+        state: UF
+        address: Endereço
+        phone: Telefone
+        timezone: Fuso horário
+      unit_working_hour:
+        day_of_week: Dia da semana
+        open_hour: Hora de abrir
+        open_minutes: Minuto de abrir
+        close_hour: Hora de fechar
+        close_minutes: Minuto de fechar
+      unit_exception:
+        date: Data
+        name: Motivo
+        open_hour: Hora de abrir
+        open_minutes: Minuto de abrir
+        close_hour: Hora de fechar
+        close_minutes: Minuto de fechar
   errors:
     conversation:
       pending_status_disabled_for_inbox: "não pode ser Pendente — recurso desativado para esta caixa de entrada"
@@ -86,7 +112,31 @@ pt_BR:
         invalid: deve ser um nome de domínio válido
       search:
         query_missing: Especifique a string de busca com o parâmetro q
+    # Mensagens padrão de validação do Rails. Sem elas o app cai no inglês: a conta
+    # roda em pt_BR, mas `errors.messages.*` não existia em lugar nenhum e o usuário
+    # via "Day of week has already been taken" no meio de uma tela em português.
     messages:
+      accepted: deve ser aceito
+      blank: não pode ficar em branco
+      confirmation: não é igual a %{attribute}
+      empty: não pode ficar vazio
+      equal_to: deve ser igual a %{count}
+      exclusion: não está disponível
+      greater_than: deve ser maior que %{count}
+      greater_than_or_equal_to: deve ser maior ou igual a %{count}
+      inclusion: não está na lista de valores aceitos
+      invalid: não é válido
+      less_than: deve ser menor que %{count}
+      less_than_or_equal_to: deve ser menor ou igual a %{count}
+      not_a_number: não é um número
+      not_an_integer: não é um número inteiro
+      other_than: deve ser diferente de %{count}
+      present: deve ficar em branco
+      required: é obrigatório
+      taken: já está em uso
+      too_long: é muito longo (máximo de %{count} caracteres)
+      too_short: é muito curto (mínimo de %{count} caracteres)
+      wrong_length: não tem o tamanho esperado (%{count} caracteres)
       search:
         time_range_limit_exceeded: 'A pesquisa está limitada aos últimos %{days} dias'
       update:
