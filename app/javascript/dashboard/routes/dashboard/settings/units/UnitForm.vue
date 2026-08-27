@@ -9,6 +9,7 @@ import {
 } from 'dashboard/routes/dashboard/settings/inbox/helpers/businessHour.js';
 import BusinessDay from 'dashboard/routes/dashboard/settings/inbox/components/BusinessDay.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
+import NextSelect from 'dashboard/components-next/select/Select.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import {
   dataLegivel,
@@ -208,7 +209,9 @@ const comoRegra = rascunho => {
   return regra;
 };
 
-const erroDaRegra = computed(() => {
+// "Falta escolher" não é o mesmo que "está errado": o que ainda não foi preenchido
+// aparece como dica em cinza; vermelho fica para o que se contradiz.
+const faltando = computed(() => {
   const rascunho = novaRegra.value;
   const chave = 'UNITS_MGMT.FORM.RULES.ERRORS';
 
@@ -221,6 +224,13 @@ const erroDaRegra = computed(() => {
   ) {
     return t(`${chave}.MONTHLY_REQUIRED`);
   }
+  return '';
+});
+
+const erroDaRegra = computed(() => {
+  const rascunho = novaRegra.value;
+  const chave = 'UNITS_MGMT.FORM.RULES.ERRORS';
+
   if (!rascunho.closed_all_day && rascunho.from >= rascunho.to) {
     return t(`${chave}.INVALID_RANGE`);
   }
@@ -245,6 +255,7 @@ const podeAdicionar = computed(
   () =>
     !!novaRegra.value.name.trim() &&
     !!novaRegra.value.starts_on &&
+    !faltando.value &&
     !erroDaRegra.value
 );
 
@@ -514,23 +525,25 @@ const onSubmit = () => {
         </li>
       </ul>
 
-      <div class="flex flex-col gap-3 p-3 border rounded-lg border-n-weak">
-        <div class="grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr]">
+      <div
+        class="flex flex-col gap-4 p-4 border rounded-xl border-n-weak bg-n-solid-1"
+      >
+        <div class="flex flex-wrap items-end gap-3">
           <div class="flex flex-col gap-1">
             <span class="text-heading-3">
               {{ t('UNITS_MGMT.FORM.RULES.CATEGORY.LABEL') }}
             </span>
-            <ComboBox v-model="novaRegra.category" :options="categorias" />
+            <NextSelect v-model="novaRegra.category" :options="categorias" />
           </div>
           <woot-input
             v-model="novaRegra.name"
-            class="mb-0"
+            class="flex-1 mb-0 min-w-48"
             :label="t('UNITS_MGMT.FORM.EXCEPTIONS.NAME')"
             :placeholder="t('UNITS_MGMT.FORM.EXCEPTIONS.NAME_PLACEHOLDER')"
           />
         </div>
 
-        <div class="flex flex-wrap items-center gap-4">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
           <label class="flex items-center gap-2 mb-0 cursor-pointer">
             <input
               v-model="novaRegra.closed_all_day"
@@ -557,13 +570,13 @@ const onSubmit = () => {
             <input
               v-model="novaRegra.from"
               type="time"
-              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-white dark:bg-n-solid-2 text-n-slate-12"
+              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
             />
             <span class="text-n-slate-11">–</span>
             <input
               v-model="novaRegra.to"
               type="time"
-              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-white dark:bg-n-solid-2 text-n-slate-12"
+              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
             />
           </div>
         </div>
@@ -572,14 +585,14 @@ const onSubmit = () => {
           <woot-input
             v-model="novaRegra.starts_on"
             type="date"
-            class="mb-0"
+            class="mb-0 w-44"
             :label="t('UNITS_MGMT.FORM.RULES.STARTS_ON')"
           />
           <div class="flex flex-col gap-1">
             <span class="text-heading-3">
               {{ t('UNITS_MGMT.FORM.RULES.REPEAT.LABEL') }}
             </span>
-            <ComboBox v-model="novaRegra.frequency" :options="frequencias" />
+            <NextSelect v-model="novaRegra.frequency" :options="frequencias" />
           </div>
           <label
             v-if="novaRegra.frequency === 'nao_repete'"
@@ -594,14 +607,14 @@ const onSubmit = () => {
             v-if="novaRegra.frequency === 'nao_repete' && novaRegra.temPeriodo"
             v-model="novaRegra.ends_on"
             type="date"
-            class="mb-0"
+            class="mb-0 w-44"
             :label="t('UNITS_MGMT.FORM.RULES.ENDS_ON')"
           />
         </div>
 
         <div
           v-if="novaRegra.frequency !== 'nao_repete'"
-          class="flex flex-col gap-3 pt-3 border-t border-n-weak"
+          class="flex flex-col gap-3 p-3 rounded-lg bg-n-slate-2 dark:bg-n-solid-2"
         >
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-sm text-n-slate-11">
@@ -612,7 +625,7 @@ const onSubmit = () => {
               type="number"
               min="1"
               max="52"
-              class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-white dark:bg-n-solid-2 text-n-slate-12"
+              class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
             />
             <span class="text-sm text-n-slate-11">
               {{
@@ -625,7 +638,7 @@ const onSubmit = () => {
 
           <div
             v-if="novaRegra.frequency === 'mensal'"
-            class="flex flex-wrap items-center gap-4"
+            class="flex flex-wrap items-center gap-x-4 gap-y-2"
           >
             <label class="flex items-center gap-2 mb-0 cursor-pointer">
               <input
@@ -661,7 +674,7 @@ const onSubmit = () => {
                 type="number"
                 min="1"
                 max="31"
-                class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-white dark:bg-n-solid-2 text-n-slate-12"
+                class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
               />
             </div>
           </div>
@@ -677,11 +690,11 @@ const onSubmit = () => {
               v-for="posicao in POSICOES"
               :key="posicao"
               type="button"
-              class="px-2.5 py-1 text-sm rounded-lg outline outline-1"
+              class="px-2.5 py-1 text-sm rounded-lg outline outline-1 transition-colors"
               :class="
                 novaRegra.week_positions.includes(posicao)
                   ? 'bg-n-brand text-white outline-transparent'
-                  : 'outline-n-weak text-n-slate-11 hover:outline-n-slate-6'
+                  : 'outline-n-weak text-n-slate-12 hover:outline-n-slate-6'
               "
               @click="alternar(novaRegra.week_positions, posicao)"
             >
@@ -701,11 +714,11 @@ const onSubmit = () => {
               v-for="dia in DIAS_DA_SEMANA"
               :key="dia"
               type="button"
-              class="px-2.5 py-1 text-sm rounded-lg outline outline-1"
+              class="px-2.5 py-1 text-sm rounded-lg outline outline-1 transition-colors"
               :class="
                 novaRegra.weekdays.includes(dia)
                   ? 'bg-n-brand text-white outline-transparent'
-                  : 'outline-n-weak text-n-slate-11 hover:outline-n-slate-6'
+                  : 'outline-n-weak text-n-slate-12 hover:outline-n-slate-6'
               "
               @click="alternar(novaRegra.weekdays, dia)"
             >
@@ -713,7 +726,7 @@ const onSubmit = () => {
             </button>
           </div>
 
-          <div class="flex flex-wrap items-center gap-4">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span class="text-sm text-n-slate-11">
               {{ t('UNITS_MGMT.FORM.RULES.END.LABEL') }}
             </span>
@@ -743,7 +756,7 @@ const onSubmit = () => {
               v-if="novaRegra.termino === 'data'"
               v-model="novaRegra.until_date"
               type="date"
-              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-white dark:bg-n-solid-2 text-n-slate-12"
+              class="reset-base px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
             />
             <label class="flex items-center gap-2 mb-0 cursor-pointer">
               <input
@@ -765,7 +778,7 @@ const onSubmit = () => {
                 type="number"
                 min="1"
                 max="365"
-                class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-white dark:bg-n-solid-2 text-n-slate-12"
+                class="reset-base w-16 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12"
               />
               <span class="text-sm text-n-slate-11">
                 {{ t('UNITS_MGMT.FORM.RULES.END.OCCURRENCES') }}
@@ -774,20 +787,23 @@ const onSubmit = () => {
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div
+          class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-n-weak"
+        >
           <span class="text-n-slate-11 text-label-small">
             <template v-if="previa.length">
               {{ t('UNITS_MGMT.FORM.RULES.PREVIEW') }}: {{ previa.join(' · ') }}
+            </template>
+            <template v-else-if="faltando">
+              {{ faltando }}
             </template>
             <template v-else-if="podeAdicionar">
               {{ t('UNITS_MGMT.FORM.RULES.PREVIEW_EMPTY') }}
             </template>
           </span>
           <Button
-            faded
-            slate
-            sm
             :label="t('UNITS_MGMT.FORM.RULES.ADD')"
+            sm
             :disabled="!podeAdicionar"
             @click.prevent="adicionarRegra"
           />
