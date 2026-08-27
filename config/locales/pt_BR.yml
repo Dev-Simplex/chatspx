@@ -71,6 +71,10 @@ pt_BR:
       presence: não pode ficar em branco
       invalid: é inválido
     units:
+      break_incomplete: a parada para o almoço precisa de início e de fim
+      break_on_closed_day: dia fechado não tem parada para o almoço
+      break_inverted: a parada para o almoço precisa terminar depois de começar
+      break_outside_hours: a parada para o almoço precisa estar dentro do horário de funcionamento
       invalid_weekday: tem dia fora de domingo–sábado
       invalid_week_position: tem posição fora de 1ª–5ª ou última
       invalid_month_day: tem dia fora de 1–31 ou último

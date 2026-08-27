@@ -1054,7 +1054,8 @@
         "ENABLE": "Enable availability for this day",
         "UNAVAILABLE": "Unavailable",
         "VALIDATION_ERROR": "Starting time should be before closing time.",
-        "CHOOSE": "Choose"
+        "CHOOSE": "Choose",
+        "BREAK": "Lunch break"
       },
       "ALL_DAY": "All-Day"
     },

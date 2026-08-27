@@ -69,6 +69,10 @@ en:
       presence: must not be blank
       invalid: is invalid
     units:
+      break_incomplete: the lunch break needs both a start and an end
+      break_on_closed_day: a closed day cannot have a lunch break
+      break_inverted: the lunch break must end after it starts
+      break_outside_hours: the lunch break must be inside opening hours
       invalid_weekday: has a day outside Sunday–Saturday
       invalid_week_position: has a week position outside 1st–5th or last
       invalid_month_day: has a day outside 1–31 or last

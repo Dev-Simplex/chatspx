@@ -1099,7 +1099,8 @@
         "ENABLE": "Permitir a disponibilidade para este dia",
         "UNAVAILABLE": "Indisponível",
         "VALIDATION_ERROR": "Hora inicial deve ser antes de hora de fechamento.",
-        "CHOOSE": "Selecione"
+        "CHOOSE": "Selecione",
+        "BREAK": "Parada para o almoço"
       },
       "ALL_DAY": "O dia todo"
     },

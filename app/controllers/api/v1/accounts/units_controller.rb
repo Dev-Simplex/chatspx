@@ -53,7 +53,9 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
     params.require(:unit).permit(
       :name, :city, :state, :address, :phone, :timezone, :notes, :active,
       working_hours_attributes: [:id, :day_of_week, :closed_all_day, :open_all_day,
-                                 :open_hour, :open_minutes, :close_hour, :close_minutes]
+                                 :open_hour, :open_minutes, :close_hour, :close_minutes,
+                                 :break_start_hour, :break_start_minutes,
+                                 :break_end_hour, :break_end_minutes]
     )
   end
 

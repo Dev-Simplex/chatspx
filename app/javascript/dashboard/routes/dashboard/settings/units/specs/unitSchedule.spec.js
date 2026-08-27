@@ -304,3 +304,66 @@ describe('#situacaoDaUnidade', () => {
     expect(situacao.excecao).toBe('Férias coletivas');
   });
 });
+
+describe('parada para o almoço', () => {
+  const comAlmoco = {
+    timezone: 'America/Cuiaba',
+    working_hours: [0, 1, 2, 3, 4, 5, 6].map(diaSemana => ({
+      day_of_week: diaSemana,
+      closed_all_day: [0, 6].includes(diaSemana),
+      open_all_day: false,
+      open_hour: 8,
+      open_minutes: 0,
+      close_hour: 18,
+      close_minutes: 0,
+      break_start_hour: 12,
+      break_start_minutes: 0,
+      break_end_hour: 13,
+      break_end_minutes: 30,
+    })),
+    exceptions: [],
+  };
+
+  // 02/09/2026 é quarta-feira. UTC-4 em Cuiabá.
+  const naHora = hora => new Date(`2026-09-02T${hora}:00Z`);
+
+  it('fecha durante o almoço e diz a que horas volta', () => {
+    const almocando = situacaoDaUnidade(comAlmoco, naHora('16:30')); // 12:30 local
+    expect(almocando.aberta).toBe(false);
+    expect(almocando.voltaAs).toBe('13:30');
+  });
+
+  it('abre antes e depois da parada', () => {
+    expect(situacaoDaUnidade(comAlmoco, naHora('14:00')).aberta).toBe(true); // 10:00
+    expect(situacaoDaUnidade(comAlmoco, naHora('18:00')).aberta).toBe(true); // 14:00
+  });
+
+  it('o limite da volta é inclusivo: 13:30 já está aberta', () => {
+    const naVolta = situacaoDaUnidade(comAlmoco, naHora('17:30')); // 13:30 local
+    expect(naVolta.aberta).toBe(true);
+    expect(naVolta.voltaAs).toBe('');
+  });
+
+  it('a faixa legível mostra os dois turnos', () => {
+    expect(situacaoDaUnidade(comAlmoco, naHora('14:00')).faixa).toBe(
+      '08:00 – 12:00 · 13:30 – 18:00'
+    );
+  });
+
+  it('dia sem pausa continua com uma faixa só', () => {
+    const semPausa = {
+      ...comAlmoco,
+      working_hours: comAlmoco.working_hours.map(hora => ({
+        ...hora,
+        break_start_hour: null,
+        break_start_minutes: null,
+        break_end_hour: null,
+        break_end_minutes: null,
+      })),
+    };
+    const situacao = situacaoDaUnidade(semPausa, naHora('16:30'));
+    expect(situacao.aberta).toBe(true);
+    expect(situacao.faixa).toBe('08:00 – 18:00');
+    expect(situacao.voltaAs).toBe('');
+  });
+});

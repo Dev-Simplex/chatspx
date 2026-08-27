@@ -38,7 +38,8 @@
       "OPEN_NOW": "Aberta agora",
       "CLOSED_NOW": "Fechada agora",
       "CLOSED_TODAY": "Fechada hoje",
-      "LOCAL_TIME": "{time} na unidade"
+      "LOCAL_TIME": "{time} na unidade",
+      "BACK_AT": "Almoço · volta às {time}"
     },
     "ADD": {
       "BUTTON": "Adicionar unidade",

@@ -33,6 +33,12 @@ export default {
         to: '',
       }),
     },
+    // Parada para o almoço: só a grade da UNIDADE oferece. A da caixa de entrada
+    // alimenta mensagem de ausência e widget, e continua com uma faixa por dia.
+    showBreak: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['update'],
   computed: {
@@ -108,10 +114,47 @@ export default {
     toDate() {
       return parse(this.toTime, TIME_FORMAT, new Date());
     },
+    hasBreak: {
+      get() {
+        return Boolean(this.timeSlot.breakFrom && this.timeSlot.breakTo);
+      },
+      set(value) {
+        this.$emit('update', {
+          ...this.timeSlot,
+          breakFrom: value ? '12:00' : '',
+          breakTo: value ? '13:00' : '',
+        });
+      },
+    },
+    breakFrom: {
+      get() {
+        return this.timeSlot.breakFrom || '';
+      },
+      set(value) {
+        this.$emit('update', { ...this.timeSlot, breakFrom: value });
+      },
+    },
+    breakTo: {
+      get() {
+        return this.timeSlot.breakTo || '';
+      },
+      set(value) {
+        this.$emit('update', { ...this.timeSlot, breakTo: value });
+      },
+    },
+    breakMinutes() {
+      if (!this.hasBreak) return 0;
+      const inicio = parse(this.breakFrom, TIME_FORMAT, new Date());
+      const fim = parse(this.breakTo, TIME_FORMAT, new Date());
+      return Math.max(differenceInMinutes(fim, inicio), 0);
+    },
     totalHours() {
       if (this.timeSlot.openAllDay) return '24h';
 
-      const totalMinutes = differenceInMinutes(this.toDate, this.fromDate);
+      // As horas do dia descontam a parada: quem abre 08–18 com uma hora de almoço
+      // atende 9h, não 10h.
+      const totalMinutes =
+        differenceInMinutes(this.toDate, this.fromDate) - this.breakMinutes;
       const [h, m] = [Math.floor(totalMinutes / 60), totalMinutes % 60];
 
       return [h && `${h}h`, m && `${m}m`].filter(Boolean).join(' ') || '0m';
@@ -193,6 +236,27 @@ export default {
             :placeholder="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
             :disabled="isOpenAllDay"
           />
+        </div>
+        <div
+          v-if="showBreak && !isOpenAllDay"
+          class="flex flex-wrap items-center gap-2"
+        >
+          <input
+            v-model="hasBreak"
+            name="enable-break"
+            class="m-0"
+            type="checkbox"
+          />
+          <span class="text-body-main text-n-slate-11">
+            {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.BREAK') }}
+          </span>
+          <template v-if="hasBreak">
+            <NextSelect v-model="breakFrom" :options="toTimeSlots" />
+            <div class="flex items-center">
+              <Icon icon="i-lucide-minus size-4" />
+            </div>
+            <NextSelect v-model="breakTo" :options="toTimeSlots" />
+          </template>
         </div>
         <span v-if="hasError" class="error text-label-small text-n-ruby-9">
           {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.VALIDATION_ERROR') }}

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import {
+  getTime,
   timeSlotParse,
   timeSlotTransform,
   timeZoneOptions,
@@ -109,7 +110,25 @@ const carregar = () => {
   horaIds.value = Object.fromEntries(
     grade.filter(h => h.id).map(h => [h.day_of_week, h.id])
   );
-  timeSlots.value = timeSlotParse(grade);
+  // A pausa viaja junto do slot (`breakFrom`/`breakTo`) porque é o BusinessDay que a
+  // edita; os helpers compartilhados com a caixa de entrada seguem sem saber dela.
+  const porDia = Object.fromEntries(
+    grade.map(hora => [hora.day_of_week, hora])
+  );
+  timeSlots.value = timeSlotParse(grade).map(slot => {
+    const hora = porDia[slot.day] || {};
+    const temPausa =
+      hora.break_start_hour !== null && hora.break_start_hour !== undefined;
+    return {
+      ...slot,
+      breakFrom: temPausa
+        ? getTime(hora.break_start_hour, hora.break_start_minutes)
+        : '',
+      breakTo: temPausa
+        ? getTime(hora.break_end_hour, hora.break_end_minutes)
+        : '',
+    };
+  });
   selectedInboxIds.value = [...(u?.inbox_ids ?? [])];
   rules.value = (u?.exceptions ?? []).map(regra => ({ ...regra }));
   novaRegra.value = rascunhoLimpo();
@@ -344,10 +363,25 @@ const onSubmit = () => {
   emit('submit', {
     ...form.value,
     inbox_ids: selectedInboxIds.value,
-    working_hours_attributes: timeSlotTransform(timeSlots.value).map(h => ({
-      ...h,
-      id: horaIds.value[h.day_of_week],
-    })),
+    working_hours_attributes: timeSlotTransform(timeSlots.value).map(hora => {
+      const slot = timeSlots.value.find(item => item.day === hora.day_of_week);
+      const comPausa =
+        !hora.closed_all_day && !!slot?.breakFrom && !!slot?.breakTo;
+      const [inicioHora, inicioMinuto] = comPausa
+        ? emHoraEMinuto(slot.breakFrom)
+        : [null, null];
+      const [fimHora, fimMinuto] = comPausa
+        ? emHoraEMinuto(slot.breakTo)
+        : [null, null];
+      return {
+        ...hora,
+        id: horaIds.value[hora.day_of_week],
+        break_start_hour: inicioHora,
+        break_start_minutes: inicioMinuto,
+        break_end_hour: fimHora,
+        break_end_minutes: fimMinuto,
+      };
+    }),
     exceptions: rules.value,
   });
 };
@@ -470,6 +504,7 @@ const onSubmit = () => {
             :key="slot.day"
             :day-name="t(`UNITS_MGMT.WEEKDAYS.${slot.day}`)"
             :time-slot="slot"
+            show-break
             @update="dados => onSlotUpdate(slot.day, dados)"
           />
         </tbody>

@@ -205,26 +205,51 @@ export const dataDaEnesimaOcorrencia = (regra, n) => {
 
 // --- leitura -----------------------------------------------------------------------
 
+const temPausa = regra =>
+  regra?.break_start_hour !== null && regra?.break_start_hour !== undefined;
+
+const hhmm = (hora, minuto) => `${doisDigitos(hora)}:${doisDigitos(minuto)}`;
+
+// Minutos desde a meia-noite, para comparar o relógio com a faixa.
+const minutosDe = (hora, minuto) => hora * 60 + minuto;
+
+const dentroDaPausa = (regra, minutos) =>
+  temPausa(regra) &&
+  minutos >= minutosDe(regra.break_start_hour, regra.break_start_minutes) &&
+  minutos < minutosDe(regra.break_end_hour, regra.break_end_minutes);
+
+// Com parada para o almoço a faixa vira duas: "08:00 – 12:00 · 13:30 – 18:00".
 export const faixaLegivel = regra => {
   if (!regra || regra.closed_all_day) return '';
   if (regra.open_all_day) return '24h';
-  return `${doisDigitos(regra.open_hour)}:${doisDigitos(regra.open_minutes)} – ${doisDigitos(regra.close_hour)}:${doisDigitos(regra.close_minutes)}`;
+
+  const abertura = hhmm(regra.open_hour, regra.open_minutes);
+  const fechamento = hhmm(regra.close_hour, regra.close_minutes);
+  if (!temPausa(regra)) return `${abertura} – ${fechamento}`;
+
+  const inicioDaPausa = hhmm(regra.break_start_hour, regra.break_start_minutes);
+  const fimDaPausa = hhmm(regra.break_end_hour, regra.break_end_minutes);
+  return `${abertura} – ${inicioDaPausa} · ${fimDaPausa} – ${fechamento}`;
 };
 
 export const situacaoDaUnidade = (unit, referencia = new Date()) => {
   const momento = agoraNaUnidade(unit.timezone, referencia);
   const regra = regraDeHoje(unit, momento);
+  const naPausa = dentroDaPausa(regra, momento.minutos);
   const aberta =
     !!regra &&
     !regra.closed_all_day &&
+    !naPausa &&
     (regra.open_all_day ||
-      (momento.minutos >= regra.open_hour * 60 + regra.open_minutes &&
-        momento.minutos < regra.close_hour * 60 + regra.close_minutes));
+      (momento.minutos >= minutosDe(regra.open_hour, regra.open_minutes) &&
+        momento.minutos < minutosDe(regra.close_hour, regra.close_minutes)));
 
   return {
     aberta,
     horaLocal: momento.hora,
     faixa: faixaLegivel(regra),
+    // Fechada por causa do almoço não é fechada pelo dia: a tela diz a que horas volta.
+    voltaAs: naPausa ? hhmm(regra.break_end_hour, regra.break_end_minutes) : '',
     // Só regra de agenda tem nome e categoria: é o que a lista mostra para explicar um
     // "fechada" fora do padrão da semana.
     excecao: regra?.name || '',

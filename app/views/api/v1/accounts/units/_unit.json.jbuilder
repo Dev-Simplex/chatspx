@@ -22,6 +22,10 @@ json.working_hours unit.working_hours.sort_by(&:day_of_week) do |hora|
   json.open_minutes hora.open_minutes
   json.close_hour hora.close_hour
   json.close_minutes hora.close_minutes
+  json.break_start_hour hora.break_start_hour
+  json.break_start_minutes hora.break_start_minutes
+  json.break_end_hour hora.break_end_hour
+  json.break_end_minutes hora.break_end_minutes
 end
 
 json.exceptions unit.exceptions.sort_by(&:starts_on) do |regra|

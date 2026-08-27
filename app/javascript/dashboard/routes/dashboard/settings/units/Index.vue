@@ -72,6 +72,10 @@ const resumoDaGrade = unit => {
 
 // Uma linha só: o feriado do dia (quando há) e a faixa que vale hoje.
 const resumoDeHoje = situacao => {
+  // Fechada para o almoço é diferente de fechada pelo dia: o que importa é a volta.
+  if (situacao.voltaAs) {
+    return t('UNITS_MGMT.LIST.BACK_AT', { time: situacao.voltaAs });
+  }
   const partes = [situacao.excecao, situacao.faixa].filter(Boolean);
   return partes.length ? partes.join(' · ') : t('UNITS_MGMT.LIST.CLOSED_TODAY');
 };

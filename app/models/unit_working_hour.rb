@@ -23,8 +23,47 @@ class UnitWorkingHour < ApplicationRecord
   end
 
   validate :nao_pode_abrir_e_fechar_o_dia_todo
+  validate :pausa_coerente
+
+  CAMPOS_DA_PAUSA = %i[break_start_hour break_start_minutes break_end_hour break_end_minutes].freeze
+
+  # Minutos desde a meia-noite — é assim que a tela compara o relógio com a faixa.
+  def pausa?
+    CAMPOS_DA_PAUSA.none? { |campo| public_send(campo).nil? }
+  end
 
   private
+
+  def em_minutos(hora, minuto)
+    (hora * 60) + minuto
+  end
+
+  # A pausa é opcional e vai inteira ou não vai: meia pausa gravada faria a tela dizer
+  # que a unidade fecha e nunca mais volta.
+  def pausa_coerente
+    valores = CAMPOS_DA_PAUSA.map { |campo| public_send(campo) }
+    return if valores.all?(&:nil?)
+    return errors.add(:base, I18n.t('errors.units.break_incomplete')) if valores.any?(&:nil?)
+    return errors.add(:base, I18n.t('errors.units.break_on_closed_day')) if closed_all_day?
+
+    validar_faixa_da_pausa
+  end
+
+  def validar_faixa_da_pausa
+    inicio = em_minutos(break_start_hour, break_start_minutes)
+    fim = em_minutos(break_end_hour, break_end_minutes)
+    return errors.add(:base, I18n.t('errors.units.break_inverted')) if fim <= inicio
+    return unless pausa_fora_do_expediente?(inicio, fim)
+
+    errors.add(:base, I18n.t('errors.units.break_outside_hours'))
+  end
+
+  def pausa_fora_do_expediente?(inicio, fim)
+    return false if open_all_day?
+    return false if [open_hour, open_minutes, close_hour, close_minutes].any?(&:nil?)
+
+    inicio < em_minutos(open_hour, open_minutes) || fim > em_minutos(close_hour, close_minutes)
+  end
 
   def normalizar_dia_inteiro
     return unless open_all_day?
