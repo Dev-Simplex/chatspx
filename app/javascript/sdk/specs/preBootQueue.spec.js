@@ -196,6 +196,174 @@ describe('1.23 — os 7 métodos de dados chamados antes do boot', () => {
     });
   });
 
+  it('updateUser antes do boot manda UMA identidade — e é a de MESCLA', async () => {
+    // A GUARDA ERA POR RÓTULO CRAVADO (`!drenados.includes('setUser')`), e
+    // `updateUser` passava por baixo dela: o despacho da fila grava
+    // `window.$chatwoot.user`, e a re-hidratação logo abaixo via o objeto
+    // preenchido e mandava `set-user` por cima. Duas identidades pelo mesmo
+    // gesto do integrador — e a segunda é o verbo que SUBSTITUI o contato, que
+    // é exatamente o que `updateUser` existe para não fazer (5.17).
+    //
+    // Cenário real: telefone corrigido por `updateUser` numa tag do GTM que
+    // dispara junto do `run()`. O `set-user` de re-hidratação chegaria depois
+    // com o mesmo objeto e apagaria os campos que não estavam nele.
+    window.$chatwoot.updateUser('id-1', { phone_number: '+5511999998888' });
+    await carregarPainel();
+
+    const identidade = enviadas.filter(
+      m => m.key === 'set-user' || m.key === 'update-user'
+    );
+    expect(identidade.map(m => m.key)).toEqual(['update-user']);
+    expect(identidade[0].value).toEqual({
+      identifier: 'id-1',
+      user: { phone_number: '+5511999998888' },
+    });
+  });
+
+  it('a re-hidratação CONTINUA saindo quando a fila não cobriu a identidade', async () => {
+    // O par negativo do teste acima, e ele existe porque a correção mais barata
+    // — apagar a re-hidratação — deixaria o teste anterior verde e quebraria o
+    // caso que a re-hidratação atende: iframe recriado (`reset()`, navegação)
+    // com o SDK já identificado, sem nada na fila. Sem este teste, "não
+    // duplicou" também passaria com "não mandou nada".
+    window.$chatwoot.identifier = 'id-9';
+    window.$chatwoot.user = { name: 'Bia' };
+    await carregarPainel();
+
+    const setUsers = enviadas.filter(m => m.key === 'set-user');
+    expect(setUsers).toHaveLength(1);
+    expect(setUsers[0].value).toEqual({
+      identifier: 'id-9',
+      user: { name: 'Bia' },
+    });
+  });
+
+  describe('chatwoot:error — o SDK deixa de ser mudo TAMBÉM no window', () => {
+    let erros;
+    let ouvinte;
+
+    beforeEach(() => {
+      erros = [];
+      ouvinte = evento => erros.push(evento.detail);
+      window.addEventListener('chatwoot:error', ouvinte);
+    });
+
+    afterEach(() => {
+      window.removeEventListener('chatwoot:error', ouvinte);
+    });
+
+    // O `catch` interno reporta num microtask; um tick basta para ele correr.
+    const proximoTick = () =>
+      new Promise(resolve => {
+        setTimeout(resolve, 0);
+      });
+
+    it('chamada malformada emite chatwoot:error com o método e o motivo', async () => {
+      // Até aqui o erro morria num `console.error`. Quem integra por GTM não
+      // olha o console do visitante: o sinal precisa chegar ao `window`, que é
+      // onde o site já escuta `chatwoot:ready` e `chatwoot:error` do painel.
+      window.$chatwoot.setUser({ nao: 'e string' }, { name: 'Ana' });
+      await proximoTick();
+
+      expect(erros).toHaveLength(1);
+      expect(erros[0].method).toBe('setUser');
+      expect(erros[0].message).toMatch(/Identifier should be a string/);
+      // O `window` do site é legível por qualquer script de terceiro da página
+      // (regra RC5): nome de método e motivo sim, valor de PII nunca. O nome
+      // que o integrador passou NÃO pode viajar no evento.
+      expect(JSON.stringify(erros[0])).not.toContain('Ana');
+    });
+
+    it('`method` distingue o erro da API do erro do painel', async () => {
+      // O mesmo nome de evento passa a carregar duas formas, e sem um
+      // discriminador isso é a §12.7 se repetindo: quem escuta teria de
+      // adivinhar qual das duas chegou. `method` existe só na nossa.
+      window.$chatwoot.setCustomAttributes();
+      IFrameHelper.events.error({
+        errorType: 'OUTRO',
+        data: { message: 'veio do painel' },
+      });
+      await proximoTick();
+
+      expect(erros).toHaveLength(2);
+      const daApi = erros.filter(e => e && e.method);
+      const doPainel = erros.filter(e => !e || !e.method);
+      expect(daApi).toHaveLength(1);
+      expect(daApi[0].method).toBe('setCustomAttributes');
+      expect(doPainel).toHaveLength(1);
+      expect(doPainel[0]).toEqual({ message: 'veio do painel' });
+    });
+
+    it('chamada VÁLIDA não emite chatwoot:error', async () => {
+      // A trava contra o emissor que dispara sempre: um `chatwoot:error` em
+      // toda chamada faria o site do cliente tratar sucesso como falha, e o
+      // teste acima passaria igual.
+      window.$chatwoot.setUser('id-1', { name: 'Ana' });
+      await carregarPainel();
+      await proximoTick();
+
+      expect(erros).toEqual([]);
+    });
+  });
+
+  describe('contador de não lidas na API pública (item 39 da §8.1)', () => {
+    beforeEach(() => {
+      // `handleNotificationDot` decora a bolha; sem ela no DOM o próprio
+      // decorador estoura antes de qualquer coisa.
+      const bolha = document.createElement('div');
+      bolha.className = 'woot-widget-bubble';
+      document.body.appendChild(bolha);
+    });
+
+    it('começa em 0 e acompanha o que o painel manda', () => {
+      expect(window.$chatwoot.getUnreadCount()).toBe(0);
+
+      IFrameHelper.events.handleNotificationDot({ unreadMessageCount: 3 });
+      expect(window.$chatwoot.getUnreadCount()).toBe(3);
+
+      IFrameHelper.events.handleNotificationDot({ unreadMessageCount: 0 });
+      expect(window.$chatwoot.getUnreadCount()).toBe(0);
+    });
+
+    it('conta mesmo com a bolha escondida — o número não é o enfeite', () => {
+      // `hideMessageBubble` sai cedo do decorador. Quem esconde a bolha é
+      // justamente quem desenha o próprio contador no site, e é quem mais
+      // precisa do número: contar depois desse `return` entregaria 0 para ele.
+      window.$chatwoot.hideMessageBubble = true;
+
+      IFrameHelper.events.handleNotificationDot({ unreadMessageCount: 5 });
+
+      expect(window.$chatwoot.getUnreadCount()).toBe(5);
+    });
+  });
+
+  it('REGISTRO: setLocale/setColorScheme antes do boot AINDA se perdem', () => {
+    // Este teste não celebra o comportamento — ele o CONGELA, com o número
+    // medido, para que mudá-lo seja uma decisão e não um acidente.
+    //
+    // O QUE FOI MEDIDO: os dois saem com `hasLoaded: false`, ou seja, um
+    // `postMessage` para um iframe que ainda não tem quem escute. Some sem
+    // erro, sem log e sem nova tentativa — o mesmo defeito que a fila fechou
+    // para os 7 métodos de DADOS. Eles ficaram de fora porque não carregam dado
+    // do cliente (é o critério do próprio bloco, no topo deste arquivo).
+    //
+    // POR QUE NÃO FOI CORRIGIDO AQUI, e isto é o que importa para quem pegar:
+    // enfileirá-los do jeito óbvio produz um defeito PIOR e silencioso. Em
+    // `IFrameHelper.events.loaded` o `drenar()` roda ANTES do `config-set`, e o
+    // `config-set` reenvia `locale` e `darkMode` lidos de `window.$chatwoot` —
+    // o handler do painel (`bridge/handlers.js:30`) chama `ctx.setLocale(
+    // message.locale)` com eles. Resultado: o `set-locale` drenado seria
+    // aplicado e sobrescrito uma linha depois pelo valor do snippet, que aqui é
+    // `undefined`. A correção certa tem de gravar TAMBÉM `window.$chatwoot.
+    // locale` / `.darkMode`, e isso muda o contrato de dois métodos públicos —
+    // decisão, não detalhe de implementação.
+    window.$chatwoot.setLocale('pt_BR');
+    window.$chatwoot.setColorScheme('dark');
+
+    const perdidas = enviadas.filter(m => !m.hasLoaded).map(m => m.key);
+    expect(perdidas).toEqual(['set-locale', 'set-color-scheme']);
+  });
+
   describe('open() e close() idempotentes (item 37 da §8.1)', () => {
     let alternancias;
 

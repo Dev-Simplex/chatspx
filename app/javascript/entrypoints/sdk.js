@@ -25,6 +25,8 @@ import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
 import { enfileirar } from '../sdk/preBootQueue';
 import { captureOrigin } from '../sdk/tracking/capture';
+import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
+import { CHATWOOT_ERROR } from '../widget/constants/sdkEvents';
 
 /**
  * Bloco 5.16 — o formato do nome de evento, verificado NO NAVEGADOR.
@@ -73,8 +75,32 @@ const chaveDoEvento = () =>
 // O SDK "deixar de ser mudo" inclui não engolir o próprio erro. Sem isto, um
 // integrador com a chave errada não recebe sinal nenhum — que é o defeito que
 // este bloco fecha, não um log esquecido.
-// eslint-disable-next-line no-console
-const reportarErro = (nome, erro) => console.error(`[chatwoot] ${nome}:`, erro);
+//
+// O CONSOLE NÃO ERA SINAL SUFICIENTE, e isso foi medido: `console.error` sai no
+// navegador do VISITANTE, e quem integra por GTM não está lá. O sinal precisa
+// chegar onde o site já escuta — `chatwoot:error` é o evento de `window` que o
+// painel emite desde sempre (`IFrameHelper.events.error`), e agora os erros da
+// própria API pública entram pelo mesmo nome, sem contrato novo para aprender.
+//
+// O QUE VIAJA NO EVENTO: o MÉTODO e o MOTIVO. Nada do que o integrador passou.
+// O `window` do site é legível por qualquer script de terceiro da página (regra
+// RC5 do plano 25) — o argumento de `setUser` é PII por definição, e ele não
+// entra aqui nem dentro do objeto de erro.
+//
+// `method` É O DISCRIMINADOR, e ele está aqui de propósito. O mesmo nome de
+// evento agora carrega DUAS formas: a do painel (`IFrameHelper.events.error`,
+// que repassa o corpo do erro do servidor) e esta. Um evento com duas formas e
+// nenhuma maneira de distingui-las é o defeito da §12.7 outra vez — quem
+// escuta precisa poder decidir sem adivinhar. `detail.method` existe só nesta,
+// e é o que o site testa para saber qual das duas chegou.
+const reportarErro = (nome, erro) => {
+  // eslint-disable-next-line no-console
+  console.error(`[chatwoot] ${nome}:`, erro);
+  dispatchWindowEvent({
+    eventName: CHATWOOT_ERROR,
+    data: { method: nome, message: erro?.message || String(erro) },
+  });
+};
 
 const chamadaDeDados = (nome, validar, despachar) => {
   let promessa;
@@ -354,6 +380,24 @@ const runSDK = ({ baseUrl, websiteToken }) => {
 
     getIdentifier() {
       return window.$chatwoot.identifier || null;
+    },
+
+    /**
+     * Item 39 da §8.1 — o contador de não lidas na API pública, que o plano
+     * manda entrar junto deste bloco. 15 dos 20 widgets globais do corpus
+     * medido têm; nós tínhamos o número só como CLASSE CSS na bolha
+     * (`unread-notification`), legível por ninguém.
+     *
+     * Quem esconde a bolha (`hideMessageBubble`) e desenha o próprio badge no
+     * site precisa exatamente disto: o número, sem depender do nosso enfeite.
+     *
+     * `?? 0` e não um campo no literal do `$chatwoot`: antes da primeira
+     * mensagem do painel não existe contagem nenhuma, e "ainda não sei" e
+     * "zero não lidas" valem a mesma resposta para quem vai desenhar um badge.
+     * A leitura nunca devolve `undefined`.
+     */
+    getUnreadCount() {
+      return window.$chatwoot.unreadMessageCount ?? 0;
     },
 
     /**
