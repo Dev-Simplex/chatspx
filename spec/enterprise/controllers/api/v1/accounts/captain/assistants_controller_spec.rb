@@ -418,6 +418,11 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
     end
 
     context 'when captain v2 is disabled' do
+      # DECLARA a precondicao em vez de contar com o default: desde a migration
+      # 20260828140000 o produto nasce com captain_integration_v2 LIGADO, entao
+      # confiar no default fazia este contexto testar o caminho oposto do nome dele.
+      before { account.disable_features('captain_integration_v2') }
+
       it 'generates a response with the legacy assistant chat service' do
         allow(Captain::Llm::AssistantChatService).to receive(:new).with(
           assistant: assistant,

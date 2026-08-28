@@ -97,6 +97,11 @@ RSpec.describe 'Api::V1::Accounts features', type: :request do
     end
 
     it 'nao grava nada quando uma do lote e bloqueada' do
+      # Parte de campanhas DESLIGADA de proposito: desde esta mesma migration o produto
+      # nasce com ela ligada, e sem este passo o teste passaria por acidente, sem provar
+      # que o lote e atomico.
+      account.disable_features('campaigns')
+
       patch url, params: { features: { campaigns: true, advanced_assignment: true } },
                  headers: admin.create_new_auth_token
 
