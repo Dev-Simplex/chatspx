@@ -72,7 +72,17 @@ export function useTrackingCredentials(inboxId) {
     isLoading.value = true;
     try {
       const { data } = await axios.get(baseUrl(accountIdFromRoute(), inboxId));
-      const lidas = data?.credentials ?? {};
+      // As chaves vem na RAIZ da resposta, nao dentro de um envelope `credentials`.
+      // O jbuilder (_tracking_credential.json.jbuilder) faz `json.set! attribute, ...` varrendo
+      // SECRET_ATTRIBUTES no nivel de cima — medido na instalacao real:
+      //   {"id":null,"inbox_id":6,"meta_access_token":{"configured":false,"last_four":null},...}
+      //
+      // Lendo `data.credentials` o resultado era SEMPRE {}, entao toda credencial aparecia como
+      // "nao configurado" mesmo com token gravado — e o spec do front nao pegava porque DUBLAVA a
+      // resposta com o envelope inventado. Terceiro defeito de junta seguido nesta tela: antes
+      // foram a rota no plural e o PUT por chave. O padrao e sempre o mesmo — cada lado testa a
+      // si mesmo, e o encontro dos dois nao tem dono.
+      const lidas = data ?? {};
       credentials.value = Object.fromEntries(
         CREDENTIAL_KEYS.map(key => [key, readState(lidas[key])])
       );

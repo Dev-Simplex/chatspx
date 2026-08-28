@@ -642,10 +642,12 @@ describe('5.06 — o campo de segredo consome o contrato do 5.02', () => {
   it('com o cofre no ar, mostra `configured` + os 4 últimos — e nunca o valor', async () => {
     respostaDoCofre.mockResolvedValue({
       data: {
-        credentials: {
-          meta_access_token: { configured: true, last_four: '9f2a' },
-          ga4_api_secret: { configured: false, last_four: '' },
-        },
+        // A resposta real traz as chaves na RAIZ — o jbuilder faz `json.set! attribute`
+        // varrendo SECRET_ATTRIBUTES no nivel de cima. Este dublê inventava um envelope
+        // `credentials` que o backend NUNCA devolveu, entao o spec ficava verde contra uma
+        // forma imaginaria enquanto a tela mostrava "nao configurado" com token gravado.
+        meta_access_token: { configured: true, last_four: '9f2a' },
+        ga4_api_secret: { configured: false, last_four: '' },
       },
     });
     const wrapper = build();
@@ -667,10 +669,8 @@ describe('5.06 — o campo de segredo consome o contrato do 5.02', () => {
   it('o segredo NÃO viaja no PATCH da inbox — vai por rota própria', async () => {
     respostaDoCofre.mockResolvedValue({
       data: {
-        credentials: {
-          meta_access_token: { configured: false, last_four: '' },
-          ga4_api_secret: { configured: false, last_four: '' },
-        },
+        meta_access_token: { configured: false, last_four: '' },
+        ga4_api_secret: { configured: false, last_four: '' },
       },
     });
     const wrapper = build();
