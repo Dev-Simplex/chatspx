@@ -67,6 +67,26 @@ export const drenar = () => {
   return pendentes.map(({ rotulo }) => rotulo);
 };
 
+/**
+ * Os verbos que IDENTIFICAM o visitante — a lista existe porque a guarda de
+ * re-hidratação precisa perguntar "a fila já cuidou da identidade?", e não "a
+ * fila tinha `setUser`?".
+ *
+ * A primeira versão perguntava a segunda coisa (`drenados.includes('setUser')`),
+ * com o rótulo cravado na comparação. `updateUser` passava por baixo: o
+ * despacho grava `window.$chatwoot.user`, a re-hidratação via o objeto cheio e
+ * mandava `set-user` logo depois do `update-user`. Duas identidades pelo mesmo
+ * gesto — e a segunda é o verbo que SUBSTITUI o contato, o oposto do que
+ * `updateUser` promete (5.17).
+ *
+ * Um verbo de identidade novo entra AQUI, num lugar só, e a guarda continua
+ * correta sem ninguém se lembrar dela.
+ */
+export const VERBOS_DE_IDENTIDADE = ['setUser', 'updateUser'];
+
+export const identidadeDrenada = (rotulos = []) =>
+  rotulos.some(rotulo => VERBOS_DE_IDENTIDADE.includes(rotulo));
+
 // Só para os testes: devolve a fila ao estado inicial entre cenários.
 export const resetarFilaParaTestes = () => {
   fila.length = 0;

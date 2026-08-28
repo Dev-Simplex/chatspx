@@ -24,7 +24,7 @@ import {
 } from './bubbleHelpers';
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
 import { isMobileViewport } from './viewport';
-import { drenar } from './preBootQueue';
+import { drenar, identidadeDrenada } from './preBootQueue';
 import { montarTeaser } from './teaser';
 import { degradar, gravarAbordagem, lerAbordagem } from './tracking/approach';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
@@ -416,7 +416,13 @@ export const IFrameHelper = {
       //    cru, enquanto `setUser` manda `{ identifier, user }`. O painel recebia
       //    um payload sem `identifier` — o mesmo evento com dois formatos,
       //    dependendo de quem o emitiu.
-      if (window.$chatwoot.user && !drenados.includes('setUser')) {
+      // 3. A GUARDA ERA POR RÓTULO CRAVADO. `!drenados.includes('setUser')` só
+      //    enxergava um dos verbos: `updateUser` antes do boot drenava
+      //    `update-user`, gravava `window.$chatwoot.user`, e caía aqui como se
+      //    ninguém tivesse identificado — saía `set-user` por cima, que
+      //    SUBSTITUI o contato. A pergunta certa é sobre a identidade, não sobre
+      //    o rótulo; quem responde é `identidadeDrenada`.
+      if (window.$chatwoot.user && !identidadeDrenada(drenados)) {
         IFrameHelper.sendMessage('set-user', {
           identifier: window.$chatwoot.identifier,
           user: window.$chatwoot.user,
@@ -572,6 +578,21 @@ export const IFrameHelper = {
       removeUnreadClass();
     },
     handleNotificationDot: event => {
+      // Item 39 da §8.1 — o CONTADOR, e ele é gravado ANTES de qualquer decisão
+      // sobre a bolha, de propósito. Duas razões, as duas medidas:
+      //
+      // · `hideMessageBubble` sai do método logo abaixo. Quem esconde a bolha é
+      //   justamente quem desenha o próprio contador no site — gravar depois do
+      //   `return` entregaria 0 exatamente a quem pediu o número.
+      // · o decorador abaixo estoura se `.woot-widget-bubble` ainda não existe
+      //   no DOM. O número é dado; a classe é enfeite. Um não pode depender do
+      //   outro ter dado certo.
+      //
+      // O painel manda este evento a cada mudança (`App.vue`
+      // `handleUnreadNotificationDot`), inclusive quando zera — por isso ler
+      // aqui basta e não é preciso um evento novo na ponte.
+      window.$chatwoot.unreadMessageCount = event.unreadMessageCount || 0;
+
       if (window.$chatwoot.hideMessageBubble) {
         return;
       }
