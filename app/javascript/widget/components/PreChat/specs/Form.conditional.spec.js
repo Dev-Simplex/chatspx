@@ -7,9 +7,10 @@
  * juntos. Aqui o componente é montado e perguntado o que ele renderiza e o que
  * ele emite.
  */
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
+import { plugin, defaultConfig } from '@formkit/vue';
 import { createStore } from 'vuex';
-import Form from '../Form.vue';
+import PreChatBody from '../PreChatBody.vue';
 
 const store = () =>
   createStore({
@@ -45,7 +46,7 @@ const montar = fields => {
     preChatFormOptions: { pre_chat_fields: fields, pre_chat_message: '' },
     enabledFeatures: [],
   };
-  return mount(Form, {
+  return mount(PreChatBody, {
     props: { options: { preChatFields: fields, preChatMessage: '' } },
     global: {
       plugins: [store()],
@@ -69,7 +70,7 @@ const nomesRenderizados = wrapper =>
     .map(n => n.attributes('data-name'))
     .filter(Boolean);
 
-describe('3.15 na junção — Form.vue como casca', () => {
+describe('3.15 na junção — o corpo do pré-chat, montado de verdade', () => {
   afterEach(() => {
     delete global.chatwootWebChannel;
   });
@@ -109,6 +110,99 @@ describe('3.15 na junção — Form.vue como casca', () => {
       wrapper.vm.formValues = { tipo: 'pessoa' };
       await wrapper.vm.$nextTick();
       expect(nomesRenderizados(wrapper)).not.toContain('cnpj');
+    });
+  });
+
+  describe('o gatilho de LISTA na junção — o que o FormKit realmente guarda', () => {
+    // O `select` do pré-chat é montado com as opções indexadas por POSIÇÃO
+    // (`getOptions`), então `formValues.tipo` vale '0', nunca 'Empresa'. Quem
+    // configura a condicional digita o rótulo, porque é o que está na tela do
+    // painel. Esta é a forma REAL do gatilho — e a que o fixture de `type: text`
+    // do resto deste arquivo nunca exercitou.
+    const comLista = [
+      campo({
+        name: 'tipo',
+        label: 'Tipo',
+        type: 'list',
+        values: ['Empresa', 'Pessoa física'],
+      }),
+      campo({
+        name: 'cnpj',
+        label: 'CNPJ',
+        show_if: { field: 'tipo', operator: 'is', value: 'Empresa' },
+      }),
+    ];
+
+    it('escolher "Empresa" (posição 0) revela o dependente', async () => {
+      const wrapper = montar(comLista);
+      wrapper.vm.formValues = { tipo: '0' };
+      await wrapper.vm.$nextTick();
+
+      expect(nomesRenderizados(wrapper)).toContain('cnpj');
+    });
+
+    it('escolher "Pessoa física" (posição 1) mantém o dependente escondido', async () => {
+      const wrapper = montar(comLista);
+      wrapper.vm.formValues = { tipo: '1' };
+      await wrapper.vm.$nextTick();
+
+      expect(nomesRenderizados(wrapper)).not.toContain('cnpj');
+    });
+
+    it('o atributo enviado é o RÓTULO, não a posição — a mesma resolução', async () => {
+      const wrapper = montar([
+        campo({
+          name: 'tipo',
+          label: 'Tipo',
+          type: 'list',
+          field_type: 'contact_attribute',
+          values: ['Empresa', 'Pessoa física'],
+        }),
+      ]);
+      wrapper.vm.formValues = { tipo: '0', message: 'oi' };
+      await wrapper.vm.$nextTick();
+      wrapper.vm.onSubmit();
+
+      const [[payload]] = wrapper.emitted('submitPreChat');
+      expect(payload.contactCustomAttributes.tipo).toBe('Empresa');
+    });
+  });
+
+  describe('o gatilho de CAIXA na junção', () => {
+    const comCaixa = operator => [
+      campo({ name: 'aceito', label: 'Aceito', type: 'checkbox' }),
+      campo({
+        name: 'cnpj',
+        label: 'CNPJ',
+        show_if: { field: 'aceito', operator, value: 'sim' },
+      }),
+    ];
+
+    it('caixa DESMARCADA não satisfaz `filled` — `false` não é conteúdo', async () => {
+      const wrapper = montar(comCaixa('filled'));
+      wrapper.vm.formValues = { aceito: false };
+      await wrapper.vm.$nextTick();
+
+      expect(nomesRenderizados(wrapper)).not.toContain('cnpj');
+    });
+
+    it('caixa MARCADA satisfaz `filled`', async () => {
+      const wrapper = montar(comCaixa('filled'));
+      wrapper.vm.formValues = { aceito: true };
+      await wrapper.vm.$nextTick();
+
+      expect(nomesRenderizados(wrapper)).toContain('cnpj');
+    });
+
+    it('`is sim` casa com a caixa marcada, e só com ela', async () => {
+      const wrapper = montar(comCaixa('is'));
+      wrapper.vm.formValues = { aceito: false };
+      await wrapper.vm.$nextTick();
+      expect(nomesRenderizados(wrapper)).not.toContain('cnpj');
+
+      wrapper.vm.formValues = { aceito: true };
+      await wrapper.vm.$nextTick();
+      expect(nomesRenderizados(wrapper)).toContain('cnpj');
     });
   });
 
@@ -310,5 +404,129 @@ describe('3.15 na junção — Form.vue como casca', () => {
       expect(wrapper.vm.currentStep).toBe(1);
       expect(wrapper.vm.visibleSteps).toEqual([1]);
     });
+  });
+});
+
+/**
+ * O ACEITE, SEM DUBLÊ NENHUM.
+ *
+ * Tudo acima usa um stub de `FormKit` — rápido, mas ele responde o que a gente
+ * mandou responder. O defeito que este bloco fecha nasceu exatamente aí: o valor
+ * que o FormKit GUARDA num `<select>` (a posição) não é o que o fixture de
+ * `type: 'text'` fingia guardar (o rótulo), e por isso 61 testes verdes não
+ * viram o campo condicional deixar de aparecer.
+ *
+ * Aqui o FormKit é o de verdade, o `<select>` é um `<select>` do DOM, e quem
+ * escolhe a opção é `setValue` — o mesmo caminho do visitante.
+ */
+describe('3.15 — o aceite com o FormKit de verdade', () => {
+  const montarReal = fields => {
+    global.chatwootWebChannel = {
+      preChatFormEnabled: true,
+      preChatFormOptions: { pre_chat_fields: fields, pre_chat_message: '' },
+      enabledFeatures: [],
+    };
+    return mount(PreChatBody, {
+      props: { options: { preChatFields: fields, preChatMessage: '' } },
+      global: {
+        plugins: [store(), [plugin, defaultConfig()]],
+        mocks: { $t: key => key },
+        stubs: { CustomButton: { template: '<button><slot /></button>' } },
+        directives: { 'dompurify-html': () => {} },
+      },
+    });
+  };
+
+  /**
+   * O FormKit comita o valor em etapas (evento → nó → modelo → render), e sob
+   * carga um `flushPromises` só nem sempre alcança a última. Esperar o MODELO do
+   * formulário refletir a resposta torna a medição determinística: o que vem
+   * depois dela é render, e um flush dá conta.
+   *
+   * Sem isto o teste fica intermitente — e teste intermitente ensina o time a
+   * ignorar vermelho, que é pior do que não ter teste.
+   */
+  const responder = async (wrapper, seletor, nome, valor) => {
+    await wrapper.find(seletor).setValue(valor);
+    await vi.waitFor(() =>
+      expect(String(wrapper.vm.formValues[nome])).toBe(String(valor))
+    );
+    await flushPromises();
+  };
+
+  afterEach(() => {
+    delete global.chatwootWebChannel;
+  });
+
+  it('escolher a opção do gatilho REVELA o campo condicional', async () => {
+    const wrapper = montarReal([
+      campo({
+        name: 'tipo',
+        label: 'Tipo',
+        type: 'list',
+        values: ['Empresa', 'Pessoa física'],
+      }),
+      campo({
+        name: 'cnpj',
+        label: 'CNPJ',
+        show_if: { field: 'tipo', operator: 'is', value: 'Empresa' },
+      }),
+    ]);
+    await flushPromises();
+    expect(wrapper.find('select').exists()).toBe(true);
+
+    // O `<select>` do pré-chat não tem opção vazia, então ele nasce respondido
+    // na primeira — é comportamento do controle, não deste bloco. Por isso a
+    // medição começa escolhendo a OUTRA opção: é a partir dela que dá para ver
+    // o campo aparecer.
+    await responder(wrapper, 'select', 'tipo', '1');
+    expect(wrapper.text()).not.toContain('CNPJ');
+
+    // "Empresa" é a posição 0 — é isso que o `<select>` entrega ao formulário,
+    // e é comparando ISSO com o rótulo que a condicional errava antes.
+    await responder(wrapper, 'select', 'tipo', '0');
+    expect(wrapper.text()).toContain('CNPJ');
+
+    // E some de novo ao trocar a resposta.
+    await responder(wrapper, 'select', 'tipo', '1');
+    expect(wrapper.text()).not.toContain('CNPJ');
+  });
+
+  it('marcar a caixa do gatilho REVELA o campo condicional', async () => {
+    const wrapper = montarReal([
+      campo({ name: 'aceito', label: 'Aceito', type: 'checkbox' }),
+      campo({
+        name: 'cnpj',
+        label: 'CNPJ',
+        show_if: { field: 'aceito', operator: 'filled' },
+      }),
+    ]);
+    await flushPromises();
+
+    // Desmarcada, o valor guardado é `false` — e `String(false)` tem cinco
+    // letras. Era este o caminho pelo qual `filled` dava verdadeiro.
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('CNPJ');
+
+    await responder(wrapper, 'input[type="checkbox"]', 'aceito', true);
+
+    expect(wrapper.text()).toContain('CNPJ');
+  });
+
+  it('o erro específico do campo aparece depois do blur, e é o do validador', async () => {
+    const wrapper = montarReal([
+      campo({ name: 'doc', label: 'CPF', validator: 'cpf' }),
+    ]);
+    await flushPromises();
+
+    await responder(wrapper, 'input[name="doc"]', 'doc', '529.982.247-26');
+    // Intocado: nada de erro — acusar formato no terceiro dígito é ruído.
+    expect(wrapper.text()).not.toContain('PRE_CHAT_FORM.VALIDATION.CPF');
+
+    await wrapper.find('input[name="doc"]').trigger('blur');
+    await vi.waitFor(() => expect(wrapper.vm.touchedFields).toContain('doc'));
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('PRE_CHAT_FORM.VALIDATION.CPF');
   });
 });
