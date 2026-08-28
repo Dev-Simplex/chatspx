@@ -2,7 +2,6 @@
 import { IFrameHelper } from 'widget/helpers/utils';
 import { CHATWOOT_ON_START_CONVERSATION } from '../constants/sdkEvents';
 import AvailabilityContainer from 'widget/components/Availability/AvailabilityContainer.vue';
-import { useMapGetter } from 'dashboard/composables/store.js';
 
 const props = defineProps({
   availableAgents: { type: Array, default: () => [] },
@@ -10,8 +9,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['startConversation']);
-
-const widgetColor = useMapGetter('appConfig/getWidgetColor');
 
 const startConversation = () => {
   emit('startConversation');
@@ -31,9 +28,12 @@ const startConversation = () => {
   >
     <AvailabilityContainer :agents="availableAgents" show-header show-avatars />
 
+    <!-- Blocos 1.03/1.04: era `text-n-slate-12` mais um estilo inline com a cor
+         da inbox. O inline vencia a classe e pintava a MARCA CRUA; a classe, por
+         sua vez, nunca chegava à tela. Agora é uma cor só, do token que o
+         servidor já escureceu até 4,5:1. -->
     <button
-      class="inline-flex items-center gap-1 font-medium text-n-slate-12"
-      :style="{ color: widgetColor }"
+      class="inline-flex items-center gap-1 font-medium text-w-brand-readable"
       @click="startConversation"
     >
       <span>

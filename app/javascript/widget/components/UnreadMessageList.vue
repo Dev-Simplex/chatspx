@@ -4,7 +4,6 @@ import configMixin from '../mixins/configMixin';
 import { ON_UNREAD_MESSAGE_CLICK } from '../constants/widgetBusEvents';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import UnreadMessage from 'widget/components/UnreadMessage.vue';
-import { isWidgetColorLighter } from 'shared/helpers/colorHelper';
 import { emitter } from 'shared/helpers/mitt';
 
 export default {
@@ -24,14 +23,10 @@ export default {
   computed: {
     ...mapGetters({
       unreadMessageCount: 'conversation/getUnreadMessageCount',
-      widgetColor: 'appConfig/getWidgetColor',
     }),
     sender() {
       const [firstMessage] = this.messages;
       return firstMessage.sender || {};
-    },
-    isBackgroundLighter() {
-      return isWidgetColorLighter(this.widgetColor);
     },
   },
   methods: {
@@ -89,15 +84,12 @@ export default {
         class="button clear-button"
         @click="openConversationView"
       >
-        <span
-          class="flex items-center"
-          :class="{
-            '!text-n-slate-12': isBackgroundLighter,
-          }"
-          :style="{
-            color: widgetColor,
-          }"
-        >
+        <!-- Sem `:style` e sem a classe condicional que ele mascarava (blocos
+             1.03/1.04). A cor desce por herança de `.clear-button`, que é
+             `text-w-brand-readable` — a marca já escurecida até 4,5:1 pelo
+             servidor, com par próprio no tema escuro. O inline pintava a MARCA
+             CRUA e vencia a classe: é a origem dos 2,27:1 deste rótulo. -->
+        <span class="flex items-center">
           <FluentIcon class="mr-2" size="16" icon="arrow-right" />
           {{ $t('UNREAD_VIEW.VIEW_MESSAGES_BUTTON') }}
         </span>

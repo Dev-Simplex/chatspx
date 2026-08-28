@@ -20,6 +20,24 @@
  *   propósito: quem os escreve é 'applyWidgetTokens', com o valor que o servidor
  *   calculou para a inbox.
  *
+ * ── FALLBACK DE '--w-brand' — bloco 1.03 ──────────────────────────────────
+ *   'background: var(--w-brand, #2dc46f)', nas DUAS regras do lançador (repouso
+ *   e ':hover'). O caminho degradado é real: 'applyWidgetTokens' só escreve o
+ *   token se o valor casar 'SAFE_TOKEN_VALUE' (hex de 3/6/8 dígitos), e há
+ *   inbox com 'widget_color' fora desse alfabeto. Sem token e sem fallback,
+ *   'var(--w-brand)' é inválida no momento de computar o valor: a propriedade
+ *   cai para o inicial e o lançador fica TRANSPARENTE — um botão de 64 px
+ *   invisível na página do cliente. O valor é '#2dc46f', o mesmo
+ *   'DEFAULT_WIDGET_COLOR' do 'Channel::WebWidget' e o mesmo fallback que
+ *   'theme/colors.js' dá a 'w.brand'.
+ *
+ *   POR QUE ISTO NÃO É A ARMADILHA DO ':hover' (R2, logo abaixo): lá o hex
+ *   estava CRAVADO — pintava mesmo com o token presente, e só no ':hover', de
+ *   onde saía a mudança de matiz. Aqui ele é o segundo argumento de 'var()':
+ *   com o token presente nunca é lido, e com o token ausente as duas regras
+ *   caem no MESMO valor, então continua não havendo mudança de matiz. As duas
+ *   afirmações são medidas em Chromium por 'specs/browser/launcher-hover.check.mjs'.
+ *
  * ── --w-ease-standard: cubic-bezier(0.2, 0, 0, 1);   --w-ease-enter: cubic-bezier(
  *   As três curvas da casa (22 §D.2), repetidas aqui porque '_tokens.scss' só é
  *   carregado DENTRO do iframe e o lançador/holder vivem no documento do host.
@@ -177,7 +195,7 @@ export const SDK_CSS = `
 }
 
 .woot-widget-bubble {
-  background: var(--w-brand);
+  background: var(--w-brand, #2dc46f);
 
   color: var(--w-on-brand, var(--w-surface));
   border-radius: 100px;
@@ -265,7 +283,7 @@ export const SDK_CSS = `
 }
 
 .woot-widget-bubble:hover {
-  background: var(--w-brand);
+  background: var(--w-brand, #2dc46f);
   box-shadow: 0 8px 32px rgba(0, 0, 0, .4) !important;
 }
 
