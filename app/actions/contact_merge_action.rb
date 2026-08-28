@@ -92,10 +92,28 @@ class ContactMergeAction
 
     # attributes in base contact are given preference
     merged_attributes = mergee_contact_attributes.deep_merge(base_contact_attributes)
+    merged_attributes = cap_custom_attributes(merged_attributes, base_contact_attributes, mergee_contact_attributes)
 
     @mergee_contact.reload.destroy!
     Rails.configuration.dispatcher.dispatch(CONTACT_MERGED, Time.zone.now, contact: @base_contact,
                                                                            tokens: [@base_contact.contact_inboxes.filter_map(&:pubsub_token)])
     @base_contact.update!(merged_attributes)
+  end
+
+  # O teto de custom_attributes e do contato, e a soma de dois contatos
+  # conformes pode estoura-lo. Um `update!` recusado aqui reverteria a fusao
+  # inteira — inclusive o destroy! do incorporado, feito uma linha antes. A
+  # decisao e podar, nao recusar: `Contact.merged_custom_attributes` mantem
+  # tudo do base e acrescenta o do incorporado ate onde couber.
+  def cap_custom_attributes(merged_attributes, base_attributes, mergee_attributes)
+    base = base_attributes['custom_attributes']
+    mergee = mergee_attributes['custom_attributes']
+    return merged_attributes if base.nil? && mergee.nil?
+    # jsonb aceita array no topo, o resto do modelo nao. Formato que o teto nao
+    # descreve nao passa pela poda: vale o comportamento antigo, sem inventar
+    # perda de dado nem NoMethodError dentro da fusao.
+    return merged_attributes unless [base, mergee].all? { |value| value.is_a?(Hash) || value.nil? }
+
+    merged_attributes.merge('custom_attributes' => Contact.merged_custom_attributes(base, mergee))
   end
 end
