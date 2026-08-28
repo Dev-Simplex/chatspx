@@ -252,12 +252,21 @@ const handleToggleWidget = () => {
       </div>
     </div>
 
-    <div class="flex-1 min-h-0 flex flex-col">
+    <!-- `wp-tokens` + `:style` sao o `:root` do widget: os fallbacks da marca
+         vem do mixin, os valores REAIS da inbox vem do inline por cima deles —
+         a mesma relacao que o widget tem entre `@layer base` e o `<style>` do
+         servidor. O tema mora no FILHO, e essa separacao e obrigatoria: estilo
+         inline vence classe no mesmo elemento, entao um `.wp-theme-dark` aqui
+         nunca conseguiria reapontar `--w-brand-readable`. -->
+    <div
+      class="flex-1 min-h-0 flex flex-col wp-tokens"
+      :style="tokenStyle"
+      data-testid="widget-preview-tokens"
+    >
       <div
         v-if="isPreviewTab"
         class="flex-1 flex flex-col items-center justify-end pb-4"
         :class="themeClass"
-        :style="tokenStyle"
         data-testid="widget-preview-surface"
       >
         <div
@@ -375,14 +384,48 @@ const handleToggleWidget = () => {
 /* A paleta do widget, sem uma segunda copia dela: os mixins vem do arquivo que
    pinta o widget de verdade. Aplicados em CLASSE — nunca em `:root` —, porque
    `:root` aqui sobrescreveria a paleta do dashboard inteiro, e porque e a
-   classe que permite ao preview mostrar o tema OPOSTO ao do painel. */
+   classe que permite ao preview mostrar o tema OPOSTO ao do painel.
+
+   A divisao entre `.wp-tokens` (o elemento de fora) e `.wp-theme-*` (o de
+   dentro) copia a do widget: la, `_tokens.scss` declara `:root` e `.dark` no
+   MESMO elemento e o `.dark` reaponta `--w-brand-readable` por vir depois no
+   cascade; aqui os valores reais da marca chegam por estilo INLINE, e inline
+   vence qualquer classe do mesmo elemento. Com o tema num filho, a classe
+   sobrescreve o valor HERDADO — que e o unico jeito de o escuro do preview
+   pintar o mesmo `--w-brand-readable` que o widget escuro pinta. */
 @import '../../../../widget/assets/scss/tokens_values';
+
+.wp-tokens {
+  /* Fallback da marca, exatamente como o `@layer base` do widget: o inline com
+     a cor da inbox passa por cima dos SETE tokens que `brandTokens()` devolve
+     (os mesmos sete de `WidgetTokens#root_tokens`), e o resto do mixin — anel
+     de foco e as tres curvas — fica valendo. */
+  @include widget-brand-light;
+  @include widget-shape;
+}
 
 .wp-theme-light {
   @include widget-palette-light;
+  @include widget-surface-light;
+  @include widget-avatar-light;
 }
 
 .wp-theme-dark {
   @include widget-palette-dark;
+  /* O que faltava: sem ele o preview escuro pintava o `--w-brand-readable`
+     CLARO sobre superficie escura. */
+  @include widget-brand-dark;
+  @include widget-surface-dark;
+  @include widget-avatar-dark;
+}
+
+/* O unico bloco de `_tokens.scss` que nao mora num mixin. Ele e uma copia, e a
+   copia so e segura porque `previewTokens.spec.js` compara os dois compilados
+   declaracao a declaracao, INCLUSIVE dentro de `@media` — mude o 3px de um
+   lado e o teste fica vermelho. */
+@media (prefers-contrast: more) {
+  .wp-tokens {
+    --w-focus-ring-width: 3px;
+  }
 }
 </style>
