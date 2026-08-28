@@ -60,6 +60,26 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
         expect(json_response.dig(:features, :copilot, :default)).to eq('gpt-5-mini')
       end
 
+      it 'shows audio transcription as on when only the real gate is on' do
+        account.update!(audio_transcriptions: true)
+
+        get "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(json_response.dig(:features, :audio_transcription, :enabled)).to be(true)
+      end
+
+      it 'shows label suggestion as on for an account that never touched the toggle' do
+        get "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(json_response.dig(:features, :label_suggestion, :enabled)).to be(true)
+      end
+
       it 'returns llm_connection details when hook is configured' do
         create(
           :integrations_hook,
@@ -126,6 +146,43 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
         expect(json_response).to have_key(:models)
         expect(json_response).to have_key(:features)
         expect(account.reload.captain_features['editor']).to be true
+      end
+
+      it 'writes the audio transcription toggle to the gate the code respects' do
+        put "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            params: { captain_features: { audio_transcription: true } },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        account.reload
+        expect(account.audio_transcriptions).to be true
+        expect(account.captain_features).not_to have_key('audio_transcription')
+        expect(json_response.dig(:features, :audio_transcription, :enabled)).to be(true)
+      end
+
+      it 'turns the audio transcription off through the same gate' do
+        account.update!(audio_transcriptions: true)
+
+        put "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            params: { captain_features: { audio_transcription: false } },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(account.reload.audio_transcriptions).to be false
+        expect(json_response.dig(:features, :audio_transcription, :enabled)).to be(false)
+      end
+
+      it 'turns label suggestion off when the admin asks for it' do
+        put "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            params: { captain_features: { label_suggestion: false } },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(account.reload.captain_features['label_suggestion']).to be false
+        expect(json_response.dig(:features, :label_suggestion, :enabled)).to be(false)
       end
 
       it 'merges with existing captain_models' do

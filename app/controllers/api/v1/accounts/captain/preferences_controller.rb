@@ -9,7 +9,9 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
   def update
     params_to_update = captain_params
     @current_account.captain_models = params_to_update[:captain_models] if params_to_update[:captain_models]
-    @current_account.captain_features = params_to_update[:captain_features] if params_to_update[:captain_features]
+    # Quem mescla e distribui as features e o proprio model: audio_transcription tem gate
+    # externo (settings['audio_transcriptions']) e nao pode ser gravada em captain_features.
+    @current_account.apply_captain_features(params_to_update[:captain_features]) if params_to_update[:captain_features]
     @current_account.save! if @current_account.changed?
 
     update_llm_connection(params_to_update[:llm_connection]) if params_to_update[:llm_connection]
@@ -37,7 +39,7 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
   def captain_params
     permitted = {}
     permitted[:captain_models] = merged_captain_models if params[:captain_models].present?
-    permitted[:captain_features] = merged_captain_features if params[:captain_features].present?
+    permitted[:captain_features] = permitted_captain_features if params[:captain_features].present?
     permitted[:llm_connection] = permitted_llm_connection if params[:llm_connection].present?
     permitted
   end
@@ -45,11 +47,6 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
   def merged_captain_models
     existing_models = @current_account.captain_models || {}
     existing_models.merge(permitted_captain_models)
-  end
-
-  def merged_captain_features
-    existing_features = @current_account.captain_features || {}
-    existing_features.merge(permitted_captain_features)
   end
 
   def permitted_captain_models
@@ -74,7 +71,7 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
     Llm::Models.feature_keys.index_with do |feature_key|
       config = Llm::Models.feature_config(feature_key)
       config.merge(
-        enabled: account_features[feature_key] == true,
+        enabled: account_features[feature_key],
         selected: account_models[feature_key] || config[:default]
       )
     end

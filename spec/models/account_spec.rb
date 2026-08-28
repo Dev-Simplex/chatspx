@@ -392,7 +392,15 @@ RSpec.describe Account do
       it 'returns defaults from llm.yml' do
         prefs = account.captain_preferences
 
-        expect(prefs[:features].values).to all(be false)
+        # As features de DEFAULT_ON_FEATURES nascem LIGADAS de proposito: elas ja rodavam
+        # sem gate nenhum, e chave ausente nao pode desligar recurso de quem ja usava.
+        (Llm::Models.feature_keys - CaptainFeaturable::DEFAULT_ON_FEATURES).each do |feature|
+          expect(prefs[:features][feature]).to be false
+        end
+
+        CaptainFeaturable::DEFAULT_ON_FEATURES.each do |feature|
+          expect(prefs[:features][feature]).to be true
+        end
 
         Llm::Models.feature_keys.each do |feature|
           expect(prefs[:models][feature]).to eq(Llm::Models.default_model_for(feature))
