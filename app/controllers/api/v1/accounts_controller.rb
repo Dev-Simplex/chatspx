@@ -2,6 +2,9 @@ class Api::V1::AccountsController < Api::BaseController
   include AuthHelper
   include CacheKeysHelper
 
+  CAPTAIN_LEGADO = SuperAdmin::AccountFeaturesHelper::LEGACY_CAPTAIN_FEATURE
+  CAPTAIN_CANONICO = SuperAdmin::AccountFeaturesHelper::CANONICAL_CAPTAIN_FEATURE
+
   skip_before_action :authenticate_user!, :set_current_user, :handle_with_exception,
                      only: [:create], raise: false
   before_action :check_signup_enabled, only: [:create]
@@ -63,6 +66,35 @@ class Api::V1::AccountsController < Api::BaseController
     @account.save!
   end
 
+  # Ligar e desligar feature PELA TELA. Antes disto so havia o console, o super_admin (Administrate)
+  # ou a Platform API, que exige token de PlatformApp — nenhum ao alcance do admin da conta.
+  #
+  # GET devolve o catalogo inteiro com o estado de cada uma, e nao so as ligadas: a tela precisa
+  # mostrar o que existe para poder oferecer. O `_account.json.jbuilder` continua expondo so as
+  # ligadas, entao nada muda para o resto do front.
+  #
+  # PATCH e MERGE, nao replace: recebe `{ features: { nome => true|false } }` e mexe SO no que veio.
+  # Deliberado — `selected_feature_flags=` (FlagShihTzu) zera todos os bits antes de ligar os
+  # enviados, entao uma requisicao parcial apagaria o resto. E o mesmo estrago do "salvar apagava o
+  # config do agente" que ja foi corrigido neste fork.
+  def features
+    return render json: catalogo if request.get?
+
+    pedidos = params.fetch(:features, {}).to_unsafe_h
+
+    desconhecidas = AccountFeaturesCatalog.desconhecidas(pedidos.keys)
+    return render json: { error: "feature desconhecida: #{desconhecidas.join(', ')}" }, status: :unprocessable_entity if desconhecidas.any?
+
+    bloqueadas = AccountFeaturesCatalog.bloqueadas(pedidos)
+    if bloqueadas.any?
+      return render json: { error: I18n.t('errors.features.sem_bit', features: bloqueadas.join(', ')) },
+                    status: :unprocessable_entity
+    end
+
+    aplicar_features(pedidos)
+    render json: catalogo
+  end
+
   def update_active_at
     @current_account_user.active_at = Time.now.utc
     @current_account_user.save!
@@ -87,6 +119,27 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   private
+
+  # `enable_features!`/`disable_features!` usam `save` e nao `save!`, entao gravam calado quando uma
+  # validacao reprova. Aqui se usa `save!` uma vez so, depois de montar tudo: a requisicao falha alto
+  # em vez de responder 200 sem ter gravado.
+  def catalogo
+    AccountFeaturesCatalog.new(@account).to_h
+  end
+
+  def aplicar_features(pedidos)
+    ligar, desligar = pedidos.partition { |_nome, valor| AccountFeaturesCatalog.ligar?(valor) }.map { |par| par.map(&:first) }
+
+    # O Captain v1 e legado e anda junto do v2 — mesma regra que o super_admin ja aplica
+    # (SuperAdmin::AccountsController#synchronized_captain_feature_flags). Sem isto, ligar o v2 pela
+    # tela deixaria os dois em estados diferentes.
+    ligar << CAPTAIN_LEGADO if ligar.include?(CAPTAIN_CANONICO) && @account.feature_enabled?(CAPTAIN_LEGADO)
+    desligar << CAPTAIN_LEGADO if desligar.include?(CAPTAIN_CANONICO)
+
+    @account.enable_features(*ligar.uniq)
+    @account.disable_features(*(desligar.uniq - ligar))
+    @account.save!
+  end
 
   def remove_chat_wallpaper
     @account.chat_wallpaper_image.purge if @account.chat_wallpaper_image.attached?

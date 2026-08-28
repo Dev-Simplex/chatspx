@@ -47,6 +47,10 @@ Rails.application.routes.draw do
           get :cache_keys
           post :chat_wallpaper
           delete :chat_wallpaper
+          # Ligar e desligar feature pela TELA da conta. Ate aqui so existia pelo console ou pelo
+          # super_admin (Administrate), e a Platform API, que exige token de PlatformApp.
+          get :features
+          patch :features
         end
 
         scope module: :accounts do
