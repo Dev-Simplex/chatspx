@@ -1,16 +1,7 @@
 {
   "version": 1,
-  "views": [
-    "home",
-    "messages",
-    "prechat-form",
-    "unread",
-    "rich-types"
-  ],
-  "themes": [
-    "light",
-    "dark"
-  ],
+  "views": ["home", "messages", "prechat-form", "unread", "rich-types"],
+  "themes": ["light", "dark"],
   "viewports": {
     "desktop": {
       "width": 1280,
@@ -47,140 +38,140 @@
     "home-light-desktop": {
       "axe": {
         "critical": 0,
-        "serious": 2
+        "serious": 1
       },
       "contrast": 16.1106
     },
     "home-light-mobile": {
       "axe": {
         "critical": 0,
-        "serious": 2
+        "serious": 1
       },
       "contrast": 16.1106
     },
     "home-dark-desktop": {
       "axe": {
         "critical": 0,
-        "serious": 2
+        "serious": 0
       },
       "contrast": 14.3174
     },
     "home-dark-mobile": {
       "axe": {
         "critical": 0,
-        "serious": 2
+        "serious": 0
       },
       "contrast": 14.3174
     },
     "messages-light-desktop": {
       "axe": {
         "critical": 1,
-        "serious": 2
+        "serious": 0
       },
       "contrast": 16.3876
     },
     "messages-light-mobile": {
       "axe": {
         "critical": 1,
-        "serious": 2
+        "serious": 0
       },
       "contrast": 16.3876
     },
     "messages-dark-desktop": {
       "axe": {
         "critical": 1,
-        "serious": 2
+        "serious": 0
       },
       "contrast": 11.7788
     },
     "messages-dark-mobile": {
       "axe": {
         "critical": 1,
-        "serious": 2
+        "serious": 0
       },
       "contrast": 11.7788
     },
     "prechat-form-light-desktop": {
       "axe": {
-        "critical": 1,
-        "serious": 1
+        "critical": 0,
+        "serious": 0
       },
       "contrast": 15.5848
     },
     "prechat-form-light-mobile": {
       "axe": {
-        "critical": 1,
-        "serious": 1
+        "critical": 0,
+        "serious": 0
       },
       "contrast": 15.5848
     },
     "prechat-form-dark-desktop": {
       "axe": {
-        "critical": 1,
-        "serious": 1
+        "critical": 0,
+        "serious": 0
       },
       "contrast": 15.4092
     },
     "prechat-form-dark-mobile": {
       "axe": {
-        "critical": 1,
-        "serious": 1
+        "critical": 0,
+        "serious": 0
       },
       "contrast": 15.4092
     },
     "unread-light-desktop": {
       "axe": {
         "critical": 0,
-        "serious": 2
+        "serious": 1
       },
       "contrast": 21
     },
     "unread-light-mobile": {
       "axe": {
         "critical": 0,
-        "serious": 2
+        "serious": 1
       },
       "contrast": 21
     },
     "unread-dark-desktop": {
       "axe": {
         "critical": 0,
-        "serious": 2
+        "serious": 1
       },
       "contrast": 21
     },
     "unread-dark-mobile": {
       "axe": {
         "critical": 0,
-        "serious": 2
+        "serious": 1
       },
       "contrast": 21
     },
     "rich-types-light-desktop": {
       "axe": {
-        "critical": 3,
-        "serious": 1
+        "critical": 2,
+        "serious": 0
       },
       "contrast": 16.1106
     },
     "rich-types-light-mobile": {
       "axe": {
-        "critical": 3,
-        "serious": 1
+        "critical": 2,
+        "serious": 0
       },
       "contrast": 16.1106
     },
     "rich-types-dark-desktop": {
       "axe": {
-        "critical": 3,
-        "serious": 1
+        "critical": 2,
+        "serious": 0
       },
       "contrast": 11.7788
     },
     "rich-types-dark-mobile": {
       "axe": {
-        "critical": 3,
-        "serious": 1
+        "critical": 2,
+        "serious": 0
       },
       "contrast": 11.7788
     }

@@ -60,6 +60,35 @@ const nomesDeEvento = () => {
   return mapa;
 };
 
+// O ID DO COMPOSER, lido da FONTE, pela mesma razão dos nomes de evento acima —
+// e por uma cicatriz concreta: este arquivo usava `#chat-input`, que NÃO existe
+// no widget. Esse id vive em
+// `dashboard/modules/widget-preview/components/WidgetFooter.vue`, ou seja, na
+// MAQUETE do painel; o campo real do widget é `#w-composer-campo`
+// (`widget/ui/WComposer.vue:70`). O seletor órfão fazia o teste morrer de
+// timeout em vez de medir o evento que ele promete medir.
+//
+// Ler da fonte impede a reincidência: se alguém renomear o id no componente e
+// não aqui, este helper levanta na hora, nomeando o arquivo — em vez de o teste
+// esperar 8 s por um elemento que ninguém mais desenha.
+const idDoComposer = () => {
+  const arquivo = path.resolve(
+    __dirname,
+    '../../../app/javascript/widget/ui/WComposer.vue'
+  );
+  const fonte = fs.readFileSync(arquivo, 'utf8');
+  const achado = fonte.match(/<textarea\s+id="([\w-]+)"/);
+  if (!achado) {
+    throw new Error(
+      `nao achei o id do <textarea> em widget/ui/WComposer.vue — ` +
+        `o composer do widget mudou de forma e este teste precisa ser relido`
+    );
+  }
+  return `#${achado[1]}`;
+};
+
+const COMPOSER = idDoComposer();
+
 const EVENTOS = nomesDeEvento();
 const ORDEM_DO_ACEITE = [
   EVENTOS.CHATWOOT_OPENED,
@@ -326,8 +355,12 @@ test.describe('contrato de eventos de window (bloco 5.04)', () => {
     const frame = await abrirWidget(page);
     await irParaMensagens(frame);
 
-    await frame.locator('#chat-input').fill('Mensagem do visitante');
-    await frame.locator('#chat-input').press('Enter');
+    // `toBeVisible` antes de digitar: se o composer sumir do desenho, a falha
+    // diz "o campo não está visível" em vez de "timeout ao preencher", que é o
+    // que fazia o seletor órfão parecer lentidão.
+    await expect(frame.locator(COMPOSER)).toBeVisible();
+    await frame.locator(COMPOSER).fill('Mensagem do visitante');
+    await frame.locator(COMPOSER).press('Enter');
 
     await expect
       .poll(async () => (await eventosObservados(page)).map(e => e.nome), {

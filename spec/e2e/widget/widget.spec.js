@@ -347,6 +347,57 @@ views.forEach(view => {
             violation => violation.impact === 'serious'
           ).length,
         };
+
+        // ── PROVA DE VIDA DO AXE ──────────────────────────────────────────────
+        //
+        // Sem este trecho, a metade axe deste teste passa NO VÁCUO. As asserções
+        // logo abaixo são todas da forma "medido <= teto", e o resultado que um
+        // axe que não rodou devolve — `violations: []` — satisfaz TODOS os tetos,
+        // em todos os cenários, para sempre. Três acidentes silenciosos levam a
+        // esse resultado e nenhum deles quebra o teste: o `include` deixar de
+        // casar (renomear o iframe basta), o axe não conseguir injetar dentro do
+        // frame, ou a análise correr antes de o painel montar.
+        //
+        // As duas provas abaixo foram MEDIDAS antes de escritas, na corrida de
+        // 28/08 (os 20 cenários), e não deduzidas da documentação:
+        //
+        //   · `passes.length` — quantas regras o axe avaliou e aprovou. Medido:
+        //     de 14 (`unread-*`, o cenário mais pobre da matriz) a 32
+        //     (`rich-types-*-desktop`). Zero significa que ele não avaliou nada.
+        //
+        //   · o `target` de cada nó. Num alvo dentro de iframe o axe devolve a
+        //     CADEIA [seletor-do-frame, seletor-dentro-do-frame] — a forma real
+        //     medida é `["#chatwoot_live_chat_widget", ".w-avatar__face"]`.
+        //     Exigir a cadeia com o iframe do widget na cabeça é o que separa
+        //     "o axe rodou DENTRO do widget" de "o axe rodou na página
+        //     hospedeira e não viu o widget". Nós medidos por cenário: de 31 a
+        //     245 — o piso de 10 abaixo tem 3x de folga sobre o menor.
+        //
+        // Verificado por mutação: trocando o `include` por um seletor que não
+        // existe, o teste falha aqui, com a mensagem que nomeia o cenário.
+        const nosAnalisados = [
+          ...accessibility.passes,
+          ...accessibility.violations,
+          ...accessibility.incomplete,
+        ].flatMap(regra => regra.nodes);
+        const nosDentroDoWidget = nosAnalisados.filter(
+          no =>
+            Array.isArray(no.target) &&
+            no.target.length > 1 &&
+            no.target[0] === '#chatwoot_live_chat_widget'
+        );
+        expect(
+          accessibility.passes.length,
+          `o axe não avaliou regra nenhuma em ${scenario} — resultado vazio ` +
+            `satisfaz qualquer teto, então os limites abaixo não mediriam nada`
+        ).toBeGreaterThan(0);
+        expect(
+          nosDentroDoWidget.length,
+          `o axe não analisou nós DENTRO do iframe do widget em ${scenario} ` +
+            `(${nosAnalisados.length} nós no total) — o \`include\` não resolveu ` +
+            `e o que estiver sendo medido não é o widget`
+        ).toBeGreaterThanOrEqual(10);
+
         const ratio = await computedContrast(anchor);
 
         // TETO, não igualdade — autorizado pelo coordenador em 18/08.
