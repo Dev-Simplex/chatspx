@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue';
 import ArticleListItem from './ArticleListItem.vue';
-import { useMapGetter } from 'dashboard/composables/store';
 
 const props = defineProps({
   articles: {
@@ -11,8 +10,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['view', 'viewAll']);
-
-const widgetColor = useMapGetter('appConfig/getWidgetColor');
 
 const articlesToDisplay = computed(() => props.articles.slice(0, 6));
 
@@ -36,9 +33,12 @@ const onArticleClick = link => {
       />
     </div>
     <div>
+      <!-- Blocos 1.03/1.04: o estilo inline que havia aqui pintava a MARCA CRUA
+           sobre o fundo claro do painel — 2,27:1 no verde da casa.
+           `text-w-brand-readable` é a mesma marca escurecida até 4,5:1 pelo
+           servidor, e tem par próprio no tema escuro. -->
       <button
-        class="font-medium tracking-wide inline-flex"
-        :style="{ color: widgetColor }"
+        class="font-medium tracking-wide inline-flex text-w-brand-readable"
         @click="$emit('viewAll')"
       >
         <span>{{ $t('PORTAL.VIEW_ALL_ARTICLES') }}</span>

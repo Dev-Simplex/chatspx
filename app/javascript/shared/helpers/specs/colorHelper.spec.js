@@ -1,15 +1,18 @@
 import { toHex, getContrast } from 'color2k';
-import {
-  isWidgetColorLighter,
-  adjustColorForContrast,
-} from 'shared/helpers/colorHelper';
+import * as colorHelper from 'shared/helpers/colorHelper';
+import { adjustColorForContrast } from 'shared/helpers/colorHelper';
 
-describe('#isWidgetColorLighter', () => {
-  it('returns true if color is lighter', () => {
-    expect(isWidgetColorLighter('#ffffff')).toEqual(true);
-  });
-  it('returns false if color is darker', () => {
-    expect(isWidgetColorLighter('#000000')).toEqual(false);
+// Blocos 1.03/1.04 — `isWidgetColorLighter` foi REMOVIDA, e com ela os dois
+// testes que a cobriam. O que fica no lugar não é um teste de ausência solto:
+// ele nomeia a superfície inteira do módulo, então um `isWidgetColorLighter`
+// que volte com o mesmo nome, ou uma irmã (`isColorLight`, `getBrightness`…),
+// derruba a asserção pelo tamanho da lista, não por uma negativa que passaria
+// no vácuo. A varredura por FÓRMULA — a que pega o mesmo cálculo com outro
+// nome, em qualquer arquivo — está em
+// `app/javascript/widget/specs/formulaDeContraste.spec.js`.
+describe('a superfície exportada de colorHelper', () => {
+  it('exporta exatamente adjustColorForContrast — sem heurística de brilho', () => {
+    expect(Object.keys(colorHelper).sort()).toEqual(['adjustColorForContrast']);
   });
 });
 

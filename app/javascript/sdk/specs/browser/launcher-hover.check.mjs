@@ -142,10 +142,20 @@ check(
 );
 
 // 5) a regra de hover tem de referenciar a var, não uma cor própria
+//
+//    `var(--w-brand` seguido de `,` OU de `)`: o bloco 1.03 deu FALLBACK ao
+//    token (`var(--w-brand, #2dc46f)`), porque sem token a propriedade fica
+//    inválida e o lançador some — medido em
+//    `launcher-brand-fallback.check.mjs`. Aceitar as duas formas NÃO afrouxa
+//    esta asserção: o que ela existe para barrar é uma COR PRÓPRIA no `:hover`
+//    (o `#2dc46f` cravado que mudava o matiz sob o mouse), e essa continua
+//    reprovada — um `background: #2dc46f` aqui não casa o `var(--w-brand`.
+//    Que o fallback não muda o matiz é asserção medida no outro arquivo, com o
+//    hover em repouso E sem token.
 check(
-  'a regra :hover usa var(--w-brand)',
+  'a regra :hover usa var(--w-brand), com ou sem fallback',
   String(
-    /\.woot-widget-bubble:hover\s*\{[^}]*background:\s*var\(--w-brand\)/.test(
+    /\.woot-widget-bubble:hover\s*\{[^}]*background:\s*var\(--w-brand[,)]/.test(
       SDK_CSS
     )
   ),
