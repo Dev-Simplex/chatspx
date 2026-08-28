@@ -35,8 +35,25 @@ import { getContrast, getLuminance, parseToRgba } from 'color2k';
 /** Ponto em que uma cor tem o mesmo contraste contra branco e contra preto. */
 export const LIMIAR_ON_BRAND = 0.17913;
 
-/** As duas superficies do widget (`_tokens.scss`). */
-export const SURFACE = Object.freeze({ light: '#ffffff', dark: '#121213' });
+/**
+ * As duas superficies do widget — os MESMOS valores de
+ * `WidgetTokens::SURFACE_LIGHT` e `WidgetTokens::SURFACE_DARK`.
+ *
+ * ⚠️ A escura e o BALAO DO AGENTE (`--solid-3: 44 45 54` = `#2c2d36`), nao o
+ * fundo do painel (`#121213`). A diferenca nao e estetica: `--w-brand-readable-
+ * dark` pinta o link DENTRO do balao, e uma cor calibrada contra o painel chega
+ * ao balao abaixo do alvo — `#009CE0` da 4,4486:1 e `#1F93FF`, que e o DEFAULT
+ * de `channel_web_widgets`, da 4,3470:1. Calibrando contra o balao os dois
+ * cruzam (4,6970 e 4,5801). Este arquivo tinha `#121213` enquanto o servidor ja
+ * usava `#2c2d36`: o medidor exibia numeros que o widget nao ia produzir.
+ *
+ * Quem trava as duas pontas:
+ *   · `spec/services/widget_brand_tokens_fixture_spec.rb` falha se a fixture
+ *     nao for mais o que `WidgetTokens` deriva hoje;
+ *   · `specs/useContrast.spec.js` falha se ESTE arquivo divergir da fixture.
+ * Mexer num lado so deixa um dos dois vermelho — que e o ponto.
+ */
+export const SURFACE = Object.freeze({ light: '#ffffff', dark: '#2c2d36' });
 
 /** Alvos WCAG: 4,5:1 para texto (SC 1.4.3); 3:1 para borda (SC 1.4.11). */
 export const ALVO_TEXTO = 4.5;
