@@ -17,10 +17,20 @@ import { sdkCssMinify } from './vite.sdk-css';
 
 export default defineConfig({
   plugins: [sdkCssMinify(), chunkStats()],
-  // `sdk.js` tem DOIS tetos (A13) e é o cru que aperta: 45.229 B contra
-  // 40.000. Cada byte aqui é baixado por 100% dos visitantes de todos os
-  // sites de todos os clientes, então a minificação é a mais agressiva que
-  // não muda semântica:
+  // `sdk.js` tem DOIS tetos (A13) e é o CRU que aperta — o gzip nunca esteve
+  // perto do limite. A trajetória do bloco 2.18, medida a cada passo:
+  //
+  //   45.229 B  ponto de partida (+5.229 acima do teto)
+  //   42.969 B  −2.260 · `SDK_CSS` minificado no build + terser em 3 passes
+  //   37.879 B  −5.090 · o pacote `md5` saiu (ver `sdk/dedupeHash.js`)
+  //
+  // com teto de 40.000 B: FOLGA de 2.121 B. E o gate é a trava — devolver o
+  // `md5` ao arquivo estoura o cru de novo, então não existe caminho em que
+  // ele volte em silêncio.
+  //
+  // Cada byte aqui é baixado por 100% dos visitantes de todos os sites de
+  // todos os clientes, então a minificação é a mais agressiva que não muda
+  // semântica:
   //
   //   · terser em 3 passes, em vez do esbuild padrão;
   //   · sem comentário legal no arquivo (a licença do js-cookie continua no
