@@ -54,23 +54,34 @@ const handleChange = () => {
     <div class="flex flex-col gap-2 items-start">
       <div class="flex items-center justify-between w-full gap-3">
         <div class="flex items-center gap-2">
-          <h3 class="text-heading-3 text-n-slate-12">
+          <h3 :id="`${id}-label`" class="text-heading-3 text-n-slate-12">
             {{ label }}
           </h3>
           <Label v-if="disabled" :label="disabledLabel" color="amber" compact />
         </div>
+        <!--
+          O radio precisa de NOME ACESSIVEL proprio. O texto visivel mora no <h3> ao lado e,
+          sem associacao explicita, o axe acusa `label` como violacao SERIA e o leitor de tela
+          anuncia so "botao de opcao" — a pessoa nao sabe qual opcao esta escolhendo. Medido em
+          Chromium na tela de gatilhos: 5 de uma vez (#approach-discreet, #approach-bold,
+          #approach-aggressive, #mode-recommended, #mode-advanced).
+          `aria-labelledby` e nao `aria-label` porque o texto JA existe na tela: duplica-lo
+          criaria duas fontes que divergem na proxima traducao.
+        -->
         <input
           :id="`${id}`"
           :checked="isActive"
           :value="id"
           :name="id"
           :disabled="disabled"
+          :aria-labelledby="`${id}-label`"
+          :aria-describedby="`${id}-description`"
           type="radio"
           class="h-4 w-4 border-n-slate-6 text-n-brand focus:ring-n-brand focus:ring-offset-0 flex-shrink-0"
           @change="handleChange"
         />
       </div>
-      <p class="text-body-main text-n-slate-11">
+      <p :id="`${id}-description`" class="text-body-main text-n-slate-11">
         {{ disabled && disabledMessage ? disabledMessage : description }}
       </p>
       <slot />
