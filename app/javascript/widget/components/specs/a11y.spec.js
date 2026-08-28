@@ -13,12 +13,18 @@
  * `specs/browser/focus-ring.check.mjs`: exige CSS compilado e
  * `getComputedStyle` de um Chromium real.
  */
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { mount } from '@vue/test-utils';
 import { createStore } from 'vuex';
 import { createI18n } from 'vue-i18n';
 import ptBR from 'widget/i18n/locale/pt_BR.json';
 import HeaderActions from '../HeaderActions.vue';
 import ConversationWrap from '../ConversationWrap.vue';
+import ChatAttachment from '../ChatAttachment.vue';
+import FooterReplyTo from '../FooterReplyTo.vue';
+import MessageReplyButton from '../MessageReplyButton.vue';
+import EmailInput from '../template/EmailInput.vue';
 
 const i18n = createI18n({
   legacy: true,
@@ -50,7 +56,16 @@ const makeStore = ({ status = 'open' } = {}) =>
         getters: {
           getCanUserEndConversation: () => true,
           isWidgetStyleFlat: () => false,
+          // `ChatAttachment` lê estes dois por `useAttachments`. Ficam com o
+          // valor que FAZ o botão de anexo renderizar — um getter que o
+          // escondesse deixaria a asserção medindo um botão que não existe.
+          getShouldShowFilePicker: () => true,
+          getShouldShowEmojiPicker: () => true,
         },
+      },
+      globalConfig: {
+        namespaced: true,
+        getters: { get: () => ({ maximumFileUploadSize: 40 }) },
       },
       conversation: {
         namespaced: true,
@@ -148,14 +163,13 @@ describe('1.06 — a11y mínima do widget', () => {
     // pt-BR é a prioridade do fork; `en` é o fallback do vue-i18n. Uma chave só
     // em pt-BR faria a conta em inglês cair no nome da chave — literalmente
     // "A11Y.CLOSE_WIDGET" anunciado pelo leitor de tela.
-    it('pt_BR e en têm as 4 chaves de A11Y, e nenhuma está vazia', async () => {
+    it('pt_BR e en têm TODAS as chaves de A11Y, e nenhuma está vazia', async () => {
       const en = (await import('widget/i18n/locale/en.json')).default;
-      const chaves = [
-        'CONVERSATION_LOG',
-        'CLOSE_WIDGET',
-        'OPEN_IN_NEW_WINDOW',
-        'OPEN_WIDGET',
-      ];
+      // Derivada do arquivo, não escrita à mão: uma lista fixa cobre as chaves
+      // que existiam no dia em que foi escrita e ignora em silêncio toda chave
+      // nova — que é justamente o caso deste bloco, que acrescentou quatro.
+      const chaves = Object.keys(ptBR.A11Y ?? {});
+      expect(chaves.length).toBeGreaterThanOrEqual(14);
 
       chaves.forEach(chave => {
         expect(ptBR.A11Y?.[chave]?.trim()).toBeTruthy();
@@ -164,5 +178,119 @@ describe('1.06 — a11y mínima do widget', () => {
         expect(ptBR.A11Y[chave]).not.toBe(en.A11Y[chave]);
       });
     });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // O ACEITE diz "TODO `<button>`", e até aqui o arquivo media três — os do
+  // cabeçalho. Três botões observados não são "todos": os que estavam sem nome
+  // eram justamente os que ninguém montava. Esta varredura fecha a diferença
+  // entre o que o aceite pede e o que o teste olha.
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('todo <button> do widget tem nome acessível', () => {
+    const RAIZ = 'app/javascript/widget';
+
+    const vuesDoWidget = (dir = RAIZ, achados = []) => {
+      readdirSync(dir).forEach(entrada => {
+        const caminho = join(dir, entrada);
+        if (statSync(caminho).isDirectory()) {
+          // `specs/` fica de fora: fixture de teste não vai ao ar.
+          if (entrada !== 'specs') vuesDoWidget(caminho, achados);
+        } else if (entrada.endsWith('.vue')) {
+          achados.push(caminho);
+        }
+      });
+      return achados;
+    };
+
+    // Um `<button>` tem nome ou por atributo que nomeia, ou por conteúdo que
+    // vira texto. As duas fontes de conteúdo são distintas e as duas são
+    // reais — a segunda já me deu um falso positivo ao escrever isto:
+    // `UnreadMessage.vue` enche a bolha com `v-dompurify-html`, que não deixa
+    // texto literal no template mas RENDERIZA texto. Um verificador que
+    // acusasse esse botão viraria ruído, e ruído é o que faz um verificador
+    // ser desligado.
+    const NOMEIA_POR_ATRIBUTO =
+      /(^|[\s:@])(aria-label|aria-labelledby|title)\s*=/;
+    const NOMEIA_POR_DIRETIVA = /v-(dompurify-)?html\s*=/;
+
+    const botoesDe = arquivo => {
+      const fonte = readFileSync(arquivo, 'utf8');
+      const template = /<template>([\s\S]*)<\/template>/.exec(fonte)?.[1];
+      if (!template) return [];
+
+      const linhaDoTemplate = fonte
+        .slice(0, fonte.indexOf('<template>'))
+        .split('\n').length;
+
+      const achados = [];
+      let i = template.indexOf('<button');
+      while (i !== -1) {
+        const fimDaAbertura = template.indexOf('>', i);
+        const atributos = template.slice(i + '<button'.length, fimDaAbertura);
+        const fechamento = template.indexOf('</button>', fimDaAbertura);
+        const conteudo =
+          fechamento === -1
+            ? ''
+            : template.slice(fimDaAbertura + 1, fechamento);
+
+        achados.push({
+          onde: `${arquivo}:${
+            linhaDoTemplate + template.slice(0, i).split('\n').length - 1
+          }`,
+          temNome:
+            NOMEIA_POR_ATRIBUTO.test(atributos) ||
+            // texto literal ou interpolação sobrando depois de tirar as tags
+            conteudo.replace(/<[^>]*>/g, '').trim().length > 0 ||
+            // `<slot />`: quem consome o primitivo é que dá o nome
+            /<slot\b/.test(conteudo) ||
+            NOMEIA_POR_DIRETIVA.test(conteudo),
+        });
+        i = template.indexOf('<button', fimDaAbertura);
+      }
+      return achados;
+    };
+
+    it('nenhum <button> fica sem nome acessível', () => {
+      const arquivos = vuesDoWidget();
+      const botoes = arquivos.flatMap(botoesDe);
+
+      // Piso antes da asserção de ausência. Sem ele esta varredura ficaria
+      // verde no vácuo: bastaria a raiz mudar de lugar e `readdirSync` devolver
+      // zero arquivo para "nenhum botão sem nome" passar sem ter olhado nada.
+      expect(arquivos.length).toBeGreaterThanOrEqual(60);
+      expect(botoes.length).toBeGreaterThanOrEqual(20);
+
+      expect(botoes.filter(b => !b.temNome).map(b => b.onde)).toEqual([]);
+    });
+  });
+
+  describe('os botões só-ícone que faltavam, montados de verdade', () => {
+    // A varredura acima é textual; esta parte monta os componentes e lê o nome
+    // do DOM, em pt-BR. As duas medem coisas diferentes de propósito: a
+    // varredura pega um botão novo que ninguém montou, a montagem pega um
+    // `aria-label` que existe no arquivo mas não chega ao elemento.
+    const casos = [
+      ['ChatAttachment', ChatAttachment, {}, 'Anexar arquivo'],
+      [
+        'FooterReplyTo',
+        FooterReplyTo,
+        { inReplyTo: { content: 'olá' } },
+        'Cancelar resposta',
+      ],
+      ['MessageReplyButton', MessageReplyButton, {}, 'Responder à mensagem'],
+      ['EmailInput', EmailInput, { messageId: 1 }, 'Confirmar e-mail'],
+    ];
+
+    it.each(casos)(
+      '%s: o botão só-ícone tem nome acessível em pt-BR',
+      (_nome, componente, props, esperado) => {
+        const wrapper = mountWith(componente, makeStore(), props);
+        const botoes = wrapper.findAll('button');
+
+        // Um piso outra vez: `forEach` sobre lista vazia passa calado.
+        expect(botoes.length).toBeGreaterThanOrEqual(1);
+        expect(botoes.map(b => b.attributes('aria-label'))).toContain(esperado);
+      }
+    );
   });
 });

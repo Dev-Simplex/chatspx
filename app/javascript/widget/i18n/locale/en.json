@@ -210,7 +210,11 @@
     "IMAGE_ATTACHMENT": "Image sent in the conversation",
     "SCROLL_TO_LATEST": "Go to the latest messages",
     "BACK": "Back",
-    "SEND_MESSAGE": "Send message"
+    "SEND_MESSAGE": "Send message",
+    "ATTACH_FILE": "Attach file",
+    "DISMISS_REPLY": "Cancel reply",
+    "REPLY_TO_MESSAGE": "Reply to message",
+    "SUBMIT_EMAIL": "Confirm email"
   },
   "CAPTURE": {
     "SUBMIT": "Send",

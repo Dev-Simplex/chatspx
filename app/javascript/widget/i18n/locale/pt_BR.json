@@ -210,7 +210,11 @@
     "IMAGE_ATTACHMENT": "Imagem enviada na conversa",
     "SCROLL_TO_LATEST": "Ir para as mensagens mais recentes",
     "BACK": "Voltar",
-    "SEND_MESSAGE": "Enviar mensagem"
+    "SEND_MESSAGE": "Enviar mensagem",
+    "ATTACH_FILE": "Anexar arquivo",
+    "DISMISS_REPLY": "Cancelar resposta",
+    "REPLY_TO_MESSAGE": "Responder à mensagem",
+    "SUBMIT_EMAIL": "Confirmar e-mail"
   },
   "CAPTURE": {
     "SUBMIT": "Enviar",
