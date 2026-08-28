@@ -69,18 +69,22 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     run_engine(event_name, account, conversation, payload)
   end
 
-  # Motor unificado, gated por conta: com a flag `flows` ligada, a conta roda os Flows (que
-  # o backfill criou espelhando as regras antigas); sem ela, roda as AutomationRules como
-  # sempre. Mutuamente exclusivo por conta — é a mitigação de R-1 (dupla-execução) durante a
-  # coexistência, sem tocar dados e reversível (desligar a flag volta ao motor antigo).
+  # Motor unificado: os DOIS rodam. Os Flows quando a conta tem flows ativos, e as
+  # AutomationRules SEMPRE — cada motor com o que só ele sabe fazer.
+  #
+  # Até aqui era `if/else`, um excluindo o outro, e isso cobrava um preço alto: numa conta em modo
+  # regras os flows apareciam na tela, salvavam e NUNCA disparavam (a .229 tinha 21 flows parados
+  # assim); e ligar a flag numa conta que dependia das regras silenciaria todas elas de uma vez.
+  # Pior, ação que só existe no canvas — o `distribuir` do rodízio é o caso — ficava inalcançável
+  # para quem estava em regras, porque o motor de regras não tem essa ação.
+  #
+  # A dupla-execução, que era o motivo do `else`, continua barrada: quem protege agora é
+  # `regras_com_flow_equivalente` (ver lá), usando o `backfill_source` gravado no próprio flow.
   def run_engine(event_name, account, conversation, payload)
     return if account.blank?
 
-    if flows_engine_active?(account)
-      run_flows(event_name, account, conversation, payload)
-    else
-      run_rules(event_name, account, conversation, payload)
-    end
+    run_flows(event_name, account, conversation, payload) if flows_engine_active?(account)
+    run_rules(event_name, account, conversation, payload)
   end
 
   # O motor Flow só assume quando a flag está ligada E a conta já tem flows (o backfill
@@ -95,10 +99,42 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   end
 
   def run_rules(event_name, account, conversation, payload)
+    # A dedução só vale quando o motor de flows está DE FATO rodando. Sem esta condição, uma conta
+    # com a flag desligada (o estado da .229 e da Tozi hoje) pularia a regra E não rodaria o flow:
+    # a automação sumiria por completo, em silêncio. O teste pegou exatamente isso.
+    duplicadas = flows_engine_active?(account) ? regras_com_flow_equivalente(account) : Set.new
+
     current_account_rules(event_name, account).each do |rule|
+      next if duplicadas.include?(rule.id)
+
       conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, conversation, payload).perform
       ::AutomationRules::ActionService.new(rule, account, conversation).perform if conditions_match.present?
     end
+  end
+
+  # Ids das regras que JÁ VIRARAM flow — o flow vence e a regra é pulada.
+  #
+  # Sem isto, rodar os dois motores dispararia a mesma automação duas vezes: o backfill criou os
+  # flows COPIANDO as regras, e as duas continuam ativas lado a lado. Medido em 28/08/2026: 11
+  # pares na Tozi (triagem da IA e reabertura, ou seja, atribuir time e acionar a IA duas vezes por
+  # conversa) e 1 na .229.
+  #
+  # O pareamento não é heurístico: o backfill gravou `trigger_config.backfill_source` =
+  # "automation_rule:<id>" no próprio flow, então a origem é dado, não adivinhação. Flow nascido de
+  # MACRO (a maioria) NÃO entra aqui de propósito — macro é ação manual, não dispara sozinha, então
+  # nunca houve duplicidade com ela.
+  #
+  # Some sozinho quando não é mais preciso: desativar o flow devolve a regra ao ar, sem ninguém ter
+  # de lembrar de reativá-la. É por isso que isto vive aqui e não como `active: false` no banco —
+  # desligar a regra na mão criaria uma automação que some sem explicação no dia em que alguém
+  # desativar o flow.
+  def regras_com_flow_equivalente(account)
+    Rails.cache.fetch("flow_backfill_rule_ids:#{account.id}", expires_in: 2.minutes) do
+      account.flows.active
+             .where("trigger_config->>'backfill_source' LIKE 'automation_rule:%'")
+             .pluck(Arel.sql("trigger_config->>'backfill_source'"))
+             .filter_map { |origem| origem.to_s.split(':').last.to_i.presence }
+    end.to_set
   end
 
   def run_flows(event_name, account, conversation, payload)
