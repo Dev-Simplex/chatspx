@@ -6,22 +6,24 @@ class SummaryReportsAPI extends ApiClient {
     super('summary_reports', { accountScoped: true, apiVersion: 'v2' });
   }
 
-  getTeamReports({ since, until, businessHours } = {}) {
+  getTeamReports({ since, until, businessHours, inboxId } = {}) {
     return axios.get(`${this.url}/team`, {
       params: {
         since,
         until,
         business_hours: businessHours,
+        inbox_id: inboxId || undefined,
       },
     });
   }
 
-  getAgentReports({ since, until, businessHours } = {}) {
+  getAgentReports({ since, until, businessHours, inboxId } = {}) {
     return axios.get(`${this.url}/agent`, {
       params: {
         since,
         until,
         business_hours: businessHours,
+        inbox_id: inboxId || undefined,
       },
     });
   }
@@ -44,22 +46,24 @@ class SummaryReportsAPI extends ApiClient {
     });
   }
 
-  getInboxReports({ since, until, businessHours } = {}) {
+  getInboxReports({ since, until, businessHours, inboxId } = {}) {
     return axios.get(`${this.url}/inbox`, {
       params: {
         since,
         until,
         business_hours: businessHours,
+        inbox_id: inboxId || undefined,
       },
     });
   }
 
-  getLabelReports({ since, until, businessHours } = {}) {
+  getLabelReports({ since, until, businessHours, inboxId } = {}) {
     return axios.get(`${this.url}/label`, {
       params: {
         since,
         until,
         business_hours: businessHours,
+        inbox_id: inboxId || undefined,
       },
     });
   }

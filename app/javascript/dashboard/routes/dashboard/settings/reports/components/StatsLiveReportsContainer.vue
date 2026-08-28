@@ -96,6 +96,8 @@ onMounted(() => {
               slate
               faded
               :label="selectedTeamLabel"
+              icon="i-lucide-chevron-down"
+              trailing-icon
               class="capitalize rounded-md group-hover:bg-n-alpha-2"
               @click="toggleDropdown()"
             />
