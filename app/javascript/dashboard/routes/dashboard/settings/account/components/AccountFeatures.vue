@@ -25,7 +25,7 @@ const carregar = async () => {
     const { data } = await AccountFeaturesAPI.get();
     features.value = data.features || [];
   } catch (erro) {
-    useAlert(t('GENERAL_SETTINGS.FORM.FEATURES.API.ERROR'));
+    useAlert(t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.API.ERROR'));
   }
   carregando.value = false;
 };
@@ -38,17 +38,17 @@ const grupos = computed(() =>
   [
     {
       chave: 'ativas',
-      titulo: t('GENERAL_SETTINGS.FORM.FEATURES.GROUPS.ON'),
+      titulo: t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.GROUPS.ON'),
       itens: features.value.filter(f => f.enabled && f.available),
     },
     {
       chave: 'disponiveis',
-      titulo: t('GENERAL_SETTINGS.FORM.FEATURES.GROUPS.OFF'),
+      titulo: t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.GROUPS.OFF'),
       itens: features.value.filter(f => !f.enabled && f.available),
     },
     {
       chave: 'indisponiveis',
-      titulo: t('GENERAL_SETTINGS.FORM.FEATURES.GROUPS.BLOCKED'),
+      titulo: t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.GROUPS.BLOCKED'),
       itens: features.value.filter(f => !f.available),
     },
     // Grupo vazio some AQUI e não no template: `v-for` com `v-if` na mesma tag avalia o `v-if` por
@@ -59,12 +59,13 @@ const grupos = computed(() =>
 // O aviso sai de DADO (as marcações do features.yml), não de uma lista de nomes escrita à mão.
 const aviso = feature => {
   if (!feature.available)
-    return t('GENERAL_SETTINGS.FORM.FEATURES.HINT.NO_BIT');
+    return t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.HINT.NO_BIT');
   if (feature.deprecated)
-    return t('GENERAL_SETTINGS.FORM.FEATURES.HINT.DEPRECATED');
-  if (feature.premium) return t('GENERAL_SETTINGS.FORM.FEATURES.HINT.PREMIUM');
+    return t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.HINT.DEPRECATED');
+  if (feature.premium)
+    return t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.HINT.PREMIUM');
   if (feature.internal)
-    return t('GENERAL_SETTINGS.FORM.FEATURES.HINT.INTERNAL');
+    return t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.HINT.INTERNAL');
   return '';
 };
 
@@ -81,11 +82,11 @@ const alternar = async feature => {
       [feature.name]: desejado,
     });
     features.value = data.features || features.value;
-    useAlert(t('GENERAL_SETTINGS.FORM.FEATURES.API.SUCCESS'));
+    useAlert(t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.API.SUCCESS'));
   } catch (erro) {
     useAlert(
       erro.response?.data?.error ||
-        t('GENERAL_SETTINGS.FORM.FEATURES.API.ERROR')
+        t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.API.ERROR')
     );
   }
   salvando.value = null;
@@ -94,8 +95,8 @@ const alternar = async feature => {
 
 <template>
   <SectionLayout
-    :title="$t('GENERAL_SETTINGS.FORM.FEATURES.TITLE')"
-    :description="$t('GENERAL_SETTINGS.FORM.FEATURES.NOTE')"
+    :title="$t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.TITLE')"
+    :description="$t('GENERAL_SETTINGS.FORM.ACCOUNT_FEATURES.NOTE')"
   >
     <div v-if="carregando" class="flex items-center justify-center py-6">
       <Spinner class="text-n-blue-11" />
