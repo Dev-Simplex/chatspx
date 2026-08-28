@@ -98,15 +98,21 @@ describe CustomAttributes::AutoProvisionService do
     end
   end
 
-  # Aceite: corrida cria uma definicao so. Quem garante e o indice unico
-  # (attribute_key, attribute_model, account_id). A validacao de unicidade do
-  # Rails nao ve o INSERT da outra requisicao antes do commit dela, entao a
-  # corrida chega ao banco de duas formas — e as duas sao testadas aqui.
+  # Aceite: corrida cria uma definicao so. A corrida chega ao banco por DOIS caminhos, e
+  # sob fixture transacional so um deles existe — este arquivo tem uma conexao so, entao
+  # tudo o que a "outra requisicao" grava e imediatamente visivel para o nosso SELECT.
   #
-  # Nao ha teste com threads de proposito: sob fixtures transacionais a conta
-  # criada nesta transacao nao existe para outra conexao, entao um teste de
-  # thread mediria a fixture, nao a corrida. Seria verde mentindo.
-  describe 'corrida entre duas requisicoes' do
+  # Caminho 1 (aqui): a outra requisicao ja COMMITOU. A validacao de unicidade do Rails
+  # (custom_attribute_definition.rb:47-50) encontra a linha, o INSERT nem sai, e o erro e
+  # de validacao — nao encosta no banco.
+  #
+  # Caminho 2 (o que derrubava a transacao): a outra requisicao INSERIU e ainda NAO
+  # commitou. A linha e invisivel para o nosso SELECT, a validacao passa, e quem recusa e o
+  # indice unico — abortando a transacao inteira de quem chamou. Esse caminho exige duas
+  # conexoes de verdade e vive em `auto_provision_race_spec.rb`, que desliga a fixture
+  # transacional. Nao tente reproduzi-lo aqui: com uma conexao so, o teste passa medindo a
+  # validacao e nao a corrida.
+  describe 'corrida entre duas requisicoes (caminho da validacao)' do
     it 'sobrevive quando a outra requisicao commitou entre o SELECT e o INSERT' do
       instance = service.new(account: account, attribute_model: :contact_attribute,
                              custom_attributes: { 'carrinho_valor' => 4200 })
@@ -117,15 +123,6 @@ describe CustomAttributes::AutoProvisionService do
 
       expect { instance.perform }.not_to raise_error
       expect(definitions.where(attribute_key: 'carrinho_valor').count).to eq(1)
-    end
-
-    it 'sobrevive ao INSERT recusado pelo indice unico, sem propagar o erro' do
-      relation = account.custom_attribute_definitions
-      allow(account).to receive(:custom_attribute_definitions).and_return(relation)
-      allow(relation).to receive(:create!).and_raise(ActiveRecord::RecordNotUnique.new('duplicate key value'))
-
-      expect { provision('carrinho_valor' => 4200) }.not_to raise_error
-      expect(definitions.where(attribute_key: 'carrinho_valor').count).to eq(0)
     end
   end
 

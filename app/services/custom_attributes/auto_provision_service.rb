@@ -70,21 +70,32 @@ class CustomAttributes::AutoProvisionService
             .pluck(:attribute_key)
   end
 
+  # O savepoint (`requires_new: true`) nao e zelo: sem ele a corrida nao custa a definicao,
+  # custa a REQUISICAO INTEIRA. Este `create!` roda dentro da transacao de quem chamou
+  # (ContactIdentifyAction:21, widget/conversations#create:10). Quando o indice unico recusa
+  # o INSERT, o Postgres aborta a transacao toda: o `rescue` abaixo ate pega o erro em Ruby,
+  # mas a conexao ja esta em estado abortado — o comando seguinte levanta
+  # PG::InFailedSqlTransaction (500 no widget) e, se nao houver comando seguinte, o COMMIT
+  # vira ROLLBACK em silencio e leva junto o contato, a conversa e a primeira mensagem.
+  # Com o savepoint, o ROLLBACK TO SAVEPOINT desfaz so este INSERT e devolve a transacao
+  # externa intacta.
   def provision(key, value)
-    @account.custom_attribute_definitions.create!(
-      attribute_key: key,
-      attribute_display_name: key.tr('_.-', '   ').squish.upcase_first,
-      attribute_display_type: display_type_for(value),
-      attribute_model: @attribute_model,
-      attribute_description: I18n.t('custom_attributes.auto_provisioned.description'),
-      # Bloco 4.17: a origem passa a ser gravada em coluna. Antes o selo do 1.17 dependia
-      # de casar o texto da descricao, que o agente pode reescrever a qualquer momento.
-      origin: CustomAttributeDefinition::ORIGIN_WEBSITE
-    )
+    CustomAttributeDefinition.transaction(requires_new: true) do
+      @account.custom_attribute_definitions.create!(
+        attribute_key: key,
+        attribute_display_name: key.tr('_.-', '   ').squish.upcase_first,
+        attribute_display_type: display_type_for(value),
+        attribute_model: @attribute_model,
+        attribute_description: I18n.t('custom_attributes.auto_provisioned.description'),
+        # Bloco 4.17: a origem passa a ser gravada em coluna. Antes o selo do 1.17 dependia
+        # de casar o texto da descricao, que o agente pode reescrever a qualquer momento.
+        origin: CustomAttributeDefinition::ORIGIN_WEBSITE
+      )
+    end
   rescue ActiveRecord::RecordNotUnique
-    # Corrida: outra requisicao commitou a mesma chave entre o nosso SELECT e o
-    # INSERT. O indice unico (attribute_key, attribute_model, account_id) e quem
-    # garante que sobra uma so — nao ha nada a fazer aqui alem de seguir.
+    # Corrida: outra requisicao gravou a mesma chave entre o nosso SELECT e o INSERT. O
+    # indice unico (attribute_key, attribute_model, account_id) e quem garante que sobra uma
+    # so — nao ha nada a fazer aqui alem de seguir.
     nil
   rescue ActiveRecord::RecordInvalid => e
     # Auto-provisionar e conveniencia. Se falhar, o atributo ainda foi gravado
