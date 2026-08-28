@@ -135,10 +135,19 @@ export const WIDGET_CONFIG_FIELDS = [
     path: 'reply_time',
     read: inbox => inbox?.reply_time || 'in_a_few_minutes',
   },
+  // O `path` e `selected_feature_flags`, e nao `selectedFeatureFlags`, porque o
+  // `save()` do rascunho manda `formData: false` — JSON cru. `buildInboxData`,
+  // o unico lugar que traduzia o nome em camelCase para
+  // `channel[selected_feature_flags][]`, so roda no caminho de `FormData` e nao
+  // esta neste. O `permit` do servidor so conhece `selected_feature_flags`
+  // (`Channel::WebWidget::EDITABLE_ATTRS`) e descarta em SILENCIO o que nao
+  // conhece: quando as flags eram a unica mudanca, o sub-hash do canal chegava
+  // vazio, `channel_update_required?` nem chamava o update, e a tela mostrava
+  // "salvo" com o banco intacto — o checkbox voltava sozinho no proximo eco.
   {
     key: 'featureFlags',
     scope: 'channel',
-    path: 'selectedFeatureFlags',
+    path: 'selected_feature_flags',
     read: inbox => [...(inbox?.selected_feature_flags ?? [])],
   },
   {

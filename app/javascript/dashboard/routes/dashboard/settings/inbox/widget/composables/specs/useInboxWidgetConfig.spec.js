@@ -160,6 +160,25 @@ describe('useInboxWidgetConfig', () => {
     expect(result.saved).toBe(true);
   });
 
+  it('marcar uma feature flag chega ao dispatch com o nome que o servidor lê', async () => {
+    const { set, save } = useInboxWidgetConfig(7);
+
+    set('featureFlags', ['attachments', 'emoji_picker', 'end_conversation']);
+    await save();
+
+    expect(dispatch).toHaveBeenCalledWith('inboxes/updateInbox', {
+      id: 7,
+      formData: false,
+      channel: {
+        selected_feature_flags: [
+          'attachments',
+          'emoji_picker',
+          'end_conversation',
+        ],
+      },
+    });
+  });
+
   it('depois de salvar, a barra some (nada mais pendente)', async () => {
     const { setIn, save, isDirty, dirtyCount } = useInboxWidgetConfig(7);
 
@@ -251,6 +270,36 @@ describe('buildPayload', () => {
 
     expect(buildPayload(saved, draft).additional_attributes).toEqual({
       widget_appearance: { position: 'left', theme: 'auto' },
+    });
+  });
+
+  /**
+   * O NOME DE FIO das feature flags.
+   *
+   * `save()` manda `formData: false`, ou seja, JSON cru: `buildInboxData` — o
+   * unico lugar que traduzia `selectedFeatureFlags` para
+   * `channel[selected_feature_flags][]` — nao esta no caminho. O servidor
+   * permite `{ selected_feature_flags: [] }` (`Channel::WebWidget::EDITABLE_ATTRS`)
+   * e o strong params descarta em SILENCIO o que nao conhece. Pior: quando as
+   * flags sao a UNICA mudanca, `channel_update_required?` ve o sub-hash vazio e
+   * nem chama o update — resposta 200, toast de salvo, barra some, e o checkbox
+   * volta sozinho no proximo eco do store.
+   */
+  it('manda as feature flags com o nome de fio do servidor, não em camelCase', () => {
+    const antes = { ...saved, featureFlags: ['emoji_picker'] };
+    const depois = { ...antes, featureFlags: ['emoji_picker', 'attachments'] };
+
+    expect(buildPayload(antes, depois).channel).toEqual({
+      selected_feature_flags: ['emoji_picker', 'attachments'],
+    });
+  });
+
+  it('desmarcar a última flag viaja como lista vazia, com o mesmo nome', () => {
+    const antes = { ...saved, featureFlags: ['emoji_picker'] };
+    const depois = { ...antes, featureFlags: [] };
+
+    expect(buildPayload(antes, depois).channel).toEqual({
+      selected_feature_flags: [],
     });
   });
 });
