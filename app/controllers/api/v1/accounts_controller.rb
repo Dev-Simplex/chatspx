@@ -9,6 +9,16 @@ class Api::V1::AccountsController < Api::BaseController
   before_action :validate_captcha, only: [:create]
   before_action :fetch_account, except: [:create]
   before_action :check_authorization, except: [:create]
+  before_action :check_conversation_workflow_authorization, only: [:update]
+
+  # Os ajustes que a tela "Fluxo de conversa" grava. Ela não tem controller próprio —
+  # escreve em account.settings pelo mesmo PATCH /accounts/:id que "Configurações da
+  # conta" usa. Por isso a negação ao supervisor de time é por CHAVE: ele segue editando
+  # nome/idioma/domínio da conta, e só estas cinco saem do alcance dele.
+  CONVERSATION_WORKFLOW_SETTINGS = %w[
+    auto_resolve_after auto_resolve_message auto_resolve_ignore_waiting auto_resolve_label
+    conversation_required_attributes
+  ].freeze
 
   rescue_from CustomExceptions::Account::InvalidEmail,
               CustomExceptions::Account::InvalidParams,
@@ -125,6 +135,11 @@ class Api::V1::AccountsController < Api::BaseController
   def fetch_account
     @account = current_user.accounts.find(params[:id])
     @current_account_user = @account.account_users.find_by(user_id: current_user.id)
+  end
+
+  def check_conversation_workflow_authorization
+    return unless SupervisorSettingsScope.blocked?(current_user, @account)
+    raise Pundit::NotAuthorizedError if params.keys.intersect?(CONVERSATION_WORKFLOW_SETTINGS)
   end
 
   def account_params

@@ -325,7 +325,14 @@ export function useBulkActions() {
       (acc, id) => {
         const conversation = store.getters.getConversationById(id);
         const currentCustomAttributes = conversation?.custom_attributes || {};
-        const { hasMissing } = checkMissingAttributes(currentCustomAttributes);
+        // Obrigatório também alcança atributo de CONTATO — sem isso o agente
+        // contornaria a regra selecionando as conversas na lista.
+        const contactCustomAttributes =
+          conversation?.meta?.sender?.custom_attributes || {};
+        const { hasMissing } = checkMissingAttributes(
+          currentCustomAttributes,
+          contactCustomAttributes
+        );
 
         if (!hasMissing) {
           acc.validIds.push(id);

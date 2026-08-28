@@ -53,7 +53,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDoc, true));
           :key="it.value"
           type="button"
           class="flex gap-2.5 items-center px-3 py-2 w-full text-left text-[13px] font-medium transition hover:bg-n-alpha-2"
-          :class="it.danger ? 'text-r-500' : 'text-n-slate-12'"
+          :class="it.danger ? 'text-n-ruby-11' : 'text-n-slate-12'"
           @click="pick(it)"
         >
           <span v-if="it.icon" :class="it.icon" class="size-4" />

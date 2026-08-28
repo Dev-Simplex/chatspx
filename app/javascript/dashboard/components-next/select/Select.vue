@@ -50,7 +50,7 @@ const modelValue = defineModel({
       :class="{
         'outline-n-weak hover:outline-n-slate-6 focus:outline-n-blue-9':
           !error && !disabled,
-        'outline-n-red-9 focus:outline-n-red-9': error && !disabled,
+        'outline-n-ruby-9 focus:outline-n-ruby-9': error && !disabled,
         'outline-n-weak bg-n-slate-2 cursor-not-allowed opacity-60': disabled,
       }"
     >

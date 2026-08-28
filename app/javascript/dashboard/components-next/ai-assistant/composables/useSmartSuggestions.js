@@ -112,9 +112,9 @@ export function useSmartSuggestions(conversationRef) {
         id: 'waiting',
         severity: 'urgent',
         icon: 'i-lucide-clock',
-        textKey: 'CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.WAITING.BODY',
+        textKey: 'AI_ASSISTANT_PANEL.SMART_BANNER.WAITING.BODY',
         textParams: { minutes: customerWaitingMinutes.value },
-        ctaKey: 'CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.WAITING.CTA',
+        ctaKey: 'AI_ASSISTANT_PANEL.SMART_BANNER.WAITING.CTA',
         action: 'reply_suggestion',
       };
     }
@@ -127,9 +127,9 @@ export function useSmartSuggestions(conversationRef) {
         id: 'sentiment',
         severity: 'warning',
         icon: 'i-lucide-alert-triangle',
-        textKey: 'CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.SENTIMENT.BODY',
+        textKey: 'AI_ASSISTANT_PANEL.SMART_BANNER.SENTIMENT.BODY',
         textParams: {},
-        ctaKey: 'CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.SENTIMENT.CTA',
+        ctaKey: 'AI_ASSISTANT_PANEL.SMART_BANNER.SENTIMENT.CTA',
         action: 'reply_suggestion',
       };
     }
@@ -142,10 +142,9 @@ export function useSmartSuggestions(conversationRef) {
         id: 'long_thread',
         severity: 'info',
         icon: 'i-lucide-sparkles',
-        textKey:
-          'CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.LONG_THREAD.BODY',
+        textKey: 'AI_ASSISTANT_PANEL.SMART_BANNER.LONG_THREAD.BODY',
         textParams: { count: messageCount.value },
-        ctaKey: 'CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.LONG_THREAD.CTA',
+        ctaKey: 'AI_ASSISTANT_PANEL.SMART_BANNER.LONG_THREAD.CTA',
         action: 'summarize',
       };
     }

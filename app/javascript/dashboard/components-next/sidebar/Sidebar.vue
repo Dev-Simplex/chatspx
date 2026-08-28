@@ -877,6 +877,14 @@ const menuItems = computed(() => {
           ],
           to: accountScopedRoute('settings_teams_list'),
         },
+        {
+          name: 'Settings Units',
+          label: t('SIDEBAR.UNITS'),
+          // Lucide puro: não existe entrada 'inbox' no mapa LORDICON, e pedir uma
+          // que não existe rende um player vazio.
+          icon: 'i-lucide-map-pin',
+          to: accountScopedRoute('units_list'),
+        },
         ...(hasAdvancedAssignment.value
           ? [
               {

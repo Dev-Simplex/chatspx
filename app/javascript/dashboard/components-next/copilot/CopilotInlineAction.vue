@@ -27,14 +27,14 @@ async function handleClick() {
     :class="
       executed
         ? 'border-green-300 bg-green-50 text-green-700'
-        : 'border-primary-300 bg-primary-25 text-primary-700 hover:bg-primary-50'
+        : 'border-n-teal-6 bg-n-teal-2 text-n-teal-11 hover:bg-n-teal-3'
     "
     :disabled="executed || executing"
     @click="handleClick"
   >
     <span
       v-if="executing"
-      class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary-300 border-t-transparent"
+      class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-n-teal-6 border-t-transparent"
     />
     <span v-else-if="executed">&#10003;</span>
     {{ executed ? 'Done' : label }}

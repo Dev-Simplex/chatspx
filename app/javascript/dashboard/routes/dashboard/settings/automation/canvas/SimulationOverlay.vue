@@ -239,7 +239,7 @@ onMounted(() => {
             {{ t('AUTOMATION.CANVAS.SIMULATE.ERROR') }}
           </p>
           <button
-            class="px-3 py-1.5 text-xs font-medium rounded-lg text-n-slate-12 bg-n-solid-3 hover:bg-n-solid-4"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg text-n-slate-12 bg-n-solid-3 hover:bg-n-solid-3"
             @click="runSimulation"
           >
             {{ t('AUTOMATION.CANVAS.SIMULATE.RETRY') }}
@@ -313,7 +313,7 @@ onMounted(() => {
           }}
         </span>
         <button
-          class="ml-auto px-3 py-1.5 text-xs font-medium rounded-lg text-n-slate-12 bg-n-solid-3 hover:bg-n-solid-4 disabled:opacity-60"
+          class="ml-auto px-3 py-1.5 text-xs font-medium rounded-lg text-n-slate-12 bg-n-solid-3 hover:bg-n-solid-3 disabled:opacity-60"
           :disabled="isLoading"
           data-testid="simulation-rerun"
           @click="runSimulation"

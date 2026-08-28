@@ -656,7 +656,7 @@ onBeforeUnmount(() => {
           </span>
           <select
             v-model="sortBy"
-            class="rounded-lg border border-n-weak bg-n-solid-2 text-n-slate-12 text-sm px-3 py-1.5 outline-none focus:ring-2 focus:ring-n-brand-9"
+            class="rounded-lg border border-n-weak bg-n-solid-2 text-n-slate-12 text-sm px-3 py-1.5 outline-none focus:ring-2 focus:ring-n-brand"
           >
             <option value="calls">
               {{ $t('LIVE_REPORTS.IN_SERVICE.SORT_BY_CALLS') }}
@@ -680,7 +680,7 @@ onBeforeUnmount(() => {
           class="flex items-center gap-3 p-4 rounded-xl bg-n-solid-2 border border-n-weak outline-1 outline outline-n-container cursor-help"
         >
           <span
-            class="flex items-center justify-center size-10 rounded-lg bg-n-brand-3 text-n-brand-11"
+            class="flex items-center justify-center size-10 rounded-lg bg-n-teal-3 text-n-teal-11"
           >
             <span class="i-lucide-phone-call size-5" />
           </span>

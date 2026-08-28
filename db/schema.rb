@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_27_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -63,6 +63,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.boolean "auto_offline", default: true, null: false
     t.bigint "custom_role_id"
     t.bigint "agent_capacity_policy_id"
+    t.boolean "supervisor", default: false, null: false
     t.index ["account_id", "user_id"], name: "uniq_user_id_per_account_id", unique: true
     t.index ["account_id"], name: "index_account_users_on_account_id"
     t.index ["agent_capacity_policy_id"], name: "index_account_users_on_agent_capacity_policy_id"
@@ -901,14 +902,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.datetime "updated_at", null: false
     t.bigint "assigned_by_id"
     t.integer "source", default: 6, null: false
-    t.index ["account_id", "assigned_at"], name: "idx_conv_assign_hist_account_assigned_at"
-    t.index ["account_id", "assignee_id"], name: "idx_conv_assign_hist_account_assignee"
-    t.index ["account_id", "team_id"], name: "idx_conv_assign_hist_account_team"
-    t.index ["account_id"], name: "index_conversation_assignment_histories_on_account_id"
+    t.index ["account_id", "assigned_at"], name: "idx_cah_account_assigned_at"
     t.index ["assigned_by_id"], name: "index_conversation_assignment_histories_on_assigned_by_id"
     t.index ["assignee_id"], name: "index_conversation_assignment_histories_on_assignee_id"
-    t.index ["conversation_id"], name: "index_conversation_assignment_histories_on_conversation_id"
-    t.index ["team_id"], name: "index_conversation_assignment_histories_on_team_id"
   end
 
   create_table "conversation_participants", force: :cascade do |t|
@@ -946,6 +942,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.index ["requester_user_id"], name: "index_conversation_pdf_exports_on_requester_user_id"
     t.index ["sha256"], name: "index_conversation_pdf_exports_on_sha256", unique: true, where: "(sha256 IS NOT NULL)"
     t.index ["status"], name: "index_conversation_pdf_exports_on_status"
+  end
+
+  create_table "conversation_pins", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_conversation_pins_on_account_id"
+    t.index ["conversation_id"], name: "index_conversation_pins_on_conversation_id"
+    t.index ["user_id", "conversation_id"], name: "index_conversation_pins_on_user_id_and_conversation_id", unique: true
   end
 
   create_table "conversation_takeover_requests", force: :cascade do |t|
@@ -1082,6 +1089,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.jsonb "attribute_values", default: []
     t.string "regex_pattern"
     t.string "regex_cue"
+    t.boolean "required", default: false, null: false
+    t.boolean "hidden", default: false, null: false
     t.index ["account_id"], name: "index_custom_attribute_definitions_on_account_id"
     t.index ["attribute_key", "attribute_model", "account_id"], name: "attribute_key_model_index", unique: true
   end
@@ -1442,6 +1451,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.index ["inbox_id"], name: "index_inbox_capacity_limits_on_inbox_id"
   end
 
+  create_table "inbox_isolation_exemptions", force: :cascade do |t|
+    t.bigint "inbox_id", null: false
+    t.bigint "user_id", null: false
+    t.string "isolation_type", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["inbox_id", "user_id", "isolation_type"], name: "index_inbox_isolation_exemptions_on_inbox_user_type", unique: true
+    t.index ["user_id"], name: "index_inbox_isolation_exemptions_on_user_id"
+  end
+
   create_table "inbox_members", id: :serial, force: :cascade do |t|
     t.integer "user_id", null: false
     t.integer "inbox_id", null: false
@@ -1486,10 +1505,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.bigint "team_message_isolation_team_ids", default: [], null: false, array: true
     t.bigint "agent_message_isolation_team_ids", default: [], null: false, array: true
     t.bigint "agent_conversation_isolation_team_ids", default: [], null: false, array: true
+    t.bigint "unit_id"
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
-    t.index ["waha_session_name"], name: "index_inboxes_on_waha_session_name"
+    t.index ["unit_id"], name: "index_inboxes_on_unit_id"
   end
 
   create_table "installation_configs", force: :cascade do |t|
@@ -1929,23 +1949,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
   end
 
   create_table "scheduled_messages", force: :cascade do |t|
+    t.bigint "account_id", null: false
     t.bigint "conversation_id", null: false
-    t.bigint "inbox_id", null: false
-    t.text "message", null: false
-    t.datetime "scheduled_at", precision: nil, null: false
-    t.integer "status", default: 0, null: false
-    t.datetime "sent_at", precision: nil
-    t.text "error_message"
+    t.bigint "scheduled_by_id"
+    t.bigint "inbox_id"
+    t.datetime "scheduled_at", null: false
+    t.text "content", default: "", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "message_id"
-    t.bigint "scheduled_by_id"
+    t.text "message", default: "", null: false
+    t.datetime "sent_at"
+    t.text "error_message"
+    t.integer "status", default: 0, null: false
     t.jsonb "template_params"
+    t.index ["account_id", "scheduled_at"], name: "index_scheduled_messages_on_account_id_and_scheduled_at"
+    t.index ["account_id"], name: "index_scheduled_messages_on_account_id"
     t.index ["conversation_id", "scheduled_at", "id"], name: "idx_scheduled_messages_conversation_timeline", order: { scheduled_at: :desc, id: :desc }
     t.index ["conversation_id"], name: "index_scheduled_messages_on_conversation_id"
     t.index ["inbox_id"], name: "index_scheduled_messages_on_inbox_id"
     t.index ["message_id"], name: "index_scheduled_messages_on_message_id"
-    t.index ["scheduled_at"], name: "index_scheduled_messages_on_scheduled_at"
     t.index ["scheduled_by_id"], name: "index_scheduled_messages_on_scheduled_by_id"
     t.index ["status", "scheduled_at", "id"], name: "idx_scheduled_messages_status_timeline", order: { scheduled_at: :desc, id: :desc }
     t.index ["status"], name: "index_scheduled_messages_on_status"
@@ -2121,6 +2144,64 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
     t.index ["account_id", "slug"], name: "index_unidades_on_account_id_and_slug", unique: true
   end
 
+  create_table "unit_exceptions", force: :cascade do |t|
+    t.bigint "unit_id", null: false
+    t.date "starts_on", null: false
+    t.string "name", null: false
+    t.boolean "closed_all_day", default: true, null: false
+    t.integer "open_hour"
+    t.integer "open_minutes"
+    t.integer "close_hour"
+    t.integer "close_minutes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.date "ends_on"
+    t.integer "category", default: 0, null: false
+    t.integer "frequency", default: 0, null: false
+    t.integer "repeat_interval", default: 1, null: false
+    t.integer "weekdays", default: [], null: false, array: true
+    t.integer "week_positions", default: [], null: false, array: true
+    t.integer "month_days", default: [], null: false, array: true
+    t.date "until_date"
+    t.index ["unit_id", "starts_on"], name: "index_unit_exceptions_on_unit_id_and_starts_on"
+    t.index ["unit_id"], name: "index_unit_exceptions_on_unit_id"
+  end
+
+  create_table "unit_working_hours", force: :cascade do |t|
+    t.bigint "unit_id", null: false
+    t.integer "day_of_week", null: false
+    t.boolean "closed_all_day", default: false, null: false
+    t.boolean "open_all_day", default: false, null: false
+    t.integer "open_hour"
+    t.integer "open_minutes"
+    t.integer "close_hour"
+    t.integer "close_minutes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "break_start_hour"
+    t.integer "break_start_minutes"
+    t.integer "break_end_hour"
+    t.integer "break_end_minutes"
+    t.index ["unit_id", "day_of_week"], name: "index_unit_working_hours_on_unit_id_and_day_of_week", unique: true
+    t.index ["unit_id"], name: "index_unit_working_hours_on_unit_id"
+  end
+
+  create_table "units", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.string "city"
+    t.string "state"
+    t.string "address"
+    t.string "phone"
+    t.string "timezone", default: "UTC", null: false
+    t.text "notes"
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name"], name: "index_units_on_account_id_and_name", unique: true
+    t.index ["account_id"], name: "index_units_on_account_id"
+  end
+
   create_table "users", id: :serial, force: :cascade do |t|
     t.string "provider", default: "email", null: false
     t.string "uid", default: "", null: false
@@ -2203,10 +2284,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
   add_foreign_key "contact_flow_suppressions", "contacts"
   add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
   add_foreign_key "contact_inboxes", "inboxes", on_delete: :cascade
-  add_foreign_key "conversation_assignment_histories", "accounts"
-  add_foreign_key "conversation_assignment_histories", "conversations", on_delete: :cascade
-  add_foreign_key "conversation_assignment_histories", "teams"
-  add_foreign_key "conversation_assignment_histories", "users", column: "assignee_id"
   add_foreign_key "conversation_participants", "accounts", on_delete: :cascade
   add_foreign_key "conversation_participants", "conversations", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "accounts", on_delete: :cascade
@@ -2250,7 +2327,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
   add_foreign_key "funnel_views", "users"
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
+  add_foreign_key "inbox_isolation_exemptions", "inboxes", on_delete: :cascade
+  add_foreign_key "inbox_isolation_exemptions", "users", on_delete: :cascade
   add_foreign_key "inboxes", "portals"
+  add_foreign_key "inboxes", "units", on_delete: :nullify
   add_foreign_key "internal_channel_members", "internal_channels"
   add_foreign_key "internal_channel_members", "users"
   add_foreign_key "internal_channels", "accounts"
@@ -2262,8 +2342,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
   add_foreign_key "labels", "teams", on_delete: :nullify
   add_foreign_key "labels", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "mentions", "conversations", on_delete: :cascade
-  add_foreign_key "message_reactions", "accounts"
-  add_foreign_key "message_reactions", "messages"
   add_foreign_key "message_sequence_enrollments", "conversations"
   add_foreign_key "message_sequence_enrollments", "message_sequences"
   add_foreign_key "message_sequence_steps", "message_sequences"
@@ -2278,6 +2356,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
   add_foreign_key "report_pdf_exports", "accounts", on_delete: :cascade
   add_foreign_key "report_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
   add_foreign_key "reporting_events", "conversations", on_delete: :cascade
+  add_foreign_key "scheduled_messages", "accounts"
   add_foreign_key "scheduled_messages", "conversations", on_delete: :cascade
   add_foreign_key "scheduled_messages", "inboxes"
   add_foreign_key "scheduled_messages", "messages"
@@ -2285,6 +2364,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
   add_foreign_key "team_supervisors", "teams", on_delete: :cascade
   add_foreign_key "team_supervisors", "users", on_delete: :cascade
+  add_foreign_key "unit_exceptions", "units", on_delete: :cascade
+  add_foreign_key "unit_working_hours", "units", on_delete: :cascade
+  add_foreign_key "units", "accounts"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
@@ -318,6 +319,10 @@ const overdueCount = computed(() => {
   ).length;
 });
 
+// Mexer na etapa é de administrador (FunnelStagePolicy). O menu inteiro só tem
+// editar e excluir, então ele todo some para quem não pode.
+const { isAdmin } = useAdmin();
+
 const handleEditStage = () => {
   showStageMenu.value = false;
   emit('editStage', props.stage);
@@ -505,7 +510,7 @@ const handleColumnObserved = async () => {
               class="kanban-focusable !size-7 !p-0 rounded-[var(--kanban-radius-md)] text-n-slate-10 transition-opacity hover:bg-n-slate-3/50 md:opacity-0 md:group-hover:opacity-100"
               @click.stop="toggleCollapsed"
             />
-            <div class="relative">
+            <div v-if="isAdmin" class="relative">
               <Button
                 size="xs"
                 variant="ghost"

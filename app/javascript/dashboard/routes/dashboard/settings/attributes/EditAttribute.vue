@@ -34,6 +34,8 @@ export default {
       regexPattern: null,
       regexCue: null,
       regexEnabled: false,
+      isRequired: false,
+      isHidden: false,
       show: true,
       attributeKey: '',
       values: [],
@@ -127,6 +129,8 @@ export default {
       this.regexPattern = regexPattern;
       this.regexCue = this.selectedAttribute.regex_cue;
       this.regexEnabled = regexPattern != null;
+      this.isRequired = Boolean(this.selectedAttribute.required);
+      this.isHidden = Boolean(this.selectedAttribute.hidden);
       this.values = this.setAttributeListValue;
     },
     async editAttributes() {
@@ -148,6 +152,8 @@ export default {
             ? new RegExp(this.regexPattern).toString()
             : null,
           regex_cue: this.regexCue,
+          required: this.isRequired,
+          hidden: this.isHidden,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.EDIT.API.SUCCESS_MESSAGE');
         this.onClose();
@@ -266,6 +272,14 @@ export default {
           type="text"
           :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.REGEX_CUE.PLACEHOLDER')"
         />
+        <label class="flex gap-2 items-center w-fit cursor-pointer">
+          <input v-model="isRequired" type="checkbox" class="m-0" />
+          {{ $t('ATTRIBUTES_MGMT.ADD.FORM.REQUIRED.LABEL') }}
+        </label>
+        <label class="flex gap-2 items-center w-fit cursor-pointer">
+          <input v-model="isHidden" type="checkbox" class="m-0" />
+          {{ $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL') }}
+        </label>
       </div>
       <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
         <NextButton

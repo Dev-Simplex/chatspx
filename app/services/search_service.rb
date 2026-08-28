@@ -158,8 +158,13 @@ class SearchService # rubocop:disable Metrics/ClassLength
     agent_id = AgentMessageIsolation.viewer_restriction_id(current_user, current_account)
     return query if agent_id.nil?
 
-    # Atalho barato: se NENHUMA caixa da conta tem a flag ligada, não há o que recortar.
-    return query if current_account.inboxes.where(agent_message_isolation: true).none?
+    # Atalho barato: caixas com a flag ligada MENOS aquelas em que este viewer e EXCECAO.
+    # A excecao por caixa entra tirando a caixa da lista de isoladas para ESTE viewer: e a
+    # forma mais barata de dizer "aqui voce nao e isolado" numa busca que mistura caixas.
+    # Sem excecao nenhuma a lista e identica a de antes e a query nao muda.
+    isolated_inbox_ids = current_account.inboxes.where(agent_message_isolation: true).pluck(:id)
+    isolated_inbox_ids -= AgentMessageIsolation.exempt_inbox_ids(current_user, current_account)
+    return query if isolated_inbox_ids.empty?
 
     # Supervisor do time da conversa vê todas as bolhas dela (D2) — a cláusula só
     # aparece quando há supervisão, senão a query fica idêntica à de antes.
@@ -173,11 +178,18 @@ class SearchService # rubocop:disable Metrics/ClassLength
 
   # A conversa desta mensagem está sob a regra de isolamento por agente? Correlacionada
   # com `messages` da query de fora; espelha `Inbox#isolation_applies_to_team?`.
+  # SEGUNDO EIXO: "isolada" aqui quer dizer a regra ALCANCAR a conversa (escopo por time) E
+  # o viewer NAO ser excecao naquela caixa. Ids inteiros interpolados, e nao bind nomeado,
+  # porque este fragmento entra dentro de um NOT EXISTS montado a mao; `to_i` e a barreira
+  # (sao ids do banco, nunca entrada de usuario). Sem excecao o SQL fica igual ao de antes.
   def isolated_conversation_sql
+    isentas = AgentMessageIsolation.exempt_inbox_ids(current_user, current_account).map(&:to_i)
+    isento_and = isentas.empty? ? '' : " AND isolation_c.inbox_id NOT IN (#{isentas.join(',')})"
     'SELECT 1 FROM conversations isolation_c ' \
       'INNER JOIN inboxes isolation_i ON isolation_i.id = isolation_c.inbox_id ' \
       'WHERE isolation_c.id = messages.conversation_id ' \
-      "AND #{Inbox.isolation_applies_sql(:agent_message_isolation, inbox_alias: 'isolation_i', conversation_alias: 'isolation_c')}"
+      "AND #{Inbox.isolation_applies_sql(:agent_message_isolation, inbox_alias: 'isolation_i', conversation_alias: 'isolation_c')}" \
+      "#{isento_and}"
   end
 
   def apply_message_filters(query)

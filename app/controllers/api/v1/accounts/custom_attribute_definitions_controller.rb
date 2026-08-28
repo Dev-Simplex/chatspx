@@ -1,4 +1,8 @@
 class Api::V1::Accounts::CustomAttributeDefinitionsController < Api::V1::Accounts::BaseController
+  # Só a GESTÃO sai do alcance do supervisor de time. `index`/`show` continuam abertos
+  # de propósito: as definições alimentam os campos personalizados do painel do contato
+  # e da conversa — fechá-las some com os campos na tela de atendimento dele.
+  before_action :check_platform_settings_authorization?, only: [:create, :update, :destroy]
   before_action :fetch_custom_attributes_definitions, except: [:create]
   before_action :fetch_custom_attribute_definition, only: [:show, :update, :destroy]
   DEFAULT_ATTRIBUTE_MODEL = 'conversation_attribute'.freeze
@@ -41,6 +45,8 @@ class Api::V1::Accounts::CustomAttributeDefinitionsController < Api::V1::Account
       :attribute_model,
       :regex_pattern,
       :regex_cue,
+      :required,
+      :hidden,
       attribute_values: []
     )
   end

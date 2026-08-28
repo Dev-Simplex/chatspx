@@ -14,6 +14,7 @@ import { routes as internalChatRoutes } from './internalChat/routes';
 import { routes as galleryRoutes } from './gallery/routes';
 import { routes as takeoverRequestsRoutes } from './takeoverRequests/routes';
 import { routes as socialRoutes } from './social/routes';
+import { routes as assessmentsRoutes } from './assessments/routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
@@ -32,6 +33,7 @@ export default {
         ...galleryRoutes,
         ...takeoverRequestsRoutes,
         ...socialRoutes,
+        ...assessmentsRoutes,
         {
           path: frontendURL('accounts/:accountId/notes'),
           name: 'account_notes',

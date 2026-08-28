@@ -715,6 +715,7 @@
     "KANBAN": "CRM KANBAN",
     "REDE_SOCIAL": "Social",
     "GALLERY": "Gallery",
+    "ASSESSMENTS": "Assessments",
     "TAKEOVER_REQUESTS": "Requests",
     "INTERNAL_CHAT": "Internal Chat",
     "ALL_CONVERSATIONS": "All Conversations",
@@ -824,7 +825,8 @@
     "NEW_CONVERSATION": "New conversation",
     "ADVANCED_SEARCH": "Advanced search",
     "CAPTAIN_AI": "AI Agents",
-    "CONVERSATION_WORKFLOW": "Conversation Workflow"
+    "CONVERSATION_WORKFLOW": "Conversation Workflow",
+    "UNITS": "Units"
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "AI Agents Settings",
@@ -1072,7 +1074,7 @@
           "CANCEL": "Cancel"
         },
         "PLACEHOLDERS": {
-          "TEXT": "Write a note...",
+          "TEXT": "Type the answer",
           "NUMBER": "Enter a number",
           "LINK": "Add a link",
           "DATE": "Pick a date",
@@ -1081,6 +1083,10 @@
         "CHECKBOX": {
           "YES": "Yes",
           "NO": "No"
+        },
+        "ERRORS": {
+          "CONTACT_MISSING": "Could not identify this conversation's contact, so the required contact attributes can't be saved. Reload the page and try again.",
+          "CONTACT_UPDATE_FAILED": "Could not save the contact attributes. The conversation was not resolved."
         }
       },
       "PAYWALL": {
@@ -1475,7 +1481,8 @@
       "SCAN_QR_CODE": "Scan QR Code",
       "FAILED": "Failed",
       "STOPPED": "Disconnected",
-      "STARTING": "Starting"
+      "STARTING": "Starting",
+      "MISSING": "Session missing"
     },
     "ACTIONS": {
       "VIEW_QR": "View QR Code",

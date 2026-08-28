@@ -827,5 +827,31 @@ describe SearchService do
         expect(message_ids_for(iso_admin)).to include(secret.id)
       end
     end
+    # A BUSCA é o ponto de leitura que mais escapa: sem a exceção aqui, o agente isento
+    # veria a mensagem na conversa e não a acharia na busca.
+    it 'lets the exempt agent find another agent message' do
+      create(:inbox_isolation_exemption, inbox: iso_inbox, user: agent_b, isolation_type: 'agent_message')
+
+      expect(message_ids_for(agent_b)).to include(secret.id)
+    end
+
+    it 'keeps hiding it from an agent who is not an exemption' do
+      create(:inbox_isolation_exemption, inbox: iso_inbox, user: agent_b, isolation_type: 'agent_message')
+      outro = create(:user, account: iso_account, role: :agent)
+      create(:inbox_member, user: outro, inbox: iso_inbox)
+
+      expect(message_ids_for(outro)).not_to include(secret.id)
+    end
+
+    it 'does not carry the exemption to another isolated inbox' do
+      other_inbox = create(:inbox, account: iso_account, enable_auto_assignment: false, agent_message_isolation: true)
+      other_conversation = create(:conversation, inbox: other_inbox, account: iso_account)
+      other_secret = create(:message, account: iso_account, inbox: other_inbox, conversation: other_conversation,
+                                      message_type: :outgoing, sender: agent_a, content: 'classified wizardry elsewhere')
+      create(:inbox_member, user: agent_b, inbox: other_inbox)
+      create(:inbox_isolation_exemption, inbox: iso_inbox, user: agent_b, isolation_type: 'agent_message')
+
+      expect(message_ids_for(agent_b)).not_to include(other_secret.id)
+    end
   end
 end

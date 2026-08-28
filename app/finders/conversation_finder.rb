@@ -276,13 +276,16 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       search: "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%",
       types: allowed_message_types,
       agent_id: agent_id,
-      supervised: query_supervised_team_ids
+      supervised: query_supervised_team_ids,
+      exempt_inboxes: query_exempt_inbox_ids
     )
   end
 
   # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
   # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia). O supervisor do
-  # time da conversa é isento (D2) e acha o conteúdo de qualquer agente do time.
+  # time da conversa é isento (D2) e acha o conteúdo de qualquer agente do time; quem for
+  # EXCEÇÃO numa caixa é isento nela (mesma forma da supervisão: cláusula só aparece
+  # quando existe isenção, senão o SQL fica idêntico ao de antes).
   # O `NOT EXISTS` é a válvula de escape: se a regra NÃO alcança esta conversa — flag off,
   # conversa sem time, ou time fora da lista escolhida na caixa — o conteúdo continua
   # achável por todo mundo, exatamente como antes desta feature.
@@ -290,14 +293,20 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     return '' if agent_id.nil?
 
     supervised_or = query_supervised_team_ids.any? ? 'OR conversations.team_id IN (:supervised) ' : ''
+    exempt_or = query_exempt_inbox_ids.any? ? 'OR conversations.inbox_id IN (:exempt_inboxes) ' : ''
     'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
       "#{supervised_or}" \
+      "#{exempt_or}" \
       'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
       "AND #{Inbox.isolation_applies_sql(:agent_message_isolation)}))"
   end
 
   def query_supervised_team_ids
     @query_supervised_team_ids ||= TeamSupervision.team_ids(@current_user, @current_account)
+  end
+
+  def query_exempt_inbox_ids
+    @query_exempt_inbox_ids ||= AgentMessageIsolation.exempt_inbox_ids(@current_user, @current_account)
   end
 
   def filter_by_status
@@ -405,8 +414,33 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   def conversations_base_query
     @conversations.includes(
       :taggings, :inbox, { assignee: [:avatar_attachment, :teams] }, { contact: :avatar_attachment }, :team, :contact_inbox,
-      :assignee_agent_bot
-    )
+      :assignee_agent_bot, :conversation_pins
+    ).then { |base| user_has_pins? ? pinned_first(base) : base }
+  end
+
+  # Fixadas sobem para o topo. O JOIN é filtrado pelo usuário da requisição, então
+  # é preferência individual: fixar não muda a lista de mais ninguém. A ordenação
+  # escolhida (atividade, prioridade...) é aplicada depois e continua valendo
+  # dentro de cada grupo, porque os scopes de sort usam `order` (append), não
+  # `reorder`.
+  def pinned_first(relation)
+    relation.joins(
+      ActiveRecord::Base.sanitize_sql_array(
+        ['LEFT OUTER JOIN conversation_pins ON conversation_pins.conversation_id = conversations.id AND conversation_pins.user_id = ?',
+         current_user.id]
+      )
+    ).order(Arel.sql('conversation_pins.id IS NULL'))
+  end
+
+  # O cursor do keyset compara `(last_activity_at, id) < (...)`, o que só é válido
+  # enquanto essa for a ordenação inteira. Com fixadas no topo a comparação deixa
+  # de casar com o ORDER BY e a paginação pularia linhas — então quem tem conversa
+  # fixada cai na paginação por offset, que é correta aqui. Quem não fixou nada
+  # não paga nada: nem o JOIN entra.
+  def user_has_pins?
+    return @user_has_pins if defined?(@user_has_pins)
+
+    @user_has_pins = ConversationPin.exists?(user_id: current_user.id, account_id: current_account.id)
   end
 
   def fetch_conversations
@@ -425,7 +459,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   end
 
   def use_keyset_pagination?(sort_by, sort_order)
-    sort_by == 'sort_on_last_activity_at' && sort_order == 'desc' && params[:q].blank?
+    sort_by == 'sort_on_last_activity_at' && sort_order == 'desc' && params[:q].blank? && !user_has_pins?
   end
 
   def apply_keyset_and_fetch(base, _sort_order)

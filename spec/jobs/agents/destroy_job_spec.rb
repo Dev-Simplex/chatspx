@@ -30,5 +30,20 @@ RSpec.describe Agents::DestroyJob do
       expect(user.notification_settings.length).to eq 0
       expect(user.assigned_conversations.where(account: account).length).to eq 0
     end
+
+    # Sair da conta tirava do grupo de time (efeito colateral do TeamMember), mas
+    # DMs e grupos ad-hoc mantinham o ex-agente como membro para sempre — e o
+    # broadcast seguia publicando o conteúdo das mensagens no pubsub_token dele.
+    it 'removes the user from internal chat channels of that account' do
+      dm = create(:internal_channel, :with_two_members, account: account, user_a: user)
+      other_account = create(:account)
+      foreign_dm = create(:internal_channel, :with_two_members, account: other_account, user_a: user)
+
+      described_class.perform_now(account.id, user.id)
+
+      expect(dm.reload.users).not_to include(user)
+      # Só a conta de onde ele saiu: o chat interno de outra conta fica intacto.
+      expect(foreign_dm.reload.users).to include(user)
+    end
   end
 end

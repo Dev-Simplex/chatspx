@@ -194,7 +194,7 @@ onMounted(() => {
             {{ t('AUTOMATION.CANVAS.LOGS.ERROR') }}
           </p>
           <button
-            class="px-3 py-1.5 text-xs font-medium rounded-lg text-n-slate-12 bg-n-solid-3 hover:bg-n-solid-4"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg text-n-slate-12 bg-n-solid-3 hover:bg-n-solid-3"
             @click="refresh"
           >
             {{ t('AUTOMATION.CANVAS.LOGS.RETRY') }}

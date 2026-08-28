@@ -104,8 +104,7 @@ const getStatusConfig = status => {
       text: t('WAHA_CONNECTIONS.STATUS.FAILED'),
     },
     STOPPED: {
-      color:
-        'bg-n-slate-3 text-n-slate-12 dark:bg-n-slate-3 dark:text-n-slate-12',
+      color: 'bg-n-slate-3 text-n-slate-12',
       icon: 'i-lucide-circle',
       iconColor: 'text-n-slate-11',
       text: t('WAHA_CONNECTIONS.STATUS.STOPPED'),
@@ -116,6 +115,14 @@ const getStatusConfig = status => {
       icon: 'i-lucide-loader-circle',
       iconColor: 'text-green-600',
       text: t('WAHA_CONNECTIONS.STATUS.STARTING'),
+    },
+    // A caixa aponta para uma sessão que não existe no servidor WAHA: nada
+    // entrega e não há o que reconectar — precisa recriar a sessão.
+    MISSING: {
+      color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      icon: 'i-lucide-unplug',
+      iconColor: 'text-red-600',
+      text: t('WAHA_CONNECTIONS.STATUS.MISSING'),
     },
   };
   return configs[status] || configs.STOPPED;
@@ -482,7 +489,7 @@ onUnmounted(() => {
 
             <button
               v-if="connection.status === 'WORKING'"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-orange-700 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 dark:text-orange-300 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 rounded-lg transition-colors"
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-n-amber-12 bg-n-amber-3 hover:bg-n-amber-4 rounded-lg transition-colors"
               @click="handleDisconnect(connection)"
             >
               <div class="i-lucide-unplug size-4" />

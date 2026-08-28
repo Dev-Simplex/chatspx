@@ -84,7 +84,7 @@ export default {
         });
       } catch (error) {
         useAlert(
-          this.$t('REPORT.NPS_REPORTS.DOWNLOAD_FAILED', {
+          this.$t('NPS_REPORTS.DOWNLOAD_FAILED', {
             default: 'Erro ao baixar relatório NPS',
           })
         );

@@ -223,8 +223,8 @@ defineExpose({
       class="rounded-lg border px-3 py-2.5 text-sm"
       :class="
         isPastOrTooSoon
-          ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200'
-          : 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200'
+          ? 'border-n-amber-6 bg-n-amber-3 text-n-amber-12 dark:bg-n-amber-9/10'
+          : 'border-n-teal-6 bg-n-teal-3 text-n-teal-12 dark:bg-n-teal-9/10'
       "
     >
       <div v-if="isPastOrTooSoon" class="flex items-start gap-2">

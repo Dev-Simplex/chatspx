@@ -17,8 +17,14 @@
     --slate-7: 199 201 204; // #c7c9cc  scrollbar thumb
     --slate-8: 168 171 175; // #a8abaf  scrollbar hover
     --slate-9: 134 150 160; // #8696a0  inactive icon / muted
-    --slate-10: 102 119 129; // #667781 secondary text alt
-    --slate-11: 102 119 129; // #667781  WA secondary text (exato)
+    // #667781, o cinza secundário exato do WhatsApp, media 4.14:1 sobre o
+    // painel (#f0f2f5) e 4.65:1 sobre branco — abaixo dos 4.5 de AA na
+    // superfície em que ele mais aparece. Escurecido no mesmo matiz (~205°):
+    //   #5a6a73 sobre #f0f2f5 = 5.00:1
+    //   #5a6a73 sobre #ffffff = 5.61:1
+    // Os dois passos andam juntos desde sempre (mesmo valor) e continuam.
+    --slate-10: 90 106 115; // #5a6a73 secondary text alt
+    --slate-11: 90 106 115; // #5a6a73  WA secondary text
     --slate-12: 17 27 33; // #111b21  WA primary text
 
     // iris — brand verde WhatsApp (#00a884)

@@ -398,10 +398,9 @@ export function useCaptain() {
   const processEvent = async (type = 'improve', content = '', options = {}) => {
     if (isBlockedByPrivateMode(type)) {
       useTrack('ai.private_mode.blocked', { type });
-      sonnerToast.error(
-        t('CONVERSATION.AI_ASSISTANT_PANEL.TOAST.PRIVATE_MODE_BLOCKED'),
-        { important: true }
-      );
+      sonnerToast.error(t('AI_ASSISTANT_PANEL.TOAST.PRIVATE_MODE_BLOCKED'), {
+        important: true,
+      });
       return {
         message: '',
         errorType: CAPTAIN_ERROR_TYPES.PRIVATE_MODE_BLOCKED,

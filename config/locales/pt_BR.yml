@@ -33,6 +33,40 @@ pt_BR:
     login_saml_user: Esta conta usa autenticação SAML. Por favor, faça login através do provedor SAML da sua organização.
     saml_not_available: A autenticação SAML não está disponível nesta instalação.
     inbox_deletetion_response: Seu pedido de exclusão da caixa de entrada será processado dentro de algum tempo.
+  activerecord:
+    models:
+      unit: Unidade
+      unit_working_hour: Horário da unidade
+      unit_exception: Exceção da unidade
+    attributes:
+      unit:
+        name: Nome
+        city: Cidade
+        state: UF
+        address: Endereço
+        phone: Telefone
+        timezone: Fuso horário
+      unit_working_hour:
+        day_of_week: Dia da semana
+        open_hour: Hora de abrir
+        open_minutes: Minuto de abrir
+        close_hour: Hora de fechar
+        close_minutes: Minuto de fechar
+      unit_exception:
+        starts_on: Data de início
+        ends_on: Data final
+        name: Motivo
+        category: Categoria
+        frequency: Repetição
+        repeat_interval: Intervalo
+        weekdays: Dias da semana
+        week_positions: Posições no mês
+        month_days: Dias do mês
+        until_date: Data de término
+        open_hour: Hora de abrir
+        open_minutes: Minuto de abrir
+        close_hour: Hora de fechar
+        close_minutes: Minuto de fechar
   errors:
     conversation:
       pending_status_disabled_for_inbox: "não pode ser Pendente — recurso desativado para esta caixa de entrada"
@@ -43,6 +77,21 @@ pt_BR:
         invalid: não é um fuso horário válido
     validations:
       presence: não pode ficar em branco
+      invalid: é inválido
+    units:
+      break_incomplete: a parada para o almoço precisa de início e de fim
+      break_on_closed_day: dia fechado não tem parada para o almoço
+      break_inverted: a parada para o almoço precisa terminar depois de começar
+      break_outside_hours: a parada para o almoço precisa estar dentro do horário de funcionamento
+      invalid_weekday: contém dia fora de domingo–sábado
+      invalid_week_position: contém posição fora de 1ª–5ª ou última
+      invalid_month_day: contém dia fora de 1–31 ou último
+      weekday_required: Escolha ao menos um dia da semana
+      monthly_rule_required: Regra mensal precisa de um dia do mês, ou de um dia da semana com a posição dele
+      range_only_without_repeat: Só uma regra que não se repete pode durar um período
+      end_before_start: não pode ser anterior à data de início
+      close_before_open: não pode ser anterior ao horário de abertura
+      open_and_closed: não pode abrir o dia todo e fechar o dia todo ao mesmo tempo
     webhook:
       invalid: Eventos inválidos
     signup:
@@ -82,7 +131,31 @@ pt_BR:
         invalid: deve ser um nome de domínio válido
       search:
         query_missing: Especifique a string de busca com o parâmetro q
+    # Mensagens padrão de validação do Rails. Sem elas o app cai no inglês: a conta
+    # roda em pt_BR, mas `errors.messages.*` não existia em lugar nenhum e o usuário
+    # via "Day of week has already been taken" no meio de uma tela em português.
     messages:
+      accepted: deve ser aceito
+      blank: não pode ficar em branco
+      confirmation: não é igual a %{attribute}
+      empty: não pode ficar vazio
+      equal_to: deve ser igual a %{count}
+      exclusion: não está disponível
+      greater_than: deve ser maior que %{count}
+      greater_than_or_equal_to: deve ser maior ou igual a %{count}
+      inclusion: não está na lista de valores aceitos
+      invalid: não é válido
+      less_than: deve ser menor que %{count}
+      less_than_or_equal_to: deve ser menor ou igual a %{count}
+      not_a_number: não é um número
+      not_an_integer: não é um número inteiro
+      other_than: deve ser diferente de %{count}
+      present: deve ficar em branco
+      required: é obrigatório
+      taken: já está em uso
+      too_long: é muito longo (máximo de %{count} caracteres)
+      too_short: é muito curto (mínimo de %{count} caracteres)
+      wrong_length: não tem o tamanho esperado (%{count} caracteres)
       search:
         time_range_limit_exceeded: 'A pesquisa está limitada aos últimos %{days} dias'
       update:
@@ -229,6 +302,8 @@ pt_BR:
     attachment: 'Anexo'
     no_content: 'Sem conteúdo'
   conversations:
+    team_access:
+      forbidden: 'Esta conversa é de outro time. Só quem faz parte dele pode abri-la.'
     reply_assignment_gate:
       assignment_required: 'Você precisa assumir a conversa antes de responder'
     takeover_request_gate:

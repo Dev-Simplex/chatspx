@@ -259,7 +259,8 @@
     "VALIDATIONS": {
       "REQUIRED": "Um valor válido é obrigatório",
       "INVALID_URL": "URL inválida",
-      "INVALID_INPUT": "Campo inválido"
+      "INVALID_INPUT": "Campo inválido",
+      "INVALID_CPF": "Informe um CPF válido"
     }
   },
   "MERGE_CONTACTS": {
@@ -719,6 +720,9 @@
       },
       "INBOX_SELECTOR": {
         "BUTTON": "Escolher caixa de entrada"
+      },
+      "TEAM_SELECTOR": {
+        "BUTTON": "Escolher time (opcional)"
       },
       "EMAIL_OPTIONS": {
         "SUBJECT_LABEL": "Assunto:",

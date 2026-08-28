@@ -127,8 +127,7 @@ const getMessageStatusLabel = status => {
 
 const getMessageStatusClass = status => {
   if (status === 'pending') return 'bg-n-teal-3 text-n-teal-11 border-n-teal-6';
-  if (status === 'sent')
-    return 'bg-n-emerald-3 text-n-emerald-11 border-n-emerald-6';
+  if (status === 'sent') return 'bg-n-teal-3 text-n-teal-11 border-n-teal-6';
   if (status === 'failed') return 'bg-n-ruby-3 text-n-ruby-11 border-n-ruby-6';
   return 'bg-n-slate-3 text-n-slate-11 border-n-slate-6';
 };
@@ -363,7 +362,7 @@ onBeforeUnmount(() => {
               </span>
               <span
                 v-if="getMessagesForDate(day).length > 0"
-                class="rounded-full bg-n-solid-4 px-2 py-0.5 text-[11px] font-semibold text-n-slate-11"
+                class="rounded-full bg-n-solid-3 px-2 py-0.5 text-[11px] font-semibold text-n-slate-12"
               >
                 {{ getMessagesForDate(day).length }}
               </span>
@@ -445,7 +444,7 @@ onBeforeUnmount(() => {
             v-for="message in selectedDayMessages"
             :key="message.id"
             type="button"
-            class="w-full rounded-lg border border-n-weak bg-n-solid-3 p-3 text-left transition hover:bg-n-solid-4"
+            class="w-full rounded-lg border border-n-weak bg-n-solid-3 p-3 text-left transition hover:bg-n-solid-3"
             @click="openConversation(message)"
           >
             <div class="flex items-start gap-3">

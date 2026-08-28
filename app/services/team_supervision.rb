@@ -32,7 +32,16 @@ module TeamSupervision
     team_ids(user, account).include?(team_id.to_i)
   end
 
+  # O CARGO responde true mesmo numa conta sem time nenhum: ele não depende de linha
+  # em team_supervisors. As linhas continuam valendo para o agente que supervisiona
+  # times específicos.
   def supervisor?(user, account)
+    return false unless user.is_a?(User)
+
+    account_id = account.is_a?(Account) ? account.id : account
+    return false if account_id.blank?
+    return true if user.supervisor_of_account?(account_id)
+
     team_ids(user, account).any?
   end
 

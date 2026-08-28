@@ -94,7 +94,7 @@ const setFeedback = val => {
         <Button
           :label="$t('CAPTAIN.COPILOT.USE')"
           sm
-          class="!px-3 !h-7 !rounded-lg !bg-n-brand !text-white !text-xs !font-medium hover:!bg-n-brand-hover"
+          class="!px-3 !h-7 !rounded-lg !bg-n-brand !text-white !text-xs !font-medium hover:!bg-n-teal-10"
           @click="useCopilotResponse"
         />
       </div>

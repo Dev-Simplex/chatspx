@@ -1,0 +1,195 @@
+{
+  "UNITS_MGMT": {
+    "HEADER": "Unidades",
+    "DESCRIPTION": "Suas filiais: onde cada uma fica, que horas abre e os dias em que fecha.",
+    "SEARCH_PLACEHOLDER": "Pesquisar unidades",
+    "LOADING": "Carregando unidades",
+    "COUNT": "{n} unidades",
+    "WEEKDAYS": {
+      "0": "Domingo",
+      "1": "Segunda-feira",
+      "2": "Terça-feira",
+      "3": "Quarta-feira",
+      "4": "Quinta-feira",
+      "5": "Sexta-feira",
+      "6": "Sábado"
+    },
+    "WEEKDAYS_SHORT": {
+      "0": "Dom",
+      "1": "Seg",
+      "2": "Ter",
+      "3": "Qua",
+      "4": "Qui",
+      "5": "Sex",
+      "6": "Sáb"
+    },
+    "LIST": {
+      "EMPTY": "Nenhuma unidade cadastrada. Crie uma para descrever onde a sua empresa atende.",
+      "NO_RESULTS": "Nenhuma unidade encontrada",
+      "NO_INBOX": "Sem caixa",
+      "ALL_CLOSED": "Fechada todos os dias",
+      "HEADERS": {
+        "NAME": "Unidade",
+        "LOCATION": "Cidade/UF",
+        "INBOXES": "Caixas de entrada",
+        "OPEN_DAYS": "Abre em",
+        "STATUS": "Situação"
+      },
+      "OPEN_NOW": "Aberta agora",
+      "CLOSED_NOW": "Fechada agora",
+      "CLOSED_TODAY": "Fechada hoje",
+      "LOCAL_TIME": "{time} na unidade",
+      "BACK_AT": "Almoço · volta às {time}"
+    },
+    "ADD": {
+      "BUTTON": "Adicionar unidade",
+      "TITLE": "Adicionar unidade",
+      "API": {
+        "SUCCESS": "Unidade criada",
+        "ERROR": "Não foi possível criar a unidade"
+      }
+    },
+    "EDIT": {
+      "BUTTON": "Editar",
+      "TITLE": "Editar unidade",
+      "API": {
+        "SUCCESS": "Unidade atualizada",
+        "ERROR": "Não foi possível atualizar a unidade"
+      }
+    },
+    "DELETE": {
+      "BUTTON": "Excluir",
+      "API": {
+        "SUCCESS": "Unidade excluída",
+        "ERROR": "Não foi possível excluir a unidade"
+      },
+      "CONFIRM": {
+        "TITLE": "Excluir unidade",
+        "MESSAGE": "Tem certeza de que deseja excluir ",
+        "YES": "Sim, excluir ",
+        "NO": "Não, manter"
+      }
+    },
+    "FORM": {
+      "NAME": {
+        "LABEL": "Nome",
+        "PLACEHOLDER": "Filial Centro"
+      },
+      "PHONE": {
+        "LABEL": "Telefone",
+        "PLACEHOLDER": "(66) 3531-0000"
+      },
+      "CITY": {
+        "LABEL": "Cidade",
+        "PLACEHOLDER": "Sinop"
+      },
+      "STATE": {
+        "LABEL": "UF",
+        "PLACEHOLDER": "MT"
+      },
+      "ADDRESS": {
+        "LABEL": "Endereço",
+        "PLACEHOLDER": "Av. das Itaúbas, 1234"
+      },
+      "TIMEZONE": {
+        "LABEL": "Fuso horário",
+        "PLACEHOLDER": "Escolha o fuso horário",
+        "SEARCH": "Buscar fuso",
+        "HELP": "É pelo fuso que a lista diz se a unidade está aberta agora — cada filial responde pelo próprio relógio."
+      },
+      "INBOXES": {
+        "LABEL": "Caixas de entrada desta unidade",
+        "HELP": "A linha de WhatsApp desta filial. Uma caixa pertence a no máximo uma unidade.",
+        "EMPTY": "Esta conta ainda não tem caixa de entrada."
+      },
+      "HOURS": {
+        "LABEL": "Horário de funcionamento",
+        "HELP": "Informativo: serve para o atendente saber o que responder. Não dispara mensagem automática."
+      },
+      "EXCEPTIONS": {
+        "NAME": "Motivo",
+        "NAME_PLACEHOLDER": "Natal"
+      },
+      "SUBMIT": "Salvar unidade",
+      "CANCEL": "Cancelar",
+      "RULES": {
+        "CATEGORY": {
+          "LABEL": "Categoria",
+          "FERIADO": "Feriado",
+          "EVENTO": "Evento",
+          "MANUTENCAO": "Manutenção",
+          "TEMPORADA": "Temporada"
+        },
+        "EFFECT": {
+          "CLOSED": "Fecha o dia",
+          "SPECIAL": "Abre em horário especial"
+        },
+        "PERIOD": "Dura vários dias",
+        "ENDS_ON": "Até",
+        "REPEAT": {
+          "LABEL": "Repete",
+          "NAO_REPETE": "Não repete",
+          "SEMANAL": "Semanalmente",
+          "MENSAL": "Mensalmente",
+          "ANUAL": "Anualmente",
+          "EVERY": "A cada",
+          "UNIT_SEMANAL": "semana(s)",
+          "UNIT_MENSAL": "mês(es)",
+          "UNIT_ANUAL": "ano(s)"
+        },
+        "MONTHLY": {
+          "BY_POSITION": "Pela posição no mês",
+          "BY_DAY": "Pelo dia do mês",
+          "DAY": "Dia",
+          "LAST_DAY": "Último dia do mês"
+        },
+        "POSITIONS": {
+          "1": "1ª",
+          "2": "2ª",
+          "3": "3ª",
+          "4": "4ª",
+          "-1": "última"
+        },
+        "END": {
+          "LABEL": "Termina",
+          "NEVER": "Nunca",
+          "ON": "Em",
+          "AFTER": "Após",
+          "OCCURRENCES": "ocorrências"
+        },
+        "PREVIEW": "Próximas",
+        "PREVIEW_EMPTY": "Nenhuma data futura com essa regra.",
+        "ADD": "Adicionar regra",
+        "PRECEDENCE": "Se duas regras caírem no mesmo dia, vale a mais específica; empatando, vale a que fecha.",
+        "SUMMARY": {
+          "WEEKLY": "Toda semana: {dias}",
+          "WEEKLY_EVERY": "A cada {n} semanas: {dias}",
+          "MONTHLY_DAY": "Todo dia {dia}",
+          "MONTHLY_LAST_DAY": "Todo último dia do mês",
+          "MONTHLY_POSITION": "{posicoes} {dias} de cada mês",
+          "YEARLY": "Todo ano em {data}",
+          "PERIOD": "{inicio} a {fim}",
+          "UNTIL": "até {data}"
+        },
+        "ERRORS": {
+          "WEEKDAY_REQUIRED": "Escolha ao menos um dia da semana.",
+          "MONTHLY_REQUIRED": "Escolha a posição e o dia da semana.",
+          "INVALID_RANGE": "O horário de fechar precisa ser depois do de abrir.",
+          "END_BEFORE_START": "A data final não pode ser anterior à inicial."
+        },
+        "SAVE": "Salvar regra",
+        "DELETE": "Excluir regra",
+        "CLOSE": "Fechar",
+        "EDIT": "Editar regra"
+      },
+      "CALENDAR": {
+        "LABEL": "Calendário da unidade",
+        "HELP": "Clique no dia para marcar um feriado, um evento ou um horário especial. Clique numa marcação para editá-la.",
+        "PREVIOUS": "Mês anterior",
+        "NEXT": "Próximo mês",
+        "TODAY": "Hoje",
+        "RULES_TITLE": "Tudo que está marcado"
+      }
+    }
+  }
+}

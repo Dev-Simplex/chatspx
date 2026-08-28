@@ -95,6 +95,8 @@ class User < ApplicationRecord
                                             dependent: :nullify, inverse_of: :review_notes_updated_by
   has_many :conversation_participants, dependent: :destroy_async
   has_many :participating_conversations, through: :conversation_participants, source: :conversation
+  has_many :conversation_pins, dependent: :destroy_async
+  has_many :pinned_conversations, through: :conversation_pins, source: :conversation
 
   has_many :inbox_members, dependent: :destroy_async
   has_many :inboxes, through: :inbox_members, source: :inbox
@@ -114,7 +116,17 @@ class User < ApplicationRecord
   # é ser membro. Ver TeamSupervision para a regra de leitura.
   has_many :team_supervisions, class_name: 'TeamSupervisor', dependent: :destroy_async
   has_many :supervised_teams, through: :team_supervisions, source: :team
+  # Isenção de isolamento por caixa: agente removido da conta some da lista sozinho.
+  # :destroy (e não _async) porque é regra de VISIBILIDADE — deixar a linha sobreviver
+  # ao dono enquanto um job não roda é justo o tipo de janela que vaza.
+  has_many :inbox_isolation_exemptions, dependent: :destroy
   has_many :articles, foreign_key: 'author_id', dependent: :nullify, inverse_of: :author
+  # Chat interno: sem estas duas, as FKs (que não têm on_delete e cujas colunas são
+  # NOT NULL) impediam apagar o usuário — o DeleteObjectJob morria com
+  # InvalidForeignKey depois de a UI já ter respondido "feito". Exclusão de pessoa
+  # (LGPD) precisa alcançar o que ela escreveu, então é :destroy, não :nullify.
+  has_many :internal_channel_members, dependent: :destroy
+  has_many :internal_messages, dependent: :destroy
   # rubocop:disable Rails/HasManyOrHasOneDependent
   # we are handling this in `remove_macros` callback
   has_many :macros, foreign_key: 'created_by_id', inverse_of: :created_by
@@ -149,14 +161,53 @@ class User < ApplicationRecord
     return [] if account_id.blank?
 
     @supervised_team_ids_for ||= {}
-    @supervised_team_ids_for[account_id.to_i] ||=
-      team_supervisions.joins(:team).where(teams: { account_id: account_id }).pluck(:team_id)
+    @supervised_team_ids_for[account_id.to_i] ||= fetch_supervised_team_ids(account_id)
+  end
+
+  # O CARGO de supervisor (coluna em account_users) alcança a conta inteira, inclusive
+  # times criados depois — por isso responde antes das linhas por time, que continuam
+  # servindo o outro perfil: o agente que supervisiona times específicos.
+  def fetch_supervised_team_ids(account_id)
+    return Team.where(account_id: account_id).pluck(:id) if supervisor_of_account?(account_id)
+
+    team_supervisions.joins(:team).where(teams: { account_id: account_id }).pluck(:team_id)
+  end
+
+  # Memoizado pelo mesmo motivo do cache acima: a pergunta é feita em vários pontos da
+  # mesma requisição. Vale mesmo quando a conta não tem time nenhum — é o que separa o
+  # cargo da supervisão por time.
+  def supervisor_of_account?(account_id)
+    return false if account_id.blank?
+
+    @supervisor_of_account ||= {}
+    return @supervisor_of_account[account_id.to_i] if @supervisor_of_account.key?(account_id.to_i)
+
+    @supervisor_of_account[account_id.to_i] = account_users.exists?(account_id: account_id, supervisor: true)
   end
 
   # Invalida a memoização acima. Necessário quando as supervisões mudam DENTRO do
   # mesmo request (admin salvando o agente) e a resposta ainda vai ser serializada.
   def reset_supervised_team_ids_cache
     @supervised_team_ids_for = nil
+    @supervisor_of_account = nil
+  end
+
+  # Ids das caixas em que este usuário é EXCEÇÃO do isolamento informado nesta conta.
+  # Memoizado por (conta, tipo) pelo mesmo motivo do cache acima, e com um agravante: o
+  # jbuilder da lista de conversas pergunta isto uma vez POR LINHA da lista — sem a
+  # memoização seria uma consulta por conversa. Use AgentMessageIsolation.exempt? /
+  # TeamMessageIsolation.exempt? como porta de entrada.
+  def isolation_exempt_inbox_ids_for(account_id, isolation_type)
+    return [] if account_id.blank?
+
+    @isolation_exempt_inbox_ids_for ||= {}
+    @isolation_exempt_inbox_ids_for[[account_id.to_i, isolation_type.to_s]] ||=
+      fetch_isolation_exempt_inbox_ids(account_id, isolation_type)
+  end
+
+  # Invalida a memoização acima (admin salvando a caixa e a resposta ainda por serializar).
+  def reset_isolation_exempt_inbox_ids_cache
+    @isolation_exempt_inbox_ids_for = nil
   end
 
   def serializable_hash(options = nil)
@@ -244,6 +295,23 @@ class User < ApplicationRecord
   end
 
   private
+
+  # Quem é ADMINISTRADOR da conta NÃO tem exceção nenhuma, mesmo com linha gravada.
+  # É a guarda que fecha o caso do agente isentado e depois PROMOVIDO: ele sai da lista
+  # de participantes da tela (só agentes entram lá), a linha vira invisível, e sem isto
+  # ele passaria a enxergar mensagem de outro time — coisa que nenhum outro administrador
+  # enxerga, porque o isolamento por TIME sempre valeu para o admin também
+  # (ver TeamMessageIsolation). A guarda mora na LEITURA de propósito: ela não depende de
+  # nenhum evento ter rodado no passado, então cobre também as linhas que já existirem no
+  # banco. A limpeza por evento (AccountUser#purge_isolation_exemptions) é complemento,
+  # não substituta.
+  def fetch_isolation_exempt_inbox_ids(account_id, isolation_type)
+    return [] if account_users.find_by(account_id: account_id)&.administrator?
+
+    inbox_isolation_exemptions.joins(:inbox)
+                              .where(inboxes: { account_id: account_id }, isolation_type: isolation_type)
+                              .pluck(:inbox_id)
+  end
 
   def remove_macros
     macros.personal.destroy_all

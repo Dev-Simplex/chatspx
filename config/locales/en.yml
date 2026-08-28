@@ -47,7 +47,17 @@ en:
     saml_not_available: SAML authentication is not available in this installation.
     inbox_deletetion_response: Your inbox deletion request will be processed in some time.
 
+  # Rótulos dos campos do Console de Super Admin (Rails resolve f.label por esta chave).
+  helpers:
+    label:
+      account_user:
+        console_role: Role
+        supervised_team_ids: Supervised teams
+
   errors:
+    account_user:
+    super_admin:
+      team_supervisor_denied: Team supervisors do not have access to the Super Admin Console.
     conversation:
       pending_status_disabled_for_inbox: "cannot be Pending — feature disabled for this inbox"
     private_chat:
@@ -57,6 +67,21 @@ en:
         invalid: is not a valid timezone
     validations:
       presence: must not be blank
+      invalid: is invalid
+    units:
+      break_incomplete: the lunch break needs both a start and an end
+      break_on_closed_day: a closed day cannot have a lunch break
+      break_inverted: the lunch break must end after it starts
+      break_outside_hours: the lunch break must be inside opening hours
+      invalid_weekday: has a day outside Sunday–Saturday
+      invalid_week_position: has a week position outside 1st–5th or last
+      invalid_month_day: has a day outside 1–31 or last
+      weekday_required: Pick at least one day of the week
+      monthly_rule_required: A monthly rule needs a day of the month, or a weekday and its position
+      range_only_without_repeat: Only a rule that does not repeat can span a period
+      end_before_start: cannot be earlier than the start date
+      close_before_open: cannot be earlier than the opening time
+      open_and_closed: cannot be open all day and closed all day at the same time
     webhook:
       invalid: Invalid events
     signup:
@@ -243,6 +268,8 @@ en:
     attachment: 'Attachment'
     no_content: 'No content'
   conversations:
+    team_access:
+      forbidden: 'You do not have permission to access this conversation.'
     reply_assignment_gate:
       assignment_required: 'You must take over this conversation before replying'
     takeover_request_gate:

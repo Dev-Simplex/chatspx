@@ -1,0 +1,25 @@
+<div class="field-unit__label">
+  <%= f.label field.attribute %>
+</div>
+<div class="field-unit__field">
+  <% teams = field.available_teams %>
+  <% if teams.any? %>
+    <%= f.select field.attribute,
+                 options_for_select(teams.map { |team| [team.name, team.id] }, field.selected_ids),
+                 {},
+                 { multiple: true, size: [teams.size, 8].min } %>
+    <p class="field-unit__help">
+      Segure Ctrl (Cmd no Mac) para escolher mais de um. Nenhum time selecionado = não supervisiona.
+    </p>
+  <% elsif field.resource.account.present? %>
+    <p class="field-unit__help">
+      Esta conta não tem times. Crie um time antes de definir supervisão.
+    </p>
+  <% else %>
+    <p class="field-unit__help">
+      Os times aparecem aqui depois que a conta existir. Escolhendo <strong>supervisor</strong> agora,
+      a pessoa passa a supervisionar <strong>todos os times da conta</strong> selecionada acima —
+      ajuste depois em Editar, ou em Configurações &rarr; Agentes no dashboard.
+    </p>
+  <% end %>
+</div>

@@ -33,6 +33,23 @@ describe('hasPermissions', () => {
     ).toBe(true);
   });
 
+  // Negação (`!x`): supervisor de time não alcança as configurações de plataforma
+  // nem sendo administrador. É o mesmo helper que decide menu lateral e URL.
+  it('nega quem tem a permissão negada, mesmo satisfazendo a positiva', () => {
+    expect(
+      hasPermissions(
+        ['administrator', '!team_supervisor'],
+        ['administrator', 'team_supervisor']
+      )
+    ).toBe(false);
+  });
+
+  it('libera quem satisfaz a positiva sem ter a negada', () => {
+    expect(
+      hasPermissions(['administrator', '!team_supervisor'], ['administrator'])
+    ).toBe(true);
+  });
+
   it('returns true if permission is not present', () => {
     expect(
       hasPermissions(['contact_manage'], ['team_manage', 'user_manage'])

@@ -41,7 +41,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   def message_created(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) +
+    tokens = user_tokens(account, message_audience(conversation, message)) +
              participant_tokens(conversation) +
              contact_tokens(conversation.contact_inbox, message)
 
@@ -51,7 +51,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   def message_updated(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) +
+    tokens = user_tokens(account, message_audience(conversation, message)) +
              participant_tokens(conversation) +
              contact_tokens(conversation.contact_inbox, message)
 
@@ -317,6 +317,30 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   end
 
   private
+
+  # ISOLAMENTO POR AGENTE NO TEMPO REAL. O MessageFinder já esconde a bolha de outro
+  # agente quando a conversa é CARREGADA; sem este recorte a mesma bolha chegava pelo
+  # websocket e a tela a pintava na hora, sumindo só no F5 — o vazamento durava o
+  # tempo da sessão aberta. Aqui a mensagem simplesmente não é entregue a quem não
+  # pode vê-la, então o que se vê ao vivo é igual ao que se vê recarregando.
+  # Os isentos são os três de sempre — administrador, supervisor do time da conversa
+  # e exceção por caixa — resolvidos em consultas fixas, não uma por membro.
+  def message_audience(conversation, message)
+    inbox = conversation.inbox
+    members = inbox.members
+    return members unless inbox.agent_message_isolation? && message.agent_id.present?
+
+    allowed = message_isolation_allowed_ids(conversation, inbox, message)
+    members.select { |member| allowed.include?(member.id) }
+  end
+
+  def message_isolation_allowed_ids(conversation, inbox, message)
+    ids = Set[message.agent_id]
+    ids += conversation.account.account_users.where(role: :administrator).pluck(:user_id)
+    ids += inbox.inbox_isolation_exemptions.for_type(AgentMessageIsolation::ISOLATION_TYPE).pluck(:user_id)
+    ids += TeamSupervisor.where(team_id: conversation.team_id).pluck(:user_id) if conversation.team_id.present?
+    ids
+  end
 
   # PR G1 — shared payload for both pin_added and pin_removed.
   def broadcast_conversation_pin(event, event_name)

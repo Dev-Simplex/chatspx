@@ -1,21 +1,20 @@
 <script>
 import parse from 'date-fns/parse';
 import differenceInMinutes from 'date-fns/differenceInMinutes';
-import { generateTimeSlots } from '../helpers/businessHour';
+import {
+  generateTimeSlots,
+  TIME_FORMAT,
+  MIDNIGHT,
+  END_OF_DAY,
+} from '../helpers/businessHour';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import NextSelect from 'dashboard/components-next/select/Select.vue';
 
 const timeSlots = generateTimeSlots(30);
 
-const groupByPeriod = slots =>
-  ['AM', 'PM']
-    .map(period => ({
-      label: period,
-      options: slots
-        .filter(s => s.endsWith(period))
-        .map(s => ({ value: s, label: s })),
-    }))
-    .filter(g => g.options.length);
+// Em 24 h a lista já sobe na ordem do relógio: 00:00 → 23:59. Não há mais o que
+// agrupar (o agrupamento AM/PM só existia para separar as duas metades do dia).
+const timeOptions = timeSlots.map(slot => ({ value: slot, label: slot }));
 
 export default {
   components: {
@@ -34,14 +33,21 @@ export default {
         to: '',
       }),
     },
+    // Parada para o almoço: só a grade da UNIDADE oferece. A da caixa de entrada
+    // alimenta mensagem de ausência e widget, e continua com uma faixa por dia.
+    showBreak: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['update'],
   computed: {
     fromTimeSlots() {
-      return groupByPeriod(timeSlots);
+      return timeOptions;
     },
     toTimeSlots() {
-      return groupByPeriod(timeSlots.filter(slot => slot !== '12:00 AM'));
+      // Fechar à meia-noite se diz 23:59; 00:00 só faz sentido como hora de abrir.
+      return timeOptions.filter(option => option.value !== MIDNIGHT);
     },
     isDayEnabled: {
       get() {
@@ -71,7 +77,7 @@ export default {
         return this.timeSlot.from;
       },
       set(value) {
-        const fromDate = parse(value, 'hh:mm a', new Date());
+        const fromDate = parse(value, TIME_FORMAT, new Date());
         const valid = differenceInMinutes(this.toDate, fromDate) / 60 > 0;
         this.$emit('update', {
           ...this.timeSlot,
@@ -85,8 +91,8 @@ export default {
         return this.timeSlot.to;
       },
       set(value) {
-        const toDate = parse(value, 'hh:mm a', new Date());
-        if (value === '12:00 AM') {
+        const toDate = parse(value, TIME_FORMAT, new Date());
+        if (value === MIDNIGHT) {
           this.$emit('update', {
             ...this.timeSlot,
             to: value,
@@ -103,15 +109,52 @@ export default {
       },
     },
     fromDate() {
-      return parse(this.fromTime, 'hh:mm a', new Date());
+      return parse(this.fromTime, TIME_FORMAT, new Date());
     },
     toDate() {
-      return parse(this.toTime, 'hh:mm a', new Date());
+      return parse(this.toTime, TIME_FORMAT, new Date());
+    },
+    hasBreak: {
+      get() {
+        return Boolean(this.timeSlot.breakFrom && this.timeSlot.breakTo);
+      },
+      set(value) {
+        this.$emit('update', {
+          ...this.timeSlot,
+          breakFrom: value ? '12:00' : '',
+          breakTo: value ? '13:00' : '',
+        });
+      },
+    },
+    breakFrom: {
+      get() {
+        return this.timeSlot.breakFrom || '';
+      },
+      set(value) {
+        this.$emit('update', { ...this.timeSlot, breakFrom: value });
+      },
+    },
+    breakTo: {
+      get() {
+        return this.timeSlot.breakTo || '';
+      },
+      set(value) {
+        this.$emit('update', { ...this.timeSlot, breakTo: value });
+      },
+    },
+    breakMinutes() {
+      if (!this.hasBreak) return 0;
+      const inicio = parse(this.breakFrom, TIME_FORMAT, new Date());
+      const fim = parse(this.breakTo, TIME_FORMAT, new Date());
+      return Math.max(differenceInMinutes(fim, inicio), 0);
     },
     totalHours() {
       if (this.timeSlot.openAllDay) return '24h';
 
-      const totalMinutes = differenceInMinutes(this.toDate, this.fromDate);
+      // As horas do dia descontam a parada: quem abre 08–18 com uma hora de almoço
+      // atende 9h, não 10h.
+      const totalMinutes =
+        differenceInMinutes(this.toDate, this.fromDate) - this.breakMinutes;
       const [h, m] = [Math.floor(totalMinutes / 60), totalMinutes % 60];
 
       return [h && `${h}h`, m && `${m}m`].filter(Boolean).join(' ') || '0m';
@@ -125,18 +168,23 @@ export default {
       },
       set(value) {
         if (value) {
+          // A pausa sai junto: dia de 24 h não tem almoço, e como os controles dela
+          // ficam escondidos aqui, um valor esquecido fecharia a unidade sem que
+          // ninguém visse por quê (a faixa dizia "24h" e o meio-dia dizia fechada).
           this.$emit('update', {
             ...this.timeSlot,
-            from: '12:00 AM',
-            to: '11:59 PM',
+            from: MIDNIGHT,
+            to: END_OF_DAY,
             valid: true,
             openAllDay: value,
+            breakFrom: '',
+            breakTo: '',
           });
         } else {
           this.$emit('update', {
             ...this.timeSlot,
-            from: '09:00 AM',
-            to: '05:00 PM',
+            from: '09:00',
+            to: '17:00',
             valid: true,
             openAllDay: value,
           });
@@ -180,7 +228,7 @@ export default {
           </div>
           <NextSelect
             v-model="fromTime"
-            :groups="fromTimeSlots"
+            :options="fromTimeSlots"
             :placeholder="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
             :disabled="isOpenAllDay"
           />
@@ -189,10 +237,31 @@ export default {
           </div>
           <NextSelect
             v-model="toTime"
-            :groups="toTimeSlots"
+            :options="toTimeSlots"
             :placeholder="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
             :disabled="isOpenAllDay"
           />
+        </div>
+        <div
+          v-if="showBreak && !isOpenAllDay"
+          class="flex flex-wrap items-center gap-2"
+        >
+          <input
+            v-model="hasBreak"
+            name="enable-break"
+            class="m-0"
+            type="checkbox"
+          />
+          <span class="text-body-main text-n-slate-11">
+            {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.BREAK') }}
+          </span>
+          <template v-if="hasBreak">
+            <NextSelect v-model="breakFrom" :options="toTimeSlots" />
+            <div class="flex items-center">
+              <Icon icon="i-lucide-minus size-4" />
+            </div>
+            <NextSelect v-model="breakTo" :options="toTimeSlots" />
+          </template>
         </div>
         <span v-if="hasError" class="error text-label-small text-n-ruby-9">
           {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.VALIDATION_ERROR') }}

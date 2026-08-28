@@ -256,7 +256,7 @@ const downloadAudio = async () => {
         />
       </div>
       <button
-        class="border-0 w-10 h-6 grid place-content-center bg-n-alpha-2 hover:bg-alpha-3 rounded-2xl"
+        class="border-0 w-10 h-6 grid place-content-center bg-n-alpha-2 hover:bg-n-alpha-3 rounded-2xl"
         @click="changePlaybackSpeed"
       >
         <span class="text-xs text-n-slate-11 font-medium">

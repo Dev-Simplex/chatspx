@@ -203,5 +203,38 @@ describe MessageFinder do
         expect(finder.perform.map(&:id)).to include(incoming.id, from_a.id, from_b.id)
       end
     end
+    # EXCEÇÕES: desmarcar um agente devolve a ele a leitura das mensagens dos outros
+    # naquela caixa — na conversa aberta, que é este finder.
+    context 'when the agent is an exemption of that inbox' do
+      before do
+        inbox.update!(agent_message_isolation: true)
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent_a, isolation_type: 'agent_message')
+      end
+
+      it 'lets the exempt agent read what was hidden' do
+        Current.user = agent_a
+        ids = finder.perform.map(&:id)
+        expect(ids).to include(incoming.id, from_a.id, from_b.id)
+      end
+
+      it 'keeps every other agent isolated' do
+        Current.user = agent_b
+        ids = finder.perform.map(&:id)
+        expect(ids).to include(incoming.id, from_b.id)
+        expect(ids).not_to include(from_a.id)
+      end
+
+      it 'does not carry the exemption to another isolated inbox' do
+        other_inbox = create(:inbox, account: account, agent_message_isolation: true)
+        other_conversation = create(:conversation, account: account, inbox: other_inbox)
+        create(:message, message_type: :outgoing, sender: agent_a, conversation: other_conversation, account: account, inbox: other_inbox)
+        hidden = create(:message, message_type: :outgoing, sender: agent_b, conversation: other_conversation,
+                                  account: account, inbox: other_inbox)
+
+        Current.user = agent_a
+        ids = described_class.new(other_conversation, { filter_internal_messages: false }).perform.map(&:id)
+        expect(ids).not_to include(hidden.id)
+      end
+    end
   end
 end

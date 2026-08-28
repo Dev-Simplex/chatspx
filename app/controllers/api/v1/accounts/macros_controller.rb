@@ -3,6 +3,9 @@ class Api::V1::Accounts::MacrosController < Api::V1::Accounts::BaseController
 
   before_action :fetch_macro, only: [:show, :update, :destroy, :execute]
   before_action :check_authorization, only: [:show, :update, :destroy, :execute]
+  # `create` não passava por policy nenhuma — autoriza no nível da classe (não há
+  # @macro ainda), que é onde a MacroPolicy nega a criação ao supervisor de time.
+  before_action :check_class_authorization, only: [:create]
 
   def index
     @macros = Macro.with_visibility(current_user, params)
@@ -70,5 +73,9 @@ class Api::V1::Accounts::MacrosController < Api::V1::Accounts::BaseController
 
   def check_authorization
     authorize(@macro)
+  end
+
+  def check_class_authorization
+    authorize(Macro)
   end
 end

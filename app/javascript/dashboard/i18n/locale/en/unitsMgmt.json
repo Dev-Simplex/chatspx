@@ -1,0 +1,195 @@
+{
+  "UNITS_MGMT": {
+    "HEADER": "Units",
+    "DESCRIPTION": "Your branches: where each one is, what time it opens, and the days it closes.",
+    "SEARCH_PLACEHOLDER": "Search units",
+    "LOADING": "Loading units",
+    "COUNT": "{n} units",
+    "WEEKDAYS": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "WEEKDAYS_SHORT": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "LIST": {
+      "EMPTY": "No unit registered yet. Create one to describe where your company operates.",
+      "NO_RESULTS": "No unit matches this search",
+      "NO_INBOX": "No inbox",
+      "ALL_CLOSED": "Closed every day",
+      "HEADERS": {
+        "NAME": "Unit",
+        "LOCATION": "City/State",
+        "INBOXES": "Inboxes",
+        "OPEN_DAYS": "Open on",
+        "STATUS": "Status"
+      },
+      "OPEN_NOW": "Open now",
+      "CLOSED_NOW": "Closed now",
+      "CLOSED_TODAY": "Closed today",
+      "LOCAL_TIME": "{time} local time",
+      "BACK_AT": "Lunch · back at {time}"
+    },
+    "ADD": {
+      "BUTTON": "Add unit",
+      "TITLE": "Add unit",
+      "API": {
+        "SUCCESS": "Unit created",
+        "ERROR": "Could not create the unit"
+      }
+    },
+    "EDIT": {
+      "BUTTON": "Edit",
+      "TITLE": "Edit unit",
+      "API": {
+        "SUCCESS": "Unit updated",
+        "ERROR": "Could not update the unit"
+      }
+    },
+    "DELETE": {
+      "BUTTON": "Delete",
+      "API": {
+        "SUCCESS": "Unit deleted",
+        "ERROR": "Could not delete the unit"
+      },
+      "CONFIRM": {
+        "TITLE": "Delete unit",
+        "MESSAGE": "Are you sure you want to delete ",
+        "YES": "Yes, delete ",
+        "NO": "No, keep it"
+      }
+    },
+    "FORM": {
+      "NAME": {
+        "LABEL": "Name",
+        "PLACEHOLDER": "Downtown branch"
+      },
+      "PHONE": {
+        "LABEL": "Phone",
+        "PLACEHOLDER": "(66) 3531-0000"
+      },
+      "CITY": {
+        "LABEL": "City",
+        "PLACEHOLDER": "Sinop"
+      },
+      "STATE": {
+        "LABEL": "State",
+        "PLACEHOLDER": "MT"
+      },
+      "ADDRESS": {
+        "LABEL": "Address",
+        "PLACEHOLDER": "Av. das Itaúbas, 1234"
+      },
+      "TIMEZONE": {
+        "LABEL": "Time zone",
+        "PLACEHOLDER": "Select a timezone",
+        "SEARCH": "Search timezone",
+        "HELP": "The timezone tells whether this unit is open right now — each branch answers on its own clock."
+      },
+      "INBOXES": {
+        "LABEL": "Inboxes of this unit",
+        "HELP": "The WhatsApp line of this branch. An inbox belongs to one unit at most.",
+        "EMPTY": "This account has no inbox yet."
+      },
+      "HOURS": {
+        "LABEL": "Opening hours",
+        "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages."
+      },
+      "EXCEPTIONS": {
+        "NAME": "Reason",
+        "NAME_PLACEHOLDER": "Christmas"
+      },
+      "SUBMIT": "Save unit",
+      "CANCEL": "Cancel",
+      "RULES": {
+        "CATEGORY": {
+          "LABEL": "Category",
+          "FERIADO": "Holiday",
+          "EVENTO": "Event",
+          "MANUTENCAO": "Maintenance",
+          "TEMPORADA": "Season"
+        },
+        "EFFECT": {
+          "CLOSED": "Closes the day",
+          "SPECIAL": "Opens with special hours"
+        },
+        "PERIOD": "Spans several days",
+        "ENDS_ON": "Until",
+        "REPEAT": {
+          "LABEL": "Repeats",
+          "NAO_REPETE": "Does not repeat",
+          "SEMANAL": "Weekly",
+          "MENSAL": "Monthly",
+          "ANUAL": "Yearly",
+          "EVERY": "Every",
+          "UNIT_SEMANAL": "week(s)",
+          "UNIT_MENSAL": "month(s)",
+          "UNIT_ANUAL": "year(s)"
+        },
+        "MONTHLY": {
+          "BY_POSITION": "By position in the month",
+          "BY_DAY": "By day of the month",
+          "DAY": "Day",
+          "LAST_DAY": "Last day of the month"
+        },
+        "POSITIONS": {
+          "1": "1st",
+          "2": "2nd",
+          "3": "3rd",
+          "4": "4th",
+          "-1": "last"
+        },
+        "END": {
+          "LABEL": "Ends",
+          "NEVER": "Never",
+          "ON": "On",
+          "AFTER": "After",
+          "OCCURRENCES": "occurrences"
+        },
+        "PREVIEW": "Next",
+        "PREVIEW_EMPTY": "No future date matches this rule.",
+        "ADD": "Add rule",
+        "PRECEDENCE": "When two rules land on the same day, the most specific one wins; on a tie, the one that closes wins.",
+        "SUMMARY": {
+          "WEEKLY": "Every week: {dias}",
+          "WEEKLY_EVERY": "Every {n} weeks: {dias}",
+          "MONTHLY_DAY": "Day {dia} of every month",
+          "MONTHLY_LAST_DAY": "Last day of every month",
+          "MONTHLY_POSITION": "{posicoes} {dias} of every month",
+          "YEARLY": "Every year on {data}",
+          "PERIOD": "{inicio} to {fim}",
+          "UNTIL": "until {data}"
+        },
+        "ERRORS": {
+          "WEEKDAY_REQUIRED": "Pick at least one day of the week.",
+          "MONTHLY_REQUIRED": "Pick the position and the weekday.",
+          "INVALID_RANGE": "The closing time must be after the opening time.",
+          "END_BEFORE_START": "The end date cannot be earlier than the start date."
+        },
+        "SAVE": "Save rule",
+        "DELETE": "Delete rule",
+        "CLOSE": "Close",
+        "EDIT": "Edit rule"
+      },
+      "CALENDAR": {
+        "LABEL": "Unit calendar",
+        "HELP": "Click a day to add a holiday, an event or special hours. Click an entry to edit it.",
+        "PREVIOUS": "Previous month",
+        "NEXT": "Next month",
+        "TODAY": "Today",
+        "RULES_TITLE": "Everything scheduled"
+      }
+    }
+  }
+}

@@ -32,13 +32,17 @@ const inboxNamesFor = assistant =>
         {{ $t('AGENT_MGMT.AI_AGENTS.DESCRIPTION') }}
       </p>
     </div>
-    <div class="divide-y divide-n-weak">
+    <!-- Mesmo contorno da lista de agentes humanos (Index.vue): sem o
+         `border … rounded-xl` no container e o `px-4` na linha, o cartão de IA
+         ficava sem contorno e com o texto colado na borda da coluna, enquanto
+         os agentes logo acima aparecem dentro de uma caixa arredondada. -->
+    <div class="mt-4 divide-y divide-n-weak border border-n-weak rounded-xl">
       <div
         v-for="assistant in assistants"
         :key="assistant.id"
-        class="flex justify-between flex-row items-start gap-4 py-4"
+        class="flex justify-between flex-row items-start gap-4 px-4 py-4"
       >
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 min-w-0">
           <Avatar
             :src="assistant.avatar_url"
             :name="assistant.name"
@@ -46,7 +50,7 @@ const inboxNamesFor = assistant =>
             :size="40"
             hide-offline-status
           />
-          <div class="flex flex-col gap-1.5 items-start">
+          <div class="flex flex-col gap-1.5 items-start min-w-0">
             <div class="flex items-center gap-2">
               <span class="text-heading-3 text-n-slate-12">
                 {{ assistant.name }}

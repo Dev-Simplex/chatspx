@@ -420,10 +420,7 @@ const save = () => {
     </AiCard>
 
     <div class="flex sticky bottom-0 gap-2 justify-end items-center py-3">
-      <span
-        v-if="saved"
-        class="text-[12.5px] font-semibold text-g-600 dark:text-g-400"
-      >
+      <span v-if="saved" class="text-[12.5px] font-semibold text-n-teal-11">
         <span class="i-lucide-check align-middle size-4" />
       </span>
       <AiButton @click="save">

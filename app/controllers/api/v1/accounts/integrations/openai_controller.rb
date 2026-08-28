@@ -1,5 +1,6 @@
 class Api::V1::Accounts::Integrations::OpenaiController < Api::V1::Accounts::BaseController
-  before_action :check_admin_authorization?
+  # Administrador, menos o supervisor de time: a chave do OpenAI é a tela de Integrações.
+  before_action :check_platform_settings_admin_authorization?
 
   # POST /api/v1/accounts/:account_id/integrations/openai/test_key
   # Body: { api_key: "sk-..." } or empty (uses persisted setting / ENV)

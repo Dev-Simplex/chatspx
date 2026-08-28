@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
 import { useRouter, useRoute } from 'vue-router';
@@ -14,7 +14,6 @@ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import CardMessagePreview from './CardMessagePreview.vue';
 import CardMessagePreviewWithMeta from './CardMessagePreviewWithMeta.vue';
 import CardPriorityIcon from './CardPriorityIcon.vue';
-import { usePinnedConversations } from 'dashboard/composables/usePinnedConversations';
 
 const props = defineProps({
   conversation: {
@@ -71,17 +70,34 @@ const lastActivityAt = computed(() => {
   return timestamp ? shortTimeAgo(timestamp) : '';
 });
 
-// Pin support — pin_mode by inbox decides whether storage is per-agent or per-inbox.
-const { isPinned, togglePin } = usePinnedConversations();
-const inboxIdForPin = computed(
-  () => props.conversation?.inbox_id || inbox.value?.id
+// Fixar é preferência individual: o estado vem de conversation.pinned (que o
+// servidor calcula para o usuário atual) e a troca passa pela action togglePin.
+// Este card vive no histórico do contato, cujas conversas moram noutro módulo
+// do store (contactConversations); a mutação SET_CONVERSATION_PINNED não chega
+// até elas, então guardamos aqui o estado já aceito pelo servidor para o
+// alfinete não continuar mostrando o valor antigo.
+const pinnedOverride = ref(null);
+
+watch(
+  () => [props.conversation?.id, props.conversation?.pinned],
+  () => {
+    pinnedOverride.value = null;
+  }
 );
+
 const conversationIsPinned = computed(() =>
-  isPinned(props.conversation?.id, inboxIdForPin.value)
+  pinnedOverride.value === null
+    ? Boolean(props.conversation?.pinned)
+    : pinnedOverride.value
 );
-const onTogglePin = e => {
-  e.stopPropagation();
-  togglePin(props.conversation?.id, inboxIdForPin.value);
+
+const onTogglePin = async e => {
+  e?.stopPropagation?.();
+  const conversationId = props.conversation?.id;
+  if (!conversationId) return;
+  const next = !conversationIsPinned.value;
+  await store.dispatch('togglePin', { conversationId });
+  pinnedOverride.value = next;
 };
 
 // Urgência: destaca conversas atribuídas a mim com mensagens não respondidas,
@@ -155,7 +171,7 @@ const onTouchEnd = async () => {
       status: 'resolved',
     });
   } else if (delta >= SWIPE_THRESHOLD) {
-    onTogglePin({ stopPropagation: () => {} });
+    await onTogglePin();
   }
   // Suppress click-after-swipe so router.push doesn't fire.
   if (swipeMoved) {

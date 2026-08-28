@@ -20,7 +20,10 @@ const pollingInterval = ref(null);
 const userDismissedBanner = ref(false);
 const isLoading = ref(false);
 
-const PROBLEMATIC_STATUSES = ['STOPPED', 'FAILED', 'SCAN_QR_CODE'];
+// MISSING = a inbox aponta para uma sessão que não existe mais no WAHA. Antes
+// esse caso sumia da lista (ela era montada a partir das sessões), então o pior
+// estado possível era o único sem alerta.
+const PROBLEMATIC_STATUSES = ['STOPPED', 'FAILED', 'SCAN_QR_CODE', 'MISSING'];
 const POLLING_INTERVAL = 90000; // 90 segundos
 const DISMISS_STORAGE_KEY = 'wahaConnectionsBannerDismissed';
 
@@ -33,6 +36,7 @@ const getStatusText = status => {
     STOPPED: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_STOPPED'),
     FAILED: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_FAILED'),
     SCAN_QR_CODE: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_SCAN_QR'),
+    MISSING: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_MISSING'),
   };
   return statusMap[status] || status;
 };
@@ -68,6 +72,7 @@ const bannerMessage = computed(() => {
     const connection = problematicConnections.value[0];
     const statusText = getStatusText(connection?.status);
     return t('GENERAL_SETTINGS.WAHA_BANNER.SINGLE_CONNECTION_ISSUE', {
+      inbox: connection?.inbox_name || connection?.session_name || '',
       status: statusText.toLowerCase(),
     });
   }
@@ -277,9 +282,12 @@ onUnmounted(() => {
     justify-content: center;
     position: relative;
 
+    /* red-600 (#dc3e42) com texto branco media 4.37:1 — abaixo dos 4.5 de AA,
+       e esta faixa é um aviso de falha que precisa ser lido. red-700 (#ce2c31)
+       sobe para 5.21:1. O hex fixo que vinha depois do @apply era #dc2626, uma
+       terceira cor que nem é a do token — removido. */
     &.error {
-      @apply bg-red-600 text-white;
-      background-color: #dc2626; /* red-600 */
+      @apply bg-red-700 text-white;
     }
 
     .banner-content-wrapper {
@@ -312,7 +320,8 @@ onUnmounted(() => {
 
     .banner-action-button {
       @apply ml-2 px-3 py-1 text-xs font-semibold;
-      @apply bg-white text-red-600;
+      /* red-600 sobre branco = 4.37:1; red-700 = 5.21:1, o mesmo tom da faixa */
+      @apply bg-white text-red-700;
       @apply rounded-md;
       @apply hover:bg-red-50;
       @apply transition-colors;

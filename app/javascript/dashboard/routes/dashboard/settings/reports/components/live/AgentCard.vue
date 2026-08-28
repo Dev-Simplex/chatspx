@@ -103,7 +103,7 @@ const loadMoreConversations = () => {
         <div v-if="hasMoreConversations" class="px-3 pb-3 pt-1">
           <button
             type="button"
-            class="w-full text-xs font-medium text-n-brand-11 hover:text-n-brand-12 rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            class="w-full text-xs font-medium text-n-teal-11 hover:text-n-teal-12 rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
             :disabled="isConversationsLoading"
             @click="loadMoreConversations"
           >

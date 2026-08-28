@@ -18,7 +18,8 @@
       "LINK": "Link",
       "DATE": "Date",
       "LIST": "List",
-      "CHECKBOX": "Checkbox"
+      "CHECKBOX": "Checkbox",
+      "CPF": "CPF"
     },
     "ADD": {
       "TITLE": "Add Custom Attribute",
@@ -66,6 +67,12 @@
         },
         "ENABLE_REGEX": {
           "LABEL": "Enable regex validation"
+        },
+        "REQUIRED": {
+          "LABEL": "Required before resolving"
+        },
+        "HIDDEN": {
+          "LABEL": "Hide inside the conversation"
         },
         "BADGES": {
           "PRE_CHAT": "Pre-chat",

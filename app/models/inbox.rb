@@ -49,6 +49,13 @@ class Inbox < ApplicationRecord
   include AccountCacheRevalidator
   include InboxAgentAvailability
 
+  # Fixar conversa POR CAIXA: `pin_mode` escolhe entre 'per_agent' (padrao) e 'per_inbox',
+  # e `pinned_conversation_ids` guarda a lista quando o modo e por caixa. Restaurado a mao
+  # apos o merge da branch `nicolas`: o auto-merge removia estas duas chaves sem conflito, e
+  # sem elas o `additional_attributes` volta do banco sem os leitores, alem de o strong
+  # params descartar a gravacao EM SILENCIO (a tela responde 200 "salvo com sucesso" e nada
+  # muda). Convive com a fixacao POR ATENDENTE que veio da `nicolas` (conversation_pins):
+  # sao dois modos, nao dois donos da mesma chave.
   store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
 
   # Not allowing characters:
@@ -61,6 +68,8 @@ class Inbox < ApplicationRecord
 
   belongs_to :account
   belongs_to :portal, optional: true
+  # Unidade (filial) a que esta caixa pertence. Opcional: conta sem filial nunca preenche.
+  belongs_to :unit, optional: true
 
   belongs_to :channel, polymorphic: true, dependent: :destroy
 
@@ -70,6 +79,9 @@ class Inbox < ApplicationRecord
 
   has_many :inbox_members, dependent: :destroy_async
   has_many :members, through: :inbox_members, source: :user
+  # Quem NÃO participa de cada isolamento desta caixa. Lista vazia = comportamento
+  # de hoje; ver InboxIsolationExemption para a inversão participantes/exceções.
+  has_many :inbox_isolation_exemptions, dependent: :destroy
   has_many :conversations, dependent: :destroy_async
   has_many :messages, dependent: :destroy_async
 
@@ -103,6 +115,30 @@ class Inbox < ApplicationRecord
   def remove_members(user_ids)
     inbox_members.where(user_id: user_ids).destroy_all
     update_account_cache
+  end
+
+  # Candidatos ao isolamento: membros da caixa que NÃO são administradores. O admin já é
+  # isento das duas regras por natureza; incluí-lo faria a tela sugerir que dá para isolar
+  # um administrador (não dá) e encheria a tabela de linhas que nunca decidem nada.
+  # O `joins(:user)` não é enfeite: contas antigas guardam account_users/inbox_members de
+  # usuários já excluídos, e esses ids fantasma (1) não aparecem na tela, que lista membros
+  # de verdade, e (2) viravam exceção no submit, estourando "User must exist" e derrubando
+  # o salvamento inteiro. Aqui a lista passa a ser exatamente a que o administrador vê.
+  # @return [Array<Integer>]
+  def isolation_candidate_user_ids
+    @isolation_candidate_user_ids ||= begin
+      member_ids = inbox_members.map(&:user_id)
+      member_ids.blank? ? [] : account.account_users.joins(:user).where(user_id: member_ids, role: :agent).pluck(:user_id)
+    end
+  end
+
+  # PARTICIPANTES do isolamento (o que a tela mostra) = candidatos MENOS as exceções.
+  # Derivado de propósito: o banco só guarda quem escapa.
+  # @param isolation_type [String] 'agent_message' ou 'team_message'
+  # @return [Array<Integer>]
+  def isolation_participant_ids(isolation_type)
+    exempt_ids = inbox_isolation_exemptions.select { |exemption| exemption.isolation_type == isolation_type.to_s }.map(&:user_id)
+    isolation_candidate_user_ids - exempt_ids
   end
 
   # Sanitizes inbox name for balanced email provider compatibility

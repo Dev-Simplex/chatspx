@@ -14,7 +14,7 @@ const close = () => emit('update:modelValue', false);
     <Transition name="ai-sheet">
       <div
         v-if="modelValue"
-        class="grid fixed inset-0 z-[100] place-items-center p-4 bg-black/40 backdrop-blur-sm"
+        class="grid fixed inset-0 z-[100] place-items-center p-4 bg-n-black/40 backdrop-blur-sm"
         @click.self="close"
       >
         <div

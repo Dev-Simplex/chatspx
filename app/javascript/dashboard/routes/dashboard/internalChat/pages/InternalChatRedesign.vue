@@ -26,7 +26,6 @@ const currentUserId = useMapGetter('getCurrentUserID');
 const currentRole = useMapGetter('getCurrentRole');
 const allTeams = useMapGetter('teams/getTeams');
 const myTeams = useMapGetter('teams/getMyTeams');
-const mentions = useMapGetter('internalChat/getMentions');
 
 const isAdmin = computed(() => currentRole.value === 'administrator');
 // Times que viram atalho de "grupo de time": admin vê todos; agente vê os seus.
@@ -366,28 +365,6 @@ const toggleAudit = async () => {
   if (auditMode.value) await store.dispatch('internalChat/fetchAuditChannels');
 };
 
-// ── Inbox de menções (cross-channel) ────────────────────────────────────────
-// Painel flutuante sobre a sidebar: lista onde fui @mencionado; clicar abre o
-// canal. fetchMentions não é por canal (usa índice GIN em mentioned_user_ids).
-const mentionsOpen = ref(false);
-const openMentions = () => {
-  mentionsOpen.value = true;
-  store.dispatch('internalChat/fetchMentions');
-};
-const mentionTime = ts => {
-  if (!ts) return '';
-  return new Date(ts * 1000).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-const openMentionResult = result => {
-  mentionsOpen.value = false;
-  if (result?.internal_channel_id) onSelect(result.internal_channel_id);
-};
-
 // ── Ciclo de vida + tempo real ─────────────────────────────────────────────
 const resync = () => {
   store.dispatch('internalChat/fetchChannels');
@@ -428,62 +405,7 @@ onBeforeUnmount(() => {
         @create-group="onCreateGroup"
         @create-team="onCreateTeam"
         @toggle-audit="toggleAudit"
-        @open-mentions="openMentions"
       />
-
-      <!-- Inbox de menções (painel sobre a sidebar) -->
-      <template v-if="mentionsOpen">
-        <div class="absolute inset-0 z-40 flex flex-col bg-n-solid-1">
-          <header
-            class="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-n-weak flex-shrink-0"
-          >
-            <button
-              type="button"
-              class="inline-flex items-center justify-center rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 flex-shrink-0"
-              title="Voltar"
-              @click="mentionsOpen = false"
-            >
-              <span class="text-lg i-lucide-arrow-left" />
-            </button>
-            <span
-              class="flex items-center gap-2 text-base font-bold text-n-slate-12"
-            >
-              <span class="text-lg i-lucide-at-sign text-n-brand" />
-              Menções
-            </span>
-          </header>
-          <div class="flex-1 min-h-0 px-2 py-2 space-y-0.5 overflow-y-auto">
-            <button
-              v-for="m in mentions"
-              :key="m.id"
-              type="button"
-              class="flex flex-col w-full gap-0.5 px-3 py-2.5 text-left rounded-xl hover:bg-n-alpha-1 transition-colors"
-              @click="openMentionResult(m)"
-            >
-              <span class="flex items-center justify-between gap-2">
-                <span class="text-sm font-semibold text-n-slate-12 truncate">
-                  {{ m.channel_title }}
-                </span>
-                <span class="text-[11px] text-n-slate-10 flex-shrink-0">
-                  {{ mentionTime(m.created_at) }}
-                </span>
-              </span>
-              <span class="block text-xs truncate text-n-slate-10">
-                <span class="font-medium text-n-slate-11">
-                  {{ m.user?.name }}:
-                </span>
-                {{ m.content || '📎 Anexo' }}
-              </span>
-            </button>
-            <p
-              v-if="!mentions.length"
-              class="px-6 py-12 text-sm text-center text-n-slate-10"
-            >
-              Ninguém te mencionou ainda.
-            </p>
-          </div>
-        </div>
-      </template>
     </div>
 
     <!-- Conversation -->

@@ -20,4 +20,18 @@ class Api::BaseController < ApplicationController
   def check_admin_authorization?
     raise Pundit::NotAuthorizedError unless Current.account_user.administrator?
   end
+
+  # Nega ao SUPERVISOR de time as configurações de plataforma (SupervisorSettingsScope).
+  # Para controllers que não passam por policy nenhuma — `check_admin_authorization?`
+  # não consulta Pundit, então a negação tem que morar aqui, e não numa policy que
+  # ninguém chama. Onde existe policy, use `supervisor_settings_blocked?` lá.
+  def check_platform_settings_authorization?
+    raise Pundit::NotAuthorizedError if SupervisorSettingsScope.blocked?(Current.user, Current.account)
+  end
+
+  # Mesma negação, mas para os pontos que já exigiam administrador.
+  def check_platform_settings_admin_authorization?
+    check_admin_authorization?
+    check_platform_settings_authorization?
+  end
 end

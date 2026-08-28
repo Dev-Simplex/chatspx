@@ -1,10 +1,14 @@
 class HookPolicy < ApplicationPolicy
+  # Conectar/desconectar um app É a tela de Integrações — é aqui que ela escreve
+  # (Dyte, OpenAI, Dialogflow, Slack, Notion...). Fora do alcance do supervisor.
+  # `process_event?` fica aberto: é o que a sugestão de etiqueta chama de dentro
+  # da conversa.
   def create?
-    @account_user.administrator?
+    manage?
   end
 
   def update?
-    @account_user.administrator?
+    manage?
   end
 
   def process_event?
@@ -12,6 +16,12 @@ class HookPolicy < ApplicationPolicy
   end
 
   def destroy?
-    @account_user.administrator?
+    manage?
+  end
+
+  private
+
+  def manage?
+    @account_user.administrator? && !supervisor_settings_blocked?
   end
 end

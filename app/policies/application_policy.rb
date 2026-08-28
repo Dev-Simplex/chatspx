@@ -41,6 +41,13 @@ class ApplicationPolicy
     Pundit.policy_scope!(user_context, record.class)
   end
 
+  # Supervisor de time não administra a PLATAFORMA (SupervisorSettingsScope).
+  # Disponível a todas as policies para que a negação fique escrita ao lado do
+  # `administrator?` que ela corrige, em vez de espalhada pelos controllers.
+  def supervisor_settings_blocked?
+    SupervisorSettingsScope.blocked?(@user, @account)
+  end
+
   class Scope
     attr_reader :user_context, :user, :scope, :account, :account_user
 

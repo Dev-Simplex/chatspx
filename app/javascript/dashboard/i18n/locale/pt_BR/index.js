@@ -1,4 +1,5 @@
 import advancedFilters from './advancedFilters.json';
+import assessments from './assessments.json';
 import agentBots from './agentBots.json';
 import agentMgmt from './agentMgmt.json';
 import attributesMgmt from './attributesMgmt.json';
@@ -43,6 +44,7 @@ import signup from './signup.json';
 import sla from './sla.json';
 import snooze from './snooze.json';
 import teamsSettings from './teamsSettings.json';
+import unitsMgmt from './unitsMgmt.json';
 import webhooks from './webhooks.json';
 import whatsappTemplates from './whatsappTemplates.json';
 import whatsappTemplatesMgmt from './whatsappTemplatesMgmt.json';
@@ -51,6 +53,7 @@ import redeSocial from './redeSocial.json';
 import yearInReview from './yearInReview.json';
 
 export default {
+  ...assessments,
   ...advancedFilters,
   ...agentBots,
   ...agentMgmt,
@@ -96,6 +99,7 @@ export default {
   ...sla,
   ...snooze,
   ...teamsSettings,
+  ...unitsMgmt,
   ...webhooks,
   ...whatsappTemplates,
   ...whatsappTemplatesMgmt,

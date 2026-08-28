@@ -6,6 +6,7 @@ import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import wootConstants from 'dashboard/constants/globals';
 import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
+import { useWahaHealth } from 'dashboard/composables/useWahaHealth';
 import { useCollapsibleText } from 'dashboard/composables/useCollapsibleText';
 import { aiAccentVars } from 'dashboard/helper/aiAccent';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
@@ -31,6 +32,7 @@ const emit = defineEmits(['openAssignDialog']);
 const store = useStore();
 const { t } = useI18n();
 const { isAssignmentGateEnabled } = useReplyAssignmentGate();
+const { isInboxLineDown } = useWahaHealth();
 
 const currentChat = useMapGetter('getSelectedChat');
 const currentUser = useMapGetter('getCurrentUser');
@@ -72,6 +74,13 @@ const {
 const showTransferTeamModal = ref(false);
 const pendingTransferAgent = ref(null);
 const isPendingBotHandoff = ref(false);
+
+// Linha muda: o WhatsApp desta caixa não entrega agora. O agente precisa saber
+// ANTES de responder — o balão sai como enviado de qualquer jeito. Nota privada
+// não vai para o cliente, então lá o aviso seria alarme falso.
+const isLineDown = computed(
+  () => !props.isOnPrivateNote && isInboxLineDown(currentChat.value?.inbox_id)
+);
 
 const isUserTyping = computed(
   () => props.message !== '' && !props.isOnPrivateNote
@@ -256,6 +265,14 @@ const onClickBotHandoff = async () => {
 </script>
 
 <template>
+  <!-- Linha do WhatsApp fora do ar: vem primeiro porque invalida qualquer outra
+       ação daqui (assumir, responder) — nada que for enviado agora chega. -->
+  <Banner
+    v-if="isLineDown"
+    color-scheme="alert"
+    class="mx-2 mb-2 rounded-lg !py-2"
+    :banner-message="$t('CONVERSATION.WAHA_LINE_DOWN')"
+  />
   <!-- Barra de IA (estilo Intercom Fin): identidade roxa persistente enquanto a
        IA é a dona, com brilho sutil que "respira" e CTA claro para assumir. -->
   <div
