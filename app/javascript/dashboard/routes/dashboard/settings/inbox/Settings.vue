@@ -45,6 +45,7 @@ import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 import AppearancePage from './widget/appearance/AppearancePage.vue';
 import TriggersPage from './widget/triggers/TriggersPage.vue';
 import TrackingPage from './widget/tracking/TrackingPage.vue';
+import PreChatPage from './widget/prechat/PreChatPage.vue';
 import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
@@ -87,6 +88,7 @@ export default {
     AppearancePage,
     TriggersPage,
     TrackingPage,
+    PreChatPage,
   },
   mixins: [inboxMixin],
   setup() {
@@ -127,6 +129,15 @@ export default {
       widgetBubblePosition: 'right',
       widgetBubbleType: 'standard',
       widgetBubbleLauncherTitle: '',
+      // BLOCO 3.14 — a valvula do legado, e ela e TEMPORARIA por decisao pendente.
+      //
+      // A aba passa a montar a Tela 3 (`PreChatPage`). O `PreChatForm/Settings.vue`
+      // NAO foi apagado: o destino dele e decisao do dono (item 17 da §12 do
+      // relatorio definitivo — apagar ou virar o modo Simples), e apagar antes da
+      // decisao deixaria o produto sem comparacao possivel. Enquanto a decisao nao
+      // vem, a tela antiga continua a UM clique, e `?prechat=legacy` na URL abre
+      // direto nela para quem quiser comparar lado a lado.
+      preChatLegacy: false,
     };
   },
   computed: {
@@ -637,6 +648,7 @@ export default {
         this.$refs.appearancePage,
         this.$refs.triggersPage,
         this.$refs.trackingPage,
+        this.$refs.preChatPage,
       ];
       const atual = comRascunho.find(tela => tela?.requestLeave);
       if (
@@ -646,6 +658,20 @@ export default {
         return;
       }
       this.applyTabChange(selectedTabIndex);
+    },
+    // A troca entre a Tela 3 e a tela antiga descarta o rascunho da Tela 3, e
+    // por isso passa pelo mesmo guarda da troca de aba: sem ele, um clique de
+    // curiosidade jogaria fora oito campos configurados sem perguntar.
+    togglePreChatLegacy() {
+      const tela = this.$refs.preChatPage;
+      const trocar = () => {
+        this.preChatLegacy = !this.preChatLegacy;
+      };
+      // `requestLeave` ja executa a acao sozinho quando nao ha pendencia, e a
+      // segura no dialogo quando ha. Voltando do legado a Tela 3 nem esta
+      // montada, e ai a troca e direta.
+      if (tela?.requestLeave) tela.requestLeave(trocar);
+      else trocar();
     },
     applyTabChange(selectedTabIndex) {
       this.selectedTabIndex = selectedTabIndex;
@@ -665,6 +691,8 @@ export default {
       window.history.replaceState(null, '', newUrl);
     },
     setTabFromRouteParam() {
+      // `?prechat=legacy` abre a aba direto na tela antiga (bloco 3.14).
+      this.preChatLegacy = this.$route.query.prechat === 'legacy';
       const { tab: tabParam } = this.$route.params;
       if (!tabParam) {
         this.selectedTabIndex = 0;
@@ -1477,9 +1505,29 @@ export default {
           ref="trackingPage"
           :inbox-id="currentInboxId"
         />
-        <div v-if="selectedTabKey === 'pre-chat-form'">
-          <PreChatFormSettings :inbox="inbox" />
-        </div>
+        <template v-if="selectedTabKey === 'pre-chat-form'">
+          <PreChatPage
+            v-if="!preChatLegacy"
+            ref="preChatPage"
+            class="mx-6 max-w-4xl"
+            :inbox-id="currentInboxId"
+          />
+          <PreChatFormSettings v-else :inbox="inbox" />
+          <div class="mx-6 max-w-4xl mt-6 mb-4">
+            <button
+              type="button"
+              class="text-sm underline text-n-slate-12 hover:no-underline"
+              data-testid="pre-chat-legacy-toggle"
+              @click="togglePreChatLegacy"
+            >
+              {{
+                preChatLegacy
+                  ? $t('INBOX_WIDGET.PRE_CHAT_FORM.LEGACY.BACK_TO_NEW')
+                  : $t('INBOX_WIDGET.PRE_CHAT_FORM.LEGACY.OPEN_OLD')
+              }}
+            </button>
+          </div>
+        </template>
         <div v-if="selectedTabKey === 'business-hours'">
           <WeeklyAvailability :inbox="inbox" />
         </div>

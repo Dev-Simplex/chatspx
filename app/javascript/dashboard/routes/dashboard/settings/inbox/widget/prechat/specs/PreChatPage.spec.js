@@ -17,10 +17,15 @@ vi.mock('dashboard/composables/store', async () => {
   const { computed } = await import('vue');
   return {
     useStore: () => store,
-    // O `Dialog` monta `TeleportWithDirection`, que lê `accounts/isRTL`. Sem
-    // este export o mock derruba o componente inteiro por um getter que nada
-    // nesta tela usa.
-    useMapGetter: () => computed(() => false),
+    // Resolve POR CHAVE, e não um `false` para tudo. O `Dialog` monta
+    // `TeleportWithDirection`, que lê `accounts/isRTL` — mas a tela também lê
+    // `attributes/getAttributes`, e devolver `false` ali dublava um array com
+    // um booleano: a tela passaria no teste com um catálogo que produção nunca
+    // entrega.
+    useMapGetter: key =>
+      computed(() =>
+        key === 'attributes/getAttributes' ? storeState.attributes : false
+      ),
   };
 });
 
@@ -64,7 +69,7 @@ beforeEach(() => {
   push = vi.fn().mockResolvedValue();
   dialogOpen = vi.fn();
   dialogClose = vi.fn();
-  storeState = reactive({ inbox: inboxFixture(), uiFlags: {} });
+  storeState = reactive({ inbox: inboxFixture(), uiFlags: {}, attributes: [] });
   store = {
     getters: {
       'inboxes/getInbox': () => storeState.inbox,
@@ -264,5 +269,204 @@ describe('PreChatPage — o rascunho', () => {
     await nextTick();
 
     expect(wrapper.find('[data-testid="field-counter"]').exists()).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bloco 3.14 — a tela LIGADA na aba, e não montada só em jsdom.
+//
+// Os testes acima usam uma fixture já povoada: três campos ligados MAIS a cauda
+// de atributos personalizados que a tela antiga gravou desligados. Essa forma
+// só existe numa inbox que passou pela tela antiga e apertou Salvar.
+//
+// A inbox que o produto cria hoje é OUTRA: `web_widget.rb:254-267` semeia três
+// campos padrão e mais nada. Nessa inbox — a de toda conta nova — o teto de 8 é
+// inalcançável, e "o 9º campo é impossível" passaria por vacuidade: não porque
+// a tela barra o nono, mas porque nunca houve um quarto.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A forma REAL de `api/v1/models/_custom_attribute_definition.json.jbuilder`.
+ * Dublê com forma inventada é o defeito que esta base já pagou três vezes.
+ */
+const attribute = (key, displayName) => ({
+  id: key.length + displayName.length,
+  attribute_display_name: displayName,
+  attribute_display_type: 'text',
+  attribute_description: '',
+  auto_provisioned_from_website: false,
+  attribute_key: key,
+  regex_pattern: null,
+  regex_cue: null,
+  attribute_values: [],
+  attribute_model: 'contact_attribute',
+  default_value: null,
+  created_at: '2026-08-01T12:00:00.000Z',
+  updated_at: '2026-08-01T12:00:00.000Z',
+});
+
+/** A semente de fábrica, copiada de `web_widget.rb#validate_pre_chat_options`. */
+const inboxDeFabrica = () => ({
+  id: 7,
+  name: 'Site da Simplex',
+  pre_chat_form_enabled: true,
+  pre_chat_form_options: {
+    pre_chat_message: 'Share your queries or comments here.',
+    pre_chat_fields: [
+      {
+        field_type: 'standard',
+        label: 'Email Id',
+        name: 'emailAddress',
+        type: 'email',
+        required: true,
+        enabled: false,
+      },
+      {
+        field_type: 'standard',
+        label: 'Full name',
+        name: 'fullName',
+        type: 'text',
+        required: false,
+        enabled: false,
+      },
+      {
+        field_type: 'standard',
+        label: 'Phone number',
+        name: 'phoneNumber',
+        type: 'text',
+        required: false,
+        enabled: false,
+      },
+    ],
+  },
+  additional_attributes: {},
+});
+
+const optionsOfStep = (wrapper, step) =>
+  wrapper
+    .findAll(`[data-testid="add-field-step-${step}"] option`)
+    .map(option => option.text().trim())
+    .filter(Boolean);
+
+const addField = async (wrapper, step, value) => {
+  await wrapper
+    .find(`[data-testid="add-field-step-${step}"] select`)
+    .setValue(value);
+  await nextTick();
+};
+
+describe('PreChatPage — o catálogo vem da conta, não do que está gravado', () => {
+  beforeEach(() => {
+    storeState.inbox = inboxDeFabrica();
+    storeState.attributes = [
+      attribute('cargo', 'Cargo'),
+      attribute('empresa', 'Empresa'),
+      attribute('faturamento', 'Faturamento'),
+      attribute('cidade', 'Cidade'),
+      attribute('origem', 'Origem'),
+      attribute('orcamento', 'Orçamento'),
+    ];
+  });
+
+  it('oferece os atributos personalizados da conta na inbox de fábrica', () => {
+    const wrapper = build();
+
+    expect(optionsOfStep(wrapper, 1)).toEqual(
+      expect.arrayContaining([
+        'Cargo',
+        'Empresa',
+        'Faturamento',
+        'Cidade',
+        'Origem',
+        'Orçamento',
+      ])
+    );
+  });
+
+  it('atributo NÃO ligado não engorda o que vai ao servidor', () => {
+    const wrapper = build();
+
+    expect(wrapper.vm.draft.preChat.pre_chat_fields.map(f => f.name)).toEqual([
+      'emailAddress',
+      'fullName',
+      'phoneNumber',
+    ]);
+    expect(wrapper.vm.dirtyCount).toBe(0);
+  });
+
+  it('atributo ligado entra no rascunho com a chave da conta', async () => {
+    const wrapper = build();
+
+    await addField(wrapper, 1, 'cargo');
+
+    const gravado = wrapper.vm.draft.preChat.pre_chat_fields;
+    const cargo = gravado.find(f => f.name === 'cargo');
+    expect(cargo).toBeTruthy();
+    expect(cargo.enabled).toBe(true);
+    expect(cargo.label).toBe('Cargo');
+    // Os outros cinco continuam fora: o catálogo é de tela, não de payload.
+    expect(gravado.map(f => f.name)).not.toContain('empresa');
+  });
+
+  it('o 9º campo é impossível NA INBOX DE FÁBRICA, com o motivo à vista', async () => {
+    const wrapper = build();
+
+    // 3 padrão + 5 personalizados = os 8 do teto.
+    const oito = [
+      'emailAddress',
+      'fullName',
+      'phoneNumber',
+      'cargo',
+      'empresa',
+      'faturamento',
+      'cidade',
+      'origem',
+    ];
+    // Em SÉRIE, e não `Promise.all`: cada `enableField` lê a lista já com o
+    // anterior ligado, e é essa acumulação que faz o oitavo bater no teto.
+    await oito.reduce(
+      (anterior, name) => anterior.then(() => addField(wrapper, 1, name)),
+      Promise.resolve()
+    );
+
+    expect(enabledNames(wrapper)).toHaveLength(8);
+    expect(wrapper.find('[data-testid="field-counter"]').text()).toBe(
+      '8 de 8 campos'
+    );
+
+    // O motivo é TEXTO na tela, não `title` nem tooltip.
+    const motivo = wrapper.find('[data-testid="field-limit-reason"]');
+    expect(motivo.exists()).toBe(true);
+    expect(motivo.text()).toContain('limite de 8 campos');
+
+    // E o nono não tem por onde entrar: sobrou o botão desligado.
+    expect(wrapper.find('[data-testid="add-field-step-1"]').exists()).toBe(
+      false
+    );
+    expect(wrapper.find('[data-testid="add-field-disabled-1"]').exists()).toBe(
+      true
+    );
+    expect(enabledNames(wrapper)).not.toContain('orcamento');
+  });
+});
+
+describe('PreChatPage — a aba pergunta antes de trocar', () => {
+  it('`requestLeave` sai limpo quando não há pendência', () => {
+    const wrapper = build();
+    const acao = vi.fn();
+
+    expect(wrapper.vm.requestLeave(acao)).toBe(true);
+    expect(acao).toHaveBeenCalled();
+  });
+
+  it('`requestLeave` segura a troca de aba com rascunho sujo', async () => {
+    const wrapper = build();
+    await selectMode(wrapper, 'builder');
+    const acao = vi.fn();
+
+    expect(wrapper.vm.requestLeave(acao)).toBe(false);
+    expect(acao).not.toHaveBeenCalled();
+    await nextTick();
+    expect(wrapper.vm.isPromptOpen).toBe(true);
   });
 });
