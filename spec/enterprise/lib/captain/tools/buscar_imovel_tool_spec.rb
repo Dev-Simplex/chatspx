@@ -130,4 +130,133 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect { tool.send(:track_urls, Struct.new(:state).new({}), [imovel], true) }.not_to raise_error
     end
   end
+
+  # A palavra "condomínio" aparecia com dois sentidos na MESMA linha do resultado: a taxa
+  # (ValorCondominio) e o fato de o imóvel ficar em condomínio fechado (Condominio). Na conv
+  # 4809 o modelo usou a taxa como evidência do fato e anunciou ao cliente que duas casas
+  # avulsas eram em condomínio fechado — e a conduta de visita aplicou o caminho errado por
+  # cima disso. Estes testes fixam a distinção no texto que o modelo lê.
+  describe 'condomínio: taxa e fato são coisas diferentes' do
+    let(:avulso_com_taxa) do
+      imovel.merge('Condominio' => 'Nao', 'ValorCondominio' => '300', 'ValorLocacao' => '1300', 'ValorVenda' => '0')
+    end
+
+    before { allow(tool).to receive_messages(site_api_key: nil, format_extras: '') }
+
+    it 'calls the fee a fee, never just "condomínio"' do
+      expect(tool.send(:format_taxas, avulso_com_taxa)).to include('taxa de condomínio R$ 300')
+    end
+
+    it 'says the property does NOT sit in a gated community when Vista says Nao' do
+      expect(tool.send(:format_condominio, avulso_com_taxa)).to include('NÃO fica em condomínio fechado')
+    end
+
+    it 'says it DOES when Vista says Sim' do
+      expect(tool.send(:format_condominio, imovel.merge('Condominio' => 'Sim'))).to include('FICA em condomínio fechado')
+    end
+
+    it 'stays silent when Vista has no answer' do
+      expect(tool.send(:format_condominio, imovel.merge('Condominio' => ''))).to eq('')
+    end
+
+    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha.
+    it 'keeps fee and fact distinguishable on the same listing line' do
+      linha = tool.send(:format_listings, [avulso_com_taxa], false)
+
+      expect(linha).to include('taxa de condomínio R$ 300')
+      expect(linha).to include('NÃO fica em condomínio fechado')
+    end
+  end
+
+  # A IA apresentou três casas ao cliente e a terceira não existia — bairro sem casa nenhuma
+  # e código inexistente no Vista. A trava do enviar_fotos_imovel barra a FOTO de código não
+  # buscado, mas não barra a FALA. Fechar a lista é o que tira o espaço onde a invenção cabe.
+  describe 'a lista devolvida é um conjunto fechado' do
+    before { allow(tool).to receive_messages(site_api_key: nil, format_extras: '') }
+
+    it 'numbers every option' do
+      texto = tool.send(:format_listings, [imovel, imovel.merge('Codigo' => '7777')], true)
+
+      expect(texto).to include('1) (cód 9908')
+      expect(texto).to include('2) (cód 7777')
+    end
+
+    it 'states the total and forbids completing the list from memory' do
+      texto = tool.send(:format_listings, [imovel], true)
+
+      expect(texto).to include('São 1 opção(ões) e não existem outras')
+      expect(texto).to match(/nunca complete a lista de memória/i)
+    end
+  end
+
+  # Régua do cliente: locação pode endereço completo, venda só o bairro — endereço de imóvel
+  # à venda é o insumo que um concorrente usa pra captar o imóvel com o proprietário.
+  describe 'endereço na descrição do anúncio' do
+    let(:descricao) { "Casa ampla\nLocalizada na Rua das Palmeiras, 1234\n3 quartos" }
+
+    it 'keeps the street for a rental' do
+      expect(tool.send(:descricao_limpa, descricao, venda: false)).to include('Rua das Palmeiras, 1234')
+    end
+
+    it 'replaces the street with an explicit marker for a sale' do
+      limpa = tool.send(:descricao_limpa, descricao, venda: true)
+
+      expect(limpa).not_to include('Palmeiras')
+      expect(limpa).not_to include('1234')
+      expect(limpa).to include('[endereço não divulgado em venda')
+    end
+
+    it 'keeps the rest of the description intact in a sale' do
+      expect(tool.send(:descricao_limpa, descricao, venda: true)).to include('3 quartos')
+    end
+  end
+
+  # O Google nunca responde "não achei" para um bairro que não conhece — devolve um homônimo
+  # de outra cidade. Medido em 28/08 sobre os 259 bairros do acervo: 259 "resolveram" e 67
+  # caíram a mais de 3 km dos imóveis reais, o pior a 518 km. Sem veto, a distância que a IA
+  # anuncia ao cliente sai de um ponto em outro estado.
+  describe 'veto de sanidade do geocoding' do
+    let(:escritorio) { { lat: -11.8519937, lng: -55.5093314, name: 'Escritório' } }
+
+    before do
+      allow(tool).to receive_messages(google_maps_key: 'k', geo_city: 'Sinop MT', office_coords: escritorio)
+    end
+
+    it 'accepts a point inside the urban radius' do
+      allow(tool).to receive(:geocode_google).and_return({ lat: -11.8343912, lng: -55.546244 })
+
+      expect(tool.send(:geocode_referencia, 'Aquarela das Artes')).to be_present
+    end
+
+    it 'rejects a namesake in another state' do
+      allow(tool).to receive(:geocode_google).and_return({ lat: -19.9166813, lng: -43.9344931 })
+
+      expect(tool.send(:geocode_referencia, 'Jardim Belo Horizonte')).to be_nil
+    end
+
+    it 'returns nil without a Google key instead of guessing' do
+      allow(tool).to receive(:google_maps_key).and_return(nil)
+
+      expect(tool.send(:geocode_referencia, 'Centro')).to be_nil
+    end
+  end
+
+  # Mobiliado não é filtro de listagem no Vista (o /listar devolve HTTP 400 pedindo
+  # Caracteristicas.Mobiliado). A IA prometia "vou buscar se tem mobiliada" e não buscava.
+  describe 'mobiliado' do
+    it 'widens the fetch so the post-filter has candidates' do
+      expect(tool.send(:quantidade_para, false, true)).to eq(described_class::TETO_INSPECAO)
+    end
+
+    it 'keeps the default page size when nobody asked for it' do
+      expect(tool.send(:quantidade_para, false, nil)).to eq(5)
+    end
+
+    it 'reports the search as done, not as pending, when nothing matches' do
+      texto = tool.send(:sem_mobiliado, 12)
+
+      expect(texto).to include('Conferi 12')
+      expect(texto).to match(/não prometa nova busca/i)
+    end
+  end
 end

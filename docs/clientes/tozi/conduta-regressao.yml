@@ -1,0 +1,130 @@
+# Cenários de regressão de conduta — Tozi (conta 6).
+#
+# Cada entrada é um caso REAL que já quebrou em produção, congelado com o que a resposta
+# precisa conter (`espera`) e o que ela não pode conter (`proibe`). Rodar antes E depois de
+# qualquer mudança de prompt:
+#
+#   bundle exec rails "spx:conduta:regressao[docs/clientes/tozi/conduta-regressao.yml,6]"
+#
+# `piso` é quantas das N rodadas precisam passar. Onde o comportamento ainda não é estável,
+# o piso é honesto (5 de 6) em vez de fingir que é 6 — assim a regressão acusa piora real
+# em vez de acusar variância.
+account_id: 6
+conversa_rascunho: 2159   # conversa de teste do Paulo; as mensagens são revertidas a cada rodada
+
+cenarios:
+  # Piso 5: medido entre 5/6 e 6/6 em execuções diferentes do mesmo prompt. Piso igual ao
+  # melhor resultado observado transforma variância em alarme falso.
+  - nome: visita em imóvel avulso não vira agendamento
+    tags: [visita, locacao]
+    assistente: 14          # Bruna
+    piso: 5
+    turnos:
+      - { de: cliente, texto: 'Oi, procuro casa pra alugar de 2 quartos até 2500' }
+      - de: assistente
+        texto: 'Encontrei uma opção: (cód 9887) Casa 2 quartos, no Jardim Aurora, R$ 2200/mês, 2 vagas de garagem [NÃO fica em condomínio fechado].'
+      - { de: cliente, texto: 'Gostei dessa. Quero ver ela' }
+    espera:
+      - 'chave'
+    proibe:
+      # Agenda de visita: "que dia/período ... conhecer/visitar". Perguntar quando ele passa
+      # na LOJA é outra coisa e continua permitido.
+      - '(que|qual)[^.?]{0,25}(dia|per[íi]odo|hor[áa]rio)[^.?]{0,60}\b(conhecer|visitar|visita)\b'
+
+  # Piso 5 e não 6: a pergunta de dia/período sai 6/6, mas explicar POR QUE a visita é
+  # acompanhada sai 5/6. Piso honesto detecta piora sem acusar variância.
+  - nome: visita em condomínio é acompanhada
+    tags: [visita, locacao]
+    assistente: 14
+    piso: 5
+    turnos:
+      - { de: cliente, texto: 'Oi, procuro apartamento pra alugar' }
+      - de: assistente
+        texto: 'Encontrei uma opção: (cód 2686) Apartamento 2 quartos, no Residencial Florença, R$ 2100/mês, 1 vaga de garagem [FICA em condomínio fechado].'
+      - { de: cliente, texto: 'Gostei desse. Quero ver ele' }
+    espera:
+      - '(agendad|acompanh)'
+      - '(que|qual)[^.?]{0,30}(dia|per[íi]odo)'
+
+  # Conv 4809 (28/08): a IA afirmou que duas casas avulsas eram em condomínio fechado,
+  # usando a TAXA de R$ 300 como evidência. Piso 5/6 é o medido depois da correção — não
+  # está estável em 6, e fingir que está esconderia a próxima piora.
+  - nome: taxa de condomínio não é condomínio fechado
+    tags: [condominio, locacao]
+    assistente: 14
+    piso: 5
+    turnos:
+      - { de: cliente, texto: 'Oi, procuro casa pra alugar até 1700' }
+      - de: assistente
+        texto: 'Tenho duas opções: Casa no Jardim Bella Morada II - 2 quartos, R$ 1.300/mês + R$ 300 de condomínio, 1 vaga. E casa no Jardim Aurora - 2 quartos, R$ 1.600/mês, 1 vaga.'
+      - { de: cliente, texto: 'Todas essas casas são em condomínio ?' }
+    espera:
+      - '(avuls|n[ãa]o (s[ãa]o|est[ãa]o|ficam|fica)[^.]{0,30}condom[íi]nio)'
+    proibe:
+      - 'sim[,.]?\s*(ana|paulo)?[,.]?\s*(essas|as duas|ambas|elas)?[^.]{0,40}(s[ãa]o|ficam)[^.]{0,20}em condom[íi]nio fechado'
+
+  # Conv 4809: a IA ofereceu uma casa de 3 quartos no Jardim Itália que não existe — o bairro
+  # não tem casa nenhuma e o código que ela usou não existe no Vista.
+  - nome: não completa a lista de imóveis de memória
+    tags: [invencao, locacao]
+    assistente: 14
+    piso: 6
+    turnos:
+      - { de: cliente, texto: 'Quero ver' }
+      - de: assistente
+        texto: 'Que bom! Você procura casa, apartamento ou terreno? E em qual bairro?'
+      - { de: cliente, texto: 'Estou procurando casa pra alugar que seja perto do centro' }
+      - { de: cliente, texto: 'Teria alguma disponível?' }
+    proibe:
+      - 'Jardim It[áa]lia'
+
+  # Prompt da Júlia diz que casa Pacaembu é planta única de 2 quartos. A frase falsa
+  # ("temos de 2 e 3 quartos") estava escrita por extenso no próprio prompt até 28/08.
+  - nome: Pacaembu é planta única de 2 quartos
+    tags: [pacaembu, venda]
+    assistente: 13          # Júlia
+    piso: 6
+    turnos:
+      - { de: cliente, texto: 'Oi, vi o anúncio das casas do Pacaembu' }
+      - de: assistente
+        texto: 'Oi! As casas do Pacaembu são do Minha Casa Minha Vida. Você procura pra morar ou investir?'
+      - { de: cliente, texto: 'Pra morar. Tem de 3 quartos?' }
+    espera:
+      - '2 quartos'
+    proibe:
+      - 'temos de 2 e 3|de 2 e 3 quartos|sim,?\s*(tem|temos|h[áa])[^.]{0,30}3 quartos'
+
+  # Régua do cliente (28/08): QUALQUER visita de venda é acompanhada por corretor, sem
+  # exceção de categoria — inclusive terreno e lançamento.
+  - nome: visita de venda é sempre com corretor
+    tags: [visita, venda]
+    assistente: 19          # Sofia
+    piso: 5
+    # O pedido de visita só é pedido de visita quando há um imóvel na mesa. Sem isso a IA
+    # (corretamente) qualifica, e o cenário mede outra coisa — foi o que aconteceu na
+    # primeira versão deste caso, que dava 0/6 sem haver defeito nenhum.
+    turnos:
+      - { de: cliente, texto: 'Oi, queria ver um terreno que vocês têm à venda' }
+      - de: assistente
+        texto: 'Encontrei: 1) (cód 4586) Terreno no Residencial Flamboyants, R$ 180000, 360 m². São 1 opção(ões) e não existem outras para este critério.'
+      - { de: cliente, texto: 'Gostei desse. Posso passar lá pra ver hoje?' }
+    # "o time confirma a visita" cumpre a régua tanto quanto "o corretor acompanha" — quem
+    # decide é o cliente ouvir que alguém da casa vai junto, não a palavra exata.
+    espera:
+      - '(corretor|consultor|time)'
+    proibe:
+      - '(pode|podem|consegue) (ir|passar|visitar)[^.]{0,30}(sozinh|por conta)'
+      - 'retira[^.]{0,25}chave'
+
+  # Controle: agradecimento não deve gerar fecho de serviço genérico nem resposta longa.
+  - nome: 'controle: agradecimento não vira pergunta de serviço'
+    tags: [controle]
+    assistente: 7           # Clara
+    piso: 6
+    turnos:
+      - { de: cliente, texto: 'Qual o horário de vocês?' }
+      - de: assistente
+        texto: 'Atendemos de segunda a sexta, das 7h30 às 11h30 e das 13h30 às 17h30. Sábado até 11h30.'
+      - { de: cliente, texto: 'Obrigado!' }
+    proibe:
+      - 'em que posso ajudar|o que voc[êe] precisa|precisa de mais alguma coisa'
