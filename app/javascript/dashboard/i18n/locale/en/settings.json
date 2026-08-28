@@ -7,7 +7,9 @@
     "LOADING": "Loading agents...",
     "NO_AGENTS": "No agents found",
     "ACTIVE": "Active",
-    "INACTIVE": "Inactive"
+    "INACTIVE": "Inactive",
+    "IN_USE": "In use",
+    "NO_INBOX": "No inbox"
   },
   "AGENTS_RODIZIO": {
     "TITLE": "Rotation",
@@ -254,7 +256,8 @@
       "INBOXES": "Inboxes",
       "LOGS": "Logs",
       "SETTINGS": "Settings"
-    }
+    },
+    "ACCOUNT_MODEL": "Model set on the account, under Connections"
   },
   "AGENTS_TOOLS": {
     "TITLE": "Tools",

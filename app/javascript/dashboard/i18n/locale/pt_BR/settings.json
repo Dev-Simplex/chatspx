@@ -7,7 +7,9 @@
     "LOADING": "Carregando agentes...",
     "NO_AGENTS": "Nenhum agente encontrado",
     "ACTIVE": "Ativo",
-    "INACTIVE": "Inativo"
+    "INACTIVE": "Inativo",
+    "IN_USE": "Em uso",
+    "NO_INBOX": "Sem caixa"
   },
   "AGENTS_RODIZIO": {
     "TITLE": "Rodízio",
@@ -254,7 +256,8 @@
       "INBOXES": "Caixas de Entrada",
       "LOGS": "Registros",
       "SETTINGS": "Configurações"
-    }
+    },
+    "ACCOUNT_MODEL": "Modelo definido na conta, em Conexões"
   },
   "AGENTS_TOOLS": {
     "TITLE": "Ferramentas",

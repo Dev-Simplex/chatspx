@@ -2,7 +2,11 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 // Editor de fluxo estilo n8n (bespoke, sem libs): canvas pan/zoom/fit, nós com
 // handles de porta, arestas bézier animadas, grade que acompanha. Data-driven.
-const props = defineProps({ assistant: { type: Object, default: () => ({}) } });
+const props = defineProps({
+  assistant: { type: Object, default: () => ({}) },
+  // Modelo da CONTA: `config.model` não existe no payload do assistant.
+  model: { type: String, default: '' },
+});
 defineOptions({ name: 'AgentFlowGraph' });
 
 const NODE_W = 188;
@@ -62,7 +66,9 @@ const mainSteps = computed(() => {
     icon: 'i-lucide-bot',
     color: '#1faa59',
     title: 'AI Agent',
-    sub: cfg.model ? `${cfg.model}` : `LLM · temp ${cfg.temperature ?? 0.7}`,
+    sub: props.model
+      ? `${props.model}`
+      : `LLM · temp ${cfg.temperature ?? 0.7}`,
     agent: true,
   });
   if (isOn('dedup'))

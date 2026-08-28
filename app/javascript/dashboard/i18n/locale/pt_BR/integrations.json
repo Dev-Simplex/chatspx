@@ -1280,7 +1280,8 @@
         "CONFIGURE_DESCRIPTION": "Este agente ainda não tem behavior configurado. Use a aba Comportamento para configurar o pipeline, ou copie o JSON template abaixo e configure via código.",
         "AGENT_CONFIG": "Configuração do Agente",
         "BEHAVIORS": "Comportamentos",
-        "NONE_CONFIGURED": "Nenhum configurado"
+        "NONE_CONFIGURED": "Nenhum configurado",
+        "MODEL_HINT": "Definido na conta, em Conexões"
       },
       "KNOWLEDGE": {
         "DOCUMENTS": "Documentos",
@@ -1314,7 +1315,10 @@
         "MODE_FILE": "Arquivo PDF",
         "PDF_HINT": "Apenas PDF, até 10 MB.",
         "PDF_ONLY": "Somente arquivos PDF são aceitos.",
-        "PDF_TOO_BIG": "O arquivo excede o limite de 10 MB."
+        "PDF_TOO_BIG": "O arquivo excede o limite de 10 MB.",
+        "TYPE_PDF": "PDF",
+        "TYPE_URL": "Página web",
+        "TYPE_TEXT": "Texto colado"
       },
       "TOOLS": {
         "NEW_TOOL": "Nova Ferramenta",

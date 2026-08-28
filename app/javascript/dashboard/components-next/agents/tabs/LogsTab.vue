@@ -70,9 +70,19 @@ onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval);
 });
 
+// A API serializa `created_at` com `.to_i`, ou seja, EPOCH EM SEGUNDOS
+// (assistant_logs/index.json.jbuilder). `new Date(segundos)` interpreta o número como
+// milissegundos, então todo log aparecia datado de janeiro de 1970. Aceita também string
+// de data e epoch já em milissegundos, para não depender do formato de um único endpoint.
+const MS_THRESHOLD = 1e11;
 function formatTimestamp(ts) {
   if (!ts) return '';
-  return new Date(ts).toLocaleString('pt-BR');
+  if (typeof ts === 'number') {
+    const ms = ts < MS_THRESHOLD ? ts * 1000 : ts;
+    return new Date(ms).toLocaleString('pt-BR');
+  }
+  const parsed = new Date(ts);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleString('pt-BR');
 }
 function summarizePayload(payload) {
   if (!payload) return '';

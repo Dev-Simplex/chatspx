@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 
+import { useCaptainAssistantModel } from 'dashboard/composables/useCaptainAssistantModel';
+
 import AiSegmented from 'dashboard/components-next/agents-ui/AiSegmented.vue';
 import AgentFlowSimple from 'dashboard/components-next/agents/workflow/AgentFlowSimple.vue';
 import AgentFlowGraph from 'dashboard/components-next/agents/workflow/AgentFlowGraph.vue';
@@ -16,6 +18,8 @@ const assistantId = computed(() => Number(route.params.assistantId));
 const agent = computed(() =>
   store.getters['captainAssistants/getRecord'](assistantId.value)
 );
+
+const { assistantModel } = useCaptainAssistantModel();
 
 const view = ref('simple');
 const OPTIONS = computed(() => [
@@ -36,7 +40,15 @@ onMounted(() => {
         t('CAPTAIN.AGENT_TABS.FLOW.HINT')
       }}</span>
     </div>
-    <AgentFlowSimple v-if="view === 'simple'" :assistant="agent || {}" />
-    <AgentFlowGraph v-else :assistant="agent || {}" />
+    <AgentFlowSimple
+      v-if="view === 'simple'"
+      :assistant="agent || {}"
+      :model="assistantModel || ''"
+    />
+    <AgentFlowGraph
+      v-else
+      :assistant="agent || {}"
+      :model="assistantModel || ''"
+    />
   </div>
 </template>

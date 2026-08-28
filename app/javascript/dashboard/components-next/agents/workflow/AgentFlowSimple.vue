@@ -3,6 +3,10 @@ import { computed, ref, onMounted } from 'vue';
 
 const props = defineProps({
   assistant: { type: Object, default: () => ({}) },
+  // Modelo da CONTA. `config.model` nunca existiu no payload do assistant, então o
+  // passo "Entende e responde" caía sempre no texto genérico. Vem de quem resolve
+  // na fonte real (useCaptainAssistantModel), via FlowTab.
+  model: { type: String, default: '' },
 });
 // Timeline vertical em pt-BR, GERADA da config real do agente (não genérica).
 // Animada: entrada em cascata + conectores com energia + "Reproduzir" (acende passo a passo).
@@ -11,7 +15,6 @@ const LANE = 'O que o agente faz';
 const REPLAY = 'Reproduzir';
 
 const behavior = computed(() => props.assistant?.behavior || {});
-const config = computed(() => props.assistant?.config || {});
 
 const isOn = key => {
   const v = behavior.value[key];
@@ -22,7 +25,6 @@ const isOn = key => {
 
 const steps = computed(() => {
   const bh = behavior.value;
-  const cfg = config.value;
   const list = [];
   list.push({
     icon: 'i-lucide-message-square',
@@ -68,7 +70,7 @@ const steps = computed(() => {
     icon: 'i-lucide-bot',
     color: '#1faa59',
     title: 'Entende e responde',
-    sub: cfg.model ? `Modelo: ${cfg.model}` : 'IA do agente',
+    sub: props.model ? `Modelo: ${props.model}` : 'IA do agente',
   });
   if (isOn('dedup')) {
     list.push({

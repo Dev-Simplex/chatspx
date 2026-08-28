@@ -129,9 +129,17 @@ onMounted(() => store.dispatch('captainAssistants/get'));
             >
               {{ agent.name }}
             </span>
+            <!-- `agent.active` não existe no payload e não existe conceito de assistant
+                 ativo/inativo no sistema: a bolinha ficava verde para todo mundo.
+                 O fato verificável é atender caixa ou não. -->
             <span
               class="flex-none rounded-full size-2"
-              :class="agent.active === false ? 'bg-n-slate-7' : 'bg-g-500'"
+              :class="agent.inbox_ids?.length ? 'bg-g-500' : 'bg-n-slate-7'"
+              :title="
+                agent.inbox_ids?.length
+                  ? t('AGENTS_PAGE.IN_USE')
+                  : t('AGENTS_PAGE.NO_INBOX')
+              "
             />
           </button>
         </template>

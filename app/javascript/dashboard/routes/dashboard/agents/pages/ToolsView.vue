@@ -120,6 +120,10 @@ const toolDesc = tool =>
 const toolIcon = tool => ICON_MAP[tool.icon] || 'i-lucide-wrench';
 
 // Catálogo = só tools de sistema (as custom têm flag `custom:true` no /tools).
+// A flag existe em `to_tool_metadata` desde sempre, mas o jbuilder de /tools não a
+// serializava: `!x.custom` era sempre verdadeiro e cada tool personalizada habilitada
+// aparecia duas vezes na tela (aqui e na lista de personalizadas). Corrigido no
+// jbuilder, que agora devolve `custom`.
 const filteredBuiltin = computed(() => {
   const list = builtinTools.value.filter(x => !x.custom);
   const q = norm(search.value);

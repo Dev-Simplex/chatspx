@@ -1,20 +1,30 @@
 <script setup>
 import { computed } from 'vue';
 import AiAvatar from './AiAvatar.vue';
-// Card de agente (grid do dashboard): avatar + nome + modelo + descrição + rodapé (inboxes + status).
+// Card de agente (grid do dashboard): avatar + nome + modelo + descrição + rodapé (caixas + uso).
+//
+// Três campos deste card liam chaves que a API do assistant NÃO devolve
+// (`_assistant.json.jbuilder`), e o JavaScript entregava vazio/zero sem reclamar:
+//   - `agent.config.model` / `agent.config.llm_model`: nenhuma das duas existe. O modelo
+//     é da CONTA, não do agente — agora chega pronto pela prop `model`, de quem resolve
+//     na fonte real (ver useCaptainAssistantModel).
+//   - `agent.account_inbox_ids`: o nome certo é `inbox_ids`, então a contagem dava
+//     sempre 0 mesmo com o agente atendendo caixas.
+//   - `agent.active`: não existe no payload e NÃO EXISTE conceito de assistant
+//     ativo/inativo no sistema (não há coluna nem método). `undefined !== false` deixava
+//     o selo preso em "Ativo" para todo agente. Trocado por um fato verificável: o agente
+//     atende alguma caixa ou não. Sem caixa, ele comprovadamente nunca roda.
 const props = defineProps({
   agent: { type: Object, default: () => ({}) },
+  model: { type: String, default: '' },
   inboxLabel: { type: String, default: '' },
-  activeLabel: { type: String, default: '' },
-  inactiveLabel: { type: String, default: '' },
+  inUseLabel: { type: String, default: '' },
+  noInboxLabel: { type: String, default: '' },
 });
 defineEmits(['select']);
 defineOptions({ name: 'AiAgentCard' });
-const model = computed(
-  () => props.agent?.config?.model || props.agent?.config?.llm_model || ''
-);
-const inboxCount = computed(() => props.agent?.account_inbox_ids?.length || 0);
-const isActive = computed(() => props.agent?.active !== false);
+const inboxCount = computed(() => props.agent?.inbox_ids?.length || 0);
+const hasInbox = computed(() => inboxCount.value > 0);
 </script>
 
 <template>
@@ -51,9 +61,9 @@ const isActive = computed(() => props.agent?.active !== false);
       <span class="inline-flex gap-1.5 items-center font-semibold">
         <span
           class="rounded-full size-2"
-          :class="isActive ? 'bg-g-500' : 'bg-n-slate-7'"
+          :class="hasInbox ? 'bg-g-500' : 'bg-n-slate-7'"
         />
-        {{ isActive ? activeLabel : inactiveLabel }}
+        {{ hasInbox ? inUseLabel : noInboxLabel }}
       </span>
     </div>
   </button>
