@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_26_210149) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_27_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2053,17 +2053,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_210149) do
 
   create_table "unit_exceptions", force: :cascade do |t|
     t.bigint "unit_id", null: false
-    t.date "date", null: false
+    t.date "starts_on", null: false
     t.string "name", null: false
     t.boolean "closed_all_day", default: true, null: false
-    t.boolean "annual", default: false, null: false
     t.integer "open_hour"
     t.integer "open_minutes"
     t.integer "close_hour"
     t.integer "close_minutes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["unit_id", "date"], name: "index_unit_exceptions_on_unit_id_and_date", unique: true
+    t.date "ends_on"
+    t.integer "category", default: 0, null: false
+    t.integer "frequency", default: 0, null: false
+    t.integer "repeat_interval", default: 1, null: false
+    t.integer "weekdays", default: [], null: false, array: true
+    t.integer "week_positions", default: [], null: false, array: true
+    t.integer "month_days", default: [], null: false, array: true
+    t.date "until_date"
+    t.index ["unit_id", "starts_on"], name: "index_unit_exceptions_on_unit_id_and_starts_on"
     t.index ["unit_id"], name: "index_unit_exceptions_on_unit_id"
   end
 
@@ -2078,6 +2085,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_26_210149) do
     t.integer "close_minutes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "break_start_hour"
+    t.integer "break_start_minutes"
+    t.integer "break_end_hour"
+    t.integer "break_end_minutes"
     t.index ["unit_id", "day_of_week"], name: "index_unit_working_hours_on_unit_id_and_day_of_week", unique: true
     t.index ["unit_id"], name: "index_unit_working_hours_on_unit_id"
   end
