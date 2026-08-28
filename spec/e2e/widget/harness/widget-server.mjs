@@ -2,6 +2,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
+import { WATCH_IGNORADO } from './watch-ignore.mjs';
 
 process.env.TEST = 'true';
 
@@ -214,6 +215,11 @@ const vite = await createViteServer({
   server: {
     hmr: { port: 4001 },
     middlewareMode: true,
+    // `root` é o repositório inteiro, então sem esta lista o chokidar vigia a
+    // árvore toda e gasta um watch de inotify por diretório — inclusive os
+    // 14.240 de `tmp/`, que a PRÓPRIA suíte escreve enquanto roda. Ver
+    // `harness/watch-ignore.mjs`.
+    watch: { ignored: WATCH_IGNORADO },
   },
 });
 

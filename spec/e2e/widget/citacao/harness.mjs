@@ -14,6 +14,8 @@ process.env.TEST = 'true';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { WATCH_IGNORADO } from '../harness/watch-ignore.mjs';
+import { portaHmrLivre } from '../harness/porta-hmr.mjs';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(currentDirectory, '../../../..');
@@ -39,7 +41,17 @@ export const iniciar = async () => {
     configFile: path.join(repositoryRoot, 'vite.config.ts'),
     appType: 'custom',
     logLevel: 'warn',
-    server: { hmr: false, middlewareMode: true },
+    // `watch.ignored` pela mesma razão dos harness de `harness/`: `root` é o
+    // repositório inteiro, e sem a lista o chokidar gasta um watch de inotify
+    // por diretório da árvore toda. Ver `../harness/watch-ignore.mjs`.
+    server: {
+      // `hmr: false` NÃO desliga o socket: o Vite cai no default 24678 e os
+      // dois harness auxiliares do projeto `widget` brigam por ele. Ver
+      // `../harness/porta-hmr.mjs`.
+      hmr: { port: await portaHmrLivre() },
+      middlewareMode: true,
+      watch: { ignored: WATCH_IGNORADO },
+    },
   });
 
   const servidor = http.createServer((request, response) => {
