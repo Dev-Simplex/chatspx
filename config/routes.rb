@@ -712,6 +712,11 @@ Rails.application.routes.draw do
         # porque o visitante so escreve: ler quantas vezes a conta abordou alguem e
         # relatorio do painel, nao coisa que o widget do site precise saber.
         resources :approach_events, only: [:create]
+        # Bloco 3.18 — o host reporta QUAIS chaves de `chatwootSettings` o site sobrescreve.
+        # `resource` no singular porque nao ha colecao para listar, so um POST de relatorio; e
+        # `controller:` explicito porque `resource` singular procuraria um controller de nome
+        # singular, que nao e o nome do arquivo (mesma pegadinha do `telemetry` acima).
+        resource :appearance_overrides, only: [:create], controller: 'appearance_overrides'
         # Bloco 4.18 — resposta parcial do pre-chat, gravada ANTES de existir conversa.
         # `only: [:create]` porque o visitante so escreve: ler o proprio lead incompleto
         # nao serve a ele e vazaria o que o painel do cliente sabe.

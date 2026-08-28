@@ -6,6 +6,7 @@ import {
   getWidgetStyle,
 } from '../sdk/settingsHelper';
 import { mergeSnippetConfig } from '../sdk/snippetConfig';
+import { camposSobrescritosPeloSite } from '../sdk/appearance';
 import {
   publishDefaults,
   updateConsent,
@@ -212,9 +213,23 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     locale = window.navigator.language.replace('-', '_');
   }
 
+  // Bloco 3.18 — QUAIS chaves de aparencia este site esta sobrescrevendo.
+  //
+  // Medido AQUI, e nao no `loaded`, porque este e o unico instante em que o
+  // objeto do site ainda existe separado do estado do widget: dali a tres linhas
+  // `chatwootSettings.position` e `window.$chatwoot.position` viram a mesma
+  // coisa, e "quem escreveu este valor" deixa de ser respondivel.
+  //
+  // A lista serve a duas coisas, nesta ordem: ela diz ao `IFrameHelper` quais
+  // campos o banco NAO pode preencher (a regra de precedencia), e vira o aviso
+  // de override na tela de aparencia — que ate aqui lia uma chave que ninguem
+  // escrevia (`widget_appearance_overrides`), e por isso ficava sempre inerte.
+  const appearanceOverrides = camposSobrescritosPeloSite(chatwootSettings);
+
   window.$chatwoot = {
     baseUrl,
     baseDomain,
+    appearanceOverrides,
     hasLoaded: false,
     hideMessageBubble: chatwootSettings.hideMessageBubble || false,
     isOpen: false,

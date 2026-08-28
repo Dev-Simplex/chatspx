@@ -43,6 +43,8 @@ import {
   initOnEvents,
 } from 'shared/helpers/AudioNotificationHelper';
 import { isFlatWidgetStyle } from './settingsHelper';
+import { aplicarPadraoDoBanco, deslocamentoDoBanco } from './appearance';
+import { SDK_APPEARANCE_OVERRIDES } from 'shared/constants/sharedFrameEvents';
 import { popoutChatWindow } from '../widget/helpers/popoutHelper';
 import { createTitleFlasher } from './titleFlasher';
 import { loadCollector } from './tracking/loader';
@@ -89,6 +91,22 @@ export const applyWidgetTokens = (element, tokens = {}) => {
 // clientes; o delta medido esta no relatorio do o3-abordagem.
 const UMA_HORA_MS = 36e5;
 
+// Bloco 3.18 — AS CLASSES DO HOLDER, NUM LUGAR SO.
+//
+// Existiam duas necessidades de calcular isto: `createFrame`, no boot, quando o
+// host so conhece o `chatwootSettings` do site; e o `loaded`, quando o
+// `widgetAppearance` do servidor finalmente chega e a precedencia pode ser
+// resolvida. Duas copias da mesma expressao divergiriam no primeiro campo novo
+// — e a divergencia apareceria como "a tela diz esquerda e o widget fica a
+// direita", que e literalmente o defeito que este bloco fecha.
+const holderClassName = () => {
+  const { position, hideMessageBubble, widgetStyle } = window.$chatwoot;
+  let nome = `woot-widget-holder woot--hide woot-elements--${position}`;
+  if (hideMessageBubble) nome += ' woot-widget--without-bubble';
+  if (isFlatWidgetStyle(widgetStyle)) nome += ' woot-widget-holder--flat';
+  return nome;
+};
+
 const updateCampaignReadStatus = baseDomain => {
   const expireBy = new Date(Date.now() + UMA_HORA_MS);
   setCookieWithDomain('cw_snooze_campaigns_till', Number(expireBy), {
@@ -119,15 +137,7 @@ export const IFrameHelper = {
     iframe.id = 'chatwoot_live_chat_widget';
     iframe.style.visibility = 'hidden';
 
-    let holderClassName = `woot-widget-holder woot--hide woot-elements--${window.$chatwoot.position}`;
-    if (window.$chatwoot.hideMessageBubble) {
-      holderClassName += ` woot-widget--without-bubble`;
-    }
-    if (isFlatWidgetStyle(window.$chatwoot.widgetStyle)) {
-      holderClassName += ` woot-widget-holder--flat`;
-    }
-
-    addClasses(widgetHolder, holderClassName);
+    addClasses(widgetHolder, holderClassName());
     widgetHolder.id = 'cw-widget-holder';
     widgetHolder.dataset.turboPermanent = true;
     widgetHolder.appendChild(iframe);
@@ -137,6 +147,66 @@ export const IFrameHelper = {
     IFrameHelper.preventDefaultScroll();
   },
   getAppFrame: () => document.getElementById('chatwoot_live_chat_widget'),
+
+  /**
+   * Bloco 3.18 — O BANCO VIRA O PADRAO, e o site continua vencendo campo a campo.
+   *
+   * Roda no `loaded`, ANTES do `config-set` e do `onLoad`, e a ordem e o bloco:
+   *
+   *   · antes do `config-set` porque e ele que leva `position`, `darkMode`,
+   *     `widgetStyle` e `hideMessageBubble` para dentro do painel — mandar
+   *     primeiro e corrigir depois faria o painel montar com o valor errado e
+   *     piscar para o valor certo;
+   *   · antes do `onLoad` porque e la que o lancador nasce, com
+   *     `woot-elements--${window.$chatwoot.position}` lido deste mesmo objeto.
+   *
+   * O `widgetHolder`, porem, JA existe: `createFrame` o criou no boot, quando o
+   * host so conhecia `chatwootSettings`. Por isso as classes dele sao reescritas
+   * aqui — sem isso `window.$chatwoot.position` diria "left" e o elemento
+   * continuaria `woot-elements--right`, que e o pior estado possivel: duas
+   * verdades, e a que o visitante ve e a errada.
+   *
+   * DEVOLVE `null` quando o servidor nao mandou `widgetAppearance` (aba aberta
+   * antes do deploy, HTML antigo em cache). `null` e diferente de `[]`: `[]`
+   * significa "medi e o site nao sobrescreve nada", e apaga um aviso velho na
+   * tela; `null` significa "nao tenho como saber", e nao reporta coisa alguma.
+   */
+  applyAppearance: channelConfig => {
+    const appearance = channelConfig?.widgetAppearance;
+    if (!appearance) return null;
+
+    const overrides = window.$chatwoot.appearanceOverrides || [];
+    aplicarPadraoDoBanco({
+      appearance,
+      overrides,
+      alvo: window.$chatwoot,
+    });
+
+    // `offset_x`/`offset_y` viram custom properties no `bubbleHolder`, e so nele:
+    // custom property HERDA, e o lancador, o botao de fechar e o teaser sao todos
+    // filhos dele. Escrever tambem no `widgetHolder` seria escrita morta — o
+    // painel nao usa offset, e o schema e explicito sobre de quem e a distancia
+    // da quina ("o LANCADOR fica a no maximo 200 px").
+    //
+    // O elemento ainda nao foi anexado ao `body` neste instante (quem o anexa e
+    // `createBubbleHolder`, dentro do `onLoad`, logo abaixo). Nao importa: e o
+    // mesmo objeto, e `style` inline sobrevive ao `appendChild`.
+    const deslocamento = deslocamentoDoBanco(appearance);
+    if (deslocamento) {
+      Object.entries(deslocamento).forEach(([nome, valor]) => {
+        bubbleHolder.style.setProperty(nome, valor);
+      });
+    }
+
+    // ATRIBUICAO, nao `classList.add`: acrescentar `--left` a um holder que ja
+    // tem `--right` deixaria as DUAS classes no elemento, e quem venceria
+    // passaria a ser a ordem das regras no CSS. Reescrever pela MESMA funcao que
+    // o `createFrame` usou tambem garante que nada mais suma: neste instante o
+    // holder tem exatamente o que o boot lhe deu — `has-unread-view` e o toggle
+    // de `woot--hide` so acontecem depois, por acao do visitante.
+    widgetHolder.className = holderClassName();
+    return overrides;
+  },
 
   // Bloco 4.06 — o teaser. Fica aqui, e não no `entrypoints/sdk.js`, porque
   // depende do `bubbleHolder`, que só existe depois do `onLoad`.
@@ -374,6 +444,14 @@ export const IFrameHelper = {
       // ouvinte e sumiam em silêncio.
       const drenados = drenar();
       const campaignsSnoozedTill = Cookies.get('cw_snooze_campaigns_till');
+
+      // Bloco 3.18 — a PRIMEIRA coisa depois da fila, porque tudo o que vem
+      // abaixo (o `config-set` para o painel, o lancador do `onLoad`) le
+      // `window.$chatwoot` e passaria a mentir se lesse antes.
+      const appearanceOverrides = IFrameHelper.applyAppearance(
+        message.config.channelConfig
+      );
+
       IFrameHelper.sendMessage('config-set', {
         locale: window.$chatwoot.locale,
         position: window.$chatwoot.position,
@@ -391,6 +469,23 @@ export const IFrameHelper = {
         enableEmojiPicker: window.$chatwoot.enableEmojiPicker,
         enableEndConversation: window.$chatwoot.enableEndConversation,
       });
+
+      // Bloco 3.18 — o RELATORIO da precedencia, que e a metade "e a tela avisa"
+      // do aceite. O host e o unico lugar do produto que consegue ler o
+      // `chatwootSettings` do site do cliente; sem esta mensagem a tela de
+      // aparencia so poderia adivinhar, e ela adivinhava mostrando o valor do
+      // banco como se fosse o que o visitante ve.
+      //
+      // Vai pela ponte, como o 4.21: o `sdk.js` tem teto de peso e e baixado por
+      // 100% dos visitantes de todos os clientes, enquanto do outro lado do
+      // iframe ja existem `axios`, o `X-Auth-Token` da sessao e o tratamento de
+      // erro. Aqui se paga so o `postMessage`.
+      if (appearanceOverrides) {
+        IFrameHelper.sendMessage(SDK_APPEARANCE_OVERRIDES, {
+          fields: appearanceOverrides,
+        });
+      }
+
       IFrameHelper.onLoad({
         widgetColor: message.config.channelConfig.widgetColor,
         // Mesma fonte que o `<style>` do painel: `WidgetTokens` no servidor.

@@ -236,7 +236,11 @@ export const SDK_CSS = `
   color: var(--w-on-brand, var(--w-surface));
   border-radius: 100px;
   border-width: 0px;
-  bottom: 20px;
+  /* Bloco 3.18 — offset_y do banco. O segundo argumento do var() e o que faz a
+     inbox que nunca configurou nada continuar EXATAMENTE onde estava: sem a
+     custom property, o calc computa 20px, que e o valor de sempre.
+     (Sem crase neste comentario: ele vive dentro de um template literal.) */
+  bottom: calc(20px + var(--w-offset-y, 0px));
   box-shadow: 0 8px 24px rgba(0, 0, 0, .16) !important;
   cursor: pointer;
   height: 64px;
@@ -285,7 +289,7 @@ export const SDK_CSS = `
 }
 
 .woot-widget-bubble.woot-widget--expanded {
-  bottom: 24px;
+  bottom: calc(24px + var(--w-offset-y, 0px));
   display: flex;
   height: 48px !important;
   width: auto !important;
@@ -311,11 +315,11 @@ export const SDK_CSS = `
 }
 
 .woot-widget-bubble.woot-elements--left {
-  left: 20px;
+  left: calc(20px + var(--w-offset-x, 0px));
 }
 
 .woot-widget-bubble.woot-elements--right {
-  right: 20px;
+  right: calc(20px + var(--w-offset-x, 0px));
 }
 
 .woot-widget-bubble:hover {
@@ -393,7 +397,7 @@ export const SDK_CSS = `
   all: revert;
   box-sizing: border-box;
   position: fixed;
-  bottom: 96px;
+  bottom: calc(96px + var(--w-offset-y, 0px));
   width: 280px;
   max-width: calc(100vw - 32px);
   display: flex;
@@ -412,8 +416,8 @@ export const SDK_CSS = `
   transition: opacity 250ms var(--w-ease-enter), transform 250ms var(--w-ease-enter);
 }
 
-.woot-teaser.woot-elements--right { right: 20px; }
-.woot-teaser.woot-elements--left { left: 20px; }
+.woot-teaser.woot-elements--right { right: calc(20px + var(--w-offset-x, 0px)); }
+.woot-teaser.woot-elements--left { left: calc(20px + var(--w-offset-x, 0px)); }
 
 .woot-teaser--visivel { opacity: 1; transform: translateY(0); }
 
@@ -577,7 +581,7 @@ export const SDK_CSS = `
     z-index: -1 !important;
   }
 
-  .woot-teaser { width: min(320px, 100vw - 32px); bottom: 88px; }
+  .woot-teaser { width: min(320px, 100vw - 32px); bottom: calc(88px + var(--w-offset-y, 0px)); }
 }
 
 @media only screen and (min-width: 768px) {
