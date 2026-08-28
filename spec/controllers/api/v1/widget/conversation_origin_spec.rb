@@ -83,7 +83,7 @@ RSpec.describe 'Origem da conversa pelo widget (1.19)', type: :request do
     it 'conversa sem referer não ganha chave de origem nenhuma' do
       display_id = abrir_chat_em('')
 
-      expect(origem_no_banco(display_id).keys & Tracking::OriginAttributes.conversation_keys).to eq([])
+      expect(origem_no_banco(display_id).keys.select { |chave| chave.start_with?('last_') }).to eq([])
     end
   end
 
@@ -91,18 +91,18 @@ RSpec.describe 'Origem da conversa pelo widget (1.19)', type: :request do
     it 'carimba o contato na primeira e o preserva na segunda' do
       abrir_chat_em('https://loja.exemplo.com.br/p?utm_source=google&utm_campaign=primeira&gclid=AAA')
 
+      # o click id vai para a CONVERSA, não para o contato: `CONTACT_BASE_KEYS` não o inclui
       expect(contact.reload.custom_attributes).to include(
-        'first_utm_source' => 'google', 'first_utm_campaign' => 'primeira', 'first_gclid' => 'AAA'
+        'first_utm_source' => 'google', 'first_utm_campaign' => 'primeira', 'first_origin_kind' => 'busca_paga'
       )
+      expect(contact.custom_attributes).not_to have_key('first_gclid')
 
       display_id2 = abrir_chat_em('https://loja.exemplo.com.br/p?utm_source=meta&utm_campaign=segunda&fbclid=BBB')
 
       # o contato mantém a PRIMEIRA origem...
       expect(contact.reload.custom_attributes).to include(
-        'first_utm_source' => 'google', 'first_utm_campaign' => 'primeira', 'first_gclid' => 'AAA'
+        'first_utm_source' => 'google', 'first_utm_campaign' => 'primeira', 'first_origin_kind' => 'busca_paga'
       )
-      # ...e a chave que ainda não existia entra, porque write-once é por chave
-      expect(contact.custom_attributes['first_fbclid']).to eq('BBB')
       # ...enquanto a conversa nova registra a origem NOVA
       expect(origem_no_banco(display_id2)).to include(
         'last_utm_source' => 'meta', 'last_utm_campaign' => 'segunda', 'last_origin_kind' => 'social'
@@ -112,7 +112,9 @@ RSpec.describe 'Origem da conversa pelo widget (1.19)', type: :request do
     it 'não carimba first_* quando a visita não traz sinal de campanha' do
       abrir_chat_em('https://loja.exemplo.com.br/pagina-qualquer')
 
-      expect(contact.reload.custom_attributes.keys & Tracking::OriginAttributes.contact_keys).to eq([])
+      # prefixo inteiro, não `& contact_keys`: a intersecção não enxergaria uma chave gravada
+      # FORA do catálogo, que é exatamente o defeito que este arquivo passou a guardar
+      expect(contact.reload.custom_attributes.keys.select { |chave| chave.start_with?('first_') }).to eq([])
     end
 
     it 'a campanha da segunda visita entra no contato quando a primeira não trouxe nenhuma' do
@@ -122,6 +124,84 @@ RSpec.describe 'Origem da conversa pelo widget (1.19)', type: :request do
       expect(contact.reload.custom_attributes).to include(
         'first_utm_source' => 'google', 'first_utm_campaign' => 'depois'
       )
+    end
+  end
+
+  # A GUARDA QUE FALTAVA — e por que a antiga não servia.
+  #
+  # A asserção que existia interseccionava as chaves gravadas com `contact_keys`
+  # (`escritas & definidas`). Essa conta é CEGA para o que está FORA do catálogo: `first_gclid`
+  # nunca aparece na intersecção justamente porque não está definido — grava no banco e some da
+  # vista, que é a mesma experiência de não existir [R19 §D.3]. E ela passa também quando NADA foi
+  # escrito, porque `[] & lista` é `[]`.
+  #
+  # A pergunta certa é a inversa e não tem ponto cego: `escritas − definidas = vazio`. Toda chave
+  # que o gravador escreve tem que ter definição, senão o painel não a mostra. Cada exemplo aqui
+  # exige antes que o conjunto escrito NÃO seja vazio — sem isso a subtração passaria no vácuo.
+  describe 'catálogo — nada é gravado fora do que o painel sabe mostrar' do
+    def chaves_definidas(attribute_model)
+      account.custom_attribute_definitions.where(attribute_model: attribute_model).pluck(:attribute_key)
+    end
+
+    def chaves_escritas(atributos, prefixo)
+      atributos.keys.select { |chave| chave.start_with?(prefixo) }
+    end
+
+    let(:url_com_click_id) do
+      'https://loja.exemplo.com.br/p?utm_source=google&utm_campaign=black&gclid=AAA&fbclid=BBB&ttclid=CCC'
+    end
+
+    it 'no contato: escritas − definidas = vazio, com três click ids na URL' do
+      abrir_chat_em(url_com_click_id)
+
+      escritas = chaves_escritas(contact.reload.custom_attributes, Tracking::OriginAttributes::CONTACT_PREFIX)
+      # força a condição: sem isto a subtração abaixo também passaria com nada escrito
+      expect(escritas).to include('first_utm_source', 'first_utm_campaign', 'first_origin_kind')
+
+      expect(escritas - chaves_definidas('contact_attribute')).to eq([])
+    end
+
+    it 'na conversa: escritas − definidas = vazio, e lá o click id É do catálogo' do
+      display_id = abrir_chat_em(url_com_click_id)
+
+      escritas = chaves_escritas(origem_no_banco(display_id), Tracking::OriginAttributes::CONVERSATION_PREFIX)
+      expect(escritas).to include('last_gclid', 'last_fbclid', 'last_ttclid', 'last_origin_kind')
+
+      expect(escritas - chaves_definidas('conversation_attribute')).to eq([])
+    end
+
+    # O catálogo tem que segurar mesmo quando a fonte manda lixo — senão a garantia é do parser,
+    # não do gravador, e o próximo campo entra pela porta lateral.
+    it 'chave que o parser inventar não chega ao contato nem à conversa' do
+      allow(Tracking::OriginParser).to receive(:new).and_return(
+        instance_double(
+          Tracking::OriginParser,
+          attributes: { 'utm_source' => 'google', 'gclid' => 'AAA', 'chave_inventada' => 'X' }
+        )
+      )
+
+      display_id = abrir_chat_em('https://loja.exemplo.com.br/p')
+
+      contato = contact.reload.custom_attributes
+      conversa = origem_no_banco(display_id)
+      expect(chaves_escritas(contato, 'first_')).to include('first_utm_source')
+      expect(chaves_escritas(conversa, 'last_')).to include('last_utm_source', 'last_gclid')
+
+      expect(chaves_escritas(contato, 'first_') - chaves_definidas('contact_attribute')).to eq([])
+      expect(chaves_escritas(conversa, 'last_') - chaves_definidas('conversation_attribute')).to eq([])
+      expect(contato.keys + conversa.keys).not_to include(a_string_including('chave_inventada'))
+    end
+
+    # A mentira que o defeito produzia: contato carimbado como busca_paga na 1ª visita saindo com
+    # o click id do Facebook da 2ª, porque write-once é por chave e a chave ainda não existia.
+    it 'a 2ª visita não injeta click id no contato carimbado pela 1ª' do
+      abrir_chat_em('https://loja.exemplo.com.br/p?utm_source=google&gclid=AAA')
+      abrir_chat_em('https://loja.exemplo.com.br/p?utm_source=meta&fbclid=BBB')
+
+      atributos = contact.reload.custom_attributes
+      expect(atributos['first_origin_kind']).to eq('busca_paga')
+      expect(atributos).not_to have_key('first_fbclid')
+      expect(chaves_escritas(atributos, 'first_') - chaves_definidas('contact_attribute')).to eq([])
     end
   end
 
