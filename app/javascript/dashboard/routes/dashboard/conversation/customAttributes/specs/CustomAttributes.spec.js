@@ -14,7 +14,11 @@ vi.mock('dashboard/composables/store', () => ({
     'attributes/getAttributesByModel': {
       value: (...args) => attributesByModel(...args),
     },
-    'contacts/getContact': { value: () => ({ custom_attributes: {} }) },
+    // Este arquivo mede o caminho de CONVERSA; o registro de contato entra vazio,
+    // como `getContact` devolve para id desconhecido. A forma real da store de
+    // contatos (chave do topo camelizada) esta medida em
+    // `CustomAttributes.contactStore.spec.js`, com a mutation de verdade.
+    'contacts/getContact': { value: () => ({}) },
   }),
 }));
 
@@ -71,12 +75,19 @@ describe('CustomAttributes — secao "Dados recebidos do site"', () => {
     ).toHaveLength(0);
   });
 
+  // Os valores no jsonb da conversa nao sao enfeite: a secao lista o que ESTE
+  // registro recebeu do site, nao toda definicao marcada na conta. Sem eles, o
+  // titulo prometeria "(2)" para um contato que nunca mandou nada.
   it('desenha a secao com a contagem correta e um selo por atributo', () => {
     attributesByModel.mockReturnValue([
       definition('plano'),
       definition('carrinho_valor', { auto_provisioned_from_website: true }),
       definition('cupom', { auto_provisioned_from_website: true }),
     ]);
+    selectedChat.value = {
+      id: 1,
+      custom_attributes: { carrinho_valor: 4200, cupom: 'BLACKFRIDAY' },
+    };
 
     const wrapper = mountAttributes();
 
@@ -99,6 +110,7 @@ describe('CustomAttributes — secao "Dados recebidos do site"', () => {
       definition('c'),
       definition('d', { auto_provisioned_from_website: true }),
     ]);
+    selectedChat.value = { id: 1, custom_attributes: { d: 'veio do site' } };
 
     const wrapper = mountAttributes();
 

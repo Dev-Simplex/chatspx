@@ -59,11 +59,25 @@ const contact = computed(() =>
   getters['contacts/getContact'].value(contactIdentifier.value)
 );
 
-const customAttributes = computed(() => {
-  if (props.attributeType === 'conversation_attribute')
-    return currentChat.value.custom_attributes || {};
-  return contact.value.custom_attributes || {};
-});
+// A chave do topo chega em DUAS grafias, e qual delas depende de por onde o
+// registro entrou na store: a de conversas guarda o payload cru da API
+// (`custom_attributes`), a de contatos passa tudo por
+// `camelcaseKeys(..., { stopPaths: ['custom_attributes'] })` — e o `stopPaths`
+// protege o CONTEUDO, nao a chave do topo, entao o registro do contato guarda
+// `customAttributes` com as chaves de dentro intactas em snake_case
+// (medido em `contact/specs/siteContextStoreShape.spec.js`).
+//
+// Lendo uma grafia so, tudo que o site mandou para o CONTATO era `undefined`:
+// a secao "Dados recebidos do site" nunca aparecia e o watch de "na mesma
+// sessao" abaixo rodava sempre sobre `{}`.
+const readCustomAttributes = record =>
+  record?.custom_attributes || record?.customAttributes || {};
+
+const customAttributes = computed(() =>
+  props.attributeType === 'conversation_attribute'
+    ? readCustomAttributes(currentChat.value)
+    : readCustomAttributes(contact.value)
+);
 
 const conversationId = computed(() => currentChat.value.id);
 
@@ -93,8 +107,21 @@ const decorateAttribute = attribute => {
 // propria, para o agente saber de onde o dado veio.
 const isFromWebsite = attribute => !!attribute.auto_provisioned_from_website;
 
+// A definicao e da CONTA inteira: a chave que um contato mandou passa a existir
+// para todos. Contar definicao seria prometer "Dados recebidos do site (1)" com
+// a linha vazia embaixo, para quem nunca mandou nada. Entra na secao so a chave
+// que ESTE registro tem no jsonb.
+//
+// O criterio e a chave existir, nao o valor ser preenchido: quando o agente
+// limpa o campo, `onUpdate` grava string vazia e a chave continua la — a linha
+// tem de permanecer na tela, senao editar para vazio a faria sumir.
+const wasReceived = attribute =>
+  attribute.attribute_key in customAttributes.value;
+
 const websiteAttributes = computed(() =>
-  attributes.value.filter(isFromWebsite).map(decorateAttribute)
+  attributes.value
+    .filter(attribute => isFromWebsite(attribute) && wasReceived(attribute))
+    .map(decorateAttribute)
 );
 
 const filteredCustomAttributes = computed(() =>
