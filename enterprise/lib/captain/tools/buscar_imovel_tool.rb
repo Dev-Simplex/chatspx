@@ -42,7 +42,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   # Logradouro + número na descrição do anúncio. Em VENDA a régua do cliente é bairro apenas,
   # porque o endereço exato é o que um concorrente usa pra captar o imóvel do proprietário.
-  LOGRADOURO = /\b(rua|avenida|av\.|travessa|alameda|rodovia|estrada|praça)\b[^,;.\n]{2,45}(,?\s*n[º°o]?\.?\s*\d{1,6})?/i
+  # O número é opcional E o "nº" antes dele também: "Rua das Palmeiras, 1234" tem que casar
+  # inteiro, não só até a vírgula — senão a rua sai mascarada e o número fica na frase.
+  LOGRADOURO = /\b(?:rua|avenida|av\.|travessa|alameda|rodovia|estrada|praça)\b[^,;.\n]{2,45}(?:,?\s*(?:n[º°o]?\.?\s*)?\d{1,6})?/i
 
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
               dormitorios: nil, piscina: nil, mobiliado: nil, lat: nil, lng: nil, raio_km: nil, codigo: nil)
