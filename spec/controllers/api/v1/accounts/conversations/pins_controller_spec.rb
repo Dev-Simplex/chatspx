@@ -116,19 +116,25 @@ RSpec.describe 'Conversation Pins API', type: :request do
     end
   end
 
-  # Sobrou um dia um segundo sistema de fixar, guardado na inbox: fixava para
-  # TODOS os agentes dela. Foi removido; isto aqui existe para ele não voltar
-  # pela porta dos fundos do update de inbox.
+  # Existe um SEGUNDO sistema de fixar, guardado na inbox, que fixa para TODOS os agentes
+  # dela. A branch `nicolas` o removera; a integracao para producao decidiu MANTER os dois,
+  # e por isso a assercao aqui esta invertida em relacao ao original.
+  #
+  # O que esta em jogo nao e estilo: `pin_mode` e `pinned_conversation_ids` precisam seguir
+  # no permit de InboxesController e no store_accessor de Inbox, senao o Rails descarta o
+  # parametro EM SILENCIO e a tela responde 200 "salvo com sucesso" sem gravar nada. Este
+  # exemplo e a trava contra esse modo de falha.
   describe 'PATCH /api/v1/accounts/{account.id}/inboxes/{id}' do
     let(:admin) { create(:user, account: account, role: :administrator) }
 
-    it 'refuses to store shared pins in the inbox' do
+    it 'stores the per-inbox pin settings, which coexist with the per-agent pins' do
       patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
             params: { additional_attributes: { pin_mode: 'per_inbox', pinned_conversation_ids: [older.display_id] } },
             headers: admin.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:success)
-      expect(inbox.reload.additional_attributes.keys).not_to include('pin_mode', 'pinned_conversation_ids')
+      expect(inbox.reload.additional_attributes).to include('pin_mode' => 'per_inbox')
+      expect(inbox.reload.additional_attributes['pinned_conversation_ids']).to eq([older.display_id])
     end
 
     it 'still stores the other inbox settings' do

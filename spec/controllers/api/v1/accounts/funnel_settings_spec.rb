@@ -8,6 +8,11 @@ require 'rails_helper'
 RSpec.describe 'Funnel settings (Kanban v2)', type: :request do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account, role: :agent) }
+  # A branch `nicolas` restringiu MEXER na etapa a administrador (FunnelStagePolicy#update?):
+  # ver a coluna e trabalho de atendimento, redesenhar o quadro e do admin. Estes exemplos
+  # medem a PERSISTENCIA do jsonb `settings`, nao a permissao, entao passam a autenticar
+  # como admin; a permissao em si ganhou exemplo proprio no fim do bloco.
+  let(:admin) { create(:user, account: account, role: :administrator) }
   let(:team) { create(:team, account: account) }
   let(:funnel) { Funnel.create!(account: account, name: 'Time X', color: '#94a3b8', team_id: team.id) }
   let(:stage) { FunnelStage.create!(funnel: funnel, name: 'Abertos', position: 0) }
@@ -18,7 +23,7 @@ RSpec.describe 'Funnel settings (Kanban v2)', type: :request do
     it 'persists wip_limit and sla_hours in settings and serializes them back' do
       patch "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_stages/#{stage.id}",
             params: { funnel_stage: { settings: { wip_limit: 5, sla_hours: 24 } } },
-            headers: agent.create_new_auth_token,
+            headers: admin.create_new_auth_token,
             as: :json
 
       expect(response).to have_http_status(:success)
@@ -32,7 +37,7 @@ RSpec.describe 'Funnel settings (Kanban v2)', type: :request do
 
       patch "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_stages/#{stage.id}",
             params: { funnel_stage: { settings: { wip_limit: 3, sla_hours: 48 } } },
-            headers: agent.create_new_auth_token,
+            headers: admin.create_new_auth_token,
             as: :json
 
       expect(response).to have_http_status(:success)
@@ -42,11 +47,22 @@ RSpec.describe 'Funnel settings (Kanban v2)', type: :request do
     it 'ignores unpermitted settings keys' do
       patch "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_stages/#{stage.id}",
             params: { funnel_stage: { settings: { wip_limit: 2, evil: 'x' } } },
-            headers: agent.create_new_auth_token,
+            headers: admin.create_new_auth_token,
             as: :json
 
       expect(response).to have_http_status(:success)
       expect(stage.reload.settings).to eq('wip_limit' => 2)
+    end
+
+    # A regra NOVA, fixada de proposito: antes desta integracao o agente editava a etapa.
+    it 'refuses the agent, who no longer redraws the board' do
+      patch "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_stages/#{stage.id}",
+            params: { funnel_stage: { settings: { wip_limit: 9 } } },
+            headers: agent.create_new_auth_token,
+            as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(stage.reload.settings).not_to include('wip_limit' => 9)
     end
   end
 
