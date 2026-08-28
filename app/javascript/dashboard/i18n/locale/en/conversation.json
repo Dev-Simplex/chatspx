@@ -762,6 +762,10 @@
           "TITLE": "Credential rejected",
           "BODY": "I couldn't answer right now: the AI service rejected the credential. This is not your connection — let whoever administers the account know."
         },
+        "NO_ASSISTANT": {
+          "TITLE": "No AI agent configured",
+          "BODY": "This account has no AI agent yet, so the copilot has nothing to talk to. Whoever administers the account can create one on the AI Agents screen."
+        },
         "GENERIC": {
           "TITLE": "I couldn't answer",
           "BODY": "Something broke on the way to the AI service. Try again; if it keeps happening, let whoever administers the account know."
@@ -1130,150 +1134,6 @@
     "CONFIRM": "Show me",
     "DISMISS": "Later",
     "TOAST_CONFIRMED": "Got it! Copilot is always on this button"
-  },
-  "COPILOT_ERRORS": {
-    "PRIVATE_MODE": "Private mode: AI disabled to prevent internal note leak",
-    "CTA_RETRY": "Retry",
-    "CTA_DISMISS": "Dismiss",
-    "RATE_LIMIT": {
-      "TITLE": "Too many requests",
-      "BODY": "Wait {seconds}s and try again",
-      "CTA_COUNTDOWN": "Wait {seconds}s"
-    },
-    "CAPTAIN_UNSTABLE": {
-      "TITLE": "Copilot unavailable",
-      "BODY": "Try again in a few minutes"
-    },
-    "TIMEOUT": {
-      "TITLE": "Taking longer than usual",
-      "BODY": "The response is delayed. You can keep waiting or cancel.",
-      "CTA_PRIMARY": "Keep waiting",
-      "CTA_CANCEL": "Cancel"
-    },
-    "EMPTY_RESPONSE": {
-      "TITLE": "I didn't receive a valid response",
-      "BODY": "Something went wrong with Copilot. Want to try again?"
-    },
-    "NETWORK": {
-      "TITLE": "No connection",
-      "BODY": "Check your internet and try again"
-    }
-  },
-  "AI_ASSISTANT_PANEL": {
-    "TITLE": "Copilot",
-    "CLOSE": "Close panel",
-    "SEND": "Send prompt",
-    "LOADING": "Generating response...",
-    "STREAM_COMPLETE": "Response ready",
-    "HISTORY_LABEL": "Copilot history",
-    "EMPTY": {
-      "GREETING_EMOJI": "👋 ",
-      "GREETING_NAMED": "Hi, {name}! How can I help?",
-      "GREETING_GENERIC": "Hi! How can I help?",
-      "SUBTITLE": "Pick a quick action or just ask."
-    },
-    "SECTIONS": {
-      "UNDERSTAND": "UNDERSTAND THE CONVERSATION",
-      "REWRITE": "REWRITE MY REPLY",
-      "CREATE": "CREATE A REPLY"
-    },
-    "PROMPTS": {
-      "SENTIMENT": {
-        "LABEL": "Analyze customer tone",
-        "DESCRIPTION": "I analyze how the customer feels"
-      },
-      "SUMMARIZE": {
-        "LABEL": "Summarize this conversation",
-        "DESCRIPTION": "See the key points"
-      },
-      "REPLY_SUGGESTION": {
-        "LABEL": "Suggest a reply",
-        "DESCRIPTION": "I draft one for you"
-      }
-    },
-    "TEXTAREA": {
-      "PLACEHOLDER": "Ask or request something (e.g. \"summarize the latest orders\")",
-      "HINT": "Enter sends · Shift+Enter breaks line"
-    },
-    "ACTIONS": {
-      "COPY": "Copy",
-      "APPLY": "Use in composer",
-      "RETRY": "Generate another",
-      "CANCEL": "Cancel",
-      "FEEDBACK_GOOD": "Good response",
-      "FEEDBACK_BAD": "Bad response",
-      "COPIED_TOAST": "Copied to clipboard",
-      "APPLIED_TOAST": "Response applied to composer",
-      "COPY_FAILED": "Could not copy"
-    },
-    "EDGE_CASES": {
-      "EMPTY_CONVERSATION_TITLE": "New customer, conversation starting.",
-      "EMPTY_CONVERSATION_BODY": "Once there are messages, I can summarize, analyze tone or suggest replies.",
-      "PRIVATE_MODE_TITLE": "Private note mode",
-      "PRIVATE_MODE_BODY": "The content is not sent to Copilot to avoid leaking the internal note. Switch back to \"Reply\" to use the AI.",
-      "WHATSAPP_EXPIRED_TITLE": "WhatsApp disconnected",
-      "WHATSAPP_EXPIRED_BODY": "Some actions are unavailable until you reconnect the session.",
-      "LONG_CONVERSATION_HINT": "I consider the last 50 messages"
-    },
-    "TOAST": {
-      "COPIED": "Copied to clipboard",
-      "APPLIED": "Response applied to composer",
-      "COPY_FAILED": "Could not copy",
-      "FEEDBACK_SAVED": "Thanks for the feedback!",
-      "PRIVATE_MODE_BLOCKED": "Private note mode — Copilot unavailable"
-    },
-    "TOUR": {
-      "NEXT": "Next",
-      "SKIP": "Skip tour",
-      "FINISH": "Got it, close",
-      "CLOSE": "Close tour",
-      "SKIP_TOAST": "You can run the tour again any time from your account settings.",
-      "STEP_LABEL": "Step {current} of {total}: {title}",
-      "STEP_1": {
-        "TITLE": "Everything starts here",
-        "BODY": "This is your AI shortcut, on the sparkles button of the composer. Anytime you need to tweak a reply or ask for a suggestion, just click it."
-      },
-      "STEP_2": {
-        "TITLE": "Use the quick prompts",
-        "BODY": "Pre-written actions in pt-BR. Hover to see what each one does before clicking."
-      },
-      "STEP_3": {
-        "TITLE": "Review before sending",
-        "BODY": "AI generates, you decide. Use it, edit it or discard it — the customer only receives it when you hit Send."
-      },
-      "STEP_4": {
-        "TITLE": "Side panel for whatever you need",
-        "BODY": "Long conversation? Tricky customer? Open the panel via the Copilot button on the header and chat with the AI directly. Shortcut: Ctrl+J."
-      }
-    },
-    "SMART_BANNER": {
-      "DISMISS_TOOLTIP": "Dismiss",
-      "DISMISSED_TOAST": "Ok, won't show again in this conversation",
-      "LONG_THREAD": {
-        "BODY": "Long thread ({count} msgs). Want a summary?",
-        "CTA": "Summarize now"
-      },
-      "SENTIMENT": {
-        "BODY": "Customer seems frustrated. Want help replying with empathy?",
-        "CTA": "Suggest reply"
-      },
-      "WAITING": {
-        "BODY": "Customer waiting for {minutes} min. Want a quick reply?",
-        "CTA": "Quick reply"
-      }
-    },
-    "SUGGESTION_CHIP": {
-      "HEADER": "Copilot suggestion",
-      "SUBTITLE": "Review before sending",
-      "USE": "Use this one",
-      "EDIT": "Edit",
-      "DISCARD": "Discard",
-      "EDIT_TOOLTIP": "Puts it in the field and selects all for you to adjust",
-      "DISCARD_TOOLTIP": "Discard suggestion (Esc)",
-      "USED_TOAST": "Done, just review and send",
-      "EDIT_TOAST": "Suggestion ready to edit",
-      "DISCARDED_TOAST": "Suggestion discarded"
-    }
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Unable to download attachment. Please try again",
