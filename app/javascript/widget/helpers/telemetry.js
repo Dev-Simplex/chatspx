@@ -176,12 +176,27 @@ export const reportWidgetError = async (erro, contexto = {}) => {
 
     // `keepalive` para o relatório sobreviver ao unload — boa parte dos erros
     // acontece justamente quando a aba está fechando.
-    await fetch(ENDPOINT, {
+    const resposta = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       keepalive: true,
     });
+
+    // DRENAR A RESPOSTA NÃO É ZELO, É O ACEITE. Sem esta linha o Chromium
+    // cancela o corpo que ninguém leu e registra um `net::ERR_ABORTED`
+    // [MEDIDO em Chromium 145: 40 ms DEPOIS do 204, com a página ainda viva —
+    // não é artefato de teardown]. Nada chega ao `window.onerror` do site do
+    // cliente, mas a aba Network dele passa a mostrar a NOSSA telemetria em
+    // vermelho, como requisição falhada — dez vezes seguidas no cenário do
+    // teto por sessão. O aceite do bloco é «nada vaza para o site do cliente»,
+    // e dez linhas vermelhas com o nosso endpoint no devtools do cliente é
+    // exatamente o que ele existe para não acontecer.
+    //
+    // Encadeamento opcional porque o dublê de `fetch` dos testes em jsdom não
+    // é um `Response` de verdade: aqui o que se quer é «se veio corpo, drene»,
+    // não «assuma que veio».
+    await resposta?.text?.();
   } catch {
     // Engolido de propósito, e este é o único `catch` vazio legítimo do widget:
     // é o fundo do poço da observabilidade. Reportar a falha do reporter pelo

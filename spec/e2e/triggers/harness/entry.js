@@ -42,13 +42,37 @@ const inbox = {
   additional_attributes: gravado ? { widget_triggers: gravado } : {},
 };
 
+/**
+ * O módulo `campaigns` do painel real está SEMPRE registrado
+ * (`dashboard/store/index.js:17,89`), e dois filhos desta tela leem dele:
+ * `TeaserComposer` (4.05) e `LegacyCampaigns` (4.22). Sem esses getters aqui,
+ * `useMapGetter` devolve `undefined`, o computed `vinculada` estoura em
+ * `campanhas.value.find` e a TELA INTEIRA morre no mount — nenhum
+ * `data-testid` chega ao DOM e todos os testes deste arquivo reprovam por
+ * timeout, sem que nada esteja errado no produto.
+ *
+ * A lista nasce VAZIA porque é o estado de uma inbox que ainda não tem
+ * campanha de chat ao vivo — o mesmo estado que o painel real mostra. O que
+ * depende de uma campanha vinculada (o texto do teaser, a seção "modo antigo")
+ * é coberto em jsdom por `triggers/specs/TeaserComposer.spec.js` e
+ * `triggers/specs/LegacyCampaigns.spec.js`; aqui o que se mede é o que só o
+ * navegador computa.
+ */
+const campanhas = [];
+
 const store = createStore({
   getters: {
     'inboxes/getInbox': () => () => inbox,
     'inboxes/getUIFlags': () => ({}),
     'globalConfig/get': () => ({ logoThumbnail: '', BRAND_NAME: 'ChatSPX' }),
+    'campaigns/getLiveChatCampaigns': () => campanhas,
+    'campaigns/getUIFlags': () => ({ isUpdating: false }),
   },
-  actions: { 'inboxes/updateInbox': () => Promise.resolve() },
+  actions: {
+    'inboxes/updateInbox': () => Promise.resolve(),
+    'campaigns/update': () => Promise.resolve(),
+    'campaigns/get': () => Promise.resolve(),
+  },
 });
 
 const i18n = createI18n({
