@@ -47,7 +47,7 @@ class UnitException < ApplicationRecord
   # Sem isto a regra existiria sem saber quando cai: "repete toda semana" em dia nenhum,
   # "repete todo mês" sem dizer se é pelo dia do mês ou pela posição do dia da semana.
   def repeticao_completa
-    errors.add(:weekdays, I18n.t('errors.units.weekday_required')) if semanal? && weekdays.empty?
+    errors.add(:base, I18n.t('errors.units.weekday_required')) if semanal? && weekdays.empty?
     return unless mensal? && month_days.empty? && (week_positions.empty? || weekdays.empty?)
 
     errors.add(:base, I18n.t('errors.units.monthly_rule_required'))
@@ -57,7 +57,7 @@ class UnitException < ApplicationRecord
   def periodo_coerente
     return if ends_on.blank?
 
-    errors.add(:ends_on, I18n.t('errors.units.range_only_without_repeat')) unless nao_repete?
+    errors.add(:base, I18n.t('errors.units.range_only_without_repeat')) unless nao_repete?
     errors.add(:ends_on, I18n.t('errors.units.end_before_start')) if starts_on.present? && ends_on < starts_on
   end
 

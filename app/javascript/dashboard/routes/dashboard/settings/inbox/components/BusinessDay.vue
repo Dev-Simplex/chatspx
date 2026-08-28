@@ -168,12 +168,17 @@ export default {
       },
       set(value) {
         if (value) {
+          // A pausa sai junto: dia de 24 h não tem almoço, e como os controles dela
+          // ficam escondidos aqui, um valor esquecido fecharia a unidade sem que
+          // ninguém visse por quê (a faixa dizia "24h" e o meio-dia dizia fechada).
           this.$emit('update', {
             ...this.timeSlot,
             from: MIDNIGHT,
             to: END_OF_DAY,
             valid: true,
             openAllDay: value,
+            breakFrom: '',
+            breakTo: '',
           });
         } else {
           this.$emit('update', {
