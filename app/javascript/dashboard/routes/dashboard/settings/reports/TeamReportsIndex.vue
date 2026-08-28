@@ -12,8 +12,13 @@ const onDownloadClick = () => {
   summarReportsRef.value.downloadReports();
 };
 
-const onFilterChange = ({ from, to, businessHours }) => {
-  pdfFilters.value = { from, to, business_hours: businessHours };
+const onFilterChange = ({ from, to, businessHours, inboxId }) => {
+  pdfFilters.value = {
+    from,
+    to,
+    business_hours: businessHours,
+    inbox_id: inboxId || undefined,
+  };
 };
 </script>
 

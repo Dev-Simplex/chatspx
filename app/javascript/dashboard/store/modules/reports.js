@@ -176,7 +176,8 @@ export const actions = {
         reportObj.type,
         reportObj.id,
         reportObj.groupBy,
-        reportObj.businessHours
+        reportObj.businessHours,
+        reportObj.inboxId
       );
       commit(types.default.SET_ACCOUNT_SUMMARY, accountSummary.data);
       commit(types.default.SET_ACCOUNT_SUMMARY_STATUS, STATUS.FINISHED);

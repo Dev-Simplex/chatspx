@@ -126,6 +126,10 @@
       }
     ],
     "BUSINESS_HOURS": "Horários de funcionamento",
+    "INBOX_SCOPE": {
+      "ALL": "Todos os números",
+      "PLACEHOLDER": "Buscar número"
+    },
     "FILTER_ACTIONS": {
       "CLEAR_FILTER": "Limpar filtros",
       "EMPTY_LIST": "Nenhum resultado encontrado"

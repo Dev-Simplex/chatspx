@@ -126,6 +126,10 @@
       }
     ],
     "BUSINESS_HOURS": "Business Hours",
+    "INBOX_SCOPE": {
+      "ALL": "All numbers",
+      "PLACEHOLDER": "Search number"
+    },
     "FILTER_ACTIONS": {
       "CLEAR_FILTER": "Clear filter",
       "EMPTY_LIST": "No results found"

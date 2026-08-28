@@ -16,6 +16,7 @@ class ReportsAPI extends ApiClient {
     id,
     groupBy,
     businessHours,
+    inboxId,
   }) {
     return axios.get(`${this.url}`, {
       params: {
@@ -26,13 +27,22 @@ class ReportsAPI extends ApiClient {
         id,
         group_by: groupBy,
         business_hours: businessHours,
+        inbox_id: inboxId || undefined,
         timezone_offset: getTimeOffset(),
       },
     });
   }
 
-  // eslint-disable-next-line default-param-last
-  getSummary(since, until, type = 'account', id, groupBy, businessHours) {
+  getSummary(
+    since,
+    until,
+    // eslint-disable-next-line default-param-last
+    type = 'account',
+    id,
+    groupBy,
+    businessHours,
+    inboxId
+  ) {
     return axios.get(`${this.url}/summary`, {
       params: {
         since,
@@ -41,6 +51,7 @@ class ReportsAPI extends ApiClient {
         id,
         group_by: groupBy,
         business_hours: businessHours,
+        inbox_id: inboxId || undefined,
         timezone_offset: getTimeOffset(),
       },
     });
@@ -55,15 +66,30 @@ class ReportsAPI extends ApiClient {
     });
   }
 
-  getAgentReports({ from: since, to: until, businessHours }) {
+  getAgentReports({ from: since, to: until, businessHours, inboxId }) {
     return axios.get(`${this.url}/agents`, {
-      params: { since, until, business_hours: businessHours },
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
     });
   }
 
-  getConversationsSummaryReports({ from: since, to: until, businessHours }) {
+  getConversationsSummaryReports({
+    from: since,
+    to: until,
+    businessHours,
+    inboxId,
+  }) {
     return axios.get(`${this.url}/conversations_summary`, {
-      params: { since, until, business_hours: businessHours },
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
     });
   }
 
@@ -73,21 +99,36 @@ class ReportsAPI extends ApiClient {
     });
   }
 
-  getLabelReports({ from: since, to: until, businessHours }) {
+  getLabelReports({ from: since, to: until, businessHours, inboxId }) {
     return axios.get(`${this.url}/labels`, {
-      params: { since, until, business_hours: businessHours },
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
     });
   }
 
-  getInboxReports({ from: since, to: until, businessHours }) {
+  getInboxReports({ from: since, to: until, businessHours, inboxId }) {
     return axios.get(`${this.url}/inboxes`, {
-      params: { since, until, business_hours: businessHours },
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
     });
   }
 
-  getTeamReports({ from: since, to: until, businessHours }) {
+  getTeamReports({ from: since, to: until, businessHours, inboxId }) {
     return axios.get(`${this.url}/teams`, {
-      params: { since, until, business_hours: businessHours },
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
     });
   }
 
