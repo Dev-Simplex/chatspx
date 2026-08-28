@@ -843,9 +843,12 @@ describe SearchService do
       expect(message_ids_for(outro)).not_to include(secret.id)
     end
 
+    # A conversa da outra caixa precisa TER TIME: `agent_message_isolation` esta em
+    # Inbox::TEAMLESS_EXEMPT_RULES, entao conversa sem time nunca e isolada por regra de
+    # mensagem — sem o time o exemplo passaria pelo motivo errado (nada isolado).
     it 'does not carry the exemption to another isolated inbox' do
       other_inbox = create(:inbox, account: iso_account, enable_auto_assignment: false, agent_message_isolation: true)
-      other_conversation = create(:conversation, inbox: other_inbox, account: iso_account)
+      other_conversation = create(:conversation, inbox: other_inbox, account: iso_account, team: iso_team)
       other_secret = create(:message, account: iso_account, inbox: other_inbox, conversation: other_conversation,
                                       message_type: :outgoing, sender: agent_a, content: 'classified wizardry elsewhere')
       create(:inbox_member, user: agent_b, inbox: other_inbox)

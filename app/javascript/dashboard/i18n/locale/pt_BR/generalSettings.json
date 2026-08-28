@@ -213,6 +213,25 @@
           "SUCCESS": "Modo de pedido de atendimento atualizado com sucesso",
           "ERROR": "Falha ao atualizar o modo de pedido de atendimento"
         }
+      },
+      "ACCOUNT_FEATURES": {
+        "TITLE": "Recursos da conta",
+        "NOTE": "Ligue ou desligue o que esta conta enxerga. O produto já vem com tudo ligado; alguns recursos ficam desligados porque dependem de preparo.",
+        "GROUPS": {
+          "ON": "Ligados",
+          "OFF": "Disponíveis para ligar",
+          "BLOCKED": "Indisponíveis nesta versão"
+        },
+        "HINT": {
+          "NO_BIT": "Não pode ser ligado: o limite técnico de recursos do sistema foi atingido e liberar mais exige uma mudança no banco.",
+          "DEPRECATED": "Recurso descontinuado, mantido só para quem já usava.",
+          "PREMIUM": "Recurso pago do produto original: ligar é decisão comercial.",
+          "INTERNAL": "Recurso interno do produto original, sem suporte garantido aqui."
+        },
+        "API": {
+          "SUCCESS": "Recurso atualizado",
+          "ERROR": "Não consegui atualizar o recurso"
+        }
       }
     },
     "UPDATE_CHATWOOT": "Uma atualização {latestChatwootVersion} para o Chatwoot está disponível. Por favor, atualize sua instância.",

@@ -58,6 +58,8 @@ en:
     account_user:
     super_admin:
       team_supervisor_denied: Team supervisors do not have access to the Super Admin Console.
+    features:
+      sem_bit: "These features cannot be enabled in this version: %{features}. The system feature limit was reached and raising it requires a database change."
     conversation:
       pending_status_disabled_for_inbox: "cannot be Pending — feature disabled for this inbox"
     private_chat:

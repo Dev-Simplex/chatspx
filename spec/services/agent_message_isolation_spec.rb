@@ -174,24 +174,29 @@ RSpec.describe AgentMessageIsolation do
     end
 
     describe '.restriction_id_for_inbox' do
+      # A assinatura pede o team_id porque o OUTRO eixo da regra e o escopo por time.
+      # Lista de escopo vazia (o padrao) = a regra vale para todos os times, entao o que
+      # estes exemplos medem continua sendo so a ISENCAO.
+      let!(:team) { create(:team, account: account) }
+
       it 'stops restricting the exempt agent' do
         create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
 
-        expect(described_class.restriction_id_for_inbox(inbox, agent, account)).to be_nil
+        expect(described_class.restriction_id_for_inbox(inbox, agent, account, team.id)).to be_nil
       end
 
       it 'keeps restricting an agent who is not an exemption' do
         create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
         outro = create(:user, account: account, role: :agent)
 
-        expect(described_class.restriction_id_for_inbox(inbox, outro, account)).to eq(outro.id)
+        expect(described_class.restriction_id_for_inbox(inbox, outro, account, team.id)).to eq(outro.id)
       end
 
       it 'keeps restricting the exempt agent in the inboxes where he is not an exemption' do
         create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
         other_inbox.update!(agent_message_isolation: true)
 
-        expect(described_class.restriction_id_for_inbox(other_inbox, agent, account)).to eq(agent.id)
+        expect(described_class.restriction_id_for_inbox(other_inbox, agent, account, team.id)).to eq(agent.id)
       end
     end
   end

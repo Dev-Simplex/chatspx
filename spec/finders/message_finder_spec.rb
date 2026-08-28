@@ -224,9 +224,13 @@ describe MessageFinder do
         expect(ids).not_to include(from_a.id)
       end
 
+      # A conversa da outra caixa precisa TER TIME: `agent_message_isolation` esta em
+      # Inbox::TEAMLESS_EXEMPT_RULES, entao conversa sem time nunca e isolada por regra de
+      # mensagem — sem o time o exemplo passaria pelo motivo errado (nada isolado) em vez
+      # de provar o que quer, que a isencao de uma caixa nao vale na outra.
       it 'does not carry the exemption to another isolated inbox' do
         other_inbox = create(:inbox, account: account, agent_message_isolation: true)
-        other_conversation = create(:conversation, account: account, inbox: other_inbox)
+        other_conversation = create(:conversation, account: account, inbox: other_inbox, team: team)
         create(:message, message_type: :outgoing, sender: agent_a, conversation: other_conversation, account: account, inbox: other_inbox)
         hidden = create(:message, message_type: :outgoing, sender: agent_b, conversation: other_conversation,
                                   account: account, inbox: other_inbox)
