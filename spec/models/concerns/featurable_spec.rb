@@ -41,7 +41,7 @@ RSpec.describe Featurable do
     let(:catalogo) { YAML.safe_load(Rails.root.join('config/features.yml').read) }
 
     it 'as features alem da posicao 63 nao cabem no bigint' do
-      alem = catalogo.each_with_index.select { |_f, i| (1 << i) > (2**63 - 1) }.map { |f, _| f['name'] }
+      alem = catalogo.each_with_index.select { |_f, i| (1 << i) > ((2**63) - 1) }.map { |f, _| f['name'] }
 
       expect(alem).to contain_exactly('conversation_required_attributes', 'advanced_assignment')
     end
