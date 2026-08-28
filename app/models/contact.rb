@@ -52,9 +52,16 @@ class Contact < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # site do cliente (setCustomAttributes), qualquer script podia crescer o jsonb
   # sem limite. Conversation e Company ja usavam o validador; o contato, nao.
   CUSTOM_ATTRIBUTES_MAX_KEYS = 50
+  # O teto por VALOR (1500 caracteres) so olhava o topo do hash, entao um valor
+  # aninhado passava com qualquer tamanho. Estes dois sao das unicas medidas que
+  # o aninhamento nao contorna: 64 KiB do jsonb inteiro e 3 niveis.
+  CUSTOM_ATTRIBUTES_MAX_BYTES = 65_536
+  CUSTOM_ATTRIBUTES_MAX_DEPTH = 3
 
   validates :account_id, presence: true
-  validates :custom_attributes, jsonb_attributes_length: { max_keys: CUSTOM_ATTRIBUTES_MAX_KEYS }
+  validates :custom_attributes, jsonb_attributes_length: { max_keys: CUSTOM_ATTRIBUTES_MAX_KEYS,
+                                                           max_bytes: CUSTOM_ATTRIBUTES_MAX_BYTES,
+                                                           max_depth: CUSTOM_ATTRIBUTES_MAX_DEPTH }
   validates :email, allow_blank: true, uniqueness: { scope: [:account_id], case_sensitive: false },
                     format: { with: Devise.email_regexp, message: I18n.t('errors.contacts.email.invalid') }
   validates :identifier, allow_blank: true, uniqueness: { scope: [:account_id] }
@@ -203,6 +210,57 @@ class Contact < ApplicationRecord # rubocop:disable Metrics/ClassLength
   def self.from_email(email)
     find_by(email: email&.downcase)
   end
+
+  # O teto e do CONTATO, mas a fusao SOMA dois contatos: 30 + 30 chaves, nenhum
+  # dos dois acima do teto, davam 60 e o `update!` do fim da fusao levantava
+  # RecordInvalid. Como a fusao ja destruiu o incorporado, a transacao inteira
+  # era revertida — merge quebrado no painel, na API publica e no resolve_lid_job.
+  #
+  # Recusar a fusao e a pior saida: nenhum dos dois lados fez nada errado. Entao
+  # ela poda, com regra deterministica — tudo do contato base sobrevive (ele e
+  # quem continua existindo, e se ele ja estava acima do teto o teto dele e o
+  # proprio estado) e as chaves do incorporado entram, em ordem estavel, ate onde
+  # couber em quantidade, bytes e profundidade.
+  def self.merged_custom_attributes(base_attributes, mergee_attributes)
+    base = base_attributes.presence || {}
+    mergee = mergee_attributes.presence || {}
+    budget = custom_attributes_budget(base)
+    full = mergee.deep_merge(base)
+
+    shared = full.slice(*base.keys)
+    merged = custom_attributes_fit?(shared, base, budget) ? shared : base
+    (full.keys - base.keys).each do |key|
+      # Cheio de chaves, nenhum candidato passa: parar aqui e equivalente a
+      # seguir testando, e evita serializar o jsonb inteiro por chave descartada.
+      break if merged.size >= budget[:keys]
+
+      candidate = merged.merge(key => full[key])
+      merged = candidate if custom_attributes_fit?(candidate, base, budget)
+    end
+    merged
+  end
+
+  def self.custom_attributes_budget(base)
+    {
+      keys: [CUSTOM_ATTRIBUTES_MAX_KEYS, base.size].max,
+      bytes: [CUSTOM_ATTRIBUTES_MAX_BYTES, JsonbAttributesLengthValidator.byte_size(base)].max,
+      depth: [CUSTOM_ATTRIBUTES_MAX_DEPTH, JsonbAttributesLengthValidator.depth(base)].max
+    }
+  end
+
+  # As mesmas quatro regras do validador, na mesma ordem — inclusive a do valor
+  # por chave, que e a que faria a fusao levantar erro por um texto longo vindo
+  # do incorporado. Valor identico ao que o base ja tinha e herdado, nao entra
+  # no julgamento.
+  def self.custom_attributes_fit?(candidate, base, budget)
+    return false if candidate.size > budget[:keys]
+    return false if JsonbAttributesLengthValidator.byte_size(candidate) > budget[:bytes]
+    return false if JsonbAttributesLengthValidator.depth(candidate) > budget[:depth]
+
+    candidate.all? { |key, value| base[key] == value || JsonbAttributesLengthValidator.value_within_limits?(value) }
+  end
+
+  private_class_method :custom_attributes_budget, :custom_attributes_fit?
 
   private
 

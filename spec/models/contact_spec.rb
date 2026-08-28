@@ -104,6 +104,88 @@ RSpec.describe Contact do
       expect(contact.errors[:custom_attributes]).to eq(['saldo value should be < 9999999999'])
     end
 
+    # O teto de TAMANHO so olhava String e Integer no TOPO do hash: um valor
+    # ANINHADO passava inteiro, com qualquer tamanho. Por isso ele agora e de
+    # BYTES do jsonb serializado e de PROFUNDIDADE, nao so das chaves de topo.
+    context 'when the value is nested' do
+      let(:max_bytes) { described_class::CUSTOM_ATTRIBUTES_MAX_BYTES }
+      let(:max_depth) { described_class::CUSTOM_ATTRIBUTES_MAX_DEPTH }
+
+      # ~81 KB com TODA string abaixo de 1500 e uma unica chave de topo: nenhuma
+      # das regras antigas (50 chaves, 1500 por string) morde nisto.
+      def nested_bag(entries)
+        (1..entries).to_h { |index| ["chave_#{index}", 'a' * 1000] }
+      end
+
+      it 'recusa jsonb aninhado acima do teto de bytes' do
+        contact = build(:contact, account: account, custom_attributes: { 'bag' => nested_bag(80) })
+
+        expect(contact).not_to be_valid
+        expect(contact.errors[:custom_attributes].first).to match(/\Atotal size should be at most 65536 bytes \(got \d{5,}\)\z/)
+      end
+
+      it 'aceita o mesmo formato abaixo do teto de bytes' do
+        contact = build(:contact, account: account, custom_attributes: { 'bag' => nested_bag(40) })
+
+        expect(contact).to be_valid
+        expect(contact.custom_attributes.to_json.bytesize).to be <= max_bytes
+      end
+
+      it 'recusa profundidade acima do teto' do
+        contact = build(:contact, account: account, custom_attributes: { 'a' => { 'b' => { 'c' => { 'd' => 1 } } } })
+
+        expect(contact).not_to be_valid
+        expect(contact.errors[:custom_attributes]).to eq(['nesting should be at most 3 levels deep (got 4)'])
+      end
+
+      it 'aceita profundidade exatamente no teto' do
+        contact = build(:contact, account: account, custom_attributes: { 'a' => { 'b' => { 'c' => 1 } } })
+
+        expect(contact).to be_valid
+        expect(max_depth).to eq(3)
+      end
+
+      it 'conta array como um nivel' do
+        contact = build(:contact, account: account, custom_attributes: { 'a' => { 'b' => [{ 'c' => 1 }] } })
+
+        expect(contact).not_to be_valid
+        expect(contact.errors[:custom_attributes]).to eq(['nesting should be at most 3 levels deep (got 4)'])
+      end
+
+      # Mesma regra do teto de chaves: quem ja estourou continua salvando.
+      context 'when the contact already blew past the byte cap' do
+        let(:contact) do
+          record = build(:contact, account: account, custom_attributes: { 'bag' => nested_bag(80) })
+          record.save!(validate: false)
+          record.reload
+        end
+
+        it 'nasceu acima do teto de bytes' do
+          expect(contact.custom_attributes.to_json.bytesize).to be > max_bytes
+        end
+
+        it 'continua salvando edicao que nao mexe no jsonb' do
+          contact.name = 'Nome novo'
+
+          expect(contact.save).to be(true)
+        end
+
+        it 'recusa quando o jsonb cresce' do
+          contact.custom_attributes = contact.custom_attributes.merge('bag2' => nested_bag(10))
+
+          expect(contact.save).to be(false)
+          expect(contact.errors[:custom_attributes].first).to start_with('total size should be at most 65536 bytes')
+        end
+
+        it 'aceita quando o jsonb encolhe, mesmo seguindo acima do teto' do
+          contact.custom_attributes = { 'bag' => nested_bag(70) }
+
+          expect(contact.save).to be(true)
+          expect(contact.reload.custom_attributes.to_json.bytesize).to be > max_bytes
+        end
+      end
+    end
+
     # A validacao morde no CRESCIMENTO, nao no estado. Um teto novo nao pode
     # travar a edicao de nome e telefone de contato historico que ja passou dele.
     context 'when the contact already blew past the cap before the validation existed' do
