@@ -7,7 +7,7 @@
  */
 import { shallowMount } from '@vue/test-utils';
 import { createStore } from 'vuex';
-import PreChatForm from '../Form.vue';
+import PreChatForm from '../PreChatBody.vue';
 import { savePartialLead } from 'widget/api/partialLead';
 
 vi.mock('widget/api/partialLead', () => ({ savePartialLead: vi.fn() }));

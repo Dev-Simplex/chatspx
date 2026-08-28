@@ -1,114 +1,212 @@
 <script>
+import { FormKit, createInput } from '@formkit/vue';
+import { getRegexp } from 'shared/helpers/Validators';
+import PhoneInput from 'widget/components/Form/PhoneInput.vue';
+import { getRequiredMessage } from 'widget/helpers/preChatFieldMessages';
 import { rotuloObrigatorio } from './rotulos';
+
 /**
- * Campo de formulário com rótulo REALMENTE associado.
+ * UM CAMPO DO PRÉ-CHAT — o destino da delegação do bloco 3.15.
  *
- * O `for`/`id` é gerado aqui porque essa é a diferença entre um rótulo que o
- * leitor de tela liga ao campo e um texto solto ao lado dele. A medição do axe
- * nos tipos ricos do widget acusou `label` como violação crítica — é este o
- * componente que impede a próxima.
+ * Este é o "→ widget/ui/WField.vue" da linha do bloco no §2.2: a marcação de um
+ * campo, com o tipo, as opções, as regras e as mensagens, sai de
+ * `PreChat/Form.vue` (campo minado, R15) e passa a morar aqui, num arquivo que o
+ * upstream não toca. A casca lá ficou com menos de 60 linhas por causa disto.
+ *
+ * O CONTROLE é do FormKit, e não um `<input>` nosso: o pré-chat depende do motor
+ * de validação dele (`email`, `matches`, `required`, o input de telefone criado
+ * por `createInput`), e trocá-lo seria reescrever o formulário — exatamente o
+ * que o bloco proíbe. A associação rótulo↔campo, que é o contrato de
+ * acessibilidade deste componente, é a que o FormKit gera: um `<label for>`
+ * apontando para o `id` do controle.
+ *
+ * `label` continua sendo prop obrigatória e validada (`rotuloObrigatorio`):
+ * campo sem nome acessível é a violação que a matriz de snapshot mediu, e ela
+ * não volta por uma refatoração.
  */
-let sequencia = 0;
+
+// Fora do componente de propósito: a definição do input é a MESMA para todas as
+// instâncias, e criá-la por campo montado seria uma definição nova por render.
+const phoneInput = createInput(PhoneInput, {
+  props: ['hasErrorInPhoneInput'],
+});
+
+/** Tipo do painel → tipo do FormKit. `phoneNumber` tem input próprio. */
+const TYPE_ALIASES = { link: 'url', list: 'select' };
 
 export default {
   name: 'WField',
-  inheritAttrs: false,
+  components: { FormKit },
   props: {
-    label: {
-      type: String,
-      required: true,
-      validator: rotuloObrigatorio,
-    },
-    modelValue: { type: String, default: '' },
-    id: { type: String, default: '' },
-    type: { type: String, default: 'text' },
-    error: { type: String, default: '' },
-    hint: { type: String, default: '' },
-    required: { type: Boolean, default: false },
+    field: { type: Object, required: true },
+    label: { type: String, required: true, validator: rotuloObrigatorio },
+    errors: { type: Array, default: () => [] },
   },
-  emits: ['update:modelValue'],
+  emits: ['blur'],
   data() {
-    sequencia += 1;
-    return { idInterno: `w-field-${sequencia}` };
+    return { hasErrorInPhoneInput: false };
   },
   computed: {
-    idCampo() {
-      return this.id || this.idInterno;
+    resolvedType() {
+      if (this.field.name === 'phoneNumber') return phoneInput;
+      return TYPE_ALIASES[this.field.type] || this.field.type;
     },
-    idErro() {
-      return `${this.idCampo}-erro`;
+    isSelect() {
+      return this.resolvedType === 'select';
     },
-    idHint() {
-      return `${this.idCampo}-hint`;
+    /**
+     * As opções indexadas por POSIÇÃO. É desta indexação que nasce o defeito que
+     * o 3.15 fecha: o FormKit guarda `'0'`, e quem configura a condicional no
+     * painel digita "Empresa". Quem resolve é `preChatFieldRules`; aqui só se
+     * declara a forma.
+     */
+    options() {
+      if (!this.isSelect) return undefined;
+      return Object.fromEntries(
+        (this.field.values || []).map((value, index) => [index, value])
+      );
     },
-    // O campo aponta para a mensagem de erro e para a ajuda; sem isso o leitor
-    // de tela anuncia "inválido" sem dizer o motivo.
-    descritores() {
-      return [this.hint ? this.idHint : null, this.error ? this.idErro : null]
-        .filter(Boolean)
-        .join(' ');
+    validation() {
+      const {
+        name,
+        type,
+        field_type: fieldType,
+        regex_pattern: pattern,
+      } = this.field;
+      const regex = pattern ? getRegexp(pattern) : null;
+      // O FormKit guarda a RegExp e chama `.test()` a cada tecla; as flags `g` e
+      // `y` mantêm `lastIndex` e fariam a validade oscilar entre teclas.
+      const matchRegex = regex
+        ? new RegExp(regex.source, regex.flags.replace(/[gy]/g, ''))
+        : null;
+      const validations = {
+        emailAddress: 'email',
+        phoneNumber: ['startsWithPlus', 'isValidPhoneNumber'],
+        url: 'url',
+        date: 'date',
+        text: null,
+        select: null,
+        number: null,
+        checkbox: false,
+        contact_attribute: matchRegex ? [['matches', matchRegex]] : null,
+        conversation_attribute: matchRegex ? [['matches', matchRegex]] : null,
+      };
+      const keys = Object.keys(validations);
+      const baseRules = this.field.required ? [['required']] : [['optional']];
+
+      if (
+        !keys.includes(name) &&
+        !keys.includes(type) &&
+        !keys.includes(fieldType)
+      ) {
+        return '';
+      }
+
+      const validationType =
+        validations[type] || validations[name] || validations[fieldType];
+      if (!validationType) return baseRules;
+
+      // Normalizado em array-de-arrays para que a RegExp de `['matches', regex]`
+      // sobreviva sem ser convertida em string pelo FormKit.
+      const extraRules = Array.isArray(validationType)
+        ? validationType.map(rule => (Array.isArray(rule) ? rule : [rule]))
+        : [[validationType]];
+
+      return baseRules.concat(extraRules);
+    },
+    validationMessages() {
+      return {
+        startsWithPlus: this.$t(
+          'PRE_CHAT_FORM.FIELDS.PHONE_NUMBER.DIAL_CODE_VALID_ERROR'
+        ),
+        isValidPhoneNumber: this.$t(
+          'PRE_CHAT_FORM.FIELDS.PHONE_NUMBER.VALID_ERROR'
+        ),
+        email: this.$t('PRE_CHAT_FORM.FIELDS.EMAIL_ADDRESS.VALID_ERROR'),
+        // Bloco 2.17: a mensagem de obrigatoriedade NOMEIA o campo em vez de
+        // repetir a mesma palavra em todos eles.
+        required: getRequiredMessage({ field: this.field, t: this.$t }),
+        matches: this.field.regex_cue || this.$t('PRE_CHAT_FORM.REGEX_ERROR'),
+      };
+    },
+  },
+  methods: {
+    inputClass(input) {
+      const { state, family: classification, type } = input.context;
+      if (classification === 'box' && type === 'checkbox') return '';
+      if (type === 'phoneInput') this.hasErrorInPhoneInput = state.invalid;
+      return 'mt-1 rounded w-full py-2 px-3';
     },
   },
 };
 </script>
 
 <template>
-  <div class="w-field">
-    <label class="w-field__rotulo" :for="idCampo">
-      {{ label }}
-      <span v-if="required" class="w-field__obrigatorio" aria-hidden="true">
-        *
-      </span>
-    </label>
-    <input
-      :id="idCampo"
-      class="w-field__campo"
-      :class="{ 'w-field__campo--erro': error }"
-      :type="type"
-      :value="modelValue"
-      :required="required"
-      :aria-invalid="error ? 'true' : undefined"
-      :aria-describedby="descritores || undefined"
-      v-bind="$attrs"
-      @input="$emit('update:modelValue', $event.target.value)"
-    />
-    <p v-if="hint" :id="idHint" class="w-field__hint">{{ hint }}</p>
-    <p v-if="error" :id="idErro" class="w-field__erro">{{ error }}</p>
-  </div>
+  <!-- O `v-bind` condicional das opções é exigência do FormKit: receber a chave
+       `options` com `undefined` já o faz assumir multi-checkbox. -->
+  <FormKit
+    :name="field.name"
+    :type="resolvedType"
+    :label="label"
+    :placeholder="field.placeholder"
+    :validation="validation"
+    :validation-messages="validationMessages"
+    v-bind="isSelect ? { options } : undefined"
+    label-class="text-sm font-medium text-n-slate-12"
+    :input-class="context => inputClass(context)"
+    :has-error-in-phone-input="hasErrorInPhoneInput"
+    :errors="errors"
+    :help="field.help_text || undefined"
+    @blur="$emit('blur', field.name)"
+  />
 </template>
 
-<style scoped lang="scss">
-.w-field {
-  @apply flex flex-col gap-1 w-full;
+<style lang="scss">
+/**
+ * GLOBAL de propósito, e não `scoped`: o FormKit renderiza a árvore do campo
+ * fora do escopo do componente que o declara, então `scoped` não alcançaria
+ * `.formkit-outer`. Estas regras vieram inteiras de `PreChat/Form.vue`.
+ */
+.formkit-outer {
+  @apply mt-2;
 
-  &__rotulo {
-    @apply text-sm font-medium text-n-slate-12;
-  }
+  .formkit-inner {
+    input[type='checkbox'] {
+      @apply size-4;
 
-  &__obrigatorio {
-    @apply text-n-ruby-11;
-  }
-
-  &__campo {
-    @apply w-full rounded-lg border border-solid border-n-weak bg-n-background
-      px-3 py-2 text-base text-n-slate-12 min-h-11;
-
-    &:focus-visible {
-      outline: var(--w-focus-ring-width) solid var(--w-focus-ring-color);
-      outline-offset: var(--w-focus-ring-offset);
+      // `outline-none` não entra aqui. O utilitário do Tailwind NÃO remove o
+      // anel: ele gera `outline: 2px solid transparent`. Num checkbox — que é
+      // focável e faz parte do caminho de teclado do pré-chat — isso deixava
+      // 2px de anel INVISÍVEL, pior que nenhum: em `forced-colors` o
+      // `transparent` é trocado por cor do sistema e o `none` não é.
+      &:focus-visible {
+        outline: var(--w-focus-ring-width) solid var(--w-focus-ring-color);
+        outline-offset: var(--w-focus-ring-offset);
+      }
     }
+  }
 
-    &--erro {
-      @apply border-n-ruby-8;
+  &[data-invalid] {
+    .formkit-label {
+      @apply text-n-ruby-10;
+    }
+    .formkit-inner input,
+    .formkit-inner textarea,
+    .formkit-inner select {
+      @apply outline-n-ruby-8 dark:outline-n-ruby-8 hover:outline-n-ruby-9 dark:hover:outline-n-ruby-9 focus:outline-n-ruby-9 dark:focus:outline-n-ruby-9;
     }
   }
+}
 
-  &__hint {
-    @apply text-xs text-n-slate-11;
-  }
+[data-invalid] .formkit-message {
+  @apply text-n-ruby-10 block text-xs font-normal my-0.5 w-full;
+}
 
-  &__erro {
-    @apply text-xs text-n-ruby-11;
-  }
+.formkit-outer[data-type='checkbox'] .formkit-wrapper {
+  @apply flex items-center gap-2 px-0.5;
+}
+
+.formkit-messages {
+  @apply list-none m-0 p-0;
 }
 </style>

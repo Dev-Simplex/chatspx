@@ -136,12 +136,203 @@ describe('3.15 — o widget honra show_if / step / mask / validator', () => {
     });
   });
 
+  // ── O GATILHO É O VALOR, NÃO A CHAVE ────────────────────────────────────
+  //
+  // O que o formulário GUARDA e o que a pessoa LEU não são a mesma coisa em dois
+  // dos oito tipos de campo do painel (`custom_attribute_definition.rb:58`):
+  //
+  //   `list`      → o FormKit guarda a POSIÇÃO na lista ('0', '1', …), porque
+  //                 `getOptions` monta as opções indexadas por posição.
+  //   `checkbox`  → o FormKit guarda um BOOLEANO, não texto.
+  //
+  // E o `value` da condicional é um campo de texto livre no painel
+  // (`ConditionEditor.vue:112`, um `Input`, sem enum e sem tipo): quem configura
+  // digita "Empresa", que é o que está escrito na tela. Comparar "Empresa" com
+  // '0' nunca casa — o campo condicional simplesmente não aparece, e nada avisa.
+  //
+  // Estes testes usam a forma REAL dos três gatilhos, e não `type: 'text'`.
+  describe('o gatilho resolve o VALOR antes de comparar', () => {
+    const dependente = extra =>
+      campo({
+        name: 'cnpj',
+        show_if: { field: 'tipo', operator: 'is', value: 'Empresa', ...extra },
+      });
+
+    const nomes = (fields, values) =>
+      visibleFields(fields, values).map(f => f.name);
+
+    describe('gatilho de LISTA (type: list) — o painel grava a posição', () => {
+      const gatilho = campo({
+        name: 'tipo',
+        label: 'Tipo',
+        type: 'list',
+        values: ['Empresa', 'Pessoa física'],
+      });
+
+      it('posição 0 É "Empresa": o dependente aparece', () => {
+        expect(nomes([gatilho, dependente()], { tipo: '0' })).toEqual([
+          'tipo',
+          'cnpj',
+        ]);
+      });
+
+      it('posição 1 não é "Empresa": o dependente some', () => {
+        expect(nomes([gatilho, dependente()], { tipo: '1' })).toEqual(['tipo']);
+      });
+
+      it('is_not compara o rótulo, então NÃO inverte por causa da posição', () => {
+        const condicional = dependente({ operator: 'is_not' });
+        expect(nomes([gatilho, condicional], { tipo: '0' })).toEqual(['tipo']);
+        expect(nomes([gatilho, condicional], { tipo: '1' })).toEqual([
+          'tipo',
+          'cnpj',
+        ]);
+      });
+
+      it('contains procura dentro do rótulo, não dentro do número', () => {
+        const condicional = dependente({
+          operator: 'contains',
+          value: 'física',
+        });
+        expect(nomes([gatilho, condicional], { tipo: '1' })).toEqual([
+          'tipo',
+          'cnpj',
+        ]);
+        expect(nomes([gatilho, condicional], { tipo: '0' })).toEqual(['tipo']);
+      });
+
+      it('lista não respondida ("") não está preenchida', () => {
+        const condicional = dependente({ operator: 'filled' });
+        expect(nomes([gatilho, condicional], { tipo: '' })).toEqual(['tipo']);
+        expect(nomes([gatilho, condicional], { tipo: '0' })).toEqual([
+          'tipo',
+          'cnpj',
+        ]);
+      });
+
+      it('posição fora da lista devolve o valor cru — falha aberta, não some', () => {
+        // Lista encurtada no painel depois de o visitante já ter respondido.
+        const condicional = dependente({
+          operator: 'is_not',
+          value: 'Empresa',
+        });
+        expect(nomes([gatilho, condicional], { tipo: '9' })).toEqual([
+          'tipo',
+          'cnpj',
+        ]);
+      });
+
+      it('o rótulo gravado direto (payload legado) continua casando', () => {
+        expect(nomes([gatilho, dependente()], { tipo: 'Empresa' })).toEqual([
+          'tipo',
+          'cnpj',
+        ]);
+      });
+    });
+
+    describe('gatilho de SELECT — o mesmo campo, com o type que o widget usa', () => {
+      const gatilho = campo({
+        name: 'tipo',
+        label: 'Tipo',
+        type: 'select',
+        values: ['Empresa', 'Pessoa física'],
+      });
+
+      it('posição 0 É "Empresa"', () => {
+        expect(nomes([gatilho, dependente()], { tipo: '0' })).toEqual([
+          'tipo',
+          'cnpj',
+        ]);
+      });
+
+      it('posição 1 não é', () => {
+        expect(nomes([gatilho, dependente()], { tipo: '1' })).toEqual(['tipo']);
+      });
+    });
+
+    describe('gatilho de CAIXA (type: checkbox) — o FormKit guarda booleano', () => {
+      const gatilho = campo({
+        name: 'aceito',
+        label: 'Aceito ser contatado',
+        type: 'checkbox',
+      });
+      const caixa = extra =>
+        campo({
+          name: 'cnpj',
+          show_if: { field: 'aceito', operator: 'filled', ...extra },
+        });
+
+      it('DESMARCADO não está preenchido — `false` não é conteúdo', () => {
+        expect(nomes([gatilho, caixa()], { aceito: false })).toEqual([
+          'aceito',
+        ]);
+      });
+
+      it('nunca tocado também não está preenchido', () => {
+        expect(nomes([gatilho, caixa()], {})).toEqual(['aceito']);
+      });
+
+      it('MARCADO está preenchido', () => {
+        expect(nomes([gatilho, caixa()], { aceito: true })).toEqual([
+          'aceito',
+          'cnpj',
+        ]);
+      });
+
+      it('is com afirmativo casa com a caixa marcada', () => {
+        const condicional = caixa({ operator: 'is', value: 'sim' });
+        expect(nomes([gatilho, condicional], { aceito: true })).toEqual([
+          'aceito',
+          'cnpj',
+        ]);
+        expect(nomes([gatilho, condicional], { aceito: false })).toEqual([
+          'aceito',
+        ]);
+      });
+
+      it('is com negativo casa com a caixa desmarcada', () => {
+        const condicional = caixa({ operator: 'is', value: 'não' });
+        expect(nomes([gatilho, condicional], { aceito: false })).toEqual([
+          'aceito',
+          'cnpj',
+        ]);
+        expect(nomes([gatilho, condicional], { aceito: true })).toEqual([
+          'aceito',
+        ]);
+      });
+
+      it('is_not é a negação exata', () => {
+        const condicional = caixa({ operator: 'is_not', value: 'true' });
+        expect(nomes([gatilho, condicional], { aceito: false })).toEqual([
+          'aceito',
+          'cnpj',
+        ]);
+        expect(nomes([gatilho, condicional], { aceito: true })).toEqual([
+          'aceito',
+        ]);
+      });
+
+      it('texto que não é sim nem não numa caixa → falha aberta', () => {
+        // "Empresa" numa caixa de seleção é engano de configuração: a condição
+        // não teria como ser satisfeita nunca. Mostra.
+        const condicional = caixa({ operator: 'is', value: 'Empresa' });
+        expect(nomes([gatilho, condicional], { aceito: false })).toEqual([
+          'aceito',
+          'cnpj',
+        ]);
+      });
+    });
+  });
+
   describe('os quatro operadores, um a um', () => {
+    // O terceiro parâmetro são os CAMPOS, e não os nomes: o gatilho precisa
+    // trazer o `type` para o valor ser resolvido antes da comparação.
+    const gatilhoTexto = [{ name: 'x', type: 'text' }];
     const comOperador = (operator, value) =>
       evaluateCondition(
         { field: 'x', operator, value },
         { x: 'Empresa Ltda' },
-        ['x']
+        gatilhoTexto
       );
 
     it('is — compara sem diferenciar caixa nem espaço em volta', () => {
@@ -161,28 +352,29 @@ describe('3.15 — o widget honra show_if / step / mask / validator', () => {
     });
 
     it('filled — ignora value e olha só se há conteúdo', () => {
-      expect(
-        evaluateCondition({ field: 'x', operator: 'filled' }, { x: 'a' }, ['x'])
-      ).toBe(true);
-      expect(
-        evaluateCondition({ field: 'x', operator: 'filled' }, { x: '   ' }, [
-          'x',
-        ])
-      ).toBe(false);
-      expect(
-        evaluateCondition({ field: 'x', operator: 'filled' }, {}, ['x'])
-      ).toBe(false);
+      const preenchido = values =>
+        evaluateCondition(
+          { field: 'x', operator: 'filled' },
+          values,
+          gatilhoTexto
+        );
+
+      expect(preenchido({ x: 'a' })).toBe(true);
+      expect(preenchido({ x: '   ' })).toBe(false);
+      expect(preenchido({})).toBe(false);
     });
 
     it('is / is_not / contains SEM value são malformados → falha aberta', () => {
       ['is', 'is_not', 'contains'].forEach(operator => {
         expect(
-          evaluateCondition({ field: 'x', operator }, { x: 'a' }, ['x'])
+          evaluateCondition({ field: 'x', operator }, { x: 'a' }, gatilhoTexto)
         ).toBe(true);
         expect(
-          evaluateCondition({ field: 'x', operator, value: null }, { x: 'a' }, [
-            'x',
-          ])
+          evaluateCondition(
+            { field: 'x', operator, value: null },
+            { x: 'a' },
+            gatilhoTexto
+          )
         ).toBe(true);
       });
     });
@@ -251,6 +443,62 @@ describe('3.15 — o widget honra show_if / step / mask / validator', () => {
       ];
       expect(stepsOf(visibleFields(comCondicao, { a: 'nao' }))).toEqual([1]);
       expect(stepsOf(visibleFields(comCondicao, { a: 'sim' }))).toEqual([1, 2]);
+    });
+  });
+
+  // ── `position`: a ordem do painel é a ordem do visitante ────────────────
+  //
+  // `position` é gravado pelo painel (`preChatModel.js#reorderStep`) e é ele que
+  // define a ordem que o administrador VÊ ao arrastar os campos. O widget o
+  // ignorava: renderizava na ordem do array, então arrastar um campo na tela de
+  // configuração não mudava nada no site do cliente.
+  //
+  // A regra é a MESMA do painel (`preChatModel.js#fieldsOfStep`), copiada com o
+  // porquê junto: campo sem `position` vai para o FIM, porque a tela antiga não
+  // grava a chave e tratar ausência como zero embaralharia o formulário inteiro
+  // na primeira reordenação.
+  describe('position — a ordem que o painel mostra é a que o visitante vê', () => {
+    it('ordena por position dentro da etapa', () => {
+      const fields = [
+        campo({ name: 'b', position: 1 }),
+        campo({ name: 'a', position: 0 }),
+      ];
+
+      expect(fieldsForStep(fields, 1).map(f => f.name)).toEqual(['a', 'b']);
+    });
+
+    it('campo SEM position vai para o FIM, nunca para a frente', () => {
+      const fields = [
+        campo({ name: 'legado' }),
+        campo({ name: 'ordenado', position: 0 }),
+      ];
+
+      expect(fieldsForStep(fields, 1).map(f => f.name)).toEqual([
+        'ordenado',
+        'legado',
+      ]);
+    });
+
+    it('empate de position preserva a ordem do array', () => {
+      const fields = [
+        campo({ name: 'primeiro', position: 2 }),
+        campo({ name: 'segundo', position: 2 }),
+      ];
+
+      expect(fieldsForStep(fields, 1).map(f => f.name)).toEqual([
+        'primeiro',
+        'segundo',
+      ]);
+    });
+
+    it('a ordenação é por etapa, e não atravessa etapas', () => {
+      const fields = [
+        campo({ name: 'e2', step: 2, position: 0 }),
+        campo({ name: 'e1', step: 1, position: 9 }),
+      ];
+
+      expect(fieldsForStep(fields, 1).map(f => f.name)).toEqual(['e1']);
+      expect(fieldsForStep(fields, 2).map(f => f.name)).toEqual(['e2']);
     });
   });
 
