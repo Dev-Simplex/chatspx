@@ -334,6 +334,16 @@ const newReportRoutes = () => [
     to: accountScopedRoute('team_reports_index'),
     activeOn: ['team_reports_show'],
   },
+  // Bloco 1.22 — de onde vieram os atendimentos. Sem esta linha o relatório
+  // existe e só chega nele quem digitar a URL. Coberto por
+  // `specs/SidebarReportsOrigin.spec.js`, que monta a barra lateral e exige o
+  // item: da última vez ele saiu num recorte de upstream sem nada ficar
+  // vermelho.
+  {
+    name: 'Reports Origin',
+    label: t('SIDEBAR.REPORTS_ORIGIN'),
+    to: accountScopedRoute('conversation_origin_reports'),
+  },
 ];
 
 const reportRoutes = computed(() => newReportRoutes());
