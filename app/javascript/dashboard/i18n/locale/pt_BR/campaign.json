@@ -226,6 +226,59 @@
             "ERROR_MESSAGE": "Houve um erro. Por favor, tente novamente."
           }
         }
+      },
+      "DISPATCH": {
+        "TITLE": "Disparo",
+        "STATUS": {
+          "draft": "Rascunho",
+          "scheduled": "Agendado",
+          "running": "Disparando",
+          "paused": "Pausado",
+          "completed": "Concluído",
+          "failed": "Falhou"
+        },
+        "START": "Iniciar disparo",
+        "PAUSE": "Pausar",
+        "PROGRESS": "{done} de {total} processados",
+        "RECIPIENT_STATUS": {
+          "pending": "Na fila",
+          "processing": "Enviando",
+          "sent": "Enviadas",
+          "delivered": "Entregues",
+          "read": "Lidas",
+          "replied": "Responderam",
+          "failed": "Falhas",
+          "skipped": "Pulados",
+          "cancelled": "Cancelados"
+        },
+        "LIST_LABEL": "Lista de destinatários",
+        "LIST_PLACEHOLDER": "Um por linha — \"Nome, telefone\" ou só o telefone.\nMaria, 66 99292-7211\n66992927211",
+        "PARSED": "{count} linhas reconhecidas",
+        "PREVIEW": "Conferir audiência",
+        "UPLOAD": "Carregar destinatários",
+        "UPLOAD_DONE": "{count} destinatários carregados.",
+        "PREVIEW_ERROR": "Não foi possível conferir a audiência.",
+        "UPLOAD_ERROR": "Não foi possível carregar os destinatários.",
+        "START_ERROR": "Não foi possível iniciar o disparo.",
+        "PAUSE_ERROR": "Não foi possível pausar o disparo.",
+        "AUDIENCE": {
+          "TOTAL": "Na lista",
+          "ACCEPTED": "Entram",
+          "REJECTED": "Descartados"
+        },
+        "SHOW_REJECTED": "Ver os descartados",
+        "OMITTED": "+{count} descartados não exibidos.",
+        "REASONS": {
+          "telefone_invalido": "Telefone inválido",
+          "telefone_fixo": "Telefone fixo (não recebe WhatsApp)",
+          "numero_suspeito": "Número suspeito (dígito repetido)",
+          "bloqueado": "Bloqueado",
+          "optou_por_sair": "Pediu para não receber",
+          "ja_disparado": "Já recebeu disparo",
+          "ja_na_campanha": "Já está nesta campanha",
+          "atendimento_ativo": "Em atendimento agora",
+          "duplicado_na_lista": "Duplicado na lista"
+        }
       }
     },
     "CONFIRM_DELETE": {

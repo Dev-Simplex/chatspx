@@ -226,6 +226,59 @@
             "ERROR_MESSAGE": "There was an error. Please try again."
           }
         }
+      },
+      "DISPATCH": {
+        "TITLE": "Dispatch",
+        "STATUS": {
+          "draft": "Draft",
+          "scheduled": "Scheduled",
+          "running": "Dispatching",
+          "paused": "Paused",
+          "completed": "Completed",
+          "failed": "Failed"
+        },
+        "START": "Start dispatch",
+        "PAUSE": "Pause",
+        "PROGRESS": "{done} of {total} processed",
+        "RECIPIENT_STATUS": {
+          "pending": "Queued",
+          "processing": "Sending",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "replied": "Replied",
+          "failed": "Failed",
+          "skipped": "Skipped",
+          "cancelled": "Cancelled"
+        },
+        "LIST_LABEL": "Recipient list",
+        "LIST_PLACEHOLDER": "One per line — \"Name, phone\" or just the phone.\nMaria, 66 99292-7211\n66992927211",
+        "PARSED": "{count} lines recognized",
+        "PREVIEW": "Check audience",
+        "UPLOAD": "Load recipients",
+        "UPLOAD_DONE": "{count} recipients loaded.",
+        "PREVIEW_ERROR": "Could not check the audience.",
+        "UPLOAD_ERROR": "Could not load the recipients.",
+        "START_ERROR": "Could not start the dispatch.",
+        "PAUSE_ERROR": "Could not pause the dispatch.",
+        "AUDIENCE": {
+          "TOTAL": "In the list",
+          "ACCEPTED": "Accepted",
+          "REJECTED": "Discarded"
+        },
+        "SHOW_REJECTED": "Show discarded",
+        "OMITTED": "+{count} discarded not shown.",
+        "REASONS": {
+          "telefone_invalido": "Invalid phone",
+          "telefone_fixo": "Landline (no WhatsApp)",
+          "numero_suspeito": "Suspicious number (repeated digit)",
+          "bloqueado": "Blocked",
+          "optou_por_sair": "Opted out",
+          "ja_disparado": "Already dispatched",
+          "ja_na_campanha": "Already in this campaign",
+          "atendimento_ativo": "In an active conversation",
+          "duplicado_na_lista": "Duplicated in the list"
+        }
       }
     },
     "CONFIRM_DELETE": {
