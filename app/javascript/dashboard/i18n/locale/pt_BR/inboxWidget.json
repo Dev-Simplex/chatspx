@@ -117,6 +117,10 @@
         "CONFIRM": "Voltar para Simples",
         "CANCEL": "Continuar no Construtor"
       },
+      "LEGACY": {
+        "OPEN_OLD": "Abrir a tela antiga do pré-chat",
+        "BACK_TO_NEW": "Voltar para a tela nova do pré-chat"
+      },
       "PREVIEW": {
         "EMPTY": "Nenhum campo ligado: o visitante vai direto para a conversa.",
         "START": "Iniciar conversa",

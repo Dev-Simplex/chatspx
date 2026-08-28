@@ -2,6 +2,8 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { useMapGetter } from 'dashboard/composables/store';
+import { getCustomFields } from 'dashboard/helper/preChat';
 import RadioCard from 'dashboard/components-next/radioCard/RadioCard.vue';
 import SettingsToggleSection from 'dashboard/components-next/Settings/SettingsToggleSection.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
@@ -42,10 +44,14 @@ const {
   save,
 } = useInboxWidgetConfig(() => props.inboxId);
 
-const { isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard({
-  isDirty,
-  onDiscard: discard,
-});
+const guard = useUnsavedChangesGuard({ isDirty, onDiscard: discard });
+const { isPromptOpen, confirmLeave, cancelLeave } = guard;
+
+// A troca de aba dentro de `Settings.vue` NAO passa pelo router (a URL muda por
+// `history.replaceState`), entao nenhum guard de rota a ve. `Settings.vue`
+// procura este metodo no `ref` da tela montada — sem expor, sair da aba com dez
+// campos configurados e ainda nao salvos os joga fora em silencio.
+defineExpose({ requestLeave: guard.requestLeave });
 
 const migration = ref(null);
 const migrationDialog = ref(null);
@@ -57,12 +63,67 @@ watch(migration, value =>
 );
 
 const options = computed(() => draft.value.preChat ?? {});
+
+/** O que ESTA GRAVADO em `pre_chat_form_options.pre_chat_fields`. */
 const fields = computed(() => options.value.pre_chat_fields ?? []);
 const mode = computed(() => resolveMode(options.value));
 
+/**
+ * O CATALOGO — o que a tela OFERECE — nao e o que esta gravado.
+ *
+ * Uma inbox nova nasce com tres campos padrao e mais nada
+ * (`web_widget.rb#validate_pre_chat_options`). Se a tela so listasse o gravado,
+ * o administrador jamais veria os atributos personalizados da conta, o teto de
+ * oito seria inalcancavel e um atributo criado depois nunca apareceria aqui.
+ * Quem sabe QUAIS atributos faltam e `getCustomFields`, o mesmo helper da tela
+ * antiga — reescrever a regra aqui daria duas respostas para a mesma pergunta.
+ *
+ * O que NAO se faz e passar o gravado por `getPreChatFields`, que era o caminho
+ * obvio. Ele resolve rotulo e placeholder com `label || traducao || nome`, e
+ * isso e certo para RENDERIZAR e errado para EDITAR: o administrador apaga o
+ * rotulo, o helper devolve o padrao traduzido, o campo nunca fica vazio e a
+ * validacao de rotulo obrigatorio (aceite: validacao no blur) vira decoracao —
+ * o estado que ela cobre deixa de existir. Medido em navegador: limpar o rotulo
+ * de `emailAddress` reescrevia o input com "Endereco de e-mail" sozinho.
+ * Alem disso, valor que a pessoa nunca digitou dentro de um input editavel vai
+ * ao banco no proximo save como se ela tivesse digitado.
+ *
+ * Vem do getter da conta e nao de um fetch proprio: quem carrega os atributos e
+ * o shell do painel (`components-next/sidebar/Sidebar.vue`), como ja era antes.
+ * Ausente (antes do fetch), o catalogo e so o gravado — nunca `undefined`
+ * chegando no `forEach` do helper.
+ */
+const customAttributes = useMapGetter('attributes/getAttributes');
+
+const catalog = computed(() => [
+  ...fields.value,
+  ...getCustomFields({
+    standardFields: { pre_chat_fields: fields.value },
+    customAttributes: Array.isArray(customAttributes.value)
+      ? customAttributes.value
+      : [],
+  }),
+]);
+
 const setOptions = change => set('preChat', { ...options.value, ...change });
 
-const onFieldsUpdate = next => setOptions({ pre_chat_fields: next });
+/**
+ * A volta do catalogo para o rascunho, e ela e o ponto delicado do bloco.
+ *
+ * Gravar o catalogo inteiro faria o `pre_chat_form_options` de toda inbox
+ * crescer com um registro por atributo da conta — desligados, inuteis, e dentro
+ * de um jsonb que vai no HTML de toda pagina do cliente. Persistem duas
+ * classes: o que JA estava gravado (inclusive desligado, que e a memoria de
+ * quem foi removido do formulario) e o que o administrador acabou de ligar.
+ */
+const onFieldsUpdate = next => {
+  const stored = new Set(fields.value.map(field => field?.name));
+  setOptions({
+    pre_chat_fields: next.filter(
+      field => stored.has(field?.name) || field?.enabled
+    ),
+  });
+};
 
 /**
  * A troca de modo grava a INTENÇÃO (`mode`) e ajusta o conteúdo — nas duas
@@ -184,7 +245,7 @@ const goToAutomations = () =>
 
       <PreChatStepList
         v-else
-        :fields="fields"
+        :fields="catalog"
         :disabled="isLoading"
         :show-steps="mode === 'builder'"
         @update:fields="onFieldsUpdate"

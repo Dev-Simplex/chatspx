@@ -75,7 +75,12 @@ const updateInbox = async () => {
       formData: false,
       channel: {
         pre_chat_form_enabled: preChatFormEnabled.value,
+        // BLOCO 3.14: o `...` preserva o que esta tela NAO edita. Ela nao
+        // conhece `mode`, e montar o objeto do zero apagava a intencao gravada
+        // pela Tela 3 — quem so abrisse a tela antiga para olhar e salvasse
+        // devolveria a caixa para o modo derivado, sem aviso.
         pre_chat_form_options: {
+          ...(props.inbox.pre_chat_form_options || {}),
           pre_chat_message: preChatMessage.value,
           pre_chat_fields: preChatFields.value,
         },

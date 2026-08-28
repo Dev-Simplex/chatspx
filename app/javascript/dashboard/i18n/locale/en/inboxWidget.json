@@ -117,6 +117,10 @@
         "CONFIRM": "Back to Simple",
         "CANCEL": "Stay in Builder"
       },
+      "LEGACY": {
+        "OPEN_OLD": "Open the old pre-chat screen",
+        "BACK_TO_NEW": "Back to the new pre-chat screen"
+      },
       "PREVIEW": {
         "EMPTY": "No field is on: the visitor goes straight to the conversation.",
         "START": "Start conversation",
