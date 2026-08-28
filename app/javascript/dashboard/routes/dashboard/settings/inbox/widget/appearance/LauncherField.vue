@@ -23,6 +23,13 @@ const props = defineProps({
   appearance: { type: Object, required: true },
   /** Campos que o `chatwootSettings` do site sobrescreve. */
   overriddenFields: { type: Array, default: () => [] },
+  /**
+   * Bloco 3.07: o formato expandido é seção de marketing
+   * (`PROFILE_SECTIONS['appearance.launcherExpanded']`). Quem decide é a tela,
+   * que conhece o perfil; aqui só se obedece. O default é `true` para que este
+   * componente continue completo para quem o monte sem perfil.
+   */
+  showExpandedLauncher: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['update']);
@@ -39,6 +46,12 @@ const {
 
 const isExpanded = computed(
   () => props.appearance.launcher_type === 'expanded_bubble'
+);
+
+const visibleTypes = computed(() =>
+  props.showExpandedLauncher
+    ? TYPES
+    : TYPES.filter(type => type !== 'expanded_bubble')
 );
 
 const launcherTextTooLong = computed(
@@ -136,7 +149,7 @@ const isOverridden = field => props.overriddenFields.includes(field);
     <SettingsFieldSection :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.TYPE')">
       <div class="grid gap-3 sm:grid-cols-2">
         <RadioCard
-          v-for="type in TYPES"
+          v-for="type in visibleTypes"
           :id="`launcher-${type}`"
           :key="type"
           :label="
@@ -154,7 +167,7 @@ const isOverridden = field => props.overriddenFields.includes(field);
 
         <!-- Idem: rotulo acessivel do radio. Ver `ThemeModeField.vue`. -->
         <label
-          v-for="type in TYPES"
+          v-for="type in visibleTypes"
           :key="`label-${type}`"
           :for="`launcher-${type}`"
           class="sr-only"

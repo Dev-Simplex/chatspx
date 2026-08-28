@@ -54,6 +54,17 @@ const toggle = id => {
     : [...accepted.value, id];
 };
 
+/**
+ * A proposta DERIVADA (bloco 3.07) é listada sem caixa.
+ *
+ * Ela não tem campo gravado: quem a resolve é o perfil, no servidor
+ * (`WidgetProfile::PROFILE_DEFAULTS`). O aceite manda listar nominalmente tudo
+ * que muda — então ela aparece —, mas uma caixa que não muda nada quando
+ * desmarcada é exatamente a opacidade que esta tela existe para tirar do
+ * caminho. Ela vai sempre no `accepted`, porque ela sempre acontece.
+ */
+const isDeclinable = proposal => !proposal.derived;
+
 const label = id =>
   // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
   t(
@@ -88,21 +99,31 @@ const confirm = () =>
         <h4 class="text-sm font-medium text-n-slate-12">
           {{ t('INBOX_WIDGET.PROFILE.SWITCH_DIALOG.WILL_CHANGE') }}
         </h4>
-        <label
-          v-for="proposal in proposals"
-          :key="proposal.id"
-          class="flex items-start gap-2 text-sm cursor-pointer text-n-slate-11"
-          :data-testid="`proposal-${proposal.id}`"
-        >
-          <input
-            :id="`proposal-${proposal.id}`"
-            type="checkbox"
-            class="mt-1"
-            :checked="accepted.includes(proposal.id)"
-            @change="toggle(proposal.id)"
-          />
-          <span>{{ label(proposal.id) }}</span>
-        </label>
+        <template v-for="proposal in proposals" :key="proposal.id">
+          <label
+            v-if="isDeclinable(proposal)"
+            class="flex items-start gap-2 text-sm cursor-pointer text-n-slate-11"
+            :data-testid="`proposal-${proposal.id}`"
+          >
+            <input
+              :id="`proposal-${proposal.id}`"
+              type="checkbox"
+              class="mt-1"
+              :checked="accepted.includes(proposal.id)"
+              @change="toggle(proposal.id)"
+            />
+            <span>{{ label(proposal.id) }}</span>
+          </label>
+
+          <p
+            v-else
+            class="flex items-start gap-2 text-sm text-n-slate-11"
+            :data-testid="`proposal-${proposal.id}`"
+          >
+            <span aria-hidden="true" class="mt-1">•</span>
+            <span>{{ label(proposal.id) }}</span>
+          </p>
+        </template>
       </div>
 
       <p v-else class="text-sm text-n-slate-11" data-testid="nothing-changes">

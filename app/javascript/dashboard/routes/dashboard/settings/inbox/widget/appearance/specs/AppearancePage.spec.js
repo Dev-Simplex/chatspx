@@ -112,6 +112,11 @@ describe('AppearancePage — o que a tela grava', () => {
   });
 
   it('o texto do lançador só aparece no formato com texto', async () => {
+    // Perfil marketing porque o formato expandido é seção de marketing desde o
+    // bloco 3.07 (`PROFILE_SECTIONS['appearance.launcherExpanded']`). No perfil
+    // suporte o cartão não está na tela — é o que
+    // `specs/perfilNaTelaDeConfiguracao.spec.js` cobra.
+    inbox.additional_attributes = { widget_profile: 'marketing' };
     const wrapper = build();
     expect(wrapper.find('[data-testid="launcher-text"]').exists()).toBe(false);
 

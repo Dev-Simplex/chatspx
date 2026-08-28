@@ -14,8 +14,10 @@ import SegmentationField from './SegmentationField.vue';
 import TeaserComposer from './TeaserComposer.vue';
 import LegacyCampaigns from './LegacyCampaigns.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
+import WidgetProfileEscapeLink from '../WidgetProfileEscapeLink.vue';
 import WidgetSaveBar from '../WidgetSaveBar.vue';
 import WidgetUnsavedChangesDialog from '../WidgetUnsavedChangesDialog.vue';
+import { useProfileVisibility } from '../composables/useProfileVisibility';
 import { useInboxWidgetConfig } from '../composables/useInboxWidgetConfig';
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard';
 import { labelsForFields } from '../composables/widgetFieldLabels';
@@ -60,6 +62,17 @@ const {
 
 const guard = useUnsavedChangesGuard({ isDirty, onDiscard: discard });
 const changedLabels = computed(() => labelsForFields(dirtyFields.value, t));
+
+/**
+ * Bloco 3.07 — a segmentacao e secao de marketing
+ * (`PROFILE_SECTIONS['triggers.segmentation']`). Quem esta em suporte nao a ve
+ * por padrao, e o link de escape a traz de volta sem trocar o perfil: o perfil
+ * ESCONDE, nunca remove.
+ */
+const profileVisibility = useProfileVisibility(
+  computed(() => draft.value.profile)
+);
+const { isSectionVisible } = profileVisibility;
 
 const triggers = computed(() => draft.value.triggers ?? {});
 // 4.22 — o interruptor mestre lido do RASCUNHO, e nao do salvo: o aviso do modo antigo
@@ -341,12 +354,21 @@ defineExpose({ requestLeave: guard.requestLeave });
         />
       </SettingsFieldSection>
 
-      <h3 class="text-heading-2 text-n-slate-12">
-        {{ t('INBOX_WIDGET.TRIGGERS.SECTIONS.AUDIENCE') }}
-      </h3>
-      <SegmentationField
-        :audience="triggers.audience ?? {}"
-        @update="setTriggers({ audience: $event })"
+      <template v-if="isSectionVisible('triggers.segmentation')">
+        <h3 class="text-heading-2 text-n-slate-12">
+          {{ t('INBOX_WIDGET.TRIGGERS.SECTIONS.AUDIENCE') }}
+        </h3>
+        <SegmentationField
+          :audience="triggers.audience ?? {}"
+          @update="setTriggers({ audience: $event })"
+        />
+      </template>
+      <WidgetProfileEscapeLink
+        v-else
+        :active-profile="profileVisibility.activeProfile.value"
+        :other-profile="profileVisibility.otherProfile.value"
+        :showing="profileVisibility.showOtherProfile.value"
+        @toggle="profileVisibility.toggleOtherProfile"
       />
     </div>
 
