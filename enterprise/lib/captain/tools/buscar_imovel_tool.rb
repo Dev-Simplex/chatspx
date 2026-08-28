@@ -290,16 +290,17 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     ponto = Rails.cache.fetch("captain:geo:#{tool_account&.id}:#{termo.downcase.strip}", expires_in: 30.days) do
       geocode_google(termo, key)
     end
-    return nil if ponto.nil?
-
-    office = office_coords
-    dist = haversine_km(office[:lat], office[:lng], ponto[:lat], ponto[:lng])
-    return nil if dist > RAIO_URBANO_KM
-
-    ponto
+    ponto if na_cidade?(ponto)
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] geocode_referencia(#{termo}): #{e.message}")
     nil
+  end
+
+  def na_cidade?(ponto)
+    return false if ponto.nil?
+
+    office = office_coords
+    haversine_km(office[:lat], office[:lng], ponto[:lat], ponto[:lng]) <= RAIO_URBANO_KM
   end
 
   def geocode_google(termo, key)
@@ -359,17 +360,19 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Numerar dá ao modelo um conjunto fechado e contável pra copiar, em vez de um bloco de
   # texto de onde ele pode "continuar" a lista.
   def format_listings(imoveis, venda, header: nil, detalhado: false)
-    linhas = imoveis.first(5).each_with_index.map do |im, idx|
-      valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
-      dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
-      dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      linha = "#{idx + 1}) (cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}" \
-              "#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{format_condominio(im)}#{dist}. #{build_url(im, venda)}"
-      desc = detalhado ? descricao_limpa(im['DescricaoWeb'], venda) : ''
-      linha += "\n#{desc}" if desc.present?
-      linha
-    end
+    linhas = imoveis.first(5).each_with_index.map { |im, idx| linha_imovel(im, idx, venda, detalhado) }
     "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape_fechado(linhas.size)}"
+  end
+
+  def linha_imovel(imovel, idx, venda, detalhado)
+    valor = venda ? "R$ #{imovel['ValorVenda']}" : "R$ #{imovel['ValorLocacao']}/mês"
+    dorm = imovel['Dormitorios'].to_i.positive? ? "#{imovel['Dormitorios']} quartos, " : ''
+    dist = imovel['dist_km'] ? " — a #{format('%.1f', imovel['dist_km'])} km da referência" : ''
+    linha = "#{idx + 1}) (cód #{imovel['Codigo']}) #{imovel['Categoria']} #{dorm}no #{imovel['Bairro']}, #{valor}" \
+            "#{format_area(imovel)}#{format_taxas(imovel)}#{format_extras(imovel['Codigo'])}" \
+            "#{format_condominio(imovel)}#{dist}. #{build_url(imovel, venda)}"
+    desc = detalhado ? descricao_limpa(imovel['DescricaoWeb'], venda: venda) : ''
+    desc.present? ? "#{linha}\n#{desc}" : linha
   end
 
   def rodape_fechado(total)
@@ -428,7 +431,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Vista (não está em VISTA_FIELDS), então a descrição era o único canal de texto: medido
   # em 28/08, 6 de 50 descrições de venda trazem logradouro. Fica a marca no lugar, em vez
   # de sumir em silêncio, pra o modelo saber que existe e foi omitido — e não preencher.
-  def descricao_limpa(texto, venda = false)
+  def descricao_limpa(texto, venda: false)
     linhas = texto.to_s.split(/\r?\n/).reject do |l|
       l.match?(/contato|telefone|whats/i) ||
         l.match?(/\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]?\d{4}/) ||

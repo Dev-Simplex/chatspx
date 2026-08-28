@@ -55,20 +55,20 @@ RSpec.describe Captain::Tools::EnviarLocalizacaoImovelTool, type: :model do
       allow(HTTParty).to receive(:get).and_return(vista_responde(status: 'Venda'))
       allow(tool).to receive(:geocode_bairro).and_return({ lat: -19.9166813, lng: -43.9344931 })
 
-      expect(tool.send(:fetch_coordinates, '9908')).to eq([nil, nil, nil, nil])
+      expect(tool.send(:fetch_coordinates, '9908')).to eq(described_class::SEM_PIN)
     end
 
     it 'sends no pin for a sale when the neighbourhood does not geocode' do
       allow(HTTParty).to receive(:get).and_return(vista_responde(status: 'Venda'))
       allow(tool).to receive(:geocode_bairro).and_return(nil)
 
-      expect(tool.send(:fetch_coordinates, '9908')).to eq([nil, nil, nil, nil])
+      expect(tool.send(:fetch_coordinates, '9908')).to eq(described_class::SEM_PIN)
     end
 
     it 'sends no pin for a sale with no neighbourhood on file' do
       allow(HTTParty).to receive(:get).and_return(vista_responde(status: 'Venda', bairro: ''))
 
-      expect(tool.send(:fetch_coordinates, '9908')).to eq([nil, nil, nil, nil])
+      expect(tool.send(:fetch_coordinates, '9908')).to eq(described_class::SEM_PIN)
     end
   end
 

@@ -195,11 +195,11 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     let(:descricao) { "Casa ampla\nLocalizada na Rua das Palmeiras, 1234\n3 quartos" }
 
     it 'keeps the street for a rental' do
-      expect(tool.send(:descricao_limpa, descricao, false)).to include('Rua das Palmeiras, 1234')
+      expect(tool.send(:descricao_limpa, descricao, venda: false)).to include('Rua das Palmeiras, 1234')
     end
 
     it 'replaces the street with an explicit marker for a sale' do
-      limpa = tool.send(:descricao_limpa, descricao, true)
+      limpa = tool.send(:descricao_limpa, descricao, venda: true)
 
       expect(limpa).not_to include('Palmeiras')
       expect(limpa).not_to include('1234')
@@ -207,7 +207,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     end
 
     it 'keeps the rest of the description intact in a sale' do
-      expect(tool.send(:descricao_limpa, descricao, true)).to include('3 quartos')
+      expect(tool.send(:descricao_limpa, descricao, venda: true)).to include('3 quartos')
     end
   end
 

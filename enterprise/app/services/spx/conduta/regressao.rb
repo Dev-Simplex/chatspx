@@ -79,12 +79,12 @@ class Spx::Conduta::Regressao
       Array(cenario['proibe']).none? { |p| texto.match?(Regexp.new(p, Regexp::IGNORECASE)) }
   end
 
-  def formatar(cenario, r)
-    marca = r[:ok] ? '✅' : '❌'
-    linha = "#{marca} #{cenario.fetch('nome').ljust(44)} #{r[:acertos]}/#{r[:total]} (piso #{r[:piso]})"
-    return linha if r[:ok]
+  def formatar(cenario, res)
+    marca = res[:ok] ? '✅' : '❌'
+    linha = "#{marca} #{cenario.fetch('nome').ljust(44)} #{res[:acertos]}/#{res[:total]} (piso #{res[:piso]})"
+    return linha if res[:ok]
 
-    reprovadas = r[:respostas].reject { |t| aprovado?(t, cenario) }.first(2)
+    reprovadas = res[:respostas].reject { |t| aprovado?(t, cenario) }.first(2)
     ([linha] + reprovadas.map { |t| "     ↳ #{t.to_s.gsub(/\s+/, ' ')[0, 200]}" }).join("\n")
   end
 end
