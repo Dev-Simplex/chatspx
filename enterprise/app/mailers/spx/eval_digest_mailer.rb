@@ -11,6 +11,8 @@ class Spx::EvalDigestMailer < ApplicationMailer
     @dados = dados
     @frontend_url = ENV.fetch('FRONTEND_URL', nil)
     @parou = dados[:conversas].empty? && dados[:avaliados].zero?
+    # ivar e não método privado: a view do mailer não enxerga métodos privados da classe.
+    @janela = ((Time.current - dados[:desde]) / 1.hour).round
 
     mail(to: destinatarios, subject: assunto)
   end
@@ -18,13 +20,9 @@ class Spx::EvalDigestMailer < ApplicationMailer
   private
 
   def assunto
-    return "[#{@account.name}] Eval não avaliou nada nas últimas #{janela}h" if @parou
+    return "[#{@account.name}] Eval não avaliou nada nas últimas #{@janela}h" if @parou
 
     n = @dados[:total_conversas]
-    "[#{@account.name}] #{n} conversa#{'s' if n != 1} da IA com falha grave nas últimas #{janela}h"
-  end
-
-  def janela
-    ((Time.current - @dados[:desde]) / 1.hour).round
+    "[#{@account.name}] #{n} conversa#{'s' if n != 1} da IA com falha grave nas últimas #{@janela}h"
   end
 end

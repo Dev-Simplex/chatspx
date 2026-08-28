@@ -1,5 +1,5 @@
 <% if @parou %>
-  <h2>O Eval não avaliou nenhuma conversa nas últimas <%= janela %> horas</h2>
+  <h2>O Eval não avaliou nenhuma conversa nas últimas <%= @janela %> horas</h2>
   <p>
     Nenhum atendimento foi julgado na conta <strong><%= @account.name %></strong> nessa janela.
     Isso normalmente significa que o cron de avaliação parou, e não que o dia foi tranquilo —
@@ -8,7 +8,7 @@
 <% else %>
   <h2><%= @dados[:total_conversas] %> conversa<%= 's' if @dados[:total_conversas] != 1 %> da IA com falha grave</h2>
   <p>
-    Conta <strong><%= @account.name %></strong>, últimas <%= janela %> horas.
+    Conta <strong><%= @account.name %></strong>, últimas <%= @janela %> horas.
     O avaliador julgou <strong><%= @dados[:avaliados] %></strong> atendimento<%= 's' if @dados[:avaliados] != 1 %>
     nessa janela e marcou os abaixo com falha de severidade alta da IA.
     Estão ordenados pela pior nota.
