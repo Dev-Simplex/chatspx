@@ -53,17 +53,50 @@ const arquivos = (dir, acc = []) => {
   return acc;
 };
 
-/** Extrai `--nome: valor;` de um bloco de regra, por seletor. */
-const declaracoes = (css, seletor) => {
-  const escapado = seletor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const bloco = new RegExp(`${escapado}\\s*\\{([^}]*)\\}`).exec(css);
-  if (!bloco) return null;
-  return Object.fromEntries(
-    [...bloco[1].matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(m => [
-      m[1],
-      m[2].trim(),
-    ])
-  );
+/**
+ * Extrai `--nome: valor` de TODOS os blocos dos seletores dados, agrupados por
+ * contexto de `@media`, com o último valor vencendo — que é o que o cascade faz.
+ *
+ * A versão anterior lia UM bloco só (`new RegExp(...).exec()` sem `g`), e o
+ * widget declara os tokens em cinco blocos `:root` e três `.dark`. Ela media 94
+ * das 131 chaves do claro e 94 das 112 do escuro, e ficava VERDE justamente
+ * omitindo todos os `--w-*` — a família onde o defeito estava. O `it` logo
+ * abaixo força a condição ruim e prova a diferença entre as duas leituras.
+ */
+const declaracoes = (cssBruto, seletores) => {
+  // Comentário pode CITAR `@media` e `:root`; citar não é declarar.
+  const css = cssBruto.replace(/\/\*[\s\S]*?\*\//g, '');
+  const alvos = [].concat(seletores);
+  const UM_MEDIA = /@media([^{]*)\{((?:[^{}]*\{[^{}]*\})*)\s*\}/g;
+
+  const colher = trecho => {
+    const acc = {};
+    alvos.forEach(seletor => {
+      const escapado = seletor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // O lookbehind impede casar `.dark` dentro de `:root.dark` ou de
+      // `.wp-theme-dark` — seletor é token, não substring.
+      const re = new RegExp(
+        `(?<![\\w.#:%\\-\\[])${escapado}\\s*\\{([^{}]*)\\}`,
+        'g'
+      );
+      [...trecho.matchAll(re)].forEach(bloco => {
+        [...bloco[1].matchAll(/(--[\w-]+)\s*:\s*([^;]+)[;]?/g)].forEach(d => {
+          acc[d[1]] = d[2].trim();
+        });
+      });
+    });
+    return acc;
+  };
+
+  const porContexto = { base: colher(css.replace(UM_MEDIA, '')) };
+  [...css.matchAll(UM_MEDIA)].forEach(m => {
+    const ctx = `@media${m[1].trimEnd()}`;
+    const achado = colher(m[2]);
+    if (Object.keys(achado).length) {
+      porContexto[ctx] = { ...(porContexto[ctx] || {}), ...achado };
+    }
+  });
+  return porContexto;
 };
 
 /* `url` aponta para o arquivo de origem, entao o `@import` relativo do SFC e
@@ -104,16 +137,65 @@ describe('preview do widget — os tokens são os do widget (D4)', () => {
     expect(culpados).toEqual([]);
   });
 
+  /**
+   * VERMELHO ANTES DE VERDE, para a própria guarda.
+   *
+   * Uma asserção de igualdade entre dois mapas passa também quando os dois
+   * estão pela metade — foi assim que a leitura de um bloco só ficou verde
+   * omitindo os 18 `--w-*` do escuro. Aqui a condição ruim é FORÇADA: um CSS
+   * com o mesmo seletor em dois blocos, mais um `@media`, mais as duas
+   * armadilhas de substring que o widget tem de verdade (`:root.dark` e
+   * `.wp-theme-dark` contêm `dark`).
+   */
+  it('a leitura varre TODOS os blocos, e não só o primeiro', () => {
+    const doisBlocos = `
+      .dark { --a: 1; }
+      :root.dark .woot-widget-app { --nao-e-meu: 9; }
+      .wp-theme-dark { --nao-e-meu: 8; }
+      .dark { --b: 2; --a: 3; }
+      @media (prefers-contrast: more) { .dark { --c: 4; } }
+    `;
+    const lido = declaracoes(doisBlocos, '.dark');
+
+    // o 2º bloco existe (a leitura antiga parava no 1º) …
+    expect(lido.base).toEqual({ '--a': '3', '--b': '2' });
+    // … o último valor vence, como no cascade …
+    expect(lido.base['--a']).toBe('3');
+    // … o `@media` é um contexto à parte, e não some …
+    expect(lido['@media (prefers-contrast: more)']).toEqual({ '--c': '4' });
+    // … e `dark` como SUBSTRING de outro seletor não entra.
+    expect(lido.base['--nao-e-meu']).toBeUndefined();
+
+    // A leitura antiga, para o contraste ficar medido e não afirmado.
+    const antiga = /\.dark\s*\{([^}]*)\}/.exec(doisBlocos);
+    expect(Object.keys(lido.base).length).toBe(2);
+    expect([...antiga[1].matchAll(/(--[\w-]+):/g)].length).toBe(1);
+  });
+
+  /*
+   * O preview separa QUEM CARREGA OS TOKENS (`.wp-tokens`, que recebe por
+   * estilo inline a cor real da inbox) de QUEM CARREGA O TEMA
+   * (`.wp-theme-*`, no filho). No widget os dois papéis moram no mesmo
+   * elemento porque lá o servidor emite regra SEM camada, que vence o
+   * `@layer base`; aqui o papel de "sem camada" é do inline, e inline não
+   * pode ser vencido por classe no mesmo elemento. Por isso o claro do
+   * preview é comparado com os DOIS seletores somados.
+   */
   it('o tema CLARO do preview é declaração a declaração o `:root` do widget', () => {
     const doWidget = declaracoes(
       compilar(fs.readFileSync(widgetTokens, 'utf8'), widgetTokens),
       ':root'
     );
-    const doPreview = declaracoes(estiloDoPreview(), '.wp-theme-light');
+    const doPreview = declaracoes(estiloDoPreview(), [
+      '.wp-tokens',
+      '.wp-theme-light',
+    ]);
 
     expect(doPreview).toEqual(doWidget);
-    // uma ancora de valor, para o teste não passar com dois `null`
-    expect(doPreview['--slate-1']).toBe('252 252 253');
+    // âncoras de valor, para o teste não passar com dois mapas vazios
+    expect(doPreview.base['--slate-1']).toBe('252 252 253');
+    expect(doPreview.base['--w-brand-readable']).toBe('#1d824a');
+    expect(Object.keys(doPreview.base).length).toBe(131);
   });
 
   it('o tema ESCURO do preview é declaração a declaração o `.dark` do widget', () => {
@@ -124,7 +206,16 @@ describe('preview do widget — os tokens são os do widget (D4)', () => {
     const doPreview = declaracoes(estiloDoPreview(), '.wp-theme-dark');
 
     expect(doPreview).toEqual(doWidget);
-    expect(doPreview['--slate-1']).toBe('17 17 19');
+    expect(doPreview.base['--slate-1']).toBe('17 17 19');
+    // O defeito do bloco 3.10, agora com asserção própria: no escuro o
+    // legível reaponta para a variante escura em vez de ficar no valor claro.
+    expect(doPreview.base['--w-brand-readable']).toBe(
+      'var(--w-brand-readable-dark)'
+    );
+    expect(doPreview.base['--w-focus-ring-color']).toBe(
+      'var(--w-brand-readable-dark)'
+    );
+    expect(Object.keys(doPreview.base).length).toBe(112);
   });
 
   it('o preview não declara os tokens em `:root` — isso repintaria o dashboard', () => {

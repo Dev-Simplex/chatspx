@@ -15,18 +15,46 @@ const build = (props = {}) =>
 const surface = wrapper =>
   wrapper.find('[data-testid="widget-preview-surface"]');
 
+const carrier = wrapper =>
+  wrapper.find('[data-testid="widget-preview-tokens"]');
+
 afterEach(() => document.documentElement.classList.remove('dark'));
 
 describe('preview do widget — tema próprio', () => {
   it('nasce claro e aplica os tokens DERIVADOS da cor, não a cor crua', () => {
     const wrapper = build();
-    const style = surface(wrapper).attributes('style');
+    const style = carrier(wrapper).attributes('style');
 
     expect(surface(wrapper).classes()).toContain('wp-theme-light');
     expect(style).toContain('--w-brand: #2dc46f');
     // o verde da marca com texto BRANCO daria 2,27:1 — o preview mostra o preto
     expect(style).toContain('--w-on-brand: #000000');
     expect(style).toContain('--w-brand-readable: #1d824a');
+  });
+
+  /**
+   * A separação entre quem carrega os tokens e quem carrega o tema É o
+   * mecanismo, não arrumação de DOM: estilo INLINE vence classe no mesmo
+   * elemento, então um `.wp-theme-dark` no elemento do `:style` jamais
+   * conseguiria reapontar `--w-brand-readable` para a variante escura — que é
+   * exatamente o defeito que este bloco conserta. Juntar os dois de volta
+   * deixaria o `previewTokens.spec.js` VERDE (o SCSS continuaria igual) e a
+   * tela errada, então a invariante precisa de asserção própria.
+   */
+  it('o tema mora num FILHO do elemento que carrega os tokens', () => {
+    const wrapper = build();
+
+    expect(carrier(wrapper).attributes('style')).toContain(
+      '--w-brand-readable'
+    );
+    expect(carrier(wrapper).classes()).toContain('wp-tokens');
+    expect(carrier(wrapper).classes()).not.toContain('wp-theme-light');
+
+    expect(surface(wrapper).attributes('style')).toBeUndefined();
+    expect(carrier(wrapper).element.contains(surface(wrapper).element)).toBe(
+      true
+    );
+    expect(carrier(wrapper).element).not.toBe(surface(wrapper).element);
   });
 
   it('o toggle escurece o preview SEM o dashboard estar escuro', async () => {
