@@ -55,7 +55,7 @@ const over = ([r, g, b, alpha], [br, bg, bb]) => [
 const WHITE = [255, 255, 255];
 const BRAND = [45, 196, 111]; // #2dc46f — a cor da marca (default unificado no bloco 0.8)
 const DARK_PAGE = [23, 23, 23]; // um fundo escuro plausível de página de cliente
-const RING_INNER = WHITE; // var(--w-brand-border, #ffffff)
+const RING_INNER = WHITE; // var(--w-brand-border, var(--w-surface)) — --w-surface É #ffffff
 const RING_OUTER = [0, 0, 0, 0.55]; // rgba(0, 0, 0, 0.55)
 
 describe('3.19 (metade W) — o ícone do lançador deixa de ser um path fixo', () => {
@@ -410,7 +410,9 @@ describe('3.19 (metade W) — o ícone do lançador deixa de ser um path fixo', 
   // ── ASSERÇÃO 7 ───────────────────────────────────────────────────────────
   describe('asserção 7 — anel ≥ 3:1 (SC 1.4.11)', () => {
     it('o anel interno sai de --w-brand-border, com branco de fallback', () => {
-      expect(SDK_CSS).toContain('0 0 0 2px var(--w-brand-border, #ffffff)');
+      expect(SDK_CSS).toContain(
+        '0 0 0 2px var(--w-brand-border, var(--w-surface))'
+      );
     });
 
     it('o anel externo existe — sem ele o aceite é insatisfazível', () => {

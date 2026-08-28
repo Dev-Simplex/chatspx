@@ -38,6 +38,33 @@
  *   caem no MESMO valor, então continua não havendo mudança de matiz. As duas
  *   afirmações são medidas em Chromium por 'specs/browser/launcher-hover.check.mjs'.
  *
+ *   '--w-text', '--w-text-subtle' e '--w-text-muted' entraram no bloco 1.05 e são
+ *   os três últimos literais de cor que restavam em DECLARAÇÃO do 'SDK_CSS' — os
+ *   do teaser. Nomeá-los aqui não é arrumação: enquanto a cor mora na declaração,
+ *   ninguém consegue trocá-la sem editar a string, e a folha volta a ser a segunda
+ *   fonte de verdade de cor que esta onda existe para matar. Os valores são os
+ *   mesmos de antes, byte por byte, e os contrastes foram medidos contra a
+ *   superfície em que cada um pousa (fórmula WCAG, mesma do 'WidgetTokens'):
+ *     --w-text        #1f2d3d sobre --w-surface (#ffffff) = 13,9907:1
+ *     --w-text-subtle #37546d sobre --w-border  (#F2F3F7) =  7,1429:1
+ *     --w-text-muted  #6e6f73 sobre --w-surface (#ffffff) =  5,0187:1
+ *   Nenhum depende da inbox, e por isso é AQUI que eles vivem — não no servidor.
+ *
+ * ── background-color: var(--w-on-brand, var(--w-surface));   content: ' ';
+ *   O X do botão fechar, e o fallback é o conserto do bloco 1.05.
+ *   'background-color' NÃO é propriedade herdada: quando '--w-on-brand' não está
+ *   escrito no holder, o 'var()' é inválido no tempo de valor computado, a
+ *   declaração vira 'unset' e cai no valor INICIAL — 'transparent'. Medido em
+ *   Chromium com o holder recebendo só '--w-brand', que é o caminho da aba aberta
+ *   antes do deploy do 1.02: 'rgba(0, 0, 0, 0)'. Ou seja, o X do fechar SUMIA, e
+ *   antes deste bloco ele era '#fff' cravado — a conversão para variável tinha
+ *   sido feita pela metade e trocou um literal por um botão invisível.
+ *   Repare que o rótulo do lançador expandido ('color: var(--w-on-brand)', logo
+ *   acima) NÃO tem o mesmo defeito: 'color' É herdada, então o 'unset' dela busca
+ *   o pai — que é '.woot-widget-bubble', onde o fallback já existe. Medido no
+ *   mesmo Chromium: 'rgb(255, 255, 255)'. Por isso ali o fallback não foi
+ *   repetido: em arquivo com teto de bytes, fallback que não pinta nada é peso.
+ *
  * ── --w-ease-standard: cubic-bezier(0.2, 0, 0, 1);   --w-ease-enter: cubic-bezier(
  *   As três curvas da casa (22 §D.2), repetidas aqui porque '_tokens.scss' só é
  *   carregado DENTRO do iframe e o lançador/holder vivem no documento do host.
@@ -125,6 +152,12 @@
  *   O alvo de dispensa é 44x44 — o aceite pede >= 32x32, e o do Olark tem
  *   9,8x9,8. O 'x' é desenhado menor que o alvo de propósito: o que precisa ser
  *   grande é a área clicável, não o glifo.
+ *   O anel de foco caía em '#2dc46f' quando '--w-focus-ring-color' faltava, e esse
+ *   é o MESMO literal verde que o ':hover' do lançador ressuscitaria — a armadilha
+ *   que dá nome a este bloco, escondida num fallback. O bloco 1.05 troca-o por
+ *   'currentColor': o anel passa a herdar '--w-text-muted' (5,0187:1 contra a
+ *   superfície, acima dos 3:1 da SC 1.4.11), em vez de pintar de verde o foco de um
+ *   cliente cuja marca é azul.
  *
  * ── .woot-teaser--discreet .woot-teaser__foto, .woot-teaser--discreet .woot-teaser
  *   A FORMA DISCRETA. Um seletor, duas propriedades — é literalmente isto que
@@ -153,6 +186,9 @@ export const SDK_CSS = `
   --w-border: #F2F3F7;
   --w-danger: #ff4040;
   --w-surface: #ffffff;
+  --w-text: #1f2d3d;
+  --w-text-subtle: #37546d;
+  --w-text-muted: #6e6f73;
 
   --w-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --w-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
@@ -309,7 +345,7 @@ export const SDK_CSS = `
 
 .woot-widget-bubble.woot-widget-bubble--has-photo {
   box-shadow:
-    0 0 0 2px var(--w-brand-border, #ffffff),
+    0 0 0 2px var(--w-brand-border, var(--w-surface)),
     0 0 0 3px rgba(0, 0, 0, 0.55),
     0 8px 24px rgba(0, 0, 0, 0.16) !important;
 }
@@ -335,7 +371,7 @@ export const SDK_CSS = `
 }
 
 .woot--close::before, .woot--close::after {
-  background-color: var(--w-on-brand);
+  background-color: var(--w-on-brand, var(--w-surface));
   content: ' ';
   display: inline;
   height: 24px;
@@ -366,7 +402,7 @@ export const SDK_CSS = `
   padding: 12px 14px;
   border-radius: 16px;
   background: var(--w-surface);
-  color: #1f2d3d;
+  color: var(--w-text);
   box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
   cursor: pointer;
   z-index: 2147482999;
@@ -411,7 +447,7 @@ export const SDK_CSS = `
   background: var(--w-border);
   font-size: 12px;
   line-height: 1.5;
-  color: #37546d;
+  color: var(--w-text-subtle);
 }
 
 .woot-teaser__fechar {
@@ -421,7 +457,7 @@ export const SDK_CSS = `
   margin: -10px -10px -10px 0;
   border: 0;
   background: transparent;
-  color: #6e6f73;
+  color: var(--w-text-muted);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -429,7 +465,7 @@ export const SDK_CSS = `
 }
 
 .woot-teaser__fechar:focus-visible {
-  outline: var(--w-focus-ring-width, 2px) solid var(--w-focus-ring-color, #2dc46f);
+  outline: var(--w-focus-ring-width, 2px) solid var(--w-focus-ring-color, currentColor);
   outline-offset: -2px;
 }
 

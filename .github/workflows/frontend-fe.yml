@@ -39,3 +39,55 @@ jobs:
         run: |
           mkdir -p coverage
           pnpm run test:coverage
+
+  # Bloco 1.05 — os verificadores de navegador entram no corredor.
+  #
+  # São 21 arquivos `*.check.mjs` que sobem Chromium e medem `getComputedStyle`
+  # de verdade: cascade, `:hover`, pseudo-elemento, geometria. O `vitest` do job
+  # acima NÃO pega nada disso — jsdom não resolve `:hover` nem calcula cascade de
+  # folha injetada, então um `.spec.js` para esses defeitos sai VERDE com o
+  # defeito vivo. Até este bloco, `grep -rn check.mjs package.json .github/`
+  # devolvia zero: ninguém os rodava.
+  #
+  # Job separado do `test` de propósito: precisa dos artefatos construídos e
+  # instala navegador, então empurraria o lint/test de todo PR para trás.
+  browser-checks:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install pnpm dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Quatro dos 21 verificadores leem ARTEFATO, não fonte, e sem ele saem 2
+      # ("não consegui medir") — que o corredor trata como falha, nunca verde.
+      # `vite build` sozinho NÃO produz `public/packs/js/`: sdk e tracking têm
+      # config própria. São três builds, não um.
+      - name: Build sdk.js and tracking.js
+        run: |
+          pnpm run build:sdk
+          pnpm run build:tracking
+
+      # `--max-old-space-size` não é enfeite: no heap padrão este build morre com
+      # "Ineffective mark-compacts near heap limit" e sai 134. O sintoma engana,
+      # porque um build abortado deixa o `public/vite` ANTERIOR no lugar e os
+      # verificadores leem o grafo velho achando que leram o atual.
+      - name: Build widget bundle with chunk stats
+        run: mkdir -p tmp && NODE_OPTIONS=--max-old-space-size=6144 VITE_CHUNK_STATS=tmp/widget-eager-stats.json pnpm exec vite build
+
+      - name: Run browser checks
+        run: pnpm run check:browser
