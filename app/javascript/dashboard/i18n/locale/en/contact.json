@@ -17,7 +17,6 @@
     "IP_ADDRESS": "IP Address",
     "IP_ADDRESS_REVEAL": "Show IP address",
     "IP_ADDRESS_HIDE": "Hide IP address",
-    "IP_ADDRESS_MASKED": "Hidden",
     "SITE_CONTEXT": {
       "BADGE": "Received from the website",
       "BADGE_TITLE": "This data was sent by the website — none of it was typed by an agent.",

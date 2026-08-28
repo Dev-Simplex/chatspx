@@ -17,7 +17,6 @@
     "IP_ADDRESS": "Endereço IP",
     "IP_ADDRESS_REVEAL": "Mostrar endereço IP",
     "IP_ADDRESS_HIDE": "Ocultar endereço IP",
-    "IP_ADDRESS_MASKED": "Oculto",
     "SITE_CONTEXT": {
       "BADGE": "Recebido do site",
       "BADGE_TITLE": "Estes dados foram enviados pelo site — nenhum deles foi digitado por um agente.",
