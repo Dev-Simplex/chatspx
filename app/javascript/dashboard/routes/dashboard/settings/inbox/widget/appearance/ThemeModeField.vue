@@ -36,5 +36,31 @@ const MODES = ['light', 'dark', 'auto'];
       :data-testid="`theme-${mode}`"
       @select="$emit('update:modelValue', mode)"
     />
+
+    <!-- O `<input type="radio">` do `RadioCard` nasce SEM nome acessivel: o
+         titulo do cartao e um `<h3>` e o componente nao amarra um ao outro.
+         Medido nesta tela com axe-core: regra `label`, impacto CRITICAL, sete
+         nos, nos dois temas — "Element does not have an implicit (wrapped)
+         <label> ... aria-label attribute does not exist".
+
+         A correcao de raiz e no proprio `RadioCard` (`id` no `<h3>` +
+         `aria-labelledby` no `input`), e resolveria o painel inteiro de uma
+         vez; ela esta ESCALADA, porque `components-next/radioCard/` pertence a
+         outra trilha. Enquanto isso o rotulo vive aqui, que e o remedio que o
+         proprio axe pede.
+
+         Fica DENTRO do grid de proposito: `sr-only` posiciona em `absolute`, e
+         um filho absoluto nao e item de grid — nao ocupa celula, nao mexe no
+         `auto-fit`, e o componente continua com raiz unica. E e `sr-only`
+         porque o texto ja esta visivel no cartao: repeti-lo na tela seria
+         corrigir um defeito de leitor de tela criando um defeito de olho. -->
+    <label
+      v-for="mode in MODES"
+      :key="`label-${mode}`"
+      :for="`theme-${mode}`"
+      class="sr-only"
+    >
+      {{ t(`INBOX_WIDGET.APPEARANCE.THEME.${mode.toUpperCase()}.LABEL`) }}
+    </label>
   </div>
 </template>

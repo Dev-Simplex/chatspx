@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import ResizableTextArea from 'shared/components/ResizableTextArea.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
+import { PREVIEW_AVATAR_ACCENT } from '../previewAvatarAccent';
 
 const props = defineProps({
   config: {
@@ -44,12 +45,17 @@ const getStatusText = computed(() => {
              que e o unico jeito de o preview responder "como isso vai aparecer
              no meu site". Sem foto, cai na inicial do nome da caixa.
              `aria-hidden` fica: e ilustracao, e um role="img" sem nome util e
-             violacao seria. -->
+             violacao seria.
+             `accent` NAO e' enfeite: sem ele o Avatar sorteia a cor das
+             iniciais por `name.length % 6` numa paleta de hex cravados, e com
+             "Site da Simplex" o sorteio caia em 3,82:1 — o porque esta em
+             `previewAvatarAccent.js`. -->
         <span aria-hidden="true">
           <Avatar
             :src="config.logo"
             :name="config.websiteName || ''"
             :size="34"
+            :accent="PREVIEW_AVATAR_ACCENT"
             rounded-full
           />
         </span>

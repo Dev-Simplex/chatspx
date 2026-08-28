@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import Avatar from 'next/avatar/Avatar.vue';
+import { PREVIEW_AVATAR_ACCENT } from '../previewAvatarAccent';
 
 /**
  * O teaser dentro do preview (bloco 4.07).
@@ -36,11 +37,15 @@ const chips = computed(() => (isBold.value ? props.intents.slice(0, 4) : []));
     :data-testid="`teaser-${level}`"
   >
     <div class="flex items-start gap-2">
+      <!-- Mesmo `accent` do rodape, e pela mesma razao: o remetente do teaser e'
+           um nome livre, e a cor sorteada por `name.length` nao tem piso de
+           contraste. Ver `previewAvatarAccent.js`. -->
       <Avatar
         v-if="isBold"
         :name="senderName || ' '"
         :src="avatarUrl"
         :size="28"
+        :accent="PREVIEW_AVATAR_ACCENT"
         rounded-full
         data-testid="teaser-avatar"
       />
