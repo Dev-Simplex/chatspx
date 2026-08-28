@@ -7,7 +7,9 @@ RSpec.describe Concerns::Agentable do
     Class.new do
       include Concerns::Agentable
 
-      attr_accessor :temperature, :account
+      # `assistant` e exigido por #prompt_cache_system_enabled? e por #time_awareness; sem
+      # ele o dummy quebrava com NameError em todo #agent_instructions.
+      attr_accessor :temperature, :account, :assistant
 
       def initialize(name: 'Test Agent', temperature: 0.8)
         @name = name
@@ -54,8 +56,30 @@ RSpec.describe Concerns::Agentable do
       dummy_instance.agent
     end
 
-    it 'converts nil temperature to 0.0' do
+    # `temperature.to_f || 0.7` era default MORTO (to_f nunca devolve nil), entao agente
+    # sem temperatura configurada rodava em 0.0, deterministico, e nao no 0.7 pretendido.
+    it 'falls back to the default temperature when it is missing' do
       dummy_instance.temperature = nil
+
+      expect(Agents::Agent).to receive(:new).with(
+        hash_including(temperature: 0.7)
+      )
+
+      dummy_instance.agent
+    end
+
+    it 'falls back to the default temperature when the config holds an empty string' do
+      dummy_instance.temperature = ''
+
+      expect(Agents::Agent).to receive(:new).with(
+        hash_including(temperature: 0.7)
+      )
+
+      dummy_instance.agent
+    end
+
+    it 'keeps an explicit zero instead of replacing it with the default' do
+      dummy_instance.temperature = 0
 
       expect(Agents::Agent).to receive(:new).with(
         hash_including(temperature: 0.0)
