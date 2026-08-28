@@ -115,6 +115,7 @@ onMounted(() => {
       <InboxScopeFilter
         v-if="showInboxScope"
         v-model="inboxScopeId"
+        class="shrink-0"
         @change="onInboxScopeChange"
       />
     </div>

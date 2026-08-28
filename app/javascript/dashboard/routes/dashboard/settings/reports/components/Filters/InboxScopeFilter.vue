@@ -4,9 +4,10 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import ActiveFilterChip from './v3/ActiveFilterChip.vue';
 
-// Recorte por numero (caixa de entrada) — vale para a tela inteira, ao lado do
-// periodo. Nao se confunde com o filtro de entidade: aqui o numero e o corte,
-// nao o assunto do relatorio.
+// Recorte por caixa de entrada — vale para a tela inteira, ao lado do periodo.
+// Nao se confunde com o filtro de entidade: aqui a caixa e o corte, nao o
+// assunto do relatorio. Reusa os rotulos de INBOX_REPORTS para falar a mesma
+// lingua do resto do produto.
 const props = defineProps({
   modelValue: {
     type: [Number, null],
@@ -27,7 +28,7 @@ const options = computed(() =>
 
 const selectedName = computed(() => {
   const selected = options.value.find(item => item.id === props.modelValue);
-  return selected?.name || t('REPORT.INBOX_SCOPE.ALL');
+  return selected?.name || t('INBOX_REPORTS.ALL_INBOXES');
 });
 
 const toggleDropdown = () => {
@@ -61,7 +62,7 @@ onMounted(() => store.dispatch('inboxes/get'));
     :options="options"
     :active-filter-type="showMenu ? 'inboxScope' : ''"
     :show-menu="showMenu"
-    :placeholder="$t('REPORT.INBOX_SCOPE.PLACEHOLDER')"
+    :placeholder="$t('INBOX_REPORTS.SEARCH_INBOX')"
     enable-search
     @toggle-dropdown="toggleDropdown"
     @close-dropdown="closeDropdown"
