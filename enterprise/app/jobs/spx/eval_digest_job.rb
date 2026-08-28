@@ -20,18 +20,71 @@ class Spx::EvalDigestJob < ApplicationJob
     config = digest_config(account)
     return unless config['enabled']
 
-    destinatarios = Array(config['destinatarios']).map(&:to_s).select { |e| e.include?('@') }
-    return Rails.logger.warn("[EvalDigest] conta #{account.id} habilitada sem destinatário válido") if destinatarios.empty?
+    emails = Array(config['destinatarios']).map(&:to_s).select { |e| e.include?('@') }
+    webhook = config['webhook_url'].to_s.presence
+    return Rails.logger.warn("[EvalDigest] conta #{account.id} habilitada sem destino") if emails.empty? && webhook.blank?
 
     dados = coletar(account, config)
     # Silêncio quando o dia foi bom; alerta quando o próprio Eval parou de rodar. Digest
     # diário que chega sempre, mesmo vazio, é o primeiro a virar filtro de caixa de entrada.
     return if dados[:conversas].empty? && dados[:avaliados].positive?
 
-    Spx::EvalDigestMailer.with(account: account).diario(account, dados, destinatarios).deliver_now
+    Spx::EvalDigestMailer.with(account: account).diario(account, dados, emails).deliver_now if emails.any?
+    entregar_webhook(account, dados, webhook) if webhook.present?
   end
 
   private
+
+  # Webhook antes de e-mail na ordem de preferência real: e-mail é onde o digest morre
+  # quando a operação vive em outro lugar. Daqui a pessoa pluga no que ela já usa (n8n,
+  # Telegram, Discord, Slack) sem que este job precise conhecer cada canal.
+  #
+  # O payload traz os dados ESTRUTURADOS e um campo `texto` já formatado, de propósito: um
+  # consumidor que só encaminha usa o `texto` direto; um que monta a própria mensagem usa o
+  # resto. Um payload, os dois usos, nenhuma opção a mais pra configurar errado.
+  def entregar_webhook(account, dados, url)
+    HTTParty.post(url,
+                  body: payload(account, dados).to_json,
+                  headers: { 'Content-Type' => 'application/json' },
+                  timeout: 15)
+  rescue StandardError => e
+    # Igual ao mailer, que tem rescue de SMTP: falha de entrega não pode derrubar o cron.
+    Rails.logger.warn("[EvalDigest] webhook da conta #{account.id} falhou: #{e.message}")
+  end
+
+  def payload(account, dados)
+    {
+      conta: { id: account.id, nome: account.name },
+      janela_desde: dados[:desde].iso8601,
+      avaliados: dados[:avaliados],
+      eval_parado: dados[:conversas].empty? && dados[:avaliados].zero?,
+      total_conversas: dados[:total_conversas],
+      por_categoria: dados[:por_categoria].to_h,
+      conversas: dados[:conversas].map { |c| c.merge(url: url_da_conversa(account, c[:display_id])) },
+      texto: texto(account, dados)
+    }
+  end
+
+  def url_da_conversa(account, display_id)
+    base = ENV.fetch('FRONTEND_URL', nil)
+    base.present? ? "#{base}/app/accounts/#{account.id}/conversations/#{display_id}" : nil
+  end
+
+  # Texto pronto pra encaminhar, curto o bastante pra caber numa mensagem de WhatsApp ou
+  # Telegram sem virar parede.
+  def texto(account, dados)
+    return "⚠️ #{account.name}: o avaliador não julgou nenhum atendimento nas últimas horas — provável cron parado." if
+      dados[:conversas].empty? && dados[:avaliados].zero?
+
+    cab = "🔎 #{account.name} — #{dados[:total_conversas]} conversa(s) da IA com falha grave " \
+          "(de #{dados[:avaliados]} avaliadas)"
+    tipos = dados[:por_categoria].first(4).map { |c, n| "#{c} (#{n})" }.join(' · ')
+    linhas = dados[:conversas].first(5).map do |c|
+      cats = c[:findings].map { |f| f['categoria'] }.uniq.join(', ')
+      "• #{c[:display_id]} — nota #{c[:nota] || '—'} — #{cats}"
+    end
+    [cab, tipos, '', *linhas].join("\n")
+  end
 
   def digest_config(account)
     (account.custom_attributes || {})['eval_digest'].presence || {}

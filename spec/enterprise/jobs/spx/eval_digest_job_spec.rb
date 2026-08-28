@@ -100,7 +100,7 @@ RSpec.describe Spx::EvalDigestJob do
       expect(ActionMailer::Base.deliveries.last.body.encoded).to include('Mostrando 2 de 3')
     end
 
-    # Pior nota primeiro: quem abre o e-mail de manhã tem tempo para as duas ou três piores.
+    # Pior nota primeiro: quem abre de manhã tem tempo para as duas ou três piores.
     it 'orders by worst grade first' do
       ruim = create(:conversation, account: account, inbox: inbox)
       menos_ruim = create(:conversation, account: account, inbox: inbox)
@@ -111,6 +111,67 @@ RSpec.describe Spx::EvalDigestJob do
 
       corpo = ActionMailer::Base.deliveries.last.body.encoded
       expect(corpo.index(ruim.display_id.to_s)).to be < corpo.index(menos_ruim.display_id.to_s)
+    end
+  end
+
+  # E-mail é onde o digest morre quando a operação vive em outro lugar — e é o caso aqui.
+  # Pelo webhook a pessoa liga no que ela já usa, sem que o job conheça cada canal.
+  describe 'entrega por webhook' do
+    let(:url) { 'https://hook.exemplo.test/eval' }
+
+    before { account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'webhook_url' => url } }) }
+
+    it 'posts the digest and sends no e-mail when only a webhook is set' do
+      conv = create(:conversation, account: account, inbox: inbox)
+      avaliar(conv, nota: 2, findings: [finding('contradisse_tool')])
+      allow(HTTParty).to receive(:post)
+
+      expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
+      expect(HTTParty).to have_received(:post).with(url, hash_including(headers: { 'Content-Type' => 'application/json' }))
+    end
+
+    # Um payload, dois usos: quem só encaminha lê `texto`; quem monta a própria mensagem
+    # lê o resto. Sem isso, todo consumidor precisaria reimplementar a formatação.
+    it 'carries both the structured data and a ready-to-forward text' do
+      conv = create(:conversation, account: account, inbox: inbox)
+      avaliar(conv, nota: 2, findings: [finding('alucinacao')])
+      corpo = nil
+      allow(HTTParty).to receive(:post) { |_u, opts| corpo = JSON.parse(opts[:body]) }
+
+      described_class.perform_now(account)
+
+      expect(corpo['total_conversas']).to eq(1)
+      expect(corpo['por_categoria']).to eq('alucinacao' => 1)
+      expect(corpo['conversas'].first['display_id']).to eq(conv.display_id)
+      expect(corpo['texto']).to include(conv.display_id.to_s)
+    end
+
+    it 'flags when the evaluator itself stopped' do
+      corpo = nil
+      allow(HTTParty).to receive(:post) { |_u, opts| corpo = JSON.parse(opts[:body]) }
+
+      described_class.perform_now(account)
+
+      expect(corpo['eval_parado']).to be(true)
+      expect(corpo['texto']).to include('não julgou nenhum atendimento')
+    end
+
+    # Falha de entrega não pode derrubar o cron — mesma postura do rescue de SMTP no mailer.
+    it 'survives a webhook failure' do
+      avaliar(create(:conversation, account: account, inbox: inbox), nota: 1, findings: [finding('alucinacao')])
+      allow(HTTParty).to receive(:post).and_raise(Errno::ECONNREFUSED)
+
+      expect { described_class.perform_now(account) }.not_to raise_error
+    end
+
+    it 'sends to both destinations when both are configured' do
+      account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'webhook_url' => url,
+                                                              'destinatarios' => ['gestor@tozi.com.br'] } })
+      avaliar(create(:conversation, account: account, inbox: inbox), nota: 1, findings: [finding('alucinacao')])
+      allow(HTTParty).to receive(:post)
+
+      expect { described_class.perform_now(account) }.to change { ActionMailer::Base.deliveries.size }.by(1)
+      expect(HTTParty).to have_received(:post)
     end
   end
 end
