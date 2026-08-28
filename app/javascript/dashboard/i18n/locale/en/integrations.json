@@ -74,9 +74,9 @@
         "LABEL": "Secret",
         "COPY": "Copy secret to clipboard",
         "COPY_SUCCESS": "Secret copied to clipboard",
-        "TOGGLE": "Toggle secret visibility",
-        "CREATED_DESC": "Your webhook has been created. Use the secret below to verify webhook signatures. Please copy it now — you can also find it later in the webhook edit form.",
-        "DONE": "Done"
+        "CREATED_DESC": "Your webhook has been created. Use the secret below to verify webhook signatures. Copy it now — it is shown only once and cannot be retrieved later.",
+        "DONE": "Done",
+        "CONFIGURED_DESC": "A secret is configured for this webhook. Its value is never shown again after creation — rotate it if you have lost it."
       },
       "COUNT": "{n} webhook | {n} webhooks",
       "SEARCH_PLACEHOLDER": "Search webhooks...",
@@ -155,6 +155,27 @@
           "MESSAGE": "Are you sure to delete the webhook? ({webhookURL})",
           "YES": "Yes, Delete ",
           "NO": "No, Keep it"
+        }
+      },
+      "DELIVERIES": {
+        "BUTTON_TEXT": "Delivery log",
+        "TITLE": "Webhook deliveries",
+        "DESC": "The last deliveries attempted to {webhookURL}. Deliveries are kept for 7 days.",
+        "EMPTY": "No deliveries recorded yet for this webhook.",
+        "LOAD_ERROR": "Could not load the delivery log. Please try again.",
+        "REFRESH": "Refresh",
+        "CLOSE": "Close",
+        "ATTEMPTS": "{count} attempts",
+        "HEADER": {
+          "EVENT": "Event",
+          "STATUS": "Status",
+          "WHEN": "When",
+          "ACTIONS": "Actions"
+        },
+        "REPLAY": {
+          "BUTTON": "Resend",
+          "SUCCESS": "Delivery resent with the same id ({deliveryId}), so the destination can deduplicate it.",
+          "ERROR": "Could not resend this delivery. Please try again."
         }
       }
     },

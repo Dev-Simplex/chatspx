@@ -8,6 +8,7 @@ import { BaseTable } from 'dashboard/components-next/table';
 import NewWebhook from './NewWebHook.vue';
 import EditWebhook from './EditWebHook.vue';
 import WebhookRow from './WebhookRow.vue';
+import WebhookDeliveries from './WebhookDeliveries.vue';
 import BaseSettingsHeader from '../../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../../SettingsLayout.vue';
 
@@ -20,6 +21,7 @@ export default {
     NewWebhook,
     EditWebhook,
     WebhookRow,
+    WebhookDeliveries,
   },
   setup() {
     const { replaceInstallationName } = useBranding();
@@ -31,6 +33,7 @@ export default {
       showAddPopup: false,
       showEditPopup: false,
       showDeleteConfirmationPopup: false,
+      showDeliveriesPopup: false,
       selectedWebHook: {},
       searchQuery: '',
     };
@@ -81,6 +84,13 @@ export default {
     },
     hideEditPopup() {
       this.showEditPopup = false;
+    },
+    openDeliveriesPopup(webhook) {
+      this.selectedWebHook = webhook;
+      this.showDeliveriesPopup = true;
+    },
+    hideDeliveriesPopup() {
+      this.showDeliveriesPopup = false;
     },
     confirmDeletion() {
       this.loading[this.selectedWebHook.id] = true;
@@ -156,6 +166,7 @@ export default {
             :webhook="webHookItem"
             @edit="openEditPopup"
             @delete="openDeletePopup"
+            @deliveries="openDeliveriesPopup"
           />
         </template>
       </BaseTable>
@@ -172,6 +183,18 @@ export default {
         :on-close="hideEditPopup"
       />
     </woot-modal>
+    <woot-modal
+      v-model:show="showDeliveriesPopup"
+      :on-close="hideDeliveriesPopup"
+      size="modal-big"
+    >
+      <WebhookDeliveries
+        v-if="showDeliveriesPopup"
+        :webhook="selectedWebHook"
+        :on-close="hideDeliveriesPopup"
+      />
+    </woot-modal>
+
     <woot-delete-modal
       v-model:show="showDeleteConfirmationPopup"
       :on-close="closeDeletePopup"

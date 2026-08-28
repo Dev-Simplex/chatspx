@@ -487,6 +487,15 @@ Rails.application.routes.draw do
             resource :tracking_credential, only: [:show, :update], module: :inboxes do
               post :verify
             end
+
+            # Bloco 5.14 — o log de entregas de rastreio da inbox, que alimenta o painel de
+            # diagnostico. PLURAL, ao contrario do cofre logo acima: ha MUITAS entregas por
+            # inbox (uma por evento x destino), e ha no maximo UMA credencial. A diferenca
+            # entre os dois e exatamente o tipo de detalhe que ja custou 404 nesta tela, e
+            # `spec/routing/front_urls_have_routes_spec.rb` guarda os dois casos.
+            resources :tracking_deliveries, only: [:index], module: :inboxes do
+              post :test, on: :collection
+            end
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
             member do
