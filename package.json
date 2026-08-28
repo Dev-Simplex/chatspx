@@ -8,6 +8,7 @@
     "test": "TZ=UTC vitest --no-watch --no-cache --no-coverage --logHeapUsage",
     "test:watch": "TZ=UTC vitest --no-cache --no-coverage",
     "test:coverage": "TZ=UTC vitest --no-watch --no-cache --coverage",
+    "check:browser": "node scripts/check-browser.mjs",
     "start:dev": "foreman start -f ./Procfile.dev",
     "start:test": "RAILS_ENV=test foreman start -f ./Procfile.test",
     "dev": "overmind start -f ./Procfile.dev",

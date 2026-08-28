@@ -111,13 +111,25 @@ const bubbleHelpers = readFileSync(
   new URL('../../bubbleHelpers.js', import.meta.url),
   'utf8'
 );
+// O `fill` deixou de ser escrito à mão no `setAttributeNS` quando o 3.19
+// parametrizou o ícone (`iconFill`). A asserção antiga procurava a chamada
+// literal `setAttributeNS(null, 'fill', 'currentColor')`, que não existe mais —
+// e ficou VERMELHA por estar desatualizada, não por defeito no produto. Uma
+// asserção que envelhece assim é pior que nenhuma: quem a vê falhando aprende a
+// ignorar o verificador inteiro.
+//
+// O que ela precisa provar continua o mesmo: quem não pede fill nenhum recebe
+// `currentColor`, e nenhum branco cravado sobrou no arquivo. Então medimos o
+// DEFAULT do parâmetro e a ausência de hex — não a forma da chamada.
 check(
-  'bubbleHelpers pinta o path com currentColor, não com branco cravado',
-  String(
-    /setAttributeNS\(null, 'fill', 'currentColor'\)/.test(bubbleHelpers) &&
-      !/setAttributeNS\(null, 'fill', '#/.test(bubbleHelpers)
-  ),
+  'bubbleHelpers tem currentColor como fill padrão do ícone',
+  String(/iconFill\s*=\s*'currentColor'/.test(bubbleHelpers)),
   'true'
+);
+check(
+  'bubbleHelpers não crava hex nenhum em fill',
+  String(/setAttributeNS\([^)]*'fill',\s*'#/.test(bubbleHelpers)),
+  'false'
 );
 
 // 4) o literal não pode existir no CSS, nem morto.
@@ -131,14 +143,40 @@ check(
   'false'
 );
 // E a prova de que o strip não escondeu nada: nenhum hex de 6 dígitos sobrou em
-// declaração, exceto os três tokens fixos que não dependem da inbox.
+// declaração, exceto os tokens fixos que não dependem da inbox.
+//
+// A lista continua EXATA de propósito. Ela cresceu de 3 para 6 no bloco 1.05,
+// que trouxe os três literais do teaser (`#1f2d3d`, `#37546d`, `#6e6f73`) para
+// dentro do bloco de tokens; e o segundo `#ffffff` sumiu, porque o fallback do
+// anel virou `var(--w-surface)`. Lista exata é o que faz QUALQUER hex novo em
+// declaração sair vermelho aqui — trocá-la por uma regra que "aceita hex no
+// bloco de tokens" devolveria a porta pela qual estes seis entraram.
 const hexEmDeclaracao = (
   cssSemComentarios.match(/#[0-9a-fA-F]{6}\b/g) || []
 ).sort();
 check(
-  'os únicos hex em declaração são os 3 tokens fixos',
+  'os únicos hex em declaração são os 6 tokens fixos',
   hexEmDeclaracao.join(','),
-  '#F2F3F7,#ff4040,#ffffff'
+  '#1f2d3d,#37546d,#6e6f73,#F2F3F7,#ff4040,#ffffff'
+);
+
+// E o contrapeso da lista exata: ela só vale se os hex estiverem MESMO definindo
+// token. Sem esta asserção, alguém satisfaz a de cima movendo `color: #6e6f73`
+// para dentro do bloco do holder — o hex some da conta e volta a pintar pixel.
+const blocoDeTokens = cssSemComentarios.match(
+  /#cw-widget-holder,\s*#cw-bubble-holder\s*\{([^}]*)\}/
+);
+check(
+  'toda declaração do bloco de tokens fixos é custom property',
+  String(
+    Boolean(blocoDeTokens) &&
+      blocoDeTokens[1]
+        .split(';')
+        .map(d => d.trim())
+        .filter(Boolean)
+        .every(d => d.startsWith('--w-'))
+  ),
+  'true'
 );
 
 // 5) a regra de hover tem de referenciar a var, não uma cor própria
@@ -150,6 +188,66 @@ check(
     )
   ),
   'true'
+);
+
+// 6) O CAMINHO DEGRADADO — o X invisível.
+//
+// A aba que já estava aberta antes do deploy do 1.02 volta pela ponte SEM
+// `tokens`, e o `IFrameHelper` escreve só `--w-brand` no holder (o `widgetColor`
+// cru, que ele tem de qualquer jeito). Nenhum token de contraste chega.
+//
+// Isso não é hipótese: é o ramo `{ ...tokens, '--w-brand': widgetColor }` do
+// `IFrameHelper`, e é o estado em que 100% das abas abertas ficam na janela do
+// deploy. A página abaixo o reproduz literalmente.
+//
+// `background-color` NÃO é herdada. Com o `var()` sem fallback, o valor computado
+// cai no INICIAL — `transparent` — e o X do botão fechar desaparece do lançador
+// do cliente. Medido em Chromium antes do conserto: `rgba(0, 0, 0, 0)`.
+// É por isso que a asserção é POSITIVA (a cor que deve pintar) e não a ausência
+// do defeito: "não está transparente" também passaria se o pseudo-elemento
+// nunca existisse.
+const degradada = await browser.newPage();
+await degradada.setContent(`<!doctype html>
+<html><head><style>${SDK_CSS}</style></head>
+<body style="margin:0">
+  <div id="cw-bubble-holder" style="--w-brand: ${BRAND};">
+    <button class="woot-widget-bubble woot-elements--right woot--close"></button>
+    <button class="woot-widget-bubble woot-widget--expanded woot-elements--right">
+      <div>Fale conosco</div>
+    </button>
+  </div>
+</body></html>`);
+
+const fechar = degradada.locator('.woot--close');
+await fechar.waitFor({ state: 'attached' });
+
+const tracoDoX = pseudo =>
+  fechar.evaluate((el, p) => getComputedStyle(el, p).backgroundColor, pseudo);
+
+// Os dois traços, medidos separadamente: são DUAS declarações no `SDK_CSS`
+// (`::before` e `::after` compartilham o seletor, mas cada uma pode ser
+// sobrescrita adiante), e um X com metade visível é um X quebrado.
+check(
+  'sem tokens, o traço ::before do X continua visível',
+  await tracoDoX('::before'),
+  'rgb(255, 255, 255)'
+);
+check(
+  'sem tokens, o traço ::after do X continua visível',
+  await tracoDoX('::after'),
+  'rgb(255, 255, 255)'
+);
+
+// O rótulo do lançador expandido usa `var(--w-on-brand)` SEM fallback e está
+// correto assim: `color` é herdada, então o `unset` busca o pai, que já tem o
+// fallback. A asserção existe para CONGELAR essa dependência — se alguém tirar o
+// fallback de `.woot-widget-bubble`, o rótulo cai junto e ninguém saberia.
+check(
+  'sem tokens, o rótulo do lançador expandido herda o fallback do pai',
+  await degradada
+    .locator('.woot-widget--expanded div')
+    .evaluate(el => getComputedStyle(el).color),
+  'rgb(255, 255, 255)'
 );
 
 await browser.close();
