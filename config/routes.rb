@@ -465,6 +465,8 @@ Rails.application.routes.draw do
             get :agent_bot, on: :member
             post :set_agent_bot, on: :member
             delete :avatar, on: :member
+            # Bloco 3.19: tira a foto do lancador e volta ao balao da marca (D5).
+            delete :launcher_icon, on: :member
             post :sync_templates, on: :member
             get :health, on: :member
             post :register_webhook, on: :member

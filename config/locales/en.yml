@@ -103,6 +103,12 @@ en:
         over_size_limit: "is over the limit of %{limit} bytes — it is served on every page of the customer site"
         home_intents_need_two: "needs %{minimum} to %{maximum} intent options, or none — a single option is not a choice"
         home_intents_duplicated_id: "has intent options sharing the same id: %{ids}"
+        detail_pattern: "is not in the expected format"
+        detail_launcher_icon_url: "must be served from our own domain — upload the file instead of pointing at an external address"
+        launcher_icon_too_big: "is over the limit of %{limit} bytes (this one has %{size}) — it is downloaded on every page of the customer site"
+        launcher_icon_type: "filetype not supported (accepted: %{types})"
+        launcher_icon_url_read_only: "does not accept a handwritten launcher icon address: send the file, and the address comes from the upload"
+        launcher_icon_missing_image: "cannot use the photo launcher without a photo: upload the image first"
     tracking_credential:
       inbox_not_in_account: "does not belong to this account"
       secret_too_short: "needs at least %{count} characters"

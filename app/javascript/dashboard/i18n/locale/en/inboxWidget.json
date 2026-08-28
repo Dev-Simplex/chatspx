@@ -264,7 +264,26 @@
         "TEXT_PLACEHOLDER": "Talk to us",
         "TEXT_TOO_LONG": "At most {max} characters.",
         "HIDE_BUBBLE": "Hide the bubble",
-        "HIDE_BUBBLE_HINT": "Removes the launcher. Only do this if the site opens the chat from its own button — with no launcher and no button, the visitor is left with no way to reach you."
+        "HIDE_BUBBLE_HINT": "Removes the launcher. Only do this if the site opens the chat from its own button — with no launcher and no button, the visitor is left with no way to reach you.",
+        "ICON": "Launcher icon",
+        "ICONS": {
+          "DEFAULT": "Bubble",
+          "DEFAULT_HINT": "The chat bubble, in your brand color. It is how every inbox is born.",
+          "AGENT_PHOTO": "Inbox avatar",
+          "AGENT_PHOTO_HINT": "Reuses the image already set at the top of this screen.",
+          "IMAGE": "Upload a photo",
+          "IMAGE_HINT": "Your own image, up to 20 KB, served from our domain."
+        },
+        "ICON_SUGGESTION": "Upload a photo of someone on your team. A face converts better: people who see a person know who they are about to talk to, and the bubble says nothing about that. Use a photo of whoever actually answers — never a generic image.",
+        "ICON_UPLOAD": "Choose image",
+        "ICON_REPLACE": "Replace image",
+        "ICON_REMOVE": "Remove image",
+        "ICON_HINT": "WebP or PNG, at most {max} KB. The image is downloaded on every page of the site, before any click.",
+        "ICON_TOO_BIG": "That image is {size} KB and the limit is {max} KB. Shrink it before uploading.",
+        "ICON_WRONG_TYPE": "Format not accepted. Upload WebP or PNG.",
+        "ICON_UPLOADED": "Launcher image uploaded.",
+        "ICON_REMOVED": "Launcher image removed.",
+        "ICON_NEEDS_IMAGE": "Upload an image to use this mode."
       },
       "TEXTS": {
         "WELCOME_TITLE": "Welcome title",

@@ -58,6 +58,13 @@ class InboxPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  # Bloco 3.19: mesma alcada do avatar — quem pode trocar a cara da inbox pode tirar a foto do
+  # lancador. Sem esta entrada, `authorize(Inbox)` levanta `Pundit::NotDefinedError` e a rota morre
+  # com 500 para o administrador que tem todo o direito de usa-la.
+  def launcher_icon?
+    @account_user.administrator?
+  end
+
   def sync_templates?
     @account_user.administrator?
   end

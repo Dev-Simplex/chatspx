@@ -89,6 +89,12 @@ pt_BR:
         over_size_limit: "passa do limite de %{limit} bytes — ele é servido em toda página do site do cliente"
         home_intents_need_two: "precisa de %{minimum} a %{maximum} opções de intenção, ou nenhuma — uma opção sozinha não é escolha"
         home_intents_duplicated_id: "tem opções de intenção com o mesmo id: %{ids}"
+        detail_pattern: "não está no formato esperado"
+        detail_launcher_icon_url: "tem de ser servido do nosso próprio domínio — envie o arquivo em vez de apontar para um endereço externo"
+        launcher_icon_too_big: "passa do limite de %{limit} bytes (este tem %{size}) — ele é baixado em toda página do site do cliente"
+        launcher_icon_type: "tipo de arquivo não suportado (aceitos: %{types})"
+        launcher_icon_url_read_only: "não aceita endereço de ícone escrito à mão: envie o arquivo, e o endereço vem do upload"
+        launcher_icon_missing_image: "não dá para usar o lançador com foto sem foto: envie a imagem antes"
     tracking_credential:
       inbox_not_in_account: "não pertence a esta conta"
       secret_too_short: "precisa ter ao menos %{count} caracteres"

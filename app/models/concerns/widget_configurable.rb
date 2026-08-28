@@ -21,6 +21,10 @@ module WidgetConfigurable
   # ENTREGA leitura completa. Declarado no corpo do concern, que e a forma canonica de um concern
   # depender de outro — quem incluir este ganha os dois.
   include WidgetConfigResolvable
+  # Bloco 3.19: o BYTE do icone do lancador (anexo, teto de 20 KB e o endereco servido do nosso
+  # dominio). Fica em concern proprio porque e a unica parte da configuracao do widget que nao mora
+  # no jsonb — ela mora no ActiveStorage, e o jsonb so guarda o MODO.
+  include WidgetLauncherIcon
 
   WIDGET_PROFILES = %w[support marketing].freeze
 

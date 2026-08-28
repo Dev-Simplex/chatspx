@@ -7,6 +7,7 @@ import SelectInput from 'dashboard/components-next/select/Select.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
 import { useAlert } from 'dashboard/composables';
+import { useStore } from 'dashboard/composables/store';
 import BrandColorField from './BrandColorField.vue';
 import ThemeModeField from './ThemeModeField.vue';
 import LauncherField from './LauncherField.vue';
@@ -46,6 +47,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const store = useStore();
 
 const {
   inbox,
@@ -161,6 +163,38 @@ const toggleFeature = feature => {
  */
 defineExpose({ requestLeave: guard.requestLeave });
 
+/* ── Bloco 3.19: o byte do ícone do lançador ─────────────────────────────────
+ *
+ * A regra do rascunho é "nada vai ao servidor sozinho", e ela continua valendo
+ * para os CAMPOS. Um arquivo é outra coisa: ele não cabe no rascunho, não tem
+ * como ser comparado por `isDirty` e não tem como ser desfeito por `discard`.
+ * Então o byte sobe na hora, com o seu próprio erro, e o MODO — que é campo —
+ * continua esperando o botão salvar.
+ * ────────────────────────────────────────────────────────────────────────── */
+const onUploadLauncherIcon = async file => {
+  try {
+    await store.dispatch('inboxes/uploadLauncherIcon', {
+      id: props.inboxId,
+      file,
+    });
+    useAlert(t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_UPLOADED'));
+  } catch (error) {
+    useAlert(error.message || t('INBOX_WIDGET.APPEARANCE.SAVE_ERROR'));
+  }
+};
+
+const onRemoveLauncherIcon = async () => {
+  try {
+    await store.dispatch('inboxes/deleteLauncherIcon', props.inboxId);
+    // O servidor volta o modo para `default` junto com o byte (não dá para
+    // deixar "foto" escrito numa tela que não tem foto): o rascunho acompanha.
+    setIn('appearance', 'launcher_icon', 'default');
+    useAlert(t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_REMOVED'));
+  } catch (error) {
+    useAlert(error.message || t('INBOX_WIDGET.APPEARANCE.SAVE_ERROR'));
+  }
+};
+
 const onSave = async () => {
   try {
     await save();
@@ -234,7 +268,10 @@ const onSave = async () => {
           :appearance="draft.appearance"
           :overridden-fields="overriddenFields"
           :show-expanded-launcher="showExpandedLauncher"
+          :launcher-icon-url="inbox?.launcher_icon_url || ''"
           @update="(field, value) => setIn('appearance', field, value)"
+          @upload-icon="onUploadLauncherIcon"
+          @remove-icon="onRemoveLauncherIcon"
         />
         <WidgetProfileEscapeLink
           v-if="!showExpandedLauncher"

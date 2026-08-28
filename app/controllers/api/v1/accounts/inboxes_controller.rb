@@ -9,7 +9,10 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
 
   def index
     @inboxes = policy_scope(Current.account.inboxes)
-               .includes(:channel, :portal, :working_hours, { avatar_attachment: :blob })
+               # `launcher_icon_image_attachment` entra junto (3.19): `_inbox.json.jbuilder` publica
+               # `launcher_icon_url` para TODA inbox de widget, e sem o include a listagem faz uma
+               # consulta por inbox — o mesmo motivo pelo qual `avatar_attachment` ja estava aqui.
+               .includes(:channel, :portal, :working_hours, { avatar_attachment: :blob }, { launcher_icon_image_attachment: :blob })
                .order_by_name
     # Exclude private chat inbox so it never appears in the sidebar
     @inboxes = @inboxes.where.not(id: PrivateChat::Config.inbox_id) if PrivateChat::Config.enabled? && PrivateChat::Config.inbox_id.present?
@@ -29,6 +32,16 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   def avatar
     @inbox.avatar.attachment.destroy! if @inbox.avatar.attached?
     head :ok
+  end
+
+  # Bloco 3.19: tirar a foto do lancador. Apaga o BYTE e o MODO na mesma transacao — deixar o modo
+  # `image` para tras seria um lancador que o servidor ja sabe que vai degradar para o balao, e o
+  # administrador veria "foto" escrito numa tela que nao mostra foto nenhuma.
+  def launcher_icon
+    ActiveRecord::Base.transaction do
+      @inbox.launcher_icon_image.purge if @inbox.launcher_icon_image.attached?
+      reset_launcher_icon_mode
+    end
   end
 
   def create
@@ -114,6 +127,16 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   private
+
+  # `image` sem imagem para de existir; os outros modos ficam como estao. O merge e explicito porque
+  # `widget_appearance` e uma das quatro chaves de topo e o `#update` da inbox e raso (A1).
+  def reset_launcher_icon_mode
+    appearance = @inbox.widget_appearance
+    return unless appearance.is_a?(Hash)
+    return unless WidgetAppearanceSchema.launcher_icon_mode(appearance['launcher_icon']) == 'image'
+
+    @inbox.update!(widget_appearance: appearance.merge('launcher_icon' => WidgetAppearanceSchema::DEFAULTS['launcher_icon']))
+  end
 
   def fetch_inbox
     @inbox = Current.account.inboxes.find(params[:id])
@@ -254,7 +277,10 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   def normalized_branded_email_layout = params[:branded_email_layout] == 'null' ? nil : params[:branded_email_layout]
 
   def inbox_attributes
-    [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled, :nps_survey_enabled,
+    # `launcher_icon_image` (3.19) e o BYTE do icone do lancador. Entra por aqui e nao por endpoint
+    # proprio para herdar as validacoes do modelo — teto de 20 KB e tipo — na mesma transacao do
+    # resto da tela de aparencia.
+    [:name, :avatar, :launcher_icon_image, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled, :nps_survey_enabled,
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :team_message_isolation,
      :agent_message_isolation, :agent_conversation_isolation, :pending_status_enabled,
