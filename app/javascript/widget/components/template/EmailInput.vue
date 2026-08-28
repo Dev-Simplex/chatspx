@@ -83,7 +83,12 @@ export default {
         @input="v$.email.$touch"
         @keydown.enter="onSubmit"
       />
-      <button class="button small" :disabled="v$.email.$invalid">
+      <button
+        class="button small"
+        :disabled="v$.email.$invalid"
+        :title="$t('A11Y.SUBMIT_EMAIL')"
+        :aria-label="$t('A11Y.SUBMIT_EMAIL')"
+      >
         <FluentIcon v-if="!isUpdating" icon="chevron-right" />
         <Spinner v-else class="mx-2" />
       </button>

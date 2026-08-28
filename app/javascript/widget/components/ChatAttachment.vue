@@ -166,7 +166,15 @@ export default {
     }"
     @input-file="onFileUpload"
   >
-    <button class="min-h-8 min-w-8 flex items-center justify-center">
+    <!-- `title` E `aria-label`, como no cabeçalho: o botão só tem ícone, e
+         `FluentIcon` emite `<svg>` cru — sem nome, o leitor de tela anuncia
+         apenas "botão". O nome vem do i18n, não cravado, porque não há texto
+         na tela para `aria-labelledby` apontar. -->
+    <button
+      class="min-h-8 min-w-8 flex items-center justify-center"
+      :title="$t('A11Y.ATTACH_FILE')"
+      :aria-label="$t('A11Y.ATTACH_FILE')"
+    >
       <FluentIcon v-if="!isUploading.image" icon="attach" />
       <Spinner v-if="isUploading" size="small" />
     </button>

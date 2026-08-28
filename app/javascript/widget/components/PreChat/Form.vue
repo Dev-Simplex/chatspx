@@ -529,7 +529,18 @@ export default {
 
   .formkit-inner {
     input[type='checkbox'] {
-      @apply size-4 outline-none;
+      @apply size-4;
+
+      // `outline-none` saiu daqui. O utilitário do Tailwind NÃO remove o anel:
+      // ele gera `outline: 2px solid transparent`. Num checkbox — que é
+      // focável e faz parte do caminho de teclado do pré-chat — isso deixava
+      // 2px de anel INVISÍVEL, pior que nenhum: em `forced-colors` o
+      // `transparent` é trocado por cor do sistema e o `none` não é.
+      // O anel agora é o mesmo dos outros primitivos do widget, pelos tokens.
+      &:focus-visible {
+        outline: var(--w-focus-ring-width) solid var(--w-focus-ring-color);
+        outline-offset: var(--w-focus-ring-offset);
+      }
     }
   }
 
