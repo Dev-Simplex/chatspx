@@ -109,21 +109,30 @@ class Spx::EvalDigestJob < ApplicationJob
     limite = (config['limite'] || LIMITE_PADRAO).to_i
 
     avaliados = Captain::ConversationEval.where(account_id: account.id).where(created_at: desde..).count
-    linhas = achados(account, desde, severidades)
+    linhas = achados(account, desde, severidades, config['nota_maxima'])
+    conversas = agrupar_por_conversa(linhas)
 
     {
       desde: desde,
       avaliados: avaliados,
       por_categoria: linhas.group_by { |l| l['categoria'] }.transform_values(&:size).sort_by { |_, n| -n },
-      conversas: agrupar_por_conversa(linhas).first(limite),
-      total_conversas: agrupar_por_conversa(linhas).size
+      conversas: conversas.first(limite),
+      total_conversas: conversas.size
     }
   end
 
   # SQL cru porque `response_findings` é um array jsonb e o filtro é por elemento — o
   # LATERAL evita carregar 10 mil avaliações no Ruby pra descartar quase todas.
-  def achados(account, desde, severidades)
+  #
+  # `nota_maxima` é o que transforma o digest de relatório em aviso. Sem corte, uma conta
+  # medida em 28/08/2026 gerava ~13 conversas por dia — volume de relatório, que vira
+  # paisagem. Com corte em 2, a média cai para 2,5 por dia (pico 6): cabe numa mensagem
+  # de grupo e a maior parte dos dias fica em silêncio.
+  def achados(account, desde, severidades, nota_maxima = nil)
     lista = severidades.map { |s| ActiveRecord::Base.connection.quote(s) }.join(',')
+    # Avaliação SEM nota fica de fora quando há corte: nota nula não é "nota boa", mas
+    # também não é evidência de falha — e o objetivo aqui é a fila do que precisa de ação.
+    corte = nota_maxima.present? ? "AND e.nota IS NOT NULL AND e.nota <= #{nota_maxima.to_i}" : ''
     ActiveRecord::Base.connection.select_all(<<~SQL.squish).to_a
       SELECT c.display_id, c.id conversation_id, e.nota, e.resumo,
              f->>'categoria' categoria, f->>'severidade' severidade,
@@ -137,6 +146,7 @@ class Spx::EvalDigestJob < ApplicationJob
         AND e.created_at >= #{ActiveRecord::Base.connection.quote(desde)}
         AND f->>'quem' = 'ia'
         AND f->>'severidade' IN (#{lista})
+        #{corte}
       ORDER BY e.nota NULLS LAST, c.display_id
     SQL
   end

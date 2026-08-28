@@ -114,6 +114,39 @@ RSpec.describe Spx::EvalDigestJob do
     end
   end
 
+  # Sem corte de nota o digest vira relatório: ~13 conversas por dia na conta medida, que é
+  # volume de paisagem. Com corte, vira aviso — e a maior parte dos dias fica em silêncio.
+  describe 'corte por nota' do
+    before { habilitar('nota_maxima' => 2) }
+
+    it 'keeps a conversation at or below the cut' do
+      avaliar(create(:conversation, account: account, inbox: inbox), nota: 2, findings: [finding('alucinacao')])
+
+      expect { described_class.perform_now(account) }.to change { ActionMailer::Base.deliveries.size }.by(1)
+    end
+
+    it 'drops a conversation above the cut, even with a severe finding' do
+      avaliar(create(:conversation, account: account, inbox: inbox), nota: 5, findings: [finding('alucinacao')])
+
+      expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
+    end
+
+    # Nota nula não é nota boa, mas também não é evidência de falha — e a fila é do que
+    # precisa de ação. Sem isso, avaliação incompleta entraria como se fosse a pior.
+    it 'drops a conversation with no grade at all' do
+      avaliar(create(:conversation, account: account, inbox: inbox), nota: nil, findings: [finding('alucinacao')])
+
+      expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
+    end
+
+    it 'keeps every severe conversation when no cut is set' do
+      habilitar
+      avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: [finding('alucinacao')])
+
+      expect { described_class.perform_now(account) }.to change { ActionMailer::Base.deliveries.size }.by(1)
+    end
+  end
+
   # E-mail é onde o digest morre quando a operação vive em outro lugar — e é o caso aqui.
   # Pelo webhook a pessoa liga no que ela já usa, sem que o job conheça cada canal.
   describe 'entrega por webhook' do
