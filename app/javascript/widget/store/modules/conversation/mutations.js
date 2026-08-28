@@ -4,6 +4,8 @@ import { findUndeliveredMessage } from './helpers';
 export const mutations = {
   clearConversations($state) {
     $state.conversations = {};
+    $state.pendingCustomAttributes = {};
+    $state.pendingLabels = [];
   },
   pushMessageToConversation($state, message) {
     const { id, status, message_type: type } = message;
@@ -121,9 +123,19 @@ export const mutations = {
     };
   },
 
+  setPendingLabels($state, label) {
+    if (!$state.pendingLabels.includes(label)) {
+      $state.pendingLabels.push(label);
+    }
+  },
+
   removePendingCustomAttribute($state, key) {
     const { [key]: _, ...rest } = $state.pendingCustomAttributes;
     $state.pendingCustomAttributes = rest;
+  },
+
+  removePendingLabel($state, label) {
+    $state.pendingLabels = $state.pendingLabels.filter(l => l !== label);
   },
 
   clearPendingConversationMetadata($state) {
