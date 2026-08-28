@@ -176,7 +176,9 @@
       "TRACKING_TEST_MODE": "Test mode",
       "TRACKING_LEAD_VALUE": "Lead value",
       "TRIGGERS_ENABLED": "Proactive invitations",
-      "TRIGGERS_TRIGGERS": "Configured triggers"
+      "TRIGGERS_TRIGGERS": "Configured triggers",
+      "CONTINUITY_VIA_EMAIL": "Email continuity",
+      "CSAT_SURVEY_ENABLED": "Satisfaction survey (CSAT)"
     },
     "CONTRAST": {
       "RATIO": "{value}:1",
@@ -341,7 +343,9 @@
           "SUPPORT": "Show the Help Center on the widget home screen",
           "MARKETING": "Hide the Help Center on the widget home screen"
         }
-      }
+      },
+      "SECTION_TITLE": "Inbox profile",
+      "SECTION_HELP": "The profile decides WHICH settings this inbox shows. Switching never deletes anything: what you already configured stays stored, and comes back if the profile comes back."
     },
     "TABS": {
       "APPEARANCE": "Appearance"

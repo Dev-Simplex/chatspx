@@ -11,11 +11,18 @@ import BrandColorField from './BrandColorField.vue';
 import ThemeModeField from './ThemeModeField.vue';
 import LauncherField from './LauncherField.vue';
 import AppearanceOverrideBanner from './AppearanceOverrideBanner.vue';
+import WidgetProfileSelector from '../WidgetProfileSelector.vue';
+import WidgetProfileEscapeLink from '../WidgetProfileEscapeLink.vue';
 import WidgetSaveBar from '../WidgetSaveBar.vue';
 import WidgetUnsavedChangesDialog from '../WidgetUnsavedChangesDialog.vue';
 import { useInboxWidgetConfig } from '../composables/useInboxWidgetConfig';
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard';
 import { labelsForFields } from '../composables/widgetFieldLabels';
+import {
+  currentValuesFromDraft,
+  profileWrites,
+  useProfileVisibility,
+} from '../composables/useProfileVisibility';
 
 /**
  * Tela 1 — Aparência.
@@ -57,6 +64,48 @@ const {
 const guard = useUnsavedChangesGuard({ isDirty, onDiscard: discard });
 
 const changedLabels = computed(() => labelsForFields(dirtyFields.value, t));
+
+/* ── O perfil (bloco 3.07) ───────────────────────────────────────────────────
+ *
+ * Ele mora AQUI, no topo da primeira aba, e não numa aba própria: o perfil não
+ * é uma configuração entre outras — ele determina QUAIS configurações existem,
+ * então precisa estar visível antes das outras escolhas.
+ *
+ * Até 3.07 o seletor só existia no wizard de criação (`channels/Website.vue`),
+ * onde o `allow-empty` desvia o diálogo. Resultado medido: o aceite do bloco
+ * ("trocar o perfil abre diálogo listando o que muda e o que continua gravado")
+ * nunca acontecia no produto, e o `@apply` não tinha ouvinte — cada caixa que o
+ * administrador marcava caía no chão.
+ * ────────────────────────────────────────────────────────────────────────── */
+const profileVisibility = useProfileVisibility(
+  computed(() => draft.value.profile)
+);
+const { isSectionVisible } = profileVisibility;
+
+/** O que já está gravado, para o diálogo não propor o que já é assim. */
+const currentValues = computed(() => currentValuesFromDraft(draft.value));
+
+/**
+ * O ouvinte do `@apply`. A troca PROPÕE: só o que o administrador deixou
+ * marcado vira escrita, e a escrita vai para o RASCUNHO — nada vai ao servidor
+ * antes de ele salvar.
+ */
+const onProfileApply = ({ accepted }) => {
+  profileWrites(accepted, draft.value).forEach(({ key, value }) =>
+    set(key, value)
+  );
+};
+
+/**
+ * O formato expandido é um dispositivo de captura (perfil marketing). Mas se
+ * ele é o que ESTÁ gravado, continua à vista mesmo no perfil suporte: esconder
+ * a opção selecionada faria a tela mentir sobre o estado atual da caixa.
+ */
+const showExpandedLauncher = computed(
+  () =>
+    isSectionVisible('appearance.launcherExpanded') ||
+    draft.value.appearance?.launcher_type === 'expanded_bubble'
+);
 
 /**
  * Os campos que o `chatwootSettings` do site sobrescreve. Quem informa é o
@@ -140,6 +189,20 @@ const onSave = async () => {
         />
 
         <h3 class="text-heading-2 text-n-slate-12">
+          {{ t('INBOX_WIDGET.PROFILE.SECTION_TITLE') }}
+        </h3>
+        <SettingsFieldSection
+          :help-text="t('INBOX_WIDGET.PROFILE.SECTION_HELP')"
+        >
+          <WidgetProfileSelector
+            :model-value="draft.profile"
+            :current-values="currentValues"
+            @update:model-value="set('profile', $event)"
+            @apply="onProfileApply"
+          />
+        </SettingsFieldSection>
+
+        <h3 class="text-heading-2 text-n-slate-12">
           {{ t('INBOX_WIDGET.APPEARANCE.SECTIONS.BRAND') }}
         </h3>
         <SettingsFieldSection
@@ -170,7 +233,15 @@ const onSave = async () => {
         <LauncherField
           :appearance="draft.appearance"
           :overridden-fields="overriddenFields"
+          :show-expanded-launcher="showExpandedLauncher"
           @update="(field, value) => setIn('appearance', field, value)"
+        />
+        <WidgetProfileEscapeLink
+          v-if="!showExpandedLauncher"
+          :active-profile="profileVisibility.activeProfile.value"
+          :other-profile="profileVisibility.otherProfile.value"
+          :showing="profileVisibility.showOtherProfile.value"
+          @toggle="profileVisibility.toggleOtherProfile"
         />
 
         <h3 class="text-heading-2 text-n-slate-12">

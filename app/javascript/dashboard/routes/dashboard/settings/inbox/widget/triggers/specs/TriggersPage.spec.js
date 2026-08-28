@@ -360,12 +360,18 @@ describe('4.04 — o que a tela grava', () => {
   });
 
   it('a segmentação avisa que as regras são públicas', () => {
+    // A segmentação é seção de marketing desde o bloco 3.07
+    // (`PROFILE_SECTIONS['triggers.segmentation']`): no perfil suporte ela sai
+    // da tela e no lugar fica o link de escape.
+    inbox.additional_attributes = { widget_profile: 'marketing' };
     expect(build().find('[data-testid="public-warning"]').text()).toContain(
       'visíveis para quem inspecionar o código do site'
     );
   });
 
   it('tirar os dois dispositivos avisa que o convite some', async () => {
+    // Idem: os dispositivos moram na segmentação (bloco 3.07).
+    inbox.additional_attributes = { widget_profile: 'marketing' };
     const wrapper = build();
 
     await wrapper.find('[data-testid="device-desktop"]').setValue(false);

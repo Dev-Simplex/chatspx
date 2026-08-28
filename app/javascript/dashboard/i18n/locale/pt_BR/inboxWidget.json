@@ -176,7 +176,9 @@
       "TRACKING_TEST_MODE": "Modo teste",
       "TRACKING_LEAD_VALUE": "Valor do lead",
       "TRIGGERS_ENABLED": "Convites proativos",
-      "TRIGGERS_TRIGGERS": "Gatilhos configurados"
+      "TRIGGERS_TRIGGERS": "Gatilhos configurados",
+      "CONTINUITY_VIA_EMAIL": "Continuidade por e-mail",
+      "CSAT_SURVEY_ENABLED": "Pesquisa de satisfação (CSAT)"
     },
     "CONTRAST": {
       "RATIO": "{value}:1",
@@ -341,7 +343,9 @@
           "SUPPORT": "Mostrar a Central de Ajuda no painel inicial do widget",
           "MARKETING": "Esconder a Central de Ajuda no painel inicial do widget"
         }
-      }
+      },
+      "SECTION_TITLE": "Perfil da caixa",
+      "SECTION_HELP": "O perfil decide QUAIS configurações esta caixa mostra. Trocar nunca apaga nada: o que você já configurou continua gravado e volta se o perfil voltar."
     },
     "TABS": {
       "APPEARANCE": "Aparência"

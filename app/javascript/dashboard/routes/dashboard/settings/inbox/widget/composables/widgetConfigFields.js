@@ -148,6 +148,28 @@ export const WIDGET_CONFIG_FIELDS = [
     read: inbox =>
       inbox?.additional_attributes?.widget_profile ?? DEFAULT_PROFILE,
   },
+  // Os dois abaixo entraram com o bloco 3.07, e a razao e uma so: sao campos
+  // que a TROCA DE PERFIL propoe (`PROFILE_PROPOSALS`). Sem descritor aqui, a
+  // proposta aceita nao tinha onde ser escrita e caia no chao — a tela dizia
+  // que a troca fora aplicada e o PATCH saia sem ela.
+  //
+  // `csat_survey_enabled` e coluna da INBOX (raiz do payload,
+  // `inboxes_controller.rb:257`); `continuity_via_email` e coluna do CANAL
+  // (`Channel::WebWidget::EDITABLE_ATTRS`). Os dois voltam no `GET` pelo
+  // `_inbox.json.jbuilder` (linhas 10 e 59), entao o `read` le do mesmo objeto
+  // que o store guarda.
+  {
+    key: 'continuityViaEmail',
+    scope: 'channel',
+    path: 'continuity_via_email',
+    read: inbox => Boolean(inbox?.continuity_via_email),
+  },
+  {
+    key: 'csatSurveyEnabled',
+    scope: 'inbox',
+    path: 'csat_survey_enabled',
+    read: inbox => Boolean(inbox?.csat_survey_enabled),
+  },
   {
     key: 'appearance',
     scope: 'additional',
