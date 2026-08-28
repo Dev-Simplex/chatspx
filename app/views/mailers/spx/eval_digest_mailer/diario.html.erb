@@ -1,0 +1,61 @@
+<% if @parou %>
+  <h2>O Eval não avaliou nenhuma conversa nas últimas <%= janela %> horas</h2>
+  <p>
+    Nenhum atendimento foi julgado na conta <strong><%= @account.name %></strong> nessa janela.
+    Isso normalmente significa que o cron de avaliação parou, e não que o dia foi tranquilo —
+    vale conferir o <code>captain_conversation_eval_scheduler_job</code>.
+  </p>
+<% else %>
+  <h2><%= @dados[:total_conversas] %> conversa<%= 's' if @dados[:total_conversas] != 1 %> da IA com falha grave</h2>
+  <p>
+    Conta <strong><%= @account.name %></strong>, últimas <%= janela %> horas.
+    O avaliador julgou <strong><%= @dados[:avaliados] %></strong> atendimento<%= 's' if @dados[:avaliados] != 1 %>
+    nessa janela e marcou os abaixo com falha de severidade alta da IA.
+    Estão ordenados pela pior nota.
+  </p>
+
+  <p>
+    <strong>Por tipo de falha:</strong>
+    <%= @dados[:por_categoria].map { |cat, n| "#{cat} (#{n})" }.join(' · ') %>
+  </p>
+
+  <% @dados[:conversas].each do |c| %>
+    <hr>
+    <p>
+      <strong>
+        <% if @frontend_url.present? %>
+          <a href="<%= "#{@frontend_url}/app/accounts/#{@account.id}/conversations/#{c[:display_id]}" %>">
+            Conversa <%= c[:display_id] %>
+          </a>
+        <% else %>
+          Conversa <%= c[:display_id] %>
+        <% end %>
+      </strong>
+      — nota <%= c[:nota] || '—' %>
+    </p>
+    <% if c[:resumo].present? %>
+      <p><em><%= truncate(c[:resumo].to_s, length: 240) %></em></p>
+    <% end %>
+    <ul>
+      <% c[:findings].each do |f| %>
+        <li>
+          <strong><%= f['categoria'] %></strong>
+          <% if f['porque'].present? %>— <%= truncate(f['porque'].to_s, length: 180) %><% end %>
+          <% if f['trecho'].present? %>
+            <br><small>“<%= truncate(f['trecho'].to_s, length: 200) %>”</small>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <% if @dados[:total_conversas] > @dados[:conversas].size %>
+    <hr>
+    <p>
+      <small>
+        Mostrando <%= @dados[:conversas].size %> de <%= @dados[:total_conversas] %>.
+        O restante está no painel de avaliação.
+      </small>
+    </p>
+  <% end %>
+<% end %>

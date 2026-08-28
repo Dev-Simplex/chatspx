@@ -168,3 +168,13 @@ captain_conversation_eval_scheduler_job:
   cron: '7 * * * *'
   class: 'Captain::ConversationEvalSchedulerJob'
   queue: scheduled_jobs
+
+# digest diário do eval: leva as conversas com falha GRAVE da IA pra uma lista explícita de
+# e-mails, por conta. Sem custom_attributes['eval_digest']['enabled'] a conta não recebe nada.
+# Existe porque o eval detecta em volume e o resultado morria no painel: numa conta medida em
+# 28/08/2026 eram 380 conversas com finding grave em 30 dias e nenhuma ação registrada.
+# 11h UTC = 7h em America/Cuiaba, antes do expediente da operação.
+spx_eval_digest_scheduler_job:
+  cron: '0 11 * * *'
+  class: 'Spx::EvalDigestSchedulerJob'
+  queue: scheduled_jobs
