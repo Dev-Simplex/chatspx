@@ -52,6 +52,17 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
       contact: contact,
       params: identified_params.to_h.deep_symbolize_keys,
       discard_invalid_attrs: true,
+      # PORTA 5 (B5). As portas 1 e 2 barram quem chega SEM assinatura; nenhuma delas
+      # diz nada sobre quem chega COM assinatura valida da PROPRIA identidade e carrega o
+      # e-mail de outra pessoa no mesmo corpo. Esse pedido passa por `validate_hmac`
+      # legitimamente e funde por e-mail quando o dono do e-mail nao tem `identifier`
+      # (a forma de todo contato nascido de pre-chat, do agente ou da API de conta) —
+      # a sessao migra para o cadastro da vitima e o identifier do atacante e carimbado
+      # nele. O portao que recusa a FUSAO ja existia (bloco 4.16), mas ficava inerte aqui
+      # porque este era o unico chamador que nao passava o estado da inbox: sem ele
+      # `strict_identity?` lia `nil` e devolvia false justamente no endpoint que o bloco
+      # 1.11 endureceu.
+      identity_enforcement: widget_inbox.resolved_identity_enforcement,
       # Bloco 4.17: quem escreve daqui e o site. Atributo protegido so passa em sessao
       # com assinatura conferida.
       verified_origin: @contact_inbox&.hmac_verified?

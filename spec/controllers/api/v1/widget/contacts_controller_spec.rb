@@ -35,7 +35,13 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
         expect(response).to have_http_status(:success)
         # `verified_origin` (bloco 4.17) diz se a sessao teve a identidade conferida por
         # assinatura. Aqui a sessao nasce sem verificacao, entao false.
-        expected_params = { contact: contact, params: params, discard_invalid_attrs: true, verified_origin: false }
+        #
+        # `identity_enforcement` (bloco 1.11, porta 5) e o estado RESOLVIDO da inbox, e vai
+        # SEMPRE — inclusive `desativado`, que e o valor desta inbox. Ele e o que arma o
+        # `refuse_merge_under_enforcement?`; enquanto este chamador o omitia, a action lia
+        # `nil` e o portao ficava inerte no endpoint que o bloco endureceu.
+        expected_params = { contact: contact, params: params, discard_invalid_attrs: true,
+                            identity_enforcement: 'desativado', verified_origin: false }
         expect(ContactIdentifyAction).to have_received(:new).with(expected_params)
         expect(identify_action).to have_received(:perform)
       end
@@ -265,6 +271,146 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
         expect(response).to have_http_status(:unauthorized)
         expect(victim.reload.custom_attributes).to eq({})
         expect_no_takeover
+      end
+    end
+
+    # PORTA 5 — a refutacao do aceite literal do bloco ("com modo obrigatorio, as DUAS
+    # chamadas nao alteram o contato").
+    #
+    # As portas 1 e 2 fecham quem chega SEM assinatura. Elas nao dizem nada sobre quem
+    # chega COM assinatura valida — da PROPRIA identidade — carregando no mesmo corpo o
+    # e-mail de outra pessoa. Esse pedido passa por `validate_hmac` legitimamente (a
+    # assinatura confere sobre o `identifier` do atacante) e cai inteiro no
+    # ContactIdentifyAction, que funde por e-mail quando o dono do e-mail nao tem
+    # `identifier` proprio (`merge_contacts?` so barra identifier DIFERENTE; identifier em
+    # branco na vitima nao barra nada — contact_identify_action.rb:110-123).
+    #
+    # A vitima aqui NAO tem identifier de proposito: e a forma real de contato criado por
+    # pre-chat, pelo agente ou pela API de conta. Dar identifier a ela esconderia o
+    # defeito — o teste passaria verde sem que portao nenhum existisse.
+    #
+    # O portao que impede isto (`refuse_merge_under_enforcement?`, bloco 4.16) ja existia,
+    # mas ficava inerte aqui: `identify_contact` nao passava `identity_enforcement:`,
+    # entao `strict_identity?` lia `nil` e devolvia false justamente no endpoint que este
+    # bloco endureceu.
+    context 'when porta 5: assinatura valida da propria identidade + e-mail de outra pessoa' do
+      let!(:alvo) do
+        create(:contact, account: account, name: 'Alvo', email: 'alvo@corp.com', phone_number: '+5511988887777')
+      end
+      let!(:alvo_inbox) { create(:contact_inbox, contact: alvo, inbox: web_widget.inbox) }
+      let!(:alvo_conversa) do
+        create(:conversation, account: account, inbox: web_widget.inbox, contact: alvo, contact_inbox: alvo_inbox)
+      end
+
+      # O atacante assina a PROPRIA identidade. A assinatura e legitima; o abuso esta no
+      # campo de terceiro que viaja junto no mesmo corpo.
+      let(:hash_do_atacante) do
+        OpenSSL::HMAC.hexdigest('sha256', web_widget.hmac_token, 'atacante-identifier')
+      end
+
+      def identifica_com_email_alheio(rota)
+        patch rota,
+              params: { website_token: web_widget.website_token, identifier: 'atacante-identifier',
+                        identifier_hash: hash_do_atacante, email: 'alvo@corp.com', name: 'Atacante' },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+      end
+
+      # A sessao continua no contato do atacante, o cadastro do alvo continua inteiro e o
+      # identifier do atacante NAO foi carimbado nele.
+      def expect_alvo_intacto
+        expect(attacker_inbox.reload.contact_id).to eq(attacker.id)
+        expect_cadastro_do_alvo_intacto
+      end
+
+      def expect_cadastro_do_alvo_intacto
+        alvo_atual = alvo.reload
+        expect(alvo_atual.identifier).to be_nil
+        expect(alvo_atual.email).to eq('alvo@corp.com')
+        expect(alvo_atual.contact_inboxes.pluck(:id)).to eq([alvo_inbox.id])
+        expect(alvo_atual.conversations.pluck(:id)).to eq([alvo_conversa.id])
+      end
+
+      it 'nao funde em PATCH /widget/contact — e a requisicao NAO e recusada por 401' do
+        identifica_com_email_alheio('/api/v1/widget/contact')
+
+        # O 200 faz parte do aceite: quem barra e o portao de merge, nao o HMAC. Se isto
+        # virasse 401, o teste estaria medindo a porta 1 de novo, nao a porta 5.
+        expect(response).to have_http_status(:success)
+        expect_alvo_intacto
+      end
+
+      it 'nao funde em PATCH /widget/contact/set_user — e a requisicao NAO e recusada por 401' do
+        identifica_com_email_alheio('/api/v1/widget/contact/set_user')
+
+        expect(response).to have_http_status(:success)
+        expect_alvo_intacto
+      end
+
+      it 'nao reivindica o e-mail alheio para o contato do atacante' do
+        identifica_com_email_alheio('/api/v1/widget/contact')
+
+        expect(attacker.reload.email).to be_nil
+      end
+
+      # O atacante continua dono do que e dele: a assinatura vale para a identidade dele.
+      # Sem esta assercao, "nao mudou nada" tambem passaria se a requisicao inteira fosse
+      # descartada — e ai o portao estaria largo demais, nao correto.
+      it 'grava a identidade PROPRIA do atacante, que e o que a assinatura prova' do
+        identifica_com_email_alheio('/api/v1/widget/contact')
+
+        expect(attacker.reload.identifier).to eq('atacante-identifier')
+        expect(attacker.name).to eq('Atacante')
+      end
+
+      # `Contact#prepare_phone_number_attribute` normaliza pelo BrazilPhoneNormalizer (o 9o
+      # digito entra na gravacao), entao o telefone GRAVADO pode nao ser o literal do
+      # fixture. O ataque tem de carregar o que esta no banco: com um literal fora da forma
+      # normalizada o `find_by` da action nao acha ninguem, nao existe fusao a recusar e
+      # este exemplo passaria verde sem portao nenhum. Por isso o valor e lido de volta do
+      # banco e a guarda abaixo confere que ele realmente casa com o alvo.
+      it 'nao funde pelo telefone de outra pessoa' do
+        telefone = alvo.reload.phone_number
+        expect(account.contacts.find_by(phone_number: telefone)&.id).to eq(alvo.id)
+
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, identifier: 'atacante-identifier',
+                        identifier_hash: hash_do_atacante, phone_number: telefone },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(attacker_inbox.reload.contact_id).to eq(attacker.id)
+        expect(alvo.reload.phone_number).to eq(telefone)
+        expect(attacker.reload.phone_number).to be_nil
+      end
+
+      # CONTROLE POSITIVO (anti-vacuo). "Nao fundiu" tambem passa quando a fusao nunca
+      # teve como acontecer. Aqui a MESMA requisicao assinada, contra a MESMA forma de
+      # vitima, mudando SO o estado de enforcement da inbox, PRECISA fundir — senao o que
+      # barra o ataque acima e outra coisa qualquer, e nao o portao.
+      context 'when a mesma requisicao chega numa inbox sem enforcement' do
+        let(:web_widget) { create(:channel_widget, account: account, hmac_mandatory: false) }
+
+        it 'funde — provando que o takeover existe e que e o portao que o barra' do
+          identifica_com_email_alheio('/api/v1/widget/contact')
+
+          expect(response).to have_http_status(:success)
+          expect(attacker_inbox.reload.contact_id).to eq(alvo.id)
+        end
+      end
+
+      # Nao-regressao sob obrigatorio: a regra e estreita de proposito — so morde quando o
+      # campo pertence a OUTRO cadastro.
+      it 'identidade assinada com e-mail que nao e de ninguem continua gravando' do
+        patch '/api/v1/widget/contact',
+              params: { website_token: web_widget.website_token, identifier: 'atacante-identifier',
+                        identifier_hash: hash_do_atacante, email: 'ninguem@corp.com' },
+              headers: { 'X-Auth-Token' => attacker_token },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(attacker.reload.email).to eq('ninguem@corp.com')
       end
     end
 
