@@ -13,18 +13,22 @@ class Captain::VideoFrameExtractor
   WIDTH = 768
   FALLBACK_DURATION = 10.0
 
-  def initialize(attachment:)
+  # `source_path` e a porta pra video que NAO e anexo: o filho de carrossel do Instagram vem
+  # como URL do CDN, sem blob nem ActiveStorage. Quem chama baixa pro temporario e passa o
+  # caminho — assim existe UM ffmpeg no produto, e nao dois.
+  def initialize(attachment: nil, source_path: nil)
     @attachment = attachment
+    @source_path = source_path
   end
 
   # Devolve [] quando nao ha arquivo local, quando o ffmpeg nao existe ou quando ele falha —
   # nunca levanta. Os temporarios morrem antes de retornar.
   def data_urls
-    return [] unless attachment.file.attached?
+    return [] if sem_fonte?
 
-    dir = Rails.root.join('tmp/uploads/media-description', "att-#{attachment.id}")
+    dir = Rails.root.join('tmp/uploads/media-description', pasta)
     FileUtils.mkdir_p(dir)
-    source = copy_source(dir)
+    source = source_path.presence || copy_source(dir)
     extract(dir, source).map { |path| "data:image/jpeg;base64,#{Base64.strict_encode64(File.binread(path))}" }
   rescue StandardError => e
     Rails.logger.error("[VideoFrames] FALHOU att=#{attachment&.id}: #{e.class}: #{e.message}")
@@ -35,7 +39,15 @@ class Captain::VideoFrameExtractor
 
   private
 
-  attr_reader :attachment
+  attr_reader :attachment, :source_path
+
+  def sem_fonte?
+    source_path.blank? && !attachment&.file&.attached?
+  end
+
+  def pasta
+    attachment ? "att-#{attachment.id}" : "url-#{Digest::SHA256.hexdigest(source_path.to_s)[0, 16]}"
+  end
 
   def copy_source(dir)
     blob = attachment.file.blob
@@ -59,7 +71,7 @@ class Captain::VideoFrameExtractor
   # A duracao vem do metadata que o ActiveStorage ja gravou; sem ela, um fallback curto
   # ainda pega o inicio do video.
   def segundo(position)
-    duration = attachment.file.blob.metadata['duration'].to_f
+    duration = attachment ? attachment.file.blob.metadata['duration'].to_f : 0.0
     duration = FALLBACK_DURATION if duration <= 0
     (duration * position).round(1)
   end

@@ -12,7 +12,9 @@ class Spx::Social::InstagramComentarioService
     return if inbox.blank?
 
     comentario = gravar
+    novo = comentario.previously_new_record?
     sincronizar_publicacao(comentario)
+    acordar_ia(comentario) if novo
     comentario
   end
 
@@ -65,6 +67,17 @@ class Spx::Social::InstagramComentarioService
 
     comentario.update!(publicacao_id: publicacao.id) if comentario.publicacao_id != publicacao.id
     Spx::Social::InstagramPublicacaoSync.new(publicacao: publicacao, channel: channel).perform
+  end
+
+  # Só comentário NOVO acorda a IA. A Meta reentrega (51 entregas para 39 comentários em 7 dias),
+  # e sem esta guarda cada reentrega geraria uma resposta — na privada, que é uma por comentário,
+  # a segunda tentativa queimaria a única chance.
+  #
+  # A conta da própria casa nunca acorda ninguém: seria a IA respondendo a si mesma.
+  def acordar_ia(comentario)
+    return if comentario.proprio?
+
+    Spx::Social::ResponderComentarioComIaJob.perform_later(comentario.id)
   end
 
   def external_id
