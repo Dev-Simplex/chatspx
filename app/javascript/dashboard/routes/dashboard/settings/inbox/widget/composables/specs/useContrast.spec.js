@@ -1,11 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import {
+  ALVO_TEXTO,
   brandTokens,
   contrastPairs,
   contrastRatio,
   formatRatio,
   isValidHex,
+  LIMIAR_ON_BRAND,
   luminance,
   onBrandColor,
   readableOn,
@@ -90,6 +92,16 @@ describe('useContrast × a derivação medida no Chromium (20 cores)', () => {
     expect(fixture.limiar_on_brand).toBe(0.17913);
   });
 
+  it('as constantes da tela sao as que a fixture declara, nao um par paralelo', () => {
+    // O limiar e o alvo tambem atravessam os dois lados. Comparar o valor do
+    // MODULO com o da fixture (e nao com um literal repetido aqui) e o que faz
+    // uma mudanca no servidor chegar como falha em vez de como divergencia
+    // silenciosa — foi por falta desse elo que `SURFACE.dark` ficou dois blocos
+    // apontando para o fundo do painel enquanto o servidor ja usava o balao.
+    expect(LIMIAR_ON_BRAND).toBe(fixture.limiar_on_brand);
+    expect(ALVO_TEXTO).toBe(fixture.alvo_texto);
+  });
+
   it.each(fixture.cores.map(c => c.brand))(
     '%s — os 7 tokens do servidor batem hex a hex',
     brand => {
@@ -129,6 +141,35 @@ describe('useContrast × a derivação medida no Chromium (20 cores)', () => {
   it('a superfície escura da tela é a MESMA do servidor', () => {
     expect(SURFACE.dark).toBe(fixture.surface_dark);
     expect(SURFACE.light).toBe(fixture.surface_light);
+  });
+
+  it('a superfície escura é o BALÃO do agente (#2c2d36), não o fundo do painel', () => {
+    // A defasagem que existiu, escrita como teste. Enquanto a tela media contra
+    // `#121213` (o painel) e o servidor ja media contra `#2c2d36` (o balao, onde
+    // o link e de fato pintado), o medidor exibia numeros que o widget nao ia
+    // produzir: regenerando a fixture pelo gerador oficial, 20 de 20 cores
+    // divergiam e 13 tokens hex mudavam.
+    expect(SURFACE.dark).toBe('#2c2d36');
+
+    // A condicao RUIM, FORCADA — sem isso a assercao passaria tambem num mundo
+    // em que a diferenca entre as duas superficies nao muda nada: calibrar
+    // contra o painel deixa a cor ABAIXO de 4,5:1 quando ela chega ao balao.
+    const painel = '#121213';
+    expect(
+      contrastRatio(readableOn('#009ce0', painel), SURFACE.dark)
+    ).toBeCloseTo(4.4486, 2);
+    expect(
+      contrastRatio(readableOn('#1f93ff', painel), SURFACE.dark)
+    ).toBeCloseTo(4.347, 2);
+
+    // E a cor calibrada contra o balao cruza — inclusive `#1f93ff`, que e o
+    // DEFAULT de `channel_web_widgets`, ou seja, a inbox que ninguem configurou.
+    expect(
+      contrastRatio(readableOn('#009ce0', SURFACE.dark), SURFACE.dark)
+    ).toBeCloseTo(4.697, 2);
+    expect(
+      contrastRatio(readableOn('#1f93ff', SURFACE.dark), SURFACE.dark)
+    ).toBeCloseTo(4.5801, 2);
   });
 
   it.each(fixture.cores.map(c => c.brand))(
