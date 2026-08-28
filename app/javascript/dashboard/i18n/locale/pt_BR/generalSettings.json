@@ -202,8 +202,23 @@
         "MESSAGE_HELP": "Esta mensagem é enviada ao cliente quando uma conversa é resolvida automaticamente pelo sistema devido à inatividade."
       },
       "FEATURES": {
-        "INBOUND_EMAIL_ENABLED": "A continuidade das conversas com e-mails está ativada para sua conta.",
-        "CUSTOM_EMAIL_DOMAIN_ENABLED": "Você pode receber e-mails em seu domínio personalizado agora."
+        "TITLE": "Recursos da conta",
+        "NOTE": "Ligue ou desligue o que esta conta enxerga. O produto já vem com tudo ligado; alguns recursos ficam desligados porque dependem de preparo.",
+        "GROUPS": {
+          "ON": "Ligados",
+          "OFF": "Disponíveis para ligar",
+          "BLOCKED": "Indisponíveis nesta versão"
+        },
+        "HINT": {
+          "NO_BIT": "Não pode ser ligado: o limite técnico de recursos do sistema foi atingido e liberar mais exige uma mudança no banco.",
+          "DEPRECATED": "Recurso descontinuado, mantido só para quem já usava.",
+          "PREMIUM": "Recurso pago do produto original: ligar é decisão comercial.",
+          "INTERNAL": "Recurso interno do produto original, sem suporte garantido aqui."
+        },
+        "API": {
+          "SUCCESS": "Recurso atualizado",
+          "ERROR": "Não consegui atualizar o recurso"
+        }
       },
       "TAKEOVER_GATE": {
         "TITLE": "Pedido para assumir a conversa",

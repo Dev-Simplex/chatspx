@@ -202,8 +202,23 @@
         "MESSAGE_HELP": "This message is sent to the customer when a conversation is automatically resolved by the system due to inactivity."
       },
       "FEATURES": {
-        "INBOUND_EMAIL_ENABLED": "Conversation continuity with emails is enabled for your account.",
-        "CUSTOM_EMAIL_DOMAIN_ENABLED": "You can receive emails in your custom domain now."
+        "TITLE": "Account features",
+        "NOTE": "Turn on or off what this account can see. The product ships with everything on; a few features stay off because they need setup first.",
+        "GROUPS": {
+          "ON": "On",
+          "OFF": "Available to turn on",
+          "BLOCKED": "Unavailable in this version"
+        },
+        "HINT": {
+          "NO_BIT": "Cannot be turned on: the system feature limit was reached and raising it requires a database change.",
+          "DEPRECATED": "Discontinued feature, kept only for accounts already using it.",
+          "PREMIUM": "Paid feature of the upstream product: turning it on is a commercial decision.",
+          "INTERNAL": "Internal feature of the upstream product, not guaranteed here."
+        },
+        "API": {
+          "SUCCESS": "Feature updated",
+          "ERROR": "Could not update the feature"
+        }
       },
       "TAKEOVER_GATE": {
         "TITLE": "Request to take over a conversation",
