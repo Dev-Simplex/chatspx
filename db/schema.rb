@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_27_160000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1505,11 +1505,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_160000) do
     t.bigint "team_message_isolation_team_ids", default: [], null: false, array: true
     t.bigint "agent_message_isolation_team_ids", default: [], null: false, array: true
     t.bigint "agent_conversation_isolation_team_ids", default: [], null: false, array: true
-    t.bigint "unit_id"
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
-    t.index ["unit_id"], name: "index_inboxes_on_unit_id"
   end
 
   create_table "installation_configs", force: :cascade do |t|
@@ -2144,64 +2142,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_160000) do
     t.index ["account_id", "slug"], name: "index_unidades_on_account_id_and_slug", unique: true
   end
 
-  create_table "unit_exceptions", force: :cascade do |t|
-    t.bigint "unit_id", null: false
-    t.date "starts_on", null: false
-    t.string "name", null: false
-    t.boolean "closed_all_day", default: true, null: false
-    t.integer "open_hour"
-    t.integer "open_minutes"
-    t.integer "close_hour"
-    t.integer "close_minutes"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.date "ends_on"
-    t.integer "category", default: 0, null: false
-    t.integer "frequency", default: 0, null: false
-    t.integer "repeat_interval", default: 1, null: false
-    t.integer "weekdays", default: [], null: false, array: true
-    t.integer "week_positions", default: [], null: false, array: true
-    t.integer "month_days", default: [], null: false, array: true
-    t.date "until_date"
-    t.index ["unit_id", "starts_on"], name: "index_unit_exceptions_on_unit_id_and_starts_on"
-    t.index ["unit_id"], name: "index_unit_exceptions_on_unit_id"
-  end
-
-  create_table "unit_working_hours", force: :cascade do |t|
-    t.bigint "unit_id", null: false
-    t.integer "day_of_week", null: false
-    t.boolean "closed_all_day", default: false, null: false
-    t.boolean "open_all_day", default: false, null: false
-    t.integer "open_hour"
-    t.integer "open_minutes"
-    t.integer "close_hour"
-    t.integer "close_minutes"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.integer "break_start_hour"
-    t.integer "break_start_minutes"
-    t.integer "break_end_hour"
-    t.integer "break_end_minutes"
-    t.index ["unit_id", "day_of_week"], name: "index_unit_working_hours_on_unit_id_and_day_of_week", unique: true
-    t.index ["unit_id"], name: "index_unit_working_hours_on_unit_id"
-  end
-
-  create_table "units", force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.string "name", null: false
-    t.string "city"
-    t.string "state"
-    t.string "address"
-    t.string "phone"
-    t.string "timezone", default: "UTC", null: false
-    t.text "notes"
-    t.boolean "active", default: true, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "name"], name: "index_units_on_account_id_and_name", unique: true
-    t.index ["account_id"], name: "index_units_on_account_id"
-  end
-
   create_table "users", id: :serial, force: :cascade do |t|
     t.string "provider", default: "email", null: false
     t.string "uid", default: "", null: false
@@ -2330,7 +2270,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_160000) do
   add_foreign_key "inbox_isolation_exemptions", "inboxes", on_delete: :cascade
   add_foreign_key "inbox_isolation_exemptions", "users", on_delete: :cascade
   add_foreign_key "inboxes", "portals"
-  add_foreign_key "inboxes", "units", on_delete: :nullify
   add_foreign_key "internal_channel_members", "internal_channels"
   add_foreign_key "internal_channel_members", "users"
   add_foreign_key "internal_channels", "accounts"
@@ -2364,9 +2303,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_160000) do
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
   add_foreign_key "team_supervisors", "teams", on_delete: :cascade
   add_foreign_key "team_supervisors", "users", on_delete: :cascade
-  add_foreign_key "unit_exceptions", "units", on_delete: :cascade
-  add_foreign_key "unit_working_hours", "units", on_delete: :cascade
-  add_foreign_key "units", "accounts"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).

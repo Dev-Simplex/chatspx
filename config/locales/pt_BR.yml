@@ -78,20 +78,6 @@ pt_BR:
     validations:
       presence: não pode ficar em branco
       invalid: é inválido
-    units:
-      break_incomplete: a parada para o almoço precisa de início e de fim
-      break_on_closed_day: dia fechado não tem parada para o almoço
-      break_inverted: a parada para o almoço precisa terminar depois de começar
-      break_outside_hours: a parada para o almoço precisa estar dentro do horário de funcionamento
-      invalid_weekday: contém dia fora de domingo–sábado
-      invalid_week_position: contém posição fora de 1ª–5ª ou última
-      invalid_month_day: contém dia fora de 1–31 ou último
-      weekday_required: Escolha ao menos um dia da semana
-      monthly_rule_required: Regra mensal precisa de um dia do mês, ou de um dia da semana com a posição dele
-      range_only_without_repeat: Só uma regra que não se repete pode durar um período
-      end_before_start: não pode ser anterior à data de início
-      close_before_open: não pode ser anterior ao horário de abertura
-      open_and_closed: não pode abrir o dia todo e fechar o dia todo ao mesmo tempo
     webhook:
       invalid: Eventos inválidos
     signup:

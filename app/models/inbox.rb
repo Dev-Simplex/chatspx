@@ -68,8 +68,6 @@ class Inbox < ApplicationRecord
 
   belongs_to :account
   belongs_to :portal, optional: true
-  # Unidade (filial) a que esta caixa pertence. Opcional: conta sem filial nunca preenche.
-  belongs_to :unit, optional: true
 
   belongs_to :channel, polymorphic: true, dependent: :destroy
 
