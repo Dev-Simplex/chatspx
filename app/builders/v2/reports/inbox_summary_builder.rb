@@ -17,7 +17,7 @@ class V2::Reports::InboxSummaryBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def fetch_conversations_count
-    account.conversations.where(created_at: range).group(group_by_key).count
+    with_inbox_filter(account.conversations.where(created_at: range)).group(group_by_key).count
   end
 
   def prepare_report

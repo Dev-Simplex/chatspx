@@ -9,12 +9,18 @@ import {
   generateReportURLParams,
   parseReportURLParams,
 } from '../helpers/reportFilterHelper';
+import { readInboxScope, writeInboxScope } from '../helpers/inboxScope';
+import InboxScopeFilter from './Filters/InboxScopeFilter.vue';
 import { DATE_RANGE_TYPES } from 'dashboard/components/ui/DatePicker/helpers/DatePickerHelper';
 
-defineProps({
+const props = defineProps({
   disabled: {
     type: Boolean,
     default: false,
+  },
+  showInboxScope: {
+    type: Boolean,
+    default: true,
   },
 });
 
@@ -26,6 +32,7 @@ const router = useRouter();
 const customDateRange = ref([subDays(new Date(), 6), new Date()]);
 const selectedDateRange = ref(DATE_RANGE_TYPES.LAST_7_DAYS);
 const businessHoursSelected = ref(false);
+const inboxScopeId = ref(null);
 
 const updateURLParams = () => {
   const params = generateReportURLParams({
@@ -33,6 +40,7 @@ const updateURLParams = () => {
     to: getUnixEndOfDay(customDateRange.value[1]),
     businessHours: businessHoursSelected.value,
     range: selectedDateRange.value,
+    inboxId: props.showInboxScope ? inboxScopeId.value : null,
   });
 
   router.replace({ query: { ...params } });
@@ -44,6 +52,7 @@ const emitChange = () => {
     from: getUnixStartOfDay(customDateRange.value[0]),
     to: getUnixEndOfDay(customDateRange.value[1]),
     businessHours: businessHoursSelected.value,
+    inboxId: props.showInboxScope ? inboxScopeId.value : null,
   });
 };
 
@@ -55,6 +64,11 @@ const onDateRangeChange = value => {
 };
 
 const onBusinessHoursToggle = () => {
+  emitChange();
+};
+
+const onInboxScopeChange = value => {
+  writeInboxScope(value);
   emitChange();
 };
 
@@ -77,6 +91,8 @@ const initializeFromURL = () => {
   if (urlParams.businessHours) {
     businessHoursSelected.value = urlParams.businessHours;
   }
+
+  inboxScopeId.value = urlParams.inboxId || readInboxScope();
 };
 
 onMounted(() => {
@@ -95,6 +111,12 @@ onMounted(() => {
         v-model:date-range="customDateRange"
         v-model:range-type="selectedDateRange"
         @date-range-changed="onDateRangeChange"
+      />
+      <InboxScopeFilter
+        v-if="showInboxScope"
+        v-model="inboxScopeId"
+        class="shrink-0"
+        @change="onInboxScopeChange"
       />
     </div>
     <div class="flex items-center">

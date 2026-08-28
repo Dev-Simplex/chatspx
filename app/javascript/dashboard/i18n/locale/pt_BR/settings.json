@@ -678,6 +678,13 @@
     "LOCATION_BUBBLE": {
       "SEE_ON_MAP": "Ver Localização"
     },
+    "CAROUSEL_BUBBLE": {
+      "STRIP_LABEL": "Fotos enviadas ao cliente",
+      "OPEN_PHOTO": "Abrir foto {index} de {total} em tamanho cheio",
+      "PHOTO_UNAVAILABLE": "Foto indisponível",
+      "PHOTO_COUNTER": "{index}/{total}",
+      "BUTTON_HINT": "Botão que o cliente recebeu"
+    },
     "FORM_BUBBLE": {
       "SUBMIT": "Enviar"
     },

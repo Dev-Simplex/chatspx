@@ -24,10 +24,23 @@ class Spx::Social::InstagramPublicacaoSync
     dados = buscar
     return if dados.blank?
 
-    publicacao.update!(atributos(dados))
+    gravar(dados)
   end
 
   private
+
+  # O rescue de `buscar` cobria só a conversa com a Meta, e a gravação ficava de fora — então
+  # uma linha que o banco recusa derrubava quem chamou. Isso não é teórico: `thumbnail_url` era
+  # `string(255)`, a URL do CDN passa disso, e a exceção subia pela captura do comentário e
+  # **matava o gatilho da IA**. A coluna virou `text`, mas o contrato deste serviço é
+  # best-effort e agora ele cumpre: nada aqui pode derrubar a captura.
+  def gravar(dados)
+    publicacao.update!(atributos(dados))
+  rescue StandardError => e
+    Rails.logger.error("[social] falha ao gravar publicacao #{publicacao.external_id}: #{e.class} #{e.message}")
+    ChatwootExceptionTracker.new(e, account: publicacao.account).capture_exception
+    nil
+  end
 
   def recente?
     publicacao.sincronizada_em.present? && publicacao.sincronizada_em > JANELA_DE_RESINCRONIA.ago

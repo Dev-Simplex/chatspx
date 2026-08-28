@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_25_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_26_101404) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2007,13 +2007,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_25_120000) do
     t.string "external_id", null: false
     t.string "tipo"
     t.text "legenda"
-    t.string "permalink"
-    t.string "thumbnail_url"
+    t.text "permalink"
+    t.text "thumbnail_url"
     t.datetime "publicada_em"
     t.jsonb "metricas", default: {}, null: false
     t.datetime "sincronizada_em"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "leitura_midia"
+    t.datetime "lida_em"
     t.index ["account_id", "external_id"], name: "index_social_publicacoes_on_account_id_and_external_id", unique: true
     t.index ["inbox_id"], name: "index_social_publicacoes_on_inbox_id"
   end

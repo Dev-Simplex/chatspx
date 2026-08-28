@@ -45,6 +45,7 @@ const store = useStore();
 const from = ref(0);
 const to = ref(0);
 const businessHours = ref(false);
+const inboxId = ref(null);
 import { useI18n } from 'vue-i18n';
 import SummaryReportLink from './SummaryReportLink.vue';
 
@@ -179,6 +180,7 @@ const fetchReportsWithRetry = async () => {
     since: from.value,
     until: to.value,
     businessHours: businessHours.value,
+    inboxId: inboxId.value,
   };
   try {
     await store.dispatch(props.actionKey, params);
@@ -202,10 +204,12 @@ const onFilterChange = updatedFilter => {
   from.value = updatedFilter.from;
   to.value = updatedFilter.to;
   businessHours.value = updatedFilter.businessHours;
+  inboxId.value = updatedFilter.inboxId || null;
   emit('filterChange', {
     from: from.value,
     to: to.value,
     businessHours: businessHours.value,
+    inboxId: inboxId.value,
   });
   fetchAllData();
 };
@@ -241,6 +245,7 @@ const downloadReports = () => {
       to: to.value,
       fileName,
       businessHours: businessHours.value,
+      inboxId: inboxId.value,
     };
     store.dispatch(dispatchMethods[props.type], params);
   }
@@ -252,6 +257,7 @@ defineExpose({ downloadReports });
 <template>
   <OverviewReportFilters
     :disabled="isLoading"
+    :show-inbox-scope="type !== 'inbox'"
     @filter-change="onFilterChange"
   />
   <ReportNarrativeSummary :signals="aggregatedSignals" />

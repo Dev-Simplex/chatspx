@@ -7,6 +7,7 @@ import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
 import subDays from 'date-fns/subDays';
 import differenceInDays from 'date-fns/differenceInDays';
 import ActiveFilterChip from './Filters/v3/ActiveFilterChip.vue';
+import InboxScopeFilter from './Filters/InboxScopeFilter.vue';
 import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 import { GROUP_BY_FILTER } from '../constants';
@@ -15,6 +16,7 @@ import {
   generateReportURLParams,
   parseReportURLParams,
 } from '../helpers/reportFilterHelper';
+import { readInboxScope, writeInboxScope } from '../helpers/inboxScope';
 
 const props = defineProps({
   filterType: {
@@ -37,6 +39,10 @@ const props = defineProps({
     default: true,
   },
   showEntityFilter: {
+    type: Boolean,
+    default: true,
+  },
+  showInboxScope: {
     type: Boolean,
     default: true,
   },
@@ -77,6 +83,7 @@ const activeFilterType = ref('');
 const customDateRange = ref([subDays(new Date(), 6), new Date()]);
 const selectedDateRange = ref(DATE_RANGE_TYPES.LAST_7_DAYS);
 const businessHoursSelected = ref(false);
+const inboxScopeId = ref(null);
 const groupBy = ref(GROUP_BY_FILTER[1]);
 const groupByfilterItemsList = ref([{ id: 1, name: 'Day' }]);
 
@@ -95,6 +102,11 @@ const filterSource = computed(() => {
   };
   return sources[props.filterType] || [];
 });
+
+// Na aba de Caixas o recorte por numero seria redundante — la o numero ja e a linha.
+const isInboxScopeVisible = computed(
+  () => props.showInboxScope && props.filterType !== 'inboxes'
+);
 
 const from = computed(() => getUnixStartOfDay(customDateRange.value[0]));
 const to = computed(() => getUnixEndOfDay(customDateRange.value[1]));
@@ -175,6 +187,7 @@ const updateURLParams = () => {
     businessHours: businessHoursSelected.value,
     groupBy: isGroupByPossible.value ? groupBy.value.id : null,
     range: selectedDateRange.value,
+    inboxId: isInboxScopeVisible.value ? inboxScopeId.value : null,
   });
 
   router.replace({ query: { ...params } });
@@ -185,6 +198,7 @@ const emitChange = () => {
     from: from.value,
     to: to.value,
     businessHours: businessHoursSelected.value,
+    inboxId: isInboxScopeVisible.value ? inboxScopeId.value : null,
   };
 
   if (props.showGroupBy) {
@@ -263,6 +277,11 @@ const onBusinessHoursToggle = () => {
   emitChange();
 };
 
+const onInboxScopeChange = value => {
+  writeInboxScope(value);
+  emitChange();
+};
+
 const onGroupByFilterChange = payload => {
   groupBy.value = GROUP_BY_FILTER[payload.id];
   showGroupByDropdown.value = false;
@@ -296,6 +315,8 @@ const initializeFromURL = () => {
   if (urlParams.businessHours) {
     businessHoursSelected.value = urlParams.businessHours;
   }
+
+  inboxScopeId.value = urlParams.inboxId || readInboxScope();
 
   if (urlParams.groupBy) {
     const groupByValue = GROUP_BY_FILTER[urlParams.groupBy];
@@ -341,6 +362,13 @@ onMounted(() => {
         @toggle-dropdown="openActiveFilterDropdown"
         @close-dropdown="closeActiveFilterDropdown"
         @add-filter="addFilter"
+      />
+
+      <InboxScopeFilter
+        v-if="isInboxScopeVisible"
+        v-model="inboxScopeId"
+        class="shrink-0"
+        @change="onInboxScopeChange"
       />
 
       <ActiveFilterChip

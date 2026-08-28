@@ -51,9 +51,14 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
     ActiveModel::Type::Boolean.new.cast(params[:business_hours])
   end
 
+  def inbox_ids
+    @inbox_ids ||= Array(params[:inbox_id]).reject(&:blank?).map(&:to_i)
+  end
+
   def build_conversation_filter
     conversation_filter = { account_id: account.id }
     conversation_filter[:created_at] = range if range.present?
+    conversation_filter[:inbox_id] = inbox_ids if inbox_ids.present?
 
     conversation_filter
   end
@@ -67,6 +72,7 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
     # Filter by reporting_event.created_at, not conversation.created_at
     reporting_event_filter = { name: 'conversation_resolved', account_id: account.id }
     reporting_event_filter[:created_at] = range if range.present?
+    reporting_event_filter[:inbox_id] = inbox_ids if inbox_ids.present?
 
     ReportingEvent
       .joins(conversation: { taggings: :tag })

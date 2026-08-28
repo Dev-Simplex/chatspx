@@ -11,6 +11,12 @@
 # ⚠️ A PRIVADA É UMA POR COMENTÁRIO, e tem janela a partir do comentário. Não há segunda
 # chance: por isso quem chama registra a tentativa antes de qualquer retry.
 #
+# OBSERVADO, não só documentado (26/08): a primeira resposta privada a um comentário devolveu
+# 200 com `message_id`; a segunda, ao MESMO comentário, devolveu `HTTP 500 code=1 — An unknown
+# error has occurred`. A Meta não diz "já respondido"; ela devolve erro genérico. Quem tratar
+# esse 500 como falha transitória e tentar de novo vai insistir para sempre num pedido que
+# nunca vai passar — a guarda de idempotência é o que impede isso.
+#
 # Estado medido em 25/08 com o token da inbox 57 (sondagem contra id inexistente, nada
 # publicado): a privada devolveu `400 / 2534014 — usuário não encontrado`, que é erro de OBJETO
 # e prova que forma e escopo passam. A pública devolveu `500 code=1` genérico, que não distingue
