@@ -29,6 +29,7 @@ const CONTRACT_EVENTS = [
   'sdk-set-bubble-visibility',
   'update-user', // 5.17
   'track-event', // 5.16
+  'appearance-overrides', // 3.18
 ];
 
 const buildContext = (overrides = {}) => ({
@@ -53,13 +54,17 @@ vi.mock('widget/api/approachEvent', () => ({
   registrarEtapaDaAbordagem: vi.fn(),
 }));
 
+vi.mock('widget/api/appearanceOverrides', () => ({
+  registrarSobrescritasDoSite: vi.fn(),
+}));
+
 describe('bridge/handlers', () => {
   beforeEach(() => {
     window.chatwootWebChannel = { websiteToken: 'token-do-site' };
     delete window.referrerURL;
   });
 
-  it('cobre exatamente os 19 eventos do contrato, sem sobra nem falta', () => {
+  it('cobre exatamente os 20 eventos do contrato, sem sobra nem falta', () => {
     expect(Object.keys(handlers).sort()).toEqual([...CONTRACT_EVENTS].sort());
   });
 
@@ -79,6 +84,22 @@ describe('bridge/handlers', () => {
     handlers['approach-event'](mensagem, ctx);
 
     expect(registrarEtapaDaAbordagem).toHaveBeenCalledWith(mensagem);
+    expect(ctx.$store.dispatch).not.toHaveBeenCalled();
+  });
+
+  // Bloco 3.18 — a lista de sobrescritas do site tambem nao passa pelo store: ela e um
+  // fato do HOST (o unico que enxerga o `chatwootSettings`) indo direto para o servidor,
+  // que e quem a tela de aparencia le depois.
+  it('appearance-overrides repassa a lista medida pelo host, sem tocar no store (3.18)', async () => {
+    const { registrarSobrescritasDoSite } = await import(
+      'widget/api/appearanceOverrides'
+    );
+    const ctx = buildContext();
+    const mensagem = { fields: ['theme', 'position'] };
+
+    handlers['appearance-overrides'](mensagem, ctx);
+
+    expect(registrarSobrescritasDoSite).toHaveBeenCalledWith(mensagem);
     expect(ctx.$store.dispatch).not.toHaveBeenCalled();
   });
 

@@ -1,5 +1,9 @@
-import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
+import {
+  SDK_APPEARANCE_OVERRIDES,
+  SDK_SET_BUBBLE_VISIBILITY,
+} from 'shared/constants/sharedFrameEvents';
 import { registrarEtapaDaAbordagem } from 'widget/api/approachEvent';
+import { registrarSobrescritasDoSite } from 'widget/api/appearanceOverrides';
 
 /**
  * Handlers do bridge site → widget.
@@ -77,6 +81,14 @@ export const handlers = {
   // que e onde ja existem o token da sessao e o cliente HTTP.
   'approach-event': message => {
     registrarEtapaDaAbordagem(message);
+  },
+
+  // Bloco 3.18 — quais chaves de `chatwootSettings` o site esta sobrescrevendo.
+  // Quem mede e o host (e o unico que enxerga o HTML do cliente); quem grava e o
+  // servidor, para a tela de aparencia parar de mostrar o valor do banco como se
+  // fosse o que o visitante ve.
+  [SDK_APPEARANCE_OVERRIDES]: message => {
+    registrarSobrescritasDoSite(message);
   },
 
   'set-label': (message, ctx) => {
