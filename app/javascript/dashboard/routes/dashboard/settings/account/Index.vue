@@ -16,6 +16,7 @@ import BuildInfo from './components/BuildInfo.vue';
 import AccountDelete from './components/AccountDelete.vue';
 import AttendanceModeToggle from './components/AttendanceModeToggle.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
+import AccountFeatures from './components/AccountFeatures.vue';
 import ChatWallpaper from './components/ChatWallpaper.vue';
 import DashboardKpiStrip from './components/DashboardKpiStrip.vue';
 import ResolveGateToggle from './components/ResolveGateToggle.vue';
@@ -32,6 +33,7 @@ export default {
     AccountDelete,
     AttendanceModeToggle,
     AudioTranscription,
+    AccountFeatures,
     ChatWallpaper,
     DashboardKpiStrip,
     ResolveGateToggle,
@@ -249,6 +251,7 @@ export default {
       <woot-loading-state v-if="uiFlags.isFetchingItem" />
     </div>
     <AudioTranscription v-if="showAudioTranscriptionConfig" />
+    <AccountFeatures />
     <ChatWallpaper />
     <DashboardKpiStrip />
     <AttendanceModeToggle />
