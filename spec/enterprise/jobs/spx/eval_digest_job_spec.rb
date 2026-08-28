@@ -28,14 +28,14 @@ RSpec.describe Spx::EvalDigestJob do
     it 'does not send anything' do
       avaliar(create(:conversation, account: account, inbox: inbox), nota: 2, findings: [finding('alucinacao')])
 
-      expect { described_class.perform_now(account) }.not_to change { ActionMailer::Base.deliveries.size }
+      expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
     end
 
     it 'does not send when enabled but with no valid recipient' do
       account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'destinatarios' => ['sem-arroba'] } })
       avaliar(create(:conversation, account: account, inbox: inbox), nota: 2, findings: [finding('alucinacao')])
 
-      expect { described_class.perform_now(account) }.not_to change { ActionMailer::Base.deliveries.size }
+      expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
     end
   end
 
@@ -56,7 +56,7 @@ RSpec.describe Spx::EvalDigestJob do
     it 'stays silent on a clean day' do
       avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: [])
 
-      expect { described_class.perform_now(account) }.not_to change { ActionMailer::Base.deliveries.size }
+      expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
     end
 
     # ...mas o próprio eval ter parado É notícia, e o silêncio esconderia isso.
@@ -67,17 +67,17 @@ RSpec.describe Spx::EvalDigestJob do
 
     it 'ignores findings that are not severe' do
       avaliar(create(:conversation, account: account, inbox: inbox), nota: 6,
-                                                                    findings: [finding('repeticao', severidade: 'baixa')])
+                                                                     findings: [finding('repeticao', severidade: 'baixa')])
 
-      expect { described_class.perform_now(account) }.not_to change { ActionMailer::Base.deliveries.size }
+      expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
     end
 
     # O digest é sobre a IA. Falha de atendente humano é outro assunto e outro destinatário.
     it 'ignores findings attributed to a human agent' do
       avaliar(create(:conversation, account: account, inbox: inbox), nota: 4,
-                                                                    findings: [finding('quebrou_regra', quem: 'humano')])
+                                                                     findings: [finding('quebrou_regra', quem: 'humano')])
 
-      expect { described_class.perform_now(account) }.not_to change { ActionMailer::Base.deliveries.size }
+      expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
     end
 
     it 'does not look at another account' do

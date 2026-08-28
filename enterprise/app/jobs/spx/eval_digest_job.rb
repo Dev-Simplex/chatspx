@@ -58,7 +58,7 @@ class Spx::EvalDigestJob < ApplicationJob
   # LATERAL evita carregar 10 mil avaliações no Ruby pra descartar quase todas.
   def achados(account, desde, severidades)
     lista = severidades.map { |s| ActiveRecord::Base.connection.quote(s) }.join(',')
-    ActiveRecord::Base.connection.select_all(<<~SQL).to_a
+    ActiveRecord::Base.connection.select_all(<<~SQL.squish).to_a
       SELECT c.display_id, c.id conversation_id, e.nota, e.resumo,
              f->>'categoria' categoria, f->>'severidade' severidade,
              f->>'trecho' trecho, f->>'porque' porque
@@ -78,10 +78,11 @@ class Spx::EvalDigestJob < ApplicationJob
   # Uma linha por CONVERSA, com os findings dela dentro — o operador abre conversas, não
   # findings soltos. Pior nota primeiro.
   def agrupar_por_conversa(linhas)
-    linhas.group_by { |l| l['display_id'] }.map do |display_id, itens|
+    agrupadas = linhas.group_by { |l| l['display_id'] }.map do |display_id, itens|
       { display_id: display_id, conversation_id: itens.first['conversation_id'],
         nota: itens.first['nota'], resumo: itens.first['resumo'],
         findings: itens.map { |i| i.slice('categoria', 'trecho', 'porque') } }
-    end.sort_by { |c| [c[:nota] || 99, c[:display_id]] }
+    end
+    agrupadas.sort_by { |c| [c[:nota] || 99, c[:display_id]] }
   end
 end
