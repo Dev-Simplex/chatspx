@@ -20,20 +20,33 @@ class Spx::EvalDigestJob < ApplicationJob
     config = digest_config(account)
     return unless config['enabled']
 
-    emails = Array(config['destinatarios']).map(&:to_s).select { |e| e.include?('@') }
-    webhook = config['webhook_url'].to_s.presence
-    return Rails.logger.warn("[EvalDigest] conta #{account.id} habilitada sem destino") if emails.empty? && webhook.blank?
+    destinos = destinos_de(config)
+    return Rails.logger.warn("[EvalDigest] conta #{account.id} habilitada sem destino") if destinos.empty?
 
     dados = coletar(account, config)
-    # Silêncio quando o dia foi bom; alerta quando o próprio Eval parou de rodar. Digest
-    # diário que chega sempre, mesmo vazio, é o primeiro a virar filtro de caixa de entrada.
-    return if dados[:conversas].empty? && dados[:avaliados].positive?
+    return unless vale_avisar?(dados)
 
-    Spx::EvalDigestMailer.with(account: account).diario(account, dados, emails).deliver_now if emails.any?
-    entregar_webhook(account, dados, webhook) if webhook.present?
+    entregar(account, dados, destinos)
   end
 
   private
+
+  def destinos_de(config)
+    emails = Array(config['destinatarios']).map(&:to_s).select { |e| e.include?('@') }
+    { emails: emails, webhook: config['webhook_url'].to_s.presence }.compact_blank
+  end
+
+  # Silêncio quando o dia foi bom; alerta quando o próprio Eval parou de rodar. Digest
+  # diário que chega sempre, mesmo vazio, é o primeiro a virar filtro de caixa de entrada.
+  def vale_avisar?(dados)
+    dados[:conversas].any? || dados[:avaliados].zero?
+  end
+
+  def entregar(account, dados, destinos)
+    Spx::EvalDigestMailer.with(account: account).diario(account, dados, destinos[:emails]).deliver_now if
+      destinos[:emails].present?
+    entregar_webhook(account, dados, destinos[:webhook]) if destinos[:webhook].present?
+  end
 
   # Webhook antes de e-mail na ordem de preferência real: e-mail é onde o digest morre
   # quando a operação vive em outro lugar. Daqui a pessoa pluga no que ela já usa (n8n,
