@@ -24,7 +24,14 @@ export default {
   },
   methods: {
     startConversation() {
-      if (this.preChatFormEnabled && !this.conversationSize) {
+      // 4.02 — com `pre_chat_form_options.mode === 'flow'` quem faz o pré-chat é o fluxo de
+      // captura, que o servidor entrega como mensagens na conversa. Mandar o visitante para o
+      // formulário clássico aqui o faria responder as MESMAS perguntas duas vezes.
+      if (
+        this.preChatFormEnabled &&
+        !this.isPreChatDelegatedToFlow &&
+        !this.conversationSize
+      ) {
         return this.router.replace({ name: 'prechat-form' });
       }
       return this.router.replace({ name: 'messages' });

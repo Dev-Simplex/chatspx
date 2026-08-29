@@ -114,8 +114,24 @@ RSpec.describe Flows::WidgetPrechatResolver do
       expect(resolve(url: 'https://site.com')).to be_nil
       expect(resolve(url: 'https://site.com', on_inbox: other_widget.inbox)).to eq(escopado)
 
-      escopado.update!(trigger_config: {})
+      # Esvaziar o alvo passa a ser DECLARAR a chave vazia, e nao mandar `trigger_config: {}`:
+      # desde o round-trip do 4.02, quem nao declara a chave nao a apaga (o canvas manda `{}`
+      # porque nao edita segmentacao — ver Flow#preserve_widget_prechat_targeting). `[]` continua
+      # significando "qualquer inbox Website da conta", como diz DEFAULTS.
+      escopado.update!(trigger_config: { 'inbox_ids' => [] })
       expect(resolve(url: 'https://site.com')).to eq(escopado)
+    end
+
+    it 'nao deixa o canvas apagar o escopo ao gravar sem declarar inbox_ids' do
+      other_widget = create(:channel_widget, account: account)
+      delegate_prechat_to_flow!(other_widget)
+      escopado = prechat_flow({ 'inbox_ids' => [other_widget.inbox.id] })
+
+      # o save do canvas: desenho novo, `trigger_config` vazio
+      escopado.update!(trigger_config: {})
+
+      expect(resolve(url: 'https://site.com')).to be_nil
+      expect(resolve(url: 'https://site.com', on_inbox: other_widget.inbox)).to eq(escopado)
     end
   end
 
