@@ -382,3 +382,120 @@ describe('4.04 — o que a tela grava', () => {
     );
   });
 });
+
+/**
+ * Bloco 4.07 — o teaser no preview, com o gatilho SIMULADO.
+ *
+ * `WidgetTeaser.spec.js` monta o balão sozinho e passa. Ele não podia detectar
+ * o defeito real: `Widget.vue` não declarava `teaser` nem `showTeaser` no
+ * `defineProps`, então o Vue DESCARTAVA as duas props que esta tela passa e o
+ * teaser nunca chegava ao DOM — com a suíte inteira verde. Por isso o teste
+ * daqui monta a TELA de verdade (sem stub do preview), liga o interruptor e
+ * exige o balão no DOM.
+ */
+describe('4.07 — o teaser no preview', () => {
+  // A forma é a do schema REAL, não uma inventada para o teste: em
+  // `WidgetAppearanceSchema`, `home_intents` é array de `{ id, label }` com
+  // `required: [id, label]`, `additionalProperties: false`, `id` casando
+  // `^[a-z][a-z0-9_]{0,31}$` e no máximo 4 itens. Um dublê com outro formato
+  // deixaria o preview verde aqui e vazio no cliente.
+  const comIntents = () => {
+    inbox.additional_attributes = {
+      widget_appearance: {
+        home_intents: [
+          { id: 'pricing', label: 'Preços' },
+          { id: 'demo', label: 'Agendar demo' },
+        ],
+      },
+    };
+  };
+
+  const simular = async wrapper => {
+    await wrapper.find('[data-testid="simulate-trigger"]').trigger('click');
+    await flushPromises();
+  };
+
+  it('é o interruptor que decide: desligado o teaser some, ligado ele volta', async () => {
+    // Asserção negativa escrita para NÃO passar no vácuo. Só afirmar "sem
+    // simular não há teaser" logo após montar passaria pelo motivo errado —
+    // `teaserDoPreview` lê o composer por template ref, que ainda é `null` no
+    // primeiro render, e o teste ficaria verde até com o `v-if` do interruptor
+    // arrancado. Aqui o mesmo wrapper prova que o teaser EXISTE (ligado) e que
+    // é o interruptor, e nada mais, que o tira do DOM.
+    comIntents();
+    const wrapper = build();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="teaser-bold"]').exists()).toBe(false);
+
+    await simular(wrapper);
+    expect(wrapper.find('[data-testid="teaser-bold"]').exists()).toBe(true);
+
+    await simular(wrapper);
+    expect(wrapper.find('[data-testid="teaser-bold"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="teaser-discreet"]').exists()).toBe(
+      false
+    );
+  });
+
+  it('simular o gatilho mostra o teaser com texto, remetente, avatar e chips reais', async () => {
+    comIntents();
+    const wrapper = build();
+
+    await simular(wrapper);
+
+    const teaser = wrapper.find('[data-testid="teaser-bold"]');
+    expect(teaser.exists()).toBe(true);
+
+    // o texto é o da campanha vinculada (4.05), não um exemplo inventado
+    expect(teaser.find('[data-testid="teaser-text"]').text()).toBe(
+      'Posso ajudar?'
+    );
+    // sem remetente na campanha, o nome da inbox — como no site do visitante
+    expect(teaser.find('[data-testid="teaser-sender"]').text()).toBe(
+      'Site da Simplex'
+    );
+    expect(teaser.find('[data-testid="teaser-avatar"]').exists()).toBe(true);
+
+    // os chips são os `home_intents` da aparência, as MESMAS opções que o
+    // visitante vê — não há um segundo campo de chips
+    const chips = teaser.find('[data-testid="teaser-chips"]');
+    expect(chips.text()).toContain('Preços');
+    expect(chips.text()).toContain('Agendar demo');
+  });
+
+  it('o preview segue a abordagem escolhida: Discreto tira foto e chips', async () => {
+    comIntents();
+    const wrapper = build();
+
+    await wrapper
+      .find('[data-testid="approach-discreet"] input')
+      .trigger('change');
+    await simular(wrapper);
+
+    expect(wrapper.find('[data-testid="teaser-discreet"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="teaser-bold"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="teaser-chips"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="teaser-avatar"]').exists()).toBe(false);
+  });
+
+  it('o preview não descarta em silêncio nenhuma prop que a tela lhe passa', async () => {
+    // A asserção que faltava. O Vue não QUEBRA quando uma prop não está
+    // declarada: ele avisa no console e segue com `undefined`. Era esse aviso
+    // — 60 vezes nesta suíte — que a tela verde vinha imprimindo.
+    const avisos = [];
+    const espia = vi.spyOn(console, 'warn').mockImplementation((...args) => {
+      avisos.push(args.join(' '));
+    });
+
+    comIntents();
+    await simular(build());
+    espia.mockRestore();
+
+    expect(
+      avisos.filter(aviso =>
+        aviso.includes('was accessed during render but is not defined')
+      )
+    ).toEqual([]);
+  });
+});
