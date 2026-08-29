@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
@@ -34,7 +34,28 @@ const { t } = useI18n();
 const store = useStore();
 
 const campanhas = useMapGetter('campaigns/getLiveChatCampaigns');
+const todasCampanhas = useMapGetter('campaigns/getAllCampaigns');
 const uiFlags = useMapGetter('campaigns/getUIFlags');
+
+/**
+ * Quem CARREGA a campanha. Ler o getter nao busca nada, e nenhuma rota da inbox
+ * despacha `campaigns/get`: em visita direta ou F5 a lista chegava `[]`, a tela
+ * caia no banner "esta caixa ainda nao tem campanha" — falso, com a campanha
+ * existindo no banco — e nao oferecia campo nenhum para editar. O convite virava
+ * letra morta pelo caminho mais comum de chegar nele.
+ *
+ * A guarda evita repetir o GET a cada remontagem do componente (trocar de aba na
+ * configuracao do widget e voltar), e deixa a lista pronta para os outros
+ * consumidores desta mesma tela — a secao "modo antigo" (4.22) le a MESMA lista.
+ * Ela olha `getAllCampaigns` (todos os registros), e nao a lista ja filtrada de
+ * chat ao vivo, porque conta que so tem campanha de disparo tem registros
+ * carregados e nenhuma campanha de chat: filtrar antes de decidir faria a tela
+ * buscar de novo toda vez.
+ */
+onMounted(() => {
+  if (todasCampanhas.value.length || uiFlags.value.isFetching) return;
+  store.dispatch('campaigns/get');
+});
 
 /** A campanha desta inbox — a que o teaser vai mostrar. */
 const vinculada = computed(() =>
@@ -122,7 +143,15 @@ defineExpose({ vinculada, rascunho });
       </div>
     </template>
 
-    <Banner v-else color="slate" data-testid="teaser-empty">
+    <!-- Enquanto a busca esta no ar a tela ainda nao SABE se ha campanha, entao
+      nao afirma nada: o banner so entra depois que a lista chegou. Afirmar
+      "esta caixa ainda nao tem campanha" antes da resposta era metade do defeito
+      deste bloco — a outra metade era a busca que nunca acontecia. -->
+    <Banner
+      v-else-if="!uiFlags.isFetching"
+      color="slate"
+      data-testid="teaser-empty"
+    >
       <span class="text-n-slate-12">
         {{ t('INBOX_WIDGET.TRIGGERS.TEASER.EMPTY') }}
       </span>
