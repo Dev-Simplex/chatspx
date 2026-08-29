@@ -37,6 +37,12 @@ export const PROFILE_SECTIONS = Object.freeze({
   'triggers.segmentation': { support: false, marketing: true },
   'prechat.builder': { support: false, marketing: true },
   'prechat.incompleteLead': { support: false, marketing: true },
+  // Bloco 4.08 — a saida para o WhatsApp e secao de captura: em suporte, quem ja
+  // e cliente e esta num chamado nao deve ser empurrado para outro canal no meio
+  // da conversa (e `WidgetProfile::PROFILE_DEFAULTS` resolve `primaryExit: none`
+  // la). Como toda secao escondida, continua alcancavel pelo link de escape — o
+  // perfil ESCONDE, nunca remove.
+  'prechat.whatsAppExit': { support: false, marketing: true },
   tracking: { support: false, marketing: true },
   csat: { support: true, marketing: false },
   nps: { support: true, marketing: false },

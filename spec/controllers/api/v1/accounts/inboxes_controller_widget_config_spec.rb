@@ -1,7 +1,8 @@
 require 'rails_helper'
 
 # Bloco 3.01 — a UNICA edicao de `inbox_attributes` (o `:217` do plano, `:260` nesta base) declara as
-# quatro chaves de uma vez. O que este spec cobre e a juncao: o `permit` e o merge raso do `#update`.
+# chaves do widget de uma vez (quatro em 3.01, cinco desde 4.08). O que este spec cobre e a juncao:
+# o `permit` e o merge raso do `#update`.
 RSpec.describe 'Inbox widget configuration API', type: :request do
   let(:account) { create(:account) }
   let(:admin) { create(:user, account: account, role: :administrator) }
@@ -211,7 +212,80 @@ RSpec.describe 'Inbox widget configuration API', type: :request do
     end
   end
 
-  describe 'an inbox that never heard of the four keys' do
+  # Bloco 4.08 — a ORIGEM GRAVAVEL do numero da saida para o WhatsApp.
+  #
+  # Ate aqui o widget lia `whatsAppExitNumber` e nada no backend o escrevia: nao havia schema, nao
+  # havia strong param e nao havia campo na tela. O `v-if` do componente nunca passava, o botao
+  # nunca renderizava, e o unico teste que o via fabricava `window.chatwootWebChannel` com uma
+  # chave que producao nao emitia. Este describe cobre a juncao inteira pela rota real.
+  describe 'the WhatsApp exit number over HTTP (4.08)' do
+    it 'persists widget_exit and returns it on the following GET' do
+      patch_inbox(widget_exit: { whatsapp_number: '5565999998888' })
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.widget_exit).to eq({ 'whatsapp_number' => '5565999998888' })
+      expect(stored_attributes['widget_exit']).to eq({ 'whatsapp_number' => '5565999998888' })
+    end
+
+    it 'is read back as digits by the single reader both builders use' do
+      patch_inbox(widget_exit: { whatsapp_number: '5565999998888' })
+
+      expect(inbox.reload.whatsapp_exit_number).to eq('5565999998888')
+    end
+
+    it 'lets the administrator clear the number, turning the exit off' do
+      inbox.update!(widget_exit: { 'whatsapp_number' => '5565999998888' })
+
+      patch_inbox(widget_exit: { whatsapp_number: '' })
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.whatsapp_exit_number).to eq('')
+    end
+
+    it 'answers 422 naming the field for a masked number' do
+      # `wa.me` recusa qualquer coisa que nao seja digito. A tela normaliza antes de mandar; se um
+      # cliente de API mandar a mascara crua, o banco NAO fica com um link quebrado dentro dele.
+      patch_inbox(widget_exit: { whatsapp_number: '+55 (65) 99999-8888' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('widget_exit')
+      expect(response.parsed_body['message']).to include('whatsapp_number')
+      expect(inbox.reload.widget_exit).to be_nil
+    end
+
+    it 'answers 422 for a number that is too short and for one that is too long' do
+      patch_inbox(widget_exit: { whatsapp_number: '1234567' })
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('whatsapp_number')
+
+      patch_inbox(widget_exit: { whatsapp_number: '1234567890123456' })
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['message']).to include('whatsapp_number')
+      expect(inbox.reload.widget_exit).to be_nil
+    end
+
+    it 'answers 422 for a key the schema does not declare public' do
+      # `additionalProperties: false`: este hash e publicado no HTML de toda pagina do site do
+      # cliente, e chave nao declarada nao e ignorada — e recusada antes de virar byte publico.
+      patch_inbox(widget_exit: { whatsapp_number: '5565999998888', whatsapp_token: 'EAAG-nope' })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['attributes']).to include('widget_exit')
+      expect(inbox.reload.widget_exit).to be_nil
+    end
+
+    it 'a partial PATCH of another key does not wipe it' do
+      inbox.update!(widget_exit: { 'whatsapp_number' => '5565999998888' },
+                    widget_appearance: { 'position' => 'left' })
+
+      patch_inbox(widget_appearance: { position: 'right' })
+
+      expect(response).to have_http_status(:success)
+      expect(stored_attributes['widget_exit']).to eq({ 'whatsapp_number' => '5565999998888' })
+    end
+  end
+
+  describe 'an inbox that never heard of the five keys' do
     it 'updates unrelated fields without any of them' do
       patch base_url,
             headers: admin.create_new_auth_token,
@@ -221,7 +295,11 @@ RSpec.describe 'Inbox widget configuration API', type: :request do
       expect(response).to have_http_status(:success)
       expect(inbox.reload.greeting_message).to eq('Olá')
       expect(inbox.additional_attributes.keys).not_to include('widget_profile', 'widget_triggers',
-                                                              'widget_tracking', 'widget_appearance')
+                                                              'widget_tracking', 'widget_appearance', 'widget_exit')
+    end
+
+    it 'still answers an empty exit number, which is what hides the button' do
+      expect(inbox.whatsapp_exit_number).to eq('')
     end
   end
 end

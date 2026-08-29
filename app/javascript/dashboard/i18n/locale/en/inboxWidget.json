@@ -121,6 +121,14 @@
         "OPEN_OLD": "Open the old pre-chat screen",
         "BACK_TO_NEW": "Back to the new pre-chat screen"
       },
+      "WHATSAPP_EXIT": {
+        "TITLE": "WhatsApp exit",
+        "DESCRIPTION": "At the end of the conversation and in the footer, the visitor gets a button to continue on WhatsApp — carrying the site name and the first question they asked. The button only shows on the capture profile, and only with a number configured here.",
+        "LABEL": "WhatsApp number",
+        "PLACEHOLDER": "+55 65 99999-8888",
+        "HELP": "Include the country code. You can paste it formatted: we store digits only.",
+        "INVALID": "A WhatsApp number has {min} to {max} digits, including the country code."
+      },
       "PREVIEW": {
         "EMPTY": "No field is on: the visitor goes straight to the conversation.",
         "START": "Start conversation",
@@ -157,6 +165,7 @@
       "REPLY_TIME": "Reply time",
       "FEATURE_FLAGS": "Widget features",
       "PROFILE": "Inbox profile",
+      "EXIT_WHATSAPP_NUMBER": "WhatsApp exit number",
       "APPEARANCE_THEME": "Theme mode",
       "APPEARANCE_POSITION": "Launcher position",
       "APPEARANCE_OFFSET_X": "Side offset",

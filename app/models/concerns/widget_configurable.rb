@@ -1,14 +1,15 @@
 # O lar da configuracao do widget (bloco 3.01, arbitragem A1 do PLANO-MESTRE).
 #
-# As quatro chaves de topo vivem em `inbox.additional_attributes` — sem coluna nova e sem migration:
+# As CINCO chaves de topo vivem em `inbox.additional_attributes` — sem coluna nova e sem migration:
 #
 #   widget_profile     escalar: "support" | "marketing" (nil e lido como "support", regra A4: sem backfill)
 #   widget_triggers    jsonb: gatilhos e abordagem      (schema em 3.02 + 3.20)
 #   widget_tracking    jsonb: identificadores PUBLICOS  (a projecao entregue ao widget e feita em 3.04)
 #   widget_appearance  jsonb: tema, posicao, lancador   (schema em 3.18)
+#   widget_exit        jsonb: destino da saida do widget (schema em 4.08)
 #
 # Sao chaves de TOPO separadas, e nao um sub-hash unico, porque o merge do `#update` e raso
-# (`inboxes_controller.rb:52-56`): com um `widget_config` unico, um PATCH parcial apagaria as outras tres.
+# (`inboxes_controller.rb:52-56`): com um `widget_config` unico, um PATCH parcial apagaria as outras.
 #
 # Regra dura herdada da A1: NENHUM segredo aqui. Sao DOIS publicos, e cada um por um caminho:
 # `_inbox.json.jbuilder:27` serve o hash INTEIRO a qualquer agente com a inbox atribuida, e
@@ -28,15 +29,16 @@ module WidgetConfigurable
 
   WIDGET_PROFILES = %w[support marketing].freeze
 
-  # As tres chaves que carregam objeto. `widget_profile` e escalar e valida por inclusao.
-  WIDGET_OBJECT_KEYS = %i[widget_triggers widget_tracking widget_appearance].freeze
+  # As quatro chaves que carregam objeto. `widget_profile` e escalar e valida por inclusao.
+  WIDGET_OBJECT_KEYS = %i[widget_triggers widget_tracking widget_appearance widget_exit].freeze
 
   # Bloco 5.01 — a varredura de segredo mora em `WidgetSecretScanner`: e responsabilidade propria,
   # com duas camadas (nome e valor), e aqui fica so a decisao de o que fazer com o achado.
   # A camada principal nao e ela — e o `additionalProperties: false` de cada schema.
 
   included do
-    store_accessor :additional_attributes, :widget_profile, :widget_triggers, :widget_tracking, :widget_appearance
+    store_accessor :additional_attributes, :widget_profile, :widget_triggers, :widget_tracking, :widget_appearance,
+                   :widget_exit
 
     # Regime 1 de A3: o perfil semeia o que nasce agora, e so na CRIACAO. Antes do INSERT, para que
     # o valor semeado passe pelas mesmas validacoes de todo o resto.
@@ -48,6 +50,7 @@ module WidgetConfigurable
     validate :ensure_widget_triggers_match_schema
     validate :ensure_widget_tracking_matches_schema
     validate :ensure_widget_appearance_matches_schema
+    validate :ensure_widget_exit_matches_schema
     validate :ensure_home_intents_are_a_real_choice
     validate :ensure_additional_attributes_fit_the_ceiling
   end
@@ -90,6 +93,12 @@ module WidgetConfigurable
 
   def ensure_widget_appearance_matches_schema
     validate_against_schema(:widget_appearance, WidgetAppearanceSchema::SCHEMA)
+  end
+
+  # Bloco 4.08: o destino da saida. So digitos, porque `wa.me` recusa o resto — a tela normaliza,
+  # e aqui e onde isso vira garantia.
+  def ensure_widget_exit_matches_schema
+    validate_against_schema(:widget_exit, WidgetExitSchema::SCHEMA)
   end
 
   def ensure_home_intents_are_a_real_choice

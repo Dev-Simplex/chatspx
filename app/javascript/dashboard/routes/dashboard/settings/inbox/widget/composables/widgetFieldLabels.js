@@ -13,12 +13,14 @@ import {
   DEFAULT_APPEARANCE,
   DEFAULT_TRIGGERS,
   DEFAULT_TRACKING,
+  DEFAULT_EXIT,
 } from './widgetConfigFields';
 
 const GROUP_SUBFIELDS = {
   appearance: Object.keys(DEFAULT_APPEARANCE),
   triggers: Object.keys(DEFAULT_TRIGGERS),
   tracking: Object.keys(DEFAULT_TRACKING),
+  exit: Object.keys(DEFAULT_EXIT),
 };
 
 /** `appearance.offset_x` -> `INBOX_WIDGET.FIELDS.APPEARANCE_OFFSET_X` */

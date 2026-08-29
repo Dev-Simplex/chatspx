@@ -54,6 +54,12 @@ json.website_channel_config do
   json.widget_triggers @web_widget.inbox.resolved_widget_triggers
   json.widget_tracking @web_widget.inbox.public_widget_tracking
   json.widget_appearance @web_widget.inbox.resolved_widget_appearance
+  # Bloco 4.08 — o gemeo de `whatsAppExitNumber` do `show.html.erb`, pela MESMA leitura
+  # (`Inbox#whatsapp_exit_number`). A paridade aqui e por CHAVE e por VALOR: a canonicalizacao da
+  # suite (`key.delete('_').downcase`) faz `whatsAppExitNumber` e `whatsapp_exit_number` baterem,
+  # e o exemplo de valor impede o caso que a paridade de chave sozinha nao ve — os dois lados
+  # publicando a chave, e um deles publicando vazio.
+  json.whatsapp_exit_number @web_widget.inbox.whatsapp_exit_number
 end
 
 json.contact do
