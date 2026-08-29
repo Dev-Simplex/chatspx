@@ -64,6 +64,21 @@ const props = defineProps({
    */
   preChatEnabled: { type: Boolean, default: false },
   preChatOptions: { type: Object, default: () => ({}) },
+  /**
+   * Bloco 4.07 — o teaser, e o interruptor que o simula.
+   *
+   * Estas duas props JÁ eram passadas pela tela de gatilhos e JÁ eram lidas
+   * pelo template abaixo (`v-if="showTeaser && teaser"`), mas não estavam
+   * declaradas aqui. Prop não declarada não vira prop: o Vue a joga em
+   * `$attrs`, o template lê `undefined` e o teaser nunca renderizava — sem
+   * erro, sem teste vermelho, só um `[Vue warn]` que a suíte verde imprimia
+   * 60 vezes. Declarar é o conserto inteiro.
+   *
+   * `teaser` é `null` quando não há texto (campanha sem mensagem): o objeto
+   * vem pronto de `teaserDoPreview`, e não há forma vazia a montar aqui.
+   */
+  teaser: { type: Object, default: null },
+  showTeaser: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
