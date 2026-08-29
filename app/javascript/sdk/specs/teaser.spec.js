@@ -213,4 +213,49 @@ describe('4.06 — o teaser', () => {
       marcaChamativo
     );
   });
+
+  // ── A ÂNCORA — "o teaser, no host, AO LADO do lançador" ───────────────────
+  //
+  // O lado é dado por UMA classe, `woot-elements--left|right`, e o cartão nascia
+  // sem ela: caía na quina oposta à do lançador. O verificador em Chromium mede
+  // a distância em pixels; aqui mede-se a CAUSA, que é o `className` que este
+  // componente escreve.
+  //
+  // Estes exemplos leem o atributo do nó montado — nunca uma string que o
+  // próprio teste tenha escrito. Era exatamente essa a falha do verificador
+  // antigo: ele fixava `woot-elements--right` na fixture à mão, e por isso
+  // continuava verde com o defeito no ar.
+  const cartaoAncorado = extra => {
+    montar(extra);
+    vi.advanceTimersByTime(9000);
+    rolarAte(0.5);
+    return teaserNoDom();
+  };
+
+  it('ancora no MESMO lado do lançador (position: right)', () => {
+    const cartao = cartaoAncorado({ opcoes: { position: 'right' } });
+
+    expect(cartao.classList.contains('woot-elements--right')).toBe(true);
+    expect(cartao.classList.contains('woot-elements--left')).toBe(false);
+  });
+
+  it('e acompanha o lançador quando a inbox é `left`', () => {
+    const cartao = cartaoAncorado({ opcoes: { position: 'left' } });
+
+    expect(cartao.classList.contains('woot-elements--left')).toBe(true);
+    // As DUAS classes no mesmo elemento seria o pior estado: quem venceria
+    // passaria a ser a ordem das regras no CSS, não a configuração da inbox.
+    expect(cartao.classList.contains('woot-elements--right')).toBe(false);
+  });
+
+  it('sem `position` ancora à direita — nunca `--undefined`', () => {
+    // O padrão de fábrica (`entrypoints/sdk.js`) é `right`. O que este exemplo
+    // protege é o modo SILENCIOSO de falhar: `woot-elements--undefined` não casa
+    // com regra nenhuma de CSS, então o cartão voltaria à quina oposta sem um
+    // único erro no console.
+    const cartao = cartaoAncorado({});
+
+    expect(cartao.className).not.toContain('undefined');
+    expect(cartao.classList.contains('woot-elements--right')).toBe(true);
+  });
 });

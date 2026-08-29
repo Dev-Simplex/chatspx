@@ -33,7 +33,10 @@ describe('4.19 e 4.20 — a escada da abordagem', { timeout: 30_000 }, () => {
   let aberturas;
   let enviados;
 
-  const bootHost = async (gatilhos, { largura = 1280 } = {}) => {
+  const bootHost = async (
+    gatilhos,
+    { largura = 1280, posicao = 'right' } = {}
+  ) => {
     vi.resetModules();
     document.body.innerHTML = '';
     holder = document.createElement('div');
@@ -50,7 +53,7 @@ describe('4.19 e 4.20 — a escada da abordagem', { timeout: 30_000 }, () => {
     window.innerHeight = 1000;
     window.scrollY = 0;
 
-    window.$chatwoot = { baseDomain: undefined, position: 'right' };
+    window.$chatwoot = { baseDomain: undefined, position: posicao };
     window.chatwootWebChannel = { ...CANAL, widgetTriggers: gatilhos };
     window.matchMedia = consulta => ({
       matches:
@@ -296,5 +299,32 @@ describe('4.19 e 4.20 — a escada da abordagem', { timeout: 30_000 }, () => {
       .map(e => e.etapa);
     expect(etapas).toEqual(['shown', 'opened']);
     expect(enviados.at(-1).approach).toBe('aggressive');
+  });
+
+  // ── 4.06, a ancoragem — e por que ela é cobrada AQUI ───────────────────────
+  //
+  // `teaser.spec.js` chama `montarTeaser` passando `position` na mão, então ele
+  // prova que o COMPONENTE sabe ancorar — e continuaria verde se
+  // `montarTeaserSeConfigurado` parasse de repassar o campo. Este arquivo boota o
+  // `IFrameHelper` de verdade e só escreve `window.$chatwoot`, que é o que o host
+  // tem: é o único lugar onde "o lado configurado na inbox chega ao cartão" é uma
+  // afirmação sobre a ligação inteira, e não sobre um argumento que o próprio
+  // teste escolheu.
+  it('4.06: o lado do lançador chega ao cartão pela ponte do host', async () => {
+    await bootHost({ enabled: true, approach: 'bold' }, { posicao: 'left' });
+    dispararGatilho();
+
+    // O lançador lê `window.$chatwoot.position` em `createBubbleIcon`; o cartão
+    // tem de ler o MESMO valor, ou nasce na quina oposta.
+    expect(cartao().classList.contains('woot-elements--left')).toBe(true);
+    expect(cartao().classList.contains('woot-elements--right')).toBe(false);
+  });
+
+  it('4.06: e à direita quando a inbox é `right`', async () => {
+    await bootHost({ enabled: true, approach: 'bold' }, { posicao: 'right' });
+    dispararGatilho();
+
+    expect(cartao().classList.contains('woot-elements--right')).toBe(true);
+    expect(cartao().className).not.toContain('undefined');
   });
 });

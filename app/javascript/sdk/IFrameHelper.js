@@ -247,12 +247,20 @@ export const IFrameHelper = {
     // O host não recalcula política — consome a decisão, como no 1.03 com a cor.
     const abordagem = IFrameHelper.nivelDeAbordagem(gatilhos);
     IFrameHelper.abordagem = abordagem;
-    const { baseDomain } = window.$chatwoot;
+    // `position` sai do MESMO objeto, no MESMO instante, que o lançador
+    // (`createBubbleIcon`, `bubbleHelpers.js:210`), o holder do painel
+    // (`holderClassName`, acima) e o botão de fechar leem. É por isso que o
+    // teaser não pode mais discordar de nenhum dos três: quatro leitores, uma
+    // fonte. E a ordem já estava garantida — `applyAppearance` roda ANTES do
+    // `onLoad`, que é o único chamador daqui, então o valor lido aqui já é o do
+    // banco com o override do site por cima.
+    const { baseDomain, position } = window.$chatwoot;
 
     IFrameHelper.desmontarTeaser = montarTeaser({
       holder,
       canal,
       nivel: abordagem.nivel,
+      position,
       baseDomain,
       aoAbrir: () => {
         IFrameHelper.events.toggleBubble('open');
