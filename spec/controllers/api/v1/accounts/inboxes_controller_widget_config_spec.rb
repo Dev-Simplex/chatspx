@@ -267,7 +267,15 @@ RSpec.describe 'Inbox widget configuration API', type: :request do
     it 'answers 422 for a key the schema does not declare public' do
       # `additionalProperties: false`: este hash e publicado no HTML de toda pagina do site do
       # cliente, e chave nao declarada nao e ignorada — e recusada antes de virar byte publico.
-      patch_inbox(widget_exit: { whatsapp_number: '5565999998888', whatsapp_token: 'EAAG-nope' })
+      #
+      # A chave e INOCENTE de proposito. Ate aqui este exemplo mandava `whatsapp_token`, e com ela
+      # passava sem medir o schema: nome terminado em `_token` casa com `SECRET_KEY_PATTERN` e cai
+      # na varredura por NOME de 5.01 (`ensure_no_secret_in_widget_config`), que roda ANTES e ja
+      # devolve 422 sozinha. Medido: com `additionalProperties` em `true`, os 27 exemplos deste
+      # arquivo continuavam verdes. Quem cobre aquela camada e o exemplo do `access_token` em
+      # `widget_tracking`, acima; este aqui cobre o schema fechado, e so uma chave que a varredura
+      # NAO pega consegue cobri-lo.
+      patch_inbox(widget_exit: { whatsapp_number: '5565999998888', label: 'Fale conosco' })
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.parsed_body['attributes']).to include('widget_exit')
