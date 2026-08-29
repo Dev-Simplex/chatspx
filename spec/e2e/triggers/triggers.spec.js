@@ -10,14 +10,21 @@ const AxeBuilder = require('@axe-core/playwright').default;
  * abre de fato, e se os avisos aparecem legiveis nos dois temas do painel.
  */
 
-const abrir = async (page, { theme = 'light', stored = '' } = {}) => {
+const abrir = async (
+  page,
+  { theme = 'light', stored = '', profile = '' } = {}
+) => {
   const erros = [];
   page.on('console', msg => {
     if (msg.type() === 'error') erros.push(msg.text());
   });
   page.on('pageerror', erro => erros.push(erro.message));
 
-  await page.goto(`/triggers?theme=${theme}${stored ? '&stored=1' : ''}`);
+  await page.goto(
+    `/triggers?theme=${theme}${stored ? '&stored=1' : ''}${
+      profile ? `&profile=${profile}` : ''
+    }`
+  );
   await page.waitForSelector('[data-testid="approach-bold"]');
   return erros;
 };
@@ -114,49 +121,141 @@ const rgb = texto => texto.match(/\d+/g).slice(0, 3).map(Number);
       );
     });
 
-    test('axe-core não acusa violação crítica ou séria', async ({ page }) => {
-      await abrir(page, { theme });
+    /**
+     * Bloco 4.04 / T3.2 e T3.5 — os controles que este bloco acrescentou, num
+     * navegador de verdade e nos DOIS temas.
+     *
+     * O axe do teste seguinte roda no perfil PADRAO, onde a segmentacao nao
+     * esta na tela: sem este `profile=marketing`, os radios de visitante e as
+     * linhas de UTM nunca eram varridos por ninguem — e a advertencia do bloco
+     * era exatamente essa, que cartao/radio novo nasce sem nome acessivel.
+     */
+    test('os controles novos existem, e o de largura só aparece com a regra ligada', async ({
+      page,
+    }) => {
+      await abrir(page, { theme, profile: 'marketing' });
 
-      const { violations } = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa'])
-        .analyze();
+      await expect(
+        page.locator('[data-testid="suppress-field"]')
+      ).toBeVisible();
+      await expect(page.locator('[data-testid="visitor-field"]')).toBeVisible();
+      await expect(page.locator('[data-testid="utm-add"]')).toBeVisible();
 
-      /*
-       * A MESMA divida de painel que `spec/e2e/appearance/appearance.spec.js` ja nomeia, e
-       * pelo mesmo motivo — nao e desta tela e corrigi-la aqui seria remendo local:
-       *
-       *  · `text-n-blue-11` — no fork este token vale o VERDE da marca, e como TEXTO da
-       *    #2dc46f sobre #f0f2f5 = 2,02:1. E literalmente a doenca que o medidor de contraste
-       *    do painel denuncia, dentro do proprio painel.
-       *  · `scale-[0.98]` — mesma cor, no estado pressionado.
-       *
-       * A excecao e NOMEADA uma a uma, com o seletor: qualquer violacao nova, ou uma destas
-       * em outro seletor, continua reprovando. Foi assim que as CINCO violacoes de `label`
-       * desta tela apareceram (#approach-discreet/-bold/-aggressive, #mode-recommended/
-       * -advanced): o radio do RadioCard nao tinha nome acessivel nenhum, e o leitor de tela
-       * anunciava so "botao de opcao". Essas eram do bloco e foram corrigidas na raiz, no
-       * componente, com aria-labelledby.
-       *
-       * A divida do verde-como-texto fica registrada como aberta, com dono no coordenador.
-       */
-      const HERDADAS_DO_PAINEL = [
-        { id: 'color-contrast', alvo: /text-n-blue-11|scale-/ },
-      ];
+      await expect(
+        page.locator('input[data-testid="suppress-min-width"]')
+      ).toHaveCount(0);
+      await page.click('[data-testid="suppress-narrow-screen"]');
+      await expect(
+        page.locator('input[data-testid="suppress-min-width"]')
+      ).toHaveValue('768');
+    });
 
-      const graves = violations
-        .filter(v => ['critical', 'serious'].includes(v.impact))
-        .flatMap(v =>
-          v.nodes.map(no => ({ id: v.id, alvo: no.target.join(' ') }))
-        )
-        .filter(
-          item =>
-            !HERDADAS_DO_PAINEL.some(
-              h => h.id === item.id && h.alvo.test(item.alvo)
-            )
-        )
-        .map(item => `${item.id} @ ${item.alvo}`);
+    test('o aviso de horário não configurado aparece e é legível', async ({
+      page,
+    }) => {
+      await abrir(page, { theme, profile: 'marketing' });
+      await page.click('[data-testid="suppress-business-hours"]');
 
-      expect(graves).toEqual([]);
+      const aviso = page.locator('[data-testid="business-hours-missing"]');
+      await expect(aviso).toBeVisible();
+      await expect(aviso).toContainText('horário de atendimento');
+
+      const cores = await aviso.evaluate(el => {
+        const noComTexto = el.querySelector('span') ?? el;
+        const fundoDe = alvo => {
+          let atual = alvo;
+          while (atual) {
+            const cor = getComputedStyle(atual).backgroundColor;
+            if (cor && !/rgba\(0, 0, 0, 0\)|transparent/.test(cor)) return cor;
+            atual = atual.parentElement;
+          }
+          return 'rgb(255, 255, 255)';
+        };
+        return {
+          texto: getComputedStyle(noComTexto).color,
+          fundo: fundoDe(noComTexto),
+        };
+      });
+      expect(contraste(rgb(cores.texto), rgb(cores.fundo))).toBeGreaterThan(
+        4.5
+      );
+    });
+
+    test('cada rádio de visitante tem NOME acessível — não só "botão de opção"', async ({
+      page,
+    }) => {
+      await abrir(page, { theme, profile: 'marketing' });
+
+      const nomes = await page.evaluate(() =>
+        ['any', 'new', 'returning'].map(kind => {
+          const radio = document.querySelector(
+            `[data-testid="visitor-${kind}"]`
+          );
+          const rotulo = document.querySelector(`label[for="${radio.id}"]`);
+          return {
+            kind,
+            nome: rotulo ? rotulo.textContent.trim() : '',
+            grupo: radio.name,
+          };
+        })
+      );
+
+      nomes.forEach(({ nome }) => expect(nome.length).toBeGreaterThan(3));
+      // e os tres sao UMA pergunta: mesmo `name`, senao o navegador deixa os
+      // tres marcados ao mesmo tempo
+      expect(new Set(nomes.map(n => n.grupo)).size).toBe(1);
+    });
+
+    // Roda nos DOIS perfis: no padrao, e no de marketing — que e o unico em
+    // que a segmentacao (UTM, visitante, dispositivos) esta na tela para ser
+    // varrida. Um scan que nao alcanca o componente nao aprova o componente.
+    ['', 'marketing'].forEach(profile => {
+      test(`axe-core não acusa violação crítica ou séria${
+        profile ? ` — perfil ${profile}` : ''
+      }`, async ({ page }) => {
+        await abrir(page, { theme, profile });
+
+        const { violations } = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa'])
+          .analyze();
+
+        /*
+         * A MESMA divida de painel que `spec/e2e/appearance/appearance.spec.js` ja nomeia, e
+         * pelo mesmo motivo — nao e desta tela e corrigi-la aqui seria remendo local:
+         *
+         *  · `text-n-blue-11` — no fork este token vale o VERDE da marca, e como TEXTO da
+         *    #2dc46f sobre #f0f2f5 = 2,02:1. E literalmente a doenca que o medidor de contraste
+         *    do painel denuncia, dentro do proprio painel.
+         *  · `scale-[0.98]` — mesma cor, no estado pressionado.
+         *
+         * A excecao e NOMEADA uma a uma, com o seletor: qualquer violacao nova, ou uma destas
+         * em outro seletor, continua reprovando. Foi assim que as CINCO violacoes de `label`
+         * desta tela apareceram (#approach-discreet/-bold/-aggressive, #mode-recommended/
+         * -advanced): o radio do RadioCard nao tinha nome acessivel nenhum, e o leitor de tela
+         * anunciava so "botao de opcao". Essas eram do bloco e foram corrigidas na raiz, no
+         * componente, com aria-labelledby.
+         *
+         * A divida do verde-como-texto fica registrada como aberta, com dono no coordenador.
+         */
+        const HERDADAS_DO_PAINEL = [
+          { id: 'color-contrast', alvo: /text-n-blue-11|scale-/ },
+        ];
+
+        const graves = violations
+          .filter(v => ['critical', 'serious'].includes(v.impact))
+          .flatMap(v =>
+            v.nodes.map(no => ({ id: v.id, alvo: no.target.join(' ') }))
+          )
+          .filter(
+            item =>
+              !HERDADAS_DO_PAINEL.some(
+                h => h.id === item.id && h.alvo.test(item.alvo)
+              )
+          )
+          .map(item => `${item.id} @ ${item.alvo}`);
+
+        expect(graves).toEqual([]);
+      });
     });
   });
 });

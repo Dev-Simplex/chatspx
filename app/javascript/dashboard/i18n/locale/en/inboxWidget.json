@@ -427,7 +427,8 @@
         "MODE": "Mode",
         "TRIGGERS": "Triggers",
         "FREQUENCY": "Frequency",
-        "AUDIENCE": "Where it shows"
+        "AUDIENCE": "Where it shows",
+        "SUPPRESS": "When it should stay quiet"
       },
       "MODE": {
         "RECOMMENDED": {
@@ -529,7 +530,32 @@
           "MOBILE": "Mobile"
         },
         "DEVICE_EMPTY": "Pick at least one device — with none, the invitation shows nowhere.",
-        "REMOVE": "Remove"
+        "REMOVE": "Remove",
+        "UTM": {
+          "LABEL": "Traffic source (UTM)",
+          "HINT": "Applies to visitors who arrived through a link carrying these parameters. Leave it empty to apply to any source.",
+          "PARAM_LABEL": "Parameter",
+          "VALUE_LABEL": "Parameter value",
+          "PLACEHOLDER": "newsletter",
+          "ADD": "Add parameter",
+          "TOO_MANY": "At most {max} parameters.",
+          "PARAMS": {
+            "UTM_SOURCE": "source",
+            "UTM_MEDIUM": "medium",
+            "UTM_CAMPAIGN": "campaign",
+            "UTM_TERM": "term",
+            "UTM_CONTENT": "content"
+          }
+        },
+        "VISITOR": {
+          "LABEL": "Visitor",
+          "HINT": "Returning visitors are recognised by a cookie on the site itself — not by sign-up or login.",
+          "KINDS": {
+            "ANY": "Any visitor",
+            "NEW": "First-time visitors only",
+            "RETURNING": "Returning visitors only"
+          }
+        }
       },
       "TEASER": {
         "SECTION": "Invitation message",
@@ -553,6 +579,18 @@
         "IMPORTED": "Campaign imported as a trigger. It was disabled — the two are never on at the same time.",
         "IMPORT_ERROR": "Could not import this campaign.",
         "UNNAMED": "untitled"
+      },
+      "SUPPRESS": {
+        "HINT": "Even with the right trigger, there are moments when the invitation gets in the way. Nothing here is on by default.",
+        "COOKIE_BANNER": "While the cookie notice is on screen",
+        "COOKIE_BANNER_HINT": "Visitors have to answer the cookie notice before anything else. Two stacked prompts are just one nuisance.",
+        "NARROW_SCREEN": "On narrow screens",
+        "NARROW_SCREEN_HINT": "Below this width the panel takes over the whole screen, and the invitation covers what the visitor was reading.",
+        "MIN_WIDTH": "Minimum screen width",
+        "MIN_WIDTH_UNIT": "pixels",
+        "BUSINESS_HOURS": "Outside business hours",
+        "BUSINESS_HOURS_HINT": "Uses the business hours set on this inbox. Inviting someone to chat when nobody is there to answer creates a wait the visitor never asked for.",
+        "BUSINESS_HOURS_MISSING": "This inbox has no business hours configured yet, so this rule will never hold the invitation back. Set the hours in the inbox settings for it to take effect."
       }
     },
     "TRACKING": {

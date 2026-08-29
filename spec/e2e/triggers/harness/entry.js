@@ -35,11 +35,27 @@ const gravado = parametros.get('stored')
     }
   : undefined;
 
+/**
+ * `?profile=marketing` liga o perfil que MOSTRA a segmentacao.
+ *
+ * Sem ele a secao "onde aparecer" nao existe na tela — ela e de marketing desde
+ * o bloco 3.07 (`PROFILE_SECTIONS['triggers.segmentation']`) — e o axe passava
+ * por cima dos controles de UTM e de visitante sem ve-los. Um scan que nao
+ * alcanca o componente nao diz nada sobre ele.
+ */
+const perfil = parametros.get('profile');
+
 const inbox = {
   id: 7,
   name: 'Site da Simplex',
   widget_color: '#2dc46f',
-  additional_attributes: gravado ? { widget_triggers: gravado } : {},
+  // `working_hours_enabled` decide o aviso de T3.5: falso e o estado da caixa
+  // recem-criada, que e onde o aviso PRECISA aparecer.
+  working_hours_enabled: false,
+  additional_attributes: {
+    ...(gravado ? { widget_triggers: gravado } : {}),
+    ...(perfil ? { widget_profile: perfil } : {}),
+  },
 };
 
 /**

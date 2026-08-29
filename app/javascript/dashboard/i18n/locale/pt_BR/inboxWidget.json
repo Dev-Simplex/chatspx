@@ -427,7 +427,8 @@
         "MODE": "Modo",
         "TRIGGERS": "Gatilhos",
         "FREQUENCY": "Frequência",
-        "AUDIENCE": "Onde aparecer"
+        "AUDIENCE": "Onde aparecer",
+        "SUPPRESS": "Quando não aparecer"
       },
       "MODE": {
         "RECOMMENDED": {
@@ -529,7 +530,32 @@
           "MOBILE": "Celular"
         },
         "DEVICE_EMPTY": "Escolha ao menos um dispositivo — sem nenhum, o convite não aparece em lugar nenhum.",
-        "REMOVE": "Remover"
+        "REMOVE": "Remover",
+        "UTM": {
+          "LABEL": "Campanha de origem (UTM)",
+          "HINT": "Vale para quem chegou por um link com estes parâmetros. Deixe em branco para valer para qualquer origem.",
+          "PARAM_LABEL": "Parâmetro",
+          "VALUE_LABEL": "Valor do parâmetro",
+          "PLACEHOLDER": "newsletter",
+          "ADD": "Adicionar parâmetro",
+          "TOO_MANY": "No máximo {max} parâmetros.",
+          "PARAMS": {
+            "UTM_SOURCE": "origem",
+            "UTM_MEDIUM": "mídia",
+            "UTM_CAMPAIGN": "campanha",
+            "UTM_TERM": "termo",
+            "UTM_CONTENT": "conteúdo"
+          }
+        },
+        "VISITOR": {
+          "LABEL": "Visitante",
+          "HINT": "Quem já esteve no site antes é reconhecido por um cookie do próprio site — não por cadastro nem por login.",
+          "KINDS": {
+            "ANY": "Qualquer visitante",
+            "NEW": "Só quem chega pela primeira vez",
+            "RETURNING": "Só quem já esteve aqui"
+          }
+        }
       },
       "TEASER": {
         "SECTION": "Mensagem do convite",
@@ -553,6 +579,18 @@
         "IMPORTED": "Campanha importada como gatilho. Ela foi desativada — as duas nunca ficam ligadas ao mesmo tempo.",
         "IMPORT_ERROR": "Não foi possível importar esta campanha.",
         "UNNAMED": "sem título"
+      },
+      "SUPPRESS": {
+        "HINT": "Mesmo com o gatilho certo, há momentos em que o convite atrapalha mais do que ajuda. Nada aqui vem ligado.",
+        "COOKIE_BANNER": "Enquanto o aviso de cookies estiver na tela",
+        "COOKIE_BANNER_HINT": "O visitante é obrigado a responder o aviso de cookies antes de qualquer outra coisa. Dois convites empilhados viram um só estorvo.",
+        "NARROW_SCREEN": "Em telas estreitas",
+        "NARROW_SCREEN_HINT": "Abaixo desta largura o painel ocupa a tela inteira, e o convite passa a cobrir o que o visitante estava lendo.",
+        "MIN_WIDTH": "Largura mínima da tela",
+        "MIN_WIDTH_UNIT": "pixels",
+        "BUSINESS_HOURS": "Fora do horário de atendimento",
+        "BUSINESS_HOURS_HINT": "Usa o horário configurado nesta caixa de entrada. Convidar para conversar quando não há ninguém para responder cria a espera que o visitante não pediu.",
+        "BUSINESS_HOURS_MISSING": "Esta caixa de entrada ainda não tem horário de atendimento configurado, então esta regra não vai calar o convite em nenhum momento. Configure o horário nas definições da caixa para ela passar a valer."
       }
     },
     "TRACKING": {

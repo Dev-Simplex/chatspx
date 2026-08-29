@@ -5,11 +5,15 @@ import {
   APPROACHES,
   DEFAULT_APPROACH,
   DEFAULT_DEGRADE_ON_RETURN,
+  DEFAULT_MIN_VIEWPORT_WIDTH,
+  DEFAULT_VISITOR,
   DEVICES,
   MOBILE_APPROACHES,
   TRIGGER_IDS,
   TRIGGER_LIMITS,
   URL_OPERATORS,
+  UTM_PARAMS,
+  VISITOR_KINDS,
   resolveMobileApproach,
 } from '../widgetTriggersContract';
 
@@ -101,6 +105,72 @@ describe('a tela e o servidor concordam sobre os gatilhos', () => {
     expect(TRIGGER_LIMITS.maxTriggers).toBe(
       numeroRuby("'triggers' => \\{ 'type' => 'array', 'maxItems' => ([\\d_]+)")
     );
+  });
+
+  /**
+   * Bloco 4.04 — a segmentacao por UTM e por visitante (T3.2).
+   *
+   * Estes dois campos sao os que a tela ESCREVE, e o schema fechou a lista dos
+   * dois lados. Se alguem acrescentar `gclid` a tela sem acrescenta-lo ao Ruby,
+   * o PATCH inteiro volta 422 e a tela diz "salvo" — este teste cai antes.
+   */
+  it('os cinco parâmetros de UTM são os mesmos dos dois lados', () => {
+    expect(UTM_PARAMS).toEqual(listaRuby('UTM_PARAMS'));
+    // e o schema os declara NOMINALMENTE, com `additionalProperties: false`:
+    // uma lista de constantes que o schema nao usa nao recusa nada
+    const blocoUtm = /'utm' => \{[\s\S]*?\n {6}\},/.exec(schemaRuby)[0];
+    expect(blocoUtm).toContain('UTM_PARAMS.index_with');
+    expect(blocoUtm).toContain("'additionalProperties' => false");
+  });
+
+  it('os tipos de visitante são os mesmos, e o default é a ausência de filtro', () => {
+    expect(VISITOR_KINDS).toEqual(listaRuby('VISITOR_KINDS'));
+    expect(DEFAULT_VISITOR).toBe(
+      /DEFAULT_VISITOR = '([a-z]+)'/.exec(schemaRuby)[1]
+    );
+    // `any` nao e um valor a mais: e o unico que nao esconde o convite de
+    // ninguem, e por isso e o que a inbox sem configuracao herda
+    expect(DEFAULT_VISITOR).toBe('any');
+  });
+
+  /**
+   * Bloco 4.04 — "quando nao aparecer" (T3.5). O corte de largura e o
+   * breakpoint UNICO do widget: se os dois numeros se separarem, a tela promete
+   * um corte que o widget nao faz.
+   */
+  it('o corte de largura e o teto são os do servidor', () => {
+    expect(DEFAULT_MIN_VIEWPORT_WIDTH).toBe(
+      numeroRuby('DEFAULT_MIN_VIEWPORT_WIDTH = ([\\d_]+)')
+    );
+    expect(TRIGGER_LIMITS.viewportWidthMax).toBe(
+      numeroRuby('MAX_VIEWPORT_WIDTH = ([\\d_]+)')
+    );
+  });
+
+  it('as três regras de supressão que a tela mostra são as três que o schema aceita', () => {
+    const blocoSupressao = schemaRuby.slice(
+      schemaRuby.indexOf('  SUPPRESS_SCHEMA = {'),
+      schemaRuby.indexOf('  PLATFORM_SCHEMA = {')
+    );
+    const chaves = [...blocoSupressao.matchAll(/^ {6}'([a-z_]+)' => /gm)].map(
+      ([, chave]) => chave
+    );
+
+    expect(chaves).toEqual([
+      'cookie_banner',
+      'min_viewport_width',
+      'outside_business_hours',
+    ]);
+    expect(blocoSupressao).toContain("'additionalProperties' => false");
+  });
+
+  it('`suppress` é chave do TOPO — dentro de `audience` o PATCH voltaria 422', () => {
+    const blocoSchema = schemaRuby.slice(schemaRuby.indexOf('  SCHEMA = {'));
+    const chavesDoTopo = [
+      ...blocoSchema.matchAll(/^ {6}'([a-z_]+)' => /gm),
+    ].map(([, chave]) => chave);
+
+    expect(chavesDoTopo).toContain('suppress');
   });
 
   it('a tela resolve a abordagem do celular como o servidor resolve', () => {
