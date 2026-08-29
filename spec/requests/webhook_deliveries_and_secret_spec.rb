@@ -111,6 +111,29 @@ RSpec.describe 'webhooks: entregas, replay e segredo', type: :request do
       expect(response.parsed_body['delivery_id']).to eq('entrega-42')
     end
 
+    # O exemplo acima para na fronteira do job: prova que o id foi ENTREGUE ao WebhookJob.
+    # O aceite fala do que CHEGA no destino. Aqui o job roda de verdade e quem e dublado e
+    # so o socket, entao o cabecalho medido e o mesmo que sai em producao.
+    it 'o cabecalho que SAI no reenvio tem o mesmo X-Chatwoot-Delivery' do
+      cabecalhos = nil
+      allow(SafeFetch).to receive(:fetch) do |_url, **opcoes, &bloco|
+        cabecalhos = opcoes[:headers]
+        bloco.call(instance_double(SafeFetch::Result))
+      end
+
+      # `only:` porque a fabrica do usuario enfileira o download do avatar, e roda-lo aqui
+      # so acrescentaria uma chamada de rede que nao tem nada a ver com o reenvio.
+      perform_enqueued_jobs(only: WebhookJob) do
+        post "/api/v1/accounts/#{account.id}/webhooks/#{webhook.id}/replay",
+             params: { delivery_id: falhada.id }, headers: admin.create_new_auth_token, as: :json
+      end
+
+      expect(cabecalhos['X-Chatwoot-Delivery']).to eq('entrega-42')
+      expect(cabecalhos['X-Chatwoot-Signature']).to be_present
+      # E o reenvio bem-sucedido fecha o ciclo na tela: a linha deixa de estar falhada.
+      expect(falhada.reload.status).to eq('delivered')
+    end
+
     it 'o reenvio conta a tentativa em vez de criar outra entrega' do
       allow(WebhookJob).to receive(:perform_later)
 

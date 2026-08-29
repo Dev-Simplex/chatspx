@@ -142,6 +142,20 @@ purge_expired_bulk_downloads_job:
   class: 'Attachments::PurgeBulkDownloadsJob'
   queue: housekeeping
 
+# executed daily at 0320 UTC (entre o purge de blobs orfaos das 03:00 e o de downloads das 04:00)
+# Bloco 4.14 — retencao de 7 dias do log de entregas de webhook. O job existia desde o
+# daaa6b139e e NUNCA foi enfileirado: o unico chamador era o `perform_now` do proprio spec,
+# entao a tabela `webhook_deliveries` crescia sem teto na frota com a suite verde.
+# Diario, e nao semanal, porque com retencao de 7 dias um cron semanal deixaria a linha
+# viver ate 14. A fila e `scheduled_jobs` e nao `low` pelo que este mesmo arquivo registra
+# em `waha_refresh_groups_job` (":low quase nunca drenava" em producao); o `queue_as` da
+# classe acompanha, porque sidekiq-cron 2.4.0 (job.rb:174) enfileira com
+# `set(queue: <fila do schedule>)` e a fila daqui vence a declarada na classe.
+webhook_delivery_cleanup_job:
+  cron: '20 3 * * *'
+  class: 'Webhooks::DeliveryCleanupJob'
+  queue: scheduled_jobs
+
 # executed hourly (minuto 7 p/ evitar o topo da hora)
 # eval LLM-as-a-Judge: avalia atendimentos (IA e humanos) das contas com
 # custom_attributes['eval_enabled']. NO-OP nas contas sem a flag.
