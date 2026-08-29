@@ -21,6 +21,9 @@ import DashboardKpiStrip from './components/DashboardKpiStrip.vue';
 import ResolveGateToggle from './components/ResolveGateToggle.vue';
 import TakeoverGateToggle from './components/TakeoverGateToggle.vue';
 import DensityToggle from './components/DensityToggle.vue';
+// Bloco 4.18 — as quatro decisoes do lead incompleto. Sem esta linha as configuracoes
+// existem, tem endpoint e ninguem alcanca: "configuravel por console" nao e configuravel.
+import PartialLeadSettings from './components/PartialLeadSettings.vue';
 import SectionLayout from './components/SectionLayout.vue';
 
 export default {
@@ -37,6 +40,7 @@ export default {
     ResolveGateToggle,
     TakeoverGateToggle,
     DensityToggle,
+    PartialLeadSettings,
     SectionLayout,
     WithLabel,
     NextInput,
@@ -254,6 +258,7 @@ export default {
     <AttendanceModeToggle />
     <ResolveGateToggle />
     <TakeoverGateToggle />
+    <PartialLeadSettings />
     <DensityToggle />
     <AccountId />
     <div v-if="!uiFlags.isFetchingItem && isOnChatwootCloud">

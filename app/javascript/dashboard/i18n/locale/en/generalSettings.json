@@ -179,6 +179,27 @@
           "ERROR": "Couldn't update, please try again"
         }
       },
+      "PARTIAL_LEAD": {
+        "TITLE": "Save incomplete lead",
+        "NOTE": "If someone answers at least one contact field (email or WhatsApp) in the pre-chat and then leaves, the contact is created anyway, flagged as incomplete, with the step they stopped at. Without this they disappear without a trace. Applies to every inbox in this account.",
+        "ABANDON_AFTER": {
+          "LABEL": "Time before considering it abandoned (minutes)",
+          "HELP": "Counted from the last answer. Between 1 and 1440."
+        },
+        "RETENTION": {
+          "LABEL": "Partial record retention (days)",
+          "HELP": "After this period the partial answer is deleted. Between 1 and 365."
+        },
+        "LABEL": {
+          "LABEL": "Label the contact as",
+          "HELP": "Makes it easy to filter the queue. Leave blank to skip labelling."
+        },
+        "LGPD": "Someone who abandons the pre-chat completed nothing and therefore consented to nothing: the partial answer is deleted after {days} days.",
+        "API": {
+          "SUCCESS": "Incomplete lead settings updated",
+          "ERROR": "Failed to update incomplete lead settings"
+        }
+      },
       "RESOLVE_GATE": {
         "TITLE": "Mandatory assignment to resolve",
         "NOTE": "Only the assigned agent can resolve a conversation. Anyone else is asked to assign it to themselves before resolving.",

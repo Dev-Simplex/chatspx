@@ -21,4 +21,22 @@ RSpec.context 'with valid schedule.yml' do
     # ensure that no duplicates exist
     expect(schedule_keys.count).to eq(schedule_keys.uniq.count)
   end
+
+  # A entrada existir nao basta: ela tem de APONTAR para uma classe que existe. O sidekiq-cron
+  # carrega o arquivo e, com um nome que nao resolve, o job simplesmente nunca roda — sem erro
+  # de boot e sem nada vermelho. E a mesma classe de defeito do bloco 4.14 (job escrito, cron
+  # ausente) vista pelo outro lado: cron presente, classe ausente. Medido: trocar UMA linha por
+  # um nome inexistente derruba este exemplo, nomeando a chave.
+  it 'aponta apenas para classes que existem' do
+    schedule = YAML.load_file(Rails.root.join('config/schedule.yml'))
+
+    orfas = schedule.filter_map do |key, entry|
+      klass = entry['class']
+      next if klass.blank?
+
+      key unless klass.safe_constantize
+    end
+
+    expect(orfas).to be_empty, "entradas de schedule.yml sem classe: #{orfas.join(', ')}"
+  end
 end

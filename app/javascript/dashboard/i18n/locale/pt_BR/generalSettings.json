@@ -171,6 +171,27 @@
           "ERROR": "Não foi possível atualizar, tente novamente"
         }
       },
+      "PARTIAL_LEAD": {
+        "TITLE": "Salvar lead incompleto",
+        "NOTE": "Se a pessoa responder ao menos um contato (e-mail ou WhatsApp) no pré-chat e sumir, o contato é criado assim mesmo, marcado como incompleto, com a etapa em que ela parou. Sem isso, ela some sem deixar rastro. Vale para todas as caixas de entrada desta conta.",
+        "ABANDON_AFTER": {
+          "LABEL": "Tempo até considerar abandonado (minutos)",
+          "HELP": "Contado a partir da última resposta. Entre 1 e 1440."
+        },
+        "RETENTION": {
+          "LABEL": "Retenção do registro parcial (dias)",
+          "HELP": "Depois desse prazo a resposta parcial é apagada. Entre 1 e 365."
+        },
+        "LABEL": {
+          "LABEL": "Etiquetar o contato como",
+          "HELP": "Facilita separar na fila. Deixe em branco para não etiquetar."
+        },
+        "LGPD": "Quem abandona o pré-chat não concluiu nada e, portanto, não consentiu com nada: a resposta parcial é apagada depois de {days} dias.",
+        "API": {
+          "SUCCESS": "Configuração de lead incompleto atualizada",
+          "ERROR": "Falha ao atualizar a configuração de lead incompleto"
+        }
+      },
       "RESOLVE_GATE": {
         "TITLE": "Atribuição obrigatória para encerrar",
         "NOTE": "Somente o agente atribuído pode encerrar uma conversa. Qualquer outra pessoa precisa atribuí-la a si antes de encerrar.",

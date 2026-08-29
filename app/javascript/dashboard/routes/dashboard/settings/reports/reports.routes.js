@@ -27,6 +27,7 @@ import LiveReports from './LiveReports.vue';
 import SLAReports from './SLAReports.vue';
 import LiveInService from './LiveInService.vue';
 import ConversationOriginReports from './ConversationOriginReports.vue';
+import PartialLeadReports from './PartialLeadReports.vue';
 
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
@@ -142,6 +143,16 @@ const revisedReportRoutes = [
       permissions: ['administrator', 'report_manage'],
     },
     component: ConversationOriginReports,
+  },
+  // Bloco 4.18 — quantos leads perdemos e onde. O endpoint existia desde o miolo e nao tinha
+  // consumidor: relatorio sem rota so responde por console, e a pergunta e do cliente.
+  {
+    path: 'partial_leads',
+    name: 'partial_lead_reports',
+    meta: {
+      permissions: ['administrator', 'report_manage'],
+    },
+    component: PartialLeadReports,
   },
 ];
 

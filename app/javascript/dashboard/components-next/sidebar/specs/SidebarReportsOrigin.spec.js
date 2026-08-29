@@ -227,3 +227,61 @@ describe('Sidebar — item "Relatórios > Origem" (bloco 1.22)', () => {
     }
   });
 });
+
+// Bloco 4.18 — o relatorio de leads incompletos entra pela MESMA porta, e nao ganha
+// arquivo proprio de proposito: duplicar as ~120 linhas de store dublado daria duas
+// respostas para a mesma pergunta ("o item existe na barra?") e uma delas envelheceria.
+describe('Sidebar — item "Relatórios > Leads incompletos" (bloco 4.18)', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('mostra o item entre os relatórios do flyout', async () => {
+    const { wrapper } = await montarSidebar();
+    const popover = await abrirGrupo(wrapper, 'Reports');
+    const itens = itensDoFlyout();
+
+    expect(popover.exists()).toBe(true);
+    // Mesma trava contra o vacuo do bloco acima: flyout vazio faria a assercao seguinte
+    // falhar pelo motivo errado.
+    expect(itens).toEqual(
+      expect.arrayContaining(['Overview', 'Conversations', 'Agents'])
+    );
+    expect(itens).toContain('Incomplete leads');
+  });
+
+  it('clicar no item leva à tela do relatório de leads incompletos', async () => {
+    const { wrapper } = await montarSidebar();
+    await abrirGrupo(wrapper, 'Reports');
+
+    const item = botoesDoFlyout().find(
+      botao => botao.textContent.trim() === 'Incomplete leads'
+    );
+    expect(item, 'o item nao esta no menu de relatorios').toBeTruthy();
+
+    item.click();
+    await flushPromises();
+
+    // A tabela de rotas e a REAL do painel: se a rota sumir ou mudar de nome, cai aqui.
+    expect(router.currentRoute.value.name).toBe('partial_lead_reports');
+    expect(router.currentRoute.value.path).toBe(
+      '/app/accounts/1/reports/partial_leads'
+    );
+  });
+
+  it('o rótulo vem da tradução, e existe em pt-BR', async () => {
+    const i18n = obterI18n();
+    expect(i18n.global.t('SIDEBAR.REPORTS_PARTIAL_LEADS')).toBe(
+      'Incomplete leads'
+    );
+
+    i18n.global.locale.value = 'pt_BR';
+    try {
+      const { wrapper } = await montarSidebar();
+      await abrirGrupo(wrapper, 'Reports');
+      expect(itensDoFlyout()).toContain('Leads incompletos');
+    } finally {
+      i18n.global.locale.value = 'en';
+    }
+  });
+});

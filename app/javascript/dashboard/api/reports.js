@@ -134,6 +134,14 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  // Bloco 4.18 — quantos leads perdemos e onde. So contagens: as respostas do visitante que
+  // nao concluiu nunca saem da base por aqui.
+  getPartialLeads({ from, to } = {}) {
+    return axios.get(`${this.baseUrl()}/partial_lead_report`, {
+      params: { since: from, until: to },
+    });
+  }
+
   getBotMetrics({ from, to } = {}) {
     return axios.get(`${this.url}/bot_metrics`, {
       params: { since: from, until: to },

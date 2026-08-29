@@ -34,6 +34,7 @@ import labelsMgmt from './labelsMgmt.json';
 import login from './login.json';
 import macros from './macros.json';
 import originReports from './originReports.json';
+import partialLeadReports from './partialLeadReports.json';
 import report from './report.json';
 import resetPassword from './resetPassword.json';
 import search from './search.json';
@@ -88,6 +89,7 @@ export default {
   ...login,
   ...macros,
   ...originReports,
+  ...partialLeadReports,
   ...report,
   ...resetPassword,
   ...search,
