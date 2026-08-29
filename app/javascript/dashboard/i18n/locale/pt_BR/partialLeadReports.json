@@ -4,6 +4,8 @@
     "DESCRIPTION": "Quantos começaram o pré-chat, quantos concluíram e em que etapa os outros pararam.",
     "ERROR": "Não foi possível carregar o relatório de leads incompletos.",
     "EMPTY": "Ninguém começou o pré-chat neste período.",
+    "CAPTURE_OFF": "Não há número aqui porque a captura de leads incompletos está desligada nesta conta — nada foi gravado. Ligue em Configurações › Conta › Salvar lead incompleto para começar a medir.",
+    "CAPTURE_OFF_HISTORY": "A captura de leads incompletos está desligada nesta conta: os números abaixo são do período em que ela esteve ligada e não crescem mais.",
     "NO_ABANDONED": "Todo mundo que começou concluiu o pré-chat neste período.",
     "STARTED": "Começaram a responder",
     "COMPLETED": "Concluíram",

@@ -23,9 +23,16 @@ class Widget::PartialLeads::Report
   #   completed:  quantos concluiram o pre-chat (viraram conversa)
   #   abandoned:  quantos ficaram pelo caminho
   #   completion_rate: concluidos / iniciados, 0.0 quando nao houve ninguem
+  #   capture_enabled: se a captura esta LIGADA na conta  <- o "POR QUE nao ha numero"
   #   by_step:    { etapa => quantos pararam ali }  <- o "ONDE"
   #   by_step_name: { nome_do_campo => quantos }    <- o "ONDE" em lingua de gente
   # }
+  #
+  # `capture_enabled` viaja junto das contagens porque zero tem DOIS significados opostos e
+  # o numero sozinho nao os separa: "ninguem desistiu no periodo" e "a chave nunca foi
+  # ligada, entao nada foi gravado" chegam os dois como 0. Sem esta chave a tela so pode
+  # escolher um dos dois textos, e escolher o primeiro e a mesma mentira do "0% de abandono
+  # se le como sucesso" que este relatorio existe para nao contar.
   def perform
     started = scope.count
     completed = scope.where.not(completed_at: nil).count
@@ -36,6 +43,7 @@ class Widget::PartialLeads::Report
       completed: completed,
       abandoned: abandoned,
       completion_rate: started.zero? ? 0.0 : (completed.to_f / started).round(4),
+      capture_enabled: Widget::PartialLeads::Settings.new(@account).enabled?,
       by_step: abandoned_scope.group(:step_reached).count.transform_keys(&:to_i).sort.to_h,
       by_step_name: abandoned_scope.where.not(step_key: nil).group(:step_key).count
     }

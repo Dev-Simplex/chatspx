@@ -37,6 +37,21 @@ RSpec.describe 'Api::V2::Accounts::PartialLeadReports', type: :request do
     expect(corpo['by_step_name']).to eq({ 'phoneNumber' => 1 })
   end
 
+  # Sem esta chave a tela nao tem como distinguir "ninguem desistiu" de "a captura nem esta
+  # ligada": os dois chegam como zero, e o operador le os dois como a mesma coisa.
+  it 'carrega o estado da CAPTURA junto das contagens' do
+    get "/api/v2/accounts/#{account.id}/partial_lead_report",
+        headers: administrator.create_new_auth_token, as: :json
+
+    expect(response.parsed_body['capture_enabled']).to be(false)
+
+    account.update!(internal_attributes: account.internal_attributes.merge('partial_lead_capture_enabled' => true))
+    get "/api/v2/accounts/#{account.id}/partial_lead_report",
+        headers: administrator.create_new_auth_token, as: :json
+
+    expect(response.parsed_body['capture_enabled']).to be(true)
+  end
+
   it 'NAO devolve as respostas do visitante — o relatorio conta, nao expoe' do
     get "/api/v2/accounts/#{account.id}/partial_lead_report",
         headers: administrator.create_new_auth_token, as: :json

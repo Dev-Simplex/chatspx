@@ -107,6 +107,30 @@ RSpec.describe 'Widget::PartialLeads — o ciclo do lead incompleto' do
       expect(lead.reload.contact_id).to be_nil
     end
 
+    # A metade que faltava do "nao materializa nada": o servico precisa CONFIRMAR o abandono
+    # mesmo quando nao ha o que materializar. Sem a marca, a linha continua no escopo
+    # `stale AND contact_id IS NULL` do varredor e volta ao servico em toda passagem.
+    it 'CONFIRMA o abandono mesmo sem ter o que materializar' do
+      contact = create(:contact, account: account, email: nil, phone_number: nil)
+      contact_inbox = create(:contact_inbox, contact: contact, inbox: inbox)
+      lead = create(:widget_partial_lead, account: account, inbox: inbox,
+                                          session_id: contact_inbox.source_id,
+                                          answers: { 'fullName' => 'Walisson' })
+
+      expect(described_class.new(lead).perform).to be_nil
+      expect(lead.reload.abandoned_at).to be_present
+      expect(lead.contact_id).to be_nil
+    end
+
+    it 'nao confirma abandono de lead concluido — quem concluiu nao abandonou' do
+      _contact, lead = visitor_session
+      lead.update!(completed_at: Time.current)
+
+      described_class.new(lead).perform
+
+      expect(lead.reload.abandoned_at).to be_nil
+    end
+
     it 'nao materializa um lead que ja foi concluido' do
       _contact, lead = visitor_session
       lead.update!(completed_at: Time.current)
@@ -150,6 +174,41 @@ RSpec.describe 'Widget::PartialLeads — o ciclo do lead incompleto' do
       expect(recente.reload.contact_id).to be_nil
     end
 
+    # O DEFEITO: com o cron existindo, o varredor passa a cada minuto. A linha que o servico
+    # nao consegue materializar (sem canal de contato, ou sem ContactInbox de sessao) voltava
+    # ao servico em TODA passagem, porque `materializable?`/`identify_contact` devolviam nil
+    # sem marcar nada e ela nunca saia de `stale AND contact_id IS NULL`. Com os padroes de
+    # 1 minuto de cron e 30 dias de retencao sao ~43.200 tentativas por linha.
+    it 'nao remastiga o lead sem canal de contato — uma passagem confirma o abandono e a linha sai do laco' do
+      contact = create(:contact, account: account, email: nil, phone_number: nil)
+      contact_inbox = create(:contact_inbox, contact: contact, inbox: inbox)
+      lead = create(:widget_partial_lead, account: account, inbox: inbox,
+                                          session_id: contact_inbox.source_id,
+                                          answers: { 'fullName' => 'Walisson' },
+                                          last_answered_at: 30.minutes.ago)
+      allow(Widget::PartialLeads::MaterializeService).to receive(:new).and_call_original
+
+      3.times { described_class.perform_now(account.id) }
+
+      expect(Widget::PartialLeads::MaterializeService).to have_received(:new).once
+      expect(lead.reload.abandoned_at).to be_present
+      expect(lead.contact_id).to be_nil
+    end
+
+    it 'nao remastiga o lead cuja sessao nao tem ContactInbox' do
+      lead = create(:widget_partial_lead, account: account, inbox: inbox,
+                                          session_id: 'sessao-sem-contact-inbox',
+                                          answers: { 'emailAddress' => 'sumiu@empresa.com.br' },
+                                          last_answered_at: 30.minutes.ago)
+      allow(Widget::PartialLeads::MaterializeService).to receive(:new).and_call_original
+
+      3.times { described_class.perform_now(account.id) }
+
+      expect(Widget::PartialLeads::MaterializeService).to have_received(:new).once
+      expect(lead.reload.abandoned_at).to be_present
+      expect(lead.contact_id).to be_nil
+    end
+
     it 'APAGA o registro parcial vencido — dado pessoal de quem nao consentiu nao fica guardado' do
       enable_capture!('partial_lead_retention_days' => 7)
       create(:widget_partial_lead, account: account, inbox: inbox, last_answered_at: 8.days.ago)
@@ -169,7 +228,45 @@ RSpec.describe 'Widget::PartialLeads — o ciclo do lead incompleto' do
     end
   end
 
+  # A CONTRAPARTIDA do conserto do laco: a marca de abandono nao pode ser definitiva. Se
+  # ficasse, o visitante que volta e finalmente da o e-mail sairia do escopo do varredor para
+  # sempre — o conserto do laco viraria um lead perdido de verdade.
+  describe Widget::PartialLeads::RecordService do
+    before { enable_capture! }
+
+    it 'nova resposta LIMPA a marca de abandono, e o varredor volta a poder materializar' do
+      contact = create(:contact, account: account, email: nil, phone_number: nil)
+      contact_inbox = create(:contact_inbox, contact: contact, inbox: inbox)
+      lead = create(:widget_partial_lead, account: account, inbox: inbox,
+                                          session_id: contact_inbox.source_id,
+                                          answers: { 'fullName' => 'Walisson' },
+                                          last_answered_at: 30.minutes.ago)
+      Widget::PartialLeads::SweepJob.perform_now(account.id)
+      expect(lead.reload.abandoned_at).to be_present
+
+      described_class.new(inbox: inbox, session_id: contact_inbox.source_id,
+                          answers: { 'emailAddress' => 'voltei@empresa.com.br' }, step: 2).perform
+
+      expect(lead.reload.abandoned_at).to be_nil
+
+      travel_to(31.minutes.from_now) { Widget::PartialLeads::SweepJob.perform_now(account.id) }
+
+      expect(lead.reload.contact_id).to be_present
+    end
+  end
+
   describe Widget::PartialLeads::Report do
+    # O relatorio precisa distinguir "ninguem desistiu" de "a captura nem esta ligada". Sao
+    # dois zeros com significados opostos, e sem esta chave a tela nao tem como separa-los —
+    # e a mesma mentira do "0% de abandono se le como sucesso", entrando pela outra porta.
+    it 'diz se a CAPTURA esta ligada, para o zero nao ser lido como sucesso' do
+      expect(described_class.new(account: account).perform[:capture_enabled]).to be(false)
+
+      enable_capture!
+
+      expect(described_class.new(account: account.reload).perform[:capture_enabled]).to be(true)
+    end
+
     it 'responde QUANTOS perdemos e ONDE' do
       create(:widget_partial_lead, account: account, inbox: inbox, step_reached: 3, step_key: 'phoneNumber')
       create(:widget_partial_lead, account: account, inbox: inbox, step_reached: 3, step_key: 'phoneNumber')

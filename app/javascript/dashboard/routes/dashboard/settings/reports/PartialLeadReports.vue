@@ -14,6 +14,14 @@
  *     principal, e não um apêndice do número grande.
  *  2. **Zero iniciados não é "ninguém desistiu".** Com denominador zero a tela diz que não
  *     houve ninguém no período, em vez de exibir 0% de abandono — que se lê como sucesso.
+ *  3. **E "ninguém desistiu" não é "a captura está desligada".** É a mesma preocupação da
+ *     regra 2 entrando pela outra porta: os dois estados chegam como zero, e mostrar o texto
+ *     de período vazio para quem nunca ligou a chave faz o operador ler "não perdemos
+ *     ninguém" onde a verdade é "não estamos medindo". Por isso o servidor manda
+ *     `capture_enabled` junto das contagens, e a tela separa os dois casos. O contrário
+ *     também vale: com a chave desligada DEPOIS de já ter coletado, os números históricos
+ *     continuam à mostra — escondê-los apagaria medição verdadeira —, com o aviso de que
+ *     eles não crescem mais.
  */
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -38,6 +46,10 @@ const completionRate = computed(
 const abandonRate = computed(
   () => Math.round((100 - completionRate.value) * 10) / 10
 );
+
+// Ausente é LIGADA de propósito: a chave nasceu depois do endpoint, e pintar "desligada"
+// diante de um payload que não a traz acusaria de desligado quem está medindo.
+const captureEnabled = computed(() => report.value?.capture_enabled !== false);
 
 /**
  * As linhas do "onde". `by_step_name` traz o NOME do campo em que a pessoa parou e
@@ -111,14 +123,26 @@ const fetchReport = async ({ from, to }) => {
 
   <div v-else-if="report" class="flex flex-col gap-6 py-4">
     <div
-      v-if="started === 0"
+      v-if="!captureEnabled"
+      data-testid="partial-lead-capture-off"
+      class="p-4 rounded-lg bg-n-amber-2 text-n-amber-12 text-body-main"
+    >
+      {{
+        started > 0
+          ? $t('PARTIAL_LEAD_REPORTS.CAPTURE_OFF_HISTORY')
+          : $t('PARTIAL_LEAD_REPORTS.CAPTURE_OFF')
+      }}
+    </div>
+
+    <div
+      v-else-if="started === 0"
       data-testid="partial-lead-empty"
       class="p-4 rounded-lg bg-n-slate-2 text-n-slate-11 text-body-main"
     >
       {{ $t('PARTIAL_LEAD_REPORTS.EMPTY') }}
     </div>
 
-    <template v-else>
+    <template v-if="started > 0">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div
           data-testid="partial-lead-started"

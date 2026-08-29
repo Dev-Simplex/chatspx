@@ -4,6 +4,8 @@
     "DESCRIPTION": "How many started the pre-chat, how many finished, and where the others stopped.",
     "ERROR": "Could not load the incomplete leads report.",
     "EMPTY": "Nobody started the pre-chat in this period.",
+    "CAPTURE_OFF": "There is no number here because incomplete lead capture is off for this account — nothing was recorded. Turn it on in Settings › Account › Save incomplete lead to start measuring.",
+    "CAPTURE_OFF_HISTORY": "Incomplete lead capture is off for this account: the numbers below come from the period when it was on and will not grow.",
     "NO_ABANDONED": "Everyone who started finished the pre-chat in this period.",
     "STARTED": "Started answering",
     "COMPLETED": "Finished",

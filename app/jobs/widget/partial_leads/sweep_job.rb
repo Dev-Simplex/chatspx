@@ -35,9 +35,15 @@ class Widget::PartialLeads::SweepJob < ApplicationJob
 
   private
 
+  # `abandoned_at: nil` e o que impede a varredura infinita. O escopo antigo era so
+  # `stale AND contact_id IS NULL`, e a linha que o servico nao consegue materializar (sem
+  # canal de contato, sem ContactInbox de sessao) nunca preenche `contact_id` — entao ela
+  # voltava aqui a CADA passagem do cron ate a retencao vencer. O servico agora confirma
+  # `abandoned_at` mesmo quando nao materializa, e essa marca e a porta de saida do laco.
   def materialize_abandoned(account, settings)
     cutoff = settings.abandon_after_minutes.minutes.ago
-    WidgetPartialLead.where(account_id: account.id).stale(cutoff).where(contact_id: nil)
+    WidgetPartialLead.where(account_id: account.id).stale(cutoff)
+                     .where(contact_id: nil, abandoned_at: nil)
                      .limit(BATCH).find_each do |lead|
       Widget::PartialLeads::MaterializeService.new(lead).perform
     end
