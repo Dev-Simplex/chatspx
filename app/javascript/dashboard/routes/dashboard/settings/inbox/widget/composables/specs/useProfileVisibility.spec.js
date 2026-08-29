@@ -42,6 +42,9 @@ describe('useProfileVisibility', () => {
       'triggers.segmentation',
       'prechat.builder',
       'prechat.incompleteLead',
+      // 4.08 — a saída para o WhatsApp é seção de captura: em suporte, quem já é
+      // cliente não é empurrado para outro canal no meio do chamado.
+      'prechat.whatsAppExit',
       'tracking',
     ]);
     expect(hiddenSectionsFor('marketing')).toEqual(['csat', 'nps']);

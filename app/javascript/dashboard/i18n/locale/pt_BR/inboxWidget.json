@@ -121,6 +121,14 @@
         "OPEN_OLD": "Abrir a tela antiga do pré-chat",
         "BACK_TO_NEW": "Voltar para a tela nova do pré-chat"
       },
+      "WHATSAPP_EXIT": {
+        "TITLE": "Saída para o WhatsApp",
+        "DESCRIPTION": "No fim da conversa e no rodapé, o visitante ganha um botão para continuar por WhatsApp — levando o nome do site e a primeira pergunta que ele fez. O botão só aparece no perfil de captura e só com um número configurado aqui.",
+        "LABEL": "Número do WhatsApp",
+        "PLACEHOLDER": "+55 (65) 99999-8888",
+        "HELP": "Com o código do país. Pode colar com máscara: gravamos só os dígitos.",
+        "INVALID": "Um número de WhatsApp tem de {min} a {max} dígitos, contando o código do país."
+      },
       "PREVIEW": {
         "EMPTY": "Nenhum campo ligado: o visitante vai direto para a conversa.",
         "START": "Iniciar conversa",
@@ -157,6 +165,7 @@
       "REPLY_TIME": "Tempo de resposta",
       "FEATURE_FLAGS": "Recursos do widget",
       "PROFILE": "Perfil da caixa",
+      "EXIT_WHATSAPP_NUMBER": "Número da saída para o WhatsApp",
       "APPEARANCE_THEME": "Modo de tema",
       "APPEARANCE_POSITION": "Posição do lançador",
       "APPEARANCE_OFFSET_X": "Distância da borda lateral",

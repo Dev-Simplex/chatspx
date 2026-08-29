@@ -50,6 +50,21 @@ module WidgetConfigResolvable
     merged.merge('launcher_icon' => resolved_launcher_icon(merged['launcher_icon']))
   end
 
+  # Bloco 4.08 — o numero da saida para o WhatsApp, ja SO COM DIGITOS.
+  #
+  # Derivada como as irmas (A4): inbox sem a chave devolve string vazia, e string vazia esconde o
+  # botao — que e o comportamento de hoje, sem migration e sem backfill.
+  #
+  # Por que os montadores chamam ISTO e nao `widget_exit['whatsapp_number']` na mao: sao DOIS
+  # montadores (`show.html.erb` e `configs/create.json.jbuilder`), e duas leituras escritas a mao
+  # sao duas leituras que divergem. Ja aconteceu nesta base — `teaserText` existia so no ERB.
+  # Uma fonte, dois consumidores, e a suite de paridade cobrando as duas pontas.
+  def whatsapp_exit_number
+    stored = widget_exit.is_a?(Hash) ? widget_exit : {}
+
+    stored['whatsapp_number'].to_s.gsub(/\D/, '')
+  end
+
   # Bloco 3.19 — o icone do lancador, ja resolvido, porque o host CONSOME a decisao e nunca a
   # recalcula (o mesmo padrao de `tokens` e `resolved_widget_approach`).
   #

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { shallowMount } from '@vue/test-utils';
 import { createStore } from 'vuex';
 import WhatsAppExit from '../WhatsAppExit.vue';
@@ -56,6 +58,58 @@ const mensagens = {
   2: { id: 2, message_type: 0, content: 'Quero saber o preço do plano Pro' },
   3: { id: 3, message_type: 0, content: 'E se eu quiser 20 usuários?' },
 };
+
+/**
+ * A JUNÇÃO produtor/consumidor, e é a que faltava.
+ *
+ * Todo o resto deste arquivo monta o componente com `window.chatwootWebChannel`
+ * fabricado à mão. Isso mede o componente e não mede nada sobre o servidor: até
+ * o bloco 4.08, `whatsAppExitNumber` **não existia em lugar nenhum do backend**
+ * — nenhum montador publicava a chave — e mesmo assim estes testes passavam
+ * todos. Um spec que fabrica a chave que produção não emite afirma que o botão
+ * funciona enquanto ele nunca renderiza no site do cliente.
+ *
+ * Esta guarda lê os arquivos de verdade e falha nomeando o lado que se moveu.
+ */
+const RAIZ = path.resolve(__dirname, '..', '..', '..', '..', '..');
+const lerArquivo = relativo =>
+  fs.readFileSync(path.join(RAIZ, relativo), 'utf-8');
+
+/** A chave que o COMPONENTE lê de `channelConfig`. */
+const chaveLidaPeloComponente = () => {
+  const fonte = lerArquivo('app/javascript/widget/components/WhatsAppExit.vue');
+  const achado = fonte.match(/channelConfig\?\.([A-Za-z0-9_]+)\s*\?\?/);
+  if (!achado)
+    throw new Error('não achei a leitura do número em WhatsAppExit.vue');
+  return achado[1];
+};
+
+/** As chaves que o ERB de produção PUBLICA em `window.chatwootWebChannel`. */
+const chavesPublicadasPeloErb = () => {
+  const fonte = lerArquivo('app/views/widgets/show.html.erb');
+  const bloco = fonte.match(
+    /window\.chatwootWebChannel\s*=\s*\{([\s\S]*?)\n\s*\}/
+  );
+  if (!bloco)
+    throw new Error('não achei window.chatwootWebChannel em show.html.erb');
+  return [...bloco[1].matchAll(/^\s*([A-Za-z]\w*):/gm)].map(m => m[1]);
+};
+
+describe('a chave do número existe nos DOIS lados (4.08)', () => {
+  it('os arquivos foram mesmo lidos — senão a guarda passaria vazia', () => {
+    // Sem estas âncoras, um regex que deixasse de casar devolveria lista vazia
+    // e a expectativa abaixo falharia por engano — ou pior, um `toContain` num
+    // conjunto vazio passaria a acusar sempre a mesma coisa errada.
+    expect(chavesPublicadasPeloErb()).toEqual(
+      expect.arrayContaining(['websiteName', 'widgetColor', 'profileConfig'])
+    );
+    expect(chaveLidaPeloComponente()).toBe('whatsAppExitNumber');
+  });
+
+  it('o ERB publica exatamente a chave que o componente lê', () => {
+    expect(chavesPublicadasPeloErb()).toContain(chaveLidaPeloComponente());
+  });
+});
 
 describe('a saída para o WhatsApp', () => {
   it('aparece no perfil de captura, com número configurado', () => {

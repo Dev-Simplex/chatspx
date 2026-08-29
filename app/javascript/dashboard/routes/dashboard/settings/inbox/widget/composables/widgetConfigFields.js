@@ -98,6 +98,24 @@ export const DEFAULT_TRACKING = Object.freeze({
 });
 
 /**
+ * Valores de fabrica de `widget_exit` (bloco 4.08).
+ *
+ * Uma chave so, e ela nasce VAZIA: sem numero configurado o widget nao renderiza
+ * a saida (um botao que abre `wa.me/` sem destino leva o visitante para uma tela
+ * de erro do WhatsApp, que e pior que nao ter botao). O servidor concorda por
+ * ausencia — `WidgetExitSchema::DEFAULTS`, sem migration e sem backfill (A4) —, e
+ * `specs/widgetExitContract.spec.js` le o arquivo Ruby e falha se os dois lados
+ * se separarem.
+ *
+ * SO DIGITOS no valor gravado. O schema do servidor recusa o resto com 422; a
+ * tela normaliza antes de escrever no rascunho, para o administrador poder
+ * colar `+55 (65) 99999-8888` sem levar um erro que ele nao entende.
+ */
+export const DEFAULT_EXIT = Object.freeze({
+  whatsapp_number: '',
+});
+
+/**
  * `nil` e lido como `support` — a arbitragem A4 cortou o backfill de propósito:
  * escrever "support" em toda inbox da frota produz zero diferenca de
  * comportamento e toda escrita em massa e risco sem contrapartida.
@@ -207,6 +225,19 @@ export const WIDGET_CONFIG_FIELDS = [
     read: inbox => ({
       ...DEFAULT_TRACKING,
       ...(inbox?.additional_attributes?.widget_tracking ?? {}),
+    }),
+  },
+  // Bloco 4.08 — a quinta chave de `additional_attributes`. `group: true` pelo
+  // mesmo motivo das outras tres: o update da inbox faz merge de PRIMEIRO NIVEL,
+  // entao o objeto viaja inteiro e a contagem de alteracoes e por subcampo.
+  {
+    key: 'exit',
+    scope: 'additional',
+    path: 'widget_exit',
+    group: true,
+    read: inbox => ({
+      ...DEFAULT_EXIT,
+      ...(inbox?.additional_attributes?.widget_exit ?? {}),
     }),
   },
   // Os dois do pre-chat (bloco 3.14), acrescentados pela trilha PRE-CHAT com

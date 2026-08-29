@@ -450,6 +450,124 @@ describe('PreChatPage — o catálogo vem da conta, não do que está gravado', 
   });
 });
 
+/**
+ * Bloco 4.08 — o CAMPO que faltava.
+ *
+ * O widget lia `whatsAppExitNumber` e nada no produto o escrevia: sem schema,
+ * sem strong param e sem campo, o `v-if` do componente nunca passava. O que se
+ * mede aqui é a ponta da tela — que o que o administrador digita chega ao PATCH
+ * no formato que o servidor aceita (`widget_exit.whatsapp_number`, só dígitos).
+ *
+ * O cruzamento com o schema Ruby de verdade está em
+ * `composables/specs/widgetExitContract.spec.js`; a chegada ao banco pela rota
+ * real, em `spec/controllers/.../inboxes_controller_widget_config_spec.rb`.
+ */
+describe('PreChatPage — a saída para o WhatsApp (4.08)', () => {
+  const comPerfilMarketing = () => {
+    storeState.inbox = {
+      ...inboxFixture(),
+      additional_attributes: { widget_profile: 'marketing' },
+    };
+  };
+
+  const digitar = async (wrapper, valor) => {
+    const campo = wrapper.find('[data-testid="whatsapp-exit-number"] input');
+    campo.element.value = valor;
+    await campo.trigger('input');
+    await nextTick();
+  };
+
+  it('no perfil de suporte a seção não aparece — e o link de escape aparece', () => {
+    // A fixture nasce sem `widget_profile`, que é lido como `support` (A4).
+    const wrapper = build();
+
+    expect(wrapper.find('[data-testid="whatsapp-exit-number"]').exists()).toBe(
+      false
+    );
+    expect(wrapper.find('[data-testid="profile-escape"]').exists()).toBe(true);
+  });
+
+  it('o perfil ESCONDE, não remove: o escape traz o campo de volta', async () => {
+    // Sem esta ponta, a asserção acima ficaria verde com a seção simplesmente
+    // inexistente — e o cliente de suporte que quisesse medir conversão ficaria
+    // refém do rótulo que escolheu na criação da caixa.
+    const wrapper = build();
+
+    await wrapper
+      .find('[data-testid="profile-escape-toggle"]')
+      .trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="whatsapp-exit-number"]').exists()).toBe(
+      true
+    );
+  });
+
+  it('no perfil de captura o campo aparece', () => {
+    comPerfilMarketing();
+
+    expect(build().find('[data-testid="whatsapp-exit-number"]').exists()).toBe(
+      true
+    );
+  });
+
+  it('o número colado com máscara chega ao PATCH só com dígitos', async () => {
+    comPerfilMarketing();
+    const wrapper = build();
+
+    await digitar(wrapper, '+55 (65) 99999-8888');
+
+    expect(wrapper.vm.draft.exit).toEqual({ whatsapp_number: '5565999998888' });
+
+    await wrapper.vm.save();
+
+    // O que importa não é o rascunho e sim o CORPO que sai: o `permit` do
+    // servidor descarta em silêncio o que não conhece, e a tela diria "salvo"
+    // com o banco intacto.
+    expect(store.dispatch).toHaveBeenCalledWith(
+      'inboxes/updateInbox',
+      expect.objectContaining({
+        additional_attributes: {
+          widget_exit: { whatsapp_number: '5565999998888' },
+        },
+      })
+    );
+  });
+
+  it('um número curto demais avisa na tela, com os dois limites', async () => {
+    comPerfilMarketing();
+    const wrapper = build();
+
+    await digitar(wrapper, '1234567');
+
+    expect(
+      wrapper.find('[data-testid="whatsapp-exit-number"]').text()
+    ).toContain('8');
+    expect(
+      wrapper.find('[data-testid="whatsapp-exit-number"]').text()
+    ).toContain('15');
+  });
+
+  it('apagar o campo é válido — é assim que a saída se desliga', async () => {
+    comPerfilMarketing();
+    storeState.inbox.additional_attributes.widget_exit = {
+      whatsapp_number: '5565999998888',
+    };
+    const wrapper = build();
+
+    await digitar(wrapper, '');
+
+    expect(wrapper.vm.draft.exit).toEqual({ whatsapp_number: '' });
+    await wrapper.vm.save();
+    expect(store.dispatch).toHaveBeenCalledWith(
+      'inboxes/updateInbox',
+      expect.objectContaining({
+        additional_attributes: { widget_exit: { whatsapp_number: '' } },
+      })
+    );
+  });
+});
+
 describe('PreChatPage — a aba pergunta antes de trocar', () => {
   it('`requestLeave` sai limpo quando não há pendência', () => {
     const wrapper = build();

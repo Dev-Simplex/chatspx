@@ -11,8 +11,15 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { useInboxWidgetConfig } from '../composables/useInboxWidgetConfig';
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard';
+import { useProfileVisibility } from '../composables/useProfileVisibility';
+import {
+  EXIT_LIMITS,
+  isWhatsAppNumberValid,
+  whatsAppDigits,
+} from '../composables/widgetExitContract';
 import WidgetSaveBar from '../WidgetSaveBar.vue';
 import WidgetUnsavedChangesDialog from '../WidgetUnsavedChangesDialog.vue';
+import WidgetProfileEscapeLink from '../WidgetProfileEscapeLink.vue';
 import PreChatStepList from './PreChatStepList.vue';
 import { MODES, resolveMode, toBuilder, toSimple } from './preChatModel';
 
@@ -40,6 +47,7 @@ const {
   isLoading,
   saveError,
   set,
+  setIn,
   discard,
   save,
 } = useInboxWidgetConfig(() => props.inboxId);
@@ -184,6 +192,36 @@ const modeCards = computed(() =>
 
 const goToAutomations = () =>
   router.push({ name: 'automation_list' }).catch(() => {});
+
+/**
+ * Bloco 4.08 — a saída para o WhatsApp.
+ *
+ * Mora nesta tela porque é o FIM do fluxo de captura: o visitante que já contou
+ * o que queria continua a conversa no canal onde 75,96% das empresas brasileiras
+ * atendem. Seção de marketing (`PROFILE_SECTIONS['prechat.whatsAppExit']`); quem
+ * está em suporte a alcança pelo link de escape, sem trocar de perfil.
+ *
+ * O campo é o que faltava para o botão existir: até aqui `whatsAppExitNumber`
+ * era lido pelo widget e **não tinha origem gravável em lugar nenhum** — nem
+ * schema, nem strong param, nem campo. O `v-if` do componente nunca passava.
+ */
+const profileVisibility = useProfileVisibility(
+  computed(() => draft.value.profile)
+);
+const { isSectionVisible } = profileVisibility;
+
+const exitConfig = computed(() => draft.value.exit ?? {});
+
+const whatsAppNumber = computed(() => exitConfig.value.whatsapp_number ?? '');
+
+const whatsAppNumberError = computed(() =>
+  isWhatsAppNumberValid(whatsAppNumber.value)
+    ? ''
+    : t('INBOX_WIDGET.PRE_CHAT_FORM.WHATSAPP_EXIT.INVALID', {
+        min: EXIT_LIMITS.whatsAppNumberMin,
+        max: EXIT_LIMITS.whatsAppNumberMax,
+      })
+);
 </script>
 
 <template>
@@ -251,6 +289,40 @@ const goToAutomations = () =>
         @update:fields="onFieldsUpdate"
       />
     </template>
+
+    <template v-if="isSectionVisible('prechat.whatsAppExit')">
+      <div class="flex flex-col gap-2">
+        <h3 class="text-heading-2 text-n-slate-12">
+          {{ t('INBOX_WIDGET.PRE_CHAT_FORM.WHATSAPP_EXIT.TITLE') }}
+        </h3>
+        <p class="text-sm text-n-slate-11">
+          {{ t('INBOX_WIDGET.PRE_CHAT_FORM.WHATSAPP_EXIT.DESCRIPTION') }}
+        </p>
+        <Input
+          :model-value="whatsAppNumber"
+          data-testid="whatsapp-exit-number"
+          :label="t('INBOX_WIDGET.PRE_CHAT_FORM.WHATSAPP_EXIT.LABEL')"
+          :placeholder="
+            t('INBOX_WIDGET.PRE_CHAT_FORM.WHATSAPP_EXIT.PLACEHOLDER')
+          "
+          :message="
+            whatsAppNumberError ||
+            t('INBOX_WIDGET.PRE_CHAT_FORM.WHATSAPP_EXIT.HELP')
+          "
+          :message-type="whatsAppNumberError ? 'error' : 'info'"
+          @update:model-value="
+            setIn('exit', 'whatsapp_number', whatsAppDigits($event))
+          "
+        />
+      </div>
+    </template>
+    <WidgetProfileEscapeLink
+      v-else
+      :active-profile="profileVisibility.activeProfile.value"
+      :other-profile="profileVisibility.otherProfile.value"
+      :showing="profileVisibility.showOtherProfile.value"
+      @toggle="profileVisibility.toggleOtherProfile"
+    />
 
     <WidgetSaveBar
       :dirty-count="dirtyCount"
