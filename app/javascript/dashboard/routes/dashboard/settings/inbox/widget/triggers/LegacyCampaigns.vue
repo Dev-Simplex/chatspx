@@ -1,11 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Banner from 'dashboard/components-next/banner/Banner.vue';
 import CampaignsAPI from 'dashboard/api/campaigns';
+import { useCampanhasDaInbox } from '../composables/useCampanhasDaInbox';
 
 /**
  * O MODO ANTIGO — bloco 4.22.
@@ -22,6 +23,13 @@ import CampaignsAPI from 'dashboard/api/campaigns';
  * `aria-label` com o nome da campanha, porque três botões "Importar" na mesma tela
  * são três nomes idênticos para o leitor de tela. O rótulo é texto limpo — se o
  * cliente puser emoji no título da campanha, ele fica na tela e sai do nome.
+ *
+ * A SEÇÃO CARREGA A PRÓPRIA LISTA (`useCampanhasDaInbox`). Ela vive sob
+ * `v-if="legadas.length"`, e nada na rota da caixa de entrada despachava
+ * `campaigns/get`: em visita direta ou F5, a lista chegava vazia e a seção
+ * inteira — aviso e botão — não existia na tela. O compositor do teaser (4.05),
+ * que lê a mesma lista e mora na mesma tela, é servido por este carregamento;
+ * quando ele também chamar o composable, a guarda mantém uma requisição só.
  */
 const props = defineProps({
   inboxId: { type: [String, Number], required: true },
@@ -36,7 +44,7 @@ const store = useStore();
 
 const PICTOGRAFICO = /\p{Extended_Pictographic}/gu;
 
-const campanhas = useMapGetter('campaigns/getLiveChatCampaigns');
+const { daInbox } = useCampanhasDaInbox(computed(() => props.inboxId));
 const importando = ref(null);
 
 /**
@@ -44,11 +52,7 @@ const importando = ref(null);
  * (o servidor a desativa), e é assim que o cliente vê o progresso da migração.
  */
 const legadas = computed(() =>
-  campanhas.value.filter(
-    campanha =>
-      Number(campanha.inbox?.id ?? campanha.inbox_id) ===
-        Number(props.inboxId) && campanha.enabled
-  )
+  daInbox.value.filter(campanha => campanha.enabled)
 );
 
 const nomeLimpo = titulo =>
@@ -65,7 +69,10 @@ const rotuloImportar = campanha =>
 const importar = async campanha => {
   importando.value = campanha.id;
   try {
-    await CampaignsAPI.importToTrigger(campanha.display_id ?? campanha.id);
+    // `campanha.id` JÁ É o `display_id`: o serializador do índice grava
+    // `json.id resource.display_id` (`api/v1/models/_campaign.json.jbuilder:1`) e
+    // não expõe o id do banco em campo nenhum. A rota resolve por `display_id`.
+    await CampaignsAPI.importToTrigger(campanha.id);
     await store.dispatch('campaigns/get');
     useAlert(t('INBOX_WIDGET.TRIGGERS.LEGACY.IMPORTED'));
     emit('imported');

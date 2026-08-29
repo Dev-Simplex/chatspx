@@ -10,31 +10,37 @@ import LegacyCampaigns from '../LegacyCampaigns.vue';
  * ligado — uma lista que só mostrasse "ativa" ao lado de algo que não dispara mais
  * seria pior que nenhuma seção.
  */
+/**
+ * O `id` aqui É o `display_id`, e não há campo `display_id` nenhum: é assim que o
+ * serializador entrega (`api/v1/models/_campaign.json.jbuilder:1` grava
+ * `json.id resource.display_id`). A fixture antiga trazia os dois campos com
+ * valores diferentes — um formato que o servidor nunca produziu.
+ */
 const estado = reactive({
   campanhas: [
     {
-      id: 31,
-      display_id: 3,
+      id: 3,
       title: '🔥 Convite dos planos',
       message: 'Posso ajudar a escolher?',
       enabled: true,
-      inbox: { id: 7 },
+      campaign_type: 'ongoing',
+      inbox: { id: 7, channel_type: 'Channel::WebWidget' },
     },
     {
-      id: 32,
-      display_id: 4,
+      id: 4,
       title: 'Já importada',
       message: 'Oi',
       enabled: false,
-      inbox: { id: 7 },
+      campaign_type: 'ongoing',
+      inbox: { id: 7, channel_type: 'Channel::WebWidget' },
     },
     {
-      id: 33,
-      display_id: 5,
+      id: 5,
       title: 'De outra caixa',
       message: 'Oi',
       enabled: true,
-      inbox: { id: 99 },
+      campaign_type: 'ongoing',
+      inbox: { id: 99, channel_type: 'Channel::WebWidget' },
     },
   ],
 });
@@ -42,7 +48,14 @@ const estado = reactive({
 const dispatch = vi.fn().mockResolvedValue();
 vi.mock('dashboard/composables/store', () => ({
   useStore: () => ({ dispatch }),
-  useMapGetter: () => ({ value: estado.campanhas }),
+  // Chave a chave, com a forma real de cada getter: `getUIFlags` devolve o objeto
+  // de flags, e não a lista. Um mock que devolvesse a mesma coisa para toda chave
+  // faria a guarda de carregamento ler `isFetching` de dentro de um array.
+  useMapGetter: chave => {
+    if (chave === 'campaigns/getUIFlags')
+      return { value: { isFetching: false } };
+    return { value: estado.campanhas };
+  },
 }));
 
 const alertas = [];
@@ -133,10 +146,18 @@ describe('4.22 — a seção "modo antigo"', () => {
     });
 
     it('recarrega a lista depois de importar, para a campanha sair dela', async () => {
-      await montar().find('[data-testid="importar-campanha"]').trigger('click');
+      const tela = montar();
+      // A montagem já despacha `campaigns/get` (é o que faz a seção existir em
+      // visita direta). Contar as chamadas é o que separa "recarregou depois de
+      // importar" de "carregou ao montar" — sem isso a asserção passaria mesmo
+      // se o import não recarregasse nada.
+      expect(dispatch).toHaveBeenCalledTimes(1);
+
+      await tela.find('[data-testid="importar-campanha"]').trigger('click');
       await flushPromises();
 
-      expect(dispatch).toHaveBeenCalledWith('campaigns/get');
+      expect(dispatch).toHaveBeenCalledTimes(2);
+      expect(dispatch).toHaveBeenNthCalledWith(2, 'campaigns/get');
     });
 
     it('avisa em voz alta que a campanha foi desativada — as duas nunca ficam ligadas', async () => {

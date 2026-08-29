@@ -16,6 +16,15 @@ const inbox = reactive({
 
 const dispatch = vi.fn().mockResolvedValue();
 
+/**
+ * A tela despacha mais de uma coisa: a seção "modo antigo" (4.22) carrega as
+ * campanhas ao montar, e o PATCH da inbox só vem depois. Pescar
+ * `dispatch.mock.calls[0]` pegava esse carregamento em vez do PATCH — a asserção
+ * tem de dizer QUAL chamada ela mede, e não a ordem em que ela por acaso caiu.
+ */
+const chamadasDeSalvar = () =>
+  dispatch.mock.calls.filter(([acao]) => acao === 'inboxes/updateInbox');
+
 // A pagina monta o TeaserComposer (4.05), que le as campanhas de chat ao vivo:
 // um mock que devolve a mesma coisa para toda chave faria `campanhas.find`
 // explodir antes de o teste chegar no que ele mede.
@@ -159,7 +168,7 @@ describe('4.04 — a abordagem em três níveis', () => {
     await wrapper.find('[data-testid="save-button"]').trigger('click');
     await flushPromises();
 
-    const [[, payload]] = dispatch.mock.calls;
+    const [[, payload]] = chamadasDeSalvar();
     expect(payload.additional_attributes.widget_triggers.approach).toBe(
       'aggressive'
     );
@@ -181,7 +190,7 @@ describe('4.04 — a abordagem em três níveis', () => {
     expect(
       wrapper.find('[data-testid="approach-bold"] input').element.checked
     ).toBe(true);
-    expect(dispatch).not.toHaveBeenCalled();
+    expect(chamadasDeSalvar()).toEqual([]);
   });
 });
 
@@ -267,7 +276,7 @@ describe('4.04 — os sete gatilhos', () => {
     await wrapper.find('[data-testid="save-button"]').trigger('click');
     await flushPromises();
 
-    const [[, payload]] = dispatch.mock.calls;
+    const [[, payload]] = chamadasDeSalvar();
     expect(payload.additional_attributes.widget_triggers.triggers).toEqual([
       {
         id: 'time_on_page',
@@ -350,7 +359,7 @@ describe('4.04 — o que a tela grava', () => {
     await wrapper.find('[data-testid="save-button"]').trigger('click');
     await flushPromises();
 
-    const [[acao, payload]] = dispatch.mock.calls;
+    const [[acao, payload]] = chamadasDeSalvar();
     expect(acao).toBe('inboxes/updateInbox');
     // `additionalProperties: false` — chave a mais derruba o PATCH inteiro
     expect(
