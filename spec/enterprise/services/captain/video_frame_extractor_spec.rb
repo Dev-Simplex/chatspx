@@ -31,7 +31,7 @@ RSpec.describe Captain::VideoFrameExtractor, type: :service do
       # devolve [] rapido, e o teto nunca seria exercitado.
       expect(Process).to have_received(:spawn).at_least(:once)
       expect(resultado).to eq([])
-      expect(decorrido).to be < 30, "levou #{decorrido.round(1)}s — o teto de #{1}s por quadro nao foi aplicado"
+      expect(decorrido).to be < 30, "levou #{decorrido.round(1)}s — o teto de 1s por quadro nao foi aplicado"
 
       # e o filho nao pode ficar vivo depois: era ele que segurava a thread.
       sobreviventes = pids.select { |pid| File.exist?("/proc/#{pid}") && File.read("/proc/#{pid}/stat").split[2] != 'Z' }
@@ -71,7 +71,7 @@ RSpec.describe Captain::VideoFrameExtractor, type: :service do
       expect(Captain::MediaDescriptionJob.new.queue_name).to eq('media_processing')
       expect(yml[:queues]).to be_present, 'nao achei a lista de filas: o spec esta medindo nada'
       expect(yml[:queues]).not_to include('media_processing'),
-                                 'a fila esta no pool principal: a capsula nao limita nada'
+                                  'a fila esta no pool principal: a capsula nao limita nada'
     end
 
     it 'da a essa fila uma capsula com pool menor que o principal' do
