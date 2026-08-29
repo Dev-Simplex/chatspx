@@ -90,7 +90,15 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   end
 
   def destroy_custom_attributes
-    conversation.custom_attributes = conversation.custom_attributes.excluding(params[:custom_attribute])
+    # Bloco 4.17: apagar tambem e alterar. Este endpoint nao pede assinatura nenhuma, entao
+    # sem o portao a chave protegida sai por aqui — quem nao consegue escrever, apaga.
+    gate = CustomAttributes::OriginGate.new(
+      account: conversation.account,
+      attribute_model: :conversation_attribute,
+      verified: @contact_inbox&.hmac_verified?
+    ).delete(params[:custom_attribute])
+
+    conversation.custom_attributes = conversation.custom_attributes.excluding(gate.allowed)
     conversation.save!
     render json: conversation
   end

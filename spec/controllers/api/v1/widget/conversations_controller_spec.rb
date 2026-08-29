@@ -414,5 +414,56 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
         expect(conversation.custom_attributes).not_to include('product_name' => 'Chatwoot')
       end
     end
+
+    # Bloco 4.17: apagar tambem e alterar. Este endpoint nao pede assinatura nenhuma — sem o
+    # portao, quem nao consegue ESCREVER a chave protegida consegue APAGA-LA por aqui.
+    describe 'com chave protegida e sessao sem origem verificada' do
+      before do
+        create(:custom_attribute_definition, account: account, attribute_key: 'cpf',
+                                             attribute_model: 'conversation_attribute',
+                                             attribute_display_type: 'text', requires_verified_origin: true)
+        conversation.update!(custom_attributes: { 'cpf' => '000', 'carrinho_valor' => 4200 })
+      end
+
+      it 'mantem o valor protegido e apaga as demais chaves do mesmo pedido' do
+        post '/api/v1/widget/conversations/destroy_custom_attributes',
+             headers: { 'X-Auth-Token' => token },
+             params: { website_token: web_widget.website_token, custom_attribute: %w[cpf carrinho_valor] },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(conversation.reload.custom_attributes).to eq({ 'cpf' => '000' })
+      end
+
+      it 'registra a tentativa de apagar' do
+        allow(Rails.logger).to receive(:warn)
+
+        post '/api/v1/widget/conversations/destroy_custom_attributes',
+             headers: { 'X-Auth-Token' => token },
+             params: { website_token: web_widget.website_token, custom_attribute: ['cpf'] },
+             as: :json
+
+        expect(Rails.logger).to have_received(:warn).with(/chaves=cpf/)
+      end
+    end
+
+    describe 'com chave protegida e sessao com assinatura conferida' do
+      before do
+        create(:custom_attribute_definition, account: account, attribute_key: 'cpf',
+                                             attribute_model: 'conversation_attribute',
+                                             attribute_display_type: 'text', requires_verified_origin: true)
+        conversation.update!(custom_attributes: { 'cpf' => '000', 'carrinho_valor' => 4200 })
+        contact_inbox.update!(hmac_verified: true)
+      end
+
+      it 'apaga a chave protegida' do
+        post '/api/v1/widget/conversations/destroy_custom_attributes',
+             headers: { 'X-Auth-Token' => token },
+             params: { website_token: web_widget.website_token, custom_attribute: ['cpf'] },
+             as: :json
+
+        expect(conversation.reload.custom_attributes).to eq({ 'carrinho_valor' => 4200 })
+      end
+    end
   end
 end

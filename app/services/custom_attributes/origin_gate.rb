@@ -14,10 +14,17 @@
 #      a requisicao inteira faria o site do cliente parar de funcionar por causa de um
 #      atributo que ele nem sabia estar protegido.
 #   2. O valor protegido nao e sobrescrito NEM apagado — ele fica exatamente como estava.
-#      "Nao altera o valor" e o aceite, e apagar tambem seria alterar.
+#      "Nao altera o valor" e o aceite, e apagar tambem seria alterar. Por isso o portao tem
+#      TRES portas, uma por forma de alterar: `filter` (escrita que mescla), `replace`
+#      (escrita que substitui, onde omitir apagaria) e `delete` (exclusao explicita).
 #
-# O gate cobre contato E conversa. A conversa e justamente a que o site escreve com mais
-# liberdade: `widget/conversations#set_custom_attributes` nao tem assinatura nenhuma.
+# O gate cobre contato E conversa, nas duas superficies de cada um — a de escrita e a de
+# exclusao. As quatro entram sem assinatura nenhuma:
+#
+#   · widget/conversations#set_custom_attributes      -> replace
+#   · widget/conversations#destroy_custom_attributes  -> delete
+#   · widget/contacts#update (ContactIdentifyAction)  -> filter
+#   · widget/contacts#destroy_custom_attributes       -> delete
 class CustomAttributes::OriginGate
   Result = Struct.new(:allowed, :refused, keyword_init: true) do
     def refused?
@@ -59,6 +66,24 @@ class CustomAttributes::OriginGate
     Result.new(allowed: resultado.allowed.merge(sobreviventes), refused: resultado.refused)
   end
 
+  # Para endpoint de EXCLUSAO, que recebe uma LISTA DE CHAVES em vez de um payload.
+  #
+  # Apagar tambem e alterar. Sem esta porta, quem nao consegue ESCREVER a chave protegida
+  # simplesmente a APAGA — e os dois endpoints de exclusao do widget
+  # (`widget/conversations#destroy_custom_attributes` e `widget/contacts#destroy_custom_attributes`)
+  # nao pedem assinatura nenhuma. A recusa continua sendo POR CHAVE: as demais chaves do
+  # mesmo pedido sao apagadas normalmente.
+  def delete(keys)
+    chaves = normalize_keys(keys)
+    return Result.new(allowed: chaves, refused: []) if @verified || chaves.empty?
+
+    protegidas = protected_keys & chaves
+    return Result.new(allowed: chaves, refused: []) if protegidas.empty?
+
+    record(protegidas)
+    Result.new(allowed: chaves - protegidas, refused: protegidas)
+  end
+
   private
 
   def normalize(incoming)
@@ -67,6 +92,12 @@ class CustomAttributes::OriginGate
     incoming.to_h.stringify_keys
   rescue StandardError
     {}
+  end
+
+  # A lista chega do corpo da requisicao: pode vir como array, como chave avulsa ou nula.
+  # Chave de jsonb e sempre string, entao comparar como string e o que corresponde ao banco.
+  def normalize_keys(keys)
+    Array.wrap(keys).filter_map { |key| key.to_s.presence }
   end
 
   def protected_keys

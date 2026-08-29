@@ -546,23 +546,78 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
     end
   end
 
-  describe 'POST /api/v1/widget/destroy_custom_attributes' do
+  describe 'POST /api/v1/widget/contact/destroy_custom_attributes' do
     let(:params) { { website_token: web_widget.website_token, identifier: 'test', custom_attributes: ['test'] } }
 
     context 'with invalid website token' do
       it 'returns unauthorized' do
-        post '/api/v1/widget/destroy_custom_attributes', params: { website_token: '' }
+        post '/api/v1/widget/contact/destroy_custom_attributes', params: { website_token: '' }
         expect(response).to have_http_status(:not_found)
       end
     end
 
     context 'with correct website token' do
       it 'calls destroy custom attributes' do
-        post '/api/v1/widget/destroy_custom_attributes',
+        contact.update!(custom_attributes: { 'test' => 'valor', 'plano' => 'pro' })
+
+        post '/api/v1/widget/contact/destroy_custom_attributes',
              params: params,
              headers: { 'X-Auth-Token' => token },
              as: :json
-        expect(contact.reload.custom_attributes).to eq({})
+
+        expect(response).to have_http_status(:success)
+        expect(contact.reload.custom_attributes).to eq({ 'plano' => 'pro' })
+      end
+    end
+
+    # Bloco 4.17: apagar tambem e alterar. O `update` deste controller ja passa pelo portao;
+    # sem ele aqui, a mesma sessao que nao consegue ESCREVER a chave protegida a APAGA.
+    describe 'com chave protegida e sessao sem origem verificada' do
+      before do
+        create(:custom_attribute_definition, account: account, attribute_key: 'cpf',
+                                             attribute_model: 'contact_attribute',
+                                             attribute_display_type: 'text', requires_verified_origin: true)
+        contact.update!(custom_attributes: { 'cpf' => '000', 'plano' => 'pro' })
+      end
+
+      it 'mantem o valor protegido e apaga as demais chaves do mesmo pedido' do
+        post '/api/v1/widget/contact/destroy_custom_attributes',
+             params: { website_token: web_widget.website_token, custom_attributes: %w[cpf plano] },
+             headers: { 'X-Auth-Token' => token },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(contact.reload.custom_attributes).to eq({ 'cpf' => '000' })
+      end
+
+      it 'registra a tentativa de apagar' do
+        allow(Rails.logger).to receive(:warn)
+
+        post '/api/v1/widget/contact/destroy_custom_attributes',
+             params: { website_token: web_widget.website_token, custom_attributes: ['cpf'] },
+             headers: { 'X-Auth-Token' => token },
+             as: :json
+
+        expect(Rails.logger).to have_received(:warn).with(/modelo=contact_attribute chaves=cpf/)
+      end
+    end
+
+    describe 'com chave protegida e sessao com assinatura conferida' do
+      before do
+        create(:custom_attribute_definition, account: account, attribute_key: 'cpf',
+                                             attribute_model: 'contact_attribute',
+                                             attribute_display_type: 'text', requires_verified_origin: true)
+        contact.update!(custom_attributes: { 'cpf' => '000', 'plano' => 'pro' })
+        contact_inbox.update!(hmac_verified: true)
+      end
+
+      it 'apaga a chave protegida' do
+        post '/api/v1/widget/contact/destroy_custom_attributes',
+             params: { website_token: web_widget.website_token, custom_attributes: ['cpf'] },
+             headers: { 'X-Auth-Token' => token },
+             as: :json
+
+        expect(contact.reload.custom_attributes).to eq({ 'plano' => 'pro' })
       end
     end
   end
