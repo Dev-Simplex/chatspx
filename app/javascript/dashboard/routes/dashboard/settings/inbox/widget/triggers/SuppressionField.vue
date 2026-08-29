@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Banner from 'dashboard/components-next/banner/Banner.vue';
@@ -52,15 +52,49 @@ const outsideBusinessHours = computed(() =>
 );
 
 /**
- * Zero e "sem corte", e nao "corte em zero": e por isso que a caixa marcada
- * grava o breakpoint e a desmarcada apaga a chave, em vez de gravar 0 — chave
- * ausente e a ausencia de regra, que e o que o A4 pede das quatro chaves.
+ * A regra ligada e a PRESENCA da chave, e nao a leitura do numero que ela
+ * guarda. A diferenca custou o defeito 4.04: `Input.vue` emite
+ * `update:modelValue` a cada evento `input` (linha 141), e nao no `blur`, entao
+ * apagar "768" para escrever "1024" passa pelo campo VAZIO. Com a condicao
+ * escrita como `Number(...) > 0`, esse vazio virava 0, o 0 se lia como regra
+ * desligada, e o `v-if` apagava o proprio campo e desmarcava a caixa com o
+ * administrador ainda digitando.
+ *
+ * Zero continua sendo "sem corte", e nao "corte em zero" — por isso desmarcar
+ * APAGA a chave em vez de gravar 0. So que quem apaga a chave e a caixa, nunca
+ * o teclado.
  */
-const narrowScreen = computed(
-  () => Number(props.suppress.min_viewport_width) > 0
-);
+const narrowScreen = computed(() => {
+  const gravado = props.suppress.min_viewport_width;
+  return gravado !== undefined && gravado !== null;
+});
 const minWidth = computed(
   () => props.suppress.min_viewport_width ?? DEFAULT_MIN_VIEWPORT_WIDTH
+);
+
+/**
+ * O piso da TELA e 1 px, e nao `TRIGGER_LIMITS.viewportWidthMin` (0): aquele
+ * espelha o `minimum` do schema, que existe para o servidor ACEITAR o que ja
+ * esta gravado — nao para a tela GRAVAR. Uma regra ligada com corte em 0 nao
+ * cala convite nenhum, e ainda por cima se rele como regra desligada.
+ */
+const MIN_ENABLED_VIEWPORT_WIDTH = 1;
+
+/**
+ * O que o campo MOSTRA e um rascunho, e nao o modelo. Enquanto o administrador
+ * digita, a tela exibe o que ele escreveu — inclusive o vazio do meio da troca
+ * — e o modelo so recebe numero utilizavel. O `watch` traz o valor de fora (a
+ * inbox chega depois da montagem) e devolve ao campo o numero que sera salvo
+ * sempre que ele mudar por fora, inclusive quando o teto o prende em 4096.
+ */
+const widthDraft = ref(String(DEFAULT_MIN_VIEWPORT_WIDTH));
+
+watch(
+  () => props.suppress.min_viewport_width,
+  valor => {
+    widthDraft.value = String(valor ?? DEFAULT_MIN_VIEWPORT_WIDTH);
+  },
+  { immediate: true }
 );
 
 const toggleNarrowScreen = () => {
@@ -73,13 +107,34 @@ const toggleNarrowScreen = () => {
   set({ min_viewport_width: DEFAULT_MIN_VIEWPORT_WIDTH });
 };
 
-const setMinWidth = valor =>
+const setMinWidth = valor => {
+  widthDraft.value = String(valor);
+
+  const numero = Number(valor);
+  // Vazio, texto e 0 nao sao larguras: sao estados de meio de digitacao.
+  // Gravar qualquer um deles poria no jsonb uma chave que o schema ACEITA
+  // (`minimum: 0`) e que nao cala convite nenhum — uma regra ligada que nao
+  // faz nada. O modelo guarda a ultima largura utilizavel ate chegar outra.
+  if (
+    valor === '' ||
+    !Number.isFinite(numero) ||
+    numero < MIN_ENABLED_VIEWPORT_WIDTH
+  ) {
+    return;
+  }
+
   set({
-    min_viewport_width: Math.min(
-      TRIGGER_LIMITS.viewportWidthMax,
-      Math.max(TRIGGER_LIMITS.viewportWidthMin, Number(valor) || 0)
-    ),
+    min_viewport_width: Math.min(TRIGGER_LIMITS.viewportWidthMax, numero),
   });
+};
+
+/**
+ * Sair do campo desfaz o rascunho que nao virou largura: a tela nao pode ficar
+ * mostrando vazio enquanto o PATCH leva outro numero.
+ */
+const restoreMinWidth = () => {
+  widthDraft.value = String(minWidth.value);
+};
 </script>
 
 <template>
@@ -133,10 +188,11 @@ const setMinWidth = valor =>
         <Input
           type="number"
           class="w-24"
-          :model-value="minWidth"
+          :model-value="widthDraft"
           :aria-label="t('INBOX_WIDGET.TRIGGERS.SUPPRESS.MIN_WIDTH')"
           data-testid="suppress-min-width"
           @update:model-value="setMinWidth($event)"
+          @blur="restoreMinWidth"
         />
         <span class="text-sm text-n-slate-11">
           {{ t('INBOX_WIDGET.TRIGGERS.SUPPRESS.MIN_WIDTH_UNIT') }}

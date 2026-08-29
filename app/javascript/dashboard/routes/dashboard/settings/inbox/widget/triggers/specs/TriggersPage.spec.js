@@ -645,6 +645,149 @@ describe('4.04 — quando não aparecer', () => {
     ).toBe(4096);
   });
 
+  /**
+   * O defeito 4.04 medido: `Input.vue` emite `update:modelValue` a CADA evento
+   * `input` (linha 141), e nao no `blur`. Trocar 768 por 1024 passa pelo campo
+   * VAZIO, e o vazio virava `Number('') || 0 = 0` — que a tela relia como
+   * "regra desligada" e usava para APAGAR o proprio campo e desmarcar a caixa
+   * no meio da digitacao.
+   *
+   * O teste digita tecla a tecla de proposito: um `setValue` direto pula
+   * exatamente o estado intermediario que quebra.
+   */
+  const digitarNaLargura = async (wrapper, teclas) => {
+    const seletor = 'input[data-testid="suppress-min-width"]';
+    const passos = [];
+    for (let i = 0; i < teclas.length; i += 1) {
+      const digitado = teclas[i];
+      const campo = wrapper.find(seletor);
+      if (!campo.exists()) {
+        // o campo sumiu ANTES desta tecla: não há onde digitar o resto
+        passos.push({ digitado, campoExiste: false, caixaMarcada: false });
+        break;
+      }
+      campo.element.value = digitado;
+      // as teclas são sequenciais de propósito: é o intervalo entre elas que
+      // expõe o defeito
+      // eslint-disable-next-line no-await-in-loop
+      await campo.trigger('input');
+      passos.push({
+        digitado,
+        campoExiste: wrapper.find(seletor).exists(),
+        caixaMarcada: wrapper.find('[data-testid="suppress-narrow-screen"]')
+          .element.checked,
+      });
+    }
+    return passos;
+  };
+
+  it('a largura já salva chega ao campo, e não o padrão', () => {
+    // o campo mostra um RASCUNHO local desde o conserto do 4.04: se o valor
+    // gravado não descesse até ele, a tela abriria dizendo 768 para quem salvou
+    // 1024 — e o administrador salvaria por cima sem perceber
+    inbox.additional_attributes = {
+      widget_triggers: { suppress: { min_viewport_width: 1024 } },
+    };
+    const wrapper = build();
+
+    expect(
+      wrapper.find('[data-testid="suppress-narrow-screen"]').element.checked
+    ).toBe(true);
+    expect(
+      wrapper.find('input[data-testid="suppress-min-width"]').element.value
+    ).toBe('1024');
+  });
+
+  it('apagar para redigitar não apaga o campo nem desmarca a caixa', async () => {
+    const wrapper = build();
+    await wrapper.find('[data-testid="suppress-narrow-screen"]').setValue(true);
+
+    // o caminho real do teclado: apagar "768" digito a digito e escrever 1024
+    const passos = await digitarNaLargura(wrapper, [
+      '76',
+      '7',
+      '',
+      '1',
+      '10',
+      '102',
+      '1024',
+    ]);
+
+    expect(
+      passos.filter(passo => !passo.campoExiste || !passo.caixaMarcada)
+    ).toEqual([]);
+    expect(
+      wrapper.find('input[data-testid="suppress-min-width"]').element.value
+    ).toBe('1024');
+  });
+
+  it('o campo vazio não vira `min_viewport_width: 0` no PATCH', async () => {
+    const wrapper = build();
+    await wrapper.find('[data-testid="suppress-narrow-screen"]').setValue(true);
+
+    // selecionar tudo e apagar: UM evento `input` com o campo vazio. Salvar
+    // nesse instante gravava 0 — uma chave que o schema ACEITA (`minimum: 0`) e
+    // que a propria tela rele como regra desligada, o pior desfecho possivel:
+    // grava calado e some da tela. O vazio não é largura, então o modelo fica
+    // com a que estava lá.
+    await digitarNaLargura(wrapper, ['']);
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(
+      payload.additional_attributes.widget_triggers.suppress.min_viewport_width
+    ).toBe(768);
+  });
+
+  it('sair do campo vazio devolve na tela o número que vai ser salvo', async () => {
+    const wrapper = build();
+    await wrapper.find('[data-testid="suppress-narrow-screen"]').setValue(true);
+
+    // apagando dígito a dígito, a última largura utilizável foi o 7 — e é ela
+    // que sobrevive ao vazio, porque o modelo guarda o último número válido e
+    // nunca o 0
+    await digitarNaLargura(wrapper, ['76', '7', '']);
+    await wrapper
+      .find('input[data-testid="suppress-min-width"]')
+      .trigger('blur');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    const salvo =
+      payload.additional_attributes.widget_triggers.suppress.min_viewport_width;
+
+    // o que está na tela e o que vai no PATCH têm de ser o MESMO número: a tela
+    // não pode ficar mostrando vazio enquanto o PATCH leva outra coisa
+    expect(
+      wrapper.find('input[data-testid="suppress-min-width"]').element.value
+    ).toBe(String(salvo));
+    expect(salvo).toBe(7);
+  });
+
+  it('digitar 0 não desliga a regra pelas costas — a caixa é quem desliga', async () => {
+    const wrapper = build();
+    await wrapper.find('[data-testid="suppress-narrow-screen"]').setValue(true);
+
+    await digitarNaLargura(wrapper, ['0']);
+
+    expect(
+      wrapper.find('input[data-testid="suppress-min-width"]').exists()
+    ).toBe(true);
+    expect(
+      wrapper.find('[data-testid="suppress-narrow-screen"]').element.checked
+    ).toBe(true);
+
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(
+      payload.additional_attributes.widget_triggers.suppress.min_viewport_width
+    ).toBe(768);
+  });
+
   it('sem horário configurado na caixa, a tela diz que a regra não vai calar nada', async () => {
     const wrapper = build();
 
