@@ -1,0 +1,29 @@
+{
+  "sentinel_website_token": "WEBSITE_TOKEN_DA_SESSAO",
+  "requests": [
+    {
+      "method": "post",
+      "url": "/api/v1/widget/approach_events",
+      "params": {},
+      "body": {
+        "website_token": "WEBSITE_TOKEN_DA_SESSAO",
+        "stage": "shown",
+        "approach": "discreet",
+        "approach_configured": "bold",
+        "ordinal": 2
+      }
+    },
+    {
+      "method": "post",
+      "url": "/api/v1/widget/approach_events",
+      "params": {},
+      "body": {
+        "website_token": "WEBSITE_TOKEN_DA_SESSAO",
+        "stage": "converted",
+        "approach": "discreet",
+        "approach_configured": "bold",
+        "ordinal": 2
+      }
+    }
+  ]
+}

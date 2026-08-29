@@ -24,8 +24,26 @@ import { API } from 'widget/helpers/axios';
  * O CONTEXTO FICA GUARDADO porque a CONVERSAO nasce aqui dentro: quem sabe que o
  * visitante enviou mensagem e o `ChatFooter`, e ele precisa saber com que nivel
  * essa mensagem foi conquistada.
+ *
+ * O `website_token` NAO E DETALHE DE TRANSPORTE
+ *
+ * O `X-Auth-Token` identifica a SESSAO; o `website_token` identifica o CANAL, e e
+ * por ele que o `BaseController` acha o widget antes de qualquer acao rodar
+ * (`set_web_widget` -> `find_by!(website_token: ...)`). Omiti-lo nao produz um
+ * evento incompleto: produz `find_by!(website_token: nil)`, que levanta
+ * `RecordNotFound` e devolve 404 — e o `.catch` abaixo engole o 404 sem ruido.
+ * Era esse o estado desta chamada: cliente completo, servidor completo, 21
+ * exemplos verdes somando os dois lados e ZERO evento gravado, porque nenhum dos
+ * dois atravessava a junta. Quem atravessa agora e
+ * `spec/requests/widget_approach_event_junta_spec.rb`, com o corpo que
+ * `approachEventJunta.spec.js` captura DESTE modulo rodando sobre o axios real.
  */
 const CAMINHO = '/api/v1/widget/approach_events';
+
+// A mesma fonte que o resto do widget usa (`configMixin`, `telemetry.js`,
+// `handlers.js`): o objeto que `app/views/widgets/show.html.erb` escreve no
+// documento do iframe, com `websiteToken` entre as chaves.
+const tokenDoSite = () => window.chatwootWebChannel?.websiteToken;
 
 let abordagem = null;
 
@@ -35,7 +53,18 @@ const enviar = stage => {
   // nivel inflaria justamente o numero que este bloco existe para tornar confiavel.
   if (!abordagem) return Promise.resolve();
 
-  return API.post(CAMINHO, { stage, ...abordagem }).catch(() => {
+  // Sem canal a requisicao esta condenada ao 404 antes de sair, e uma requisicao
+  // condenada nao e neutra: ela pinta o NOSSO endpoint de vermelho na aba Network
+  // do site do cliente, que e exatamente o que o 2.13 existe para evitar. Mesma
+  // decisao, e pelo mesmo motivo, de `telemetry.js`.
+  const websiteToken = tokenDoSite();
+  if (!websiteToken) return Promise.resolve();
+
+  return API.post(CAMINHO, {
+    website_token: websiteToken,
+    stage,
+    ...abordagem,
+  }).catch(() => {
     // Melhor esforco, como o 4.18: nenhuma falha de telemetria pode aparecer para
     // o visitante nem virar retentativa no site do cliente.
   });
