@@ -133,6 +133,7 @@ export const montarTeaser = ({
   holder,
   canal = {},
   nivel = 'bold',
+  position,
   baseDomain,
   aoAbrir,
   aoExibir,
@@ -162,11 +163,29 @@ export const montarTeaser = ({
     });
   }
 
+  // A ÂNCORA — e ela é o bloco, não um detalhe de classe.
+  //
+  // As ÚNICAS duas regras que dão um lado ao cartão são
+  // `.woot-teaser.woot-elements--left` e `--right` (`sdk.js`). Sem uma delas o
+  // cartão fica `position: fixed` com `bottom` e SEM `left`/`right`: ele cai na
+  // posição estática, encosta na quina ESQUERDA e o lançador continua na
+  // direita. Medido no DOM real que este arquivo produz, em Chromium a
+  // 1280 px: cartão em `right=280`, lançador em `right=1260` — **980 px**, o
+  // canto oposto. O plano diz "ao lado do lançador" (§C.2 do plano 22).
+  //
+  // A MESMA normalização de `entrypoints/sdk.js:236` e de `appearance.js:66`
+  // (`valor === 'left' ? 'left' : 'right'`), pelo motivo que o próprio 3.18
+  // registra: se as fontes passam pela mesma forma, divergir vira impossível.
+  // Ela também fecha o modo silencioso de falhar — sem `position`, escrever
+  // `woot-elements--undefined` não casaria com regra nenhuma e reproduziria
+  // exatamente o defeito acima, sem erro no console.
+  const ancora = position === 'left' ? 'left' : 'right';
+
   const cartao = document.createElement('div');
   // `all: revert` no contêiner e prefixo `woot-` em tudo: o teaser vive FORA do
   // iframe, exposto ao CSS do site do cliente. É o mesmo padrão que o SVG do
   // lançador já usa.
-  cartao.className = `woot-teaser woot-teaser--${nivel}`;
+  cartao.className = `woot-teaser woot-teaser--${nivel} woot-elements--${ancora}`;
   cartao.setAttribute('role', 'status');
 
   const foto = document.createElement('img');

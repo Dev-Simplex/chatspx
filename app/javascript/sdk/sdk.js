@@ -135,6 +135,14 @@
  *   deles e aspiracional. Quando o token entrar na lista, os pares precisam ser
  *   remedidos com o valor real. Registrado no relatorio da trilha.
  *
+ * ── .woot-widget-bubble — bottom: calc(20px + var(--w-offset-y, 0px))
+ *   Bloco 3.18 — offset_y do banco. O segundo argumento do var() e o que faz a
+ *   inbox que nunca configurou nada continuar EXATAMENTE onde estava: sem a
+ *   custom property, o calc computa 20px, que e o valor de sempre.
+ *   Este texto ficava DENTRO da string do SDK_CSS, e comentario dentro de
+ *   string e dado: era baixado por todo visitante de todo site. A asserção de
+ *   peso do 4.06 ('teaser.check.mjs') existe para isso e estava vermelha.
+ *
  * ── .woot-teaser
  *   ── TEASER (bloco 4.06) ────────────────────────────────────────────────────
  *   Vive no host, ao lado do lançador, e por isso está exposto ao CSS do site do
@@ -144,6 +152,15 @@
  *   UM componente, DUAS formas: '--discreet' apenas ESCONDE foto e chip. Não há
  *   segundo cartão, e isso não é elegância: é o teto de 15 KB gzip do arquivo que
  *   100% dos visitantes de todos os sites baixa.
+ *
+ * ── .woot-teaser.woot-elements--right / --left
+ *   A ÂNCORA, e ela é obrigatória. A regra base declara 'position: fixed' e
+ *   'bottom', mas NÃO declara lado — quem dá lado são estas duas linhas, e só
+ *   elas. Um cartão sem uma das duas cai na quina esquerda enquanto o lançador
+ *   fica na direita: 980 px de distância, MEDIDOS em Chromium a 1280 px sobre o
+ *   DOM que 'teaser.js' produz. É deliberado que o lado NÃO tenha default no
+ *   CSS: um 'right' na regra base esconderia a ausência da classe e o cartão
+ *   ficaria certo por acidente, até o dia em que a inbox fosse 'left'.
  *
  * ── .woot-teaser--saindo
  *   Saída: 'scale(0.96)' em 200 ms com a curva de saída — sem bounce, sem som.
@@ -236,10 +253,6 @@ export const SDK_CSS = `
   color: var(--w-on-brand, var(--w-surface));
   border-radius: 100px;
   border-width: 0px;
-  /* Bloco 3.18 — offset_y do banco. O segundo argumento do var() e o que faz a
-     inbox que nunca configurou nada continuar EXATAMENTE onde estava: sem a
-     custom property, o calc computa 20px, que e o valor de sempre.
-     (Sem crase neste comentario: ele vive dentro de um template literal.) */
   bottom: calc(20px + var(--w-offset-y, 0px));
   box-shadow: 0 8px 24px rgba(0, 0, 0, .16) !important;
   cursor: pointer;
