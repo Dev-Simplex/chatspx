@@ -139,7 +139,13 @@ export const montarTeaser = ({
   aoExibir,
   aoDispensar,
 } = {}) => {
-  if (!holder || canal.teaserEnabled === false) return null;
+  // `teaserEnabled` vive em `profileConfig`, NAO na raiz do canal: o ERB publica
+  // `profileConfig: WidgetProfile.resolve(...)` (widgets/show.html.erb) e o campo so existe
+  // ali (widget_profile.rb:26,36). Lido da raiz, o valor era SEMPRE `undefined` e a guarda
+  // nunca recusava — o teaser nao podia ser desligado. O spec passava porque montava
+  // `{ canal: { teaserEnabled: false } }`, uma forma que producao nunca produz.
+  const perfil = canal.profileConfig || {};
+  if (!holder || perfil.teaserEnabled === false) return null;
   const agressivo = nivel === 'aggressive';
   if (!agressivo && nivel !== 'bold' && nivel !== 'discreet') return null;
   if (jaDispensou()) return null;

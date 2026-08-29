@@ -175,7 +175,10 @@ describe('4.06 — o teaser', () => {
   });
 
   it('8. com teaserEnabled: false o código NÃO é montado', () => {
-    const desmontar = montar({ canal: { teaserEnabled: false } });
+    // A FORMA IMPORTA: o servidor entrega `teaserEnabled` dentro de `profileConfig`
+    // (widgets/show.html.erb -> WidgetProfile.resolve). Este exemplo montava o campo na RAIZ
+    // do canal — forma que produção nunca produz — e por isso passava com a guarda morta.
+    const desmontar = montar({ canal: { profileConfig: { teaserEnabled: false } } });
 
     // Não devolve nem função de limpeza: não há nada para limpar porque nada
     // foi criado — nem DOM, nem timer, nem listener de scroll.
@@ -183,6 +186,17 @@ describe('4.06 — o teaser', () => {
     vi.advanceTimersByTime(9000);
     rolarAte(0.5);
     expect(teaserNoDom()).toBeNull();
+  });
+
+  it('8b. a forma ACHATADA não desliga nada — é a que produção nunca envia', () => {
+    // Guarda contra o retorno do defeito: se alguém voltar a ler `canal.teaserEnabled`, este
+    // exemplo fica vermelho, porque o servidor jamais publica o campo nesse nível.
+    const desmontar = montar({ canal: { teaserEnabled: false } });
+
+    expect(desmontar).not.toBeNull();
+    vi.advanceTimersByTime(9000);
+    rolarAte(0.5);
+    expect(teaserNoDom()).not.toBeNull();
   });
 
   it('10. Discreto e Chamativo são o MESMO DOM, com classe diferente', () => {
