@@ -264,7 +264,26 @@
         "TEXT_PLACEHOLDER": "Fale com a gente",
         "TEXT_TOO_LONG": "No máximo {max} caracteres.",
         "HIDE_BUBBLE": "Esconder o balão",
-        "HIDE_BUBBLE_HINT": "Some com o lançador. Só faça isso se o site abrir o chat por um botão próprio — sem lançador e sem botão, o visitante fica sem canal de contato."
+        "HIDE_BUBBLE_HINT": "Some com o lançador. Só faça isso se o site abrir o chat por um botão próprio — sem lançador e sem botão, o visitante fica sem canal de contato.",
+        "ICON": "Ícone do lançador",
+        "ICONS": {
+          "DEFAULT": "Balão",
+          "DEFAULT_HINT": "O balão do chat, na cor da sua marca. É como toda caixa de entrada nasce.",
+          "AGENT_PHOTO": "Avatar da caixa de entrada",
+          "AGENT_PHOTO_HINT": "Reaproveita a imagem que já está no topo desta tela.",
+          "IMAGE": "Enviar uma foto",
+          "IMAGE_HINT": "Uma imagem própria, de até 20 KB, servida do nosso domínio."
+        },
+        "ICON_SUGGESTION": "Suba a foto de alguém do time. Rosto converte mais: quem vê uma pessoa sabe com quem vai falar, e o balão não diz nada sobre isso. Use a foto de quem de fato atende — nunca uma imagem genérica.",
+        "ICON_UPLOAD": "Escolher imagem",
+        "ICON_REPLACE": "Trocar imagem",
+        "ICON_REMOVE": "Remover imagem",
+        "ICON_HINT": "WebP ou PNG, no máximo {max} KB. A imagem é baixada em toda página do site, antes de qualquer clique.",
+        "ICON_TOO_BIG": "Essa imagem tem {size} KB e o limite é {max} KB. Reduza antes de enviar.",
+        "ICON_WRONG_TYPE": "Formato não aceito. Envie WebP ou PNG.",
+        "ICON_UPLOADED": "Imagem do lançador enviada.",
+        "ICON_REMOVED": "Imagem do lançador removida.",
+        "ICON_NEEDS_IMAGE": "Envie uma imagem para usar este modo."
       },
       "TEXTS": {
         "WELCOME_TITLE": "Título de boas-vindas",

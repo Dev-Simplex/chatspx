@@ -45,7 +45,7 @@ describe('rotulo acessivel dos cartoes de radio', () => {
     });
   });
 
-  it('posicao e formato do lancador tem `<label for>` com texto', () => {
+  it('posicao, formato e icone do lancador tem `<label for>` com texto', () => {
     const wrapper = mount(LauncherField, {
       props: {
         appearance: {
@@ -66,6 +66,11 @@ describe('rotulo acessivel dos cartoes de radio', () => {
       'position-right',
       'launcher-standard',
       'launcher-expanded_bubble',
+      // Bloco 3.19: os tres modos do icone entraram com o mesmo `<label for>`
+      // sr-only — sem ele o axe reprova com `label` [critical], como nos outros.
+      'launcher-icon-default',
+      'launcher-icon-image',
+      'launcher-icon-agent_photo',
     ]);
     rotulos.forEach(({ id, texto }) => {
       expect(texto, `o radio ${id} ficou sem nome acessivel`).toBeTruthy();

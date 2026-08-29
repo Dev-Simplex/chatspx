@@ -7,6 +7,7 @@ import {
 import {
   APPEARANCE_LIMITS,
   APPEARANCE_ENUMS,
+  LAUNCHER_ICON_TYPES,
 } from '../widgetAppearanceContract';
 
 /**
@@ -29,8 +30,15 @@ const schemaRuby = fs.readFileSync(
   'utf8'
 );
 
+// `[\d_]` e não `\d`: o Ruby escreve `20_480` (o rubocop exige o separador a
+// partir de cinco dígitos), e um `\d+` guloso leria `20` — a tela passaria a
+// recusar em 20 bytes achando que espelha o servidor, e o teste diria "ok".
 const constanteNumerica = nome =>
-  Number(new RegExp(`${nome}\\s*=\\s*(\\d+)`).exec(schemaRuby)?.[1]);
+  Number(
+    new RegExp(`${nome}\\s*=\\s*(\\d[\\d_]*)`)
+      .exec(schemaRuby)?.[1]
+      ?.replaceAll('_', '')
+  );
 
 const constanteLista = nome =>
   new RegExp(`${nome}\\s*=\\s*%w\\[([^\\]]+)\\]`)
@@ -101,6 +109,24 @@ describe('a tela e o servidor concordam sobre a aparência', () => {
       constanteNumerica('MAX_LAUNCHER_TEXT')
     );
     expect(APPEARANCE_LIMITS.offsetMin).toBe(0);
+  });
+
+  it('o teto do ícone do lançador é o mesmo dos dois lados (3.19)', () => {
+    // 20 KB digitado à mão na tela e 20 KB no servidor são dois números até
+    // alguém mexer num deles: aí a tela aceita o que o servidor recusa, e o
+    // administrador espera o upload inteiro para ouvir "não".
+    expect(APPEARANCE_LIMITS.launcherIconMaxBytes).toBe(
+      constanteNumerica('MAX_LAUNCHER_ICON_BYTES')
+    );
+    expect(APPEARANCE_LIMITS.launcherIconMaxBytes).toBe(20 * 1024);
+  });
+
+  it('os tipos de imagem que a tela oferece são os que o servidor anexa', () => {
+    expect(LAUNCHER_ICON_TYPES).toEqual(
+      constanteLista('LAUNCHER_ICON_CONTENT_TYPES')
+    );
+    // SVG fora dos dois lados: documento executável servido do nosso domínio.
+    expect(LAUNCHER_ICON_TYPES).not.toContain('image/svg+xml');
   });
 
   it('os enums que a tela oferece são os que o servidor aceita', () => {

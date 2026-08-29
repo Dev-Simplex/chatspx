@@ -299,6 +299,36 @@ export const actions = {
       throwErrorMessage(error);
     }
   },
+  /**
+   * Bloco 3.19 — sobe (ou apaga) o byte do ícone do lançador.
+   *
+   * Ação separada de `updateInbox` de propósito: o rascunho da tela de
+   * aparência não vai ao servidor sozinho, mas um ARQUIVO não cabe no rascunho.
+   * O byte viaja agora; o MODO continua viajando no botão salvar. As duas ações
+   * commitam `EDIT_INBOXES`, então a tela recebe `launcher_icon_url` na hora.
+   */
+  uploadLauncherIcon: async ({ commit }, { id, file }) => {
+    commit(types.default.SET_INBOXES_UI_FLAG, { isUpdating: true });
+    try {
+      const response = await InboxesAPI.uploadLauncherIcon(id, file);
+      commit(types.default.EDIT_INBOXES, response.data);
+      commit(types.default.SET_INBOXES_UI_FLAG, { isUpdating: false });
+    } catch (error) {
+      commit(types.default.SET_INBOXES_UI_FLAG, { isUpdating: false });
+      throwErrorMessage(error);
+    }
+  },
+  deleteLauncherIcon: async ({ commit }, id) => {
+    commit(types.default.SET_INBOXES_UI_FLAG, { isUpdating: true });
+    try {
+      const response = await InboxesAPI.deleteLauncherIcon(id);
+      commit(types.default.EDIT_INBOXES, response.data);
+      commit(types.default.SET_INBOXES_UI_FLAG, { isUpdating: false });
+    } catch (error) {
+      commit(types.default.SET_INBOXES_UI_FLAG, { isUpdating: false });
+      throwErrorMessage(error);
+    }
+  },
   updateInboxIMAP: async ({ commit }, { id, ...inboxParams }) => {
     commit(types.default.SET_INBOXES_UI_FLAG, { isUpdatingIMAP: true });
     try {

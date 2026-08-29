@@ -57,6 +57,9 @@ if resource.web_widget?
   json.pre_chat_form_enabled resource.channel.try(:pre_chat_form_enabled)
   json.pre_chat_form_options resource.channel.try(:pre_chat_form_options)
   json.continuity_via_email resource.channel.try(:continuity_via_email)
+  # Bloco 3.19: o endereco do icone do lancador. `additional_attributes` guarda so o MODO — sem esta
+  # chave a tela nao teria como saber se ha byte anexado, e mostraria "trocar imagem" sem imagem.
+  json.launcher_icon_url resource.try(:launcher_icon_image_url)
 end
 
 ## Facebook Attributes

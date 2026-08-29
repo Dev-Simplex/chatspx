@@ -1,11 +1,16 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import RadioCard from 'dashboard/components-next/radioCard/RadioCard.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
+import Banner from 'dashboard/components-next/banner/Banner.vue';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
-import { APPEARANCE_LIMITS } from '../composables/widgetAppearanceContract';
+import {
+  APPEARANCE_LIMITS,
+  APPEARANCE_ENUMS,
+  LAUNCHER_ICON_TYPES,
+} from '../composables/widgetAppearanceContract';
 
 /**
  * O lançador: posição, distância das bordas, formato, texto e esconder.
@@ -30,9 +35,14 @@ const props = defineProps({
    * componente continue completo para quem o monte sem perfil.
    */
   showExpandedLauncher: { type: Boolean, default: true },
+  /**
+   * Bloco 3.19: o endereço da imagem já anexada, ou vazio. Quem sabe se existe
+   * byte é o servidor — `additional_attributes` guarda só o MODO.
+   */
+  launcherIconUrl: { type: String, default: '' },
 });
 
-const emit = defineEmits(['update']);
+const emit = defineEmits(['update', 'uploadIcon', 'removeIcon']);
 
 const { t } = useI18n();
 
@@ -67,6 +77,62 @@ const setOffset = (field, raw) => {
 };
 
 const isOverridden = field => props.overriddenFields.includes(field);
+
+/* ── Bloco 3.19: o ícone do lançador ─────────────────────────────────────────
+ *
+ * O ícone era um `path` fixo no `bubbleHelpers.js`, com o branco cravado. Agora
+ * são três modos — e `default` é o padrão de fábrica de TODA caixa nova, em
+ * qualquer perfil.
+ *
+ * O padrão por perfil CAIU (decisão D5). Nenhuma inbox nasce com foto, porque a
+ * única foto que o produto poderia escolher sozinho seria genérica, e foto
+ * genérica é pior que balão. O que a tela faz em vez disso é SUGERIR — o aviso
+ * abaixo, permanente enquanto o modo é `default`, com a razão escrita e sem
+ * oferecer nem linkar banco de imagem.
+ * ────────────────────────────────────────────────────────────────────────── */
+const ICON_MODES = APPEARANCE_ENUMS.launcher_icon;
+const ICON_MAX_BYTES = APPEARANCE_LIMITS.launcherIconMaxBytes;
+const toKb = bytes => Math.ceil(bytes / 1024);
+const ICON_MAX_KB = toKb(ICON_MAX_BYTES);
+
+/** O valor gravado tem duas formas: a string do modo, ou `{mode, url}`. */
+const iconMode = computed(() => {
+  const stored = props.appearance.launcher_icon;
+  return (
+    (stored && typeof stored === 'object' ? stored.mode : stored) ?? 'default'
+  );
+});
+
+const uploadError = ref('');
+
+const onIconPicked = event => {
+  const [file] = event.target.files ?? [];
+  // Zera o input: sem isto, escolher o MESMO arquivo de novo (depois de
+  // corrigir o tamanho, que é o caso comum) não dispara `change` nenhum.
+  event.target.value = '';
+  if (!file) return;
+
+  if (!LAUNCHER_ICON_TYPES.includes(file.type)) {
+    uploadError.value = t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_WRONG_TYPE');
+    return;
+  }
+  if (file.size > ICON_MAX_BYTES) {
+    // A recusa é do servidor; esta é a mesma recusa, antes de gastar o upload.
+    uploadError.value = t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_TOO_BIG', {
+      size: toKb(file.size),
+      max: toKb(ICON_MAX_BYTES),
+    });
+    return;
+  }
+
+  uploadError.value = '';
+  emit('uploadIcon', file);
+};
+
+const removeIcon = () => {
+  uploadError.value = '';
+  emit('removeIcon');
+};
 </script>
 
 <template>
@@ -176,6 +242,115 @@ const isOverridden = field => props.overriddenFields.includes(field);
             t(`INBOX_WIDGET.APPEARANCE.LAUNCHER.TYPES.${type.toUpperCase()}`)
           }}
         </label>
+      </div>
+    </SettingsFieldSection>
+
+    <SettingsFieldSection :label="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON')">
+      <div class="grid gap-3 sm:grid-cols-3">
+        <RadioCard
+          v-for="mode in ICON_MODES"
+          :id="`launcher-icon-${mode}`"
+          :key="mode"
+          :label="
+            t(`INBOX_WIDGET.APPEARANCE.LAUNCHER.ICONS.${mode.toUpperCase()}`)
+          "
+          :description="
+            t(
+              `INBOX_WIDGET.APPEARANCE.LAUNCHER.ICONS.${mode.toUpperCase()}_HINT`
+            )
+          "
+          :is-active="iconMode === mode"
+          :data-testid="`launcher-icon-${mode}`"
+          @select="set('launcher_icon', mode)"
+        />
+
+        <!-- Idem: rotulo acessivel do radio. Ver `ThemeModeField.vue`. -->
+        <label
+          v-for="mode in ICON_MODES"
+          :key="`label-icon-${mode}`"
+          :for="`launcher-icon-${mode}`"
+          class="sr-only"
+        >
+          {{
+            t(`INBOX_WIDGET.APPEARANCE.LAUNCHER.ICONS.${mode.toUpperCase()}`)
+          }}
+        </label>
+      </div>
+
+      <!-- Decisão D5: enquanto o lançador é o balão, a tela SUGERE a foto de
+           alguém do time, com a razão escrita. Nunca oferece banco de imagem —
+           foto genérica é pior que balão, e é por isso que nenhuma caixa nasce
+           com foto. -->
+      <Banner
+        v-if="iconMode === 'default'"
+        color="blue"
+        class="mt-3"
+        data-testid="launcher-icon-suggestion"
+      >
+        {{ t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_SUGGESTION') }}
+      </Banner>
+
+      <div v-if="iconMode === 'image'" class="flex flex-col gap-2 mt-3">
+        <div class="flex items-center gap-3">
+          <img
+            v-if="launcherIconUrl"
+            :src="launcherIconUrl"
+            :alt="t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON')"
+            class="object-cover w-10 h-10 rounded-full bg-n-slate-3"
+            data-testid="launcher-icon-preview"
+          />
+          <label
+            for="launcher-icon-file"
+            class="px-3 py-2 text-sm rounded-lg cursor-pointer bg-n-slate-3 hover:bg-n-slate-4 text-n-slate-12"
+          >
+            {{
+              launcherIconUrl
+                ? t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_REPLACE')
+                : t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_UPLOAD')
+            }}
+          </label>
+          <!-- O input fica escondido e o `<label for>` é o botão: `sr-only` e
+               não `display:none`, senão o campo some do foco por teclado. -->
+          <input
+            id="launcher-icon-file"
+            type="file"
+            class="sr-only"
+            :accept="LAUNCHER_ICON_TYPES.join(',')"
+            data-testid="launcher-icon-file"
+            @change="onIconPicked"
+          />
+          <button
+            v-if="launcherIconUrl"
+            type="button"
+            class="px-3 py-2 text-sm rounded-lg text-n-ruby-11 hover:bg-n-ruby-3"
+            data-testid="launcher-icon-remove"
+            @click="removeIcon"
+          >
+            {{ t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_REMOVE') }}
+          </button>
+        </div>
+
+        <p
+          v-if="uploadError"
+          class="text-sm text-n-ruby-11"
+          data-testid="launcher-icon-error"
+        >
+          {{ uploadError }}
+        </p>
+        <p
+          v-else-if="!launcherIconUrl"
+          class="text-sm text-n-amber-11"
+          data-testid="launcher-icon-needs-image"
+        >
+          {{ t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_NEEDS_IMAGE') }}
+        </p>
+        <p v-else class="text-sm text-n-slate-11">
+          {{
+            t('INBOX_WIDGET.APPEARANCE.LAUNCHER.ICON_HINT', {
+              max: ICON_MAX_KB,
+            })
+          }}
+        </p>
       </div>
     </SettingsFieldSection>
 

@@ -19,6 +19,23 @@ class Inboxes extends CacheEnabledApiClient {
     return axios.delete(`${this.url}/${inboxId}/avatar`);
   }
 
+  /**
+   * Bloco 3.19 — o BYTE do ícone do lançador.
+   *
+   * Vai por `multipart` no mesmo `PATCH` da inbox, e não por endpoint próprio:
+   * assim herda as validações do modelo (teto de 20 KB e tipo) e a resposta já
+   * é a inbox inteira, com `launcher_icon_url` preenchido.
+   */
+  uploadLauncherIcon(inboxId, file) {
+    const formData = new FormData();
+    formData.append('launcher_icon_image', file, file.name);
+    return axios.patch(`${this.url}/${inboxId}`, formData);
+  }
+
+  deleteLauncherIcon(inboxId) {
+    return axios.delete(`${this.url}/${inboxId}/launcher_icon`);
+  }
+
   getAgentBot(inboxId) {
     return axios.get(`${this.url}/${inboxId}/agent_bot`);
   }

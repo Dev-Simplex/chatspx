@@ -45,7 +45,32 @@ module WidgetConfigResolvable
   # Chave fora do schema e descartada aqui: o que sobrou de uma versao anterior nao vaza para o site.
   def resolved_widget_appearance
     stored = widget_appearance.is_a?(Hash) ? widget_appearance : {}
+    merged = WidgetAppearanceSchema::DEFAULTS.merge(stored.slice(*WidgetAppearanceSchema::DEFAULTS.keys))
 
-    WidgetAppearanceSchema::DEFAULTS.merge(stored.slice(*WidgetAppearanceSchema::DEFAULTS.keys))
+    merged.merge('launcher_icon' => resolved_launcher_icon(merged['launcher_icon']))
+  end
+
+  # Bloco 3.19 — o icone do lancador, ja resolvido, porque o host CONSOME a decisao e nunca a
+  # recalcula (o mesmo padrao de `tokens` e `resolved_widget_approach`).
+  #
+  # O que sai daqui:
+  #   - modo desconhecido           -> `default`, sempre. Nunca um lancador vazio.
+  #   - `image` com imagem anexada  -> `{mode, url}` com a URL ABSOLUTA no nosso dominio
+  #   - `image` sem imagem anexada  -> `default`. E o gemeo servidor do `onerror` do SDK: nem o site
+  #                                    do cliente fica sem canal de contato, nem o navegador
+  #                                    do visitante gasta uma requisicao para descobrir um 404.
+  #   - `agent_photo`               -> o modo puro. Quem tem o avatar da inbox e o host (`avatarUrl`).
+  #
+  # A projecao e ANINHADA de proposito: `slice` so filtra o primeiro nivel, e uma chave sobrando
+  # DENTRO de `launcher_icon` (de uma versao anterior, ou de uma escrita direta no banco) iria
+  # inteira para o HTML de toda pagina do site do cliente. Aqui so passam `mode` e `url`.
+  def resolved_launcher_icon(stored)
+    mode = WidgetAppearanceSchema.launcher_icon_mode(stored)
+    fallback = WidgetAppearanceSchema::DEFAULTS['launcher_icon']
+    return fallback unless WidgetAppearanceSchema::LAUNCHER_ICONS.include?(mode)
+    return mode unless mode == 'image'
+
+    url = launcher_icon_image_url
+    url.present? ? { 'mode' => 'image', 'url' => url } : fallback
   end
 end

@@ -13,6 +13,7 @@ module WidgetSchemaErrorMessage
     'minLength' => ->(error) { ['detail_min_length', { count: error['schema']['minLength'] }] },
     'maxLength' => ->(error) { ['detail_max_length', { count: error['schema']['maxLength'] }] },
     'maxItems' => ->(error) { ['detail_max_items', { count: error['schema']['maxItems'] }] },
+    'pattern' => ->(_error) { ['detail_pattern', {}] },
     'schema' => ->(_error) { ['detail_unknown_field', {}] }
   }.freeze
 
@@ -39,6 +40,9 @@ module WidgetSchemaErrorMessage
     # Um enum que responde "valor nao permitido (aceitos: discreet, bold)" a quem tentou `aggressive`
     # em celular esconde a razao. A recusa e do schema (A15), mas a explicacao tem de vir junto.
     return I18n.t('errors.inbox.widget_config.detail_mobile_aggressive') if mobile_auto_open_attempt?(error)
+    # "nao esta no formato esperado" e verdade e nao serve para nada: quem tentou apontar o icone do
+    # lancador para uma CDN precisa ouvir POR QUE aquele endereco nao entra. Bloco 3.19, aceite 4.
+    return I18n.t('errors.inbox.widget_config.detail_launcher_icon_url') if external_launcher_icon_url?(error)
 
     key, options = SCHEMA_DETAIL_BUILDERS.fetch(error['type'], SCHEMA_DETAIL_FALLBACK).call(error)
 
@@ -47,5 +51,9 @@ module WidgetSchemaErrorMessage
 
   def mobile_auto_open_attempt?(error)
     error['data_pointer'] == '/approach_mobile' && error['data'] == 'aggressive'
+  end
+
+  def external_launcher_icon_url?(error)
+    error['data_pointer'] == '/launcher_icon/url' && error['type'] == 'pattern'
   end
 end
