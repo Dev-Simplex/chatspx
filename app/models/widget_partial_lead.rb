@@ -45,6 +45,10 @@ class WidgetPartialLead < ApplicationRecord
   validates :session_id, uniqueness: { scope: :inbox_id }
 
   scope :pending, -> { where(completed_at: nil) }
+  # `abandoned_at` nao e so um carimbo: e a PORTA DE SAIDA do laco do varredor. Ele varre
+  # `stale AND contact_id IS NULL AND abandoned_at IS NULL`, entao a linha que nao da para
+  # materializar precisa ganhar a marca para nao voltar a cada minuto ate a retencao vencer.
+  # Quem responde de novo perde a marca (`RecordService`) — voltou, nao abandonou.
   scope :abandoned, -> { pending.where.not(abandoned_at: nil) }
   # Parou de responder ha mais tempo que a janela, e ainda nao concluiu.
   scope :stale, ->(cutoff) { pending.where(last_answered_at: ...cutoff) }

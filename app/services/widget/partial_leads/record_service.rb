@@ -35,10 +35,7 @@ class Widget::PartialLeads::RecordService
 
     lead = WidgetPartialLead.find_or_initialize_by(inbox_id: @inbox.id, session_id: @session_id)
     lead.account_id = @inbox.account_id
-    lead.answers = merged_answers(lead)
-    lead.step_reached = [@step.to_i, lead.step_reached.to_i].max
-    lead.step_key = @step_key.to_s.presence || lead.step_key
-    lead.last_answered_at = Time.current
+    apply_answer(lead)
     lead.save!
     lead
   rescue ActiveRecord::RecordNotUnique
@@ -60,12 +57,27 @@ class Widget::PartialLeads::RecordService
     sanitized_answers.present?
   end
 
+  # O que uma nova resposta faz com a linha. Mora num metodo so porque os DOIS caminhos de
+  # gravacao (o normal e o `retry_once` da corrida) precisam aplicar exatamente as mesmas
+  # regras — inclusive a ultima, que e a menos obvia.
+  #
+  # `abandoned_at = nil`: respondeu de novo, entao NAO esta mais abandonado. A marca e o que
+  # tira a linha do laco do varredor (`SweepJob#materialize_abandoned`); mante-la aqui
+  # deixaria fora do varredor para sempre exatamente quem voltou e finalmente deu o e-mail.
+  def apply_answer(lead)
+    lead.answers = merged_answers(lead)
+    lead.step_reached = [@step.to_i, lead.step_reached.to_i].max
+    lead.step_key = @step_key.to_s.presence || lead.step_key
+    lead.last_answered_at = Time.current
+    lead.abandoned_at = nil
+  end
+
   def retry_once
     lead = WidgetPartialLead.find_by(inbox_id: @inbox.id, session_id: @session_id)
     return nil if lead.blank?
 
-    lead.update!(answers: merged_answers(lead), step_reached: [@step.to_i, lead.step_reached.to_i].max,
-                 step_key: @step_key.to_s.presence || lead.step_key, last_answered_at: Time.current)
+    apply_answer(lead)
+    lead.save!
     lead
   rescue StandardError
     nil

@@ -4,9 +4,9 @@ import PartialLeadReports from '../PartialLeadReports.vue';
 /**
  * Bloco 4.18 — "quantos leads perdemos e onde", agora com tela.
  *
- * O dublê devolve a forma REAL de `Widget::PartialLeads::Report#perform` (as seis chaves,
- * com `by_step` indexado por número e `by_step_name` por nome de campo). Dublê com forma
- * inventada mediria a si mesmo.
+ * O dublê devolve a forma REAL de `Widget::PartialLeads::Report#perform` (as sete chaves,
+ * com `by_step` indexado por número, `by_step_name` por nome de campo e `capture_enabled`
+ * dizendo se a chave da conta está ligada). Dublê com forma inventada mediria a si mesmo.
  */
 const { apiSpy } = vi.hoisted(() => ({ apiSpy: vi.fn() }));
 
@@ -19,8 +19,19 @@ const RELATORIO = {
   completed: 1,
   abandoned: 3,
   completion_rate: 0.25,
+  capture_enabled: true,
   by_step: { 1: 1, 3: 2 },
   by_step_name: { phoneNumber: 2, fullName: 1 },
+};
+
+const VAZIO = {
+  started: 0,
+  completed: 0,
+  abandoned: 0,
+  completion_rate: 0.0,
+  capture_enabled: true,
+  by_step: {},
+  by_step_name: {},
 };
 
 /* eslint-disable vue/custom-event-name-casing -- o nome do evento e do componente REAL
@@ -107,24 +118,54 @@ describe('PartialLeadReports (4.18)', () => {
   it('período sem ninguém diz "ninguém começou", e não 0% de abandono', async () => {
     // 0% de abandono num período vazio lê-se como sucesso. É a mesma classe de mentira do
     // "origem direta" que o 1.22 recusa.
-    apiSpy.mockResolvedValue({
-      data: {
-        started: 0,
-        completed: 0,
-        abandoned: 0,
-        completion_rate: 0.0,
-        by_step: {},
-        by_step_name: {},
-      },
-    });
+    apiSpy.mockResolvedValue({ data: VAZIO });
     const wrapper = await montar();
 
     expect(wrapper.find('[data-testid="partial-lead-empty"]').exists()).toBe(
       true
     );
     expect(
+      wrapper.find('[data-testid="partial-lead-capture-off"]').exists()
+    ).toBe(false);
+    expect(
       wrapper.find('[data-testid="partial-lead-abandoned"]').exists()
     ).toBe(false);
+  });
+
+  it('captura DESLIGADA não é "ninguém desistiu" — a tela diz por que não há número', async () => {
+    // Os dois estados chegam como zero. Mostrar o mesmo texto nos dois faz o operador ler
+    // "ninguém abandonou" onde a verdade é "a chave nunca foi ligada".
+    apiSpy.mockResolvedValue({ data: { ...VAZIO, capture_enabled: false } });
+    const wrapper = await montar();
+
+    // O texto é medido, e não só o testid: dois avisos com a mesma frase seriam dois
+    // data-testid resolvendo um problema que continua na tela.
+    // O trecho é escolhido para DISTINGUIR: "is off" aparece nas duas frases (desligada
+    // agora e desligada depois de coletar) e passaria por coincidência nas duas.
+    expect(texto(wrapper, 'partial-lead-capture-off')).toContain(
+      'nothing was recorded'
+    );
+    expect(wrapper.find('[data-testid="partial-lead-empty"]').exists()).toBe(
+      false
+    );
+    expect(wrapper.find('[data-testid="partial-lead-started"]').exists()).toBe(
+      false
+    );
+  });
+
+  it('desligada DEPOIS de coletar: mostra os números e avisa que eles não crescem mais', async () => {
+    // O inverso da mentira anterior: esconder os números históricos porque a chave está
+    // desligada apagaria medição verdadeira.
+    apiSpy.mockResolvedValue({
+      data: { ...RELATORIO, capture_enabled: false },
+    });
+    const wrapper = await montar();
+
+    expect(texto(wrapper, 'partial-lead-capture-off')).toContain(
+      'will not grow'
+    );
+    expect(texto(wrapper, 'partial-lead-started')).toContain('4');
+    expect(texto(wrapper, 'partial-lead-abandoned')).toContain('3');
   });
 
   it('endpoint fora do ar mostra erro, e não um relatório de zeros', async () => {

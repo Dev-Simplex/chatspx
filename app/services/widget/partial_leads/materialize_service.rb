@@ -24,14 +24,28 @@ class Widget::PartialLeads::MaterializeService
 
   # Devolve o Contact materializado, ou nil quando nao havia o que materializar.
   def perform
-    return unless materializable?
+    return unless sweepable?
+
+    # O abandono e confirmado ANTES da tentativa, e essa ordem e o conserto de um laco
+    # infinito. O varredor selecionava so `stale AND contact_id IS NULL` e passa a cada
+    # minuto (`config/schedule.yml`); enquanto este servico devolvia nil sem marcar nada —
+    # lead sem canal de contato, sem ContactInbox de sessao, ou erro persistente de
+    # validacao (um "meu telefone" digitado no campo de telefone reprova em TODA passagem) —
+    # a mesma linha voltava aqui ate a retencao vencer: ~43.200 passagens por linha com o
+    # cron de 1 minuto e os 30 dias de guarda. Marcada, ela sai do escopo na primeira.
+    #
+    # O preco: um erro TRANSITORIO tambem carimba, e a linha nao e retentada. E deliberado —
+    # perder uma materializacao e menor que remoer a base inteira para sempre, o erro fica
+    # no log e a pessoa que volta desfaz a marca.
+    confirm_abandonment
+    return unless @lead.contactable?
 
     contact = identify_contact
     return if contact.blank?
 
     mark_incomplete(contact)
     apply_label(contact)
-    @lead.update!(contact: contact, abandoned_at: @lead.abandoned_at || Time.current)
+    @lead.update!(contact: contact)
     contact
   rescue StandardError => e
     Rails.logger.error("Widget::PartialLeads::MaterializeService lead=#{@lead&.id}: #{e.message}")
@@ -40,11 +54,19 @@ class Widget::PartialLeads::MaterializeService
 
   private
 
-  def materializable?
+  # Quem concluiu nao abandonou, e quem ja tem contato ja foi materializado: nos dois casos
+  # o servico nao toca a linha — nem para marcar o abandono.
+  def sweepable?
     return false if @lead.blank?
-    return false if @lead.completed? || @lead.contact_id.present?
 
-    @lead.contactable?
+    !@lead.completed? && @lead.contact_id.blank?
+  end
+
+  # A marca so pode ser DEFINITIVA enquanto a pessoa nao voltar: `RecordService` limpa
+  # `abandoned_at` a cada nova resposta, senao o visitante que retorna e finalmente da o
+  # e-mail ficaria fora do varredor para sempre — o conserto do laco viraria lead perdido.
+  def confirm_abandonment
+    @lead.update!(abandoned_at: Time.current) if @lead.abandoned_at.blank?
   end
 
   # Reusa o ContactInbox da propria sessao quando ele existe (o widget cria um no boot),
