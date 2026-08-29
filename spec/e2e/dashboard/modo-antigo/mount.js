@@ -18,17 +18,19 @@ import LegacyCampaigns from 'dashboard/routes/dashboard/settings/inbox/widget/tr
 import ptBR from 'dashboard/i18n/locale/pt_BR/inboxWidget.json';
 import 'dashboard/assets/scss/app.scss';
 
-// A seção lê o store por `useMapGetter` e chama a API ao importar. Nenhum dos dois é
-// assunto desta página: aqui se mede COR e NOME ACESSÍVEL, então os dois são presos
-// em módulos falsos pelo próprio mount, via as props que o componente aceita.
+// A seção lê o store, despacha `campaigns/get` ao montar e chama a API ao importar.
+// Nada disso é assunto desta página: aqui se mede COR e NOME ACESSÍVEL, então o store
+// é preso num objeto falso pelo próprio mount, já com a lista dentro.
+// `id` É o `display_id` — o serializador do índice não expõe o id do banco
+// (`api/v1/models/_campaign.json.jbuilder:1`).
 const CAMPANHAS = [
   {
-    id: 31,
-    display_id: 3,
+    id: 3,
     title: '🔥 Convite dos planos',
     message: 'Posso ajudar a escolher o plano ideal para o seu time?',
     enabled: true,
-    inbox: { id: 7 },
+    campaign_type: 'ongoing',
+    inbox: { id: 7, channel_type: 'Channel::WebWidget' },
   },
 ];
 
@@ -63,7 +65,12 @@ const app = createApp({
 // producao, com o formato que ele recebe em producao.
 app.config.globalProperties.$store = {
   dispatch: () => Promise.resolve(),
-  getters: { 'campaigns/getLiveChatCampaigns': CAMPANHAS },
+  getters: {
+    'campaigns/getLiveChatCampaigns': CAMPANHAS,
+    // A seção carrega a própria lista ao montar e consulta esta flag antes de
+    // despachar. O objeto de flags é o que o getter devolve em produção.
+    'campaigns/getUIFlags': { isFetching: false, isCreating: false },
+  },
 };
 
 app.use(i18n);
