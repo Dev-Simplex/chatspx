@@ -10,8 +10,10 @@
 #  attribute_model        :integer          default("conversation_attribute")
 #  attribute_values       :jsonb
 #  default_value          :integer
+#  origin                 :string
 #  regex_cue              :string
 #  regex_pattern          :string
+#  requires_verified_origin :boolean
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #  account_id             :bigint
@@ -19,6 +21,7 @@
 # Indexes
 #
 #  attribute_key_model_index                         (attribute_key,attribute_model,account_id) UNIQUE
+#  index_cad_on_account_and_model_when_protected     (account_id,attribute_model) WHERE (requires_verified_origin IS TRUE)
 #  index_custom_attribute_definitions_on_account_id  (account_id)
 #
 class CustomAttributeDefinition < ApplicationRecord

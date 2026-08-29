@@ -25,7 +25,12 @@ class Public::Api::V1::Inboxes::ContactsController < Public::Api::V1::InboxesCon
   def update
     contact_identify_action = ContactIdentifyAction.new(
       contact: @contact_inbox.contact,
-      params: permitted_params.to_h.deep_symbolize_keys.except(:identifier)
+      params: permitted_params.to_h.deep_symbolize_keys.except(:identifier),
+      # Bloco 4.17. Esta rota nao tem autenticacao de agente: basta conhecer o identificador
+      # publico da inbox e o `source_id` da sessao. A unica credencial possivel aqui e o
+      # `identifier_hash`, e quem o apresenta valido ja saiu de `process_hmac` com
+      # `hmac_verified` ligado. Quem nao apresenta nada e, por definicao, nao verificado.
+      verified_origin: @contact_inbox.hmac_verified?
     )
     render json: contact_identify_action.perform
   end

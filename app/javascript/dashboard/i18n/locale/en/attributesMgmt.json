@@ -67,6 +67,10 @@
         "ENABLE_REGEX": {
           "LABEL": "Enable regex validation"
         },
+        "VERIFIED_ORIGIN": {
+          "LABEL": "Only accept writes from a verified origin",
+          "HELP": "Your website can no longer change this attribute unless the visitor's identity was verified with your HMAC signature. The current value is kept and the attempt is logged."
+        },
         "BADGES": {
           "PRE_CHAT": "Pre-chat",
           "RESOLUTION": "Resolution"

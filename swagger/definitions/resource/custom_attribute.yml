@@ -30,6 +30,12 @@ properties:
   default_value:
     type: string
     description: Attribute default value
+  requires_verified_origin:
+    type: boolean
+    description: When true, this attribute only accepts writes from a session whose identity was verified by HMAC signature
+  origin:
+    type: string
+    description: Who created the definition (agent/website). Null for definitions created before this field existed.
   created_at:
     type: string
     description: The date and time when the custom attribute was created
