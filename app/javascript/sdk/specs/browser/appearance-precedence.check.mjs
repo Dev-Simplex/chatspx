@@ -77,6 +77,11 @@ const montar = async ({ position, offset }) => {
     <button id="lancador" class="woot-widget-bubble woot-elements--${position}">
       <svg width="24" height="24" viewBox="0 0 240 240" fill="none"></svg>
     </button>
+    <!-- ATENCAO: a classe de ancora abaixo e escrita A MAO, e esta fixture NAO prova que a
+         producao a emite — foi exatamente esse padrao que escondeu o defeito do 4.06 (o teaser
+         nascia no canto oposto ao lancador e este arquivo seguia 12/12). Aqui se mede
+         PRECEDENCIA de CSS, com a classe dada como premissa. Quem emite a classe e coberto por
+         "teaser.check.mjs", que empacota o "teaser.js" real com o Vite e monta o componente. -->
     <div class="woot-teaser woot-teaser--visivel woot-elements--${position}">
       <span>Posso ajudar?</span>
     </div>

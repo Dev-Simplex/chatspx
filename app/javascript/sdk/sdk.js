@@ -139,9 +139,12 @@
  *   Bloco 3.18 — offset_y do banco. O segundo argumento do var() e o que faz a
  *   inbox que nunca configurou nada continuar EXATAMENTE onde estava: sem a
  *   custom property, o calc computa 20px, que e o valor de sempre.
- *   Este texto ficava DENTRO da string do SDK_CSS, e comentario dentro de
- *   string e dado: era baixado por todo visitante de todo site. A asserção de
- *   peso do 4.06 ('teaser.check.mjs') existe para isso e estava vermelha.
+ *   Este texto ficava DENTRO da string do SDK_CSS. Saiu de la por legibilidade
+ *   — comentario dentro de string e invisivel para ferramenta —, NAO por peso:
+ *   o plugin `spx-sdk-css-minify` (vite.sdk-css.ts, bloco 2.18) passa o literal
+ *   pelo esbuild com `loader: 'css', minify: true`, e minificacao de CSS remove
+ *   comentario. Medido no artefato construido: `grep -c '/\*' public/packs/js/
+ *   sdk.js` = 0. Nunca chegou a visitante nenhum.
  *
  * ── .woot-teaser
  *   ── TEASER (bloco 4.06) ────────────────────────────────────────────────────

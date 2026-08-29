@@ -196,12 +196,16 @@ class Flow < ApplicationRecord
   # condicao), e `experiment: null` desliga o experimento. O que nao apaga e a AUSENCIA.
   #
   # POR QUE AS DUAS PONTAS (`widget_prechat?` E `trigger_type_was`) E NAO SO UMA:
-  #  • `trigger_type_was` sozinho nao basta porque o cliente que apagava o alvo era exatamente o
-  #    que trocava o gatilho para `manual` no mesmo request — a guarda tem de olhar o que o
-  #    registro ERA, nao o que o payload pediu;
-  #  • `widget_prechat?` sozinho nao basta porque a VOLTA tambem apagava: medido, o par
-  #    "vira webhook, volta para captura" perdia o alvo no segundo save, quando o `_was` ja era
-  #    `external_webhook`. Ao REENTRAR na captura o alvo persistido volta a ser o alvo em vigor.
+  #  • `widget_prechat?` sozinho nao basta porque o cliente que apagava o alvo era exatamente o
+  #    que trocava o gatilho para `manual` no mesmo request: depois da atribuicao o registro ja
+  #    nao e captura, entao a guarda tem de olhar o que ele ERA, nao o que o payload pediu;
+  #  • `trigger_type_was` sozinho nao basta porque na VOLTA (webhook -> captura) o `_was` e
+  #    `external_webhook`, e so `widget_prechat?` pega esse caso. Ao REENTRAR na captura o alvo
+  #    persistido volta a ser o alvo em vigor.
+  #
+  # Medido reduzindo a guarda a uma ponta de cada vez, em flows_widget_prechat_round_trip_spec:
+  # so `widget_prechat?` -> 2 falhas (o caso `manual` :139 e a volta :231); so `trigger_type_was`
+  # -> 1 falha (a volta :231). As duas pontas sao necessarias, cada uma por um caso.
   # Ao SAIR de `widget_prechat` o alvo e preservado pelo mesmo motivo do `webhook_token`: ele
   # volta a valer se o admin reativar a captura, e nunca e lido fora de `widget_prechat`
   # (Flows::WidgetPrechatResolver filtra pelo enum). Um fluxo que NUNCA foi captura nao ganha

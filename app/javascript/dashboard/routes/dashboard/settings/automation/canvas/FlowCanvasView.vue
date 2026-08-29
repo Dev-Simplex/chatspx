@@ -393,7 +393,8 @@ const syncWebhookToken = flow => {
 // BLOCO 4.02 — a segmentação do fluxo de CAPTURA (`url_conditions`, `inbox_ids`, `priority`,
 // `utm`, `devices`, `business_hours_only`, `experiment`), como o servidor a entregou.
 //
-// O canvas NÃO a edita: quem escolhe o alvo é a tela de segmentação. Ele a carrega e a devolve
+// O canvas NÃO a edita — e nenhuma outra tela edita: hoje o único autor do alvo é a API. Ele a
+// carrega e a devolve
 // intacta no save, porque os dois gravam a MESMA coluna jsonb (`flows.trigger_config`) — sem
 // isso, abrir e salvar o fluxo no canvas apagava o alvo inteiro, com 200 e sem aviso.
 //
