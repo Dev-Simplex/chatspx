@@ -1,4 +1,5 @@
 <script>
+import { mapGetters } from 'vuex';
 import { useVuelidate } from '@vuelidate/core';
 import { required, url, minLength } from '@vuelidate/validators';
 import wootConstants from 'dashboard/constants/globals';
@@ -59,6 +60,16 @@ export default {
     return {
       url: this.value.url || '',
       name: this.value.name || '',
+      /**
+       * Bloco 4.13 — o webhook passou a ser entregue SO para a inbox escolhida, e ate
+       * aqui nao havia como escolher: o campo existia no banco e no controller e nao
+       * existia na tela. Vazio = todas as inboxes, que e o estado de quem nunca preencheu
+       * o campo — e continua sendo o padrao de um webhook novo.
+       *
+       * `value.inbox` (e nao `value.inbox_id`) porque e isso que o `index` devolve: o
+       * partial serializa a inbox como objeto aninhado com id e nome.
+       */
+      inboxId: this.value.inbox?.id || '',
       subscriptions: this.value.subscriptions || [],
       supportedWebhookEvents: inboxEventsEnabled
         ? [...SUPPORTED_WEBHOOK_EVENTS, 'inbox_updated']
@@ -66,6 +77,7 @@ export default {
     };
   },
   computed: {
+    ...mapGetters({ inboxes: 'inboxes/getInboxes' }),
     /**
      * Bloco 4.14. Lia `value.secret`, e isso estava errado nos DOIS sentidos:
      *
@@ -98,6 +110,12 @@ export default {
       this.$emit('submit', {
         url: this.url,
         name: this.name,
+        // `null`, e nao `''`: "todas as inboxes" e a opcao de valor vazio, e mandar `''`
+        // deixaria o NULL por conta do cast do Rails. `null` diz o que se quer dizer —
+        // este webhook nao esta preso a inbox nenhuma. (Medido: essa e a conversao que
+        // pesa; o `Number` e redundante hoje, porque o `:value` do `<option>` ja carrega
+        // o id como numero, e existe para o dia em que ele deixar de carregar.)
+        inbox_id: this.inboxId === '' ? null : Number(this.inboxId),
         subscriptions: this.subscriptions,
       });
     },
@@ -152,7 +170,25 @@ export default {
           {{ $t('INTEGRATION_SETTINGS.WEBHOOK.SECRET.CONFIGURED_DESC') }}
         </span>
       </label>
-      <label :class="{ error: v$.url.$error }" class="mb-2">
+      <!--
+        Bloco 4.13 — o seletor de inbox. Sem ele o filtro por inbox era inalcancavel pela
+        tela: so quem chamasse a API na mao conseguia prender um webhook a uma inbox.
+      -->
+      <label for="webhook-inbox">
+        {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.INBOX.LABEL') }}
+        <select id="webhook-inbox" v-model="inboxId" name="inbox_id">
+          <option value="">
+            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.INBOX.ALL') }}
+          </option>
+          <option v-for="inbox in inboxes" :key="inbox.id" :value="inbox.id">
+            {{ inbox.name }}
+          </option>
+        </select>
+        <span class="text-xs text-n-slate-11">
+          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.INBOX.HELP') }}
+        </span>
+      </label>
+      <label :class="{ error: v$.url.$error }" class="mb-2 mt-4">
         {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.SUBSCRIPTIONS.LABEL') }}
       </label>
       <div class="flex flex-col gap-2.5 mb-4">

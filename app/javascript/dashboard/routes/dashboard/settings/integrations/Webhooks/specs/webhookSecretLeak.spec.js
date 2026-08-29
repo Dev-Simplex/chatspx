@@ -1,3 +1,4 @@
+import { createStore } from 'vuex';
 import { mount } from '@vue/test-utils';
 import WebhookForm from '../WebhookForm.vue';
 
@@ -34,9 +35,23 @@ const webhookRecemCriado = {
   has_secret: true,
 };
 
-const montar = (value = webhookRecemCriado) =>
+// Bloco 4.13: o formulario ganhou o seletor de inbox e passou a ler `inboxes/getInboxes`.
+// Sem store montado, o `mapGetters` explode no render e este arquivo inteiro fica sem
+// medir nada.
+const criarStore = (inboxes = []) =>
+  createStore({
+    modules: {
+      inboxes: {
+        namespaced: true,
+        getters: { getInboxes: () => inboxes },
+      },
+    },
+  });
+
+const montar = (value = webhookRecemCriado, inboxes = []) =>
   mount(WebhookForm, {
     props: { value, submitLabel: 'Salvar' },
+    global: { plugins: [criarStore(inboxes)] },
   });
 
 describe('4.14 — o segredo nao e desenhado no formulario', () => {

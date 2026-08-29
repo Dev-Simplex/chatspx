@@ -72,4 +72,11 @@ class InboxPolicy < ApplicationPolicy
   def health?
     @account_user.administrator?
   end
+
+  # Bloco 4.13: a rota `reset_secret` existia, a acao no controller existia e a TELA ja a
+  # chamava — faltava a policy. `authorize(Inbox)` levantava Pundit::NotDefinedError e o
+  # botao "resetar" da inbox de API respondia 500.
+  def reset_secret?
+    @account_user.administrator?
+  end
 end

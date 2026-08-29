@@ -7,6 +7,7 @@
 #  hmac_mandatory        :boolean          default(FALSE)
 #  hmac_token            :string
 #  identifier            :string
+#  secret                :string
 #  webhook_url           :string
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
@@ -26,6 +27,11 @@ class Channel::Api < ApplicationRecord
 
   has_secure_token :identifier
   has_secure_token :hmac_token
+  # Bloco 4.13 — o webhook de inbox ja saia com `secret: inbox.channel.secret` no listener,
+  # so que a classe nao tinha o concern: a coluna estava populada com ciphertext (13 de 13
+  # linhas em homologacao) e o valor lido era o envelope `{"p":"..."}`. Canal novo nascia
+  # com NULL, e `reset_secret!` nao existia sequer como metodo.
+  include WebhookSecretable
   validate :ensure_valid_agent_reply_time_window
   validates :webhook_url, length: { maximum: Limits::URL_LENGTH_LIMIT }
 

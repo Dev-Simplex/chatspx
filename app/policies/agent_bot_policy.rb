@@ -26,4 +26,11 @@ class AgentBotPolicy < ApplicationPolicy
   def reset_access_token?
     @account_user.administrator?
   end
+
+  # Bloco 4.13: sem esta entrada, `authorize(AgentBot)` levanta Pundit::NotDefinedError e a
+  # rota de rotacao morre em 500 para o administrador que tem todo o direito de usa-la —
+  # o mesmo modo de falha que `launcher_icon?` ja tinha corrigido em InboxPolicy.
+  def reset_secret?
+    @account_user.administrator?
+  end
 end

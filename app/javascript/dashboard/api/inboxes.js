@@ -50,6 +50,16 @@ class Inboxes extends CacheEnabledApiClient {
     return axios.post(`${this.url}/${inboxId}/sync_templates`);
   }
 
+  /**
+   * Bloco 4.13 — rotação do segredo com que o webhook da inbox de API é assinado.
+   * A rota existia e a tela já chamava `inboxes/resetSecret`; não havia nem esta
+   * chamada nem a action no store, então o botão de reset só produzia
+   * `[vuex] unknown action type` no console.
+   */
+  resetSecret(inboxId) {
+    return axios.post(`${this.url}/${inboxId}/reset_secret`);
+  }
+
   createCSATTemplate(inboxId, template) {
     return axios.post(`${this.url}/${inboxId}/csat_template`, {
       template,

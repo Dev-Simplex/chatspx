@@ -2,7 +2,7 @@ class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
   before_action :current_account
   before_action :check_authorization
   before_action :agent_bot, except: [:index, :create]
-  before_action :ensure_mutable_bot, only: [:update, :destroy, :avatar, :reset_access_token]
+  before_action :ensure_mutable_bot, only: [:update, :destroy, :avatar, :reset_access_token, :reset_secret]
   before_action :reject_captain_bot_type, only: [:create, :update]
 
   def index
@@ -34,6 +34,14 @@ class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
   def reset_access_token
     @agent_bot.access_token.regenerate_token
     @agent_bot.reload
+  end
+
+  # Bloco 4.13 — a rota `POST /agent_bots/:id/reset_secret` ja estava declarada em
+  # `config/routes.rb` (routes.rb:149) e nao havia metodo nenhum para atende-la: rota viva
+  # apontando para o vazio. Rotacao e a UNICA saida quando o segredo vaza — sem ela o
+  # cliente teria de apagar o bot e refazer a integracao inteira.
+  def reset_secret
+    @agent_bot.reset_secret!
   end
 
   private

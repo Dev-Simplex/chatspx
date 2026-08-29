@@ -377,6 +377,22 @@ export const actions = {
       throw new Error(error);
     }
   },
+  /**
+   * Bloco 4.13 — a tela despachava `inboxes/resetSecret` e a action não existia.
+   * `dispatch` de action inexistente não lança: o Vuex só escreve
+   * `[vuex] unknown action type` no console e devolve `undefined`, então o
+   * `if (response)` do componente caía no ramo de erro e o usuário via a
+   * mensagem de falha mesmo quando nada tinha sido tentado.
+   *
+   * A resposta é a inbox inteira, com o segredo NOVO: sem gravá-la no store o
+   * campo da tela continuaria mostrando o segredo antigo, que já não vale.
+   */
+  resetSecret: async ({ commit }, inboxId) => {
+    const response = await InboxesAPI.resetSecret(inboxId);
+    commit(types.default.EDIT_INBOXES, response.data);
+    return response.data;
+  },
+
   syncTemplates: async (_, inboxId) => {
     try {
       await InboxesAPI.syncTemplates(inboxId);

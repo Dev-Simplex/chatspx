@@ -64,10 +64,22 @@ class AgentBotListener < BaseListener
     process_webhook_bot_event(agent_bot, payload)
   end
 
+  # Bloco 4.13 — o POST do agent bot saia NU: sem `secret:`. O destino recebia dados de
+  # conversa e nao tinha como provar que vieram de nos.
+  #
+  # O `delivery_id` nao e um cabecalho novo: ele ja aparecia, preenchido pelo `job_id`
+  # (fallback do WebhookJob) — medido. O que muda e a ORIGEM: passa a ser gerado aqui, no
+  # momento do evento, e nao derivado da instancia de job que por acaso o levou.
+  #
+  # O `webhook_type` vai explicito porque, apesar de `:agent_bot_webhook` ja ser o default
+  # do AgentBots::WebhookJob, e ele que liga o tratamento de erro do agent bot (reabrir a
+  # conversa pendente) em `Webhooks::Trigger` — deixa-lo implicito faz esse elo depender de
+  # um valor default que nao aparece na chamada.
   def process_webhook_bot_event(agent_bot, payload)
     return unless agent_bot.webhook? # espelho captain NUNCA dispara webhook
     return if agent_bot.outgoing_url.blank?
 
-    AgentBots::WebhookJob.perform_later(agent_bot.outgoing_url, payload)
+    AgentBots::WebhookJob.perform_later(agent_bot.outgoing_url, payload, :agent_bot_webhook,
+                                        secret: agent_bot.secret, delivery_id: SecureRandom.uuid)
   end
 end
