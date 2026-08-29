@@ -122,9 +122,13 @@ RSpec.describe 'enforcement de identidade — os tres estados', type: :request d
       expect(response).to have_http_status(:unauthorized)
     end
 
+    # A ordem — gravar `desativado` e SO ENTAO ligar o `hmac_mandatory` — e a de uma inbox
+    # de cliente que ja tinha o estado configurado quando o HMAC obrigatorio entrou. Ela
+    # tambem e a unica pela qual esse valor ainda consegue existir: escrever `desativado`
+    # com o canal ja mandatory passou a ser recusado (bloco mais abaixo neste arquivo).
     it 'recusa mesmo com desativado gravado no jsonb' do
-      web_widget.update!(hmac_mandatory: true)
       inbox.update!(identity_enforcement: 'desativado')
+      web_widget.update!(hmac_mandatory: true)
 
       bind_identity_without_signature
 
@@ -214,6 +218,57 @@ RSpec.describe 'enforcement de identidade — os tres estados', type: :request d
       expect(response).to have_http_status(:success)
       expect(inbox.reload.identity_enforcement_observed_since).not_to eq(forjada)
       expect(inbox.identity_enforcement_observed_since_time).to be_within(30.seconds).of(Time.zone.now)
+    end
+  end
+
+  # §12 do ESTADO-BLOCOS-DEFINITIVO, item 7: "se for teto, a API precisa parar de devolver
+  # 200 para uma escrita que sera ignorada".
+  #
+  # A precedencia em si continua ESCALADA — quem decide se `hmac_mandatory` e piso ou teto
+  # e o dono. O que estes exemplos travam e o unico lado da questao que nao depende da
+  # decisao: em nenhuma das duas leituras e aceitavel gravar `observado`, responder 200 e
+  # devolver `obrigatorio` na leitura seguinte. Sob "teto" a escrita e mentira; sob "piso"
+  # a LEITURA e que esta errada — e nos dois casos o 200 de hoje esconde qual dos dois e.
+  describe 'a API para de aceitar em silencio a escrita que sera ignorada' do
+    let(:admin) { create(:user, account: account, role: :administrator) }
+
+    def ligar_estado(state)
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            params: { additional_attributes: { identity_enforcement: state } },
+            headers: admin.create_new_auth_token,
+            as: :json
+    end
+
+    describe 'quando o canal exige assinatura (hmac_mandatory)' do
+      before { web_widget.update!(hmac_mandatory: true) }
+
+      it 'recusa observado com 422 em vez de gravar e ignorar' do
+        ligar_estado('observado')
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'nao deixa nada gravado no jsonb depois da recusa' do
+        ligar_estado('observado')
+
+        expect(inbox.reload.identity_enforcement).to be_nil
+      end
+
+      it 'aceita obrigatorio, que e o que a inbox ja faz' do
+        ligar_estado('obrigatorio')
+
+        expect(response).to have_http_status(:success)
+        expect(inbox.reload.identity_enforcement).to eq('obrigatorio')
+      end
+    end
+
+    # O espelho: sem `hmac_mandatory` a mesma chamada continua passando. Sem esta metade,
+    # a guarda acima passaria tambem se a escrita tivesse sido recusada para todo mundo.
+    it 'continua aceitando observado na inbox sem hmac_mandatory' do
+      ligar_estado('observado')
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.identity_enforcement).to eq('observado')
     end
   end
 end

@@ -34,6 +34,7 @@ module IdentityEnforceable
     store_accessor :additional_attributes, :identity_enforcement, :identity_enforcement_observed_since
 
     validate :ensure_valid_identity_enforcement
+    validate :ensure_identity_enforcement_write_is_not_ignored
     before_save :stamp_identity_enforcement_observation
   end
 
@@ -81,6 +82,52 @@ module IdentityEnforceable
                I18n.t('errors.inbox.identity_enforcement.invalid_state',
                       states: IDENTITY_ENFORCEMENT_STATES.join(', '),
                       default: "must be one of: #{IDENTITY_ENFORCEMENT_STATES.join(', ')}"))
+  end
+
+  # §12 do ESTADO-BLOCOS-DEFINITIVO, item 7 — "se for teto, a API precisa parar de devolver
+  # 200 para uma escrita que sera ignorada".
+  #
+  # A PRECEDENCIA continua escalada: quem decide se `hmac_mandatory` e piso (o valor
+  # gravado vence) ou teto (o que a arvore faz) e o dono, e nada aqui decide por ele —
+  # `resolved_identity_enforcement` acima nao mudou uma linha, e nenhuma inbox da frota
+  # muda de comportamento por causa desta validacao.
+  #
+  # O que ela conserta e o unico lado que nao depende da decisao: hoje o PATCH grava
+  # `observado` numa inbox com `hmac_mandatory`, responde 200, e a leitura seguinte devolve
+  # `obrigatorio`. Quem apertou o botao sai da tela convencido de que ligou a observacao e
+  # vai abrir depois um relatorio de um estado que nunca entrou em vigor. Sob "teto" a
+  # escrita e que e mentira; sob "piso" a leitura e que esta errada — e o 200 de hoje
+  # esconde qual dos dois.
+  #
+  # Duas condicoes de saida existem por motivos diferentes, e nenhuma e decorativa:
+  #
+  #   · `STRICT` passa porque nao esta sendo ignorado: e exatamente o que a inbox ja faz.
+  #     Recusar tambem ele viraria "esta inbox nao aceita mais estado nenhum", que e outro
+  #     comportamento.
+  #   · so a ESCRITA e barrada, nunca o valor ja gravado. Uma inbox que carregava
+  #     `observado` de antes de o canal virar mandatory tem de continuar salvavel — do
+  #     contrario trocar o NOME dela levantaria RecordInvalid num campo que o formulario
+  #     nem toca.
+  def ensure_identity_enforcement_write_is_not_ignored
+    return unless channel.try(:hmac_mandatory)
+    return unless IDENTITY_ENFORCEMENT_STATES.include?(identity_enforcement.to_s)
+    return if identity_enforcement.to_s == STRICT
+    return unless identity_enforcement_being_written?
+
+    errors.add(:identity_enforcement,
+               I18n.t('errors.inbox.identity_enforcement.ignored_by_hmac_mandatory',
+                      state: STRICT,
+                      # Fallback DIFERENTE do texto traduzido de proposito: se ele fosse igual, o
+                      # spec passaria tambem com a chave ausente do `en.yml` e nao mediria a
+                      # traducao nenhuma.
+                      default: 'cannot be set while the channel requires a signature'))
+  end
+
+  def identity_enforcement_being_written?
+    return false unless additional_attributes_changed?
+
+    previous = additional_attributes_was.is_a?(Hash) ? additional_attributes_was['identity_enforcement'] : nil
+    previous.to_s != identity_enforcement.to_s
   end
 
   # O relatorio precisa separar o que foi MEDIDO sob observacao do que e historico. E a
