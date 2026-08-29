@@ -32,6 +32,18 @@
   - active_storage_purge
   - action_mailbox_incineration
 
+# O Sidekiq tem UM pool: prioridade estrita escolhe o proximo job, mas nao preempta o que ja
+# esta rodando. Descricao de midia faz shell-out pro ffmpeg e, quando um quadro nao progride,
+# segura a thread pelo tempo todo. Em homologacao 6 desses ocuparam 15 das 17 threads e a fila
+# `critical` — que carrega o EventDispatcherJob do tempo real — acumulou 47 min de latencia.
+# A capsula da a esse trabalho um pool proprio e pequeno: ele pode se atrasar, mas nao pode
+# mais comer as threads de quem entrega evento ao painel.
+:capsules:
+  media:
+    :concurrency: <%= ENV.fetch("SIDEKIQ_MEDIA_CONCURRENCY", 2) %>
+    :queues:
+      - media_processing
+
 # you can override concurrency based on environment
 production:
   :concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 15) %>

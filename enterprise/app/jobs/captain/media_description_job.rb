@@ -1,5 +1,7 @@
 class Captain::MediaDescriptionJob < ApplicationJob
-  queue_as :low
+  # Fila propria com pool limitado (capsula `media` em config/sidekiq.yml). Em `:low` este job
+  # dividia as 17 threads com todo mundo e, travando, matava a fila `critical` do tempo real.
+  queue_as :media_processing
 
   # O anexo pode ainda nao ter subido pro storage quando o commit dispara o job.
   retry_on ActiveStorage::FileNotFoundError, wait: 2.seconds, attempts: 3
