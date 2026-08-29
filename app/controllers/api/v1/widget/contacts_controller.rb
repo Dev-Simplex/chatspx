@@ -40,7 +40,16 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
 
   # TODO : clean up this with proper routes delete contacts/custom_attributes
   def destroy_custom_attributes
-    @contact.custom_attributes = @contact.custom_attributes.excluding(params[:custom_attributes])
+    # Bloco 4.17: apagar tambem e alterar. O `update` deste controller ja passa pelo portao
+    # (via ContactIdentifyAction); sem ele aqui, a MESMA sessao que nao consegue escrever a
+    # chave protegida a apaga por esta rota, que nao tem before_action nenhum.
+    gate = CustomAttributes::OriginGate.new(
+      account: @contact.account,
+      attribute_model: :contact_attribute,
+      verified: @contact_inbox&.hmac_verified?
+    ).delete(params[:custom_attributes])
+
+    @contact.custom_attributes = @contact.custom_attributes.excluding(gate.allowed)
     @contact.save!
     render json: @contact
   end

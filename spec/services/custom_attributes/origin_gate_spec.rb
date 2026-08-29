@@ -66,6 +66,47 @@ RSpec.describe CustomAttributes::OriginGate do
     end
   end
 
+  # A superficie de EXCLUSAO. Apagar tambem e alterar: se a chave protegida sai daqui, o
+  # aceite "o valor atual e mantido" nao vale nada — basta apagar em vez de sobrescrever.
+  describe '#delete' do
+    before { definition('cpf', protegida: true) }
+
+    it 'recusa a exclusao da chave protegida' do
+      resultado = gate(verified: false).delete(['cpf'])
+
+      expect(resultado.allowed).to eq([])
+      expect(resultado.refused).to eq(['cpf'])
+      expect(resultado).to be_refused
+    end
+
+    it 'apaga as demais chaves do mesmo pedido' do
+      resultado = gate(verified: false).delete(%w[cpf cupom])
+
+      expect(resultado.allowed).to eq(['cupom'])
+      expect(resultado.refused).to eq(['cpf'])
+    end
+
+    it 'deixa apagar quando a origem foi verificada' do
+      expect(gate(verified: true).delete(['cpf']).allowed).to eq(['cpf'])
+    end
+
+    it 'registra a tentativa nomeando conta, modelo e chaves' do
+      allow(Rails.logger).to receive(:warn)
+
+      gate(verified: false).delete(['cpf'])
+
+      expect(Rails.logger).to have_received(:warn)
+        .with("[custom_attributes] escrita recusada por origem nao verificada account_id=#{account.id} " \
+              'modelo=conversation_attribute chaves=cpf')
+    end
+
+    it 'aguenta lista vazia, nula e chave avulsa' do
+      expect(gate(verified: false).delete(nil).allowed).to eq([])
+      expect(gate(verified: false).delete([]).allowed).to eq([])
+      expect(gate(verified: false).delete('cupom').allowed).to eq(['cupom'])
+    end
+  end
+
   describe 'o portao nao morde onde nao deve' do
     it 'nao protege chave de outro modelo de atributo' do
       definition('cpf', protegida: true, model: 'contact_attribute')
