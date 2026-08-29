@@ -10,6 +10,13 @@
 //                  { mode, cron | every, unit } (trigger_type schedule). O Flows::ScheduleTriggerJob
 //                  o lê a cada 15 min. Um schedule só age sobre conversas quando o flow tem
 //                  condições de alvo (ver o job) — TODO(F3): editor de condições/alvo aqui.
+//   • 'widget_prechat' → o VISITANTE do chat de site inicia o fluxo: é o fluxo de CAPTURA
+//                  (bloco 4.02). Aparece como modo APENAS num fluxo que já é de captura, e é
+//                  read-only: quem escolhe a segmentação (URL, inbox, prioridade, experimento) é
+//                  a tela do pré-chat da caixa de entrada, não o canvas. Está na lista para que o
+//                  canvas diga a VERDADE sobre o gatilho — antes deste bloco um fluxo de captura
+//                  era exibido como 'event', e salvar o convertia em `manual`, apagando a
+//                  segmentação inteira em silêncio.
 //   • 'webhook'  → um POST externo em `…/webhooks/flows/<token>` inicia o fluxo (trigger_type
 //                  external_webhook). O TOKEN nasce no BACKEND ao salvar (Flow#ensure_webhook_token,
 //                  backend-autoritativo) — o widget só EXIBE a URL read-only. O FlowCanvasView
@@ -23,6 +30,7 @@ import SingleSelect from 'dashboard/components-next/filter/inputs/SingleSelect.v
 import Input from 'dashboard/components-next/input/Input.vue';
 import { AUTOMATION_RULE_EVENTS } from 'dashboard/routes/dashboard/settings/automation/constants';
 import ConfigField from './ConfigField.vue';
+import { WIDGET_PRECHAT_KIND } from '../triggerPayload';
 
 const props = defineProps({
   node: {
@@ -40,14 +48,28 @@ const kind = computed(() => {
   if (props.node.trigger_kind === 'keyword') return 'keyword';
   if (props.node.trigger_kind === 'schedule') return 'schedule';
   if (props.node.trigger_kind === 'webhook') return 'webhook';
+  if (props.node.trigger_kind === WIDGET_PRECHAT_KIND) {
+    return WIDGET_PRECHAT_KIND;
+  }
   return 'event';
 });
 
+// A captura NÃO é oferecida como conversão: ela só entra na lista quando o fluxo JÁ é de
+// captura. Criar um fluxo de captura aqui prometeria um editor de segmentação que o canvas não
+// tem — e um fluxo de captura sem alvo nenhum é um catch-all que rouba o pré-chat da conta.
 const kindOptions = computed(() => [
   { id: 'event', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_EVENT') },
   { id: 'keyword', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_KEYWORD') },
   { id: 'schedule', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_SCHEDULE') },
   { id: 'webhook', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_WEBHOOK') },
+  ...(kind.value === WIDGET_PRECHAT_KIND
+    ? [
+        {
+          id: WIDGET_PRECHAT_KIND,
+          name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_WIDGET_PRECHAT'),
+        },
+      ]
+    : []),
 ]);
 
 const kindModel = computed({
@@ -280,6 +302,14 @@ const copyWebhookUrl = () => {
         :options="kindOptions"
       />
     </ConfigField>
+
+    <p
+      v-if="kind === 'widget_prechat'"
+      class="text-sm text-n-slate-11"
+      data-testid="trigger-widget-prechat-hint"
+    >
+      {{ t('AUTOMATION.CANVAS.CONFIG.TRIGGER.WIDGET_PRECHAT_HINT') }}
+    </p>
 
     <ConfigField
       v-if="kind === 'event'"

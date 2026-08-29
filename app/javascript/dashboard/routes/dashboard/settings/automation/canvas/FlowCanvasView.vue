@@ -29,6 +29,11 @@ import {
 } from './nodeCatalog';
 import { repliesFromInteractiveNode } from './waitForReply';
 import { flatToDefinition } from './flatToDefinition';
+import {
+  WIDGET_PRECHAT_KIND,
+  buildTriggerPayload,
+  stampTriggerKind,
+} from './triggerPayload';
 import { flowTemplateByKey } from './flowTemplates';
 import { computeTreeLayout, H_SPACING, V_SPACING } from './flowLayout';
 import { useFlowHistory } from './useFlowHistory';
@@ -385,6 +390,27 @@ const syncWebhookToken = flow => {
   };
 };
 
+// BLOCO 4.02 — a segmentação do fluxo de CAPTURA (`url_conditions`, `inbox_ids`, `priority`,
+// `utm`, `devices`, `business_hours_only`, `experiment`), como o servidor a entregou.
+//
+// O canvas NÃO a edita: quem escolhe o alvo é a tela de segmentação. Ele a carrega e a devolve
+// intacta no save, porque os dois gravam a MESMA coluna jsonb (`flows.trigger_config`) — sem
+// isso, abrir e salvar o fluxo no canvas apagava o alvo inteiro, com 200 e sem aviso.
+//
+// Fica num `ref`, e não dentro da `definition`, de propósito: uma cópia do alvo persistida numa
+// segunda coluna seria um retrato que envelhece. Na `definition` vai só o `trigger_kind`, que é
+// como o canvas já representa todos os outros gatilhos.
+const widgetPrechatConfig = ref(null);
+
+// O par do `syncWebhookToken` para o gatilho de captura: guarda o alvo e carimba o kind no nó
+// `trigger`, para que `buildTriggerPayload` saiba o que este fluxo é (a `definition` não carrega
+// `trigger_type` — ele vem na raiz do flow).
+const syncWidgetPrechat = flow => {
+  if (flow?.trigger_type !== WIDGET_PRECHAT_KIND) return;
+  widgetPrechatConfig.value = flow.trigger_config || {};
+  definition.value = stampTriggerKind(definition.value, flow);
+};
+
 // Abre uma AutomationRule clássica no canvas (rota `new` com ?fromRuleId=<id>): converte a regra
 // (event_name + conditions + actions) numa `definition` via flatToDefinition — inteiramente
 // client-side, sem depender do backfill do servidor. O usuário revisa e salva como um Flow novo.
@@ -469,7 +495,10 @@ onMounted(async () => {
   }
   name.value = flow.name;
   definition.value = flow.definition || { nodes: [], edges: [] };
-  withoutHistory(() => syncWebhookToken(flow));
+  withoutHistory(() => {
+    syncWebhookToken(flow);
+    syncWidgetPrechat(flow);
+  });
   history.commit(definition.value);
   loadStats();
 });
@@ -670,63 +699,6 @@ const updateSelectedNode = patch => {
   definition.value = { ...definition.value, nodes, edges };
 };
 
-// Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
-// verdade continua sendo o nó na definition (round-trip pelo canvas); aqui só derivamos o
-// que o motor consome. Sem nó de gatilho o flow é `manual`.
-//  • trigger_kind 'keyword'  → trigger_type keyword  + { keywords[], match }
-//  • trigger_kind 'schedule' → trigger_type schedule + { mode, cron | every, unit }
-//  • trigger_kind 'webhook'  → trigger_type external_webhook + {} (o backend gera/preserva o
-//    webhook_token — nunca o cliente; ver Flow#ensure_webhook_token)
-//  • event_name definido      → trigger_type conversation_event + { event_name }
-const triggerPayload = triggerNode => {
-  if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
-  if (triggerNode.trigger_kind === 'webhook') {
-    return { trigger_type: 'external_webhook', trigger_config: {} };
-  }
-  if (triggerNode.trigger_kind === 'keyword') {
-    return {
-      trigger_type: 'keyword',
-      trigger_config: {
-        keywords: (triggerNode.keywords || [])
-          .map(kw => (kw || '').trim())
-          .filter(Boolean),
-        match: triggerNode.match === 'exact' ? 'exact' : 'contains',
-        direction: triggerNode.direction || 'both',
-      },
-    };
-  }
-  if (triggerNode.trigger_kind === 'schedule') {
-    const sched = triggerNode.schedule || {};
-    if (sched.mode === 'interval') {
-      const every = Number.parseInt(sched.every, 10);
-      return {
-        trigger_type: 'schedule',
-        trigger_config: {
-          mode: 'interval',
-          every: Number.isNaN(every) || every < 1 ? 1 : every,
-          unit: ['minutes', 'hours', 'days'].includes(sched.unit)
-            ? sched.unit
-            : 'days',
-        },
-      };
-    }
-    return {
-      trigger_type: 'schedule',
-      trigger_config: { mode: 'cron', cron: String(sched.cron ?? '').trim() },
-    };
-  }
-  if (triggerNode.event_name) {
-    return {
-      trigger_type: 'conversation_event',
-      trigger_config: {
-        event_name: triggerNode.event_name,
-        direction: triggerNode.direction || 'both',
-      },
-    };
-  }
-  return { trigger_type: 'manual', trigger_config: {} };
-};
-
 // Validação mínima antes de persistir: nome, ao menos um gatilho e uma ação. Evita criar um
 // fluxo vazio/inutilizável (o backend aceitaria, mas ele não faria nada).
 const validationError = () => {
@@ -755,33 +727,25 @@ const save = async () => {
     const payload = {
       name: name.value,
       definition: definition.value,
-      ...triggerPayload(triggerNodes[0]),
+      ...buildTriggerPayload(triggerNodes, widgetPrechatConfig.value),
     };
-    // Multi-gatilho: com mais de um nó `trigger` de evento, grava TODOS os event_names
-    // em trigger_config.event_names — o backend (current_account_flows) casa qualquer um.
-    // Retrocompat: com 1 só, mantém apenas event_name (event_names ausente).
-    if (payload.trigger_type === 'conversation_event') {
-      const eventNames = [
-        ...new Set(triggerNodes.map(n => n.event_name).filter(Boolean)),
-      ];
-      if (eventNames.length > 1) {
-        payload.trigger_config = {
-          ...payload.trigger_config,
-          event_names: eventNames,
-        };
-      }
-    }
     if (isEdit.value) {
       const updated = await store.dispatch('flows/update', {
         id: flowId.value,
         ...payload,
       });
-      withoutHistory(() => syncWebhookToken(updated));
+      withoutHistory(() => {
+        syncWebhookToken(updated);
+        syncWidgetPrechat(updated);
+      });
       history.markSaved(definition.value);
       useAlert(t('AUTOMATION.CANVAS.SAVED'));
     } else {
       const created = await store.dispatch('flows/create', payload);
-      withoutHistory(() => syncWebhookToken(created));
+      withoutHistory(() => {
+        syncWebhookToken(created);
+        syncWidgetPrechat(created);
+      });
       history.markSaved(definition.value);
       useAlert(t('AUTOMATION.CANVAS.CREATED'));
       router.replace({

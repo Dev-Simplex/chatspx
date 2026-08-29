@@ -6,6 +6,7 @@ import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { emitter } from 'shared/helpers/mitt';
 import { sendEmailTranscript } from 'widget/api/conversation';
 import { IFrameHelper } from 'widget/helpers/utils';
+import { isPreChatDelegatedToFlow } from 'widget/helpers/preChatMode';
 import { CHATWOOT_ON_START_CONVERSATION } from 'widget/constants/sdkEvents';
 
 const TRANSCRIPT_COOLDOWN_MS = 15000;
@@ -68,7 +69,11 @@ export const useConversationFooter = () => {
   };
 
   const startNewConversation = () => {
-    router.replace({ name: 'prechat-form' });
+    // 4.02 — a terceira porta para o formulário clássico. No modo `flow` o pré-chat da conversa
+    // nova também é o fluxo de captura, entregue pelo servidor como mensagens.
+    router.replace({
+      name: isPreChatDelegatedToFlow() ? 'messages' : 'prechat-form',
+    });
     IFrameHelper.sendMessage({
       event: 'onEvent',
       eventIdentifier: CHATWOOT_ON_START_CONVERSATION,

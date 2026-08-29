@@ -1,4 +1,5 @@
 import { profileConfigFromChannel } from 'widget/helpers/profileConfigHelper';
+import { isPreChatDelegatedToFlow } from 'widget/helpers/preChatMode';
 
 export default {
   computed: {
@@ -32,11 +33,21 @@ export default {
       let preChatMessage = '';
       const options = window.chatwootWebChannel.preChatFormOptions || {};
       preChatMessage = options.pre_chat_message;
-      const { pre_chat_fields: preChatFields = [] } = options;
+      const { pre_chat_fields: preChatFields = [], mode } = options;
       return {
         preChatMessage,
         preChatFields,
+        // 4.02 — QUEM conduz o pré-chat. Vai junto das opções porque quem monta o formulário
+        // precisa da mesma resposta que quem decide se ele deve ser montado.
+        mode,
       };
+    },
+    /**
+     * 4.02 — o pré-chat desta inbox é um FLUXO de captura, conduzido pelo motor de Automações.
+     * Ver `widget/helpers/preChatMode.js` para o contrato e o porquê.
+     */
+    isPreChatDelegatedToFlow() {
+      return isPreChatDelegatedToFlow(this.channelConfig);
     },
     /**
      * As flags planas do perfil (22-plano-widget §B.3, lista canônica de 11 chaves).
@@ -82,6 +93,10 @@ export default {
       return this.profileConfig.aiLabelPersistent;
     },
     shouldShowPreChatForm() {
+      // 4.02 — no modo `flow` o pré-chat é o fluxo de captura, entregue como mensagens pelo
+      // servidor. Montar o formulário clássico junto seria captura em duplicidade.
+      if (this.isPreChatDelegatedToFlow) return false;
+
       const { preChatFields } = this.preChatFormOptions;
       // Check if at least one enabled field in pre-chat fields
       const hasEnabledFields =

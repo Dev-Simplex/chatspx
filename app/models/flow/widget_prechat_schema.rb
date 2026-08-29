@@ -47,6 +47,17 @@ module Flow::WidgetPrechatSchema
     'experiment' => nil
   }.freeze
 
+  # AS CHAVES DE ALVO — as unicas que `Flow#preserve_widget_prechat_targeting` protege da
+  # substituicao crua. Derivadas de `DEFAULTS` porque as duas listas respondem a MESMA pergunta
+  # ("o que compoe o alvo da captura"): duplicar o vocabulario faria uma chave nova nascer
+  # documentada num lugar e desprotegida no outro — que e um defeito mudo.
+  #
+  # O que fica DE FORA e tao deliberado quanto o que entra: `webhook_token` e backend-autoritativo
+  # e tem a preservacao dele propria (Flow#ensure_webhook_token), e as sobras de outros gatilhos
+  # (`keywords`, `event_name`, `conditions`) sao lixo de troca de gatilho — preserva-las faria o
+  # fluxo carregar para sempre a configuracao do gatilho que ele deixou de ser.
+  TARGETING_KEYS = DEFAULTS.keys.freeze
+
   URL_CONDITION = {
     'type' => 'object',
     'properties' => {

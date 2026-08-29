@@ -364,6 +364,8 @@
           "KIND_KEYWORD": "A keyword in a message",
           "KIND_SCHEDULE": "A schedule (by time)",
           "KIND_WEBHOOK": "An external webhook",
+          "KIND_WIDGET_PRECHAT": "A website chat visitor (capture)",
+          "WIDGET_PRECHAT_HINT": "This is the website chat capture flow. Which pages, inboxes and devices it appears on is set on the inbox's Pre-chat tab — here you design the questions. Saving on the canvas does not change that targeting.",
           "EVENT_LABEL": "Event",
           "EVENT_PLACEHOLDER": "Select an event",
           "EVENT_HINT": "The event that starts this flow.",

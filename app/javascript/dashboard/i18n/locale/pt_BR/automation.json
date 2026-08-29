@@ -364,6 +364,8 @@
           "KIND_KEYWORD": "Uma palavra-chave na mensagem",
           "KIND_SCHEDULE": "Um agendamento (por tempo)",
           "KIND_WEBHOOK": "Um webhook externo",
+          "KIND_WIDGET_PRECHAT": "Um visitante do chat de site (captura)",
+          "WIDGET_PRECHAT_HINT": "Este é o fluxo de captura do chat de site. Quem escolhe em quais páginas, caixas de entrada e dispositivos ele aparece é a aba Pré-chat da caixa de entrada — aqui você desenha as perguntas. Salvar no canvas não altera essa segmentação.",
           "EVENT_LABEL": "Evento",
           "EVENT_PLACEHOLDER": "Selecione um evento",
           "EVENT_HINT": "O evento que inicia este fluxo.",

@@ -100,6 +100,10 @@ class Flow < ApplicationRecord
   # A segurança inteira repousa sobre um token forte e não-adivinhável que IDENTIFICA o flow (o
   # id sequencial NUNCA é exposto). Ver Webhooks::FlowsController para o modelo de ameaça.
   before_save :ensure_webhook_token
+  # 4.02 — o alvo da captura nao pode ser apagado por quem nao o edita. Corre DEPOIS do
+  # `ensure_webhook_token` de proposito: os dois completam a mesma coluna com chaves disjuntas, e
+  # rodar por ultimo garante que o merge da captura enxergue o `trigger_config` ja com o token.
+  before_save :preserve_widget_prechat_targeting
 
   scope :active, -> { where(active: true) }
 
@@ -161,14 +165,58 @@ class Flow < ApplicationRecord
   # trigger_config cru do cliente (flows_controller.rb#assign_jsonb_attributes), então IGNORAMOS
   # qualquer `webhook_token` que venha de fora: reusa SEMPRE o token já persistido e só gera um
   # novo (SecureRandom.hex(24) = 192 bits de entropia) na primeira vez que o flow vira webhook.
-  # Assim o cliente não define nem rotaciona o token, e a URL é ESTÁVEL entre edições. Ao sair de
-  # external_webhook o token é preservado (a mesma URL volta a valer se reativar); não vaza porque
-  # for_webhook_token filtra por external_webhook. TODO(F2): endpoint autenticado de rotação.
+  # Assim o cliente não define nem rotaciona o token, e a URL é ESTÁVEL entre edições. Não vaza
+  # porque for_webhook_token filtra por external_webhook. TODO(F2): endpoint autenticado de rotação.
+  #
+  # AO SAIR de external_webhook o token só sobrevive quando o cliente NÃO reescreve a coluna:
+  # medido nesta base, `update!(trigger_type: :manual)` preserva o token e
+  # `update!(trigger_type: :manual, trigger_config: {})` — que é o que a API de autoria faz, por
+  # `assign_jsonb_attributes` — o perde, e a URL do webhook não volta a valer ao reativar. Esta
+  # nota registra o comportamento REAL; fechar a lacuna é do bloco do gatilho `external_webhook`
+  # (F1/R-2), não do 4.02, que só protege as chaves de alvo da captura logo abaixo.
   def ensure_webhook_token
     return unless external_webhook?
 
     token = persisted_webhook_token.presence || SecureRandom.hex(24)
     self.trigger_config = trigger_config.to_h.merge('webhook_token' => token)
+  end
+
+  # Bloco 4.02 — A SEGMENTACAO DA CAPTURA SOBREVIVE A QUEM NAO A EDITA.
+  #
+  # `trigger_config` e uma coluna jsonb com DOIS autores quando o gatilho e `widget_prechat`: o
+  # ALVO (quais URLs, qual inbox, qual prioridade, qual experimento) e escrito por quem edita a
+  # segmentacao, e a `definition` (nodes+edges) e escrita pelo CANVAS. O canvas nao edita alvo,
+  # entao manda `trigger_config: {}` — e o controller copia o jsonb CRU do cliente
+  # (flows_controller.rb#assign_jsonb_attributes). Substituicao crua + dois autores = perda
+  # silenciosa: abrir e salvar um fluxo de captura apagava `url_conditions`, `priority`,
+  # `inbox_ids` e `experiment` com 200 e sem aviso, e o visitante deixava de receber o fluxo.
+  #
+  # A REGRA: quem NAO DECLARA a chave nao apaga a chave. Declarar continua mandando — mandar
+  # `url_conditions: []` esvazia de verdade (e como a tela de segmentacao apaga a ultima
+  # condicao), e `experiment: null` desliga o experimento. O que nao apaga e a AUSENCIA.
+  #
+  # POR QUE AS DUAS PONTAS (`widget_prechat?` E `trigger_type_was`) E NAO SO UMA:
+  #  • `trigger_type_was` sozinho nao basta porque o cliente que apagava o alvo era exatamente o
+  #    que trocava o gatilho para `manual` no mesmo request — a guarda tem de olhar o que o
+  #    registro ERA, nao o que o payload pediu;
+  #  • `widget_prechat?` sozinho nao basta porque a VOLTA tambem apagava: medido, o par
+  #    "vira webhook, volta para captura" perdia o alvo no segundo save, quando o `_was` ja era
+  #    `external_webhook`. Ao REENTRAR na captura o alvo persistido volta a ser o alvo em vigor.
+  # Ao SAIR de `widget_prechat` o alvo e preservado pelo mesmo motivo do `webhook_token`: ele
+  # volta a valer se o admin reativar a captura, e nunca e lido fora de `widget_prechat`
+  # (Flows::WidgetPrechatResolver filtra pelo enum). Um fluxo que NUNCA foi captura nao ganha
+  # chave nenhuma: o `slice` de um `trigger_config` sem chave de alvo devolve vazio.
+  def preserve_widget_prechat_targeting
+    return unless widget_prechat? || trigger_type_was.to_s == 'widget_prechat'
+
+    previous = trigger_config_was
+    return unless previous.is_a?(Hash)
+
+    current = trigger_config.to_h
+    preserved = previous.slice(*Flow::WidgetPrechatSchema::TARGETING_KEYS).except(*current.keys)
+    return if preserved.empty?
+
+    self.trigger_config = current.merge(preserved)
   end
 
   # O token como está PERSISTIDO (valor pré-alteração da atribuição atual). Numa criação é nil
