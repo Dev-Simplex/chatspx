@@ -16,6 +16,23 @@ require 'rails_helper'
 # `spec/requests/widgets/notification_sound_payload_spec.rb`; o cruzamento com a
 # lista de caixas da tela fica em
 # `widget/composables/specs/widgetChannelWireNames.spec.js`.
+#
+# QUANTO ESTA GUARDA VALE, medido (bloco 4.11, remedicao):
+# com `# 6 => :notification_sound` comentado em `app/models/channel/web_widget.rb`,
+# estes dois arquivos dao 9 falhas em 13 exemplos; com a flag no lugar, 0 em 13.
+#
+#   · 5 aqui — `existe, e o selected_feature_flags= a aceita`, `nasce DESLIGADA`,
+#     `nao liga o som em inbox que ja existe`, `liga e desliga` e `vale 32`. O
+#     ultimo cai porque `flag_mapping` deixa de ter a chave e a mascara vira `nil`;
+#     ele mora no OUTRO `describe` deste arquivo, e foi por estar fora do primeiro
+#     que a contagem original o perdeu de vista e escreveu 8.
+#   · 4 em `notification_sound_payload_spec.rb` — todos menos o primeiro.
+#
+# Os 4 que NAO caem tambem sao informacao: `nao muda o conjunto de fabrica`,
+# `nao colide com flag nenhuma`, `cabe na coluna` e o primeiro do request spec
+# (`inbox recem-criada nao leva notification_sound`) passam nas DUAS condicoes —
+# eles descrevem o mundo sem a flag tao bem quanto o mundo com ela. Quem prova a
+# existencia da flag sao os 9, e so eles.
 RSpec.describe Channel::WebWidget do
   let(:account) { create(:account) }
 

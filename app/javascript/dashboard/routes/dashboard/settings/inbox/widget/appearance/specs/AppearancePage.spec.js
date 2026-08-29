@@ -211,6 +211,21 @@ describe('AppearancePage — sair da aba com pendência', () => {
  * aceite passava por impossibilidade: não havia caminho nenhum para o cliente
  * ligar o som. Aqui o que se mede é o caminho — a caixa existe, nasce
  * desmarcada, e marcá-la faz `notification_sound` viajar no PATCH.
+ *
+ * QUANTO A GUARDA DE i18n VALE, medido (remedição do bloco): apagar
+ * `INBOX_WIDGET.APPEARANCE.FEATURES.NOTIFICATION_SOUND` do `pt_BR/inboxWidget.json`
+ * derruba DOIS exemplos — não três, como a medição original registrou:
+ *
+ *   · `localeParity.spec.js` > `inboxWidget.json: nenhuma chave do en falta no pt_BR`;
+ *   · o primeiro exemplo daqui (`a caixa existe, com rótulo traduzido`), porque sem
+ *     `fallbackLocale` o vue-i18n renderiza a própria chave e o `toContain('som')`
+ *     não acha nada.
+ *
+ * A direção inversa do `localeParity` (`nenhuma chave do pt_BR falta no en`) NÃO cai:
+ * a chave sumiu do lado que ela usa como referência, então ela fica verde. Quem
+ * conta essa direção como queda chega a três. Medido sobre 188 exemplos (13 arquivos: todo
+ * `dashboard/i18n/specs` mais todo `widget/appearance/specs`), conjunto maior que o
+ * da medição original, para que o número não fosse um artefato do recorte.
  */
 describe('AppearancePage — o som do widget (4.11)', () => {
   it('a caixa existe, com rótulo traduzido, e nasce DESMARCADA', () => {
