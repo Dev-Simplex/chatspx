@@ -271,4 +271,92 @@ RSpec.describe 'enforcement de identidade — os tres estados', type: :request d
       expect(inbox.reload.identity_enforcement).to eq('observado')
     end
   end
+
+  # A guarda acima e uma peca de UM LADO SO da junta enquanto ela le o valor VELHO do
+  # canal. `inboxes_controller#update` roda `@inbox.update!` ANTES de `update_channel`, na
+  # mesma transacao: no instante em que a validacao pergunta `channel.hmac_mandatory`, o
+  # canal ainda esta como estava antes da requisicao. Uma unica chamada com os dois lados
+  # no mesmo corpo passa por baixo dela e reproduz exatamente o 200 mudo que a guarda diz
+  # ter encerrado — pelo mesmo endpoint que ela protege.
+  #
+  # Os dois exemplos abaixo sao o mesmo defeito visto pelos dois lados, e por isso nenhum
+  # deles pode faltar: um recusa blindar so a ordem que o teste enxerga, o outro recusa
+  # "passou a barrar todo mundo" como conserto. O que a validacao tem de ler e o valor que
+  # VAI VIGORAR ao fim da transacao, nao o que estava la quando ela comecou.
+  describe 'a guarda nao pode ser contornada numa unica requisicao' do
+    let(:admin) { create(:user, account: account, role: :administrator) }
+
+    def patch_composto(hmac:, state:)
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            params: { channel: { hmac_mandatory: hmac },
+                      additional_attributes: { identity_enforcement: state } },
+            headers: admin.create_new_auth_token,
+            as: :json
+    end
+
+    describe 'ligar hmac_mandatory e observado no MESMO corpo' do
+      # A inbox comeca sem exigir assinatura — e o estado em que a guarda de hoje deixa
+      # passar, porque e o valor que ela le.
+      before { web_widget.update!(hmac_mandatory: false) }
+
+      it 'recusa com 422 em vez de responder 200 para uma escrita que ja nasce ignorada' do
+        patch_composto(hmac: true, state: 'observado')
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'nao deixa observado gravado no jsonb' do
+        patch_composto(hmac: true, state: 'observado')
+
+        expect(inbox.reload.identity_enforcement).to be_nil
+      end
+
+      # O sintoma exato do veredito: gravado `observado`, lido `obrigatorio`. Enquanto os
+      # dois divergirem, quem apertou o botao vai abrir um relatorio de um estado que
+      # nunca entrou em vigor.
+      it 'nao deixa o gravado divergir do que vigora' do
+        patch_composto(hmac: true, state: 'observado')
+
+        inbox.reload
+        expect(inbox.identity_enforcement.to_s).to eq(inbox.resolved_identity_enforcement) if inbox.identity_enforcement.present?
+      end
+
+      # A recusa e da transacao inteira: o canal nao pode ficar endurecido por uma
+      # requisicao que foi respondida com 422.
+      it 'nao endurece o canal numa requisicao recusada' do
+        patch_composto(hmac: true, state: 'observado')
+
+        expect(web_widget.reload.hmac_mandatory).to be(false)
+      end
+
+      it 'aceita o par coerente — hmac_mandatory com obrigatorio' do
+        patch_composto(hmac: true, state: 'obrigatorio')
+
+        expect(response).to have_http_status(:success)
+        expect(inbox.reload.identity_enforcement).to eq('obrigatorio')
+        expect(web_widget.reload.hmac_mandatory).to be(true)
+      end
+    end
+
+    # O outro lado da junta, e o que separa "leu o valor certo" de "passou a recusar
+    # sempre": DESLIGAR hmac_mandatory e pedir observado no mesmo corpo e um pedido
+    # coerente — ao fim da transacao o canal nao exige mais assinatura e `observado` e
+    # exatamente o que vai vigorar. Lendo o valor velho, a guarda recusa este caso com 422.
+    describe 'desligar hmac_mandatory e pedir observado no MESMO corpo' do
+      before { web_widget.update!(hmac_mandatory: true) }
+
+      it 'aceita, porque ao fim da transacao o canal nao exige mais assinatura' do
+        patch_composto(hmac: false, state: 'observado')
+
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'deixa observado vigorando de fato' do
+        patch_composto(hmac: false, state: 'observado')
+
+        expect(inbox.reload.resolved_identity_enforcement).to eq('observado')
+        expect(web_widget.reload.hmac_mandatory).to be(false)
+      end
+    end
+  end
 end

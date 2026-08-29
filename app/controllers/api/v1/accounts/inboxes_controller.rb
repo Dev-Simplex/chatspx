@@ -66,15 +66,14 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
       continue_update = update_branded_email_layout
       raise ActiveRecord::Rollback unless continue_update
 
-      inbox_params = permitted_params.except(:channel, :csat_config, :nps_config)
-      inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
-      inbox_params[:nps_config] = format_nps_config(permitted_params[:nps_config]) if permitted_params[:nps_config].present?
-      # Merge additional attributes so feature-specific keys are not discarded.
-      if inbox_params[:additional_attributes].present?
-        inbox_params[:additional_attributes] =
-          (@inbox.additional_attributes || {}).merge(inbox_params[:additional_attributes].to_h)
-      end
-      @inbox.update!(inbox_params)
+      # A guarda de `identity_enforcement` (4.15) e uma validacao de MODELO, e ela pergunta
+      # ao CANAL se ele exige assinatura. Como a gravacao do canal so acontece na linha
+      # abaixo, a pergunta caia no valor VELHO — e um unico PATCH com
+      # `channel: { hmac_mandatory: true }` e `additional_attributes: { identity_enforcement:
+      # 'observado' }` no mesmo corpo passava por baixo dela pelo mesmo endpoint que ela
+      # protege: 200, `observado` no jsonb, `obrigatorio` na leitura seguinte.
+      assign_pending_channel_attributes
+      @inbox.update!(inbox_update_params)
       update_inbox_working_hours
       update_channel if channel_update_required?
     end
@@ -172,7 +171,43 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   def channel_update_required?
-    permitted_params(get_channel_attributes(@inbox.channel_type))[:channel].present?
+    pending_channel_params.present?
+  end
+
+  def inbox_update_params
+    inbox_params = permitted_params.except(:channel, :csat_config, :nps_config)
+    inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
+    inbox_params[:nps_config] = format_nps_config(permitted_params[:nps_config]) if permitted_params[:nps_config].present?
+    # Merge additional attributes so feature-specific keys are not discarded.
+    if inbox_params[:additional_attributes].present?
+      inbox_params[:additional_attributes] =
+        (@inbox.additional_attributes || {}).merge(inbox_params[:additional_attributes].to_h)
+    end
+    inbox_params
+  end
+
+  def pending_channel_params
+    permitted_params(get_channel_attributes(@inbox.channel_type))[:channel]
+  end
+
+  # Antecipa para a MEMORIA — e so para a memoria — o que o canal vai passar a valer, para
+  # que toda validacao da inbox decida sobre o valor QUE VAI VIGORAR ao fim da transacao e
+  # nao sobre o que estava la quando a requisicao comecou.
+  #
+  # A ordem de GRAVACAO fica exatamente como estava, de proposito: subir `update_channel`
+  # para antes do `@inbox.update!` faria `reauthorized!` — que apaga chaves no Redis, fora
+  # da transacao — rodar tambem nas requisicoes que terminam em 422, e o rollback do banco
+  # nao desfaz isso. Aqui nada e gravado: `belongs_to :channel` nao tem `autosave`, entao
+  # salvar a inbox nao salva o canal, e uma requisicao recusada morre com o canal intacto
+  # no banco. Quem persiste continua sendo `update_channel`, logo abaixo, com o mesmo hash.
+  #
+  # `type` sai fora porque e chave de ROTEAMENTO e nao coluna do canal — `create_channel` ja
+  # a descarta pelo mesmo motivo. Sem isso a antecipacao poderia estourar ANTES de um caminho
+  # de erro que hoje responde 422, o que seria trocar a resposta de uma requisicao invalida.
+  def assign_pending_channel_attributes
+    return if pending_channel_params.blank?
+
+    @inbox.channel.assign_attributes(pending_channel_params.except(:type))
   end
 
   def validate_and_update_email_channel(channel_attributes)
