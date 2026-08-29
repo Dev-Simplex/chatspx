@@ -66,7 +66,12 @@ const store = createStore({
     'inboxes/getUIFlags': () => ({}),
     'globalConfig/get': () => ({ logoThumbnail: '', BRAND_NAME: 'ChatSPX' }),
     'campaigns/getLiveChatCampaigns': () => campanhas,
-    'campaigns/getUIFlags': () => ({ isUpdating: false }),
+    // `getAllCampaigns` e o que o `TeaserComposer` consulta na montagem para
+    // decidir se precisa despachar `campaigns/get` (4.05). Lista vazia = loja
+    // ainda nao carregada, que e o estado de quem chega nesta tela por link
+    // direto — e o unico em que a tela busca.
+    'campaigns/getAllCampaigns': () => campanhas,
+    'campaigns/getUIFlags': () => ({ isUpdating: false, isFetching: false }),
   },
   actions: {
     'inboxes/updateInbox': () => Promise.resolve(),
