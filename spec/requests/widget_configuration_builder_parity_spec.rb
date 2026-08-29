@@ -1,5 +1,21 @@
 require 'rails_helper'
 
+# NOTA DE EXECUCAO — os dois exemplos daqui RENDERIZAM `widgets/show.html.erb`, entao dependem do
+# build do Vite. Em worktree nova sao necessarias as DUAS coisas abaixo, e nao uma delas:
+#
+#   1. o manifest em `public/vite-test/.vite/manifest.json`;
+#   2. `VITE_RUBY_AUTO_BUILD=false` no ambiente do rspec.
+#
+# Medido nesta arvore, para nao repetir a meia-verdade de que a flag sozinha resolve:
+#
+#   manifest + AUTO_BUILD=false  -> 29 exemplos, 0 falhas em 29 s (estes 2 + os 27 do controller)
+#   AUTO_BUILD=false, SEM manifest -> o GET do widget devolve 500 e caem os 2 exemplos daqui,
+#                                     inclusive o de paridade de CHAVE, que e da base
+#   manifest + `autoBuild` no padrao (`config/vite.json`, ambiente test) -> sobe um
+#                                     `pnpm exec vite build --mode test` como filho do rspec: o
+#                                     digest que decide se o build esta velho mora em
+#                                     `tmp/cache/vite/last-build-test.json`, FORA de
+#                                     `public/vite-test` — copiar so o manifest nao o traz junto.
 RSpec.describe 'Widget configuration builder parity', type: :request do
   let(:erb_template) { 'app/views/widgets/show.html.erb' }
   let(:jbuilder_template) { 'app/views/api/v1/widget/configs/create.json.jbuilder' }
