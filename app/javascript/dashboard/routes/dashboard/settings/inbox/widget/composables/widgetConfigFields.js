@@ -122,6 +122,44 @@ export const DEFAULT_EXIT = Object.freeze({
  */
 export const DEFAULT_PROFILE = 'support';
 
+/**
+ * Os recursos do canal que a aba Aparencia oferece como caixa de marcar, na
+ * ordem em que aparecem.
+ *
+ * Mora AQUI, e nao dentro do `.vue`, para poder ser lida por
+ * `specs/widgetChannelWireNames.spec.js`, que compara esta lista com o
+ * `has_flags` de `Channel::WebWidget`. Sem esse cruzamento, uma flag existe de
+ * um lado e nao do outro sem barulho nenhum: foi o que aconteceu com o som, que
+ * o `IFrameHelper` ja consultava (`notification_sound` em `enabledFeatures`) e
+ * que o servidor recusava com `ArgumentError: Invalid flag` — recurso invisivel
+ * para sempre, sem erro e sem teste vermelho.
+ */
+export const WIDGET_FEATURE_CHECKBOXES = Object.freeze([
+  'attachments',
+  'emoji_picker',
+  'end_conversation',
+  'use_inbox_avatar_for_bot',
+  // Bloco 4.11 — som DESLIGADO por default (nenhuma inbox nasce com este bit) e
+  // ligavel por inbox. O consumidor e `sdk/IFrameHelper.js`: sem esta string em
+  // `enabledFeatures` ele nao baixa o mp3 nem registra ouvinte.
+  'notification_sound',
+]);
+
+/**
+ * Flags do mesmo `has_flags` que NAO sao caixa nesta lista, e onde elas moram.
+ *
+ * Ficar de fora e declaracao, nao esquecimento — e por isso a lista existe: o
+ * cruzamento com o Ruby compara a SOMA das duas, entao uma flag nova nao pode
+ * simplesmente sumir da tela.
+ *
+ * `allow_mobile_webview`: interruptor proprio em
+ * `settingsPage/ConfigurationPage.vue`, porque e configuracao de instalacao
+ * (webview de app nativo), nao recurso que o visitante ve no widget.
+ */
+export const WIDGET_FEATURES_ELSEWHERE = Object.freeze([
+  'allow_mobile_webview',
+]);
+
 export const WIDGET_CONFIG_FIELDS = [
   {
     key: 'name',
