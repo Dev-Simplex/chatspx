@@ -1,0 +1,20 @@
+{
+  "PARTIAL_LEAD_REPORTS": {
+    "HEADER": "Incomplete leads",
+    "DESCRIPTION": "How many started the pre-chat, how many finished, and where the others stopped.",
+    "ERROR": "Could not load the incomplete leads report.",
+    "EMPTY": "Nobody started the pre-chat in this period.",
+    "NO_ABANDONED": "Everyone who started finished the pre-chat in this period.",
+    "STARTED": "Started answering",
+    "COMPLETED": "Finished",
+    "ABANDONED": "Dropped off",
+    "WHERE": "Where they stopped",
+    "RATE": "({rate}%)",
+    "STEP_NUMBER": "Step {step}",
+    "TABLE": {
+      "STEP": "Field they stopped at",
+      "LEADS": "People",
+      "SHARE": "Share"
+    }
+  }
+}

@@ -16,6 +16,20 @@ trigger_scheduled_items_job:
   queue: scheduled_jobs
 
 # executed At every minute..
+# Bloco 4.18 — varredura do lead incompleto. O `SweepJob` trabalha por conta e o
+# `SweepSchedulerJob` decide quais contas tem trabalho (ele le a propria tabela; conta sem
+# resposta parcial nao gera job). Sem esta entrada o lead incompleto NUNCA e materializado
+# e o registro parcial NUNCA e expurgado — o job existiria e nao rodaria, que e o defeito
+# que o bloco 4.14 pagou.
+# A cada minuto porque a menor janela de abandono configuravel e de 1 minuto
+# (`Settings::MIN_ABANDON_MINUTES`): um cron de 5 em 5 faria a tela oferecer "2 minutos" e
+# entregar ate 7.
+widget_partial_leads_sweep_job:
+  cron: '*/1 * * * *'
+  class: 'Widget::PartialLeads::SweepSchedulerJob'
+  queue: scheduled_jobs
+
+# executed At every minute..
 # Retoma os flows suspensos cujo wait venceu (no `wait` e timeout de `wait_for_reply`). O job existia
 # desde a F2 e o flow_run.rb sempre afirmou que rodava "every minute", mas a entrada nunca foi criada.
 flows_resume_job:

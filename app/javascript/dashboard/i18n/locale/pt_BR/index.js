@@ -37,6 +37,7 @@ import macros from './macros.json';
 import mfa from './mfa.json';
 import onboarding from './onboarding.json';
 import originReports from './originReports.json';
+import partialLeadReports from './partialLeadReports.json';
 import report from './report.json';
 import resetPassword from './resetPassword.json';
 import search from './search.json';
@@ -92,6 +93,7 @@ export default {
   ...mfa,
   ...onboarding,
   ...originReports,
+  ...partialLeadReports,
   ...report,
   ...resetPassword,
   ...search,

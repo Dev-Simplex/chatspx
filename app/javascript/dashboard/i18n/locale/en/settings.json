@@ -729,6 +729,7 @@
     "REPORTS_INBOX": "Inbox",
     "REPORTS_TEAM": "Team",
     "REPORTS_ORIGIN": "Origin",
+    "REPORTS_PARTIAL_LEADS": "Incomplete leads",
     "REPORTS_LIVE": "Live",
     "REPORTS_LIVE_IN_SERVICE": "Live In Service",
     "AGENT_ASSIGNMENT": "Agent Assignment",

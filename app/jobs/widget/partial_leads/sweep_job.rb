@@ -11,7 +11,14 @@
 # O expurgo roda MESMO com a captura desligada: quem desliga a chave espera que o que ja
 # foi coletado pare de existir, nao que congele para sempre.
 class Widget::PartialLeads::SweepJob < ApplicationJob
-  queue_as :low
+  # `:scheduled_jobs`, e nao `:low`. O Sidekiq desta base usa prioridade ESTRITA
+  # (`config/sidekiq.yml`: "jobs in lower ranking queues will only be processed if there are
+  # no jobs in higher ranking queues") e a `:low` fica abaixo da `:default`. O efeito ja foi
+  # medido aqui e esta escrito em `config/schedule.yml`, na entrada do
+  # `waha_refresh_groups_job`: "em producao carregada a :low quase nunca drenava". Agendar o
+  # varredor numa fila que nao drena seria trocar um job que nunca roda por um job que roda
+  # quando o sistema esta ocioso — e o aceite fala de materializar o lead, nao de tentar.
+  queue_as :scheduled_jobs
 
   # Teto por execucao: o varredor nao pode virar uma transacao gigante numa conta com
   # muito trafego. O que sobrar e apanhado na proxima passagem.

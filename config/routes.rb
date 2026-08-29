@@ -528,6 +528,11 @@ Rails.application.routes.draw do
             end
           end
           resource :notification_settings, only: [:show, :update]
+          # Bloco 4.18 — as quatro decisoes do lead incompleto (ligar, janela de abandono,
+          # retencao e etiqueta). `controller:` explicito de proposito: `resource` singular
+          # com nome ja plural (`settings`) e onde esta base ja perdeu um endpoint para um
+          # 404 uniforme, e um 404 aqui apagaria a tela sem nenhum erro visivel.
+          resource :partial_lead_settings, only: [:show, :update], controller: 'partial_lead_settings'
 
           resources :teams do
             resources :team_members, only: [:index, :create] do

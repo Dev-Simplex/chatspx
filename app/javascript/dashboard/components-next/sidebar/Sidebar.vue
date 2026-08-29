@@ -344,6 +344,13 @@ const newReportRoutes = () => [
     label: t('SIDEBAR.REPORTS_ORIGIN'),
     to: accountScopedRoute('conversation_origin_reports'),
   },
+  // Bloco 4.18 — quantos leads perdemos e onde. Mesma razao da linha acima: sem ela o
+  // relatorio existe e so chega nele quem digitar a URL.
+  {
+    name: 'Reports Partial Leads',
+    label: t('SIDEBAR.REPORTS_PARTIAL_LEADS'),
+    to: accountScopedRoute('partial_lead_reports'),
+  },
 ];
 
 const reportRoutes = computed(() => newReportRoutes());

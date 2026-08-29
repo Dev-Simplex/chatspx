@@ -1,0 +1,19 @@
+{
+  "sentinel_website_token": "WEBSITE_TOKEN_DA_SESSAO",
+  "requests": [
+    {
+      "method": "post",
+      "url": "/api/v1/widget/partial_leads",
+      "params": {},
+      "body": {
+        "website_token": "WEBSITE_TOKEN_DA_SESSAO",
+        "answers": {
+          "fullName": "Walisson",
+          "emailAddress": "walisson@empresa.com.br"
+        },
+        "step": 3,
+        "step_key": "phoneNumber"
+      }
+    }
+  ]
+}
