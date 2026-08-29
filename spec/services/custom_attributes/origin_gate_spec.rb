@@ -90,10 +90,22 @@ RSpec.describe CustomAttributes::OriginGate do
       expect(gate(verified: true).delete(['cpf']).allowed).to eq(['cpf'])
     end
 
-    it 'registra a tentativa nomeando conta, modelo e chaves' do
+    # O log NOMEIA a acao recusada. Antes dizia "escrita recusada" tambem aqui, e quem lesse o
+    # log de producao veria uma tentativa de escrita que nunca houve — a recusa foi de EXCLUSAO.
+    it 'registra a tentativa nomeando a acao, a conta, o modelo e as chaves' do
       allow(Rails.logger).to receive(:warn)
 
       gate(verified: false).delete(['cpf'])
+
+      expect(Rails.logger).to have_received(:warn)
+        .with("[custom_attributes] exclusao recusada por origem nao verificada account_id=#{account.id} " \
+              'modelo=conversation_attribute chaves=cpf')
+    end
+
+    it 'chama a recusa de ESCRITA de escrita, nao de exclusao' do
+      allow(Rails.logger).to receive(:warn)
+
+      gate(verified: false).filter({ 'cpf' => '1' })
 
       expect(Rails.logger).to have_received(:warn)
         .with("[custom_attributes] escrita recusada por origem nao verificada account_id=#{account.id} " \

@@ -32,6 +32,46 @@ RSpec.describe 'portao de origem nos atributos', type: :request do
          as: :json
   end
 
+  # A QUINTA SUPERFICIE. As outras quatro sao de escrita/exclusao num registro que ja existe;
+  # esta e a CRIACAO — a primeira que o visitante atravessa. Ela entregava os atributos direto
+  # ao `Conversation.create!`, sem portao, e o argumento "nao ha valor anterior para apagar"
+  # nao cobre a promessa da tela, que e "seu site NAO CONSEGUE ESCREVER este atributo sem
+  # identidade verificada". Uma conversa nova era escrita livre, indistinguivel no painel.
+  describe 'a criacao da conversa' do
+    let(:contact_inbox_novo) { create(:contact_inbox, contact: contact, inbox: inbox, hmac_verified: false) }
+    let(:token_novo) do
+      Widget::TokenService.new(payload: { source_id: contact_inbox_novo.source_id, inbox_id: inbox.id }).generate_token
+    end
+
+    def create_conversation(attrs)
+      post '/api/v1/widget/conversations',
+           params: { website_token: web_widget.website_token, custom_attributes: attrs,
+                     message: { content: 'ola' } },
+           headers: { 'X-Auth-Token' => token_novo },
+           as: :json
+    end
+
+    it 'NAO grava o atributo protegido numa sessao sem assinatura' do
+      create_conversation({ cpf: 'FALSIFICADO', carrinho_valor: 4200 })
+
+      expect(response).to have_http_status(:success)
+      nova = Conversation.where(contact_inbox: contact_inbox_novo).last
+      expect(nova).to be_present, 'a conversa nem foi criada: o exemplo mediria nada'
+      # a chave protegida nao entra...
+      expect(nova.custom_attributes).not_to have_key('cpf')
+      # ...e a recusa e POR CHAVE: a que nao e protegida entra normalmente.
+      expect(nova.custom_attributes['carrinho_valor']).to eq(4200)
+    end
+
+    it 'grava normalmente quando a sessao TEM origem verificada' do
+      contact_inbox_novo.update!(hmac_verified: true)
+      create_conversation({ cpf: '222.222.222-22' })
+
+      nova = Conversation.where(contact_inbox: contact_inbox_novo).last
+      expect(nova.custom_attributes['cpf']).to eq('222.222.222-22')
+    end
+  end
+
   context 'when a sessao nao tem origem verificada' do
     it 'NAO altera o valor do atributo protegido' do
       write({ cpf: '999.999.999-99' })

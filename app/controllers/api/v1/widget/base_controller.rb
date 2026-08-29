@@ -46,8 +46,28 @@ class Api::V1::Widget::BaseController < ApplicationController
         initiated_at: timestamp_params,
         referer: permitted_params[:message][:referer_url]
       },
-      custom_attributes: permitted_params[:custom_attributes].presence || {}
+      custom_attributes: custom_attributes_permitidos
     }
+  end
+
+  # Bloco 4.17 — a QUINTA superficie. As outras quatro (escrita e exclusao de contato e de
+  # conversa) ja passavam pelo portao; esta nao passava, e e a que o visitante atravessa
+  # PRIMEIRO: `POST /widget/conversations` e `POST /widget/messages` entregavam
+  # `custom_attributes` direto ao `Conversation.create!`.
+  #
+  # "Nao ha valor anterior para apagar" e verdade e nao basta: a promessa da tela e que o site
+  # NAO CONSEGUE ESCREVER o atributo protegido sem identidade verificada, e uma conversa nova
+  # era escrita livre — indistinguivel, no painel, de uma escrita legitima. Por isso `filter`
+  # (escrita que mescla) e nao `replace`: nao existe valor anterior a preservar aqui.
+  def custom_attributes_permitidos
+    recebidos = permitted_params[:custom_attributes].presence || {}
+    return recebidos if recebidos.blank?
+
+    CustomAttributes::OriginGate.new(
+      account: inbox.account,
+      attribute_model: :conversation_attribute,
+      verified: @contact_inbox&.hmac_verified?
+    ).filter(recebidos).allowed
   end
 
   def contact_email

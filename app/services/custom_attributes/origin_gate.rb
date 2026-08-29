@@ -18,13 +18,19 @@
 #      TRES portas, uma por forma de alterar: `filter` (escrita que mescla), `replace`
 #      (escrita que substitui, onde omitir apagaria) e `delete` (exclusao explicita).
 #
-# O gate cobre contato E conversa, nas duas superficies de cada um — a de escrita e a de
-# exclusao. As quatro entram sem assinatura nenhuma:
+# CINCO superficies passam pelo portao — escrita e exclusao de contato e de conversa, mais a
+# CRIACAO da conversa, que e a primeira que o visitante atravessa:
 #
-#   · widget/conversations#set_custom_attributes      -> replace
-#   · widget/conversations#destroy_custom_attributes  -> delete
+#   · widget/base#conversation_params (create)        -> filter   (sem assinatura)
+#   · widget/conversations#set_custom_attributes      -> replace  (sem assinatura)
+#   · widget/conversations#destroy_custom_attributes  -> delete   (sem assinatura)
 #   · widget/contacts#update (ContactIdentifyAction)  -> filter
-#   · widget/contacts#destroy_custom_attributes       -> delete
+#   · widget/contacts#destroy_custom_attributes       -> delete   (sem assinatura)
+#
+# `widget/contacts#update` NAO entra sem assinatura nenhuma: ele tem
+# `before_action :validate_hmac_for_identified_update` (contacts_controller.rb:14), que valida
+# HMAC sempre que o pedido carrega `identifier` ou campo de amarracao de identidade. O portao
+# ali cobre o resto do payload, nao a identidade.
 class CustomAttributes::OriginGate
   Result = Struct.new(:allowed, :refused, keyword_init: true) do
     def refused?
@@ -80,7 +86,7 @@ class CustomAttributes::OriginGate
     protegidas = protected_keys & chaves
     return Result.new(allowed: chaves, refused: []) if protegidas.empty?
 
-    record(protegidas)
+    record(protegidas, 'exclusao')
     Result.new(allowed: chaves - protegidas, refused: protegidas)
   end
 
@@ -106,9 +112,9 @@ class CustomAttributes::OriginGate
 
   # "a tentativa fica registrada": a linha nomeia a conta, o modelo e as chaves recusadas,
   # que e o que alguem precisa para responder "quem tentou escrever o que".
-  def record(keys)
+  def record(keys, acao = 'escrita')
     Rails.logger.warn(
-      "[custom_attributes] escrita recusada por origem nao verificada account_id=#{@account.id} " \
+      "[custom_attributes] #{acao} recusada por origem nao verificada account_id=#{@account.id} " \
       "modelo=#{@attribute_model} chaves=#{keys.sort.join(',')}"
     )
   end
