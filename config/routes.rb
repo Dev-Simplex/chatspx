@@ -498,6 +498,17 @@ Rails.application.routes.draw do
             resources :tracking_deliveries, only: [:index], module: :inboxes do
               post :test, on: :collection
             end
+
+            # Bloco 4.15 — o relatorio de enforcement de identidade: quais sessoes desta
+            # inbox foram identificadas SEM assinatura conferida, que e o universo que
+            # `obrigatorio` passaria a recusar. E o numero que decide a virada.
+            #
+            # SINGULAR, como o `tracking_credential` acima e ao contrario do
+            # `tracking_deliveries`: ha exatamente UM relatorio por inbox. O controller
+            # que o Rails procura para `resource :x` e `XsController`, no PLURAL — nomear
+            # o controller no singular daria o mesmo 404 uniforme que o 5.02 ja pagou.
+            # `spec/requests/identity_enforcement_report_spec.rb` guarda os dois lados.
+            resource :identity_enforcement_report, only: [:show], module: :inboxes
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
             member do

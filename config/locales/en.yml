@@ -84,6 +84,7 @@ en:
     inbox:
       identity_enforcement:
         invalid_state: "is not a valid identity enforcement state (accepted values: %{states})"
+        ignored_by_hmac_mandatory: "cannot be relaxed on this inbox: the channel's mandatory HMAC already forces \"%{state}\", and the value stored here would be ignored"
       widget_config:
         invalid_profile: "is not a valid widget profile (accepted values: %{profiles})"
         must_be_object: "must be a JSON object"
