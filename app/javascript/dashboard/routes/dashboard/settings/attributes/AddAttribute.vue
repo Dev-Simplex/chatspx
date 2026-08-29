@@ -42,6 +42,9 @@ export default {
       regexPattern: null,
       regexCue: null,
       regexEnabled: false,
+      // Bloco 4.17: "só aceita escrita com credencial verificada". Nasce desligado —
+      // ligar por default mudaria o comportamento de toda integração já instalada.
+      requiresVerifiedOrigin: false,
       values: [],
       show: true,
       tagInputTouched: false,
@@ -155,6 +158,7 @@ export default {
             ? new RegExp(this.regexPattern).toString()
             : null,
           regex_cue: this.regexCue,
+          requires_verified_origin: this.requiresVerifiedOrigin,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.ADD.API.SUCCESS_MESSAGE');
         this.onClose();
@@ -283,6 +287,24 @@ export default {
             type="text"
             :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.REGEX_CUE.PLACEHOLDER')"
           />
+          <div class="mt-2">
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input
+                v-model="requiresVerifiedOrigin"
+                data-testid="requires-verified-origin"
+                type="checkbox"
+                class="mt-1"
+              />
+              <span class="flex flex-col">
+                <span>
+                  {{ $t('ATTRIBUTES_MGMT.ADD.FORM.VERIFIED_ORIGIN.LABEL') }}
+                </span>
+                <span class="text-sm text-n-slate-11">
+                  {{ $t('ATTRIBUTES_MGMT.ADD.FORM.VERIFIED_ORIGIN.HELP') }}
+                </span>
+              </span>
+            </label>
+          </div>
           <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
             <NextButton
               faded

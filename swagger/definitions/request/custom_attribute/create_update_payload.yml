@@ -34,3 +34,7 @@ properties:
     type: string
     description: Regex cue message (Only applicable for type- text). The cue message is shown when the regex pattern is not matched.
     example: 'Please enter a valid value'
+  requires_verified_origin:
+    type: boolean
+    description: When true, this attribute only accepts writes from a session whose identity was verified by HMAC signature. Writes from an unverified origin leave the stored value untouched and are logged.
+    example: false

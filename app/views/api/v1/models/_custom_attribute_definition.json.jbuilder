@@ -9,5 +9,10 @@ json.regex_cue resource.regex_cue
 json.attribute_values resource.attribute_values
 json.attribute_model resource.attribute_model
 json.default_value resource.default_value
+# Bloco 4.17. Sem estas duas linhas a tela nao consegue mostrar o estado da flag, e um
+# formulario que reenvia o registro inteiro (o de edicao faz isso) apagaria a protecao a
+# cada salvamento — a mesma perda silenciosa read-filter/write-replace ja vista no 4.02.
+json.requires_verified_origin resource.requires_verified_origin
+json.origin resource.origin
 json.created_at resource.created_at
 json.updated_at resource.updated_at

@@ -9,7 +9,11 @@ class Api::V1::Accounts::CustomAttributeDefinitionsController < Api::V1::Account
 
   def create
     @custom_attribute_definition = Current.account.custom_attribute_definitions.create!(
-      permitted_payload
+      # Bloco 4.17: a origem e carimbada pelo SERVIDOR, a partir de quem esta autenticado,
+      # e nunca lida do corpo. Quem chega aqui passou por `Api::V1::Accounts::BaseController`
+      # — e um agente da conta. Aceitar `origin` do payload deixaria o proprio agente
+      # reivindicar `website` e pegar de graca o selo de auto-provisionado do bloco 1.17.
+      permitted_payload.merge(origin: CustomAttributeDefinition::ORIGIN_AGENT)
     )
   end
 
@@ -41,6 +45,10 @@ class Api::V1::Accounts::CustomAttributeDefinitionsController < Api::V1::Account
       :attribute_model,
       :regex_pattern,
       :regex_cue,
+      # Bloco 4.17: sem esta linha a coluna existe, o portao existe, e nao ha como ligar a
+      # flag fora do console — que e como o bloco chegou "PARCIAL". `origin` fica DE FORA
+      # de proposito (ver `create`): ela e carimbo do servidor, nao campo de formulario.
+      :requires_verified_origin,
       attribute_values: []
     )
   end

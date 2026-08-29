@@ -10,10 +10,18 @@ class ContactIdentifyAction
   # `identity_enforcement` (bloco 4.16) e o estado RESOLVIDO da inbox que originou a
   # chamada — `nil` para quem chama de fora do widget, e nil se comporta como hoje.
   # `verified_origin` (bloco 4.17) diz se a sessao que originou a chamada teve a identidade
-  # conferida por assinatura. `nil` de quem chama de fora do widget — o painel do agente e a
-  # API de conta ja passaram por autenticacao propria, entao la o portao nao morde.
+  # conferida por assinatura.
+  #
+  # O default e `false`, e a mudanca de `true` para `false` E o conserto do bloco. Com o
+  # default aberto, quem esquecesse o argumento herdava "origem verificada" sem apresentar
+  # credencial nenhuma — foi assim que `Public::Api::V1::Inboxes::ContactsController#update`
+  # nasceu furado: ele nao passava nada, e por isso sobrescrevia atributo protegido com 200.
+  # Um default que erra para o lado de negar produz uma escrita recusada com log; um default
+  # que erra para o lado de permitir produz um portao aberto que ninguem ve. Todo chamador
+  # real declara o seu valor explicitamente, entao este default nao decide nada hoje — ele
+  # existe para o chamador de amanha.
   pattr_initialize [:contact!, :params!, { retain_original_contact_name: false, discard_invalid_attrs: false,
-                                           identity_enforcement: nil, verified_origin: true }]
+                                           identity_enforcement: nil, verified_origin: false }]
 
   def perform
     @attributes_to_update = [:identifier, :name, :email, :phone_number]

@@ -34,6 +34,7 @@ export default {
       regexPattern: null,
       regexCue: null,
       regexEnabled: false,
+      requiresVerifiedOrigin: false,
       show: true,
       attributeKey: '',
       values: [],
@@ -127,6 +128,13 @@ export default {
       this.regexPattern = regexPattern;
       this.regexCue = this.selectedAttribute.regex_cue;
       this.regexEnabled = regexPattern != null;
+      // Bloco 4.17. Este formulario e de SUBSTITUICAO: ele reenvia o registro inteiro no
+      // salvamento. Se o estado da flag nao entrasse aqui, o campo nasceria `false` e o
+      // primeiro salvamento de qualquer edicao — trocar uma virgula da descricao —
+      // DESLIGARIA a protecao sem ninguem pedir. E a perda silenciosa read-filter /
+      // write-replace, com a diferenca de que aqui o que se apaga e uma trava de seguranca.
+      this.requiresVerifiedOrigin =
+        this.selectedAttribute.requires_verified_origin === true;
       this.values = this.setAttributeListValue;
     },
     async editAttributes() {
@@ -148,6 +156,7 @@ export default {
             ? new RegExp(this.regexPattern).toString()
             : null,
           regex_cue: this.regexCue,
+          requires_verified_origin: this.requiresVerifiedOrigin,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.EDIT.API.SUCCESS_MESSAGE');
         this.onClose();
@@ -266,6 +275,24 @@ export default {
           type="text"
           :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.REGEX_CUE.PLACEHOLDER')"
         />
+        <div class="mt-2">
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input
+              v-model="requiresVerifiedOrigin"
+              data-testid="requires-verified-origin"
+              type="checkbox"
+              class="mt-1"
+            />
+            <span class="flex flex-col">
+              <span>
+                {{ $t('ATTRIBUTES_MGMT.ADD.FORM.VERIFIED_ORIGIN.LABEL') }}
+              </span>
+              <span class="text-sm text-n-slate-11">
+                {{ $t('ATTRIBUTES_MGMT.ADD.FORM.VERIFIED_ORIGIN.HELP') }}
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
       <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
         <NextButton
