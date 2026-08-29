@@ -47,6 +47,33 @@ export const URL_OPERATORS = Object.freeze([
 
 export const DEVICES = Object.freeze(['desktop', 'mobile']);
 
+/**
+ * Os cinco parametros de UTM que a tela oferece — e os cinco que o schema
+ * aceita. A lista e FECHADA nos dois lados: `utm_sorce` nao vira um gatilho que
+ * nunca dispara, vira 422 nomeando a chave.
+ */
+export const UTM_PARAMS = Object.freeze([
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+]);
+
+/**
+ * Visitante novo ou recorrente. `any` e a ausencia de criterio, e por isso e o
+ * default: quem nunca abriu esta secao nao pode ter herdado um filtro.
+ */
+export const VISITOR_KINDS = Object.freeze(['any', 'new', 'returning']);
+export const DEFAULT_VISITOR = 'any';
+
+/**
+ * O corte de largura de "quando nao aparecer" e o BREAKPOINT UNICO da spec do
+ * widget (plano 22, W2.13): abaixo de 768 px o painel e tela cheia. Nao e um
+ * numero escolhido aqui — e o mesmo que decide o layout do widget.
+ */
+export const DEFAULT_MIN_VIEWPORT_WIDTH = 768;
+
 export const TRIGGER_LIMITS = Object.freeze({
   /** `value` e sempre segundos ou porcento; o teto de um dia mata o typo. */
   valueMin: 0,
@@ -62,6 +89,8 @@ export const TRIGGER_LIMITS = Object.freeze({
   urlValueMaxLength: 500,
   utmValuesMax: 50,
   utmValueMaxLength: 200,
+  viewportWidthMin: 0,
+  viewportWidthMax: 4096,
 });
 
 /**

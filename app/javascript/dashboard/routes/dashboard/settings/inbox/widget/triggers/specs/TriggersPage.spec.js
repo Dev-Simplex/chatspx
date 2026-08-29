@@ -68,6 +68,9 @@ beforeAll(() => {
 
 beforeEach(() => {
   inbox.additional_attributes = {};
+  // O aviso de "sem horário configurado" (T3.5) lê este campo da inbox: sem
+  // zerá-lo aqui, um teste que o liga vaza para os seguintes.
+  inbox.working_hours_enabled = false;
   alertas.length = 0;
 });
 
@@ -389,6 +392,357 @@ describe('4.04 — o que a tela grava', () => {
     expect(wrapper.find('[data-testid="device-empty"]').text()).toContain(
       'não aparece em lugar nenhum'
     );
+  });
+});
+
+/**
+ * Bloco 4.04 / T3.2 — a segmentacao que faltava.
+ *
+ * A secao inteira e de marketing (`PROFILE_SECTIONS['triggers.segmentation']`,
+ * bloco 3.07): sem o perfil, nada disso esta na tela, e um teste que montasse
+ * no perfil suporte passaria por engano so porque nao acha o campo.
+ */
+describe('4.04 — segmentação por UTM e por visitante', () => {
+  beforeEach(() => {
+    inbox.additional_attributes = { widget_profile: 'marketing' };
+  });
+
+  it('o parâmetro e o valor chegam ao PATCH na forma que o schema aceita', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="utm-add"]').trigger('click');
+    await wrapper
+      .find('input[data-testid="utm-value-0"]')
+      .setValue('newsletter');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    // `{ utm_source: ['newsletter'] }` — objeto de arrays, que e a unica forma
+    // que `AUDIENCE_SCHEMA` aceita; um array de pares voltaria 422
+    expect(payload.additional_attributes.widget_triggers.audience.utm).toEqual({
+      utm_source: ['newsletter'],
+    });
+  });
+
+  it('a linha em branco NÃO entra no rascunho — `minLength: 1` derrubaria o PATCH inteiro', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="utm-add"]').trigger('click');
+
+    // a linha existe na tela...
+    expect(wrapper.find('[data-testid="utm-row-0"]').exists()).toBe(true);
+
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    // ...e nao existe no payload
+    const [[, payload]] = chamadasDeSalvar();
+    expect(payload.additional_attributes.widget_triggers.audience.utm).toEqual(
+      {}
+    );
+  });
+
+  it('trocar o parâmetro da linha move o valor de chave, sem duplicar', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="utm-add"]').trigger('click');
+    await wrapper.find('input[data-testid="utm-value-0"]').setValue('cpc');
+    // `Select.vue` tem uma <div> na raiz: o `data-testid` cai NELA por
+    // fallthrough, e o <select> de verdade e filho.
+    await wrapper
+      .find('[data-testid="utm-param-0"] select')
+      .setValue('utm_medium');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(payload.additional_attributes.widget_triggers.audience.utm).toEqual({
+      utm_medium: ['cpc'],
+    });
+  });
+
+  it('a tela mostra o UTM que veio do banco, e não uma lista vazia', () => {
+    inbox.additional_attributes = {
+      widget_profile: 'marketing',
+      widget_triggers: {
+        audience: { utm: { utm_campaign: ['black-friday'] } },
+      },
+    };
+
+    const wrapper = build();
+
+    expect(wrapper.find('input[data-testid="utm-value-0"]').element.value).toBe(
+      'black-friday'
+    );
+    expect(
+      wrapper.find('[data-testid="utm-param-0"] select').element.value
+    ).toBe('utm_campaign');
+  });
+
+  it('"qualquer visitante" vem marcado e NÃO é gravado — filtro que não filtra não vira chave', async () => {
+    const wrapper = build();
+
+    expect(wrapper.find('[data-testid="visitor-any"]').element.checked).toBe(
+      true
+    );
+
+    await wrapper.find('[data-testid="triggers-enabled"]').trigger('click');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(
+      payload.additional_attributes.widget_triggers.audience
+    ).toBeUndefined();
+  });
+
+  it('escolher "só quem já esteve aqui" grava o valor que o schema aceita', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="visitor-returning"]').trigger('change');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(payload.additional_attributes.widget_triggers.audience.visitor).toBe(
+      'returning'
+    );
+  });
+
+  it('voltar para "qualquer visitante" APAGA a chave, não grava "any"', async () => {
+    inbox.additional_attributes = {
+      widget_profile: 'marketing',
+      widget_triggers: { audience: { visitor: 'new' } },
+    };
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="visitor-any"]').trigger('change');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(
+      'visitor' in payload.additional_attributes.widget_triggers.audience
+    ).toBe(false);
+  });
+
+  it('os três tipos de visitante são UMA pergunta — mesmo `name`, um só marcado', async () => {
+    const wrapper = build();
+
+    const nomes = ['any', 'new', 'returning'].map(kind =>
+      wrapper.find(`[data-testid="visitor-${kind}"]`).attributes('name')
+    );
+    expect(new Set(nomes).size).toBe(1);
+
+    await wrapper.find('[data-testid="visitor-new"]').trigger('change');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="visitor-any"]').element.checked).toBe(
+      false
+    );
+    expect(wrapper.find('[data-testid="visitor-new"]').element.checked).toBe(
+      true
+    );
+  });
+});
+
+/**
+ * Bloco 4.04 / T3.5 — "quando nao aparecer".
+ *
+ * FORA do recorte de perfil, ao contrario da segmentacao: estas tres regras
+ * protegem o visitante, e nao ha perfil de caixa de entrada em que atrapalhar
+ * menos seja assunto de marketing. Os testes montam no perfil PADRAO de
+ * proposito — se alguem a mover para dentro de `triggers.segmentation`, eles
+ * caem.
+ */
+describe('4.04 — quando não aparecer', () => {
+  it('a seção existe no perfil padrão, sem link de escape', () => {
+    const wrapper = build();
+
+    expect(wrapper.find('[data-testid="suppress-field"]').exists()).toBe(true);
+  });
+
+  it('nada nasce ligado — convite que se cala sozinho surpreende igual', () => {
+    const wrapper = build();
+
+    expect(
+      wrapper.find('[data-testid="suppress-cookie-banner"]').element.checked
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="suppress-narrow-screen"]').element.checked
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="suppress-business-hours"]').element.checked
+    ).toBe(false);
+  });
+
+  it('as três regras chegam ao PATCH sob `suppress`, chave do topo', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="suppress-cookie-banner"]').setValue(true);
+    await wrapper.find('[data-testid="suppress-narrow-screen"]').setValue(true);
+    await wrapper
+      .find('[data-testid="suppress-business-hours"]')
+      .setValue(true);
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(payload.additional_attributes.widget_triggers.suppress).toEqual({
+      cookie_banner: true,
+      // marcar a caixa grava o BREAKPOINT UNICO do widget, nao um numero
+      // escolhido na tela
+      min_viewport_width: 768,
+      outside_business_hours: true,
+    });
+  });
+
+  it('desmarcar a largura APAGA a chave — zero seria "corte em zero", não "sem corte"', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="suppress-narrow-screen"]').setValue(true);
+    await wrapper
+      .find('[data-testid="suppress-narrow-screen"]')
+      .setValue(false);
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(
+      'min_viewport_width' in
+        payload.additional_attributes.widget_triggers.suppress
+    ).toBe(false);
+  });
+
+  it('o campo da largura só aparece com a regra ligada', async () => {
+    const wrapper = build();
+
+    expect(wrapper.find('[data-testid="suppress-min-width"]').exists()).toBe(
+      false
+    );
+
+    await wrapper.find('[data-testid="suppress-narrow-screen"]').setValue(true);
+
+    expect(
+      wrapper.find('input[data-testid="suppress-min-width"]').element.value
+    ).toBe('768');
+  });
+
+  it('a largura é presa ao teto do schema, e não mandada para o 422', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="suppress-narrow-screen"]').setValue(true);
+    await wrapper
+      .find('input[data-testid="suppress-min-width"]')
+      .setValue('99999');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(
+      payload.additional_attributes.widget_triggers.suppress.min_viewport_width
+    ).toBe(4096);
+  });
+
+  it('sem horário configurado na caixa, a tela diz que a regra não vai calar nada', async () => {
+    const wrapper = build();
+
+    expect(
+      wrapper.find('[data-testid="business-hours-missing"]').exists()
+    ).toBe(false);
+
+    await wrapper
+      .find('[data-testid="suppress-business-hours"]')
+      .setValue(true);
+
+    expect(
+      wrapper.find('[data-testid="business-hours-missing"]').text()
+    ).toContain('ainda não tem horário de atendimento');
+  });
+
+  it('com horário configurado, o aviso não aparece', async () => {
+    inbox.working_hours_enabled = true;
+    const wrapper = build();
+
+    await wrapper
+      .find('[data-testid="suppress-business-hours"]')
+      .setValue(true);
+
+    expect(
+      wrapper.find('[data-testid="business-hours-missing"]').exists()
+    ).toBe(false);
+  });
+});
+
+/**
+ * Bloco 4.04 — o cartao "Avancado".
+ *
+ * O defeito medido: sem `@select`, clicar nele nao fazia nada, e como o radio
+ * e nativo o NAVEGADOR o deixava marcado — os dois cartoes escolhidos ao mesmo
+ * tempo, cada um dizendo ser o modo atual.
+ */
+describe('4.04 — Recomendado × Avançado', () => {
+  it('clicar em Avançado deixa UM cartão marcado, não os dois', async () => {
+    const wrapper = build();
+    await wrapper.find('[data-testid="mode-recommended"] input').setValue(true);
+    await flushPromises();
+
+    await wrapper.find('[data-testid="mode-advanced"] input').setValue(true);
+    await flushPromises();
+
+    expect(
+      wrapper.find('[data-testid="mode-advanced"] input').element.checked
+    ).toBe(true);
+    expect(
+      wrapper.find('[data-testid="mode-recommended"] input').element.checked
+    ).toBe(false);
+  });
+
+  it('Avançado ABRE a lista dos sete gatilhos — meio clique não é clique', async () => {
+    const wrapper = build();
+    await wrapper.find('[data-testid="mode-recommended"] input').setValue(true);
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="desktop-time_on_page"]').exists()).toBe(
+      false
+    );
+
+    await wrapper.find('[data-testid="mode-advanced"] input').setValue(true);
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="desktop-time_on_page"]').exists()).toBe(
+      true
+    );
+  });
+
+  it('Avançado NÃO apaga os gatilhos já configurados', async () => {
+    const wrapper = build();
+    await wrapper.find('[data-testid="mode-recommended"] input').setValue(true);
+    await flushPromises();
+
+    await wrapper.find('[data-testid="mode-advanced"] input').setValue(true);
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(
+      payload.additional_attributes.widget_triggers.triggers.map(t => t.id)
+    ).toEqual(['time_on_page', 'scroll_depth']);
+  });
+
+  it('o modo escolhido é de TELA — não vira chave no PATCH', async () => {
+    const wrapper = build();
+
+    await wrapper.find('[data-testid="mode-advanced"] input').setValue(true);
+    await wrapper.find('[data-testid="triggers-enabled"]').trigger('click');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    const [[, payload]] = chamadasDeSalvar();
+    expect(
+      Object.keys(payload.additional_attributes.widget_triggers)
+    ).not.toContain('mode');
   });
 });
 

@@ -11,6 +11,7 @@ import { useAlert } from 'dashboard/composables';
 import ApproachSelector from './ApproachSelector.vue';
 import TriggerRow from './TriggerRow.vue';
 import SegmentationField from './SegmentationField.vue';
+import SuppressionField from './SuppressionField.vue';
 import TeaserComposer from './TeaserComposer.vue';
 import LegacyCampaigns from './LegacyCampaigns.vue';
 import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
@@ -47,6 +48,20 @@ const { t } = useI18n();
 const teaserComposer = ref(null);
 const simulandoGatilho = ref(false);
 
+/**
+ * O modo NAO e um campo gravado, e nao vira um: `widget_triggers` tem
+ * `additionalProperties: false`, e uma chave `mode` no banco seria uma segunda
+ * fonte para o mesmo fato — o dia em que ela dissesse "recomendado" com a lista
+ * editada, uma das duas estaria mentindo. Ele e DERIVADO da lista.
+ *
+ * Mas derivar sozinho nao bastava: com a lista EXATAMENTE no preset, clicar em
+ * "Avancado" nao mudava nada, o radio nativo ficava marcado por conta do
+ * navegador e o Vue nao tinha o que re-renderizar — os DOIS cartoes apareciam
+ * escolhidos. Por isso a escolha explicita vive aqui, como estado de TELA:
+ * quem pediu Avancado ve Avancado, e nada disso vai para o banco.
+ */
+const modoEscolhido = ref(null);
+
 const {
   inbox,
   draft,
@@ -60,7 +75,13 @@ const {
   save,
 } = useInboxWidgetConfig(computed(() => props.inboxId));
 
-const guard = useUnsavedChangesGuard({ isDirty, onDiscard: discard });
+/** Descartar devolve a tela ao que esta gravado — inclusive o modo mostrado. */
+const descartar = () => {
+  modoEscolhido.value = null;
+  discard();
+};
+
+const guard = useUnsavedChangesGuard({ isDirty, onDiscard: descartar });
 const changedLabels = computed(() => labelsForFields(dirtyFields.value, t));
 
 /**
@@ -106,7 +127,10 @@ const isRecommended = computed(() => {
   });
 });
 
-const modo = computed(() => (isRecommended.value ? 'recommended' : 'advanced'));
+const modo = computed(
+  () =>
+    modoEscolhido.value ?? (isRecommended.value ? 'recommended' : 'advanced')
+);
 
 /**
  * O aviso do gatilho composto: so tempo ligado convida quem abriu a pagina e
@@ -133,8 +157,19 @@ const upsertTrigger = atualizado => {
   setTriggers({ triggers: ordenados });
 };
 
-const applyRecommended = () =>
+const applyRecommended = () => {
+  modoEscolhido.value = null;
   setTriggers({ triggers: RECOMMENDED_TRIGGERS.map(item => ({ ...item })) });
+};
+
+/**
+ * "Avancado" nao mexe na lista: quem chega aqui vem CONFIGURAR os sete
+ * gatilhos, e apagar o que ja estava seria a surpresa que este bloco existe
+ * para tirar da tela. Ele so abre a lista e move o radio.
+ */
+const selecionarAvancado = () => {
+  modoEscolhido.value = 'advanced';
+};
 
 const linhas = computed(() =>
   TRIGGER_IDS.map(id => porId.value[id] ?? { id, desktop: {}, mobile: {} })
@@ -227,6 +262,7 @@ defineExpose({ requestLeave: guard.requestLeave });
           :description="t('INBOX_WIDGET.TRIGGERS.MODE.ADVANCED.DESCRIPTION')"
           :is-active="modo === 'advanced'"
           data-testid="mode-advanced"
+          @select="selecionarAvancado"
         />
       </div>
 
@@ -246,7 +282,11 @@ defineExpose({ requestLeave: guard.requestLeave });
         </div>
       </Banner>
 
+      <!-- `:key="modo"`: o `SettingsAccordion` le `defaultOpen` UMA vez, no
+           `useToggle` do setup — sem a chave, escolher "Avancado" movia o radio
+           e deixava a lista de gatilhos fechada, que e metade do clique. -->
       <SettingsAccordion
+        :key="modo"
         :title="t('INBOX_WIDGET.TRIGGERS.SECTIONS.TRIGGERS')"
         :default-open="modo === 'advanced'"
       >
@@ -354,6 +394,19 @@ defineExpose({ requestLeave: guard.requestLeave });
         />
       </SettingsFieldSection>
 
+      <!-- "Quando nao aparecer" (T3.5) fica ANTES de "onde aparecer" e FORA do
+           recorte de perfil: as tres regras aqui protegem o visitante, e nao ha
+           perfil de caixa de entrada em que atrapalhar menos seja assunto de
+           marketing. -->
+      <h3 class="text-heading-2 text-n-slate-12">
+        {{ t('INBOX_WIDGET.TRIGGERS.SECTIONS.SUPPRESS') }}
+      </h3>
+      <SuppressionField
+        :suppress="triggers.suppress ?? {}"
+        :business-hours-configured="Boolean(inbox.working_hours_enabled)"
+        @update="setTriggers({ suppress: $event })"
+      />
+
       <template v-if="isSectionVisible('triggers.segmentation')">
         <h3 class="text-heading-2 text-n-slate-12">
           {{ t('INBOX_WIDGET.TRIGGERS.SECTIONS.AUDIENCE') }}
@@ -377,7 +430,7 @@ defineExpose({ requestLeave: guard.requestLeave });
       :is-saving="isSaving"
       :error-message="saveError"
       @save="onSave"
-      @discard="discard"
+      @discard="descartar"
     />
 
     <WidgetUnsavedChangesDialog
