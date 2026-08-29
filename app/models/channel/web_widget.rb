@@ -69,11 +69,34 @@ class Channel::WebWidget < ApplicationRecord
   has_secure_token :website_token
   has_secure_token :hmac_token
 
+  # BLOCO 4.11 — o slot 6 e o som, e por que ele so aparece agora.
+  #
+  # `sdk/IFrameHelper.js` ja consultava `notification_sound` em
+  # `enabledFeatures` para decidir se baixa o mp3 e se toca. Como a flag NAO
+  # existia aqui, `selected_feature_flags = ['notification_sound']` respondia
+  # `ArgumentError: Invalid flag "notification_sound"` e nao havia caminho
+  # nenhum — tela, API ou console — para ligar o som. O aceite do bloco ("som
+  # nao toca sem opt-in") passava por impossibilidade: o opt-in nao existia.
+  #
+  # Sem migration de proposito. `feature_flags` e `integer` com default 7
+  # (`attachments` + `emoji_picker` + `end_conversation`), e o slot 6 vale 32:
+  # nenhuma inbox existente tem esse bit, entao ninguem e opt-in a revelia — que
+  # e a decisao de produto (Q7 do plano 22: som DESLIGADO por default).
+  #
+  # O teto do slot importa: a mascara de FlagShihTzu e `1 << (slot - 1)`, e esta
+  # e uma coluna `integer` (31 bits uteis). O slot 6 esta a 25 slots do teto; o
+  # spec `web_widget_notification_sound_spec.rb` trava isso com numero.
+  #
+  # Quem oferece a caixa na tela e `WIDGET_FEATURE_CHECKBOXES`
+  # (`widget/composables/widgetConfigFields.js`), e as duas listas sao cruzadas
+  # por `widgetChannelWireNames.spec.js`: flag que existe so de um lado vira
+  # recurso invisivel, sem erro e sem teste vermelho.
   has_flags 1 => :attachments,
             2 => :emoji_picker,
             3 => :end_conversation,
             4 => :use_inbox_avatar_for_bot,
             5 => :allow_mobile_webview,
+            6 => :notification_sound,
             :column => 'feature_flags',
             :check_for_column => false
 

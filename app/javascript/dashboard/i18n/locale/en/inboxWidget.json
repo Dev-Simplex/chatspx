@@ -299,7 +299,8 @@
         "ATTACHMENTS": "Allow attachments in the widget",
         "EMOJI_PICKER": "Show the emoji picker",
         "END_CONVERSATION": "Let the visitor end the conversation",
-        "USE_INBOX_AVATAR_FOR_BOT": "Use the inbox name and avatar for the bot"
+        "USE_INBOX_AVATAR_FOR_BOT": "Use the inbox name and avatar for the bot",
+        "NOTIFICATION_SOUND": "Play a notification sound for the visitor (off by default)"
       },
       "ADVANCED": {
         "PANEL_STYLE": "Panel style",

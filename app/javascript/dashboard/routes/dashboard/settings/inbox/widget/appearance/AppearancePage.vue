@@ -19,6 +19,7 @@ import WidgetUnsavedChangesDialog from '../WidgetUnsavedChangesDialog.vue';
 import { useInboxWidgetConfig } from '../composables/useInboxWidgetConfig';
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard';
 import { labelsForFields } from '../composables/widgetFieldLabels';
+import { WIDGET_FEATURE_CHECKBOXES } from '../composables/widgetConfigFields';
 import {
   currentValuesFromDraft,
   profileWrites,
@@ -120,12 +121,10 @@ const overriddenFields = computed(
 
 const REPLY_TIMES = ['in_a_few_minutes', 'in_a_few_hours', 'in_a_day'];
 const PANEL_STYLES = ['standard', 'flat'];
-const FEATURES = [
-  'attachments',
-  'emoji_picker',
-  'end_conversation',
-  'use_inbox_avatar_for_bot',
-];
+// A lista mora em `widgetConfigFields.js` porque ela e cruzada com o `has_flags`
+// de `Channel::WebWidget` em `composables/specs/widgetChannelWireNames.spec.js`
+// — constante dentro do `.vue` nao da para ler de um spec de nó.
+const FEATURES = WIDGET_FEATURE_CHECKBOXES;
 
 const replyTimeOptions = computed(() =>
   REPLY_TIMES.map(value => ({

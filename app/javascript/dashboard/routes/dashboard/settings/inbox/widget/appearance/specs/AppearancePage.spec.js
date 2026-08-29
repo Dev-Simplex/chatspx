@@ -202,3 +202,66 @@ describe('AppearancePage — sair da aba com pendência', () => {
     expect(document.body.textContent).toContain('Posição do lançador');
   });
 });
+
+/**
+ * Bloco 4.11 — o som é opt-in POR INBOX, e a opção precisa existir na tela.
+ *
+ * `IFrameHelper` já recusa tocar sem `notification_sound` em `enabledFeatures`
+ * (`sdk/specs/notificationSound.spec.js`). Só que, sem caixa de marcar, esse
+ * aceite passava por impossibilidade: não havia caminho nenhum para o cliente
+ * ligar o som. Aqui o que se mede é o caminho — a caixa existe, nasce
+ * desmarcada, e marcá-la faz `notification_sound` viajar no PATCH.
+ */
+describe('AppearancePage — o som do widget (4.11)', () => {
+  it('a caixa existe, com rótulo traduzido, e nasce DESMARCADA', () => {
+    const wrapper = build();
+    const caixa = wrapper.find('[data-testid="feature-notification_sound"]');
+
+    expect(caixa.exists()).toBe(true);
+    expect(caixa.element.checked).toBe(false);
+
+    // Rótulo de verdade: chave i18n ausente renderiza a própria chave, e a
+    // caixa passaria neste teste exibindo `INBOX_WIDGET.APPEARANCE.FEATURES…`
+    const rotulo = wrapper.find('label[for="feature-notification_sound"]');
+    expect(rotulo.text()).not.toContain('INBOX_WIDGET');
+    expect(rotulo.text().toLowerCase()).toContain('som');
+  });
+
+  it('marcar a caixa manda `notification_sound` no PATCH do canal', async () => {
+    const wrapper = build();
+
+    await wrapper
+      .find('[data-testid="feature-notification_sound"]')
+      .trigger('change');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    expect(dispatch).toHaveBeenCalledWith('inboxes/updateInbox', {
+      id: 7,
+      formData: false,
+      // `selected_feature_flags`, não `selectedFeatureFlags`: é o nome que o
+      // `permit` do servidor conhece (ver `widgetChannelWireNames.spec.js`).
+      channel: {
+        selected_feature_flags: ['attachments', 'notification_sound'],
+      },
+    });
+  });
+
+  it('desmarcar de volta remove a flag — o desligar também tem de chegar', async () => {
+    inbox.selected_feature_flags = ['attachments', 'notification_sound'];
+    const wrapper = build();
+    const caixa = wrapper.find('[data-testid="feature-notification_sound"]');
+    expect(caixa.element.checked).toBe(true);
+
+    await caixa.trigger('change');
+    await wrapper.find('[data-testid="save-button"]').trigger('click');
+    await flushPromises();
+
+    expect(dispatch).toHaveBeenCalledWith('inboxes/updateInbox', {
+      id: 7,
+      formData: false,
+      channel: { selected_feature_flags: ['attachments'] },
+    });
+    inbox.selected_feature_flags = ['attachments'];
+  });
+});
