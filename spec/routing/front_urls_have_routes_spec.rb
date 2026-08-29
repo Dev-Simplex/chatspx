@@ -37,6 +37,12 @@ FRONT_URL_CONTRACTS = {
     [:get,  '/api/v1/accounts/1/webhooks/2/deliveries'],
     [:post, '/api/v1/accounts/1/webhooks/2/replay'],
     [:post, '/api/v1/accounts/1/webhooks/2/rotate_secret']
+  ],
+  # Bloco 4.13 — rotacao do segredo do canal API. Esta rota EXISTIA e a tela ja a chamava;
+  # o que nao existia era a action no store, entao a chamada nunca saia do navegador e o
+  # contrato entre os dois lados nunca era exercido por ninguem.
+  'app/javascript/dashboard/api/inboxes.js' => [
+    [:post, '/api/v1/accounts/1/inboxes/2/reset_secret']
   ]
 }.freeze
 

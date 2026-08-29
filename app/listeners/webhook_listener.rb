@@ -177,6 +177,14 @@ class WebhookListener < BaseListener
     webhook.inbox_id == inbox&.id
   end
 
+  # ATENCAO NO DEPLOY (bloco 4.13): esta linha nao mudou, mas o VALOR que ela le mudou.
+  # Antes de `Channel::Api` incluir o `WebhookSecretable`, `inbox.channel.secret` devolvia
+  # o envelope cifrado — e o `_inbox.json.jbuilder` mostrava esse envelope ao
+  # administrador como se fosse o segredo. Quem copiou o que a tela mostrava esta hoje
+  # conferindo assinatura CONTRA O ENVELOPE, e a verificacao dele fecha. Depois desta
+  # mudanca a assinatura passa a ser calculada com o segredo de verdade: esses
+  # integradores precisam recopiar o valor da tela (ou rotacionar) ou a verificacao no
+  # lado deles comeca a falhar.
   def deliver_api_inbox_webhooks(payload, inbox)
     return unless inbox.channel_type == 'Channel::Api'
     return if inbox.channel.webhook_url.blank?

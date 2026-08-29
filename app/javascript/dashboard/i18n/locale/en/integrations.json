@@ -101,6 +101,11 @@
             "INBOX_UPDATED": "Inbox updated"
           }
         },
+        "INBOX": {
+          "LABEL": "Inbox",
+          "ALL": "All inboxes",
+          "HELP": "Pick an inbox to receive only its events. Leave it on all inboxes to keep receiving everything."
+        },
         "NAME": {
           "LABEL": "Webhook Name",
           "PLACEHOLDER": "Enter the name of the webhook"

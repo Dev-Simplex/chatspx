@@ -8,6 +8,7 @@
 #  description          :string
 #  name                 :string
 #  outgoing_url         :string
+#  secret               :string
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
 #  account_id           :bigint
@@ -26,6 +27,12 @@
 class AgentBot < ApplicationRecord
   include AccessTokenable
   include Avatarable
+  # Bloco 4.13 — o segredo com que a chamada de saida do bot e assinada. A coluna existia e
+  # estava populada (10 de 11 linhas cifradas em homologacao); o que faltava era o codigo.
+  # Sem o concern, `agent_bot.secret` devolvia o ciphertext CRU (`{"p":"..."}`) — o listener
+  # nao o passava, e quem o passasse assinaria com o texto do envelope em vez do segredo
+  # combinado com o destino.
+  include WebhookSecretable
 
   scope :accessible_to, lambda { |account|
     account_id = account&.id

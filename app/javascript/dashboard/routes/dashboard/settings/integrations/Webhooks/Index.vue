@@ -63,6 +63,10 @@ export default {
   mounted() {
     this.$store.dispatch('integrations/get', 'webhook');
     this.$store.dispatch('webhooks/get');
+    // Bloco 4.13: o seletor de inbox do formulário lê `inboxes/getInboxes`. Quem entra
+    // direto nesta URL (link salvo, F5) chega sem a lista carregada, e o seletor
+    // apareceria com a única opção "todas" — um campo que existe e não deixa escolher.
+    this.$store.dispatch('inboxes/get');
   },
   methods: {
     openAddPopup() {

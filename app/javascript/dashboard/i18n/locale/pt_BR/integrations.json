@@ -101,6 +101,11 @@
             "INBOX_UPDATED": "Caixa de entrada atualizada"
           }
         },
+        "INBOX": {
+          "LABEL": "Caixa de entrada",
+          "ALL": "Todas as caixas de entrada",
+          "HELP": "Escolha uma caixa de entrada para receber só os eventos dela. Deixe em todas para continuar recebendo tudo."
+        },
         "NAME": {
           "LABEL": "Nome do Webhook",
           "PLACEHOLDER": "Informe o nome do webhook"

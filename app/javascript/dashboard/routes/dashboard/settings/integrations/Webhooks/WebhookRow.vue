@@ -55,6 +55,17 @@ const subscribedEvents = computed(() => {
           </span>
           <ShowMore :text="subscribedEvents" :limit="60" />
         </div>
+        <!--
+          Bloco 4.13 — a que inbox este webhook esta preso. Fica na LISTA porque a
+          pergunta "por que este endpoint nao recebeu o evento?" se faz olhando a lista;
+          sem isso o unico jeito de descobrir seria abrir o formulario de cada linha.
+        -->
+        <div v-if="webhook.inbox" class="block mt-1 text-sm text-n-slate-11">
+          <span class="font-medium">
+            {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.INBOX.LABEL') }}:
+          </span>
+          {{ webhook.inbox.name }}
+        </div>
       </BaseTableCell>
 
       <BaseTableCell align="end" class="w-32">
