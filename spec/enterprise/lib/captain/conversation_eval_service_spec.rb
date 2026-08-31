@@ -58,6 +58,34 @@ RSpec.describe Captain::ConversationEvalService do
     end
   end
 
+  # Mensagem de voz virava [audio] no transcript e o juiz não sabia o que tinha sido dito.
+  # Conv 32808 (31/08/2026): o cliente perguntou por áudio onde ficavam as casas, a IA
+  # respondeu "É aqui em Sinop mesmo" — resposta exata — e o juiz marcou
+  # nao_respondeu_pergunta de severidade alta, porque para ele a IA falou de Sinop do nada.
+  describe '#message_text' do
+    it 'passa o texto normal adiante' do
+      m = create(:message, account: account, inbox: inbox, conversation: conversation, content: 'quero alugar')
+
+      expect(service.send(:message_text, m)).to eq('quero alugar')
+    end
+
+    it 'entrega o áudio TRANSCRITO, como o agente o recebeu' do
+      m = create(:message, account: account, inbox: inbox, conversation: conversation, content: nil)
+      allow(m).to receive(:content_for_llm).and_return('[Voice Message] essas casinhas aonde mesmo?')
+
+      expect(service.send(:message_text, m)).to include('essas casinhas aonde mesmo?')
+    end
+  end
+
+  # Em 14k o juiz julgava contra uma FATIA da norma: 7 dos 8 agentes de uma conta ficavam
+  # truncados, a Júlia perdendo 71%. A regra que ela cumpria morava no char 15.825 e virou
+  # info_incorreta de severidade alta.
+  describe 'limite da spec' do
+    it 'cobre o maior prompt real com folga' do
+      expect(described_class::SPEC_CHAR_LIMIT).to be >= 48_000
+    end
+  end
+
   # `transferencia_ausente` (IA -> outra IA) e `handoff_ausente` (IA -> humano) eram o mesmo
   # balde. Quem lê o relatório não distinguia "deixou o cliente sem gente" de "atendeu fora
   # da própria alçada", e a primeira é muito mais grave.

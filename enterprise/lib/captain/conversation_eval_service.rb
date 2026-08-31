@@ -70,7 +70,20 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     scope.reorder('id asc')
   end
 
-  SPEC_CHAR_LIMIT = 14_000
+  # Quanto do prompt do agente o juiz enxerga. Em 14k, ele julgava contra uma FATIA da norma
+  # e tratava o resto como inexistente: medido em 31/08/2026 numa conta, 7 dos 8 agentes
+  # ficavam truncados — a Júlia perdia 71% do prompt, a Bruna 64%, a Sofia 56%.
+  #
+  # O estrago concreto (conv 32808): a regra "quando há restrição no nome existem produtos da
+  # casa que atendem" mora no char 15.825 do prompt da Júlia. A IA a cumpriu à risca, e o juiz
+  # — que parava no 14.000 — marcou `info_incorreta` de severidade ALTA em cima da própria
+  # norma que ela obedecia.
+  #
+  # Custo de cobrir o maior prompt: +8,4k tokens por avaliação, ~254 avaliações/dia, ≈ US$ 26
+  # por mês no gpt-4.1-mini — e bem menos na prática, porque o spec_context é IDÊNTICO entre
+  # avaliações do mesmo agente, que é exatamente o caso que o prompt caching desconta.
+  # 60k acompanha o TRANSCRIPT_CHAR_LIMIT e deixa folga sobre o maior prompt real (47.691).
+  SPEC_CHAR_LIMIT = 60_000
 
   # Spec-grounded judging (padrão Model Spec Evals): o juiz recebe as NORMAS do
   # agente de IA que atendeu o episódio (instructions da conta, lidas do banco) e
@@ -225,9 +238,19 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
 
   # Texto puro (NÃO content_for_llm — evita transcrição síncrona de áudio, que é
   # justamente a fonte de aborto do runtime). Mídia sem texto vira placeholder.
+  # Áudio do cliente entra TRANSCRITO, como o agente o recebeu.
+  #
+  # Antes, mensagem de voz virava `[audio]` no transcript e o juiz não fazia ideia do que
+  # tinha sido dito. Medido na conv 32808 (31/08/2026): o cliente perguntou por áudio *"essas
+  # casinhas aonde mesmo? que cidade que é?"*, a IA respondeu *"É aqui em Sinop mesmo, MT"* —
+  # resposta exata — e o juiz marcou `nao_respondeu_pergunta` de severidade alta, porque para
+  # ele a IA falou de Sinop do nada.
+  #
+  # `content_for_llm` é o método que o próprio modelo já expõe para isso; usar outro caminho
+  # seria duplicar a regra de fallback em dois lugares que vão divergir.
   def message_text(message)
-    content = message.content.to_s.strip
-    return content if content.present?
+    texto = message.content_for_llm.to_s.strip
+    return texto if texto.present? && texto != '[Attachment]'
     return "[#{message.attachments.first.file_type}]" if message.attachments.any?
 
     ''

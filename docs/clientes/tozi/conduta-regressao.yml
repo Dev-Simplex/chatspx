@@ -118,6 +118,26 @@ cenarios:
       - '(pode|podem|consegue) (ir|passar|visitar)[^.]{0,30}(sozinh|por conta)'
       - 'retira[^.]{0,25}chave'
 
+  # Conv 32808 (31/08): o cliente respondeu "Sim" QUATRO vezes seguidas, porque todas as
+  # perguntas eram fechadas — "tem renda?", "tem restrição?", "mora de aluguel?". Vira
+  # formulário, e pior: um "Sim" solto é ambíguo, tanto que a IA precisou voltar e perguntar
+  # "você mora de aluguel, é isso?" pra desfazer a dúvida que ela mesma criou.
+  # O eval não tem categoria pra isso — o juiz mede aderência à norma, não forma de perguntar.
+  # Aqui vira número: a resposta tem que abrir espaço pro cliente falar.
+  - nome: pergunta aberta, não interrogatório
+    tags: [conducao, triagem]
+    assistente: 7           # Clara
+    piso: 4
+    turnos:
+      - { de: cliente, texto: 'Oi! Vi sobre as casas com entrada facilitada e quero saber mais.' }
+      - de: assistente
+        texto: 'Oi! Que legal que você se interessou! As casas são do lançamento Pacaembu, pelo Minha Casa Minha Vida.'
+      - { de: cliente, texto: 'Legal' }
+    proibe:
+      # Pergunta fechada clássica: "você já tem / você tem / tem alguma", que só admite sim ou não.
+      - '\bvoc[êe] (j[áa] )?tem\b[^?]{0,60}\?'
+      - '\btem alguma\b[^?]{0,50}\?'
+
   # Controle: agradecimento não deve gerar fecho de serviço genérico nem resposta longa.
   - nome: 'controle: agradecimento não vira pergunta de serviço'
     tags: [controle]
