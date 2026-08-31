@@ -149,3 +149,10 @@ captain_conversation_eval_scheduler_job:
   cron: '7 * * * *'
   class: 'Captain::ConversationEvalSchedulerJob'
   queue: scheduled_jobs
+
+# executado uma vez por dia, 11h UTC (8h em Brasília) — o aviso chega no começo do
+# expediente. NO-OP quando nenhuma regra de agenda tem lembrete configurado.
+units_schedule_reminder_job:
+  cron: '0 11 * * *'
+  class: 'Units::ScheduleReminderJob'
+  queue: scheduled_jobs

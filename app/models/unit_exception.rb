@@ -25,6 +25,9 @@ class UnitException < ApplicationRecord
   validates :name, presence: true
   validates :starts_on, presence: true
   validates :repeat_interval, numericality: { only_integer: true, greater_than: 0 }
+  # nil = sem aviso. O teto de 30 dias existe para o job varrer uma janela curta.
+  validates :reminder_days_before, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 30 },
+                                   allow_nil: true
 
   with_options unless: :closed_all_day? do
     validates :open_hour, :close_hour, presence: true, inclusion: 0..23

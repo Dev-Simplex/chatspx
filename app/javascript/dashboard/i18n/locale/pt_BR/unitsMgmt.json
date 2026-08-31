@@ -100,6 +100,10 @@
       "INBOXES": {
         "LABEL": "Caixas de entrada desta unidade",
         "HELP": "A linha de WhatsApp desta filial. Uma caixa pertence a no máximo uma unidade.",
+        "APPLIES": {
+          "LABEL": "Aplicar esta agenda às caixas de entrada",
+          "HELP": "Ligado, o feriado ou a parada desta unidade fecha as caixas acima no dia, e a mensagem de ausência entra sozinha. Desligado, a agenda é só informativa."
+        },
         "EMPTY": "Esta conta ainda não tem caixa de entrada."
       },
       "HOURS": {
@@ -126,6 +130,26 @@
         },
         "PERIOD": "Dura vários dias",
         "ENDS_ON": "Até",
+        "SHORTCUTS": {
+          "NAO_REPETE": "Não se repete",
+          "TODOS_OS_DIAS": "Todos os dias",
+          "DIAS_UTEIS": "De segunda a sexta",
+          "SEMANAL": "Semanal: toda {dia}",
+          "MENSAL_POSICAO": "Mensal: na {posicao} {dia}",
+          "ANUAL": "Anual: em {diaEMes}",
+          "PERSONALIZAR": "Personalizar…",
+          "POSITION_1": "1ª",
+          "POSITION_2": "2ª",
+          "POSITION_3": "3ª",
+          "POSITION_4": "4ª",
+          "POSITION_5": "5ª",
+          "POSITION_LAST": "última"
+        },
+        "REMINDER": {
+          "LABEL": "Avisar a equipe",
+          "NONE": "Sem aviso",
+          "DAYS": "{dias} dia(s) antes"
+        },
         "REPEAT": {
           "LABEL": "Repete",
           "NAO_REPETE": "Não repete",

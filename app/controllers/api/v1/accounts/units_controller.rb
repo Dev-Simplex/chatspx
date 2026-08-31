@@ -51,7 +51,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
 
   def unit_params
     params.require(:unit).permit(
-      :name, :city, :state, :address, :phone, :timezone, :notes, :active,
+      :name, :city, :state, :address, :phone, :timezone, :notes, :active, :applies_to_inboxes,
       working_hours_attributes: [:id, :day_of_week, :closed_all_day, :open_all_day,
                                  :open_hour, :open_minutes, :close_hour, :close_minutes,
                                  :break_start_hour, :break_start_minutes,
@@ -64,7 +64,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
   def excecoes_params
     params.require(:unit).permit(
       exceptions: [:starts_on, :ends_on, :name, :category, :closed_all_day,
-                   :frequency, :repeat_interval, :until_date,
+                   :frequency, :repeat_interval, :until_date, :reminder_days_before,
                    :open_hour, :open_minutes, :close_hour, :close_minutes,
                    { weekdays: [], week_positions: [], month_days: [] }]
     )[:exceptions]

@@ -82,6 +82,7 @@ const REGRA_VAZIA = {
   termino: 'nunca',
   until_date: '',
   ocorrencias: 12,
+  reminder_days_before: '',
 };
 
 const form = ref({
@@ -92,6 +93,7 @@ const form = ref({
   phone: '',
   timezone: 'America/Sao_Paulo',
   notes: '',
+  applies_to_inboxes: false,
 });
 const timeSlots = ref([]);
 const horaIds = ref({});
@@ -118,6 +120,7 @@ const carregar = () => {
     phone: u?.phone ?? '',
     timezone: u?.timezone ?? 'America/Sao_Paulo',
     notes: u?.notes ?? '',
+    applies_to_inboxes: u?.applies_to_inboxes ?? false,
   };
   const grade = u?.working_hours?.length ? u.working_hours : GRADE_PADRAO;
   // Guarda o id de cada dia: sem ele o nested attributes cria linha nova em vez de
@@ -174,10 +177,142 @@ const categorias = computed(() =>
   }))
 );
 
-const frequencias = computed(() =>
-  FREQUENCIAS.map(valor => ({
+// O atalho se NOMEIA pela data escolhida ("toda segunda-feira", "em 31 de agosto") e
+// preenche os campos que já existem — nenhuma coluna nova. "Personalizar" abre o
+// painel detalhado, que continua sendo a fonte de tudo.
+const ATALHOS = [
+  'nao_repete',
+  'todos_os_dias',
+  'dias_uteis',
+  'semanal',
+  'mensal_posicao',
+  'anual',
+  'personalizar',
+];
+
+const atalho = ref('nao_repete');
+
+const dataDoRascunho = computed(() =>
+  novaRegra.value.starts_on
+    ? new Date(`${novaRegra.value.starts_on}T12:00:00`)
+    : null
+);
+
+// -1 = última do mês, como no banco. É o que faz "última segunda" existir.
+const posicaoDaData = computed(() => {
+  const data = dataDoRascunho.value;
+  if (!data) return 1;
+  const ultimoDia = new Date(
+    data.getFullYear(),
+    data.getMonth() + 1,
+    0
+  ).getDate();
+  return data.getDate() > ultimoDia - 7 ? -1 : Math.ceil(data.getDate() / 7);
+});
+
+const porIntl = opcoes =>
+  dataDoRascunho.value
+    ? new Intl.DateTimeFormat(locale.value.replace('_', '-'), opcoes).format(
+        dataDoRascunho.value
+      )
+    : '';
+
+const atalhos = computed(() => {
+  const dia = porIntl({ weekday: 'long' });
+  const diaEMes = porIntl({ day: 'numeric', month: 'long' });
+  const posicao = t(
+    `UNITS_MGMT.FORM.RULES.SHORTCUTS.POSITION_${
+      posicaoDaData.value === -1 ? 'LAST' : posicaoDaData.value
+    }`
+  );
+  return ATALHOS.map(valor => ({
     value: valor,
-    label: t(`UNITS_MGMT.FORM.RULES.REPEAT.${valor.toUpperCase()}`),
+    label: t(`UNITS_MGMT.FORM.RULES.SHORTCUTS.${valor.toUpperCase()}`, {
+      dia,
+      diaEMes,
+      posicao,
+    }),
+  }));
+});
+
+const RECEITAS = {
+  nao_repete: () => ({
+    frequency: 'nao_repete',
+    weekdays: [],
+    week_positions: [],
+  }),
+  todos_os_dias: () => ({
+    frequency: 'semanal',
+    weekdays: [0, 1, 2, 3, 4, 5, 6],
+    week_positions: [],
+  }),
+  dias_uteis: () => ({
+    frequency: 'semanal',
+    weekdays: [1, 2, 3, 4, 5],
+    week_positions: [],
+  }),
+  semanal: data => ({
+    frequency: 'semanal',
+    weekdays: data ? [data.getDay()] : [],
+    week_positions: [],
+  }),
+  mensal_posicao: (data, posicao) => ({
+    frequency: 'mensal',
+    mensalPor: 'posicao',
+    mensalUltimoDia: false,
+    weekdays: data ? [data.getDay()] : [],
+    week_positions: [posicao],
+  }),
+  anual: () => ({ frequency: 'anual', weekdays: [], week_positions: [] }),
+};
+
+const aplicarAtalho = valor => {
+  atalho.value = valor;
+  const rascunho = novaRegra.value;
+
+  // Personalizar não mexe em nada: só revela o painel com o que já está configurado.
+  if (valor === 'personalizar') {
+    if (rascunho.frequency === 'nao_repete') rascunho.frequency = 'semanal';
+    return;
+  }
+
+  Object.assign(
+    rascunho,
+    RECEITAS[valor](dataDoRascunho.value, posicaoDaData.value),
+    {
+      repeat_interval: 1,
+      termino: 'nunca',
+      until_date: '',
+    }
+  );
+};
+
+// Trocar a data reescreve o atalho que depende dela — "toda segunda" vira "toda
+// quarta" se a data mudar, como no Google.
+watch(
+  () => novaRegra.value.starts_on,
+  () => {
+    if (['semanal', 'mensal_posicao', 'anual'].includes(atalho.value)) {
+      aplicarAtalho(atalho.value);
+    }
+  }
+);
+
+const lembretes = computed(() =>
+  ['', 1, 3, 7].map(valor => ({
+    value: valor,
+    label: valor
+      ? t('UNITS_MGMT.FORM.RULES.REMINDER.DAYS', { dias: valor })
+      : t('UNITS_MGMT.FORM.RULES.REMINDER.NONE'),
+  }))
+);
+
+// Dentro do "Personalizar" a frequência é a UNIDADE do intervalo — "a cada 1
+// semana(s)" —, como no Google. Sem "não repete": ali dentro a regra já repete.
+const unidadesDeRepeticao = computed(() =>
+  FREQUENCIAS.filter(valor => valor !== 'nao_repete').map(valor => ({
+    value: valor,
+    label: t(`UNITS_MGMT.FORM.RULES.REPEAT.UNIT_${valor.toUpperCase()}`),
   }))
 );
 
@@ -223,6 +358,7 @@ const comoRegra = rascunho => {
         ? [rascunho.mensalUltimoDia ? -1 : Number(rascunho.month_day)]
         : [],
     until_date: null,
+    reminder_days_before: Number(rascunho.reminder_days_before) || null,
     open_hour: fechada ? null : openHour,
     open_minutes: fechada ? null : openMinutes,
     close_hour: fechada ? null : closeHour,
@@ -372,6 +508,7 @@ const comoRascunho = regra => ({
   week_positions: [...regra.week_positions],
   termino: regra.until_date ? 'data' : 'nunca',
   until_date: regra.until_date || '',
+  reminder_days_before: regra.reminder_days_before ?? '',
 });
 
 const escolherDia = iso => {
@@ -382,11 +519,16 @@ const escolherDia = iso => {
 const editarRegra = index => {
   editandoIndex.value = index;
   novaRegra.value = comoRascunho(rules.value[index]);
+  // Regra existente abre no painel detalhado: é lá que ela aparece inteira, sem a
+  // tela ter que adivinhar de qual atalho ela veio.
+  atalho.value =
+    novaRegra.value.frequency === 'nao_repete' ? 'nao_repete' : 'personalizar';
 };
 
 const fecharPainel = () => {
   editandoIndex.value = -1;
   novaRegra.value = rascunhoLimpo();
+  atalho.value = 'nao_repete';
 };
 
 const salvarRegra = () => {
@@ -525,6 +667,21 @@ const onSubmit = () => {
       <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
         {{ t('UNITS_MGMT.FORM.INBOXES.HELP') }}
       </p>
+      <label class="flex gap-2 items-start mb-3 cursor-pointer w-fit">
+        <input
+          v-model="form.applies_to_inboxes"
+          type="checkbox"
+          class="m-0 mt-0.5"
+        />
+        <span class="flex flex-col">
+          <span class="text-sm text-n-slate-12">
+            {{ t('UNITS_MGMT.FORM.INBOXES.APPLIES.LABEL') }}
+          </span>
+          <span class="text-n-slate-11 text-label-small">
+            {{ t('UNITS_MGMT.FORM.INBOXES.APPLIES.HELP') }}
+          </span>
+        </span>
+      </label>
       <div
         v-if="inboxes.length"
         class="flex flex-col gap-2.5 p-3 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
@@ -698,13 +855,24 @@ const onSubmit = () => {
         </div>
 
         <div class="flex flex-wrap items-end gap-x-4 gap-y-3">
-          <div class="flex flex-col gap-1 w-44">
+          <div class="flex flex-col gap-1 w-60">
             <span class="text-heading-3">
               {{ t('UNITS_MGMT.FORM.RULES.REPEAT.LABEL') }}
             </span>
             <NextSelect
-              v-model="novaRegra.frequency"
-              :options="frequencias"
+              :model-value="atalho"
+              :options="atalhos"
+              :class="SELETOR"
+              @update:model-value="aplicarAtalho"
+            />
+          </div>
+          <div class="flex flex-col gap-1 w-52">
+            <span class="text-heading-3">
+              {{ t('UNITS_MGMT.FORM.RULES.REMINDER.LABEL') }}
+            </span>
+            <NextSelect
+              v-model="novaRegra.reminder_days_before"
+              :options="lembretes"
               :class="SELETOR"
             />
           </div>
@@ -729,7 +897,9 @@ const onSubmit = () => {
         </div>
 
         <div
-          v-if="novaRegra.frequency !== 'nao_repete'"
+          v-if="
+            atalho === 'personalizar' && novaRegra.frequency !== 'nao_repete'
+          "
           class="flex flex-col gap-3 p-3 rounded-lg bg-n-slate-2 dark:bg-n-solid-2"
         >
           <div class="flex flex-wrap items-center gap-2">
@@ -743,13 +913,11 @@ const onSubmit = () => {
               max="52"
               :class="CAMPO_ESTREITO"
             />
-            <span class="text-sm text-n-slate-11">
-              {{
-                t(
-                  `UNITS_MGMT.FORM.RULES.REPEAT.UNIT_${novaRegra.frequency.toUpperCase()}`
-                )
-              }}
-            </span>
+            <NextSelect
+              v-model="novaRegra.frequency"
+              :options="unidadesDeRepeticao"
+              class="w-36 [&>select]:h-10 [&>select]:w-full"
+            />
           </div>
 
           <div

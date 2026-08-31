@@ -375,3 +375,33 @@ describe('parada para o almoço', () => {
     expect(situacao.voltaAs).toBe('');
   });
 });
+
+// --- os mesmos casos que o backend roda -------------------------------------------
+// O avaliador existe dos dois lados de propósito (a tela responde na hora, o backend
+// fecha a caixa). Este bloco lê o MESMO arquivo do spec Ruby
+// (spec/services/units/schedule_evaluator_spec.rb): se um lado mudar sozinho, um dos
+// dois specs quebra.
+import casos from '../../../../../../../../spec/fixtures/units/schedule_cases.json';
+
+describe('casos compartilhados com o backend', () => {
+  const comPadrao = extras => ({ ...casos.padrao, ...extras });
+
+  casos.casos.forEach(caso => {
+    describe(caso.nome, () => {
+      Object.entries(caso.dias).forEach(([data, esperado]) => {
+        it(`${data} => ${esperado}`, () => {
+          expect(regraValeNoDia(comPadrao(caso.regra), dia(data))).toBe(
+            esperado
+          );
+        });
+      });
+    });
+  });
+
+  casos.precedencia.forEach(caso => {
+    it(caso.nome, () => {
+      const unit = { exceptions: caso.regras.map(comPadrao) };
+      expect(regraDoDia(unit, dia(caso.dia))?.name).toBe(caso.vencedora);
+    });
+  });
+});
