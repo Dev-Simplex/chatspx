@@ -103,8 +103,9 @@ Crie antes uma regra para **amanhã** com aviso de **1 dia**. Rode o job: o nome
 aparece na lista. **Rode de novo: nada muda** — a data já avisada fica em
 `last_reminded_on`, então o aviso não sai duas vezes.
 
-No staging o e-mail não chega a lugar nenhum (sem `SMTP_ADDRESS` configurado); o que
-se prova aqui é a decisão do job. O texto do e-mail está em
+**O staging envia de verdade** (`SMTP_ADDRESS` = `cloud55.mailgrid.net.br`) — rodar o
+job com uma regra real manda e-mail para gente real; use a unidade de teste. O texto
+está em
 `app/views/mailers/administrator_notifications/unit_schedule_mailer/upcoming_rule.liquid`.
 
 ## 5. O que não pode ter quebrado
