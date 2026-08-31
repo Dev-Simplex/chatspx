@@ -8,7 +8,7 @@ RSpec.describe Captain::ConversationEvalService do
   let(:account) { create(:account) }
   let(:inbox) { create(:inbox, account: account) }
   let(:conversation) { create(:conversation, account: account, inbox: inbox) }
-  let(:service) { described_class.new(conversation: conversation) }
+  let(:service) { described_class.new(account: account, conversation_display_id: conversation.display_id) }
 
   describe '#origem_context' do
     it 'is absent when the conversation carries no origin at all' do
