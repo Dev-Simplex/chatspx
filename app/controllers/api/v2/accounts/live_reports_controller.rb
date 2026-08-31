@@ -66,11 +66,12 @@ class Api::V2::Accounts::LiveReportsController < Api::V1::Accounts::BaseControll
   def load_conversations
     scope = Current.account.conversations
     scope = scope.where(team_id: team.id) if team.present?
+    scope = scope.where(inbox_id: permitted_params[:inbox_id]) if permitted_params[:inbox_id].present?
     @conversations = scope
   end
 
   def permitted_params
-    params.permit(:team_id, :group_by)
+    params.permit(:team_id, :group_by, :inbox_id)
   end
 
   def in_service_query_service
@@ -81,7 +82,8 @@ class Api::V2::Accounts::LiveReportsController < Api::V1::Accounts::BaseControll
         assignee_id: params[:assignee_id],
         limit: params[:limit],
         cursor: params[:cursor],
-        team_id: team&.id
+        team_id: team&.id,
+        inbox_id: permitted_params[:inbox_id]
       }
     )
   end

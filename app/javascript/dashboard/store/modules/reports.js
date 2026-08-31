@@ -193,6 +193,7 @@ export const actions = {
         to: reportObj.to,
         groupBy: reportObj.groupBy,
         businessHours: reportObj.businessHours,
+        inboxId: reportObj.inboxId,
       });
       commit(types.default.SET_BOT_SUMMARY, botSummary.data);
       commit(types.default.SET_BOT_SUMMARY_STATUS, STATUS.FINISHED);
@@ -211,11 +212,12 @@ export const actions = {
       commit(types.default.TOGGLE_ACCOUNT_CONVERSATION_METRIC_LOADING, false);
     }
   },
-  async fetchAgentConversationMetric({ commit }) {
+  async fetchAgentConversationMetric({ commit }, params = {}) {
     commit(types.default.TOGGLE_AGENT_CONVERSATION_METRIC_LOADING, true);
     try {
       const { data } = await liveReports.getGroupedConversations({
         groupBy: 'assignee_id',
+        inboxId: params.inboxId,
       });
       commit(types.default.SET_AGENT_CONVERSATION_METRIC, data);
     } catch {
@@ -224,11 +226,12 @@ export const actions = {
       commit(types.default.TOGGLE_AGENT_CONVERSATION_METRIC_LOADING, false);
     }
   },
-  async fetchTeamConversationMetric({ commit }) {
+  async fetchTeamConversationMetric({ commit }, params = {}) {
     commit(types.default.TOGGLE_TEAM_CONVERSATION_METRIC_LOADING, true);
     try {
       const { data } = await liveReports.getGroupedConversations({
         groupBy: 'team_id',
+        inboxId: params.inboxId,
       });
       commit(types.default.SET_TEAM_CONVERSATION_METRIC, data);
     } catch {

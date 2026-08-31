@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { OVERVIEW_METRICS } from '../constants';
 import { useToggle } from '@vueuse/core';
 
@@ -9,6 +9,14 @@ import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { useI18n } from 'vue-i18n';
+
+const props = defineProps({
+  inboxId: {
+    type: [Number, null],
+    default: null,
+  },
+});
+
 const { t } = useI18n();
 
 const uiFlags = useMapGetter('getOverviewUIFlags');
@@ -58,8 +66,13 @@ const fetchData = () => {
   if (selectedTeam.value) {
     params.team_id = selectedTeam.value;
   }
+  if (props.inboxId) {
+    params.inbox_id = props.inboxId;
+  }
   store.dispatch('fetchAccountConversationMetric', params);
 };
+
+watch(() => props.inboxId, fetchData);
 
 const { startRefetching } = useLiveRefresh(fetchData);
 const [showDropdown, toggleDropdown] = useToggle();

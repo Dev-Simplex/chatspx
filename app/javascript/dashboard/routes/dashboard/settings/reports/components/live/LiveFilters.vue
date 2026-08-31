@@ -1,17 +1,20 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { useMapGetter } from 'dashboard/composables/store';
+import { ref, computed, onMounted } from 'vue';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 
 const emit = defineEmits(['filterChange']);
 
 const { t } = useI18n();
+const store = useStore();
 
 const selectedAgent = ref(null);
 const selectedDepartment = ref(null);
+const selectedInbox = ref(null);
 
 const teams = useMapGetter('teams/getTeams');
 const agents = useMapGetter('agents/getAgents');
+const inboxes = useMapGetter('inboxes/getInboxes');
 
 // Criar lista de agentes com opção "Todos"
 const agentOptions = computed(() => {
@@ -37,15 +40,32 @@ const departmentOptions = computed(() => {
   return [allOption, ...teams.value];
 });
 
-const handleAgentChange = newValue => {
-  // Atualizar o valor local
-  selectedAgent.value = newValue;
+// Lista de caixas com a opcao "todas"
+const inboxOptions = computed(() => {
+  const allOption = { id: null, name: t('INBOX_REPORTS.ALL_INBOXES') };
+  if (!inboxes.value || inboxes.value.length === 0) {
+    return [allOption];
+  }
+  return [allOption, ...inboxes.value];
+});
 
-  // Emitir evento com os filtros atualizados
+const emitFilters = () => {
   emit('filterChange', {
     agent: selectedAgent.value,
     department: selectedDepartment.value,
+    inbox: selectedInbox.value,
   });
+};
+
+const handleAgentChange = newValue => {
+  // Atualizar o valor local
+  selectedAgent.value = newValue;
+  emitFilters();
+};
+
+const handleInboxChange = newValue => {
+  selectedInbox.value = newValue;
+  emitFilters();
 };
 
 const handleDepartmentChange = newValue => {
@@ -53,13 +73,10 @@ const handleDepartmentChange = newValue => {
   if (newValue !== undefined) {
     selectedDepartment.value = newValue;
   }
-
-  // Emitir evento com os filtros atualizados
-  emit('filterChange', {
-    agent: selectedAgent.value,
-    department: selectedDepartment.value,
-  });
+  emitFilters();
 };
+
+onMounted(() => store.dispatch('inboxes/get'));
 </script>
 
 <template>
@@ -82,6 +99,25 @@ const handleDepartmentChange = newValue => {
           :show-labels="false"
           @update:model-value="handleAgentChange"
           @input="handleAgentChange"
+        />
+      </div>
+    </div>
+    <div class="flex-1 w-full">
+      <label class="mb-0.5 text-sm font-medium text-n-slate-12 block">
+        {{ t('INBOX_REPORTS.HEADER') }}
+      </label>
+      <div class="multiselect-wrap--small">
+        <multiselect
+          v-model="selectedInbox"
+          class="no-margin"
+          :placeholder="t('INBOX_REPORTS.SEARCH_INBOX')"
+          label="name"
+          track-by="id"
+          :options="inboxOptions"
+          :option-height="24"
+          :show-labels="false"
+          @update:model-value="handleInboxChange"
+          @input="handleInboxChange"
         />
       </div>
     </div>
