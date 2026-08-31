@@ -19,7 +19,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
       model: eval_model,
       messages: [
         { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context].compact.join("\n\n") },
-        { role: 'user', content: [origem_context, carryover_context, system_events_summary, human_annotations_context, transcript].compact.join("\n\n") }
+        { role: 'user', content: user_content }
       ],
       schema: RESPONSE_SCHEMA
     )
@@ -99,8 +99,14 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     end
     return if linhas.empty?
 
-    "ORIGEM DA CONVERSA (o agente avaliado recebeu estes mesmos dados; o que estiver aqui é " \
-      "fonte legítima para ele, não invenção):\n#{linhas.join("\n")}"
+    cabecalho = 'ORIGEM DA CONVERSA (o agente avaliado recebeu estes mesmos dados; o que ' \
+                'estiver aqui é fonte legítima para ele, não invenção):'
+    [cabecalho, *linhas].join("\n")
+  end
+
+  def user_content
+    [origem_context, carryover_context, system_events_summary,
+     human_annotations_context, transcript].compact.join("\n\n")
   end
 
   def spec_context
