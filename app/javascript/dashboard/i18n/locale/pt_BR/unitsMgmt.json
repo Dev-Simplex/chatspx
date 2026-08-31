@@ -3,6 +3,10 @@
     "HEADER": "Unidades",
     "DESCRIPTION": "Suas filiais: onde cada uma fica, que horas abre e os dias em que fecha.",
     "SEARCH_PLACEHOLDER": "Pesquisar unidades",
+    "TOMORROW": {
+      "TITLE": "Amanhã na sua rede",
+      "CLOSED": "fechada o dia todo"
+    },
     "LOADING": "Carregando unidades",
     "COUNT": "{n} unidades",
     "WEEKDAYS": {
@@ -148,7 +152,7 @@
         "REMINDER": {
           "LABEL": "Avisar a equipe",
           "NONE": "Sem aviso",
-          "DAYS": "{dias} dia(s) antes"
+          "ONE_DAY": "Na véspera"
         },
         "REPEAT": {
           "LABEL": "Repete",

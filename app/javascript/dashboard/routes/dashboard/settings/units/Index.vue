@@ -16,7 +16,12 @@ import {
 } from 'dashboard/components-next/table';
 import UnitForm from './UnitForm.vue';
 import { timeZoneOptions } from '../inbox/helpers/businessHour.js';
-import { situacaoDaUnidade } from './unitSchedule';
+import {
+  situacaoDaUnidade,
+  agoraNaUnidade,
+  regraDoDia,
+  faixaLegivel,
+} from './unitSchedule';
 
 const { t } = useI18n();
 const store = useStore();
@@ -98,6 +103,27 @@ const derivadas = computed(() =>
       hoje: resumoDeHoje(situacao),
     };
   })
+);
+
+// O que muda AMANHÃ, no fuso de cada unidade. Este aviso é de graça: quem abre a
+// tela é justamente quem precisa saber. O e-mail continua sendo opt-in por regra.
+const avisosDeAmanha = computed(() =>
+  units.value
+    .map(unit => {
+      const amanha = agoraNaUnidade(unit.timezone, agora.value).data;
+      amanha.setDate(amanha.getDate() + 1);
+      const regra = regraDoDia(unit, amanha);
+      if (!regra) return null;
+      return {
+        id: unit.id,
+        unidade: unit.name,
+        regra: regra.name,
+        efeito: regra.closed_all_day
+          ? t('UNITS_MGMT.TOMORROW.CLOSED')
+          : faixaLegivel(regra),
+      };
+    })
+    .filter(Boolean)
 );
 
 const filtradas = computed(() => {
@@ -206,6 +232,22 @@ const isSaving = computed(
           />
         </template>
       </BaseSettingsHeader>
+      <div
+        v-if="avisosDeAmanha.length"
+        class="flex flex-col gap-1 px-4 py-3 mt-4 rounded-lg bg-n-amber-3 text-n-amber-11"
+      >
+        <span class="flex items-center gap-2 text-sm font-medium">
+          <span class="i-lucide-calendar-clock size-4" />
+          {{ $t('UNITS_MGMT.TOMORROW.TITLE') }}
+        </span>
+        <span
+          v-for="aviso in avisosDeAmanha"
+          :key="aviso.id"
+          class="text-sm ltr:pl-6 rtl:pr-6"
+        >
+          <b>{{ aviso.unidade }}</b> — {{ aviso.regra }} ({{ aviso.efeito }})
+        </span>
+      </div>
     </template>
 
     <template #body>

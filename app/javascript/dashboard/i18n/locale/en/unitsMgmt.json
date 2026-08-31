@@ -3,6 +3,10 @@
     "HEADER": "Units",
     "DESCRIPTION": "Your branches: where each one is, what time it opens, and the days it closes.",
     "SEARCH_PLACEHOLDER": "Search units",
+    "TOMORROW": {
+      "TITLE": "Tomorrow across your branches",
+      "CLOSED": "closed all day"
+    },
     "LOADING": "Loading units",
     "COUNT": "{n} units",
     "WEEKDAYS": {
@@ -148,7 +152,7 @@
         "REMINDER": {
           "LABEL": "Notify the team",
           "NONE": "No reminder",
-          "DAYS": "{dias} day(s) before"
+          "ONE_DAY": "The day before"
         },
         "REPEAT": {
           "LABEL": "Repeats",

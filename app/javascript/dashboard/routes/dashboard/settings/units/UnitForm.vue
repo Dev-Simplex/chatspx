@@ -298,14 +298,12 @@ watch(
   }
 );
 
-const lembretes = computed(() =>
-  ['', 1, 3, 7].map(valor => ({
-    value: valor,
-    label: valor
-      ? t('UNITS_MGMT.FORM.RULES.REMINDER.DAYS', { dias: valor })
-      : t('UNITS_MGMT.FORM.RULES.REMINDER.NONE'),
-  }))
-);
+// Só a véspera: feriado de filial se resolve no dia anterior, e três opções para a
+// mesma decisão era escolha demais para quem só quer ser avisado.
+const lembretes = computed(() => [
+  { value: '', label: t('UNITS_MGMT.FORM.RULES.REMINDER.NONE') },
+  { value: 1, label: t('UNITS_MGMT.FORM.RULES.REMINDER.ONE_DAY') },
+]);
 
 // Dentro do "Personalizar" a frequência é a UNIDADE do intervalo — "a cada 1
 // semana(s)" —, como no Google. Sem "não repete": ali dentro a regra já repete.
