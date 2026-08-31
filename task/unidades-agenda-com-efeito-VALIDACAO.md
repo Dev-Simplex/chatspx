@@ -60,11 +60,29 @@ puts "depois: #{caixa.reload.out_of_office?}   (tem que voltar ao valor de antes
 Três coisas têm que ser verdade: a primeira e a última linha **iguais**, a do meio
 **true**, e uma caixa **sem unidade** não pode mudar de resposta em nenhum momento.
 
-## 3. O lembrete
+## 3. O aviso na tela (o que aparece sem ninguém marcar nada)
 
-Cada regra ganhou **"Avisar a equipe"**: sem aviso, 1, 3 ou 7 dias antes. O aviso sai
-por **e-mail** para os administradores da conta e para quem atende nas caixas daquela
-unidade.
+No topo da lista de Unidades, uma faixa mostra **o que muda amanhã** em cada filial:
+
+> **Amanhã na sua rede**
+> **Alta Floresta** — Feriado (fechada o dia todo)
+
+Ela é calculada no fuso de cada unidade (Cuiabá vira o dia uma hora depois de São
+Paulo) e no navegador, sem consulta nova ao servidor. Aparece para quem abrir a tela,
+tenha alguém configurado aviso ou não — se nenhuma unidade tiver regra amanhã, a faixa
+simplesmente não existe.
+
+## 4. O lembrete por e-mail
+
+Cada regra tem **"Avisar a equipe"**, com duas opções: **Sem aviso** e **Na véspera**.
+(Havia 3 e 7 dias; saíram — feriado de filial se resolve no dia anterior, e três
+caminhos para a mesma decisão era escolha demais.) O aviso sai por **e-mail** para os
+administradores da conta e para quem atende nas caixas daquela unidade.
+
+> **Atenção ao testar:** o staging tem SMTP de verdade (`cloud55.mailgrid.net.br`).
+> Numa unidade real isso são 14 pessoas recebendo e-mail. Para ver só o texto, mande
+> para você mesmo com `AdministratorNotifications::UnitScheduleMailer.upcoming_rule(
+> unidade, regra, data, ["seu@email"]).deliver_now`.
 
 > **Mudança em relação ao plano:** o aviso ia pelo sino. A tela de notificações do
 > Chatwoot é moldada para conversa — ela lê `primary_actor.meta.assignee` e, ao clicar,
@@ -89,7 +107,7 @@ No staging o e-mail não chega a lugar nenhum (sem `SMTP_ADDRESS` configurado); 
 se prova aqui é a decisão do job. O texto do e-mail está em
 `app/views/mailers/administrator_notifications/unit_schedule_mailer/upcoming_rule.liquid`.
 
-## 4. O que não pode ter quebrado
+## 5. O que não pode ter quebrado
 
 - A lista de unidades continua marcando **"aberta agora"** no fuso de cada uma
   (a de Cuiabá uma hora atrás da de São Paulo).
