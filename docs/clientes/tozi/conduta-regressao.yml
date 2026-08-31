@@ -58,8 +58,10 @@ cenarios:
       - de: assistente
         texto: 'Tenho duas opções: Casa no Jardim Bella Morada II - 2 quartos, R$ 1.300/mês + R$ 300 de condomínio, 1 vaga. E casa no Jardim Aurora - 2 quartos, R$ 1.600/mês, 1 vaga.'
       - { de: cliente, texto: 'Todas essas casas são em condomínio ?' }
+    # "nenhuma das duas fica em condomínio" é tão correto quanto "não ficam", e o padrão
+    # antigo só aceitava a segunda forma — reprovava resposta certa por causa da redação.
     espera:
-      - '(avuls|n[ãa]o (s[ãa]o|est[ãa]o|ficam|fica)[^.]{0,30}condom[íi]nio)'
+      - '(avuls|(n[ãa]o|nenhum[ao])[^.]{0,40}(s[ãa]o|est[ãa]o|ficam|fica)?[^.]{0,20}condom[íi]nio)'
     proibe:
       - 'sim[,.]?\s*(ana|paulo)?[,.]?\s*(essas|as duas|ambas|elas)?[^.]{0,40}(s[ãa]o|ficam)[^.]{0,20}em condom[íi]nio fechado'
 
