@@ -795,8 +795,16 @@ button.bg-n-brand[class*='rounded-full']:hover {
      um pouco menos vibrante contra o painel (#202c33), troca aceita em favor
      de um rótulo legível. Fundo translúcido de marca (`bg-n-brand/10`) NÃO usa
      este token: lá o véu é o efeito desejado. */
-  --wa-primary-button: #008069;
-  --wa-primary-button-hover: #006c55;
+  /* REVERTIDO em 31/08/2026, a pedido do dono do produto: o #008069 e o verde
+     do WhatsApp, nao o da marca, e o CTA ficava visivelmente mais escuro que a
+     identidade do produto. O token continua existindo para nao mexer nos 8
+     pontos de uso, mas volta a apontar para o verde de MARCA, e assim segue o
+     tema claro e o escuro sozinho.
+     Consequencia assumida: o rotulo branco sobre #2dc46f volta a medir 2.27:1,
+     abaixo de AA. Se um dia isso for endereçado, o caminho e escurecer o TEXTO
+     ou usar uma borda, nunca trocar o verde da marca. */
+  --wa-primary-button: var(--wa-primary);
+  --wa-primary-button-hover: var(--wa-primary-hover);
 
   /* Verde da marca em versão LEGÍVEL COMO TEXTO.
      `--wa-primary` (#2dc46f) é um tom de PREENCHIMENTO: serve de fundo, nunca
@@ -964,6 +972,12 @@ input[type='radio'][class*='text-woot-500'] {
 .dark {
   --wa-primary: #2dc46f;
   --wa-primary-hover: #06cf9c;
+
+  /* Redeclarados aqui de proposito. Custom property com `var()` resolve no
+     escopo onde e DECLARADA, nao onde e usada: deixar so a versao de `:root`
+     prenderia o hover do tema escuro no #008f72 do claro. */
+  --wa-primary-button: var(--wa-primary);
+  --wa-primary-button-hover: var(--wa-primary-hover);
 
   /* No escuro o texto da marca precisa CLAREAR, não escurecer. O #2dc46f já
      passava por pouco (4.67:1 sobre o pill escuro rgb(26,69,67)); o lift para
