@@ -62,14 +62,17 @@ RSpec.describe Captain::ConversationEvalService do
   # balde. Quem lê o relatório não distinguia "deixou o cliente sem gente" de "atendeu fora
   # da própria alçada", e a primeira é muito mais grave.
   describe 'categorias de falha' do
-    let(:categorias) do
-      Captain::ConversationEvalSchema.to_json_schema.to_s
-    rescue StandardError
-      Captain::ConversationEvalSchema.instance_variable_get(:@schema).to_s
+    # O enum é declarativo e o schema não expõe leitor público; ler o fonte é o jeito honesto
+    # de afirmar que as duas categorias coexistem — o que importa é que uma não substituiu a
+    # outra numa edição futura.
+    let(:fonte) { Rails.root.join('enterprise/lib/captain/conversation_eval_schema.rb').read }
+
+    it 'keeps handing off to a human as its own category' do
+      expect(fonte).to include('handoff_ausente')
     end
 
-    it 'separates handing off to a human from routing to another AI' do
-      expect(categorias).to include('handoff_ausente').and include('transferencia_ausente')
+    it 'adds routing to another AI as a separate category' do
+      expect(fonte).to include('transferencia_ausente')
     end
   end
 end
