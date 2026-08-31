@@ -164,7 +164,7 @@ const usePrompt = prompt => {
             class="max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap"
             :class="
               m.role === 'user'
-                ? 'bg-n-brand-default text-white'
+                ? 'bg-n-brand text-white'
                 : 'bg-n-alpha-2 text-n-slate-12'
             "
           >
@@ -210,7 +210,7 @@ const usePrompt = prompt => {
           <span>{{ t('CONVERSATION.COPILOT.HINT') }}</span>
           <button
             type="button"
-            class="!border-0 px-3 py-1 rounded-md bg-n-brand-default text-white text-xs font-medium hover:opacity-90 disabled:opacity-50"
+            class="!border-0 px-3 py-1 rounded-md bg-n-brand text-white text-xs font-medium hover:opacity-90 disabled:opacity-50"
             :disabled="!draft.trim() || isSending"
             @click="send"
           >

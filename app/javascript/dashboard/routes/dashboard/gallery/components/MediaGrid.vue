@@ -138,7 +138,7 @@ onBeforeUnmount(() => {
               muted
             />
             <span
-              class="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors"
+              class="absolute inset-0 flex items-center justify-center bg-n-black/30 group-hover:bg-n-black/40 transition-colors"
             >
               <span
                 class="size-12 rounded-full bg-white/95 text-n-slate-12 flex items-center justify-center shadow-lg"
@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
 
           <!-- Gradient overlay sempre visível pra legibilidade do contato -->
           <div
-            class="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/85 via-black/50 to-transparent pointer-events-none"
+            class="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-n-black/85 via-n-black/50 to-transparent pointer-events-none"
           />
 
           <!-- Info do contato (sempre visível) -->
@@ -203,7 +203,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             :aria-label="t('GALLERY.ACTIONS.OPEN_CONVERSATION')"
-            class="absolute top-2 ltr:right-2 rtl:left-2 size-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+            class="absolute top-2 ltr:right-2 rtl:left-2 size-8 rounded-full bg-n-black/50 hover:bg-n-black/70 backdrop-blur-md text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
             :title="t('GALLERY.ACTIONS.OPEN_CONVERSATION')"
             @click.stop="$emit('openConversation', item)"
           >
@@ -213,7 +213,7 @@ onBeforeUnmount(() => {
           <!-- Video duration / file size badge (bottom-right) -->
           <div
             v-if="item.fileType === 'video'"
-            class="absolute top-2.5 right-12 px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-medium pointer-events-none"
+            class="absolute top-2.5 right-12 px-2 py-0.5 rounded-full bg-n-black/60 text-white text-[10px] font-medium pointer-events-none"
           >
             <span
               class="i-lucide-video size-3 inline-block align-middle ltr:mr-0.5 rtl:ml-0.5"

@@ -314,7 +314,7 @@ const ZOOM_LABEL = computed(() => `${Math.round(zoom.value * 100)}%`);
       </div>
 
       <div
-        class="flex absolute gap-2.5 items-center px-3 rounded-2xl border shadow-sm fg-node border-r-300 bg-r-50 dark:bg-r-900/20 dark:border-r-800"
+        class="flex absolute gap-2.5 items-center px-3 rounded-2xl border shadow-sm fg-node border-n-ruby-6 bg-n-ruby-2 dark:bg-n-ruby-3"
         :style="{
           left: `${handoff.x}px`,
           top: `${handoff.y}px`,

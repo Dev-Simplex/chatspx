@@ -474,10 +474,10 @@ onMounted(() => {
                   </div>
                   <div
                     v-if="isVideoAttachment(attachment)"
-                    class="absolute inset-0 bg-black/30 flex items-center justify-center"
+                    class="absolute inset-0 bg-n-black/30 flex items-center justify-center"
                   >
                     <div
-                      class="size-6 rounded-full bg-black/40 flex items-center justify-center"
+                      class="size-6 rounded-full bg-n-black/40 flex items-center justify-center"
                     >
                       <Icon
                         icon="i-teenyicons-play-small-solid"

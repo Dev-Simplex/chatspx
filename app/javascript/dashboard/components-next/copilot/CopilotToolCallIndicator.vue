@@ -25,11 +25,11 @@ const TOOL_LABELS = {
 
 <template>
   <div
-    class="flex items-center gap-2 rounded-md bg-ash-50 px-3 py-1.5 text-xs text-ash-600"
+    class="flex items-center gap-2 rounded-md bg-n-slate-2 px-3 py-1.5 text-xs text-n-slate-12"
   >
     <span
       v-if="isLoading"
-      class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary-300 border-t-transparent"
+      class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-n-teal-6 border-t-transparent"
     />
     <span v-else class="text-green-600">&#10003;</span>
     <span>{{ TOOL_LABELS[toolName] || `Running ${toolName}...` }}</span>

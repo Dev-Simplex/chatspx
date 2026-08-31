@@ -5,6 +5,9 @@ require 'rails_helper'
 RSpec.describe Account do
   it { is_expected.to have_many(:users).through(:account_users) }
   it { is_expected.to have_many(:account_users) }
+  # NÃO trocar por destroy_async: ele apaga o pai antes de enfileirar os filhos e,
+  # com a FK de internal_channels->accounts sem cascade, trava a exclusão da conta.
+  it { is_expected.to have_many(:internal_channels).dependent(:destroy) }
   it { is_expected.to have_many(:inboxes).dependent(:destroy_async) }
   it { is_expected.to have_many(:conversations).dependent(:destroy_async) }
   it { is_expected.to have_many(:contacts).dependent(:destroy_async) }

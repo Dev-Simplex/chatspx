@@ -197,6 +197,12 @@ const sortConfig = {
 };
 
 export const sortComparator = (a, b, sortKey) => {
+  // Fixadas sobem para o topo. Entre elas — e entre as não fixadas — a ordenação
+  // escolhida continua mandando, então fixar não bagunça a ordem, só promove.
+  const aPinned = Boolean(a.pinned);
+  const bPinned = Boolean(b.pinned);
+  if (aPinned !== bPinned) return aPinned ? -1 : 1;
+
   const [sortMethod, sortDirection] =
     SORT_OPTIONS[sortKey] || SORT_OPTIONS.last_activity_at_desc;
   return sortConfig[sortMethod](a, b, sortDirection);

@@ -22,6 +22,23 @@ RSpec.describe User do
     it { is_expected.to have_many(:teams) }
   end
 
+  # Sem estas associações, as FKs do chat interno (sem on_delete, colunas NOT NULL)
+  # impediam apagar o usuário: o DeleteObjectJob morria com InvalidForeignKey em
+  # silêncio, depois de a UI já ter respondido "feito" a um pedido de LGPD.
+  describe '#destroy with internal chat data' do
+    it 'erases the person and what they wrote in the internal chat' do
+      account = create(:account).tap { |acc| acc.enable_features!('internal_chat') }
+      author = create(:user, account: account, role: :agent)
+      channel = create(:internal_channel, :with_two_members, account: account, user_a: author)
+      message = create(:internal_message, internal_channel: channel, user: author)
+
+      expect { author.destroy! }.not_to raise_error
+
+      expect(InternalMessage.exists?(message.id)).to be(false)
+      expect(InternalChannelMember.exists?(user_id: author.id)).to be(false)
+    end
+  end
+
   describe 'concerns' do
     it_behaves_like 'access_tokenable'
     it_behaves_like 'avatarable'

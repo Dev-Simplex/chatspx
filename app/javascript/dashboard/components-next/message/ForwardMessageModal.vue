@@ -371,7 +371,7 @@ watch(
         class="fixed inset-0 z-[10000] overflow-y-auto"
         @click.self="handleClose"
       >
-        <div class="fixed inset-0 bg-n-slate-12/60 dark:bg-black/70" />
+        <div class="fixed inset-0 bg-n-slate-12/60 dark:bg-n-black/70" />
 
         <div class="relative flex min-h-full items-center justify-center p-4">
           <div
@@ -508,7 +508,7 @@ watch(
                       </p>
                       <span
                         v-if="item.type === 'contact'"
-                        class="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                        class="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-n-amber-4 text-n-amber-12"
                       >
                         {{ t('CONVERSATION.FORWARD.NEW_CONVERSATION') }}
                       </span>

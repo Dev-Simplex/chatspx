@@ -201,7 +201,11 @@
         "RT": "RT {status}",
         "MISSED": "missed",
         "DUE": "due"
-      }
+      },
+      "NAME_CONTACT": "Name this contact",
+      "EDIT_NAME": "Click to rename",
+      "NAME_PLACEHOLDER": "Contact name",
+      "NAME_UPDATE_ERROR": "Could not update the contact name"
     },
     "RESOLVE_DROPDOWN": {
       "MARK_PENDING": "Mark as pending",
@@ -596,11 +600,13 @@
     },
     "TEAM_ISOLATION": {
       "RESTRICTED_TITLE": "Team: {team}",
-      "RESTRICTED_SUBTITLE": "Restricted content"
+      "RESTRICTED_SUBTITLE": "Restricted content",
+      "PREVIEW": "Message from another team"
     },
     "AGENT_ISOLATION": {
       "RESTRICTED_TITLE": "Agent: {agent}",
-      "RESTRICTED_SUBTITLE": "Restricted content"
+      "RESTRICTED_SUBTITLE": "Restricted content",
+      "PREVIEW": "Message from another agent"
     },
     "TAKEOVER_REQUEST": {
       "TITLE": "Request this conversation",
@@ -910,7 +916,17 @@
         "EDIT_TOAST": "Suggestion ready to edit",
         "DISCARDED_TOAST": "Suggestion discarded"
       }
-    }
+    },
+    "SCORE_TITLE": "Nota",
+    "SCORE_FORMAT": "{score}/10",
+    "COMMENT_TITLE": "Comentário",
+    "NPS_REPLY_MESSAGE": "Em uma escala de 0 a 10, o quanto você recomendaria nossa empresa?",
+    "RETRY_ERROR": "Erro ao tentar reenviar a mensagem",
+    "PERMISSION_MODAL": {
+      "TITLE": "Atenção",
+      "BACK": "Voltar para conversas"
+    },
+    "WAHA_LINE_DOWN": "This inbox's WhatsApp line is down — anything you send now will not reach the customer."
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Send conversation transcript",

@@ -111,7 +111,7 @@ const close = () => {
             :class="[
               selectedStageId === stage.id
                 ? 'bg-n-teal-3 border-n-teal-9'
-                : 'bg-n-solid-3 border-n-weak hover:bg-n-solid-4',
+                : 'bg-n-solid-3 border-n-weak hover:bg-n-solid-3',
             ]"
             @click="selectedStageId = stage.id"
           >

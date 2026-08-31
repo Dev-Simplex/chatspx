@@ -309,7 +309,8 @@
           "AUTH_NOT_COMPLETED": "Authentication not completed. Please restart the process.",
           "SUCCESS_FALLBACK": "WhatsApp Business Account has been successfully configured",
           "MANUAL_FALLBACK": "If your number is already connected to the WhatsApp Business Platform (API), or if you’re a tech provider onboarding your own number, please use the {link} flow",
-          "MANUAL_LINK_TEXT": "manual setup flow"
+          "MANUAL_LINK_TEXT": "manual setup flow",
+          "SDK_LOAD_ERROR": "Não foi possível carregar o SDK do Facebook. Recarregue a página e tente novamente."
         },
         "API": {
           "ERROR_MESSAGE": "We were not able to save the WhatsApp channel"
@@ -820,7 +821,28 @@
       "WHATSAPP_TEMPLATES_SYNC_SUBHEADER": "Manually sync message templates from WhatsApp to update your available templates.",
       "WHATSAPP_TEMPLATES_SYNC_BUTTON": "Sync Templates",
       "WHATSAPP_TEMPLATES_SYNC_SUCCESS": "Templates sync initiated successfully. It may take a couple of minutes to update.",
-      "UPDATE_PRE_CHAT_FORM_SETTINGS": "Update Pre Chat Form Settings"
+      "UPDATE_PRE_CHAT_FORM_SETTINGS": "Update Pre Chat Form Settings",
+      "ISOLATION_PARTICIPANTS": {
+        "TITLE": "Agentes que participam",
+        "COUNT": "{selected} de {total} marcados",
+        "SELECT_ALL": "Selecionar todos",
+        "SEES_EVERYTHING": "vê tudo",
+        "SUPERVISOR_BADGE_AGENT": "isento no time dele",
+        "SUPERVISOR_BADGE_TEAM": "participa sempre",
+        "SUPERVISOR_OF": "supervisor do time {name}",
+        "SUPERVISOR_OF_MANY": "supervisor de {count} times",
+        "ADMIN_NOTE_AGENT": "Administradores não aparecem aqui: eles nunca são isolados por agente.",
+        "ADMIN_NOTE_TEAM": "Administradores não aparecem aqui — mas eles também não escapam desta regra. Para tirar o isolamento de time de um administrador, desligue a chave desta caixa.",
+        "SUPERVISOR_NOTE_AGENT": "Supervisores de time já enxergam as mensagens de qualquer agente nas conversas do time que supervisionam — por isso vêm marcados como isentos, sem caixa de seleção.",
+        "SUPERVISOR_NOTE_TEAM": "A supervisão de time isenta do isolamento por agente, não deste: aqui o supervisor participa como qualquer outro, e por isso vem marcado e sem caixa de seleção.",
+        "EMPTY": "Nenhum agente nesta caixa de entrada. Adicione agentes na aba Colaboradores.",
+        "LOADING": "Carregando os agentes da caixa...",
+        "SAVE": "Salvar lista",
+        "SAVING": "Salvando...",
+        "UNSAVED": "Alterações ainda não salvas",
+        "SAVED": "Lista de participantes atualizada",
+        "SAVE_ERROR": "Não foi possível salvar a lista. Tente de novo."
+      }
     },
     "HELP_CENTER": {
       "LABEL": "Help Center",
@@ -1052,7 +1074,8 @@
         "ENABLE": "Enable availability for this day",
         "UNAVAILABLE": "Unavailable",
         "VALIDATION_ERROR": "Starting time should be before closing time.",
-        "CHOOSE": "Choose"
+        "CHOOSE": "Choose",
+        "BREAK": "Lunch break"
       },
       "ALL_DAY": "All-Day"
     },

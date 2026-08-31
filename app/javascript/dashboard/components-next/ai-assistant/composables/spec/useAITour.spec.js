@@ -190,7 +190,7 @@ describe('useAITour', () => {
       // The toast key is the i18n SKIP_TOAST key (the test mock returns the
       // key as-is) — confirms the right copy is wired up.
       expect(sonnerToast).toHaveBeenCalledWith(
-        'CONVERSATION.AI_ASSISTANT_PANEL.TOUR.SKIP_TOAST'
+        'AI_ASSISTANT_PANEL.TOUR.SKIP_TOAST'
       );
     });
 

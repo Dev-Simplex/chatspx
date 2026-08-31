@@ -18,7 +18,8 @@
       "LINK": "Link",
       "DATE": "Data",
       "LIST": "Lista",
-      "CHECKBOX": "Caixa de seleção"
+      "CHECKBOX": "Caixa de seleção",
+      "CPF": "CPF"
     },
     "ADD": {
       "TITLE": "Adicionar atributo personalizado",
@@ -66,6 +67,12 @@
         },
         "ENABLE_REGEX": {
           "LABEL": "Habilitar validação do regex"
+        },
+        "REQUIRED": {
+          "LABEL": "Preenchimento obrigatório"
+        },
+        "HIDDEN": {
+          "LABEL": "Ocultar dentro da conversa"
         },
         "BADGES": {
           "PRE_CHAT": "Pré-chat",

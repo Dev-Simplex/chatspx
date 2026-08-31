@@ -86,7 +86,7 @@ export default {
           ...this.requestPayload,
         });
       } catch (error) {
-        useAlert(this.$t('REPORT.CSAT_REPORTS.DOWNLOAD_FAILED'));
+        useAlert(this.$t('CSAT_REPORTS.DOWNLOAD_FAILED'));
       }
     },
     onPageNumberChange(pageIndex) {

@@ -1,10 +1,13 @@
 class AgentBotPolicy < ApplicationPolicy
+  # index?/show? seguem abertos ao supervisor: a tela da caixa de entrada
+  # (BotConfiguration.vue) lista os bots para mostrar qual está ligado. Só a
+  # GESTÃO sai do alcance dele.
   def index?
     @account_user.administrator? || @account_user.agent?
   end
 
   def update?
-    @account_user.administrator?
+    manage?
   end
 
   def show?
@@ -12,18 +15,24 @@ class AgentBotPolicy < ApplicationPolicy
   end
 
   def create?
-    @account_user.administrator?
+    manage?
   end
 
   def destroy?
-    @account_user.administrator?
+    manage?
   end
 
   def avatar?
-    @account_user.administrator?
+    manage?
   end
 
   def reset_access_token?
-    @account_user.administrator?
+    manage?
+  end
+
+  private
+
+  def manage?
+    @account_user.administrator? && !supervisor_settings_blocked?
   end
 end

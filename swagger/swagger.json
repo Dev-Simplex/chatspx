@@ -46606,6 +46606,10 @@
             "type": "boolean",
             "description": "Se a conversa está silenciada"
           },
+          "pinned": {
+            "type": "boolean",
+            "description": "Se a conversa está fixada no topo da lista do atendente que fez a requisição"
+          },
           "snoozed_until": {
             "type": [
               "string",
@@ -53944,6 +53948,10 @@
               "type": "integer"
             },
             "description": "IDs dos times (dentro desta conta) aos quais o agente pertence."
+          },
+          "supervisor": {
+            "type": "boolean",
+            "description": "Whether this agent holds the Supervisor role — supervises the whole account and loses the platform settings screens."
           },
           "supervised_team_ids": {
             "type": "array",

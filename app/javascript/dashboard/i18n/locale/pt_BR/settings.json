@@ -715,6 +715,7 @@
     "KANBAN": "CRM KANBAN",
     "REDE_SOCIAL": "Rede Social",
     "GALLERY": "Galeria",
+    "ASSESSMENTS": "Avaliações",
     "TAKEOVER_REQUESTS": "Pedidos",
     "INTERNAL_CHAT": "Chat Interno",
     "ALL_CONVERSATIONS": "Todas as conversas",
@@ -825,7 +826,8 @@
     "NEW_CONVERSATION": "Nova conversa",
     "ADVANCED_SEARCH": "Pesquisa avançada",
     "CAPTAIN_AI": "Agentes IA",
-    "CONVERSATION_WORKFLOW": "Fluxo de Conversa"
+    "CONVERSATION_WORKFLOW": "Fluxo de Conversa",
+    "UNITS": "Unidades"
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "Configurações de Agentes IA",
@@ -1073,7 +1075,7 @@
           "CANCEL": "Cancelar"
         },
         "PLACEHOLDERS": {
-          "TEXT": "Escreva uma nota...",
+          "TEXT": "Digite a resposta",
           "NUMBER": "Insira um número",
           "LINK": "Adicione um link",
           "DATE": "Selecione uma data",
@@ -1082,6 +1084,10 @@
         "CHECKBOX": {
           "YES": "Sim",
           "NO": "Não"
+        },
+        "ERRORS": {
+          "CONTACT_MISSING": "Não foi possível identificar o contato desta conversa, então os atributos de contato obrigatórios não podem ser gravados. Recarregue a página e tente de novo.",
+          "CONTACT_UPDATE_FAILED": "Não foi possível gravar os atributos do contato. A conversa não foi encerrada."
         }
       },
       "PAYWALL": {
@@ -1476,7 +1482,8 @@
       "SCAN_QR_CODE": "Escanear QR Code",
       "FAILED": "Falhou",
       "STOPPED": "Desconectado",
-      "STARTING": "Iniciando"
+      "STARTING": "Iniciando",
+      "MISSING": "Sessão inexistente"
     },
     "ACTIONS": {
       "VIEW_QR": "Ver QR Code",

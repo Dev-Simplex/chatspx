@@ -2032,7 +2032,7 @@ export default {
       this.message = text || '';
       this.setCopilotAcceptedMessage(this.message);
       sonnerToast.success(
-        this.$t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.USED_TOAST')
+        this.$t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.USED_TOAST')
       );
       useTrack('ai.suggestion.applied', {
         action_id: action,
@@ -2058,9 +2058,7 @@ export default {
       const action = this.aiSuggestionChip?.action;
       this.message = text || '';
       this.setCopilotAcceptedMessage(this.message);
-      sonnerToast(
-        this.$t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.EDIT_TOAST')
-      );
+      sonnerToast(this.$t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.EDIT_TOAST'));
       useTrack('ai.suggestion.edited', {
         action_id: action,
         time_to_edit_ms: elapsed,
@@ -2096,9 +2094,7 @@ export default {
       this.aiSuggestionChipStartedAt = null;
       if (wasOpen && trackReason === 'manual') {
         sonnerToast(
-          this.$t(
-            'CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.DISCARDED_TOAST'
-          )
+          this.$t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.DISCARDED_TOAST')
         );
       }
       if (wasOpen) {

@@ -8,8 +8,17 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
 
   include Api::V1::Accounts::Concerns::WhatsappHealthManagement
 
+  # A tela manda PARTICIPANTES; o banco guarda EXCEÇÕES (ver InboxIsolationExemption).
+  # A conversão acontece no submit, aqui.
+  ISOLATION_PARTICIPANT_PARAMS = {
+    'agent_message' => :agent_message_isolation_participant_ids,
+    'team_message' => :team_message_isolation_participant_ids
+  }.freeze
+
   def index
-    @inboxes = policy_scope(Current.account.inboxes.order_by_name.includes(:channel, { avatar_attachment: [:blob] }))
+    @inboxes = policy_scope(Current.account.inboxes.order_by_name
+                                          .includes(:channel, :inbox_members, :inbox_isolation_exemptions,
+                                                    { avatar_attachment: [:blob] }))
     # Exclude private chat inbox so it never appears in the sidebar
     @inboxes = @inboxes.where.not(id: PrivateChat::Config.inbox_id) if PrivateChat::Config.enabled? && PrivateChat::Config.inbox_id.present?
   end
@@ -38,7 +47,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
           name: inbox_name(channel),
           channel: channel
         }.merge(
-          permitted_params.except(:channel)
+          permitted_params.except(:channel, *ISOLATION_PARTICIPANT_PARAMS.values)
         )
       )
       @inbox.save!
@@ -46,15 +55,12 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   def update
-    inbox_params = permitted_params.except(:channel, :csat_config, :nps_config)
+    inbox_params = permitted_params.except(:channel, :csat_config, :nps_config, *ISOLATION_PARTICIPANT_PARAMS.values)
     inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
     inbox_params[:nps_config] = format_nps_config(permitted_params[:nps_config]) if permitted_params[:nps_config].present?
-    # Merge (nao substitui) additional_attributes para preservar chaves de outras features (ex: pin_mode)
-    if inbox_params[:additional_attributes].present?
-      inbox_params[:additional_attributes] =
-        (@inbox.additional_attributes || {}).merge(inbox_params[:additional_attributes].to_h)
-    end
+    merge_additional_attributes(inbox_params)
     @inbox.update!(inbox_params)
+    update_isolation_exemptions
     update_inbox_working_hours
     update_channel if channel_update_required?
   end
@@ -106,6 +112,39 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
 
   def fetch_agent_bot
     @agent_bot = AgentBot.find(params[:agent_bot]) if params[:agent_bot]
+  end
+
+  # Converte PARTICIPANTES (o que a tela manda) em EXCEÇÕES (o que o banco guarda):
+  # exceção = agente da caixa que NÃO veio na lista. Chave ausente não mexe em nada — a
+  # maioria dos updates de caixa (nome, horário, CSAT) não fala de isolamento, e um
+  # update desses não pode isentar ninguém por omissão.
+  def update_isolation_exemptions
+    ISOLATION_PARTICIPANT_PARAMS.each do |isolation_type, param_key|
+      next unless permitted_params.key?(param_key)
+
+      sync_isolation_exemptions(isolation_type, Array(permitted_params[param_key]).map(&:to_i))
+    end
+    @inbox.inbox_isolation_exemptions.reset
+  end
+
+  # Só entram na conta os ids que são de fato agentes NÃO-admin desta caixa: qualquer
+  # outro id vindo do cliente é ruído, e o administrador nunca é isentável (já é isento).
+  def sync_isolation_exemptions(isolation_type, participant_ids)
+    exempt_ids = @inbox.isolation_candidate_user_ids - participant_ids
+    scope = @inbox.inbox_isolation_exemptions.for_type(isolation_type)
+
+    ActiveRecord::Base.transaction do
+      scope.where.not(user_id: exempt_ids).destroy_all
+      (exempt_ids - scope.pluck(:user_id)).each { |user_id| scope.create!(user_id: user_id) }
+    end
+  end
+
+  # Merge (nao substitui): preserva as chaves de outras features
+  # (ex: agent_signature_enabled, allowed_template_names) que o cliente nao mandou.
+  def merge_additional_attributes(inbox_params)
+    return if inbox_params[:additional_attributes].blank?
+
+    inbox_params[:additional_attributes] = (@inbox.additional_attributes || {}).merge(inbox_params[:additional_attributes].to_h)
   end
 
   def create_channel
@@ -219,6 +258,11 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      { team_message_isolation_team_ids: [] },
      { agent_message_isolation_team_ids: [] },
      { agent_conversation_isolation_team_ids: [] },
+     # Segundo eixo, por AGENTE: a tela fala PARTICIPANTES, o banco guarda EXCECOES.
+     { agent_message_isolation_participant_ids: [] }, { team_message_isolation_participant_ids: [] },
+     # `pin_mode` e `pinned_conversation_ids` seguem no permit de proposito: sem eles o
+     # Rails descarta o parametro EM SILENCIO e a tela responde 200 "salvo com sucesso"
+     # sem gravar nada. Ver o store_accessor correspondente em app/models/inbox.rb.
      { additional_attributes: [:pin_mode, :agent_signature_enabled, { pinned_conversation_ids: [], allowed_template_names: [] }] },
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],

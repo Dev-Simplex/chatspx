@@ -3,6 +3,8 @@
 # Chat interno (Módulo B, B1) — the agent's channels (DMs for now). `read` stamps
 # last_read_at so the unread badge clears. Membership is enforced by the policy.
 class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseController
+  include InternalChatFeatureGuard
+
   before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave]
   before_action :check_authorization
 

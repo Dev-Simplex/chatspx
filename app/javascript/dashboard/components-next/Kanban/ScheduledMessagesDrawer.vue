@@ -98,7 +98,7 @@ const statusBadgeClass = status => {
   if (status === 'pending') return 'bg-n-teal-4 text-n-teal-11';
   if (status === 'cancelled') return 'bg-n-slate-4 text-n-slate-11';
   if (status === 'failed') return 'bg-n-ruby-4 text-n-ruby-11';
-  if (status === 'sent') return 'bg-n-emerald-4 text-n-emerald-11';
+  if (status === 'sent') return 'bg-n-teal-4 text-n-teal-11';
   return 'bg-n-slate-4 text-n-slate-11';
 };
 

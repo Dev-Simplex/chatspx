@@ -32,7 +32,7 @@ const getStatusText = computed(() => {
       <div class="flex items-center justify-between">
         <div>
           <div
-            class="text-sm font-medium leading-4 text-n-slate-12 dark:text-n-slate-50"
+            class="text-sm font-medium leading-4 text-n-slate-12 dark:text-n-slate-11"
           >
             {{ getStatusText }}
           </div>
@@ -60,7 +60,7 @@ const getStatusText = computed(() => {
     <div
       v-else
       class="flex items-center h-10 bg-white rounded-md dark:!bg-n-slate-3"
-      :class="{ 'ring-2 ring-n-brand dark:ring-n-brand': isInputFocused }"
+      :class="{ 'ring-2 ring-n-brand': isInputFocused }"
     >
       <ResizableTextArea
         id="chat-input"

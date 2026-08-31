@@ -1,0 +1,826 @@
+<meta charset="utf-8">
+<title>Recorte do Supervisor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+  :root {
+    --paper:      #EDEEE9;
+    --surface:    #FAFAF8;
+    --surface-2:  #E3E5DE;
+    --ink:        #1B2027;
+    --ink-soft:   #565F6B;
+    --ink-faint:  #8B939D;
+    --rule:       #D3D6CE;
+    --rule-soft:  #E2E4DD;
+    --revoked:    #9C3A2E;
+    --revoked-bg: #F2E1DD;
+    --kept:       #2C6350;
+    --kept-bg:    #DDE9E3;
+    --accent:     #3E5170;
+    --accent-bg:  #E0E4EC;
+    --shadow:     0 1px 2px rgba(27,32,39,.06), 0 8px 24px -16px rgba(27,32,39,.28);
+
+    --f-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    --f-body:    'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --f-mono:    'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #14171B;
+      --surface:    #1C2026;
+      --surface-2:  #262B32;
+      --ink:        #E7E8E3;
+      --ink-soft:   #A8AFB8;
+      --ink-faint:  #757D87;
+      --rule:       #303640;
+      --rule-soft:  #262B33;
+      --revoked:    #E39380;
+      --revoked-bg: #3A2521;
+      --kept:       #7CC5A6;
+      --kept-bg:    #1D3730;
+      --accent:     #9DB2D4;
+      --accent-bg:  #232B38;
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #14171B;
+    --surface:    #1C2026;
+    --surface-2:  #262B32;
+    --ink:        #E7E8E3;
+    --ink-soft:   #A8AFB8;
+    --ink-faint:  #757D87;
+    --rule:       #303640;
+    --rule-soft:  #262B33;
+    --revoked:    #E39380;
+    --revoked-bg: #3A2521;
+    --kept:       #7CC5A6;
+    --kept-bg:    #1D3730;
+    --accent:     #9DB2D4;
+    --accent-bg:  #232B38;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+  }
+
+  .col { max-width: 68ch; }
+
+  /* ---------- type ---------- */
+  h1, h2, h3 {
+    font-family: var(--f-display);
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.018em;
+  }
+  h1 { font-size: clamp(2.3rem, 6vw, 3.4rem); font-weight: 700; line-height: 1.04; }
+  h2 { font-size: 1.5rem; font-weight: 600; line-height: 1.2; }
+  h3 { font-size: 1.02rem; font-weight: 600; letter-spacing: -0.005em; }
+  p  { margin: 0; }
+  a  { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+  code, .mono { font-family: var(--f-mono); font-size: 0.83em; }
+  code {
+    background: var(--surface-2);
+    padding: 0.1em 0.36em;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .lede { font-size: 1.18rem; color: var(--ink-soft); }
+
+  /* ---------- header ---------- */
+  header.top {
+    padding: 72px 0 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .metabar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding-top: 8px;
+  }
+  .tag {
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    padding: 4px 9px;
+    border-radius: 4px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .tag strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 46px 0 0;
+    border-top: 1px solid var(--rule);
+    margin-top: 46px;
+  }
+  .sec-head { display: flex; flex-direction: column; gap: 8px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------- rule callout ---------- */
+  .rule-card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 24px 26px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .rule-card .big {
+    font-family: var(--f-display);
+    font-size: 1.28rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.012em;
+  }
+  .rule-card .note { color: var(--ink-soft); font-size: 0.95rem; }
+
+  /* ---------- sidebar mockup ---------- */
+  .mock-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(292px, 1fr));
+    gap: 20px;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-head {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: var(--surface-2);
+  }
+  .panel-title {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 0.94rem;
+    letter-spacing: -0.005em;
+  }
+  .panel-sub {
+    font-family: var(--f-mono);
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.03em;
+  }
+  .menu { list-style: none; margin: 0; padding: 9px 8px 13px; display: flex; flex-direction: column; gap: 1px; }
+  .menu li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 9px;
+    border-radius: 6px;
+    font-family: var(--f-display);
+    font-size: 0.86rem;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .menu li .dot {
+    width: 13px; height: 13px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    flex: none;
+  }
+  .menu li.group-label {
+    font-family: var(--f-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 11px 9px 4px;
+    font-weight: 600;
+  }
+
+  .menu li.gone {
+    color: var(--ink-faint);
+    background: var(--revoked-bg);
+    border: 1px dashed color-mix(in srgb, var(--revoked) 45%, transparent);
+    padding: 5px 8px;
+  }
+  .menu li.gone .label { text-decoration: line-through; text-decoration-thickness: 1px; }
+  .menu li.gone .dot { background: transparent; border-style: dashed; border-color: color-mix(in srgb, var(--revoked) 45%, transparent); }
+  .menu li .flag {
+    margin-left: auto;
+    font-family: var(--f-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--revoked);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .panel.is-supervisor { border-color: color-mix(in srgb, var(--revoked) 40%, var(--rule)); }
+  .panel.is-supervisor .panel-head { background: var(--revoked-bg); }
+
+  .caption {
+    font-size: 0.86rem;
+    color: var(--ink-soft);
+    font-family: var(--f-display);
+    font-weight: 500;
+  }
+
+  /* profile menu mock */
+  .profile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(292px, 1fr));
+    gap: 20px;
+  }
+
+  /* ---------- ledger table ---------- */
+  .scroller { overflow-x: auto; border: 1px solid var(--rule); border-radius: 9px; background: var(--surface); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; }
+  thead th {
+    font-family: var(--f-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    text-align: left;
+    font-weight: 600;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.item { font-family: var(--f-display); font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+  td .sub { display: block; font-family: var(--f-mono); font-size: 0.7rem; color: var(--ink-faint); font-weight: 400; margin-top: 3px; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .pill.deny { background: var(--revoked-bg); color: var(--revoked); }
+  .pill.keep { background: var(--kept-bg); color: var(--kept); }
+
+  /* ---------- steps ---------- */
+  ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  ol.steps > li {
+    counter-increment: s;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 16px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  ol.steps > li:last-child { border-bottom: 0; }
+  ol.steps > li::before {
+    content: counter(s, decimal-leading-zero);
+    font-family: var(--f-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--accent);
+    padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .step-body { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+  .expect {
+    display: flex;
+    gap: 9px;
+    align-items: baseline;
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    padding: 9px 12px;
+    background: var(--kept-bg);
+    border-radius: 6px;
+    border-left: 2px solid var(--kept);
+  }
+  .expect b { font-family: var(--f-display); color: var(--kept); font-weight: 600; font-size: 0.76rem; letter-spacing: 0.07em; text-transform: uppercase; flex: none; }
+
+  pre {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 7px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: var(--f-mono);
+    font-size: 0.79rem;
+    line-height: 1.62;
+    color: var(--ink);
+  }
+  pre .c { color: var(--ink-faint); }
+  pre .k { color: var(--accent); }
+
+  /* ---------- warn ---------- */
+  .warn {
+    background: var(--revoked-bg);
+    border: 1px solid color-mix(in srgb, var(--revoked) 35%, transparent);
+    border-radius: 8px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .warn .h {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--revoked);
+  }
+  .warn p { font-size: 0.93rem; }
+
+  /* ---------- deviations ---------- */
+  .dev { display: flex; flex-direction: column; gap: 12px; }
+  details.dev-item {
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  details.dev-item summary {
+    cursor: pointer;
+    padding: 14px 18px;
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 0.95rem;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+  details.dev-item summary::-webkit-details-marker { display: none; }
+  details.dev-item summary::before {
+    content: "+";
+    font-family: var(--f-mono);
+    color: var(--accent);
+    font-weight: 600;
+    flex: none;
+  }
+  details.dev-item[open] summary::before { content: "–"; }
+  details.dev-item .body {
+    padding: 0 18px 18px 47px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 0.93rem;
+    color: var(--ink-soft);
+  }
+
+  ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 7px; font-size: 0.95rem; color: var(--ink-soft); }
+  ul.plain strong { color: var(--ink); font-weight: 600; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    line-height: 1.8;
+  }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 20px 72px; }
+    header.top { padding: 48px 0 32px; }
+    ol.steps > li { grid-template-columns: 26px 1fr; gap: 12px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="col stack">
+      <div class="eyebrow">ChatSPX &nbsp;·&nbsp; branch nicolas &nbsp;·&nbsp; 525f7f2ef</div>
+      <h1>Recorte do Supervisor</h1>
+      <p class="lede">Seis telas de configuração saem do alcance de quem supervisiona time — mesmo de quem é administrador da conta. Abaixo: o que muda na barra lateral, o que deliberadamente não muda, e o roteiro para conferir no staging.</p>
+    </div>
+    <div class="metabar">
+      <span class="tag"><strong>26</strong> arquivos</span>
+      <span class="tag"><strong>17</strong> exemplos rspec, 0 falhas</span>
+      <span class="tag"><strong>1182</strong> testes vitest, 0 falhas</span>
+      <span class="tag">rubocop &amp; eslint <strong>limpos</strong></span>
+      <span class="tag">migration <strong>nenhuma</strong></span>
+      <span class="tag" style="background:var(--kept-bg);border-color:color-mix(in srgb,var(--kept) 40%,transparent);color:var(--kept)">no ar em <strong>nicolas.chatspx.app</strong></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">A regra</div>
+      <h2>Supervisor é quem tem linha em <code>team_supervisors</code></h2>
+    </div>
+    <div class="col rule-card">
+      <p class="big">Supervisiona time&nbsp;→ não administra a plataforma.</p>
+      <p class="note">Reaproveita o conceito que o fork já usa no isolamento de mensagens e de conversas (<code>TeamSupervision</code>): sem coluna nova, sem migration. Na prática ela alcança <strong>uma pessoa — o administrador que supervisiona time</strong>. Para o supervisor que já era agente quase nada muda, porque essas telas nunca foram dele.</p>
+      <p class="note">A regra inteira mora num arquivo só, <code>app/services/supervisor_settings_scope.rb</code>. Trocar o critério — digamos, por uma marca explícita em <code>account_users</code> — é editar esse arquivo e mais nada.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Mockup · menu Configurações</div>
+      <h2>O que some da barra lateral</h2>
+      <p class="lede" style="font-size:1rem">Os dois lados são <strong>administradores da mesma conta</strong>. A única diferença entre eles é uma linha em <code>team_supervisors</code>. As faixas tracejadas marcam onde cada item estava.</p>
+    </div>
+
+    <div class="mock-grid">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Administrador comum</span>
+          <span class="panel-sub">permissions: administrator</span>
+        </div>
+        <ul class="menu">
+          <li class="group-label">Configurações</li>
+          <li><span class="dot"></span><span class="label">Conta</span></li>
+          <li><span class="dot"></span><span class="label">Agentes</span></li>
+          <li><span class="dot"></span><span class="label">Times</span></li>
+          <li><span class="dot"></span><span class="label">Caixas de Entrada</span></li>
+          <li><span class="dot"></span><span class="label">Conexões WhatsApp</span></li>
+          <li><span class="dot"></span><span class="label">Etiquetas</span></li>
+          <li><span class="dot"></span><span class="label">Atributos Personalizados</span></li>
+          <li><span class="dot"></span><span class="label">Automação</span></li>
+          <li><span class="dot"></span><span class="label">Robôs</span></li>
+          <li><span class="dot"></span><span class="label">Macros</span></li>
+          <li><span class="dot"></span><span class="label">Respostas Prontas</span></li>
+          <li><span class="dot"></span><span class="label">Integrações</span></li>
+          <li><span class="dot"></span><span class="label">Auditoria</span></li>
+          <li><span class="dot"></span><span class="label">Funções Personalizadas</span></li>
+          <li><span class="dot"></span><span class="label">SLA</span></li>
+          <li><span class="dot"></span><span class="label">Fluxo de Conversa</span></li>
+          <li><span class="dot"></span><span class="label">Segurança</span></li>
+          <li><span class="dot"></span><span class="label">Cobrança</span></li>
+        </ul>
+      </div>
+
+      <div class="panel is-supervisor">
+        <div class="panel-head">
+          <span class="panel-title">Administrador que supervisiona time</span>
+          <span class="panel-sub">permissions: administrator, team_supervisor</span>
+        </div>
+        <ul class="menu">
+          <li class="group-label">Configurações</li>
+          <li><span class="dot"></span><span class="label">Conta</span></li>
+          <li><span class="dot"></span><span class="label">Agentes</span></li>
+          <li><span class="dot"></span><span class="label">Times</span></li>
+          <li><span class="dot"></span><span class="label">Caixas de Entrada</span></li>
+          <li><span class="dot"></span><span class="label">Conexões WhatsApp</span></li>
+          <li><span class="dot"></span><span class="label">Etiquetas</span></li>
+          <li class="gone"><span class="dot"></span><span class="label">Atributos Personalizados</span><span class="flag">removido</span></li>
+          <li><span class="dot"></span><span class="label">Automação</span></li>
+          <li class="gone"><span class="dot"></span><span class="label">Robôs</span><span class="flag">removido</span></li>
+          <li class="gone"><span class="dot"></span><span class="label">Macros</span><span class="flag">removido</span></li>
+          <li><span class="dot"></span><span class="label">Respostas Prontas</span></li>
+          <li class="gone"><span class="dot"></span><span class="label">Integrações</span><span class="flag">removido</span></li>
+          <li><span class="dot"></span><span class="label">Auditoria</span></li>
+          <li><span class="dot"></span><span class="label">Funções Personalizadas</span></li>
+          <li><span class="dot"></span><span class="label">SLA</span></li>
+          <li class="gone"><span class="dot"></span><span class="label">Fluxo de Conversa</span><span class="flag">removido</span></li>
+          <li><span class="dot"></span><span class="label">Segurança</span></li>
+          <li><span class="dot"></span><span class="label">Cobrança</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="col caption">Etiquetas, Automação, Respostas Prontas, Auditoria, SLA e Conexões WhatsApp continuam no lugar. O recorte é curto de propósito: saem os seis itens pedidos, e só eles.</p>
+
+    <div class="col sec-head" style="padding-top:14px">
+      <div class="eyebrow">Mockup · menu do perfil</div>
+      <h3>O sexto item fica fora de Configurações</h3>
+    </div>
+
+    <div class="profile-grid">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Administrador comum · SuperAdmin</span>
+          <span class="panel-sub">users.type = 'SuperAdmin'</span>
+        </div>
+        <ul class="menu">
+          <li><span class="dot"></span><span class="label">Perfil</span></li>
+          <li><span class="dot"></span><span class="label">Atalhos do teclado</span></li>
+          <li><span class="dot"></span><span class="label">Novidades</span></li>
+          <li><span class="dot"></span><span class="label">Console de Super Admin</span></li>
+          <li><span class="dot"></span><span class="label">Sair</span></li>
+        </ul>
+      </div>
+      <div class="panel is-supervisor">
+        <div class="panel-head">
+          <span class="panel-title">Supervisor · SuperAdmin</span>
+          <span class="panel-sub">users.type = 'SuperAdmin' + team_supervisors</span>
+        </div>
+        <ul class="menu">
+          <li><span class="dot"></span><span class="label">Perfil</span></li>
+          <li><span class="dot"></span><span class="label">Atalhos do teclado</span></li>
+          <li><span class="dot"></span><span class="label">Novidades</span></li>
+          <li class="gone"><span class="dot"></span><span class="label">Console de Super Admin</span><span class="flag">removido</span></li>
+          <li><span class="dot"></span><span class="label">Sair</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="col caption">Sumir com o item do menu não fecharia nada: <code>/super_admin</code> tem escopo Devise próprio, e quem tem <code>users.type = 'SuperAdmin'</code> entra digitando a URL. Por isso a guarda ficou no login <em>e</em> no <code>before_action</code> do console — assim a regra vale sem precisar rebaixar ninguém no banco.</p>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">O par de cada item</div>
+      <h2>Ler não é administrar</h2>
+      <p class="lede" style="font-size:1rem">Levar a leitura junto com a gestão é o que quebraria a tela de atendimento do supervisor. Cada linha mostra os dois lados: o que passou a negar, o que segue passando, e por quê.</p>
+    </div>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Negado</th>
+            <th>Mantido — e por quê</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="item">Atributos personalizados<span class="sub">custom_attribute_definitions</span></td>
+            <td><span class="pill deny">POST · PATCH · DELETE</span></td>
+            <td><span class="pill keep">GET index · show</span><br><span style="font-size:.86rem;color:var(--ink-soft)">Sem elas, os campos personalizados somem do painel do contato e da conversa.</span></td>
+          </tr>
+          <tr>
+            <td class="item">Robôs<span class="sub">agent_bots · AgentBotPolicy</span></td>
+            <td><span class="pill deny">create · update · destroy · avatar · reset_token</span></td>
+            <td><span class="pill keep">index · show</span><br><span style="font-size:.86rem;color:var(--ink-soft)">A tela da caixa de entrada lista os bots para mostrar qual está ligado.</span></td>
+          </tr>
+          <tr>
+            <td class="item">Macros<span class="sub">macros · MacroPolicy</span></td>
+            <td><span class="pill deny">create · update · destroy</span><br><span style="font-size:.86rem;color:var(--ink-soft)">O <code>create</code> não passava por policy nenhuma; agora passa.</span></td>
+            <td><span class="pill keep">index · execute</span><br><span style="font-size:.86rem;color:var(--ink-soft)">Executar macro na conversa é trabalho de atendimento, não administração.</span></td>
+          </tr>
+          <tr>
+            <td class="item">Integrações<span class="sub">hooks · webhooks · dashboard_apps · slack · openai</span></td>
+            <td><span class="pill deny">conectar · desconectar · webhooks · dashboard apps</span></td>
+            <td><span class="pill keep">GET integrations/apps</span><br><span style="font-size:.86rem;color:var(--ink-soft)">O botão de vídeo do Dyte e a sugestão de etiqueta do OpenAI consultam essa lista de dentro da conversa.</span></td>
+          </tr>
+          <tr>
+            <td class="item">Fluxo de conversa<span class="sub">account.settings</span></td>
+            <td><span class="pill deny">auto_resolve_* · conversation_required_attributes</span></td>
+            <td><span class="pill keep">resto do PATCH /accounts</span><br><span style="font-size:.86rem;color:var(--ink-soft)">A tela grava no mesmo endpoint de “Conta”, então a negação é por chave — nome, idioma e domínio seguem editáveis.</span></td>
+          </tr>
+          <tr>
+            <td class="item">Console de Super Admin<span class="sub">/super_admin</span></td>
+            <td><span class="pill deny">login · toda rota do console</span></td>
+            <td><span class="pill keep">dashboard normal</span><br><span style="font-size:.86rem;color:var(--ink-soft)">Só o escopo Devise do console cai. A sessão do dashboard não sente nada.</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Quem a regra alcança</div>
+      <h2>Pré-voo <span class="pill keep" style="vertical-align:middle;font-size:.62rem">gate livre · 21 ago 2026</span></h2>
+    </div>
+    <div class="col stack">
+      <p>Rodado no host do staging, e bate com o que o .md original tinha medido:</p>
+      <pre>11 | supervisor.teste@chatspx.app | tipo=nil          | conta 1=agent
+14 | sup@simplexsolucoes.com.br   | tipo="SuperAdmin" | conta 1=administrator  <span class="k">&lt;- único alvo da regra</span>
+17 | nicolasnatha8@gmail.com      | tipo=nil          | conta 1=agent
+<span class="c">--- super admins: 1 (dev@simplexsolucoes.com.br) e 14 ---</span></pre>
+      <p><strong>O id 1 não supervisiona time nenhum</strong>, então segue com o <code>/super_admin</code> intacto. Nenhum administrador inesperado na lista: a regra alcança uma pessoa, o id&nbsp;14.</p>
+      <div class="warn">
+        <span class="h">Reconfira se alguém virar supervisor depois</span>
+        <p>A guarda recusa <em>qualquer</em> super admin que supervisione time. Se o id 1 ganhar uma linha em <code>team_supervisors</code> algum dia, perde o console — e sem ele ninguém administra a instalação. Para reconferir:</p>
+      </div>
+      <pre>cd /home/chatwoot/chatwoot &amp;&amp; RAILS_ENV=production bundle exec rails runner '
+  ids = TeamSupervisor.distinct.pluck(:user_id)
+  User.where(id: ids).each do |u|
+    papeis = u.account_users.map { |au| "conta #{au.account_id}=#{au.role}" }.join(", ")
+    puts "#{u.id} | #{u.email} | tipo=#{u.type.inspect} | #{papeis}"
+  end'</pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Roteiro</div>
+      <h2>Passo a passo para validar visualmente</h2>
+      <p class="lede" style="font-size:1rem">Em <code>nicolas.chatspx.app</code>. Cada passo diz o que esperar; se algum não bater, pare ali. Os dois primeiros já estão feitos — <strong>do 3 em diante depende de entrar na tela</strong>.</p>
+      <div class="col rule-card" style="padding:16px 20px">
+        <p style="font-size:.93rem;color:var(--ink-soft);margin:0">As policies já foram consultadas contra os dados reais do staging. Supervisor (id&nbsp;14): <code>create</code> de robôs, macros, hooks e webhooks devolve <strong>false</strong>, <code>index</code> devolve <strong>true</strong>. <code>dev@simplexsolucoes.com.br</code> (id&nbsp;1): tudo <strong>true</strong>, console livre. Falta a confirmação visual.</p>
+      </div>
+    </div>
+
+    <ol class="steps col">
+      <li>
+        <div class="step-body">
+          <h3>Rode o pré-voo <span class="pill keep" style="font-size:.62rem;vertical-align:middle">feito</span></h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">Nenhum administrador inesperado na lista, e o id 1 fora dela.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Publique no staging <span class="pill keep" style="font-size:.62rem;vertical-align:middle">feito</span></h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">Duas armadilhas já embutidas no comando: o heap padrão do Node estoura neste bundle, e canalizar o precompile para <code>tail</code> faz um build quebrado chegar como sucesso.</p>
+          <pre>cd /home/chatwoot/chatwoot
+RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=8192' \
+  bundle exec rake assets:precompile &gt; build.log 2&gt;&amp;1; echo $?
+sudo /bin/systemctl restart chatwoot.target</pre>
+          <div class="expect"><b>Conferido</b><span><code>EXIT=0</code> · o grafo do manifest atual carrega o marcador de negação · <code>http=200</code> · <code>version.json</code> = <code>525f7f2ef</code>, o mesmo SHA do HEAD.</span></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Entre como o supervisor e recarregue a aba</h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">Entre com <code>sup@simplexsolucoes.com.br</code>. Uma aba que já estava aberta continua servindo o bundle antigo até o F5 — julgar por ela dá falso negativo.</p>
+          <div class="expect"><b>Espera</b><span>Dashboard normal, conversas carregando.</span></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Abra Configurações e compare com o mockup</h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">Olhe tanto os que saem quanto — principalmente — os que <em>ficam</em>: Etiquetas, Automação, Respostas Prontas, Auditoria, SLA e Conexões WhatsApp.</p>
+          <div class="expect"><b>Espera</b><span>Atributos Personalizados, Robôs, Macros, Integrações e Fluxo de Conversa ausentes. O resto intacto.</span></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Abra o menu do perfil</h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">Clique no avatar no rodapé da barra lateral.</p>
+          <div class="expect"><b>Espera</b><span>Sem “Console de Super Admin”. Perfil, atalhos, novidades e sair continuam.</span></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Digite as cinco URLs na mão</h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">É aqui que um recorte feito só no menu se entregaria: o item some da barra e a tela continua abrindo pela URL.</p>
+          <pre>/app/accounts/1/settings/custom-attributes/list
+/app/accounts/1/settings/agent-bots
+/app/accounts/1/settings/macros
+/app/accounts/1/settings/integrations
+/app/accounts/1/settings/conversation-workflow</pre>
+          <div class="expect"><b>Espera</b><span>As cinco redirecionam para o dashboard. Nenhuma abre a tela.</span></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Abra <code>/super_admin</code> numa aba anônima</h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">Tente entrar com o e-mail e a senha do supervisor.</p>
+          <div class="expect"><b>Espera</b><span>Volta para a tela de login com “Invalid credentials”. Com <code>dev@simplexsolucoes.com.br</code>, entra normal.</span></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Ainda como supervisor, abra uma conversa</h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">O passo que pega o erro clássico desta tarefa: levar a leitura junto com a gestão.</p>
+          <div class="expect"><b>Espera</b><span>Campos personalizados no painel do contato aparecem · macro executa pelo raio ⚡ · atribuição e times normais · aba de mídias e anexos normais.</span></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Prove a API pelo token do supervisor</h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">O Chatwoot responde <strong>401</strong> a uma negação do Pundit, não 403 (<code>render_unauthorized</code> usa <code>:unauthorized</code>). O .md esperava 403 — muda o número, não a negação.</p>
+          <pre>TOKEN=$(curl -s -X POST http://127.0.0.1:3000/auth/sign_in \
+  -H "Content-Type: application/json" \
+  -d '{"email":"sup@simplexsolucoes.com.br","password":"SENHA"}' \
+  | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['access_token'])")
+
+<span class="c"># nega</span>
+curl -s -o /dev/null -w "%{http_code} atributos POST\n" -X POST \
+  -H "api_access_token: $TOKEN" \
+  http://127.0.0.1:3000/api/v1/accounts/1/custom_attribute_definitions
+<span class="c"># mantém</span>
+curl -s -o /dev/null -w "%{http_code} atributos GET\n" \
+  -H "api_access_token: $TOKEN" \
+  http://127.0.0.1:3000/api/v1/accounts/1/custom_attribute_definitions
+curl -s -o /dev/null -w "%{http_code} apps GET\n" \
+  -H "api_access_token: $TOKEN" \
+  http://127.0.0.1:3000/api/v1/accounts/1/integrations/apps</pre>
+          <div class="expect"><b>Espera</b><span>401 no POST · 200 nos dois GET.</span></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Repita com um administrador comum e com um agente</h3>
+          <p style="font-size:.94rem;color:var(--ink-soft)">A prova de que a regra não vazou para fora do recorte.</p>
+          <div class="expect"><b>Espera</b><span>Administrador comum com os seis itens no lugar e funcionando. Agente igual a antes, com uma ressalva — a terceira da seção seguinte.</span></div>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Onde a implementação divergiu</div>
+      <h2>Quatro desvios do .md</h2>
+      <p class="lede" style="font-size:1rem">O .md mandava confirmar cada ponto antes de concluir. Em quatro deles, o que ele previa não se sustentou no código.</p>
+    </div>
+
+    <div class="dev col">
+      <details class="dev-item" open>
+        <summary>“Fluxo de conversa” não é o <code>flows_controller</code></summary>
+        <div class="body">
+          <p>O <code>flows_controller</code> e a <code>FlowPolicy</code> são o canvas de <strong>Automação</strong> — que o próprio .md põe na lista do que deve continuar. Fechá-los teria tirado Automação do supervisor.</p>
+          <p>“Fluxo de Conversa” é outra tela: <code>settings/conversationWorkflow</code>, com Auto-resolução e Atributos obrigatórios. Ela não tem controller próprio — grava em <code>account.settings</code> pelo mesmo <code>PATCH /accounts/:id</code> de “Conta”. Daí a negação ter ficado por chave, e não pelo endpoint inteiro.</p>
+        </div>
+      </details>
+
+      <details class="dev-item">
+        <summary>Integrações: <code>apps#index</code> teve de continuar aberto</summary>
+        <div class="body">
+          <p>O .md dizia “aqui pode fechar inteiro, confirme o Dyte antes de concluir”. A conferência derrubou a premissa: <code>VideoCallButton.vue</code> e <code>useLabelSuggestions.js</code> chamam <code>integrations/get</code> <strong>de dentro da conversa</strong>. Fechar o index apagaria o botão de vídeo e a sugestão de etiqueta da tela de atendimento.</p>
+          <p>O index ficou aberto, e a negação foi para onde a tela de Integrações de fato escreve: <code>HookPolicy</code>, <code>WebhookPolicy</code>, dashboard apps, Slack e OpenAI.</p>
+        </div>
+      </details>
+
+      <details class="dev-item">
+        <summary>Macros: o supervisor <em>agente</em> também perde a tela</summary>
+        <div class="body">
+          <p>O .md assumia que “para supervisor agente nada muda, agente já não vê tela de configuração”. Vale para cinco dos seis — mas <strong>Macros era visível a agentes</strong>, porque a rota aceita <code>ROLES</code> inteiro.</p>
+          <p>A regra ficou coerente: supervisor não vê Macros, seja agente ou administrador. Executar macro dentro da conversa continua valendo para todo mundo. Se preferir poupar os supervisores agentes (ids 11 e 17), é uma linha em <code>macros.routes.js</code>.</p>
+        </div>
+      </details>
+
+      <details class="dev-item">
+        <summary>O status é 401, não 403</summary>
+        <div class="body">
+          <p><code>Pundit::NotAuthorizedError</code> cai em <code>render_unauthorized</code>, que responde <code>:unauthorized</code>. O .md esperava 403 na prova de API. A negação é a mesma; muda só o número.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Fora do recorte</div>
+      <h2>O que ficou intocado</h2>
+    </div>
+    <ul class="plain col">
+      <li><strong>Ninguém foi rebaixado.</strong> O <code>users.type</code> do id 14 segue <code>'SuperAdmin'</code>: a guarda no console entrega o pedido sem tocar em dado de produção. Se ainda assim você quiser rebaixar, a guarda continua valendo por cima.</li>
+      <li><strong>Dois furos antigos continuam abertos</strong>, porque fechá-los mudaria o que agente comum pode fazer — outro escopo. Qualquer agente ainda cria e apaga definição de atributo personalizado, e <code>integrations/notion#destroy</code> e <code>shopify</code> não têm autorização nenhuma. Fecho em separado se você quiser.</li>
+      <li><strong>Nada de papel personalizado</strong>, coluna nova ou migration.</li>
+      <li><strong>A supervisão em si não mudou.</strong> Isolamento de mensagens, de conversas e o alcance do supervisor às conversas do time seguem idênticos — aqui a marca de supervisor só é <em>lida</em>.</li>
+      <li><strong>Nada foi para a frota.</strong> O commit está só na branch <code>nicolas</code>, sem push.</li>
+    </ul>
+  </section>
+
+  <footer>
+    525f7f2ef · feat(supervisor): tira as configurações de plataforma de quem supervisiona time<br>
+    fonte única: app/services/supervisor_settings_scope.rb · prova: spec/controllers/api/v1/accounts/supervisor_platform_settings_spec.rb
+  </footer>
+
+</div>

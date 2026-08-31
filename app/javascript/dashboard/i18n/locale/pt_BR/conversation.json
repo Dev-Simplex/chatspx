@@ -174,7 +174,11 @@
         "RT": "RT {status}",
         "MISSED": "perdidas",
         "DUE": "venceu"
-      }
+      },
+      "NAME_CONTACT": "Nomear contato",
+      "EDIT_NAME": "Clique para renomear",
+      "NAME_PLACEHOLDER": "Nome do contato",
+      "NAME_UPDATE_ERROR": "Não foi possível atualizar o nome do contato"
     },
     "RESOLVE_DROPDOWN": {
       "MARK_PENDING": "Deixar pendente",
@@ -588,11 +592,13 @@
     },
     "TEAM_ISOLATION": {
       "RESTRICTED_TITLE": "Time: {team}",
-      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+      "RESTRICTED_SUBTITLE": "Conteúdo restrito",
+      "PREVIEW": "Mensagem de outro time"
     },
     "AGENT_ISOLATION": {
       "RESTRICTED_TITLE": "Agente: {agent}",
-      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+      "RESTRICTED_SUBTITLE": "Conteúdo restrito",
+      "PREVIEW": "Mensagem de outro agente"
     },
     "TAKEOVER_REQUEST": {
       "TITLE": "Solicitar esta conversa",
@@ -902,7 +908,8 @@
         "EDIT_TOAST": "Sugestão pronta para editar",
         "DISCARDED_TOAST": "Sugestão descartada"
       }
-    }
+    },
+    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente."
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Enviar transcrição de conversa",

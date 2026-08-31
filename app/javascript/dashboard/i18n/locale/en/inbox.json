@@ -74,6 +74,7 @@
       "SNOOZE": "Notification snoozed",
       "DELETE": "Notification deleted",
       "MARK_ALL_READ": "All notifications marked as read",
+      "MARK_ALL_READ_ERROR": "Não foi possível marcar as notificações como lidas",
       "DELETE_ALL": "All notifications deleted",
       "DELETE_ALL_READ": "All read notifications deleted"
     },

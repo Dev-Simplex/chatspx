@@ -59,18 +59,28 @@ export function useResolveAssignmentGate() {
    * resolve it. Mirrors the backend guard's "assign + resolve" sequence so the
    * resolve never gets lost.
    */
-  const assignSelfAndResolve = async (
+  // Assumir SEM encerrar. Existe separado porque entre uma coisa e outra pode haver
+  // atributo obrigatório a preencher — e o caminho que fazia as duas de uma vez pulava
+  // essa checagem, deixando encerrar sem preencher nada.
+  const assignSelfForResolve = async (
     conversationId,
-    { teamId = null, snoozedUntil = null } = {}
+    { teamId = null } = {}
   ) => {
     if (teamId) {
       await store.dispatch('assignTeam', { conversationId, teamId });
     }
-    await store.dispatch('assignAgent', {
+    return store.dispatch('assignAgent', {
       conversationId,
       agentId: currentUserId.value,
       rethrow: true,
     });
+  };
+
+  const assignSelfAndResolve = async (
+    conversationId,
+    { teamId = null, snoozedUntil = null } = {}
+  ) => {
+    await assignSelfForResolve(conversationId, { teamId });
     return store.dispatch('toggleStatus', {
       conversationId,
       status: wootConstants.STATUS_TYPE.RESOLVED,
@@ -86,6 +96,7 @@ export function useResolveAssignmentGate() {
     getResolveVariant,
     getAssignee,
     hasTeam,
+    assignSelfForResolve,
     assignSelfAndResolve,
   };
 }

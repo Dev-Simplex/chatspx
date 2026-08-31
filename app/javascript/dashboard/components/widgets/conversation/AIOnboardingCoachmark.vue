@@ -216,11 +216,11 @@ defineExpose({ id: COACHMARK_ID });
         aria-labelledby="ai-onboarding-coachmark-title"
         aria-describedby="ai-onboarding-coachmark-body"
         data-testid="ai-onboarding-coachmark"
-        class="fixed z-[60] w-72 rounded-xl border border-purple-200 bg-white p-4 shadow-xl dark:border-purple-700/40 dark:bg-slate-800"
+        class="fixed z-[60] w-72 rounded-xl border border-n-violet-6 bg-white p-4 shadow-xl dark:bg-slate-800"
         :style="cardStyle"
       >
         <span
-          class="inline-block rounded bg-purple-600 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-white"
+          class="inline-block rounded bg-n-violet-9 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-white"
         >
           {{ $t('COPILOT_ONBOARDING.BADGE') }}
         </span>
@@ -240,7 +240,7 @@ defineExpose({ id: COACHMARK_ID });
         <div class="mt-4 flex items-center justify-end gap-2">
           <button
             type="button"
-            class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 dark:text-slate-300 dark:hover:bg-slate-700"
+            class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8 dark:text-slate-300 dark:hover:bg-slate-700"
             @click="handleDismiss('later')"
           >
             {{ $t('COPILOT_ONBOARDING.DISMISS') }}
@@ -248,7 +248,7 @@ defineExpose({ id: COACHMARK_ID });
           <button
             ref="confirmButtonRef"
             type="button"
-            class="rounded-md bg-purple-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2"
+            class="rounded-md bg-n-violet-9 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-n-violet-10 dark:hover:bg-n-violet-8 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8 focus-visible:ring-offset-2"
             @click="handleConfirm"
           >
             {{ $t('COPILOT_ONBOARDING.CONFIRM') }}
@@ -257,7 +257,7 @@ defineExpose({ id: COACHMARK_ID });
 
         <span
           aria-hidden="true"
-          class="absolute -bottom-2 right-6 h-3 w-3 rotate-45 border-b border-r border-purple-200 bg-white dark:border-purple-700/40 dark:bg-slate-800"
+          class="absolute -bottom-2 right-6 h-3 w-3 rotate-45 border-b border-r border-n-violet-6 bg-white dark:bg-slate-800"
         />
       </div>
     </Transition>

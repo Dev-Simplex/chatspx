@@ -278,6 +278,8 @@ Rails.application.routes.draw do
               # I3 — integrantes do grupo de WhatsApp (WAHA). show le o snapshot
               # gravado; create e o "Sincronizar agora" do painel.
               resource :waha_group, only: [:show, :create], controller: 'waha_group'
+              # Liga/desliga: fixa a conversa no topo da lista de quem chamou.
+              post :pin, to: 'pins#toggle'
               resource :direct_uploads, only: [:create]
               resource :draft_messages, only: [:show, :update, :destroy]
               resource :ghost_suggestion, only: [:create]
@@ -438,6 +440,9 @@ Rails.application.routes.draw do
             resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates'
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
+            collection do
+              get :health
+            end
             member do
               get :qr_code
               post :connect
@@ -895,7 +900,9 @@ Rails.application.routes.draw do
       end
 
       # resources that doesn't appear in primary navigation in super admin
-      resources :account_users, only: [:new, :create, :show, :destroy]
+      # edit/update entram para dar onde ajustar papel e times supervisionados de um
+      # vínculo que já existe — antes só dava para criar e apagar.
+      resources :account_users, only: [:new, :create, :edit, :update, :show, :destroy]
     end
     authenticated :super_admin do
       mount Sidekiq::Web => '/monitoring/sidekiq'

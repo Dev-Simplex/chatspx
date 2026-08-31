@@ -4,7 +4,18 @@ import { frontendURL } from 'dashboard/helper/URLHelper';
 import {
   ROLES,
   CONVERSATION_PERMISSIONS,
+  NOT_TEAM_SUPERVISOR,
 } from 'dashboard/constants/permissions.js';
+
+// Macros é uma das seis telas fora do alcance do supervisor de time. Vale também
+// para o supervisor AGENTE — esta tela era visível a agentes, ao contrário das
+// outras cinco. EXECUTAR macro dentro da conversa continua valendo para todos:
+// é outro caminho (MacroPolicy#execute?), não esta rota.
+const MACROS_PERMISSIONS = [
+  ...ROLES,
+  ...CONVERSATION_PERMISSIONS,
+  NOT_TEAM_SUPERVISOR,
+];
 import SettingsContent from '../Wrapper.vue';
 import SettingsWrapper from '../SettingsWrapper.vue';
 import Macros from './Index.vue';
@@ -22,7 +33,7 @@ export default {
           component: Macros,
           meta: {
             featureFlag: FEATURE_FLAGS.MACROS,
-            permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+            permissions: MACROS_PERMISSIONS,
           },
         },
       ],
@@ -44,7 +55,7 @@ export default {
           component: MacroEditor,
           meta: {
             featureFlag: FEATURE_FLAGS.MACROS,
-            permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+            permissions: MACROS_PERMISSIONS,
           },
         },
         {
@@ -53,7 +64,7 @@ export default {
           component: MacroEditor,
           meta: {
             featureFlag: FEATURE_FLAGS.MACROS,
-            permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+            permissions: MACROS_PERMISSIONS,
           },
         },
       ],

@@ -230,6 +230,15 @@ export const mutations = {
     if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
   },
 
+  [types.SET_CONVERSATION_PINNED](_state, { conversationId, pinned }) {
+    const chat = findConversation(_state, conversationId);
+    if (!chat) return;
+    const updated = { ...chat, pinned };
+    const index = _state.allConversations.indexOf(chat);
+    if (index !== -1) _state.allConversations.splice(index, 1, updated);
+    if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
+  },
+
   [types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES](
     _state,
     { conversationId, customAttributes }

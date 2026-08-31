@@ -38,10 +38,17 @@ const props = defineProps({
     type: Number,
     default: null,
   },
-  // ids dos times que este agente SUPERVISIONA (supervisionar ≠ ser membro)
+  // ids dos times que este agente SUPERVISIONA (supervisionar ≠ ser membro).
+  // Perfil legado: agente com times específicos. O CARGO de supervisor é a prop
+  // `supervisor` abaixo, e alcança a conta inteira.
   supervisedTeamIds: {
     type: Array,
     default: () => [],
+  },
+  // cargo de Supervisor (coluna em account_users)
+  supervisor: {
+    type: Boolean,
+    default: false,
   },
   // quem ABRIU o modal é supervisor (não admin): renomear é tudo o que pode.
   // Não confundir com o agente EDITADO ser supervisor — isso é supervisedTeamIds.
@@ -61,17 +68,21 @@ const { t } = useI18n();
 const agentName = ref(props.name);
 const agentAvailability = ref(props.availability);
 const agentCredentials = ref({ email: props.email });
-// cópia local: só é enviada quando o campo está visível, senão o backend entende
-// "chave ausente = não mexa" e a supervisão atual fica preservada.
-const supervisedTeamIds = ref([...props.supervisedTeamIds]);
-
-// "Supervisor" não existe no backend: é agente + times supervisionados. A função
-// vira uma opção só na tela para o admin não ter que descobrir que supervisão é
-// um campo separado. Quem já supervisiona algum time abre o modal como Supervisor.
+// SUPERVISOR é um CARGO à parte de Administrador. Ele supervisiona a conta
+// INTEIRA — não se escolhe time, porque nada no recorte dele o impede de ver
+// todos. O alcance é o de um administrador, menos as seis telas que o
+// SupervisorSettingsScope bloqueia (Console de Super Admin, Atributos
+// Personalizados, Robôs, Macros, Integrações e Fluxo de Conversa).
+//
+// O backend guarda o cargo na coluna `account_users.supervisor` e traduz sozinho:
+// mandar `role: supervisor` grava administrador + a marca (AccountUser#role=), e
+// mandar Administrador/Agente limpa a marca. Por isso a tela envia a palavra
+// "supervisor" direto, sem traduzir nada aqui.
 const SUPERVISOR_ROLE = 'supervisor';
-const isPlainAgent = !props.customRoleId && props.type === 'agent';
+// O cargo manda; a lista de times por agente é o perfil legado e também abre como
+// Supervisor, porque é o que a pessoa é hoje.
 const selectedRoleId = ref(
-  isPlainAgent && props.supervisedTeamIds.length
+  props.supervisor || props.supervisedTeamIds.length
     ? SUPERVISOR_ROLE
     : props.customRoleId || props.type
 );
@@ -142,17 +153,12 @@ const selectedRole = computed(() =>
   )
 );
 
-// A lista de times só aparece para "Supervisor" — é o que a função significa.
-// Admin já enxerga tudo, e agente comum por definição não supervisiona.
-// Alterar supervisão é privilégio de admin: no modo supervisor o campo some.
-const canSuperviseTeams = computed(
+// Trocar de Supervisor para Administrador/Agente é como se TIRA a supervisão: o
+// payload manda lista vazia. Era justamente isso que faltava antes, quando a
+// chave era omitida para admin e a supervisão ficava grudada sem aparecer em
+// lugar nenhum.
+const isSupervisorRole = computed(
   () => !props.isSupervisorView && selectedRole.value?.name === SUPERVISOR_ROLE
-);
-
-// Supervisor sem nenhum time marcado não supervisiona nada: seria idêntico a
-// agente comum, com o admin achando que configurou algo. Bloqueia o envio.
-const isSupervisorWithoutTeams = computed(
-  () => canSuperviseTeams.value && supervisedTeamIds.value.length === 0
 );
 
 const statusList = computed(() => {
@@ -173,7 +179,7 @@ const availabilityStatuses = computed(() =>
 
 const editAgent = async () => {
   v$.value.$touch();
-  if (v$.value.$invalid || isSupervisorWithoutTeams.value) return;
+  if (v$.value.$invalid) return;
 
   try {
     const payload = { id: props.id, name: agentName.value };
@@ -189,18 +195,14 @@ const editAgent = async () => {
       if (isCustomRole) {
         payload.custom_role_id = selectedRole.value.id;
       } else {
-        // Supervisor é agente no backend — a diferença está nos times supervisionados.
-        payload.role = roleName === SUPERVISOR_ROLE ? 'agent' : roleName;
+        // O backend traduz "supervisor" para administrador + marca do cargo.
+        payload.role = roleName;
         payload.custom_role_id = null;
       }
 
-      if (canSuperviseTeams.value) {
-        payload.supervised_team_ids = supervisedTeamIds.value;
-      } else if (roleName === 'agent') {
-        // Rebaixar Supervisor -> Agente é a única troca que precisa LIMPAR: sem
-        // isso a supervisão continuaria valendo sem aparecer em lugar nenhum.
-        // Admin e função personalizada omitem a chave, e o backend preserva o que
-        // havia — assim promover alguém a admin não descarta a configuração.
+      // Sair do cargo também limpa a supervisão POR TIME do perfil legado; sem isso
+      // ela ficaria valendo sem aparecer em lugar nenhum.
+      if (!isSupervisorRole.value && props.supervisedTeamIds.length) {
         payload.supervised_team_ids = [];
       }
     }
@@ -255,51 +257,6 @@ const resetPassword = async () => {
         </label>
       </div>
 
-      <!-- Times supervisionados: desdobramento da função Supervisor, por isso
-           vem logo abaixo dela em vez de virar uma seção solta no fim do form. -->
-      <div v-if="canSuperviseTeams" class="w-full">
-        <label class="block">
-          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.LABEL') }}
-        </label>
-        <p class="mt-0 mb-2 text-n-slate-11 text-label-small">
-          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.DESCRIPTION') }}
-        </p>
-        <div
-          v-if="teams.length"
-          class="flex flex-col gap-2.5 p-3 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
-        >
-          <div
-            v-for="team in teams"
-            :key="team.id"
-            class="flex items-center gap-2"
-          >
-            <input
-              :id="`supervised-team-${team.id}`"
-              v-model="supervisedTeamIds"
-              type="checkbox"
-              :value="team.id"
-              class="m-0"
-            />
-            <label
-              :for="`supervised-team-${team.id}`"
-              class="mb-0 text-sm cursor-pointer text-n-slate-12"
-            >
-              {{ team.name }}
-            </label>
-          </div>
-        </div>
-        <p v-else class="mb-4 text-n-slate-11 text-label-small">
-          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.EMPTY') }}
-        </p>
-        <p
-          v-if="teams.length && isSupervisorWithoutTeams"
-          class="mt-2 mb-4 text-n-ruby-11 text-label-small"
-        >
-          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.REQUIRED') }}
-        </p>
-        <div v-else class="mb-4" />
-      </div>
-
       <div v-if="!isSupervisorView" class="w-full">
         <label :class="{ error: v$.agentAvailability.$error }">
           {{ $t('PROFILE_SETTINGS.FORM.AVAILABILITY.LABEL') }}
@@ -344,9 +301,7 @@ const resetPassword = async () => {
           <Button
             type="submit"
             :label="$t('AGENT_MGMT.EDIT.FORM.SUBMIT')"
-            :disabled="
-              v$.$invalid || isSupervisorWithoutTeams || uiFlags.isUpdating
-            "
+            :disabled="v$.$invalid || uiFlags.isUpdating"
             :is-loading="uiFlags.isUpdating"
           />
         </div>

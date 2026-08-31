@@ -1,0 +1,27 @@
+{
+  "ASSESSMENTS": {
+    "EYEBROW": "Autoconhecimento · desenvolvimento",
+    "TITLE": "Descubra como você pensa, reage e constrói o futuro.",
+    "DESCRIPTION": "Três avaliações complementares transformam respostas em uma leitura clara sobre comportamento, carreira e estilo emocional.",
+    "LIST_LABEL": "Avaliações disponíveis",
+    "QUESTIONS": "{count} questões",
+    "DURATION": "cerca de {minutes} min",
+    "SOON": "Em preparação",
+    "FOOTER": "Os instrumentos foram localizados e estão sendo convertidos das planilhas para experiências interativas.",
+    "DISC": {
+      "EYEBROW": "Perfil comportamental",
+      "TITLE": "DISC",
+      "DESCRIPTION": "Identifique tendências de dominância, influência, estabilidade e conformidade para compreender melhor sua forma de agir."
+    },
+    "CAREER": {
+      "EYEBROW": "Desenvolvimento profissional",
+      "TITLE": "Adaptabilidade de Carreira",
+      "DESCRIPTION": "Observe seus recursos de preocupação, controle, curiosidade e confiança diante das escolhas profissionais."
+    },
+    "EMOTIONAL": {
+      "EYEBROW": "Seis dimensões emocionais",
+      "TITLE": "Estilo Emocional do Cérebro",
+      "DESCRIPTION": "Explore resiliência, atitude, intuição social, autopercepção, sensibilidade ao contexto e atenção."
+    }
+  }
+}

@@ -13,11 +13,12 @@
     "WAHA_BANNER": {
       "GO_TO_CONNECTIONS": "Ir para Conexões",
       "CLEAR_SEARCH": "Limpar busca",
-      "SINGLE_CONNECTION_ISSUE": "Uma conexão WhatsApp está {status}.",
+      "SINGLE_CONNECTION_ISSUE": "A linha do WhatsApp da caixa \"{inbox}\" está {status}.",
       "MULTIPLE_CONNECTIONS_ISSUE": "{count} conexões WhatsApp estão com problemas.",
       "STATUS_STOPPED": "desconectada",
       "STATUS_FAILED": "com falha",
-      "STATUS_SCAN_QR": "aguardando escanear QR code"
+      "STATUS_SCAN_QR": "aguardando escanear QR code",
+      "STATUS_MISSING": "sem sessão no servidor"
     },
     "UPDATE": {
       "ERROR": "Não foi possível atualizar as configurações, tente novamente!",

@@ -1,8 +1,27 @@
+<%# O link SSO faz LOGIN como o usuário alvo, e o cookie de sessão é por DOMÍNIO — então
+    mesmo abrindo em target=_blank, TODAS as abas do dashboard passam a ser ele e a sessão de
+    quem clicou some. O aviso antigo só falava das ações; quem clicava perdia a própria sessão
+    sem entender por quê. Daí o texto explícito e a confirmação.
+
+    A confirmação é `onclick` e não `data-confirm` de propósito: este console não carrega
+    rails-ujs nem turbo (entrypoints/superadmin.js só importa SCSS, e
+    Administrate::Engine.javascripts está vazio), então `data-confirm` é inerte aqui — como
+    já acontece, sem ninguém notar, nos links de excluir do próprio console. %>
 <section class="main-content__body">
  <hr/>
   <div class="form-actions">
-  <p class="text-color-red">Caution: Any actions executed after impersonate will appear as if performed by the impersonated user - [<%= page.resource.name %> ]</p>
-    <a class='button' target='_blank' href='<%= page.resource.generate_sso_link_with_impersonation %>'>Impersonate user </a>
+    <p class="text-color-red">
+      Atenção: isto FAZ LOGIN como <strong><%= page.resource.name %></strong> e
+      <strong>substitui a sua sessão neste navegador</strong> — em todas as abas do
+      dashboard, mesmo abrindo em aba nova. Suas ações passam a aparecer como dele, e para
+      voltar a ser você é preciso sair e entrar de novo.
+    </p>
+    <p class="text-color-red">
+      Para usar outra conta sem perder a sua, abra uma <strong>janela anônima</strong> e
+      entre por lá com o e-mail e a senha dela.
+    </p>
+    <a class='button' target='_blank'
+       onclick="return confirm('Isto substitui a sua sessão neste navegador pela do usuário personificado, em todas as abas. Para voltar a ser você, terá que sair e entrar de novo. Continuar?')"
+       href='<%= page.resource.generate_sso_link_with_impersonation %>'>Impersonate user </a>
   </div>
 </section>
-

@@ -4,6 +4,8 @@
 # the requester; posting/editing/deleting/reacting broadcasts in real time.
 # Edit: author only. Delete: author or admin. React: any member.
 class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1::Accounts::BaseController
+  include InternalChatFeatureGuard
+
   before_action :fetch_channel
   before_action :authorize_channel
   before_action :fetch_message, only: [:update, :destroy, :react]
@@ -51,7 +53,11 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
   end
 
   def destroy
-    return render_forbidden unless author? || Current.account_user&.administrator?
+    # Moderar exige PARTICIPAR do canal: o admin lê qualquer canal para auditoria,
+    # mas apagar aqui é irreversível (soft_delete! zera o conteúdo e purga os
+    # anexos). Sem o channel_member? o admin apagava mensagem de DM alheia — o
+    # oposto do que a policy promete ("auditoria é somente leitura").
+    return render_forbidden unless author? || (Current.account_user&.administrator? && channel_member?)
 
     @message.soft_delete!
     InternalMessages::BroadcastService.updated(@message)

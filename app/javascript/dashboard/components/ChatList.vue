@@ -197,14 +197,18 @@ const {
   attributeModel: 'conversation_attribute',
 });
 
-const { checkMissingAttributes } = useConversationRequiredAttributes();
+const { checkMissingAttributes, splitAttributesByModel } =
+  useConversationRequiredAttributes();
+// Definições mostradas no modal — guardadas para separar, na volta, o que é da
+// conversa do que é do contato.
+const pendingRequiredAttributes = ref([]);
 
 const {
   requiresAssignmentToResolve,
   getResolveVariant,
   getAssignee,
   hasTeam,
-  assignSelfAndResolve,
+  assignSelfForResolve,
 } = useResolveAssignmentGate();
 
 // "Atribuição obrigatória" — assign-and-resolve dialog state for the context menu.
@@ -236,17 +240,6 @@ function openAssignResolveDialog(conversation, snoozedUntil) {
 
 function closeAssignResolveDialog() {
   showAssignResolveDialog.value = false;
-}
-
-async function handleAssignAndResolve({ teamId }) {
-  const { conversationId, snoozedUntil } = assignResolveContext.value;
-  closeAssignResolveDialog();
-  try {
-    await assignSelfAndResolve(conversationId, { teamId, snoozedUntil });
-    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
-  } catch (error) {
-    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
-  }
 }
 
 // computed
@@ -1100,6 +1093,44 @@ function toggleConversationStatus(
   });
 }
 
+async function handleAssignAndResolve({ teamId }) {
+  const { conversationId, snoozedUntil } = assignResolveContext.value;
+  closeAssignResolveDialog();
+  try {
+    // Mesmo encadeamento do botão da conversa: assume, checa os atributos
+    // obrigatórios e só então encerra. Antes o gate encerrava direto.
+    await assignSelfForResolve(conversationId, { teamId });
+
+    const conversation = getConversationById.value(conversationId);
+    const currentCustomAttributes = conversation?.custom_attributes || {};
+    const contactCustomAttributes =
+      conversation?.meta?.sender?.custom_attributes || {};
+    const { hasMissing, missing } = checkMissingAttributes(
+      currentCustomAttributes,
+      contactCustomAttributes
+    );
+
+    if (hasMissing) {
+      pendingRequiredAttributes.value = missing;
+      resolveAttributesModalRef.value?.open(
+        missing,
+        { ...contactCustomAttributes, ...currentCustomAttributes },
+        { id: conversationId, snoozedUntil }
+      );
+      return;
+    }
+
+    await toggleConversationStatus(
+      conversationId,
+      wootConstants.STATUS_TYPE.RESOLVED,
+      snoozedUntil
+    );
+    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
+  }
+}
+
 function handleResolveConversation(conversationId, status, snoozedUntil) {
   if (status !== wootConstants.STATUS_TYPE.RESOLVED) {
     toggleConversationStatus(conversationId, status, snoozedUntil);
@@ -1116,8 +1147,11 @@ function handleResolveConversation(conversationId, status, snoozedUntil) {
   }
 
   const currentCustomAttributes = conversation?.custom_attributes || {};
+  const contactCustomAttributes =
+    conversation?.meta?.sender?.custom_attributes || {};
   const { hasMissing, missing } = checkMissingAttributes(
-    currentCustomAttributes
+    currentCustomAttributes,
+    contactCustomAttributes
   );
 
   if (hasMissing) {
@@ -1126,9 +1160,10 @@ function handleResolveConversation(conversationId, status, snoozedUntil) {
       id: conversationId,
       snoozedUntil,
     };
+    pendingRequiredAttributes.value = missing;
     resolveAttributesModalRef.value?.open(
       missing,
-      currentCustomAttributes,
+      { ...contactCustomAttributes, ...currentCustomAttributes },
       conversationContext
     );
   } else {
@@ -1136,20 +1171,53 @@ function handleResolveConversation(conversationId, status, snoozedUntil) {
   }
 }
 
-function handleResolveWithAttributes({ attributes, context }) {
-  if (context) {
-    const existingConversation = getConversationById.value(context.id);
-    const currentCustomAttributes =
-      existingConversation?.custom_attributes || {};
-    const mergedAttributes = { ...currentCustomAttributes, ...attributes };
+async function handleResolveWithAttributes({ attributes, context }) {
+  if (!context) return;
 
-    toggleConversationStatus(
-      context.id,
-      wootConstants.STATUS_TYPE.RESOLVED,
-      context.snoozedUntil,
-      mergedAttributes
-    );
+  const existingConversation = getConversationById.value(context.id);
+  const currentCustomAttributes = existingConversation?.custom_attributes || {};
+  const { conversation: conversationValues, contact: contactValues } =
+    splitAttributesByModel(pendingRequiredAttributes.value, attributes);
+
+  // Contato e conversa são chamadas distintas. Se a do contato falhar, a conversa
+  // NÃO resolve — nada de encerrar em silêncio com o atributo vazio.
+  if (Object.keys(contactValues).length) {
+    const contactId = existingConversation?.meta?.sender?.id;
+    if (!contactId) {
+      useAlert(
+        t(
+          'CONVERSATION_WORKFLOW.REQUIRED_ATTRIBUTES.MODAL.ERRORS.CONTACT_MISSING'
+        )
+      );
+      return;
+    }
+
+    try {
+      await store.dispatch('contacts/update', {
+        id: contactId,
+        customAttributes: {
+          ...(existingConversation?.meta?.sender?.custom_attributes || {}),
+          ...contactValues,
+        },
+      });
+    } catch (error) {
+      useAlert(
+        t(
+          'CONVERSATION_WORKFLOW.REQUIRED_ATTRIBUTES.MODAL.ERRORS.CONTACT_UPDATE_FAILED'
+        )
+      );
+      return;
+    }
   }
+
+  toggleConversationStatus(
+    context.id,
+    wootConstants.STATUS_TYPE.RESOLVED,
+    context.snoozedUntil,
+    Object.keys(conversationValues).length
+      ? { ...currentCustomAttributes, ...conversationValues }
+      : null
+  );
 }
 
 function allSelectedConversationsStatus(status) {

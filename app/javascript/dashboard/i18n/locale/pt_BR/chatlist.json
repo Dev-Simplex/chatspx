@@ -158,6 +158,8 @@
     "HIDE_QUOTED_TEXT": "Ocultar Texto Citado",
     "SHOW_QUOTED_TEXT": "Mostrar Texto Citado",
     "MESSAGE_READ": "Lida",
-    "SENDING": "Enviando"
+    "SENDING": "Enviando",
+    "PIN_CONVERSATION": "Fixar no topo",
+    "UNPIN_CONVERSATION": "Desafixar"
   }
 }

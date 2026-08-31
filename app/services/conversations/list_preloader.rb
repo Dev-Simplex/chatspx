@@ -95,9 +95,47 @@ class Conversations::ListPreloader
   # silencio — justamente o bug que este metodo existe para fechar. O Ruby
   # (`isolation_applies_to_team?`) ja trata NULL como false (`unless self[key]`); aqui o SQL
   # passa a concordar com ele.
+  #
+  # SEGUNDO EIXO, a ISENCAO por agente: quem for excecao do isolamento por time naquela
+  # caixa sai do recorte tambem aqui. A previa e o espelho da association
+  # `Conversation#messages`; sem isto o agente isento abriria a conversa e veria tudo, mas
+  # a PREVIA da lista continuaria recortada. Sem excecao nenhuma a clausula nao aparece e
+  # a SQL fica identica a de antes.
   def team_isolation_where
     applies = Inbox.isolation_applies_sql(:team_message_isolation, inbox_alias: 'i', conversation_alias: 'c')
-    "(NOT COALESCE(#{applies}, FALSE) OR m.team_id IS NULL OR m.team_id = c.team_id)"
+    "(NOT COALESCE(#{applies}, FALSE)#{isento_or('c.inbox_id', team_exempt_inbox_ids)} " \
+      'OR m.team_id IS NULL OR m.team_id = c.team_id)'
+  end
+
+  # Fragmento ` OR <coluna> IN (1,2,3)`, ou vazio quando nao ha isencao.
+  # Ids inteiros interpolados de proposito, e nao bind nomeado: `team_isolation_where` roda
+  # tambem em `batch_unread_counts`, que usa bind POSICIONAL (`?`) — um `:nome` ali viraria
+  # erro de bind. `to_i` e a barreira: sao ids vindos do banco, nunca entrada de usuario.
+  def isento_or(coluna, ids)
+    lista = Array(ids).map(&:to_i)
+    return '' if lista.empty?
+
+    " OR #{coluna} IN (#{lista.join(',')})"
+  end
+
+  # Caixas em que este usuario e EXCECAO do isolamento por AGENTE: ali ele ve a ultima
+  # mensagem REAL, de qualquer agente.
+  def exempt_inbox_ids
+    return @exempt_inbox_ids if defined?(@exempt_inbox_ids)
+
+    @exempt_inbox_ids = AgentMessageIsolation.exempt_inbox_ids(@user, @conversations.first&.account_id)
+  end
+
+  # Idem para o isolamento por TIME.
+  def team_exempt_inbox_ids
+    return @team_exempt_inbox_ids if defined?(@team_exempt_inbox_ids)
+
+    account_id = @conversations.first&.account_id
+    @team_exempt_inbox_ids = if @user.is_a?(User) && account_id.present?
+                               @user.isolation_exempt_inbox_ids_for(account_id, TeamMessageIsolation::ISOLATION_TYPE)
+                             else
+                               []
+                             end
   end
 
   def fetch_combined_last_message_rows # rubocop:disable Metrics/MethodLength
@@ -110,7 +148,10 @@ class Conversations::ListPreloader
     # previa volta a ser a mensagem REAL quando a regra nao alcanca a conversa (flag off,
     # conversa sem time, ou time fora da lista escolhida na caixa).
     applies = Inbox.isolation_applies_sql(:agent_message_isolation, inbox_alias: 'i', conversation_alias: 'c')
-    agent_where = uid ? "AND (NOT #{applies} OR m.agent_id IS NULL OR m.agent_id = :uid#{supervised_or})" : ''
+    # `c.inbox_id IN (...)` e a EXCECAO por caixa, o segundo eixo: clausula ausente quando
+    # o usuario nao e excecao em lugar nenhum.
+    exempt_or = isento_or('c.inbox_id', exempt_inbox_ids)
+    agent_where = uid ? "AND (NOT #{applies} OR m.agent_id IS NULL OR m.agent_id = :uid#{supervised_or}#{exempt_or})" : ''
     # O JOIN com `inboxes` deixou de ser condicional ao `uid`: o filtro por time tambem
     # pergunta a caixa (flag + lista), entao a tabela precisa estar unida SEMPRE.
     team_where = team_isolation_where

@@ -63,6 +63,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
     t.boolean "auto_offline", default: true, null: false
     t.bigint "custom_role_id"
     t.bigint "agent_capacity_policy_id"
+    t.boolean "supervisor", default: false, null: false
     t.index ["account_id", "user_id"], name: "uniq_user_id_per_account_id", unique: true
     t.index ["account_id"], name: "index_account_users_on_account_id"
     t.index ["agent_capacity_policy_id"], name: "index_account_users_on_agent_capacity_policy_id"
@@ -948,6 +949,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
     t.index ["status"], name: "index_conversation_pdf_exports_on_status"
   end
 
+  create_table "conversation_pins", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_conversation_pins_on_account_id"
+    t.index ["conversation_id"], name: "index_conversation_pins_on_conversation_id"
+    t.index ["user_id", "conversation_id"], name: "index_conversation_pins_on_user_id_and_conversation_id", unique: true
+  end
+
   create_table "conversation_takeover_requests", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "conversation_id", null: false
@@ -1082,6 +1094,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
     t.jsonb "attribute_values", default: []
     t.string "regex_pattern"
     t.string "regex_cue"
+    t.boolean "required", default: false, null: false
+    t.boolean "hidden", default: false, null: false
     t.index ["account_id"], name: "index_custom_attribute_definitions_on_account_id"
     t.index ["attribute_key", "attribute_model", "account_id"], name: "attribute_key_model_index", unique: true
   end
@@ -1440,6 +1454,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
     t.index ["agent_capacity_policy_id", "inbox_id"], name: "idx_on_agent_capacity_policy_id_inbox_id_71c7ec4caf", unique: true
     t.index ["agent_capacity_policy_id"], name: "index_inbox_capacity_limits_on_agent_capacity_policy_id"
     t.index ["inbox_id"], name: "index_inbox_capacity_limits_on_inbox_id"
+  end
+
+  create_table "inbox_isolation_exemptions", force: :cascade do |t|
+    t.bigint "inbox_id", null: false
+    t.bigint "user_id", null: false
+    t.string "isolation_type", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["inbox_id", "user_id", "isolation_type"], name: "index_inbox_isolation_exemptions_on_inbox_user_type", unique: true
+    t.index ["user_id"], name: "index_inbox_isolation_exemptions_on_user_id"
   end
 
   create_table "inbox_members", id: :serial, force: :cascade do |t|
@@ -2250,6 +2274,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
   add_foreign_key "funnel_views", "users"
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
+  add_foreign_key "inbox_isolation_exemptions", "inboxes", on_delete: :cascade
+  add_foreign_key "inbox_isolation_exemptions", "users", on_delete: :cascade
   add_foreign_key "inboxes", "portals"
   add_foreign_key "internal_channel_members", "internal_channels"
   add_foreign_key "internal_channel_members", "users"

@@ -1,0 +1,27 @@
+{
+  "ASSESSMENTS": {
+    "EYEBROW": "Self-awareness · development",
+    "TITLE": "Discover how you think, react, and build your future.",
+    "DESCRIPTION": "Three complementary assessments turn answers into a clear view of behavior, career, and emotional style.",
+    "LIST_LABEL": "Available assessments",
+    "QUESTIONS": "{count} questions",
+    "DURATION": "about {minutes} min",
+    "SOON": "In preparation",
+    "FOOTER": "The instruments were located and are being converted from spreadsheets into interactive experiences.",
+    "DISC": {
+      "EYEBROW": "Behavioral profile",
+      "TITLE": "DISC",
+      "DESCRIPTION": "Identify dominance, influence, steadiness, and compliance tendencies to better understand how you act."
+    },
+    "CAREER": {
+      "EYEBROW": "Professional development",
+      "TITLE": "Career Adaptability",
+      "DESCRIPTION": "Explore your concern, control, curiosity, and confidence when making professional choices."
+    },
+    "EMOTIONAL": {
+      "EYEBROW": "Six emotional dimensions",
+      "TITLE": "Emotional Style of the Brain",
+      "DESCRIPTION": "Explore resilience, outlook, social intuition, self-awareness, context sensitivity, and attention."
+    }
+  }
+}

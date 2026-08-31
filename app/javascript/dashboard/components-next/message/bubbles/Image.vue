@@ -97,7 +97,7 @@ const handleImageError = () => {
       <!-- Upload em andamento: anel de progresso sobre o preview local. -->
       <div
         v-if="isUploading"
-        class="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-[1px]"
+        class="absolute inset-0 z-10 flex items-center justify-center bg-n-black/40 backdrop-blur-[1px]"
       >
         <ProgressRing :value="uploadProgress" :size="48" :stroke="4" />
       </div>

@@ -14,6 +14,7 @@ class Agents::DestroyJob < ApplicationJob
       cleanup_notifications(account, user)
       cleanup_conversation_participants(account, user)
       cleanup_mentions(account, user)
+      cleanup_internal_channels(account, user)
     end
   end
 
@@ -23,6 +24,14 @@ class Agents::DestroyJob < ApplicationJob
     inboxes = account.inboxes.all
     inbox_members = user.inbox_members.where(inbox_id: inboxes.pluck(:id))
     inbox_members.destroy_all
+  end
+
+  # Sair do time já tirava o ex-agente do grupo de time (via TeamMember), mas as DMs
+  # e grupos ad-hoc o mantinham como membro para sempre: o nome seguia no roster, o
+  # histórico voltava inteiro numa readmissão, e o BroadcastService continuava
+  # publicando o conteúdo das mensagens no pubsub_token dele.
+  def cleanup_internal_channels(account, user)
+    InternalChannelMember.where(user_id: user.id, internal_channel_id: account.internal_channels.select(:id)).destroy_all
   end
 
   def remove_user_from_teams(account, user)

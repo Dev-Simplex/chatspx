@@ -2,8 +2,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 
 const props = defineProps({
-  /** URL do JSON idle (outline) */
-  src: { type: String, required: true },
+  /** URL do JSON idle (outline). Vazio = sem Lordicon, só o Lucide de reserva. */
+  src: { type: String, default: '' },
   /** URL do JSON solid — se presente e active=true, troca pra essa no ativo */
   srcActive: { type: String, default: '' },
   /** Família: 'system' (tem solid variant) ou 'wired' (sem solid, só cor+stroke) */
@@ -26,7 +26,11 @@ const isActive = computed(() => props.active || ancestorActive.value);
 
 const wrapperRef = ref(null);
 const iconRef = ref(null);
-const loaded = ref(false);
+// `pronto` só vira true quando o player Lordicon avisa que desenhou. Enquanto isso
+// (e para sempre, se o CDN nao responder) quem fica na tela e o icone Lucide de
+// reserva — antes um timer escondia a reserva depois de 3 s e a barra lateral
+// inteira ficava VAZIA quando cdn.lordicon.com estava fora do ar ou bloqueado.
+const pronto = ref(false);
 
 const isDarkMode = ref(
   typeof document !== 'undefined' && document.body?.classList.contains('dark')
@@ -61,7 +65,7 @@ const wrapperStyle = computed(() => ({
   height: `${props.size}px`,
 }));
 
-const playerStyle = computed(() => ({ opacity: loaded.value ? 1 : 0 }));
+const playerStyle = computed(() => ({ opacity: pronto.value ? 1 : 0 }));
 
 let cleanup = () => {};
 
@@ -86,7 +90,7 @@ onMounted(() => {
   if (!iconEl) return;
 
   const onReady = () => {
-    loaded.value = true;
+    pronto.value = true;
     if (isActive.value) playAnimation();
   };
   iconEl.addEventListener('ready', onReady);
@@ -117,23 +121,18 @@ onMounted(() => {
     });
   }
 
-  const loadTimeout = setTimeout(() => {
-    loaded.value = true;
-  }, 3000);
-
   cleanup = () => {
     iconEl.removeEventListener('ready', onReady);
     if (host && onEnter) host.removeEventListener('mouseenter', onEnter);
     themeObserver?.disconnect();
     activeObserver?.disconnect();
-    clearTimeout(loadTimeout);
   };
 });
 
 onBeforeUnmount(() => cleanup());
 
 watch(isActive, val => {
-  if (val && loaded.value) {
+  if (val && pronto.value) {
     playAnimation();
   }
 });
@@ -147,12 +146,13 @@ watch(isActive, val => {
     aria-hidden="true"
   >
     <span
-      v-if="!loaded && fallbackLucide"
+      v-if="!pronto && fallbackLucide"
       :class="fallbackLucide"
       class="lord-icon-fallback"
     />
     <!-- eslint-disable-next-line vue/no-undef-components -->
     <lord-icon
+      v-if="src"
       ref="iconRef"
       :src="currentSrc"
       :stroke="currentStroke"

@@ -69,7 +69,7 @@ const toggleSidebar = () => {
       <Button
         icon="i-woot-captain"
         no-animation
-        class="!rounded-full !bg-n-brand !text-white text-xl transition-all duration-200 ease-out hover:!bg-n-brand-hover"
+        class="!rounded-full !bg-n-brand !text-white text-xl transition-all duration-200 ease-out hover:!bg-n-teal-10"
         lg
         data-testid="copilot-launcher"
         @click="toggleSidebar"

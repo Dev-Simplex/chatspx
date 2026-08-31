@@ -61,7 +61,7 @@ const hasInbox = computed(() => inboxCount.value > 0);
       <span class="inline-flex gap-1.5 items-center font-semibold">
         <span
           class="rounded-full size-2"
-          :class="hasInbox ? 'bg-g-500' : 'bg-n-slate-7'"
+          :class="hasInbox ? 'bg-n-teal-9' : 'bg-n-slate-7'"
         />
         {{ hasInbox ? inUseLabel : noInboxLabel }}
       </span>

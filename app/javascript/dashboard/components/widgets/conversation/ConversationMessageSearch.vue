@@ -221,7 +221,7 @@ const highlightTerm = text => {
             class="flex items-start gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-colors duration-75"
             :class="
               idx === activeIdx
-                ? 'bg-n-brand/8 dark:bg-n-brand/12'
+                ? 'bg-n-brand/10'
                 : 'hover:bg-n-slate-2 dark:hover:bg-n-solid-3'
             "
             @click="handleMessageClick(message)"

@@ -9,8 +9,11 @@ class FunnelStagePolicy < ApplicationPolicy
     index? && record.funnel.account_id == account.id
   end
 
+  # Ver a etapa é trabalho de atendimento; MEXER na etapa é desenhar o processo, e
+  # isso é de administrador. Um agente que renomeia, recoloriza, muda limite/SLA ou
+  # apaga coluna altera o quadro de todo mundo.
   def create?
-    @account_user&.agent? || @account_user&.administrator?
+    @account_user&.administrator?
   end
 
   def update?

@@ -25,19 +25,19 @@ let refreshInterval = null;
 
 const eventTypeConfig = {
   response: { color: 'bg-green-500', icon: 'i-lucide-check-circle' },
-  debounce_skip: { color: 'bg-cyan-500', icon: 'i-lucide-timer-off' },
-  debounce_fire: { color: 'bg-cyan-500', icon: 'i-lucide-timer' },
-  router_skip: { color: 'bg-amber-500', icon: 'i-lucide-skip-forward' },
-  business_hours_skip: { color: 'bg-purple-500', icon: 'i-lucide-clock' },
+  debounce_skip: { color: 'bg-n-teal-9', icon: 'i-lucide-timer-off' },
+  debounce_fire: { color: 'bg-n-teal-9', icon: 'i-lucide-timer' },
+  router_skip: { color: 'bg-n-amber-9', icon: 'i-lucide-skip-forward' },
+  business_hours_skip: { color: 'bg-n-violet-9', icon: 'i-lucide-clock' },
   handoff: { color: 'bg-red-500', icon: 'i-lucide-user-check' },
-  media_process: { color: 'bg-indigo-500', icon: 'i-lucide-image' },
-  humanizer_split: { color: 'bg-pink-500', icon: 'i-lucide-split' },
-  dedup_skip: { color: 'bg-orange-500', icon: 'i-lucide-copy-x' },
+  media_process: { color: 'bg-n-violet-10', icon: 'i-lucide-image' },
+  humanizer_split: { color: 'bg-n-ruby-9', icon: 'i-lucide-split' },
+  dedup_skip: { color: 'bg-n-amber-9', icon: 'i-lucide-copy-x' },
   error: { color: 'bg-red-500', icon: 'i-lucide-alert-circle' },
   copilot_trigger: { color: 'bg-violet-500', icon: 'i-lucide-sparkles' },
-  mirror_assigned: { color: 'bg-blue-500', icon: 'i-lucide-bot' },
+  mirror_assigned: { color: 'bg-n-blue-9', icon: 'i-lucide-bot' },
   mirror_released: { color: 'bg-slate-500', icon: 'i-lucide-bot-off' },
-  human_takeover: { color: 'bg-amber-500', icon: 'i-lucide-user-round-check' },
+  human_takeover: { color: 'bg-n-amber-9', icon: 'i-lucide-user-round-check' },
 };
 
 const filterOptions = computed(() => [

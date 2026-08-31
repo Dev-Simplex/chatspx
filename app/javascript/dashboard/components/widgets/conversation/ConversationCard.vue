@@ -234,6 +234,10 @@ export default {
       return this.unreadCount > 0;
     },
 
+    isPinned() {
+      return Boolean(this.chat.pinned);
+    },
+
     isInboxNameVisible() {
       return !this.activeInbox;
     },
@@ -311,13 +315,14 @@ export default {
     },
 
     // Mensagem a exibir no preview. Se restrita por agente, troca o conteúdo por 🔒 +
-    // "Conteúdo restrito" e remove anexos/atributos, mantendo só quem enviou poder ver.
+    // um aviso CURTO (a explicação inteira fica no balão, aqui só cabe uma linha) e
+    // remove anexos/atributos, mantendo só quem enviou poder ver.
     previewMessage() {
       const msg = this.lastMessageInChat;
       if (!msg || !this.isLastMessageRestrictedByAgent) return msg;
       return {
         ...msg,
-        content: `🔒 ${this.$t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_SUBTITLE')}`,
+        content: `🔒 ${this.$t('CONVERSATION.AGENT_ISOLATION.PREVIEW')}`,
         attachments: [],
         content_attributes: {},
         content_type: 'text',
@@ -340,6 +345,16 @@ export default {
     },
   },
   methods: {
+    // Preferência individual: só mexe na lista de quem clicou.
+    togglePin() {
+      this.$store.dispatch('togglePin', { conversationId: this.chat.id });
+    },
+
+    togglePinFromMenu() {
+      this.togglePin();
+      this.closeContextMenu();
+    },
+
     onCardClick(e) {
       const { activeInbox, chat } = this;
       const path = frontendURL(
@@ -573,8 +588,30 @@ export default {
         </span>
       </p>
       <div
-        class="absolute flex flex-col mt-4 ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200"
+        class="absolute flex flex-col ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200"
       >
+        <!-- Alfinete: sempre visível quando fixada; no toque também, porque lá
+             não existe hover (por isso o md: nas classes de opacidade). -->
+        <!-- p-0 é obrigatório: existe uma regra global `button { padding: .25rem .625rem }`
+             que, somada ao size-4 com box-sizing border-box, zera a largura do conteúdo —
+             o ícone renderiza com 0px e o botão fica invisível. -->
+        <button
+          type="button"
+          class="ltr:ml-auto rtl:mr-auto mb-0.5 flex size-4 p-0 items-center justify-center rounded transition-opacity"
+          :class="
+            isPinned
+              ? 'text-n-brand'
+              : 'text-n-slate-10 md:opacity-0 md:group-hover:opacity-100 hover:text-n-slate-12'
+          "
+          :title="
+            isPinned
+              ? $t('CHAT_LIST.UNPIN_CONVERSATION')
+              : $t('CHAT_LIST.PIN_CONVERSATION')
+          "
+          @click.stop="togglePin"
+        >
+          <span class="i-lucide-pin size-3.5" />
+        </button>
         <span class="conversation--timestamp ml-auto font-normal leading-4">
           <TimeAgo
             :last-activity-timestamp="
@@ -613,7 +650,9 @@ export default {
         :has-unread-messages="hasUnread"
         :can-mark-as-read="canMarkAsRead"
         :conversation-labels="chat.labels"
+        :is-pinned="isPinned"
         :allowed-options="allowedContextMenuOptions"
+        @toggle-pin="togglePinFromMenu"
         @update-conversation="onUpdateConversation"
         @assign-agent="onAssignAgent"
         @assign-label="onAssignLabel"

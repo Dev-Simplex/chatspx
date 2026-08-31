@@ -259,7 +259,8 @@
     "VALIDATIONS": {
       "REQUIRED": "Valid value is required",
       "INVALID_URL": "Invalid URL",
-      "INVALID_INPUT": "Invalid Input"
+      "INVALID_INPUT": "Invalid Input",
+      "INVALID_CPF": "Enter a valid CPF"
     }
   },
   "MERGE_CONTACTS": {
@@ -719,6 +720,9 @@
       },
       "INBOX_SELECTOR": {
         "BUTTON": "Choose an inbox"
+      },
+      "TEAM_SELECTOR": {
+        "BUTTON": "Choose a team (optional)"
       },
       "EMAIL_OPTIONS": {
         "SUBJECT_LABEL": "Subject :",

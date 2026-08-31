@@ -23,11 +23,16 @@ json.pending_status_enabled resource.pending_status_enabled
 json.team_message_isolation resource.team_message_isolation
 json.agent_message_isolation resource.agent_message_isolation
 json.agent_conversation_isolation resource.agent_conversation_isolation
-# Escopo por time de cada regra. Lista vazia = a regra vale para TODOS os times
+# EIXO 1, escopo por TIME de cada regra. Lista vazia = a regra vale para TODOS os times
 # (comportamento historico) — a tela deve ler "vazio" como "todos", nao como "nenhum".
 json.team_message_isolation_team_ids resource.team_message_isolation_team_ids
 json.agent_message_isolation_team_ids resource.agent_message_isolation_team_ids
 json.agent_conversation_isolation_team_ids resource.agent_conversation_isolation_team_ids
+## EIXO 2, excecao por AGENTE: a tela fala PARTICIPANTES, o banco guarda EXCEÇÕES. Estas
+## duas listas são DERIVADAS (agentes não-admin da caixa menos as exceções), então uma caixa
+## sem nenhuma exceção devolve todo mundo marcado — que é exatamente o comportamento de hoje.
+json.agent_message_isolation_participant_ids resource.isolation_participant_ids('agent_message')
+json.team_message_isolation_participant_ids resource.isolation_participant_ids('team_message')
 json.sender_name_type resource.sender_name_type
 json.business_name resource.business_name
 json.additional_attributes resource.additional_attributes

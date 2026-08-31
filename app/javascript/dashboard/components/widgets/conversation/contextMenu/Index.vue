@@ -14,6 +14,7 @@ import wootConstants from 'dashboard/constants/globals';
 import AgentLoadingPlaceholder from './agentLoadingPlaceholder.vue';
 
 const MENU = {
+  PIN: 'pin',
   MARK_AS_READ: 'mark-as-read',
   MARK_AS_UNREAD: 'mark-as-unread',
   PRIORITY: 'priority',
@@ -46,6 +47,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    isPinned: {
+      type: Boolean,
+      default: false,
+    },
     canMarkAsRead: {
       type: Boolean,
       default: true,
@@ -74,6 +79,7 @@ export default {
   emits: [
     'updateConversation',
     'assignPriority',
+    'togglePin',
     'markAsUnread',
     'markAsRead',
     'assignAgent',
@@ -168,6 +174,17 @@ export default {
     };
   },
   computed: {
+    // O rótulo acompanha o estado atual: quem já fixou lê "Desafixar". Mesmas
+    // chaves do balão do alfinete no card, para os dois nunca divergirem.
+    pinOption() {
+      return {
+        key: MENU.PIN,
+        icon: this.isPinned ? 'i-lucide-pin-off' : 'i-lucide-pin',
+        label: this.isPinned
+          ? this.$t('CHAT_LIST.UNPIN_CONVERSATION')
+          : this.$t('CHAT_LIST.PIN_CONVERSATION'),
+      };
+    },
     ...mapGetters({
       labels: 'labels/getLabels',
       teams: 'teams/getTeams',
@@ -316,6 +333,14 @@ export default {
   <div
     class="p-1 rounded-md shadow-[0_2px_8px_rgba(11,20,26,0.12)] bg-n-solid-1 dark:bg-[#233138] border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)]"
   >
+    <template v-if="isAllowed([MENU.PIN])">
+      <MenuItem
+        :option="pinOption"
+        variant="icon"
+        @click.stop="$emit('togglePin')"
+      />
+      <hr class="m-1 rounded border-b border-n-weak dark:border-n-weak" />
+    </template>
     <template
       v-if="
         isAllowed([MENU.MARK_AS_READ, MENU.MARK_AS_UNREAD]) && showReadToggle

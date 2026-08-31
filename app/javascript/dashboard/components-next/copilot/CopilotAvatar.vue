@@ -17,7 +17,7 @@ const SIZE_MAP = { sm: 24, md: 32, lg: 48, xl: 64 };
 
 <template>
   <div
-    class="relative inline-flex items-center justify-center flex-shrink-0 rounded-full bg-gradient-to-br from-primary-500 to-blue-500"
+    class="relative inline-flex items-center justify-center flex-shrink-0 rounded-full bg-gradient-to-br from-n-teal-9 to-n-blue-9"
     :class="{
       'animate-pulse': state === 'idle',
       'animate-bounce': state === 'responding',

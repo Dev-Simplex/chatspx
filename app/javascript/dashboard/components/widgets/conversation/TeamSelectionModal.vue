@@ -109,7 +109,7 @@ watch(
         class="flex items-center gap-3 p-3 text-left rounded-lg border transition-colors"
         :class="
           selectedTeamId === team.id
-            ? 'border-n-green-9 bg-n-green-3'
+            ? 'border-n-teal-9 bg-n-teal-3'
             : 'border-n-weak hover:border-n-strong hover:bg-n-alpha-2'
         "
         @click="selectedTeamId = team.id"
@@ -118,7 +118,7 @@ watch(
           class="flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors"
           :class="
             selectedTeamId === team.id
-              ? 'border-n-green-9 bg-n-green-9'
+              ? 'border-n-teal-9 bg-n-teal-9'
               : 'border-n-slate-8'
           "
         >

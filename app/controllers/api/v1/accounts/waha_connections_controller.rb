@@ -1,32 +1,43 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseController # rubocop:disable Metrics/ClassLength
+  # Inbox apontando para uma sessão que não existe mais no WAHA (apagada,
+  # renomeada, nunca criada). É o pior estado possível — nada entrega — e antes
+  # era o único invisível, porque a lista era montada a partir das sessões.
+  MISSING_STATUS = 'MISSING'
+  HEALTH_CACHE_TTL = 30.seconds
+
   before_action :check_authorization
   before_action :set_waha_service
   before_action :find_account_inbox!, only: %i[show qr_code connect disconnect restart destroy]
 
   def index
-    # Get only inboxes from current account that have WAHA session
-    @inboxes = Current.account.inboxes.where.not(waha_session_name: nil)
-    session_names = @inboxes.pluck(:waha_session_name)
+    @inboxes = waha_inboxes
+    sessions_by_name = @waha_service.list_sessions(all: true).index_by { |session| session['name'] }
 
-    # Fetch all WAHA sessions
-    all_sessions = @waha_service.list_sessions(all: true)
-
-    # Filter to show only sessions that belong to this account
-    account_sessions = all_sessions.select { |session| session_names.include?(session['name']) }
-
-    @inboxes_by_session = @inboxes.index_by(&:waha_session_name)
-
-    @connections = account_sessions.map do |session|
-      inbox = @inboxes_by_session[session['name']]
-      format_connection(session, inbox)
+    # Itera as INBOXES (não as sessões): assim a inbox sem sessão correspondente
+    # aparece como MISSING em vez de sumir da lista.
+    @connections = @inboxes.map do |inbox|
+      session = sessions_by_name[inbox.waha_session_name]
+      session ? format_connection(session, inbox) : format_missing_connection(inbox)
     end
 
     render json: @connections
   rescue Waha::ApiService::Error => e
     Rails.logger.error("WAHA API error listing connections: #{e.message}")
     render json: { error: 'Failed to fetch WAHA connections' }, status: :service_unavailable
+  end
+
+  # Saúde por inbox, liberada para qualquer usuário da conta (ver policy).
+  # Carga leve e cacheada: todo agente logado consulta isso em ciclo.
+  def health
+    sessions_by_name = cached_sessions_by_name
+    # WAHA inacessível não é prova de linha caída — silêncio é melhor que alarme falso.
+    return render json: [] if sessions_by_name.nil?
+
+    render json: waha_inboxes.map { |inbox|
+      { inbox_id: inbox.id, inbox_name: inbox.name, status: session_status(sessions_by_name, inbox) }
+    }
   end
 
   def show
@@ -302,6 +313,41 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
   def find_account_inbox!
     @inbox = Current.account.inboxes.find_by(waha_session_name: params[:id])
     render json: { error: 'Connection not found' }, status: :not_found unless @inbox
+  end
+
+  def waha_inboxes
+    Current.account.inboxes.where.not(waha_session_name: nil)
+  end
+
+  def session_status(sessions_by_name, inbox)
+    session = sessions_by_name[inbox.waha_session_name]
+    return MISSING_STATUS if session.nil?
+
+    (session['status'] || session[:status] || 'UNKNOWN').to_s
+  end
+
+  # O `index` do admin NÃO usa este cache: lá o status precisa refletir na hora
+  # o que o próprio admin acabou de conectar/desconectar.
+  def cached_sessions_by_name
+    Rails.cache.fetch('waha/sessions_by_name', expires_in: HEALTH_CACHE_TTL) do
+      @waha_service.list_sessions(all: true).index_by { |session| session['name'] }
+    end
+  rescue Waha::ApiService::Error => e
+    Rails.logger.error("WAHA API error fetching session health: #{e.message}")
+    nil
+  end
+
+  def format_missing_connection(inbox)
+    {
+      id: inbox.waha_session_name,
+      session_name: inbox.waha_session_name,
+      status: MISSING_STATUS,
+      inbox_id: inbox.id,
+      inbox_name: inbox.name,
+      phone_number: nil,
+      created_at: inbox.created_at,
+      updated_at: inbox.updated_at
+    }
   end
 
   def format_connection(session, inbox) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity

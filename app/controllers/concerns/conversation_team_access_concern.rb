@@ -21,7 +21,7 @@ module ConversationTeamAccessConcern
     # Bloqueia quem não é membro do time da conversa
     return if Current.user.teams.exists?(id: @conversation.team_id)
 
-    render json: { error: 'You do not have permission to access this conversation.' }, status: :forbidden
+    render json: { error: I18n.t('conversations.team_access.forbidden') }, status: :forbidden
   end
 
   def team_access_exempt?

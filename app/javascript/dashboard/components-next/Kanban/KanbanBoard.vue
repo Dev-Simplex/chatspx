@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { emitter } from 'shared/helpers/mitt';
@@ -445,6 +446,9 @@ const handleEditStage = stage => {
   showStageForm.value = true;
 };
 
+// Criar, reordenar e editar etapa são de administrador — ver o quadro, não.
+const { isAdmin } = useAdmin();
+
 const handleCreateStage = () => {
   // Blank object (no id) puts StageForm into create mode.
   selectedStage.value = { name: '', color: '#94a3b8', automation_type: null };
@@ -627,7 +631,9 @@ const handleDeleteStage = stage => {
           v-model="localStages"
           :group="{ name: 'kanban-stages', pull: false, put: false }"
           item-key="id"
-          handle=".kanban-column-drag-handle"
+          :handle="
+            isAdmin ? '.kanban-column-drag-handle' : '.kanban-drag-desligado'
+          "
           class="flex h-full gap-2 sm:gap-4"
           :animation="200"
           ghost-class="kanban-stage-ghost"
@@ -657,7 +663,7 @@ const handleDeleteStage = stage => {
         </draggable>
 
         <button
-          v-if="stages.length > 0"
+          v-if="stages.length > 0 && isAdmin"
           class="kanban-add-stage kanban-focusable group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-slate-5 bg-n-slate-3 px-4 text-n-slate-11 transition hover:border-n-slate-7 hover:bg-n-slate-4 hover:text-n-slate-12 dark:border-n-weak dark:bg-n-solid-2/40 dark:text-n-slate-10"
           @click="handleCreateStage"
         >

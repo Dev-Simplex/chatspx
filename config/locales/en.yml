@@ -47,10 +47,18 @@ en:
     saml_not_available: SAML authentication is not available in this installation.
     inbox_deletetion_response: Your inbox deletion request will be processed in some time.
 
+  # Rótulos dos campos do Console de Super Admin (Rails resolve f.label por esta chave).
+  helpers:
+    label:
+      account_user:
+        console_role: Role
+        supervised_team_ids: Supervised teams
+
   errors:
-
+    account_user:
+    super_admin:
+      team_supervisor_denied: Team supervisors do not have access to the Super Admin Console.
     features:
-
       sem_bit: "These features cannot be enabled in this version: %{features}. The system feature limit was reached and raising it requires a database change."
     conversation:
       pending_status_disabled_for_inbox: "cannot be Pending — feature disabled for this inbox"
@@ -61,6 +69,7 @@ en:
         invalid: is not a valid timezone
     validations:
       presence: must not be blank
+      invalid: is invalid
     webhook:
       invalid: Invalid events
     signup:
@@ -247,6 +256,8 @@ en:
     attachment: 'Attachment'
     no_content: 'No content'
   conversations:
+    team_access:
+      forbidden: 'You do not have permission to access this conversation.'
     reply_assignment_gate:
       assignment_required: 'You must take over this conversation before replying'
     takeover_request_gate:

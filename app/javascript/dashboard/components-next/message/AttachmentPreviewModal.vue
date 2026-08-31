@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
             -->
             <div
               v-if="uploadStatusOf(active) === 'uploading'"
-              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/65 backdrop-blur-md"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-n-black/65 backdrop-blur-md"
             >
               <WormLoader :size="96" />
               <span
@@ -235,7 +235,7 @@ onBeforeUnmount(() => {
             </div>
             <div
               v-else-if="uploadStatusOf(active) === 'failed'"
-              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-md"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-n-black/70 backdrop-blur-md"
             >
               <Icon
                 icon="i-lucide-alert-triangle"
@@ -252,7 +252,7 @@ onBeforeUnmount(() => {
             </div>
             <div
               v-else-if="sending"
-              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/65 backdrop-blur-md"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-n-black/65 backdrop-blur-md"
             >
               <WormLoader :size="96" />
               <span
@@ -408,7 +408,7 @@ onBeforeUnmount(() => {
                 <!-- Per-attachment upload status badge -->
                 <div
                   v-if="uploadStatusOf(element) === 'uploading'"
-                  class="absolute inset-0 grid place-content-center bg-black/45"
+                  class="absolute inset-0 grid place-content-center bg-n-black/45"
                 >
                   <ProgressRing
                     :value="uploadProgressOf(element)"
@@ -426,7 +426,7 @@ onBeforeUnmount(() => {
                   v-else-if="uploadStatusOf(element) === 'failed'"
                   type="button"
                   :aria-label="t('ATTACHMENT_PREVIEW.RETRY')"
-                  class="absolute inset-0 grid place-content-center bg-black/55 text-n-ruby-9"
+                  class="absolute inset-0 grid place-content-center bg-n-black/55 text-n-ruby-9"
                   @click.stop="onRetry(element)"
                 >
                   <Icon icon="i-lucide-rotate-cw" class="size-5" />
@@ -434,7 +434,7 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   :aria-label="t('ATTACHMENT_PREVIEW.REMOVE')"
-                  class="absolute top-0.5 right-0.5 grid place-content-center size-4 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                  class="absolute top-0.5 right-0.5 grid place-content-center size-4 rounded-full bg-n-black/60 hover:bg-n-black/80 text-white"
                   @click.stop="removeAt(index)"
                 >
                   <Icon icon="i-lucide-x" class="size-3" />

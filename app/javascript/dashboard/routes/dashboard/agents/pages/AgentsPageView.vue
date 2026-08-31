@@ -134,7 +134,7 @@ onMounted(() => store.dispatch('captainAssistants/get'));
                  O fato verificável é atender caixa ou não. -->
             <span
               class="flex-none rounded-full size-2"
-              :class="agent.inbox_ids?.length ? 'bg-g-500' : 'bg-n-slate-7'"
+              :class="agent.inbox_ids?.length ? 'bg-n-teal-9' : 'bg-n-slate-7'"
               :title="
                 agent.inbox_ids?.length
                   ? t('AGENTS_PAGE.IN_USE')

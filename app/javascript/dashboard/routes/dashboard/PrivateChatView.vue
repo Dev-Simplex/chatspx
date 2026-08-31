@@ -263,22 +263,24 @@ export default {
   >
     <template v-if="!isUnlocked">
       <div class="flex flex-1 items-center justify-center p-4 min-h-[20rem]">
-        <div class="w-full max-w-sm rounded-lg border border-n-200 bg-n-50 p-4">
-          <label class="mb-2 block text-sm font-medium text-n-700">
+        <div
+          class="w-full max-w-sm rounded-lg border border-n-slate-6 bg-n-slate-2 p-4"
+        >
+          <label class="mb-2 block text-sm font-medium text-n-slate-11">
             {{ $t('PRIVATE_CHAT.ACCESS') }}
           </label>
           <input
             v-model="password"
             type="password"
-            class="w-full rounded border border-n-200 px-3 py-2 text-n-900"
+            class="w-full rounded border border-n-slate-6 px-3 py-2 text-n-slate-12"
             :placeholder="$t('PRIVATE_CHAT.PASSWORD_PLACEHOLDER')"
             autocomplete="off"
             @keydown.enter="unlock"
           />
-          <p v-if="error" class="mt-2 text-sm text-r-500">{{ error }}</p>
+          <p v-if="error" class="mt-2 text-sm text-n-ruby-11">{{ error }}</p>
           <button
             type="button"
-            class="mt-3 w-full rounded bg-s-500 px-3 py-2 text-white hover:bg-s-600"
+            class="mt-3 w-full rounded bg-n-brand px-3 py-2 text-white hover:brightness-110"
             :disabled="loading"
             @click="unlock"
           >
@@ -331,7 +333,7 @@ export default {
           v-if="loading && messages.length === 0"
           class="min-h-[4rem] flex flex-shrink-0 flex-grow-0 items-center justify-center max-w-full p-4"
         >
-          <span class="text-n-600">{{ $t('PRIVATE_CHAT.LOADING') }}</span>
+          <span class="text-n-slate-11">{{ $t('PRIVATE_CHAT.LOADING') }}</span>
         </div>
         <MessageList
           v-else
@@ -348,7 +350,7 @@ export default {
             <input
               v-model="messageInput"
               type="text"
-              class="min-w-0 flex-1 rounded border-0 bg-transparent px-2 py-2 text-n-900 dark:text-n-slate-12 focus:outline-none focus:ring-0 text-sm"
+              class="min-w-0 flex-1 rounded border-0 bg-transparent px-2 py-2 text-n-slate-12 focus:outline-none focus:ring-0 text-sm"
               :placeholder="$t('PRIVATE_CHAT.MESSAGE_PLACEHOLDER')"
               :disabled="sending"
               @keydown.enter.prevent="sendMessage"
@@ -364,7 +366,7 @@ export default {
           </div>
         </div>
       </div>
-      <p v-if="error" class="px-4 py-2 text-sm text-r-500 shrink-0">
+      <p v-if="error" class="px-4 py-2 text-sm text-n-ruby-11 shrink-0">
         {{ error }}
       </p>
       <woot-confirm-modal

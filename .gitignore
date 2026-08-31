@@ -123,3 +123,10 @@ vault
 
 # Playwright MCP debug artifacts
 .playwright-mcp/
+
+# Mockups das tasks servidos pelo staging (o fonte fica em "task-chat spx/" no
+# isonade). Ficam FORA do git do app: `public/` é servido sem autenticação, e num
+# deploy à frota eles virariam página pública em todo domínio de cliente.
+/public/recorte-do-supervisor.html
+/public/terceiro-papel.html
+/public/onde-a-empresa-abre.html
