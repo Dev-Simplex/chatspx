@@ -19,7 +19,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
       model: eval_model,
       messages: [
         { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context].compact.join("\n\n") },
-        { role: 'user', content: [carryover_context, system_events_summary, human_annotations_context, transcript].compact.join("\n\n") }
+        { role: 'user', content: [origem_context, carryover_context, system_events_summary, human_annotations_context, transcript].compact.join("\n\n") }
       ],
       schema: RESPONSE_SCHEMA
     )
@@ -77,6 +77,32 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   # julga CONFORMIDADE — divergência factual ou de conduta em relação à spec vira
   # falha mesmo quando o juiz não conhece o negócio. Multi-tenant de graça: cada
   # conta injeta a própria spec.
+  # De onde o cliente veio — anúncio, campanha, jornada do site.
+  #
+  # O agente JÁ recebe isso no state dele (`meta_anuncio` e afins), mas o juiz não recebia
+  # nada além da transcrição e das tool calls. Resultado medido numa conta em 31/08/2026: a
+  # IA repetia o texto do próprio anúncio ("a partir de R$ 500/mês", que é o criativo da
+  # campanha) e o juiz, cego para a origem, marcava `alucinacao` de severidade alta. Eram
+  # **61 dos 275** findings de alucinação em 30 dias vindos de conversas com anúncio.
+  #
+  # Julgar sem o contexto que o avaliado tinha não é rigor, é erro de medição — e um juiz
+  # que acusa invenção onde houve leitura correta ensina a ignorar o juiz.
+  ORIGEM_KEYS = { 'meta_anuncio' => 'anúncio', 'meta_campanha' => 'campanha',
+                  'meta_origem' => 'origem', 'meta_tipo' => 'tipo de entrada',
+                  'jornada' => 'jornada no site', 'meta_imovel' => 'imóvel do anúncio' }.freeze
+
+  def origem_context
+    attrs = conversation.custom_attributes || {}
+    linhas = ORIGEM_KEYS.filter_map do |chave, rotulo|
+      valor = attrs[chave].to_s.strip
+      "- #{rotulo}: #{valor}" if valor.present?
+    end
+    return if linhas.empty?
+
+    "ORIGEM DA CONVERSA (o agente avaliado recebeu estes mesmos dados; o que estiver aqui é " \
+      "fonte legítima para ele, não invenção):\n#{linhas.join("\n")}"
+  end
+
   def spec_context
     instructions = episode_assistant&.config&.dig('instructions').to_s
     return if instructions.blank?
