@@ -27,6 +27,7 @@ export default {
         BOT_HANDOFF_COUNT: 'bot_handoffs_count',
       },
       businessHours: false,
+      inboxId: null,
     };
   },
   computed: {
@@ -34,6 +35,8 @@ export default {
       return {
         from: this.from,
         to: this.to,
+        inboxId: this.inboxId,
+        inbox_id: this.inboxId || undefined,
       };
     },
   },
@@ -62,20 +65,22 @@ export default {
       });
     },
     getRequestPayload() {
-      const { from, to, groupBy, businessHours } = this;
+      const { from, to, groupBy, businessHours, inboxId } = this;
 
       return {
         from,
         to,
         groupBy: groupBy?.period,
         businessHours,
+        inboxId,
       };
     },
-    onFilterChange({ from, to, groupBy, businessHours }) {
+    onFilterChange({ from, to, groupBy, businessHours, inboxId }) {
       this.from = from;
       this.to = to;
       this.groupBy = groupBy;
       this.businessHours = businessHours;
+      this.inboxId = inboxId || null;
       this.fetchAllData();
 
       useTrack(REPORTS_EVENTS.FILTER_REPORT, {

@@ -1,10 +1,17 @@
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 
 import MetricCard from './overview/MetricCard.vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
 import TeamTable from './overview/TeamTable.vue';
+
+const props = defineProps({
+  inboxId: {
+    type: [Number, null],
+    default: null,
+  },
+});
 
 const store = useStore();
 
@@ -12,7 +19,10 @@ const uiFlags = useMapGetter('getOverviewUIFlags');
 const teamConversationMetric = useMapGetter('getTeamConversationMetric');
 const teams = useMapGetter('teams/getTeams');
 
-const fetchData = () => store.dispatch('fetchTeamConversationMetric');
+const fetchData = () =>
+  store.dispatch('fetchTeamConversationMetric', { inboxId: props.inboxId });
+
+watch(() => props.inboxId, fetchData);
 
 const { startRefetching } = useLiveRefresh(fetchData);
 

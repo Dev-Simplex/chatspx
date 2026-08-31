@@ -1,5 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+} from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
 import { useI18n } from 'vue-i18n';
@@ -25,7 +32,12 @@ const { t } = useI18n();
 const filters = ref({
   agent: null,
   department: null,
+  inbox: null,
 });
+
+// Recorte por caixa: diferente de agente e time, este vai para o servidor —
+// a fila e as contagens mudam, nao so o que a tela esconde.
+const inboxIdParam = () => filters.value.inbox?.id || undefined;
 
 const isInitialLoading = ref(true);
 const isRefreshing = ref(false);
@@ -114,7 +126,9 @@ const fetchOverview = async () => {
   );
   const previousWaitingCount = Number(overview.value.totals?.waiting || 0);
 
-  const response = await LiveReportsAPI.getInServiceOverview();
+  const response = await LiveReportsAPI.getInServiceOverview({
+    inbox_id: inboxIdParam(),
+  });
   const nextOverview = normalizeOverview(response?.data);
   overview.value = nextOverview;
   lastUpdateTime.value = new Date();
@@ -165,6 +179,7 @@ const fetchAgentPreview = async (
       scope: 'agent',
       assignee_id: agentId,
       limit: PREVIEW_LIMIT,
+      inbox_id: inboxIdParam(),
     };
 
     if (append && state.nextCursor) {
@@ -203,6 +218,7 @@ const fetchWaitingPreview = async ({ append = false, force = false } = {}) => {
     const params = {
       scope: 'waiting',
       limit: PREVIEW_LIMIT,
+      inbox_id: inboxIdParam(),
     };
 
     if (append && state.nextCursor) {
@@ -462,6 +478,12 @@ const ensureTeamMembersForDepartment = async teamId => {
 
 const handleFilterChange = newFilters => {
   filters.value = {
+    inbox:
+      newFilters.inbox &&
+      newFilters.inbox.id !== null &&
+      newFilters.inbox.id !== undefined
+        ? newFilters.inbox
+        : null,
     agent:
       newFilters.agent &&
       newFilters.agent.id !== null &&
@@ -520,6 +542,16 @@ const refreshData = async () => {
     isRefreshing.value = false;
   }
 };
+
+// Trocar a caixa recomeca a leitura: o que estava em cache e de outra caixa.
+watch(
+  () => filters.value.inbox?.id || null,
+  () => {
+    agentPreviewsById.value = {};
+    waitingPreview.value = createPreviewState();
+    refreshData();
+  }
+);
 
 const toggleRealtime = () => {
   isRealtimeEnabled.value = !isRealtimeEnabled.value;
