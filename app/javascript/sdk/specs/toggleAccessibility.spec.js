@@ -53,6 +53,15 @@ describe('2.11 — o toggle aciona as peças de acessibilidade', () => {
     bubbleHelpers = await import('../bubbleHelpers');
     document.body.appendChild(bubbleHelpers.chatBubble);
     document.body.appendChild(bubbleHelpers.closeBubble);
+    // O painel REAL no documento, com a string de classes que `createFrame`
+    // escreve (`holderClassName` do `IFrameHelper`). A guarda do 2.11 deixou de
+    // ser "é celular?" para ser "é celular E o painel está em tela cheia?", e a
+    // segunda metade se lê no holder. Sem ele aqui o teste mediria uma página
+    // que o produto nunca monta: no boot `createFrame` põe este mesmo nó no
+    // body ANTES de existir qualquer caminho que chame `onBubbleClick`.
+    bubbleHelpers.widgetHolder.className =
+      'woot-widget-holder woot--hide woot-elements--right';
+    document.body.appendChild(bubbleHelpers.widgetHolder);
   });
 
   it('em celular, abrir torna o resto da página inerte', () => {

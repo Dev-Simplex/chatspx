@@ -12,6 +12,9 @@
 import {
   applyInertBackground,
   releaseInertBackground,
+  isPanelFullscreen,
+  shouldInertBackground,
+  syncInertBackground,
 } from '../inertBackground';
 
 const criarPagina = () => {
@@ -29,6 +32,15 @@ const criarPagina = () => {
     document.body.appendChild(el)
   );
   return { conteudo, rodape, jaInerte, holder, widget };
+};
+
+const larguraDaTela = largura => {
+  window.matchMedia = query => ({
+    matches: Number(/max-width:\s*(\d+)px/.exec(query)?.[1] ?? 0) >= largura,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  });
 };
 
 describe('2.11 — inert no fundo', () => {
@@ -70,5 +82,71 @@ describe('2.11 — inert no fundo', () => {
     releaseInertBackground();
 
     expect(conteudo.hasAttribute('inert')).toBe(false);
+  });
+});
+
+/**
+ * A guarda "celular E tela cheia". `isMobileViewport()` sozinho era a condição
+ * antiga, e ela é falsa exatamente quando o holder está no rodapé como tirinha
+ * de não-lidas — o momento em que a página do cliente está inteira à vista.
+ */
+describe('2.11 — a guarda lê o estado do painel, não só a largura', () => {
+  it('sem holder no documento não há tela cheia (nem `inert`)', () => {
+    document.body.innerHTML = '';
+    larguraDaTela(375);
+
+    expect(isPanelFullscreen()).toBe(false);
+    expect(shouldInertBackground()).toBe(false);
+  });
+
+  it('holder escondido (`woot--hide`) não é tela cheia', () => {
+    const { widget } = criarPagina();
+    widget.className = 'woot-widget-holder woot--hide woot-elements--right';
+    larguraDaTela(375);
+
+    expect(isPanelFullscreen()).toBe(false);
+    expect(shouldInertBackground()).toBe(false);
+  });
+
+  it('holder em modo não-lidas (`has-unread-view`) não é tela cheia', () => {
+    const { widget } = criarPagina();
+    widget.className =
+      'woot-widget-holder has-unread-view woot-elements--right';
+    larguraDaTela(375);
+
+    expect(isPanelFullscreen()).toBe(false);
+    expect(shouldInertBackground()).toBe(false);
+  });
+
+  it('holder aberto e sem tirinha É tela cheia — mas só vale em celular', () => {
+    const { widget } = criarPagina();
+    widget.className = 'woot-widget-holder woot-elements--right';
+
+    larguraDaTela(375);
+    expect(isPanelFullscreen()).toBe(true);
+    expect(shouldInertBackground()).toBe(true);
+
+    larguraDaTela(1280);
+    expect(isPanelFullscreen()).toBe(true);
+    expect(shouldInertBackground()).toBe(false);
+  });
+
+  it('syncInertBackground aplica e SOLTA conforme o estado, sem chamador decidir', () => {
+    const { conteudo, widget } = criarPagina();
+    widget.className = 'woot-widget-holder woot-elements--right';
+    larguraDaTela(375);
+
+    syncInertBackground();
+    expect(conteudo.hasAttribute('inert')).toBe(true);
+
+    // A tirinha chega por cima de um `inert` já aplicado: recalcular solta.
+    widget.classList.add('has-unread-view');
+    syncInertBackground();
+    expect(conteudo.hasAttribute('inert')).toBe(false);
+
+    // E volta a marcar quando o painel volta a ocupar a tela.
+    widget.classList.remove('has-unread-view');
+    syncInertBackground();
+    expect(conteudo.hasAttribute('inert')).toBe(true);
   });
 });

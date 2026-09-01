@@ -1,9 +1,5 @@
 import { addClasses, removeClasses, toggleClass } from './DOMHelpers';
-import {
-  applyInertBackground,
-  releaseInertBackground,
-} from './inertBackground';
-import { isMobileViewport } from './viewport';
+import { syncInertBackground } from './inertBackground';
 import { IFrameHelper } from './IFrameHelper';
 import { isExpandedView } from './settingsHelper';
 import {
@@ -262,15 +258,20 @@ export const createBubbleHolder = hideMessageBubble => {
 const handleBubbleToggle = newIsOpen => {
   IFrameHelper.events.onBubbleToggle(newIsOpen);
 
+  // Bloco 2.11: em celular o painel e tela cheia, e sem `inert` o Tab e o
+  // leitor de tela continuam caminhando pela pagina do cliente ATRAS dele. Em
+  // desktop o widget e flutuante e o resto da pagina segue utilizavel de
+  // proposito — marcar tudo ali roubaria a pagina de quem so quer ler.
+  //
+  // A decisao NAO e "abriu, entao marca": e "esta em celular E em tela cheia".
+  // `onBubbleClick` ja trocou `woot--hide` no holder antes de chegar aqui, e no
+  // funil de nao-lidas `addUnreadClass` ja pos `has-unread-view` — entao o
+  // estado que `syncInertBackground` le neste ponto e o estado final.
+  syncInertBackground();
+
   if (newIsOpen) {
-    // Bloco 2.11: em celular o painel e tela cheia, e sem `inert` o Tab e o
-    // leitor de tela continuam caminhando pela pagina do cliente ATRAS dele.
-    // Em desktop o widget e flutuante e o resto da pagina segue utilizavel de
-    // proposito — marcar tudo ali roubaria a pagina de quem so quer ler.
-    if (isMobileViewport()) applyInertBackground();
     dispatchWindowEvent({ eventName: CHATWOOT_OPENED });
   } else {
-    releaseInertBackground();
     dispatchWindowEvent({ eventName: CHATWOOT_CLOSED });
     // O foco volta ao lancador. JA EXISTIA nesta base — o bloco 2.11 verifica,
     // nao reimplementa: `toggleClass` roda ANTES daqui, entao o botao ja perdeu
