@@ -37,6 +37,7 @@ export const createConnectionMonitor = ({
   let graceTimer = null;
   let offlineTimer = null;
   const listeners = new Set();
+  const reconnectListeners = new Set();
 
   const emit = () => listeners.forEach(fn => fn(state));
 
@@ -70,6 +71,30 @@ export const createConnectionMonitor = ({
     },
 
     /**
+     * A VOLTA da conexão, e por que ela não é `subscribe` — bloco 2.16.
+     *
+     * `subscribe` só fala quando o ESTADO MUDA, e é assim que ele deve ser: é
+     * dele que sai a faixa, e a faixa não pode piscar numa micro-queda de 1,5 s.
+     * Mas a fila offline não drena por causa de faixa nenhuma; ela drena porque
+     * a rede voltou.
+     *
+     * A diferença é o caso comum, não o exótico: o POST da mensagem falha muito
+     * antes de o WebSocket notar, e enquanto a carência de 3 s corre o estado
+     * ainda é `online`. Nessa janela, `reportConnected()` NÃO muda estado
+     * nenhum — `subscribe` fica mudo — e a mensagem que o visitante acabou de
+     * digitar ficaria na fila até a próxima queda de verdade. Ligar a drenagem
+     * a uma transição de estado seria enfileirar sem nunca drenar.
+     *
+     * Aqui, portanto, o ouvinte é chamado a CADA `reportConnected()`, com
+     * mudança de estado ou sem. Drenar fila vazia não custa nada; não drenar
+     * custa a mensagem.
+     */
+    onReconnected(listener) {
+      reconnectListeners.add(listener);
+      return () => reconnectListeners.delete(listener);
+    },
+
+    /**
      * A conexão caiu. Ninguém é avisado ainda: a carência começa aqui.
      *
      * IDEMPOTENTE, e isto é o oposto de detalhe: a carência conta da PRIMEIRA
@@ -92,11 +117,13 @@ export const createConnectionMonitor = ({
     reportConnected() {
       clearTimers();
       setState(CONNECTION_STATES.ONLINE);
+      reconnectListeners.forEach(fn => fn());
     },
 
     destroy() {
       clearTimers();
       listeners.clear();
+      reconnectListeners.clear();
     },
   };
 };

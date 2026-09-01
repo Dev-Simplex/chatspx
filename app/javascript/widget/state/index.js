@@ -1,8 +1,9 @@
 import { createConnectionMonitor } from './connectionMonitor';
 import { createLoadingGate } from './loadingGate';
+import { createOfflineQueue } from 'widget/offline/queue';
 
 /**
- * As DUAS instâncias de estado do widget — bloco 2.07.
+ * As instâncias de estado do widget — blocos 2.07 e 2.16.
  *
  * Elas moram aqui, e não em `widget/helpers/actionCable.js`, por uma razão que
  * é de grafo, não de arrumação: quem precisa LER o estado é a tela, e o
@@ -22,3 +23,37 @@ import { createLoadingGate } from './loadingGate';
 export const widgetConnectionMonitor = createConnectionMonitor();
 
 export const widgetLoadingGate = createLoadingGate();
+
+// ── A fila offline — bloco 2.16 ──────────────────────────────────────────────
+//
+// Terceiro singleton, pela MESMA razão dos dois de cima e por uma a mais: há
+// uma rede por página, e portanto uma fila. Duas filas competindo pela volta da
+// rede drenariam ao mesmo tempo e entregariam as mensagens intercaladas — que é
+// exatamente o defeito que a fila existe para não ter.
+//
+// `widget/offline/queue` é uma fábrica pura (sem `import` de rede, de store ou
+// de componente), então instanciá-la aqui não engorda o grafo que a nota do
+// topo protege.
+//
+// Quem enfileira é `store/modules/conversation/actions.js`, na falha de rede;
+// quem drena é o plugin `store/plugins/offlineQueue.js`, no `reportConnected`.
+
+const rejectionListeners = new Set();
+
+/**
+ * Avisa quando a fila RECUSA uma intenção — digitando, presença, tipo
+ * desconhecido. Não é log decorativo: é o que permite provar, em teste de tela,
+ * que o "digitando" foi mesmo OFERECIDO à fila e recusado, em vez de nunca ter
+ * chegado nela. Uma asserção de "nenhum digitando na volta" passa igualzinho
+ * nos dois casos, e só um deles é o comportamento correto.
+ *
+ * @returns {Function} para de ouvir.
+ */
+export const onIntentRejected = ouvinte => {
+  rejectionListeners.add(ouvinte);
+  return () => rejectionListeners.delete(ouvinte);
+};
+
+export const widgetOfflineQueue = createOfflineQueue({
+  onDrop: recusa => rejectionListeners.forEach(fn => fn(recusa)),
+});

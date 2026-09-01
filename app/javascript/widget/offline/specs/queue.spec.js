@@ -48,6 +48,35 @@ describe('2.16 — a fila entrega em ordem', () => {
     expect(fila.peek().map(i => i.content)).toEqual(['b', 'c']);
   });
 
+  it('duas drenagens ao mesmo tempo não perdem a mensagem do meio', async () => {
+    // A rajada de reconexão do ActionCable é o caso REAL: `reportConnected()`
+    // sai mais de uma vez, e cada saída pede uma drenagem. Sem guarda, as duas
+    // leem o mesmo `itens[0]`, mandam 'a' duas vezes e depois dão `shift()`
+    // cada uma — 'b' some da fila sem nunca ter sido enviado.
+    const fila = createOfflineQueue();
+    ['a', 'b'].forEach(t => fila.enqueue(msg(t)));
+
+    const chegaram = [];
+    let liberarPrimeiro;
+    const primeiroEmVoo = new Promise(resolve => {
+      liberarPrimeiro = resolve;
+    });
+    const enviar = item => {
+      chegaram.push(item.content);
+      return item.content === 'a' ? primeiroEmVoo : Promise.resolve();
+    };
+
+    const primeira = fila.flush(enviar); // trava com 'a' em voo
+    const segunda = fila.flush(enviar); // chega no meio da primeira
+    liberarPrimeiro();
+    const [r1, r2] = await Promise.all([primeira, segunda]);
+
+    expect(chegaram).toEqual(['a', 'b']);
+    expect(r1).toEqual({ enviados: 2, restantes: 0 });
+    expect(r2.jaDrenando).toBe(true);
+    expect(fila.size).toBe(0);
+  });
+
   it('retomar depois da falha entrega o resto, ainda em ordem', async () => {
     const fila = createOfflineQueue();
     ['a', 'b', 'c'].forEach(t => fila.enqueue(msg(t)));
