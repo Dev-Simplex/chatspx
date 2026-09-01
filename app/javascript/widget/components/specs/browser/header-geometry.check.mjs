@@ -92,10 +92,24 @@ const CLASSE_TITULO = classeDe(
   '<h1[\\s\\S]*?/>',
   'o h1 do colapsado'
 );
+// Ancorado no `data-testid`, nao mais em `role="img"`: o ponto virou decoracao
+// (`aria-hidden`) quando o estado passou a ser dito por TEXTO ao lado dele.
 const CLASSE_DOT = classeDe(
   chatHeader,
-  '<div\\s+role="img"[\\s\\S]*?/>',
+  '<div\\s+data-testid="availability-dot"[\\s\\S]*?/>',
   'o ponto de status'
+);
+// A cor do rotulo mora na LINHA que o contem — mesmo motivo de
+// `CLASSE_LINHA_TITULO` existir: cravar a classe aqui mediria a fixture.
+const CLASSE_LINHA_STATUS = classeDe(
+  chatHeader,
+  '<div\\s+data-testid="header-status-row"[\\s\\S]*?>',
+  'a linha de status'
+);
+const CLASSE_ROTULO_STATUS = classeDe(
+  chatHeader,
+  '<span\\s+data-testid="availability-label"[\\s\\S]*?>',
+  'o rotulo textual de status'
 );
 // A cor do titulo mora na LINHA que o contem, nao no `h1`. Cravar esta classe
 // aqui foi um ponto cego real deste arquivo: sabotando o componente com
@@ -166,7 +180,10 @@ const pagina = async largura => {
       <div class="flex flex-col gap-1">
         <div class="${CLASSE_LINHA_TITULO}">
           <h1 id="titulo" class="${CLASSE_TITULO}">Simplex Soluções</h1>
-          <div id="dot" class="${CLASSE_DOT}"></div>
+        </div>
+        <div id="linha-status" class="${CLASSE_LINHA_STATUS}">
+          <div id="dot" class="${CLASSE_DOT} opacity-80"></div>
+          <span id="rotulo" class="${CLASSE_ROTULO_STATUS}">Estamos conectados</span>
         </div>
       </div>
     </div>
@@ -241,11 +258,58 @@ check(
   'rgb(255, 230, 0)'
 );
 
-// ── 3.2 Desktop: 1024 px ────────────────────────────────────────────────────
+// ── 3.1.1 O rótulo TEXTUAL de status ────────────────────────────────────────
+// A 6ª entrega da linha do bloco. jsdom prova que a palavra está no DOM; só o
+// navegador prova que ela é LEGÍVEL: que ocupa caixa e que herda a cor que o
+// servidor calculou sobre a marca. Um `sr-only` (ou branco sobre o amarelo)
+// passaria no spec de marcação e continuaria invisível na tela do visitante.
+// Os pisos são 40x8, e não "> 0": `sr-only` do Tailwind é
+// `position:absolute; width:1px; height:1px; clip:rect(0,0,0,0)`, então uma
+// caixa de 1x1 satisfaz "maior que zero" e a asserção passaria com o rótulo
+// invisível. Foi o que aconteceu na primeira versão deste trecho — sabotado com
+// `sr-only`, o verificador deu 14/14. "Estamos conectados" a 12 px mede ~100 px;
+// 40x8 separa texto de verdade de qualquer truque de ocultação.
+const rotulo = await caixa(mobile, '#rotulo');
+checkAtLeast('o rótulo de status tem largura de texto real', rotulo.w, 40);
+checkAtLeast('o rótulo de status tem altura de texto real', rotulo.h, 8);
+check(
+  'o rótulo de status usa a cor calculada sobre a marca, não branco',
+  await mobile.$eval('#rotulo', el => getComputedStyle(el).color),
+  'rgb(0, 0, 0)'
+);
+
+// ── 3.2 A LARGURA REAL DO WIDGET EMBUTIDO: 400 px ───────────────────────────
+// O `md:min-w-10` dos botões promete 40x40 "no desktop". Só que a media query
+// do Tailwind lê o viewport do IFRAME, e `sdk.js:610` fixa o holder em
+// `width: 400px !important` a partir de 768 px de janela. Ou seja: na máquina do
+// visitante de desktop o widget mede 400 px por dentro, `md:` (768) NUNCA casa e
+// os alvos ficam em 44x44.
+//
+// Isso não é defeito de acessibilidade — 44 é o piso, e 44 >= 44 passa. É a
+// medição que faltava: sem ela o único número publicado sobre desktop vinha da
+// seção 3.3, que mede uma janela de 1024 px que só existe no POPOUT. Aqui fica
+// registrado o que o visitante embutido realmente recebe.
+const embutido = await pagina(400);
+const acaoEmbutida = await caixa(embutido, '#acao');
+check(
+  'na largura real do widget embutido (400 px) a ação continua 44x44 — `md:` não casa',
+  `${acaoEmbutida.w}x${acaoEmbutida.h}`,
+  '44x44'
+);
+const voltarEmbutido = await caixa(embutido, '#back');
+check(
+  'e o voltar idem, 44x44',
+  `${voltarEmbutido.w}x${voltarEmbutido.h}`,
+  '44x44'
+);
+
+// ── 3.3 Popout: 1024 px ─────────────────────────────────────────────────────
+// A janela destacada (`showPopoutButton`) é a única superfície em que o
+// documento do widget chega a 768 px, e portanto a única em que `md:` vale.
 const desktop = await pagina(1024);
 const acaoDesktop = await caixa(desktop, '#acao');
 check(
-  'acima de 768 px a ação encolhe para 40x40 — o alvo grande é do toque',
+  'no popout, acima de 768 px a ação encolhe para 40x40 — o alvo grande é do toque',
   `${acaoDesktop.w}x${acaoDesktop.h}`,
   '40x40'
 );

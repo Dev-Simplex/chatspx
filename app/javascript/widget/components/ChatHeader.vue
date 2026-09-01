@@ -1,6 +1,8 @@
 <script setup>
 import { computed, toRef } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store.js';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import HeaderActions from './HeaderActions.vue';
 import AvailabilityContainer from 'widget/components/Availability/AvailabilityContainer.vue';
@@ -22,7 +24,35 @@ const props = defineProps({
 const availableAgents = toRef(props, 'availableAgents');
 
 const router = useRouter();
+const { t } = useI18n();
 const { isOnline } = useAvailability(availableAgents);
+
+const availableMessage = useMapGetter('appConfig/getAvailableMessage');
+const unavailableMessage = useMapGetter('appConfig/getUnavailableMessage');
+
+/**
+ * Bloco 2.06, a 6a entrega da linha: "status com rotulo textual".
+ *
+ * TEXTUAL quer dizer VISIVEL. A entrega anterior pagou o item com `role="img"`
+ * + `aria-label` no ponto, e nome acessivel so existe para leitor de tela: quem
+ * enxerga ficava com duas opacidades da MESMA cor para distinguir (deltaE 7,9
+ * em deuteranopia), que e cor sozinha comunicando estado — SC 1.4.1.
+ *
+ * Deriva de `isOnline`, a MESMA fonte que pinta o ponto. Ter uma fonte so e o
+ * ponto inteiro: o `AvailabilityContainer` decide o cabecalho DELE por
+ * `isOnline || (horario habilitado E dentro dele)`, que e mais largo, e por isso
+ * o `show-header` continua desligado abaixo — ligado, ele escreveria
+ * "conectados" ao lado de um ponto apagado sempre que o horario estivesse
+ * aberto sem ninguem conectado. O `header.spec.js` mede essa divergencia.
+ *
+ * A mensagem configurada pelo cliente vem primeiro; a chave traduzida e o
+ * fallback, e existe nos 56 locales.
+ */
+const statusLabel = computed(() =>
+  isOnline.value
+    ? availableMessage.value || t('TEAM_AVAILABILITY.ONLINE')
+    : unavailableMessage.value || t('TEAM_AVAILABILITY.OFFLINE')
+);
 
 const onBackButtonClick = () => {
   router.replace({ name: 'home' });
@@ -68,19 +98,6 @@ const atendidoPorHumano = computed(() => props.attendant === ATTENDANT.HUMAN);
             class="m-0 text-base font-medium leading-4"
             tabindex="-1"
           />
-          <!-- Cor sozinha nao informa nada (SC 1.4.1): o ponto tem nome
-               acessivel, e ele muda com o estado em vez de sumir. -->
-          <div
-            role="img"
-            data-testid="availability-dot"
-            :aria-label="
-              isOnline
-                ? $t('TEAM_AVAILABILITY.ONLINE')
-                : $t('TEAM_AVAILABILITY.OFFLINE')
-            "
-            class="h-2 w-2 rounded-full bg-w-on-brand"
-            :class="isOnline ? 'opacity-80' : 'opacity-40'"
-          />
         </div>
         <!--
           Bloco 4.09 — rotulo PERSISTENTE de quem atende.
@@ -106,12 +123,40 @@ const atendidoPorHumano = computed(() => props.attendant === ATTENDANT.HUMAN);
         >
           {{ $t('AI_IDENTITY.HEADER_HUMAN') }}
         </span>
-        <AvailabilityContainer
-          :agents="availableAgents"
-          :show-header="false"
-          :show-avatars="false"
-          text-classes="text-xs leading-3 text-w-on-brand opacity-80"
-        />
+        <!--
+          A linha de estado. O ponto e o rotulo ficam JUNTOS e saem da MESMA
+          fonte (`isOnline`), entao nao ha estado em que um diga o contrario do
+          outro. Depois deles vem o tempo de resposta, que e outro fato: o
+          rotulo diz SE tem alguem, o `AvailabilityContainer` diz em QUANTO
+          tempo respondem.
+
+          `flex-wrap`: o widget embutido tem 400 px de largura e as duas
+          mensagens sao configuraveis pelo cliente — sem isso, texto longo
+          estoura a caixa em vez de quebrar.
+        -->
+        <div
+          data-testid="header-status-row"
+          class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-3 text-w-on-brand"
+        >
+          <!-- Decoracao: quem carrega o estado agora e o texto ao lado. Com
+               `role="img"` + `aria-label` aqui, o leitor de tela anunciaria o
+               mesmo estado duas vezes seguidas. -->
+          <div
+            data-testid="availability-dot"
+            aria-hidden="true"
+            class="h-2 w-2 rounded-full shrink-0 bg-w-on-brand"
+            :class="isOnline ? 'opacity-80' : 'opacity-40'"
+          />
+          <span data-testid="availability-label" class="opacity-90">
+            {{ statusLabel }}
+          </span>
+          <AvailabilityContainer
+            :agents="availableAgents"
+            :show-header="false"
+            :show-avatars="false"
+            text-classes="text-xs leading-3 text-w-on-brand opacity-80"
+          />
+        </div>
       </div>
     </div>
     <HeaderActions :show-popout-button="showPopoutButton" />
