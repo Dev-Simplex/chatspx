@@ -259,4 +259,57 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(texto).to match(/não prometa nova busca/i)
     end
   end
+
+  # Conv 32979: a cliente abriu com "casa pra alugar com dois quartos sendo uma suíte" e recebeu
+  # cinco casas, das quais QUATRO tinham Suites=0 no Vista. Não foi desatenção do modelo — a
+  # ferramenta não tinha por onde filtrar. No acervo de locação daquele dia havia 22 casas de 2
+  # quartos e apenas 3 com suíte; a busca ordenou por distância, cortou nas 5 mais próximas, e
+  # duas das três com suíte nunca apareceram — uma delas mais barata que três das oferecidas.
+  describe 'suíte' do
+    # Suites é numérico e o Vista filtra por RANGE. Testado ao vivo contra o acervo: com
+    # `['1','10']` voltam as 3 casas (de 1 e de 2 suítes); com `'1'` voltam 2, porque a de duas
+    # fica de fora. O range é o que exprime "pelo menos uma".
+    def filtro_de(**args)
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) do |filter, **_|
+        capturado ||= filter
+        []
+      end
+      tool.perform(tool_context, status_tipo: 'locacao', **args)
+      capturado
+    end
+
+    it 'asks the Vista for at least one suite, not for exactly one' do
+      expect(filtro_de(categoria: 'Casa', dormitorios: 2, suite: true)['Suites']).to eq(%w[1 10])
+    end
+
+    it 'does not constrain suites when the client did not ask for one' do
+      expect(filtro_de(categoria: 'Casa', dormitorios: 2)).not_to have_key('Suites')
+    end
+
+    # "2 quartos sendo 1 suíte" são dois filtros, não um: quem pede suíte não abre mão do
+    # número de quartos, e foi assim que a cliente falou.
+    it 'keeps the bedroom count alongside the suite filter' do
+      filtro = filtro_de(categoria: 'Casa', dormitorios: 2, suite: true)
+
+      expect(filtro['Dormitorios']).to eq(2)
+      expect(filtro['Suites']).to eq(%w[1 10])
+    end
+
+    # Sem imóvel com suíte no bairro pedido, a alternativa em outro bairro precisa continuar
+    # tendo suíte — senão a ampliação devolve justamente o que o cliente recusou.
+    it 'carries the suite filter into the wider search that drops the neighbourhood' do
+      filter = { 'Categoria' => 'Casa', 'Bairro' => ['like', '%Delta%'], 'Suites' => %w[1 10] }
+      recebido = nil
+      allow(tool).to receive(:fetch_vista) do |f, **_|
+        recebido = f
+        []
+      end
+
+      tool.send(:ampliar_sem_bairro, tool_context, filter, false, 'Delta', nil)
+
+      expect(recebido['Suites']).to eq(%w[1 10])
+      expect(recebido).not_to have_key('Bairro')
+    end
+  end
 end
