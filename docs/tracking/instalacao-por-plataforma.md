@@ -50,6 +50,11 @@ atualizado. Não vale a pena criar um tema filho só para isso — se você não
 **Não use** o bloco "HTML personalizado" do editor de páginas: ele vale só para **aquela** página, e
 o chat precisa estar em todas.
 
+> **Sem onde escrever JavaScript?** A configuração (posição, título do lançador, esconder a bolha)
+> cabe em `data-*` na própria tag do trecho, que já vem marcada com `data-chatspx-snippet` — é a
+> §1.2 do [guia de integração](./guia-de-integracao.md). Identidade e credencial **não** vão por
+> aí, e a recusa aparece no console.
+
 ### 1.2 A segunda armadilha: plugins de cache e otimização
 
 Se o site usa um plugin de cache (os nomes mais comuns: WP Rocket, LiteSpeed Cache, W3 Total Cache,
@@ -121,6 +126,12 @@ fechada de APIs permitidas. O nosso trecho cria um elemento `<script>`, guarda e
 de escopo e publica `window.chatwootSDK` — nada disso existe naquele dialeto. Um template exigiria
 reescrever o carregador inteiro para a sandbox e submetê-lo à aprovação da galeria. A tag de HTML
 personalizado roda JavaScript normal, e é para isso que ela existe.
+
+> **Ajustar a aparência sem editar o HTML da tag toda vez.** Os atributos `data-*` da tag do
+> trecho (§1.2 do [guia de integração](./guia-de-integracao.md)) são lidos no instante em que o
+> GTM executa a tag, **antes** de o `sdk.js` chegar — por isso funcionam aqui, onde
+> `document.currentScript` de dentro de um `onload` não funcionaria. Vale a mesma fronteira:
+> configuração sim, identidade e credencial nunca.
 
 ### 3.2 O `dataLayer` do seu contêiner continua sendo seu
 

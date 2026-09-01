@@ -142,6 +142,7 @@ const runSDK = ({
   websiteToken,
   conversationToken,
   persistConversationToParent = false,
+  snippetDataset,
 }) => {
   if (window.$chatwoot) {
     return;
@@ -197,12 +198,28 @@ const runSDK = ({
   // Bloco 5.18 — configuracao tambem pode vir por `data-*` no proprio snippet. Identidade e
   // credencial NAO: o snippet e HTML, aparece no view-source e entra em cache de CDN. A recusa e
   // ALTA E VISIVEL — recusa silenciosa faria o integrador achar que configurou.
-  const snippetEl =
-    document.currentScript ||
-    document.querySelector('script[data-chatspx-snippet]') ||
-    document.getElementById('chatwoot-sdk');
+  //
+  // `snippetDataset` CHEGA PRONTO, E ESSA E A CORRECAO DO BLOCO. Ate aqui a leitura acontecia
+  // NESTA LINHA, e nesta linha ela e tarde: `runSDK` roda como callback de `g.onload` e a
+  // especificacao so define `document.currentScript` durante a execucao SINCRONA do script —
+  // dentro de um callback ele e `null`, sempre. Medido em Chromium com o snippet real:
+  // `snippetEl = null`, `dataset = {}`, nenhuma configuracao chegando e o `console.warn` de
+  // recusa como codigo morto. Agora quem le e o proprio snippet (`snippet_dataset_js` em
+  // `channel/web_widget.rb`), no instante em que o navegador executa a tag.
+  //
+  // A CONSULTA AO DOM FICA COMO RESERVA, e so ela: `<script data-chatspx-snippet
+  // data-position="left">` montado a mao continua sendo lido mesmo sem passar `snippetDataset`.
+  // `document.currentScript` e `getElementById('chatwoot-sdk')` sairam — o primeiro e nulo no
+  // unico caminho real (e, pior, num `run()` chamado de outro script inline devolveria o
+  // `dataset` VAZIO daquele script e mascararia a tag marcada), e o segundo era um id que nenhum
+  // codigo deste repositorio jamais escreveu.
   const { settings: chatwootSettings, rejected: recusadasDoSnippet } =
-    mergeSnippetConfig(window.chatwootSettings || {}, snippetEl?.dataset || {});
+    mergeSnippetConfig(
+      window.chatwootSettings || {},
+      snippetDataset ||
+        document.querySelector('script[data-chatspx-snippet]')?.dataset ||
+        {}
+    );
 
   if (recusadasDoSnippet.length) {
     // eslint-disable-next-line no-console

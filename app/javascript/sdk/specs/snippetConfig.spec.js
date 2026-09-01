@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
   CONFIG_KEYS,
   IDENTITY_KEYS,
@@ -125,6 +127,93 @@ describe('5.18 — data-* de configuração no snippet', () => {
 
       expect(settings).toEqual({});
       expect(rejected).toEqual(['email', 'accessToken']);
+    });
+  });
+
+  /**
+   * A VIA DOCUMENTADA — a metade do aceite que nenhuma asserção sobre o código alcança.
+   *
+   * Uma via de configuração que só existe no código é uma via que ninguém usa: o integrador não
+   * adivinha nome de atributo. E documento que promete uma recusa que o produto não faz é pior
+   * do que documento nenhum — ele convida a pessoa a colar a credencial dela no HTML e ficar
+   * tranquila. Estes exemplos cruzam o guia com as DUAS listas deste arquivo.
+   */
+  describe('a via documentada', () => {
+    const guia = fs.readFileSync(
+      path.resolve(process.cwd(), 'docs/tracking/guia-de-integracao.md'),
+      'utf8'
+    );
+
+    // `data-launcher-title` → `launcherTitle`: é a conversão que o navegador faz ao montar o
+    // `dataset`, e é a que o guia ensina.
+    const paraChave = atributo =>
+      atributo
+        .replace(/^data-/, '')
+        .replace(/-([a-z0-9])/g, (_, letra) => letra.toUpperCase());
+
+    const atributosDoGuia = [
+      ...new Set(
+        [...guia.matchAll(/`?(data-[a-z0-9-]+)`?/g)].map(([, nome]) => nome)
+      ),
+    ].filter(nome => nome !== 'data-chatspx-snippet');
+
+    it('o guia ensina a via, com o marcador que o servidor realmente escreve', () => {
+      const webWidget = fs.readFileSync(
+        path.resolve(process.cwd(), 'app/models/channel/web_widget.rb'),
+        'utf8'
+      );
+
+      expect(guia).toContain('data-chatspx-snippet');
+      expect(webWidget).toContain('<script data-chatspx-snippet>');
+      expect(guia).toMatch(/precedência/i);
+    });
+
+    it('nomeia atributos de verdade — não é um parágrafo genérico', () => {
+      expect(atributosDoGuia.length).toBeGreaterThan(4);
+    });
+
+    it('todo `data-*` que ele apresenta como CONFIGURAÇÃO está na allowlist', () => {
+      const configDoGuia = atributosDoGuia
+        .map(paraChave)
+        .filter(chave => !isIdentityKey(chave) && !isSecretKey(chave));
+
+      expect(configDoGuia.length).toBeGreaterThan(2);
+      configDoGuia.forEach(chave =>
+        expect({ chave, aceita: CONFIG_KEYS.includes(chave) }).toEqual({
+          chave,
+          aceita: true,
+        })
+      );
+    });
+
+    it('todo `data-*` que ele promete recusar É recusado de fato', () => {
+      const recusadosNoGuia = atributosDoGuia
+        .map(paraChave)
+        .filter(chave => !CONFIG_KEYS.includes(chave));
+
+      expect(recusadosNoGuia.length).toBeGreaterThan(2);
+      recusadosNoGuia.forEach(chave => {
+        const { config, rejected } = readSnippetConfig({ [chave]: 'x' });
+
+        expect({ chave, config, rejected }).toEqual({
+          chave,
+          config: {},
+          rejected: [chave],
+        });
+      });
+    });
+
+    it('manda a identidade para a API JS, com o nome do método que existe', () => {
+      const sdk = fs.readFileSync(
+        path.resolve(process.cwd(), 'app/javascript/entrypoints/sdk.js'),
+        'utf8'
+      );
+
+      expect(guia).toContain('setUser');
+      expect(/\n {4}setUser\(/.test(sdk)).toBe(true);
+      expect(guia).toContain('updateUser');
+      expect(/\n {4}updateUser\(/.test(sdk)).toBe(true);
+      expect(IDENTITY_KEYS).toContain('identifierhash');
     });
   });
 });

@@ -217,15 +217,52 @@ class Channel::WebWidget < ApplicationRecord
                            'null'
                          end
     "
-    <script>
+    <script data-chatspx-snippet>
       (function(d,t) {
         var BASE_URL=\"#{ENV.fetch('FRONTEND_URL', '')}\";
         var cfg=window.chatwootSettings||{};
+#{snippet_dataset_js}
 #{fallback_bootstrap_js}
-#{sdk_loader_js(sdk_path, conversation_token, persist_conversation_to_parent)}
+#{sdk_loader_js(sdk_path, conversation_token, persist_to_parent: persist_conversation_to_parent)}
       })(document,\"script\");
     </script>
     "
+  end
+
+  # BLOCO 5.18 — o `data-*` de CONFIGURACAO, e por que ele e lido AQUI e nao no bundle.
+  #
+  # A regra da §B.4 do plano 25: **configuracao viaja por qualquer via; identidade e credencial,
+  # so pela API JS**. A allowlist, a recusa de identidade e a precedencia moram num lugar so —
+  # `app/javascript/sdk/snippetConfig.js`. Este metodo nao decide nada: ele so ENTREGA o
+  # `dataset` a quem decide.
+  #
+  # O DEFEITO QUE ELE CONSERTA, medido em Chromium com o snippet real antes desta mudanca:
+  # `snippetEl = null` e `dataset = {}`. O `entrypoints/sdk.js` procurava a tag do snippet de
+  # dentro de `runSDK`, que roda como callback de `g.onload` — e nesse instante
+  # `document.currentScript` ja e `null` (a especificacao so o define durante a execucao SINCRONA
+  # do script). A tag tambem nao tinha marcador nenhum: nem `data-chatspx-snippet` nem
+  # `id="chatwoot-sdk"` — os dois nomes que o bundle procurava eram constantes sem escritor.
+  # Resultado: nenhuma configuracao chegava por `data-*` e o aviso de recusa era codigo morto.
+  #
+  # DUAS CORRECOES, e as duas precisam existir:
+  #   1. `data-chatspx-snippet` na tag — o marcador passa a ter escritor, e quem monta o snippet
+  #      a mao tem um nome estavel para usar.
+  #   2. A LEITURA SAI DO `onload`. Este trecho roda durante a execucao sincrona da tag, que e o
+  #      unico instante em que `d.currentScript` responde. O valor e COPIADO para um objeto
+  #      simples, nao guardado por referencia: `dataset` e vivo, e um CMS que reescreva o
+  #      atributo depois mudaria, em silencio, a configuracao que o visitante ja recebeu.
+  #
+  # `POSITION` esta aqui e nao dentro do fallback por uma razao concreta: o link alternativo do
+  # 2.14 nasce QUANDO O BUNDLE NAO CARREGA — ele nunca vera nada que o `sdk.js` resolva. Se a
+  # posicao so existisse do lado de la, `data-position="left"` daria widget a esquerda e link
+  # alternativo a direita. A precedencia repetida aqui (`cfg` vence `data-*`) e a mesma de
+  # `mergeSnippetConfig`, e `precedencia_do_snippet_spec.rb` cruza as duas para que uma nao possa
+  # mudar sem a outra.
+  def snippet_dataset_js
+    '        var SNIPPET=d.currentScript||d.querySelector("script[data-chatspx-snippet]");
+        var SNIPPET_DATA={};
+        if(SNIPPET&&SNIPPET.dataset){for(var k in SNIPPET.dataset){SNIPPET_DATA[k]=SNIPPET.dataset[k]}}
+        var POSITION=cfg.position||SNIPPET_DATA.position;'
   end
 
   # A parte que sobrevive ao bundle: define `window.chatwootFallback`, com
@@ -256,7 +293,7 @@ class Channel::WebWidget < ApplicationRecord
           a.target="_blank";
           a.rel="noopener noreferrer";
           a.textContent=FALLBACK_LABEL;
-          a.setAttribute("style",cfg.position==="left"?FALLBACK_STYLE:FALLBACK_STYLE.replace("left:20px","right:20px"));
+          a.setAttribute("style",POSITION==="left"?FALLBACK_STYLE:FALLBACK_STYLE.replace("left:20px","right:20px"));
           d.body.appendChild(a)
         }
         function hideFallback(){
@@ -271,7 +308,7 @@ class Channel::WebWidget < ApplicationRecord
   #   · o prazo   — parte dos bloqueadores apenas DESCARTA a requisição, e o
   #                 `script` fica pendente sem falhar nem carregar. Esse é o
   #                 caso mais comum dos dois, e `onerror` não o pega.
-  def sdk_loader_js(sdk_path = '/packs/js/sdk.js', conversation_token = 'null', persist_to_parent = false)
+  def sdk_loader_js(sdk_path = '/packs/js/sdk.js', conversation_token = 'null', persist_to_parent: false)
     "        var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
         g.src=BASE_URL+\"#{sdk_path}\";
         g.async = true;
@@ -280,6 +317,7 @@ class Channel::WebWidget < ApplicationRecord
           window.chatwootSDK.run({
             websiteToken: '#{website_token}',
             baseUrl: BASE_URL,
+            snippetDataset: SNIPPET_DATA,
             conversationToken: #{conversation_token},
             persistConversationToParent: #{persist_to_parent}
           })
