@@ -159,42 +159,15 @@ class Captain::Assistant::AgentRunnerService
     []
   end
 
+  # A leitura mora em Captain::AgentOutput — o MESMO módulo que o respondedor do eval
+  # (6.02) usa. Enquanto cada leitor tinha a sua, o do eval lia `output.to_s` e julgava
+  # o Hash com o `reasoning` dentro.
   def last_assistant_message_text(result)
-    messages = result.try(:messages)
-    return '' if messages.blank?
-
-    last = messages.reverse.find do |msg|
-      role = msg[:role] || msg['role']
-      content = msg[:content] || msg['content']
-      role.to_s == 'assistant' && content.present?
-    end
-    content = last && (last[:content] || last['content'])
-    return '' if content.blank?
-
-    unwrap_agent_output(content)
+    Captain::AgentOutput.last_assistant_text(result)
   end
 
-  # Estrutura de saída serializada no formato cru do inspect, com hash-rocket.
-  SERIALIZED_OUTPUT = /\A\{.*["']response["']\s*=>/m
-  SERIALIZED_RESPONSE_FIELD = /["']response["']\s*=>\s*"((?:[^"\\]|\\.)*)"/m
-
-  # O modelo às vezes serializa a PRÓPRIA estrutura de saída ({"response"=>"...",
-  # "reasoning"=>"..."}) em vez de devolver só o texto. Em JSON válido o parse abaixo
-  # resolve; em hash-rocket, não — e a estrutura inteira viraria a fala do agente.
-  # Acontece sobretudo quando o turno termina em transferência: o response sai vazio,
-  # cai neste fallback e o hash cru seguiria como mensagem pro cliente. Desembrulhado,
-  # o turno de transferência devolve vazio, que é o certo — quem fala em seguida é a
-  # agente que assumiu.
   def unwrap_agent_output(content)
-    parsed = begin
-      JSON.parse(content)
-    rescue StandardError
-      nil
-    end
-    return parsed['response'].to_s if parsed.is_a?(Hash) && parsed['response'].present?
-    return content.to_s unless content.to_s.strip.match?(SERIALIZED_OUTPUT)
-
-    content.to_s.match(SERIALIZED_RESPONSE_FIELD)&.captures&.first.to_s
+    Captain::AgentOutput.unwrap(content)
   end
 
   def error_response(error_message)

@@ -4,8 +4,13 @@
 # O aceite diz: "nenhum caso de cliente é executado contra IA de produção sem dry_run".
 # A forma mais barata de garantir isso não é uma flag que alguém pode desligar — é NÃO
 # CONSTRUIR o outro modo. Aqui a execução sempre roda fora da conversa do cliente
-# (Captain::Eval::AssistantResponder: `conversation: nil`, nada persistido, nada
-# entregue), e pedir `dry_run: false` levanta ArgumentError.
+# (Captain::Eval::AssistantResponder: `conversation: nil`, nenhuma conversa e nenhuma
+# mensagem gravadas, nada entregue a visitante), e pedir `dry_run: false` levanta
+# ArgumentError.
+#
+# `dry_run` é sobre ENTREGA, não sobre custo: a chamada ao modelo acontece de verdade e
+# é debitada de verdade (ver #debitar_resposta) — é o que faz o número exibido antes de
+# rodar valer alguma coisa.
 #
 # A coluna `dry_run` existe mesmo assim, e não é decoração: ela registra, em cada linha
 # do histórico, sob que regime aquele número foi obtido. Se um dia o modo ao vivo for
@@ -43,6 +48,7 @@ class Captain::Eval::RunService
       ).perform
       ok += 1 if veredito[:passou]
       gravar(run, eval_case, veredito)
+      debitar_resposta
     end
     run.update!(status: 'concluida', casos_ok: ok, casos_falha: casos.size - ok, concluido_em: Time.current)
   rescue StandardError => e
@@ -67,6 +73,19 @@ class Captain::Eval::RunService
       custo_estimado: Captain::Eval::CostEstimatorService.new(assistant: @assistant, cases: casos).perform,
       iniciado_em: Time.current
     )
+  end
+
+  # A UNIDADE DO CUSTO. A tela mostra, antes de rodar, "N casos · N respostas" e avisa
+  # quando N passa do saldo. Enquanto a execução não debitava nada, esse número era
+  # decoração: o aviso de saldo não avisava de nada e N chamadas ao modelo saíam de
+  # graça. Um caso = uma resposta da IA, a mesma unidade em que o produto cobra — e é
+  # ela que o `CostEstimatorService` projeta.
+  #
+  # Debita por caso EXECUTADO, não por caso aprovado: o modelo foi chamado do mesmo
+  # jeito. Depois da execução, `saldo[:consumido]` da estimativa anda exatamente o que
+  # a estimativa tinha anunciado.
+  def debitar_resposta
+    @assistant.account.increment_response_usage
   end
 
   def gravar(run, eval_case, veredito)

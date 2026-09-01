@@ -36,10 +36,19 @@ class Captain::Eval::AssistantResponder
     mensagens.map { |texto| { content: texto, role: 'user' } }
   end
 
+  # O que o juiz julga é a FALA — não o inspect do Hash de saída.
+  #
+  # Todo assistente roda com `Captain::ResponseSchema`, então `resultado.output` é
+  # `{"response" => ..., "reasoning" => ...}`. Ler `output.to_s` aqui punha o raciocínio
+  # do modelo dentro do texto julgado: um caso com `nao_contem: ["desconto"]` reprovava
+  # porque o RACIOCÍNIO dizia "evitei falar de desconto", e a resposta não dizia nada
+  # disso. E o turno que termina em transferência, cujo `response` vem vazio, era
+  # julgado como string vazia em vez do "vou te passar pra Bruna" que o cliente leria.
+  #
+  # `Captain::AgentOutput` é a mesma leitura que o caminho de produção
+  # (AgentRunnerService) faz — inclusive o fallback de handoff.
   def texto_de(resultado)
-    return resultado.to_s unless resultado.respond_to?(:output)
-
-    resultado.output.to_s
+    Captain::AgentOutput.text_from(resultado)
   end
 
   def handoff_em?(chamadas)

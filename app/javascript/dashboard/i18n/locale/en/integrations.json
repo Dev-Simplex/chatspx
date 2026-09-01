@@ -1688,6 +1688,7 @@
         "FIELD_QUESTION": "What the visitor says",
         "FIELD_CONTAINS": "The answer must contain (one per line)",
         "FIELD_NOT_CONTAINS": "The answer must not contain (one per line)",
+        "FOLLOWING": "Following the run in progress…",
         "HISTORY": "History",
         "NO_RUNS": "No run yet.",
         "RUN_LINE": "{ok} of {total} cases passed",
@@ -1706,6 +1707,12 @@
         "REGRESSED": "{count} cases regressed",
         "SAME_PROMPT": "Both runs used the same prompt version.",
         "DIFFERENT_PROMPT": "The two runs used different prompt versions.",
+        "STATUS": {
+          "PENDENTE": "Queued",
+          "RODANDO": "Running",
+          "CONCLUIDA": "Finished",
+          "ERRO": "Failed"
+        },
         "SITUATION": {
           "REGREDIU": "regressed",
           "CORRIGIU": "fixed",
