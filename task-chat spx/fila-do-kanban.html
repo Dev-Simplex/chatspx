@@ -1,0 +1,431 @@
+<title>Fila do Kanban</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --paper:     #F6F5F2;
+    --surface:   #FFFFFF;
+    --surface-2: #EFEDE8;
+    --ink:       #1B1D21;
+    --ink-2:     #585C63;
+    --ink-3:     #8A8E95;
+    --line:      #E1DED7;
+    --line-2:    #CBC7BE;
+
+    --bloqueio:    #A63A2C;
+    --bloqueio-bg: #F7E7E3;
+    --deferido:    #3F5673;
+    --deferido-bg: #E7EBF1;
+    --voce:        #2C7355;
+    --voce-bg:     #E2EFE8;
+
+    --display: "Bricolage Grotesque", "Trebuchet MS", sans-serif;
+    --body: "Karla", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #121316;
+      --surface:   #1A1C20;
+      --surface-2: #22252A;
+      --ink:       #ECEAE6;
+      --ink-2:     #A9ACB2;
+      --ink-3:     #7C8087;
+      --line:      #2B2E34;
+      --line-2:    #3B3F46;
+
+      --bloqueio:    #E88B7B;
+      --bloqueio-bg: #33201C;
+      --deferido:    #9FB4D4;
+      --deferido-bg: #1D2530;
+      --voce:        #6FC29A;
+      --voce-bg:     #162C23;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:     #121316;
+    --surface:   #1A1C20;
+    --surface-2: #22252A;
+    --ink:       #ECEAE6;
+    --ink-2:     #A9ACB2;
+    --ink-3:     #7C8087;
+    --line:      #2B2E34;
+    --line-2:    #3B3F46;
+
+    --bloqueio:    #E88B7B;
+    --bloqueio-bg: #33201C;
+    --deferido:    #9FB4D4;
+    --deferido-bg: #1D2530;
+    --voce:        #6FC29A;
+    --voce-bg:     #162C23;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: clamp(26px, 4vw, 56px) clamp(16px, 3.5vw, 36px) 88px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(36px, 5vw, 60px);
+  }
+
+  h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(32px, 5vw, 50px); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(21px, 2.6vw, 27px); font-weight: 700; line-height: 1.2; }
+  h3 { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  p { margin: 0; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+
+  /* ---------- topo ---------- */
+  header { display: flex; flex-direction: column; gap: 16px; }
+  header .lede { font-size: clamp(17px, 2vw, 19px); color: var(--ink-2); max-width: 62ch; }
+  .rule { height: 3px; background: var(--ink); opacity: .9; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 6px 26px;
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+  }
+  .meta b { color: var(--ink-2); font-weight: 500; }
+
+  /* ---------- bloqueio ---------- */
+  .bloqueio {
+    border: 1px solid color-mix(in srgb, var(--bloqueio) 40%, var(--line-2));
+    border-left: 5px solid var(--bloqueio);
+    background: var(--bloqueio-bg);
+    border-radius: 10px;
+    padding: clamp(18px, 3vw, 28px);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .bloqueio h2 { color: var(--bloqueio); }
+  .bloqueio p { max-width: 68ch; }
+  .conta {
+    font-family: var(--mono); font-size: 13px; line-height: 1.9;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px; overflow-x: auto; white-space: pre;
+    color: var(--ink-2);
+  }
+  .conta b { color: var(--bloqueio); font-weight: 500; }
+
+  /* ---------- quadro ---------- */
+  .quadro { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .quadro { grid-template-columns: 1fr; } }
+
+  .raia { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .raia-topo {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 12px; border-radius: 8px; font-family: var(--mono);
+    font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase;
+  }
+  .raia-topo .n { font-size: 13px; letter-spacing: 0; opacity: .75; }
+  .raia.b .raia-topo { background: var(--bloqueio-bg); color: var(--bloqueio); }
+  .raia.d .raia-topo { background: var(--deferido-bg); color: var(--deferido); }
+  .raia.v .raia-topo { background: var(--voce-bg); color: var(--voce); }
+
+  .cartao {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 9px; padding: 14px 15px;
+    display: flex; flex-direction: column; gap: 8px;
+    box-shadow: 0 1px 1px rgba(27, 29, 33, .04);
+  }
+  .raia.b .cartao { border-top: 3px solid var(--bloqueio); }
+  .raia.d .cartao { border-top: 3px solid var(--deferido); }
+  .raia.v .cartao { border-top: 3px solid var(--voce); }
+
+  .cartao p { font-size: 14.5px; color: var(--ink-2); }
+  .cartao .porque { font-size: 13.5px; color: var(--ink-3); }
+  .cartao ul { margin: 0; padding-left: 18px; font-size: 14.5px; color: var(--ink-2); }
+  .cartao li { margin-bottom: 3px; }
+
+  .selo {
+    align-self: flex-start; font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+    background: var(--surface-2); color: var(--ink-3);
+  }
+
+  /* ---------- seções de texto ---------- */
+  section { display: flex; flex-direction: column; gap: 18px; }
+  .cabeca { display: flex; flex-direction: column; gap: 8px; max-width: 64ch; }
+  .cabeca p { color: var(--ink-2); }
+
+  .ordem { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); }
+  .passo {
+    display: grid; grid-template-columns: 46px 1fr; gap: 0 18px;
+    padding: 16px 0; border-bottom: 1px solid var(--line);
+  }
+  .passo .n {
+    font-family: var(--display); font-size: 24px; font-weight: 700;
+    color: var(--ink-3); line-height: 1;
+  }
+  .passo .c { display: flex; flex-direction: column; gap: 5px; max-width: 62ch; }
+  .passo .c p { font-size: 15px; color: var(--ink-2); }
+
+  .nota {
+    border: 1px solid var(--line-2); border-radius: 9px;
+    background: var(--surface); padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .nota p { font-size: 15px; color: var(--ink-2); max-width: 66ch; }
+
+  code {
+    font-family: var(--mono); font-size: .87em; background: var(--surface-2);
+    padding: 1px 5px; border-radius: 4px; color: var(--ink-2);
+  }
+
+  footer { border-top: 1px solid var(--line); padding-top: 18px; }
+  footer p { font-size: 13px; color: var(--ink-3); max-width: 70ch; }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">ChatSPX · 01/09/2026</div>
+    <h1>Fila do Kanban</h1>
+    <p class="lede">
+      O Kanban tem 119 commits e está inteiro em produção. Atributos personalizados também.
+      O que sobrou não é dívida esquecida: é uma fila de coisas deferidas de propósito, uma
+      validação que só você pode dar — e um bloqueio que ninguém tinha visto.
+    </p>
+    <div class="rule"></div>
+    <div class="meta">
+      <span><b>Kanban:</b> 119 commits, na frota</span>
+      <span><b>Atributos:</b> 5 commits, na frota</span>
+      <span><b>Staging:</b> 16 funis · 782 cartões</span>
+      <span><b>Flag do board:</b> crm (ligada)</span>
+    </div>
+  </header>
+
+  <div class="bloqueio">
+    <div class="eyebrow">Achado de hoje — não estava em lista nenhuma</div>
+    <h2>Duas features existem no código e não podem ser ligadas</h2>
+    <p>
+      O cadastro de features tem <b>65 entradas</b> num orçamento de <b>63 bits</b>. A máscara é
+      um <code>bigint</code> com sinal, cujo teto é 9.223.372.036.854.775.807 — e o bit 64 já vale
+      mais que isso. Ligar qualquer uma das duas últimas grava um número que o banco recusa.
+    </p>
+    <div class="conta">bit 62  feature_kanban_ux_v2                     cabe
+bit 63  feature_captain_tasks                    cabe
+bit 64  feature_conversation_required_attributes <b>ESTOURA o bigint</b>
+bit 65  feature_advanced_assignment              <b>ESTOURA o bigint</b></div>
+    <p>
+      Repare em qual caiu no 64: <b>o flag do preenchimento obrigatório de atributos</b>. A feature
+      funciona hoje só porque ela deixou de depender do flag — virou coluna por atributo
+      (<code>required</code>). O flag ficou lá, inerte e impossível de ligar. O
+      <code>advanced_assignment</code>, no 65, está na mesma situação.
+    </p>
+    <p>
+      Consertar é reclamar um bit baixo de flag morto — e é justamente a operação que o runbook
+      de produção marca como <b>risco nº 1</b>: conta que tenha o flag antigo ligado herda o novo
+      sozinha. Enquanto ninguém mexer, o efeito prático é só este: essas duas não ligam.
+    </p>
+  </div>
+
+  <section>
+    <div class="cabeca">
+      <div class="eyebrow">A fila</div>
+      <h2>Onde cada coisa está parada</h2>
+      <p>
+        Três naturezas diferentes, e elas não competem entre si: uma trava, uma espera decisão de
+        produto, e uma espera dez minutos seus.
+      </p>
+    </div>
+
+    <div class="quadro">
+
+      <div class="raia b">
+        <div class="raia-topo"><span>Trava hoje</span><span class="n">1</span></div>
+        <div class="cartao">
+          <h3>Orçamento de bits estourado</h3>
+          <p>65 features para 63 bits. As duas últimas não ligam.</p>
+          <p class="porque">Conserto: reclamar bit de flag morto — a operação de maior risco do runbook.</p>
+          <span class="selo">precisa de decisão</span>
+        </div>
+      </div>
+
+      <div class="raia v">
+        <div class="raia-topo"><span>Depende de você</span><span class="n">1</span></div>
+        <div class="cartao">
+          <h3>Validação visual do board</h3>
+          <p>
+            Quatro memórias diferentes terminam na mesma frase: implementado, deployado,
+            <b>"pendente só a validação visual do usuário"</b> — roadmap Monday (8 fases),
+            redesign Trello, refino de UX e a correção do modo claro.
+          </p>
+          <p class="porque">
+            É a fila mais antiga que existe aqui e a mais barata: é você abrindo o board no
+            staging. O tempo real (F4) precisa de duas sessões em navegadores diferentes.
+          </p>
+          <span class="selo">custo: minutos</span>
+        </div>
+      </div>
+
+      <div class="raia d">
+        <div class="raia-topo"><span>Deferido por decisão</span><span class="n">6</span></div>
+
+        <div class="cartao">
+          <h3>F4.B — o que ficou do card rico</h3>
+          <ul>
+            <li>@menções → sino</li>
+            <li>Activity Log por card</li>
+            <li>Checklists em nota</li>
+            <li>Permissão por etapa</li>
+          </ul>
+          <p class="porque">
+            A integração com notificação é a parte arriscada. A permissão por etapa é a mais
+            perto de sair: o campo <code>stage_permissions</code> já está reservado no jsonb da etapa.
+          </p>
+        </div>
+
+        <div class="cartao">
+          <h3>F7.B — IA dentro do board</h3>
+          <ul>
+            <li>Rodar IA quando o card entra na etapa</li>
+            <li>Colunas de IA preenchidas sozinhas</li>
+            <li>Extrair CPF/pedido para campos</li>
+          </ul>
+          <p class="porque">Depende do motor de automações da F5 ganhar uma ação de IA.</p>
+        </div>
+
+        <div class="cartao">
+          <h3>Automação — o segundo passo</h3>
+          <ul>
+            <li>Notificar → sino</li>
+            <li>Round-robin</li>
+            <li>Encadeamento avançado de ações</li>
+            <li>Migrar open/resolved legado para receita</li>
+          </ul>
+          <p class="porque">O sino exige coluna nova em <code>notification_setting</code>.</p>
+        </div>
+
+        <div class="cartao">
+          <h3>Banco — normalização</h3>
+          <ul>
+            <li><code>funnel_item_values</code> para os valores de campo</li>
+            <li><code>funnel_templates.account_id</code></li>
+            <li>Precisão de <code>moved_at</code></li>
+          </ul>
+          <p class="porque">
+            Pesado e sem demanda. O <code>moved_at</code> mexe no desempate do tempo real — mudar
+            ali muda qual card ganha quando dois se movem juntos.
+          </p>
+        </div>
+
+        <div class="cartao">
+          <h3>Redesign — Fases 3 e 4</h3>
+          <ul>
+            <li>Polimento do calendário</li>
+            <li>Animações de transição</li>
+            <li>Estados vazios ilustrados e responsivo mobile</li>
+            <li>Cor de capa, filtro por label no chip, somatório na coluna</li>
+          </ul>
+          <p class="porque">
+            A decisão foi validar as fases 0–2 antes de seguir. As animações têm risco conhecido
+            de brigar com o arraste.
+          </p>
+        </div>
+
+        <div class="cartao">
+          <h3>Filtros — OR aninhado</h3>
+          <p>Hoje os filtros do board combinam tudo em E, no cliente.</p>
+          <p class="porque">O OR aninhado foi deferido junto do filtro composto de prioridade.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="cabeca">
+      <div class="eyebrow">Atributos personalizados</div>
+      <h2>Fechado, com uma limitação assumida</h2>
+    </div>
+    <div class="nota">
+      <p>
+        O modal de preenchimento indexa os campos pela <b>chave</b> do atributo. Como o índice
+        único é por chave <i>e</i> modelo, é possível existir a mesma chave em conversa e em
+        contato — e aí os dois campos passam a compartilhar o mesmo valor.
+      </p>
+      <p>
+        Não foi corrigido porque a especificação pedia explicitamente para não reescrever o modal.
+        Só morde se alguém criar, por exemplo, <code>cpf</code> nos dois modelos. Hoje, na conta de
+        teste, os cinco atributos têm chaves distintas.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="cabeca">
+      <div class="eyebrow">Se fosse eu</div>
+      <h2>A ordem que eu seguiria</h2>
+    </div>
+    <div class="ordem">
+      <div class="passo">
+        <div class="n">1</div>
+        <div class="c">
+          <h3>Validar o board</h3>
+          <p>
+            Custa minutos, destrava quatro tarefas que estão "concluídas mas não conferidas" e é a
+            única coisa da lista que ninguém pode fazer por você.
+          </p>
+        </div>
+      </div>
+      <div class="passo">
+        <div class="n">2</div>
+        <div class="c">
+          <h3>Decidir o que fazer com os dois bits</h3>
+          <p>
+            Não é urgente — nada quebra parado. Mas é dívida que só cresce: o próximo flag que
+            alguém precisar vai esbarrar nela, e aí a pressa some com a cautela.
+          </p>
+        </div>
+      </div>
+      <div class="passo">
+        <div class="n">3</div>
+        <div class="c">
+          <h3>Permissão por etapa, se for pedir alguma da fila</h3>
+          <p>
+            É a mais barata dos deferidos: o campo já está reservado na etapa, e resolve um pedido
+            real de operação — nem todo mundo deveria poder arrastar card para "Fechado".
+          </p>
+        </div>
+      </div>
+      <div class="passo">
+        <div class="n">4</div>
+        <div class="c">
+          <h3>O resto, só sob demanda</h3>
+          <p>
+            IA no board, normalização do banco e polimento de animação não têm ninguém esperando.
+            Deferido com motivo escrito é decisão, não esquecimento.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Levantado direto do repositório e do banco do staging em 01/09/2026 — não da memória do
+      projeto, que em outro caso desta semana estava desatualizada. Os deferimentos citados vêm
+      dos documentos de tarefa em <code>task/</code> e das anotações de cada fase.
+    </p>
+  </footer>
+
+</div>
