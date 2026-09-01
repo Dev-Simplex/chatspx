@@ -70,11 +70,7 @@ class Spx::Unidade < ApplicationRecord
     def distancia_km(lat1, lng1, lat2, lng2)
       return nil if [lat1, lng1, lat2, lng2].any?(&:blank?)
 
-      rad = Math::PI / 180
-      dlat = (lat2.to_f - lat1.to_f) * rad
-      dlng = (lng2.to_f - lng1.to_f) * rad
-      a = (Math.sin(dlat / 2)**2) +
-          (Math.cos(lat1.to_f * rad) * Math.cos(lat2.to_f * rad) * (Math.sin(dlng / 2)**2))
+      a = meia_corda(lat1.to_f, lng1.to_f, lat2.to_f, lng2.to_f)
       RAIO_DA_TERRA_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     end
 
@@ -93,6 +89,16 @@ class Spx::Unidade < ApplicationRecord
     def normalizar(valor)
       texto = ActiveSupport::Inflector.transliterate(valor.to_s).downcase.strip
       texto.presence
+    end
+
+    private
+
+    # O termo de dentro da raiz do haversine. Separado só para a conta caber numa leitura.
+    def meia_corda(lat1, lng1, lat2, lng2)
+      rad = Math::PI / 180
+      dlat = (lat2 - lat1) * rad
+      dlng = (lng2 - lng1) * rad
+      (Math.sin(dlat / 2)**2) + (Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * (Math.sin(dlng / 2)**2))
     end
   end
 

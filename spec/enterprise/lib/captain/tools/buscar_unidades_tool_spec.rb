@@ -254,7 +254,7 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     end
 
     it 'não convida quando nenhuma unidade tem coordenada' do
-      Spx::Unidade.where(account_id: account.id).update_all(latitude: nil, longitude: nil)
+      Spx::Unidade.where(account_id: account.id).find_each { |u| u.update!(latitude: nil, longitude: nil) }
       resposta = em_quarta { tool.perform(contexto, cidade: 'Rondonópolis') }
 
       expect(resposta).not_to include('envie a localização')
