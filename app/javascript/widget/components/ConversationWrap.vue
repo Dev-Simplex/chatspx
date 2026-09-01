@@ -1,15 +1,12 @@
 <script>
-import ChatMessage from 'widget/components/ChatMessage.vue';
 import AgentTypingBubble from 'widget/components/AgentTypingBubble.vue';
-import WDateSeparator from 'widget/ui/WDateSeparator.vue';
+import MessageDateGroup from 'widget/components/MessageDateGroup.vue';
 import WScrollToBottom from 'widget/ui/WScrollToBottom.vue';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import ConversationSkeleton from 'widget/components/ConversationSkeleton.vue';
 import { useDarkMode } from 'widget/composables/useDarkMode';
-import { calcularAgrupamento } from 'widget/composables/useMessageGrouping';
 import { comportamentoDeRolagem } from 'widget/composables/useReducedMotion';
 import { MESSAGE_TYPE } from 'shared/constants/messages';
-import AiHandoffMark from 'widget/components/AiHandoffMark.vue';
 import { annotateHandoffs } from 'widget/helpers/aiIdentity';
 import { mapActions, mapGetters } from 'vuex';
 
@@ -36,12 +33,10 @@ const INTERVALO_SCROLL = 100;
 export default {
   name: 'ConversationWrap',
   components: {
-    ChatMessage,
     AgentTypingBubble,
-    WDateSeparator,
+    MessageDateGroup,
     WScrollToBottom,
     FluentIcon,
-    AiHandoffMark,
     ConversationSkeleton,
   },
   props: {
@@ -85,28 +80,6 @@ export default {
     colorSchemeClass() {
       return this.prefersDarkMode ? 'dark-scheme' : 'light-scheme';
     },
-    // ── Bloco 2.02/2.03 — o agrupamento, calculado POR BLOCO DE DATA ─────────
-    //
-    // Este recorte não é detalhe: era o que o seletor de irmão adjacente fazia
-    // sem dizer. Cada bloco de data é uma `<div class="messages-wrap">`
-    // própria, então a primeira linha de um dia NUNCA teve irmão anterior — e
-    // portanto nunca continuou o grupo do dia anterior. Rodar
-    // `calcularAgrupamento` na conversa achatada mudaria justamente essa linha,
-    // que é a mais visível da lista.
-    agrupamentoPorBloco() {
-      return this.groupedMessagesWithHandoff.map(bloco =>
-        calcularAgrupamento(bloco.messages)
-      );
-    },
-    // ── Bloco 2.12 — a terceira chave do `v-memo` ─────────────────────────────
-    // As duas primeiras (a mensagem e a classe de agrupamento) cobrem o que
-    // muda a linha. Esta cobre o que muda o TEXTO da linha sem mudar a
-    // mensagem: o visitante trocando de idioma numa inbox com mais de um
-    // habilitado. Sem ela, `RETRY`, `DOWNLOAD` e os rótulos de anexo ficariam
-    // no idioma antigo até a mensagem se mexer — que pode ser nunca.
-    idiomaAtual() {
-      return this.$root.$i18n?.locale;
-    },
     /**
      * Bloco 4.09 — a 1a das tres marcacoes: o marcador de SISTEMA no fluxo.
      *
@@ -124,6 +97,13 @@ export default {
      * marcação de handoff sem efeito; iterar esta com um memo que compara por
      * identidade continua correto porque o computed só recalcula quando
      * `groupedMessages` muda.
+     *
+     * O `v-memo` mudou de arquivo no 2.12 (foi para `MessageDateGroup.vue`),
+     * mas o contrato é o mesmo: este computed é a fonte das mensagens anotadas
+     * e a identidade dos objetos que ele devolve é a chave do memo. Ele também é
+     * a razão de `MessageDateGroup` não recalcular à toa — enquanto
+     * `groupedMessages` não muda, o computed não recomputa, as props dos blocos
+     * ficam idênticas e o Vue nem chama o render do filho.
      */
     groupedMessagesWithHandoff() {
       return this.groupedMessages.map(grupo => ({
@@ -186,15 +166,6 @@ export default {
   },
   methods: {
     ...mapActions('conversation', ['fetchOldConversations']),
-    // Três estados, não dois — e o terceiro é o que o `+` fazia por omissão.
-    // A primeira linha de cada bloco de data não recebe classe nenhuma, porque
-    // não havia irmão anterior com quem casar e portanto nenhuma das seis
-    // regras se aplicava a ela.
-    classeAgrupamento(indiceBloco, mensagem, indice) {
-      const info = this.agrupamentoPorBloco[indiceBloco]?.[mensagem.id];
-      if (!info || indice === 0) return null;
-      return info.continuaGrupo ? 'is-continuacao' : 'is-abertura';
-    },
     distanciaDoFim(elemento) {
       return elemento.scrollHeight - elemento.scrollTop - elemento.clientHeight;
     },
@@ -307,71 +278,21 @@ export default {
            paginação que volta em 80 ms: um flash cinza no topo da lista a cada
            rolagem para trás. Quem segura os 600 ms é `widgetLoadingGate`. -->
       <ConversationSkeleton :loading="isFetchingList" />
-      <div
-        v-for="(groupedMessage, indiceBloco) in groupedMessagesWithHandoff"
+      <!-- ── Bloco 2.12 — um COMPONENTE por bloco de data, não uma `<div>` ────
+           O laço das linhas morava aqui dentro, aninhado neste `v-for`. Nessa
+           forma o `v-memo` das linhas errava a partir do 2º bloco de data e
+           ninguém percebia: o `renderList` do Vue guarda o cache do memo em UMA
+           casa por laço, por instância (`_cache[0]`), e os blocos disputavam
+           essa casa. Cada instância de `MessageDateGroup` traz o seu
+           `renderCache`, e é isso — e só isso — que dá uma casa a cada bloco.
+           A medição está em `specs/memoDaLinha.spec.js`, e o comentário longo
+           com a leitura do runtime está no próprio `MessageDateGroup.vue`. -->
+      <MessageDateGroup
+        v-for="groupedMessage in groupedMessagesWithHandoff"
         :key="groupedMessage.date"
-        class="messages-wrap"
-      >
-        <WDateSeparator :date="groupedMessage.date" />
-        <!-- ── A JUNÇÃO DO 2.12 COM O 4.09, e por que o `v-memo` está AQUI ────
-             O 4.09 precisa renderizar o marcador de handoff ANTES da mensagem
-             que o carrega, o que pede um `<template>` em volta dos dois. O 2.12
-             precisa do `v-memo` para não refazer o `md.render` de todas as
-             bolhas a cada mudança reativa de fora.
-
-             A armadilha: com o `v-memo` no `ChatMessage` DENTRO do
-             `<template v-for>`, ele deixa de estar no elemento do `v-for` e o
-             Vue o IGNORA — sem erro, sem aviso, sem nada quebrar. Compilando as
-             formas com o compilador do Vue 3.5.12, `_isMemoSame` simplesmente
-             não aparece no código gerado. O memo viraria decoração.
-
-             Pôr o `v-memo` no PRÓPRIO `<template v-for>` mantém as duas coisas:
-             `_isMemoSame` volta ao código gerado, o marcador continua irmão da
-             mensagem, e nenhum nó extra entra no DOM. Que ele está ativo está
-             medido em `specs/memoDaLinha.spec.js` — pelo TEMPLATE compilado,
-             não pela leitura deste comentário. E não pela contagem de renders
-             do filho: essa passa com o `v-memo` removido por completo, porque o
-             Vue já não re-renderiza filho de props inalteradas. O memo age uma
-             camada antes, no VNode, onde espião nenhum no filho enxerga.
-
-             As três chaves: a mensagem (identidade nova = o store mexeu), a
-             classe de agrupamento e o idioma. A mensagem aqui é a ANOTADA por
-             `annotateHandoffs`, que também recria o objeto — então a marcação
-             de handoff entra na mesma chave, sem contrato extra. -->
-        <!-- eslint-disable vue/no-useless-template-attributes -- A regra
-             considera INUTIL toda diretiva num `<template>` que não seja
-             `v-if`/`v-for`/`v-slot`. Aqui ela erra, e a prova não é textual:
-             compilado com o Vue 3.5.12, este template gera `_isMemoSame(` no
-             código, e a mesma marcação com o `v-memo` no filho não gera. O
-             exame que trava isso é `specs/memoDaLinha.spec.js`. -->
-        <!-- eslint-disable vue/valid-v-memo -- A regra guarda o caso real
-             (`v-memo` num descendente de `v-for`), mas rastreia só o `v-for`
-             MAIS EXTERNO: `vForElement` só é atribuído quando ainda é nulo, e
-             depois exige que o `v-memo` esteja nesse elemento. Com `v-for`
-             aninhado — blocos de data por fora, linhas por dentro — o de dentro
-             nunca passa, embora seja o padrão documentado do Vue. -->
-        <template
-          v-for="(message, indice) in groupedMessage.messages"
-          :key="message.id"
-          v-memo="[
-            message,
-            classeAgrupamento(indiceBloco, message, indice),
-            idiomaAtual,
-          ]"
-        >
-          <AiHandoffMark
-            v-if="message.handoffMark"
-            :kind="message.handoffMark.kind"
-          />
-          <ChatMessage
-            :message="message"
-            :classe-agrupamento="
-              classeAgrupamento(indiceBloco, message, indice)
-            "
-          />
-        </template>
-        <!-- eslint-enable vue/valid-v-memo, vue/no-useless-template-attributes -->
-      </div>
+        :date="groupedMessage.date"
+        :messages="groupedMessage.messages"
+      />
       <AgentTypingBubble v-if="showStatusIndicator" />
     </div>
 
