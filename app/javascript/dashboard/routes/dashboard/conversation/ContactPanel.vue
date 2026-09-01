@@ -10,6 +10,7 @@ import { useAccount } from 'dashboard/composables/useAccount';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useGroupConversation } from 'dashboard/composables/useGroupConversation';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { hasSiteContext } from 'dashboard/helper/originAttributes';
 
 import AccordionItem from 'dashboard/components/Accordion/AccordionItem.vue';
 import ContactConversations from './ContactConversations.vue';
@@ -186,6 +187,32 @@ const siteIdentifier = computed(
 );
 const isHmacVerified = computed(() => !!currentChat.value?.meta?.hmac_verified);
 
+/**
+ * A seção só EXISTE quando tem o que dizer — é o aceite literal do bloco ("com zero atributos,
+ * a seção **não aparece** em vez de aparecer vazia").
+ *
+ * O `v-if` de dentro do `SiteContext` não bastava: ele esconde o CONTEÚDO, e quem escreve
+ * "Recebido do site" na tela é o `AccordionItem` daqui, a partir da prop `title` — sem olhar o
+ * slot. Sem esta guarda, toda conversa de WhatsApp, e-mail ou API (que nunca teve um site
+ * mandando UTM nenhuma) ganhava um acordeão permanente que abria vazio.
+ *
+ * A condição é a MESMA função que o componente usa para decidir se renderiza, e não uma segunda
+ * cópia da regra: guarda que diverge do conteúdo é como se volta ao mesmo defeito pela outra
+ * ponta. E ela olha o VOCABULÁRIO de origem, não "tem algum atributo": o que o agente digitou
+ * não pode fazer a seção do site aparecer, que é a distinção inteira do bloco.
+ *
+ * A guarda vai no `AccordionItem`, não no `v-else-if` do `<div>` — como já faz o vizinho
+ * `previous_conversation`. Somada à condição do `v-else-if`, ela jogaria o item `site_context`
+ * para o próximo ramo da cadeia (`contact_attributes`), que passaria a desenhar duas vezes.
+ */
+const hasSiteContextData = computed(() =>
+  hasSiteContext({
+    contactAttributes: contactCustomAttributes.value,
+    conversationAttributes: conversationCustomAttributes.value,
+    identifier: siteIdentifier.value,
+  })
+);
+
 const getContactDetails = () => {
   if (contactId.value) {
     store.dispatch('contacts/show', { id: contactId.value });
@@ -326,6 +353,7 @@ onMounted(() => {
           </div>
           <div v-else-if="element.name === 'site_context'">
             <AccordionItem
+              v-if="hasSiteContextData"
               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SITE_CONTEXT')"
               :is-open="isContactSidebarItemOpen('is_site_context_open')"
               compact

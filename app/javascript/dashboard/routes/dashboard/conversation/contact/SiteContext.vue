@@ -5,6 +5,8 @@ import ContactDetailsItem from '../ContactDetailsItem.vue';
 import {
   contactOriginKeys,
   conversationOriginKeys,
+  filledOriginKeys,
+  hasSiteContext,
   ORIGIN_KINDS,
 } from 'dashboard/helper/originAttributes';
 
@@ -73,19 +75,17 @@ const traduzValor = (chave, valor) => {
   return t(`CONTACT_PANEL.SITE_CONTEXT.ORIGIN_KIND.${valor.toUpperCase()}`);
 };
 
+// Quais chaves têm valor é decidido pelo helper, não aqui: é a MESMA função que o
+// `ContactPanel` usa para decidir se desenha o acordeão ao redor (`hasSiteContext`). Duas
+// cópias da regra e o cabeçalho volta a discordar do conteúdo.
 const linhas = (atributos, chaves) =>
-  chaves
-    .filter(chave => {
-      const valor = atributos?.[chave];
-      return valor !== undefined && valor !== null && valor !== '';
-    })
-    .map(chave => ({
-      key: chave,
-      // Sem definição carregada, o rótulo é a própria chave — nunca uma tradução inventada
-      // aqui, que divergiria da que o servidor já escolheu.
-      title: rotulos.value[chave] || chave,
-      value: String(traduzValor(chave, atributos[chave])),
-    }));
+  filledOriginKeys(atributos, chaves).map(chave => ({
+    key: chave,
+    // Sem definição carregada, o rótulo é a própria chave — nunca uma tradução inventada
+    // aqui, que divergiria da que o servidor já escolheu.
+    title: rotulos.value[chave] || chave,
+    value: String(traduzValor(chave, atributos[chave])),
+  }));
 
 const linhasDoContato = computed(() =>
   linhas(props.contactAttributes, contactOriginKeys())
@@ -110,11 +110,17 @@ const linhaDeIdentidade = computed(() => {
   };
 });
 
-const temAlgo = computed(
-  () =>
-    linhasDoContato.value.length > 0 ||
-    linhasDaConversa.value.length > 0 ||
-    linhaDeIdentidade.value !== null
+/**
+ * A MESMA pergunta que o `ContactPanel` faz antes de desenhar o `AccordionItem` — literalmente
+ * a mesma função. O acordeão escreve o título a partir da prop, sem olhar o slot: se as duas
+ * respostas divergirem, ou o agente vê um cabeçalho vazio, ou vê conteúdo sem cabeçalho.
+ */
+const temAlgo = computed(() =>
+  hasSiteContext({
+    contactAttributes: props.contactAttributes,
+    conversationAttributes: props.conversationAttributes,
+    identifier: props.identifier,
+  })
 );
 </script>
 
