@@ -138,7 +138,13 @@ Classe `.dark` no root troca todas as CSS custom properties de uma vez (light em
 
 **Regras:** clear-space ≥ 25% da altura/lado · mínimo 120px de largura (horizontal) ou 16px (símbolo) · nunca distorcer (horizontal ≈ 3.2:1, símbolo 1:1) · sobre o verde, elementos brancos.
 
-> ⚠️ **Limitação:** `logo.svg`, `logo_dark.svg`, `logo_thumbnail.svg` e `logo_thumbnail-branca.svg` são SVGs que **embrulham PNG** (raster) — não escalam sem perda. O único vetor verde real é `logo_thumbnail2.svg`. Para grande formato, **revetorizar**.
+> ✅ **Resolvido (bloco 1.08, 01/09/2026).** `logo.svg`, `logo_dark.svg`, `logo_thumbnail.svg` e `logo_thumbnail-branca.svg` **eram** SVGs que embrulhavam um PNG de 1024x1024 em base64 (87–98 KB cada, sem escalar). Foram **revetorizados**: o símbolo agora é um `<path>` de 44 cúbicas e os quatro arquivos ficaram entre **1,7 e 4,9 KB**. Escalam sem perda em qualquer tamanho.
+>
+> **O verde do símbolo é `#47c26f`, e não o `#2dc46f` da interface** — medido no núcleo opaco dos seis favicons PNG (`favicon-96x96`, `android-icon-192x192`, `apple-icon-180x180`…), que concordam entre si. São duas cores diferentes de propósito; não "corrija" uma para a outra.
+>
+> **`logo_thumbnail-branca.svg` não é branco:** o símbolo dele mede `#c8c8c8` (cinza claro), que é o que o arquivo raster já entregava. A revetorização **preservou** esse cinza em vez de trocar por `#ffffff` — mudar a cor seria decisão de marca, não otimização. Se o certo for branco puro, é uma linha no `fill` do arquivo.
+>
+> O peso desses arquivos passou a ser cobrado por `node scripts/brand-assets-size.mjs` (teto de 5.000 B **e** proibição de `data:image;base64` — um PNG pequeno reembrulhado caberia no teto e desfaria isto em silêncio).
 
 ---
 
