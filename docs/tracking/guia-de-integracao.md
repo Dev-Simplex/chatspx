@@ -53,6 +53,40 @@ configurado no painel — e a tela de aparência avisa o administrador de que h�
 Regra de precedência, e ela vale para toda a configuração de aparência: **o banco é o padrão, o
 `chatwootSettings` do site sobrescreve, e a tela declara que há override**.
 
+### 1.2 Ajustar sem escrever JavaScript: `data-*` na tag do trecho
+
+Quando o site é um CMS travado — ou quando quem instala é marketing e não tem onde colocar um
+`<script>` a mais — a mesma configuração pode ir **como atributo da própria tag do trecho**. Ela já
+vem marcada com `data-chatspx-snippet`; basta acrescentar os atributos:
+
+```html
+<script data-chatspx-snippet data-position="left" data-launcher-title="Fale com a gente" data-hide-message-bubble="false">
+```
+
+O nome do atributo é o da chave em minúsculas com hífen: `launcherTitle` → `data-launcher-title`,
+`showPopoutButton` → `data-show-popout-button`. `"true"` e `"false"` viram booleano de verdade — o
+`data-hide-message-bubble="false"` **desliga**, não liga.
+
+**As chaves aceitas são as mesmas de `chatwootSettings`**, e a lista canônica está em
+`app/javascript/sdk/snippetConfig.js` (`CONFIG_KEYS`). Chave que não está nela é ignorada em
+silêncio — o `data-*` não é um jeito de inventar configuração nova.
+
+**Precedência:** `window.chatwootSettings` **vence** o `data-*`, chave a chave. Quem escreve
+JavaScript é quem controla a integração; o trecho costuma ser colado por outra pessoa, às vezes por
+um gerenciador de tags. As chaves que o `chatwootSettings` não declara continuam vindo do `data-*`.
+
+> **A fronteira, e ela não tem exceção: `data-*` carrega CONFIGURAÇÃO, nunca identidade nem
+> credencial.** `data-email`, `data-identifier`, `data-identifier-hash`, `data-phone-number`,
+> `data-api-key` e afins são **recusados**, e a recusa aparece no console do navegador nomeando cada
+> chave. O motivo é o que o atributo é: HTML servido. Ele aparece no *view-source*, entra no cache
+> da CDN, é copiado entre páginas por quem cuida do site e não por quem cuida de dados — e um par
+> `(identifier, identifier_hash)` que vaze **vale para sempre**, porque o hash não expira.
+> Identidade vai por `$chatwoot.setUser(...)` / `$chatwoot.updateUser(...)`, e só.
+
+**O que muda com o cache:** o `data-*` vive no HTML do seu site, então ele muda quando **o seu**
+cache muda. Para o que precisa ser alterável pelo painel sem republicar página, use a configuração
+da caixa de entrada — não o `data-*`.
+
 ---
 
 ## 2. Identificar quem está do outro lado

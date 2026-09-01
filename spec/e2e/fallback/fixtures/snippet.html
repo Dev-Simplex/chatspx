@@ -1,8 +1,12 @@
 
-    <script>
+    <script data-chatspx-snippet>
       (function(d,t) {
         var BASE_URL="__BASE_URL__";
         var cfg=window.chatwootSettings||{};
+        var SNIPPET=d.currentScript||d.querySelector("script[data-chatspx-snippet]");
+        var SNIPPET_DATA={};
+        if(SNIPPET&&SNIPPET.dataset){for(var k in SNIPPET.dataset){SNIPPET_DATA[k]=SNIPPET.dataset[k]}}
+        var POSITION=cfg.position||SNIPPET_DATA.position;
         var FALLBACK_URL=cfg.fallbackUrl||BASE_URL+"/widget?website_token=__WEBSITE_TOKEN__";
         var FALLBACK_LABEL=cfg.fallbackLabel||"Falar por outro canal";
         var FALLBACK_STYLE="position:fixed;bottom:20px;z-index:2147483000;display:inline-block;padding:12px 20px;border-radius:100px;background:#1f93ff;color:#000000;font:600 14px/1.2 system-ui,sans-serif;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.16);left:20px";
@@ -15,7 +19,7 @@
           a.target="_blank";
           a.rel="noopener noreferrer";
           a.textContent=FALLBACK_LABEL;
-          a.setAttribute("style",cfg.position==="left"?FALLBACK_STYLE:FALLBACK_STYLE.replace("left:20px","right:20px"));
+          a.setAttribute("style",POSITION==="left"?FALLBACK_STYLE:FALLBACK_STYLE.replace("left:20px","right:20px"));
           d.body.appendChild(a)
         }
         function hideFallback(){
@@ -30,7 +34,10 @@
         g.onload=function(){
           window.chatwootSDK.run({
             websiteToken: '__WEBSITE_TOKEN__',
-            baseUrl: BASE_URL
+            baseUrl: BASE_URL,
+            snippetDataset: SNIPPET_DATA,
+            conversationToken: null,
+            persistConversationToParent: false
           })
         }
         g.onerror=showFallback;

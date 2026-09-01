@@ -40,6 +40,12 @@ const stableString = value => {
     .join(',');
 };
 
+// O `};` acima foi PERDIDO no merge de `origin/homologacao` (9ab1588a36): o bloco do
+// `cw_conversation` que vinha do upstream entrou exatamente na linha do fechamento do
+// `stableString` e engoliu as duas chaves. Consequencia medida, nao suposta: o arquivo deixou de
+// ser JavaScript valido, `vite build --config vite.lib.config.ts` abortou com "invalid JS syntax"
+// — ou seja, `public/packs/js/sdk.js` nao existia mais em nenhum deploy — e 69 exemplos de
+// `app/javascript/sdk` caiam em 13 arquivos, todos com o mesmo erro de import analysis.
 const CONVERSATION_COOKIE = 'cw_conversation';
 const CONVERSATION_TOKEN_TTL = 365 * 24 * 60 * 60 * 1000;
 
