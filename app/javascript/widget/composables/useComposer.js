@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 
 /**
@@ -57,6 +57,19 @@ export const useComposer = ({ onSendMessage } = {}) => {
   // a lógica). Só mudou de lugar.
   watch(isWidgetOpen, aberto => {
     if (aberto) focar();
+  });
+
+  // A OUTRA metade, que o original tinha em `ChatInputWrap.vue:76-78` e a
+  // reescrita deste bloco perdeu. O `watch` acima só dispara quando o valor
+  // MUDA — e no cenário que o aceite 6 nomeia ("abrindo direto na view de
+  // mensagens") ele não muda: o composer só é montado nessa view, então quando
+  // ele nasce o widget JÁ está aberto e o watcher nunca roda.
+  //
+  // Focar aqui não conflita com a tela inicial: lá o composer não existe no
+  // DOM, e quem toma o foco é o `h1` do cabeçalho (`ViewWithHeader.vue`).
+  // Estar montado é, por si só, a prova de que estamos na view de mensagens.
+  onMounted(() => {
+    if (isWidgetOpen.value) focar();
   });
 
   // O seletor de emoji tambem mora aqui: na casca ele custava tres membros de

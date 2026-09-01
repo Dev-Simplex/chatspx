@@ -22,10 +22,19 @@ export default {
     disabled: { type: Boolean, default: false },
   },
   emits: ['update:modelValue', 'submit'],
+  // O primitivo dona o proprio DOM: quem consome nao alcanca o `<textarea>`
+  // por conta propria. Entao a superficie publica e UMA — `focus()`. Sem ela,
+  // `useComposer.focar()` so tinha o `?.` para engolir a chamada, e o aceite 6
+  // da §C.9 (`document.activeElement` e o textarea) ficava mudo.
+  expose: ['focus'],
   data() {
     return { compondo: false };
   },
   methods: {
+    /** Leva o foco ao campo — e ao campo mesmo, nao ao involucro. */
+    focus() {
+      this.$refs.campo?.focus();
+    },
     aoTeclar(evento) {
       // Enter envia, Shift+Enter quebra linha. `keydown`, não `keypress`:
       // `keypress` está obsoleto e não dispara para todas as teclas.
@@ -68,6 +77,7 @@ export default {
     <label class="sr-only" for="w-composer-campo">{{ label }}</label>
     <textarea
       id="w-composer-campo"
+      ref="campo"
       class="w-composer__campo"
       rows="1"
       :value="modelValue"
