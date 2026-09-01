@@ -74,6 +74,26 @@ RSpec.describe 'Widget messages — idempotência de envio', type: :request do
     expect(mensagens_com('bom dia').last.source_id).to eq('chave-1')
   end
 
+  # O ANEXO sobe para ESTE mesmo endpoint, então passa por esta mesma guarda —
+  # desde que a chave viaje no `FormData`, o que só passou a acontecer agora
+  # (`endPoints.js#sendAttachment`). O upload é o envio mais longo e o que mais
+  # cai no meio: era o caminho com mais motivo para reenviar e o único sem
+  # nenhuma proteção.
+  def enviar_anexo(echo_id)
+    arquivo = fixture_file_upload(Rails.root.join('spec/assets/avatar.png'), 'image/png')
+    post "/api/v1/widget/messages?website_token=#{web_widget.website_token}",
+         headers: { 'X-Auth-Token' => token },
+         params: { message: { content: 'segue o print', echo_id: echo_id, timestamp: Time.current.to_i, attachments: [arquivo] } }
+  end
+
+  it 'o mesmo anexo, reenviado com a mesma chave, cria UMA mensagem e UM arquivo' do
+    expect { enviar_anexo('chave-anexo-1') }.to change { mensagens_com('segue o print').count }.by(1)
+
+    expect { enviar_anexo('chave-anexo-1') }.not_to(change { mensagens_com('segue o print').count })
+    expect(response).to have_http_status(:success)
+    expect(mensagens_com('segue o print').sum { |m| m.attachments.count }).to eq(1)
+  end
+
   it 'a chave de uma conversa não bloqueia outra' do
     outra = create(:conversation, contact: contact, inbox: web_widget.inbox, contact_inbox: contact_inbox)
     enviar('oi', 'chave-1')

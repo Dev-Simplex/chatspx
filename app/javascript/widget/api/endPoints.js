@@ -1,7 +1,7 @@
 import { buildSearchParamsWithLocale } from '../helpers/urlParamsHelper';
 import { generateEventParams } from './events';
 
-const createConversation = params => {
+const createConversation = (params, { echoId } = {}) => {
   const referrerURL = window.referrerURL || '';
   const search = buildSearchParamsWithLocale(window.location.search);
   return {
@@ -17,6 +17,12 @@ const createConversation = params => {
         content: params.message,
         timestamp: new Date().toString(),
         referer_url: referrerURL,
+        // Bloco 2.15. Este POST cria CONVERSA e mensagem de uma vez, e era o
+        // unico dos tres que nao mandava chave — o controlador ja a permitia
+        // (`conversations_controller.rb:141`) e ja a gravaria em `source_id`,
+        // so que nada a enviava. Um reenvio deste corpo abria uma conversa nova
+        // com a mesma primeira frase.
+        echo_id: echoId,
       },
       custom_attributes: params.customAttributes,
     },
@@ -53,7 +59,7 @@ const sendMessage = (
 
 const sendAttachment = (
   { attachment, replyTo = null },
-  { customAttributes, labels } = {}
+  { customAttributes, labels, echoId } = {}
 ) => {
   const { referrerURL = '' } = window;
   const timestamp = new Date().toString();
@@ -68,6 +74,14 @@ const sendAttachment = (
 
   formData.append('message[referer_url]', referrerURL);
   formData.append('message[timestamp]', timestamp);
+  // Bloco 2.15. O anexo sobe para o MESMO endpoint da mensagem de texto
+  // (`/api/v1/widget/messages`, logo abaixo), entao ele passa pelo mesmo
+  // `existing_message_for_retry` do controlador — sempre que a chave viajar.
+  // Ela nao viajava: o upload e o envio mais caro e mais sujeito a cair no meio,
+  // e era o unico dos tres caminhos que subia sem nenhuma protecao.
+  if (echoId) {
+    formData.append('message[echo_id]', echoId);
+  }
   if (replyTo !== null) {
     formData.append('message[reply_to]', replyTo);
   }

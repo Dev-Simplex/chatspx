@@ -7,6 +7,20 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   end
 
   def create
+    # Bloco 2.15 — idempotencia do PRE-CHAT.
+    #
+    # Este endpoint cria CONVERSA e primeira mensagem no mesmo request, entao o
+    # reenvio nao duplicava so uma frase: abria um segundo atendimento, com um
+    # segundo contato identificado, para o mesmo visitante. `echo_id` ja era
+    # permitido aqui e ja era gravado em `source_id` pelo `message_params` do
+    # `BaseController` — faltava conferir antes de criar, que e o que a linha
+    # abaixo faz.
+    existing = existing_conversation_for_retry
+    if existing
+      @conversation = existing
+      return
+    end
+
     ActiveRecord::Base.transaction do
       process_update_contact
       @conversation = create_conversation
@@ -134,6 +148,26 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
 
   def render_not_found_if_empty
     return head :not_found if conversation.nil?
+  end
+
+  # A conversa que ESTE mesmo pre-chat ja criou, se houver.
+  #
+  # O escopo sao as `conversations` do `BaseController`, que ja restringem a
+  # sessao/contato desta requisicao: a chave de um visitante nunca devolve a
+  # conversa de outro, nem por colisao nem por chave adivinhada.
+  #
+  # A busca vai em `Message`, e NAO em `conversations.joins(:messages)`, por dois
+  # motivos independentes. O primeiro e que a associacao `Conversation#messages`
+  # tem escopo dependente da instancia (`conversation.rb:168`) e `joins` sobre ela
+  # levanta `ArgumentError` — 500 em todo pre-chat. O segundo e o que importa
+  # depois que o primeiro esta resolvido: sob isolamento por time essa associacao
+  # ESCONDE mensagens, e uma mensagem escondida faria a guarda nao encontrar a
+  # chave e duplicar a conversa exatamente no caso que ela existe para evitar.
+  def existing_conversation_for_retry
+    echo_id = permitted_params[:message].try(:[], :echo_id)
+    return if echo_id.blank?
+
+    Message.find_by(conversation_id: conversations.select(:id), source_id: echo_id)&.conversation
   end
 
   def permitted_params

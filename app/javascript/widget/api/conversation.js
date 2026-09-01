@@ -13,9 +13,18 @@ export const novaChaveDeEnvio = () =>
   window.crypto?.randomUUID?.() ??
   `w-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
-const createConversationAPI = async content => {
-  const urlData = endPoints.createConversation(content);
-  return API.post(urlData.url, urlData.params);
+/**
+ * Cria a conversa a partir do pre-chat, com chave de idempotencia (bloco 2.15).
+ *
+ * Mesma regra dos outros dois envios: a chave nasce aqui quando ninguem a
+ * fornece, e volta na resposta para quem precisar reenviar ESTE mesmo formulario.
+ */
+const createConversationAPI = async (content, { echoId } = {}) => {
+  const chave = echoId || novaChaveDeEnvio();
+  const urlData = endPoints.createConversation(content, { echoId: chave });
+  const resposta = await API.post(urlData.url, urlData.params);
+  resposta.echoId = chave;
+  return resposta;
 };
 
 /**
@@ -41,15 +50,25 @@ const sendMessageAPI = async (
   return resposta;
 };
 
+/**
+ * Sobe um anexo, com chave de idempotencia (bloco 2.15).
+ *
+ * Mesma regra do `sendMessageAPI`: `echoId` ausente vira chave nova, e a chave
+ * usada volta na resposta para quem precisar reenviar ESTE mesmo anexo.
+ */
 const sendAttachmentAPI = async (
   attachment,
-  { customAttributes, labels } = {}
+  { customAttributes, labels, echoId } = {}
 ) => {
+  const chave = echoId || novaChaveDeEnvio();
   const urlData = endPoints.sendAttachment(attachment, {
     customAttributes,
     labels,
+    echoId: chave,
   });
-  return API.post(urlData.url, urlData.params);
+  const resposta = await API.post(urlData.url, urlData.params);
+  resposta.echoId = chave;
+  return resposta;
 };
 
 const getMessagesAPI = async ({ before, after }) => {
