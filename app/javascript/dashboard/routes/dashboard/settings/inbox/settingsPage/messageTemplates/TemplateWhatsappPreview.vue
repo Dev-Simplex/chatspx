@@ -49,8 +49,14 @@ const buttons = computed(() => {
 const mediaMeta = computed(() => {
   if (!header.value || header.value.format === 'TEXT') return null;
   const map = {
-    IMAGE: { icon: 'i-lucide-image', label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.IMAGE') },
-    VIDEO: { icon: 'i-lucide-video', label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.VIDEO') },
+    IMAGE: {
+      icon: 'i-lucide-image',
+      label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.IMAGE'),
+    },
+    VIDEO: {
+      icon: 'i-lucide-video',
+      label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.VIDEO'),
+    },
     DOCUMENT: {
       icon: 'i-lucide-file-text',
       label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.DOCUMENT'),
@@ -79,7 +85,9 @@ const initial = computed(() =>
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-black/60"
     @click.self="emit('close')"
   >
-    <div class="flex flex-col w-full max-w-sm overflow-hidden shadow-2xl rounded-2xl">
+    <div
+      class="flex flex-col w-full max-w-sm overflow-hidden shadow-2xl rounded-2xl"
+    >
       <!-- Barra superior do WhatsApp -->
       <div
         class="flex items-center gap-3 px-3 py-2.5 text-white bg-[#008069] dark:bg-[#202c33]"
@@ -138,7 +146,9 @@ const initial = computed(() =>
             <p
               class="text-sm break-words whitespace-pre-line text-[#111b21] dark:text-[#e9edef]"
             >
-              {{ body || t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.BODY_PLACEHOLDER') }}
+              {{
+                body || t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.BODY_PLACEHOLDER')
+              }}
             </p>
 
             <!-- Rodape -->

@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Proposta de tratamento de grupos de WhatsApp (WAHA) no ChatSPX: autor por mensagem e lista de integrantes.">
+<title>Grupos de WhatsApp no ChatSPX — como vai funcionar</title>
+
+<style>
+/* toggle de tema — substitui o controle que o host do Artifact fornecia */
+.theme-toggle{
+  position:fixed;top:14px;right:14px;z-index:100;
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--surface);color:var(--ink-2);
+  border:1px solid var(--line);border-radius:20px;
+  padding:7px 13px;cursor:pointer;box-shadow:var(--shadow);
+}
+.theme-toggle:hover{color:var(--ink)}
+.theme-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media print{.theme-toggle{display:none}}
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" type="button"><span aria-hidden="true">◐</span><span id="themeLabel">Claro</span></button>
+<style>
+/* ─────────────────────────────────────────────────────────────
+   TOKENS
+   Neutros derivados do próprio WhatsApp; accent = teal do WA.
+   ───────────────────────────────────────────────────────────── */
+:root{
+  --ground:#f7f8f9;
+  --surface:#ffffff;
+  --surface-2:#eef1f2;
+  --line:#dfe5e7;
+  --line-soft:#eaeef0;
+  --ink:#111b21;
+  --ink-2:#516470;
+  --ink-3:#7d8f9a;
+  --accent:#00806a;
+  --accent-bright:#00a884;
+  --warn:#8a6100;
+  --warn-bg:#fdf6e3;
+  --warn-line:#e9c46a;
+  --shadow:0 1px 2px rgba(11,20,26,.06), 0 8px 24px -12px rgba(11,20,26,.18);
+
+  /* tokens reais do _wa-skin.scss */
+  --wa-chat-bg:#efeae2;
+  --wa-bubble-in:#ffffff;
+  --wa-bubble-out:#d9fdd3;
+  --wa-header-bg:#f0f2f5;
+  --wa-text-primary:#111b21;
+  --wa-text-secondary:#667781;
+  --wa-list-border:#e9edef;
+  --wa-list-hover:#f5f6f7;
+  --wa-check-read:#53bdeb;
+  --wa-panel-bg:#ffffff;
+  --wa-bubble-shadow:0 1px .5px rgba(11,20,26,.13);
+
+  --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --font-mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+  --font-wa:-apple-system,"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0e1418;
+    --surface:#161f25;
+    --surface-2:#1d282e;
+    --line:#2a3942;
+    --line-soft:#222e35;
+    --ink:#e9edef;
+    --ink-2:#a3b3bc;
+    --ink-3:#7d8f9a;
+    --accent:#4fd6b0;
+    --accent-bright:#00a884;
+    --warn:#e0b246;
+    --warn-bg:#2a2313;
+    --warn-line:#5c4a15;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0e1418; --surface:#161f25; --surface-2:#1d282e;
+  --line:#2a3942; --line-soft:#222e35;
+  --ink:#e9edef; --ink-2:#a3b3bc; --ink-3:#7d8f9a;
+  --accent:#4fd6b0; --accent-bright:#00a884;
+  --warn:#e0b246; --warn-bg:#2a2313; --warn-line:#5c4a15;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+}
+:root[data-theme="light"]{
+  --ground:#f7f8f9; --surface:#ffffff; --surface-2:#eef1f2;
+  --line:#dfe5e7; --line-soft:#eaeef0;
+  --ink:#111b21; --ink-2:#516470; --ink-3:#7d8f9a;
+  --accent:#00806a; --accent-bright:#00a884;
+  --warn:#8a6100; --warn-bg:#fdf6e3; --warn-line:#e9c46a;
+  --shadow:0 1px 2px rgba(11,20,26,.06), 0 8px 24px -12px rgba(11,20,26,.18);
+}
+
+/* ── skin das TELAS (independente do tema da página) ── */
+.screen[data-skin="dark"]{
+  --wa-chat-bg:#0b141a;
+  --wa-bubble-in:#202c33;
+  --wa-bubble-out:#005c4b;
+  --wa-header-bg:#202c33;
+  --wa-text-primary:#e9edef;
+  --wa-text-secondary:#8696a0;
+  --wa-list-border:#2a3942;
+  --wa-list-hover:#202c33;
+  --wa-panel-bg:#111b21;
+  --wa-bubble-shadow:0 1px .5px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--font-sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── layout ── */
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.col{max-width:660px;margin:0 auto}
+section{padding:56px 0;border-top:1px solid var(--line-soft)}
+section:first-of-type{border-top:0}
+
+.eyebrow{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 12px;
+}
+h1{
+  font-size:clamp(30px,4.6vw,46px);line-height:1.1;letter-spacing:-.025em;
+  font-weight:640;margin:0 0 18px;text-wrap:balance;
+}
+h2{
+  font-size:clamp(21px,2.6vw,27px);line-height:1.22;letter-spacing:-.018em;
+  font-weight:620;margin:0 0 14px;text-wrap:balance;
+}
+h3{font-size:16px;font-weight:640;letter-spacing:-.008em;margin:0 0 8px}
+p{margin:0 0 16px;color:var(--ink-2)}
+p.lead{font-size:18.5px;line-height:1.55;color:var(--ink-2)}
+strong{color:var(--ink);font-weight:600}
+code{
+  font-family:var(--font-mono);font-size:.855em;
+  background:var(--surface-2);padding:.14em .4em;border-radius:4px;
+  color:var(--ink);word-break:break-word;
+}
+a{color:var(--accent)}
+
+/* ── palco das telas ── */
+.stage{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);overflow:hidden;margin:28px 0;
+}
+.stage-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:12px 16px;border-bottom:1px solid var(--line);
+  background:var(--surface-2);
+}
+.stage-title{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-right:auto;
+}
+.stage-body{padding:22px;overflow-x:auto}
+
+/* ── controles ── */
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{
+  font:inherit;font-size:12.5px;font-weight:560;
+  border:0;background:transparent;color:var(--ink-2);
+  padding:5px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;
+}
+.seg button[aria-pressed="true"]{background:var(--accent-bright);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* ═══════════ TELAS WHATSAPP ═══════════ */
+.screen{
+  font-family:var(--font-wa);
+  background:var(--wa-chat-bg);
+  border:1px solid var(--wa-list-border);border-radius:10px;overflow:hidden;
+  min-width:340px;max-width:560px;
+  transition:background .25s ease;
+}
+.screen.wide{max-width:100%}
+
+.wa-header{
+  display:flex;align-items:center;gap:11px;
+  background:var(--wa-header-bg);padding:9px 14px;
+  border-bottom:1px solid var(--wa-list-border);
+}
+.wa-header .ttl{font-size:15px;font-weight:600;color:var(--wa-text-primary);line-height:1.25;display:flex;align-items:center;gap:6px}
+.wa-header .sub{font-size:12.5px;color:var(--wa-text-secondary);line-height:1.3}
+.wa-header .grow{flex:1;min-width:0}
+.hdr-actions{display:flex;gap:14px;color:var(--wa-text-secondary);font-size:15px}
+
+.badge-group{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10.5px;font-weight:600;letter-spacing:.03em;
+  color:var(--wa-text-secondary);
+  border:1px solid var(--wa-list-border);border-radius:20px;padding:1px 7px;
+}
+
+.thread{padding:16px 14px;display:flex;flex-direction:column;gap:2px;min-height:230px}
+
+.row{display:flex;gap:8px;align-items:flex-end;margin-top:8px}
+.row.tight{margin-top:2px}
+
+.av{
+  width:28px;height:28px;border-radius:50%;flex:0 0 28px;
+  display:grid;place-items:center;
+  font-size:11px;font-weight:700;color:#fff;letter-spacing:.02em;
+  user-select:none;
+}
+.av.ghost{background:transparent}
+.av.unknown{background:#8696a0}
+
+.bub{
+  background:var(--wa-bubble-in);
+  border-radius:8px;padding:6px 9px 5px;
+  box-shadow:var(--wa-bubble-shadow);
+  max-width:min(420px,78%);
+  color:var(--wa-text-primary);
+  font-size:14.2px;line-height:1.42;
+  position:relative;
+}
+.bub.first{border-top-left-radius:2px}
+.row.out{justify-content:flex-end}
+.row.out .bub{background:var(--wa-bubble-out);border-top-right-radius:2px}
+
+.author{
+  font-size:12.6px;font-weight:600;line-height:1.3;
+  margin-bottom:1px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.author.unknown{color:var(--wa-text-secondary);font-style:italic;font-weight:500;cursor:default}
+.author .info{
+  font-size:10px;border:1px solid currentColor;border-radius:50%;
+  width:13px;height:13px;display:grid;place-items:center;opacity:.65;font-style:normal;
+}
+.meta{
+  font-size:10.5px;color:var(--wa-text-secondary);
+  float:right;margin:6px 0 -2px 10px;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.meta .ck{color:var(--wa-check-read)}
+
+/* estado HOJE — o texto cru */
+.raw{white-space:pre-wrap;word-break:break-word}
+.raw .lidtag{
+  background:rgba(233,167,0,.24);
+  border-bottom:1.5px solid var(--warn-line);
+  border-radius:2px;padding:0 1px;
+}
+.raw .prefix{opacity:.85}
+
+/* reação como bolha (hoje) vs chip (proposto) */
+.reactchip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--wa-bubble-in);border:1px solid var(--wa-list-border);
+  border-radius:20px;padding:1px 7px;font-size:11.5px;
+  color:var(--wa-text-secondary);box-shadow:var(--wa-bubble-shadow);
+  margin-top:-4px;margin-left:36px;width:fit-content;
+}
+
+/* tooltip */
+.tip{
+  position:absolute;z-index:20;left:0;bottom:calc(100% + 7px);
+  background:#111b21;color:#e9edef;border-radius:7px;padding:7px 10px;
+  font-size:11.5px;line-height:1.45;white-space:nowrap;
+  box-shadow:0 6px 20px -6px rgba(0,0,0,.5);
+  opacity:0;visibility:hidden;transition:opacity .14s ease;pointer-events:none;
+}
+.tip b{display:block;font-weight:600;color:#fff}
+.tip .ph{font-family:var(--font-mono);font-size:11px;color:#8696a0}
+.tip .hint{color:#8696a0}
+.author:hover .tip,.author:focus-visible .tip{opacity:1;visibility:visible}
+.authorwrap{position:relative;display:inline-block}
+
+/* ═══════════ PAINEL DE INTEGRANTES ═══════════ */
+.panel{
+  background:var(--wa-panel-bg);border:1px solid var(--wa-list-border);
+  border-radius:10px;overflow:hidden;width:100%;max-width:330px;
+  font-family:var(--font-wa);
+}
+.panel-hd{
+  display:flex;align-items:center;gap:8px;padding:11px 14px;
+  border-bottom:1px solid var(--wa-list-border);
+  font-size:13.5px;font-weight:600;color:var(--wa-text-primary);
+}
+.panel-hd .count{color:var(--wa-text-secondary);font-weight:500;font-variant-numeric:tabular-nums}
+.panel-hd .sync{margin-left:auto;color:var(--wa-text-secondary);font-size:14px;cursor:pointer}
+.member{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;
+}
+.member:hover{background:var(--wa-list-hover)}
+.member .av{width:32px;height:32px;flex-basis:32px;font-size:12px}
+.member .nm{font-size:13.6px;font-weight:500;color:var(--wa-text-primary);line-height:1.3}
+.member .ph{font-size:12px;color:var(--wa-text-secondary);font-variant-numeric:tabular-nums;line-height:1.35}
+.member .grow{flex:1;min-width:0}
+.member.unknown .nm{font-style:italic;color:var(--wa-text-secondary);font-weight:400}
+.adm{
+  font-size:10px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--accent-bright);border:1px solid currentColor;border-radius:4px;padding:1px 5px;
+}
+.divider{height:1px;background:var(--wa-list-border);margin:6px 14px}
+.panel-ft{
+  padding:9px 14px;font-size:11px;color:var(--wa-text-secondary);
+  border-top:1px solid var(--wa-list-border);
+}
+.panel-empty{padding:30px 20px;text-align:center}
+.panel-empty .ico{
+  width:52px;height:52px;border-radius:50%;margin:0 auto 12px;
+  background:var(--wa-list-hover);display:grid;place-items:center;font-size:22px;
+}
+.panel-empty h4{margin:0 0 5px;font-size:13.5px;color:var(--wa-text-primary);font-weight:600}
+.panel-empty p{margin:0 0 14px;font-size:12.4px;color:var(--wa-text-secondary);line-height:1.45}
+.btn-sync{
+  font:inherit;font-size:12.5px;font-weight:560;font-family:var(--font-wa);
+  background:var(--accent-bright);color:#fff;border:0;border-radius:7px;
+  padding:7px 15px;cursor:pointer;
+}
+.alertbar{
+  display:flex;gap:8px;align-items:flex-start;
+  padding:9px 14px;font-size:12.2px;line-height:1.4;
+  background:var(--warn-bg);color:var(--warn);
+  border-bottom:1px solid var(--wa-list-border);
+}
+.alertbar button{
+  font:inherit;font-size:12px;font-weight:600;font-family:var(--font-wa);
+  background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer;padding:0;
+  white-space:nowrap;
+}
+
+/* ═══════════ CADEIA / DIAGRAMA ═══════════ */
+.chain{display:flex;flex-direction:column;gap:0;margin:26px 0}
+.node{
+  display:grid;grid-template-columns:26px 1fr;gap:14px;align-items:start;
+  padding:14px 0;
+}
+.node .rail{display:flex;flex-direction:column;align-items:center;height:100%}
+.node .dot{
+  width:11px;height:11px;border-radius:50%;background:var(--line);
+  border:2px solid var(--surface);box-shadow:0 0 0 1.5px var(--line);flex:0 0 auto;margin-top:6px;
+}
+.node.hot .dot{background:var(--warn-line);box-shadow:0 0 0 1.5px var(--warn-line)}
+.node.fix .dot{background:var(--accent-bright);box-shadow:0 0 0 1.5px var(--accent-bright)}
+.node .line{width:1.5px;flex:1;background:var(--line);margin-top:4px;min-height:14px}
+.node:last-child .line{display:none}
+.node .who{
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:3px;
+}
+.node h4{margin:0 0 4px;font-size:14.5px;font-weight:600;letter-spacing:-.006em}
+.node p{margin:0;font-size:14px;line-height:1.5}
+.node .tagline{
+  display:inline-block;margin-top:7px;font-family:var(--font-mono);font-size:11.5px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
+  padding:3px 7px;color:var(--ink-2);
+}
+.node.hot .tagline{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)}
+.node.fix .tagline{background:rgba(0,168,132,.1);border-color:var(--accent-bright);color:var(--accent)}
+
+/* ═══════════ FASES ═══════════ */
+.phases{display:grid;gap:12px;margin:24px 0}
+.phase{
+  display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;
+  background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:16px 18px;
+}
+.phase .tag{
+  font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.04em;
+  color:var(--accent);border:1px solid var(--accent-bright);border-radius:6px;
+  padding:3px 8px;white-space:nowrap;
+}
+.phase h4{margin:0 0 5px;font-size:15.5px}
+.phase p{margin:0 0 8px;font-size:14.2px}
+.phase .cost{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);
+  display:flex;flex-wrap:wrap;gap:4px 14px;
+}
+.phase.gated{border-style:dashed;opacity:.92}
+.phase.gated .tag{color:var(--ink-3);border-color:var(--line)}
+
+/* ── nota / callout ── */
+.note{
+  border-left:2.5px solid var(--accent-bright);
+  background:var(--surface);border-radius:0 9px 9px 0;
+  padding:14px 18px;margin:22px 0;
+}
+.note.warn{border-left-color:var(--warn-line);background:var(--warn-bg)}
+.note p:last-child{margin-bottom:0}
+.note .lbl{
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:6px;
+}
+.note.warn .lbl{color:var(--warn)}
+
+/* ── grid de exemplos ── */
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px;align-items:start}
+.duo > figure{margin:0}
+.duo figcaption{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:9px;
+}
+
+/* ── payload ── */
+pre.payload{
+  font-family:var(--font-mono);font-size:12.4px;line-height:1.6;
+  background:var(--surface);border:1px solid var(--line);border-radius:9px;
+  padding:14px 16px;overflow-x:auto;margin:18px 0;color:var(--ink-2);
+}
+pre.payload .k{color:var(--ink-3)}
+pre.payload .hot{color:var(--warn);background:var(--warn-bg);border-radius:3px;padding:0 2px}
+pre.payload .ok{color:var(--accent)}
+
+.foot{
+  padding:36px 0 60px;font-size:13px;color:var(--ink-3);
+  border-top:1px solid var(--line-soft);
+}
+.foot code{font-size:12px;background:none;padding:0;color:var(--ink-3)}
+
+@media (max-width:640px){
+  .stage-body{padding:14px}
+  .node{grid-template-columns:20px 1fr;gap:11px}
+  .phase{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+</style>
+
+
+<div class="wrap">
+
+<!-- ══════════════ ABERTURA ══════════════ -->
+<section>
+  <div class="col">
+    <p class="eyebrow">ChatSPX · WhatsApp via WAHA · proposta de produto</p>
+    <h1>O agente precisa saber quem falou no grupo.</h1>
+    <p class="lead">
+      Hoje ele vê um identificador técnico de 15 dígitos colado no nome de cada pessoa, e não tem
+      como saber quem está no grupo. Esta página mostra a causa, o que muda na tela, e em que ordem.
+    </p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-bar">
+      <span class="stage-title">Conversa de grupo</span>
+      <div class="seg" role="group" aria-label="Estado">
+        <button type="button" data-state-btn="today" aria-pressed="true">Hoje</button>
+        <button type="button" data-state-btn="next" aria-pressed="false">Proposto</button>
+      </div>
+      <div class="seg" role="group" aria-label="Tema da tela">
+        <button type="button" data-skin-btn="light" aria-pressed="true">Claro</button>
+        <button type="button" data-skin-btn="dark" aria-pressed="false">Escuro</button>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div class="screen" data-skin="light" id="mainScreen">
+
+        <!-- HEADER -->
+        <div class="wa-header">
+          <div class="av" id="hdrAv" style="width:40px;height:40px;flex-basis:40px;font-size:14px;background:#0a7cbb">TI</div>
+          <div class="grow">
+            <div class="ttl"><span id="hdrName">TI TOZI - Inovação (GROUP)</span><span class="badge-group" id="hdrBadge" hidden>👥 Grupo</span></div>
+            <div class="sub" id="hdrSub">visto por último hoje às 09:03</div>
+          </div>
+          <div class="hdr-actions"><span>🔍</span><span>⋮</span></div>
+        </div>
+
+        <!-- THREAD -->
+        <div class="thread" id="thread"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="note warn">
+      <span class="lbl">O que você está vendo em “Hoje”</span>
+      <p>
+        O trecho destacado está <strong>gravado no banco</strong>, dentro de
+        <code>messages.content</code> — não é um problema de renderização. São
+        <strong>548 mensagens</strong> assim só na base de homologação, e entram mais a cada dia.
+        A busca, os relatórios, o export e a IA leem esse mesmo texto.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════ COMO FUNCIONA ══════════════ -->
+<section>
+  <div class="col">
+    <p class="eyebrow">Como funciona hoje</p>
+    <h2>O texto chega pronto — e chega errado</h2>
+    <p>
+      A mensagem não entra pelo nosso webhook. Quem escreve no ChatSPX é um plugin que roda
+      <strong>dentro da WAHA</strong>, chamado app <code>chatwoot</code> — instalado por nós,
+      com os templates que vêm de fábrica.
+    </p>
+
+    <div class="chain">
+      <div class="node">
+        <div class="rail"><span class="dot"></span><span class="line"></span></div>
+        <div>
+          <div class="who">WhatsApp</div>
+          <h4>A pessoa envia no grupo</h4>
+          <p>O WhatsApp identifica quem falou por LID, não por telefone. É o modelo novo de privacidade.</p>
+        </div>
+      </div>
+
+      <div class="node hot">
+        <div class="rail"><span class="dot"></span><span class="line"></span></div>
+        <div>
+          <div class="who">WAHA · app chatwoot</div>
+          <h4>O plugin concatena o identificador ao nome</h4>
+          <p>
+            Ele até busca o nome da pessoa, mas gruda o identificador cru ao lado e injeta tudo
+            no texto da mensagem. É aqui que o problema nasce.
+          </p>
+          <span class="tagline">participant = `${name} (${participant})`</span>
+        </div>
+      </div>
+
+      <div class="node fix">
+        <div class="rail"><span class="dot"></span><span class="line"></span></div>
+        <div>
+          <div class="who">ChatSPX · ponto de entrada</div>
+          <h4>Nós recebemos e gravamos sem olhar</h4>
+          <p>
+            É <strong>aqui</strong> que passamos a intervir: separar o autor do texto, guardá-lo
+            como dado, e resolver o telefone. O texto vai limpo para o banco.
+          </p>
+          <span class="tagline">MessagesController → content_attributes.group_sender</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="rail"><span class="dot"></span></div>
+        <div>
+          <div class="who">Tela do agente</div>
+          <h4>A bolha ganha autor de verdade</h4>
+          <p>Nome, avatar e cor por pessoa — porque agora existe um campo, não uma frase.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>O que muda no dado</h3>
+    <pre class="payload"><span class="k">// hoje</span>
+content            : <span class="hot">"👥 *Rogerio José Da Silva (229480102662169@lid)*\n\nQual Wi-Fi está?"</span>
+content_attributes : {}
+sender_id          : 1963   <span class="k">← o contato-GRUPO, igual para todo mundo</span>
+
+<span class="k">// proposto</span>
+content            : <span class="ok">"Qual Wi-Fi está?"</span>
+content_attributes : { <span class="ok">group_sender</span>: { name: "Rogerio José Da Silva",
+                                     phone: "5566999991234",
+                                     lid:   "229480102662169" } }</pre>
+
+    <div class="note">
+      <span class="lbl">Por que isso destrava tudo</span>
+      <p>
+        Os campos <code>content_attributes</code> já viajam para a tela por REST, websocket e webhook
+        <strong>sem mexer em nenhum serializer</strong>. O canal do backend até o componente já está
+        aberto — falta só colocar o dado dentro dele.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════ INTEGRANTES ══════════════ -->
+<section>
+  <div class="col">
+    <p class="eyebrow">Segundo pedido</p>
+    <h2>A lista de integrantes já existe — do lado da WAHA</h2>
+    <p>
+      Uma única chamada devolve os 12 participantes do TI TOZI <strong>com telefone, LID e quem é
+      administrador</strong>. Medimos ao vivo: <strong>598 de 598 participantes</strong> em 40 grupos
+      vieram com telefone preenchido, mesmo com todos os identificadores em formato LID.
+    </p>
+    <p>
+      Mais irritante que isso: já fazemos essa chamada a cada 30 minutos e
+      <strong>descartamos a resposta</strong>.
+    </p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-bar">
+      <span class="stage-title">Painel lateral · Integrantes</span>
+      <div class="seg" role="group" aria-label="Estado do painel">
+        <button type="button" data-panel-btn="ok" aria-pressed="true">Sincronizado</button>
+        <button type="button" data-panel-btn="empty" aria-pressed="false">Nunca sincronizado</button>
+        <button type="button" data-panel-btn="stale" aria-pressed="false">WAHA fora do ar</button>
+      </div>
+      <div class="seg" role="group" aria-label="Tema do painel">
+        <button type="button" data-pskin-btn="light" aria-pressed="true">Claro</button>
+        <button type="button" data-pskin-btn="dark" aria-pressed="false">Escuro</button>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div class="screen wide" data-skin="light" id="panelScreen" style="background:transparent;border:0">
+        <div class="panel" id="panel"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="note">
+      <span class="lbl">Decisões deliberadas</span>
+      <p>
+        <strong>Clicar abre um popover, não navega.</strong> Ir direto para a conversa 1:1 tira o
+        agente do grupo que ele está lendo e pode criar conversa sem querer.
+      </p>
+      <p>
+        <strong>Quem não foi identificado aparece assim mesmo</strong> — em cinza, por último, com
+        um travessão no lugar do telefone. Nunca o identificador técnico. Esconder a pessoa seria
+        mentir sobre o tamanho do grupo.
+      </p>
+      <p>
+        <strong>Cache visível quando a WAHA cai.</strong> Mantemos a última lista na tela, marcada
+        como desatualizada, em vez de mostrar vazio.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════ CASOS HONESTOS ══════════════ -->
+<section>
+  <div class="col">
+    <p class="eyebrow">Casos que a tela precisa aguentar</p>
+    <h2>Nem todo participante vai ser identificado</h2>
+    <p>
+      A regra é dura: <strong>o identificador nunca aparece</strong> — nem no corpo, nem no tooltip,
+      nem no atributo <code>title</code>. Quando não sabemos quem é, dizemos que não sabemos.
+    </p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-bar">
+      <span class="stage-title">Variações de autor</span>
+      <div class="seg" role="group" aria-label="Tema">
+        <button type="button" data-cskin-btn="light" aria-pressed="true">Claro</button>
+        <button type="button" data-cskin-btn="dark" aria-pressed="false">Escuro</button>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div class="duo">
+        <figure>
+          <figcaption>Nome + telefone resolvidos</figcaption>
+          <div class="screen" data-skin="light" data-case>
+            <div class="thread" style="min-height:auto">
+              <div class="row">
+                <div class="av" style="background:#b8478f">AT</div>
+                <div class="bub first">
+                  <span class="authorwrap"><span class="author" tabindex="0" style="color:#b8478f">Angela Tozi<span class="tip"><b>Angela Tozi</b><span class="ph">+55 66 9 9111-2233</span><span class="hint">Clique para ver o contato</span></span></span></span>
+                  <div>TOZIADM</div>
+                  <span class="meta">07:51 <span class="ck">✓✓</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </figure>
+
+        <figure>
+          <figcaption>Só telefone, sem nome</figcaption>
+          <div class="screen" data-skin="light" data-case>
+            <div class="thread" style="min-height:auto">
+              <div class="row">
+                <div class="av" style="background:#0d7a5f">66</div>
+                <div class="bub first">
+                  <span class="authorwrap"><span class="author" tabindex="0" style="color:#0d7a5f">+55 66 9 9888-4321<span class="tip"><b>+55 66 9 9888-4321</b><span class="hint">Sem nome no WhatsApp</span></span></span></span>
+                  <div>boa tarde pessoal</div>
+                  <span class="meta">08:12</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </figure>
+
+        <figure>
+          <figcaption>Não identificado</figcaption>
+          <div class="screen" data-skin="light" data-case>
+            <div class="thread" style="min-height:auto">
+              <div class="row">
+                <div class="av unknown">?</div>
+                <div class="bub first">
+                  <span class="authorwrap"><span class="author unknown" tabindex="0">Participante não identificado <span class="info">i</span><span class="tip"><b>Não foi possível identificar</b><span class="hint">O WhatsApp não informou quem enviou.<br>Sincronize os integrantes para tentar de novo.</span></span></span></span>
+                  <div>bom dia</div>
+                  <span class="meta">08:14</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </figure>
+
+        <figure>
+          <figcaption>Reação — chip, não mensagem</figcaption>
+          <div class="screen" data-skin="light" data-case>
+            <div class="thread" style="min-height:auto">
+              <div class="row">
+                <div class="av" style="background:#b8478f">AT</div>
+                <div class="bub first">
+                  <span class="authorwrap"><span class="author" tabindex="0" style="color:#b8478f">Angela Tozi</span></span>
+                  <div>Resolvido ✅</div>
+                  <span class="meta">09:02 <span class="ck">✓✓</span></span>
+                </div>
+              </div>
+              <div class="reactchip">👍 1</div>
+            </div>
+          </div>
+        </figure>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="note">
+      <span class="lbl">A cor não é decoração</span>
+      <p>
+        Cada autor recebe uma cor derivada por hash da sua <strong>identidade estável</strong>
+        (LID → telefone → nome, nessa ordem) — as cores nesta página são geradas assim, de verdade.
+        Usar o nome como chave faria a cor mudar quando a pessoa trocasse o nome no WhatsApp.
+      </p>
+      <p>
+        A cor <strong>nunca é o único sinal</strong>: o nome está escrito ao lado. E quem não foi
+        identificado fica em cinza neutro, fora da paleta — cinza já comunica “não sei quem é”.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════ FASES ══════════════ -->
+<section>
+  <div class="col">
+    <p class="eyebrow">Ordem de execução</p>
+    <h2>Em que ordem fazer</h2>
+    <p>
+      Cada fase entrega algo sozinha. Nenhuma depende da seguinte para valer a pena.
+    </p>
+
+    <div class="phases">
+      <div class="phase">
+        <span class="tag">F0</span>
+        <div>
+          <h4>Tirar o identificador do texto</h4>
+          <p>
+            Ao receber a mensagem, remover o <code>(…@lid)</code> e guardar esse identificador como
+            dado. O <strong>nome continua visível</strong> — tirar o prefixo inteiro agora deixaria o
+            agente sem saber quem falou.
+          </p>
+          <div class="cost"><span>dias</span><span>sem migration</span><span>reversível</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <span class="tag">F1</span>
+        <div>
+          <h4>Autor de verdade na bolha</h4>
+          <p>
+            Nome, avatar e cor por pessoa. Junto vão os freios que faltam: parar de disparar
+            <strong>pesquisa de satisfação dentro de grupo</strong> — já aconteceu 17 vezes — e ligar
+            o desvio da IA, hoje desligado por padrão.
+          </p>
+          <div class="cost"><span>1–2 semanas</span><span>sem migration</span><span>reversível</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <span class="tag">F2</span>
+        <div>
+          <h4>Grupo como entidade e lista de integrantes</h4>
+          <p>
+            Acaba a fragmentação — hoje o TI TOZI está espalhado em <strong>8 conversas
+            separadas</strong>. O cabeçalho passa a mostrar “12 participantes” e o painel lateral
+            ganha a lista.
+          </p>
+          <div class="cost"><span>~1 semana</span><span>1 migration pequena</span><span>alinhada ao upstream</span></div>
+        </div>
+      </div>
+
+      <div class="phase gated">
+        <span class="tag">F3</span>
+        <div>
+          <h4>Participante vira contato — só com sinal verde</h4>
+          <p>
+            Habilita buscar “mensagens do Rogério” e unir o histórico com a conversa 1:1 da mesma
+            pessoa. <strong>Só entra se a F1 provar que o telefone resolve.</strong> Sem telefone,
+            cada participante vira um contato órfão que nunca se une ao 1:1 — infla a base sem
+            entregar o benefício.
+          </p>
+          <div class="cost"><span>3–6 semanas</span><span>não reversível</span><span>decisão no fim da F1</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note warn">
+      <span class="lbl">Uma ressalva sobre os números</span>
+      <p>
+        Tudo aqui foi medido na <strong>homologação</strong>. A instância WAHA desta máquina é a da
+        Simplex — o diagnóstico do TI TOZI só foi possível porque a Simplex participa do grupo.
+        Para a produção da Tozi os números são <strong>indicativos, não medidos</strong>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="foot col">
+  Mockup de proposta — nenhuma linha de código de produção foi alterada.
+  Pesquisa completa em <code>plano/pesquisa-grupos-waha/</code>, entrada por <code>SINTESE.md</code>.
+</div>
+
+</div>
+
+
+<script>
+(function(){
+  'use strict';
+
+  /* ── cor determinística por autor: djb2 sobre a identidade estável ── */
+  var PALETTE = [
+    {l:'#b8478f', d:'#f191c8'},
+    {l:'#0a7cbb', d:'#7fc9ee'},
+    {l:'#9a6a00', d:'#e0b246'},
+    {l:'#0d7a5f', d:'#6fd3b0'},
+    {l:'#a1483a', d:'#f0998a'},
+    {l:'#6b4fbb', d:'#b9a5f0'},
+    {l:'#1f7a3d', d:'#79cf95'},
+    {l:'#b0416b', d:'#f096b4'}
+  ];
+  function hashKey(key){
+    var h = 5381;
+    for (var i=0;i<key.length;i++){ h = ((h<<5)+h+key.charCodeAt(i))>>>0; }
+    return h;
+  }
+  function colorFor(key, skin){
+    var p = PALETTE[hashKey(key) % PALETTE.length];
+    return skin==='dark' ? p.d : p.l;
+  }
+  function initials(name){
+    var parts = name.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+  }
+
+  /* ── dados reais do grupo (telefones mascarados) ── */
+  var PEOPLE = {
+    rogerio: { lid:'229480102662169', name:'Rogerio José Da Silva', phone:'+55 66 9 9999-1234', admin:true },
+    angela:  { lid:'260330953380002', name:'Angela Tozi',           phone:'+55 66 9 9111-2233', admin:true },
+    ederson: { lid:'740612345674948', name:'Ederson Ricieri Davi',  phone:'+55 66 9 8888-4321', admin:false },
+    walisson:{ lid:'607566409402180', name:'Walisson',              phone:'+55 66 9 7777-0001', admin:false }
+  };
+
+  var THREAD = [
+    { who:'rogerio', text:'Qual Wi-Fi está?', time:'07:49', edited:true },
+    { who:'angela',  text:'TOZIADM',          time:'07:51' },
+    { who:'angela',  text:'Resolvido ✅',     time:'09:02', reaction:'👍' },
+    { who:null,      text:'Vou verificar com a equipe e retorno.', time:'09:05', out:true }
+  ];
+
+  var state = 'today';
+  var skin  = 'light';
+
+  var thread   = document.getElementById('thread');
+  var hdrName  = document.getElementById('hdrName');
+  var hdrSub   = document.getElementById('hdrSub');
+  var hdrBadge = document.getElementById('hdrBadge');
+  var hdrAv    = document.getElementById('hdrAv');
+  var screenEl = document.getElementById('mainScreen');
+
+  function esc(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderThread(){
+    thread.innerHTML = '';
+    var prev = null;
+
+    THREAD.forEach(function(m){
+      var row = document.createElement('div');
+      row.className = 'row';
+
+      if (m.out){
+        row.className = 'row out';
+        row.innerHTML =
+          '<div class="bub">' + esc(m.text) +
+          '<span class="meta">' + m.time + ' <span class="ck">✓✓</span></span></div>';
+        thread.appendChild(row);
+        prev = null;
+        return;
+      }
+
+      var p = PEOPLE[m.who];
+      var color = colorFor(p.lid, skin);
+      var sameAsPrev = (prev === m.who);
+
+      if (state === 'today'){
+        /* ── COMO ESTÁ: tudo dentro do texto, sem avatar, sem cor ── */
+        var raw =
+          '<span class="prefix">👥 <b>' + esc(p.name) +
+          ' <span class="lidtag">(' + p.lid + '@lid)</span></b></span>\n\n' + esc(m.text);
+        if (m.edited) raw += '\n\n<span style="opacity:.7">✏️ <i>Editado no WhatsApp</i></span>';
+
+        row.innerHTML =
+          '<div class="av ghost"></div>' +
+          '<div class="bub first"><div class="raw">' + raw + '</div>' +
+          '<span class="meta">' + m.time + ' <span class="ck">✓✓</span></span></div>';
+        thread.appendChild(row);
+
+        if (m.reaction){
+          var rHoje = document.createElement('div');
+          rHoje.className = 'row';
+          rHoje.innerHTML =
+            '<div class="av ghost"></div>' +
+            '<div class="bub first"><div class="raw">' +
+            '<span class="prefix">👥 <b>' + esc(PEOPLE.rogerio.name) +
+            ' <span class="lidtag">(' + PEOPLE.rogerio.lid + '@lid)</span></b></span>\n\n' +
+            '<i>Reagiu com ' + m.reaction + '</i></div>' +
+            '<span class="meta">09:03</span></div>';
+          thread.appendChild(rHoje);
+        }
+        prev = null;
+        return;
+      }
+
+      /* ── PROPOSTO: autor estruturado ── */
+      if (sameAsPrev) row.className = 'row tight';
+
+      var avatar = sameAsPrev
+        ? '<div class="av ghost"></div>'
+        : '<div class="av" style="background:' + color + '">' + initials(p.name) + '</div>';
+
+      var authorLine = sameAsPrev ? '' :
+        '<span class="authorwrap"><span class="author" tabindex="0" style="color:' + color + '">' +
+          esc(p.name) +
+          '<span class="tip"><b>' + esc(p.name) + '</b>' +
+          '<span class="ph">' + p.phone + '</span>' +
+          '<span class="hint">Clique para ver o contato</span></span>' +
+        '</span></span>';
+
+      var body = esc(m.text);
+      if (m.edited) body += ' <span style="font-size:11px;opacity:.6">· editada</span>';
+
+      row.innerHTML =
+        avatar +
+        '<div class="bub' + (sameAsPrev ? '' : ' first') + '">' +
+          authorLine +
+          '<div>' + body + '</div>' +
+          '<span class="meta">' + m.time + ' <span class="ck">✓✓</span></span>' +
+        '</div>';
+      thread.appendChild(row);
+
+      if (m.reaction){
+        var chip = document.createElement('div');
+        chip.className = 'reactchip';
+        chip.title = 'Rogerio José Da Silva reagiu';
+        chip.textContent = m.reaction + ' 1';
+        thread.appendChild(chip);
+      }
+      prev = m.who;
+    });
+  }
+
+  function renderHeader(){
+    if (state === 'today'){
+      hdrName.textContent = 'TI TOZI - Inovação (GROUP)';
+      hdrSub.textContent  = 'visto por último hoje às 09:03';
+      hdrBadge.hidden = true;
+    } else {
+      hdrName.textContent = 'TI TOZI - Inovação';
+      hdrSub.textContent  = '12 participantes · Suporte WhatsApp';
+      hdrBadge.hidden = false;
+    }
+    hdrAv.style.background = colorFor('5566999991379-1634750731@g.us', skin);
+  }
+
+  function render(){
+    screenEl.setAttribute('data-skin', skin);
+    renderHeader();
+    renderThread();
+  }
+
+  /* ── controles ── */
+  function wireSeg(attr, fn){
+    document.querySelectorAll('[' + attr + ']').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var group = btn.parentElement;
+        group.querySelectorAll('button').forEach(function(b){
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
+        fn(btn.getAttribute(attr));
+      });
+    });
+  }
+
+  wireSeg('data-state-btn', function(v){ state = v; render(); });
+  wireSeg('data-skin-btn',  function(v){ skin  = v; render(); });
+
+  /* ── painel de integrantes ── */
+  var MEMBERS = [
+    { key:'angela',  admin:true  },
+    { key:'rogerio', admin:true  },
+    { key:'ederson', admin:false },
+    { key:'walisson',admin:false },
+    { key:'unknown', admin:false }
+  ];
+
+  var panel = document.getElementById('panel');
+  var panelScreen = document.getElementById('panelScreen');
+  var panelState = 'ok';
+  var panelSkin  = 'light';
+
+  function memberRow(key){
+    if (key === 'unknown'){
+      return '<div class="member unknown">' +
+        '<div class="av unknown">?</div>' +
+        '<div class="grow"><div class="nm">Participante não identificado</div>' +
+        '<div class="ph">—</div></div></div>';
+    }
+    var p = PEOPLE[key];
+    var c = colorFor(p.lid, panelSkin);
+    return '<div class="member">' +
+      '<div class="av" style="background:' + c + '">' + initials(p.name) + '</div>' +
+      '<div class="grow"><div class="nm">' + esc(p.name) + '</div>' +
+      '<div class="ph">' + p.phone + '</div></div>' +
+      (p.admin ? '<span class="adm">Admin</span>' : '') +
+    '</div>';
+  }
+
+  function renderPanel(){
+    panelScreen.setAttribute('data-skin', panelSkin);
+
+    if (panelState === 'empty'){
+      panel.innerHTML =
+        '<div class="panel-hd">Integrantes</div>' +
+        '<div class="panel-empty">' +
+          '<div class="ico">👥</div>' +
+          '<h4>Integrantes ainda não sincronizados</h4>' +
+          '<p>O ChatSPX ainda não recebeu a lista de participantes deste grupo.</p>' +
+          '<button class="btn-sync" type="button">Sincronizar agora</button>' +
+        '</div>';
+      return;
+    }
+
+    var alert = panelState === 'stale'
+      ? '<div class="alertbar"><span>⚠</span><span>Não foi possível carregar os integrantes. ' +
+        'Mostrando a última lista recebida. <button type="button">Tentar novamente</button></span></div>'
+      : '';
+
+    var admins = MEMBERS.filter(function(m){ return m.admin; });
+    var others = MEMBERS.filter(function(m){ return !m.admin && m.key !== 'unknown'; });
+    var unk    = MEMBERS.filter(function(m){ return m.key === 'unknown'; });
+
+    panel.innerHTML =
+      '<div class="panel-hd">Integrantes <span class="count">(12)</span>' +
+        '<span class="sync" title="Sincronizar">⟳</span></div>' +
+      alert +
+      admins.map(function(m){ return memberRow(m.key); }).join('') +
+      '<div class="divider"></div>' +
+      others.map(function(m){ return memberRow(m.key); }).join('') +
+      unk.map(function(m){ return memberRow(m.key); }).join('') +
+      '<div class="panel-ft">' +
+        (panelState === 'stale' ? 'Sincronizado há 3 dias' : 'Sincronizado há 4 min') +
+      '</div>';
+  }
+
+  wireSeg('data-panel-btn',  function(v){ panelState = v; renderPanel(); });
+  wireSeg('data-pskin-btn',  function(v){ panelSkin  = v; renderPanel(); });
+
+  /* ── skin dos exemplos de autor ── */
+  wireSeg('data-cskin-btn', function(v){
+    document.querySelectorAll('[data-case]').forEach(function(el){
+      el.setAttribute('data-skin', v);
+    });
+    /* recolore autores e avatares conforme o skin */
+    var map = {
+      'Angela Tozi': PEOPLE.angela.lid,
+      '+55 66 9 9888-4321': PEOPLE.ederson.lid
+    };
+    document.querySelectorAll('[data-case] .author:not(.unknown)').forEach(function(a){
+      var label = a.childNodes[0].textContent.trim();
+      var key = map[label];
+      if (!key) return;
+      var c = colorFor(key, v);
+      a.style.color = c;
+      var row = a.closest('.row');
+      var av = row && row.querySelector('.av:not(.unknown)');
+      if (av) av.style.background = c;
+    });
+  });
+
+  render();
+  renderPanel();
+})();
+</script>
+
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var btn  = document.getElementById('themeToggle');
+  var lbl  = document.getElementById('themeLabel');
+
+  function current(){
+    var forced = root.getAttribute('data-theme');
+    if (forced) return forced;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function paint(){
+    var t = current();
+    lbl.textContent = t === 'dark' ? 'Escuro' : 'Claro';
+    btn.setAttribute('aria-label', 'Tema ' + lbl.textContent + '. Clique para alternar.');
+  }
+  btn.addEventListener('click', function(){
+    root.setAttribute('data-theme', current() === 'dark' ? 'light' : 'dark');
+    paint();
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paint);
+  paint();
+})();
+</script>
+</body>
+</html>

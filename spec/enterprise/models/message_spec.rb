@@ -168,4 +168,56 @@ RSpec.describe Message do
       expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
     end
   end
+
+  # Guarda B da fila "Aguardando encerramento": o marcador cai quando o CLIENTE volta a falar.
+  # O sinal é a mensagem incoming — NÃO a transição de `waiting_since`, que satura (o campo só
+  # é populado quando está vazio) e cujo update sequer acontece no segundo incoming seguido.
+  describe 'fila de encerramento — cliente que volta a falar' do
+    let(:conversation) { create(:conversation) }
+    let(:captain_assistant) { create(:captain_assistant, account: conversation.account) }
+    let(:desde) { 2.days.ago.iso8601 }
+
+    before do
+      conversation.update!(custom_attributes: { 'aguardando_encerramento_desde' => desde })
+    end
+
+    # O caso das conversas presas: a conversa entrou na fila com `waiting_since` JÁ preenchido
+    # (o cliente falou por último e a IA não respondeu). O incoming novo não gera transição.
+    it 'limpa o marcador quando o cliente fala e waiting_since já estava preenchido' do
+      expect(conversation.reload.waiting_since).to be_present
+
+      create(:message, message_type: :incoming, conversation: conversation)
+
+      expect(conversation.reload.custom_attributes).not_to have_key('aguardando_encerramento_desde')
+    end
+
+    it 'limpa o marcador quando o cliente fala depois de a IA ter respondido (waiting_since nil)' do
+      create(:message, message_type: :outgoing, conversation: conversation, sender: captain_assistant)
+      expect(conversation.reload.waiting_since).to be_nil
+
+      create(:message, message_type: :incoming, conversation: conversation)
+
+      expect(conversation.reload.custom_attributes).not_to have_key('aguardando_encerramento_desde')
+    end
+
+    it 'limpa também os marcadores do aviso de encerramento' do
+      conversation.update!(custom_attributes: { 'encerramento_avisado_em' => desde, 'encerramento_classe' => 'trivial' })
+
+      create(:message, message_type: :incoming, conversation: conversation)
+
+      expect(conversation.reload.custom_attributes).to be_empty
+    end
+
+    it 'não limpa o marcador quando quem responde é a própria IA' do
+      create(:message, message_type: :outgoing, conversation: conversation, sender: captain_assistant)
+
+      expect(conversation.reload.custom_attributes).to have_key('aguardando_encerramento_desde')
+    end
+
+    it 'não limpa o marcador em nota privada' do
+      create(:message, message_type: :incoming, conversation: conversation, private: true)
+
+      expect(conversation.reload.custom_attributes).to have_key('aguardando_encerramento_desde')
+    end
+  end
 end

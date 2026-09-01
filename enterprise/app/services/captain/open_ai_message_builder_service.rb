@@ -1,12 +1,32 @@
 class Captain::OpenAiMessageBuilderService
-  pattr_initialize [:message!]
+  # `assistant` e opcional: sem ele o builder monta o contexto exatamente como sempre montou.
+  # Ele so existe pra consultar a politica de midia (Captain::Behavior::MediaPipelineService),
+  # que vive no behavior do agente.
+  pattr_initialize [:message!, :assistant]
 
   # Placeholder usado quando um áudio ainda não tem transcrição em cache — a transcrição
   # roda em background (ver #extract_audio_transcriptions), nunca síncrona neste caminho.
   AUDIO_PLACEHOLDER = '[áudio]'.freeze
 
+  # Rótulo da transcrição. Vira constante porque a string literal estava só aqui e o spec
+  # carregava a expectativa antiga: quando o rótulo nasceu (25/07, fix do falso positivo
+  # anti-bot), três exemplos passaram a falhar e ninguém os atualizou. Com a constante, spec
+  # e código não podem mais divergir em silêncio.
+  AUDIO_TRANSCRIPTION_LABEL = '[áudio transcrito automaticamente — pode conter erros de transcrição]'.freeze
+
   # Placeholder de texto pra mensagem só-imagem (sem legenda) — ver #ensure_text_part.
   IMAGE_PLACEHOLDER = '[imagem]'.freeze
+
+  # Rótulo da descrição de imagem gerada por modelo. Mesmo motivo do rótulo da transcrição
+  # de áudio: sem ele, texto escrito por um modelo fica indistinguível do que o cliente
+  # escreveu, e um erro de descrição vira "fato" na boca do agente.
+  IMAGE_DESCRIPTION_LABEL = '[imagem descrita automaticamente — pode conter erros de descrição]'.freeze
+
+  # Mesmo motivo dos outros dois rótulos: o agente precisa saber que aquilo foi lido por uma
+  # máquina. Vídeo tem dois porque são duas leituras diferentes do mesmo arquivo — o que está
+  # ESCRITO na tela e o que é FALADO —, e uma conta pode ligar só uma delas.
+  VIDEO_DESCRIPTION_LABEL = '[vídeo descrito automaticamente a partir de quadros — pode conter erros de descrição]'.freeze
+  VIDEO_TRANSCRIPTION_LABEL = '[áudio do vídeo transcrito automaticamente — pode conter erros de transcrição]'.freeze
 
   # Extracts text + attachment URLs (imagens e PDFs) do array multimodal (reverso do
   # generate_content). PDFs entram junto com as imagens: o RubyLLM detecta o tipo e manda
@@ -69,7 +89,9 @@ class Captain::OpenAiMessageBuilderService
     # de fora (o Captain ainda não lê vídeo) e segue como nota de texto.
     story_images, story_others = attachments.where(file_type: :ig_story).partition { |a| image_attachment?(a) }
 
-    image_content = image_parts(attachments.where(file_type: :image) + story_images)
+    images = attachments.where(file_type: :image) + story_images
+    image_content = image_parts(images)
+    description_part = optional_text_part(extract_image_descriptions(images))
 
     transcription_part = optional_text_part(extract_audio_transcriptions(attachments))
     location_part = optional_text_part(extract_locations(attachments))
@@ -81,10 +103,88 @@ class Captain::OpenAiMessageBuilderService
     # deixá-lo aqui faria o cartão contar duas vezes — uma como texto com nome e telefone, outra
     # como "User has shared an attachment".
     others = attachments.where.not(file_type: %i[image audio location contact ig_story]).to_a + story_others
+
+    # Vídeo com leitura gravada sai do balde genérico pelo mesmo motivo do vCard: senão a
+    # mesma mídia entra duas vezes, uma como o que ela diz e outra como "User has shared an
+    # attachment". Vídeo SEM leitura (conta com a chave desligada, ffmpeg mudo, job ainda na
+    # fila) continua no balde — o agente segue sabendo que veio um anexo.
+    video_part = optional_text_part(extract_video_context(others))
+    others -= videos_ja_lidos(others)
+
     pdf_content = others.select { |a| pdf_attachment?(a) }.filter_map { |a| (u = get_attachment_url(a)) && file_part(u) }
     attachment_part = text_part('User has shared an attachment') if others.any? { |a| !pdf_attachment?(a) }
 
-    [image_content, pdf_content, transcription_part, location_part, contacts_part, attachment_part].flatten.compact
+    [image_content, description_part, pdf_content, transcription_part, video_part,
+     location_part, contacts_part, attachment_part].flatten.compact
+  end
+
+  # O que a camada de mídia leu do vídeo: o texto ESCRITO na tela (descrição por quadros) e o
+  # que foi FALADO (transcrição). São duas chaves independentes por conta — medido: no story
+  # da Tozi o dado está escrito e o áudio é trilha musical; na BigStore a informação do
+  # produto é narrada. Só LÊ o cache; quem grava é o job disparado na chegada do anexo.
+  # Desligar a chave para de gravar E para de injetar o que já foi gravado, no mesmo gesto.
+  def extract_video_context(attachments)
+    attachments.select { |att| video_attachment?(att) }.filter_map { |att| video_context_line(att) }.join(' ')
+  end
+
+  def videos_ja_lidos(attachments)
+    attachments.select { |att| video_attachment?(att) && video_context_line(att).present? }
+  end
+
+  def video_context_line(attachment)
+    meta = attachment.meta || {}
+    partes = []
+    if video_description_enabled?
+      descricao = meta[Captain::MediaDescriptionService::META_KEY].to_s.strip
+      partes << "#{VIDEO_DESCRIPTION_LABEL}: #{descricao}" if descricao.present?
+    end
+    if video_transcription_enabled?
+      fala = meta[Captain::MediaDescriptionService::TRANSCRIPTION_META_KEY].to_s.strip
+      partes << "#{VIDEO_TRANSCRIPTION_LABEL}: #{fala}" if fala.present?
+    end
+    partes.presence&.join(' ')
+  end
+
+  def video_description_enabled?
+    media_policy&.video_description? || false
+  end
+
+  def video_transcription_enabled?
+    media_policy&.video_transcription? || false
+  end
+
+  def media_policy
+    return nil if @assistant.blank?
+
+    @media_policy ||= Captain::Behavior::MediaPipelineService.new(assistant: @assistant, message: @message)
+  end
+
+  # Vídeo? Mesma lógica do `image_attachment?`: content_type do blob e, no fallback, a
+  # extensão da URL — o story do Instagram chega como :ig_story nos dois formatos.
+  def video_attachment?(attachment)
+    return true if attachment.file.attached? && attachment.file.blob.content_type.to_s.start_with?('video/')
+
+    get_attachment_url(attachment).to_s.split('?').first.to_s.downcase.end_with?('.mp4', '.mov', '.webm', '.3gp')
+  end
+
+  # Descrição de imagem produzida pela camada de mídia (Captain::MediaDescriptionService),
+  # gravada em `attachment.meta` quando a conta liga `media_pipeline.image_description`.
+  # A imagem CONTINUA indo como visão direta: a descrição é contexto adicional, não troca —
+  # tirar a visão regrediria o que o modelo já lê hoje (documento fotografado, por exemplo).
+  # Só LÊ o cache; quem descreve é o job disparado na chegada do anexo. Sem a chave ligada,
+  # ou sem descrição gravada, este método não produz nada e o contexto sai idêntico ao de hoje.
+  def extract_image_descriptions(image_attachments)
+    return '' unless image_description_enabled?
+
+    image_attachments.filter_map { |att| att.meta&.[](Captain::MediaDescriptionService::META_KEY).to_s.strip.presence }
+                     .map { |texto| "#{IMAGE_DESCRIPTION_LABEL}: #{texto}" }
+                     .join(' ')
+  end
+
+  def image_description_enabled?
+    return false if @assistant.blank?
+
+    Captain::Behavior::MediaPipelineService.new(assistant: @assistant, message: @message).image_description?
   end
 
   def optional_text_part(text)
@@ -207,7 +307,7 @@ class Captain::OpenAiMessageBuilderService
     # Marca a origem: sem o rótulo, a transcrição é indistinguível de texto DIGITADO e
     # uma palavra transcrita errado vira "evidência" de robô/spam pro agente (caso real:
     # saudação por áudio transcrita com nome estranho foi silenciada como spam por 16h).
-    return "[áudio transcrito automaticamente — pode conter erros de transcrição]: #{cached}" if cached.present?
+    return "#{AUDIO_TRANSCRIPTION_LABEL}: #{cached}" if cached.present?
 
     Messages::AudioTranscriptionJob.perform_later(attachment.id)
     AUDIO_PLACEHOLDER

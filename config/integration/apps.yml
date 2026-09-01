@@ -301,7 +301,7 @@ meta_lead_ads:
         'label': 'Variáveis do corpo do HSM (campos do lead, em ordem)',
         'type': 'text',
         'name': 'whatsapp_template_body_fields',
-        'help': 'Campos que preenchem {{1}}, {{2}}, ... na ordem, separados por vírgula. Opções: first_name, full_name, ad_name, campaign_name, city, email, phone. Padrão: first_name. Deixe vazio se o template não tem variáveis no corpo.',
+        'help': 'Campos que preenchem {{1}}, {{2}}, ... na ordem, separados por vírgula. Opções: first_name, full_name, ad_name, campaign_name, city, email, phone, empreendimento. Vazio NÃO é "sem variável": vazio vira first_name, e um {{1}} num template sem variável faz a Meta recusar a abertura (#132000). Template sem variável no corpo: escreva none.',
       },
       {
         'label': 'Modo teste — não enviar 1ª mensagem',

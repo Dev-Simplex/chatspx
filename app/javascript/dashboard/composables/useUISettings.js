@@ -3,6 +3,7 @@ import { useStore, useStoreGetters } from 'dashboard/composables/store';
 
 export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'conversation_media' },
+  { name: 'group_participants' },
   { name: 'conversation_actions' },
   { name: 'kanban_status' },
   { name: 'macros' },
@@ -50,6 +51,13 @@ const useConversationSidebarItemsOrder = uiSettings => {
         // conversation_media goes at the top when first added; others at the end.
         if (item.name === 'conversation_media') {
           itemsOrderCopy.unshift(item);
+        } else if (item.name === 'group_participants') {
+          // Integrantes é a segunda coisa que o agente procura num grupo:
+          // entra logo abaixo de "Mídias e Arquivos", não no fim da lista.
+          const mediaIndex = itemsOrderCopy.findIndex(
+            i => i.name === 'conversation_media'
+          );
+          itemsOrderCopy.splice(mediaIndex + 1, 0, item);
         } else {
           itemsOrderCopy.push(item);
         }

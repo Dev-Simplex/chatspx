@@ -127,9 +127,7 @@ const inboxName = hook => (hook.inbox ? hook.inbox.name : '');
               <BaseTableCell align="end" class="w-12">
                 <div class="flex justify-end gap-3 flex-shrink-0">
                   <NextButton
-                    v-tooltip.top="
-                      $t('INTEGRATION_APPS.LIST.EDIT.BUTTON_TEXT')
-                    "
+                    v-tooltip.top="$t('INTEGRATION_APPS.LIST.EDIT.BUTTON_TEXT')"
                     icon="i-woot-edit-pen"
                     slate
                     sm

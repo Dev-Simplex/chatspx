@@ -7,6 +7,16 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
   let!(:team) { create(:team, account: account) }
   let(:team_member) { create(:team_member, team: team, user: admin) }
 
+  # Reproduz a orfa de producao: o contato foi apagado e a conversa ficou com contact_id NULL,
+  # sem contato nem contact_inbox. `update_column` porque `belongs_to :contact` e obrigatorio
+  # (load_defaults 7.0) e barraria qualquer save — que e justamente por que a orfa nao pode ser
+  # mostrada na fila: o agente nao conseguiria encerra-la.
+  def create_orphan_conversation(**attrs)
+    conversation = create(:conversation, **attrs)
+    conversation.update_column(:contact_id, nil) # rubocop:disable Rails/SkipsModelValidations
+    conversation
+  end
+
   describe 'GET /api/v2/accounts/{account.id}/live_reports/conversation_metrics' do
     context 'when unauthenticated' do
       it 'returns unauthorized' do
@@ -443,6 +453,88 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
         )
         expect(payload['last_message']).to be_present
       end
+    end
+
+    context 'when the conversation is unreachable from the agent queue' do
+      let(:assignee1) { create(:user, account: account) }
+
+      it 'omits conversations whose contact was blocked' do
+        blocked = create(:contact, account: account, blocked: true)
+        create(:conversation, account: account, status: :open, assignee_id: assignee1.id, contact: blocked)
+        visible = create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
+
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent', assignee_id: assignee1.id },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['payload'].pluck('id')).to contain_exactly(visible.display_id)
+      end
+
+      it 'omits orphan conversations whose contact no longer exists' do
+        create_orphan_conversation(account: account, status: :open, assignee_id: assignee1.id)
+        visible = create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
+
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent', assignee_id: assignee1.id },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['payload'].pluck('id')).to contain_exactly(visible.display_id)
+      end
+    end
+  end
+
+  describe 'contagem do painel x fila do agente' do
+    let(:assignee1) { create(:user, account: account) }
+
+    # o finder le Current.account; sem o reset o valor vaza pros exemplos seguintes do processo
+    after { Current.reset }
+
+    it 'nao conta no overview a conversa bloqueada nem a orfa' do
+      blocked = create(:contact, account: account, blocked: true)
+      create(:conversation, account: account, status: :open, assignee_id: assignee1.id, contact: blocked)
+      create_orphan_conversation(account: account, status: :open, assignee_id: assignee1.id)
+      create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
+      # sem dono => entra em `waiting` (pending OR assignee_id IS NULL) sem depender
+      # do flag pending_status_enabled? do inbox
+      create(:conversation, account: account, status: :open)
+
+      get "/api/v2/accounts/#{account.id}/live_reports/in_service_overview",
+          headers: admin.create_new_auth_token,
+          as: :json
+
+      expect(response).to have_http_status(:success)
+
+      response_data = response.parsed_body
+      expect(response_data['totals']).to include(
+        'in_service' => 2,
+        'waiting' => 1,
+        'agents_with_conversations' => 1
+      )
+      expect(response_data['agents']).to contain_exactly(
+        { 'assignee_id' => assignee1.id, 'in_service' => 1, 'open' => 1, 'pending' => 0 }
+      )
+    end
+
+    # admin de proposito: agente comum ainda sofre o filtro de caixa/time do finder, que o painel
+    # ignora — esse gap e outro assunto. Aqui o alvo e so o contato bloqueado/apagado.
+    it 'faz o total do card bater com o mine_count da fila do agente' do
+      blocked = create(:contact, account: account, blocked: true)
+      create(:conversation, account: account, status: :open, assignee_id: admin.id, contact: blocked)
+      create_orphan_conversation(account: account, status: :open, assignee_id: admin.id)
+      create(:conversation, account: account, status: :open, assignee_id: admin.id)
+
+      overview = LiveReports::InServiceQueryService.new(account: account, params: {}).overview
+      card_total = overview[:agents].find { |a| a[:assignee_id] == admin.id }[:in_service]
+
+      Current.account = account
+      mine_count = ConversationFinder.new(admin, { assignee_type: 'me', status: 'open' })
+                                     .perform_counts_only[:count][:mine_count]
+
+      expect(card_total).to eq(1).and eq(mine_count)
     end
   end
 end

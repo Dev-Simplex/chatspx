@@ -23,6 +23,7 @@ import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
+import { useGroupConversation } from 'dashboard/composables/useGroupConversation';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { formatDistanceToNowStrict } from 'date-fns';
@@ -43,6 +44,16 @@ const store = useStore();
 const route = useRoute();
 const conversationHeader = ref(null);
 const { width } = useElementSize(conversationHeader);
+
+// Identidade antes de enfeite. O bloco de ações da direita ocupa 323px que não
+// encolhem; somando avatar (40+12), nome (até 172) e etiqueta "Grupo" (66+4), o
+// conjunto só cabe a partir de ~617px de largura ÚTIL de cabeçalho. Abaixo
+// disso o nome de quem está do outro lado era o único a ceder — chegava a 0px
+// em 1280. Acima do limite nada muda. Ver plano/captain-v2/relatos/C1.md.
+const HEADER_WIDTH_FOR_CHIPS = 620;
+const hasRoomForChips = computed(
+  () => width.value === 0 || width.value >= HEADER_WIDTH_FOR_CHIPS
+);
 const { isAWebWidgetInbox } = useInbox();
 const showMessageSearch = ref(false);
 
@@ -128,6 +139,34 @@ const presenceText = computed(() => {
   if (isContactOnline.value) return t('CONVERSATION.HEADER.ONLINE');
   return lastSeenLabel.value;
 });
+
+// --- Conversa de grupo (WhatsApp/WAHA) -----------------------------------
+// Grupo não tem presença: "visto por último" mostraria o last_seen_at do
+// contato-grupo, um dado sem significado. A linha vira a contagem de
+// integrantes, lida do snapshot em additional_attributes.waha_group.
+const chatRef = computed(() => props.chat);
+const { isGroup, groupName, hasSnapshot, participantCount } =
+  useGroupConversation(chatRef);
+
+/** Nome exibido: em grupo, sem o sufixo "(GROUP)" que a integração gruda. */
+const displayName = computed(() => {
+  const name = currentContact.value?.name || '';
+  return isGroup.value ? groupName.value || name : name;
+});
+
+const groupSubtitle = computed(() => {
+  // Sem snapshot, é honesto dizer que não sincronizou — "0 participantes" seria mentira.
+  if (!hasSnapshot.value || !participantCount.value) {
+    return t('GROUP_INFO.HEADER_NOT_SYNCED');
+  }
+  return participantCount.value === 1
+    ? t('GROUP_INFO.PARTICIPANTS_COUNT_ONE')
+    : t('GROUP_INFO.PARTICIPANTS_COUNT', { count: participantCount.value });
+});
+
+const sublineText = computed(() =>
+  isGroup.value ? groupSubtitle.value : presenceText.value
+);
 
 const isSnoozed = computed(
   () => currentChat.value.status === wootConstants.STATUS_TYPE.SNOOZED
@@ -341,7 +380,7 @@ const whatsAppWindowIcon = computed(() => {
       />
       <Thumbnail
         :src="currentContact.thumbnail"
-        :username="currentContact.name"
+        :username="displayName"
         :status="
           isContactOnline ? 'online' : currentContact.availability_status
         "
@@ -371,7 +410,7 @@ const whatsAppWindowIcon = computed(() => {
             <span
               class="wa-contact-name truncate text-n-slate-12 group-hover:text-n-brand transition-colors"
             >
-              {{ currentContact.name }}
+              {{ displayName }}
             </span>
             <span
               class="i-lucide-pencil size-3.5 flex-shrink-0 text-n-slate-11 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -387,6 +426,18 @@ const whatsAppWindowIcon = computed(() => {
               {{ $t('CONVERSATION.HEADER.NAME_CONTACT') }}
             </span>
           </button>
+          <!-- Selo de GRUPO: fica FORA dos botoes de edicao de nome de proposito, senao
+               sumiria junto com o nome no ramo em que o contato ainda nao tem nome.
+               O nome usa `displayName` (e nao `currentContact.name`) para nao perder o
+               tratamento de contato sem nome / grupo que ja existia. -->
+          <span
+            v-if="isGroup && hasRoomForChips"
+            v-tooltip="$t('GROUP_INFO.BADGE_TOOLTIP')"
+            class="wa-group-badge inline-flex items-center gap-1 flex-shrink-0 px-[7px] py-px rounded-full border border-n-weak text-[10.5px] font-semibold tracking-wide text-n-slate-11"
+          >
+            <span class="i-lucide-users size-3" />
+            {{ $t('GROUP_INFO.BADGE') }}
+          </span>
           <fluent-icon
             v-if="!isHMACVerified"
             v-tooltip="$t('CONVERSATION.UNVERIFIED_SESSION')"
@@ -396,15 +447,15 @@ const whatsAppWindowIcon = computed(() => {
           />
         </div>
         <div
-          v-if="presenceText"
+          v-if="sublineText"
           class="wa-contact-presence text-[12px] leading-tight truncate"
           :class="
-            isContactTyping || isContactOnline
+            !isGroup && (isContactTyping || isContactOnline)
               ? 'text-n-teal-11'
               : 'text-n-slate-11'
           "
         >
-          {{ presenceText }}
+          {{ sublineText }}
         </div>
 
         <div
@@ -429,7 +480,7 @@ const whatsAppWindowIcon = computed(() => {
     </div>
     <div class="flex items-center gap-1 flex-shrink-0">
       <ConversationStatusActions
-        v-if="currentChat.id"
+        v-if="currentChat.id && hasRoomForChips"
         :chat="currentChat"
         class="hidden md:inline-flex"
       />

@@ -11,8 +11,12 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
   let(:tool_context) { Struct.new(:state).new({ conversation: { id: conversation.id } }) }
 
   describe '#description' do
-    it 'returns the correct description' do
-      expect(tool.description).to eq('Hand off the conversation to a human agent when unable to assist further')
+    # Gatilho POSITIVO: a descrição antiga ("when unable to assist further") fazia a IA
+    # quase nunca chamar o tool — uma IA que atende bem nunca se considera "unable" —
+    # e nenhum lead chegava ao humano. Passar o lead qualificado é o caminho normal.
+    it 'frames the handoff as a normal step, not as giving up' do
+      expect(tool.description).to include('Passa a conversa para um ATENDENTE HUMANO')
+      expect(tool.description).to include('A IA continua respondendo normalmente até um humano assumir')
     end
 
     it 'enumerates the account teams when present (C6)' do
@@ -23,7 +27,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
 
       description = described_class.new(assistant).description
 
-      expect(description).to include('Hand off the conversation to a human agent when unable to assist further')
+      expect(description).to include('Passa a conversa para um ATENDENTE HUMANO')
       expect(description).to include("#{team_a.id}: #{team_a.name}")
       expect(description).to include("#{team_b.id}: #{team_b.name}")
       expect(description).not_to include("#{other_account_team.id}: #{other_account_team.name}")
@@ -101,11 +105,13 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           Current.reset
         end
 
-        it 'logs tool usage with reason' do
+        # O log carrega segmento e prioridade pra dar pra medir handoff por comportamento
+        # de qualificação (conversa sem campanha => segmento nil, prioridade nil).
+        it 'logs tool usage with reason, segment and priority' do
           reason = 'Customer needs help'
           expect(tool).to receive(:log_tool_usage).with(
             'tool_handoff',
-            { conversation_id: conversation.id, reason: reason }
+            { conversation_id: conversation.id, segmento: nil, prioridade: nil, reason: reason }
           )
 
           tool.perform(tool_context, reason: reason)
@@ -188,12 +194,15 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
             .and_return({ team_user.id.to_s => 'online' })
         end
 
-        it 'releases the captain mirror before the handoff' do
+        # Modelo A (decisão do Paulo): a IA NÃO solta a conversa no handoff — segue dona e
+        # respondendo até um humano PUXAR a atribuição. Soltar o espelho aqui deixaria o
+        # cliente sem ninguém no intervalo entre o handoff e alguém assumir de fato.
+        it 'keeps the AI mirror, which goes on answering until a human takes over' do
           perform_enqueued_jobs do
             tool.perform(tool_context, reason: 'Customer needs a broker', team_id: team.id.to_s)
           end
 
-          expect(conversation.reload.assignee_agent_bot_id).to be_nil
+          expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
         end
 
         it 'keeps the team (conversation lands in the team queue)' do
@@ -212,7 +221,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           expect(conversation.reload.assignee).to be_nil
         end
 
-        it 'leaves the conversation open + team + no owner + no mirror (estável, F1.3)' do
+        it 'leaves the conversation open + team + no owner, with the AI still on duty (estável, F1.3)' do
           perform_enqueued_jobs do
             tool.perform(tool_context, reason: 'Precisa de humano', team_id: team.id.to_s)
           end
@@ -221,7 +230,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           expect(conversation.status).to eq('open')
           expect(conversation.team_id).to eq(team.id)
           expect(conversation.assignee_id).to be_nil
-          expect(conversation.assignee_agent_bot_id).to be_nil
+          expect(conversation.assignee_agent_bot_id).to eq(mirror.id)
         end
 
         it 'sets the aguardando_humano_desde marker' do
@@ -244,7 +253,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
         it 'logs tool usage with default reason' do
           expect(tool).to receive(:log_tool_usage).with(
             'tool_handoff',
-            { conversation_id: conversation.id, reason: 'Agent requested handoff' }
+            { conversation_id: conversation.id, segmento: nil, prioridade: nil, reason: 'Agent requested handoff' }
           )
 
           tool.perform(tool_context)
@@ -313,6 +322,110 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
       it 'returns error message' do
         result = tool.perform(tool_context, reason: 'Test')
         expect(result).to eq('Conversation not found')
+      end
+    end
+  end
+
+  # Conta com times de marcas/unidades diferentes no mesmo cadastro: o modelo lê a marca no
+  # nome do time e roteia o cliente de uma pra outra. A allowlist restringe o DESTINO do
+  # handoff. É opt-in: sem a chave, nenhuma conta muda de comportamento.
+  describe 'allowlist de times por conta (handoff_allowed_team_ids)' do
+    let!(:team_marca_a) { create(:team, account: account, name: 'Vendas Marca A').reload }
+    let!(:team_marca_b) { create(:team, account: account, name: 'Vendas Marca B').reload }
+
+    context 'without the key (comportamento de hoje, inalterado)' do
+      it 'enumerates every team of the account' do
+        description = described_class.new(assistant).description
+
+        expect(description).to include("#{team_marca_a.id}: #{team_marca_a.name}")
+        expect(description).to include("#{team_marca_b.id}: #{team_marca_b.name}")
+      end
+
+      it 'routes to any team of the account' do
+        tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_b.id.to_s)
+
+        expect(conversation.reload.team_id).to eq(team_marca_b.id)
+      end
+    end
+
+    context 'with the key' do
+      before { account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [team_marca_a.id] }) }
+
+      it 'enumerates only the allowlisted teams' do
+        description = described_class.new(assistant).description
+
+        expect(description).to include("#{team_marca_a.id}: #{team_marca_a.name}")
+        expect(description).not_to include("#{team_marca_b.id}: #{team_marca_b.name}")
+      end
+
+      it 'still routes to an allowlisted team' do
+        tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_a.id.to_s)
+
+        expect(conversation.reload.team_id).to eq(team_marca_a.id)
+      end
+
+      # O que FECHA: o modelo pode passar um id que ninguém enumerou pra ele.
+      it 'refuses a team outside the allowlist even when the model asks for it' do
+        tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_b.id.to_s)
+
+        expect(conversation.reload.team_id).to be_nil
+      end
+
+      # Decisão: time recusado NÃO derruba o handoff — se comporta como id inválido e cai no
+      # time padrão do agente. Falhar deixaria o cliente ouvindo "uma pessoa vai assumir".
+      it 'falls back to the agent default team instead of failing the handoff' do
+        assistant.update!(config: assistant.config.merge('team_id' => team_marca_a.id))
+
+        result = tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_b.id.to_s)
+
+        expect(result).to include('Time humano acionado')
+        expect(conversation.reload.team_id).to eq(team_marca_a.id)
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+
+      # Allowlist que não inclui o time padrão do agente: handoff segue SEM time, que é o
+      # caminho já existente (`update_attrs[:team] = team if team`), não um erro.
+      it 'hands off without a team when the agent default is also outside the allowlist' do
+        assistant.update!(config: assistant.config.merge('team_id' => team_marca_b.id))
+
+        result = tool.perform(tool_context, reason: 'Precisa de humano')
+
+        expect(result).to include('Time humano acionado')
+        expect(conversation.reload.team_id).to be_nil
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+    end
+
+    # A chave é digitada à mão. Errar TODOS os ids (ou colar id de time de outra conta) zerava
+    # o filtro e a IA passava a não enxergar time nenhum — handoff quebrado por erro de
+    # digitação. Falha aberta: volta a ofertar todos, igual à conta sem allowlist.
+    context 'with a key that matches no team at all' do
+      it 'enumerates every team when the ids do not exist' do
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [Team.maximum(:id).to_i + 1_000] })
+
+        description = described_class.new(assistant).description
+
+        expect(description).to include("#{team_marca_a.id}: #{team_marca_a.name}")
+        expect(description).to include("#{team_marca_b.id}: #{team_marca_b.name}")
+      end
+
+      it 'enumerates every team when the ids belong to another account' do
+        other_account_team = create(:team, account: create(:account))
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [other_account_team.id] })
+
+        description = described_class.new(assistant).description
+
+        expect(description).to include("#{team_marca_a.id}: #{team_marca_a.name}")
+        expect(description).to include("#{team_marca_b.id}: #{team_marca_b.name}")
+      end
+
+      it 'still routes the handoff instead of leaving the conversation without a team' do
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => (Team.maximum(:id).to_i + 1_000).to_s })
+
+        result = tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_b.id.to_s)
+
+        expect(result).to include('Time humano acionado')
+        expect(conversation.reload.team_id).to eq(team_marca_b.id)
       end
     end
   end

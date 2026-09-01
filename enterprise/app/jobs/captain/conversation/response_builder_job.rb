@@ -1,5 +1,13 @@
 class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   MAX_MESSAGE_LENGTH = 10_000
+  # Tolerância ao comparar o preço citado na frase com o do imóvel do link — a mesma ~2% da
+  # medição do caso 42952. Absorve o arredondamento que a IA faz ("520 mil" para 519.900).
+  PRECO_TOLERANCIA = 0.02
+  # "R$ 520.000", "520.000,00", "R$ 3.200/mês", "520 mil", "1,2 milhão". Exige marcador de
+  # dinheiro ou milhar pontuado: número solto na frase é dormitório, vaga ou código.
+  # "milhão" vem ANTES de "mil" na alternância: invertido, "mil" casa o prefixo de "milhão"
+  # e 1,2 milhão vira 1.200 (a prova do caso 42952 pegou isso).
+  PRECO_CITADO = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)|(\d+(?:[.,]\d+)?)\s*(milh(?:ão|ões|oes)|mil)/i
   retry_on ActiveStorage::FileNotFoundError, attempts: 3, wait: 2.seconds
   retry_on Faraday::BadRequestError, attempts: 3, wait: 2.seconds
 
@@ -74,7 +82,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       content = if message.incoming?
                   with_reply_context(message, prepare_multimodal_message_content(message))
                 else
-                  message.content.presence || outgoing_attachment_placeholder(message)
+                  outgoing_content(message)
                 end
       with_forwardable_agent_name({ content: content, role: determine_role(message) }, message)
     end.tap { |history| injetar_notas(history) }
@@ -232,6 +240,32 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # Foto sai como outgoing de conteudo vazio; sem o codigo, todas viram o MESMO placeholder
   # no historico e o modelo nao sabe qual imovel e qual ("esse e qual?"). Carimbado pela
   # EnviarFotosImovelTool em additional_attributes['property_code'].
+  # Histórico de mensagem de SAÍDA. Mensagem entregue como payload interativo (carrossel de
+  # fotos, Flow, cta_url) tem um `content` que é rótulo de PAINEL: ele nunca chega ao cliente,
+  # porque o provider envia o payload e ignora o texto. Repassá-lo cru põe no histórico um
+  # turno que parece fala do agente — e o modelo IMITA o formato.
+  #
+  # Medido na Tozi (conta 6, conv 49439): 7 segundos depois de um carrossel real, o agente
+  # escreveu à mão "📷 Carrossel: 9 fotos do imóvel 5194" como resposta sua. Essa mensagem saiu
+  # sem interactive_payload nenhum, e o cliente recebeu a linha SEM foto — logo depois de ter
+  # recebido as fotos de verdade. Mesmo remédio dos rótulos de áudio/imagem/vídeo do
+  # OpenAiMessageBuilderService: marcar a ORIGEM em vez de tentar corrigir por conduta.
+  def outgoing_content(message)
+    return interactive_payload_placeholder(message) if interactive_payload?(message)
+
+    message.content.presence || outgoing_attachment_placeholder(message)
+  end
+
+  def interactive_payload?(message)
+    message.content_attributes.is_a?(Hash) && message.content_attributes['interactive_payload'].present?
+  end
+
+  # Mesmo formato do placeholder de foto: evento entre colchetes, não frase.
+  def interactive_payload_placeholder(message)
+    code = message.additional_attributes&.dig('property_code')
+    code.present? ? "[carrossel de fotos do imóvel #{code} enviado]" : '[mensagem interativa enviada]'
+  end
+
   def outgoing_attachment_placeholder(message)
     return '' unless message.attachments.any?
 
@@ -295,7 +329,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def prepare_multimodal_message_content(message)
-    Captain::OpenAiMessageBuilderService.new(message: message).generate_content
+    Captain::OpenAiMessageBuilderService.new(message: message, assistant: @assistant).generate_content
   end
 
   def handoff_requested?
@@ -444,8 +478,28 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # Silêncio deliberado do agente ([IGNORAR]) deixa rastro auditável: sem isso, uma
   # conversa silenciada (ex.: falso positivo de spam) fica invisível no painel e no
   # diagnóstico — nenhuma mensagem, nenhum log (caso real: conv sem resposta por 16h).
+  #
+  # Resposta VAZIA, porém, não é silêncio: o agente pede silêncio com [IGNORAR], e o próprio
+  # `unwrapped_or_silence` converte campo vazio nesse marcador. String vazia aqui significa
+  # que o run não produziu saída — falha, não decisão. Registrar as duas como 'ignored'
+  # apagava a diferença justamente onde ela importa: no painel, uma IA impedida de falar
+  # ficava idêntica a uma IA que escolheu calar. Foi assim que uma chave de LLM sem saldo
+  # passou dias despercebida (conta 7, conv 2675, 15/08 — a única pista era `raw: ""`).
   def log_ignored(content)
+    return log_empty_response if content.blank?
+
     log_behavior_event('ignored', { raw: content.to_s[0, 120] })
+    nil
+  rescue StandardError
+    nil
+  end
+
+  # `error` já existia em EVENT_TYPES e nunca era emitido por ninguém — é o lugar certo.
+  # Leva junto o `reasoning` quando o runner o preencheu (ele carimba "Error occurred: …"
+  # ao capturar a exceção do run), que costuma ser a única descrição do que falhou.
+  def log_empty_response
+    motivo = @response.is_a?(Hash) ? @response['reasoning'].to_s.strip.presence : nil
+    log_behavior_event('error', { raw: '', motivo: motivo || 'run do agente terminou sem saída' })
     nil
   rescue StandardError
     nil
@@ -606,10 +660,47 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def fix_property_links(content)
     return content unless content.match?(/toziimoveis/i)
 
-    mapa = @conversation.reload.custom_attributes&.dig('urls_imoveis') || {}
+    attrs = @conversation.reload.custom_attributes || {}
+    mapa = attrs['urls_imoveis'] || {}
+    dados = attrs['dados_imoveis'] || {}
+
     content.gsub(%r{https?://[^\s)\]]*toziimoveis\.com\.br[^\s)\]]*}i) do |url|
       match = url.scan(/\d+/).find { |n| mapa.key?(n) }
-      match ? mapa[match] : ''
+      next '' if match.nil?
+      next '' if preco_desmente_link?(Regexp.last_match&.pre_match, dados[match], match)
+
+      mapa[match]
+    end
+  end
+
+  # A troca acima garante que a URL EXISTE; não garante que ela é do imóvel descrito na
+  # frase. No caso 42952 três buscas empilharam 16 imóveis no mapa e a IA remontou os pares
+  # preço<->link de memória 13 minutos depois, errando 6 de 7 — como todos os códigos eram
+  # legítimos, nada foi barrado e a lead foi avaliar a casa errada.
+  #
+  # Aqui os preços citados na MESMA linha, antes do link, são conferidos contra o preço do
+  # imóvel para onde o link aponta. Basta UM bater pra passar: a linha costuma trazer outros
+  # valores (condomínio, entrada) e reprovar por causa deles seria falso positivo. Sem preço
+  # citado, ou sem dado do imóvel (conversa anterior a isto), não opina — só conversa nova
+  # tem dados_imoveis, então a guarda entra junto com a busca que a alimenta.
+  # Divergiu: derruba o link e deixa o texto. Ficar sem link é o mesmo desfecho que a trava
+  # já dá pra URL inventada, e é melhor que mandar a lead pra outra casa.
+  def preco_desmente_link?(antes, dado, codigo)
+    esperado = dado.is_a?(Hash) ? dado['preco'].to_f : 0.0
+    return false unless esperado.positive?
+
+    citados = precos_citados(antes.to_s[/[^\n]*\z/].to_s)
+    return false if citados.empty? || citados.any? { |c| (c - esperado).abs <= esperado * PRECO_TOLERANCIA }
+
+    log_behavior_event('property_link_mismatch', { codigo: codigo, citados: citados.map(&:round), esperado: esperado.round })
+    true
+  end
+
+  def precos_citados(trecho)
+    trecho.scan(PRECO_CITADO).filter_map do |milhar, numero, unidade|
+      next milhar.delete('.').tr(',', '.').to_f if milhar
+
+      numero.tr(',', '.').to_f * (unidade.match?(/lh/i) ? 1_000_000 : 1_000)
     end
   end
 

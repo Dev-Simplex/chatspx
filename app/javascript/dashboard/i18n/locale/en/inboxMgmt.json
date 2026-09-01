@@ -719,6 +719,18 @@
         "DESCRIPTION": "Restrict which websites can embed your chat widget. For security, only add domains you own and trust. Add one or more domains separated by commas. Leave blank to allow all domains (not recommended for production).",
         "PLACEHOLDER": "example.com, www.example.com, app.example.com"
       },
+      "PIN_MODE": {
+        "TITLE": "Pinned conversations",
+        "SUBTITLE": "Decide whether pins are stored per agent (each agent keeps their own list) or per inbox (the whole team shares the same pinned list).",
+        "PER_AGENT": {
+          "LABEL": "Per agent",
+          "HINT": "Each agent maintains their own pinned conversations."
+        },
+        "PER_INBOX": {
+          "LABEL": "Per inbox",
+          "HINT": "All agents in this inbox see the same pinned conversations."
+        }
+      },
       "AGENT_SIGNATURE": {
         "TITLE": "Sign messages with the agent's name",
         "SUBTITLE": "Prepend the agent's name to outgoing messages on the official WhatsApp Cloud API (format: *Name*:). Media sent without a caption is not signed."
@@ -755,26 +767,13 @@
       "AGENT_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, each agent can only see the messages they sent themselves. Messages from other agents appear blurred with restricted access.",
       "AGENT_CONVERSATION_ISOLATION": "Agent conversation isolation",
       "AGENT_CONVERSATION_ISOLATION_SUB_TEXT": "When enabled, an agent can only open conversations assigned to them. Others show a request prompt instead. Unassigned conversations stay available to pick up; admins see everything.",
-      "ISOLATION_PARTICIPANTS": {
-        "TITLE": "Agentes que participam",
-        "COUNT": "{selected} de {total} marcados",
-        "SELECT_ALL": "Selecionar todos",
-        "SEES_EVERYTHING": "vê tudo",
-        "SUPERVISOR_BADGE_AGENT": "isento no time dele",
-        "SUPERVISOR_BADGE_TEAM": "participa sempre",
-        "SUPERVISOR_OF": "supervisor do time {name}",
-        "SUPERVISOR_OF_MANY": "supervisor de {count} times",
-        "ADMIN_NOTE_AGENT": "Administradores não aparecem aqui: eles nunca são isolados por agente.",
-        "ADMIN_NOTE_TEAM": "Administradores não aparecem aqui — mas eles também não escapam desta regra. Para tirar o isolamento de time de um administrador, desligue a chave desta caixa.",
-        "SUPERVISOR_NOTE_AGENT": "Supervisores de time já enxergam as mensagens de qualquer agente nas conversas do time que supervisionam — por isso vêm marcados como isentos, sem caixa de seleção.",
-        "SUPERVISOR_NOTE_TEAM": "A supervisão de time isenta do isolamento por agente, não deste: aqui o supervisor participa como qualquer outro, e por isso vem marcado e sem caixa de seleção.",
-        "EMPTY": "Nenhum agente nesta caixa de entrada. Adicione agentes na aba Colaboradores.",
-        "LOADING": "Carregando os agentes da caixa...",
-        "SAVE": "Salvar lista",
-        "SAVING": "Salvando...",
-        "UNSAVED": "Alterações ainda não salvas",
-        "SAVED": "Lista de participantes atualizada",
-        "SAVE_ERROR": "Não foi possível salvar a lista. Tente de novo."
+      "ISOLATION_TEAMS": {
+        "LABEL": "Teams this rule applies to",
+        "ALL_TEAMS": "Empty list: the rule applies to ALL teams. That is the default and how it works today.",
+        "SCOPED": "The rule applies only to conversations in the selected teams. Nobody is isolated in the other teams.",
+        "NO_TEAM_NEVER_ISOLATED": "A conversation with no team is never isolated, even with the rule on: it starts without a team, before triage.",
+        "NO_TEAM_STILL_ISOLATED": "A conversation with no team STAYS isolated in this rule, whether or not you pick teams: here the block is by owner, not by team.",
+        "NO_TEAMS": "No teams in this account yet, so the rule applies to all of them."
       },
       "PENDING_STATUS": {
         "TITLE": "Allow Pending status",
@@ -822,7 +821,28 @@
       "WHATSAPP_TEMPLATES_SYNC_SUBHEADER": "Manually sync message templates from WhatsApp to update your available templates.",
       "WHATSAPP_TEMPLATES_SYNC_BUTTON": "Sync Templates",
       "WHATSAPP_TEMPLATES_SYNC_SUCCESS": "Templates sync initiated successfully. It may take a couple of minutes to update.",
-      "UPDATE_PRE_CHAT_FORM_SETTINGS": "Update Pre Chat Form Settings"
+      "UPDATE_PRE_CHAT_FORM_SETTINGS": "Update Pre Chat Form Settings",
+      "ISOLATION_PARTICIPANTS": {
+        "TITLE": "Agentes que participam",
+        "COUNT": "{selected} de {total} marcados",
+        "SELECT_ALL": "Selecionar todos",
+        "SEES_EVERYTHING": "vê tudo",
+        "SUPERVISOR_BADGE_AGENT": "isento no time dele",
+        "SUPERVISOR_BADGE_TEAM": "participa sempre",
+        "SUPERVISOR_OF": "supervisor do time {name}",
+        "SUPERVISOR_OF_MANY": "supervisor de {count} times",
+        "ADMIN_NOTE_AGENT": "Administradores não aparecem aqui: eles nunca são isolados por agente.",
+        "ADMIN_NOTE_TEAM": "Administradores não aparecem aqui — mas eles também não escapam desta regra. Para tirar o isolamento de time de um administrador, desligue a chave desta caixa.",
+        "SUPERVISOR_NOTE_AGENT": "Supervisores de time já enxergam as mensagens de qualquer agente nas conversas do time que supervisionam — por isso vêm marcados como isentos, sem caixa de seleção.",
+        "SUPERVISOR_NOTE_TEAM": "A supervisão de time isenta do isolamento por agente, não deste: aqui o supervisor participa como qualquer outro, e por isso vem marcado e sem caixa de seleção.",
+        "EMPTY": "Nenhum agente nesta caixa de entrada. Adicione agentes na aba Colaboradores.",
+        "LOADING": "Carregando os agentes da caixa...",
+        "SAVE": "Salvar lista",
+        "SAVING": "Salvando...",
+        "UNSAVED": "Alterações ainda não salvas",
+        "SAVED": "Lista de participantes atualizada",
+        "SAVE_ERROR": "Não foi possível salvar a lista. Tente de novo."
+      }
     },
     "HELP_CENTER": {
       "LABEL": "Help Center",

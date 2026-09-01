@@ -41,11 +41,22 @@
 #
 
 class Inbox < ApplicationRecord
+  include InboxIsolationScope
+
   include Reportable
   include Avatarable
   include OutOfOffisable
   include AccountCacheRevalidator
   include InboxAgentAvailability
+
+  # Fixar conversa POR CAIXA: `pin_mode` escolhe entre 'per_agent' (padrao) e 'per_inbox',
+  # e `pinned_conversation_ids` guarda a lista quando o modo e por caixa. Restaurado a mao
+  # apos o merge da branch `nicolas`: o auto-merge removia estas duas chaves sem conflito, e
+  # sem elas o `additional_attributes` volta do banco sem os leitores, alem de o strong
+  # params descartar a gravacao EM SILENCIO (a tela responde 200 "salvo com sucesso" e nada
+  # muda). Convive com a fixacao POR ATENDENTE que veio da `nicolas` (conversation_pins):
+  # sao dois modos, nao dois donos da mesma chave.
+  store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
 
   # Not allowing characters:
   validates :name, presence: true

@@ -69,6 +69,7 @@ export default {
         :submit-in-progress="false"
         :submit-button-text="$t('TEAMS_SETTINGS.EDIT_FLOW.CREATE.BUTTON_TEXT')"
         :form-data="teamData"
+        :team-id="$route.params.teamId"
       />
       <Spinner v-else />
     </div>

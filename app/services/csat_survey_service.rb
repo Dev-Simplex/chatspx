@@ -23,8 +23,13 @@ class CsatSurveyService
     conversation_allows_csat? && csat_enabled? && !csat_already_sent? && csat_allowed_by_survey_rules?
   end
 
+  # Grupo de WhatsApp NÃO recebe pesquisa. "De 1 a 5, como foi o atendimento?" dentro de um grupo
+  # de trabalho constrange quem está lá por outro motivo e o resultado é lixo estatístico: qualquer
+  # participante responde por todos, e a nota é atribuída ao contato-grupo, não a um cliente.
+  # Não é hipótese — 15 CSAT já foram enviadas dentro de grupos nesta base (uma com erro 404).
+  # Ver Conversation#group?, ponto único de verdade (nunca reimplementar a heurística de @g.us).
   def conversation_allows_csat?
-    conversation.resolved? && !conversation.tweet?
+    conversation.resolved? && !conversation.tweet? && !conversation.group?
   end
 
   def csat_enabled?

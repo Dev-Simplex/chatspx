@@ -46,6 +46,10 @@ class Conversations::OrphanRetriageJob < ApplicationJob
       # rodou 288x/dia por semanas assim). Mesmo tratamento do loop de regras abaixo.
       process_orphan(conversation, account)
     rescue StandardError => e
+      # Nomeia a conversa no log: sem o id, "uma conversa do lote falhou" não é
+      # diagnosticável, e este laço roda 288x/dia.
+      Rails.logger.error("[OrphanRetriageJob] account=#{account.id} conversation=#{conversation.id} " \
+                         "falhou: #{e.class}: #{e.message}")
       ChatwootExceptionTracker.new(e, account: account).capture_exception
     end
   end
@@ -65,7 +69,15 @@ class Conversations::OrphanRetriageJob < ApplicationJob
     retriage(conversation, account)
     return unless still_orphan?(conversation)
 
+    # ORDEM IMPORTA: grava o marcador ANTES de notificar. Notificar primeiro e falhar no
+    # marcador (conversa inválida) repetia push/e-mail para todos os admins a cada tick do
+    # cron, para sempre — o dedupe nunca chegava a existir. Se o marcador não pode ser
+    # gravado, o alerta não sai: melhor um alerta perdido do que spam infinito.
+    mark_alerted(conversation)
     notify_admins(conversation, account)
+  end
+
+  def mark_alerted(conversation)
     conversation.update!(additional_attributes:
       conversation.additional_attributes.merge('orphan_alerted_at' => Time.current.iso8601))
   end
@@ -75,10 +87,12 @@ class Conversations::OrphanRetriageJob < ApplicationJob
   #
   # F1.4 (modo FILA): a re-triagem pode rotear a órfã pra um time (assign_team), MAS não pode
   # reanexar a IA (assign_ai_agent) — senão a conversa volta pra IA e a fila por time some.
+  # Quem adota "toda conversa tem dono" liga `ia_reentra_orfa` e a re-triagem passa a poder
+  # dar a órfã de volta pra IA, que lê o histórico e decide (Account#ia_reentra_orfa_enabled?).
   # Current.skip_ai_agent_assignment desliga só a action assign_ai_agent. Setado POR REGRA
   # (não antes do loop), porque AutomationRules::ActionService#perform faz Current.reset no ensure.
   def retriage(conversation, account)
-    skip_ai = account.reply_assignment_gate_enabled?
+    skip_ai = !account.ia_reentra_orfa_enabled?
 
     account.automation_rules.where(event_name: 'conversation_created', active: true).find_each do |rule|
       conversation.reload

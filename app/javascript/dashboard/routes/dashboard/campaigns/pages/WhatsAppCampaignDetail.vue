@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import CampaignsAPI from 'dashboard/api/campaigns';
 import StatsCard from 'dashboard/components-next/agents/StatsCard.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import DispatchPanel from 'dashboard/components-next/Campaigns/DispatchPanel.vue';
 import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
@@ -24,8 +25,9 @@ const KNOWN_CODES = ['131026', '130472', '131049', 'outro'];
 const codeLabel = code =>
   KNOWN_CODES.includes(code) ? t(`CAMPAIGN.WHATSAPP.DETAIL.CODES.${code}`) : '';
 
-const fetchStats = async () => {
-  loading.value = true;
+// `silent` evita piscar a tela inteira no polling do disparo em andamento.
+const fetchStats = async ({ silent = false } = {}) => {
+  if (!silent) loading.value = true;
   try {
     const res = await CampaignsAPI.getStats(campaignId.value);
     data.value = res.data;
@@ -36,6 +38,28 @@ const fetchStats = async () => {
   }
 };
 
+// O scheduler despacha um lote por minuto; 10s e o suficiente pra tela parecer viva
+// sem martelar o servidor. So roda enquanto o disparo esta de fato correndo.
+const POLL_MS = 10000;
+let pollTimer = null;
+
+const stopPolling = () => {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+};
+
+watch(
+  () => data.value?.dispatch_status,
+  status => {
+    stopPolling();
+    if (status === 'running') {
+      pollTimer = setInterval(() => fetchStats({ silent: true }), POLL_MS);
+    }
+  }
+);
+
 const goBack = () =>
   router.push({
     name: 'campaigns_whatsapp_index',
@@ -43,6 +67,7 @@ const goBack = () =>
   });
 
 onMounted(fetchStats);
+onBeforeUnmount(stopPolling);
 </script>
 
 <template>
@@ -106,6 +131,14 @@ onMounted(fetchStats);
             fallback-icon="i-lucide-triangle-alert"
           />
         </div>
+
+        <DispatchPanel
+          class="mb-6"
+          :campaign-id="campaignId"
+          :dispatch-status="data.dispatch_status"
+          :recipients="data.recipients"
+          @changed="fetchStats({ silent: true })"
+        />
 
         <div class="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
           <div class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2">

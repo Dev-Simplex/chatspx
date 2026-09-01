@@ -20,7 +20,9 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import SingleSelect from 'dashboard/components-next/filter/inputs/SingleSelect.vue';
+import MultiSelect from 'dashboard/components-next/filter/inputs/MultiSelect.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
+import { useAutomation } from 'dashboard/composables/useAutomation';
 import { AUTOMATION_RULE_EVENTS } from 'dashboard/routes/dashboard/settings/automation/constants';
 import ConfigField from './ConfigField.vue';
 
@@ -34,6 +36,7 @@ const props = defineProps({
 const emit = defineEmits(['update']);
 
 const { t } = useI18n();
+const { getConditionDropdownValues } = useAutomation();
 
 // Nós de gatilho antigos não têm trigger_kind — tratamos como 'event' (retrocompatível).
 const kind = computed(() => {
@@ -115,6 +118,33 @@ const directionModel = computed({
   },
   set(value) {
     emit('update', { direction: value?.id || 'both' });
+  },
+});
+
+// --- Caixas de entrada -----------------------------------------------------------
+// Restringe o gatilho a caixas específicas. VAZIO = TODAS as caixas (o padrão de sempre —
+// retrocompatível com os fluxos já salvos). Persistido em node.inbox_ids (array de ids); o
+// FlowCanvasView o projeta em trigger_config.conditions como uma condição
+// { attribute_key: 'inbox_id', filter_operator: 'equal_to' } — o mesmo formato que o backend já
+// avalia (automation_rule_listener#run_flows → Flows::RuleAdapter), sem tocar nas demais
+// condições. Aplica-se aos gatilhos por evento e por palavra-chave (mesma regra do showDirection).
+// As opções vêm da MESMA fonte do editor de condições, para o rótulo bater com o resto do canvas.
+const inboxOptions = computed(() =>
+  (getConditionDropdownValues('inbox_id') || []).map(inbox => ({
+    id: inbox.id,
+    name: inbox.name,
+  }))
+);
+
+const inboxesModel = computed({
+  get() {
+    const ids = (
+      Array.isArray(props.node.inbox_ids) ? props.node.inbox_ids : []
+    ).map(String);
+    return inboxOptions.value.filter(option => ids.includes(String(option.id)));
+  },
+  set(value) {
+    emit('update', { inbox_ids: (value || []).map(option => option.id) });
   },
 });
 
@@ -416,6 +446,18 @@ const copyWebhookUrl = () => {
         disable-deselect
         :options="directionOptions"
         data-testid="config-trigger-direction"
+      />
+    </ConfigField>
+
+    <ConfigField
+      v-if="showDirection"
+      :label="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.INBOXES.LABEL')"
+      :hint="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.INBOXES.HINT')"
+    >
+      <MultiSelect
+        v-model="inboxesModel"
+        :options="inboxOptions"
+        data-testid="config-trigger-inboxes"
       />
     </ConfigField>
   </div>

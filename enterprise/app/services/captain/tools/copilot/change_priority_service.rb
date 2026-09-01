@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::ChangePriorityService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'change_priority'
   end
@@ -8,8 +10,8 @@ class Captain::Tools::Copilot::ChangePriorityService < Captain::Tools::BaseTool
   param :priority, type: :string, desc: 'New priority: none, low, medium, high, or urgent', required: true
 
   def execute(conversation_id:, priority:)
-    conversation = @assistant.account.conversations.find_by(display_id: conversation_id)
-    return 'Conversation not found' if conversation.blank?
+    conversation = find_permissible_conversation(conversation_id)
+    return conversation_refusal(conversation_id) if conversation.blank?
 
     if priority == 'none'
       conversation.update!(priority: nil)

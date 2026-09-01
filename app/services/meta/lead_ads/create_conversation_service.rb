@@ -24,6 +24,25 @@ module Meta
       JORNADA_MAX_CHARS = 600
       # `whatsapp_template_body_fields = none` declara template SEM variável no corpo.
       NO_BODY_FIELDS = 'none'.freeze
+      # Campos do lead que podem preencher {{1}}, {{2}}, ... no corpo do HSM: exatamente as
+      # chaves de `template_render_context`, e nada além delas — campo fora desta lista
+      # renderiza string vazia e a Meta recusa a mensagem. Quem valida a configuração antes
+      # de salvar lê daqui (`LeadCampaigns::RoutingUpdater`); um spec trava a lista contra
+      # o contexto real, para os dois não se separarem em silêncio.
+      BODY_FIELDS = %w[first_name full_name ad_name campaign_name city email phone empreendimento].freeze
+      # Idioma assumido quando o hook não declara: a Meta casa o template por (nome, idioma),
+      # então quem valida a configuração tem que assumir o MESMO default que o envio.
+      DEFAULT_TEMPLATE_LOCALE = 'pt_BR'.freeze
+      # Código do imóvel escondido no NOME DO ANÚNCIO. Campanha de catálogo entrega o código
+      # no `retailer_item_id`; campanha de FORMULÁRIO não tem catálogo, e aí o único lugar onde
+      # o código existe é o nome que o anunciante deu à peça ("IMÓVEL 9817 - TELHADO APARENTE").
+      #
+      # As duas formas exigem âncora, nunca "algum número no meio do texto": ou vem precedido de
+      # um marcador explícito, ou o nome inteiro É o código. É o que separa "IMÓVEL 9817" de
+      # "RMKT VENDAS 2026" e "CASAS 300-900K" — nome de anúncio é cheio de número que não é imóvel.
+      # Casa contra o nome já normalizado (minúsculo, sem acento) por `normalized_ad_name`.
+      AD_NAME_CODE_MARKER = /\b(?:imove(?:l|is)|cod(?:igo)?)\b\W{0,3}(\d{3,6})\b/
+      AD_NAME_CODE_ONLY = /\A(\d{3,6})\z/
 
       def initialize(hook:, lead:)
         @hook = hook
@@ -109,13 +128,69 @@ module Meta
       # settings['campaign_overrides'] = { "<campaign_id>" => { "whatsapp_template_name" => "...",
       # "assign_agent_bot_id" => "...", ... } } pra dar opener/time/IA distintos por campanha
       # (ex.: remarketing com abertura calorosa). Sem override, cai no valor global do hook.
+      #
+      # ...e honrando OVERRIDE POR INTENÇÃO (`intent_overrides`), pra origem que declara o
+      # assunto na `jornada`. Precedência: campanha > intenção > global. Campanha vem antes
+      # porque é o operador nomeando um caso específico; intenção é padrão.
       def hook_setting(key)
+        override_value(campaign_override, key) || override_value(intent_override, key) || @hook.settings[key]
+      end
+
+      # Override só vale quando traz valor de verdade: chave ausente ou string vazia cai no
+      # próximo nível, que é o que mantém "só as chaves presentes na regra são sobrescritas".
+      def override_value(override, key)
+        return nil unless override.is_a?(Hash)
+
+        override[key].to_s.strip.present? ? override[key] : nil
+      end
+
+      def campaign_override
         overrides = @hook.settings['campaign_overrides']
-        if overrides.is_a?(Hash)
-          ov = overrides[@lead[:campaign_id].to_s]
-          return ov[key] if ov.is_a?(Hash) && ov[key].to_s.strip.present?
+        overrides.is_a?(Hash) ? overrides[@lead[:campaign_id].to_s] : nil
+      end
+
+      # Roteamento pela INTENÇÃO que a origem já declarou. Lead de formulário chega com uma
+      # `jornada` escrita por quem o originou — o site descreve o que a pessoa navegou antes de
+      # pedir contato. Quando ela nomeia o assunto, esse é o sinal mais cedo que existe: chega
+      # ANTES da primeira mensagem e não depende do julgamento do modelo.
+      #
+      # Sem a chave no hook, nada muda — o caminho é idêntico ao de hoje.
+      #   settings['intent_overrides'] = [
+      #     { 'match' => '<trecho da jornada>', 'assign_agent_bot_id' => <id>, 'assign_team_id' => <id> }
+      #   ]
+      # Lista ORDENADA: o primeiro match vence, então o operador põe o caso mais específico
+      # primeiro. Só as chaves presentes na regra são sobrescritas; o resto cai no global.
+      #
+      # Por que substring e não classificação: o texto da jornada é gerado pela própria origem,
+      # com prefixo estável. Regra determinística erra pouco e erra VISÍVEL — e o erro custa uma
+      # transferência entre agentes, que já é caminho existente. Medido na Tozi (conta 6, 60d):
+      # 56 dos 99 leads de site declaram locação e 91,5% dos decididos terminaram mesmo em
+      # locação, enquanto hoje 100% deles nascem com a agente de vendas.
+      def intent_override
+        return @intent_override if defined?(@intent_override)
+
+        @intent_override = find_intent_override
+      end
+
+      def find_intent_override
+        regras = @hook.settings['intent_overrides']
+        return nil unless regras.is_a?(Array)
+
+        alvo = normalize_for_match(jornada)
+        return nil if alvo.blank?
+
+        regras.find do |regra|
+          next false unless regra.is_a?(Hash)
+
+          padrao = normalize_for_match(regra['match'])
+          padrao.present? && alvo.include?(padrao)
         end
-        @hook.settings[key]
+      end
+
+      # Acento e caixa não podem decidir roteamento: quem escreve a regra no painel não vê o
+      # texto exato que a origem manda.
+      def normalize_for_match(texto)
+        I18n.transliterate(texto.to_s).downcase.strip
       end
 
       def assign_team_id
@@ -203,13 +278,41 @@ module Meta
         end
       end
 
-      # Imóvel específico do lead (catálogo/dynamic ads): retailer_item_id = código no Vista.
-      # Busca descrição curta + foto de destaque. Memoizado. No-op (nil) se não houver
-      # retailer_item_id ou credencial Vista — aí o lead segue sem imóvel (fluxo normal).
+      # Imóvel específico do lead: busca descrição curta + foto de destaque no Vista. Memoizado.
+      # No-op (nil) se não houver código, credencial Vista, ou se o código não resolver — aí o
+      # lead segue sem imóvel (fluxo normal, opener genérico).
       def imovel_info
         return @imovel_info if defined?(@imovel_info)
 
-        @imovel_info = fetch_imovel(@lead[:retailer_item_id])
+        @imovel_info = fetch_imovel(imovel_codigo)
+      end
+
+      # Duas origens para o mesmo código. Catálogo (dynamic ads) entrega no `retailer_item_id` —
+      # é a fonte confiável e tem precedência. Campanha de formulário não tem catálogo e o campo
+      # vem vazio; aí o código só existe no nome do anúncio, e ler dali é opt-in por hook/campanha
+      # (`imovel_codigo_from_ad_name`), porque depende de como o anunciante nomeia as peças.
+      def imovel_codigo
+        @lead[:retailer_item_id].to_s.strip.presence || codigo_from_ad_name
+      end
+
+      def codigo_from_ad_name
+        return nil unless read_codigo_from_ad_name?
+
+        name = normalized_ad_name
+        return nil if name.blank?
+
+        match = name.match(AD_NAME_CODE_ONLY) || name.match(AD_NAME_CODE_MARKER)
+        match && match[1]
+      end
+
+      def read_codigo_from_ad_name?
+        ActiveModel::Type::Boolean.new.cast(hook_setting('imovel_codigo_from_ad_name'))
+      end
+
+      # Minúsculo e sem acento: o marcador é escrito "IMÓVEL", "Imovel", "imóvel" conforme quem
+      # cadastrou o anúncio, e a regex casa uma forma só.
+      def normalized_ad_name
+        @lead[:ad_name].to_s.downcase.tr('áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc').strip
       end
 
       def fetch_imovel(codigo)
@@ -430,8 +533,17 @@ module Meta
 
       # A abertura automatica carrega content_attributes.meta_lead_ads_initial=true —
       # se ja existe nessa conversa, um redelivery/retry nao deve reenviar.
+      #
+      # ⚠️ `content_attributes` é jsonb NA TABELA mas `store ... coder: JSON` NO MODELO: o Rails
+      # serializa o Hash e o banco guarda uma STRING JSON, não um objeto. Contra uma string,
+      # `@>` e `->>` nunca casam — a checagem devolvia false sempre e 26 leads receberam a
+      # abertura duas vezes em 90 dias. `#>> '{}'` desembrulha a string e o `::jsonb` reparseia;
+      # é o mesmo padrão do `EPISODE_ANCHOR_SQL` (enterprise/app/models/captain/conversation_episode.rb),
+      # e funciona tanto pra linha duplo-serializada quanto pra objeto jsonb de verdade.
+      INITIAL_MESSAGE_SQL = "(content_attributes #>> '{}')::jsonb ->> 'meta_lead_ads_initial' = 'true'".freeze
+
       def initial_message_already_sent?(conversation)
-        conversation.messages.where('content_attributes @> ?', { meta_lead_ads_initial: true }.to_json).exists?
+        conversation.messages.where(INITIAL_MESSAGE_SQL).exists?
       end
 
       # Cloud API (WhatsApp oficial) fora da janela 24h só aceita HSM aprovado — texto
@@ -477,7 +589,7 @@ module Meta
             content_attributes: { meta_lead_ads_initial: true },
             template_params: {
               'name' => hook_setting('imovel_template_name'),
-              'language' => (hook_setting('whatsapp_template_locale').presence || 'pt_BR'),
+              'language' => (hook_setting('whatsapp_template_locale').presence || DEFAULT_TEMPLATE_LOCALE),
               'processed_params' => {
                 'header' => { 'media_url' => d[:foto_url], 'media_type' => 'image' },
                 'body' => { '1' => first, '2' => imovel_txt }
@@ -504,7 +616,7 @@ module Meta
           return
         end
 
-        locale = hook_setting('whatsapp_template_locale').presence || 'pt_BR'
+        locale = hook_setting('whatsapp_template_locale').presence || DEFAULT_TEMPLATE_LOCALE
         body = template_body_params
 
         Messages::MessageBuilder.new(

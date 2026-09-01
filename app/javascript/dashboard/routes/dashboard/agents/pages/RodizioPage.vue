@@ -1,11 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
 
 defineOptions({ name: 'RodizioPage' });
 
 const { t } = useI18n();
+const router = useRouter();
+const { accountId } = useAccount();
 
 const loading = ref(true);
 const loadError = ref(false);
@@ -74,10 +78,21 @@ const conversa = displayId => `#${displayId}`;
 
 const resumoDesignacao = registro =>
   [registro.corretor || '—', registro.motivo, registro.status || '—'].join(' · ');
+
+// Este painel só CONTA o que já aconteceu. Quem MONTA a política é a tela do time: ela é
+// por time, e a lista de times é onde se escolhe qual configurar.
+const irParaPolitica = () =>
+  router.push({
+    name: 'settings_teams_list',
+    params: { accountId: accountId.value },
+  });
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6 overflow-y-auto">
+  <!-- `w-full h-full` porque esta tela deixou de ser filha do AgentsPageView: agora
+       ela e o proprio filho do <main> do Dashboard (flex row, overflow-hidden), e sem
+       isso encolheria para a largura do conteudo e nao rolaria. -->
+  <div class="flex flex-col w-full h-full gap-6 p-6 overflow-y-auto">
     <header class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 class="text-xl font-medium text-n-slate-12">
@@ -103,6 +118,12 @@ const resumoDesignacao = registro =>
           @click="carregar"
         >
           {{ t('AGENTS_RODIZIO.RELOAD') }}
+        </button>
+        <button
+          class="h-9 px-3 text-sm rounded-lg border border-n-weak text-n-slate-11"
+          @click="irParaPolitica"
+        >
+          {{ t('AGENTS_RODIZIO.CONFIGURE') }}
         </button>
       </div>
     </header>

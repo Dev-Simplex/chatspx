@@ -1,3 +1,207 @@
+<script>
+// Helpers PUROS do canvas (sem estado nem refs): vivem neste bloco `<script>` normal — ao lado
+// do `<script setup>` — para que as specs os exercitem sem montar o canvas inteiro.
+
+// Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
+// verdade continua sendo o nó na definition (round-trip pelo canvas); aqui só derivamos o
+// que o motor consome. Sem nó de gatilho o flow é `manual`.
+//  • trigger_kind 'keyword'  → trigger_type keyword  + { keywords[], match }
+//  • trigger_kind 'schedule' → trigger_type schedule + { mode, cron | every, unit }
+//  • trigger_kind 'webhook'  → trigger_type external_webhook + {} (o backend gera/preserva o
+//    webhook_token — nunca o cliente; ver Flow#ensure_webhook_token)
+//  • event_name definido      → trigger_type conversation_event + { event_name }
+export const triggerPayload = triggerNode => {
+  if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
+  if (triggerNode.trigger_kind === 'webhook') {
+    return { trigger_type: 'external_webhook', trigger_config: {} };
+  }
+  if (triggerNode.trigger_kind === 'keyword') {
+    return {
+      trigger_type: 'keyword',
+      trigger_config: {
+        keywords: (triggerNode.keywords || [])
+          .map(kw => (kw || '').trim())
+          .filter(Boolean),
+        match: triggerNode.match === 'exact' ? 'exact' : 'contains',
+        direction: triggerNode.direction || 'both',
+      },
+    };
+  }
+  if (triggerNode.trigger_kind === 'schedule') {
+    const sched = triggerNode.schedule || {};
+    if (sched.mode === 'interval') {
+      const every = Number.parseInt(sched.every, 10);
+      return {
+        trigger_type: 'schedule',
+        trigger_config: {
+          mode: 'interval',
+          every: Number.isNaN(every) || every < 1 ? 1 : every,
+          unit: ['minutes', 'hours', 'days'].includes(sched.unit)
+            ? sched.unit
+            : 'days',
+        },
+      };
+    }
+    return {
+      trigger_type: 'schedule',
+      trigger_config: { mode: 'cron', cron: String(sched.cron ?? '').trim() },
+    };
+  }
+  if (triggerNode.event_name) {
+    return {
+      trigger_type: 'conversation_event',
+      trigger_config: {
+        event_name: triggerNode.event_name,
+        direction: triggerNode.direction || 'both',
+      },
+    };
+  }
+  return { trigger_type: 'manual', trigger_config: {} };
+};
+
+// Espelha o TriggerConfig.vue: nó de gatilho sem `trigger_kind` é 'event' (retrocompatível).
+export const triggerKindOf = node =>
+  ['keyword', 'schedule', 'webhook'].includes(node?.trigger_kind)
+    ? node.trigger_kind
+    : 'event';
+
+// O seletor de CAIXA DE ENTRADA existe só nos gatilhos por evento e por palavra-chave (mesma
+// regra do seletor de direção, em TriggerConfig#showDirection); nos demais o canvas não tem
+// como editar a condição de inbox e o trigger_config.conditions passa intacto.
+export const supportsInboxFilter = node =>
+  ['event', 'keyword'].includes(triggerKindOf(node));
+
+// Chaves de `trigger_config` que a projeção acima GOVERNA: o valor delas vem sempre do nó
+// `trigger` — e some quando o gatilho muda de tipo. TODO o resto do trigger_config gravado é
+// PRESERVADO no save, porque o controller SUBSTITUI a coluna jsonb inteira (flows_controller
+// #assign_jsonb_attributes) e o que não voltar no payload é apagado. Ali moram `conditions`
+// (a única gate dos flows migrados de AutomationRule — sem ela o flow passa a disparar em
+// TODA conversa), `backfill_source` (marcador de idempotência: sem ele o próximo backfill
+// duplica o flow) e `last_fired_at`.
+export const CANVAS_TRIGGER_KEYS = [
+  'event_name',
+  'event_names',
+  'keywords',
+  'match',
+  'direction',
+  'mode',
+  'cron',
+  'every',
+  'unit',
+];
+
+export const mergeTriggerConfig = (original, projected) => {
+  const preserved =
+    original && typeof original === 'object' ? { ...original } : {};
+  CANVAS_TRIGGER_KEYS.forEach(key => {
+    delete preserved[key];
+  });
+  return { ...preserved, ...projected };
+};
+
+// Só a condição `inbox_id` + `equal_to` pertence ao seletor de caixa. Uma condição de inbox com
+// outro operador (ex.: `not_equal_to`, herdada de uma AutomationRule migrada) é INVISÍVEL para o
+// seletor: não hidrata o campo nem é sobrescrita no save — inverter o sentido dela em silêncio
+// seria a mesma perda de dado que estamos corrigindo.
+const isInboxCondition = condition =>
+  condition?.attribute_key === 'inbox_id' &&
+  condition?.filter_operator === 'equal_to';
+
+// O ConditionsFilterService concatena o `query_operator` DEPOIS de cada condição: só a última
+// pode ficar sem operador (um "AND" sobrando quebra o SQL, o serviço engole a exceção e a gate
+// passa a reprovar TODA conversa — o flow silencia).
+const normalizeQueryOperators = conditions =>
+  conditions.map((condition, index, all) => ({
+    ...condition,
+    query_operator:
+      index === all.length - 1 ? null : condition.query_operator || 'and',
+  }));
+
+// `trigger_config.conditions` → `node.inbox_ids` (hidratação ao abrir o fluxo).
+export const inboxIdsFromConditions = conditions => {
+  const found = (Array.isArray(conditions) ? conditions : []).find(
+    isInboxCondition
+  );
+  return Array.isArray(found?.values) ? [...found.values] : [];
+};
+
+// `node.inbox_ids` → `trigger_config.conditions`, no formato que o backend já consome
+// (automation_rule_listener#run_flows → Flows::RuleAdapter). SUBSTITUI a condição de inbox NO
+// LUGAR dela, preservando as demais e a ordem original; lista VAZIA remove a condição — sem
+// condição de inbox o flow vale para TODAS as caixas (comportamento de sempre).
+export const projectInboxCondition = (conditions, inboxIds) => {
+  const original = Array.isArray(conditions) ? conditions : [];
+  const values = Array.isArray(inboxIds)
+    ? inboxIds.filter(id => id !== null && id !== undefined && id !== '')
+    : [];
+  const index = original.findIndex(isInboxCondition);
+  if (!values.length) {
+    if (index === -1) return original;
+    return normalizeQueryOperators(original.filter((_, i) => i !== index));
+  }
+  const inboxCondition = {
+    attribute_key: 'inbox_id',
+    filter_operator: 'equal_to',
+    values,
+    custom_attribute_type: '',
+  };
+  const next =
+    index === -1
+      ? [...original, inboxCondition]
+      : original.map((condition, i) =>
+          i === index
+            ? { ...inboxCondition, query_operator: condition.query_operator }
+            : condition
+        );
+  return normalizeQueryOperators(next);
+};
+
+// Payload de gatilho COMPLETO para o backend: projeção do(s) nó(s) `trigger` sobre o
+// trigger_config ORIGINAL (o que veio do servidor no load), para nada do que o canvas não
+// projeta ser apagado no save. Ver mergeTriggerConfig.
+export const buildTriggerPayload = (triggerNodes, originalConfig) => {
+  const nodes = Array.isArray(triggerNodes) ? triggerNodes.filter(Boolean) : [];
+  const projected = triggerPayload(nodes[0]);
+  const config = mergeTriggerConfig(originalConfig, projected.trigger_config);
+  // Multi-gatilho: com mais de um nó `trigger` de evento, grava TODOS os event_names em
+  // trigger_config.event_names — o backend (current_account_flows) casa qualquer um.
+  // Retrocompat: com 1 só, mantém apenas event_name (event_names ausente).
+  if (projected.trigger_type === 'conversation_event') {
+    const eventNames = [
+      ...new Set(nodes.map(node => node.event_name).filter(Boolean)),
+    ];
+    if (eventNames.length > 1) config.event_names = eventNames;
+  }
+  if (supportsInboxFilter(nodes[0])) {
+    const conditions = projectInboxCondition(
+      config.conditions,
+      nodes[0]?.inbox_ids
+    );
+    if (conditions.length) config.conditions = conditions;
+    else delete config.conditions;
+  }
+  return { trigger_type: projected.trigger_type, trigger_config: config };
+};
+
+// Blocos de RAMIFICAÇÃO: têm mais de uma porta de saída, então cada ramo é ligado À MÃO pelo
+// usuário — nunca auto-ligamos a partir deles.
+export const BRANCHING_TYPES = ['condition', 'router', 'wait_for_reply'];
+
+// A quem o bloco novo se liga: ao bloco SELECIONADO (o usuário acabou de clicar nele) ou, sem
+// seleção, ao último da lista. Auto-liga só o caso linear seguro — o anterior não ramifica e
+// ainda não tem aresta de saída.
+export const autoConnectTarget = (selected, existing, edges) => {
+  const nodes = existing || [];
+  const prev = selected || nodes[nodes.length - 1] || null;
+  if (!prev) return { prev: null, autoConnected: false };
+  const isBranch = BRANCHING_TYPES.includes(prev.type);
+  const hasOutgoing = (edges || []).some(
+    edge => String(edge.from) === String(prev.id)
+  );
+  return { prev, autoConnected: !isBranch && !hasOutgoing };
+};
+</script>
+
 <script setup>
 import {
   ref,
@@ -26,8 +230,18 @@ import {
   FAMILIES,
   PALETTE_SECTIONS,
   familyForNode,
+  labelForNode,
 } from './nodeCatalog';
 import { repliesFromInteractiveNode } from './waitForReply';
+import { validateDefinition, errorsOf, warningsOf } from './flowValidation';
+import {
+  serializeNodes,
+  parseNodesPayload,
+  pasteNodes,
+  serializeFlow,
+  parseFlowFile,
+  fileNameFor,
+} from './flowIO';
 import { flatToDefinition } from './flatToDefinition';
 import { flowTemplateByKey } from './flowTemplates';
 import { computeTreeLayout, H_SPACING, V_SPACING } from './flowLayout';
@@ -100,6 +314,13 @@ const showLogs = ref(false);
 // flow novo (sem id, nada a mostrar) — a ausência de stat é o estado padrão da pill.
 const nodeStats = ref({});
 
+// Área de transferência de BLOCOS. O ref interno é a fonte confiável (funciona sempre, mesmo sem
+// permissão de clipboard); o clipboard do SO é um espelho best-effort que permite colar entre
+// abas/fluxos, como no n8n. Ler o clipboard exige permissão do navegador — por isso o ref vem
+// primeiro e a leitura externa é só o fallback.
+const clipboard = ref(null);
+const fileInput = ref(null);
+
 // Histórico undo/redo da definition. `suppressHistory` blinda o watcher enquanto aplicamos um
 // snapshot (undo/redo) ou o echo read-only do webhook_token — mutações que NÃO são edições do
 // usuário e não devem virar passos de undo nem marcar o fluxo como sujo.
@@ -165,14 +386,94 @@ const onBeforeUnload = event => {
   event.returnValue = '';
 };
 
-// Ctrl/Cmd+Z = desfazer; Ctrl/Cmd+Shift+Z ou Ctrl+Y = refazer.
+const selectedNode = computed(
+  () =>
+    (definition.value.nodes || []).find(
+      node => String(node.id) === String(selectedNodeId.value)
+    ) || null
+);
+
+// ------------------------------------------------------------------ copiar / colar blocos
+
+// Ctrl/Cmd+C: guarda o bloco selecionado. Espelha no clipboard do SO para permitir colar em
+// OUTRO fluxo/aba; se o navegador negar a permissão, o ref interno já basta para colar aqui.
+const copySelectedNode = async () => {
+  const node = selectedNode.value;
+  if (!node) return;
+  const payload = serializeNodes([node]);
+  clipboard.value = payload;
+  try {
+    await navigator.clipboard?.writeText(JSON.stringify(payload));
+  } catch (error) {
+    // Sem permissão de clipboard: seguimos só com o ref interno.
+  }
+  useAlert(t('AUTOMATION.CANVAS.COPIED'));
+};
+
+// Ctrl/Cmd+V: o ref interno tem prioridade; sem ele, tenta o clipboard do SO (colar vindo de
+// outro fluxo). Qualquer conteúdo que não seja um payload de blocos é ignorado em silêncio —
+// colar um texto qualquer no canvas não pode virar erro na cara do usuário.
+const readClipboardPayload = async () => {
+  if (clipboard.value) return clipboard.value;
+  try {
+    return parseNodesPayload(await navigator.clipboard.readText());
+  } catch (error) {
+    return null;
+  }
+};
+
+const pasteFromClipboard = async () => {
+  const payload = await readClipboardPayload();
+  if (!payload) return;
+  const { definition: next, ids } = pasteNodes(definition.value, payload);
+  definition.value = next;
+  selectedNodeId.value = ids[0] ?? null;
+  useAlert(t('AUTOMATION.CANVAS.PASTED'));
+};
+
+// Duplicar = copiar+colar num passo (botão do painel e Ctrl/Cmd+D), sem tocar no clipboard.
+const duplicateSelectedNode = () => {
+  const node = selectedNode.value;
+  if (!node) return;
+  const { definition: next, ids } = pasteNodes(
+    definition.value,
+    serializeNodes([node])
+  );
+  definition.value = next;
+  selectedNodeId.value = ids[0] ?? null;
+};
+
+// Atalhos do canvas. TODOS são ignorados quando o foco está num campo de texto — lá o
+// Ctrl+C/V/Z do navegador tem de continuar valendo para o texto que o usuário está editando.
+//   Ctrl/Cmd+Z          desfazer          Ctrl/Cmd+Shift+Z / Ctrl+Y  refazer
+//   Ctrl/Cmd+C          copiar bloco      Ctrl/Cmd+V                 colar bloco
+//   Ctrl/Cmd+D          duplicar bloco
 const onKeydown = event => {
   if (!(event.ctrlKey || event.metaKey)) return;
+  if (isEditableTarget(event.target)) return;
   const key = event.key.toLowerCase();
+
+  if (key === 'c' && !event.shiftKey) {
+    if (!selectedNode.value) return;
+    event.preventDefault();
+    copySelectedNode();
+    return;
+  }
+  if (key === 'v' && !event.shiftKey) {
+    event.preventDefault();
+    pasteFromClipboard();
+    return;
+  }
+  if (key === 'd' && !event.shiftKey) {
+    if (!selectedNode.value) return;
+    event.preventDefault();
+    duplicateSelectedNode();
+    return;
+  }
+
   const wantsRedo = (key === 'z' && event.shiftKey) || key === 'y';
   const wantsUndo = key === 'z' && !event.shiftKey;
   if (!wantsRedo && !wantsUndo) return;
-  if (isEditableTarget(event.target)) return;
   event.preventDefault();
   if (wantsRedo) redo();
   else undo();
@@ -289,13 +590,6 @@ const branchMeta = edge => {
   return { label: String(branch), color: null };
 };
 
-const selectedNode = computed(
-  () =>
-    (definition.value.nodes || []).find(
-      node => String(node.id) === String(selectedNodeId.value)
-    ) || null
-);
-
 // Uma posição é "manual" quando o usuário a arrastou (persistida em definition.node.position).
 // Essas são RESPEITADAS; os demais nós recebem a posição derivada do auto-layout em árvore.
 const hasPosition = node =>
@@ -371,6 +665,11 @@ const loadConfigOptions = () => {
   store.dispatch('captainAssistants/get').catch(() => {});
 };
 
+// `trigger_config` COMO O SERVIDOR O ENTREGOU. O save o usa de base (mergeTriggerConfig) para
+// não apagar o que o canvas não projeta — `conditions`, `backfill_source`, `last_fired_at`.
+// Fica {} num fluxo novo e é reatualizado com a resposta de cada save.
+const loadedTriggerConfig = ref({});
+
 // O webhook_token é backend-autoritativo e vive em flow.trigger_config; injetamo-lo no nó
 // `trigger` (in-memory) para o TriggerConfig exibir a URL read-only. É só um ECHO de exibição —
 // o backend ignora qualquer token vindo no payload (Flow#ensure_webhook_token).
@@ -381,6 +680,20 @@ const syncWebhookToken = flow => {
     ...definition.value,
     nodes: (definition.value.nodes || []).map(node =>
       node.type === 'trigger' ? { ...node, webhook_token: token } : node
+    ),
+  };
+};
+
+// A condição `inbox_id` de trigger_config.conditions é a gate REAL do backend; espelhamo-la em
+// `node.inbox_ids` para o TriggerConfig editá-la. Como o webhook_token, é um ECHO do que o
+// servidor devolveu — entra sem histórico, para o eco não sujar o undo.
+const syncInboxIds = flow => {
+  const inboxIds = inboxIdsFromConditions(flow?.trigger_config?.conditions);
+  if (!inboxIds.length) return;
+  definition.value = {
+    ...definition.value,
+    nodes: (definition.value.nodes || []).map(node =>
+      node.type === 'trigger' ? { ...node, inbox_ids: inboxIds } : node
     ),
   };
 };
@@ -469,7 +782,11 @@ onMounted(async () => {
   }
   name.value = flow.name;
   definition.value = flow.definition || { nodes: [], edges: [] };
-  withoutHistory(() => syncWebhookToken(flow));
+  loadedTriggerConfig.value = flow.trigger_config || {};
+  withoutHistory(() => {
+    syncWebhookToken(flow);
+    syncInboxIds(flow);
+  });
   history.commit(definition.value);
   loadStats();
 });
@@ -509,13 +826,14 @@ const addNode = item => {
   const existing = definition.value.nodes || [];
   const edges = [...(definition.value.edges || [])];
 
-  // Auto-liga só o caso linear seguro: o nó anterior é de saída única (não condition/router) e
-  // ainda não tem aresta de saída. Ramos são sempre conectados manualmente pelo usuário.
-  const prev = existing[existing.length - 1];
-  const prevIsBranch = prev && ['condition', 'router'].includes(prev.type);
-  const prevHasOutgoing =
-    prev && edges.some(e => String(e.from) === String(prev.id));
-  const autoConnected = Boolean(prev && !prevIsBranch && !prevHasOutgoing);
+  // Auto-liga só o caso linear seguro: o bloco anterior — o SELECIONADO, ou o último quando não
+  // há seleção — é de saída única (ver BRANCHING_TYPES) e ainda não tem aresta de saída. Ramos
+  // são sempre conectados manualmente pelo usuário.
+  const { prev, autoConnected } = autoConnectTarget(
+    selectedNode.value,
+    existing,
+    edges
+  );
 
   const node = { id, type: item.type };
   const position = positionForNewNode(prev, autoConnected, existing);
@@ -623,25 +941,6 @@ const removeSelectedNode = () => {
   if (selectedNodeId.value != null) removeNodeIds([selectedNodeId.value]);
 };
 
-// Persiste a(s) posição(ões) após arrastar — assim o layout do usuário sobrevive ao reload.
-const onNodeDragStop = ({ nodes: dragged }) => {
-  if (!dragged?.length) return;
-  const moved = new Map(
-    dragged.map(n => [
-      String(n.id),
-      { x: Math.round(n.position.x), y: Math.round(n.position.y) },
-    ])
-  );
-  definition.value = {
-    ...definition.value,
-    nodes: (definition.value.nodes || []).map(node =>
-      moved.has(String(node.id))
-        ? { ...node, position: moved.get(String(node.id)) }
-        : node
-    ),
-  };
-};
-
 const onNodeClick = ({ node }) => {
   selectedNodeId.value = node?.id ?? null;
 };
@@ -670,61 +969,71 @@ const updateSelectedNode = patch => {
   definition.value = { ...definition.value, nodes, edges };
 };
 
-// Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
-// verdade continua sendo o nó na definition (round-trip pelo canvas); aqui só derivamos o
-// que o motor consome. Sem nó de gatilho o flow é `manual`.
-//  • trigger_kind 'keyword'  → trigger_type keyword  + { keywords[], match }
-//  • trigger_kind 'schedule' → trigger_type schedule + { mode, cron | every, unit }
-//  • trigger_kind 'webhook'  → trigger_type external_webhook + {} (o backend gera/preserva o
-//    webhook_token — nunca o cliente; ver Flow#ensure_webhook_token)
-//  • event_name definido      → trigger_type conversation_event + { event_name }
-const triggerPayload = triggerNode => {
-  if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
-  if (triggerNode.trigger_kind === 'webhook') {
-    return { trigger_type: 'external_webhook', trigger_config: {} };
+// ------------------------------------------------------------------ exportar / importar
+
+const exportFlow = () => {
+  const triggerNode = (definition.value.nodes || []).find(
+    node => node.type === 'trigger'
+  );
+  const payload = serializeFlow({
+    name: name.value,
+    definition: definition.value,
+    ...triggerPayload(triggerNode),
+  });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileNameFor(name.value);
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
+const onImportFile = async event => {
+  const file = event.target.files?.[0];
+  event.target.value = ''; // permite reimportar o MESMO arquivo depois de corrigi-lo
+  if (!file) return;
+  // Substituir o grafo é destrutivo: confirma sempre que já houver algo no canvas.
+  if (
+    (definition.value.nodes || []).length &&
+    // eslint-disable-next-line no-alert
+    !window.confirm(t('AUTOMATION.CANVAS.IMPORT_CONFIRM'))
+  ) {
+    return;
   }
-  if (triggerNode.trigger_kind === 'keyword') {
-    return {
-      trigger_type: 'keyword',
-      trigger_config: {
-        keywords: (triggerNode.keywords || [])
-          .map(kw => (kw || '').trim())
-          .filter(Boolean),
-        match: triggerNode.match === 'exact' ? 'exact' : 'contains',
-        direction: triggerNode.direction || 'both',
-      },
-    };
+  try {
+    const imported = parseFlowFile(await file.text());
+    definition.value = imported.definition;
+    // O nome do arquivo importado só entra num fluxo NOVO; num fluxo existente manter o nome
+    // atual evita renomear sem querer um flow que já está no ar.
+    if (!isEdit.value && imported.name) name.value = imported.name;
+    selectedNodeId.value = null;
+    nextTick(() => flowInstance.value?.fitView({ padding: 0.2 }));
+    useAlert(t('AUTOMATION.CANVAS.IMPORTED'));
+  } catch (error) {
+    useAlert(t('AUTOMATION.CANVAS.IMPORT_ERROR'));
   }
-  if (triggerNode.trigger_kind === 'schedule') {
-    const sched = triggerNode.schedule || {};
-    if (sched.mode === 'interval') {
-      const every = Number.parseInt(sched.every, 10);
-      return {
-        trigger_type: 'schedule',
-        trigger_config: {
-          mode: 'interval',
-          every: Number.isNaN(every) || every < 1 ? 1 : every,
-          unit: ['minutes', 'hours', 'days'].includes(sched.unit)
-            ? sched.unit
-            : 'days',
-        },
-      };
-    }
-    return {
-      trigger_type: 'schedule',
-      trigger_config: { mode: 'cron', cron: String(sched.cron ?? '').trim() },
-    };
-  }
-  if (triggerNode.event_name) {
-    return {
-      trigger_type: 'conversation_event',
-      trigger_config: {
-        event_name: triggerNode.event_name,
-        direction: triggerNode.direction || 'both',
-      },
-    };
-  }
-  return { trigger_type: 'manual', trigger_config: {} };
+};
+
+// Persiste a(s) posição(ões) após arrastar — assim o layout do usuário sobrevive ao reload.
+const onNodeDragStop = ({ nodes: dragged }) => {
+  if (!dragged?.length) return;
+  const moved = new Map(
+    dragged.map(n => [
+      String(n.id),
+      { x: Math.round(n.position.x), y: Math.round(n.position.y) },
+    ])
+  );
+  definition.value = {
+    ...definition.value,
+    nodes: (definition.value.nodes || []).map(node =>
+      moved.has(String(node.id))
+        ? { ...node, position: moved.get(String(node.id)) }
+        : node
+    ),
+  };
 };
 
 // Validação mínima antes de persistir: nome, ao menos um gatilho e uma ação. Evita criar um
@@ -740,6 +1049,55 @@ const validationError = () => {
   return null;
 };
 
+// Nome legível do bloco para as mensagens de validação ("Enviar opções", "Aguardar resposta"…).
+const nodeLabel = nodeId => {
+  const node = (definition.value.nodes || []).find(
+    item => String(item.id) === String(nodeId)
+  );
+  return node ? t(labelForNode(node)) : String(nodeId);
+};
+
+const describeFinding = finding =>
+  `• ${nodeLabel(finding.nodeId)}: ${t(finding.key, finding.params)}`;
+
+// Leva o usuário até o bloco problemático em vez de só reclamar: seleciona (abre o painel de
+// configuração no campo em falta) e centraliza o canvas nele.
+const focusNode = nodeId => {
+  selectedNodeId.value = String(nodeId);
+  nextTick(() =>
+    flowInstance.value?.fitView({
+      nodes: [String(nodeId)],
+      padding: 0.6,
+      duration: 300,
+    })
+  );
+};
+
+// Portão de qualidade do grafo (ver flowValidation.js). Erros BLOQUEIAM — um campo obrigatório
+// em branco vira mensagem recusada pela Meta e conversa parada. Avisos só pedem confirmação.
+// Devolve true quando o save pode seguir.
+const graphGatePassed = () => {
+  const findings = validateDefinition(definition.value);
+  const errors = errorsOf(findings);
+  if (errors.length) {
+    focusNode(errors[0].nodeId);
+    useAlert(
+      `${t('AUTOMATION.CANVAS.VALIDATION.BLOCKED')}\n${errors
+        .map(describeFinding)
+        .join('\n')}`
+    );
+    return false;
+  }
+  const warnings = warningsOf(findings);
+  if (!warnings.length) return true;
+  // eslint-disable-next-line no-alert
+  return window.confirm(
+    `${t('AUTOMATION.CANVAS.VALIDATION.WARNINGS')}\n\n${warnings
+      .map(describeFinding)
+      .join('\n')}\n\n${t('AUTOMATION.CANVAS.VALIDATION.SAVE_ANYWAY')}`
+  );
+};
+
 const save = async () => {
   if (isSaving.value) return;
   const invalid = validationError();
@@ -747,6 +1105,7 @@ const save = async () => {
     useAlert(invalid);
     return;
   }
+  if (!graphGatePassed()) return;
   isSaving.value = true;
   try {
     const triggerNodes = (definition.value.nodes || []).filter(
@@ -755,32 +1114,20 @@ const save = async () => {
     const payload = {
       name: name.value,
       definition: definition.value,
-      ...triggerPayload(triggerNodes[0]),
+      ...buildTriggerPayload(triggerNodes, loadedTriggerConfig.value),
     };
-    // Multi-gatilho: com mais de um nó `trigger` de evento, grava TODOS os event_names
-    // em trigger_config.event_names — o backend (current_account_flows) casa qualquer um.
-    // Retrocompat: com 1 só, mantém apenas event_name (event_names ausente).
-    if (payload.trigger_type === 'conversation_event') {
-      const eventNames = [
-        ...new Set(triggerNodes.map(n => n.event_name).filter(Boolean)),
-      ];
-      if (eventNames.length > 1) {
-        payload.trigger_config = {
-          ...payload.trigger_config,
-          event_names: eventNames,
-        };
-      }
-    }
     if (isEdit.value) {
       const updated = await store.dispatch('flows/update', {
         id: flowId.value,
         ...payload,
       });
+      loadedTriggerConfig.value = updated?.trigger_config || {};
       withoutHistory(() => syncWebhookToken(updated));
       history.markSaved(definition.value);
       useAlert(t('AUTOMATION.CANVAS.SAVED'));
     } else {
       const created = await store.dispatch('flows/create', payload);
+      loadedTriggerConfig.value = created?.trigger_config || {};
       withoutHistory(() => syncWebhookToken(created));
       history.markSaved(definition.value);
       useAlert(t('AUTOMATION.CANVAS.CREATED'));
@@ -796,12 +1143,19 @@ const save = async () => {
   }
 };
 
-onBeforeRouteLeave(
-  () =>
-    !isDirty.value ||
-    // eslint-disable-next-line no-alert
-    window.confirm(t('AUTOMATION.CANVAS.UNSAVED_CONFIRM'))
-);
+// Sair da tela com trabalho não salvo: confirma. Quando há CAMPO OBRIGATÓRIO em branco a
+// mensagem os lista pelo nome — sair ali significa perder o fluxo por um texto que faltou.
+onBeforeRouteLeave(() => {
+  if (!isDirty.value) return true;
+  const errors = errorsOf(validateDefinition(definition.value));
+  const message = errors.length
+    ? `${t('AUTOMATION.CANVAS.VALIDATION.BLOCKED')}\n${errors
+        .map(describeFinding)
+        .join('\n')}\n\n${t('AUTOMATION.CANVAS.UNSAVED_CONFIRM')}`
+    : t('AUTOMATION.CANVAS.UNSAVED_CONFIRM');
+  // eslint-disable-next-line no-alert
+  return window.confirm(message);
+});
 </script>
 
 <template>
@@ -870,6 +1224,34 @@ onBeforeRouteLeave(
         >
           <span class="i-lucide-redo-2" />
         </button>
+      </div>
+      <div class="flex items-center gap-0.5">
+        <button
+          class="grid rounded-lg size-8 place-items-center text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2"
+          :aria-label="t('AUTOMATION.CANVAS.EXPORT')"
+          :title="t('AUTOMATION.CANVAS.EXPORT')"
+          data-testid="canvas-export"
+          @click="exportFlow"
+        >
+          <span class="i-lucide-download" />
+        </button>
+        <button
+          class="grid rounded-lg size-8 place-items-center text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2"
+          :aria-label="t('AUTOMATION.CANVAS.IMPORT')"
+          :title="t('AUTOMATION.CANVAS.IMPORT')"
+          data-testid="canvas-import"
+          @click="fileInput?.click()"
+        >
+          <span class="i-lucide-upload" />
+        </button>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="application/json,.json"
+          class="hidden"
+          data-testid="canvas-import-input"
+          @change="onImportFile"
+        />
       </div>
       <button
         v-if="isEdit"
@@ -1001,9 +1383,11 @@ onBeforeRouteLeave(
       <ConfigPanel
         v-if="selectedNode"
         :node="selectedNode"
+        :definition="definition"
         @close="onPaneClick"
         @update="updateSelectedNode"
         @delete="removeSelectedNode"
+        @duplicate="duplicateSelectedNode"
       />
     </div>
 

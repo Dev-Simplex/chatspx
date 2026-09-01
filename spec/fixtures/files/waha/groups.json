@@ -1,0 +1,56 @@
+[
+  {
+    "JID": "556696571379-1634750731@g.us",
+    "OwnerJID": "267722592149653@lid",
+    "OwnerPN": "556699990003@s.whatsapp.net",
+    "Name": "TI TOZI - Inovação",
+    "AddressingMode": "lid",
+    "GroupCreated": "2021-10-20T14:25:31-03:00",
+    "CreatorCountryCode": "BR",
+    "IsAnnounce": false,
+    "IsLocked": false,
+    "IsEphemeral": false,
+    "MemberAddMode": "admin_add",
+    "ParticipantCount": 0,
+    "Participants": [
+      {
+        "JID": "229480102662169@lid",
+        "PhoneNumber": "556699990001@s.whatsapp.net",
+        "LID": "229480102662169@lid",
+        "IsAdmin": true,
+        "IsSuperAdmin": false,
+        "DisplayName": "",
+        "Error": 0,
+        "AddRequest": null
+      },
+      {
+        "JID": "224515288227943@lid",
+        "PhoneNumber": "556699990002@s.whatsapp.net",
+        "LID": "224515288227943@lid",
+        "IsAdmin": false,
+        "IsSuperAdmin": false,
+        "DisplayName": "",
+        "Error": 0,
+        "AddRequest": null
+      }
+    ]
+  },
+  {
+    "JID": "120363287968160641@g.us",
+    "Name": "Infra Data Norte",
+    "AddressingMode": "lid",
+    "ParticipantCount": 0,
+    "Participants": [
+      {
+        "JID": "101958815846617@lid",
+        "PhoneNumber": "556699990004@s.whatsapp.net",
+        "LID": "101958815846617@lid",
+        "IsAdmin": false,
+        "IsSuperAdmin": false,
+        "DisplayName": "",
+        "Error": 0,
+        "AddRequest": null
+      }
+    ]
+  }
+]

@@ -58,12 +58,32 @@ describe('useTypewriter', () => {
     pendingRafs = [];
   });
 
-  it('completes immediately for empty text', () => {
+  it('does NOT report done for empty text (nothing arrived yet)', () => {
+    // Regressão C1: com `isDone` verdadeiro no texto vazio, a bolha anunciava
+    // "Resposta pronta" no `role=status` em t=0, antes do primeiro token.
     const text = ref('');
     const { displayed, isDone, start } = useTypewriter(text);
     start();
-    expect(isDone.value).toBe(true);
+    expect(isDone.value).toBe(false);
     expect(displayed.value).toBe('');
+    expect(pendingRafs.length).toBe(0);
+  });
+
+  it('reports done only once the first tokens have been rendered', () => {
+    const text = ref('');
+    const { displayed, isDone, start } = useTypewriter(text, {
+      mode: 'word',
+      delay: 35,
+    });
+    start();
+    expect(isDone.value).toBe(false);
+
+    text.value = 'pronto';
+    start();
+    flushFrames(1, 40);
+    expect(displayed.value).toBe('pronto');
+    flushFrames(1, 40);
+    expect(isDone.value).toBe(true);
   });
 
   it('streams word-by-word with default 35ms delay', () => {

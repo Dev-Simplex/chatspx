@@ -39,7 +39,7 @@ describe CsatSurveyService do
         service.perform
 
         expect(Conversations::ActivityMessageJob).to have_received(:perform_later).with(
-          conversation,
+          conversation.id,
           hash_including(content: I18n.t('conversations.activity.csat.not_sent_due_to_messaging_window'))
         )
         expect(MessageTemplates::Template::CsatSurvey).not_to have_received(:new)
@@ -67,6 +67,38 @@ describe CsatSurveyService do
 
       it 'does nothing when CSAT already sent' do
         create(:message, conversation: conversation, content_type: :input_csat)
+
+        service.perform
+
+        expect(MessageTemplates::Template::CsatSurvey).not_to have_received(:new)
+        expect(Conversations::ActivityMessageJob).not_to have_received(:perform_later)
+      end
+
+      # Freio de GRUPO de WhatsApp: 15 CSAT ja foram disparadas dentro de grupos nesta base.
+      # Dispara em 1:1 (coberto pelos exemplos acima), nao dispara em grupo.
+      it 'does nothing for WhatsApp group conversations (contact identifier @g.us)' do
+        allow(conversation).to receive(:can_reply?).and_return(true)
+        conversation.contact.update!(identifier: '5566999991234-1634750731@g.us')
+
+        service.perform
+
+        expect(MessageTemplates::Template::CsatSurvey).not_to have_received(:new)
+        expect(Conversations::ActivityMessageJob).not_to have_received(:perform_later)
+      end
+
+      it 'does nothing for group conversations flagged by additional_attributes' do
+        allow(conversation).to receive(:can_reply?).and_return(true)
+        conversation.update!(additional_attributes: { 'type' => 'group' })
+
+        service.perform
+
+        expect(MessageTemplates::Template::CsatSurvey).not_to have_received(:new)
+        expect(Conversations::ActivityMessageJob).not_to have_received(:perform_later)
+      end
+
+      it 'does nothing for group conversations flagged by waha_whatsapp_chat_id' do
+        allow(conversation).to receive(:can_reply?).and_return(true)
+        conversation.contact.update!(custom_attributes: { 'waha_whatsapp_chat_id' => '120363000000000000@g.us' })
 
         service.perform
 
@@ -319,7 +351,7 @@ describe CsatSurveyService do
           whatsapp_service.perform
 
           expect(Conversations::ActivityMessageJob).to have_received(:perform_later).with(
-            whatsapp_conversation,
+            whatsapp_conversation.id,
             hash_including(content: I18n.t('conversations.activity.csat.not_sent_due_to_messaging_window'))
           )
           expect(MessageTemplates::Template::CsatSurvey).not_to have_received(:new)

@@ -7,6 +7,8 @@ import {
   iconForNode,
   catalogEntryForNode,
 } from '../nodeCatalog';
+import enAutomation from 'dashboard/i18n/locale/en/automation.json';
+import ptAutomation from 'dashboard/i18n/locale/pt_BR/automation.json';
 
 const VALID_TYPES = [
   'trigger',
@@ -411,6 +413,73 @@ describe('send_whatsapp_flow node (F3 native WhatsApp Flow form)', () => {
   it('resolves the clipboard-list icon via iconForNode', () => {
     expect(iconForNode(node)).toBe('i-lucide-clipboard-list');
   });
+});
+
+describe('distribuir node (Motor de Distribuição — rodízio/fila)', () => {
+  const node = { type: 'action', action_name: 'distribuir' };
+
+  it('is registered in the catalog under the action family', () => {
+    const entry = NODE_CATALOG.find(item => item.key === 'distribuir');
+    expect(entry).toMatchObject({
+      key: 'distribuir',
+      type: 'action',
+      actionName: 'distribuir',
+      family: 'action',
+      labelKey: 'AUTOMATION.CANVAS.NODES.DISTRIBUIR',
+      icon: 'i-lucide-shuffle',
+    });
+  });
+
+  // O bloco existe para o par `Atribuir time` → `Distribuir pelo rodízio` ficar legível no
+  // grafo, então os dois têm de cair na MESMA seção da paleta — separá-los desfaz o ponto.
+  it('lands in the same palette section as assign_team', () => {
+    const assignTeam = NODE_CATALOG.find(item => item.key === 'assign_team');
+    const distribuir = NODE_CATALOG.find(item => item.key === 'distribuir');
+    expect(distribuir.family).toBe(assignTeam.family);
+    expect(NODE_CATALOG.indexOf(distribuir)).toBeGreaterThan(
+      NODE_CATALOG.indexOf(assignTeam)
+    );
+  });
+
+  it('resolves via catalogEntryForNode by action_name', () => {
+    expect(catalogEntryForNode(node)).toMatchObject({
+      key: 'distribuir',
+      actionName: 'distribuir',
+      family: 'action',
+    });
+  });
+
+  it('resolves the action family via familyForNode', () => {
+    expect(familyForNode(node)).toBe('action');
+  });
+
+  it('resolves the i18n labelKey via labelForNode', () => {
+    expect(labelForNode(node)).toBe('AUTOMATION.CANVAS.NODES.DISTRIBUIR');
+  });
+
+  it('resolves the shuffle icon via iconForNode', () => {
+    expect(iconForNode(node)).toBe('i-lucide-shuffle');
+  });
+
+  // O catálogo só guarda a CHAVE: uma chave sem tradução aparece crua na paleta ("AUTOMATION.
+  // CANVAS.NODES.DISTRIBUIR" no lugar do nome do bloco). Vale para os dois idiomas.
+  it.each([
+    ['en', enAutomation],
+    ['pt_BR', ptAutomation],
+  ])(
+    'has a %s translation for the node label and the config panel',
+    (_, bundle) => {
+      const canvas = bundle.AUTOMATION.CANVAS;
+      expect(canvas.NODES.DISTRIBUIR).toBeTruthy();
+      expect(Object.keys(canvas.CONFIG.DISTRIBUIR).sort()).toEqual([
+        'EXPLANATION',
+        'HINT',
+        'NO_POLICY',
+        'TEAMS_WITH_POLICY',
+      ]);
+      expect(canvas.CONFIG.DISTRIBUIR.TEAMS_WITH_POLICY).toContain('{teams}');
+    }
+  );
 });
 
 describe('catalog <-> resolver consistency', () => {

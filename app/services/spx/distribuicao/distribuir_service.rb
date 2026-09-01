@@ -34,18 +34,37 @@ module Spx
       # Corretor que o CLIENTE pediu pelo nome. Escrito pela conduta da IA, lido aqui.
       PREFERENCIA = 'rodizio_preferencia'.freeze
       # Motivos que gastam a vez do consultor no rodízio (ver #consome_vez?).
-      CONSOMEM_VEZ = %w[rodizio preferencia_cliente].freeze
+      # `repasse_sla` gasta a vez: quem recebeu por repasse recebeu um lead de verdade e tem de
+      # andar para o fim da fila igual a todo mundo. Quem DEIXOU vencer já tinha gastado a dele
+      # na designação original — é exatamente a "punição aritmética" da SPEC §7.2: o lead conta
+      # como recebido, então ao longo do dia quem não responde recebe menos.
+      CONSOMEM_VEZ = %w[rodizio preferencia_cliente repasse_sla].freeze
 
-      def initialize(conversation)
+      # `excluir` / `repasse_n` / `motivo_forcado` existem para o REPASSE por SLA
+      # (RepasseService) reusar exatamente esta decisão em vez de reimplementá-la:
+      #   excluir        — quem já queimou a vez neste ciclo (não pode receber de novo)
+      #   repasse_n      — a que altura do ciclo estamos; vai gravado no log e alimenta o teto
+      #   motivo_forcado — 'repasse_sla' pula preferência/continuidade. É regra da SPEC §7.2:
+      #                    "continuidade é gasta ao expirar" — quem tinha prioridade e deixou
+      #                    vencer devolve o lead ao rodízio normal, senão o mesmo consultor
+      #                    seria reescolhido pela continuidade e o repasse viraria loop.
+      # Defaults preservam o comportamento de sempre para o chamador do handoff.
+      def initialize(conversation, excluir: [], repasse_n: 0, motivo_forcado: nil)
         @conversation = conversation
         @team = conversation.team
+        @excluir = Array(excluir).compact.to_set(&:to_i)
+        @repasse_n = repasse_n.to_i
+        @motivo_forcado = motivo_forcado
       end
 
       def call
         return noop unless @team
 
         @policy = Policy.for_team(@conversation.account_id, @team.id)
-        return noop if @policy.nil? || @policy.modo != 'rodizio'
+        return noop if @policy.nil? || !@policy.distribui?
+        # Modo pull: ninguém é escolhido de propósito. A linha aberta serve só de relógio —
+        # é ela que dá à fila o mesmo `sla_assumir_minutos` e a mesma escalação do push.
+        return abrir_fila if @policy.fila?
 
         pool_ids = build_pool(@policy) # ordenado: pool ativo ∩ produto ∩ membros atuais do time
         return sem_pool(pool_ids) if pool_ids.empty?
@@ -53,12 +72,7 @@ module Spx
         chosen, motivo = pick(@policy, pool_ids)
         return sem_pool(pool_ids) if chosen.nil?
 
-        assign!(chosen)
-        advance_state(chosen) if consome_vez?(motivo)
-        registrar(chosen, motivo, pool_ids)
-        carimbar(chosen)
-        espelhar_vista(chosen)
-        Result.new(decidido: true, user_id: chosen, motivo: motivo)
+        efetivar(chosen, motivo, pool_ids)
       rescue StandardError => e
         Rails.logger.error("[Distribuicao] conv=#{@conversation&.id} team=#{@team&.id}: #{e.message}")
         noop
@@ -70,9 +84,29 @@ module Spx
         Result.new(decidido: false, user_id: nil, motivo: nil)
       end
 
+      # Tudo que acontece DEPOIS da escolha, na ordem em que tem de acontecer: a posse, o
+      # ponteiro do rodízio, o livro-razão, o carimbo e — por último, porque pode falhar sem
+      # invalidar o resto — o espelho no Vista.
+      def efetivar(chosen, motivo, pool_ids)
+        assign!(chosen)
+        advance_state(chosen) if consome_vez?(motivo)
+        registrar(chosen, motivo, pool_ids)
+        carimbar(chosen)
+        espelhar_vista(chosen)
+        Result.new(decidido: true, user_id: chosen, motivo: motivo)
+      end
+
       def sem_pool(candidatos)
         registrar(nil, 'sem_pool', candidatos)
         Result.new(decidido: false, user_id: nil, motivo: 'sem_pool')
+      end
+
+      # Fila (pull): a conversa fica sem dono, como já ficava sem política nenhuma. A diferença
+      # é a linha ABERTA no log — sem ela a espera não tem começo e o SLA não teria de onde
+      # contar. `decidido: false` porque ninguém foi escolhido.
+      def abrir_fila
+        registrar(nil, 'fila', [])
+        Result.new(decidido: false, user_id: nil, motivo: 'fila')
       end
 
       # Interseção pool-configurado ∩ quem atende o PRODUTO do lead ∩ membros atuais do
@@ -84,6 +118,7 @@ module Spx
               .select { |e| atende_produto?(e) }
               .filter_map { |e| e['user_id']&.to_i }
               .select { |uid| member_ids.include?(uid) }
+              .reject { |uid| @excluir.include?(uid) }
               .uniq
       end
 
@@ -115,6 +150,10 @@ module Spx
       end
 
       def pick(policy, pool_ids)
+        # Repasse: direto ao rodízio. Preferência e continuidade apontariam para quem acabou
+        # de deixar o prazo vencer (ou para alguém já excluído) e o lead nunca andaria.
+        return [proximo_rodizio(policy, pool_ids), @motivo_forcado] if @motivo_forcado
+
         preferido = preferencia_do_cliente(pool_ids)
         return [preferido, 'preferencia_cliente'] if preferido
 
@@ -236,23 +275,32 @@ module Spx
       # Uma designação viva por conversa: um re-handoff substitui a anterior, senão a conta
       # de "designados sem movimento" enxergaria a mesma conversa duas vezes.
       def registrar(user_id, motivo, candidatos)
-        Log.designacao_aberta(@conversation.id)&.encerrar!('substituido') if user_id.present?
+        ciclo_novo = ciclo(user_id)
+        # Uma designação viva por conversa. A condição é "a linha NOVA abre uma designação",
+        # não "tem gente escolhida": o modo fila abre designação sem `chosen_user_id`, e sem
+        # isto duas filas abertas contariam a mesma conversa duas vezes na tela.
+        Log.designacao_aberta(@conversation.id)&.encerrar!('substituido') if ciclo_novo[:status] == 'designado'
 
         Log.create!(account_id: @conversation.account_id, conversation_id: @conversation.id,
                     chosen_user_id: user_id, motivo: motivo, candidatos: candidatos,
                     produto_slug: produto, policy_snapshot: snapshot(candidatos),
-                    created_at: Time.current, **ciclo(user_id))
+                    repasse_n: @repasse_n, created_at: Time.current, **ciclo_novo)
       rescue StandardError => e
         Rails.logger.warn("[Distribuicao] log conv=#{@conversation&.id}: #{e.message}")
       end
 
-      # `sem_pool` não é designação — é linha de auditoria, nasce sem ciclo de vida.
-      # Em modo assignee a posse já é do humano no mesmo instante: nasce e fecha junto.
       def ciclo(user_id)
-        return { status: nil } if user_id.blank?
-
         agora = Time.current
+        # Fila: ninguém escolhido, mas a espera precisa de início.
+        return { status: 'designado', designado_em: agora } if @policy&.fila?
+        # `sem_pool` não é designação — é linha de auditoria, nasce sem ciclo de vida.
+        return { status: nil } if user_id.blank?
         return { status: 'designado', designado_em: agora } if @policy.designacao?
+        # Modo assignee: a posse já é do humano no mesmo instante — a linha nasce e fecha
+        # junto, como sempre. EXCETO com repasse ligado: aí "designado" passa a significar
+        # "atribuído e ainda sem primeira resposta", que é justamente o estado que o SLA mede.
+        # Quem fecha nesse caso é o DesignacaoListener, na primeira resposta humana.
+        return { status: 'designado', designado_em: agora } if @policy.repassa?
 
         { status: 'assumido', designado_em: agora, encerrado_em: agora }
       end
@@ -265,7 +313,19 @@ module Spx
           'produto' => produto,
           'pool_elegivel' => candidatos,
           'pool_configurado' => @policy&.pool,
-          'continuidade' => { 'ativa' => @policy&.continuidade_ativa, 'dias' => @policy&.continuidade_dias }
+          'continuidade' => { 'ativa' => @policy&.continuidade_ativa, 'dias' => @policy&.continuidade_dias },
+          'modo' => @policy&.modo,
+          'repasse' => snapshot_repasse
+        }
+      end
+
+      def snapshot_repasse
+        {
+          'automatico' => @policy&.repasse_automatico,
+          'sla_minutos' => @policy&.sla_assumir_minutos,
+          'max' => @policy&.max_repasses,
+          'destino_esgotado' => @policy&.pool_esgotado_destino_user_id,
+          'vista_desatualizado' => VistaCardService.desatualizado?(@conversation, @policy, @repasse_n)
         }
       end
     end

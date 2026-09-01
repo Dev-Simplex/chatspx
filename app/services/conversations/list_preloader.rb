@@ -30,10 +30,11 @@ class Conversations::ListPreloader
     sql = <<~SQL.squish
       SELECT c.id AS conversation_id, COUNT(m.id)::int AS cnt
       FROM conversations c
+      INNER JOIN inboxes i ON i.id = c.inbox_id
       LEFT JOIN messages m ON m.conversation_id = c.id
         AND m.account_id = c.account_id
         AND m.message_type = 0
-        AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
+        AND #{team_isolation_where}
         AND (c.agent_last_seen_at IS NULL OR m.created_at > c.agent_last_seen_at)
       WHERE c.id IN (?)
       GROUP BY c.id
@@ -41,9 +42,13 @@ class Conversations::ListPreloader
     rows = Conversation.connection.select_all(
       Conversation.sanitize_sql_array([sql, @conversation_ids])
     )
+    capped_unread_counts(rows)
+  end
+
+  # A UI mostra "9+" acima de 10; o teto vive aqui para o SQL nao carregar essa regra.
+  def capped_unread_counts(rows)
     rows.to_a.each_with_object({}) do |row, h|
-      cnt = row['cnt'].to_i
-      h[row['conversation_id'].to_i] = [cnt, 10].min
+      h[row['conversation_id'].to_i] = [row['cnt'].to_i, 10].min
     end
   end
 
@@ -71,19 +76,57 @@ class Conversations::ListPreloader
     @supervised_team_ids = TeamSupervision.team_ids(@user, @conversations.first&.account_id)
   end
 
-  # Caixas em que este usuário é EXCEÇÃO do isolamento por agente: ali ele vê a última
-  # mensagem REAL, de qualquer agente. Vazio para quem não é exceção em lugar nenhum, e
-  # então a cláusula some da SQL — a query fica idêntica à de antes.
+  # Filtro por TIME da mensagem (team_message_isolation) — o espelho, na PREVIA, do que a
+  # association `Conversation#messages` faz na conversa aberta.
+  #
+  # Era `(c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)`, INCONDICIONAL:
+  # nao olhava a flag nenhuma. Uma mensagem com team_id defasado (a conversa trocou de time
+  # e o UpdateMessagesTeamIdJob ainda nao rodou) sumia da previa mesmo na caixa com o
+  # isolamento DESLIGADO — e a lista mostrava uma mensagem antiga como se fosse a ultima.
+  # E o mesmo bug do `messages` vs `all_messages` que derrubou em silencio o no de mensagem
+  # do flow, o CSAT e o NPS (ver conversations/message_window_service.rb), aqui na previa.
+  #
+  # Agora exige a regra ALCANCAR a conversa: flag ligada E time no escopo. `NOT <alcanca>`
+  # ja cobre a conversa SEM time (team_message_isolation esta em Inbox::TEAMLESS_EXEMPT_RULES),
+  # entao o `c.team_id IS NULL` solto sai daqui.
+  # O COALESCE nao e enfeite: `inboxes.team_message_isolation` e a UNICA das 3 flags que
+  # ficou NULLABLE (as outras duas sao NOT NULL). Numa linha com a flag NULL, `flag = true`
+  # da NULL, `NOT NULL` da NULL, e a mensagem com time defasado seria descartada em
+  # silencio — justamente o bug que este metodo existe para fechar. O Ruby
+  # (`isolation_applies_to_team?`) ja trata NULL como false (`unless self[key]`); aqui o SQL
+  # passa a concordar com ele.
+  #
+  # SEGUNDO EIXO, a ISENCAO por agente: quem for excecao do isolamento por time naquela
+  # caixa sai do recorte tambem aqui. A previa e o espelho da association
+  # `Conversation#messages`; sem isto o agente isento abriria a conversa e veria tudo, mas
+  # a PREVIA da lista continuaria recortada. Sem excecao nenhuma a clausula nao aparece e
+  # a SQL fica identica a de antes.
+  def team_isolation_where
+    applies = Inbox.isolation_applies_sql(:team_message_isolation, inbox_alias: 'i', conversation_alias: 'c')
+    "(NOT COALESCE(#{applies}, FALSE)#{isento_or('c.inbox_id', team_exempt_inbox_ids)} " \
+      'OR m.team_id IS NULL OR m.team_id = c.team_id)'
+  end
+
+  # Fragmento ` OR <coluna> IN (1,2,3)`, ou vazio quando nao ha isencao.
+  # Ids inteiros interpolados de proposito, e nao bind nomeado: `team_isolation_where` roda
+  # tambem em `batch_unread_counts`, que usa bind POSICIONAL (`?`) — um `:nome` ali viraria
+  # erro de bind. `to_i` e a barreira: sao ids vindos do banco, nunca entrada de usuario.
+  def isento_or(coluna, ids)
+    lista = Array(ids).map(&:to_i)
+    return '' if lista.empty?
+
+    " OR #{coluna} IN (#{lista.join(',')})"
+  end
+
+  # Caixas em que este usuario e EXCECAO do isolamento por AGENTE: ali ele ve a ultima
+  # mensagem REAL, de qualquer agente.
   def exempt_inbox_ids
     return @exempt_inbox_ids if defined?(@exempt_inbox_ids)
 
     @exempt_inbox_ids = AgentMessageIsolation.exempt_inbox_ids(@user, @conversations.first&.account_id)
   end
 
-  # Idem para o isolamento por TIME. A cláusula de time desta query é o espelho da que
-  # vive na association conversation.messages, então a exceção precisa valer aqui também —
-  # senão o agente isento abriria a conversa e veria tudo, mas a PRÉVIA da lista continuaria
-  # recortada. Vazio para quem não é exceção → cláusula ausente → SQL igual à de antes.
+  # Idem para o isolamento por TIME.
   def team_exempt_inbox_ids
     return @team_exempt_inbox_ids if defined?(@team_exempt_inbox_ids)
 
@@ -95,51 +138,33 @@ class Conversations::ListPreloader
                              end
   end
 
-  # Espelho da cláusula de time da association conversation.messages: a prévia mostra a
-  # mensagem do time da conversa (ou sem time). Quem for exceção do isolamento por time
-  # naquela caixa sai do recorte; sem exceção nenhuma a cláusula é a mesma de sempre.
-  def team_message_clause
-    base = 'AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id'
-    return "#{base})" if team_exempt_inbox_ids.empty?
-
-    "#{base} OR c.inbox_id IN (:team_exempt))"
-  end
-
-  # Filtra a última mensagem por agente SÓ nos inboxes com a flag ON (a lista mistura
-  # inboxes). `c.team_id IN (:supervised)` é a isenção do supervisor e `c.inbox_id IN
-  # (:exempt)` é a exceção por caixa — as duas somem quando não há supervisão/exceção.
-  def agent_message_clause
-    return '' if agent_filter_id.nil?
-
-    supervised_or = supervised_team_ids.any? ? ' OR c.team_id IN (:supervised)' : ''
-    exempt_or = exempt_inbox_ids.any? ? ' OR c.inbox_id IN (:exempt)' : ''
-    'AND (i.agent_message_isolation IS NOT TRUE OR m.agent_id IS NULL ' \
-      "OR m.agent_id = :uid#{supervised_or}#{exempt_or})"
-  end
-
-  def last_message_binds
-    binds = { ids: @conversation_ids }
-    binds[:uid] = agent_filter_id if agent_filter_id
-    binds[:supervised] = supervised_team_ids if agent_filter_id && supervised_team_ids.any?
-    binds[:exempt] = exempt_inbox_ids if agent_filter_id && exempt_inbox_ids.any?
-    binds[:team_exempt] = team_exempt_inbox_ids if team_exempt_inbox_ids.any?
-    binds
-  end
-
   def fetch_combined_last_message_rows # rubocop:disable Metrics/MethodLength
-    inbox_join = agent_filter_id ? 'INNER JOIN inboxes i ON i.id = c.inbox_id' : ''
-    agent_where = agent_message_clause
-    team_where = team_message_clause
+    uid = agent_filter_id
+    supervised = uid ? supervised_team_ids : []
+    # Filtra a última mensagem por agente SÓ nos inboxes com a flag ON (a lista mistura inboxes).
+    # `c.team_id IN (:supervised)` é a isenção do supervisor — cláusula ausente quando não há supervisão.
+    supervised_or = supervised.any? ? ' OR c.team_id IN (:supervised)' : ''
+    # `NOT <regra alcanca>` no lugar do antigo `i.agent_message_isolation IS NOT TRUE`: a
+    # previa volta a ser a mensagem REAL quando a regra nao alcanca a conversa (flag off,
+    # conversa sem time, ou time fora da lista escolhida na caixa).
+    applies = Inbox.isolation_applies_sql(:agent_message_isolation, inbox_alias: 'i', conversation_alias: 'c')
+    # `c.inbox_id IN (...)` e a EXCECAO por caixa, o segundo eixo: clausula ausente quando
+    # o usuario nao e excecao em lugar nenhum.
+    exempt_or = isento_or('c.inbox_id', exempt_inbox_ids)
+    agent_where = uid ? "AND (NOT #{applies} OR m.agent_id IS NULL OR m.agent_id = :uid#{supervised_or}#{exempt_or})" : ''
+    # O JOIN com `inboxes` deixou de ser condicional ao `uid`: o filtro por time tambem
+    # pergunta a caixa (flag + lista), entao a tabela precisa estar unida SEMPRE.
+    team_where = team_isolation_where
 
     sql = <<~SQL.squish
       WITH last_all AS (
         SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id
         FROM messages m
         INNER JOIN conversations c ON c.id = m.conversation_id
-        #{inbox_join}
+        INNER JOIN inboxes i ON i.id = c.inbox_id
         WHERE m.conversation_id IN (:ids)
           AND m.account_id = c.account_id
-          #{team_where}
+          AND #{team_where}
           #{agent_where}
         ORDER BY m.conversation_id, m.created_at DESC, m.id DESC
       ),
@@ -147,11 +172,11 @@ class Conversations::ListPreloader
         SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id
         FROM messages m
         INNER JOIN conversations c ON c.id = m.conversation_id
-        #{inbox_join}
+        INNER JOIN inboxes i ON i.id = c.inbox_id
         WHERE m.conversation_id IN (:ids)
           AND m.account_id = c.account_id
           AND m.message_type != 2
-          #{team_where}
+          AND #{team_where}
           #{agent_where}
         ORDER BY m.conversation_id, m.id DESC
       )
@@ -160,8 +185,11 @@ class Conversations::ListPreloader
       SELECT 'non_activity' AS kind, id, conversation_id FROM last_non_activity
     SQL
 
+    binds = { ids: @conversation_ids }
+    binds[:uid] = uid if uid
+    binds[:supervised] = supervised if supervised.any?
     Conversation.connection.select_all(
-      Conversation.sanitize_sql_array([sql, last_message_binds])
+      Conversation.sanitize_sql_array([sql, binds])
     ).to_a
   end
 

@@ -354,4 +354,65 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
 
     expect(resolvable_pending_conversation.reload.status).to eq('pending')
   end
+
+  # Guarda A da fila de encerramento: conversa que já está na fila do HUMANO não é assunto do
+  # encerramento. Varrer significaria pagar uma classificação (LLM), poder mandar "vou encerrar"
+  # a quem espera uma pessoa e deixar a conversa nas DUAS filas ao mesmo tempo.
+  context 'when the closure policy is enabled' do
+    let!(:awaiting_human_conversation) do
+      create(:conversation, inbox: inbox, account: inbox.account, status: :open, last_activity_at: 2.hours.ago,
+                            assignee_agent_bot: captain_assistant.mirror_agent_bot)
+    end
+    let!(:idle_ai_conversation) do
+      create(:conversation, inbox: inbox, account: inbox.account, status: :open, last_activity_at: 3.hours.ago,
+                            assignee_agent_bot: captain_assistant.mirror_agent_bot)
+    end
+
+    before do
+      allow(inbox.account).to receive(:feature_enabled?).and_call_original
+      allow(inbox.account).to receive(:feature_enabled?).with('captain_tasks').and_return(true)
+      enable_closure_policy
+      # Marcador só depois do create: `ensure_waiting_since` popula waiting_since no create e o
+      # concern leria isso como "cliente voltou a falar", limpando o marcador na hora.
+      awaiting_human_conversation.update!(custom_attributes: { 'aguardando_humano_desde' => 3.hours.ago.iso8601 })
+      # Fora do lote: os `let!` de cima nascem cada um em SUA conta (a factory cria uma quando só
+      # o inbox é passado), então todos têm display_id 1 — e o job classifica sempre com
+      # `account: inbox.account`, o que tornaria o display_id ambíguo na asserção abaixo.
+      resolvable_pending_conversation.update!(last_activity_at: 1.minute.ago)
+      mock_service = instance_double(Captain::ConversationCompletionService)
+      allow(mock_service).to receive(:perform).and_return({ complete: true, reason: 'sem pendências', classe: 'substantive' })
+      allow(Captain::ConversationCompletionService).to receive(:new).and_return(mock_service)
+    end
+
+    it 'does not classify a conversation that is already waiting for a human' do
+      described_class.perform_now(inbox)
+
+      expect(Captain::ConversationCompletionService).not_to have_received(:new)
+        .with(account: inbox.account, conversation_display_id: awaiting_human_conversation.display_id)
+    end
+
+    it 'does not put a conversation waiting for a human into the closure queue' do
+      described_class.perform_now(inbox)
+
+      expect(awaiting_human_conversation.reload.custom_attributes).not_to have_key('aguardando_encerramento_desde')
+    end
+
+    it 'keeps the exclusion when the closure valve is off (max_dias = 0)' do
+      enable_closure_policy(max_dias: 0)
+
+      described_class.perform_now(inbox)
+
+      expect(awaiting_human_conversation.reload.custom_attributes).not_to have_key('aguardando_encerramento_desde')
+    end
+
+    it 'still scans an idle AI conversation without the human marker' do
+      described_class.perform_now(inbox)
+
+      expect(idle_ai_conversation.reload.custom_attributes).to have_key('aguardando_encerramento_desde')
+    end
+  end
+
+  def enable_closure_policy(max_dias: 3)
+    inbox.account.update!(settings: inbox.account.settings.merge('auto_closure' => { 'enabled' => true, 'max_dias' => max_dias }))
+  end
 end

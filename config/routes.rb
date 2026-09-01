@@ -47,6 +47,10 @@ Rails.application.routes.draw do
           get :cache_keys
           post :chat_wallpaper
           delete :chat_wallpaper
+          # Ligar e desligar feature pela TELA da conta. Ate aqui so existia pelo console ou pelo
+          # super_admin (Administrate), e a Platform API, que exige token de PlatformApp.
+          get :features
+          patch :features
         end
 
         scope module: :accounts do
@@ -61,6 +65,13 @@ Rails.application.routes.draw do
           resource :distribuicao_dashboard, only: [:show], controller: 'distribuicao_dashboard' do
             get :designacoes
           end
+
+          # Alias do contrato C1 do briefing (sem o prefixo /captain). A rota
+          # canonica e a de dentro do namespace :captain, onde o recurso vive;
+          # este alias existe para quem implementou o cliente pelo caminho
+          # literal do contrato.
+          post 'copilot_threads/:copilot_thread_id/stream', to: 'captain/copilot_streams#create'
+          delete 'copilot_threads/:copilot_thread_id/stream', to: 'captain/copilot_streams#destroy'
           namespace :captain do
             resource :preferences, only: [:show, :update]
             resource :eval_dashboard, only: [:show], controller: 'eval_dashboard' do
@@ -84,6 +95,10 @@ Rails.application.routes.draw do
             resources :bulk_actions, only: [:create]
             resources :copilot_threads, only: [:index, :create] do
               resources :copilot_messages, only: [:index, :create]
+              # Streaming SSE do copiloto (contrato C1).
+              # POST   .../captain/copilot_threads/:copilot_thread_id/stream  -> gera
+              # DELETE .../captain/copilot_threads/:copilot_thread_id/stream  -> "parar"
+              resource :stream, only: [:create, :destroy], controller: 'copilot_streams'
             end
             resources :custom_tools do
               member do
@@ -144,6 +159,9 @@ Rails.application.routes.draw do
               resources :inbox_limits, only: [:create, :update, :destroy]
             end
           end
+          # Campanhas de captação (lead ads / formulário): viewer só-leitura do volume por
+          # campanha e da configuração do hook que a atende.
+          resource :lead_campaigns, only: [:show, :update], controller: 'lead_campaigns'
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :stats
@@ -187,6 +205,21 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
+          # Unidades físicas do cliente — contrato em docs/contratos/unidades.md.
+          # Unidade é leitura (a carga é por rake); a escrita é da exceção, que é o que muda
+          # toda semana. Sem `update` na exceção: corrigir é apagar e criar outra.
+          resources :unidades, only: [:index]
+          resources :unidade_excecoes, only: [:index, :create, :destroy]
+          # Superficie de rede social — SPEC em docs/SPEC-instagram-social.md.
+          # A captura vem do webhook; a leitura e a resposta manual moram aqui.
+          resources :social_comentarios, only: [:index] do
+            member do
+              # Unico caminho de escrita do modulo. Passa pelo portao do piloto ate quando o
+              # clique e humano — ver Spx::Social::PoliticaDeResposta.
+              post :responder
+            end
+          end
+          resources :social_publicacoes, only: [:index]
           resources :internal_channels, only: [:index, :show, :create, :update] do
             collection do
               get :mentions
@@ -242,6 +275,9 @@ Rails.application.routes.draw do
               resources :funnel_items, only: [:index]
               resources :labels, only: [:create, :index]
               resource :participants, only: [:show, :create, :update, :destroy]
+              # I3 — integrantes do grupo de WhatsApp (WAHA). show le o snapshot
+              # gravado; create e o "Sincronizar agora" do painel.
+              resource :waha_group, only: [:show, :create], controller: 'waha_group'
               # Liga/desliga: fixa a conversa no topo da lista de quem chamou.
               post :pin, to: 'pins#toggle'
               resource :direct_uploads, only: [:create]
@@ -444,6 +480,9 @@ Rails.application.routes.draw do
                 patch :update
               end
             end
+            # Configuração da distribuição DO TIME (passo "Distribuição" da tela de edição).
+            # Singular porque é uma política por time — `distribuicao_policies.team_id` é único.
+            resource :distribuicao, only: [:show, :update], controller: 'teams/distribuicao'
           end
 
           # Assignment V2 Routes

@@ -87,12 +87,16 @@ class NpsSurveyService # rubocop:disable Metrics/ClassLength
     true
   end
 
+  # content_attributes e JSON serializado como STRING: ver Message::CONTENT_ATTRIBUTES_JSON.
+  # Com o `->` direto, a pesquisa enviada como TEXTO (WhatsApp) nunca era encontrada e so
+  # o content_type input_nps (widget) contava.
   def recent_nps_message_exists?(since)
     conversation.messages
                 .where('created_at >= ?', since)
                 .where.not(content: [nil, ''])
                 .exists?(
-                  ["content_type = :input_nps OR (content_type = :text AND content_attributes ->> 'nps_survey' = 'true')",
+                  ['content_type = :input_nps OR (content_type = :text AND ' \
+                   "#{Message::CONTENT_ATTRIBUTES_JSON} ->> 'nps_survey' = 'true')",
                    { input_nps: Message.content_types[:input_nps], text: Message.content_types[:text] }]
                 )
   end

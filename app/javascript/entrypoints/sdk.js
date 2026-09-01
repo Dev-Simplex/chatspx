@@ -7,6 +7,7 @@ import {
 } from '../sdk/settingsHelper';
 import {
   computeHashForUserData,
+  removeConversationToken,
   getUserCookieName,
   hasUserKeys,
 } from '../sdk/cookieHelpers';
@@ -18,7 +19,12 @@ import {
 import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
 
-const runSDK = ({ baseUrl, websiteToken }) => {
+const runSDK = ({
+  baseUrl,
+  websiteToken,
+  conversationToken,
+  persistConversationToParent = false,
+}) => {
   if (window.$chatwoot) {
     return;
   }
@@ -79,6 +85,7 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     enableFileUpload: chatwootSettings.enableFileUpload,
     enableEmojiPicker: chatwootSettings.enableEmojiPicker ?? true,
     enableEndConversation: chatwootSettings.enableEndConversation ?? true,
+    persistConversationToParent,
 
     toggle(state) {
       IFrameHelper.events.toggleBubble(state);
@@ -197,7 +204,7 @@ const runSDK = ({ baseUrl, websiteToken }) => {
         IFrameHelper.events.toggleBubble();
       }
 
-      Cookies.remove('cw_conversation');
+      removeConversationToken(window.$chatwoot.websiteToken);
       Cookies.remove(getUserCookieName());
 
       const iframe = IFrameHelper.getAppFrame();
@@ -213,6 +220,7 @@ const runSDK = ({ baseUrl, websiteToken }) => {
   IFrameHelper.createFrame({
     baseUrl,
     websiteToken,
+    conversationToken,
   });
 };
 

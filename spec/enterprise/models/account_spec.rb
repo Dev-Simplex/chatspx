@@ -222,6 +222,77 @@ RSpec.describe Account, type: :model do
     end
   end
 
+  # Allowlist OPT-IN dos times que a conta oferta no handoff da IA. A chave é escrita à mão
+  # por operador, então os três estados que importam são: sem chave, chave que casa, e chave
+  # que não casa com nada — este último é o que quebrava o handoff em silêncio.
+  describe '#handoff_teams' do
+    let(:account) { create(:account) }
+    let!(:team_a) { create(:team, account: account) }
+    let!(:team_b) { create(:team, account: account) }
+
+    context 'without the key' do
+      it 'offers every team of the account' do
+        expect(account.handoff_teams).to contain_exactly(team_a, team_b)
+      end
+
+      it 'does not log — nada foi configurado, não há nada a avisar' do
+        allow(Rails.logger).to receive(:warn)
+
+        account.handoff_teams
+
+        expect(Rails.logger).not_to have_received(:warn).with(/allowlist da conta/)
+      end
+    end
+
+    context 'with valid ids' do
+      before { account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [team_a.id] }) }
+
+      it 'offers only the allowlisted teams' do
+        expect(account.handoff_teams).to contain_exactly(team_a)
+      end
+
+      it 'does not log — a lista aplicou' do
+        allow(Rails.logger).to receive(:warn)
+
+        account.handoff_teams
+
+        expect(Rails.logger).not_to have_received(:warn).with(/allowlist da conta/)
+      end
+    end
+
+    # `ids.any? ? teams.where(id: ids) : teams` devolvia relação VAZIA aqui: a IA não enxergava
+    # time nenhum pra transferir. Falha aberta — volta a ofertar todos e registra.
+    context 'when the allowlist matches no team at all' do
+      let(:missing_id) { Team.maximum(:id).to_i + 1_000 }
+
+      it 'falls back to every team when the ids do not exist' do
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [missing_id] })
+
+        expect(account.handoff_teams).to contain_exactly(team_a, team_b)
+      end
+
+      it 'falls back to every team when the ids belong to another account' do
+        other_account_team = create(:team, account: create(:account))
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [other_account_team.id] })
+
+        expect(account.handoff_teams).to contain_exactly(team_a, team_b)
+      end
+
+      # Distinguível do caso legítimo "conta sem allowlist" (que não loga): aqui houve
+      # intenção de filtrar e ela deu em nada — sintoma de configuração errada.
+      it 'logs the misconfiguration' do
+        allow(Rails.logger).to receive(:warn)
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [missing_id] })
+
+        account.handoff_teams
+
+        expect(Rails.logger).to have_received(:warn).with(
+          /allowlist da conta #{account.id} não casa com nenhum time da conta \(handoff_allowed_team_ids=#{missing_id}\)/
+        )
+      end
+    end
+  end
+
   describe 'account deletion' do
     let(:account) { create(:account) }
     let(:admin) { create(:user, account: account, role: :administrator) }
