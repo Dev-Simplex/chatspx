@@ -244,6 +244,7 @@
       "CONFIRM": "Excluir"
     },
     "CARD_CONTEXT_MENU": {
+      "TITLE": "Opções da conversa",
       "PENDING": "Deixar pendente",
       "RESOLVED": "Marcar como resolvida",
       "MARK_AS_UNREAD": "Marcar como não lida",

@@ -1,10 +1,12 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, inject, nextTick, reactive, ref, watch } from 'vue';
+import { routerKey } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
-import { useMapGetter } from 'dashboard/composables/store';
+import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
 import { aiAccentVars } from 'dashboard/helper/aiAccent';
+import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper';
 
 import Avatar from 'next/avatar/Avatar.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -17,6 +19,8 @@ import CardPriorityIcon from 'dashboard/components-next/Conversation/Conversatio
 import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard/UnreadBadge.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
+import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
+import ConversationContextMenu from './contextMenu/Index.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -27,19 +31,55 @@ const props = defineProps({
   isActiveChat: { type: Boolean, default: false },
   showAssignee: { type: Boolean, default: false },
   showInboxName: { type: Boolean, default: false },
+  hideInboxName: { type: Boolean, default: false },
   hideThumbnail: { type: Boolean, default: false },
   compact: { type: Boolean, default: false },
+  // Estes cinco so existem para montar o link da conversa (ver `conversationLink`):
+  // a rota muda conforme a lista de onde o cartao veio (caixa, rotulo, time, pasta,
+  // mencoes...). Quem renderiza a lista e o ConversationItem, que ja os repassa.
+  activeLabel: { type: String, default: '' },
+  teamId: { type: [String, Number], default: 0 },
+  foldersId: { type: [String, Number], default: 0 },
+  conversationType: { type: String, default: '' },
+  conversationStatus: { type: String, default: '' },
+  enableContextMenu: { type: Boolean, default: false },
+  // Lista branca de itens do menu. Vazia = todos. A aba "Conversas anteriores" do
+  // contato passa apenas ['open-new-tab', 'copy-link'].
+  allowedContextMenuOptions: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits([
   'click',
   'contextmenu',
+  'contextMenuToggle',
+  'updateConversationStatus',
+  'assignAgent',
+  'assignTeam',
+  'assignLabel',
+  'removeLabel',
+  'markAsUnread',
+  'markAsRead',
+  'assignPriority',
+  'deleteConversation',
   'selectConversation',
   'deSelectConversation',
 ]);
 
 const hovered = ref(false);
+// O menu vive no cartao (nao na lista) porque cada cartao abre o SEU, com a posicao
+// do ponteiro; o ContextMenu de ui/ so teleporta o conteudo para o body.
+const showContextMenu = ref(false);
+const contextMenu = reactive({ x: 0, y: 0 });
+const dropdownButtonRef = ref(null);
+
+const store = useStore();
+// `inject(routerKey, null)` e nao `useRouter()`: os specs montam o cartao sem o
+// plugin de rotas e o `useRouter()` injeta SEM default, entao cada monte imprimia
+// um "injection not found" no stderr. Com o default explicito o cartao continua
+// montavel fora do roteador, e o clique so nao navega.
+const router = inject(routerKey, null);
 const currentUser = useMapGetter('getCurrentUser');
+const currentAccountId = useMapGetter('getCurrentAccountId');
 const getContactById = useMapGetter('contacts/getContact');
 const selectedChat = useMapGetter('getSelectedChat');
 const getInboxById = useMapGetter('inboxes/getInbox');
@@ -115,8 +155,33 @@ const resolvedIsActiveChat = computed(
 
 const resolvedShowInboxName = computed(
   () =>
-    props.showInboxName ||
-    (!selectedInbox.value && (inboxesList.value?.length || 0) > 1)
+    !props.hideInboxName &&
+    (props.showInboxName ||
+      (!selectedInbox.value && (inboxesList.value?.length || 0) > 1))
+);
+
+const isPinned = computed(() => Boolean(props.chat.pinned));
+
+// O id da caixa sai do PROPRIO chat, nao do store de caixas: `inboxes/getInbox`
+// devolve `{}` quando a lista ainda nao carregou (ou quando o endpoint falha), e
+// dai o submenu "Atribuir agente" pediria os agentes de `undefined` e viria vazio.
+const contextMenuInboxId = computed(
+  () => props.chat.inbox_id || resolvedInbox.value?.id || null
+);
+
+const conversationLink = computed(() =>
+  frontendURL(
+    conversationUrl({
+      accountId: currentAccountId.value,
+      activeInbox: selectedInbox.value,
+      id: props.chat.id,
+      label: props.activeLabel,
+      teamId: props.teamId,
+      foldersId: props.foldersId,
+      conversationType: props.conversationType,
+      conversationStatus: props.conversationStatus,
+    })
+  )
 );
 
 const hasValidContent = message => {
@@ -175,6 +240,17 @@ const aiChipStyle = computed(() =>
     : {}
 );
 
+// Quem pode marcar como lida EXPLICITAMENTE (o item do menu). Nao confundir com o
+// gate de leitura implicita: abrir conversa que nao e sua deixou de limpar o "nao
+// lida" (ver `may_clear_unread_marker?`). O item segue disponivel em conversa sem
+// dono e da IA — e o unico jeito de zerar essas — e, em conversa com dono humano,
+// so para ele.
+const canMarkAsRead = computed(() => {
+  const assigneeId = resolvedAssignee.value?.id;
+  if (!assigneeId || isAIAssignee.value) return true;
+  return Number(assigneeId) === Number(currentUser.value?.id);
+});
+
 const isUnattendedAndMine = computed(() => {
   const waitingSince =
     props.chat.waiting_since ?? chatMetadata.value.waiting_since ?? 0;
@@ -232,10 +308,122 @@ const selectedModel = computed({
   set: onSelectConversation,
 });
 
+// O cartao navega sozinho. O `click` continua sendo emitido porque e contrato
+// declarado deste componente, mas nenhum pai o escuta: quem abre a conversa e este
+// `router.push`. Ctrl/Cmd+clique abre em aba nova, como em qualquer lista.
+const onCardClick = event => {
+  emit('click', event);
+  const path = conversationLink.value;
+
+  if (event.metaKey || event.ctrlKey) {
+    window.open(
+      window.chatwootConfig.hostURL + path,
+      '_blank',
+      'noopener noreferrer nofollow'
+    );
+    return;
+  }
+  if (resolvedIsActiveChat.value) return;
+
+  router?.push({ path });
+};
+
+const closeContextMenu = () => {
+  emit('contextMenuToggle', false);
+  showContextMenu.value = false;
+  contextMenu.x = 0;
+  contextMenu.y = 0;
+};
+
+const openContextMenu = event => {
+  emit('contextmenu', event);
+  if (!props.enableContextMenu) return;
+  event.preventDefault();
+  emit('contextMenuToggle', true);
+  contextMenu.x = event.pageX || event.clientX;
+  contextMenu.y = event.pageY || event.clientY;
+  showContextMenu.value = true;
+};
+
+// O mesmo menu pelo botao de hover, ancorado no canto do botao em vez do ponteiro.
+// Precisa do nextTick: o `getBoundingClientRect` so vale depois que o navegador
+// aplicou a classe de hover que torna o botao visivel.
+const openHoverDropdown = async event => {
+  if (!props.enableContextMenu) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  await nextTick();
+  const buttonEl = dropdownButtonRef.value?.$el || dropdownButtonRef.value;
+  if (!buttonEl?.getBoundingClientRect) return;
+
+  const rect = buttonEl.getBoundingClientRect();
+  contextMenu.x = rect.right;
+  contextMenu.y = rect.bottom + 4;
+  showContextMenu.value = true;
+  emit('contextMenuToggle', true);
+};
+
+// Fixar e preferencia individual: so mexe na lista de quem clicou.
+const togglePin = () => {
+  store.dispatch('togglePin', { conversationId: props.chat.id });
+};
+
+const togglePinFromMenu = () => {
+  togglePin();
+  closeContextMenu();
+};
+
+const onUpdateConversation = (status, snoozedUntil) => {
+  closeContextMenu();
+  emit('updateConversationStatus', props.chat.id, status, snoozedUntil);
+};
+
+const onAssignAgent = agent => {
+  emit('assignAgent', agent, [props.chat.id]);
+  closeContextMenu();
+};
+
+const onAssignLabel = label => {
+  emit('assignLabel', [label.title], [props.chat.id]);
+  closeContextMenu();
+};
+
+const onRemoveLabel = label => {
+  emit('removeLabel', [label.title], [props.chat.id]);
+  closeContextMenu();
+};
+
+const onAssignTeam = team => {
+  emit('assignTeam', team, props.chat.id);
+  closeContextMenu();
+};
+
+const onMarkAsUnread = () => {
+  emit('markAsUnread', props.chat.id);
+  closeContextMenu();
+};
+
+const onMarkAsRead = () => {
+  emit('markAsRead', props.chat.id);
+  closeContextMenu();
+};
+
+const onAssignPriority = priority => {
+  emit('assignPriority', priority, props.chat.id);
+  closeContextMenu();
+};
+
+const onDeleteConversation = () => {
+  emit('deleteConversation', props.chat.id);
+  closeContextMenu();
+};
+
 watch(
   () => props.chat.id,
   () => {
     hovered.value = false;
+    closeContextMenu();
   }
 );
 </script>
@@ -257,8 +445,8 @@ watch(
         !selected &&
         !isUnattendedAndMine,
     }"
-    @click="$emit('click', $event)"
-    @contextmenu="$emit('contextmenu', $event)"
+    @click="onCardClick"
+    @contextmenu="openContextMenu($event)"
   >
     <div
       class="relative"
@@ -379,6 +567,50 @@ watch(
           :count="unreadCount"
           class="ltr:ml-auto rtl:mr-auto mt-1"
         />
+        <!-- ABAIXO do relogio e do contador, nao acima: os dois botoes ficam com
+             `opacity-0` no repouso, e opacidade nao devolve o espaco — colocados
+             em cima, empurrariam o horario para baixo em TODO cartao, o tempo
+             todo. Aqui a coluna so cresce para dentro do vazio.
+             No toque nao existe hover, entao a ocultacao comeca em `md`.
+             `p-0` e obrigatorio: a regra global `button { padding: .25rem .625rem }`
+             (_base.scss) somada ao size-4 com box-sizing border-box zera a largura
+             do conteudo, e o icone renderiza com 0px. -->
+        <div class="flex items-center gap-1 ltr:ml-auto rtl:mr-auto mt-1">
+          <button
+            type="button"
+            class="flex size-4 p-0 items-center justify-center rounded transition-opacity"
+            :class="
+              isPinned
+                ? 'text-n-brand'
+                : 'text-n-slate-10 hover:text-n-slate-12 md:opacity-0 md:group-hover:opacity-100'
+            "
+            :title="
+              isPinned
+                ? $t('CHAT_LIST.UNPIN_CONVERSATION')
+                : $t('CHAT_LIST.PIN_CONVERSATION')
+            "
+            @click.stop="togglePin"
+          >
+            <!-- O tamanho vem da CLASSE, nao do `Icon`: sem componente animado
+                 correspondente, o `Icon` cai num `<span class="i-lucide-pin">` e
+                 o icone herdaria o `font-size` do cartao. -->
+            <Icon
+              :icon="isPinned ? 'i-lucide-pin-off' : 'i-lucide-pin'"
+              class="size-3.5"
+            />
+          </button>
+          <button
+            v-if="enableContextMenu"
+            ref="dropdownButtonRef"
+            type="button"
+            data-testid="conversation-card-menu-button"
+            class="flex size-4 p-0 items-center justify-center rounded transition-opacity text-n-slate-10 hover:text-n-slate-12 md:opacity-0 md:group-hover:opacity-100"
+            :title="$t('CONVERSATION.CARD_CONTEXT_MENU.TITLE')"
+            @click.stop="openHoverDropdown($event)"
+          >
+            <Icon icon="i-lucide-chevron-down" />
+          </button>
+        </div>
       </div>
       <CardLabels
         v-if="showLabelsSection"
@@ -390,13 +622,39 @@ watch(
         </template>
       </CardLabels>
     </div>
-    <!-- REGRESSAO CONHECIDA DO RECORTE, a restaurar: aqui vivia o menu de contexto da
-         conversa (atribuir, marcar nao lida, prioridade, rotulo, apagar) e, no lado de
-         origin/homologacao, tambem o alfinete de fixar no topo. A reescrita deste cartao
-         para Composition API deixou o cartao EMITINDO `contextmenu` sem ninguem montando
-         o menu. Nao trago o bloco aqui porque ele referencia estado que este arquivo nao
-         tem mais (showContextMenu, contextMenu.x/y, closeContextMenu, isPinned) — isso
-         precisa ser reescrito junto, nao colado. -->
+    <!-- O `v-if` e o que monta o menu: sem ele o cartao emite `contextmenu` e nada
+         acontece, que foi a regressao deste recorte. O ContextMenu de ui/ teleporta
+         o conteudo para o body e fecha no blur. -->
+    <ContextMenu
+      v-if="showContextMenu"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      @close="closeContextMenu"
+    >
+      <ConversationContextMenu
+        :status="chat.status"
+        :inbox-id="contextMenuInboxId"
+        :priority="chat.priority"
+        :chat-id="chat.id"
+        :has-unread-messages="hasUnread"
+        :can-mark-as-read="canMarkAsRead"
+        :conversation-labels="chat.labels"
+        :conversation-url="conversationLink"
+        :is-pinned="isPinned"
+        :allowed-options="allowedContextMenuOptions"
+        @toggle-pin="togglePinFromMenu"
+        @update-conversation="onUpdateConversation"
+        @assign-agent="onAssignAgent"
+        @assign-label="onAssignLabel"
+        @remove-label="onRemoveLabel"
+        @assign-team="onAssignTeam"
+        @mark-as-unread="onMarkAsUnread"
+        @mark-as-read="onMarkAsRead"
+        @assign-priority="onAssignPriority"
+        @delete-conversation="onDeleteConversation"
+        @close="closeContextMenu"
+      />
+    </ContextMenu>
   </div>
 </template>
 

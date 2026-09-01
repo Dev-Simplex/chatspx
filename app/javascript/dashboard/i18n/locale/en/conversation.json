@@ -271,6 +271,7 @@
       "CONFIRM": "Delete"
     },
     "CARD_CONTEXT_MENU": {
+      "TITLE": "Conversation options",
       "PENDING": "Mark as pending",
       "RESOLVED": "Mark as resolved",
       "MARK_AS_UNREAD": "Mark as unread",
