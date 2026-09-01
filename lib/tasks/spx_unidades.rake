@@ -7,11 +7,14 @@
 #   bundle exec rails "spx:unidades:excecoes[7]"
 #
 # ── CSV (com cabeçalho) ────────────────────────────────────────────────────────────────────
-#   slug,nome,cidade,uf,endereco,telefone,timezone,etiquetas,atributos,ativa,dom,seg,ter,qua,qui,sex,sab
+#   slug,nome,cidade,uf,endereco,telefone,timezone,etiquetas,atributos,ativa,latitude,longitude,dom,seg,ter,qua,qui,sex,sab
 #
 #   etiquetas  lista separada por "|"
 #   atributos  JSON (começando com "{") ou pares chave=valor separados por ";"
 #   ativa      false/nao/0 desativa a unidade; qualquer outra coisa (ou vazio) mantém ativa
+#   lat/lng    grau decimal ("-11.860", vírgula também serve). Vazio = unidade sem pin, que é
+#              ausência legítima. Lixo NÃO vira 0.0: o ponto (0,0) fica no Golfo da Guiné e
+#              ordenaria a lista de "mais próxima" inteira.
 #   dias       "08:00-18:00", grade partida com "|" ("08:00-12:00|14:00-18:00"), ou "fechada"
 #
 #   ⚠️ Célula VAZIA e a palavra "fechada" são coisas DIFERENTES: vazia = dia não cadastrado (a
@@ -27,6 +30,17 @@ module SpxUnidadesCarga
   NEGATIVAS = %w[false nao não 0].freeze
 
   module_function
+
+  # Coordenada em branco é ausência legítima (a loja fica sem pin), então devolve nil. O que NÃO
+  # pode passar é lixo virando número: `"x".to_f` é 0.0, e 0,0 é um ponto no Golfo da Guiné que
+  # ordenaria a lista de "mais próxima" inteira. Fora da faixa válida também vira nil.
+  def coordenada(bruto)
+    texto = bruto.to_s.strip.tr(',', '.')
+    return nil if texto.blank?
+
+    numero = Float(texto, exception: false)
+    numero if numero && numero.abs <= 180
+  end
 
   def atributos(bruto)
     texto = bruto.to_s.strip
@@ -105,6 +119,8 @@ namespace :spx do
           timezone: linha['timezone'].presence || Spx::Unidade::FUSO_PADRAO,
           etiquetas: linha['etiquetas'].to_s.split('|').map(&:strip).compact_blank,
           atributos: SpxUnidadesCarga.atributos(linha['atributos']),
+          latitude: SpxUnidadesCarga.coordenada(linha['latitude']),
+          longitude: SpxUnidadesCarga.coordenada(linha['longitude']),
           ativa: SpxUnidadesCarga::NEGATIVAS.exclude?(linha['ativa'].to_s.strip.downcase)
         )
         unidade.save!

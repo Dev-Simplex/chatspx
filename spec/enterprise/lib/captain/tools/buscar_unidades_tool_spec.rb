@@ -194,4 +194,70 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
       expect(Captain::Assistant.built_in_tool_ids).to include('buscar_unidades')
     end
   end
+
+  # A distância só existe quando a pessoa MANDOU o pin. Não há geocoding aqui de propósito: a
+  # conta da BigStore não tem chave do Google, e geocoding não avisa quando erra — devolve
+  # homônimo (medido na Tozi: 26% dos bairros a mais de 3 km, um a 518 km).
+  describe 'distância a partir do pin que a pessoa enviou' do
+    let(:conversation) { create(:conversation, account: account) }
+    let(:contexto) { Struct.new(:state).new({ conversation: { id: conversation.id } }) }
+
+    def pin_da_pessoa(lat, lng)
+      msg = create(:message, conversation: conversation, account: account, message_type: :incoming)
+      msg.attachments.create!(account_id: account.id, file_type: :location,
+                              coordinates_lat: lat, coordinates_long: lng)
+    end
+
+    before do
+      unidade_com_grade(cidade: 'Sorriso', nome: 'Loja Sorriso', latitude: -12.545, longitude: -55.711)
+      unidade_com_grade(cidade: 'Cuiabá', nome: 'Loja Cuiabá', latitude: -15.601, longitude: -56.098)
+    end
+
+    it 'não fala de distância quando a pessoa não mandou pin' do
+      resposta = em_quarta { tool.perform(contexto) }
+
+      expect(resposta).not_to include('Distância')
+    end
+
+    it 'ordena pela distância e informa quanto é, quando há pin' do
+      pin_da_pessoa(-11.860, -55.502) # Sinop: perto de Sorriso, longe de Cuiabá
+      resposta = em_quarta { tool.perform(contexto) }
+
+      expect(resposta).to include('Distância')
+      expect(resposta.index('Loja Sorriso')).to be < resposta.index('Loja Cuiabá')
+    end
+
+    # Sem coordenada a unidade vai pro FIM. Tratar distância desconhecida como zero colocaria a
+    # loja errada em primeiro — a única resposta que esta ferramenta não pode dar.
+    it 'joga para o fim a unidade sem coordenada, em vez de tratá-la como distância zero' do
+      unidade_com_grade(cidade: 'Vera', nome: 'Loja Vera')
+      pin_da_pessoa(-11.860, -55.502)
+      resposta = em_quarta { tool.perform(contexto) }
+
+      expect(resposta.index('Loja Vera')).to be > resposta.index('Loja Sorriso')
+    end
+
+    it 'aponta a mais próxima quando a cidade pedida não tem unidade' do
+      pin_da_pessoa(-11.860, -55.502)
+      resposta = em_quarta { tool.perform(contexto, cidade: 'Rondonópolis') }
+
+      expect(resposta).to include('Não há unidade cadastrada')
+      expect(resposta).to include('mais próxima é Loja Sorriso')
+    end
+
+    # Sem pin, convida a mandar a localização — mas só porque há unidade com coordenada. Prometer
+    # cálculo que não dá pra fazer é a mesma classe de erro de inventar endereço.
+    it 'convida a mandar a localização quando não tem pin mas dá pra calcular' do
+      resposta = em_quarta { tool.perform(contexto, cidade: 'Rondonópolis') }
+
+      expect(resposta).to include('envie a localização')
+    end
+
+    it 'não convida quando nenhuma unidade tem coordenada' do
+      Spx::Unidade.where(account_id: account.id).update_all(latitude: nil, longitude: nil)
+      resposta = em_quarta { tool.perform(contexto, cidade: 'Rondonópolis') }
+
+      expect(resposta).not_to include('envie a localização')
+    end
+  end
 end

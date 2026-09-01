@@ -13,8 +13,10 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   description 'Consulta as unidades físicas desta empresa: nome, cidade, endereço, telefone e se ' \
               'abre na data que a pessoa pediu, já com feriado e exceção de calendário aplicados. ' \
               'A conta de calendário é feita aqui dentro — repasse a expressão de tempo do jeito ' \
-              'que a pessoa escreveu, sem converter em data você mesmo. Use SÓ o que vier no ' \
-              'retorno: endereço, telefone e horário que não estiverem aqui não existem.'
+              'que a pessoa escreveu, sem converter em data você mesmo. Quando a pessoa tiver ' \
+              'enviado a localização dela nesta conversa, o retorno traz a distância até cada ' \
+              'unidade e qual é a mais próxima, já calculadas. Use SÓ o que vier no retorno: ' \
+              'endereço, telefone, horário e distância que não estiverem aqui não existem.'
 
   param :cidade, type: 'string',
                  desc: 'O município que a pessoa citou nesta conversa. Vazio lista todas as unidades.',
@@ -47,14 +49,15 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     false
   end
 
-  def perform(_tool_context, cidade: nil, quando: nil)
+  def perform(tool_context, cidade: nil, quando: nil)
     unidades = unidades_ativas
     return SEM_CADASTRO if unidades.empty?
 
+    ponto = ponto_da_pessoa(tool_context)
     encontradas = filtrar_por_cidade(unidades, cidade)
-    return sem_unidade_na_cidade(unidades, cidade) if encontradas.empty?
+    return sem_unidade_na_cidade(unidades, cidade, ponto) if encontradas.empty?
 
-    montar_resposta(encontradas, unidades.size, quando)
+    montar_resposta(ordenar(encontradas, ponto), unidades.size, quando, ponto)
   rescue StandardError => e
     Rails.logger.warn("[BuscarUnidades] #{e.class} #{e.message}")
     FALHA
@@ -86,18 +89,70 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     nome.present? && (nome.include?(alvo) || alvo.include?(nome))
   end
 
+  # A localização da pessoa vem do PIN que ela mandou, e de mais lugar nenhum. Não há geocoding
+  # aqui de propósito: a conta da BigStore não tem chave do Google, e o geocoding não avisa quando
+  # erra — devolve homônimo. Sem pin, a ferramenta simplesmente não fala de distância.
+  def ponto_da_pessoa(tool_context)
+    conversation = find_conversation(tool_context&.state)
+    return nil unless conversation
+
+    anexo = ::Attachment.joins(:message)
+                        .where(messages: { conversation_id: conversation.id, message_type: :incoming })
+                        .where(file_type: :location)
+                        .where.not(coordinates_lat: nil).where.not(coordinates_long: nil)
+                        .order(id: :desc).first
+    return nil unless anexo
+
+    [anexo.coordinates_lat, anexo.coordinates_long]
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarUnidades] ponto da pessoa indisponível: #{e.class} #{e.message}")
+    nil
+  end
+
+  # Unidade SEM coordenada vai pro fim, nunca pro começo: distância desconhecida tratada como zero
+  # colocaria a loja errada como "a mais perto", que é a única resposta que não pode sair daqui.
+  def ordenar(unidades, ponto)
+    return unidades unless ponto
+
+    unidades.sort_by { |unidade| [unidade.distancia_de(*ponto) || Float::INFINITY, unidade.nome.to_s] }
+  end
+
   # A ausência tem que ser inconfundível E dizer o que fazer com ela. Guarda que só devolve um
   # código o agente ignora — foi o que aconteceu quando a IA seguiu qualificando o cliente até o
   # fim e ele descobriu no final que não havia loja.
-  def sem_unidade_na_cidade(unidades, cidade)
+  def sem_unidade_na_cidade(unidades, cidade, ponto = nil)
     cidades = unidades.filter_map { |unidade| unidade.cidade.presence }.uniq
     "Não há unidade cadastrada em \"#{cidade.to_s.strip}\". Isto é resposta confirmada do cadastro, " \
       'não falha de consulta: não invente endereço e não ofereça o de outra cidade como se fosse ' \
       'dessa. Diga à pessoa que não existe unidade nessa cidade ANTES de continuar a conversa. ' \
-      "Cidades que têm unidade: #{cidades.first(LIMITE_CIDADES).join(', ')}."
+      "Cidades que têm unidade: #{cidades.first(LIMITE_CIDADES).join(', ')}." \
+      "#{sugestao_de_proxima(unidades, ponto)}"
   end
 
-  def montar_resposta(unidades, total_ativas, quando)
+  # Só sugere a mais próxima quando ela é CALCULADA. Sem pin, convida a pessoa a mandar a
+  # localização — e só se houver alguma unidade com coordenada, pra não prometer o que não dá.
+  def sugestao_de_proxima(unidades, ponto)
+    com_coordenada = unidades.select(&:coordenada?)
+    return '' if com_coordenada.empty?
+
+    unless ponto
+      return ' Se ela quiser saber qual é a mais perto, peça que envie a localização dela pelo ' \
+             'WhatsApp — com o ponto no mapa dá pra calcular a distância de verdade.'
+    end
+
+    perto = com_coordenada.min_by { |unidade| unidade.distancia_de(*ponto) }
+    " Pela localização que ela enviou, a unidade mais próxima é #{perto.nome} " \
+      "(#{km(perto.distancia_de(*ponto))}), e essa distância é calculada, não estimada."
+  end
+
+  def km(distancia)
+    return nil unless distancia
+
+    distancia < 10 ? format('~%.1f km', distancia) : "~#{distancia.round} km"
+  end
+
+  def montar_resposta(unidades, total_ativas, quando, ponto = nil)
+    @ponto = ponto
     pedido = quando.to_s.strip
     # A expressão é resolvida NO FUSO DE CADA UNIDADE: "amanhã" pode ser dia diferente em cada uma,
     # e resolver uma vez só pelo fuso do servidor é o erro que este desenho existe pra evitar.
@@ -139,6 +194,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     linhas = ["#{unidade.nome}#{local(unidade)}"]
     linhas << "Endereço: #{unidade.endereco}" if unidade.endereco.present?
     linhas << "Telefone: #{unidade.telefone}" if unidade.telefone.present?
+    linhas << "Distância até a localização que a pessoa enviou: #{km(distancia(unidade))}" if distancia(unidade)
     linhas.concat(atributos(unidade))
     linhas.concat(agenda(unidade, momento, excecoes))
     linhas.join("\n")
@@ -147,6 +203,12 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   def local(unidade)
     partes = [unidade.cidade.presence, unidade.uf.presence].compact
     partes.any? ? " — #{partes.join('/')}" : ''
+  end
+
+  def distancia(unidade)
+    return nil unless @ponto
+
+    unidade.distancia_de(*@ponto)
   end
 
   def atributos(unidade)

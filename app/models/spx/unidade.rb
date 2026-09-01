@@ -60,8 +60,24 @@ class Spx::Unidade < ApplicationRecord
   before_validation :normalizar_etiquetas
 
   scope :ativas, -> { where(ativa: true) }
+  scope :com_coordenada, -> { where.not(latitude: nil).where.not(longitude: nil) }
+
+  RAIO_DA_TERRA_KM = 6371.0
 
   class << self
+    # Haversine. Entra aqui, e não numa gem de geo, porque é a única conta geográfica do módulo
+    # e ela não depende de rede: a coordenada da unidade é dado carregado, conferido uma vez.
+    def distancia_km(lat1, lng1, lat2, lng2)
+      return nil if [lat1, lng1, lat2, lng2].any?(&:blank?)
+
+      rad = Math::PI / 180
+      dlat = (lat2.to_f - lat1.to_f) * rad
+      dlng = (lng2.to_f - lng1.to_f) * rad
+      a = (Math.sin(dlat / 2)**2) +
+          (Math.cos(lat1.to_f * rad) * Math.cos(lat2.to_f * rad) * (Math.sin(dlng / 2)**2))
+      RAIO_DA_TERRA_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    end
+
     # Uma linha (de horário padrão ou de exceção) só vira faixa quando não está marcada como
     # fechada E traz os dois horários. Fica aqui pra as duas tabelas decidirem igual.
     def faixa(fechada:, abre:, fecha:)
@@ -82,6 +98,17 @@ class Spx::Unidade < ApplicationRecord
 
   def zona
     ActiveSupport::TimeZone[timezone.to_s.presence || FUSO_PADRAO] || ActiveSupport::TimeZone[FUSO_PADRAO]
+  end
+
+  def coordenada?
+    latitude.present? && longitude.present?
+  end
+
+  # Distância até um ponto, em km. `nil` quando falta coordenada dos dois lados — e nil aqui tem
+  # que continuar nil pra quem chama, porque "não sei a distância" não pode virar zero nem
+  # infinito: os dois ordenariam a lista e a resposta pareceria certa.
+  def distancia_de(lat, lng)
+    self.class.distancia_km(latitude, longitude, lat, lng)
   end
 
   def etiquetas_normalizadas

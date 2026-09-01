@@ -213,4 +213,51 @@ RSpec.describe Spx::Unidade do
       expect(registro.etiquetas).to eq(%w[mt regiao])
     end
   end
+
+  # A coordenada é dado carregado, não geocoding em tempo de atendimento: com ~20 lojas ela se
+  # confere uma vez, e a partir daí "qual a mais perto" é aritmética sem rede.
+  describe 'coordenada e distância' do
+    # Sinop e Sorriso ficam a ~80 km uma da outra; Cuiabá está a mais de 400 km das duas.
+    let(:sinop) { [-11.860, -55.502] }
+    let(:sorriso) { [-12.545, -55.711] }
+    let(:cuiaba) { [-15.601, -56.098] }
+
+    it 'sabe quando não tem coordenada' do
+      expect(create(:spx_unidade, account: account)).not_to be_coordenada
+      expect(create(:spx_unidade, account: account, latitude: sinop[0], longitude: sinop[1])).to be_coordenada
+    end
+
+    it 'calcula a distância em km entre dois pontos' do
+      distancia = described_class.distancia_km(*sinop, *sorriso)
+
+      expect(distancia).to be_within(10).of(80)
+    end
+
+    it 'devolve zero para o mesmo ponto' do
+      expect(described_class.distancia_km(*sinop, *sinop)).to be_within(0.01).of(0)
+    end
+
+    # nil tem que continuar nil: "não sei a distância" virando zero colocaria a loja errada como
+    # a mais próxima, que é a única resposta que não pode sair daqui.
+    it 'devolve nil quando falta coordenada, em vez de zero' do
+      sem_coordenada = create(:spx_unidade, account: account)
+
+      expect(sem_coordenada.distancia_de(*sinop)).to be_nil
+      expect(described_class.distancia_km(nil, nil, *sinop)).to be_nil
+    end
+
+    it 'ordena o acervo pela distância de verdade' do
+      perto = create(:spx_unidade, account: account, latitude: sorriso[0], longitude: sorriso[1])
+      longe = create(:spx_unidade, account: account, latitude: cuiaba[0], longitude: cuiaba[1])
+
+      expect(perto.distancia_de(*sinop)).to be < longe.distancia_de(*sinop)
+    end
+
+    it 'filtra por quem tem coordenada' do
+      com = create(:spx_unidade, account: account, latitude: sinop[0], longitude: sinop[1])
+      create(:spx_unidade, account: account)
+
+      expect(described_class.com_coordenada.where(account_id: account.id)).to eq([com])
+    end
+  end
 end
