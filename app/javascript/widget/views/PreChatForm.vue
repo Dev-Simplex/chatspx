@@ -41,6 +41,29 @@ export default {
       contactCustomAttributes,
       conversationCustomAttributes,
     }) {
+      // Bloco 5.08 — a origem que o coletor guardou ANTES de existir conversa.
+      //
+      // `conversation/setCustomAttributes` guarda em `pendingCustomAttributes`
+      // enquanto nao ha conversa, e `sendMessage` os leva junto da primeira
+      // mensagem. Com pre-chat a conversa nasce por AQUI, e este caminho
+      // montava o payload a mao: os `last_utm_source`/`gclid` do visitante que
+      // veio de anuncio morriam em silencio, e nao havia depois — o
+      // `messages_controller` so aplica `custom_attributes` quando cria a
+      // conversa junto da mensagem.
+      //
+      // A LEITURA VEM ANTES DO `clearConversations()`: a mutation por tras dele
+      // zera `pendingCustomAttributes`. Ler depois devolveria `{}` sempre, e o
+      // conserto seria invisivel.
+      //
+      // O que o visitante DIGITOU vence a origem na colisao de chave: e o dado
+      // mais recente e o mais verdadeiro.
+      const origemPendente =
+        this.$store.getters['conversation/getPendingCustomAttributes'] || {};
+      const customAttributes = {
+        ...origemPendente,
+        ...(conversationCustomAttributes || {}),
+      };
+
       // Contact custom attributes are sent within the same request that
       // identifies the contact. A separate update call would race the contact
       // merge on the server (matching email/phone) and write the values to
@@ -48,7 +71,7 @@ export default {
       if (activeCampaignId) {
         emitter.emit('execute-campaign', {
           campaignId: activeCampaignId,
-          customAttributes: conversationCustomAttributes,
+          customAttributes,
         });
         this.$store.dispatch('contacts/update', {
           user: {
@@ -66,7 +89,7 @@ export default {
           emailAddress: emailAddress,
           message: message,
           phoneNumber: phoneNumber,
-          customAttributes: conversationCustomAttributes,
+          customAttributes: customAttributes,
           contactCustomAttributes: contactCustomAttributes,
         });
       }

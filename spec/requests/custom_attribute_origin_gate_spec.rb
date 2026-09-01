@@ -106,7 +106,7 @@ RSpec.describe 'portao de origem nos atributos', type: :request do
     end
 
     # Omitir a chave protegida nao pode ser a porta dos fundos para apaga-la: apagar
-    # tambem e alterar. A substituicao continua valendo para tudo que nao e protegido.
+    # tambem e alterar.
     it 'NAO apaga o atributo protegido quando ele e omitido do payload' do
       write({ carrinho_valor: 4200 })
 
@@ -114,11 +114,17 @@ RSpec.describe 'portao de origem nos atributos', type: :request do
       expect(atributos).to eq({ 'carrinho_valor' => 4200, 'cpf' => '111.111.111-11' })
     end
 
-    it 'continua removendo a chave NAO protegida que saiu do payload' do
+    # Este exemplo dizia o contrario ate o bloco 5.08 — "continua removendo a chave NAO
+    # protegida que saiu do payload". O endpoint era uma SUBSTITUICAO, e a omissao apagava.
+    # Era assim que a origem derivada pelo servidor (`last_page_host`, `last_page_path`,
+    # `last_origin_kind`) morria na primeira escrita vinda do site, que nunca as teve para
+    # reenviar. Quem quer remover usa `destroy_custom_attributes`, que tem porta propria no
+    # portao.
+    it 'nao apaga a chave NAO protegida que ficou de fora do payload' do
       write({ cupom: 'BLACK' })
 
       atributos = conversation.reload.custom_attributes
-      expect(atributos).to eq({ 'cupom' => 'BLACK', 'cpf' => '111.111.111-11' })
+      expect(atributos).to eq({ 'cupom' => 'BLACK', 'carrinho_valor' => 10, 'cpf' => '111.111.111-11' })
     end
   end
 

@@ -73,13 +73,26 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
     # Bloco 4.17: este endpoint nao tem assinatura nenhuma — e a superficie onde o site
     # escreve com mais liberdade. O portao recusa POR CHAVE, nunca a requisicao inteira, e
     # o valor protegido fica exatamente como estava.
+    #
+    # Bloco 5.08: e a escrita MESCLA. Era `update!(custom_attributes: recebidos)`, que
+    # reescrevia o objeto inteiro — quem chegava depois apagava o que o outro lado tinha
+    # gravado. Na 2a pagina o coletor de origem reenvia os `last_utm_*`/click ids e levava
+    # junto as chaves que o proprio servidor derivou no `before_create` da conversa
+    # (`Tracking::OriginRecorder`): `last_page_host`, `last_page_path`, `last_origin_kind` —
+    # justamente por onde `Tracking::OriginReport` agrupa. Ninguem pediu para apagar, e
+    # apagava.
+    #
+    # Por ser mescla, o portao usa `filter` e nao `replace`: chave protegida omitida nao
+    # tem como sumir, porque o valor de antes sobrevive por construcao. A REMOCAO continua
+    # existindo, e por onde sempre existiu — `destroy_custom_attributes`, que passa pela
+    # porta `delete` do mesmo portao.
     gate = CustomAttributes::OriginGate.new(
       account: conversation.account,
       attribute_model: :conversation_attribute,
       verified: @contact_inbox&.hmac_verified?
-    ).replace(incoming: permitted_params[:custom_attributes], existing: conversation.custom_attributes)
+    ).filter(permitted_params[:custom_attributes])
 
-    conversation.update!(custom_attributes: gate.allowed)
+    conversation.update!(custom_attributes: (conversation.custom_attributes || {}).merge(gate.allowed))
     # B6: mesma historia do contato — sem definicao a chave nao renderiza no
     # painel (CustomAttributes.vue:76-89) nem entra no filtro.
     CustomAttributes::AutoProvisionService.new(
