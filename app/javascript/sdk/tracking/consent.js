@@ -32,6 +32,8 @@ const state = {
   // O sink e injetavel para que o teste observe SEM tocar em servico externo. Em producao ele
   // empurra para o dataLayer, que e uma variavel do proprio navegador — nao uma chamada de rede.
   sink: null,
+  // O observador do BACKEND (T-C7.4/T-C7.6). Ver `onConsentChange`.
+  listener: null,
 };
 
 const push = payload => {
@@ -55,6 +57,51 @@ const sanitize = partial =>
 /** Estado atual, copia — quem le nao muta. */
 export const consentState = () => ({ ...state.current });
 
+/**
+ * Bloco 5.09 (T-C7.4/T-C7.6) — o consentimento ATRAVESSA para o servidor.
+ *
+ * Sem esta parte, o gate deste arquivo protege apenas o que o NAVEGADOR dispara, e o caminho
+ * server-side (CAPI, Measurement Protocol, Enhanced Conversions) segue enviando o evento sem
+ * nenhuma base legal — que e exatamente o defeito medido: `consent_block` cravado em `GRANTED`.
+ *
+ * O prefixo espelha `Tracking::ConsentState::ATTRIBUTE_PREFIX` no Ruby. Chaves PLANAS, e nao um
+ * objeto aninhado numa chave so, pela mesma razao das chaves de origem do 5.08: `custom_attributes`
+ * e superficie de filtro e de tela, e hash dentro de chave nao filtra.
+ */
+export const CONSENT_ATTRIBUTE_PREFIX = 'consent_';
+
+export const consentAttributes = () =>
+  PURPOSES.reduce(
+    (acc, purpose) => ({
+      ...acc,
+      [`${CONSENT_ATTRIBUTE_PREFIX}${purpose}`]: state.current[purpose],
+    }),
+    {}
+  );
+
+/**
+ * Registra quem leva o estado ao backend. INJETADO — este arquivo nao conhece `IFrameHelper`, e o
+ * teste observa sem iframe nenhum.
+ *
+ * So dispara com o modo ATIVO. Com `disabled` (o default por ausencia), escrever quatro
+ * `consent_*` no `custom_attributes` de toda conversa da frota seria inventar um registro de
+ * consentimento para contas que nunca declararam operar sob CMP — o oposto do que o campo prova.
+ */
+export const onConsentChange = listener => {
+  state.listener = typeof listener === 'function' ? listener : null;
+};
+
+const notify = () => {
+  if (!state.listener || state.mode === 'disabled') return;
+
+  try {
+    state.listener(consentAttributes());
+  } catch {
+    // O consentimento ja esta aplicado no gate local; falhar em CONTAR ao servidor nao pode
+    // derrubar o widget no site do cliente.
+  }
+};
+
 export const isGranted = purpose => state.current[purpose] === GRANTED;
 
 export const hasAnyConsent = () => PURPOSES.some(isGranted);
@@ -71,6 +118,7 @@ export const publishDefaults = (partial = {}) => {
   state.current = { ...allDenied(), ...sanitize(partial) };
   state.defaultsPublished = true;
   push(['consent', 'default', consentState()]);
+  notify();
 
   return consentState();
 };
@@ -84,6 +132,7 @@ export const updateConsent = (partial = {}) => {
 
   state.current = { ...state.current, ...sanitize(partial) };
   push(['consent', 'update', consentState()]);
+  notify();
 
   return consentState();
 };
@@ -147,4 +196,5 @@ export const resetConsentForTests = sink => {
   state.defaultsPublished = false;
   state.mode = 'disabled';
   state.sink = sink || null;
+  state.listener = null;
 };

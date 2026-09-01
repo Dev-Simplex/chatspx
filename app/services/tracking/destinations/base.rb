@@ -18,6 +18,12 @@ class Tracking::Destinations::Base
   # 429 nao e erro do payload: e o destino pedindo calma. Vai para o backoff junto dos 5xx.
   RETRYABLE_STATUSES = [408, 429].freeze
 
+  # Bloco 5.09 — o motivo de `skipped` quando o visitante nao concedeu. Constante, e nao a string
+  # solta em cada destino, porque este valor sai do backend e vira LINHA DE TELA no painel de 5.14
+  # (`error_code` da entrega): dois destinos escrevendo grafias diferentes viram dois motivos
+  # diferentes para a mesma coisa, e o suporte passa a responder duas historias.
+  CONSENT_DENIED = 'consent_denied'
+
   def initialize(event:, settings:, visitor: nil, person: nil, http_client: nil)
     @event = event
     @settings = settings
@@ -46,6 +52,14 @@ class Tracking::Destinations::Base
   private
 
   attr_reader :event, :settings, :visitor, :person, :http_client
+
+  # Bloco 5.09 (T-C7.4) — a decisao de consentimento deste evento, uma vez por entrega. Mora na
+  # base porque os tres destinos precisam dela para coisas DIFERENTES: o GA4 leva o estado no
+  # payload (`consent`), a Meta e o Google Ads deixam de enviar. Duas leituras do mesmo estado em
+  # dois arquivos e como um deles fica para tras quando o vocabulario muda.
+  def consent
+    @consent ||= Tracking::ConsentState.for_event(event)
+  end
 
   def build_payload
     raise NotImplementedError
