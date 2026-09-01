@@ -116,4 +116,51 @@ RSpec.describe 'Config publica de tracking da inbox (5.01)', type: :request do
       expect(tracking['event_map']).to eq({ 'conversation_started' => 'Lead' })
     end
   end
+
+  # ═══ SENTIDO 3 — o rascunho de FABRICA da tela, pelo ENDPOINT real ══════════════════════
+  #
+  # O spec de modelo prova que a validacao aceita o rascunho. Ele NAO prova que a requisicao
+  # chega inteira: entre a tela e a validacao ha strong params, `permitted_params` e o merge
+  # raso de `inbox_update_params`. Este bloco fecha esse trecho — e usa o rascunho lido do
+  # arquivo do front, nao um hash montado a mao.
+  describe 'sentido 3 — a tela salva de primeira numa inbox nova' do
+    let(:rascunho_de_fabrica) do
+      caminho = 'app/javascript/dashboard/routes/dashboard/settings/inbox/widget/composables/widgetConfigFields.js'
+      bloco = Rails.root.join(caminho).read[/DEFAULT_TRACKING = Object\.freeze\(\{(.+?)\n\}\);/m, 1].to_s
+      literais = { "''" => '', '{}' => {} }
+
+      bloco.lines.filter_map do |linha|
+        linha = linha.strip.delete_suffix(',')
+        next if linha.empty? || linha.start_with?('//', '*')
+
+        nome, cru = linha.split(':', 2).map(&:strip)
+        [nome, literais.fetch(cru) { raise "valor JS nao reconhecido: #{nome}: #{cru}" }]
+      end.to_h
+    end
+
+    it 'o rascunho foi mesmo lido do front' do
+      expect(rascunho_de_fabrica.keys).to match_array(WidgetTrackingProjection::PUBLIC_KEYS)
+    end
+
+    it 'PATCH com o rascunho de fabrica devolve 200, e nao o 422 de ontem' do
+      patch_inbox(widget_tracking: rascunho_de_fabrica)
+
+      expect(response).to have_http_status(:success)
+    end
+
+    it 'e o que fica gravado nao carrega os quatro vazios' do
+      patch_inbox(widget_tracking: rascunho_de_fabrica.merge('install_tags' => { 'meta' => true }))
+
+      expect(response).to have_http_status(:success)
+      tracking = stored_attributes['widget_tracking']
+      expect(tracking['install_tags']).to eq({ 'meta' => true })
+      expect(tracking.keys).not_to include('meta_pixel_id', 'ga4_measurement_id', 'google_ads_send_to', 'consent_mode')
+    end
+
+    it 'e o 422 continua vindo quando ha o que recusar — vazio nao virou passe livre' do
+      patch_inbox(widget_tracking: rascunho_de_fabrica.merge('meta_pixel_id' => 'EAAGm0PX4ZCpsBA0'))
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
 end

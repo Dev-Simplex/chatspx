@@ -146,4 +146,54 @@ module WidgetTrackingSchema
     },
     'additionalProperties' => false
   }.freeze
+
+  # ── VAZIO E "NAO CONFIGURADO", E "NAO CONFIGURADO" E A AUSENCIA DA CHAVE ─────────────
+  #
+  # A Tela 4 nasce com os quatro escalares em string VAZIA (`DEFAULT_TRACKING`, em
+  # `widgetConfigFields.js`) e `tracking` e campo de GRUPO: `buildPayload` manda o objeto
+  # INTEIRO a cada salvamento. Numa inbox que ainda nao configurou nada, isso significa
+  # `meta_pixel_id: ""`, `ga4_measurement_id: ""`, `google_ads_send_to: ""` e
+  # `consent_mode: ""` chegando juntos — quatro erros de pattern/enum, ou seja **422 no
+  # PRIMEIRO salvamento de toda inbox nova**. O administrador ligava a instalacao da tag,
+  # clicava em salvar, e nao salvava nada.
+  #
+  # POR QUE NINGUEM VIA: cada lado testava o formato DELE, os dois com tudo preenchido. O
+  # vao entre dois testes verdes era o defeito. O bloco "o rascunho de FABRICA da tela"
+  # em `spec/models/concerns/widget_tracking_schema_spec.rb` LE `DEFAULT_TRACKING` do
+  # arquivo do front e o roda contra este validador, para que o vao nao volte a existir.
+  #
+  # POR QUE PODAR, e nao afrouxar o pattern para aceitar `""`: `widget_tracking` e
+  # publicado no HTML de TODA pagina do site do cliente. Aceitar `""` no schema faria o
+  # 422 sumir e deixaria quatro chaves sem significado viajando em cada visita — e
+  # obrigaria o SDK a aprender que `""` nao e um Pixel ID, num lugar em que "existe a
+  # chave" ja quer dizer "esta configurado". Ausencia e o mesmo vocabulario da regra A4
+  # (`nil` tem significado, e nao ha backfill).
+  #
+  # E POR QUE ISSO NAO ABRE A PORTA: a poda so remove o que e VAZIO. Valor mal formado
+  # continua chegando ao schema e continua devolvendo 422 com o campo nomeado — o spec
+  # forca essa condicao ruim nos quatro campos, um a um.
+  #
+  # Derivado do proprio SCHEMA, e nao escrito a mao: um quinto identificador publico do
+  # tipo `string` nasce ja com esta regra, em vez de nascer com o 422 de novo.
+  SCALAR_KEYS = SCHEMA['properties'].select { |_nome, regra| regra['type'] == 'string' }.keys.freeze
+
+  module_function
+
+  # Devolve uma copia sem os escalares "nao configurados". `nil` e espaco em branco contam
+  # como vazio: `"  "` nao e um Pixel ID e nao e uma escolha — e um valor colado sem
+  # querer, e grava-lo publicaria lixo no HTML do cliente.
+  #
+  # `false` NAO e vazio e nao e podado de proposito: nestas chaves ele e tipo errado, e
+  # tipo errado tem de chegar ao schema para virar um 422 que nomeia o campo.
+  def normalize(tracking)
+    return tracking unless tracking.is_a?(Hash)
+
+    tracking.reject { |chave, valor| SCALAR_KEYS.include?(chave.to_s) && blank_scalar?(valor) }
+  end
+
+  def blank_scalar?(valor)
+    return true if valor.nil?
+
+    valor.is_a?(String) && valor.strip.empty?
+  end
 end

@@ -44,6 +44,14 @@ module WidgetConfigurable
     # o valor semeado passe pelas mesmas validacoes de todo o resto.
     before_create { WidgetProfile.seed_defaults(self) }
 
+    # Bloco 5.01: a Tela 4 escreve "nao configurado" como string VAZIA nos quatro escalares, e
+    # manda o grupo inteiro a cada salvamento — o que dava 422 no primeiro salvamento de toda
+    # inbox nova. Aqui vazio vira AUSENCIA, que e como o resto do sistema ja le "nao
+    # configurado". Roda ANTES das validacoes de proposito: o schema nunca chega a ver o vazio,
+    # e continua estrito com tudo que nao for vazio. A justificativa longa mora em
+    # `WidgetTrackingSchema.normalize`.
+    before_validation :normalize_widget_tracking
+
     validate :ensure_valid_widget_profile
     validate :ensure_widget_config_objects
     validate :ensure_no_secret_in_widget_config
@@ -56,6 +64,17 @@ module WidgetConfigurable
   end
 
   private
+
+  # So reescreve quando ha o que podar: uma atribuicao a toa marcaria `additional_attributes`
+  # como sujo em toda validacao, e `#changed?` e lido em outros pontos do modelo.
+  def normalize_widget_tracking
+    return unless widget_tracking.is_a?(Hash)
+
+    normalizado = WidgetTrackingSchema.normalize(widget_tracking)
+    return if normalizado == widget_tracking
+
+    self.widget_tracking = normalizado
+  end
 
   def ensure_valid_widget_profile
     return if widget_profile.blank?
