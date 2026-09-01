@@ -8,6 +8,7 @@ import {
   getEmojiTint,
   getRecentEmojis,
   addRecentEmoji,
+  translateCategoryName,
 } from 'shared/components/emoji/pickerHelper';
 
 const emit = defineEmits(['select']);
@@ -30,6 +31,11 @@ const emojiSections = computed(() =>
     t('EMOJI_ICON_PICKER.FREQUENTLY_USED')
   )
 );
+
+// The nine group names arrive in English from `emojisGroup.json`. The synthetic
+// "frequently used" section carries no slug and keeps the label it was built
+// with.
+const sectionLabel = section => translateCategoryName(t, section);
 
 // Tints an emoji button with a light shade of the emoji's own color on hover.
 const applyEmojiTint = (event, emoji) => {
@@ -68,7 +74,7 @@ const selectEmoji = emoji => {
           <h5
             class="px-1 pt-2 pb-1 m-0 text-xs font-medium tracking-wide uppercase text-n-slate-10"
           >
-            {{ section.name }}
+            {{ sectionLabel(section) }}
           </h5>
           <div class="grid grid-cols-10 gap-0.5">
             <button

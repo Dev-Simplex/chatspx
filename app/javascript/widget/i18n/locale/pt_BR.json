@@ -1,7 +1,7 @@
 {
   "COMPONENTS": {
     "FILE_BUBBLE": {
-      "DOWNLOAD": "Download",
+      "DOWNLOAD": "Baixar",
       "UPLOADING": "Enviando..."
     },
     "FORM_BUBBLE": {
@@ -35,15 +35,15 @@
   },
   "DAY_NAMES": {
     "SUNDAY": "Domingo",
-    "MONDAY": "Segunda-Feira",
+    "MONDAY": "Segunda-feira",
     "TUESDAY": "Terça-feira",
     "WEDNESDAY": "Quarta-feira",
     "THURSDAY": "Quinta-feira",
     "FRIDAY": "Sexta-feira",
     "SATURDAY": "Sábado"
   },
-  "START_CONVERSATION": "Iniciar Conversa",
-  "END_CONVERSATION": "Finalizar Conversa",
+  "START_CONVERSATION": "Iniciar conversa",
+  "END_CONVERSATION": "Finalizar conversa",
   "CONTINUE_CONVERSATION": "Continuar conversa",
   "YOU": "Você",
   "START_NEW_CONVERSATION": "Iniciar uma nova conversa",
@@ -173,7 +173,7 @@
     }
   },
   "PORTAL": {
-    "POPULAR_ARTICLES": "Artigos Populares",
+    "POPULAR_ARTICLES": "Artigos populares",
     "VIEW_ALL_ARTICLES": "Ver todos os artigos",
     "IFRAME_LOAD_ERROR": "Ocorreu um erro ao carregar o artigo. Por favor, atualize a página e tente novamente."
   },
