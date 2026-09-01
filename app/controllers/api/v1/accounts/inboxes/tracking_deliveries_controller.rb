@@ -107,6 +107,7 @@ class Api::V1::Accounts::Inboxes::TrackingDeliveriesController < Api::V1::Accoun
   # fato — nenhum destino foi escolhido, porque nenhum estava configurado.
   def no_destination_delivery(event)
     TrackingDelivery.new(tracking_event: event, status: :skipped,
-                         error_code: 'no_destination_configured', field_names: [])
+                         error_code: 'no_destination_configured', field_names: [],
+                         suppressed_field_names: [])
   end
 end

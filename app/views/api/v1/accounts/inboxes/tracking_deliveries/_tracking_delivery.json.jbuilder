@@ -20,3 +20,8 @@ json.emq delivery.emq&.to_f
 json.attempts delivery.attempts
 json.last_attempted_at delivery.last_attempted_at
 json.field_names delivery.field_names
+# A OUTRA metade da frase do 5.12, e ela era write-only: o job gravava e nenhum leitor existia.
+# `field_names` sozinho nao prova nada — "nao ha `em` ali" e verdade tambem para um contato que
+# nunca teve e-mail. Sao os NOMES retidos que dizem que a base TINHA e reteve, e sem sair daqui a
+# prova so era verificavel por quem abre um `rails c`, que e exatamente quem o painel dispensa.
+json.suppressed_field_names delivery.suppressed_field_names

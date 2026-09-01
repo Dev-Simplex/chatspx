@@ -521,6 +521,7 @@ defineExpose({ requestLeave: guard.requestLeave });
           :error-groups="diagnostics.errorGroups.value"
           :emq-average="diagnostics.emqAverage.value"
           :retention-days="diagnostics.retentionDays.value"
+          :pii-mode="diagnostics.piiMode.value"
           :is-loading="diagnostics.isLoading.value"
           :is-sending-test="diagnostics.isSendingTest.value"
           :missing-endpoint="diagnostics.missingEndpoint.value"

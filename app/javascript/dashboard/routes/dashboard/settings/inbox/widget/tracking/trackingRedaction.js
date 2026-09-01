@@ -107,6 +107,12 @@ export const sanitizeDelivery = (delivery = {}) => ({
   attempts: Number(delivery.attempts ?? 0),
   last_attempted_at: redactPii(String(delivery.last_attempted_at ?? '')),
   field_names: keepFieldNames(delivery.field_names),
+  // A outra metade da frase do bloco 5.12. Lista branca tem esta consequencia
+  // exata: coluna nova no servidor nao atravessa por omissao, tem de ser nomeada
+  // aqui — e foi por isso que a prova do modo sem PII chegou ao banco e parou la.
+  // Passa pelo MESMO crivo de nome de campo: e mais um caminho por onde texto do
+  // servidor chega a tela, e a coluna da prova nao pode ser a excecao da tesoura.
+  suppressed_field_names: keepFieldNames(delivery.suppressed_field_names),
 });
 
 export const sanitizeDeliveries = (deliveries = []) =>

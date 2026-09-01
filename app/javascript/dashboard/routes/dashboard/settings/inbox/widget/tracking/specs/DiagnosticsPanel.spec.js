@@ -152,6 +152,101 @@ describe('5.14 — o aceite: `@` no painel renderizado dá vazio', () => {
   });
 });
 
+/**
+ * O aceite do bloco 5.12: "nenhum campo `em`/`ph`/`fn`/`ln` sai; verificado no
+ * LOG DE AUDITORIA, que registra NOMES de campos".
+ *
+ * A verificação é de quem NÃO abre console — é esta tela. E ela é uma afirmação
+ * negativa: "não há `em` nos campos enviados" é verdade também para um contato
+ * que nunca teve e-mail. Só a lista dos RETIDOS, ao lado, transforma a ausência
+ * em prova: a base tinha `em` e `ph`, e mesmo assim eles não saíram.
+ *
+ * A forma da entrega aqui é a REAL do modo sem PII, não uma inventada: o que sai
+ * é identificador anônimo (`external_id`, `fbc`, IP e user-agent do visitante) e
+ * o que fica retido é o vocabulário canônico de pessoa.
+ */
+const entregaSemPii = {
+  event_id: 'e9',
+  name: 'chatspx_lead',
+  destination: 'meta_capi',
+  status: 'sent',
+  http_status: 200,
+  error_code: '',
+  error_message: '',
+  emq: 6.1,
+  last_attempted_at: '09:12:44',
+  field_names: ['client_ip_address', 'client_user_agent', 'external_id', 'fbc'],
+  suppressed_field_names: ['em', 'ph', 'fn', 'ln'],
+};
+
+describe('5.12 — o log de auditoria mostra os NOMES retidos', () => {
+  it('desenha os campos que a base tinha e o modo sem PII reteve', () => {
+    const wrapper = build({ deliveries: [entregaSemPii] });
+
+    const celula = wrapper.find('[data-testid="suppressed-e9"]');
+    expect(celula.exists()).toBe(true);
+    expect(celula.text()).toBe('em, ph, fn, ln');
+  });
+
+  // O CONTROLE do aceite: os retidos aparecem E os enviados continuam sem eles.
+  // Sem as duas metades na mesma linha, a tela mostra metade da frase.
+  it('e ao lado deles os enviados, que não têm nenhum campo de pessoa', () => {
+    const wrapper = build({ deliveries: [entregaSemPii] });
+
+    const enviados = wrapper.find('[data-testid="fields-e9"]').text();
+    expect(enviados).toContain('external_id');
+    expect(enviados).not.toContain('em,');
+    expect(enviados).not.toContain('ph');
+  });
+
+  // Contato sem dado nenhum: nada foi retido, e a célula tem de dizer isso em vez
+  // de ficar em branco — branco se lê como "a coluna não funciona".
+  it('entrega sem nada a reter mostra ausência, não vazio', () => {
+    const wrapper = build({
+      deliveries: [{ ...entregaSemPii, suppressed_field_names: [] }],
+    });
+
+    expect(wrapper.find('[data-testid="suppressed-e9"]').text()).toBe('—');
+  });
+
+  // A MESMA tesoura do outro lado: a coluna nova é mais um caminho por onde um
+  // valor do servidor chega à tela, e ela não pode ser a exceção.
+  it('valor que chegue dentro de `suppressed_field_names` não é desenhado', () => {
+    const wrapper = build({
+      deliveries: [
+        {
+          ...entregaSemPii,
+          suppressed_field_names: [{ em: EMAIL_DO_CONTATO }, 'ph'],
+        },
+      ],
+    });
+
+    expect(wrapper.text()).not.toContain('@');
+    expect(wrapper.find('[data-testid="suppressed-e9"]').text()).toBe('em, ph');
+  });
+
+  // Uma lista de retidos vazia é ambígua sem o modo: vazia porque a política está
+  // destravada, ou vazia porque aquele contato não tinha campo nenhum?
+  it('a tela nomeia o modo de PII vigente', () => {
+    const wrapper = build({
+      deliveries: [entregaSemPii],
+      piiMode: 'without_pii',
+    });
+
+    const banner = wrapper.find('[data-testid="diagnostics-pii-mode"]');
+    expect(banner.exists()).toBe(true);
+    expect(banner.text()).toContain('sem PII');
+  });
+
+  it('e some com o aviso quando a política estiver destravada', () => {
+    const wrapper = build({ deliveries: [entregaSemPii], piiMode: 'with_pii' });
+
+    expect(
+      wrapper.find('[data-testid="diagnostics-pii-mode"]').text()
+    ).not.toContain('sem PII');
+  });
+});
+
 describe('5.14 — o painel responde "o evento saiu?" sem console', () => {
   it('mostra o status e o destino de cada tentativa', () => {
     const wrapper = build({

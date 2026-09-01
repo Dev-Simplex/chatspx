@@ -129,6 +129,74 @@ RSpec.describe Tracking::PiiPolicy do
     end
   end
 
+  # A METADE DO ACEITE QUE FALTAVA: "verificado no LOG DE AUDITORIA". Ate aqui a supressao era
+  # calculada pelo destino e chegava ao banco so na entrega BEM SUCEDIDA. A entrega que nao saiu
+  # gravava status e motivo, e o que o destino tinha calculado morria no caminho — justamente na
+  # classe onde a supressao pesa mais: o Google Ads sem `gclid`, que sob o modo sem PII fica sem
+  # identificador nenhum e vira `skipped` inteiro, todas as vezes, para toda conta.
+  describe 'a entrega que NAO saiu — o `skipped` tambem grava os nomes retidos' do
+    let(:conversa_sem_clique) do
+      conv = create(:conversation, account: account, inbox: inbox, contact: contact)
+      conv.update!(
+        additional_attributes: conv.additional_attributes.merge(
+          'browser' => { 'user_agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5) Safari/605.1.15' }
+        )
+      )
+      conv
+    end
+
+    let(:evento_sem_clique) do
+      Tracking::EventRecorder.record!(name: 'chatspx_lead', account: account, inbox: inbox,
+                                      conversation: conversa_sem_clique, contact: contact,
+                                      properties: { 'value' => 350.0, 'currency' => 'BRL' },
+                                      dedup_key: 'lead-sem-gclid', deliver: false)
+    end
+
+    before do
+      allow(Tracking::CredentialResolver).to receive(:call).and_return(settings)
+      allow(Tracking::HttpClient).to receive(:new).and_return(http_client)
+    end
+
+    # O CONTROLE, e ele e duplo: a entrega nao saiu (nao houve chamada) E a base tinha o que
+    # suprimir. Sem os dois, "gravou a lista de retidos" seria verdade tambem para uma lista vazia.
+    it 'o CONTROLE: sem gclid o Google Ads nao tem o que mandar, e o destino CALCULA a supressao' do
+      resultado = Tracking::Destinations::GoogleAds
+                  .new(event: evento_sem_clique, settings: settings, http_client: http_client).deliver!
+
+      expect(http_client.calls).to be_empty
+      expect(resultado.status).to eq(:skipped)
+      expect(resultado.reason).to eq('no_identifier')
+      expect(resultado.suppressed_field_names).to include('em', 'ph', 'fn', 'ln')
+    end
+
+    it 'e o que o destino calculou CHEGA ao banco, nao so o status' do
+      entrega = evento_sem_clique.claim_delivery(:google_ads)
+
+      Tracking::GoogleAdsDeliveryJob.perform_now(entrega.id)
+
+      expect(entrega.reload).to have_attributes(status: 'skipped', error_code: 'no_identifier')
+      expect(entrega.suppressed_field_names).to include('em', 'ph', 'fn', 'ln')
+      # NOMES, nunca valores — a mesma regra da entrega que sai.
+      expect(entrega.suppressed_field_names.join(' ')).not_to include('Maria', 'exemplo', '5511')
+      expect(entrega.field_names).to eq([])
+    end
+
+    # A PORTA LATERAL, fechada de proposito: `skipped` por credencial ausente nao chega a montar
+    # payload nenhum, entao nao houve supressao. Preencher a lista ali seria log que PROMETE — e o
+    # painel diria "retivemos `em`" para uma entrega que nunca existiu.
+    it 'mas o `skipped` sem destino configurado nao inventa lista' do
+      sem_google = Tracking::CredentialResolver::Settings.new(meta_pixel_id: '1234567890',
+                                                              meta_access_token: 'EAA-token-secreto')
+      allow(Tracking::CredentialResolver).to receive(:call).and_return(sem_google)
+      entrega = evento_sem_clique.claim_delivery(:google_ads)
+
+      Tracking::GoogleAdsDeliveryJob.perform_now(entrega.id)
+
+      expect(entrega.reload).to have_attributes(status: 'skipped', error_code: 'not_configured')
+      expect(entrega.suppressed_field_names).to eq([])
+    end
+  end
+
   describe 'os tres destinos, nao so a Meta' do
     before { allow(Tracking::CredentialResolver).to receive(:call).and_return(settings) }
 

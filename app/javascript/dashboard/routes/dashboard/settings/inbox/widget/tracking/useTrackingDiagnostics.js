@@ -37,6 +37,13 @@ const FAILED = ['failed', 'dead'];
 export function useTrackingDiagnostics(inboxId) {
   const deliveries = ref([]);
   const retentionDays = ref(0);
+  /**
+   * O modo de tratamento de dado pessoal da instalacao (bloco 5.12), como o
+   * SERVIDOR o reporta. Vazio ate a resposta chegar, e vazio de proposito quando
+   * ela nao traz a chave: dizer "sem PII" por default seria a tela inventar uma
+   * garantia que ninguem deu.
+   */
+  const piiMode = ref('');
   const isLoading = ref(false);
   const isSendingTest = ref(false);
   /** Preenchido quando a rota ainda nao existe — a tela NOMEIA o que falta. */
@@ -52,6 +59,7 @@ export function useTrackingDiagnostics(inboxId) {
       const { data } = await fetchDeliveries(inboxId);
       deliveries.value = sanitizeDeliveries(data?.deliveries);
       retentionDays.value = Number(data?.retention_days) || 0;
+      piiMode.value = String(data?.pii_mode ?? '');
     } catch (error) {
       // 404 e 501 sao "a rota ainda nao subiu" — estado conhecido, nao falha do
       // administrador. Qualquer outro codigo e erro de verdade e aparece como tal.
@@ -91,6 +99,7 @@ export function useTrackingDiagnostics(inboxId) {
         http_status: status ?? null,
         error_message: '',
         field_names: [],
+        suppressed_field_names: [],
       };
       return testResult.value;
     } finally {
@@ -154,6 +163,7 @@ export function useTrackingDiagnostics(inboxId) {
   return {
     deliveries,
     retentionDays,
+    piiMode,
     isLoading,
     isSendingTest,
     missingEndpoint,
