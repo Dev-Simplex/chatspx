@@ -106,22 +106,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
       'não falha de consulta: não invente endereço e não ofereça o de outra cidade como se fosse ' \
       'dessa. Diga à pessoa que não existe unidade nessa cidade ANTES de continuar a conversa. ' \
       "Cidades que têm unidade: #{cidades.first(LIMITE_CIDADES).join(', ')}." \
-      "#{sugestao_de_proxima(unidades, perto)}"
-  end
-
-  # Só sugere a mais próxima quando ela é CALCULADA. Sem pin, convida a pessoa a mandar a
-  # localização — e só se houver alguma unidade com coordenada, pra não prometer o que não dá.
-  def sugestao_de_proxima(unidades, perto)
-    return '' if unidades.none?(&:coordenada?)
-
-    alvo = perto.mais_proxima(unidades)
-    unless alvo
-      return ' Se ela quiser saber qual é a mais perto, peça que envie a localização dela pelo ' \
-             'WhatsApp — com o ponto no mapa dá pra calcular a distância de verdade.'
-    end
-
-    " Pela localização que ela enviou, a unidade mais próxima é #{alvo.nome} " \
-      "(#{::Spx::UnidadeProximidade.km(perto.distancia(alvo))}), e essa distância é calculada, não estimada."
+      "#{perto.frase_de_sugestao(unidades)}"
   end
 
   def montar_resposta(unidades, total_ativas, quando, perto)
@@ -167,17 +152,23 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     linhas = ["#{unidade.nome}#{local(unidade)}"]
     linhas << "Endereço: #{unidade.endereco}" if unidade.endereco.present?
     linhas << "Telefone: #{unidade.telefone}" if unidade.telefone.present?
-    linhas << "Distância até a localização que a pessoa enviou: #{::Spx::UnidadeProximidade.km(@perto.distancia(unidade))}" if @perto.distancia(unidade)
+    linhas << linha_de_distancia(unidade)
     linhas.concat(atributos(unidade))
     linhas.concat(agenda(unidade, momento, excecoes))
-    linhas.join("\n")
+    linhas.compact.join("\n")
+  end
+
+  def linha_de_distancia(unidade)
+    distancia = @perto.distancia(unidade)
+    return nil unless distancia
+
+    "Distância até a localização que a pessoa enviou: #{::Spx::UnidadeProximidade.km(distancia)}"
   end
 
   def local(unidade)
     partes = [unidade.cidade.presence, unidade.uf.presence].compact
     partes.any? ? " — #{partes.join('/')}" : ''
   end
-
 
   def atributos(unidade)
     (unidade.atributos || {}).filter_map do |chave, valor|

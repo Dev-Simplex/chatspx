@@ -59,4 +59,21 @@ class Spx::UnidadeProximidade
 
     unidades.select(&:coordenada?).min_by { |unidade| distancia(unidade) }
   end
+
+  # Frase para quem pediu uma cidade que não tem unidade. Só afirma a mais próxima quando ela é
+  # CALCULADA; sem pin, convida a pessoa a mandar a localização — e só se houver alguma unidade
+  # com coordenada, porque prometer um cálculo que não dá pra fazer é a mesma classe de erro de
+  # inventar endereço.
+  def frase_de_sugestao(unidades)
+    return '' if unidades.none?(&:coordenada?)
+
+    alvo = mais_proxima(unidades)
+    unless alvo
+      return ' Se ela quiser saber qual é a mais perto, peça que envie a localização dela pelo ' \
+             'WhatsApp — com o ponto no mapa dá pra calcular a distância de verdade.'
+    end
+
+    " Pela localização que ela enviou, a unidade mais próxima é #{alvo.nome} " \
+      "(#{self.class.km(distancia(alvo))}), e essa distância é calculada, não estimada."
+  end
 end
