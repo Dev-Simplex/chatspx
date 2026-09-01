@@ -109,6 +109,64 @@ RSpec.describe Spx::UnidadeExpressaoTemporal do
     end
   end
 
+  # Medido na prod da BigStore em 01/09/2026: "sem ser nesse, no outro sábado" devolvia o sábado
+  # que a pessoa acabara de EXCLUIR, e devolvia marcado como reconhecido. O parser via a palavra
+  # `sabado` e ignorava o resto. Errar assim é pior que não responder, porque nada acusa.
+  describe 'modificador que muda o sentido e não é modelado' do
+    ['sem ser nesse, no outro sábado', 'no outro sábado', 'sábado passado', 'antes do sábado',
+     'depois do sábado', 'daqui a 2 semanas', 'na semana retrasada'].each do |expressao|
+      it "recusa #{expressao.inspect} em vez de responder pelo dia errado" do
+        resultado = resolver(expressao)
+
+        expect(resultado).not_to be_reconhecida
+        expect(resultado.datas).to be_empty
+      end
+    end
+
+    # A recusa é por modificador NÃO modelado. "que vem"/"próximo" são modelados e seguem valendo,
+    # e "depois de amanhã" não pode ser confundido com "depois do <dia>".
+    it 'não recusa o que já sabe resolver' do
+      expect(resolver('sábado que vem').datas).to eq([Date.new(2026, 8, 29)])
+      expect(resolver('depois de amanhã').datas).to eq([Date.new(2026, 8, 21)])
+    end
+  end
+
+  # "Daqui meia hora" é pergunta de INSTANTE, não de dia: a resposta é hora contra faixa. Antes
+  # caía na recusa, o que era honesto mas deixava a pessoa sem resposta para a pergunta mais
+  # comum de quem já está a caminho da loja.
+  describe 'deslocamento a partir de agora' do
+    it 'resolve "daqui meia hora"' do
+      resultado = resolver('daqui meia hora')
+
+      expect(resultado.datas).to eq([Date.new(2026, 8, 19)])
+      expect(resultado).to be_instante
+      expect(resultado.instante.strftime('%H:%M')).to eq('15:00')
+    end
+
+    it 'resolve minutos, horas e quantidade escrita por extenso' do
+      expect(resolver('daqui a 30 minutos').instante.strftime('%H:%M')).to eq('15:00')
+      expect(resolver('em 1 hora').instante.strftime('%H:%M')).to eq('15:30')
+      expect(resolver('daqui a duas horas').instante.strftime('%H:%M')).to eq('16:30')
+    end
+
+    # A data do instante não é necessariamente hoje: perto da meia-noite ela vira o dia seguinte,
+    # e é o horário DESSE dia que precisa ser consultado.
+    it 'atravessa a meia-noite e devolve a data do instante, não a de hoje' do
+      resultado = resolver('daqui a 20 minutos', agora: '2026-08-19 23:50:00')
+
+      expect(resultado.datas).to eq([Date.new(2026, 8, 20)])
+      expect(resultado.instante.strftime('%H:%M')).to eq('00:10')
+    end
+
+    it 'exige a palavra da unidade, pra "em setembro" não virar deslocamento' do
+      expect(resolver('em setembro')).not_to be_reconhecida
+    end
+
+    it 'não aceita "meia" sem ser de hora' do
+      expect(resolver('daqui meia semana')).not_to be_reconhecida
+    end
+  end
+
   describe 'fuso da unidade' do
     it 'resolve o dia no fuso pedido, e não no do servidor' do
       # 2026-08-20 01:30 UTC ainda é dia 19 em Cuiabá (UTC-4).

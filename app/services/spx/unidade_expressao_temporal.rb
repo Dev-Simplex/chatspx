@@ -35,6 +35,30 @@ class Spx::UnidadeExpressaoTemporal
   DATA_POR_EXTENSO = /\b(\d{1,2})\s+de\s+([a-z]+)\b/
   QUALIFICADOR_SEGUINTE = /\bque\s+vem\b|\bproximo\b|\bproxima\b/
 
+  # Deslocamento a partir de AGORA ("daqui meia hora"). É pergunta de instante, não de dia: a
+  # resposta é hora contra faixa. Exige a palavra da unidade justamente pra "em setembro" não
+  # entrar aqui.
+  OFFSET_RELATIVO = /\b(?:daqui\s+(?:a\s+)?|em\s+)(\d{1,3}|uma?|duas?|meia)\s*(minutos?|min|horas?|h)\b/
+  QUANTIDADE_ESCRITA = { 'um' => 1, 'uma' => 1, 'dois' => 2, 'duas' => 2 }.freeze
+
+  # MODIFICADORES QUE MUDAM O SENTIDO E NÃO SÃO MODELADOS AQUI.
+  #
+  # Medido em 01/09/2026 (uma terça): "sem ser nesse, no outro sábado" devolvia o sábado 05/09 —
+  # que é justamente "nesse". O parser via a palavra `sabado`, ignorava o resto e respondia OK.
+  # Não é lacuna de cobertura: é resposta errada com convicção, que é pior que não responder.
+  #
+  # A regra passa a ser recusar. Quem recusa cai no aviso explícito que o chamador já emite
+  # ("NÃO trate como hoje: pergunte à pessoa qual é o dia"), e a pessoa é perguntada em vez de
+  # receber um palpite. Mesmo princípio da célula vazia versus "fechada": falhar alto vale mais
+  # que adivinhar.
+  #
+  # `depois d[oa]` NÃO captura "depois de amanhã" (que é `de`, e é modelado logo acima).
+  MODIFICADOR_NAO_MODELADO = /
+    \bsem\s+ser\b | \boutr[ao]\b | \bpassad[ao]\b | \bretrasad[ao]\b |
+    \bdepois\s+d[oa]\b | \bantes\s+d[eoa]\b |
+    \bdaqui\s+a\s+\d+\s*(?:semanas?|mes(?:es)?|dias?)\b
+  /x
+
   def self.resolver(expressao, zona)
     new(expressao, zona).resolver
   end
@@ -51,19 +75,58 @@ class Spx::UnidadeExpressaoTemporal
 
   def resolver
     return nao_reconhecida if @texto.blank?
+    # Vem ANTES de qualquer casamento: o modificador não invalida um trecho da expressão, ele
+    # invalida a leitura inteira. "sem ser nesse, no outro sábado" tem um `sabado` legítimo e
+    # mesmo assim não pode ser resolvido.
+    return nao_reconhecida if @texto.match?(MODIFICADOR_NAO_MODELADO)
 
     datas = datas_resolvidas
     return nao_reconhecida if datas.blank?
 
-    Resultado.new(datas: datas.uniq.sort.first(7), instante: momento_presente? ? @agora : nil, reconhecida: true)
+    Resultado.new(datas: datas.uniq.sort.first(7), instante: instante_resolvido, reconhecida: true)
   end
 
   private
 
+  def instante_resolvido
+    return @instante_alvo if @instante_alvo
+    return @agora if momento_presente?
+
+    nil
+  end
+
   # A ordem importa: "depois de amanhã" contém "amanhã", e "dia 25/12" contém "dia 25".
+  # O deslocamento vem primeiro porque "daqui a 2 horas" carrega um número que a leitura de
+  # data numérica poderia morder.
   def datas_resolvidas
-    datas_relativas || datas_fim_de_semana || datas_numericas ||
+    datas_por_offset || datas_relativas || datas_fim_de_semana || datas_numericas ||
       datas_por_extenso || datas_dia_do_mes || datas_por_dia_semana
+  end
+
+  # "Daqui meia hora" não é pergunta de dia — é hora contra faixa. Devolve a data do instante
+  # alvo (que pode ser o dia seguinte, se a pergunta atravessar a meia-noite) e guarda o
+  # instante, pra quem chama comparar com o horário daquele dia.
+  def datas_por_offset
+    encontrado = @texto.match(OFFSET_RELATIVO)
+    return nil unless encontrado
+
+    minutos = minutos_de(encontrado[1], encontrado[2])
+    return nil unless minutos
+
+    @instante_alvo = @agora + minutos.minutes
+    [@instante_alvo.to_date]
+  end
+
+  # "meia" só faz sentido com hora ("meia hora"); "meia minuto" não é português, e devolver nil
+  # manda a expressão inteira pro caminho da recusa em vez de inventar 30 segundos.
+  def minutos_de(quantidade, unidade)
+    hora = unidade.start_with?('h')
+    return hora ? 30 : nil if quantidade == 'meia'
+
+    numero = QUANTIDADE_ESCRITA[quantidade] || Integer(quantidade, exception: false)
+    return nil unless numero&.positive?
+
+    hora ? numero * 60 : numero
   end
 
   def datas_relativas
