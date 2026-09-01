@@ -65,13 +65,37 @@ RSpec.describe Widget::ErrorReport do
     # é justamente o que este bloco de testes contorna. Verificar contra o nada
     # não é possível, então a exceção é local e declarada.
     # rubocop:disable RSpec/VerifiedDoubles
-    let(:scope) { double('Sentry::Scope', set_tags: nil, set_context: nil) }
+    let(:scope) do
+      double('Sentry::Scope', set_tags: nil, set_context: nil, set_rack_env: nil, set_user: nil, add_event_processor: nil)
+    end
     let(:sentry) { double('Sentry', initialized?: true, capture_message: nil) }
     # rubocop:enable RSpec/VerifiedDoubles
 
     before do
       allow(sentry).to receive(:with_scope).and_yield(scope)
       stub_const('Sentry', sentry)
+    end
+
+    # ATENCAO — O LIMITE DESTE BLOCO DE EXEMPLOS, E POR QUE EXISTE OUTRO ARQUIVO
+    #
+    # O duplo acima nao constroi evento nenhum: ele so registra que recebeu as
+    # mensagens. Foi assim que o vazamento do bloco 2.13 sobreviveu — o evento
+    # REAL saia levando o cookie `cw_conversation` (o JWT da conversa do
+    # visitante), o `Referer` com a URL inteira do iframe e o IP, e estes
+    # exemplos ficavam verdes o tempo todo, porque nada disso passa por
+    # `set_tags`/`set_context`/`capture_message`.
+    #
+    # Repare tambem que este duplo precisou ser ENSINADO a aceitar
+    # `set_rack_env`, `set_user` e `add_event_processor`: um duplo nunca
+    # descobre a chamada que falta, ele so reclama da que nao esperava.
+    #
+    # A medicao do evento de verdade mora em `error_report_sentry_real_spec.rb`,
+    # com o SDK carregado a mao e `DummyTransport` no lugar da rede.
+    it 'zera a requisição do escopo — o resto está no arquivo sem dublê' do
+      described_class.new({ name: 'Error', message: 'x' }.with_indifferent_access, web_widget).perform
+
+      expect(scope).to have_received(:set_rack_env).with({})
+      expect(scope).to have_received(:set_user).with({})
     end
 
     it 'manda para o Sentry uma mensagem já raspada' do

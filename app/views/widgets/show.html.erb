@@ -75,6 +75,14 @@
         <%# suite de paridade (0.6) cobra CHAVE e VALOR nas duas pontas: quem publicar so aqui %>
         <%# entrega um botao que existe hoje e some no dia em que o jbuilder substituir o ERB. %>
         whatsAppExitNumber: '<%= @web_widget.inbox.whatsapp_exit_number %>',
+        <%# Bloco 2.13 — a VERSAO que o relatorio de erro carrega. O widget ja LIA %>
+        <%# `chatwootWebChannel.release` em `helpers/telemetry.js:149`; ninguem publicava, %>
+        <%# entao o campo chegava `null` no GlitchTip em toda instalacao e so o harness de %>
+        <%# E2E o fabricava. Sem ele nao da para dizer se um erro e de um deploy velho em %>
+        <%# cache no navegador do visitante ou do que esta no ar agora — que e a primeira %>
+        <%# pergunta de toda triagem. MESMA fonte do painel (`dashboard_controller.rb:71`), %>
+        <%# e o gemeo `release` mora no jbuilder de `configs`, cobrado pela paridade (0.6). %>
+        release: '<%= Chatwoot.config[:version] %>',
       }
       window.chatwootPubsubToken = '<%= @contact_inbox.pubsub_token %>'
       window.authToken = '<%= @token %>'

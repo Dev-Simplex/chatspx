@@ -15,15 +15,27 @@
  * usa para saber onde doeu, e um copiar-colar que deixe a origem do vizinho é
  * exatamente o erro que passa despercebido numa revisão.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { actions as acoesDeContato } from '../contacts';
 import moduloDeEventos from '../events';
 import { actions as acoesDeAtributos } from '../conversationAttributes';
 import { actions as acoesDeRotulos } from '../conversationLabels';
+import { actions as acoesDeConversa } from '../conversation/actions';
 import { reportWidgetError } from 'widget/helpers/telemetry';
 import ContactsAPI from 'widget/api/contacts';
 import eventsAPI from 'widget/api/events';
 import conversationLabelsAPI from 'widget/api/conversationLabels';
-import { getConversationAPI } from 'widget/api/conversation';
+import {
+  getConversationAPI,
+  sendMessageAPI,
+  getMessagesAPI,
+  sendAttachmentAPI,
+  toggleTyping,
+  setUserLastSeenAt,
+  setCustomAttributes as setCustomAttributesAPI,
+  deleteCustomAttribute as deleteCustomAttributeAPI,
+} from 'widget/api/conversation';
 
 vi.mock('widget/helpers/telemetry', () => ({
   reportWidgetError: vi.fn(),
@@ -32,6 +44,7 @@ vi.mock('widget/api/contacts');
 vi.mock('widget/api/events');
 vi.mock('widget/api/conversationLabels');
 vi.mock('widget/api/conversation');
+vi.mock('widget/api/approachEvent');
 
 const falha = new Error('rede fora');
 
@@ -98,6 +111,145 @@ describe('2.13 — os `catch` que engoliam erro agora reportam', () => {
     expect(reportWidgetError).toHaveBeenCalledWith(falha, {
       origem: 'store/conversationAttributes',
     });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // `conversation/actions.js` — os oito que continuavam mudos
+  //
+  // Cinco diziam literalmente `// IgnoreError` e três descartavam o `error` sem
+  // dizer nada (`sendMessageWithData`, `sendAttachment`, `fetchOldConversations`
+  // marcam a mensagem como falha na TELA e não registram nada em lugar nenhum).
+  // Todos os oito estão no caminho quente da conversa: mensagem que não foi,
+  // anexo que não subiu, histórico que não carregou, mensagem nova que não
+  // sincronizou. Era exatamente onde a observabilidade mais faltava.
+  // ───────────────────────────────────────────────────────────────────────────
+  const contextoComConversa = () => ({
+    commit: vi.fn(),
+    rootGetters: { 'conversationAttributes/getConversationParams': { id: 7 } },
+  });
+
+  const origemRelatada = () => reportWidgetError.mock.calls.at(-1)[1].origem;
+
+  it('conversation#sendMessage — a mensagem que o visitante escreveu e não foi', async () => {
+    sendMessageAPI.mockRejectedValue(falha);
+
+    await acoesDeConversa.sendMessageWithData(
+      { commit: vi.fn(), rootState: {} },
+      { message: { id: 1, content: 'oi', meta: {} } }
+    );
+
+    expect(reportWidgetError).toHaveBeenCalledWith(falha, {
+      origem: 'store/conversation#sendMessage',
+    });
+  });
+
+  it('conversation#sendAttachment', async () => {
+    sendAttachmentAPI.mockRejectedValue(falha);
+
+    await acoesDeConversa.sendAttachment(
+      {
+        commit: vi.fn(),
+        state: { pendingCustomAttributes: {}, pendingLabels: [] },
+      },
+      { attachment: { thumbUrl: 'blob:x', fileType: 'image' } }
+    );
+
+    expect(reportWidgetError).toHaveBeenCalledWith(falha, {
+      origem: 'store/conversation#sendAttachment',
+    });
+  });
+
+  it('conversation#fetchOldConversations — histórico vazio com a tela parecendo pronta', async () => {
+    getMessagesAPI.mockRejectedValue(falha);
+
+    await acoesDeConversa.fetchOldConversations({ commit: vi.fn() }, {});
+
+    expect(reportWidgetError).toHaveBeenCalledWith(falha, {
+      origem: 'store/conversation#fetchOldConversations',
+    });
+  });
+
+  it('conversation#syncLatestMessages', async () => {
+    getMessagesAPI.mockRejectedValue(falha);
+
+    await acoesDeConversa.syncLatestMessages({
+      state: { lastMessageId: 3, conversations: {} },
+      commit: vi.fn(),
+    });
+
+    expect(origemRelatada()).toBe('store/conversation#syncLatestMessages');
+  });
+
+  it('conversation#toggleUserTyping', async () => {
+    toggleTyping.mockRejectedValue(falha);
+
+    await acoesDeConversa.toggleUserTyping({}, { typingStatus: 'on' });
+
+    expect(origemRelatada()).toBe('store/conversation#toggleUserTyping');
+  });
+
+  it('conversation#setUserLastSeen', async () => {
+    setUserLastSeenAt.mockRejectedValue(falha);
+
+    await acoesDeConversa.setUserLastSeen({
+      commit: vi.fn(),
+      getters: { getConversationSize: 2 },
+    });
+
+    expect(origemRelatada()).toBe('store/conversation#setUserLastSeen');
+  });
+
+  it('conversation#setCustomAttributes', async () => {
+    setCustomAttributesAPI.mockRejectedValue(falha);
+
+    await acoesDeConversa.setCustomAttributes(contextoComConversa(), { a: 1 });
+
+    expect(origemRelatada()).toBe('store/conversation#setCustomAttributes');
+  });
+
+  it('conversation#deleteCustomAttribute', async () => {
+    deleteCustomAttributeAPI.mockRejectedValue(falha);
+
+    await acoesDeConversa.deleteCustomAttribute(contextoComConversa(), 'a');
+
+    expect(origemRelatada()).toBe('store/conversation#deleteCustomAttribute');
+  });
+
+  it('não sobrou NENHUM `catch` mudo em conversation/actions.js', () => {
+    // Os oito exemplos acima provam que os `catch` de HOJE reportam. Este prova
+    // que não há um nono — e é a única forma de acusar o `catch` que alguém
+    // acrescentar amanhã com `// IgnoreError` dentro: os exemplos por ação não
+    // ficariam vermelhos, porque eles não sabem que a ação nova existe.
+    //
+    // Conta os dois lados de propósito. Um teste que só afirmasse "não existe
+    // `IgnoreError`" passaria também num arquivo vazio; exigir que o número de
+    // `catch` seja IGUAL ao número de `reportWidgetError` mede a cobertura, e o
+    // número absoluto (9) denuncia o dia em que a contagem despencar.
+    // `process.cwd()` e nao `import.meta.url`: o vitest transforma o modulo e o
+    // `import.meta.url` que chega aqui nao e uma URL `file:` — `readFileSync`
+    // recusa com "The URL must be of scheme file". A raiz do vitest e a raiz do
+    // repositorio, e um caminho errado explode alto em vez de medir zero.
+    const fonte = fs.readFileSync(
+      path.resolve(
+        process.cwd(),
+        'app/javascript/widget/store/modules/conversation/actions.js'
+      ),
+      'utf8'
+    );
+    const catches = fonte.match(/\}\s*catch\s*\(/g) || [];
+    const relatos = fonte.match(/reportWidgetError\(/g) || [];
+
+    expect(catches).toHaveLength(9);
+    expect(relatos).toHaveLength(9);
+
+    // E as nove origens sao DISTINTAS. Copiar-colar deixando a origem do vizinho
+    // e o defeito silencioso deste bloco: a telemetria funciona, os numeros
+    // batem, e a triagem procura no arquivo errado.
+    const origens = [...fonte.matchAll(/origem: '([^']+)'/g)].map(
+      par => par[1]
+    );
+    expect(origens).toHaveLength(9);
+    expect(new Set(origens).size).toBe(9);
   });
 
   it('store/conversationLabels#create e #destroy, com origens distintas', async () => {
