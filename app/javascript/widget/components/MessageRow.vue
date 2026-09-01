@@ -418,17 +418,39 @@ export default {
         <p v-if="hasAttachments" class="message-time message-time--fim">
           {{ readableTime }}
         </p>
-        <div
-          v-if="isFailed"
-          class="flex justify-end px-4 py-2 text-n-ruby-9 align-middle"
-        >
+        <!-- ── Bloco 2.07 — O ESTADO DE ERRO DE ENVIO ────────────────────────
+             A §C.15 pede «ícone + texto + "Tentar de novo", `role="alert"`»
+             dentro do balão. O que havia era um ícone vermelho de 14 px com o
+             texto escondido num `title`: quem enxerga não sabia o que houve
+             (um `title` só aparece parando o cursor sobre o ícone, e no celular
+             não aparece nunca), e quem usa leitor de tela não era avisado de
+             nada — a mensagem simplesmente não chegava e a tela ficava calada.
+
+             `COMPONENTS.MESSAGE_BUBBLE.ERROR_MESSAGE` já estava traduzida nos
+             56 locales e tinha ZERO leitores no repositório. É ela que aparece
+             agora, e por isso o texto novo não custa chave nova em 54 idiomas.
+
+             `role="alert"` e não `status`: falha de envio é a única coisa nesta
+             tela que o visitante precisa saber ANTES de continuar digitando —
+             ele acabou de mandar algo que não chegou. -->
+        <div v-if="isFailed" class="message-erro" role="alert">
+          <FluentIcon
+            class="message-erro__icone"
+            icon="error-circle"
+            size="14"
+          />
+          <span class="message-erro__texto">
+            {{ $t('COMPONENTS.MESSAGE_BUBBLE.ERROR_MESSAGE') }}
+          </span>
+          <!-- O reenvio segue sem existir para anexo (o arquivo já não está
+               mais em memória); o AVISO, esse existe para os dois casos. -->
           <button
             v-if="!hasAttachments"
-            :title="$t('COMPONENTS.MESSAGE_BUBBLE.RETRY')"
-            class="inline-flex items-center justify-center ltr:ml-2 rtl:mr-2"
+            class="message-erro__acao"
             @click="retrySendMessage"
           >
             <FluentIcon icon="arrow-clockwise" size="14" />
+            <span>{{ $t('COMPONENTS.MESSAGE_BUBBLE.RETRY') }}</span>
           </button>
         </div>
       </div>
@@ -437,6 +459,34 @@ export default {
 </template>
 
 <style scoped lang="scss">
+// ── Bloco 2.07 — a faixa de erro do balão ────────────────────────────────────
+//
+// Ela fica ABAIXO do balão, do lado do visitante, e é a última linha do grupo.
+// Nada aqui é overlay: cobrir o balão esconderia justamente o texto que a
+// pessoa vai querer reenviar.
+//
+// `text-n-ruby-11` e não `-9`: o 9 é a cor de PREENCHIMENTO da escala e mede
+// contraste insuficiente como texto pequeno sobre a superfície da conversa. O
+// 11 é o degrau de texto da mesma escala — mesma família, mesmo tema, legível.
+.message-erro {
+  @apply flex flex-wrap items-center justify-end gap-1 px-4 py-1 text-n-ruby-11;
+
+  &__icone {
+    @apply shrink-0;
+  }
+
+  &__texto {
+    @apply text-xs leading-4;
+  }
+
+  // O botão traz TEXTO, não só o ícone. Um alvo de 14 px com significado
+  // guardado no `title` reprova em toque e em leitor de tela ao mesmo tempo.
+  &__acao {
+    @apply inline-flex items-center gap-1 text-xs font-medium leading-4 underline
+      underline-offset-2 ltr:ml-1 rtl:mr-1;
+  }
+}
+
 .agent-message__ai-label {
   // Sem cor propria de "marca de IA": o rotulo e TEXTO, e texto e o que sobrevive
   // a daltonismo, a sol na tela e a leitor de tela. O aceite proibe roxo porque

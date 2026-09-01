@@ -7,6 +7,7 @@
  */
 const TONS = {
   info: { classe: 'w-banner--info', role: 'status' },
+  success: { classe: 'w-banner--success', role: 'status' },
   warning: { classe: 'w-banner--warning', role: 'status' },
   error: { classe: 'w-banner--error', role: 'alert' },
 };
@@ -40,6 +41,13 @@ export default {
 
   &--info {
     @apply bg-n-alpha-2 text-n-slate-12;
+  }
+
+  // Tom de confirmação ("transcrição enviada"). Papel `status`, nunca `alert`:
+  // uma boa notícia que corta a fala do leitor de tela no meio de uma frase é
+  // uma má notícia.
+  &--success {
+    @apply bg-n-teal-3 text-n-teal-11;
   }
 
   &--warning {

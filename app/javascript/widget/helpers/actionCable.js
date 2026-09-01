@@ -56,8 +56,27 @@ class ActionCableConnector extends BaseActionCableConnector {
    * nada. Agora ele tem consumidor: o widget refaz o mesmo trabalho da
    * reconexao, que e o que o visitante precisa quando o fluxo silencia.
    */
-  onStaleConnection = () => {
+  onStaleConnection = ({ isOpen = true } = {}) => {
     this.syncLatestMessages();
+    // A segunda metade do bloco 2.07: o watchdog agora REPORTA. Quando o socket
+    // estava fechado, a base ja pediu a reabertura; aqui o visitante entra na
+    // mesma maquina de estados da queda normal — com a carencia de 3 s, para
+    // que uma reabertura que resolve em 200 ms nao acenda faixa nenhuma.
+    //
+    // O caminho de volta ja existe e nao se repete aqui: o callback `connected`
+    // da lib chama `checkConnection()`, que chama `onReconnect()`, que chama
+    // `reportConnected()`. E por isso que a base precisa marcar
+    // `isDisconnected` antes de reabrir.
+    //
+    // Socket ABERTO nao reporta nada, e isto nao e cautela: `lastEventReceivedAt`
+    // so sobe em evento de subscription, e o ping do servidor nao passa por la —
+    // entao 25 s de silencio numa conversa parada e o ESTADO NORMAL. Acender a
+    // faixa ai seria o "sempre conectado" do dashboard repetido no widget, com
+    // o mesmo resultado: o visitante aprende a ignorar a faixa antes da vez em
+    // que ela importa.
+    if (!isOpen) {
+      widgetConnectionMonitor.reportDisconnected();
+    }
   };
 
   onReconnect = () => {
