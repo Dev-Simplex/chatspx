@@ -22,7 +22,6 @@ import MessageSequenceWidget from './MessageSequenceWidget.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import Draggable from 'vuedraggable';
 import ConversationSummary from './ConversationSummary.vue';
-import ConversationChecklist from './ConversationChecklist.vue';
 import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
@@ -185,7 +184,6 @@ onMounted(() => {
     </div>
     <ConversationSummary />
     <ConversationMediaStrip :conversation-id="conversationId" />
-    <ConversationChecklist />
     <div class="pb-8">
       <Draggable
         :list="conversationSidebarItems"

@@ -765,15 +765,6 @@
       "READ_MORE": "Ler mais",
       "READ_LESS": "Ler menos"
     },
-    "CHECKLIST": {
-      "TITLE": "Assuntos e Tarefas",
-      "EMPTY": "Nenhum assunto identificado ainda.",
-      "ADD_PLACEHOLDER": "Adicionar assunto ou tarefa",
-      "ADD": "Adicionar",
-      "REMOVE": "Remover",
-      "SOURCE_IA": "IA",
-      "SAVE_ERROR": "Não foi possível salvar o checklist."
-    },
     "MEDIA_SECTIONS": {
       "IMAGES": "Imagens",
       "VIDEOS": "Vídeos",

@@ -782,15 +782,6 @@
       "READ_MORE": "Read more",
       "READ_LESS": "Read less"
     },
-    "CHECKLIST": {
-      "TITLE": "Subjects and Tasks",
-      "EMPTY": "No subjects identified yet.",
-      "ADD_PLACEHOLDER": "Add a subject or task",
-      "ADD": "Add",
-      "REMOVE": "Remove",
-      "SOURCE_IA": "AI",
-      "SAVE_ERROR": "Couldn't save the checklist."
-    },
     "MEDIA_SECTIONS": {
       "IMAGES": "Images",
       "VIDEOS": "Videos",
