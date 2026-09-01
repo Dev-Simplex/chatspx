@@ -56,7 +56,24 @@ export default {
   },
   data() {
     return {
+      // ── A paginação em voo, bloco 2.04 ──────────────────────────────────
+      //
+      // Os três juntos são o retrato de "pedi histórico e ele ainda não
+      // voltou". `previousScrollHeight > 0` é o próprio sinal de voo: ele só
+      // é escrito no ramo de paginação e só é apagado por
+      // `descartarPaginacaoEmVoo`.
+      //
+      // `previousScrollTop` é novo e não é preciosismo. O gatilho é
+      // `scrollTop < 100`, então o visitante pode ter até 99 px de rolagem
+      // própria quando a busca sai. A conta antiga
+      // (`scrollHeight - previousScrollHeight`) devolvia a posição de quem
+      // estava CRAVADO no zero; para os outros, devolvia um ponto vizinho.
+      //
+      // `idMaisAntigoAntesDaPagina` é o marco que separa o que veio de cima
+      // do que veio de baixo quando as duas coisas acontecem no mesmo lote.
       previousScrollHeight: 0,
+      previousScrollTop: 0,
+      idMaisAntigoAntesDaPagina: null,
       previousConversationSize: 0,
       // Quantas mensagens chegaram enquanto o visitante estava lendo para
       // cima. É o contador do botão "descer", e ele zera quando o visitante
@@ -150,7 +167,7 @@ export default {
   },
   watch: {
     allMessagesLoaded() {
-      this.previousScrollHeight = 0;
+      this.descartarPaginacaoEmVoo();
     },
     // ── `updated()` → `watch` (aceite da §C.4) ────────────────────────────────
     //
@@ -163,11 +180,28 @@ export default {
     // de ONDE o visitante está. Antes, `scrollToBottom()` era incondicional —
     // chegou mensagem enquanto você lia o histórico, você era arrancado para o
     // fim.
+    // ── O terceiro ramo, bloco 2.04 (§C.4 aceite 4) ─────────────────────────
+    //
+    // Havia dois: "está no fim, rola" e "não está, conta". Faltava o de quem
+    // acabou de PEDIR HISTÓRICO — que por definição não está no fim, e por
+    // isso caía no segundo. As mensagens antigas entravam no contador do botão
+    // "descer" (20 páginas viravam "20 novas", que não existem) e a posição
+    // nunca era corrigida, porque o único leitor de `previousScrollHeight`
+    // morava dentro de `irParaOFim`, alcançável só pelo primeiro ramo.
+    //
+    // A ORDEM importa. `estaNoFim` continua primeiro: numa conversa curta os
+    // dois são verdadeiros ao mesmo tempo (`scrollTop` 0 é o topo E o fim), e
+    // aí o destino certo é o fim — a mensagem que acabou de chegar tem de
+    // estar visível.
     conversationSize(tamanhoNovo, tamanhoAnterior) {
       this.previousConversationSize = tamanhoNovo;
       const chegaram = Math.max(0, tamanhoNovo - (tamanhoAnterior || 0));
       if (this.estaNoFim) {
         this.$nextTick(() => this.irParaOFim());
+        return;
+      }
+      if (this.previousScrollHeight > 0) {
+        this.$nextTick(() => this.absorverPaginacao(chegaram));
         return;
       }
       this.naoLidasAbaixo += chegaram;
@@ -198,14 +232,72 @@ export default {
     distanciaDoFim(elemento) {
       return elemento.scrollHeight - elemento.scrollTop - elemento.clientHeight;
     },
+    descartarPaginacaoEmVoo() {
+      this.previousScrollHeight = 0;
+      this.previousScrollTop = 0;
+      this.idMaisAntigoAntesDaPagina = null;
+    },
+    // A lista crua, achatada. Não é `computed` de propósito: só é lida quando
+    // uma paginação volta — uma vez por busca, não uma vez por render.
+    mensagensAchatadas() {
+      return this.groupedMessages.flatMap(bloco => bloco?.messages || []);
+    },
+    /**
+     * Quantas mensagens entraram POR CIMA — o "delta de paginação" que o
+     * aceite manda excluir do contador.
+     *
+     * O marco é o id que era o mais antigo quando a busca saiu. Tudo o que
+     * agora está ANTES dele veio de cima; sua posição na lista É a contagem.
+     *
+     * Marco não encontrado é o ramo patológico (o store trocou a identidade da
+     * mensagem mais antiga). Aí a escolha é assumir que tudo veio de cima, e
+     * ela é deliberada: um crachá que conta a menos se corrige na próxima
+     * chegada; um que anuncia mensagens novas que não existem, não — e era
+     * exatamente esse o defeito.
+     */
+    quantasVieramDeCima(achatadas, chegaram) {
+      const marco = this.idMaisAntigoAntesDaPagina;
+      if (marco === null || marco === undefined) return chegaram;
+      const posicao = achatadas.findIndex(mensagem => mensagem?.id === marco);
+      return posicao === -1 ? chegaram : posicao;
+    },
+    /**
+     * O consumidor de `previousScrollHeight` que faltava — FORA do `estaNoFim`.
+     *
+     * `deCima === 0` não é "nada chegou": é "o histórico ainda não voltou".
+     * Entre pedir e receber, o agente pode responder, e essa resposta entra
+     * aqui. Ela conta (veio de baixo) mas NÃO encerra o voo nem mexe na
+     * posição — encerrar aqui deixaria o histórico chegar depois sem ninguém
+     * para corrigir a rolagem, que é a mesma regressão por outra porta.
+     */
+    absorverPaginacao(chegaram) {
+      const achatadas = this.mensagensAchatadas();
+      const deCima = this.quantasVieramDeCima(achatadas, chegaram);
+      this.naoLidasAbaixo += Math.max(0, chegaram - deCima);
+      if (deCima === 0) return;
+
+      const elemento = this.$refs.rolagem;
+      const alturaAntes = this.previousScrollHeight;
+      const posicaoAntes = this.previousScrollTop;
+      this.descartarPaginacaoEmVoo();
+      if (!elemento) return;
+      // O conteúdo cresceu por cima: para o visitante continuar vendo as mesmas
+      // linhas, `scrollTop` tem de andar exatamente o que a lista cresceu.
+      // `estaNoFim` e `naoLidasAbaixo` não se tocam aqui — ele não se moveu.
+      elemento.scrollTop = posicaoAntes + (elemento.scrollHeight - alturaAntes);
+    },
     irParaOFim() {
       const elemento = this.$refs.rolagem;
       if (!elemento) return;
-      // A conta com `previousScrollHeight` é a PRESERVAÇÃO DE POSIÇÃO ao
-      // paginar para trás, e o plano manda não mexer nela (§C.4 item 6): é o
-      // pedaço que já estava acima da média do mercado.
-      elemento.scrollTop = elemento.scrollHeight - this.previousScrollHeight;
-      this.previousScrollHeight = 0;
+      // A conta com `previousScrollHeight` SAIU daqui (bloco 2.04). Ela é a
+      // preservação de posição ao paginar, e morava no ramo em que a
+      // paginação não acontece — de onde nunca rodava. Pior: quando por acaso
+      // rodava (conversa curta, em que o topo é também o fim), ela IMPEDIA a
+      // ida ao fim, parando `previousScrollHeight` px antes dele. Aqui o
+      // destino é o fim, sem exceção; a preservação vive em
+      // `absorverPaginacao`.
+      elemento.scrollTop = elemento.scrollHeight;
+      this.descartarPaginacaoEmVoo();
       this.estaNoFim = true;
       this.naoLidasAbaixo = 0;
     },
@@ -216,7 +308,7 @@ export default {
     descerPeloBotao() {
       const elemento = this.$refs.rolagem;
       if (!elemento) return;
-      this.previousScrollHeight = 0;
+      this.descartarPaginacaoEmVoo();
       // Bloco 2.08. O DESTINO é o mesmo nas duas preferências — o fim da lista,
       // que é o que o visitante pediu ao clicar. O que a preferência muda é só
       // o percurso: `smooth` percorre, `auto` salta. Trocar isto por "não
@@ -265,7 +357,12 @@ export default {
 
       if (elemento.scrollTop < GATILHO_PAGINACAO) {
         this.fetchOldConversations({ before: this.earliestMessage.id });
+        // O retrato de antes da busca, tirado inteiro num lugar só. Quem o
+        // consome é `absorverPaginacao`; quem o descarta é
+        // `descartarPaginacaoEmVoo`.
         this.previousScrollHeight = elemento.scrollHeight;
+        this.previousScrollTop = elemento.scrollTop;
+        this.idMaisAntigoAntesDaPagina = this.earliestMessage?.id ?? null;
       }
     },
   },
