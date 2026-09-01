@@ -38,6 +38,8 @@ const props = defineProps({
   errorGroups: { type: Array, default: () => [] },
   emqAverage: { type: Number, default: null },
   retentionDays: { type: Number, default: 0 },
+  /** O modo de PII que o SERVIDOR reporta — vazio quando ele nao disse. */
+  piiMode: { type: String, default: '' },
   isLoading: { type: Boolean, default: false },
   isSendingTest: { type: Boolean, default: false },
   /** O caminho da rota que ainda nao existe — a tela NOMEIA o que falta. */
@@ -65,6 +67,20 @@ const emqSaudavel = computed(
   () => props.emqAverage !== null && props.emqAverage >= EMQ_HEALTHY
 );
 
+/**
+ * O aceite do 5.12 e uma afirmacao NEGATIVA — "nenhum `em`/`ph`/`fn`/`ln` sai" —
+ * e afirmacao negativa se le no vacuo: a coluna de retidos vazia tanto pode ser
+ * "a politica esta destravada" quanto "aquele contato nao tinha nada". Nomear o
+ * modo vigente ao lado da tabela e o que separa as duas leituras.
+ */
+const avisoDoModo = computed(() => {
+  if (!props.piiMode) return '';
+
+  return props.piiMode === 'without_pii'
+    ? t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.MODE_WITHOUT_PII')
+    : t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.MODE_WITH_PII');
+});
+
 const resultadoDoTeste = computed(() =>
   props.testResult ? sanitizeDelivery(props.testResult) : null
 );
@@ -76,13 +92,17 @@ const resultadoDoTeste = computed(() =>
       <span class="text-n-slate-12">
         {{ t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.PRIVACY') }}
       </span>
+      <span
+        v-if="avisoDoModo"
+        class="block mt-1 text-n-slate-12"
+        data-testid="diagnostics-pii-mode"
+      >
+        {{ avisoDoModo }}
+      </span>
     </Banner>
 
     <!-- ── O que responde "o evento saiu?" antes de olhar linha a linha ── -->
-    <div
-      class="grid gap-3 sm:grid-cols-3"
-      data-testid="diagnostics-summary"
-    >
+    <div class="grid gap-3 sm:grid-cols-3" data-testid="diagnostics-summary">
       <div class="flex flex-col gap-1 p-3 border rounded-xl border-n-weak">
         <span class="text-xs text-n-slate-11">
           {{ t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.RATE') }}
@@ -115,9 +135,11 @@ const resultadoDoTeste = computed(() =>
           }}
         </span>
         <span class="text-xs text-n-slate-10">
-          {{ t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.EMQ_HINT', {
-            healthy: EMQ_HEALTHY,
-          }) }}
+          {{
+            t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.EMQ_HINT', {
+              healthy: EMQ_HEALTHY,
+            })
+          }}
         </span>
       </div>
 
@@ -211,9 +233,11 @@ const resultadoDoTeste = computed(() =>
           {{ grupo.message || grupo.key }}
         </span>
         <span class="text-n-slate-11">
-          {{ t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.TIMES', {
-            count: grupo.count,
-          }) }}
+          {{
+            t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.TIMES', {
+              count: grupo.count,
+            })
+          }}
         </span>
       </div>
     </div>
@@ -249,6 +273,9 @@ const resultadoDoTeste = computed(() =>
               {{ t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.FIELDS') }}
             </th>
             <th class="py-1 font-medium">
+              {{ t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.SUPPRESSED') }}
+            </th>
+            <th class="py-1 font-medium">
               {{ t('INBOX_WIDGET.TRACKING.DIAGNOSTICS.EVENT_ID') }}
             </th>
           </tr>
@@ -278,6 +305,19 @@ const resultadoDoTeste = computed(() =>
               :data-testid="`fields-${linha.event_id}`"
             >
               {{ linha.field_names.join(', ') }}
+            </td>
+            <!--
+              A prova do bloco 5.12, e ela so vale ao LADO da coluna anterior: a
+              base TINHA estes campos de pessoa e mesmo assim eles nao sairam.
+              Sozinha, "nao ha `em` nos enviados" e verdade tambem para um contato
+              que nunca teve e-mail. Trace quando nao houve o que reter — celula
+              em branco se le como coluna quebrada.
+            -->
+            <td
+              class="py-1 text-n-slate-11"
+              :data-testid="`suppressed-${linha.event_id}`"
+            >
+              {{ linha.suppressed_field_names.join(', ') || '—' }}
             </td>
             <!--
               O identificador e o que o agente de suporte COPIA para o cliente

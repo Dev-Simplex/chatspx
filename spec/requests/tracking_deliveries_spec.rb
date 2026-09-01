@@ -21,7 +21,8 @@ RSpec.describe 'tracking_deliveries: log de rastreio da inbox', type: :request d
     TrackingDelivery.create!(tracking_event: event, destination: :meta_capi, status: :failed,
                              http_status: 400, error_code: 'invalid_hash',
                              error_message: 'em is not a valid hash', attempts: 3,
-                             emq: 6.5, field_names: %w[em ph event_name])
+                             emq: 6.5, field_names: %w[em ph event_name],
+                             suppressed_field_names: %w[em ph fn ln])
   end
 
   describe 'GET index' do
@@ -141,6 +142,28 @@ RSpec.describe 'tracking_deliveries: log de rastreio da inbox', type: :request d
     end
   end
 
+  # Bloco 5.12 — a coluna que PROVA o modo sem PII era write-only: gravada pelo job e ausente do
+  # serializer. O aceite do bloco e "verificado no log de auditoria" por quem NAO abre console — se
+  # a lista nao sai na resposta, ela nao e verificavel por ninguem alem de um `rails c`.
+  describe 'a prova do modo sem PII sai na resposta (5.12)' do
+    it 'devolve os NOMES retidos ao lado dos enviados' do
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/tracking_deliveries",
+          headers: admin.create_new_auth_token, as: :json
+
+      linha = response.parsed_body['deliveries'].first
+      expect(linha['suppressed_field_names']).to eq(%w[em ph fn ln])
+    end
+
+    # Sem o modo, a lista de retidos e ambigua: vazia porque a politica esta destravada, ou vazia
+    # porque o contato nao tinha nada? A tela precisa das duas metades para nao mentir.
+    it 'e diz em que modo de PII a instalacao esta' do
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}/tracking_deliveries",
+          headers: admin.create_new_auth_token, as: :json
+
+      expect(response.parsed_body['pii_mode']).to eq('without_pii')
+    end
+  end
+
   describe 'POST test — o disparo de evento de teste' do
     it 'registra o evento pelo caminho de verdade e devolve a entrega' do
       inbox.update!(additional_attributes: { 'widget_tracking' => { 'meta_pixel_id' => '123456' } })
@@ -167,6 +190,9 @@ RSpec.describe 'tracking_deliveries: log de rastreio da inbox', type: :request d
       expect(response).to have_http_status(:success)
       expect(response.parsed_body['delivery']['status']).to eq('skipped')
       expect(response.parsed_body['delivery']['error_code']).to eq('no_destination_configured')
+      # A entrega NAO PERSISTIDA tem de ter a mesma FORMA da que veio do banco: a tela empilha as
+      # duas na mesma tabela, e uma chave ausente vira `undefined` no meio de uma lista de nomes.
+      expect(response.parsed_body['delivery']['suppressed_field_names']).to eq([])
     end
 
     # A dedup deriva de `occurred_at.to_i`: sem chave propria, dois cliques no mesmo segundo

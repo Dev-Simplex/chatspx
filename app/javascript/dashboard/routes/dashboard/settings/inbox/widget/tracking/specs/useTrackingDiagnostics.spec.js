@@ -27,6 +27,69 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/app/accounts/3/settings/inboxes/7');
 });
 
+/**
+ * Bloco 5.12 — a coluna que PROVA o modo sem PII chegava ao banco e parava lá: o
+ * serializer não a publicava e a leitura do painel não a copiava. Uma lista
+ * branca (`sanitizeDelivery`) é a decisão certa e tem esta consequência exata:
+ * campo novo no servidor não atravessa por omissão, tem de ser nomeado aqui.
+ */
+describe('5.12 — a prova do modo sem PII atravessa a leitura', () => {
+  const comResposta = async data => {
+    global.axios = { get: () => Promise.resolve({ data }) };
+    const d = useTrackingDiagnostics(7);
+    await d.carregar();
+    return d;
+  };
+
+  it('os NOMES retidos chegam ao estado da tela', async () => {
+    const d = await comResposta({
+      deliveries: [
+        entrega({
+          event_id: '1',
+          field_names: ['external_id', 'fbc'],
+          suppressed_field_names: ['em', 'ph', 'fn', 'ln'],
+        }),
+      ],
+    });
+
+    expect(d.deliveries.value[0].suppressed_field_names).toEqual([
+      'em',
+      'ph',
+      'fn',
+      'ln',
+    ]);
+  });
+
+  // A tesoura vale para a coluna nova como vale para as outras: nome de campo
+  // passa, valor não.
+  it('mas um VALOR que venha na lista não atravessa', async () => {
+    const d = await comResposta({
+      deliveries: [
+        entrega({
+          event_id: '1',
+          suppressed_field_names: ['em', 'ana.souza@empresa.com.br'],
+        }),
+      ],
+    });
+
+    expect(d.deliveries.value[0].suppressed_field_names).toEqual(['em']);
+  });
+
+  it('e o modo de PII da instalação vem junto', async () => {
+    const d = await comResposta({ deliveries: [], pii_mode: 'without_pii' });
+
+    expect(d.piiMode.value).toBe('without_pii');
+  });
+
+  // Instalação antiga, resposta sem a chave: a tela não pode AFIRMAR um modo que
+  // o servidor não disse — dizer "sem PII" por default seria inventar garantia.
+  it('sem a chave na resposta, o modo fica vazio em vez de inventado', async () => {
+    const d = await comResposta({ deliveries: [] });
+
+    expect(d.piiMode.value).toBe('');
+  });
+});
+
 describe('5.14 — a taxa de entrega', () => {
   const comEntregas = async deliveries => {
     global.axios = { get: () => Promise.resolve({ data: { deliveries } }) };

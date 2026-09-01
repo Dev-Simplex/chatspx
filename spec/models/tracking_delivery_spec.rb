@@ -64,6 +64,39 @@ RSpec.describe TrackingDelivery, type: :model do
     end
   end
 
+  # Bloco 5.12 — `suppressed_field_names` e a metade POSITIVA do aceite: "a base TINHA `em` e `ph`
+  # e os reteve". Reter um identificador ANONIMO seria a mesma linha dizendo o contrario do que
+  # aconteceu: `external_id`, `fbp`, `fbc` e `gclid` sao o que o modo sem PII manda DE PROPOSITO, e
+  # retê-los zera o casamento sem erro nenhum, com o painel exibindo a perda como se fosse
+  # conformidade. Esta validacao e o unico leitor de `ANONYMOUS_FIELDS` — sem ela a constante e
+  # documentacao que nenhum caminho consulta.
+  describe 'suppressed_field_names only ever holds PERSON fields (5.12)' do
+    it 'keeps the canonical person fields it was given' do
+      delivery = described_class.create!(tracking_event: event, destination: :meta_capi,
+                                         suppressed_field_names: %w[em ph fn ln])
+
+      expect(delivery.reload.suppressed_field_names).to eq(%w[em ph fn ln])
+    end
+
+    it 'refuses an ANONYMOUS identifier in the retained list, and names it' do
+      delivery = described_class.new(tracking_event: event, destination: :meta_capi,
+                                     suppressed_field_names: %w[em fbp gclid])
+
+      expect(delivery).not_to be_valid
+      expect(delivery.errors[:suppressed_field_names].first).to include('fbp', 'gclid')
+    end
+
+    # Vocabulario do FIO (`hashedEmail` e do Google Ads) nao e vocabulario canonico: o log de
+    # auditoria fala UMA lingua, senao "o campo `em` saiu?" vira tres perguntas por destino.
+    it 'refuses a wire name that is not in the canonical vocabulary' do
+      delivery = described_class.new(tracking_event: event, destination: :google_ads,
+                                     suppressed_field_names: %w[hashedEmail])
+
+      expect(delivery).not_to be_valid
+      expect(delivery.errors[:suppressed_field_names].first).to include('hashedEmail')
+    end
+  end
+
   describe 'deleting the event deletes its deliveries' do
     it 'cascades, because a delivery does not exist without its event' do
       described_class.create!(tracking_event: event, destination: :meta_capi)

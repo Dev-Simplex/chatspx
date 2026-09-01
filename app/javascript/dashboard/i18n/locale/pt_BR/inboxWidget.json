@@ -688,6 +688,7 @@
         "DESTINATION": "Destino",
         "STATUS": "Status",
         "FIELDS": "Campos enviados",
+        "SUPPRESSED": "Campos retidos",
         "RATE": "Taxa de entrega",
         "EMQ": "EMQ médio",
         "EMQ_HINT": "Qualidade do casamento na Meta. De {healthy} para cima é a faixa boa.",
@@ -698,7 +699,9 @@
         "TEST_RESULT": "Resultado: {status} (HTTP {http})",
         "ERRORS": "Erros agrupados",
         "TIMES": "{count}×",
-        "EVENT_ID": "Identificador"
+        "EVENT_ID": "Identificador",
+        "MODE_WITHOUT_PII": "Modo sem PII: os campos de pessoa (em, ph, fn, ln) ficam retidos por construção, e a coluna \"Campos retidos\" mostra os que a base tinha em cada entrega. Coluna vazia ali significa que aquele contato não tinha nenhum deles.",
+        "MODE_WITH_PII": "Modo com PII: os campos de pessoa vão aos destinos com hash, e a coluna \"Campos retidos\" só se preenche quando a base não os tinha."
       },
       "SECRET": {
         "EMPTY": "não definido",

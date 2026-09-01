@@ -50,6 +50,7 @@ class TrackingDelivery < ApplicationRecord
   before_validation :ensure_field_names
 
   validate :ensure_field_names_are_names
+  validate :ensure_suppressed_are_person_fields
 
   private
 
@@ -61,6 +62,28 @@ class TrackingDelivery < ApplicationRecord
   def ensure_field_names_are_names
     add_names_error(:field_names) unless flat_list_of_names?(field_names)
     add_names_error(:suppressed_field_names) unless flat_list_of_names?(suppressed_field_names)
+  end
+
+  # So campo de PESSOA se retem. Um nome fora do vocabulario canonico aqui e uma de duas coisas, e as
+  # duas sao defeito: vocabulario do FIO (`hashedEmail` e do Google Ads, `em` e da Meta — o log fala
+  # UMA lingua, senao "o campo `em` saiu?" vira tres perguntas por destino), ou um identificador
+  # ANONIMO, que e o caso que faz mal em silencio. `external_id`, `fbp`, `fbc` e `gclid` sao o que o
+  # modo sem PII manda DE PROPOSITO; rete-los zera o casamento sem erro nenhum, e o painel exibiria a
+  # perda como se fosse conformidade. E o unico leitor de `ANONYMOUS_FIELDS`.
+  def ensure_suppressed_are_person_fields
+    return unless flat_list_of_names?(suppressed_field_names)
+
+    intruders = suppressed_field_names - Tracking::PiiPolicy::PERSON_FIELDS
+    return if intruders.empty?
+
+    anonymous = intruders & Tracking::PiiPolicy::ANONYMOUS_FIELDS
+    errors.add(:suppressed_field_names, intruder_message(intruders, anonymous))
+  end
+
+  def intruder_message(intruders, anonymous)
+    return "so campo de pessoa do vocabulario canonico se retem, nunca o nome do fio: #{intruders.join(', ')}" if anonymous.empty?
+
+    "identificador anonimo nao se retem, e o modo sem PII o envia de proposito: #{anonymous.join(', ')}"
   end
 
   def flat_list_of_names?(value)

@@ -108,15 +108,25 @@ class Tracking::DeliveryJob < ApplicationJob
   end
 
   def apply(result)
-    return mark_skipped(result.reason) if result.status == :skipped
+    return mark_skipped(result.reason, result) if result.status == :skipped
 
     delivery.update!(status: :sent, http_status: result.http_status, delivered_at: Time.current,
                      field_names: result.field_names, suppressed_field_names: result.suppressed_field_names,
                      emq: result.emq, error_code: nil, error_message: nil)
   end
 
-  def mark_skipped(reason)
-    delivery.update!(status: :skipped, error_code: reason)
+  # `skipped` NAO e um estado sem log (bloco 5.12). Quando o destino chegou a montar a entrega e
+  # desistiu, ele ja calculou os NOMES dos campos de pessoa que a base tinha e o modo sem PII reteve
+  # — e gravar so o status jogava fora a unica prova do aceite justamente onde ela pesa mais: o
+  # Google Ads sem `gclid` e `skipped` INTEIRO, toda vez, para toda conta, e a classe inteira ficava
+  # sem registro de supressao nenhum.
+  #
+  # `result` e nil de proposito nos outros dois caminhos — dedup e credencial ausente nao montam
+  # destino nenhum, entao nao houve supressao, e preencher a lista ali seria log que PROMETE: o
+  # painel diria "retivemos `em`" para uma entrega que nunca foi tentada.
+  def mark_skipped(reason, result = nil)
+    delivery.update!(status: :skipped, error_code: reason,
+                     suppressed_field_names: result&.suppressed_field_names || [])
   end
 
   def mark_failed(error)

@@ -688,6 +688,7 @@
         "DESTINATION": "Destination",
         "STATUS": "Status",
         "FIELDS": "Fields sent",
+        "SUPPRESSED": "Fields withheld",
         "RATE": "Delivery rate",
         "EMQ": "Average EMQ",
         "EMQ_HINT": "Meta event match quality. {healthy} and above is the healthy band.",
@@ -698,7 +699,9 @@
         "TEST_RESULT": "Result: {status} (HTTP {http})",
         "ERRORS": "Grouped errors",
         "TIMES": "{count}×",
-        "EVENT_ID": "Event ID"
+        "EVENT_ID": "Event ID",
+        "MODE_WITHOUT_PII": "Without-PII mode: person fields (em, ph, fn, ln) are withheld by construction, and the \"Fields withheld\" column shows the ones the database had for each delivery. An empty cell there means that contact had none of them.",
+        "MODE_WITH_PII": "With-PII mode: person fields are hashed and sent to the destinations, and the \"Fields withheld\" column only fills in when the database did not have them."
       },
       "SECRET": {
         "EMPTY": "not set",
