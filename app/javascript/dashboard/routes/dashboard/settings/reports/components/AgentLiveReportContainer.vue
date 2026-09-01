@@ -1,10 +1,17 @@
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 
 import AgentTable from './overview/AgentTable.vue';
 import MetricCard from './overview/MetricCard.vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
+
+const props = defineProps({
+  inboxId: {
+    type: [Number, null],
+    default: null,
+  },
+});
 
 const store = useStore();
 
@@ -12,7 +19,10 @@ const uiFlags = useMapGetter('getOverviewUIFlags');
 const agentConversationMetric = useMapGetter('getAgentConversationMetric');
 const agents = useMapGetter('agents/getAgents');
 
-const fetchData = () => store.dispatch('fetchAgentConversationMetric');
+const fetchData = () =>
+  store.dispatch('fetchAgentConversationMetric', { inboxId: props.inboxId });
+
+watch(() => props.inboxId, fetchData);
 
 const { startRefetching } = useLiveRefresh(fetchData);
 

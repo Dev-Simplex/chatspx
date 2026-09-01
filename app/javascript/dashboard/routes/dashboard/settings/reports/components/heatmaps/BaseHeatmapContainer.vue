@@ -19,6 +19,12 @@ import { useI18n } from 'vue-i18n';
 import { downloadCsvFile } from 'dashboard/helper/downloadHelper';
 
 const props = defineProps({
+  // Recorte vindo da pagina (Visao geral). O seletor do proprio cartao continua
+  // funcionando como ajuste fino por cima deste valor.
+  scopeInboxId: {
+    type: [Number, null],
+    default: null,
+  },
   metric: {
     type: String,
     required: true,
@@ -228,6 +234,17 @@ const handleInboxAction = ({ value }) => {
 
 const { startRefetching } = useLiveRefresh(fetchHeatmapData);
 
+// Espelha o recorte da pagina. So reage a mudancas de scopeInboxId — depois disso
+// o seletor do proprio cartao continua livre para ajustar.
+const applyScopeInbox = () => {
+  selectedInbox.value = props.scopeInboxId
+    ? (inboxes.value || []).find(inbox => inbox.id === props.scopeInboxId) ||
+      null
+    : null;
+};
+
+watch(() => props.scopeInboxId, applyScopeInbox);
+
 const handleRangeTypeChange = type => {
   isMonthFilter.value = type === 'month';
 };
@@ -255,7 +272,7 @@ watch(
 );
 
 onMounted(() => {
-  store.dispatch('inboxes/get');
+  store.dispatch('inboxes/get').then(applyScopeInbox);
   startRefetching();
 });
 </script>

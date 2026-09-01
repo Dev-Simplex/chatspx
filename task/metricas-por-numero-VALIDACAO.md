@@ -30,7 +30,9 @@ o coração do pedido do cliente.
 | Caixas (visão geral e individual) | — | escondido de propósito: ali o número **é** a linha |
 | Atribuições | já tinha | filtro próprio de time + caixa, anterior a esta task |
 | CSAT · NPS · SLA | já tinham | filtro próprio de caixa, anterior a esta task |
-| Visão geral (ao vivo) · Em atendimento · Bot | ❌ **fora desta fase** | são painéis do "agora", sem barra de período; entram na próxima |
+| Visão geral (ao vivo) | ✅ | um chip no topo manda na página toda, mapas de calor inclusive |
+| Em atendimento | ✅ | a caixa entra no painel de filtros, ao lado de atendente e departamento |
+| Bot | ✅ | o chip já aparecia; agora vale para os dados e para as duas taxas |
 
 ## Roteiro de validação na tela (10 minutos)
 
