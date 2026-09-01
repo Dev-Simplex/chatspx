@@ -39,19 +39,37 @@ class Api::V1::Widget::EventsController < Api::V1::Widget::BaseController
   # escreveria megabytes numa coluna nossa sem nenhum limite natural pelo caminho.
   MAX_PROPERTIES_BYTES = 4_096
 
+  # Teto da `page_url` do evento #2. O teto acima nao cobre este caminho (ele so vale para o
+  # `track()` do site), e a URL vem do navegador: nada impede um caminho de megabytes.
+  MAX_PAGE_URL_LENGTH = 512
+
   def create
     return render_name_recusado unless bus_event? || site_event?
     return render_properties_grandes_demais if propriedades_grandes_demais?
 
     dispatch_to_bus if bus_event?
-    registro = registrar_fato
 
-    render json: { event_id: registro&.event_id, name: registro&.name }, status: :ok
+    render json: corpo_da_resposta(registrar_fato), status: :ok
   rescue ActiveRecord::RecordInvalid => e
     render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
   end
 
   private
+
+  # `properties` sai na resposta porque e por ela que os parametros do contrato atravessam para o
+  # HOST: `widget/store/modules/events.js:25` le `data.properties` e manda ao `dataLayer` pela ponte
+  # de tags (5.10). Sem esta chave, o registro pode nascer certo e o caminho client-side do GA4
+  # continuaria publicando `{}` — os dois lados do mesmo evento discordando em silencio.
+  #
+  # As tres chaves saem SEMPRE, mesmo nulas: `campaign.triggered` nao vira registro (contrato §2), e
+  # ausencia declarada le-se diferente de omissao — quem consome sabe que perguntou e nao havia.
+  def corpo_da_resposta(registro)
+    {
+      event_id: registro&.event_id,
+      name: registro&.name,
+      properties: registro&.properties || {}
+    }
+  end
 
   def event_name
     @event_name ||= permitted_params[:name].to_s
@@ -121,7 +139,48 @@ class Api::V1::Widget::EventsController < Api::V1::Widget::BaseController
   end
 
   def propriedades
-    site_event? ? permitted_params[:properties].to_h : {}
+    return permitted_params[:properties].to_h if site_event?
+
+    propriedades_do_widget
+  end
+
+  # Os parametros que o contrato declara para o evento #2 (docs/tracking/contrato-de-eventos.md §2,
+  # linha `chatspx_widget_opened`): `inbox_id` e `page_url`. A materia-prima ja chegava nesta mesma
+  # requisicao e era descartada — ia para o barramento e nao para o registro, entao o GA4 recebia o
+  # evento sem os dois.
+  #
+  # A guarda por `TRACKING_NAME_FOR` nao e cerimonia: `campaign.triggered` nao vira registro nenhum,
+  # e um dia pode virar com OUTRO vocabulario. Propriedade de um evento nao pode vazar para o outro
+  # por acidente de compartilharem o endpoint.
+  def propriedades_do_widget
+    return {} unless TRACKING_NAME_FOR.key?(event_name)
+
+    { inbox_id: inbox.id, page_url: page_url }.compact
+  end
+
+  # `event_info[:referer]` e a URL da PAGINA, apesar do nome: `onLocationChangeListener`
+  # (sdk/DOMHelpers.js:50) manda `document.location.href` do site do host, e o nome errado veio de
+  # cima. O widget o preenche em `generateEventParams` (widget/api/events.js:4).
+  #
+  # SEM QUERY E SEM FRAGMENTO, e isso e requisito, nao gosto: `TrackingEvent` recusa CHAVE de PII e
+  # nao enxerga um e-mail escondido dentro de uma string — `?email=ana@exemplo.com` passaria inteiro
+  # para o GA4 e para a CAPI. A condicao esta escrita em plano/redesenho/execucao/o4-tags.md §3:
+  # "se alguem for acrescentar esse parametro do contrato, a sanitizacao precisa vir junto".
+  #
+  # O que nao for `http`/`https` sai fora em vez de entrar cru: `javascript:` e `data:` nao sao
+  # pagina, e uma URL relativa nao identifica nada sem o host.
+  def page_url
+    bruta = permitted_params.dig(:event_info, :referer).to_s.strip
+    return nil if bruta.blank?
+
+    uri = URI.parse(bruta)
+    return nil unless uri.is_a?(URI::HTTP) && uri.host.present?
+
+    uri.query = nil
+    uri.fragment = nil
+    uri.to_s[0, MAX_PAGE_URL_LENGTH]
+  rescue URI::InvalidURIError
+    nil
   end
 
   def propriedades_grandes_demais?

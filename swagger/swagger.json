@@ -44063,7 +44063,7 @@
         ],
         "operationId": "widget-create-event",
         "summary": "Reportar um evento do widget",
-        "description": "Despacha um evento de ciclo de vida do widget (por exemplo `campaign.triggered`) para o contact inbox atual. O Chat SPX enriquece o `event_info` fornecido com os metadados de navegador e idioma do visitante antes de despachá-lo para o barramento de eventos interno. Retorna `204 No Content`.",
+        "description": "Registra um fato do navegador na sessão de contato autenticada. Dois usos pela mesma porta: os eventos de ciclo de vida do widget (`webwidget.triggered`, `campaign.triggered`), que seguem para o barramento interno, e o `track()` do site do cliente, cujo nome precisa começar com `chatspx_`. O Chat SPX enriquece o `event_info` com os metadados de navegador e idioma do visitante antes de despachá-lo.\n\nA resposta traz o **`event_id`** — o UUID v4 do registro, gerado no servidor. Ele é o mesmo id que o envio server-side usa no CAPI da Meta, e é por ele que a Meta reconhece os dois envios como um único fato: guarde-o e envie-o como `eventID` no disparo client-side. Quando o evento não tem contraparte no vocabulário `chatspx_` (é o caso de `campaign.triggered`), `event_id` e `name` voltam **nulos** — ausência declarada, não erro.",
         "security": [],
         "parameters": [
           {
@@ -44113,8 +44113,15 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "Evento aceito e despachado."
+          "200": {
+            "description": "Evento aceito. Registrado quando tem contraparte no vocabulário de tracking.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/widget_event_record"
+                }
+              }
+            }
           },
           "401": {
             "description": "Token de autenticação do widget ausente ou inválido / conta suspensa.",
@@ -44128,6 +44135,16 @@
           },
           "404": {
             "description": "Website token ou sessão de contato não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Nome fora do contrato (não é evento do widget nem começa com `chatspx_`), nome acima dos 40 caracteres do GA4, `properties` acima de 4096 bytes ou `properties` com dado pessoal cru (`email`, `phone_number`, `first_name`, `last_name`, `em`, `ph`, `fn`, `ln`) — a PII sai hasheada pelo servidor, nunca por aqui.",
             "content": {
               "application/json": {
                 "schema": {
@@ -65743,6 +65760,38 @@
           }
         }
       },
+      "widget_event_record": {
+        "type": "object",
+        "description": "O fato registrado. `event_id` e `name` são nulos quando o evento não tem contraparte no vocabulário de tracking.",
+        "properties": {
+          "event_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID v4 do registro, gerado no servidor. Mesmo id usado no envio server-side: reenvie-o como `eventID` (Meta) / `transaction_id` (Google) no disparo client-side para que a mesma conversão não seja contada duas vezes.",
+            "example": "3b1f2c84-9a0d-4e77-9b1e-2d5c8f6a0e13"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Nome canônico do fato no vocabulário `chatspx_`.",
+            "example": "chatspx_widget_opened"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Parâmetros do fato, como o contrato de eventos os declara. Publique-os no `dataLayer` junto com o `event_id`.",
+            "example": {
+              "inbox_id": 12,
+              "page_url": "https://loja.exemplo.com/carrinho"
+            }
+          }
+        }
+      },
       "widget_conversation_create_payload": {
         "type": "object",
         "description": "Payload para criar uma conversa e sua primeira mensagem.",
@@ -66092,24 +66141,38 @@
       },
       "widget_event_create_payload": {
         "type": "object",
-        "description": "Evento do widget a disparar.",
+        "description": "Fato a registrar. `name` é um evento do widget (`webwidget.triggered`, `campaign.triggered`) ou um nome próprio do site com o prefixo `chatspx_`.",
         "required": [
           "name"
         ],
         "properties": {
           "name": {
             "type": "string",
-            "description": "Nome do evento.",
+            "description": "Nome do evento. Nome próprio do site: prefixo `chatspx_`, snake_case, até 40 caracteres (limite do GA4).",
             "example": "campaign.triggered"
           },
           "event_info": {
             "type": "object",
             "additionalProperties": true,
-            "description": "Metadados arbitrários do evento (enriquecidos no lado do servidor com informações de navegador/idioma).",
+            "description": "Metadados arbitrários do evento (enriquecidos no lado do servidor com informações de navegador/idioma). Em `webwidget.triggered`, a chave `referer` — a URL da página onde o widget foi aberto — é sanitizada (sem query string nem fragmento) e volta como o parâmetro `page_url` do fato registrado.",
             "example": {
               "campaign_id": 12,
               "custom_attributes": {}
             }
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Parâmetros do evento próprio do site (`track()`). Até 4096 bytes serializados, e sem dado pessoal cru — chave de PII faz a requisição voltar 422. Ignorado nos eventos do widget, que têm os parâmetros definidos pelo contrato.",
+            "example": {
+              "plano": "pro",
+              "valor": 199
+            }
+          },
+          "event_key": {
+            "type": "string",
+            "description": "Chave de idempotência do `track()`, gerada uma vez por chamada no navegador. Reenvio com a mesma chave devolve o MESMO `event_id` e não cria um segundo registro; chave nova é fato novo. Sem ela, a proteção cobre apenas o reenvio dentro do mesmo segundo.",
+            "example": "a3f1c9e2-7b40-4d2e-9f11-0c2b5d8e6a71"
           }
         }
       },
