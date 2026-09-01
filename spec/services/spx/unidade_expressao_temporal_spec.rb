@@ -125,8 +125,10 @@ RSpec.describe Spx::UnidadeExpressaoTemporal do
 
     # A recusa é por modificador NÃO modelado. "que vem"/"próximo" são modelados e seguem valendo,
     # e "depois de amanhã" não pode ser confundido com "depois do <dia>".
+    # 19/08/2026 é quarta: o sábado seguinte é 22/08. O "+7" do qualificador só entra quando o dia
+    # citado é o próprio dia de hoje — semântica que já existia e que esta mudança não toca.
     it 'não recusa o que já sabe resolver' do
-      expect(resolver('sábado que vem').datas).to eq([Date.new(2026, 8, 29)])
+      expect(resolver('sábado que vem').datas).to eq([Date.new(2026, 8, 22)])
       expect(resolver('depois de amanhã').datas).to eq([Date.new(2026, 8, 21)])
     end
   end
