@@ -81,4 +81,71 @@ describe('#actions', () => {
       expect(dispatch.mock.calls).toEqual([['get']]);
     });
   });
+
+  // Bloco 5.19 — a credencial dentro do painel.
+  //
+  // O `set_user` nao e a unica porta: o pre-chat com campanha (`PreChatForm.vue`) escreve pelo
+  // `PATCH /widget/contact`, que e a action `update` daqui. O servidor passou a marcar
+  // `hmac_verified` tambem nessa rota — mas so marca se a prova CHEGAR, e ela so chega se o
+  // painel lembrar do token que o host mandou na identificacao.
+  describe('#5.19 — o identity_token dentro do painel', () => {
+    beforeEach(() => {
+      commit.mockClear();
+      dispatch.mockClear();
+      API.patch.mockResolvedValue({ data: { id: 1 } });
+    });
+
+    it('setUser repassa a credencial no corpo da requisicao', async () => {
+      await actions.setUser(
+        { commit, dispatch },
+        {
+          identifier: 'CRM-4711',
+          user: { name: 'Ana', identity_token: 'jwt.do.cliente' },
+        }
+      );
+
+      expect(API.patch.mock.calls[0][1].identity_token).toBe('jwt.do.cliente');
+    });
+
+    it('e GUARDA o token, porque a proxima porta e outra rota', async () => {
+      await actions.setUser(
+        { commit, dispatch },
+        {
+          identifier: 'CRM-4711',
+          user: { name: 'Ana', identity_token: 'jwt.do.cliente' },
+        }
+      );
+
+      expect(commit.mock.calls).toEqual([
+        ['SET_IDENTITY_TOKEN', 'jwt.do.cliente'],
+      ]);
+    });
+
+    it('o update do pre-chat leva o token que a identificacao deixou guardado', async () => {
+      const state = { currentUser: {}, identityToken: 'jwt.do.cliente' };
+
+      await actions.update(
+        { commit, dispatch, state },
+        { user: { email: 'ana@exemplo.com.br' } }
+      );
+
+      expect(API.patch.mock.calls[0][1]).toEqual({
+        email: 'ana@exemplo.com.br',
+        identity_token: 'jwt.do.cliente',
+      });
+    });
+
+    // A CONDICAO RUIM FORCADA: sem token guardado o corpo nao pode ganhar uma chave de credencial
+    // vazia. "Sem credencial" e "credencial vazia" sao dois fatos diferentes para o servidor.
+    it('sem token guardado, o update sai exatamente como antes deste bloco', async () => {
+      await actions.update(
+        { commit, dispatch, state: { currentUser: {} } },
+        { user: { email: 'ana@exemplo.com.br' } }
+      );
+
+      expect(API.patch.mock.calls[0][1]).toEqual({
+        email: 'ana@exemplo.com.br',
+      });
+    });
+  });
 });

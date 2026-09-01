@@ -101,6 +101,65 @@ recusada.
 
 ---
 
+### 2.2 `identityTokenProvider` — o JWT, quando o `identifier_hash` não basta
+
+O `identifier_hash` prova **um** campo: o identificador. Nome, e-mail e telefone continuam
+chegando sem prova nenhuma — quem estiver com o console aberto pode trocar o e-mail no
+`setUser` e o servidor não tem como saber. O JWT resolve isso: os atributos vão **dentro** do
+payload assinado, e por isso passam a valer como autenticados.
+
+Quem assina é o **seu servidor**, com a mesma chave do HMAC. O visitante não assina nada: ele
+carrega um token que já recebeu pronto.
+
+```ruby
+JWT.encode(
+  {
+    sub: 'CRM-4711',                    # obrigatório: é a identidade
+    exp: 1.hour.from_now.to_i,          # obrigatório: token sem validade, se vazar, vale sempre
+    email: 'ana@empresa.com.br',        # opcional, e agora AUTENTICADO
+    name: 'Ana Souza',
+  },
+  ENV['CHATSPX_HMAC_TOKEN'],
+  'HS256'
+)
+```
+
+No site, você não passa o token: você diz **onde perguntar por ele**.
+
+```js
+window.$chatwoot.setIdentityTokenProvider(() => window.MEU_APP.chatspxToken);
+
+// pode ser assíncrono — devolva uma Promise e o SDK espera:
+window.$chatwoot.setIdentityTokenProvider(async () => {
+  const r = await fetch('/api/chatspx-token', { credentials: 'include' });
+  return (await r.json()).token;
+});
+
+// no logout:
+window.$chatwoot.setIdentityTokenProvider(null);
+```
+
+É callback, e não um campo, por dois motivos práticos: numa SPA aberta o dia inteiro um valor
+lido uma vez no boot expiraria e ninguém perguntaria de novo; e credencial não viaja por
+`data-*` no snippet, porque o snippet é HTML público. O SDK chama o seu callback a **cada**
+identificação, então renovar o token é só devolver o novo.
+
+O que esperar em cada caso:
+
+| Situação | O que acontece |
+|---|---|
+| JWT válido | identifica pelo `sub`, aplica os atributos assinados e marca a sessão como verificada |
+| JWT expirado, inválido ou de outra caixa | o visitante segue **anônimo** — não é erro, e a sessão não quebra |
+| seu callback estoura ou o `fetch` falha | idem: identifica sem credencial, e o motivo sai em `chatwoot:error` com `method: 'identityTokenProvider'` |
+| caixa com identificação **obrigatória**, sem prova | aí sim a chamada é recusada — e essa regra é da caixa, não do formato |
+
+Os dois formatos convivem: `identifier_hash` continua funcionando exatamente como antes, e o
+token do payload assinado **vence** o que o corpo da requisição afirmar. Só quatro claims viram
+atributo do contato (`email`, `name`, `phone_number` e `avatar_url`); qualquer outra coisa no
+payload é ignorada.
+
+---
+
 ## 3. Conferir que o evento chegou
 
 ### 3.1 O que sai sozinho

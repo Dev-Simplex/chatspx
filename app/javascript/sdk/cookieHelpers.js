@@ -38,6 +38,8 @@ const stableString = value => {
     .sort()
     .map(key => `${key}:${stableString(value[key])}`)
     .join(',');
+};
+
 const CONVERSATION_COOKIE = 'cw_conversation';
 const CONVERSATION_TOKEN_TTL = 365 * 24 * 60 * 60 * 1000;
 
@@ -75,7 +77,28 @@ export const getUserString = ({ identifier = '', user }) => {
     (acc, key) => `${acc}${key}${stableString(user[key])}`,
     ''
   );
-  return `${userStringWithSortedKeys}identifier${identifier}`;
+  // Bloco 5.19 — o `identity_token` entra pela PRESENCA, nunca pelo valor, e por isso ele NAO
+  // esta na lista acima.
+  //
+  // Pelo VALOR seria pior dos dois lados. O JWT carrega `exp` (e normalmente `iat`), entao um
+  // provedor que devolve token novo a cada pagina produziria hash novo a cada pagina: o dedupe
+  // deixaria de deduplicar e todo visitante ja identificado mandaria um `setUser` por
+  // carregamento — que e exatamente a chamada que este hash existe para evitar.
+  //
+  // IGNORAR seria pior ainda, e o caso e concreto: na primeira carga o provedor falha (backend
+  // do cliente fora do ar), o `setUser` sai SEM credencial e o cookie e gravado; na carga
+  // seguinte o provedor funciona, mas o hash e o mesmo, o dedupe corta a chamada — e a sessao
+  // nunca fica `hmac_verified`. Um bug de identidade que so aparece depois de uma falha de rede.
+  //
+  // Ficando so a presenca, "anonimo -> com credencial" reenvia e "com credencial -> renovada"
+  // nao reenvia, que e a divisao correta.
+  //
+  // Efeito colateral aceito: este sufixo muda o hash de TODO cookie ja gravado, entao na primeira
+  // carga depois do deploy sai um `set-user` a mais por visitante identificado. E o mesmo trade
+  // que `dedupeHash.js` ja documenta, pelo mesmo motivo — identificar de novo e idempotente no
+  // servidor, deixar de identificar nao seria.
+  const comCredencial = user.identity_token ? '1' : '';
+  return `${userStringWithSortedKeys}identity_token${comCredencial}identifier${identifier}`;
 };
 
 // Bloco 2.18 — era `md5(...)`. O pacote `md5` custava 5.562 B CRUS no `sdk.js`

@@ -26,6 +26,11 @@ import {
 import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
 import { enfileirar } from '../sdk/preBootQueue';
+import {
+  setIdentityTokenProvider as registrarProvedorDeToken,
+  resolveIdentityToken,
+  entao,
+} from '../sdk/identityToken';
 import { captureOrigin } from '../sdk/tracking/capture';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
 import { CHATWOOT_ERROR } from '../widget/constants/sdkEvents';
@@ -103,6 +108,27 @@ const reportarErro = (nome, erro) => {
     data: { method: nome, message: erro?.message || String(erro) },
   });
 };
+
+/**
+ * Bloco 5.19 — anexa a credencial ao objeto do usuario, no instante do DESPACHO.
+ *
+ * No instante do despacho, e nao no da chamada, pela mesma razao que o cookie de dedupe e
+ * gravado la: uma chamada feita antes do boot fica na fila do 1.23, e um JWT resolvido naquele
+ * momento envelheceria na fila. O `exp` e curto de proposito.
+ *
+ * O objeto devolvido e NOVO. O `user` original nao e tocado — e ele que vai para
+ * `window.$chatwoot.user`, que qualquer script de terceiro da pagina consegue ler (regra RC5).
+ * Credencial ao portador no `window` do site do cliente seria entregar a identidade do visitante
+ * a qualquer tag do container dele.
+ *
+ * A falha do provedor entra no MESMO `chatwoot:error` do resto da API publica, com `method`
+ * proprio — sem contrato novo para o integrador aprender, e sem silencio.
+ */
+const comCredencial = (user, seguir) =>
+  entao(
+    resolveIdentityToken(erro => reportarErro('identityTokenProvider', erro)),
+    token => seguir(token ? { ...user, identity_token: token } : user)
+  );
 
 const chamadaDeDados = (nome, validar, despachar) => {
   let promessa;
@@ -329,21 +355,56 @@ const runSDK = ({
             );
           }
         },
-        () => {
-          // O cookie de dedupe é gravado no DESPACHO, não na chamada: se a
-          // mensagem ficou na fila e o visitante saiu da página antes do boot,
-          // gravar o hash antes faria a próxima visita achar que já identificou.
-          const userCookieName = getUserCookieName();
-          const hashToBeStored = computeHashForUserData({ identifier, user });
-          if (hashToBeStored === Cookies.get(userCookieName)) {
-            return;
-          }
-          window.$chatwoot.identifier = identifier;
-          window.$chatwoot.user = user;
-          IFrameHelper.sendMessage('set-user', { identifier, user });
-          setCookieWithDomain(userCookieName, hashToBeStored, { baseDomain });
-        }
+        () =>
+          // Bloco 5.19: a credencial é resolvida no DESPACHO, junto do cookie de dedupe, e não na
+          // chamada — o `exp` do JWT é curto e um token resolvido antes envelheceria na fila.
+          // `comCredencial` só adia quando o provedor do site é assíncrono; nos outros casos ele
+          // segue no mesmo tick, e é isso que mantém a ordem da fila do 1.23 intacta.
+          comCredencial(user, comToken => {
+            // O cookie de dedupe é gravado no DESPACHO, não na chamada: se a
+            // mensagem ficou na fila e o visitante saiu da página antes do boot,
+            // gravar o hash antes faria a próxima visita achar que já identificou.
+            const userCookieName = getUserCookieName();
+            // O hash é calculado sobre o objeto COM a credencial. Ver `getUserString`
+            // (`cookieHelpers.js`): o que entra no hash é a PRESENÇA do token, nunca o valor.
+            // Sem isso, a primeira carga em que o provedor falhasse gravaria o cookie de "já
+            // identificou", e a carga seguinte — com o token funcionando — seria deduplicada: a
+            // sessão nunca ficaria verificada.
+            const hashToBeStored = computeHashForUserData({
+              identifier,
+              user: comToken,
+            });
+            if (hashToBeStored === Cookies.get(userCookieName)) {
+              return;
+            }
+            window.$chatwoot.identifier = identifier;
+            // `user`, e NÃO `comToken`: ver o comentário de `comCredencial`.
+            window.$chatwoot.user = user;
+            IFrameHelper.sendMessage('set-user', {
+              identifier,
+              user: comToken,
+            });
+            setCookieWithDomain(userCookieName, hashToBeStored, { baseDomain });
+          })
       );
+    },
+
+    /**
+     * Bloco 5.19 — a credencial POR CALLBACK (T-I3.7).
+     *
+     * Quem assina o JWT é o servidor do cliente, com o mesmo segredo do HMAC de hoje. O
+     * visitante não assina nada: ele carrega um token que já recebeu pronto. Este método é como
+     * o site diz "quando você for identificar, pergunte aqui qual é o token".
+     *
+     * É callback, e não campo, porque o `exp` é obrigatório: um valor lido uma vez no boot
+     * expiraria numa SPA aberta o dia inteiro e ninguém perguntaria de novo. E porque identidade
+     * e credencial não viajam por `data-*` no snippet — o snippet é HTML público, e o 5.18 já
+     * recusa isso na porta de entrada.
+     *
+     * `setIdentityTokenProvider(null)` desliga — é a forma documentada de tratar o logout.
+     */
+    setIdentityTokenProvider(provider) {
+      registrarProvedorDeToken(provider);
     },
 
     // Bloco 5.09 — consentimento. Publica a linha de base do Consent Mode v2. O padrao e NEGADO
@@ -384,13 +445,21 @@ const runSDK = ({
             );
           }
         },
-        () => {
+        () =>
           // Sem cookie de dedupe aqui de proposito: `updateUser` existe para corrigir um campo, e
           // deduplicar por hash faria a segunda correcao do mesmo campo virar silencio.
-          window.$chatwoot.identifier = identifier;
-          window.$chatwoot.user = { ...(window.$chatwoot.user || {}), ...user };
-          IFrameHelper.sendMessage('update-user', { identifier, user });
-        }
+          comCredencial(user, comToken => {
+            window.$chatwoot.identifier = identifier;
+            // Bloco 5.19: o que fica no `window` e `user`, sem a credencial — ver `comCredencial`.
+            window.$chatwoot.user = {
+              ...(window.$chatwoot.user || {}),
+              ...user,
+            };
+            IFrameHelper.sendMessage('update-user', {
+              identifier,
+              user: comToken,
+            });
+          })
       );
     },
 

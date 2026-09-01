@@ -111,3 +111,52 @@ describe('buildContactPayload', () => {
     ).toEqual({});
   });
 });
+
+// Bloco 5.19 — o repasse do `identity_token`.
+//
+// Este e o ponto EXATO onde o formato novo morria: a allowlist deste modulo descartava a
+// credencial em silencio, entao o servidor — que ja sabia validar o JWT desde a primeira entrega
+// do bloco — nunca recebia um. Nao havia erro, nao havia log, nao havia teste vermelho: so um
+// campo que sumia entre o site e a API.
+describe('buildContactPayload — a credencial do 5.19', () => {
+  it('repassa o identity_token que o SDK anexou', () => {
+    expect(
+      buildContactPayload({ name: 'Ana', identity_token: 'jwt.de.verdade' })
+        .identity_token
+    ).toBe('jwt.de.verdade');
+  });
+
+  it('repassa tambem no verbo que MESCLA, porque credencial nao e campo de contato', () => {
+    expect(
+      buildContactPayload(
+        { phone_number: '+5511999998888', identity_token: 'jwt.de.verdade' },
+        { merge: true }
+      ).identity_token
+    ).toBe('jwt.de.verdade');
+  });
+
+  // A CONDICAO RUIM FORCADA. Sem este exemplo, "repassa o token" passaria tambem numa
+  // implementacao que gravasse `identity_token: undefined` em toda chamada — e ai o corpo da
+  // requisicao carregaria uma chave de credencial vazia em todo `setUser` de todo visitante
+  // anonimo de todo site.
+  it('sem token, a chave NAO aparece no corpo — ausencia e diferente de vazio', () => {
+    expect('identity_token' in buildContactPayload({ name: 'Ana' })).toBe(
+      false
+    );
+    expect(
+      'identity_token' in
+        buildContactPayload({ name: 'Ana', identity_token: '' })
+    ).toBe(false);
+  });
+
+  it('conviver com o identifier_hash e o caso comum, nao o conflito', () => {
+    const payload = buildContactPayload({
+      name: 'Ana',
+      identifier_hash: 'hmac-legado',
+      identity_token: 'jwt.de.verdade',
+    });
+
+    expect(payload.identifier_hash).toBe('hmac-legado');
+    expect(payload.identity_token).toBe('jwt.de.verdade');
+  });
+});

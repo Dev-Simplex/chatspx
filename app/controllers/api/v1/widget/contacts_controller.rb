@@ -15,6 +15,24 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
   def show; end
 
   def update
+    # Bloco 5.19: a MESMA linha do `set_user`, e nao uma regra propria desta action.
+    #
+    # Ate aqui so o `set_user` carimbava a sessao. Consequencia medida: um JWT valido chegando
+    # pelo `PATCH /widget/contact` aplicava os atributos assinados e gravava o `identifier`, mas
+    # deixava `contact_inboxes.hmac_verified` em `false` — ou seja, a MESMA prova valia coisas
+    # diferentes conforme a porta por onde entrasse. Duas coisas quebravam com isso, e as duas
+    # sao de outros blocos que dependem deste sinal:
+    #
+    #   · 4.17 le `@contact_inbox&.hmac_verified?` DENTRO desta requisicao (`identify_contact`,
+    #     logo abaixo). Sem a marcacao, sessao com identidade provada era tratada como anonima e
+    #     nao conseguia escrever atributo protegido.
+    #   · 4.15 conta `hmac_verified` no relatorio de enforcement. Quem identificasse por aqui
+    #     ficava na coluna de "nao verificadas" para sempre, e o numero que decide a virada para
+    #     `obrigatorio` media errado.
+    #
+    # A marcacao vem ANTES de `identify_contact` de proposito: e ali que o portao do 4.17 le o
+    # valor, entao carimbar depois valeria so para a proxima requisicao.
+    mark_session_verified
     identify_contact(@contact)
   end
 
@@ -28,12 +46,7 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
       contact = @contact
     end
 
-    # Bloco 4.15: `should_verify_hmac?` deixou de implicar "assinatura conferida". Sob
-    # `observado` a requisicao chega ate aqui SEM assinatura valida — de proposito, para
-    # nao quebrar sessao — e marcar a sessao como verificada apagaria exatamente o sinal
-    # de que o relatorio de enforcement depende. Para `desativado` e `obrigatorio` isto e
-    # equivalente ao que ja acontecia: nos dois, chegar aqui ja significava assinatura ok.
-    @contact_inbox.update(hmac_verified: true) if should_verify_hmac? && valid_hmac?
+    mark_session_verified
 
     identify_contact(contact)
   end
@@ -55,6 +68,21 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
   end
 
   private
+
+  # Bloco 4.15: `should_verify_hmac?` deixou de implicar "assinatura conferida". Sob
+  # `observado` a requisicao chega ate aqui SEM assinatura valida — de proposito, para
+  # nao quebrar sessao — e marcar a sessao como verificada apagaria exatamente o sinal
+  # de que o relatorio de enforcement depende. Para `desativado` e `obrigatorio` isto e
+  # equivalente ao que ja acontecia: nos dois, chegar aqui ja significava assinatura ok.
+  #
+  # Bloco 5.19: virou metodo porque passou a ter DOIS chamadores (`set_user` e `update`), e as
+  # duas actions precisam decidir pelo mesmo criterio. Copiar a linha para a segunda action seria
+  # o comeco de dois criterios — que e o defeito de juncao contra o qual `IdentityTokenService`
+  # avisa no proprio cabecalho. Nada aqui afrouxa: `valid_hmac?` continua sendo a unica porta, e
+  # ela so responde `true` com `identifier_hash` conferido ou JWT verificado.
+  def mark_session_verified
+    @contact_inbox.update(hmac_verified: true) if should_verify_hmac? && valid_hmac?
+  end
 
   def identify_contact(contact)
     contact_identify_action = ContactIdentifyAction.new(
