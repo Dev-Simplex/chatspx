@@ -5,6 +5,7 @@ import WDateSeparator from 'widget/ui/WDateSeparator.vue';
 import WScrollToBottom from 'widget/ui/WScrollToBottom.vue';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import ConversationSkeleton from 'widget/components/ConversationSkeleton.vue';
+import WEmptyState from 'widget/ui/WEmptyState.vue';
 import { useDarkMode } from 'widget/composables/useDarkMode';
 import { calcularAgrupamento } from 'widget/composables/useMessageGrouping';
 import { comportamentoDeRolagem } from 'widget/composables/useReducedMotion';
@@ -43,6 +44,7 @@ export default {
     FluentIcon,
     AiHandoffMark,
     ConversationSkeleton,
+    WEmptyState,
   },
   props: {
     groupedMessages: {
@@ -143,6 +145,27 @@ export default {
     },
     mostrarBotaoDescer() {
       return !this.estaNoFim;
+    },
+    /**
+     * Bloco 2.07 — o quinto estado de verdade, o VAZIO.
+     *
+     * As três condições são todas necessárias, e a do meio é a que impede o
+     * defeito clássico: `isFetchingList` FALSO é o que separa "não há mensagem"
+     * de "ainda não sei". Sem ela, o visitante leria "nenhuma mensagem por aqui
+     * ainda" piscando durante o carregamento — uma afirmação falsa sobre a
+     * conversa dele, justamente enquanto o esqueleto já diz a verdade.
+     *
+     * `groupedMessages` E `conversationSize` porque as duas fontes discordam
+     * por um instante: o store recebe a mensagem antes de o pai recalcular o
+     * agrupamento, e é nesse quadro que o vazio reapareceria por baixo da
+     * primeira bolha.
+     */
+    conversaVazia() {
+      return (
+        !this.isFetchingList &&
+        !this.conversationSize &&
+        !this.groupedMessages.length
+      );
     },
     rotuloDescer() {
       return this.$t('A11Y.SCROLL_TO_LATEST');
@@ -300,13 +323,26 @@ export default {
       role="log"
       :aria-label="$t('A11Y.CONVERSATION_LOG')"
       :aria-busy="isAgentTyping ? 'true' : 'false'"
-      :class="{ 'is-typing': isAgentTyping }"
+      :class="{ 'is-typing': isAgentTyping, 'is-empty': conversaVazia }"
     >
       <!-- Bloco 2.07 — o esqueleto no lugar do spinner imediato. O `Spinner`
            aparecia no primeiro milissegundo de qualquer busca, inclusive a
            paginação que volta em 80 ms: um flash cinza no topo da lista a cada
            rolagem para trás. Quem segura os 600 ms é `widgetLoadingGate`. -->
       <ConversationSkeleton :loading="isFetchingList" />
+      <!-- Bloco 2.07 — o estado VAZIO. Ele mora DENTRO do `role="log"` de
+           propósito: é o conteúdo daquela região agora, e quem entra nela pelo
+           leitor de tela precisa ouvir por que ela está vazia em vez de cair
+           num silêncio que se lê como falha de carregamento. -->
+      <WEmptyState
+        v-if="conversaVazia"
+        :title="$t('EMPTY_STATE.CONVERSATION.TITLE')"
+        :body="$t('EMPTY_STATE.CONVERSATION.BODY')"
+      >
+        <template #icone>
+          <FluentIcon icon="chat" size="28" />
+        </template>
+      </WEmptyState>
       <div
         v-for="(groupedMessage, indiceBloco) in groupedMessagesWithHandoff"
         :key="groupedMessage.date"
@@ -482,6 +518,20 @@ export default {
   overflow-y: auto;
   // Padding medido em 32/8/8; a §C.4 pede 16/12/8.
   @apply px-3 pt-4 pb-2;
+
+  // ── Bloco 2.07 — só no estado VAZIO ────────────────────────────────────────
+  //
+  // A lista é um bloco: com uma mensagem só, ela encosta no topo, que é o certo
+  // para conversa. Vazia, o mesmo comportamento deixaria o aviso pendurado na
+  // borda de cima com uma superfície inteira de textura embaixo, e ele se lê
+  // como cabeçalho perdido em vez de estado.
+  //
+  // A regra vive num modificador e NÃO no seletor base de propósito: virar
+  // `flex` sempre mudaria o encaixe das bolhas em todas as conversas do
+  // produto — e os 20 snapshots de pixel do widget medem justamente isso.
+  &.is-empty {
+    @apply flex flex-col justify-center;
+  }
 }
 
 .conversation--descer {

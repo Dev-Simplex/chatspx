@@ -136,7 +136,48 @@ class BaseActionCableConnector {
         // 15 s sem fazer nada la. `onStaleConnection` e o gancho que da a cada
         // superficie o seu proprio trabalho — bloco 2.07.
         window.reconnectService?.handleRouteSpecificFetch?.();
-        this.onStaleConnection();
+
+        // ── Bloco 2.07 — o watchdog passa a RECONECTAR e a REPORTAR ──────────
+        //
+        // Ele so refazia o fetch. Com o socket FECHADO isso e buscar o passado
+        // por cima de um canal morto: nada reabria o canal, e nenhuma superficie
+        // ficava sabendo.
+        //
+        // As duas linhas abaixo sao um par, e separa-las e o defeito:
+        //
+        //   · `reopen()` traz o socket de volta;
+        //   · a marca `isDisconnected` e o que faz `checkConnection()` — que o
+        //     callback `connected` dispara na volta — cair no ramo do
+        //     `onReconnect()`. Sem a marca, o ramo e o `else`, `onReconnect`
+        //     nunca roda, e a faixa de "reconectando" do widget fica ACESA com
+        //     a conexao ja de volta. Pior que nao avisar.
+        //
+        // ── POR QUE O GATE `!isOpen()`, e por que NAO tira-lo ────────────────
+        //
+        // Tentacao obvia: "silencio de 25 s e socket morto, reabre sempre". Nao
+        // e, e reabrir sempre quebra duas coisas.
+        //
+        //   1. `lastEventReceivedAt` so sobe em evento de SUBSCRIPTION. O ping
+        //      do servidor a cada 3 s e consumido dentro de `connection.js`
+        //      (`case message_types.ping`) e nunca chega aqui. Numa conversa
+        //      parada, portanto, 25 s de silencio e o ESTADO NORMAL — reabrir
+        //      derrubaria o canal de todo visitante ocioso a cada 15 s.
+        //   2. O socket que morre com `readyState` ainda OPEN (rede que vira
+        //      buraco negro) ja tem dono: o `ConnectionMonitor` da propria lib,
+        //      que conta os pings perdidos e reabre com `staleThreshold = 6`
+        //      segundos. Este temporizador competiria com ele, com um limiar
+        //      quatro vezes maior e informacao pior.
+        //
+        // O que sobra para este ramo — e o que ele cobre — e o socket FECHADO
+        // com o fluxo silencioso: ali `reopen()` e barato e a marca e o unico
+        // jeito de o caminho de volta existir.
+        const conn = this.consumer.connection;
+        const isSocketOpen = Boolean(conn?.isOpen?.());
+        if (conn && !isSocketOpen) {
+          BaseActionCableConnector.isDisconnected = true;
+          conn.reopen();
+        }
+        this.onStaleConnection({ isOpen: isSocketOpen });
         this.lastEventReceivedAt = Date.now();
       }
       this.triggerStaleCheckInterval();
@@ -185,7 +226,14 @@ class BaseActionCableConnector {
   // eslint-disable-next-line class-methods-use-this
   onDisconnected = () => {};
 
-  /** Chamado quando o fluxo silencia com a aba visivel. Vazio por padrao. */
+  /**
+   * Chamado quando o fluxo silencia com a aba visivel. Vazio por padrao.
+   *
+   * Recebe `{ isOpen }` — se o socket estava aberto no momento da checagem.
+   * `false` significa canal FECHADO com o fluxo silencioso, e que este
+   * connector ja pediu a reabertura; e o sinal que a superficie usa para avisar
+   * o usuario. `true` e conversa parada, e nao se avisa nada.
+   */
   // eslint-disable-next-line class-methods-use-this
   onStaleConnection = () => {};
 

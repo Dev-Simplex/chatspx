@@ -133,7 +133,12 @@ describe('2.02 — a linha unificada desenha as duas variantes', () => {
     });
 
     expect(w.find('.message-wrap').classes()).toContain('is-failed');
-    expect(w.find('button').attributes('title')).toBe(
+    // O rótulo do reenvio saiu do `title` e virou TEXTO VISÍVEL no bloco 2.07
+    // (§C.15 pede «ícone + texto + "Tentar de novo"»). A garantia desta linha
+    // não mudou — o botão continua carregando `MESSAGE_BUBBLE.RETRY` —, e ficou
+    // mais forte: `title` só aparece parando o cursor sobre um alvo de 14 px, e
+    // no celular não aparece nunca.
+    expect(w.find('button.message-erro__acao').text()).toBe(
       ptBR.COMPONENTS.MESSAGE_BUBBLE.RETRY
     );
   });

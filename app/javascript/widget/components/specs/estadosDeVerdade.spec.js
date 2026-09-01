@@ -52,7 +52,14 @@ const globalDeMontagem = extras => ({
 // padrão de 5 s isto passa sozinho e reprova quando a suíte inteira roda em
 // paralelo: um vermelho que não fala do código. O teto vai a 30 s por isso, e
 // os imports abaixo são sob demanda para que cada teste pague só o que usa.
-vi.setConfig({ testTimeout: 30000 });
+// `hookTimeout` junto, e não só `testTimeout`: o trabalho pesado deste arquivo
+// está no `beforeEach` (é ele que reavalia os módulos), e o teto de hook é
+// OUTRO — 10 s, cravado, alheio ao 30 s acima. Rodando ao lado de
+// `helpers/specs/watchdogDeConexao.spec.js`, que faz o mesmo `resetModules` na
+// mesma máquina, o hook estourava os 10 s e o vermelho saía como
+// «Hook timed out in 10000ms» num teste que nem chegou a começar — mais o
+// cascateamento no teste seguinte, que herda o `estado` pela metade.
+vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
 
 let estado;
 

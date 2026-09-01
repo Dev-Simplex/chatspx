@@ -256,6 +256,12 @@
     "OPEN_LABEL": "Abrir o documento {documento}",
     "FALLBACK_NAME": "documento"
   },
+  "EMPTY_STATE": {
+    "CONVERSATION": {
+      "TITLE": "Nenhuma mensagem por aqui ainda",
+      "BODY": "Escreva abaixo e nossa equipe responde por aqui mesmo."
+    }
+  },
   "CONNECTION": {
     "RECONNECTING": "Reconectando...",
     "OFFLINE": "Você está sem conexão. Suas mensagens serão enviadas quando a rede voltar.",
