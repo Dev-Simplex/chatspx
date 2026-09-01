@@ -95,11 +95,27 @@ const montarConversa = (messages, { isAgentTyping = false } = {}) => {
   });
 };
 
+// O `ChatHeader` lê `appConfig` para montar o rótulo textual de status (bloco
+// 2.06). Antes ele não lia store nenhuma e este mount passava sem uma; em
+// produção a store SEMPRE existe (`entrypoints/widget.js` faz `app.use(store)`),
+// então montar sem ela era medir um ambiente que não vai ao ar.
+const storeDoCabecalho = createStore({
+  modules: {
+    appConfig: {
+      namespaced: true,
+      getters: {
+        getAvailableMessage: () => 'Estamos conectados',
+        getUnavailableMessage: () => 'Estamos ausentes no momento',
+      },
+    },
+  },
+});
+
 const montarCabecalho = attendant =>
   mount(ChatHeader, {
     props: { title: 'Suporte', attendant },
     global: {
-      plugins: [i18n],
+      plugins: [storeDoCabecalho, i18n],
       stubs: {
         FluentIcon: true,
         HeaderActions: true,

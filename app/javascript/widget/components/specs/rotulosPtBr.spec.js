@@ -16,6 +16,7 @@
  * traduzida que está sob teste.
  */
 import { mount } from '@vue/test-utils';
+import { createStore } from 'vuex';
 import { createI18n } from 'vue-i18n';
 
 // `ChatHeader.vue` é `<script setup>` e chama `useRouter()` no topo. Sem este
@@ -50,12 +51,32 @@ const i18n = createI18n({
 // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
 const t = (chave, params) => i18n.global.t(chave, params ?? {});
 
+// `ChatHeader` passou a ler `appConfig` para o rótulo textual de status (bloco
+// 2.06). Em produção a store sempre existe — `entrypoints/widget.js` faz
+// `app.use(store)` —, então montar sem ela mediria um ambiente inexistente.
+const store = createStore({
+  modules: {
+    appConfig: {
+      namespaced: true,
+      getters: {
+        getAvailableMessage: () => 'Estamos conectados',
+        getUnavailableMessage: () => 'Estamos ausentes no momento',
+      },
+    },
+  },
+});
+
 const montar = (componente, props = {}) =>
   mount(componente, {
     props,
     global: {
-      plugins: [i18n],
-      stubs: { FluentIcon: true, HeaderActions: true, Banner: true },
+      plugins: [store, i18n],
+      stubs: {
+        FluentIcon: true,
+        HeaderActions: true,
+        Banner: true,
+        AvailabilityContainer: true,
+      },
       directives: { dompurifyHtml: () => {} },
     },
   });
