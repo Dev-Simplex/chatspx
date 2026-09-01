@@ -37,6 +37,32 @@ class FlowsAPI extends ApiClient {
   importLegacy(dryRun = false) {
     return axios.post(`${this.url}/import`, { dry_run: dryRun });
   }
+
+  // Bloco 6.05 — o relatório do teste A/B de fluxo.
+  //
+  // A URL é de COLEÇÃO (`/flows/experiment`, não `/flows/:id/experiment`) porque um experimento
+  // atravessa VÁRIAS variantes, que são vários flows: pendurá-lo num deles obrigaria a tela a
+  // eleger "o dono" do experimento, pergunta que não tem resposta. O que identifica o relatório
+  // é a `key`, e é ela que vai no query string.
+  //
+  // A JANELA É OPCIONAL, E A AUSÊNCIA DELA É UM RECURSO: sem `since`/`until` o servidor devolve
+  // TODO o histórico (`FlowsController#experiment_period`), que é o que faz um experimento
+  // encerrado mês passado continuar legível sem a tela adivinhar as datas. Por isso as chaves são
+  // omitidas quando não vêm, em vez de irem vazias — mandar `since: ''` é pedir uma janela e
+  // depender de o servidor tratar o branco.
+  //
+  // Devolve { experiment, variants[], comparisons[] }. `comparisons[].verdict` pode valer
+  // `inconclusivo`: é a honestidade estatística do aceite, e a tela mostra o `reason` — não
+  // esconde a linha.
+  getExperiment(key, { since = null, until: ate = null } = {}) {
+    return axios.get(`${this.url}/experiment`, {
+      params: {
+        key,
+        ...(since ? { since } : {}),
+        ...(ate ? { until: ate } : {}),
+      },
+    });
+  }
 }
 
 export default new FlowsAPI();
