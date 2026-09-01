@@ -148,10 +148,23 @@ export const actions = {
       // fato "mensagem enviada", mesmo tendo os dois nascido do mesmo POST.
       // `emitSdkEventOnce` usa a MESMA chave do caminho do pré-chat, então os
       // dois caminhos nunca emitem dois `conversation-created`.
+      //
+      // `inbox_id` vem JUNTO e não é enfeite: o contrato de
+      // `chatwoot:conversation-created` declara as duas chaves
+      // (`SDK_EVENT_CONTRACT`, e o documento em §3 exige `inbox_id` no
+      // `chatspx_conversation_started` que este evento alimenta). Sem ela o
+      // `filterByContract` não reclama — ele só conta chave a MAIS, e chave a
+      // menos some calada —, e o evento chegava ao dataLayer do cliente sem
+      // saber de qual caixa de entrada veio, só neste caminho.
+      //
+      // A resposta do POST de mensagem publica `inbox_id` no topo
+      // (`api/v1/widget/messages/create.json.jbuilder`:
+      // `json.inbox_id @message.inbox_id`), do mesmo jeito que a resposta do
+      // POST de conversa. Os dois caminhos passam a emitir o mesmo payload.
       if (!conversaJaConhecida && data?.conversation_id) {
         emitSdkEventOnce(
           CHATWOOT_CONVERSATION_CREATED,
-          { conversation_id: data.conversation_id },
+          { conversation_id: data.conversation_id, inbox_id: data.inbox_id },
           CHATWOOT_CONVERSATION_CREATED
         );
       }
