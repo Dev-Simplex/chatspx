@@ -57,7 +57,11 @@ import { loadCollector } from './tracking/loader';
 // Bloco 5.10 — o gate de 5.09 e lido AQUI e passado para a ponte de tags. Aqui, e nao dentro
 // da ponte: `entrypoints/sdk.js` ja importa este modulo, entao esta e a MESMA instancia que
 // `$chatwoot.setConsent()` atualiza. A ponte mora noutro bundle e teria um segundo estado.
-import { applyInboxConsentMode, isAllowed } from './tracking/consent';
+import {
+  applyInboxConsentMode,
+  isAllowed,
+  onConsentChange,
+} from './tracking/consent';
 import { HELP_CENTER_CONVERSATION_TOKEN } from 'shared/constants/helpCenter';
 
 const notifyParentOfConversationToken = token => {
@@ -807,6 +811,31 @@ export const IFrameHelper = {
     // `true` para tudo: o gate existe e nao gateia nada. Fica FORA do `then` do coletor de
     // proposito — uma conta pode ter `consent_mode` sem ter pixel nenhum, e nesse caso o
     // coletor nunca e buscado.
+    // Bloco 5.09 (T-C7.4/T-C7.6) — o consentimento precisa CHEGAR ao backend, senao o gate vale
+    // so para o que o navegador dispara e a fila server-side segue enviando sem base legal.
+    //
+    // Registrado ANTES de `applyInboxConsentMode`, e a ordem e o ponto: no modo `advanced` essa
+    // chamada ja publica o `default`, e um observador registrado depois perderia justamente a
+    // primeira publicacao — a que diz "nada foi concedido", que e a que mais importa gravar.
+    //
+    // Reaproveita `set-conversation-custom-attributes`, o mesmo evento de bridge que o 5.08 usa
+    // para a origem: nenhum contrato novo, e quando ainda nao ha conversa o widget guarda como
+    // `pendingCustomAttributes` e envia junto com a primeira mensagem — ou seja, a conversa NASCE
+    // com o consentimento vigente.
+    // Vai para os DOIS lados, e a razão é medida, não simetria: `POST /api/v1/widget/events`
+    // (5.05/5.16) registra o fato com `contact:` e SEM `conversation:`. Só na conversa, o
+    // consentimento seria invisível para esses eventos, e com o modo ativo ausência lê-se como
+    // negado — o visitante que ACEITOU teria os eventos descartados em silêncio.
+    //
+    // A divisão também é a correta: a resposta à CMP é do navegador/pessoa (contato), e a cópia na
+    // conversa é o registro do que valia NESTA visita. `Tracking::ConsentState#current_for` lê
+    // nessa ordem — a conversa primeiro, o contato como reserva.
+    onConsentChange(customAttributes => {
+      IFrameHelper.sendMessage('set-custom-attributes', { customAttributes });
+      IFrameHelper.sendMessage('set-conversation-custom-attributes', {
+        customAttributes,
+      });
+    });
     applyInboxConsentMode(tracking?.consent_mode);
 
     loadCollector({ baseUrl: window.$chatwoot.baseUrl, tracking }).then(

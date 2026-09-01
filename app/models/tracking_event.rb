@@ -5,6 +5,7 @@
 # Table name: tracking_events
 #
 #  id              :bigint           not null, primary key
+#  consent         :jsonb            not null
 #  dedup_key       :string           not null
 #  event_id        :string           not null
 #  name            :string           not null
@@ -38,6 +39,12 @@
 #  2. o NOME obedece as tres regras do contrato (prefixo, snake_case, 40 caracteres do GA4), porque
 #     nome invalido so falharia no destino do cliente, longe de quem o escreveu;
 #  3. `properties` nao carrega dado pessoal cru (RC5) — a PII sai hasheada pelo servidor em 5.11.
+#
+# `consent` (bloco 5.09) e o RETRATO do Consent Mode v2 no instante do fato — nao o estado de agora.
+# A distincao e o bloco inteiro: o visitante que aceitou as 15h04 nao aceitou o que saiu as 15h02, e
+# um campo que guardasse "o estado atual" reescreveria a base legal de eventos ja entregues toda vez
+# que alguem mexesse no banner de cookies. Escrito por `Tracking::EventRecorder`, lido pelos tres
+# destinos via `Tracking::ConsentState`.
 class TrackingEvent < ApplicationRecord
   NAME_PREFIX = 'chatspx_'
   # 40 e limite do GA4, nao preferencia nossa.

@@ -15,7 +15,8 @@ class Tracking::EventRecorder
     # proteger: o consumidor deixaria de saber, pela propria chamada, o que pode mandar.
     # rubocop:disable Metrics/ParameterLists
     def record!(name:, account:, inbox: nil, conversation: nil, contact: nil,
-                occurred_at: nil, properties: nil, source: :server, dedup_key: nil, deliver: true)
+                occurred_at: nil, properties: nil, source: :server, dedup_key: nil, deliver: true,
+                consent: nil)
       # rubocop:enable Metrics/ParameterLists
       moment = occurred_at || Time.current
       key = dedup_key || TrackingEvent.derive_dedup_key(
@@ -23,9 +24,15 @@ class Tracking::EventRecorder
         conversation_id: conversation&.id, contact_id: contact&.id
       )
 
+      # Bloco 5.09 — o RETRATO do consentimento entra na mesma gravacao do fato, e nao num
+      # `update` depois: entre as duas escritas cabe o job de entrega, e um evento entregue antes
+      # de o consentimento ser gravado e exatamente o envio sem base legal que este bloco fecha.
+      state = Tracking::ConsentState.snapshot_for(inbox: inbox, conversation: conversation,
+                                                  contact: contact, explicit: consent)
+
       event = create_or_find(name: name, account: account, inbox: inbox, conversation: conversation,
                              contact: contact, occurred_at: moment, properties: properties || {},
-                             source: source, dedup_key: key)
+                             source: source, dedup_key: key, consent: state)
 
       dispatch(event) if deliver
       event

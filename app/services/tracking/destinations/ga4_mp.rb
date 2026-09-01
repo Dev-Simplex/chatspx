@@ -54,10 +54,19 @@ class Tracking::Destinations::Ga4Mp < Tracking::Destinations::Base
     payload
   end
 
-  # T-C7.4 — o bloco de consentimento viaja no payload. Enquanto o 5.19 (consentimento por conta) nao
-  # existir, o valor e o default do GA4 para trafego de site proprio.
+  # T-C7.4 — o bloco de consentimento viaja no payload, e agora com o estado REAL.
+  #
+  # O GA4 continua RECEBENDO o evento com o consentimento negado, e isso e deliberado: e assim que o
+  # Consent Mode foi desenhado — o ping chega marcado como negado, o Google nao personaliza e modela
+  # o resto. Deixar de enviar apagaria do relatorio do cliente a visita que ele tem o direito de
+  # contar. Quem NAO envia sob negativa sao os destinos de anuncio, onde o envio E o tratamento do
+  # dado pessoal — a assimetria e do plano (T-C7.4: "campo `consent` no payload do Measurement
+  # Protocol" e "respeito ao estado nos envios da CAPI"), nao invencao deste arquivo.
+  #
+  # Com o modo `disabled` os dois saem `GRANTED`, que e byte a byte o payload de antes deste bloco.
   def consent_block
-    { ad_user_data: 'GRANTED', ad_personalization: 'GRANTED' }
+    { ad_user_data: consent.ga4_value('ad_user_data'),
+      ad_personalization: consent.ga4_value('ad_personalization') }
   end
 
   def event_params
