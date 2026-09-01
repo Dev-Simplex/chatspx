@@ -39,8 +39,13 @@
  *   node app/javascript/widget/components/specs/browser/bubble-geometry.check.mjs
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
+import { brandTokens } from '../../../../dashboard/routes/dashboard/settings/inbox/widget/composables/useContrast.js';
 
 // As duas cores de teste do aceite. `#009CE0` é azul claro e `#2DC46F` é o
 // verde da casa: as duas caem do MESMO lado do limiar de luminância (as duas
@@ -365,6 +370,282 @@ igual(
   '[rtl] visitante em continuação · canto quebrado espelhado',
   rtlContinua.borderTopLeftRadius,
   '6px'
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A SEGUNDA SUPERFÍCIE: O PREVIEW DO PAINEL — bloco 2.03, segunda metade
+//
+// O mixin `widget-shape` foi escrito dizendo que QUATRO superfícies usam os
+// mesmos números, e por muito tempo `@include widget-shape` apareceu uma vez
+// só. A tela em que o cliente ESCOLHE a cor — Caixas de entrada › Aparência —
+// desenhava as duas bolhas de exemplo com números próprios
+// (`rounded-[1.25rem] rounded-br-[0.25rem] text-sm shadow max-w-[85%]`), e três
+// deles contradiziam o widget que ela promete mostrar. Um preview que mente é
+// pior que preview nenhum: o cliente aprova o que não vai ver.
+//
+// ── Por que esta página não sai do bundle do widget ──────────────────────────
+//
+// Porque o preview NÃO está no bundle do widget: ele é um componente do
+// dashboard, e `public/vite/assets/widget-*.css` não contém uma linha dele. As
+// três fontes do que o navegador pinta ali são montadas aqui, cada uma pelo
+// compilador de verdade — nada de literal copiado:
+//
+//   1. os utilitários (`bg-w-brand`, `text-wp-text`, `px-4`…) saem do
+//      Tailwind CLI rodando com o `tailwind.config.js` REAL, com o conteúdo
+//      restrito ao SFC. É o que pega, por exemplo, `text-sm` valendo 14/20 —
+//      um `grep` por "text-sm" não sabe quanto isso mede;
+//   2. os tokens (`--w-bubble-*`, `--solid-2`, `--slate-12`) saem do `<style>`
+//      de `Widget.vue` compilado com `sass`, que é onde mora o
+//      `@include widget-shape`;
+//   3. a marca chega por estilo INLINE, vinda de `brandTokens()` — a mesma
+//      função que o componente chama em produção, não uma cópia da fórmula.
+//
+// E a ÁRVORE é lida do próprio `WidgetBody.vue`: o `<template>` é extraído do
+// arquivo, com as interpolações trocadas por texto. Copiar a marcação para cá
+// faria o check ficar verde sobre uma árvore que não existe mais no dia em que
+// alguém mudasse uma classe — que é a falha nº 4 desta sessão.
+//
+// ⚠️ LIMITE CONHECIDO, para ninguém ler mais do que está medido: esta página
+// tem a cascata PRÓPRIA do preview (preflight + utilitários + estilo dos dois
+// SFCs). Ela NÃO carrega os catch-alls `!important` de `_wa-skin.scss`, que o
+// `sass` sozinho não compila (`@apply`). É por isso que os tokens do preview
+// são `wp-*`/`w-*` e não `n-*` — justamente para escapar deles —, mas uma
+// regressão introduzida no skin não seria vista aqui.
+const requireDaqui = createRequire(import.meta.url);
+const dirSass = readdirSync('node_modules/.pnpm').find(d => /^sass@/.test(d));
+if (!dirSass) {
+  console.error('FALHA: sass não encontrado em node_modules/.pnpm.');
+  process.exit(2);
+}
+const sass = requireDaqui(
+  resolve('node_modules/.pnpm', dirSass, 'node_modules/sass')
+);
+
+const SFC_WIDGET =
+  'app/javascript/dashboard/modules/widget-preview/components/Widget.vue';
+const SFC_BODY =
+  'app/javascript/dashboard/modules/widget-preview/components/WidgetBody.vue';
+
+const cssDoSFC = caminho => {
+  const sfc = readFileSync(caminho, 'utf8');
+  const bloco = /<style[^>]*lang="scss"[^>]*>([\s\S]*?)<\/style>/.exec(sfc);
+  if (!bloco) return '';
+  // `logger: silent` porque a saída deste arquivo É o resultado: os avisos de
+  // `mixed-decls` do sass (28, todos vindos de `_tokens_values.scss`) afogariam
+  // as asserções. Eles não são deste bloco e não mudam o CSS gerado.
+  return sass.compileString(bloco[1], {
+    url: pathToFileURL(caminho),
+    logger: sass.Logger.silent,
+  }).css;
+};
+
+// Texto longo porque a razão de 82% só é medível quando a linha ENCOSTA no
+// teto; com "Olá" a bolha para antes e o número mediria o conteúdo.
+const TEXTO =
+  'Texto suficientemente longo para a linha alcancar o teto de largura e nao parar antes dele por falta de conteudo.';
+const marcacaoDoSFC = caminho => {
+  const sfc = readFileSync(caminho, 'utf8');
+  const inicio = sfc.indexOf('<template>') + '<template>'.length;
+  const fim = sfc.lastIndexOf('</template>');
+  return sfc.slice(inicio, fim).replace(/\{\{[\s\S]*?\}\}/g, TEXTO);
+};
+
+const tailwindDoPreview = () => {
+  const temp = mkdtempSync(join(tmpdir(), 'bubble-preview-'));
+  const entrada = join(temp, 'in.css');
+  const saida = join(temp, 'out.css');
+  writeFileSync(entrada, '@tailwind base;\n@tailwind utilities;\n');
+  execFileSync(
+    'node_modules/.bin/tailwindcss',
+    [
+      '-c',
+      'tailwind.config.js',
+      '-i',
+      entrada,
+      '-o',
+      saida,
+      '--content',
+      SFC_BODY,
+    ],
+    { encoding: 'utf8', stdio: 'pipe' }
+  );
+  return readFileSync(saida, 'utf8');
+};
+
+const CSS_UTILITARIOS = tailwindDoPreview();
+const CSS_TOKENS_PREVIEW = cssDoSFC(SFC_WIDGET);
+const CSS_BODY = cssDoSFC(SFC_BODY);
+const ARVORE_PREVIEW = marcacaoDoSFC(SFC_BODY);
+
+// A mesma divisão de `Widget.vue`: `.wp-tokens` carrega os tokens e recebe a
+// marca por inline; o TEMA mora no filho, porque inline vence classe no mesmo
+// elemento e um `.wp-theme-dark` aqui nunca reapontaria nada.
+const montaPreview = (cor, tema, direcao = 'ltr') => {
+  const inline = Object.entries(brandTokens(cor))
+    .map(([chave, valor]) => `${chave}:${valor}`)
+    .join(';');
+  return `<!doctype html>
+<html dir="${direcao}"><head>
+  <style>${CSS_UTILITARIOS}</style>
+  <style>${CSS_TOKENS_PREVIEW}</style>
+  <style>${CSS_BODY}</style>
+</head>
+<body style="margin:0">
+  <div class="wp-tokens" style="width:400px;${inline}">
+    <div class="${tema === 'dark' ? 'wp-theme-dark' : 'wp-theme-light'}">
+      ${ARVORE_PREVIEW}
+    </div>
+  </div>
+</body></html>`;
+};
+
+// Seletor ausente não pode virar exceção: quando a árvore ainda é a antiga, o
+// check tem de REPROVAR com o mesmo número de asserções, e não morrer no meio —
+// senão o vermelho e o verde não são comparáveis.
+const estiloTolerante = async (seletor, props) => {
+  if ((await pagina.locator(seletor).count()) === 0) {
+    return Object.fromEntries(props.map(k => [k, '(seletor ausente)']));
+  }
+  return estilo(seletor, props);
+};
+const razaoNaLinha = async seletor => {
+  if ((await pagina.locator(seletor).count()) === 0) return Number.NaN;
+  return pagina
+    .locator(seletor)
+    .evaluate(
+      el =>
+        el.getBoundingClientRect().width /
+        el.parentElement.getBoundingClientRect().width
+    );
+};
+const contrasteDoEstilo = e =>
+  /^rgb/.test(e.color) && /^rgb/.test(e.backgroundColor)
+    ? contraste(rgb(e.color), rgb(e.backgroundColor))
+    : Number.NaN;
+
+const PROPS = [
+  'boxShadow',
+  'color',
+  'backgroundColor',
+  'borderTopLeftRadius',
+  'borderTopRightRadius',
+  'borderBottomLeftRadius',
+  'borderBottomRightRadius',
+  'fontSize',
+  'lineHeight',
+];
+
+const medirPreview = async (cor, tema) => {
+  const rotulo = `[preview · ${cor} · ${tema}]`;
+  await pagina.setContent(montaPreview(cor, tema, 'ltr'));
+
+  const visitante = await estiloTolerante('.wp-bubble--user', PROPS);
+  const agente = await estiloTolerante('.wp-bubble--agent', PROPS);
+
+  igual(
+    `${rotulo} boxShadow do balão do visitante`,
+    visitante.boxShadow,
+    'none'
+  );
+  igual(`${rotulo} boxShadow do balão do agente`, agente.boxShadow, 'none');
+
+  aoMenos(
+    `${rotulo} contraste do texto no balão do VISITANTE`,
+    contrasteDoEstilo(visitante),
+    ALVO_CONTRASTE
+  );
+  aoMenos(
+    `${rotulo} contraste do texto no balão do AGENTE`,
+    contrasteDoEstilo(agente),
+    ALVO_CONTRASTE
+  );
+
+  igual(
+    `${rotulo} visitante · raio livre (topo esq.)`,
+    visitante.borderTopLeftRadius,
+    '20px'
+  );
+  igual(
+    `${rotulo} visitante · canto de origem (base dir.)`,
+    visitante.borderBottomRightRadius,
+    '6px'
+  );
+  igual(
+    `${rotulo} visitante · corpo`,
+    `${visitante.fontSize}/${visitante.lineHeight}`,
+    '15px/22px'
+  );
+
+  igual(
+    `${rotulo} agente · raio livre (topo dir.)`,
+    agente.borderTopRightRadius,
+    '20px'
+  );
+  igual(
+    `${rotulo} agente · canto de origem (base esq.)`,
+    agente.borderBottomLeftRadius,
+    '6px'
+  );
+  igual(
+    `${rotulo} agente · corpo`,
+    `${agente.fontSize}/${agente.lineHeight}`,
+    '15px/22px'
+  );
+
+  // 82% MEDIDO na linha, contra o bloco que a contém — a mesma conta que o
+  // widget faz acima. Era 85% declarado do lado do visitante, e do lado do
+  // agente não havia teto NENHUM: a bolha ia até a borda da lista.
+  igual(
+    `${rotulo} largura da linha do visitante é 82% do bloco`,
+    (await razaoNaLinha('.wp-bubble-row--user')).toFixed(3),
+    (0.82).toFixed(3)
+  );
+  igual(
+    `${rotulo} largura da linha do agente é 82% do bloco`,
+    (await razaoNaLinha('.wp-bubble-row--agent')).toFixed(3),
+    (0.82).toFixed(3)
+  );
+};
+
+await medirPreview(CORES[0], TEMAS[0]);
+await medirPreview(CORES[0], TEMAS[1]);
+await medirPreview(CORES[1], TEMAS[0]);
+await medirPreview(CORES[1], TEMAS[1]);
+
+// ── O espelho RTL do preview ────────────────────────────────────────────────
+// Risco R23. O preview escrevia o canto com `rounded-br-`/`rounded-bl-` e
+// empurrava a linha do visitante com `ml-auto`: os três são FÍSICOS, e em
+// árabe ou hebraico o bico do balão ficava do lado errado, com a linha do
+// visitante presa à direita. Trocados por propriedades lógicas, viram sozinhos.
+await pagina.setContent(montaPreview(CORES[1], TEMAS[0], 'rtl'));
+const rtlVisitantePreview = await estiloTolerante('.wp-bubble--user', PROPS);
+igual(
+  '[preview · rtl] visitante · canto de origem espelhado para a base ESQUERDA',
+  rtlVisitantePreview.borderBottomLeftRadius,
+  '6px'
+);
+igual(
+  '[preview · rtl] visitante · a base direita volta a ser livre',
+  rtlVisitantePreview.borderBottomRightRadius,
+  '20px'
+);
+const rtlAgentePreview = await estiloTolerante('.wp-bubble--agent', PROPS);
+igual(
+  '[preview · rtl] agente · canto de origem espelhado para a base DIREITA',
+  rtlAgentePreview.borderBottomRightRadius,
+  '6px'
+);
+// A linha do visitante encosta no lado do FIM, que em RTL é a esquerda: a
+// margem automática tem de estar à DIREITA. Com `ml-auto` ela ficava à
+// esquerda e a linha continuava colada na direita.
+const rtlLinha = await estiloTolerante('.wp-bubble-row--user', [
+  'marginLeft',
+  'marginRight',
+]);
+igual(
+  '[preview · rtl] linha do visitante · margem automática espelhada',
+  `${rtlLinha.marginLeft}|${parseFloat(rtlLinha.marginRight) > 0}`,
+  '0px|true'
 );
 
 await navegador.close();

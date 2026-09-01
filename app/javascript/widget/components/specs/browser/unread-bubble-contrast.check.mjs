@@ -129,6 +129,84 @@ check(
   'true'
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// O TETO DA BOLHA — bloco 2.03
+//
+// `@mixin widget-shape` declara que a conversa, a lista de não lidas e o
+// primitivo `WBubble` usam os MESMOS números. A lista de não lidas era a
+// exceção: `UnreadMessage.vue` escrevia `@apply max-w-[85%]` no seu `<style
+// scoped>` — o último literal de forma fora do mixin — e desenhava um balão 3
+// pontos mais largo que o da conversa, na mesma tela, um abaixo do outro.
+//
+// ── Por que esta metade precisa de OUTRA folha ───────────────────────────────
+//
+// Porque a regra não está em `widget-*.css`: `UnreadMessageList` entra por
+// `import()` no router do widget, então o `<style scoped>` vira um CHUNK
+// próprio. O bloco acima (cor) não precisava dele — cor vem do
+// `_conversation.scss`, que está no CSS principal —, e por isso o teto passou
+// tanto tempo sem ninguém medir. Aqui o chunk é achado pelo que ele DECLARA
+// (`.chat-bubble[data-v-…]`), nunca por nome de arquivo, que tem hash.
+//
+// ⚠️ E a lista de candidatos sai do MANIFEST, não de `readdirSync`. Não é
+// preciosismo: `vite build --force` não limpa `public/vite/assets`, então dois
+// builds seguidos deixam DUAS `UnreadMessageList-*.css` lado a lado — e a
+// varredura por diretório escolheria a de ontem sem avisar. Foi exatamente
+// assim que este bloco levou um falso vermelho em 24/08, lendo CSS de julho.
+// O manifest só nomeia o artefato do build atual.
+//
+// E o `data-v-…` não é decoração: sem ele o seletor com escopo não casa e o
+// balão cai na regra GLOBAL `.chat-bubble { max-w-full }`, medindo 1,000 em vez
+// de 0,820 — medido, não suposto. O hash sai do próprio artefato.
+const manifest = JSON.parse(
+  readFileSync('public/vite/.vite/manifest.json', 'utf8')
+);
+const cssComEscopo = [
+  ...new Set(Object.values(manifest).flatMap(entrada => entrada.css || [])),
+]
+  .map(rel => readFileSync(`public/vite/${rel}`, 'utf8'))
+  .filter(css => /\.chat-bubble\[data-v-[0-9a-f]+\]/.test(css));
+
+if (cssComEscopo.length !== 1) {
+  console.error(
+    `FALHA: esperava UM chunk do manifest declarando \`.chat-bubble[data-v-…]\`, achei ${cssComEscopo.length}.`
+  );
+  console.error('Rode `bin/vite build --force` antes deste check.');
+  process.exit(2);
+}
+const CSS_ESCOPO = cssComEscopo[0];
+const ESCOPO = /\.chat-bubble\[(data-v-[0-9a-f]+)\]/.exec(CSS_ESCOPO)[1];
+
+// A largura do holder é fixa porque o teto só é MEDÍVEL quando o texto encosta
+// nele; com uma frase curta o `inline-block` para antes e a conta mediria o
+// conteúdo, não a regra.
+const montaComEscopo = () => `<!doctype html>
+<html><head><style>${CSS}</style><style>${CSS_ESCOPO}</style></head>
+<body style="margin:0">
+  <div id="app" style="width:400px">
+    <div class="unread-messages">
+      <div class="chat-bubble-wrap" ${ESCOPO}>
+        <button id="bolha" class="chat-bubble agent bg-white" ${ESCOPO}>
+          <div class="message-content">Resposta pendente longa o bastante para o balao alcancar o teto de largura e nao parar antes dele por falta de texto.</div>
+        </button>
+      </div>
+    </div>
+  </div>
+</body></html>`;
+
+await page.setContent(montaComEscopo());
+const razaoTeto = await page
+  .locator('#bolha')
+  .evaluate(
+    el =>
+      el.getBoundingClientRect().width /
+      el.parentElement.getBoundingClientRect().width
+  );
+check(
+  `o teto da bolha é 82% — o mesmo da conversa (${ESCOPO})`,
+  razaoTeto.toFixed(3),
+  (0.82).toFixed(3)
+);
+
 await browser.close();
 
 const failed = results.filter(r => !r.ok);
