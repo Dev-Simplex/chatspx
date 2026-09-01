@@ -7,9 +7,23 @@ import { emitLeadIdentified } from 'widget/helpers/sdkEventEmitter';
 import { buildContactPayload } from 'widget/helpers/identityPayload';
 const state = {
   currentUser: {},
+  // Bloco 5.19 — a credencial que o HOST mandou na identificacao.
+  //
+  // Vive aqui, e nao no `window` do site, porque o `window` e legivel por qualquer script de
+  // terceiro da pagina (regra RC5): o token e credencial ao portador. Do lado de ca ele fica na
+  // memoria do iframe, que e nosso, e some quando o frame recarrega — que e o comportamento
+  // certo, porque na recarga o host pergunta de novo ao `identityTokenProvider`.
+  //
+  // Por que GUARDAR em vez de so repassar: o pre-chat com campanha escreve pelo
+  // `PATCH /widget/contact` (`contacts/update`), que nasce de um formulario que o VISITANTE
+  // preencheu — ali nao ha objeto do site nenhum trazendo credencial. Sem esta memoria, aquela
+  // rota chegaria sempre sem prova, e o `hmac_verified` que o servidor passou a saber marcar
+  // nela nunca teria como acontecer.
+  identityToken: '',
 };
 
 const SET_CURRENT_USER = 'SET_CURRENT_USER';
+const SET_IDENTITY_TOKEN = 'SET_IDENTITY_TOKEN';
 const parseErrorData = error =>
   error && error.response && error.response.data ? error.response.data : error;
 export const updateWidgetAuthToken = widgetAuthToken => {
@@ -29,10 +43,17 @@ export const getters = {
 };
 
 const identifyContact = async (
-  dispatch,
+  { dispatch, commit },
   { identifier, user: userObject, merge }
 ) => {
   try {
+    // Bloco 5.19: guarda ANTES do envio, e so quando ha token. "So quando ha" nao e economia de
+    // linha: um commit incondicional gravaria `''` por cima de um token bom sempre que o site
+    // chamasse `setCustomAttributes` ou um `setUser` sem credencial no meio da sessao.
+    if (userObject.identity_token) {
+      commit(SET_IDENTITY_TOKEN, userObject.identity_token);
+    }
+
     const user = buildContactPayload(userObject, { merge });
     const {
       data: { widget_auth_token: widgetAuthToken },
@@ -62,9 +83,17 @@ export const actions = {
       reportWidgetError(error, { origem: 'store/contacts#get' });
     }
   },
-  update: async ({ dispatch }, { user }) => {
+  // Bloco 5.19: `state` entra na desestruturacao para ler o token guardado. O acesso e opcional
+  // (`state?.`) porque esta action ja e chamada de contextos que passam so `{ dispatch }`.
+  update: async ({ dispatch, state: $state }, { user }) => {
     try {
-      await ContactsAPI.update(user);
+      // A credencial nao substitui nem mescla nada do contato: ela viaja ao lado, e so quando
+      // existe. Chave de credencial vazia faria "sem prova" e "prova vazia" parecerem o mesmo
+      // fato para o servidor, e eles nao sao.
+      const identityToken = $state?.identityToken;
+      await ContactsAPI.update(
+        identityToken ? { ...user, identity_token: identityToken } : user
+      );
       dispatch('get');
       // Bloco 5.04 — `chatwoot:lead-identified`. Aqui, e NÃO em `get`.
       //
@@ -99,19 +128,28 @@ export const actions = {
   //
   // Os dois compartilham uma FUNCAO, nao uma action: action nova mudaria a lista de dispatches
   // que os specs deste store observam, e o contrato observavel do `setUser` nao muda neste bloco.
-  setUser: async ({ dispatch }, { identifier, user: userObject }) => {
-    await identifyContact(dispatch, {
-      identifier,
-      user: userObject,
-      merge: false,
-    });
+  setUser: async ({ dispatch, commit }, { identifier, user: userObject }) => {
+    await identifyContact(
+      { dispatch, commit },
+      {
+        identifier,
+        user: userObject,
+        merge: false,
+      }
+    );
   },
-  updateUser: async ({ dispatch }, { identifier, user: userObject }) => {
-    await identifyContact(dispatch, {
-      identifier,
-      user: userObject,
-      merge: true,
-    });
+  updateUser: async (
+    { dispatch, commit },
+    { identifier, user: userObject }
+  ) => {
+    await identifyContact(
+      { dispatch, commit },
+      {
+        identifier,
+        user: userObject,
+        merge: true,
+      }
+    );
   },
   setCustomAttributes: async (_, customAttributes = {}) => {
     try {
@@ -143,6 +181,12 @@ export const mutations = {
   [SET_CURRENT_USER]($state, user) {
     const { currentUser } = $state;
     $state.currentUser = { ...currentUser, ...user };
+  },
+
+  // Bloco 5.19 — a credencial do host. Nao entra em `currentUser` de proposito: `currentUser` e
+  // o que a tela le e o que os getters expoem, e credencial ao portador nao e dado de perfil.
+  [SET_IDENTITY_TOKEN]($state, identityToken) {
+    $state.identityToken = identityToken;
   },
 };
 

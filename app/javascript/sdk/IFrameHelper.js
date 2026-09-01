@@ -25,6 +25,7 @@ import {
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
 import { isMobileViewport } from './viewport';
 import { drenar, identidadeDrenada } from './preBootQueue';
+import { entao, resolveIdentityToken } from './identityToken';
 import { montarTeaser } from './teaser';
 import { degradar, gravarAbordagem, lerAbordagem } from './tracking/approach';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
@@ -552,11 +553,21 @@ export const IFrameHelper = {
       //    ninguém tivesse identificado — saía `set-user` por cima, que
       //    SUBSTITUI o contato. A pergunta certa é sobre a identidade, não sobre
       //    o rótulo; quem responde é `identidadeDrenada`.
+      // 4. A CREDENCIAL PRECISA SER PEDIDA DE NOVO (bloco 5.19). `window.$chatwoot.user` NAO
+      //    guarda o `identity_token` — de proposito, porque o `window` do site e legivel por
+      //    qualquer script de terceiro da pagina (regra RC5). Se a re-hidratacao mandasse so o
+      //    que esta no `window`, a sessao renasceria identificada e NAO verificada: o visitante
+      //    perderia a prova por ter recarregado o iframe. Perguntar de novo ao provedor e o
+      //    unico caminho, e ele e barato — quem responde e o site, em memoria.
       if (window.$chatwoot.user && !identidadeDrenada(drenados)) {
-        IFrameHelper.sendMessage('set-user', {
-          identifier: window.$chatwoot.identifier,
-          user: window.$chatwoot.user,
-        });
+        entao(resolveIdentityToken(), token =>
+          IFrameHelper.sendMessage('set-user', {
+            identifier: window.$chatwoot.identifier,
+            user: token
+              ? { ...window.$chatwoot.user, identity_token: token }
+              : window.$chatwoot.user,
+          })
+        );
       }
 
       window.playAudioAlert = () => {};

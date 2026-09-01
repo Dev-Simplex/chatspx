@@ -89,6 +89,26 @@ export const buildContactPayload = (
     if (aApagar.length) payload.clear_attributes = aApagar;
   }
 
+  // Bloco 5.19 — a CREDENCIAL, e ela nao segue a regra de verbo dos campos acima.
+  //
+  // `merge` decide o que fazer com campos DO CONTATO: omitir para nao apagar (`updateUser`) ou
+  // declarar inclusive vazios para substituir (`setUser`). O `identity_token` nao e um campo do
+  // contato — e a prova de quem esta pedindo. Prova nao se mescla nem se substitui: ou ela veio
+  // nesta chamada, ou nao veio. Por isso ele entra fora do `topo`, nos dois verbos.
+  //
+  // E entra CONDICIONAL, nao sempre: `identifier_hash` acima pode viajar `undefined` porque e
+  // legado e o servidor ja convive com isso, mas uma chave de credencial vazia em todo `setUser`
+  // de todo visitante anonimo de todo site e ruido no corpo de uma requisicao que 100% dos
+  // visitantes fazem — e ainda faz "sem credencial" e "credencial vazia" parecerem a mesma coisa
+  // do lado do servidor, que sao dois fatos diferentes.
+  //
+  // ATE ESTE BLOCO ESTA LINHA NAO EXISTIA, e era o buraco inteiro: o servidor sabia validar o JWT
+  // (`Widget::IdentityTokenService`), mas a allowlist daqui descartava o campo em silencio. O
+  // formato novo era inalcancavel pelo produto, sem erro e sem teste vermelho.
+  if (userObject.identity_token) {
+    payload.identity_token = userObject.identity_token;
+  }
+
   if (Object.keys(adicionais).length)
     payload.additional_attributes = adicionais;
   if (userObject.custom_attributes !== undefined) {

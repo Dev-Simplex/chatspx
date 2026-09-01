@@ -18,6 +18,13 @@ describe('#getUserString', () => {
   // avatar_url/email/name/identifier_hash — entao mudar o telefone (ou empresa, cidade, pais,
   // descricao, atributos) nao mudava o hash, e a atualizacao nunca saia do navegador. Os campos
   // novos aparecem VAZIOS quando o site nao os manda, que e o caso destes dois exemplos.
+  // Bloco 5.19: o sufixo `identity_token` entrou na string. Ele carrega a PRESENCA da credencial,
+  // nunca o valor — pelo valor, um JWT renovado a cada pagina produziria hash novo a cada pagina
+  // e o dedupe deixaria de deduplicar; ignorado, uma falha do provedor na primeira carga gravaria
+  // o cookie de "ja identificou" e a carga seguinte, com o token bom, seria cortada — a sessao
+  // nunca ficaria `hmac_verified`. Como o sufixo muda o hash de todo cookie ja gravado, sai um
+  // `set-user` a mais por visitante identificado na primeira carga apos o deploy; e o mesmo trade
+  // que `dedupeHash.js` documenta, e pelo mesmo motivo.
   it('returns correct user string', () => {
     expect(
       getUserString({
@@ -30,7 +37,7 @@ describe('#getUserString', () => {
         identifier: '12345',
       })
     ).toBe(
-      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamePranavphone_numberidentifier_hash12345company_namecitycountry_codedescriptionsigned_up_atsocial_profilescustom_attributesidentifier12345'
+      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamePranavphone_numberidentifier_hash12345company_namecitycountry_codedescriptionsigned_up_atsocial_profilescustom_attributesidentity_tokenidentifier12345'
     );
 
     expect(
@@ -41,7 +48,7 @@ describe('#getUserString', () => {
         },
       })
     ).toBe(
-      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamephone_numberidentifier_hashcompany_namecitycountry_codedescriptionsigned_up_atsocial_profilescustom_attributesidentifier'
+      'avatar_urlhttps://images.chatwoot.com/placeholderemailpranav@example.comnamephone_numberidentifier_hashcompany_namecitycountry_codedescriptionsigned_up_atsocial_profilescustom_attributesidentity_tokenidentifier'
     );
   });
 });
