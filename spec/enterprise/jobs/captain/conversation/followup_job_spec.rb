@@ -248,7 +248,12 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
                        created_at: minutos.minutes.ago)
     end
 
-    context 'as 23h, com o cliente ainda acordado' do
+    context 'when it is 23h and the client is still awake' do
+      # A ferramenta grava as duas: `motivo` sempre, `janela` só quando o cliente disse a hora.
+      let(:combinado) do
+        { 'followup_motivo' => 'ia falar com a esposa', 'followup_janela' => 'me chama as 21h30' }
+      end
+
       before { travel_to Time.utc(2026, 6, 12, 3, 0) } # 23h em America/Cuiaba
 
       it 'nao silencia ate a manha: espaca a cutucada e remarca pra ainda hoje' do
@@ -269,9 +274,7 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
 
       # O horario foi ele que pediu: adiar pra manha viraria a promessa num atraso de dez horas.
       it 'cumpre na hora o horario que o proprio cliente pediu' do
-        conversation.update!(custom_attributes: conversation.custom_attributes.merge(
-                               'followup_motivo' => 'ia falar com a esposa', 'followup_janela' => 'me chama as 21h30'
-                             ))
+        conversation.update!(custom_attributes: conversation.custom_attributes.merge(combinado))
 
         described_class.perform_now(conversation, token)
 
@@ -280,9 +283,7 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
 
       # Cumprida uma vez, a janela nao pode continuar isentando as cutucadas seguintes da faixa.
       it 'consome a janela ao cumpri-la, preservando o rastro' do
-        conversation.update!(custom_attributes: conversation.custom_attributes.merge(
-                               'followup_motivo' => 'ia falar com a esposa', 'followup_janela' => 'me chama as 21h30'
-                             ))
+        conversation.update!(custom_attributes: conversation.custom_attributes.merge(combinado))
 
         described_class.perform_now(conversation, token)
 
@@ -292,7 +293,7 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
       end
     end
 
-    context 'na madrugada, com o cliente ja fora do ar' do
+    context 'when it is the small hours and the client is long gone' do
       before { travel_to Time.utc(2026, 6, 12, 6, 0) } # 2h em America/Cuiaba
 
       it 'adia pra manha' do
@@ -306,7 +307,7 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
 
     # 7h e a hora de MAIOR movimento depois das 10h numa conta medida — a faixa antiga (ate 8h)
     # calava a cutucada justamente ali.
-    context 'as 7h30' do
+    context 'when it is 7h30' do
       before { travel_to Time.utc(2026, 6, 11, 11, 30) }
 
       it 'cutuca normalmente: 7h ja esta fora da faixa' do
