@@ -15,8 +15,9 @@ sozinho: instalar, identificar quem está do outro lado e conferir que o evento 
 
 ## 1. Instalar
 
-No painel: **Caixas de entrada → sua caixa → Configuração**. Copie o trecho `<script>` e cole antes
-do `</body>` de todas as páginas onde o chat deve aparecer.
+No painel: **Caixas de entrada → sua caixa → Aparência → Script** (a aba **Script** fica ao lado da
+pré-visualização do widget). Copie o trecho `<script>` e cole antes do `</body>` de todas as páginas
+onde o chat deve aparecer.
 
 O trecho já vem pronto com o endereço do servidor e o token público do site. Ele faz três coisas:
 
