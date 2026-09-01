@@ -16,12 +16,52 @@ import path from 'path';
  */
 const raiz = relativo => path.resolve(process.cwd(), relativo);
 const ler = relativo => fs.readFileSync(raiz(relativo), 'utf8');
+const lerJson = relativo => JSON.parse(ler(relativo));
 
 const doc = ler('docs/tracking/instalacao-por-plataforma.md');
 const guia = ler('docs/tracking/guia-de-integracao.md');
 const contrato = ler('docs/tracking/contrato-de-eventos.md');
 const webWidget = ler('app/models/channel/web_widget.rb');
 const sdk = ler('app/javascript/entrypoints/sdk.js');
+
+const TELAS = 'app/javascript/dashboard/routes/dashboard/settings/inbox';
+const telaDeAbas = ler(`${TELAS}/Settings.vue`);
+const telaInstalacao = ler(`${TELAS}/settingsPage/ConfigurationPage.vue`);
+const telaAparencia = ler(`${TELAS}/widget/appearance/AppearancePage.vue`);
+const preview = ler(
+  'app/javascript/dashboard/modules/widget-preview/components/Widget.vue'
+);
+
+/**
+ * OS NOMES DAS ABAS VÊM DO PRODUTO, NÃO DA PROSA DO DOCUMENTO.
+ *
+ * Era exatamente aqui que a guarda anterior mentia: ela casava
+ * `/Caixas de entrada →[\s>]+sua caixa →[\s>]+Configuração/` contra o próprio
+ * texto do documento. Um regex assim só prova que o documento diz o que o
+ * documento diz — e por isso ficou VERDE durante o rename de 26/08, que trocou
+ * `INBOX_MGMT.TABS.CONFIGURATION` de "Configuração" para "Instalação".
+ *
+ * Lendo o `i18n`, o caminho esperado é MONTADO com os mesmos rótulos que a tela
+ * renderiza: renomear a aba sem corrigir o documento derruba o spec.
+ */
+const abas = lerJson(
+  'app/javascript/dashboard/i18n/locale/pt_BR/inboxMgmt.json'
+).INBOX_MGMT;
+const abasWidget = lerJson(
+  'app/javascript/dashboard/i18n/locale/pt_BR/inboxWidget.json'
+).INBOX_WIDGET;
+
+/** `INBOX_WIDGET.TABS.APPEARANCE` — a aba que hospeda o preview. */
+const abaAparencia = abasWidget.TABS.APPEARANCE;
+/** A sub-aba do preview que imprime o `web_widget_script` do servidor. */
+const abaScript = abas.WIDGET_BUILDER.WIDGET_OPTIONS.WIDGET_VIEW_OPTION.SCRIPT;
+/** `INBOX_MGMT.TABS.CONFIGURATION` — hoje "Instalação"; NÃO tem o trecho. */
+const abaInstalacao = abas.TABS.CONFIGURATION;
+
+const caminhoDoTrecho = `Caixas de entrada → sua caixa → ${abaAparencia} → ${abaScript}`;
+
+/** O documento numa linha só: sem quebra nem o `>` do blockquote no meio da frase. */
+const emUmaLinha = texto => texto.replace(/\s*\n>?[ \t]*/g, ' ');
 
 describe('5.22 — o documento de instalação por plataforma', () => {
   it('cobre as três plataformas do bloco, cada uma com seção própria', () => {
@@ -55,10 +95,77 @@ describe('5.22 — o documento de instalação por plataforma', () => {
     );
 
     expect(comCarregador).toHaveLength(0);
-    // o `[\s>]+` tolera a quebra de linha e o `>` do blockquote no meio da frase
-    expect(doc).toMatch(
-      /Caixas de entrada →[\s>]+sua caixa →[\s>]+Configuração/
-    );
+  });
+
+  /**
+   * O PASSO ZERO — o único passo que TODAS as três plataformas compartilham.
+   *
+   * Se ele manda para a aba errada, os três caminhos morrem juntos: o integrador
+   * não chega nem a escolher a plataforma dele. O aceite do bloco ("uma pessoa
+   * que nunca viu o produto instala seguindo só o documento") não sobrevive a
+   * isto, e nenhuma das armadilhas escritas adiante chega a importar.
+   */
+  describe('o passo zero — onde copiar o trecho', () => {
+    it('manda para a aba que o produto REALMENTE usa para mostrar o trecho', () => {
+      expect(emUmaLinha(doc)).toContain(caminhoDoTrecho);
+      // o guia é a §1 que este documento continua; o passo zero é o mesmo
+      expect(emUmaLinha(guia)).toContain(caminhoDoTrecho);
+    });
+
+    it('a aba "Script" do preview é quem imprime o trecho do servidor', () => {
+      // 1. a aba externa existe e é rotulada por INBOX_WIDGET.TABS.APPEARANCE
+      expect(telaDeAbas).toMatch(
+        /key: 'appearance',\s*\n\s*name: this\.\$t\('INBOX_WIDGET\.TABS\.APPEARANCE'\)/
+      );
+      // 2. ela entrega o trecho do servidor ao preview
+      expect(telaAparencia).toContain(
+        ':web-widget-script="inbox.web_widget_script"'
+      );
+      // 3. e o preview o imprime na sub-aba rotulada .WIDGET_VIEW_OPTION.SCRIPT
+      expect(preview).toContain(
+        "'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.WIDGET_VIEW_OPTION.SCRIPT'"
+      );
+      expect(preview).toContain(
+        'const widgetScript = computed(() => props.webWidgetScript);'
+      );
+      expect(preview).toMatch(/<Code\s+:script="widgetScript"/);
+    });
+
+    /**
+     * A asserção negativa que o rename de 26/08 exige — e o controle positivo
+     * que a torna honesta. Sem ele, "não contém o trecho" passaria também se o
+     * arquivo tivesse sumido, ou se `ler` devolvesse vazio.
+     */
+    it('a aba "Instalação" não tem o trecho — e o documento não manda buscá-lo lá', () => {
+      // controle positivo: é mesmo a tela da aba, e ela tem o que diz ter
+      expect(telaDeAbas).toMatch(
+        /key: 'configuration',\s*\n\s*name: this\.\$t\('INBOX_MGMT\.TABS\.CONFIGURATION'\)/
+      );
+      expect(telaInstalacao).toContain(
+        'INBOX_WIDGET.CONFIGURATION.ALLOWED_DOMAINS.EMPTY_WARNING.TITLE'
+      );
+
+      // e o que ela NÃO tem: o trecho de instalação
+      expect(telaInstalacao).not.toMatch(/web_widget_script|webWidgetScript/);
+
+      // logo, nenhum documento pode mandar copiar o trecho de lá
+      [doc, guia].forEach(texto =>
+        expect(emUmaLinha(texto)).not.toContain(
+          `Caixas de entrada → sua caixa → ${abaInstalacao}`
+        )
+      );
+    });
+
+    /**
+     * O documento cita a aba "Instalação" uma vez — na §4, para os domínios
+     * permitidos. Essa citação tem de continuar verdadeira pelo mesmo critério.
+     */
+    it('cita a aba "Instalação" só para o que ela de fato guarda', () => {
+      expect(doc).toContain(`aba **${abaInstalacao}**`);
+      expect(telaInstalacao).toContain(
+        'INBOX_MGMT.SETTINGS_POPUP.ALLOWED_DOMAINS.TITLE'
+      );
+    });
   });
 
   it('cada plataforma tem a SUA armadilha escrita, não uma nota genérica', () => {

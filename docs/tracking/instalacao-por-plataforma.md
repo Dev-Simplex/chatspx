@@ -1,6 +1,6 @@
 # Instalar o ChatSPX em WordPress, Wix e Google Tag Manager
 
-**Bloco 5.22** do `PLANO-MESTRE` (decisão **D8**). Versão **1**, 19/08/2026.
+**Bloco 5.22** do `PLANO-MESTRE` (decisão **D8**). Versão **2**, 01/09/2026.
 
 Este documento é a continuação da **§1 do
 [`guia-de-integracao.md`](./guia-de-integracao.md)**, que ensina a instalação genérica ("copie o
@@ -9,9 +9,14 @@ plataformas mais comuns — e, em cada uma, **a armadilha que faz a instalação
 funcionar**.
 
 > **O trecho é sempre o mesmo.** Você o copia uma vez, no painel: **Caixas de entrada → sua caixa →
-> Configuração**. Nada nesta página pede para editar o trecho, e você não deve editá-lo: ele já vem
+> Aparência → Script** — a aba **Script** fica ao lado da pré-visualização do widget, no alto do
+> painel da direita. Nada nessa tela pede para editar o trecho, e você não deve editá-lo: ele já vem
 > com o endereço do servidor e o token público do seu site. O que muda entre as plataformas é o
 > **lugar** onde ele é colado.
+>
+> **A aba "Instalação" não é onde o trecho fica.** Ela guarda os domínios permitidos, o
+> identificador da caixa e a chave HMAC (com que se calcula o `identifier_hash`) — é para lá que a
+> §4 manda voltar quando o chat não aparece, e não para copiar o código.
 
 **Como saber que deu certo, em qualquer uma das três:** abra o site publicado, abra o console do
 navegador e digite `window.$chatwoot`. Se aparecer um objeto, está instalado. Se aparecer
@@ -187,7 +192,7 @@ Vale para as três plataformas.
 | 1 | Você **publicou**? (Wix: publicar o site · GTM: publicar o contêiner · WordPress: limpar o cache) | é o motivo mais comum dos três |
 | 2 | `window.$chatwoot` no console do site **publicado**, em janela anônima | `undefined` → o `sdk.js` não carregou; siga para (3) |
 | 3 | Apareceu um **link de contato alternativo** no canto em vez do chat? | o download do `sdk.js` foi bloqueado: bloqueador de conteúdo, CSP do site (`script-src` precisa permitir o domínio do ChatSPX) ou plugin de cache adiando JS (§1.2) |
-| 4 | A caixa tem **domínios permitidos** configurados e o seu não está na lista? | acrescente o domínio na configuração da caixa |
+| 4 | A caixa tem **domínios permitidos** configurados e o seu não está na lista? | acrescente o domínio na aba **Instalação** da caixa |
 | 5 | O trecho está em **todas** as páginas, e não só na inicial? | WordPress: você usou o bloco de HTML de uma página só (§1.1) · Wix: o código foi aplicado a uma página em vez de "Todas as páginas" · GTM: o acionador não é `All Pages` |
 
 ---
