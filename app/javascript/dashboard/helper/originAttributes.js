@@ -73,3 +73,49 @@ export const ORIGIN_KINDS = [
   'referencia',
   'nao_disponivel',
 ];
+
+/**
+ * Uma chave só vira linha quando tem valor de verdade. `undefined`, `null` e string vazia não
+ * contam — é a regra do 1.19, e ela precisa ser a MESMA nos dois lugares que decidem sobre a
+ * seção "recebido do site".
+ */
+export const hasOriginValue = (attributes, key) => {
+  const value = attributes?.[key];
+  return value !== undefined && value !== null && value !== '';
+};
+
+/** As chaves de origem que este objeto realmente preencheu, na ordem do vocabulário. */
+export const filledOriginKeys = (attributes, keys) =>
+  keys.filter(key => hasOriginValue(attributes, key));
+
+/**
+ * A seção "recebido do site" (5.23) tem alguma coisa a dizer?
+ *
+ * ── POR QUE ESTA FUNÇÃO EXISTE, E NÃO UM `v-if` EM CADA LADO ────────────────────────────
+ *
+ * Quem decide se a seção aparece são dois arquivos diferentes: o `SiteContext.vue`, que esconde
+ * o próprio conteúdo, e o `ContactPanel.vue`, que precisa esconder o `AccordionItem` ao redor —
+ * porque o acordeão desenha o cabeçalho a partir da prop `title`, sem olhar o slot. Enquanto a
+ * regra existiu só dentro do componente, o cabeçalho "Recebido do site" aparecia em TODA
+ * conversa de WhatsApp, e-mail ou API, abrindo vazio.
+ *
+ * Com a regra escrita duas vezes, a segunda cópia envelhece: bastaria acrescentar uma fonte de
+ * conteúdo (a identidade do 4.15 foi uma) para o conteúdo aparecer sem cabeçalho, ou o
+ * cabeçalho voltar a aparecer vazio — o mesmo defeito pela outra ponta. Uma função só, chamada
+ * pelos dois, torna a divergência impossível em vez de improvável.
+ *
+ * @param {Object} params
+ * @param {Object} [params.contactAttributes] `custom_attributes` do contato (chaves `first_*`).
+ * @param {Object} [params.conversationAttributes] `custom_attributes` da conversa (`last_*`).
+ * @param {string} [params.identifier] O identificador que o site mandou por `setUser` (4.15).
+ * @returns {boolean} `true` quando existe ao menos uma linha para mostrar.
+ */
+export const hasSiteContext = ({
+  contactAttributes = {},
+  conversationAttributes = {},
+  identifier = '',
+} = {}) =>
+  filledOriginKeys(contactAttributes, contactOriginKeys()).length > 0 ||
+  filledOriginKeys(conversationAttributes, conversationOriginKeys()).length >
+    0 ||
+  Boolean(identifier);
