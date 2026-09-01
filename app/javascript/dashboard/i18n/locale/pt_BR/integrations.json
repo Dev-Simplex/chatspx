@@ -1651,6 +1651,7 @@
         "FIELD_QUESTION": "O que o visitante diz",
         "FIELD_CONTAINS": "A resposta precisa conter (uma por linha)",
         "FIELD_NOT_CONTAINS": "A resposta não pode conter (uma por linha)",
+        "FOLLOWING": "Acompanhando a execução em andamento…",
         "HISTORY": "Histórico",
         "NO_RUNS": "Nenhuma execução ainda.",
         "RUN_LINE": "{ok} de {total} casos aprovados",
@@ -1669,6 +1670,12 @@
         "REGRESSED": "{count} casos regrediram",
         "SAME_PROMPT": "As duas execuções rodaram a mesma versão do prompt.",
         "DIFFERENT_PROMPT": "As duas execuções rodaram versões diferentes do prompt.",
+        "STATUS": {
+          "PENDENTE": "Na fila",
+          "RODANDO": "Rodando",
+          "CONCLUIDA": "Concluída",
+          "ERRO": "Falhou"
+        },
         "SITUATION": {
           "REGREDIU": "regrediu",
           "CORRIGIU": "corrigiu",

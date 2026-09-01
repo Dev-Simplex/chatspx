@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 
@@ -14,8 +14,13 @@ import AiSelect from 'dashboard/components-next/agents-ui/AiSelect.vue';
  * O que o cliente faz aqui, na ordem em que ele faz:
  *   1. escreve os CASOS (o que o visitante diz, o que a IA tem de fazer);
  *   2. vê o CUSTO antes de rodar — o número aparece sem disparar nada;
- *   3. roda o conjunto e vê o veredito por caso;
+ *   3. roda o conjunto, ACOMPANHA o status até terminar e vê o veredito por caso;
  *   4. compara duas execuções e vê QUANTOS CASOS REGREDIRAM.
+ *
+ * O passo 3 tem uma espera de verdade no meio: a execução sai daqui PENDENTE e quem
+ * roda é um job. Sem acompanhar, a tela congelava em "pendente" e só um F5 revelava o
+ * resultado — o cliente lia isso como "travou". Daí o polling abaixo: ele existe
+ * enquanto houver execução em voo, e some sozinho quando não houver.
  *
  * Nenhum controle desta tela nasce mudo: todo botão sem texto visível carrega
  * `aria-label`, e o rótulo é texto limpo — símbolo só no visual. É a mesma regra
@@ -24,6 +29,14 @@ import AiSelect from 'dashboard/components-next/agents-ui/AiSelect.vue';
  */
 const { t } = useI18n();
 const route = useRoute();
+
+// Uma execução em voo é PENDENTE (criada, esperando o job) ou RODANDO (o job pegou).
+// `concluida` e `erro` são estados finais — nada a acompanhar.
+const STATUS_EM_VOO = ['pendente', 'rodando'];
+const POLL_INTERVALO_MS = 3000;
+// Teto de ~10 minutos. Aba esquecida aberta não fica batendo no servidor para sempre,
+// e um conjunto que não terminou nesse tempo não termina por insistência do navegador.
+const POLL_MAX_TENTATIVAS = 200;
 
 const assistantId = computed(() => Number(route.params.assistantId));
 
@@ -46,6 +59,10 @@ const emptyCase = () => ({
 });
 const form = ref(emptyCase());
 const isFormOpen = ref(false);
+
+// Fora do `ref` de propósito: o relógio do polling não é estado renderizado.
+let pollTimer = null;
+let pollTries = 0;
 
 const runOptions = computed(() =>
   runs.value.map(run => ({
@@ -70,6 +87,22 @@ const situationLabel = situacao => {
     return t('CAPTAIN.AGENT_TABS.EVAL.SITUATION.SEGUE_FALHANDO');
   return t('CAPTAIN.AGENT_TABS.EVAL.SITUATION.SO_EM_UMA');
 };
+
+// Mesma regra das situações: chave LITERAL por estado. O status vem do servidor em
+// português (é o enum da coluna) — exibi-lo cru deixava a tela sem tradução em inglês.
+const statusLabel = status => {
+  if (status === 'pendente')
+    return t('CAPTAIN.AGENT_TABS.EVAL.STATUS.PENDENTE');
+  if (status === 'rodando') return t('CAPTAIN.AGENT_TABS.EVAL.STATUS.RODANDO');
+  if (status === 'concluida')
+    return t('CAPTAIN.AGENT_TABS.EVAL.STATUS.CONCLUIDA');
+  if (status === 'erro') return t('CAPTAIN.AGENT_TABS.EVAL.STATUS.ERRO');
+  return status;
+};
+
+const hasRunInFlight = computed(() =>
+  runs.value.some(run => STATUS_EM_VOO.includes(run.status))
+);
 
 const canCompare = computed(
   () =>
@@ -129,11 +162,50 @@ async function removeCase(evalCase) {
   await fetchAll();
 }
 
+async function refreshEstimate() {
+  const resposta = await EvalAPI.estimate(assistantId.value).catch(() => null);
+  if (resposta) estimate.value = resposta.data.data;
+}
+
+function stopPolling() {
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = null;
+}
+
+// Uma função só, que se reagenda: duas em recursão mútua não passam pelo
+// `no-use-before-define`, seja qual for a ordem em que estejam escritas.
+function scheduleNextPoll() {
+  stopPolling();
+  if (!hasRunInFlight.value || pollTries >= POLL_MAX_TENTATIVAS) return;
+
+  pollTimer = setTimeout(async () => {
+    pollTimer = null;
+    pollTries += 1;
+    const estavaEmVoo = hasRunInFlight.value;
+    const resposta = await EvalAPI.getRuns(assistantId.value).catch(() => null);
+    // A rede caiu: para de acompanhar em silêncio. O que já está na tela continua
+    // certo, e um erro vermelho aqui só assustaria quem não pediu nada.
+    if (!resposta) return;
+
+    runs.value = resposta.data.data;
+    // Terminou agora: o saldo andou (a execução debita uma resposta por caso), então
+    // o número no cartão de custo tem de deixar de ser o de antes de rodar.
+    if (estavaEmVoo && !hasRunInFlight.value) await refreshEstimate();
+    scheduleNextPoll();
+  }, POLL_INTERVALO_MS);
+}
+
+function startPolling() {
+  pollTries = 0;
+  scheduleNextPoll();
+}
+
 async function runSet() {
   errorMessage.value = '';
   try {
     const { data } = await EvalAPI.run(assistantId.value);
     runs.value = [data.data, ...runs.value];
+    startPolling();
   } catch (error) {
     errorMessage.value = t('CAPTAIN.AGENT_TABS.EVAL.RUN_ERROR');
   }
@@ -153,7 +225,14 @@ async function compareRuns() {
   comparison.value = data.data;
 }
 
-onMounted(fetchAll);
+onMounted(async () => {
+  await fetchAll();
+  // Recarregar a aba no meio de uma execução também acompanha: quem estava em voo
+  // continua em voo, e a tela não precisa de um F5 para descobrir isso.
+  startPolling();
+});
+
+onBeforeUnmount(stopPolling);
 </script>
 
 <template>
@@ -206,8 +285,10 @@ onMounted(fetchAll);
           }}
         </p>
       </div>
+      <!-- Enquanto uma execução está em voo o botão sai de cena: disparar a segunda
+           só duplicaria o custo e embaralharia qual histórico é qual. -->
       <AiButton
-        :disabled="!cases.length"
+        :disabled="!cases.length || hasRunInFlight"
         :aria-label="t('CAPTAIN.AGENT_TABS.EVAL.RUN_ARIA')"
         data-testid="eval-run"
         @click="runSet"
@@ -309,9 +390,20 @@ onMounted(fetchAll);
 
     <!-- Histórico -->
     <section class="mb-8">
-      <h4 class="mb-3 text-sm font-bold text-n-slate-12">
+      <h4 class="mb-1 text-sm font-bold text-n-slate-12">
         {{ t('CAPTAIN.AGENT_TABS.EVAL.HISTORY') }}
       </h4>
+      <!-- Região viva: quem usa leitor de tela ouve a mudança de estado sem precisar
+           voltar até a linha da execução. -->
+      <p
+        v-if="hasRunInFlight"
+        class="mb-3 text-xs text-n-slate-11"
+        role="status"
+        data-testid="eval-following"
+      >
+        {{ t('CAPTAIN.AGENT_TABS.EVAL.FOLLOWING') }}
+      </p>
+      <div v-else class="mb-3" />
       <AiEmptyState
         v-if="!runs.length"
         icon="i-lucide-history"
@@ -332,8 +424,8 @@ onMounted(fetchAll);
                 })
               }}
             </p>
-            <p class="text-xs text-n-slate-11">
-              {{ run.status }} ·
+            <p class="text-xs text-n-slate-11" data-testid="eval-run-status">
+              {{ statusLabel(run.status) }} ·
               {{ t('CAPTAIN.AGENT_TABS.EVAL.PROMPT_VERSION') }}
               {{ run.prompt_fingerprint || '—' }}
             </p>

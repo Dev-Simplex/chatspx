@@ -206,6 +206,122 @@ describe('EvalTab', () => {
     ).toBeDefined();
   });
 
+  // ── O STATUS NA TELA ────────────────────────────────────────────────────────────
+  // A execução sai da API PENDENTE e quem roda é um job. Antes, a tela pegava o
+  // status uma vez no mount e nunca mais: ficava em "pendente" para sempre, e só um
+  // F5 revelava o resultado.
+  describe('o acompanhamento do status', () => {
+    // `clearAllMocks` não esvazia a fila de `mockResolvedValueOnce`, e uma fila
+    // vazada de um teste para o outro faz o vizinho passar por engano.
+    beforeEach(() => {
+      EvalAPI.getRuns.mockReset();
+      EvalAPI.estimate.mockReset();
+      vi.useFakeTimers();
+    });
+    afterEach(() => vi.useRealTimers());
+
+    const emVoo = [
+      { ...execucoes[0], id: 11, status: 'pendente', casos_ok: 0 },
+    ];
+    const terminada = [{ ...execucoes[0], id: 11, status: 'concluida' }];
+
+    it('follows a run that is still going, until it settles', async () => {
+      // 1ª e 2ª leitura: ainda em voo. Da 3ª em diante: terminada (o default do mountTab).
+      EvalAPI.getRuns.mockResolvedValueOnce({ data: { data: emVoo } });
+      EvalAPI.getRuns.mockResolvedValueOnce({ data: { data: emVoo } });
+      const wrapper = mountTab({ runs: terminada });
+      await flushPromises();
+
+      expect(EvalAPI.getRuns).toHaveBeenCalledTimes(1);
+      expect(wrapper.find('[data-testid="eval-run-status"]').text()).toContain(
+        'CAPTAIN.AGENT_TABS.EVAL.STATUS.PENDENTE'
+      );
+
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(EvalAPI.getRuns).toHaveBeenCalledTimes(2);
+      expect(wrapper.find('[data-testid="eval-run-status"]').text()).toContain(
+        'CAPTAIN.AGENT_TABS.EVAL.STATUS.PENDENTE'
+      );
+
+      await vi.advanceTimersByTimeAsync(3000);
+      await flushPromises();
+      expect(EvalAPI.getRuns).toHaveBeenCalledTimes(3);
+      expect(wrapper.find('[data-testid="eval-run-status"]').text()).toContain(
+        'CAPTAIN.AGENT_TABS.EVAL.STATUS.CONCLUIDA'
+      );
+
+      // Terminou: para de perguntar.
+      await vi.advanceTimersByTimeAsync(30000);
+      expect(EvalAPI.getRuns).toHaveBeenCalledTimes(3);
+    });
+
+    it('never polls when nothing is in flight', async () => {
+      mountTab({ runs: terminada });
+      await flushPromises();
+
+      await vi.advanceTimersByTimeAsync(60000);
+
+      expect(EvalAPI.getRuns).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-reads the balance when the run settles — a execução debitou respostas', async () => {
+      EvalAPI.getRuns.mockResolvedValueOnce({ data: { data: emVoo } });
+      mountTab({ runs: terminada });
+      await flushPromises();
+
+      expect(EvalAPI.estimate).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(3000);
+      await flushPromises();
+
+      expect(EvalAPI.estimate).toHaveBeenCalledTimes(2);
+    });
+
+    it('says the status in words — não o enum cru do servidor', async () => {
+      const wrapper = mountTab({ runs: emVoo });
+      await flushPromises();
+
+      const linha = wrapper.find('[data-testid="eval-run-status"]').text();
+      expect(linha).not.toContain('pendente');
+      expect(wrapper.find('[data-testid="eval-following"]').exists()).toBe(
+        true
+      );
+    });
+
+    it('does not offer a second run while one is still in flight', async () => {
+      const wrapper = mountTab({ runs: emVoo });
+      await flushPromises();
+
+      expect(
+        wrapper.find('[data-testid="eval-run"]').attributes('disabled')
+      ).toBeDefined();
+    });
+
+    it('stops polling when the tab goes away', async () => {
+      const wrapper = mountTab({ runs: emVoo });
+      await flushPromises();
+
+      wrapper.unmount();
+      await vi.advanceTimersByTimeAsync(30000);
+
+      expect(EvalAPI.getRuns).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the screen quiet when the poll request fails', async () => {
+      mountTab({ runs: emVoo });
+      await flushPromises();
+      EvalAPI.getRuns.mockRejectedValue(new Error('rede caiu'));
+
+      await vi.advanceTimersByTimeAsync(3000);
+      await flushPromises();
+
+      expect(EvalAPI.getRuns).toHaveBeenCalledTimes(2);
+      // Desistiu de acompanhar em vez de martelar o servidor caído.
+      await vi.advanceTimersByTimeAsync(30000);
+      expect(EvalAPI.getRuns).toHaveBeenCalledTimes(2);
+    });
+  });
+
   // Rótulo com emoji dentro da string vira nome acessível ruim. Todo controle sem
   // texto visível desta tela nasce com aria-label de texto limpo.
   it('gives every control an accessible name, and none of them carries a symbol', async () => {

@@ -1,9 +1,14 @@
 # O custo de uma execução, ANTES de rodar (bloco 6.02).
 #
 # Custo aqui é na unidade em que o produto cobra: RESPOSTA. `increment_response_usage`
-# soma 1 por resposta da IA, e um caso consome exatamente uma. O número de tokens é
-# ESTIMATIVA declarada (heurística de caracteres), e está separado do número de créditos
-# justamente para não parecer fatura: crédito é contagem exata, token é aproximação.
+# soma 1 por resposta da IA, e um caso consome exatamente uma — quem debita é
+# `Captain::Eval::RunService#debitar_resposta`, um por caso executado. É por isso que
+# esta unidade pode ser anunciada: depois de rodar, `saldo[:consumido]` andou
+# exatamente os `respostas` que este serviço projetou.
+#
+# O número de tokens é ESTIMATIVA declarada (heurística de caracteres), e está separado
+# do número de créditos justamente para não parecer fatura: crédito é contagem exata,
+# token é aproximação.
 class Captain::Eval::CostEstimatorService
   # Heurística pública e conhecida (~4 caracteres por token em português/inglês). Não é
   # o tokenizer do modelo, e o nome do campo diz isso.

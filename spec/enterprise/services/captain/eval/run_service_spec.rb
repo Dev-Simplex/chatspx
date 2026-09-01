@@ -28,14 +28,12 @@ RSpec.describe Captain::Eval::RunService do
       expect(run.dry_run).to be(true)
     end
 
-    it 'never touches a conversation, a message or the response usage' do
+    it 'never touches a conversation or a message' do
       create(:captain_eval_case, captain_assistant: assistant, account: account)
 
       expect do
         described_class.new(assistant: assistant, responder: responder_fixo(resposta: 'oi')).perform
       end.to not_change(Conversation, :count).and not_change(Message, :count)
-
-      expect(account.reload.usage_limits[:captain][:responses][:consumed]).to eq(0)
     end
 
     it 'never calls an LLM service' do
@@ -135,6 +133,41 @@ RSpec.describe Captain::Eval::RunService do
       expect(run.custo_estimado['casos']).to eq(1)
       expect(run.custo_estimado['respostas']).to eq(1)
       expect(run.custo_estimado['tokens_estimados']).to be > 0
+    end
+
+    # A UNIDADE. O número anunciado antes de rodar é "N respostas"; se a execução não
+    # debitasse nenhuma, o aviso de saldo não avisaria de nada e N chamadas ao modelo
+    # sairiam de graça. Aqui o anunciado e o cobrado são o MESMO número.
+    it 'debits exactly the responses it announced before running' do
+      3.times { create(:captain_eval_case, captain_assistant: assistant, account: account) }
+      anunciado = Captain::Eval::CostEstimatorService.new(assistant: assistant).perform[:respostas]
+
+      expect do
+        described_class.new(assistant: assistant, responder: responder_fixo(resposta: 'oi')).perform
+      end.to change { account.reload.usage_limits[:captain][:responses][:consumed] }.by(anunciado)
+
+      expect(anunciado).to eq(3)
+    end
+
+    it 'debits the case that failed too — the model was called all the same' do
+      create(:captain_eval_case, captain_assistant: assistant, account: account,
+                                 expectativas: { 'contem' => ['nunca vai aparecer'] })
+
+      expect do
+        described_class.new(assistant: assistant, responder: responder_fixo(resposta: 'oi')).perform
+      end.to change { account.reload.usage_limits[:captain][:responses][:consumed] }.by(1)
+    end
+
+    # O que a tela lê depois de rodar tem de bater com o que ela leu antes.
+    it 'moves the balance the estimator shows, by the amount the estimator showed' do
+      2.times { create(:captain_eval_case, captain_assistant: assistant, account: account) }
+      antes = Captain::Eval::CostEstimatorService.new(assistant: assistant).perform
+
+      described_class.new(assistant: assistant, responder: responder_fixo(resposta: 'oi')).perform
+      depois = Captain::Eval::CostEstimatorService.new(assistant: assistant.reload).perform
+
+      expect(depois[:saldo][:consumido] - antes[:saldo][:consumido]).to eq(antes[:respostas])
+      expect(antes[:saldo][:disponivel] - depois[:saldo][:disponivel]).to eq(antes[:respostas])
     end
   end
 

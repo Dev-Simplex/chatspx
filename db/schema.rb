@@ -2433,6 +2433,29 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_01_120900) do
     t.index ["account_id", "slug"], name: "index_unidades_on_account_id_and_slug", unique: true
   end
 
+<<<<<<< HEAD
+=======
+  create_table "user_sessions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "client_id", null: false
+    t.string "ip_address"
+    t.string "user_agent"
+    t.string "browser_name"
+    t.string "browser_version"
+    t.string "device_name"
+    t.string "platform_name"
+    t.string "platform_version"
+    t.string "city"
+    t.string "country"
+    t.string "country_code"
+    t.datetime "last_activity_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "client_id"], name: "index_user_sessions_on_user_id_and_client_id", unique: true
+    t.index ["user_id"], name: "index_user_sessions_on_user_id"
+  end
+
+>>>>>>> spx-b602
   create_table "unit_exceptions", force: :cascade do |t|
     t.bigint "unit_id", null: false
     t.date "starts_on", null: false
