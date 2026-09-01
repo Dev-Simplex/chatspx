@@ -78,3 +78,16 @@ jobs:
       - name: Widget graph size gate
         if: always()
         run: node scripts/widget-size.mjs
+
+      # Gate do bloco 1.08: os quatro SVG de marca que o painel serve em toda
+      # pagina (`logo_thumbnail.svg` e o favicon de `vueapp.html.erb` e de
+      # `portal.html.erb`). Cobra teto de 5.000 B por arquivo E ausencia de
+      # raster embutido — as duas coisas, porque um PNG pequeno reembrulhado
+      # por um vetorizador cabe no teto e desfaz o bloco em silencio.
+      #
+      # Este passo NASCE VERDE (4.943 / 4.943 / 1.700 / 1.725 B contra 90-98 KB
+      # antes) e nao precisa de build: le os arquivos do disco. Nao mova para
+      # depois do `assets:precompile` — ele nao depende de asset compilado.
+      - name: Brand assets size gate
+        if: always()
+        run: node scripts/brand-assets-size.mjs
