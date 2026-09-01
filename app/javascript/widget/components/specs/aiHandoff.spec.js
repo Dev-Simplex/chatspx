@@ -46,18 +46,47 @@ const doVisitante = id => ({
   sender: null,
 });
 
-const montarConversa = (messages, { isAgentTyping = false } = {}) => {
+/**
+ * Monta a conversa com a BOLHA DE VERDADE.
+ *
+ * `ChatMessage` NAO e stubado: a cadeia real
+ * `ConversationWrap -> ChatMessage -> AgentMessage -> MessageRow` monta inteira,
+ * e e o `MessageRow` quem decide o rotulo da bolha, lendo `message.sender.type`
+ * pelo `attendantOf`. So as FOLHAS sao dubles (balao, avatar, icone), porque
+ * nenhuma delas participa da decisao que este arquivo mede.
+ *
+ * Por que isso importa: a versao anterior deste helper stubava `ChatMessage` por
+ * um template que imprimia `message.attendant` — campo que `annotateHandoffs`
+ * escreve mas que a bolha real NUNCA le. O bloco "MARCACAO 3" media o proprio
+ * duble. Medido: apagando o `<div data-ai-label>` de `MessageRow.vue` a suite
+ * inteira continuava 41/41 verde.
+ */
+const montarConversa = (grupos, { isAgentTyping = false, canal = {} } = {}) => {
+  const blocos = Array.isArray(grupos[0]?.messages)
+    ? grupos
+    : [{ date: 'hoje', messages: grupos }];
+  const todas = blocos.flatMap(bloco => bloco.messages);
+
+  window.chatwootWebChannel = {
+    enabledFeatures: [],
+    avatarUrl: '',
+    preChatFormOptions: {},
+    ...canal,
+  };
+
   const store = createStore({
     modules: {
       conversation: {
         namespaced: true,
         getters: {
           getEarliestMessage: () => ({}),
-          getLastMessage: () => messages[messages.length - 1] || {},
+          getLastMessage: () => todas[todas.length - 1] || {},
           getAllMessagesLoaded: () => true,
           getIsFetchingList: () => false,
-          getConversationSize: () => messages.length,
+          getConversationSize: () => todas.length,
           getIsAgentTyping: () => isAgentTyping,
+          // `ChatMessage` real le este getter para resolver a citacao.
+          getConversation: () => ({}),
         },
       },
       conversationAttributes: {
@@ -72,27 +101,42 @@ const montarConversa = (messages, { isAgentTyping = false } = {}) => {
   });
 
   return mount(ConversationWrap, {
-    props: { groupedMessages: [{ date: 'hoje', messages }] },
+    props: { groupedMessages: blocos },
     global: {
       plugins: [store, i18n],
       stubs: {
-        ChatMessage: {
-          props: ['message'],
-          template:
-            '<div class="cm" :data-id="message.id" :data-attendant="message.attendant" />',
-        },
-        // `WDateSeparator` e não `DateSeparator`: o bloco 2.04 trocou o
-        // separador compartilhado por um primitivo do widget (a pílula). Com o
-        // nome antigo o stub não pega, o componente real monta e `formatDate`
-        // estoura com "Invalid time value" na data simbólica `'hoje'` deste
-        // arquivo — que não é data e não precisa ser, porque o separador não é
+        // `WDateSeparator` e nao `DateSeparator`: o bloco 2.04 trocou o
+        // separador compartilhado por um primitivo do widget (a pilula). Com o
+        // nome antigo o stub nao pega, o componente real monta e `formatDate`
+        // estoura com "Invalid time value" na data simbolica `'hoje'` deste
+        // arquivo — que nao e data e nao precisa ser, porque o separador nao e
         // o objeto deste teste.
         WDateSeparator: true,
         Spinner: true,
         AgentTypingBubble: true,
+        // Folhas. Nenhuma decide rotulo nem marcacao.
+        AgentMessageBubble: true,
+        UserMessageBubble: true,
+        MessageReplyButton: true,
+        ReplyToChip: true,
+        FluentIcon: true,
+        Avatar: true,
+        DragWrapper: { template: '<div><slot /></div>' },
       },
+      directives: { 'dompurify-html': {} },
     },
   });
+};
+
+/** O no da bolha de `id`, na arvore real. */
+const bolha = (wrapper, id) => wrapper.find(`#cwmsg-${id}`);
+
+/** O rotulo de IA colado naquela bolha — ou `null` se ela nao tem. */
+const rotuloDaBolha = (wrapper, id) => {
+  const no = bolha(wrapper, id);
+  if (!no.exists()) return null;
+  const rotulo = no.find('[data-ai-label]');
+  return rotulo.exists() ? rotulo.text() : null;
 };
 
 const montarCabecalho = attendant =>
@@ -137,11 +181,11 @@ describe('4.09 — as três marcações, montadas', () => {
 
     it('o marcador vem ANTES da mensagem de quem entrou, não depois', () => {
       const wrapper = montarConversa([daIA(1), doHumano(2)]);
-      const nos = wrapper.findAll('.ai-handoff-mark, .cm');
+      const nos = wrapper.findAll('.ai-handoff-mark, [id^="cwmsg-"]');
 
-      expect(nos[0].classes()).toContain('cm');
+      expect(nos[0].attributes('id')).toBe('cwmsg-1');
       expect(nos[1].classes()).toContain('ai-handoff-mark');
-      expect(nos[2].attributes('data-id')).toBe('2');
+      expect(nos[2].attributes('id')).toBe('cwmsg-2');
     });
 
     it('o marcador é anunciado como status, não como alerta', () => {
@@ -206,31 +250,116 @@ describe('4.09 — as três marcações, montadas', () => {
   });
 
   describe('MARCAÇÃO 3 (bolha) — o rótulo colado na mensagem', () => {
-    it('cada bolha carrega o atendente que a escreveu', () => {
-      const wrapper = montarConversa([daIA(1), doHumano(2), daIA(3)]);
-      const bolhas = wrapper.findAll('.cm');
+    // A bolha é montada de verdade: quem imprime o rótulo é `MessageRow.vue`,
+    // e o que se lê aqui é o texto que o visitante lê.
+    it('a bolha da IA carrega o rótulo, com o texto que vai à tela', () => {
+      const wrapper = montarConversa([daIA(1)]);
+      expect(rotuloDaBolha(wrapper, 1)).toBe('Assistente virtual');
+    });
 
-      expect(bolhas.map(b => b.attributes('data-attendant'))).toEqual([
-        'ai',
-        'human',
-        'ai',
-      ]);
+    it('a bolha do humano NÃO carrega rótulo de IA', () => {
+      const wrapper = montarConversa([doHumano(1)]);
+      expect(bolha(wrapper, 1).exists()).toBe(true);
+      expect(rotuloDaBolha(wrapper, 1)).toBeNull();
+    });
+
+    it('a mensagem do visitante não ganha rótulo de atendente', () => {
+      const wrapper = montarConversa([doVisitante(1), daIA(2)]);
+      expect(bolha(wrapper, 1).exists()).toBe(true);
+      expect(rotuloDaBolha(wrapper, 1)).toBeNull();
     });
 
     it('a bolha ANTIGA continua dizendo quem a escreveu depois do handoff', () => {
       // Herdar o atendente atual faria a conversa inteira parecer ter vindo de
       // quem atende agora, quando o visitante rola para trás.
-      const wrapper = montarConversa([daIA(1), doHumano(2)]);
-      expect(wrapper.find('[data-id="1"]').attributes('data-attendant')).toBe(
-        'ai'
-      );
+      const wrapper = montarConversa([daIA(1), doHumano(2), daIA(3)]);
+
+      expect(rotuloDaBolha(wrapper, 1)).toBe('Assistente virtual');
+      expect(rotuloDaBolha(wrapper, 2)).toBeNull();
+      expect(rotuloDaBolha(wrapper, 3)).toBe('Assistente virtual');
     });
 
-    it('a mensagem do visitante não ganha rótulo de atendente', () => {
-      const wrapper = montarConversa([doVisitante(1), daIA(2)]);
-      expect(wrapper.find('[data-id="1"]').attributes('data-attendant')).toBe(
-        'unknown'
-      );
+    it('a flag `aiLabelPersistent: false` apaga o rótulo da bolha', () => {
+      // A flag da §B.3 tem de chegar até AQUI. Sem esta asserção, ela poderia
+      // estar resolvida no `configMixin` e ignorada pela bolha, que é
+      // exatamente o defeito que este arquivo existe para não repetir.
+      const wrapper = montarConversa([daIA(1)], {
+        canal: { profileConfig: { aiLabelPersistent: false } },
+      });
+
+      expect(bolha(wrapper, 1).exists()).toBe(true);
+      expect(rotuloDaBolha(wrapper, 1)).toBeNull();
+    });
+  });
+
+  describe('HANDOFF ATRAVESSA O DIA — a conversa é uma só', () => {
+    /**
+     * O caso real: o bot atende a noite e a equipe responde na manha seguinte.
+     * A lista chega ao widget partida em BLOCOS DE DATA (é assim que o
+     * separador de dia funciona, bloco 2.02/2.03), e a anotação de handoff
+     * rodava POR BLOCO — cada bloco começava com "atendente anterior
+     * desconhecido", e `handoffMarkFor` devolve `null` nesse caso, de
+     * propósito: a primeira fala da conversa não é transferência de ninguém.
+     *
+     * O efeito é que a PRIMEIRA fala de atendente de cada dia nunca gerava
+     * marcador. A troca mais visível do produto — bot à noite, gente de manhã —
+     * era exatamente a que passava calada.
+     *
+     * Handoff é uma TRANSIÇÃO, e a transição não é do bloco de data: é da
+     * conversa. Por isso a anotação passa a rodar sobre a lista inteira, em
+     * ordem, e só depois volta a ser fatiada nos blocos que o separador desenha.
+     */
+    const ontemBotHojeEquipe = [
+      { date: 'ontem', messages: [daIA(1), doVisitante(2)] },
+      { date: 'hoje', messages: [doHumano(3)] },
+    ];
+
+    it('bot à noite, equipe de manhã: o marcador aparece no dia seguinte', () => {
+      const wrapper = montarConversa(ontemBotHojeEquipe);
+      const marcas = wrapper.findAllComponents(AiHandoffMark);
+
+      expect(marcas).toHaveLength(1);
+      expect(marcas[0].props('kind')).toBe('to_human');
+      expect(marcas[0].text()).toBe('A partir daqui, quem responde é a equipe');
+    });
+
+    it('o marcador nasce no bloco do dia NOVO, colado na fala que entrou', () => {
+      const wrapper = montarConversa(ontemBotHojeEquipe);
+      const blocos = wrapper.findAll('.messages-wrap');
+
+      expect(blocos).toHaveLength(2);
+      // Ontem só teve o assistente: ninguém foi transferido lá.
+      expect(blocos[0].find('.ai-handoff-mark').exists()).toBe(false);
+      expect(blocos[1].find('.ai-handoff-mark').exists()).toBe(true);
+    });
+
+    it('a VOLTA à IA também atravessa o dia', () => {
+      const wrapper = montarConversa([
+        { date: 'ontem', messages: [doHumano(1)] },
+        { date: 'hoje', messages: [daIA(2)] },
+      ]);
+      const marcas = wrapper.findAllComponents(AiHandoffMark);
+
+      expect(marcas).toHaveLength(1);
+      expect(marcas[0].props('kind')).toBe('to_ai');
+    });
+
+    it('mesmo atendente nos dois dias NÃO inventa marcador', () => {
+      // O contrapeso: se atravessar o dia passasse a marcar qualquer virada de
+      // bloco, todo dia de conversa ganharia um aviso que não informa nada.
+      const wrapper = montarConversa([
+        { date: 'ontem', messages: [daIA(1)] },
+        { date: 'hoje', messages: [daIA(2)] },
+      ]);
+
+      expect(wrapper.findAllComponents(AiHandoffMark)).toHaveLength(0);
+    });
+
+    it('a bolha de cada dia guarda o próprio atendente', () => {
+      const wrapper = montarConversa(ontemBotHojeEquipe);
+
+      expect(rotuloDaBolha(wrapper, 1)).toBe('Assistente virtual');
+      expect(rotuloDaBolha(wrapper, 3)).toBeNull();
     });
   });
 
@@ -256,6 +385,66 @@ describe('4.09 — as três marcações, montadas', () => {
         Object.keys(en.AI_IDENTITY).sort()
       );
       expect(Object.keys(ptBR.AI_IDENTITY)).toHaveLength(9);
+    });
+
+    /**
+     * AS CHAVES DECLARADAS QUE NINGUEM APLICA — decisao ABERTA, escalada.
+     *
+     * Quatro das nove chaves de `AI_IDENTITY` existem nos dois idiomas e nao
+     * sao lidas por nenhuma linha de producao. A mais visivel e `HUMAN_LABEL`:
+     * no sentido IA -> humano so DUAS das tres marcacoes aparecem, porque a
+     * bolha do atendente humano nao recebe rotulo nenhum.
+     *
+     * ESTE TESTE NAO DECIDE NADA. Ele PRENDE o fato, que ate agora era
+     * invisivel: nao havia como saber, sem varrer o repositorio a mao, que a
+     * chave estava morta. A decisao — aplicar `HUMAN_LABEL` (e as outras tres)
+     * ou remove-las e corrigir o aceite — nao esta na §12 do PLANO-MESTRE, que
+     * nao menciona `HUMAN_LABEL` em nenhuma linha. Escalada no relatorio.
+     *
+     * Quando a decisao vier, este teste REPROVA — e e para reprovar: quem
+     * aplicar uma chave tem de mover o nome de uma lista para a outra, o que
+     * torna a mudanca deliberada em vez de silenciosa.
+     */
+    it('as 4 chaves sem consumidor continuam sendo exatamente estas 4', async () => {
+      const { readdirSync, readFileSync, statSync } = await import('node:fs');
+      const { join } = await import('node:path');
+
+      const RAIZ = 'app/javascript/widget';
+      const varrer = dir =>
+        readdirSync(dir).flatMap(nome => {
+          const caminho = join(dir, nome);
+          if (statSync(caminho).isDirectory()) {
+            // `specs/` fica de fora: um teste citando a chave nao e um
+            // consumidor — foi assim que a chave morta passou por viva.
+            return nome === 'specs' || nome === 'i18n' ? [] : varrer(caminho);
+          }
+          return /\.(vue|js)$/.test(nome) ? [caminho] : [];
+        });
+
+      const usadas = new Set();
+      varrer(RAIZ).forEach(caminho => {
+        const fonte = readFileSync(caminho, 'utf8');
+        [...fonte.matchAll(/AI_IDENTITY\.([A-Z_]+)/g)].forEach(m =>
+          usadas.add(m[1])
+        );
+      });
+
+      const declaradas = Object.keys(ptBR.AI_IDENTITY);
+      const semConsumidor = declaradas.filter(k => !usadas.has(k)).sort();
+
+      expect([...usadas].sort()).toEqual([
+        'AI_LABEL',
+        'HANDOFF_TO_AI',
+        'HANDOFF_TO_HUMAN',
+        'HEADER_AI',
+        'HEADER_HUMAN',
+      ]);
+      expect(semConsumidor).toEqual([
+        'BUBBLE_FROM_AI',
+        'BUBBLE_FROM_HUMAN',
+        'HUMAN_LABEL',
+        'STREAMING',
+      ]);
     });
 
     it('nenhum rótulo carrega emoji — nome acessível não leva símbolo', () => {

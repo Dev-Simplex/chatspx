@@ -110,9 +110,10 @@ export default {
     /**
      * Bloco 4.09 — a 1a das tres marcacoes: o marcador de SISTEMA no fluxo.
      *
-     * A anotacao roda sobre o grupo INTEIRO e em ordem, porque handoff e uma
+     * A anotacao roda sobre a CONVERSA INTEIRA e em ordem, porque handoff e uma
      * TRANSICAO: so se sabe que a equipe entrou comparando com quem falou antes.
-     * Anotar mensagem por mensagem, dentro do filho, nao teria essa informacao.
+     * Anotar mensagem por mensagem, dentro do filho, nao teria essa informacao —
+     * e anotar por bloco de data perdia a troca que atravessa a meia-noite.
      *
      * ── E por que ele passou a alimentar o `v-for` do template (2.04/2.12) ────
      *
@@ -126,10 +127,30 @@ export default {
      * `groupedMessages` muda.
      */
     groupedMessagesWithHandoff() {
-      return this.groupedMessages.map(grupo => ({
-        ...grupo,
-        messages: annotateHandoffs(grupo.messages),
-      }));
+      // A anotação roda sobre a conversa ACHATADA, e só depois volta a ser
+      // fatiada nos blocos de data. Rodá-la por bloco — como era — reiniciava o
+      // "atendente anterior" a cada dia, e `handoffMarkFor` devolve `null`
+      // quando o anterior é desconhecido, de propósito: a primeira fala da
+      // conversa não é transferência de ninguém. O efeito colateral é que a
+      // PRIMEIRA fala de atendente de cada dia nunca gerava marcador — o bot
+      // atende à noite, a equipe responde de manhã, e a troca mais visível do
+      // produto passava calada.
+      //
+      // O corte por data continua existindo do lado de fora, porque é ele que
+      // desenha o separador de dia e é ele que o agrupamento visual
+      // (2.02/2.03) consome. O que deixou de ser por dia é só a TRANSIÇÃO, que
+      // nunca foi do bloco: é da conversa.
+      const anotadas = annotateHandoffs(
+        this.groupedMessages.flatMap(grupo => grupo.messages || [])
+      );
+
+      let inicio = 0;
+      return this.groupedMessages.map(grupo => {
+        const tamanho = (grupo.messages || []).length;
+        const messages = anotadas.slice(inicio, inicio + tamanho);
+        inicio += tamanho;
+        return { ...grupo, messages };
+      });
     },
     showStatusIndicator() {
       const { status } = this.conversationAttributes;
