@@ -13,26 +13,30 @@ class Captain::VideoFrameExtractor
   WIDTH = 768
   FALLBACK_DURATION = 10.0
 
-  # Um quadro de 768 px sai em menos de um segundo em qualquer video que este servico aceita
-  # (o teto e 10 MB). O teto existe pro caso patologico, nao pro caso lento: sob pressao de
-  # memoria do cgroup o ffmpeg entra em reclaim e para de progredir sem morrer e sem logar —
-  # medido em homologacao com 6 processos parados ha 50 min, delta de CPU zero, segurando 15
-  # das 17 threads do Sidekiq ate a fila `critical` acumular 47 min de latencia. Sem teto, um
-  # quadro que nao progride custa uma thread para sempre.
+  # Um quadro de 768 px sai em menos de um segundo em qualquer video que este servico aceita.
+  # O teto existe pro caso patologico, nao pro caso lento: sob pressao de memoria do cgroup o
+  # ffmpeg entra em reclaim e para de progredir sem morrer e sem logar — medido em homologacao
+  # com 6 processos parados ha 50 min, delta de CPU zero, segurando 15 das 17 threads do
+  # Sidekiq ate a fila `critical` acumular 47 min de latencia. Sem teto, um quadro que nao
+  # progride custa uma thread para sempre.
   FFMPEG_TIMEOUT = ENV.fetch('CAPTAIN_FFMPEG_TIMEOUT', 60).to_i
 
-  def initialize(attachment:)
+  # `source_path` e a porta pra video que NAO e anexo: o filho de carrossel do Instagram vem
+  # como URL do CDN, sem blob nem ActiveStorage. Quem chama baixa pro temporario e passa o
+  # caminho — assim existe UM ffmpeg no produto, e nao dois.
+  def initialize(attachment: nil, source_path: nil)
     @attachment = attachment
+    @source_path = source_path
   end
 
   # Devolve [] quando nao ha arquivo local, quando o ffmpeg nao existe ou quando ele falha —
   # nunca levanta. Os temporarios morrem antes de retornar.
   def data_urls
-    return [] unless attachment.file.attached?
+    return [] if sem_fonte?
 
-    dir = Rails.root.join('tmp/uploads/media-description', "att-#{attachment.id}")
+    dir = Rails.root.join('tmp/uploads/media-description', pasta)
     FileUtils.mkdir_p(dir)
-    source = copy_source(dir)
+    source = source_path.presence || copy_source(dir)
     extract(dir, source).map { |path| "data:image/jpeg;base64,#{Base64.strict_encode64(File.binread(path))}" }
   rescue StandardError => e
     Rails.logger.error("[VideoFrames] FALHOU att=#{attachment&.id}: #{e.class}: #{e.message}")
@@ -43,7 +47,15 @@ class Captain::VideoFrameExtractor
 
   private
 
-  attr_reader :attachment
+  attr_reader :attachment, :source_path
+
+  def sem_fonte?
+    source_path.blank? && !attachment&.file&.attached?
+  end
+
+  def pasta
+    attachment ? "att-#{attachment.id}" : "url-#{Digest::SHA256.hexdigest(source_path.to_s)[0, 16]}"
+  end
 
   def copy_source(dir)
     blob = attachment.file.blob
@@ -101,14 +113,15 @@ class Captain::VideoFrameExtractor
   # A duracao vem do metadata que o ActiveStorage ja gravou; sem ela, um fallback curto
   # ainda pega o inicio do video.
   def segundo(position)
-    duration = attachment.file.blob.metadata['duration'].to_f
+    duration = attachment ? attachment.file.blob.metadata['duration'].to_f : 0.0
     duration = FALLBACK_DURATION if duration <= 0
     (duration * position).round(1)
   end
 
   # `spawn` levanta Errno::ENOENT quando o binario nao existe, e o status vem falso quando ele
-  # falha. Os dois casos sao configuracao de VM, nao incidente — mas precisam aparecer, senao o
-  # operador liga a chave, nada acontece e nao ha o que olhar.
+  # falha. Os dois casos
+  # sao configuracao de VM, nao incidente — mas precisam aparecer, senao o operador liga a
+  # chave, nada acontece e nao ha o que olhar.
   def aviso(index)
     Rails.logger.warn("[VideoFrames] ffmpeg nao extraiu o quadro #{index} att=#{attachment&.id}")
     nil

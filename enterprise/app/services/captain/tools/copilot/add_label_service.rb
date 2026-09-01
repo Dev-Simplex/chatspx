@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::AddLabelService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'add_label'
   end
@@ -8,8 +10,8 @@ class Captain::Tools::Copilot::AddLabelService < Captain::Tools::BaseTool
   param :label, type: :string, desc: 'Label to add', required: true
 
   def execute(conversation_id:, label:)
-    conversation = @assistant.account.conversations.find_by(display_id: conversation_id)
-    return 'Conversation not found' if conversation.blank?
+    conversation = find_permissible_conversation(conversation_id)
+    return conversation_refusal(conversation_id) if conversation.blank?
 
     conversation.label_list.add(label)
     conversation.save!

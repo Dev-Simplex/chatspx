@@ -13,11 +13,12 @@
     "WAHA_BANNER": {
       "GO_TO_CONNECTIONS": "Ir para Conexões",
       "CLEAR_SEARCH": "Limpar busca",
-      "SINGLE_CONNECTION_ISSUE": "Uma conexão WhatsApp está {status}.",
+      "SINGLE_CONNECTION_ISSUE": "A linha do WhatsApp da caixa \"{inbox}\" está {status}.",
       "MULTIPLE_CONNECTIONS_ISSUE": "{count} conexões WhatsApp estão com problemas.",
       "STATUS_STOPPED": "desconectada",
       "STATUS_FAILED": "com falha",
-      "STATUS_SCAN_QR": "aguardando escanear QR code"
+      "STATUS_SCAN_QR": "aguardando escanear QR code",
+      "STATUS_MISSING": "sem sessão no servidor"
     },
     "UPDATE": {
       "ERROR": "Não foi possível atualizar as configurações, tente novamente!",
@@ -232,6 +233,25 @@
         "API": {
           "SUCCESS": "Modo de pedido de atendimento atualizado com sucesso",
           "ERROR": "Falha ao atualizar o modo de pedido de atendimento"
+        }
+      },
+      "ACCOUNT_FEATURES": {
+        "TITLE": "Recursos da conta",
+        "NOTE": "Ligue ou desligue o que esta conta enxerga. O produto já vem com tudo ligado; alguns recursos ficam desligados porque dependem de preparo.",
+        "GROUPS": {
+          "ON": "Ligados",
+          "OFF": "Disponíveis para ligar",
+          "BLOCKED": "Indisponíveis nesta versão"
+        },
+        "HINT": {
+          "NO_BIT": "Não pode ser ligado: o limite técnico de recursos do sistema foi atingido e liberar mais exige uma mudança no banco.",
+          "DEPRECATED": "Recurso descontinuado, mantido só para quem já usava.",
+          "PREMIUM": "Recurso pago do produto original: ligar é decisão comercial.",
+          "INTERNAL": "Recurso interno do produto original, sem suporte garantido aqui."
+        },
+        "API": {
+          "SUCCESS": "Recurso atualizado",
+          "ERROR": "Não consegui atualizar o recurso"
         }
       }
     },

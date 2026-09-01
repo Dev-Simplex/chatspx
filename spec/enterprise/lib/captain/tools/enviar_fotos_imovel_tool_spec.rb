@@ -44,25 +44,51 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
     end
   end
 
-  # O Instagram é o caso medido, mas a regra vale para todo canal que não leia a chave
-  # (WAHA, Messenger): sem carrossel, o fluxo cai no envio foto a foto — que o Instagram
-  # entrega normalmente, porque a Meta busca a imagem pela URL do anexo.
-  context 'when the channel does not deliver interactive payloads (Instagram)' do
+  # O Instagram não lê a chave do carrossel, mas entrega N imagens numa mensagem só. O lote
+  # continua sendo o mesmo (3 fotos, mesmo offset, mesmo cooldown) — muda o empacotamento:
+  # uma mensagem com 3 anexos, no lugar de 3 mensagens com intervalo entre elas.
+  context 'when the channel delivers several images in one message (Instagram)' do
     let(:channel) { create(:channel_instagram, account: account) }
     let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
 
-    it 'falls back to one message per photo, each carrying the image' do
+    it 'sends a single message carrying every photo of the batch' do
       tool.perform(tool_context, codigo: '9434')
 
-      expect(outgoing.count).to eq(3)
-      expect(outgoing.map { |m| m.attachments.size }).to eq([1, 1, 1])
+      expect(outgoing.count).to eq(1)
+      expect(outgoing.first.attachments.size).to eq(3)
       expect(outgoing.flat_map { |m| (m.content_attributes || {}).keys }).not_to include('interactive_payload')
+    end
+
+    # A Meta busca a foto pela URL pública do Vista: sem download local não há o teto de
+    # 15 MB do envio um-a-um, que é maior que os 8 MB por imagem que o Instagram aceita.
+    it 'points at the public photo URL instead of downloading each file' do
+      tool.perform(tool_context, codigo: '9434')
+
+      expect(outgoing.first.attachments.map(&:external_url)).to eq(
+        ['https://cdn.example.com/1.jpg', 'https://cdn.example.com/2.jpg', 'https://cdn.example.com/3.jpg']
+      )
+      expect(Down).not_to have_received(:download)
     end
 
     it 'records what it sent, so the next call advances instead of repeating' do
       tool.perform(tool_context, codigo: '9434')
 
       expect(conversation.reload.custom_attributes['fotos_offset_9434']).to eq(3)
+    end
+  end
+
+  # Contraprova: canal que NÃO agrupa (WAHA) segue mandando uma mensagem por foto, com o
+  # download local de sempre. A capacidade é do canal, não uma troca global de comportamento.
+  context 'when the channel does not deliver several images in one message (WAHA)' do
+    let(:channel) { create(:channel_api, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+
+    it 'keeps one message per photo' do
+      tool.perform(tool_context, codigo: '9434')
+
+      expect(outgoing.count).to eq(3)
+      expect(outgoing.map { |m| m.attachments.size }).to eq([1, 1, 1])
+      expect(Down).to have_received(:download).exactly(3).times
     end
   end
 
@@ -91,6 +117,82 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
     it 'still refuses a code that no search of this conversation returned' do
       expect(tool.perform(tool_context, codigo: '1234')).to include('não apareceu na busca')
       expect(outgoing).to be_empty
+    end
+  end
+
+  # O retorno da tool é o ÚNICO relato que o modelo tem do que saiu — ele não vê as fotos nem
+  # sabe quantas existem. A redação antiga dizia "fotos principais" e oferecia a "galeria completa
+  # no site" mesmo quando tinha mandado tudo. Medido na Tozi, conversa 49883: o imóvel 4586 tem UMA
+  # foto cadastrada, a IA relatou "Enviei as fotos!" e seguiu como se tivesse mostrado a casa.
+  describe 'what the tool reports back to the model' do
+    let(:channel) { create(:channel_instagram, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+
+    def detalhes_com(quantidade)
+      fotos = (1..quantidade).to_h { |i| [i.to_s, { 'Foto' => "https://cdn.example.com/#{i}.jpg" }] }
+      { 'Codigo' => '9434', 'Status' => 'VENDA', 'Categoria' => 'Casa', 'Foto' => fotos }
+    end
+
+    it 'says "foto" in the singular and denies a gallery when the property has only one' do
+      allow(tool).to receive(:fetch_detalhes).and_return(detalhes_com(1))
+      retorno = tool.perform(tool_context, codigo: '9434')
+
+      expect(retorno).to include('1 foto').and include('tudo que ele tem cadastrado')
+      expect(retorno).not_to include('1 fotos')
+      expect(retorno).not_to include('ofereça o link')
+    end
+
+    it 'does not promise more photos when it sent every one that exists' do
+      allow(tool).to receive(:fetch_detalhes).and_return(detalhes_com(3))
+      retorno = tool.perform(tool_context, codigo: '9434')
+
+      expect(retorno).to include('3 fotos').and include('não há outras nem no site')
+      expect(retorno).not_to include('ofereça o link')
+    end
+
+    # Aqui a oferta da galeria é honesta: o teto por imóvel cortou, e o site tem o resto.
+    it 'offers the gallery when the per-property cap truncated a property that has more' do
+      allow(tool).to receive(:fetch_detalhes).and_return(detalhes_com(12))
+      conversation.update!(custom_attributes: { 'fotos_offset_9434' => 6 })
+      retorno = tool.perform(tool_context, codigo: '9434')
+
+      expect(retorno).to include('9 fotos').and include('o imóvel tem mais')
+    end
+  end
+
+  # Os dois espaços de código se CRUZAM: na Tozi, `4586` é o ImoCodigo da casa de aluguel 4629 e,
+  # ao mesmo tempo, o Codigo de um terreno à venda em outro bairro. Como o /imoveis/detalhes
+  # resolve por Codigo, pedir fotos citando o ImoCodigo trazia o imóvel errado — a cliente da
+  # conv 28684 pediu foto de uma casa de 2 quartos e recebeu a foto de um terreno.
+  describe 'resolving the code the search actually showed' do
+    let(:channel) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
+                                validate_provider_config: false, sync_templates: false)
+    end
+    let(:url) { 'https://www.toziimoveis.com.br/imovel/aluguel-casa-jardim-bella-morada-ii-sinop-4629' }
+    let(:conversation) do
+      create(:conversation, account: account, inbox: channel.inbox,
+                            custom_attributes: { 'urls_imoveis' => { '4586' => url, '4629' => url } })
+    end
+
+    it 'fetches by the canonical Codigo when the model cites the ImoCodigo' do
+      expect(tool).to receive(:fetch_detalhes).with('4629').and_return(detalhes)
+
+      tool.perform(tool_context, codigo: '4586')
+    end
+
+    it 'records the offset under the canonical code, so the next call advances the right property' do
+      tool.perform(tool_context, codigo: '4586')
+
+      expect(conversation.reload.custom_attributes).to include('fotos_offset_4629')
+      expect(conversation.reload.custom_attributes).not_to include('fotos_offset_4586')
+    end
+
+    # Contraprova: código sem alias registrado passa intacto — o mapa resolve, não reescreve.
+    it 'leaves a code that is already canonical untouched' do
+      expect(tool).to receive(:fetch_detalhes).with('4629').and_return(detalhes)
+
+      tool.perform(tool_context, codigo: '4629')
     end
   end
 end

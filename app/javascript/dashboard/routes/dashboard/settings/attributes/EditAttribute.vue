@@ -35,6 +35,8 @@ export default {
       regexCue: null,
       regexEnabled: false,
       requiresVerifiedOrigin: false,
+      isRequired: false,
+      isHidden: false,
       show: true,
       attributeKey: '',
       values: [],
@@ -135,6 +137,8 @@ export default {
       // write-replace, com a diferenca de que aqui o que se apaga e uma trava de seguranca.
       this.requiresVerifiedOrigin =
         this.selectedAttribute.requires_verified_origin === true;
+      this.isRequired = Boolean(this.selectedAttribute.required);
+      this.isHidden = Boolean(this.selectedAttribute.hidden);
       this.values = this.setAttributeListValue;
     },
     async editAttributes() {
@@ -157,6 +161,8 @@ export default {
             : null,
           regex_cue: this.regexCue,
           requires_verified_origin: this.requiresVerifiedOrigin,
+          required: this.isRequired,
+          hidden: this.isHidden,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.EDIT.API.SUCCESS_MESSAGE');
         this.onClose();
@@ -293,6 +299,14 @@ export default {
             </span>
           </label>
         </div>
+        <label class="flex gap-2 items-center w-fit cursor-pointer">
+          <input v-model="isRequired" type="checkbox" class="m-0" />
+          {{ $t('ATTRIBUTES_MGMT.ADD.FORM.REQUIRED.LABEL') }}
+        </label>
+        <label class="flex gap-2 items-center w-fit cursor-pointer">
+          <input v-model="isHidden" type="checkbox" class="m-0" />
+          {{ $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL') }}
+        </label>
       </div>
       <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
         <NextButton

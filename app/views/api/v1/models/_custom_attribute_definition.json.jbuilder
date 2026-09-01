@@ -8,6 +8,8 @@ json.regex_pattern resource.regex_pattern
 json.regex_cue resource.regex_cue
 json.attribute_values resource.attribute_values
 json.attribute_model resource.attribute_model
+json.required resource.required
+json.hidden resource.hidden
 json.default_value resource.default_value
 # Bloco 4.17. Sem estas duas linhas a tela nao consegue mostrar o estado da flag, e um
 # formulario que reenvia o registro inteiro (o de edicao faz isso) apagaria a protecao a

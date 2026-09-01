@@ -5,8 +5,14 @@ class Api::V1::Accounts::FlowsController < Api::V1::Accounts::BaseController
   # Máximo de step-logs por página no painel "Execuções" (GET #logs). Paginação simples via kaminari.
   LOGS_PER_PAGE = 50
 
+  # Lista só o que ESTE usuário pode ver: os `global` da conta + os `personal` dele
+  # (Flow.with_visibility, espelhando Macro.with_visibility). Sem o filtro o index devolvia o flow
+  # pessoal alheio INTEIRO — o partial serializa trigger_config e definition inteiros —, embora a
+  # FlowPolicy#show? já barrasse abrir o mesmo flow pelo #show. Usa `Current.user` (e não
+  # `current_user`) porque é a MESMA identidade que o partial consulta para decidir se o
+  # webhook_token sai no JSON, e é a única que o caminho do api_access_token preenche.
   def index
-    @flows = Current.account.flows.order(created_at: :desc)
+    @flows = Current.account.flows.with_visibility(Current.user).order(created_at: :desc)
     @flows = @flows.page(params[:page]).per(25) if params[:page].present?
   end
 

@@ -45,7 +45,7 @@ const showForwardingAddress = computed(() => {
           name: 'settings_inbox_show',
           params: { inboxId: inboxId, tab: 'configuration' },
         }"
-        class="text-n-woot-600 hover:text-n-woot-700 underline"
+        class="text-n-teal-11 hover:text-n-teal-11 underline"
       >
         {{ $t('INBOX_MGMT.ADD.EMAIL_CHANNEL.CONFIGURE_SMTP_IMAP_LINK') }}
       </router-link>

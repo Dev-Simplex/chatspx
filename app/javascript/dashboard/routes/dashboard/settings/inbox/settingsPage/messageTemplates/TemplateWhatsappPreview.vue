@@ -49,8 +49,14 @@ const buttons = computed(() => {
 const mediaMeta = computed(() => {
   if (!header.value || header.value.format === 'TEXT') return null;
   const map = {
-    IMAGE: { icon: 'i-lucide-image', label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.IMAGE') },
-    VIDEO: { icon: 'i-lucide-video', label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.VIDEO') },
+    IMAGE: {
+      icon: 'i-lucide-image',
+      label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.IMAGE'),
+    },
+    VIDEO: {
+      icon: 'i-lucide-video',
+      label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.VIDEO'),
+    },
     DOCUMENT: {
       icon: 'i-lucide-file-text',
       label: t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.DOCUMENT'),
@@ -76,10 +82,12 @@ const initial = computed(() =>
 
 <template>
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-black/60"
     @click.self="emit('close')"
   >
-    <div class="flex flex-col w-full max-w-sm overflow-hidden shadow-2xl rounded-2xl">
+    <div
+      class="flex flex-col w-full max-w-sm overflow-hidden shadow-2xl rounded-2xl"
+    >
       <!-- Barra superior do WhatsApp -->
       <div
         class="flex items-center gap-3 px-3 py-2.5 text-white bg-[#008069] dark:bg-[#202c33]"
@@ -128,7 +136,7 @@ const initial = computed(() =>
             </p>
             <div
               v-else-if="mediaMeta"
-              class="flex items-center justify-center h-28 gap-2 mb-1.5 rounded-md bg-black/5 text-[#667781] dark:bg-white/5 dark:text-[#8696a0]"
+              class="flex items-center justify-center h-28 gap-2 mb-1.5 rounded-md bg-n-black/5 text-[#667781] dark:bg-white/5 dark:text-[#8696a0]"
             >
               <Icon :icon="mediaMeta.icon" class="size-6" />
               <span class="text-xs">{{ mediaMeta.label }}</span>
@@ -138,7 +146,9 @@ const initial = computed(() =>
             <p
               class="text-sm break-words whitespace-pre-line text-[#111b21] dark:text-[#e9edef]"
             >
-              {{ body || t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.BODY_PLACEHOLDER') }}
+              {{
+                body || t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.BODY_PLACEHOLDER')
+              }}
             </p>
 
             <!-- Rodape -->
@@ -159,7 +169,7 @@ const initial = computed(() =>
           <!-- Botoes (bloco anexado, como no WhatsApp) -->
           <div
             v-if="buttons.length"
-            class="mt-1 overflow-hidden bg-white divide-y rounded-lg shadow-sm divide-black/5 dark:divide-white/10 dark:bg-[#202c33]"
+            class="mt-1 overflow-hidden bg-white divide-y rounded-lg shadow-sm divide-n-black/5 dark:divide-white/10 dark:bg-[#202c33]"
           >
             <div
               v-for="(btn, idx) in buttons"

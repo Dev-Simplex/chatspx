@@ -13,11 +13,12 @@
     "WAHA_BANNER": {
       "GO_TO_CONNECTIONS": "Go to Connections",
       "CLEAR_SEARCH": "Clear search",
-      "SINGLE_CONNECTION_ISSUE": "One WhatsApp connection is {status}.",
+      "SINGLE_CONNECTION_ISSUE": "The WhatsApp line for inbox \"{inbox}\" is {status}.",
       "MULTIPLE_CONNECTIONS_ISSUE": "{count} WhatsApp connections have issues.",
       "STATUS_STOPPED": "disconnected",
       "STATUS_FAILED": "failing",
-      "STATUS_SCAN_QR": "waiting for QR code scan"
+      "STATUS_SCAN_QR": "waiting for QR code scan",
+      "STATUS_MISSING": "missing on the server"
     },
     "UPDATE": {
       "ERROR": "Could not update settings, try again!",
@@ -233,6 +234,25 @@
           "SUCCESS": "Takeover request mode updated successfully",
           "ERROR": "Failed to update takeover request mode"
         }
+      },
+      "ACCOUNT_FEATURES": {
+        "TITLE": "Account features",
+        "NOTE": "Turn on or off what this account can see. The product ships with everything on; a few features stay off because they need setup first.",
+        "GROUPS": {
+          "ON": "On",
+          "OFF": "Available to turn on",
+          "BLOCKED": "Unavailable in this version"
+        },
+        "HINT": {
+          "NO_BIT": "Cannot be turned on: the system feature limit was reached and raising it requires a database change.",
+          "DEPRECATED": "Discontinued feature, kept only for accounts already using it.",
+          "PREMIUM": "Paid feature of the upstream product: turning it on is a commercial decision.",
+          "INTERNAL": "Internal feature of the upstream product, not guaranteed here."
+        },
+        "API": {
+          "SUCCESS": "Feature updated",
+          "ERROR": "Could not update the feature"
+        }
       }
     },
     "UPDATE_CHATWOOT": "An update {latestChatwootVersion} for Chatwoot is available. Please update your instance.",
@@ -364,6 +384,7 @@
   },
   "COMMON": {
     "OR": "Or",
-    "CLICK_HERE": "click here"
+    "CLICK_HERE": "click here",
+    "LOAD_MORE": "Carregar mais"
   }
 }

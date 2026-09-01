@@ -70,7 +70,7 @@ class V2::Reports::Conversations::MetricBuilder < V2::Reports::Conversations::Ba
   end
 
   def event_scope(event_name)
-    scope.reporting_events.where(name: event_name, created_at: range, account_id: account.id)
+    with_inbox_filter(scope.reporting_events.where(name: event_name, created_at: range, account_id: account.id))
   end
 
   def event_name_for(metric)

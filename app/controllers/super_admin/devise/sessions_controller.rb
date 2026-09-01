@@ -24,6 +24,9 @@ class SuperAdmin::Devise::SessionsController < Devise::SessionsController
   def valid_credentials?
     @super_admin = SuperAdmin.find_by!(email: params[:super_admin][:email])
     raise StandardError, 'Invalid Password' unless @super_admin.valid_password?(params[:super_admin][:password])
+    # Quem supervisiona time não entra no Console nem com a senha certa — assim a regra
+    # sobrevive a alguém recriar o users.type = 'SuperAdmin' pelo console/rails.
+    raise StandardError, 'Team supervisor' if SupervisorSettingsScope.blocked_from_console?(@super_admin)
 
     true
   rescue StandardError => e

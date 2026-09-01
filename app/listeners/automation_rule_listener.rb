@@ -27,7 +27,7 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # cancelamento por MENSAGEM deixava aberta a janela entre "assumi" e "mandei a primeira mensagem":
   # a resposta do cliente nesse meio era capturada pelo wait_for_reply velho e virava "Nao entendi".
   def assignee_changed(event)
-    cancel_pending_flow_waits_on_assignment(event.data[:conversation])
+    cancel_pending_flow_waits_on_assignment(event)
   end
 
   def conversation_created(event)
@@ -69,18 +69,22 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     run_engine(event_name, account, conversation, payload)
   end
 
-  # Motor unificado, gated por conta: com a flag `flows` ligada, a conta roda os Flows (que
-  # o backfill criou espelhando as regras antigas); sem ela, roda as AutomationRules como
-  # sempre. Mutuamente exclusivo por conta — é a mitigação de R-1 (dupla-execução) durante a
-  # coexistência, sem tocar dados e reversível (desligar a flag volta ao motor antigo).
+  # Motor unificado: os DOIS rodam. Os Flows quando a conta tem flows ativos, e as
+  # AutomationRules SEMPRE — cada motor com o que só ele sabe fazer.
+  #
+  # Até aqui era `if/else`, um excluindo o outro, e isso cobrava um preço alto: numa conta em modo
+  # regras os flows apareciam na tela, salvavam e NUNCA disparavam (a .229 tinha 21 flows parados
+  # assim); e ligar a flag numa conta que dependia das regras silenciaria todas elas de uma vez.
+  # Pior, ação que só existe no canvas — o `distribuir` do rodízio é o caso — ficava inalcançável
+  # para quem estava em regras, porque o motor de regras não tem essa ação.
+  #
+  # A dupla-execução, que era o motivo do `else`, continua barrada: quem protege agora é
+  # `regras_com_flow_equivalente` (ver lá), usando o `backfill_source` gravado no próprio flow.
   def run_engine(event_name, account, conversation, payload)
     return if account.blank?
 
-    if flows_engine_active?(account)
-      run_flows(event_name, account, conversation, payload)
-    else
-      run_rules(event_name, account, conversation, payload)
-    end
+    run_flows(event_name, account, conversation, payload) if flows_engine_active?(account)
+    run_rules(event_name, account, conversation, payload)
   end
 
   # O motor Flow só assume quando a flag está ligada E a conta já tem flows (o backfill
@@ -95,10 +99,42 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   end
 
   def run_rules(event_name, account, conversation, payload)
+    # A dedução só vale quando o motor de flows está DE FATO rodando. Sem esta condição, uma conta
+    # com a flag desligada (o estado da .229 e da Tozi hoje) pularia a regra E não rodaria o flow:
+    # a automação sumiria por completo, em silêncio. O teste pegou exatamente isso.
+    duplicadas = flows_engine_active?(account) ? regras_com_flow_equivalente(account) : Set.new
+
     current_account_rules(event_name, account).each do |rule|
+      next if duplicadas.include?(rule.id)
+
       conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, conversation, payload).perform
       ::AutomationRules::ActionService.new(rule, account, conversation).perform if conditions_match.present?
     end
+  end
+
+  # Ids das regras que JÁ VIRARAM flow — o flow vence e a regra é pulada.
+  #
+  # Sem isto, rodar os dois motores dispararia a mesma automação duas vezes: o backfill criou os
+  # flows COPIANDO as regras, e as duas continuam ativas lado a lado. Medido em 28/08/2026: 11
+  # pares na Tozi (triagem da IA e reabertura, ou seja, atribuir time e acionar a IA duas vezes por
+  # conversa) e 1 na .229.
+  #
+  # O pareamento não é heurístico: o backfill gravou `trigger_config.backfill_source` =
+  # "automation_rule:<id>" no próprio flow, então a origem é dado, não adivinhação. Flow nascido de
+  # MACRO (a maioria) NÃO entra aqui de propósito — macro é ação manual, não dispara sozinha, então
+  # nunca houve duplicidade com ela.
+  #
+  # Some sozinho quando não é mais preciso: desativar o flow devolve a regra ao ar, sem ninguém ter
+  # de lembrar de reativá-la. É por isso que isto vive aqui e não como `active: false` no banco —
+  # desligar a regra na mão criaria uma automação que some sem explicação no dia em que alguém
+  # desativar o flow.
+  def regras_com_flow_equivalente(account)
+    Rails.cache.fetch("flow_backfill_rule_ids:#{account.id}", expires_in: 2.minutes) do
+      account.flows.active
+             .where("trigger_config->>'backfill_source' LIKE 'automation_rule:%'")
+             .pluck(Arel.sql("trigger_config->>'backfill_source'"))
+             .filter_map { |origem| origem.to_s.split(':').last.to_i.presence }
+    end.to_set
   end
 
   def run_flows(event_name, account, conversation, payload)
@@ -307,10 +343,21 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     cancel_pending_flow_waits(message.conversation_id)
   end
 
-  # Idem, pelo caminho da ATRIBUICAO. Desatribuir (assignee_id -> nil) NAO cancela: a conversa volta
-  # para a fila e o fluxo do bot segue valendo.
-  def cancel_pending_flow_waits_on_assignment(conversation)
+  # Idem, pelo caminho da ATRIBUICAO - mas SO quando esta PROVADO que um humano de carne e osso
+  # assumiu. A guarda e POSITIVA de proposito, igual a do caminho por MENSAGEM logo acima: cancela
+  # com prova de humano, em vez de "cancela sempre, a menos que...". A logica negativa era o defeito:
+  # QUALQUER troca de responsavel matava o menu em espera, inclusive as AUTOMATICAS (o assign_agent
+  # do proprio flow, o round-robin, o PeriodicAssignmentJob e o Motor de Distribuicao) - o cliente
+  # ficava no meio do menu, algo assumia, e a resposta dele caia no vazio. Errar para o lado do
+  # cancelamento mata conversa viva; errar para o outro lado so deixa o wait armado um pouco mais,
+  # e o caminho por MENSAGEM captura o takeover real assim que o agente digita.
+  #
+  # Desatribuir (assignee_id -> nil) continua NAO cancelando: a conversa volta para a fila e o fluxo
+  # do bot segue valendo.
+  def cancel_pending_flow_waits_on_assignment(event)
+    conversation = event.data[:conversation]
     return if conversation.blank? || conversation.assignee_id.blank?
+    return unless human_assignment_takeover?(event)
 
     account = conversation.account
     return if account.blank? || !flows_engine_active?(account)
@@ -321,6 +368,37 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # Ponto UNICO de cancelamento - os dois caminhos (mensagem e atribuicao) passam por aqui.
   def cancel_pending_flow_waits(conversation_id)
     FlowRun.where(conversation_id: conversation_id, status: :waiting).find_each(&:complete!)
+  end
+
+  # Prova de que um humano de carne e osso executou ESTA atribuicao.
+  #
+  # POR QUE `assignee_changed_by` e nao `performed_by`: `performed_by` e o `Current.executed_by`
+  # (conversation.rb#dispatcher_dispatch), e ele SO e preenchido por quem executa automacao -
+  # AutomationRule (automation_rules/action_service.rb), Flow (flows/action_service.rb) e
+  # AssignmentPolicy/Inbox (auto_assignment/assignment_service.rb). O caminho humano nunca o seta:
+  # o controller seta `Current.user` (application_controller.rb#set_current_user). Ou seja,
+  # `performed_by` prova AUTOMACAO, nunca prova HUMANO - e chega NIL justamente nos dois casos que
+  # precisamos separar: o agente atribuindo pela API E o Motor de Distribuicao
+  # (Spx::Distribuicao::DistribuirService -> Conversations::AssignmentService), que roda DENTRO do
+  # Sidekiq, onde o thread-local nasce zerado e portanto nao e nem AutomationRule nem Flow.
+  #
+  # `assignee_changed_by` e o proprio `Current.user`, capturado no contexto SINCRONO do request e
+  # carregado no payload por AssignmentHandler#assignment_change_event_data - existe exatamente
+  # porque aqui, no worker async (EventDispatcherJob/Sidekiq), `Current.user` ja e nil. Mesmo sinal,
+  # com o mesmo `is_a?(User)`, que o NotificationListener#takeover_actor usa para decidir quem
+  # "roubou" a conversa: automacao e round-robin passam nil, e token de AgentBot passa um nao-User.
+  #
+  # O contexto de automacao VENCE um `Current.user` ambiente (mesma regra do
+  # Conversations::AssignmentHistoryService#derive_source): quando a automacao roda INLINE dentro de
+  # um request — o motor de funil do Kanban re-entra sincrono, ver Current.funnel_automation_depth —
+  # o payload sai com performed_by = AutomationRule E assignee_changed_by = o agente que apertou o
+  # botao. Quem decidiu a atribuicao foi a regra, nao a pessoa: o menu nao pode morrer por isso.
+  # `performed_by_automation?` cobre AutomationRule/Flow, que sao os unicos que re-entram sincrono;
+  # AssignmentPolicy/Inbox so aparecem de dentro de job, onde `Current.user` ja e nil de qualquer jeito.
+  def human_assignment_takeover?(event)
+    return false if performed_by_automation?(event)
+
+    event.data[:assignee_changed_by].is_a?(User)
   end
 
   # Mensagem que representa um agente HUMANO assumindo a conversa: outgoing, de User real, nao

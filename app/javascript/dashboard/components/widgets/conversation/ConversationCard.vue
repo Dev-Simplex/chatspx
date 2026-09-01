@@ -390,6 +390,13 @@ watch(
         </template>
       </CardLabels>
     </div>
+    <!-- REGRESSAO CONHECIDA DO RECORTE, a restaurar: aqui vivia o menu de contexto da
+         conversa (atribuir, marcar nao lida, prioridade, rotulo, apagar) e, no lado de
+         origin/homologacao, tambem o alfinete de fixar no topo. A reescrita deste cartao
+         para Composition API deixou o cartao EMITINDO `contextmenu` sem ninguem montando
+         o menu. Nao trago o bloco aqui porque ele referencia estado que este arquivo nao
+         tem mais (showContextMenu, contextMenu.x/y, closeContextMenu, isPinned) — isso
+         precisa ser reescrito junto, nao colado. -->
   </div>
 </template>
 

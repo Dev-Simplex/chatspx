@@ -3,7 +3,8 @@
 require 'rails_helper'
 
 RSpec.describe InternalChannels::SyncTeamChannelsService do
-  let(:account) { create(:account) }
+  # O grupo de time só nasce (Team#after_create) em conta com a feature ligada.
+  let(:account) { create(:account).tap { |acc| acc.enable_features!('internal_chat') } }
   let(:pedro) { create(:user, account: account, role: :agent) }
   let(:ana) { create(:user, account: account, role: :agent) }
   let(:suporte) { create(:team, account: account, name: 'suporte') }

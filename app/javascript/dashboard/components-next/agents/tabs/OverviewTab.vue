@@ -5,6 +5,7 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import NumberFlow from '@number-flow/vue';
 import CaptainAssistantAPI from 'dashboard/api/captain/assistant';
+import { useCaptainAssistantModel } from 'dashboard/composables/useCaptainAssistantModel';
 
 import AiStatCard from 'dashboard/components-next/agents-ui/AiStatCard.vue';
 import AiListGroup from 'dashboard/components-next/agents-ui/AiListGroup.vue';
@@ -18,6 +19,9 @@ const assistantId = computed(() => Number(route.params.assistantId));
 const agent = computed(() =>
   store.getters['captainAssistants/getRecord'](assistantId.value)
 );
+// `agent.config.model` não existe no payload: a linha "Modelo" mostrava sempre "—".
+// O modelo é da CONTA (Agentable#agent_model). Ver useCaptainAssistantModel.
+const { assistantModel } = useCaptainAssistantModel();
 
 // Métricas REAIS (endpoint /stats — conversas do agent_bot do assistant)
 const stats = ref({
@@ -107,7 +111,7 @@ const enabledBehaviors = computed(() => {
   <div class="px-6 pt-4 pb-10 mx-auto space-y-6 max-w-3xl">
     <!-- Herói: taxa de resolução real -->
     <div
-      class="p-5 rounded-2xl border bg-gradient-to-br to-transparent border-n-weak from-n-brand/12"
+      class="p-5 rounded-2xl border bg-gradient-to-br to-transparent border-n-weak from-n-brand/10"
     >
       <div class="flex gap-4 items-center">
         <div
@@ -157,7 +161,10 @@ const enabledBehaviors = computed(() => {
         {{ t('CAPTAIN.AGENT_TABS.OVERVIEW.AGENT_CONFIG') }}
       </p>
       <AiListGroup>
-        <AiListRow :title="t('CAPTAIN.AGENT_TABS.OVERVIEW.MODEL')">
+        <AiListRow
+          :title="t('CAPTAIN.AGENT_TABS.OVERVIEW.MODEL')"
+          :subtitle="t('CAPTAIN.AGENT_TABS.OVERVIEW.MODEL_HINT')"
+        >
           <template #leading>
             <span
               class="grid place-items-center text-white bg-green-500 rounded-lg size-[30px]"
@@ -167,14 +174,14 @@ const enabledBehaviors = computed(() => {
           </template>
           <template #trailing>
             <span class="font-mono text-sm text-n-slate-12">{{
-              agent?.config?.model || '—'
+              assistantModel || '—'
             }}</span>
           </template>
         </AiListRow>
         <AiListRow :title="t('CAPTAIN.AGENT_TABS.OVERVIEW.TEMPERATURE')">
           <template #leading>
             <span
-              class="grid place-items-center text-white bg-orange-500 rounded-lg size-[30px]"
+              class="grid place-items-center text-n-black bg-n-amber-9 rounded-lg size-[30px]"
             >
               <span class="i-lucide-thermometer size-4" />
             </span>
@@ -188,7 +195,7 @@ const enabledBehaviors = computed(() => {
         <AiListRow :title="t('CAPTAIN.AGENT_TABS.OVERVIEW.BEHAVIORS')">
           <template #leading>
             <span
-              class="grid place-items-center text-white bg-purple-500 rounded-lg size-[30px]"
+              class="grid place-items-center text-white bg-n-violet-9 rounded-lg size-[30px]"
             >
               <span class="i-lucide-settings size-4" />
             </span>

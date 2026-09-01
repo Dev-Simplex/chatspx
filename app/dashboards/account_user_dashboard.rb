@@ -13,6 +13,10 @@ class AccountUserDashboard < Administrate::BaseDashboard
     inviter: Field::BelongsToSearch.with_options(class_name: 'User', searchable: true, searchable_field: [:name, :email, :id], order: 'id DESC'),
     id: Field::Number,
     role: Field::Select.with_options(collection: AccountUser.roles.keys),
+    # O papel COMO O CONSOLE MOSTRA: agent, administrator ou supervisor. O último não
+    # existe no enum — é agente + times supervisionados (ver AccountUser::SUPERVISOR_ROLE).
+    console_role: Field::Select.with_options(collection: AccountUser::CONSOLE_ROLES),
+    supervised_team_ids: SupervisedTeamsField,
     created_at: Field::DateTime,
     updated_at: Field::DateTime
   }.freeze
@@ -26,7 +30,8 @@ class AccountUserDashboard < Administrate::BaseDashboard
     account
     user
     inviter
-    role
+    console_role
+    supervised_team_ids
   ].freeze
 
   # SHOW_PAGE_ATTRIBUTES
@@ -36,7 +41,8 @@ class AccountUserDashboard < Administrate::BaseDashboard
     user
     inviter
     id
-    role
+    console_role
+    supervised_team_ids
     created_at
     updated_at
   ].freeze
@@ -47,7 +53,8 @@ class AccountUserDashboard < Administrate::BaseDashboard
   FORM_ATTRIBUTES = %i[
     account
     user
-    role
+    console_role
+    supervised_team_ids
   ].freeze
 
   # COLLECTION_FILTERS

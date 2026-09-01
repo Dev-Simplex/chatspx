@@ -18,7 +18,8 @@
       "LINK": "Link",
       "DATE": "Date",
       "LIST": "List",
-      "CHECKBOX": "Checkbox"
+      "CHECKBOX": "Checkbox",
+      "CPF": "CPF"
     },
     "ADD": {
       "TITLE": "Add Custom Attribute",
@@ -67,13 +68,19 @@
         "ENABLE_REGEX": {
           "LABEL": "Enable regex validation"
         },
-        "VERIFIED_ORIGIN": {
-          "LABEL": "Only accept writes from a verified origin",
-          "HELP": "Your website can no longer change this attribute unless the visitor's identity was verified with your HMAC signature. The current value is kept and the attempt is logged."
+        "REQUIRED": {
+          "LABEL": "Required before resolving"
+        },
+        "HIDDEN": {
+          "LABEL": "Hide inside the conversation"
         },
         "BADGES": {
           "PRE_CHAT": "Pre-chat",
           "RESOLUTION": "Resolution"
+        },
+        "VERIFIED_ORIGIN": {
+          "LABEL": "Only accept writes from a verified origin",
+          "HELP": "Your website can no longer change this attribute unless the visitor's identity was verified with your HMAC signature. The current value is kept and the attempt is logged."
         }
       },
       "API": {

@@ -104,8 +104,7 @@ const getStatusConfig = status => {
       text: t('WAHA_CONNECTIONS.STATUS.FAILED'),
     },
     STOPPED: {
-      color:
-        'bg-n-slate-3 text-n-slate-12 dark:bg-n-slate-3 dark:text-n-slate-12',
+      color: 'bg-n-slate-3 text-n-slate-12',
       icon: 'i-lucide-circle',
       iconColor: 'text-n-slate-11',
       text: t('WAHA_CONNECTIONS.STATUS.STOPPED'),
@@ -116,6 +115,14 @@ const getStatusConfig = status => {
       icon: 'i-lucide-loader-circle',
       iconColor: 'text-green-600',
       text: t('WAHA_CONNECTIONS.STATUS.STARTING'),
+    },
+    // A caixa aponta para uma sessão que não existe no servidor WAHA: nada
+    // entrega e não há o que reconectar — precisa recriar a sessão.
+    MISSING: {
+      color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      icon: 'i-lucide-unplug',
+      iconColor: 'text-red-600',
+      text: t('WAHA_CONNECTIONS.STATUS.MISSING'),
     },
   };
   return configs[status] || configs.STOPPED;
@@ -175,21 +182,44 @@ const handleRestart = async connection => {
   }
 };
 
+// Levar a CAIXA junto e opcional, e nasce DESMARCADO a cada abertura do modal: `inbox.destroy`
+// cascateia conversas e mensagens, sem desfazer. O caminho seguro tem de ser o que acontece
+// quando a pessoa so clica em Excluir com pressa.
+const apagarCaixa = ref(false);
+
 const openDelete = connection => {
   selectedConnection.value = connection;
+  apagarCaixa.value = false;
   showDeletePopup.value = true;
 };
 
 const confirmDeletion = async () => {
+  const levouCaixa = apagarCaixa.value;
   try {
-    await wahaConnectionsAPI.delete(selectedConnection.value.id);
-    useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS'));
+    const { data } = await wahaConnectionsAPI.delete(
+      selectedConnection.value.id,
+      { deleteInbox: levouCaixa }
+    );
+    // Chaves literais (e nao uma expressao dentro do `t`) porque o extrator de i18n do repo so
+    // enxerga chave estatica: com chave dinamica a string sai como nao usada e some numa limpeza.
+    //
+    // O WAHA pode ter falhado (sessao travada la). Nesse caso a caixa foi desvinculada, a conexao
+    // sai da tela, mas a sessao continua viva no servidor e ALGUEM precisa saber disso — senao a
+    // pessoa acha que limpou tudo.
+    if (data?.waha_session_deleted === false) {
+      useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_WAHA_FAILED'));
+    } else if (data?.inbox_deleted) {
+      useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS'));
+    } else {
+      useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_SUCCESS_KEPT_INBOX'));
+    }
     loadConnections(true);
   } catch (error) {
     useAlert(t('WAHA_CONNECTIONS.MESSAGES.DELETE_ERROR'));
   } finally {
     showDeletePopup.value = false;
     selectedConnection.value = null;
+    apagarCaixa.value = false;
   }
 };
 
@@ -459,7 +489,7 @@ onUnmounted(() => {
 
             <button
               v-if="connection.status === 'WORKING'"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-orange-700 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 dark:text-orange-300 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 rounded-lg transition-colors"
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-n-amber-12 bg-n-amber-3 hover:bg-n-amber-4 rounded-lg transition-colors"
               @click="handleDisconnect(connection)"
             >
               <div class="i-lucide-unplug size-4" />
@@ -505,10 +535,29 @@ onUnmounted(() => {
       v-model:show="showDeletePopup"
       :on-close="closeDelete"
       :on-confirm="confirmDeletion"
-      :title="$t('WAHA_CONNECTIONS.MESSAGES.DELETE_CONFIRM')"
+      :title="$t('WAHA_CONNECTIONS.MESSAGES.DELETE_TITLE')"
       :message="$t('WAHA_CONNECTIONS.MESSAGES.DELETE_CONFIRM')"
       :confirm-text="$t('WAHA_CONNECTIONS.ACTIONS.DELETE')"
       :reject-text="$t('WAHA_CONNECTIONS.ADD_MODAL.CANCEL')"
-    />
+    >
+      <label class="flex items-start gap-2">
+        <input v-model="apagarCaixa" type="checkbox" class="mt-1" />
+        <span>
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ $t('WAHA_CONNECTIONS.MESSAGES.DELETE_INBOX_TOO') }}
+          </span>
+          <span
+            class="block text-xs"
+            :class="apagarCaixa ? 'text-n-ruby-11' : 'text-n-slate-11'"
+          >
+            {{
+              apagarCaixa
+                ? $t('WAHA_CONNECTIONS.MESSAGES.DELETE_INBOX_WARNING')
+                : $t('WAHA_CONNECTIONS.MESSAGES.KEEP_INBOX_HINT')
+            }}
+          </span>
+        </span>
+      </label>
+    </woot-delete-modal>
   </div>
 </template>

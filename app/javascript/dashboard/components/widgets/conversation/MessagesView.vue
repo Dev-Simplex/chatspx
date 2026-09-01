@@ -696,7 +696,7 @@ export default {
            ReplyBoxBanner (acima do composer); aqui mantemos só o esmaecido. -->
       <div
         v-if="isPopOutReplyBox"
-        class="absolute inset-0 z-[5] bg-black/20"
+        class="absolute inset-0 z-[5] bg-n-black/20"
         aria-hidden="true"
         @click="isPopOutReplyBox = false"
       />

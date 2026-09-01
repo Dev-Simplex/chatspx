@@ -111,6 +111,128 @@ RSpec.describe Campaigns::Whatsapp::AudienceBuilderService do
     end
   end
 
+  # O motor ANTIGO (Spx::Tozi::DisparoLeadJob) carimba `campaign_id` na CONVERSA e nao cria
+  # linha em `campaign_recipients`. Ler so a tabela nova era o ponto cego que deixou 294
+  # pessoas levarem o Urban depois de ja terem levado o disparo de junho/2026.
+  describe 'dedup pelos dois motores' do
+    let!(:contact) { create(:contact, account: account, phone_number: phone) }
+
+    # `resolved` de proposito: a conversa nasce `open` no factory, e conversa aberta na
+    # inbox da campanha e descartada antes como `atendimento_ativo` — o disparo nao
+    # atropela atendimento. Disparo antigo, que e o cenario aqui, ja esta encerrado.
+    def dispatched_by_old_engine!(scheduled_at: Time.current)
+      other = create(:campaign, account: account, inbox: inbox, scheduled_at: scheduled_at)
+      create(:conversation, account: account, inbox: inbox, contact: contact,
+                            campaign: other, status: :resolved)
+      other
+    end
+
+    it 'descarta quem so tem o carimbo na conversa, sem linha em campaign_recipients' do
+      dispatched_by_old_engine!
+
+      expect(CampaignRecipient.count).to be_zero
+      expect(build_audience.rejected.first[:reason]).to eq('ja_disparado')
+    end
+
+    it 'nao descarta pelo carimbo da PROPRIA campanha' do
+      create(:conversation, account: account, inbox: inbox, contact: contact,
+                            campaign: campaign, status: :resolved)
+
+      expect(build_audience.accepted.size).to eq(1)
+    end
+
+    it 'encontra o carimbo mesmo quando a ficha nasceu sem o 9o digito' do
+      contact.update!(phone_number: '+556692927211')
+      dispatched_by_old_engine!
+
+      expect(build_audience.rejected.first[:reason]).to eq('ja_disparado')
+    end
+  end
+
+  describe 'corte da dedup (dispatch_config["dedup"])' do
+    let!(:contact) { create(:contact, account: account, phone_number: phone) }
+
+    def dedup!(config)
+      campaign.update!(dispatch_config: (campaign.dispatch_config || {}).merge('dedup' => config))
+    end
+
+    # `resolved` de proposito: a conversa nasce `open` no factory, e conversa aberta na
+    # inbox da campanha e descartada antes como `atendimento_ativo` — o disparo nao
+    # atropela atendimento. Disparo antigo, que e o cenario aqui, ja esta encerrado.
+    def dispatched_by_old_engine!(scheduled_at: Time.current)
+      other = create(:campaign, account: account, inbox: inbox, scheduled_at: scheduled_at)
+      create(:conversation, account: account, inbox: inbox, contact: contact,
+                            campaign: other, status: :resolved)
+      other
+    end
+
+    describe 'window_days' do
+      it 'ignora disparo mais antigo que a janela' do
+        dispatched_by_old_engine!(scheduled_at: 200.days.ago)
+        dedup!('window_days' => 90)
+
+        expect(build_audience.accepted.size).to eq(1)
+      end
+
+      it 'mantem o descarte de disparo dentro da janela' do
+        dispatched_by_old_engine!(scheduled_at: 10.days.ago)
+        dedup!('window_days' => 90)
+
+        expect(build_audience.rejected.first[:reason]).to eq('ja_disparado')
+      end
+
+      # A janela do motor novo se apoia no `sent_at`, com fallback pro `created_at`.
+      it 'aplica a janela tambem ao motor novo' do
+        other = create(:campaign, account: account, inbox: inbox)
+        CampaignRecipient.create!(campaign: other, account: account, phone_number: phone,
+                                  canonical_phone: canonical, status: :sent, sent_at: 200.days.ago)
+        dedup!('window_days' => 90)
+
+        expect(build_audience.accepted.size).to eq(1)
+      end
+    end
+
+    describe 'campaign_ids' do
+      it 'descarta quando o disparo veio de uma campanha listada' do
+        outra = dispatched_by_old_engine!
+        dedup!('campaign_ids' => [outra.id])
+
+        expect(build_audience.rejected.first[:reason]).to eq('ja_disparado')
+      end
+
+      it 'ignora disparo de campanha fora da lista' do
+        dispatched_by_old_engine!
+        dedup!('campaign_ids' => [campaign.id + 10_000])
+
+        expect(build_audience.accepted.size).to eq(1)
+      end
+    end
+
+    describe 'sources' do
+      it 'com sources=recipients, ignora o carimbo da conversa' do
+        dispatched_by_old_engine!
+        dedup!('sources' => ['recipients'])
+
+        expect(build_audience.accepted.size).to eq(1)
+      end
+
+      it 'com sources=conversations, ignora campaign_recipients' do
+        already_dispatched!
+        dedup!('sources' => ['conversations'])
+
+        expect(build_audience.accepted.size).to eq(1)
+      end
+
+      # Config com nome errado nao pode virar disparo em dobro: cai no corte mais largo.
+      it 'trata source desconhecido como ausente e roda os dois motores' do
+        dispatched_by_old_engine!
+        dedup!('sources' => ['inexistente'])
+
+        expect(build_audience.rejected.first[:reason]).to eq('ja_disparado')
+      end
+    end
+  end
+
   describe 'fail-open' do
     it 'aceita numero que nao tem ficha na base' do
       result = build_audience

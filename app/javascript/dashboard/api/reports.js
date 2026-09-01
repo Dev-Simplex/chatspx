@@ -16,6 +16,7 @@ class ReportsAPI extends ApiClient {
     id,
     groupBy,
     businessHours,
+    inboxId,
   }) {
     return axios.get(`${this.url}`, {
       params: {
@@ -26,7 +27,125 @@ class ReportsAPI extends ApiClient {
         id,
         group_by: groupBy,
         business_hours: businessHours,
+        inbox_id: inboxId || undefined,
         timezone_offset: getTimeOffset(),
+      },
+    });
+  }
+
+  getSummary(
+    since,
+    until,
+    // eslint-disable-next-line default-param-last
+    type = 'account',
+    id,
+    groupBy,
+    businessHours,
+    inboxId
+  ) {
+    return axios.get(`${this.url}/summary`, {
+      params: {
+        since,
+        until,
+        type,
+        id,
+        group_by: groupBy,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+        timezone_offset: getTimeOffset(),
+      },
+    });
+  }
+
+  getConversationMetric(type = 'account', page = 1) {
+    return axios.get(`${this.url}/conversations`, {
+      params: {
+        type,
+        page,
+      },
+    });
+  }
+
+  getAgentReports({ from: since, to: until, businessHours, inboxId }) {
+    return axios.get(`${this.url}/agents`, {
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
+    });
+  }
+
+  getConversationsSummaryReports({
+    from: since,
+    to: until,
+    businessHours,
+    inboxId,
+  }) {
+    return axios.get(`${this.url}/conversations_summary`, {
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
+    });
+  }
+
+  getConversationTrafficCSV({ daysBefore = 6 } = {}) {
+    return axios.get(`${this.url}/conversation_traffic`, {
+      params: { timezone_offset: getTimeOffset(), days_before: daysBefore },
+    });
+  }
+
+  getLabelReports({ from: since, to: until, businessHours, inboxId }) {
+    return axios.get(`${this.url}/labels`, {
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
+    });
+  }
+
+  getInboxReports({ from: since, to: until, businessHours, inboxId }) {
+    return axios.get(`${this.url}/inboxes`, {
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
+    });
+  }
+
+  getTeamReports({ from: since, to: until, businessHours, inboxId }) {
+    return axios.get(`${this.url}/teams`, {
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+      },
+    });
+  }
+
+  getBotMetrics({ from, to } = {}) {
+    return axios.get(`${this.url}/bot_metrics`, {
+      params: { since: from, until: to },
+    });
+  }
+
+  getBotSummary({ from, to, groupBy, businessHours } = {}) {
+    return axios.get(`${this.url}/bot_summary`, {
+      params: {
+        since: from,
+        until: to,
+        type: 'account',
+        group_by: groupBy,
+        business_hours: businessHours,
       },
     });
   }
@@ -67,66 +186,6 @@ class ReportsAPI extends ApiClient {
     return axios.get(`${this.url}/drilldown`, requestConfig);
   }
 
-  // eslint-disable-next-line default-param-last
-  getSummary(since, until, type = 'account', id, groupBy, businessHours) {
-    return axios.get(`${this.url}/summary`, {
-      params: {
-        since,
-        until,
-        type,
-        id,
-        group_by: groupBy,
-        business_hours: businessHours,
-        timezone_offset: getTimeOffset(),
-      },
-    });
-  }
-
-  getConversationMetric(type = 'account', page = 1) {
-    return axios.get(`${this.url}/conversations`, {
-      params: {
-        type,
-        page,
-      },
-    });
-  }
-
-  getAgentReports({ from: since, to: until, businessHours }) {
-    return axios.get(`${this.url}/agents`, {
-      params: { since, until, business_hours: businessHours },
-    });
-  }
-
-  getConversationsSummaryReports({ from: since, to: until, businessHours }) {
-    return axios.get(`${this.url}/conversations_summary`, {
-      params: { since, until, business_hours: businessHours },
-    });
-  }
-
-  getConversationTrafficCSV({ daysBefore = 6 } = {}) {
-    return axios.get(`${this.url}/conversation_traffic`, {
-      params: { timezone_offset: getTimeOffset(), days_before: daysBefore },
-    });
-  }
-
-  getLabelReports({ from: since, to: until, businessHours }) {
-    return axios.get(`${this.url}/labels`, {
-      params: { since, until, business_hours: businessHours },
-    });
-  }
-
-  getInboxReports({ from: since, to: until, businessHours }) {
-    return axios.get(`${this.url}/inboxes`, {
-      params: { since, until, business_hours: businessHours },
-    });
-  }
-
-  getTeamReports({ from: since, to: until, businessHours }) {
-    return axios.get(`${this.url}/teams`, {
-      params: { since, until, business_hours: businessHours },
-    });
-  }
-
   // Bloco 1.22 — de onde vieram os atendimentos no periodo.
   getConversationOrigin({ from, to } = {}) {
     return axios.get(`${this.baseUrl()}/origin_report`, {
@@ -139,24 +198,6 @@ class ReportsAPI extends ApiClient {
   getPartialLeads({ from, to } = {}) {
     return axios.get(`${this.baseUrl()}/partial_lead_report`, {
       params: { since: from, until: to },
-    });
-  }
-
-  getBotMetrics({ from, to } = {}) {
-    return axios.get(`${this.url}/bot_metrics`, {
-      params: { since: from, until: to },
-    });
-  }
-
-  getBotSummary({ from, to, groupBy, businessHours } = {}) {
-    return axios.get(`${this.url}/bot_summary`, {
-      params: {
-        since: from,
-        until: to,
-        type: 'account',
-        group_by: groupBy,
-        business_hours: businessHours,
-      },
     });
   }
 }

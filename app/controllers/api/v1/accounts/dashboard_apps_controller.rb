@@ -1,4 +1,7 @@
 class Api::V1::Accounts::DashboardAppsController < Api::V1::Accounts::BaseController
+  # Dashboard apps é uma aba DENTRO da tela de Integrações. Só a gestão sai do alcance
+  # do supervisor — `index`/`show` alimentam as abas do painel do contato na conversa.
+  before_action :check_platform_settings_authorization?, only: [:create, :update, :destroy]
   before_action :fetch_dashboard_apps, except: [:create]
   before_action :fetch_dashboard_app, only: [:show, :update, :destroy]
 

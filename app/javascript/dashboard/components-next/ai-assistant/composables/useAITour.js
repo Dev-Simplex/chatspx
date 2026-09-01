@@ -94,29 +94,29 @@ export function useAITour() {
         id: 'sparkles',
         anchor: '[data-ai-tour="sparkles-button"]',
         on: 'top',
-        title: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_1.TITLE'),
-        body: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_1.BODY'),
+        title: t('AI_ASSISTANT_PANEL.TOUR.STEP_1.TITLE'),
+        body: t('AI_ASSISTANT_PANEL.TOUR.STEP_1.BODY'),
       },
       {
         id: 'dropdown-first-item',
         anchor: '[data-ai-tour="dropdown-first-item"]',
         on: 'right',
-        title: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_2.TITLE'),
-        body: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_2.BODY'),
+        title: t('AI_ASSISTANT_PANEL.TOUR.STEP_2.TITLE'),
+        body: t('AI_ASSISTANT_PANEL.TOUR.STEP_2.BODY'),
       },
       {
         id: 'suggestion-chip',
         anchor: '[data-ai-tour="suggestion-chip"]',
         on: 'top',
-        title: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_3.TITLE'),
-        body: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_3.BODY'),
+        title: t('AI_ASSISTANT_PANEL.TOUR.STEP_3.TITLE'),
+        body: t('AI_ASSISTANT_PANEL.TOUR.STEP_3.BODY'),
       },
       {
         id: 'copilot-launcher',
         anchor: '[data-ai-tour="copilot-launcher"]',
         on: 'left',
-        title: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_4.TITLE'),
-        body: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_4.BODY'),
+        title: t('AI_ASSISTANT_PANEL.TOUR.STEP_4.TITLE'),
+        body: t('AI_ASSISTANT_PANEL.TOUR.STEP_4.BODY'),
       },
     ];
 
@@ -124,7 +124,7 @@ export function useAITour() {
       const isLast = index === stepDefs.length - 1;
       const stepNumber = index + 1;
       const total = stepDefs.length;
-      const stepLabel = t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.STEP_LABEL', {
+      const stepLabel = t('AI_ASSISTANT_PANEL.TOUR.STEP_LABEL', {
         current: stepNumber,
         total,
         title: def.title,
@@ -141,7 +141,7 @@ export function useAITour() {
       const buttons = [];
       if (!isLast) {
         buttons.push({
-          text: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.SKIP'),
+          text: t('AI_ASSISTANT_PANEL.TOUR.SKIP'),
           classes: 'shepherd-button-secondary',
           action() {
             markCompleted('skipped');
@@ -149,7 +149,7 @@ export function useAITour() {
             // Toast informa que o tour pode ser retomado depois — só dispara
             // no Skip explícito (não no Esc/X, que pausam para resume).
             try {
-              toast(t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.SKIP_TOAST'));
+              toast(t('AI_ASSISTANT_PANEL.TOUR.SKIP_TOAST'));
             } catch {
               /* toast unavailable in tests */
             }
@@ -157,7 +157,7 @@ export function useAITour() {
           },
         });
         buttons.push({
-          text: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.NEXT'),
+          text: t('AI_ASSISTANT_PANEL.TOUR.NEXT'),
           action() {
             saveStep(stepNumber);
             this.next();
@@ -165,7 +165,7 @@ export function useAITour() {
         });
       } else {
         buttons.push({
-          text: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.FINISH'),
+          text: t('AI_ASSISTANT_PANEL.TOUR.FINISH'),
           action() {
             this.complete();
           },
@@ -225,7 +225,7 @@ export function useAITour() {
       defaultStepOptions: {
         cancelIcon: {
           enabled: true,
-          label: t('CONVERSATION.AI_ASSISTANT_PANEL.TOUR.CLOSE'),
+          label: t('AI_ASSISTANT_PANEL.TOUR.CLOSE'),
         },
         canClickTarget: false,
         classes: 'shepherd-spx',

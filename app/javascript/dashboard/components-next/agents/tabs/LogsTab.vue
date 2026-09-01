@@ -25,19 +25,19 @@ let refreshInterval = null;
 
 const eventTypeConfig = {
   response: { color: 'bg-green-500', icon: 'i-lucide-check-circle' },
-  debounce_skip: { color: 'bg-cyan-500', icon: 'i-lucide-timer-off' },
-  debounce_fire: { color: 'bg-cyan-500', icon: 'i-lucide-timer' },
-  router_skip: { color: 'bg-amber-500', icon: 'i-lucide-skip-forward' },
-  business_hours_skip: { color: 'bg-purple-500', icon: 'i-lucide-clock' },
+  debounce_skip: { color: 'bg-n-teal-9', icon: 'i-lucide-timer-off' },
+  debounce_fire: { color: 'bg-n-teal-9', icon: 'i-lucide-timer' },
+  router_skip: { color: 'bg-n-amber-9', icon: 'i-lucide-skip-forward' },
+  business_hours_skip: { color: 'bg-n-violet-9', icon: 'i-lucide-clock' },
   handoff: { color: 'bg-red-500', icon: 'i-lucide-user-check' },
-  media_process: { color: 'bg-indigo-500', icon: 'i-lucide-image' },
-  humanizer_split: { color: 'bg-pink-500', icon: 'i-lucide-split' },
-  dedup_skip: { color: 'bg-orange-500', icon: 'i-lucide-copy-x' },
+  media_process: { color: 'bg-n-violet-10', icon: 'i-lucide-image' },
+  humanizer_split: { color: 'bg-n-ruby-9', icon: 'i-lucide-split' },
+  dedup_skip: { color: 'bg-n-amber-9', icon: 'i-lucide-copy-x' },
   error: { color: 'bg-red-500', icon: 'i-lucide-alert-circle' },
   copilot_trigger: { color: 'bg-violet-500', icon: 'i-lucide-sparkles' },
-  mirror_assigned: { color: 'bg-blue-500', icon: 'i-lucide-bot' },
+  mirror_assigned: { color: 'bg-n-blue-9', icon: 'i-lucide-bot' },
   mirror_released: { color: 'bg-slate-500', icon: 'i-lucide-bot-off' },
-  human_takeover: { color: 'bg-amber-500', icon: 'i-lucide-user-round-check' },
+  human_takeover: { color: 'bg-n-amber-9', icon: 'i-lucide-user-round-check' },
   // 6.01: a resposta que o guardrail de pré-envio impediu de sair.
   guardrail_retained: { color: 'bg-red-500', icon: 'i-lucide-shield-alert' },
 };
@@ -72,9 +72,19 @@ onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval);
 });
 
+// A API serializa `created_at` com `.to_i`, ou seja, EPOCH EM SEGUNDOS
+// (assistant_logs/index.json.jbuilder). `new Date(segundos)` interpreta o número como
+// milissegundos, então todo log aparecia datado de janeiro de 1970. Aceita também string
+// de data e epoch já em milissegundos, para não depender do formato de um único endpoint.
+const MS_THRESHOLD = 1e11;
 function formatTimestamp(ts) {
   if (!ts) return '';
-  return new Date(ts).toLocaleString('pt-BR');
+  if (typeof ts === 'number') {
+    const ms = ts < MS_THRESHOLD ? ts * 1000 : ts;
+    return new Date(ms).toLocaleString('pt-BR');
+  }
+  const parsed = new Date(ts);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleString('pt-BR');
 }
 function summarizePayload(payload) {
   if (!payload) return '';

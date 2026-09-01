@@ -96,14 +96,6 @@
           "PLACEHOLDER": "Please enter your Webhook URL",
           "ERROR": "Please enter a valid URL"
         },
-        "CHANNEL_WEBHOOK_SECRET": {
-          "LABEL": "Webhook Secret",
-          "COPY": "Copy secret to clipboard",
-          "COPY_SUCCESS": "Secret copied to clipboard",
-          "TOGGLE": "Toggle secret visibility",
-          "RESET_SUCCESS": "Webhook secret regenerated successfully",
-          "RESET_ERROR": "Unable to regenerate webhook secret. Please try again"
-        },
         "CHANNEL_DOMAIN": {
           "LABEL": "Website Domain",
           "PLACEHOLDER": "Enter your website domain (eg: acme.com)"
@@ -140,6 +132,14 @@
         "SUBMIT_BUTTON": "Create inbox",
         "API": {
           "ERROR_MESSAGE": "We were not able to create a website channel, please try again"
+        },
+        "CHANNEL_WEBHOOK_SECRET": {
+          "LABEL": "Webhook Secret",
+          "COPY": "Copy secret to clipboard",
+          "COPY_SUCCESS": "Secret copied to clipboard",
+          "TOGGLE": "Toggle secret visibility",
+          "RESET_SUCCESS": "Webhook secret regenerated successfully",
+          "RESET_ERROR": "Unable to regenerate webhook secret. Please try again"
         }
       },
       "TWILIO": {
@@ -327,7 +327,8 @@
           "AUTH_NOT_COMPLETED": "Authentication not completed. Please restart the process.",
           "SUCCESS_FALLBACK": "WhatsApp Business Account has been successfully configured",
           "MANUAL_FALLBACK": "If your number is already connected to the WhatsApp Business Platform (API), or if you’re a tech provider onboarding your own number, please use the {link} flow",
-          "MANUAL_LINK_TEXT": "manual setup flow"
+          "MANUAL_LINK_TEXT": "manual setup flow",
+          "SDK_LOAD_ERROR": "Não foi possível carregar o SDK do Facebook. Recarregue a página e tente novamente."
         },
         "API": {
           "ERROR_MESSAGE": "We were not able to save the WhatsApp channel"
@@ -644,45 +645,47 @@
       "SETTINGS": "General",
       "COLLABORATORS": "Collaborators",
       "CONFIGURATION": "Installation",
+      "CAMPAIGN": "Campaigns",
       "PRE_CHAT_FORM": "Pre-chat",
       "BUSINESS_HOURS": "Business Hours",
+      "WIDGET_BUILDER": "Widget Builder",
       "BOT_CONFIGURATION": "Bot",
       "ACCOUNT_HEALTH": "Account Health",
       "CSAT": "CSAT",
-      "NPS": "NPS",
-      "MESSAGE_TEMPLATES": "Message templates"
+      "MESSAGE_TEMPLATES": "Message templates",
+      "NPS": "NPS"
     },
     "CHANNEL_PREFERENCES": "Channel Preferences",
     "WIDGET_FEATURES": "Widget features",
     "ACCOUNT_HEALTH": {
       "TITLE": "Manage your WhatsApp account",
-      "DESCRIPTION": "Review your WhatsApp phone number health, messaging capacity, and linked Meta business details.",
+      "DESCRIPTION": "Review your WhatsApp account status, messaging limits, and quality. Update settings or resolve issues if needed",
       "GO_TO_SETTINGS": "Go to Meta Business Manager",
       "NO_DATA": "Health data is not available",
-      "ERRORS": {
-        "AUTHORIZATION": {
-          "EMBEDDED_TITLE": "WhatsApp connection needs to be refreshed",
-          "EMBEDDED_DESCRIPTION": "Meta could not validate the connection for this inbox. Go to Configuration to reconfigure it using Embedded Signup.",
-          "MANUAL_TITLE": "WhatsApp access token needs attention",
-          "MANUAL_DESCRIPTION": "Meta could not validate the access token for this inbox. Go to Configuration to verify or replace it."
-        },
-        "GENERIC_TITLE": "WhatsApp health data is unavailable",
-        "GENERIC_DESCRIPTION": "Meta could not return the current health details. Review the error below and try again later.",
-        "GO_TO_CONFIGURATION": "Go to Configuration"
-      },
-      "SECTIONS": {
-        "PHONE_NUMBER": "Phone number",
-        "HEALTH_AND_CAPACITY": "Health and capacity",
-        "BUSINESS_ACCOUNT": "Business account"
-      },
       "FIELDS": {
         "DISPLAY_PHONE_NUMBER": {
           "LABEL": "Display phone number",
           "TOOLTIP": "Phone number displayed to customers"
         },
         "VERIFIED_NAME": {
-          "LABEL": "WhatsApp display name",
-          "TOOLTIP": "Display name associated with this phone number on WhatsApp"
+          "LABEL": "Business name",
+          "TOOLTIP": "Business name verified by WhatsApp"
+        },
+        "DISPLAY_NAME_STATUS": {
+          "LABEL": "Display name status",
+          "TOOLTIP": "Status of your business name verification"
+        },
+        "QUALITY_RATING": {
+          "LABEL": "Quality rating",
+          "TOOLTIP": "WhatsApp quality rating for your account"
+        },
+        "MESSAGING_LIMIT_TIER": {
+          "LABEL": "Messaging limit tier",
+          "TOOLTIP": "Daily messaging limit for your account"
+        },
+        "ACCOUNT_MODE": {
+          "LABEL": "Account mode",
+          "TOOLTIP": "Current operating mode of your WhatsApp account"
         },
         "PHONE_NUMBER_ID": {
           "LABEL": "Phone number ID",
@@ -692,10 +695,6 @@
           "LABEL": "Coexistence",
           "TOOLTIP": "This number is connected to both the WhatsApp Business app and Cloud API"
         },
-        "DISPLAY_NAME_STATUS": {
-          "LABEL": "Display name status",
-          "TOOLTIP": "Review status of the WhatsApp display name"
-        },
         "LAST_ONBOARDED_TIME": {
           "LABEL": "Last onboarded",
           "TOOLTIP": "Most recent time Meta onboarded this phone number"
@@ -703,18 +702,6 @@
         "PHONE_NUMBER_STATUS": {
           "LABEL": "Phone number status",
           "TOOLTIP": "Current connection status of this phone number on WhatsApp"
-        },
-        "QUALITY_RATING": {
-          "LABEL": "Quality rating",
-          "TOOLTIP": "Quality rating Meta assigns to this phone number based on recent messaging signals"
-        },
-        "MESSAGING_LIMIT_TIER": {
-          "LABEL": "Messaging limit tier",
-          "TOOLTIP": "Number of customers this phone number can initiate conversations with in 24 hours"
-        },
-        "ACCOUNT_MODE": {
-          "LABEL": "Account mode",
-          "TOOLTIP": "Current operating mode of this WhatsApp phone number"
         },
         "CODE_VERIFICATION_STATUS": {
           "LABEL": "Code verification",
@@ -742,19 +729,23 @@
         }
       },
       "VALUES": {
-        "NOT_AVAILABLE": "Not available",
         "TIERS": {
           "TIER_250": "250 customers per 24h",
           "TIER_1000": "1K customers per 24h",
           "TIER_1K": "1K customers per 24h",
-          "TIER_2K": "2K customers per 24h",
           "TIER_10K": "10K customers per 24h",
           "TIER_100K": "100K customers per 24h",
           "TIER_UNLIMITED": "Unlimited customers per 24h",
-          "UNKNOWN": "Rating not available"
+          "UNKNOWN": "Rating not available",
+          "TIER_2K": "2K customers per 24h"
         },
         "STATUSES": {
           "APPROVED": "Approved",
+          "PENDING_REVIEW": "Pending Review",
+          "AVAILABLE_WITHOUT_REVIEW": "Available Without Review",
+          "REJECTED": "Rejected",
+          "DECLINED": "Declined",
+          "NON_EXISTS": "Non exists",
           "CONNECTED": "Connected",
           "VERIFIED": "Verified",
           "STANDARD": "Standard",
@@ -764,17 +755,13 @@
           "RESTRICTED": "Restricted",
           "BANNED": "Banned",
           "DISCONNECTED": "Disconnected",
-          "UNKNOWN": "Not available",
-          "PENDING_REVIEW": "Pending Review",
-          "AVAILABLE_WITHOUT_REVIEW": "Available Without Review",
-          "REJECTED": "Rejected",
-          "DECLINED": "Declined",
-          "NON_EXISTS": "Non exists"
+          "UNKNOWN": "Not available"
         },
         "MODES": {
           "SANDBOX": "Sandbox",
           "LIVE": "Live"
-        }
+        },
+        "NOT_AVAILABLE": "Not available"
       },
       "WEBHOOK": {
         "TITLE": "Webhook Configuration",
@@ -789,6 +776,22 @@
         "EXPECTED_URL": "Expected URL",
         "COPY_URL": "Copy webhook URL",
         "COPY_SUCCESS": "Webhook URL copied to clipboard"
+      },
+      "ERRORS": {
+        "AUTHORIZATION": {
+          "EMBEDDED_TITLE": "WhatsApp connection needs to be refreshed",
+          "EMBEDDED_DESCRIPTION": "Meta could not validate the connection for this inbox. Go to Configuration to reconfigure it using Embedded Signup.",
+          "MANUAL_TITLE": "WhatsApp access token needs attention",
+          "MANUAL_DESCRIPTION": "Meta could not validate the access token for this inbox. Go to Configuration to verify or replace it."
+        },
+        "GENERIC_TITLE": "WhatsApp health data is unavailable",
+        "GENERIC_DESCRIPTION": "Meta could not return the current health details. Review the error below and try again later.",
+        "GO_TO_CONFIGURATION": "Go to Configuration"
+      },
+      "SECTIONS": {
+        "PHONE_NUMBER": "Phone number",
+        "HEALTH_AND_CAPACITY": "Health and capacity",
+        "BUSINESS_ACCOUNT": "Business account"
       }
     },
     "SETTINGS": "Settings",
@@ -847,7 +850,6 @@
       "SENDER_NAME_SECTION_TEXT": "Enable/Disable showing Agent's name in email, if disabled it will show business name",
       "ENABLE_CONTINUITY_VIA_EMAIL": "Enable conversation continuity via email",
       "ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT": "Conversations will continue over email if the contact email address is available.",
-      "ENABLE_CONTINUITY_VIA_EMAIL_DISABLED_TEXT": "This feature is available on a paid plan. Upgrade to enable conversation continuity via email.",
       "LOCK_TO_SINGLE_CONVERSATION": "Conversation Routing",
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Configure conversation creation for existing contacts",
       "TEAM_MESSAGE_ISOLATION": "Team message isolation",
@@ -856,6 +858,14 @@
       "AGENT_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, each agent can only see the messages they sent themselves. Messages from other agents appear blurred with restricted access.",
       "AGENT_CONVERSATION_ISOLATION": "Agent conversation isolation",
       "AGENT_CONVERSATION_ISOLATION_SUB_TEXT": "When enabled, an agent can only open conversations assigned to them. Others show a request prompt instead. Unassigned conversations stay available to pick up; admins see everything.",
+      "ISOLATION_TEAMS": {
+        "LABEL": "Teams this rule applies to",
+        "ALL_TEAMS": "Empty list: the rule applies to ALL teams. That is the default and how it works today.",
+        "SCOPED": "The rule applies only to conversations in the selected teams. Nobody is isolated in the other teams.",
+        "NO_TEAM_NEVER_ISOLATED": "A conversation with no team is never isolated, even with the rule on: it starts without a team, before triage.",
+        "NO_TEAM_STILL_ISOLATED": "A conversation with no team STAYS isolated in this rule, whether or not you pick teams: here the block is by owner, not by team.",
+        "NO_TEAMS": "No teams in this account yet, so the rule applies to all of them."
+      },
       "PENDING_STATUS": {
         "TITLE": "Allow Pending status",
         "SUB_TEXT": "When enabled, agents can mark conversations as Pending in this inbox. Conversations already pending remain visible even if disabled."
@@ -885,15 +895,6 @@
       "WHATSAPP_EMBEDDED_SIGNUP_SUBHEADER": "This inbox is connected through WhatsApp embedded signup.",
       "WHATSAPP_EMBEDDED_SIGNUP_DESCRIPTION": "You can reconfigure this inbox to update your WhatsApp Business settings.",
       "WHATSAPP_RECONFIGURE_BUTTON": "Reconfigure",
-      "WHATSAPP_MANUAL_TRANSFER_TITLE": "Switch to Manual Setup",
-      "WHATSAPP_MANUAL_TRANSFER_SUBHEADER": "This inbox was connected through WhatsApp embedded signup, which is no longer supported. Enter the WhatsApp Cloud API credentials from your own Meta app to switch this inbox to a manual setup. Configure the webhook in your Meta app using the verification token above before switching.",
-      "WHATSAPP_MANUAL_TRANSFER_PHONE_NUMBER_ID_LABEL": "Phone Number ID",
-      "WHATSAPP_MANUAL_TRANSFER_BUSINESS_ACCOUNT_ID_LABEL": "Business Account ID",
-      "WHATSAPP_MANUAL_TRANSFER_API_KEY_LABEL": "API Key",
-      "WHATSAPP_MANUAL_TRANSFER_API_KEY_PLACEHOLDER": "Enter a permanent access token from your Meta app",
-      "WHATSAPP_MANUAL_TRANSFER_BUTTON": "Switch to Manual Setup",
-      "WHATSAPP_MANUAL_TRANSFER_SUCCESS": "Inbox switched to manual setup successfully.",
-      "WHATSAPP_MANUAL_TRANSFER_ERROR": "Could not switch to manual setup. Please verify the credentials and try again.",
       "WHATSAPP_CONNECT_TITLE": "Connect to WhatsApp Business",
       "WHATSAPP_CONNECT_SUBHEADER": "Upgrade to WhatsApp embedded signup for easier management.",
       "WHATSAPP_CONNECT_DESCRIPTION": "Connect this inbox to WhatsApp Business for enhanced features and easier management.",
@@ -911,6 +912,38 @@
       "WHATSAPP_TEMPLATES_SYNC_SUBHEADER": "Manually sync message templates from WhatsApp to update your available templates.",
       "WHATSAPP_TEMPLATES_SYNC_BUTTON": "Sync Templates",
       "WHATSAPP_TEMPLATES_SYNC_SUCCESS": "Templates sync initiated successfully. It may take a couple of minutes to update.",
+      "UPDATE_PRE_CHAT_FORM_SETTINGS": "Update Pre Chat Form Settings",
+      "ISOLATION_PARTICIPANTS": {
+        "TITLE": "Agentes que participam",
+        "COUNT": "{selected} de {total} marcados",
+        "SELECT_ALL": "Selecionar todos",
+        "SEES_EVERYTHING": "vê tudo",
+        "SUPERVISOR_BADGE_AGENT": "isento no time dele",
+        "SUPERVISOR_BADGE_TEAM": "participa sempre",
+        "SUPERVISOR_OF": "supervisor do time {name}",
+        "SUPERVISOR_OF_MANY": "supervisor de {count} times",
+        "ADMIN_NOTE_AGENT": "Administradores não aparecem aqui: eles nunca são isolados por agente.",
+        "ADMIN_NOTE_TEAM": "Administradores não aparecem aqui — mas eles também não escapam desta regra. Para tirar o isolamento de time de um administrador, desligue a chave desta caixa.",
+        "SUPERVISOR_NOTE_AGENT": "Supervisores de time já enxergam as mensagens de qualquer agente nas conversas do time que supervisionam — por isso vêm marcados como isentos, sem caixa de seleção.",
+        "SUPERVISOR_NOTE_TEAM": "A supervisão de time isenta do isolamento por agente, não deste: aqui o supervisor participa como qualquer outro, e por isso vem marcado e sem caixa de seleção.",
+        "EMPTY": "Nenhum agente nesta caixa de entrada. Adicione agentes na aba Colaboradores.",
+        "LOADING": "Carregando os agentes da caixa...",
+        "SAVE": "Salvar lista",
+        "SAVING": "Salvando...",
+        "UNSAVED": "Alterações ainda não salvas",
+        "SAVED": "Lista de participantes atualizada",
+        "SAVE_ERROR": "Não foi possível salvar a lista. Tente de novo."
+      },
+      "ENABLE_CONTINUITY_VIA_EMAIL_DISABLED_TEXT": "This feature is available on a paid plan. Upgrade to enable conversation continuity via email.",
+      "WHATSAPP_MANUAL_TRANSFER_TITLE": "Switch to Manual Setup",
+      "WHATSAPP_MANUAL_TRANSFER_SUBHEADER": "This inbox was connected through WhatsApp embedded signup, which is no longer supported. Enter the WhatsApp Cloud API credentials from your own Meta app to switch this inbox to a manual setup. Configure the webhook in your Meta app using the verification token above before switching.",
+      "WHATSAPP_MANUAL_TRANSFER_PHONE_NUMBER_ID_LABEL": "Phone Number ID",
+      "WHATSAPP_MANUAL_TRANSFER_BUSINESS_ACCOUNT_ID_LABEL": "Business Account ID",
+      "WHATSAPP_MANUAL_TRANSFER_API_KEY_LABEL": "API Key",
+      "WHATSAPP_MANUAL_TRANSFER_API_KEY_PLACEHOLDER": "Enter a permanent access token from your Meta app",
+      "WHATSAPP_MANUAL_TRANSFER_BUTTON": "Switch to Manual Setup",
+      "WHATSAPP_MANUAL_TRANSFER_SUCCESS": "Inbox switched to manual setup successfully.",
+      "WHATSAPP_MANUAL_TRANSFER_ERROR": "Could not switch to manual setup. Please verify the credentials and try again.",
       "WHATSAPP_MANUAL_MIGRATION": {
         "BANNER": {
           "TITLE": "Manual setup recommended",
@@ -974,8 +1007,7 @@
             "DESCRIPTION": "Confirm the connection details before reconnecting this inbox. Chatwoot will verify the token, WABA, and phone number with Meta before applying changes."
           }
         }
-      },
-      "UPDATE_PRE_CHAT_FORM_SETTINGS": "Update Pre Chat Form Settings"
+      }
     },
     "HELP_CENTER": {
       "LABEL": "Help Center",
@@ -1140,70 +1172,9 @@
       }
     },
     "NPS": {
-      "TITLE": "Enable NPS",
-      "SUBTITLE": "Automatically send NPS surveys at the end of conversations to measure customer satisfaction and identify promoters and detractors.",
-      "MODE": {
-        "LABEL": "Sending Mode",
-        "AUTO": "Automatic",
-        "MANUAL": "Manual",
-        "BOTH": "Both"
-      },
-      "MESSAGE": {
-        "LABEL": "Message",
-        "PLACEHOLDER": "Enter the NPS survey message (e.g. On a scale of 0 to 10, how likely are you to recommend our company?)"
-      },
-      "COOLDOWN_DAYS": {
-        "LABEL": "Cooldown Days",
-        "PLACEHOLDER": "30"
-      },
-      "EXPIRATION_HOURS": {
-        "LABEL": "Expiration Hours",
-        "PLACEHOLDER": "72"
-      },
       "COOLDOWN_HOURS": {
         "LABEL": "Cooldown (hours)",
         "HINT": "E.g. 24 = 1 day. Multiple agents can assist the same customer on the same day without sending NPS on every resolution."
-      },
-      "BLOCKLIST_RULE": {
-        "LABEL": "Block by Labels",
-        "DESCRIPTION_PREFIX": "Do not send NPS if the conversation",
-        "DESCRIPTION_SUFFIX": "any of the labels",
-        "OPERATOR": {
-          "CONTAINS": "contains"
-        },
-        "SELECT_PLACEHOLDER": "Select label"
-      },
-      "BLOCKLIST": {
-        "LABEL": "Blocking Labels",
-        "SELECT_PLACEHOLDER": "Add label"
-      },
-      "BLOCKLIST_SCOPE": {
-        "LABEL": "Blocking Scope",
-        "CONTACT": "Contact",
-        "CONVERSATION": "Conversation",
-        "BOTH": "Both"
-      },
-      "THANK_YOU_MESSAGE": {
-        "LABEL": "Thank-you Message",
-        "PLACEHOLDER": "Thank you for your feedback!"
-      },
-      "INVALID_RESPONSE_MESSAGE": {
-        "LABEL": "Invalid Response Message",
-        "PLACEHOLDER": "Please reply with a number from 0 to 10."
-      },
-      "COMMENT_PROMPT_MESSAGE": {
-        "LABEL": "Comment Prompt Message",
-        "PLACEHOLDER": "Would you like to add any comments?"
-      },
-      "MIN_MESSAGES": {
-        "LABEL": "Minimum Messages"
-      },
-      "MIN_DURATION_MINUTES": {
-        "LABEL": "Minimum Duration (minutes)"
-      },
-      "REQUIRED_TAGS": {
-        "LABEL": "Required Labels",
-        "SELECT_PLACEHOLDER": "Add label"
       },
       "THANK_YOU_PROMOTER": {
         "LABEL": "Thank-you for promoters (9-10)",
@@ -1251,6 +1222,67 @@
           "PLACEHOLDER": "detractor"
         }
       },
+      "TITLE": "Enable NPS",
+      "SUBTITLE": "Automatically send NPS surveys at the end of conversations to measure customer satisfaction and identify promoters and detractors.",
+      "MODE": {
+        "LABEL": "Sending Mode",
+        "AUTO": "Automatic",
+        "MANUAL": "Manual",
+        "BOTH": "Both"
+      },
+      "MESSAGE": {
+        "LABEL": "Message",
+        "PLACEHOLDER": "Enter the NPS survey message (e.g. On a scale of 0 to 10, how likely are you to recommend our company?)"
+      },
+      "COOLDOWN_DAYS": {
+        "LABEL": "Cooldown Days",
+        "PLACEHOLDER": "30"
+      },
+      "EXPIRATION_HOURS": {
+        "LABEL": "Expiration Hours",
+        "PLACEHOLDER": "72"
+      },
+      "BLOCKLIST_RULE": {
+        "LABEL": "Block by Labels",
+        "DESCRIPTION_PREFIX": "Do not send NPS if the conversation",
+        "DESCRIPTION_SUFFIX": "any of the labels",
+        "OPERATOR": {
+          "CONTAINS": "contains"
+        },
+        "SELECT_PLACEHOLDER": "Select label"
+      },
+      "BLOCKLIST": {
+        "LABEL": "Blocking Labels",
+        "SELECT_PLACEHOLDER": "Add label"
+      },
+      "BLOCKLIST_SCOPE": {
+        "LABEL": "Blocking Scope",
+        "CONTACT": "Contact",
+        "CONVERSATION": "Conversation",
+        "BOTH": "Both"
+      },
+      "THANK_YOU_MESSAGE": {
+        "LABEL": "Thank-you Message",
+        "PLACEHOLDER": "Thank you for your feedback!"
+      },
+      "INVALID_RESPONSE_MESSAGE": {
+        "LABEL": "Invalid Response Message",
+        "PLACEHOLDER": "Please reply with a number from 0 to 10."
+      },
+      "COMMENT_PROMPT_MESSAGE": {
+        "LABEL": "Comment Prompt Message",
+        "PLACEHOLDER": "Would you like to add any comments?"
+      },
+      "MIN_MESSAGES": {
+        "LABEL": "Minimum Messages"
+      },
+      "MIN_DURATION_MINUTES": {
+        "LABEL": "Minimum Duration (minutes)"
+      },
+      "REQUIRED_TAGS": {
+        "LABEL": "Required Labels",
+        "SELECT_PLACEHOLDER": "Add label"
+      },
       "NOTE": "NPS will be sent automatically when a conversation is resolved, if all conditions are met.",
       "API": {
         "SUCCESS_MESSAGE": "NPS settings updated successfully",
@@ -1273,7 +1305,8 @@
         "ENABLE": "Enable availability for this day",
         "UNAVAILABLE": "Unavailable",
         "VALIDATION_ERROR": "Starting time should be before closing time.",
-        "CHOOSE": "Choose"
+        "CHOOSE": "Choose",
+        "BREAK": "Lunch break"
       },
       "ALL_DAY": "All-Day"
     },
@@ -1428,7 +1461,8 @@
         "USER_MESSAGE": "Hi",
         "AGENT_MESSAGE": "Hello"
       },
-      "BRANDING_TEXT": "Powered by Chatwoot"
+      "BRANDING_TEXT": "Powered by Chatwoot",
+      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

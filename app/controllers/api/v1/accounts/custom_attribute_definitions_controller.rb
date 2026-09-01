@@ -1,4 +1,8 @@
 class Api::V1::Accounts::CustomAttributeDefinitionsController < Api::V1::Accounts::BaseController
+  # Só a GESTÃO sai do alcance do supervisor de time. `index`/`show` continuam abertos
+  # de propósito: as definições alimentam os campos personalizados do painel do contato
+  # e da conversa — fechá-las some com os campos na tela de atendimento dele.
+  before_action :check_platform_settings_authorization?, only: [:create, :update, :destroy]
   before_action :fetch_custom_attributes_definitions, except: [:create]
   before_action :fetch_custom_attribute_definition, only: [:show, :update, :destroy]
   DEFAULT_ATTRIBUTE_MODEL = 'conversation_attribute'.freeze
@@ -49,6 +53,8 @@ class Api::V1::Accounts::CustomAttributeDefinitionsController < Api::V1::Account
       # flag fora do console — que e como o bloco chegou "PARCIAL". `origin` fica DE FORA
       # de proposito (ver `create`): ela e carimbo do servidor, nao campo de formulario.
       :requires_verified_origin,
+      :required,
+      :hidden,
       attribute_values: []
     )
   end

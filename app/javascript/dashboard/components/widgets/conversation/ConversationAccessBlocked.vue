@@ -67,7 +67,7 @@ const onRequest = async () => {
 
 <template>
   <div
-    class="flex flex-col items-center justify-center flex-1 w-full h-full px-6 text-center bg-n-chat-bg"
+    class="flex flex-col items-center justify-center flex-1 w-full h-full px-6 text-center bg-n-background"
   >
     <div
       class="flex items-center justify-center rounded-full size-14 bg-n-alpha-2 text-n-slate-11"

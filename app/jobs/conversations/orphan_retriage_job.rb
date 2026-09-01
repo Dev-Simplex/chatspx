@@ -87,10 +87,12 @@ class Conversations::OrphanRetriageJob < ApplicationJob
   #
   # F1.4 (modo FILA): a re-triagem pode rotear a órfã pra um time (assign_team), MAS não pode
   # reanexar a IA (assign_ai_agent) — senão a conversa volta pra IA e a fila por time some.
+  # Quem adota "toda conversa tem dono" liga `ia_reentra_orfa` e a re-triagem passa a poder
+  # dar a órfã de volta pra IA, que lê o histórico e decide (Account#ia_reentra_orfa_enabled?).
   # Current.skip_ai_agent_assignment desliga só a action assign_ai_agent. Setado POR REGRA
   # (não antes do loop), porque AutomationRules::ActionService#perform faz Current.reset no ensure.
   def retriage(conversation, account)
-    skip_ai = account.reply_assignment_gate_enabled?
+    skip_ai = !account.ia_reentra_orfa_enabled?
 
     account.automation_rules.where(event_name: 'conversation_created', active: true).find_each do |rule|
       conversation.reload

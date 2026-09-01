@@ -8,6 +8,7 @@ import CreateTeam from './Create/CreateTeam.vue';
 import EditTeam from './Edit/EditTeam.vue';
 import AddAgents from './Create/AddAgents.vue';
 import EditAgents from './Edit/EditAgents.vue';
+import EditDistribuicao from './Edit/EditDistribuicao.vue';
 import FinishSetup from './FinishSetup.vue';
 import SettingsContent from '../Wrapper.vue';
 import SettingsWrapper from '../SettingsWrapper.vue';
@@ -104,6 +105,18 @@ export default {
               meta: {
                 featureFlag: FEATURE_FLAGS.TEAM_MANAGEMENT,
                 permissions: ['administrator'],
+              },
+            },
+            {
+              path: 'distribuicao',
+              name: 'settings_teams_edit_distribuicao',
+              component: EditDistribuicao,
+              meta: {
+                featureFlag: FEATURE_FLAGS.TEAM_MANAGEMENT,
+                // O gerente do time entra aqui — mesma dupla de permissões que a
+                // tela de Times do supervisor já usa. Quem sabe quem entra de
+                // férias convive com a equipe; o backend valida de novo.
+                permissions: ['administrator', 'team_supervisor'],
               },
             },
             {

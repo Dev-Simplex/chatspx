@@ -215,7 +215,7 @@ onBeforeMount(() => {
               <BaseTableCell>
                 <span
                   v-tooltip.top="label.color"
-                  class="inline-block rounded-md size-5 flex-shrink-0 ring-1 ring-inset ring-black/10 dark:ring-white/20"
+                  class="inline-block rounded-md size-5 flex-shrink-0 ring-1 ring-inset ring-n-black/10 dark:ring-white/20"
                   :style="{ backgroundColor: label.color }"
                 />
               </BaseTableCell>

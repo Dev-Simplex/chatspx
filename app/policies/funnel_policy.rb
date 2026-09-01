@@ -31,8 +31,9 @@ class FunnelPolicy < ApplicationPolicy
     create? && record.account_id == account.id
   end
 
+  # Arrastar coluna é mexer na etapa, não no funil: mesma régua do FunnelStagePolicy.
   def reorder_stages?
-    update?
+    @account_user&.administrator? && record.account_id == account.id
   end
 
   # Kanban v2 (Fase 6): reading the dashboard is a read on the funnel.

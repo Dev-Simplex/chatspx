@@ -148,21 +148,48 @@ class SearchService # rubocop:disable Metrics/ClassLength
 
   # Isolamento por agente: na busca de mensagens, um agente não-admin não acha conteúdo de
   # outro agente em inbox com a flag ON. Admin/sem restrição/nenhum inbox isolado → no-op.
-  # Usa subquery de inbox_id (sem JOIN) para não tornar `created_at` ambíguo no resto da query.
+  # Usa subquery (sem JOIN) para não tornar `created_at` ambíguo no resto da query.
+  #
+  # O `NOT EXISTS` substituiu o antigo `messages.inbox_id NOT IN (:isolated)`: agora o
+  # recorte é por CONVERSA, não por caixa, porque o escopo por time depende do
+  # `conversations.team_id` de cada linha. Se a regra não alcança a conversa — conversa sem
+  # time, ou time fora da lista escolhida na caixa — a mensagem volta a ser achável.
   def apply_agent_isolation(query)
     agent_id = AgentMessageIsolation.viewer_restriction_id(current_user, current_account)
     return query if agent_id.nil?
 
+    # Atalho barato: caixas com a flag ligada MENOS aquelas em que este viewer e EXCECAO.
+    # A excecao por caixa entra tirando a caixa da lista de isoladas para ESTE viewer: e a
+    # forma mais barata de dizer "aqui voce nao e isolado" numa busca que mistura caixas.
+    # Sem excecao nenhuma a lista e identica a de antes e a query nao muda.
     isolated_inbox_ids = current_account.inboxes.where(agent_message_isolation: true).pluck(:id)
+    isolated_inbox_ids -= AgentMessageIsolation.exempt_inbox_ids(current_user, current_account)
     return query if isolated_inbox_ids.empty?
 
     # Supervisor do time da conversa vê todas as bolhas dela (D2) — a cláusula só
     # aparece quando há supervisão, senão a query fica idêntica à de antes.
     supervised_or = supervised_team_ids.any? ? " OR messages.conversation_id IN (#{supervised_conversations_sql})" : ''
     query.where(
-      "messages.agent_id IS NULL OR messages.agent_id = :uid OR messages.inbox_id NOT IN (:isolated)#{supervised_or}",
-      uid: agent_id, isolated: isolated_inbox_ids
+      'messages.agent_id IS NULL OR messages.agent_id = :uid ' \
+      "OR NOT EXISTS (#{isolated_conversation_sql})#{supervised_or}",
+      uid: agent_id
     )
+  end
+
+  # A conversa desta mensagem está sob a regra de isolamento por agente? Correlacionada
+  # com `messages` da query de fora; espelha `Inbox#isolation_applies_to_team?`.
+  # SEGUNDO EIXO: "isolada" aqui quer dizer a regra ALCANCAR a conversa (escopo por time) E
+  # o viewer NAO ser excecao naquela caixa. Ids inteiros interpolados, e nao bind nomeado,
+  # porque este fragmento entra dentro de um NOT EXISTS montado a mao; `to_i` e a barreira
+  # (sao ids do banco, nunca entrada de usuario). Sem excecao o SQL fica igual ao de antes.
+  def isolated_conversation_sql
+    isentas = AgentMessageIsolation.exempt_inbox_ids(current_user, current_account).map(&:to_i)
+    isento_and = isentas.empty? ? '' : " AND isolation_c.inbox_id NOT IN (#{isentas.join(',')})"
+    'SELECT 1 FROM conversations isolation_c ' \
+      'INNER JOIN inboxes isolation_i ON isolation_i.id = isolation_c.inbox_id ' \
+      'WHERE isolation_c.id = messages.conversation_id ' \
+      "AND #{Inbox.isolation_applies_sql(:agent_message_isolation, inbox_alias: 'isolation_i', conversation_alias: 'isolation_c')}" \
+      "#{isento_and}"
   end
 
   def apply_message_filters(query)

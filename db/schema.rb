@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -63,6 +63,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.boolean "auto_offline", default: true, null: false
     t.bigint "custom_role_id"
     t.bigint "agent_capacity_policy_id"
+    t.boolean "supervisor", default: false, null: false
     t.index ["account_id", "user_id"], name: "uniq_user_id_per_account_id", unique: true
     t.index ["account_id"], name: "index_account_users_on_account_id"
     t.index ["agent_capacity_policy_id"], name: "index_account_users_on_agent_capacity_policy_id"
@@ -1092,6 +1093,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.index ["status"], name: "index_conversation_pdf_exports_on_status"
   end
 
+  create_table "conversation_pins", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_conversation_pins_on_account_id"
+    t.index ["conversation_id"], name: "index_conversation_pins_on_conversation_id"
+    t.index ["user_id", "conversation_id"], name: "index_conversation_pins_on_user_id_and_conversation_id", unique: true
+  end
+
   create_table "conversation_takeover_requests", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "conversation_id", null: false
@@ -1228,6 +1240,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.string "regex_cue"
     t.string "origin"
     t.boolean "requires_verified_origin"
+    t.boolean "required", default: false, null: false
+    t.boolean "hidden", default: false, null: false
     t.index ["account_id", "attribute_model"], name: "index_cad_on_account_and_model_when_protected", where: "(requires_verified_origin IS TRUE)"
     t.index ["account_id"], name: "index_custom_attribute_definitions_on_account_id"
     t.index ["attribute_key", "attribute_model", "account_id"], name: "attribute_key_model_index", unique: true
@@ -1357,6 +1371,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.datetime "encerrado_em"
     t.jsonb "policy_snapshot", default: {}, null: false
     t.string "vista_negocio_codigo"
+    t.integer "repasse_n", default: 0, null: false
     t.index ["conversation_id"], name: "index_distribuicao_logs_on_conversation_id"
     t.index ["status", "designado_em"], name: "index_distribuicao_logs_on_status_and_designado_em"
   end
@@ -1376,6 +1391,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.boolean "espelho_vista", default: false, null: false
     t.jsonb "vista_padrao", default: {}, null: false
     t.integer "sla_assumir_minutos", default: 30, null: false
+    t.boolean "repasse_automatico", default: false, null: false
+    t.integer "max_repasses", default: 2, null: false
+    t.bigint "pool_esgotado_destino_user_id"
+    t.boolean "gatilho_sem_ia", default: false, null: false
+    t.boolean "sla_respeita_horario", default: true, null: false
+    t.boolean "expirado_conta_como_recebido", default: true, null: false
+    t.jsonb "horario", default: {}, null: false
     t.index ["account_id", "team_id"], name: "index_distribuicao_policies_on_account_id_and_team_id", unique: true
   end
 
@@ -1487,6 +1509,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.bigint "updated_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index "((trigger_config ->> 'webhook_token'::text))", name: "index_flows_on_webhook_token", unique: true, where: "((trigger_config ->> 'webhook_token'::text) IS NOT NULL)"
     t.index ["account_id", "trigger_type", "active"], name: "index_flows_on_account_id_and_trigger_type_and_active"
     t.index ["account_id"], name: "index_flows_on_account_id"
   end
@@ -1650,6 +1673,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.index ["inbox_id"], name: "index_inbox_capacity_limits_on_inbox_id"
   end
 
+  create_table "inbox_isolation_exemptions", force: :cascade do |t|
+    t.bigint "inbox_id", null: false
+    t.bigint "user_id", null: false
+    t.string "isolation_type", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["inbox_id", "user_id", "isolation_type"], name: "index_inbox_isolation_exemptions_on_inbox_user_type", unique: true
+    t.index ["user_id"], name: "index_inbox_isolation_exemptions_on_user_id"
+  end
+
   create_table "inbox_members", id: :serial, force: :cascade do |t|
     t.integer "user_id", null: false
     t.integer "inbox_id", null: false
@@ -1691,6 +1724,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.jsonb "additional_attributes", default: {}, null: false
     t.boolean "agent_message_isolation", default: false, null: false
     t.boolean "agent_conversation_isolation", default: false, null: false
+    t.bigint "team_message_isolation_team_ids", default: [], null: false, array: true
+    t.bigint "agent_message_isolation_team_ids", default: [], null: false, array: true
+    t.bigint "agent_conversation_isolation_team_ids", default: [], null: false, array: true
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
@@ -2195,6 +2231,45 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.index ["account_id"], name: "index_sla_policies_on_account_id"
   end
 
+  create_table "social_comentarios", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.bigint "publicacao_id"
+    t.string "publicacao_external_id"
+    t.string "external_id", null: false
+    t.string "autor_external_id"
+    t.string "autor_username"
+    t.text "texto"
+    t.boolean "proprio", default: false, null: false
+    t.datetime "comentado_em"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "respostas", default: {}, null: false
+    t.index ["account_id", "external_id"], name: "index_social_comentarios_on_account_id_and_external_id", unique: true
+    t.index ["inbox_id", "created_at"], name: "index_social_comentarios_on_inbox_id_and_created_at"
+    t.index ["publicacao_id"], name: "index_social_comentarios_on_publicacao_id"
+  end
+
+  create_table "social_publicacoes", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "inbox_id", null: false
+    t.string "external_id", null: false
+    t.string "tipo"
+    t.text "legenda"
+    t.text "permalink"
+    t.text "thumbnail_url"
+    t.datetime "publicada_em"
+    t.jsonb "metricas", default: {}, null: false
+    t.datetime "sincronizada_em"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "leitura_midia"
+    t.datetime "lida_em"
+    t.index ["account_id", "external_id"], name: "index_social_publicacoes_on_account_id_and_external_id", unique: true
+    t.index ["inbox_id"], name: "index_social_publicacoes_on_inbox_id"
+  end
+
   create_table "taggings", id: :serial, force: :cascade do |t|
     t.integer "tag_id"
     t.string "taggable_type"
@@ -2308,6 +2383,51 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
     t.index ["event_id"], name: "index_tracking_events_on_event_id", unique: true
     t.index ["inbox_id"], name: "index_tracking_events_on_inbox_id"
     t.index ["occurred_at"], name: "index_tracking_events_on_occurred_at_brin", using: :brin
+  end
+
+  create_table "unidade_excecoes", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "unidade_id"
+    t.string "etiqueta"
+    t.date "data_inicio", null: false
+    t.date "data_fim", null: false
+    t.boolean "fechada", default: false, null: false
+    t.time "abre"
+    t.time "fecha"
+    t.string "motivo"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "data_fim"], name: "index_unidade_excecoes_on_account_id_and_data_fim"
+    t.index ["unidade_id"], name: "index_unidade_excecoes_on_unidade_id"
+  end
+
+  create_table "unidade_horarios", force: :cascade do |t|
+    t.bigint "unidade_id", null: false
+    t.integer "dia_semana", null: false
+    t.time "abre"
+    t.time "fecha"
+    t.boolean "fechada", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["unidade_id", "dia_semana"], name: "index_unidade_horarios_on_unidade_id_and_dia_semana"
+  end
+
+  create_table "unidades", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "slug", null: false
+    t.string "nome", null: false
+    t.string "cidade"
+    t.string "uf"
+    t.boolean "ativa", default: true, null: false
+    t.text "endereco"
+    t.string "telefone"
+    t.string "timezone", default: "America/Cuiaba", null: false
+    t.jsonb "etiquetas", default: [], null: false
+    t.jsonb "atributos", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "ativa"], name: "index_unidades_on_account_id_and_ativa"
+    t.index ["account_id", "slug"], name: "index_unidades_on_account_id_and_slug", unique: true
   end
 
   create_table "user_sessions", force: :cascade do |t|
@@ -2495,6 +2615,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_134913) do
   add_foreign_key "funnel_views", "users"
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
+  add_foreign_key "inbox_isolation_exemptions", "inboxes", on_delete: :cascade
+  add_foreign_key "inbox_isolation_exemptions", "users", on_delete: :cascade
   add_foreign_key "inboxes", "portals"
   add_foreign_key "internal_channel_members", "internal_channels"
   add_foreign_key "internal_channel_members", "users"

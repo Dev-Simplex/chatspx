@@ -479,7 +479,7 @@ watch(
             v-for="(att, idx) in visibleMedia"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
-            class="relative overflow-hidden transition-opacity rounded-lg cursor-pointer aspect-square bg-n-slate-2 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-n-blue"
+            class="relative overflow-hidden transition-opacity rounded-lg cursor-pointer aspect-square bg-n-slate-2 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-n-blue-9"
             :class="{ 'ring-2 ring-n-brand': isItemSelected(att) }"
             @pointerenter="prewarmVideoPreview(att, idx)"
             @pointerdown="prewarmVideoPreview(att, idx)"
@@ -493,7 +493,7 @@ watch(
               :class="
                 isItemSelected(att)
                   ? 'bg-n-brand border-n-brand text-white'
-                  : 'bg-black/30 border-white/70'
+                  : 'bg-n-black/30 border-white/70'
               "
             >
               <Icon
@@ -524,7 +524,7 @@ watch(
                 preload="none"
               />
               <div
-                class="absolute inset-0 flex items-center justify-center bg-black/20"
+                class="absolute inset-0 flex items-center justify-center bg-n-black/20"
               >
                 <Icon
                   icon="i-teenyicons-play-small-solid"

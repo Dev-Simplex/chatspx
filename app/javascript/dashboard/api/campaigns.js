@@ -12,9 +12,16 @@ class CampaignsAPI extends ApiClient {
     return axios.get(`${this.url}/${id}/stats`);
   }
 
+  // Higiene da audiencia em DRY-RUN: devolve quem entra, quem sai e por que, sem
+  // gravar destinatario nenhum. E o passo que impede montar disparo em cima de
+  // lista errada — o nome do arquivo mente.
+  audiencePreview(id, rows, blocklist = []) {
+    return axios.post(`${this.url}/${id}/audience_preview`, { rows, blocklist });
+  }
+
   // Carrega a lista (upload) de destinatarios — rows: [{ name, phone }].
-  uploadRecipients(id, rows) {
-    return axios.post(`${this.url}/${id}/recipients`, { rows });
+  uploadRecipients(id, rows, blocklist = []) {
+    return axios.post(`${this.url}/${id}/recipients`, { rows, blocklist });
   }
 
   // Inicia/retoma o disparo (dispatch_status: running).

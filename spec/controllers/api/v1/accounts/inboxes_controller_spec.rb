@@ -503,6 +503,54 @@ RSpec.describe 'Inboxes API', type: :request do
         expect(response.parsed_body['agent_message_isolation']).to be(true)
       end
 
+      # ESCOPO POR TIME das 3 regras: o admin escolhe EM QUAIS times cada uma vale.
+      it 'updates the isolation team scope lists when administrator' do
+        team = create(:team, account: account)
+        other_team = create(:team, account: account)
+
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+              headers: admin.create_new_auth_token,
+              params: { team_message_isolation_team_ids: [team.id],
+                        agent_message_isolation_team_ids: [team.id, other_team.id],
+                        agent_conversation_isolation_team_ids: [other_team.id] },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(inbox.reload.team_message_isolation_team_ids).to eq([team.id])
+        expect(inbox.agent_message_isolation_team_ids).to contain_exactly(team.id, other_team.id)
+        expect(inbox.agent_conversation_isolation_team_ids).to eq([other_team.id])
+      end
+
+      # Voltar para "todos os times" e mandar lista VAZIA — o caminho de desfazer a escolha.
+      it 'clears the isolation team scope back to every team' do
+        team = create(:team, account: account)
+        inbox.update!(agent_message_isolation_team_ids: [team.id])
+
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+              headers: admin.create_new_auth_token,
+              params: { agent_message_isolation_team_ids: [] },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(inbox.reload.agent_message_isolation_team_ids).to eq([])
+      end
+
+      # O front precisa LER as listas para desenhar a tela; sem isso a escolha some no F5.
+      it 'exposes the three isolation flags and their team scope in the payload' do
+        team = create(:team, account: account)
+        inbox.update!(agent_conversation_isolation: true, agent_conversation_isolation_team_ids: [team.id])
+
+        get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['agent_conversation_isolation']).to be(true)
+        expect(response.parsed_body['agent_conversation_isolation_team_ids']).to eq([team.id])
+        expect(response.parsed_body['team_message_isolation_team_ids']).to eq([])
+        expect(response.parsed_body['agent_message_isolation_team_ids']).to eq([])
+      end
+
       it 'updates api inbox when administrator' do
         api_channel = create(:channel_api, account: account)
         api_inbox = create(:inbox, channel: api_channel, account: account)
@@ -1264,6 +1312,97 @@ RSpec.describe 'Inboxes API', type: :request do
           expect(response).to have_http_status(:not_found)
         end
       end
+    end
+  end
+
+  # A tela manda PARTICIPANTES, o banco guarda EXCEÇÕES. Esta conversão é o ponto onde a
+  # feature erra para o lado de vazar se estiver invertida, por isso ela tem spec própria.
+  describe 'PATCH /api/v1/accounts/{account.id}/inboxes/:id isolation participants' do
+    let(:inbox) { create(:inbox, account: account) }
+    let(:admin) { create(:user, account: account, role: :administrator) }
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:other_agent) { create(:user, account: account, role: :agent) }
+
+    before do
+      create(:inbox_member, inbox: inbox, user: agent)
+      create(:inbox_member, inbox: inbox, user: other_agent)
+      create(:inbox_member, inbox: inbox, user: admin)
+    end
+
+    it 'exposes every non admin member as participant when there is no exemption' do
+      get "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+          headers: admin.create_new_auth_token,
+          as: :json
+
+      json_response = response.parsed_body
+      expect(json_response['agent_message_isolation_participant_ids']).to contain_exactly(agent.id, other_agent.id)
+      expect(json_response['team_message_isolation_participant_ids']).to contain_exactly(agent.id, other_agent.id)
+    end
+
+    it 'turns the agents left out of the list into exemptions' do
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            headers: admin.create_new_auth_token,
+            params: { agent_message_isolation_participant_ids: [other_agent.id] },
+            as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.inbox_isolation_exemptions.pluck(:user_id, :isolation_type)).to contain_exactly([agent.id, 'agent_message'])
+      expect(response.parsed_body['agent_message_isolation_participant_ids']).to contain_exactly(other_agent.id)
+    end
+
+    it 'gives the isolation back when the agent is checked again' do
+      create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            headers: admin.create_new_auth_token,
+            params: { agent_message_isolation_participant_ids: [agent.id, other_agent.id] },
+            as: :json
+
+      expect(inbox.reload.inbox_isolation_exemptions).to be_empty
+    end
+
+    # os dois isolamentos são independentes
+    it 'does not touch the other isolation' do
+      create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'team_message')
+
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            headers: admin.create_new_auth_token,
+            params: { agent_message_isolation_participant_ids: [agent.id, other_agent.id] },
+            as: :json
+
+      expect(inbox.reload.inbox_isolation_exemptions.pluck(:user_id, :isolation_type)).to contain_exactly([agent.id, 'team_message'])
+    end
+
+    # um update que não fala de isolamento não pode isentar ninguém por omissão
+    it 'leaves the exemptions alone when the key is absent' do
+      create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
+
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            headers: admin.create_new_auth_token,
+            params: { name: 'outro nome' },
+            as: :json
+
+      expect(inbox.reload.inbox_isolation_exemptions.pluck(:user_id)).to contain_exactly(agent.id)
+    end
+
+    it 'never turns the administrator into an exemption' do
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            headers: admin.create_new_auth_token,
+            params: { agent_message_isolation_participant_ids: [] },
+            as: :json
+
+      expect(inbox.reload.inbox_isolation_exemptions.pluck(:user_id)).to contain_exactly(agent.id, other_agent.id)
+    end
+
+    it 'ignores ids that are not members of the inbox' do
+      outsider = create(:user, account: account, role: :agent)
+
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            headers: admin.create_new_auth_token,
+            params: { agent_message_isolation_participant_ids: [agent.id, other_agent.id, outsider.id] },
+            as: :json
+
+      expect(inbox.reload.inbox_isolation_exemptions).to be_empty
     end
   end
 end

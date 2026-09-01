@@ -5,6 +5,7 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useAccount } from 'dashboard/composables/useAccount';
+import { useCaptainAssistantModel } from 'dashboard/composables/useCaptainAssistantModel';
 
 import AiStatCard from 'dashboard/components-next/agents-ui/AiStatCard.vue';
 import AiAgentCard from 'dashboard/components-next/agents-ui/AiAgentCard.vue';
@@ -19,6 +20,7 @@ const route = useRoute();
 const router = useRouter();
 const store = useStore();
 const { accountId } = useAccount();
+const { assistantModel } = useCaptainAssistantModel();
 
 const showCreateModal = ref(route.query.create === 'true');
 const newAgentName = ref('');
@@ -29,11 +31,11 @@ const agents = computed(
   () => store.getters['captainAssistants/getRecords'] || []
 );
 const totalAgents = computed(() => agents.value.length);
+// `account_inbox_ids` NÃO existe no payload do assistant: o campo certo é `inbox_ids`
+// (ver `_assistant.json.jbuilder`). Lendo o nome errado, o cartão "Caixas Conectadas"
+// somava `undefined?.length || 0` e mostrava 0 mesmo com agentes atendendo caixas.
 const totalInboxes = computed(() =>
-  agents.value.reduce(
-    (sum, agent) => sum + (agent.account_inbox_ids?.length || 0),
-    0
-  )
+  agents.value.reduce((sum, agent) => sum + (agent.inbox_ids?.length || 0), 0)
 );
 
 function navigateToAgent(agent) {
@@ -140,9 +142,10 @@ async function handleCreate() {
         v-for="(agent, i) in agents"
         :key="agent.id"
         :agent="agent"
+        :model="assistantModel || ''"
         :inbox-label="t('AGENTS_DASHBOARD.INBOXES_LABEL')"
-        :active-label="t('AGENTS_PAGE.ACTIVE')"
-        :inactive-label="t('AGENTS_PAGE.INACTIVE')"
+        :in-use-label="t('AGENTS_PAGE.IN_USE')"
+        :no-inbox-label="t('AGENTS_PAGE.NO_INBOX')"
         :style="{ animationDelay: `${i * 55}ms` }"
         @select="navigateToAgent"
       />

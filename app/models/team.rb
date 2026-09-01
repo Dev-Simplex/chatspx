@@ -26,18 +26,19 @@ class Team < ApplicationRecord
   has_many :team_supervisors, dependent: :destroy_async
   has_many :supervisors, through: :team_supervisors, source: :user
   has_many :conversations, dependent: :nullify
-  # Tres tabelas tem foreign key para `teams` SEM `on_delete` no banco e sem associacao
-  # declarada aqui — entao apagar um time levantava
-  # `PG::ForeignKeyViolation: ... is still referenced from table "<tabela>"`, tanto pelo modelo
-  # quanto pelo DELETE da API. As demais FKs para `teams` (canned_responses, conversations,
-  # labels) ja resolvem no proprio banco com `on_delete: :nullify`, e `team_supervisors` com
-  # `cascade`; estas tres nao tinham nada.
+  # As 3 tabelas que este fork acrescentou apontando para `teams` nasceram com FK
+  # sem `on_delete` e sem associação aqui — ou seja, cada uma trancava o destroy
+  # do time com ActiveRecord::InvalidForeignKey (500 na tela).
+  # Semântica escolhida por tabela:
+  #   - grupo do chat interno: morre junto (um canal `team` sem time é inválido);
+  #   - funil do Kanban: sobrevive com team_id NULL (vira o funil "Geral"), porque
+  #     destruir levaria junto o quadro e todos os cartões, sem o admin pedir;
+  #   - histórico de atribuição: é trilha de auditoria, sobrevive sem o time.
   #
-  # `nullify` e nao `destroy`: as tres colunas sao nulaveis e os tres modelos declaram
-  # `belongs_to :team, optional: true`. Apagar em cascata destruiria dado do usuario (canal
-  # interno com mensagens, historico de atribuicao) por causa da remocao de um time.
+  # As demais FKs para `teams` ja resolviam no proprio banco: canned_responses,
+  # conversations e labels com `on_delete: :nullify`, e team_supervisors com cascade.
+  has_many :internal_channels, dependent: :destroy
   has_many :funnels, dependent: :nullify
-  has_many :internal_channels, dependent: :nullify
   has_many :conversation_assignment_histories, dependent: :nullify
 
   validates :name,
@@ -107,6 +108,11 @@ class Team < ApplicationRecord
   end
 
   def sync_internal_team_channel
+    # Sem este guard, TODA conta ganhava canal de chat interno mesmo com a feature
+    # desligada — e junto vinham os cadeados de FK acima. A flag off tem que
+    # significar "não cria nada".
+    return unless account.feature_enabled?('internal_chat')
+
     InternalChannels::SyncTeamChannelsService.new(account: account, team: self).perform
   rescue StandardError => e
     Rails.logger.warn "[internal_chat] team channel sync failed for team ##{id}: #{e.message}"

@@ -2,7 +2,11 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 // Editor de fluxo estilo n8n (bespoke, sem libs): canvas pan/zoom/fit, nós com
 // handles de porta, arestas bézier animadas, grade que acompanha. Data-driven.
-const props = defineProps({ assistant: { type: Object, default: () => ({}) } });
+const props = defineProps({
+  assistant: { type: Object, default: () => ({}) },
+  // Modelo da CONTA: `config.model` não existe no payload do assistant.
+  model: { type: String, default: '' },
+});
 defineOptions({ name: 'AgentFlowGraph' });
 
 const NODE_W = 188;
@@ -62,7 +66,9 @@ const mainSteps = computed(() => {
     icon: 'i-lucide-bot',
     color: '#1faa59',
     title: 'AI Agent',
-    sub: cfg.model ? `${cfg.model}` : `LLM · temp ${cfg.temperature ?? 0.7}`,
+    sub: props.model
+      ? `${props.model}`
+      : `LLM · temp ${cfg.temperature ?? 0.7}`,
     agent: true,
   });
   if (isOn('dedup'))
@@ -308,7 +314,7 @@ const ZOOM_LABEL = computed(() => `${Math.round(zoom.value * 100)}%`);
       </div>
 
       <div
-        class="flex absolute gap-2.5 items-center px-3 rounded-2xl border shadow-sm fg-node border-r-300 bg-r-50 dark:bg-r-900/20 dark:border-r-800"
+        class="flex absolute gap-2.5 items-center px-3 rounded-2xl border shadow-sm fg-node border-n-ruby-6 bg-n-ruby-2 dark:bg-n-ruby-3"
         :style="{
           left: `${handoff.x}px`,
           top: `${handoff.y}px`,

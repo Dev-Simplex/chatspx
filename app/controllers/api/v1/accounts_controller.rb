@@ -2,6 +2,9 @@ class Api::V1::AccountsController < Api::BaseController
   include AuthHelper
   include CacheKeysHelper
 
+  CAPTAIN_LEGADO = SuperAdmin::AccountFeaturesHelper::LEGACY_CAPTAIN_FEATURE
+  CAPTAIN_CANONICO = SuperAdmin::AccountFeaturesHelper::CANONICAL_CAPTAIN_FEATURE
+
   skip_before_action :authenticate_user!, :set_current_user, :handle_with_exception,
                      only: [:create], raise: false
   before_action :check_signup_enabled, only: [:create]
@@ -9,6 +12,16 @@ class Api::V1::AccountsController < Api::BaseController
   before_action :validate_captcha, only: [:create]
   before_action :fetch_account, except: [:create]
   before_action :check_authorization, except: [:create]
+  before_action :check_conversation_workflow_authorization, only: [:update]
+
+  # Os ajustes que a tela "Fluxo de conversa" grava. Ela não tem controller próprio —
+  # escreve em account.settings pelo mesmo PATCH /accounts/:id que "Configurações da
+  # conta" usa. Por isso a negação ao supervisor de time é por CHAVE: ele segue editando
+  # nome/idioma/domínio da conta, e só estas cinco saem do alcance dele.
+  CONVERSATION_WORKFLOW_SETTINGS = %w[
+    auto_resolve_after auto_resolve_message auto_resolve_ignore_waiting auto_resolve_label
+    conversation_required_attributes
+  ].freeze
 
   rescue_from CustomExceptions::Account::InvalidEmail,
               CustomExceptions::Account::InvalidParams,
@@ -63,6 +76,35 @@ class Api::V1::AccountsController < Api::BaseController
     @account.save!
   end
 
+  # Ligar e desligar feature PELA TELA. Antes disto so havia o console, o super_admin (Administrate)
+  # ou a Platform API, que exige token de PlatformApp — nenhum ao alcance do admin da conta.
+  #
+  # GET devolve o catalogo inteiro com o estado de cada uma, e nao so as ligadas: a tela precisa
+  # mostrar o que existe para poder oferecer. O `_account.json.jbuilder` continua expondo so as
+  # ligadas, entao nada muda para o resto do front.
+  #
+  # PATCH e MERGE, nao replace: recebe `{ features: { nome => true|false } }` e mexe SO no que veio.
+  # Deliberado — `selected_feature_flags=` (FlagShihTzu) zera todos os bits antes de ligar os
+  # enviados, entao uma requisicao parcial apagaria o resto. E o mesmo estrago do "salvar apagava o
+  # config do agente" que ja foi corrigido neste fork.
+  def features
+    return render json: catalogo if request.get?
+
+    pedidos = params.fetch(:features, {}).to_unsafe_h
+
+    desconhecidas = AccountFeaturesCatalog.desconhecidas(pedidos.keys)
+    return render json: { error: "feature desconhecida: #{desconhecidas.join(', ')}" }, status: :unprocessable_entity if desconhecidas.any?
+
+    bloqueadas = AccountFeaturesCatalog.bloqueadas(pedidos)
+    if bloqueadas.any?
+      return render json: { error: I18n.t('errors.features.sem_bit', features: bloqueadas.join(', ')) },
+                    status: :unprocessable_entity
+    end
+
+    aplicar_features(pedidos)
+    render json: catalogo
+  end
+
   def update_active_at
     @current_account_user.active_at = Time.now.utc
     @current_account_user.save!
@@ -87,6 +129,27 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   private
+
+  # `enable_features!`/`disable_features!` usam `save` e nao `save!`, entao gravam calado quando uma
+  # validacao reprova. Aqui se usa `save!` uma vez so, depois de montar tudo: a requisicao falha alto
+  # em vez de responder 200 sem ter gravado.
+  def catalogo
+    AccountFeaturesCatalog.new(@account).to_h
+  end
+
+  def aplicar_features(pedidos)
+    ligar, desligar = pedidos.partition { |_nome, valor| AccountFeaturesCatalog.ligar?(valor) }.map { |par| par.map(&:first) }
+
+    # O Captain v1 e legado e anda junto do v2 — mesma regra que o super_admin ja aplica
+    # (SuperAdmin::AccountsController#synchronized_captain_feature_flags). Sem isto, ligar o v2 pela
+    # tela deixaria os dois em estados diferentes.
+    ligar << CAPTAIN_LEGADO if ligar.include?(CAPTAIN_CANONICO) && @account.feature_enabled?(CAPTAIN_LEGADO)
+    desligar << CAPTAIN_LEGADO if desligar.include?(CAPTAIN_CANONICO)
+
+    @account.enable_features(*ligar.uniq)
+    @account.disable_features(*(desligar.uniq - ligar))
+    @account.save!
+  end
 
   def remove_chat_wallpaper
     @account.chat_wallpaper_image.purge if @account.chat_wallpaper_image.attached?
@@ -127,6 +190,11 @@ class Api::V1::AccountsController < Api::BaseController
     @current_account_user = @account.account_users.find_by(user_id: current_user.id)
   end
 
+  def check_conversation_workflow_authorization
+    return unless SupervisorSettingsScope.blocked?(current_user, @account)
+    raise Pundit::NotAuthorizedError if params.keys.intersect?(CONVERSATION_WORKFLOW_SETTINGS)
+  end
+
   def account_params
     params.permit(:account_name, :email, :name, :password, :locale, :domain, :support_email, :user_full_name)
   end
@@ -143,7 +211,7 @@ class Api::V1::AccountsController < Api::BaseController
     [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label,
      :chat_wallpaper_url, :show_dashboard_kpi_strip, :onboarding_dismissed, :resolve_assignment_gate,
      :openai_api_key, :openai_model_default, :openai_model_advanced,
-     :reply_assignment_gate, :orphan_retriage_after, :queue_escalation_after, :takeover_request_gate,
+     :reply_assignment_gate, :ia_reentra_orfa, :orphan_retriage_after, :queue_escalation_after, :takeover_request_gate,
      { onboarding_completed_steps: [] }]
   end
 

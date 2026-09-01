@@ -91,6 +91,11 @@ class ConversationApi extends ApiClient {
     });
   }
 
+  // Liga/desliga a fixação no topo. Responde { pinned: true|false } com o estado NOVO.
+  togglePin({ conversationId }) {
+    return axios.post(`${this.url}/${conversationId}/pin`);
+  }
+
   assignAgent({ conversationId, agentId }) {
     return axios.post(`${this.url}/${conversationId}/assignments`, {
       assignee_id: agentId,

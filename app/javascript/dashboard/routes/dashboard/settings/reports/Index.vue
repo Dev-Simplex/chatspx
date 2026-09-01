@@ -41,6 +41,7 @@ export default {
       to: 0,
       groupBy: GROUP_BY_FILTER[1],
       businessHours: false,
+      inboxId: null,
     };
   },
   computed: {
@@ -82,13 +83,14 @@ export default {
       });
     },
     getRequestPayload() {
-      const { from, to, groupBy, businessHours } = this;
+      const { from, to, groupBy, businessHours, inboxId } = this;
 
       return {
         from,
         to,
         groupBy: groupBy?.period,
         businessHours,
+        inboxId,
       };
     },
     downloadConversationReports() {
@@ -103,13 +105,15 @@ export default {
         to,
         fileName,
         businessHours: this.businessHours,
+        inboxId: this.inboxId,
       });
     },
-    onFilterChange({ from, to, groupBy, businessHours }) {
+    onFilterChange({ from, to, groupBy, businessHours, inboxId }) {
       this.from = from;
       this.to = to;
       this.groupBy = groupBy;
       this.businessHours = businessHours;
+      this.inboxId = inboxId || null;
       this.fetchAllData();
 
       useTrack(REPORTS_EVENTS.FILTER_REPORT, {
@@ -129,7 +133,12 @@ export default {
     <div class="flex items-center gap-2">
       <DownloadPdfButton
         report-type="conversations"
-        :filters="{ from, to, business_hours: businessHours }"
+        :filters="{
+          from,
+          to,
+          business_hours: businessHours,
+          inbox_id: inboxId,
+        }"
       />
       <V4Button
         :label="$t('REPORT.DOWNLOAD_CONVERSATION_REPORTS')"

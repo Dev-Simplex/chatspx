@@ -199,6 +199,8 @@ watch(
       slate
       faded
       :label="selectedLabel"
+      icon="i-lucide-chevron-down"
+      trailing-icon
       class="rounded-md group-hover:bg-n-alpha-2"
       @click="toggleDropdown()"
     />

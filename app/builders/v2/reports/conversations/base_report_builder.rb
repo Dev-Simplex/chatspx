@@ -18,6 +18,17 @@ class V2::Reports::Conversations::BaseReportBuilder
     bot_handoffs_count
   ].freeze
 
+  # Mesmo recorte por caixa do BaseTimeseriesBuilder — ver comentario la.
+  def inbox_ids
+    @inbox_ids ||= Array(params[:inbox_id]).reject(&:blank?).map(&:to_i)
+  end
+
+  def with_inbox_filter(relation)
+    return relation if inbox_ids.blank?
+
+    relation.where(inbox_id: inbox_ids)
+  end
+
   def builder_class(metric)
     case metric
     when *AVG_METRICS

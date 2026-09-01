@@ -55,6 +55,7 @@ export default {
       selectedFilter: this.selectedItem,
       groupBy: GROUP_BY_FILTER[1],
       businessHours: false,
+      inboxId: null,
     };
   },
   computed: {
@@ -109,7 +110,7 @@ export default {
   methods: {
     fetchAllData() {
       if (this.selectedFilter) {
-        const { from, to, groupBy, businessHours } = this;
+        const { from, to, groupBy, businessHours, inboxId } = this;
         this.$store.dispatch('fetchAccountSummary', {
           from,
           to,
@@ -117,6 +118,7 @@ export default {
           id: this.selectedFilter.id,
           groupBy: groupBy.period,
           businessHours,
+          inboxId,
         });
         this.fetchChartData();
       }
@@ -124,7 +126,7 @@ export default {
     fetchChartData() {
       Object.keys(this.reportKeys).forEach(async key => {
         try {
-          const { from, to, groupBy, businessHours } = this;
+          const { from, to, groupBy, businessHours, inboxId } = this;
           this.$store.dispatch('fetchAccountReport', {
             metric: this.reportKeys[key],
             from,
@@ -133,6 +135,7 @@ export default {
             id: this.selectedFilter.id,
             groupBy: groupBy.period,
             businessHours,
+            inboxId,
           });
         } catch {
           useAlert(this.$t('REPORT.DATA_FETCHING_FAILED'));
@@ -140,7 +143,7 @@ export default {
       });
     },
     downloadReports() {
-      const { from, to, type, businessHours } = this;
+      const { from, to, type, businessHours, inboxId } = this;
       const dispatchMethods = {
         agent: 'downloadAgentReports',
         label: 'downloadLabelReports',
@@ -149,15 +152,16 @@ export default {
       };
       if (dispatchMethods[type]) {
         const fileName = generateFileName({ type, to, businessHours });
-        const params = { from, to, fileName, businessHours };
+        const params = { from, to, fileName, businessHours, inboxId };
         this.$store.dispatch(dispatchMethods[type], params);
       }
     },
     onFilterChange(payload) {
-      const { from, to, businessHours, groupBy } = payload;
+      const { from, to, businessHours, groupBy, inboxId } = payload;
       this.from = from;
       this.to = to;
       this.businessHours = businessHours;
+      this.inboxId = inboxId || null;
 
       if (groupBy) {
         this.groupBy = groupBy;
@@ -190,7 +194,12 @@ export default {
     <div class="flex items-center gap-2">
       <DownloadPdfButton
         :report-type="type"
-        :filters="{ from, to, business_hours: businessHours }"
+        :filters="{
+          from,
+          to,
+          business_hours: businessHours,
+          inbox_id: inboxId,
+        }"
       />
       <V4Button
         :label="downloadButtonLabel"

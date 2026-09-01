@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import LeadCampaignsAPI from 'dashboard/api/leadCampaigns';
 
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import CampaignLayout from 'dashboard/components-next/Campaigns/CampaignLayout.vue';
+import LeadRoutingDialog from 'dashboard/components-next/Campaigns/LeadRoutingDialog.vue';
 
 defineOptions({ name: 'LeadCampaignsPage' });
 
@@ -88,6 +89,39 @@ const resumoHook = hook =>
   [hook.pagina, hook.inbox?.name, hook.template]
     .filter(Boolean)
     .join(SEPARADOR);
+
+// ------------------------------------------------------------------ edição
+
+const dialogRef = ref(null);
+const emEdicao = ref(null);
+
+const hookDaLinha = linha =>
+  hooks.value.find(hook => hook.id === linha.hook_id) || null;
+
+// Sem id de campanha não há onde gravar o override: a chave do `campaign_overrides` É o id.
+// Ele chega junto do primeiro lead, então a linha ainda sem id não é editável.
+const editavel = linha =>
+  isAdmin.value && Boolean(linha.campaign_id) && Boolean(hookDaLinha(linha));
+
+const editar = linha => {
+  emEdicao.value = linha;
+  nextTick(() => dialogRef.value?.open());
+};
+
+// O servidor devolve a configuração já resolvida (com a herança do hook aplicada), que é o
+// que a tela mostra — em vez de refletir o que o formulário mandou, que ainda não é verdade.
+const aplicarSalvo = configuracao => {
+  const indice = campanhas.value.findIndex(
+    linha => linha.campaign_id === emEdicao.value?.campaign_id
+  );
+  if (indice >= 0) {
+    payload.value.campanhas[indice] = {
+      ...campanhas.value[indice],
+      ...configuracao,
+    };
+  }
+  emEdicao.value = null;
+};
 </script>
 
 <template>
@@ -215,6 +249,11 @@ const resumoHook = hook =>
                 <th class="px-3 py-2 font-medium text-left">
                   {{ t('CAMPAIGN.LEAD_ADS.TABLE.LEAD_TYPE') }}
                 </th>
+                <th v-if="isAdmin" class="px-3 py-2 font-medium text-right">
+                  <span class="sr-only">
+                    {{ t('CAMPAIGN.LEAD_ADS.TABLE.ACTIONS') }}
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -295,6 +334,16 @@ const resumoHook = hook =>
                     }}
                   </span>
                 </td>
+                <td v-if="isAdmin" class="px-3 py-2 text-right align-top">
+                  <button
+                    v-if="editavel(linha)"
+                    type="button"
+                    class="px-2 py-1 text-xs border rounded-lg border-n-weak text-n-slate-11 transition-shadow hover:shadow-md"
+                    @click="editar(linha)"
+                  >
+                    {{ t('CAMPAIGN.LEAD_ADS.TABLE.EDIT') }}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -303,6 +352,14 @@ const resumoHook = hook =>
         <p class="text-xs text-n-slate-10">
           {{ t('CAMPAIGN.LEAD_ADS.FOOTNOTE') }}
         </p>
+
+        <LeadRoutingDialog
+          v-if="emEdicao"
+          ref="dialogRef"
+          :campanha="emEdicao"
+          :hook="hookDaLinha(emEdicao)"
+          @salvo="aplicarSalvo"
+        />
       </template>
     </div>
   </CampaignLayout>

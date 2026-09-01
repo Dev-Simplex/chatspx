@@ -435,14 +435,19 @@ RSpec.describe 'Conversations API', type: :request do
       # conversa CONTINUA aparecendo na busca (o bloqueio age só na abertura).
       context 'when the inbox has agent_conversation_isolation enabled' do
         let(:owner) { create(:user, account: account, role: :agent) }
+        # A conversa precisa TER time: o isolamento e escopado pelo time da conversa
+        # (Inbox#isolation_applies_to_team?). `allow_auto_assign: false` para o
+        # AssignmentHandler nao trocar o dono ao carimbar o time.
+        let(:iso_team) { create(:team, account: account, allow_auto_assign: false) }
         let(:isolated_conversation) do
-          create(:conversation, account: account, inbox: conversation.inbox, assignee: owner)
+          create(:conversation, account: account, inbox: conversation.inbox, team: iso_team, assignee: owner)
         end
 
         before do
           conversation.inbox.update!(agent_conversation_isolation: true)
           create(:inbox_member, user: agent, inbox: conversation.inbox)
           create(:inbox_member, user: owner, inbox: conversation.inbox)
+          [agent, owner].each { |user| create(:team_member, team: iso_team, user: user) }
         end
 
         it 'blocks a non-owner agent with a rich 403' do
@@ -465,6 +470,24 @@ RSpec.describe 'Conversations API', type: :request do
           get "/api/v1/accounts/#{account.id}/conversations/#{isolated_conversation.display_id}",
               headers: owner.create_new_auth_token, as: :json
           expect(response).to have_http_status(:success)
+        end
+
+        # CONVERSA SEM TIME (antes da triagem): esta regra NAO e isenta do time nulo
+        # (fica fora de Inbox::TEAMLESS_EXEMPT_RULES). Se o escopo por time a isentasse,
+        # o deploy desta feature ABRIRIA para todo agente a conversa do colega ainda sem
+        # triagem — que hoje da 403. Este e o 403 que nao pode cair.
+        it 'STILL blocks a colleague conversation that has no team yet' do
+          teamless = create(:conversation, account: account, inbox: conversation.inbox, assignee: owner)
+          # `sync_team_from_assignee` carimba o time do dono quando ele so tem um; a
+          # conversa que interessa aqui e a que ainda NAO tem time, entao zeramos direto.
+          teamless.update_column(:team_id, nil) # rubocop:disable Rails/SkipsModelValidations
+
+          get "/api/v1/accounts/#{account.id}/conversations/#{teamless.display_id}",
+              headers: agent.create_new_auth_token, as: :json
+
+          expect(teamless.reload.team_id).to be_nil
+          expect(response).to have_http_status(:forbidden)
+          expect(JSON.parse(response.body, symbolize_names: true)[:error_code]).to eq('conversation_access_blocked')
         end
 
         it 'lets any inbox member open an unassigned conversation' do

@@ -4,6 +4,7 @@ export const generateReportURLParams = ({
   businessHours,
   groupBy,
   range,
+  inboxId,
 }) => {
   const params = {};
 
@@ -13,6 +14,7 @@ export const generateReportURLParams = ({
 
   if (businessHours) params.business_hours = 'true';
   if (groupBy) params.group_by = groupBy;
+  if (inboxId) params.inbox_id = inboxId;
 
   // Include range type (last7days, last3months, custom, etc.)
   if (range) params.range = range;
@@ -21,7 +23,7 @@ export const generateReportURLParams = ({
 };
 
 export const parseReportURLParams = query => {
-  const { from, to, business_hours, group_by, range } = query;
+  const { from, to, business_hours, group_by, range, inbox_id } = query;
 
   return {
     from: from ? Number(from) : null,
@@ -29,6 +31,7 @@ export const parseReportURLParams = query => {
     businessHours: business_hours === 'true',
     groupBy: group_by ? Number(group_by) : null,
     range: range || null,
+    inboxId: inbox_id ? Number(inbox_id) : null,
   };
 };
 

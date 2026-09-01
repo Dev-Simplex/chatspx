@@ -174,7 +174,11 @@
         "RT": "RT {status}",
         "MISSED": "perdidas",
         "DUE": "venceu"
-      }
+      },
+      "NAME_CONTACT": "Nomear contato",
+      "EDIT_NAME": "Clique para renomear",
+      "NAME_PLACEHOLDER": "Nome do contato",
+      "NAME_UPDATE_ERROR": "Não foi possível atualizar o nome do contato"
     },
     "RESOLVE_DROPDOWN": {
       "MARK_PENDING": "Deixar pendente",
@@ -588,11 +592,13 @@
     },
     "TEAM_ISOLATION": {
       "RESTRICTED_TITLE": "Time: {team}",
-      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+      "RESTRICTED_SUBTITLE": "Conteúdo restrito",
+      "PREVIEW": "Mensagem de outro time"
     },
     "AGENT_ISOLATION": {
       "RESTRICTED_TITLE": "Agente: {agent}",
-      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+      "RESTRICTED_SUBTITLE": "Conteúdo restrito",
+      "PREVIEW": "Mensagem de outro agente"
     },
     "TAKEOVER_REQUEST": {
       "TITLE": "Solicitar esta conversa",
@@ -754,13 +760,13 @@
           "TITLE": "Credencial recusada",
           "BODY": "Não consegui responder agora: o serviço de IA recusou a credencial. Isso não é problema da sua conexão — avise quem administra a conta."
         },
+        "NO_ASSISTANT": {
+          "TITLE": "Nenhum agente de IA configurado",
+          "BODY": "Esta conta ainda não tem um agente de IA, então o copiloto não tem com quem falar. Quem administra a conta pode criar um na tela de Agentes IA."
+        },
         "GENERIC": {
           "TITLE": "Não consegui responder",
           "BODY": "Algo travou no caminho até o serviço de IA. Tente de novo; se continuar, avise quem administra a conta."
-        },
-        "NO_ASSISTANT": {
-          "TITLE": "Nenhum agente configurado",
-          "BODY": "Esta conta ainda não tem um agente de IA, então não consigo abrir uma conversa. Quem administra a conta pode criar um em Agentes IA."
         }
       },
       "QUICK_PROMPTS": {
@@ -903,6 +909,7 @@
         "DISCARDED_TOAST": "Sugestão descartada"
       }
     },
+    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente.",
     "NEWEST_MESSAGE": "Mensagens recentes",
     "WHATSAPP_WINDOW_EXPIRED": {
       "TITLE": "Janela de 24 horas expirada",
@@ -969,7 +976,6 @@
       "MEDIA_AND_FILES": "Mídias e Arquivos",
       "CONVERSATION_LABELS": "Etiquetas da conversa",
       "CONVERSATION_INFO": "Informação da conversa",
-      "SITE_CONTEXT": "Recebido do site",
       "CONTACT_NOTES": "Notas do contato",
       "CONTACT_ATTRIBUTES": "Atributos do contato",
       "PREVIOUS_CONVERSATION": "Conversas anteriores",
@@ -978,6 +984,7 @@
       "SHOPIFY_ORDERS": "Pedidos do Shopify",
       "KANBAN_STATUS": "Situação no Kanban",
       "GROUP_PARTICIPANTS": "Integrantes do grupo",
+      "SITE_CONTEXT": "Recebido do site",
       "SHARED_FILES": "Anexos"
     },
     "KANBAN_STATUS": {

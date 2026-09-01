@@ -9,13 +9,20 @@ class V2::Reports::ChannelSummaryBuilder
 
   private
 
+  def inbox_ids
+    @inbox_ids ||= Array(params[:inbox_id]).reject(&:blank?).map(&:to_i)
+  end
+
   def conversations_by_channel_and_status
-    account.conversations
-           .joins(:inbox)
-           .where(created_at: range)
-           .group('inboxes.channel_type', 'conversations.status')
-           .count
-           .each_with_object({}) do |((channel_type, status), count), grouped|
+    scope = account.conversations
+                   .joins(:inbox)
+                   .where(created_at: range)
+    scope = scope.where(inbox_id: inbox_ids) if inbox_ids.present?
+
+    scope
+      .group('inboxes.channel_type', 'conversations.status')
+      .count
+      .each_with_object({}) do |((channel_type, status), count), grouped|
       grouped[channel_type] ||= {}
       grouped[channel_type][status] = count
     end

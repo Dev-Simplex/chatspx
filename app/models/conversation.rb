@@ -166,16 +166,29 @@ class Conversation < ApplicationRecord
 
   has_many :mentions, dependent: :destroy_async
   has_many :messages, lambda { |conversation| # rubocop:disable Rails/InverseOf
-    # Filtragem por team_id so se aplica quando o inbox tem team_message_isolation ATIVADO.
+    # Filtragem por team_id so se aplica quando a regra ALCANCA esta conversa:
+    # `Inbox#isolation_applies_to_team?` = flag ligada + conversa COM time + time dentro
+    # da lista escolhida (lista vazia = todos os times = comportamento historico).
     # Caso contrario (default), retorna todas as mensagens — alinhando o backend com o frontend
     # (Message.vue isRestrictedByTeam) e com a expectativa do admin que desabilita o setting.
     # Quando isolation esta ON e a conv pertence a um time, mensagens com team_id NULL ainda
     # aparecem (publicas) mais as do time atual. Mensagens com team_id stale (de team anterior)
-    # ficam ocultas — o UpdateMessagesTeamIdJob deve sincroniza-las.
-    if conversation.team_id.nil? || !conversation.inbox&.team_message_isolation
-      all
-    else
+    # ficam ocultas — o UpdateMessagesTeamIdJob deve sincroniza-las. Foi esse "ficam ocultas"
+    # que derrubou em silencio o no de mensagem do flow, CSAT, NPS e o encerramento automatico:
+    # quem precisa da conversa INTEIRA usa `all_messages` (ver message_window_service.rb).
+    #
+    # A decisão de aplicar ou não passa pelo TeamMessageIsolation porque a regra tem DOIS
+    # eixos: o ALCANCE por time (`Inbox#isolation_applies_to_team?` = flag ligada + conversa
+    # COM time + time dentro da lista escolhida; lista vazia = todos os times = comportamento
+    # historico) e a ISENÇÃO por agente (quem for EXCEÇÃO nesta caixa volta a ver as mensagens
+    # dos outros times). Isso torna a regra dependente de QUEM olha dentro de uma association
+    # que não conhece o viewer — daí o Current.user. A guarda mora no módulo: Current.user
+    # nulo (job, API pública, widget) MANTÉM o filtro de hoje, senão um job de relatório
+    # passaria a enxergar mensagem de outro time.
+    if TeamMessageIsolation.apply?(conversation, Current.user)
       where('messages.team_id IS NULL OR messages.team_id = ?', conversation.team_id)
+    else
+      all
     end
   }, dependent: :destroy_async, autosave: true
   has_many :all_messages, class_name: 'Message', dependent: :destroy_async, autosave: true
@@ -184,6 +197,7 @@ class Conversation < ApplicationRecord
   has_one :nps_response, -> { order(created_at: :desc) }, class_name: 'NpsResponse', # rubocop:disable Rails/HasManyOrHasOneDependent
                                                           inverse_of: :conversation
   has_many :conversation_participants, dependent: :destroy_async
+  has_many :conversation_pins, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :conversation_takeover_requests, dependent: :destroy_async
   has_many :attachments, through: :messages
@@ -308,6 +322,26 @@ class Conversation < ApplicationRecord
 
   def unread_incoming_messages
     unread_messages.incoming.last(10)
+  end
+
+  # Fixar é por atendente. `any?` com bloco roda em memória quando a associação
+  # vem pré-carregada (é o caso da lista), então não gera N+1.
+  def pinned_for?(user)
+    return false if user.blank?
+
+    conversation_pins.any? { |pin| pin.user_id == user.id }
+  end
+
+  # Devolve o estado NOVO, para o cliente não precisar adivinhar.
+  def toggle_pin_for(user)
+    pin = conversation_pins.find_by(user_id: user.id)
+    if pin
+      pin.destroy!
+      false
+    else
+      conversation_pins.create!(user: user)
+      true
+    end
   end
 
   def memoized_unread_count

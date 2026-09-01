@@ -34,7 +34,7 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
 
   def update
     @agent.update!(agent_params.slice(:name).compact)
-    @agent.current_account_user.update!(agent_params.slice(*account_user_attributes).compact)
+    @agent.current_account_user.update!(account_user_payload)
     sync_supervised_teams
   end
 
@@ -82,14 +82,31 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
     [:role, :availability, :auto_offline]
   end
 
+  # O papel vindo desta tela é escolha deliberada de cargo, então entra por
+  # `console_role=` — que LIGA e DESLIGA a marca de supervisor. O writer cru
+  # (`role=`) só liga, para que API de plataforma, SAML e scripts não rebaixem um
+  # supervisor sem querer.
+  def account_user_payload
+    payload = agent_params.slice(*account_user_attributes).compact
+    role = payload.delete(:role)
+    payload[:console_role] = role if role.present?
+    payload
+  end
+
   # D7: marcar supervisor é exclusivo de admin. O endpoint já é admin-only pela
   # UserPolicy#update?, mas a guarda explícita impede que um afrouxamento futuro da
   # política (custom_role com agent_manage, p.ex.) deixe um agente se autopromover.
   # Roda como before_action para barrar ANTES de qualquer escrita no agente.
   def authorize_supervision_change
-    return if supervised_team_ids_param.nil?
+    return if supervised_team_ids_param.nil? && !supervisor_role_requested?
 
     raise Pundit::NotAuthorizedError unless Current.account_user.administrator?
+  end
+
+  # `role: supervisor` grava o CARGO (AccountUser#role=), então precisa da mesma guarda
+  # que a lista de times: só administrador promove alguém a supervisor.
+  def supervisor_role_requested?
+    params.dig(:agent, :role).to_s == AccountUser::SUPERVISOR_ROLE
   end
 
   # T1: com a UserPolicy#update? afrouxada para deixar o supervisor entrar, TUDO o que

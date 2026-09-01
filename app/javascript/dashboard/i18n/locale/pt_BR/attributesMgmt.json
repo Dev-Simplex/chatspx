@@ -18,7 +18,8 @@
       "LINK": "Link",
       "DATE": "Data",
       "LIST": "Lista",
-      "CHECKBOX": "Caixa de seleção"
+      "CHECKBOX": "Caixa de seleção",
+      "CPF": "CPF"
     },
     "ADD": {
       "TITLE": "Adicionar atributo personalizado",
@@ -67,13 +68,19 @@
         "ENABLE_REGEX": {
           "LABEL": "Habilitar validação do regex"
         },
-        "VERIFIED_ORIGIN": {
-          "LABEL": "Só aceitar escrita de origem verificada",
-          "HELP": "Seu site deixa de conseguir alterar este atributo enquanto a identidade do visitante não for verificada pela assinatura HMAC. O valor atual é mantido e a tentativa fica registrada."
+        "REQUIRED": {
+          "LABEL": "Preenchimento obrigatório"
+        },
+        "HIDDEN": {
+          "LABEL": "Ocultar dentro da conversa"
         },
         "BADGES": {
           "PRE_CHAT": "Pré-chat",
           "RESOLUTION": "Resolução"
+        },
+        "VERIFIED_ORIGIN": {
+          "LABEL": "Só aceitar escrita de origem verificada",
+          "HELP": "Seu site deixa de conseguir alterar este atributo enquanto a identidade do visitante não for verificada pela assinatura HMAC. O valor atual é mantido e a tentativa fica registrada."
         }
       },
       "API": {

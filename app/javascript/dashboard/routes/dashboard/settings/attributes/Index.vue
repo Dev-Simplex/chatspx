@@ -16,13 +16,11 @@ import {
   useStore,
   useMapGetter,
 } from 'dashboard/composables/store';
-import { useAccount } from 'dashboard/composables/useAccount';
 
 const { t } = useI18n();
 
 const getters = useStoreGetters();
 const store = useStore();
-const { currentAccount } = useAccount();
 const inboxes = useMapGetter('inboxes/getInboxes');
 
 const [showAddPopup, toggleAddPopup] = useToggle(false);
@@ -104,10 +102,6 @@ const confirmDeleteAttribute = async () => {
   }
 };
 
-const requiredAttributeKeys = computed(
-  () => currentAccount.value?.settings?.conversation_required_attributes || []
-);
-
 const hasPreChatBadge = attribute => {
   return (inboxes.value || []).some(inbox => {
     const fields =
@@ -126,10 +120,7 @@ const buildBadges = attribute => {
     });
   }
 
-  if (
-    attribute.attribute_model === 'conversation_attribute' &&
-    requiredAttributeKeys.value.includes(attribute.attribute_key)
-  ) {
+  if (attribute.required) {
     badges.push({
       type: 'resolution',
     });

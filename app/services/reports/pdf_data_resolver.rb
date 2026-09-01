@@ -331,7 +331,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     {
       report_type: 'conversations', title: 'Relatório de Conversas', period: period_meta,
       overline: 'Operação · Confidencial',
-      subtitle: "#{summary[:conversations_count]} conversas no período · 1ª resposta média de #{format_seconds(summary[:avg_first_response_time])}.",
+      subtitle: conversations_subtitle(summary),
       base_label: "#{summary[:conversations_count]} conversas",
       headline: conversations_headline(summary, comparison),
       kpis: conversations_kpis(summary),
@@ -343,6 +343,12 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       heatmap_insight: heatmap_peak_insight(heatmap),
       table: conversations_table(summary)
     }
+  end
+
+  def conversations_subtitle(summary)
+    with_inbox_scope(
+      "#{summary[:conversations_count]} conversas no período · 1ª resposta média de #{format_seconds(summary[:avg_first_response_time])}."
+    )
   end
 
   # ---- Clareza Total: comparação com período anterior, manchete, herói/vilão, legenda ----
@@ -362,7 +368,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
     duration = range.last - range.first
     { since: (range.first - duration).to_i.to_s, until: range.first.to_i.to_s,
-      business_hours: business_hours?, type: :account }
+      inbox_id: @filters[:inbox_id], business_hours: business_hours?, type: :account }
   end
 
   def conversations_comparison(summary, previous)
@@ -858,7 +864,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     {
       report_type: metric_type, title: SUMMARY_TITLES[metric_type], period: period_meta,
       overline: 'Desempenho · Confidencial',
-      subtitle: "#{kpis[:entities]} #{noun} com atividade · #{kpis[:conversations]} conversas no período.",
+      subtitle: with_inbox_scope("#{kpis[:entities]} #{noun} com atividade · #{kpis[:conversations]} conversas no período."),
       base_label: "#{kpis[:conversations]} conversas",
       kpis: kpis,
       highlight: signals.any? ? conversations_highlight(signals) : nil,
@@ -883,7 +889,8 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def summary_params(metric_type)
-    { type: metric_type.to_sym, since: @filters[:since], until: @filters[:until], business_hours: business_hours? }
+    { type: metric_type.to_sym, since: @filters[:since], until: @filters[:until],
+      inbox_id: @filters[:inbox_id], business_hours: business_hours? }
   end
 
   def summary_kpis(rows)
@@ -936,7 +943,8 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # ======================= Helpers compartilhados =======================
   def builder_params(extra = {})
-    { since: @filters[:since], until: @filters[:until], business_hours: business_hours? }.merge(extra)
+    { since: @filters[:since], until: @filters[:until],
+      inbox_id: @filters[:inbox_id], business_hours: business_hours? }.merge(extra)
   end
 
   def business_hours?
@@ -980,9 +988,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def report_builder_series(metric, group_by, since: @filters[:since], until_at: @filters[:until])
     return [] if since.blank? || until_at.blank? || since.to_i.zero? || until_at.to_i.zero?
 
-    V2::ReportBuilder.new(@account, { type: :account, metric: metric, group_by: group_by,
-                                      since: since, until: until_at,
-                                      timezone_offset: TZ_OFFSET }).build
+    V2::Reports::Conversations::ReportBuilder.new(
+      @account, { type: :account, metric: metric, group_by: group_by,
+                  since: since, until: until_at, inbox_id: @filters[:inbox_id],
+                  timezone_offset: TZ_OFFSET }
+    ).timeseries
   rescue StandardError => e
     Rails.logger.warn("[report_pdf] serie #{metric}/#{group_by} indisponivel: #{e.message}")
     []
@@ -1037,6 +1047,20 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def period_meta
     { since: format_date(range&.first), until: format_date(range&.last), label: period_label }
+  end
+
+  # Nome da caixa quando o relatorio esta recortado por numero — entra no subtitulo
+  # para nao circular PDF "de vendas" com numero da conta inteira.
+  def inbox_scope_label
+    return nil if @filters[:inbox_id].blank?
+
+    @inbox_scope_label ||= @account.inboxes.find_by(id: @filters[:inbox_id])&.name
+  end
+
+  def with_inbox_scope(subtitle)
+    return subtitle if inbox_scope_label.blank?
+
+    "#{subtitle} · Somente #{inbox_scope_label}"
   end
 
   def snapshot_period

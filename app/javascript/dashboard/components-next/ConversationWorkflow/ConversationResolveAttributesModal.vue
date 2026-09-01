@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { required, url, helpers } from '@vuelidate/validators';
 import { getRegexp } from 'shared/helpers/Validators';
+import { formatarCpf, cpfValido, CPF_PLACEHOLDER } from 'shared/helpers/cpf';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
-import TextArea from 'next/textarea/TextArea.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import ChoiceToggle from 'dashboard/components-next/input/ChoiceToggle.vue';
@@ -30,13 +30,22 @@ const placeholders = computed(() => ({
   list: t('CONVERSATION_WORKFLOW.REQUIRED_ATTRIBUTES.MODAL.PLACEHOLDERS.LIST'),
 }));
 
-const getPlaceholder = type => placeholders.value[type] || '';
+// A dica de formato do proprio atributo vale mais que o texto generico: num CPF ela
+// mostra "000.000.000-00" dentro da caixa, que e o que o atendente precisa ver.
+const getPlaceholder = (type, attribute = null) =>
+  attribute?.regexCue || placeholders.value[type] || '';
 
 const validationRules = computed(() => {
   const rules = {};
   visibleAttributes.value.forEach(attribute => {
     if (attribute.type === ATTRIBUTE_TYPES.LINK) {
       rules[attribute.value] = { required, url };
+    } else if (attribute.type === ATTRIBUTE_TYPES.CPF) {
+      // Formato E dígito verificador: um CPF digitado errado não fecha a conversa.
+      rules[attribute.value] = {
+        required,
+        cpfValidation: value => !value || cpfValido(value),
+      };
     } else if (attribute.type === ATTRIBUTE_TYPES.CHECKBOX) {
       // Checkbox doesn't need validation - any selection is valid
       rules[attribute.value] = {};
@@ -67,6 +76,9 @@ const getErrorMessage = attributeKey => {
       field.regexValidation.$params?.regexCue ||
       t('CUSTOM_ATTRIBUTES.VALIDATIONS.INVALID_INPUT')
     );
+  }
+  if (field.cpfValidation && field.cpfValidation.$invalid) {
+    return t('CUSTOM_ATTRIBUTES.VALIDATIONS.INVALID_CPF');
   }
   if (field.required && field.required.$invalid) {
     return t('CUSTOM_ATTRIBUTES.VALIDATIONS.REQUIRED');
@@ -180,23 +192,51 @@ defineExpose({ open, close });
           </label>
         </div>
 
-        <template v-if="attribute.type === ATTRIBUTE_TYPES.TEXT">
-          <TextArea
+        <template v-if="attribute.type === ATTRIBUTE_TYPES.CPF">
+          <Input
+            :model-value="formValues[attribute.value]"
+            type="text"
+            size="md"
+            inputmode="numeric"
+            maxlength="14"
+            :placeholder="CPF_PLACEHOLDER"
+            :message="getErrorMessage(attribute.value)"
+            :message-type="v$[attribute.value].$error ? 'error' : 'info'"
+            @update:model-value="
+              valor => {
+                formValues[attribute.value] = formatarCpf(valor);
+              }
+            "
+            @blur="v$[attribute.value].$touch"
+          />
+        </template>
+
+        <template v-else-if="attribute.type === ATTRIBUTE_TYPES.TEXT">
+          <Input
             v-model="formValues[attribute.value]"
-            class="w-full"
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.TEXT)"
+            type="text"
+            size="md"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.TEXT, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             @blur="v$[attribute.value].$touch"
           />
         </template>
 
-        <template v-else-if="attribute.type === ATTRIBUTE_TYPES.NUMBER">
+        <template
+          v-else-if="
+            [
+              ATTRIBUTE_TYPES.NUMBER,
+              ATTRIBUTE_TYPES.CURRENCY,
+              ATTRIBUTE_TYPES.PERCENT,
+            ].includes(attribute.type)
+          "
+        >
           <Input
             v-model="formValues[attribute.value]"
             type="number"
             size="md"
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.NUMBER)"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.NUMBER, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             @blur="v$[attribute.value].$touch"
@@ -208,7 +248,7 @@ defineExpose({ open, close });
             v-model="formValues[attribute.value]"
             type="url"
             size="md"
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LINK)"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LINK, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             @blur="v$[attribute.value].$touch"
@@ -220,7 +260,7 @@ defineExpose({ open, close });
             v-model="formValues[attribute.value]"
             type="date"
             size="md"
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.DATE)"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.DATE, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             @blur="v$[attribute.value].$touch"
@@ -232,7 +272,7 @@ defineExpose({ open, close });
             v-model="formValues[attribute.value]"
             :options="comboBoxOptions[attribute.value]"
             creatable
-            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LIST)"
+            :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LIST, attribute)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
             :has-error="v$[attribute.value].$error"

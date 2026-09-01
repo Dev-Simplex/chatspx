@@ -37,9 +37,7 @@ const isNum = computed(() => typeof props.value === 'number');
     <div
       v-if="delta"
       class="mt-0.5 text-[11.5px] font-semibold"
-      :class="
-        deltaUp ? 'text-g-600 dark:text-g-400' : 'text-r-600 dark:text-r-400'
-      "
+      :class="deltaUp ? 'text-n-teal-11' : 'text-n-ruby-11'"
     >
       {{ delta }}
     </div>

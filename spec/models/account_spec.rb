@@ -5,6 +5,9 @@ require 'rails_helper'
 RSpec.describe Account do
   it { is_expected.to have_many(:users).through(:account_users) }
   it { is_expected.to have_many(:account_users) }
+  # NÃO trocar por destroy_async: ele apaga o pai antes de enfileirar os filhos e,
+  # com a FK de internal_channels->accounts sem cascade, trava a exclusão da conta.
+  it { is_expected.to have_many(:internal_channels).dependent(:destroy) }
   it { is_expected.to have_many(:inboxes).dependent(:destroy_async) }
   it { is_expected.to have_many(:conversations).dependent(:destroy_async) }
   it { is_expected.to have_many(:contacts).dependent(:destroy_async) }
@@ -310,6 +313,33 @@ RSpec.describe Account do
       end
     end
 
+    # A reentrada da IA em órfã era DERIVADA do reply_assignment_gate, e aquela flag faz duas
+    # coisas de sinais opostos: obriga o humano a se atribuir para responder (a favor de todo
+    # mundo ter dono) e proíbe a IA de reassumir órfã (contra). Quem quer só a primeira metade
+    # não conseguia. A chave própria separa as duas SEM mudar quem nunca a definiu.
+    describe '#ia_reentra_orfa_enabled?' do
+      it 'derives from the fila mode when the account never declared it' do
+        account.update!(reply_assignment_gate: true)
+        expect(account.ia_reentra_orfa_enabled?).to be false
+
+        account.update!(reply_assignment_gate: false)
+        expect(account.ia_reentra_orfa_enabled?).to be true
+      end
+
+      it 'lets a fila-mode account turn the reentry back on' do
+        account.update!(reply_assignment_gate: true, ia_reentra_orfa: true)
+
+        expect(account.ia_reentra_orfa_enabled?).to be true
+        expect(account.reply_assignment_gate_enabled?).to be true
+      end
+
+      it 'lets a classic-mode account turn the reentry off' do
+        account.update!(reply_assignment_gate: false, ia_reentra_orfa: false)
+
+        expect(account.ia_reentra_orfa_enabled?).to be false
+      end
+    end
+
     describe '#reply_assignment_gate_enabled?' do
       it 'defaults to false when the setting is absent' do
         expect(account.reply_assignment_gate_enabled?).to be false
@@ -367,7 +397,15 @@ RSpec.describe Account do
       it 'returns defaults from llm.yml' do
         prefs = account.captain_preferences
 
-        expect(prefs[:features].values).to all(be false)
+        # As features de DEFAULT_ON_FEATURES nascem LIGADAS de proposito: elas ja rodavam
+        # sem gate nenhum, e chave ausente nao pode desligar recurso de quem ja usava.
+        (Llm::Models.feature_keys - CaptainFeaturable::DEFAULT_ON_FEATURES).each do |feature|
+          expect(prefs[:features][feature]).to be false
+        end
+
+        CaptainFeaturable::DEFAULT_ON_FEATURES.each do |feature|
+          expect(prefs[:features][feature]).to be true
+        end
 
         Llm::Models.feature_keys.each do |feature|
           expect(prefs[:models][feature]).to eq(Llm::Models.default_model_for(feature))

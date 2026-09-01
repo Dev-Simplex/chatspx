@@ -916,6 +916,15 @@ const actions = {
     commit(types.ASSIGN_PRIORITY, { priority, conversationId });
   },
 
+  // O servidor devolve o estado NOVO; só depois dele o cliente muda a lista, para
+  // o alfinete nunca mostrar algo que o banco não confirmou.
+  togglePin: async ({ commit }, { conversationId }) => {
+    const {
+      data: { pinned },
+    } = await ConversationApi.togglePin({ conversationId });
+    commit(types.SET_CONVERSATION_PINNED, { conversationId, pinned });
+  },
+
   setContextMenuChatId({ commit }, chatId) {
     commit(types.SET_CONTEXT_MENU_CHAT_ID, chatId);
   },

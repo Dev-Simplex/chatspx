@@ -45,6 +45,8 @@ export default {
       // Bloco 4.17: "só aceita escrita com credencial verificada". Nasce desligado —
       // ligar por default mudaria o comportamento de toda integração já instalada.
       requiresVerifiedOrigin: false,
+      isRequired: false,
+      isHidden: false,
       values: [],
       show: true,
       tagInputTouched: false,
@@ -159,6 +161,8 @@ export default {
             : null,
           regex_cue: this.regexCue,
           requires_verified_origin: this.requiresVerifiedOrigin,
+          required: this.isRequired,
+          hidden: this.isHidden,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.ADD.API.SUCCESS_MESSAGE');
         this.onClose();
@@ -305,6 +309,14 @@ export default {
               </span>
             </label>
           </div>
+          <label class="flex gap-2 items-center w-fit cursor-pointer">
+            <input v-model="isRequired" type="checkbox" class="m-0" />
+            {{ $t('ATTRIBUTES_MGMT.ADD.FORM.REQUIRED.LABEL') }}
+          </label>
+          <label class="flex gap-2 items-center w-fit cursor-pointer">
+            <input v-model="isHidden" type="checkbox" class="m-0" />
+            {{ $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL') }}
+          </label>
           <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
             <NextButton
               faded

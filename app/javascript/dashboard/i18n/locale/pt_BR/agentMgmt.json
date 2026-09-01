@@ -31,7 +31,6 @@
       "ACTIONS": "Ações",
       "VERIFIED": "Verificado",
       "VERIFICATION_PENDING": "Verificação Pendente",
-      "SUPERVISOR": "Supervisor",
       "AVAILABLE_CUSTOM_ROLE": "Permissões de função personalizada disponíveis"
     },
     "ADD": {
@@ -93,12 +92,6 @@
           "LABEL": "Disponibilidade",
           "PLACEHOLDER": "Por favor, selecione a disponibilidade do agente",
           "ERROR": "A disponibilidade é necessária"
-        },
-        "SUPERVISED_TEAMS": {
-          "LABEL": "Times que ele supervisiona",
-          "DESCRIPTION": "O supervisor vê todas as conversas dos times marcados, inclusive as atribuídas a outros agentes e as de caixas de entrada das quais ele não é membro. Supervisionar não é o mesmo que ser membro do time.",
-          "EMPTY": "Ainda não existem times nesta conta.",
-          "REQUIRED": "Marque ao menos um time — supervisor sem time é igual a um agente comum."
         },
         "SUBMIT": "Editar agente"
       },

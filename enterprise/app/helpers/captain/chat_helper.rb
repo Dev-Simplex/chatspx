@@ -95,8 +95,15 @@ module Captain::ChatHelper
     @messages.reject { |m| m[:role] == 'system' || m[:role] == :system }
   end
 
+  # Temperatura de quem nao configurou nenhuma. O antigo `.to_f || 1` era default MORTO:
+  # `to_f` nunca devolve nil, entao o `|| 1` nunca era alcancado e assistente sem temperatura
+  # rodava em 0.0, nao no 1 que o codigo prometia. Mesmo defeito que ja foi corrigido em
+  # Concerns::Agentable#resolved_temperature. O `presence` preserva o 0 EXPLICITO (em Ruby o
+  # zero e present?), entao quem escolheu 0 de proposito continua em 0.
+  DEFAULT_TEMPERATURE = 1
+
   def temperature
-    @assistant&.config&.[]('temperature').to_f || 1
+    (@assistant&.config&.[]('temperature').presence || DEFAULT_TEMPERATURE).to_f
   end
 
   def resolved_account_id

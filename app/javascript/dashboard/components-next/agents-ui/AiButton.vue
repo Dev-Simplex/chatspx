@@ -10,7 +10,7 @@ const CLS = {
   primary: 'bg-n-brand text-white hover:brightness-95',
   ghost: 'bg-n-solid-1 text-n-slate-12 border border-n-weak hover:bg-n-alpha-2',
   subtle: 'bg-n-alpha-2 text-n-slate-12 hover:bg-n-alpha-3',
-  danger: 'bg-r-500 text-white hover:brightness-95',
+  danger: 'bg-n-ruby-9 text-white hover:brightness-95',
 };
 </script>
 

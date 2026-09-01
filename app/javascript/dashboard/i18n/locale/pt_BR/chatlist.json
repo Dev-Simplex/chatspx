@@ -159,6 +159,8 @@
     "SHOW_QUOTED_TEXT": "Mostrar Texto Citado",
     "MESSAGE_READ": "Lida",
     "SENDING": "Enviando",
+    "PIN_CONVERSATION": "Fixar no topo",
+    "UNPIN_CONVERSATION": "Desafixar",
     "UNREAD_COUNT_OVERFLOW": "9+"
   }
 }

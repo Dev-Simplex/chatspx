@@ -37,7 +37,20 @@ class V2::Reports::BaseSummaryBuilder
   end
 
   def reporting_events
-    @reporting_events ||= account.reporting_events.where(created_at: range)
+    @reporting_events ||= with_inbox_filter(account.reporting_events.where(created_at: range))
+  end
+
+  # Recorte por caixa de entrada (o numero). Precisa valer para os DOIS lados do
+  # relatorio — contagem de conversas e medias dos eventos — senao a tela mostra
+  # o volume de uma linha com o tempo medio da conta inteira.
+  def inbox_ids
+    @inbox_ids ||= Array(params[:inbox_id]).reject(&:blank?).map(&:to_i)
+  end
+
+  def with_inbox_filter(relation)
+    return relation if inbox_ids.blank?
+
+    relation.where(inbox_id: inbox_ids)
   end
 
   def fetch_conversations_count

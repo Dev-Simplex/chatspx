@@ -1,5 +1,8 @@
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import { frontendURL } from '../../../../helper/URLHelper';
+// Integrações inteira sai do alcance do supervisor de time — inclusive as abas
+// Webhooks e Dashboard apps, que só existem dentro desta tela.
+import { NOT_TEAM_SUPERVISOR } from 'dashboard/constants/permissions.js';
 import SettingsWrapper from '../SettingsWrapper.vue';
 import IntegrationHooks from './IntegrationHooks.vue';
 import Index from './Index.vue';
@@ -24,7 +27,7 @@ export default {
           component: Index,
           meta: {
             featureFlag: FEATURE_FLAGS.INTEGRATIONS,
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
         },
         {
@@ -33,7 +36,7 @@ export default {
           name: 'settings_integrations_dashboard_apps',
           meta: {
             featureFlag: FEATURE_FLAGS.INTEGRATIONS,
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
         },
         {
@@ -42,7 +45,7 @@ export default {
           name: 'settings_integrations_webhook',
           meta: {
             featureFlag: FEATURE_FLAGS.INTEGRATIONS,
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
         },
         {
@@ -50,7 +53,7 @@ export default {
           component: Openai,
           name: 'settings_integrations_openai',
           meta: {
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
         },
       ],
@@ -65,7 +68,7 @@ export default {
           component: Slack,
           meta: {
             featureFlag: FEATURE_FLAGS.INTEGRATIONS,
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
           props: route => ({ code: route.query.code }),
         },
@@ -74,7 +77,7 @@ export default {
           name: 'settings_integrations_linear',
           component: Linear,
           meta: {
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
           props: route => ({ code: route.query.code }),
         },
@@ -83,7 +86,7 @@ export default {
           name: 'settings_integrations_notion',
           component: Notion,
           meta: {
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
           props: route => ({ code: route.query.code }),
         },
@@ -93,7 +96,7 @@ export default {
           component: Shopify,
           meta: {
             featureFlag: FEATURE_FLAGS.INTEGRATIONS,
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
           props: route => ({ error: route.query.error }),
         },
@@ -103,7 +106,7 @@ export default {
           component: IntegrationHooks,
           meta: {
             featureFlag: FEATURE_FLAGS.INTEGRATIONS,
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
           props: route => ({
             integrationId: route.params.integration_id,

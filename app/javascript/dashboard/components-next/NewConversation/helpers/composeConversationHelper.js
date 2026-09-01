@@ -208,6 +208,7 @@ export const prepareNewMessagePayload = ({
   currentUser,
   attachedFiles = [],
   directUploadsEnabled = false,
+  teamId = null,
 }) => {
   const payload = {
     inboxId: targetInbox.id,
@@ -216,6 +217,10 @@ export const prepareNewMessagePayload = ({
     message: { content: message },
     assigneeId: currentUser.id,
   };
+
+  if (teamId) {
+    payload.teamId = teamId;
+  }
 
   if (attachedFiles?.length) {
     payload.files = prepareAttachmentPayload(
@@ -245,14 +250,21 @@ export const prepareWhatsAppMessagePayload = ({
   message,
   templateParams,
   currentUser,
+  teamId = null,
 }) => {
-  return {
+  const payload = {
     inboxId: targetInbox.id,
     sourceId: targetInbox.sourceId,
     contactId: selectedContact.id,
     message: { content: message, template_params: templateParams },
     assigneeId: currentUser.id,
   };
+
+  if (teamId) {
+    payload.teamId = teamId;
+  }
+
+  return payload;
 };
 
 // API Calls

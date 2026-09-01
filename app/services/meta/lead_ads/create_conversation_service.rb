@@ -24,6 +24,15 @@ module Meta
       JORNADA_MAX_CHARS = 600
       # `whatsapp_template_body_fields = none` declara template SEM variável no corpo.
       NO_BODY_FIELDS = 'none'.freeze
+      # Campos do lead que podem preencher {{1}}, {{2}}, ... no corpo do HSM: exatamente as
+      # chaves de `template_render_context`, e nada além delas — campo fora desta lista
+      # renderiza string vazia e a Meta recusa a mensagem. Quem valida a configuração antes
+      # de salvar lê daqui (`LeadCampaigns::RoutingUpdater`); um spec trava a lista contra
+      # o contexto real, para os dois não se separarem em silêncio.
+      BODY_FIELDS = %w[first_name full_name ad_name campaign_name city email phone empreendimento].freeze
+      # Idioma assumido quando o hook não declara: a Meta casa o template por (nome, idioma),
+      # então quem valida a configuração tem que assumir o MESMO default que o envio.
+      DEFAULT_TEMPLATE_LOCALE = 'pt_BR'.freeze
       # Código do imóvel escondido no NOME DO ANÚNCIO. Campanha de catálogo entrega o código
       # no `retailer_item_id`; campanha de FORMULÁRIO não tem catálogo, e aí o único lugar onde
       # o código existe é o nome que o anunciante deu à peça ("IMÓVEL 9817 - TELHADO APARENTE").
@@ -119,13 +128,69 @@ module Meta
       # settings['campaign_overrides'] = { "<campaign_id>" => { "whatsapp_template_name" => "...",
       # "assign_agent_bot_id" => "...", ... } } pra dar opener/time/IA distintos por campanha
       # (ex.: remarketing com abertura calorosa). Sem override, cai no valor global do hook.
+      #
+      # ...e honrando OVERRIDE POR INTENÇÃO (`intent_overrides`), pra origem que declara o
+      # assunto na `jornada`. Precedência: campanha > intenção > global. Campanha vem antes
+      # porque é o operador nomeando um caso específico; intenção é padrão.
       def hook_setting(key)
+        override_value(campaign_override, key) || override_value(intent_override, key) || @hook.settings[key]
+      end
+
+      # Override só vale quando traz valor de verdade: chave ausente ou string vazia cai no
+      # próximo nível, que é o que mantém "só as chaves presentes na regra são sobrescritas".
+      def override_value(override, key)
+        return nil unless override.is_a?(Hash)
+
+        override[key].to_s.strip.present? ? override[key] : nil
+      end
+
+      def campaign_override
         overrides = @hook.settings['campaign_overrides']
-        if overrides.is_a?(Hash)
-          ov = overrides[@lead[:campaign_id].to_s]
-          return ov[key] if ov.is_a?(Hash) && ov[key].to_s.strip.present?
+        overrides.is_a?(Hash) ? overrides[@lead[:campaign_id].to_s] : nil
+      end
+
+      # Roteamento pela INTENÇÃO que a origem já declarou. Lead de formulário chega com uma
+      # `jornada` escrita por quem o originou — o site descreve o que a pessoa navegou antes de
+      # pedir contato. Quando ela nomeia o assunto, esse é o sinal mais cedo que existe: chega
+      # ANTES da primeira mensagem e não depende do julgamento do modelo.
+      #
+      # Sem a chave no hook, nada muda — o caminho é idêntico ao de hoje.
+      #   settings['intent_overrides'] = [
+      #     { 'match' => '<trecho da jornada>', 'assign_agent_bot_id' => <id>, 'assign_team_id' => <id> }
+      #   ]
+      # Lista ORDENADA: o primeiro match vence, então o operador põe o caso mais específico
+      # primeiro. Só as chaves presentes na regra são sobrescritas; o resto cai no global.
+      #
+      # Por que substring e não classificação: o texto da jornada é gerado pela própria origem,
+      # com prefixo estável. Regra determinística erra pouco e erra VISÍVEL — e o erro custa uma
+      # transferência entre agentes, que já é caminho existente. Medido na Tozi (conta 6, 60d):
+      # 56 dos 99 leads de site declaram locação e 91,5% dos decididos terminaram mesmo em
+      # locação, enquanto hoje 100% deles nascem com a agente de vendas.
+      def intent_override
+        return @intent_override if defined?(@intent_override)
+
+        @intent_override = find_intent_override
+      end
+
+      def find_intent_override
+        regras = @hook.settings['intent_overrides']
+        return nil unless regras.is_a?(Array)
+
+        alvo = normalize_for_match(jornada)
+        return nil if alvo.blank?
+
+        regras.find do |regra|
+          next false unless regra.is_a?(Hash)
+
+          padrao = normalize_for_match(regra['match'])
+          padrao.present? && alvo.include?(padrao)
         end
-        @hook.settings[key]
+      end
+
+      # Acento e caixa não podem decidir roteamento: quem escreve a regra no painel não vê o
+      # texto exato que a origem manda.
+      def normalize_for_match(texto)
+        I18n.transliterate(texto.to_s).downcase.strip
       end
 
       def assign_team_id
@@ -524,7 +589,7 @@ module Meta
             content_attributes: { meta_lead_ads_initial: true },
             template_params: {
               'name' => hook_setting('imovel_template_name'),
-              'language' => (hook_setting('whatsapp_template_locale').presence || 'pt_BR'),
+              'language' => (hook_setting('whatsapp_template_locale').presence || DEFAULT_TEMPLATE_LOCALE),
               'processed_params' => {
                 'header' => { 'media_url' => d[:foto_url], 'media_type' => 'image' },
                 'body' => { '1' => first, '2' => imovel_txt }
@@ -551,7 +616,7 @@ module Meta
           return
         end
 
-        locale = hook_setting('whatsapp_template_locale').presence || 'pt_BR'
+        locale = hook_setting('whatsapp_template_locale').presence || DEFAULT_TEMPLATE_LOCALE
         body = template_body_params
 
         Messages::MessageBuilder.new(

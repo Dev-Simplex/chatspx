@@ -25,7 +25,7 @@ RSpec.describe Flows::ActionService do
 
   # Abre a janela de 24h (a conversa WhatsApp nasce fora dela) com um incoming recente do contato.
   def open_window!
-    create(:message, conversation: conversation, account: account, inbox: whatsapp_channel.inbox,
+    create(:message, conversation: conversation, account: account, inbox: conversation.inbox,
                      message_type: :incoming, content: 'oi', sender: contact)
   end
 
@@ -113,6 +113,57 @@ RSpec.describe Flows::ActionService do
 
     it 'does not create a Message when skipped' do
       expect { run('send_interactive', [{ 'content' => 'Oi', 'items' => [] }]) }.not_to change(Message, :count)
+    end
+  end
+
+  # Menu de opções não é exclusividade do WhatsApp — mas também não é universal. Canal que não
+  # desenha o menu manda só o `content`: a pergunta chega e as opções somem, sem erro nenhum.
+  describe 'guard: inbox_no_interactive_items' do
+    let(:items) { [{ 'title' => 'Suporte', 'value' => 'suporte' }] }
+
+    context 'when the channel does not render menus (Instagram)' do
+      let(:instagram_channel) { create(:channel_instagram, account: account) }
+      let(:conversation) { create(:conversation, account: account, inbox: instagram_channel.inbox) }
+
+      it 'skips with a triable reason instead of sending a question with no options' do
+        open_window!
+        result = run('send_interactive', [{ 'content' => 'Escolha:', 'items' => items }])
+
+        expect(result.status).to eq(:skipped)
+        expect(result.error).to be_a(Flows::StepSkip).and(have_attributes(code: 'inbox_no_interactive_items'))
+      end
+
+      it 'does not create a Message when skipped' do
+        open_window!
+        expect { run('send_interactive', [{ 'content' => 'Escolha:', 'items' => items }]) }.not_to change(Message, :count)
+      end
+    end
+
+    # A guarda de canal vem ANTES do compliance: numa inbox que nunca vai desenhar o menu, o motivo
+    # útil para quem tria é o canal, não a janela de 24h.
+    it 'reports the channel, not the window, when both would block' do
+      instagram_channel = create(:channel_instagram, account: account)
+      other = create(:conversation, account: account, inbox: instagram_channel.inbox)
+      result = described_class.new(flow: flow, conversation: other)
+                              .execute({ 'type' => 'action', 'action_name' => 'send_interactive',
+                                         'action_params' => [{ 'content' => 'Oi', 'items' => items }] })
+
+      expect(result.error.code).to eq('inbox_no_interactive_items')
+    end
+
+    # Contraprova: a guarda não é "só WhatsApp Cloud". O Telegram desenha o menu (inline_keyboard)
+    # e continua entregando.
+    it 'still delivers on a non-WhatsApp channel that does render menus (Telegram)' do
+      telegram_channel = create(:channel_telegram, account: account)
+      other = create(:conversation, account: account, inbox: telegram_channel.inbox)
+      create(:message, conversation: other, account: account, inbox: telegram_channel.inbox,
+                       message_type: :incoming, content: 'oi', sender: other.contact)
+
+      expect do
+        described_class.new(flow: flow, conversation: other)
+                       .execute({ 'type' => 'action', 'action_name' => 'send_interactive',
+                                  'action_params' => [{ 'content' => 'Oi', 'items' => items }] })
+      end.to change { other.messages.where(message_type: :outgoing).count }.by(1)
     end
   end
 

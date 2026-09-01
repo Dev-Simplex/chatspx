@@ -188,7 +188,7 @@ onBeforeUnmount(() => {
         class="fixed inset-0 z-[10000] overflow-y-auto"
         @click.self="handleClose"
       >
-        <div class="fixed inset-0 bg-n-slate-12/60 dark:bg-black/70" />
+        <div class="fixed inset-0 bg-n-slate-12/60 dark:bg-n-black/70" />
 
         <div class="relative flex min-h-full items-center justify-center p-4">
           <div
@@ -223,9 +223,9 @@ onBeforeUnmount(() => {
             <!-- Multi-conv warning -->
             <div
               v-if="hasMultiple"
-              class="mx-5 mt-4 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
+              class="mx-5 mt-4 px-3 py-2 rounded-lg bg-n-amber-3 border border-n-amber-6"
             >
-              <p class="text-xs text-amber-700 dark:text-amber-300">
+              <p class="text-xs text-n-amber-11">
                 {{
                   t('EXPORT_CONVERSATION.MULTI_WARNING', {
                     count: conversationCount,
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
                     />
                     <Icon
                       icon="i-lucide-message-square"
-                      class="size-3.5 text-blue-500"
+                      class="size-3.5 text-n-blue-11"
                     />
                     <span class="text-xs text-n-slate-11 flex-1">
                       {{ t('EXPORT_CONVERSATION.INCLUDE_INCOMING') }}
@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
                     />
                     <Icon
                       icon="i-lucide-send"
-                      class="size-3.5 text-emerald-600"
+                      class="size-3.5 text-n-teal-11"
                     />
                     <span class="text-xs text-n-slate-11 flex-1">
                       {{ t('EXPORT_CONVERSATION.INCLUDE_OUTGOING') }}
@@ -318,7 +318,7 @@ onBeforeUnmount(() => {
                     />
                     <Icon
                       icon="i-lucide-lock"
-                      class="size-3.5 text-amber-600"
+                      class="size-3.5 text-n-amber-11"
                     />
                     <span class="text-xs text-n-slate-11 flex-1">
                       {{ t('EXPORT_CONVERSATION.INCLUDE_PRIVATE') }}
@@ -380,7 +380,7 @@ onBeforeUnmount(() => {
             <div v-else class="px-5 py-6 text-center space-y-3">
               <Icon
                 icon="i-lucide-check-circle-2"
-                class="size-10 text-emerald-500 mx-auto"
+                class="size-10 text-n-teal-11 mx-auto"
               />
               <div>
                 <p class="text-sm font-medium text-n-slate-12">
@@ -423,7 +423,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 v-else
-                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-n-teal-9 rounded-lg hover:bg-n-teal-10 transition-colors"
                 @click="handleDownload"
               >
                 <Icon icon="i-lucide-download" class="size-4" />

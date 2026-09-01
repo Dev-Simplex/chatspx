@@ -1994,7 +1994,7 @@ onBeforeUnmount(() => {
               />
             </div>
             <button
-              class="inline-flex items-center justify-center h-10 w-10 rounded-full text-white bg-n-brand shadow-sm hover:bg-n-brand-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all flex-shrink-0"
+              class="inline-flex items-center justify-center h-10 w-10 rounded-full text-white bg-n-brand shadow-sm hover:bg-n-teal-10 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all flex-shrink-0"
               :title="t('INTERNAL_CHAT.SEND')"
               :disabled="
                 (!draft.trim() && !attachedFiles.length) || uiFlags.isSending

@@ -1,4 +1,4 @@
-# Tela de campanhas de captação (fatia 1 — SÓ LEITURA).
+# Tela de campanhas de captação.
 #
 # Responde a duas perguntas que hoje só se responde com SQL: *quais campanhas trouxeram
 # lead no período* e *como cada uma está configurada*. Não escreve nada, não fala com a
@@ -18,11 +18,15 @@
 # captação recebe `habilitado: false` e não vê a tela.
 #
 # PERMISSÃO: volume por campanha todo mundo vê; **configuração de roteamento (template,
-# agente, time, override, hooks) é só para admin**.
+# agente, time, override, hooks) é só para admin** — e só admin edita.
 #
-# Read-only e defensivo: seção que falhar volta vazia em vez de derrubar a tela.
+# A LEITURA é defensiva: seção que falhar volta vazia em vez de derrubar a tela. A ESCRITA
+# (`update`, o override de roteamento de uma campanha) é o oposto — ela recusa tudo que não
+# entende, porque configuração torta aqui não dá erro na tela, dá lead mudo em produção. A
+# validação inteira mora em `LeadCampaigns::RoutingUpdater`.
 class Api::V1::Accounts::LeadCampaignsController < Api::V1::Accounts::BaseController
   before_action :current_account
+  before_action :check_admin_authorization?, only: [:update]
 
   # Marcador que a engine grava em `conversation.additional_attributes['source']`, para
   # qualquer origem de formulário. É o recorte do "lead de formulário" no banco.
@@ -56,7 +60,23 @@ class Api::V1::Accounts::LeadCampaignsController < Api::V1::Accounts::BaseContro
     }
   end
 
+  # Grava o override de roteamento de UMA campanha. Devolve a configuração já resolvida da
+  # campanha, para a tela mostrar o estado real (com a herança do hook aplicada) em vez do
+  # que o formulário mandou.
+  def update
+    atualizador = LeadCampaigns::RoutingUpdater.new(
+      account: Current.account, campaign_id: params[:campaign_id], params: roteamento_params, user: Current.user
+    )
+    return render json: { erros: atualizador.erros }, status: :unprocessable_entity unless atualizador.perform
+
+    render json: { campanha: LeadCampaigns::ConfigResolver.new(Current.account).para(params[:campaign_id]) }
+  end
+
   private
+
+  def roteamento_params
+    params.require(:roteamento).permit(:template, :template_locale, :agente, :time, campos: [])
+  end
 
   def admin?
     Current.account_user&.administrator?

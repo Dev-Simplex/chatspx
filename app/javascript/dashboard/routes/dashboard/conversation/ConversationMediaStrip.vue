@@ -195,7 +195,7 @@ const onTabChange = tab => {
         <!-- Vídeo: overlay de play sobre a miniatura -->
         <span
           v-if="isVideo(att) && !isOverflowSlot(idx)"
-          class="absolute inset-0 flex items-center justify-center bg-black/20"
+          class="absolute inset-0 flex items-center justify-center bg-n-black/20"
         >
           <Icon
             icon="i-teenyicons-play-small-solid"
@@ -206,7 +206,7 @@ const onTabChange = tab => {
         <!-- Última casinha vira o contador quando há mais mídias -->
         <span
           v-if="isOverflowSlot(idx)"
-          class="absolute inset-0 flex items-center justify-center text-base font-semibold leading-none text-white tabular-nums bg-black/60"
+          class="absolute inset-0 flex items-center justify-center text-base font-semibold leading-none text-white tabular-nums bg-n-black/60"
         >
           {{
             t('CONVERSATION_SIDEBAR.MEDIA_STRIP.MORE_COUNT', {

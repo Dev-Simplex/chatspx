@@ -1,0 +1,43 @@
+{
+  "REDE_SOCIAL": {
+    "TITULO": "Rede Social",
+    "DESCRICAO": "Os comentários públicos que chegam nas publicações do Instagram, e as publicações em que eles caíram.",
+    "CARREGANDO": "Carregando...",
+    "ERRO_CARREGAR": "Não foi possível carregar os comentários.",
+    "ABAS": {
+      "COMENTARIOS": "Comentários",
+      "PUBLICACOES": "Publicações"
+    },
+    "FILTRO_PUBLICACAO": "Publicação",
+    "TODAS_PUBLICACOES": "Todas",
+    "SO_NAO_RESPONDIDOS": "Só os sem resposta ({total})",
+    "INCLUIR_PROPRIOS": "Mostrar as respostas do time",
+    "SEM_COMENTARIOS": "Nenhum comentário capturado ainda.",
+    "SEM_PUBLICACOES": "Nenhuma publicação com comentário ainda.",
+    "AUTOR_DESCONHECIDO": "sem autor",
+    "RESPOSTA_DA_CONTA": "resposta do time",
+    "RESPONDIDO": "respondido",
+    "RESPONDIDO_AJUDA": "Deduzido do @ no começo da resposta do time — o Instagram não diz a qual comentário uma resposta pertence.",
+    "TIPO_DESCONHECIDO": "publicação",
+    "NAO_SINCRONIZADA": "sem legenda",
+    "VER_PUBLICACAO": "Ver no Instagram",
+    "CONTAGEM": "{clientes} de clientes · {respostas} do time",
+    "NO_INSTAGRAM": "{total} no Instagram",
+    "RESPOSTA": {
+      "PLACEHOLDER": "Escreva a resposta...",
+      "BOTAO_PUBLICA": "Responder no post",
+      "BOTAO_PRIVADA": "Responder no direct",
+      "ENVIADA_PUBLICA": "Respondido no post",
+      "ENVIADA_PRIVADA": "Respondido no direct"
+    },
+    "RECUSA": {
+      "GENERICA": "Não foi possível responder.",
+      "FORMA_DESLIGADA": "Esta forma de resposta não está habilitada nesta conta.",
+      "FORMA_DESCONHECIDA": "Forma de resposta inválida.",
+      "COMENTARIO_DA_PROPRIA_CONTA": "Este comentário é da própria conta.",
+      "FORA_DO_PILOTO": "Este autor está fora da lista do piloto.",
+      "JA_RESPONDIDO": "Já respondido nesta forma — o Instagram não aceita uma segunda vez.",
+      "TEXTO_VAZIO": "Escreva a resposta antes de enviar."
+    }
+  }
+}

@@ -106,6 +106,11 @@ class Channel::WebWidget < ApplicationRecord
     'Website'
   end
 
+  # Menu de opcoes: o widget renderiza input_select nativamente no front.
+  def supports_interactive_items?
+    true
+  end
+
   # BLOCO 4.05 — a MENSAGEM do convite, e por que ela é resolvida AQUI.
   #
   # "Campanha é mensagem, gatilho é momento". A Tela 2 (`TeaserComposer.vue`) não cria
@@ -200,14 +205,24 @@ class Channel::WebWidget < ApplicationRecord
   # LIMITE CONHECIDO: quem já colou o snippet antigo no site continua com ele.
   # Não há como alcançar esses sites daqui — o snippet é, por definição, a
   # única parte que o cliente hospeda.
-  def web_widget_script
+  # `sdk_version` e `persist_conversation_to_parent` vieram de origin/homologacao e entram AQUI,
+  # dentro da estrutura com alternativa: o versionamento do caminho do SDK e a persistencia da
+  # conversa sao ortogonais ao fallback, e perder qualquer um dos dois no merge seria regressao.
+  def web_widget_script(sdk_version: nil, persist_conversation_to_parent: false)
+    sdk_path = '/packs/js/sdk.js'
+    sdk_path += "?v=#{ERB::Util.url_encode(sdk_version)}" if sdk_version.present?
+    conversation_token = if persist_conversation_to_parent
+                           "new URLSearchParams(window.location.hash.slice(1)).get('cw_conversation')"
+                         else
+                           'null'
+                         end
     "
     <script>
       (function(d,t) {
         var BASE_URL=\"#{ENV.fetch('FRONTEND_URL', '')}\";
         var cfg=window.chatwootSettings||{};
 #{fallback_bootstrap_js}
-#{sdk_loader_js}
+#{sdk_loader_js(sdk_path, conversation_token, persist_conversation_to_parent)}
       })(document,\"script\");
     </script>
     "
@@ -256,15 +271,17 @@ class Channel::WebWidget < ApplicationRecord
   #   · o prazo   — parte dos bloqueadores apenas DESCARTA a requisição, e o
   #                 `script` fica pendente sem falhar nem carregar. Esse é o
   #                 caso mais comum dos dois, e `onerror` não o pega.
-  def sdk_loader_js
+  def sdk_loader_js(sdk_path = '/packs/js/sdk.js', conversation_token = 'null', persist_to_parent = false)
     "        var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
-        g.src=BASE_URL+\"/packs/js/sdk.js\";
+        g.src=BASE_URL+\"#{sdk_path}\";
         g.async = true;
         s.parentNode.insertBefore(g,s);
         g.onload=function(){
           window.chatwootSDK.run({
             websiteToken: '#{website_token}',
-            baseUrl: BASE_URL
+            baseUrl: BASE_URL,
+            conversationToken: #{conversation_token},
+            persistConversationToParent: #{persist_to_parent}
           })
         }
         g.onerror=showFallback;

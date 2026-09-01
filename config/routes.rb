@@ -50,6 +50,10 @@ Rails.application.routes.draw do
           get :cache_keys
           post :chat_wallpaper
           delete :chat_wallpaper
+          # Ligar e desligar feature pela TELA da conta. Ate aqui so existia pelo console ou pelo
+          # super_admin (Administrate), e a Platform API, que exige token de PlatformApp.
+          get :features
+          patch :features
         end
 
         scope module: :accounts do
@@ -195,7 +199,7 @@ Rails.application.routes.draw do
           end
           # Campanhas de captação (lead ads / formulário): viewer só-leitura do volume por
           # campanha e da configuração do hook que a atende.
-          resource :lead_campaigns, only: [:show], controller: 'lead_campaigns'
+          resource :lead_campaigns, only: [:show, :update], controller: 'lead_campaigns'
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               # 4.22 — importa a campanha legada como gatilho do motor novo e DESATIVA a
@@ -243,6 +247,21 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
+          # Unidades físicas do cliente — contrato em docs/contratos/unidades.md.
+          # Unidade é leitura (a carga é por rake); a escrita é da exceção, que é o que muda
+          # toda semana. Sem `update` na exceção: corrigir é apagar e criar outra.
+          resources :unidades, only: [:index]
+          resources :unidade_excecoes, only: [:index, :create, :destroy]
+          # Superficie de rede social — SPEC em docs/SPEC-instagram-social.md.
+          # A captura vem do webhook; a leitura e a resposta manual moram aqui.
+          resources :social_comentarios, only: [:index] do
+            member do
+              # Unico caminho de escrita do modulo. Passa pelo portao do piloto ate quando o
+              # clique e humano — ver Spx::Social::PoliticaDeResposta.
+              post :responder
+            end
+          end
+          resources :social_publicacoes, only: [:index]
           resources :internal_channels, only: [:index, :show, :create, :update] do
             collection do
               get :mentions
@@ -306,6 +325,8 @@ Rails.application.routes.draw do
               # I3 — integrantes do grupo de WhatsApp (WAHA). show le o snapshot
               # gravado; create e o "Sincronizar agora" do painel.
               resource :waha_group, only: [:show, :create], controller: 'waha_group'
+              # Liga/desliga: fixa a conversa no topo da lista de quem chamou.
+              post :pin, to: 'pins#toggle'
               resource :direct_uploads, only: [:create]
               resource :draft_messages, only: [:show, :update, :destroy]
               resource :ghost_suggestion, only: [:create]
@@ -511,6 +532,9 @@ Rails.application.routes.draw do
             resource :identity_enforcement_report, only: [:show], module: :inboxes
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
+            collection do
+              get :health
+            end
             member do
               get :qr_code
               post :connect
@@ -552,6 +576,9 @@ Rails.application.routes.draw do
                 patch :update
               end
             end
+            # Configuração da distribuição DO TIME (passo "Distribuição" da tela de edição).
+            # Singular porque é uma política por time — `distribuicao_policies.team_id` é único.
+            resource :distribuicao, only: [:show, :update], controller: 'teams/distribuicao'
           end
 
           # Assignment V2 Routes
@@ -1013,7 +1040,9 @@ Rails.application.routes.draw do
       end
 
       # resources that doesn't appear in primary navigation in super admin
-      resources :account_users, only: [:new, :create, :show, :destroy]
+      # edit/update entram para dar onde ajustar papel e times supervisionados de um
+      # vínculo que já existe — antes só dava para criar e apagar.
+      resources :account_users, only: [:new, :create, :edit, :update, :show, :destroy]
     end
     authenticated :super_admin do
       mount Sidekiq::Web => '/monitoring/sidekiq'

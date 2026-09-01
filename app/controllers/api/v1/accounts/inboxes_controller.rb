@@ -1,4 +1,9 @@
 class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController # rubocop:disable Metrics/ClassLength
+  ISOLATION_PARTICIPANT_PARAMS = {
+    'agent_message' => :agent_message_isolation_participant_ids,
+    'team_message' => :team_message_isolation_participant_ids
+  }.freeze
+
   include Api::V1::InboxesHelper
   before_action :fetch_inbox, except: [:index, :create]
   before_action :fetch_agent_bot, only: [:set_agent_bot]
@@ -12,7 +17,8 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
                # `launcher_icon_image_attachment` entra junto (3.19): `_inbox.json.jbuilder` publica
                # `launcher_icon_url` para TODA inbox de widget, e sem o include a listagem faz uma
                # consulta por inbox — o mesmo motivo pelo qual `avatar_attachment` ja estava aqui.
-               .includes(:channel, :portal, :working_hours, { avatar_attachment: :blob }, { launcher_icon_image_attachment: :blob })
+               .includes(:channel, :portal, :working_hours, :inbox_members, :inbox_isolation_exemptions,
+                         { avatar_attachment: :blob }, { launcher_icon_image_attachment: :blob })
                .order_by_name
     # Exclude private chat inbox so it never appears in the sidebar
     @inboxes = @inboxes.where.not(id: PrivateChat::Config.inbox_id) if PrivateChat::Config.enabled? && PrivateChat::Config.inbox_id.present?
@@ -52,7 +58,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
           name: inbox_name(channel),
           channel: channel
         }.merge(
-          permitted_params.except(:channel)
+          permitted_params.except(:channel, *ISOLATION_PARTICIPANT_PARAMS.values)
         )
       )
       @inbox.save!
@@ -74,6 +80,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
       # protege: 200, `observado` no jsonb, `obrigatorio` na leitura seguinte.
       assign_pending_channel_attributes
       @inbox.update!(inbox_update_params)
+      update_isolation_exemptions
       update_inbox_working_hours
       update_channel if channel_update_required?
     end
@@ -127,6 +134,29 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
 
   private
 
+  # maioria dos updates de caixa (nome, horário, CSAT) não fala de isolamento, e um
+  # update desses não pode isentar ninguém por omissão.
+  def update_isolation_exemptions
+    ISOLATION_PARTICIPANT_PARAMS.each do |isolation_type, param_key|
+      next unless permitted_params.key?(param_key)
+
+      sync_isolation_exemptions(isolation_type, Array(permitted_params[param_key]).map(&:to_i))
+    end
+    @inbox.inbox_isolation_exemptions.reset
+  end
+
+  # Só entram na conta os ids que são de fato agentes NÃO-admin desta caixa: qualquer
+  # outro id vindo do cliente é ruído, e o administrador nunca é isentável (já é isento).
+  def sync_isolation_exemptions(isolation_type, participant_ids)
+    exempt_ids = @inbox.isolation_candidate_user_ids - participant_ids
+    scope = @inbox.inbox_isolation_exemptions.for_type(isolation_type)
+
+    ActiveRecord::Base.transaction do
+      scope.where.not(user_id: exempt_ids).destroy_all
+      (exempt_ids - scope.pluck(:user_id)).each { |user_id| scope.create!(user_id: user_id) }
+    end
+  end
+
   # `image` sem imagem para de existir; os outros modos ficam como estao. O merge e explicito porque
   # `widget_appearance` e uma das quatro chaves de topo e o `#update` da inbox e raso (A1).
   def reset_launcher_icon_mode
@@ -175,7 +205,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
   end
 
   def inbox_update_params
-    inbox_params = permitted_params.except(:channel, :csat_config, :nps_config)
+    inbox_params = permitted_params.except(:channel, :csat_config, :nps_config, *ISOLATION_PARTICIPANT_PARAMS.values)
     inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
     inbox_params[:nps_config] = format_nps_config(permitted_params[:nps_config]) if permitted_params[:nps_config].present?
     # Merge additional attributes so feature-specific keys are not discarded.

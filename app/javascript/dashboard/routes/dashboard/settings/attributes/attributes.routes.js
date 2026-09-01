@@ -1,5 +1,6 @@
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import { frontendURL } from '../../../../helper/URLHelper';
+import { NOT_TEAM_SUPERVISOR } from 'dashboard/constants/permissions.js';
 import SettingsWrapper from '../SettingsWrapper.vue';
 import AttributesHome from './Index.vue';
 
@@ -21,7 +22,7 @@ export default {
           component: AttributesHome,
           meta: {
             featureFlag: FEATURE_FLAGS.CUSTOM_ATTRIBUTES,
-            permissions: ['administrator'],
+            permissions: ['administrator', NOT_TEAM_SUPERVISOR],
           },
         },
       ],

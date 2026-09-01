@@ -196,16 +196,18 @@ const modelFeatures = computed(() => [
   },
 ]);
 
+// So entra aqui interruptor com gate de verdade do outro lado.
+// 'help_center_search' ficou de fora de proposito: a busca do help center ja e ligada e
+// desligada pela flag de conta help_center_embedding_search (Enterprise::Public::Api::V1::
+// Portals::ArticlesController#search_articles), e o modelo dessa chave e usado por TODAS as
+// buscas por embedding (FAQ, documentos, respostas do assistente), nao so pelo help center.
+// Um interruptor aqui seria um segundo botao pro mesmo recurso, ou desligaria busca de
+// outra gente. O modelo continua configuravel pela API (captain_models.help_center_search).
 const featureToggles = computed(() => [
   {
     key: 'label_suggestion',
     title: t('CAPTAIN_SETTINGS.FEATURES.LABEL_SUGGESTION.TITLE'),
     description: t('CAPTAIN_SETTINGS.FEATURES.LABEL_SUGGESTION.DESCRIPTION'),
-  },
-  {
-    key: 'help_center_search',
-    title: t('CAPTAIN_SETTINGS.FEATURES.HELP_CENTER_SEARCH.TITLE'),
-    description: t('CAPTAIN_SETTINGS.FEATURES.HELP_CENTER_SEARCH.DESCRIPTION'),
   },
   {
     key: 'audio_transcription',

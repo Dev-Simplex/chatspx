@@ -7,7 +7,9 @@
     "LOADING": "Loading agents...",
     "NO_AGENTS": "No agents found",
     "ACTIVE": "Active",
-    "INACTIVE": "Inactive"
+    "INACTIVE": "Inactive",
+    "IN_USE": "In use",
+    "NO_INBOX": "No inbox"
   },
   "AGENTS_RODIZIO": {
     "TITLE": "Rotation",
@@ -43,6 +45,83 @@
       "CLOSE": "Close",
       "DESIGNATED_AT": "Designated at",
       "CANDIDATES": "Candidates:"
+    },
+    "CONFIGURE": "Set up rotation",
+    "POLICY": {
+      "TITLE": "Rotation setup",
+      "SUBTITLE": "Who receives, in which order, and what happens when nobody picks it up.",
+      "BACK": "Back to the panel",
+      "SELECT_TEAM": "Pick a team",
+      "NO_TEAM": "Pick a team above to set up its rotation.",
+      "LOADING": "Loading...",
+      "ERROR": "Could not load the rotation setup",
+      "EMPTY": "No policy configured for this team yet. The engine is off here — fill this in and save to turn it on.",
+      "SAVE": "Save",
+      "SAVING": "Saving...",
+      "SAVED": "Rotation setup saved",
+      "SAVE_ERROR": "Could not save the rotation setup",
+      "REMOVE": "Remove policy",
+      "REMOVE_CONFIRM": "Yes, remove it",
+      "REMOVE_CANCEL": "Cancel",
+      "REMOVE_HINT": "Removing the policy turns the engine off for this team.",
+      "REMOVED": "Policy removed. The engine is off for this team.",
+      "REMOVE_ERROR": "Could not remove the policy",
+      "ENGINE": {
+        "TITLE": "Engine",
+        "ACTIVE": "Rotation on for this team",
+        "ACTIVE_HINT": "Off means this team keeps working exactly the way it does today.",
+        "MODE": "Mode",
+        "MODE_RODIZIO": "Rotation — the engine picks the next person and hands the lead to them",
+        "MODE_FILA": "Queue — nobody is picked; the lead waits and whoever takes it first keeps it",
+        "MODE_RAW": "Mode set outside this screen: {modo}"
+      },
+      "POOL": {
+        "TITLE": "Rotation pool",
+        "SUBTITLE": "Top to bottom is the order the rotation walks. Only members of this team show up here — and joining the team does NOT put someone in the rotation: you have to switch the person on below.",
+        "EMPTY": "This team has no members yet.",
+        "ON": "In the rotation",
+        "CAP": "Cap",
+        "CAP_HINT": "Cap is the top of simultaneous leads that person can hold. Leave it empty for no limit.",
+        "UP": "Move up",
+        "DOWN": "Move down",
+        "POSITION": "#{n}"
+      },
+      "CONTINUITY": {
+        "TITLE": "Continuity",
+        "ACTIVE": "A returning contact goes back to the same person",
+        "DAYS": "For how many days",
+        "HINT": "Counted from the last time that person served the contact."
+      },
+      "SLA": {
+        "TITLE": "SLA and hand-off",
+        "MINUTES": "Minutes to take the lead",
+        "MINUTES_HINT": "After this, the lead counts as not picked up.",
+        "AUTO": "Hand the lead to the next person automatically",
+        "MAX": "Maximum hand-offs",
+        "MAX_HINT": "0 means no limit.",
+        "FALLBACK": "When the pool runs out, send to",
+        "FALLBACK_NONE": "Nobody — the lead stays waiting"
+      },
+      "OWNERSHIP": {
+        "TITLE": "Who owns the conversation",
+        "ASSIGNEE": "Assign — the person becomes the assignee and takes the conversation over",
+        "DESIGNATION": "Designate only — the AI keeps answering until the person steps in"
+      },
+      "TRIGGER": {
+        "TITLE": "Trigger without AI",
+        "ACTIVE": "Distribute when a flow or a rule changes the team",
+        "HINT": "For teams where the lead arrives from a flow instead of the AI."
+      },
+      "ERRORS": {
+        "TITLE": "Fix this before saving:",
+        "MODO": "Pick a valid mode.",
+        "MODO_POSSE": "Pick who owns the conversation.",
+        "SLA": "Minutes to take the lead must be a whole number above zero.",
+        "MAX_REPASSES": "Maximum hand-offs must be zero or more.",
+        "CONTINUIDADE_DIAS": "Continuity days must be a whole number above zero.",
+        "CAP": "A cap must be above zero. Leave it empty for no limit.",
+        "POOL_VAZIO": "The rotation is on but nobody is in the pool — no lead would be distributed."
+      }
     }
   },
   "AGENTS_EVALUATION": {
@@ -178,7 +257,8 @@
       "LOGS": "Logs",
       "SETTINGS": "Settings",
       "EVAL": "Eval"
-    }
+    },
+    "ACCOUNT_MODEL": "Model set on the account, under Connections"
   },
   "AGENTS_TOOLS": {
     "TITLE": "Tools",
@@ -394,27 +474,16 @@
         "NOTE": "Manage additional security features for your account.",
         "MFA_BUTTON": "Manage Two-Factor Authentication"
       },
-      "SESSIONS_SECTION": {
-        "TITLE": "Active Sessions",
-        "NOTE": "These are the devices currently logged in to your account.",
-        "CURRENT": "Current session",
-        "REVOKE": "Revoke",
-        "REVOKE_SUCCESS": "Session revoked successfully",
-        "REVOKE_ERROR": "Unable to revoke session. Please try again.",
-        "FETCH_ERROR": "Unable to fetch sessions. Please try again.",
-        "LAST_ACTIVE": "Last active",
-        "UNKNOWN_DEVICE": "Unknown device"
-      },
       "ACCESS_TOKEN": {
         "TITLE": "Access Token",
         "NOTE": "This token can be used if you are building an API based integration",
-        "PAID_PLAN_NOTE": "API access tokens are available on paid plans.",
         "COPY": "Copy",
         "RESET": "Reset",
         "CONFIRM_RESET": "Are you sure?",
         "CONFIRM_HINT": "Click again to confirm",
         "RESET_SUCCESS": "Access token regenerated successfully",
-        "RESET_ERROR": "Unable to regenerate access token. Please try again"
+        "RESET_ERROR": "Unable to regenerate access token. Please try again",
+        "PAID_PLAN_NOTE": "API access tokens are available on paid plans."
       },
       "AUDIO_NOTIFICATIONS_SECTION": {
         "TITLE": "Audio Alerts",
@@ -546,6 +615,17 @@
         "LABEL": "Confirm new password",
         "ERROR": "Confirm password should match the password",
         "PLACEHOLDER": "Please re-enter your new password"
+      },
+      "SESSIONS_SECTION": {
+        "TITLE": "Active Sessions",
+        "NOTE": "These are the devices currently logged in to your account.",
+        "CURRENT": "Current session",
+        "REVOKE": "Revoke",
+        "REVOKE_SUCCESS": "Session revoked successfully",
+        "REVOKE_ERROR": "Unable to revoke session. Please try again.",
+        "FETCH_ERROR": "Unable to fetch sessions. Please try again.",
+        "LAST_ACTIVE": "Last active",
+        "UNKNOWN_DEVICE": "Unknown device"
       }
     }
   },
@@ -584,7 +664,7 @@
     "EMAIL_VERIFICATION_SENT": "Verification email has been sent. Please check your inbox.",
     "ACCOUNT_SUSPENDED": {
       "TITLE": "Account Suspended",
-      "MESSAGE": "Your account has been suspended due to activity that may violate our policies. If you believe this is a mistake, please contact our support team.",
+      "MESSAGE": "Your account is suspended. Please reach out to the support team for more information.",
       "MANAGE_BILLING": "Manage billing"
     },
     "NO_ACCOUNTS": {
@@ -648,7 +728,9 @@
     "CONVERSATIONS": "Conversations",
     "INBOX": "Notifications",
     "KANBAN": "CRM KANBAN",
+    "REDE_SOCIAL": "Social",
     "GALLERY": "Gallery",
+    "ASSESSMENTS": "Assessments",
     "TAKEOVER_REQUESTS": "Requests",
     "INTERNAL_CHAT": "Internal Chat",
     "ALL_CONVERSATIONS": "All Conversations",
@@ -674,7 +756,6 @@
     "ALL_COMPANIES": "All Companies",
     "CAPTAIN": "AI Agents",
     "CAPTAIN_ASSISTANTS": "Dashboard",
-    "CAPTAIN_OVERVIEW": "Overview",
     "CAPTAIN_DOCUMENTS": "Documents",
     "CAPTAIN_RESPONSES": "FAQs",
     "CAPTAIN_TOOLS": "Tools",
@@ -691,11 +772,11 @@
     "AUDIT_LOGS": "Audit Logs",
     "INBOXES": "Inboxes",
     "WAHA_CONNECTIONS": "WhatsApp Connections",
+    "UNIDADES": "Locations",
     "MESSAGE_SEQUENCES": "Follow-up Sequences",
     "NOTIFICATIONS": "Notifications",
     "CANNED_RESPONSES": "Canned Responses",
     "INTEGRATIONS": "Integrations",
-    "DATA": "Data",
     "PROFILE_SETTINGS": "Profile Settings",
     "ACCOUNT_SETTINGS": "Account Settings",
     "APPLICATIONS": "Applications",
@@ -725,11 +806,10 @@
     "REPORTS_BOT": "Bot",
     "REPORTS_AGENT": "Agents",
     "REPORTS_AGENT_ASSIGNMENT": "Assignments",
+    "REPORTS_RODIZIO": "Rotation",
     "REPORTS_LABEL": "Labels",
     "REPORTS_INBOX": "Inbox",
     "REPORTS_TEAM": "Team",
-    "REPORTS_ORIGIN": "Origin",
-    "REPORTS_PARTIAL_LEADS": "Incomplete leads",
     "REPORTS_LIVE": "Live",
     "REPORTS_LIVE_IN_SERVICE": "Live In Service",
     "AGENT_ASSIGNMENT": "Agent Assignment",
@@ -753,6 +833,19 @@
       "INFO_TEXT": "Let the system automatically mark you offline when you aren't using the app or dashboard.",
       "INFO_SHORT": "Automatically mark offline when you aren't using the app."
     },
+    "DOCS": "Read docs",
+    "SECURITY": "Security",
+    "EXPAND": "Expand sidebar",
+    "COLLAPSE": "Collapse sidebar",
+    "NEW_CONVERSATION": "New conversation",
+    "ADVANCED_SEARCH": "Advanced search",
+    "CAPTAIN_AI": "AI Agents",
+    "CONVERSATION_WORKFLOW": "Conversation Workflow",
+    "UNITS": "Units",
+    "CAPTAIN_OVERVIEW": "Overview",
+    "DATA": "Data",
+    "REPORTS_ORIGIN": "Origin",
+    "REPORTS_PARTIAL_LEADS": "Incomplete leads",
     "SORT_TOOLTIP": "Sort",
     "SORT_BY": "Sort by",
     "SORT_GROUPS": {
@@ -768,116 +861,7 @@
       "UNREAD_COUNT_DESC": "Highest first",
       "UNREAD_COUNT_ASC": "Lowest first"
     },
-    "DOCS": "Read docs",
-    "SECURITY": "Security",
-    "EXPAND": "Expand sidebar",
-    "COLLAPSE": "Collapse sidebar",
-    "NEW_CONVERSATION": "New conversation",
-    "ADVANCED_SEARCH": "Advanced search",
-    "CAPTAIN_AI": "AI Agents",
-    "CONVERSATION_WORKFLOW": "Conversation Workflow",
     "NPS": "NPS"
-  },
-  "DATA_IMPORTS": {
-    "HEADER": "Data",
-    "DESCRIPTION": "Bring your existing contacts and past conversations into this account from another support tool. Each import runs in the background, so you can keep working while it finishes, track its progress, and review anything that was skipped along the way.",
-    "LOADING": "Fetching imports",
-    "DEFAULT_IMPORT_NAME": "Intercom import",
-    "TABS": {
-      "IMPORT": "Import",
-      "EXPORT": "Export"
-    },
-    "TYPES": {
-      "CONTACTS": "Contacts",
-      "CONVERSATIONS": "Conversations",
-      "MESSAGES": "Messages"
-    },
-    "DRAWER": {
-      "TITLE": "New import",
-      "SOURCE": "Source",
-      "NAME": "Import name",
-      "NAME_PLACEHOLDER": "July Intercom migration",
-      "ACCESS_KEY": "Intercom access key",
-      "ACCESS_KEY_PLACEHOLDER": "Paste your Intercom access key",
-      "DATA_TYPES": "Data to import",
-      "VALIDATING": "Validating access key...",
-      "VALID_KEY": "Access key validated.",
-      "INVALID_KEY": "Could not validate this access key.",
-      "ACTIVE_IMPORT": "Wait for the active import to finish before starting another one.",
-      "CANCEL": "Cancel",
-      "IMPORT": "Import"
-    },
-    "EXPORT": {
-      "TITLE": "Exports are on the way",
-      "DESCRIPTION": "Export your contacts and conversations out of this account. This workflow is coming soon.",
-      "COMING_SOON": "Coming soon"
-    },
-    "TABLE": {
-      "TITLE": "Recent imports",
-      "EMPTY": "No imports yet",
-      "EMPTY_DESCRIPTION": "Start an import to bring your existing customer history into this account.",
-      "NEW_IMPORT": "Import",
-      "COUNT": "{count} imports",
-      "UNNAMED": "Untitled import",
-      "IMPORTED_COUNT": "{count} imported",
-      "VIEW": "View import",
-      "NAME": "Name",
-      "TYPE": "Type",
-      "STATUS": "Status",
-      "IMPORTED": "Imported",
-      "CREATED": "Created",
-      "RETRY": "Retry",
-      "ABANDON": "Abandon"
-    },
-    "DETAIL": {
-      "BACK": "Back to imports",
-      "ERRORS": "Errors",
-      "SKIP_LOGS": "Skip logs",
-      "SOURCE": "Source",
-      "IMPORT_TYPES": "Import types",
-      "CREATED": "Created",
-      "DURATION": "Duration",
-      "INITIATED_BY": "Started by",
-      "PROGRESS": "Import progress",
-      "PROGRESS_WITH_TOTAL": "{imported} of {total} imported",
-      "PROGRESS_WITHOUT_TOTAL": "{imported} imported",
-      "PROGRESS_OF_TOTAL": "of {total} imported",
-      "PROGRESS_IMPORTED": "imported",
-      "LAST_UPDATED_TOOLTIP": "Last updated {time}",
-      "NO_SKIP_LOGS": "No skipped or failed records recorded.",
-      "DOWNLOAD_SKIP_LOGS": "Download CSV",
-      "DOWNLOAD_ERROR_LOGS": "Download CSV",
-      "ALL_SKIP_LOGS": "All",
-      "KIND": "Kind",
-      "NO_ERRORS": "No errors recorded.",
-      "ERROR_CODE": "Code",
-      "SOURCE_OBJECT": "Source object",
-      "MESSAGE": "Message"
-    },
-    "MONITOR": {
-      "LIVE": "Live updates every {seconds}s",
-      "LAST_UPDATED": "Last updated {time}",
-      "REFRESH": "Refresh",
-      "REFRESHING": "Refreshing",
-      "STAGES": {
-        "unknown": "Waiting for update",
-        "queued": "Queued",
-        "contacts": "Importing contacts",
-        "conversations": "Importing conversations",
-        "finalizing": "Finalizing import",
-        "completed": "Completed",
-        "completed_with_errors": "Completed with errors",
-        "failed": "Failed",
-        "abandoned": "Abandoned"
-      }
-    },
-    "ALERTS": {
-      "IMPORT_STARTED": "Intercom import has started.",
-      "IMPORT_RETRIED": "Intercom import has been queued to resume.",
-      "IMPORT_RETRY_FAILED": "Could not retry the Intercom import.",
-      "IMPORT_ABANDONED": "Intercom import has been abandoned.",
-      "IMPORT_FAILED": "Could not start the Intercom import."
-    }
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "AI Agents Settings",
@@ -984,16 +968,6 @@
       "RENEWS_ON": "Renews on",
       "CURRENCY": "Currency"
     },
-    "CURRENCY": {
-      "SELECT": {
-        "TITLE": "Choose your billing currency",
-        "DESCRIPTION": "Select the currency you'd like to be billed in. This can't be changed once your subscription is created."
-      },
-      "OPTIONS": {
-        "USD": "US Dollar (USD)",
-        "BRL": "Brazilian Real (BRL)"
-      }
-    },
     "VIEW_PRICING": "View Pricing",
     "MANAGE_SUBSCRIPTION": {
       "TITLE": "Manage your subscription",
@@ -1028,7 +1002,6 @@
       "PURCHASE": "Purchase Credits",
       "LOADING": "Loading options...",
       "FETCH_ERROR": "Failed to load credit options. Please try again.",
-      "RETRY": "Retry",
       "PURCHASE_ERROR": "Failed to process purchase. Please try again.",
       "PURCHASE_SUCCESS": "Successfully added {credits} credits to your account",
       "CONFIRM": {
@@ -1037,6 +1010,17 @@
         "INSTANT_DEDUCTION_NOTE": "Your saved card will be charged immediately upon confirmation.",
         "GO_BACK": "Go Back",
         "CONFIRM_PURCHASE": "Confirm Purchase"
+      },
+      "RETRY": "Retry"
+    },
+    "CURRENCY": {
+      "SELECT": {
+        "TITLE": "Choose your billing currency",
+        "DESCRIPTION": "Select the currency you'd like to be billed in. This can't be changed once your subscription is created."
+      },
+      "OPTIONS": {
+        "USD": "US Dollar (USD)",
+        "BRL": "Brazilian Real (BRL)"
       }
     }
   },
@@ -1055,7 +1039,7 @@
       "SSO_URL": {
         "LABEL": "SSO URL",
         "HELP": "The URL where SAML authentication requests will be sent",
-        "PLACEHOLDER": "https://sso.example.com/saml/sso"
+        "PLACEHOLDER": "https://your-idp.com/saml/sso"
       },
       "CERTIFICATE": {
         "LABEL": "Signing certificate in PEM format",
@@ -1075,7 +1059,7 @@
       "IDP_ENTITY_ID": {
         "LABEL": "Identity Provider Entity ID",
         "HELP": "Unique identifier for your identity provider (usually found in IdP configuration)",
-        "PLACEHOLDER": "https://sso.example.com/saml"
+        "PLACEHOLDER": "https://your-idp.com/saml"
       },
       "UPDATE_BUTTON": "Update SAML Settings",
       "API": {
@@ -1139,7 +1123,7 @@
           "CANCEL": "Cancel"
         },
         "PLACEHOLDERS": {
-          "TEXT": "Write a note...",
+          "TEXT": "Type the answer",
           "NUMBER": "Enter a number",
           "LINK": "Add a link",
           "DATE": "Pick a date",
@@ -1148,6 +1132,10 @@
         "CHECKBOX": {
           "YES": "Yes",
           "NO": "No"
+        },
+        "ERRORS": {
+          "CONTACT_MISSING": "Could not identify this conversation's contact, so the required contact attributes can't be saved. Reload the page and try again.",
+          "CONTACT_UPDATE_FAILED": "Could not save the contact attributes. The conversation was not resolved."
         }
       },
       "PAYWALL": {
@@ -1326,13 +1314,9 @@
         },
         "FAIR_DISTRIBUTION": {
           "LABEL": "Fair distribution policy",
-          "DESCRIPTION": "Cap conversations per agent within a time window to avoid overload. Defaults to 100 per hour.",
+          "DESCRIPTION": "Set the maximum number of conversations that can be assigned per agent within a time window to avoid overloading any one agent. This required field defaults to 100 conversations per hour.",
           "INPUT_MAX": "Assign max",
           "DURATION": "Conversations per agent in every"
-        },
-        "EXCLUDE_OLDER_THAN": {
-          "LABEL": "Skip stale conversations",
-          "DESCRIPTION": "Skip unassigned conversations older than this. Defaults to 7 days; clear to disable."
         },
         "INBOXES": {
           "LABEL": "Added inboxes",
@@ -1347,6 +1331,10 @@
             "SUCCESS_MESSAGE": "Inbox successfully added to policy",
             "ERROR_MESSAGE": "Failed to add inbox to policy"
           }
+        },
+        "EXCLUDE_OLDER_THAN": {
+          "LABEL": "Skip stale conversations",
+          "DESCRIPTION": "Skip unassigned conversations older than this. Defaults to 7 days; clear to disable."
         }
       },
       "DELETE_POLICY": {
@@ -1546,7 +1534,8 @@
       "SCAN_QR_CODE": "Scan QR Code",
       "FAILED": "Failed",
       "STOPPED": "Disconnected",
-      "STARTING": "Starting"
+      "STARTING": "Starting",
+      "MISSING": "Session missing"
     },
     "ACTIONS": {
       "VIEW_QR": "View QR Code",
@@ -1614,11 +1603,17 @@
       "DISCONNECT_ERROR": "Error disconnecting. Please try again",
       "DELETE_SUCCESS": "Connection deleted successfully",
       "DELETE_ERROR": "Error deleting connection. Please try again",
-      "DELETE_CONFIRM": "Are you sure you want to delete this connection? The associated inbox will also be deleted.",
+      "DELETE_CONFIRM": "The number will be disconnected and the session deleted. By default the inbox is kept, with its full history.",
       "RESTART_SUCCESS": "Connection restarted successfully. Please scan the QR code again.",
       "RESTART_ERROR": "Error restarting connection. Please try again.",
       "LOADING": "Loading connections...",
-      "API_ERROR": "Could not connect to the service. Please check your configuration and try again."
+      "API_ERROR": "Could not connect to the service. Please check your configuration and try again.",
+      "DELETE_TITLE": "Delete connection",
+      "DELETE_INBOX_TOO": "Also delete the inbox",
+      "DELETE_INBOX_WARNING": "This deletes ALL conversations and messages in that inbox. It cannot be undone.",
+      "KEEP_INBOX_HINT": "The inbox stays under Inboxes with its history and disappears from here. You can connect another number to it later.",
+      "DELETE_SUCCESS_KEPT_INBOX": "Connection deleted. The inbox and its history were kept.",
+      "DELETE_WAHA_FAILED": "The number was unlinked and the inbox was kept, but the WhatsApp server could not delete the session. It is still there and needs to be cleaned up by support."
     }
   },
   "PRIVATE_CHAT": {
@@ -1635,6 +1630,107 @@
       "INVALID_PASSWORD": "Invalid password. Please try again.",
       "CLEAR_CONVERSATION": "Error clearing conversation",
       "SEND_MESSAGE": "Error sending message"
+    }
+  },
+  "DATA_IMPORTS": {
+    "HEADER": "Data",
+    "DESCRIPTION": "Bring your existing contacts and past conversations into this account from another support tool. Each import runs in the background, so you can keep working while it finishes, track its progress, and review anything that was skipped along the way.",
+    "LOADING": "Fetching imports",
+    "DEFAULT_IMPORT_NAME": "Intercom import",
+    "TABS": {
+      "IMPORT": "Import",
+      "EXPORT": "Export"
+    },
+    "TYPES": {
+      "CONTACTS": "Contacts",
+      "CONVERSATIONS": "Conversations",
+      "MESSAGES": "Messages"
+    },
+    "DRAWER": {
+      "TITLE": "New import",
+      "SOURCE": "Source",
+      "NAME": "Import name",
+      "NAME_PLACEHOLDER": "July Intercom migration",
+      "ACCESS_KEY": "Intercom access key",
+      "ACCESS_KEY_PLACEHOLDER": "Paste your Intercom access key",
+      "DATA_TYPES": "Data to import",
+      "VALIDATING": "Validating access key...",
+      "VALID_KEY": "Access key validated.",
+      "INVALID_KEY": "Could not validate this access key.",
+      "ACTIVE_IMPORT": "Wait for the active import to finish before starting another one.",
+      "CANCEL": "Cancel",
+      "IMPORT": "Import"
+    },
+    "EXPORT": {
+      "TITLE": "Exports are on the way",
+      "DESCRIPTION": "Export your contacts and conversations out of this account. This workflow is coming soon.",
+      "COMING_SOON": "Coming soon"
+    },
+    "TABLE": {
+      "TITLE": "Recent imports",
+      "EMPTY": "No imports yet",
+      "EMPTY_DESCRIPTION": "Start an import to bring your existing customer history into this account.",
+      "NEW_IMPORT": "Import",
+      "COUNT": "{count} imports",
+      "UNNAMED": "Untitled import",
+      "IMPORTED_COUNT": "{count} imported",
+      "VIEW": "View import",
+      "NAME": "Name",
+      "TYPE": "Type",
+      "STATUS": "Status",
+      "IMPORTED": "Imported",
+      "CREATED": "Created",
+      "RETRY": "Retry",
+      "ABANDON": "Abandon"
+    },
+    "DETAIL": {
+      "BACK": "Back to imports",
+      "ERRORS": "Errors",
+      "SKIP_LOGS": "Skip logs",
+      "SOURCE": "Source",
+      "IMPORT_TYPES": "Import types",
+      "CREATED": "Created",
+      "DURATION": "Duration",
+      "INITIATED_BY": "Started by",
+      "PROGRESS": "Import progress",
+      "PROGRESS_WITH_TOTAL": "{imported} of {total} imported",
+      "PROGRESS_WITHOUT_TOTAL": "{imported} imported",
+      "PROGRESS_OF_TOTAL": "of {total} imported",
+      "PROGRESS_IMPORTED": "imported",
+      "LAST_UPDATED_TOOLTIP": "Last updated {time}",
+      "NO_SKIP_LOGS": "No skipped or failed records recorded.",
+      "DOWNLOAD_SKIP_LOGS": "Download CSV",
+      "DOWNLOAD_ERROR_LOGS": "Download CSV",
+      "ALL_SKIP_LOGS": "All",
+      "KIND": "Kind",
+      "NO_ERRORS": "No errors recorded.",
+      "ERROR_CODE": "Code",
+      "SOURCE_OBJECT": "Source object",
+      "MESSAGE": "Message"
+    },
+    "MONITOR": {
+      "LIVE": "Live updates every {seconds}s",
+      "LAST_UPDATED": "Last updated {time}",
+      "REFRESH": "Refresh",
+      "REFRESHING": "Refreshing",
+      "STAGES": {
+        "unknown": "Waiting for update",
+        "queued": "Queued",
+        "contacts": "Importing contacts",
+        "conversations": "Importing conversations",
+        "finalizing": "Finalizing import",
+        "completed": "Completed",
+        "completed_with_errors": "Completed with errors",
+        "failed": "Failed",
+        "abandoned": "Abandoned"
+      }
+    },
+    "ALERTS": {
+      "IMPORT_STARTED": "Intercom import has started.",
+      "IMPORT_RETRIED": "Intercom import has been queued to resume.",
+      "IMPORT_RETRY_FAILED": "Could not retry the Intercom import.",
+      "IMPORT_ABANDONED": "Intercom import has been abandoned.",
+      "IMPORT_FAILED": "Could not start the Intercom import."
     }
   }
 }

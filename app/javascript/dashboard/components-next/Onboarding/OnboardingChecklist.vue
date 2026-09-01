@@ -103,7 +103,7 @@ const goTo = step => {
     <div v-if="!collapsed" class="px-3 pb-3 space-y-2">
       <div class="h-1.5 bg-n-alpha-2 rounded-full overflow-hidden">
         <div
-          class="h-full bg-n-brand-default transition-all"
+          class="h-full bg-n-brand transition-all"
           :style="{ width: `${(done / total) * 100}%` }"
         />
       </div>
@@ -118,7 +118,7 @@ const goTo = step => {
             class="size-4 mt-0.5 rounded-full grid place-content-center"
             :class="
               isStepDone(step.id)
-                ? 'bg-n-brand-default text-white'
+                ? 'bg-n-brand text-white'
                 : 'border border-n-weak'
             "
           >

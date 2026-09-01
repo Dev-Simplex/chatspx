@@ -7,7 +7,9 @@
     "LOADING": "Carregando agentes...",
     "NO_AGENTS": "Nenhum agente encontrado",
     "ACTIVE": "Ativo",
-    "INACTIVE": "Inativo"
+    "INACTIVE": "Inativo",
+    "IN_USE": "Em uso",
+    "NO_INBOX": "Sem caixa"
   },
   "AGENTS_RODIZIO": {
     "TITLE": "Rodízio",
@@ -43,6 +45,83 @@
       "CLOSE": "Fechar",
       "DESIGNATED_AT": "Designado em",
       "CANDIDATES": "Candidatos:"
+    },
+    "CONFIGURE": "Configurar rodízio",
+    "POLICY": {
+      "TITLE": "Configuração do rodízio",
+      "SUBTITLE": "Quem recebe, em que ordem, e o que acontece quando ninguém pega.",
+      "BACK": "Voltar ao painel",
+      "SELECT_TEAM": "Escolha um time",
+      "NO_TEAM": "Escolha um time acima para configurar o rodízio dele.",
+      "LOADING": "Carregando...",
+      "ERROR": "Não foi possível carregar a configuração do rodízio",
+      "EMPTY": "Nenhuma política configurada para este time. O motor está desligado aqui — preencha e salve para ligar.",
+      "SAVE": "Salvar",
+      "SAVING": "Salvando...",
+      "SAVED": "Configuração do rodízio salva",
+      "SAVE_ERROR": "Não foi possível salvar a configuração do rodízio",
+      "REMOVE": "Remover política",
+      "REMOVE_CONFIRM": "Sim, remover",
+      "REMOVE_CANCEL": "Cancelar",
+      "REMOVE_HINT": "Remover a política desliga o motor neste time.",
+      "REMOVED": "Política removida. O motor está desligado neste time.",
+      "REMOVE_ERROR": "Não foi possível remover a política",
+      "ENGINE": {
+        "TITLE": "Motor",
+        "ACTIVE": "Rodízio ligado neste time",
+        "ACTIVE_HINT": "Desligado, o time continua trabalhando exatamente como trabalha hoje.",
+        "MODE": "Modo",
+        "MODE_RODIZIO": "Rodízio — o motor escolhe a próxima pessoa e entrega o lead para ela",
+        "MODE_FILA": "Fila — ninguém é escolhido; o lead fica aguardando e o primeiro que puxar leva",
+        "MODE_RAW": "Modo definido fora desta tela: {modo}"
+      },
+      "POOL": {
+        "TITLE": "Pool do rodízio",
+        "SUBTITLE": "De cima para baixo é a ordem em que o rodízio anda. Só aparecem aqui os membros deste time — e entrar no time NÃO coloca a pessoa no rodízio: é preciso ligar a pessoa abaixo.",
+        "EMPTY": "Este time ainda não tem membros.",
+        "ON": "No rodízio",
+        "CAP": "Teto",
+        "CAP_HINT": "Teto é o máximo de leads simultâneos que a pessoa segura. Deixe vazio para não limitar.",
+        "UP": "Subir",
+        "DOWN": "Descer",
+        "POSITION": "#{n}"
+      },
+      "CONTINUITY": {
+        "TITLE": "Continuidade",
+        "ACTIVE": "Contato que já foi atendido volta para a mesma pessoa",
+        "DAYS": "Por quantos dias",
+        "HINT": "Contados a partir da última vez que aquela pessoa atendeu o contato."
+      },
+      "SLA": {
+        "TITLE": "SLA e repasse",
+        "MINUTES": "Minutos para assumir o lead",
+        "MINUTES_HINT": "Passou disso, o lead conta como não assumido.",
+        "AUTO": "Repassar o lead para a próxima pessoa automaticamente",
+        "MAX": "Máximo de repasses",
+        "MAX_HINT": "0 significa sem teto.",
+        "FALLBACK": "Quando o pool acabar, mandar para",
+        "FALLBACK_NONE": "Ninguém — o lead fica aguardando"
+      },
+      "OWNERSHIP": {
+        "TITLE": "Quem fica com a conversa",
+        "ASSIGNEE": "Atribuir — a pessoa vira a responsável e assume a conversa",
+        "DESIGNATION": "Só designar — a IA continua respondendo até a pessoa entrar"
+      },
+      "TRIGGER": {
+        "TITLE": "Gatilho sem IA",
+        "ACTIVE": "Distribuir quando um fluxo ou uma regra trocar o time",
+        "HINT": "Para times em que o lead chega por um fluxo, e não pela IA."
+      },
+      "ERRORS": {
+        "TITLE": "Corrija antes de salvar:",
+        "MODO": "Escolha um modo válido.",
+        "MODO_POSSE": "Escolha quem fica com a conversa.",
+        "SLA": "Os minutos para assumir precisam ser um número inteiro maior que zero.",
+        "MAX_REPASSES": "O máximo de repasses precisa ser zero ou mais.",
+        "CONTINUIDADE_DIAS": "Os dias de continuidade precisam ser um número inteiro maior que zero.",
+        "CAP": "O teto precisa ser maior que zero. Deixe vazio para não limitar.",
+        "POOL_VAZIO": "O rodízio está ligado mas não há ninguém no pool — nenhum lead seria distribuído."
+      }
     }
   },
   "AGENTS_EVALUATION": {
@@ -178,7 +257,8 @@
       "LOGS": "Registros",
       "SETTINGS": "Configurações",
       "EVAL": "Eval"
-    }
+    },
+    "ACCOUNT_MODEL": "Modelo definido na conta, em Conexões"
   },
   "AGENTS_TOOLS": {
     "TITLE": "Ferramentas",
@@ -394,27 +474,16 @@
         "NOTE": "Gerencie recursos adicionais de segurança para sua conta.",
         "MFA_BUTTON": "Gerenciar autenticação de dois fatores "
       },
-      "SESSIONS_SECTION": {
-        "TITLE": "Sessões ativas",
-        "NOTE": "Estes são os dispositivos atualmente conectados à sua conta.",
-        "CURRENT": "Sessão atual",
-        "REVOKE": "Revoke",
-        "REVOKE_SUCCESS": "Sessão revogada com sucesso",
-        "REVOKE_ERROR": "Não foi possível revogar a sessão. Por favor, tente novamente.",
-        "FETCH_ERROR": "Não foi possível realizar a sessão. Por favor, tente novamente.",
-        "LAST_ACTIVE": "Última atividade em",
-        "UNKNOWN_DEVICE": "Dispositivo desconhecido"
-      },
       "ACCESS_TOKEN": {
         "TITLE": "Token de acesso",
         "NOTE": "Esse token pode ser usado se você estiver criando uma integração baseada em API",
-        "PAID_PLAN_NOTE": "Tokens de acesso API estão disponíveis em planos pagos.",
         "COPY": "Copiar",
         "RESET": "Reiniciar",
         "CONFIRM_RESET": "Você tem certeza?",
         "CONFIRM_HINT": "Clique novamente para confirmar",
         "RESET_SUCCESS": "Token de acesso gerado novamente com sucesso",
-        "RESET_ERROR": "Não foi possível regerar o token de acesso. Por favor, tente novamente"
+        "RESET_ERROR": "Não foi possível regerar o token de acesso. Por favor, tente novamente",
+        "PAID_PLAN_NOTE": "Tokens de acesso API estão disponíveis em planos pagos."
       },
       "AUDIO_NOTIFICATIONS_SECTION": {
         "TITLE": "Alertas de áudio",
@@ -546,6 +615,17 @@
         "LABEL": "Confirme a nova senha",
         "ERROR": "A confirmação da senha é diferente. Favor digitar novamente",
         "PLACEHOLDER": "Por favor, digite sua nova senha "
+      },
+      "SESSIONS_SECTION": {
+        "TITLE": "Sessões ativas",
+        "NOTE": "Estes são os dispositivos atualmente conectados à sua conta.",
+        "CURRENT": "Sessão atual",
+        "REVOKE": "Revoke",
+        "REVOKE_SUCCESS": "Sessão revogada com sucesso",
+        "REVOKE_ERROR": "Não foi possível revogar a sessão. Por favor, tente novamente.",
+        "FETCH_ERROR": "Não foi possível realizar a sessão. Por favor, tente novamente.",
+        "LAST_ACTIVE": "Última atividade em",
+        "UNKNOWN_DEVICE": "Dispositivo desconhecido"
       }
     }
   },
@@ -648,7 +728,9 @@
     "CONVERSATIONS": "Conversas",
     "INBOX": "Notificações",
     "KANBAN": "CRM KANBAN",
+    "REDE_SOCIAL": "Rede Social",
     "GALLERY": "Galeria",
+    "ASSESSMENTS": "Avaliações",
     "TAKEOVER_REQUESTS": "Pedidos",
     "INTERNAL_CHAT": "Chat Interno",
     "ALL_CONVERSATIONS": "Todas as conversas",
@@ -674,7 +756,6 @@
     "ALL_COMPANIES": "Todas as empresas",
     "CAPTAIN": "Agentes IA",
     "CAPTAIN_ASSISTANTS": "Painel",
-    "CAPTAIN_OVERVIEW": "Visão geral",
     "CAPTAIN_DOCUMENTS": "Documentos",
     "CAPTAIN_RESPONSES": "FAQs",
     "CAPTAIN_TOOLS": "Ferramentas",
@@ -691,11 +772,11 @@
     "AUDIT_LOGS": "Auditoria",
     "INBOXES": "Caixas de Entrada",
     "WAHA_CONNECTIONS": "Conexões WhatsApp",
+    "UNIDADES": "Unidades",
     "MESSAGE_SEQUENCES": "Sequências de Follow-up",
     "NOTIFICATIONS": "Notificações",
     "CANNED_RESPONSES": "Respostas Prontas",
     "INTEGRATIONS": "Integrações",
-    "DATA": "Dado",
     "PROFILE_SETTINGS": "Configurações do Perfil",
     "ACCOUNT_SETTINGS": "Conta",
     "APPLICATIONS": "Aplicações",
@@ -726,11 +807,10 @@
     "REPORTS_BOT": "Robôs",
     "REPORTS_AGENT": "Agentes",
     "REPORTS_AGENT_ASSIGNMENT": "Atribuições",
+    "REPORTS_RODIZIO": "Rodízio",
     "REPORTS_LABEL": "Etiquetas",
     "REPORTS_INBOX": "Caixa de Entrada",
     "REPORTS_TEAM": "Time",
-    "REPORTS_ORIGIN": "Origem",
-    "REPORTS_PARTIAL_LEADS": "Leads incompletos",
     "REPORTS_LIVE": "Ao Vivo",
     "REPORTS_LIVE_IN_SERVICE": "Em Andamento",
     "AGENT_ASSIGNMENT": "Atribuição de Agentes",
@@ -754,6 +834,19 @@
       "INFO_TEXT": "Deixe o sistema marcar você automaticamente quando você não estiver usando o app ou o painel de controle.",
       "INFO_SHORT": "Marcar off-line automaticamente quando não estiver usando o aplicativo."
     },
+    "DOCS": "Ler documentos",
+    "SECURITY": "Segurança",
+    "EXPAND": "Expandir menu lateral",
+    "COLLAPSE": "Recolher menu lateral",
+    "NEW_CONVERSATION": "Nova conversa",
+    "ADVANCED_SEARCH": "Pesquisa avançada",
+    "CAPTAIN_AI": "Agentes IA",
+    "CONVERSATION_WORKFLOW": "Fluxo de Conversa",
+    "UNITS": "Unidades",
+    "CAPTAIN_OVERVIEW": "Visão geral",
+    "DATA": "Dado",
+    "REPORTS_ORIGIN": "Origem",
+    "REPORTS_PARTIAL_LEADS": "Leads incompletos",
     "SORT_TOOLTIP": "Ordenar",
     "SORT_BY": "Classificar por",
     "SORT_GROUPS": {
@@ -768,115 +861,6 @@
       "ALPHABETICAL_DESC": "Descendente (Z - A)",
       "UNREAD_COUNT_DESC": "Mais alto primeiro",
       "UNREAD_COUNT_ASC": "Mais baixo primeiro"
-    },
-    "DOCS": "Ler documentos",
-    "SECURITY": "Segurança",
-    "EXPAND": "Expandir menu lateral",
-    "COLLAPSE": "Recolher menu lateral",
-    "NEW_CONVERSATION": "Nova conversa",
-    "ADVANCED_SEARCH": "Pesquisa avançada",
-    "CAPTAIN_AI": "Agentes IA",
-    "CONVERSATION_WORKFLOW": "Fluxo de Conversa"
-  },
-  "DATA_IMPORTS": {
-    "HEADER": "Dado",
-    "DESCRIPTION": "Trazer seus contatos e conversas anteriores para esta conta de outra ferramenta de suporte. Cada importação é executada em segundo plano, então você pode continuar funcionando enquanto ela termina, acompanhar o seu progresso e rever tudo o que foi ignorado ao longo do caminho.",
-    "LOADING": "Buscando importações",
-    "DEFAULT_IMPORT_NAME": "Importação Intercom",
-    "TABS": {
-      "IMPORT": "Importar",
-      "EXPORT": "Exportar"
-    },
-    "TYPES": {
-      "CONTACTS": "Contatos",
-      "CONVERSATIONS": "Conversas",
-      "MESSAGES": "Mensagens"
-    },
-    "DRAWER": {
-      "TITLE": "Nova importação",
-      "SOURCE": "fonte",
-      "NAME": "Nome da importação",
-      "NAME_PLACEHOLDER": "Migração Intercom Julho",
-      "ACCESS_KEY": "Chave de acesso Intercom",
-      "ACCESS_KEY_PLACEHOLDER": "Cole sua chave de acesso Intercom",
-      "DATA_TYPES": "Dados para importar",
-      "VALIDATING": "Validando chave de acesso...",
-      "VALID_KEY": "Chave de acesso validada.",
-      "INVALID_KEY": "Não foi possível validar esta chave de acesso.",
-      "ACTIVE_IMPORT": "Espere a importação ativa terminar antes de iniciar outra.",
-      "CANCEL": "Cancelar",
-      "IMPORT": "Importar"
-    },
-    "EXPORT": {
-      "TITLE": "As exportações estão a caminho",
-      "DESCRIPTION": "Exporte seus contatos e conversas para fora desta conta. Este fluxo de trabalho estará disponível em breve.",
-      "COMING_SOON": "Em breve"
-    },
-    "TABLE": {
-      "TITLE": "Importações recentes",
-      "EMPTY": "Nenhuma importação ainda",
-      "EMPTY_DESCRIPTION": "Inicie uma importação para trazer o histórico de clientes existente para esta conta.",
-      "NEW_IMPORT": "Importar",
-      "COUNT": "Importações {count}",
-      "UNNAMED": "Importação sem título",
-      "IMPORTED_COUNT": "{count} importados",
-      "VIEW": "Ver importação",
-      "NAME": "Nome",
-      "TYPE": "Tipo",
-      "STATUS": "Status",
-      "IMPORTED": "Importado",
-      "CREATED": "Criado",
-      "ABANDON": "Descartar",
-      "RETRY": "Tentar novamente"
-    },
-    "DETAIL": {
-      "BACK": "Voltar às importações",
-      "ERRORS": "Erros",
-      "SKIP_LOGS": "Pular registros",
-      "SOURCE": "fonte",
-      "IMPORT_TYPES": "Tipos de importação",
-      "CREATED": "Criado",
-      "DURATION": "Duração",
-      "INITIATED_BY": "Iniciado por",
-      "PROGRESS": "Importar progresso",
-      "PROGRESS_WITH_TOTAL": "{imported} de {total} importados",
-      "PROGRESS_WITHOUT_TOTAL": "{imported} importados",
-      "PROGRESS_OF_TOTAL": "de {total} importadas",
-      "PROGRESS_IMPORTED": "importado",
-      "LAST_UPDATED_TOOLTIP": "Última atualização em {time}",
-      "NO_SKIP_LOGS": "Nenhum registro foi ignorado ou com falha registrado.",
-      "DOWNLOAD_SKIP_LOGS": "Baixar CSV",
-      "DOWNLOAD_ERROR_LOGS": "Baixar CSV",
-      "ALL_SKIP_LOGS": "Todos",
-      "KIND": "Tipo",
-      "NO_ERRORS": "Nenhum erro registrado.",
-      "ERROR_CODE": "Code",
-      "SOURCE_OBJECT": "Objeto de origem",
-      "MESSAGE": "Mensagem"
-    },
-    "MONITOR": {
-      "LIVE": "Atualizações ao vivo a cada {seconds}s",
-      "LAST_UPDATED": "Última atualização em {time}",
-      "REFRESH": "Atualizar",
-      "REFRESHING": "Atualizando",
-      "STAGES": {
-        "unknown": "Aguardando atualização",
-        "queued": "Enfileirado",
-        "contacts": "Importando contatos",
-        "conversations": "Importando conversas",
-        "finalizing": "Finalizando a importação",
-        "completed": "Concluído",
-        "completed_with_errors": "Concluído com erros",
-        "failed": "Falha",
-        "abandoned": "Abandonado"
-      }
-    },
-    "ALERTS": {
-      "IMPORT_STARTED": "Importação Intercom iniciada.",
-      "IMPORT_ABANDONED": "A importação de Intercom foi abandonada.",
-      "IMPORT_FAILED": "Não foi possível iniciar a importação de Intercom.",
-      "IMPORT_RETRIED": "A importação do Intercom foi colocada na fila para continuar.",
-      "IMPORT_RETRY_FAILED": "Não foi possível repetir a importação do Intercom."
     }
   },
   "CAPTAIN_SETTINGS": {
@@ -984,16 +968,6 @@
       "RENEWS_ON": "Renovações em",
       "CURRENCY": "moeda"
     },
-    "CURRENCY": {
-      "SELECT": {
-        "TITLE": "Escolha sua moeda de faturamento",
-        "DESCRIPTION": "Selecione a moeda na qual você gostaria de ser cobrado. Isso não poderá ser alterado depois que sua assinatura for criada."
-      },
-      "OPTIONS": {
-        "USD": "Dólar Americano (USD)",
-        "BRL": "Real Brasileiro (BRL)"
-      }
-    },
     "VIEW_PRICING": "Ver Preços",
     "MANAGE_SUBSCRIPTION": {
       "TITLE": "Gerencie sua assinatura",
@@ -1028,7 +1002,6 @@
       "PURCHASE": "Comprar Créditos",
       "LOADING": "Carregando opções...",
       "FETCH_ERROR": "Falha ao carregar opções de crédito. Por favor, tente novamente.",
-      "RETRY": "Tentar novamente",
       "PURCHASE_ERROR": "Falha ao processar a compra. Por favor, tente novamente.",
       "PURCHASE_SUCCESS": "Foram adicionados {credits} créditos com sucesso à sua conta",
       "CONFIRM": {
@@ -1037,6 +1010,17 @@
         "INSTANT_DEDUCTION_NOTE": "Seu cartão salvo será cobrado imediatamente após a confirmação.",
         "GO_BACK": "Voltar",
         "CONFIRM_PURCHASE": "Confirmar Compra"
+      },
+      "RETRY": "Tentar novamente"
+    },
+    "CURRENCY": {
+      "SELECT": {
+        "TITLE": "Escolha sua moeda de faturamento",
+        "DESCRIPTION": "Selecione a moeda na qual você gostaria de ser cobrado. Isso não poderá ser alterado depois que sua assinatura for criada."
+      },
+      "OPTIONS": {
+        "USD": "Dólar Americano (USD)",
+        "BRL": "Real Brasileiro (BRL)"
       }
     }
   },
@@ -1055,7 +1039,7 @@
       "SSO_URL": {
         "LABEL": "SSO URL",
         "HELP": "A URL para onde as solicitações de autenticação SAML serão enviadas",
-        "PLACEHOLDER": "https://sso.example.com/saml/sso"
+        "PLACEHOLDER": "https://your-idp.com/saml/sso"
       },
       "CERTIFICATE": {
         "LABEL": "Certificado de assinatura no formato PEM",
@@ -1075,7 +1059,7 @@
       "IDP_ENTITY_ID": {
         "LABEL": "ID da Entidade do Provedor de Identidade",
         "HELP": "Identificador exclusivo do seu provedor de identidade (geralmente encontrado na configuração do IdP)",
-        "PLACEHOLDER": "https://sso.example.com/saml"
+        "PLACEHOLDER": "https://seu-idp.com/saml"
       },
       "UPDATE_BUTTON": "Atualizar configurações de SAML",
       "API": {
@@ -1139,7 +1123,7 @@
           "CANCEL": "Cancelar"
         },
         "PLACEHOLDERS": {
-          "TEXT": "Escreva uma nota...",
+          "TEXT": "Digite a resposta",
           "NUMBER": "Insira um número",
           "LINK": "Adicione um link",
           "DATE": "Selecione uma data",
@@ -1148,6 +1132,10 @@
         "CHECKBOX": {
           "YES": "Sim",
           "NO": "Não"
+        },
+        "ERRORS": {
+          "CONTACT_MISSING": "Não foi possível identificar o contato desta conversa, então os atributos de contato obrigatórios não podem ser gravados. Recarregue a página e tente de novo.",
+          "CONTACT_UPDATE_FAILED": "Não foi possível gravar os atributos do contato. A conversa não foi encerrada."
         }
       },
       "PAYWALL": {
@@ -1330,10 +1318,6 @@
           "INPUT_MAX": "Máximo de atribuições",
           "DURATION": "Conversas por agente a cada"
         },
-        "EXCLUDE_OLDER_THAN": {
-          "LABEL": "Pular conversas obsoletas",
-          "DESCRIPTION": "Pular conversas não atribuídas mais antigas. O padrão é 7 dias; limpar para desativar."
-        },
         "INBOXES": {
           "LABEL": "Caixas de entrada adicionadas",
           "DESCRIPTION": "Adicionar caixas de entrada às quais esta política será aplicada.",
@@ -1347,6 +1331,10 @@
             "SUCCESS_MESSAGE": "Caixa de entrada adicionada à política com sucesso",
             "ERROR_MESSAGE": "Falha ao adicionar a caixa de entrada à política"
           }
+        },
+        "EXCLUDE_OLDER_THAN": {
+          "LABEL": "Pular conversas obsoletas",
+          "DESCRIPTION": "Pular conversas não atribuídas mais antigas. O padrão é 7 dias; limpar para desativar."
         }
       },
       "DELETE_POLICY": {
@@ -1546,7 +1534,8 @@
       "SCAN_QR_CODE": "Escanear QR Code",
       "FAILED": "Falhou",
       "STOPPED": "Desconectado",
-      "STARTING": "Iniciando"
+      "STARTING": "Iniciando",
+      "MISSING": "Sessão inexistente"
     },
     "ACTIONS": {
       "VIEW_QR": "Ver QR Code",
@@ -1614,11 +1603,17 @@
       "DISCONNECT_ERROR": "Erro ao desconectar. Tente novamente",
       "DELETE_SUCCESS": "Conexão excluída com sucesso",
       "DELETE_ERROR": "Erro ao excluir conexão. Tente novamente",
-      "DELETE_CONFIRM": "Tem certeza que deseja excluir esta conexão? A caixa de entrada associada também será excluída.",
+      "DELETE_CONFIRM": "O número será desconectado e a sessão apagada. Por padrão a caixa de entrada é mantida, com todo o histórico.",
       "RESTART_SUCCESS": "Conexão reiniciada com sucesso. Escaneie o QR code novamente.",
       "RESTART_ERROR": "Erro ao reiniciar conexão. Tente novamente.",
       "LOADING": "Carregando conexões...",
-      "API_ERROR": "Não foi possível conectar ao serviço. Verifique sua configuração e tente novamente."
+      "API_ERROR": "Não foi possível conectar ao serviço. Verifique sua configuração e tente novamente.",
+      "DELETE_TITLE": "Excluir conexão",
+      "DELETE_INBOX_TOO": "Excluir também a caixa de entrada",
+      "DELETE_INBOX_WARNING": "Isso apaga TODAS as conversas e mensagens dessa caixa. Não tem como desfazer.",
+      "KEEP_INBOX_HINT": "A caixa continua em Caixas de Entrada, com o histórico, e some daqui. Depois dá para conectar outro número nela.",
+      "DELETE_SUCCESS_KEPT_INBOX": "Conexão excluída. A caixa de entrada e o histórico foram mantidos.",
+      "DELETE_WAHA_FAILED": "O número foi desvinculado e a caixa de entrada foi mantida, mas o servidor WhatsApp não conseguiu apagar a sessão. Ela continua lá e precisa ser limpa pelo suporte."
     }
   },
   "PRIVATE_CHAT": {
@@ -1635,6 +1630,107 @@
       "INVALID_PASSWORD": "Senha inválida. Tente novamente.",
       "CLEAR_CONVERSATION": "Erro ao limpar conversa",
       "SEND_MESSAGE": "Erro ao enviar"
+    }
+  },
+  "DATA_IMPORTS": {
+    "HEADER": "Dado",
+    "DESCRIPTION": "Trazer seus contatos e conversas anteriores para esta conta de outra ferramenta de suporte. Cada importação é executada em segundo plano, então você pode continuar funcionando enquanto ela termina, acompanhar o seu progresso e rever tudo o que foi ignorado ao longo do caminho.",
+    "LOADING": "Buscando importações",
+    "DEFAULT_IMPORT_NAME": "Importação Intercom",
+    "TABS": {
+      "IMPORT": "Importar",
+      "EXPORT": "Exportar"
+    },
+    "TYPES": {
+      "CONTACTS": "Contatos",
+      "CONVERSATIONS": "Conversas",
+      "MESSAGES": "Mensagens"
+    },
+    "DRAWER": {
+      "TITLE": "Nova importação",
+      "SOURCE": "fonte",
+      "NAME": "Nome da importação",
+      "NAME_PLACEHOLDER": "Migração Intercom Julho",
+      "ACCESS_KEY": "Chave de acesso Intercom",
+      "ACCESS_KEY_PLACEHOLDER": "Cole sua chave de acesso Intercom",
+      "DATA_TYPES": "Dados para importar",
+      "VALIDATING": "Validando chave de acesso...",
+      "VALID_KEY": "Chave de acesso validada.",
+      "INVALID_KEY": "Não foi possível validar esta chave de acesso.",
+      "ACTIVE_IMPORT": "Espere a importação ativa terminar antes de iniciar outra.",
+      "CANCEL": "Cancelar",
+      "IMPORT": "Importar"
+    },
+    "EXPORT": {
+      "TITLE": "As exportações estão a caminho",
+      "DESCRIPTION": "Exporte seus contatos e conversas para fora desta conta. Este fluxo de trabalho estará disponível em breve.",
+      "COMING_SOON": "Em breve"
+    },
+    "TABLE": {
+      "TITLE": "Importações recentes",
+      "EMPTY": "Nenhuma importação ainda",
+      "EMPTY_DESCRIPTION": "Inicie uma importação para trazer o histórico de clientes existente para esta conta.",
+      "NEW_IMPORT": "Importar",
+      "COUNT": "Importações {count}",
+      "UNNAMED": "Importação sem título",
+      "IMPORTED_COUNT": "{count} importados",
+      "VIEW": "Ver importação",
+      "NAME": "Nome",
+      "TYPE": "Tipo",
+      "STATUS": "Status",
+      "IMPORTED": "Importado",
+      "CREATED": "Criado",
+      "ABANDON": "Descartar",
+      "RETRY": "Tentar novamente"
+    },
+    "DETAIL": {
+      "BACK": "Voltar às importações",
+      "ERRORS": "Erros",
+      "SKIP_LOGS": "Pular registros",
+      "SOURCE": "fonte",
+      "IMPORT_TYPES": "Tipos de importação",
+      "CREATED": "Criado",
+      "DURATION": "Duração",
+      "INITIATED_BY": "Iniciado por",
+      "PROGRESS": "Importar progresso",
+      "PROGRESS_WITH_TOTAL": "{imported} de {total} importados",
+      "PROGRESS_WITHOUT_TOTAL": "{imported} importados",
+      "PROGRESS_OF_TOTAL": "de {total} importadas",
+      "PROGRESS_IMPORTED": "importado",
+      "LAST_UPDATED_TOOLTIP": "Última atualização em {time}",
+      "NO_SKIP_LOGS": "Nenhum registro foi ignorado ou com falha registrado.",
+      "DOWNLOAD_SKIP_LOGS": "Baixar CSV",
+      "DOWNLOAD_ERROR_LOGS": "Baixar CSV",
+      "ALL_SKIP_LOGS": "Todos",
+      "KIND": "Tipo",
+      "NO_ERRORS": "Nenhum erro registrado.",
+      "ERROR_CODE": "Code",
+      "SOURCE_OBJECT": "Objeto de origem",
+      "MESSAGE": "Mensagem"
+    },
+    "MONITOR": {
+      "LIVE": "Atualizações ao vivo a cada {seconds}s",
+      "LAST_UPDATED": "Última atualização em {time}",
+      "REFRESH": "Atualizar",
+      "REFRESHING": "Atualizando",
+      "STAGES": {
+        "unknown": "Aguardando atualização",
+        "queued": "Enfileirado",
+        "contacts": "Importando contatos",
+        "conversations": "Importando conversas",
+        "finalizing": "Finalizando a importação",
+        "completed": "Concluído",
+        "completed_with_errors": "Concluído com erros",
+        "failed": "Falha",
+        "abandoned": "Abandonado"
+      }
+    },
+    "ALERTS": {
+      "IMPORT_STARTED": "Importação Intercom iniciada.",
+      "IMPORT_ABANDONED": "A importação de Intercom foi abandonada.",
+      "IMPORT_FAILED": "Não foi possível iniciar a importação de Intercom.",
+      "IMPORT_RETRIED": "A importação do Intercom foi colocada na fila para continuar.",
+      "IMPORT_RETRY_FAILED": "Não foi possível repetir a importação do Intercom."
     }
   }
 }

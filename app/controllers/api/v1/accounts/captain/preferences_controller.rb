@@ -8,10 +8,12 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
 
   def update
     params_to_update = captain_params
-    # `key?` e nao truthiness: remover todas as sobrescritas produz nil, e o guard antigo
-    # (`if params_to_update[:captain_models]`) pulava justamente a atribuicao que faz a remocao.
+    # `key?` e nao truthiness: remover todas as sobrescritas produz nil (ver merged_captain_models),
+    # e o guard antigo pulava justamente a atribuicao que faz a remocao.
     @current_account.captain_models = params_to_update[:captain_models] if params_to_update.key?(:captain_models)
-    @current_account.captain_features = params_to_update[:captain_features] if params_to_update.key?(:captain_features)
+    # Quem mescla e distribui as features e o proprio model: audio_transcription tem gate
+    # externo (settings['audio_transcriptions']) e nao pode ser gravada em captain_features.
+    @current_account.apply_captain_features(params_to_update[:captain_features]) if params_to_update[:captain_features]
     @current_account.save! if @current_account.changed?
 
     update_llm_connection(params_to_update[:llm_connection]) if params_to_update[:llm_connection]
@@ -39,7 +41,7 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
   def captain_params
     permitted = {}
     permitted[:captain_models] = merged_captain_models if params[:captain_models].present?
-    permitted[:captain_features] = merged_captain_features if params[:captain_features].present?
+    permitted[:captain_features] = permitted_captain_features if params[:captain_features].present?
     permitted[:llm_connection] = permitted_llm_connection if params[:llm_connection].present?
     permitted
   end
@@ -53,42 +55,30 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
     existing_models.merge(permitted_captain_models).compact_blank.presence
   end
 
-  def merged_captain_features
-    existing_features = @current_account.captain_features || {}
-    existing_features.merge(permitted_captain_features)
-  end
-
-  # Derivado do config/llm.yml em vez de lista fixa: o recorte levou o arquivo de 6 para 13
-  # features e esta lista ficou em 6 — as 7 novas (FAQ de documento/conversa/PDF, artigo da
-  # central, onboarding, traducao de busca, matching) eram DESCARTADAS em silencio ao salvar.
   def permitted_captain_models
-    params.require(:captain_models).permit(*Llm::Models.feature_keys.map(&:to_sym)).to_h.stringify_keys
+    params.require(:captain_models).permit(
+      :editor, :assistant, :copilot, :label_suggestion,
+      :audio_transcription, :help_center_search
+    ).to_h.stringify_keys
   end
 
   def permitted_captain_features
-    params.require(:captain_features).permit(*Llm::Models.feature_keys.map(&:to_sym)).to_h.stringify_keys
+    params.require(:captain_features).permit(
+      :editor, :assistant, :copilot, :label_suggestion,
+      :audio_transcription, :help_center_search
+    ).to_h.stringify_keys
   end
 
   def features_with_account_preferences
     preferences = Current.account.captain_preferences
     account_features = preferences[:features] || {}
-    # `preferences[:models]` deixou de ser lido aqui: quem resolve a sobrescrita da conta agora
-    # e o `Llm::FeatureRouter` (que tambem valida o modelo contra a feature antes de aceita-lo).
+    account_models = preferences[:models] || {}
 
     Llm::Models.feature_keys.index_with do |feature_key|
       config = Llm::Models.feature_config(feature_key)
-      # `Llm::FeatureRouter` e quem sabe resolver modelo/provedor/origem — inclusive o default
-      # especial do assistant em contas v2. Calcular `selected` a mao aqui repetia (mal) essa
-      # regra: ignorava o v2 e nao dizia de ONDE veio o modelo, entao a tela nao tinha como
-      # distinguir "padrao" de "escolha da conta".
-      resolvido = Llm::FeatureRouter.resolve(feature: feature_key, account: Current.account)
       config.merge(
-        enabled: account_features[feature_key] == true,
-        default: Llm::FeatureRouter.default_for(feature: feature_key, account: Current.account),
-        selected: resolvido[:model],
-        model: resolvido[:model],
-        provider: resolvido[:provider],
-        source: resolvido[:source].to_s
+        enabled: account_features[feature_key],
+        selected: account_models[feature_key] || config[:default]
       )
     end
   end

@@ -29,12 +29,12 @@ const retry = () => {
     class="px-6 py-10 text-center bg-n-solid-1 dark:bg-n-solid-2 rounded-lg"
     role="alert"
   >
-    <p class="text-sm text-n-slate-11 dark:text-n-slate-11 mb-4">
+    <p class="text-sm text-n-slate-11 mb-4">
       {{ fallbackTitle || t('GENERIC.ERROR_BOUNDARY.MESSAGE') }}
     </p>
     <button
       type="button"
-      class="px-4 py-2 text-sm rounded-md bg-n-brand text-white hover:bg-n-brand-active transition"
+      class="px-4 py-2 text-sm rounded-md bg-n-brand text-white hover:bg-n-teal-10 transition"
       @click="retry"
     >
       {{ t('GENERIC.ERROR_BOUNDARY.RETRY') }}

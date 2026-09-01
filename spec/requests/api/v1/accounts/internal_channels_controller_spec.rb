@@ -3,10 +3,30 @@
 require 'rails_helper'
 
 RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request do
-  let(:account) { create(:account) }
+  # A API do chat interno exige a feature ligada na conta (InternalChatFeatureGuard).
+  let(:account) { create(:account).tap { |acc| acc.enable_features!('internal_chat') } }
   let(:alice) { create(:user, account: account, role: :agent) }
   let(:bob) { create(:user, account: account, role: :agent) }
   let(:outsider) { create(:user, account: account, role: :agent) }
+
+  # A flag só existia no front: escondia o menu e a API seguia respondendo para
+  # qualquer conta, então "desligar o chat interno" não desligava nada.
+  describe 'with the internal_chat feature disabled' do
+    let(:disabled_account) { create(:account) }
+    let(:someone) { create(:user, account: disabled_account, role: :agent) }
+
+    it 'refuses the API even for a member of the account' do
+      get "/api/v1/accounts/#{disabled_account.id}/internal_channels", headers: someone.create_new_auth_token
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'does not create a team-group when a team is created' do
+      team = create(:team, account: disabled_account)
+
+      expect(disabled_account.internal_channels.team.where(team_id: team.id)).to be_empty
+    end
+  end
 
   describe 'GET /internal_channels' do
     it 'returns unauthorized without auth' do

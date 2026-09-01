@@ -596,7 +596,7 @@ onBeforeUnmount(() => {
               ref="textInputRef"
               v-model="editingTextValue"
               type="text"
-              class="absolute rounded border border-wa-teal bg-black/40 px-2 py-1 text-white outline-none"
+              class="absolute rounded border border-wa-teal bg-n-black/40 px-2 py-1 text-white outline-none"
               :style="{
                 left: `${
                   (editingTextPos.x / (textNaturalSize.width || 1)) * 100

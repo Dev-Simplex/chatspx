@@ -280,7 +280,9 @@ onMounted(() => {
             slate
             faded
             :label="selectedInboxFilter.label"
-            class="rounded-md group-hover:bg-n-alpha-2 max-w-[200px]"
+            icon="i-lucide-chevron-down"
+            trailing-icon
+            class="rounded-md group-hover:bg-n-alpha-2 max-w-[320px]"
             @click="toggleInboxDropdown()"
           />
           <DropdownMenu

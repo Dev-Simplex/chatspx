@@ -10,6 +10,11 @@ class WahaConnections extends ApiClient {
     return axios.get(this.url);
   }
 
+  // Saúde por inbox (liberada para agente): [{ inbox_id, inbox_name, status }]
+  health() {
+    return axios.get(`${this.url}/health`);
+  }
+
   get(id) {
     return axios.get(`${this.url}/${id}`);
   }
@@ -18,8 +23,13 @@ class WahaConnections extends ApiClient {
     return axios.post(this.url, data);
   }
 
-  delete(id) {
-    return axios.delete(`${this.url}/${id}`);
+  // `deleteInbox` decide se a CAIXA vai junto (e com ela conversas e mensagens, em cascata).
+  // Vai como query string porque DELETE com corpo nao e lido de forma consistente por proxy e
+  // por servidor. Omitido, o backend entende como NAO apagar.
+  delete(id, { deleteInbox = false } = {}) {
+    return axios.delete(`${this.url}/${id}`, {
+      params: { delete_inbox: deleteInbox },
+    });
   }
 
   getQRCode(id) {

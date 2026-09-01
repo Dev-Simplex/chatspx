@@ -57,33 +57,33 @@ const formatBytes = bytes => {
 
 const extensionMeta = item => {
   if (item.fileType === 'audio') {
-    return { label: 'AUDIO', icon: 'i-lucide-mic', color: 'bg-purple-500' };
+    return { label: 'AUDIO', icon: 'i-lucide-mic', color: 'bg-n-violet-9' };
   }
   const ext = (item.extension || '').toLowerCase().replace('.', '');
   const map = {
     pdf: { label: 'PDF', icon: 'i-lucide-file-text', color: 'bg-red-500' },
-    doc: { label: 'DOC', icon: 'i-lucide-file-text', color: 'bg-blue-500' },
-    docx: { label: 'DOC', icon: 'i-lucide-file-text', color: 'bg-blue-500' },
+    doc: { label: 'DOC', icon: 'i-lucide-file-text', color: 'bg-n-blue-9' },
+    docx: { label: 'DOC', icon: 'i-lucide-file-text', color: 'bg-n-blue-9' },
     xls: {
       label: 'XLS',
       icon: 'i-lucide-file-spreadsheet',
-      color: 'bg-emerald-500',
+      color: 'bg-n-teal-9',
     },
     xlsx: {
       label: 'XLS',
       icon: 'i-lucide-file-spreadsheet',
-      color: 'bg-emerald-500',
+      color: 'bg-n-teal-9',
     },
     csv: {
       label: 'CSV',
       icon: 'i-lucide-file-spreadsheet',
-      color: 'bg-emerald-500',
+      color: 'bg-n-teal-9',
     },
-    ppt: { label: 'PPT', icon: 'i-lucide-file-text', color: 'bg-orange-500' },
-    pptx: { label: 'PPT', icon: 'i-lucide-file-text', color: 'bg-orange-500' },
-    zip: { label: 'ZIP', icon: 'i-lucide-file-archive', color: 'bg-amber-500' },
-    rar: { label: 'RAR', icon: 'i-lucide-file-archive', color: 'bg-amber-500' },
-    '7z': { label: '7Z', icon: 'i-lucide-file-archive', color: 'bg-amber-500' },
+    ppt: { label: 'PPT', icon: 'i-lucide-file-text', color: 'bg-n-amber-9' },
+    pptx: { label: 'PPT', icon: 'i-lucide-file-text', color: 'bg-n-amber-9' },
+    zip: { label: 'ZIP', icon: 'i-lucide-file-archive', color: 'bg-n-amber-9' },
+    rar: { label: 'RAR', icon: 'i-lucide-file-archive', color: 'bg-n-amber-9' },
+    '7z': { label: '7Z', icon: 'i-lucide-file-archive', color: 'bg-n-amber-9' },
     txt: { label: 'TXT', icon: 'i-lucide-file-text', color: 'bg-slate-500' },
   };
   return (

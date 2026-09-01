@@ -17,10 +17,6 @@ class Captain::MediaDescriptionService
   MAX_BYTES = 10.megabytes
   MAX_TOKENS = 350
 
-  # Teto da API de transcricao da OpenAI. Acima disso o request volta 413 e o rescue engoliria.
-  MAX_TRANSCRIPTION_BYTES = 25.megabytes
-  WHISPER_MODEL = 'whisper-1'.freeze
-
   # Video se reconhece pelo content_type do blob, nao pelo file_type: o reply a story do
   # Instagram chega como :ig_story tanto em foto quanto em video, e e justamente o de video
   # que ficava invisivel pro agente.
@@ -37,27 +33,26 @@ class Captain::MediaDescriptionService
   end
 
   def perform
-    return nil if attachment.blank?
-    return nil unless legivel?
-    return cached if cached.present?
+    return nil unless descrevivel?
+
+    ja_lido = cached || herda_de_irmao(META_KEY)
+    return ja_lido if ja_lido.present?
     return missing_key_warning if api_key.blank?
 
-    text = video? ? describe_video : describe
-    persist(META_KEY, text) if text.present?
-    text
+    grava(META_KEY, video? ? describe_video : describe)
   end
 
   # Metade independente da descricao: quem liga uma nao paga a outra. Vale so pra video —
   # audio de mensagem continua no Messages::AudioTranscriptionService, que tem quota e
   # gate proprios e ja roda em producao.
   def transcribe
-    return nil if attachment.blank? || !video?
-    return cached_transcription if cached_transcription.present?
+    return nil unless attachment.present? && video?
+
+    ja_lido = cached_transcription || herda_de_irmao(TRANSCRIPTION_META_KEY)
+    return ja_lido if ja_lido.present?
     return missing_key_warning if api_key.blank?
 
-    text = transcribe_video
-    persist(TRANSCRIPTION_META_KEY, text) if text.present?
-    text
+    grava(TRANSCRIPTION_META_KEY, transcribe_video)
   end
 
   private
@@ -74,6 +69,33 @@ class Captain::MediaDescriptionService
 
   def video?
     self.class.video?(attachment)
+  end
+
+  def descrevivel?
+    attachment.present? && legivel?
+  end
+
+  def grava(chave, texto)
+    persist(chave, texto) if texto.present?
+    texto
+  end
+
+  # Leitura que outro anexo do MESMO story já produziu (ver Captain::MediaStoryCache).
+  # Grava aqui porque quem manda no cache do anexo é este serviço; o colaborador só procura.
+  def herda_de_irmao(chave)
+    texto = story_cache.leitura_irma(chave)
+    return nil if texto.blank?
+
+    persist(chave, texto)
+    texto
+  end
+
+  def story_cache
+    @story_cache ||= Captain::MediaStoryCache.new(attachment: attachment)
+  end
+
+  def story_id
+    story_cache.story_id
   end
 
   def legivel?
@@ -121,37 +143,11 @@ class Captain::MediaDescriptionService
     nil
   end
 
-  # O Whisper aceita mp4 direto (provado com o story de 9,3 MB da conta 6), entao nao ha
-  # extracao de trilha aqui: so o teto de tamanho da propria API.
   def transcribe_video
-    blob = attachment.file.attached? ? attachment.file.blob : nil
-    return oversized_warning(blob.byte_size, 'transcricao') if blob && blob.byte_size > MAX_TRANSCRIPTION_BYTES
-
-    with_local_copy do |path|
-      File.open(path, 'rb') do |file|
-        OpenAI::Client.new(access_token: api_key)
-                      .audio.transcribe(parameters: { model: WHISPER_MODEL, file: file, temperature: 0.4 })['text']
-                      .to_s.strip.presence
-      end
-    end
+    Captain::MediaTranscriber.new(attachment: attachment, api_key: api_key).call
   rescue StandardError => e
     report_failure(e)
     nil
-  end
-
-  # O arquivo precisa estar em disco pro ffmpeg e pro upload da transcricao. Anexo so-externo
-  # (canal que nao baixou a midia) nao tem o que copiar — nesse caso nao ha video a ler.
-  def with_local_copy
-    return nil unless attachment.file.attached?
-
-    blob = attachment.file.blob
-    dir = Rails.root.join('tmp/uploads/media-description', "att-#{attachment.id}")
-    FileUtils.mkdir_p(dir)
-    path = File.join(dir, "source#{File.extname(blob.filename.to_s).presence || '.mp4'}")
-    File.open(path, 'wb') { |f| blob.open { |source| IO.copy_stream(source, f) } }
-    yield(path)
-  ensure
-    FileUtils.rm_rf(dir) if dir.present?
   end
 
   # Falha aqui NAO pode derrubar a resposta ao cliente — a imagem continua indo como visao
@@ -181,8 +177,8 @@ class Captain::MediaDescriptionService
     attachment.external_url.presence || attachment.download_url.presence
   end
 
-  def oversized_warning(byte_size, etapa = 'descricao')
-    Rails.logger.warn("[MediaDescription] midia acima do limite att=#{attachment.id} bytes=#{byte_size} — #{etapa} ignorada")
+  def oversized_warning(byte_size)
+    Rails.logger.warn("[MediaDescription] imagem acima do limite att=#{attachment.id} bytes=#{byte_size} — descricao ignorada")
     nil
   end
 
@@ -249,6 +245,9 @@ class Captain::MediaDescriptionService
 
   def persist(key, text)
     new_meta = (attachment.meta || {}).merge(key => text)
+    # Carimba o story junto: e por esta chave que o proximo anexo do MESMO story encontra
+    # esta leitura. Sem o carimbo, cada resposta continuaria pagando visao e Whisper.
+    new_meta['story_id'] = story_id if story_id.present?
     # Sem callbacks/validacao: e metadado do proprio anexo, escrito por um job de
     # background. Mesmo tratamento que o cache de transcricao de audio ja recebe.
     attachment.update_column(:meta, new_meta) # rubocop:disable Rails/SkipsModelValidations

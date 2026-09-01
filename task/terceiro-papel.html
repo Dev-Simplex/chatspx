@@ -1,0 +1,568 @@
+<meta charset="utf-8">
+<title>O Terceiro Papel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+  :root {
+    --paper:      #EDEEE9;
+    --surface:    #FAFAF8;
+    --surface-2:  #E3E5DE;
+    --ink:        #1B2027;
+    --ink-soft:   #565F6B;
+    --ink-faint:  #8B939D;
+    --rule:       #D3D6CE;
+    --rule-soft:  #E2E4DD;
+    --revoked:    #9C3A2E;
+    --revoked-bg: #F2E1DD;
+    --kept:       #2C6350;
+    --kept-bg:    #DDE9E3;
+    --accent:     #3E5170;
+    --accent-bg:  #E0E4EC;
+    --shadow:     0 1px 2px rgba(27,32,39,.06), 0 8px 24px -16px rgba(27,32,39,.28);
+
+    --f-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    --f-body:    'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --f-mono:    'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #14171B;
+      --surface:    #1C2026;
+      --surface-2:  #262B32;
+      --ink:        #E7E8E3;
+      --ink-soft:   #A8AFB8;
+      --ink-faint:  #757D87;
+      --rule:       #303640;
+      --rule-soft:  #262B33;
+      --revoked:    #E39380;
+      --revoked-bg: #3A2521;
+      --kept:       #7CC5A6;
+      --kept-bg:    #1D3730;
+      --accent:     #9DB2D4;
+      --accent-bg:  #232B38;
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #14171B;
+    --surface:    #1C2026;
+    --surface-2:  #262B32;
+    --ink:        #E7E8E3;
+    --ink-soft:   #A8AFB8;
+    --ink-faint:  #757D87;
+    --rule:       #303640;
+    --rule-soft:  #262B33;
+    --revoked:    #E39380;
+    --revoked-bg: #3A2521;
+    --kept:       #7CC5A6;
+    --kept-bg:    #1D3730;
+    --accent:     #9DB2D4;
+    --accent-bg:  #232B38;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 28px 96px; }
+  .col { max-width: 68ch; }
+
+  h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.018em; }
+  h1 { font-size: clamp(2.3rem, 6vw, 3.4rem); font-weight: 700; line-height: 1.04; }
+  h2 { font-size: 1.5rem; font-weight: 600; line-height: 1.2; }
+  h3 { font-size: 1.02rem; font-weight: 600; letter-spacing: -0.005em; }
+  p { margin: 0; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+  code, .mono { font-family: var(--f-mono); font-size: 0.83em; }
+  code { background: var(--surface-2); padding: 0.1em 0.36em; border-radius: 3px; color: var(--ink); }
+
+  .eyebrow {
+    font-family: var(--f-mono); font-size: 0.7rem; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .lede { font-size: 1.18rem; color: var(--ink-soft); }
+
+  header.top { padding: 72px 0 40px; display: flex; flex-direction: column; gap: 20px; }
+  .metabar { display: flex; flex-wrap: wrap; gap: 8px 10px; padding-top: 8px; }
+  .tag {
+    font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.02em;
+    padding: 4px 9px; border-radius: 4px; background: var(--surface);
+    border: 1px solid var(--rule); color: var(--ink-soft); white-space: nowrap;
+  }
+  .tag strong { color: var(--ink); font-weight: 600; }
+  .tag.live { background: var(--kept-bg); border-color: color-mix(in srgb, var(--kept) 40%, transparent); color: var(--kept); }
+
+  section {
+    display: flex; flex-direction: column; gap: 22px;
+    padding: 46px 0 0; border-top: 1px solid var(--rule); margin-top: 46px;
+  }
+  .sec-head { display: flex; flex-direction: column; gap: 8px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+
+  .rule-card {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .rule-card .big {
+    font-family: var(--f-display); font-size: 1.28rem; font-weight: 600;
+    line-height: 1.35; letter-spacing: -0.012em;
+  }
+  .rule-card .note { color: var(--ink-soft); font-size: 0.95rem; }
+
+  /* ---------- mockup do formulário ---------- */
+  .mock-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+    overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column;
+  }
+  .panel-head {
+    padding: 13px 16px; border-bottom: 1px solid var(--rule-soft);
+    display: flex; flex-direction: column; gap: 3px; background: var(--surface-2);
+  }
+  .panel-title { font-family: var(--f-display); font-weight: 600; font-size: 0.94rem; letter-spacing: -0.005em; }
+  .panel-sub { font-family: var(--f-mono); font-size: 0.68rem; color: var(--ink-faint); letter-spacing: 0.03em; }
+  .panel.is-new { border-color: color-mix(in srgb, var(--kept) 42%, var(--rule)); }
+  .panel.is-new .panel-head { background: var(--kept-bg); }
+
+  .formbody { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .fld { display: flex; flex-direction: column; gap: 6px; }
+  .fld > .lbl {
+    font-family: var(--f-display); font-size: 0.76rem; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .control {
+    border: 1px solid var(--rule); border-radius: 5px; background: var(--paper);
+    font-family: var(--f-display); font-size: 0.88rem;
+  }
+  .control .val { padding: 7px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .control .caret { color: var(--ink-faint); font-size: 0.7rem; }
+  .opts { border-top: 1px solid var(--rule); }
+  .opts .opt {
+    padding: 6px 10px; font-family: var(--f-display); font-size: 0.86rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .opts .opt + .opt { border-top: 1px solid var(--rule-soft); }
+  .opts .opt.new { background: var(--kept-bg); color: var(--kept); font-weight: 600; }
+  .opts .opt .badge {
+    margin-left: auto; font-family: var(--f-mono); font-size: 0.58rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .multi { padding: 5px; display: flex; flex-direction: column; gap: 2px; }
+  .multi .team {
+    padding: 5px 8px; border-radius: 3px; font-family: var(--f-display); font-size: 0.85rem;
+  }
+  .multi .team.on { background: var(--accent-bg); color: var(--ink); font-weight: 600; }
+  .help { font-size: 0.78rem; color: var(--ink-faint); line-height: 1.5; font-family: var(--f-display); }
+  .absent {
+    padding: 10px; border: 1px dashed var(--rule); border-radius: 5px;
+    font-size: 0.78rem; color: var(--ink-faint); font-family: var(--f-display); line-height: 1.5;
+  }
+  .caption { font-size: 0.86rem; color: var(--ink-soft); font-family: var(--f-display); font-weight: 500; }
+
+  /* ---------- tabela ---------- */
+  .scroller { overflow-x: auto; border: 1px solid var(--rule); border-radius: 9px; background: var(--surface); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 660px; }
+  thead th {
+    font-family: var(--f-mono); font-size: 0.66rem; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--ink-faint); text-align: left; font-weight: 600;
+    padding: 12px 16px; border-bottom: 1px solid var(--rule); background: var(--surface-2); white-space: nowrap;
+  }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; font-size: 0.9rem; line-height: 1.5; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.item { font-family: var(--f-display); font-weight: 600; font-size: 0.9rem; }
+  td .sub { display: block; font-family: var(--f-mono); font-size: 0.7rem; color: var(--ink-faint); font-weight: 400; margin-top: 3px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-mono);
+    font-size: 0.72rem; font-weight: 600; padding: 3px 8px; border-radius: 4px; white-space: nowrap;
+  }
+  .pill.deny { background: var(--revoked-bg); color: var(--revoked); }
+  .pill.keep { background: var(--kept-bg); color: var(--kept); }
+  .pill.info { background: var(--accent-bg); color: var(--accent); }
+
+  .warn {
+    background: var(--revoked-bg); border: 1px solid color-mix(in srgb, var(--revoked) 35%, transparent);
+    border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .warn .h { font-family: var(--f-display); font-weight: 600; font-size: 0.95rem; color: var(--revoked); }
+  .warn p { font-size: 0.93rem; }
+
+  pre {
+    margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 7px;
+    padding: 14px 16px; overflow-x: auto; font-family: var(--f-mono);
+    font-size: 0.79rem; line-height: 1.62; color: var(--ink);
+  }
+  pre .c { color: var(--ink-faint); }
+  pre .k { color: var(--kept); }
+  pre .r { color: var(--revoked); }
+
+  ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem; color: var(--ink-soft); }
+  ul.plain strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- matriz pode / não pode ---------- */
+  .caps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+  .caps {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
+  }
+  .caps > header {
+    padding: 13px 18px; border-bottom: 1px solid var(--rule-soft);
+    display: flex; align-items: baseline; gap: 10px; background: var(--surface-2);
+  }
+  .caps > header .h { font-family: var(--f-display); font-weight: 600; font-size: 0.98rem; letter-spacing: -0.008em; }
+  .caps > header .n {
+    margin-left: auto; font-family: var(--f-mono); font-size: 0.7rem; font-weight: 600;
+    color: var(--ink-faint); font-variant-numeric: tabular-nums;
+  }
+  .caps ul { list-style: none; margin: 0; padding: 6px 0 10px; display: flex; flex-direction: column; }
+  .caps li {
+    padding: 9px 18px 9px 40px; position: relative; font-size: 0.92rem; line-height: 1.5;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .caps li:last-child { border-bottom: 0; }
+  .caps li b { font-family: var(--f-display); font-weight: 600; color: var(--ink); }
+  .caps li .why { display: block; font-size: 0.82rem; color: var(--ink-faint); margin-top: 2px; }
+  .caps li::before {
+    position: absolute; left: 18px; top: 9px; font-family: var(--f-mono);
+    font-weight: 600; font-size: 0.9rem; line-height: 1.5;
+  }
+
+  .caps.can { border-color: color-mix(in srgb, var(--kept) 38%, var(--rule)); }
+  .caps.can > header { background: var(--kept-bg); }
+  .caps.can > header .h { color: var(--kept); }
+  .caps.can li::before { content: "+"; color: var(--kept); }
+
+  .caps.cant { border-color: color-mix(in srgb, var(--revoked) 38%, var(--rule)); }
+  .caps.cant > header { background: var(--revoked-bg); }
+  .caps.cant > header .h { color: var(--revoked); }
+  .caps.cant li::before { content: "\00d7"; color: var(--revoked); }
+
+  .caps.edge { border-color: color-mix(in srgb, var(--accent) 32%, var(--rule)); }
+  .caps.edge > header { background: var(--accent-bg); }
+  .caps.edge > header .h { color: var(--accent); }
+  .caps.edge li::before { content: "\2192"; color: var(--accent); }
+
+  .caps-note {
+    font-size: 0.88rem; color: var(--ink-soft); font-family: var(--f-display);
+    padding: 12px 16px; border-left: 2px solid var(--accent); background: var(--accent-bg);
+    border-radius: 0 6px 6px 0; line-height: 1.55;
+  }
+
+  footer {
+    margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--rule);
+    font-family: var(--f-mono); font-size: 0.72rem; color: var(--ink-faint); line-height: 1.8;
+  }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 20px 72px; }
+    header.top { padding: 48px 0 32px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="col stack">
+      <div class="eyebrow">ChatSPX &nbsp;·&nbsp; Console de Super Admin &nbsp;·&nbsp; f1e1602ba</div>
+      <h1>O Terceiro Papel</h1>
+      <p class="lede">O seletor de função do console só oferecia <em>agent</em> e <em>administrator</em>. Agora oferece <em>supervisor</em> — sem que “supervisor” tenha virado um papel no banco. Começa pelo que importa na hora de conceder: <strong>o que essa pessoa passa a poder, e o que deixa de poder</strong>.</p>
+    </div>
+    <div class="metabar">
+      <span class="tag"><strong>4</strong> commits</span>
+      <span class="tag"><strong>76</strong> exemplos rspec, 0 falhas</span>
+      <span class="tag"><strong>15</strong> checagens ao vivo, 0 falhas</span>
+      <span class="tag">migration <strong>nenhuma</strong></span>
+      <span class="tag live">no ar em <strong>nicolas.chatspx.app</strong></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">A resposta curta</div>
+      <h2>O que o supervisor pode e não pode</h2>
+      <p class="lede" style="font-size:1rem">Levantado do código, não de memória: cada linha abaixo tem um ponto de autorização por trás. As três colunas são coisas diferentes — o que a supervisão <em>concede</em>, o que ela <em>tira</em>, e onde ela simplesmente <em>não chega</em>.</p>
+    </div>
+
+    <div class="caps-grid">
+
+      <div class="caps can">
+        <header><span class="h">Pode</span><span class="n">o que a supervisão concede</span></header>
+        <ul>
+          <li><b>Ver as conversas dos times que supervisiona</b><span class="why">Sem ser membro do time nem da caixa de entrada. <code>ConversationPolicy</code> usa membro ∪ supervisionado.</span></li>
+          <li><b>Ver essas conversas mesmo com o isolamento por agente ligado</b><span class="why">A supervisão fura o isolamento de conversa e o de mensagem, de propósito.</span></li>
+          <li><b>Buscar dentro delas</b><span class="why"><code>SearchService</code> inclui os times supervisionados.</span></li>
+          <li><b>Renomear os agentes dos times que supervisiona</b><span class="why">Só a chave <code>name</code>. Qualquer outra chave no request é recusada com 401.</span></li>
+          <li><b>Mexer na composição dos times que supervisiona</b><span class="why">Adiciona só quem já é membro de algum time dele; remover não tem restrição.</span></li>
+          <li><b>Executar macro dentro da conversa</b><span class="why">É trabalho de atendimento. Some a tela de gestão, não o botão ⚡.</span></li>
+          <li><b>Ler o que a tela de atendimento precisa</b><span class="why">Campos personalizados do contato, bot ligado na caixa, apps do Dyte e do OpenAI.</span></li>
+        </ul>
+      </div>
+
+      <div class="caps cant">
+        <header><span class="h">Não pode</span><span class="n">o recorte novo + os limites antigos</span></header>
+        <ul>
+          <li><b>Abrir o Console de Super Admin</b><span class="why">Recusado no login e em toda rota do console, não só escondido do menu.</span></li>
+          <li><b>Criar, editar ou apagar atributo personalizado</b><span class="why">A leitura fica; a gestão sai.</span></li>
+          <li><b>Gerenciar robôs</b><span class="why">Criar, editar, apagar, trocar avatar, resetar token.</span></li>
+          <li><b>Criar, editar ou apagar macro</b><span class="why">A tela inteira some — inclusive para supervisor que é agente.</span></li>
+          <li><b>Conectar ou desconectar integração</b><span class="why">Hooks, webhooks, dashboard apps, Slack, OpenAI.</span></li>
+          <li><b>Mexer no Fluxo de conversa</b><span class="why">Auto-resolução e atributos obrigatórios da conversa.</span></li>
+          <li><b>Trocar função ou disponibilidade de agente</b><span class="why">Limite que já existia: o supervisor só renomeia.</span></li>
+          <li><b>Editar um administrador</b><span class="why">Nunca edita quem está acima dele.</span></li>
+          <li><b>Excluir agente da conta</b><span class="why">Continua exclusivo de administrador.</span></li>
+          <li><b>Marcar alguém como supervisor</b><span class="why">Só administrador concede supervisão — inclusive pelo seletor novo do console.</span></li>
+          <li><b>Mexer em time que não supervisiona</b><span class="why">Senão ele se adicionaria a qualquer time e passaria a ver as conversas dele.</span></li>
+        </ul>
+      </div>
+
+      <div class="caps edge">
+        <header><span class="h">Não alcança</span><span class="n">assimetrias deliberadas</span></header>
+        <ul>
+          <li><b>O sino e as notificações</b><span class="why">Supervisão não entra ali. Supervisor de time grande viraria spam — só o assignee é notificado.</span></li>
+          <li><b>Etiquetas e respostas prontas “de time”</b><span class="why">A visibilidade delas continua por MEMBRO do time, não por supervisão.</span></li>
+          <li><b>Kanban e funis</b><span class="why">Nenhuma policy de funil consulta supervisão.</span></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <p class="col caps-note">Nada disso depende de flag. Sem linha em <code>team_supervisors</code> a consulta devolve vazio e todo caminho faz short-circuit — quem não supervisiona nada segue exatamente como antes.</p>
+
+    <div class="col sec-head" style="padding-top:22px">
+      <div class="eyebrow">Continua igual</div>
+      <h3>O que o recorte não tocou</h3>
+      <p style="font-size:.95rem;color:var(--ink-soft)">Se ele já era administrador, tudo isto segue no lugar e funcionando: <strong>caixas de entrada, agentes, times, etiquetas, respostas prontas, automações, relatórios, campanhas, SLA, auditoria, conexões WhatsApp</strong> e as configurações da conta — menos as chaves que a tela de Fluxo de conversa grava.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Mockup · super_admin/users/:id</div>
+      <h2>O que mudou na tela</h2>
+      <p class="lede" style="font-size:1rem">Um valor a mais no seletor, e um campo novo logo abaixo — porque supervisor é sempre supervisor <em>de algum time</em>.</p>
+    </div>
+
+    <div class="mock-grid">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Antes</span>
+          <span class="panel-sub">AccountUser.roles.keys</span>
+        </div>
+        <div class="formbody">
+          <div class="fld">
+            <span class="lbl">Role</span>
+            <div class="control">
+              <div class="val"><span>agent</span><span class="caret">▲</span></div>
+              <div class="opts">
+                <div class="opt">agent</div>
+                <div class="opt">administrator</div>
+              </div>
+            </div>
+          </div>
+          <div class="absent">Não havia como marcar alguém como supervisor por aqui. A supervisão só existia em Configurações&nbsp;→&nbsp;Agentes, no dashboard.</div>
+        </div>
+      </div>
+
+      <div class="panel is-new">
+        <div class="panel-head">
+          <span class="panel-title">Agora</span>
+          <span class="panel-sub">AccountUser::CONSOLE_ROLES</span>
+        </div>
+        <div class="formbody">
+          <div class="fld">
+            <span class="lbl">Role</span>
+            <div class="control">
+              <div class="val"><span>supervisor</span><span class="caret">▲</span></div>
+              <div class="opts">
+                <div class="opt">agent</div>
+                <div class="opt">administrator</div>
+                <div class="opt new">supervisor<span class="badge">novo</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="fld">
+            <span class="lbl">Supervised teams</span>
+            <div class="control multi">
+              <div class="team on">suporte</div>
+              <div class="team on">pos-venda</div>
+              <div class="team">vendas</div>
+              <div class="team">financeiro</div>
+            </div>
+            <p class="help">Segure Ctrl (Cmd no Mac) para escolher mais de um. Nenhum time selecionado = não supervisiona.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="col caption">Na página da <strong>conta</strong> o seletor de times já lista os times certos. Na página do <strong>usuário</strong> a conta só é conhecida no submit, então ali o campo explica o que vai acontecer em vez de listar.</p>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">A decisão de modelagem</div>
+      <h2>Por que não virou um valor do enum</h2>
+    </div>
+    <div class="col rule-card">
+      <p class="big">No banco continua <code>agent</code> + linha em <code>team_supervisors</code>.</p>
+      <p class="note">Um terceiro valor em <code>enum role</code> faria <code>agent?</code> devolver <strong>false</strong> para essa pessoa — e existem <strong>37 checagens de <code>agent?</code></strong> espalhadas por policies e controllers. Ela deixaria de ser tratada como agente em telas que nada têm a ver com supervisão.</p>
+      <p class="note">Não é invenção nova: a tela de Agentes do dashboard já resolvia assim, e o código diz isso com todas as letras —</p>
+      <pre><span class="c">// EditAgent.vue</span>
+<span class="c">// "Supervisor" não existe no backend: é agente + times supervisionados.</span>
+<span class="c">// A função vira uma opção só na tela para o admin não ter que descobrir</span>
+<span class="c">// que supervisão é um campo separado.</span></pre>
+      <p class="note">O console passou a seguir a mesma convenção. A função existe na apresentação, sobre a combinação que o backend já entende.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Comportamento</div>
+      <h2>Os três casos do campo de times</h2>
+      <p class="lede" style="font-size:1rem">O caso do meio é onde morava um bug de escalonamento, encontrado rodando a verificação contra o staging — não por spec.</p>
+    </div>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th>Situação</th>
+            <th>O que acontece</th>
+            <th>Por quê</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="item">Times escolhidos<span class="sub">supervised_team_ids = [1, 2]</span></td>
+            <td><span class="pill keep">supervisiona os 2</span></td>
+            <td>O caminho normal. <code>role</code> grava <code>agent</code>, e nascem duas linhas em <code>team_supervisors</code>.</td>
+          </tr>
+          <tr>
+            <td class="item">Seletor esvaziado<span class="sub">o admin desmarcou tudo</span></td>
+            <td><span class="pill deny">recusa com erro</span></td>
+            <td>Antes concedia a <strong>conta inteira</strong> — o oposto do que ele fez na tela. Recusar é melhor que conceder, e melhor que virar um agente silencioso com “supervisor” escrito no seletor.</td>
+          </tr>
+          <tr>
+            <td class="item">Campo ausente<span class="sub">o formulário nem tem o seletor</span></td>
+            <td><span class="pill info">todos os times da conta</span></td>
+            <td>Só acontece na página do usuário, onde a conta é desconhecida no render. É a única forma de a opção não ser um controle inerte — e a tela avisa.</td>
+          </tr>
+          <tr>
+            <td class="item">Já supervisionava<span class="sub">e o campo não veio</span></td>
+            <td><span class="pill keep">preserva o que tinha</span></td>
+            <td>Não expande sozinho.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col warn">
+      <span class="h">O bug que a verificação pegou</span>
+      <p><code>campo ausente</code> e <code>campo vazio</code> chegavam iguais ao modelo, e os dois caíam no mesmo fallback de “todos os times”. Na prática: abrir a edição, <strong>desmarcar todos os times</strong>, salvar como supervisor — e a pessoa supervisionava a conta inteira, sem aviso. Os dois casos agora se separam.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Alcance</div>
+      <h2>Onde “supervisor” passou a valer</h2>
+      <p class="lede" style="font-size:1rem">A tradução desceu para <code>AccountUser#role=</code>, o ponto por onde toda atribuição de papel passa. Antes, tudo fora do console devolvia <strong>500</strong>.</p>
+    </div>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th>Superfície</th><th>Antes</th><th>Agora</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="item">Console de Super Admin<span class="sub">super_admin/account_users</span></td>
+            <td><span class="pill deny">sem a opção</span></td>
+            <td><span class="pill keep">seletor + times</span></td>
+          </tr>
+          <tr>
+            <td class="item">API de agentes<span class="sub">POST e PATCH /agents</span></td>
+            <td><span class="pill deny">500 ArgumentError</span></td>
+            <td><span class="pill keep">aceita</span></td>
+          </tr>
+          <tr>
+            <td class="item">API de plataforma<span class="sub">POST /account_users</span></td>
+            <td><span class="pill deny">500 ArgumentError</span></td>
+            <td><span class="pill keep">aceita</span></td>
+          </tr>
+          <tr>
+            <td class="item">Seeds e console do Rails<span class="sub">role: 'supervisor'</span></td>
+            <td><span class="pill deny">500 ArgumentError</span></td>
+            <td><span class="pill keep">aceita</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col caption">O writer é <strong>aditivo</strong>: <code>agent</code> e <code>administrator</code> seguem idênticos, papel inexistente segue levantando <code>ArgumentError</code>, e só o valor que já explodia virou atribuição válida. A guarda que impede supervisor de trocar a função de alguém não afrouxou — segue admin-only, com spec cobrindo.</p>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Verificação ao vivo</div>
+      <h2>15 checagens contra o staging</h2>
+      <p class="lede" style="font-size:1rem">Rodadas dentro de uma transação com rollback, então nada ficou gravado.</p>
+    </div>
+    <div class="col">
+      <pre>seletor do console = ["agent", "administrator", "supervisor"]
+enum no banco      = ["agent", "administrator"]
+
+1) SUPERVISOR escolhendo times
+<span class="k">OK</span>    banco guarda agent · agent? true · administrator? false
+<span class="k">OK</span>    supervisiona exatamente os 2 escolhidos
+<span class="k">OK</span>    seletor reabre em supervisor
+<span class="k">OK</span>    permissions = ["agent", "team_supervisor"]
+<span class="k">OK</span>    perde as 6 configuracoes de plataforma
+<span class="k">OK</span>    alcanca as conversas dos 2 times
+
+2) SUPERVISOR sem o seletor na tela
+<span class="k">OK</span>    cai no fallback: todos os 6 times
+
+3) SUPERVISOR com o seletor ESVAZIADO
+<span class="k">OK</span>    recusa em vez de conceder a conta inteira
+<span class="k">OK</span>    erro: must include at least one team when the role is supervisor
+
+4) ADMINISTRATOR e AGENT intactos
+<span class="k">OK</span>    administrator grava normal
+<span class="k">OK</span>    agent limpa a supervisao e recupera as 6 configuracoes
+<span class="k">OK</span>    papel inexistente segue recusado
+
+<span class="k">&gt;&gt;&gt; TUDO OK (0 falhas)</span></pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="col sec-head">
+      <div class="eyebrow">Limitação conhecida</div>
+      <h2>O que o seletor não consegue dizer</h2>
+    </div>
+    <ul class="plain col">
+      <li><strong>Administrador que supervisiona time não é representável.</strong> Se a pessoa é <code>administrator</code> e supervisiona, o campo mostra <code>administrator</code> — porque “supervisor” ali significa <em>agente</em> + supervisão. Ela continua supervisionando de verdade e continua perdendo as seis telas; o seletor é que não mostra os dois ao mesmo tempo. Resolver exige repensar o campo, que hoje é de valor único.</li>
+      <li><strong>O console ganhou <code>edit</code>/<code>update</code>.</strong> Antes só dava para criar e apagar o vínculo — não havia onde ajustar papel ou supervisão de quem já existia.</li>
+      <li><strong>Refino por time continua melhor no dashboard</strong>, em Configurações&nbsp;→&nbsp;Agentes, que já tinha a tela pronta para isso.</li>
+    </ul>
+  </section>
+
+  <footer>
+    63ed05873 · seletor e campo de times &nbsp;|&nbsp; 017a4c21f · supervisor em toda superfície<br>
+    29ea442de · fix do escalonamento &nbsp;|&nbsp; f1e1602ba · comentário no lugar certo<br>
+    companheiro deste doc: <a href="https://nicolas.chatspx.app/recorte-do-supervisor.html">Recorte do Supervisor</a> — as seis telas que o supervisor deixa de ver
+  </footer>
+
+</div>
