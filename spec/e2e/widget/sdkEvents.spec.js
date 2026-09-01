@@ -187,8 +187,13 @@ const rotasDeVisitanteNovo = async (page, mensagens = []) => {
   await page.route(/\/api\/v1\/widget\/messages/, route => {
     const metodo = route.request().method();
     if (metodo === 'POST') {
+      // A FORMA É A DE `api/v1/widget/messages/create.json.jbuilder`, campo por
+      // campo — inclusive `json.inbox_id @message.inbox_id`, que estava
+      // faltando aqui. Um dublê sem `inbox_id` não consegue reprovar um emissor
+      // que perde `inbox_id`: ele concorda com o defeito.
       return responder(route, {
         id: 2001,
+        inbox_id: CONVERSA_CRIADA.inbox_id,
         conversation_id: CONVERSA_CRIADA.id,
         content: 'Mensagem do visitante',
         content_type: 'text',
@@ -375,6 +380,15 @@ test.describe('contrato de eventos de window (bloco 5.04)', () => {
       ]);
 
     const observados = await eventosObservados(page);
+
+    // O `conversation-created` DESTE caminho tem de chegar ao `window` do site
+    // com o mesmo payload do caminho com pré-chat. Só a asserção de
+    // `observados[1]` (a mensagem) existia aqui, e por isso o evento da conversa
+    // podia chegar sem `inbox_id` sem nada reprovar — que é o que acontecia.
+    expect(observados[0].detalhe).toEqual({
+      conversation_id: CONVERSA_CRIADA.id,
+      inbox_id: CONVERSA_CRIADA.inbox_id,
+    });
     expect(observados[1].detalhe).toEqual({
       conversation_id: CONVERSA_CRIADA.id,
     });

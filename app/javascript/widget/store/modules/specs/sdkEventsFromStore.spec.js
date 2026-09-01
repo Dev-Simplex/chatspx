@@ -22,6 +22,10 @@ import { actions as contactActions } from '../contacts';
 import { actions as campaignActions } from '../campaign';
 import { actions as messageActions } from '../message';
 import { __resetSdkEventsForTests } from 'widget/helpers/sdkEventEmitter';
+import {
+  CHATWOOT_CONVERSATION_CREATED,
+  SDK_EVENT_CONTRACT,
+} from 'widget/constants/sdkEvents';
 import { IFrameHelper } from 'widget/helpers/utils';
 import { API } from 'widget/helpers/axios';
 
@@ -172,9 +176,15 @@ describe('eventos de window emitidos do store (bloco 5.04)', () => {
       conversation: { conversations: {} },
     };
 
-    it('emite conversation-created antes de message-sent', async () => {
+    it('emite conversation-created antes de message-sent, COM inbox_id', async () => {
+      // A FORMA É A DO SERVIDOR, não uma conveniente: o POST de mensagem
+      // responde por `api/v1/widget/messages/create.json.jbuilder`, que publica
+      // `json.inbox_id @message.inbox_id` no TOPO do objeto — ao lado de
+      // `conversation_id`, não dentro dele. Este dublê tinha `conversation_id`
+      // sem `inbox_id`, e por isso concordava com um emissor que descartava a
+      // chave que o contrato exige.
       API.post.mockResolvedValue({
-        data: { id: 900, conversation_id: 77, content: 'oi' },
+        data: { id: 900, inbox_id: 7, conversation_id: 77, content: 'oi' },
       });
 
       await conversationActions.sendMessageWithData(
@@ -183,14 +193,14 @@ describe('eventos de window emitidos do store (bloco 5.04)', () => {
       );
 
       expect(eventosEmitidos()).toEqual([
-        ['chatwoot:conversation-created', { conversation_id: 77 }],
+        ['chatwoot:conversation-created', { conversation_id: 77, inbox_id: 7 }],
         ['chatwoot:message-sent', { conversation_id: 77 }],
       ]);
     });
 
     it('NÃO repete conversation-created para quem já tinha conversa', async () => {
       API.post.mockResolvedValue({
-        data: { id: 901, conversation_id: 77, content: 'segunda' },
+        data: { id: 901, inbox_id: 7, conversation_id: 77, content: 'segunda' },
       });
 
       await conversationActions.sendMessageWithData(
@@ -213,7 +223,12 @@ describe('eventos de window emitidos do store (bloco 5.04)', () => {
       // uma corrida entre as duas chamadas do boot produziria um
       // `conversation-created` falso para quem voltou ao site.
       API.post.mockResolvedValue({
-        data: { id: 902, conversation_id: 77, content: 'de volta' },
+        data: {
+          id: 902,
+          inbox_id: 7,
+          conversation_id: 77,
+          content: 'de volta',
+        },
       });
 
       await conversationActions.sendMessageWithData(
@@ -368,6 +383,79 @@ describe('eventos de window emitidos do store (bloco 5.04)', () => {
       );
 
       expect(nomesEmitidos()).toEqual([]);
+    });
+  });
+
+  /**
+   * O DEFEITO QUE ESTE BLOCO EXISTE PARA NÃO REPETIR.
+   *
+   * `chatwoot:conversation-created` sai de DOIS lugares — `createConversation`
+   * (com pré-chat) e `sendMessageWithData` (sem) — e durante um bom tempo só um
+   * deles levava `inbox_id`. Nada reprovou: `filterByContract` conta chave a
+   * MAIS e ignora chave a MENOS, o `SDK_EVENT_CONTRACT` declarava as duas, o
+   * guarda de renomeação compara NOMES de evento e não campos, e cada caminho
+   * tinha um teste que congelava o próprio payload. Quatro verdes em cima de um
+   * evento que chegava ao dataLayer do cliente sem saber de qual caixa veio.
+   *
+   * A trava é comparar os dois caminhos com a MESMA fonte, e com o contrato —
+   * não um com o outro (dois caminhos errados combinam entre si).
+   */
+  describe('os dois caminhos cumprem o MESMO contrato de payload', () => {
+    const chavesDoContrato = () => {
+      const declaradas =
+        SDK_EVENT_CONTRACT[CHATWOOT_CONVERSATION_CREATED]?.payload;
+      // ANTI-VÁCUO: sem isto, apagar a entrada do contrato faria a comparação
+      // virar `[] === []` e este teste passaria medindo coisa nenhuma — que é
+      // exatamente a forma do defeito que ele veio impedir.
+      expect(declaradas).toBeDefined();
+      expect(declaradas.length).toBeGreaterThan(1);
+      return [...declaradas].sort();
+    };
+
+    const payloadDoEventoDeConversa = () =>
+      eventosEmitidos().find(
+        ([nome]) => nome === CHATWOOT_CONVERSATION_CREATED
+      )?.[1];
+
+    it('COM pré-chat: o payload traz todas as chaves declaradas', async () => {
+      API.post.mockResolvedValue({
+        data: {
+          id: 314,
+          inbox_id: 7,
+          contact: { name: 'Ana', email: null, phone_number: null },
+          messages: [{ id: 1 }],
+        },
+      });
+
+      await conversationActions.createConversation(contexto(), {
+        fullName: 'Ana',
+        message: 'oi',
+      });
+
+      expect(Object.keys(payloadDoEventoDeConversa()).sort()).toEqual(
+        chavesDoContrato()
+      );
+    });
+
+    it('SEM pré-chat: o payload traz todas as chaves declaradas', async () => {
+      API.post.mockResolvedValue({
+        data: { id: 900, inbox_id: 7, conversation_id: 77, content: 'oi' },
+      });
+
+      await conversationActions.sendMessageWithData(
+        {
+          commit: vi.fn(),
+          rootState: {
+            conversationAttributes: { id: '' },
+            conversation: { conversations: {} },
+          },
+        },
+        { message: { id: 'temp-9', content: 'oi' } }
+      );
+
+      expect(Object.keys(payloadDoEventoDeConversa()).sort()).toEqual(
+        chavesDoContrato()
+      );
     });
   });
 });
