@@ -154,11 +154,24 @@
   comentário no `schedule.yml` dizia *"11h UTC = 7h em America/Cuiaba"* e estava errado nos
   dois sentidos: `0 11` disparava às **11h da manhã do próprio cliente**. Ele recebeu assim
   **três dias** antes de notar.
-  - **Corrigido nos dois lugares:** ao vivo via `Sidekiq::Cron::Job.create` (sem deploy — já
-    está `0 7 * * *` e `enabled`) **e** no `config/schedule.yml` dentro do **PR #77**, senão o
-    próximo deploy reverteria. Conferido: os outros 21 jobs do cron intactos.
-  - ⚠️ **A lição:** cron de agendador não é UTC por padrão. O número no `schedule.yml` agora
-    diz de qual fuso ele é.
+  - 🔴 **CORREÇÃO (01/09): isto NÃO estava consertado, e o digest voltou às 11h.** Duas falhas
+    minhas empilhadas, as duas medidas hoje:
+    1. **O commit do `schedule.yml` ficou órfão.** Eu o fiz em 31/08 na branch do PR #77 — que
+       **já tinha sido mergeado em 29/08 19:49**. Branch de PR fechado não entra em lugar
+       nenhum: `a021b99f57` não está nem na `homologacao` nem na `producao`, as duas seguem
+       com `0 11`. Eu registrei aqui como "corrigido no PR #77" sem conferir.
+    2. **O remendo ao vivo não sobrevive, por construção.** O `apt-daily-upgrade.timer` roda
+       **todo dia às 06:05 UTC (02:05 em Sinop)** e reinicia o worker — hoje ele subiu 36s
+       depois do timer. Todo boot recarrega o `schedule.yml` do disco e sobrescreve o Redis.
+       Enquanto o arquivo disser `0 11`, o horário volta toda madrugada, **antes** das 7h.
+       Refazer ao vivo seria inútil.
+  - ⏭️ **[PR #82](https://github.com/Dev-Simplex/chatspx/pull/82)** (contra a `producao`, que é
+    onde a Tozi sente) e **[PR #83](https://github.com/Dev-Simplex/chatspx/pull/83)** (contra a
+    `homologacao`, pra próxima promoção não desfazer). Mesmo commit, 1 arquivo, sem migration
+    nem asset. Depois do merge basta o código no disco: o boot das 02:05 recarrega sozinho.
+  - ⚠️ **A lição, agora com as duas metades:** cron de agendador não é UTC por padrão — e
+    **commit em branch de PR já mergeado não chega a lugar nenhum**. Conferir na branch de
+    integração (`git show origin/<branch>:<arquivo>`), não na worktree.
 
 ### [2026-08-28] 🔴 O EVAL JÁ TINHA PEGADO — ninguém consome · e a SOFIA foi aposentada
 
