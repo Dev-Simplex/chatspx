@@ -24,6 +24,7 @@ const TRANSITORIOS = ['typing_on', 'typing_off', 'presence_update'];
 
 export const createOfflineQueue = ({ onDrop = () => {} } = {}) => {
   let itens = [];
+  let drenando = false;
 
   return {
     get size() {
@@ -62,22 +63,43 @@ export const createOfflineQueue = ({ onDrop = () => {} } = {}) => {
      * @returns {Promise<{enviados: number, restantes: number}>}
      */
     async flush(enviar) {
-      const enviados = [];
-
-      while (itens.length) {
-        const [proximo] = itens;
-        try {
-          // A ordem É o aceite: paralelizar entregaria as mensagens fora de
-          // ordem, e aqui o laço sequencial é a funcionalidade, não descuido.
-          // eslint-disable-next-line no-await-in-loop
-          await enviar(proximo);
-        } catch (error) {
-          return { enviados: enviados.length, restantes: itens.length };
-        }
-        enviados.push(itens.shift());
+      // ── DUAS DRENAGENS AO MESMO TEMPO PERDEM MENSAGEM ─────────────────────
+      //
+      // Quem chama isto é a volta da rede, e a volta da rede NÃO acontece uma
+      // vez por queda: o ActionCable reconecta em rajada, e cada
+      // `reportConnected()` dispara uma drenagem. Sem esta guarda, duas
+      // drenagens simultâneas leem o MESMO `itens[0]`, enviam a mesma mensagem
+      // duas vezes — o que ninguém vê, porque o servidor deduplica pela chave
+      // do 2.15 — e depois dão `shift()` cada uma. Some o primeiro item e some
+      // o SEGUNDO, que nunca chegou a ser enviado. A perda é silenciosa e
+      // definitiva: a fila já esqueceu que ele existia.
+      //
+      // A segunda chamada, portanto, não faz nada — e diz que não fez, em vez
+      // de mentir um `{ enviados: 0, restantes: 0 }` que pareceria sucesso.
+      if (drenando) {
+        return { enviados: 0, restantes: itens.length, jaDrenando: true };
       }
+      drenando = true;
 
-      return { enviados: enviados.length, restantes: 0 };
+      const enviados = [];
+      try {
+        while (itens.length) {
+          const [proximo] = itens;
+          try {
+            // A ordem É o aceite: paralelizar entregaria as mensagens fora de
+            // ordem, e aqui o laço sequencial é a funcionalidade, não descuido.
+            // eslint-disable-next-line no-await-in-loop
+            await enviar(proximo);
+          } catch (error) {
+            return { enviados: enviados.length, restantes: itens.length };
+          }
+          enviados.push(itens.shift());
+        }
+
+        return { enviados: enviados.length, restantes: 0 };
+      } finally {
+        drenando = false;
+      }
     },
 
     clear() {

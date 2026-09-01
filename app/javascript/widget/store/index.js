@@ -11,8 +11,13 @@ import globalConfig from 'shared/store/globalConfig';
 import message from 'widget/store/modules/message';
 import campaign from 'widget/store/modules/campaign';
 import article from 'widget/store/modules/articles';
+import { ligarFilaOffline } from 'widget/store/plugins/offlineQueue';
 
 export default createStore({
+  // Bloco 2.16 — quem drena a fila offline na volta da rede. Ver a nota do
+  // plugin: sem esta linha a fila enfileira e nunca entrega, que é o estado em
+  // que o bloco vivia.
+  plugins: [ligarFilaOffline],
   modules: {
     agent,
     appConfig,
