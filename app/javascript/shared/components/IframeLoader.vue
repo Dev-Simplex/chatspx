@@ -1,10 +1,19 @@
 <script setup>
 import { ref, useTemplateRef, computed, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 import ArticleSkeletonLoader from 'shared/components/ArticleSkeletonLoader.vue';
 
 const props = defineProps({
   url: {
+    type: String,
+    default: '',
+  },
+  // The empty-state copy belongs to whoever mounts this: the widget and the
+  // dashboard ship different message catalogs. This component used to ask for
+  // `t('PORTAL.IFRAME_ERROR')`, a key that exists in NEITHER — so both screens
+  // printed the raw key. The translated sentences were already there and
+  // unreachable: `PORTAL.IFRAME_LOAD_ERROR` in the widget's 56 locales and
+  // `HELP_CENTER.ARTICLE_SEARCH.IFRAME_ERROR` in the dashboard's.
+  errorMessage: {
     type: String,
     default: '',
   },
@@ -17,8 +26,6 @@ const props = defineProps({
     default: false,
   },
 });
-
-const { t } = useI18n();
 
 const iframe = useTemplateRef('iframe');
 const isLoading = ref(true);
@@ -72,7 +79,7 @@ const handleIframeError = () => {
       v-if="showEmptyState"
       class="absolute w-full h-full top-0 left-0 flex justify-center items-center"
     >
-      <p>{{ t('PORTAL.IFRAME_ERROR') }}</p>
+      <p>{{ errorMessage }}</p>
     </div>
   </div>
 </template>

@@ -66,4 +66,88 @@ describe('2.17 — qualidade do i18n do widget', () => {
       expect(ptBR.A11Y[chave]).not.toBe(en.A11Y[chave]);
     });
   });
+
+  /**
+   * A TERCEIRA entrega do título do bloco — «revisão de traduções mecânicas».
+   *
+   * A trilha anterior varreu `pt_BR.json`, LISTOU cinco decalques e deixou os
+   * cinco, porque corrigi-los mexe nos PNG de baseline do e2e (o harness roda
+   * em `locale: 'pt_BR'`). A lista virou uma pergunta em aberto; estas duas
+   * varreduras a fecham e impedem que a sexta apareça.
+   *
+   * Duas varreduras porque são dois defeitos com formas diferentes, e uma não
+   * enxerga a outra: `Segunda-Feira` não é igual ao inglês, e `Download` não
+   * tem segunda palavra maiúscula.
+   */
+  describe('decalques do inglês', () => {
+    const achatar = (objeto, prefixo = '') =>
+      Object.entries(objeto).flatMap(([chave, valor]) => {
+        const caminho = prefixo ? `${prefixo}.${chave}` : chave;
+        if (valor && typeof valor === 'object') return achatar(valor, caminho);
+        return typeof valor === 'string' ? [[caminho, valor]] : [];
+      });
+
+    it('nenhum rótulo curto usa Title Case do inglês', () => {
+      // Em português só a primeira palavra e os nomes próprios vão com
+      // maiúscula; `Iniciar Conversa` é o inglês desenhado com palavras
+      // portuguesas. O recorte é deliberado — só RÓTULO (sem pontuação de
+      // frase e com até quatro palavras) — porque em FRASE a maiúscula depois
+      // de ponto é correta, e sem o recorte a varredura devolvia 19 achados,
+      // 15 deles legítimos.
+      const PROPRIOS = new Set([
+        'chatwoot',
+        'whatsapp',
+        'instagram',
+        'facebook',
+        'telegram',
+        'google',
+        'messenger',
+      ]);
+      const ehRotulo = texto =>
+        !/[.!?:;|{}]/.test(texto) && texto.split(/\s+/).length <= 4;
+
+      const achados = achatar(ptBR)
+        .filter(([, texto]) => ehRotulo(texto))
+        .filter(([, texto]) =>
+          texto
+            // O hífen conta como fronteira: `Segunda-Feira` destoa dos outros
+            // SEIS dias da semana, que já nascem minúsculos.
+            .split(/[\s-]+/)
+            .slice(1)
+            .some(
+              palavra =>
+                palavra &&
+                palavra !== palavra.toUpperCase() && // sigla: CNPJ, UF, DDI
+                !PROPRIOS.has(palavra.toLowerCase()) &&
+                palavra[0] === palavra[0].toUpperCase()
+            )
+        );
+
+      expect(achados).toEqual([]);
+    });
+
+    it('nenhuma string de pt_BR é idêntica à de en', () => {
+      const emIngles = new Map(achatar(en));
+      const achados = achatar(ptBR).filter(
+        ([caminho, texto]) => emIngles.get(caminho) === texto
+      );
+
+      expect(achados).toEqual([]);
+    });
+
+    // As cinco por extenso, para que o diff diga o que mudou sem precisar
+    // reconstruir as varreduras acima de cabeça.
+    it.each([
+      ['START_CONVERSATION', 'Iniciar conversa'],
+      ['END_CONVERSATION', 'Finalizar conversa'],
+      ['DAY_NAMES.MONDAY', 'Segunda-feira'],
+      ['PORTAL.POPULAR_ARTICLES', 'Artigos populares'],
+      ['COMPONENTS.FILE_BUBBLE.DOWNLOAD', 'Baixar'],
+    ])('%s = %s', (caminho, esperado) => {
+      const valor = caminho
+        .split('.')
+        .reduce((atual, parte) => atual[parte], ptBR);
+      expect(valor).toBe(esperado);
+    });
+  });
 });

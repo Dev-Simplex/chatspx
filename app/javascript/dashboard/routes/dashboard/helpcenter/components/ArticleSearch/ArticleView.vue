@@ -38,7 +38,15 @@ const onInsert = e => {
     </div>
     <div class="-ml-4 h-full overflow-y-auto">
       <div class="w-full h-full min-h-0">
-        <IframeLoader :url="url" :is-rtl="isRTL" is-dir-applied />
+        <!-- O catálogo do painel não tem `PORTAL` no topo; a frase do estado
+             vazio é esta, e até este bloco ela também não era lida por
+             componente nenhum. -->
+        <IframeLoader
+          :url="url"
+          :is-rtl="isRTL"
+          is-dir-applied
+          :error-message="$t('HELP_CENTER.ARTICLE_SEARCH.IFRAME_ERROR')"
+        />
       </div>
     </div>
 

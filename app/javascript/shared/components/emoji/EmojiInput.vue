@@ -3,6 +3,7 @@ import emojis from './emojisGroup.json';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
+import { translateCategoryName } from 'shared/components/emoji/pickerHelper';
 const SEARCH_KEY = 'Search';
 const RECENT_KEY = 'Recent';
 
@@ -121,12 +122,14 @@ export default {
       return CATEGORY_ICONS[categorySlug] || FALLBACK_CATEGORY_ICON;
     },
     // Os nomes das categorias vêm em inglês do emojisGroup.json; traduzimos na
-    // exibição, caindo no nome original se a chave não existir no locale.
+    // exibição, caindo no nome original se a chave não existir no locale. O
+    // mecanismo mora no `pickerHelper` porque a caixa de emoji do WIDGET
+    // (`EmojiPicker.vue`) lê o mesmo dicionário — enquanto eram duas cópias,
+    // só esta aqui traduzia, e a do widget mostrava as nove seções em inglês.
     categoryLabel(category) {
-      if (!category) return '';
-      const key = `EMOJI.CATEGORIES.${category.slug.toUpperCase()}`;
-      const label = this.$t(key);
-      return label === key ? category.name : label;
+      // A chave é montada pelo helper a partir da lista fechada de slugs.
+      // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+      return translateCategoryName(key => this.$t(key), category);
     },
     focusSearchInput() {
       this.$nextTick(() => {

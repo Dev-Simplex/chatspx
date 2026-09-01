@@ -8,13 +8,34 @@ const matchesSearch = (emoji, term) =>
   emoji.slug.replaceAll('_', ' ').includes(term) ||
   emoji.name.toLowerCase().includes(term);
 
+// Section names ship in English inside `emojisGroup.json` — they are data, not
+// copy. `EMOJI.CATEGORIES.<SLUG>` holds the translated name and is the very
+// dictionary the dashboard's EmojiInput has always read; this keeps both
+// pickers on one mechanism. Falls back to the English name when the running
+// locale (and its fallback) lack the key, which is what vue-i18n signals by
+// echoing the key back.
+export const translateCategoryName = (t, category) => {
+  if (!category?.slug) return category?.name ?? '';
+  const key = `EMOJI.CATEGORIES.${category.slug.toUpperCase()}`;
+  // The slug set is closed and committed (the nine groups of
+  // emojisGroup.json); the rule below guards against keys assembled from
+  // runtime input, which this is not.
+  // eslint-disable-next-line @intlify/vue-i18n/no-dynamic-keys
+  const label = t(key);
+  return label === key ? category.name : label;
+};
+
 // Emoji sections for the search term; prepends "Frequently used" when idle.
 export const buildEmojiSections = (search, recentEmojis, frequentLabel) => {
   const term = search.trim().toLowerCase();
   if (term) {
     return emojiGroups
-      .map(({ name, emojis }) => ({
+      .map(({ name, slug, emojis }) => ({
         name,
+        // Without the slug the searching visitor gets untranslatable headings:
+        // the idle branch below spreads the groups whole and keeps it, this
+        // one used to rebuild the object and drop it.
+        slug,
         emojis: emojis.filter(e => matchesSearch(e, term)),
       }))
       .filter(group => group.emojis.length);
