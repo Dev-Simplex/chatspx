@@ -2433,8 +2433,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_01_120900) do
     t.index ["account_id", "slug"], name: "index_unidades_on_account_id_and_slug", unique: true
   end
 
-<<<<<<< HEAD
-=======
   create_table "user_sessions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "client_id", null: false
@@ -2455,7 +2453,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_01_120900) do
     t.index ["user_id"], name: "index_user_sessions_on_user_id"
   end
 
->>>>>>> spx-b602
   create_table "unit_exceptions", force: :cascade do |t|
     t.bigint "unit_id", null: false
     t.date "starts_on", null: false
