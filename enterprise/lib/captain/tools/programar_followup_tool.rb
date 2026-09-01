@@ -18,7 +18,13 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
         required: false
 
   MIN_MINUTOS = 2
+  # Cutucada preventiva: 2 dias. É sobrevida de conversa; passou disso, o lead esfriou e quem
+  # retoma é gente, não um lembrete automático.
   MAX_MINUTOS = 2880
+  # Compromisso (o cliente disse quando quer ser procurado): 7 dias. O teto de 2 dias era do
+  # outro problema e encurtava calado o que o cliente pediu — "só semana que vem" virava uma
+  # cutucada em 2 dias, antes da hora e sem ninguém saber.
+  MAX_MINUTOS_COMPROMISSO = 10_080
 
   # Sinal de adiamento na fala do cliente. Serve pra detectar, pelo que ele REALMENTE
   # escreveu, que houve pedido de retorno — inclusive pelos botões de adiamento dos
@@ -35,7 +41,7 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
     return 'Não consegui identificar a conversa pra programar o follow-up.' unless conversation
 
     pela_janela = janela.present? ? minutos_ate(janela) : nil
-    minutes = (pela_janela || minutos).to_i.clamp(MIN_MINUTOS, MAX_MINUTOS)
+    minutes = (pela_janela || minutos).to_i.clamp(MIN_MINUTOS, teto(pela_janela))
 
     agendar(conversation, minutes, motivo, janela)
     resposta(conversation, minutes, janela, pela_janela)
@@ -45,6 +51,12 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # Só vale o teto maior quando a janela foi ENTENDIDA: janela ilegível cai no `minutos` que o
+  # modelo escolheu, e aí o número é dele, não do cliente — segue no teto da cutucada.
+  def teto(pela_janela)
+    pela_janela.nil? ? MAX_MINUTOS : MAX_MINUTOS_COMPROMISSO
+  end
 
   def agendar(conversation, minutes, motivo, janela)
     token = SecureRandom.hex(8)
@@ -79,7 +91,7 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
     end
 
     if minutes < pela_janela
-      return "A janela que o cliente pediu (\"#{janela}\") cai além do limite de #{MAX_MINUTOS / 1440} dias da cutucada, " \
+      return "A janela que o cliente pediu (\"#{janela}\") cai além do limite de #{MAX_MINUTOS_COMPROMISSO / 1440} dias, " \
              "então programei pro máximo (~#{minutes} min) — vai chegar ANTES do que ele pediu. " \
              'Se o retorno precisa mesmo cair só naquela data, deixe isso combinado com o time em vez de confiar na cutucada.'
     end
