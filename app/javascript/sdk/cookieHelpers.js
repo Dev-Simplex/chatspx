@@ -38,6 +38,8 @@ const stableString = value => {
     .sort()
     .map(key => `${key}:${stableString(value[key])}`)
     .join(',');
+};
+
 const CONVERSATION_COOKIE = 'cw_conversation';
 const CONVERSATION_TOKEN_TTL = 365 * 24 * 60 * 60 * 1000;
 
