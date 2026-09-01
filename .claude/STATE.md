@@ -10,6 +10,544 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-31] 🟢 FOLLOW-UP: a cutucada para de silenciar à noite e o horário do cliente para de sumir (PR #81)
+
+> Pedido do Paulo: *"e se o cliente chamou a Tozi às 23h? Ele não recebe cutucada? Uma redução na
+> cadência seria interessante, não silenciar por completo"*. As três camadas que ele nomeou —
+> **cutucada** (sutil), **agendamento** (o cliente diz a hora) e **repescagem** (fora da janela) —
+> estavam fundidas num mecanismo só, e as regras da primeira apagavam a segunda.
+
+- 🔴 **Erro meu de medição, corrigido antes de virar desenho:** a 1ª consulta usou
+  `AT TIME ZONE 'America/Cuiaba'` numa coluna `timestamp without time zone` que guarda **UTC** —
+  o deslocamento dobrou e saiu uma distribuição impossível (2 mensagens às 10h, 4.182 à
+  meia-noite). Refeita convertendo pelo Rails. **Ler o tipo da coluna antes de converter fuso.**
+- **O dado que derrubou a faixa antiga** (mensagens do CLIENTE por hora, 14 dias, 21.218 no total):
+  21h=242 · 22h=156 · 23h=99 · **0h–5h≈114 no total** · 6h=157 · **7h=667**. Às 7h há mais
+  movimento que às 18h (428). O silêncio de **21h→8h cobria duas pontas com gente conversando**;
+  a faixa real de descanso é 0h–6h. Passou a **22h→7h**.
+- **Dentro da faixa a cutucada desacelera, não se cala.** A régua é a **última fala do cliente**:
+  quem escreveu na última hora recebe, com espaçamento de 45 min contados da fala dele; quem já
+  sumiu espera a manhã. **Não precisou de contador novo** — se ele não responde à cutucada da
+  noite, a seguinte já o encontra fora da janela de "acordado" e cai pro dia seguinte: no máximo
+  uma por noite, por construção.
+- 🔴 **A armadilha que quase furou a faixa inteira:** o `compromisso?` do job lê `followup_motivo`,
+  e `motivo` é **obrigatório** na ferramenta — ou seja, ele significa "programado pelo agente",
+  **não** "o cliente marcou hora". Usá-lo como critério de isenção liberaria **toda** cutucada.
+  Quem marca hora é a `janela`, e é ela que isenta. Os dois conceitos agora são predicados
+  separados, com o `compromisso?` intacto onde ele já valia (a despedida educada não desmarca o
+  combinado — conv 20320).
+- **A janela é consumida ao ser cumprida** (vira `followup_janela_cumprida`, preservando o rastro):
+  senão a isenção da faixa vazaria pras cutucadas preventivas seguintes da mesma conversa. É a
+  mesma armadilha que o consumo do `motivo` já tratava.
+- **Teto separado:** cutucada segue em 2 dias, horário pedido pelo cliente vale **7**. Com um teto
+  só, *"quinta de manhã"* era encurtado calado pra **quarta 20h** e *"sábado à tarde"* também — a
+  cutucada chegava **antes** da hora e ninguém ficava sabendo.
+- 🔴 **Dois buracos no parser que o próprio teste expôs**, os dois terminando em `minutos_ate = nil`
+  e no palpite do modelo prevalecendo: **`"me chama as 21h30"` não casava** (o padrão terminava em
+  `\b` e entre o `h` e o `3` não há fronteira de palavra — a forma mais comum de dizer hora
+  quebrada em português era a única que falhava, enquanto `21h` e `21:30` funcionavam); e
+  **`"semana que vem"` não era data nenhuma** (o cliente pedia uma semana e a cutucada saía
+  minutos depois).
+- **Medido:** spec do job **24 exemplos / 0 falhas** (6 novos) · rubocop **4 no ramo × 4 no
+  baseline** nos mesmos arquivos · parser exercitado em **14 formas reais** na `.232`, com
+  controle (`"quando der"`, `"assim que puder"`, `"sem pressa"` seguem nil — não inventa janela).
+  **Harness de conduta não foi rodado de propósito:** a mudança é toda de código de agendamento,
+  nenhum prompt nem descrição de ferramenta foi tocado.
+- ⏭️ **[PR #81](https://github.com/Dev-Simplex/chatspx/pull/81)** aberto contra a `homologacao`
+  (3 commits, 3 arquivos). Só vale na Tozi depois de mergear + promover + deployar.
+- ⏭️ **Repescagem segue não existindo** — decisão mantida. Fora da janela de 24h a cutucada morre
+  definitivo; quem bate na porta lá fora é template, e essa forma não foi construída.
+- ⚠️ **Bordas declaradas no PR:** `"hoje às 18h"` dito às 20h30 agenda pra amanhã (o `momento_de`
+  empurra janela vencida, e cutucar no passado não é opção) · o `business_hours` do assistente
+  segue ignorado pelo job, dívida já registrada no `docs/contratos/eixo-followup.md`.
+- ⚠️ **Sobra na `.232`:** worktrees de CI `/tmp/ci-followup` e `/tmp/ci-fu-base`.
+
+### [2026-08-31] 🔴 CONV 32808 — mais DUAS cegueiras do juiz, e a nota 4 quase toda indevida
+
+> O Paulo leu o atendimento, achou a condução boa e questionou a nota 4 com 5 categorias.
+> Conferi finding a finding: **a maioria não procedia**, e por duas causas novas.
+
+- 🔴 **ÁUDIO virava `[audio]` no transcript.** O cliente perguntou **por áudio** *"essas
+  casinhas aonde mesmo? que cidade que é?"*; a IA respondeu *"É aqui em Sinop mesmo, MT"* — a
+  resposta EXATA — e levou **`nao_respondeu_pergunta` ALTA**, porque pro juiz ela falou de
+  Sinop do nada. O agente recebe a transcrição; o juiz recebia o rótulo do anexo.
+- 🔴 **O `SPEC_CHAR_LIMIT` de 14k cortava a norma no meio.** **7 dos 8 agentes truncados** —
+  Júlia perde **71%**, Bruna 64%, Sofia 56%, Clara 47%. O estrago: a regra *"quando há
+  restrição no nome existem produtos da casa que atendem"* mora no **char 15.825** do prompt
+  da Júlia. Ela cumpriu à risca e levou **`info_incorreta` ALTA em cima da própria norma**.
+- **Os outros findings:** `handoff_ausente` **e** `handoff_tardio` na MESMA conversa
+  (incoerentes entre si; o handoff saiu em **7 minutos**) · o juiz reclamou de ela seguir
+  respondendo depois do handoff, mas o retorno da ferramenta manda *"CONTINUE atendendo até o
+  atendente assumir"* · `repeticao` contada **3x pro mesmo trecho**, inflando a nota pra baixo.
+  **Procedia só o `quebrou_regra`** (a Clara qualificando renda contra a norma dela).
+- ✅ **No mesmo [PR #78]:** transcrição de áudio via `content_for_llm` (método que o próprio
+  `Message` já expõe) + **`SPEC_CHAR_LIMIT` 14k → 60k**. Custo medido: **+8,4k tokens/avaliação
+  × 254/dia ≈ US$ 26/mês** no gpt-4.1-mini, e menos com prompt caching (o `spec_context` é
+  idêntico entre avaliações do mesmo agente). **11 exemplos / 0 falhas · rubocop 11 = 11.**
+- 🟢 **O defeito que o Paulo viu e o juiz não tem categoria: PERGUNTA FECHADA.** O cliente
+  respondeu **"Sim" 4 vezes seguidas**, e a IA teve que voltar e perguntar *"você mora de
+  aluguel, é isso?"* pra desfazer a ambiguidade que ela criou. Virou **cenário do harness**
+  (`pergunta aberta, não interrogatório`) — mediu **3/6 e 5/6**, piso no **pior**, porque
+  vermelho intermitente por variância ensina a ignorar o vermelho.
+- **Conjunto de regressão: 8/8 dentro do piso** depois de tudo.
+- ⚠️ **Erro meu no caminho:** escrevi `\b` em string Python não-raw e gravei **4 bytes 0x08**
+  no YAML do harness — `Psych` recusou o arquivo inteiro. Segunda vez no dia que escape de
+  string me morde (a 1ª foi `\m` em heredoc de SQL).
+
+### [2026-08-31] 🔴 O JUIZ JULGAVA CEGO — e o Paulo pegou lendo as conversas (PR #78)
+
+> O digest começou a chegar no grupo e o Paulo leu as 5 primeiras de duas rodadas. Discordou:
+> *"pra mim o único defeito foi falta de follow-up"* e *"nenhuma estava apta a fazer handoff"*.
+> **Ele tinha razão, e eu tinha confirmado o contrário.**
+
+- 🔴 **O "R$ 500/mês" NÃO era alucinação — é o texto do anúncio.** As conversas trazem
+  `meta_anuncio: "Saia do aluguel — a partir de R$ 500/mês"` nos `custom_attributes`, e o
+  **agente RECEBE isso no state** (conferido: `'500' presente = true`). A Clara repetiu o
+  criativo, que é o comportamento certo.
+- 🔴 **ERRO MEU DE MÉTODO:** eu "confirmei" a alucinação procurando o valor no prompt e nas
+  FAQs. Não olhei nos atributos da conversa, que era onde estava. Cheguei a escrever que era
+  "invenção pura" com 128 ocorrências.
+- **A causa no código:** `conversation_eval_service.rb` **não menciona `custom_attributes` em
+  lugar nenhum**. O juiz recebe prompt do agente (truncado em 14k), transcrição e tool calls —
+  e **nada da origem**. Vê a IA citar o valor sem fonte visível e marca `alucinacao` alta.
+- **Escala:** **61 dos 275** findings de alucinação em 30 dias vêm de conversa com
+  `meta_anuncio` carimbado. A amostra confirma (conv 6066 acusada por dizer exatamente a frase
+  do próprio anúncio dela).
+- ✅ **[PR #78](https://github.com/Dev-Simplex/chatspx/pull/78):** bloco `ORIGEM DA CONVERSA`
+  no prompt do juiz (anúncio, campanha, origem, tipo, jornada — os mesmos campos do agente),
+  dizendo que a origem é **fonte legítima**; `handoff_ausente` passa a exigir **gatilho
+  concreto** e diz que *resolver sozinha é o esperado* (pedido do Paulo: "nem toda conversa
+  precisa ser transferida para humano"); e **`transferencia_ausente` nasce separada** de
+  `handoff_ausente` — IA→IA e IA→humano eram o mesmo balde.
+  **8 exemplos / 0 falhas · rubocop 11 = 11 do baseline.**
+- 🟡 **A CUTUCADA DA CLARA — conduta NÃO resolveu, e isso é o dado.** Decisão do Paulo
+  ("cutucada"). Diagnóstico: ela era a **única dos 8 agentes sem `programar_followup`** e o
+  prompt dela **não citava follow-up em nenhuma linha**. Escala: **208 conversas dela abertas
+  sem humano em 30 dias, 159 paradas há +48h, 205 sem cutucada**.
+  - **Aplicado:** ferramenta habilitada + seção de conduta copiada quase byte a byte da Júlia
+    (que usa 92x/30d, então é texto provado). Backups
+    `/tmp/assistant_7_{ins,tools}_followup.bak-20260831102906` e `_ins_fu2.bak-20260831103054`.
+  - 🔴 **Medido, e não funcionou: cutucada 0/6 → 0/6 → 1/6** (a 3ª medição já com a seção
+    movida pro FIM do prompt, testando a hipótese de posição). **Conduta escrita não segura
+    isso** — é a mesma lição do dia inteiro.
+  - 🟢 **Efeito colateral que resolve o problema por outra via: a transferência pra Júlia foi
+    de 0/6 → 3/6 → 5/6.** E aí não cutucar está CERTO: a Júlia assume, e ela tem e usa
+    cutucada. O lead deixa de morrer porque passa pra quem sabe cuidar dele. ⚠️ Não isolei a
+    causa (N=6, sem controle) — não afirmo causalidade, só registro o antes e o depois.
+  - ⏭️ **O conserto durável é determinístico, não conduta:** um job que varre conversa de IA
+    parada há X horas sem humano e dispara a cutucada. Não depende de o modelo lembrar.
+- ✅ **O harness (PR #77) fez o trabalho dele:** rodado depois de mexer na Clara, acusou
+  "taxa de condomínio" em 4/6. **Era falso negativo do MEU detector** — as respostas diziam
+  *"nenhuma das duas fica em condomínio"* e o regex só aceitava *"não ficam"*. Corrigido →
+  **7/7 dentro do piso**. É a 3ª vez que detector grosseiro acusa falha onde não houve.
+- ⚠️ **O que o juiz NÃO pega e o Paulo viu:** as 4 conversas estão paradas há **88–95h**, sem
+  humano, sem follow-up. O juiz mede aderência à norma; não mede lead que morre.
+- ✅ **A Clara transfere sim** — 661 `transferir_para_agente` em 30 dias, 49 dos 94 leads de
+  anúncio. Nas 4 que ele leu, não transferiu.
+- **Digest: teto removido a pedido dele** (`nota_maxima` fora, `limite: 50`, e o nó do n8n
+  sem `TETO`). Motivo medido: o corte em 2 na rodada de 30/08 deixou passar **1 de 6**, e
+  entre as 5 silenciadas estava a **conv 4809** — a que gerou toda a investigação de sexta.
+- ⚠️ **Bug meu no nó do n8n:** o Webhook entrega o corpo em `.body`, não na raiz — o fluxo
+  concluía "dia sem falha grave" com 13 conversas no payload. Corrigido.
+- 🔴→✅ **O DIGEST CHEGAVA ÀS 11h, NÃO ÀS 7h — erro meu, corrigido em 31/08.** O sidekiq-cron
+  agenda no **`Time.zone` da aplicação** (`America/Manaus`, UTC-4), **não em UTC**. Meu
+  comentário no `schedule.yml` dizia *"11h UTC = 7h em America/Cuiaba"* e estava errado nos
+  dois sentidos: `0 11` disparava às **11h da manhã do próprio cliente**. Ele recebeu assim
+  **três dias** antes de notar.
+  - **Corrigido nos dois lugares:** ao vivo via `Sidekiq::Cron::Job.create` (sem deploy — já
+    está `0 7 * * *` e `enabled`) **e** no `config/schedule.yml` dentro do **PR #77**, senão o
+    próximo deploy reverteria. Conferido: os outros 21 jobs do cron intactos.
+  - ⚠️ **A lição:** cron de agendador não é UTC por padrão. O número no `schedule.yml` agora
+    diz de qual fuso ele é.
+
+### [2026-08-28] 🔴 O EVAL JÁ TINHA PEGADO — ninguém consome · e a SOFIA foi aposentada
+
+> Duas perguntas do Paulo depois da conv 4809: por que o Eval não pegou, e por que a Sofia,
+> que devia ter morrido em 28/07, ainda atende alguém.
+
+**1. O Eval pegou. O sinal não chega a ninguém.**
+
+- Das 5 conversas que ele mandou de manhã, a **4236 já estava avaliada às 14:07 com nota 5** e
+  findings de severidade ALTA: `contradisse_tool` ×4, `alucinacao` ×2, `promessa_indevida` ×2,
+  `info_incorreta`. **Antes de ele me mandar.** Um dos findings é literalmente *"o endereço que
+  mandei é o que está registrado no sistema"*.
+- **Volume de 30 dias na conta 6:** `contradisse_tool` **583** · `promessa_indevida` **376** ·
+  `alucinacao` **311** · `quebrou_regra` 554 · `usou_tool_errada` 121. **380 conversas com finding
+  grave da IA, nota média 5,2.**
+- **A lista já existia.** Passei o dia descobrindo lendo conversa o que o eval tinha catalogado.
+- **Rastro de uso:** a anotação `#eval` (única ação que deixa marca) tem **8 registros desde
+  sempre, os últimos de 29/07**. O time usou dois dias em julho e parou.
+- 🔴 **Lacuna estrutural A — episódio ABERTO nunca é avaliado.** O juiz tem
+  `return if episode.ended_at.blank?`. Na Tozi conversa não fecha, então uma fatia do tráfego é
+  invisível ao eval por construção. Das 5 conversas, **3 não tinham avaliação** exatamente por
+  isso (4809, 32730, 32755) — todas com episódio aberto.
+- 🔴 **Lacuna estrutural B — nada empurra o achado.** É painel que alguém precisa abrir. Sem
+  alerta, sem digest, sem fila priorizada.
+- ✅ **O juiz NÃO é o problema:** ele recebe as tool calls intercaladas no transcript
+  (`[TOOL nome args=... => resultado]`, `conversation_eval_service.rb:179`) e tem as categorias
+  certas — `contradisse_tool` diz *"a ferramenta confirmou um dado e a IA afirmou outro"*.
+- ✅ **[PR #76](https://github.com/Dev-Simplex/chatspx/pull/76) — DIGEST DIÁRIO CONSTRUÍDO.**
+  `Spx::EvalDigestJob` + scheduler + mailer + view + cron (11h UTC = 7h Cuiabá). Agrupa por
+  conversa as avaliações com finding **grave da IA**, ordena pela pior nota, manda por e-mail com
+  link direto. **Opt-in por conta** (`custom_attributes['eval_digest']`) e **destinatário é lista
+  explícita, nunca "todos os admins"** — a conta 6 tem **25 administradores**, e e-mail que chega
+  pra 25 pessoas não é de ninguém (é exatamente por essa via que a notificação nativa já é
+  ignorada).
+  - **Dois silêncios deliberados:** dia sem falha grave **não** gera e-mail (digest que chega
+    sempre vira filtro de caixa de entrada); mas o eval não ter avaliado **nada** gera alerta,
+    porque aí a notícia é que o cron parou.
+  - **Medido:** 12 exemplos / 0 falhas · rubocop **0** nos 5 arquivos · prévia contra a prod
+    (317 avaliados em 24h → **13 conversas** com falha grave).
+  - 🔴 **A primeira prévia já achou um padrão que ninguém tinha visto:** as **4 piores notas do
+    dia (2, 2, 3, 3) são o MESMO defeito** — a Clara qualificando renda a fundo e afirmando valor
+    de parcela em lead de MCMV, em vez de transferir pra Júlia. `handoff_ausente` + `alucinacao` +
+    `quebrou_regra` nas quatro.
+  - ✅ **WEBHOOK também**, porque e-mail é onde o digest morreria: medido antes de escolher —
+    a conta 6 **não tem inbox WAHA** (grupo não existe em Cloud API), a inbox interna "Notas"
+    (#93) está **parada desde abril** (12 msgs, zero membros), a **janela de 24h está fechada**
+    e os **41 templates aprovados são todos de campanha**. WhatsApp exigiria aprovar um HSM só
+    pra aviso interno. Do webhook o Paulo pluga no n8n e manda pra onde quiser.
+  - **Um payload, dois usos:** vai o dado estruturado **e** um campo `texto` já formatado — quem
+    só encaminha usa o texto, quem monta a mensagem usa o resto. Sem opção extra pra errar.
+    Os dois destinos coexistem (só e-mail, só webhook, ou ambos).
+  - **Medição final:** **17 exemplos / 0 falhas** · rubocop **0** nos 5 arquivos.
+  - ✅ **LIGADO NA CONTA 6 e provado ao vivo:** webhook do n8n do Paulo respondeu **HTTP 200
+    "Workflow was started"** com o payload real. Config: `enabled`, `webhook_url`,
+    `nota_maxima: 2`, janela 24h, limite 15.
+  - ✅ **Os PRs #75 e #76 JÁ ESTÃO EM PRODUÇÃO** (HEAD `6293c29b0`) — alguém mergeou e deployou
+    no mesmo dia. Conferido no **processo vivo**, não só no disco: rótulos
+    `[NÃO fica em condomínio fechado]` e `(taxa de condomínio R$ 300)` carregados em memória,
+    cron do digest registrado no Sidekiq (22 jobs), zero migrations pendentes.
+  - 🔴 **A MEDIÇÃO QUE MUDA A EXPECTATIVA: o eval leva 24h.** Mediana de **1.442 minutos**
+    (p90 1.491) entre o fim do atendimento e o veredito. **Não é latência do digest** — é do
+    ciclo do avaliador, que só julga episódio FECHADO, e episódio fecha por inatividade.
+    **Alerta "no instante do erro" NÃO sai do eval.** Aviso em tempo real teria que vir de
+    guarda determinística no turno (como as do #75), não do juiz.
+  - ✅ **[PR #77](https://github.com/Dev-Simplex/chatspx/pull/77) — corte por nota**, pedido do
+    Paulo ("deveria acontecer por erro, não por rotina"). Sem corte são ~13/dia = relatório =
+    paisagem. Medido em 14 dias: **nota ≤ 2 → 2,5/dia (pico 6)** · ≤ 3 → 4,1 (pico 9) · ≤ 4 →
+    5,1 (pico 14). **Decidido: corte em 2** — é o único que cabe num grupo e deixa dias em
+    silêncio. Avaliação SEM nota fica de fora (nota nula não é evidência de falha).
+    **21 exemplos / 0 falhas**, rubocop 0. ⏭️ Até o deploy do #77 o digest manda 13 (mas o nó
+    do n8n corta em 5 e mostra "+N no painel").
+  - ⚠️ **Bug meu no nó do n8n, corrigido:** o Webhook do n8n entrega o corpo em **`.body`**, não
+    na raiz. Eu lia da raiz → tudo `undefined` → o fluxo concluía "dia sem falha grave" com 13
+    conversas no payload. O nó corrigido está no scratchpad da sessão.
+  - **Guardas anti-poluição ficam no nó do n8n**, não no canal: **1 item de saída sempre** (o
+    erro clássico é `Split Out` no array e o grupo receber 13 mensagens), teto de 5 na mensagem
+    com "+N no painel", e `enviar: false` cortado por um IF.
+  - ⏭️ **Decidi NÃO abrir a frente de alerta em tempo real agora:** o #75 já pôs guarda
+    determinística onde importava (o dado não chega ao modelo, então não pode vazar), e
+    prevenir vale mais que avisar sobre erro já enviado ao cliente.
+- ⏭️ **O conserto caro segue aberto:** avaliar também episódio ABERTO parado há X horas.
+
+**2. SOFIA #19 APOSENTADA** (banco, sem deploy).
+
+- **Diagnóstico:** 260 conversas, **todas abertas**, todas inbox 91 · **0 com humano atribuído** ·
+  **196 (75%) o cliente NUNCA falou** · **apenas 2 com cliente ativo em 30 dias** · **zero leads
+  novos há mais de 30 dias** (o hook #8 manda tudo pra Júlia). Ela vivia só da cauda do Pacaembu
+  de junho/julho que reabre.
+- **A premissa do plano de 28/07 nunca se cumpriria:** *"desligar quando as abertas resolverem"* —
+  a Tozi não resolve conversa.
+- **A Júlia assume sem perder nada:** 47.691 chars × 31.610 · 19 docs × 3 · 45 FAQs × 6 · e
+  **5 ferramentas a mais**. A Sofia não tinha ferramenta exclusiva nenhuma.
+- 🔴 **A única perda real era o doc #28 "Fronteira: casas MCMV x apartamentos"** (5 chunks) — a
+  guarda que diz que casa Pacaembu **não é condomínio fechado, não tem portaria, não tem taxa de
+  condomínio e é sempre 2 quartos**, com FAQs. Copiado pra Júlia como **doc #29** antes de migrar.
+  O doc #7 (catálogo monolítico, 114 chunks) ficou de fora de propósito: foi substituído em 28/07
+  pelos 17 fact-sheets por empreendimento.
+- ⚠️ **Armadilha na cópia:** o `external_link` desses docs é identificador FALSO
+  (`https://tozi.local/...`), e o `after_create_commit :enqueue_crawl_job` deixou o doc novo preso
+  em `in_progress` com 0 chunks, com o `CrawlJob` em retry pra sempre. Resolvido forçando o
+  `ChunkBuilderJob` e marcando `available`. **Provado:** a Júlia recupera o chunk certo (antes caía
+  no Playbook genérico).
+- **Decisão do time de handoff (delegada a mim): 26 "vendas"**, não 67 "leads meta" — 2 pessoas
+  contra 1, 76 abertas contra 444, e "leads meta" é resíduo do modelo por ORIGEM que o Paulo
+  substituiu por ESPECIALIDADE em 28/07. **O `team_id` das 260 não foi tocado:** o `resolve_team`
+  move a conversa sozinha quando houver handoff real.
+- **Estado final:** Sofia `inboxes=[]`, 0 conversas · Júlia com 453 · assistente, prompt e
+  knowledge **intactos** (só parou de responder).
+- **Reversão:** `/tmp/sofia_aposenta.bak-20260828174200.json` na VM + recriar o `CaptainInbox`.
+
+### [2026-08-28] 🟢 PROMPTS DA TOZI — 37 falas prontas removidas e a contradição da visita desfeita (banco conta 6, sem deploy)
+
+> Queixas de comportamento do time. Pesquisa de prompting (08/2026) + anatomia medida dos 8 prompts
+> antes de mexer. **Nada de código, nada de deploy** — só `config['instructions']` da conta 6.
+
+- **A anatomia que motivou:** Júlia **47.649 chars, 207 linhas, 40 seções, 103 linhas-regra (72%)**;
+  Bruna 37.820/34 seções; Clara 25.133/27. A regra de visita mora a **44-45% do prompt** — o miolo,
+  onde a recuperação é pior. **31 linhas estão duplicadas em 3+ agentes**, 6 nos oito.
+- **O que a pesquisa diz e explica as falhas:** adesão cai com a **contagem de restrições
+  condicionais**, não com o comprimento (103 regras a 98% cada ≈ 12% de acertar todas); proibição
+  negativa é a forma mais fraca; exemplo de fala vira cópia literal.
+- 🔴 **O inventário derrubou metade da minha própria proposta.** Eu ia remover ~77 trechos entre
+  aspas. Medido: **a maioria é fala do CLIENTE usada como gatilho** (`"perto de X"`, `"tá caro"`,
+  `"onde fica?"`) — removê-las quebraria as regras. Só **37 eram fala da IA**, e essas saíram.
+- **15 substituições aplicadas em 7 agentes** (Helena não tinha nenhuma): fecho de serviço (6
+  agentes, byte-idêntico) · `"vai te chamar"`/`"vai passar pro consultor"` · `"deixei sua mensagem
+  registrada, o time retorna amanhã"` · `"o time já vai te retornar"` · `"não temos no bairro X"` ·
+  `"não temos nessa faixa"` · `"te esperamos"`/`"qualquer coisa estou por aqui"` · `"fico no
+  aguardo"` · e a pior de todas, **`"temos de 2 e 3 quartos"`** — a afirmação FALSA sobre o Pacaembu
+  escrita por extenso no prompt da Júlia.
+- **🔴 A CONTRADIÇÃO QUE O TIME SENTIU:** a seção `# Visita e chave` da Bruna proibia cravar horário
+  **e, três linhas depois, mandava perguntar dia e período**. Nos 89% de imóveis avulsos não existe
+  agenda a combinar (a chave se retira na loja), então perguntar É a promessa. Medido antes:
+  **3/3 perguntavam dia e período** tanto no avulso quanto no condomínio — a IA **não distinguia**.
+- **Regra nova ancorada em DADO, não em prosa:** o `buscar_imovel` já devolve
+  `[em condomínio fechado]` / `[imóvel avulso, sem condomínio]`, e o `Condominio` do Vista está
+  preenchido em **106/106** da locação. A seção passou a abrir pelo rótulo. Se ele não estiver à
+  vista, a conduta manda **chamar `buscar_imovel` pelo código** antes de conduzir.
+- **Medido em 6 rodadas por cenário, `generate_response` em transação revertida:** avulso
+  **0/3 → 6/6** explicando a retirada da chave · condomínio **6/6** dizendo *"a visita é agendada e
+  acompanhada"* · Pacaembu 6/6 negando sem a frase proibida · controle `[IGNORAR]` intacto.
+- 🔴 **ERRO DE MÉTODO MEU, corrigido no meio:** com **N=3** li "0/3, consertado" e com **N=2** li
+  "voltou a falhar" — as duas leituras erradas, por amostra pequena. **N≥6 por cenário** é o piso
+  para conduta. E a 1ª versão do parágrafo do avulso usava *"NÃO pergunte dia nem período"* —
+  proibição negativa, a forma que a própria pesquisa condena. Trocada por ação positiva
+  (*"EXPLIQUE como funciona: a chave se retira no escritório"*): foi o que levou de 5/6 a 6/6.
+- ⚠️ **Achado colateral:** numa das 12 rodadas a Bruna **inventou o endereço** — disse "Rua das
+  Margaridas" para o imóvel 9887, cujo cadastro é "Rua Projetada 01, 1212". Classe conhecida
+  (Catatau, 11/08), não causada por esta mudança, mas segue aberta.
+- **Reversão:** `/tmp/assistant_{7,13,14,15,16,17,19}_ins_aspas.bak-20260828132125`,
+  `/tmp/assistant_14_ins_visita2.bak-20260828133000` e
+  `/tmp/assistant_14_ins_condominio.bak-20260828161723` na VM.
+
+- 🔴 **REGRESSÃO QUE EU CAUSEI E CORRIGI NO MESMO DIA (conv 4809, 15:20 — depois do meu deploy
+  de conduta das 13:30).** O Paulo trouxe a conversa; a primeira coisa que checkei foi se o
+  problema era meu. Era, em parte.
+  - **O dano:** a seção nova mandava *"leia a marca [em condomínio fechado] / [imóvel avulso]"*,
+    mas o retorno do `buscar_imovel` usa a palavra **"condomínio" com dois sentidos na mesma
+    linha** — `(condomínio R$ 300)` é a **taxa** (`ValorCondominio`) e `[imóvel avulso, sem
+    condomínio]` é o **fato** (`Condominio`). Eu elevei a saliência da palavra sem desambiguar,
+    e o modelo passou a usar a taxa como evidência.
+  - **Medido no cenário real, N=6 de cada lado:** backup de antes **4/6 certas** → depois da
+    minha mudança **2/6**, com 3 respostas afirmando categoricamente *"as duas são em condomínio
+    fechado"*. Uma delas emendava *"a visita é agendada e o consultor acompanha"* — **a regra de
+    visita amplificou o erro de leitura**.
+  - **Corrigido** com bloco de desambiguação na própria seção (taxa ≠ estar em condomínio; a
+    única evidência é o colchete; sem o colchete à vista, buscar pelo código): **5/6 certas**, e
+    as certas explicam a distinção. Não-regressão conferida: visita **6/6 no avulso e 6/6 no
+    condomínio**.
+  - ⏭️ **O conserto durável é no tool, não na conduta:** renomear para `taxa de condomínio R$ X`
+    e `[fica em condomínio fechado]` / `[não fica em condomínio fechado]`. Enquanto a linha for
+    ambígua, a conduta só compensa.
+  - **Os outros 4 defeitos da 4809 NÃO são meus** — conferido: invenção de imóvel deu **0/6** no
+    turno exato que a gerou (é evento raro, não induzido), e distância/insistência/mobiliado são
+    áreas que a mudança não tocou.
+
+### [2026-08-28] 🔴 CONV 4809 — cinco defeitos numa conversa só, e a IA inventou um imóvel inteiro
+
+> Queixa do gerente: *"falou sobre imóvel que não temos mais, ficou insistindo em dois imóveis
+> deslocados"*. O consultor (Adrian) teve que pedir desculpas. Lead de site parado desde fevereiro,
+> reaberto em 28/08 15:20. Júlia → Bruna transferiu certo; o resto quebrou.
+
+- 🔴 **NÃO era "imóvel que não temos mais" — ela INVENTOU um que nunca existiu.** Ofereceu *"Casa no
+  Residencial Jardim Itália - 3 quartos, R$ 1.400/mês, 2 vagas"*. Não estava na busca daquele turno;
+  no acervo, "Jardim Itália" tem **6 kitnets de 1 quarto e 1 apartamento de 2 — zero casas**; e o
+  código que ela usou (3210) **não existe** no Vista. **A cliente escolheu justamente esse.** Quem
+  segurou foi a trava do `enviar_fotos_imovel` (*"o código 3210 não apareceu na busca"*) — a IA teve
+  que voltar atrás 20s depois. **A trava protege a FOTO, não a FALA.**
+- 🔴 **Contradição sobre condomínio** — ver a regressão acima. Causa dupla: linha ambígua do tool +
+  minha mudança de conduta.
+- 🔴 **"Essas ficam próximas ao Centro" é falso:** Bella Morada II a **5,89 km**, Jardim Aurora a
+  **8,96 km**. O próprio retorno da busca mandava *"deixar claro que não são do bairro solicitado"*.
+  O tool **calcula distância** quando recebe lat/lng — ela não passou. Com a chave do Google agora
+  validada, isso vira número em vez de opinião.
+- **Insistência:** as mesmas 2 casas em 4 blocos (15:25 · 15:27 · 15:29 · 15:32). A cliente fechou
+  com *"Por enquanto nem uma me agradou"*. O acervo só tem **2 casas** naquela faixa — não havia
+  terceira, e a IA repetiu em vez de reconhecer o esgotamento.
+- 🔴 **Prometeu buscar mobiliada e não buscou — nem conseguiria.** *"Vou buscar pra ver se tem
+  alguma casa mobiliada"* e **zero tool call depois**. O Vista **não permite filtrar por mobiliado
+  na listagem** (HTTP 400; o campo só existe em `/imoveis/detalhes`, um por vez). Medido no acervo
+  inteiro: **4 de 106 imóveis de locação são mobiliados**. O Adrian mandou 3 deles na mão — e o
+  quarto é **uma CASA (cód 8849, Jardim Celeste, R$ 2.600)**, exatamente o que a cliente pediu, que
+  **ninguém ofereceu**.
+- Ruído: **handoff chamado 5x** (4 recusados) e abertura com anúncio vazio (*"Vi seu interesse no
+  anúncio ''"*).
+- ✅ **[PR #75](https://github.com/Dev-Simplex/chatspx/pull/75) ABERTO** (`PauloSeze/busca-imovel`,
+  3 commits, 7 arquivos, +754/−35) com os cinco consertos em CÓDIGO, mais a régua de endereço em
+  venda e a **regressão de conduta**:
+  - `taxa de condomínio R$ X` × `[FICA em condomínio fechado]` / `[NÃO fica em condomínio fechado]`
+  - lista **numerada** com o total explícito e a instrução de não completá-la de memória
+  - geocoding da referência pedida → a distância vai na linha de cada alternativa, com **veto pelo
+    raio urbano** (o Google devolve homônimo em vez de dizer que não achou)
+  - `mobiliado` vira parâmetro filtrado pelos detalhes (agora **cacheados**, 6h), com estado
+    explícito quando nada bate
+  - **pin do BAIRRO em venda** (coordenada do Google, acervo só como verificador) + logradouro e
+    número mascarados na descrição
+  - 🔴 **o spec pegou um bug meu:** o regex do endereço exigia o "nº" literal, então
+    *"Rua das Palmeiras, 1234"* saía com a rua mascarada e **o número na frase** — metade do
+    vazamento passando.
+  - **Medido:** `spec/enterprise/lib/captain/tools/` **259 exemplos / 0 falhas** · rubocop **19
+    ofensas contra 23 no baseline** (abaixo; os 3 arquivos novos não somam nenhuma) · regressão de
+    conduta **7/7 cenários dentro do piso** contra a prod.
+- ✅ **CHAVE DO GOOGLE LIGADA na conta 6** (`AccountIntegration` provider `google` +
+  `geo_city: Sinop MT`). O `buscar_localizacao`, que falhava **12/12 em 7 dias**, voltou a
+  responder. Sem deploy — é config.
+- ✅ **Conduta:** a **Sofia #19 não tinha regra nenhuma de visita** (só a Júlia tinha) — ganhou a
+  seção, com a régua que o Paulo fechou em 28/08: **qualquer visita de venda é acompanhada por
+  corretor, sem exceção de categoria**. E a Bruna parou de citar o **texto literal** do rótulo de
+  condomínio, que o PR renomeia — conduta presa a literal quebraria em silêncio no dia do deploy.
+- 🟢 **NOVO: `spx:conduta:regressao`** (`lib/tasks/spx_conduta.rake` +
+  `Spx::Conduta::Regressao` + `docs/clientes/tozi/conduta-regressao.yml`). Roda cenários
+  congelados contra os prompts do banco, N≥6 por cenário, pelo mesmo caminho do
+  `ResponseBuilderJob`, em transação revertida. **Piso honesto** (5/6 onde o comportamento
+  oscila) para acusar piora real em vez de variância. Os 7 casos são incidentes reais.
+  ⚠️ **Ele já pegou dois problemas na estreia** — inclusive um cenário MEU mal construído, que
+  media 0/6 sem haver defeito nenhum (pedido de visita sem imóvel na mesa não é pedido de visita).
+- ⏭️ **Sobra na `.232`:** worktree de CI `/tmp/ci-buscaimovel`.
+
+### [2026-08-28] 🟢 ENDEREÇO EM VENDA: o vazamento é o PIN, não o texto · e a chave do Maps funciona
+
+> Régua do Paulo: **locação pode endereço completo; venda só bairro.** Medido na prod, 30 dias.
+
+- **Texto quase não vaza:** 105 mensagens da IA com logradouro+número — **44 são locação**
+  (permitido), **54 são eco do cliente**, e dos 4 "só venda" um é holerite casando o regex e outro
+  é o endereço do próprio escritório. **Sobram 2 vazamentos reais.**
+- **🔴 O PIN é o vazamento:** 33 envios de `enviar_localizacao_imovel`, sendo **7 de imóveis à
+  VENDA** — coordenada exata de 2 terrenos no Flamboyants, casa no Bonne Vie, kitnets no Vitória
+  Régia, casa no Novo Horizonte, empreendimento no Sonhalto e casa no Parque Amazonas.
+- **O canal do texto é a DESCRIÇÃO do Vista**, não o campo `Endereco` (que o `buscar_imovel` nem
+  pede): **6 de 50** descrições de venda trazem logradouro, e a Júlia fez **239 buscas por código**
+  em 30 dias — é o ramo `detalhado: true`.
+- **🟢 CHAVE DO GOOGLE VALIDADA** (Paulo enviou em 28/08): geocoding OK, e a Aquarela das Artes bate
+  na coordenada exata do link dele. **259/259 bairros do acervo "resolvem"** — mas o Google **nunca
+  diz que não achou**: cruzando com os imóveis reais, **67 (26%) caem a mais de 3 km**, sendo
+  *Jardim Belo Horizonte* (16 imóveis) a **518 km** e *Jardim Curitiba* (20 imóveis) a 28,9 km.
+  `components=locality:Sinop` quase não ajudou (70 → 67).
+- **Desenho decidido:** pin do **bairro** em venda (título = nome do bairro), pin do imóvel em
+  locação, e **o acervo como VERIFICADOR, nunca como fonte** — num bairro com 1 imóvel o "centro do
+  acervo" É a porta dele, e 116 dos 241 bairros de venda têm um único imóvel.
+- ⏭️ **Vira PR:** trava do pin + máscara da descrição em venda + linha 119 da Júlia / 58 da Bruna
+  invertidas. As duas primeiras são código — o modelo não recebe o dado, então não pode vazar.
+- ⏭️ **Régua de visita em VENDA segue pendente do Paulo:** terreno (corretor não acompanha na maior
+  parte), lançamento (não faz sentido visita) e o resto. O `Categoria` do Vista já separa os três.
+- ⏭️ **Controle de chave ADIADO por decisão do Paulo.** Registrado o desenho que ele quer (chave
+  fora da loja, devolução, prazo vencido, gatilho ao devolver) e a medição: o Vista **não expõe
+  empréstimo de chave** (`/chaves/*` = 404, campo `Chave` vazio em 106/106 da locação); a
+  `/agenda/listar` existe com 25.295 registros mas caiu de **3.515 (2024) → 1.003 (2025) → 584
+  (2026)** e só 3 de 30 têm imóvel vinculado. **Se for construir, nasce no SPX** — o gatilho só é
+  barato se o evento for nosso.
+
+### [2026-08-25/26] 🟢 A IA RESPONDEU COMENTÁRIO DE VERDADE — provado ao vivo na conta da BigStore
+
+> **CLIENTE BigStore · CONTA 7 · VM `.232`.** Piloto restrito a `@pauloseze`. Tudo abaixo rodou
+> contra a conta e o token REAIS, num banco descartável — **sem deploy nenhum**.
+
+- **🟢 A PROVA:** o Paulo comentou *"Qual valor Coca Cola?"* no post da Liquida. A IA leu as **20
+  imagens do carrossel**, achou o item e respondeu *"@pauloseze Oi! O bowl Coca está de R$ 10,00
+  por R$ 5,00 na promoção. Corre que é só até dia 31! 🧡"* — **entregue no direct dele**, com
+  `message_id` da Meta. Antes da leitura de imagem, a mesma pergunta virava *"consulte no direct"*.
+- **E ela cala quando é para calar:** no comentário *"Top"* devolveu `[IGNORAR]` explícito.
+- 🔴 **NADA DISSO ESTÁ DEPLOYADO.** A box está **26 commits atrás** e a tabela `social_comentarios`
+  **não existe** em produção. A configuração da conta 7 está gravada e correta, mas não há código
+  na box que a leia. O piloto nasce vivo no instante do deploy — e só para o Paulo.
+
+**Quatro achados que só a execução ao vivo produziu:**
+
+- 🔴 **A URL do CDN da Meta serve para nós e NÃO serve para o modelo.** Nossa box baixa a imagem
+  com HTTP 200; a OpenAI, na mesma URL, leva **403** (`invalid_image_url / Upstream status code:
+  403`). Os bytes têm que descer aqui e subir em base64. "Público" é propriedade de quem pede, não
+  da URL — e isso não está em documentação nenhuma.
+- 🔴 **`thumbnail_url` era `string(255)` e a URL do CDN é maior.** O `update!` estourava no meio da
+  captura, fora do rescue, e **matava o gatilho da IA**: comentário gravado, ninguém respondendo.
+  Colunas viraram `text` e a gravação entrou no rescue que o serviço prometia e não cumpria.
+- 🔴 **O runner devolve Hash de chaves STRING e o código lia com símbolo** — a IA gerava a resposta
+  certa e nada saía. **Passou pelo motivo errado no primeiro teste:** o comentário era "Top", que
+  dá `[IGNORAR]`, e os dois caminhos devolviam nil e se mascararam. E **o spec estava verde e
+  mentindo**, porque o dublê devolvia String e nunca exercitava o ramo de Hash.
+- 🔴 **A 2ª resposta privada ao mesmo comentário devolve `HTTP 500 code=1` genérico.** A Meta não
+  diz "já respondido". Quem tratar esse 500 como falha transitória insiste para sempre — a guarda
+  de idempotência é o que impede. Observado, não documentado.
+
+- **Sondagem inicial de capacidade (nada publicado):** a **privada** devolveu `400 / 2534014` —
+  erro de OBJETO, não de permissão. Depois **confirmada por envio real**. A **pública** devolveu
+  `500 code=1` e **segue DESCONHECIDA** — por isso está desligada. ⚠️ Contradiz a nota de 04/08 no
+  vault que dizia que a privada exigiria `graph.facebook.com` + Page Token: ela respondeu no
+  `graph.instagram.com`.
+- **Construído (PR #68):** os dois caminhos de envio com **chave separada por conta** · portão de
+  piloto · registro da tentativa · botão de resposta manual na tela · a IA respondendo **pelo mesmo
+  portão** do clique humano · e a **leitura das imagens da publicação**.
+- **Leitura de mídia:** uma leitura por item do carrossel (teto 20, com log se houver mais —
+  encarte truncado em silêncio responde errado com cara de completo). **Vídeo dentro de carrossel
+  é caso real** e desce pro temporário virando quadros no `Captain::VideoFrameExtractor`, que
+  ganhou entrada por CAMINHO para não existir um segundo ffmpeg no produto. Opt-in por conta
+  (`ler_midia`), uma vez por publicação, ~1 min e centavos por post. A leitura entra no contexto
+  **rotulada como leitura de imagem**, não como fato da casa.
+- **Medição:** 67 exemplos / 0 falhas nos specs da frente · rubocop **0** em 16 arquivos ·
+  `enterprise/services/captain` deu **38 falhas no ramo e 38 no baseline** (pré-existentes na box).
+- 🔴 **Allowlist vazia = NINGUÉM, nunca "todo mundo".** Sair do piloto é ato explícito
+  (`todos: true`). Tem spec para cada porta.
+- ⚠️ **A privada é UMA por comentário, com janela, sem segunda chance.** Grava-se a *tentativa*
+  (quando, id, erro), não um booleano. Falha fica sem `external_id` e o comentário segue pendente.
+- **Configurado na conta 7:** `social_reply = {privada: true, publica: false, allowlist:
+  ["pauloseze"], todos: false, ia: {ativa: true, assistant_id: 19, forma: "privada"}}`.
+- **Assistente #19 "Bia — comentários" criado** (989 chars), **sem inbox nenhuma** — não toca o DM.
+  A **Bia #18 segue com a inbox 57**, conferido depois. Persona derivada da que o próprio n8n do
+  cliente usava, **menos a linha de responder comentário negativo com ironia** — escolha de imagem,
+  não inventei sozinho.
+- ✅ **PARTE JÁ ESTÁ NA `homologacao`:** durante esta sessão alguém mergeou o #68
+  (`68debee18e merge(release): PR #68`) — captura, tela, portão de piloto e resposta manual estão
+  lá. **Segue aberto no #68** o que veio depois: a IA respondendo, os dois consertos e a leitura
+  de mídia. ⚠️ O merge tornou o PR CONFLITANTE (só `db/schema.rb`, disputa da linha de versão);
+  **resolvido nesta sessão** ficando com a migration mais recente, e a suíte rodou **122 exemplos
+  / 0 falhas** sobre o resultado, em banco novo carregado do schema resolvido.
+- ⏭️ **Para virar produto:** merge do resto do #68 → deploy na `.232`, que está **142 commits
+  atrás com 2 migrations pendentes**. ⚠️ Deploy dessa box **se mede na box** — o Almirante já
+  mentiu sobre ela (15/08).
+- ⚠️ **`ler_midia` NÃO foi ligada na conta 7 de produção** — só no ambiente de prova. Ligar é uma
+  chave, mas é custo de visão por publicação e a decisão é do Paulo.
+- 🔵 **Dívida de conduta que a própria prova criou:** o prompt do assistente #19 diz que ele *"não
+  tem nenhuma fonte de dados de loja conectada"*. Isso segue verdade para endereço e horário, mas
+  **deixou de ser para preço** quando o preço está no post. Se não ajustar antes de abrir para
+  cliente real, ele pode recusar responder algo que está lendo na frente dele.
+- **Reversão:** `a = Account.find(7); s = a.settings; s.delete('social_reply'); a.update!(settings: s)`
+  · `Captain::Assistant.find(19).destroy!`.
+- ⏭️ **Recomendação:** abrir pela privada — provada por envio real, e erro dela só o Paulo lê. A
+  pública segue com capacidade desconhecida e o primeiro envio dela é público.
+
+### [2026-08-25] 🟢 RODÍZIO v2 — **PR #67 pronto pra revisão** (8 commits): o motor sai do console e ganha relógio
+
+> Frente `PauloSeze/rodizio-v2`. Contrato: **`docs/SPEC-DISTRIBUICAO-V2.md`**. Cruzamento das
+> listas de operadores da Tozi × SPX no vault (`clientes/tozi-conversation-log.md`).
+
+- **O diagnóstico que motivou:** o motor da v1 está inteiro em produção e **nunca rodou** — as 4
+  tabelas com 0 linhas. Três causas: (1) `DistribuirService` tem **UM único ponto de chamada**,
+  dentro do `HumanHandoffService` — distribuição só existe onde a IA atende; (2) não havia como
+  configurar sem console; (3) a tela `RodizioPage.vue` está no ar desde 31/07 e **não tem entrada
+  de menu nenhuma**.
+- **Cruzamento das listas (medido):** dos **14 corretores** da tabela do Guilherme (vendas),
+  **8 existem no SPX e 6 não** (Alisson, Carlos, Marcos, Rosivane, Vander, Vinicius) — e
+  **nenhum dos 8 é membro do time de vendas**, que tem só Maria Vitoria e Cibele. Como o
+  `build_pool` intersecta com membros, ligar vendas hoje dá **pool vazio e `sem_pool` em
+  silêncio**. A planilha do Léo (locação) lista 2 consultores; hoje são **4 atendendo** —
+  Evellyn e Camila não estão nela.
+- **Entregue (4 fatias):** suspensão com prazo no pool (`suspenso_ate`, volta sozinha) · API
+  `GET/PATCH /teams/:id/distribuicao` (admin **ou gerente do time**) · passo **③ Distribuição** no
+  wizard de `/settings/teams/:teamId/edit` · tool **`registrar_preferencia_atendente`** · **repasse
+  por SLA** com relógio de expediente.
+- **🔴 O SLA quer dizer coisas DIFERENTES por modo de posse** — e tratá-los como um só faria o job
+  nunca agir em locação: em `designacao` mede *não assumiu* (a linha aberta expira); em `assignee`
+  a pessoa já é dona no instante da escolha, então mede *não respondeu*.
+- **O expediente é do time, na política.** Medido: a inbox 91 (onde a locação atende) está com
+  `working_hours_enabled=false` e os **defaults de fábrica** (9h-17h seg-sex); o horário real
+  (07:30-11:30 · 13:30-17:30 · sáb até 11:30) só existe no `behavior` do agente de IA. Resolução:
+  `policy.horario` → `inbox.working_hours` (se habilitado) → **não expira** (fail-closed, e o
+  passo ③ avisa).
+- **Verificação:** suspensão 11/11 · relógio 7/7 com o expediente real · fail-closed provado (job
+  roda e não cria linha) · tool provada contra conversa real com rollback · rota e classes num boot
+  real · ESLint limpo e **SFC compilado** (o `vite build` completo não roda na CI por um import
+  pré-existente do `portal.js`) · rubocop abaixo do baseline no `policy.rb`.
+- ⚠️ **Achado operacional:** o `chatwoot_test` da `.232` é **compartilhado entre worktrees de CI**.
+  Regenerar `schema.rb` lá traz tabelas de outras frentes (peguei `social_comentarios`). O schema
+  deste PR foi editado à mão. **Vale isolar o banco por worktree.**
+- ⏭️ **Fora do PR, por decisão:** gatilhos além do handoff da IA e o modo `sugestao` (sombra).
+- ⏭️ **Ordem invertida de propósito:** a v1 mandava começar por vendas; vendas é o time que **não
+  pode** ser ligado hoje. **Locação primeiro** — pool proposto Adrian #63, Gelson #72, Evellyn #137,
+  Camila #110, com Maria Vitoria fora (1,7 msg/conversa em 744 = ela despacha).
+- ⏭️ **Sobras:** worktrees de CI `/tmp/ci-rodizio` e `/tmp/ci-leads-site` na `.232` + o banco
+  isolado `chatwoot_rodizio_v2` que criei pra validar o schema.
+
 ### [2026-08-25] 🟢 UNIDADES GANHOU TELA — as 4 questões da §9 decididas, Fase 2 no PR #61
 
 > O Paulo perguntou onde estavam a tela de lojas e a de Rede Social. **Nenhuma das duas existia** —
