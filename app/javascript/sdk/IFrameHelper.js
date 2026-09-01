@@ -24,6 +24,7 @@ import {
 } from './bubbleHelpers';
 import { WIDGET_TOKEN_NAMES } from '../widget/helpers/IframeEventHelper';
 import { isMobileViewport } from './viewport';
+import { syncInertBackground } from './inertBackground';
 import { drenar, identidadeDrenada } from './preBootQueue';
 import { montarTeaser } from './teaser';
 import { degradar, gravarAbordagem, lerAbordagem } from './tracking/approach';
@@ -678,6 +679,10 @@ export const IFrameHelper = {
     closeWindow: () => {
       onBubbleClick({ toggleValue: false });
       removeUnreadClass();
+      // Bloco 2.11: `removeUnreadClass` roda DEPOIS do toggle e muda a classe
+      // que decide o `inert`. Sem este recalculo, fechar a partir do modo
+      // nao-lidas com o painel ja fechado nao passaria por nenhuma porta.
+      syncInertBackground();
     },
 
     onBubbleToggle: isOpen => {
@@ -701,11 +706,22 @@ export const IFrameHelper = {
     setUnreadMode: () => {
       addUnreadClass();
       onBubbleClick({ toggleValue: true });
+      // Bloco 2.11. `onBubbleClick` ja recalcula o `inert` — mas so quando de
+      // fato TROCA o estado: com o painel ja aberto ele retorna cedo
+      // (`isOpen === toggleValue`) e nada rodaria, deixando a pagina inerte
+      // atras de uma tirinha de rodape. Recalcular aqui fecha esse caminho.
+      syncInertBackground();
     },
 
     resetUnreadMode: () => {
       IFrameHelper.titleFlasher.stop();
       removeUnreadClass();
+      // Bloco 2.11. Sair do modo nao-lidas leva a dois destinos opostos: o
+      // visitante tocou a tirinha e o painel vira tela cheia (marca), ou o
+      // widget esta fechando (solta). Por isso e `sync` e nao `release`: um
+      // `release` seco devolveria a pagina viva ATRAS de um painel de tela
+      // cheia, que e exatamente o defeito que o 2.11 existe para corrigir.
+      syncInertBackground();
     },
     handleNotificationDot: event => {
       // Item 39 da §8.1 — o CONTADOR, e ele é gravado ANTES de qualquer decisão
