@@ -201,3 +201,48 @@ describe('reconciliacao 5.17 + 5.19 — o resultado tipado atravessa o adiamento
     );
   });
 });
+
+/**
+ * A SEGUNDA COSTURA, no outro arquivo que os dois blocos disputaram.
+ *
+ * `buildContactPayload` recebeu um `if` de cada lado, no MESMO ponto: `clear_attributes` (5.17,
+ * a lista de campos que o verbo `set` quer apagar) e `identity_token` (5.19, a credencial). Cada
+ * suite exercitou o seu isolado; ninguem montou o payload que a producao monta o tempo todo, que
+ * e o dos DOIS ao mesmo tempo — todo `setUser` de site com credencial e um `merge: false` com
+ * campo de topo omitido E token presente.
+ *
+ * O que se mede aqui e a disjuncao: `clear_attributes` so olha `TOP_LEVEL_KEYS`, entao a
+ * credencial nao pode aparecer na lista de apagamento. Colocar `identity_token` no `TOP_LEVEL_KEYS`
+ * por engano — e ele e um campo de topo do payload, entao o engano e plausivel — faria todo
+ * `setUser` sem credencial mandar "apague o identity_token" para o servidor.
+ */
+describe('reconciliacao 5.17 + 5.19 — os dois `if` no mesmo payload', () => {
+  it('o `set` com credencial emite as DUAS coisas, e a credencial nao entra na lista de apagamento', async () => {
+    const { buildContactPayload } = await import(
+      '../../widget/helpers/identityPayload'
+    );
+
+    const payload = buildContactPayload(
+      { name: 'Ana', identity_token: 'jwt.de.verdade' },
+      { merge: false }
+    );
+
+    expect(payload.identity_token).toBe('jwt.de.verdade');
+    expect(payload.clear_attributes).toContain('email');
+    expect(payload.clear_attributes).not.toContain('identity_token');
+  });
+
+  it('o `update` com credencial leva a credencial e NAO leva lista de apagamento', async () => {
+    const { buildContactPayload } = await import(
+      '../../widget/helpers/identityPayload'
+    );
+
+    const payload = buildContactPayload(
+      { name: 'Ana', identity_token: 'jwt.de.verdade' },
+      { merge: true }
+    );
+
+    expect(payload.identity_token).toBe('jwt.de.verdade');
+    expect('clear_attributes' in payload).toBe(false);
+  });
+});
