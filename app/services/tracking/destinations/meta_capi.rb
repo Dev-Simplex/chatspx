@@ -55,7 +55,19 @@ class Tracking::Destinations::MetaCapi < Tracking::Destinations::Base
     { access_token: settings.meta_access_token }
   end
 
+  # Bloco 5.09 (T-C7.4) — "respeito ao estado nos envios da CAPI".
+  #
+  # A ordem importa: o consentimento e perguntado ANTES da idade do evento. Os dois produzem
+  # `skipped`, mas o painel de 5.14 mostra o MOTIVO, e "o cliente negou" e uma resposta de
+  # privacidade, enquanto "chegou tarde" e uma de operacao. Trocar a ordem faria um evento negado
+  # e velho ser arquivado como problema de fila.
+  #
+  # `ad_user_data` e o proposito certo: o corpo da CAPI e `user_data` — e-mail, telefone, IP e
+  # user-agent do visitante. Sem esse consentimento nao ha o que enviar, e enviar so o esqueleto
+  # seria tratar o dado do mesmo jeito com um payload menor.
   def skip_reason
+    return CONSENT_DENIED unless consent.granted?('ad_user_data')
+
     'event_too_old' if too_old?
   end
 

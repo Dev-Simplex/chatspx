@@ -35,7 +35,12 @@ class Tracking::Destinations::GoogleAds < Tracking::Destinations::Base
     headers
   end
 
+  # Bloco 5.09 (T-C7.4) — o mesmo gate da CAPI, pelo mesmo motivo: Enhanced Conversions e upload de
+  # dado de pessoa para uma plataforma de anuncio. O plano nomeia a CAPI; a categoria e a mesma, e
+  # deixar este destino de fora seria fechar uma porta e manter a vizinha aberta.
   def skip_reason
+    return CONSENT_DENIED unless consent.granted?('ad_user_data')
+
     'no_identifier' if visitor.gclid.blank? && user_identifiers.blank?
   end
 
