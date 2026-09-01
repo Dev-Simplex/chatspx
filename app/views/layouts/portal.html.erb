@@ -159,6 +159,9 @@ By default, it renders:
     };
   </script>
   <% if @portal.channel_web_widget.present? && !@is_plain_layout_enabled %>
-  <%= @portal.channel_web_widget.web_widget_script.html_safe %>
+  <%= @portal.channel_web_widget.web_widget_script(
+        sdk_version: GIT_HASH.first(10),
+        persist_conversation_to_parent: params[:embed] == 'true'
+      ).html_safe %>
   <% end %>
 </html>

@@ -64,7 +64,11 @@ class Conversations::MessageWindowService
     GlobalConfigService.load(config_key, nil) ? MESSAGING_WINDOW_7_DAYS : MESSAGING_WINDOW_24_HOURS
   end
 
+  # `all_messages` (sem filtro) e NAO `messages`: a associacao `messages` filtra por team_id quando o
+  # inbox tem team_message_isolation ligado, entao uma troca de time deixa a ultima incoming com
+  # carimbo antigo, fora da consulta — e a janela de 24h "fecharia" com o cliente tendo escrito ha
+  # segundos. A janela e fato do WhatsApp/Meta; nao tem relacao com quem pode VER a mensagem.
   def last_incoming_message
-    @last_incoming_message ||= @conversation.messages.where(account_id: @conversation.account_id).incoming&.last
+    @last_incoming_message ||= @conversation.all_messages.where(account_id: @conversation.account_id).incoming&.last
   end
 end

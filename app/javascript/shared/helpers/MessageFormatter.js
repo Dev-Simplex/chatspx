@@ -1,6 +1,7 @@
 import mila from 'markdown-it-link-attributes';
 import mentionPlugin from './markdownIt/link';
 import MarkdownIt from 'markdown-it';
+import { parseLegacyGroupContent } from 'dashboard/helper/whatsappGroupHelper';
 
 const setImageHeight = inlineToken => {
   const imgSrc = inlineToken.attrGet('src');
@@ -53,6 +54,42 @@ const createMarkdownInstance = (linkify = true) => {
     });
 };
 
+/**
+ * SANEAMENTO DE EXIBIÇÃO — histórico de grupos de WhatsApp (inbox WAHA).
+ *
+ * Isto não conserta a origem: é maquiagem no ponto único de formatação, para o
+ * histórico já gravado. A app `chatwoot` que roda dentro da WAHA concatena o
+ * identificador técnico do participante ao nome e injeta tudo no corpo:
+ *
+ *   "👥 *Rogerio José Da Silva (229480102662169@lid)*\n\nQual Wi-Fi está?"
+ *
+ * Mensagens NOVAS chegam limpas (a extração acontece na ingestão, com o autor em
+ * `content_attributes.group_sender`). As antigas continuam assim no banco — daí
+ * este saneamento, que roda em toda superfície de uma vez (bolha, preview da
+ * lista, busca, Kanban, copilot).
+ *
+ * Duas regras deliberadas:
+ *   a) o `(...@lid)` sai SEMPRE — identificador técnico não é para ser lido;
+ *   b) o `👥 Nome` FICA enquanto a mensagem for legada. Sem autor estruturado ele
+ *      é a única pista de quem falou; removê-lo antes do substituto piora a vida
+ *      do agente.
+ *
+ * DÉBITO CONHECIDO: a correção de verdade é na origem (WAHA) — ver
+ * `plano/pesquisa-grupos-waha/SINTESE.md`. Enquanto ela não vier, este trecho
+ * segue necessário; quando vier, ele pode ser removido junto com o helper.
+ */
+const sanitizeLegacyGroupContent = content => {
+  // Guard barato: só mexe em texto que carrega o identificador técnico.
+  if (!content || !content.includes('@lid')) return content;
+
+  const { content: body, sender } = parseLegacyGroupContent(content);
+  if (!sender?.name) return body;
+
+  // Preserva o espaçamento original (parágrafo vs. quebra simples).
+  const separator = /^👥[^\n]*\n\n/.test(content) ? '\n\n' : '\n';
+  return `👥 *${sender.name}*${separator}${body}`;
+};
+
 const TWITTER_USERNAME_REGEX = /(^|[^@\w])@(\w{1,15})\b/g;
 const TWITTER_USERNAME_REPLACEMENT = '$1[@$2](http://twitter.com/$2)';
 const TWITTER_HASH_REGEX = /(^|\s)#(\w+)/g;
@@ -65,7 +102,7 @@ class MessageFormatter {
     isAPrivateNote = false,
     linkify = true
   ) {
-    this.message = message || '';
+    this.message = sanitizeLegacyGroupContent(message || '');
     this.isAPrivateNote = isAPrivateNote;
     this.isATweet = isATweet;
     this.linkify = linkify;

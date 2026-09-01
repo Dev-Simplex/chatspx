@@ -76,7 +76,7 @@
   enabled: true
 - name: report_rollup
   display_name: Report Rollup
-  enabled: false
+  enabled: true
 - name: channel_website
   display_name: Website Channel
   enabled: true
@@ -106,10 +106,10 @@
   premium: true
 - name: message_sequences
   display_name: Message Sequences
-  enabled: false
+  enabled: true
 - name: internal_chat
   display_name: Internal Chat
-  enabled: false
+  enabled: true
 - name: insert_article_in_reply
   display_name: Insert Article in Reply
   enabled: false
@@ -143,7 +143,7 @@
   enabled: true
 - name: ai_assistant_v2
   display_name: AI Assistant v2 (Copilot redesign)
-  enabled: false
+  enabled: true
   premium: false
   chatwoot_internal: false
 - name: contact_chatwoot_support_team
@@ -180,7 +180,7 @@
   deprecated: true
 - name: whatsapp_campaign
   display_name: WhatsApp Campaign
-  enabled: false
+  enabled: true
 - name: crm_v2
   display_name: CRM V2
   enabled: false
@@ -214,7 +214,7 @@
   chatwoot_internal: true
 - name: quoted_email_reply
   display_name: Quoted Email Reply
-  enabled: false
+  enabled: true
 - name: companies
   display_name: Companies
   enabled: false

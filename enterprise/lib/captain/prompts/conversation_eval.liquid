@@ -7,6 +7,7 @@ A transcrição vem rotulada:
 - [Sistema]: mensagem automática (template/nota).
 - [TOOL nome args=... => resultado]: chamada de ferramenta feita pela IA, com os argumentos usados e o que a ferramenta DEVOLVEU (ou ERRO). Use essas linhas como fato: se a ferramenta devolveu resultados e a resposta seguinte da IA nega ("não encontrei", "não temos"), isso é uma falha grave de fidelidade à ferramenta.
 Pode haver uma linha "Eventos do sistema" com contadores (handoff, error, router_skip...) — use como contexto do que aconteceu por baixo.
+Pode haver um bloco "ORIGEM DA CONVERSA" com o anúncio/campanha por onde o cliente chegou. **A IA recebe esse mesmo bloco**: o texto do anúncio é FONTE legítima para ela. Se a IA repete um valor, condição ou produto que está escrito ali, isso NÃO é alucinação — é ela usando o contexto que tem. Só marque alucinação quando a afirmação não estiver nem na origem, nem em linha [TOOL], nem nas normas.
 
 ## Classificação do atendimento inteiro
 - representatividade: esta conversa é um atendimento real de cliente da imobiliária? Use `atendimento_real` quando há um cliente/lead de verdade sendo atendido. Marque FORA de escopo quando for ruído: conversa/grupo interno da equipe (`interno`); a pessoa trata de assunto de OUTRA empresa e não da imobiliária (`outra_empresa`); o interlocutor é um sistema automatizado que devolve comando/erro em repetição em vez de uma pessoa (`bot_automatizado`); teste da própria equipe (`teste`); ou nenhuma interação real, só mensagem automática/uma bolha solta (`sem_atendimento`). Na dúvida, `atendimento_real`.
@@ -14,8 +15,8 @@ Pode haver uma linha "Eventos do sistema" com contadores (handoff, error, router
 - intencao: o que o cliente queria (locacao/venda/duvida/pos_venda/reclamacao/outro).
 - funil: estágio em que a conversa terminou (lead_novo/qualificando/qualificado/handoff/frio).
 - conduzido_por: quem majoritariamente atendeu (ia/humano/misto).
-- handoff_timing: a passagem para o humano foi adequada?
-  - nao_precisou: resolveu sem precisar de humano.
+- handoff_timing: a passagem para o humano foi adequada? `nao_precisou` é o resultado ESPERADO na maior parte dos atendimentos — a IA existe justamente para resolver sem humano.
+  - nao_precisou: resolveu sem precisar de humano, ou ainda não havia motivo para envolver um.
   - no_prazo: passou na hora certa (lead qualificado / pedido explícito de pessoa / assunto que exige humano).
   - tardio: deveria ter passado antes; demorou e o cliente esperou ou insistiu.
   - precisava_nao_fez: exigia humano e ninguém passou.
@@ -34,8 +35,9 @@ Para CADA resposta [R#] do atendente que teve problema, registre uma entrada. Ca
 - exemplo_copiado: usou um valor/código de exemplo como se fosse real (ex.: repetir sempre o mesmo código de imóvel).
 - quebrou_regra: respondeu quando deveria silenciar (ex.: respondeu a um "obrigado"/"ok"/"blz" que só encerra) ou insistiu indevidamente.
 - promessa_indevida: prometeu algo que não pode garantir (visita, valor, condição) sem confirmar com humano.
-- handoff_ausente: era o momento de passar para o humano e a resposta não passou.
-- handoff_tardio: passou, mas tarde.
+- handoff_ausente: o cliente precisava de uma PESSOA e a IA não acionou o handoff. **A maioria dos atendimentos NÃO precisa de humano** — resolver sozinha é o esperado, não uma falha. Só marque quando houver gatilho concreto na transcrição: o cliente pediu falar com alguém, houve reclamação ou conflito, ele quer fechar negócio ou pagar, ou pediu algo que só um humano resolve (documento, contrato, exceção comercial). Lead novo pedindo informação, cliente em qualificação e dúvida que a IA respondeu NÃO são handoff ausente.
+- transferencia_ausente: era caso de passar para OUTRA IA especialista (as normas do agente dizem qual) e a resposta seguiu atendendo fora da própria alçada. É diferente de handoff_ausente: aqui ninguém precisava de humano — só do agente certo. Só marque quando as normas do agente avaliado nomearem o especialista para aquele assunto.
+- handoff_tardio: passou para o humano, mas tarde — o cliente esperou ou insistiu antes.
 - fora_horario_mal_tratado: fora do horário, disse que "chama agora / já vou chamar" em vez de anotar e dizer quando o time volta.
 - contradisse_tool: a resposta contradiz o que a ferramenta devolveu (ex.: a busca retornou imóveis e a IA disse que não encontrou; a ferramenta confirmou um dado e a IA afirmou outro). Só use quando houver linha [TOOL] que comprove.
 - nao_chamou_tool_obrigatoria: o pedido do cliente exigia usar uma ferramenta disponível (buscar imóvel, enviar fotos, transferir/handoff) e a IA respondeu sem chamá-la, inventando ou se esquivando.

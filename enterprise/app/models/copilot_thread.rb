@@ -35,9 +35,12 @@ class CopilotThread < ApplicationRecord
   end
 
   def previous_history
+    # `id` no criterio de ordenacao e o que garante ordem ESTAVEL: duas mensagens
+    # gravadas no mesmo instante (pergunta do agente + resposta parcial, por
+    # exemplo) empatam em `created_at` e sairiam em ordem indefinida.
     copilot_messages
       .where(message_type: %w[user assistant])
-      .order(created_at: :asc)
+      .order(created_at: :asc, id: :asc)
       .map do |copilot_message|
         {
           content: copilot_message.message['content'],

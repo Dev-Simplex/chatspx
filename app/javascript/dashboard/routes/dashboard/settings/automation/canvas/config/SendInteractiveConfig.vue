@@ -91,6 +91,24 @@ const removeItem = index => {
   if (!canRemoveItem.value) return;
   patch({ items: items.value.filter((_, i) => i !== index) });
 };
+
+// Reordena uma opção (delta -1 = sobe, +1 = desce). A ORDEM importa duas vezes: é a ordem em
+// que o contato vê os botões/linhas da lista e é a ordem das portas de saída do bloco
+// `wait_for_reply` seguinte (que deriva as respostas dessas opções). Trocar de lugar NÃO
+// mexe em `value`, então nenhuma aresta já conectada se perde.
+const moveItem = (index, delta) => {
+  const target = index + delta;
+  if (target < 0 || target >= items.value.length) return;
+  const next = [...items.value];
+  [next[index], next[target]] = [next[target], next[index]];
+  patch({ items: next });
+};
+
+// A Meta RECUSA uma interativa sem corpo ("The parameter interactive.body.text is required")
+// e a mensagem nunca chega ao contato — o fluxo fica esperando uma resposta a uma pergunta
+// que ninguém viu. Por isso o corpo é obrigatório aqui e bloqueia o salvamento no canvas
+// (ver flowValidation.js).
+const isBodyMissing = computed(() => !content.value.trim());
 </script>
 
 <template>
@@ -103,12 +121,24 @@ const removeItem = index => {
         v-model="content"
         rows="4"
         :maxlength="BODY_MAX"
-        class="w-full px-3 py-2 text-sm rounded-lg resize-y !h-auto outline outline-1 text-n-slate-12 bg-n-alpha-1 outline-n-weak dark:outline-n-strong focus:outline-n-brand"
+        class="w-full px-3 py-2 text-sm rounded-lg resize-y !h-auto outline outline-1 text-n-slate-12 bg-n-alpha-1"
         :placeholder="
           t('AUTOMATION.CANVAS.CONFIG.SEND_INTERACTIVE.BODY_PLACEHOLDER')
         "
         data-testid="config-send-interactive-body"
+        :class="
+          isBodyMissing
+            ? 'outline-n-ruby-8 focus:outline-n-ruby-8'
+            : 'outline-n-weak dark:outline-n-strong focus:outline-n-brand'
+        "
       />
+      <p
+        v-if="isBodyMissing"
+        class="mt-1 mb-0 text-label-small text-n-ruby-11"
+        data-testid="config-send-interactive-body-error"
+      >
+        {{ t('AUTOMATION.CANVAS.CONFIG.SEND_INTERACTIVE.BODY_REQUIRED') }}
+      </p>
     </ConfigField>
 
     <ConfigField
@@ -133,6 +163,28 @@ const removeItem = index => {
             </span>
             <span class="flex-1" />
             <NextButton
+              icon="i-lucide-arrow-up"
+              ghost
+              slate
+              xs
+              :disabled="ii === 0"
+              :aria-label="t('AUTOMATION.CANVAS.MOVE_UP')"
+              :title="t('AUTOMATION.CANVAS.MOVE_UP')"
+              :data-testid="`send-interactive-up-${ii}`"
+              @click="moveItem(ii, -1)"
+            />
+            <NextButton
+              icon="i-lucide-arrow-down"
+              ghost
+              slate
+              xs
+              :disabled="ii === items.length - 1"
+              :aria-label="t('AUTOMATION.CANVAS.MOVE_DOWN')"
+              :title="t('AUTOMATION.CANVAS.MOVE_DOWN')"
+              :data-testid="`send-interactive-down-${ii}`"
+              @click="moveItem(ii, 1)"
+            />
+            <NextButton
               icon="i-lucide-trash"
               ghost
               ruby
@@ -141,6 +193,7 @@ const removeItem = index => {
               :aria-label="
                 t('AUTOMATION.CANVAS.CONFIG.SEND_INTERACTIVE.REMOVE_OPTION')
               "
+              :data-testid="`send-interactive-remove-${ii}`"
               @click="removeItem(ii)"
             />
           </div>

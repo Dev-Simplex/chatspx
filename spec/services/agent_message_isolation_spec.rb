@@ -31,18 +31,47 @@ RSpec.describe AgentMessageIsolation do
   end
 
   describe '.restriction_id_for_inbox' do
+    let!(:team) { create(:team, account: account) }
+    let!(:other_team) { create(:team, account: account) }
+
     it 'returns nil when the inbox does not have isolation enabled' do
-      expect(described_class.restriction_id_for_inbox(inbox, agent, account)).to be_nil
+      expect(described_class.restriction_id_for_inbox(inbox, agent, account, team.id)).to be_nil
     end
 
     it 'returns the agent id when isolation is enabled' do
       inbox.update!(agent_message_isolation: true)
-      expect(described_class.restriction_id_for_inbox(inbox, agent, account)).to eq(agent.id)
+      expect(described_class.restriction_id_for_inbox(inbox, agent, account, team.id)).to eq(agent.id)
     end
 
     it 'returns nil for an admin even with isolation enabled' do
       inbox.update!(agent_message_isolation: true)
-      expect(described_class.restriction_id_for_inbox(inbox, admin, account)).to be_nil
+      expect(described_class.restriction_id_for_inbox(inbox, admin, account, team.id)).to be_nil
+    end
+
+    # ESCOPO POR TIME
+    it 'restricts any team when the team list is empty (retrocompat)' do
+      inbox.update!(agent_message_isolation: true, agent_message_isolation_team_ids: [])
+      expect(described_class.restriction_id_for_inbox(inbox, agent, account, other_team.id)).to eq(agent.id)
+    end
+
+    it 'restricts a team inside the chosen list' do
+      inbox.update!(agent_message_isolation: true, agent_message_isolation_team_ids: [team.id])
+      expect(described_class.restriction_id_for_inbox(inbox, agent, account, team.id)).to eq(agent.id)
+    end
+
+    it 'does not restrict a team outside the chosen list' do
+      inbox.update!(agent_message_isolation: true, agent_message_isolation_team_ids: [team.id])
+      expect(described_class.restriction_id_for_inbox(inbox, agent, account, other_team.id)).to be_nil
+    end
+
+    it 'does not restrict a conversation without a team' do
+      inbox.update!(agent_message_isolation: true, agent_message_isolation_team_ids: [team.id])
+      expect(described_class.restriction_id_for_inbox(inbox, agent, account, nil)).to be_nil
+    end
+
+    it 'does not restrict a conversation without a team even with an empty list' do
+      inbox.update!(agent_message_isolation: true, agent_message_isolation_team_ids: [])
+      expect(described_class.restriction_id_for_inbox(inbox, agent, account, nil)).to be_nil
     end
   end
 
@@ -145,24 +174,29 @@ RSpec.describe AgentMessageIsolation do
     end
 
     describe '.restriction_id_for_inbox' do
+      # A assinatura pede o team_id porque o OUTRO eixo da regra e o escopo por time.
+      # Lista de escopo vazia (o padrao) = a regra vale para todos os times, entao o que
+      # estes exemplos medem continua sendo so a ISENCAO.
+      let!(:team) { create(:team, account: account) }
+
       it 'stops restricting the exempt agent' do
         create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
 
-        expect(described_class.restriction_id_for_inbox(inbox, agent, account)).to be_nil
+        expect(described_class.restriction_id_for_inbox(inbox, agent, account, team.id)).to be_nil
       end
 
       it 'keeps restricting an agent who is not an exemption' do
         create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
         outro = create(:user, account: account, role: :agent)
 
-        expect(described_class.restriction_id_for_inbox(inbox, outro, account)).to eq(outro.id)
+        expect(described_class.restriction_id_for_inbox(inbox, outro, account, team.id)).to eq(outro.id)
       end
 
       it 'keeps restricting the exempt agent in the inboxes where he is not an exemption' do
         create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'agent_message')
         other_inbox.update!(agent_message_isolation: true)
 
-        expect(described_class.restriction_id_for_inbox(other_inbox, agent, account)).to eq(agent.id)
+        expect(described_class.restriction_id_for_inbox(other_inbox, agent, account, team.id)).to eq(agent.id)
       end
     end
   end

@@ -475,7 +475,11 @@ describe ConversationFinder do
   # de leitura do isolamento por agente, e o que mais escapa.
   describe '#perform with q and agent_message_isolation' do
     let!(:iso_inbox) { create(:inbox, account: account, enable_auto_assignment: false, agent_message_isolation: true) }
-    let!(:iso_conversation) { create(:conversation, account: account, inbox: iso_inbox) }
+    # A conversa precisa TER TIME: `agent_message_isolation` esta em
+    # Inbox::TEAMLESS_EXEMPT_RULES, entao conversa sem time nunca e alcancada por regra
+    # de mensagem. Sem o time estes exemplos passariam pelo motivo errado (nada isolado).
+    let!(:iso_team) { create(:team, account: account) }
+    let!(:iso_conversation) { create(:conversation, account: account, inbox: iso_inbox, team: iso_team) }
     let!(:params) { { q: 'palavra secreta' } }
 
     before do

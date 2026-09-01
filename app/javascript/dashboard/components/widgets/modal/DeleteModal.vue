@@ -22,6 +22,12 @@ const show = defineModel('show', { type: Boolean, default: false });
       :header-content="message"
       :header-content-value="messageValue"
     />
+    <!-- Slot opcional entre o aviso e os botoes, para exclusao que precisa de uma ESCOLHA (ex.:
+         "levar a caixa de entrada junto?"). Sem nada no slot o modal fica identico ao de antes,
+         entao os usos existentes nao mudam. -->
+    <div v-if="$slots.default" class="px-6 pb-2">
+      <slot />
+    </div>
     <div
       class="flex items-center justify-end gap-2 px-6 py-4 border-t border-n-weak"
     >

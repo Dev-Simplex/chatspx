@@ -28,10 +28,14 @@ class Captain::ConversationEvalSchema < RubyLLM::Schema
     object do
       integer :resposta_num, description: 'O número [R#] da resposta do atendente na transcrição.'
       string :quem, enum: %w[ia humano], description: 'Se a resposta foi da IA ou de um atendente humano.'
+      # `transferencia_ausente` (IA -> outra IA especialista) é separada de `handoff_ausente`
+      # (IA -> humano) de propósito: são decisões diferentes, com custo diferente, e antes
+      # caíam no mesmo balde. Quem lê o relatório não conseguia distinguir "deixou o cliente
+      # sem gente" de "atendeu fora da própria alçada" — e a primeira é muito mais grave.
       string :categoria, enum: %w[
         alucinacao info_incorreta nao_respondeu_pergunta narrou_ferramenta
         tom_robotico repeticao exemplo_copiado quebrou_regra promessa_indevida
-        handoff_ausente handoff_tardio fora_horario_mal_tratado
+        handoff_ausente handoff_tardio transferencia_ausente fora_horario_mal_tratado
         contradisse_tool nao_chamou_tool_obrigatoria usou_tool_errada ignorou_erro_da_tool outro
       ], description: 'Categoria da falha.'
       string :severidade, enum: %w[baixa media alta], description: 'Gravidade da falha.'

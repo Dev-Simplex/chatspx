@@ -5,6 +5,7 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useClipboard } from '@vueuse/core';
 import { useAlert } from 'dashboard/composables';
+import { useCaptainAssistantModel } from 'dashboard/composables/useCaptainAssistantModel';
 
 import AiCard from 'dashboard/components-next/agents-ui/AiCard.vue';
 import AiField from 'dashboard/components-next/agents-ui/AiField.vue';
@@ -26,6 +27,9 @@ const assistantId = computed(() => Number(route.params.assistantId));
 const agent = computed(() =>
   store.getters['captainAssistants/getRecord'](assistantId.value)
 );
+// `agent.config.model` não existe no payload (nem no permit do config): a linha
+// "Modelo" em Avançado mostrava sempre "—". O modelo é da CONTA.
+const { assistantModel } = useCaptainAssistantModel();
 
 // --- Formulário (hidratado de agent + agent.config) ---
 const DEFAULT_TEMPERATURE = 0.7;
@@ -483,7 +487,7 @@ async function deleteAgent() {
         </AiButton>
       </template>
       <AiListGroup>
-        <AiListRow title="Modelo">
+        <AiListRow title="Modelo" subtitle="Definido na conta, em Conexões.">
           <template #leading>
             <span
               class="grid place-items-center text-white bg-green-500 rounded-lg size-[30px]"
@@ -493,7 +497,7 @@ async function deleteAgent() {
           </template>
           <template #trailing>
             <span class="font-mono text-sm text-n-slate-12">
-              {{ agent?.config?.model || '—' }}
+              {{ assistantModel || '—' }}
             </span>
           </template>
         </AiListRow>

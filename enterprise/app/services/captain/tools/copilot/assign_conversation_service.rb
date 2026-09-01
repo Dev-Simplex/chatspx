@@ -8,9 +8,16 @@ class Captain::Tools::Copilot::AssignConversationService < Captain::Tools::BaseT
   param :agent_id, type: :integer, desc: 'ID of the agent to assign (optional)'
   param :team_id, type: :integer, desc: 'ID of the team to assign (optional)'
 
+  # Quem escolhe `agent_id`/`team_id` é o MODELO, não o operador — ele digita "distribui isso
+  # pro time certo" e o copilot resolve o id sozinho. Os ids iam direto pra coluna: conversa
+  # apontada pra time de OUTRA conta some da fila de todo mundo e leva o nome do time alheio
+  # pro painel. Validar ANTES de gravar é o que fecha a fronteira.
   def execute(conversation_id:, agent_id: nil, team_id: nil)
-    conversation = @assistant.account.conversations.find_by(display_id: conversation_id)
+    conversation = account.conversations.find_by(display_id: conversation_id)
     return 'Conversation not found' if conversation.blank?
+
+    refusal = refusal_for(agent_id, team_id)
+    return refusal if refusal
 
     apply_assignment(conversation, agent_id, team_id)
     format_result(conversation)
@@ -21,6 +28,45 @@ class Captain::Tools::Copilot::AssignConversationService < Captain::Tools::BaseT
   end
 
   private
+
+  def account
+    @assistant.account
+  end
+
+  # nil = pode gravar. String = recusa, já no formato que volta pro modelo.
+  #
+  # Recusa FECHADA (não grava nada e devolve o motivo), ao contrário do HumanHandoffService,
+  # que falha aberto de propósito. A diferença é quem lê o erro: lá a recusa acontece no meio
+  # de um atendimento, com o dossiê já registrado e o cliente prestes a ouvir "uma pessoa vai
+  # assumir" — abortar deixaria a promessa sem ninguém acionado. Aqui a chamada É a ação
+  # inteira: recusar é no-op, e a string volta pro modelo, que corrige o id ou avisa o
+  # operador. Ignorar em silêncio seria o pior dos três — `format_result` imprimiria
+  # "team: none" como sucesso e a conversa ficaria na fila de ninguém.
+  #
+  # Recusa os dois ANTES de aplicar qualquer um: gravar só a metade válida é a mesma
+  # armadilha, com cara de sucesso.
+  def refusal_for(agent_id, team_id)
+    return "Agent #{agent_id} not found in this account" if agent_id.present? && account.users.where(id: agent_id).none?
+    return team_refusal(team_id) if team_id.present? && account.handoff_teams.where(id: team_id).none?
+
+    nil
+  end
+
+  # Além da conta, respeita a allowlist de roteamento (`Account#handoff_teams`, PR #39). Ela
+  # ficou de fora do copilot no PR original com o argumento de que aqui há humano no meio —
+  # o argumento não se sustenta: o humano pede a ação, o modelo escolhe o destino e executa
+  # sem confirmação (medido em produção: `snooze_conversation` já rodou sozinho). Quem
+  # configurou que a IA não roteia pra um time não quer que o copilot roteie tampouco.
+  # Conta sem a chave => `handoff_teams` são todos os times => nada muda.
+  #
+  # Distingue "não é desta conta" de "é da conta mas está fora da allowlist": sem isso a
+  # recusa fica indistinguível de alucinação do modelo, mesmo critério do HumanHandoffService.
+  def team_refusal(id)
+    return "Team #{id} not found in this account" unless account.teams.exists?(id: id)
+
+    Rails.logger.info("[Copilot][assign] time #{id} fora da allowlist da conta #{account.id}")
+    "Team #{id} is not available for routing in this account"
+  end
 
   def apply_assignment(conversation, agent_id, team_id)
     conversation.assignee_id = agent_id if agent_id.present?

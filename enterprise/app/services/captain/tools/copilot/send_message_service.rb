@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::SendMessageService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'send_message'
   end
@@ -9,8 +11,8 @@ class Captain::Tools::Copilot::SendMessageService < Captain::Tools::BaseTool
   param :private, type: :boolean, desc: 'Send as private note instead of outgoing message (default: false)'
 
   def execute(conversation_id:, content:, private: false)
-    conversation = @assistant.account.conversations.find_by(display_id: conversation_id)
-    return 'Conversation not found' if conversation.blank?
+    conversation = find_permissible_conversation(conversation_id)
+    return conversation_refusal(conversation_id) if conversation.blank?
 
     params = { content: content, private: private }
     message = Messages::MessageBuilder.new(nil, conversation, params).perform

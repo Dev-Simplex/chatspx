@@ -931,7 +931,6 @@
         "SUCCESS_MESSAGE": "The document has been successfully deleted",
         "ERROR_MESSAGE": "There was an error deleting the document, please try again."
       },
-
       "OPTIONS": {
         "VIEW_DOCUMENT": "View document",
         "VIEW_RELATED_RESPONSES": "View Related Responses",
@@ -1266,7 +1265,8 @@
         "CONFIGURE_DESCRIPTION": "This agent has no behavior configured yet. Use the Behavior tab to configure the pipeline, or copy the JSON template below and configure via code.",
         "AGENT_CONFIG": "Agent Configuration",
         "BEHAVIORS": "Behaviors",
-        "NONE_CONFIGURED": "None configured"
+        "NONE_CONFIGURED": "None configured",
+        "MODEL_HINT": "Set on the account, under Connections"
       },
       "KNOWLEDGE": {
         "DOCUMENTS": "Documents",
@@ -1300,7 +1300,10 @@
         "MODE_FILE": "PDF file",
         "PDF_HINT": "PDF only, up to 10 MB.",
         "PDF_ONLY": "Only PDF files are accepted.",
-        "PDF_TOO_BIG": "File exceeds the 10 MB limit."
+        "PDF_TOO_BIG": "File exceeds the 10 MB limit.",
+        "TYPE_PDF": "PDF",
+        "TYPE_URL": "Web page",
+        "TYPE_TEXT": "Pasted text"
       },
       "TOOLS": {
         "NEW_TOOL": "New Tool",

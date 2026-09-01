@@ -3,6 +3,7 @@
 // do nó e repassa o patch de `update` para cima. Cada editor recebe `:node` e emite
 // `update` com o pedaço da definition a alterar (action_params, conditions ou event_name).
 import { computed, markRaw } from 'vue';
+import { interactiveOptionsForWait } from './waitForReply';
 import TriggerConfig from './config/TriggerConfig.vue';
 import ConditionConfig from './config/ConditionConfig.vue';
 import RouterConfig from './config/RouterConfig.vue';
@@ -19,6 +20,7 @@ import HttpRequestConfig from './config/HttpRequestConfig.vue';
 import AssignAgentConfig from './config/AssignAgentConfig.vue';
 import AssignTeamConfig from './config/AssignTeamConfig.vue';
 import AddParticipantConfig from './config/AddParticipantConfig.vue';
+import DistribuirConfig from './config/DistribuirConfig.vue';
 import EnrollSequenceConfig from './config/EnrollSequenceConfig.vue';
 import AssignAiAgentConfig from './config/AssignAiAgentConfig.vue';
 import AiClassifyConfig from './config/AiClassifyConfig.vue';
@@ -41,6 +43,12 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // Grafo inteiro: alguns editores precisam olhar os VIZINHOS do nó, não só ele. Hoje só o
+  // `wait_for_reply` usa (para listar as opções do `send_interactive` que desemboca nele).
+  definition: {
+    type: Object,
+    default: () => ({ nodes: [], edges: [] }),
+  },
 });
 
 const emit = defineEmits(['update']);
@@ -60,6 +68,7 @@ const ACTION_EDITORS = {
   assign_agent: markRaw(AssignAgentConfig),
   assign_team: markRaw(AssignTeamConfig),
   add_participant: markRaw(AddParticipantConfig),
+  distribuir: markRaw(DistribuirConfig),
   enroll_in_sequence: markRaw(EnrollSequenceConfig),
   assign_ai_agent: markRaw(AssignAiAgentConfig),
   ai_classify: markRaw(AiClassifyConfig),
@@ -84,6 +93,15 @@ const TYPE_EDITORS = {
   wait_for_reply: markRaw(WaitForReplyConfig),
 };
 
+// Props EXTRA por editor. Passamos só ao editor que declara a prop — um v-bind indiscriminado
+// viraria atributo solto no DOM (fallthrough) nos demais.
+const editorProps = computed(() => {
+  if (props.node.type !== 'wait_for_reply') return {};
+  return {
+    sourceOptions: interactiveOptionsForWait(props.definition, props.node.id),
+  };
+});
+
 const editor = computed(() => {
   if (props.node.type === 'action') {
     return ACTION_EDITORS[props.node.action_name] || markRaw(GenericConfig);
@@ -95,5 +113,10 @@ const onUpdate = patch => emit('update', patch);
 </script>
 
 <template>
-  <component :is="editor" :node="node" @update="onUpdate" />
+  <component
+    :is="editor"
+    :node="node"
+    v-bind="editorProps"
+    @update="onUpdate"
+  />
 </template>

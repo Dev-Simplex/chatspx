@@ -1,0 +1,32 @@
+[
+  {
+    "JID": "229480102662169@lid",
+    "PhoneNumber": "556699990001@s.whatsapp.net",
+    "LID": "229480102662169@lid",
+    "IsAdmin": true,
+    "IsSuperAdmin": false,
+    "DisplayName": "",
+    "Error": 0,
+    "AddRequest": null
+  },
+  {
+    "JID": "224515288227943@lid",
+    "PhoneNumber": "556699990002@s.whatsapp.net",
+    "LID": "224515288227943@lid",
+    "IsAdmin": false,
+    "IsSuperAdmin": false,
+    "DisplayName": "",
+    "Error": 0,
+    "AddRequest": null
+  },
+  {
+    "JID": "267722592149653@lid",
+    "PhoneNumber": "556699990003@s.whatsapp.net",
+    "LID": "267722592149653@lid",
+    "IsAdmin": true,
+    "IsSuperAdmin": true,
+    "DisplayName": "",
+    "Error": 0,
+    "AddRequest": null
+  }
+]

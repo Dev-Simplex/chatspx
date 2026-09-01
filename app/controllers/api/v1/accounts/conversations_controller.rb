@@ -3,6 +3,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   include HmacConcern
   include ConversationTeamAccessConcern
   include AgentConversationAccessConcern
+  include WahaGroupSyncable
 
   CONVERSATIONLESS_ACTIONS = [:index, :meta, :search, :create, :filter].freeze
 
@@ -52,7 +53,9 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     @attachments_count = @attachments.total_count
   end
 
-  def show; end
+  def show
+    refresh_waha_group_participants(@conversation)
+  end
 
   def create
     ActiveRecord::Base.transaction do

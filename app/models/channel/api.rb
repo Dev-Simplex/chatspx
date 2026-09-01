@@ -33,6 +33,12 @@ class Channel::Api < ApplicationRecord
     'API'
   end
 
+  # Menu de opcoes: o WAHA REST desenha o menu (Waha::OutboundSpecialMessageService) e, sem
+  # sessao WAHA, o WebhookListener entrega os items ao consumidor, que decide como mostrar.
+  def supports_interactive_items?
+    true
+  end
+
   private
 
   def ensure_valid_agent_reply_time_window

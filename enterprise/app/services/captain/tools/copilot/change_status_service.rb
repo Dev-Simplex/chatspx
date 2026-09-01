@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::ChangeStatusService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'change_status'
   end
@@ -8,8 +10,8 @@ class Captain::Tools::Copilot::ChangeStatusService < Captain::Tools::BaseTool
   param :status, type: :string, desc: 'New status: open, pending, resolved, or snoozed', required: true
 
   def execute(conversation_id:, status:)
-    conversation = @assistant.account.conversations.find_by(display_id: conversation_id)
-    return 'Conversation not found' if conversation.blank?
+    conversation = find_permissible_conversation(conversation_id)
+    return conversation_refusal(conversation_id) if conversation.blank?
     return "Invalid status: #{status}" unless Conversation.statuses.key?(status)
 
     conversation.update!(status: status)

@@ -12,7 +12,9 @@ class Avatar::AvatarFromUrlJob < ApplicationJob
   MAX_DOWNLOAD_SIZE = 15 * 1024 * 1024
   RATE_LIMIT_WINDOW = 1.minute
 
-  ALLOWED_AVATARABLE_TYPES = %w[Contact User Inbox AgentBot].freeze
+  # Company (EE) entra aqui porque Company#fetch_favicon enfileira AvatarFromFaviconJob;
+  # sem ela o job daria return na 1a linha e o favicon nunca seria anexado — falha silenciosa.
+  ALLOWED_AVATARABLE_TYPES = %w[Contact User Inbox AgentBot Company].freeze
 
   def perform(avatarable_type, avatarable_id, avatar_url)
     return unless ALLOWED_AVATARABLE_TYPES.include?(avatarable_type)

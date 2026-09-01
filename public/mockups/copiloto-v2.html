@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Copiloto v2 do ChatSPX no padrão visual da OpenAI: chat de IA para o agente, dentro da conversa e em tela própria.">
+<title>Copiloto v2 — ChatSPX</title>
+
+<style>
+/* ═══════════════════════════════════════════════
+   TOKENS
+
+   Chat  → paleta da OpenAI/ChatGPT: monocromática.
+           Nenhum accent colorido no fio de conversa.
+   Conversa do cliente → tokens reais de _wa-skin.scss
+   Página → neutro sóbrio, para não competir
+   ═══════════════════════════════════════════════ */
+:root{
+  /* ---- OpenAI, tema claro ---- */
+  --oa-bg:#ffffff;
+  --oa-side:#f9f9f9;
+  --oa-ink:#0d0d0d;
+  --oa-ink-2:#5d5d5d;
+  --oa-ink-3:#8f8f8f;
+  --oa-line:#e3e3e3;
+  --oa-line-soft:#ececec;
+  --oa-user-bub:#f4f4f4;      /* bolha do usuário */
+  --oa-hover:#f0f0f0;
+  --oa-code:#f7f7f8;
+  --oa-send:#0d0d0d;          /* botão de enviar */
+  --oa-send-ink:#ffffff;
+  --oa-focus:#0d0d0d;
+
+  /* ---- página ---- */
+  --ground:#fafafa;
+  --surface:#ffffff;
+  --surface-2:#f2f3f4;
+  --line:#e2e5e8;
+  --line-soft:#eceef0;
+  --ink:#111418;
+  --ink-2:#4b5563;
+  --ink-3:#7c8794;
+  --warn:#8a6100;
+  --warn-bg:#fdf6e3;
+  --warn-line:#e9c46a;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 12px 32px -18px rgba(0,0,0,.22);
+
+  /* ---- WhatsApp (conversa do cliente) ---- */
+  --wa-chat-bg:#efeae2;
+  --wa-bubble-in:#ffffff;
+  --wa-bubble-out:#d9fdd3;
+  --wa-header-bg:#f0f2f5;
+  --wa-text-primary:#111b21;
+  --wa-text-secondary:#667781;
+  --wa-list-border:#e9edef;
+  --wa-bubble-shadow:0 1px .5px rgba(11,20,26,.13);
+
+  --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --font-mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+  --font-wa:-apple-system,"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+
+@media (prefers-color-scheme:dark){
+  :root{
+    --oa-bg:#212121; --oa-side:#171717;
+    --oa-ink:#ececec; --oa-ink-2:#b4b4b4; --oa-ink-3:#8f8f8f;
+    --oa-line:#3a3a3a; --oa-line-soft:#2f2f2f;
+    --oa-user-bub:#303030; --oa-hover:#2f2f2f; --oa-code:#1a1a1a;
+    --oa-send:#ffffff; --oa-send-ink:#0d0d0d; --oa-focus:#ececec;
+
+    --ground:#0f1114; --surface:#171a1e; --surface-2:#1e2227;
+    --line:#2b3138; --line-soft:#23282e;
+    --ink:#e7ebef; --ink-2:#a6b0ba; --ink-3:#7c8794;
+    --warn:#e0b246; --warn-bg:#2a2313; --warn-line:#5c4a15;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -18px rgba(0,0,0,.8);
+
+    --wa-chat-bg:#0b141a; --wa-bubble-in:#202c33; --wa-bubble-out:#005c4b;
+    --wa-header-bg:#202c33; --wa-text-primary:#e9edef; --wa-text-secondary:#8696a0;
+    --wa-list-border:#2a3942; --wa-bubble-shadow:0 1px .5px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --oa-bg:#212121; --oa-side:#171717;
+  --oa-ink:#ececec; --oa-ink-2:#b4b4b4; --oa-ink-3:#8f8f8f;
+  --oa-line:#3a3a3a; --oa-line-soft:#2f2f2f;
+  --oa-user-bub:#303030; --oa-hover:#2f2f2f; --oa-code:#1a1a1a;
+  --oa-send:#ffffff; --oa-send-ink:#0d0d0d; --oa-focus:#ececec;
+  --ground:#0f1114; --surface:#171a1e; --surface-2:#1e2227;
+  --line:#2b3138; --line-soft:#23282e;
+  --ink:#e7ebef; --ink-2:#a6b0ba; --ink-3:#7c8794;
+  --warn:#e0b246; --warn-bg:#2a2313; --warn-line:#5c4a15;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -18px rgba(0,0,0,.8);
+  --wa-chat-bg:#0b141a; --wa-bubble-in:#202c33; --wa-bubble-out:#005c4b;
+  --wa-header-bg:#202c33; --wa-text-primary:#e9edef; --wa-text-secondary:#8696a0;
+  --wa-list-border:#2a3942; --wa-bubble-shadow:0 1px .5px rgba(0,0,0,.3);
+}
+:root[data-theme="light"]{
+  --oa-bg:#ffffff; --oa-side:#f9f9f9;
+  --oa-ink:#0d0d0d; --oa-ink-2:#5d5d5d; --oa-ink-3:#8f8f8f;
+  --oa-line:#e3e3e3; --oa-line-soft:#ececec;
+  --oa-user-bub:#f4f4f4; --oa-hover:#f0f0f0; --oa-code:#f7f7f8;
+  --oa-send:#0d0d0d; --oa-send-ink:#ffffff; --oa-focus:#0d0d0d;
+  --ground:#fafafa; --surface:#ffffff; --surface-2:#f2f3f4;
+  --line:#e2e5e8; --line-soft:#eceef0;
+  --ink:#111418; --ink-2:#4b5563; --ink-3:#7c8794;
+  --warn:#8a6100; --warn-bg:#fdf6e3; --warn-line:#e9c46a;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 12px 32px -18px rgba(0,0,0,.22);
+  --wa-chat-bg:#efeae2; --wa-bubble-in:#ffffff; --wa-bubble-out:#d9fdd3;
+  --wa-header-bg:#f0f2f5; --wa-text-primary:#111b21; --wa-text-secondary:#667781;
+  --wa-list-border:#e9edef; --wa-bubble-shadow:0 1px .5px rgba(11,20,26,.13);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font-sans);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.col{max-width:660px;margin:0 auto}
+section{padding:56px 0;border-top:1px solid var(--line-soft)}
+section:first-of-type{border-top:0}
+
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 12px}
+h1{font-size:clamp(30px,4.6vw,46px);line-height:1.1;letter-spacing:-.028em;font-weight:640;
+  margin:0 0 18px;text-wrap:balance}
+h2{font-size:clamp(21px,2.6vw,27px);line-height:1.22;letter-spacing:-.02em;font-weight:620;
+  margin:0 0 14px;text-wrap:balance}
+p{margin:0 0 16px;color:var(--ink-2)}
+p.lead{font-size:18.5px;line-height:1.55}
+strong{color:var(--ink);font-weight:600}
+code{font-family:var(--font-mono);font-size:.855em;background:var(--surface-2);padding:.14em .4em;
+  border-radius:4px;color:var(--ink)}
+
+.theme-toggle{position:fixed;top:14px;right:14px;z-index:100;display:inline-flex;align-items:center;
+  gap:7px;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--line);border-radius:20px;
+  padding:7px 13px;cursor:pointer;box-shadow:var(--shadow)}
+.theme-toggle:hover{color:var(--ink)}
+.theme-toggle:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);overflow:hidden;margin:26px 0}
+.stage-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;
+  border-bottom:1px solid var(--line);background:var(--surface-2)}
+.stage-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);margin-right:auto}
+.stage-body{padding:20px;overflow-x:auto}
+
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{font:inherit;font-size:12.5px;font-weight:560;border:0;background:transparent;
+  color:var(--ink-2);padding:5px 12px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.seg button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+
+/* ═══════ CONVERSA + COPILOTO ═══════ */
+.app{display:grid;grid-template-columns:minmax(0,1fr) 400px;border:1px solid var(--wa-list-border);
+  border-radius:12px;overflow:hidden;min-height:580px}
+.app.solo{grid-template-columns:minmax(0,1fr)}
+
+.chat{background:var(--wa-chat-bg);display:flex;flex-direction:column;min-width:0;font-family:var(--font-wa)}
+.chat-hd{display:flex;align-items:center;gap:11px;background:var(--wa-header-bg);padding:9px 14px;
+  border-bottom:1px solid var(--wa-list-border)}
+.chat-hd .av{width:38px;height:38px;border-radius:50%;background:#0a7cbb;display:grid;place-items:center;
+  color:#fff;font-size:13px;font-weight:700}
+.chat-hd .ttl{font-size:15px;font-weight:600;color:var(--wa-text-primary)}
+.chat-hd .sub{font-size:12.5px;color:var(--wa-text-secondary)}
+.thread{flex:1;padding:16px 14px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:420px}
+.row{display:flex}
+.row.out{justify-content:flex-end}
+.bub{background:var(--wa-bubble-in);border-radius:8px;padding:7px 10px 6px;box-shadow:var(--wa-bubble-shadow);
+  max-width:78%;color:var(--wa-text-primary);font-size:14.2px;line-height:1.45}
+.row.out .bub{background:var(--wa-bubble-out)}
+.bub .t{font-size:10.5px;color:var(--wa-text-secondary);float:right;margin:6px 0 -2px 10px;
+  font-variant-numeric:tabular-nums}
+.composer{background:var(--wa-header-bg);border-top:1px solid var(--wa-list-border);padding:10px 14px}
+.composer .box{background:var(--wa-bubble-in);border:1px solid var(--wa-list-border);border-radius:10px;
+  padding:9px 12px;font-size:14px;color:var(--wa-text-secondary);min-height:42px}
+.composer .box.filled{color:var(--wa-text-primary)}
+
+/* ═══════ O CHAT, PADRÃO OPENAI ═══════ */
+.cop{background:var(--oa-bg);border-left:1px solid var(--line);display:flex;flex-direction:column;
+  min-width:0;font-family:var(--font-sans);color:var(--oa-ink)}
+
+.cop-hd{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--oa-line-soft)}
+.cop-hd .nm{font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--oa-ink)}
+.cop-hd .sp{margin-left:auto;display:flex;gap:2px}
+.icobtn{width:30px;height:30px;border-radius:8px;border:0;background:transparent;color:var(--oa-ink-2);
+  cursor:pointer;display:grid;place-items:center;font-size:14px}
+.icobtn:hover{background:var(--oa-hover);color:var(--oa-ink)}
+.icobtn:focus-visible{outline:2px solid var(--oa-focus);outline-offset:1px}
+
+.cop-body{flex:1;overflow-y:auto;padding:22px 20px;display:flex;flex-direction:column;gap:26px;max-height:400px}
+
+/* — mensagem do USUÁRIO: bolha cinza à direita — */
+.m-user{display:flex;justify-content:flex-end}
+.m-user .b{background:var(--oa-user-bub);color:var(--oa-ink);border-radius:18px;padding:10px 15px;
+  font-size:14.5px;line-height:1.5;max-width:75%}
+
+/* — mensagem do ASSISTENTE: SEM bolha, texto na coluna — */
+.m-ai{font-size:14.5px;line-height:1.65;color:var(--oa-ink);max-width:100%}
+.m-ai p{margin:0 0 13px;color:inherit;font-size:inherit;line-height:inherit}
+.m-ai p:last-of-type{margin-bottom:0}
+.m-ai ul{margin:10px 0;padding-left:20px}
+.m-ai li{margin-bottom:6px}
+.m-ai strong{color:var(--oa-ink);font-weight:600}
+.m-ai pre{background:var(--oa-code);border:1px solid var(--oa-line-soft);border-radius:10px;
+  padding:12px 14px;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;
+  margin:12px 0;position:relative;color:var(--oa-ink)}
+.m-ai pre .cp{position:absolute;top:7px;right:7px;font-size:10.5px;padding:3px 7px;border-radius:6px;
+  border:1px solid var(--oa-line);background:var(--oa-bg);color:var(--oa-ink-3);cursor:pointer}
+
+/* fonte citada — discreta, monocromática */
+.src{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--oa-ink-3);
+  border:1px solid var(--oa-line);border-radius:8px;padding:4px 10px;margin-top:12px;cursor:pointer;
+  background:var(--oa-bg)}
+.src:hover{background:var(--oa-hover);color:var(--oa-ink-2)}
+
+/* ações abaixo da resposta — ícones discretos, como no ChatGPT */
+.acts{display:flex;gap:2px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.act{font:inherit;font-size:12.5px;width:30px;height:30px;border-radius:7px;border:0;background:transparent;
+  color:var(--oa-ink-3);cursor:pointer;display:grid;place-items:center}
+.act:hover{background:var(--oa-hover);color:var(--oa-ink)}
+.act:focus-visible{outline:2px solid var(--oa-focus);outline-offset:1px}
+.act.wide{width:auto;padding:0 11px;height:30px;font-size:12.5px;font-weight:550;gap:5px;
+  display:inline-flex;align-items:center}
+.act.primary{background:var(--oa-send);color:var(--oa-send-ink)}
+.act.primary:hover{opacity:.85;background:var(--oa-send);color:var(--oa-send-ink)}
+
+/* estado vazio */
+.empty{margin:auto 0;text-align:left}
+.empty h4{margin:0 0 6px;font-size:19px;font-weight:600;letter-spacing:-.02em;color:var(--oa-ink)}
+.empty p{margin:0 0 18px;font-size:13.5px;color:var(--oa-ink-3);line-height:1.5}
+.qp{display:flex;flex-direction:column;gap:8px}
+.qp button{text-align:left;font:inherit;font-size:13.5px;padding:11px 13px;border-radius:12px;
+  border:1px solid var(--oa-line);background:var(--oa-bg);color:var(--oa-ink);cursor:pointer;line-height:1.4}
+.qp button:hover{background:var(--oa-hover)}
+.qp button .k{display:block;font-size:12px;color:var(--oa-ink-3);margin-top:3px}
+
+/* cursor de streaming */
+.cursor{display:inline-block;width:9px;height:16px;background:var(--oa-ink);vertical-align:text-bottom;
+  margin-left:2px;border-radius:1px;animation:blink 1.05s steps(2) infinite}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+
+.thinking{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--oa-ink-3)}
+.thinking .d{display:flex;gap:4px}
+.thinking .d i{width:6px;height:6px;border-radius:50%;background:var(--oa-ink-3);animation:bob 1.2s infinite}
+.thinking .d i:nth-child(2){animation-delay:.15s}
+.thinking .d i:nth-child(3){animation-delay:.3s}
+@keyframes bob{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+
+.errbar{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;
+  border:1px solid var(--oa-line);background:var(--oa-code);color:var(--oa-ink-2);font-size:13.5px;
+  line-height:1.5}
+.errbar button{font:inherit;font-size:13px;font-weight:600;background:none;border:0;color:var(--oa-ink);
+  text-decoration:underline;cursor:pointer;padding:0;white-space:nowrap}
+
+/* composer — pill, botão circular escuro */
+.cop-foot{padding:12px 16px 16px}
+.cop-input{display:flex;align-items:flex-end;gap:9px;background:var(--oa-bg);
+  border:1px solid var(--oa-line);border-radius:26px;padding:9px 9px 9px 16px;
+  box-shadow:0 2px 6px rgba(0,0,0,.04)}
+.cop-input:focus-within{border-color:var(--oa-ink-3)}
+.cop-input textarea{flex:1;border:0;background:transparent;resize:none;font:inherit;font-size:14.5px;
+  color:var(--oa-ink);outline:none;max-height:110px;line-height:1.5;padding:3px 0}
+.cop-input textarea::placeholder{color:var(--oa-ink-3)}
+.send{width:32px;height:32px;border-radius:50%;border:0;background:var(--oa-send);color:var(--oa-send-ink);
+  cursor:pointer;flex:0 0 32px;display:grid;place-items:center;font-size:15px;font-weight:700;line-height:1}
+.send[disabled]{opacity:.25;cursor:default}
+.hintbar{text-align:center;font-size:11.5px;color:var(--oa-ink-3);margin-top:9px}
+kbd{font-family:var(--font-mono);font-size:10.5px;border:1px solid var(--oa-line);border-radius:4px;
+  padding:1px 4px;background:var(--oa-bg);color:var(--oa-ink-2)}
+
+/* ═══════ TELA PRÓPRIA ═══════ */
+.own{display:grid;grid-template-columns:250px minmax(0,1fr);border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;min-height:470px;background:var(--oa-bg);font-family:var(--font-sans)}
+.own-side{background:var(--oa-side);border-right:1px solid var(--oa-line-soft);padding:12px;overflow-y:auto}
+.own-side .new{width:100%;font:inherit;font-size:13.5px;font-weight:500;padding:9px 11px;border-radius:10px;
+  border:1px solid var(--oa-line);background:var(--oa-bg);color:var(--oa-ink);cursor:pointer;
+  margin-bottom:16px;text-align:left}
+.own-side .new:hover{background:var(--oa-hover)}
+.own-side .grp{font-size:11.5px;font-weight:600;color:var(--oa-ink-3);margin:14px 0 6px;padding:0 8px}
+.own-side .it{font-size:13.2px;padding:8px;border-radius:8px;color:var(--oa-ink-2);cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.own-side .it:hover{background:var(--oa-hover)}
+.own-side .it.on{background:var(--oa-hover);color:var(--oa-ink);font-weight:500}
+.own-main{display:flex;flex-direction:column;background:var(--oa-bg)}
+.own-thread{flex:1;padding:28px 24px;display:flex;flex-direction:column;gap:26px;overflow-y:auto;
+  max-height:340px}
+/* coluna de leitura ~65 caracteres, centralizada */
+.own-thread .inner{width:100%;max-width:min(680px,100%);margin:0 auto;display:flex;
+  flex-direction:column;gap:26px}
+.own-main .cop-foot{border-top:1px solid var(--oa-line-soft)}
+.own-main .cop-input{max-width:680px;margin:0 auto}
+
+.note{border-left:2.5px solid var(--ink);background:var(--surface);border-radius:0 9px 9px 0;
+  padding:14px 18px;margin:22px 0}
+.note.warn{border-left-color:var(--warn-line);background:var(--warn-bg)}
+.note p:last-child{margin-bottom:0}
+.note .lbl{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);display:block;margin-bottom:6px}
+.note.warn .lbl{color:var(--warn)}
+
+.phases{display:grid;gap:11px;margin:22px 0}
+.phase{display:grid;grid-template-columns:auto 1fr;gap:15px;align-items:start;background:var(--surface);
+  border:1px solid var(--line);border-radius:11px;padding:15px 17px}
+.phase .tag{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--ink);
+  border:1px solid var(--line);border-radius:6px;padding:3px 8px;white-space:nowrap}
+.phase h4{margin:0 0 5px;font-size:15px}
+.phase p{margin:0 0 7px;font-size:14px}
+.phase .cost{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);display:flex;
+  flex-wrap:wrap;gap:4px 14px}
+
+.foot{padding:34px 0 60px;font-size:13px;color:var(--ink-3);border-top:1px solid var(--line-soft)}
+.foot code{background:none;padding:0;color:var(--ink-3);font-size:12px}
+
+@media (max-width:960px){
+  .app{grid-template-columns:1fr}
+  .cop{border-left:0;border-top:1px solid var(--line)}
+  .own{grid-template-columns:1fr}
+  .own-side{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+  .cursor{opacity:1}
+}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" type="button"><span aria-hidden="true">◐</span><span id="themeLabel">Claro</span></button>
+
+<div class="wrap">
+
+<section>
+  <div class="col">
+    <p class="eyebrow">ChatSPX · Copiloto v2 · proposta de interface</p>
+    <h1>O copiloto do agente, no padrão OpenAI.</h1>
+    <p class="lead">
+      Monocromático, coluna de leitura estreita, resposta sem bolha, composer em pill.
+      O mesmo motor servindo dois lugares: dentro da conversa e em tela própria.
+    </p>
+    <div class="note warn">
+      <span class="lbl">Antes de tudo</span>
+      <p>
+        O copiloto <strong>não funciona hoje</strong> — a chave da OpenAI está inválida
+        (<code>RubyLLM::UnauthorizedError</code>, 19 ocorrências no GlitchTip). Nada aqui sai do papel
+        sem resolver isso primeiro.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <p class="eyebrow">Fase 1 · onde o agente já trabalha</p>
+    <h2>Dentro da conversa</h2>
+    <p>
+      O <strong>streaming é de verdade</strong> — o texto chega token a token, com o cursor,
+      como será na implementação. Clique nos estados.
+    </p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-bar">
+      <span class="stage-title">Conversa + Copiloto</span>
+      <div class="seg" role="group" aria-label="Estado do copiloto">
+        <button type="button" data-st="empty" aria-pressed="true">Início</button>
+        <button type="button" data-st="stream" aria-pressed="false">Respondendo</button>
+        <button type="button" data-st="done" aria-pressed="false">Pronto</button>
+        <button type="button" data-st="error" aria-pressed="false">Erro</button>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div class="app">
+        <div class="chat">
+          <div class="chat-hd">
+            <div class="av">MR</div>
+            <div>
+              <div class="ttl">Marina Ribeiro</div>
+              <div class="sub">WhatsApp · Suporte</div>
+            </div>
+          </div>
+          <div class="thread">
+            <div class="row"><div class="bub">Oi, comprei semana passada e ainda não chegou nada<span class="t">14:02</span></div></div>
+            <div class="row"><div class="bub">O pedido é o 48291<span class="t">14:02</span></div></div>
+            <div class="row out"><div class="bub">Boa tarde, Marina! Vou verificar agora<span class="t">14:05</span></div></div>
+            <div class="row"><div class="bub">Por favor, já faz 9 dias. Se não chegar até sexta eu preciso cancelar<span class="t">14:06</span></div></div>
+          </div>
+          <div class="composer">
+            <div class="box" id="composerBox">Digite uma mensagem…</div>
+          </div>
+        </div>
+
+        <div class="cop">
+          <div class="cop-hd">
+            <span class="nm">Copiloto</span>
+            <span class="sp">
+              <button class="icobtn" title="Nova conversa">✎</button>
+              <button class="icobtn" title="Histórico">☰</button>
+            </span>
+          </div>
+          <div class="cop-body" id="copBody"></div>
+          <div class="cop-foot">
+            <div class="cop-input">
+              <textarea rows="1" placeholder="Pergunte alguma coisa" id="copInput"></textarea>
+              <button class="send" id="sendBtn" title="Enviar">↑</button>
+            </div>
+            <div class="hintbar"><kbd>Tab</kbd> aceita · <kbd>Esc</kbd> descarta · <kbd>Ctrl</kbd>+<kbd>J</kbd> abre</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="note">
+      <span class="lbl">O que faz parecer OpenAI</span>
+      <p>
+        <strong>A resposta não tem bolha.</strong> Só a fala do usuário fica em bolha, cinza neutra,
+        à direita. A resposta da IA é texto solto na coluna — é a decisão estrutural que mais define
+        a aparência, e a mais fácil de errar.
+      </p>
+      <p>
+        <strong>Nenhuma cor de destaque no fio.</strong> Preto, branco e cinza. Cor só aparece na
+        conversa do cliente ao lado, que segue o tema WhatsApp.
+      </p>
+      <p>
+        <strong>Ações em ícones discretos</strong> abaixo da resposta, e composer em pill com botão
+        circular escuro.
+      </p>
+    </div>
+    <div class="note">
+      <span class="lbl">Onde eu me afasto do ChatGPT, de propósito</span>
+      <p>
+        O ChatGPT abre com a tela em branco — <em>"radical subtraction"</em>. Aqui a tela inicial traz
+        as ações mais úteis daquela conversa. O agente está sob pressão com um cliente esperando; ele
+        não veio explorar, veio resolver. A NN/g mede isso: sem exemplos nomeados, o usuário não sabe
+        do que a ferramenta é capaz.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <p class="eyebrow">Fase 2 · o fim do <code>/atalho</code></p>
+    <h2>A resposta já está lá quando o agente abre</h2>
+    <p>
+      Existem <strong>9 respostas prontas na base inteira</strong> — não há acervo a perder.
+      A IA escreve com o contexto do cliente, e o agente decide.
+    </p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-bar">
+      <span class="stage-title">Sugestão automática no composer</span>
+      <div class="seg" role="group" aria-label="Ação">
+        <button type="button" data-sg="idle" aria-pressed="true">Sugerido</button>
+        <button type="button" data-sg="editing" aria-pressed="false">Editando</button>
+        <button type="button" data-sg="regen" aria-pressed="false">Refazendo</button>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div class="app solo">
+        <div class="chat">
+          <div class="chat-hd">
+            <div class="av">MR</div>
+            <div>
+              <div class="ttl">Marina Ribeiro</div>
+              <div class="sub">WhatsApp · Suporte</div>
+            </div>
+          </div>
+          <div class="thread" style="max-height:180px">
+            <div class="row"><div class="bub">Por favor, já faz 9 dias. Se não chegar até sexta eu preciso cancelar<span class="t">14:06</span></div></div>
+          </div>
+          <div class="composer" id="sugWrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="note">
+      <span class="lbl">A ressalva honesta</span>
+      <p>
+        <strong>Ninguém no mercado matou as respostas prontas.</strong> Intercom, Zendesk e Freshdesk
+        mantiveram os templates e usam a IA para escolher e reescrever. A decisão de aposentar se
+        sustenta aqui por um motivo específico: são 9 registros, não centenas.
+      </p>
+      <p>
+        Mitigação: migrar as 9 para a base de conhecimento antes de remover a tela, e
+        <strong>não apagar a tabela</strong>. O caminho de volta fica aberto.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <p class="eyebrow">Fase 3 · fora da conversa</p>
+    <h2>O assistente do time</h2>
+    <p>
+      Mesmo motor, sem cliente específico. Histórico agrupado por data, coluna de leitura de
+      ~65 caracteres — a medida que o ChatGPT usa e que quase ninguém copia.
+    </p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-bar"><span class="stage-title">Tela própria · histórico</span></div>
+    <div class="stage-body">
+      <div class="own">
+        <div class="own-side">
+          <button class="new">＋ Nova conversa</button>
+          <div class="grp">Hoje</div>
+          <div class="it on">Política de reembolso acima de 30 dias</div>
+          <div class="it">Como cancelar pedido em rota</div>
+          <div class="grp">Ontem</div>
+          <div class="it">Modelo de e-mail para atraso</div>
+          <div class="it">Diferença entre plano Pro e Business</div>
+          <div class="grp">7 dias anteriores</div>
+          <div class="it">Prazo de troca por defeito</div>
+        </div>
+        <div class="own-main">
+          <div class="own-thread">
+            <div class="inner">
+              <div class="m-user"><div class="b">Qual a política de reembolso pra compra com mais de 30 dias?</div></div>
+              <div>
+                <div class="m-ai">
+                  <p>Acima de 30 dias o reembolso não é automático, mas há duas exceções:</p>
+                  <ul>
+                    <li><strong>Defeito de fabricação</strong> — prazo de 90 dias, com laudo da assistência</li>
+                    <li><strong>Produto não entregue</strong> — sem limite, mediante rastreio sem baixa</li>
+                  </ul>
+                  <p>Fora desses casos, a alçada é do supervisor.</p>
+                  <span class="src">📄 Política Comercial · seção 4.2</span>
+                </div>
+                <div class="acts">
+                  <button class="act" title="Copiar">⧉</button>
+                  <button class="act" title="Refazer">↻</button>
+                  <button class="act" title="Boa resposta">👍</button>
+                  <button class="act" title="Resposta ruim">👎</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="cop-foot">
+            <div class="cop-input">
+              <textarea rows="1" placeholder="Pergunte alguma coisa"></textarea>
+              <button class="send" title="Enviar">↑</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <p class="eyebrow">Engenharia</p>
+    <h2>Não começa do zero</h2>
+    <p>
+      O painel novo <strong>já existe no repo</strong>: 3.083 linhas em
+      <code>components-next/ai-assistant/</code>. Está desligado por flag e quebrado por um bug de
+      i18n — as traduções pedem <code>CONVERSATION.AI_ASSISTANT_PANEL.*</code> e as strings foram
+      gravadas na raiz do arquivo.
+    </p>
+
+    <div class="note">
+      <span class="lbl">Transporte: SSE, não ActionCable</span>
+      <p>
+        ActionCable é <em>at-most-once</em> e não numera mensagens — sem ordem garantida sob carga, o
+        agente vê palavras embaralhadas. SSE é o que a própria OpenAI usa. O nginx da frota já está
+        pronto (<code>proxy_buffering off</code>, <code>proxy_read_timeout 900s</code>).
+      </p>
+    </div>
+
+    <div class="phases">
+      <div class="phase">
+        <span class="tag">F0</span>
+        <div>
+          <h4>Destravar</h4>
+          <p>Chave da OpenAI válida, corrigir o i18n, ligar a flag numa conta piloto.</p>
+          <div class="cost"><span>dias</span><span>sem arquitetura nova</span></div>
+        </div>
+      </div>
+      <div class="phase">
+        <span class="tag">F1</span>
+        <div>
+          <h4>O chat de verdade</h4>
+          <p>Streaming SSE, thread persistida, parar/regenerar/editar, markdown com código copiável. Mata o Copilot V1.</p>
+          <div class="cost"><span>2–3 semanas</span><span>o que você vê acima</span></div>
+        </div>
+      </div>
+      <div class="phase">
+        <span class="tag">F2</span>
+        <div>
+          <h4>Aposentar o <code>/atalho</code></h4>
+          <p>Sugestão automática ao abrir a conversa. Migra as 9 respostas para conhecimento.</p>
+          <div class="cost"><span>1–2 semanas</span><span>tabela preservada</span></div>
+        </div>
+      </div>
+      <div class="phase">
+        <span class="tag">F3</span>
+        <div>
+          <h4>Tela própria</h4>
+          <p>Mesmo motor, seção no menu, histórico por data.</p>
+          <div class="cost"><span>1–2 semanas</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note warn">
+      <span class="lbl">Zona proibida</span>
+      <p>
+        Nada disso toca nos <strong>agentes de IA</strong> que atendem o cliente. O vínculo
+        <code>CopilotThread → Captain::Assistant</code> é preservado: o copiloto lê o assistente,
+        nunca escreve nele.
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="foot col">
+  Mockup de proposta — nenhuma linha de código de produção foi alterada.
+  Pesquisa completa em <code>plano/captain-v2/</code>, entrada por <code>PLANO.md</code>.
+</div>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var root=document.documentElement, tb=document.getElementById('themeToggle'), tl=document.getElementById('themeLabel');
+  function cur(){var f=root.getAttribute('data-theme');return f||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
+  function paint(){tl.textContent=cur()==='dark'?'Escuro':'Claro';tb.setAttribute('aria-label','Tema '+tl.textContent+'. Clique para alternar.');}
+  tb.addEventListener('click',function(){root.setAttribute('data-theme',cur()==='dark'?'light':'dark');paint();});
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',paint);
+  paint();
+
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var body=document.getElementById('copBody');
+  var composerBox=document.getElementById('composerBox');
+  var timer=null;
+
+  var ANSWER=[
+    {p:'A Marina está há <strong>9 dias</strong> esperando o pedido <strong>48291</strong> e deu um prazo: <strong>sexta-feira</strong>.'},
+    {p:'O rastreio mostra a encomenda parada em Cajamar desde <strong>22/07</strong> — não é atraso de rota, é extravio provável.'},
+    {p:'Sugiro abrir ocorrência na transportadora e oferecer reenvio imediato, sem esperar a resposta dela.'},
+    {src:'Pedido #48291 · rastreio'}
+  ];
+
+  function el(h){var d=document.createElement('div');d.innerHTML=h.trim();return d.firstChild;}
+
+  function renderEmpty(){
+    clearInterval(timer);
+    composerBox.className='box'; composerBox.textContent='Digite uma mensagem…';
+    body.innerHTML='';
+    body.appendChild(el(
+      '<div class="empty">'+
+        '<h4>Como posso ajudar?</h4>'+
+        '<p>Tenho o histórico desta conversa e a base de conhecimento da sua conta.</p>'+
+        '<div class="qp">'+
+          '<button type="button">Resumir esta conversa<span class="k">o que já foi tratado até aqui</span></button>'+
+          '<button type="button">O que devo fazer agora?<span class="k">próxima ação sugerida</span></button>'+
+          '<button type="button">Escrever uma resposta<span class="k">com o contexto do cliente</span></button>'+
+          '<button type="button">Qual a política pra este caso?<span class="k">consulta na base</span></button>'+
+        '</div>'+
+      '</div>'));
+    body.querySelectorAll('.qp button').forEach(function(b){
+      b.addEventListener('click',function(){ setState('stream'); });
+    });
+  }
+
+  function renderStream(){
+    clearInterval(timer);
+    composerBox.className='box'; composerBox.textContent='Digite uma mensagem…';
+    body.innerHTML='';
+    body.appendChild(el('<div class="m-user"><div class="b">O que devo fazer agora?</div></div>'));
+    var holder=el('<div></div>');
+    var ai=el('<div class="m-ai"></div>');
+    holder.appendChild(ai);
+    body.appendChild(holder);
+
+    var think=el('<div class="thinking"><span class="d"><i></i><i></i><i></i></span><span>consultando o pedido</span></div>');
+    ai.appendChild(think);
+
+    var pi=0, ci=0, para=null;
+    setTimeout(function(){
+      if(think.parentNode) think.remove();
+      if(reduced){
+        ANSWER.forEach(function(b){
+          ai.appendChild(b.p ? el('<p>'+b.p+'</p>') : el('<span class="src">📄 '+b.src+'</span>'));
+        });
+        finishStream(holder); return;
+      }
+      addStop(holder);
+      timer=setInterval(function(){
+        var blk=ANSWER[pi];
+        if(!blk){ clearInterval(timer); finishStream(holder); return; }
+        if(blk.src){ ai.appendChild(el('<span class="src">📄 '+blk.src+'</span>')); pi++; return; }
+        if(!para){ para=el('<p></p>'); ai.appendChild(para); }
+        ci+=2;
+        para.innerHTML=blk.p.slice(0,ci)+'<span class="cursor"></span>';
+        if(ci>=blk.p.length){ para.innerHTML=blk.p; para=null; ci=0; pi++; }
+      },18);
+    },700);
+  }
+
+  function addStop(holder){
+    var acts=el('<div class="acts"><button class="act wide" type="button">■ Parar</button></div>');
+    acts.querySelector('button').addEventListener('click',function(){
+      clearInterval(timer);
+      holder.querySelectorAll('.cursor').forEach(function(c){c.remove()});
+      finishStream(holder);
+    });
+    holder.appendChild(acts);
+  }
+
+  function finishStream(holder){
+    var old=holder.querySelector('.acts'); if(old) old.remove();
+    var acts=el('<div class="acts">'+
+      '<button class="act wide primary" type="button">Usar como resposta</button>'+
+      '<button class="act" type="button" title="Copiar">⧉</button>'+
+      '<button class="act" type="button" title="Refazer">↻</button>'+
+      '<button class="act" type="button" title="Boa resposta">👍</button>'+
+      '<button class="act" type="button" title="Resposta ruim">👎</button>'+
+    '</div>');
+    acts.querySelector('.primary').addEventListener('click',function(){
+      composerBox.className='box filled';
+      composerBox.textContent='Marina, localizei seu pedido: ele está parado em Cajamar desde 22/07. Já abri a ocorrência e vou reenviar hoje mesmo, sem custo.';
+      composerBox.scrollIntoView({block:'nearest'});
+    });
+    holder.appendChild(acts);
+  }
+
+  function renderDone(){
+    clearInterval(timer);
+    composerBox.className='box'; composerBox.textContent='Digite uma mensagem…';
+    body.innerHTML='';
+    body.appendChild(el('<div class="m-user"><div class="b">O que devo fazer agora?</div></div>'));
+    var holder=el('<div><div class="m-ai">'+
+      ANSWER.filter(function(b){return b.p}).map(function(b){return '<p>'+b.p+'</p>'}).join('')+
+      '<span class="src">📄 Pedido #48291 · rastreio</span></div></div>');
+    body.appendChild(holder);
+    finishStream(holder);
+  }
+
+  function renderError(){
+    clearInterval(timer);
+    body.innerHTML='';
+    body.appendChild(el('<div class="m-user"><div class="b">O que devo fazer agora?</div></div>'));
+    var e=el('<div class="errbar"><span>⚠</span><span>Não consegui responder agora: o serviço de IA recusou a credencial. '+
+      'Isso não é problema da sua conexão. <button type="button">Tentar de novo</button></span></div>');
+    body.appendChild(e);
+    e.querySelector('button').addEventListener('click',function(){ setState('stream'); });
+  }
+
+  var STATES={empty:renderEmpty,stream:renderStream,done:renderDone,error:renderError};
+  function setState(s){
+    document.querySelectorAll('[data-st]').forEach(function(b){ b.setAttribute('aria-pressed',String(b.dataset.st===s)); });
+    (STATES[s]||renderEmpty)();
+  }
+  document.querySelectorAll('[data-st]').forEach(function(b){
+    b.addEventListener('click',function(){ setState(b.dataset.st); });
+  });
+
+  var input=document.getElementById('copInput'), sendBtn=document.getElementById('sendBtn');
+  function grow(){ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,110)+'px'; }
+  input.addEventListener('input',grow);
+  input.addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); setState('stream'); input.value=''; grow(); }
+  });
+  sendBtn.addEventListener('click',function(){ setState('stream'); input.value=''; grow(); });
+
+  /* fase 2 */
+  var sugWrap=document.getElementById('sugWrap');
+  var SUG='Marina, localizei seu pedido: ele está parado em Cajamar desde 22/07. Já abri a ocorrência com a transportadora e vou reenviar hoje mesmo, sem custo. Você recebe o novo código de rastreio ainda hoje.';
+
+  function sugIdle(){
+    sugWrap.innerHTML='';
+    var b=el('<div></div>');
+    b.appendChild(el('<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--wa-text-secondary);margin-bottom:8px;font-family:var(--font-sans)">'+
+      'Sugestão do copiloto <span class="src" style="margin:0;padding:2px 8px;font-size:11.5px">📄 Pedido #48291</span></div>'));
+    b.appendChild(el('<div class="box filled" style="font-family:var(--font-wa)">'+SUG+'</div>'));
+    b.appendChild(el('<div class="acts" style="font-family:var(--font-sans);margin-top:9px;gap:5px">'+
+      '<button class="act wide primary" type="button">Usar</button>'+
+      '<button class="act wide" type="button" data-a="edit">Editar</button>'+
+      '<button class="act wide" type="button" data-a="regen">Refazer</button>'+
+      '<button class="act wide" type="button">Descartar</button></div>'));
+    sugWrap.appendChild(b);
+    b.querySelector('[data-a="edit"]').addEventListener('click',function(){ setSug('editing'); });
+    b.querySelector('[data-a="regen"]').addEventListener('click',function(){ setSug('regen'); });
+  }
+  function sugEditing(){
+    sugWrap.innerHTML='';
+    var b=el('<div></div>');
+    b.appendChild(el('<div style="font-size:12px;color:var(--wa-text-secondary);margin-bottom:8px;font-family:var(--font-sans)">Editando a sugestão</div>'));
+    var ta=el('<textarea style="width:100%;min-height:78px;border:1px solid var(--wa-text-secondary);border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;font-family:var(--font-wa);resize:vertical;background:var(--wa-bubble-in);color:var(--wa-text-primary);outline:none"></textarea>');
+    ta.value=SUG;
+    b.appendChild(ta);
+    b.appendChild(el('<div class="acts" style="font-family:var(--font-sans);margin-top:9px;gap:5px">'+
+      '<button class="act wide primary" type="button">Enviar</button>'+
+      '<button class="act wide" type="button" data-a="back">Cancelar</button></div>'));
+    sugWrap.appendChild(b);
+    b.querySelector('[data-a="back"]').addEventListener('click',function(){ setSug('idle'); });
+    ta.focus();
+  }
+  function sugRegen(){
+    sugWrap.innerHTML='';
+    sugWrap.appendChild(el('<div class="thinking" style="font-family:var(--font-sans);padding:14px 2px"><span class="d"><i></i><i></i><i></i></span><span>escrevendo outra versão</span></div>'));
+    setTimeout(function(){ setSug('idle'); }, reduced?0:1400);
+  }
+  var SUGS={idle:sugIdle,editing:sugEditing,regen:sugRegen};
+  function setSug(s){
+    document.querySelectorAll('[data-sg]').forEach(function(b){ b.setAttribute('aria-pressed',String(b.dataset.sg===s)); });
+    (SUGS[s]||sugIdle)();
+  }
+  document.querySelectorAll('[data-sg]').forEach(function(b){
+    b.addEventListener('click',function(){ setSug(b.dataset.sg); });
+  });
+
+  renderEmpty();
+  sugIdle();
+})();
+</script>
+</body>
+</html>

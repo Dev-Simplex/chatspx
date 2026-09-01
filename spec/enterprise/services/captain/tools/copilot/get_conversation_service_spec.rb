@@ -106,6 +106,12 @@ RSpec.describe Captain::Tools::Copilot::GetConversationService do
       let(:inbox) { create(:inbox, account: account) }
       let(:conversation) { create(:conversation, account: account, inbox: inbox) }
 
+      # O tool passou a respeitar Conversations::PermissionFilterService (a mesma regra da
+      # tela). O usuário do factory é agente simples e não nasce em caixa nenhuma — sem a
+      # participação abaixo ele não alcança a conversa, e o que estes exemplos medem é o
+      # formato do texto, não a permissão (essa é o conversation_scope_spec.rb).
+      before { create(:inbox_member, user: user, inbox: inbox) }
+
       it 'returns the conversation in llm text format' do
         result = service.execute(conversation_id: conversation.display_id)
         expect(result).to eq(conversation.to_llm_text)

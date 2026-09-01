@@ -1,0 +1,2067 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Auditoria de front — 129 tarefas · ChatSPX</title>
+<style>
+:root{
+  --bg:#f7f8f9; --surface:#fff; --surface-2:#eef1f3; --line:#dfe4e8;
+  --ink:#101828; --ink-2:#4a5866; --ink-3:#7b8a99;
+  --p0:#b42318; --p1:#b54708; --p2:#175cd3; --p3:#667085;
+  --jr:#067647;
+  --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 28px -18px rgba(16,24,40,.25);
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0d1117;--surface:#161b22;--surface-2:#1c232c;--line:#2a3441;
+  --ink:#e6edf3;--ink-2:#a9b6c3;--ink-3:#7d8a99;
+  --p0:#ff7b72;--p1:#e3b341;--p2:#79c0ff;--p3:#8b949e;--jr:#56d364;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);}
+}
+:root[data-theme="dark"]{--bg:#0d1117;--surface:#161b22;--surface-2:#1c232c;--line:#2a3441;
+  --ink:#e6edf3;--ink-2:#a9b6c3;--ink-3:#7d8a99;--p0:#ff7b72;--p1:#e3b341;--p2:#79c0ff;--p3:#8b949e;--jr:#56d364;}
+:root[data-theme="light"]{--bg:#f7f8f9;--surface:#fff;--surface-2:#eef1f3;--line:#dfe4e8;
+  --ink:#101828;--ink-2:#4a5866;--ink-3:#7b8a99;--p0:#b42318;--p1:#b54708;--p2:#175cd3;--p3:#667085;--jr:#067647;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 70px}
+h1{font-size:clamp(24px,3.4vw,34px);letter-spacing:-.02em;margin:0 0 6px;font-weight:640}
+.sub{color:var(--ink-2);margin:0 0 22px}
+.toggle{position:fixed;top:12px;right:12px;z-index:20;font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;background:var(--surface);color:var(--ink-2);border:1px solid var(--line);
+  border-radius:20px;padding:6px 12px;cursor:pointer;box-shadow:var(--shadow)}
+.bar{position:sticky;top:0;z-index:10;background:var(--bg);padding:10px 0 12px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}
+.chip{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  border-radius:20px;padding:5px 11px;cursor:pointer}
+.chip b{font-variant-numeric:tabular-nums;margin-left:3px;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip[aria-pressed="true"] b{color:var(--surface)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#q{flex:1;min-width:200px;font:inherit;font-size:13.5px;padding:7px 12px;border-radius:9px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);outline:none}
+#q:focus{border-color:var(--ink-3)}
+.count{font-family:var(--mono);font-size:12px;color:var(--ink-3);white-space:nowrap}
+.task{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line);
+  border-radius:10px;padding:13px 15px;margin-bottom:9px;box-shadow:var(--shadow)}
+.task.sP0{border-left-color:var(--p0)} .task.sP1{border-left-color:var(--p1)}
+.task.sP2{border-left-color:var(--p2)} .task.sP3{border-left-color:var(--p3)}
+.task header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.sev{font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;
+  border:1px solid currentColor}
+.sP0 .sev{color:var(--p0)} .sP1 .sev{color:var(--p1)} .sP2 .sev{color:var(--p2)} .sP3 .sev{color:var(--p3)}
+.id{font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+.area{font-size:11.5px;color:var(--ink-3);background:var(--surface-2);padding:2px 8px;border-radius:20px}
+.jr{font-size:11px;font-weight:600;color:var(--jr);border:1px solid currentColor;border-radius:20px;padding:1px 8px}
+.onde{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);margin:0 0 5px;word-break:break-word}
+.oque{margin:0;font-size:14.2px;color:var(--ink)}
+details{margin-top:8px}
+summary{font-size:12.5px;color:var(--ink-3);cursor:pointer;user-select:none}
+summary:hover{color:var(--ink)}
+details p{font-size:13px;color:var(--ink-2);margin:8px 0 0;word-break:break-word}
+.empty{text-align:center;color:var(--ink-3);padding:40px 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<button class="toggle" id="tg">◐ tema</button>
+<div class="wrap">
+  <h1>Auditoria de front-end</h1>
+  <p class="sub">129 tarefas encontradas por 4 agentes varrendo o ChatSPX em 1440 e 1280px, claro e escuro.
+  Cada uma tem evidência medida. Clique nos filtros para reduzir a lista.</p>
+
+  <div class="bar">
+    <div class="chips"><button class="chip" data-f="sev" data-v="P0">P0 · Bloqueia <b>5</b></button><button class="chip" data-f="sev" data-v="P1">P1 · Grave <b>35</b></button><button class="chip" data-f="sev" data-v="P2">P2 · Incomoda <b>53</b></button><button class="chip" data-f="sev" data-v="P3">P3 · Polimento <b>36</b></button><button class="chip" data-f="jr" data-v="1">bom p/ júnior <b>10</b></button></div>
+    <div class="chips"><button class="chip" data-f="area" data-v="Configurações e Caixas">Configurações e Caixas <b>40</b></button><button class="chip" data-f="area" data-v="Conversas e Contatos">Conversas e Contatos <b>30</b></button><button class="chip" data-f="area" data-v="IA, Automações e Ajuda">IA, Automações e Ajuda <b>24</b></button><button class="chip" data-f="area" data-v="Relatórios, Campanhas e Kanban">Relatórios, Campanhas e Kanban <b>35</b></button></div>
+    <div class="tools">
+      <input id="q" type="search" placeholder="buscar por texto, rota, arquivo…">
+      <span class="count" id="cnt"></span>
+      <button class="chip" id="clear">limpar</button>
+    </div>
+  </div>
+
+  <div id="list">
+    <article class="task sP0" data-sev="P0" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P0</span>
+        <span class="id">F3-1</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/inboxes/44/configuration (aba Configuração, WhatsApp Cloud)</p>
+      <p class="oque">A Chave API da Meta é exibida em texto puro, sem máscara e sem botão mostrar/ocultar. Pior: o texto de 210 caracteres é renderizado em uma única linha que vai até x=2057 (viewport 1440) — passa por baixo do botão &quot;Copiar&quot; (que ocupa 1135..1190, sobreposição de 922px) e some no corte do container.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido via Range.getClientRects(): token len=210 rects=1 maxRight=2057 mascarado=false; botao Copiar: 1135..1190 -&gt; sobreposicao=922px. Screenshot 11-inbox-token-em-claro-sobreposto.png</p>
+        <p class="fx"><b>Conserto:</b> Mascarar como já é feito em Agentes IA (sk-p…tYwA) e aplicar truncate no container. O token não deve aparecer inteiro em tela — quem precisa dele usa o &quot;Copiar&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP0" data-sev="P0" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P0</span>
+        <span class="id">F1-1</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">toda a app (barra lateral)</p>
+      <p class="oque">Se cdn.lordicon.com não responder em 3s, os 13 ícones da barra lateral somem e a barra fica em branco. O usuário vê os ícones por ~3s e depois eles desaparecem — restam só um retângulo cinza e um badge. Não dá para navegar.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Com o CDN bloqueado (simula firewall de cliente): 04-cdnblock-t2s.png = 13 ícones Lucide visíveis; 04-cdnblock-t9s.png = zero ícones. Causa: LordIconIcon.vue:120-122 faz setTimeout(() =&gt; loaded.value = true, 3000), e loaded=true esconde o fallback (v-if=&quot;!loaded &amp;&amp; fallbackLucide&quot;, linha 150) sem que o &lt;lord-icon&gt; tenha carregado.</p>
+        <p class="fx"><b>Conserto:</b> Só marcar loaded=true no evento ready do player. No timeout, fazer o oposto: manter/forçar o fallback Lucide (loadFailed=true) e não revelar o &lt;lord-icon&gt; vazio. O time já conhece o problema — há comentário sobre ele em Sidebar.vue:551.</p>
+      </details>
+    </article>
+    <article class="task sP0" data-sev="P0" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P0</span>
+        <span class="id">F4-1</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">/app/accounts/3/agents/tools (Agentes IA → Ferramentas)</p>
+      <p class="oque">A tela inteira renderiza chaves de tradução no lugar do texto: título AGENTS_TOOLS.TITLE, subtítulo, placeholder da busca, nome da seção e o badge de cada uma das 22 ferramentas (AGENTS_TOOLS.SYSTEM_BADGE repetido 22×). Só as descrições das ferramentas (que vêm do backend) estão em português.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> tools-1440-light.png. 103 chaves AGENTS_TOOLS.* únicas usadas em ToolsView.vue; AGENTS_TOOLS não existe em i18n/locale/pt_BR/*.json nem em en/*.json (verificado com parser JSON em todos os arquivos dos dois locales).</p>
+        <p class="fx"><b>Conserto:</b> Criar o bloco AGENTS_TOOLS em app/javascript/dashboard/i18n/locale/pt_BR/settings.json e en/settings.json. As 103 chaves estão listadas por grep -o &quot;t(&#x27;AGENTS_TOOLS\.[A-Z_.]*&#x27;&quot; app/javascript/dashboard/routes/dashboard/agents/pages/ToolsView.vue | sort -u.</p>
+      </details>
+    </article>
+    <article class="task sP0" data-sev="P0" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P0</span>
+        <span class="id">F4-2</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">/app/accounts/3/agents/settings (Agentes IA → Conexões)</p>
+      <p class="oque">Mesma doença, parcial: introdução, títulos de seção, rótulo do campo de chave, status e nota de segurança aparecem como CAPTAIN_SETTINGS.INTRO, CAPTAIN_SETTINGS.SECTIONS.PROVIDER, CAPTAIN_SETTINGS.CONNECTION.KEY_LABEL… Como a chave crua é muito mais longa que o texto traduzido, o rótulo e o badge de status se sobrepõem (texto por cima de texto). É a tela onde se configura a chave da OpenAI.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> agentsettings-1440-light.png e conexoes-overlap.png (recorte). 10 de 34 chaves ausentes em pt_BR: INTRO, SECTIONS.PROVIDER, SECTIONS.API_KEY, CONNECTION.{KEY_LABEL,DESCRIPTION,PLACEHOLDER,CURRENT_KEY,SECURITY_NOTE,STATUS_CONNECTED,STATUS_DISCONNECTED}. O bloco CAPTAIN_SETTINGS existe, mas com outra estrutura (OPENAI_CONNECTION, MODEL_CONFIG…) — a tela foi reescrita e as chaves não acompanharam.</p>
+        <p class="fx"><b>Conserto:</b> Adicionar as 10 chaves em pt_BR/settings.json + en/settings.json (mesmo bloco CAPTAIN_SETTINGS). Aproveitar e pôr min-w-0 truncate no rótulo, para nome longo não empurrar o badge.</p>
+      </details>
+    </article>
+    <article class="task sP0" data-sev="P0" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P0</span>
+        <span class="id">F2-1</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban → aba **Painel**</p>
+      <p class="oque">O Painel ignora o funil selecionado e conta a conta inteira. Mostra &quot;CARTÕES 585 / ABERTAS 152&quot; e a tabela &quot;Abertos 152 · Resolvidos 433&quot; — enquanto o mesmo funil, no mesmo cabeçalho, diz &quot;85 itens&quot; e as colunas dizem 48/0/37. Um gestor lê 152 abertos onde há 48.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> API do funil: GET /funnels/9/funnel_items?stage_id=25 → 48 itens; stage_id=26 → 0; stage_id=27 → 37. Painel exibe 152/0/433. Banco (conta 3 inteira): open=152, resolved=433 — bate com o Painel, não com o funil. evidencias-f2/kanban-Painel.png vs kanban-light.png</p>
+        <p class="fx"><b>Conserto:</b> Passar funnel_id na query que alimenta o Painel, como já é feito em funnel_items. Enquanto não passar, a aba não deve dizer &quot;CRM KANBAN&quot; no título do bloco.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F3-2</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/captain (Agentes IA)</p>
+      <p class="oque">A linha &quot;Chave configurada: sk-p\*\*\*…&quot; estoura o card e atravessa a página: o nó de texto vai até x=1422, o &lt;p&gt; pai termina em 1219 e o card em 1236 → 186px fora do card. Causa: string de ~150 asteriscos sem espaços com overflow-wrap: normal; word-break: normal.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> nó texto: rects=2 maxRight=1422 minLeft=293 / pai P.text-xs text-n-slate-11 overflowWrap=normal wordBreak=normal rect=293..1219 / card: 276..1236. Screenshot 05-captain-chave-estoura-card.png</p>
+        <p class="fx"><b>Conserto:</b> Reduzir a máscara para ~8 asteriscos (sk-p••••••••tYwA) ou adicionar break-all truncate no &lt;p&gt;.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-jr="1" data-sev="P1" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F3-3</span>
+        <span class="area">Configurações e Caixas</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">/settings/automation</p>
+      <p class="oque">Os 4 botões da barra de ações truncam a 1440px, com espaço vazio sobrando à direita: Regra clássi…, Importar automações e mac…, Model…, Novo flu…. O botão principal da tela (&quot;Novo fluxo&quot;) aparece cortado.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> scrollWidth/clientWidth por botão: 103/99, 204/196, 58/55, 73/70. Screenshot 01-automacao-botoes-truncados-1440.png</p>
+        <p class="fx"><b>Conserto:</b> Remover truncate/min-w-0 do &lt;span&gt; do rótulo desses botões, ou trocar o flex da barra por flex-wrap — há 200px+ livres à direita.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F3-4</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/general → &quot;Modo de atendimento&quot;</p>
+      <p class="oque">No card selecionado (fundo verde sólido rgb(45,196,111)), a descrição continua em cinza rgb(102,119,129) → contraste 2.04:1 no claro e 1.15:1 no escuro (mín. 4.5:1). No escuro fica praticamente ilegível.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: DESC color=rgb(102,119,129) bg=rgb(45,196,111) fs=14px. Screenshots 03-geral-card-modo-contraste.png e 04-geral-card-modo-dark.png</p>
+        <p class="fx"><b>Conserto:</b> Quando o card está ativo, forçar text-white/text-n-slate-1 no título e na descrição (ou usar fundo brand/10 + borda, em vez de verde sólido).</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F3-5</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/general → &quot;Modo de atendimento&quot;</p>
+      <p class="oque">O selo &quot;Ativo&quot; do card selecionado é invisível: contraste 1:1 (texto rgb(45,196,111) sobre bg-n-brand/10 que, dentro do card verde, resulta na mesma cor). O usuário não tem rótulo textual dizendo qual modo está ligado — só a cor.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: ATIVO bg=rgba(45,196,111,0.1) color=rgb(45,196,111) → ratio 1.00. Ausente nas screenshots 03 e 04, embora presente no DOM.</p>
+        <p class="fx"><b>Conserto:</b> Trocar para bg-white/20 text-white quando dentro do card ativo.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F3-6</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/inboxes/44 (WhatsApp Cloud) — barra de abas</p>
+      <p class="oque">A aba &quot;Modelos de mensagem&quot; fica cortada (aparece só &quot;M&quot;), sem seta, gradiente ou qualquer indicação de que há mais conteúdo. O &lt;ul&gt; tem overflow-x:auto com scrollWidth=1058 × clientWidth=912 (146px escondidos); a aba ocupa 1106..1270 e o &lt;ul&gt; termina em 1132. Acontece igual em 1440 e 1280. A 1280 a aba ativa também é cortada e mostra só &quot;es&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medições em tabs3.mjs; screenshots 06-inbox-abas-cortadas-1440.png e 07-inbox-abas-cortadas-1280.png</p>
+        <p class="fx"><b>Conserto:</b> Duas opções baratas: flex-wrap no &lt;ul&gt; (as abas quebram em 2 linhas) ou setas de scroll + máscara de gradiente. É a aba dos templates HSM — sem ela não se envia mensagem fora da janela de 24h.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F3-7</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/connections</p>
+      <p class="oque">O banner vermelho global grita &quot;Uma conexão WhatsApp está com falha&quot; e leva para esta tela — que mostra apenas o selo &quot;Falhou&quot; e um botão &quot;Reiniciar&quot;. Nenhum motivo, código de erro, horário da falha ou próximo passo. Confirmado no código: getStatusConfig() só devolve cor + ícone + a palavra traduzida; não há campo de diagnóstico.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Index.vue:100-105 (config FAILED); screenshot 08-conexoes-falhou-sem-motivo.png</p>
+        <p class="fx"><b>Conserto:</b> Exibir o último erro retornado pela WAHA + &quot;última tentativa às HH:MM&quot; no card, e um link &quot;ver detalhes&quot;. Sem isso o admin só pode clicar em Reiniciar às cegas.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F3-8</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Modal &quot;Adicionar etiqueta&quot;</p>
+      <p class="oque">Validação totalmente silenciosa: digitando teste com espaco (espaço não é permitido) o botão &quot;Criar&quot; fica desabilitado, o campo não ganha destaque de erro e nenhuma mensagem aparece. O usuário não descobre a regra.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> botao Criar disabled = true com innerText do modal idêntico ao estado inicial; screenshot 09-etiqueta-validacao-silenciosa.png</p>
+        <p class="fx"><b>Conserto:</b> Mostrar mensagem sob o campo (&quot;Use apenas letras, números, - e _; sem espaços&quot;) + borda ruby como já é feito no modal de agente.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F1-2</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">/conversations/:id → aba **CRM**</p>
+      <p class="oque">Tela completamente em branco. Sem conteúdo, sem &quot;carregando&quot;, sem estado vazio, sem erro no console.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 11-aba-CRM.png — painel vazio; innerText da página cai de 5802 para 328 caracteres. É um iframe para https://crmspx.simplexsolucoes.com.br/ (dashboard_apps.id=4), e o domínio não responde (curl -I retorna vazio, sem HTTP).</p>
+        <p class="fx"><b>Conserto:</b> Envolver o iframe num wrapper que trate onerror/timeout e mostre &quot;Não foi possível carregar o CRM&quot; + botão &quot;Tentar de novo&quot;. Independentemente, o domínio precisa voltar ou o Dashboard App ser removido da conta 3.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F1-3</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">/conversations/:id → aba **SPX Dashboard**</p>
+      <p class="oque">Mostra o texto cru 404 page not found em fonte monoespaçada, sem moldura nem explicação.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 11-aba-SPXDashboard.png. Iframe para https://marketplace.simplexsolucoes.com.br (dashboard_apps.id=9) → HTTP/2 404, content-type: text/plain.</p>
+        <p class="fx"><b>Conserto:</b> Mesmo wrapper do #2. Bônus: o title no banco é &quot; SPX Dashboard&quot; — com espaço no início.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F1-4</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">busca dentro da conversa (lupa do cabeçalho)</p>
+      <p class="oque">Busca por uma palavra que está na conversa retorna nada, e a tela não diz nada — nem &quot;nenhum resultado&quot;, nem &quot;carregando&quot;. A busca só enxerga mensagens dos últimos 3 meses, e isso não é informado em lugar nenhum.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Conversa 444 tem 325 mensagens com &quot;Tecnologia&quot; (SQL), todas com mais de 3 meses. GET /api/v1/accounts/3/search/messages?q=Tecnologia&amp;page=1&amp;conversation_id=444 → 200 {&quot;payload&quot;:{&quot;messages&quot;:[]}}. Já q=prioridade → 2 msgs e q=reabriu → 1 msg (ambas recentes). Limite em app/services/search_service.rb:100: .where(&#x27;created_at &gt;= ?&#x27;, 3.months.ago).</p>
+        <p class="fx"><b>Conserto:</b> (a) Renderizar um estado &quot;Nenhuma mensagem encontrada&quot; quando payload.messages vier vazio; (b) na mesma tela, dizer &quot;a busca cobre os últimos 3 meses&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F1-5</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">busca dentro da conversa</p>
+      <p class="oque">Com a busca vazia e com 0 resultados, a tela mostra o mesmo texto: *&quot;Procurar por ID de conversa, e-mail, número de telefone, mensagens para melhores resultados de busca.&quot;* — texto da busca global, reaproveitado numa busca que só procura mensagens desta conversa. O usuário não distingue &quot;ainda não busquei&quot; de &quot;não achei&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 16-busca-net.png; dialog.innerText idêntico antes e depois da requisição retornar [].</p>
+        <p class="fx"><b>Conserto:</b> Separar os dois estados: dica antes de digitar, &quot;Nenhuma mensagem encontrada para «X»&quot; depois. A lista de conversas já faz isso muito bem (ver #6) — copiar o padrão de lá.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F1-6</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">composer → seletor de emoji</p>
+      <p class="oque">O painel de emoji abre 236px à esquerda do botão, em cima da coluna da lista de conversas. Não encosta na coluna do composer.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: botão emoji em x=509..549 (centro 529); popover .emoji-dialog em x=133..453, y=559..859 (centro 293) → desvio de −236px. A lista de conversas ocupa x=72..452. Screenshot 35-Emoji.png. Reproduz em 1440px e 1280px.</p>
+        <p class="fx"><b>Conserto:</b> Ancorar o popover no botão (v-popper/floating-ui com reference = botão de emoji) em vez de posicionar relativo ao painel de resposta.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F1-7</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">toda mensagem, toda conversa</p>
+      <p class="oque">O horário de cada mensagem sai em inglês — Jun 30, 1:42 PM — enquanto o separador de dia logo acima está em português (30 de junho de 2026). Formato de 12h com AM/PM num produto pt-BR.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 08-conv444-1440.png, 34-conv1a1.png (duas conversas diferentes). Causa: app/javascript/shared/helpers/timeHelper.js:16 e :27-34 chamam format(...) sem { locale: ptBR } — apesar de o arquivo já importar ptBR na linha 8 e usá-lo em dynamicTime (linha 43), que por isso sai certo (&quot;há 2 dias&quot;).</p>
+        <p class="fx"><b>Conserto:</b> Passar { locale: ptBR } nos format() de messageStamp e messageTimestamp, e trocar o formato para 24h. Validado: format(d, &quot;d &#x27;de&#x27; LLL, HH:mm&quot;, {locale: ptBR}) → 30 de jun, 13:42.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F1-8</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">conversa com janela de 24h expirada</p>
+      <p class="oque">O banner do topo fica cortado e sobreposto: o botão &quot;Enviar Templa…&quot; é truncado pela borda direita e o botão flutuante de abrir o painel de contato passa por cima dele. No cabeçalho, o aviso também corta no meio da palavra: &quot;Janela expirada — use te&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 34-conv1a1.png (conversa 665, 1440×900). Botão do painel em x≈1078..1104; o botão &quot;Enviar Template&quot; termina embaixo dele.</p>
+        <p class="fx"><b>Conserto:</b> Dar min-width / flex-shrink: 0 ao botão do banner e reservar o espaço do FAB (padding-right) na faixa. O aviso já é repetido em bloco grande no rodapé (ver #21) — o do topo pode virar só ícone + texto curto.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F1-9</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">global (tema claro)</p>
+      <p class="oque">Contraste abaixo do mínimo WCAG AA em 31 pontos da tela. Três tokens explicam quase todos.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido no navegador (fórmula WCAG 2.1): · botão primário &quot;Resolver&quot;: branco sobre #2dc46f = 2.27:1 (mín. 4.5) · título da conversa / aba ativa / filtro ativo: #2dc46f sobre #f0f2f5 = 2.03:1 · texto secundário (preview da conversa, timestamps, separadores de dia, abas inativas, &quot;8 participantes&quot;): #667781 sobre #f0f2f5 = 4.14:1. Em modo escuro só sobram 2 casos — o problema é do tema claro.</p>
+        <p class="fx"><b>Conserto:</b> · #2dc46f + branco → #12864A (4.63:1) ou #0E7A42 (5.41:1); · texto secundário #667781 → #54656F (5.40:1) — que é exatamente a cor idle que o LordIconIcon.vue:43 já usa, então fica consistente.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-jr="1" data-sev="P1" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F4-3</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">Agentes IA → agente → **Registros**</p>
+      <p class="oque">Todos os registros mostram a data 21/01/1970, 15:47:30. Nenhum log tem data utilizável — a aba serve para depurar a IA e não dá para saber quando nada aconteceu.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Resposta real da API interceptada: GET /api/v1/accounts/3/captain/assistant_logs → created_at = 1784850414. new Date(1784850414) = 21/01/1970; new Date(1784850414 * 1000) = 23/07/2026 23:46. Backend manda segundos (enterprise/app/views/api/v1/accounts/captain/assistant_logs/index.json.jbuilder:11 → log.created_at.to_i), front trata como milissegundos (app/javascript/dashboard/components-next/agent</p>
+        <p class="fx"><b>Conserto:</b> Uma linha: LogsTab.vue:75 → new Date(ts * 1000).toLocaleString(&#x27;pt-BR&#x27;). (Alternativa mais robusta: o jbuilder mandar ISO8601 em vez de .to_i.)</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F4-4</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Automações → **Novo fluxo** (canvas)</p>
+      <p class="oque">Ao clicar num bloco da paleta, o bloco nasce fora da área visível do canvas. O usuário clica em &quot;Etiqueta&quot;, o painel da direita abre com &quot;AÇÃO / Etiqueta&quot;, mas nenhum bloco novo aparece na tela — parece que o clique não fez nada. Forte candidato ao sintoma &quot;clico no botão e ele some&quot; relatado.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: área do canvas y=104→900. Após adicionar o 3º bloco, o nó novo fica em y=1103–1221 (203 px abaixo da borda); após o 4º, em y=1007–1080 (107 px abaixo). fit-Etiqueta.png (Gatilho, Enviar mensagem e Aguardar visíveis; &quot;Etiqueta&quot;, recém-adicionada, não). Causa: FlowCanvasView.vue:546 chama fitView dentro de nextTick, antes do auto-layout posicionar o nó novo.</p>
+        <p class="fx"><b>Conserto:</b> Reenquadrar depois do layout: usar o evento nodesInitialized do Vue Flow, ou nextTick + requestAnimationFrame duplo. Melhor ainda: centralizar no nó recém-criado (fitView({ nodes: [id] })) em vez de reenquadrar tudo.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F4-5</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">/app/accounts/3/agents/:id/overview com id inexistente</p>
+      <p class="oque">A tela fica presa em &quot;Carregando agente…&quot; para sempre, com avatar &quot;?&quot; e métricas zeradas. Nenhuma mensagem de erro, nenhum redirecionamento. Acontece com link antigo, agente removido ou URL digitada errada.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> GET /api/v1/accounts/3/captain/assistants/8/stats → 404; tela ainda em &quot;Carregando agente…&quot; após 12 s de espera. deeplink-8.png. Causa: AgentDetailView.vue:88 — agent?.name || t(&#x27;AGENT_DETAIL.LOADING&#x27;), sem nenhum estado de erro.</p>
+        <p class="fx"><b>Conserto:</b> Guardar o erro do fetch e renderizar &quot;Agente não encontrado&quot; + botão &quot;Voltar para Agentes IA&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F4-6</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">/app/accounts/3/help-center</p>
+      <p class="oque">Não está quebrada hoje (ver &quot;Causa raiz&quot; abaixo), mas quando o portal externo não responde a tela fica 100 % branca — sem título, sem mensagem, sem link, sem spinner. O usuário não tem como saber o que houve. Isso vale para qualquer VM de cliente sem saída para chat.simplexsolucoes.com.br (firewall, DNS interno, host fora do ar).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Reproduzido bloqueando o host no Playwright: helpcenter-offline.png — texto útil = 0 caracteres, spinner ausente (o @load do iframe dispara mesmo na falha e zera o isLoading). URL fixa no código: helper/helpCenterEmbed.js:11. Sem @error, sem timeout: HelpCenterEmbedPage.vue:38-39 (onLoaded) e :62 (@load).</p>
+        <p class="fx"><b>Conserto:</b> Em HelpCenterEmbedPage.vue: timeout de ~8 s + @error → estado &quot;Não foi possível carregar a Central de Ajuda&quot; com botão &quot;Abrir em nova aba&quot;. E tornar HELP_CENTER_PORTAL_URL configurável (env/conta) em vez de host fixo.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F4-7</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Todo o produto (medido em Automações, canvas, Chat interno, Agentes IA)</p>
+      <p class="oque">Botão primário verde com texto branco: contraste 2.27:1 (mínimo WCAG AA 4.5:1). Atinge &quot;Salvar&quot;, &quot;Novo fluxo&quot;, &quot;Nova conversa&quot;, &quot;Novo Agente&quot;, &quot;Criar&quot;. Botão variant=&quot;faded&quot; verde: 2.82:1 no claro e 1.65:1 no escuro — &quot;Importar automações e macros&quot; e &quot;Modelos&quot; ficam quase ilegíveis no dark.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Razões calculadas por luminância relativa (WCAG 2.x): branco #fff sobre rgb(45,196,111) = 2.27:1. Dark: rgb(134,240,188) sobre rgb(45,196,111) = 1.65:1. flows-1440-dark.png.</p>
+        <p class="fx"><b>Conserto:</b> Escurecer o verde do botão primário (#2dc46f → algo em torno de #0f7a44 dá ≥4.5:1 com texto branco) ou usar texto escuro. Para o faded, trocar o fundo por um verde bem claro com texto verde-escuro.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-2</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">**14 telas** de /reports/* e /live/in_service</p>
+      <p class="oque">&quot;Baixar PDF&quot; nunca gera PDF. O backend aceita (202), o job falha 1,5 s depois e o front mostra um toast que some em ~2 s. Nenhuma das 14 telas consegue exportar PDF.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> POST /api/v1/accounts/3/report_pdf_exports → 202 {&quot;status&quot;:&quot;pending&quot;}; GET .../5 → 200 {&quot;status&quot;:&quot;failed&quot;,&quot;error_message&quot;:&quot;Errno::ENOENT: No such file or directory - /snap/bin/chromium&quot;}. ls /snap/bin/chromium → não existe. config/initializers/ferrum_pdf.rb:13 usa ENV.fetch(&#x27;CHROMIUM_PATH&#x27;, &#x27;/snap/bin/chromium&#x27;) e CHROMIUM_PATH não está no .env.</p>
+        <p class="fx"><b>Conserto:</b> Definir CHROMIUM_PATH no .env para o Chromium real da VM (ou instalar o pacote). Depender de caminho snap fixo quebra em qualquer VM de cliente que não use snap — vale trocar o default por uma busca em PATH.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-3</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/live/in_service (tema **claro**)</p>
+      <p class="oque">Botão &quot;Ativar Tempo Real&quot; com texto branco sobre cinza claro: praticamente invisível. É o principal controle da tela. No tema escuro está legível — o defeito é só no claro.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Contraste medido 1,39:1 (mínimo 4,5:1). color: rgb(255,255,255) sobre background: rgb(217,219,223). Origem: CreepyButton.vue:85-88 — text-white fixo + bg-n-slate-5 no estado inativo. Recorte: evidencias-f2/btn-tempo-real.png</p>
+        <p class="fx"><b>Conserto:</b> No estado inativo, trocar text-white por uma cor de texto do tema (text-n-slate-12), ou escurecer o fundo inativo. O text-white só faz sentido junto com bg-n-teal-5 (estado ativo).</p>
+      </details>
+    </article>
+    <article class="task sP1" data-jr="1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-4</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">**todas** as telas de /reports/*</p>
+      <p class="oque">Seletor de período mostra a data em inglês: Jul 23 - Jul 29, 2026. Aparece em Conversas, Agentes, Caixas, Times, Rótulos, CSAT, SLA, Bot e nos 4 relatórios antigos.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Texto lido do DOM em 12 rotas. Origem: components/ui/DatePicker/components/DatePickerButton.vue:43 e :47 — format(startDate, &#x27;MMM d, yyyy&#x27;) do date-fns sem { locale }.</p>
+        <p class="fx"><b>Conserto:</b> import { ptBR } from &#x27;date-fns/locale&#x27; e usar format(d, &#x27;dd/MM/yyyy&#x27;, { locale: ptBR }). O padrão certo já existe no repo: Kanban/ScheduleDateTimePicker.vue:149.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-5</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/overview</p>
+      <p class="oque">Heatmaps &quot;Tráfego de conversa&quot; e &quot;Resoluções&quot; rotulam as linhas com mês em inglês: Quinta-feira / Jul 23, 2026. Metade da linha em pt-BR, metade em inglês, lado a lado.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-overview-light.png. Origem: components/heatmaps/BaseHeatmap.vue:54 — format(new Date(dateString), &#x27;MMM d, yyyy&#x27;) sem locale.</p>
+        <p class="fx"><b>Conserto:</b> Mesmo conserto do #4: format(d, &#x27;dd/MM/yyyy&#x27;, { locale: ptBR }).</p>
+      </details>
+    </article>
+    <article class="task sP1" data-jr="1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-6</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">/reports/bot e demais gráficos de barra</p>
+      <p class="oque">Eixo X em inglês: 23-Jul, 24-Jul, …, 29-Jul.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-bot-light.png. Origem: ReportContainer.vue:107, :109, :118 — format(..., &#x27;dd-MMM&#x27;) sem locale; :113 — &#x27;MMM-yyyy&#x27;.</p>
+        <p class="fx"><b>Conserto:</b> format(d, &#x27;dd/MM&#x27;, { locale: ptBR }) para dia e &#x27;MMM/yy&#x27; com locale para mês.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-7</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/conversation, /reports/agents_overview, /reports/inboxes_overview, /reports/teams_overview, /reports/labels_overview</p>
+      <p class="oque">Unidades de tempo em inglês nos números principais: 6 Min 40 Sec, 41 Day 8 Hr, 16 Day 22 Hr, 1 Sec, meta 4 Hr, meta 10 Min. São os valores que o gestor lê primeiro.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Lido do DOM em 5 rotas. Origem: formatTime() de @chatwoot/utils (dist/utils.esm.js:925-953) — strings &quot; Min&quot;, &quot; Sec&quot;, &quot; Hr&quot;, &quot; Day&quot; hardcoded, sem passar por i18n.</p>
+        <p class="fx"><b>Conserto:</b> Criar um formatDuration() local no dashboard que use $t (REPORT.UNITS.DAY/HOUR/MIN/SEC) e trocar os imports de formatTime. Mexer na lib externa não é necessário.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-8</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/campaigns/live_chat e /campaigns/sms</p>
+      <p class="oque">O estado vazio desenha cartões de campanha falsos, em inglês, com marca de terceiro: &quot;Chatbot Assistance&quot;, &quot;PaperLayer Website&quot;, &quot;Alexa Rivera&quot;, Hello! Enjoying our product? Share your feedback on G2 and earn a $25 Amazon coupon: https://chwt.app/g2-review, Oct 24, 1:13 PM. Num produto white-label, isso expõe a marca do upstream (Chatwoot) para o cliente final.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/camp-sms-light.png, camp-livechat-light.png. Origem: components-next/Campaigns/EmptyState/CampaignEmptyStateContent.js — dados fixos com chatwoot.com, &quot;PaperLayer&quot;, cupom Amazon.</p>
+        <p class="fx"><b>Conserto:</b> Traduzir para pt-BR e trocar por exemplos genéricos da Simplex, ou remover o mockup e deixar só o texto do estado vazio (que já é bom).</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-9</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban (quadro)</p>
+      <p class="oque">Chips de tempo do cartão colapsam para largura zero — &quot;21 dias&quot;, &quot;6 dias&quot;, &quot;2 meses&quot;, &quot;26 dias&quot; ficam invisíveis. É a informação que a própria tela de &quot;Legenda e ajuda&quot; ensina a ler.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: scrollWidth=39px, clientWidth=0px para &quot;21 dias&quot;; idem &quot;6 dias&quot; (35→0), &quot;2 meses&quot; (47→0). Wrapper: flex min-w-0 max-w-[120px] items-center gap-1 rounded-full px-1.5 com apenas 27-30px de largura real.</p>
+        <p class="fx"><b>Conserto:</b> O min-w-0 no wrapper permite o colapso total. Dar min-w-fit ao chip (ou flex-shrink-0 ao texto) e deixar o max-w-[120px] cuidar do limite superior.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-10</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban (quadro)</p>
+      <p class="oque">Telefone do contato truncado para +5… no cartão. Identificar o contato pelo número fica impossível.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> +5566996822686: scrollWidth=93px, clientWidth=26px. Idem +5566996350491 (93→27) e +556690000041 (86→23). Tem title, mas exige hover.</p>
+        <p class="fx"><b>Conserto:</b> Mesmo conserto do #9 — o número precisa de ~95px. Se o cartão não comporta, mostrar os 4 últimos dígitos (…6822686) em vez de cortar o prefixo, que é sempre igual.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-11</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">todo o produto (botão primário verde)</p>
+      <p class="oque">Contraste 2,27:1 no botão primário: &quot;Criar campanha&quot;, &quot;Baixar relatórios de conversas/agentes/entrada/time/etiquetas/CSAT/SLA&quot;, &quot;Exportar CSV&quot;, &quot;Agendar Mensagem&quot;. Menos da metade do mínimo.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> color: rgb(255,255,255) sobre rgb(45,196,111) = 2,27:1 (mínimo 4,5:1). Medido em 9 telas, nos dois temas.</p>
+        <p class="fx"><b>Conserto:</b> Escurecer o verde do botão primário para ~#1B8F4D (dá ~4,6:1 com branco) ou usar texto escuro sobre o verde atual. Mexe numa variável só e conserta o produto inteiro.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-12</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/campaigns/whatsapp</p>
+      <p class="oque">Data da campanha em inglês com AM/PM: Enviado de SimplexIA ativado Jun 10, 5:34 PM. Além do idioma, a frase está quebrada — &quot;ativado&quot; é tradução literal de &quot;on&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/camp-whatsapp-light.png. Origem: components-next/Campaigns/CampaignCard/SMSCampaignDetails.vue:39 — messageStamp(new Date(scheduledAt), &#x27;LLL d, h:mm a&#x27;).</p>
+        <p class="fx"><b>Conserto:</b> &#x27;dd/MM, HH:mm&#x27; com locale ptBR, e reescrever a frase para &quot;Enviado de SimplexIA em 10/06, 17:34&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-13</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/csat, /reports/nps, /reports/conversation</p>
+      <p class="oque">O bloco AUTO-INSIGHTS mostra a mesma métrica como &quot;Destaque&quot; e como &quot;Ponto de atenção&quot; ao mesmo tempo. No CSAT: &quot;Destaque: Satisfação, meta 85%&quot; ao lado de &quot;Ponto de atenção: Satisfação, meta 85% — precisa melhorar&quot;. No NPS idem, com 0 respostas e todos os cards em --.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-csat-light.png, rep-nps-light.png</p>
+        <p class="fx"><b>Conserto:</b> Quando não há dado suficiente, esconder o bloco (ou mostrar &quot;sem dados no período&quot;). Nunca eleger a mesma métrica para os dois lados.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-14</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban → Painel</p>
+      <p class="oque">Gráfico &quot;Carga por agente&quot;: rótulos do eixo X rotacionados e sobrepostos entre si, ilegíveis; &quot;Playwright Test&quot; escapa da borda direita do card. A série usa azul, destoando do verde da marca usado no gráfico ao lado.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/kanban-Painel.png — card termina em x=1424 e o rótulo passa dele.</p>
+        <p class="fx"><b>Conserto:</b> Rotacionar 90° (não ~45°) ou truncar o nome em 12 caracteres com tooltip; aumentar a margem inferior do gráfico. Alinhar a cor à paleta dos outros gráficos.</p>
+      </details>
+    </article>
+    <article class="task sP1" data-jr="1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-15</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">/reports/agent (relatório antigo)</p>
+      <p class="oque">Chave de i18n crua na tela: o botão mostra literalmente REPORT.DOWNLOAD_AGENT_REPORTS.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Lido do DOM: &lt;span class=&quot;min-w-0 truncate&quot;&gt;REPORT.DOWNLOAD_AGENT_REPORTS&lt;/span&gt;. As telas irmãs (/reports/inboxes, /label, /teams) mostram o texto certo.</p>
+        <p class="fx"><b>Conserto:</b> Adicionar a chave REPORT.DOWNLOAD_AGENT_REPORTS em i18n/locale/pt_BR/report.json (as outras três já existem).</p>
+      </details>
+    </article>
+    <article class="task sP1" data-sev="P1" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P1</span>
+        <span class="id">F2-16</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/sla</p>
+      <p class="oque">Mostra &quot;TAXA DE ACERTO 100%&quot; com &quot;Nº DE CONVERSAS 0&quot;. 100% de nada. Um gestor conclui que o SLA está perfeito.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-sla-light.png — os três cards: 100% / 0 / 0.</p>
+        <p class="fx"><b>Conserto:</b> Com denominador 0, exibir -- (como o NPS já faz) em vez de 100%.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-9</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Todo o produto (botão primário)</p>
+      <p class="oque">Botão primário: fundo rgb(45,196,111) + texto #fff = 2.30:1 (mín. 4.5:1). Atinge &quot;Adicionar Caixa de Entrada&quot;, &quot;Adicionar Agente&quot;, &quot;Criar novo time&quot;, &quot;Atualizar configurações&quot;, &quot;Salvar&quot;, etc.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Cores lidas do DOM: BTN PRIM bg=rgb(45,196,111) color=rgb(255,255,255); recorrente em 18 telas medidas</p>
+        <p class="fx"><b>Conserto:</b> Escurecer o verde do botão (algo em torno de #1B7F4B dá ~4.6:1 com branco) ou usar texto quase-preto sobre o verde atual. Decisão de marca — vale um par com quem cuida do design.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-10</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/automation (**tema escuro**)</p>
+      <p class="oque">Os botões &quot;Importar automações e macros&quot; e &quot;Modelos&quot; ficam com texto rgb(134,240,188) sobre fundo rgb(45,196,111) → 1.65:1. Praticamente somem.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido em darkshots.mjs; screenshot 02-automacao-dark-botoes-ilegiveis.png</p>
+        <p class="fx"><b>Conserto:</b> Esses são botões *secundários* — não deveriam ter fundo verde sólido. Usar variante outline/ghost.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-11</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">4 campos de busca/formulário</p>
+      <p class="oque">Placeholder maior que o campo (texto cortado): Pesquisar caixas de entrada... 197px em campo de 180px; Pesquisar respostas prontas... 197/180; Informe o nome do seu site (por exemplo: Acme Inc) 348/299; Informe o domínio do seu site (por exemplo: acme.com) 370/299.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medição por canvas.measureText com a fonte computada; screenshot 13-inboxes-placeholder-cortado.png</p>
+        <p class="fx"><b>Conserto:</b> Encurtar os textos (Pesquisar..., ex.: Acme Inc, ex.: acme.com) ou alargar o input.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-12</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Todas as inboxes (Api, WhatsApp, Instagram)</p>
+      <p class="oque">Erro de português visível: &quot;Quando um contado enviar mensagem novamente, a conversa anterior será reaberta.&quot;</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> app/javascript/dashboard/i18n/locale/pt_BR/inboxMgmt.json:597</p>
+        <p class="fx"><b>Conserto:</b> Trocar contado por contato.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-13</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Inbox → aba &quot;Horário de funcionamento&quot;</p>
+      <p class="oque">Frase sem sentido: &quot;Os vistores disponíveis horários externos podem ser avisados com uma mensagem e um formulário de pré-bate-papo.&quot; (tradução automática quebrada de *Visitors outside available hours…*). No mesmo bloco: &quot;Permitir a disponibilidade de negócios&quot; (*business availability*).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Texto extraído da aba business-hours da inbox 44</p>
+        <p class="fx"><b>Conserto:</b> Reescrever: &quot;Visitantes que chegarem fora do horário podem receber uma mensagem e um formulário de pré-atendimento.&quot; e &quot;Definir horário de atendimento desta caixa de entrada&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-14</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Inbox WhatsApp → aba &quot;Saúde da conta&quot;</p>
+      <p class="oque">Valores crus da API da Meta em inglês no meio do pt-BR: &quot;Classificação de qualidade: GREEN&quot;. E rótulo/valor incoerentes: &quot;Nível de limite de mensagens: Classificação não disponível&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Texto extraído de /inboxes/44/whatsapp-health</p>
+        <p class="fx"><b>Conserto:</b> Mapear GREEN/YELLOW/RED → Boa/Média/Ruim (com cor) e trocar o fallback para &quot;Não informado pela Meta&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-15</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/general (rodapé)</p>
+      <p class="oque">Marca Chatwoot exposta ao cliente final num produto white-label: &quot;Uma atualização 4.16.2 para o Chatwoot está disponível. Por favor, atualize sua instância.&quot;</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> app/javascript/dashboard/i18n/locale/pt_BR/generalSettings.json:217 (UPDATE_CHATWOOT)</p>
+        <p class="fx"><b>Conserto:</b> Ou trocar por &quot;CHAT - SPX&quot;, ou esconder o aviso para quem não é super-admin (o cliente não atualiza a instância dele).</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-16</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/integrations (card Dyte)</p>
+      <p class="oque">Idem: &quot;…iniciar chamadas de vídeo/voz com seus clientes diretamente do chatwoot.&quot; (marca vazada, ainda por cima em minúscula).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> config/locales/pt_BR.yml:349</p>
+        <p class="fx"><b>Conserto:</b> Trocar por &quot;CHAT - SPX&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-17</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/integrations</p>
+      <p class="oque">Ícone quebrado: 404 em /dashboard/images/integrations/meta_lead_ads.png (e -dark.png). O card do Meta Lead Ads renderiza o ícone de imagem quebrada do navegador.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 2× 404 GET /dashboard/images/integrations/meta_lead_ads.png; naturalWidth===0; screenshot 12-integracoes-openai-duplicado-icone-404.png (canto inferior esquerdo)</p>
+        <p class="fx"><b>Conserto:</b> Adicionar o arquivo ou remover o card da lista.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-18</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/integrations</p>
+      <p class="oque">Dois cards chamados &quot;OpenAI&quot; na mesma tela: um em destaque no topo (badge &quot;IA&quot;, leva para as configurações de Agentes IA) e outro na grade (integração legada, com badge &quot;Ativado&quot;). Só o de cima não tem badge de status, o que reforça a confusão sobre qual configurar.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshot 12-…png; 4 ocorrências de &quot;OpenAI&quot; no texto da página</p>
+        <p class="fx"><b>Conserto:</b> Renomear o card do topo para &quot;OpenAI (chaves e modelos)&quot; ou remover a integração legada, que já está coberta pela tela de Agentes IA.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-19</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Todas as telas de inbox</p>
+      <p class="oque">A aba ativa tem contraste 1.95:1 (verde claro sobre chip verde bem claro, 13px) — é justamente o rótulo que diz onde o usuário está.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido nas inboxes 17, 44 e 56</p>
+        <p class="fx"><b>Conserto:</b> Escurecer o texto da aba ativa (text-n-brand → tom 11/12 da escala).</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-20</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/custom-attributes</p>
+      <p class="oque">O tipo do atributo aparece cru em inglês: date, text, list — na mesma tela cuja descrição diz &quot;…como texto, listas ou números&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshot 16-atributos-tipos-em-ingles.png</p>
+        <p class="fx"><b>Conserto:</b> Traduzir os selos: Data / Texto / Lista / Número / Caixa de seleção / Link.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-21</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/automation (tabela &quot;modo antigo&quot;)</p>
+      <p class="oque">Data em formato inglês no meio do pt-BR: &quot;Jul 20, 2026&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshot 01-automacao-botoes-truncados-1440.png</p>
+        <p class="fx"><b>Conserto:</b> Usar o mesmo formato já aplicado em Conexões (&quot;12 de mar. de 2026&quot;) ou 20/07/2026.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-22</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Modal &quot;Adicionar agente&quot;</p>
+      <p class="oque">E-mail inválido acende a borda vermelha mas não escreve nada. O usuário vê o botão desabilitado e uma borda, sem saber o que corrigir. E é inconsistente com o modal de etiqueta (#8), que nem borda mostra.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshot 10-agente-email-sem-mensagem.png</p>
+        <p class="fx"><b>Conserto:</b> Padronizar: borda + mensagem sob o campo, nos dois modais.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-23</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/sla</p>
+      <p class="oque">Numa instalação on-premise white-label, a tela oferece &quot;Atualize para um plano pago… Entre em contato com seu administrador para fazer a atualização&quot; — não existe esse plano nem esse fluxo no ChatSPX. Beco sem saída.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Texto da tela /settings/sla/list</p>
+        <p class="fx"><b>Conserto:</b> Ou habilitar o recurso, ou substituir por &quot;Recurso não habilitado nesta instalação — fale com a Simplex&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-24</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/security</p>
+      <p class="oque">Mesma armadilha: &quot;O SSO via SAML está desativado no momento. Entre em contato com o administrador para habilitar esse recurso&quot; — exibido para quem é o administrador da conta. A tela inteira tem 232 caracteres e nenhuma ação.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Texto da tela; len=232</p>
+        <p class="fx"><b>Conserto:</b> Reescrever para o admin real (&quot;Este recurso é habilitado pela Simplex — abra um chamado&quot;) ou esconder a tela quando indisponível.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-25</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/billing e /settings/custom-roles</p>
+      <p class="oque">Redirect silencioso: as duas rotas devolvem o usuário para /dashboard sem nenhuma mensagem. Quem tiver um link/favorito só vê a tela piscar e voltar para conversas.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> billing -&gt; /app/accounts/3/dashboard, custom-roles -&gt; /app/accounts/3/dashboard</p>
+        <p class="fx"><b>Conserto:</b> Mostrar uma tela &quot;Recurso não disponível nesta conta&quot; em vez de redirecionar em silêncio.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F3-26</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Banner global de conexão</p>
+      <p class="oque">O alerta &quot;Uma conexão WhatsApp está com falha&quot; pode ser fechado no X e não volta mais na sessão, nem depois de recarregar a página — mesmo com a conexão ainda quebrada. (Volta em sessão nova, então o dismiss não persiste no servidor.)</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Testado: fechar → false; navegar → false; reload → false; contexto novo → true</p>
+        <p class="fx"><b>Conserto:</b> Alerta operacional não deveria ser dispensável para sempre; reexibir a cada carga da aplicação enquanto o status for FAILED.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-10</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">modal &quot;novo contato&quot; (ícone 1 do topo da lista de conversas, e Contatos → ⋮ → Adicionar contato)</p>
+      <p class="oque">Modal de criar contato tem o título &quot;Alterar detalhes do contato&quot;, com todos os campos vazios e o botão &quot;Salvar contato&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 39-modal-contato.png, 06-topicon-0.png</p>
+        <p class="fx"><b>Conserto:</b> Título condicional: &quot;Novo contato&quot; na criação, &quot;Alterar detalhes do contato&quot; na edição.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-11</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">mesmo modal</p>
+      <p class="oque">O campo telefone já aparece com contorno vermelho de erro antes de o usuário digitar qualquer coisa — e sem nenhuma mensagem explicando o que está errado.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 39-modal-contato.png; input[placeholder=&quot;Digite o número de telefone&quot;] com contorno vermelho e value=&quot;&quot;.</p>
+        <p class="fx"><b>Conserto:</b> Só validar após blur ou após a primeira tentativa de submit; quando marcar erro, mostrar a mensagem junto.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-jr="1" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-12</span>
+        <span class="area">Conversas e Contatos</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">modal &quot;Nova conversa&quot;</p>
+      <p class="oque">Mostra o atalho &quot;Enviar (⌘ + ↵)&quot; — tecla de Mac — num app que roda em Linux/Windows. O composer da conversa, na mesma sessão, mostra corretamente &quot;Enviar (CTRL + ↵)&quot;. Dois lugares, dois textos, um errado.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Saída dos testes s10 (composer: Enviar (CTRL + ↵)) e s27 (modal: Enviar (⌘ + ↵)). Código: components-next/NewConversation/components/ActionButtons.vue:162 → const keyCode = isEditorHotKeyEnabled(&#x27;cmd_enter&#x27;) ? &#x27;⌘ + ↵&#x27; : &#x27;↵&#x27;; — hardcoded.</p>
+        <p class="fx"><b>Conserto:</b> Usar o helper que já existe: useKbd.js:36 → isMacOS() ? &#x27;⌘&#x27; : &#x27;Ctrl&#x27;. Uma linha.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-13</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">seletor de emoji</p>
+      <p class="oque">As 8 categorias estão todas em inglês: &quot;Smileys &amp; Emotion&quot;, &quot;Animals &amp; Nature&quot;, &quot;Food &amp; Drink&quot;, &quot;Travel &amp; Places&quot;, &quot;Activities&quot;, &quot;Objects&quot;, &quot;Symbols&quot;, &quot;Flags&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 35-Emoji.png + extração do DOM (s36).</p>
+        <p class="fx"><b>Conserto:</b> Traduzir as categorias no i18n do emoji picker.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-14</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">linha de atividade da conversa</p>
+      <p class="oque">*&quot;Playwright Test definiu a prioridade para low&quot;* — o valor da prioridade não é traduzido.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 08-conv444-1440.png. Causa: app/models/concerns/priority_activity_message_handler.rb:24 interpola new_priority: new_priority com o valor cru do enum; config/locales/pt_BR.yml:277 só traduz a frase ao redor.</p>
+        <p class="fx"><b>Conserto:</b> Traduzir o valor antes de interpolar (I18n.t(&quot;conversations.priority.#{new_priority}&quot;) → baixa/média/alta/urgente). Vale para added, updated e removed.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-15</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">cabeçalho da conversa</p>
+      <p class="oque">&quot;Sem prioridade&quot; aparece cortado como &quot;Sem priorida…&quot; — mesmo em 1440px, onde sobra espaço de sobra no cabeçalho.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: clientWidth=80px, scrollWidth=83px. Reproduz em 1280 e 1440, claro e escuro.</p>
+        <p class="fx"><b>Conserto:</b> Faltam 3px: aumentar a largura do slot ou remover o truncate desse rótulo.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-16</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">ficha do contato (/contacts/:id)</p>
+      <p class="oque">A aba &quot;Andamento&quot; aparece cortada como &quot;Andame…&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: clientWidth=100px, scrollWidth=107px. 28-ficha.png.</p>
+        <p class="fx"><b>Conserto:</b> As 4 abas (Atributos/Histórico/Andamento/Mesclar) não cabem em 400px com largura fixa de 100px: usar largura flexível ou reduzir o padding.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-17</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">lista de contatos (/contacts)</p>
+      <p class="oque">Para cada linha da lista, a página renderiza no DOM o formulário de edição inteiro + o bloco de exclusão (&quot;Excluir contato / Esta ação é permanente e irreversível / Excluir agora&quot;), escondidos. Com 15 contatos por página isso vira 226 &lt;input&gt; e 9.532 nós. Além do peso, um leitor de tela lê &quot;Excluir agora&quot; 15 vezes.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido no DOM: inputs=226, nós=9532, blocos &quot;Excluir agora&quot;=15, para 15 linhas visíveis.</p>
+        <p class="fx"><b>Conserto:</b> Renderizar o formulário sob demanda (v-if no accordion aberto), não v-show/sempre.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-18</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">ações da mensagem (hover)</p>
+      <p class="oque">Os botões que aparecem ao passar o mouse na mensagem têm 18×28px — um terço da área mínima recomendada. E o segundo botão não tem title nem aria-label (o primeiro tem &quot;Responder&quot;).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: @1034,460 18x28 e @1052,460 18x28.</p>
+        <p class="fx"><b>Conserto:</b> Aumentar a área clicável (padding) para ≥32px e rotular o segundo botão.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-19</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">conversa com janela expirada</p>
+      <p class="oque">Frase quebrada: *&quot;Você só pode responder a esta conversa usando um modelo de mensagem devido a&quot;* + link *&quot;Restrições de janela de mensagem de 24 horas&quot;*. Lida em voz alta dá &quot;devido a Restrições de janela de mensagem&quot; — tradução literal do inglês.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 34-conv1a1.png</p>
+        <p class="fx"><b>Conserto:</b> Reescrever como frase única: &quot;Só é possível responder com um modelo de mensagem porque a janela de 24 horas do WhatsApp expirou.&quot;</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-20</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">conversa com janela expirada</p>
+      <p class="oque">A mesma tela chama a mesma coisa de três jeitos: &quot;modelo de mensagem&quot; (banner), &quot;Enviar Template&quot; (botão, em inglês e Title Case) e &quot;template aprovado&quot; (rodapé).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 34-conv1a1.png</p>
+        <p class="fx"><b>Conserto:</b> Escolher um termo. Se o time usa &quot;template&quot; no dia a dia, então &quot;Enviar template&quot; em todos os lugares — minúsculo e sem &quot;modelo de mensagem&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F1-21</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">código (bug latente, **não** reproduzível hoje)</p>
+      <p class="oque">enterprise/app/services/enterprise/search_service.rb:6 faz where_conditions[:conversation_id] = params[:conversation_id].to_i, usando o display_id que o front envia como se fosse o id interno. A versão community trata isso certo (app/services/search_service.rb:104-108, com comentário explícito). Hoje esta instância não usa Elasticsearch, então cai no caminho community; no dia em que ligarem o ES, a busca dentro da conversa passa a retornar zero em 100% dos casos.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Comparação dos dois arquivos. Confirmado que o ES está desligado (.env sem ELASTICSEARCH_*) e que a requisição retorna resultados recentes normalmente.</p>
+        <p class="fx"><b>Conserto:</b> Replicar a conversão display_id → id no serviço enterprise.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-jr="1" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-8</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">Automações (/settings/automation/list)</p>
+      <p class="oque">Os quatro botões do cabeçalho aparecem cortados já em 1440 px: &quot;Regra clássi…&quot;, &quot;Importar automações e mac…&quot;, &quot;Model…&quot;, &quot;Novo flu…&quot;. O botão principal do produto mostra &quot;Novo flu…&quot;. O contador &quot;2 automações&quot; também quebra em duas linhas.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido em 1440 e 1280 (idêntico): scrollWidth &gt; clientWidth em todos — &quot;Regra clássica&quot; 103/99, &quot;Importar automações e macros&quot; 204/196, &quot;Modelos&quot; 58/55, &quot;Novo fluxo&quot; 73/70 px. flows-1440-light.png. Causa: BaseSettingsHeader.vue:115 (flex items-center gap-3 min-w-0, filhos encolhíveis) + Button.vue:270 (&lt;span class=&quot;min-w-0 truncate&quot;&gt;).</p>
+        <p class="fx"><b>Conserto:</b> Pôr flex-shrink-0 nos botões do slot #actions (ou whitespace-nowrap + flex-wrap no container). Faltam só ~20 px no total.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-jr="1" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-9</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">Agentes IA → agente (todas as abas)</p>
+      <p class="oque">A segunda aba da barra mostra literalmente AGENT_DETAIL.TABS.FLOW. A tela em si funciona (rota /flow carrega).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> agent-clara.png. AgentDetailView.vue:30 usa t(&#x27;AGENT_DETAIL.TABS.FLOW&#x27;); a chave FLOW não existe em pt_BR/settings.json nem em en/settings.json (as outras 8 abas existem).</p>
+        <p class="fx"><b>Conserto:</b> Adicionar &quot;FLOW&quot;: &quot;Fluxo&quot; em pt_BR e &quot;FLOW&quot;: &quot;Flow&quot; em en, dentro de AGENT_DETAIL.TABS. Conserto de 2 linhas.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-10</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Agentes IA → agente (barra de abas)</p>
+      <p class="oque">Em 1440 px a aba &quot;Configurações&quot; fica cortada (&quot;Configu…&quot;); em 1280 px somem &quot;Registros&quot; e &quot;Configurações&quot;. A barra rola horizontalmente, mas com no-scrollbar — nenhuma pista visual de que há mais abas.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: container clientWidth=904, scrollWidth=1126 (222 px escondidos em 1280). Aba &quot;Configurações&quot; termina em x=1478 numa janela de 1440. agent-tabs-1280.png. Classe: flex overflow-x-auto no-scrollbar.</p>
+        <p class="fx"><b>Conserto:</b> Gradiente de fade na borda direita (ou setas de rolagem), ou encolher os rótulos/ícones. Mínimo: tirar o no-scrollbar para a barra aparecer.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-11</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">/app/accounts/3/gallery</p>
+      <p class="oque">Nome e hora aparecem em branco puro sobre a foto, sem faixa escura por trás. Em foto clara (parede branca, céu) fica ilegível — e a maioria das fotos da conta 3 é de imóvel claro.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Contraste medido 1:1 para &quot;Bruna&quot;, &quot;Júlia&quot;, &quot;14:24&quot;, &quot;12:50&quot; (rgb(255,255,255) sobre fundo claro). gallery-1440-light.png — compare a 1ª linha (ilegível) com a 4ª (legível, foto escura).</p>
+        <p class="fx"><b>Conserto:</b> Gradiente no rodapé do card: bg-gradient-to-t from-black/60 to-transparent, ou text-shadow.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-12</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Galeria → aba **Links**</p>
+      <p class="oque">O texto do link vem com markdown cru: Nova Versão Disponível!, [🆕 Registro de Alterações]() — asteriscos, colchetes e link vazio na tela.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> gallery-Links.png.</p>
+        <p class="fx"><b>Conserto:</b> Renderizar markdown (o app já tem useMarkdown) ou remover a sintaxe antes de exibir o resumo.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-13</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Automações → canvas</p>
+      <p class="oque">O minimapa (retângulo branco no canto inferior direito) fica por cima da área de trabalho e cobre os blocos que estão embaixo; e a bolha do widget de chat fica por cima do minimapa. Três coisas disputando o mesmo canto.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> fit-Etiqueta.png (minimapa cobrindo o nó &quot;Aguardar&quot;) e flow-canvas-new.png (bolha verde sobre o minimapa).</p>
+        <p class="fx"><b>Conserto:</b> Subir o minimapa (bottom-20) ou esconder a bolha do widget nas rotas de canvas.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-14</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Agentes IA → agente sem configuração (Visão Geral)</p>
+      <p class="oque">Estado vazio escrito em linguagem de desenvolvedor, com inglês cru no meio do português: *&quot;Este agente ainda não tem behavior configurado. Use a aba Comportamento para configurar o pipeline, ou copie o JSON template abaixo e configure via código.&quot;*</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> agent-tabs-1280.png.</p>
+        <p class="fx"><b>Conserto:</b> Reescrever: &quot;Este agente ainda não tem comportamento configurado. Abra a aba Comportamento para configurar.&quot; E remover a menção a JSON/código da tela do usuário final.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-15</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Agentes IA → agente → Visão Geral</p>
+      <p class="oque">O card &quot;Configuração do agente&quot; lista os comportamentos com o identificador técnico: dedup, router, humanizer, business_hours, media_pipeline, debounce_seconds. Ninguém fora do time sabe o que é &quot;media_pipeline&quot;. Ao lado, &quot;Modelo —&quot; e &quot;Temperatura —&quot; ficam vazios.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> agent-clara.png.</p>
+        <p class="fx"><b>Conserto:</b> Mapear cada chave para um rótulo em português (&quot;Evita respostas duplicadas&quot;, &quot;Roteamento&quot;, &quot;Respeita horário comercial&quot;…).</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-16</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Automações → canvas → Salvar</p>
+      <p class="oque">Fluxo criado no canvas nasce ativo, sem escolha e sem aviso. Quem salva um rascunho publica uma automação. (Confirmei salvando dois fluxos de teste: ambos apareceram com o toggle &quot;Ativo&quot; ligado na lista — depois os removi.)</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> db/migrate/20260706120000_create_flows.rb:18 → t.boolean :active, null: false, default: true. flows-1440-dark.png mostra os dois &quot;Novo fluxo&quot; ativos.</p>
+        <p class="fx"><b>Conserto:</b> Criar com active: false e oferecer &quot;Salvar rascunho&quot; / &quot;Salvar e ativar&quot;; ou pelo menos avisar no toast que o fluxo já está no ar.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F4-17</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Agentes IA → agente → **Cenários**</p>
+      <p class="oque">O painel da direita chama-se &quot;Playground&quot; (inglês no meio do pt-BR) e é uma área branca grande e vazia — sem uma linha dizendo o que fazer ali.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> tab-Cenários-1440.png.</p>
+        <p class="fx"><b>Conserto:</b> Traduzir para &quot;Testar agente&quot; e pôr um estado vazio: &quot;Envie uma mensagem para ver como o agente responde. Nada aqui é enviado ao cliente.&quot;</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-17</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/bot</p>
+      <p class="oque">Números que se contradizem no mesmo bloco: &quot;Nº DE CONVERSAS 0&quot; e &quot;TOTAL DE RESPOSTAS 0&quot;, mas logo abaixo &quot;CONTAGEM DE RESOLUÇÃO 7&quot;. Além disso &quot;TEMPO DE RESOLUÇÃO&quot; é exibido como 0% — tempo em porcentagem.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-bot-light.png</p>
+        <p class="fx"><b>Conserto:</b> Revisar a origem das 4 métricas do topo (provavelmente filtram por período diferente do gráfico). Trocar a unidade de &quot;Tempo de resolução&quot; de % para duração.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-18</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/campaigns/* → &quot;Criar campanha&quot;</p>
+      <p class="oque">O formulário abre como popover sem overlay e sem role=&quot;dialog&quot;. O conteúdo atrás continua visível e clicável; leitor de tela não anuncia diálogo; o foco não fica preso.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> document.querySelectorAll(&#x27;[role=dialog]&#x27;).length === 0; nenhum elemento position:fixed cobrindo a viewport; document.elementFromPoint(400,400) retorna MAIN.flex-1 px-6 overflow-y-auto (o conteúdo de trás).</p>
+        <p class="fx"><b>Conserto:</b> Adicionar role=&quot;dialog&quot; + aria-modal=&quot;true&quot;, backdrop e focus trap — ou usar o componente de diálogo que o resto do produto já usa.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-19</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/campaigns/* → &quot;Criar campanha&quot;</p>
+      <p class="oque">O botão &quot;Criar&quot; desabilitado usa exatamente a mesma cor do habilitado. Não dá para saber que o formulário está incompleto. Nenhum campo indica ser obrigatório.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> disabled=true com color: rgb(255,255,255), background: rgb(45,196,111) — mesmos valores do estado ativo. Contraste 2,27:1. evidencias-f2/camp-wa-modal.png</p>
+        <p class="fx"><b>Conserto:</b> Aplicar o estado desabilitado do design system (fundo acinzentado + cursor: not-allowed) e marcar os campos obrigatórios.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-20</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/live/in_service</p>
+      <p class="oque">Agentes sem conversa (&quot;Jailson Costa&quot;, &quot;Rogerio José da Silva&quot;) renderizam um card em branco — nenhuma mensagem de estado vazio. Nos dois temas.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-live_in_service-light.png e d-live-dark.png</p>
+        <p class="fx"><b>Conserto:</b> Exibir &quot;Nenhuma conversa em atendimento&quot; dentro do card, como o Kanban já faz na coluna vazia.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-21</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/live/in_service</p>
+      <p class="oque">Os cards de agente têm altura fixa e cortam o último item ao meio, sem indicação de que há mais conteúdo (&quot;Angela Tozi&quot;, &quot;Nilton Rocha&quot; aparecem seccionados horizontalmente).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-live_in_service-light.png</p>
+        <p class="fx"><b>Conserto:</b> Ajustar a altura para um número inteiro de linhas, ou aplicar um degradê no fim da lista sinalizando rolagem.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-22</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban a **1280px**</p>
+      <p class="oque">O placeholder &quot;Criar Etapa&quot; fica parcialmente fora da tela e não há como rolar até ele.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido em 1280×800: borda direita do botão em right=1356px, viewport clientWidth=1280px — 76px fora. document.documentElement.scrollWidth === clientWidth, ou seja, a página não rola horizontalmente para alcançá-lo. evidencias-f2/w-kanban-1280.png</p>
+        <p class="fx"><b>Conserto:</b> Dar overflow-x: auto ao contêiner de colunas. Hoje a coluna extra simplesmente some em telas de 1280px.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-23</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">CSV de /reports/conversation</p>
+      <p class="oque">Cabeçalho do arquivo com data em ISO, não pt-BR: Reportando o período 2026-07-23 a 2026-07-29. &quot;Reportando o período&quot; é tradução literal de &quot;Reporting period&quot;. Os títulos das colunas misturam capitalizações: &quot;Mensagens Recebidas&quot; e &quot;Mensagens enviadas&quot; na mesma linha.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Arquivo baixado: conversation-report-29-07-2026.csv (265 bytes), conteúdo lido.</p>
+        <p class="fx"><b>Conserto:</b> Período do relatório: 23/07/2026 a 29/07/2026. Padronizar as colunas em capitalização de frase.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-24</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/nps</p>
+      <p class="oque">O NPS usa um layout de filtros diferente de todas as outras telas de relatório: 4 selects em caixa branca, em vez do chip &quot;Últimos 7 dias&quot; + &quot;Adicionar filtro&quot; usado nas outras 11 telas. O select &quot;Selecionar caixa de entrada&quot; quebra em 2 linhas e fica mais alto que os vizinhos.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-nps-light.png vs rep-csat-light.png</p>
+        <p class="fx"><b>Conserto:</b> Migrar o NPS para o mesmo cabeçalho de filtros das outras telas de relatório.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-25</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban (toolbar)</p>
+      <p class="oque">12 botões de 28×28px sem aria-label (só title): Kanban, Lista, Agenda, Painel, Visão compacta, Mostrar capas de etiqueta, Automações, Editar Funil, Excluir Funil, Criar Funil… Todos são ícone puro. Alvo recomendado: 44×44.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: w=28,h=28 nos 12; aria-label=null em 10 deles (só &quot;Priorizar por tempo de espera&quot; e &quot;Legenda e ajuda&quot; têm).</p>
+        <p class="fx"><b>Conserto:</b> Aumentar a área clicável para ≥44×44 (padding, sem crescer o ícone) e copiar o title para aria-label.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-26</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">banner global (visível em todas as telas auditadas)</p>
+      <p class="oque">O botão &quot;Recusar&quot; tem 24×24px e o &quot;Ir para Conexões&quot; 127×24px — muito abaixo de 44px de altura. O texto do banner está a 4,37:1.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido em 16 rotas: 24x24 e 127x24. Contraste rgb(255,255,255) sobre rgb(220,62,66) = 4,37:1 (mínimo 4,5).</p>
+        <p class="fx"><b>Conserto:</b> Aumentar a altura dos dois para 44px e escurecer levemente o vermelho do banner.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-27</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">modais de campanha</p>
+      <p class="oque">Dois rótulos diferentes para o mesmo campo no mesmo módulo: &quot;Selecione uma caixa de entrada&quot; (WhatsApp) e &quot;Selecionar caixa de entrada&quot; (SMS).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/camp-wa-modal.png vs camp-sms-modal.png</p>
+        <p class="fx"><b>Conserto:</b> Padronizar em &quot;Caixa de entrada&quot; (rótulo) — o verbo pertence ao placeholder, não ao label.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-28</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">modais de campanha</p>
+      <p class="oque">Placeholders com &quot;Por favor&quot;: Por favor, digite o título da campanha, Por favor, insira a mensagem da campanha. Tradução literal de &quot;Please enter…&quot;; em pt-BR o placeholder não pede licença.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/camp-sms-modal.png</p>
+        <p class="fx"><b>Conserto:</b> &quot;Título da campanha&quot;, &quot;Mensagem que será enviada&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP2" data-sev="P2" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P2</span>
+        <span class="id">F2-29</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban → Lista</p>
+      <p class="oque">A coluna &quot;AGENDADAS&quot; exibe o valor &quot;Nenhum&quot; — concordância errada (deveria ser &quot;Nenhuma&quot;). As colunas &quot;ETAPA&quot; e &quot;STATUS&quot; repetem a mesma informação (&quot;Abertos&quot; / &quot;Aberto&quot;).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/kanban-Lista.png</p>
+        <p class="fx"><b>Conserto:</b> Trocar para &quot;Nenhuma&quot;; avaliar remover uma das duas colunas redundantes.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-27</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/inboxes/44/agents</p>
+      <p class="oque">Tela em branco: a URL responde 200 e renderiza só o breadcrumb — sem abas, sem conteúdo. A aba &quot;Agentes&quot; da UI aponta para /collaborators, então /agents é rota órfã (alcançável por link antigo/favorito).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Conteúdo renderizado = Anterior / Caixas de Entrada e nada mais</p>
+        <p class="fx"><b>Conserto:</b> Redirecionar /agents → /collaborators.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-28</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Inbox → sub-rotas inválidas</p>
+      <p class="oque">/inboxes/44/account-health e /inboxes/44/pre-chat-form (aba que essa inbox não tem) renderizam silenciosamente a aba &quot;Configurações&quot; em vez de 404 ou redirect explícito.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Comparação do texto renderizado com /settings</p>
+        <p class="fx"><b>Conserto:</b> Redirect explícito para a primeira aba válida.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-29</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Barra lateral (colapsada)</p>
+      <p class="oque">14 dos 15 ícones não têm aria-label nem title — nenhum tooltip no hover. Só o avatar da conta tem. Leitor de tela anuncia &quot;link&quot; sem nome; usuário novo tem que clicar para descobrir.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Dump do DOM: A y=116 40x40 aria=&quot;&quot; title=&quot;&quot; href=&quot;…/search&quot; (repete para os 14)</p>
+        <p class="fx"><b>Conserto:</b> Adicionar title + aria-label com o nome do grupo (o texto já existe no popover).</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-30</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Popover do menu Configurações</p>
+      <p class="oque">Dois itens do menu principal ficam truncados: &quot;Sequências de Follow…&quot; e &quot;Atributos Personalizad…&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshot 15-menu-config-itens-truncados.png</p>
+        <p class="fx"><b>Conserto:</b> Alargar o popover em ~40px ou encurtar os rótulos (&quot;Follow-up&quot;, &quot;Atributos&quot;).</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-31</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Consistência de layout</p>
+      <p class="oque">15 telas de configurações alinham o título em x=276, y=76. Duas fogem: Sequências de Follow-up em x=332, y=80 e Conexões WhatsApp em x=140, y=200 (layout centralizado, com ícone gigante e botão no meio — nada a ver com o resto).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medição do 1º heading em 18 rotas (align.mjs)</p>
+        <p class="fx"><b>Conserto:</b> Padronizar as duas no SettingsLayout/SettingsSubPageHeader usado pelas outras.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-32</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/canned-response</p>
+      <p class="oque">Cabeçalho da tabela em caixa mista: &quot;Atalho&quot; ao lado de &quot;VISIBILIDADE&quot; e &quot;AÇÕES&quot;. O &lt;th&gt; tem text-transform: uppercase, mas o texto está dentro do &lt;button&gt; de ordenação, que não herda.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> &quot;Atalho&quot; tt=uppercase | &quot;VISIBILIDADE&quot; tt=uppercase | &quot;AÇÕES&quot; tt=uppercase; screenshot 14-respostas-prontas-cabecalho.png</p>
+        <p class="fx"><b>Conserto:</b> Aplicar uppercase também no botão de ordenação.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-33</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Alvos de toque</p>
+      <p class="oque">Ações de linha (editar/excluir) 28×28px em Agentes, Times, Caixas de entrada, Etiquetas, Atributos, Automação, Respostas prontas; toggles 36×20; checkboxes do perfil 16×16; &quot;X&quot; do banner 24×24. Mínimo recomendado: 44×44.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medição em 18 telas (measure.mjs)</p>
+        <p class="fx"><b>Conserto:</b> Aumentar a área clicável com padding (o ícone pode continuar do mesmo tamanho).</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-34</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Formulários em geral</p>
+      <p class="oque">Nenhum campo obrigatório é marcado em Etiquetas, Times e Agentes — o usuário só descobre pelo botão desabilitado. O modal &quot;Adicionar Conexão WhatsApp&quot; é o único que usa asterisco; e lá o botão fica habilitado com o campo vazio (valida no submit). Três padrões diferentes para a mesma coisa.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshots 09, 10 e d-conn-add.png; AddConnectionModal.vue:18</p>
+        <p class="fx"><b>Conserto:</b> Escolher um padrão: asterisco no rótulo + validação no submit com mensagem.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-35</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Checkbox e radio nativos</p>
+      <p class="oque">&quot;Exibir etiqueta na barra lateral&quot;, &quot;Permitir atribuição automática&quot;, &quot;Criar novas conversas / Reabrir a mesma conversa&quot;, &quot;Conversas fixadas&quot; usam o controle azul nativo do sistema, destoando do verde da marca em todo o resto.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshots 09, form-teams-new-vazio.png, inbox-whatsapp-simplexia.png, 11</p>
+        <p class="fx"><b>Conserto:</b> Usar o componente estilizado que já existe no design system.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-36</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Banner global</p>
+      <p class="oque">Texto branco sobre rgb(220,62,66) a 12px = 4.37:1 (mín. 4.5:1). Falta pouco.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: BANNER color=rgb(255,255,255) bg=rgb(220,62,66) fs=12px</p>
+        <p class="fx"><b>Conserto:</b> Escurecer o vermelho um passo ou subir a fonte para 14px.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-37</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/inboxes vs /settings/connections</p>
+      <p class="oque">O mesmo dado aparece diferente em duas telas: em Caixas de Entrada os nomes vêm capitalizados por CSS (&quot;Simplexteste&quot;, &quot;Spx&quot;, &quot;Midwestsinop&quot;), em Conexões aparece o valor real (&quot;simplexteste&quot;).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshots 13-…png e 08-…png; banco: simplexteste, spx, midwestsinop</p>
+        <p class="fx"><b>Conserto:</b> Remover o capitalize — é o nome que o cliente cadastrou.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-38</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Modal &quot;Adicionar etiqueta&quot;</p>
+      <p class="oque">Placeholders com capitalização inconsistente no mesmo modal: nome da etiqueta (minúsculo) e Descrição da etiqueta (maiúsculo).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshot 09-…png</p>
+        <p class="fx"><b>Conserto:</b> Padronizar.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-39</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">/settings/audit-logs</p>
+      <p class="oque">Estado vazio de uma linha (&quot;Não há Logs de Auditoria disponíveis nesta conta.&quot;) sem dizer por que está vazio nem o que fazer para começar a registrar.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshot z-audit-logs.png; len=255 na página inteira</p>
+        <p class="fx"><b>Conserto:</b> Acrescentar &quot;As ações passam a ser registradas a partir de agora&quot; ou &quot;Recurso não habilitado nesta instalação&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Configurações e Caixas">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F3-40</span>
+        <span class="area">Configurações e Caixas</span>
+        
+      </header>
+      <p class="onde">Inbox → aba &quot;Configuração&quot;</p>
+      <p class="oque">Rótulos inconsistentes na mesma tela: &quot;Chave API&quot; e, logo abaixo, &quot;Atualizar Chave de API&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Screenshot 11-…png</p>
+        <p class="fx"><b>Conserto:</b> Padronizar em &quot;Chave de API&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-22</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">global</p>
+      <p class="oque">Alvos clicáveis abaixo de 44×44px, medidos: ícones da barra lateral 40×40; os 3 ícones do topo da lista de conversas 32×32; lupa do cabeçalho da conversa 28×28; chevron e kebab do &quot;Resolver&quot; 28×28.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medição do DOM (s02, s13).</p>
+        <p class="fx"><b>Conserto:</b> Aumentar o padding mantendo o ícone visual do mesmo tamanho.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-23</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">global</p>
+      <p class="oque">Botões que são só ícone, sem aria-label nem title: os 3 do topo da lista de conversas (Adicionar contato / Nova conversa / menu) e os 3 do topo de Contatos (Filtrar / Ordenar / menu). Têm tooltip visual, mas leitor de tela lê &quot;botão&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> aria=null title=null nos 6 (s07, s27).</p>
+        <p class="fx"><b>Conserto:</b> Adicionar aria-label com o mesmo texto do tooltip.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-24</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">Contatos</p>
+      <p class="oque">Capitalização inconsistente para a mesma ação: &quot;Enviar Mensagem&quot; (lista de contatos) vs &quot;Enviar mensagem&quot; (ficha do contato). Idem &quot;Enviar Template&quot;, &quot;Nota Privada&quot;, &quot;Enviar Transcrição&quot; — Title Case do inglês em meio a &quot;Nova conversa&quot;, &quot;Bloquear contato&quot;, &quot;Ver detalhes&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 25-contatos.png vs 28-ficha.png</p>
+        <p class="fx"><b>Conserto:</b> Padronizar em sentence case (padrão pt-BR), que já é a maioria.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-25</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">ficha do contato</p>
+      <p class="oque">&quot;Adicionar Github&quot; — a grafia correta é GitHub.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 28-ficha.png</p>
+        <p class="fx"><b>Conserto:</b> Corrigir a string.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-26</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">modal Importar contatos</p>
+      <p class="oque">*&quot;Importar contatos através de um arquivo CSV. Baixar um exemplo de csv.&quot;* — minúsculo, enquanto o rótulo logo abaixo é &quot;Arquivo CSV:&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Texto do modal (s38)</p>
+        <p class="fx"><b>Conserto:</b> Padronizar &quot;CSV&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-27</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">painel lateral da conversa</p>
+      <p class="oque">O painel se chama &quot;Contatos&quot; (plural) mostrando um contato.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 19-toggle-1.png</p>
+        <p class="fx"><b>Conserto:</b> &quot;Contato&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-28</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">painel → Integrantes do grupo</p>
+      <p class="oque">Os avatares dos 8 integrantes mostram todos &quot;+6&quot; — são as duas primeiras letras de &quot;+55 66 …&quot;. Oito círculos idênticos e sem sentido.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 23-integrantes.png</p>
+        <p class="fx"><b>Conserto:</b> Quando não há nome, usar os últimos dígitos do telefone ou um ícone genérico de pessoa.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-29</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">painel lateral</p>
+      <p class="oque">A mesma tela tem &quot;Integrantes (8)&quot; (participantes do grupo no WhatsApp) e &quot;Participantes da conversa&quot; (agentes acompanhando). Nomes quase iguais para coisas diferentes.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 23-integrantes.png</p>
+        <p class="fx"><b>Conserto:</b> Renomear o segundo para &quot;Agentes acompanhando&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Conversas e Contatos">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F1-30</span>
+        <span class="area">Conversas e Contatos</span>
+        
+      </header>
+      <p class="onde">conversa com janela expirada</p>
+      <p class="oque">O aviso de 24h aparece duas vezes na mesma tela: banner no topo e bloco grande no rodapé.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 34-conv1a1.png</p>
+        <p class="fx"><b>Conserto:</b> Manter só o do rodapé (que tem a explicação e as ações).</p>
+      </details>
+    </article>
+    <article class="task sP3" data-jr="1" data-sev="P3" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F4-18</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">Todas as telas (banner de conexão WhatsApp)</p>
+      <p class="oque">O botão de fechar o banner tem aria-label &quot;Recusar&quot;. &quot;Recusar&quot; sugere rejeitar a conexão, não dispensar o aviso.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> pt_BR/generalSettings.json:12 → &quot;DISMISS&quot;: &quot;Recusar&quot;, usado em WahaConnectionsBanner.vue:246, UpdateBanner.vue:206 e ui/Banner.vue:111. Mesma tradução errada em labelsMgmt.json:77 e integrations.json:321.</p>
+        <p class="fx"><b>Conserto:</b> Trocar por &quot;Dispensar&quot; (ou &quot;Fechar&quot;) nos quatro arquivos.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-jr="1" data-sev="P3" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F4-19</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        <span class="jr">bom p/ júnior</span>
+      </header>
+      <p class="onde">Automações → tabela &quot;modo antigo&quot;</p>
+      <p class="oque">A coluna &quot;Criado em&quot; mostra &quot;Jul 20, 2026&quot; — mês abreviado em inglês numa interface em português.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> AutomationRuleRow.vue:21 → messageStamp(new Date(date), &#x27;LLL d, yyyy&#x27;), formato date-fns sem locale pt-BR.</p>
+        <p class="fx"><b>Conserto:</b> Trocar para &#x27;dd/MM/yyyy&#x27; ou passar o locale ptBR do date-fns.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F4-20</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Automações, Galeria, Chat interno</p>
+      <p class="oque">Alvos clicáveis abaixo de 44×44 px (medidos): toggle Ativo 36×20; ações da tabela (editar/clonar/excluir) 28×28; &quot;Regra clássica&quot; 99×20; &quot;Selecionar&quot; na galeria 28×28; ícones do topo do Chat interno 36×36; fechar do banner 24×24; &quot;Ir para Conexões&quot; 127×24.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medições via getBoundingClientRect em 1440 px.</p>
+        <p class="fx"><b>Conserto:</b> Aumentar a área de toque com padding (o ícone pode continuar pequeno) — mínimo 44×44 na área clicável.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F4-21</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Chat interno → Nova conversa</p>
+      <p class="oque">No seletor, a aba &quot;Grupos de time&quot; quebra em duas linhas (altura 40 px) enquanto &quot;Conversa&quot; e &quot;Novo grupo&quot; ficam em uma (26 px) — as três ficam desalinhadas. Além disso, a lista de 14 pessoas não tem campo de busca.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Medido: h=40 vs h=26, largura fixa de 90 px para as três. ichat-nova.png.</p>
+        <p class="fx"><b>Conserto:</b> Deixar a largura das abas seguir o conteúdo (w-auto/flex-1) ou encurtar para &quot;Times&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F4-22</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Galeria</p>
+      <p class="oque">O filtro de ordenação (&quot;Mais recente&quot;) existe nas abas Mídia e Documentos e desaparece na aba Links — sem explicação.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> gallery-Links.png vs gallery-1440-light.png.</p>
+        <p class="fx"><b>Conserto:</b> Manter o controle nas três abas (ou desabilitá-lo visivelmente).</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F4-23</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Automações (lista)</p>
+      <p class="oque">O aria-label dos toggles é &quot;Alternar botão&quot; (tradução literal de &quot;Toggle button&quot;) — não diz o que alterna. Leitor de tela anuncia &quot;Alternar botão&quot; oito vezes seguidas.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> 8 ocorrências de &lt;span class=&quot;sr-only&quot;&gt;Alternar botão&lt;/span&gt; na lista.</p>
+        <p class="fx"><b>Conserto:</b> aria-label=&quot;Ativar automação {nome}&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="IA, Automações e Ajuda">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F4-24</span>
+        <span class="area">IA, Automações e Ajuda</span>
+        
+      </header>
+      <p class="onde">Agentes IA</p>
+      <p class="oque">&quot;Ferramentas&quot; e &quot;Conexões&quot; aparecem duas vezes: no rodapé da barra lateral esquerda e no cabeçalho do painel direito, com ícones diferentes para a mesma ação.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> agents-1440-light.png.</p>
+        <p class="fx"><b>Conserto:</b> Escolher um dos dois lugares.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F2-30</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/overview, seletor de período, nomes de funil</p>
+      <p class="oque">text-transform: capitalize aplicado a frases em pt-BR: &quot;Todos Os Times&quot;, &quot;Manutenção &amp; Prestadores&quot;, &quot;Intervalo De Data&quot;. Title case é convenção do inglês.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> getComputedStyle().textTransform === &#x27;capitalize&#x27; nos três.</p>
+        <p class="fx"><b>Conserto:</b> Remover o capitalize desses seletores e escrever o texto já com a capitalização correta no i18n.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F2-31</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/overview</p>
+      <p class="oque">Dias da semana com capitalização inconsistente na mesma coluna: &quot;Segunda-Feira&quot; (F maiúsculo) entre &quot;Terça-feira&quot;, &quot;Quinta-feira&quot;, &quot;Quarta-feira&quot; (f minúsculo).</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/rep-overview-light.png</p>
+        <p class="fx"><b>Conserto:</b> Vem do mesmo capitalize do #30 atuando sobre um hífen. Resolver junto.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F2-32</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/conversation, /reports/bot</p>
+      <p class="oque">Legenda dos gráficos renderizada como ( Total ), com espaços dentro dos parênteses.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Lido do DOM nas duas rotas.</p>
+        <p class="fx"><b>Conserto:</b> (Total).</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F2-33</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban → Painel</p>
+      <p class="oque">Título de bloco usando &quot;&amp;&quot; em vez de &quot;e&quot;: &quot;Envelhecimento &amp; SLA por coluna&quot;.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/kanban-Painel.png</p>
+        <p class="fx"><b>Conserto:</b> &quot;Envelhecimento e SLA por coluna&quot;.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F2-34</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/kanban → Agenda</p>
+      <p class="oque">Os eventos aparecem só como &quot;Conversa #652&quot;, sem o nome do contato — três agendamentos idênticos em dias diferentes. O número no canto de cada dia (o &quot;1&quot;) não tem explicação.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> evidencias-f2/kanban-Agenda.png</p>
+        <p class="fx"><b>Conserto:</b> Mostrar o nome do contato no evento e dar um title ao contador do dia.</p>
+      </details>
+    </article>
+    <article class="task sP3" data-sev="P3" data-area="Relatórios, Campanhas e Kanban">
+      <header>
+        <span class="sev">P3</span>
+        <span class="id">F2-35</span>
+        <span class="area">Relatórios, Campanhas e Kanban</span>
+        
+      </header>
+      <p class="onde">/reports/overview vs /live/in_service</p>
+      <p class="oque">Dois números para o que o usuário lê como a mesma coisa: overview diz &quot;Conversas Abertas 152&quot;, live diz &quot;Chamados em atendimento 155&quot;. A diferença são as 3 pendentes (confirmado no banco), mas nada na tela explica isso.</p>
+      <details>
+        <summary>evidência e conserto</summary>
+        <p class="ev"><b>Evidência:</b> Banco conta 3: open=152, pending=3, resolved=433.</p>
+        <p class="fx"><b>Conserto:</b> Uniformizar o rótulo ou acrescentar um tooltip dizendo o que cada número inclui.</p>
+      </details>
+    </article></div>
+  <p class="empty" id="empty" hidden>Nada com esses filtros.</p>
+</div>
+<script>
+(function(){
+  var root=document.documentElement, tg=document.getElementById('tg');
+  function cur(){return root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
+  tg.addEventListener('click',function(){root.setAttribute('data-theme',cur()==='dark'?'light':'dark');});
+
+  var f={sev:new Set(),area:new Set(),jr:false}, q='';
+  var tasks=[].slice.call(document.querySelectorAll('.task'));
+  var cnt=document.getElementById('cnt'), empty=document.getElementById('empty');
+
+  function apply(){
+    var n=0;
+    tasks.forEach(function(t){
+      var ok = (!f.sev.size || f.sev.has(t.dataset.sev))
+            && (!f.area.size || f.area.has(t.dataset.area))
+            && (!f.jr || t.dataset.jr==='1')
+            && (!q || t.textContent.toLowerCase().indexOf(q)>-1);
+      t.hidden=!ok; if(ok) n++;
+    });
+    cnt.textContent = n + ' de 129';
+    empty.hidden = n>0;
+  }
+  document.querySelectorAll('.chip[data-f]').forEach(function(c){
+    c.addEventListener('click',function(){
+      var k=c.dataset.f, v=c.dataset.v;
+      if(k==='jr'){ f.jr=!f.jr; c.setAttribute('aria-pressed',String(f.jr)); }
+      else {
+        if(f[k].has(v)){f[k].delete(v);c.setAttribute('aria-pressed','false');}
+        else {f[k].add(v);c.setAttribute('aria-pressed','true');}
+      }
+      apply();
+    });
+  });
+  document.getElementById('q').addEventListener('input',function(e){q=e.target.value.toLowerCase();apply();});
+  document.getElementById('clear').addEventListener('click',function(){
+    f={sev:new Set(),area:new Set(),jr:false}; q=''; document.getElementById('q').value='';
+    document.querySelectorAll('.chip[data-f]').forEach(function(c){c.setAttribute('aria-pressed','false');});
+    apply();
+  });
+  apply();
+})();
+</script>
+</body>
+</html>

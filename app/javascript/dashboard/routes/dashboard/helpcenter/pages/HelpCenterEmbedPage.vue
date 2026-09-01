@@ -1,7 +1,13 @@
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buildHelpCenterEmbedUrl } from 'dashboard/helper/helpCenterEmbed';
+import {
+  HELP_CENTER_PORTAL_URL,
+  buildHelpCenterEmbedUrl,
+  getHelpCenterConversationToken,
+  persistHelpCenterConversationToken,
+} from 'dashboard/helper/helpCenterEmbed';
+import { HELP_CENTER_CONVERSATION_TOKEN } from 'shared/constants/helpCenter';
 
 const { t } = useI18n();
 
@@ -10,13 +16,19 @@ const { t } = useI18n();
 // usuário trocar o tema enquanto está na tela.
 const isDark = ref(false);
 const isLoading = ref(true);
+const portalFrame = ref(null);
+const conversationToken = getHelpCenterConversationToken();
+const portalOrigin = new URL(HELP_CENTER_PORTAL_URL).origin;
 
 const syncTheme = () => {
   isDark.value = document.body.classList.contains('dark');
 };
 
 const embedUrl = computed(() =>
-  buildHelpCenterEmbedUrl({ dark: isDark.value })
+  buildHelpCenterEmbedUrl({
+    dark: isDark.value,
+    conversationToken,
+  })
 );
 
 // Trocar o tema recarrega o iframe (rara), então mostra o loader de novo.
@@ -25,6 +37,15 @@ watch(embedUrl, () => {
 });
 
 let observer = null;
+const handleConversationToken = event => {
+  if (event.origin !== portalOrigin) return;
+  if (event.source !== portalFrame.value?.contentWindow) return;
+  if (event.data?.event !== HELP_CENTER_CONVERSATION_TOKEN) return;
+  if (typeof event.data.token !== 'string' || !event.data.token) return;
+
+  persistHelpCenterConversationToken(event.data.token);
+};
+
 onMounted(() => {
   syncTheme();
   observer = new MutationObserver(syncTheme);
@@ -32,8 +53,12 @@ onMounted(() => {
     attributes: true,
     attributeFilter: ['class'],
   });
+  window.addEventListener('message', handleConversationToken);
 });
-onBeforeUnmount(() => observer?.disconnect());
+onBeforeUnmount(() => {
+  observer?.disconnect();
+  window.removeEventListener('message', handleConversationToken);
+});
 
 const onLoaded = () => {
   isLoading.value = false;
@@ -55,6 +80,7 @@ const onLoaded = () => {
     </div>
     <iframe
       :key="embedUrl"
+      ref="portalFrame"
       :src="embedUrl"
       :title="t('SIDEBAR.HELP_CENTER.TITLE')"
       class="w-full h-full border-0"

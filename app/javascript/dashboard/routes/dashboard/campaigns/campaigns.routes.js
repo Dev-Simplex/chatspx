@@ -5,6 +5,7 @@ import LiveChatCampaignsPage from './pages/LiveChatCampaignsPage.vue';
 import SMSCampaignsPage from './pages/SMSCampaignsPage.vue';
 import WhatsAppCampaignsPage from './pages/WhatsAppCampaignsPage.vue';
 import WhatsAppCampaignDetail from './pages/WhatsAppCampaignDetail.vue';
+import LeadCampaignsPage from './pages/LeadCampaignsPage.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const meta = {
@@ -60,6 +61,14 @@ const campaignsRoutes = {
             featureFlag: FEATURE_FLAGS.WHATSAPP_CAMPAIGNS,
           },
           component: WhatsAppCampaignsPage,
+        },
+        {
+          // Campanhas de captação (lead ads / formulário). Sem o feature flag de
+          // campanhas nativas e sem trava de admin: o volume por campanha é para o
+          // marketing; a configuração de roteamento o backend só devolve a admin.
+          path: 'lead_ads',
+          name: 'campaigns_lead_ads_index',
+          component: LeadCampaignsPage,
         },
         {
           path: 'whatsapp/:campaignId',

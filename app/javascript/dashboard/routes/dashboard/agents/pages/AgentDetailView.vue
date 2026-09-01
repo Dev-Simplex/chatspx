@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
+import { useCaptainAssistantModel } from 'dashboard/composables/useCaptainAssistantModel';
 
 import AiAvatar from 'dashboard/components-next/agents-ui/AiAvatar.vue';
 
@@ -12,6 +13,9 @@ const route = useRoute();
 const router = useRouter();
 const store = useStore();
 const { accountId } = useAccount();
+// O modelo é da CONTA, não do agente: `agent.config.model` nunca existiu no payload
+// e o selo simplesmente não aparecia. Ver useCaptainAssistantModel.
+const { assistantModel } = useCaptainAssistantModel();
 
 const assistantId = computed(() => Number(route.params.assistantId));
 
@@ -93,10 +97,11 @@ function isActiveTab(tab) {
           </div>
         </div>
         <span
-          v-if="agent?.config?.model"
+          v-if="assistantModel"
           class="px-2 py-0.5 font-mono text-xs rounded-md bg-n-alpha-2 text-n-slate-10"
+          :title="t('AGENT_DETAIL.ACCOUNT_MODEL')"
         >
-          {{ agent.config.model }}
+          {{ assistantModel }}
         </span>
       </div>
 

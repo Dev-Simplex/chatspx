@@ -15,11 +15,51 @@ RSpec.describe 'Api::V1::Accounts::FlowsController', type: :request do
     end
 
     context 'when authenticated' do
+      def listed_flow(id)
+        response.parsed_body['payload'].find { |flow| flow['id'] == id }
+      end
+
       it 'returns the account flows' do
         create(:flow, account: account, name: 'Flow A')
         get "/api/v1/accounts/#{account.id}/flows", headers: administrator.create_new_auth_token
         expect(response).to have_http_status(:success)
         expect(response.parsed_body['payload'].pluck('name')).to include('Flow A')
+      end
+
+      # A FlowPolicy#show? ja exigia global? || author?, mas o index listava a conta inteira — e o
+      # partial serializa trigger_config e definition INTEIROS.
+      it 'does not list the personal flow of another user' do
+        agent = create(:user, account: account, role: :agent)
+        mine = create(:flow, account: account, visibility: :personal, created_by: agent)
+        shared = create(:flow, account: account, visibility: :global, created_by: administrator)
+        create(:flow, account: account, visibility: :personal, created_by: administrator)
+
+        get "/api/v1/accounts/#{account.id}/flows", headers: agent.create_new_auth_token
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['payload'].pluck('id')).to contain_exactly(mine.id, shared.id)
+      end
+
+      it 'does not leak the webhook token of a global flow to a non-author agent' do
+        agent = create(:user, account: account, role: :agent)
+        flow = create(:flow, account: account, visibility: :global, created_by: administrator,
+                             trigger_type: :external_webhook)
+        expect(flow.webhook_token).to be_present
+
+        get "/api/v1/accounts/#{account.id}/flows", headers: agent.create_new_auth_token
+        expect(listed_flow(flow.id)['trigger_config']).not_to have_key('webhook_token')
+        expect(response.body).not_to include(flow.webhook_token)
+      end
+
+      it 'still returns the webhook token to the author and to an administrator' do
+        author = create(:user, account: account, role: :agent)
+        flow = create(:flow, account: account, visibility: :global, created_by: author,
+                             trigger_type: :external_webhook)
+
+        get "/api/v1/accounts/#{account.id}/flows", headers: author.create_new_auth_token
+        expect(listed_flow(flow.id)['trigger_config']['webhook_token']).to eq(flow.webhook_token)
+
+        get "/api/v1/accounts/#{account.id}/flows", headers: administrator.create_new_auth_token
+        expect(listed_flow(flow.id)['trigger_config']['webhook_token']).to eq(flow.webhook_token)
       end
     end
   end
@@ -57,6 +97,32 @@ RSpec.describe 'Api::V1::Accounts::FlowsController', type: :request do
       patch "/api/v1/accounts/#{account.id}/flows/#{flow.id}", params: { name: 'Renamed' }, headers: administrator.create_new_auth_token
       expect(response).to have_http_status(:success)
       expect(flow.reload.name).to eq('Renamed')
+    end
+  end
+
+  # O trigger_config chega CRU do cliente (assign_jsonb_attributes). Antes, criar como `manual`
+  # com um webhook_token qualquer e so depois virar `external_webhook` deixava o token escolhido
+  # pelo cliente virar a credencial do endpoint publico.
+  describe 'webhook token is never chosen by the client' do
+    let(:auth) { administrator.create_new_auth_token }
+
+    it 'drops the token on create and generates its own when the flow becomes a webhook' do
+      post "/api/v1/accounts/#{account.id}/flows",
+           params: { name: 'Webhook', trigger_type: 'manual', trigger_config: { webhook_token: '1' },
+                     definition: { nodes: [], edges: [] } },
+           headers: auth, as: :json
+      expect(response).to have_http_status(:success)
+
+      flow = Flow.last
+      expect(flow.trigger_config).not_to have_key('webhook_token')
+
+      patch "/api/v1/accounts/#{account.id}/flows/#{flow.id}",
+            params: { trigger_type: 'external_webhook', trigger_config: { webhook_token: '1' } },
+            headers: auth, as: :json
+      expect(response).to have_http_status(:success)
+      expect(flow.reload.webhook_token).not_to eq('1')
+      expect(flow.webhook_token).to match(/\A[0-9a-f]{48}\z/)
+      expect(response.parsed_body['trigger_config']['webhook_token']).to eq(flow.webhook_token)
     end
   end
 

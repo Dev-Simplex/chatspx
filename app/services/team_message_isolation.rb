@@ -22,9 +22,14 @@ module TeamMessageIsolation
   module_function
 
   # true quando as mensagens desta conversa DEVEM ser filtradas por time para este viewer.
+  #
+  # Dois eixos, os dois obrigatorios: o ALCANCE por time
+  # (`Inbox#isolation_applies_to_team?` = flag ON + conversa COM time + time dentro da
+  # lista escolhida na caixa; lista vazia = todos os times = comportamento historico) e a
+  # ISENCAO por agente. Isola se alcanca E o viewer nao e excecao.
   def apply?(conversation, user)
-    return false if conversation.nil? || conversation.team_id.nil?
-    return false unless conversation.inbox&.team_message_isolation
+    return false if conversation.nil?
+    return false unless conversation.inbox&.isolation_applies_to_team?(:team_message_isolation, conversation.team_id)
 
     !exempt?(user, conversation.inbox)
   end

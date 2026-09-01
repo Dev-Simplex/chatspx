@@ -192,7 +192,15 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
   # inútil e conversa NOVA nunca entrava — havia paradas há mais de 20h que nunca chegaram à fila.
   # Ela só precisa voltar quando a válvula PODE fechá-la (max_dias > 0); com a válvula desligada
   # (0 = hold indefinido, esperando humano) não volta nunca.
+  #
+  # Quem está na fila do HUMANO sai SEMPRE — a exclusão não depende da válvula. O handoff não
+  # solta o espelho captain, então a conversa continua `open` e atribuída à IA e casava com o
+  # scan: pagaria uma classificação por ciclo, poderia receber o "vou encerrar" enquanto espera
+  # uma pessoa e acabaria marcada nas DUAS filas ao mesmo tempo. O teto do "esperando humano"
+  # (regra 6 do contrato do eixo) é outra decisão, coordenada com a spx/rodizio — não pode
+  # nascer como efeito colateral da válvula do encerramento.
   def scannable(scope, account)
+    scope = scope.where("conversations.custom_attributes->>'aguardando_humano_desde' IS NULL")
     return scope if closure_max_days(account).positive?
 
     scope.where("conversations.custom_attributes->>'aguardando_encerramento_desde' IS NULL")

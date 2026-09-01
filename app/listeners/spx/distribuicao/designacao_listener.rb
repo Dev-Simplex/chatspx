@@ -22,9 +22,43 @@ module Spx
         # Só humano encerra. Troca entre espelhos de IA não é "assumir".
         return if conversation.assignee_id.blank?
 
-        Log.designacao_aberta(conversation.id)&.encerrar!('assumido')
+        designacao = Log.designacao_aberta(conversation.id)
+        return if designacao.nil? || posse_do_motor?(designacao, conversation)
+
+        designacao.encerrar!('assumido')
       rescue StandardError => e
         Rails.logger.error("[Spx::Distribuicao::DesignacaoListener] assignee conv=#{conversation&.id}: #{e.message}")
+      end
+
+      # Saída 3 (modo PUSH): a pessoa respondeu ao cliente. É o sinal de engajamento REAL do
+      # push — "atribuído" não quer dizer atendido, e é justamente essa diferença que o
+      # `sla_assumir_minutos` mede.
+      #
+      # Roda para TODA mensagem da instância: a guarda barata (outgoing + não-privada + humano)
+      # vem antes de qualquer ida ao banco.
+      def message_created(event)
+        message = event.data[:message]
+        return unless resposta_humana?(message)
+
+        designacao = Log.designacao_aberta(message.conversation_id)
+        return if designacao.nil? || !designacao.aguarda_primeira_resposta?
+
+        designacao.encerrar!('assumido')
+      rescue StandardError => e
+        Rails.logger.error("[Spx::Distribuicao::DesignacaoListener] mensagem conv=#{message&.conversation_id}: #{e.message}")
+      end
+
+      # Gatilho SEM IA (opt-in por política, `gatilho_sem_ia`). O Motor nasceu pendurado no
+      # handoff do Captain, então um time que recebe conversa por FLOW ou REGRA (`assign_team`)
+      # nunca distribuía — a conversa caía no time e ficava parada até alguém pegar na mão.
+      # Aqui o TEAM_CHANGED passa a acionar o Motor nesse caminho.
+      def team_changed(event)
+        conversation, _account = extract_conversation_and_account(event)
+        return unless distribuivel_sem_ia?(conversation)
+
+        DistribuirService.new(conversation).call
+      rescue StandardError => e
+        Rails.logger.error("[Spx::Distribuicao::DesignacaoListener] gatilho conv=#{conversation&.id}: #{e.message}")
       end
 
       # Saída 2: o corretor pegou o lead no Vista. Fecha a designação (para o cronômetro do
@@ -52,6 +86,45 @@ module Spx
       end
 
       private
+
+      # Modo PUSH com repasse: quem gravou este assignee foi o próprio Motor, um instante atrás.
+      # Fechar a designação aqui zeraria o cronômetro no nascimento — nesse modo ela só fecha
+      # quando a pessoa RESPONDE (#message_created) ou quando OUTRA pessoa toma a conversa.
+      def posse_do_motor?(designacao, conversation)
+        designacao.aguarda_primeira_resposta? && designacao.chosen_user_id == conversation.assignee_id
+      end
+
+      def resposta_humana?(message)
+        return false if message.nil?
+
+        message.outgoing? && !message.private? && message.sender_type == 'User'
+      end
+
+      # Guardas antes de qualquer consulta cara, na ordem do mais barato para o mais caro:
+      #   • já tem dono humano  → nada a distribuir
+      #   • espelho da IA é o dono → o handoff é quem chama o Motor; distribuir aqui atropelaria
+      #     a triagem em curso e calaria a IA no meio de uma conversa
+      #   • conversa fechada → não se distribui histórico
+      #   • já existe designação viva → não redesigna a cada save
+      # Só então lê a política, e só age se o gestor tiver LIGADO o gatilho nela.
+      def distribuivel_sem_ia?(conversation)
+        return false unless conversa_sem_dono?(conversation)
+        return false unless gatilho_ligado?(conversation)
+
+        Log.designacao_aberta(conversation.id).nil?
+      end
+
+      def conversa_sem_dono?(conversation)
+        return false if conversation.nil? || conversation.team_id.blank?
+        return false if conversation.assignee_id.present? || conversation.assignee_agent_bot_id.present?
+
+        conversation.open? || conversation.pending?
+      end
+
+      def gatilho_ligado?(conversation)
+        policy = Policy.for_team(conversation.account_id, conversation.team_id)
+        policy.present? && policy.gatilho_sem_ia? && policy.distribui?
+      end
 
       # Soltar o espelho é o jeito NATIVO de calar a IA: todo o pipeline do Captain gateia em
       # `assignee_agent_bot`. A conversa fica sem dono no SPX — que é a verdade, porque quem

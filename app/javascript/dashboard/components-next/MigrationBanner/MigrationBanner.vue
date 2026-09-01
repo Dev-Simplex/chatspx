@@ -136,8 +136,8 @@ onBeforeUnmount(() => {
         id="migration-desc"
         class="text-slate-700 dark:text-slate-200 text-base leading-relaxed mb-6"
       >
-        A Tozi agora tem sistema próprio, mais rápido e estável.
-        Acesse abaixo — login automático.
+        A Tozi agora tem sistema próprio, mais rápido e estável. Acesse abaixo —
+        login automático.
       </p>
 
       <button
@@ -156,10 +156,23 @@ onBeforeUnmount(() => {
           viewBox="0 0 24 24"
           aria-hidden="true"
         >
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+          />
         </svg>
-        <span>{{ loading ? 'Gerando link de acesso…' : 'Acessar a nova versão' }}</span>
+        <span>{{
+          loading ? 'Gerando link de acesso…' : 'Acessar a nova versão'
+        }}</span>
         <!-- Arrow Right (Lucide) -->
         <svg
           v-if="!loading"

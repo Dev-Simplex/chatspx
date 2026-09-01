@@ -141,6 +141,37 @@ RSpec.describe Messages::DeleteContentService, type: :service do
       end
     end
 
+    # Mídia sem legenda (imagem/áudio/documento) tem content NULL. O log de lookup chamava
+    # `content.truncate` direto e estourava NoMethodError, que não era resgatado em lugar
+    # nenhum: o agente clicava em "apagar" e tomava HTTP 500, sem nem o soft-delete local.
+    context 'when the message has no content (media without caption)' do
+      let(:original_content) { nil }
+
+      before do
+        allow(waha_api).to receive(:get_messages).and_return(
+          [{ 'id' => 'true_5566999999999@c.us_MEDIA_ID', 'fromMe' => true,
+             'body' => '', 'timestamp' => message.created_at.to_i }]
+        )
+      end
+
+      it 'resolves the WAHA id without raising NoMethodError and soft-deletes locally' do
+        expect { described_class.new(message).perform }.not_to raise_error
+
+        message.reload
+        expect(message.content_attributes['deleted']).to be true
+        expect(message.source_id).to eq('true_5566999999999@c.us_MEDIA_ID')
+      end
+
+      context 'when no WAHA candidate matches' do
+        before { allow(waha_api).to receive(:get_messages).and_return([]) }
+
+        it 'still soft-deletes locally instead of blowing up on the warn log' do
+          expect { described_class.new(message).perform }.not_to raise_error
+          expect(message.reload.content_attributes['deleted']).to be true
+        end
+      end
+    end
+
     context 'when WAHA returns a hard API error' do
       before do
         message.update!(source_id: 'true_5566999999999@c.us_ABC123')

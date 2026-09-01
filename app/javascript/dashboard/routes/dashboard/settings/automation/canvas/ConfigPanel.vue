@@ -17,9 +17,14 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // Repassado ao NodeConfigPanel: editores que dependem dos vizinhos do nó (ver lá).
+  definition: {
+    type: Object,
+    default: () => ({ nodes: [], edges: [] }),
+  },
 });
 
-const emit = defineEmits(['close', 'update', 'delete']);
+const emit = defineEmits(['close', 'update', 'delete', 'duplicate']);
 
 const { t } = useI18n();
 
@@ -60,6 +65,15 @@ const onUpdate = patch => emit('update', patch);
       </div>
       <div class="flex items-center gap-1 ml-auto shrink-0">
         <button
+          class="grid rounded-md size-7 place-items-center text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2"
+          :aria-label="t('AUTOMATION.CANVAS.DUPLICATE')"
+          :title="t('AUTOMATION.CANVAS.DUPLICATE')"
+          data-testid="config-panel-duplicate"
+          @click="emit('duplicate')"
+        >
+          <span class="i-lucide-copy" />
+        </button>
+        <button
           class="grid rounded-md size-7 place-items-center text-n-slate-11 hover:text-n-ruby-9 hover:bg-n-alpha-2"
           :aria-label="t('AUTOMATION.CANVAS.CONFIG.DELETE_NODE')"
           :title="t('AUTOMATION.CANVAS.CONFIG.DELETE_NODE')"
@@ -80,7 +94,11 @@ const onUpdate = patch => emit('update', patch);
     </header>
 
     <div class="flex-1 min-h-0 p-4 overflow-y-auto">
-      <NodeConfigPanel :node="node" @update="onUpdate" />
+      <NodeConfigPanel
+        :node="node"
+        :definition="definition"
+        @update="onUpdate"
+      />
     </div>
   </aside>
 </template>

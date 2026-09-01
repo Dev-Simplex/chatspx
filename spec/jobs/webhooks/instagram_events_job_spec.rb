@@ -257,6 +257,30 @@ describe Webhooks::InstagramEventsJob do
         expect(instagram_inbox.messages.last.content_attributes['is_unsupported']).to be_nil
       end
 
+      # Sem isto a vitrine é um beco sem saída: o cliente toca no card e nada volta pro SPX.
+      it 'turns a card button click into an incoming message keeping the payload' do
+        postback_event = build(:instagram_postback_event).with_indifferent_access
+
+        instagram_webhook.perform_now(postback_event[:entry])
+
+        message = instagram_inbox.messages.last
+        expect(message.message_type).to eq('incoming')
+        expect(message.content).to eq('Fotos do 5194')
+        expect(message.source_id).to eq('postback-message-id-1')
+        expect(message.content_attributes['selected_option']).to eq('id' => 'imovel:5194', 'title' => 'Fotos do 5194')
+      end
+
+      # Contraprova: onde a vitrine não existe, o postback vem de outra coisa (menu fixo,
+      # ice breaker) e virar mensagem mudaria o comportamento de quem nunca pediu isso.
+      it 'ignores the postback when the channel does not draw cards' do
+        allow_any_instance_of(Channel::Instagram).to receive(:supports_card_carousel?).and_return(false) # rubocop:disable RSpec/AnyInstance
+        postback_event = build(:instagram_postback_event).with_indifferent_access
+
+        instagram_webhook.perform_now(postback_event[:entry])
+
+        expect(instagram_inbox.messages.count).to be 0
+      end
+
       it 'sets correct instagram attributes on contact' do
         dm_event = build(:instagram_message_create_event).with_indifferent_access
         instagram_webhook.perform_now(dm_event[:entry])

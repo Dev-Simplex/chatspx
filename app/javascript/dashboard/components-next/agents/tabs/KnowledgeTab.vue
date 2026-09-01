@@ -49,6 +49,27 @@ const DOC_STYLE = {
 const docStyle = type =>
   DOC_STYLE[type] || { icon: 'i-lucide-file', tint: '#8e8e93' };
 
+// `document_type` NÃO existe no payload do documento (`_document.json.jbuilder` devolve
+// `content_type` e `external_link`). Ler esse nome dava sempre `undefined`: o rótulo do
+// tipo saía em branco e o ícone caía no cinza genérico para todo documento.
+// O tipo é derivado dos campos que a API realmente entrega, do jeito que o modelo grava:
+//   PDF   -> content_type 'application/pdf' (ou external_link 'PDF: ...')
+//   texto -> external_link 'TEXT: ...' (Captain::Document#inline_content?)
+//   URL   -> qualquer outro external_link (o caso de crawl)
+const docType = doc => {
+  if (doc?.content_type === 'application/pdf') return 'pdf';
+  const link = String(doc?.external_link || '');
+  if (link.startsWith('PDF:')) return 'pdf';
+  if (link.startsWith('TEXT:')) return 'text';
+  return 'url';
+};
+const docTypeLabel = doc => {
+  const type = docType(doc);
+  if (type === 'pdf') return t('CAPTAIN.AGENT_TABS.KNOWLEDGE.TYPE_PDF');
+  if (type === 'text') return t('CAPTAIN.AGENT_TABS.KNOWLEDGE.TYPE_TEXT');
+  return t('CAPTAIN.AGENT_TABS.KNOWLEDGE.TYPE_URL');
+};
+
 const DOC_ACTIONS = computed(() => [
   {
     value: 'delete',
@@ -308,15 +329,15 @@ async function deleteFaq(faq) {
         >
           <span
             class="grid flex-none text-white rounded-xl place-items-center size-9"
-            :style="{ background: docStyle(doc.document_type).tint }"
+            :style="{ background: docStyle(docType(doc)).tint }"
           >
-            <span :class="docStyle(doc.document_type).icon" class="size-4" />
+            <span :class="docStyle(docType(doc)).icon" class="size-4" />
           </span>
           <div class="flex-1 min-w-0">
             <p class="text-[14px] font-bold truncate text-n-slate-12">
-              {{ doc.name || doc.title }}
+              {{ doc.name }}
             </p>
-            <p class="text-[12px] text-n-slate-10">{{ doc.document_type }}</p>
+            <p class="text-[12px] text-n-slate-10">{{ docTypeLabel(doc) }}</p>
           </div>
           <AiDropdown :items="DOC_ACTIONS" @select="onDocAction($event, doc)" />
         </div>

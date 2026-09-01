@@ -1,13 +1,17 @@
 module Concerns::Agentable
   extend ActiveSupport::Concern
 
+  # Temperatura de quem nao configurou nenhuma. Vale de verdade: o antigo
+  # `temperature.to_f || 0.7` era default MORTO, porque to_f nunca devolve nil.
+  DEFAULT_TEMPERATURE = 0.7
+
   def agent
     Agents::Agent.new(
       name: agent_name,
       instructions: ->(context) { agent_instructions(context) },
       tools: agent_tools,
       model: agent_model,
-      temperature: temperature.to_f || 0.7,
+      temperature: resolved_temperature,
       response_schema: agent_response_schema
     )
   end
@@ -32,6 +36,12 @@ module Concerns::Agentable
   end
 
   private
+
+  # Temperatura ausente (nil ou string vazia no config) cai no DEFAULT_TEMPERATURE; quem
+  # tem valor explicito, inclusive 0, mantem o que esta gravado.
+  def resolved_temperature
+    (temperature.presence || DEFAULT_TEMPERATURE).to_f
+  end
 
   def agent_name
     raise NotImplementedError, "#{self.class} must implement agent_name"

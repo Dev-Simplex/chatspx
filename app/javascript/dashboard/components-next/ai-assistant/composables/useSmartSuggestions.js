@@ -142,8 +142,7 @@ export function useSmartSuggestions(conversationRef) {
         id: 'long_thread',
         severity: 'info',
         icon: 'i-lucide-sparkles',
-        textKey:
-          'AI_ASSISTANT_PANEL.SMART_BANNER.LONG_THREAD.BODY',
+        textKey: 'AI_ASSISTANT_PANEL.SMART_BANNER.LONG_THREAD.BODY',
         textParams: { count: messageCount.value },
         ctaKey: 'AI_ASSISTANT_PANEL.SMART_BANNER.LONG_THREAD.CTA',
         action: 'summarize',

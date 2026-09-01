@@ -44,7 +44,10 @@ class Flows::ActionDescriber
     'add_sla' => 'Aplicaria a política de SLA',
     'assign_ai_agent' => 'Atribuiria ao agente de IA',
     'ai_classify' => 'Classificaria a conversa via IA',
-    'ai_generate' => 'Geraria conteúdo via IA'
+    'ai_generate' => 'Geraria conteúdo via IA',
+    # Verbo de FALLBACK: o `distribuir` não tem params, então a frase real depende do ESTADO e é
+    # montada em #distribuir_phrase. Fica aqui para o vocabulário continuar completo.
+    'distribuir' => 'Distribuiria pelo rodízio'
   }.freeze
 
   def initialize(conversation:, account:)
@@ -62,9 +65,30 @@ class Flows::ActionDescriber
   private
 
   def humanize(name, params)
+    return distribuir_phrase if name == 'distribuir'
+
     verb = VERBS.fetch(name) { "Executaria a ação '#{name}'" }
     summary = param_summary(params)
     summary.present? ? "#{verb}: #{summary}" : verb
+  end
+
+  # `distribuir` não tem params: o que ele FARIA depende inteiramente do estado (o time da
+  # conversa e a política daquele time). Dizer "Distribuiria pelo rodízio" sem olhar isso seria
+  # mentir na simulação exatamente onde a ação vai levantar Flows::StepSkip e não distribuir nada
+  # — e a simulação existe para o autor ver o caminho ANTES de subir. Espelha 1:1 as guardas de
+  # Flows::DistribuicaoAction#distribuir. Continua READ-ONLY: só SELECT (team + policy).
+  # As guardas de POOL (`sem_pool`) não dá para prever aqui sem rodar a decisão — que é justamente
+  # o que a simulação não pode fazer —, então a frase do caminho feliz fica no condicional.
+  def distribuir_phrase
+    team = @conversation&.team
+    return 'Não distribuiria: a conversa não está em nenhum time' if team.blank?
+
+    policy = Spx::Distribuicao::Policy.for_team(@account.id, team.id)
+    return "Não distribuiria: o time #{team.name} não tem política de distribuição ativa" if policy.nil?
+    return "Não distribuiria: a política do time #{team.name} está no modo '#{policy.modo}'" unless policy.distribui?
+    return "Abriria a fila (pull) do time #{team.name} — ninguém é escolhido, o primeiro que puxar leva" if policy.fila?
+
+    "Distribuiria pelo rodízio do time #{team.name}"
   end
 
   # Resumo compacto e legível dos params já resolvidos (para o `would`). O detalhe completo vai

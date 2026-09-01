@@ -253,8 +253,17 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :team_message_isolation,
      :agent_message_isolation, :agent_conversation_isolation, :pending_status_enabled,
+     # Escopo por time das 3 regras de isolamento. Lista VAZIA = a regra vale para TODOS os
+     # times (comportamento historico); com times escolhidos, so vale neles.
+     { team_message_isolation_team_ids: [] },
+     { agent_message_isolation_team_ids: [] },
+     { agent_conversation_isolation_team_ids: [] },
+     # Segundo eixo, por AGENTE: a tela fala PARTICIPANTES, o banco guarda EXCECOES.
      { agent_message_isolation_participant_ids: [] }, { team_message_isolation_participant_ids: [] },
-     { additional_attributes: [:agent_signature_enabled, { allowed_template_names: [] }] },
+     # `pin_mode` e `pinned_conversation_ids` seguem no permit de proposito: sem eles o
+     # Rails descarta o parametro EM SILENCIO e a tela responde 200 "salvo com sucesso"
+     # sem gravar nada. Ver o store_accessor correspondente em app/models/inbox.rb.
+     { additional_attributes: [:pin_mode, :agent_signature_enabled, { pinned_conversation_ids: [], allowed_template_names: [] }] },
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
                        template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },

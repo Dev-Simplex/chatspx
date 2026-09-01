@@ -28,3 +28,32 @@ export const repliesFromInteractiveNode = prev => {
     .filter(item => item && item.value)
     .map(item => ({ key: String(item.value), label: item.title || '' }));
 };
+
+// Opções do(s) bloco(s) `send_interactive` que DESEMBOCAM neste `wait_for_reply` — a fonte da
+// verdade para o campo "valor/id da resposta" no editor. O acoplamento é exato e silencioso:
+// `reply.key` PRECISA ser idêntico ao `value` da opção enviada, porque é esse id que o WhatsApp
+// devolve e que o RunnerService casa contra `edge.branch`. Digitado à mão, um acento ou espaço a
+// mais faz a resposta certa cair no fallback. Com a lista aqui, o editor vira um select.
+//
+// Percorre as arestas de ENTRADA do nó (pode haver mais de uma) e junta as opções de todos os
+// blocos interativos que chegam nele, deduplicando por `value` e preservando a ordem de envio.
+export const interactiveOptionsForWait = (definition, nodeId) => {
+  if (!definition || nodeId == null) return [];
+  const nodes = Array.isArray(definition.nodes) ? definition.nodes : [];
+  const edges = Array.isArray(definition.edges) ? definition.edges : [];
+  const byId = new Map(nodes.map(node => [String(node.id), node]));
+  const seen = new Set();
+  const options = [];
+
+  edges
+    .filter(edge => String(edge.to) === String(nodeId))
+    .forEach(edge => {
+      repliesFromInteractiveNode(byId.get(String(edge.from))).forEach(reply => {
+        if (seen.has(reply.key)) return;
+        seen.add(reply.key);
+        options.push(reply);
+      });
+    });
+
+  return options;
+};

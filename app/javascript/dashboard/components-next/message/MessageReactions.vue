@@ -1,13 +1,31 @@
 <script setup>
+/**
+ * Chips de reação — ÚNICO lugar do painel que desenha um chip de reação.
+ *
+ * Atende duas origens com o mesmo desenho:
+ *   a) reação do painel (`reactions`, mapa `{userId: [emoji]}`): interativa, com seletor
+ *      de emoji e toggle via API;
+ *   b) reação vinda do WhatsApp (`chips`, já agregados pelo `whatsappReactionHelper`):
+ *      `readonly`, porque não existe API para reagir de volta no WhatsApp — o chip aqui
+ *      é leitura do que aconteceu no celular de quem reagiu.
+ *
+ * `chips` tem precedência sobre `reactions`; `readonly` desliga seletor e toggle.
+ */
 import { ref, computed } from 'vue';
 import { useStore } from 'dashboard/composables/store';
 import MessageApi from 'dashboard/api/inbox/message';
 
 const props = defineProps({
-  messageId: { type: [Number, String], required: true },
-  conversationId: { type: [Number, String], required: true },
+  messageId: { type: [Number, String], default: null },
+  conversationId: { type: [Number, String], default: null },
   reactions: { type: Object, default: () => ({}) },
-  currentUserId: { type: [Number, String], required: true },
+  currentUserId: { type: [Number, String], default: null },
+  /**
+   * Chips já agregados por quem chamou: `[{ emoji, count, title }]`. Quando presente,
+   * o componente não agrega nada — só desenha.
+   */
+  chips: { type: Array, default: null },
+  readonly: { type: Boolean, default: false },
   mode: {
     type: String,
     default: 'all',
@@ -31,10 +49,27 @@ const aggregated = computed(() => {
   return out;
 });
 
-const hasReactions = computed(() => Object.keys(aggregated.value).length > 0);
-
 const userHasEmoji = emoji =>
   aggregated.value[emoji]?.users.includes(Number(props.currentUserId));
+
+/**
+ * Lista única de chips desenhados, venha ela pronta (WhatsApp) ou da agregação local.
+ * @returns {Array<{emoji: String, count: Number, title: String, mine: Boolean}>}
+ */
+const chipList = computed(() => {
+  if (props.chips) {
+    return props.chips.map(chip => ({ mine: false, title: '', ...chip }));
+  }
+
+  return Object.entries(aggregated.value).map(([emoji, info]) => ({
+    emoji,
+    count: info.count,
+    title: '',
+    mine: userHasEmoji(emoji),
+  }));
+});
+
+const hasReactions = computed(() => chipList.value.length > 0);
 
 const toggle = async emoji => {
   showPicker.value = false;
@@ -65,14 +100,20 @@ const toggle = async emoji => {
 };
 
 const isPickerMode = computed(
-  () => props.mode === 'picker' || props.mode === 'all'
+  () => !props.readonly && (props.mode === 'picker' || props.mode === 'all')
 );
 const isChipsMode = computed(
   () => (props.mode === 'chips' || props.mode === 'all') && hasReactions.value
 );
 const shouldRender = computed(() => isPickerMode.value || isChipsMode.value);
 const rootClass = computed(() => {
-  if (props.mode === 'chips') return 'flex flex-wrap gap-1 mt-2';
+  // Read-only cola o chip na bolha (padrão WhatsApp); interativo mantém o respiro
+  // do seletor.
+  if (props.mode === 'chips') {
+    return props.readonly
+      ? 'flex flex-wrap gap-1 mt-1'
+      : 'flex flex-wrap gap-1 mt-2';
+  }
   return 'relative inline-block';
 });
 </script>
@@ -108,20 +149,29 @@ const rootClass = computed(() => {
       </div>
     </template>
 
-    <button
-      v-for="(info, emoji) in isChipsMode ? aggregated : {}"
-      :key="emoji"
-      type="button"
-      class="reaction-chip flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs leading-none transition-colors"
-      :class="
-        userHasEmoji(emoji)
-          ? 'bg-n-solid-blue border-n-blue-9 text-n-slate-12'
-          : 'bg-n-solid-2 border-n-weak text-n-slate-12 hover:bg-n-alpha-3'
-      "
-      @click.stop="toggle(emoji)"
+    <Component
+      :is="readonly ? 'span' : 'button'"
+      v-for="chip in isChipsMode ? chipList : []"
+      :key="chip.emoji"
+      v-tooltip.top="chip.title || undefined"
+      :type="readonly ? undefined : 'button'"
+      :aria-label="chip.title || undefined"
+      class="reaction-chip flex items-center gap-1 rounded-full border leading-none"
+      :class="[
+        readonly
+          ? 'reaction-chip--readonly px-1.5 py-0.5 text-[11px] bg-n-solid-1 border-n-weak text-n-slate-11 shadow-sm'
+          : 'px-2 py-0.5 text-xs transition-colors cursor-pointer',
+        !readonly &&
+          (chip.mine
+            ? 'bg-n-solid-blue border-n-blue-9 text-n-slate-12'
+            : 'bg-n-solid-2 border-n-weak text-n-slate-12 hover:bg-n-alpha-3'),
+      ]"
+      @click.stop="readonly ? null : toggle(chip.emoji)"
     >
-      <span>{{ emoji }}</span>
-      <span class="text-[11px]">{{ info.count }}</span>
-    </button>
+      <span>{{ chip.emoji }}</span>
+      <span :class="readonly ? 'tabular-nums' : 'text-[11px]'">
+        {{ chip.count }}
+      </span>
+    </Component>
   </div>
 </template>

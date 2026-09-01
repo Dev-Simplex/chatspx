@@ -1,5 +1,6 @@
 class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   include Captain::Tools::VistaImovelUrl
+  include Captain::Tools::ImoveisConhecidos
 
   description 'Envia ao cliente as fotos reais de um imóvel pelo WhatsApp, em lotes de 3. ' \
               'Chame quando o cliente pedir fotos de um imóvel, informando o código (vem do resultado da busca). ' \
@@ -31,10 +32,14 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # conversa (buscar_imovel registra em codigos_buscados). Bloqueia a IA de mandar
     # foto de um código que ela supôs/lembrou (ex.: mandar prédio comercial por casa).
     cod = codigo.to_s.gsub(/\D/, '')
-    vistos = Array(conversation.custom_attributes['codigos_buscados']).map(&:to_s)
+    vistos = codigos_conhecidos(conversation)
     if vistos.any? && !vistos.include?(cod)
       return "O código #{cod} não apareceu na busca desta conversa. Use buscar_imovel primeiro e envie fotos SÓ de um código que a busca retornou — nunca de um código que você supôs ou lembrou de outro imóvel."
     end
+
+    # O código que a IA cita pode ser o ImoCodigo — e o ImoCodigo de um imóvel é o Codigo de
+    # OUTRO. Resolver pelo mapa da própria conversa antes de buscar (ver codigo_canonico).
+    codigo = codigo_canonico(conversation, cod)
 
     dados = fetch_detalhes(codigo)
     fotos = extract_fotos(dados)
@@ -51,16 +56,12 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # Opt-in por conta (assistant.config['fotos_carrossel']): manda as fotos numa ÚNICA
     # mensagem de carrossel interativo (1 foto por card + botões), em vez de N imagens.
     # Carrossel exige 2+ cards — com 1 foto restante cai no envio de imagem comum.
-    return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite) if carrossel_ativo? && (limite - sent) >= 2
+    return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite) if carrossel_ativo?(conversation) && (limite - sent) >= 2
 
     batch = fotos[sent, BATCH] || []
     return 'Não encontrei fotos desse imóvel.' if batch.empty?
 
-    # Envia uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
-    batch.each_with_index do |url, i|
-      send_photo(conversation, url, codigo)
-      sleep(SEND_INTERVAL) if i < batch.size - 1
-    end
+    send_batch(conversation, batch, codigo)
     new_sent = sent + batch.size
     conversation.update!(custom_attributes: conversation.custom_attributes.merge(
       key => new_sent, 'fotos_ultimo_envio_at' => Time.current.to_i
@@ -69,12 +70,22 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     if limite - new_sent > 0
       # Nao despejar fotos por conta propria (prende o lead num loop de midia): avancar a
       # conversa. Pra "ver todas", a IA oferece o LINK da galeria, nao mais fotos no chat.
-      "Enviei #{batch.size} fotos do imóvel #{codigo}. Se o cliente quiser ver TODAS as fotos, " \
+      "Enviei #{batch.size} #{pluralizar_foto(batch.size)} do imóvel #{codigo}. Se o cliente quiser ver TODAS as fotos, " \
         "ofereça o link do imóvel#{link_galeria(conversation, cod)} — o site tem a galeria completa. " \
         'NÃO despeje mais fotos por conta própria; se ele pedir mais fotos aqui, chame esta ferramenta de novo.'
+    elsif fotos.size > limite
+      # Bateu o teto por imóvel: o site REALMENTE tem mais do que coube aqui, então oferecer a
+      # galeria é oferta honesta.
+      "Enviei #{new_sent} #{pluralizar_foto(new_sent)} do imóvel #{codigo} — é o máximo que dá pra mandar por aqui, " \
+        "e o imóvel tem mais. Se o cliente quiser ver todas, ofereça o link#{link_galeria(conversation, cod)}. " \
+        'Avance a conversa.'
     else
-      "Enviei as fotos principais do imóvel #{codigo}. Se o cliente quiser ver todas, " \
-        "ofereça o link do imóvel#{link_galeria(conversation, cod)} (galeria completa no site). Avance a conversa."
+      # Mandou TUDO que existe cadastrado. A redação anterior dizia "fotos principais" e oferecia a
+      # "galeria completa no site" também aqui — prometendo o que não existe. Num imóvel de foto
+      # única a IA ainda falava no plural de uma coisa só, e o cliente ficava esperando o resto.
+      "Enviei #{new_sent} #{pluralizar_foto(new_sent)} do imóvel #{codigo} — é tudo que ele tem cadastrado, " \
+        'não há outras nem no site. Se o cliente pedir mais, diga com naturalidade que este imóvel só tem essa ' \
+        'quantidade e ofereça o próximo passo (visita, ou imóveis parecidos). NÃO prometa mais fotos nem galeria.'
     end
   rescue StandardError => e
     Rails.logger.warn("[EnviarFotosImovelTool] #{e.message}")
@@ -82,6 +93,25 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # O retorno da tool é lido pelo MODELO: "1 fotos" vaza como concordância errada na fala dele.
+  def pluralizar_foto(quantidade)
+    quantidade == 1 ? 'foto' : 'fotos'
+  end
+
+  # O `urls_imoveis` guarda **Codigo E ImoCodigo apontando para a MESMA URL** (track_urls do
+  # buscar_imovel), e essa URL termina no Codigo canônico. Isso importa porque os dois espaços
+  # de código se cruzam: medido na Tozi, `4586` é o ImoCodigo da CASA de aluguel 4629 e, ao
+  # mesmo tempo, o Codigo de um TERRENO à venda em outro bairro. Como o `/imoveis/detalhes`
+  # resolve por Codigo, pedir fotos citando o ImoCodigo trazia o imóvel errado — a cliente da
+  # conv 28684 pediu foto de uma casa e recebeu a foto de um terreno.
+  #
+  # Resolver pelo mapa da PRÓPRIA conversa devolve sempre o imóvel que a busca mostrou; sem
+  # registro (busca antiga, conversa migrada), devolve o que veio e o comportamento é o de antes.
+  def codigo_canonico(conversation, cod)
+    url = conversation.custom_attributes.to_h['urls_imoveis'].to_h[cod.to_s].to_s
+    url[/-(\d+)\z/, 1].presence || cod.to_s
+  end
 
   # Entrega a URL canônica que a busca já registrou (urls_imoveis, alimentado pelo
   # buscar_imovel) em vez de mandar a IA lembrar dela: link remontado errado é apagado
@@ -121,8 +151,17 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
          .filter_map { |f| f['Foto'] }
   end
 
-  def carrossel_ativo?
-    @assistant&.config&.[]('fotos_carrossel') == true
+  # Duas condições, não uma: a conta opta pelo carrossel E o canal daquela conversa entrega
+  # payload interativo. O carrossel é passthrough do WhatsApp Cloud; num canal que não lê a
+  # chave (Instagram, WAHA, Messenger) a mensagem sai como o TEXTO do content — "📷 Carrossel:
+  # 9 fotos do imóvel X" — sem foto e sem falha registrada, e a tool ainda devolve "enviei",
+  # então a IA garante ao cliente que mandou. Medido na Tozi (conta 6, inbox 101 Instagram):
+  # 9 chamadas, 0 imagem entregue, clientes respondendo "não apareceu" e "fotos não carrega".
+  # Sem carrossel, o fluxo cai no envio foto a foto, que o Instagram entrega normalmente.
+  def carrossel_ativo?(conversation)
+    return false unless @assistant&.config&.[]('fotos_carrossel') == true
+
+    conversation.inbox.channel.supports_interactive_payload?
   end
 
   # Carrossel de mídia interativo (2-10 cards, 1 foto por card) numa única mensagem, via
@@ -190,6 +229,41 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     build_url(dados, dados['Status'].to_s.match?(/vend/i))
   rescue StandardError
     nil
+  end
+
+  # Quantas fotos vão, e a que imóvel pertencem, é o mesmo dos dois lados — muda só o
+  # empacotamento. Onde o canal entrega várias imagens numa mensagem só (Instagram), o lote
+  # vira UMA mensagem com N anexos: acaba a rajada de N mensagens com intervalo entre elas,
+  # que prendia o lead num loop de mídia.
+  def send_batch(conversation, urls, codigo)
+    return send_photos_grouped(conversation, urls, codigo) if agrupa_fotos?(conversation) && urls.size >= 2
+
+    # Uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
+    urls.each_with_index do |url, i|
+      send_photo(conversation, url, codigo)
+      sleep(SEND_INTERVAL) if i < urls.size - 1
+    end
+  end
+
+  def agrupa_fotos?(conversation)
+    conversation.inbox.channel.supports_multi_image_message?
+  end
+
+  # Sem Down.download: a Meta busca cada foto pela URL pública do Vista, como o carrossel do
+  # WhatsApp já faz. Além de poupar N downloads, tira do caminho o teto local de 15 MB do
+  # `send_photo`, que é maior que os 8 MB por imagem que o Instagram aceita.
+  def send_photos_grouped(conversation, urls, codigo)
+    msg = conversation.messages.build(
+      message_type: :outgoing,
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      sender: @assistant,
+      additional_attributes: { 'property_code' => codigo }
+    )
+    urls.each do |url|
+      msg.attachments.build(account_id: conversation.account_id, file_type: :image, external_url: url)
+    end
+    msg.save!
   end
 
   def send_photo(conversation, url, codigo)
