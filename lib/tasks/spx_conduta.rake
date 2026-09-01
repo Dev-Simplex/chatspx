@@ -31,7 +31,7 @@ namespace :spx do
       puts "conta #{conta} · rascunho ##{conversa.display_id} · #{cenarios.size} cenário(s) × #{rodadas} rodada(s)"
       puts
 
-      falhas = Spx::Conduta::Regressao.new(conversa: conversa, rodadas: rodadas).executar(cenarios) do |linha|
+      falhas = Spx::Conduta::Regressao.new(conversation: conversa, rodadas: rodadas).executar(cenarios) do |linha|
         puts linha
       end
 
