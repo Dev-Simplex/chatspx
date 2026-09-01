@@ -10,6 +10,34 @@
 
 ## 🚧 Em andamento
 
+### [2026-09-01] 🟢 O FOLLOW-UP AUTOMÁTICO JÁ EXISTIA — e estava desligado por um gate invisível
+
+> O Paulo apontou a conv 32835 (parada 55h sem cutucada). A causa não é o modelo esquecer:
+> **o `auto_schedule_followup` é determinístico e roda no próprio turno** (`response_builder_job`),
+> mas o `auto_followup_enabled?` tem **opt-in implícito**: *só liga para agente que já TEM a
+> ferramenta `programar_followup`*. A Clara não tinha até 31/08.
+
+- **Ao dar a ferramenta a ela em 31/08 eu liguei o auto sem saber.** Antes: **0 de 191**
+  conversas com cutucada. Depois: **11 conversas, 9 com cutucada marcada, 8 disparadas** — as 2
+  sem marca não precisavam (numa a última fala é do cliente).
+- 🔴 **Erro meu de medição, corrigido:** primeiro contei chamadas da **ferramenta** e li "3 de
+  15". O auto **não passa pela ferramenta** — grava direto em `followup_token`/`followup_status`.
+  O número certo é 8 de 11. **Medir o efeito, não o caminho.**
+- ✅ **Os 7 agentes da conta 6 estão com o auto ligado hoje** (todos têm a ferramenta, nenhum tem
+  `behavior['followup']['auto'] = false`). Auto-agendamento a cada 120 min por padrão.
+- **O estoque parado NÃO é defeito, e a separação importa:**
+  - **Clara: 179** paradas sem cutucada — todas anteriores a 31/08, explicadas pelo gate.
+    **Só 1 ainda está dentro da janela de 24h**; as outras 178 já não alcançam por texto livre.
+  - **Júlia: 72** — todas com **`msgs = 1`**, ou seja **disparos que o cliente nunca respondeu**.
+    Sem fala dele não há janela aberta, então cutucada não se aplica por construção. Quem
+    alcança esse grupo é template, e **repescagem segue não existindo**.
+  - Bruna: 3 paradas, 1 sem cutucada.
+- ⚠️ **A armadilha a lembrar:** o gate é silencioso. Agente novo sem `programar_followup` nasce
+  **sem follow-up nenhum** e nada avisa — foi assim que a Clara passou meses sem cutucar.
+- ⏭️ A conv 32835 não teria como ser cutucada hoje (janela fechada há 2 dias). Ela também **não
+  chamou ferramenta nenhuma** no atendimento inteiro — nem `salvar_info_lead`: o lead não foi
+  registrado.
+
 ### [2026-09-01] 🟢 AS 3 CONVERSAS DO DIGEST VIRARAM CONSERTO (PRs #84 e #85) — e o harness estava morto
 
 > As 3 do digest de 01/09. Uma era cegueira já corrigida do juiz; as outras duas eram defeito
