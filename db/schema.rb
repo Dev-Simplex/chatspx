@@ -2450,6 +2450,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_140200) do
     t.datetime "updated_at", null: false
     t.index ["user_id", "client_id"], name: "index_user_sessions_on_user_id_and_client_id", unique: true
     t.index ["user_id"], name: "index_user_sessions_on_user_id"
+  end
+
   create_table "unit_exceptions", force: :cascade do |t|
     t.bigint "unit_id", null: false
     t.date "starts_on", null: false
