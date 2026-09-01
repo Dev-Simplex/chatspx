@@ -201,8 +201,11 @@ captain_conversation_eval_scheduler_job:
 # e-mails, por conta. Sem custom_attributes['eval_digest']['enabled'] a conta não recebe nada.
 # Existe porque o eval detecta em volume e o resultado morria no painel: numa conta medida em
 # 28/08/2026 eram 380 conversas com finding grave em 30 dias e nenhuma ação registrada.
-# 11h UTC = 7h em America/Cuiaba, antes do expediente da operação.
+# O horário é do FUSO DO PROCESSO, não UTC: o sidekiq-cron agenda no `Time.zone` da aplicação
+# (aqui America/Manaus, UTC-4). O comentário anterior dizia "11h UTC = 7h em Cuiabá" e estava
+# errado nos dois sentidos — `0 11` disparava às 11h da manhã do cliente, não às 7h, e foi
+# assim que ele recebeu por três dias seguidos.
 spx_eval_digest_scheduler_job:
-  cron: '0 11 * * *'
+  cron: '0 7 * * *'
   class: 'Spx::EvalDigestSchedulerJob'
   queue: scheduled_jobs

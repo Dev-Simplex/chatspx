@@ -10,9 +10,9 @@ class LiveReportsAPI extends ApiClient {
     return axios.get(`${this.url}/conversation_metrics`, { params });
   }
 
-  getGroupedConversations({ groupBy } = { groupBy: 'assignee_id' }) {
+  getGroupedConversations({ groupBy, inboxId } = { groupBy: 'assignee_id' }) {
     return axios.get(`${this.url}/grouped_conversation_metrics`, {
-      params: { group_by: groupBy },
+      params: { group_by: groupBy, inbox_id: inboxId || undefined },
     });
   }
 

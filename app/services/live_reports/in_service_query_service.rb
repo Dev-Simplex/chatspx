@@ -61,6 +61,7 @@ class LiveReports::InServiceQueryService # rubocop:disable Metrics/ClassLength
   def base_scope
     scope = account.conversations.where(status: [Conversation.statuses[:open], Conversation.statuses[:pending]])
     scope = scope.where(team_id: parsed_team_id) if parsed_team_id.present?
+    scope = scope.where(inbox_id: parsed_inbox_id) if parsed_inbox_id.present?
     reachable_by_agents(scope)
   end
 
@@ -240,6 +241,10 @@ class LiveReports::InServiceQueryService # rubocop:disable Metrics/ClassLength
 
   def parsed_team_id
     @parsed_team_id ||= parse_integer(params[:team_id])
+  end
+
+  def parsed_inbox_id
+    @parsed_inbox_id ||= parse_integer(params[:inbox_id])
   end
 
   def scope_param
