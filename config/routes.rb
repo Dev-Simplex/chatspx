@@ -569,6 +569,7 @@ Rails.application.routes.draw do
           # 404 uniforme, e um 404 aqui apagaria a tela sem nenhum erro visivel.
           resource :partial_lead_settings, only: [:show, :update], controller: 'partial_lead_settings'
 
+          resources :units, only: [:index, :show, :create, :update, :destroy]
           resources :teams do
             resources :team_members, only: [:index, :create] do
               collection do
