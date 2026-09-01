@@ -219,4 +219,102 @@ describe ContactIdentifyAction do
       end.not_to change(definitions, :count)
     end
   end
+
+  # Bloco 5.17 — a SUBSTITUICAO de verdade do verbo `set…` (T-I3.8).
+  #
+  # Ate aqui "setUser SUBSTITUI" era so um comentario. O cliente montava o payload com as chaves
+  # ausentes em `undefined`, `JSON.stringify` as descartava, e o que chegava aqui era
+  # indistinguivel de um `updateUser`. Mesmo se `nil` chegasse, o `reject(&:blank?)` de
+  # `update_contact` o descartaria. `clear_attributes` e o pedido NOMEADO que sobrevive aos dois.
+  describe 'clear_attributes — o verbo set apaga o que o site nao mandou' do
+    let!(:contact) do
+      create(:contact, account: account, name: 'Ana', email: 'ana@exemplo.com.br',
+                       phone_number: '+5511999998888', identifier: 'id-1')
+    end
+
+    it 'apaga os campos nomeados e preserva os que a chamada trouxe' do
+      described_class.new(
+        contact: contact,
+        params: { identifier: 'id-1', name: 'Ana Maria', clear_attributes: %w[email phone_number] }
+      ).perform
+
+      contact.reload
+      expect(contact.name).to eq 'Ana Maria'
+      expect(contact.email).to be_nil
+      expect(contact.phone_number).to be_nil
+      # A identidade sobrevive: apagar contato nao e desidentificar sessao.
+      expect(contact.identifier).to eq 'id-1'
+    end
+
+    it 'nao apaga o campo que a MESMA chamada mandou preenchido' do
+      # Ordem nao pode ser contrato: `params` vence a lista, sempre.
+      described_class.new(
+        contact: contact,
+        params: { identifier: 'id-1', email: 'nova@exemplo.com.br', clear_attributes: %w[email] }
+      ).perform
+
+      expect(contact.reload.email).to eq 'nova@exemplo.com.br'
+    end
+
+    it 'name apagado vira string vazia, nao nil — o resto do produto trata name como string' do
+      described_class.new(contact: contact, params: { identifier: 'id-1', clear_attributes: %w[name] }).perform
+
+      expect(contact.reload.name).to eq ''
+    end
+
+    it 'RECUSA apagar identifier, mesmo pedido explicitamente' do
+      # Apagar o identificador desamarraria o contato da identidade declarada pelo site: a sessao
+      # seguinte nao o reencontraria e o visitante viraria cadastro novo, em silencio.
+      described_class.new(contact: contact, params: { identifier: 'id-1', clear_attributes: %w[identifier] }).perform
+
+      expect(contact.reload.identifier).to eq 'id-1'
+    end
+
+    it 'ignora nome de coluna que nao esta na lista fechada' do
+      described_class.new(
+        contact: contact,
+        params: { identifier: 'id-1', clear_attributes: %w[account_id contact_type blocked avatar_url] }
+      ).perform
+
+      contact.reload
+      expect(contact.account_id).to eq account.id
+      expect(contact.contact_type).to eq 'lead'
+      expect(contact.blocked).to be false
+    end
+
+    it 'sem clear_attributes nada e apagado — o verbo update segue mesclando' do
+      described_class.new(contact: contact, params: { identifier: 'id-1', name: 'Ana Maria' }).perform
+
+      contact.reload
+      expect(contact.name).to eq 'Ana Maria'
+      expect(contact.email).to eq 'ana@exemplo.com.br'
+      expect(contact.phone_number).to eq '+5511999998888'
+    end
+
+    it 'lista vazia e o mesmo que ausencia' do
+      described_class.new(contact: contact, params: { identifier: 'id-1', clear_attributes: [] }).perform
+
+      expect(contact.reload.email).to eq 'ana@exemplo.com.br'
+    end
+
+    # A TRAVA QUE IMPORTA, e ela nao e teorica.
+    #
+    # Sob `identity_enforcement` estrito, `refuse_merge_under_enforcement?` tira a chave de
+    # `@attributes_to_update` para que a sessao nao REIVINDIQUE o e-mail de outro cadastro. Sem a
+    # interseccao com essa lista, a mesma sessao que tem a fusao recusada conseguiria APAGAR o
+    # e-mail do dono — a recusa protegeria a leitura e deixaria passar a escrita destrutiva, que e
+    # pior do que nao ter recusa nenhuma.
+    it 'nao apaga o campo cuja fusao foi RECUSADA pelo enforcement estrito' do
+      dona = create(:contact, account: account, email: 'dona@exemplo.com.br', name: 'Dona')
+      sessao = create(:contact, account: account)
+
+      described_class.new(
+        contact: sessao,
+        params: { email: 'dona@exemplo.com.br', clear_attributes: %w[email] },
+        identity_enforcement: 'strict'
+      ).perform
+
+      expect(dona.reload.email).to eq 'dona@exemplo.com.br'
+    end
+  end
 end

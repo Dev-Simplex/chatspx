@@ -143,16 +143,66 @@ class ContactIdentifyAction
     true
   end
 
+  # Bloco 5.17 — os UNICOS campos que o verbo `set…` pode apagar, e o valor com que cada um fica
+  # vazio. Lista FECHADA, e o que esta FORA dela e tao deliberado quanto o que esta dentro:
+  #
+  # · `identifier` — apagar o identificador desamarraria o contato da identidade que o site
+  #   declarou: a sessao seguinte nao o reencontraria e o visitante viraria cadastro novo, em
+  #   silencio. Ele esta em `@attributes_to_update`, entao a interseccao sozinha nao bastaria.
+  # · `avatar_url` — NAO e coluna de `contacts` (o avatar e ActiveStorage, preenchido por
+  #   `enqueue_avatar_job`). `@contact[:avatar_url] = nil` levantaria `MissingAttributeError`.
+  #   Hoje ele tambem nao esta em `@attributes_to_update`, mas depender disso seria depender de uma
+  #   lista que existe por outro motivo.
+  #
+  # O VALOR IMPORTA e nao e detalhe de estilo: `email` e `phone_number` vao a `nil` porque a coluna
+  # e nullable e os indices unicos por conta contam com NULL — string vazia colidiria no segundo
+  # contato que fosse "apagado". `name` vai a `''`, que e o default da coluna: ela nao e nullable
+  # por convencao aqui e o resto do produto trata `contact.name` como string.
+  CLEARABLE_ATTRIBUTES = { name: '', email: nil, phone_number: nil }.freeze
+
   def update_contact
     @contact.attributes = params.slice(*@attributes_to_update).reject do |_k, v|
       v.blank?
     end.merge({ custom_attributes: custom_attributes, additional_attributes: additional_attributes })
     # blank identifier or email will throw unique index error
     # TODO: replace reject { |_k, v| v.blank? } with compact_blank when rails is upgraded
+    clear_requested_attributes
     @contact.discard_invalid_attrs if discard_invalid_attrs
     @contact.save! if @contact.changed?
     auto_provision_custom_attribute_definitions
     enqueue_avatar_job
+  end
+
+  # Bloco 5.17 — a SUBSTITUICAO de verdade do verbo `set…`.
+  #
+  # O `reject(&:blank?)` da linha de cima existe para nao gravar vazio por acidente (identifier ou
+  # email em branco batem no indice unico por conta). Ele e por isso mesmo o motivo de "substitui"
+  # nunca ter substituido nada: campo vazio nao chegava, e campo ausente e indistinguivel de campo
+  # que o site quer apagar. `clear_attributes` desfaz esse empate com um pedido NOMEADO, e por isso
+  # roda DEPOIS — apagar antes seria desfeito pela atribuicao acima.
+  #
+  # DUAS TRAVAS, e as duas sao o que torna isto seguro numa rota publica:
+  #
+  # 1. `CLEARABLE_ATTRIBUTES` — so os quatro campos de topo do contato. Um chamador que mandasse
+  #    `clear_attributes: ['identifier']` ou o nome de qualquer outra coluna nao apaga nada.
+  # 2. `@attributes_to_update` — o que as regras de fusao ja decidiram NAO tocar continua intocado.
+  #    Sem esta interseccao, uma sessao sob `identity_enforcement` estrito teria a fusao por e-mail
+  #    recusada (`refuse_merge_under_enforcement?` tira `:email` da lista) e ainda assim conseguiria
+  #    APAGAR o e-mail do dono do cadastro — a recusa protegeria a leitura e deixaria a escrita
+  #    destrutiva passar, que e pior que nao ter recusa nenhuma.
+  def clear_requested_attributes
+    solicitados = Array(params[:clear_attributes]).map(&:to_sym)
+    permitidos = solicitados & CLEARABLE_ATTRIBUTES.keys & @attributes_to_update
+    return if permitidos.empty?
+
+    # `params` vence a lista: o campo que o site MANDOU nesta mesma chamada foi gravado acima e nao
+    # e candidato a apagamento. Sem isto, um payload com `email` presente e `email` na lista
+    # dependeria da ordem para decidir, e ordem nao e contrato.
+    permitidos.each do |key|
+      next if params[key].present?
+
+      @contact[key] = CLEARABLE_ATTRIBUTES[key]
+    end
   end
 
   # B6: sem definicao, a chave que o site mandou fica no jsonb e nao aparece em

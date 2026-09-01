@@ -83,21 +83,74 @@ describe('buildContactPayload', () => {
       expect(payload.phone_number).toBe('+5511999998888');
       expect('email' in payload).toBe(false);
       expect('name' in payload).toBe(false);
+      expect('clear_attributes' in payload).toBe(false);
     });
 
-    it('set SUBSTITUI: campo nao enviado vai no payload como vazio', () => {
+    it('set SUBSTITUI: campo nao enviado entra na lista de apagamento', () => {
       const payload = buildContactPayload(
         { phone_number: '+5511999998888' },
         { merge: false }
       );
 
       expect(payload.phone_number).toBe('+5511999998888');
-      expect('email' in payload).toBe(true);
-      expect(payload.email).toBeUndefined();
+      expect(payload.clear_attributes).toEqual(['email', 'name', 'avatar_url']);
+    });
+
+    /**
+     * A ASSERCAO QUE FALTAVA, e a razao de ela existir.
+     *
+     * O spec anterior media `'email' in payload === true` e `payload.email === undefined`. Passava
+     * verde e nao media nada: o payload nao viaja como objeto, viaja como JSON, e `JSON.stringify`
+     * descarta chave com `undefined`. Medido no vermelho deste bloco, os dois verbos produziam
+     * `{"phone_number":"+5511999998888"}` — identicos byte a byte. "Substitui" era um comentario.
+     *
+     * Por isso a medicao e feita DEPOIS de serializar: e a unica forma da assercao falhar quando o
+     * defeito voltar.
+     */
+    it('set e update NAO produzem o mesmo payload na REDE — medido depois do JSON', () => {
+      const usuario = { phone_number: '+5511999998888' };
+      const comSet = JSON.stringify(
+        buildContactPayload(usuario, { merge: false })
+      );
+      const comUpdate = JSON.stringify(
+        buildContactPayload(usuario, { merge: true })
+      );
+
+      expect(comSet).not.toBe(comUpdate);
+      expect(JSON.parse(comSet).clear_attributes).toContain('email');
+      expect(JSON.parse(comUpdate)).not.toHaveProperty('clear_attributes');
+    });
+
+    it('set com TODOS os campos nao pede apagamento nenhum', () => {
+      const payload = buildContactPayload(
+        {
+          email: 'ana@exemplo.com.br',
+          name: 'Ana',
+          avatar_url: 'https://exemplo.com.br/a.png',
+          phone_number: '+5511999998888',
+        },
+        { merge: false }
+      );
+
+      expect('clear_attributes' in payload).toBe(false);
     });
 
     it('set e o default, porque e o comportamento historico do setUser', () => {
-      expect('email' in buildContactPayload({ name: 'Ana' })).toBe(true);
+      expect(buildContactPayload({ name: 'Ana' }).clear_attributes).toContain(
+        'email'
+      );
+    });
+
+    it('a lista de apagamento nao inclui campo que o site MANDOU vazio de proposito', () => {
+      // String vazia e uma DECLARACAO ("nao tem e-mail"), nao uma omissao. Ela viaja como valor e
+      // o servidor a trata pelo caminho normal; nao e o mesmo fato que "o site nem mencionou".
+      const payload = buildContactPayload(
+        { name: 'Ana', email: '' },
+        { merge: false }
+      );
+
+      expect(payload.email).toBe('');
+      expect(payload.clear_attributes).not.toContain('email');
     });
   });
 

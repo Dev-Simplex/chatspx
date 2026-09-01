@@ -87,6 +87,14 @@ export const VERBOS_DE_IDENTIDADE = ['setUser', 'updateUser'];
 export const identidadeDrenada = (rotulos = []) =>
   rotulos.some(rotulo => VERBOS_DE_IDENTIDADE.includes(rotulo));
 
+/**
+ * Bloco 5.17 — "esta chamada teve de ESPERAR o boot?".
+ *
+ * O resultado tipado precisa distinguir `accepted` de `queued`, e depois que a fila drena essa
+ * informacao some: as duas resolvem igual. Quem chama tem de perguntar ANTES de `enfileirar`.
+ */
+export const filaDrenada = () => drenada;
+
 // Só para os testes: devolve a fila ao estado inicial entre cenários.
 export const resetarFilaParaTestes = () => {
   fila.length = 0;
