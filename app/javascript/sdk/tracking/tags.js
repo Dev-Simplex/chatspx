@@ -72,28 +72,68 @@ export const semPii = valor => {
 /**
  * T-C4.2 — o que JA existe na pagina.
  *
- * `fbq.getState().pixels` e a leitura que a propria biblioteca da Meta expoe. Ela pode nao
- * existir (versao antiga, stub de bloqueador, `fbq` que e so uma funcao vazia), e por isso
- * tudo aqui e defensivo: a resposta errada e `false`, nunca uma excecao no site do cliente.
+ * A pergunta NAO e "existe um `fbq`?". Numa pagina de agencia existe, e nao e o nosso: e por
+ * isso que `garantirMeta` consulta ESTA funcao, e nao `typeof window.fbq`. `trackSingle` num
+ * pixel que nunca recebeu `init` e descartado pela Meta em silencio — sem erro, sem console,
+ * sem nada no painel do cliente alem do zero.
+ *
+ * ── AS DUAS FORMAS EM QUE UM `init` EXISTE, E POR QUE AS DUAS IMPORTAM ──────────────────
+ *
+ *  1. `fbq.getState().pixels` — o `fbevents.js` JA carregou e registrou o pixel;
+ *  2. `fbq.queue` — o `init` ja saiu mas o `fbevents.js` ainda esta baixando. E o estado da
+ *     pagina no instante seguinte ao nosso proprio instalador: `window.fbq` e o stub de fila
+ *     do snippet, que nao tem `getState` nenhum.
+ *
+ * Ler so a (1) tornaria a instalacao NAO IDEMPOTENTE: o segundo evento da mesma pagina nao
+ * reconheceria o `init` do primeiro e mandaria outro. Ler so a (2) perderia a pagina em que a
+ * tag e do cliente. Tudo defensivo: a resposta errada e `false`, nunca uma excecao no site.
  */
 export const metaPixelInicializado = pixelId => {
+  if (!pixelId) return false;
+  const alvo = String(pixelId);
+
   try {
-    const pixels = window.fbq?.getState?.().pixels;
-    return (
-      Array.isArray(pixels) &&
-      pixels.some(p => String(p?.id) === String(pixelId))
+    const fbq = window.fbq;
+    if (typeof fbq !== 'function') return false;
+
+    const pixels = fbq.getState?.().pixels;
+    if (Array.isArray(pixels) && pixels.some(p => String(p?.id) === alvo))
+      return true;
+
+    // A fila ainda nao consumida. Cada entrada e um objeto `arguments`, nao um Array.
+    return Array.from(fbq.queue || []).some(
+      args => args?.[0] === 'init' && String(args?.[1]) === alvo
     );
   } catch {
     return false;
   }
 };
 
-/** T-C4.2 — varredura do `dataLayer` por `['config', <measurement id>]`, o padrao do gtag. */
+/**
+ * T-C4.2 — ha um `config` para este destino no `dataLayer`?
+ *
+ * Vale para QUALQUER destino do `gtag`, `G-…` e `AW-…`: a conversao do Ads tambem morre em
+ * silencio se a conta nunca foi configurada. O nome da funcao ficou do GA4 por historia.
+ *
+ * ── A FORMA QUE ESTA VARREDURA PRECISOU APRENDER A LER ──────────────────────────────────
+ *
+ * O snippet publicado pelo Google e `function gtag(){dataLayer.push(arguments)}` — o que cai
+ * no `dataLayer` e um objeto `arguments`, e `Array.isArray(arguments)` e `false`. Exigir
+ * `Array.isArray` deixava esta funcao cega para a unica forma que existe em producao,
+ * inclusive para a que `instalarGoogleTag` escreve logo abaixo. A forma Array continua
+ * aceita: e a que uma tag de terceiro deixa quando empurra o comando literal.
+ */
 export const ga4Configurado = measurementId => {
+  if (!measurementId) return false;
+
   try {
-    return (window.dataLayer || []).some(
+    return Array.from(window.dataLayer || []).some(
       item =>
-        Array.isArray(item) && item[0] === 'config' && item[1] === measurementId
+        item &&
+        typeof item === 'object' &&
+        typeof item.length === 'number' &&
+        item[0] === 'config' &&
+        item[1] === measurementId
     );
   } catch {
     return false;
@@ -284,23 +324,71 @@ export const createTagsBridge = ({
   const installTags = tracking.install_tags || {};
 
   /**
-   * "Ha um `fbq`/`gtag` utilizavel?" — e, se nao houver, "posso criar um?".
+   * "O NOSSO destino esta pronto para receber?" — e, se nao estiver, "posso prepara-lo?".
+   *
+   * ── A PERGUNTA QUE ESTAS DUAS FUNCOES FAZIAM ERRADO ───────────────────────────────────
+   *
+   * Elas perguntavam `typeof window.fbq === 'function'`. Numa pagina que tem o pixel da
+   * agencia — e nao o do cliente — a resposta e "sim", e a ponte seguia direto para
+   * `trackSingle` num pixel que nunca recebeu `init`. A Meta descarta. O Google faz o mesmo
+   * com `send_to` para uma propriedade sem `config`. Nenhum dos dois erra alto: nao ha
+   * excecao, nao ha console, nao ha linha no painel — so o zero na conta do cliente, com a
+   * nossa tela dizendo "usamos o Pixel que ja esta na sua pagina".
+   *
+   * A pergunta certa e a que a deteccao de T-C4.2 responde: `metaPixelInicializado` e
+   * `ga4Configurado`, que ate aqui eram codigo sem chamador.
+   *
+   * ── E O QUE MUDA QUANDO A RESPOSTA E "NAO" ────────────────────────────────────────────
+   *
+   * Falta so o `init`/`config` do NOSSO id — a biblioteca do terceiro ja esta na pagina.
+   * Entao nao se injeta script nenhum e nao se toca na funcao do cliente (R9: `window.fbq` e
+   * `window.gtag` continuam sendo, por identidade, os que ja estavam la). Emite-se um comando
+   * na tag dele, e um so — sem `PageView`, com `send_page_view: false`, exatamente as mesmas
+   * omissoes que os instaladores fazem.
+   *
+   * Esse comando ESCREVE no `window` do cliente e faz o terceiro reconhecer mais um id: e a
+   * mesma classe de efeito que instalar, entao passa pelo MESMO opt-in (decisao Q5). Sem
+   * `install_tags`, a ponte segue como sempre seguiu — sem inventar consentimento nem
+   * autorizacao que ninguem deu.
    *
    * As duas sao chamadas DEPOIS do gate de consentimento de cada disparo, nunca antes.
    * Injetar `fbevents.js` ou `gtag.js` e uma requisicao a um terceiro que le cookie: fazer
    * isso antes do consentimento seria vazar o visitante justamente pelo caminho que o bloco
    * 5.09 existe para fechar — e o `isAllowed` nao teria como desfazer.
+   *
+   * Nenhuma das duas precisa de `try`: todo chamador ja roda dentro de `protegido`, e deixar
+   * a excecao subir e o que impede o disparo de sair numa tag que acabou de falhar.
    */
   const garantirMeta = () => {
-    if (typeof window.fbq === 'function') return true;
+    if (!pixelId) return false;
+    if (metaPixelInicializado(pixelId)) return true;
+
+    if (typeof window.fbq === 'function') {
+      // A `fbq` e do cliente e o nosso id nao esta nela. So com opt-in, e sem `PageView`.
+      if (installTags.meta) window.fbq('init', pixelId);
+      // Sem opt-in seguimos como antes: ha um `fbq`, o disparo sai. Nao e este o lugar de
+      // apagar um caminho que ja existia.
+      return true;
+    }
+
     if (!installTags.meta) return false;
     return instalarMetaPixel(pixelId);
   };
 
   const garantirGoogle = () => {
-    if (typeof window.gtag === 'function') return true;
+    const alvos = [measurementId, contaDoAds(adsSendTo)].filter(Boolean);
+    if (!alvos.length) return false;
+
+    if (typeof window.gtag === 'function') {
+      if (installTags.google)
+        alvos
+          .filter(id => !ga4Configurado(id))
+          .forEach(id => window.gtag('config', id, { send_page_view: false }));
+      return true;
+    }
+
     if (!installTags.google) return false;
-    return instalarGoogleTag([measurementId, contaDoAds(adsSendTo)]);
+    return instalarGoogleTag(alvos);
   };
 
   const paraDataLayer = (nome, params, eventId) =>

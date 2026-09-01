@@ -774,3 +774,257 @@ describe('5.10 / T-C4.3 — instalar a tag que falta, so com opt-in', () => {
     ).toEqual({ meta: true, google: false });
   });
 });
+
+/**
+ * ── 5.10 / T-C4.2 — A DETECCAO TEM DE SER CONSULTADA ────────────────────────────────────
+ *
+ * `metaPixelInicializado` e `ga4Configurado` existiam e ninguem os chamava: quem decidia era
+ * `typeof window.fbq === 'function'`. Numa pagina que ja tem o pixel DA AGENCIA, essa
+ * pergunta responde "sim" — e a ponte entao mandava `trackSingle` num pixel que nunca foi
+ * inicializado e `send_to` num destino que nunca foi configurado. A Meta e o Google descartam
+ * os dois em silencio: nenhum erro, nenhum console, e o cliente ve zero conversao com a tela
+ * dizendo que esta tudo certo. Os exemplos abaixo medem a CONSULTA, nao a existencia.
+ *
+ * ── OS DUBLES SAO OS DE VERDADE, E ISSO E O QUE FAZ ESTE BLOCO VALER ────────────────────
+ *
+ * `comPixelAlheio` guarda estado: o `fbevents.js` de verdade REGISTRA o pixel no `init`, e
+ * `getState().pixels` passa a inclui-lo. Um `vi.fn()` com lista congelada tornaria a
+ * idempotencia inverificavel — o teste veria dois `init` e chamaria isso de defeito.
+ *
+ * `comGtagDoCliente` empurra o objeto `arguments`, que e o que o snippet publicado pelo
+ * Google faz (`function gtag(){dataLayer.push(arguments)}`). NAO e um Array — e o
+ * `ga4Configurado` respondia so a `Array.isArray`, entao ele era cego para a unica forma que
+ * existe em producao, inclusive para a que o NOSSO proprio instalador escreve.
+ */
+
+/** A pagina da agencia: ha `fbq`, ha pixel — e nenhum deles e o nosso. */
+const comPixelAlheio = () => {
+  const pixels = [{ id: '999999999999999' }];
+  fbq = vi.fn((...args) => {
+    if (args[0] === 'init') pixels.push({ id: String(args[1]) });
+  });
+  fbq.getState = () => ({ pixels: [...pixels] });
+  window.fbq = fbq;
+};
+
+/** O `gtag` do cliente, na forma real: `arguments` no `dataLayer`, nunca um Array. */
+const comGtagDoCliente = (configurados = []) => {
+  window.dataLayer = window.dataLayer || [];
+  gtag = vi.fn(function empurra() {
+    // eslint-disable-next-line prefer-rest-params -- e o contrato do gtag.js
+    window.dataLayer.push(arguments);
+  });
+  window.gtag = gtag;
+  configurados.forEach(id => window.gtag('config', id));
+};
+
+const initsDoFbq = () =>
+  fbq.mock.calls.filter(c => c[0] === 'init').map(c => [c[0], String(c[1])]);
+
+describe('5.10 / T-C4.2 — a deteccao consultada por quem decide', () => {
+  beforeEach(() => {
+    document.querySelectorAll('script[src]').forEach(el => el.remove());
+    // eslint-disable-next-line no-underscore-dangle -- `_fbq` e nome do snippet da Meta
+    delete window._fbq;
+  });
+
+  describe('a deteccao reconhece as duas formas reais em que o `init` existe', () => {
+    it('reconhece o `init` que ainda esta na FILA — o fbevents.js nem carregou', () => {
+      // Este e o estado da pagina logo depois do nosso proprio instalador: `window.fbq` e o
+      // stub de fila do snippet, sem `getState`, e o `init` e um `arguments` em `.queue`.
+      instalarMetaPixel(PIXEL);
+      expect(window.fbq.getState).toBeUndefined();
+
+      expect(metaPixelInicializado(PIXEL)).toBe(true);
+      expect(metaPixelInicializado('000000000000000')).toBe(false);
+    });
+
+    it('reconhece o `config` na forma que o gtag.js publica (`arguments`, nao Array)', () => {
+      instalarGoogleTag([GA4, 'AW-123456789']);
+      // A prova de que a forma NAO e Array — se um dia virar, este exemplo avisa.
+      expect(comandosDoGtag().some(c => c[0] === 'config')).toBe(true);
+      expect(window.dataLayer.some(Array.isArray)).toBe(false);
+
+      expect(ga4Configurado(GA4)).toBe(true);
+      expect(ga4Configurado('AW-123456789')).toBe(true);
+      expect(ga4Configurado('G-NUNCA')).toBe(false);
+    });
+
+    it('e continua reconhecendo a forma Array, que e a que uma tag de terceiro deixa', () => {
+      window.dataLayer.push(['config', 'G-DOCLIENTE']);
+
+      expect(ga4Configurado('G-DOCLIENTE')).toBe(true);
+      expect(ga4Configurado(GA4)).toBe(false);
+    });
+  });
+
+  describe('pixel alheio + opt-in: o nosso `init` sai na `fbq` que ja existe', () => {
+    it('emite `init` do NOSSO pixel antes do `trackSingle`', () => {
+      comPixelAlheio();
+      expect(metaPixelInicializado(PIXEL)).toBe(false);
+
+      ponte({ tracking: { install_tags: { meta: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+        eventId: 'u1',
+      });
+
+      expect(initsDoFbq()).toEqual([['init', PIXEL]]);
+      // e o `init` vem ANTES do disparo: `trackSingle` num pixel nao inicializado e
+      // descartado em silencio pela Meta, que era exatamente o defeito
+      const verbos = fbq.mock.calls.map(c => c[0]);
+      expect(verbos.indexOf('init')).toBeLessThan(
+        verbos.indexOf('trackSingle')
+      );
+      expect(
+        fbq.mock.calls.some(c => c[0] === 'trackSingle' && c[1] === PIXEL)
+      ).toBe(true);
+    });
+
+    it('sem `PageView`, sem `track`, sem sobrescrever e sem injetar script', () => {
+      comPixelAlheio();
+      const antes = window.fbq;
+
+      ponte({ tracking: { install_tags: { meta: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+      });
+
+      expect(fbq.mock.calls.flat()).not.toContain('PageView');
+      expect(fbq.mock.calls.map(c => c[0])).not.toContain('track');
+      expect(fbq.mock.calls.map(c => c[0])).not.toContain('trackCustom');
+      // aditivo (R9): a `fbq` do cliente continua sendo a mesma funcao, e o `fbevents.js`
+      // dele ja esta na pagina — nao ha segundo script a injetar
+      expect(window.fbq).toBe(antes);
+      expect(scriptsInjetados()).toEqual([]);
+    });
+
+    it('idempotente: dois eventos, UM `init` — a deteccao ve o que acabamos de fazer', () => {
+      comPixelAlheio();
+      const p = ponte({ tracking: { install_tags: { meta: true } } });
+
+      p.onTrackingEvent({ name: 'chatspx_lead', properties: { value: 1 } });
+      p.onTrackingEvent({ name: 'chatspx_conversation_started' });
+
+      expect(initsDoFbq()).toEqual([['init', PIXEL]]);
+      expect(metaPixelInicializado(PIXEL)).toBe(true);
+    });
+
+    it('SEM opt-in nao ha `init` nenhum na `fbq` alheia — a decisao Q5 nao tem excecao', () => {
+      comPixelAlheio();
+
+      ponte().onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+      });
+
+      expect(initsDoFbq()).toEqual([]);
+      // e o dataLayer continua saindo: "somente dataLayer" e o padrao de fabrica
+      expect(eventosDoDataLayer()).toHaveLength(1);
+    });
+
+    it('com o NOSSO pixel ja inicializado, nao ha `init` mesmo com o opt-in ligado', () => {
+      comTresPixels(); // esta lista INCLUI o nosso
+      const p = ponte({ tracking: { install_tags: { meta: true } } });
+
+      p.onTrackingEvent({ name: 'chatspx_lead', properties: { value: 1 } });
+
+      expect(fbq.mock.calls.map(c => c[0])).not.toContain('init');
+    });
+  });
+
+  describe('gtag alheio + opt-in: o `config` do nosso destino sai no gtag que existe', () => {
+    it('configura o GA4 e a conta do Ads, com `send_page_view: false`', () => {
+      comGtagDoCliente(['G-DOCLIENTE']);
+      expect(ga4Configurado(GA4)).toBe(false);
+
+      ponte({ tracking: { install_tags: { google: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10, currency: 'BRL' },
+        eventId: 'u1',
+      });
+
+      expect(
+        comandosDoGtag().filter(
+          c => c[0] === 'config' && c[1] !== 'G-DOCLIENTE'
+        )
+      ).toEqual([
+        ['config', GA4, { send_page_view: false }],
+        ['config', 'AW-123456789', { send_page_view: false }],
+      ]);
+      // o `config` do cliente segue intacto e a funcao dele nao foi trocada
+      expect(ga4Configurado('G-DOCLIENTE')).toBe(true);
+      expect(window.gtag).toBe(gtag);
+      expect(scriptsInjetados()).toEqual([]);
+    });
+
+    it('idempotente: dois eventos, um `config` por destino', () => {
+      comGtagDoCliente(['G-DOCLIENTE']);
+      const p = ponte({ tracking: { install_tags: { google: true } } });
+
+      p.onTrackingEvent({ name: 'chatspx_lead', properties: { value: 1 } });
+      p.onTrackingEvent({ name: 'chatspx_lead', properties: { value: 2 } });
+
+      expect(
+        comandosDoGtag()
+          .filter(c => c[0] === 'config')
+          .map(c => c[1])
+      ).toEqual(['G-DOCLIENTE', GA4, 'AW-123456789']);
+    });
+
+    it('o destino JA configurado pelo cliente nao e reconfigurado', () => {
+      comGtagDoCliente([GA4, 'AW-123456789']);
+
+      ponte({ tracking: { install_tags: { google: true } } }).onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+      });
+
+      expect(comandosDoGtag().filter(c => c[0] === 'config')).toHaveLength(2);
+    });
+
+    it('SEM opt-in nao ha `config` nosso no gtag alheio', () => {
+      comGtagDoCliente(['G-DOCLIENTE']);
+
+      ponte().onTrackingEvent({
+        name: 'chatspx_lead',
+        properties: { value: 10 },
+      });
+
+      expect(
+        comandosDoGtag().filter(
+          c => c[0] === 'config' && c[1] !== 'G-DOCLIENTE'
+        )
+      ).toEqual([]);
+    });
+
+    it('consentimento negado: nem `init` nem `config` nosso, com os dois opt-in ligados', () => {
+      comPixelAlheio();
+      comGtagDoCliente(['G-DOCLIENTE']);
+
+      ponte({
+        tracking: { install_tags: { meta: true, google: true } },
+        isAllowed: () => false,
+      }).onTrackingEvent({ name: 'chatspx_lead', properties: { value: 10 } });
+
+      expect(initsDoFbq()).toEqual([]);
+      expect(
+        comandosDoGtag().filter(
+          c => c[0] === 'config' && c[1] !== 'G-DOCLIENTE'
+        )
+      ).toEqual([]);
+      expect(eventosDoDataLayer()).toHaveLength(1);
+    });
+  });
+
+  it('console limpo tambem no caminho do opt-in sobre tag alheia', () => {
+    comPixelAlheio();
+    comGtagDoCliente(['G-DOCLIENTE']);
+
+    ponte({
+      tracking: { install_tags: { meta: true, google: true } },
+    }).onTrackingEvent({ name: 'chatspx_lead', properties: { value: 10 } });
+
+    consoleSpies.forEach(spy => expect(spy).not.toHaveBeenCalled());
+  });
+});
