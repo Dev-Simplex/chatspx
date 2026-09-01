@@ -69,19 +69,38 @@ const check = (name, actual, expected) => {
  * Os dublês são LOCAIS: nenhuma chamada sai para `connect.facebook.net` nem para o Google. O
  * que se mede aqui é a NOSSA sequência de comandos, não o comportamento da Meta.
  */
+/*
+ * ── OS DUBLÊS TÊM DE TER A FORMA REAL, E AQUI ISSO DECIDE UM ACEITE ────────────────────
+ *
+ * `fbq.getState().pixels` REGISTRA o pixel quando um `init` chega — é o `fbevents.js` de
+ * verdade. Um dublê com lista congelada mentiria nos dois sentidos: tornaria a deteccão
+ * inverificável (o `init` que acabamos de emitir nunca apareceria) e faria a idempotência
+ * parecer defeito. O mesmo vale para o `gtag`: o snippet publicado pelo Google é
+ * `function gtag(){dataLayer.push(arguments)}`, e é do `dataLayer` que a detecção lê. Um
+ * `gtag` que só grava num array próprio esconderia justamente a junta que se quer medir.
+ */
 const PAGINA_COM_PIXELS = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><title>site do cliente</title>
 <script>
   window.dataLayer = [{ event: 'gtm.js' }, { event: 'promocao_vista' }];
-  window.gtagDoCliente = function () { window.gtagChamadas.push([].slice.call(arguments)); };
   window.gtagChamadas = [];
+  window.gtagDoCliente = function () {
+    window.gtagChamadas.push([].slice.call(arguments));
+    window.dataLayer.push(arguments);
+  };
   window.gtag = window.gtagDoCliente;
   window.dataLayer.push(['config', 'G-DOCLIENTE']);
 
   window.fbqChamadas = [];
-  window.fbq = function () { window.fbqChamadas.push([].slice.call(arguments)); };
+  window.fbqPixels = [{ id: '111' }, { id: '222' }, { id: '333' }];
+  window.fbqDoCliente = function () {
+    window.fbqChamadas.push([].slice.call(arguments));
+    if (arguments[0] === 'init')
+      window.fbqPixels.push({ id: String(arguments[1]) });
+  };
+  window.fbq = window.fbqDoCliente;
   window.fbq.getState = function () {
-    return { pixels: [{ id: '111' }, { id: '222' }, { id: '333' }] };
+    return { pixels: window.fbqPixels.slice() };
   };
 </script>
 </head><body><h1>site do cliente</h1></body></html>`;
@@ -147,7 +166,64 @@ const abrir = async (caminho, terceirosServidos = []) => {
     return rota.continue();
   });
   await pagina.goto(`${base}${caminho}`, { waitUntil: 'networkidle' });
-  return { pagina, mensagens, externas, servidas };
+
+  /*
+   * ── A CORRIDA, MEDIDA ─────────────────────────────────────────────────────────────────
+   *
+   * `externas` e `servidas` são preenchidos pelo route handler, que roda quando o Chromium
+   * DISPARA a requisição. `injetarScript` insere a tag dentro do `evaluate`, e a inserção é
+   * síncrona — mas a requisição não. Lendo os dois arrays logo depois do `evaluate`, a
+   * asserção media o relógio, não o produto.
+   *
+   * Sonda de 12 execuções do cenário 4, com `scripts` no DOM sempre = 2:
+   * `servidas` na leitura imediata deu 2 em sete, 1 em duas e 0 em três — 5 de 12 (42%)
+   * teriam REPROVADO a checagem "e foram exatamente esses dois os terceiros chamados".
+   * `waitForLoadState('networkidle')` não resolve: nas 12 amostras ele devolveu o mesmo
+   * número da leitura imediata, porque a página já estava ociosa quando o `evaluate` voltou.
+   *
+   * O que resolve é esperar a CONDIÇÃO que se vai afirmar, com teto:
+   *
+   *  · `aguardarTerceiros(n)` — para a afirmação POSITIVA ("estes dois foram chamados");
+   *  · `aguardarQuietude()`   — para a NEGATIVA ("nenhum outro foi tentado"), que sem uma
+   *    janela de silêncio passa por vácuo: um array vazio porque nada chegou AINDA lê-se
+   *    igual a um array vazio porque nada foi pedido.
+   */
+  const aguardarTerceiros = async (quantas, limiteMs = 5000) => {
+    const ateQuando = Date.now() + limiteMs;
+    while (servidas.length < quantas && Date.now() < ateQuando)
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => {
+        setTimeout(resolve, 25);
+      });
+    return servidas.length;
+  };
+
+  const aguardarQuietude = async (quietoMs = 400, limiteMs = 5000) => {
+    const ateQuando = Date.now() + limiteMs;
+    let ultimo = -1;
+    let estavelDesde = Date.now();
+    while (Date.now() < ateQuando) {
+      const agora = externas.length + servidas.length;
+      if (agora !== ultimo) {
+        ultimo = agora;
+        estavelDesde = Date.now();
+      } else if (Date.now() - estavelDesde >= quietoMs) return agora;
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => {
+        setTimeout(resolve, 25);
+      });
+    }
+    return externas.length + servidas.length;
+  };
+
+  return {
+    pagina,
+    mensagens,
+    externas,
+    servidas,
+    aguardarTerceiros,
+    aguardarQuietude,
+  };
 };
 
 const MAPA = {
@@ -377,6 +453,7 @@ check(
   r1.scripts.filter(s => !s.startsWith(base)),
   []
 );
+await c1.aguardarQuietude();
 check('nenhuma requisição externa tentada', c1.externas, []);
 check('console do navegador vazio', c1.mensagens, []);
 
@@ -435,6 +512,7 @@ check(
   r2.reconheceuPixel,
   false
 );
+await c2.aguardarQuietude();
 check('nenhuma requisição externa tentada', c2.externas, []);
 check('console do navegador vazio', c2.mensagens, []);
 
@@ -594,6 +672,15 @@ check(
     'https://www.googletagmanager.com/gtag/js',
   ]
 );
+// A corrida fechada: espera as DUAS requisições chegarem ao route handler antes de
+// afirmar quais chegaram — e só então a janela de silêncio, que é o que dá sentido ao
+// "nenhum outro".
+check(
+  'as duas requisições de terceiro CHEGARAM',
+  await c4.aguardarTerceiros(2),
+  2
+);
+await c4.aguardarQuietude();
 check(
   'e foram exatamente esses dois os terceiros chamados',
   [...new Set(c4.servidas.map(u => new URL(u).host))].sort(),
@@ -656,6 +743,7 @@ check(
 );
 check('nenhum `gtag` foi criado', r5.criouGtag, false);
 check('nenhum script de terceiro injetado', r5.scripts, []);
+await c5.aguardarQuietude();
 check('nenhum terceiro chamado, nem servido', c5.servidas, []);
 check('nem abortado — não houve tentativa nenhuma', c5.externas, []);
 check(
@@ -664,6 +752,161 @@ check(
   1
 );
 check('console do navegador vazio', c5.mensagens, []);
+
+// ═══ CENÁRIO 6 — o PIXEL DA AGÊNCIA na página, e o NOSSO configurado ════════════════════
+//
+// É o cenário que faltava, e era o que reprovava o bloco: o cenário 1 usa o pixel `222`, que
+// JÁ está entre os três inicializados da página. Enquanto o nosso id estiver na lista, uma
+// ponte que nunca consulta a detecção passa igual — a asserção não distingue.
+//
+// Aqui o nosso id (`444`, e `G-NOSSO`) NÃO está em lugar nenhum: a página tem `fbq`, tem
+// `gtag`, tem três pixels e uma propriedade — todos de terceiros. `typeof window.fbq ===
+// 'function'` responde "sim" e a resposta é inútil. Sem a consulta, o que saía era
+// `trackSingle` num pixel que nunca recebeu `init` e `send_to` num destino sem `config`: a
+// Meta e o Google descartam os dois calados, e a tela do produto promete o contrário.
+//
+// O efeito que se exige aqui é o mínimo: UM `init` e UM `config` por destino, na tag que já
+// existe — nenhum script novo, nenhuma função sobrescrita, nenhum `PageView`.
+const c6 = await abrir('/');
+const r6 = await c6.pagina.evaluate(
+  async ({ origem, mapa }) => {
+    const { createTagsBridge } = await import(`${origem}/packs/js/tracking.js`);
+
+    const gtagAntes = window.gtag;
+    const fbqAntes = window.fbq;
+    const dataLayerAntes = window.dataLayer;
+
+    const ponte = createTagsBridge({
+      tracking: {
+        meta_pixel_id: '444',
+        ga4_measurement_id: 'G-NOSSO',
+        google_ads_send_to: 'AW-987654321/rotulo',
+        event_map: mapa,
+        install_tags: { meta: true, google: true },
+      },
+      isAllowed: () => true,
+    });
+
+    // A leitura ANTES: o nosso id não está na página. Sem isto, tudo abaixo passaria também
+    // numa página que já tivesse o nosso pixel — que é o furo do cenário 1.
+    const antes = {
+      pixelReconhecido: ponte.metaPixelInicializado(),
+      ga4Reconhecido: ponte.ga4Configurado(),
+    };
+
+    ponte.onTrackingEvent({
+      name: 'chatspx_lead',
+      properties: { value: 77, currency: 'BRL', email: 'ana@exemplo.com.br' },
+      eventId: 'uuid-alheio',
+    });
+    // segundo evento: a preparação da tag alheia tem de ser idempotente
+    ponte.onTrackingEvent({ name: 'chatspx_conversation_started' });
+
+    const comandosGtag = window.dataLayer
+      .filter(e => e && typeof e.length === 'number' && !Array.isArray(e))
+      .map(a => [...a].map(v => (v instanceof Date ? '<Date>' : v)));
+
+    return {
+      antes,
+      depois: {
+        pixelReconhecido: ponte.metaPixelInicializado(),
+        ga4Reconhecido: ponte.ga4Configurado(),
+      },
+      fbq: window.fbqChamadas,
+      comandosGtag,
+      pixelsDaPagina: window.fbqPixels.map(p => p.id),
+      gtagPreservado: window.gtag === gtagAntes,
+      fbqPreservado: window.fbq === fbqAntes,
+      dataLayerPreservado: window.dataLayer === dataLayerAntes,
+      scripts: [...document.querySelectorAll('script[src]')]
+        .map(s => s.src)
+        .filter(s => !s.startsWith(origem)),
+      publicados: window.dataLayer
+        .filter(e => e && typeof e.event === 'string')
+        .map(e => e.event),
+    };
+  },
+  { origem: base, mapa: MAPA }
+);
+
+console.log(
+  '\n· cenário 6 — pixel da agência na página, o NOSSO id não inicializado'
+);
+check(
+  'o ponto de partida: o nosso pixel e o nosso GA4 NÃO estavam na página',
+  r6.antes,
+  { pixelReconhecido: false, ga4Reconhecido: false }
+);
+check(
+  'o `init` do NOSSO pixel saiu na `fbq` que já existia, uma vez só',
+  r6.fbq.filter(c => c[0] === 'init'),
+  [['init', '444']]
+);
+check(
+  'e o `config` dos NOSSOS destinos, um por destino, com `send_page_view: false`',
+  r6.comandosGtag.filter(c => c[0] === 'config'),
+  [
+    ['config', 'G-NOSSO', { send_page_view: false }],
+    ['config', 'AW-987654321', { send_page_view: false }],
+  ]
+);
+check(
+  'depois disso a detecção reconhece os dois — é ela que trava o segundo `init`',
+  r6.depois,
+  { pixelReconhecido: true, ga4Reconhecido: true }
+);
+check(
+  'o disparo saiu por `trackSingle` no NOSSO pixel, e em nenhum dos três da agência',
+  r6.fbq.filter(c => c[0] === 'trackSingle').map(c => [c[1], c[2]]),
+  [
+    ['444', 'Lead'],
+    ['444', 'Contact'],
+  ]
+);
+check(
+  'nenhum `track`/`trackCustom` — os verbos que disparariam nos quatro pixels',
+  r6.fbq.map(c => c[0]).filter(v => v === 'track' || v === 'trackCustom'),
+  []
+);
+// ═══ O ACEITE: "sem pixel: nenhum PageView duplicado" — também na tag alheia ═══
+check(
+  'NENHUM `PageView`: preparar a tag do cliente não pode dobrar a contagem dele',
+  r6.fbq.flat().includes('PageView'),
+  false
+);
+check(
+  'os três pixels da agência continuam lá, e o nosso entrou ao lado — nada foi removido',
+  r6.pixelsDaPagina,
+  ['111', '222', '333', '444']
+);
+console.log('  (R9) a medição do site do cliente não foi tocada');
+check('`window.fbq` é a MESMA função de antes', r6.fbqPreservado, true);
+check('`window.gtag` é a MESMA função de antes', r6.gtagPreservado, true);
+check(
+  '`window.dataLayer` é o MESMO array de antes',
+  r6.dataLayerPreservado,
+  true
+);
+check(
+  'o `config` do GA4 do cliente não foi mexido nem repetido',
+  r6.comandosGtag.filter(c => c[1] === 'G-DOCLIENTE'),
+  []
+);
+check(
+  'nenhum script de terceiro injetado — a biblioteca já estava na página',
+  r6.scripts,
+  []
+);
+await c6.aguardarQuietude();
+check('nenhuma requisição externa tentada', c6.externas, []);
+check('nenhum terceiro servido', c6.servidas, []);
+// A fila que o cliente já tinha vem primeiro e inteira: publicar não é sobrescrever.
+check(
+  'o `dataLayer` recebeu os dois fatos, DEPOIS da fila do cliente',
+  r6.publicados,
+  ['gtm.js', 'promocao_vista', 'chatspx_lead', 'chatspx_conversation_started']
+);
+check('console do navegador vazio', c6.mensagens, []);
 
 await browser.close();
 servidor.close();
