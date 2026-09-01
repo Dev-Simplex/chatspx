@@ -152,17 +152,10 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     linhas = ["#{unidade.nome}#{local(unidade)}"]
     linhas << "Endereço: #{unidade.endereco}" if unidade.endereco.present?
     linhas << "Telefone: #{unidade.telefone}" if unidade.telefone.present?
-    linhas << linha_de_distancia(unidade)
+    linhas << @perto.linha_de_distancia(unidade)
     linhas.concat(atributos(unidade))
     linhas.concat(agenda(unidade, momento, excecoes))
     linhas.compact.join("\n")
-  end
-
-  def linha_de_distancia(unidade)
-    distancia = @perto.distancia(unidade)
-    return nil unless distancia
-
-    "Distância até a localização que a pessoa enviou: #{::Spx::UnidadeProximidade.km(distancia)}"
   end
 
   def local(unidade)

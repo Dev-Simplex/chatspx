@@ -60,6 +60,15 @@ class Spx::UnidadeProximidade
     unidades.select(&:coordenada?).min_by { |unidade| distancia(unidade) }
   end
 
+  # Linha do bloco da unidade. `nil` quando não há pin ou não há coordenada — e nil aqui é o que
+  # faz a ferramenta simplesmente não falar de distância, em vez de falar sem saber.
+  def linha_de_distancia(unidade)
+    valor = distancia(unidade)
+    return nil unless valor
+
+    "Distância até a localização que a pessoa enviou: #{self.class.km(valor)}"
+  end
+
   # Frase para quem pediu uma cidade que não tem unidade. Só afirma a mais próxima quando ela é
   # CALCULADA; sem pin, convida a pessoa a mandar a localização — e só se houver alguma unidade
   # com coordenada, porque prometer um cálculo que não dá pra fazer é a mesma classe de erro de
