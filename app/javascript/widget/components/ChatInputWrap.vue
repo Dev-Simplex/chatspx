@@ -17,6 +17,7 @@ const composer = useComposer({ onSendMessage: props.onSendMessage });
 
 <template>
   <WComposer
+    :ref="composer.campo"
     v-model="composer.userInput.value"
     :label="$t('CHAT_PLACEHOLDER')"
     :placeholder="$t('CHAT_PLACEHOLDER')"
