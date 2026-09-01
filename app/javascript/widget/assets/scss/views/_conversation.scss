@@ -243,6 +243,38 @@
     > a {
       color: var(--w-on-brand);
     }
+
+    // ── `forced-colors` — bloco 2.08 ─────────────────────────────────────────
+    //
+    // O par de balões era distinguível por UMA coisa só: o fundo. O do
+    // visitante é `bg-w-brand` (a marca) e o do agente é `bg-white` /
+    // `dark:bg-n-solid-3`. O modo de alto contraste APAGA exatamente isso —
+    // ele substitui todo `background-color` pela cor de `Canvas` do sistema.
+    //
+    // Medido em Chromium com `forcedColors: 'active'`, antes desta regra:
+    // os dois balões pintavam `rgb(255, 255, 255)`, o do agente com
+    // `border: 1px solid rgb(0, 0, 0)` e o do visitante com `border-width: 0`.
+    // Sem borda e sem sombra (o 2.03 a removeu), o balão do visitante não
+    // tinha uma única aresta — a conversa virava um bloco de texto corrido em
+    // que não dava para saber quem disse o quê.
+    //
+    // A borda mora DENTRO da media query, e não na regra base como a do
+    // agente, porque os dois casos são diferentes. A do agente é permanente de
+    // propósito: ela desenha no escuro (`--w-bubble-border`) e o `1px` fica
+    // nos dois temas para o balão não mudar de caixa ao trocar de tema. O
+    // visitante não tem borda em tema nenhum — declará-la na base só para
+    // reaproveitar aqui alargaria o balão em 2 px em 100% dos atendimentos
+    // para servir a um modo que quase ninguém liga. Sob `forced-colors` o
+    // sistema já está repintando a página inteira, e 2 px não são notícia.
+    //
+    // `CanvasText` é a cor de texto do sistema, o par garantido de `Canvas` —
+    // a mesma que o balão do agente usa, então os dois lados ganham o mesmo
+    // contorno e continuam simétricos. `forced-color-adjust: none` não é usado
+    // aqui pelo mesmo motivo do agente: ele mandaria o navegador respeitar as
+    // NOSSAS cores, que é o oposto do que este modo existe para fazer.
+    @media (forced-colors: active) {
+      border: 1px solid CanvasText;
+    }
   }
 
   &.agent {
