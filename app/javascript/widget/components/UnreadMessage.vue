@@ -137,7 +137,15 @@ export default {
 
 <style lang="scss" scoped>
 .chat-bubble {
-  @apply max-w-[85%] cursor-pointer p-4;
+  @apply cursor-pointer p-4;
+
+  // Bloco 2.03. Era `max-w-[85%]` — o último literal de forma fora do mixin.
+  // A lista de não lidas desenha o MESMO balão da conversa (por isso a classe
+  // se chama `chat-bubble`), e o teto tinha de ser o mesmo: 82%, de
+  // `@mixin widget-shape`. A regra global de `_conversation.scss` põe
+  // `max-w-full` na classe; esta, por ser scoped, ganha a especificidade do
+  // `[data-v-…]` e é a que vale aqui.
+  max-width: var(--w-bubble-max-width);
 }
 
 .row--agent-block {
