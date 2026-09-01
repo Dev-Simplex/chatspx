@@ -27,6 +27,12 @@ NOMES_COM_CARA_DE_SEGREDO = {
   'webhook_secret' => 'shhh'
 }.freeze
 
+# Os unicos literais que o rascunho de fabrica de `widgetConfigFields.js` usa hoje. Qualquer
+# outro levanta em vez de virar `nil` em silencio: um parser que erra para o lado do vazio
+# transformaria o bloco do rascunho de fabrica num teste que mede nada — que e exatamente o
+# defeito que ele existe para matar.
+LITERAIS_JS = { "''" => '', '""' => '', '{}' => {}, '[]' => [], 'true' => true, 'false' => false, 'null' => nil }.freeze
+
 RSpec.describe WidgetTrackingSchema do
   let(:account) { create(:account) }
   let(:inbox) { create(:inbox, account: account) }
@@ -296,6 +302,117 @@ RSpec.describe WidgetTrackingSchema do
 
       expect(registro).to be_invalid
       expect(registro.errors[:widget_tracking].join).to include('chave_inventada')
+    end
+  end
+
+  # ═══ O RASCUNHO DE FABRICA: o payload que a tela grava numa inbox NOVA ════════════════
+  #
+  # O bloco acima ("a Tela 4 salva") ja rodava o payload da tela contra o validador — mas
+  # montava esse payload A MAO, com os quatro escalares PREENCHIDOS. A tela nunca comeca
+  # assim. `DEFAULT_TRACKING` (`widgetConfigFields.js`) nasce com `meta_pixel_id: ''`,
+  # `ga4_measurement_id: ''`, `google_ads_send_to: ''` e `consent_mode: ''`, e o `read` do
+  # campo espalha esse rascunho sobre uma inbox sem `widget_tracking`. Como `tracking` e
+  # campo de GRUPO, `buildPayload` manda o grupo INTEIRO — os quatro vazios inclusos.
+  #
+  # Resultado medido na arvore de ontem: quatro erros de pattern/enum, ou seja 422 em TODO
+  # primeiro salvamento de inbox nova. Ninguem via porque o spec da tela testava o formato
+  # DELE (tudo preenchido) e o spec do servidor testava o formato DELE (tudo preenchido).
+  #
+  # Por isso este bloco NAO monta payload: ele LE o rascunho de fabrica do arquivo do front.
+  # Se alguem acrescentar uma chave la, ela cai aqui sozinha.
+  describe 'o rascunho de FABRICA da tela contra o validador REAL' do
+    def self.rascunho_de_fabrica
+      caminho = 'app/javascript/dashboard/routes/dashboard/settings/inbox/widget/composables/widgetConfigFields.js'
+      bloco = Rails.root.join(caminho).read[/DEFAULT_TRACKING = Object\.freeze\(\{(.+?)\n\}\);/m, 1].to_s
+
+      bloco.lines.filter_map do |linha|
+        linha = linha.strip.delete_suffix(',')
+        next if linha.empty? || linha.start_with?('//', '*', '/*')
+
+        nome, cru = linha.split(':', 2).map(&:strip)
+        [nome, LITERAIS_JS.fetch(cru) { raise "valor JS nao reconhecido em DEFAULT_TRACKING: #{nome}: #{cru}" }]
+      end.to_h
+    end
+
+    rascunho = rascunho_de_fabrica
+
+    it 'o rascunho do front foi mesmo lido — senao os exemplos abaixo medem um hash vazio' do
+      # As MESMAS oito chaves da projecao publica: se o front ganhar uma nona, este exemplo
+      # cai antes que ela chegue calada ao HTML de toda pagina do cliente.
+      expect(rascunho.keys).to match_array(WidgetTrackingProjection::PUBLIC_KEYS)
+      expect(rascunho.values_at('meta_pixel_id', 'ga4_measurement_id', 'google_ads_send_to', 'consent_mode')).to all(eq(''))
+    end
+
+    it 'e ACEITO inteiro — este exemplo reprova a arvore de ontem com 4 erros de pattern/enum' do
+      registro = grava(rascunho)
+
+      expect(registro.errors[:widget_tracking]).to eq([])
+      expect(registro).to be_valid
+    end
+
+    it 'e os quatro vazios nao ficam GRAVADOS: vazio e ausencia, e ausencia e o que a projecao publica' do
+      # Nao basta o 422 sumir. `widget_tracking` vai para o HTML de TODA pagina do site do
+      # cliente: gravar `meta_pixel_id: ""` publicaria quatro chaves sem significado em cada
+      # visita, e o SDK teria de aprender que "" nao e um Pixel ID.
+      registro = grava(rascunho)
+      registro.save!
+
+      gravado = registro.reload.widget_tracking
+      expect(gravado.keys).to match_array(%w[event_map install_tags test_mode lead_value])
+      expect(WidgetTrackingProjection.public_view(gravado)).not_to have_key('meta_pixel_id')
+    end
+
+    it 'o primeiro salvamento REAL da tela: administrador liga a instalacao da tag e o grupo inteiro viaja' do
+      # `install_tags` e o unico campo que a tela escreve sem digitar nada. Numa inbox nova,
+      # `buildPayload` manda o grupo inteiro — os quatro vazios junto. Era este o 422.
+      primeiro_salvamento = rascunho.merge('install_tags' => { 'meta' => true, 'google' => false })
+
+      expect(grava(primeiro_salvamento)).to be_valid
+    end
+
+    it 'APAGAR o que estava configurado funciona: o campo volta a "" e a chave some' do
+      # O merge do controller e raso no nivel de `additional_attributes`
+      # (`inboxes_controller.rb:212-215`), entao `widget_tracking` e SUBSTITUIDO inteiro:
+      # podar a chave e a unica forma de limpar o Pixel pela tela. Sem este exemplo, a poda
+      # poderia estar "aceitando" o vazio e mantendo o valor velho — que e pior que o 422,
+      # porque a tela confirmaria uma limpeza que nao aconteceu.
+      inbox.update!(widget_tracking: { 'meta_pixel_id' => '123456789012345' })
+      expect(inbox.reload.widget_tracking['meta_pixel_id']).to eq('123456789012345')
+
+      registro = grava(rascunho)
+      registro.save!
+
+      expect(registro.reload.widget_tracking).not_to have_key('meta_pixel_id')
+    end
+
+    it 'mas VAZIO nao virou "aceita qualquer coisa": valor mal formado continua devolvendo 422' do
+      # A assercao positiva acima passaria tambem se a poda tivesse virado "engole tudo".
+      # Estes sao os mesmos quatro campos, com lixo dentro em vez de vazio.
+      {
+        'meta_pixel_id' => 'EAAGm0PX4ZCpsBA0',
+        'ga4_measurement_id' => 'UA-123456',
+        'google_ads_send_to' => 'AW',
+        'consent_mode' => 'talvez'
+      }.each do |chave, lixo|
+        expect(grava(rascunho.merge(chave => lixo))).to be_invalid, "#{chave}=#{lixo} deveria ser recusado"
+      end
+    end
+
+    it 'nem espaco em branco passa por "preenchido"' do
+      # `"  "` nao e um Pixel ID e nao e "nao configurado" — e um valor que o administrador
+      # colou sem querer. Ele e podado como vazio, e nao gravado como se fosse identificador.
+      registro = grava(rascunho.merge('meta_pixel_id' => '   '))
+      registro.save!
+
+      expect(registro.reload.widget_tracking).not_to have_key('meta_pixel_id')
+    end
+
+    it 'e o vazio nao apaga o vizinho: limpar o GA4 no mesmo PATCH que grava o Pixel preserva o Pixel' do
+      registro = grava(rascunho.merge('meta_pixel_id' => '123456789012345'))
+      registro.save!
+
+      expect(registro.reload.widget_tracking['meta_pixel_id']).to eq('123456789012345')
+      expect(registro.reload.widget_tracking).not_to have_key('ga4_measurement_id')
     end
   end
 end
