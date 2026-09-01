@@ -17,13 +17,37 @@ import SingleSelect from 'dashboard/components-next/filter/inputs/SingleSelect.v
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: key => key }) }));
 vi.mock('dashboard/composables', () => ({ useAlert: vi.fn() }));
 
+// O `TriggerConfig` passou a chamar `useAutomation()`, e o composable resolve os getters por
+// `getCurrentInstance().proxy.$store` (`composables/store.js`). Sem um `$store` o setup morre em
+// "Cannot read properties of undefined (reading 'getters')" ANTES de renderizar o seletor, e os
+// seis exemplos deste arquivo param de medir o que medem.
+//
+// Instalado como PLUGIN, e não por `global.mocks`: `mocks` chega tarde demais para o
+// `getCurrentInstance()` do setup (medido — com `mocks` os seis continuam no mesmo TypeError).
+// `attributes/getAttributes` é o único getter que precisa EXISTIR: nos modos `event` e `keyword`
+// o editor monta o seletor de condição, e `useAutomationValues#getConditionDropdownValues` lê
+// `.value` dele sem guarda. Os demais podem faltar (`useMapGetter` devolve um computed vazio).
+// Nenhuma asserção deste arquivo depende do conteúdo: o que se mede é a lista de MODOS, local ao
+// componente.
+const storePlugin = {
+  install(app) {
+    app.config.globalProperties.$store = {
+      getters: { 'attributes/getAttributes': [] },
+    };
+  },
+};
+
 // `renderStubDefaultSlot` porque o seletor de modo vive DENTRO do slot do `ConfigField`, e um
 // stub não renderiza o slot por padrão — sem isto o `SingleSelect` não existe na árvore montada e
 // o spec mediria a ausência dele, não a lista de modos.
 const montar = node =>
   shallowMount(TriggerConfig, {
     props: { node: { id: 'trg', type: 'trigger', ...node } },
-    global: { mocks: { t: key => key }, renderStubDefaultSlot: true },
+    global: {
+      mocks: { t: key => key },
+      plugins: [storePlugin],
+      renderStubDefaultSlot: true,
+    },
   });
 
 // O PRIMEIRO SingleSelect do editor é o seletor de MODO do gatilho (os outros são evento,

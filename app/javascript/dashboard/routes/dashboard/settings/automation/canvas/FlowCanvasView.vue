@@ -2,66 +2,28 @@
 // Helpers PUROS do canvas (sem estado nem refs): vivem neste bloco `<script>` normal — ao lado
 // do `<script setup>` — para que as specs os exercitem sem montar o canvas inteiro.
 
-// Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
-// verdade continua sendo o nó na definition (round-trip pelo canvas); aqui só derivamos o
-// que o motor consome. Sem nó de gatilho o flow é `manual`.
-//  • trigger_kind 'keyword'  → trigger_type keyword  + { keywords[], match }
-//  • trigger_kind 'schedule' → trigger_type schedule + { mode, cron | every, unit }
-//  • trigger_kind 'webhook'  → trigger_type external_webhook + {} (o backend gera/preserva o
-//    webhook_token — nunca o cliente; ver Flow#ensure_webhook_token)
-//  • event_name definido      → trigger_type conversation_event + { event_name }
-export const triggerPayload = triggerNode => {
-  if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
-  if (triggerNode.trigger_kind === 'webhook') {
-    return { trigger_type: 'external_webhook', trigger_config: {} };
-  }
-  if (triggerNode.trigger_kind === 'keyword') {
-    return {
-      trigger_type: 'keyword',
-      trigger_config: {
-        keywords: (triggerNode.keywords || [])
-          .map(kw => (kw || '').trim())
-          .filter(Boolean),
-        match: triggerNode.match === 'exact' ? 'exact' : 'contains',
-        direction: triggerNode.direction || 'both',
-      },
-    };
-  }
-  if (triggerNode.trigger_kind === 'schedule') {
-    const sched = triggerNode.schedule || {};
-    if (sched.mode === 'interval') {
-      const every = Number.parseInt(sched.every, 10);
-      return {
-        trigger_type: 'schedule',
-        trigger_config: {
-          mode: 'interval',
-          every: Number.isNaN(every) || every < 1 ? 1 : every,
-          unit: ['minutes', 'hours', 'days'].includes(sched.unit)
-            ? sched.unit
-            : 'days',
-        },
-      };
-    }
-    return {
-      trigger_type: 'schedule',
-      trigger_config: { mode: 'cron', cron: String(sched.cron ?? '').trim() },
-    };
-  }
-  if (triggerNode.event_name) {
-    return {
-      trigger_type: 'conversation_event',
-      trigger_config: {
-        event_name: triggerNode.event_name,
-        direction: triggerNode.direction || 'both',
-      },
-    };
-  }
-  return { trigger_type: 'manual', trigger_config: {} };
-};
+// A PROJEÇÃO DO GATILHO mora em `triggerPayload.js` e SÓ lá. Este arquivo tinha uma cópia dela,
+// e a cópia não conhecia `widget_prechat`: um fluxo de captura aberto e salvo pelo canvas voltava
+// como `trigger_type: 'manual'` — com 200 e sem aviso. O `trigger_config` sobrevivia (o
+// `mergeTriggerConfig` abaixo e o `Flow#preserve_widget_prechat_targeting` no servidor), mas o
+// `Flows::WidgetPrechatResolver` filtra pelo ENUM: um fluxo `manual` nunca mais é entregue ao
+// visitante, e com ele morrem a captura e o experimento A/B declarado em
+// `trigger_config.experiment` (bloco 6.05). Duas implementações da mesma regra é o defeito;
+// a de `triggerPayload.js` é a que tem o ramo da captura e é a que fica.
+import {
+  WIDGET_PRECHAT_KIND,
+  buildTriggerPayload as projectTrigger,
+  stampTriggerKind,
+} from './triggerPayload';
 
 // Espelha o TriggerConfig.vue: nó de gatilho sem `trigger_kind` é 'event' (retrocompatível).
+// `widget_prechat` entra na lista porque sem ele um nó de CAPTURA se declara 'event' — e passa a
+// responder `true` no `supportsInboxFilter` abaixo, deixando o canvas reescrever
+// `trigger_config.conditions` de um fluxo cuja caixa mora em `trigger_config.inbox_ids`.
 export const triggerKindOf = node =>
-  ['keyword', 'schedule', 'webhook'].includes(node?.trigger_kind)
+  ['keyword', 'schedule', 'webhook', WIDGET_PRECHAT_KIND].includes(
+    node?.trigger_kind
+  )
     ? node.trigger_kind
     : 'event';
 
@@ -159,19 +121,15 @@ export const projectInboxCondition = (conditions, inboxIds) => {
 // Payload de gatilho COMPLETO para o backend: projeção do(s) nó(s) `trigger` sobre o
 // trigger_config ORIGINAL (o que veio do servidor no load), para nada do que o canvas não
 // projeta ser apagado no save. Ver mergeTriggerConfig.
+//
+// A projeção (incluindo o multi-gatilho `event_names`) é a de `triggerPayload.js`; aqui só se
+// acrescenta a PRESERVAÇÃO do que o canvas não edita. No gatilho de captura a projeção devolve o
+// `trigger_config` carregado tal e qual, e o merge é idempotente — é por isso que
+// `trigger_config.experiment` (bloco 6.05) atravessa o save intacto sem o canvas conhecê-lo.
 export const buildTriggerPayload = (triggerNodes, originalConfig) => {
   const nodes = Array.isArray(triggerNodes) ? triggerNodes.filter(Boolean) : [];
-  const projected = triggerPayload(nodes[0]);
+  const projected = projectTrigger(nodes, originalConfig);
   const config = mergeTriggerConfig(originalConfig, projected.trigger_config);
-  // Multi-gatilho: com mais de um nó `trigger` de evento, grava TODOS os event_names em
-  // trigger_config.event_names — o backend (current_account_flows) casa qualquer um.
-  // Retrocompat: com 1 só, mantém apenas event_name (event_names ausente).
-  if (projected.trigger_type === 'conversation_event') {
-    const eventNames = [
-      ...new Set(nodes.map(node => node.event_name).filter(Boolean)),
-    ];
-    if (eventNames.length > 1) config.event_names = eventNames;
-  }
   if (supportsInboxFilter(nodes[0])) {
     const conditions = projectInboxCondition(
       config.conditions,
@@ -251,10 +209,8 @@ import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 import '@vue-flow/controls/dist/style.css';
 import '@vue-flow/minimap/dist/style.css';
-// BLOCO 4.02 — o gatilho de CAPTURA. A preservacao do alvo ja e generica aqui
-// (`mergeTriggerConfig` guarda tudo que nao esta em CANVAS_TRIGGER_KEYS, e as sete chaves
-// de segmentacao estao fora dela); o que falta e o canvas RECONHECER o tipo.
-import { WIDGET_PRECHAT_KIND, stampTriggerKind } from './triggerPayload';
+// BLOCO 4.02 — o gatilho de CAPTURA. `WIDGET_PRECHAT_KIND` e `stampTriggerKind` já vêm do
+// bloco `<script>` no topo deste arquivo (mesmo escopo de módulo), junto com a projeção.
 
 const route = useRoute();
 const router = useRouter();
@@ -981,10 +937,12 @@ const exportFlow = () => {
   const triggerNode = (definition.value.nodes || []).find(
     node => node.type === 'trigger'
   );
+  // A MESMA projeção do save: um arquivo exportado que diz `manual` para um fluxo de captura é
+  // uma mentira que o import materializa — o fluxo reimportado deixaria de ser captura.
   const payload = serializeFlow({
     name: name.value,
     definition: definition.value,
-    ...triggerPayload(triggerNode),
+    ...projectTrigger([triggerNode], loadedTriggerConfig.value),
   });
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: 'application/json',

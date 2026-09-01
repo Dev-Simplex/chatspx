@@ -43,10 +43,19 @@ const SEGMENTACAO = {
   experiment: { key: 'captura-2026', weight: 50 },
 };
 
+// O `action_params` NÃO é decoração: `flowValidation#checkTextAction` trata `send_message` de
+// corpo em branco como ERRO, e o `graphGatePassed` do save aborta antes de chegar ao
+// `flows/update`. Sem ele os três exemplos abaixo falham por "payload undefined" e param de
+// medir o round-trip — que é justamente o que este arquivo existe para medir.
 const DEFINITION = {
   nodes: [
     { id: 'trg', type: 'trigger' },
-    { id: 'n1', type: 'action', action_name: 'send_message' },
+    {
+      id: 'n1',
+      type: 'action',
+      action_name: 'send_message',
+      action_params: ['Ola, em que posso ajudar?'],
+    },
   ],
   edges: [{ from: 'trg', to: 'n1' }],
 };
@@ -95,6 +104,35 @@ describe('4.02 — o canvas salvando um fluxo de captura', () => {
 
     expect(JSON.stringify(payload.definition)).not.toContain('url_conditions');
     expect(JSON.stringify(payload.definition)).not.toContain('captura-2026');
+  });
+
+  // BLOCO 6.05 — O EXPERIMENTO A/B ATRAVESSA UMA EDIÇÃO DE VERDADE.
+  //
+  // `trigger_config.experiment` é a chave mais frágil do alvo: nenhuma tela do canvas a edita,
+  // então ela não pode ser corrigida quando some — só sobrevive ou desaparece, e o relatório do
+  // A/B passa a medir uma variante que deixou de receber tráfego.
+  //
+  // O exemplo acima salva sem tocar em nada, e um round-trip de save vazio pode passar por
+  // motivo errado. Aqui o admin RENOMEIA o fluxo antes de salvar: o save leva uma alteração
+  // real, e a chave do experimento tem de chegar do outro lado com a mesma forma
+  // (`{ key, weight }`) que `Flow::AbExperiment#key_for` e `#weight_for` leem.
+  it('devolve o experimento A/B intacto depois de uma edição de verdade', async () => {
+    const wrapper = await abrirNoCanvas(flowDoServidor());
+    await wrapper
+      .find('[data-testid="canvas-name"]')
+      .setValue('Captura de precos v2');
+
+    const payload = await salvar(wrapper);
+
+    expect(payload.name).toBe('Captura de precos v2');
+    // Sem o `trigger_type` o resto não vale nada: `Flows::WidgetPrechatResolver` filtra pelo
+    // ENUM, e um fluxo demovido a `manual` nunca mais é entregue — o experimento morre com a
+    // segmentação inteira preservada no jsonb, que é o modo de falha mais difícil de enxergar.
+    expect(payload.trigger_type).toBe('widget_prechat');
+    expect(payload.trigger_config.experiment).toEqual({
+      key: 'captura-2026',
+      weight: 50,
+    });
   });
 
   // CONTROLE — os outros gatilhos continuam projetados como sempre foram. Sem este exemplo, a
