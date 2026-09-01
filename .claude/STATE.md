@@ -10,6 +10,60 @@
 
 ## 🚧 Em andamento
 
+### [2026-09-01] 🟢 AS 3 CONVERSAS DO DIGEST VIRARAM CONSERTO (PRs #84 e #85) — e o harness estava morto
+
+> As 3 do digest de 01/09. Uma era cegueira já corrigida do juiz; as outras duas eram defeito
+> real, e as duas foram consertadas hoje. **O juiz corrigido (#78) chegou na VM em 31/08 16:13
+> e as avaliações são de 11h–12h** — foram julgadas pela versão cega, o que explica o R$ 500.
+
+- 🔴 **COOLDOWN DE FOTOS (conv 32828) — 27,8% dos pedidos eram recusados.** Medido em 30 dias
+  sobre `captain_tool_calls`: de **654 chamadas**, **182 recusadas pelo cooldown**, e **163
+  delas de um imóvel DIFERENTE** — o cliente tinha pedido outro. Desfecho: de **144 pares
+  (conversa, imóvel) em 85 conversas, 99 (68,8%) NUNCA receberam as fotos**, nem da IA nem de
+  humano.
+  - **A frase da recusa descrevia uma exceção que o código não tinha:** *"só envie de novo se
+    ele pedir explicitamente"* com o `return` já executado. A IA lia, via que ele tinha pedido,
+    prometia *"vou te mandar já já"* e não tinha como cumprir.
+  - ✅ **[PR #84](https://github.com/Dev-Simplex/chatspx/pull/84):** a régua passa a ser o
+    **turno** (imóveis distintos desde a última fala do cliente), lida do `property_code` que a
+    própria ferramenta já carimba — sem estado novo. Teto de 3 por turno; o **mesmo** imóvel
+    nunca conta contra si. Anti-alucinação passou para ANTES (código inventado não ocupa vaga).
+    `fotos_ultimo_envio_at` deixa de ser gravado.
+  - **Isto substitui a `docs/SPEC-fila-envio-fotos.md`:** o que sobra da fila é só o
+    espaçamento de 20s, e ele custa job novo, estado novo e 4 portões de cancelamento.
+  - **O motivo do freio encolheu sozinho:** com `fotos_carrossel` ligado (Júlia, Bruna, Sofia),
+    um imóvel é **uma mensagem**, não nove fotos soltas.
+  - **Medido:** 264 exemplos / 0 falhas · rubocop **11 = 11** do baseline.
+- 🔴 **A CLARA INVENTAVA GEOGRAFIA (conv 32833) — 6/6, e se contradizendo.** Ela **não tem
+  ferramenta nenhuma** de imóvel, mapa ou localização (só registro e roteamento), e descreveu
+  o bairro do anúncio. Medido: **6/6 afirmaram geografia**, três dizendo *"região norte"* e
+  três *"região sul"* do MESMO bairro — a contradição É a prova de invenção.
+  - ⚠️ **Mudei de recomendação no meio, por dado:** eu ia dar `buscar_localizacao` a ela. O
+    achado de 28/08 desaconselha — o geocoding de bairro em Sinop **erra 26%** (67 de 259 caem
+    a +3km; um a 518km) e o Google **nunca diz que não achou**. Seria trocar invenção por dado
+    errado com cara de certo, e ainda não responderia *"é longe do centro?"*.
+  - ✅ **Conduta no banco (conta 6, sem deploy), +805 chars:** pergunta sobre onde fica,
+    distância ou perfil de região → **transferir**, porque a especialista tem `buscar_imovel`,
+    que calcula distância de verdade. Ação positiva, não proibição.
+  - **Medido: geografia 6/6 → 0/6** e `transferir_para_agente` **2/6 → 6/6**.
+  - **Reversão:** `/tmp/assistant_7_ins_geografia.bak-20260901133837` na VM.
+- 🔴 **O HARNESS DE REGRESSÃO NUNCA RODOU** — a rake chamava `Regressao.new(conversa:)` e o
+  serviço espera `conversation:`. `ArgumentError` antes da 1ª rodada. **O "8/8 dentro do piso"
+  que registrei em 28/08 foi medido antes dessa divergência e ficou valendo como se fosse
+  verdade.** A ferramenta feita para pegar regressão estava, ela mesma, em regressão silenciosa.
+  - ✅ **[PR #85](https://github.com/Dev-Simplex/chatspx/pull/85):** o keyword + o incidente da
+    32833 como **9º cenário**. Rodado de verdade pela 1ª vez: **8/8 dentro do piso**, e o
+    cenário novo **6/6**. O de pergunta aberta subiu de 3/6 para **5/6**.
+  - **O cenário novo só tem `proibe`** (a forma de não afirmar varia) e os 4 padrões foram
+    conferidos contra as frases reais da conversa — regex que não casa nada passaria 6/6 sem
+    medir nada, que é o pior tipo de verde.
+- ⚠️ **Erro meu no caminho:** o 1º detector de geografia usava o modificador `/x`, que **ignora
+  espaços literais** — `região norte` nunca casaria, e a 1ª medição saiu **0/6 quando era 6/6**.
+  É a 5ª vez que detector grosseiro dá leitura errada. **Validar o detector contra a frase real
+  antes de confiar no número.**
+- ⏭️ **Esperando merge:** #81 (follow-up) · #82 e #83 (cron das 7h) · #84 · #85.
+- ⚠️ **Sobras na `.232`:** worktrees de CI `/tmp/ci-fotos-turno` e `/tmp/ci-fotos-base`.
+
 ### [2026-08-31] 🟢 FOLLOW-UP: a cutucada para de silenciar à noite e o horário do cliente para de sumir (PR #81)
 
 > Pedido do Paulo: *"e se o cliente chamou a Tozi às 23h? Ele não recebe cutucada? Uma redução na
