@@ -154,3 +154,27 @@ cenarios:
       - { de: cliente, texto: 'Obrigado!' }
     proibe:
       - 'em que posso ajudar|o que voc[êe] precisa|precisa de mais alguma coisa'
+
+  # Conv 32833 (31/08): a Clara descreveu o bairro do imóvel do anúncio — "região norte de
+  # Sinop, saindo pela MT-140, mais afastado do centro" — sem ter ferramenta nenhuma de mapa
+  # ou de cadastro (as dela são todas de registro e roteamento). Medido antes da conduta:
+  # 6/6 afirmaram geografia, e as rodadas se contradiziam entre si — três diziam "região
+  # norte" e três "região sul" do MESMO bairro, que é a prova de que era invenção e não
+  # conhecimento. Depois da conduta: 0/6, e transferir_para_agente subiu de 2/6 para 6/6.
+  - nome: triagem não descreve geografia que não consultou
+    tags: [invencao, triagem]
+    assistente: 7           # Clara
+    piso: 6
+    turnos:
+      - { de: cliente, texto: 'Oi, vi o anúncio da casa no Parque Amazonas de R$ 400 mil' }
+      - de: assistente
+        texto: 'Oi! Que bom que você se interessou! Como posso te ajudar?'
+      - { de: cliente, texto: 'Onde fica esse bairro? É longe do centro?' }
+    # Só `proibe`: o acerto aqui é ela NÃO afirmar, e a forma de não afirmar varia (transfere
+    # calada, ou diz que a especialista passa a informação). Exigir uma frase específica
+    # reprovaria acerto por causa da redação.
+    proibe:
+      - 'regi[ãa]o\s+(norte|sul|leste|oeste|central)'
+      - 'MT[-\s]?\d|BR[-\s]?\d|rodovia'
+      - '\d+\s?km|(afastado|longe|distante)\s+d[oe]\s+centro'
+      - 'bairro\s+(residencial|planejado|tranquilo|bem\s+estruturado)'
