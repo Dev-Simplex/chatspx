@@ -243,25 +243,6 @@ export const actions = {
         echoId,
         pendingCustomAttributes,
         pendingLabels,
-      const { data } = await sendMessageAPI(content, replyTo, {
-        customAttributes: hasPendingMetadata
-          ? pendingCustomAttributes
-          : undefined,
-        labels: hasPendingMetadata ? pendingLabels : undefined,
-        // Bloco 2.15 — a chave de idempotência, e o `id` é ela.
-        //
-        // `id` vem do `createTemporaryMessage` (`helpers.js:8`, um uuid) e é o
-        // MESMO objeto que o `MessageRow.vue:230` devolve a esta ação quando o
-        // visitante toca em "tentar de novo": a mensagem que o store guardou
-        // com `status: 'failed'`. Reusar o id é o que faz a segunda tentativa
-        // chegar ao servidor com a chave da primeira.
-        //
-        // Sem esta linha `sendMessageAPI` gerava uma chave nova por tentativa
-        // (o fallback de `conversation.js:33`), e chave nova é o mesmo que
-        // nenhuma chave: `existing_message_for_retry` procura por `source_id` e
-        // nunca acharia a mensagem anterior. A proteção do servidor existia e
-        // não mordia — o visitante via a frase duplicada no painel do agente.
-        echoId: id,
       });
     } catch (error) {
       commit('pushMessageToConversation', { ...mensagem, status: 'failed' });
@@ -449,6 +430,7 @@ export const actions = {
       // alguém que parou de digitar faz meio minuto.
       enqueueOnNetworkFailure(error, {
         type: `typing_${data?.typingStatus === 'on' ? 'on' : 'off'}`,
+      });
       // Bloco 2.13. Era `// IgnoreError`.
       reportWidgetError(error, {
         origem: 'store/conversation#toggleUserTyping',
