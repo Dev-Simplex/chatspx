@@ -621,4 +621,42 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
       end
     end
   end
+
+  # Bloco 5.17 — a substituicao do verbo `set…` atravessando a REQUISICAO INTEIRA.
+  #
+  # Este describe existe por um motivo especifico: `clear_attributes` so funciona se estiver em
+  # `permitted_params`. Strong parameters descarta o que nao esta permitido EM SILENCIO — sem erro,
+  # sem log, com 200 na resposta. A action pode estar perfeita e o campo nunca chegar nela, e o
+  # spec da action (que constroi os params na mao) jamais veria isso.
+  describe 'PATCH /api/v1/widget/contact/set_user — o verbo que SUBSTITUI' do
+    let(:contact) do
+      create(:contact, account: account, name: 'Ana', email: 'ana@exemplo.com.br',
+                       phone_number: '+5511999998888', identifier: 'id-1')
+    end
+
+    it 'apaga na base os campos que o site nao mandou' do
+      patch '/api/v1/widget/contact/set_user',
+            params: { website_token: web_widget.website_token, identifier: 'id-1',
+                      name: 'Ana Maria', clear_attributes: %w[email phone_number] },
+            headers: { 'X-Auth-Token' => token },
+            as: :json
+
+      expect(response).to have_http_status(:success)
+      contact.reload
+      expect(contact.name).to eq 'Ana Maria'
+      expect(contact.email).to be_nil
+      expect(contact.phone_number).to be_nil
+    end
+
+    it 'sem a lista, o contato inteiro sobrevive — o verbo update nao apaga nada' do
+      patch '/api/v1/widget/contact/set_user',
+            params: { website_token: web_widget.website_token, identifier: 'id-1', name: 'Ana Maria' },
+            headers: { 'X-Auth-Token' => token },
+            as: :json
+
+      contact.reload
+      expect(contact.email).to eq 'ana@exemplo.com.br'
+      expect(contact.phone_number).to eq '+5511999998888'
+    end
+  end
 end

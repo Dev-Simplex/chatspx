@@ -190,8 +190,13 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
     ActiveSupport::SecurityUtils.secure_compare(identifier_hash, expected_hash)
   end
 
+  # `clear_attributes` (bloco 5.17) e a lista de campos que o verbo `set…` quer APAGAR. Ela precisa
+  # ser permitida aqui ou o strong parameters a descarta em silencio e a substituicao volta a ser um
+  # comentario. Quem decide o que de fato pode ser apagado e `ContactIdentifyAction`, com lista
+  # fechada — permitir aqui nao concede nada por si.
   def permitted_params
-    params.permit(:website_token, :identifier, :identifier_hash, :email, :name, :avatar_url, :phone_number, custom_attributes: {},
+    params.permit(:website_token, :identifier, :identifier_hash, :email, :name, :avatar_url, :phone_number, clear_attributes: [],
+                                                                                                            custom_attributes: {},
                                                                                                             additional_attributes: {})
   end
 

@@ -48,9 +48,26 @@ export const flattenCompany = company => {
  * Monta o corpo que a API de contato recebe.
  *
  * `merge: true` (verbo `update…`) omite do payload o que o site NAO mandou, para o servidor nao
- * receber `undefined` e apagar o que ja estava. `merge: false` (verbo `set…`) manda os campos de
- * topo declarados, inclusive vazios — e essa e a diferenca de verbo que o bloco 5.17 pede que
- * seja explicita, em vez de deduzida.
+ * apagar o que ja estava. `merge: false` (verbo `set…`) SUBSTITUI: o que o site nao mandou e
+ * apagado, e essa e a diferenca de verbo que o bloco 5.17 pede que seja explicita.
+ *
+ * POR QUE UMA LISTA, E NAO UM CAMPO VAZIO. A primeira versao deste modulo escrevia
+ * `{ email: undefined }` no payload do `set` e um spec verde media `'email' in payload === true`.
+ * A assercao passava no VACUO: `JSON.stringify` descarta chave com `undefined`, entao os dois
+ * verbos saiam byte a byte IGUAIS na rede — medido, `{"phone_number":"+5511999998888"}` nos dois.
+ * `null` tambem nao resolveria: o servidor faz `reject(&:blank?)` em `update_contact`, e `nil` e
+ * blank. Sem um sinal que sobreviva a serializacao E ao filtro de blank, "substitui" e so um
+ * comentario.
+ *
+ * `clear_attributes` e esse sinal, e ele e uma LISTA DE NOMES de proposito: a ausencia de um campo
+ * e a ordem de apagar um campo deixam de ser a mesma coisa. `updateUser` nunca a emite; `setUser`
+ * emite exatamente os campos de topo que o site omitiu.
+ *
+ * O QUE O `set` NAO APAGA, e isto e limite declarado, nao esquecimento: `additional_attributes` e
+ * `custom_attributes` continuam MESCLANDO nos dois verbos. Apagar atributo personalizado que o
+ * site nao mandou teria raio de dano muito maior que o da regra de verbo (chave escrita pelo
+ * agente no painel, por outra integracao, ou por uma automacao sumiria sem ninguem ter pedido), e
+ * o bloco pede a substituicao do CONTATO — os quatro campos de topo.
  */
 export const buildContactPayload = (
   userObject = {},
@@ -62,17 +79,15 @@ export const buildContactPayload = (
     ...daEmpresa,
   };
 
-  const topo = merge
-    ? pickDefined(userObject, TOP_LEVEL_KEYS)
-    : TOP_LEVEL_KEYS.reduce(
-        (acc, key) => ({ ...acc, [key]: userObject[key] }),
-        {}
-      );
-
   const payload = {
-    ...topo,
+    ...pickDefined(userObject, TOP_LEVEL_KEYS),
     identifier_hash: userObject.identifier_hash,
   };
+
+  if (!merge) {
+    const aApagar = TOP_LEVEL_KEYS.filter(key => userObject[key] === undefined);
+    if (aApagar.length) payload.clear_attributes = aApagar;
+  }
 
   if (Object.keys(adicionais).length)
     payload.additional_attributes = adicionais;

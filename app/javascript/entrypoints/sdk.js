@@ -25,7 +25,8 @@ import {
 } from '../sdk/DOMHelpers';
 import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
-import { enfileirar } from '../sdk/preBootQueue';
+import { enfileirar, filaDrenada } from '../sdk/preBootQueue';
+import { resultado, anexarRejeicao } from '../sdk/callResult';
 import { captureOrigin } from '../sdk/tracking/capture';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
 import { CHATWOOT_ERROR } from '../widget/constants/sdkEvents';
@@ -104,7 +105,23 @@ const reportarErro = (nome, erro) => {
   });
 };
 
+/**
+ * Bloco 5.17 (T-I4.1) — o RESULTADO TIPADO.
+ *
+ * `chamadaDeDados` resolvia com o retorno cru de `despachar()`, que e `undefined` em todos os
+ * metodos: quem integra recebia "terminou" e nada mais. Agora resolve com o objeto de
+ * `callResult.js`, que responde tres perguntas que antes eram indistinguiveis entre si — saiu
+ * agora, esperou o boot, ou nao saiu porque era igual a ultima vez.
+ *
+ * O `queued` e lido ANTES de `enfileirar`, e tem de ser: uma vez drenada, a fila nao lembra mais
+ * quem passou por ela, e as duas resolvem no mesmo instante.
+ *
+ * COMO UM DESPACHO PEDE `deduplicated`: devolvendo `{ deduplicated: true }`. E o unico canal
+ * possivel sem mudar a assinatura de `enfileirar`, que a fila pre-boot ja usa para propagar o
+ * retorno do despacho.
+ */
 const chamadaDeDados = (nome, validar, despachar) => {
+  const esperou = !filaDrenada();
   let promessa;
   try {
     // `validar?.()` e nao `validar()`: METODO SEM VALIDACAO E CASO LEGITIMO — `setConsent` e
@@ -115,9 +132,11 @@ const chamadaDeDados = (nome, validar, despachar) => {
     // `denied` e o `dataLayer` sem nenhuma entrada de consent. Um site com CMP que aceita ficava
     // com a medicao inteira desligada, em silencio.
     validar?.();
-    promessa = enfileirar(despachar, nome);
+    promessa = enfileirar(despachar, nome).then(retorno =>
+      resultado(nome, esperou, retorno?.deduplicated)
+    );
   } catch (erro) {
-    promessa = Promise.reject(erro);
+    promessa = Promise.reject(anexarRejeicao(nome, erro));
   }
 
   promessa.catch(erro => reportarErro(nome, erro));
@@ -310,9 +329,17 @@ const runSDK = ({
       });
     },
 
-    // Bloco 5.17 — LEGADO, mantido intacto: `setUser` SUBSTITUI o contato. Para corrigir um campo
-    // sem apagar os outros, use `updateUser`. O metodo continua funcionando exatamente como antes;
-    // o que mudou neste bloco foi o hash de dedupe, que agora enxerga telefone, empresa e o resto.
+    // Bloco 5.17 — `setUser` SUBSTITUI o contato: campo de topo que voce NAO mandar e APAGADO.
+    // Para corrigir um campo sem apagar os outros, use `updateUser`.
+    //
+    // A substituicao passou a ser real neste bloco. Antes ela era so este comentario: o payload
+    // levava as chaves ausentes como `undefined`, `JSON.stringify` as descartava, e os dois verbos
+    // saiam byte a byte iguais na rede. Quem apaga hoje e `clear_attributes`
+    // (`widget/helpers/identityPayload.js` -> `ContactIdentifyAction`), uma lista de NOMES que
+    // sobrevive a serializacao e ao `reject(&:blank?)` do servidor.
+    //
+    // O que ele NAO apaga: `additional_attributes` e `custom_attributes` seguem mesclando nos dois
+    // verbos — ver o cabecalho de `identityPayload.js` para o porque.
     setUser(identifier, user) {
       return chamadaDeDados(
         'setUser',
@@ -336,12 +363,19 @@ const runSDK = ({
           const userCookieName = getUserCookieName();
           const hashToBeStored = computeHashForUserData({ identifier, user });
           if (hashToBeStored === Cookies.get(userCookieName)) {
-            return;
+            // Bloco 5.17 — a saida antecipada deixa de ser MUDA. Era `return` puro, e a chamada
+            // resolvia igualzinho a uma que despachou: um integrador depurando "por que o contato
+            // nao atualizou?" nao tinha como ver que a propria SDK decidiu nao mandar.
+            return { deduplicated: true };
           }
           window.$chatwoot.identifier = identifier;
           window.$chatwoot.user = user;
           IFrameHelper.sendMessage('set-user', { identifier, user });
           setCookieWithDomain(userCookieName, hashToBeStored, { baseDomain });
+          // Fecha o `consistent-return`: o despacho tem DOIS caminhos e os dois precisam devolver
+          // algo, ou o `undefined` implicito de um deles vira o mesmo silencio que o
+          // `{ deduplicated: true }` acima existe para acabar.
+          return { deduplicated: false };
         }
       );
     },
@@ -420,6 +454,35 @@ const runSDK = ({
      */
     getUnreadCount() {
       return window.$chatwoot.unreadMessageCount ?? 0;
+    },
+
+    /**
+     * Bloco 5.17 (T-I3.3 / T-I4.3) — o ESTADO DO WIDGET, o terceiro getter.
+     *
+     * Os dados ja existiam em `window.$chatwoot`, e essa e exatamente a razao de o getter existir:
+     * ler `window.$chatwoot.isOpen` e ler ESTADO INTERNO. Nada distinguia o campo que faz parte do
+     * contrato do campo que so por acaso mora ali (`resetTriggered`, `websiteToken`, `baseUrl`,
+     * `appearanceOverrides`), entao qualquer um deles podia ser lido por um site — e virar
+     * compatibilidade que ninguem prometeu, que e o que impede refatorar depois.
+     *
+     * `isOpen` sozinho tambem nao responde a pergunta que quem integra faz. "O painel esta
+     * fechado" e "o SDK ainda nem carregou" levam a `isOpen === false` e pedem acoes opostas: no
+     * primeiro caso `open()` funciona, no segundo ele e engolido. `hasLoaded` separa os dois.
+     *
+     * `isBubbleVisible` e a NEGACAO de `hideMessageBubble`, e a inversao e deliberada: o getter
+     * responde ao que se ve na tela, nao ao nome da flag interna. Quem esconde a bolha para
+     * desenhar a propria precisa de "a minha esta valendo?", e le isto junto de `getUnreadCount()`.
+     *
+     * Congelado porque atravessa para o `window` do site: devolver o objeto vivo deixaria um
+     * script de terceiro da pagina do cliente escrever no estado do widget por um GETTER.
+     */
+    getState() {
+      return Object.freeze({
+        hasLoaded: !!window.$chatwoot.hasLoaded,
+        isOpen: !!window.$chatwoot.isOpen,
+        isBubbleVisible: !window.$chatwoot.hideMessageBubble,
+        unreadCount: window.$chatwoot.unreadMessageCount ?? 0,
+      });
     },
 
     /**
