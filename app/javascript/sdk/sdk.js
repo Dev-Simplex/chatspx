@@ -183,8 +183,34 @@
  *   A FORMA DISCRETA. Um seletor, duas propriedades — é literalmente isto que
  *   separa o Chamativo do Discreto.
  *
- * ── @media (prefers-reduced-motion: reduce)
+ * ── @media (prefers-reduced-motion: reduce) — bloco 2.08
  *   Movimento é preferência: com 'reduce' o cartão aparece, sem animar.
+ *
+ *   A segunda linha do bloco é o 2.08, e ela existe porque o teaser era o
+ *   ÚNICO atendido: medido em Chromium com 'reducedMotion: reduce', o holder
+ *   continuava em '0.2s, 0.25s' e as cinco variantes do lançador em '0.3s'.
+ *   Quem pediu para o sistema parar de animar via o painel deslizar e o botão
+ *   girar 45° na cara mesmo assim.
+ *
+ *   O '!important' NÃO é preguiça de especificidade, é a única forma barata de
+ *   cobrir TODAS as variantes. O lançador declara 'transition' em oito regras
+ *   ('.woot--close', '.woot--hide', '--expanded', '--flat' e as combinações),
+ *   e a mais específica delas é
+ *   '.woot-widget-bubble.woot-widget--expanded.woot-widget-bubble--flat.woot--hide'
+ *   — 0,4,0. Empatar por seletor custaria repetir as oito aqui dentro, num
+ *   arquivo com teto CRU de 40.000 B; '!important' resolve as oito em uma
+ *   linha e continua valendo se alguém acrescentar a nona.
+ *
+ *   Só 'transition' é zerada, e 'transform' é deixada em paz de propósito: com
+ *   a transição desligada o elemento SALTA para o estado final, que é
+ *   exatamente o que 'reduce' pede. Zerar o 'transform' também apagaria o
+ *   estado ESCONDIDO ('translateY(40px)', 'scale(.75)'), e o painel passaria a
+ *   ocupar a tela fechado. O teaser pode zerar os dois porque lá o 'transform'
+ *   é só o deslize de entrada.
+ *
+ *   Desligar a transição não deixa nada pendurado: não há um único
+ *   'transitionend' no 'sdk/' nem no 'widget/' — verificado —, então nenhuma
+ *   etapa de esconder/mostrar depende do evento que deixa de disparar.
  *
  * ── @media (max-width: 767px) .woot-widget-holder — height/width duplicados
  *   Dupla declaração de propósito, e a ordem importa: quem não conhece as
@@ -494,6 +520,7 @@ export const SDK_CSS = `
 
 @media (prefers-reduced-motion: reduce) {
   .woot-teaser, .woot-teaser--saindo { transition: none; transform: none; }
+  .woot-widget-holder, .woot-widget-bubble { transition: none !important; }
 }
 
 .woot--hide {

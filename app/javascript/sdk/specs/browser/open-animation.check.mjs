@@ -130,6 +130,102 @@ check(
   'cubic-bezier(0.3, 0, 0.8, 0.15)'
 );
 
+// ── `prefers-reduced-motion: reduce` — bloco 2.08 ────────────────────────────
+//
+// As cinco asserções acima medem a ANIMAÇÃO, e por isso rodam no contexto
+// padrão, que é `no-preference`. As duas abaixo medem o oposto: que a mesma
+// folha, lida por quem pediu ao sistema para parar de animar, não move nada.
+//
+// Elas existem porque o `SDK_CSS` tinha UM bloco `@media (prefers-reduced-
+// motion: reduce)` e ele cobria só `.woot-teaser`. O holder e o lançador —
+// que são o painel inteiro deslizando e um botão girando 45° — ficavam de
+// fora, e o verificador dava 5/5 sem uma única asserção sobre o assunto.
+//
+// O contexto é NOVO, com `reducedMotion: 'reduce'`, e não `page.emulateMedia`
+// no contexto já aberto: a emulação precisa valer desde o `setContent` para o
+// navegador montar a folha já sob a preferência.
+const ctxReduce = await browser.newContext({ reducedMotion: 'reduce' });
+const pageReduce = await ctxReduce.newPage();
+
+// As CINCO variantes do lançador, não uma: `transition` é declarada em oito
+// regras do `SDK_CSS`, e a combinação `--expanded.--flat` é a mais específica
+// delas (0,4,0). Medir só `.woot-widget-bubble` passaria com as combinações
+// ainda animando — foi assim que o defeito sobreviveu até aqui.
+await pageReduce.setContent(`<!doctype html>
+<html><head><style>${SDK_CSS}</style></head>
+<body style="margin:0">
+  <div id="cw-widget-holder" class="woot-widget-holder woot-elements--right">
+    <iframe title="painel"></iframe>
+  </div>
+  <div id="cw-bubble-holder">
+    <button id="b1" class="woot-widget-bubble woot-elements--right woot--close"></button>
+    <button id="b2" class="woot-widget-bubble woot-elements--right"></button>
+    <button id="b3" class="woot-widget-bubble woot-widget--expanded woot-elements--right"></button>
+    <button id="b4" class="woot-widget-bubble woot-widget-bubble--flat woot--close woot-elements--right"></button>
+    <button id="b5" class="woot-widget-bubble woot-widget--expanded woot-widget-bubble--flat woot-elements--right"></button>
+    <div id="t1" class="woot-teaser woot-elements--right"></div>
+  </div>
+</body></html>`);
+await pageReduce.locator('#cw-widget-holder').waitFor({ state: 'attached' });
+
+// `transitionDuration` é uma LISTA — `0.3s, 0.1s, 0s, 0s` no lançador. Só
+// serve como aceite se TODOS os termos forem zero, então a medida é o maior
+// deles. O aceite admite "≤ 1 ms"; o corte é feito em milissegundos para que
+// um futuro `0.001s` continue passando e um `0.01s` (que existe hoje na
+// variante `--flat.--close`) continue reprovando.
+const duracoes = await pageReduce.evaluate(() => {
+  const maiorMs = sel => {
+    const bruto = getComputedStyle(
+      document.querySelector(sel)
+    ).transitionDuration;
+    return Math.max(...bruto.split(',').map(v => parseFloat(v) * 1000));
+  };
+  return {
+    holder: maiorMs('#cw-widget-holder'),
+    b1: maiorMs('#b1'),
+    b2: maiorMs('#b2'),
+    b3: maiorMs('#b3'),
+    b4: maiorMs('#b4'),
+    b5: maiorMs('#b5'),
+    teaser: maiorMs('#t1'),
+  };
+});
+
+console.log('        durações com reduce (ms) =', JSON.stringify(duracoes));
+
+check(
+  'com reduce, painel e lançador têm transição ≤ 1 ms',
+  JSON.stringify(Object.entries(duracoes).filter(([, ms]) => ms > 1)),
+  '[]'
+);
+
+// A segunda asserção não é a mesma medida escrita de outro jeito. A de cima lê
+// a FOLHA em repouso; esta dispara a abertura de verdade e pergunta ao
+// navegador o que ele MONTOU — é a mesma `getAnimations()` que o aceite do
+// 1.07 nomeia, usada aqui para o caso contrário. Uma folha com
+// `transition-duration: 0s` mas `transition-delay` sobrando ainda monta
+// animação, e só esta pega isso.
+const montadasComReduce = await pageReduce.evaluate(() => {
+  const alvos = ['#cw-widget-holder', '#b1', '#b2', '#b3', '#b4', '#b5'];
+  const montadas = [];
+  alvos.forEach(sel => {
+    const el = document.querySelector(sel);
+    getComputedStyle(el).transform; // eslint-disable-line no-unused-expressions
+    el.classList.add('woot--hide');
+    el.getAnimations().forEach(a =>
+      montadas.push(`${sel}:${a.transitionProperty || 'anim'}`)
+    );
+  });
+  return montadas;
+});
+
+check(
+  'com reduce, abrir e fechar não monta animação nenhuma',
+  JSON.stringify(montadasComReduce),
+  '[]'
+);
+
+await ctxReduce.close();
 await browser.close();
 
 const failed = results.filter(r => !r.ok);
