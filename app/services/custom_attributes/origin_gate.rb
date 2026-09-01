@@ -15,14 +15,19 @@
 #      atributo que ele nem sabia estar protegido.
 #   2. O valor protegido nao e sobrescrito NEM apagado — ele fica exatamente como estava.
 #      "Nao altera o valor" e o aceite, e apagar tambem seria alterar. Por isso o portao tem
-#      TRES portas, uma por forma de alterar: `filter` (escrita que mescla), `replace`
-#      (escrita que substitui, onde omitir apagaria) e `delete` (exclusao explicita).
+#      DUAS portas, uma por forma de alterar: `filter` (escrita, que mescla) e `delete`
+#      (exclusao explicita).
+#
+#      Houve uma terceira, `replace`, para o endpoint de SUBSTITUICAO — onde omitir a chave
+#      protegida a apagaria. Ela sumiu com o bloco 5.08, que tornou
+#      `widget/conversations#set_custom_attributes` uma MESCLA: sem substituicao no
+#      caminho, nao ha omissao que apague, e a porta deixou de ter dono.
 #
 # CINCO superficies passam pelo portao — escrita e exclusao de contato e de conversa, mais a
 # CRIACAO da conversa, que e a primeira que o visitante atravessa:
 #
 #   · widget/base#conversation_params (create)        -> filter   (sem assinatura)
-#   · widget/conversations#set_custom_attributes      -> replace  (sem assinatura)
+#   · widget/conversations#set_custom_attributes      -> filter   (sem assinatura)
 #   · widget/conversations#destroy_custom_attributes  -> delete   (sem assinatura)
 #   · widget/contacts#update (ContactIdentifyAction)  -> filter
 #   · widget/contacts#destroy_custom_attributes       -> delete   (sem assinatura)
@@ -55,21 +60,6 @@ class CustomAttributes::OriginGate
 
     record(protegidas)
     Result.new(allowed: attributes.except(*protegidas), refused: protegidas)
-  end
-
-  # Para endpoint de SUBSTITUICAO, onde o que nao vem no payload sai.
-  #
-  # Nao basta recusar a escrita da chave protegida: omiti-la apagaria o valor, e apagar
-  # tambem e alterar. Entao toda chave protegida que JA existia sobrevive, tenha vindo no
-  # payload ou nao. Sem chave protegida no registro, o resultado e byte a byte o de antes.
-  def replace(incoming:, existing:)
-    resultado = filter(incoming)
-    return resultado if @verified
-
-    sobreviventes = normalize(existing).slice(*protected_keys)
-    return resultado if sobreviventes.empty?
-
-    Result.new(allowed: resultado.allowed.merge(sobreviventes), refused: resultado.refused)
   end
 
   # Para endpoint de EXCLUSAO, que recebe uma LISTA DE CHAVES em vez de um payload.

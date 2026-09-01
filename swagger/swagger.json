@@ -45101,7 +45101,7 @@
         ],
         "operationId": "widget-set-conversation-custom-attributes",
         "summary": "Definir atributos personalizados da conversa",
-        "description": "Substitui os atributos personalizados da conversa mais recente do visitante pelo objeto fornecido. Retorna `404 Not Found` quando o contato não tem conversa.",
+        "description": "Mescla os atributos personalizados enviados nos da conversa mais recente do visitante: chave enviada sobrescreve, chave omitida permanece. Para remover uma chave use `destroy_custom_attributes`. Retorna `404 Not Found` quando o contato não tem conversa.",
         "security": [],
         "parameters": [
           {
