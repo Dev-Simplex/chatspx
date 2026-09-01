@@ -60,6 +60,11 @@ json.website_channel_config do
   # e o exemplo de valor impede o caso que a paridade de chave sozinha nao ve — os dois lados
   # publicando a chave, e um deles publicando vazio.
   json.whatsapp_exit_number @web_widget.inbox.whatsapp_exit_number
+  # Bloco 2.13 — o gemeo de `release` do `show.html.erb`, pela MESMA leitura
+  # (`Chatwoot.config[:version]`). E o campo por onde o GlitchTip agrupa e filtra o erro do
+  # widget por versao; existir so no ERB o mataria em silencio no dia em que este jbuilder
+  # substituir o controller do ERB, que e o plano registrado em `widgets_controller.rb:1`.
+  json.release Chatwoot.config[:version]
 end
 
 json.contact do

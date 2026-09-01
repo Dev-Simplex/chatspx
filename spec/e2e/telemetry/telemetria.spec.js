@@ -47,7 +47,7 @@ const abrir = async page => {
 // Dispara um erro DENTRO do iframe, pelo caminho real: um `catch` que chama o
 // reporter, como os 14 sítios instrumentados do widget fazem.
 const forcarErroNoWidget = (page, mensagem, origem = 'teste') =>
-  page.frame({ url: /\/widget$/ }).evaluate(
+  page.frame({ url: /\/widget\?/ }).evaluate(
     ([texto, ondeVeio]) => {
       try {
         throw new Error(texto);
@@ -80,6 +80,35 @@ test.describe('2.13 — o relatório sai, e sai raspado', () => {
     expect(envelope.stack).toContain('Error');
   });
 
+  test('o POST não leva `Referer` — a URL do iframe carrega o JWT da conversa', async ({
+    page,
+  }) => {
+    // O documento do widget é servido em
+    // `/widget?website_token=…&cw_conversation=<JWT>` — este harness usa a mesma
+    // forma de propósito. A política PADRÃO do navegador
+    // (`strict-origin-when-cross-origin`) manda a URL INTEIRA no `Referer` de
+    // requisição same-origin, e este POST é same-origin: sem
+    // `referrerPolicy: 'no-referrer'` no `fetch`, todo relatório de erro leva num
+    // cabeçalho o mesmo JWT que a raspagem acabou de tirar do corpo — e ele passa a
+    // existir no log de acesso do nginx e em qualquer proxy do caminho.
+    //
+    // ESTE TESTE ACUSA: medido aqui, ele reprova com a opção removida, dizendo
+    // exatamente qual JWT chegou.
+    await abrir(page);
+    await forcarErroNoWidget(page, 'erro qualquer', 'teste');
+
+    await expect
+      .poll(() => servidor.recebidos.length, { timeout: 5000 })
+      .toBe(1);
+
+    expect(servidor.referers).toEqual([null]);
+    // E a mesma URL nao volta pelo corpo: `buildErrorPayload` corta a query
+    // string do `location.href` antes de montar o envelope.
+    expect(JSON.stringify(servidor.recebidos[0])).not.toContain(
+      'assinatura-falsa'
+    );
+  });
+
   test('a PII é removida ANTES de sair do navegador', async ({ page }) => {
     // Não basta o servidor raspar: se a PII sai na rede, ela já atravessou a
     // máquina do visitante e qualquer proxy no caminho. Aqui medimos o corpo
@@ -106,7 +135,7 @@ test.describe('2.13 — o relatório sai, e sai raspado', () => {
 
   test('o envelope não tem por onde carregar a conversa', async ({ page }) => {
     await abrir(page);
-    await page.frame({ url: /\/widget$/ }).evaluate(() => {
+    await page.frame({ url: /\/widget\?/ }).evaluate(() => {
       const erro = new Error('erro qualquer');
       return window.Telemetria.reportWidgetError(erro, {
         origem: 'chat',
@@ -212,7 +241,7 @@ test.describe('2.13 — nada vaza para o site do cliente', () => {
     // Um erro dentro de um laço de render viraria milhares de POSTs saindo do
     // site do cliente — o widget passaria a ser o problema de desempenho dele.
     await abrir(page);
-    await page.frame({ url: /\/widget$/ }).evaluate(async () => {
+    await page.frame({ url: /\/widget\?/ }).evaluate(async () => {
       for (let i = 0; i < 40; i += 1) {
         try {
           throw new Error(`erro numero ${i}`);

@@ -179,6 +179,33 @@ describe('2.13 — nada vaza para o site do cliente', () => {
     expect(corpo.message).toBe('falhou');
   });
 
+  it('manda `no-referrer` — o `Referer` deste POST carregava o JWT da conversa', async () => {
+    // O documento deste iframe e `/widget?website_token=…&cw_conversation=<JWT>`,
+    // e a politica padrao do navegador (`strict-origin-when-cross-origin`) manda a
+    // URL INTEIRA no `Referer` de requisicao same-origin — que e o caso deste POST,
+    // de proposito. Sem esta opcao, TODO relatorio de erro leva num cabecalho o
+    // mesmo JWT que `scrubPii` acabou de remover do corpo, e ele passa a existir no
+    // log de acesso do nginx e em qualquer proxy no caminho.
+    await reportWidgetError(new Error('falhou'), { origem: 'teste' });
+
+    expect(enviados[0].opcoes.referrerPolicy).toBe('no-referrer');
+  });
+
+  it('carrega o `release` que o servidor publicou', async () => {
+    // Ate o bloco 2.13 nenhum montador publicava `release`: o campo saia `null`
+    // em toda instalacao e so o harness de E2E o fabricava. Agora
+    // `widgets/show.html.erb` e o jbuilder de `configs` publicam
+    // `Chatwoot.config[:version]`, e e por aqui que ele chega ao GlitchTip.
+    global.chatwootWebChannel = {
+      websiteToken: 'token-abc',
+      release: '4.16.2',
+    };
+
+    await reportWidgetError(new Error('falhou'), { origem: 'teste' });
+
+    expect(JSON.parse(enviados[0].opcoes.body).release).toBe('4.16.2');
+  });
+
   it('drena a resposta — corpo não lido vira `ERR_ABORTED` no site do cliente', async () => {
     // Não é zelo com stream: é o aceite «nada vaza para o site do cliente».
     // [MEDIDO em Chromium 145, `spec/e2e/telemetry`] uma resposta que ninguém

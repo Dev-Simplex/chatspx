@@ -261,6 +261,10 @@ export const actions = {
         pendingCustomAttributes,
         pendingLabels,
       });
+      // Bloco 2.13. O visitante VE o balao vermelho; nos nao viamos nada. E o
+      // `catch` mais caro do widget: e a mensagem que o cliente pagou para
+      // receber e nao recebeu.
+      reportWidgetError(error, { origem: 'store/conversation#sendMessage' });
     }
   },
 
@@ -323,7 +327,9 @@ export const actions = {
         id: tempMessage.id,
         meta: { ...meta, error: '' },
       });
-      // Show error
+      // Bloco 2.13. Era `// Show error`, que nunca mostrou erro nenhum a
+      // ninguem — nem ao visitante, nem a nos.
+      reportWidgetError(error, { origem: 'store/conversation#sendAttachment' });
     }
   },
   fetchOldConversations: async ({ commit }, { before } = {}) => {
@@ -339,6 +345,11 @@ export const actions = {
       commit('setConversationListLoading', false);
     } catch (error) {
       commit('setConversationListLoading', false);
+      // Bloco 2.13. Falhar aqui deixa o historico VAZIO com a tela parecendo
+      // pronta: o visitante conclui que perdemos a conversa dele.
+      reportWidgetError(error, {
+        origem: 'store/conversation#fetchOldConversations',
+      });
     }
   },
 
@@ -368,7 +379,11 @@ export const actions = {
       commit('conversation/setMetaUserLastSeenAt', lastSeen, { root: true });
       commit('setMissingMessagesInConversation', updatedConversation);
     } catch (error) {
-      // IgnoreError
+      // Bloco 2.13. Era `// IgnoreError`. E a rede de seguranca do websocket:
+      // quando ela cai calada, chega mensagem do agente que o visitante nunca ve.
+      reportWidgetError(error, {
+        origem: 'store/conversation#syncLatestMessages',
+      });
     }
   },
 
@@ -411,6 +426,9 @@ export const actions = {
       // alguém que parou de digitar faz meio minuto.
       enqueueOnNetworkFailure(error, {
         type: `typing_${data?.typingStatus === 'on' ? 'on' : 'off'}`,
+      // Bloco 2.13. Era `// IgnoreError`.
+      reportWidgetError(error, {
+        origem: 'store/conversation#toggleUserTyping',
       });
     }
   },
@@ -425,7 +443,11 @@ export const actions = {
       commit('setMetaUserLastSeenAt', lastSeen);
       await setUserLastSeenAt({ lastSeen });
     } catch (error) {
-      // IgnoreError
+      // Bloco 2.13. Era `// IgnoreError`. Falhar aqui mantem o contador de nao
+      // lidas cheio para sempre, e ninguem sabe por que.
+      reportWidgetError(error, {
+        origem: 'store/conversation#setUserLastSeen',
+      });
     }
   },
 
@@ -444,7 +466,10 @@ export const actions = {
     try {
       await setCustomAttributes(customAttributes);
     } catch (error) {
-      // IgnoreError
+      // Bloco 2.13. Era `// IgnoreError`.
+      reportWidgetError(error, {
+        origem: 'store/conversation#setCustomAttributes',
+      });
     }
   },
 
@@ -456,7 +481,10 @@ export const actions = {
     try {
       await deleteCustomAttribute(customAttribute);
     } catch (error) {
-      // IgnoreError
+      // Bloco 2.13. Era `// IgnoreError`.
+      reportWidgetError(error, {
+        origem: 'store/conversation#deleteCustomAttribute',
+      });
     }
   },
 };

@@ -181,6 +181,20 @@ export const reportWidgetError = async (erro, contexto = {}) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       keepalive: true,
+      // O DOCUMENTO DESTE IFRAME É `/widget?website_token=…&cw_conversation=<JWT>`.
+      //
+      // A política padrão do navegador (`strict-origin-when-cross-origin`) manda
+      // a URL INTEIRA no `Referer` de requisição same-origin — e este POST é
+      // same-origin de propósito. Ou seja: sem esta linha, TODO relatório de
+      // erro carrega no cabeçalho o JWT que dá acesso de leitura à conversa
+      // daquele visitante, e ele passa a existir no log de acesso do nginx, em
+      // qualquer proxy no caminho e no evento do agregador de erros.
+      //
+      // É a mesma PII que `scrubPii` remove do corpo três linhas acima; deixá-la
+      // entrar por um cabeçalho que ninguém olha é a definição de vazamento
+      // silencioso. O endpoint não lê `Referer` para nada — `website_token` vem
+      // no corpo —, então cortar não custa função nenhuma.
+      referrerPolicy: 'no-referrer',
     });
 
     // DRENAR A RESPOSTA NÃO É ZELO, É O ACEITE. Sem esta linha o Chromium

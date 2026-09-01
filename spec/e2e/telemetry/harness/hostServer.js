@@ -65,7 +65,11 @@ const PAGINA_PAI = `<!doctype html>
         });
       });
     </script>
-    <iframe id="widget" src="/widget" style="width:400px;height:560px"></iframe>
+    <iframe
+      id="widget"
+      src="/widget?website_token=token-e2e-2-13&amp;cw_conversation=eyJhbGciOiJIUzI1NiJ9.eyJzb3VyY2VfaWQiOiJhYmMifQ.assinatura-falsa"
+      style="width:400px;height:560px"
+    ></iframe>
   </body>
 </html>`;
 
@@ -84,6 +88,12 @@ const paginaFilha = bundle => `<!doctype html>
 const iniciarServidor = async () => {
   const bundle = await empacotarTelemetria();
   const recebidos = [];
+  // Bloco 2.13 — o cabecalho `Referer` de cada POST de telemetria, guardado a
+  // parte. `null` quando o navegador nao mandou nenhum, que e o estado que o
+  // `referrerPolicy: 'no-referrer'` produz. Sem ele o navegador manda a URL
+  // INTEIRA do documento do widget (politica padrao `strict-origin-when-cross-origin`
+  // em requisicao same-origin) — e essa URL carrega o `cw_conversation`.
+  const referers = [];
 
   return new Promise(resolve => {
     const servidor = http.createServer((requisicao, resposta) => {
@@ -96,6 +106,7 @@ const iniciarServidor = async () => {
           corpo += pedaco;
         });
         requisicao.on('end', () => {
+          referers.push(requisicao.headers.referer ?? null);
           try {
             recebidos.push(JSON.parse(corpo));
           } catch {
@@ -135,7 +146,11 @@ const iniciarServidor = async () => {
       resolve({
         origem: `http://127.0.0.1:${servidor.address().port}`,
         recebidos,
-        limparRecebidos: () => recebidos.splice(0, recebidos.length),
+        referers,
+        limparRecebidos: () => {
+          referers.splice(0, referers.length);
+          return recebidos.splice(0, recebidos.length);
+        },
         fechar: () =>
           new Promise(pronto => {
             servidor.closeAllConnections();
