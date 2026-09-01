@@ -1,4 +1,5 @@
 require 'rails_helper'
+require_relative '../../../../services/tracking/fake_http_client'
 
 # Blocos 5.05 (`event_id` nasce no backend e volta ao widget) e 5.16 (`track()` do site).
 #
@@ -178,6 +179,101 @@ RSpec.describe '/api/v1/widget/events — tracking (5.05 + 5.16)', type: :reques
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body['event_id']).to match(uuid_v4)
+    end
+  end
+
+  # ── 5.05 — as `properties` do evento #2 do contrato ──────────────────────────────────────
+  #
+  # O contrato (docs/tracking/contrato-de-eventos.md §2, linha 2) declara `inbox_id` e `page_url`
+  # para o `chatspx_widget_opened`. A materia-prima chega NESTA MESMA requisicao: o
+  # `generateEventParams` (widget/api/events.js:4) manda `referer`, que apesar do nome e a URL da
+  # PAGINA do host — `onLocationChangeListener` (sdk/DOMHelpers.js:50) le `document.location.href`.
+  # Ela era usada para o barramento e descartada no registro, e `properties` nascia `{}`: o GA4
+  # recebia o evento sem os dois parametros que o contrato promete.
+  describe 'as properties do contrato (evento #2)' do
+    let(:pagina) { 'https://loja.exemplo.com/carrinho' }
+
+    def registro_da_resposta
+      TrackingEvent.find_by(event_id: response.parsed_body['event_id'])
+    end
+
+    it 'grava inbox_id e page_url a partir do event_info da propria requisicao' do
+      post_event(name: 'webwidget.triggered', event_info: { referer: pagina })
+
+      expect(registro_da_resposta.properties).to eq('inbox_id' => inbox.id, 'page_url' => pagina)
+    end
+
+    # A sanitizacao que o `plano/redesenho/execucao/o4-tags.md` §3 deixou anotada e NAO enxertada,
+    # com a condicao escrita la: "se alguem for acrescentar esse parametro do contrato, a
+    # sanitizacao precisa vir junto". O motivo e que `TrackingEvent` recusa CHAVE de PII e nao
+    # enxerga um e-mail escondido dentro de uma URL — e a query string e onde ele aparece.
+    it 'corta query string e fragmento: PII escondida na URL nao vira propriedade' do
+      post_event(name: 'webwidget.triggered',
+                 event_info: { referer: 'https://loja.exemplo.com/checkout?email=ana@exemplo.com&utm_source=x#topo' })
+
+      registro = registro_da_resposta
+      expect(registro.properties['page_url']).to eq('https://loja.exemplo.com/checkout')
+      expect(registro.properties.to_json).not_to include('ana@exemplo.com')
+    end
+
+    it 'ignora referer que nao e http(s) e ainda assim grava o inbox_id' do
+      post_event(name: 'webwidget.triggered', event_info: { referer: 'javascript:alert(1)' })
+
+      expect(registro_da_resposta.properties).to eq('inbox_id' => inbox.id)
+    end
+
+    it 'omite page_url quando o event_info nao traz referer — ausencia, nao string vazia' do
+      post_event(name: 'webwidget.triggered')
+
+      expect(registro_da_resposta.properties).to eq('inbox_id' => inbox.id)
+    end
+
+    # Sem teto, um laco no script do site escreveria um caminho de megabytes numa coluna nossa: a
+    # guarda de 4 kB do 5.16 so vale para `properties` do `track()`, e este caminho nao passa por ela.
+    it 'trunca page_url absurdamente longa em vez de gravar o que o cliente mandar' do
+      post_event(name: 'webwidget.triggered',
+                 event_info: { referer: "https://loja.exemplo.com/#{'a' * 4_000}" })
+
+      url = registro_da_resposta.properties['page_url']
+      expect(url.length).to eq(Api::V1::Widget::EventsController::MAX_PAGE_URL_LENGTH)
+      expect(url).to start_with('https://loja.exemplo.com/aaa')
+    end
+
+    # A travessia ate o `dataLayer` e por AQUI: `widget/store/modules/events.js:25` le
+    # `data.properties` da resposta e manda ao host. Resposta sem `properties` = host publica `{}`,
+    # e o caminho client-side do GA4 fica sem os dois parametros mesmo com o registro certo.
+    it 'devolve as properties na resposta, que e por onde o host publica no dataLayer' do
+      post_event(name: 'webwidget.triggered', event_info: { referer: pagina })
+
+      expect(response.parsed_body['properties']).to eq('inbox_id' => inbox.id, 'page_url' => pagina)
+    end
+
+    it 'campaign.triggered continua sem registro, e a resposta sai com properties vazio' do
+      post_event(name: 'campaign.triggered', event_info: { referer: pagina, campaign_id: 7 })
+
+      expect(response.parsed_body['event_id']).to be_nil
+      expect(response.parsed_body['properties']).to eq({})
+    end
+
+    it 'nao mexe nas properties do track() do site: o referer do event_info nao se enxerta la' do
+      post_event(name: 'chatspx_orcamento_pedido', properties: { plano: 'pro' },
+                 event_info: { referer: pagina }, event_key: 'k-9')
+
+      expect(registro_da_resposta.properties).to eq('plano' => 'pro')
+    end
+
+    # O aceite refutado dizia "o GA4 recebe o evento sem os dois". Este exemplo nao dubla a nossa
+    # resposta: pega o registro que o ENDPOINT gravou e o entrega ao cliente real do Measurement
+    # Protocol, com o cliente HTTP injetado. E o unico jeito de a assercao falar do GA4.
+    it 'os dois parametros chegam ao payload do Measurement Protocol' do
+      post_event(name: 'webwidget.triggered', event_info: { referer: pagina })
+
+      http = FakeHttpClient.new(status: 204, body: {})
+      settings = Tracking::CredentialResolver::Settings.new(ga4_measurement_id: 'G-XYZ', ga4_api_secret: 'segredo')
+      Tracking::Destinations::Ga4Mp.new(event: registro_da_resposta, settings: settings, http_client: http).deliver!
+
+      expect(http.last_body[:events].first[:params])
+        .to include('inbox_id' => inbox.id, 'page_url' => pagina)
     end
   end
 end

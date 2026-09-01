@@ -57,11 +57,46 @@ describe('5.05 — o event_id atravessa do servidor para o host', () => {
     });
   });
 
+  // As `properties` do evento #2 do contrato (`inbox_id`, `page_url`) quem conhece e o
+  // SERVIDOR: o `pushEvent` do host manda so o nome, e a URL da pagina chega ao backend pelo
+  // `event_info`. Elas voltam na resposta e e ESTA travessia que as leva a ponte de tags. Se o
+  // store as descartar, o registro nasce certo, o backend fica verde, e o dataLayer do cliente
+  // recebe o evento sem nenhum parametro — o defeito de um lado so que este bloco corrige.
+  //
+  // O duble abaixo tem a FORMA REAL medida no endpoint: `{ event_id, name, properties }`.
+  it('repassa ao host as properties que o SERVIDOR devolveu', async () => {
+    post.mockResolvedValue({
+      data: {
+        event_id: 'uuid-2',
+        name: 'chatspx_widget_opened',
+        properties: {
+          inbox_id: 12,
+          page_url: 'https://loja.exemplo.com/carrinho',
+        },
+      },
+    });
+    const modulo = await carregar();
+
+    await modulo.actions.create({}, { name: 'webwidget.triggered' });
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      event: 'trackingEvent',
+      name: 'chatspx_widget_opened',
+      properties: {
+        inbox_id: 12,
+        page_url: 'https://loja.exemplo.com/carrinho',
+      },
+      eventId: 'uuid-2',
+    });
+  });
+
   // `campaign.triggered` responde com `name: null` porque o contrato declara `tracking: null`
   // para o fato. Sem esta guarda o host receberia um evento de tracking sem nome e a ponte
   // publicaria `{ event: null }` no dataLayer do cliente.
   it('nao repassa nada quando o fato nao tem contraparte de tracking', async () => {
-    post.mockResolvedValue({ data: { event_id: null, name: null } });
+    post.mockResolvedValue({
+      data: { event_id: null, name: null, properties: {} },
+    });
     const modulo = await carregar();
 
     await modulo.actions.create({}, { name: 'campaign.triggered' });
@@ -115,11 +150,16 @@ describe('5.16 — track() manda properties e a chave de idempotencia', () => {
     );
   });
 
-  // As properties voltam do STORE, nao da resposta: o servidor nao as devolve, e o dataLayer
-  // do cliente precisa delas. Sem isto o evento chega ao GTM sem nenhum parametro.
+  // No `track()` quem manda nas properties e o STORE, e nao a resposta: o servidor as ECOA
+  // (desde o 5.05), mas o `...data` e sobrescrito de proposito pelo que o site passou — sao os
+  // valores que o site ja tem na mao, sem depender de a resposta chegar inteira.
   it('repassa ao host as properties que o site mandou, junto do event_id', async () => {
     post.mockResolvedValue({
-      data: { event_id: 'uuid-9', name: 'chatspx_orcamento_pedido' },
+      data: {
+        event_id: 'uuid-9',
+        name: 'chatspx_orcamento_pedido',
+        properties: { plano: 'pro' },
+      },
     });
     const modulo = await carregar();
 
