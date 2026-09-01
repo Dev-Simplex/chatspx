@@ -13,24 +13,33 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
   BATCH = 3
   SEND_INTERVAL = 2 # segundos entre cada foto, pra o WhatsApp entregar uma por uma
-  COOLDOWN = 90 # segundos entre lotes de foto na MESMA conversa — freia a rajada multi-imóvel
   MAX_POR_IMOVEL = 9 # teto de fotos por imóvel no WhatsApp (3 lotes) — evita dilúvio; pra ver TODAS, a IA oferece o link da galeria
+
+  # Freio anti-rajada. O que precisa ser freado é a IA despejar imóveis que NINGUÉM pediu —
+  # não o cliente pedir três de uma vez. A régua, então, é o TURNO: quantos imóveis distintos
+  # já saíram desde a última fala do cliente. Se ele falar de novo, o turno reinicia e a
+  # ferramenta libera — que é exatamente o que a recusa sempre prometeu e o código nunca cumpriu.
+  #
+  # O freio anterior era temporal (COOLDOWN de 90 s por CONVERSA) e não fazia essa distinção.
+  # Medido na Tozi em 30 dias antes da troca: de 654 chamadas, **182 recusadas (27,8 %)**, e
+  # **163 delas eram de um imóvel DIFERENTE** — ou seja, o cliente tinha pedido outro. Desfecho:
+  # de 144 pares (conversa, imóvel) recusados em 85 conversas, **99 nunca receberam as fotos**,
+  # nem da IA nem de humano. A mensagem de recusa dizia *"só envie de novo se ele pedir
+  # explicitamente"* — mas o `return` já tinha acontecido e não existia caminho para "ele
+  # pediu", então a IA prometia ("vou te mandar já já") e não tinha como entregar.
+  MAX_IMOVEIS_POR_TURNO = 3
+  # Conversa aberta por template pode ainda não ter fala do cliente. Sem essa âncora o turno é
+  # a última hora — o freio continua existindo em vez de sumir no caso sem incoming.
+  JANELA_SEM_FALA = 1.hour
 
   def perform(tool_context, codigo:)
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa pra enviar as fotos.' unless conversation
 
-    # Freio anti-rajada: não deixa a IA despejar fotos de vários imóveis no mesmo turno
-    # (era o "todas juntas"). O 1º lote da conversa sempre passa (ultimo=0).
-    ultimo = conversation.custom_attributes['fotos_ultimo_envio_at'].to_i
-    if ultimo.positive? && (Time.current.to_i - ultimo) < COOLDOWN
-      return 'Você acabou de enviar fotos há pouco. NÃO envie mais fotos agora — avance a conversa e ' \
-             'espere o cliente reagir. Só envie de novo se ele pedir explicitamente.'
-    end
-
     # Trava anti-alucinação: só envia foto de código que apareceu numa busca DESTA
     # conversa (buscar_imovel registra em codigos_buscados). Bloqueia a IA de mandar
     # foto de um código que ela supôs/lembrou (ex.: mandar prédio comercial por casa).
+    # Vem ANTES do freio de turno: código inventado não pode ocupar vaga no teto.
     cod = codigo.to_s.gsub(/\D/, '')
     vistos = codigos_conhecidos(conversation)
     if vistos.any? && !vistos.include?(cod)
@@ -40,6 +49,16 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # O código que a IA cita pode ser o ImoCodigo — e o ImoCodigo de um imóvel é o Codigo de
     # OUTRO. Resolver pelo mapa da própria conversa antes de buscar (ver codigo_canonico).
     codigo = codigo_canonico(conversation, cod)
+
+    # Depois do canônico, senão o mesmo imóvel citado pelos dois códigos contaria como dois.
+    # Continuar o MESMO imóvel nunca é rajada — quem limita esse caso é o MAX_POR_IMOVEL.
+    ja_no_turno = imoveis_do_turno(conversation)
+    if ja_no_turno.size >= MAX_IMOVEIS_POR_TURNO && ja_no_turno.exclude?(codigo.to_s)
+      return "Você já enviou fotos de #{ja_no_turno.size} imóveis desde a última mensagem do cliente. " \
+             'NÃO mande de outro imóvel agora: apresente os que já foram e espere ele reagir. ' \
+             'Assim que ele responder, você pode enviar de outro; se ele quiser ver vários de uma vez, ' \
+             'ofereça o link da galeria no site.'
+    end
 
     dados = fetch_detalhes(codigo)
     fotos = extract_fotos(dados)
@@ -63,9 +82,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
     send_batch(conversation, batch, codigo)
     new_sent = sent + batch.size
-    conversation.update!(custom_attributes: conversation.custom_attributes.merge(
-      key => new_sent, 'fotos_ultimo_envio_at' => Time.current.to_i
-    ))
+    conversation.update!(custom_attributes: conversation.custom_attributes.merge(key => new_sent))
 
     if limite - new_sent > 0
       # Nao despejar fotos por conta propria (prende o lead num loop de midia): avancar a
@@ -93,6 +110,20 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # Imóveis distintos cujas fotos já saíram DESDE a última fala do cliente. A âncora é a
+  # mensagem dele, não o relógio: é ela que separa "a IA está despejando" de "o cliente pediu".
+  #
+  # Lê o `property_code` que este mesmo tool carimba em toda foto e no carrossel — não precisa
+  # de estado novo, e o rastro é o que de fato foi enviado, não o que se pretendeu enviar.
+  def imoveis_do_turno(conversation)
+    desde = conversation.messages.where(message_type: :incoming, private: false).maximum(:created_at)
+    conversation.messages
+                .where(message_type: :outgoing)
+                .where(messages: { created_at: (desde || JANELA_SEM_FALA.ago).. })
+                .filter_map { |m| m.additional_attributes&.[]('property_code').presence&.to_s }
+                .uniq
+  end
 
   # O retorno da tool é lido pelo MODELO: "1 fotos" vaza como concordância errada na fala dele.
   def pluralizar_foto(quantidade)
@@ -201,9 +232,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
       } }
     )
 
-    conversation.update!(custom_attributes: conversation.custom_attributes.merge(
-      key => sent + total, 'fotos_ultimo_envio_at' => Time.current.to_i
-    ))
+    conversation.update!(custom_attributes: conversation.custom_attributes.merge(key => sent + total))
 
     "Enviei um carrossel com #{total} fotos do imóvel #{codigo}, com botões de interesse e visita. " \
       'Se o cliente quiser ver TODAS as fotos, ofereça o link do imóvel (galeria completa no site). ' \
