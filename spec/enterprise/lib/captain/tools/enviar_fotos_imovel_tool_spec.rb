@@ -195,4 +195,69 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
       tool.perform(tool_context, codigo: '4629')
     end
   end
+
+  # O freio anti-rajada mede o TURNO (imóveis distintos desde a última fala do cliente), não o
+  # relógio. O freio anterior era temporal e por conversa, e recusava o imóvel NOVO que o
+  # cliente tinha acabado de pedir: 182 recusas em 30 dias na Tozi, 163 delas de imóvel
+  # diferente, e 99 dos 144 pares recusados nunca receberam foto nenhuma.
+  describe 'the anti-burst brake' do
+    let(:channel) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
+                                validate_provider_config: false, sync_templates: false)
+    end
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+
+    def cliente_fala(texto = 'Manda as fotos')
+      create(:message, conversation: conversation, account: account, inbox: channel.inbox,
+                       message_type: :incoming, content: texto)
+    end
+
+    # O caso da conv 32828: o cliente pede um segundo imóvel logo depois do primeiro.
+    it 'sends a second property asked for in the same turn, instead of refusing it' do
+      cliente_fala('Quero ver as duas')
+      tool.perform(tool_context, codigo: '9434')
+
+      expect(tool.perform(tool_context, codigo: '5194')).to include('carrossel')
+      expect(outgoing.count).to eq(2)
+    end
+
+    it 'stops the burst once the turn already carried the cap' do
+      cliente_fala
+      %w[9434 5194 2508].each { |c| tool.perform(tool_context, codigo: c) }
+
+      resposta = tool.perform(tool_context, codigo: '9412')
+
+      expect(resposta).to include('3 imóveis')
+      expect(outgoing.count).to eq(3)
+    end
+
+    # O que reabre o portão é a mensagem DELE — é essa a promessa que a recusa antiga fazia
+    # ("só envie de novo se ele pedir") e que o código não cumpria.
+    it 'reopens as soon as the client speaks again' do
+      cliente_fala
+      %w[9434 5194 2508].each { |c| tool.perform(tool_context, codigo: c) }
+      cliente_fala('E tem fotos daquela outra?')
+
+      expect(tool.perform(tool_context, codigo: '9412')).to include('carrossel')
+      expect(outgoing.count).to eq(4)
+    end
+
+    # Continuar o MESMO imóvel não é rajada: quem limita esse caso é o MAX_POR_IMOVEL, e o
+    # teto do turno não pode transformá-lo em recusa.
+    it 'never counts the property already in the turn against itself' do
+      cliente_fala
+      %w[9434 5194 2508].each { |c| tool.perform(tool_context, codigo: c) }
+
+      expect(tool.perform(tool_context, codigo: '9434')).not_to include('3 imóveis')
+    end
+
+    # O estado temporal do freio antigo some junto com ele — atributo que ninguém lê é
+    # armadilha para quem for calibrar isto depois.
+    it 'no longer records the timestamp the old cooldown used' do
+      cliente_fala
+      tool.perform(tool_context, codigo: '9434')
+
+      expect(conversation.reload.custom_attributes).not_to include('fotos_ultimo_envio_at')
+    end
+  end
 end
