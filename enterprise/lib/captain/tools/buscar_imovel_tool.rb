@@ -1,13 +1,15 @@
 class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   include Captain::Tools::VistaImovelUrl
 
-  description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna uma lista NUMERADA de até 5 opções, ' \
+  description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna uma lista NUMERADA de opções, ' \
               'cada uma com o link correto do site. ' \
               "Use status_tipo='venda' para comprar e status_tipo='locacao' para alugar. " \
               'Cada opção já vem com nº de fotos, suítes, vagas de garagem e características (piscina, quintal, ' \
               'mobiliado, churrasqueira) — use SÓ esses dados retornados, nunca invente característica, foto ou link. ' \
-              'A lista devolvida é o conjunto COMPLETO para aquele critério: imóvel que não está nela não existe, ' \
-              'e apresentar imóvel fora dela é erro grave. ' \
+              'Apresentar imóvel que não veio na lista é erro grave. ' \
+              'O retorno diz QUANTAS opções existem no critério e quantas estão listadas: quando há mais do que as ' \
+              'listadas, não diga que são todas as disponíveis — pergunte a preferência do cliente e busque de novo ' \
+              'com o filtro dela. ' \
               'Para proximidade geográfica, passe lat/lng (do buscar_localizacao OU da localização que o cliente enviou): ' \
               'retorna os mais próximos, ordenados pela distância em km.'
 
@@ -43,6 +45,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Quantos imóveis inspecionar (detalhes, 1 chamada por imóvel, com cache) quando o cliente
   # pede uma característica que o Vista NÃO aceita como filtro de listagem — hoje, mobiliado.
   TETO_INSPECAO = 60
+
+  # Quantos imóveis a resposta APRESENTA. É diferente de quantos ela conhece: o cliente não
+  # lê 17 opções numa mensagem, mas a IA precisa saber que existem 17 pra não dizer que são 5.
+  MOSTRAR = 5
 
   # Logradouro + número na descrição do anúncio. Em VENDA a régua do cliente é bairro apenas,
   # porque o endereço exato é o que um concorrente usa pra captar o imóvel do proprietário.
@@ -125,11 +131,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # por vez. Então a listagem traz um lote maior e o filtro é feito aqui, com o detalhes_info
   # (cacheado). Medido em 28/08: 4 dos 106 imóveis de locação são mobiliados — se este ramo
   # não existisse, a IA continuaria prometendo uma busca que ela não sabe fazer (conv 4809).
-  def quantidade_para(geo, mobiliado)
-    return 50 if geo
-    return TETO_INSPECAO if mobiliado
-
-    5
+  # Pede o teto em todos os ramos, não só nos especiais. A busca comum pedia 5 ao Vista, e
+  # como só se enxerga o que se pede, o total ficava indistinguível de "só existem 5" — foi
+  # assim que a IA afirmou serem "todas as opções" tendo visto 5 de 17. O que continua sendo
+  # apresentado ao cliente são as MOSTRAR primeiras; o resto serve pra saber o total.
+  def quantidade_para(_geo, _mobiliado)
+    TETO_INSPECAO
   end
 
   # Estado explícito, não lista vazia: o modelo precisa saber que a busca ACONTECEU e não
@@ -249,7 +256,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
     return if bairro.blank? && endereco.blank?
 
-    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: 5, venda: venda)
+    # TETO e não 5: este ramo também passa pelo rodapé, e com 5 ele afirmaria que as
+    # alternativas de outros bairros se esgotam nas primeiras.
+    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: TETO_INSPECAO, venda: venda)
     return if imoveis.blank?
 
     track_codigos(tool_context, imoveis)
@@ -370,8 +379,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Numerar dá ao modelo um conjunto fechado e contável pra copiar, em vez de um bloco de
   # texto de onde ele pode "continuar" a lista.
   def format_listings(imoveis, venda, header: nil, detalhado: false)
-    linhas = imoveis.first(5).each_with_index.map { |im, idx| linha_imovel(im, idx, venda, detalhado) }
-    "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape_fechado(linhas.size)}"
+    linhas = imoveis.first(MOSTRAR).each_with_index.map { |im, idx| linha_imovel(im, idx, venda, detalhado) }
+    "#{header || "Encontrei #{imoveis.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape(linhas.size, imoveis.size)}"
   end
 
   def linha_imovel(imovel, idx, venda, detalhado)
@@ -385,10 +394,28 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     desc.present? ? "#{linha}\n#{desc}" : linha
   end
 
+  # "Não existem outras" só pode ser dito quando a lista mostrada É o acervo do critério.
+  # Antes o rodapé afirmava isso sempre, e a busca comum pedia só 5 imóveis ao Vista: numa
+  # conversa real de 01/09 havia 17 apartamentos para locação, a IA viu 5 e disse ao cliente
+  # que eram "todas as opções disponíveis". A trava anti-invenção continua valendo nos dois
+  # ramos — o que muda é parar de transformar truncamento em afirmação.
+  def rodape(mostrados, total)
+    return rodape_fechado(mostrados) if total <= mostrados
+
+    rodape_parcial(mostrados, total)
+  end
+
   def rodape_fechado(total)
     "São #{total} opção(ões) e não existem outras para este critério. Apresente SOMENTE imóvel " \
       'desta lista, sempre com o código dele. Se nada aqui servir, faça outra busca — nunca ' \
       'complete a lista de memória nem cite imóvel que não veio numa busca desta conversa.'
+  end
+
+  def rodape_parcial(mostrados, total)
+    "Estas são #{mostrados} das #{total} opções que existem neste critério — há mais. NÃO diga " \
+      'que são todas as disponíveis. Apresente SOMENTE imóvel desta lista, sempre com o código ' \
+      'dele, e nunca complete a lista de memória. Se o cliente quiser ver outras, pergunte o que ' \
+      'ele prefere (bairro, faixa de valor, nº de quartos) e busque de novo com esse filtro.'
   end
 
   # Condomínio/IPTU só quando o Vista traz o valor (>0); nunca inventa. Taxa de lixo o Vista não tem.
