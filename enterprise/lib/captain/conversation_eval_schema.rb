@@ -32,11 +32,17 @@ class Captain::ConversationEvalSchema < RubyLLM::Schema
       # (IA -> humano) de propósito: são decisões diferentes, com custo diferente, e antes
       # caíam no mesmo balde. Quem lê o relatório não conseguia distinguir "deixou o cliente
       # sem gente" de "atendeu fora da própria alçada" — e a primeira é muito mais grave.
+      # As quatro últimas cobrem o que o juiz não conseguia nomear porque não estava na
+      # transcrição: entrega que falhou, requisito que não virou filtro, esgotamento afirmado
+      # sem ferramenta que sustente, e lead que ficou esperando depois do fim.
+      # Categoria fora deste enum é recusada na chamada estruturada — descrever no prompt sem
+      # declarar aqui faria a categoria nova simplesmente nunca aparecer.
       string :categoria, enum: %w[
         alucinacao info_incorreta nao_respondeu_pergunta narrou_ferramenta
         tom_robotico repeticao exemplo_copiado quebrou_regra promessa_indevida
         handoff_ausente handoff_tardio transferencia_ausente fora_horario_mal_tratado
-        contradisse_tool nao_chamou_tool_obrigatoria usou_tool_errada ignorou_erro_da_tool outro
+        contradisse_tool nao_chamou_tool_obrigatoria usou_tool_errada ignorou_erro_da_tool
+        nao_entregue pedido_ignorado afirmou_esgotamento lead_abandonado outro
       ], description: 'Categoria da falha.'
       string :severidade, enum: %w[baixa media alta], description: 'Gravidade da falha.'
       string :trecho, description: 'Trecho curto (verbatim) da resposta que evidencia a falha.'

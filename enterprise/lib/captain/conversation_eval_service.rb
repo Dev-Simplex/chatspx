@@ -119,7 +119,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
 
   def user_content
     [origem_context, carryover_context, system_events_summary,
-     human_annotations_context, transcript].compact.join("\n\n")
+     human_annotations_context, desfecho_context, transcript].compact.join("\n\n")
   end
 
   def spec_context
@@ -204,7 +204,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
                elsif (label = sender_label(message))
                  response_num += 1
                  response_map[response_num] = message.id
-                 "[R#{response_num}][#{label}]: #{text}"
+                 "[R#{response_num}][#{label}]#{marca_de_falha(message)}: #{text}"
                else
                  "[Sistema]: #{text}"
                end
@@ -254,6 +254,53 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     return "[#{message.attachments.first.file_type}]" if message.attachments.any?
 
     ''
+  end
+
+  # O transcript carregava só o TEXTO, então uma resposta que a Meta recusou chegava ao juiz
+  # idêntica a uma entregue. Numa conversa de 01/09 as três mensagens de foto falharam
+  # (`100 - The parameter message[attachments][1][type] is required`), a cliente escreveu
+  # "Não recebi fotos" e a IA reafirmou o envio — e o juiz não tinha como discordar, porque
+  # para ele a foto tinha sido enviada. Sem esta marca, "afirmou ter enviado o que não chegou"
+  # é invisível por construção.
+  def marca_de_falha(message)
+    return '' unless message.status == 'failed'
+
+    motivo = message.external_error.to_s.strip
+    motivo.present? ? " (NÃO ENTREGUE — #{motivo[0, 120]})" : ' (NÃO ENTREGUE)'
+  end
+
+  # O que aconteceu DEPOIS da última fala. O juiz mede a conversa e vai embora; lead que fica
+  # esperando não é evento na transcrição e por isso nunca foi julgado. Com isto ele pode
+  # separar "atendimento que terminou" de "atendimento que parou no meio".
+  def desfecho_context
+    ultima = conversation.messages.where(private: false, message_type: %i[incoming outgoing])
+                         .order(:created_at).last
+    return if ultima.nil?
+
+    horas = ((Time.current - ultima.created_at) / 3600).round
+    return if horas < 1
+
+    attrs = conversation.custom_attributes || {}
+    linhas = ["- última mensagem foi #{ultima.incoming? ? 'do CLIENTE' : 'do atendimento'}, há #{horas}h",
+              "- a conversa está #{conversation.status}",
+              "- dono agora: #{dono_atual}",
+              "- follow-up (cutucada) programado ou disparado depois disso: #{cutucada_estado(attrs)}"]
+    ['DESFECHO (o que aconteceu depois da última fala — use para julgar abandono, não a condução):',
+     *linhas].join("\n")
+  end
+
+  def dono_atual
+    return "humano (#{conversation.assignee.name})" if conversation.assignee.present?
+    return 'a própria IA' if conversation.assignee_agent_bot.present?
+
+    'ninguém'
+  end
+
+  def cutucada_estado(attrs)
+    return "sim, #{attrs['followup_count']} já disparada(s)" if attrs['followup_count'].to_i.positive?
+    return 'agendada, ainda não disparou' if attrs['followup_token'].present? || attrs['followup_status'].present?
+
+    'NÃO'
   end
 
   def sender_label(message)
