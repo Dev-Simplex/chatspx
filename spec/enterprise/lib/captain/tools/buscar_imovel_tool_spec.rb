@@ -375,4 +375,17 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(texto).not_to eq('Nenhum imóvel encontrado com esses critérios.')
     end
   end
+
+  # O Vista recusa quantidade acima de 50 com HTTP 400 e a busca volta VAZIA — sem erro
+  # visível, só "nenhum imóvel encontrado" com o acervo cheio. Foi assim que o ramo
+  # mobiliado nasceu quebrado e, quando o teto passou a valer para a busca comum, derrubou
+  # toda busca de imóvel em produção.
+  describe 'o teto de paginação' do
+    it "never asks the Vista for more than the API accepts" do
+      expect(described_class::TETO_INSPECAO).to be <= 50
+      expect(tool.send(:quantidade_para, false, nil)).to be <= 50
+      expect(tool.send(:quantidade_para, true, nil)).to be <= 50
+      expect(tool.send(:quantidade_para, false, true)).to be <= 50
+    end
+  end
 end

@@ -49,7 +49,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   # Quantos imóveis inspecionar (detalhes, 1 chamada por imóvel, com cache) quando o cliente
   # pede uma característica que o Vista NÃO aceita como filtro de listagem — hoje, mobiliado.
-  TETO_INSPECAO = 60
+  #
+  # 50 é TETO DA API, não escolha: acima disso o Vista responde
+  # `400 — "O limite de resultados por página deve ser 50"` e a busca volta VAZIA. Com 60 aqui,
+  # o ramo `mobiliado` nunca funcionou (era o "Conferi 0 imóvel(is)" que aparecia mesmo com
+  # acervo cheio), e quando este valor passou a valer para a busca comum ele derrubou TODA
+  # busca de imóvel em produção. Não subir sem antes conferir o limite da API.
+  TETO_INSPECAO = 50
 
   # Quantos imóveis a resposta APRESENTA. É diferente de quantos ela conhece: o cliente não
   # lê 17 opções numa mensagem, mas a IA precisa saber que existem 17 pra não dizer que são 5.
