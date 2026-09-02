@@ -75,8 +75,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)
       track_codigos(tool_context, achados)
-      track_urls(tool_context, achados, venda_cod)
-      return format_listings(achados, venda_cod, detalhado: true)
+      return format_listings(tool_context, achados, venda_cod, detalhado: true)
     end
     venda = status_tipo.to_s == 'venda'
     filter = { 'Cidade' => 'Sinop' }
@@ -119,7 +118,6 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       return sem_mobiliado(candidatos) if imoveis.blank?
     end
     track_codigos(tool_context, imoveis)
-    track_urls(tool_context, imoveis, venda)
     if imoveis.blank?
       # Título que não casa é caso próprio, e precisa ser dito com todas as letras: o anúncio
       # que o cliente viu pode ser de OUTRA imobiliária no mesmo portal. Sem isso o retorno
@@ -133,9 +131,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
       return 'Nenhum imóvel encontrado com esses critérios.'
     end
-    return format_listings(imoveis, venda) unless geo
+    return format_listings(tool_context, imoveis, venda) unless geo
 
-    format_by_distance(imoveis, venda, lat.to_f, lng.to_f, raio_km.presence&.to_f)
+    format_by_distance(tool_context, imoveis, venda, { lat: lat.to_f, lng: lng.to_f, raio: raio_km.presence&.to_f })
   rescue StandardError => e
     Rails.logger.warn("[BuscarImoveisTool] #{e.message}")
     'Não consegui buscar os imóveis agora.'
@@ -279,10 +277,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return if imoveis.blank?
 
     track_codigos(tool_context, imoveis)
-    track_urls(tool_context, imoveis, venda)
     ref = [bairro, endereco].reject(&:blank?).join('/')
     imoveis = anexar_distancia_da_referencia(imoveis, ref)
-    format_listings(imoveis, venda, header: header_ampliado(ref, imoveis))
+    format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis))
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] ampliar_sem_bairro: #{e.message}")
     nil
@@ -356,17 +353,19 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Credenciais Vista por CONTA: vista_api_key / vista_base_url vêm do concern
   # IntegrationCredentials (AccountIntegration -> custom_attributes -> ENV).
 
-  def format_by_distance(imoveis, venda, lat, lng, raio)
-    com_geo = with_distances(imoveis, lat, lng)
+  # `ponto` agrupa lat/lng/raio: com eles soltos a lista de parametros passava de 5.
+  def format_by_distance(tool_context, imoveis, venda, ponto)
+    raio = ponto[:raio]
+    com_geo = with_distances(imoveis, ponto[:lat], ponto[:lng])
     return 'Os imóveis encontrados não têm localização cadastrada — refaça a busca por bairro.' if com_geo.empty?
 
     com_geo.sort_by! { |im| im['dist_km'] }
-    return format_listings(com_geo, venda, header: 'Mais próximos da referência:') if raio.blank?
+    return format_listings(tool_context, com_geo, venda, header: 'Mais próximos da referência:') if raio.blank?
 
     no_raio = com_geo.select { |im| im['dist_km'] <= raio }
-    return format_listings(no_raio, venda) if no_raio.any?
+    return format_listings(tool_context, no_raio, venda) if no_raio.any?
 
-    format_listings(com_geo.first(3), venda,
+    format_listings(tool_context, com_geo.first(3), venda,
                     header: "Nenhum imóvel a até #{raio.round} km da referência. Os mais próximos são:")
   end
 
@@ -395,7 +394,15 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # trava do enviar_fotos_imovel barra a FOTO de código não-buscado, mas não barra a FALA.
   # Numerar dá ao modelo um conjunto fechado e contável pra copiar, em vez de um bloco de
   # texto de onde ele pode "continuar" a lista.
-  def format_listings(imoveis, venda, header: nil, detalhado: false)
+  # O registro de URLs mora AQUI, e nao no ramo de busca, porque resolver o link e uma chamada
+  # HTTP por imovel (VistaImovelUrl#site_api_link) e so este ponto sabe QUAIS imoveis vao ao
+  # cliente. Registrar a lista inteira custava, medido na Tozi com cache limpo, 0,57s por imovel:
+  # com o teto de 60 do PR #90 isso era ~34s de espera por busca, numa ferramenta que roda com o
+  # cliente aguardando. Link que nao resolve nao entra em cache (`skip_nil`), entao esse custo se
+  # repetia em toda busca. Aqui sao MOSTRAR chamadas, e o `linha_imovel` reaproveita o cache.
+  # A lista completa continua indo para o `track_codigos`, que e barato e alimenta a trava de fotos.
+  def format_listings(tool_context, imoveis, venda, header: nil, detalhado: false)
+    track_urls(tool_context, imoveis.first(MOSTRAR), venda)
     linhas = imoveis.first(MOSTRAR).each_with_index.map { |im, idx| linha_imovel(im, idx, venda, detalhado) }
     "#{header || "Encontrei #{imoveis.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape(linhas.size, imoveis.size)}"
   end

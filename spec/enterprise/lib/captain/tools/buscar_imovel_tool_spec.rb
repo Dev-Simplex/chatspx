@@ -161,7 +161,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
 
     # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha.
     it 'keeps fee and fact distinguishable on the same listing line' do
-      linha = tool.send(:format_listings, [avulso_com_taxa], false)
+      linha = tool.send(:format_listings, nil, [avulso_com_taxa], false)
 
       expect(linha).to include('taxa de condomínio R$ 300')
       expect(linha).to include('NÃO fica em condomínio fechado')
@@ -175,14 +175,14 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     before { allow(tool).to receive_messages(site_api_key: nil, format_extras: '') }
 
     it 'numbers every option' do
-      texto = tool.send(:format_listings, [imovel, imovel.merge('Codigo' => '7777')], true)
+      texto = tool.send(:format_listings, nil, [imovel, imovel.merge('Codigo' => '7777')], true)
 
       expect(texto).to include('1) (cód 9908')
       expect(texto).to include('2) (cód 7777')
     end
 
     it 'states the total and forbids completing the list from memory' do
-      texto = tool.send(:format_listings, [imovel], true)
+      texto = tool.send(:format_listings, nil, [imovel], true)
 
       expect(texto).to include('São 1 opção(ões) e não existem outras')
       expect(texto).to match(/nunca complete a lista de memória/i)
