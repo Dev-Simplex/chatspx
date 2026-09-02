@@ -248,8 +248,11 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(tool.send(:quantidade_para, false, true)).to eq(described_class::TETO_INSPECAO)
     end
 
-    it 'keeps the default page size when nobody asked for it' do
-      expect(tool.send(:quantidade_para, false, nil)).to eq(5)
+    # Antes a busca comum pedia 5 ao Vista, e só se enxerga o que se pede: o total ficava
+    # indistinguível de "só existem 5". Numa conversa de 01/09 havia 17 apartamentos para
+    # locação, a IA viu 5 e disse ao cliente que eram todas as opções.
+    it 'asks for the ceiling in the ordinary search too, so the total is knowable' do
+      expect(tool.send(:quantidade_para, false, nil)).to eq(described_class::TETO_INSPECAO)
     end
 
     it 'reports the search as done, not as pending, when nothing matches' do
@@ -310,6 +313,35 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
 
       expect(recebido['Suites']).to eq(%w[1 10])
       expect(recebido).not_to have_key('Bairro')
+    end
+  end
+
+  # "Não existem outras" só é verdade quando a lista mostrada É o acervo do critério. O rodapé
+  # afirmava isso sempre — e a apresentação corta em MOSTRAR, então a afirmação era falsa em
+  # todo critério com mais opções que isso.
+  describe 'o rodapé sobre o total' do
+    it 'closes the set only when everything found is on the list' do
+      texto = tool.send(:rodape, 3, 3)
+
+      expect(texto).to include('não existem outras')
+    end
+
+    it 'says how many exist when the list was cut' do
+      texto = tool.send(:rodape, 5, 17)
+
+      expect(texto).to include('5 das 17')
+      expect(texto).to match(/N[ÃA]O diga que são todas/i)
+      expect(texto).not_to include('não existem outras')
+    end
+
+    # A trava anti-invenção vale nos DOIS ramos: dizer que há mais não pode virar licença
+    # para o modelo completar a lista de memória, que é o defeito que o rodapé fechado veio
+    # resolver na conv 4809.
+    it 'keeps the anti-invention rule in both endings' do
+      [tool.send(:rodape, 3, 3), tool.send(:rodape, 5, 17)].each do |texto|
+        expect(texto).to match(/SOMENTE im[óo]vel desta lista/i)
+        expect(texto).to match(/nunca complete a lista de mem[óo]ria/i)
+      end
     end
   end
 end
