@@ -1,13 +1,15 @@
 class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   include Captain::Tools::VistaImovelUrl
 
-  description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna uma lista NUMERADA de até 5 opções, ' \
+  description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna uma lista NUMERADA de opções, ' \
               'cada uma com o link correto do site. ' \
               "Use status_tipo='venda' para comprar e status_tipo='locacao' para alugar. " \
               'Cada opção já vem com nº de fotos, suítes, vagas de garagem e características (piscina, quintal, ' \
               'mobiliado, churrasqueira) — use SÓ esses dados retornados, nunca invente característica, foto ou link. ' \
-              'A lista devolvida é o conjunto COMPLETO para aquele critério: imóvel que não está nela não existe, ' \
-              'e apresentar imóvel fora dela é erro grave. ' \
+              'Apresentar imóvel que não veio na lista é erro grave. ' \
+              'O retorno diz QUANTAS opções existem no critério e quantas estão listadas: quando há mais do que as ' \
+              'listadas, não diga que são todas as disponíveis — pergunte a preferência do cliente e busque de novo ' \
+              'com o filtro dela. ' \
               'Para proximidade geográfica, passe lat/lng (do buscar_localizacao OU da localização que o cliente enviou): ' \
               'retorna os mais próximos, ordenados pela distância em km.'
 
@@ -16,11 +18,20 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                  desc: 'Código do imóvel que o cliente informar (do anúncio, da placa do imóvel, ou do site). Quando presente, busca o imóvel EXATO por esse código — ignore os outros filtros.', required: false
   param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
+  param :titulo, type: 'string',
+                 desc: 'Título do anúncio, quando o cliente chega citando um. Portais de terceiros abrem a conversa ' \
+                       'com o nome do anúncio entre aspas — passe esse texto aqui EXATAMENTE como ele veio, que a ' \
+                       'busca acha o imóvel. Use sozinho: com bairro ou categoria junto, um nome escrito de forma ' \
+                       'diferente da do cadastro faz a busca não achar nada.', required: false
   param :endereco, type: 'string',
                    desc: 'Rua, avenida ou logradouro, quando o cliente especificar. Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
   param :piscina, type: 'boolean', desc: 'true SÓ quando o cliente pedir imóvel COM piscina — filtra pra retornar só os que têm.', required: false
+  param :suite, type: 'boolean',
+                desc: 'true SÓ quando o cliente pedir imóvel COM suíte (quarto com banheiro próprio) — filtra pra ' \
+                      'retornar só os que têm. Quantos quartos ele quer continua indo em `dormitorios`: quem pede ' \
+                      '"2 quartos sendo 1 suíte" quer os dois filtros juntos.', required: false
   param :mobiliado, type: 'boolean',
                     desc: 'true SÓ quando o cliente pedir imóvel MOBILIADO/semimobiliado — filtra pra retornar só os que estão ' \
                           'cadastrados como mobiliados. Use em vez de dizer que vai verificar: a busca já responde.', required: false
@@ -40,6 +51,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # pede uma característica que o Vista NÃO aceita como filtro de listagem — hoje, mobiliado.
   TETO_INSPECAO = 60
 
+  # Quantos imóveis a resposta APRESENTA. É diferente de quantos ela conhece: o cliente não
+  # lê 17 opções numa mensagem, mas a IA precisa saber que existem 17 pra não dizer que são 5.
+  MOSTRAR = 5
+
   # Logradouro + número na descrição do anúncio. Em VENDA a régua do cliente é bairro apenas,
   # porque o endereço exato é o que um concorrente usa pra captar o imóvel do proprietário.
   # O número é opcional E o "nº" antes dele também: "Rua das Palmeiras, 1234" tem que casar
@@ -47,7 +62,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   LOGRADOURO = /\b(?:rua|avenida|av\.|travessa|alameda|rodovia|estrada|praça)\b[^,;.\n]{2,45}(?:,?\s*(?:n[º°o]?\.?\s*)?\d{1,6})?/i
 
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
-              dormitorios: nil, piscina: nil, mobiliado: nil, lat: nil, lng: nil, raio_km: nil, codigo: nil)
+              dormitorios: nil, piscina: nil, mobiliado: nil, suite: nil, titulo: nil,
+              lat: nil, lng: nil, raio_km: nil, codigo: nil)
     # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
     if codigo.present?
       cod = codigo.to_s.gsub(/\D/, '')
@@ -75,10 +91,19 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     end
     # match parcial: cliente diz "Aquarela", base tem "Residencial Aquarela Das Artes"
     filter['Bairro'] = ['like', "%#{bairro}%"] if bairro.present?
+    # Título do anúncio. Portal de terceiro abre a conversa com o nome do anúncio, e ele é o
+    # TituloSite do próprio cadastro: medido em 8 títulos reais de um portal, 6 acharam o
+    # imóvel exato por aqui. Os 2 que não acharam eram anúncio de outra imobiliária no mesmo
+    # portal — e é justamente esse caso que o retorno precisa nomear, em vez de devolver
+    # "nenhum imóvel" e deixar a IA achar que o acervo está vazio.
+    filter['TituloSite'] = ['like', "%#{titulo}%"] if titulo.present?
     filter['Endereco'] = ['like', "%#{endereco}%"] if endereco.present?
     filter['Dormitorios'] = dormitorios if dormitorios.present?
     # Piscina é característica (grupo carac) mas o Vista aceita como filtro de topo (testado).
     filter['Piscina'] = 'Sim' if piscina
+    # Suítes é numérico: o Vista filtra por RANGE, e ['1','10'] é "pelo menos uma". Testado ao
+    # vivo — `Suites: '1'` traria só as de exatamente uma e esconderia a casa de 2 suítes.
+    filter['Suites'] = %w[1 10] if suite
 
     geo = lat.present? && lng.present?
     # O Vista compara Latitude/Longitude como STRING (lexicográfico) — com coordenadas
@@ -86,7 +111,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     imoveis = fetch_vista(filter, quantidade: quantidade_para(geo, mobiliado), venda: venda)
     Rails.logger.info("[BuscarImovel] status=#{status_tipo} categoria=#{categoria.inspect} bairro=#{bairro.inspect} " \
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
-                      "mobiliado=#{mobiliado.inspect} geo=#{geo} => #{imoveis.size} imoveis " \
+                      "mobiliado=#{mobiliado.inspect} suite=#{suite.inspect} geo=#{geo} => #{imoveis.size} imoveis " \
                       "#{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
     if mobiliado
       candidatos = imoveis.size
@@ -96,6 +121,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     track_codigos(tool_context, imoveis)
     track_urls(tool_context, imoveis, venda)
     if imoveis.blank?
+      # Título que não casa é caso próprio, e precisa ser dito com todas as letras: o anúncio
+      # que o cliente viu pode ser de OUTRA imobiliária no mesmo portal. Sem isso o retorno
+      # genérico faz a IA concluir que o acervo está vazio — e foi o que aconteceu quando ela
+      # respondeu que não havia apartamento nenhum tendo 17 no cadastro.
+      return titulo_sem_correspondencia(titulo) if titulo.present?
+
       # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
       return ampliados if ampliados.present?
@@ -117,11 +148,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # por vez. Então a listagem traz um lote maior e o filtro é feito aqui, com o detalhes_info
   # (cacheado). Medido em 28/08: 4 dos 106 imóveis de locação são mobiliados — se este ramo
   # não existisse, a IA continuaria prometendo uma busca que ela não sabe fazer (conv 4809).
-  def quantidade_para(geo, mobiliado)
-    return 50 if geo
-    return TETO_INSPECAO if mobiliado
-
-    5
+  # Pede o teto em todos os ramos, não só nos especiais. A busca comum pedia 5 ao Vista, e
+  # como só se enxerga o que se pede, o total ficava indistinguível de "só existem 5" — foi
+  # assim que a IA afirmou serem "todas as opções" tendo visto 5 de 17. O que continua sendo
+  # apresentado ao cliente são as MOSTRAR primeiras; o resto serve pra saber o total.
+  def quantidade_para(_geo, _mobiliado)
+    TETO_INSPECAO
   end
 
   # Estado explícito, não lista vazia: o modelo precisa saber que a busca ACONTECEU e não
@@ -241,7 +273,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
     return if bairro.blank? && endereco.blank?
 
-    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: 5, venda: venda)
+    # TETO e não 5: este ramo também passa pelo rodapé, e com 5 ele afirmaria que as
+    # alternativas de outros bairros se esgotam nas primeiras.
+    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: TETO_INSPECAO, venda: venda)
     return if imoveis.blank?
 
     track_codigos(tool_context, imoveis)
@@ -362,8 +396,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Numerar dá ao modelo um conjunto fechado e contável pra copiar, em vez de um bloco de
   # texto de onde ele pode "continuar" a lista.
   def format_listings(imoveis, venda, header: nil, detalhado: false)
-    linhas = imoveis.first(5).each_with_index.map { |im, idx| linha_imovel(im, idx, venda, detalhado) }
-    "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape_fechado(linhas.size)}"
+    linhas = imoveis.first(MOSTRAR).each_with_index.map { |im, idx| linha_imovel(im, idx, venda, detalhado) }
+    "#{header || "Encontrei #{imoveis.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape(linhas.size, imoveis.size)}"
   end
 
   def linha_imovel(imovel, idx, venda, detalhado)
@@ -377,10 +411,38 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     desc.present? ? "#{linha}\n#{desc}" : linha
   end
 
+  # "Não existem outras" só pode ser dito quando a lista mostrada É o acervo do critério.
+  # Antes o rodapé afirmava isso sempre, e a busca comum pedia só 5 imóveis ao Vista: numa
+  # conversa real de 01/09 havia 17 apartamentos para locação, a IA viu 5 e disse ao cliente
+  # que eram "todas as opções disponíveis". A trava anti-invenção continua valendo nos dois
+  # ramos — o que muda é parar de transformar truncamento em afirmação.
+  def rodape(mostrados, total)
+    return rodape_fechado(mostrados) if total <= mostrados
+
+    rodape_parcial(mostrados, total)
+  end
+
+  # Estado explícito, como o sem_mobiliado: a busca ACONTECEU e não achou aquele anúncio.
+  # O que NÃO se pode concluir daqui é que não há imóvel — só que não há esse.
+  def titulo_sem_correspondencia(titulo)
+    "Não achei no nosso cadastro nenhum imóvel com o título \"#{titulo}\". Em portal de anúncios " \
+      'aparecem imóveis de várias imobiliárias, então esse anúncio pode não ser nosso. Diga isso ao ' \
+      'cliente com naturalidade e ofereça procurar pelo que ele quer: pergunte o tipo de imóvel, se é ' \
+      'pra alugar ou comprar, o bairro e a faixa de valor, e busque de novo por esses critérios. ' \
+      'NÃO conclua que não temos imóveis — esta busca foi só pelo título.'
+  end
+
   def rodape_fechado(total)
     "São #{total} opção(ões) e não existem outras para este critério. Apresente SOMENTE imóvel " \
       'desta lista, sempre com o código dele. Se nada aqui servir, faça outra busca — nunca ' \
       'complete a lista de memória nem cite imóvel que não veio numa busca desta conversa.'
+  end
+
+  def rodape_parcial(mostrados, total)
+    "Estas são #{mostrados} das #{total} opções que existem neste critério — há mais. NÃO diga " \
+      'que são todas as disponíveis. Apresente SOMENTE imóvel desta lista, sempre com o código ' \
+      'dele, e nunca complete a lista de memória. Se o cliente quiser ver outras, pergunte o que ' \
+      'ele prefere (bairro, faixa de valor, nº de quartos) e busque de novo com esse filtro.'
   end
 
   # Condomínio/IPTU só quando o Vista traz o valor (>0); nunca inventa. Taxa de lixo o Vista não tem.

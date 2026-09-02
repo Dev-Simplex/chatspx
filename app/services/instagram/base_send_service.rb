@@ -28,6 +28,14 @@ class Instagram::BaseSendService < Base::SendOnChannelService
     end
   end
 
+  # ⚠️ Este caminho e o `send_cards` são os únicos que montam ARRAY aninhado, e por isso são os
+  # únicos que dependem do corpo sair em JSON. Com o corpo indo como Hash, o HTTParty serializa
+  # em form-urlencoded e um array de hashes vira `attachments[][type]=image&...` — SEM índice.
+  # A Meta agrupa por chave e não consegue parear os elementos, respondendo
+  # `100 - The parameter message[attachments][1][type] is required`. Medido na Tozi: 3 de 3
+  # mensagens com 3 imagens falharam, contra 209 de 209 entregues quando havia 1 anexo só (que
+  # não monta array). Ver `send_message` nos dois serviços de envio.
+  #
   # Agrupa só quando TODO anexo é imagem: `attachments[]` aceita `image` e mais nada, e um
   # tipo diferente no meio derrubaria a requisição inteira. Nesse caso o envio cai no
   # caminho de sempre, um POST por anexo.

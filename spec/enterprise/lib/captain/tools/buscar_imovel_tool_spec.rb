@@ -248,8 +248,11 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(tool.send(:quantidade_para, false, true)).to eq(described_class::TETO_INSPECAO)
     end
 
-    it 'keeps the default page size when nobody asked for it' do
-      expect(tool.send(:quantidade_para, false, nil)).to eq(5)
+    # Antes a busca comum pedia 5 ao Vista, e só se enxerga o que se pede: o total ficava
+    # indistinguível de "só existem 5". Numa conversa de 01/09 havia 17 apartamentos para
+    # locação, a IA viu 5 e disse ao cliente que eram todas as opções.
+    it 'asks for the ceiling in the ordinary search too, so the total is knowable' do
+      expect(tool.send(:quantidade_para, false, nil)).to eq(described_class::TETO_INSPECAO)
     end
 
     it 'reports the search as done, not as pending, when nothing matches' do
@@ -257,6 +260,119 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
 
       expect(texto).to include('Conferi 12')
       expect(texto).to match(/não prometa nova busca/i)
+    end
+  end
+
+  # Conv 32979: a cliente abriu com "casa pra alugar com dois quartos sendo uma suíte" e recebeu
+  # cinco casas, das quais QUATRO tinham Suites=0 no Vista. Não foi desatenção do modelo — a
+  # ferramenta não tinha por onde filtrar. No acervo de locação daquele dia havia 22 casas de 2
+  # quartos e apenas 3 com suíte; a busca ordenou por distância, cortou nas 5 mais próximas, e
+  # duas das três com suíte nunca apareceram — uma delas mais barata que três das oferecidas.
+  describe 'suíte' do
+    # Suites é numérico e o Vista filtra por RANGE. Testado ao vivo contra o acervo: com
+    # `['1','10']` voltam as 3 casas (de 1 e de 2 suítes); com `'1'` voltam 2, porque a de duas
+    # fica de fora. O range é o que exprime "pelo menos uma".
+    def filtro_de(**args)
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) do |filter, **_|
+        capturado ||= filter
+        []
+      end
+      tool.perform(tool_context, status_tipo: 'locacao', **args)
+      capturado
+    end
+
+    it 'asks the Vista for at least one suite, not for exactly one' do
+      expect(filtro_de(categoria: 'Casa', dormitorios: 2, suite: true)['Suites']).to eq(%w[1 10])
+    end
+
+    it 'does not constrain suites when the client did not ask for one' do
+      expect(filtro_de(categoria: 'Casa', dormitorios: 2)).not_to have_key('Suites')
+    end
+
+    # "2 quartos sendo 1 suíte" são dois filtros, não um: quem pede suíte não abre mão do
+    # número de quartos, e foi assim que a cliente falou.
+    it 'keeps the bedroom count alongside the suite filter' do
+      filtro = filtro_de(categoria: 'Casa', dormitorios: 2, suite: true)
+
+      expect(filtro['Dormitorios']).to eq(2)
+      expect(filtro['Suites']).to eq(%w[1 10])
+    end
+
+    # Sem imóvel com suíte no bairro pedido, a alternativa em outro bairro precisa continuar
+    # tendo suíte — senão a ampliação devolve justamente o que o cliente recusou.
+    it 'carries the suite filter into the wider search that drops the neighbourhood' do
+      filter = { 'Categoria' => 'Casa', 'Bairro' => ['like', '%Delta%'], 'Suites' => %w[1 10] }
+      recebido = nil
+      allow(tool).to receive(:fetch_vista) do |f, **_|
+        recebido = f
+        []
+      end
+
+      tool.send(:ampliar_sem_bairro, tool_context, filter, false, 'Delta', nil)
+
+      expect(recebido['Suites']).to eq(%w[1 10])
+      expect(recebido).not_to have_key('Bairro')
+    end
+  end
+
+  # "Não existem outras" só é verdade quando a lista mostrada É o acervo do critério. O rodapé
+  # afirmava isso sempre — e a apresentação corta em MOSTRAR, então a afirmação era falsa em
+  # todo critério com mais opções que isso.
+  describe 'o rodapé sobre o total' do
+    it 'closes the set only when everything found is on the list' do
+      texto = tool.send(:rodape, 3, 3)
+
+      expect(texto).to include('não existem outras')
+    end
+
+    it 'says how many exist when the list was cut' do
+      texto = tool.send(:rodape, 5, 17)
+
+      expect(texto).to include('5 das 17')
+      expect(texto).to match(/N[ÃA]O diga que são todas/i)
+      expect(texto).not_to include('não existem outras')
+    end
+
+    # A trava anti-invenção vale nos DOIS ramos: dizer que há mais não pode virar licença
+    # para o modelo completar a lista de memória, que é o defeito que o rodapé fechado veio
+    # resolver na conv 4809.
+    it 'keeps the anti-invention rule in both endings' do
+      textos = [tool.send(:rodape, 3, 3), tool.send(:rodape, 5, 17)]
+
+      expect(textos).to all(match(/SOMENTE im[óo]vel desta lista/i))
+      expect(textos).to all(match(/nunca complete a lista de mem[óo]ria/i))
+    end
+  end
+
+  # Conv 33006: o cliente chegou por um portal de terceiros, que abre a conversa com o nome do
+  # anúncio entre aspas. A página do portal não serve pra nada (é SPA: o og:title é genérico do
+  # site), mas o título É o TituloSite do próprio cadastro — medido em 8 títulos reais, 6
+  # acharam o imóvel exato.
+  describe 'anúncio de portal de terceiro' do
+    it 'searches the Vista by the advert title the client pasted' do
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) do |filter, **_|
+        capturado ||= filter
+        []
+      end
+
+      tool.perform(tool_context, status_tipo: 'locacao', titulo: 'CASA JD TERRA RICA')
+
+      expect(capturado['TituloSite']).to eq(['like', '%CASA JD TERRA RICA%'])
+    end
+
+    # Os 2 títulos que não casaram eram anúncio de OUTRA imobiliária no mesmo portal. Devolver
+    # "nenhum imóvel encontrado" ali fez a IA dizer ao cliente que não havia apartamento nenhum
+    # — havia 17. O retorno tem que separar "não achei ESTE" de "não temos imóveis".
+    it 'says the advert may belong to another agency instead of implying an empty catalogue' do
+      allow(tool).to receive(:fetch_vista).and_return([])
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', titulo: 'APARTAMENTO QUE NAO E NOSSO')
+
+      expect(texto).to include('pode não ser nosso')
+      expect(texto).to match(/N[ÃA]O conclua que não temos imóveis/i)
+      expect(texto).not_to eq('Nenhum imóvel encontrado com esses critérios.')
     end
   end
 end
