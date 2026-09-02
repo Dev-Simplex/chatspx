@@ -10,6 +10,53 @@
 
 ## 🚧 Em andamento
 
+### [2026-09-01] 🟢 FRENTE CAMPANHAS — o módulo fecha (PR #89) · contrato em `docs/contratos/campanhas.md`
+
+> Pedido do Paulo: *"quero campanhas completo"*. O levantamento inverteu a expectativa: o motor
+> e a API **já estavam prontos**, e a tela usava parte deles.
+
+- 🔴 **ERRO MEU DE DIAGNÓSTICO, corrigido no meio:** reportei que "a tela não usa nada da API".
+  Falso — eu tinha lido só o `WhatsAppCampaignForm` (criação) e não o **`DispatchPanel`**, que
+  fica no detalhe e **já fazia** upload de lista, preview de audiência com os 9 motivos de
+  descarte, materialização, start, pause e progresso com polling. **Ler o componente que a rota
+  monta, não o que o nome sugere.**
+- 🔴 **Segunda correção:** minha nota dizia que sem `target_team_id` o motor *"envia e marca
+  failed"*. Não é isso — a conversa nasce com **`team_id` nulo**, e o reply do lead cai sem time
+  e sem dono. É o mesmo buraco que a regra #73 fechou à mão em 14/08.
+- ✅ **Opt-out que GRAVA.** A `contact_flow_suppressions` tinha **ZERO linhas na instância
+  inteira**, e não por falta de leitor (o `AudienceBuilderService` já tem `optou_por_sair`).
+  Dois furos: o gravador só rodava dentro do `run_flows` (exige `flows_engine_enabled?`, falso
+  na conta 6) e o matcher exigia **match exato** contra `parar|sair|stop|cancelar` — que
+  capturou **zero** mensagens desde sempre.
+  - **Substring seria pior:** *"Nao tenho interesse em compra. **Gostaria de opções de casa para
+    locação**"* e *"não tenho interesse... **to com um terreno pra colocar a venda**"* são leads
+    quentes. Comprimento também não serve: *"Obrigada, mas não tenho interesse."* tem 34 chars.
+  - **Critério = DOMINÂNCIA:** é opt-out quando, tiradas a recusa, as saudações e as cortesias,
+    **não sobra pedido**. Medido em 7.145 mensagens: 305 têm frase de recusa, **233 dominadas**
+    (232 contatos), 72 mantidas por terem pedido junto.
+  - **Escala do dano hoje:** 452 contatos pediram para parar e **12 receberam disparo depois** —
+    um pediu em janeiro e recebeu em agosto.
+- ✅ **Configuração do motor na tela** (`DispatchSettings`): time, corretor, pacing, janela e
+  health gate saíram do console. A tela diz o que não é óbvio — sem time a conversa fica sem
+  dono; atribuir pessoa **só vale em caixa sem IA**; a janela é por **hora cheia** (o motor
+  compara `Time.current.hour`, então 16:30 não é expressável).
+- ✅ **Público pela BASE** (`SegmentService`): etiqueta, time, caixa, campanha anterior (ou quem
+  **não** recebeu), recência e "nunca recebeu nada". Devolve as mesmas `rows` do upload e
+  desemboca no mesmo `recipient_rows` — **uma higiene só**. "Recebeu campanha" lê os **dois
+  motores**, que é o que faltava quando 294 pessoas levaram o mesmo assunto duas vezes.
+  Critérios se **somam**; sem critério o botão fica desabilitado (a base inteira não é público).
+- ✅ **Modelo de planilha baixável** (com BOM, senão o Excel estraga os acentos) e **XLSX
+  recusado com instrução** — antes virava "0 linhas" sem dizer por quê. Não entrou dependência
+  nova de front: repo de produção.
+- **Medido:** **76 exemplos / 0 falhas** · rubocop **2 = 2** do baseline (pré-existentes no
+  `campaign_stats`) · eslint **0 erros** nos 3 arquivos de front (baseline tinha 6) · i18n `en`
+  e `pt_BR`.
+- ⚠️ **Erro meu recorrente, 2ª vez no dia:** o modificador `/x` no regex ignora espaços
+  literais — `não tenho interesse` virou `nãotenhointeresse` e a 1ª medição deu **0 de 305**.
+- ⏭️ **Pendente de autorização:** backfill dos **232 contatos** que já pediram para parar. É
+  escrita em produção.
+- ⏭️ **Tela NÃO verificada visualmente** — só fecha depois de deploy.
+
 ### [2026-09-01] 🟢 O FOLLOW-UP AUTOMÁTICO JÁ EXISTIA — e estava desligado por um gate invisível
 
 > O Paulo apontou a conv 32835 (parada 55h sem cutucada). A causa não é o modelo esquecer:
