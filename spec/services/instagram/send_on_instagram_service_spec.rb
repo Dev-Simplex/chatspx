@@ -325,4 +325,57 @@ describe Instagram::SendOnInstagramService do
       end
     end
   end
+
+  # O corpo tem que sair em JSON. Indo como Hash, o HTTParty serializa em form-urlencoded e
+  # um array de hashes vira `attachments[][type]=image&attachments[][payload][url]=...` — SEM
+  # índice. A Meta agrupa por chave, não consegue parear os elementos e recusa com
+  # `100 - The parameter message[attachments][1][type] is required`. Medido na Tozi (conta 6,
+  # inbox de Instagram): 3 de 3 mensagens com 3 imagens falharam, contra 209 de 209 entregues
+  # quando havia um anexo só — que não monta array e por isso escapava do defeito.
+  describe 'the request body' do
+    let(:message) do
+      create(:message, message_type: 'outgoing', content: 'Olá', inbox: instagram_inbox,
+                       account: account, conversation: conversation)
+    end
+
+    def corpo_enviado
+      capturado = nil
+      allow(HTTParty).to receive(:post) do |_url, opts|
+        capturado ||= opts
+        mock_response
+      end
+      described_class.new(message: message).perform
+      capturado
+    end
+
+    it 'goes out as JSON, not as form-encoded parameters' do
+      opts = corpo_enviado
+
+      expect(opts[:headers]).to include('Content-Type' => 'application/json')
+      expect(opts[:body]).to be_a(String)
+      expect(JSON.parse(opts[:body])).to include('message' => hash_including('text' => 'Olá'))
+    end
+
+    context 'when the message carries several images' do
+      let(:message) do
+        create(:message, message_type: 'outgoing', content: '', inbox: instagram_inbox,
+                         account: account, conversation: conversation).tap do |m|
+          2.times do
+            m.attachments.create!(account_id: account.id, file_type: :image,
+                                  external_url: 'https://cdn.example.com/f.jpg')
+          end
+        end
+      end
+
+      # É esta a asserção que o defeito quebrava: cada elemento precisa chegar com o SEU `type`,
+      # e em form-urlencoded os três `type` chegavam soltos, sem dizer de quem eram.
+      it 'keeps every attachment paired with its own type' do
+        enviados = JSON.parse(corpo_enviado[:body]).dig('message', 'attachments')
+
+        expect(enviados.size).to eq(2)
+        expect(enviados).to all(include('type' => 'image'))
+        expect(enviados).to all(include('payload' => hash_including('url')))
+      end
+    end
+  end
 end
