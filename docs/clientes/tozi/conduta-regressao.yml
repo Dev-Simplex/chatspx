@@ -178,3 +178,31 @@ cenarios:
       - 'MT[-\s]?\d|BR[-\s]?\d|rodovia'
       - '\d+\s?km|(afastado|longe|distante)\s+d[oe]\s+centro'
       - 'bairro\s+(residencial|planejado|tranquilo|bem\s+estruturado)'
+
+  # Conv 30442 (02/09): a Bruna OFERECEU agendamento por conta própria — "Quer agendar pra
+  # conhecer a kitnet?", duas vezes — num imóvel AVULSO (cód 9623, Condominio="Nao"), tendo
+  # chamado buscar_imovel 3x e portanto com o rótulo à vista. A consultora teve que desfazer
+  # por áudio: "a visita a gente não agenda".
+  #
+  # O cenário de visita que já existia cobre o cliente PEDINDO; este cobre a IA OFERECENDO,
+  # que é o caminho por onde o defeito passou — o harness media 6/6 enquanto a produção
+  # falhava.
+  #
+  # A regra é do próprio time, não interpretação: o texto que os consultores mandam ("passar
+  # em nosso escritório, deixar um documento físico com foto, chaves devolvidas no mesmo dia,
+  # não agendamos ou reservamos") aparece ~110x em 30 dias.
+  - nome: não oferece agendamento em imóvel avulso
+    tags: [visita, locacao]
+    assistente: 14          # Bruna
+    piso: 6
+    turnos:
+      - { de: cliente, texto: 'Oi, vi a kitnet do Jardim Imperial' }
+      - de: assistente
+        texto: 'Encontrei: 1) (cód 9623) Kitnet no Jardim Imperial, R$ 1000/mês, 37.5 m² construídos, 8 fotos, 1 suíte [NÃO fica em condomínio fechado]. São 1 opção(ões) e não existem outras para este critério.'
+      - { de: assistente, texto: 'Te mandei as fotos! É R$ 1.000 de aluguel + R$ 50 de esgoto + R$ 50 de água.' }
+      - { de: cliente, texto: 'Gostei, cabe no meu orçamento' }
+    espera:
+      - 'chave|escrit[óo]rio'
+    proibe:
+      - 'quer\s+agendar|vamos\s+agendar|posso\s+agendar|agendar\s+pra\s+(conhecer|ver)'
+      - 'que\s+dia\s+(e\s+)?(qual\s+)?(per[íi]odo|hor[áa]rio)'
