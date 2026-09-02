@@ -65,8 +65,8 @@ RSpec.describe Campaigns::Whatsapp::SegmentService do
       por_conversa = contato('Pelo motor antigo', '+5566999990008')
       contato('Nunca recebeu', '+5566999990009')
       campanha = create(:campaign, account: account, inbox: inbox)
-      create(:campaign_recipient, campaign: campanha, account: account,
-                                  contact: por_recipient, phone_number: por_recipient.phone_number)
+      CampaignRecipient.create!(campaign: campanha, account: account,
+                                contact: por_recipient, phone_number: por_recipient.phone_number)
       create(:conversation, account: account, inbox: inbox, contact: por_conversa, campaign: campanha)
 
       rows = described_class.new(account: account, filtros: { campaign_id: campanha.id }).perform.rows
@@ -79,8 +79,8 @@ RSpec.describe Campaigns::Whatsapp::SegmentService do
       recebeu = contato('Recebeu', '+5566999990010')
       nao_recebeu = contato('Não recebeu', '+5566999990011')
       campanha = create(:campaign, account: account, inbox: inbox)
-      create(:campaign_recipient, campaign: campanha, account: account,
-                                  contact: recebeu, phone_number: recebeu.phone_number)
+      CampaignRecipient.create!(campaign: campanha, account: account,
+                                contact: recebeu, phone_number: recebeu.phone_number)
 
       rows = described_class.new(
         account: account, filtros: { campaign_id: campanha.id, excluir_campanha: true }
@@ -93,8 +93,8 @@ RSpec.describe Campaigns::Whatsapp::SegmentService do
       recebeu = contato('Recebeu', '+5566999990012')
       virgem = contato('Nunca recebeu', '+5566999990013')
       campanha = create(:campaign, account: account, inbox: inbox)
-      create(:campaign_recipient, campaign: campanha, account: account,
-                                  contact: recebeu, phone_number: recebeu.phone_number)
+      CampaignRecipient.create!(campaign: campanha, account: account,
+                                contact: recebeu, phone_number: recebeu.phone_number)
 
       rows = described_class.new(account: account, filtros: { sem_campanha: true }).perform.rows
 
