@@ -99,16 +99,22 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # abortar o disparo dele, com o match exato que sempre teve. Aqui é a rede que faltava, e
   # `record_opt_out!` é idempotente — os dois caminhos coexistem sem conflito.
   def registrar_opt_out(account, conversation, payload)
-    message = payload[:message]
-    return unless message&.incoming? && !message.private?
-    return unless Contacts::OptOutDetector.opt_out?(message.content)
-
     contact = conversation&.contact
-    ContactFlowSuppression.record_opt_out!(contact: contact, account: account) if contact.present?
+    return if contact.blank?
+    return unless mensagem_de_opt_out?(payload[:message])
+
+    ContactFlowSuppression.record_opt_out!(contact: contact, account: account)
   rescue StandardError => e
     # Compliance não pode derrubar o pipeline de automação: sem o rescue, uma falha aqui
     # calaria TODAS as automations da conta no evento.
     Rails.logger.error("[opt-out] não consegui registrar para a conversa #{conversation&.id}: #{e.class}: #{e.message}")
+  end
+
+  def mensagem_de_opt_out?(message)
+    return false unless message&.incoming?
+    return false if message.private?
+
+    Contacts::OptOutDetector.opt_out?(message.content)
   end
 
   # O motor Flow só assume quando a flag está ligada E a conta já tem flows (o backfill
