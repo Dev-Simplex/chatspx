@@ -1,45 +1,51 @@
-<p>Hi <%= @resource.name %>,</p>
+<%# Traduzido em 31/08/2026. Este template SOBREPOE o de app/views/devise/mailer/, que ja estava em
+    portugues: quem recebia convite lia o e-mail em ingles, com o assunto em portugues. Nao da para
+    apagar este arquivo, ele tem os caminhos de SSO/SAML que o outro nao tem. %>
+<p>Olá <%= @resource.name %>,</p>
 
 <% account_user = @resource&.account_users&.first %>
 <% is_saml_account = account_user&.account&.saml_enabled? %>
 
 <% if account_user&.inviter.present? && @resource.unconfirmed_email.blank? %>
   <% if is_saml_account %>
-    <p><%= account_user.inviter.name %>, with <%= account_user.account.name %>, has invited you to access <%= global_config['BRAND_NAME'] || 'Chatwoot' %> via Single Sign-On (SSO).</p>
-    <p>Your organization uses SSO for secure authentication. You will not need a password to access your account.</p>
+    <p><%= account_user.inviter.name %>, da <%= account_user.account.name %>, convidou você para acessar o <%= global_config['BRAND_NAME'] || 'SPX - CHAT' %> com login único (SSO).</p>
+    <p>Sua organização usa SSO para autenticação. Você não vai precisar de senha para entrar na sua conta.</p>
   <% else %>
-    <p><%= account_user.inviter.name %>, with <%= account_user.account.name %>, has invited you to try out <%= global_config['BRAND_NAME'] || 'Chatwoot' %>.</p>
+    <p><%= account_user.inviter.name %>, da <%= account_user.account.name %>, convidou você para usar o <%= global_config['BRAND_NAME'] || 'SPX - CHAT' %>.</p>
   <% end %>
 <% end %>
 
 <% if @resource.confirmed? %>
-  <p>You can login to your <%= global_config['BRAND_NAME'] || 'Chatwoot' %> account through the link below:</p>
+  <p>Você pode entrar na sua conta do <%= global_config['BRAND_NAME'] || 'SPX - CHAT' %> pelo link abaixo:</p>
 <% else %>
   <% if account_user&.inviter.blank? %>
   <p>
-    Welcome to <%= global_config['BRAND_NAME'] || 'Chatwoot' %>! We have a suite of powerful tools ready for you to explore. Before that we quickly need to verify your email address to know it's really you.
+    Boas-vindas ao <%= global_config['BRAND_NAME'] || 'SPX - CHAT' %>! Temos um conjunto de ferramentas prontas para você explorar. Antes disso, precisamos confirmar seu endereço de e-mail para saber que é você mesmo.
   </p>
   <% end %>
   <% unless is_saml_account %>
-  <p>Please take a moment and click the link below and activate your account.</p>
+  <p>Clique no link abaixo para ativar sua conta.</p>
   <% end %>
 <% end %>
 
 
 <% if @resource.unconfirmed_email.present? %>
-  <p><%= link_to 'Confirm my account', frontend_url('auth/confirmation', confirmation_token: @token) %></p>
+  <p><%= link_to 'Confirmar minha conta', frontend_url('auth/confirmation', confirmation_token: @token) %></p>
 <% elsif @resource.confirmed? %>
   <% if is_saml_account %>
-    <p>You can now access your account by logging in through your organization's SSO portal.</p>
+    <p>Agora você já pode entrar na sua conta pelo portal de SSO da sua organização.</p>
   <% else %>
-    <p><%= link_to 'Login to my account', frontend_url('auth/sign_in') %></p>
+    <p><%= link_to 'Entrar na minha conta', frontend_url('auth/sign_in') %></p>
   <% end %>
 <% elsif account_user&.inviter.present? %>
   <% if is_saml_account %>
-    <p>You can access your account by logging in through your organization's SSO portal.</p>
+    <p>Você pode acessar sua conta entrando pelo portal de SSO da sua organização.</p>
   <% else %>
-    <p><%= link_to 'Confirm my account', frontend_url('auth/password/edit', reset_password_token: @resource.send(:set_reset_password_token)) %></p>
+    <p><%= link_to 'Confirmar minha conta', frontend_url('auth/password/edit', reset_password_token: @resource.send(:set_reset_password_token)) %></p>
+    <%# Link novo cancela os anteriores: so existe um token por pessoa. Sem este aviso, quem tem dois
+        e-mails na caixa clica no antigo e leva "link invalido" sem entender o motivo. %>
+    <p>Use sempre o e-mail mais recente: ao pedir um link novo, os anteriores param de funcionar.</p>
   <% end %>
 <% else %>
-  <p><%= link_to 'Confirm my account', frontend_url('auth/confirmation', confirmation_token: @token) %></p>
+  <p><%= link_to 'Confirmar minha conta', frontend_url('auth/confirmation', confirmation_token: @token) %></p>
 <% end %>
