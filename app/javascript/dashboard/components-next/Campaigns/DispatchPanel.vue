@@ -33,7 +33,9 @@ const todasCampanhas = useMapGetter('campaigns/getAllCampaigns');
 // Repescar (ou evitar) quem recebeu um disparo anterior só faz sentido contra campanha que
 // de fato enviou alguma coisa.
 const campanhasAnteriores = computed(() =>
-  (todasCampanhas.value || []).filter(c => Number(c.id) !== Number(props.campaignId))
+  (todasCampanhas.value || []).filter(
+    c => Number(c.id) !== Number(props.campaignId)
+  )
 );
 
 // Ordem de leitura do funil — nao alfabetica.
@@ -52,7 +54,10 @@ const STATUS_ORDER = [
 const isRunning = computed(() => props.dispatchStatus === 'running');
 
 const totalRecipients = computed(() =>
-  Object.values(props.recipients || {}).reduce((sum, n) => sum + Number(n || 0), 0)
+  Object.values(props.recipients || {}).reduce(
+    (sum, n) => sum + Number(n || 0),
+    0
+  )
 );
 
 const pendingCount = computed(() => Number(props.recipients?.pending || 0));
@@ -87,7 +92,10 @@ const parseRows = text =>
       );
       if (phoneIndex === -1) return null;
       return {
-        name: parts.filter((_, i) => i !== phoneIndex).join(' ').trim(),
+        name: parts
+          .filter((_, i) => i !== phoneIndex)
+          .join(' ')
+          .trim(),
         phone: parts[phoneIndex],
       };
     })
@@ -120,8 +128,10 @@ const onFile = event => {
 // formato pelo erro. Vai com BOM porque o Excel abre CSV sem BOM em Latin-1 e estraga os
 // acentos do nome — e aí o "João" que volta no upload não é o mesmo que saiu.
 const baixarModelo = () => {
-  const conteudo = `﻿nome,telefone\nMaria Silva,66999998888\nJoão Souza,6699998888\n`;
-  const url = URL.createObjectURL(new Blob([conteudo], { type: 'text/csv;charset=utf-8' }));
+  const conteudo = `\uFEFFnome,telefone\nMaria Silva,66999998888\nJoão Souza,6699998888\n`;
+  const url = URL.createObjectURL(
+    new Blob([conteudo], { type: 'text/csv;charset=utf-8' })
+  );
   const link = document.createElement('a');
   link.href = url;
   link.download = 'modelo-lista-disparo.csv';
@@ -174,14 +184,24 @@ const semCriterio = computed(() => {
 
 // Sem critério nenhum o segmento seria "a base inteira" — e disparo para a base inteira
 // nunca é o que alguém quis fazer de propósito.
-const podeSegmentar = computed(() => origem.value === 'segmento' && !semCriterio.value);
-const podeEnviarPlanilha = computed(() => origem.value === 'planilha' && parsedRows.value.length > 0);
+const podeSegmentar = computed(
+  () => origem.value === 'segmento' && !semCriterio.value
+);
+const podeEnviarPlanilha = computed(
+  () => origem.value === 'planilha' && parsedRows.value.length > 0
+);
 const pronto = computed(() => podeSegmentar.value || podeEnviarPlanilha.value);
 
 const filtrosLimpos = () => {
   const s = { ...segmento.value };
   Object.keys(s).forEach(k => {
-    if (s[k] === null || s[k] === false || s[k] === '' || (Array.isArray(s[k]) && !s[k].length)) delete s[k];
+    if (
+      s[k] === null ||
+      s[k] === false ||
+      s[k] === '' ||
+      (Array.isArray(s[k]) && !s[k].length)
+    )
+      delete s[k];
   });
   return s;
 };
@@ -272,7 +292,9 @@ const doPause = async () => {
 
     <!-- Progresso: so aparece quando ha destinatario carregado -->
     <div v-if="totalRecipients" class="mb-5">
-      <div class="flex items-center justify-between mb-1 text-xs text-n-slate-11">
+      <div
+        class="flex items-center justify-between mb-1 text-xs text-n-slate-11"
+      >
         <span>
           {{
             t('CAMPAIGN.WHATSAPP.DISPATCH.PROGRESS', {
@@ -408,7 +430,9 @@ const doPause = async () => {
             class="w-full text-sm rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
           />
         </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer text-n-slate-11">
+        <label
+          class="flex items-center gap-2 text-xs cursor-pointer text-n-slate-11"
+        >
           <input v-model="segmento.sem_campanha" type="checkbox" />
           {{ t('CAMPAIGN.WHATSAPP.DISPATCH.SEGMENT.NEVER') }}
         </label>
@@ -420,7 +444,10 @@ const doPause = async () => {
     </div>
 
     <!-- Lista -->
-    <div v-if="origem === 'planilha'" class="flex items-center justify-between mb-1">
+    <div
+      v-if="origem === 'planilha'"
+      class="flex items-center justify-between mb-1"
+    >
       <label class="text-xs font-medium text-n-slate-11">
         {{ t('CAMPAIGN.WHATSAPP.DISPATCH.LIST_LABEL') }}
       </label>
@@ -470,7 +497,10 @@ const doPause = async () => {
       </div>
     </div>
 
-    <div v-if="busy === 'preview' || busy === 'upload'" class="flex py-6 justify-center">
+    <div
+      v-if="busy === 'preview' || busy === 'upload'"
+      class="flex py-6 justify-center"
+    >
       <Spinner />
     </div>
 
@@ -506,7 +536,9 @@ const doPause = async () => {
             <td class="py-1.5 text-n-slate-11">
               {{ t(`CAMPAIGN.WHATSAPP.DISPATCH.REASONS.${reason}`) }}
             </td>
-            <td class="py-1.5 font-medium text-right tabular-nums text-n-slate-12">
+            <td
+              class="py-1.5 font-medium text-right tabular-nums text-n-slate-12"
+            >
               {{ count }}
             </td>
           </tr>

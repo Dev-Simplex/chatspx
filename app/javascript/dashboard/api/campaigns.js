@@ -16,7 +16,10 @@ class CampaignsAPI extends ApiClient {
   // gravar destinatario nenhum. E o passo que impede montar disparo em cima de
   // lista errada — o nome do arquivo mente.
   audiencePreview(id, rows, blocklist = []) {
-    return axios.post(`${this.url}/${id}/audience_preview`, { rows, blocklist });
+    return axios.post(`${this.url}/${id}/audience_preview`, {
+      rows,
+      blocklist,
+    });
   }
 
   // Carrega a lista (upload) de destinatarios — rows: [{ name, phone }].
