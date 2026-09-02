@@ -146,9 +146,10 @@ RSpec.describe Captain::ConversationEvalService do
     end
 
     it 'says who spoke last, how long ago, and whether anybody owns it' do
-      m = create(:message, account: account, inbox: inbox, conversation: conversation,
-                           message_type: :outgoing, content: 'qual bairro você prefere?')
-      m.update_columns(created_at: 30.hours.ago)
+      travel_to(30.hours.ago) do
+        create(:message, account: account, inbox: inbox, conversation: conversation,
+                         message_type: :outgoing, content: 'qual bairro você prefere?')
+      end
 
       texto = service.send(:desfecho_context)
 
@@ -159,9 +160,10 @@ RSpec.describe Captain::ConversationEvalService do
 
     # Cutucada programada é o que separa "abandonado" de "vai ser retomado".
     it 'reports the nudge so a scheduled follow-up is not read as abandonment' do
-      m = create(:message, account: account, inbox: inbox, conversation: conversation,
-                           message_type: :outgoing, content: 'ainda está aí?')
-      m.update_columns(created_at: 30.hours.ago)
+      travel_to(30.hours.ago) do
+        create(:message, account: account, inbox: inbox, conversation: conversation,
+                         message_type: :outgoing, content: 'ainda está aí?')
+      end
       conversation.update!(custom_attributes: { 'followup_count' => 2 })
 
       expect(service.send(:desfecho_context)).to include('sim, 2 já disparada(s)')
