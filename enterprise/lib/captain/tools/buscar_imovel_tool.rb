@@ -18,6 +18,11 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                  desc: 'Código do imóvel que o cliente informar (do anúncio, da placa do imóvel, ou do site). Quando presente, busca o imóvel EXATO por esse código — ignore os outros filtros.', required: false
   param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
+  param :titulo, type: 'string',
+                 desc: 'Título do anúncio, quando o cliente chega citando um. Portais de terceiros abrem a conversa ' \
+                       'com o nome do anúncio entre aspas — passe esse texto aqui EXATAMENTE como ele veio, que a ' \
+                       'busca acha o imóvel. Use sozinho: com bairro ou categoria junto, um nome escrito de forma ' \
+                       'diferente da do cadastro faz a busca não achar nada.', required: false
   param :endereco, type: 'string',
                    desc: 'Rua, avenida ou logradouro, quando o cliente especificar. Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
@@ -57,8 +62,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   LOGRADOURO = /\b(?:rua|avenida|av\.|travessa|alameda|rodovia|estrada|praça)\b[^,;.\n]{2,45}(?:,?\s*(?:n[º°o]?\.?\s*)?\d{1,6})?/i
 
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
-              dormitorios: nil, piscina: nil, mobiliado: nil, suite: nil, lat: nil, lng: nil,
-              raio_km: nil, codigo: nil)
+              dormitorios: nil, piscina: nil, mobiliado: nil, suite: nil, titulo: nil,
+              lat: nil, lng: nil, raio_km: nil, codigo: nil)
     # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
     if codigo.present?
       cod = codigo.to_s.gsub(/\D/, '')
@@ -86,6 +91,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     end
     # match parcial: cliente diz "Aquarela", base tem "Residencial Aquarela Das Artes"
     filter['Bairro'] = ['like', "%#{bairro}%"] if bairro.present?
+    # Título do anúncio. Portal de terceiro abre a conversa com o nome do anúncio, e ele é o
+    # TituloSite do próprio cadastro: medido em 8 títulos reais de um portal, 6 acharam o
+    # imóvel exato por aqui. Os 2 que não acharam eram anúncio de outra imobiliária no mesmo
+    # portal — e é justamente esse caso que o retorno precisa nomear, em vez de devolver
+    # "nenhum imóvel" e deixar a IA achar que o acervo está vazio.
+    filter['TituloSite'] = ['like', "%#{titulo}%"] if titulo.present?
     filter['Endereco'] = ['like', "%#{endereco}%"] if endereco.present?
     filter['Dormitorios'] = dormitorios if dormitorios.present?
     # Piscina é característica (grupo carac) mas o Vista aceita como filtro de topo (testado).
@@ -110,6 +121,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     track_codigos(tool_context, imoveis)
     track_urls(tool_context, imoveis, venda)
     if imoveis.blank?
+      # Título que não casa é caso próprio, e precisa ser dito com todas as letras: o anúncio
+      # que o cliente viu pode ser de OUTRA imobiliária no mesmo portal. Sem isso o retorno
+      # genérico faz a IA concluir que o acervo está vazio — e foi o que aconteceu quando ela
+      # respondeu que não havia apartamento nenhum tendo 17 no cadastro.
+      return titulo_sem_correspondencia(titulo) if titulo.present?
+
       # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
       return ampliados if ampliados.present?
@@ -403,6 +420,16 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return rodape_fechado(mostrados) if total <= mostrados
 
     rodape_parcial(mostrados, total)
+  end
+
+  # Estado explícito, como o sem_mobiliado: a busca ACONTECEU e não achou aquele anúncio.
+  # O que NÃO se pode concluir daqui é que não há imóvel — só que não há esse.
+  def titulo_sem_correspondencia(titulo)
+    "Não achei no nosso cadastro nenhum imóvel com o título \"#{titulo}\". Em portal de anúncios " \
+      'aparecem imóveis de várias imobiliárias, então esse anúncio pode não ser nosso. Diga isso ao ' \
+      'cliente com naturalidade e ofereça procurar pelo que ele quer: pergunte o tipo de imóvel, se é ' \
+      'pra alugar ou comprar, o bairro e a faixa de valor, e busque de novo por esses critérios. ' \
+      'NÃO conclua que não temos imóveis — esta busca foi só pelo título.'
   end
 
   def rodape_fechado(total)
