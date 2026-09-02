@@ -147,7 +147,14 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
     end
 
     {
-      campaign: { display_id: @campaign.display_id, title: @campaign.title, status: @campaign.campaign_status },
+      # A config do disparo vem junto porque a tela do detalhe é onde ela se edita: sem isto
+      # o painel abriria vazio e o operador não teria como saber o que está valendo. Sem o
+      # `target_team_id`, por exemplo, a conversa nasce sem time e o reply do lead cai sem
+      # dono — foi o buraco que a automação de disparo teve que fechar à mão em agosto.
+      campaign: { display_id: @campaign.display_id, title: @campaign.title, status: @campaign.campaign_status,
+                  target_team_id: @campaign.target_team_id, dispatch_assignee_id: @campaign.dispatch_assignee_id,
+                  pacing_seconds: @campaign.pacing_seconds, template_name: @campaign.template_name,
+                  dispatch_config: @campaign.dispatch_config },
       dispatch_status: @campaign.dispatch_status,
       recipients: @campaign.campaign_recipients.group(:status).count,
       total: total, reached: reached, sent: sent, delivered: delivered, read: read, failed: failed, replied: replied,

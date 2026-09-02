@@ -279,6 +279,26 @@
           "atendimento_ativo": "Em atendimento agora",
           "duplicado_na_lista": "Duplicado na lista"
         }
+      },
+      "SETTINGS": {
+        "TITLE": "Configuração do disparo",
+        "TEAM": "Time que recebe as conversas",
+        "TEAM_NONE": "Sem time",
+        "TEAM_WARNING": "Sem time, a conversa nasce sem time e a resposta do lead cai sem dono.",
+        "ASSIGNEE": "Quem atende as respostas",
+        "ASSIGNEE_NONE": "Ninguém (a resposta reabre para o time)",
+        "ASSIGNEE_HINT": "Só em caixa sem IA: atribuir uma pessoa cala o agente de IA.",
+        "PACING": "Segundos entre uma mensagem e outra",
+        "PACING_HINT": "Cerca de {rate} mensagens por minuto.",
+        "QUIET": "Janela de silêncio (não envia)",
+        "QUIET_TO": "às",
+        "QUIET_HINT": "Só hora cheia — 16:30 não é expressável. Deixe as duas vazias para enviar a qualquer hora.",
+        "QUIET_INCOMPLETE": "Preencha as duas pontas da janela, ou deixe as duas vazias.",
+        "HEALTH": "Pausar se a qualidade do número cair",
+        "HEALTH_HINT": "Interrompe o disparo sozinho quando a Meta rebaixa a nota do número.",
+        "SAVE": "Salvar configuração",
+        "SAVED": "Configuração salva.",
+        "ERROR": "Não consegui salvar a configuração."
       }
     },
     "CONFIRM_DELETE": {

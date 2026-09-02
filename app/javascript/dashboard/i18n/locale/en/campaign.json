@@ -279,6 +279,26 @@
           "atendimento_ativo": "In an active conversation",
           "duplicado_na_lista": "Duplicated in the list"
         }
+      },
+      "SETTINGS": {
+        "TITLE": "Dispatch settings",
+        "TEAM": "Team that receives the conversations",
+        "TEAM_NONE": "No team",
+        "TEAM_WARNING": "Without a team the conversation is created with no team, and the lead's reply lands with no owner.",
+        "ASSIGNEE": "Agent who answers the replies",
+        "ASSIGNEE_NONE": "Nobody (the reply reopens for the team)",
+        "ASSIGNEE_HINT": "Only for inboxes without AI: assigning a human silences the AI agent.",
+        "PACING": "Seconds between messages",
+        "PACING_HINT": "About {rate} messages per minute.",
+        "QUIET": "Quiet window (no sending)",
+        "QUIET_TO": "to",
+        "QUIET_HINT": "Whole hours only — 16:30 cannot be expressed. Leave both empty to send at any time.",
+        "QUIET_INCOMPLETE": "Set both ends of the window, or leave both empty.",
+        "HEALTH": "Pause if the number's quality drops",
+        "HEALTH_HINT": "Stops the dispatch on its own when Meta lowers the number's rating.",
+        "SAVE": "Save settings",
+        "SAVED": "Settings saved.",
+        "ERROR": "Could not save the settings."
       }
     },
     "CONFIRM_DELETE": {
