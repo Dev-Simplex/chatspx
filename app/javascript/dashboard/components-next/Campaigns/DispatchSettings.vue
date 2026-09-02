@@ -35,7 +35,10 @@ const state = ref({
 
 // A janela de silencio e por HORA CHEIA (o motor compara Time.current.hour), entao
 // 16:30 nao e expressavel — dizer isso na tela evita o pedido que nao se cumpre.
-const HORAS = Array.from({ length: 24 }, (_, h) => ({ value: h, label: `${String(h).padStart(2, '0')}:00` }));
+const HORAS = Array.from({ length: 24 }, (_, h) => ({
+  value: h,
+  label: `${String(h).padStart(2, '0')}:00`,
+}));
 
 const carregar = campanha => {
   const config = campanha?.dispatch_config || {};
@@ -69,7 +72,12 @@ const salvar = async () => {
     const quietHours =
       state.value.quietStart === null
         ? {}
-        : { quiet_hours: { start: Number(state.value.quietStart), end: Number(state.value.quietEnd) } };
+        : {
+            quiet_hours: {
+              start: Number(state.value.quietStart),
+              end: Number(state.value.quietEnd),
+            },
+          };
     await CampaignsAPI.update(props.campaignId, {
       campaign: {
         target_team_id: state.value.targetTeamId,
@@ -85,7 +93,9 @@ const salvar = async () => {
     useAlert(t('CAMPAIGN.WHATSAPP.SETTINGS.SAVED'));
     emit('changed');
   } catch (error) {
-    useAlert(error?.response?.data?.error || t('CAMPAIGN.WHATSAPP.SETTINGS.ERROR'));
+    useAlert(
+      error?.response?.data?.error || t('CAMPAIGN.WHATSAPP.SETTINGS.ERROR')
+    );
   } finally {
     saving.value = false;
   }
@@ -107,7 +117,9 @@ const salvar = async () => {
           v-model="state.targetTeamId"
           class="w-full text-sm rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
         >
-          <option :value="null">{{ t('CAMPAIGN.WHATSAPP.SETTINGS.TEAM_NONE') }}</option>
+          <option :value="null">
+            {{ t('CAMPAIGN.WHATSAPP.SETTINGS.TEAM_NONE') }}
+          </option>
           <option v-for="team in teams" :key="team.id" :value="team.id">
             {{ team.name }}
           </option>
@@ -125,7 +137,9 @@ const salvar = async () => {
           v-model="state.dispatchAssigneeId"
           class="w-full text-sm rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
         >
-          <option :value="null">{{ t('CAMPAIGN.WHATSAPP.SETTINGS.ASSIGNEE_NONE') }}</option>
+          <option :value="null">
+            {{ t('CAMPAIGN.WHATSAPP.SETTINGS.ASSIGNEE_NONE') }}
+          </option>
           <option v-for="agent in agents" :key="agent.id" :value="agent.id">
             {{ agent.name }}
           </option>
@@ -147,7 +161,11 @@ const salvar = async () => {
           class="w-full text-sm rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
         />
         <span class="block mt-1 text-xs text-n-slate-10">
-          {{ t('CAMPAIGN.WHATSAPP.SETTINGS.PACING_HINT', { rate: Math.floor(60 / Math.max(state.pacingSeconds, 1)) }) }}
+          {{
+            t('CAMPAIGN.WHATSAPP.SETTINGS.PACING_HINT', {
+              rate: Math.floor(60 / Math.max(state.pacingSeconds, 1)),
+            })
+          }}
         </span>
       </label>
 
@@ -161,17 +179,27 @@ const salvar = async () => {
             class="flex-1 text-sm rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
           >
             <option :value="null">—</option>
-            <option v-for="hora in HORAS" :key="`s${hora.value}`" :value="hora.value">
+            <option
+              v-for="hora in HORAS"
+              :key="`s${hora.value}`"
+              :value="hora.value"
+            >
               {{ hora.label }}
             </option>
           </select>
-          <span class="text-n-slate-10">{{ t('CAMPAIGN.WHATSAPP.SETTINGS.QUIET_TO') }}</span>
+          <span class="text-n-slate-10">{{
+            t('CAMPAIGN.WHATSAPP.SETTINGS.QUIET_TO')
+          }}</span>
           <select
             v-model="state.quietEnd"
             class="flex-1 text-sm rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
           >
             <option :value="null">—</option>
-            <option v-for="hora in HORAS" :key="`e${hora.value}`" :value="hora.value">
+            <option
+              v-for="hora in HORAS"
+              :key="`e${hora.value}`"
+              :value="hora.value"
+            >
               {{ hora.label }}
             </option>
           </select>
@@ -192,7 +220,9 @@ const salvar = async () => {
     <label class="flex items-start gap-2 mt-4 text-sm cursor-pointer">
       <input v-model="state.healthGate" type="checkbox" class="mt-0.5" />
       <span>
-        <span class="text-n-slate-12">{{ t('CAMPAIGN.WHATSAPP.SETTINGS.HEALTH') }}</span>
+        <span class="text-n-slate-12">{{
+          t('CAMPAIGN.WHATSAPP.SETTINGS.HEALTH')
+        }}</span>
         <span class="block text-xs text-n-slate-10">
           {{ t('CAMPAIGN.WHATSAPP.SETTINGS.HEALTH_HINT') }}
         </span>
