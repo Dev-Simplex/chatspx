@@ -344,4 +344,35 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(textos).to all(match(/nunca complete a lista de mem[óo]ria/i))
     end
   end
+
+  # Conv 33006: o cliente chegou por um portal de terceiros, que abre a conversa com o nome do
+  # anúncio entre aspas. A página do portal não serve pra nada (é SPA: o og:title é genérico do
+  # site), mas o título É o TituloSite do próprio cadastro — medido em 8 títulos reais, 6
+  # acharam o imóvel exato.
+  describe 'anúncio de portal de terceiro' do
+    it 'searches the Vista by the advert title the client pasted' do
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) do |filter, **_|
+        capturado ||= filter
+        []
+      end
+
+      tool.perform(tool_context, status_tipo: 'locacao', titulo: 'CASA JD TERRA RICA')
+
+      expect(capturado['TituloSite']).to eq(['like', '%CASA JD TERRA RICA%'])
+    end
+
+    # Os 2 títulos que não casaram eram anúncio de OUTRA imobiliária no mesmo portal. Devolver
+    # "nenhum imóvel encontrado" ali fez a IA dizer ao cliente que não havia apartamento nenhum
+    # — havia 17. O retorno tem que separar "não achei ESTE" de "não temos imóveis".
+    it 'says the advert may belong to another agency instead of implying an empty catalogue' do
+      allow(tool).to receive(:fetch_vista).and_return([])
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', titulo: 'APARTAMENTO QUE NAO E NOSSO')
+
+      expect(texto).to include('pode não ser nosso')
+      expect(texto).to match(/N[ÃA]O conclua que não temos imóveis/i)
+      expect(texto).not_to eq('Nenhum imóvel encontrado com esses critérios.')
+    end
+  end
 end
