@@ -24,6 +24,17 @@ class CampaignsAPI extends ApiClient {
     return axios.post(`${this.url}/${id}/recipients`, { rows, blocklist });
   }
 
+  // Mesmos dois passos, com o publico vindo da BASE em vez de uma planilha. O backend
+  // resolve o segmento em rows e entrega no mesmo lugar, entao a higiene e o preview sao
+  // exatamente os do upload.
+  segmentPreview(id, segmento) {
+    return axios.post(`${this.url}/${id}/audience_preview`, { segmento });
+  }
+
+  segmentRecipients(id, segmento) {
+    return axios.post(`${this.url}/${id}/recipients`, { segmento });
+  }
+
   // Inicia/retoma o disparo (dispatch_status: running).
   startDispatch(id) {
     return axios.post(`${this.url}/${id}/start`);

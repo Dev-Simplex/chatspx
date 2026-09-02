@@ -278,6 +278,23 @@
           "ja_na_campanha": "Já está nesta campanha",
           "atendimento_ativo": "Em atendimento agora",
           "duplicado_na_lista": "Duplicado na lista"
+        },
+        "TEMPLATE_DOWNLOAD": "Baixar o modelo",
+        "NOT_CSV": "Planilha (.xlsx/.xls) não é lida aqui. Salve como CSV — o botão do modelo entrega o formato certo.",
+        "SOURCE": {
+          "PLANILHA": "De uma planilha",
+          "SEGMENTO": "Da base de contatos"
+        },
+        "SEGMENT": {
+          "LABELS": "Etiquetas (qualquer uma)",
+          "TEAM": "Time",
+          "INBOX": "Caixa de entrada",
+          "CAMPAIGN": "Recebeu uma campanha anterior",
+          "CAMPAIGN_EXCLUDE": "Inverter: quem NÃO recebeu",
+          "RECENCY": "Ativo nos últimos N dias",
+          "NEVER": "Nunca recebeu campanha nenhuma",
+          "ANY": "Qualquer",
+          "EMPTY": "Escolha pelo menos um critério — sem nenhum, o público seria a base inteira."
         }
       },
       "SETTINGS": {

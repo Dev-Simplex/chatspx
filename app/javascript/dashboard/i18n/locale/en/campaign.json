@@ -278,6 +278,23 @@
           "ja_na_campanha": "Already in this campaign",
           "atendimento_ativo": "In an active conversation",
           "duplicado_na_lista": "Duplicated in the list"
+        },
+        "TEMPLATE_DOWNLOAD": "Download the template",
+        "NOT_CSV": "Spreadsheets (.xlsx/.xls) are not read here. Save as CSV — the template button gives you the right format.",
+        "SOURCE": {
+          "PLANILHA": "From a spreadsheet",
+          "SEGMENTO": "From the contact base"
+        },
+        "SEGMENT": {
+          "LABELS": "Labels (any of them)",
+          "TEAM": "Team",
+          "INBOX": "Inbox",
+          "CAMPAIGN": "Received a previous campaign",
+          "CAMPAIGN_EXCLUDE": "Invert: who did NOT receive it",
+          "RECENCY": "Active in the last N days",
+          "NEVER": "Never received any campaign",
+          "ANY": "Any",
+          "EMPTY": "Pick at least one criterion — with none, the audience would be the whole base."
         }
       },
       "SETTINGS": {

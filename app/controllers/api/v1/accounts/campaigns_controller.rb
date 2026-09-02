@@ -79,10 +79,23 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
                                      audience: [:type, :id], trigger_rules: {}, template_params: {}, dispatch_config: {})
   end
 
-  # Linhas da lista enviada (upload): [{name, phone}]. A higiene (normalizacao,
-  # descarte e deduplicacao) fica no AudienceBuilderService.
+  # Linhas da lista: ou vieram de uma planilha (`rows`), ou a base as produz a partir de um
+  # segmento (`segmento`). Os dois caminhos desembocam AQUI de propósito — assim o preview e
+  # o carregamento continuam sendo os mesmos, e a higiene não ganha uma segunda
+  # implementação, que seria justamente a que ninguém testou.
   def recipient_rows
+    return segmento_rows if params[:segmento].present?
+
     params.permit(rows: %i[name phone nome telefone])[:rows]&.map(&:to_h) || []
+  end
+
+  def segmento_rows
+    Campaigns::Whatsapp::SegmentService.new(account: Current.account, filtros: segmento_params).perform.rows
+  end
+
+  def segmento_params
+    params.require(:segmento).permit(:team_id, :inbox_id, :status, :campaign_id, :sem_campanha,
+                                     :excluir_campanha, :ultima_atividade_dias, labels: [])
   end
 
   # Telefones a excluir vindos de fora da base (ex.: CSV de corretores). A exclusao
