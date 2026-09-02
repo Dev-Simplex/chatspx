@@ -21,6 +21,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
   param :piscina, type: 'boolean', desc: 'true SÓ quando o cliente pedir imóvel COM piscina — filtra pra retornar só os que têm.', required: false
+  param :suite, type: 'boolean',
+                desc: 'true SÓ quando o cliente pedir imóvel COM suíte (quarto com banheiro próprio) — filtra pra ' \
+                      'retornar só os que têm. Quantos quartos ele quer continua indo em `dormitorios`: quem pede ' \
+                      '"2 quartos sendo 1 suíte" quer os dois filtros juntos.', required: false
   param :mobiliado, type: 'boolean',
                     desc: 'true SÓ quando o cliente pedir imóvel MOBILIADO/semimobiliado — filtra pra retornar só os que estão ' \
                           'cadastrados como mobiliados. Use em vez de dizer que vai verificar: a busca já responde.', required: false
@@ -47,7 +51,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   LOGRADOURO = /\b(?:rua|avenida|av\.|travessa|alameda|rodovia|estrada|praça)\b[^,;.\n]{2,45}(?:,?\s*(?:n[º°o]?\.?\s*)?\d{1,6})?/i
 
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
-              dormitorios: nil, piscina: nil, mobiliado: nil, lat: nil, lng: nil, raio_km: nil, codigo: nil)
+              dormitorios: nil, piscina: nil, mobiliado: nil, suite: nil, lat: nil, lng: nil,
+              raio_km: nil, codigo: nil)
     # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
     if codigo.present?
       cod = codigo.to_s.gsub(/\D/, '')
@@ -79,6 +84,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     filter['Dormitorios'] = dormitorios if dormitorios.present?
     # Piscina é característica (grupo carac) mas o Vista aceita como filtro de topo (testado).
     filter['Piscina'] = 'Sim' if piscina
+    # Suítes é numérico: o Vista filtra por RANGE, e ['1','10'] é "pelo menos uma". Testado ao
+    # vivo — `Suites: '1'` traria só as de exatamente uma e esconderia a casa de 2 suítes.
+    filter['Suites'] = %w[1 10] if suite
 
     geo = lat.present? && lng.present?
     # O Vista compara Latitude/Longitude como STRING (lexicográfico) — com coordenadas
@@ -86,7 +94,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     imoveis = fetch_vista(filter, quantidade: quantidade_para(geo, mobiliado), venda: venda)
     Rails.logger.info("[BuscarImovel] status=#{status_tipo} categoria=#{categoria.inspect} bairro=#{bairro.inspect} " \
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
-                      "mobiliado=#{mobiliado.inspect} geo=#{geo} => #{imoveis.size} imoveis " \
+                      "mobiliado=#{mobiliado.inspect} suite=#{suite.inspect} geo=#{geo} => #{imoveis.size} imoveis " \
                       "#{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
     if mobiliado
       candidatos = imoveis.size
