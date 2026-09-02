@@ -10,6 +10,54 @@
 
 ## 🚧 Em andamento
 
+### [2026-09-02] 🔴 EU DERRUBEI A BUSCA DE IMÓVEL EM PRODUÇÃO — teto do Vista é 50, pedi 60
+
+> O Paulo trouxe a conv 33031: cliente pediu kitnet até R$ 1.100 e a IA disse que **não havia
+> kitnet nenhuma**. Havia **17**. O consultor teve que desmentir por áudio.
+
+- 🔴 **O Vista recusa paginação acima de 50:** `HTTP 400 — "O limite de resultados por página
+  deve ser 50"`, e o fetch volta **VAZIO, sem erro visível**. Medido: quantidade 49 e 50 trazem
+  os 17 kitnets; **51 e 60 trazem ZERO**.
+- **A regressão foi minha, do PR #90:** para consertar o "são todas as opções", fiz o
+  `quantidade_para` devolver `TETO_INSPECAO` (60) em TODOS os ramos. Derrubou **toda busca
+  comum de imóvel** desde o deploy da manhã.
+- 🔴 **E explica um defeito antigo:** o ramo `mobiliado` já usava TETO_INSPECAO=60 desde o
+  PR #75 — ou seja, **nunca funcionou**. Era dele o *"Conferi 0 imóvel(is) e NENHUM está
+  cadastrado como mobiliado"* que aparecia com o acervo cheio (inclusive na conv 33006, e eu
+  li aquilo como "não há mobiliados").
+- ✅ **Corrigido no #90:** `TETO_INSPECAO = 50` + spec exigindo que **nenhum ramo** peça mais
+  que isso. **269 exemplos / 0 falhas** · rubocop 18 = 18.
+- ⚠️ **A lição:** mudei paginação só no código e testei o filtro de suíte ao vivo — a
+  paginação, não. O limite de 50 estava registrado desde 15/07 no próprio STATE.
+
+### [2026-09-02] 🟢 VISITA DE LOCAÇÃO: a regra é do time e a conduta a contradizia (conta 6, sem deploy)
+
+> Conv 30442: a Bruna perguntou *"Quer agendar pra conhecer a kitnet?"* — **duas vezes** — e
+> depois *"que dia e período ficam melhores"*. A consultora desfez por áudio: *"a visita a
+> gente não agenda"*.
+
+- **A REGRA, medida na fonte viva** (resposta pronta que Evellyn e Adrian mandam, ~110x/30d):
+  **não se agenda nem se reserva** · o cliente passa no escritório **no horário de
+  atendimento** · deixa **documento físico com foto** · retira a chave e visita por conta
+  própria · **devolve no mesmo dia**. Ocorrências em 30 dias: "não agendamos/reservamos" 115 ·
+  "documento com foto" 116 · "mesmo dia" 108 · "horário de atendimento" 107.
+  Em **condomínio fechado** segue agendada e acompanhada (régua do Paulo, 28/08).
+- 🔴 **O furo era meu, da conduta de 28/08:** eu escrevi *"quem confirma o acesso é o
+  consultor"* e *"o consultor confirma antes"* — isso **sugere que há algo a combinar**, e foi
+  por essa brecha que saiu o "que dia e período". O time diz o oposto.
+- 🔴 **Não foi falta de dado:** ela chamou `buscar_imovel` **3x** e tinha o rótulo
+  `[NÃO fica em condomínio fechado]`. O 9623 é avulso (`Condominio: "Nao"`, conferido no Vista).
+- 🔴 **E o harness media 6/6 enquanto a produção falhava:** o cenário existente cobre o cliente
+  **PEDINDO** visita; o defeito passou pelo caminho oposto — a IA **OFERECENDO** antes de
+  pedirem. Virou o 10º cenário (no PR #85), com os padrões conferidos contra as três frases
+  reais da conversa.
+- **Medido depois:** cenário real da 30442 **0/6 oferece agendamento · 6/6 explica a chave** ·
+  harness de visita 6/6, 6/6, 6/6 (avulso, condomínio, venda).
+- ⚠️ **Correção do Paulo ao meu diagnóstico:** a Júlia **não** recebe locação — a conversa
+  estava com ela por resíduo de disparo antigo atribuído ao time de vendas, e ela transferiu
+  corretamente. Quem agendou foi a Bruna.
+- **Reversão:** `/tmp/assistant_14_ins_visita_chave.bak-20260902165602` na VM.
+
 ### [2026-09-01] 🟢 FRENTE CAMPANHAS — o módulo fecha (PR #89) · contrato em `docs/contratos/campanhas.md`
 
 > Pedido do Paulo: *"quero campanhas completo"*. O levantamento inverteu a expectativa: o motor
