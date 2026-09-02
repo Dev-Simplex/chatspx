@@ -83,8 +83,32 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   def run_engine(event_name, account, conversation, payload)
     return if account.blank?
 
+    registrar_opt_out(account, conversation, payload)
     run_flows(event_name, account, conversation, payload) if flows_engine_active?(account)
     run_rules(event_name, account, conversation, payload)
+  end
+
+  # Opt-out é COMPLIANCE: grava aqui, fora do run_flows, porque lá dentro ele só era alcançado
+  # com `flows_engine_enabled?`. Medido em 01/09/2026: a conta 6 tem a flag desligada, e a
+  # `contact_flow_suppressions` estava com ZERO linhas na instância inteira — enquanto 452
+  # contatos já tinham pedido para parar por escrito e 12 receberam disparo depois disso.
+  # Quem lê a tabela (AudienceBuilderService, Flows::Compliance) sempre esteve certo; faltava
+  # alguém escrever nela.
+  #
+  # Só grava. NÃO aborta nada: o `handle_incoming_opt_out` do run_flows mantém a semântica de
+  # abortar o disparo dele, com o match exato que sempre teve. Aqui é a rede que faltava, e
+  # `record_opt_out!` é idempotente — os dois caminhos coexistem sem conflito.
+  def registrar_opt_out(account, conversation, payload)
+    message = payload[:message]
+    return unless message&.incoming? && !message.private?
+    return unless Contacts::OptOutDetector.opt_out?(message.content)
+
+    contact = conversation&.contact
+    ContactFlowSuppression.record_opt_out!(contact: contact, account: account) if contact.present?
+  rescue StandardError => e
+    # Compliance não pode derrubar o pipeline de automação: sem o rescue, uma falha aqui
+    # calaria TODAS as automations da conta no evento.
+    Rails.logger.error("[opt-out] não consegui registrar para a conversa #{conversation&.id}: #{e.class}: #{e.message}")
   end
 
   # O motor Flow só assume quando a flag está ligada E a conta já tem flows (o backfill
