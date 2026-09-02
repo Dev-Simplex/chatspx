@@ -338,10 +338,10 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     # para o modelo completar a lista de memória, que é o defeito que o rodapé fechado veio
     # resolver na conv 4809.
     it 'keeps the anti-invention rule in both endings' do
-      [tool.send(:rodape, 3, 3), tool.send(:rodape, 5, 17)].each do |texto|
-        expect(texto).to match(/SOMENTE im[óo]vel desta lista/i)
-        expect(texto).to match(/nunca complete a lista de mem[óo]ria/i)
-      end
+      textos = [tool.send(:rodape, 3, 3), tool.send(:rodape, 5, 17)]
+
+      expect(textos).to all(match(/SOMENTE im[óo]vel desta lista/i))
+      expect(textos).to all(match(/nunca complete a lista de mem[óo]ria/i))
     end
   end
 end
