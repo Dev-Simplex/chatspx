@@ -423,7 +423,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     # A ressalva vale para o número que o AGENTE leu, não para o que o cliente escreveu —
     # senão a busca por código digitado nunca poderia dizer que não achou.
     it 'still allows treating a client-typed code as truly absent' do
-      expect(tool.send(:codigo_nao_encontrado, '6762')).to match(/pr[óo]prio cliente/i)
+      expect(tool.send(:codigo_nao_encontrado, '6762')).to match(/cliente escreveu ou falou/i)
     end
   end
 
