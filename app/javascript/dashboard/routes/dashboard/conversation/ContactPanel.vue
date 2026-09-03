@@ -27,7 +27,7 @@ import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import SharedFiles from './SharedFiles.vue';
 import Draggable from 'vuedraggable';
 import ConversationSummary from './ConversationSummary.vue';
-import ConversationChecklist from './ConversationChecklist.vue';
+import ConversationMediaStrip from './ConversationMediaStrip.vue';
 import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
@@ -230,7 +230,7 @@ onMounted(() => {
     />
     <ContactInfo :contact="contact" :channel-type="channelType" />
     <ConversationSummary />
-    <ConversationChecklist />
+    <ConversationMediaStrip :conversation-id="conversationId" />
     <div class="pb-8">
       <Draggable
         :list="conversationSidebarItems"
