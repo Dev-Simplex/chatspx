@@ -1,5 +1,13 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+# `.husky/_/husky.sh` e GERADO pelo `husky install` (script `prepare`) e fica fora do git —
+# so `pre-commit` e `pre-push` sao versionados. Worktree de frente nasce sem rodar install,
+# entao o arquivo nao existe e o `.` falhava ANTES de qualquer guard abaixo: o commit
+# inteiro abortava com "No such file or directory", ate de .md. Mesma forma das outras
+# guardas deste arquivo — ferramenta ausente vira no-op, nao erro. Os hooks funcionam sem
+# ele; o husky.sh so trata re-exec e a variavel de skip.
+if [ -f "$(dirname "$0")/_/husky.sh" ]; then
+  . "$(dirname "$0")/_/husky.sh"
+fi
 
 # lint js and vue files — pula (barulhento) quando a toolchain JS nao esta instalada.
 # Worktree de frente nao tem node_modules e o npx nao acha o pacote subindo a arvore,

@@ -262,6 +262,15 @@ O campo `behavior` no assistant e um JSONB livre. Estrutura:
 
 O projeto tem lint-staged no pre-commit. Se falhar por erros PRE-EXISTENTES em arquivos que voce nao tocou (ex: Sidebar.vue, Copilot.vue), usar `--no-verify` e anotar.
 
+⚠️ **`.husky/_/husky.sh` nao existe em worktree que nunca rodou `install`.** Ele e gerado
+pelo `husky install` (script `prepare`) e fica fora do git — so `pre-commit` e `pre-push`
+sao versionados. Ate 03/09/2026 a primeira linha dos dois hooks carregava esse arquivo sem
+guarda, entao **toda worktree de frente nova abortava commit E push** com
+`No such file or directory`, antes mesmo dos guards internos rodarem — e o `--no-verify`
+que se usava para contornar pulava junto o audit de template Vue e o rubocop, que sao a
+verificacao de verdade. As duas linhas viraram condicionais. Se aparecer de novo, o
+conserto NAO e `--no-verify`: e conferir se a guarda continua la.
+
 ## Historico de Decisoes
 
 - 2026-04-07: Modulo Agentes IA criado (141 arquivos, 8596 linhas)

@@ -1,4 +1,9 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+# Ver a explicacao no `pre-commit`: o `_/husky.sh` e gerado pelo install e nao e
+# versionado. Sem esta guarda, worktree sem `npm install` nao conseguia nem PUSHAR — e
+# o `validate_push` abaixo, que e a validacao de verdade, nunca chegava a rodar.
+if [ -f "$(dirname "$0")/_/husky.sh" ]; then
+  . "$(dirname "$0")/_/husky.sh"
+fi
 
 sh bin/validate_push
