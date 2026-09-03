@@ -1,0 +1,40 @@
+
+    <script>
+      (function(d,t) {
+        var BASE_URL="__BASE_URL__";
+        var cfg=window.chatwootSettings||{};
+        var FALLBACK_URL=cfg.fallbackUrl||BASE_URL+"/widget?website_token=__WEBSITE_TOKEN__";
+        var FALLBACK_LABEL=cfg.fallbackLabel||"Falar por outro canal";
+        var FALLBACK_STYLE="position:fixed;bottom:20px;z-index:2147483000;display:inline-block;padding:12px 20px;border-radius:100px;background:#1f93ff;color:#000000;font:600 14px/1.2 system-ui,sans-serif;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.16);left:20px";
+        var LINK_ID="cw-fallback-link";
+        function showFallback(){
+          if(window.$chatwoot||d.getElementById(LINK_ID)||!d.body){return}
+          var a=d.createElement("a");
+          a.id=LINK_ID;
+          a.href=FALLBACK_URL;
+          a.target="_blank";
+          a.rel="noopener noreferrer";
+          a.textContent=FALLBACK_LABEL;
+          a.setAttribute("style",cfg.position==="left"?FALLBACK_STYLE:FALLBACK_STYLE.replace("left:20px","right:20px"));
+          d.body.appendChild(a)
+        }
+        function hideFallback(){
+          var a=d.getElementById(LINK_ID);
+          if(a&&a.parentNode){a.parentNode.removeChild(a)}
+        }
+        window.chatwootFallback={show:showFallback,hide:hideFallback};
+        var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+        g.src=BASE_URL+"/packs/js/sdk.js";
+        g.async = true;
+        s.parentNode.insertBefore(g,s);
+        g.onload=function(){
+          window.chatwootSDK.run({
+            websiteToken: '__WEBSITE_TOKEN__',
+            baseUrl: BASE_URL
+          })
+        }
+        g.onerror=showFallback;
+        setTimeout(function(){if(!window.chatwootSDK){showFallback()}},8000);
+      })(document,"script");
+    </script>
+    

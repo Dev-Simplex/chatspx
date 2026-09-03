@@ -108,6 +108,32 @@ RSpec.describe Instagram::CallbacksController do
       end
     end
 
+    # Regressao: o `rescue` em `extract_error_info` apontava para `JSON::ParseError`, que nao
+    # existe (a classe real e `JSON::ParserError`). Com corpo nao-JSON o proprio rescue
+    # levantava NameError e o agente levava 500 em vez do redirect amigavel. O contexto acima
+    # nao pega isso porque manda corpo JSON valido — o rescue nunca chega a rodar.
+    context 'when an OAuth error carries a non-JSON body' do
+      let(:oauth_error) do
+        OAuth2::Error.new(OpenStruct.new(body: 'Bad Request: malformed', status: 400))
+      end
+
+      before do
+        allow(auth_code_object).to receive(:get_token).and_raise(oauth_error)
+      end
+
+      it 'falls back to a generic OAuth error instead of raising' do
+        expect { get :show, params: valid_params }.not_to raise_error
+
+        expected_url = app_new_instagram_inbox_url(
+          account_id: account.id,
+          error_type: 'OAuthException',
+          code: 400,
+          error_message: oauth_error.message
+        )
+        expect(response).to redirect_to(expected_url)
+      end
+    end
+
     context 'when a standard error occurs' do
       before do
         allow(auth_code_object).to receive(:get_token).and_raise(StandardError.new('Unknown error'))

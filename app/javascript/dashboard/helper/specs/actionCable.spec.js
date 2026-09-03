@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, expect, vi } from 'vitest';
+import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import ActionCableConnector from '../actionCable';
 
 vi.mock('shared/helpers/mitt', () => ({
@@ -30,11 +30,18 @@ describe('ActionCableConnector - Copilot Tests', () => {
         dispatch: mockDispatch,
         getters: {
           getCurrentAccountId: 1,
+          'accounts/isFeatureEnabledonAccount': vi.fn(() => true),
         },
       },
     };
 
     actionCable = ActionCableConnector.init(store.$store, 'test-token');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
   describe('copilot event handlers', () => {
     it('should register the copilot.message.created event handler', () => {
@@ -61,6 +68,27 @@ describe('ActionCableConnector - Copilot Tests', () => {
       expect(mockDispatch).toHaveBeenCalledWith(
         'copilotMessages/upsert',
         copilotData
+      );
+    });
+  });
+
+  describe('presence event handlers', () => {
+    it('dispatches presence updates when not impersonating', () => {
+      const data = { contacts: { 1: 'online' }, users: { 7: 'busy' } };
+
+      actionCable.onPresenceUpdate(data);
+
+      expect(mockDispatch).toHaveBeenCalledWith(
+        'contacts/updatePresence',
+        data.contacts
+      );
+      expect(mockDispatch).toHaveBeenCalledWith(
+        'agents/updatePresence',
+        data.users
+      );
+      expect(mockDispatch).toHaveBeenCalledWith(
+        'setCurrentUserAvailability',
+        data.users
       );
     });
   });

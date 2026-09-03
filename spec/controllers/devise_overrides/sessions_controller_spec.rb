@@ -90,7 +90,7 @@ RSpec.describe DeviseOverrides::SessionsController, type: :controller do
           }
 
           expect(response).to have_http_status(:bad_request)
-          expect(response.parsed_body['error']).to eq(I18n.t('errors.mfa.invalid_code'))
+          expect(response.parsed_body['error']).to eq(I18n.t('errors.mfa.invalid_code', locale: I18n.default_locale))
         end
 
         it 'rejects invalid backup code' do
@@ -102,7 +102,7 @@ RSpec.describe DeviseOverrides::SessionsController, type: :controller do
           }
 
           expect(response).to have_http_status(:bad_request)
-          expect(response.parsed_body['error']).to eq(I18n.t('errors.mfa.invalid_code'))
+          expect(response.parsed_body['error']).to eq(I18n.t('errors.mfa.invalid_code', locale: I18n.default_locale))
         end
 
         it 'rejects expired MFA token' do
@@ -118,14 +118,14 @@ RSpec.describe DeviseOverrides::SessionsController, type: :controller do
           }
 
           expect(response).to have_http_status(:unauthorized)
-          expect(response.parsed_body['error']).to eq(I18n.t('errors.mfa.invalid_token'))
+          expect(response.parsed_body['error']).to eq(I18n.t('errors.mfa.invalid_token', locale: I18n.default_locale))
         end
 
         it 'requires either OTP or backup code' do
           post :create, params: { mfa_token: mfa_token }
 
           expect(response).to have_http_status(:bad_request)
-          expect(response.parsed_body['error']).to eq(I18n.t('errors.mfa.invalid_code'))
+          expect(response.parsed_body['error']).to eq(I18n.t('errors.mfa.invalid_code', locale: I18n.default_locale))
         end
       end
     end

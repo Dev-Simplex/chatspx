@@ -3,8 +3,10 @@ require 'rails_helper'
 RSpec.describe 'Dyte Integration API', type: :request do
   let(:headers) { { 'Content-Type' => 'application/json' } }
   let(:account) { create(:account) }
-  let(:inbox) { create(:inbox, account: account) }
-  let(:conversation) { create(:conversation, account: account, status: :pending) }
+  # pending_status_enabled: `pending_status_allowed_by_inbox` (nossa, da2ea07ed1)
+  # recusa Pendente em caixa sem o recurso; spec herdado presume que sempre funciona.
+  let(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
+  let(:conversation) { create(:conversation, account: account, inbox: inbox, status: :pending) }
   let(:message) { create(:message, conversation: conversation, account: account, inbox: conversation.inbox) }
   let(:integration_message) do
     create(:message, content_type: 'integrations',

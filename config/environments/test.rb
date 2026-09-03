@@ -24,7 +24,17 @@ Rails.application.configure do
   Rails.application.routes.default_url_options = { host: 'http://localhost:3000' }
 
   # Show full error reports and disable caching.
-  config.consider_all_requests_local       = true
+  # `false` de proposito: com `true`, qualquer excecao que chega ao middleware faz o
+  # `DebugExceptions` montar a pagina de debug, que chama
+  # `ActionView::Template::Handlers::ERB#find_offset` para mapear a linha do template ERB.
+  # Esse metodo, no actionview 7.1.5.2, entra em LACO INFINITO (Kernel#loop + StringScanner)
+  # e trava a suite inteira — 1 core cheio, I/O zero, sem nunca terminar.
+  # Intermitente porque depende de qual excecao ocorre, e so aparece sob carga (contencao
+  # gera timeouts que viram excecoes). Backtrace em
+  # vault/00-Inbox/backtrace-travamento-rspec-21ago.txt
+  # Com `false`, o Rails serve a pagina estatica de erro: nao ha `source_extracts`, nao ha
+  # `find_offset`, nao ha laco. Nenhum spec do repo depende do conteudo da pagina de debug.
+  config.consider_all_requests_local       = false
   config.action_controller.perform_caching = false
   config.cache_store = :null_store
 

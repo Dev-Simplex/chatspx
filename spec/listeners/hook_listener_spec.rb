@@ -1,5 +1,14 @@
 require 'rails_helper'
 describe HookListener do
+  # CONTRATO: o listener enfileira `HookJob.perform_later(hook.ID, evento, <recurso>_id: N)` —
+  # IDs, nunca os registros. `HookJob#perform` recebe `hook_id` e reidrata em
+  # `resolve_event_data`; o listener converte em `serialize_event_data`. Passar o objeto faria
+  # o ActiveJob serializar por GlobalID e reidratar na execucao um registro possivelmente
+  # obsoleto — ou ja apagado, caso em que o job estoura no deserialize.
+  #
+  # Estas expectativas cravavam a forma antiga (objeto + `message:`) e por isso nunca casavam:
+  # comparavam contra um contrato que o codigo nao usa. Identicas a origin/homologacao — a
+  # defasagem e anterior ao recorte.
   let(:listener) { described_class.instance }
   let!(:account) { create(:account) }
   let!(:user) { create(:user, account: account) }
@@ -26,7 +35,7 @@ describe HookListener do
     context 'when hook is configured' do
       it 'triggers hook job' do
         hook = create(:integrations_hook, account: account)
-        expect(HookJob).to receive(:perform_later).with(hook, 'message.created', message: message).once
+        expect(HookJob).to receive(:perform_later).with(hook.id, 'message.created', message_id: message.id).once
         listener.message_created(event)
       end
     end
@@ -45,7 +54,7 @@ describe HookListener do
     context 'when hook is configured' do
       it 'triggers hook job' do
         hook = create(:integrations_hook, :dialogflow, account: account, inbox: inbox)
-        expect(HookJob).to receive(:perform_later).with(hook, 'message.updated', message: message).once
+        expect(HookJob).to receive(:perform_later).with(hook.id, 'message.updated', message_id: message.id).once
         listener.message_updated(event)
       end
     end
@@ -66,21 +75,21 @@ describe HookListener do
     context 'when hook is enabled and app_id is supported' do
       it 'enqueues the job for slack' do
         hook = create(:integrations_hook, account: account)
-        expect(HookJob).to receive(:perform_later).with(hook, event_name, message: message)
+        expect(HookJob).to receive(:perform_later).with(hook.id, event_name, message_id: message.id)
 
         listener.message_created(event)
       end
 
       it 'enqueues the job for dialogflow' do
         hook = create(:integrations_hook, :dialogflow, account: account, inbox: inbox)
-        expect(HookJob).to receive(:perform_later).with(hook, event_name, message: message)
+        expect(HookJob).to receive(:perform_later).with(hook.id, event_name, message_id: message.id)
 
         listener.message_created(event)
       end
 
       it 'enqueues the job for google_translate' do
         hook = create(:integrations_hook, :google_translate, account: account)
-        expect(HookJob).to receive(:perform_later).with(hook, event_name, message: message)
+        expect(HookJob).to receive(:perform_later).with(hook.id, event_name, message_id: message.id)
 
         listener.message_created(event)
       end
@@ -114,7 +123,7 @@ describe HookListener do
       it 'enqueues the job for conversation.created' do
         expect(HookJob)
           .to receive(:perform_later)
-          .with(hook, 'conversation.created', { conversation: conversation })
+          .with(hook.id, 'conversation.created', { conversation_id: conversation.id })
 
         listener.conversation_created(conversation_event)
       end
@@ -122,7 +131,7 @@ describe HookListener do
       it 'enqueues the job for contact.updated' do
         expect(HookJob)
           .to receive(:perform_later)
-          .with(hook, 'contact.updated', { contact: conversation.contact })
+          .with(hook.id, 'contact.updated', { contact_id: conversation.contact.id })
 
         listener.contact_updated(contact_event)
       end

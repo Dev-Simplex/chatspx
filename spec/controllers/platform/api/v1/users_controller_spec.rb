@@ -258,7 +258,9 @@ RSpec.describe 'Platform Users API', type: :request do
 
       it 'deletes the user' do
         create(:platform_app_permissible, platform_app: platform_app, permissible: user)
-        expect(DeleteObjectJob).to receive(:perform_later).with(user).once
+        # `DeleteObjectJob#perform(object_type, object_id, user_id, ip)` — nome da classe + IDs.
+        # Todos os chamadores do codigo usam essa forma; o dublê ficou na antiga, com objetos.
+        expect(DeleteObjectJob).to receive(:perform_later).with(user.class.name, user.id).once
         delete "/platform/api/v1/users/#{user.id}",
                headers: { api_access_token: platform_app.access_token.token }, as: :json
         expect(response).to have_http_status(:success)

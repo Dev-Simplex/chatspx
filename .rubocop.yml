@@ -89,6 +89,9 @@ Metrics/BlockLength:
 
 Metrics/ModuleLength:
   Exclude:
+    # Wrapper fino do Redis: metodos de uma linha; cresceu ao fechar o subsistema
+    # de unread counts (pipelined/with/ttl/delete_if_equals vieram do upstream).
+    - 'lib/redis/alfred.rb'
     - lib/seeders/message_seeder.rb
     - spec/support/slack_stubs.rb
     - 'app/helpers/reports/pdf_chart_helper.rb'

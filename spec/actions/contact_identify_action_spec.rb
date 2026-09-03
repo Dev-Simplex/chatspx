@@ -1,6 +1,14 @@
 require 'rails_helper'
 
 describe ContactIdentifyAction do
+  # CONTRATO: `Avatar::AvatarFromUrlJob#perform(avatarable_type, avatarable_id, avatar_url)` —
+  # NOME DA CLASSE + ID + url, nunca o registro. Os 10 chamadores do codigo usam essa forma; so
+  # este spec ficou na antiga (`(contact, url)`).
+  #
+  # As assercoes POSITIVAS falhavam, o que era o sinal. As NEGATIVAS
+  # (`not_to receive(:perform_later).with(contact, url)`) passavam sem verificar nada: o job ERA
+  # chamado, apenas com outros argumentos — entao "nao recebeu COM ESSES argumentos" era verdade
+  # por acidente. Tres exemplos verdes que nao provavam o que diziam.
   subject(:contact_identify) { described_class.new(contact: contact, params: params).perform }
 
   let!(:account) { create(:account) }
@@ -13,7 +21,8 @@ describe ContactIdentifyAction do
 
   describe '#perform' do
     it 'updates the contact' do
-      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later).with(contact, params[:avatar_url])
+      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later)
+        .with(contact.class.name, contact.id, params[:avatar_url])
       contact_identify
       expect(contact.reload.name).to eq 'test'
       # custom attributes are merged properly without overwriting existing ones
@@ -24,7 +33,8 @@ describe ContactIdentifyAction do
 
     it 'will not call avatar job if avatar is already attached' do
       contact.avatar.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
-      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later).with(contact, params[:avatar_url])
+      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later)
+        .with(contact.class.name, contact.id, params[:avatar_url])
       contact_identify
     end
 
@@ -38,7 +48,8 @@ describe ContactIdentifyAction do
 
     it 'enqueues avatar job when valid avatar url parameter is passed' do
       params = { name: 'test', avatar_url: 'https://chatwoot-assets.local/sample.png' }
-      expect(Avatar::AvatarFromUrlJob).to receive(:perform_later).with(contact, params[:avatar_url]).once
+      expect(Avatar::AvatarFromUrlJob).to receive(:perform_later)
+        .with(contact.class.name, contact.id, params[:avatar_url]).once
       described_class.new(contact: contact, params: params).perform
     end
 
@@ -160,9 +171,52 @@ describe ContactIdentifyAction do
         contact.update!(name: 'test')
         params = { name: 'test', avatar_url: 'https://chatwoot-assets.local/sample.png' }
 
-        expect(Avatar::AvatarFromUrlJob).to receive(:perform_later).with(contact, params[:avatar_url]).once
+        expect(Avatar::AvatarFromUrlJob).to receive(:perform_later)
+          .with(contact.class.name, contact.id, params[:avatar_url]).once
         described_class.new(contact: contact, params: params).perform
       end
+    end
+  end
+
+  # B6: chave nova mandada pelo site via setUser/prechat era gravada no jsonb do
+  # contato e nao aparecia em lugar nenhum — o painel itera sobre as definicoes
+  # (CustomAttributes.vue:76-89) e o filtro recusa chave sem definicao
+  # (filters/filter_helper.rb:22-25).
+  describe 'auto-provisionamento de CustomAttributeDefinition' do
+    let(:contact) { create(:contact, account: account) }
+
+    def definitions
+      account.custom_attribute_definitions.where(attribute_model: 'contact_attribute')
+    end
+
+    it 'cria a definicao da chave nova' do
+      expect do
+        described_class.new(contact: contact, params: { custom_attributes: { carrinho_valor: 4200 } }).perform
+      end.to change(definitions, :count).by(1)
+
+      definition = definitions.find_by(attribute_key: 'carrinho_valor')
+      expect(definition.attribute_display_type).to eq('number')
+      expect(definition.attribute_display_name).to eq('Carrinho valor')
+    end
+
+    it 'nao duplica quando a mesma chave volta' do
+      2.times do |index|
+        described_class.new(contact: contact.reload, params: { custom_attributes: { carrinho_valor: 4200 + index } }).perform
+      end
+
+      expect(definitions.where(attribute_key: 'carrinho_valor').count).to eq(1)
+    end
+
+    it 'nao levanta nem cria definicao para chave reservada' do
+      expect do
+        described_class.new(contact: contact, params: { custom_attributes: { city: 'Sao Paulo', email: 'x@y.com' } }).perform
+      end.not_to change(definitions, :count)
+    end
+
+    it 'nao mexe em nada quando a chamada nao traz custom_attributes' do
+      expect do
+        described_class.new(contact: contact, params: { name: 'Sem atributos' }).perform
+      end.not_to change(definitions, :count)
     end
   end
 end

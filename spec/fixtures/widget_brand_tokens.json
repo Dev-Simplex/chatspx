@@ -1,0 +1,430 @@
+{
+  "gerado_por": "scripts/gerar-fixture-tokens-marca.rb",
+  "fonte": "WidgetTokens (app/services/widget_tokens.rb) — a derivação canônica, no servidor",
+  "limiar_on_brand": 0.17913,
+  "alvo_texto": 4.5,
+  "surface_light": "#ffffff",
+  "surface_dark": "#121213",
+  "cores": [
+    {
+      "brand": "#2dc46f",
+      "luminance": 0.4118544104276231,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 9.23708820855246,
+        "brand_as_text_light": 2.273443700641124,
+        "brand_as_text_dark": 8.235300142967539,
+        "readable_light_on_surface": 4.834056811740241,
+        "readable_dark_on_surface": 8.235300142967539
+      },
+      "tokens": {
+        "--w-brand": "#2dc46f",
+        "--w-brand-hover": "#29b064",
+        "--w-brand-active": "#25a15b",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#1d824a",
+        "--w-brand-readable-dark": "#2dc46f",
+        "--w-focus-ring-color": "#1d824a"
+      }
+    },
+    {
+      "brand": "#009ce0",
+      "luminance": 0.29158752272360344,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 6.831750454472068,
+        "brand_as_text_light": 3.0738827683984544,
+        "brand_as_text_dark": 6.090827999492395,
+        "readable_light_on_surface": 4.840522182812117,
+        "readable_dark_on_surface": 6.090827999492395
+      },
+      "tokens": {
+        "--w-brand": "#009ce0",
+        "--w-brand-hover": "#008cca",
+        "--w-brand-active": "#0080b8",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#0079ad",
+        "--w-brand-readable-dark": "#009ce0",
+        "--w-focus-ring-color": "#0079ad"
+      }
+    },
+    {
+      "brand": "#e11d48",
+      "luminance": 0.17354160761468818,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 4.697112144822063,
+        "brand_as_text_light": 4.697112144822063,
+        "brand_as_text_dark": 3.985957894055721,
+        "readable_light_on_surface": 4.697112144822063,
+        "readable_dark_on_surface": 4.6141744326842735
+      },
+      "tokens": {
+        "--w-brand": "#e11d48",
+        "--w-brand-hover": "#e4345a",
+        "--w-brand-active": "#e64669",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#e11d48",
+        "--w-brand-readable-dark": "#e53d62",
+        "--w-focus-ring-color": "#e11d48"
+      }
+    },
+    {
+      "brand": "#007aff",
+      "luminance": 0.21139067233181502,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 5.2278134466363,
+        "brand_as_text_light": 4.016975780478911,
+        "brand_as_text_dark": 4.66084244866579,
+        "readable_light_on_surface": 4.802188302088832,
+        "readable_dark_on_surface": 4.66084244866579
+      },
+      "tokens": {
+        "--w-brand": "#007aff",
+        "--w-brand-hover": "#006ee6",
+        "--w-brand-active": "#0064d1",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#006ee6",
+        "--w-brand-readable-dark": "#007aff",
+        "--w-focus-ring-color": "#006ee6"
+      }
+    },
+    {
+      "brand": "#0b2545",
+      "luminance": 0.01823954233458936,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 15.386973066901334,
+        "brand_as_text_light": 15.386973066901334,
+        "brand_as_text_dark": 1.2167754600930671,
+        "readable_light_on_surface": 15.386973066901334,
+        "readable_dark_on_surface": 4.840675409336785
+      },
+      "tokens": {
+        "--w-brand": "#0b2545",
+        "--w-brand-hover": "#233b58",
+        "--w-brand-active": "#374c66",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#0b2545",
+        "--w-brand-readable-dark": "#748396",
+        "--w-focus-ring-color": "#0b2545"
+      }
+    },
+    {
+      "brand": "#f5a623",
+      "luminance": 0.46806262927718495,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 10.361252585543697,
+        "brand_as_text_light": 2.026781977045881,
+        "brand_as_text_dark": 9.237545747376002,
+        "readable_light_on_surface": 4.743924146116711,
+        "readable_dark_on_surface": 9.237545747376002
+      },
+      "tokens": {
+        "--w-brand": "#f5a623",
+        "--w-brand-hover": "#dd9520",
+        "--w-brand-active": "#c9881d",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#9b6917",
+        "--w-brand-readable-dark": "#f5a623",
+        "--w-focus-ring-color": "#9b6917"
+      }
+    },
+    {
+      "brand": "#6b21a8",
+      "luminance": 0.07040665926618589,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 8.720447908771723,
+        "brand_as_text_light": 8.720447908771723,
+        "brand_as_text_dark": 2.1469644023773053,
+        "readable_light_on_surface": 8.720447908771723,
+        "readable_dark_on_surface": 4.820848145602666
+      },
+      "tokens": {
+        "--w-brand": "#6b21a8",
+        "--w-brand-hover": "#7a37b1",
+        "--w-brand-active": "#8649b8",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#6b21a8",
+        "--w-brand-readable-dark": "#9c6dc5",
+        "--w-focus-ring-color": "#6b21a8"
+      }
+    },
+    {
+      "brand": "#14b8a6",
+      "luminance": 0.37182875718495256,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 8.43657514369905,
+        "brand_as_text_light": 2.489161732374787,
+        "brand_as_text_dark": 7.5216049601792205,
+        "readable_light_on_surface": 4.7574960082937645,
+        "readable_dark_on_surface": 7.5216049601792205
+      },
+      "tokens": {
+        "--w-brand": "#14b8a6",
+        "--w-brand-hover": "#12a695",
+        "--w-brand-active": "#109788",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#0d8175",
+        "--w-brand-readable-dark": "#14b8a6",
+        "--w-focus-ring-color": "#0d8175"
+      }
+    },
+    {
+      "brand": "#facc15",
+      "luminance": 0.6356386777636567,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 13.712773555273134,
+        "brand_as_text_light": 1.5314188566852418,
+        "brand_as_text_dark": 12.225584888933234,
+        "readable_light_on_surface": 4.8554837453657225,
+        "readable_dark_on_surface": 12.225584888933234
+      },
+      "tokens": {
+        "--w-brand": "#facc15",
+        "--w-brand-hover": "#e1b813",
+        "--w-brand-active": "#cda711",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#886f0a",
+        "--w-brand-readable-dark": "#facc15",
+        "--w-focus-ring-color": "#886f0a"
+      }
+    },
+    {
+      "brand": "#1e293b",
+      "luminance": 0.021776624192530118,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 14.628718079350337,
+        "brand_as_text_light": 14.628718079350337,
+        "brand_as_text_dark": 1.2798449687363154,
+        "readable_light_on_surface": 14.628718079350337,
+        "readable_dark_on_surface": 4.637256438575655
+      },
+      "tokens": {
+        "--w-brand": "#1e293b",
+        "--w-brand-hover": "#353e4f",
+        "--w-brand-active": "#47505e",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#1e293b",
+        "--w-brand-readable-dark": "#787f8a",
+        "--w-focus-ring-color": "#1e293b"
+      }
+    },
+    {
+      "brand": "#dc2626",
+      "luminance": 0.16741810922516903,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 4.829404522659002,
+        "brand_as_text_light": 4.829404522659002,
+        "brand_as_text_dark": 3.876770136996137,
+        "readable_light_on_surface": 4.829404522659002,
+        "readable_dark_on_surface": 4.610130999408405
+      },
+      "tokens": {
+        "--w-brand": "#dc2626",
+        "--w-brand-hover": "#e03c3c",
+        "--w-brand-active": "#e24d4d",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#dc2626",
+        "--w-brand-readable-dark": "#e24545",
+        "--w-focus-ring-color": "#dc2626"
+      }
+    },
+    {
+      "brand": "#7c3aed",
+      "luminance": 0.13425622774770365,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 5.698586217871195,
+        "brand_as_text_light": 5.698586217871195,
+        "brand_as_text_dark": 3.2854624843971587,
+        "readable_light_on_surface": 5.698586217871195,
+        "readable_dark_on_surface": 4.590726679863786
+      },
+      "tokens": {
+        "--w-brand": "#7c3aed",
+        "--w-brand-hover": "#894eef",
+        "--w-brand-active": "#945df0",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#7c3aed",
+        "--w-brand-readable-dark": "#955ef1",
+        "--w-focus-ring-color": "#7c3aed"
+      }
+    },
+    {
+      "brand": "#059669",
+      "luminance": 0.22864878582662265,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 5.572975716532453,
+        "brand_as_text_light": 3.7681843718971657,
+        "brand_as_text_dark": 4.968570904478407,
+        "readable_light_on_surface": 4.890325363337777,
+        "readable_dark_on_surface": 4.968570904478407
+      },
+      "tokens": {
+        "--w-brand": "#059669",
+        "--w-brand-hover": "#05875f",
+        "--w-brand-active": "#047b56",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#05815a",
+        "--w-brand-readable-dark": "#059669",
+        "--w-focus-ring-color": "#05815a"
+      }
+    },
+    {
+      "brand": "#ea580c",
+      "luminance": 0.24498416588930616,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 5.899683317786122,
+        "brand_as_text_light": 3.5595130905908228,
+        "brand_as_text_dark": 5.259846152106963,
+        "readable_light_on_surface": 4.672864427452395,
+        "readable_dark_on_surface": 5.259846152106963
+      },
+      "tokens": {
+        "--w-brand": "#ea580c",
+        "--w-brand-hover": "#d34f0b",
+        "--w-brand-active": "#c0480a",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#c84c0a",
+        "--w-brand-readable-dark": "#ea580c",
+        "--w-focus-ring-color": "#c84c0a"
+      }
+    },
+    {
+      "brand": "#0ea5e9",
+      "luminance": 0.3288682134542522,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 7.577364269085043,
+        "brand_as_text_light": 2.771412229141218,
+        "brand_as_text_dark": 6.755577909360698,
+        "readable_light_on_surface": 4.780951652817842,
+        "readable_dark_on_surface": 6.755577909360698
+      },
+      "tokens": {
+        "--w-brand": "#0ea5e9",
+        "--w-brand-hover": "#0d95d2",
+        "--w-brand-active": "#0b87bf",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#0a7aac",
+        "--w-brand-readable-dark": "#0ea5e9",
+        "--w-focus-ring-color": "#0a7aac"
+      }
+    },
+    {
+      "brand": "#64748b",
+      "luminance": 0.17064187593603225,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 4.758842787868666,
+        "brand_as_text_light": 4.758842787868666,
+        "brand_as_text_dark": 3.9342529407876716,
+        "readable_light_on_surface": 4.758842787868666,
+        "readable_dark_on_surface": 4.7866218740917414
+      },
+      "tokens": {
+        "--w-brand": "#64748b",
+        "--w-brand-hover": "#748297",
+        "--w-brand-active": "#808da0",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#64748b",
+        "--w-brand-readable-dark": "#738297",
+        "--w-focus-ring-color": "#64748b"
+      }
+    },
+    {
+      "brand": "#fde047",
+      "luminance": 0.7464888809386645,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 15.92977761877329,
+        "brand_as_text_light": 1.3182858231022283,
+        "brand_as_text_dark": 14.202148657610682,
+        "readable_light_on_surface": 4.742362039324982,
+        "readable_dark_on_surface": 14.202148657610682
+      },
+      "tokens": {
+        "--w-brand": "#fde047",
+        "--w-brand-hover": "#e4ca40",
+        "--w-brand-active": "#cfb83a",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#827325",
+        "--w-brand-readable-dark": "#fde047",
+        "--w-focus-ring-color": "#827325"
+      }
+    },
+    {
+      "brand": "#831843",
+      "luminance": 0.05883810047365635,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 9.647356903790751,
+        "brand_as_text_light": 9.647356903790751,
+        "brand_as_text_dark": 1.9406860780243183,
+        "readable_light_on_surface": 9.647356903790751,
+        "readable_dark_on_surface": 4.868759776197542
+      },
+      "tokens": {
+        "--w-brand": "#831843",
+        "--w-brand-hover": "#8f2f56",
+        "--w-brand-active": "#994265",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#831843",
+        "--w-brand-readable-dark": "#b16e89",
+        "--w-focus-ring-color": "#831843"
+      }
+    },
+    {
+      "brand": "#ffffff",
+      "luminance": 1.0,
+      "on_brand": "#000000",
+      "contrast": {
+        "text_on_brand": 21.0,
+        "brand_as_text_light": 1.0,
+        "brand_as_text_dark": 18.7224912329185,
+        "readable_light_on_surface": 4.8807199797883385,
+        "readable_dark_on_surface": 18.7224912329185
+      },
+      "tokens": {
+        "--w-brand": "#ffffff",
+        "--w-brand-hover": "#e6e6e6",
+        "--w-brand-active": "#d1d1d1",
+        "--w-on-brand": "#000000",
+        "--w-brand-readable": "#717171",
+        "--w-brand-readable-dark": "#ffffff",
+        "--w-focus-ring-color": "#717171"
+      }
+    },
+    {
+      "brand": "#111111",
+      "luminance": 0.005605391624202723,
+      "on_brand": "#ffffff",
+      "contrast": {
+        "text_on_brand": 18.883060964594996,
+        "brand_as_text_light": 18.883060964594996,
+        "brand_as_text_dark": 1.008576301608526,
+        "readable_light_on_surface": 18.883060964594996,
+        "readable_dark_on_surface": 4.675821958748788
+      },
+      "tokens": {
+        "--w-brand": "#111111",
+        "--w-brand-hover": "#292929",
+        "--w-brand-active": "#3c3c3c",
+        "--w-on-brand": "#ffffff",
+        "--w-brand-readable": "#111111",
+        "--w-brand-readable-dark": "#7f7f7f",
+        "--w-focus-ring-color": "#111111"
+      }
+    }
+  ]
+}

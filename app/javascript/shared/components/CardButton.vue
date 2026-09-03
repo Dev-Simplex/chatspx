@@ -1,6 +1,4 @@
 <script>
-import { mapGetters } from 'vuex';
-import { getContrastingTextColor } from '@chatwoot/utils';
 import { IFrameHelper } from 'widget/helpers/utils';
 
 export default {
@@ -12,12 +10,6 @@ export default {
     },
   },
   computed: {
-    ...mapGetters({
-      widgetColor: 'appConfig/getWidgetColor',
-    }),
-    textColor() {
-      return getContrastingTextColor(this.widgetColor);
-    },
     isLink() {
       return this.action.type === 'link';
     },
@@ -44,11 +36,6 @@ export default {
     :key="action.uri"
     class="action-button button"
     :href="action.uri"
-    :style="{
-      background: widgetColor,
-      borderColor: widgetColor,
-      color: textColor,
-    }"
     target="_blank"
     rel="noopener nofollow noreferrer"
   >
@@ -57,8 +44,7 @@ export default {
   <button
     v-else
     :key="action.payload"
-    class="action-button button !bg-n-background dark:!bg-n-alpha-black1 text-n-brand"
-    :style="{ borderColor: widgetColor, color: widgetColor }"
+    class="action-button button !bg-n-background dark:!bg-n-alpha-black1 text-w-brand-readable border-w-brand-readable"
     @click="onClick"
   >
     {{ action.text }}

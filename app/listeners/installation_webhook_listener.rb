@@ -20,6 +20,11 @@ class InstallationWebhookListener < BaseListener
   def deliver_webhook_payloads(payload)
     # Deliver the installation event
     webhook_url = InstallationConfig.find_by(name: 'INSTALLATION_EVENTS_WEBHOOK_URL')&.value
-    WebhookJob.perform_later(webhook_url, payload) if webhook_url
+    return if webhook_url.blank?
+
+    # Bloco 4.13: o evento de instalacao tambem saia sem assinatura. O segredo e de
+    # instalacao, como a URL. Ausente, segue sem assinar — que e o comportamento de hoje.
+    secret = InstallationConfig.find_by(name: 'INSTALLATION_EVENTS_WEBHOOK_SECRET')&.value
+    WebhookJob.perform_later(webhook_url, payload, :account_webhook, secret: secret.presence)
   end
 end

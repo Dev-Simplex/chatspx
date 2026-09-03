@@ -132,7 +132,21 @@ linters:
 
   PropertySpelling:
     enabled: true
-    extra_properties: []
+    # `scss-lint` está parado desde 2019 e sua lista de propriedades conhecidas
+    # não acompanhou o CSS. `extra_properties` existe exatamente para ensiná-lo
+    # em vez de desligar a regra — desligar deixaria de pegar o erro de digitação
+    # que ela existe para pegar.
+    #
+    # `color-scheme` (bloco 2.10) é o que manda o navegador desenhar em modo
+    # escuro o que a folha de estilo não pinta: barra de rolagem, `caret`,
+    # realce de seleção e controles nativos de formulário.
+    #
+    # ATENÇÃO A QUEM FOR DEPURAR UM COMMIT QUE FALHA: quando o `scss-lint`
+    # devolve 1, o `lint-staged` mata as tarefas irmãs com SIGKILL e imprime
+    # "eslint --fix failed to spawn". A mensagem aponta o eslint e o problema é
+    # aqui.
+    extra_properties:
+      - color-scheme
     disabled_properties: []
 
   PropertyUnits:

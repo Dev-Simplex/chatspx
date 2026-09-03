@@ -2,8 +2,7 @@
 import IntegrationAPIClient from 'widget/api/integration';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import { buildDyteURL } from 'shared/helpers/IntegrationHelper';
-import { getContrastingTextColor } from '@chatwoot/utils';
-import { mapGetters } from 'vuex';
+import { reportWidgetError } from 'widget/helpers/telemetry';
 
 export default {
   components: {
@@ -19,10 +18,6 @@ export default {
     return { isLoading: false, dyteAuthToken: '', isSDKMounted: false };
   },
   computed: {
-    ...mapGetters({ widgetColor: 'appConfig/getWidgetColor' }),
-    textColor() {
-      return getContrastingTextColor(this.widgetColor);
-    },
     meetingLink() {
       return buildDyteURL(this.dyteAuthToken);
     },
@@ -37,7 +32,10 @@ export default {
         const { data: { token } = {} } = response;
         this.dyteAuthToken = token;
       } catch (error) {
-        // Ignore Error for now
+        // Bloco 2.13. Era `// Ignore error` — o widget quebrava no site do
+        // cliente e ninguém ficava sabendo. O erro continua sem interromper o
+        // visitante; passa apenas a ser CONTADO.
+        reportWidgetError(error, { origem: 'IntegrationCard' });
       } finally {
         this.isLoading = false;
       }
@@ -55,11 +53,6 @@ export default {
       class="button join-call-button"
       color-scheme="secondary"
       :is-loading="isLoading"
-      :style="{
-        background: widgetColor,
-        borderColor: widgetColor,
-        color: textColor,
-      }"
       @click="joinTheCall"
     >
       <FluentIcon icon="video-add" class="rtl:ml-2 ltr:mr-2" />

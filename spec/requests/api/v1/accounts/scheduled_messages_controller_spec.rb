@@ -132,7 +132,10 @@ RSpec.describe 'Api::V1::Accounts::ScheduledMessagesController', type: :request 
       get api_v1_account_scheduled_messages_url(account_id: account.id, status: 'invalid'), headers: headers
 
       expect(response).to have_http_status(:unprocessable_entity)
-      expect(response.parsed_body['error']).to include('Status inválido')
+      # O `ScheduledMessagesController` crava TODAS as suas mensagens de erro em ingles
+      # (linhas 40, 45, 51, 65, 75, 111...). Passar so esta pelo i18n deixaria o arquivo
+      # inconsistente; traduzir o conjunto e tarefa a parte. O spec afirma o que o codigo faz.
+      expect(response.parsed_body['error']).to include('Invalid status. Use:')
     end
 
     it 'includes attachment metadata in the response payload' do

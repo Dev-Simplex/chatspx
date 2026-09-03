@@ -33,10 +33,26 @@ class Webhooks::InstagramController < ActionController::API
     end
   end
 
+  # Valida contra IG_VERIFY_TOKEN (canal Instagram via pagina do Facebook) e
+  # INSTAGRAM_VERIFY_TOKEN (canal Instagram via login direto).
+  #
+  # As guardas abaixo NAO sao zelo: sem elas a verificacao passava SEM TOKEN NENHUM.
+  # `GlobalConfigService.load('IG_VERIFY_TOKEN', '')` devolve nil quando a variavel esta
+  # ausente ou vazia (e o .env desta VM a tem vazia), e `params['hub.verify_token']` tambem e
+  # nil quando nao vem na query. `nil == nil` e true — entao um GET limpo em
+  # /webhooks/instagram, numa instalacao que nao configurou o verify token, recebia 200 com o
+  # challenge ecoado, completando o handshake da Meta para quem quisesse.
+  #
+  # Mesmo formato ja usado em `Meta::LeadAds::TokenVerifier`: recusa token vazio, ignora
+  # esperado vazio e compara em tempo constante.
   def valid_token?(token)
-    # Validates against both IG_VERIFY_TOKEN (Instagram channel via Facebook page) and
-    # INSTAGRAM_VERIFY_TOKEN (Instagram channel via direct Instagram login)
-    token == GlobalConfigService.load('IG_VERIFY_TOKEN', '') ||
-      token == GlobalConfigService.load('INSTAGRAM_VERIFY_TOKEN', '')
+    return false if token.blank?
+
+    esperados = [
+      GlobalConfigService.load('IG_VERIFY_TOKEN', nil),
+      GlobalConfigService.load('INSTAGRAM_VERIFY_TOKEN', nil)
+    ].compact_blank
+
+    esperados.any? { |esperado| ActiveSupport::SecurityUtils.secure_compare(esperado.to_s, token.to_s) }
   end
 end

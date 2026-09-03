@@ -106,8 +106,9 @@ RSpec.describe 'Custom Filters API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         json_response = response.parsed_body
+        # Nome do atributo ('Account') + erro TRADUZIDO: o atributo fica em ingles, a mensagem nao.
         expect(json_response['message']).to include(
-          'Account Limit reached. The maximum number of allowed custom filters for a user per account is 1000.'
+          I18n.t('errors.custom_filters.number_of_records', locale: account.locale)
         )
       end
     end

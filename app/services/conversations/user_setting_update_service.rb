@@ -34,9 +34,19 @@ class Conversations::UserSettingUpdateService
     sanitized = sanitize_patch(@patch)
     raise ValidationError, 'patch must contain at least one allowed key' if sanitized.empty?
 
+    # `jsonb_set` com create_missing=true cria APENAS o ultimo elemento do caminho: se a chave
+    # intermediaria `user_settings` nao existe, ele devolve o alvo INTACTO e sem erro. Como
+    # nada mais cria esse no, a PRIMEIRA gravacao de cada conversa era um no-op silencioso —
+    # `update_all` retornava 1 linha afetada e a coluna continuava `{}`. O `jsonb_set` de dentro
+    # garante o pai (com o valor atual, ou `{}`) para o de fora ter onde escrever.
     sql = <<~SQL.squish
       additional_attributes = jsonb_set(
-        coalesce(additional_attributes, '{}'::jsonb),
+        jsonb_set(
+          coalesce(additional_attributes, '{}'::jsonb),
+          ARRAY['user_settings'],
+          coalesce(coalesce(additional_attributes, '{}'::jsonb) -> 'user_settings', '{}'::jsonb),
+          true
+        ),
         ARRAY['user_settings', ?],
         coalesce(coalesce(additional_attributes, '{}'::jsonb) #> ARRAY['user_settings', ?], '{}'::jsonb) || ?::jsonb,
         true

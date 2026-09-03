@@ -227,7 +227,11 @@ RSpec.describe 'Notifications API', type: :request do
       let(:admin) { create(:user, account: account, role: :administrator) }
 
       it 'deletes all the read notifications' do
-        expect(Notification::DeleteNotificationJob).to receive(:perform_later).with(admin, type: :read)
+        # Contrato do job: IDs (nao objetos AR, que estourariam GlobalID se o registro sumisse
+        # antes de a fila rodar) + a CONTA, porque o job apaga so as notificacoes dela. Este
+        # spec cravava uma TERCEIRA forma — `(admin, type: :read)`, objeto e simbolo — que nem
+        # o job nem o controller usavam. Ver Notification::DeleteNotificationJob.
+        expect(Notification::DeleteNotificationJob).to receive(:perform_later).with(admin.id, account.id, type: 'read')
 
         post "/api/v1/accounts/#{account.id}/notifications/destroy_all",
              headers: admin.create_new_auth_token,
@@ -238,7 +242,7 @@ RSpec.describe 'Notifications API', type: :request do
       end
 
       it 'deletes all the notifications' do
-        expect(Notification::DeleteNotificationJob).to receive(:perform_later).with(admin, type: :all)
+        expect(Notification::DeleteNotificationJob).to receive(:perform_later).with(admin.id, account.id, type: 'all')
 
         post "/api/v1/accounts/#{account.id}/notifications/destroy_all",
              headers: admin.create_new_auth_token,

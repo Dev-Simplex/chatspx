@@ -15,8 +15,13 @@ class WidgetTestsController < ActionController::Base
     @widget_style = params[:widget_style] || 'standard'
   end
 
+  # Bloco 2.10. Esta página de teste é a que a equipe usa para conferir o
+  # widget, então o default dela precisa ser o MESMO do produto — senão a
+  # ferramenta de conferência passa a mostrar um comportamento que nenhum
+  # cliente tem. O default do produto é `auto` (ver `sdk/constants.js`,
+  # `DEFAULT_DARK_MODE`). O override por `?dark_mode=` continua valendo.
   def ensure_dark_mode
-    @dark_mode = params[:dark_mode] || 'light'
+    @dark_mode = params[:dark_mode] || 'auto'
   end
 
   def ensure_widget_position

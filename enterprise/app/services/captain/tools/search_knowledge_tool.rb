@@ -19,6 +19,7 @@ class Captain::Tools::SearchKnowledgeTool < Captain::Tools::BasePublicTool
       "No relevant knowledge found for: #{query}"
     else
       log_tool_usage('found_results', { query: query, count: chunks.size })
+      chunks.each { |chunk| record_citation(chunk) }
       chunks.map { |chunk| format_chunk(chunk) }.join("\n---\n")
     end
   end
@@ -33,5 +34,19 @@ class Captain::Tools::SearchKnowledgeTool < Captain::Tools::BasePublicTool
     # Conta sem o recurso (ou chunk antigo) cai no conteúdo puro, como antes.
     text = (chunk.contextual_content.presence || chunk.content).to_s.strip
     source.present? ? "#{text}\n(fonte: #{source})" : text
+  end
+
+  # 6.03: a mesma fonte que vai como prosa para o modelo vai como DADO para a mensagem.
+  # A prosa continua (o modelo a usa para escrever); o metadado é o que o visitante vê,
+  # o que sobrevive ao reload e o que pode virar link. Best-effort: falha aqui não pode
+  # derrubar a busca — a resposta sem citação é pior, mas resposta nenhuma é muito pior.
+  def record_citation(chunk)
+    Captain::CitationWindow.record(
+      title: chunk.metadata&.dig('name'),
+      source: chunk.metadata&.dig('source'),
+      excerpt: chunk.content
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[citation] falhou ao registrar fonte do chunk #{chunk&.id}: #{e.class} #{e.message}")
   end
 end

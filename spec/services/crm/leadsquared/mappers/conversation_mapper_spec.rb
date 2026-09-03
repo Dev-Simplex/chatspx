@@ -32,6 +32,10 @@ RSpec.describe Crm::Leadsquared::Mappers::ConversationMapper do
 
   before do
     account.enable_features('crm_integration')
+    # `and_call_original` como PADRAO antes do stub especifico: o mapper tambem consulta
+    # `MAXIMUM_FILE_UPLOAD_SIZE` ao montar a linha de anexo, e um dublê que so conhece
+    # 'BRAND_NAME' faz a chamada seguinte estourar em vez de responder.
+    allow(GlobalConfig).to receive(:get).and_call_original
     allow(GlobalConfig).to receive(:get).with('BRAND_NAME').and_return({ 'BRAND_NAME' => 'TestBrand' })
   end
 

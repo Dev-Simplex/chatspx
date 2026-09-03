@@ -139,5 +139,30 @@ module Redis::Alfred
     def zremrangebyscore(key, range_start, range_end)
       $alfred.with { |conn| conn.zremrangebyscore(key, range_start, range_end) }
     end
+
+    # atomic compare-and-delete (release a lock only if you still own it); WATCH/MULTI
+    # aborts the delete if the key changes between the check and the delete.
+    def delete_if_equals(key, expected_value)
+      $alfred.with do |conn|
+        conn.watch(key) do
+          next conn.unwatch unless conn.get(key) == expected_value
+
+          conn.multi { |transaction| transaction.del(key) }
+        end
+      end
+    end
+
+    def pipelined(&)
+      $alfred.with { |conn| conn.pipelined(&) }
+    end
+
+    # get expiry of a key in seconds
+    def ttl(key)
+      $alfred.with { |conn| conn.ttl(key) }
+    end
+
+    def with(&)
+      $alfred.with(&)
+    end
   end
 end

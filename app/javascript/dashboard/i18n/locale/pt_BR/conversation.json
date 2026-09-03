@@ -767,6 +767,10 @@
         "GENERIC": {
           "TITLE": "Não consegui responder",
           "BODY": "Algo travou no caminho até o serviço de IA. Tente de novo; se continuar, avise quem administra a conta."
+        },
+        "NO_ASSISTANT": {
+          "TITLE": "Nenhum agente configurado",
+          "BODY": "Esta conta ainda não tem um agente de IA, então não consigo abrir uma conversa. Quem administra a conta pode criar um em Agentes IA."
         }
       },
       "QUICK_PROMPTS": {
@@ -909,8 +913,15 @@
         "DISCARDED_TOAST": "Sugestão descartada"
       }
     },
-    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente."
-  },
+    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente.",
+    "NEWEST_MESSAGE": "Mensagens recentes",
+    "WHATSAPP_WINDOW_EXPIRED": {
+      "TITLE": "Janela de 24 horas expirada",
+      "DESCRIPTION": "O WhatsApp só permite mensagens livres dentro de 24 horas após a última mensagem do cliente. Para retomar, envie um template aprovado.",
+      "SEND_TEMPLATE": "Enviar Template",
+      "SEND_TEMPLATE_ACTION": "Enviar Template",
+      "PRIVATE_NOTE": "Nota Privada"
+    }  },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Enviar transcrição de conversa",
     "DESC": "Enviar uma cópia da transcrição da conversa para o endereço de e-mail especificado",
@@ -968,6 +979,7 @@
       "MEDIA_AND_FILES": "Mídias e Arquivos",
       "CONVERSATION_LABELS": "Etiquetas da conversa",
       "CONVERSATION_INFO": "Informação da conversa",
+      "SITE_CONTEXT": "Recebido do site",
       "CONTACT_NOTES": "Notas do contato",
       "CONTACT_ATTRIBUTES": "Atributos do contato",
       "PREVIOUS_CONVERSATION": "Conversas anteriores",
@@ -975,7 +987,8 @@
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Pedidos do Shopify",
       "KANBAN_STATUS": "Situação no Kanban",
-      "GROUP_PARTICIPANTS": "Integrantes do grupo"
+      "GROUP_PARTICIPANTS": "Integrantes do grupo",
+      "SHARED_FILES": "Anexos"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Não está em nenhum funil",
@@ -1056,6 +1069,18 @@
         "PARTIALLY_FULFILLED": "Parcialmente Concluído",
         "UNFULFILLED": "Não concluído"
       }
+    },
+    "SHARED_FILES": {
+      "DOWNLOAD": "Baixar arquivo",
+      "DOWNLOAD_ERROR": "Não foi possível baixar o arquivo. Por favor, tente novamente.",
+      "EMPTY": "Nenhum anexo ainda",
+      "FILES_HEADING": "Arquivos",
+      "JUMP_TO_MESSAGE": "Ir para mensagem",
+      "MEDIA_HEADING": "Mídia",
+      "MORE_COUNT": "+{count}",
+      "SHOW_LESS": "Mostrar menos",
+      "UNTITLED_FILE": "Arquivo sem nome",
+      "VIEW_ALL": "Visualizar tudo"
     }
   },
   "CONVERSATION_CUSTOM_ATTRIBUTES": {

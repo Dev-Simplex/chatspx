@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Roda a suite rspec em 6 grupos paralelos, cada um com seu proprio banco.
+#
+# POR QUE: sequencial leva ~170 min (10.067 exemplos a ~59/min). Em 6 grupos com
+# banco dedicado: ~15 min. O ganho de 14x com 6 processos numa maquina de 16 nucleos
+# indica que o gargalo sequencial era CONTENCAO NO BANCO, nao CPU.
+#
+# PRE-REQUISITO: `config.consider_all_requests_local = false` em
+# config/environments/test.rb. Com `true`, uma excecao que chega ao middleware faz o
+# Rails montar a pagina de debug, que chama `ActionView::...::ERB#find_offset` — e esse
+# metodo, no actionview 7.1.5.2, entra em LACO INFINITO e trava a suite. Intermitente,
+# so aparece sob carga. Ver vault/00-Inbox/backtrace-travamento-rspec-21ago.txt
+#
+# CAVEAT AO INTERPRETAR O NUMERO: rodar em grupos elimina contaminacao entre suites.
+# "Por grupo" responde quantos defeitos reais existem; "sequencial" responde o que o CI
+# veria. Diga sempre qual dos dois o numero representa.
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+eval "$(grep -E '^(POSTGRES_HOST|POSTGRES_USERNAME|POSTGRES_PASSWORD)=' .env | sed 's/^/export /')"
+export RAILS_ENV=test
+LOG=${LOG_DIR:-/tmp/rspec-paralelo}
+mkdir -p "$LOG"; rm -f "$LOG"/g*.log
+
+# grupos balanceados (~1.700 exemplos cada). Filtra diretorio inexistente: em outra
+# arvore (ex.: baseline) alguns nao existem e o rspec morre com LoadError.
+existentes() { for d in "$@"; do [ -d "$d" ] && printf '%s ' "$d"; done; }
+
+G1=$(existentes spec/services)
+G2=$(existentes spec/controllers)
+G3=$(existentes spec/enterprise)
+G4=$(existentes spec/models spec/actions spec/drops spec/views spec/config spec/channels spec/integration spec/configs spec/dispatchers spec/swagger)
+G5=$(existentes spec/jobs spec/lib spec/listeners spec/builders)
+G6=$(existentes spec/requests spec/mailers spec/helpers spec/mailboxes spec/finders spec/presenters spec/policies spec/support)
+
+i=0
+for par in "chatwoot_test_2|$G1" "chatwoot_test_3|$G2" "chatwoot_test_4|$G3" \
+           "chatwoot_test_5|$G4" "chatwoot_test_6|$G5" "chatwoot_test_7|$G6"; do
+  i=$((i+1)); db="${par%%|*}"; dirs="${par#*|}"
+  [ -z "${dirs// }" ] && continue
+  POSTGRES_DATABASE="$db" bundle exec rspec $dirs --no-color "$@" > "$LOG/g$i.log" 2>&1 &
+done
+echo "grupos lancados; logs em $LOG"
+wait
+
+tot=0; fal=0
+printf '\n%-34s %s\n' "GRUPO" "RESULTADO"
+for i in 1 2 3 4 5 6; do
+  [ -f "$LOG/g$i.log" ] || continue
+  r=$(grep -E 'examples,' "$LOG/g$i.log" | tail -1)
+  e=$(echo "$r" | grep -oE '^[0-9]+'); f=$(echo "$r" | grep -oE '[0-9]+ failures?' | grep -oE '^[0-9]+')
+  tot=$((tot+${e:-0})); fal=$((fal+${f:-0}))
+  printf '  g%-31s %s\n' "$i" "$r"
+done
+printf '  %-32s %s exemplos, %s falhas\n' "TOTAL" "$tot" "$fal"
+
+echo
+echo "arquivos com falha:"
+cat "$LOG"/g*.log | grep -E '^rspec \./spec' | sed 's|^rspec \./||' | cut -d: -f1 | sort | uniq -c | sort -rn | head -25

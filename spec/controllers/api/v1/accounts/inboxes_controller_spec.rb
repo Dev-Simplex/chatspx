@@ -326,7 +326,9 @@ RSpec.describe 'Inboxes API', type: :request do
         json_response = response.parsed_body
 
         expect(response).to have_http_status(:success)
-        expect(json_response['message']).to eq('Your inbox deletion request will be processed in some time.')
+        # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a resposta
+        # sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
+        expect(json_response['message']).to eq(I18n.t('messages.inbox_deletetion_response', locale: account.locale))
       end
 
       it 'is unable to delete inbox of another account' do
@@ -365,7 +367,10 @@ RSpec.describe 'Inboxes API', type: :request do
 
     context 'when it is an authenticated user' do
       let(:admin) { create(:user, account: account, role: :administrator) }
-      let(:valid_params) { { name: 'test', channel: { type: 'web_widget', website_url: 'test.com' } } }
+      # URL completa: o schema documenta `website_url` como `format: uri` e 'test.com' (sem
+      # esquema) nao e URI valida. O modelo so valida presenca, entao o dado passava e a
+      # conformidade quebrava. O resto deste arquivo ja usa 'https://test.com'.
+      let(:valid_params) { { name: 'test', channel: { type: 'web_widget', website_url: 'https://test.com' } } }
 
       it 'will not create inbox for agent' do
         agent = create(:user, account: account, role: :agent)

@@ -12,7 +12,13 @@ RSpec.describe 'Session', type: :request do
              params: params,
              as: :json
         expect(response).to have_http_status(:unauthorized)
-        expect(response.body).to include('Invalid login credentials')
+        # A frase vem do gem devise_token_auth (`sessions.bad_credentials`), que traz traducao
+        # pt-BR propria. Login falho nao tem conta nem usuario resolvido, entao `switch_locale`
+        # cai no `I18n.default_locale` (pt_BR, decisao nossa em config/application.rb) enquanto o
+        # rails_helper roda o exemplo em :en — dai a comparacao ingles x portugues.
+        expect(response.body).to include(
+          I18n.t('devise_token_auth.sessions.bad_credentials', locale: I18n.default_locale)
+        )
       end
     end
 
@@ -64,7 +70,13 @@ RSpec.describe 'Session', type: :request do
              params: params,
              as: :json
         expect(response).to have_http_status(:unauthorized)
-        expect(response.body).to include('Invalid login credentials')
+        # A frase vem do gem devise_token_auth (`sessions.bad_credentials`), que traz traducao
+        # pt-BR propria. Login falho nao tem conta nem usuario resolvido, entao `switch_locale`
+        # cai no `I18n.default_locale` (pt_BR, decisao nossa em config/application.rb) enquanto o
+        # rails_helper roda o exemplo em :en — dai a comparacao ingles x portugues.
+        expect(response.body).to include(
+          I18n.t('devise_token_auth.sessions.bad_credentials', locale: I18n.default_locale)
+        )
       end
     end
 

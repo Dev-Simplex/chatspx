@@ -6,6 +6,9 @@ RSpec.describe 'MFA API', type: :request do
     allow(Chatwoot).to receive(:mfa_enabled?).and_return(true)
   end
 
+  # As mensagens saem no idioma da CONTA, e conta nova nasce em pt-BR (decisao nossa).
+  # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (en) e a comparacao falha.
+  # Mesmo conserto de 685bb23752.
   let(:account) { create(:account) }
   let(:user) { create(:user, account: account, password: 'Test@123456') }
 
@@ -88,7 +91,7 @@ RSpec.describe 'MFA API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         json_response = response.parsed_body
-        expect(json_response['error']).to eq(I18n.t('errors.mfa.already_enabled'))
+        expect(json_response['error']).to eq(I18n.t('errors.mfa.already_enabled', locale: account.locale))
       end
     end
   end
@@ -128,7 +131,7 @@ RSpec.describe 'MFA API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         json_response = response.parsed_body
-        expect(json_response['error']).to eq(I18n.t('errors.mfa.invalid_code'))
+        expect(json_response['error']).to eq(I18n.t('errors.mfa.invalid_code', locale: account.locale))
       end
     end
 
@@ -145,7 +148,7 @@ RSpec.describe 'MFA API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         json_response = response.parsed_body
-        expect(json_response['error']).to eq(I18n.t('errors.mfa.already_enabled'))
+        expect(json_response['error']).to eq(I18n.t('errors.mfa.already_enabled', locale: account.locale))
       end
     end
   end
@@ -189,7 +192,7 @@ RSpec.describe 'MFA API', type: :request do
 
           expect(response).to have_http_status(:unprocessable_entity)
           json_response = response.parsed_body
-          expect(json_response['error']).to include('Invalid')
+          expect(json_response['error']).to eq(I18n.t('errors.mfa.invalid_credentials', locale: account.locale))
         end
       end
 
@@ -202,7 +205,7 @@ RSpec.describe 'MFA API', type: :request do
 
           expect(response).to have_http_status(:unprocessable_entity)
           json_response = response.parsed_body
-          expect(json_response['error']).to include('Invalid')
+          expect(json_response['error']).to eq(I18n.t('errors.mfa.invalid_code', locale: account.locale))
         end
       end
     end
@@ -216,7 +219,7 @@ RSpec.describe 'MFA API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         json_response = response.parsed_body
-        expect(json_response['error']).to eq(I18n.t('errors.mfa.not_enabled'))
+        expect(json_response['error']).to eq(I18n.t('errors.mfa.not_enabled', locale: account.locale))
       end
     end
   end
@@ -253,7 +256,7 @@ RSpec.describe 'MFA API', type: :request do
 
           expect(response).to have_http_status(:unprocessable_entity)
           json_response = response.parsed_body
-          expect(json_response['error']).to eq(I18n.t('errors.mfa.invalid_code'))
+          expect(json_response['error']).to eq(I18n.t('errors.mfa.invalid_code', locale: account.locale))
         end
       end
     end
@@ -267,7 +270,7 @@ RSpec.describe 'MFA API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         json_response = response.parsed_body
-        expect(json_response['error']).to eq(I18n.t('errors.mfa.not_enabled'))
+        expect(json_response['error']).to eq(I18n.t('errors.mfa.not_enabled', locale: account.locale))
       end
     end
   end

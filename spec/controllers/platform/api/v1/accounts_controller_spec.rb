@@ -225,7 +225,11 @@ RSpec.describe 'Platform Accounts API', type: :request do
 
       it 'destroys the object' do
         create(:platform_app_permissible, platform_app: platform_app, permissible: account)
-        expect(DeleteObjectJob).to receive(:perform_later).with(account).once
+        # ChatSPX: `DeleteObjectJob#perform(object_type, object_id, ...)` recebe NOME DA CLASSE + id,
+        # nunca o registro (payload de ActiveJob nao carrega AR). Os 9 chamadores do app ja passam
+        # assim; so este exemplo ficou no contrato antigo. Como e expectativa estrita, o mock
+        # LEVANTAVA dentro do controller e o sintoma aparecia como 500 -- artefato, nao defeito.
+        expect(DeleteObjectJob).to receive(:perform_later).with(account.class.name, account.id).once
         delete "/platform/api/v1/accounts/#{account.id}",
                headers: { api_access_token: platform_app.access_token.token }, as: :json
 

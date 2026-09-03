@@ -19,6 +19,9 @@ class Captain::Assistant::AgentRunnerService
   CONTACT_INBOX_STATE_ATTRIBUTES = %i[id hmac_verified].freeze
 
   CAMPAIGN_STATE_ATTRIBUTES = %i[id title message campaign_type description].freeze
+  # Exposto para o ResponseBuilderJob e os specs do upstream inspecionarem o RunResult cru.
+  attr_reader :last_run_result
+
   def initialize(assistant:, conversation: nil, callbacks: {}, source: nil)
     @assistant = assistant
     @conversation = conversation
@@ -28,9 +31,9 @@ class Captain::Assistant::AgentRunnerService
 
   def generate_response(message_history: [])
     message_to_process, context = run_payload(message_history)
-    result = runner.run(message_to_process, context: context, max_turns: 100)
+    @last_run_result = runner.run(message_to_process, context: context, max_turns: 100)
 
-    process_agent_result(result)
+    process_agent_result(@last_run_result)
   rescue StandardError => e
     handle_run_error(e)
   end
@@ -276,8 +279,21 @@ class Captain::Assistant::AgentRunnerService
     @conversation.inbox&.channel.try(:phone_number)
   end
 
+  # Bloco 1.20, asserção (5): `referer_raw` é a URL CRUA do visitante — a que nem escapando
+  # virou http(s). O snippet `prompts/snippets/conversation.liquid` itera
+  # `additional_attributes` INTEIRO dentro do system prompt, então sem este filtro um
+  # `javascript:alert(...)` do visitante entra literal no prompt da IA.
+  #
+  # O filtro existia em `RunnerStateHelper`, mas esta classe NÃO inclui o módulo: ela tem
+  # cópia própria de `build_state`/`build_conversation_state`/`slice_attrs`, e a cópia veio
+  # sem o filtro — então a proteção nunca chegou a valer. A lista continua morando no
+  # módulo para não haver duas fontes.
   def slice_attrs(record, keys)
-    record.attributes.symbolize_keys.slice(*keys)
+    attrs = record.attributes.symbolize_keys.slice(*keys)
+    return attrs unless attrs[:additional_attributes].is_a?(Hash)
+
+    bloqueados = Captain::Assistant::RunnerStateHelper::BLOCKED_ADDITIONAL_ATTRIBUTES
+    attrs.merge(additional_attributes: attrs[:additional_attributes].except(*bloqueados))
   end
 
   def build_and_wire_agents

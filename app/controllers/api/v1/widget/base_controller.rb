@@ -21,7 +21,12 @@ class Api::V1::Widget::BaseController < ApplicationController
   end
 
   def create_conversation
-    ::Conversation.create!(conversation_params)
+    ::Conversation.create!(conversation_params).tap do
+      # Bloco 4.18 — a conversa nasceu, entao a resposta parcial desta sessao deixou de
+      # ser um lead incompleto: e um lead COMPLETO. A linha nao e apagada — o relatorio
+      # precisa do denominador para responder "quantos leads perdemos".
+      WidgetPartialLead.complete_for(inbox_id: inbox&.id, session_id: @contact_inbox&.source_id)
+    end
   end
 
   def inbox
@@ -59,6 +64,10 @@ class Api::V1::Widget::BaseController < ApplicationController
     permitted_params.dig(:contact, :phone_number)
   end
 
+  def contact_custom_attributes
+    permitted_params.dig(:contact, :custom_attributes)&.to_h
+  end
+
   def browser_params
     {
       browser_name: browser.name,
@@ -83,6 +92,9 @@ class Api::V1::Widget::BaseController < ApplicationController
         in_reply_to: permitted_params[:message][:reply_to]
       },
       echo_id: permitted_params[:message][:echo_id],
+      # Bloco 2.15: `echo_id` e virtual (`message.rb:89`) e some depois do
+      # broadcast. Gravado aqui, ele vira a chave que o retry procura.
+      source_id: permitted_params[:message][:echo_id],
       message_type: :incoming
     }
   end

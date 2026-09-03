@@ -97,7 +97,11 @@ has been assigned to you"
 
       # The localized copy is owned/written by D-L1 (config/locales/*.yml — DD-13). This asserts the
       # D-L3 interpolation wiring once the key exists; stays green if D-L1 has not landed it yet.
-      %i[en pt-BR].each do |locale|
+      # `pt_BR` com SUBLINHADO: e assim que o Chatwoot registra o locale. A grafia com hifen
+      # (padrao de tag de idioma, usada pelo gem rails-i18n) NAO esta em `available_locales`,
+      # entao `I18n.with_locale(:'pt-BR')` levanta `I18n::InvalidLocale` e o exemplo morria
+      # antes de exercitar a interpolacao que ele se propoe a testar.
+      %i[en pt_BR].each do |locale|
         I18n.with_locale(locale) do
           next unless I18n.exists?('notifications.notification_title.conversation_unassignment', locale)
 

@@ -15,7 +15,7 @@
 module Meta
   module LeadAds
     class CreateConversationService
-      DEFAULT_TEMPLATE = "Olá {{first_name}}! Vi seu interesse no anúncio \"{{ad_name}}\". Sou da equipe e estou aqui pra ajudar. Pode me contar um pouco mais sobre o que você procura?".freeze
+      DEFAULT_TEMPLATE = 'Olá {{first_name}}! Vi seu interesse no anúncio "{{ad_name}}". Sou da equipe e estou aqui pra ajudar. Pode me contar um pouco mais sobre o que você procura?'.freeze
       # Mesmo formato que o Contact exige em `phone_number` (app/models/contact.rb).
       # Espelhado aqui porque quem grava é este serviço: telefone reprovado tem que
       # virar nil ANTES do Contact, senão o RecordInvalid mata o job e o lead se perde.

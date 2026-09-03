@@ -41,7 +41,11 @@ RSpec.describe 'Agent Capacity Policy Inbox Limits API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq(I18n.t('agent_capacity_policy.inbox_already_assigned'))
+        # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a resposta
+        # sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
+        expect(response.parsed_body['error']).to eq(
+          I18n.t('agent_capacity_policy.inbox_already_assigned', locale: account.locale)
+        )
       end
     end
   end

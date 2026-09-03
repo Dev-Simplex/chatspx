@@ -14,7 +14,11 @@ RSpec.describe Flow do
   end
 
   describe 'enums' do
-    it { is_expected.to define_enum_for(:trigger_type).with_values(manual: 0, conversation_event: 1, schedule: 2, keyword: 3, external_webhook: 4) }
+    it {
+      expect(subject).to define_enum_for(:trigger_type)
+        .with_values(manual: 0, conversation_event: 1, schedule: 2, keyword: 3, external_webhook: 4, widget_prechat: 5)
+    }
+
     it { is_expected.to define_enum_for(:visibility).with_values(personal: 0, global: 1) }
     it { is_expected.to define_enum_for(:reentry_policy).with_values(once: 0, re_enroll: 1, re_enroll_after: 2) }
   end

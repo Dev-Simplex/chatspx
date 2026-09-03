@@ -1,29 +1,38 @@
+import MarkdownIt from 'markdown-it';
 import mila from 'markdown-it-link-attributes';
 import mentionPlugin from './markdownIt/link';
-import MarkdownIt from 'markdown-it';
 import { parseLegacyGroupContent } from 'dashboard/helper/whatsappGroupHelper';
 
-const setImageHeight = inlineToken => {
+const setImageSizing = inlineToken => {
   const imgSrc = inlineToken.attrGet('src');
   if (!imgSrc) return;
   const url = new URL(imgSrc);
+  const width = url.searchParams.get('cw_image_width');
+  if (width) {
+    inlineToken.attrSet(
+      'style',
+      `width: ${width}; max-width: 100%; height: auto;`
+    );
+    return;
+  }
   const height = url.searchParams.get('cw_image_height');
-  if (!height) return;
-  inlineToken.attrSet('style', `height: ${height};`);
+  if (height) inlineToken.attrSet('style', `height: ${height};`);
 };
 
 const processInlineToken = blockToken => {
   blockToken.children.forEach(inlineToken => {
     if (inlineToken.type === 'image') {
-      setImageHeight(inlineToken);
+      setImageSizing(inlineToken);
     }
   });
 };
 
 const imgResizeManager = md => {
-  // Custom rule for image resize in markdown
-  // If the image url has a query param cw_image_height, then add a style attribute to the image
-  md.core.ruler.after('inline', 'add-image-height', state => {
+  // If the image URL carries a cw_image_width or cw_image_height query param,
+  // add an inline style attribute so the rendered <img> respects the agent's
+  // resize choice. Width takes precedence (HC drag-resize); height is kept for
+  // legacy messages and the message-signature use case.
+  md.core.ruler.after('inline', 'add-image-sizing', state => {
     state.tokens.forEach(blockToken => {
       if (blockToken.type === 'inline') {
         processInlineToken(blockToken);
@@ -43,6 +52,7 @@ const createMarkdownInstance = (linkify = true) => {
     quotes: '\u201c\u201d\u2018\u2019',
     maxNesting: 20,
   })
+    .disable(['lheading'])
     .use(mentionPlugin)
     .use(imgResizeManager)
     .use(mila, {
@@ -52,6 +62,51 @@ const createMarkdownInstance = (linkify = true) => {
         target: '_blank',
       },
     });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UMA INSTÂNCIA POR CONFIGURAÇÃO — bloco 2.12 (§2.2 · W2.15)
+//
+// Era uma instância por bolha, por render: o construtor de `MessageFormatter`
+// chamava `createMarkdownInstance()`, e `createMarkdownInstance` monta um
+// MarkdownIt do zero — parser, regras de core/block/inline, renderer — e ainda
+// aplica três plugins (`mentionPlugin`, `imgResizeManager`, `mila`). Numa
+// conversa de 40 mensagens que rerenderiza porque o agente começou a digitar,
+// isso são 40 construções para produzir o mesmo HTML de antes.
+//
+// Compartilhar é seguro porque `md.render(src)` cria um estado próprio a cada
+// chamada; o que a instância carrega é CONFIGURAÇÃO, e configuração é o que
+// entra na chave deste mapa.
+//
+// ⚠️ POR QUE A CHAVE NÃO É SÓ `linkify`, QUE É O QUE A LINHA DO BLOCO DIZ
+//
+// Porque `disableImageRendering()` MUTA a instância — `md.disable([...])` e
+// `md.renderer.rules.image = () => ''`. Com uma instância por bolha isso era
+// local e inofensivo. Com uma instância compartilhada, a primeira chamada
+// apagaria imagem de TODA superfície do SPA até o próximo reload: hoje quem
+// chama é `captain/.../DocumentDetails.vue`, e o efeito apareceria depois, na
+// conversa de outra tela, sem nada apontando para a causa.
+//
+// A prova de que o risco é real está no spec que já existia: em
+// `MessageFormatter.spec.js` o caso de `#disableImageRendering` roda DEPOIS dos
+// casos que esperam `<img>` renderizado. Com cache ingênuo por `linkify`, a
+// ordem dos arquivos passaria a decidir o resultado.
+//
+// Então "sem imagem" é outra configuração, e ganha entrada própria. São no
+// máximo quatro instâncias no processo inteiro; na prática, uma.
+const instanciasMarkdown = new Map();
+
+const instanciaMarkdown = (linkify, semImagens) => {
+  const chave = `${linkify ? 1 : 0}|${semImagens ? 1 : 0}`;
+  if (!instanciasMarkdown.has(chave)) {
+    const md = createMarkdownInstance(linkify);
+    if (semImagens) {
+      md.disable(['add-image-sizing']);
+      md.renderer.rules.image = () => '';
+    }
+    instanciasMarkdown.set(chave, md);
+  }
+  return instanciasMarkdown.get(chave);
 };
 
 /**
@@ -90,6 +145,16 @@ const sanitizeLegacyGroupContent = content => {
   return `👥 *${sender.name}*${separator}${body}`;
 };
 
+// Help center article tables persist column widths as an internal
+// `<!--cw-colwidths:...-->` comment before the table. It exists only for the
+// editor's markdown round-trip and must never surface as text — markdown-it runs
+// with `html: false`, which would otherwise escape it into a visible comment in
+// rendered/plain output (e.g. dashboard search snippets). Strip the whole marker
+// line, including any blockquote prefix, so a quoted table's `>` prefixes don't
+// collapse together and break table parsing.
+const COLWIDTHS_MARKER_REGEX =
+  /^[ \t>]*<!--cw-colwidths:[\d,]+-->[ \t]*\r?\n?/gm;
+
 const TWITTER_USERNAME_REGEX = /(^|[^@\w])@(\w{1,15})\b/g;
 const TWITTER_USERNAME_REPLACEMENT = '$1[@$2](http://twitter.com/$2)';
 const TWITTER_HASH_REGEX = /(^|\s)#(\w+)/g;
@@ -102,11 +167,20 @@ class MessageFormatter {
     isAPrivateNote = false,
     linkify = true
   ) {
-    this.message = sanitizeLegacyGroupContent(message || '');
+    this.message = sanitizeLegacyGroupContent(message || '').replace(
+      COLWIDTHS_MARKER_REGEX,
+      ''
+    );
     this.isAPrivateNote = isAPrivateNote;
     this.isATweet = isATweet;
     this.linkify = linkify;
-    this.md = createMarkdownInstance(linkify);
+    this.semImagens = false;
+  }
+
+  // `md` vira derivado em vez de campo: assim `disableImageRendering()` não
+  // precisa desfazer nada, e nenhuma instância compartilhada é mutada.
+  get md() {
+    return instanciaMarkdown(this.linkify, this.semImagens);
   }
 
   formatMessage() {
@@ -122,6 +196,10 @@ class MessageFormatter {
       );
     }
     return this.md.render(updatedMessage);
+  }
+
+  disableImageRendering() {
+    this.semImagens = true;
   }
 
   get formattedMessage() {

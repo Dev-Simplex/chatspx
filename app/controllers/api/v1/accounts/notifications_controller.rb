@@ -40,11 +40,10 @@ class Api::V1::Accounts::NotificationsController < Api::V1::Accounts::BaseContro
   end
 
   def destroy_all
-    if params[:type] == 'read'
-      ::Notification::DeleteNotificationJob.perform_later(Current.user.id, type: 'read')
-    else
-      ::Notification::DeleteNotificationJob.perform_later(Current.user.id, type: 'all')
-    end
+    # A conta VAI junto: o job apaga apenas as notificações desta conta. Sem ela, a chamada nem
+    # chegava a rodar (assinatura de dois posicionais) — ver Notification::DeleteNotificationJob.
+    tipo = params[:type] == 'read' ? 'read' : 'all'
+    ::Notification::DeleteNotificationJob.perform_later(Current.user.id, Current.account.id, type: tipo)
     head :ok
   end
 

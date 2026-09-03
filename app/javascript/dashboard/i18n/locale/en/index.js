@@ -25,6 +25,7 @@ import takeoverRequests from './takeoverRequests.json';
 import helpCenter from './helpCenter.json';
 import inbox from './inbox.json';
 import inboxMgmt from './inboxMgmt.json';
+import inboxWidget from './inboxWidget.json';
 import integrationApps from './integrationApps.json';
 import integrations from './integrations.json';
 import interactiveMessage from './interactiveMessage.json';
@@ -33,6 +34,7 @@ import internalChat from './internalChat.json';
 import labelsMgmt from './labelsMgmt.json';
 import login from './login.json';
 import macros from './macros.json';
+import originReports from './originReports.json';
 import report from './report.json';
 import resetPassword from './resetPassword.json';
 import search from './search.json';
@@ -46,6 +48,8 @@ import whatsappTemplates from './whatsappTemplates.json';
 import whatsappTemplatesMgmt from './whatsappTemplatesMgmt.json';
 import contentTemplates from './contentTemplates.json';
 import mfa from './mfa.json';
+import onboarding from './onboarding.json';
+import sessionLimit from './sessionLimit.json';
 import unidades from './unidades.json';
 import redeSocial from './redeSocial.json';
 import yearInReview from './yearInReview.json';
@@ -78,6 +82,7 @@ export default {
   ...helpCenter,
   ...inbox,
   ...inboxMgmt,
+  ...inboxWidget,
   ...integrationApps,
   ...integrations,
   ...interactiveMessage,
@@ -86,6 +91,7 @@ export default {
   ...labelsMgmt,
   ...login,
   ...macros,
+  ...originReports,
   ...report,
   ...resetPassword,
   ...search,
@@ -99,6 +105,8 @@ export default {
   ...whatsappTemplatesMgmt,
   ...contentTemplates,
   ...mfa,
+  ...onboarding,
+  ...sessionLimit,
   ...unidades,
   ...redeSocial,
   ...yearInReview,

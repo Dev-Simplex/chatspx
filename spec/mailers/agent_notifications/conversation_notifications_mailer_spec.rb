@@ -48,7 +48,8 @@ RSpec.describe AgentNotifications::ConversationNotificationsMailer do
     it 'renders the subject interpolating the taker name' do
       expect(mail.subject).to eq(
         I18n.t('notifications.notification_title.conversation_unassignment',
-               display_id: unassignment_conversation.display_id, taker: taker.available_name)
+               display_id: unassignment_conversation.display_id, taker: taker.available_name,
+               locale: account.locale)
       )
     end
 
@@ -83,7 +84,9 @@ RSpec.describe AgentNotifications::ConversationNotificationsMailer do
     end
 
     it 'renders the senders name' do
-      expect(mail.body.encoded).to match("You've been mentioned in a conversation. <b>#{another_agent.display_name}</b> wrote:")
+      # O template esta em pt-BR e quebra a frase em duas linhas; o que este exemplo prova e o
+      # NOME do remetente renderizado, entao afirmamos exatamente esse trecho.
+      expect(mail.body.encoded).to match("<b>#{another_agent.display_name}</b> escreveu:")
     end
 
     it 'renders Customer if contacts name not available in the conversation' do
@@ -116,7 +119,9 @@ RSpec.describe AgentNotifications::ConversationNotificationsMailer do
     let(:mail) { described_class.with(account: account).participating_conversation_new_message(conversation, agent, message).deliver_now }
 
     it 'renders the subject' do
-      expect(mail.subject).to eq("#{agent.available_name}, New message in your participating conversation [ID - #{message.conversation.display_id}].")
+      expect(mail.subject).to eq(
+        "#{agent.available_name}, New message in a conversation you are participating in [ID - #{message.conversation.display_id}]."
+      )
     end
 
     it 'renders the receiver email' do

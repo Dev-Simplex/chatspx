@@ -31,10 +31,14 @@ class Api::V1::Accounts::Conversations::Messages::ReactionsController < Api::V1:
     if existing
       return render_existing(existing) if existing.emoji == emoji
 
-      previous = existing.dup
+      # O emoji ANTERIOR vai como valor, nao como registro: `existing.dup` produzia um
+      # MessageReaction NOVO e sem id, e o ActiveJob estourava
+      # `SerializationError: Unable to serialize MessageReaction without an id` ao enfileirar o
+      # evento — 500 em toda troca de emoji.
+      emoji_anterior = existing.emoji
       existing.update!(emoji: emoji)
       @reaction = existing
-      dispatch_removed(previous)
+      dispatch_removed(existing, emoji: emoji_anterior)
       dispatch_added(@reaction)
       render :create, status: :ok
     else
@@ -113,12 +117,25 @@ class Api::V1::Accounts::Conversations::Messages::ReactionsController < Api::V1:
     )
   end
 
-  def dispatch_removed(reaction)
+  # O evento de REMOCAO carrega VALORES, nunca o registro. Os dois caminhos que o disparam
+  # tornam o registro impróprio para serializar:
+  #
+  # - `destroy`: a linha ja foi APAGADA quando o evento sai. O ActiveJob serializa por GlobalID
+  #   e o job estouraria `DeserializationError` ao tentar reidratar o que nao existe mais;
+  # - troca de emoji: o registro sobrevive, mas com o emoji NOVO — e o assinante precisa
+  #   justamente do antigo para tirar da tela a reacao certa.
+  #
+  # `ActionCableListener#message_reaction_removed` so usa atributos escalares, entao passar os
+  # valores nao perde nada.
+  def dispatch_removed(reaction, emoji: nil)
     Rails.configuration.dispatcher.dispatch(
       ::Events::Types::MESSAGE_REACTION_REMOVED,
       Time.zone.now,
       message: message,
-      reaction: reaction,
+      reaction_id: reaction.id,
+      emoji: emoji || reaction.emoji,
+      user_id: reaction.user_id,
+      user_type: reaction.user_type,
       performed_by: Current.user
     )
   end

@@ -1,0 +1,29 @@
+pt_BR:
+  tracking:
+    origin_attributes:
+      last:
+        utm_source: Origem da campanha (última)
+        utm_medium: Meio da campanha (último)
+        utm_campaign: Campanha (última)
+        utm_term: Termo da campanha (último)
+        utm_content: Conteúdo da campanha (último)
+        utm_id: ID da campanha (último)
+        gclid: Clique do Google Ads (gclid)
+        gbraid: Clique do Google Ads (gbraid)
+        wbraid: Clique do Google Ads (wbraid)
+        fbclid: Clique da Meta (fbclid)
+        msclkid: Clique do Microsoft Ads (msclkid)
+        ttclid: Clique do TikTok Ads (ttclid)
+        page_host: Site do chat (último)
+        page_path: Página em que o chat abriu (última)
+        origin_kind: Tipo de origem (último)
+      first:
+        utm_source: Origem da campanha (primeira)
+        utm_medium: Meio da campanha (primeiro)
+        utm_campaign: Campanha (primeira)
+        utm_term: Termo da campanha (primeiro)
+        utm_content: Conteúdo da campanha (primeiro)
+        utm_id: ID da campanha (primeiro)
+        page_host: Site do chat (primeiro)
+        page_path: Página em que o chat abriu (primeira)
+        origin_kind: Tipo de origem (primeiro)

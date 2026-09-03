@@ -187,6 +187,13 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     # rubocop:disable Rails/SkipsModelValidations
     @conversation.update_columns(updates)
     # rubocop:enable Rails/SkipsModelValidations
+
+    # `update_columns` pula callbacks, entao a invalidacao do contador de nao
+    # lidas nao dispara sozinha. As duas chamadas abaixo sao inertes enquanto a
+    # flag `conversation_unread_counts` estiver desligada — cada uma abre com o
+    # proprio `feature_enabled?`.
+    ::Conversations::UnreadCounts::Notifier.new(@conversation).perform
+    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(Current.account).conversation_changed!
   end
 
   def should_update_last_seen?

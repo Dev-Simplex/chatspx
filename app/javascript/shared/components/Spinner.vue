@@ -13,7 +13,7 @@ export default {
   computed: {
     colorSchemeClasses() {
       if (this.colorScheme === 'primary') {
-        return 'before:!border-t-n-brand';
+        return 'before:!border-t-w-brand-readable';
       }
 
       if (this.colorScheme === 'warning') {

@@ -106,7 +106,11 @@ RSpec.describe 'Enterprise Portal API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('Custom domain is not configured')
+        # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a resposta
+        # sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
+        expect(response.parsed_body['error']).to eq(
+          I18n.t('portals.ssl_status.custom_domain_not_configured', locale: account.locale)
+        )
       end
 
       it 'returns SSL status when portal has ssl_settings' do

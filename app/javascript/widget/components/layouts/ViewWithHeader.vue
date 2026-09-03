@@ -5,6 +5,7 @@ import ChatHeader from '../ChatHeader.vue';
 import ChatHeaderExpanded from '../ChatHeaderExpanded.vue';
 import configMixin from '../../mixins/configMixin';
 import { mapGetters } from 'vuex';
+import { currentAttendant } from 'widget/helpers/aiIdentity';
 import { IFrameHelper } from 'widget/helpers/utils';
 
 export default {
@@ -28,7 +29,25 @@ export default {
     ...mapGetters({
       appConfig: 'appConfig/getAppConfig',
       availableAgents: 'agent/availableAgents',
+      conversation: 'conversation/getConversation',
+      isWidgetOpen: 'appConfig/getIsWidgetOpen',
     }),
+    /**
+     * Bloco 4.09 — quem atende AGORA, para o rotulo persistente do cabecalho.
+     *
+     * Resolvido AQUI e passado pronto: o cabecalho nao sabe ler mensagem, e nao
+     * deve passar a saber.
+     *
+     * `getConversation` devolve um objeto indexado por `message.id`
+     * (`conversation/mutations.js:70`). A ordem de `Object.values` sobre chave
+     * INTEIRA e numerica ascendente, nao de insercao — e e por isso que isto
+     * funciona: carregar mensagens antigas insere ids MENORES depois, e ainda
+     * assim a lista sai cronologica. Depender de ordem de insercao daria o
+     * atendente errado no header logo apos rolar para tras.
+     */
+    currentAttendant() {
+      return currentAttendant(Object.values(this.conversation || {}));
+    },
     portal() {
       return window.chatwootWebChannel.portal;
     },
@@ -74,6 +93,25 @@ export default {
         return { 'opacity-90': true };
       }
       return {};
+    },
+  },
+  watch: {
+    /**
+     * Aceite 6 do bloco 2.05, a metade que NAO e do composer.
+     *
+     * Na view de mensagens quem toma o foco e o campo — `useComposer` cuida
+     * disso, e essa logica JA existia (a §C.9 alerta que reimplementar
+     * duplicaria). Na tela inicial nao ha campo: o composer nem esta montado. O
+     * foco vai para o `h1` do cabecalho, que por isso ganhou `tabindex="-1"` no
+     * bloco 2.06.
+     *
+     * E o motivo de nao focar um campo aqui e concreto: em celular, focar campo
+     * abre o teclado virtual e come metade da tela antes de o visitante ter lido
+     * qualquer coisa.
+     */
+    isWidgetOpen(aberto) {
+      if (!aberto || !this.isOnHomeView) return;
+      this.$nextTick(() => this.$el?.querySelector('h1')?.focus());
     },
   },
   mounted() {
@@ -132,11 +170,17 @@ export default {
           :avatar-url="channelConfig.avatarUrl"
           :show-popout-button="appConfig.showPopoutButton"
           :available-agents="availableAgents"
+          :attendant="currentAttendant"
           :show-back-button="showBackButton"
         />
       </div>
       <Banner />
-      <router-view />
+      <!-- A regiao principal da tela. Sem ela, quem navega por leitor de tela
+           nao tem para onde pular: o widget e um documento inteiro dentro de um
+           iframe, e o cabecalho e o rodape ja sao landmarks. -->
+      <main class="flex flex-col flex-1 min-h-0">
+        <router-view />
+      </main>
 
       <Branding v-if="!isOnArticleViewer" :disable-branding="disableBranding" />
     </div>

@@ -1,9 +1,23 @@
 class Captain::Llm::PdfProcessingService < Llm::LegacyBaseOpenAiService
   include Integrations::LlmInstrumentation
 
+  # `Llm::LegacyBaseOpenAiService#initialize` nao aceita argumento. O `super(account:)`
+  # daqui ficou orfao no merge do upgrade v4.12.1 (cb0d3d999f, 31/03/2026), que trouxe a
+  # versao upstream do base e deixou as duas subclasses do Captain chamando o contrato
+  # antigo — desde entao toda instanciacao desta classe estourava ArgumentError.
+  #
+  # `@account` e atribuido ANTES do `super()`: o base resolve a chave na propria
+  # construcao, entao quem precisar decidir por conta ja tem o valor. Mesmo padrao do
+  # Messages::AudioTranscriptionService.
+  #
+  # A chave continua sendo a CAPTAIN_OPEN_AI_API_KEY, e isto e deliberado, nao herdado por
+  # acidente: a separacao de chaves por proposito (b1c3c7812b) escolheu eval e transcricao
+  # de audio; ingestao de PDF nao entrou. Sem `api_key_config_name` sobrescrito,
+  # `resolve_access_token` devolve exatamente a mesma chave de antes daquele commit.
   def initialize(document)
     @document = document
-    super(account: document.account)
+    @account = document.account
+    super()
   end
 
   def process

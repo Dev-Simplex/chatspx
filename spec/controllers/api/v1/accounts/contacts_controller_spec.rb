@@ -133,7 +133,12 @@ RSpec.describe 'Contacts API', type: :request do
         response_body = response.parsed_body
         expect(response_body['payload'].first['email']).to eq(contact_from_albania.email)
         expect(response_body['payload'].first['id']).to eq(contact_from_albania.id)
-        expect(response_body['payload'].last['email']).to eq(contact_4.email)
+        # `order_on_country_name` ordena por `additional_attributes->>'country'`. Os demais
+        # contatos do arranjo tem `country_code`, mas NAO `country` — sao todos NULL nessa
+        # coluna, entao a posicao RELATIVA entre eles nao e determinada pelo ORDER BY. Cravar
+        # um deles como `.last` era sorte de execucao. O que o exemplo prova de verdade e que
+        # os nulos vem DEPOIS do unico com valor, e e isso que afirmamos.
+        expect(response_body['payload'].drop(1).pluck('id')).to match_array([contact.id, contact_1.id, contact_4.id])
       end
 
       it 'returns last seen at' do
@@ -211,7 +216,9 @@ RSpec.describe 'Contacts API', type: :request do
         json_response = response.parsed_body
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(json_response['error']).to eq('File is blank')
+        # `I18n.t` sem `locale:` resolve no idioma do PROCESSO (:en no rails_helper); a resposta
+        # sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
+        expect(json_response['error']).to eq(I18n.t('errors.contacts.import.failed', locale: account.locale))
       end
     end
   end
@@ -329,10 +336,11 @@ RSpec.describe 'Contacts API', type: :request do
       let!(:contact2) { create(:contact, :with_email, name: 'testcontact', account: account, email: 'test@test.com') }
 
       it 'returns all resolved contacts with contact inboxes' do
+        # SEM `as: :json`: num GET esse modificador manda os params no CORPO e a query string
+        # fica vazia — o `q`, que o endpoint (e o schema) exigem em query, nunca chegava.
         get "/api/v1/accounts/#{account.id}/contacts/search",
             params: { q: contact2.email },
-            headers: admin.create_new_auth_token,
-            as: :json
+            headers: admin.create_new_auth_token
 
         expect(response).to have_http_status(:success)
         expect(response).to conform_schema(200)
@@ -523,7 +531,10 @@ RSpec.describe 'Contacts API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.body).to include('Invalid operator. The allowed operators for country_code are [equal_to,not_equal_to]')
+        expect(response.body).to include(
+          I18n.t('errors.custom_filters.invalid_operator', attribute_name: 'country_code',
+                                                           allowed_keys: 'equal_to,not_equal_to', locale: account.locale)
+        )
       end
 
       it 'returns error the query value is invalid' do
@@ -537,7 +548,9 @@ RSpec.describe 'Contacts API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.body).to include('Invalid value. The values provided for country_code are invalid"')
+        expect(response.body).to include(
+          I18n.t('errors.custom_filters.invalid_value', attribute_name: 'country_code', locale: account.locale)
+        )
       end
     end
   end

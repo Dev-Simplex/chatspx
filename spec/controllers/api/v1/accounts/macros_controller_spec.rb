@@ -166,7 +166,7 @@ RSpec.describe 'Api::V1::Accounts::MacrosController', type: :request do
              params: params
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq(I18n.t('errors.attachments.invalid'))
+        expect(response.parsed_body['error']).to eq(I18n.t('errors.attachments.invalid', locale: account.locale))
       end
 
       it 'stores the original blob_id in action_params after create' do
@@ -259,7 +259,7 @@ RSpec.describe 'Api::V1::Accounts::MacrosController', type: :request do
             headers: administrator.create_new_auth_token
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq(I18n.t('errors.attachments.invalid'))
+        expect(response.parsed_body['error']).to eq(I18n.t('errors.attachments.invalid', locale: account.locale))
       end
 
       it 'allows adding new attachment on update with signed blob_id' do
@@ -388,7 +388,11 @@ RSpec.describe 'Api::V1::Accounts::MacrosController', type: :request do
                  headers: administrator.create_new_auth_token
           end
 
-          expect(conversation.messages.activity.last.content).to eq("Assigned to #{user_1.name} by #{administrator.name}")
+          # A atividade sai no idioma da CONTA (pt-BR por padrao nosso). Ver 4cab065b87.
+          expect(conversation.messages.activity.last.content).to eq(
+            I18n.t('conversations.activity.assignee.assigned', assignee_name: user_1.name,
+                                                               user_name: administrator.name, locale: account.locale)
+          )
         end
 
         it 'Assign the agent when he is not inbox member' do

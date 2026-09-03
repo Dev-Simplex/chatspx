@@ -29,10 +29,12 @@ const preChatFields = ref([]);
 
 const preChatFieldOptions = computed(() => {
   const { pre_chat_form_options: preChatFormOptions } = props.inbox;
-  return getPreChatFields({
-    preChatFormOptions,
-    customAttributes: customAttributes.value,
-  });
+  // `t` injetado: D10 — os rotulos padrao dos campos vem do i18n do dashboard e
+  // seguem o idioma do painel, em vez do pacote de i18n do widget.
+  return getPreChatFields(
+    { preChatFormOptions, customAttributes: customAttributes.value },
+    t
+  );
 });
 
 const tableHeaders = computed(() => [
@@ -156,10 +158,8 @@ onMounted(() => {
 .message-editor {
   @apply px-3;
 
-  ::v-deep {
-    .ProseMirror-menubar {
-      @apply rounded-tl-[4px];
-    }
+  :deep(.ProseMirror-menubar) {
+    @apply rounded-tl-[4px];
   }
 }
 </style>

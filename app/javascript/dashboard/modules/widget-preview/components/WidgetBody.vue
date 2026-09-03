@@ -1,14 +1,7 @@
-<script setup>
-import { defineProps } from 'vue';
-
-defineProps({
-  config: {
-    type: Object,
-    default: () => ({}),
-  },
-});
-</script>
-
+<!-- As duas bolhas de exemplo. Nao recebem mais `config`: a cor da marca chega
+     pelas custom properties do wrapper (`--w-brand` / `--w-on-brand`), que sao
+     as MESMAS que o servidor emite. Passar a cor por prop era o caminho pelo
+     qual o preview conseguia mostrar uma cor que o widget nao usa. -->
 <template>
   <div class="h-[calc(2rem*10)] px-4 overflow-y-auto">
     <div>
@@ -17,8 +10,7 @@ defineProps({
           class="items-end flex justify-end ml-auto mb-1 mt-0 max-w-[85%] text-right"
         >
           <div
-            class="rounded-[1.25rem] rounded-br-[0.25rem] text-white dark:text-white text-sm px-4 py-3"
-            :style="{ background: config.color }"
+            class="rounded-[1.25rem] rounded-br-[0.25rem] bg-w-brand text-w-on-brand text-sm px-4 py-3"
           >
             <p class="m-0">
               {{ $t('INBOX_MGMT.WIDGET_BUILDER.BODY.USER_MESSAGE') }}
@@ -28,7 +20,7 @@ defineProps({
       </div>
 
       <div
-        class="shadow rounded-[1.25rem] rounded-bl-[0.25rem] px-4 py-3 inline-block text-sm text-n-slate-12 bg-n-background dark:bg-n-solid-3"
+        class="shadow rounded-[1.25rem] rounded-bl-[0.25rem] px-4 py-3 inline-block text-sm text-wp-text bg-wp-surface-2"
       >
         <div>
           <p class="m-0">

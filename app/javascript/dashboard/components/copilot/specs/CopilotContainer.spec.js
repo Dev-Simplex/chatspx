@@ -70,8 +70,13 @@ vi.mock('dashboard/api/captain/copilotMessages', () => ({
   },
 }));
 
+// ChatSPX: o filho renderizado por CopilotContainer e `CopilotPanel`
+// (components-next/copilot/CopilotPanel.vue), nao `Copilot`. Com o nome antigo o stub nunca
+// era aplicado, o painel real nao montava e os exemplos seguintes caiam em
+// "Cannot call vm on an empty VueWrapper" — falha em cascata a partir de UM nome errado.
+// O rename ja esta em `origin/homologacao`; era o spec que tinha ficado para tras.
 const CopilotStub = {
-  name: 'Copilot',
+  name: 'CopilotPanel',
   props: [
     'isAwaitingResponse',
     'hasTimedOut',
@@ -141,7 +146,7 @@ const mountComponent = (captainEnabled = true) => {
     global: {
       plugins: [store],
       stubs: {
-        Copilot: CopilotStub,
+        CopilotPanel: CopilotStub,
         CaptainApiKeyMissingModal: CaptainApiKeyMissingModalStub,
       },
     },

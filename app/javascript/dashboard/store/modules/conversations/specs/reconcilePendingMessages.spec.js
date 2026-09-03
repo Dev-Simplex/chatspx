@@ -31,7 +31,9 @@ describe('#reconcilePendingMessages', () => {
     const { commit, dispatch, promise } = run(chat);
     await promise;
 
-    expect(commit).toHaveBeenCalledWith(types.REMOVE_PENDING_MESSAGE, {
+    // ChatSPX: a acao commita REMOVE_OPTIMISTIC_MESSAGE, nao REMOVE_PENDING_MESSAGE — as duas
+    // existem e tem contratos diferentes (a segunda e do gate D6 e remove por `id`).
+    expect(commit).toHaveBeenCalledWith(types.REMOVE_OPTIMISTIC_MESSAGE, {
       conversationId: 1,
       echoId: 'uuid-1',
     });

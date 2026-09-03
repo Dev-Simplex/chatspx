@@ -31,7 +31,9 @@ RSpec.describe Webhooks::WhatsappEventsJob do
   it 'enqueues the job' do
     expect { job.perform_later(params) }.to have_enqueued_job(described_class)
       .with(params)
-      .on_queue('low')
+      # O job foi promovido para a fila `high` (whatsapp_events_job.rb:5) — evento de webhook do
+      # WhatsApp nao pode esperar atras da fila baixa. O spec ficou na fila antiga.
+      .on_queue('high')
   end
 
   context 'when whatsapp_cloud provider' do

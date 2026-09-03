@@ -26,6 +26,7 @@ import takeoverRequests from './takeoverRequests.json';
 import helpCenter from './helpCenter.json';
 import inbox from './inbox.json';
 import inboxMgmt from './inboxMgmt.json';
+import inboxWidget from './inboxWidget.json';
 import integrationApps from './integrationApps.json';
 import integrations from './integrations.json';
 import interactiveMessage from './interactiveMessage.json';
@@ -35,10 +36,13 @@ import labelsMgmt from './labelsMgmt.json';
 import login from './login.json';
 import macros from './macros.json';
 import mfa from './mfa.json';
+import onboarding from './onboarding.json';
+import originReports from './originReports.json';
 import report from './report.json';
 import resetPassword from './resetPassword.json';
 import search from './search.json';
 import setNewPassword from './setNewPassword.json';
+import sessionLimit from './sessionLimit.json';
 import settings from './settings.json';
 import signup from './signup.json';
 import sla from './sla.json';
@@ -80,6 +84,7 @@ export default {
   ...helpCenter,
   ...inbox,
   ...inboxMgmt,
+  ...inboxWidget,
   ...integrationApps,
   ...integrations,
   ...interactiveMessage,
@@ -89,10 +94,13 @@ export default {
   ...login,
   ...macros,
   ...mfa,
+  ...onboarding,
+  ...originReports,
   ...report,
   ...resetPassword,
   ...search,
   ...setNewPassword,
+  ...sessionLimit,
   ...settings,
   ...signup,
   ...sla,

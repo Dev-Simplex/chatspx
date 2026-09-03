@@ -9,14 +9,32 @@ module Captain::Tools::TraceRecorder
   def perform(tool_context, **kwargs)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     result = super
+    record_in_window(result, nil)
     record_tool_trace(tool_context, kwargs, result, started, nil)
     result
   rescue StandardError => e
+    record_in_window(nil, e)
     record_tool_trace(tool_context, kwargs, nil, started, e)
     raise
   end
 
   private
+
+  # 6.01: a janela em memória do guardrail de pré-envio. Diferente do trace persistido,
+  # NÃO depende de eval_enabled — o guardrail vale para toda conta. No-op quando ninguém
+  # abriu janela (Captain::ToolTraceWindow), e best-effort como o resto deste módulo.
+  def record_in_window(result, exception)
+    return unless Captain::ToolTraceWindow.open?
+
+    Captain::ToolTraceWindow.record(
+      tool_name: self.class.name.demodulize.underscore.delete_suffix('_tool'),
+      status: exception ? 'error' : 'ok',
+      result_preview: exception ? nil : truncate_result(result),
+      error: exception && "#{exception.class}: #{exception.message}"[0, 200]
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[tool-trace] janela do guardrail falhou em #{self.class.name}: #{e.class} #{e.message}")
+  end
 
   def record_tool_trace(tool_context, kwargs, result, started, exception)
     account = @assistant&.account

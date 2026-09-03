@@ -16,6 +16,10 @@
 #  index_email_templates_on_name_and_account_id  (name,account_id) UNIQUE
 #
 class EmailTemplate < ApplicationRecord
+  BRANDED_LAYOUT_NAME = 'base'.freeze
+  DEFAULT_LOCALE = 'en'.freeze
+  MAX_BODY_LENGTH = 256.kilobytes
+  CONTENT_FOR_LAYOUT_PATTERN = /\{\{\s*content_for_layout\s*\}\}/
   enum :locale, LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h, prefix: true
   enum :template_type, { layout: 0, content: 1 }
   belongs_to :account, optional: true

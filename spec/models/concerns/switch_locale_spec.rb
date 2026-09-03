@@ -25,7 +25,10 @@ RSpec.describe 'SwitchLocale Concern', type: :controller do
 
       it 'falls back to default locale if invalid' do
         get :index, params: { locale: 'invalid' }
-        expect(response.body).to eq('en')
+        # O fallback e o `I18n.default_locale`, que vem de `config/application.rb`
+        # (`ENV['DEFAULT_LOCALE']`, com pt_BR como padrao nosso). Cravar 'en' testava a
+        # CONFIGURACAO da maquina, nao o comportamento do concern.
+        expect(response.body).to eq(I18n.default_locale.to_s)
       end
     end
 
@@ -74,7 +77,10 @@ RSpec.describe 'SwitchLocale Concern', type: :controller do
       it 'falls back to default locale if env locale invalid' do
         with_modified_env(DEFAULT_LOCALE: 'invalid') do
           get :index
-          expect(response.body).to eq('en')
+          # `I18n.default_locale` e fixado no BOOT a partir de ENV['DEFAULT_LOCALE']; mudar a
+          # variavel em tempo de execucao nao o move. O que este exemplo prova e que um valor
+          # invalido cai no default — qualquer que ele seja nesta instalacao.
+          expect(response.body).to eq(I18n.default_locale.to_s)
         end
       end
     end

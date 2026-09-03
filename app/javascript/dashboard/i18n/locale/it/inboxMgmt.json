@@ -58,14 +58,17 @@
         "ERROR_MESSAGE": "Si è verificato un errore nella connessione a Instagram, riprova",
         "ERROR_AUTH": "Si è verificato un errore nella connessione a Instagram, riprova",
         "NEW_INBOX_SUGGESTION": "Questo account Instagram era precedentemente collegato a una Inbox diversa ed è stato ora migrato qui. Tutti i nuovi messaggi appariranno qui. La vecchia Inbox non sarà più in grado di inviare o ricevere messaggi per questo account.",
-        "DUPLICATE_INBOX_BANNER": "Questo account Instagram è stato migrato alla nuova Inbox del canale Instagram. Non sarai più in grado di inviare/ricevere messaggi Instagram da questa Inbox."
+        "DUPLICATE_INBOX_BANNER": "Questo account Instagram è stato migrato alla nuova Inbox del canale Instagram. Non sarai più in grado di inviare/ricevere messaggi Instagram da questa Inbox.",
+        "SETTINGS_RESTRICTED_WARNING": "Instagram is currently restricted. Some messages or actions may be delayed or unavailable while we restore full support.",
+        "STATUS_LINK": "View status update"
       },
       "TIKTOK": {
         "CONTINUE_WITH_TIKTOK": "Continua con TikTok",
         "CONNECT_YOUR_TIKTOK_PROFILE": "Connetti il tuo profilo TikTok",
         "HELP": "Per aggiungere il tuo profilo TikTok come canale, devi autenticare il tuo profilo TikTok cliccando su 'Continua con TikTok' ",
         "ERROR_MESSAGE": "Si è verificato un errore nella connessione a TikTok, riprova",
-        "ERROR_AUTH": "Si è verificato un errore nella connessione a TikTok, riprova"
+        "ERROR_AUTH": "Si è verificato un errore nella connessione a TikTok, riprova",
+        "NORTH_AMERICA_WARNING": "TikTok connections for North American accounts are temporarily unavailable while we wait for an update from the TikTok team."
       },
       "TWITTER": {
         "HELP": "Per aggiungere il tuo profilo Twitter come canale, devi autenticare il tuo profilo Twitter cliccando su 'Accedi con Twitter' ",
@@ -85,6 +88,14 @@
           "LABEL": "URL del webhook",
           "PLACEHOLDER": "Inserisci il tuo URL Webhook",
           "ERROR": "Inserisci un URL valido"
+        },
+        "CHANNEL_WEBHOOK_SECRET": {
+          "LABEL": "Webhook Secret",
+          "COPY": "Copia secret negli appunti",
+          "COPY_SUCCESS": "Secret copiato negli appunti",
+          "TOGGLE": "Cambia visibilità secret",
+          "RESET_SUCCESS": "Webhook secret rigenerato con successo",
+          "RESET_ERROR": "Impossibile rigenerare il webhook secret. Riprova"
         },
         "CHANNEL_DOMAIN": {
           "LABEL": "Dominio del Sito",
@@ -628,7 +639,8 @@
       "WIDGET_BUILDER": "Costruttore Widget",
       "BOT_CONFIGURATION": "Configurazione Bot",
       "ACCOUNT_HEALTH": "Account Health",
-      "CSAT": "CSAT"
+      "CSAT": "CSAT",
+      "VOICE": "Voce"
     },
     "CHANNEL_PREFERENCES": "Preferenze Canali",
     "WIDGET_FEATURES": "Funzionalità Widget",
@@ -737,6 +749,7 @@
       "SENDER_NAME_SECTION_TEXT": "Abilita/Disabilita la visualizzazione del nome dell'Operatore nelle email. Se disabilitato, verrà mostrato il nome dell'azienda",
       "ENABLE_CONTINUITY_VIA_EMAIL": "Abilita la continuità della conversazione via email",
       "ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT": "Le conversazioni continueranno via email se l'indirizzo email del contatto è disponibile.",
+      "ENABLE_CONTINUITY_VIA_EMAIL_DISABLED_TEXT": "Questa funzione è disponibile sui piani a pagamento. Aggiorna per abilitare la continuità della conversazione via email.",
       "LOCK_TO_SINGLE_CONVERSATION": "Routing Conversazioni",
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Gestisci come vengono create le conversazioni per i contatti esistenti",
       "INBOX_UPDATE_TITLE": "Impostazioni Inbox",
@@ -764,6 +777,15 @@
       "WHATSAPP_EMBEDDED_SIGNUP_SUBHEADER": "Questa Inbox è connessa tramite WhatsApp Embedded Signup.",
       "WHATSAPP_EMBEDDED_SIGNUP_DESCRIPTION": "Puoi riconfigurare questa Inbox per aggiornare le impostazioni WhatsApp Business.",
       "WHATSAPP_RECONFIGURE_BUTTON": "Riconfigura",
+      "WHATSAPP_MANUAL_TRANSFER_TITLE": "Switch to Manual Setup",
+      "WHATSAPP_MANUAL_TRANSFER_SUBHEADER": "This inbox was connected through WhatsApp embedded signup, which is no longer supported. Enter the WhatsApp Cloud API credentials from your own Meta app to switch this inbox to a manual setup. Configure the webhook in your Meta app using the verification token above before switching.",
+      "WHATSAPP_MANUAL_TRANSFER_PHONE_NUMBER_ID_LABEL": "Phone Number ID",
+      "WHATSAPP_MANUAL_TRANSFER_BUSINESS_ACCOUNT_ID_LABEL": "ID Account Business",
+      "WHATSAPP_MANUAL_TRANSFER_API_KEY_LABEL": "Chiave API",
+      "WHATSAPP_MANUAL_TRANSFER_API_KEY_PLACEHOLDER": "Enter a permanent access token from your Meta app",
+      "WHATSAPP_MANUAL_TRANSFER_BUTTON": "Switch to Manual Setup",
+      "WHATSAPP_MANUAL_TRANSFER_SUCCESS": "Inbox switched to manual setup successfully.",
+      "WHATSAPP_MANUAL_TRANSFER_ERROR": "Could not switch to manual setup. Please verify the credentials and try again.",
       "WHATSAPP_CONNECT_TITLE": "Connetti a WhatsApp Business",
       "WHATSAPP_CONNECT_SUBHEADER": "Passa alla WhatsApp Embedded Signup per una gestione più semplice.",
       "WHATSAPP_CONNECT_DESCRIPTION": "Collega questa Inbox a WhatsApp Business per avere funzionalità avanzate e una gestione più semplice.",
@@ -781,6 +803,70 @@
       "WHATSAPP_TEMPLATES_SYNC_SUBHEADER": "Sincronizza manualmente i modelli di messaggi da WhatsApp per aggiornare i modelli disponibili.",
       "WHATSAPP_TEMPLATES_SYNC_BUTTON": "Sincronizza Modelli",
       "WHATSAPP_TEMPLATES_SYNC_SUCCESS": "Sincronizzazione modelli iniziata. Potrebbe volerci qualche minuto per aggiornare.",
+      "WHATSAPP_MANUAL_MIGRATION": {
+        "BANNER": {
+          "TITLE": "Manual setup recommended",
+          "DESCRIPTION": "This inbox connects through the shared Meta app used for embedded signup, which recent Meta restrictions have affected. To avoid similar issues in the future, we recommend reconnecting it with your own Meta app.",
+          "START": "Start manual migration",
+          "GUIDE": "View guide"
+        },
+        "DIALOG": {
+          "EYEBROW": "WhatsApp manual migration",
+          "TITLE": "Reconnect WhatsApp inbox",
+          "CLOSE": "Chiudi",
+          "ACTION_REQUIRED_TITLE": "Reconnect with your own Meta app",
+          "ACTION_REQUIRED_DESCRIPTION": "Inboxes connected through your own Meta app are not affected by restrictions on the shared embedded signup app. This guided flow updates the WhatsApp API connection without creating a new inbox.",
+          "GUIDE_LINK": "Open the manual setup guide",
+          "PRESERVED_TITLE": "Preserved",
+          "PRESERVED_DESCRIPTION": "Conversations, contacts, collaborators, routing, business hours, and inbox settings.",
+          "UPDATED_TITLE": "Aggiornato",
+          "UPDATED_DESCRIPTION": "WABA ID, phone number ID, access token, and webhook configuration.",
+          "WABA_ID": "WABA ID",
+          "WABA_PLACEHOLDER": "Enter WABA ID",
+          "WABA_HELP": "The WhatsApp Business Account that owns this phone number.",
+          "PHONE_NUMBER_ID": "Phone Number ID",
+          "PHONE_NUMBER_PLACEHOLDER": "Enter Phone Number ID",
+          "PHONE_NUMBER_HELP": "Meta's unique ID for the WhatsApp number connected to this inbox.",
+          "DISPLAY_PHONE_NUMBER": "Numero di telefono visualizzato",
+          "DISPLAY_PHONE_NUMBER_PLACEHOLDER": "Enter display phone number",
+          "DISPLAY_PHONE_NUMBER_HELP": "The customer-facing WhatsApp number. This cannot be changed during migration.",
+          "ACCESS_TOKEN": "Permanent access token or system user token",
+          "ACCESS_TOKEN_PLACEHOLDER": "Paste access token",
+          "TOKEN_HELP_PREFIX": "The token must include",
+          "TOKEN_HELP_MIDDLE": "Aggiungi",
+          "TOKEN_HELP_SUFFIX": "for template sync and template management.",
+          "MESSAGING_PERMISSION": "whatsapp_business_messaging.",
+          "MANAGEMENT_PERMISSION": "whatsapp_business_management",
+          "REVIEW_TITLE": "Review before reconnecting",
+          "INBOX": "Inbox",
+          "PHONE_NUMBER": "Numero di telefono",
+          "NOT_ENTERED": "Not entered",
+          "VERIFY_NOTICE": "Chatwoot will verify these credentials with Meta before applying any changes. If verification fails, the current configuration is left untouched.",
+          "BACK": "Indietro",
+          "CANCEL": "Annulla",
+          "CONTINUE": "Continua",
+          "REVIEW_MIGRATION": "Review migration",
+          "RECONNECT": "Reconnect WhatsApp inbox"
+        },
+        "STEPS": {
+          "BEFORE_YOU_START": {
+            "TITLE": "Before you start",
+            "DESCRIPTION": "This reconnects the WhatsApp API details for this inbox. Conversations, collaborators, routing, business hours, CSAT, and bot settings will be preserved."
+          },
+          "BUSINESS_DETAILS": {
+            "TITLE": "Business details",
+            "DESCRIPTION": "Enter the WhatsApp assets from the customer Meta Business account."
+          },
+          "ACCESS_TOKEN": {
+            "TITLE": "Access token",
+            "DESCRIPTION": "Paste a permanent access token or system user token with WhatsApp permissions."
+          },
+          "REVIEW_MIGRATION": {
+            "TITLE": "Review migration",
+            "DESCRIPTION": "Confirm the connection details before reconnecting this inbox. Chatwoot will verify the token, WABA, and phone number with Meta before applying changes."
+          }
+        }
+      },
       "UPDATE_PRE_CHAT_FORM_SETTINGS": "Aggiorna le Impostazioni del Modulo Pre Chat"
     },
     "HELP_CENTER": {
@@ -992,7 +1078,8 @@
         "LABEL": "Password",
         "PLACE_HOLDER": "Password"
       },
-      "ENABLE_SSL": "Abilita SSL"
+      "ENABLE_SSL": "Abilita SSL",
+      "AUTH_MECHANISM": "Autenticazione"
     },
     "MICROSOFT": {
       "TITLE": "Microsoft",
@@ -1115,8 +1202,7 @@
         "USER_MESSAGE": "Salve",
         "AGENT_MESSAGE": "Ciao"
       },
-      "BRANDING_TEXT": "Offerto da Chatwoot",
-      "SCRIPT_SETTINGS": "\n      window.chatwootSettings = {options};"
+      "BRANDING_TEXT": "Offerto da Chatwoot"
     },
     "EMAIL_PROVIDERS": {
       "MICROSOFT": {

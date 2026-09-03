@@ -44,8 +44,14 @@ describe ConversationBuilder do
       end
 
       it 'returns last from existing sms conversations when existing conversation is not present' do
-        create(:conversation, contact_inbox: contact_sms_inbox)
-        existing_conversation = create(:conversation, contact_inbox: contact_sms_inbox)
+        # A fabrica de conversa NAO deriva inbox/contact do `contact_inbox` passado: o
+        # `after(:build)` faz `inbox ||= create(:inbox, ...)` e cria uma caixa NOVA (widget). As
+        # conversas do arranjo acabavam em outra caixa, e `find_contact_conversation_in_inbox` —
+        # que filtra por contato + CAIXA de proposito, para cobrir varios contact_inboxes do
+        # mesmo contato — nao as encontrava. O builder criava uma terceira, corretamente.
+        create(:conversation, account: account, inbox: sms_inbox, contact: contact, contact_inbox: contact_sms_inbox)
+        existing_conversation = create(:conversation, account: account, inbox: sms_inbox, contact: contact,
+                                                      contact_inbox: contact_sms_inbox)
         conversation = described_class.new(
           contact_inbox: contact_sms_inbox,
           params: {}
@@ -70,8 +76,9 @@ describe ConversationBuilder do
       end
 
       it 'returns last from existing api conversations when existing conversation is not present' do
-        create(:conversation, contact_inbox: contact_api_inbox)
-        existing_conversation = create(:conversation, contact_inbox: contact_api_inbox)
+        create(:conversation, account: account, inbox: api_inbox, contact: contact, contact_inbox: contact_api_inbox)
+        existing_conversation = create(:conversation, account: account, inbox: api_inbox, contact: contact,
+                                                      contact_inbox: contact_api_inbox)
         conversation = described_class.new(
           contact_inbox: contact_api_inbox,
           params: {}

@@ -31,15 +31,37 @@ class Channel::WebWidget < ApplicationRecord
   include FlagShihTzu
 
   self.table_name = 'channel_web_widgets'
+
+  # D11 (bloco 0.8): fonte UNICA do default de cor do widget. Antes divergia em
+  # tres lugares — a tela cravava o verde da marca (#2dc46f), a coluna e o
+  # onboarding cravavam o azul do upstream (#1f93ff) — e a inbox nascia de uma cor
+  # ou de outra conforme o caminho de criacao.
+  #
+  # Default no MODEL e nao na coluna de proposito: `db/schema.rb` conflita em todo
+  # merge do upstream, enquanto este arquivo teve 0 mudancas do upstream em quatro
+  # minors (v4.12.1 -> v4.16.2, medido na §A.11 do plano 23) — a superficie de
+  # merge menor fica aqui. So vale para registro NOVO; nenhuma inbox existente e
+  # repintada.
+  DEFAULT_WIDGET_COLOR = '#2dc46f'.freeze
+  attribute :widget_color, :string, default: DEFAULT_WIDGET_COLOR
+
+  # As sete chaves novas do bloco 3.12 (`step`, `show_if`, `mask`, `validator`,
+  # `help_text`, `error_message`, `position`) entram AQUI porque `permit` e lista
+  # fechada: chave nao declarada nao levanta erro, e descartada em silencio — o
+  # PATCH volta 200 e a mascara simplesmente nao existe no banco. A forma dos
+  # VALORES fica em `Channel::WebWidget::PreChatFormSchema`.
   EDITABLE_ATTRS = [:website_url, :widget_color, :welcome_title, :welcome_tagline, :reply_time, :pre_chat_form_enabled,
                     :continuity_via_email, :hmac_mandatory, :allowed_domains,
-                    { pre_chat_form_options: [:pre_chat_message, :require_email,
+                    { pre_chat_form_options: [:pre_chat_message, :require_email, :mode,
                                               { pre_chat_fields:
                                                 [:field_type, :label, :placeholder, :name, :enabled, :type, :enabled, :required,
-                                                 :locale, { values: [] }, :regex_pattern, :regex_cue] }] },
+                                                 :locale, { values: [] }, :regex_pattern, :regex_cue,
+                                                 :step, :position, :mask, :validator, :help_text, :error_message,
+                                                 { show_if: [:field, :operator, :value] }] }] },
                     { selected_feature_flags: [] }].freeze
 
   before_validation :validate_pre_chat_options
+  validate :pre_chat_form_options_shape
   validates :website_url, presence: true
   validates :widget_color, presence: true
   has_many :portals, foreign_key: 'channel_web_widget_id', dependent: :nullify, inverse_of: :channel_web_widget
@@ -57,45 +79,182 @@ class Channel::WebWidget < ApplicationRecord
 
   enum reply_time: { in_a_few_minutes: 0, in_a_few_hours: 1, in_a_day: 2 }
 
-  WEB_WIDGET_SCRIPT = <<~HTML.freeze
-    <script>
-      (function(d,t) {
-        var BASE_URL="%<base_url>s";
-        var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
-        g.src=BASE_URL+"%<sdk_path>s";
-        g.async = true;
-        s.parentNode.insertBefore(g,s);
-        g.onload=function(){
-          window.chatwootSDK.run({
-            websiteToken: '%<website_token>s',
-            baseUrl: BASE_URL,
-            conversationToken: %<conversation_token>s,
-            persistConversationToParent: %<persist_conversation_to_parent>s
-          })
-        }
-      })(document,"script");
-    </script>
-  HTML
-
   def name
     'Website'
   end
 
   # Menu de opcoes: o widget renderiza input_select nativamente no front.
+  #
+  # RECOLOCADO na reconciliacao de 26/08: veio do PR #60 e nao existia na arvore do
+  # redesenho. Sem ele o widget cairia no default `false` do Channelable e pararia de
+  # desenhar menu — em silencio, que e o modo de falha que aquele PR existe para fechar.
   def supports_interactive_items?
     true
   end
 
-  def web_widget_script(sdk_version: nil, persist_conversation_to_parent: false)
-    sdk_path = '/packs/js/sdk.js'
-    sdk_path += "?v=#{ERB::Util.url_encode(sdk_version)}" if sdk_version.present?
-    conversation_token = if persist_conversation_to_parent
-                           "new URLSearchParams(window.location.hash.slice(1)).get('cw_conversation')"
-                         else
-                           'null'
-                         end
-    format(WEB_WIDGET_SCRIPT, base_url: ENV.fetch('FRONTEND_URL', ''), sdk_path: sdk_path, website_token: website_token,
-                              conversation_token: conversation_token, persist_conversation_to_parent: persist_conversation_to_parent)
+  # BLOCO 4.05 — a MENSAGEM do convite, e por que ela é resolvida AQUI.
+  #
+  # "Campanha é mensagem, gatilho é momento". A Tela 2 (`TeaserComposer.vue`) não cria
+  # campanha nenhuma: ela EDITA a campanha de chat ao vivo que a inbox já tem, porque duas
+  # listas concorrentes de "mensagem proativa" no mesmo produto são o caminho conhecido para o
+  # cliente editar uma e o visitante receber a outra.
+  #
+  # Só que o teaser do host (4.06) mostrava `welcome_tagline`, que é OUTRO campo, editado em
+  # OUTRA tela. O cliente escrevia na Tela 2 e o visitante lia a Tela 1 — e o preview da
+  # própria Tela 2 (`TriggersPage.vue:143-145`, bloco 4.07) já mostrava `campanha.message`,
+  # então o preview mentia. Com o gatilho novo ligado (4.22) a campanha legada para de
+  # disparar sozinha, e aí o texto escrito no compositor não aparece em lugar NENHUM.
+  #
+  # RESOLVIDO NO SERVIDOR, não no host, pelas duas razões que já governam este payload:
+  #
+  #   1. É o padrão do projeto desde o 1.02/1.03 e o 3.19 — o host CONSOME a decisão
+  #      (`resolved_widget_approach`, `tokens`, `launcher_icon`), nunca recalcula política.
+  #      Uma precedência escrita em dois lugares diverge no primeiro ajuste, e essa
+  #      divergência é literalmente o defeito descrito acima.
+  #   2. `sdk.js` tem teto de peso (bloco 0.5, aceite A13) e a folga medida em 24/08 é de
+  #      SEIS bytes no gzip. Resolver aqui deixa o host com UMA leitura em vez de uma cadeia
+  #      de três, o que devolve bytes em vez de gastar.
+  def teaser_text
+    (teaser_campaign&.message.presence || welcome_tagline.presence || welcome_title.presence).to_s
+  end
+
+  # A campanha vinculada: a de chat ao vivo desta inbox. Espelha exatamente o que o
+  # compositor considera vinculada (`campaigns/getLiveChatCampaigns` filtra `ongoing` + canal
+  # web e ordena por `id`, e a tela pega a desta inbox) — se as duas regras divergirem, o
+  # cliente edita uma campanha e o visitante recebe a outra, que é o defeito que o bloco
+  # inteiro existe para não ter.
+  #
+  # NÃO filtra por `enabled`, e a ausência é decisão: `enabled` governa o DISPARO do motor
+  # legado, e quem liga e desliga o teaser é `widget_triggers.enabled` (4.22). Filtrar aqui
+  # faria o texto que o cliente acabou de salvar sumir por causa de um interruptor de outro
+  # motor — sem nenhum aviso na tela que ele estava usando.
+  #
+  # `one_off` fica de fora porque é disparo em massa (lista + template), não a mensagem
+  # permanente do convite.
+  def teaser_campaign
+    inbox.campaigns.where(campaign_type: :ongoing).order(:id).first
+  end
+
+  # Rótulo do link de contato alternativo (bloco 2.14), no idioma da CONTA — é
+  # o idioma em que o site do cliente atende, não o do visitante, porque este
+  # texto é gerado no servidor uma vez e colado no HTML dele.
+  #
+  # `to_json` e não interpolação direta: o rótulo entra dentro de uma string
+  # JavaScript, e uma aspa simples vinda da tradução fecharia a string e
+  # quebraria o snippet inteiro — justamente o caminho de degradação que este
+  # bloco existe para criar.
+  def fallback_label_json
+    I18n.t(
+      'widget.fallback.label',
+      locale: account.locale.to_s.to_sym,
+      default: I18n.t('widget.fallback.label', locale: :en)
+    ).to_json
+  end
+
+  # Estilo do link, com a marca do cliente.
+  #
+  # As cores saem de `WidgetTokens`, a MESMA fonte que pinta o launcher e o
+  # painel (bloco 1.02): `brand` já vem sanitizado — `widget_color` é string
+  # livre no banco e nada que não case `#RRGGBB` chega à saída — e `on_brand` é
+  # o preto ou branco que a WCAG manda usar sobre ela. Recalcular contraste
+  # aqui seria a terceira fórmula no projeto, que é o defeito que a Onda 1
+  # inteira corrigiu.
+  def fallback_style_json
+    tokens = WidgetTokens.for(self)
+    lado = 'left' # sobrescrito em tempo de execução por `cfg.position`
+    [
+      'position:fixed;bottom:20px;z-index:2147483000',
+      'display:inline-block;padding:12px 20px;border-radius:100px',
+      "background:#{tokens.brand};color:#{tokens.on_brand}",
+      'font:600 14px/1.2 system-ui,sans-serif;text-decoration:none',
+      'box-shadow:0 8px 24px rgba(0,0,0,.16)',
+      "#{lado}:20px"
+    ].join(';').to_json
+  end
+
+  # BLOCO 2.14 — degradação do launcher.
+  #
+  # O snippet antigo só tinha `g.onload`. Quando o `sdk.js` NÃO carrega —
+  # bloqueador de conteúdo, `script-src` da CSP do site do cliente, rede do
+  # visitante, CDN fora — nada acontecia: nenhum launcher, nenhum aviso, e o
+  # visitante ficava sem canal de contato sem que ninguém ficasse sabendo.
+  # `onload` que nunca dispara não é erro para ninguém.
+  #
+  # A alternativa precisa viver AQUI, no snippet, e não no bundle: é o único
+  # código que ainda roda quando o bundle é justamente o que falhou.
+  #
+  # LIMITE CONHECIDO: quem já colou o snippet antigo no site continua com ele.
+  # Não há como alcançar esses sites daqui — o snippet é, por definição, a
+  # única parte que o cliente hospeda.
+  def web_widget_script
+    "
+    <script>
+      (function(d,t) {
+        var BASE_URL=\"#{ENV.fetch('FRONTEND_URL', '')}\";
+        var cfg=window.chatwootSettings||{};
+#{fallback_bootstrap_js}
+#{sdk_loader_js}
+      })(document,\"script\");
+    </script>
+    "
+  end
+
+  # A parte que sobrevive ao bundle: define `window.chatwootFallback`, com
+  # `show()` e `hide()`. `hide()` é o contrato com `entrypoints/sdk.js`, que o
+  # chama ao subir — assim um SDK que chega DEPOIS do prazo retira o link em
+  # vez de conviver com ele (o falso positivo do prazo em rede lenta).
+  def fallback_bootstrap_js
+    "#{fallback_config_js}
+#{fallback_functions_js}
+        window.chatwootFallback={show:showFallback,hide:hideFallback};"
+  end
+
+  # Os quatro valores que o link precisa, todos resolvidos no servidor. Vêm
+  # antes das funções porque `showFallback` os fecha por escopo.
+  def fallback_config_js
+    "        var FALLBACK_URL=cfg.fallbackUrl||BASE_URL+\"/widget?website_token=#{website_token}\";
+        var FALLBACK_LABEL=cfg.fallbackLabel||#{fallback_label_json};
+        var FALLBACK_STYLE=#{fallback_style_json};
+        var LINK_ID=\"cw-fallback-link\";"
+  end
+
+  def fallback_functions_js
+    '        function showFallback(){
+          if(window.$chatwoot||d.getElementById(LINK_ID)||!d.body){return}
+          var a=d.createElement("a");
+          a.id=LINK_ID;
+          a.href=FALLBACK_URL;
+          a.target="_blank";
+          a.rel="noopener noreferrer";
+          a.textContent=FALLBACK_LABEL;
+          a.setAttribute("style",cfg.position==="left"?FALLBACK_STYLE:FALLBACK_STYLE.replace("left:20px","right:20px"));
+          d.body.appendChild(a)
+        }
+        function hideFallback(){
+          var a=d.getElementById(LINK_ID);
+          if(a&&a.parentNode){a.parentNode.removeChild(a)}
+        }'
+  end
+
+  # O carregamento em si, com os DOIS gatilhos de falha, porque são dois modos
+  # distintos:
+  #   · `onerror` — o navegador sabe que a requisição falhou (404, DNS, CSP).
+  #   · o prazo   — parte dos bloqueadores apenas DESCARTA a requisição, e o
+  #                 `script` fica pendente sem falhar nem carregar. Esse é o
+  #                 caso mais comum dos dois, e `onerror` não o pega.
+  def sdk_loader_js
+    "        var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+        g.src=BASE_URL+\"/packs/js/sdk.js\";
+        g.async = true;
+        s.parentNode.insertBefore(g,s);
+        g.onload=function(){
+          window.chatwootSDK.run({
+            websiteToken: '#{website_token}',
+            baseUrl: BASE_URL
+          })
+        }
+        g.onerror=showFallback;
+        setTimeout(function(){if(!window.chatwootSDK){showFallback()}},8000);"
   end
 
   def validate_pre_chat_options
@@ -115,6 +274,23 @@ class Channel::WebWidget < ApplicationRecord
         }
       ]
     }
+  end
+
+  # Bloco 3.12: a forma de `pre_chat_form_options` conferida por json_schemer.
+  # Roda DEPOIS de `validate_pre_chat_options` (que semeia o default de fabrica),
+  # de proposito: a semente tambem tem de passar pelo schema.
+  def pre_chat_form_options_shape
+    options = pre_chat_form_options.presence
+    return if options.blank?
+
+    schema_errors = Channel::WebWidget::PreChatFormSchema.validator.validate(options.as_json).to_a
+    return if schema_errors.empty?
+
+    # Teto de cinco: um array de oito campos com a mesma chave errada em todos
+    # geraria oito mensagens iguais, e a tela mostra o primeiro erro.
+    schema_errors.first(5).each do |schema_error|
+      errors.add(:pre_chat_form_options, Channel::WebWidget::PreChatFormSchema.humanize(schema_error))
+    end
   end
 
   def create_contact_inbox(additional_attributes = {})

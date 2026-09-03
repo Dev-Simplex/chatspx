@@ -81,8 +81,17 @@ describe AutomationRuleListener do
       run = waiting_run(reply_flow)
       allow(Flows::ReplyResumeService).to receive(:new).and_call_original
 
-      deliver(create(:message, conversation: conversation, inbox: inbox, account: account,
-                               message_type: :outgoing, content: 'yes'))
+      # Trait `:bot_message` de proposito — e o unico jeito de a saida ficar SEM remetente: o
+      # `after(:build)` da fabrica usa `||=`, entao passar `sender: nil` nao adianta.
+      # A fabrica poe um User como remetente, e mensagem de saida com
+      # remetente User e exatamente a definicao de `human_agent_takeover?` — que CANCELA as esperas
+      # pendentes (`cancel_pending_flow_waits`), por decisao documentada no listener. O run saia de
+      # `waiting` por essa regra, nao por retomada, e o exemplo acusava a coisa errada.
+      #
+      # Sem remetente humano, as duas regras ficam separadas: aqui se prova que saida NAO retoma;
+      # o cancelamento por tomada humana e assunto de outro exemplo.
+      deliver(create(:message, :bot_message, conversation: conversation, inbox: inbox, account: account,
+                                             content: 'yes'))
 
       expect(Flows::ReplyResumeService).not_to have_received(:new)
       expect(run.reload).to be_waiting

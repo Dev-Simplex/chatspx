@@ -24,7 +24,7 @@ export default {
   <button
     type="submit"
     :disabled="disabled"
-    class="min-h-8 min-w-8 flex items-center justify-center ml-1 rounded-full bg-n-brand hover:bg-[#1FB85A] transition-colors"
+    class="min-h-8 min-w-8 flex items-center justify-center ml-1 rounded-full bg-w-brand hover:bg-w-brand-hover transition-colors"
   >
     <FluentIcon v-if="!loading" icon="send" class="text-white" />
     <Spinner v-else size="small" />

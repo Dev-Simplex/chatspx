@@ -8,12 +8,12 @@ vi.mock('shared/helpers/mitt', () => ({
   },
 }));
 
+// `importOriginal()` devolve o NAMESPACE do modulo ESM, que e somente-leitura:
+// escrever `actual.default` lanca e mata a suite no carregamento — o arquivo some
+// da contagem como "(0 test)". Devolver um objeto novo resolve.
 vi.mock('dashboard/helper/AnalyticsHelper/index', async importOriginal => {
   const actual = await importOriginal();
-  actual.default = {
-    track: vi.fn(),
-  };
-  return actual;
+  return { ...actual, default: { track: vi.fn() } };
 });
 
 describe('useTrack', () => {

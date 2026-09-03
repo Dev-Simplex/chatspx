@@ -44,8 +44,14 @@ RSpec.describe Linear::IntegrationHelper do
   describe '#verify_linear_token' do
     let(:account_id) { 1 }
     let(:client_secret) { 'test_secret' }
+    # A chave que ASSINA o token e a que esta CONFIGURADA sao coisas diferentes. Com um `let`
+    # so, o contexto "sem secret configurado" (`let(:client_secret) { nil }`) tambem zerava a
+    # chave da assinatura — e no jwt 2.10.3 `JWT.encode(payload, nil, 'HS256')` levanta
+    # `HMAC key expected to be a String`. O exemplo morria montando o arranjo, sem nunca
+    # chegar ao helper que ele se propoe a testar.
+    let(:signing_secret) { 'test_secret' }
     let(:valid_token) do
-      JWT.encode({ sub: account_id, iat: Time.current.to_i }, client_secret, 'HS256')
+      JWT.encode({ sub: account_id, iat: Time.current.to_i }, signing_secret, 'HS256')
     end
 
     before do

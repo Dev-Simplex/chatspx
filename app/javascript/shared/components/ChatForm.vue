@@ -1,7 +1,4 @@
 <script>
-import { mapGetters } from 'vuex';
-import { getContrastingTextColor } from '@chatwoot/utils';
-
 export default {
   props: {
     buttonLabel: {
@@ -25,12 +22,6 @@ export default {
     };
   },
   computed: {
-    ...mapGetters({
-      widgetColor: 'appConfig/getWidgetColor',
-    }),
-    textColor() {
-      return getContrastingTextColor(this.widgetColor);
-    },
     isFormValid() {
       return this.items.reduce((acc, { name }) => {
         return !!this.formValues[name] && acc;
@@ -140,11 +131,6 @@ export default {
         v-if="!submittedValues.length"
         class="button block"
         type="submit"
-        :style="{
-          background: widgetColor,
-          borderColor: widgetColor,
-          color: textColor,
-        }"
         @click="onSubmitClick"
       >
         {{ buttonLabel || $t('COMPONENTS.FORM_BUBBLE.SUBMIT') }}

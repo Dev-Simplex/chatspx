@@ -210,12 +210,17 @@ describe ConversationFinder do
 
       it 'returns the correct counts' do
         result = conversation_finder.perform_meta_only
-        expect(result[:count]).to eq({
-                                       mine_count: 2,
-                                       assigned_count: 3,
-                                       unassigned_count: 1,
-                                       all_count: 4
-                                     })
+        # `include` e nao `eq`: o hash de contadores cresceu (ai_count, awaiting_count,
+        # awaiting_closure_count e os tres unattended_*) e a igualdade exata quebrava a cada
+        # contador novo, sem que nenhum dos quatro valores acima estivesse errado. A igualdade
+        # entre `perform_meta_only` e `perform` — que e o contrato de conjunto — ja e fixada
+        # pelo exemplo "returns same counts as perform", logo abaixo.
+        expect(result[:count]).to include(
+          mine_count: 2,
+          assigned_count: 3,
+          unassigned_count: 1,
+          all_count: 4
+        )
       end
 
       it 'returns same counts as perform' do

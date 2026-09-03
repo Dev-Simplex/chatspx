@@ -420,8 +420,13 @@ describe ReportingEventListener do
       end
 
       context 'when business hours enabled for inbox' do
-        let(:resolved_time) { Time.zone.parse('March 20, 2022 12:00') }
-        let(:reopened_time) { Time.zone.parse('March 21, 2022 14:00') }
+        # Horarios ancorados no fuso da CAIXA (UTC, o padrao de `Inbox#timezone`), nao no da
+        # aplicacao. `business_hours` converte com `in_time_zone(inbox.timezone)` antes de contar,
+        # e `config.time_zone` daqui e `America/Manaus` (UTC-4): com `Time.zone.parse`, "14:00"
+        # virava 18:00 UTC e a conta pegava a segunda-feira INTEIRA (09:00-17:00 = 8h) em vez das
+        # 5h que o comentario abaixo descreve. O spec media o fuso da instalacao.
+        let(:resolved_time) { ActiveSupport::TimeZone['UTC'].parse('March 20, 2022 12:00') }
+        let(:reopened_time) { ActiveSupport::TimeZone['UTC'].parse('March 21, 2022 14:00') }
         let!(:business_hours_inbox) { create(:inbox, working_hours_enabled: true, account: account) }
         let!(:business_hours_conversation) do
           create(:conversation, account: account, inbox: business_hours_inbox, assignee: user, updated_at: reopened_time)

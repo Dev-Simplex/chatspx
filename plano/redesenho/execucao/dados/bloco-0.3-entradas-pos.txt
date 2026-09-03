@@ -1,0 +1,8 @@
+entrypoints/dashboard.js -> assets/dashboard-DxhRaUCC.js
+entrypoints/portal.js -> assets/portal-CrOnmi5l.js
+entrypoints/sdk.js -> assets/sdk-Dc_7YRjf.js
+entrypoints/superadmin.js -> assets/superadmin-viAhw5LG.js
+entrypoints/superadmin_pages.js -> assets/superadmin_pages-Bhf_MI3d.js
+entrypoints/survey.js -> assets/survey-MHQ8svyg.js
+entrypoints/v3app.js -> assets/v3app-CupYlVPa.js
+entrypoints/widget.js -> assets/widget-DbM5h1sc.js

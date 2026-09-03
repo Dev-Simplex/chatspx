@@ -93,9 +93,13 @@ describe('#actions', () => {
         { conversationId: 7, before: 20, includeMeta: false, limit: 40 }
       );
 
+      // ChatSPX: leitura bem-sucedida LIMPA qualquer bloqueio de acesso anterior
+      // (isolamento de conversa por agente — o pedido foi aprovado). Como a assercao e a
+      // lista EXATA de commits, o commit novo a derruba mesmo estando correto.
       expect(commit.mock.calls).toEqual([
         [types.SET_PREVIOUS_CONVERSATIONS, { id: 7, data: [{ id: 20 }] }],
         [types.SET_ALL_MESSAGES_LOADED, 7],
+        [types.CLEAR_CONVERSATION_ACCESS_BLOCKED, 7],
       ]);
     });
 
@@ -127,6 +131,7 @@ describe('#actions', () => {
           },
         ],
         [types.SET_PREVIOUS_CONVERSATIONS, { id: 7, data: [{ id: 21 }] }],
+        [types.CLEAR_CONVERSATION_ACCESS_BLOCKED, 7],
       ]);
     });
   });
@@ -373,6 +378,21 @@ describe('#actions', () => {
   });
 
   describe('#markMessagesRead', () => {
+    // ChatSPX: `markMessagesRead` chama `clearMatchingNotification`, que le
+    // `rootGetters['notifications/getNotifications']`. Passando so `{ commit }`, o
+    // `rootGetters` chega undefined e a indexacao estoura ANTES do `|| []` do codigo --
+    // como e dentro de uma promise, virava REJEICAO NAO TRATADA em vez de falha. O proprio
+    // Vitest avisa: "This might cause false positive tests". Em producao o Vuex sempre
+    // entrega rootGetters e dispatch, entao a premissa e do exemplo, nao do codigo.
+    const contextoDeLeitura = () => ({
+      commit,
+      dispatch: vi.fn(),
+      rootGetters: {
+        'notifications/getNotifications': [],
+        'notifications/getUnreadCount': 0,
+      },
+    });
+
     beforeEach(() => {
       vi.useFakeTimers();
     });
@@ -384,7 +404,10 @@ describe('#actions', () => {
       });
       // `explicit` porque estes exemplos cobrem a mecânica de API/mutation, não o gate:
       // sem dono na conversa, a leitura implícita passou a NÃO limpar o "não lida".
-      await actions.markMessagesRead({ commit }, { id: 1, explicit: true });
+      await actions.markMessagesRead(contextoDeLeitura(), {
+        id: 1,
+        explicit: true,
+      });
       vi.runAllTimers();
       expect(commit).toHaveBeenCalledTimes(1);
       expect(commit.mock.calls).toEqual([
@@ -393,7 +416,10 @@ describe('#actions', () => {
     });
     it('sends correct mutations if api is unsuccessful', async () => {
       axios.post.mockRejectedValue({ message: 'Incorrect header' });
-      await actions.markMessagesRead({ commit }, { id: 1, explicit: true });
+      await actions.markMessagesRead(contextoDeLeitura(), {
+        id: 1,
+        explicit: true,
+      });
       expect(commit.mock.calls).toEqual([]);
     });
   });
@@ -887,8 +913,16 @@ describe('#addMentions', () => {
           ],
         },
       });
-      await actions.fetchAllAttachments({ commit }, 1);
+      // ChatSPX: a action ganhou cache (`state.attachments[id] !== undefined` => nao busca)
+      // e passou a emitir um SET_ALL_ATTACHMENTS de limpeza antes da requisicao, com `meta`.
+      // Sem passar `state`, ela estourava em `state.attachments` — o exemplo media a ausencia
+      // do argumento, nao o comportamento.
+      await actions.fetchAllAttachments(
+        { commit, state: { attachments: {} } },
+        1
+      );
       expect(commit.mock.calls).toEqual([
+        [types.SET_ALL_ATTACHMENTS, { id: 1, data: [], meta: null }],
         [
           types.SET_ALL_ATTACHMENTS,
           {
@@ -902,9 +936,19 @@ describe('#addMentions', () => {
                 thumb_url: '',
               },
             ],
+            meta: {},
           },
         ],
       ]);
+    });
+
+    it('does not fetch again when the conversation attachments are already cached', async () => {
+      await actions.fetchAllAttachments(
+        { commit, state: { attachments: { 1: [] } } },
+        1
+      );
+      expect(axios.get).not.toHaveBeenCalled();
+      expect(commit).not.toHaveBeenCalled();
     });
   });
 
@@ -954,9 +998,11 @@ describe('#addMentions', () => {
         { data, after: 99 }
       );
 
+      // ChatSPX: abrir a conversa tambem limpa o marcador de "ha mensagens mais novas".
       expect(localCommit.mock.calls).toEqual([
         [types.SET_CURRENT_CHAT_WINDOW, data],
         [types.CLEAR_ALL_MESSAGES_LOADED, 42],
+        [types.CLEAR_NEWER_MESSAGES_FLAG, 42],
         [types.SET_CHAT_DATA_FETCHED, 42],
       ]);
       expect(localDispatch).toHaveBeenCalledWith('fetchPreviousMessages', {
@@ -980,6 +1026,7 @@ describe('#addMentions', () => {
       expect(localCommit.mock.calls).toEqual([
         [types.SET_CURRENT_CHAT_WINDOW, data],
         [types.CLEAR_ALL_MESSAGES_LOADED, 42],
+        [types.CLEAR_NEWER_MESSAGES_FLAG, 42],
       ]);
       expect(localDispatch).not.toHaveBeenCalled();
     });

@@ -47,6 +47,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'reply_assignment_gate': { 'type': %w[boolean null] },
         'ia_reentra_orfa': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
+        'queue_escalation_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
         'template_reply_routing': {
           'type': %w[object null],
           'properties': {
@@ -72,28 +73,17 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
           'type': %w[array null],
           'items': { 'type': 'string' }
         },
+        # Derivado do config/llm.yml: a lista fixa aqui tinha 6 features enquanto o yml passou
+        # a declarar 13, e o `additionalProperties: false` rejeitava as outras 7 com
+        # "must be of type schema" — a tela salvava e o backend recusava.
         'captain_models': {
           'type': %w[object null],
-          'properties': {
-            'editor': { 'type': %w[string null] },
-            'assistant': { 'type': %w[string null] },
-            'copilot': { 'type': %w[string null] },
-            'label_suggestion': { 'type': %w[string null] },
-            'audio_transcription': { 'type': %w[string null] },
-            'help_center_search': { 'type': %w[string null] }
-          },
+          'properties': Llm::Models.feature_keys.map(&:to_sym).index_with { { 'type': %w[string null] } },
           'additionalProperties': false
         },
         'captain_features': {
           'type': %w[object null],
-          'properties': {
-            'editor': { 'type': %w[boolean null] },
-            'assistant': { 'type': %w[boolean null] },
-            'copilot': { 'type': %w[boolean null] },
-            'label_suggestion': { 'type': %w[boolean null] },
-            'audio_transcription': { 'type': %w[boolean null] },
-            'help_center_search': { 'type': %w[boolean null] }
-          },
+          'properties': Llm::Models.feature_keys.map(&:to_sym).index_with { { 'type': %w[boolean null] } },
           'additionalProperties': false
         }
       },
@@ -123,7 +113,23 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
   store_accessor :settings, :captain_auto_resolve_mode
-  store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
+  # `V1FalsePromiseHandler#v1_false_promise_harness_enabled?` le
+  # `account.captain_false_promise_harness_enabled`, mas o acessor nunca foi declarado.
+  # Sem ele o recurso era INLIGAVEL (nao ha como a chave chegar ao codigo) e, pior, a
+  # chamada levantava NoMethodError em TODA resposta V1 de conversa pendente. O rescue
+  # interno do handler engolia e mandava pro ChatwootExceptionTracker, entao o sintoma
+  # visivel era so ruido no GlitchTip — uma excecao por resposta da IA.
+  store_accessor :settings, :captain_false_promise_harness_enabled
+  # `queue_escalation_after` era aceita em `permitted_settings_attributes` (accounts_controller)
+  # mas NAO existia aqui nem no schema acima: a API recebia o valor e o descartava calada, e
+  # `account.queue_escalation_after` levantava NoMethodError em quem tentasse ler.
+  # A invariante que o proprio spec do controller enuncia vale nos DOIS sentidos: setting
+  # permitida pela API precisa existir no modelo, e vice-versa.
+  #
+  # AVISO: por enquanto NENHUM codigo consome esta configuracao — o irmao
+  # `orphan_retriage_after` e lido pelo OrphanRetriageJob, este ainda nao tem consumidor.
+  # Ela grava e le; nao muda comportamento nenhum ate o recurso de escalonamento existir.
+  store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after, :queue_escalation_after
   # Reentrada da IA de triagem em conversa órfã. Nasceu derivada do reply_assignment_gate
   # (modo fila), que a vetava; ver #ia_reentra_orfa_enabled? para o porquê de separar.
   store_accessor :settings, :ia_reentra_orfa
@@ -270,6 +276,12 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
       agents: ChatwootApp.max_limit.to_i,
       inboxes: ChatwootApp.max_limit.to_i
     }
+  end
+
+  # Gate que o webhook_listener (vindo no recorte) consulta. No self-hosted e sempre true;
+  # a versao enterprise consulta a flag apenas em cloud.
+  def api_and_webhooks_enabled?
+    true
   end
 
   def locale_english_name

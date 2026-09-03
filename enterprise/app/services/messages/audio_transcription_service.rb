@@ -1,4 +1,8 @@
 class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
+  # Limite duro do endpoint de transcricao da OpenAI: 25 MB DECIMAIS (25_000_000), nao
+  # binarios (25.megabytes = 26_214_400) — usar a forma binaria vaza a faixa 25,0–26,2 MB
+  # para a API como 413. Audio longo (~70+ min em Opus) mantem o anexo e pula a transcricao.
+  TRANSCRIPTION_BYTE_LIMIT = 25_000_000
   include Integrations::LlmInstrumentation
 
   WHISPER_MODEL = 'whisper-1'.freeze
@@ -13,8 +17,8 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   end
 
   def perform
-    return { error: 'Transcription limit exceeded' } unless can_transcribe?
-    return { error: 'Message not found' } if message.blank?
+    bloqueio = motivo_para_nao_transcrever
+    return bloqueio if bloqueio
 
     transcriptions = transcribe_audio
     Rails.logger.info "Audio transcription successful: #{transcriptions}"
@@ -47,6 +51,24 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     return false if account.audio_transcriptions.blank?
 
     account.usage_limits[:captain][:responses][:current_available].positive?
+  end
+
+  # As tres recusas antes de gastar chamada no Whisper, num metodo so: mantem a ORDEM
+  # original (cota -> mensagem -> tamanho) e tira 3 ramos do `perform`, que ja estourava
+  # o Metrics/CyclomaticComplexity antes desta mudanca.
+  def motivo_para_nao_transcrever
+    return { error: 'Transcription limit exceeded' } unless can_transcribe?
+    return { error: 'Message not found' } if message.blank?
+    return { error: 'Audio too large for Whisper' } if audio_too_large?
+
+    nil
+  end
+
+  def audio_too_large?
+    blob = attachment.file&.blob
+    return false unless blob
+
+    blob.byte_size > TRANSCRIPTION_BYTE_LIMIT
   end
 
   def fetch_audio_file
@@ -91,7 +113,10 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     begin
       tries += 1
       File.open(path, 'rb') do |file|
-        @client.audio.transcribe(parameters: { model: WHISPER_MODEL, file: file, temperature: 0.4 })['text']
+        # temperature 0.0 reduz alucinacao em audio silencioso ou quase-silencioso. O 0.4 veio
+        # do commit original do upstream (#11670) e foi corrigido la depois; nunca foi escolha
+        # nossa.
+        @client.audio.transcribe(parameters: { model: WHISPER_MODEL, file: file, temperature: 0.0 })['text']
       end
     rescue Faraday::UnauthorizedError, Faraday::BadRequestError
       raise

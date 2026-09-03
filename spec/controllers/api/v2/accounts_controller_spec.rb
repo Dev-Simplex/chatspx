@@ -76,7 +76,10 @@ RSpec.describe 'Accounts API', type: :request do
           expect(AccountBuilder).to have_received(:new).with(params.merge(user_password: params[:password]))
           expect(account_builder).to have_received(:perform)
           expect(response).to have_http_status(:forbidden)
-          expect(response.body).to eq({ message: I18n.t('errors.signup.failed') }.to_json)
+          # Cadastro acontece SEM conta: `switch_locale` nao acha usuario nem conta e cai no
+          # `I18n.default_locale` (pt_BR por padrao nosso, ver config/application.rb). O spec
+          # roda dentro de `I18n.with_locale(:en)` do rails_helper, entao precisa dizer o locale.
+          expect(response.body).to eq({ message: I18n.t('errors.signup.failed', locale: I18n.default_locale) }.to_json)
         end
       end
     end

@@ -8,6 +8,7 @@ import { useStore } from 'dashboard/composables/store';
 import { useMapGetter } from 'dashboard/composables/store.js';
 import { useDarkMode } from 'widget/composables/useDarkMode';
 import { getMatchingLocale } from 'shared/helpers/portalHelper';
+import { profileConfigFromChannel } from 'widget/helpers/profileConfigHelper';
 
 const store = useStore();
 const router = useRouter();
@@ -15,6 +16,14 @@ const i18n = useI18n();
 const { prefersDarkMode } = useDarkMode();
 
 const portal = computed(() => window.chatwootWebChannel.portal);
+
+// Bloco 3.17. `Home.vue` já não monta este componente quando a base está desligada;
+// esta guarda existe porque o aceite é sobre a REQUISIÇÃO, não sobre o bloco visível
+// (22-plano-widget:1255 — "não é só esconder o bloco"). Se o container for montado de
+// outro lugar amanhã, a regra continua morando onde o request nasce.
+const showKnowledgeBase = computed(
+  () => profileConfigFromChannel(window.chatwootWebChannel).showKnowledgeBase
+);
 
 const popularArticles = useMapGetter('article/popularArticles');
 const articleUiFlags = useMapGetter('article/uiFlags');
@@ -29,6 +38,7 @@ const locale = computed(() => {
 });
 
 const fetchArticles = () => {
+  if (!showKnowledgeBase.value) return;
   if (portal.value && locale.value) {
     store.dispatch('article/fetch', {
       slug: portal.value.slug,
@@ -76,7 +86,11 @@ onMounted(() => fetchArticles());
 
 <template>
   <div
-    v-if="portal && (articleUiFlags.isFetching || !!popularArticles.length)"
+    v-if="
+      showKnowledgeBase &&
+      portal &&
+      (articleUiFlags.isFetching || !!popularArticles.length)
+    "
     class="w-full shadow outline-1 outline outline-n-container rounded-xl bg-n-background dark:bg-n-solid-2 px-5 py-4"
   >
     <ArticleBlock

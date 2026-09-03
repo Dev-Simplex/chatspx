@@ -5,6 +5,9 @@ import {
   filterCampaigns,
 } from 'widget/helpers/campaignHelper';
 import { getFromCache, setCache } from 'shared/helpers/cache';
+import { campanhaLegadaSuprimida } from 'shared/helpers/abordagemProativa';
+import { emitSdkEventOnce } from 'widget/helpers/sdkEventEmitter';
+import { CHATWOOT_CAMPAIGN_SHOWN } from 'widget/constants/sdkEvents';
 
 const CACHE_KEY_PREFIX = 'chatwoot_campaigns_';
 
@@ -23,6 +26,22 @@ const resetCampaignTimers = (
   websiteToken,
   isInBusinessHours
 ) => {
+  // ─── Bloco 4.22 · precedência ────────────────────────────────────────────────
+  // Enquanto o motor novo estiver no ar para esta conta, a campanha legada NÃO
+  // dispara sozinha. A supressão é do RELÓGIO, e só dele: a campanha continua
+  // buscada, continua em `records`, continua listada e editável no painel — ela
+  // apenas deixa de agendar o próprio disparo. Apagá-la do store apagaria também
+  // o texto que o 4.05 mostra como mensagem do convite.
+  //
+  // `initTimers([])` e não um `return` seco: ele começa limpando os relógios já
+  // armados. Um `return` deixaria vivo um relógio de uma navegação anterior, e o
+  // visitante levaria a campanha uma URL depois — a falha mais difícil de ver,
+  // porque só aparece em site de página única.
+  if (campanhaLegadaSuprimida(window.chatwootWebChannel)) {
+    campaignTimer.initTimers({ campaigns: [] }, websiteToken);
+    return;
+  }
+
   const formattedCampaigns = formatCampaigns({ campaigns });
   // Find all campaigns that matches the current URL
   const filteredCampaigns = filterCampaigns({
@@ -111,6 +130,12 @@ export const actions = {
     },
     { websiteToken, campaignId }
   ) => {
+    // Bloco 4.22 — segunda porta, e ela não é redundância inútil. `startCampaign`
+    // é público na store e é o que um relógio remanescente chamaria; barrar aqui
+    // é o que garante que "não dispara" valha mesmo se alguém agendar por outro
+    // caminho no futuro.
+    if (campanhaLegadaSuprimida(window.chatwootWebChannel)) return;
+
     // Disable campaign execution if widget is opened
     if (!isWidgetOpen) {
       const { data: campaigns } = await getCampaigns(websiteToken);
@@ -118,6 +143,16 @@ export const actions = {
       const campaign = campaigns.find(item => item.id === campaignId);
       if (campaign) {
         commit('setActiveCampaign', campaign);
+        // Bloco 5.04 — `chatwoot:campaign-shown`. Aqui, e não no componente do
+        // teaser: o `resetCampaign` do fechamento do widget zera
+        // `activeCampaign`, e um `mounted`/`watch` no componente re-emitiria a
+        // cada abertura. O fato "esta campanha foi exibida" acontece uma vez
+        // por campanha, e a chave do `once` é o id dela.
+        emitSdkEventOnce(
+          CHATWOOT_CAMPAIGN_SHOWN,
+          { campaign_id: campaign.id },
+          `${CHATWOOT_CAMPAIGN_SHOWN}:${campaign.id}`
+        );
       }
     }
   },

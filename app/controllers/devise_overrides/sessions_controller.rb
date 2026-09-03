@@ -5,7 +5,14 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
   before_action :process_sso_auth_token, only: [:create]
 
   def new
-    redirect_to login_page_url(error: 'access-denied')
+    # `allow_other_host:` e necessario, nao cosmetico: `login_page_url` monta a URL a partir
+    # de FRONTEND_URL, que POR DESENHO pode ser um host diferente do que atendeu a
+    # requisicao — e nesta frota isso acontece de verdade (o mesmo ambiente responde por
+    # mais de um dominio). Sem a flag, o Rails levanta UnsafeRedirectError e o usuario
+    # recebe 500 em vez de ir para a tela de login. O que varia na URL sao QUERY PARAMS
+    # (email, sso_auth_token, error); o host vem so da configuracao, entao nao ha
+    # redirecionamento aberto aqui.
+    redirect_to login_page_url(error: 'access-denied'), allow_other_host: true
   end
 
   def create

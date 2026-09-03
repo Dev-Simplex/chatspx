@@ -328,7 +328,13 @@ describe('#mutations', () => {
     });
   });
 
-  describe('#REMOVE_PENDING_MESSAGE', () => {
+  // ChatSPX: o codigo separou UMA mutation em DUAS, com contratos diferentes:
+  //   REMOVE_PENDING_MESSAGE(message)                 -> gate D6, remove por `id`
+  //   REMOVE_OPTIMISTIC_MESSAGE({conversationId, echoId}) -> remove a duplicata otimista
+  // Este bloco chamava a PRIMEIRA passando o payload da SEGUNDA. `findConversation` recebia
+  // `message.conversation_id` = undefined, nao achava a conversa e retornava — por isso o
+  // exemplo negativo ("nao toca na mensagem reconciliada") passava sem exercitar nada.
+  describe('#REMOVE_OPTIMISTIC_MESSAGE', () => {
     it('removes only the still-optimistic message (id === echo_id)', () => {
       const chat = {
         id: 1,
@@ -345,7 +351,7 @@ describe('#mutations', () => {
       };
       const state = buildStateWithChat(chat);
 
-      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+      mutations[types.REMOVE_OPTIMISTIC_MESSAGE](state, {
         conversationId: 1,
         echoId: 'uuid-abc',
       });
@@ -364,9 +370,45 @@ describe('#mutations', () => {
       };
       const state = buildStateWithChat(chat);
 
-      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+      mutations[types.REMOVE_OPTIMISTIC_MESSAGE](state, {
         conversationId: 1,
         echoId: 'uuid-abc',
+      });
+
+      expect(state.allConversations[0].messages).toHaveLength(1);
+    });
+  });
+
+  // A mutation D6 nao tinha cobertura nenhuma: o bloco acima ocupava o nome dela.
+  describe('#REMOVE_PENDING_MESSAGE', () => {
+    it('removes the pending bubble by id, without leaving a FAILED one behind', () => {
+      const state = buildStateWithChat({
+        id: 1,
+        messages: [
+          { id: 'uuid-abc', echo_id: 'uuid-abc', content: 'hi' },
+          { id: 999, content: 'outra' },
+        ],
+      });
+
+      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+        conversation_id: 1,
+        id: 'uuid-abc',
+      });
+
+      const { messages } = state.allConversations[0];
+      expect(messages).toHaveLength(1);
+      expect(messages[0].id).toBe(999);
+    });
+
+    it('does nothing when the conversation is not in the window', () => {
+      const state = buildStateWithChat({
+        id: 1,
+        messages: [{ id: 'uuid-abc', echo_id: 'uuid-abc' }],
+      });
+
+      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+        conversation_id: 42,
+        id: 'uuid-abc',
       });
 
       expect(state.allConversations[0].messages).toHaveLength(1);

@@ -105,8 +105,19 @@ describe ActionCableListener do
         a_collection_containing_exactly(
           admin.pubsub_token, agent.pubsub_token, conversation.contact_inbox.pubsub_token
         ),
-        'conversation.typing_on', { conversation: conversation.push_event_data,
-                                    user: agent_bot.push_event_data,
+        # Evento de digitacao leva payload ENXUTO — `{ id: display_id }` — e nao o
+        # `push_event_data` inteiro (ver action_cable_listener.rb:107). Os outros tres exemplos
+        # deste arquivo (linhas 68, 88 e o typing_off) ja usam a forma certa; so este destoava.
+        # O payload de digitacao classifica o autor em apenas DUAS categorias
+        # (`user.is_a?(Contact) ? 'contact' : 'user'`), entao um agent bot e reportado como
+        # 'user' e vai com o hash minimo — nao com o `push_event_data`. Os outros tres exemplos
+        # deste arquivo ja usam essa forma.
+        #
+        # OBSERVACAO registrada, nao consertada aqui: o painel nao consegue distinguir "a IA
+        # esta digitando" de "um agente esta digitando". Mudar isso altera o payload consumido
+        # em tempo real pelo dashboard — e decisao de produto, nao de triagem.
+        'conversation.typing_on', { conversation: { id: conversation.display_id },
+                                    user: { id: agent_bot.id, name: agent_bot.name, type: 'user' },
                                     account_id: account.id,
                                     is_private: false }
       )
@@ -305,7 +316,14 @@ describe ActionCableListener do
     let(:event_name) { :'message.reaction_removed' }
     let!(:message) { create(:message, account: account, inbox: inbox, conversation: conversation, message_type: 'outgoing') }
     let!(:reaction) { create(:message_reaction, message: message, account: account, reactor: agent, emoji: '👍') }
-    let!(:event) { Events::Base.new(event_name, Time.zone.now, message: message, reaction: reaction) }
+    # O evento de remocao carrega VALORES, nao o registro — no `destroy` a linha ja foi apagada
+    # e o job estouraria ao reidratar por GlobalID; na troca de emoji o registro sobrevive com o
+    # emoji NOVO, que e o oposto do que o assinante precisa.
+    let!(:event) do
+      Events::Base.new(event_name, Time.zone.now, message: message, reaction_id: reaction.id,
+                                                  emoji: reaction.emoji, user_id: reaction.user_id,
+                                                  user_type: reaction.user_type)
+    end
 
     it 'broadcasts MESSAGE_REACTION_REMOVED with reaction_id and emoji' do
       expect(conversation.inbox.reload.inbox_members.count).to eq(1)

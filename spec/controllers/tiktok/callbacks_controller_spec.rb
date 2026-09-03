@@ -55,7 +55,10 @@ RSpec.describe 'TikTok Callbacks', type: :request do
   end
 
   it 'creates channel and inbox and redirects to agents step for new connections' do
-    expect(Avatar::AvatarFromUrlJob).to receive(:perform_later).with(instance_of(Inbox), 'https://www.example.com/avatar.png')
+    # `AvatarFromUrlJob#perform(avatarable_type, avatarable_id, avatar_url)` — nome da classe +
+    # id, nunca o registro (tiktok/callbacks_controller.rb:123 ja usa essa forma).
+    expect(Avatar::AvatarFromUrlJob).to receive(:perform_later)
+      .with('Inbox', kind_of(Integer), 'https://www.example.com/avatar.png')
 
     with_modified_env TIKTOK_APP_ID: client_id, TIKTOK_APP_SECRET: client_secret do
       expect do

@@ -8,11 +8,9 @@ import {
 import DashboardAudioNotificationHelper from './AudioAlerts/DashboardAudioNotificationHelper';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { emitter } from 'shared/helpers/mitt';
-import SessionStorage from 'shared/helpers/sessionStorage';
-import { SESSION_STORAGE_KEYS } from 'dashboard/constants/sessionStorage';
+import { useImpersonation } from 'dashboard/composables/useImpersonation';
 
-const isImpersonating = () =>
-  !!SessionStorage.get(SESSION_STORAGE_KEYS.IMPERSONATION_USER);
+const { isImpersonating } = useImpersonation();
 
 class ActionCableConnector extends BaseActionCableConnector {
   constructor(app, pubsubToken) {
@@ -40,6 +38,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'conversation.read': this.onConversationRead,
       'conversation.updated': this.onConversationUpdated,
       'account.cache_invalidated': this.onCacheInvalidate,
+      'account.enrichment_completed': this.onEnrichmentCompleted,
       'copilot.message.created': this.onCopilotMessageCreated,
       'funnel_item.moved': this.onFunnelItemMoved,
       'funnel_item.created': this.onFunnelItemCreated,
@@ -154,7 +153,9 @@ class ActionCableConnector extends BaseActionCableConnector {
   // different Vuex modules and setCurrentUserAvailability updates the root state.
   // Vuex does not support batching commits across modules in a single dispatch.
   onPresenceUpdate = data => {
-    if (isImpersonating()) return;
+    // ChatSPX (A4-2): `isImpersonating` é um `computed` ref de useImpersonation(), não uma função.
+    // Chamá-lo levantava TypeError em runtime a cada presence update, matando os três dispatches.
+    if (isImpersonating.value) return;
     this.app.$store.dispatch('contacts/updatePresence', data.contacts);
     this.app.$store.dispatch('agents/updatePresence', data.users);
     this.app.$store.dispatch('setCurrentUserAvailability', data.users);
@@ -306,6 +307,10 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onCopilotMessageCreated = data => {
     this.app.$store.dispatch('copilotMessages/upsert', data);
+  };
+
+  onEnrichmentCompleted = () => {
+    this.app.$store.dispatch('accounts/get', { silent: true });
   };
 
   onCacheInvalidate = data => {

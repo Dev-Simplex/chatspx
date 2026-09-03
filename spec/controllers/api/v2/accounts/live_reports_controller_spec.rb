@@ -2,6 +2,10 @@ require 'rails_helper'
 
 RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
   let(:account) { create(:account) }
+  # `pending_status_allowed_by_inbox` (nossa, da2ea07ed1) recusa Pendente em caixa que
+  # nao habilitou o recurso. Este spec vem do upstream e presume que Pendente sempre
+  # funciona; as conversas pendentes abaixo passam a nascer nesta caixa.
+  let!(:caixa_pendente) { create(:inbox, account: account, pending_status_enabled: true) }
   let(:admin) { create(:user, account: account, role: :administrator) }
   let(:agent) { create(:user, account: account, role: :agent) }
   let!(:team) { create(:team, account: account) }
@@ -38,7 +42,7 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
       before do
         create(:conversation, :with_assignee, account: account, status: :open)
         create(:conversation, account: account, status: :open)
-        create(:conversation, :with_assignee, account: account, status: :pending)
+        create(:conversation, :with_assignee, account: account, inbox: caixa_pendente, status: :pending)
         create(:conversation, :with_assignee, account: account, status: :open) do |conversation|
           create(:message, account: account, conversation: conversation, message_type: :outgoing)
         end
@@ -203,8 +207,8 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
       before do
         create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
         create(:conversation, account: account, status: :open)
-        create(:conversation, account: account, status: :pending, assignee_id: assignee2.id)
-        create(:conversation, account: account, status: :pending)
+        create(:conversation, account: account, inbox: caixa_pendente, status: :pending, assignee_id: assignee2.id)
+        create(:conversation, account: account, inbox: caixa_pendente, status: :pending)
         create(:conversation, account: account, status: :resolved, assignee_id: assignee1.id, team_id: team.id)
       end
 
@@ -233,7 +237,7 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
 
       it 'filters by team_id when provided' do
         create(:conversation, account: account, status: :open, team_id: team.id)
-        create(:conversation, account: account, status: :pending)
+        create(:conversation, account: account, inbox: caixa_pendente, status: :pending)
 
         get "/api/v2/accounts/#{account.id}/live_reports/in_service_overview",
             params: { team_id: team.id },
@@ -356,8 +360,8 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
       it 'returns waiting conversations for scope=waiting' do
         open_assigned = create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
         open_unassigned = create(:conversation, account: account, status: :open)
-        pending_assigned = create(:conversation, account: account, status: :pending, assignee_id: assignee1.id)
-        pending_unassigned = create(:conversation, account: account, status: :pending)
+        pending_assigned = create(:conversation, account: account, inbox: caixa_pendente, status: :pending, assignee_id: assignee1.id)
+        pending_unassigned = create(:conversation, account: account, inbox: caixa_pendente, status: :pending)
 
         get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
             params: { scope: 'waiting', limit: 20 },
@@ -407,15 +411,28 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
         expect(response.parsed_body['payload'].length).to eq(5)
       end
 
+      # O arranjo anterior criava a conversa "excluida" SEM time e contava que ela ficasse assim.
+      # Nao fica: `AssignmentHandler#sync_team_from_assignee` poe o time do responsavel quando ele
+      # pertence a EXATAMENTE UM — e assignee1 acabara de virar membro de `team`. As duas conversas
+      # terminavam no mesmo time e o filtro nunca era exercitado.
+      #
+      # Com o agente em DOIS times, o sync nao sobrescreve um team_id que ja e de um deles, entao
+      # as duas conversas ficam com o MESMO responsavel e times DIFERENTES — que e exatamente o que
+      # isola o filtro por time do filtro por responsavel.
       it 'applies team filter when provided' do
+        outro_time = create(:team, account: account)
         create(:team_member, team: team, user: assignee1)
+        create(:team_member, team: outro_time, user: assignee1)
         included = create(:conversation, account: account, status: :open, assignee_id: assignee1.id, team_id: team.id)
-        excluded = create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
+        excluded = create(:conversation, account: account, status: :open, assignee_id: assignee1.id,
+                                         team_id: outro_time.id)
 
+        # SEM `as: :json`: num GET esse modificador manda os params no CORPO e a query string
+        # fica vazia — o `team_id` nunca chegava ao controller, entao o filtro por time nao era
+        # exercitado e a conversa sem time aparecia no resultado. Mesmo caso do contacts/search.
         get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
             params: { scope: 'agent', assignee_id: assignee1.id, team_id: team.id },
-            headers: admin.create_new_auth_token,
-            as: :json
+            headers: admin.create_new_auth_token
 
         expect(response).to have_http_status(:success)
 

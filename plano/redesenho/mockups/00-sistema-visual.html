@@ -1,0 +1,3183 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sistema visual — ChatSPX</title>
+<meta name="description" content="Fundacao visual do redesenho do chat de site do ChatSPX: tokens, primitivos e as provas de contraste. Task 21.">
+<!-- =========================================================================
+     PAGINA STANDALONE. Zero requisicao externa: sem CDN, sem webfont, sem
+     imagem remota. Os dois blocos de estilo abaixo sao copia LITERAL de
+     plano/redesenho/shared/tokens.css e plano/redesenho/shared/primitivos.css,
+     que existem soltos para os demais mockups importarem com <link>.
+     Gerado por scratchpad/build.py — para alterar, edite os .css e regenere.
+     ====================================================================== -->
+<style id="tokens">
+/* =============================================================================
+   ChatSPX — Redesenho do chat de site
+   tokens.css — a fundação do sistema visual (Task 21)
+
+   Origem de cada número: `plano/estudo-chat-web/frontend/16-spec-redesenho.md`
+   §2 (sistema visual) e §4 (movimento), complementado por 13 (WCAG, escalas),
+   12 (durações medidas) e 11 (medidas dos 14 concorrentes).
+
+   Marcação usada nos comentários:
+     [FATO]        verificável em fonte primária citada
+     [MEDIDO]      medição do estudo, com o relatório de origem
+     [CALIBRADO]   medição feita NESTA task (Chromium 145, script Playwright)
+     [DECISÃO]     escolha desta fundação, com a razão ao lado
+     [DIVERGÊNCIA] contraria o estudo; a medição que sustenta vem junto
+
+   REGRA DE USO — vale para todos os mockups:
+     1. Nunca escreva cor literal. Toda cor sai de token.
+     2. Nunca escreva medida literal. Espaço, raio, duração e tamanho saem de token.
+     3. A cor da marca do cliente entra por UM ponto só: `--brand`.
+        Todo o resto é derivado — nunca digitado.
+
+   Estrutura de tema (obrigatória, não mexer):
+     :root                                          → tema claro COMPLETO
+     @media (prefers-color-scheme:dark)
+        :root:not([data-theme="light"])             → redefine SÓ os tokens
+     :root[data-theme="dark"]                       → redefine de novo (toggle vence)
+   Nenhuma cor é declarada apenas dentro de media query ou de [data-theme].
+   ============================================================================= */
+
+
+/* -----------------------------------------------------------------------------
+   0. ENTRADA ÚNICA DA MARCA
+   -----------------------------------------------------------------------------
+   `--brand` é o único ponto de entrada do sistema. Em produção ele é escrito
+   pelo servidor (16 §2.5.2: `app/views/widgets/show.html.erb` já escreve
+   `window.chatwootWebChannel.widgetColor` inline antes de qualquer bundle
+   carregar [FATO — 15 §B7.2]), o que também elimina o flash de cor errada
+   entre o primeiro paint e o `mounted()`.
+
+   O default abaixo é o verde do fork (`#2DC46F`, literal hoje em
+   `theme/colors.js:123` [MEDIDO — 15 §A3.3]) de propósito: é o caso que o
+   estudo mediu falhando (header verde + texto branco). Com esta fundação, o
+   mesmo verde entrega texto PRETO sem ninguém decidir nada.
+
+   [DIVERGÊNCIA pequena, de aritmética] O 16 §1 P2 registra L(#2DC46F) = 0,4176,
+   2,25:1 com branco e 9,35:1 com preto. Recalculado e medido aqui:
+   **L = 0,4119 · 2,27:1 com branco · 9,24:1 com preto** [CALIBRADO]. O valor
+   desta fundação é o que bate com a medição em browser do 15 §A5.4, que deu
+   2,27:1 para o mesmo par. A conclusão do estudo não muda em nada — o branco
+   reprova AA e o preto passa com folga —, só os dois decimais.
+   -------------------------------------------------------------------------- */
+
+@property --brand {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2dc46f;
+}
+
+:root {
+  --brand: #2dc46f;
+}
+
+
+/* =============================================================================
+   1. TEMA CLARO — COMPLETO
+   ============================================================================= */
+
+:root {
+
+  /* ---------------------------------------------------------------------------
+     1.1 CÁLCULO DE CONTRASTE — luminância relativa da WCAG, em CSS puro
+     ---------------------------------------------------------------------------
+     O widget usa hoje a heurística YIQ (limiar 186 em `@chatwoot/utils`,
+     limiar 225 em `shared/helpers/colorHelper.js`). Ela DIVERGE da WCAG em
+     11 de 16 cores de marca testadas, e sempre no mesmo sentido: escolhe branco
+     onde o preto teria muito mais contraste [MEDIDO — 13 §3.2].
+     Pior caso da amostra: `#25d366` (verde WhatsApp) com texto branco = 1,98:1,
+     quando o preto no mesmo fundo daria 10,59:1.
+
+     A FÓRMULA CORRETA (WCAG 2.2, SC 1.4.3):
+
+       Para cada canal C ∈ {R,G,B}, com c = C/255:
+         c_lin = c / 12.92                     se c ≤ 0,03928
+         c_lin = ((c + 0,055) / 1,055) ^ 2,4   caso contrário
+
+       Luminância relativa:
+         L = 0,2126·R_lin + 0,7152·G_lin + 0,0722·B_lin
+
+       Razão de contraste entre duas cores:
+         (L_claro + 0,05) / (L_escuro + 0,05)
+
+       LIMIAR DE DECISÃO — L = 0,17913
+         É o ponto em que uma cor tem exatamente o mesmo contraste contra
+         branco e contra preto puro [MEDIDO — 13 §3.2.1].
+         L  > 0,17913  → texto PRETO
+         L ≤ 0,17913  → texto BRANCO
+
+     POR QUE PRETO PURO, E NÃO UM CINZA-QUASE-PRETO (regra C3 do 16 §2.5.1):
+       com `#000000` a zona morta (cores em que NENHUMA das duas escolhas atinge
+       4,5:1) é 0,00%. Com `#111111` são 3,42% das cores RGB; com `#18181b`
+       (zinc-900), 6,75% [MEDIDO — 13 §3.2.1, amostra de 200.000 cores].
+
+     A IMPLEMENTAÇÃO ABAIXO é a fórmula acima, exata, incluindo o ramo linear
+     (c ≤ 0,03928), escrita com `relative color syntax` + `pow()`. Os fragmentos
+     `--w-_*` são PRIVADOS: só resolvem dentro de `rgb(from …)`, porque é lá que
+     os canais `r`, `g` e `b` existem. Usar `var(--w-_lum)` fora disso é inválido
+     — e `getComputedStyle(:root).getPropertyValue('--w-on-brand')` devolve a
+     STRING literal, não a cor, porque custom property não registrada não é
+     computada. Isso não é defeito: medir por essa via dá falso negativo.
+
+     [CALIBRADO] Medido pelo PIXEL RENDERIZADO, que não depende de como se lê o
+     CSS: só o tokens.css carregado, zero JavaScript escrevendo o token, um bloco
+     com `background: var(--w-brand)` e `color: var(--w-on-brand)`, screenshot e
+     leitura do pixel do glifo. Chromium 145, 8 cores — `#0b2545`, `#7c2d12`,
+     `#050505` (exercita o ramo linear), `#e11d48`, `#f5d90a`, `#a7f3d0`,
+     `#2dc46f` e `#009ce0`: 8 de 8 iguais à escolha da WCAG.
+
+     A CONDIÇÃO, dita por inteiro: o cálculo acerta quando `--brand` está no
+     ESCOPO EM QUE `--w-on-brand` É DECLARADO — o `:root`, ou um elemento com a
+     classe `.wui-brand-scope` (§2.9). Num descendente comum que só redefina
+     `--brand`, o token herdado já vem calculado do `:root` e não re-deriva.
+
+     MESMO ASSIM, NÃO DEPENDA DISTO. Isto é fallback, não fonte de verdade: o
+     cálculo exige relative color syntax E `pow()` em `calc()`. Faltando um dos
+     dois, o token fica no default `#000000` — e para uma marca ESCURA isso é
+     ilegível. Quem escreve o token é o servidor (em produção) ou
+     `shared/on-brand.js` (nos mockups).
+     ------------------------------------------------------------------------ */
+
+  --w-_lin-r: calc(
+      clamp(0, (0.03928 - r/255) * 1e6, 1)  * (r/255/12.92)
+    + (1 - clamp(0, (0.03928 - r/255) * 1e6, 1)) * pow((r/255 + 0.055)/1.055, 2.4));
+  --w-_lin-g: calc(
+      clamp(0, (0.03928 - g/255) * 1e6, 1)  * (g/255/12.92)
+    + (1 - clamp(0, (0.03928 - g/255) * 1e6, 1)) * pow((g/255 + 0.055)/1.055, 2.4));
+  --w-_lin-b: calc(
+      clamp(0, (0.03928 - b/255) * 1e6, 1)  * (b/255/12.92)
+    + (1 - clamp(0, (0.03928 - b/255) * 1e6, 1)) * pow((b/255 + 0.055)/1.055, 2.4));
+
+  /* L = 0,2126·R + 0,7152·G + 0,0722·B */
+  --w-_lum: calc(0.2126 * var(--w-_lin-r)
+                + 0.7152 * var(--w-_lin-g)
+                + 0.0722 * var(--w-_lin-b));
+
+  /* 255 quando L ≤ 0,17913 (texto branco); 0 quando L > 0,17913 (texto preto).
+     O fator 1e6 transforma a comparação num degrau: o clamp satura em 0 ou 1
+     para qualquer diferença maior que 1e-6. */
+  --w-_on: calc(255 * clamp(0, (0.17913 - var(--w-_lum)) * 1e6, 1));
+  /* O complemento: branco quando o texto é preto, preto quando o texto é branco.
+     Usado como direção segura de deslocamento nos estados (§1.3). */
+  --w-_on-inv: calc(255 - var(--w-_on));
+
+  /* ---------------------------------------------------------------------------
+     1.2 MARCA — sete tokens, todos derivados de `--brand` (16 §2.5.2)
+     ------------------------------------------------------------------------ */
+
+  --w-brand: var(--brand);
+
+  /* Default seguro: preto puro nunca deixa o token indefinido. O bloco
+     `@supports` no fim do arquivo substitui pelo cálculo WCAG quando o
+     navegador suporta relative color syntax + pow(); em produção o servidor
+     sobrescreve com o valor já calculado. Três camadas, mesma resposta. */
+  --w-on-brand: #000000;
+
+  /* Estados. [DIVERGÊNCIA — 16 §2.5.2 diz "escurece se clara, clareia se escura",
+     que é a direção do state layer do Material 3 (sobrepor `on-primary` a 8%
+     sobre `primary` [FATO — 13 §1.1, `_md-sys-state.scss`]). Medido aqui, essa
+     direção quebra o contraste:
+
+       mistura de 8%  rumo ao texto (hover):   16,3% das cores caem abaixo de 4,5:1
+       mistura de 14% rumo ao texto (pressed): 30,9% caem abaixo de 4,5:1
+       cor crua × on-brand (linha de base):     0,0% abaixo — mínimo 4,58:1
+       [CALIBRADO — 2.018 cores (18 fixas do 13 §3.2 + 2.000 aleatórias, seed 42),
+        Chromium 145, contraste calculado pela fórmula WCAG]
+
+     Casos concretos: `#007aff` sai de 5,23:1 para 4,31:1 no hover e 3,71:1 no
+     pressed; `#e11d48` cai para 4,06:1 e 3,65:1.
+
+     O M3 escapa disso porque a paleta dele é gerada — `primary` tem tom fixo
+     (40 no claro, 80 no escuro) e sobra folga. Aqui a cor é arbitrária: é o
+     cliente que escolhe. A regra do mercado não se aplica ao nosso caso.
+
+     DECISÃO: deslocar na direção OPOSTA ao texto (afasta, não aproxima).
+     Medido: 0 reprovações em 2.018 cores; mínimo 5,30:1 no hover e 5,88:1 no
+     pressed. A sensação de "afundar" no pressed vem do movimento e da sombra
+     interna (ver primitivos.css), não da cor — que é o único canal que não
+     pode ser gasto aqui sem quebrar SC 1.4.3.
+
+     `color-mix` em oklab, nunca `opacity`: opacidade sobre a marca muda a
+     luminância e invalida o cálculo feito para a cor cheia (regra C10). ] */
+  --w-brand-hover:   color-mix(in oklab, var(--w-brand),
+                       rgb(from var(--w-brand) var(--w-_on-inv) var(--w-_on-inv) var(--w-_on-inv)) 8%);
+  --w-brand-pressed: color-mix(in oklab, var(--w-brand),
+                       rgb(from var(--w-brand) var(--w-_on-inv) var(--w-_on-inv) var(--w-_on-inv)) 14%);
+  /* alias — 16 §2.5.2 chama este estado de `--w-brand-active` */
+  --w-brand-active: var(--w-brand-pressed);
+
+  /* Fundo tênue: mistura com a superfície, 10% de peso. Muda sozinho no tema
+     escuro porque `--w-surface` muda (16 §2.5.2). Mistura, não `opacity` (C10). */
+  --w-brand-subtle: color-mix(in oklab, var(--w-brand) 10%, var(--w-surface));
+  /* Texto sobre `--w-brand-subtle`: a superfície domina, então é o texto normal. */
+  --w-on-brand-subtle: var(--w-text);
+
+  /* A marca COMO TEXTO sobre a superfície — token diferente da marca como
+     preenchimento (regra C4, 16 §2.5.1). Precisa de ≥ 4,5:1 (SC 1.4.3).
+     [CALIBRADO] `oklch(from … min(l, 0,515) c h)` contra `#FFFFFF`:
+     2.023/2.023 cores ≥ 4,5:1, mínimo medido 4,587:1. Em l = 0,52 já reprova 1.
+     Uso 0,51 por margem. Preserva croma e matiz — só a luminosidade é limitada. */
+  --w-_readable-l: min(l, 0.51);
+  --w-brand-readable: oklch(from var(--w-brand) var(--w-_readable-l) c h);
+
+  /* A marca como BORDA / anel de foco / ícone sem rótulo: ≥ 3:1 (SC 1.4.11).
+     [CALIBRADO] `min(l, 0,625)` contra `#FFFFFF`: 2.023/2.023 ≥ 3:1, mínimo
+     3,010:1; em 0,63 reprovam 3. Uso 0,62 por margem. */
+  --w-_border-l: min(l, 0.62);
+  --w-brand-border: oklch(from var(--w-brand) var(--w-_border-l) c h);
+
+  --w-focus-ring: var(--w-brand-border);   /* 16 §2.5.3 */
+
+  /* ---------------------------------------------------------------------------
+     1.3 SUPERFÍCIES E TEXTO — tema claro (16 §2.5.3)
+     Ancorados nos valores que o widget JÁ computa hoje [MEDIDO — 15 §A6.3,
+     11 §A16], para que a migração seja rastreável em vez de inventada.
+     ------------------------------------------------------------------------ */
+
+  --w-surface:         #ffffff;   /* painel, header, composer */
+  --w-surface-sunken:  #f3f4f6;   /* fundo da lista de mensagens (16 §2.5.5) */
+  --w-surface-raised:  #ffffff;   /* cartão, teaser, balão do agente */
+
+  /* [DECISÃO desta task — 16 §2.5.3 cobre o widget; as 4 telas de configuração
+     do dashboard precisam de mais superfícies. Cada uma abaixo é extensão
+     declarada, não valor do estudo.] */
+  --w-surface-overlay: #ffffff;   /* popover, menu, tooltip claro */
+  --w-surface-hover:   #f3f4f6;   /* state layer de linha de tabela / item de lista */
+  --w-surface-active:  #e9eaee;   /* mesma coisa, pressionado */
+  --w-surface-inverse: #1c2024;   /* tooltip escuro sobre fundo claro */
+  --w-on-inverse:      #ffffff;
+
+  --w-text:        #1c2024;   /* medido hoje — 14,5:1 contra branco, AAA */
+  --w-text-muted:  #60646c;   /* medido hoje — 5,3:1, AA. É a linha que mais se
+                                 erra em widget: o 06 §8.2 registra timestamps e
+                                 status "quase sempre abaixo de 4,5:1" */
+  /* [DECISÃO desta task] Só para COMPONENTE INATIVO (botão e campo desabilitados).
+     A WCAG isenta esse caso do SC 1.4.3 ("Incidental — texto que faz parte de um
+     componente de interface inativo"), mas ainda assim medimos: 4,13:1 contra
+     `--w-surface`. Placeholder NÃO usa este token — placeholder é texto ativo e
+     usa `--w-text-muted` (5,3:1). */
+  --w-text-subtle: #797d86;
+
+  /* [DIVERGÊNCIA — 16 §2.5.3 prescreve `--w-border: #E4E5E8` para "borda de input,
+     divisor" e `--w-border-strong: #C9CBCF` para `prefers-contrast: more`. Medido:
+     #E4E5E8 dá 1,28:1 e #C9CBCF dá 1,62:1 contra `#FFFFFF` — os dois reprovam o
+     SC 1.4.11 (3:1) que a PRÓPRIA §8.1 do 16 exige para "borda do campo de
+     digitação". A spec se contradiz aqui.
+     Resolvido separando os dois papéis, que são requisitos diferentes:
+       --w-border         divisor DECORATIVO — sem requisito de contraste
+       --w-border-strong  contorno de CONTROLE — ≥ 3:1, obrigatório
+     [CALIBRADO] #898C93 = 3,37:1 contra `--w-surface` e 3,06:1 contra
+     `--w-surface-sunken` (o pior caso: campo dentro da lista de mensagens). ] */
+  --w-border:        #e4e5e8;
+  --w-border-strong: #898c93;
+
+  /* Cores semânticas. Papéis, não cores soltas (13 §3.6). Cada uma vem com o
+     par `-subtle` (fundo de faixa) e o `on-` correspondente. */
+  --w-danger:         #d32f2f;   /* 5,0:1 contra branco [16 §2.5.3] */
+  /* Convenção X / on-X (13 §3.6): cada cor de preenchimento tem, no sistema, a
+     cor de texto que combina com ela — o par já validado. Não existe "escolher
+     a cor do texto" em tempo de design. */
+  --w-on-danger:      #ffffff;
+  --w-danger-subtle:  #fdecec;
+  --w-warning:        #b25e00;   /* 4,8:1 */
+  --w-warning-subtle: #fdf3e7;   /* [DECISÃO desta task] */
+  --w-success:        #0f7a52;   /* 4,9:1 */
+  --w-success-subtle: #e7f6ef;   /* [DECISÃO desta task] */
+  --w-info:           #1a6fd4;   /* [DECISÃO desta task] — banner informativo */
+  --w-info-subtle:    #e8f1fd;
+
+  /* Skeleton. No claro, base cinza e brilho branco. */
+  --w-skeleton-base:  #e9eaee;
+  --w-skeleton-sheen: rgba(255, 255, 255, 0.65);
+
+  /* ---------------------------------------------------------------------------
+     1.4 ELEVAÇÃO (16 §2.4)
+     ---------------------------------------------------------------------------
+     No tema escuro a sombra NÃO escurece: ela é substituída por superfície mais
+     clara + borda de 1px. Sombra preta sobre fundo escuro não separa nada — o
+     Polaris redefine `--p-shadow-100` como `none` no dark [FATO — 13 §1.1].
+
+     Por isso cada nível tem DOIS tokens: a sombra e o anel. Os primitivos
+     aplicam sempre os dois — `box-shadow: var(--w-elev-1), var(--w-elev-1-ring)`
+     — e é o tema que decide qual dos dois carrega a informação.
+
+     Nossa sombra atual (`0 4px 6px rgba(50,50,93,.08), 0 1px 3px rgba(0,0,0,.05)`)
+     é IDÊNTICA nos dois temas [MEDIDO — 15 §A3.5]: calibrada para fundo claro e
+     aplicada também no escuro.
+     ------------------------------------------------------------------------ */
+
+  --w-elev-0: 0 0 0 0 rgba(0, 0, 0, 0);
+  --w-elev-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.10);
+  --w-elev-2: 0 4px 8px -2px rgba(0, 0, 0, 0.14), 0 2px 4px rgba(0, 0, 0, 0.08);
+  --w-elev-3: 0 12px 28px -6px rgba(0, 0, 0, 0.20), 0 4px 8px rgba(0, 0, 0, 0.08);
+
+  --w-elev-0-ring: 0 0 0 0 rgba(0, 0, 0, 0);
+  --w-elev-1-ring: 0 0 0 0 rgba(0, 0, 0, 0);
+  --w-elev-2-ring: 0 0 0 0 rgba(0, 0, 0, 0);
+  --w-elev-3-ring: 0 0 0 0 rgba(0, 0, 0, 0);
+
+  /* ---------------------------------------------------------------------------
+     1.5 TIPOGRAFIA (16 §2.1)
+     ---------------------------------------------------------------------------
+     Stack do sistema, sem webfont. O repositório publica 7 arquivos `.woff2` da
+     Inter (773.684 bytes) e declara 7 `@font-face`, mas `theme.fontFamily.sans`
+     não inclui Inter e a família computada no widget já é a stack do sistema —
+     NENHUM arquivo de fonte é baixado hoje [MEDIDO — 15 §B9.4]. Assumir a stack
+     formaliza o que já acontece; o custo de rede continua zero.
+
+     Piso absoluto: 12px para qualquer papel [13 §2.1].
+     Corpo de mensagem: 15px — decisão F1, já tomada (DECISOES.md).
+     Campo de digitação: 16px SEMPRE — abaixo disso o Safari iOS dá zoom.
+     ------------------------------------------------------------------------ */
+
+  --w-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+                 Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  /* [DECISÃO desta task — não consta do 16. Usado em ID de inbox, chave de API e
+     snippet de instalação nas telas de configuração.] */
+  --w-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+                 'Liberation Mono', monospace;
+
+  /* Papéis: tamanho / entrelinha / peso, atômicos … */
+  --w-font-size-message:    15px;  --w-line-height-message:    22px;  --w-font-weight-message:    400;
+  --w-font-size-message-sm: 14px;  --w-line-height-message-sm: 21px;  --w-font-weight-message-sm: 400;
+  --w-font-size-author:     12px;  --w-line-height-author:     16px;  --w-font-weight-author:     500;
+  --w-font-size-meta:       12px;  --w-line-height-meta:       16px;  --w-font-weight-meta:       400;
+  --w-font-size-system:     12px;  --w-line-height-system:     16px;  --w-font-weight-system:     400;
+  --w-font-size-input:      16px;  --w-line-height-input:      24px;  --w-font-weight-input:      400;
+  --w-font-size-button:     14px;  --w-line-height-button:     20px;  --w-font-weight-button:     500;
+  --w-font-size-title:      16px;  --w-line-height-title:      24px;  --w-font-weight-title:      600;
+  --w-font-size-subtitle:   13px;  --w-line-height-subtitle:   18px;  --w-font-weight-subtitle:   400;
+  --w-font-size-branding:   12px;  --w-line-height-branding:   16px;  --w-font-weight-branding:   400;
+
+  /* … e o atalho para a shorthand `font:` (peso / tamanho / entrelinha / família) */
+  --w-text-message:    400 15px/22px var(--w-font-sans);
+  --w-text-message-sm: 400 14px/21px var(--w-font-sans);
+  --w-text-author:     500 12px/16px var(--w-font-sans);
+  --w-text-meta:       400 12px/16px var(--w-font-sans);
+  --w-text-system:     400 12px/16px var(--w-font-sans);
+  --w-text-input:      400 16px/24px var(--w-font-sans);
+  --w-text-button:     500 14px/20px var(--w-font-sans);
+  --w-text-title:      600 16px/24px var(--w-font-sans);
+  --w-text-subtitle:   400 13px/18px var(--w-font-sans);
+  --w-text-branding:   400 12px/16px var(--w-font-sans);
+
+  /* `letter-spacing: normal` em TODOS os papéis. Medido: o mercado praticamente
+     não usa — só Crisp (0,15–0,2px) e Intercom (0,072px no timestamp) declaram
+     algo diferente [MEDIDO — 11 §C10]. */
+  --w-tracking: normal;
+
+  /* Horário, contador e recibo. Medido: a Inter usa algarismos proporcionais por
+     padrão e a largura do mesmo horário varia 12,00px — de 23px em "11:11" a
+     35px em "00:00", 52% [MEDIDO — 13 §2.5]. Roboto, Arial e Helvetica não têm o
+     problema, mas a stack não garante qual será usada. */
+  --w-numeric-tabular: tabular-nums;
+
+  /* ---------------------------------------------------------------------------
+     1.6 ESPAÇAMENTO (16 §2.2)
+     ---------------------------------------------------------------------------
+     Escala de 4px com dois degraus finos na faixa baixa. Onze degraus — o
+     suficiente para um painel de 400px [13 §5.8]. Os quatro sistemas de
+     referência convergem exatamente nisso: quem declara "base 8" está
+     descrevendo o ritmo dominante, não a régua real [FATO — 13 §1.1].
+     ------------------------------------------------------------------------ */
+
+  --w-space-0:  0;
+  --w-space-05: 2px;
+  --w-space-1:  4px;
+  --w-space-2:  8px;
+  --w-space-3:  12px;
+  --w-space-4:  16px;
+  --w-space-5:  20px;
+  --w-space-6:  24px;
+  --w-space-8:  32px;
+  --w-space-10: 40px;
+  --w-space-12: 48px;
+
+  /* ---------------------------------------------------------------------------
+     1.7 RAIOS (16 §2.3)
+     O raio é proporcional ao elemento, nunca constante: raio grande em elemento
+     pequeno lê como pill, raio grande em elemento grande lê como cartão
+     [13 §6.5]. É por isso que existe escala e não um valor.
+     ------------------------------------------------------------------------ */
+
+  --w-radius-0:    0;
+  --w-radius-1:    4px;
+  --w-radius-15:   6px;    /* avatar; 3 de 7 concorrentes já abandonaram o círculo
+                              [MEDIDO — 11 §C11] */
+  --w-radius-2:    8px;
+  --w-radius-3:    12px;   /* campo de digitação, cartão [13 §10.3] */
+  --w-radius-4:    16px;   /* painel — mediana exata do mercado [11 §C8] */
+  --w-radius-5:    20px;   /* balão, cantos livres [11 §C9] */
+  --w-radius-full: 9999px; /* launcher (8 de 9 [11 §C3]), chip, botão de enviar */
+
+  /* ---------------------------------------------------------------------------
+     1.8 MOVIMENTO (16 §4.1 e §4.2 — durações medidas no 12)
+     ---------------------------------------------------------------------------
+     Duas curvas e a proibição do `linear` para movimento. Somos o ÚNICO widget
+     do corpus cujo painel se move em `linear` [MEDIDO — 12 §1.3] — um retângulo
+     de 400×640 atravessando 40px em velocidade constante é o que o olho lê como
+     "animação de software", não como objeto.
+
+     `linear` fica permitido APENAS para opacidade pura e rotação contínua
+     (spinner) [12 §A1]. Overshoot não adotamos: só o Intercom usa
+     (`cubic-bezier(0, 1.2, 1, 1)`); todas as outras curvas do corpus desaceleram
+     sem passar do ponto [MEDIDO — 12 §1.3].
+
+     Faixa de trabalho: 80–300ms para tudo que é interação. É onde o mercado
+     inteiro está, com duas exceções (Leadster 500ms, LiveChat 430ms) [12 §1.3].
+     ------------------------------------------------------------------------ */
+
+  --w-ease-standard: cubic-bezier(0.2, 0, 0, 1);       /* M3 easing-standard */
+  --w-ease-enter:    cubic-bezier(0.05, 0.7, 0.1, 1);  /* M3 emphasized-decelerate */
+  --w-ease-exit:     cubic-bezier(0.3, 0, 0.8, 0.15);  /* M3 emphasized-accelerate */
+  --w-ease-press:    cubic-bezier(0.45, 0, 0.2, 1);    /* 12 §3.2 */
+
+  /* Genéricos (M3 short1…short4) — para o que não tem linha própria na tabela */
+  --w-dur-1: 50ms;
+  --w-dur-2: 100ms;
+  --w-dur-3: 150ms;
+  --w-dur-4: 200ms;
+
+  /* Por interação — 16 §4.2, todas medidas no 12 */
+  --w-dur-panel-in:          300ms;   /* Intercom: 300ms + origem no launcher */
+  --w-dur-panel-in-opacity:   80ms;   /* DESACOPLADO do transform (Intercom: 83
+                                         contra 300). Hoje fazemos 200 contra
+                                         250 — praticamente juntos, o que deixa
+                                         meio painel fantasma [12 §A2] */
+  --w-dur-panel-out:         200ms;
+  --w-dur-panel-out-opacity: 120ms;
+  --w-dur-launcher-hover:    150ms;   /* scale(1.1) */
+  --w-dur-launcher-press:    120ms;   /* scale(0.94) */
+  --w-dur-icon-swap:         150ms;   /* cross-fade — hoje giramos rotate(-30deg)
+                                         e ninguém mais gira [12 §15] */
+  --w-dur-message-in:        200ms;
+  --w-dur-message-out:       150ms;
+  --w-dur-typing:           1200ms;   /* ciclo do indicador de digitando */
+  --w-dur-typing-stagger:    150ms;   /* defasagem entre os 3 pontos */
+  --w-dur-teaser-in:         250ms;
+  --w-dur-teaser-out:        200ms;
+  --w-dur-chip:              100ms;
+  --w-dur-focus:             100ms;   /* Intercom anima outline-width em 100ms */
+  --w-dur-status:            200ms;   /* faixa offline / reconectando */
+  --w-dur-scroll-btn:        150ms;
+  --w-dur-skeleton:         1200ms;   /* shimmer, só depois de 600ms de espera */
+  --w-dur-spinner:           600ms;   /* rotação contínua — igual ao Intercom */
+
+  /* Atraso antes de mostrar skeleton: abaixo disso o carregamento não é
+     percebido e o shimmer só pisca [12 §9] */
+  --w-delay-skeleton: 600ms;
+
+  /* ---------------------------------------------------------------------------
+     1.9 DIMENSÕES E CAMADAS (16 §2.7)
+     Doze medidas nossas já coincidem com a mediana ou a moda do mercado
+     [MEDIDO — 11 rec.1]. O redesenho NÃO recomeça da geometria (princípio P3).
+     ------------------------------------------------------------------------ */
+
+  --w-launcher-size: 64px;                          /* faixa medida 54–65 [11 §C1] */
+  --w-panel-width:   400px;                         /* a moda exata [11 §C7] */
+  --w-panel-height:  min(640px, calc(100dvh - 104px));  /* mediana 632 [11 §C7] */
+  --w-panel-min-height: 320px;                      /* hoje é 250, que não cabe
+                                                       header + 1 balão + composer */
+  --w-offset-x: 20px;                               /* valor mais repetido, 5 de 9 */
+  --w-offset-y: 104px;
+
+  --w-header-height: 56px;
+  --w-composer-min-height: 96px;
+
+  /* Alvo de toque. 24×24 é o mínimo AA (SC 2.5.8); 44×44 é AAA (SC 2.5.5) e é o
+     que a §8.3 do 16 exige no viewport mobile. A Apple NÃO exige 44: publica
+     44 como *default* e 28 como *minimum* [FATO — 13 §1.1]. */
+  --w-touch-min:    24px;
+  --w-touch-mobile: 44px;
+
+  /* Espaçamento mínimo entre alvos — exceção "Spacing" do SC 2.5.8 e
+     recomendação do M3 (≥ 8dp) [13 §4.1] */
+  --w-touch-gap: 8px;
+
+  /* Empatado com o Intercom; teto prático sem entrar na guerra do int32 [11 §C17] */
+  --w-z-panel:    2147483000;
+  --w-z-launcher: 2147483000;
+  --w-z-teaser:   2147482999;
+
+  /* Ponto de corte único. Hoje existem TRÊS valores conflitantes: `max-width:667px`
+     e `min-width:667px` coexistem no `sdk.js` (em 667px exato as duas regras
+     aplicam), e o JS usa 668 em `IFrameHelper.js:343` [FATO — 11 §A16, 09 §13.1].
+     [DECISÃO — 16 §2.7.1] 768px, escrito sem sobreposição. */
+  --w-bp-mobile-max: 767.98px;
+  --w-bp-desktop:    768px;
+
+  /* Anel de foco. `outline: 2px solid transparent` (nunca `none`): em
+     `forced-colors` o transparent é substituído por cor real do sistema, o
+     `none` continua nada [FATO — 13 §1.1, padrão do GOV.UK]. */
+  --w-focus-width:  2px;
+  --w-focus-offset: 2px;
+  --w-border-width: 1px;
+
+  /* Esquema de cor nativo — scrollbar, <select>, <audio controls>. Hoje está só
+     no container da conversa (`ConversationWrap.vue:138`) [MEDIDO — 15 §B10.4]. */
+  color-scheme: light dark;
+}
+
+
+/* =============================================================================
+   2. TEMA ESCURO — paleta própria, não inversão (regra C9, 16 §2.5.4)
+   -----------------------------------------------------------------------------
+   Três razões pelas quais inverter não funciona [13 §3.5]:
+     1. a sombra some — sombra preta sobre fundo escuro não separa nada;
+     2. a hierarquia de superfície inverte — "mais elevado" passa a ser "mais
+        claro", porque a luz vem de cima;
+     3. cor saturada sobre fundo escuro cansa.
+   E o fundo nunca é `#000` puro: contraste de 21:1 produz halação e, em OLED,
+   smearing no scroll.
+
+   Os valores abaixo são os JÁ MEDIDOS no dark do widget hoje [15 §A5.2, §A6.3] —
+   migração rastreável, não paleta inventada.
+
+   A marca se recalibra sozinha: `--w-brand-readable` e `--w-brand-border` são
+   calculados contra `--w-surface` do tema corrente. Hoje `--iris-9` é
+   `45 196 111` IDÊNTICO nos dois temas [MEDIDO — 15 §A5.2] — todas as outras
+   rampas trocam, essa não.
+
+   Os dois blocos abaixo são propositalmente idênticos: o primeiro atende
+   `prefers-color-scheme` (e cede se o host pedir claro explicitamente), o
+   segundo atende o toggle. Nenhuma cor nasce aqui — todas já existem no :root.
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --w-surface:         #17171a;   /* = --solid-1 medido hoje */
+    --w-surface-sunken:  #121213;   /* = --background-color medido hoje */
+    --w-surface-raised:  #2c2d36;   /* = fundo do balão do agente medido hoje */
+    --w-surface-overlay: #23242a;
+    --w-surface-hover:   #212227;
+    --w-surface-active:  #2a2b31;
+    --w-surface-inverse: #edeef0;
+    --w-on-inverse:      #17171a;
+
+    --w-text:        #edeef0;   /* medido hoje — 13,7:1 contra #17171A */
+    --w-text-muted:  #b0b4ba;   /* medido hoje — 7,6:1, AAA */
+    --w-text-subtle: #8b9098;
+
+    --w-border:        rgba(255, 255, 255, 0.10);  /* substitui a sombra (§2.4) */
+    /* [DIVERGÊNCIA — o `.22` do 16 §2.5.4 compõe `#4A4A4C` sobre `#17171A` e dá
+       2,02:1: reprova o SC 1.4.11. [CALIBRADO] `.40` compõe 3,84:1 sobre a
+       superfície e 3,52:1 sobre `--w-surface-raised`, o pior caso. */
+    --w-border-strong: rgba(255, 255, 255, 0.40);
+
+    --w-danger:         #f87171;   /* recalibrado para fundo escuro */
+    --w-on-danger:      #17171a;   /* a cor de erro clareia, então o texto escurece */
+    --w-danger-subtle:  #3a1d1d;
+    --w-warning:        #fbbf24;
+    --w-warning-subtle: #3a2e14;
+    --w-success:        #4ade80;
+    --w-success-subtle: #16311f;
+    --w-info:           #7dc0ff;
+    --w-info-subtle:    #16283c;
+
+    --w-skeleton-base:  #26272e;
+    --w-skeleton-sheen: rgba(255, 255, 255, 0.07);
+
+    /* A sombra desliga; o anel assume. */
+    --w-elev-1: none;
+    --w-elev-2: none;
+    --w-elev-3: none;
+    --w-elev-1-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --w-elev-2-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+    --w-elev-3-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+
+    /* [CALIBRADO] contra `--w-surface` = #17171A, 2.023 cores:
+       `max(l, 0,68)` → 2.023/2.023 ≥ 4,5:1, mínimo 4,583:1 (0,675 já reprova 1).
+       `max(l, 0,57)` → 2.023/2.023 ≥ 3:1,   mínimo 3,069:1 (0,565 já reprova 1).
+       Uso 0,69 e 0,58 por margem. */
+    --w-_readable-l: max(l, 0.69);
+    --w-_border-l:   max(l, 0.58);
+  }
+}
+
+:root[data-theme="dark"] {
+  --w-surface:         #17171a;
+  --w-surface-sunken:  #121213;
+  --w-surface-raised:  #2c2d36;
+  --w-surface-overlay: #23242a;
+  --w-surface-hover:   #212227;
+  --w-surface-active:  #2a2b31;
+  --w-surface-inverse: #edeef0;
+  --w-on-inverse:      #17171a;
+
+  --w-text:        #edeef0;
+  --w-text-muted:  #b0b4ba;
+  --w-text-subtle: #8b9098;
+
+  --w-border:        rgba(255, 255, 255, 0.10);
+  --w-border-strong: rgba(255, 255, 255, 0.40);
+
+  --w-danger:         #f87171;
+  --w-on-danger:      #17171a;
+  --w-danger-subtle:  #3a1d1d;
+  --w-warning:        #fbbf24;
+  --w-warning-subtle: #3a2e14;
+  --w-success:        #4ade80;
+  --w-success-subtle: #16311f;
+  --w-info:           #7dc0ff;
+  --w-info-subtle:    #16283c;
+
+  --w-skeleton-base:  #26272e;
+  --w-skeleton-sheen: rgba(255, 255, 255, 0.07);
+
+  --w-elev-1: none;
+  --w-elev-2: none;
+  --w-elev-3: none;
+  --w-elev-1-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --w-elev-2-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+  --w-elev-3-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+
+  --w-_readable-l: max(l, 0.69);
+  --w-_border-l:   max(l, 0.58);
+}
+
+
+/* =============================================================================
+   2.9 ESCOPO DE MARCA — mais de uma marca na mesma página
+   -----------------------------------------------------------------------------
+   Custom property herda o valor COMPUTADO, não a fórmula. `--w-on-brand` é
+   declarado no `:root` e portanto é derivado UMA vez, do `--brand` do `:root`.
+   Um descendente que redefina `--brand` NÃO re-deriva os tokens: ele herda o
+   resultado calculado lá em cima.
+   [CALIBRADO] Medido por pixel: `--brand` no `:root` acerta 8 de 8 cores;
+   `--brand` num descendente, sem este bloco, erra as 4 escuras (sai preto).
+
+   Isso importa em três casos reais: a página de sistema visual, que mostra
+   várias marcas lado a lado; um mockup com exemplos de inbox pré-configurados;
+   e a tematização por inbox, que no futuro será um contêiner, não o `:root`.
+
+   A saída é redeclarar as derivações no escopo. Basta a classe:
+
+     <div class="wui-brand-scope" style="--brand: #0b2545"> … </div>
+
+   Os fragmentos `--w-_*` NÃO precisam ser repetidos: eles herdam sem perda,
+   porque não referenciam `--w-brand` — o que herda é a expressão, e ela só é
+   resolvida no ponto de uso. O mesmo vale para `--w-_readable-l` e
+   `--w-_border-l`, que carregam a regra do tema corrente para dentro do escopo.
+   ============================================================================= */
+
+.wui-brand-scope {
+  --w-brand: var(--brand);
+  --w-on-brand: #000000;   /* mesmo default seguro do :root */
+
+  --w-brand-hover:   color-mix(in oklab, var(--w-brand),
+                       rgb(from var(--w-brand) var(--w-_on-inv) var(--w-_on-inv) var(--w-_on-inv)) 8%);
+  --w-brand-pressed: color-mix(in oklab, var(--w-brand),
+                       rgb(from var(--w-brand) var(--w-_on-inv) var(--w-_on-inv) var(--w-_on-inv)) 14%);
+  --w-brand-active:  var(--w-brand-pressed);
+  --w-brand-subtle:  color-mix(in oklab, var(--w-brand) 10%, var(--w-surface));
+
+  --w-brand-readable: oklch(from var(--w-brand) var(--w-_readable-l) c h);
+  --w-brand-border:   oklch(from var(--w-brand) var(--w-_border-l) c h);
+  --w-focus-ring:     var(--w-brand-border);
+
+  --on-brand:      var(--w-on-brand);
+  --brand-hover:   var(--w-brand-hover);
+  --brand-pressed: var(--w-brand-pressed);
+  --brand-subtle:  var(--w-brand-subtle);
+}
+
+
+/* =============================================================================
+   3. O CÁLCULO DE `--on-brand`, aplicado
+   -----------------------------------------------------------------------------
+   Fora do :root de propósito: só entra quando o navegador tem relative color
+   syntax E `pow()` dentro de `calc()`. Sem os dois, `--w-on-brand` continua
+   `#000000` — que é a escolha certa para 63,9% das cores possíveis e nunca
+   deixa o texto invisível [MEDIDO — 13 §3.2.1].
+
+   Em produção esta é a terceira linha de defesa: o servidor calcula e entrega
+   o token pronto (16 §2.5.2), justamente para não duplicar a fórmula em Ruby e
+   em JS. Aqui ela existe para o mockup abrir sem servidor — e para provar que
+   o cálculo cabe em CSS.
+   ============================================================================= */
+
+@supports (color: rgb(from red r g b)) and (width: calc(pow(2, 2) * 1px)) {
+  :root,
+  .wui-brand-scope {
+    --w-on-brand: rgb(from var(--w-brand) var(--w-_on) var(--w-_on) var(--w-_on));
+  }
+}
+
+
+/* =============================================================================
+   4. PREFERÊNCIAS DO SISTEMA (16 §2.6)
+   As três media queries são Baseline widely available — não há desculpa de
+   compatibilidade [FATO — 13 §4.7].
+   ============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   4.1 `prefers-reduced-motion: reduce`
+   ---------------------------------------------------------------------------
+   Regra dura, sem exceção estética (16 §4.3): transição de transform → nenhuma
+   (o elemento aparece na posição final); transição de opacidade → mantida, no
+   máximo 100ms.
+
+   O padrão real do mercado é ignorar: 6 de 7 do corpus não tratam, e o único
+   que trata (Intercom) trata pela metade — o launcher respeita, o painel não
+   [MEDIDO — 12 §13]. Num mercado onde 6 de 7 ignoram, fazer certo é barato e
+   diferencia. Não copiamos o erro.
+
+   Zerado AQUI, por token: nenhum primitivo precisa repetir a media query.
+   ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --w-dur-1: 1ms;
+    --w-dur-2: 1ms;
+    --w-dur-3: 1ms;
+    --w-dur-4: 1ms;
+
+    --w-dur-panel-in:          1ms;
+    --w-dur-panel-out:         1ms;
+    --w-dur-launcher-hover:    1ms;
+    --w-dur-launcher-press:    1ms;
+    --w-dur-message-in:        1ms;
+    --w-dur-message-out:       1ms;
+    --w-dur-teaser-out:        1ms;
+    --w-dur-chip:              1ms;
+    --w-dur-status:            1ms;
+    --w-dur-scroll-btn:        1ms;
+
+    /* Opacidade pura sobrevive, no teto de 100ms */
+    --w-dur-panel-in-opacity:  100ms;
+    --w-dur-panel-out-opacity: 100ms;
+    --w-dur-icon-swap:         100ms;
+    --w-dur-teaser-in:         100ms;
+    --w-dur-focus:             100ms;
+
+    /* Animações em loop param. Os pontos de digitando ficam estáticos e o
+       rótulo textual "digitando…" assume — isso também resolve o SC 2.2.2
+       (nível A), que exige mecanismo de pausar para movimento acima de 5s
+       [FATO — 13 §4.2]. O shimmer do skeleton fica estático. */
+    --w-dur-typing:         0s;
+    --w-dur-typing-stagger: 0s;
+    --w-dur-skeleton:       0s;
+    --w-dur-spinner:        0s;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   4.2 `prefers-contrast: more` (16 §2.6)
+   Bordas 1px → 2px, texto secundário sobe para o primário, anel de foco 3px.
+   ------------------------------------------------------------------------ */
+
+@media (prefers-contrast: more) {
+  :root {
+    --w-border:        var(--w-border-strong);
+    --w-border-strong: var(--w-text-muted);
+    --w-text-muted:    var(--w-text);
+    --w-text-subtle:  var(--w-text);
+    --w-focus-width:  3px;
+    --w-border-width: 2px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   4.3 `forced-colors: active` (16 §2.6)
+   O sistema substitui as cores do autor. Aqui os tokens passam a apontar para
+   as system colors, para que nenhum primitivo precise saber disso. Fundos
+   decorativos e a textura da conversa saem; balões ficam distinguíveis por
+   borda — porque em forced-colors as duas superfícies colapsam e o alinhamento
+   sozinho não basta (16 §2.5.5).
+   ------------------------------------------------------------------------ */
+
+@media (forced-colors: active) {
+  :root {
+    --w-surface:         Canvas;
+    --w-surface-sunken:  Canvas;
+    --w-surface-raised:  Canvas;
+    --w-surface-overlay: Canvas;
+    --w-surface-hover:   Canvas;
+    --w-surface-active:  Canvas;
+    --w-text:            CanvasText;
+    --w-text-muted:      GrayText;
+    --w-text-subtle:     GrayText;
+    --w-border:          CanvasText;
+    --w-border-strong:   CanvasText;
+    --w-brand:           Highlight;
+    --w-on-brand:        HighlightText;
+    --w-brand-readable:  LinkText;
+    --w-brand-border:    CanvasText;
+    --w-focus-ring:      Highlight;
+
+    --w-elev-1: none;  --w-elev-2: none;  --w-elev-3: none;
+    --w-elev-1-ring: 0 0 0 1px CanvasText;
+    --w-elev-2-ring: 0 0 0 1px CanvasText;
+    --w-elev-3-ring: 0 0 0 1px CanvasText;
+  }
+}
+
+
+/* =============================================================================
+   5. ALIASES CURTOS
+   -----------------------------------------------------------------------------
+   A Task 21 nomeia a marca sem prefixo; o 16 §2 prescreve `--w-` (deliberadamente
+   distinto do `--n-` do design system do dashboard, para não sequestrar variável
+   existente — princípio P6). Os dois convivem: `--brand` é a ENTRADA (é onde o
+   servidor escreve), `--w-*` é o sistema, e os cinco nomes curtos abaixo são
+   sinônimos de leitura. Escrever em `--brand` propaga para todos.
+   ============================================================================= */
+
+:root {
+  --on-brand:      var(--w-on-brand);
+  --brand-hover:   var(--w-brand-hover);
+  --brand-pressed: var(--w-brand-pressed);
+  --brand-subtle:  var(--w-brand-subtle);
+}
+
+</style>
+<style id="primitivos">
+/* =============================================================================
+   ChatSPX — Redesenho do chat de site
+   primitivos.css — os componentes mínimos (Task 21)
+
+   DEPENDE DE tokens.css. Carregue os dois, nesta ordem:
+     <link rel="stylesheet" href="../shared/tokens.css">
+     <link rel="stylesheet" href="../shared/primitivos.css">
+
+   Prefixo de classe: `wui-` (widget UI). Escolhido para não colidir com o
+   Tailwind do dashboard (`w-full`, `w-4`…) nem com o `woot-` do widget atual.
+
+   Regras que valem para tudo aqui:
+     · Nenhuma cor literal, nenhuma medida literal — tudo sai de token.
+     · Nenhum `outline: none` em lugar nenhum do arquivo. Foco sempre visível.
+     · Alvo de toque: ≥ 24×24 sempre (SC 2.5.8, AA); ≥ 44×44 no viewport mobile
+       (SC 2.5.5 / exigência da §8.3 do 16).
+     · Estado nunca é `opacity` sobre a cor da marca — opacidade muda a
+       luminância e invalida o cálculo de contraste (regra C10, 16 §2.5.1).
+     · Duração e curva sempre por token: `prefers-reduced-motion` já está
+       resolvido em tokens.css §4.1 e nenhum primitivo repete a media query.
+   ============================================================================= */
+
+
+/* -----------------------------------------------------------------------------
+   0. BASE
+   -------------------------------------------------------------------------- */
+
+.wui,
+.wui *,
+.wui *::before,
+.wui *::after { box-sizing: border-box; }
+
+.wui {
+  font: var(--w-text-message);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+  background: var(--w-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Foco. `outline` (não `box-shadow`) porque em `forced-colors: active` o
+   navegador só preserva o outline. `outline-offset` deixa a superfície
+   aparecer entre o controle e o anel — é o que garante os 3:1 contra o
+   elemento E contra o fundo (16 §8.1), inclusive quando o controle é a
+   própria cor da marca. */
+.wui :focus-visible {
+  outline: var(--w-focus-width) solid var(--w-focus-ring);
+  outline-offset: var(--w-focus-offset);
+  border-radius: inherit;
+}
+
+/* Utilitário: horário, contador, recibo. Sem isso a largura do mesmo horário
+   varia 52% na Inter [MEDIDO — 13 §2.5]. */
+.wui-tabular { font-variant-numeric: var(--w-numeric-tabular); }
+
+/* Rótulo só para leitor de tela — usado no lugar do que a cor sozinha diria
+   (regra C7 / SC 1.4.1). */
+.wui-sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/* -----------------------------------------------------------------------------
+   1. BOTÃO — 3 variantes × 3 tamanhos
+   -----------------------------------------------------------------------------
+   Variantes: `wui-btn--primary` (superfície de marca), `wui-btn--secondary`
+   (contorno), `wui-btn--ghost` (sem superfície em repouso).
+
+   O pressed AFUNDA por movimento e sombra interna, não por cor: a direção da
+   cor está travada pela acessibilidade (ver a DIVERGÊNCIA documentada em
+   tokens.css §1.2), então a profundidade tem de vir do outro canal.
+   -------------------------------------------------------------------------- */
+
+.wui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--w-space-2);
+  font: var(--w-text-button);
+  letter-spacing: var(--w-tracking);
+  text-decoration: none;
+  white-space: nowrap;
+  border: var(--w-border-width) solid transparent;
+  border-radius: var(--w-radius-2);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--w-dur-2) var(--w-ease-standard),
+    border-color     var(--w-dur-2) var(--w-ease-standard),
+    color            var(--w-dur-2) var(--w-ease-standard),
+    box-shadow       var(--w-dur-2) var(--w-ease-standard),
+    transform        var(--w-dur-1) var(--w-ease-press);
+}
+
+/* Tamanhos. A altura mínima é o alvo; o padding é o desenho. */
+.wui-btn--sm { min-height: 32px; padding: 0 var(--w-space-3); border-radius: var(--w-radius-15); }
+.wui-btn--md { min-height: 40px; padding: 0 var(--w-space-4); }
+.wui-btn--lg { min-height: 48px; padding: 0 var(--w-space-5); font: var(--w-text-title);
+               border-radius: var(--w-radius-3); }
+
+/* Primário — superfície de marca, texto pelo cálculo WCAG */
+.wui-btn--primary {
+  background: var(--w-brand);
+  color: var(--w-on-brand);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+}
+.wui-btn--primary:hover:not(:disabled)  { background: var(--w-brand-hover); }
+.wui-btn--primary:active:not(:disabled) {
+  background: var(--w-brand-pressed);
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.18);
+}
+
+/* Secundário — contorno. A borda usa `--w-brand-border` (≥ 3:1 garantido) e o
+   texto usa `--w-brand-readable` (≥ 4,5:1 garantido). São dois tokens porque
+   são dois requisitos diferentes: SC 1.4.11 e SC 1.4.3 (regra C4). */
+.wui-btn--secondary {
+  background: var(--w-surface);
+  color: var(--w-brand-readable);
+  border-color: var(--w-brand-border);
+}
+.wui-btn--secondary:hover:not(:disabled)  { background: var(--w-brand-subtle); }
+.wui-btn--secondary:active:not(:disabled) { background: var(--w-brand-subtle); transform: translateY(1px); }
+
+/* Fantasma — sem superfície em repouso */
+.wui-btn--ghost {
+  background: transparent;
+  color: var(--w-text);
+}
+.wui-btn--ghost:hover:not(:disabled)  { background: var(--w-surface-hover); }
+.wui-btn--ghost:active:not(:disabled) { background: var(--w-surface-active); transform: translateY(1px); }
+
+/* Destrutivo — a cor semântica nunca é o único canal: o rótulo diz o que faz */
+.wui-btn--danger {
+  background: var(--w-danger);
+  color: var(--w-on-danger);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+}
+.wui-btn--danger:hover:not(:disabled)  { background: color-mix(in oklab, var(--w-danger), var(--w-text) 12%); }
+.wui-btn--danger:active:not(:disabled) { transform: translateY(1px); }
+
+/* Desabilitado. Não usamos `opacity` sobre a marca (C10): trocamos por
+   superfície neutra, o que mantém a razão de contraste previsível. */
+.wui-btn:disabled,
+.wui-btn[aria-disabled="true"] {
+  background: var(--w-surface-hover);
+  color: var(--w-text-subtle);
+  border-color: var(--w-border);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Carregando: o spinner substitui o ícone, o rótulo continua legível. */
+.wui-btn[data-loading="true"] { cursor: progress; }
+.wui-btn[data-loading="true"] .wui-btn__label { opacity: 0.75; }
+
+/* Botão só de ícone: o desenho pode ser pequeno, a área de acerto não
+   ("o alvo de toque se estende além dos limites visuais do elemento"
+   [FATO — 13 §1.1, M3]). */
+.wui-btn--icon {
+  padding: 0;
+  width: var(--w-touch-min);
+  min-width: var(--w-touch-min);
+  border-radius: var(--w-radius-full);
+}
+.wui-btn--icon.wui-btn--md { width: 40px; min-width: 40px; }
+.wui-btn--icon.wui-btn--lg { width: 48px; min-width: 48px; }
+
+
+/* -----------------------------------------------------------------------------
+   2. CAMPO DE TEXTO
+   -------------------------------------------------------------------------- */
+
+.wui-field { display: flex; flex-direction: column; gap: var(--w-space-1); }
+
+.wui-label {
+  font: var(--w-text-author);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+}
+
+.wui-hint {
+  font: var(--w-text-meta);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+}
+
+.wui-input,
+.wui-textarea,
+.wui-select {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--w-space-2) var(--w-space-3);
+  /* 16px SEMPRE no campo de digitação: abaixo disso o Safari iOS dá zoom ao
+     focar e o layout do widget salta [16 §2.1]. */
+  font: var(--w-text-input);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+  background: var(--w-surface);
+  /* Borda de input precisa de ≥ 3:1 contra o fundo do painel (SC 1.4.11) —
+     é um dos itens que o 16 §8.1 lista como falha frequente. */
+  border: var(--w-border-width) solid var(--w-border-strong);
+  border-radius: var(--w-radius-3);
+  transition:
+    border-color var(--w-dur-focus) var(--w-ease-standard),
+    background   var(--w-dur-focus) var(--w-ease-standard);
+}
+
+/* Placeholder é texto ATIVO e não tem isenção no SC 1.4.3: usa `--w-text-muted`
+   (5,3:1), nunca `--w-text-subtle` (que só vale para componente inativo). */
+.wui-input::placeholder,
+.wui-textarea::placeholder { color: var(--w-text-muted); }
+
+.wui-input:hover:not(:disabled),
+.wui-textarea:hover:not(:disabled),
+.wui-select:hover:not(:disabled) { border-color: var(--w-text-muted); }
+
+.wui-input:focus-visible,
+.wui-textarea:focus-visible,
+.wui-select:focus-visible { border-color: var(--w-brand-border); }
+
+.wui-input:disabled,
+.wui-textarea:disabled,
+.wui-select:disabled {
+  background: var(--w-surface-hover);
+  color: var(--w-text-subtle);
+  cursor: not-allowed;
+}
+
+/* Erro: cor E ícone E texto. Nunca só a cor (regra C7 / SC 1.4.1) — e o par
+   vermelho/verde colapsa para ΔE 7,9 em deuteranopia [MEDIDO — 13 §3.4]. */
+.wui-input[aria-invalid="true"],
+.wui-textarea[aria-invalid="true"],
+.wui-select[aria-invalid="true"] { border-color: var(--w-danger); }
+
+.wui-error {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-1);
+  font: var(--w-text-meta);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-danger);
+}
+.wui-error::before { content: "⚠"; font-size: 1.1em; line-height: 1; }
+
+.wui-textarea { min-height: 88px; resize: vertical; }
+
+
+/* -----------------------------------------------------------------------------
+   3. SELECT
+   -----------------------------------------------------------------------------
+   A seta é desenhada em CSS (nada de imagem remota) e `appearance: none`
+   remove a nativa — sem isso o campo mostra duas setas.
+   -------------------------------------------------------------------------- */
+
+.wui-select {
+  appearance: none;
+  padding-right: var(--w-space-8);
+  background-image:
+    linear-gradient(45deg,  transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - var(--w-space-5)) calc(50% + 1px),
+    calc(100% - var(--w-space-4)) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+
+/* -----------------------------------------------------------------------------
+   4. TOGGLE / SWITCH
+   -----------------------------------------------------------------------------
+   Estado nunca só por cor: o knob muda de POSIÇÃO, que é o segundo canal
+   (SC 1.4.1). O `input` real fica por baixo, então teclado e leitor de tela
+   funcionam sem `role` inventado.
+   -------------------------------------------------------------------------- */
+
+.wui-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-2);
+  cursor: pointer;
+  /* O alvo é a linha inteira, não só o trilho de 44×24 */
+  min-height: var(--w-touch-min);
+}
+
+.wui-switch__input {
+  position: absolute;
+  opacity: 0;
+  width: 44px; height: 24px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.wui-switch__track {
+  position: relative;
+  flex: none;
+  width: 44px; height: 24px;
+  background: var(--w-surface-active);
+  border: var(--w-border-width) solid var(--w-border-strong);
+  border-radius: var(--w-radius-full);
+  transition: background var(--w-dur-2) var(--w-ease-standard),
+              border-color var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: var(--w-surface);
+  border-radius: var(--w-radius-full);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+  transition: transform var(--w-dur-3) var(--w-ease-standard),
+              background var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-switch__input:checked + .wui-switch__track {
+  background: var(--w-brand);
+  border-color: var(--w-brand-border);
+}
+.wui-switch__input:checked + .wui-switch__track::after { transform: translateX(20px); }
+
+.wui-switch__input:focus-visible + .wui-switch__track {
+  outline: var(--w-focus-width) solid var(--w-focus-ring);
+  outline-offset: var(--w-focus-offset);
+}
+
+.wui-switch__input:disabled + .wui-switch__track { background: var(--w-surface-hover); }
+.wui-switch__input:disabled ~ .wui-switch__label { color: var(--w-text-subtle); }
+.wui-switch:has(.wui-switch__input:disabled) { cursor: not-allowed; }
+
+.wui-switch__label { font: var(--w-text-button); letter-spacing: var(--w-tracking); }
+
+
+/* -----------------------------------------------------------------------------
+   5. CHECKBOX E RADIO
+   -----------------------------------------------------------------------------
+   `appearance: none` sobre o input real — o controle continua sendo um
+   `<input>`, com semântica e teclado nativos. O GOV.UK resolve o alvo com
+   `input` de 44×44 literais [FATO — 13 §1.1]; aqui o alvo é o rótulo inteiro,
+   que é maior e não obriga a desenhar um quadrado de 44px.
+   -------------------------------------------------------------------------- */
+
+.wui-check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--w-space-2);
+  min-height: var(--w-touch-min);
+  padding: var(--w-space-1) 0;
+  cursor: pointer;
+  font: var(--w-text-button);
+  letter-spacing: var(--w-tracking);
+}
+
+.wui-check__input {
+  appearance: none;
+  flex: none;
+  width: 20px; height: 20px;
+  margin: 0;
+  background: var(--w-surface);
+  border: var(--w-border-width) solid var(--w-border-strong);
+  border-radius: var(--w-radius-1);
+  cursor: pointer;
+  display: grid;
+  place-content: center;
+  transition: background var(--w-dur-2) var(--w-ease-standard),
+              border-color var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-check__input[type="radio"] { border-radius: var(--w-radius-full); }
+
+.wui-check__input::before {
+  content: "";
+  width: 12px; height: 12px;
+  transform: scale(0);
+  transition: transform var(--w-dur-2) var(--w-ease-standard);
+  background: var(--w-on-brand);
+  /* o "tique" é uma forma, não um caractere: escala com o zoom e não depende
+     de fonte instalada */
+  clip-path: polygon(14% 46%, 0 60%, 40% 100%, 100% 22%, 86% 8%, 38% 70%);
+}
+.wui-check__input[type="radio"]::before {
+  width: 8px; height: 8px;
+  border-radius: var(--w-radius-full);
+  clip-path: none;
+}
+
+.wui-check__input:checked {
+  background: var(--w-brand);
+  border-color: var(--w-brand-border);
+}
+.wui-check__input:checked::before { transform: scale(1); }
+
+.wui-check__input:hover:not(:disabled) { border-color: var(--w-text-muted); }
+
+.wui-check__input:disabled {
+  background: var(--w-surface-hover);
+  border-color: var(--w-border);
+  cursor: not-allowed;
+}
+.wui-check:has(.wui-check__input:disabled) { color: var(--w-text-subtle); cursor: not-allowed; }
+
+
+/* -----------------------------------------------------------------------------
+   6. CHIP / TAG
+   -----------------------------------------------------------------------------
+   Altura 40px: é o alvo de toque (06 §4.4). O mercado usa 34–36 [11 §A2, §A6]
+   — aqui vale a nossa régua, não a deles. Selecionado é distinguido por
+   preenchimento E por borda, não só por matiz.
+   -------------------------------------------------------------------------- */
+
+.wui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-1);
+  min-height: 40px;
+  padding: 0 var(--w-space-4);
+  font: var(--w-text-button);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-brand-readable);
+  background: var(--w-surface-raised);
+  border: var(--w-border-width) solid var(--w-brand-border);
+  border-radius: var(--w-radius-full);
+  cursor: pointer;
+  transition: background var(--w-dur-chip) var(--w-ease-standard),
+              border-color var(--w-dur-chip) var(--w-ease-standard),
+              color var(--w-dur-chip) var(--w-ease-standard);
+}
+
+.wui-chip:hover:not(:disabled) { background: var(--w-brand-subtle); }
+
+.wui-chip[aria-pressed="true"],
+.wui-chip--selected {
+  background: var(--w-brand);
+  color: var(--w-on-brand);
+  border-color: var(--w-brand);
+}
+
+/* Chip em mensagem antiga: não clicável, e o `disabled` diz isso ao leitor de
+   tela — a opacidade sozinha não diria [06 §4.4]. */
+.wui-chip:disabled {
+  color: var(--w-text-subtle);
+  border-color: var(--w-border);
+  background: var(--w-surface);
+  cursor: not-allowed;
+}
+
+/* Grupo: gap de 8px é a exceção "Spacing" do SC 2.5.8 [13 §4.1] */
+.wui-chip-group { display: flex; flex-wrap: wrap; gap: var(--w-touch-gap); }
+
+
+/* -----------------------------------------------------------------------------
+   7. BADGE — rótulo estático, não clicável
+   -----------------------------------------------------------------------------
+   Cada variante carrega um ponto colorido E o texto. O ponto sozinho não serve:
+   verde × vermelho colapsa para ΔE 7,9 em deuteranopia [MEDIDO — 13 §3.4], e é
+   exatamente a base de todo indicador de presença.
+   -------------------------------------------------------------------------- */
+
+.wui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--w-space-1);
+  padding: var(--w-space-05) var(--w-space-2);
+  font: var(--w-text-meta);
+  letter-spacing: var(--w-tracking);
+  border-radius: var(--w-radius-full);
+  background: var(--w-surface-hover);
+  color: var(--w-text);
+  white-space: nowrap;
+}
+
+.wui-badge::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: var(--w-radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+/* [DIVERGÊNCIA medida] O desenho óbvio — texto na cor semântica sobre o fundo
+   `-subtle` da mesma família — NÃO passa: `--w-danger` sobre `--w-danger-subtle`
+   dá 4,36:1, `--w-warning` 4,26:1 e `--w-info` 4,32:1 [CALIBRADO]. Para chegar a
+   4,5:1 seria preciso clarear o fundo até quase branco (94–98% de branco), o que
+   apaga o próprio tingimento.
+   Resolvido invertendo os papéis: o TEXTO é neutro (`--w-text`, 14,4:1 sobre
+   qualquer um dos fundos) e a cor semântica fica no PONTO, onde o requisito é
+   3:1 de componente (SC 1.4.11) e a folga é confortável. O rótulo textual
+   continua sendo o canal principal — exigência do SC 1.4.1. */
+.wui-badge--neutral { background: var(--w-surface-hover);  color: var(--w-text); }
+.wui-badge--success { background: var(--w-success-subtle); color: var(--w-text); }
+.wui-badge--warning { background: var(--w-warning-subtle); color: var(--w-text); }
+.wui-badge--danger  { background: var(--w-danger-subtle);  color: var(--w-text); }
+.wui-badge--info    { background: var(--w-info-subtle);    color: var(--w-text); }
+.wui-badge--brand   { background: var(--w-brand-subtle);   color: var(--w-text); }
+
+.wui-badge--neutral::before { background: var(--w-text-muted); }
+.wui-badge--success::before { background: var(--w-success); }
+.wui-badge--warning::before { background: var(--w-warning); }
+.wui-badge--danger::before  { background: var(--w-danger); }
+.wui-badge--info::before    { background: var(--w-info); }
+.wui-badge--brand::before   { background: var(--w-brand-border); }
+
+/* Contador (número sobre o launcher, mensagens não lidas) */
+.wui-badge--count {
+  min-width: 20px; height: 20px;
+  padding: 0 var(--w-space-1);
+  justify-content: center;
+  background: var(--w-danger);
+  color: var(--w-on-danger);
+  font-variant-numeric: var(--w-numeric-tabular);
+}
+.wui-badge--count::before { display: none; }
+
+
+/* -----------------------------------------------------------------------------
+   8. CARD
+   -------------------------------------------------------------------------- */
+
+.wui-card {
+  background: var(--w-surface-raised);
+  border: var(--w-border-width) solid var(--w-border);
+  border-radius: var(--w-radius-3);
+  padding: var(--w-space-4);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+}
+
+.wui-card__title {
+  font: var(--w-text-title);
+  letter-spacing: var(--w-tracking);
+  margin: 0 0 var(--w-space-1);
+}
+
+.wui-card__body {
+  font: var(--w-text-message);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+  margin: 0;
+}
+
+.wui-card--flat { box-shadow: none; }
+
+/* Card clicável: o alvo é o card inteiro, e ele responde ao ponteiro */
+.wui-card--interactive { cursor: pointer;
+  transition: border-color var(--w-dur-2) var(--w-ease-standard),
+              background   var(--w-dur-2) var(--w-ease-standard); }
+.wui-card--interactive:hover { border-color: var(--w-brand-border); background: var(--w-surface-hover); }
+
+
+/* -----------------------------------------------------------------------------
+   9. TABELA — telas de configuração
+   -----------------------------------------------------------------------------
+   [DECISÃO desta task] O 16 especifica o widget; tabela é das telas de config.
+   Rola dentro do próprio container: a página nunca rola na horizontal.
+   -------------------------------------------------------------------------- */
+
+.wui-table-wrap {
+  overflow-x: auto;
+  border: var(--w-border-width) solid var(--w-border);
+  border-radius: var(--w-radius-3);
+  background: var(--w-surface-raised);
+}
+
+.wui-table {
+  width: 100%;
+  min-width: max-content;   /* rola DENTRO do wrap; a página nunca rola na horizontal */
+  border-collapse: collapse;
+  font: var(--w-text-message-sm);
+  letter-spacing: var(--w-tracking);
+}
+
+.wui-table caption {
+  text-align: left;
+  padding: var(--w-space-3) var(--w-space-4);
+  font: var(--w-text-title);
+  letter-spacing: var(--w-tracking);
+}
+
+.wui-table th {
+  text-align: left;
+  font: var(--w-text-author);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+  text-transform: uppercase;
+  padding: var(--w-space-2) var(--w-space-4);
+  background: var(--w-surface-hover);
+  border-bottom: var(--w-border-width) solid var(--w-border);
+  white-space: nowrap;
+}
+
+.wui-table td {
+  padding: var(--w-space-3) var(--w-space-4);
+  border-bottom: var(--w-border-width) solid var(--w-border);
+  color: var(--w-text);
+  vertical-align: middle;
+}
+
+.wui-table tbody tr:last-child td { border-bottom: 0; }
+.wui-table tbody tr:hover td { background: var(--w-surface-hover); }
+.wui-table td.wui-num { text-align: right; font-variant-numeric: var(--w-numeric-tabular); }
+
+
+/* -----------------------------------------------------------------------------
+   10. ABAS
+   -----------------------------------------------------------------------------
+   A aba ativa é marcada por sublinhado E por peso E por cor — três canais.
+   `aria-selected` é o que o leitor de tela lê; a classe só pinta.
+   -------------------------------------------------------------------------- */
+
+.wui-tabs {
+  display: flex;
+  gap: var(--w-space-1);
+  border-bottom: var(--w-border-width) solid var(--w-border);
+  overflow-x: auto;
+}
+
+.wui-tab {
+  position: relative;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: var(--w-space-3) var(--w-space-4);
+  min-height: var(--w-touch-min);
+  font: var(--w-text-button);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: var(--w-radius-2) var(--w-radius-2) 0 0;
+  transition: color var(--w-dur-2) var(--w-ease-standard),
+              background var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-tab::after {
+  content: "";
+  position: absolute;
+  left: var(--w-space-3); right: var(--w-space-3); bottom: -1px;
+  height: 2px;
+  background: transparent;
+  border-radius: var(--w-radius-full);
+  transition: background var(--w-dur-2) var(--w-ease-standard);
+}
+
+.wui-tab:hover { color: var(--w-text); background: var(--w-surface-hover); }
+
+.wui-tab[aria-selected="true"] {
+  color: var(--w-brand-readable);
+  font-weight: 600;
+}
+.wui-tab[aria-selected="true"]::after { background: var(--w-brand-border); }
+
+.wui-tab:disabled { color: var(--w-text-subtle); cursor: not-allowed; }
+
+
+/* -----------------------------------------------------------------------------
+   11. TOOLTIP
+   -----------------------------------------------------------------------------
+   Superfície invertida, para separar do conteúdo em qualquer tema. Só aparece
+   em hover E em foco — tooltip que só responde ao mouse é inalcançável por
+   teclado (SC 2.1.1).
+   -------------------------------------------------------------------------- */
+
+.wui-tip { position: relative; display: inline-flex; }
+
+.wui-tip__bubble {
+  position: absolute;
+  bottom: calc(100% + var(--w-space-2));
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: var(--w-space-2) var(--w-space-3);
+  background: var(--w-surface-inverse);
+  color: var(--w-on-inverse);
+  font: var(--w-text-meta);
+  letter-spacing: var(--w-tracking);
+  border-radius: var(--w-radius-2);
+  box-shadow: var(--w-elev-2), var(--w-elev-2-ring);
+  /* Largura: `max-content` mantém o texto curto numa linha só; o `max-width`
+     impede que a bolha empurre a página na horizontal em tela estreita —
+     medido: com `white-space: nowrap` a bolha chegava a 307px de largura e
+     levava o `scrollWidth` do documento a 418px num viewport de 390px
+     [CALIBRADO]. Reflow em 320px é obrigatório (SC 1.4.10).
+     Nota: o alinhamento quando o gatilho está colado na borda da tela pede
+     posicionamento dinâmico (anchor positioning ou JS) — [NÃO VERIFICADO] aqui,
+     porque a página de referência não tem esse caso. */
+  width: max-content;
+  max-width: min(260px, calc(100vw - var(--w-space-8)));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--w-dur-2) var(--w-ease-standard),
+              transform var(--w-dur-2) var(--w-ease-standard);
+  z-index: 2;
+}
+
+.wui-tip:hover .wui-tip__bubble,
+.wui-tip:focus-within .wui-tip__bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Alinhamento explícito para quando o gatilho está perto da borda da tela.
+   Sem isso, um tooltip centrado num gatilho encostado na direita empurra a
+   página: medido, o documento ia a 394px de `scrollWidth` num viewport de
+   390px [CALIBRADO]. Quem escreve a tela sabe onde o gatilho está — o
+   primitivo oferece as três âncoras em vez de tentar adivinhar. */
+.wui-tip__bubble--start { left: 0;    right: auto; transform: translateX(0) translateY(4px); }
+.wui-tip__bubble--end   { left: auto; right: 0;    transform: translateX(0) translateY(4px); }
+
+.wui-tip:hover .wui-tip__bubble--start,
+.wui-tip:focus-within .wui-tip__bubble--start,
+.wui-tip:hover .wui-tip__bubble--end,
+.wui-tip:focus-within .wui-tip__bubble--end { transform: translateX(0) translateY(0); }
+
+/* Em tela estreita o tooltip DEIXA DE FLUTUAR e vira um bloco abaixo do gatilho.
+   Razão medida: flutuando, ele se ancora ao gatilho, e a posição do gatilho muda
+   com o viewport — com o mesmo alinhamento que cabe em 320px, o documento ia a
+   441px de `scrollWidth` em 390px [CALIBRADO]. Escolher a âncora estaticamente
+   não resolve, porque a âncora certa depende de onde o gatilho caiu na quebra.
+   No fluxo, o problema não existe: nunca ultrapassa o container, e o reflow em
+   320px continua valendo (SC 1.4.10). */
+@media (max-width: 767.98px) {
+  .wui-tip { flex-wrap: wrap; }
+
+  .wui-tip__bubble,
+  .wui-tip__bubble--start,
+  .wui-tip__bubble--end {
+    display: none;
+    position: static;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    margin-top: var(--w-space-1);
+    opacity: 1;
+  }
+
+  .wui-tip:hover .wui-tip__bubble,
+  .wui-tip:focus-within .wui-tip__bubble { display: block; transform: none; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   12. BANNER DE AVISO — info / sucesso / alerta / erro
+   -----------------------------------------------------------------------------
+   Cada variante tem ícone próprio além da cor. O ícone é caractere de texto
+   por decisão: escala com o zoom, herda a cor e não custa requisição.
+   Use `role="status"` em info/sucesso e `role="alert"` só em erro — `alert`
+   interrompe o leitor de tela e não serve para confirmação [13 §4.3].
+   -------------------------------------------------------------------------- */
+
+.wui-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--w-space-2);
+  padding: var(--w-space-3) var(--w-space-4);
+  border-radius: var(--w-radius-3);
+  border: var(--w-border-width) solid transparent;
+  font: var(--w-text-message-sm);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+}
+
+.wui-banner::before {
+  flex: none;
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.wui-banner__title { font-weight: 600; display: block; }
+
+.wui-banner--info    { background: var(--w-info-subtle);    border-color: var(--w-info); }
+.wui-banner--info::before    { content: "ℹ"; color: var(--w-info); }
+.wui-banner--success { background: var(--w-success-subtle); border-color: var(--w-success); }
+.wui-banner--success::before { content: "✓"; color: var(--w-success); }
+.wui-banner--warning { background: var(--w-warning-subtle); border-color: var(--w-warning); }
+.wui-banner--warning::before { content: "▲"; color: var(--w-warning); }
+.wui-banner--danger  { background: var(--w-danger-subtle);  border-color: var(--w-danger); }
+.wui-banner--danger::before  { content: "✕"; color: var(--w-danger); }
+
+
+/* -----------------------------------------------------------------------------
+   13. SKELETON
+   -----------------------------------------------------------------------------
+   Shimmer de 1200ms `linear` — a única categoria em que `linear` é permitido
+   junto do spinner [12 §A1]. Só deve entrar depois de `--w-delay-skeleton`
+   (600ms) de espera: abaixo disso o carregamento não é percebido e o shimmer
+   só pisca [12 §9]. Sob `prefers-reduced-motion` a duração vira 0s pelo token
+   e a barra fica estática — sem regra extra aqui.
+   -------------------------------------------------------------------------- */
+
+.wui-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--w-skeleton-base);
+  border-radius: var(--w-radius-2);
+  min-height: 12px;
+}
+
+.wui-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--w-skeleton-sheen) 50%,
+    transparent 100%);
+  animation: wui-shimmer var(--w-dur-skeleton) linear infinite;
+}
+
+@keyframes wui-shimmer { to { transform: translateX(100%); } }
+
+/* Sem duração (reduced-motion) a animação não roda; o brilho fica parado no
+   lugar errado, então some. */
+@media (prefers-reduced-motion: reduce) {
+  .wui-skeleton::after { display: none; }
+}
+
+.wui-skeleton--text   { height: 15px; border-radius: var(--w-radius-1); }
+.wui-skeleton--title  { height: 22px; border-radius: var(--w-radius-1); }
+.wui-skeleton--avatar { width: 40px; height: 40px; border-radius: var(--w-radius-15); }
+.wui-skeleton--bubble { height: 56px; border-radius: var(--w-radius-5); }
+
+
+/* -----------------------------------------------------------------------------
+   14. SPINNER
+   -----------------------------------------------------------------------------
+   600ms `linear` — exatamente o que o Intercom usa [12 §9]. Rotação contínua é
+   a segunda exceção à proibição do `linear`.
+   -------------------------------------------------------------------------- */
+
+.wui-spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: var(--w-radius-full);
+  animation: wui-spin var(--w-dur-spinner) linear infinite;
+  vertical-align: -2px;
+}
+
+@keyframes wui-spin { to { transform: rotate(360deg); } }
+
+.wui-spinner--lg { width: 24px; height: 24px; border-width: 3px; }
+
+/* Sem movimento, o anel parado não comunica nada — vira um traço estático e
+   quem informa é o texto ao lado (`role="status"`). */
+@media (prefers-reduced-motion: reduce) {
+  .wui-spinner { animation: none; border-top-color: currentColor; opacity: 0.5; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   15. AVATAR — com fallback de inicial
+   -----------------------------------------------------------------------------
+   Raio 6px, quadrado arredondado: 3 de 7 concorrentes já abandonaram o círculo
+   (Intercom 16,7%, Tidio 4px, tawk.to 15px em 40) [MEDIDO — 11 §C11].
+   A inicial fica no fundo; a imagem, quando carrega, cobre. Se a imagem falhar,
+   a inicial reaparece sozinha — sem JS.
+   -------------------------------------------------------------------------- */
+
+.wui-avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  flex: none;
+  border-radius: var(--w-radius-15);
+  background: var(--w-brand-subtle);
+  color: var(--w-brand-readable);
+  font: var(--w-text-author);
+  letter-spacing: var(--w-tracking);
+  text-transform: uppercase;
+  overflow: hidden;
+  user-select: none;
+}
+
+.wui-avatar__img {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.wui-avatar--sm { width: 28px; height: 28px; font-size: 11px; border-radius: var(--w-radius-1); }
+.wui-avatar--lg { width: 56px; height: 56px; font: var(--w-text-title); }
+
+/* Presença: o ponto é reforço, o rótulo é a informação (SC 1.4.1 / 13 §3.4) */
+.wui-avatar__dot {
+  position: absolute;
+  right: -1px; bottom: -1px;
+  width: 10px; height: 10px;
+  border-radius: var(--w-radius-full);
+  border: 2px solid var(--w-surface);
+  background: var(--w-text-muted);
+}
+.wui-avatar__dot--online  { background: var(--w-success); }
+.wui-avatar__dot--offline { background: var(--w-text-muted); }
+
+
+/* -----------------------------------------------------------------------------
+   16. DIVISOR
+   -------------------------------------------------------------------------- */
+
+.wui-divider {
+  border: 0;
+  border-top: var(--w-border-width) solid var(--w-border);
+  margin: var(--w-space-4) 0;
+}
+
+/* Divisor com rótulo — o marcador de data da conversa ("Hoje") */
+.wui-divider--labelled {
+  display: flex;
+  align-items: center;
+  gap: var(--w-space-3);
+  border: 0;
+  font: var(--w-text-system);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+}
+.wui-divider--labelled::before,
+.wui-divider--labelled::after {
+  content: "";
+  flex: 1;
+  border-top: var(--w-border-width) solid var(--w-border);
+}
+
+
+/* -----------------------------------------------------------------------------
+   17. INDICADOR DE "DIGITANDO" — CSS puro
+   -----------------------------------------------------------------------------
+   SUBSTITUI `assets/images/typing.gif`, 19.296 B — a única implementação em
+   raster de todo o corpus medido [MEDIDO — 12 §5.6, 15 §A6.3]. Um GIF não
+   herda a cor da marca, não tem versão escura, NÃO É ALCANÇADO POR NENHUMA
+   MEDIA QUERY (portanto ignora `prefers-reduced-motion`), não escala com a
+   fonte e custa uma requisição.
+
+   Desenho de referência: Octadesk/WhatsApp — o único do corpus que "lê como
+   digitação" e não como carregamento [12 §5.4]. Números literais do 16 §3.6:
+
+     pontos    3 × 7px, redondos, cor `--w-text-muted`
+     gap       4px
+     ciclo     1200ms, `ease-in-out`, infinito
+     stagger   150ms entre pontos
+     movimento translateY(-4px) no pico (0,57× o diâmetro) + opacidade 0,5 → 1
+     keyframe  0%, 60%, 100% em repouso; 30% no pico (40% do ciclo parado)
+
+   Evitamos o salto de 2× o diâmetro do tawk.to (`translateY(-10px)` com pontos
+   de 5px): transforma um estado de espera em animação chamativa [12 §C15].
+   -------------------------------------------------------------------------- */
+
+.wui-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--w-space-3) var(--w-space-4);
+  background: var(--w-surface-raised);
+  border-radius: var(--w-radius-5);
+  border-bottom-left-radius: var(--w-radius-15);
+  box-shadow: var(--w-elev-0), var(--w-elev-1-ring);
+}
+
+.wui-typing__dot {
+  width: 7px; height: 7px;
+  flex: none;
+  border-radius: var(--w-radius-full);
+  background: var(--w-text-muted);
+  opacity: 0.5;
+  animation: wui-typing var(--w-dur-typing) ease-in-out infinite;
+}
+
+.wui-typing__dot:nth-child(2) { animation-delay: var(--w-dur-typing-stagger); }
+.wui-typing__dot:nth-child(3) { animation-delay: calc(var(--w-dur-typing-stagger) * 2); }
+
+@keyframes wui-typing {
+  0%, 60%, 100% { transform: translateY(0);     opacity: 0.5; }
+  30%           { transform: translateY(-4px);  opacity: 1; }
+}
+
+/* O rótulo textual fica escondido por padrão e aparece sob reduced-motion —
+   assim a informação "está digitando" nunca depende só do movimento. Isso
+   também satisfaz o SC 2.2.2 (nível A), que exige mecanismo de pausar para
+   qualquer movimento acima de 5s [FATO — 13 §4.2]. */
+.wui-typing__label { display: none; font: var(--w-text-meta);
+                     letter-spacing: var(--w-tracking); color: var(--w-text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wui-typing__dot   { animation: none; opacity: 0.5; }
+  .wui-typing__label { display: inline; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   18. MOBILE — alvo de toque de 44×44
+   -----------------------------------------------------------------------------
+   O 16 §8.3 exige "alvos ≥ 44×44 no viewport mobile". O ponto de corte é o
+   único da casa: 768px, escrito sem sobreposição (16 §2.7.1) — hoje o `sdk.js`
+   tem `max-width:667px` E `min-width:667px` ao mesmo tempo, e em 667px exato as
+   duas regras aplicam [FATO — 11 §A16].
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 767.98px) {
+  .wui-btn,
+  .wui-tab,
+  .wui-chip { min-height: var(--w-touch-mobile); }
+
+  .wui-btn--sm { min-height: var(--w-touch-mobile); }
+
+  .wui-btn--icon,
+  .wui-btn--icon.wui-btn--md,
+  .wui-btn--icon.wui-btn--lg {
+    width: var(--w-touch-mobile);
+    min-width: var(--w-touch-mobile);
+  }
+
+  .wui-input,
+  .wui-textarea,
+  .wui-select { min-height: var(--w-touch-mobile); }
+
+  .wui-check,
+  .wui-switch { min-height: var(--w-touch-mobile); }
+
+  /* A área de acerto do checkbox cresce sem o quadrado crescer: o pseudo cobre
+     a linha inteira ("o alvo se estende além dos limites visuais" — 13 §1.1). */
+  .wui-check__input { width: 24px; height: 24px; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   19. `forced-colors: active`
+   -----------------------------------------------------------------------------
+   Os tokens já apontam para as system colors (tokens.css §4.3). Aqui sobra o
+   que é estrutura: superfícies decorativas somem e o que era distinguido por
+   preenchimento passa a ser distinguido por borda.
+   -------------------------------------------------------------------------- */
+
+@media (forced-colors: active) {
+  .wui-btn,
+  .wui-card,
+  .wui-chip,
+  .wui-banner,
+  .wui-typing { border: 1px solid CanvasText; }
+
+  .wui-btn--primary,
+  .wui-chip--selected,
+  .wui-chip[aria-pressed="true"] { forced-color-adjust: none;
+                                   background: Highlight; color: HighlightText; }
+
+  .wui-skeleton::after { display: none; }
+}
+
+</style>
+<style id="doc">
+/* ---------------------------------------------------------------------------
+   Estilos da PÁGINA DE REFERÊNCIA. Não fazem parte do sistema — existem só
+   para exibir os tokens e os primitivos. Também usam apenas tokens.
+   ------------------------------------------------------------------------ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: var(--w-text-message);
+  letter-spacing: var(--w-tracking);
+  color: var(--w-text);
+  background: var(--w-surface-sunken);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: var(--w-focus-width) solid var(--w-focus-ring);
+  outline-offset: var(--w-focus-offset);
+}
+
+code {
+  font-family: var(--w-font-mono);
+  font-size: 0.9em;
+  background: var(--w-surface-hover);
+  padding: 0 var(--w-space-1);
+  border-radius: var(--w-radius-1);
+}
+
+/* ---- topo ---- */
+.doc-top {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--w-surface);
+  border-bottom: var(--w-border-width) solid var(--w-border);
+  box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+}
+.doc-top__in {
+  max-width: 1120px; margin: 0 auto;
+  padding: var(--w-space-4) var(--w-space-5);
+  display: flex; flex-wrap: wrap; gap: var(--w-space-4);
+  align-items: flex-start; justify-content: space-between;
+}
+.doc-top h1 { font-size: 22px; line-height: 28px; font-weight: 600; margin: 0; }
+.doc-top__sub {
+  margin: var(--w-space-1) 0 0; max-width: 60ch;
+  font: var(--w-text-subtitle); letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted);
+}
+.doc-top__ctl { display: flex; gap: var(--w-space-5); align-items: center; flex-wrap: wrap; }
+.doc-brandpick { display: flex; flex-direction: column; gap: var(--w-space-1); }
+.doc-brandpick input[type="color"] {
+  width: 88px; height: 36px; padding: 2px;
+  border: var(--w-border-width) solid var(--w-border-strong);
+  border-radius: var(--w-radius-2);
+  background: var(--w-surface); cursor: pointer;
+}
+
+/* ---- nav ---- */
+.doc-nav {
+  position: sticky; top: 0; z-index: 9;
+  background: var(--w-surface-sunken);
+  border-bottom: var(--w-border-width) solid var(--w-border);
+  overflow-x: auto;
+}
+.doc-nav a {
+  display: inline-block;
+  padding: var(--w-space-3) var(--w-space-4);
+  min-height: var(--w-touch-min);
+  font: var(--w-text-button); letter-spacing: var(--w-tracking);
+  color: var(--w-text-muted); text-decoration: none; white-space: nowrap;
+}
+.doc-nav a:hover { color: var(--w-brand-readable); }
+
+/* ---- layout ---- */
+.doc { max-width: 1120px; margin: 0 auto; padding: var(--w-space-6) var(--w-space-5) var(--w-space-12); }
+.doc section { margin-bottom: var(--w-space-12); scroll-margin-top: 64px; }
+.doc h2 {
+  font-size: 20px; line-height: 26px; font-weight: 600;
+  margin: 0 0 var(--w-space-2);
+  padding-bottom: var(--w-space-2);
+  border-bottom: 2px solid var(--w-brand-border);
+}
+.doc h3 { font-size: 15px; line-height: 22px; font-weight: 600; margin: var(--w-space-8) 0 var(--w-space-3); }
+.doc h4 { margin: 0; }
+.lead { max-width: 78ch; color: var(--w-text-muted); margin: 0 0 var(--w-space-5); }
+.lead strong, .doc-note strong { color: var(--w-text); }
+
+.doc-note {
+  max-width: 78ch;
+  font: var(--w-text-meta); letter-spacing: var(--w-tracking);
+  line-height: 18px; color: var(--w-text-muted);
+  margin: var(--w-space-3) 0 0;
+  padding-left: var(--w-space-3);
+  border-left: 2px solid var(--w-border-strong);
+}
+.doc-note--inline { border-left: 0; padding-left: 0; max-width: 52ch; margin: 0; }
+.doc-note__flag { display: block; margin-top: var(--w-space-1); color: var(--w-brand-readable); }
+
+.doc-row { display: flex; flex-wrap: wrap; gap: var(--w-space-3); align-items: center; margin-top: var(--w-space-3); }
+.doc-row--tip { padding-top: var(--w-space-8); }
+.doc-row--typing { align-items: flex-start; gap: var(--w-space-5); }
+.doc-stack { display: flex; flex-direction: column; gap: var(--w-space-3); }
+.doc-stack--center { align-items: flex-start; }
+.doc-cols {
+  display: grid; gap: var(--w-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: start;
+}
+.doc-span2 { grid-column: 1 / -1; }
+.doc-table-wrap { overflow-x: auto; margin-top: var(--w-space-3); }
+.doc-tip-open .wui-tip__bubble { opacity: 1; }
+@media (max-width: 767.98px) { .doc-tip-open .wui-tip__bubble { display: block; } }
+.doc-tip-open .wui-tip__bubble--end { opacity: 1; transform: translateX(0) translateY(0); }
+
+/* ---- prova de contraste ---- */
+.doc-proof {
+  display: grid; gap: var(--w-space-5);
+  grid-template-columns: minmax(220px, 320px) 1fr;
+  align-items: stretch;
+}
+.doc-proof__swatch {
+  display: grid; place-items: center;
+  min-height: 168px; padding: var(--w-space-5);
+  background: var(--w-brand); color: var(--w-on-brand);
+  border-radius: var(--w-radius-4);
+  font: var(--w-text-title); letter-spacing: var(--w-tracking);
+  text-align: center;
+  box-shadow: var(--w-elev-2), var(--w-elev-2-ring);
+}
+.doc-proof__data { display: flex; flex-direction: column; justify-content: center; gap: var(--w-space-3); }
+.doc-proof__data dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--w-space-1) var(--w-space-4); margin: 0; }
+.doc-proof__data dt { color: var(--w-text-muted); font: var(--w-text-meta); letter-spacing: var(--w-tracking); align-self: center; }
+.doc-proof__data dd { margin: 0; font-family: var(--w-font-mono); font-size: 13px; font-variant-numeric: var(--w-numeric-tabular); }
+.doc-verdict-ok   { color: var(--w-success); font-weight: 600; }
+.doc-verdict-fail { color: var(--w-danger);  font-weight: 600; }
+
+.doc-presets { display: flex; flex-wrap: wrap; gap: var(--w-space-2); margin-top: var(--w-space-3); }
+.doc-preset {
+  display: inline-flex; align-items: center; gap: var(--w-space-2);
+  min-height: 40px; padding: 0 var(--w-space-3);
+  border: var(--w-border-width) solid var(--w-border-strong);
+  border-radius: var(--w-radius-2);
+  background: var(--w-surface); color: var(--w-text);
+  font: var(--w-text-meta); letter-spacing: var(--w-tracking);
+  font-family: var(--w-font-mono); cursor: pointer;
+}
+.doc-preset:hover { border-color: var(--w-brand-border); }
+.doc-preset__sw { width: 20px; height: 20px; border-radius: var(--w-radius-1); border: var(--w-border-width) solid var(--w-border); }
+
+/* ---- escopos de marca ---- */
+.doc-scopes { display: grid; gap: var(--w-space-3); margin-top: var(--w-space-3);
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.doc-scope { border: var(--w-border-width) solid var(--w-border); border-radius: var(--w-radius-3);
+             overflow: hidden; background: var(--w-surface); }
+.doc-scope__fill { display: block; padding: var(--w-space-4) var(--w-space-3);
+                   background: var(--w-brand); color: var(--w-on-brand);
+                   font: var(--w-text-button); letter-spacing: var(--w-tracking); }
+.doc-scope__txt  { display: block; padding: var(--w-space-2) var(--w-space-3);
+                   color: var(--w-brand-readable);
+                   font: var(--w-text-button); letter-spacing: var(--w-tracking); }
+.doc-scope--broken { border-color: var(--w-danger); }
+.doc-scope--broken .doc-scope__txt { color: var(--w-danger); }
+
+/* ---- grade de amostras ---- */
+.doc-grid { display: grid; gap: var(--w-space-3); grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); margin-top: var(--w-space-3); }
+.doc-sw {
+  border: var(--w-border-width) solid var(--w-border);
+  border-radius: var(--w-radius-2);
+  overflow: hidden; background: var(--w-surface);
+}
+.doc-sw__chip { height: 56px; display: block; }
+.doc-sw__meta { padding: var(--w-space-2); display: flex; flex-direction: column; gap: 2px; }
+.doc-sw__name { font-family: var(--w-font-mono); font-size: 11px; line-height: 15px; word-break: break-all; }
+.doc-sw__val  { font-family: var(--w-font-mono); font-size: 11px; line-height: 15px; color: var(--w-text-muted); word-break: break-all; }
+
+/* ---- tipografia ---- */
+.doc-type { display: flex; flex-direction: column; gap: var(--w-space-2); }
+.doc-type__row {
+  display: grid; grid-template-columns: minmax(160px, 200px) 1fr; gap: var(--w-space-4);
+  align-items: baseline; padding: var(--w-space-2) 0;
+  border-bottom: var(--w-border-width) solid var(--w-border);
+}
+.doc-type__k { font-family: var(--w-font-mono); font-size: 11px; color: var(--w-text-muted); word-break: break-all; }
+.doc-tabular { display: flex; flex-direction: column; gap: var(--w-space-1); margin-top: var(--w-space-3); }
+.doc-tabular > div { display: grid; grid-template-columns: 160px 1fr; gap: var(--w-space-4); }
+.doc-tabular__k { font-family: var(--w-font-mono); font-size: 11px; color: var(--w-text-muted); }
+.doc-tabular__v { font-size: 15px; }
+
+/* ---- espaçamento ---- */
+.doc-space { display: flex; flex-direction: column; gap: var(--w-space-2); }
+.doc-space__row { display: grid; grid-template-columns: 140px 56px 1fr; gap: var(--w-space-3); align-items: center; }
+.doc-space__k { font-family: var(--w-font-mono); font-size: 11px; color: var(--w-text-muted); }
+.doc-space__v { font-family: var(--w-font-mono); font-size: 11px; font-variant-numeric: var(--w-numeric-tabular); }
+.doc-space__bar { height: 14px; background: var(--w-brand-border); border-radius: var(--w-radius-1); }
+
+/* ---- raios ---- */
+.doc-radius { display: flex; flex-wrap: wrap; gap: var(--w-space-4); margin-top: var(--w-space-3); }
+.doc-radius__i { display: flex; flex-direction: column; gap: var(--w-space-1); align-items: center; }
+.doc-radius__box { width: 84px; height: 64px; background: var(--w-brand-subtle); border: 2px solid var(--w-brand-border); }
+.doc-radius__k { font-family: var(--w-font-mono); font-size: 11px; color: var(--w-text-muted); text-align: center; }
+
+/* ---- elevação ---- */
+.doc-elev { display: grid; gap: var(--w-space-5); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: var(--w-space-4); }
+.doc-elev__box {
+  height: 92px; display: grid; place-items: center;
+  background: var(--w-surface-raised); border-radius: var(--w-radius-3);
+  font-family: var(--w-font-mono); font-size: 12px; color: var(--w-text-muted);
+}
+.doc-elev__k { display: block; text-align: center; margin-top: var(--w-space-2);
+               font-family: var(--w-font-mono); font-size: 11px; color: var(--w-text-muted); }
+
+/* ---- movimento ---- */
+.doc-motion { display: flex; flex-direction: column; gap: var(--w-space-1); margin-top: var(--w-space-3); }
+.doc-motion__row {
+  display: grid; grid-template-columns: minmax(180px, 220px) 72px 1fr; gap: var(--w-space-3);
+  align-items: center; padding: var(--w-space-1) 0;
+  border-bottom: var(--w-border-width) solid var(--w-border);
+}
+.doc-motion__k { font-family: var(--w-font-mono); font-size: 11px; color: var(--w-text-muted); word-break: break-all; }
+.doc-motion__v { font-family: var(--w-font-mono); font-size: 11px; font-variant-numeric: var(--w-numeric-tabular); }
+.doc-motion__track { height: 20px; background: var(--w-surface-hover); border-radius: var(--w-radius-full); position: relative; overflow: hidden; }
+.doc-motion__dot {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: var(--w-radius-full); background: var(--w-brand);
+  transition: transform var(--dur, 200ms) var(--ease, linear);
+}
+.doc-motion__row:hover .doc-motion__dot { transform: translateX(calc(100cqw - 24px)); }
+.doc-motion__track { container-type: inline-size; }
+
+/* ---- estados forçados na tabela de demonstração ---- */
+.doc-states td { text-align: center; }
+.doc-states th[scope="row"] { text-transform: none; letter-spacing: var(--w-tracking); }
+
+[data-force="hover"].wui-btn--primary   { background: var(--w-brand-hover); }
+[data-force="active"].wui-btn--primary  { background: var(--w-brand-pressed); transform: translateY(1px);
+                                          box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.18); }
+[data-force="hover"].wui-btn--secondary,
+[data-force="active"].wui-btn--secondary { background: var(--w-brand-subtle); }
+[data-force="active"].wui-btn--secondary { transform: translateY(1px); }
+[data-force="hover"].wui-btn--ghost     { background: var(--w-surface-hover); }
+[data-force="active"].wui-btn--ghost    { background: var(--w-surface-active); transform: translateY(1px); }
+[data-force="hover"].wui-btn--danger    { background: color-mix(in oklab, var(--w-danger), var(--w-text) 12%); }
+[data-force="active"].wui-btn--danger   { transform: translateY(1px); }
+[data-force="hover"].wui-chip           { background: var(--w-brand-subtle); }
+[data-force="hover"].wui-tab            { color: var(--w-text); background: var(--w-surface-hover); }
+[data-force="focus"] {
+  outline: var(--w-focus-width) solid var(--w-focus-ring);
+  outline-offset: var(--w-focus-offset);
+}
+[data-force="focus"].wui-input          { border-color: var(--w-brand-border); }
+[data-force="focus"].wui-switch__input  { outline: 0; }
+[data-force="focus"].wui-switch__input + .wui-switch__track,
+[data-force="focus"].wui-check__input {
+  outline: var(--w-focus-width) solid var(--w-focus-ring);
+  outline-offset: var(--w-focus-offset);
+}
+
+/* ---- rodapé ---- */
+.doc-foot {
+  max-width: 1120px; margin: 0 auto;
+  padding: var(--w-space-5);
+  border-top: var(--w-border-width) solid var(--w-border);
+  font: var(--w-text-meta); letter-spacing: var(--w-tracking); line-height: 18px;
+  color: var(--w-text-muted);
+}
+.doc-foot p { margin: 0 0 var(--w-space-1); }
+
+@media (max-width: 767.98px) {
+  .doc-proof { grid-template-columns: 1fr; }
+  .doc-type__row { grid-template-columns: 1fr; gap: var(--w-space-1); }
+  .doc-motion__row { grid-template-columns: 1fr 64px; }
+  .doc-motion__track { grid-column: 1 / -1; }
+  .doc-space__row { grid-template-columns: 96px 48px 1fr; }
+  .doc-tabular > div { grid-template-columns: 1fr; }
+}
+
+</style>
+</head>
+<body class="wui">
+<header class="doc-top">
+  <div class="doc-top__in">
+    <div>
+      <h1>Sistema visual — ChatSPX</h1>
+      <p class="doc-top__sub">Fundação do redesenho do chat de site. Tokens, primitivos e as provas de contraste.
+        Origem: <code>plano/estudo-chat-web/frontend/16-spec-redesenho.md</code> §2 e §4.</p>
+    </div>
+    <div class="doc-top__ctl">
+      <label class="wui-switch" title="Alterna o tema desta página">
+        <input type="checkbox" class="wui-switch__input" id="themeToggle">
+        <span class="wui-switch__track"></span>
+        <span class="wui-switch__label" id="themeLabel">Tema claro</span>
+      </label>
+      <label class="doc-brandpick">
+        <span class="wui-label">Cor da marca</span>
+        <input type="color" id="brandPick" value="#2dc46f">
+      </label>
+    </div>
+  </div>
+</header>
+
+<nav class="doc-nav" aria-label="Seções">
+  <a href="#marca">Marca</a><a href="#paleta">Paleta</a><a href="#tipo">Tipografia</a>
+  <a href="#espaco">Espaço</a><a href="#raios">Raios</a><a href="#elev">Elevação</a>
+  <a href="#motion">Movimento</a><a href="#prim">Primitivos</a>
+</nav>
+
+<main class="doc">
+
+<!-- ===================================================================== -->
+<section id="marca">
+  <h2>1. A cor da marca, e a prova</h2>
+  <p class="lead">Um ponto de entrada só — <code>--brand</code>. Todo o resto é <strong>calculado</strong>.
+    A cor do texto sobre a marca sai da <strong>luminância relativa da WCAG</strong> (limiar
+    <code>L = 0,17913</code>), nunca da heurística YIQ que o widget usa hoje e que diverge da WCAG
+    em <strong>11 de 16</strong> cores testadas [MEDIDO — 13 §3.2].</p>
+
+  <div class="doc-proof">
+    <div class="doc-proof__swatch" id="proofSwatch">
+      <span id="proofSwatchTxt">Texto sobre a marca</span>
+    </div>
+    <div class="doc-proof__data">
+      <dl>
+        <dt><code>--brand</code></dt><dd id="pBrand">—</dd>
+        <dt><code>--on-brand</code></dt><dd id="pOn">—</dd>
+        <dt>Luminância relativa</dt><dd id="pLum">—</dd>
+        <dt>Contraste texto/marca</dt><dd id="pRatio">—</dd>
+        <dt>WCAG</dt><dd id="pVerdict">—</dd>
+      </dl>
+      <p class="doc-note" id="pCompare">—</p>
+    </div>
+  </div>
+
+  <h3>Atalhos das cores que o estudo mediu falhando</h3>
+  <div class="doc-presets" id="presets"></div>
+
+  <h3>Os sete tokens derivados</h3>
+  <div class="doc-grid" id="brandTokens"></div>
+  <p class="doc-note"><strong>Estados vão na direção oposta ao texto.</strong> O 16 §2.5.2 pede
+    “escurece se clara, clareia se escura”, que é a direção do <em>state layer</em> do Material 3.
+    Medido aqui em 2.018 cores: essa direção derruba <strong>16,3%</strong> das cores abaixo de 4,5:1
+    no hover e <strong>30,9%</strong> no pressed. A direção adotada não reprova nenhuma
+    (mínimo 5,30:1 e 5,88:1). A sensação de afundar vem do movimento, não da cor.</p>
+
+  <h3>Mais de uma marca na mesma página</h3>
+  <p class="lead">Custom property herda o valor <strong>computado</strong>, não a fórmula.
+    <code>--w-on-brand</code> é declarado no <code>:root</code> e derivado uma vez só. Um descendente
+    que redefina apenas <code>--brand</code> herda o resultado de cima e sai errado — medido por pixel,
+    <strong>6 de 10</strong> cores erram assim, todas as escuras. A classe
+    <code>.wui-brand-scope</code> redeclara as derivações no escopo e leva a
+    <strong>0 de 10</strong>. Os quatro blocos abaixo têm marcas diferentes na mesma página.</p>
+  <div class="doc-scopes">
+    <div class="wui-brand-scope doc-scope" style="--brand:#0b2545">
+      <span class="doc-scope__fill">#0b2545 escura</span>
+      <span class="doc-scope__txt">marca como texto</span></div>
+    <div class="wui-brand-scope doc-scope" style="--brand:#f5d90a">
+      <span class="doc-scope__fill">#f5d90a clara</span>
+      <span class="doc-scope__txt">marca como texto</span></div>
+    <div class="wui-brand-scope doc-scope" style="--brand:#e11d48">
+      <span class="doc-scope__fill">#e11d48 fronteira</span>
+      <span class="doc-scope__txt">marca como texto</span></div>
+    <div class="doc-scope doc-scope--broken" style="--brand:#0b2545">
+      <span class="doc-scope__fill">#0b2545 SEM a classe</span>
+      <span class="doc-scope__txt">é o erro que a classe evita</span></div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<section id="paleta">
+  <h2>2. Paleta</h2>
+  <p class="lead">Tema escuro é paleta própria, não inversão [regra C9]. Os valores do escuro são os
+    que o widget <em>já computa hoje</em> [MEDIDO — 15 §A5.2, §A6.3], para a migração ser rastreável.
+    Troque o tema no topo: os hex abaixo são lidos do CSS computado, ao vivo.</p>
+  <div class="doc-grid" id="palette"></div>
+  <h3>Contraste medido contra a superfície do tema ativo</h3>
+  <div class="doc-table-wrap"><table class="wui-table" id="contrastTable">
+    <thead><tr><th>Par</th><th>Contraste</th><th>Exigido</th><th>Veredito</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<!-- ===================================================================== -->
+<section id="tipo">
+  <h2>3. Tipografia</h2>
+  <p class="lead">Stack do sistema, sem webfont — o repositório publica 7 <code>.woff2</code> da Inter
+    (773.684 B) que <strong>nenhum navegador baixa hoje</strong> [MEDIDO — 15 §B9.4]. Piso absoluto de
+    12&nbsp;px. Corpo de mensagem em <strong>15&nbsp;px</strong> (decisão F1). Campo de digitação
+    sempre 16&nbsp;px: abaixo disso o Safari iOS dá zoom ao focar.</p>
+  <div class="doc-type" id="typeScale"></div>
+  <p class="doc-note">Hierarquia por <strong>peso e cor</strong>, nunca por tamanho: entre mensagem (15)
+    e metadado (12) há três pixels; distinguir só por tamanho empurraria o metadado abaixo do piso
+    [13 §2.4]. E <code>tabular-nums</code> em todo horário: sem isso a largura do mesmo horário varia
+    <strong>52%</strong> na Inter [MEDIDO — 13 §2.5].</p>
+  <div class="doc-tabular">
+    <div><span class="doc-tabular__k">proporcional</span>
+      <span class="doc-tabular__v">00:00 · 11:11 · 18:45</span></div>
+    <div><span class="doc-tabular__k">tabular (nosso)</span>
+      <span class="doc-tabular__v wui-tabular">00:00 · 11:11 · 18:45</span></div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<section id="espaco">
+  <h2>4. Espaçamento</h2>
+  <p class="lead">Escala de 4&nbsp;px com dois degraus finos na faixa baixa. Onze degraus — o suficiente
+    para um painel de 400&nbsp;px. Os quatro sistemas de referência convergem nisso; quem declara
+    “base 8” descreve o ritmo, não a régua [FATO — 13 §1.1].</p>
+  <div class="doc-space" id="spaceScale"></div>
+</section>
+
+<!-- ===================================================================== -->
+<section id="raios">
+  <h2>5. Raios</h2>
+  <p class="lead">O raio é <strong>proporcional ao elemento</strong>, nunca constante: raio grande em
+    elemento pequeno lê como pill; em elemento grande, como cartão [13 §6.5].</p>
+  <div class="doc-radius" id="radiusScale"></div>
+</section>
+
+<!-- ===================================================================== -->
+<section id="elev">
+  <h2>6. Elevação</h2>
+  <p class="lead">No tema escuro a sombra <strong>não escurece: ela desliga</strong> e a separação passa
+    a ser feita por superfície mais clara + borda de 1&nbsp;px. Sombra preta sobre fundo escuro não
+    separa nada — o Polaris redefine <code>--p-shadow-100</code> como <code>none</code> no dark
+    [FATO — 13 §1.1]. Nossa sombra atual é <em>idêntica</em> nos dois temas [MEDIDO — 15 §A3.5].
+    Alterne o tema e veja os quatro blocos abaixo trocarem de mecanismo.</p>
+  <div class="doc-elev" id="elevScale"></div>
+</section>
+
+<!-- ===================================================================== -->
+<section id="motion">
+  <h2>7. Movimento</h2>
+  <p class="lead">Duas curvas e a proibição do <code>linear</code> para movimento — somos o único widget
+    do corpus cujo painel se move em <code>linear</code> [MEDIDO — 12 §1.3]. <code>linear</code> fica
+    permitido só para opacidade pura e rotação contínua. Faixa de trabalho: 80–300&nbsp;ms.
+    Passe o ponteiro nas barras.</p>
+  <div class="doc-motion" id="motionScale"></div>
+  <p class="doc-note">Sob <code>prefers-reduced-motion: reduce</code> as durações são zeradas
+    <strong>no token</strong> — nenhum primitivo repete a media query. 6 de 7 concorrentes ignoram essa
+    preferência, e o único que trata (Intercom) trata pela metade [MEDIDO — 12 §13]. Aqui não copiamos
+    o erro. <span id="rmState" class="doc-note__flag"></span></p>
+</section>
+
+<!-- ===================================================================== -->
+<section id="prim">
+  <h2>8. Primitivos</h2>
+
+  <h3>8.1 Botão — 3 variantes × 3 tamanhos × todos os estados</h3>
+  <div class="doc-table-wrap"><table class="wui-table doc-states">
+    <thead><tr><th>Variante</th><th>Repouso</th><th>Hover</th><th>Foco</th><th>Pressed</th><th>Desabilitado</th><th>Carregando</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Primário</th>
+        <td><button class="wui-btn wui-btn--md wui-btn--primary">Enviar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--primary" data-force="hover">Enviar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--primary" data-force="focus">Enviar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--primary" data-force="active">Enviar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--primary" disabled>Enviar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--primary" data-loading="true"><span class="wui-spinner"></span><span class="wui-btn__label">Enviando</span></button></td></tr>
+      <tr><th scope="row">Secundário</th>
+        <td><button class="wui-btn wui-btn--md wui-btn--secondary">Cancelar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--secondary" data-force="hover">Cancelar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--secondary" data-force="focus">Cancelar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--secondary" data-force="active">Cancelar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--secondary" disabled>Cancelar</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--secondary" data-loading="true"><span class="wui-spinner"></span><span class="wui-btn__label">Salvando</span></button></td></tr>
+      <tr><th scope="row">Fantasma</th>
+        <td><button class="wui-btn wui-btn--md wui-btn--ghost">Ver mais</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--ghost" data-force="hover">Ver mais</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--ghost" data-force="focus">Ver mais</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--ghost" data-force="active">Ver mais</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--ghost" disabled>Ver mais</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--ghost" data-loading="true"><span class="wui-spinner"></span><span class="wui-btn__label">Abrindo</span></button></td></tr>
+      <tr><th scope="row">Destrutivo</th>
+        <td><button class="wui-btn wui-btn--md wui-btn--danger">Excluir</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--danger" data-force="hover">Excluir</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--danger" data-force="focus">Excluir</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--danger" data-force="active">Excluir</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--danger" disabled>Excluir</button></td>
+        <td><button class="wui-btn wui-btn--md wui-btn--danger" data-loading="true"><span class="wui-spinner"></span><span class="wui-btn__label">Excluindo</span></button></td></tr>
+    </tbody>
+  </table></div>
+  <div class="doc-row">
+    <button class="wui-btn wui-btn--sm wui-btn--primary">sm · 32</button>
+    <button class="wui-btn wui-btn--md wui-btn--primary">md · 40</button>
+    <button class="wui-btn wui-btn--lg wui-btn--primary">lg · 48</button>
+    <button class="wui-btn wui-btn--sm wui-btn--icon wui-btn--secondary" aria-label="Anexar">+</button>
+    <button class="wui-btn wui-btn--md wui-btn--icon wui-btn--secondary" aria-label="Anexar">+</button>
+    <button class="wui-btn wui-btn--lg wui-btn--icon wui-btn--primary" aria-label="Enviar">→</button>
+  </div>
+  <p class="doc-note">Abaixo de 768&nbsp;px toda altura mínima sobe para <strong>44&nbsp;px</strong>
+    (o 16 §8.3 exige alvos ≥ 44×44 no viewport mobile). O botão de ícone continua desenhado pequeno —
+    o que cresce é a área de acerto.</p>
+
+  <h3>8.2 Campo de texto, área de texto e select</h3>
+  <div class="doc-cols">
+    <div class="wui-field"><label class="wui-label" for="f1">Nome</label>
+      <input class="wui-input" id="f1" placeholder="Como podemos te chamar?"></div>
+    <div class="wui-field"><label class="wui-label" for="f2">E-mail</label>
+      <input class="wui-input" id="f2" value="contato@exemplo.com.br"></div>
+    <div class="wui-field"><label class="wui-label" for="f3">Foco</label>
+      <input class="wui-input" id="f3" data-force="focus" value="com foco"></div>
+    <div class="wui-field"><label class="wui-label" for="f4">Erro</label>
+      <input class="wui-input" id="f4" aria-invalid="true" value="e-mail invalido">
+      <span class="wui-error">Endereço de e-mail inválido</span></div>
+    <div class="wui-field"><label class="wui-label" for="f5">Desabilitado</label>
+      <input class="wui-input" id="f5" value="somente leitura" disabled></div>
+    <div class="wui-field"><label class="wui-label" for="f6">Assunto</label>
+      <select class="wui-select" id="f6"><option>Quero um orçamento</option><option>Suporte técnico</option><option>Outro assunto</option></select>
+      <span class="wui-hint">Define para qual time a conversa vai.</span></div>
+    <div class="wui-field doc-span2"><label class="wui-label" for="f7">Mensagem de boas-vindas</label>
+      <textarea class="wui-textarea" id="f7">Oi! Em que posso ajudar hoje?</textarea></div>
+  </div>
+
+  <h3>8.3 Toggle, checkbox e radio</h3>
+  <div class="doc-cols">
+    <div class="doc-stack">
+      <label class="wui-switch"><input type="checkbox" class="wui-switch__input"><span class="wui-switch__track"></span><span class="wui-switch__label">Desligado</span></label>
+      <label class="wui-switch"><input type="checkbox" class="wui-switch__input" checked><span class="wui-switch__track"></span><span class="wui-switch__label">Ligado</span></label>
+      <label class="wui-switch"><input type="checkbox" class="wui-switch__input" data-force="focus" checked><span class="wui-switch__track"></span><span class="wui-switch__label">Com foco</span></label>
+      <label class="wui-switch"><input type="checkbox" class="wui-switch__input" disabled><span class="wui-switch__track"></span><span class="wui-switch__label">Desabilitado</span></label>
+    </div>
+    <div class="doc-stack">
+      <label class="wui-check"><input type="checkbox" class="wui-check__input"><span>Mostrar teaser proativo</span></label>
+      <label class="wui-check"><input type="checkbox" class="wui-check__input" checked><span>Pedir e-mail antes de conversar</span></label>
+      <label class="wui-check"><input type="checkbox" class="wui-check__input" data-force="focus" checked><span>Com foco visível</span></label>
+      <label class="wui-check"><input type="checkbox" class="wui-check__input" disabled><span>Indisponível neste plano</span></label>
+    </div>
+    <div class="doc-stack">
+      <label class="wui-check"><input type="radio" name="perf" class="wui-check__input" checked><span>Perfil marketing</span></label>
+      <label class="wui-check"><input type="radio" name="perf" class="wui-check__input"><span>Perfil suporte</span></label>
+      <label class="wui-check"><input type="radio" name="perf" class="wui-check__input" data-force="focus"><span>Com foco visível</span></label>
+      <label class="wui-check"><input type="radio" name="perf2" class="wui-check__input" disabled><span>Desabilitado</span></label>
+    </div>
+  </div>
+
+  <h3>8.4 Chip e badge</h3>
+  <div class="wui-chip-group">
+    <button class="wui-chip">Quero um orçamento</button>
+    <button class="wui-chip" data-force="hover">Falar com humano</button>
+    <button class="wui-chip" data-force="focus">Com foco</button>
+    <button class="wui-chip wui-chip--selected">Selecionado</button>
+    <button class="wui-chip" disabled>Mensagem antiga</button>
+  </div>
+  <p class="doc-note">Quantidade: <strong>2 a 4</strong>. Mais de 4 de uma vez = +22% de abandono em
+    mobile [06 §4.3]. Alinhados à direita, do lado do visitante — é o que faz o chip ser lido como
+    “minha resposta possível” e não como “botão do sistema” [12 §8].</p>
+  <div class="doc-row">
+    <span class="wui-badge wui-badge--neutral">Rascunho</span>
+    <span class="wui-badge wui-badge--success">Online</span>
+    <span class="wui-badge wui-badge--warning">Fora do horário</span>
+    <span class="wui-badge wui-badge--danger">Falhou</span>
+    <span class="wui-badge wui-badge--info">Novo</span>
+    <span class="wui-badge wui-badge--brand">IA</span>
+    <span class="wui-badge wui-badge--count wui-tabular">3</span>
+    <span class="wui-badge wui-badge--count wui-tabular">12</span>
+  </div>
+  <p class="doc-note">Todo badge tem <strong>rótulo textual</strong> além da cor: o par verde/vermelho
+    colapsa de ΔE 72,5 para <strong>7,9</strong> em deuteranopia — praticamente a mesma cor
+    [MEDIDO — 13 §3.4]. É a base de todo indicador de presença.</p>
+
+  <h3>8.5 Card</h3>
+  <div class="doc-cols">
+    <div class="wui-card"><h4 class="wui-card__title">Gatilho por tempo</h4>
+      <p class="wui-card__body">Abre o teaser depois de 12 segundos na página.</p></div>
+    <div class="wui-card wui-card--interactive"><h4 class="wui-card__title">Gatilho por rolagem</h4>
+      <p class="wui-card__body">Dispara quando o visitante passa de 60% da página.</p></div>
+    <div class="wui-card wui-card--flat"><h4 class="wui-card__title">Sem elevação</h4>
+      <p class="wui-card__body">Para uso dentro de outro container já elevado.</p></div>
+  </div>
+
+  <h3>8.6 Tabela</h3>
+  <div class="doc-table-wrap"><table class="wui-table">
+    <caption>Gatilhos configurados</caption>
+    <thead><tr><th>Regra</th><th>Página</th><th>Perfil</th><th class="wui-num">Disparos</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>Tempo &gt; 12s</td><td>/precos</td><td>Marketing</td><td class="wui-num wui-tabular">1.284</td><td><span class="wui-badge wui-badge--success">Ativo</span></td></tr>
+      <tr><td>Saída do mouse</td><td>/checkout</td><td>Marketing</td><td class="wui-num wui-tabular">312</td><td><span class="wui-badge wui-badge--warning">Pausado</span></td></tr>
+      <tr><td>Rolagem &gt; 60%</td><td>//blog/*</td><td>Suporte</td><td class="wui-num wui-tabular">27</td><td><span class="wui-badge wui-badge--neutral">Rascunho</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>8.7 Abas</h3>
+  <div class="wui-tabs" role="tablist">
+    <button class="wui-tab" role="tab" aria-selected="true">Aparência</button>
+    <button class="wui-tab" role="tab" aria-selected="false">Gatilhos</button>
+    <button class="wui-tab" role="tab" aria-selected="false" data-force="hover">Pré-chat</button>
+    <button class="wui-tab" role="tab" aria-selected="false" data-force="focus">Com foco</button>
+    <button class="wui-tab" role="tab" aria-selected="false" disabled>Tracking</button>
+  </div>
+
+  <h3>8.8 Tooltip</h3>
+  <div class="doc-row doc-row--tip">
+    <span class="wui-tip"><button class="wui-btn wui-btn--md wui-btn--secondary">Passe o ponteiro</button>
+      <span class="wui-tip__bubble" role="tooltip">Aparece em hover e em foco</span></span>
+    <span class="wui-tip"><button class="wui-btn wui-btn--md wui-btn--ghost">Ou dê Tab até aqui</button>
+      <span class="wui-tip__bubble wui-tip__bubble--start" role="tooltip">Tooltip só com mouse é inalcançável (SC 2.1.1)</span></span>
+    <span class="wui-tip doc-tip-open"><button class="wui-btn wui-btn--md wui-btn--secondary">Sempre visível</button>
+      <span class="wui-tip__bubble wui-tip__bubble--end" role="tooltip">Ancorado pela direita, para não empurrar a página</span></span>
+  </div>
+
+  <h3>8.9 Banner de aviso</h3>
+  <div class="doc-stack">
+    <div class="wui-banner wui-banner--info" role="status"><div><span class="wui-banner__title">Identidade verificada desligada</span>
+      Qualquer visitante pode se dizer qualquer pessoa até você ativar a verificação.</div></div>
+    <div class="wui-banner wui-banner--success" role="status"><div><span class="wui-banner__title">Pixel conectado</span>
+      Eventos de conversa passaram a ser enviados para o Meta e o GA4.</div></div>
+    <div class="wui-banner wui-banner--warning" role="status"><div><span class="wui-banner__title">Fora do horário de atendimento</span>
+      O widget vai coletar e-mail e responder por lá.</div></div>
+    <div class="wui-banner wui-banner--danger" role="alert"><div><span class="wui-banner__title">Falha ao salvar</span>
+      A cor informada não é um valor hexadecimal válido.</div></div>
+  </div>
+
+  <h3>8.10 Skeleton e spinner</h3>
+  <div class="doc-cols">
+    <div class="doc-stack">
+      <div class="wui-skeleton wui-skeleton--title" style="width:60%"></div>
+      <div class="wui-skeleton wui-skeleton--text"></div>
+      <div class="wui-skeleton wui-skeleton--text" style="width:80%"></div>
+      <div class="doc-row"><div class="wui-skeleton wui-skeleton--avatar"></div>
+        <div class="wui-skeleton wui-skeleton--bubble" style="flex:1"></div></div>
+    </div>
+    <div class="doc-stack doc-stack--center">
+      <span class="wui-spinner"></span>
+      <span class="wui-spinner wui-spinner--lg"></span>
+      <span class="doc-note">600&nbsp;ms <code>linear</code> — igual ao Intercom [12 §9]. Rotação
+        contínua é uma das duas exceções à proibição do <code>linear</code>.</span>
+    </div>
+  </div>
+
+  <h3>8.11 Avatar</h3>
+  <div class="doc-row">
+    <span class="wui-avatar wui-avatar--sm">CT</span>
+    <span class="wui-avatar">CT</span>
+    <span class="wui-avatar wui-avatar--lg">CT</span>
+    <span class="wui-avatar">CT<span class="wui-avatar__dot wui-avatar__dot--online"></span><span class="wui-sr-only">online</span></span>
+    <span class="wui-avatar">MP<span class="wui-avatar__dot wui-avatar__dot--offline"></span><span class="wui-sr-only">offline</span></span>
+  </div>
+  <p class="doc-note">Raio 6&nbsp;px, quadrado arredondado — 3 de 7 concorrentes já abandonaram o
+    círculo [MEDIDO — 11 §C11]. A inicial é o fundo; a imagem cobre quando carrega, e reaparece
+    sozinha se a imagem falhar. O ponto de presença vem com rótulo para leitor de tela.</p>
+
+  <h3>8.12 Divisor</h3>
+  <hr class="wui-divider">
+  <div class="wui-divider wui-divider--labelled">Hoje</div>
+
+  <h3>8.13 Indicador de “digitando” — em CSS puro</h3>
+  <div class="doc-row doc-row--typing">
+    <div class="wui-typing" role="status" aria-label="O atendente está digitando">
+      <span class="wui-typing__dot"></span><span class="wui-typing__dot"></span><span class="wui-typing__dot"></span>
+      <span class="wui-typing__label">digitando…</span>
+    </div>
+    <div class="doc-note doc-note--inline">
+      Substitui <code>assets/images/typing.gif</code>, <strong>19.296 B</strong> — a única
+      implementação em raster de todo o corpus medido [MEDIDO — 12 §5.6, 15 §A6.3]. Um GIF
+      <strong>não é alcançado por nenhuma media query</strong>: não herda a cor da marca, não tem
+      versão escura e ignora <code>prefers-reduced-motion</code>.<br>
+      Desenho de referência: Octadesk/WhatsApp — 3 pontos de <strong>7&nbsp;px</strong>, gap
+      <strong>4&nbsp;px</strong>, ciclo <strong>1200&nbsp;ms</strong> <code>ease-in-out</code>,
+      stagger <strong>150&nbsp;ms</strong>, <code>translateY(-4px)</code> no pico com opacidade
+      0,5&nbsp;→&nbsp;1, e 40% do ciclo parado (<code>0%, 60%, 100%</code> em repouso;
+      <code>30%</code> no pico) [16 §3.6].
+    </div>
+  </div>
+</section>
+
+<footer class="doc-foot">
+  <p>Task 21 — fundação visual. Arquivos soltos para os demais mockups importarem:
+    <code>plano/redesenho/shared/tokens.css</code> e <code>plano/redesenho/shared/primitivos.css</code>.
+    Regras de uso e a lista completa de tokens em <code>plano/redesenho/shared/LEIA-ME.md</code>.</p>
+  <p>Zero requisição externa: sem CDN, sem webfont, sem imagem remota.</p>
+</footer>
+
+</main>
+
+<!-- copia literal de plano/redesenho/shared/on-brand.js -->
+<script>
+/* =============================================================================
+   ChatSPX — Redesenho do chat de site
+   on-brand.js — a cor do texto sobre a cor da marca (Task 21)
+
+   PARA QUE SERVE
+   O widget deixa o cliente escolher a cor da marca. A cor do texto por cima
+   tem de ser calculada, nunca escolhida: a heurística YIQ que o widget usa
+   hoje (`shared/helpers/colorHelper.js`, limiar 225; `@chatwoot/utils`, limiar
+   186) diverge da WCAG em 11 de 16 cores testadas, e SEMPRE no mesmo sentido —
+   escolhe branco onde o preto teria muito mais contraste [MEDIDO — 13 §3.2].
+   O resultado está em produção: header verde com texto branco = 2,25:1, quando
+   o preto no mesmo verde daria 9,35:1.
+
+   COMO USAR NUM MOCKUP
+     <script src="../shared/on-brand.js"><\/script>
+     <script>
+       // escreve --w-on-brand (e o alias --on-brand) a partir de --brand
+       ChatSPXOnBrand.apply(document.documentElement, '#2dc46f');
+     <\/script>
+
+   Ou, para um escopo qualquer (dois widgets de marcas diferentes na mesma tela):
+     ChatSPXOnBrand.apply(document.querySelector('.demo-inbox-b'), '#0b2545');
+
+   EM PRODUÇÃO quem faz isso é o SERVIDOR, não o navegador: o 16 §2.5.2 prescreve
+   calcular em Ruby e entregar os tokens prontos em
+   `app/views/widgets/show.html.erb` — que já escreve `widgetColor` inline antes
+   de qualquer bundle carregar [FATO — 15 §B7.2] — e mandar ao SDK pelo evento
+   `config-set`, porque o launcher vive fora do iframe. Duplicar a fórmula em
+   Ruby e em JS é risco de divergência; este arquivo é a implementação de
+   referência a ser portada, e a rede de segurança enquanto isso não existe.
+
+   RELAÇÃO COM O FALLBACK EM CSS
+   `tokens.css` §3 traz a mesma fórmula em CSS puro. Ela funciona — medida por
+   pixel renderizado em 8 cores, com o JS desligado — mas depende de duas
+   capacidades do navegador (relative color syntax e `pow()` em `calc()`).
+   Quando faltarem, `--w-on-brand` fica no default `#000000`, e para uma marca
+   ESCURA isso é ilegível. Por isso: escreva o token. Não dependa do fallback.
+   ============================================================================= */
+
+(function (global) {
+  'use strict';
+
+  /* Ponto em que uma cor tem exatamente o mesmo contraste contra branco e
+     contra preto puro [MEDIDO — 13 §3.2.1]. */
+  var LIMIAR = 0.17913;
+
+  function parse(color) {
+    if (Array.isArray(color)) return color;
+    var c = String(color).trim();
+
+    var m = /^#([0-9a-f]{3,8})$/i.exec(c);
+    if (m) {
+      var h = m[1];
+      if (h.length === 3 || h.length === 4) {
+        h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      }
+      return [parseInt(h.slice(0, 2), 16),
+              parseInt(h.slice(2, 4), 16),
+              parseInt(h.slice(4, 6), 16)];
+    }
+
+    m = /^rgba?\(([^)]+)\)$/i.exec(c);
+    if (m) {
+      var p = m[1].split(/[\s,/]+/).filter(Boolean).slice(0, 3).map(Number);
+      if (p.length === 3 && p.every(function (n) { return !isNaN(n); })) return p;
+    }
+
+    /* Qualquer outro formato (oklch, color(), nome CSS): deixa o navegador
+       resolver. Fora do navegador, quem chama passa hex ou rgb. */
+    if (typeof document !== 'undefined') {
+      var el = document.createElement('span');
+      el.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
+      el.style.color = c;
+      document.body.appendChild(el);
+      var computed = getComputedStyle(el).color;
+      document.body.removeChild(el);
+      var q = /(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+(-?[\d.]+)/.exec(computed);
+      if (q) {
+        var scale = computed.indexOf('color(') === 0 ? 255 : 1;
+        return [q[1], q[2], q[3]].map(function (n) {
+          return Math.max(0, Math.min(255, Math.round(parseFloat(n) * scale)));
+        });
+      }
+    }
+    return null;
+  }
+
+  /* WCAG 2.2 — linearização por canal.
+       c_lin = c/12.92                      se c ≤ 0,03928
+       c_lin = ((c + 0,055)/1,055) ^ 2,4    caso contrário  */
+  function linear(channel) {
+    var c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  }
+
+  /* L = 0,2126·R + 0,7152·G + 0,0722·B */
+  function luminance(color) {
+    var rgb = parse(color);
+    if (!rgb) return null;
+    return 0.2126 * linear(rgb[0]) + 0.7152 * linear(rgb[1]) + 0.0722 * linear(rgb[2]);
+  }
+
+  /* (L_claro + 0,05) / (L_escuro + 0,05) */
+  function contrast(a, b) {
+    var la = luminance(a), lb = luminance(b);
+    if (la === null || lb === null) return null;
+    if (la < lb) { var t = la; la = lb; lb = t; }
+    return (la + 0.05) / (lb + 0.05);
+  }
+
+  /* A escolha. Preto PURO, não um cinza-quase-preto: com `#000000` a zona morta
+     (cores em que nenhuma das duas escolhas atinge 4,5:1) é 0,00%; com
+     `#111111` são 3,42% e com `#18181b`, 6,75% das cores RGB possíveis
+     [MEDIDO — 13 §3.2.1, amostra de 200.000 cores]. */
+  function onBrand(brand) {
+    var L = luminance(brand);
+    if (L === null) return '#000000';
+    return L > LIMIAR ? '#000000' : '#ffffff';
+  }
+
+  /* Escreve os tokens no elemento (normalmente `document.documentElement`).
+     Devolve o que foi decidido, para quem quiser exibir ou testar. */
+  function apply(el, brand) {
+    var target = el || document.documentElement;
+    var color  = brand || getComputedStyle(target).getPropertyValue('--brand').trim();
+    var on     = onBrand(color);
+    var r      = contrast(color, on);
+
+    target.style.setProperty('--brand', color);
+    target.style.setProperty('--w-on-brand', on);
+    target.style.setProperty('--on-brand', on);
+
+    return {
+      brand: color,
+      onBrand: on,
+      luminance: luminance(color),
+      contrast: r,
+      passesAA: r !== null && r >= 4.5
+    };
+  }
+
+  /* Alias explícito para o caso ESCOPADO — mais de uma marca na mesma página.
+     Custom property herda o valor COMPUTADO, não a fórmula: `--w-on-brand` é
+     declarado no `:root` e derivado uma vez só, do `--brand` do `:root`. Um
+     descendente que redefina apenas `--brand` herda o resultado de cima e sai
+     errado. [CALIBRADO] Medido por pixel em 10 cores, nos dois temas: 6 de 10
+     erradas nesse caso (todas as escuras saem pretas).
+
+     Duas saídas, e as duas funcionam:
+       1. a classe `.wui-brand-scope` do tokens.css §2.9, se você só quer CSS;
+       2. esta função, se a cor vem de JS.
+
+       ChatSPXOnBrand.setOnBrand(document.querySelector('.inbox-b'), '#0b2545'); */
+  function setOnBrand(el, brand) { return apply(el, brand); }
+
+  var api = {
+    LIMIAR: LIMIAR,
+    luminance: luminance,
+    contrast: contrast,
+    onBrand: onBrand,
+    apply: apply,
+    setOnBrand: setOnBrand
+  };
+
+  if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
+  global.ChatSPXOnBrand = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* ---------------------------------------------------------------------------
+   Página de referência — comportamento.
+   Nada aqui faz parte do sistema: é só instrumentação para exibir e MEDIR.
+
+   O contraste é calculado pela fórmula da WCAG 2.2, a mesma documentada em
+   tokens.css §1.1. A cor é lida do pixel efetivamente pintado (canvas 1×1),
+   não da string CSS — assim o número reflete o que o olho vê, inclusive depois
+   do clipping de gamut que o navegador aplica em `oklch()` fora do sRGB.
+   ------------------------------------------------------------------------ */
+(function () {
+  'use strict';
+
+  var root  = document.documentElement;
+  var probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
+  document.body.appendChild(probe);
+
+  var cv  = document.createElement('canvas'); cv.width = cv.height = 1;
+  var ctx = cv.getContext('2d', { willReadFrequently: true });
+
+  /* string CSS de cor -> [r,g,b] efetivamente pintados.
+
+     `backdrop` importa: vários tokens do tema escuro são translúcidos
+     (`--w-border` é `rgba(255,255,255,.10)`), e a cor que o olho vê é a
+     COMPOSTA sobre o que está atrás. Medir o token cru dá número irreal —
+     `--w-border-strong` sozinho aparece como branco puro e "passaria" com
+     17,89:1, quando composto sobre `--w-surface` ele dá 3,84:1. Por isso todo
+     par é medido com o primeiro composto sobre o segundo. */
+  function toRGB(cssColor, backdrop) {
+    ctx.clearRect(0, 0, 1, 1);
+
+    if (backdrop) {
+      probe.style.color = '';
+      probe.style.color = backdrop;
+      ctx.fillStyle = '#000';
+      ctx.fillStyle = getComputedStyle(probe).color;
+      ctx.fillRect(0, 0, 1, 1);
+    }
+
+    probe.style.color = '';
+    probe.style.color = cssColor;
+    var resolved = getComputedStyle(probe).color;
+    ctx.fillStyle = '#000';
+    ctx.fillStyle = resolved;
+    ctx.fillRect(0, 0, 1, 1);
+
+    var d = ctx.getImageData(0, 0, 1, 1).data;
+    return [d[0], d[1], d[2]];
+  }
+
+  function hex(rgb) {
+    return '#' + rgb.map(function (c) { return ('0' + c.toString(16)).slice(-2); }).join('');
+  }
+
+  /* WCAG 2.2 — linearização por canal */
+  function lin(c) {
+    c = c / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  }
+  /* L = 0,2126·R + 0,7152·G + 0,0722·B */
+  function lum(rgb) {
+    return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+  }
+  function ratio(a, b) {
+    var l1 = lum(a), l2 = lum(b);
+    if (l1 < l2) { var t = l1; l1 = l2; l2 = t; }
+    return (l1 + 0.05) / (l2 + 0.05);
+  }
+  function fmt(n) { return n.toFixed(2).replace('.', ',') + ':1'; }
+
+  /* Todo token é composto sobre a superfície do tema — é assim que ele aparece. */
+  function tokenColor(name, over) {
+    return toRGB('var(' + name + ')', 'var(' + (over || '--w-surface') + ')');
+  }
+  function tokenValue(name) { return getComputedStyle(root).getPropertyValue(name).trim(); }
+
+  /* ---------------------------------------------------------------- tema -- */
+  var toggle = document.getElementById('themeToggle');
+  var label  = document.getElementById('themeLabel');
+
+  function prefersDark() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function applyTheme(dark) {
+    root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    label.textContent = dark ? 'Tema escuro' : 'Tema claro';
+    renderAll();
+  }
+  toggle.addEventListener('change', function () { applyTheme(toggle.checked); });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+    toggle.checked = e.matches; applyTheme(e.matches);
+  });
+
+  /* --------------------------------------------------------------- marca -- */
+  var pick = document.getElementById('brandPick');
+
+  /* ------------------------------------------------------------------------
+     A ESCOLHA DA COR DO TEXTO SOBRE A MARCA — duas vias, mesmo resultado.
+
+     Via 1 (esta função): a fórmula WCAG em JS, escrevendo um valor CONCRETO
+     (#000 ou #fff) no `:root`. É o que EM PRODUÇÃO o servidor faz e entrega
+     pronto no HTML (16 §2.5.2), justamente para não duplicar a fórmula em
+     Ruby e em JS e para não haver flash de cor errada no primeiro paint.
+     Aqui a página faz o papel do servidor, porque não há servidor.
+
+     Via 2 (tokens.css §3): a mesma fórmula em CSS puro, que roda sozinha
+     quando ninguém escreveu o token. Ela funciona — está medida — mas é
+     fallback, não a fonte de verdade.
+
+     `setBrand(cor, usarJS)` permite medir as duas separadamente: com
+     `usarJS=false` a página não escreve nada e quem responde é o CSS.
+     ------------------------------------------------------------------------ */
+  function setBrand(color, useJS) {
+    if (useJS === false) {
+      root.style.setProperty('--brand', color);
+      root.style.removeProperty('--w-on-brand');
+      root.style.removeProperty('--on-brand');
+    } else {
+      /* shared/on-brand.js — a mesma função que os outros mockups importam e
+         que o servidor vai portar para Ruby. */
+      ChatSPXOnBrand.apply(root, color);
+    }
+  }
+
+  pick.addEventListener('input', function () {
+    setBrand(pick.value, true);
+    renderAll();
+  });
+
+  /* As cores que o estudo mediu falhando, mais os casos extremos da tabela
+     de 13 §3.2. Clicar troca a marca e refaz a conta. */
+  var PRESETS = [
+    ['#2dc46f', 'verde do fork'],
+    ['#009ce0', 'inbox de teste'],
+    ['#25d366', 'verde WhatsApp'],
+    ['#1f93ff', 'azul Chatwoot'],
+    ['#007aff', 'azul iOS'],
+    ['#ffcc00', 'amarelo'],
+    ['#ff7a00', 'laranja'],
+    ['#6c2bd9', 'roxo'],
+    ['#e11d48', 'vermelho'],
+    ['#0b2545', 'azul-marinho'],
+    ['#000000', 'preto'],
+    ['#ffffff', 'branco']
+  ];
+
+  (function buildPresets() {
+    var box = document.getElementById('presets');
+    PRESETS.forEach(function (p) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'doc-preset';
+      b.innerHTML = '<span class="doc-preset__sw" style="background:' + p[0] + '"></span>' +
+                    '<span>' + p[0] + '</span><span>' + p[1] + '</span>';
+      b.addEventListener('click', function () {
+        pick.value = p[0];
+        setBrand(p[0], true);
+        renderAll();
+      });
+      box.appendChild(b);
+    });
+  })();
+
+  var BRAND_TOKENS = [
+    ['--w-brand',          'a cor da inbox, crua'],
+    ['--w-on-brand',       'texto sobre a marca — calculado'],
+    ['--w-brand-hover',    'superfície de marca em hover'],
+    ['--w-brand-pressed',  'superfície de marca pressionada'],
+    ['--w-brand-subtle',   'fundo tênue — mistura com a superfície'],
+    ['--w-brand-readable', 'a marca COMO TEXTO (≥ 4,5:1)'],
+    ['--w-brand-border',   'borda, ícone e anel de foco (≥ 3:1)']
+  ];
+
+  function renderBrand() {
+    var brand = tokenColor('--w-brand');
+    var on    = tokenColor('--w-on-brand');
+    var L     = lum(brand);
+    var r     = ratio(brand, on);
+    var white = ratio(brand, [255, 255, 255]);
+    var black = ratio(brand, [0, 0, 0]);
+    var pass  = r >= 4.5;
+
+    document.getElementById('pBrand').textContent = hex(brand);
+    document.getElementById('pOn').textContent    = hex(on) + (hex(on) === '#000000' ? ' (preto)' : ' (branco)');
+    document.getElementById('pLum').textContent   = L.toFixed(4).replace('.', ',');
+    document.getElementById('pRatio').textContent = fmt(r);
+
+    var v = document.getElementById('pVerdict');
+    v.textContent = pass ? 'passa AA (mín. 4,5:1)' : 'REPROVA AA (mín. 4,5:1)';
+    v.className = pass ? 'doc-verdict-ok' : 'doc-verdict-fail';
+
+    document.getElementById('pCompare').innerHTML =
+      'Contra branco: <strong>' + fmt(white) + '</strong> · contra preto: <strong>' + fmt(black) +
+      '</strong>. O limiar <code>L = 0,17913</code> escolheu o vencedor. ' +
+      'A heurística YIQ que o widget usa hoje (limiar 225) escolheria <strong>' +
+      ((0.299 * brand[0] + 0.587 * brand[1] + 0.114 * brand[2]) > 225 ? 'preto' : 'branco') +
+      '</strong> — ' +
+      (((0.299 * brand[0] + 0.587 * brand[1] + 0.114 * brand[2]) > 225) === (L > 0.17913)
+        ? 'aqui as duas concordam.' : '<strong>divergindo da WCAG neste caso.</strong>');
+
+    var grid = document.getElementById('brandTokens');
+    grid.innerHTML = '';
+    var surface = tokenColor('--w-surface');
+    BRAND_TOKENS.forEach(function (t) {
+      var rgb = tokenColor(t[0]);
+      var note = '';
+      if (t[0] === '--w-brand-readable') note = fmt(ratio(rgb, surface)) + ' vs superfície';
+      if (t[0] === '--w-brand-border')   note = fmt(ratio(rgb, surface)) + ' vs superfície';
+      if (t[0] === '--w-on-brand')       note = fmt(r) + ' vs marca';
+      if (t[0] === '--w-brand-hover')    note = fmt(ratio(rgb, on)) + ' vs on-brand';
+      if (t[0] === '--w-brand-pressed')  note = fmt(ratio(rgb, on)) + ' vs on-brand';
+      grid.appendChild(swatch(t[0], hex(rgb), rgb, note || t[1]));
+    });
+  }
+
+  function swatch(name, value, rgb, note) {
+    var el = document.createElement('div');
+    el.className = 'doc-sw';
+    el.innerHTML =
+      '<span class="doc-sw__chip" style="background:rgb(' + rgb.join(',') + ')"></span>' +
+      '<span class="doc-sw__meta"><span class="doc-sw__name">' + name + '</span>' +
+      '<span class="doc-sw__val">' + value + '</span>' +
+      (note ? '<span class="doc-sw__val">' + note + '</span>' : '') + '</span>';
+    return el;
+  }
+
+  /* -------------------------------------------------------------- paleta -- */
+  var PALETTE = [
+    '--w-surface', '--w-surface-sunken', '--w-surface-raised', '--w-surface-overlay',
+    '--w-surface-hover', '--w-surface-active', '--w-surface-inverse', '--w-on-inverse',
+    '--w-text', '--w-text-muted', '--w-text-subtle',
+    '--w-border', '--w-border-strong',
+    '--w-danger', '--w-danger-subtle', '--w-warning', '--w-warning-subtle',
+    '--w-success', '--w-success-subtle', '--w-info', '--w-info-subtle',
+    '--w-skeleton-base', '--w-skeleton-sheen'
+  ];
+
+  /* Pares que o 16 §8.1 exige verificar, com o mínimo de cada um. */
+  var PAIRS = [
+    ['--w-text',           '--w-surface',        4.5, 'texto primário sobre o painel'],
+    ['--w-text',           '--w-surface-sunken', 4.5, 'texto sobre a lista de mensagens'],
+    ['--w-text',           '--w-surface-raised', 4.5, 'texto no balão do agente e no cartão'],
+    ['--w-text-muted',     '--w-surface',        4.5, 'horário, autor, sistema e placeholder — 12px, não é “texto grande”'],
+    ['--w-text-muted',     '--w-surface-sunken', 4.5, 'metadado sobre a lista'],
+    ['--w-text-muted',     '--w-surface-hover',  4.5, 'metadado em linha de tabela sob o ponteiro'],
+    ['--w-on-inverse',     '--w-surface-inverse',4.5, 'tooltip'],
+    ['--w-brand-readable', '--w-surface',        4.5, 'a marca como texto'],
+    ['--w-brand-readable', '--w-brand-subtle',   4.5, 'a marca como texto sobre o fundo tênue'],
+    ['--w-danger',         '--w-surface',        4.5, 'mensagem de erro'],
+    ['--w-on-danger',      '--w-danger',         4.5, 'texto do botão destrutivo'],
+    ['--w-warning',        '--w-surface',        4.5, 'offline / degradado'],
+    ['--w-success',        '--w-surface',        4.5, 'confirmação'],
+    ['--w-info',           '--w-surface',        4.5, 'informativo'],
+    ['--w-text',           '--w-danger-subtle',  4.5, 'texto do banner e do badge de erro'],
+    ['--w-text',           '--w-warning-subtle', 4.5, 'texto do banner de alerta'],
+    ['--w-text',           '--w-success-subtle', 4.5, 'texto do banner de sucesso'],
+    ['--w-text',           '--w-info-subtle',    4.5, 'texto do banner informativo'],
+    ['--w-border-strong',  '--w-surface',        3.0, 'contorno do campo de digitação (SC 1.4.11)'],
+    ['--w-border-strong',  '--w-surface-sunken', 3.0, 'contorno de campo dentro da lista'],
+    ['--w-brand-border',   '--w-surface',        3.0, 'anel de foco e ícone sem rótulo (SC 1.4.11)'],
+    ['--w-danger',         '--w-danger-subtle',  3.0, 'ponto e borda do banner de erro (SC 1.4.11)'],
+    ['--w-warning',        '--w-warning-subtle', 3.0, 'ponto e borda do banner de alerta'],
+    ['--w-success',        '--w-success-subtle', 3.0, 'ponto e borda do banner de sucesso'],
+    ['--w-info',           '--w-info-subtle',    3.0, 'ponto e borda do banner informativo'],
+    ['--w-text-subtle',    '--w-surface',        3.0, 'componente INATIVO — isento do SC 1.4.3, medido mesmo assim'],
+    ['--w-text-subtle',    '--w-surface-hover',  3.0, 'botão e campo desabilitados']
+  ];
+
+
+  function renderPalette() {
+    var grid = document.getElementById('palette');
+    grid.innerHTML = '';
+    PALETTE.forEach(function (n) {
+      var rgb = tokenColor(n);
+      grid.appendChild(swatch(n, hex(rgb), rgb, ''));
+    });
+
+    var tb = document.querySelector('#contrastTable tbody');
+    tb.innerHTML = '';
+    PAIRS.forEach(function (p) {
+      var b = tokenColor(p[1]);
+      var a = tokenColor(p[0], p[1]);   /* composto sobre o próprio fundo do par */
+      var r = ratio(a, b), ok = r >= p[2];
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><code>' + p[0] + '</code> sobre <code>' + p[1] + '</code><br>' +
+        '<span class="doc-sw__val">' + p[3] + '</span></td>' +
+        '<td class="wui-num wui-tabular">' + fmt(r) + '</td>' +
+        '<td class="wui-num wui-tabular">' + p[2].toFixed(1).replace('.', ',') + ':1</td>' +
+        '<td><span class="' + (ok ? 'doc-verdict-ok' : 'doc-verdict-fail') + '">' +
+        (ok ? 'passa' : 'REPROVA') + '</span></td>';
+      tb.appendChild(tr);
+    });
+  }
+
+  /* ---------------------------------------------------------- tipografia -- */
+  var TYPE = [
+    ['--w-text-message',    'A textura de fundo fica, o resto muda.', 'corpo da mensagem'],
+    ['--w-text-message-sm', 'Variante de densidade.',                 'variante'],
+    ['--w-text-title',      'Clara Tozi',                             'nome no header'],
+    ['--w-text-subtitle',   'Costuma responder em alguns minutos',    'status no header'],
+    ['--w-text-input',      'Escreva sua mensagem…',                  'campo — anti-zoom iOS'],
+    ['--w-text-button',     'Quero um orçamento',                     'botão e chip'],
+    ['--w-text-author',     'CLARA TOZI',                             'autor acima do grupo'],
+    ['--w-text-meta',       '14:32 · entregue',                       'horário e recibo'],
+    ['--w-text-system',     'Hoje',                                   'mensagem de sistema'],
+    ['--w-text-branding',   'Desenvolvido por ChatSPX',               'rodapé']
+  ];
+
+  function renderType() {
+    var box = document.getElementById('typeScale');
+    box.innerHTML = '';
+    TYPE.forEach(function (t) {
+      var row = document.createElement('div');
+      row.className = 'doc-type__row';
+      var v = tokenValue(t[0]).replace(/var\(--w-font-sans\)/, 'system-ui');
+      row.innerHTML = '<span class="doc-type__k">' + t[0] + '<br>' + v + '<br>' + t[2] + '</span>' +
+                      '<span style="font:var(' + t[0] + ');letter-spacing:var(--w-tracking)' +
+                      (t[0] === '--w-text-meta' ? ';font-variant-numeric:tabular-nums' : '') +
+                      (/meta|system|branding/.test(t[0]) ? ';color:var(--w-text-muted)' : '') +
+                      '">' + t[1] + '</span>';
+      box.appendChild(row);
+    });
+  }
+
+  /* -------------------------------------------------------- espaço/raios -- */
+  var SPACE  = ['0', '05', '1', '2', '3', '4', '5', '6', '8', '10', '12'];
+  var RADIUS = ['0', '1', '15', '2', '3', '4', '5', 'full'];
+  var RADIUS_USE = {
+    '0': 'painel mobile', '1': 'checkbox', '15': 'avatar', '2': 'botão',
+    '3': 'campo, cartão', '4': 'painel desktop', '5': 'balão', 'full': 'launcher, chip'
+  };
+
+  function renderSpace() {
+    var box = document.getElementById('spaceScale');
+    box.innerHTML = '';
+    SPACE.forEach(function (s) {
+      var name = '--w-space-' + s;
+      var val = tokenValue(name) || '0';
+      var row = document.createElement('div');
+      row.className = 'doc-space__row';
+      row.innerHTML = '<span class="doc-space__k">' + name + '</span>' +
+                      '<span class="doc-space__v">' + val + '</span>' +
+                      '<span class="doc-space__bar" style="width:' + (val === '0' ? '1px' : val) + '"></span>';
+      box.appendChild(row);
+    });
+
+    var rbox = document.getElementById('radiusScale');
+    rbox.innerHTML = '';
+    RADIUS.forEach(function (s) {
+      var name = '--w-radius-' + s;
+      var el = document.createElement('div');
+      el.className = 'doc-radius__i';
+      el.innerHTML = '<span class="doc-radius__box" style="border-radius:var(' + name + ')"></span>' +
+                     '<span class="doc-radius__k">' + name + '<br>' + tokenValue(name) +
+                     '<br>' + RADIUS_USE[s] + '</span>';
+      rbox.appendChild(el);
+    });
+
+    var ebox = document.getElementById('elevScale');
+    ebox.innerHTML = '';
+    ['0', '1', '2', '3'].forEach(function (n) {
+      var el = document.createElement('div');
+      var shadow = tokenValue('--w-elev-' + n);
+      el.innerHTML = '<div class="doc-elev__box" style="box-shadow:var(--w-elev-' + n +
+                     '), var(--w-elev-' + n + '-ring)">elev-' + n + '</div>' +
+                     '<span class="doc-elev__k">' + (shadow === 'none' ? 'sombra desligada — anel de 1px'
+                                                                       : 'sombra ativa') + '</span>';
+      ebox.appendChild(el);
+    });
+  }
+
+  /* ------------------------------------------------------------ movimento -- */
+  var MOTION = [
+    ['--w-dur-panel-in',       '--w-ease-enter',    'painel abre (transform)'],
+    ['--w-dur-panel-in-opacity','--w-ease-standard','painel abre (opacidade) — desacoplado'],
+    ['--w-dur-panel-out',      '--w-ease-exit',     'painel fecha'],
+    ['--w-dur-launcher-hover', '--w-ease-standard', 'launcher hover — scale(1.1)'],
+    ['--w-dur-launcher-press', '--w-ease-press',    'launcher press — scale(0.94)'],
+    ['--w-dur-icon-swap',      '--w-ease-standard', 'troca de ícone — cross-fade'],
+    ['--w-dur-message-in',     '--w-ease-standard', 'mensagem entra'],
+    ['--w-dur-teaser-in',      '--w-ease-enter',    'teaser entra'],
+    ['--w-dur-chip',           '--w-ease-standard', 'chip'],
+    ['--w-dur-focus',          '--w-ease-standard', 'foco do composer'],
+    ['--w-dur-typing',         'ease-in-out',       'ciclo do indicador de digitando'],
+    ['--w-dur-spinner',        'linear',            'spinner — rotação contínua']
+  ];
+
+  function renderMotion() {
+    var box = document.getElementById('motionScale');
+    box.innerHTML = '';
+    MOTION.forEach(function (m) {
+      var dur  = tokenValue(m[0]);
+      var ease = m[1].indexOf('--') === 0 ? tokenValue(m[1]) : m[1];
+      var row = document.createElement('div');
+      row.className = 'doc-motion__row';
+      row.innerHTML = '<span class="doc-motion__k">' + m[0] + '<br>' + m[2] + '</span>' +
+                      '<span class="doc-motion__v">' + dur + '</span>' +
+                      '<span class="doc-motion__track"><span class="doc-motion__dot" style="--dur:' +
+                      dur + ';--ease:' + ease + '"></span></span>';
+      box.appendChild(row);
+    });
+
+    var rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById('rmState').textContent = rm
+      ? 'Este navegador está com reduced-motion LIGADO: as durações acima já vieram zeradas do token.'
+      : 'Este navegador está com reduced-motion desligado; as durações acima são as de projeto.';
+  }
+
+  /* ------------------------------------------------------------------------ */
+  function renderAll() {
+    renderBrand();
+    renderPalette();
+    renderType();
+    renderSpace();
+    renderMotion();
+  }
+
+  /* Só agora: todas as tabelas de dados acima já existem. */
+  toggle.checked = prefersDark();
+  setBrand(pick.value, true);
+  applyTheme(toggle.checked);
+
+  /* Exposto para a validação automatizada (Playwright) medir os mesmos números
+     que a página mostra, sem reimplementar a fórmula do lado de fora. */
+  window.__wui = {
+    ratio:    function (a, b) { return ratio(toRGB(a, b), toRGB(b, 'var(--w-surface)')); },
+    color:    function (v) { return hex(toRGB(v, 'var(--w-surface)')); },
+    lum:      function (v) { return lum(toRGB(v, 'var(--w-surface)')); },
+    setBrand: setBrand,
+    /* a resposta certa, calculada aqui, para o teste comparar com a do sistema */
+    expected: function (c) { return ChatSPXOnBrand.onBrand(c); },
+    render:   renderAll
+  };
+})();
+
+</script>
+</body>
+</html>

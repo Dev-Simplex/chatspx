@@ -234,7 +234,7 @@ RSpec.describe 'Api::V1::Accounts::Captain::Documents', type: :request do
 
           expect(response).to have_http_status(:unprocessable_entity)
           expect(json_response[:code]).to eq('captain_api_key_missing')
-          expect(json_response[:message]).to eq(I18n.t('captain.errors.missing_api_key'))
+          expect(json_response[:message]).to eq(I18n.t('captain.errors.missing_api_key', locale: account.locale))
         end
       end
 

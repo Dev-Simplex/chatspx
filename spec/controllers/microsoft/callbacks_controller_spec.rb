@@ -7,13 +7,18 @@ RSpec.describe 'Microsoft::CallbacksController', type: :request do
   let(:state) { account.to_sgid(expires_in: 15.minutes).to_s }
 
   describe 'GET /microsoft/callback' do
+    # `JWT.encode(payload, false)` era a forma ANTIGA de emitir token sem assinatura. No
+    # jwt 2.10.3 a chave passa por `ensure_valid_key!` e qualquer coisa que nao seja String
+    # levanta `HMAC key expected to be a String` — antes mesmo de a requisicao acontecer.
+    # O algoritmo 'none' explicito e a forma atual, e e o que o codigo aceita:
+    # `oauth_callback_controller.rb:80` faz `JWT.decode(id_token, nil, false)`, sem verificar.
     let(:response_body_success) do
-      { id_token: JWT.encode({ email: email, name: 'test' }, false), access_token: SecureRandom.hex(10), token_type: 'Bearer',
+      { id_token: JWT.encode({ email: email, name: 'test' }, nil, 'none'), access_token: SecureRandom.hex(10), token_type: 'Bearer',
         refresh_token: SecureRandom.hex(10) }
     end
 
     let(:response_body_success_without_name) do
-      { id_token: JWT.encode({ email: email }, false), access_token: SecureRandom.hex(10), token_type: 'Bearer',
+      { id_token: JWT.encode({ email: email }, nil, 'none'), access_token: SecureRandom.hex(10), token_type: 'Bearer',
         refresh_token: SecureRandom.hex(10) }
     end
 

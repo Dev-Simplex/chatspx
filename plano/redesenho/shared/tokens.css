@@ -1,0 +1,1179 @@
+/* =============================================================================
+   ChatSPX — Redesenho do chat de site
+   tokens.css — a fundação do sistema visual (Task 21)
+
+   Origem de cada número: `plano/estudo-chat-web/frontend/16-spec-redesenho.md`
+   §2 (sistema visual) e §4 (movimento), complementado por 13 (WCAG, escalas),
+   12 (durações medidas) e 11 (medidas dos 14 concorrentes).
+
+   Marcação usada nos comentários:
+     [FATO]        verificável em fonte primária citada
+     [MEDIDO]      medição do estudo, com o relatório de origem
+     [CALIBRADO]   medição feita NESTA task (Chromium 145, script Playwright)
+     [DECISÃO]     escolha desta fundação, com a razão ao lado
+     [DIVERGÊNCIA] contraria o estudo; a medição que sustenta vem junto
+
+   REGRA DE USO — vale para todos os mockups:
+     1. Nunca escreva cor literal. Toda cor sai de token.
+     2. Nunca escreva medida literal. Espaço, raio, duração e tamanho saem de token.
+     3. A cor da marca do cliente entra por UM ponto só: `--brand`.
+        Todo o resto é derivado — nunca digitado.
+
+   Estrutura de tema (obrigatória, não mexer):
+     :root, .wui-theme-light                        → tema claro COMPLETO
+     @media (prefers-color-scheme:dark)
+        :root:not([data-theme="light"]):not(.wui-theme-light)
+                                                    → redefine SÓ os tokens
+     :root[data-theme="dark"], .wui-theme-dark      → redefine de novo (toggle vence)
+   Nenhuma cor é declarada apenas dentro de media query ou de [data-theme].
+
+   As duas CLASSES de tema (`.wui-theme-light` / `.wui-theme-dark`) carregam
+   exatamente as mesmas declarações dos seletores de raiz ao lado — mesma lista,
+   mesmo bloco, zero duplicação de texto. Existem para escopo: um preview que
+   mostra o tema oposto ao da página não precisa (e não pode) copiar o bloco de
+   tema. Ver §2.8.
+   ============================================================================= */
+
+
+/* -----------------------------------------------------------------------------
+   0. ENTRADA ÚNICA DA MARCA
+   -----------------------------------------------------------------------------
+   `--brand` é o único ponto de entrada do sistema. Em produção ele é escrito
+   pelo servidor (16 §2.5.2: `app/views/widgets/show.html.erb` já escreve
+   `window.chatwootWebChannel.widgetColor` inline antes de qualquer bundle
+   carregar [FATO — 15 §B7.2]), o que também elimina o flash de cor errada
+   entre o primeiro paint e o `mounted()`.
+
+   O default abaixo é o verde do fork (`#2DC46F`, literal hoje em
+   `theme/colors.js:123` [MEDIDO — 15 §A3.3]) de propósito: é o caso que o
+   estudo mediu falhando (header verde + texto branco). Com esta fundação, o
+   mesmo verde entrega texto PRETO sem ninguém decidir nada.
+
+   [DIVERGÊNCIA pequena, de aritmética] O 16 §1 P2 registra L(#2DC46F) = 0,4176,
+   2,25:1 com branco e 9,35:1 com preto. Recalculado e medido aqui:
+   **L = 0,4119 · 2,27:1 com branco · 9,24:1 com preto** [CALIBRADO]. O valor
+   desta fundação é o que bate com a medição em browser do 15 §A5.4, que deu
+   2,27:1 para o mesmo par. A conclusão do estudo não muda em nada — o branco
+   reprova AA e o preto passa com folga —, só os dois decimais.
+   -------------------------------------------------------------------------- */
+
+@property --brand {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2dc46f;
+}
+
+:root {
+  --brand: #2dc46f;
+}
+
+
+/* =============================================================================
+   1. TEMA CLARO — COMPLETO
+   -----------------------------------------------------------------------------
+   `.wui-theme-light` entra no MESMO seletor, não numa cópia: é o único jeito de
+   a classe não dessincronizar do `:root`. Ver §2.8 para o porquê da classe.
+   ============================================================================= */
+
+:root,
+.wui-theme-light {
+
+  /* ---------------------------------------------------------------------------
+     1.1 CÁLCULO DE CONTRASTE — luminância relativa da WCAG, em CSS puro
+     ---------------------------------------------------------------------------
+     O widget usa hoje a heurística YIQ (limiar 186 em `@chatwoot/utils`,
+     limiar 225 em `shared/helpers/colorHelper.js`). Ela DIVERGE da WCAG em
+     11 de 16 cores de marca testadas, e sempre no mesmo sentido: escolhe branco
+     onde o preto teria muito mais contraste [MEDIDO — 13 §3.2].
+     Pior caso da amostra: `#25d366` (verde WhatsApp) com texto branco = 1,98:1,
+     quando o preto no mesmo fundo daria 10,59:1.
+
+     A FÓRMULA CORRETA (WCAG 2.2, SC 1.4.3):
+
+       Para cada canal C ∈ {R,G,B}, com c = C/255:
+         c_lin = c / 12.92                     se c ≤ 0,03928
+         c_lin = ((c + 0,055) / 1,055) ^ 2,4   caso contrário
+
+       Luminância relativa:
+         L = 0,2126·R_lin + 0,7152·G_lin + 0,0722·B_lin
+
+       Razão de contraste entre duas cores:
+         (L_claro + 0,05) / (L_escuro + 0,05)
+
+       LIMIAR DE DECISÃO — L = 0,17913
+         É o ponto em que uma cor tem exatamente o mesmo contraste contra
+         branco e contra preto puro [MEDIDO — 13 §3.2.1].
+         L  > 0,17913  → texto PRETO
+         L ≤ 0,17913  → texto BRANCO
+
+     POR QUE PRETO PURO, E NÃO UM CINZA-QUASE-PRETO (regra C3 do 16 §2.5.1):
+       com `#000000` a zona morta (cores em que NENHUMA das duas escolhas atinge
+       4,5:1) é 0,00%. Com `#111111` são 3,42% das cores RGB; com `#18181b`
+       (zinc-900), 6,75% [MEDIDO — 13 §3.2.1, amostra de 200.000 cores].
+
+     A IMPLEMENTAÇÃO ABAIXO é a fórmula acima, exata, incluindo o ramo linear
+     (c ≤ 0,03928), escrita com `relative color syntax` + `pow()`. Os fragmentos
+     `--w-_*` são PRIVADOS: só resolvem dentro de `rgb(from …)`, porque é lá que
+     os canais `r`, `g` e `b` existem. Usar `var(--w-_lum)` fora disso é inválido
+     — e `getComputedStyle(:root).getPropertyValue('--w-on-brand')` devolve a
+     STRING literal, não a cor, porque custom property não registrada não é
+     computada. Isso não é defeito: medir por essa via dá falso negativo.
+
+     [CALIBRADO] Medido pelo PIXEL RENDERIZADO, que não depende de como se lê o
+     CSS: só o tokens.css carregado, zero JavaScript escrevendo o token, um bloco
+     com `background: var(--w-brand)` e `color: var(--w-on-brand)`, screenshot e
+     leitura do pixel do glifo. Chromium 145, 8 cores — `#0b2545`, `#7c2d12`,
+     `#050505` (exercita o ramo linear), `#e11d48`, `#f5d90a`, `#a7f3d0`,
+     `#2dc46f` e `#009ce0`: 8 de 8 iguais à escolha da WCAG.
+
+     A CONDIÇÃO, dita por inteiro: o cálculo acerta quando `--brand` está no
+     ESCOPO EM QUE `--w-on-brand` É DECLARADO — o `:root`, ou um elemento com a
+     classe `.wui-brand-scope` (§2.9). Num descendente comum que só redefina
+     `--brand`, o token herdado já vem calculado do `:root` e não re-deriva.
+
+     MESMO ASSIM, NÃO DEPENDA DISTO. Isto é fallback, não fonte de verdade: o
+     cálculo exige relative color syntax E `pow()` em `calc()`. Faltando um dos
+     dois, o token fica no default `#000000` — e para uma marca ESCURA isso é
+     ilegível. Quem escreve o token é o servidor (em produção) ou
+     `shared/on-brand.js` (nos mockups).
+     ------------------------------------------------------------------------ */
+
+  --w-_lin-r: calc(
+      clamp(0, (0.03928 - r/255) * 1e6, 1)  * (r/255/12.92)
+    + (1 - clamp(0, (0.03928 - r/255) * 1e6, 1)) * pow((r/255 + 0.055)/1.055, 2.4));
+  --w-_lin-g: calc(
+      clamp(0, (0.03928 - g/255) * 1e6, 1)  * (g/255/12.92)
+    + (1 - clamp(0, (0.03928 - g/255) * 1e6, 1)) * pow((g/255 + 0.055)/1.055, 2.4));
+  --w-_lin-b: calc(
+      clamp(0, (0.03928 - b/255) * 1e6, 1)  * (b/255/12.92)
+    + (1 - clamp(0, (0.03928 - b/255) * 1e6, 1)) * pow((b/255 + 0.055)/1.055, 2.4));
+
+  /* L = 0,2126·R + 0,7152·G + 0,0722·B */
+  --w-_lum: calc(0.2126 * var(--w-_lin-r)
+                + 0.7152 * var(--w-_lin-g)
+                + 0.0722 * var(--w-_lin-b));
+
+  /* 255 quando L ≤ 0,17913 (texto branco); 0 quando L > 0,17913 (texto preto).
+     O fator 1e6 transforma a comparação num degrau: o clamp satura em 0 ou 1
+     para qualquer diferença maior que 1e-6. */
+  --w-_on: calc(255 * clamp(0, (0.17913 - var(--w-_lum)) * 1e6, 1));
+  /* O complemento: branco quando o texto é preto, preto quando o texto é branco.
+     Usado como direção segura de deslocamento nos estados (§1.3). */
+  --w-_on-inv: calc(255 - var(--w-_on));
+
+  /* ---------------------------------------------------------------------------
+     1.2 MARCA — sete tokens, todos derivados de `--brand` (16 §2.5.2)
+     ------------------------------------------------------------------------ */
+
+  --w-brand: var(--brand);
+
+  /* Default seguro: preto puro nunca deixa o token indefinido. O bloco
+     `@supports` no fim do arquivo substitui pelo cálculo WCAG quando o
+     navegador suporta relative color syntax + pow(); em produção o servidor
+     sobrescreve com o valor já calculado. Três camadas, mesma resposta. */
+  --w-on-brand: #000000;
+
+  /* Estados. [DIVERGÊNCIA — 16 §2.5.2 diz "escurece se clara, clareia se escura",
+     que é a direção do state layer do Material 3 (sobrepor `on-primary` a 8%
+     sobre `primary` [FATO — 13 §1.1, `_md-sys-state.scss`]). Medido aqui, essa
+     direção quebra o contraste:
+
+       mistura de 8%  rumo ao texto (hover):   16,3% das cores caem abaixo de 4,5:1
+       mistura de 14% rumo ao texto (pressed): 30,9% caem abaixo de 4,5:1
+       cor crua × on-brand (linha de base):     0,0% abaixo — mínimo 4,58:1
+       [CALIBRADO — 2.018 cores (18 fixas do 13 §3.2 + 2.000 aleatórias, seed 42),
+        Chromium 145, contraste calculado pela fórmula WCAG]
+
+     Casos concretos: `#007aff` sai de 5,23:1 para 4,31:1 no hover e 3,71:1 no
+     pressed; `#e11d48` cai para 4,06:1 e 3,65:1.
+
+     O M3 escapa disso porque a paleta dele é gerada — `primary` tem tom fixo
+     (40 no claro, 80 no escuro) e sobra folga. Aqui a cor é arbitrária: é o
+     cliente que escolhe. A regra do mercado não se aplica ao nosso caso.
+
+     DECISÃO: deslocar na direção OPOSTA ao texto (afasta, não aproxima).
+     Medido: 0 reprovações em 2.018 cores; mínimo 5,30:1 no hover e 5,88:1 no
+     pressed. A sensação de "afundar" no pressed vem do movimento e da sombra
+     interna (ver primitivos.css), não da cor — que é o único canal que não
+     pode ser gasto aqui sem quebrar SC 1.4.3.
+
+     `color-mix` em oklab, nunca `opacity`: opacidade sobre a marca muda a
+     luminância e invalida o cálculo feito para a cor cheia (regra C10). ] */
+  --w-brand-hover:   color-mix(in oklab, var(--w-brand),
+                       rgb(from var(--w-brand) var(--w-_on-inv) var(--w-_on-inv) var(--w-_on-inv)) 8%);
+  --w-brand-pressed: color-mix(in oklab, var(--w-brand),
+                       rgb(from var(--w-brand) var(--w-_on-inv) var(--w-_on-inv) var(--w-_on-inv)) 14%);
+  /* alias — 16 §2.5.2 chama este estado de `--w-brand-active` */
+  --w-brand-active: var(--w-brand-pressed);
+
+  /* Fundo tênue: mistura com a superfície, 10% de peso. Muda sozinho no tema
+     escuro porque `--w-surface` muda (16 §2.5.2). Mistura, não `opacity` (C10). */
+  --w-brand-subtle: color-mix(in oklab, var(--w-brand) 10%, var(--w-surface));
+  /* Texto sobre `--w-brand-subtle`: a superfície domina, então é o texto normal. */
+  --w-on-brand-subtle: var(--w-text);
+
+  /* A marca COMO TEXTO sobre a superfície — token diferente da marca como
+     preenchimento (regra C4, 16 §2.5.1). Precisa de ≥ 4,5:1 (SC 1.4.3).
+     [CALIBRADO] `oklch(from … min(l, 0,515) c h)` contra `#FFFFFF`:
+     2.023/2.023 cores ≥ 4,5:1, mínimo medido 4,587:1. Em l = 0,52 já reprova 1.
+     Uso 0,51 por margem. Preserva croma e matiz — só a luminosidade é limitada. */
+  --w-_readable-l: min(l, 0.51);
+  --w-brand-readable: oklch(from var(--w-brand) var(--w-_readable-l) c h);
+
+  /* A marca como BORDA / anel de foco / ícone sem rótulo: ≥ 3:1 (SC 1.4.11).
+     [CALIBRADO] `min(l, 0,625)` contra `#FFFFFF`: 2.023/2.023 ≥ 3:1, mínimo
+     3,010:1; em 0,63 reprovam 3. Uso 0,62 por margem. */
+  --w-_border-l: min(l, 0.62);
+  --w-brand-border: oklch(from var(--w-brand) var(--w-_border-l) c h);
+
+  --w-focus-ring: var(--w-brand-border);   /* 16 §2.5.3 */
+
+  /* ---------------------------------------------------------------------------
+     1.3 SUPERFÍCIES E TEXTO — tema claro (16 §2.5.3)
+     Ancorados nos valores que o widget JÁ computa hoje [MEDIDO — 15 §A6.3,
+     11 §A16], para que a migração seja rastreável em vez de inventada.
+     ------------------------------------------------------------------------ */
+
+  --w-surface:         #ffffff;   /* painel, header, composer */
+  --w-surface-sunken:  #f3f4f6;   /* fundo da lista de mensagens (16 §2.5.5) */
+  --w-surface-raised:  #ffffff;   /* cartão, teaser, balão do agente */
+
+  /* [DECISÃO desta task — 16 §2.5.3 cobre o widget; as 4 telas de configuração
+     do dashboard precisam de mais superfícies. Cada uma abaixo é extensão
+     declarada, não valor do estudo.] */
+  --w-surface-overlay: #ffffff;   /* popover, menu, tooltip claro */
+  --w-surface-hover:   #f3f4f6;   /* state layer de linha de tabela / item de lista */
+  --w-surface-active:  #e9eaee;   /* mesma coisa, pressionado */
+  --w-surface-inverse: #1c2024;   /* tooltip escuro sobre fundo claro */
+  --w-on-inverse:      #ffffff;
+
+  /* [CRIADO NA TASK 42 — lacuna registrada na auditoria 32 §7 e no m8: não havia
+     token de scrim, e o `<dialog>` do mockup 20 pintava `rgba(0,0,0,.5)` à mão.
+     O scrim é preto NOS DOIS TEMAS: ele escurece o que está atrás, e no escuro
+     precisa de um pouco mais de corpo porque a superfície já é escura.] */
+  --w-scrim: rgb(0 0 0 / 0.50);
+
+  --w-text:        #1c2024;   /* medido hoje — 14,5:1 contra branco, AAA */
+  --w-text-muted:  #60646c;   /* medido hoje — 5,3:1, AA. É a linha que mais se
+                                 erra em widget: o 06 §8.2 registra timestamps e
+                                 status "quase sempre abaixo de 4,5:1" */
+  /* [DECISÃO desta task] Só para COMPONENTE INATIVO (botão e campo desabilitados).
+     A WCAG isenta esse caso do SC 1.4.3 ("Incidental — texto que faz parte de um
+     componente de interface inativo"), mas ainda assim medimos: 4,13:1 contra
+     `--w-surface`. Placeholder NÃO usa este token — placeholder é texto ativo e
+     usa `--w-text-muted` (5,3:1). */
+  --w-text-subtle: #797d86;
+
+  /* [DIVERGÊNCIA — 16 §2.5.3 prescreve `--w-border: #E4E5E8` para "borda de input,
+     divisor" e `--w-border-strong: #C9CBCF` para `prefers-contrast: more`. Medido:
+     #E4E5E8 dá 1,28:1 e #C9CBCF dá 1,62:1 contra `#FFFFFF` — os dois reprovam o
+     SC 1.4.11 (3:1) que a PRÓPRIA §8.1 do 16 exige para "borda do campo de
+     digitação". A spec se contradiz aqui.
+     Resolvido separando os dois papéis, que são requisitos diferentes:
+       --w-border         divisor DECORATIVO — sem requisito de contraste
+       --w-border-strong  contorno de CONTROLE — ≥ 3:1, obrigatório
+     [CALIBRADO] #898C93 = 3,37:1 contra `--w-surface` e 3,06:1 contra
+     `--w-surface-sunken` (o pior caso: campo dentro da lista de mensagens). ] */
+  --w-border:        #e4e5e8;
+  --w-border-strong: #898c93;
+
+  /* Cores semânticas. Papéis, não cores soltas (13 §3.6). Cada uma vem com o
+     par `-subtle` (fundo de faixa) e o `on-` correspondente. */
+  --w-danger:         #d32f2f;   /* 5,0:1 contra branco [16 §2.5.3] */
+  /* Convenção X / on-X (13 §3.6): cada cor de preenchimento tem, no sistema, a
+     cor de texto que combina com ela — o par já validado. Não existe "escolher
+     a cor do texto" em tempo de design. */
+  --w-on-danger:      #ffffff;
+  --w-danger-subtle:  #fdecec;
+  --w-warning:        #b25e00;   /* 4,8:1 */
+  --w-warning-subtle: #fdf3e7;   /* [DECISÃO desta task] */
+  --w-success:        #0f7a52;   /* 4,9:1 */
+  --w-success-subtle: #e7f6ef;   /* [DECISÃO desta task] */
+  --w-info:           #1a6fd4;   /* [DECISÃO desta task] — banner informativo */
+  --w-info-subtle:    #e8f1fd;
+
+  /* Skeleton. No claro, base cinza e brilho branco. */
+  --w-skeleton-base:  #e9eaee;
+  --w-skeleton-sheen: rgba(255, 255, 255, 0.65);
+
+  /* ---------------------------------------------------------------------------
+     1.4 ELEVAÇÃO (16 §2.4)
+     ---------------------------------------------------------------------------
+     No tema escuro a sombra NÃO escurece: ela é substituída por superfície mais
+     clara + borda de 1px. Sombra preta sobre fundo escuro não separa nada — o
+     Polaris redefine `--p-shadow-100` como `none` no dark [FATO — 13 §1.1].
+
+     Por isso cada nível tem DOIS tokens: a sombra e o anel. Os primitivos
+     aplicam sempre os dois — `box-shadow: var(--w-elev-1), var(--w-elev-1-ring)`
+     — e é o tema que decide qual dos dois carrega a informação.
+
+     Nossa sombra atual (`0 4px 6px rgba(50,50,93,.08), 0 1px 3px rgba(0,0,0,.05)`)
+     é IDÊNTICA nos dois temas [MEDIDO — 15 §A3.5]: calibrada para fundo claro e
+     aplicada também no escuro.
+     ------------------------------------------------------------------------ */
+
+  --w-elev-0: 0 0 0 0 rgba(0, 0, 0, 0);
+  --w-elev-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.10);
+  --w-elev-2: 0 4px 8px -2px rgba(0, 0, 0, 0.14), 0 2px 4px rgba(0, 0, 0, 0.08);
+  --w-elev-3: 0 12px 28px -6px rgba(0, 0, 0, 0.20), 0 4px 8px rgba(0, 0, 0, 0.08);
+
+  --w-elev-0-ring: 0 0 0 0 rgba(0, 0, 0, 0);
+  --w-elev-1-ring: 0 0 0 0 rgba(0, 0, 0, 0);
+  --w-elev-2-ring: 0 0 0 0 rgba(0, 0, 0, 0);
+  --w-elev-3-ring: 0 0 0 0 rgba(0, 0, 0, 0);
+
+  /* Sombra interna do estado pressionado. É o canal que carrega a profundidade
+     do `:active`, porque a direção da COR está travada pela acessibilidade
+     (DIVERGÊNCIA D1, §1.2). Vira token em 12/08/2026: era o único literal de
+     cor fora deste arquivo em toda a fundação — a auditoria 32 §3 o listou
+     nominalmente, em `primitivos.css` `.wui-btn--primary:active`. Igual nos
+     dois temas de propósito: incide sobre a cor da marca, que é a mesma nos
+     dois (§2). */
+  --w-shadow-press-inset: inset 0 2px 4px rgb(0 0 0 / 0.18);
+
+  /* -------------------------------------------------------------------------
+     1.4.1 NENHUM DESTES OITO PODE SER `none` — a regra que faz o par funcionar
+     -------------------------------------------------------------------------
+     [ACHADO NOVO desta task, 12/08/2026. Não está na auditoria 32 — encontrado
+     ao aplicar a prescrição do G3 e medido antes de corrigir.]
+
+     Os primitivos escrevem os dois tokens numa lista só:
+
+         box-shadow: var(--w-elev-1), var(--w-elev-1-ring);
+
+     `box-shadow` NÃO aceita `none` como item de lista. Basta um `none` para a
+     declaração inteira ficar inválida em tempo de valor computado, e o
+     resultado é `box-shadow: none` — os DOIS lados somem, inclusive o anel.
+
+     [CALIBRADO — Chromium 145, `00-sistema-visual.html`, tema escuro] Antes
+     desta correção o tema escuro declarava `--w-elev-1: none`, e a medição do
+     valor computado dava:
+
+         .wui-card         box-shadow: none      ← o anel do escuro NÃO existia
+         .wui-btn--primary box-shadow: none
+         .wui-tip__bubble  box-shadow: none
+         .wui-typing       rgba(255,255,255,.08) 0 0 0 1px inset  ← este sim
+
+     `.wui-typing` era o único de pé porque usa `var(--w-elev-0)`, que é sombra
+     TRANSPARENTE, não `none`. Ou seja: a promessa da §2 e do LEIA-ME §5.3 — "no
+     escuro a sombra é none e o anel de 1px assume" — estava quebrada em todo
+     primitivo que usa os níveis 1, 2 e 3. Prova direta, mesmo navegador:
+
+         var(--a)=none                 , var(--b)=0 0 0 1px CanvasText → none
+         var(--a)=0 0 0 0 rgba(0,0,0,0), var(--b)=0 0 0 1px CanvasText → pinta
+
+     Regra, daqui em diante: **sombra desligada se escreve como sombra
+     transparente** (`0 0 0 0 transparent`), nunca como `none`. Vale para o tema
+     escuro (§2), para `forced-colors` (§4.3) e para qualquer tema futuro.
+     ---------------------------------------------------------------------- */
+
+  /* ---------------------------------------------------------------------------
+     1.5 TIPOGRAFIA (16 §2.1)
+     ---------------------------------------------------------------------------
+     Stack do sistema, sem webfont. O repositório publica 7 arquivos `.woff2` da
+     Inter (773.684 bytes) e declara 7 `@font-face`, mas `theme.fontFamily.sans`
+     não inclui Inter e a família computada no widget já é a stack do sistema —
+     NENHUM arquivo de fonte é baixado hoje [MEDIDO — 15 §B9.4]. Assumir a stack
+     formaliza o que já acontece; o custo de rede continua zero.
+
+     Piso absoluto: 12px para qualquer papel [13 §2.1].
+     Corpo de mensagem: 15px — decisão F1, já tomada (DECISOES.md).
+     Campo de digitação: 16px SEMPRE — abaixo disso o Safari iOS dá zoom.
+     ------------------------------------------------------------------------ */
+
+  --w-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+                 Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  /* [DECISÃO desta task — não consta do 16. Usado em ID de inbox, chave de API e
+     snippet de instalação nas telas de configuração.] */
+  --w-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+                 'Liberation Mono', monospace;
+
+  /* Papéis: tamanho / entrelinha / peso, atômicos … */
+  --w-font-size-message:    15px;  --w-line-height-message:    22px;  --w-font-weight-message:    400;
+  --w-font-size-message-sm: 14px;  --w-line-height-message-sm: 21px;  --w-font-weight-message-sm: 400;
+  --w-font-size-author:     12px;  --w-line-height-author:     16px;  --w-font-weight-author:     500;
+  --w-font-size-meta:       12px;  --w-line-height-meta:       16px;  --w-font-weight-meta:       400;
+  --w-font-size-system:     12px;  --w-line-height-system:     16px;  --w-font-weight-system:     400;
+  --w-font-size-input:      16px;  --w-line-height-input:      24px;  --w-font-weight-input:      400;
+  --w-font-size-button:     14px;  --w-line-height-button:     20px;  --w-font-weight-button:     500;
+  --w-font-size-title:      16px;  --w-line-height-title:      24px;  --w-font-weight-title:      600;
+  --w-font-size-subtitle:   13px;  --w-line-height-subtitle:   18px;  --w-font-weight-subtitle:   400;
+  --w-font-size-branding:   12px;  --w-line-height-branding:   16px;  --w-font-weight-branding:   400;
+
+  /* … e o atalho para a shorthand `font:` (peso / tamanho / entrelinha / família) */
+  --w-text-message:    400 15px/22px var(--w-font-sans);
+  --w-text-message-sm: 400 14px/21px var(--w-font-sans);
+  --w-text-author:     500 12px/16px var(--w-font-sans);
+  --w-text-meta:       400 12px/16px var(--w-font-sans);
+  --w-text-system:     400 12px/16px var(--w-font-sans);
+  --w-text-input:      400 16px/24px var(--w-font-sans);
+  --w-text-button:     500 14px/20px var(--w-font-sans);
+  --w-text-title:      600 16px/24px var(--w-font-sans);
+  --w-text-subtitle:   400 13px/18px var(--w-font-sans);
+  --w-text-branding:   400 12px/16px var(--w-font-sans);
+
+  /* -------------------------------------------------------------------------
+     1.5.1 TÍTULOS DAS TELAS DE CONFIGURAÇÃO — trio canônico
+     -------------------------------------------------------------------------
+     [CONTRATO CANÔNICO 12/08/2026 — pós-auditoria 32 §4 e §10 item 8]
+     A auditoria mediu **cinco** tamanhos diferentes de `<h1>` nos nove mockups
+     (16, 18, 20, 22 e 34px) e um `<h1>` de 16px nas telas 20/21 — o mesmo
+     tamanho do `<h2>` da mesma página. A causa é que a fundação nunca deu papel
+     de título de PÁGINA: `--w-text-title` (16/24/600) é título de cartão e de
+     header de widget, e quem precisava de um degrau acima digitou um número.
+
+     Os três papéis abaixo fecham essa lacuna. Os nomes (`--w-fs-*`) e os valores
+     são o contrato: 20/700/1,25 · 15/650 · 13/600.
+
+     [DIVERGÊNCIA de nomenclatura, declarada e NÃO corrigida] O resto do arquivo
+     usa `--w-font-size-*` / `--w-line-height-*` / `--w-font-weight-*`. O contrato
+     fixou `--w-fs-*`, e o contrato vale. Para não criar dois idiomas dentro da
+     mesma seção, cada papel também ganha o atalho `--w-text-*` da shorthand
+     `font:`, que é como todos os outros papéis são consumidos.
+
+     [DIVERGÊNCIA técnica, declarada e NÃO corrigida] Peso **650** não é um dos
+     quatro pesos que a auditoria 32 §4 cobra ({400, 500, 600, 700}) e só rende
+     um traço próprio em fonte variável. Medido nesta task (Chromium 145, stack
+     `system-ui` desta VM): `font-weight: 650` computa 650 e o rasterizador
+     escolhe o corte mais próximo — na prática, o mesmo desenho de 700. O valor
+     do contrato foi mantido; quem quiser um degrau visível entre seção e título
+     de página conta com o TAMANHO (15 contra 20px), não com o peso.
+
+     Entrelinha: 1,25 é o contrato para o título de página (= 25px). Os outros
+     dois usam 1,4 (= 21px e 18,2px), que é o mesmo ritmo dos papéis vizinhos
+     (`--w-text-message-sm` 14/21 e `--w-text-subtitle` 13/18).
+     ---------------------------------------------------------------------- */
+
+  --w-fs-page-title: 20px;  --w-lh-page-title: 1.25;  --w-fw-page-title: 700;
+  --w-fs-section:    15px;  --w-lh-section:    1.4;   --w-fw-section:    650;
+  --w-fs-label:      13px;  --w-lh-label:      1.4;   --w-fw-label:      600;
+
+  --w-text-page-title: var(--w-fw-page-title) var(--w-fs-page-title)/var(--w-lh-page-title) var(--w-font-sans);
+  --w-text-section:    var(--w-fw-section)    var(--w-fs-section)/var(--w-lh-section)       var(--w-font-sans);
+  --w-text-label:      var(--w-fw-label)      var(--w-fs-label)/var(--w-lh-label)           var(--w-font-sans);
+
+  /* `letter-spacing: normal` em TODOS os papéis. Medido: o mercado praticamente
+     não usa — só Crisp (0,15–0,2px) e Intercom (0,072px no timestamp) declaram
+     algo diferente [MEDIDO — 11 §C10]. */
+  --w-tracking: normal;
+
+  /* Horário, contador e recibo. Medido: a Inter usa algarismos proporcionais por
+     padrão e a largura do mesmo horário varia 12,00px — de 23px em "11:11" a
+     35px em "00:00", 52% [MEDIDO — 13 §2.5]. Roboto, Arial e Helvetica não têm o
+     problema, mas a stack não garante qual será usada. */
+  --w-numeric-tabular: tabular-nums;
+
+  /* ---------------------------------------------------------------------------
+     1.6 ESPAÇAMENTO (16 §2.2)
+     ---------------------------------------------------------------------------
+     Escala de 4px com dois degraus finos na faixa baixa. Onze degraus — o
+     suficiente para um painel de 400px [13 §5.8]. Os quatro sistemas de
+     referência convergem exatamente nisso: quem declara "base 8" está
+     descrevendo o ritmo dominante, não a régua real [FATO — 13 §1.1].
+     ------------------------------------------------------------------------ */
+
+  --w-space-0:  0;
+  --w-space-05: 2px;
+  --w-space-1:  4px;
+  --w-space-2:  8px;
+  --w-space-3:  12px;
+  --w-space-4:  16px;
+  --w-space-5:  20px;
+  --w-space-6:  24px;
+  --w-space-8:  32px;
+  --w-space-10: 40px;
+  --w-space-12: 48px;
+
+  /* ---------------------------------------------------------------------------
+     1.7 RAIOS (16 §2.3)
+     O raio é proporcional ao elemento, nunca constante: raio grande em elemento
+     pequeno lê como pill, raio grande em elemento grande lê como cartão
+     [13 §6.5]. É por isso que existe escala e não um valor.
+     ------------------------------------------------------------------------ */
+
+  --w-radius-0:    0;
+  --w-radius-1:    4px;
+  --w-radius-15:   6px;    /* avatar; 3 de 7 concorrentes já abandonaram o círculo
+                              [MEDIDO — 11 §C11] */
+  --w-radius-2:    8px;
+  --w-radius-3:    12px;   /* campo de digitação, cartão [13 §10.3] */
+  --w-radius-4:    16px;   /* painel — mediana exata do mercado [11 §C8] */
+  --w-radius-5:    20px;   /* balão, cantos livres [11 §C9] */
+  --w-radius-full: 9999px; /* launcher (8 de 9 [11 §C3]), chip, botão de enviar */
+
+  /* [CONTRATO CANÔNICO 12/08/2026] Apelido semântico do cartão de seção das
+     telas de configuração. A auditoria 32 §4 mediu DOIS raios de cartão de
+     seção no mesmo conjunto (16px nos mockups 20/21, 12px nos 22/23) e a §9
+     item 3 explica por que 16 está errado ali: 16 é raio de PAINEL pela
+     semântica que o LEIA-ME §5.5 já declarava, e cartão grande com raio de
+     painel lê como janela. O apelido existe para que a próxima tela não precise
+     escolher entre `--w-radius-3` e `--w-radius-4` — escolhe o papel. */
+  --w-radius-lg: var(--w-radius-3);   /* = 12px, cartão de seção */
+
+  /* ---------------------------------------------------------------------------
+     1.8 MOVIMENTO (16 §4.1 e §4.2 — durações medidas no 12)
+     ---------------------------------------------------------------------------
+     Duas curvas e a proibição do `linear` para movimento. Somos o ÚNICO widget
+     do corpus cujo painel se move em `linear` [MEDIDO — 12 §1.3] — um retângulo
+     de 400×640 atravessando 40px em velocidade constante é o que o olho lê como
+     "animação de software", não como objeto.
+
+     `linear` fica permitido APENAS para opacidade pura e rotação contínua
+     (spinner) [12 §A1]. Overshoot não adotamos: só o Intercom usa
+     (`cubic-bezier(0, 1.2, 1, 1)`); todas as outras curvas do corpus desaceleram
+     sem passar do ponto [MEDIDO — 12 §1.3].
+
+     Faixa de trabalho: 80–300ms para tudo que é interação. É onde o mercado
+     inteiro está, com duas exceções (Leadster 500ms, LiveChat 430ms) [12 §1.3].
+     ------------------------------------------------------------------------ */
+
+  --w-ease-standard: cubic-bezier(0.2, 0, 0, 1);       /* M3 easing-standard */
+  --w-ease-enter:    cubic-bezier(0.05, 0.7, 0.1, 1);  /* M3 emphasized-decelerate */
+  --w-ease-exit:     cubic-bezier(0.3, 0, 0.8, 0.15);  /* M3 emphasized-accelerate */
+  --w-ease-press:    cubic-bezier(0.45, 0, 0.2, 1);    /* 12 §3.2 */
+
+  /* Genéricos (M3 short1…short4) — para o que não tem linha própria na tabela */
+  --w-dur-1: 50ms;
+  --w-dur-2: 100ms;
+  --w-dur-3: 150ms;
+  --w-dur-4: 200ms;
+
+  /* Por interação — 16 §4.2, todas medidas no 12 */
+  --w-dur-panel-in:          300ms;   /* Intercom: 300ms + origem no launcher */
+  --w-dur-panel-in-opacity:   80ms;   /* DESACOPLADO do transform (Intercom: 83
+                                         contra 300). Hoje fazemos 200 contra
+                                         250 — praticamente juntos, o que deixa
+                                         meio painel fantasma [12 §A2] */
+  --w-dur-panel-out:         200ms;
+  --w-dur-panel-out-opacity: 120ms;
+  --w-dur-launcher-hover:    150ms;   /* scale(1.1) */
+  --w-dur-launcher-press:    120ms;   /* scale(0.94) */
+  --w-dur-icon-swap:         150ms;   /* cross-fade — hoje giramos rotate(-30deg)
+                                         e ninguém mais gira [12 §15] */
+  --w-dur-message-in:        200ms;
+  --w-dur-message-out:       150ms;
+  --w-dur-typing:           1200ms;   /* ciclo do indicador de digitando */
+  --w-dur-typing-stagger:    150ms;   /* defasagem entre os 3 pontos */
+  --w-dur-teaser-in:         250ms;
+  --w-dur-teaser-out:        200ms;
+  --w-dur-chip:              100ms;
+  --w-dur-focus:             100ms;   /* Intercom anima outline-width em 100ms */
+  --w-dur-status:            200ms;   /* faixa offline / reconectando */
+  --w-dur-scroll-btn:        150ms;
+  --w-dur-skeleton:         1200ms;   /* shimmer, só depois de 600ms de espera */
+  --w-dur-spinner:           600ms;   /* rotação contínua — igual ao Intercom */
+
+  /* Atraso antes de mostrar skeleton: abaixo disso o carregamento não é
+     percebido e o shimmer só pisca [12 §9] */
+  --w-delay-skeleton: 600ms;
+
+  /* ---------------------------------------------------------------------------
+     1.9 DIMENSÕES E CAMADAS (16 §2.7)
+     Doze medidas nossas já coincidem com a mediana ou a moda do mercado
+     [MEDIDO — 11 rec.1]. O redesenho NÃO recomeça da geometria (princípio P3).
+     ------------------------------------------------------------------------ */
+
+  --w-launcher-size: 64px;                          /* faixa medida 54–65 [11 §C1] */
+  --w-panel-width:   400px;                         /* a moda exata [11 §C7] */
+  --w-panel-height:  min(640px, calc(100dvh - 104px));  /* mediana 632 [11 §C7] */
+  --w-panel-min-height: 320px;                      /* hoje é 250, que não cabe
+                                                       header + 1 balão + composer */
+  --w-offset-x: 20px;                               /* valor mais repetido, 5 de 9 */
+  --w-offset-y: 104px;
+
+  --w-header-height: 56px;
+  --w-composer-min-height: 96px;
+
+  /* [CONTRATO CANÔNICO 12/08/2026] Largura útil das telas de configuração.
+     A auditoria 32 §4 mediu TRÊS (1120, 1200 e 1280px) em arquivos do mesmo
+     conjunto — §9 item 4: "não é perceptível numa tela; é gritante numa
+     apresentação em sequência". Fica um só, e vem de token. */
+  --w-content-max: 1200px;
+
+  /* Alvo de toque. 24×24 é o mínimo AA (SC 2.5.8); 44×44 é AAA (SC 2.5.5) e é o
+     que a §8.3 do 16 exige no viewport mobile. A Apple NÃO exige 44: publica
+     44 como *default* e 28 como *minimum* [FATO — 13 §1.1]. */
+  --w-touch-min:    24px;
+  --w-touch-mobile: 44px;
+
+  /* Espaçamento mínimo entre alvos — exceção "Spacing" do SC 2.5.8 e
+     recomendação do M3 (≥ 8dp) [13 §4.1] */
+  --w-touch-gap: 8px;
+
+  /* Empatado com o Intercom; teto prático sem entrar na guerra do int32 [11 §C17] */
+  --w-z-panel:    2147483000;
+  --w-z-launcher: 2147483000;
+  --w-z-teaser:   2147482999;
+
+  /* Ponto de corte único. Hoje existem TRÊS valores conflitantes: `max-width:667px`
+     e `min-width:667px` coexistem no `sdk.js` (em 667px exato as duas regras
+     aplicam), e o JS usa 668 em `IFrameHelper.js:343` [FATO — 11 §A16, 09 §13.1].
+     [DECISÃO — 16 §2.7.1] 768px, escrito sem sobreposição. */
+  --w-bp-mobile-max: 767.98px;
+  --w-bp-desktop:    768px;
+
+  /* Anel de foco. `outline: 2px solid transparent` (nunca `none`): em
+     `forced-colors` o transparent é substituído por cor real do sistema, o
+     `none` continua nada [FATO — 13 §1.1, padrão do GOV.UK]. */
+  --w-focus-width:  2px;
+  --w-focus-offset: 2px;
+  --w-border-width: 1px;
+
+  /* Esquema de cor nativo — scrollbar, <select>, <audio controls>. Hoje está só
+     no container da conversa (`ConversationWrap.vue:138`) [MEDIDO — 15 §B10.4]. */
+  color-scheme: light dark;
+}
+
+
+/* =============================================================================
+   2. TEMA ESCURO — paleta própria, não inversão (regra C9, 16 §2.5.4)
+   -----------------------------------------------------------------------------
+   Três razões pelas quais inverter não funciona [13 §3.5]:
+     1. a sombra some — sombra preta sobre fundo escuro não separa nada;
+     2. a hierarquia de superfície inverte — "mais elevado" passa a ser "mais
+        claro", porque a luz vem de cima;
+     3. cor saturada sobre fundo escuro cansa.
+   E o fundo nunca é `#000` puro: contraste de 21:1 produz halação e, em OLED,
+   smearing no scroll.
+
+   Os valores abaixo são os JÁ MEDIDOS no dark do widget hoje [15 §A5.2, §A6.3] —
+   migração rastreável, não paleta inventada.
+
+   A marca se recalibra sozinha: `--w-brand-readable` e `--w-brand-border` são
+   calculados contra `--w-surface` do tema corrente. Hoje `--iris-9` é
+   `45 196 111` IDÊNTICO nos dois temas [MEDIDO — 15 §A5.2] — todas as outras
+   rampas trocam, essa não.
+
+   Os dois blocos abaixo são propositalmente idênticos: o primeiro atende
+   `prefers-color-scheme` (e cede se o host pedir claro explicitamente), o
+   segundo atende o toggle. Nenhuma cor nasce aqui — todas já existem no :root.
+
+   O `:not(.wui-theme-light)` do primeiro bloco é o que permite forçar o tema
+   claro pela CLASSE também na raiz: sem ele, `:root:not([data-theme="light"])`
+   (0,2,0) venceria `.wui-theme-light` (0,1,0) num sistema operacional em modo
+   escuro, e a classe só funcionaria em descendente. Ver §2.8.
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not(.wui-theme-light) {
+    --w-surface:         #17171a;   /* = --solid-1 medido hoje */
+    --w-surface-sunken:  #121213;   /* = --background-color medido hoje */
+    --w-surface-raised:  #2c2d36;   /* = fundo do balão do agente medido hoje */
+    --w-surface-overlay: #23242a;
+    --w-surface-hover:   #212227;
+    --w-surface-active:  #2a2b31;
+    --w-surface-inverse: #edeef0;
+    --w-on-inverse:      #17171a;
+
+    /* [CRIADO NA TASK 42] Scrim do `::backdrop` — ver §2. */
+    --w-scrim: rgb(0 0 0 / 0.62);
+
+    --w-text:        #edeef0;   /* medido hoje — 13,7:1 contra #17171A */
+    --w-text-muted:  #b0b4ba;   /* medido hoje — 7,6:1, AAA */
+    --w-text-subtle: #8b9098;
+
+    --w-border:        rgba(255, 255, 255, 0.10);  /* substitui a sombra (§2.4) */
+    /* [DIVERGÊNCIA — o `.22` do 16 §2.5.4 compõe `#4A4A4C` sobre `#17171A` e dá
+       2,02:1: reprova o SC 1.4.11. [CALIBRADO] `.40` compõe 3,84:1 sobre a
+       superfície e 3,52:1 sobre `--w-surface-raised`, o pior caso. */
+    --w-border-strong: rgba(255, 255, 255, 0.40);
+
+    --w-danger:         #f87171;   /* recalibrado para fundo escuro */
+    --w-on-danger:      #17171a;   /* a cor de erro clareia, então o texto escurece */
+    --w-danger-subtle:  #3a1d1d;
+    --w-warning:        #fbbf24;
+    --w-warning-subtle: #3a2e14;
+    --w-success:        #4ade80;
+    --w-success-subtle: #16311f;
+    --w-info:           #7dc0ff;
+    --w-info-subtle:    #16283c;
+
+    --w-skeleton-base:  #26272e;
+    --w-skeleton-sheen: rgba(255, 255, 255, 0.07);
+
+    /* A sombra desliga; o anel assume. Desligada como sombra TRANSPARENTE e não
+       como `none` — ver §1.4.1: com `none` o anel também sumia [CALIBRADO]. */
+    --w-elev-1: 0 0 0 0 transparent;
+    --w-elev-2: 0 0 0 0 transparent;
+    --w-elev-3: 0 0 0 0 transparent;
+    --w-elev-1-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --w-elev-2-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+    --w-elev-3-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+
+    /* [CALIBRADO] contra `--w-surface` = #17171A, 2.023 cores:
+       `max(l, 0,68)` → 2.023/2.023 ≥ 4,5:1, mínimo 4,583:1 (0,675 já reprova 1).
+       `max(l, 0,57)` → 2.023/2.023 ≥ 3:1,   mínimo 3,069:1 (0,565 já reprova 1).
+       Uso 0,69 e 0,58 por margem. */
+    --w-_readable-l: max(l, 0.69);
+    --w-_border-l:   max(l, 0.58);
+  }
+}
+
+:root[data-theme="dark"],
+.wui-theme-dark {
+  --w-surface:         #17171a;
+  --w-surface-sunken:  #121213;
+  --w-surface-raised:  #2c2d36;
+  --w-surface-overlay: #23242a;
+  --w-surface-hover:   #212227;
+  --w-surface-active:  #2a2b31;
+  --w-surface-inverse: #edeef0;
+  --w-on-inverse:      #17171a;
+
+  /* [CRIADO NA TASK 42] Scrim do `::backdrop` — ver §2. */
+  --w-scrim: rgb(0 0 0 / 0.62);
+
+  --w-text:        #edeef0;
+  --w-text-muted:  #b0b4ba;
+  --w-text-subtle: #8b9098;
+
+  --w-border:        rgba(255, 255, 255, 0.10);
+  --w-border-strong: rgba(255, 255, 255, 0.40);
+
+  --w-danger:         #f87171;
+  --w-on-danger:      #17171a;
+  --w-danger-subtle:  #3a1d1d;
+  --w-warning:        #fbbf24;
+  --w-warning-subtle: #3a2e14;
+  --w-success:        #4ade80;
+  --w-success-subtle: #16311f;
+  --w-info:           #7dc0ff;
+  --w-info-subtle:    #16283c;
+
+  --w-skeleton-base:  #26272e;
+  --w-skeleton-sheen: rgba(255, 255, 255, 0.07);
+
+  /* Sombra transparente, nunca `none` — §1.4.1 */
+  --w-elev-1: 0 0 0 0 transparent;
+  --w-elev-2: 0 0 0 0 transparent;
+  --w-elev-3: 0 0 0 0 transparent;
+  --w-elev-1-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --w-elev-2-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+  --w-elev-3-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+
+  --w-_readable-l: max(l, 0.69);
+  --w-_border-l:   max(l, 0.58);
+}
+
+
+/* =============================================================================
+   2.8 ESCOPO DE TEMA — um tema dentro do outro
+   -----------------------------------------------------------------------------
+   [CONTRATO CANÔNICO 12/08/2026 — pós-auditoria 32 §3 e §10 item 7]
+
+   O problema que isto resolve, medido: as telas de configuração mostram um
+   preview do widget em tema claro E em tema escuro lado a lado, na mesma página.
+   Como a fundação só oferecia tema por `:root` / `[data-theme]`, cada mockup
+   copiou o bloco de tema para dentro de classes próprias (`.pv-claro` e
+   `.pv-escuro`). Resultado medido pela auditoria: **50 das 83 cores literais**
+   do conjunto estão nessas duas cópias (27 no mockup 20, 20 no 21) — e as duas
+   cópias JÁ DIVERGIRAM entre si, que é o destino de toda cópia.
+
+   A classe resolve na fundação. Ela NÃO é um bloco novo: `.wui-theme-light`
+   entra no mesmo seletor do `:root` (§1) e `.wui-theme-dark` no mesmo seletor
+   do `[data-theme="dark"]` (§2). Não existe um segundo lugar para
+   dessincronizar.
+
+     <!-- preview em tema escuro dentro de uma página clara -->
+     <div class="wui wui-theme-dark"> … </div>
+
+     <!-- e o inverso -->
+     <div class="wui wui-theme-light"> … </div>
+
+   A classe `wui` ao lado é o que pinta: ela já aplica `background: var(--w-surface)`
+   e `color: var(--w-text)`, e os dois agora resolvem no tema do escopo. Sozinha,
+   a classe de tema só troca os tokens — não pinta nada, de propósito, para
+   poder ser usada em um wrapper que não deve ter fundo próprio.
+
+   Onde vale usar: escopo (preview, amostra, cartão de exemplo). Para a página
+   inteira, o mecanismo continua sendo `data-theme` no `<html>` — é o que o
+   `on-brand.js` e o toggle dos mockups já usam. A classe TAMBÉM funciona na
+   raiz (é para isso que o `:not(.wui-theme-light)` existe na media query da §2),
+   mas na raiz `data-theme` é o caminho documentado.
+
+   O `color-scheme` acompanha o escopo: sem ele, a scrollbar, o `<select>` e o
+   `<input type=range>` de dentro de um preview escuro continuariam desenhados
+   pelo navegador em claro.
+   ============================================================================= */
+
+.wui-theme-light { color-scheme: light; }
+.wui-theme-dark  { color-scheme: dark; }
+
+/* -----------------------------------------------------------------------------
+   2.8.1 As quatro derivações que o escopo de tema TEM de refazer
+   -----------------------------------------------------------------------------
+   Mesma armadilha da §2.9, por outro caminho: custom property herda o valor
+   COMPUTADO, não a fórmula. Quatro tokens de marca são calculados a partir de
+   tokens que MUDAM com o tema —
+
+     --w-brand-subtle    ← var(--w-surface)
+     --w-on-brand-subtle ← var(--w-text)
+     --w-brand-readable  ← var(--w-_readable-l)   (min(l,.51) claro / max(l,.69) escuro)
+     --w-brand-border    ← var(--w-_border-l)     (min(l,.62) claro / max(l,.58) escuro)
+
+   — e foram resolvidos UMA vez, no `:root`. Um descendente que só troque os
+   tokens de superfície herdaria a marca calibrada para o tema de FORA: num
+   preview escuro dentro de página clara, `--w-brand-readable` continuaria
+   `min(l, 0.51)` — a rampa escura, sobre fundo escuro. É exatamente a falha que
+   a §8.4 mediu e travou com os dois limiares.
+
+   `--w-brand-hover` / `--w-brand-pressed` NÃO entram: dependem só de
+   `--w-_on-inv`, que sai da luminância da própria cor (§1.1) e não do tema.
+   `--w-brand` e `--w-on-brand` também não entram, e isso é deliberado — quem
+   escreve `--w-on-brand` é o servidor/JS, inline no `<html>` (§3 e LEIA-ME §3.2).
+   Redeclarar aqui sobrescreveria o valor certo por um default `#000000`.
+   -------------------------------------------------------------------------- */
+
+.wui-theme-light,
+.wui-theme-dark {
+  --w-brand-subtle:    color-mix(in oklab, var(--w-brand) 10%, var(--w-surface));
+  --w-on-brand-subtle: var(--w-text);
+  --w-brand-readable:  oklch(from var(--w-brand) var(--w-_readable-l) c h);
+  --w-brand-border:    oklch(from var(--w-brand) var(--w-_border-l) c h);
+  --w-focus-ring:      var(--w-brand-border);
+
+  --brand-subtle: var(--w-brand-subtle);
+}
+
+
+/* =============================================================================
+   2.9 ESCOPO DE MARCA — mais de uma marca na mesma página
+   -----------------------------------------------------------------------------
+   Custom property herda o valor COMPUTADO, não a fórmula. `--w-on-brand` é
+   declarado no `:root` e portanto é derivado UMA vez, do `--brand` do `:root`.
+   Um descendente que redefina `--brand` NÃO re-deriva os tokens: ele herda o
+   resultado calculado lá em cima.
+   [CALIBRADO] Medido por pixel: `--brand` no `:root` acerta 8 de 8 cores;
+   `--brand` num descendente, sem este bloco, erra as 4 escuras (sai preto).
+
+   Isso importa em três casos reais: a página de sistema visual, que mostra
+   várias marcas lado a lado; um mockup com exemplos de inbox pré-configurados;
+   e a tematização por inbox, que no futuro será um contêiner, não o `:root`.
+
+   A saída é redeclarar as derivações no escopo. Basta a classe:
+
+     <div class="wui-brand-scope" style="--brand: #0b2545"> … </div>
+
+   Os fragmentos `--w-_*` NÃO precisam ser repetidos: eles herdam sem perda,
+   porque não referenciam `--w-brand` — o que herda é a expressão, e ela só é
+   resolvida no ponto de uso. O mesmo vale para `--w-_readable-l` e
+   `--w-_border-l`, que carregam a regra do tema corrente para dentro do escopo.
+   ============================================================================= */
+
+.wui-brand-scope {
+  --w-brand: var(--brand);
+  --w-on-brand: #000000;   /* mesmo default seguro do :root */
+
+  --w-brand-hover:   color-mix(in oklab, var(--w-brand),
+                       rgb(from var(--w-brand) var(--w-_on-inv) var(--w-_on-inv) var(--w-_on-inv)) 8%);
+  --w-brand-pressed: color-mix(in oklab, var(--w-brand),
+                       rgb(from var(--w-brand) var(--w-_on-inv) var(--w-_on-inv) var(--w-_on-inv)) 14%);
+  --w-brand-active:  var(--w-brand-pressed);
+  --w-brand-subtle:  color-mix(in oklab, var(--w-brand) 10%, var(--w-surface));
+
+  --w-brand-readable: oklch(from var(--w-brand) var(--w-_readable-l) c h);
+  --w-brand-border:   oklch(from var(--w-brand) var(--w-_border-l) c h);
+  --w-focus-ring:     var(--w-brand-border);
+
+  --on-brand:      var(--w-on-brand);
+  --brand-hover:   var(--w-brand-hover);
+  --brand-pressed: var(--w-brand-pressed);
+  --brand-subtle:  var(--w-brand-subtle);
+}
+
+
+/* =============================================================================
+   3. O CÁLCULO DE `--on-brand`, aplicado
+   -----------------------------------------------------------------------------
+   Fora do :root de propósito: só entra quando o navegador tem relative color
+   syntax E `pow()` dentro de `calc()`. Sem os dois, `--w-on-brand` continua
+   `#000000` — que é a escolha certa para 63,9% das cores possíveis e nunca
+   deixa o texto invisível [MEDIDO — 13 §3.2.1].
+
+   Em produção esta é a terceira linha de defesa: o servidor calcula e entrega
+   o token pronto (16 §2.5.2), justamente para não duplicar a fórmula em Ruby e
+   em JS. Aqui ela existe para o mockup abrir sem servidor — e para provar que
+   o cálculo cabe em CSS.
+   ============================================================================= */
+
+@supports (color: rgb(from red r g b)) and (width: calc(pow(2, 2) * 1px)) {
+  :root,
+  .wui-brand-scope {
+    --w-on-brand: rgb(from var(--w-brand) var(--w-_on) var(--w-_on) var(--w-_on));
+  }
+}
+
+
+/* =============================================================================
+   4. PREFERÊNCIAS DO SISTEMA (16 §2.6)
+   As três media queries são Baseline widely available — não há desculpa de
+   compatibilidade [FATO — 13 §4.7].
+   ============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   4.1 `prefers-reduced-motion: reduce`
+   ---------------------------------------------------------------------------
+   Regra dura, sem exceção estética (16 §4.3): transição de transform → nenhuma
+   (o elemento aparece na posição final); transição de opacidade → mantida, no
+   máximo 100ms.
+
+   O padrão real do mercado é ignorar: 6 de 7 do corpus não tratam, e o único
+   que trata (Intercom) trata pela metade — o launcher respeita, o painel não
+   [MEDIDO — 12 §13]. Num mercado onde 6 de 7 ignoram, fazer certo é barato e
+   diferencia. Não copiamos o erro.
+
+   Zerado AQUI, por token: nenhum primitivo precisa repetir a media query.
+   ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --w-dur-1: 1ms;
+    --w-dur-2: 1ms;
+    --w-dur-3: 1ms;
+    --w-dur-4: 1ms;
+
+    --w-dur-panel-in:          1ms;
+    --w-dur-panel-out:         1ms;
+    --w-dur-launcher-hover:    1ms;
+    --w-dur-launcher-press:    1ms;
+    --w-dur-message-in:        1ms;
+    --w-dur-message-out:       1ms;
+    --w-dur-teaser-out:        1ms;
+    --w-dur-chip:              1ms;
+    --w-dur-status:            1ms;
+    --w-dur-scroll-btn:        1ms;
+
+    /* Opacidade pura sobrevive, no teto de 100ms */
+    --w-dur-panel-in-opacity:  100ms;
+    --w-dur-panel-out-opacity: 100ms;
+    --w-dur-icon-swap:         100ms;
+    --w-dur-teaser-in:         100ms;
+    --w-dur-focus:             100ms;
+
+    /* Animações em loop param. Os pontos de digitando ficam estáticos e o
+       rótulo textual "digitando…" assume — isso também resolve o SC 2.2.2
+       (nível A), que exige mecanismo de pausar para movimento acima de 5s
+       [FATO — 13 §4.2]. O shimmer do skeleton fica estático. */
+    --w-dur-typing:         0s;
+    --w-dur-typing-stagger: 0s;
+    --w-dur-skeleton:       0s;
+    --w-dur-spinner:        0s;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   4.2 `prefers-contrast: more` (16 §2.6)
+   Bordas 1px → 2px, texto secundário sobe para o primário, anel de foco 3px.
+   ------------------------------------------------------------------------ */
+
+@media (prefers-contrast: more) {
+  :root {
+    --w-border:        var(--w-border-strong);
+    --w-border-strong: var(--w-text-muted);
+    --w-text-muted:    var(--w-text);
+    --w-text-subtle:  var(--w-text);
+    --w-focus-width:  3px;
+    --w-border-width: 2px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   4.3 `forced-colors: active` (16 §2.6)
+   ---------------------------------------------------------------------------
+   O sistema substitui as cores do autor. Aqui os tokens passam a apontar para
+   as system colors, para que nenhum primitivo precise saber disso. Fundos
+   decorativos e a textura da conversa saem; balões ficam distinguíveis por
+   borda — porque em forced-colors as duas superfícies colapsam e o alinhamento
+   sozinho não basta (16 §2.5.5).
+
+   A REGRA QUE FAZ ISTO FUNCIONAR, e que a versão anterior deste bloco não
+   seguia até o fim: nesse modo o navegador substitui **toda cor de autor** pela
+   cor de sistema correspondente. Quem sobrevive como foi escrito é só quem foi
+   escrito como *system color*. [CALIBRADO nesta task — Chromium 145,
+   `forced_colors="active"` no `00-sistema-visual.html`]: `--w-brand: Highlight`
+   sai pintado `rgba(5, 0, 73, 0.8)` (o Highlight da paleta forçada), enquanto
+   `--w-skeleton-base: #e9eaee` sai `rgb(255,255,255)` — Canvas, isto é, o mesmo
+   fundo. Token não mapeado não vira "outra cor": vira o fundo.
+
+   Por isso os 34 tokens de cor estão mapeados aqui, e não 16.
+   [DIVERGÊNCIA de contagem, sem efeito no achado] A auditoria 32 G3 diz "18 dos
+   34 não são remapeados" e a lista em prosa nomeia 16 e diz "e mais quatro" —
+   16 + 4 = 20, não 18. Conferido um a um: o número certo é **18**, e os dois que
+   faltavam na prosa são `--w-brand-active` e `--w-on-brand-subtle`. O achado
+   está certo; a soma da frase, não. Anoto porque o relatório é registro.
+   Anoto também que 1 dos 18 já caía de pé por acidente: `--w-on-brand-subtle`
+   é `var(--w-text)`, então já resolvia em `CanvasText` [CALIBRADO]. Continua
+   mapeado explicitamente abaixo — acidente não é projeto.
+
+   ANEL DE ELEVAÇÃO. `box-shadow` é descartado por inteiro neste modo — medido
+   `none` em seis componentes, inclusive nos que declaravam o anel. Um anel de
+   1px por `box-shadow` é, aqui, exatamente nada. Os `--w-elev-*-ring` passam a
+   `none` para dizer a verdade, e quem separa superfície passa a ser `border`
+   real, nos primitivos (`primitivos.css` §19).
+   ------------------------------------------------------------------------ */
+
+@media (forced-colors: active) {
+  :root,
+  .wui-theme-light,
+  .wui-theme-dark {
+    /* Superfícies — todas colapsam em Canvas. A hierarquia de elevação deixa de
+       existir por cor e passa a existir por borda. */
+    --w-surface:         Canvas;
+    --w-surface-sunken:  Canvas;
+    --w-surface-raised:  Canvas;
+    --w-surface-overlay: Canvas;
+    --w-surface-hover:   Canvas;
+    --w-surface-active:  Canvas;
+
+    /* Superfície invertida (tooltip). Sem isto o balão do tooltip sai Canvas
+       sobre Canvas — invisível [MEDIDO, auditoria 32 G3; reproduzido aqui]. */
+    --w-surface-inverse: CanvasText;
+    --w-on-inverse:      Canvas;
+
+    /* [CRIADO NA TASK 42] Scrim opaco: em alto contraste o diálogo precisa de
+       separação sólida, não de transparência. */
+    --w-scrim: Canvas;
+
+    /* Texto. [CORRIGE o M7 da auditoria 32] `--w-text-muted` era `GrayText`, a
+       cor que o sistema reserva para conteúdo INATIVO — e ela pinta autor,
+       horário, linha de status, descrição de cartão, cabeçalho de tabela,
+       placeholder e rodapé. Todos ativos. Vira `CanvasText`.
+       `--w-text-subtle` fica em `GrayText` porque é o único papel que a
+       fundação declara como "só componente inativo" (LEIA-ME §5.2): ali
+       `GrayText` é a resposta certa, não um efeito colateral. */
+    --w-text:            CanvasText;
+    --w-text-muted:      CanvasText;
+    --w-text-subtle:     GrayText;
+
+    --w-border:          CanvasText;
+    --w-border-strong:   CanvasText;
+
+    /* Marca. `Highlight` sobrevive como escrito [CALIBRADO]. Os estados vão
+       para a MESMA cor: neste modo não existe "um pouco mais escuro" — o hover
+       e o pressed passam a ser comunicados por foco e por movimento. */
+    --w-brand:           Highlight;
+    --w-on-brand:        HighlightText;
+    --w-brand-hover:     Highlight;
+    --w-brand-pressed:   Highlight;
+    --w-brand-active:    Highlight;
+    --w-brand-readable:  LinkText;
+    --w-brand-border:    CanvasText;
+    --w-focus-ring:      Highlight;
+
+    /* Fundo tênue de marca: vira o fundo mesmo. O que distinguia era o
+       tingimento, e tingimento não existe aqui — quem distingue é a borda do
+       primitivo. `--w-on-brand-subtle` é o texto que fica em cima dele. */
+    --w-brand-subtle:    Canvas;
+    --w-on-brand-subtle: CanvasText;
+
+    /* Cores semânticas. Elas vivem em ponto, ícone e BORDA (regra D4 do
+       LEIA-ME §7) — todos traço, portanto `CanvasText`. Os fundos `-subtle` são
+       fundo, portanto `Canvas`. Nenhuma informação se perde: a fundação já
+       proíbe informação só por cor (regra 7 do LEIA-ME §4), e o rótulo textual
+       continua lá. */
+    --w-danger:          CanvasText;
+    --w-warning:         CanvasText;
+    --w-success:         CanvasText;
+    --w-info:            CanvasText;
+    --w-danger-subtle:   Canvas;
+    --w-warning-subtle:  Canvas;
+    --w-success-subtle:  Canvas;
+    --w-info-subtle:     Canvas;
+    /* Texto sobre `--w-danger` (botão destrutivo). Como o fundo virou
+       `CanvasText`, o texto tem de ser `Canvas` — o par invertido. */
+    --w-on-danger:       Canvas;
+
+    /* Skeleton. O preenchimento vira Canvas e quem desenha a caixa é a borda
+       real que o `primitivos.css` §19 acende. O brilho não tem o que fazer num
+       modo sem gradiente de autor: fica em Canvas e o `::after` continua
+       desligado. */
+    --w-skeleton-base:   Canvas;
+    --w-skeleton-sheen:  Canvas;
+
+    /* Sombra e anel. `box-shadow` é descartado neste modo, os dois lados — o
+       anel de 1px por sombra é, aqui, exatamente nada. Zerados; a separação vem
+       de `border` (primitivos.css §19).
+       Zerados como sombra TRANSPARENTE, nunca como `none`: ver §1.4.1 — `none`
+       dentro de uma lista de `box-shadow` invalida a declaração inteira. */
+    --w-elev-0: 0 0 0 0 transparent;
+    --w-elev-1: 0 0 0 0 transparent;
+    --w-elev-2: 0 0 0 0 transparent;
+    --w-elev-3: 0 0 0 0 transparent;
+    --w-elev-0-ring: 0 0 0 0 transparent;
+    --w-elev-1-ring: 0 0 0 0 transparent;
+    --w-elev-2-ring: 0 0 0 0 transparent;
+    --w-elev-3-ring: 0 0 0 0 transparent;
+    --w-shadow-press-inset: 0 0 0 0 transparent;
+  }
+}
+
+
+/* =============================================================================
+   5. ALIASES CURTOS
+   -----------------------------------------------------------------------------
+   A Task 21 nomeia a marca sem prefixo; o 16 §2 prescreve `--w-` (deliberadamente
+   distinto do `--n-` do design system do dashboard, para não sequestrar variável
+   existente — princípio P6). Os dois convivem: `--brand` é a ENTRADA (é onde o
+   servidor escreve), `--w-*` é o sistema, e os cinco nomes curtos abaixo são
+   sinônimos de leitura. Escrever em `--brand` propaga para todos.
+   ============================================================================= */
+
+:root {
+  --on-brand:      var(--w-on-brand);
+  --brand-hover:   var(--w-brand-hover);
+  --brand-pressed: var(--w-brand-pressed);
+  --brand-subtle:  var(--w-brand-subtle);
+}
+/* `--brand-subtle` também é redeclarado nas classes de tema (§2.8.1): é o único
+   dos quatro que muda com o tema, porque mistura com `--w-surface`. */
+
+
+/* =============================================================================
+   CORREÇÕES APLICADAS EM 12/08/2026 (PÓS-AUDITORIA)
+   -----------------------------------------------------------------------------
+   Resposta a `plano/redesenho/auditoria/32-mockups.md` §3 e §10 (itens 6, 7, 8).
+   Validado com Playwright + Chromium 145 sobre `mockups/00-sistema-visual.html`,
+   em 1280×900 e 390×844, claro e escuro, mais `forced-colors: active`, com
+   leitura do pixel renderizado. 0 erro de console e 0 overflow horizontal nas
+   seis combinações.
+
+   1. §1.5.1 — trio canônico de título: `--w-fs-page-title` (20px/700/1,25),
+      `--w-fs-section` (15px/650) e `--w-fs-label` (13px/600), cada um com
+      `--w-lh-*`, `--w-fw-*` e o atalho `--w-text-*`. Fecha os cinco tamanhos de
+      `<h1>` que a auditoria mediu em nove páginas.
+      [DIVERGÊNCIAS declaradas e mantidas: o prefixo `--w-fs-` foge do
+      `--w-font-size-` do resto do arquivo, e o peso 650 está fora do conjunto
+      {400,500,600,700}. Os dois vieram fixados no contrato desta rodada.]
+
+   2. §1.7 — `--w-radius-lg` (= 12px), apelido com papel declarado: cartão de
+      seção. Havia dois raios de cartão no mesmo conjunto (16 e 12).
+
+   3. §1.9 — `--w-content-max` (1200px). Havia três larguras úteis (1120, 1200,
+      1280) em arquivos do mesmo conjunto.
+
+   4. §1.4.1 — ACHADO NOVO, não presente na auditoria: `none` dentro de uma
+      lista de `box-shadow` invalida a declaração inteira, e o tema escuro
+      declarava `--w-elev-1/2/3: none`. Medido: `box-shadow: none` em
+      `.wui-card`, `.wui-btn--primary` e `.wui-tip__bubble` — o anel do escuro
+      não existia nos níveis 1, 2 e 3. Sombra desligada passa a ser
+      `0 0 0 0 transparent`. Aplicado na §2 (os dois blocos) e na §4.3.
+
+   5. §1, §2, §2.8 e §2.8.1 — classes de tema `.wui-theme-light` e
+      `.wui-theme-dark`, no MESMO seletor dos blocos de raiz (zero duplicação),
+      mais a redeclaração das quatro derivações de marca que dependem do tema.
+      [CALIBRADO] sem a §2.8.1 um preview escuro dentro de página clara escrevia
+      a marca a 3,52:1 (reprova SC 1.4.3); com ela, 7,87:1.
+      Isto é o que permite apagar as cópias `.pv-claro` / `.pv-escuro` dos
+      mockups 20 e 21, onde estão 50 das 83 cores literais do conjunto.
+
+   6. §4.3 — os 34 tokens de cor mapeados em `forced-colors`, não 16, e
+      `--w-text-muted: CanvasText` no lugar de `GrayText` (corrige o M7).
+      Os anéis de elevação passam a sombra transparente: `box-shadow` é
+      descartado nesse modo e quem separa superfície é `border` real, nos
+      primitivos.
+
+   NÃO FEITO AQUI, de propósito: os nove mockups trazem este arquivo embutido em
+   `<style id="tokens">` e continuam com a versão anterior. Precisam ser
+   regerados. A validação desta rodada injetou este arquivo em tempo de execução
+   sobre o catálogo — que é exatamente o que a regeração produz.
+   ============================================================================= */

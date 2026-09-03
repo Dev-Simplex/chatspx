@@ -178,6 +178,102 @@ RSpec.describe 'Conversations API', type: :request do
     end
   end
 
+  describe 'GET /api/v1/accounts/{account.id}/conversations/unread_counts' do
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        get "/api/v1/accounts/#{account.id}/conversations/unread_counts"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated user' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:visible_inbox) { create(:inbox, account: account) }
+      let(:hidden_inbox) { create(:inbox, account: account) }
+      let(:label) { create(:label, account: account, title: 'billing', show_on_sidebar: true) }
+      let(:team) { create(:team, account: account, allow_auto_assign: false) }
+
+      before do
+        create(:inbox_member, user: agent, inbox: visible_inbox)
+        create(:team_member, user: agent, team: team)
+      end
+
+      after do
+        Conversations::UnreadCounts::Store.clear_account!(account.id)
+      end
+
+      context 'when conversation unread counts feature is enabled' do
+        before do
+          account.enable_features!(:conversation_unread_counts)
+        end
+
+        it 'returns unread conversation counts scoped to the signed-in user' do
+          create_unread_conversation(account: account, inbox: visible_inbox, labels: [label.title])
+          create_unread_conversation(account: account, inbox: hidden_inbox, labels: [label.title])
+
+          get "/api/v1/accounts/#{account.id}/conversations/unread_counts",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          expect(response.parsed_body['payload']).to eq(
+            'all_count' => 1,
+            'inboxes' => { visible_inbox.id.to_s => 1 },
+            'labels' => { label.id.to_s => 1 },
+            'teams' => {}
+          )
+        end
+
+        it 'returns unread team conversation counts scoped to the signed-in user' do
+          create_unread_conversation(account: account, inbox: visible_inbox, team: team)
+          create_unread_conversation(account: account, inbox: hidden_inbox, team: team)
+
+          get "/api/v1/accounts/#{account.id}/conversations/unread_counts",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          expect(response.parsed_body['payload']['teams']).to eq(team.id.to_s => 1)
+        end
+
+        it 'returns filtered unread counts when the filtered count feature is enabled' do
+          account.enable_features!(:unread_count_for_filters)
+          allow(Conversations::UnreadCounts::FilteredCountInstrumentation).to receive(:summarize_request) do |**_attributes, &block|
+            block.call
+          end
+          mentioned = create_unread_conversation(account: account, inbox: visible_inbox)
+          create(:mention, account: account, conversation: mentioned, user: agent)
+
+          get "/api/v1/accounts/#{account.id}/conversations/unread_counts",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          expect(response.parsed_body['payload']).to include(
+            'mentions_count' => 1,
+            'participating_count' => 0,
+            'unattended_count' => 1,
+            'folders' => {}
+          )
+          expect(Conversations::UnreadCounts::FilteredCountInstrumentation).to have_received(:summarize_request).with(account_id: account.id)
+        end
+      end
+
+      it 'returns forbidden when conversation unread counts feature is disabled' do
+        get "/api/v1/accounts/#{account.id}/conversations/unread_counts",
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:forbidden)
+        # A mensagem sai no idioma da CONTA, nao no da suite: conta nova nasce em pt-BR
+        # (decisao nossa), entao comparar com a string em ingles do upstream falha aqui.
+        expect(response.parsed_body['error'])
+          .to eq(I18n.t('errors.conversations.unread_counts.feature_not_enabled', locale: account.locale))
+      end
+    end
+  end
+
   describe 'GET /api/v1/accounts/{account.id}/conversations/search' do
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do
@@ -262,7 +358,12 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         response_data = JSON.parse(response.body, symbolize_names: true)
-        expect(response_data[:error]).to include('Invalid attribute key - [phone_number]')
+        # A mensagem sai no idioma da CONTA (conta nova nasce em pt-BR — decisao nossa),
+        # entao comparar com a string em ingles do upstream falha aqui. Ver 685bb23752.
+        expect(response_data[:error]).to include(
+          I18n.t('errors.custom_filters.invalid_attribute',
+                 key: 'phone_number', allowed_keys: '', locale: account.locale).split('. ').first
+        )
       end
 
       it 'returns error if the filters contain invalid operator' do
@@ -279,7 +380,10 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         response_data = JSON.parse(response.body, symbolize_names: true)
-        expect(response_data[:error]).to eq('Invalid operator. The allowed operators for status are [equal_to,not_equal_to].')
+        expect(response_data[:error]).to eq(
+          I18n.t('errors.custom_filters.invalid_operator', attribute_name: 'status',
+                                                           allowed_keys: 'equal_to,not_equal_to', locale: account.locale)
+        )
       end
     end
   end
@@ -465,7 +569,10 @@ RSpec.describe 'Conversations API', type: :request do
 
   describe 'POST /api/v1/accounts/{account.id}/conversations' do
     let(:contact) { create(:contact, account: account) }
-    let(:inbox) { create(:inbox, account: account) }
+    # pending_status_enabled: `Conversation#pending_status_allowed_by_inbox` (nossa,
+    # commit da2ea07ed1) recusa status Pendente em caixa que nao habilitou o recurso.
+    # Sem isso os exemplos herdados do upstream levantam RecordInvalid / 422.
+    let(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
     let!(:contact_inbox) { create(:contact_inbox, contact: contact, inbox: inbox) }
 
     context 'when it is an unauthenticated user' do
@@ -577,8 +684,11 @@ RSpec.describe 'Conversations API', type: :request do
   end
 
   describe 'POST /api/v1/accounts/{account.id}/conversations/:id/toggle_status' do
-    let(:conversation) { create(:conversation, account: account) }
-    let(:inbox) { create(:inbox, account: account) }
+    # pending_status_enabled: `Conversation#pending_status_allowed_by_inbox` (nossa,
+    # commit da2ea07ed1) recusa status Pendente em caixa que nao habilitou o recurso.
+    # Sem isso os exemplos herdados do upstream levantam RecordInvalid / 422.
+    let(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox) }
     let(:pending_conversation) { create(:conversation, inbox: inbox, account: account, status: 'pending') }
     let(:agent_bot) { create(:agent_bot, account: account) }
 
@@ -633,15 +743,17 @@ RSpec.describe 'Conversations API', type: :request do
         expect(conversation.reload.assignee_id).to eq(agent.id)
       end
 
-      it 'disbale self assign if admin changes the conversation status to open' do
-        conversation.update!(status: 'pending')
-        conversation.update!(assignee_id: nil)
+      it 'does not self assign and clears the agent bot owner if admin changes the conversation status to open' do
+        conversation.update!(status: 'pending', assignee: nil, assignee_agent_bot: agent_bot)
+
         post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/toggle_status",
              headers: administrator.create_new_auth_token,
              as: :json
+
         expect(response).to have_http_status(:success)
         expect(conversation.reload.status).to eq('open')
         expect(conversation.reload.assignee_id).not_to eq(administrator.id)
+        expect(conversation.reload.assignee_agent_bot).to be_nil
       end
 
       it 'toggles the conversation status to specific status when parameter is passed' do
@@ -955,6 +1067,23 @@ RSpec.describe 'Conversations API', type: :request do
         expect(conversation.reload.assignee_last_seen_at).not_to be_nil
       end
 
+      it 'marks unread notifications as read when updating last seen' do
+        allow(Rails.configuration.dispatcher).to receive(:dispatch)
+        notification = create(:notification, account: account, user: agent, primary_actor: conversation, read_at: nil)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(notification.reload.read_at).to be_present
+        expect(Rails.configuration.dispatcher).to have_received(:dispatch).with(
+          'notification.updated',
+          kind_of(Time),
+          hash_including(notification: have_attributes(id: notification.id))
+        )
+      end
+
       it 'throttles updates within an hour when there are no unread messages' do
         conversation.update!(agent_last_seen_at: 30.minutes.ago)
         # Ensure all messages are older than agent_last_seen_at (no unread messages)
@@ -986,6 +1115,84 @@ RSpec.describe 'Conversations API', type: :request do
         expect(response).to have_http_status(:success)
         expect(conversation.reload.agent_last_seen_at).not_to be_within(1.second).of(initial_last_seen)
         expect(conversation.reload.agent_last_seen_at).to be > initial_last_seen
+      end
+
+      # Os quatro exemplos abaixo exercitam a MECANICA do contador de nao lidas, nao a
+      # trava de quem pode limpar o marcador. Como a conversa nao tem dono, `explicit: true`
+      # e obrigatorio para passar por `may_clear_unread_marker?` — mesmo motivo do
+      # exemplo `updates last seen` acima.
+      it 'refreshes unread count cache when conversation is marked read' do
+        account.enable_features!(:conversation_unread_counts)
+        conversation.update!(agent_last_seen_at: 1.hour.ago)
+        create(:message, account: account, inbox: conversation.inbox, conversation: conversation, message_type: :incoming, created_at: 5.minutes.ago)
+        Conversations::UnreadCounts::Builder.new(account).build_base!
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        inbox_key = Conversations::UnreadCounts::Store.inbox_key(account.id, conversation.inbox_id)
+        expect(response).to have_http_status(:success)
+        expect(Conversations::UnreadCounts::Store.counts_for_keys([inbox_key])).to eq(inbox_key => 0)
+      ensure
+        Conversations::UnreadCounts::Store.clear_account!(account.id)
+      end
+
+      it 'refreshes unread count cache before invalidating filtered counts when conversation is marked read' do
+        account.enable_features!(:conversation_unread_counts, :unread_count_for_filters)
+        conversation.update!(agent_last_seen_at: 1.hour.ago)
+        create(:message, account: account, inbox: conversation.inbox, conversation: conversation, message_type: :incoming, created_at: 5.minutes.ago)
+        notifier = instance_double(Conversations::UnreadCounts::Notifier)
+        invalidator = instance_double(Conversations::UnreadCounts::FilteredCountInvalidator)
+
+        allow(Conversations::UnreadCounts::Notifier).to receive(:new).with(conversation).and_return(notifier)
+        allow(Conversations::UnreadCounts::FilteredCountInvalidator).to receive(:new).with(account).and_return(invalidator)
+        expect(notifier).to receive(:perform).ordered.and_return(true)
+        expect(invalidator).to receive(:conversation_changed!).ordered.and_return(true)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'invalidates filtered unread counts when conversation is marked read' do
+        conversation.update!(agent_last_seen_at: 1.hour.ago)
+        create(:message, account: account, inbox: conversation.inbox, conversation: conversation, message_type: :incoming, created_at: 5.minutes.ago)
+        account.enable_features!(:unread_count_for_filters)
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+               params: { explicit: true },
+               headers: agent.create_new_auth_token,
+               as: :json
+        end.to change { Conversations::UnreadCounts::FilteredCountStore.conversation_version(account.id) }.by(1)
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'notifies clients when marking read only affects filtered counts' do
+        account.enable_features!(:conversation_unread_counts, :unread_count_for_filters)
+        conversation.update!(agent_last_seen_at: 1.hour.ago)
+        create(:message, account: account, inbox: conversation.inbox, conversation: conversation, message_type: :incoming, created_at: 5.minutes.ago)
+        allow(Conversations::UnreadCounts::Refresher).to receive(:new).and_return(
+          instance_double(Conversations::UnreadCounts::Refresher, perform: false)
+        )
+        allow(Rails.configuration.dispatcher).to receive(:dispatch)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/update_last_seen",
+             params: { explicit: true },
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(Rails.configuration.dispatcher).to have_received(:dispatch).with(
+          'conversation.unread_count_changed',
+          kind_of(Time),
+          conversation: conversation
+        )
       end
 
       it 'updates both if one timestamp is old even when the other is recent' do
@@ -1062,6 +1269,72 @@ RSpec.describe 'Conversations API', type: :request do
         last_seen_at = conversation.messages.incoming.last.created_at - 1.second
         expect(conversation.reload.agent_last_seen_at).to eq(last_seen_at)
         expect(conversation.reload.assignee_last_seen_at).to eq(last_seen_at)
+      end
+
+      it 'refreshes unread count cache when conversation is marked unread' do
+        account.enable_features!(:conversation_unread_counts)
+        conversation.update!(agent_last_seen_at: 1.minute.from_now, assignee_last_seen_at: 1.minute.from_now)
+        Conversations::UnreadCounts::Builder.new(account).build_base!
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/unread",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        inbox_key = Conversations::UnreadCounts::Store.inbox_key(account.id, conversation.inbox_id)
+        expect(response).to have_http_status(:success)
+        expect(Conversations::UnreadCounts::Store.counts_for_keys([inbox_key])).to eq(inbox_key => 1)
+      ensure
+        Conversations::UnreadCounts::Store.clear_account!(account.id)
+      end
+
+      it 'refreshes unread count cache before invalidating filtered counts when conversation is marked unread' do
+        account.enable_features!(:conversation_unread_counts, :unread_count_for_filters)
+        conversation.update!(agent_last_seen_at: 1.minute.from_now, assignee_last_seen_at: 1.minute.from_now)
+        notifier = instance_double(Conversations::UnreadCounts::Notifier)
+        invalidator = instance_double(Conversations::UnreadCounts::FilteredCountInvalidator)
+
+        allow(Conversations::UnreadCounts::Notifier).to receive(:new).with(conversation).and_return(notifier)
+        allow(Conversations::UnreadCounts::FilteredCountInvalidator).to receive(:new).with(account).and_return(invalidator)
+        expect(notifier).to receive(:perform).ordered.and_return(true)
+        expect(invalidator).to receive(:conversation_changed!).ordered.and_return(true)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/unread",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'invalidates filtered unread counts when conversation is marked unread' do
+        conversation.update!(agent_last_seen_at: 1.minute.from_now, assignee_last_seen_at: 1.minute.from_now)
+        account.enable_features!(:unread_count_for_filters)
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/unread",
+               headers: agent.create_new_auth_token,
+               as: :json
+        end.to change { Conversations::UnreadCounts::FilteredCountStore.conversation_version(account.id) }.by(1)
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'notifies clients when marking unread only affects filtered counts' do
+        account.enable_features!(:conversation_unread_counts, :unread_count_for_filters)
+        conversation.update!(agent_last_seen_at: 1.minute.from_now, assignee_last_seen_at: 1.minute.from_now)
+        allow(Conversations::UnreadCounts::Refresher).to receive(:new).and_return(
+          instance_double(Conversations::UnreadCounts::Refresher, perform: false)
+        )
+        allow(Rails.configuration.dispatcher).to receive(:dispatch)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/unread",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(Rails.configuration.dispatcher).to have_received(:dispatch).with(
+          'conversation.unread_count_changed',
+          kind_of(Time),
+          conversation: conversation
+        )
       end
     end
   end
@@ -1255,6 +1528,8 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:success)
         response_body = response.parsed_body
+        attachment = conversation.messages.last.attachments.first
+        expect(response_body['payload'].first['id']).to eq(attachment.id)
         expect(response_body['payload'].first['file_type']).to eq('image')
         expect(response_body['payload'].first['sender']['id']).to eq(conversation.messages.last.sender.id)
       end
@@ -1326,6 +1601,84 @@ RSpec.describe 'Conversations API', type: :request do
         end.to have_enqueued_job(DeleteObjectJob).with('Conversation', other_conversation.id, administrator.id, anything)
 
         expect(response).to have_http_status(:ok)
+      end
+
+      # ChatSPX (item 23) — ACEITE DO DEFEITO, e ele não é "a API devolveu 200".
+      # O 200 é exatamente o que mentia: `Conversations::DeleteService` chamava o nosso
+      # `DeleteObjectJob` com `(conversation, user, ip)` — 3 objetos — quando o job espera
+      # `(object_type, object_id, user_id, ip)`. A primeira linha do job é
+      # `return unless ALLOWED_OBJECT_TYPES.include?(object_type)`, e String == Conversation é
+      # false: o job retornava na primeira linha, sem exceção, sem log, sem GlitchTip. Os dois
+      # exemplos acima passavam verdes porque asseveram a CHAMADA. Este assevera o EFEITO.
+      context 'when the conversation has records that used to block its deletion' do
+        let!(:flow_run) do
+          flow = create(:flow, account: account)
+          create(:flow_run, flow: flow, account: account, conversation: conversation, contact: conversation.contact)
+        end
+        let!(:enrollment) do
+          create(:message_sequence_enrollment,
+                 message_sequence: create(:message_sequence, account: account),
+                 conversation: conversation)
+        end
+
+        def delete_the_conversation
+          perform_enqueued_jobs(only: DeleteObjectJob) do
+            delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}",
+                   headers: administrator.create_new_auth_token,
+                   as: :json
+          end
+        end
+
+        it 'removes the conversation from the database, not just returns 200' do
+          delete_the_conversation
+
+          expect(response).to have_http_status(:ok)
+          expect(Conversation.exists?(conversation.id)).to be(false)
+          # NOT NULL na coluna -> CASCADE: não existem sem a conversa.
+          expect(FlowRun.exists?(flow_run.id)).to be(false)
+          expect(MessageSequenceEnrollment.exists?(enrollment.id)).to be(false)
+        end
+
+        # A FK sozinha NÃO basta, e o motivo é uma armadilha que só aparece na frota.
+        # Apagar a conversa dispara duas ações sobre a MESMA linha de flow_step_logs: o CASCADE de
+        # `flow_runs.conversation_id` (remove a run) e o SET NULL de `flow_step_logs.conversation_id`
+        # (UPDATE na linha). Se o UPDATE roda depois do delete da run, o Postgres revalida
+        # `flow_run_id` contra uma linha que ele mesmo apagou na transação -> InvalidForeignKey.
+        # Qual roda primeiro depende da ORDEM DE CRIAÇÃO das constraints, e ela diverge:
+        # schema.rb carregado do zero (esta suíte) passa; migration aplicada por cima (a frota)
+        # falha. Este exemplo recria as FKs na ordem da migration para medir o caso da frota.
+        it 'removes the conversation under the FK ordering the fleet will have' do
+          step_log = create(:flow_step_log, flow: flow_run.flow, account: account,
+                                            conversation: conversation, flow_run: flow_run)
+          reapply_migration_fk_order!
+
+          delete_the_conversation
+
+          expect(response).to have_http_status(:ok)
+          expect(Conversation.exists?(conversation.id)).to be(false)
+          # Nullable -> SET NULL: o log de diagnóstico SOBREVIVE, só perde os vínculos.
+          expect(FlowStepLog.find(step_log.id)).to have_attributes(conversation_id: nil, flow_run_id: nil)
+        end
+
+        # Mesma sequência de DDL da migration 20260723000000, na mesma ordem: é ela que produz a
+        # ordem de triggers dos bancos que já existem. Roda dentro da transação do exemplo.
+        def reapply_migration_fk_order!
+          conn = ActiveRecord::Base.connection
+          [
+            ['captain_assistant_logs', 'conversation_id', 'conversations', 'SET NULL'],
+            ['flow_step_logs', 'conversation_id', 'conversations', 'SET NULL'],
+            ['flow_step_logs', 'flow_run_id', 'flow_runs', 'SET NULL'],
+            ['flow_runs', 'conversation_id', 'conversations', 'CASCADE'],
+            ['message_sequence_enrollments', 'conversation_id', 'conversations', 'CASCADE']
+          ].each do |table, column, target, action|
+            name = conn.foreign_keys(table).find { |fk| fk.column == column }&.name
+            conn.execute("ALTER TABLE #{table} DROP CONSTRAINT #{name}") if name
+            conn.execute(
+              "ALTER TABLE #{table} ADD CONSTRAINT #{name || "fk_#{table}_#{column}"} " \
+              "FOREIGN KEY (#{column}) REFERENCES #{target}(id) ON DELETE #{action}"
+            )
+          end
+        end
       end
     end
   end

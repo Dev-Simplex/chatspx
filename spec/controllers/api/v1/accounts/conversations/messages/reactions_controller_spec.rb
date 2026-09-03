@@ -140,8 +140,12 @@ RSpec.describe 'Conversation Message Reactions API', type: :request do
 
     context 'when owner' do
       it 'deletes the reaction and returns 204' do
+        # O evento de remocao carrega VALORES (reaction_id, emoji, user_id, user_type), nao o
+        # registro: aqui ele ja foi apagado, e serializar por GlobalID faria o job estourar ao
+        # reidratar o que nao existe mais. Ver dispatch_removed no controller.
         expect(Rails.configuration.dispatcher).to receive(:dispatch).with(
-          Events::Types::MESSAGE_REACTION_REMOVED, anything, hash_including(:message, :reaction)
+          Events::Types::MESSAGE_REACTION_REMOVED, anything,
+          hash_including(:message, :reaction_id, :emoji, :user_id, :user_type)
         )
 
         delete reaction_path(reaction.id), headers: agent.create_new_auth_token

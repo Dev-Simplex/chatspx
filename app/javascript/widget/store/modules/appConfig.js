@@ -6,7 +6,12 @@ import {
   SET_WIDGET_COLOR,
   TOGGLE_WIDGET_OPEN,
   SET_ROUTE_UPDATE_STATE,
+  SET_PROFILE_CONFIG,
 } from '../types';
+import {
+  PROFILE_CONFIG_DEFAULTS,
+  profileConfigFromChannel,
+} from 'widget/helpers/profileConfigHelper';
 
 const state = {
   hideMessageBubble: false,
@@ -19,7 +24,11 @@ const state = {
   showPopoutButton: false,
   widgetColor: '',
   widgetStyle: 'standard',
-  darkMode: 'light',
+  // Bloco 2.10. `auto` também aqui, e não só no SDK: este é o valor que vale no
+  // intervalo entre o mount do widget e a chegada do `config-set` do host. Em
+  // rede lenta esse intervalo é visível, e era ele que produzia o flash claro
+  // antes do painel escurecer.
+  darkMode: 'auto',
   isUpdatingRoute: false,
   welcomeTitle: '',
   welcomeDescription: '',
@@ -28,6 +37,11 @@ const state = {
   enableFileUpload: undefined,
   enableEmojiPicker: true,
   enableEndConversation: true,
+  // As 11 flags planas da §B.3. Nasce nos defaults do perfil `support` (A4) e é
+  // re-hidratada a cada `setAppConfig` a partir de `window.chatwootWebChannel`.
+  // Espelha o que `configMixin.profileConfig` entrega — os dois leem o MESMO
+  // resolvedor, para não repetir o defeito produtor/consumidor da Onda 0.
+  profileConfig: { ...PROFILE_CONFIG_DEFAULTS },
 };
 
 export const getters = {
@@ -48,6 +62,19 @@ export const getters = {
   getShouldShowFilePicker: $state => $state.enableFileUpload,
   getShouldShowEmojiPicker: $state => $state.enableEmojiPicker,
   getCanUserEndConversation: $state => $state.enableEndConversation,
+  getProfileConfig: $state => $state.profileConfig,
+  getShowKnowledgeBase: $state => $state.profileConfig.showKnowledgeBase,
+  getShowConversationList: $state => $state.profileConfig.showConversationList,
+  getHomeLayout: $state => $state.profileConfig.homeLayout,
+  isMarketingHome: $state => $state.profileConfig.homeLayout === 'marketing',
+  getCaptureFlow: $state => $state.profileConfig.captureFlow,
+  getPrimaryExit: $state => $state.profileConfig.primaryExit,
+  getIsTeaserEnabled: $state => $state.profileConfig.teaserEnabled,
+  getTeaserDelayMs: $state => $state.profileConfig.teaserDelayMs,
+  getTeaserScrollPercent: $state => $state.profileConfig.teaserScrollPercent,
+  getHasCsatOnResolve: $state => $state.profileConfig.csatOnResolve,
+  getHasEmailContinuity: $state => $state.profileConfig.emailContinuity,
+  getIsAiLabelPersistent: $state => $state.profileConfig.aiLabelPersistent,
 };
 
 export const actions = {
@@ -59,7 +86,7 @@ export const actions = {
       hideMessageBubble,
       showUnreadMessagesDialog,
       widgetStyle = 'rounded',
-      darkMode = 'light',
+      darkMode = 'auto',
       welcomeTitle = '',
       welcomeDescription = '',
       availableMessage = '',
@@ -67,8 +94,19 @@ export const actions = {
       enableFileUpload = undefined,
       enableEmojiPicker = true,
       enableEndConversation = true,
+      profileConfig,
     }
   ) {
+    // `profileConfig` não vem pela ponte: o servidor o escreve em
+    // `window.chatwootWebChannel` (3.04). O parâmetro existe para o teste e para um
+    // eventual produtor futuro; quando ausente, lê da janela — e quando a janela também
+    // não tem, o resolvedor devolve os defaults do perfil `support`.
+    commit(
+      SET_PROFILE_CONFIG,
+      profileConfig
+        ? profileConfigFromChannel({ profileConfig })
+        : profileConfigFromChannel(window.chatwootWebChannel)
+    );
     commit(SET_WIDGET_APP_CONFIG, {
       hideMessageBubble: !!hideMessageBubble,
       position: position || 'right',
@@ -143,6 +181,9 @@ export const mutations = {
   },
   [SET_ROUTE_UPDATE_STATE]($state, status) {
     $state.isUpdatingRoute = status;
+  },
+  [SET_PROFILE_CONFIG]($state, profileConfig) {
+    $state.profileConfig = profileConfig;
   },
 };
 

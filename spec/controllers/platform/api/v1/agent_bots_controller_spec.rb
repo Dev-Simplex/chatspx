@@ -160,7 +160,10 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
         patch "/platform/api/v1/agent_bots/#{agent_bot.id}", params: { name: 'test123' }.merge(avatar_url: 'http://example.com/avatar.png'),
                                                              headers: { api_access_token: platform_app.access_token.token }
         expect(response).to have_http_status(:success)
-        expect(Avatar::AvatarFromUrlJob).to have_been_enqueued.with(agent_bot, 'http://example.com/avatar.png')
+        # `AvatarFromUrlJob#perform(avatarable_type, avatarable_id, avatar_url)` — nome da classe
+        # + id, nunca o registro. Todos os chamadores do codigo usam essa forma.
+        expect(Avatar::AvatarFromUrlJob).to have_been_enqueued
+          .with(agent_bot.class.name, agent_bot.id, 'http://example.com/avatar.png')
       end
     end
   end

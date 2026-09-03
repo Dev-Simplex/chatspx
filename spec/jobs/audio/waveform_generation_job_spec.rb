@@ -95,6 +95,10 @@ RSpec.describe Audio::WaveformGenerationJob do
       end
 
       it 'dispatches a MESSAGE_UPDATED event' do
+        # `audio_attachment` e preguicoso e cria conta + mensagem — que DISPARAM eventos. Avaliado
+        # depois do dublê, o `account.created` do proprio arranjo caia nele e a expectativa
+        # estrita falhava apontando um evento que o job nem emitiu. Materializa antes.
+        anexo = audio_attachment
         dispatcher = double('dispatcher')
         allow(Rails.configuration).to receive(:dispatcher).and_return(dispatcher)
         expect(dispatcher).to receive(:dispatch).with(
@@ -102,15 +106,19 @@ RSpec.describe Audio::WaveformGenerationJob do
           instance_of(ActiveSupport::TimeWithZone),
           hash_including(message: kind_of(Message), performed_by: nil)
         )
-        described_class.perform_now(audio_attachment.id)
+        described_class.perform_now(anexo.id)
       end
 
       it 'is idempotent on a second run' do
         described_class.perform_now(audio_attachment.id)
-        # Reset the spy so we can verify the second invocation is a no-op.
-        allow(Audio::WaveformExtractor).to receive(:new).and_return(extractor)
+
+        # `allow(...)` NAO zera o historico do espiao: `have_received` continuava contando a
+        # chamada da PRIMEIRA execucao, entao o exemplo falhava com "received: 1 time" mesmo o
+        # codigo estando correto. Uma expectativa negativa vale a partir de AGORA — e e isso que
+        # se quer provar: a segunda execucao nao instancia o extrator de novo.
+        expect(Audio::WaveformExtractor).not_to receive(:new)
+
         described_class.perform_now(audio_attachment.id)
-        expect(Audio::WaveformExtractor).not_to have_received(:new)
         expect(audio_attachment.reload.meta['waveform_peaks']).to eq(peaks)
       end
     end

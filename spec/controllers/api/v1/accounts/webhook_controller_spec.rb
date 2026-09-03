@@ -74,7 +74,8 @@ RSpec.describe 'Webhooks API', type: :request do
              headers: administrator.create_new_auth_token,
              as: :json
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['message']).to eql 'Subscriptions Invalid events'
+        # A mensagem e nome-do-atributo + erro traduzido: o atributo fica em ingles, o erro nao.
+        expect(response.parsed_body['message']).to eql "Subscriptions #{I18n.t('errors.webhook.invalid', locale: account.locale)}"
       end
 
       it 'throws error if subscription events are empty' do
@@ -83,7 +84,8 @@ RSpec.describe 'Webhooks API', type: :request do
              headers: administrator.create_new_auth_token,
              as: :json
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['message']).to eql 'Subscriptions Invalid events'
+        # A mensagem e nome-do-atributo + erro traduzido: o atributo fica em ingles, o erro nao.
+        expect(response.parsed_body['message']).to eql "Subscriptions #{I18n.t('errors.webhook.invalid', locale: account.locale)}"
       end
 
       it 'use default if subscription events are nil' do

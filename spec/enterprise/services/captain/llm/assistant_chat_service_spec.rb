@@ -6,6 +6,7 @@ RSpec.describe Captain::Llm::AssistantChatService do
   let(:conversation) { create(:conversation, account: account) }
 
   let(:mock_chat) { instance_double(RubyLLM::Chat) }
+  let(:mock_context) { instance_double(RubyLLM::Context) }
   let(:mock_response) do
     instance_double(
       RubyLLM::Message,
@@ -16,7 +17,13 @@ RSpec.describe Captain::Llm::AssistantChatService do
   before do
     create(:installation_config, name: 'CAPTAIN_OPEN_AI_API_KEY', value: 'test-key')
 
-    allow(RubyLLM).to receive(:chat).and_return(mock_chat)
+    # O servico chama `chat` do `Llm::BaseAiService`, que faz
+    # `Llm::Config.context_for_account(...).chat(...)` — nao `RubyLLM.chat`. E a chave vem
+    # do `Captain::OpenaiHookService` POR CONTA, nao do InstallationConfig global: a conta
+    # de teste nao tem hook, entao o contexto nascia sem chave e o RubyLLM levantava
+    # `ConfigurationError`. O mock precisa ficar onde o cliente e construido.
+    allow(Llm::Config).to receive(:context_for_account).and_return(mock_context)
+    allow(mock_context).to receive(:chat).and_return(mock_chat)
     allow(mock_chat).to receive(:with_temperature).and_return(mock_chat)
     allow(mock_chat).to receive(:with_params).and_return(mock_chat)
     allow(mock_chat).to receive(:with_tool).and_return(mock_chat)

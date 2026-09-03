@@ -26,6 +26,7 @@ import BotReports from './BotReports.vue';
 import LiveReports from './LiveReports.vue';
 import SLAReports from './SLAReports.vue';
 import LiveInService from './LiveInService.vue';
+import ConversationOriginReports from './ConversationOriginReports.vue';
 
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
@@ -132,6 +133,15 @@ const revisedReportRoutes = [
       permissions: ['administrator', 'report_manage'],
     },
     component: LabelReportsShow,
+  },
+  // Bloco 1.22 — de onde vieram os atendimentos.
+  {
+    path: 'origin',
+    name: 'conversation_origin_reports',
+    meta: {
+      permissions: ['administrator', 'report_manage'],
+    },
+    component: ConversationOriginReports,
   },
 ];
 

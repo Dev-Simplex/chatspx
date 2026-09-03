@@ -1,6 +1,10 @@
 require 'rails_helper'
 
 RSpec.describe 'Linear Integration API', type: :request do
+  # `Conversations::ActivityMessageJob#perform` recebe `conversation_id` — o servico enfileira
+  # `perform_later(conversation.id, ...)`. Passar o OBJETO faria o ActiveJob serializar por
+  # GlobalID e reidratar na execucao um registro possivelmente obsoleto. Mesmo caso do
+  # hook_listener_spec e do linear/activity_message_service_spec.
   let(:account) { create(:account) }
   let(:user) { create(:user) }
   let(:api_key) { 'valid_api_key' }
@@ -139,11 +143,12 @@ RSpec.describe 'Linear Integration API', type: :request do
                  headers: agent.create_new_auth_token,
                  as: :json
           end.to have_enqueued_job(Conversations::ActivityMessageJob)
-            .with(conversation, {
+            .with(conversation.id, {
                     account_id: conversation.account_id,
                     inbox_id: conversation.inbox_id,
                     message_type: :activity,
-                    content: "Linear issue ENG-123 was created by #{agent.name}"
+                    content: I18n.t('conversations.activity.linear.issue_created', issue_id: 'ENG-123',
+                                                                                   user_name: agent.name, locale: account.locale)
                   })
         end
       end
@@ -185,11 +190,12 @@ RSpec.describe 'Linear Integration API', type: :request do
                  headers: agent.create_new_auth_token,
                  as: :json
           end.to have_enqueued_job(Conversations::ActivityMessageJob)
-            .with(conversation, {
+            .with(conversation.id, {
                     account_id: conversation.account_id,
                     inbox_id: conversation.inbox_id,
                     message_type: :activity,
-                    content: "Linear issue ENG-456 was linked by #{agent.name}"
+                    content: I18n.t('conversations.activity.linear.issue_linked', issue_id: 'ENG-456',
+                                                                                  user_name: agent.name, locale: account.locale)
                   })
 
           expect(response).to have_http_status(:ok)
@@ -233,11 +239,12 @@ RSpec.describe 'Linear Integration API', type: :request do
                  headers: agent.create_new_auth_token,
                  as: :json
           end.to have_enqueued_job(Conversations::ActivityMessageJob)
-            .with(conversation, {
+            .with(conversation.id, {
                     account_id: conversation.account_id,
                     inbox_id: conversation.inbox_id,
                     message_type: :activity,
-                    content: "Linear issue ENG-789 was unlinked by #{agent.name}"
+                    content: I18n.t('conversations.activity.linear.issue_unlinked', issue_id: 'ENG-789',
+                                                                                    user_name: agent.name, locale: account.locale)
                   })
 
           expect(response).to have_http_status(:ok)

@@ -61,7 +61,12 @@ RSpec.describe Reports::PdfDataResolver do
   describe 'every supported report type' do
     ReportPdfExport::SUPPORTED_REPORT_TYPES.each do |report_type|
       it "resolves #{report_type} without raising and returns a titled hash" do
-        data = described_class.new(account: account, report_type: report_type, filters: {}).resolve
+        # `funnel` e o UNICO tipo que depende de um registro especifico: `funnel_data` faz
+        # `@account.funnels.find(@filters[:funnel_id])` e, com filtro vazio, levanta
+        # `RecordNotFound: Couldn't find Funnel without an ID`. Os demais resolvem sem filtro.
+        # A varredura passava `{}` para todos — premissa que nao vale para este.
+        filtros = report_type.to_s == 'funnel' ? { funnel_id: Funnel.create!(account: account, name: 'Funil').id } : {}
+        data = described_class.new(account: account, report_type: report_type, filters: filtros).resolve
         expect(data).to include(:title, :period)
         expect(data[:title]).to be_present
       end

@@ -160,6 +160,6 @@
     "MESSAGE_READ": "Read",
     "SENDING": "Sending",
     "PIN_CONVERSATION": "Pin to top",
-    "UNPIN_CONVERSATION": "Unpin"
-  }
+    "UNPIN_CONVERSATION": "Unpin",
+    "UNREAD_COUNT_OVERFLOW": "9+"  }
 }

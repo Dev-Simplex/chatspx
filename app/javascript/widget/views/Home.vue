@@ -34,7 +34,10 @@ export default {
 </script>
 
 <template>
-  <div class="z-50 flex flex-col justify-end flex-1 w-full p-4 gap-4">
+  <div
+    class="z-50 flex flex-col justify-end flex-1 w-full p-4 gap-4"
+    :data-home-layout="profileConfig.homeLayout"
+  >
     <TeamAvailability
       :available-agents="availableAgents"
       :has-conversation="!!conversationSize"
@@ -42,6 +45,15 @@ export default {
       @start-conversation="startConversation"
     />
 
-    <ArticleContainer />
+    <!--
+      Bloco 3.17 — a base de conhecimento é governada por `showKnowledgeBase`
+      (flag plana da §B.3), nunca pelo nome do perfil.
+
+      O `v-if` faz o componente não MONTAR, e é isso que satisfaz o aceite: o
+      `fetch` vive no `onMounted` do container, então esconder por CSS deixaria a
+      requisição a `/articles` sair mesmo com a base desligada. `ArticleContainer`
+      guarda a mesma regra por dentro, para o caso de ser montado de outro lugar.
+    -->
+    <ArticleContainer v-if="showKnowledgeBase" />
   </div>
 </template>

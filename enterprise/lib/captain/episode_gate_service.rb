@@ -2,11 +2,18 @@
 # no padrão τ-bench/BFCL — fato binário é verificado por código, não por LLM. Os
 # findings do gate entram em response_findings com 'origem' => 'gate' (o juiz LLM
 # marca os dele sem origem) e severidade alta porque são flagras objetivos.
+#
+# 6.01: as REGRAS saíram daqui para `Captain::GateAsserts` e são as mesmas que o
+# guardrail de pré-envio (`Captain::ResponseGuardrailService`) aplica ANTES de a
+# resposta sair. Este serviço continua sendo o pós-fato: quem reúne os fatos do
+# episódio já fechado e os alimenta às regras.
 class Captain::EpisodeGateService
-  NEGATIVE_REPLY = /n[ãa]o\s+(encontr|ach|localiz|temos|tem\b)/i
-  EMPTY_RESULT = /nenhum|n[ãa]o encontr|not found|\A\s*\[\]\s*\z/i
-  REPLY_WINDOW = 3.minutes
-  MIN_REPEAT_LENGTH = 40
+  # Mantidas como constantes desta classe porque são contrato público lido de fora
+  # (specs e o serviço de eval). A definição vive em Captain::GateAsserts.
+  NEGATIVE_REPLY = Captain::GateAsserts::NEGATIVE_REPLY
+  EMPTY_RESULT = Captain::GateAsserts::EMPTY_RESULT
+  REPLY_WINDOW = Captain::GateAsserts::REPLY_WINDOW
+  MIN_REPEAT_LENGTH = Captain::GateAsserts::MIN_REPEAT_LENGTH
 
   pattr_initialize [:episode!]
 
@@ -44,11 +51,10 @@ class Captain::EpisodeGateService
   # do "não achei imóvel" falso.
   def contradicted_tool_findings
     tool_calls.filter_map do |call|
-      next if call.status == 'error' || call.result_preview.blank?
-      next if call.result_preview.match?(EMPTY_RESULT)
+      next unless Captain::GateAsserts.tool_result_useful?(status: call.status, result_preview: call.result_preview)
 
       reply = ia_messages.find { |m| m.created_at.between?(call.created_at, call.created_at + REPLY_WINDOW) }
-      next unless reply && reply.content.to_s.match?(NEGATIVE_REPLY)
+      next unless reply && Captain::GateAsserts.negative_reply?(reply.content)
 
       gate_finding('contradisse_tool', reply,
                    "a ferramenta #{call.tool_name} devolveu resultados e a resposta seguinte negou tê-los encontrado")
@@ -89,8 +95,8 @@ class Captain::EpisodeGateService
   def literal_repetition_findings
     seen = {}
     ia_messages.filter_map do |message|
-      key = message.content.to_s.strip.downcase.gsub(/\s+/, ' ')
-      next if key.length < MIN_REPEAT_LENGTH
+      key = Captain::GateAsserts.repetition_key(message.content)
+      next if key.nil?
 
       first = seen[key]
       seen[key] = message
@@ -101,14 +107,12 @@ class Captain::EpisodeGateService
   end
 
   def gate_finding(categoria, message, porque, severidade: 'alta')
-    {
-      'origem' => 'gate',
-      'quem' => 'ia',
-      'categoria' => categoria,
-      'severidade' => severidade,
-      'message_id' => message&.id,
-      'trecho' => message&.content.to_s[0, 120],
-      'porque' => porque
-    }
+    Captain::GateAsserts.finding(
+      categoria: categoria,
+      severidade: severidade,
+      message_id: message&.id,
+      trecho: message&.content,
+      porque: porque
+    )
   end
 end

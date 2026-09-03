@@ -15,7 +15,10 @@ RSpec.describe AdministratorNotifications::AccountNotificationMailer do
   describe '#account_deletion_user_initiated' do
     it 'sets the correct subject for user-initiated deletion' do
       mail = mailer.account_deletion_user_initiated(account, 'manual_deletion')
-      expect(mail.subject).to eq('Your Chatwoot account deletion has been scheduled')
+      # O assunto e um literal Ruby no mailer (nao passa por i18n). O upstream e863a52262
+      # mudou codigo E spec juntos; o NOSSO 87095e111b ("~120 fixes") reescreveu so o codigo
+      # e deixou este spec para tras. O que envia e o mailer, entao o spec e que se alinha.
+      expect(mail.subject).to eq('Your account has been marked for deletion')
     end
   end
 

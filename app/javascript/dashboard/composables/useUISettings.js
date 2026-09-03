@@ -8,6 +8,10 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'kanban_status' },
   { name: 'macros' },
   { name: 'conversation_info' },
+  // Bloco 5.23 — imediatamente ACIMA dos atributos personalizados, e não é estética: a seção
+  // existe para separar o que o site mandou do que o agente digitou, e ela só faz esse trabalho
+  // se estiver encostada na lista de onde os dados foram tirados.
+  { name: 'site_context' },
   { name: 'contact_attributes' },
   { name: 'contact_notes' },
   { name: 'previous_conversation' },
@@ -51,6 +55,17 @@ const useConversationSidebarItemsOrder = uiSettings => {
         // conversation_media goes at the top when first added; others at the end.
         if (item.name === 'conversation_media') {
           itemsOrderCopy.unshift(item);
+        } else if (item.name === 'site_context') {
+          // O `else` genérico empurra item novo para o FIM da lista — e o aceite do 5.23 é
+          // responder "de onde veio esta pessoa" SEM rolar a barra inteira. Para quem já usa o
+          // produto (que é quase todo mundo, porque a ordem salva existe desde a primeira vez
+          // que alguém arrastou um item), o fim da lista é o mesmo que não existir. Entra
+          // colado em `contact_attributes`, como na ordem de fábrica.
+          const attrsIndex = itemsOrderCopy.findIndex(
+            i => i.name === 'contact_attributes'
+          );
+          if (attrsIndex === -1) itemsOrderCopy.push(item);
+          else itemsOrderCopy.splice(attrsIndex, 0, item);
         } else if (item.name === 'group_participants') {
           // Integrantes é a segunda coisa que o agente procura num grupo:
           // entra logo abaixo de "Mídias e Arquivos", não no fim da lista.

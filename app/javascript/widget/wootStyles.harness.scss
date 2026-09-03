@@ -1,0 +1,17 @@
+// ⚠️ ARQUIVO DE HARNESS DE TESTE, e ele mora aqui por um motivo técnico, não por descuido.
+//
+// O aceite de largura do bloco 4.03 (`spec/e2e/widget/capture/`) precisa do CSS REAL do
+// widget. Importar `assets/scss/woot.scss` de qualquer outro lugar **quebra o build**:
+// o `@config '../../../tailwind.widget.config.js'` do topo daquele arquivo é resolvido
+// pelo Tailwind **relativo ao arquivo que o PostCSS recebe**, e não relativo a ele mesmo
+// (o próprio woot.scss avisa isso no cabeçalho). Em produção quem o PostCSS recebe é o
+// bloco `<style lang="scss">` de `widget/App.vue` — daí a base ser `app/javascript/widget/`.
+//
+// Este arquivo reproduz essa base e SÓ isso. Ele existe porque a alternativa era o teste
+// importar `App.vue` inteiro para pegar o CSS — e isso arrastava o grafo do widget inteiro
+// para dentro do aquecimento do Vite: **3.862 módulos e 235 s**, medido em 18/08/2026,
+// contra os 120 s de teto do projeto `widget` no Playwright. O teste mede largura de campo;
+// ele não precisa do vuex, do router nem de nenhum componente do app.
+//
+// Nada do app importa este arquivo, e ele não entra em bundle nenhum.
+@import './assets/scss/woot';

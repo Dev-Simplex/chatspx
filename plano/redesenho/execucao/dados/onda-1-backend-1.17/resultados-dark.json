@@ -1,0 +1,77 @@
+[
+  {
+    "name": "[dark] tema realmente aplicado",
+    "pass": true,
+    "detail": "html.dark=true"
+  },
+  {
+    "name": "[dark] IP nasce mascarado",
+    "pass": true,
+    "detail": "texto=\"203.•••\""
+  },
+  {
+    "name": "[dark] IP completo nao esta no DOM enquanto mascarado",
+    "pass": true,
+    "detail": "busca por \"203.0.113.77\" no HTML renderizado"
+  },
+  {
+    "name": "[dark] linha do IP visivel na tela",
+    "pass": true,
+    "detail": "isVisible=true"
+  },
+  {
+    "name": "[dark] revela o IP completo no clique",
+    "pass": true,
+    "detail": "texto=\"203.0.113.77\""
+  },
+  {
+    "name": "[dark] volta a mascarar no segundo clique",
+    "pass": true,
+    "detail": "texto=\"203.•••\""
+  },
+  {
+    "name": "[dark] secao ausente antes do site mandar a chave",
+    "pass": true,
+    "detail": "count=0"
+  },
+  {
+    "name": "[dark] site conseguiu mandar setCustomAttributes",
+    "pass": true,
+    "detail": "HTTP 204"
+  },
+  {
+    "name": "[dark] secao \"Dados recebidos do site (1)\" aparece na mesma sessao",
+    "pass": true,
+    "detail": "titulo=\"DADOS RECEBIDOS DO SITE (1)\""
+  },
+  {
+    "name": "[dark] selo de origem presente",
+    "pass": true,
+    "detail": "count=1 texto=\"Do site\""
+  },
+  {
+    "name": "[dark] selo nao fica por baixo do botao de acao do atributo",
+    "pass": true,
+    "detail": "{\"medido\":true,\"intersecta\":false,\"badge\":[1363.96875,1384],\"botao\":[1339.875,1410.65625]}"
+  },
+  {
+    "name": "[dark] contraste do selo passa em WCAG AA (>= 4.5)",
+    "pass": true,
+    "detail": "ratio=11.37 fg=rgb(233, 237, 239) bg=rgb(35, 49, 56)"
+  },
+  {
+    "name": "[dark] atributo cadastrado pelo time fica FORA da secao",
+    "pass": true,
+    "detail": "conteudo da secao=[\"Carrinho valor\\n\\n4200\\n\\nDo site\"]"
+  },
+  {
+    "name": "[dark] sem resposta HTTP de erro",
+    "pass": true,
+    "detail": "nenhuma"
+  },
+  {
+    "name": "[dark] sem erro de console relevante",
+    "pass": true,
+    "detail": "nenhum"
+  }
+]

@@ -3,8 +3,10 @@ require 'rails_helper'
 describe Integrations::Dyte::ProcessorService do
   let(:headers) { { 'Content-Type' => 'application/json' } }
   let(:account) { create(:account) }
-  let(:inbox) { create(:inbox, account: account) }
-  let(:conversation) { create(:conversation, account: account, status: :pending) }
+  # pending_status_enabled: `pending_status_allowed_by_inbox` (nossa, da2ea07ed1)
+  # recusa Pendente em caixa sem o recurso; spec herdado presume que sempre funciona.
+  let(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
+  let(:conversation) { create(:conversation, account: account, inbox: inbox, status: :pending) }
   let(:processor) { described_class.new(account: account, conversation: conversation) }
   let(:agent) { create(:user, account: account, role: :agent) }
 

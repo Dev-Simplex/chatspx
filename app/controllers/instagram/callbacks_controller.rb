@@ -51,7 +51,7 @@ class Instagram::CallbacksController < ApplicationController
       begin
         # Instagram returns JSON error response which we parse to extract error details
         JSON.parse(error.message)
-      rescue JSON::ParseError
+      rescue JSON::ParserError
         # Fall back to a generic OAuth error if JSON parsing fails
         { 'error_type' => 'OAuthException', 'code' => 400, 'error_message' => error.message }
       end

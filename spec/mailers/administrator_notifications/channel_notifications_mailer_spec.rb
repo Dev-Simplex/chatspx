@@ -23,7 +23,8 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
       let(:mail) { described_class.with(account: account).facebook_disconnect(facebook_inbox).deliver_now }
 
       it 'renders the subject' do
-        expect(mail.subject).to eq('Your Facebook page connection has expired')
+        # Grafia da marca: o mailer escreve "Facebook Page" (correto). O spec ficou com "page".
+        expect(mail.subject).to eq('Your Facebook Page connection has expired')
       end
 
       it 'renders the receiver email' do
@@ -38,7 +39,8 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
     let(:mail) { described_class.with(account: account).whatsapp_disconnect(whatsapp_inbox).deliver_now }
 
     it 'renders the subject' do
-      expect(mail.subject).to eq('Your Whatsapp connection has expired')
+      # Grafia da marca: o mailer escreve "WhatsApp" (correto). O spec ficou com "Whatsapp".
+      expect(mail.subject).to eq('Your WhatsApp connection has expired')
     end
 
     it 'renders the receiver email' do
