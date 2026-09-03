@@ -103,4 +103,84 @@ RSpec.describe Captain::ConversationEvalService do
       expect(fonte).to include('transferencia_ausente')
     end
   end
+
+  # O transcript carregava só o TEXTO: uma resposta que a Meta recusou chegava ao juiz idêntica
+  # a uma entregue. Conv 32979 (01/09/2026): as três mensagens de foto falharam, a cliente
+  # escreveu "Não recebi fotos" e a IA reafirmou o envio — e o juiz não tinha como discordar.
+  describe 'entrega que falhou' do
+    it 'leaves a delivered message unmarked' do
+      m = create(:message, account: account, inbox: inbox, conversation: conversation,
+                           message_type: :outgoing, content: 'mandei as fotos')
+
+      expect(service.send(:marca_de_falha, m)).to eq('')
+    end
+
+    it 'marks the message that never reached the client, with the reason' do
+      m = create(:message, account: account, inbox: inbox, conversation: conversation,
+                           message_type: :outgoing, content: 'mandei as fotos')
+      m.update!(status: :failed, external_error: '100 - The parameter message[attachments][1][type] is required')
+
+      marca = service.send(:marca_de_falha, m)
+
+      expect(marca).to include('NÃO ENTREGUE')
+      expect(marca).to include('attachments')
+    end
+
+    it 'still marks it when the channel gave no reason' do
+      m = create(:message, account: account, inbox: inbox, conversation: conversation,
+                           message_type: :outgoing, content: 'oi')
+      m.update!(status: :failed)
+
+      expect(service.send(:marca_de_falha, m)).to eq(' (NÃO ENTREGUE)')
+    end
+  end
+
+  # Lead que fica esperando não é evento na transcrição, então nunca foi julgado. O juiz media
+  # a conversa e ia embora — "terminou bem" e "parou no meio" chegavam iguais a ele.
+  describe 'desfecho' do
+    it 'is absent while the conversation is still warm' do
+      create(:message, account: account, inbox: inbox, conversation: conversation,
+                       message_type: :outgoing, content: 'te mando as opções')
+
+      expect(service.send(:desfecho_context)).to be_nil
+    end
+
+    it 'says who spoke last, how long ago, and whether anybody owns it' do
+      travel_to(30.hours.ago) do
+        create(:message, account: account, inbox: inbox, conversation: conversation,
+                         message_type: :outgoing, content: 'qual bairro você prefere?')
+      end
+
+      texto = service.send(:desfecho_context)
+
+      expect(texto).to include('DESFECHO')
+      expect(texto).to include('do atendimento, há 30h')
+      expect(texto).to include('dono agora: ninguém')
+    end
+
+    # Cutucada programada é o que separa "abandonado" de "vai ser retomado".
+    it 'reports the nudge so a scheduled follow-up is not read as abandonment' do
+      travel_to(30.hours.ago) do
+        create(:message, account: account, inbox: inbox, conversation: conversation,
+                         message_type: :outgoing, content: 'ainda está aí?')
+      end
+      conversation.update!(custom_attributes: { 'followup_count' => 2 })
+
+      expect(service.send(:desfecho_context)).to include('sim, 2 já disparada(s)')
+    end
+  end
+
+  # Categoria descrita no prompt mas ausente do enum do schema é recusada na chamada
+  # estruturada — ela simplesmente nunca apareceria, sem erro nenhum.
+  describe 'as categorias novas existem nos DOIS lugares' do
+    let(:schema) { Rails.root.join('enterprise/lib/captain/conversation_eval_schema.rb').read }
+    let(:prompt) { Rails.root.join('enterprise/lib/captain/prompts/conversation_eval.liquid').read }
+
+    %w[nao_entregue pedido_ignorado afirmou_esgotamento lead_abandonado].each do |categoria|
+      it "declares #{categoria} in the schema and describes it in the prompt" do
+        expect(schema).to include(categoria)
+        expect(prompt).to include("- #{categoria}:")
+      end
+    end
+  end
 end
