@@ -19,6 +19,9 @@ const { t } = useI18n();
 
 const loading = ref(true);
 const data = ref(null);
+// Sobe do formulário do motor para o painel de disparo: iniciar com a configuração
+// antiga, achando que salvou, é o erro que esta tela não pode deixar passar calado.
+const settingsDirty = ref(false);
 
 const campaignId = computed(() => props.campaignId || route.params.campaignId);
 
@@ -138,12 +141,16 @@ onBeforeUnmount(stopPolling);
           :campaign-id="campaignId"
           :campaign="data.campaign"
           @changed="fetchStats({ silent: true })"
+          @dirty="settingsDirty = $event"
         />
         <DispatchPanel
           class="mb-6"
           :campaign-id="campaignId"
           :dispatch-status="data.dispatch_status"
           :recipients="data.recipients"
+          :campaign="data.campaign"
+          :dispatch-preview="data.dispatch_preview"
+          :settings-dirty="settingsDirty"
           @changed="fetchStats({ silent: true })"
         />
 

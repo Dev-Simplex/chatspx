@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CampaignsAPI from 'dashboard/api/campaigns';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 
@@ -15,6 +16,13 @@ const props = defineProps({
   dispatchStatus: { type: String, default: 'draft' },
   // { pending, sent, delivered, read, replied, failed, skipped, ... } vindo do /stats
   recipients: { type: Object, default: () => ({}) },
+  // Config vigente do motor — o que a confirmação precisa afirmar antes do envio.
+  campaign: { type: Object, default: () => ({}) },
+  // O que o PRÓXIMO pendente vai receber, já renderizado pelo backend com a mesma lente
+  // do envio. `null` quando não há template configurado.
+  dispatchPreview: { type: Object, default: null },
+  // Há alteração digitada e não salva no formulário do motor logo acima.
+  settingsDirty: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['changed']);
@@ -61,6 +69,39 @@ const totalRecipients = computed(() =>
 );
 
 const pendingCount = computed(() => Number(props.recipients?.pending || 0));
+
+const confirmRef = ref(null);
+
+// Retomar não é iniciar. O mesmo rótulo nos dois casos escondia que a campanha já tinha
+// disparado antes — e o operador não tem como saber, porque a tela nunca disse.
+const isPaused = computed(() => props.dispatchStatus === 'paused');
+
+// O gate era `!totalRecipients` — o TOTAL, que inclui quem JÁ recebeu. Campanha concluída
+// apresentava um "Iniciar disparo" habilitado sem ter o que enviar. Quem manda é o que
+// ainda está pendente.
+const podeIniciar = computed(() => pendingCount.value > 0);
+
+const ritmo = computed(() => {
+  const segundos = Number(props.campaign?.pacing_seconds);
+  if (!Number.isFinite(segundos) || segundos < 1) return null;
+  return { segundos, porMinuto: Math.floor(60 / segundos) };
+});
+
+// A janela de silêncio é por hora cheia (o motor compara `Time.current.hour`). Mostrá-la
+// resolvida na confirmação é a frase mais barata que existe contra disparar no horário
+// errado — o campo tem as duas pontas configuráveis e a janela nunca aparecia montada.
+const janelaSilencio = computed(() => {
+  const quiet = props.campaign?.dispatch_config?.quiet_hours;
+  if (!quiet || quiet.start === null || quiet.start === undefined) return null;
+  const hora = valor => `${String(valor).padStart(2, '0')}:00`;
+  return { inicio: hora(quiet.start), fim: hora(quiet.end) };
+});
+
+// Variável que o template exige e o parâmetro não preenche. É exatamente o defeito que
+// mandou 124 mensagens com "Oi , sou a Kettlen" — e ele fica visível ANTES do envio.
+const faltamVariaveis = computed(
+  () => (props.dispatchPreview?.missing || []).length > 0
+);
 
 const statusRows = computed(() =>
   STATUS_ORDER.filter(key => props.recipients?.[key]).map(key => ({
@@ -240,13 +281,23 @@ const doUpload = async () => {
   emit('changed');
 };
 
+// O botão não dispara mais: ele abre a confirmação. Antes, um clique começava a enviar
+// para a lista inteira — sem contagem, sem template à vista, sem janela, sem desfazer —
+// num botão idêntico ao de carregar planilha, doze linhas de markup ao lado. O repo já
+// confirma apagar um RASCUNHO de campanha; mandar mensagem para milhares de estranhos
+// não pedia nada.
 const doStart = async () => {
   const res = await run(
     'start',
     () => CampaignsAPI.startDispatch(props.campaignId),
     'CAMPAIGN.WHATSAPP.DISPATCH.START_ERROR'
   );
-  if (res) emit('changed');
+  // Falhou: o motivo do backend ja virou toast e o dialogo FICA aberto, com os fatos a
+  // vista, pra corrigir e tentar de novo. Fechar aqui devolveria o operador a tela sem
+  // contexto nenhum do que ele tinha acabado de confirmar.
+  if (!res) return;
+  confirmRef.value?.close();
+  emit('changed');
 };
 
 const doPause = async () => {
@@ -274,10 +325,14 @@ const doPause = async () => {
         <button
           v-if="!isRunning"
           class="px-3 py-1.5 text-sm font-medium rounded-lg bg-n-brand text-white disabled:opacity-50"
-          :disabled="busy === 'start' || !totalRecipients"
-          @click="doStart"
+          :disabled="busy === 'start' || !podeIniciar"
+          @click="confirmRef?.open()"
         >
-          {{ t('CAMPAIGN.WHATSAPP.DISPATCH.START') }}
+          {{
+            isPaused
+              ? t('CAMPAIGN.WHATSAPP.DISPATCH.RESUME')
+              : t('CAMPAIGN.WHATSAPP.DISPATCH.START')
+          }}
         </button>
         <button
           v-else
@@ -487,8 +542,10 @@ const doPause = async () => {
         >
           {{ t('CAMPAIGN.WHATSAPP.DISPATCH.PREVIEW') }}
         </button>
+        <!-- Contorno, nao verde solido: carregar lista e o verde do disparo eram o MESMO
+             botao a doze linhas de distancia, e um manda mensagem pra milhares de pessoas. -->
         <button
-          class="px-3 py-1.5 text-sm font-medium rounded-lg bg-n-brand text-white disabled:opacity-50"
+          class="px-3 py-1.5 text-sm font-medium border rounded-lg border-n-brand text-n-brand disabled:opacity-50"
           :disabled="!pronto || busy === 'upload'"
           @click="doUpload"
         >
@@ -575,5 +632,131 @@ const doPause = async () => {
         </p>
       </details>
     </div>
+
+    <!--
+      Confirmacao do disparo. Ela existe para dizer, ANTES do envio, os fatos que o
+      componente ja tinha e nunca mostrava: para quantos, com qual template, em que ritmo,
+      respeitando qual janela — e como a mensagem vai chegar no telefone da pessoa.
+    -->
+    <Dialog
+      ref="confirmRef"
+      type="alert"
+      :title="
+        isPaused
+          ? t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.TITLE_RESUME')
+          : t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.TITLE')
+      "
+      :description="t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.IRREVERSIBLE')"
+      :confirm-button-label="
+        isPaused
+          ? t('CAMPAIGN.WHATSAPP.DISPATCH.RESUME')
+          : t('CAMPAIGN.WHATSAPP.DISPATCH.START')
+      "
+      :is-loading="busy === 'start'"
+      :disable-confirm-button="busy === 'start'"
+      @confirm="doStart"
+    >
+      <div class="flex flex-col gap-4">
+        <dl class="grid gap-1.5 text-sm">
+          <div class="flex justify-between gap-4">
+            <dt class="text-n-slate-11">
+              {{ t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.RECIPIENTS') }}
+            </dt>
+            <dd class="font-medium tabular-nums text-n-slate-12">
+              {{ pendingCount }}
+            </dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-n-slate-11">
+              {{ t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.TEMPLATE') }}
+            </dt>
+            <dd
+              class="font-medium text-end"
+              :class="
+                dispatchPreview?.template_name
+                  ? 'text-n-slate-12'
+                  : 'text-n-ruby-11'
+              "
+            >
+              {{
+                dispatchPreview?.template_name ||
+                t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.NO_TEMPLATE')
+              }}
+            </dd>
+          </div>
+          <div v-if="ritmo" class="flex justify-between gap-4">
+            <dt class="text-n-slate-11">
+              {{ t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.PACING') }}
+            </dt>
+            <dd class="font-medium text-n-slate-12">
+              {{
+                t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.PACING_VALUE', {
+                  seconds: ritmo.segundos,
+                  rate: ritmo.porMinuto,
+                })
+              }}
+            </dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-n-slate-11">
+              {{ t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.QUIET') }}
+            </dt>
+            <dd class="font-medium text-end text-n-slate-12">
+              {{
+                janelaSilencio
+                  ? t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.QUIET_VALUE', {
+                      start: janelaSilencio.inicio,
+                      end: janelaSilencio.fim,
+                    })
+                  : t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.NO_QUIET')
+              }}
+            </dd>
+          </div>
+        </dl>
+
+        <!--
+          A mensagem como ela chega no telefone da pessoa. Sai da nossa conta, entao no
+          aparelho dela e uma mensagem RECEBIDA — por isso a bolha e a de entrada.
+        -->
+        <div>
+          <p class="mb-1.5 text-xs text-n-slate-11">
+            {{
+              dispatchPreview?.contact_name
+                ? t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.PREVIEW_FOR', {
+                    name: dispatchPreview.contact_name,
+                  })
+                : t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.PREVIEW')
+            }}
+          </p>
+          <div class="p-3 rounded-lg bg-wa-pane-light dark:bg-wa-pane-dark">
+            <div
+              v-if="dispatchPreview?.body"
+              class="max-w-[85%] rounded-lg rounded-tl-none px-3 py-2 text-sm whitespace-pre-line bg-wa-surface-light dark:bg-wa-surface-dark text-n-slate-12 shadow-sm"
+            >
+              {{ dispatchPreview.body }}
+            </div>
+            <p v-else class="text-xs text-wa-text-muted">
+              {{ t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.NO_BODY') }}
+            </p>
+          </div>
+        </div>
+
+        <!--
+          Variavel que o template exige e o parametro nao preenche. E o defeito que mandou
+          124 mensagens comecando com "Oi ,": o status nao acusa, porque a Meta aceita.
+        -->
+        <p v-if="faltamVariaveis" class="text-xs text-n-ruby-11">
+          {{
+            t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.MISSING', {
+              vars: dispatchPreview.missing.join(', '),
+            })
+          }}
+        </p>
+
+        <p v-if="settingsDirty" class="text-xs text-n-amber-11">
+          {{ t('CAMPAIGN.WHATSAPP.DISPATCH.CONFIRM.DIRTY') }}
+        </p>
+      </div>
+    </Dialog>
   </div>
 </template>
