@@ -19,7 +19,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
       model: eval_model,
       messages: [
         { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context].compact.join("\n\n") },
-        { role: 'user', content: user_content }
+        { role: 'user', content: user_content(transcript) }
       ],
       schema: RESPONSE_SCHEMA
     )
@@ -117,7 +117,13 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     [cabecalho, *linhas].join("\n")
   end
 
-  def user_content
+  # O transcript vem por ARGUMENTO, não por leitura de escopo: ele é variável local do
+  # `perform`, e quando este corpo foi extraído para cá (078efe33e6) o método passou a
+  # referenciar um nome que não existe aqui. O efeito foi mudo e invertido — episódio SEM
+  # atendimento saía cedo no `perform` e era gravado como 'sem_mensagens', enquanto todo
+  # episódio COM atendimento estourava NameError e não gravava veredito nenhum. Em 3 dias,
+  # ~420 atendimentos reais ficaram sem julgamento e o digest emudeceu por falta de finding.
+  def user_content(transcript)
     [origem_context, carryover_context, system_events_summary,
      human_annotations_context, desfecho_context, transcript].compact.join("\n\n")
   end
