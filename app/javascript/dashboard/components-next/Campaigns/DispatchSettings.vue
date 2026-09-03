@@ -160,7 +160,13 @@ const salvar = async () => {
 </script>
 
 <template>
-  <div class="p-4 border rounded-xl border-n-weak bg-n-solid-2">
+  <!--
+    `bg-white dark:bg-n-solid-2` e nao `bg-n-solid-2` puro: o _wa-skin.scss sobrescreve a
+    classe EXATA (`.dark .bg-n-solid-2`) e nao casa a compilada `.dark .dark\:bg-n-solid-2`,
+    entao os dois jeitos resolviam tons DIFERENTES no escuro — este card saia #202c33 e os
+    quatro logo abaixo #233138. No claro eram identicos, por isso passava despercebido.
+  -->
+  <div class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2">
     <h2 class="mb-4 text-sm font-medium text-n-slate-12">
       {{ t('CAMPAIGN.WHATSAPP.SETTINGS.TITLE') }}
     </h2>

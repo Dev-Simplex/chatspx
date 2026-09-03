@@ -174,11 +174,28 @@
         "CODE": "Meta code",
         "REASON": "Reason",
         "NO_AGENT": "Unassigned",
+        "NO_FAILURES": "No failures recorded.",
+        "CAMPAIGN_STATUS": {
+          "active": "Active",
+          "completed": "Completed"
+        },
+        "CONVERSATION_STATUS": {
+          "open": "Open",
+          "resolved": "Resolved",
+          "pending": "Pending",
+          "snoozed": "Snoozed"
+        },
+        "TABLE": {
+          "CONTACT": "Contact",
+          "LAST_REPLY": "Last reply",
+          "STATUS": "Status"
+        },
         "CODES": {
           "131026": "No WhatsApp",
           "130472": "Meta pacing",
           "131049": "Meta pacing",
-          "outro": "Other"
+          "outro": "Other",
+          "unknown": "Uncatalogued error"
         }
       },
       "CREATE": {
@@ -259,6 +276,20 @@
         },
         "PAUSE": "Pause",
         "PROGRESS": "{done} of {total} processed",
+        "PROGRESS_LABEL": "Dispatch progress",
+        "FAILED_NOTE": "{count} were not delivered.",
+        "IGNORED_LINES": "{count} line(s) with no recognisable phone were ignored.",
+        "FILE_LABEL": "CSV file with the list",
+        "ORIGIN": {
+          "SIMULACAO": "Simulation — {source}. Nothing has been loaded yet.",
+          "CARREGADO": "Loaded — {source}. These recipients are stored."
+        },
+        "TABLE": {
+          "REASON": "Reason",
+          "COUNT": "Count",
+          "NAME": "Name",
+          "PHONE": "Phone"
+        },
         "RECIPIENT_STATUS": {
           "pending": "Queued",
           "processing": "Sending",
@@ -301,6 +332,7 @@
         "TEMPLATE_DOWNLOAD": "Download the template",
         "NOT_CSV": "Spreadsheets (.xlsx/.xls) are not read here. Save as CSV — the template button gives you the right format.",
         "SOURCE": {
+          "GROUP": "Audience source",
           "PLANILHA": "From a spreadsheet",
           "SEGMENTO": "From the contact base"
         },

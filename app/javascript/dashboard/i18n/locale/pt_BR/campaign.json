@@ -174,11 +174,28 @@
         "CODE": "Código Meta",
         "REASON": "Motivo",
         "NO_AGENT": "Sem dono",
+        "NO_FAILURES": "Nenhuma falha registrada.",
+        "CAMPAIGN_STATUS": {
+          "active": "Ativa",
+          "completed": "Concluída"
+        },
+        "CONVERSATION_STATUS": {
+          "open": "Aberta",
+          "resolved": "Resolvida",
+          "pending": "Pendente",
+          "snoozed": "Adiada"
+        },
+        "TABLE": {
+          "CONTACT": "Contato",
+          "LAST_REPLY": "Última resposta",
+          "STATUS": "Situação"
+        },
         "CODES": {
           "131026": "Sem WhatsApp",
           "130472": "Pacing Meta",
           "131049": "Pacing Meta",
-          "outro": "Outro"
+          "outro": "Outro",
+          "unknown": "Erro não catalogado"
         }
       },
       "CREATE": {
@@ -259,6 +276,20 @@
         },
         "PAUSE": "Pausar",
         "PROGRESS": "{done} de {total} processados",
+        "PROGRESS_LABEL": "Progresso do disparo",
+        "FAILED_NOTE": "{count} não foram entregues.",
+        "IGNORED_LINES": "{count} linha(s) sem telefone reconhecível foram ignoradas.",
+        "FILE_LABEL": "Arquivo CSV com a lista",
+        "ORIGIN": {
+          "SIMULACAO": "Simulação — {source}. Nada foi carregado ainda.",
+          "CARREGADO": "Carregado — {source}. Estes destinatários estão gravados."
+        },
+        "TABLE": {
+          "REASON": "Motivo",
+          "COUNT": "Quantos",
+          "NAME": "Nome",
+          "PHONE": "Telefone"
+        },
         "RECIPIENT_STATUS": {
           "pending": "Na fila",
           "processing": "Enviando",
@@ -301,6 +332,7 @@
         "TEMPLATE_DOWNLOAD": "Baixar o modelo",
         "NOT_CSV": "Planilha (.xlsx/.xls) não é lida aqui. Salve como CSV — o botão do modelo entrega o formato certo.",
         "SOURCE": {
+          "GROUP": "Origem do público",
           "PLANILHA": "De uma planilha",
           "SEGMENTO": "Da base de contatos"
         },

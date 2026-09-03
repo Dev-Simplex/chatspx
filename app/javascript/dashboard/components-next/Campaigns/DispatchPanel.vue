@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CampaignsAPI from 'dashboard/api/campaigns';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -27,10 +27,34 @@ const props = defineProps({
 
 const emit = defineEmits(['changed']);
 
-const { t } = useI18n();
+const { t, te } = useI18n();
+
+// Chave montada com valor do servidor imprime o CAMINHO DA CHAVE na tela no dia em que o
+// backend acrescenta um motivo ou um estado novo. Numa superficie pt-BR isso conta como
+// defeito, e o produto ainda promete que identificador tecnico nunca vira informacao de
+// atendimento. Fallback legivel — mesmo padrao que o LeadRoutingDialog ja usa aqui do lado.
+const rotulo = (chave, cru) => (te(chave) ? t(chave) : cru);
+
+// Pilula cinza para TODO estado fazia campanha que explodiu ter a mesma cara de campanha
+// que terminou bem. A cor passa a carregar o desfecho — junto do texto, nunca sozinha.
+const CORES_STATUS = {
+  running: 'bg-n-blue-3 text-n-blue-11',
+  completed: 'bg-n-teal-3 text-n-teal-11',
+  failed: 'bg-n-ruby-3 text-n-ruby-11',
+  paused: 'bg-n-amber-3 text-n-amber-11',
+};
+const corStatus = computed(
+  () => CORES_STATUS[props.dispatchStatus] || 'bg-n-alpha-2 text-n-slate-11'
+);
 
 const listText = ref('');
 const preview = ref(null);
+// De ONDE veio o resultado que esta na tela. "Conferir audiencia" (simulacao) e "Carregar
+// destinatarios" (grava) escreviam no MESMO lugar e renderizavam o MESMO bloco: a unica
+// diferenca era um toast que sumia. Numa tela cujo proximo clique manda mensagem, "ja
+// carreguei esta lista?" e "qual audiencia estou vendo?" precisam ser respondiveis pelos
+// pixels, nao pela memoria de quem clicou.
+const previewMeta = ref(null);
 const busy = ref('');
 
 const labels = useMapGetter('labels/getLabels');
@@ -103,10 +127,25 @@ const faltamVariaveis = computed(
   () => (props.dispatchPreview?.missing || []).length > 0
 );
 
+// Chip que sumia ao zerar fazia a regua RE-FLUIR a cada poll: os rotulos apareciam e
+// mudavam de lugar sob o olho de quem estava lendo, de dez em dez segundos. Uma vez visto,
+// o estado fica — inclusive zerado, que tambem e informacao ("nenhum falhou").
+const estadosVistos = ref([]);
+watch(
+  () => props.recipients,
+  valor => {
+    const novos = STATUS_ORDER.filter(
+      key => Number(valor?.[key] || 0) > 0 && !estadosVistos.value.includes(key)
+    );
+    if (novos.length) estadosVistos.value = [...estadosVistos.value, ...novos];
+  },
+  { immediate: true, deep: true }
+);
+
 const statusRows = computed(() =>
-  STATUS_ORDER.filter(key => props.recipients?.[key]).map(key => ({
+  STATUS_ORDER.filter(key => estadosVistos.value.includes(key)).map(key => ({
     key,
-    count: Number(props.recipients[key]),
+    count: Number(props.recipients?.[key] || 0),
   }))
 );
 
@@ -117,12 +156,42 @@ const progress = computed(() => {
   return Math.round(((total - pendingCount.value) / total) * 100);
 });
 
+const soma = chaves =>
+  chaves.reduce(
+    (total, chave) => total + Number(props.recipients?.[chave] || 0),
+    0
+  );
+
+// "Processado" NAO e "entregue". A barra tinha uma faixa so, pintada de marca, alimentada
+// por tudo que saiu da fila — entao uma rodada em que TODAS as mensagens falharam
+// renderizava barra cheia e "100%", e a tela parecia vitoria no instante do desastre. Num
+// produto cujo principio e degradar com honestidade, existia uma barra incapaz de dizer
+// que deu errado. Os tres destinos agora ocupam faixas distintas, e a cor diz qual e qual.
+const entregues = computed(() =>
+  soma(['sent', 'delivered', 'read', 'replied'])
+);
+const falhados = computed(() => soma(['failed']));
+const descartados = computed(() => soma(['cancelled', 'skipped']));
+
+const fatia = valor =>
+  totalRecipients.value ? (valor / totalRecipients.value) * 100 : 0;
+
+const faixas = computed(() => ({
+  entregues: fatia(entregues.value),
+  falhados: fatia(falhados.value),
+  descartados: fatia(descartados.value),
+}));
+
 // Cada linha vira { name, phone }. O telefone e o campo com 8+ digitos; o resto e
 // nome. Sem essa deteccao, colar uma coluna so de numeros — o caso mais comum —
 // exigiria formatar a planilha a mao antes. Linha de cabecalho cai sozinha, porque
 // nao tem campo com 8 digitos.
-const parseRows = text =>
-  text
+// Linha sem campo de 8+ digitos nao vira destinatario — e ate aqui ela sumia calada. Com
+// 2.600 linhas e 300 telefones digitados errado, a tela dizia "2300 linhas reconhecidas" e
+// nunca mencionava as 300: e a mesma falha que o comentario do truncamento, la embaixo,
+// condena com todas as letras. Agora o descarte e CONTADO e aparece.
+const parseRows = text => {
+  const analisadas = text
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(Boolean)
@@ -139,10 +208,16 @@ const parseRows = text =>
           .trim(),
         phone: parts[phoneIndex],
       };
-    })
-    .filter(Boolean);
+    });
+  const rows = analisadas.filter(Boolean);
+  return { rows, ignoradas: analisadas.length - rows.length };
+};
 
-const parsedRows = computed(() => parseRows(listText.value));
+const parseResult = computed(() => parseRows(listText.value));
+const parsedRows = computed(() => parseResult.value.rows);
+// A primeira linha costuma ser cabecalho e cai aqui legitimamente; por isso o aviso conta,
+// mas nao bloqueia — quem decide se 300 descartes sao aceitaveis e quem colou a lista.
+const linhasIgnoradas = computed(() => parseResult.value.ignoradas);
 
 // Planilha binária (.xlsx/.xls) lida como texto vira bytes, o parser não acha telefone e o
 // resultado é "0 linhas" sem dizer por quê — o operador conclui que a lista está errada.
@@ -210,6 +285,14 @@ const segmento = ref({
   ultima_atividade_dias: null,
 });
 
+// Trocar planilha <-> base NAO limpava o resultado: o numero da planilha continuava na
+// tela, sem rotulo nenhum, enquanto o construtor de segmento ja estava ativo. Nao existia
+// watcher — e o proximo clique do fluxo e o que envia.
+watch(origem, () => {
+  preview.value = null;
+  previewMeta.value = null;
+});
+
 const semCriterio = computed(() => {
   const s = segmento.value;
   return (
@@ -235,6 +318,11 @@ const pronto = computed(() => podeSegmentar.value || podeEnviarPlanilha.value);
 
 const filtrosLimpos = () => {
   const s = { ...segmento.value };
+  // Mesmo defeito do pacing: `min` num input fora de um <form> nao e aplicado por ninguem.
+  // Recencia <= 0 nao significa nada e viraria filtro silenciosamente inutil.
+  const dias = Number(s.ultima_atividade_dias);
+  if (!Number.isFinite(dias) || dias < 1) s.ultima_atividade_dias = null;
+  else s.ultima_atividade_dias = dias;
   Object.keys(s).forEach(k => {
     if (
       s[k] === null ||
@@ -257,7 +345,9 @@ const doPreview = async () => {
         : CampaignsAPI.audiencePreview(props.campaignId, parsedRows.value),
     'CAMPAIGN.WHATSAPP.DISPATCH.PREVIEW_ERROR'
   );
-  if (res) preview.value = res.data;
+  if (!res) return;
+  preview.value = res.data;
+  previewMeta.value = { modo: 'simulacao', origem: origem.value };
 };
 
 const doUpload = async () => {
@@ -272,6 +362,7 @@ const doUpload = async () => {
   );
   if (!res) return;
   preview.value = res.data;
+  previewMeta.value = { modo: 'carregado', origem: origem.value };
   listText.value = '';
   useAlert(
     t('CAMPAIGN.WHATSAPP.DISPATCH.UPLOAD_DONE', {
@@ -318,9 +409,15 @@ const doPause = async () => {
       </h2>
       <div class="flex items-center gap-2">
         <span
-          class="px-2 py-1 text-xs font-medium rounded-md bg-n-alpha-2 text-n-slate-11"
+          class="px-2 py-1 text-xs font-medium rounded-md"
+          :class="corStatus"
         >
-          {{ t(`CAMPAIGN.WHATSAPP.DISPATCH.STATUS.${dispatchStatus}`) }}
+          {{
+            rotulo(
+              `CAMPAIGN.WHATSAPP.DISPATCH.STATUS.${dispatchStatus}`,
+              dispatchStatus
+            )
+          }}
         </span>
         <button
           v-if="!isRunning"
@@ -345,8 +442,12 @@ const doPause = async () => {
       </div>
     </div>
 
-    <!-- Progresso: so aparece quando ha destinatario carregado -->
-    <div v-if="totalRecipients" class="mb-5">
+    <!--
+      Progresso: so aparece quando ha destinatario carregado. `aria-live="polite"` porque o
+      bloco se atualiza sozinho a cada 10s e, sem ele, a tela de quem usa leitor fica MUDA
+      exatamente durante o disparo — que e a unica razao de estar nesta pagina.
+    -->
+    <div v-if="totalRecipients" class="mb-5" aria-live="polite">
       <div
         class="flex items-center justify-between mb-1 text-xs text-n-slate-11"
       >
@@ -360,25 +461,64 @@ const doPause = async () => {
         </span>
         <span class="tabular-nums">{{ progress }}%</span>
       </div>
-      <div class="w-full h-2 overflow-hidden rounded-full bg-n-alpha-2">
+      <!--
+        Tres faixas, nao uma. `role="progressbar"` porque antes eram duas <div> com largura
+        inline: sem papel, sem valor e sem nome acessivel, invisivel para tecnologia
+        assistiva (o repo faz certo no ProgressRing.vue).
+      -->
+      <div
+        class="flex w-full h-2 overflow-hidden rounded-full bg-n-alpha-2"
+        role="progressbar"
+        :aria-valuenow="progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-label="t('CAMPAIGN.WHATSAPP.DISPATCH.PROGRESS_LABEL')"
+      >
         <div
-          class="h-full transition-all bg-n-brand"
-          :style="{ width: `${progress}%` }"
+          class="h-full transition-all bg-n-teal-9"
+          :style="{ width: `${faixas.entregues}%` }"
+        />
+        <div
+          class="h-full transition-all bg-n-ruby-9"
+          :style="{ width: `${faixas.falhados}%` }"
+        />
+        <div
+          class="h-full transition-all bg-n-amber-9"
+          :style="{ width: `${faixas.descartados}%` }"
         />
       </div>
+      <p v-if="falhados" class="mt-1 text-xs text-n-ruby-11">
+        {{ t('CAMPAIGN.WHATSAPP.DISPATCH.FAILED_NOTE', { count: falhados }) }}
+      </p>
       <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-n-slate-11">
         <span v-for="row in statusRows" :key="row.key">
-          {{ t(`CAMPAIGN.WHATSAPP.DISPATCH.RECIPIENT_STATUS.${row.key}`) }}
+          {{
+            rotulo(
+              `CAMPAIGN.WHATSAPP.DISPATCH.RECIPIENT_STATUS.${row.key}`,
+              row.key
+            )
+          }}
           <strong class="tabular-nums text-n-slate-12">{{ row.count }}</strong>
         </span>
       </div>
     </div>
 
-    <!-- De onde vem o público -->
-    <div class="flex gap-2 mb-3">
+    <!--
+      De onde vem o publico. `aria-pressed` porque o estado selecionado era carregado SO
+      pela cor de fundo: quem usa leitor de tela ouvia dois botoes sem marca nenhuma e nao
+      tinha como saber qual estava ativo. O produto diz que cor nunca e o unico portador de
+      significado, e o `aria-pressed` ja e usado certo em outros pontos desta base.
+    -->
+    <div
+      class="flex gap-2 mb-3"
+      role="group"
+      :aria-label="t('CAMPAIGN.WHATSAPP.DISPATCH.SOURCE.GROUP')"
+    >
       <button
         v-for="opcao in ['planilha', 'segmento']"
         :key="opcao"
+        type="button"
+        :aria-pressed="origem === opcao"
         class="px-3 py-1 text-xs font-medium rounded-lg"
         :class="
           origem === opcao
@@ -387,7 +527,12 @@ const doPause = async () => {
         "
         @click="origem = opcao"
       >
-        {{ t(`CAMPAIGN.WHATSAPP.DISPATCH.SOURCE.${opcao.toUpperCase()}`) }}
+        {{
+          rotulo(
+            `CAMPAIGN.WHATSAPP.DISPATCH.SOURCE.${opcao.toUpperCase()}`,
+            opcao
+          )
+        }}
       </button>
     </div>
 
@@ -445,25 +590,32 @@ const doPause = async () => {
         </label>
       </div>
 
-      <label class="text-sm">
-        <span class="block mb-1 text-xs text-n-slate-11">
-          {{ t('CAMPAIGN.WHATSAPP.DISPATCH.SEGMENT.CAMPAIGN') }}
-        </span>
-        <select
-          v-model="segmento.campaign_id"
-          class="w-full text-sm rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
-        >
-          <option :value="null">
-            {{ t('CAMPAIGN.WHATSAPP.DISPATCH.SEGMENT.ANY') }}
-          </option>
-          <option
-            v-for="camp in campanhasAnteriores"
-            :key="camp.id"
-            :value="camp.id"
+      <!--
+        Os dois <label> sao IRMAOS, nao aninhados. Antes o da caixa de exclusao ficava
+        DENTRO do label do select: <label> dentro de <label> e HTML invalido, a associacao
+        fica indefinida e clicar no texto de dentro podia focar o select de fora.
+      -->
+      <div class="text-sm">
+        <label class="block">
+          <span class="block mb-1 text-xs text-n-slate-11">
+            {{ t('CAMPAIGN.WHATSAPP.DISPATCH.SEGMENT.CAMPAIGN') }}
+          </span>
+          <select
+            v-model="segmento.campaign_id"
+            class="w-full text-sm rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
           >
-            {{ camp.title }}
-          </option>
-        </select>
+            <option :value="null">
+              {{ t('CAMPAIGN.WHATSAPP.DISPATCH.SEGMENT.ANY') }}
+            </option>
+            <option
+              v-for="camp in campanhasAnteriores"
+              :key="camp.id"
+              :value="camp.id"
+            >
+              {{ camp.title }}
+            </option>
+          </select>
+        </label>
         <label
           v-if="segmento.campaign_id"
           class="flex items-center gap-2 mt-1 text-xs cursor-pointer text-n-slate-11"
@@ -471,7 +623,7 @@ const doPause = async () => {
           <input v-model="segmento.excluir_campanha" type="checkbox" />
           {{ t('CAMPAIGN.WHATSAPP.DISPATCH.SEGMENT.CAMPAIGN_EXCLUDE') }}
         </label>
-      </label>
+      </div>
 
       <div class="grid gap-3">
         <label class="text-sm">
@@ -522,16 +674,33 @@ const doPause = async () => {
     />
 
     <div class="flex flex-wrap items-center gap-3 mt-2">
+      <!-- `aria-label`: o campo de arquivo nao tinha nome acessivel nenhum. -->
       <input
         v-if="origem === 'planilha'"
         type="file"
         accept=".csv,.txt"
+        :aria-label="t('CAMPAIGN.WHATSAPP.DISPATCH.FILE_LABEL')"
         class="text-xs text-n-slate-11 file:mr-2 file:px-2 file:py-1 file:text-xs file:border-0 file:rounded-md file:bg-n-alpha-2 file:text-n-slate-12"
         @change="onFile"
       />
       <span v-if="origem === 'planilha'" class="text-xs text-n-slate-10">
         {{
           t('CAMPAIGN.WHATSAPP.DISPATCH.PARSED', { count: parsedRows.length })
+        }}
+      </span>
+      <!--
+        Linha que nao virou destinatario. Sem isto, 300 telefones digitados errado sumiam e
+        a tela dizia so "2300 linhas reconhecidas" — lista que PARECE limpa porque foi
+        cortada em silencio, que e o que o proprio arquivo condena mais abaixo.
+      -->
+      <span
+        v-if="origem === 'planilha' && linhasIgnoradas"
+        class="text-xs text-n-amber-11"
+      >
+        {{
+          t('CAMPAIGN.WHATSAPP.DISPATCH.IGNORED_LINES', {
+            count: linhasIgnoradas,
+          })
         }}
       </span>
       <div class="flex gap-2 ms-auto">
@@ -563,6 +732,31 @@ const doPause = async () => {
 
     <!-- Audiencia limpa: o motivo de cada descarte e a razao de a tela existir -->
     <div v-else-if="preview" class="mt-5">
+      <!--
+        Procedencia do resultado. Simulacao e carga escrevem no mesmo lugar e desenham o
+        mesmo bloco; sem este cabecalho, "ja carreguei?" e "de onde veio isto?" viviam num
+        toast que sumia — e o proximo clique do fluxo e o que envia mensagem.
+      -->
+      <p
+        v-if="previewMeta"
+        class="mb-2 text-xs font-medium"
+        :class="
+          previewMeta.modo === 'carregado'
+            ? 'text-n-teal-11'
+            : 'text-n-slate-11'
+        "
+      >
+        {{
+          t(
+            `CAMPAIGN.WHATSAPP.DISPATCH.ORIGIN.${previewMeta.modo.toUpperCase()}`,
+            {
+              source: t(
+                `CAMPAIGN.WHATSAPP.DISPATCH.SOURCE.${previewMeta.origem.toUpperCase()}`
+              ),
+            }
+          )
+        }}
+      </p>
       <div class="flex flex-wrap gap-4 mb-3 text-sm">
         <span class="text-n-slate-11">
           {{ t('CAMPAIGN.WHATSAPP.DISPATCH.AUDIENCE.TOTAL') }}
@@ -580,10 +774,22 @@ const doPause = async () => {
         </span>
       </div>
 
+      <!-- Sem <thead>, quem usa leitor de tela ouve "Telefone invalido, 12" sem saber o
+           que a segunda coluna significa. -->
       <table
         v-if="Object.keys(preview.stats.por_motivo || {}).length"
         class="w-full mb-3 text-sm"
       >
+        <thead>
+          <tr class="text-xs text-left text-n-slate-10">
+            <th class="py-1 font-normal">
+              {{ t('CAMPAIGN.WHATSAPP.DISPATCH.TABLE.REASON') }}
+            </th>
+            <th class="py-1 font-normal text-right">
+              {{ t('CAMPAIGN.WHATSAPP.DISPATCH.TABLE.COUNT') }}
+            </th>
+          </tr>
+        </thead>
         <tbody>
           <tr
             v-for="(count, reason) in preview.stats.por_motivo"
@@ -591,7 +797,9 @@ const doPause = async () => {
             class="border-b border-n-weak last:border-0"
           >
             <td class="py-1.5 text-n-slate-11">
-              {{ t(`CAMPAIGN.WHATSAPP.DISPATCH.REASONS.${reason}`) }}
+              {{
+                rotulo(`CAMPAIGN.WHATSAPP.DISPATCH.REASONS.${reason}`, reason)
+              }}
             </td>
             <td
               class="py-1.5 font-medium text-right tabular-nums text-n-slate-12"
@@ -607,6 +815,19 @@ const doPause = async () => {
           {{ t('CAMPAIGN.WHATSAPP.DISPATCH.SHOW_REJECTED') }}
         </summary>
         <table class="w-full mt-2">
+          <thead>
+            <tr class="text-xs text-left text-n-slate-10">
+              <th class="py-1 font-normal">
+                {{ t('CAMPAIGN.WHATSAPP.DISPATCH.TABLE.NAME') }}
+              </th>
+              <th class="py-1 font-normal">
+                {{ t('CAMPAIGN.WHATSAPP.DISPATCH.TABLE.PHONE') }}
+              </th>
+              <th class="py-1 font-normal text-right">
+                {{ t('CAMPAIGN.WHATSAPP.DISPATCH.TABLE.REASON') }}
+              </th>
+            </tr>
+          </thead>
           <tbody>
             <tr
               v-for="(row, index) in preview.rejected_sample"
@@ -616,7 +837,12 @@ const doPause = async () => {
               <td class="py-1 text-n-slate-12">{{ row.name || '—' }}</td>
               <td class="py-1 text-n-slate-11">{{ row.phone }}</td>
               <td class="py-1 text-xs text-right text-n-slate-10">
-                {{ t(`CAMPAIGN.WHATSAPP.DISPATCH.REASONS.${row.reason}`) }}
+                {{
+                  rotulo(
+                    `CAMPAIGN.WHATSAPP.DISPATCH.REASONS.${row.reason}`,
+                    row.reason
+                  )
+                }}
               </td>
             </tr>
           </tbody>
