@@ -18,7 +18,13 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
         required: false
 
   MIN_MINUTOS = 2
+  # Cutucada preventiva: 2 dias. É sobrevida de conversa; passou disso, o lead esfriou e quem
+  # retoma é gente, não um lembrete automático.
   MAX_MINUTOS = 2880
+  # Compromisso (o cliente disse quando quer ser procurado): 7 dias. O teto de 2 dias era do
+  # outro problema e encurtava calado o que o cliente pediu — "só semana que vem" virava uma
+  # cutucada em 2 dias, antes da hora e sem ninguém saber.
+  MAX_MINUTOS_COMPROMISSO = 10_080
 
   # Sinal de adiamento na fala do cliente. Serve pra detectar, pelo que ele REALMENTE
   # escreveu, que houve pedido de retorno — inclusive pelos botões de adiamento dos
@@ -35,7 +41,7 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
     return 'Não consegui identificar a conversa pra programar o follow-up.' unless conversation
 
     pela_janela = janela.present? ? minutos_ate(janela) : nil
-    minutes = (pela_janela || minutos).to_i.clamp(MIN_MINUTOS, MAX_MINUTOS)
+    minutes = (pela_janela || minutos).to_i.clamp(MIN_MINUTOS, teto(pela_janela))
 
     agendar(conversation, minutes, motivo, janela)
     resposta(conversation, minutes, janela, pela_janela)
@@ -45,6 +51,12 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # Só vale o teto maior quando a janela foi ENTENDIDA: janela ilegível cai no `minutos` que o
+  # modelo escolheu, e aí o número é dele, não do cliente — segue no teto da cutucada.
+  def teto(pela_janela)
+    pela_janela.nil? ? MAX_MINUTOS : MAX_MINUTOS_COMPROMISSO
+  end
 
   def agendar(conversation, minutes, motivo, janela)
     token = SecureRandom.hex(8)
@@ -79,7 +91,7 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
     end
 
     if minutes < pela_janela
-      return "A janela que o cliente pediu (\"#{janela}\") cai além do limite de #{MAX_MINUTOS / 1440} dias da cutucada, " \
+      return "A janela que o cliente pediu (\"#{janela}\") cai além do limite de #{MAX_MINUTOS_COMPROMISSO / 1440} dias, " \
              "então programei pro máximo (~#{minutes} min) — vai chegar ANTES do que ele pediu. " \
              'Se o retorno precisa mesmo cair só naquela data, deixe isso combinado com o time em vez de confiar na cutucada.'
     end
@@ -99,16 +111,17 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
   def minutos_ate(janela)
     texto = sem_acento(janela)
     dia = data_alvo(texto)
-    hora = hora_alvo(texto)
-    return nil if dia.nil? && hora.nil?
+    relogio = hora_alvo(texto)
+    return nil if dia.nil? && relogio.nil?
 
-    momento = momento_de(dia || Time.current.to_date, hora || PERIODOS['manha'])
+    hora, minuto = relogio || [PERIODOS['manha'], 0]
+    momento = momento_de(dia || Time.current.to_date, hora, minuto)
     ((momento - Time.current) / 60).round
   end
 
   # Janela já vencida hoje (pediu "de manhã" à tarde) cai no dia seguinte.
-  def momento_de(dia, hora)
-    momento = Time.zone.local(dia.year, dia.month, dia.day, hora)
+  def momento_de(dia, hora, minuto = 0)
+    momento = Time.zone.local(dia.year, dia.month, dia.day, hora, minuto)
     momento <= Time.current ? momento + 1.day : momento
   end
 
@@ -117,6 +130,9 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
     return hoje if texto.match?(/\bhoje\b|agora a (tarde|noite)|mais tarde/)
     return hoje + 2 if texto.include?('depois de amanha')
     return hoje + 1 if texto.match?(/\bamanha\b/)
+    # "semana que vem" caía no nil e, sem hora junto, a janela inteira era descartada: o cliente
+    # pedia uma semana e levava a cutucada que o modelo tinha escolhido — minutos depois.
+    return hoje + 7 if texto.match?(/(semana|mes) que vem|proxima semana/)
 
     dia_da_semana(texto, hoje)
   end
@@ -129,14 +145,23 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
     hoje + (delta.zero? ? 7 : delta)
   end
 
+  # Devolve [hora, minuto] ou nil.
+  #
+  # O padrão antigo terminava em \b e por isso NÃO casava "21h30" — a forma mais comum de dizer
+  # hora quebrada em português. Entre o "h" e o "3" não há fronteira de palavra, então a janela
+  # virava nil e o horário que o cliente pediu era descartado em silêncio.
   def hora_alvo(texto)
-    explicita = texto[/\b(\d{1,2})\s*(?:h|:\d{2}|horas)\b/, 1]&.to_i
-    return explicita if explicita&.between?(0, 23)
+    casou = texto.match(/\b(\d{1,2})\s*(?:h(?:oras?)?|:)\s*(\d{2})?/)
+    if casou
+      hora = casou[1].to_i
+      minuto = casou[2].to_i
+      return [hora, minuto] if hora.between?(0, 23) && minuto.between?(0, 59)
+    end
 
     # Fronteira de palavra é obrigatória: "amanha" CONTÉM "manha", e sem \b
     # "amanhã à tarde" era agendado de manhã.
     _, hora = PERIODOS.find { |p, _| texto.match?(/\b#{p}\b/) }
-    hora
+    hora && [hora, 0]
   end
 
   def sem_acento(str)

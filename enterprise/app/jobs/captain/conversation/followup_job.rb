@@ -2,8 +2,21 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   queue_as :low
 
   MAX_FOLLOWUPS = 4
-  QUIET_START = 21 # 21h
-  QUIET_END = 8    # 8h
+
+  # Faixa de descanso. Antes era 21h→8h, e cobria duas faixas em que o cliente está acordado:
+  # medido em 14 dias numa conta, as mensagens DELE por hora dão 21h=242, 22h=156, 23h=99,
+  # 0h–5h≈114 no total, 6h=157 e **7h=667** — às 7h há mais movimento que às 18h. Silenciar
+  # 21h–8h calava a cutucada justamente onde havia conversa.
+  QUIET_START = 22
+  QUIET_END = 7
+
+  # Dentro da faixa de descanso a cutucada não é proibida: ela desacelera. Quem escreveu há
+  # pouco está com o telefone na mão — silenciar alguém que acabou de falar com a gente às 23h
+  # é pior que responder. O que não pode é insistir de madrugada com quem já dormiu.
+  CLIENTE_ATIVO_EM = 60.minutes
+  # Intervalo mínimo entre cutucadas dentro da faixa. Fora dela, quem manda é o tempo que o
+  # agente escolheu (que pode ser 5 minutos num lead quente).
+  CADENCIA_NOTURNA = 45.minutes
 
   # Cutucada decidida pelo agente (via ProgramarFollowupTool). Dispara só se ainda
   # fizer sentido: token atual, dono da conversa ainda é a IA, cliente não respondeu,
@@ -25,9 +38,14 @@ class Captain::Conversation::FollowupJob < ApplicationJob
 
     # O compromisso e CONSUMIDO aqui (motivo lido antes de zerar): cumprido uma vez, nao pode
     # vazar pras cutucadas preventivas seguintes, que passariam a se achar compromisso tambem.
+    # A `janela` sai pelo mesmo motivo — senao a isencao da faixa de descanso, que existe pro
+    # horario que o cliente pediu, ficaria valendo pra toda cutucada seguinte da conversa. Ela
+    # nao e apagada: vira `_cumprida`, que preserva o rastro sem continuar mandando no relogio.
     motivo = attrs['followup_motivo']
-    conversation.update!(custom_attributes: attrs.merge('followup_count' => count + 1, 'followup_token' => nil,
-                                                        'followup_motivo' => nil))
+    consumidos = { 'followup_count' => count + 1, 'followup_token' => nil, 'followup_motivo' => nil }
+    consumidos['followup_janela'] = nil
+    consumidos['followup_janela_cumprida'] = attrs['followup_janela'] if attrs['followup_janela'].present?
+    conversation.update!(custom_attributes: attrs.merge(consumidos))
     Captain::Conversation::ResponseBuilderJob.perform_now(conversation, assistant, directive: directive(motivo))
   end
 
@@ -42,7 +60,7 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     return false if followup_pointless?(conversation, attrs)
     return false if cancelado_por_resposta?(conversation, attrs)
     return false if janela_fechada?(conversation)                  # fora da janela -> não é cutucada
-    return false if reschedule_if_quiet_hours(conversation, token) # madrugada -> remarca pra manhã
+    return false if reschedule_if_quiet_hours(conversation, token, attrs) # noite -> desacelera ou adia
 
     true
   end
@@ -80,8 +98,19 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   # Compromisso = a cutucada foi programada pelo agente pra cumprir algo que ficou combinado,
   # não é sobrevida preventiva. O followup_motivo grava isso e só a ProgramarFollowupTool o
   # escreve — o auto-agendamento nunca o seta, então ele distingue os dois tipos de cutucada.
+  #
+  # ⚠️ Isto NÃO quer dizer que o cliente marcou a hora: `motivo` é obrigatório na ferramenta,
+  # então toda cutucada que o agente programa tem motivo. Quem marca a hora é a `janela`, e é
+  # ela que responde por horario_do_cliente? — não confundir os dois.
   def compromisso?(attrs)
     attrs['followup_motivo'].present?
+  end
+
+  # O cliente disse a hora ("me chama às 21h30", "quinta de manhã") e a ferramenta gravou a fala
+  # dele em followup_janela. Aí o relógio é dele: adiar pra manhã transformaria a promessa num
+  # atraso de dez horas, e quem pediu 21h30 está acordado às 21h30.
+  def horario_do_cliente?(attrs)
+    attrs['followup_janela'].present?
   end
 
   # Resolvida, ou esperando atendente humano (Modelo A): cutucar só atrapalha.
@@ -109,7 +138,8 @@ class Captain::Conversation::FollowupJob < ApplicationJob
       'followup_token' => nil,
       # Quem conduz o lead agora é a pessoa: o compromisso vai junto no dossiê, não fica
       # armado no registro segurando a cadência da IA.
-      'followup_motivo' => nil
+      'followup_motivo' => nil,
+      'followup_janela' => nil
     ))
     Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
     Captain::Conversation::HumanHandoffService.new(conversation: conversation, assistant: assistant).perform
@@ -144,13 +174,60 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     last.nil? || last.message_type == 'incoming'
   end
 
-  def reschedule_if_quiet_hours(conversation, token)
-    tz = ActiveSupport::TimeZone['America/Cuiaba'] || ActiveSupport::TimeZone['UTC']
-    now = Time.current.in_time_zone(tz)
-    return false if now.hour >= QUIET_END && now.hour < QUIET_START
+  # Devolve true quando a cutucada NÃO deve sair agora (o job foi remarcado).
+  #
+  # A faixa de descanso não silencia mais: ela desacelera. Três saídas, nesta ordem:
+  #
+  #   1. HORÁRIO PEDIDO PELO CLIENTE passa direto ("me chama às 21h30"): cumprir o combinado no
+  #      horário combinado é o oposto de incomodar. Note que o critério é a `janela`, não o
+  #      `motivo` — toda cutucada da ferramenta tem motivo, e usá-lo aqui furaria a faixa
+  #      inteira em vez de abrir a exceção.
+  #   2. CLIENTE ACORDADO recebe, com espaçamento maior. Quem escreveu há pouco está com o
+  #      telefone na mão; calar às 23h alguém que acabou de falar com a gente é sumir no meio da
+  #      conversa. O que muda é o ritmo: a cutucada respeita CADENCIA_NOTURNA contada da última
+  #      mensagem DELE, em vez do intervalo curto que o agente escolheu.
+  #   3. QUEM JÁ DORMIU espera a manhã. Como a régua é a última mensagem do cliente, isso se
+  #      resolve sozinho: a 1ª cutucada da noite sai, e se ele não responder, a 2ª já o encontra
+  #      fora de CLIENTE_ATIVO_EM e cai pro dia seguinte. Uma por noite, no máximo.
+  def reschedule_if_quiet_hours(conversation, token, attrs)
+    return false if horario_do_cliente?(attrs)
 
-    next_morning = now.hour >= QUIET_START ? now.tomorrow.change(hour: QUIET_END) : now.change(hour: QUIET_END)
-    self.class.set(wait: next_morning - now).perform_later(conversation, token)
+    now = Time.current.in_time_zone(fuso)
+    return false unless faixa_de_descanso?(now)
+
+    espera = espera_noturna(conversation, now)
+    return false if espera.nil?
+
+    self.class.set(wait: espera).perform_later(conversation, token)
     true
+  end
+
+  def faixa_de_descanso?(now)
+    now.hour >= QUIET_START || now.hour < QUIET_END
+  end
+
+  # nil = pode cutucar agora. Caso contrário, quanto esperar.
+  def espera_noturna(conversation, now)
+    ultima = ultima_fala_do_cliente(conversation)
+    return proxima_manha(now) - now if ultima.nil? || (now - ultima) > CLIENTE_ATIVO_EM
+
+    proxima = ultima + CADENCIA_NOTURNA
+    return nil if proxima <= now
+
+    # Se o espaçamento jogaria a cutucada pra depois do fim da faixa, a manhã resolve — e
+    # chegar às 7h01 é melhor que chegar às 6h58.
+    [proxima - now, proxima_manha(now) - now].min
+  end
+
+  def proxima_manha(now)
+    now.hour >= QUIET_START ? now.tomorrow.change(hour: QUIET_END) : now.change(hour: QUIET_END)
+  end
+
+  def ultima_fala_do_cliente(conversation)
+    conversation.messages.where(message_type: :incoming, private: false).maximum(:created_at)
+  end
+
+  def fuso
+    ActiveSupport::TimeZone['America/Cuiaba'] || ActiveSupport::TimeZone['UTC']
   end
 end
