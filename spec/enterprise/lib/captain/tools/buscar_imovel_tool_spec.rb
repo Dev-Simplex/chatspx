@@ -424,12 +424,19 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to match_array(lista.map { |i| i['Codigo'] })
     end
 
-    # Distância parcial não vira ordenação por distância: com um só medido, a lista ficaria
-    # ordenada por um dado que quase ninguém tem.
-    it 'falls back to neighbourhood rotation when only some have distance' do
-      lista = [imovel('1', 'Aurora'), imovel('2', 'Aurora'), imovel('3', 'Centro', 0.5)]
+    # Distância parcial é o caso NORMAL, não a exceção: medido no acervo de locação em
+    # 03/09, 24 dos 29 imóveis têm coordenada e 5 não. Exigir que todos tivessem descartava
+    # a medida de 24 por causa de 5 — e a lista voltava a ser a ordem do Vista, que é o bug.
+    it 'still ranks by distance when only some options have one' do
+      lista = [imovel('1', 'Aurora'), imovel('2', 'Centro', 4.0), imovel('3', 'Bela Vista', 0.5)]
 
-      expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to eq(%w[1 3 2])
+      expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to eq(%w[3 2 1])
+    end
+
+    it 'never drops the ones without a coordinate, it puts them last' do
+      lista = [imovel('1', 'Aurora'), imovel('2', 'Aurora'), imovel('3', 'Centro', 4.0)]
+
+      expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to eq(%w[3 1 2])
     end
   end
 end

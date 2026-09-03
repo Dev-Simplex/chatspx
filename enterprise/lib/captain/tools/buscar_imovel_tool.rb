@@ -310,10 +310,15 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   #
   # A ordem relativa do Vista é preservada dentro de cada grupo — `sort_by` e `group_by` são
   # estáveis em Ruby, então isto reordena sem embaralhar.
+  # Distância PARCIAL ainda é distância. Medido no acervo de locação em 03/09: o geocoding do
+  # bairro pedido resolve, 24 dos 29 imóveis têm coordenada e 5 não — exigir que TODOS
+  # tivessem descartava a medida de 24 por causa de 5, e a lista voltava a ser a ordem do
+  # Vista. Quem não tem coordenada vai para o fim, onde não atrapalha nem some.
   def ordenar_alternativas(imoveis)
-    return imoveis.sort_by { |im| im['dist_km'] } if imoveis.all? { |im| im['dist_km'] }
+    com, sem = imoveis.partition { |im| im['dist_km'] }
+    return revezar_por_bairro(imoveis) if com.empty?
 
-    revezar_por_bairro(imoveis)
+    com.sort_by { |im| im['dist_km'] } + revezar_por_bairro(sem)
   end
 
   def revezar_por_bairro(imoveis)
