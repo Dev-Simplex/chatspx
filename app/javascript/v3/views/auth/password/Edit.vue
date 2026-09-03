@@ -64,6 +64,16 @@ export default {
       this.newPasswordAPI.showLoading = false;
       useAlert(message);
     },
+    // Link velho e o caso COMUM aqui, nao a excecao: so existe um token por pessoa, entao cada novo
+    // pedido de recuperacao mata os e-mails anteriores. Traduzir pelo `code` (e nao usar o texto do
+    // servidor) faz a mensagem sair no idioma de quem esta vendo, que o servidor nao tem como saber
+    // num visitante deslogado.
+    errorMessage(error) {
+      if (error?.code === 'reset_token_invalid') {
+        return this.$t('SET_NEW_PASSWORD.API.LINK_EXPIRED');
+      }
+      return error?.message || this.$t('SET_NEW_PASSWORD.API.ERROR_MESSAGE');
+    },
     submitForm() {
       this.newPasswordAPI.showLoading = true;
       const credentials = {
@@ -76,9 +86,7 @@ export default {
           window.location = DEFAULT_REDIRECT_URL;
         })
         .catch(error => {
-          this.showAlertMessage(
-            error?.message || this.$t('SET_NEW_PASSWORD.API.ERROR_MESSAGE')
-          );
+          this.showAlertMessage(this.errorMessage(error));
         });
     },
   },
