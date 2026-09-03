@@ -36,12 +36,16 @@ describe('#buildConversationList', () => {
   // finder falls back to offset pagination (pinned conversation, non-default sort,
   // search, saved folders). A null cursor means "keep paging by `page`", not "the
   // list ended" — only a short page ends it.
-  const buildResponse = ({ size, nextCursor = null }) => ({
+  const buildResponse = ({ size, nextCursor = null, hasMore }) => ({
     payload: Array.from({ length: size }, (_, index) => ({
       id: index + 1,
       meta: { sender: { id: index + 1 } },
     })),
-    meta: { next_cursor: nextCursor, all_count: 255 },
+    meta: {
+      next_cursor: nextCursor,
+      all_count: 255,
+      ...(hasMore === undefined ? {} : { has_more: hasMore }),
+    },
   });
 
   const dispatchedActions = context =>
@@ -91,6 +95,48 @@ describe('#buildConversationList', () => {
         'all'
       );
       expect(dispatchedActions(context)).toContain(
+        'conversationPage/setEndReached'
+      );
+    });
+
+    it('trusts has_more:false even on a full page with no cursor', () => {
+      // Ultima pagina do keyset quando o total e multiplo exato de 25: pagina cheia,
+      // sem cursor. Sem o has_more o front pediria a proxima por `page`, que o ramo
+      // keyset ignora — devolvendo a primeira pagina de novo, em laco.
+      const context = buildContext();
+      buildConversationList(
+        context,
+        { page: 12 },
+        buildResponse({ size: 25, nextCursor: null, hasMore: false }),
+        'all'
+      );
+      expect(dispatchedActions(context)).toContain(
+        'conversationPage/setEndReached'
+      );
+    });
+
+    it('keeps paging while has_more is true', () => {
+      const context = buildContext();
+      buildConversationList(
+        context,
+        { page: 2 },
+        buildResponse({ size: 25, nextCursor: null, hasMore: true }),
+        'all'
+      );
+      expect(dispatchedActions(context)).not.toContain(
+        'conversationPage/setEndReached'
+      );
+    });
+
+    it('falls back to page size when has_more is absent (/filter)', () => {
+      const context = buildContext();
+      buildConversationList(
+        context,
+        { page: 1 },
+        buildResponse({ size: 25 }),
+        'appliedFilters'
+      );
+      expect(dispatchedActions(context)).not.toContain(
         'conversationPage/setEndReached'
       );
     });

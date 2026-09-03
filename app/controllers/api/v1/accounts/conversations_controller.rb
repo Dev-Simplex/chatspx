@@ -26,6 +26,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     @conversations = result[:conversations]
     @conversations_count = result[:count]
     @next_cursor = result[:next_cursor]
+    @has_more = result[:has_more]
     @list_preloaded = Conversations::ListPreloader.call(@conversations)
   end
 

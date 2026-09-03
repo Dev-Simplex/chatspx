@@ -158,7 +158,10 @@ class Kanban::FunnelItemsQueryService
   def encode_cursor(last_activity_at, id)
     Base64.strict_encode64(
       {
-        last_activity_at: last_activity_at.iso8601(3),
+        # Microssegundos: a coluna guarda 6 casas. Truncar em iso8601(3) gera um
+        # cursor MENOR que o valor real e o `<` da tupla descarta o grupo inteiro
+        # daquele instante — itens que somem da rolagem sem erro nenhum.
+        last_activity_at: last_activity_at.iso8601(6),
         id: id
       }.to_json
     )
