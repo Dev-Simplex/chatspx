@@ -68,6 +68,8 @@ class Inbox < ApplicationRecord
 
   belongs_to :account
   belongs_to :portal, optional: true
+  # Unidade (filial) a que esta caixa pertence. Opcional: conta sem filial nunca preenche.
+  belongs_to :unit, optional: true
 
   belongs_to :channel, polymorphic: true, dependent: :destroy
 
@@ -102,6 +104,17 @@ class Inbox < ApplicationRecord
   # Adds multiple members to the inbox
   # @param user_ids [Array<Integer>] Array of user IDs to add as members
   # @return [void]
+  # A regra de agenda da unidade vence o horário desta caixa no dia em que cai — é
+  # assim que o feriado da filial fecha o número dela sem ninguém reeditar caixa por
+  # caixa na véspera. Só vale se a unidade tiver o interruptor ligado; sem unidade, ou
+  # em dia sem regra, a resposta é a de sempre (`OutOfOffisable`).
+  def out_of_office?
+    return super unless unit&.applies_to_inboxes?
+
+    fechada = Units::ScheduleEvaluator.new(unit).closed_by_rule_now?
+    fechada.nil? ? super : fechada
+  end
+
   def add_members(user_ids)
     inbox_members.create!(user_ids.map { |user_id| { user_id: user_id } })
     update_account_cache

@@ -21,15 +21,19 @@ const state = {
   },
 };
 
+// As abas `ai`, `awaiting`, `pending_closure` e `assigned` tem lista propria mas nunca
+// foram declaradas no state acima. Sem os defaults abaixo, `getCurrentPageFilter` devolve
+// `undefined`, `currentPage + 1` vira NaN, o `page` nao e enviado (NaN e falsy) e o
+// backend responde sempre a pagina 1 — a lista nunca avanca.
 export const getters = {
   getHasEndReached: $state => filter => {
-    return $state.hasEndReached[filter];
+    return $state.hasEndReached[filter] ?? false;
   },
   getCurrentPageFilter: $state => filter => {
-    return $state.currentPage[filter];
+    return $state.currentPage[filter] ?? 0;
   },
   getNextCursor: $state => filter => {
-    return $state.nextCursor[filter];
+    return $state.nextCursor[filter] ?? null;
   },
   getCurrentPage: $state => {
     return $state.currentPage;

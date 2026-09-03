@@ -272,7 +272,8 @@ class LiveReports::InServiceQueryService # rubocop:disable Metrics/ClassLength
   end
 
   def encode_cursor(last_activity_at, id)
-    Base64.strict_encode64({ last_activity_at: last_activity_at.iso8601(3), id: id }.to_json)
+    # Microssegundos, nao milissegundos — ver comentario em ConversationFinder#encode_cursor.
+    Base64.strict_encode64({ last_activity_at: last_activity_at.iso8601(6), id: id }.to_json)
   end
 
   def parse_integer(value)

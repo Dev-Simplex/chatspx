@@ -9,6 +9,7 @@ json.data do
     json.unattended_unassigned_count @conversations_count[:unattended_unassigned_count]
     json.unattended_all_count @conversations_count[:unattended_all_count]
     json.next_cursor @next_cursor
+    json.has_more @has_more
   end
   json.payload do
     json.array! @conversations do |conversation|

@@ -54,7 +54,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     assigned_count = counts[:all_count] - counts[:unassigned_count]
 
     filter_by_assignee_type if @assignee_type.present?
-    convs, next_cursor = fetch_conversations
+    convs, next_cursor, has_more = fetch_conversations
 
     {
       conversations: convs,
@@ -70,7 +70,8 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         unattended_unassigned_count: counts[:unattended_unassigned_count],
         unattended_all_count: counts[:unattended_all_count]
       },
-      next_cursor: next_cursor
+      next_cursor: next_cursor,
+      has_more: has_more
     }
   end
 
@@ -406,6 +407,10 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     params[:page] || 1
   end
 
+  def page_number
+    [current_page.to_i, 1].max
+  end
+
   def per_page
     limit = (params[:limit] || ENV.fetch('CONVERSATION_RESULTS_PER_PAGE', '25')).to_i
     [limit, 100].min
@@ -449,17 +454,32 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
 
     if params[:updated_within].present?
       base = base.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
-      [base.send(sort_by, sort_order), nil]
+      [base.send(sort_by, sort_order), nil, nil]
     elsif use_keyset_pagination?(sort_by, sort_order)
       apply_keyset_and_fetch(base, sort_order)
     else
-      convs = base.send(sort_by, sort_order).page(current_page).per(per_page)
-      [convs, nil]
+      fetch_by_offset(base, sort_by, sort_order)
     end
   end
 
+  # Busca uma linha a mais que a pagina para saber, com certeza, se ainda ha resto.
+  # Sem isso o cliente teria que adivinhar pelo tamanho da pagina, e erra quando o
+  # total e multiplo exato do tamanho.
+  def fetch_by_offset(base, sort_by, sort_order)
+    convs = base.send(sort_by, sort_order).offset((page_number - 1) * per_page).limit(per_page + 1).to_a
+    has_more = convs.size > per_page
+    convs = convs.first(per_page) if has_more
+
+    [convs, nil, has_more]
+  end
+
   def use_keyset_pagination?(sort_by, sort_order)
-    sort_by == 'sort_on_last_activity_at' && sort_order == 'desc' && params[:q].blank? && !user_has_pins?
+    return false if params[:q].present? || user_has_pins?
+    return false unless sort_by == 'sort_on_last_activity_at' && sort_order == 'desc'
+
+    # Pedido de pagina > 1 sem cursor e um cliente paginando por offset. O ramo keyset
+    # ignora o `page` e devolveria a primeira pagina de novo — laco infinito na rolagem.
+    params[:cursor].present? || page_number <= 1
   end
 
   def apply_keyset_and_fetch(base, _sort_order)
@@ -479,7 +499,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     last = convs.last
     next_cursor = has_more && last ? encode_cursor(last.last_activity_at, last.id) : nil
 
-    [convs, next_cursor]
+    [convs, next_cursor, has_more]
   end
 
   def decode_cursor(cursor_str)
@@ -495,8 +515,11 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     nil
   end
 
+  # Microssegundos, nao milissegundos: a coluna e um timestamp do Postgres com 6 casas.
+  # Truncar em iso8601(3) gera um cursor MENOR que o valor real, e o `<` da tupla pula
+  # todas as linhas daquele microssegundo — conversas que sumiam da lista para sempre.
   def encode_cursor(last_activity_at, id)
-    Base64.strict_encode64({ last_activity_at: last_activity_at.iso8601(3), id: id }.to_json)
+    Base64.strict_encode64({ last_activity_at: last_activity_at.iso8601(6), id: id }.to_json)
   end
 end
 ConversationFinder.prepend_mod_with('ConversationFinder')

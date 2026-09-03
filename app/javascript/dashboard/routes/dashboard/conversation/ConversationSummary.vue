@@ -9,9 +9,10 @@ const currentAccountId = useMapGetter('getCurrentAccountId');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
+const getAccount = useMapGetter('accounts/getAccount');
 
-// O card "Resumo da IA" só aparece em conta com o módulo de IA ativo (mesmo
-// sinal canônico das rotas de Agentes IA).
+// O módulo de IA precisa estar ativo na conta (mesmo sinal canônico das rotas de
+// Agentes IA).
 const isCaptainEnabled = computed(() =>
   isFeatureEnabledonAccount.value(
     currentAccountId.value,
@@ -19,11 +20,24 @@ const isCaptainEnabled = computed(() =>
   )
 );
 
+// ...e a conta precisa TER agente de IA cadastrado. A regra é por conta: onde ninguém
+// usa IA, "a IA ainda não resumiu" é uma promessa que nunca se cumpre.
+const contaTemAgenteDeIa = computed(
+  () => !!getAccount.value(currentAccountId.value)?.has_ai_agents
+);
+
 const customAttributes = computed(
   () => currentChat.value?.custom_attributes || {}
 );
 const aiSummary = computed(
   () => customAttributes.value.resumo_atendimento_ia || ''
+);
+
+// Resumo já escrito continua à mostra mesmo que o agente saia do painel depois:
+// esconder apagaria da vista algo que a IA de fato produziu.
+const mostraCartao = computed(
+  () =>
+    isCaptainEnabled.value && (contaTemAgenteDeIa.value || !!aiSummary.value)
 );
 
 // Resumo da IA nasce colapsado (clamp de 3 linhas). É somente leitura pro
@@ -40,7 +54,7 @@ const {
   <!-- Resumo da IA (realçado, somente leitura — só a IA escreve nele) -->
   <div>
     <div
-      v-if="isCaptainEnabled"
+      v-if="mostraCartao"
       class="flex flex-col gap-2 px-3 py-3 border-b border-n-weak/50"
     >
       <div class="px-3 py-2.5 border rounded-lg border-n-brand/30 bg-n-brand/5">

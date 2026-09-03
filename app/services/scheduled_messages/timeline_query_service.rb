@@ -120,7 +120,10 @@ class ScheduledMessages::TimelineQueryService
 
     Base64.urlsafe_encode64(
       {
-        scheduled_at: record.scheduled_at&.iso8601(3),
+        # Microssegundos: a coluna guarda 6 casas. Truncar em iso8601(3) gera um
+        # cursor MENOR que o valor real e o `<` da tupla descarta o grupo inteiro
+        # daquele instante — itens que somem da rolagem sem erro nenhum.
+        scheduled_at: record.scheduled_at&.iso8601(6),
         id: record.id
       }.to_json
     )

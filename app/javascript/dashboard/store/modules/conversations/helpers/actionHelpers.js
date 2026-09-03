@@ -97,9 +97,16 @@ export const buildConversationList = (
   // whole job here; pagination stays owned by the paging fetches.
   if (requestPayload.updatedWithin) return;
 
-  const hasNextCursor = !!metaData?.next_cursor;
+  // Fim de lista vem do backend (`has_more`), nunca da ausencia de `next_cursor`: o
+  // finder so emite cursor no caminho keyset e cai no offset quando o atendente tem
+  // conversa fixada, quando a ordenacao nao e a padrao ou ha busca. O endpoint /filter
+  // (pastas e filtros salvos) nao emite `has_more`; ali o sinal possivel e a pagina
+  // voltar curta.
+  const hasMore = metaData?.has_more;
   const markEndReached =
-    conversationList.length < CONVERSATIONS_PER_PAGE || !hasNextCursor;
+    hasMore === undefined || hasMore === null
+      ? conversationList.length < CONVERSATIONS_PER_PAGE
+      : !hasMore;
   setPageFilter({
     dispatch: context.dispatch,
     filter: filterType,
