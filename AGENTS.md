@@ -39,21 +39,26 @@ cliente em `docs/clientes/<cliente>/`; scripts operacionais em `scripts/spx/<cli
 
 - **Conduta/persona especifica de um cliente -> SEMPRE no banco da conta** (`assistant.config['instructions']` / `behavior`, via o helper daquele cliente). **NUNCA** em codigo compartilhado — em especial `enterprise/lib/captain/prompts/assistant.liquid`, que e o **molde de TODOS os clientes**. Ja vazou 1x (conduta de oticas da Fabrica -> Tozi via a `.232`, revertida em `645b58ceb`).
 - O `assistant.liquid` compartilhado so aceita conduta **agnostica** (nao narrar tool, `[IGNORAR]` no fechamento). Nada que nomeie cliente ou vertical (oticas/imoveis). Se precisar variar por cliente no template, gateie por conta lendo do banco — nao hardcode.
-- **NAO existe auto-pull** (verificado 08/07 e 29/07 via Almirante `drift_check`): push na `homologacao` **nao desce ao vivo** pra `.232`. Codigo so entra numa VM por `propose_deploy_vm` + aprovacao humana. Mesmo assim, a `.232` tem clientes reais (contas 3/4/5) — pense "quem mais recebe isso?" antes de PROPOR o deploy. Fonte da verdade do fluxo: `docs/WORKFLOW-GIT-SPX.md`.
+- **NAO existe auto-pull** (verificado 08/07, 29/07 e 02/09): push na `homologacao` **nao desce ao vivo** pra `.232`. O caminho normal do codigo termina no **merge do PR no GitHub**; entrar numa VM e passo separado e **excepcional** (ver `docs/WORKFLOW-GIT-SPX.md`). A `.232` tem clientes reais (contas 3/4/5) — pense "quem mais recebe isso?" antes de pedir qualquer deploy. Fonte da verdade do fluxo: `docs/WORKFLOW-GIT-SPX.md`.
 - **Antes de tocar IA de qualquer cliente: declare CLIENTE + CONTA + VM** e use o helper certo (confira o banner). Sessoes locais usam **worktree por cliente** em `chatspx-clientes/` (`tozi-prod` conta 6 · `tozi-hml` conta 3 · `fabrica` contas 1/2), cada um com `CLAUDE.local.md` fixando o alvo.
-- Canal governado pra aplicar config-por-conta na VM certa, com aprovacao de dois: **ai-config-receptor + Almirante**.
+- Config por conta se aplica pelo **helper daquele cliente** (`scripts/ops/<cliente>.sh`), declarando CLIENTE + CONTA + VM, com **backup antes** e comando de reversão anotado. Backup manual é a única rede — não existe rollback governado.
 
-## Almirante — control plane da frota (MCP)
+## Entrega e operação da frota
 
-> MCP `almirante` (`painel.chatspx.app/mcp`). Token na env de usuário `ALMIRANTE_TOKEN` — **sessão nova conecta sozinha**; se der `Failed to connect / Missing ALMIRANTE_TOKEN`, a sessão nasceu antes da variável (abra outra). Mapa completo das 50 tools: vault `Obsidian/aprendizados/almirante-mcp.md`.
+> **O versionamento é git puro, pelo GitHub.** Commit, push, PR, review e merge acontecem no
+> GitHub (`gh` ou a interface), sem intermediário. Não há control plane, painel de aprovação
+> nem canal paralelo. Regras completas: **`docs/WORKFLOW-GIT-SPX.md`**.
 
-**Use o Almirante no lugar de SSH** pra operar a frota SPX:
-- **Saúde/ops:** `fleet_status`, `vm_health`, `service_status`/`service_logs`, `sidekiq_status`, `migration_status`, `drift_check`, `version_matrix`.
-- **Git/entrega:** `git_diff` + GitHub (`gh_list_prs`/`gh_get_pr`/`gh_create_pr`/`gh_merge_pr`/`gh_comment`/issues/`gh_read_file`).
-- **Deploy é SEMPRE propor→aprovar (nunca aplicar direto):** `dry_run` → `propose_deploy_vm/group/all` / `propose_merge` / `propose_migrate` / `propose_restart_*` / `propose_rollback` → `list_pending`/`request_status` → **aprovação humana** → `deploy_history`/`deploy_logs`. `freeze_deploys` congela a frota.
-- **Config de IA por conta (jeito governado de aplicar a §Isolamento):** `ai_list_agents`/`ai_get_agent` → `ai_update_prompt`/`ai_update_behavior`/`ai_set_tool`/`ai_add_faq`/`ai_set_credential`, com `ai_history` + **`ai_rollback`**. Escreve no **banco da conta** (não no molde compartilhado). **Declare CLIENTE + CONTA + VM antes** e confira em `ai_get_agent`.
-
-**⚠️ Limite:** o Almirante **NÃO lê conversas**. Análise comportamental (por que a IA não fez handoff, etc.) continua via **banco/eval nativo** do Chatwoot, não pelo Almirante.
+- **Entrega:** feature branch → push → PR contra `homologacao` → merge no GitHub. Promoção
+  `homologacao` → `producao` também por PR. O Claude abre e revisa; **quem mergeia é humano**.
+- **Saúde e diagnóstico:** SSH pelo helper do cliente (`scripts/ops/<cliente>.sh`) —
+  `systemctl status`, `journalctl`, `rails db:migrate:status`, console. Ler conversa ou
+  investigar comportamento é sempre no banco da VM.
+- **Deploy na VM é EXCEÇÃO, não rotina** — ver `docs/WORKFLOW-GIT-SPX.md` § Deploy. Nunca por
+  iniciativa própria: pede autorização explícita do Paulo, na hora.
+- **Medir na box, não em espelho.** Estado de uma VM se apura entrando nela. Auditoria de
+  divergência entre branches se faz numa cópia com `fetch` recente, **nunca** pelas refs
+  remotas da própria VM (elas ficam paradas e mentem — medido em 02/09).
 
 ## Stack Tecnica
 

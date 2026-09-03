@@ -29,8 +29,8 @@ Todas as worktrees do `chatspx` **compartilham o mesmo `.git`** (mesmo históric
 | Branch | Papel | Quem commita | Onde roda |
 |---|---|---|---|
 | `feat/*`, `spx/*` | **Unidade de trabalho** — 1 branch por task/feature | qualquer dev | VM de teste do dev |
-| `paulao` | **Branch de dev do Paulo** (VM pessoal de teste) | Paulo | VM Dev `paulao` (na frota Almirante) |
-| `nicolas` | **Branch de dev do Nicolas** | Nicolas | VM Dev `nicolas` (na frota Almirante) |
+| `paulao` | **Branch de dev do Paulo** (VM pessoal de teste) | Paulo | VM Dev `paulao` |
+| `nicolas` | **Branch de dev do Nicolas** | Nicolas | VM Dev `nicolas` |
 | `homologacao` | **Staging** — integração antes de prod | via merge (não direto) | 1 VM `homologacao` (Proxmox) — contas 3/4/5 |
 | `producao` | **Produção** — o único que **replica** pras VMs de cliente | via merge (não direto) | **5 VMs CRÍTICAS**: `producao` · `catatau` · `sentinela` · `tozi` (c6) · `fabrica` (c1/2) |
 | `master` | Chatwoot upstream (open-source). **NÃO é o produto** — só a base do fork. Não tocar. | ninguém (só sync upstream) | — |
@@ -57,12 +57,73 @@ Todas as worktrees do `chatspx` **compartilham o mesmo `.git`** (mesmo históric
 
 ---
 
-## Deploy: NÃO há auto-pull — é propose→approve pelo Almirante
+## O versionamento é git puro, pelo GitHub
 
-Confirmado (08/07) via Almirante `drift_check`/`version_matrix`: **nenhuma VM faz auto-pull.** Mergear em `homologacao` **não desce nada ao vivo** — o código só entra numa VM quando um deploy é **proposto** (por você/Claude via `propose_deploy_vm`) e **aprovado por um humano** no painel (anti-self-review; a tool de `approve` nem existe pro LLM). Isso corrige a nota antiga do `AGENTS.md` que falava em "auto-pull da .232".
+Commit, push, PR, review e merge acontecem **no git e no GitHub** (`gh` ou a interface web).
+Não há control plane, painel de aprovação nem canal paralelo — e não deve haver.
 
-- **Merge** de PR = **gate humano** (irreversível; só no painel/GitHub por um humano admin). O Claude propõe e revisa, não faz self-merge.
-- **Deploy/restart** = Claude `propose_deploy_vm(<vm>)` → humano aprova. Antes de restart: `migration_status` (migration pendente + restart = 500 em cadeia).
+- Trabalho vive numa branch própria (`spx/*`, `feat/*`). **Nunca** commit direto em
+  `homologacao` ou `producao`.
+- `git push -u origin <branch>` no fim do dia. Branch local-only é trabalho que existe só neste
+  notebook.
+- Entrega = **PR contra `homologacao`**. Promoção `homologacao` → `producao` também por PR.
+- **Merge é humano.** O Claude abre, descreve e revisa; quem aperta o botão é gente.
+
+### As quatro formas de perder trabalho — todas já aconteceram aqui
+
+1. **Commit em branch de PR já mergeado não chega a lugar nenhum.** Em 31/08 o `schedule.yml`
+   foi corrigido na branch do PR #77, que fora mergeado dois dias antes: o commit ficou órfão e
+   o digest voltou às 11h no boot seguinte. **Confira na branch de integração**, não na sua
+   worktree: `git show origin/homologacao:<arquivo>`.
+2. **Branch-limbo.** A `conciliacao/higiene-11ago` guarda documentos que nunca entraram na
+   `homologacao`. Branch sem PR aberto = conteúdo que não existe para o resto do time.
+3. **🔴 Merge feito no disco da box.** Em 01/09 um merge de 295 commits foi executado dentro da
+   `.232`: ficaram 13 migrations pendentes, assets de quatro dias antes, e a box com **315
+   commits que o GitHub não tem** — qualquer `checkout` ali os destrói. **Merge é no GitHub,
+   sempre.** A box só recebe código que já está numa branch remota.
+4. **Cherry-pick como rotina.** Cada cherry-pick cria um gêmeo com SHA diferente; em 02/09 eram
+   **cinco pares**, e a próxima promoção conflita em cima de todos. Cherry-pick serve para
+   hotfix isolado — e vem com PR de volta para a outra branch **no mesmo dia**, senão vira
+   dívida silenciosa (foi assim que o `fix(auth)` ficou em produção e fora da homologação).
+
+### Auditar divergência entre branches
+
+Comparação por SHA dá falso-negativo quando houve cherry-pick. Compare por **patch-id**:
+
+```bash
+git fetch origin
+git cherry -v origin/producao origin/homologacao   # "+" = não existe do outro lado
+```
+
+⚠️ **Faça isso numa cópia com `fetch` recente, nunca dentro da VM.** O deploy busca por refspec
+e não atualiza `refs/remotes/origin/*`, então o git da box reporta commits "só na VM" que já
+estão no GitHub — medido em 02/09: **18 commits fantasma** na VM da Tozi. Quem auditar de
+dentro "resgata" o que não está perdido.
+
+---
+
+## Deploy: não há auto-pull — e deploy direto na VM é EXCEÇÃO
+
+**Nenhuma VM faz auto-pull** (confirmado 08/07, 29/07 e 02/09). Mergear em `homologacao` não
+desce nada ao vivo. Isso **não** transforma "entrar na VM" em passo de rotina:
+
+- **O padrão é o merge.** A entrega da sessão termina no PR mergeado. Se o código precisa chegar
+  ao cliente hoje, isso é uma conversa com o Paulo — não uma decisão da sessão.
+- **Deploy direto na VM só em caso extremo** (produção quebrada, cliente parado) e **sempre com
+  autorização explícita do Paulo na hora**. Autorização de um deploy não vale para o próximo.
+- Quando for: **medir na box antes** (`git log -1`, `git status`, `db:migrate:status`, quantos
+  commits de diferença) → `git merge --ff-only` (nunca `reset --hard`) → `db:migrate` →
+  precompile **se houve arquivo de front** → restart do worker antes do web.
+- **Antes de qualquer restart:** `rails db:migrate:status`. Migration pendente + restart = 500
+  em cadeia.
+- **Nada de arquivo solto por `scp`.** Foi assim que nasceu o off-git de junho. Se precisar
+  transportar sem credencial git na VM, use `git bundle` — mantém o git da box consistente.
+
+### Arquivo de produto que só existe no disco da VM
+
+Imagem de campanha, asset servido por URL: se não está no git, some no próximo deploy **sem
+erro nenhum** — e a Meta busca a URL no instante do envio. O `inq-mapa.jpeg` está 404 desde
+08/06 por isso. Todo arquivo que o produto serve entra no git, **nas duas branches**.
 
 ---
 
@@ -80,9 +141,9 @@ Confirmado (08/07) via Almirante `drift_check`/`version_matrix`: **nenhuma VM fa
 | `chatspx-clientes/tozi-hml/` | Tozi HML | 3 | `homologacao` | `homologacao` |
 | `chatspx-clientes/fabrica/` | Fábrica/Atacadão | 1/2 | base prod | `fabrica` (`3.87.182.184`) |
 
-> **Comportamento de IA (prompt/persona/tom/conduta) NÃO é código.** Vive no **banco de cada conta**, não replica entre VMs, e se mexe via helper (`scripts/ops/<cliente>.sh`) ou Almirante (`ai_*`). Só `producao` (código) replica. Ver `AGENTS.md` §Isolamento.
+> **Comportamento de IA (prompt/persona/tom/conduta) NÃO é código.** Vive no **banco de cada conta**, não replica entre VMs, e se mexe pelo helper daquele cliente (`scripts/ops/<cliente>.sh`), com **backup antes e comando de reversão anotado**. Só `producao` (código) replica. Ver `AGENTS.md` §Isolamento.
 
-> **Ler conversas / diagnosticar comportamento** = SSH no banco da VM (o Almirante **não lê conversas**). Independente da branch do worktree local — dá pra analisar a conta 6 por SSH mesmo com o worktree local desatualizado.
+> **Ler conversas / diagnosticar comportamento** = SSH no banco da VM. Independente da branch do worktree local — dá pra analisar a conta 6 por SSH mesmo com o worktree local desatualizado.
 
 ### Worktrees de task (efêmeras) — não confundir
 `.claude/worktrees/*` (ex.: `tozi-eval`, `tozi-handoff`, `tozi-rodizio`) são worktrees **por task**, estilo Codex, isoladas pra uma feature. Descartáveis. Diferente das `chatspx-clientes/*`, que são **fixas por cliente**.
@@ -143,8 +204,8 @@ conferidas. ⚠️ Rodando a partir de `/tmp`, os `Exclude:` do `.rubocop.yml` q
 
 ### Contrato das frentes
 1. **Executora commita só na própria `spx/<frente>`.** Nunca em `homologacao`/`producao`.
-2. **Só a sessão da pasta `chatspx/` integra** — ela é a única que mergeia, propõe deploy e fala
-   com o Almirante. As frentes não pusham `homologacao`/`producao`.
+2. **Só a sessão da pasta `chatspx/` integra** — ela é a única que abre os PRs de promoção e
+   conduz deploy. As frentes não pusham `homologacao`/`producao`.
 3. **Fim de sessão: `git push -u origin spx/<frente>`.** Branch local-only = trabalho que vive só
    no notebook.
 4. **Fecha na sessão: merge ou delete.** Branch órfã é lixo — em 29/07 havia 6 delas
@@ -161,11 +222,12 @@ por essa lacuna que a sessão da Fábrica commitou na worktree primária em 29/0
 
 ## Regras não-negociáveis
 
-1. **Nunca commitar direto em `producao` nem `homologacao`.** Sempre via feature branch → merge.
-2. **Merge de PR e deploy são gates humanos.** O Claude propõe/revisa; humano aprova (anti-self-review).
+1. **Nunca commitar direto em `producao` nem `homologacao`.** Sempre via feature branch → PR → merge.
+2. **Merge de PR e deploy são gates humanos.** O Claude abre e revisa; humano aprova (anti-self-review).
 3. **`master` não se toca** — é o upstream do Chatwoot, não o produto.
 4. **Toda branch de trabalho deve estar no `origin` no fim do dia.** Branch local-only = trabalho que vive só no notebook (risco de perda total). Idem: commit no box de dev que nunca sobe pro GitHub.
-5. **Antes de `restart` em prod:** `rails db:migrate:status` / Almirante `migration_status` (migration pendente + restart = 500 em cadeia).
+5. **Nunca mergear dentro de uma VM.** Merge é no GitHub; a box só recebe o que já está numa branch remota.
+6. **Antes de `restart` em prod:** `rails db:migrate:status` (migration pendente + restart = 500 em cadeia).
 
 ---
 
