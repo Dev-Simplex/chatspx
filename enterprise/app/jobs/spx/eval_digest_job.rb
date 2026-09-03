@@ -129,13 +129,16 @@ class Spx::EvalDigestJob < ApplicationJob
   # fato aconteceu: em 01–03/09/2026 o juiz estourava em TODO episódio com atendimento e
   # gravava só os sintéticos. O contador via 41 avaliações, concluía que o dia tinha sido
   # bom e ficava calado — enquanto ~420 atendimentos reais passavam sem julgamento.
+  # O critério é a MARCA, não a ausência de conteúdo: só o registro que carrega `skip` está
+  # declarando que não houve o que julgar. Veredito nulo segue contando como julgamento —
+  # avaliação antiga com nota e findings preenchidos não pode sumir do denominador.
+  #
   # `jsonb_exists(...)` e não o operador `?`: dentro de uma string de condição do Rails o
   # `?` é placeholder de bind e o operador jsonb seria consumido como parâmetro.
   def julgados(account, desde)
     Captain::ConversationEval
       .where(account_id: account.id, created_at: desde..)
-      .where.not(veredito_raw: nil)
-      .where("NOT jsonb_exists(veredito_raw, 'skip')")
+      .where("veredito_raw IS NULL OR NOT jsonb_exists(veredito_raw, 'skip')")
       .count
   end
 
