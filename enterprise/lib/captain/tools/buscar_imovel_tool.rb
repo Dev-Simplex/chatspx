@@ -313,8 +313,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def ordenar_alternativas(imoveis)
     return imoveis.sort_by { |im| im['dist_km'] } if imoveis.all? { |im| im['dist_km'] }
 
-    por_bairro = imoveis.group_by { |im| im['Bairro'].to_s.strip.downcase }.values
-    por_bairro.map(&:size).max.times.flat_map { |i| por_bairro.filter_map { |g| g[i] } }
+    revezar_por_bairro(imoveis)
+  end
+
+  def revezar_por_bairro(imoveis)
+    grupos = imoveis.group_by { |im| im['Bairro'].to_s.strip.downcase }.values
+    maior = grupos.map(&:size).max.to_i
+    maior.times.flat_map { |i| grupos.filter_map { |g| g[i] } }
   end
 
   # Quando a alternativa vem de OUTRO bairro, a distância até o que o cliente pediu deixa de

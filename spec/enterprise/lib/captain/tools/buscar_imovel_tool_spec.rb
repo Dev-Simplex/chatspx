@@ -418,7 +418,8 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     end
 
     it 'keeps every option, dropping none' do
-      lista = (1..9).map { |n| imovel(n.to_s, %w[A B C][n % 3]) }
+      nomes = %w[A B C]
+      lista = (1..9).map { |n| imovel(n.to_s, nomes[n % 3]) }
 
       expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to match_array(lista.map { |i| i['Codigo'] })
     end
