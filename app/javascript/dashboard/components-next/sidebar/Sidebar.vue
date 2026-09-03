@@ -276,6 +276,14 @@ provideSidebarContext({
 });
 
 const inboxes = useMapGetter('inboxes/getInboxes');
+// Gate por DADO do item "WhatsApp" de campanhas, no mesmo espírito do `hasLeadIntake`:
+// o disparo só existe sobre inbox WhatsApp (o `Campaign#whatsapp_blast?` exige
+// `inbox_type == 'Whatsapp'`), então conta sem esse canal não ganha a porta. Gate por
+// canal e não por campanha existente de propósito — senão a primeira campanha da conta
+// nunca poderia ser criada pela tela.
+const hasWhatsappCampaigns = computed(() =>
+  inboxes.value.some(inbox => inbox.channel_type === 'Channel::Whatsapp')
+);
 // D1 (Fase 3): contador de pedidos de atendimento pendentes (item "Pedidos" só
 // aparece quando há algum — sem poluir a sidebar de quem não usa o modo).
 const takeoverRequestCount = useMapGetter('takeoverRequests/getIncomingCount');
@@ -804,39 +812,42 @@ const menuItems = computed(() => {
         },
       ],
     },
-    ...(hasLeadIntake.value
+    // Campanhas volta como UM item, com os filhos aparecendo por DADO — mesmo critério do
+    // `hasLeadIntake` e das telas de Unidades e Rede Social: a conta só ganha a porta quando
+    // existe o que mostrar atrás dela. Antes eram dois itens disputando o rótulo "Campanhas".
+    //
+    // Live chat e SMS seguem desligados desde 640ad1365b (24/07). Só o WhatsApp voltou,
+    // porque a tela dele deixou de ser visualizador: ela agora OPERA o disparo (conferir a
+    // audiência, carregar a lista, iniciar e pausar), que antes era rake e CSV por SSH.
+    ...(hasLeadIntake.value || hasWhatsappCampaigns.value
       ? [
           {
-            name: 'Lead Campaigns',
+            name: 'Campaigns',
             label: t('SIDEBAR.CAMPAIGNS'),
             icon: lordIcon('megaphone', 'i-lucide-megaphone'),
-            to: accountScopedRoute('campaigns_lead_ads_index'),
-            activeOn: ['campaigns_lead_ads_index'],
+            children: [
+              ...(hasLeadIntake.value
+                ? [
+                    {
+                      name: 'Lead Campaigns',
+                      label: t('SIDEBAR.LEAD_ADS'),
+                      to: accountScopedRoute('campaigns_lead_ads_index'),
+                    },
+                  ]
+                : []),
+              ...(hasWhatsappCampaigns.value
+                ? [
+                    {
+                      name: 'WhatsApp Campaigns',
+                      label: t('SIDEBAR.WHATSAPP'),
+                      to: accountScopedRoute('campaigns_whatsapp_index'),
+                    },
+                  ]
+                : []),
+            ],
           },
         ]
       : []),
-    // {
-    //   name: 'Campaigns',
-    //   label: t('SIDEBAR.CAMPAIGNS'),
-    //   icon: lordIcon('megaphone', 'i-lucide-megaphone'),
-    //   children: [
-    //     {
-    //       name: 'Live chat',
-    //       label: t('SIDEBAR.LIVE_CHAT'),
-    //       to: accountScopedRoute('campaigns_livechat_index'),
-    //     },
-    //     {
-    //       name: 'SMS',
-    //       label: t('SIDEBAR.SMS'),
-    //       to: accountScopedRoute('campaigns_sms_index'),
-    //     },
-    //     {
-    //       name: 'WhatsApp',
-    //       label: t('SIDEBAR.WHATSAPP'),
-    //       to: accountScopedRoute('campaigns_whatsapp_index'),
-    //     },
-    //   ],
-    // },
     helpCenterMenuItem.value,
     {
       name: 'Settings',
