@@ -63,11 +63,17 @@ const inboxes = useMapGetter('inboxes/getInboxes');
 const todasCampanhas = useMapGetter('campaigns/getAllCampaigns');
 
 // Repescar (ou evitar) quem recebeu um disparo anterior só faz sentido contra campanha que
-// de fato enviou alguma coisa.
+// de fato enviou alguma coisa — e pelo MESMO canal. O filtro era só por id, então campanha
+// de live-chat e de SMS apareciam na lista de um disparo de WhatsApp, sob o rótulo
+// "Recebeu uma campanha anterior": motores diferentes, público que não se cruza.
+// Sem `channel_type` no payload a campanha continua na lista: não esconder é melhor que
+// esconder errado.
 const campanhasAnteriores = computed(() =>
-  (todasCampanhas.value || []).filter(
-    c => Number(c.id) !== Number(props.campaignId)
-  )
+  (todasCampanhas.value || []).filter(c => {
+    if (Number(c.id) === Number(props.campaignId)) return false;
+    const canal = c.inbox?.channel_type;
+    return !canal || canal === 'Channel::Whatsapp';
+  })
 );
 
 // Ordem de leitura do funil — nao alfabetica.
