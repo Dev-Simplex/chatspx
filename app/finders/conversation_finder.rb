@@ -495,8 +495,11 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     nil
   end
 
+  # Microssegundos, nao milissegundos: a coluna e um timestamp do Postgres com 6 casas.
+  # Truncar em iso8601(3) gera um cursor MENOR que o valor real, e o `<` da tupla pula
+  # todas as linhas daquele microssegundo — conversas que sumiam da lista para sempre.
   def encode_cursor(last_activity_at, id)
-    Base64.strict_encode64({ last_activity_at: last_activity_at.iso8601(3), id: id }.to_json)
+    Base64.strict_encode64({ last_activity_at: last_activity_at.iso8601(6), id: id }.to_json)
   end
 end
 ConversationFinder.prepend_mod_with('ConversationFinder')

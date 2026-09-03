@@ -460,7 +460,10 @@ const conversationFilters = computed(() => {
     assigneeType: activeAssigneeTab.value,
     status: activeStatus.value,
     sortBy: activeSortBy.value,
-    page: nextCursor ? undefined : conversationListPagination.value,
+    // `page` vai sempre: o ramo keyset do backend o ignora, e mandar `undefined`
+    // gravava currentPage=undefined — que virava NaN se o cursor sumisse no meio da
+    // rolagem, fazendo a lista repetir a pagina 1 para sempre.
+    page: conversationListPagination.value,
     cursor: nextCursor || undefined,
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,

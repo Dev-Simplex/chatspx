@@ -97,9 +97,12 @@ export const buildConversationList = (
   // whole job here; pagination stays owned by the paging fetches.
   if (requestPayload.updatedWithin) return;
 
-  const hasNextCursor = !!metaData?.next_cursor;
-  const markEndReached =
-    conversationList.length < CONVERSATIONS_PER_PAGE || !hasNextCursor;
+  // Uma resposta sem `next_cursor` NAO significa fim da lista. O backend so emite cursor
+  // no caminho keyset e cai no offset quando o atendente tem conversa fixada, quando a
+  // ordenacao nao e a padrao, na busca (`q`) e nas pastas/filtros salvos — casos em que a
+  // paginacao segue por `page` normalmente. O unico sinal confiavel de fim, nos dois
+  // modos, e a pagina voltar curta.
+  const markEndReached = conversationList.length < CONVERSATIONS_PER_PAGE;
   setPageFilter({
     dispatch: context.dispatch,
     filter: filterType,
