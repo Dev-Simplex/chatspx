@@ -284,11 +284,37 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
     track_codigos(tool_context, imoveis)
     ref = [bairro, endereco].reject(&:blank?).join('/')
-    imoveis = anexar_distancia_da_referencia(imoveis, ref)
+    imoveis = ordenar_alternativas(anexar_distancia_da_referencia(imoveis, ref))
     format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis))
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] ampliar_sem_bairro: #{e.message}")
     nil
+  end
+
+  # A ordem em que o Vista devolve é sempre a mesma, e o `format_listings` corta os MOSTRAR
+  # primeiros — então TODO cliente cujo bairro não tem imóvel recebia exatamente as mesmas
+  # opções. Medido em 03/09 pedindo cinco bairros diferentes (Pienza, Ipanema, Alvorada,
+  # Girassol, Bandeirantes): os quatro mesmos imóveis nas cinco vezes, Bella Morada II e
+  # Jardim Aurora sempre na frente. Em 30 dias isso virou 126 menções da IA a Bella Morada e
+  # 119 a Aurora, contra 3 e 15 do time humano — e o acervo nem é concentrado ali: são 29
+  # casas de locação espalhadas por ~20 bairros, lideradas por Santorini e Primaveras.
+  #
+  # Duas réguas, nesta ordem:
+  #
+  # 1. Distância, quando ela existe. O código já calculava `dist_km` e só a IMPRIMIA; usá-la
+  #    para ordenar faz o cliente que pediu um bairro receber o que está perto DELE, que é o
+  #    que ele quer. Vira critério em vez de rótulo.
+  # 2. Sem distância (o geocoding erra 26% e é vetado pelo raio urbano), reveza por BAIRRO:
+  #    um imóvel de cada bairro antes de repetir bairro. Não inventa proximidade que não foi
+  #    medida, e ainda assim mostra a variedade real do acervo em vez dos mesmos dois.
+  #
+  # A ordem relativa do Vista é preservada dentro de cada grupo — `sort_by` e `group_by` são
+  # estáveis em Ruby, então isto reordena sem embaralhar.
+  def ordenar_alternativas(imoveis)
+    return imoveis.sort_by { |im| im['dist_km'] } if imoveis.all? { |im| im['dist_km'] }
+
+    por_bairro = imoveis.group_by { |im| im['Bairro'].to_s.strip.downcase }.values
+    por_bairro.map(&:size).max.times.flat_map { |i| por_bairro.filter_map { |g| g[i] } }
   end
 
   # Quando a alternativa vem de OUTRO bairro, a distância até o que o cliente pediu deixa de
