@@ -203,14 +203,18 @@ RSpec.describe Spx::EvalDigestJob do
     # atendimento e gravava só os sintéticos. O contador via 41 avaliações, o digest concluía
     # "dia limpo" e ficava calado por três dias enquanto ~420 atendimentos passavam batido.
     it 'alerts when the only records are synthetic skips' do
+      corpo = nil
+      allow(HTTParty).to receive(:post) { |_u, opts| corpo = JSON.parse(opts[:body]) }
       Captain::ConversationEval.create!(
         account: account, conversation: create(:conversation, account: account, inbox: inbox),
         captain_assistant_id: assistant.id, resumo: 'Sem mensagens avaliáveis.',
         veredito_raw: { 'skip' => 'sem_mensagens' }
       )
 
-      expect { described_class.perform_now(account) }.to change { ActionMailer::Base.deliveries.size }.by(1)
-      expect(ActionMailer::Base.deliveries.last.body.to_s).to include('julgou <strong>0</strong>')
+      described_class.perform_now(account)
+
+      expect(corpo['avaliados']).to eq(0)
+      expect(corpo['eval_parado']).to be(true)
     end
 
     it 'does not count the synthetic skip as an evaluated conversation' do
