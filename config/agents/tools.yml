@@ -151,3 +151,10 @@
   title: 'Buscar Unidades'
   description: 'Consulta as unidades físicas da conta: endereço, telefone e se abre na data pedida, já com feriado e exceção de calendário aplicados'
   icon: 'building'
+
+# Classe: Captain::Tools::EnviarLocalizacaoUnidadeTool. Irmã da enviar_localizacao (escritório) e
+# da enviar_localizacao_imovel (Vista) — muda só de onde vem a coordenada.
+- id: enviar_localizacao_unidade
+  title: 'Enviar Localização da Unidade'
+  description: 'Envia ao cliente o pin de localização de uma unidade da conta no mapa (por cidade)'
+  icon: 'location'

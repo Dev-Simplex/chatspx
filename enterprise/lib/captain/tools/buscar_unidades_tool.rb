@@ -13,8 +13,10 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   description 'Consulta as unidades físicas desta empresa: nome, cidade, endereço, telefone e se ' \
               'abre na data que a pessoa pediu, já com feriado e exceção de calendário aplicados. ' \
               'A conta de calendário é feita aqui dentro — repasse a expressão de tempo do jeito ' \
-              'que a pessoa escreveu, sem converter em data você mesmo. Use SÓ o que vier no ' \
-              'retorno: endereço, telefone e horário que não estiverem aqui não existem.'
+              'que a pessoa escreveu, sem converter em data você mesmo. Quando a pessoa tiver ' \
+              'enviado a localização dela nesta conversa, o retorno traz a distância até cada ' \
+              'unidade e qual é a mais próxima, já calculadas. Use SÓ o que vier no retorno: ' \
+              'endereço, telefone, horário e distância que não estiverem aqui não existem.'
 
   param :cidade, type: 'string',
                  desc: 'O município que a pessoa citou nesta conversa. Vazio lista todas as unidades.',
@@ -47,14 +49,15 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     false
   end
 
-  def perform(_tool_context, cidade: nil, quando: nil)
+  def perform(tool_context, cidade: nil, quando: nil)
     unidades = unidades_ativas
     return SEM_CADASTRO if unidades.empty?
 
+    perto = proximidade(tool_context)
     encontradas = filtrar_por_cidade(unidades, cidade)
-    return sem_unidade_na_cidade(unidades, cidade) if encontradas.empty?
+    return sem_unidade_na_cidade(unidades, cidade, perto) if encontradas.empty?
 
-    montar_resposta(encontradas, unidades.size, quando)
+    montar_resposta(perto.ordenar(encontradas), unidades.size, quando, perto)
   rescue StandardError => e
     Rails.logger.warn("[BuscarUnidades] #{e.class} #{e.message}")
     FALHA
@@ -86,18 +89,28 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     nome.present? && (nome.include?(alvo) || alvo.include?(nome))
   end
 
+  # A conta geográfica mora na Spx::UnidadeProximidade — inclusive a decisão de que o ponto da
+  # pessoa só vem do pin que ela enviou.
+  def proximidade(tool_context)
+    ::Spx::UnidadeProximidade.new(
+      ::Spx::UnidadeProximidade.ponto_da_conversa(find_conversation(tool_context&.state))
+    )
+  end
+
   # A ausência tem que ser inconfundível E dizer o que fazer com ela. Guarda que só devolve um
   # código o agente ignora — foi o que aconteceu quando a IA seguiu qualificando o cliente até o
   # fim e ele descobriu no final que não havia loja.
-  def sem_unidade_na_cidade(unidades, cidade)
+  def sem_unidade_na_cidade(unidades, cidade, perto)
     cidades = unidades.filter_map { |unidade| unidade.cidade.presence }.uniq
     "Não há unidade cadastrada em \"#{cidade.to_s.strip}\". Isto é resposta confirmada do cadastro, " \
       'não falha de consulta: não invente endereço e não ofereça o de outra cidade como se fosse ' \
       'dessa. Diga à pessoa que não existe unidade nessa cidade ANTES de continuar a conversa. ' \
-      "Cidades que têm unidade: #{cidades.first(LIMITE_CIDADES).join(', ')}."
+      "Cidades que têm unidade: #{cidades.first(LIMITE_CIDADES).join(', ')}." \
+      "#{perto.frase_de_sugestao(unidades)}"
   end
 
-  def montar_resposta(unidades, total_ativas, quando)
+  def montar_resposta(unidades, total_ativas, quando, perto)
+    @perto = perto
     pedido = quando.to_s.strip
     # A expressão é resolvida NO FUSO DE CADA UNIDADE: "amanhã" pode ser dia diferente em cada uma,
     # e resolver uma vez só pelo fuso do servidor é o erro que este desenho existe pra evitar.
@@ -139,9 +152,10 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     linhas = ["#{unidade.nome}#{local(unidade)}"]
     linhas << "Endereço: #{unidade.endereco}" if unidade.endereco.present?
     linhas << "Telefone: #{unidade.telefone}" if unidade.telefone.present?
+    linhas << @perto.linha_de_distancia(unidade)
     linhas.concat(atributos(unidade))
     linhas.concat(agenda(unidade, momento, excecoes))
-    linhas.join("\n")
+    linhas.compact.join("\n")
   end
 
   def local(unidade)
