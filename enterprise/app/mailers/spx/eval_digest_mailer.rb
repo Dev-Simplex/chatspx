@@ -23,12 +23,18 @@ class Spx::EvalDigestMailer < ApplicationMailer
   def assunto
     case @situacao
     when :eval_parado then "[#{@account.name}] Eval não avaliou nada nas últimas #{@janela}h"
-    when :dia_limpo
-      "[#{@account.name}] #{@dados[:avaliados]} atendimento#{'s' if @dados[:avaliados] != 1} " \
-        "avaliado#{'s' if @dados[:avaliados] != 1}, nenhuma falha grave nas últimas #{@janela}h"
+    when :dia_limpo then assunto_dia_limpo
     else
       n = @dados[:total_conversas]
       "[#{@account.name}] #{n} conversa#{'s' if n != 1} da IA com falha grave nas últimas #{@janela}h"
     end
+  end
+
+  # O número de avaliados vem no assunto de propósito: "nenhuma falha grave" sozinho é
+  # indistinguível de avaliador parado, que foi a confusão que motivou este estado existir.
+  def assunto_dia_limpo
+    n = @dados[:avaliados]
+    plural = 's' if n != 1
+    "[#{@account.name}] #{n} atendimento#{plural} avaliado#{plural}, nenhuma falha grave nas últimas #{@janela}h"
   end
 end
