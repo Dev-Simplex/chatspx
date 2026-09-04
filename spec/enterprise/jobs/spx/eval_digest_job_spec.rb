@@ -179,6 +179,72 @@ RSpec.describe Spx::EvalDigestJob do
       expect(corpo['texto']).to include(conv.display_id.to_s)
     end
 
+    # O silêncio do dia bom é AMBÍGUO para quem espera: entre 01 e 04/09/2026 o juiz estourava
+    # em todo episódio com atendimento, o digest via zero falha grave e calou por quatro dias.
+    # Quem esperava não tinha como distinguir dia limpo de sistema cego.
+    #
+    # Estes exercícios medem pelo WEBHOOK e não pelo e-mail: a entrega por SMTP já falha em 8
+    # exemplos pré-existentes nesta box, e um teste que herda uma falha de ambiente não mede
+    # o que diz medir.
+    describe 'aviso de dia limpo' do
+      def disparar_capturando
+        corpo = nil
+        allow(HTTParty).to receive(:post) { |_u, opts| corpo = JSON.parse(opts[:body]) }
+        yield
+        described_class.perform_now(account)
+        corpo
+      end
+
+      it 'stays silent on a clean day by default' do
+        corpo = disparar_capturando { avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: []) }
+
+        expect(corpo).to be_nil
+      end
+
+      it 'reports the clean day when the account asked for it' do
+        account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'webhook_url' => url,
+                                                                'avisar_dia_limpo' => true } })
+        corpo = disparar_capturando { avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: []) }
+
+        expect(corpo).not_to be_nil
+        expect(corpo['situacao']).to eq('dia_limpo')
+      end
+
+      # "Nenhuma falha" sem o número de avaliados é indistinguível de avaliador parado — é
+      # exatamente a leitura que deixou os quatro dias de cegueira passarem por dia bom.
+      it 'says how many were judged, not just that nothing failed' do
+        account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'webhook_url' => url,
+                                                                'avisar_dia_limpo' => true } })
+        corpo = disparar_capturando do
+          3.times { avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: []) }
+        end
+
+        expect(corpo['avaliados']).to eq(3)
+        expect(corpo['texto']).to include('3 atendimento')
+      end
+
+      # Com nada julgado, "nenhuma falha" seria mentira por omissão: não houve medição.
+      it 'still reports a stopped evaluator as stopped, not as a clean day' do
+        account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'webhook_url' => url,
+                                                                'avisar_dia_limpo' => true } })
+        corpo = disparar_capturando { nil }
+
+        expect(corpo['situacao']).to eq('eval_parado')
+        expect(corpo['texto']).to include('não julgou nenhum atendimento')
+      end
+
+      it 'keeps reporting real failures when they exist' do
+        account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'webhook_url' => url,
+                                                                'avisar_dia_limpo' => true } })
+        corpo = disparar_capturando do
+          avaliar(create(:conversation, account: account, inbox: inbox), nota: 1, findings: [finding('alucinacao')])
+        end
+
+        expect(corpo['situacao']).to eq('com_falhas')
+        expect(corpo['texto']).to include('falha grave')
+      end
+    end
+
     # O consumidor (n8n, Telegram, Slack) não deve ter que inferir o estado a partir dos
     # contadores — inferência que este próprio job errou por quatro dias.
     it 'names the situation in the payload instead of making the consumer infer it' do
@@ -217,50 +283,6 @@ RSpec.describe Spx::EvalDigestJob do
     # em todo episódio com atendimento, o digest via zero falha grave e calou por quatro dias.
     # Quem esperava não tinha como distinguir dia limpo de sistema cego. `avisar_dia_limpo`
     # troca o silêncio por uma confirmação do que foi medido.
-    describe 'aviso de dia limpo' do
-      it 'stays silent on a clean day by default' do
-        avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: [])
-
-        expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
-      end
-
-      it 'reports the clean day when the account asked for it' do
-        habilitar('avisar_dia_limpo' => true)
-        avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: [])
-
-        expect { described_class.perform_now(account) }.to change { ActionMailer::Base.deliveries.size }.by(1)
-      end
-
-      # "Nenhuma falha" sem o número de avaliados é indistinguível de avaliador parado — é
-      # exatamente a leitura que deixou os quatro dias de cegueira passarem por dia bom.
-      it 'says how many were judged, not just that nothing failed' do
-        habilitar('avisar_dia_limpo' => true)
-        3.times { avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: []) }
-
-        described_class.perform_now(account)
-
-        expect(ActionMailer::Base.deliveries.last.subject).to include('3 atendimentos avaliados')
-      end
-
-      # Com nada julgado, "nenhuma falha" seria mentira por omissão: não houve medição.
-      it 'still reports a stopped evaluator as stopped, not as a clean day' do
-        habilitar('avisar_dia_limpo' => true)
-
-        described_class.perform_now(account)
-
-        expect(ActionMailer::Base.deliveries.last.subject).to include('não avaliou nada')
-      end
-
-      it 'keeps reporting real failures when they exist' do
-        habilitar('avisar_dia_limpo' => true)
-        avaliar(create(:conversation, account: account, inbox: inbox), nota: 1, findings: [finding('alucinacao')])
-
-        described_class.perform_now(account)
-
-        expect(ActionMailer::Base.deliveries.last.subject).to include('falha grave')
-      end
-    end
-
     it 'sends to both destinations when both are configured' do
       account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'webhook_url' => url,
                                                               'destinatarios' => ['gestor@tozi.com.br'] } })
