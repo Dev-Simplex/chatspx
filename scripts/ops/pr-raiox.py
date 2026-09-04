@@ -94,10 +94,18 @@ def analisa(numero: int, checar_frota: bool) -> int:
     titulo("1. O que o merge REALMENTE traz")
     commits_reais = sh(["git", "rev-list", "--count", f"{base}..{head}"]) or "?"
     commits_pr = len(pr["commits"])
-    arquivos_reais = len([l for l in sh(["git", "diff", "--name-only", f"{base}..{head}"]).splitlines() if l])
+    # Arquivo tocado pelos COMMITS do PR, e nao `diff base..head`: o diff mostra
+    # tambem o que a base ganhou depois e a branch nao tem, e isso aparece como
+    # "removido", o que assusta sem motivo — o merge nao apaga esses arquivos.
+    tocados = sh(["git", "diff", "--name-only", f"{base}...{head}"]).splitlines()
+    arquivos_reais = len([l for l in tocados if l])
+    diff_bruto = len([l for l in sh(["git", "diff", "--name-only", f"{base}..{head}"]).splitlines() if l])
 
     print(f"  o GitHub anuncia : {commits_pr} commits, {pr['changedFiles']} arquivos (+{pr['additions']}/-{pr['deletions']})")
-    print(f"  o merge traz     : {commits_reais} commits, {arquivos_reais} arquivos")
+    print(f"  o merge traz     : {commits_reais} commits, {arquivos_reais} arquivos alterados por ele")
+    if diff_bruto > arquivos_reais:
+        print(f"  {AZUL}▸ o `git diff {base}..{head}` mostraria {diff_bruto} arquivos, mas {diff_bruto - arquivos_reais} "
+              f"deles\n    so existem na base e a branch nunca tocou. O merge NAO os apaga.{RESET}")
 
     # Carona = commit que entra no merge e NAO pertence ao PR. Comparo por SHA
     # (e nao pela contagem) porque o autor pode ter feito rebase, e ai os
@@ -120,7 +128,7 @@ def analisa(numero: int, checar_frota: bool) -> int:
 
     # ── 2. o que o deploy vai exigir ────────────────────────────────────────
     titulo("2. O que o deploy vai exigir")
-    mudou = sh(["git", "diff", "--name-only", f"{base}..{head}"]).splitlines()
+    mudou = tocados  # o que o PR toca, nao o diff bruto (ver acima)
     migrations = [f for f in mudou if f.startswith("db/migrate/")]
     frontend = [f for f in mudou if f.startswith("app/javascript/")]
     deps_ruby = [f for f in mudou if f in ("Gemfile", "Gemfile.lock")]
