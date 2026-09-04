@@ -6,6 +6,12 @@ allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 
 Você vai conduzir a promoção do **PR #$1** do repositório `Dev-Simplex/chatspx`.
 
+**Primeira vez nesta máquina?** Rode antes:
+`bash scripts/ops/setup-promover-pr.sh` — ele confere os 4 requisitos (repo, `gh`
+autenticado com permissão de merge, chave SSH das VMs, e as peças do comando) e
+diz exatamente o que falta. Sem o SSH dá para revisar e mergear, mas não para
+deployar.
+
 Este comando existe porque o processo tem armadilhas que já derrubaram produção
 nesta semana. Siga as fases na ordem. **Não pule a fase 1**, e não trate o
 resultado do script como opinião: ele mede o que o GitHub esconde.
