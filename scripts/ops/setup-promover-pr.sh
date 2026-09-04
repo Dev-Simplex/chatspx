@@ -70,26 +70,38 @@ fi
 titulo "3. Acesso às VMs de produção"
 if [ -f "$PEM" ]; then
   perm=$(stat -c "%a" "$PEM" 2>/dev/null || stat -f "%Lp" "$PEM" 2>/dev/null)
-  bom "chave encontrada: $PEM (modo $perm)"
-  # 640 é legítimo quando a chave é compartilhada por GRUPO, que é como a VM do
-  # Nicolas funciona (dois usuários no mesmo grupo lendo o mesmo checkout). Só
-  # tentamos apertar quando está aberta para todo mundo — e sem falhar feio se
-  # o arquivo for de outro dono: o que decide é o teste de SSH logo abaixo.
-  case "$perm" in
-    600|400|640|440) ;;
-    *) printf "      ${A}modo $perm está aberto demais; tentando fechar...${N}\n"
-       chmod 600 "$PEM" 2>/dev/null \
-         && printf "      ${V}ajustado para 600${N}\n" \
-         || printf "      ${A}sem permissão para alterar (arquivo é de outro dono)${N}\n" ;;
-  esac
-  # Uma VM basta para provar que a chave serve. CATATAU é a escolhida por não
-  # ser cliente crítico; a Tozi fica de fora porque o IP dela muda no stop/start.
+  dono=$(stat -c "%U" "$PEM" 2>/dev/null || stat -f "%Su" "$PEM" 2>/dev/null)
+  bom "chave encontrada: $PEM (modo $perm, dono $dono)"
+
+  # Quem decide se a chave presta é o TESTE DE SSH, não o número da permissão.
+  # Mas a permissão é a causa mais comum de falha, e o erro do OpenSSH some no
+  # 2>/dev/null — então quando o teste falha nós olhamos a permissão para
+  # explicar, em vez de mandar a pessoa caçar security group à toa.
+  #
+  # A regra do OpenSSH: ele recusa chave privada com bit de grupo ou de outros
+  # QUANDO o dono do arquivo é o usuário que está rodando ("bad permissions" e
+  # "This private key will be ignored"). Se o arquivo é de OUTRO usuário, ele
+  # não aplica essa checagem — foi por isso que um 640 passou no teste numa
+  # máquina com dois usuários e derrubou o SSH em outra, onde o dono era o
+  # próprio. Medido em 04/09/2026.
   if timeout 15 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes \
        -i "$PEM" ubuntu@3.85.130.14 true 2>/dev/null; then
     bom "SSH funciona (testado na CATATAU)"
+    case "$perm" in
+      600|400) ;;
+      *) printf "      ${A}modo $perm funciona hoje porque o dono é outro usuário,\n"
+         printf "      mas quebra se você virar dono do arquivo. O seguro é 600.${N}\n" ;;
+    esac
   else
     ruim "a chave existe mas o SSH não conectou"
-    dica "confira se seu IP está liberado no security group da AWS"
+    case "$perm" in
+      600|400) dica "a permissão está correta; confira se seu IP está liberado no security group da AWS" ;;
+      *) dica "modo $perm: o OpenSSH RECUSA chave privada com bit de grupo/outros"
+         dica "corrija com: chmod 600 $PEM"
+         if [ "$dono" != "$(id -un)" ]; then
+           dica "o arquivo é de $dono, então talvez precise de sudo — ou faça uma cópia sua"
+         fi ;;
+    esac
   fi
 else
   ruim "chave de produção não encontrada em $PEM"
