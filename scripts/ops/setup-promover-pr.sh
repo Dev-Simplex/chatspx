@@ -70,11 +70,18 @@ fi
 titulo "3. Acesso às VMs de produção"
 if [ -f "$PEM" ]; then
   perm=$(stat -c "%a" "$PEM" 2>/dev/null || stat -f "%Lp" "$PEM" 2>/dev/null)
-  bom "chave encontrada: $PEM"
-  if [ "$perm" != "600" ] && [ "$perm" != "400" ]; then
-    printf "      ${A}permissão $perm é frouxa; o ssh recusa. Corrigindo...${N}\n"
-    chmod 600 "$PEM" && printf "      ${V}corrigido para 600${N}\n"
-  fi
+  bom "chave encontrada: $PEM (modo $perm)"
+  # 640 é legítimo quando a chave é compartilhada por GRUPO, que é como a VM do
+  # Nicolas funciona (dois usuários no mesmo grupo lendo o mesmo checkout). Só
+  # tentamos apertar quando está aberta para todo mundo — e sem falhar feio se
+  # o arquivo for de outro dono: o que decide é o teste de SSH logo abaixo.
+  case "$perm" in
+    600|400|640|440) ;;
+    *) printf "      ${A}modo $perm está aberto demais; tentando fechar...${N}\n"
+       chmod 600 "$PEM" 2>/dev/null \
+         && printf "      ${V}ajustado para 600${N}\n" \
+         || printf "      ${A}sem permissão para alterar (arquivo é de outro dono)${N}\n" ;;
+  esac
   # Uma VM basta para provar que a chave serve. CATATAU é a escolhida por não
   # ser cliente crítico; a Tozi fica de fora porque o IP dela muda no stop/start.
   if timeout 15 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes \
