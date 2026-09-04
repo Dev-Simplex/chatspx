@@ -77,7 +77,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       # às vezes o ImoCodigo do site — tenta os dois antes de dizer que não achou.
       achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
       achados = fetch_vista({ 'ImoCodigo' => cod }, quantidade: 1) if achados.blank?
-      return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
+      return codigo_nao_encontrado(cod) if achados.blank?
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)
       track_codigos(tool_context, achados)
@@ -499,6 +499,29 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # "TAXA de condomínio" por extenso, não só "condomínio": são DOIS campos distintos do Vista
   # (ValorCondominio = quanto se paga; Condominio = se o imóvel fica dentro de um condomínio
   # fechado) e a palavra sozinha os confundia na mesma linha. Ver format_condominio.
+  # O código que o cliente traz costuma vir de uma PLACA fotografada, e quem lê o número na
+  # foto é o próprio modelo — que erra, e erra sem perceber. Conv 33099 (03/09): a placa dizia
+  # 6767, ele leu 6763 e depois 6762, e as duas vezes anunciou ao cliente que o imóvel não
+  # existia, inventando o porquê ("pode ser que já tenha sido alugada"). O imóvel estava no
+  # acervo o tempo todo; só apareceu quando o cliente digitou o número.
+  #
+  # Duas leituras DIFERENTES da mesma imagem são a assinatura de leitura incerta. Medido em
+  # 30 dias: 75 de 450 buscas por código voltam vazias, e em 6 conversas uma busca falhou e a
+  # seguinte, com outro número, achou.
+  #
+  # O texto não podia seguir afirmando ausência: ele é o único sinal que o agente tem, e sem
+  # ressalva vira "não temos esse imóvel". Aqui a régua é a MESMA que o transcritor de áudio
+  # já aplica — dizer que a fonte é falível — mas sem fala pronta: descreve o estado e a
+  # conduta esperada, e o agente escolhe as palavras.
+  def codigo_nao_encontrado(cod)
+    "Nenhum imóvel com o código #{cod} no acervo. ATENÇÃO: se esse número veio de uma FOTO " \
+      '(placa, anúncio, print), a leitura pode ter sido sua e estar errada — dígito trocado é ' \
+      'comum. Nesse caso NÃO afirme ao cliente que o imóvel não existe, não foi encontrado ou ' \
+      'já foi alugado, e não invente motivo: peça que ele confirme o número, e busque de novo ' \
+      'com o que ele responder. Só trate como inexistente o código que o PRÓPRIO cliente ' \
+      'escreveu ou falou.'
+  end
+
   def format_taxas(im)
     parts = []
     parts << "taxa de condomínio R$ #{im['ValorCondominio']}" if im['ValorCondominio'].to_f.positive?
@@ -516,10 +539,22 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # evidência do fato. Medido na conv 4809 (28/08): imóvel com ValorCondominio=300 e
   # Condominio="Nao" foi anunciado ao cliente como "em condomínio fechado", e a conduta de
   # visita ainda aplicou o caminho de visita acompanhada por cima do erro.
+  # O rótulo negativo CONTINHA o positivo: "NÃO fica em condomínio fechado" tem dentro de si
+  # a string "fica em condomínio fechado", e basta o modelo perder o "NÃO" para ler o oposto
+  # do que o dado diz. Conv 33099 (03/09): o retorno trazia "[NÃO fica em condomínio fechado]"
+  # e dois minutos depois a IA disse ao cliente que a casa era em condomínio fechado — e por
+  # causa disso ofereceu agendar a visita, num imóvel de chave avulsa. O Vista é inequívoco:
+  # Condominio="Nao", ValorCondominio="0".
+  #
+  # Agora a palavra que decide vem PRIMEIRO e é diferente em cada estado — AVULSO contra
+  # CONDOMÍNIO FECHADO —, então ler pela metade não inverte o sentido. A menção a condomínio
+  # no rótulo negativo é mantida de propósito: sem ela, volta a colisão com a TAXA
+  # ("taxa de condomínio R$ 300") que o PR #75 tratou, em que o modelo usava o valor da taxa
+  # como prova do fato.
   def format_condominio(imovel)
     case imovel['Condominio'].to_s.strip.downcase
-    when 'sim' then ' [FICA em condomínio fechado]'
-    when 'nao', 'não' then ' [NÃO fica em condomínio fechado]'
+    when 'sim' then ' [EM CONDOMÍNIO FECHADO]'
+    when 'nao', 'não' then ' [AVULSO — fora de condomínio fechado]'
     else ''
     end
   end

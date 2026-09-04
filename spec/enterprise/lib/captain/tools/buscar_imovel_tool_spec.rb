@@ -148,15 +148,32 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     end
 
     it 'says the property does NOT sit in a gated community when Vista says Nao' do
-      expect(tool.send(:format_condominio, avulso_com_taxa)).to include('NÃO fica em condomínio fechado')
+      expect(tool.send(:format_condominio, avulso_com_taxa)).to include('AVULSO — fora de condomínio fechado')
     end
 
     it 'says it DOES when Vista says Sim' do
-      expect(tool.send(:format_condominio, imovel.merge('Condominio' => 'Sim'))).to include('FICA em condomínio fechado')
+      expect(tool.send(:format_condominio, imovel.merge('Condominio' => 'Sim'))).to include('EM CONDOMÍNIO FECHADO')
     end
 
     it 'stays silent when Vista has no answer' do
       expect(tool.send(:format_condominio, imovel.merge('Condominio' => ''))).to eq('')
+    end
+
+    # O rótulo negativo não pode CONTER o positivo: "NÃO fica em condomínio fechado" tem
+    # dentro de si "fica em condomínio fechado", e perder o "NÃO" inverte o dado. Conv 33099
+    # (03/09): o retorno dizia que era avulso e a IA anunciou condomínio fechado dois minutos
+    # depois, oferecendo agendar visita num imóvel de chave avulsa.
+    it 'does not let the negative label contain the positive one' do
+      sim = tool.send(:format_condominio, imovel.merge('Condominio' => 'Sim'))
+      nao = tool.send(:format_condominio, imovel.merge('Condominio' => 'Nao'))
+
+      expect(nao).not_to include(sim.delete('[]').strip)
+    end
+
+    it 'leads with the word that decides, before the word condomínio' do
+      nao = tool.send(:format_condominio, imovel.merge('Condominio' => 'Nao'))
+
+      expect(nao.index('AVULSO')).to be < nao.index('condomínio')
     end
 
     # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha.
@@ -164,7 +181,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       linha = tool.send(:format_listings, nil, [avulso_com_taxa], false)
 
       expect(linha).to include('taxa de condomínio R$ 300')
-      expect(linha).to include('NÃO fica em condomínio fechado')
+      expect(linha).to include('AVULSO — fora de condomínio fechado')
     end
   end
 
@@ -380,6 +397,36 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
   # visível, só "nenhum imóvel encontrado" com o acervo cheio. Foi assim que o ramo
   # mobiliado nasceu quebrado e, quando o teto passou a valer para a busca comum, derrubou
   # toda busca de imóvel em produção.
+  # Conv 33099 (03/09): a placa dizia 6767, o modelo leu 6763 e depois 6762 na MESMA foto, e
+  # as duas vezes anunciou ao cliente que o imóvel não existia — inventando o porquê. O imóvel
+  # estava no acervo; só apareceu quando o cliente digitou o número. Em 30 dias, 75 de 450
+  # buscas por código voltam vazias e em 6 conversas a busca seguinte, com outro número, achou.
+  describe 'código que não aparece no acervo' do
+    it 'warns that the number may have been misread from a photo' do
+      texto = tool.send(:codigo_nao_encontrado, '6762')
+
+      expect(texto).to include('6762')
+      expect(texto).to match(/FOTO|placa/i)
+    end
+
+    it 'forbids announcing the property as non-existent or already rented' do
+      texto = tool.send(:codigo_nao_encontrado, '6762')
+
+      expect(texto).to match(/N[ÃA]O afirme/i)
+      expect(texto).to match(/j[áa] foi alugad/i)
+    end
+
+    it 'asks for the client to confirm the number instead' do
+      expect(tool.send(:codigo_nao_encontrado, '6762')).to match(/confirme o n[úu]mero/i)
+    end
+
+    # A ressalva vale para o número que o AGENTE leu, não para o que o cliente escreveu —
+    # senão a busca por código digitado nunca poderia dizer que não achou.
+    it 'still allows treating a client-typed code as truly absent' do
+      expect(tool.send(:codigo_nao_encontrado, '6762')).to match(/cliente escreveu ou falou/i)
+    end
+  end
+
   describe 'o teto de paginação' do
     it 'never asks the Vista for more than the API accepts' do
       expect(described_class::TETO_INSPECAO).to be <= 50
