@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 
@@ -51,7 +52,33 @@ FROTA = [
     ("FABRICA", "3.87.182.184"),
     ("AGN", "13.221.167.143"),
 ]
-PEM = "/home/chatwoot/chatwoot/simplex.linux.pem"
+# A chave e procurada em tres lugares, nesta ordem. O motivo esta na regra do
+# OpenSSH: ele recusa chave privada com bit de grupo ou de outros QUANDO o dono do
+# arquivo e o usuario que roda ("bad permissions / This private key will be
+# ignored"), e nao aplica a checagem quando o arquivo e de outro dono.
+#
+# Na VM do Nicolas o arquivo do repo e 640 do usuario `chatwoot`, com o grupo
+# `chatwoot` (do qual `nicolas` participa). Isso funciona para o `nicolas`, que nao
+# e o dono, e FALHA para o `chatwoot`, que e. Em 04/09/2026 esse detalhe fez este
+# script reportar as 5 VMs remotas como "sem resposta" durante uma promocao — a
+# frota estava inteira no ar, quem nao conectava era a chave.
+#
+# Apertar o arquivo compartilhado para 600 conserta um usuario e quebra o outro.
+# Por isso: cada um tem a SUA copia privada em ~/.ssh/simplex.linux.pem (600), e o
+# arquivo compartilhado continua valendo para quem nao e dono dele.
+def _pem() -> str:
+    do_ambiente = os.environ.get("TOZI_PEM")
+    if do_ambiente:
+        return do_ambiente
+
+    privada = os.path.expanduser("~/.ssh/simplex.linux.pem")
+    if os.path.exists(privada):
+        return privada
+
+    return "/home/chatwoot/chatwoot/simplex.linux.pem"
+
+
+PEM = _pem()
 
 VERDE, AMARELO, VERMELHO, AZUL, RESET = "\033[32m", "\033[33m", "\033[31m", "\033[36m", "\033[0m"
 

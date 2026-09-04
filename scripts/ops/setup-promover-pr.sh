@@ -13,7 +13,18 @@ set -uo pipefail
 V='\033[32m'; A='\033[33m'; R='\033[31m'; C='\033[36m'; N='\033[0m'
 ok=0; falta=0
 raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PEM="${TOZI_PEM:-$raiz/simplex.linux.pem}"
+# Preferencia: $TOZI_PEM, depois a copia PRIVADA em ~/.ssh, depois o arquivo do
+# repo. O OpenSSH recusa chave com bit de grupo quando o dono e quem roda, e a do
+# repo e 640 compartilhada por grupo — serve para quem NAO e dono dela, e falha
+# para quem e. Cada usuario com a sua copia 600 resolve os dois casos sem que
+# apertar o arquivo compartilhado tire o acesso do outro.
+if [ -n "${TOZI_PEM:-}" ]; then
+  PEM="$TOZI_PEM"
+elif [ -f "$HOME/.ssh/simplex.linux.pem" ]; then
+  PEM="$HOME/.ssh/simplex.linux.pem"
+else
+  PEM="$raiz/simplex.linux.pem"
+fi
 
 titulo() { printf "\n${C}━━━ %s${N}\n" "$1"; }
 bom()    { printf "  ${V}✓${N} %s\n" "$1"; ok=$((ok+1)); }
