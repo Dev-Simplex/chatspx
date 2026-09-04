@@ -108,7 +108,7 @@ class Spx::EvalDigestJob < ApplicationJob
     severidades = Array(config['severidades'].presence || SEVERIDADES_PADRAO)
     limite = (config['limite'] || LIMITE_PADRAO).to_i
 
-    avaliados = Captain::ConversationEval.where(account_id: account.id).where(created_at: desde..).count
+    avaliados = julgados(account, desde)
     linhas = achados(account, desde, severidades, config['nota_maxima'])
     conversas = agrupar_por_conversa(linhas)
 
@@ -119,6 +119,27 @@ class Spx::EvalDigestJob < ApplicationJob
       conversas: conversas.first(limite),
       total_conversas: conversas.size
     }
+  end
+
+  # Conta só o que foi JULGADO de verdade. Episódio sem atendimento (disparo que ninguém
+  # respondeu, conversa fechada só com mensagem de atividade) grava uma linha sintética
+  # `{"skip": "sem_mensagens"}` e ela não é evidência de que o avaliador está de pé.
+  #
+  # Sem esta distinção o alerta de "eval parado" nunca dispara pelo modo de falha que de
+  # fato aconteceu: em 01–03/09/2026 o juiz estourava em TODO episódio com atendimento e
+  # gravava só os sintéticos. O contador via 41 avaliações, concluía que o dia tinha sido
+  # bom e ficava calado — enquanto ~420 atendimentos reais passavam sem julgamento.
+  # O critério é a MARCA, não a ausência de conteúdo: só o registro que carrega `skip` está
+  # declarando que não houve o que julgar. Veredito nulo segue contando como julgamento —
+  # avaliação antiga com nota e findings preenchidos não pode sumir do denominador.
+  #
+  # `jsonb_exists(...)` e não o operador `?`: dentro de uma string de condição do Rails o
+  # `?` é placeholder de bind e o operador jsonb seria consumido como parâmetro.
+  def julgados(account, desde)
+    Captain::ConversationEval
+      .where(account_id: account.id, created_at: desde..)
+      .where("veredito_raw IS NULL OR NOT jsonb_exists(veredito_raw, 'skip')")
+      .count
   end
 
   # SQL cru porque `response_findings` é um array jsonb e o filtro é por elemento — o

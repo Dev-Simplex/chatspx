@@ -183,4 +183,22 @@ RSpec.describe Captain::ConversationEvalService do
       end
     end
   end
+
+  # Este arquivo exercitava os blocos de contexto UM A UM e nunca montava a mensagem que
+  # de fato vai ao juiz. Foi por essa fresta que 078efe33e6 passou: ao extrair o corpo do
+  # prompt para `user_content`, o `transcript` — variável local do `perform` — virou um nome
+  # sem dono, e TODO episódio com atendimento passou a estourar NameError em produção. Os
+  # sem atendimento continuavam gravando o veredito sintético, então o volume não caía e o
+  # painel parecia vivo. Montar a mensagem inteira é o teste que enxerga isso.
+  describe 'a mensagem que vai ao juiz' do
+    it 'monta o conteúdo com o transcript que o perform construiu' do
+      conteudo = service.send(:user_content, '[Cliente]: tem kitnet?')
+
+      expect(conteudo).to include('[Cliente]: tem kitnet?')
+    end
+
+    it 'não depende de escopo externo para chegar ao transcript' do
+      expect(service.method(:user_content).arity).to eq(1)
+    end
+  end
 end
