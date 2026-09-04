@@ -388,4 +388,55 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(tool.send(:quantidade_para, false, true)).to be <= 50
     end
   end
+
+  # O bairro pedido sem imóvel cai no fallback, que buscava sem o filtro e cortava os
+  # MOSTRAR primeiros NA ORDEM DO VISTA — sempre a mesma. Medido em 03/09 com cinco bairros
+  # diferentes: os quatro mesmos imóveis nas cinco vezes. Em 30 dias, 126 menções da IA a
+  # Bella Morada e 119 a Aurora, contra 3 e 15 do time, com o acervo espalhado por ~20
+  # bairros.
+  describe 'alternativas de outros bairros' do
+    def imovel(cod, bairro, dist = nil)
+      { 'Codigo' => cod, 'Bairro' => bairro }.tap { |h| h['dist_km'] = dist if dist }
+    end
+
+    it 'ranks by distance when every option has one' do
+      lista = [imovel('1', 'Aurora', 8.0), imovel('2', 'Centro', 1.5), imovel('3', 'Bela Vista', 4.0)]
+
+      expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to eq(%w[2 3 1])
+    end
+
+    # Sem geocoding não há proximidade medida, e inventar uma seria pior: o Google resolve
+    # 100% dos bairros e erra 26% deles por mais de 3 km.
+    it 'takes turns between neighbourhoods when there is no distance' do
+      lista = [imovel('1', 'Aurora'), imovel('2', 'Aurora'), imovel('3', 'Aurora'),
+               imovel('4', 'Bella Morada'), imovel('5', 'Centro')]
+
+      ordem = tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }
+
+      expect(ordem.first(3)).to contain_exactly('1', '4', '5')
+      expect(ordem.size).to eq(5)
+    end
+
+    it 'keeps every option, dropping none' do
+      nomes = %w[A B C]
+      lista = (1..9).map { |n| imovel(n.to_s, nomes[n % 3]) }
+
+      expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to match_array(lista.map { |i| i['Codigo'] })
+    end
+
+    # Distância parcial é o caso NORMAL, não a exceção: medido no acervo de locação em
+    # 03/09, 24 dos 29 imóveis têm coordenada e 5 não. Exigir que todos tivessem descartava
+    # a medida de 24 por causa de 5 — e a lista voltava a ser a ordem do Vista, que é o bug.
+    it 'still ranks by distance when only some options have one' do
+      lista = [imovel('1', 'Aurora'), imovel('2', 'Centro', 4.0), imovel('3', 'Bela Vista', 0.5)]
+
+      expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to eq(%w[3 2 1])
+    end
+
+    it 'never drops the ones without a coordinate, it puts them last' do
+      lista = [imovel('1', 'Aurora'), imovel('2', 'Aurora'), imovel('3', 'Centro', 4.0)]
+
+      expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to eq(%w[3 1 2])
+    end
+  end
 end
