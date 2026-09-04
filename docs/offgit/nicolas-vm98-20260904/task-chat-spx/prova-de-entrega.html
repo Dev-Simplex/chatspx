@@ -1,0 +1,602 @@
+<title>Prova de entrega</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #f5f6f4;
+    --surface: #ffffff;
+    --sunk: #eceeea;
+    --ink: #191c1a;
+    --ink-soft: #3a423d;
+    --muted: #626b65;
+    --line: #dcdfdb;
+    --line-firm: #bcc2bd;
+    --ack: #0f7a63;
+    --ack-bg: #e4f0ec;
+    --gap: #b4471f;
+    --gap-bg: #f8ebe4;
+
+    --f-display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+    --f-body: Literata, Georgia, "Times New Roman", serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #121513;
+      --surface: #1a1e1b;
+      --sunk: #222724;
+      --ink: #e8ebe7;
+      --ink-soft: #ccd2ce;
+      --muted: #949c96;
+      --line: #2b312d;
+      --line-firm: #3d453f;
+      --ack: #56c4a6;
+      --ack-bg: #16261f;
+      --gap: #e08a63;
+      --gap-bg: #2a1c15;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #121513;
+    --surface: #1a1e1b;
+    --sunk: #222724;
+    --ink: #e8ebe7;
+    --ink-soft: #ccd2ce;
+    --muted: #949c96;
+    --line: #2b312d;
+    --line-firm: #3d453f;
+    --ack: #56c4a6;
+    --ack-bg: #16261f;
+    --gap: #e08a63;
+    --gap-bg: #2a1c15;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 80ch;
+    margin: 0 auto;
+    padding: 58px 24px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  p, li { max-width: 66ch; }
+  p { margin: 0; }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .17em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(36px, 6.5vw, 58px);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin: 14px 0 0;
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-size: 20.5px;
+    line-height: 1.52;
+    color: var(--ink-soft);
+    margin-top: 20px;
+  }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 27px;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 18px;
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+
+  section { display: flex; flex-direction: column; gap: 20px; }
+
+  /* --- a frase-âncora --- */
+  .thesis {
+    border-left: 3px solid var(--gap);
+    background: var(--gap-bg);
+    padding: 20px 24px;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: none;
+  }
+  .thesis b { font-weight: 600; }
+
+  /* --- escada de confirmação --- */
+  .ladder {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 26px 24px 20px;
+    overflow-x: auto;
+  }
+  .ladder svg { display: block; min-width: 620px; width: 100%; height: auto; }
+
+  .rung-box { fill: var(--surface); stroke: var(--line-firm); stroke-width: 1.5; }
+  .rung-box.done { fill: var(--ack-bg); stroke: var(--ack); }
+  .rung-box.missing { fill: var(--gap-bg); stroke: var(--gap); stroke-dasharray: 6 4; }
+  .rung-label { font-family: "Familjen Grotesk", sans-serif; font-size: 16px; font-weight: 600; fill: var(--ink); }
+  .rung-code { font-family: "IBM Plex Mono", monospace; font-size: 12px; fill: var(--muted); }
+  .rung-note { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; fill: var(--muted); }
+  .rung-note.warn { fill: var(--gap); }
+  .arrow { stroke: var(--line-firm); stroke-width: 1.5; fill: none; }
+  .arrow.warn { stroke: var(--gap); stroke-dasharray: 5 4; }
+  .caption {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 14px;
+    max-width: none;
+  }
+
+  /* --- o que já existe --- */
+  .inventory {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .piece {
+    background: var(--surface);
+    padding: 17px 19px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .piece .state {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .piece .state.have { color: var(--ack); }
+  .piece .state.miss { color: var(--gap); }
+  .piece .what {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.32;
+    color: var(--ink);
+  }
+  .piece .where {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    word-break: break-word;
+  }
+
+  /* --- medidas --- */
+  .measures { display: flex; flex-direction: column; gap: 30px; counter-reset: m; }
+
+  .measure {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 18px;
+    align-items: baseline;
+    padding-bottom: 26px;
+    border-bottom: 1px solid var(--line);
+  }
+  .measure:last-child { border-bottom: none; padding-bottom: 0; }
+
+  .measure::before {
+    counter-increment: m;
+    content: counter(m);
+    font-family: var(--f-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ack);
+    grid-row: span 2;
+  }
+  .measure h3 { grid-column: 2; }
+  .measure .body { grid-column: 2; display: flex; flex-direction: column; gap: 12px; }
+  .measure .body p { max-width: 62ch; }
+
+  .tagrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+  .tag {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 3px 9px;
+    border: 1px solid var(--line-firm);
+    color: var(--muted);
+    background: var(--sunk);
+  }
+  .tag.now { border-color: var(--ack); color: var(--ack); background: var(--ack-bg); }
+
+  pre {
+    margin: 0;
+    background: var(--sunk);
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: var(--f-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+  }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: .86em;
+    background: var(--sunk);
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    color: var(--ink-soft);
+  }
+
+  /* --- antes / depois --- */
+  .compare {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .side { background: var(--surface); padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; }
+  .side .head {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .side.hoje .head { color: var(--gap); }
+  .side.depois .head { color: var(--ack); }
+  .side ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 9px; }
+  .side li { font-size: 15.5px; color: var(--ink-soft); max-width: none; }
+
+  .limits {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line-firm);
+    background: var(--surface);
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .limits p { font-size: 15.5px; color: var(--ink-soft); max-width: none; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  footer p { max-width: none; }
+
+  @media (max-width: 600px) {
+    body { font-size: 16px; }
+    .page { padding: 40px 18px 76px; gap: 44px; }
+    .measure { grid-template-columns: 1fr; }
+    .measure::before { grid-row: auto; }
+    .measure h3, .measure .body { grid-column: 1; }
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">Proposta &middot; Confiabilidade de envio no WhatsApp</div>
+    <h1>Prova de entrega</h1>
+    <p class="lede">
+      Todo chamado do tipo &ldquo;mandei e não chegou&rdquo; começa igual: o agente viu
+      &ldquo;enviado&rdquo; e o cliente não recebeu. O problema não é cada incidente &mdash;
+      é que o sistema não tem como saber que falhou.
+    </p>
+  </header>
+
+  <section>
+    <p class="thesis">
+      Hoje uma mensagem só é marcada como falha quando o WhatsApp <b>diz</b> que falhou.
+      O caso mais comum &mdash; a confirmação que simplesmente nunca chega &mdash; não vira
+      nada: a mensagem fica &ldquo;enviada&rdquo; para sempre, e ninguém fica sabendo.
+    </p>
+    <p>
+      Isso está escrito no próprio código, como decisão consciente: ausência de confirmação
+      é tratada como &ldquo;pendente ou atrasada&rdquo;, nunca como falha, para não gerar
+      alarme falso. A intenção é correta. O que falta é o outro lado da regra: um prazo
+      depois do qual o silêncio deixa de ser paciência e passa a ser um problema.
+    </p>
+  </section>
+
+  <section>
+    <h2>A escada de confirmação</h2>
+    <div class="ladder">
+      <svg viewBox="0 0 880 230" role="img" aria-label="Estados de confirmação de uma mensagem: enviada, entregue e lida têm código do WhatsApp; o silêncio não tem estado.">
+        <!-- degraus confirmados -->
+        <g>
+          <rect class="rung-box done" x="8" y="52" width="170" height="62" rx="2"></rect>
+          <text class="rung-label" x="26" y="80">Enviada</text>
+          <text class="rung-code" x="26" y="100">ack 1</text>
+
+          <path class="arrow" d="M186 83 H222"></path>
+          <path class="arrow" d="M214 77 L222 83 L214 89"></path>
+
+          <rect class="rung-box done" x="230" y="52" width="170" height="62" rx="2"></rect>
+          <text class="rung-label" x="248" y="80">Entregue</text>
+          <text class="rung-code" x="248" y="100">ack 2</text>
+
+          <path class="arrow" d="M408 83 H444"></path>
+          <path class="arrow" d="M436 77 L444 83 L436 89"></path>
+
+          <rect class="rung-box done" x="452" y="52" width="170" height="62" rx="2"></rect>
+          <text class="rung-label" x="470" y="80">Lida</text>
+          <text class="rung-code" x="470" y="100">ack 3 / 4</text>
+        </g>
+
+        <!-- falha declarada -->
+        <g>
+          <rect class="rung-box" x="674" y="52" width="196" height="62" rx="2"></rect>
+          <text class="rung-label" x="692" y="80">Falhou</text>
+          <text class="rung-code" x="692" y="100">ack -1 &mdash; o motor avisa</text>
+        </g>
+
+        <!-- o degrau que falta -->
+        <g>
+          <path class="arrow warn" d="M93 122 V166 H674 V128"></path>
+          <rect class="rung-box missing" x="230" y="150" width="392" height="62" rx="2"></rect>
+          <text class="rung-label" x="250" y="178">Silêncio</text>
+          <text class="rung-note warn" x="250" y="198">sem ack &mdash; hoje continua &ldquo;enviada&rdquo; para sempre</text>
+        </g>
+
+        <text class="rung-note" x="8" y="26">o que o WhatsApp responde</text>
+      </svg>
+      <p class="caption">
+        Os quatro estados de cima existem no sistema e funcionam. O de baixo não existe:
+        não há caminho que leve o silêncio a virar informação para o agente.
+      </p>
+    </div>
+    <p>
+      No staging, <b>88% das mensagens de saída</b> estão paradas em &ldquo;enviada&rdquo; há
+      mais de trinta minutos, sem nunca terem confirmado entrega. Aquele ambiente tem muita
+      mensagem de teste, então o número não vale como taxa de produção &mdash; vale como
+      demonstração de que <b>nada, em nenhum momento, tira uma mensagem desse estado</b>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Quase tudo já está construído</h2>
+    <p>
+      Esta não é uma proposta de reescrever o envio. As peças existem; três delas já rodam.
+      O que falta é ligar uma ponta na outra.
+    </p>
+    <div class="inventory">
+      <div class="piece">
+        <span class="state have">existe e roda</span>
+        <span class="what">Tradução das confirmações do WhatsApp</span>
+        <span class="where">Waha::MessageStatusSyncService</span>
+      </div>
+      <div class="piece">
+        <span class="state have">existe e roda</span>
+        <span class="what">Estado &ldquo;falhou&rdquo; na mensagem</span>
+        <span class="where">Message#status: sent · delivered · read · failed</span>
+      </div>
+      <div class="piece">
+        <span class="state have">existe e roda</span>
+        <span class="what">Rede de segurança para o que <b>entra</b></span>
+        <span class="where">Waha::InboundReconcilerJob (cron)</span>
+      </div>
+      <div class="piece">
+        <span class="state have">pronto, fora do ar</span>
+        <span class="what">Aviso de linha do WhatsApp fora</span>
+        <span class="where">commit de 10/08 &mdash; não está na branch de produção</span>
+      </div>
+      <div class="piece">
+        <span class="state miss">não existe</span>
+        <span class="what">Rede de segurança para o que <b>sai</b></span>
+        <span class="where">é o item 1 desta proposta</span>
+      </div>
+      <div class="piece">
+        <span class="state miss">não existe</span>
+        <span class="what">Visão de saúde por instalação</span>
+        <span class="where">é o item 4 desta proposta</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Quatro medidas, em ordem de implantação</h2>
+
+    <div class="measures">
+
+      <article class="measure">
+        <h3>Varredura de recibo &mdash; o reconciliador que falta</h3>
+        <div class="body">
+          <p>
+            Uma tarefa periódica varre as mensagens de saída que continuam
+            &ldquo;enviadas&rdquo; passado o prazo e sem nenhuma confirmação, e as marca como
+            <b>não confirmadas</b>. A tela já sabe desenhar mensagem com problema &mdash; é o
+            mesmo tratamento visual de falha declarada.
+          </p>
+          <p>
+            O sistema já faz exatamente isso na direção contrária: existe uma varredura que
+            reinjeta mensagens que <b>entraram</b> e nunca chegaram ao Chatwoot. Aqui é o
+            espelho dela, com o cron de um minuto que a instalação já roda.
+          </p>
+<pre>a cada 1 min:
+  saída  +  status = enviada  +  criada há mais de N min
+         +  nenhuma confirmação registrada
+  →  marca como não confirmada  →  aparece para o agente</pre>
+          <p>
+            O prazo precisa ser generoso o bastante para não acusar atraso normal &mdash;
+            começar em 10 minutos, medir e ajustar. É melhor avisar tarde do que avisar errado.
+          </p>
+          <div class="tagrow">
+            <span class="tag">resolve o sintoma relatado</span>
+            <span class="tag">sem mudança de arquitetura</span>
+            <span class="tag">vale para toda a frota</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="measure">
+        <h3>Subir o aviso de linha fora do ar</h3>
+        <div class="body">
+          <p>
+            Quando a sessão do WhatsApp cai, todo envio falha e o agente continua vendo
+            &ldquo;enviado&rdquo;. O aviso que resolve isso <b>já foi escrito e testado</b>
+            em agosto, e simplesmente não está na branch de produção &mdash; nenhum cliente
+            tem.
+          </p>
+          <p>
+            É o melhor retorno da lista: já existe, já foi validado, e só depende de entrar
+            no próximo deploy.
+          </p>
+          <div class="tagrow">
+            <span class="tag now">código pronto</span>
+            <span class="tag">só falta deploy</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="measure">
+        <h3>Tirar a mídia do caminho do webhook</h3>
+        <div class="body">
+          <p>
+            Vídeo e áudio falham mais que texto por um motivo estrutural: a mídia não vai do
+            Chatwoot ao WhatsApp. A mensagem sai como webhook para um aplicativo externo, que
+            então <b>baixa o arquivo</b> do Chatwoot e só depois envia. Esse webhook tem
+            <b>cinco segundos</b> de prazo &mdash; texto responde instantaneamente, um vídeo
+            de dezenas de megabytes não.
+          </p>
+          <p>
+            E o arquivo é servido do disco da própria máquina, por um endereço assinado que
+            vence em trinta minutos. Se o aplicativo demora, tenta depois ou não alcança o
+            endereço, a mídia morre sem deixar rastro.
+          </p>
+          <p>
+            O sistema <b>já</b> tem o caminho certo: localização e contato compartilhado são
+            enviados por chamada direta, sem passar pelo webhook. Estender esse caminho para
+            vídeo e áudio devolve ao Chatwoot o controle do resultado &mdash; e a capacidade
+            de marcar falha de verdade.
+          </p>
+          <p>
+            Enquanto isso não acontece, há um paliativo de um minuto: o prazo do webhook é
+            configuração de instalação, editável pelo painel administrativo. Subir de cinco
+            para trinta segundos não exige deploy nem reinício.
+          </p>
+          <div class="tagrow">
+            <span class="tag now">paliativo hoje: prazo do webhook</span>
+            <span class="tag">mudança estrutural</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="measure">
+        <h3>Saber o que cada instalação está rodando</h3>
+        <div class="body">
+          <p>
+            Este chamado levou horas por um motivo evitável: a máquina do cliente roda um
+            código que <b>não existe no repositório</b>. O build foi feito à mão, fora do
+            git. Não há como dizer com certeza quais correções ela tem, nem reproduzir o
+            problema, nem confiar numa hipótese.
+          </p>
+          <p>
+            Duas providências fecham isso. Primeiro, nenhuma instalação roda código que não
+            esteja registrado &mdash; se aquela máquina não pode puxar do repositório, o
+            build precisa ao menos ser publicado como marca antes de subir. Segundo, um
+            endereço de saúde por instalação, protegido, que responda em uma chamada:
+            versão, estado de cada linha de WhatsApp, disco, memória, fila e falhas de envio
+            nas últimas 24 horas.
+          </p>
+          <p>
+            O suporte passa a começar por uma consulta em vez de uma investigação.
+          </p>
+          <div class="tagrow">
+            <span class="tag">corta o tempo de diagnóstico</span>
+            <span class="tag">pré-requisito dos outros três</span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>O que muda na prática</h2>
+    <div class="compare">
+      <div class="side hoje">
+        <span class="head">Hoje</span>
+        <ul>
+          <li>O agente vê &ldquo;enviado&rdquo; e presume que chegou.</li>
+          <li>O cliente reclama dias depois, se reclamar.</li>
+          <li>Ninguém sabe quantas mensagens se perderam.</li>
+          <li>Cada chamado vira investigação manual numa VM.</li>
+          <li>A linha pode estar fora há horas sem ninguém notar.</li>
+        </ul>
+      </div>
+      <div class="side depois">
+        <span class="head">Depois</span>
+        <ul>
+          <li>Mensagem sem confirmação aparece marcada na conversa.</li>
+          <li>O agente reenvia na hora, por outro meio se preciso.</li>
+          <li>Falha vira número: dá para medir e cobrar.</li>
+          <li>O diagnóstico começa por uma consulta, não por SSH.</li>
+          <li>Linha fora do ar avisa quem está tentando responder.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que isto não resolve</h2>
+    <div class="limits">
+      <p>
+        <b>Não faz a mensagem chegar.</b> Se a linha caiu ou o arquivo é grande demais, ela
+        continua não chegando &mdash; a diferença é que alguém fica sabendo em minutos, e não
+        em dias. A entrega em si depende dos itens 3 e 4.
+      </p>
+      <p>
+        <b>Vai gerar alarme falso no começo.</b> Prazo curto demais acusa atraso normal como
+        falha. Por isso o prazo entra generoso e só encolhe com medição na mão.
+      </p>
+      <p>
+        <b>Não substitui monitoramento.</b> Marcar a mensagem avisa o agente daquela
+        conversa. Saber que uma instalação inteira parou de entregar é o item 4, e é outro
+        problema.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Levantamento feito sobre o código em execução e sobre duas medições remotas na
+      instalação do cliente. Nenhum teste foi executado em produção e nenhuma alteração foi
+      feita fora do ambiente de homologação.
+    </p>
+  </footer>
+
+</div>

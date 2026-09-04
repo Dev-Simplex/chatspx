@@ -1,0 +1,483 @@
+<title>Do meu chat à frota</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:#f4f6f8; --surface:#ffffff; --surface-2:#eaeef3; --sunken:#e4e9ef;
+    --line:#d7dee6; --line-strong:#b6c1cd;
+    --ink:#16202b; --ink-2:#3d4b5a; --muted:#66768a;
+    --accent:#0d6e73; --accent-soft:#e0f0f0;
+    --you:#a35a1f; --you-soft:#f8ecdf;
+    --ops:#495578; --ops-soft:#e8eaf3;
+    --warn:#8f5a00; --warn-soft:#fbf1de; --warn-line:#e0b877;
+    --danger:#a63328; --danger-soft:#f8e6e3;
+    --ok:#2c6e49;
+    --sh:0 1px 2px rgba(22,32,43,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#101720; --surface:#18212c; --surface-2:#1f2a37; --sunken:#131b24;
+      --line:#2a3644; --line-strong:#3d4c5e;
+      --ink:#e7edf4; --ink-2:#c1ccd9; --muted:#8b9aab;
+      --accent:#58c9ce; --accent-soft:#14343a;
+      --you:#dda15e; --you-soft:#33261a;
+      --ops:#9aa6cf; --ops-soft:#222941;
+      --warn:#e2ab5a; --warn-soft:#2a2114; --warn-line:#6a5027;
+      --danger:#ef8d7f; --danger-soft:#331d1a;
+      --ok:#74c79c;
+      --sh:0 1px 2px rgba(0,0,0,.32);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#101720; --surface:#18212c; --surface-2:#1f2a37; --sunken:#131b24;
+    --line:#2a3644; --line-strong:#3d4c5e;
+    --ink:#e7edf4; --ink-2:#c1ccd9; --muted:#8b9aab;
+    --accent:#58c9ce; --accent-soft:#14343a;
+    --you:#dda15e; --you-soft:#33261a;
+    --ops:#9aa6cf; --ops-soft:#222941;
+    --warn:#e2ab5a; --warn-soft:#2a2114; --warn-line:#6a5027;
+    --danger:#ef8d7f; --danger-soft:#331d1a;
+    --ok:#74c79c;
+    --sh:0 1px 2px rgba(0,0,0,.32);
+  }
+
+  *,*::before,*::after { box-sizing:border-box; }
+  body {
+    background:var(--ground); color:var(--ink);
+    font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    font-size:15px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:62rem; margin:0 auto; padding:40px 22px 72px; }
+
+  /* ---------- cabeçalho ---------- */
+  header { border-bottom:2px solid var(--ink); padding-bottom:22px; margin-bottom:34px; }
+  .eyebrow {
+    font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 10px;
+  }
+  h1 {
+    font-family:Archivo,"Arial Narrow",sans-serif; font-weight:800;
+    font-size:clamp(30px,5.4vw,50px); line-height:1.02; letter-spacing:-.025em;
+    margin:0 0 14px; text-wrap:balance;
+  }
+  .lede { font-size:16.5px; color:var(--ink-2); max-width:60ch; margin:0; }
+  .lede strong { color:var(--ink); font-weight:600; }
+
+  /* ---------- legenda de atores ---------- */
+  .actors { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+  .chip {
+    font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600;
+    letter-spacing:.06em; text-transform:uppercase;
+    padding:4px 9px; border-radius:3px; border:1px solid;
+  }
+  .chip.eu   { color:var(--accent); background:var(--accent-soft); border-color:var(--accent); }
+  .chip.voce { color:var(--you);    background:var(--you-soft);    border-color:var(--you); }
+  .chip.ops  { color:var(--ops);    background:var(--ops-soft);    border-color:var(--ops); }
+
+  /* ---------- figura ---------- */
+  figure { margin:38px 0 44px; }
+  .figbox {
+    background:var(--surface); border:1px solid var(--line); border-radius:5px;
+    padding:14px 16px 6px; overflow-x:auto; box-shadow:var(--sh);
+  }
+  svg.topo { display:block; width:100%; min-width:760px; height:auto; color:var(--ink-2); }
+  .t-zone      { fill:var(--sunken); stroke:var(--line-strong); stroke-width:1; }
+  .t-zone-lbl  { font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600;
+                 letter-spacing:.1em; fill:var(--muted); }
+  .t-box       { fill:var(--surface); stroke:var(--line-strong); stroke-width:1.2; }
+  .t-box-eu    { fill:var(--surface); stroke:var(--accent); stroke-width:1.6; }
+  .t-box-ops   { fill:var(--surface); stroke:var(--ops); stroke-width:1.6; }
+  .t-box-off   { fill:none; stroke:var(--muted); stroke-width:1.2; stroke-dasharray:4 3; }
+  .t-title     { font-family:"IBM Plex Sans",sans-serif; font-size:12.5px; font-weight:600; fill:var(--ink); }
+  .t-sub       { font-family:"IBM Plex Mono",monospace; font-size:10px; fill:var(--muted); }
+  .t-edge      { stroke:currentColor; stroke-width:1.4; fill:none; }
+  .t-edge-lbl  { font-family:"IBM Plex Mono",monospace; font-size:10px; fill:var(--ink-2); }
+  .t-blocked   { stroke:var(--danger); stroke-width:1.6; stroke-dasharray:6 4; fill:none; }
+  .t-blocked-lbl { font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500; fill:var(--danger); }
+  figcaption { font-size:13px; color:var(--muted); margin-top:11px; max-width:64ch; }
+
+  /* ---------- trilho de etapas ---------- */
+  .steps { display:flex; flex-direction:column; }
+  .step { display:grid; grid-template-columns:52px 1fr; gap:0 20px; position:relative; }
+  .rail { position:relative; display:flex; justify-content:center; }
+  .rail::before {
+    content:""; position:absolute; top:0; bottom:0; left:calc(50% - 1px);
+    width:2px; background:var(--line);
+  }
+  .step:first-child .rail::before { top:16px; }
+  .step:last-child  .rail::before { bottom:calc(100% - 16px); }
+  .num {
+    position:relative; z-index:1; margin-top:0;
+    width:34px; height:34px; border-radius:50%;
+    display:grid; place-items:center;
+    font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600;
+    border:2px solid; background:var(--ground);
+  }
+  .num.eu   { color:var(--accent); border-color:var(--accent); }
+  .num.voce { color:var(--you);    border-color:var(--you); }
+  .num.ops  { color:var(--ops);    border-color:var(--ops); }
+  .body { padding-bottom:34px; min-width:0; }
+  .step h2 {
+    font-family:Archivo,sans-serif; font-weight:700; font-size:20px; letter-spacing:-.012em;
+    margin:2px 0 4px; line-height:1.25;
+  }
+  .who {
+    font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600;
+    letter-spacing:.1em; text-transform:uppercase; margin:0 0 9px;
+  }
+  .who.eu { color:var(--accent); } .who.voce { color:var(--you); } .who.ops { color:var(--ops); }
+  .step p { margin:0 0 11px; max-width:66ch; color:var(--ink-2); }
+  .step p strong { color:var(--ink); font-weight:600; }
+  code {
+    font-family:"IBM Plex Mono",monospace; font-size:.88em;
+    background:var(--surface-2); padding:1px 5px; border-radius:3px; color:var(--ink);
+  }
+  pre {
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.7;
+    background:var(--sunken); border:1px solid var(--line); border-left:3px solid var(--line-strong);
+    border-radius:4px; padding:12px 14px; margin:0 0 12px;
+    overflow-x:auto; color:var(--ink);
+  }
+  pre .c { color:var(--muted); }
+
+  .note {
+    background:var(--warn-soft); border:1px solid var(--warn-line); border-left-width:3px;
+    border-radius:4px; padding:10px 13px; margin:0 0 11px; max-width:66ch;
+  }
+  .note .tag {
+    display:block; font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:600;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--warn); margin-bottom:3px;
+  }
+  .note p { margin:0; font-size:14px; color:var(--ink-2); }
+  .note p + p { margin-top:7px; }
+
+  /* ---------- muro ---------- */
+  .wall {
+    display:grid; grid-template-columns:52px 1fr; gap:0 20px; margin:2px 0 30px;
+  }
+  .wall .rail::before { content:""; position:absolute; top:0; bottom:0; left:calc(50% - 1px);
+    width:2px; background:repeating-linear-gradient(var(--danger) 0 5px, transparent 5px 10px); }
+  .wallbox {
+    border:1px solid var(--danger); border-left-width:3px; border-radius:4px;
+    background:var(--danger-soft); padding:13px 15px;
+  }
+  .wallbox h3 {
+    font-family:Archivo,sans-serif; font-size:14px; font-weight:700; letter-spacing:.02em;
+    text-transform:uppercase; color:var(--danger); margin:0 0 5px;
+  }
+  .wallbox p { margin:0; font-size:14px; color:var(--ink-2); max-width:66ch; }
+
+  /* ---------- frota ---------- */
+  .fleet { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:9px; margin:2px 0 12px; }
+  .vm {
+    background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:10px 12px;
+  }
+  .vm.off { background:none; border-style:dashed; }
+  .vm .n {
+    font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600;
+    letter-spacing:.06em; color:var(--ink); display:block;
+  }
+  .vm .ip { font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); display:block; margin-top:2px; }
+  .vm .st { font-size:12px; margin-top:6px; display:block; }
+  .vm.off .st { color:var(--warn); }
+  .vm .st.on { color:var(--ok); }
+
+  /* ---------- fechamento ---------- */
+  .summary { margin-top:8px; border-top:2px solid var(--ink); padding-top:26px; }
+  .summary h2 {
+    font-family:Archivo,sans-serif; font-weight:800; font-size:22px; letter-spacing:-.015em; margin:0 0 16px;
+  }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:9px 12px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  th {
+    font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600;
+    letter-spacing:.11em; text-transform:uppercase; color:var(--muted); border-bottom-color:var(--line-strong);
+  }
+  td.k { font-family:"IBM Plex Mono",monospace; font-size:12.5px; white-space:nowrap; padding-right:22px; }
+  td.k.eu { color:var(--accent); } td.k.voce { color:var(--you); } td.k.ops { color:var(--ops); }
+  td.t { font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--muted);
+         white-space:nowrap; font-variant-numeric:tabular-nums; text-align:right; padding-right:0; }
+  td.d { color:var(--ink-2); }
+  footer { margin-top:26px; font-size:13px; color:var(--muted); max-width:66ch; }
+
+  @media (max-width:560px) {
+    .step, .wall { grid-template-columns:38px 1fr; gap:0 14px; }
+    .num { width:30px; height:30px; font-size:12px; }
+    .wrap { padding:28px 16px 56px; }
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">ChatSPX · caminho de uma correção</p>
+  <h1>Do meu chat à frota</h1>
+  <p class="lede">O trajeto completo de uma alteração: nasce na árvore do host <code>nicolas</code>, você confere em <strong>nicolas.chatspx.app</strong>, e só chega em <strong>chat.simplexsolucoes.com.br</strong> passando pelo GitHub e pelo orquestrador <code>192.168.8.229</code>. Nove etapas — <strong>três delas eu não consigo executar</strong>.</p>
+  <div class="actors">
+    <span class="chip eu">Eu (Claude)</span>
+    <span class="chip voce">Você</span>
+    <span class="chip ops">Orquestrador .229</span>
+  </div>
+</header>
+
+<figure>
+  <div class="figbox">
+    <svg class="topo" viewBox="0 0 1000 452" role="img" aria-label="Topologia: do host nicolas o código só chega à frota passando pelo GitHub; o caminho direto do host às VMs de produção não existe, por falta de chave pem e de sshpass.">
+      <defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+        </marker>
+      </defs>
+
+      <!-- zona A -->
+      <rect class="t-zone" x="12" y="64" width="236" height="222" rx="4"></rect>
+      <text class="t-zone-lbl" x="24" y="82">HOST NICOLAS · 192.168.8.98</text>
+      <rect class="t-box-eu" x="28" y="100" width="204" height="50" rx="4"></rect>
+      <text class="t-title" x="40" y="120">Árvore de trabalho</text>
+      <text class="t-sub" x="40" y="136">~/chatwoot · branch nicolas</text>
+      <line class="t-edge" x1="130" y1="150" x2="130" y2="206" marker-end="url(#arw)"></line>
+      <text class="t-edge-lbl" x="140" y="174">precompile</text>
+      <text class="t-edge-lbl" x="140" y="187">+ restart</text>
+      <rect class="t-box-eu" x="28" y="210" width="204" height="50" rx="4"></rect>
+      <text class="t-title" x="40" y="230">Staging</text>
+      <text class="t-sub" x="40" y="246">nicolas.chatspx.app</text>
+
+      <!-- zona B -->
+      <rect class="t-zone" x="284" y="64" width="232" height="222" rx="4"></rect>
+      <text class="t-zone-lbl" x="296" y="82">GITHUB · DEV-SIMPLEX/CHATSPX</text>
+      <rect class="t-box" x="300" y="100" width="200" height="50" rx="4"></rect>
+      <text class="t-title" x="312" y="120">branch</text>
+      <text class="t-sub" x="312" y="136">nicolas</text>
+      <line class="t-edge" x1="400" y1="150" x2="400" y2="206" marker-end="url(#arw)"></line>
+      <text class="t-edge-lbl" x="410" y="174">cherry-pick</text>
+      <text class="t-edge-lbl" x="410" y="187">+ PR + merge</text>
+      <rect class="t-box" x="300" y="210" width="200" height="50" rx="4"></rect>
+      <text class="t-title" x="312" y="230">branch</text>
+      <text class="t-sub" x="312" y="246">producao</text>
+
+      <!-- A -> B -->
+      <line class="t-edge" x1="232" y1="125" x2="296" y2="125" marker-end="url(#arw)"></line>
+      <text class="t-edge-lbl" x="264" y="112" text-anchor="middle">git push</text>
+
+      <!-- zona C -->
+      <rect class="t-zone" x="552" y="64" width="436" height="292" rx="4"></rect>
+      <text class="t-zone-lbl" x="564" y="82">FROTA · CHAT.SIMPLEXSOLUCOES.COM.BR</text>
+      <rect class="t-box-ops" x="572" y="210" width="160" height="50" rx="4"></rect>
+      <text class="t-title" x="584" y="230">Orquestrador</text>
+      <text class="t-sub" x="584" y="246">192.168.8.229</text>
+
+      <!-- B -> C -->
+      <line class="t-edge" x1="500" y1="235" x2="566" y2="235" marker-end="url(#arw)"></line>
+      <text class="t-edge-lbl" x="533" y="222" text-anchor="middle">deploy.sh</text>
+
+      <!-- fan-out -->
+      <path class="t-edge" d="M 732 235 C 762 235, 768 122, 794 122" marker-end="url(#arw)"></path>
+      <path class="t-edge" d="M 732 235 C 762 235, 768 176, 794 176" marker-end="url(#arw)"></path>
+      <path class="t-edge" d="M 732 235 L 794 235" marker-end="url(#arw)"></path>
+      <path class="t-blocked" d="M 732 235 C 762 235, 768 300, 794 300"></path>
+
+      <rect class="t-box" x="800" y="102" width="176" height="40" rx="4"></rect>
+      <text class="t-sub" x="812" y="120">PRODUCAO</text>
+      <text class="t-sub" x="812" y="134">local, no próprio .229</text>
+      <rect class="t-box" x="800" y="156" width="176" height="40" rx="4"></rect>
+      <text class="t-sub" x="812" y="174">CATATAU</text>
+      <text class="t-sub" x="812" y="188">3.85.130.14 · AWS</text>
+      <rect class="t-box" x="800" y="215" width="176" height="40" rx="4"></rect>
+      <text class="t-sub" x="812" y="233">SENTINELA</text>
+      <text class="t-sub" x="812" y="247">54.152.144.236 · AWS</text>
+      <rect class="t-box-off" x="800" y="280" width="176" height="40" rx="4"></rect>
+      <text class="t-sub" x="812" y="298">TOZI · fora do script</text>
+      <text class="t-sub" x="812" y="312">git bundle manual</text>
+
+      <!-- caminho direto: não existe -->
+      <path class="t-blocked" d="M 130 286 L 130 396 L 652 396 L 652 356"></path>
+      <line class="t-blocked" x1="385" y1="389" x2="399" y2="403" stroke-dasharray="0"></line>
+      <line class="t-blocked" x1="399" y1="389" x2="385" y2="403" stroke-dasharray="0"></line>
+      <text class="t-blocked-lbl" x="392" y="428" text-anchor="middle">acesso direto não existe — sem simplex.linux.pem, sem sshpass, fora da lista de VMs</text>
+    </svg>
+  </div>
+  <figcaption>Deste host não há rota para a frota. Todo código que chega ao cliente sobe para o GitHub e desce pelo orquestrador — é por isso que o merge e o deploy não podem sair daqui.</figcaption>
+</figure>
+
+<div class="steps">
+
+  <!-- 01 -->
+  <div class="step">
+    <div class="rail"><div class="num voce">01</div></div>
+    <div class="body">
+      <p class="who voce">Você</p>
+      <h2>Você pede a correção</h2>
+      <p>Aqui no chat. O que mais acelera: o print do erro, o <strong>ID da conversa</strong> ou da inbox, e a conta em que aconteceu. Se o caso é de cliente real, a reprodução vai para a conta cobaia <code>#11</code> — a <code>#1</code> é sua e eu não mexo nela.</p>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div class="step">
+    <div class="rail"><div class="num eu">02</div></div>
+    <div class="body">
+      <p class="who eu">Eu</p>
+      <h2>Edito o código</h2>
+      <p>Em <code>/home/chatwoot/chatwoot</code>, branch <code>nicolas</code> — é esse repositório que o staging serve. O <code>chatwoot-isonade</code> que seu editor mostra é outra árvore, boa para documento e mockup, não para o código que vai ao ar.</p>
+      <p>Neste ponto a mudança existe só no disco: <strong>ninguém vê nada ainda</strong>, nem no staging.</p>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div class="step">
+    <div class="rail"><div class="num eu">03</div></div>
+    <div class="body">
+      <p class="who eu">Eu</p>
+      <h2>Compilo e reinicio o staging</h2>
+      <p>Dois comandos. O <code>precompile</code> reconstrói o front; o <code>restart</code> troca o que está no ar.</p>
+<pre>cd /home/chatwoot/chatwoot
+RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=8192' \
+  bundle exec rake assets:precompile &gt; build.log 2&gt;&amp;1; echo $?
+sudo /bin/systemctl restart chatwoot.target</pre>
+      <p>O build leva de <strong>6 a 10 minutos</strong> e é seguro de rodar com o app no ar — a troca só acontece no restart. Depois do restart o domínio devolve <strong>502 por 30 a 40 segundos</strong>; não é falha, é o boot.</p>
+      <div class="note">
+        <span class="tag">Armadilha</span>
+        <p>Nunca canalizar o precompile para <code>| tail</code> ou <code>| grep</code>: o código de saída passa a ser o do <code>tail</code>, e um build quebrado chega como sucesso. Já custou um "corrigi e deployei" falso, com o restart rodando sobre assets velhos.</p>
+        <p>E <code>4096</code> de heap agora dá OOM — o bundle cresceu. É <code>8192</code>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 -->
+  <div class="step">
+    <div class="rail"><div class="num voce">04</div></div>
+    <div class="body">
+      <p class="who voce">Você</p>
+      <h2>Confere em nicolas.chatspx.app</h2>
+      <p>É o seu chat — mesmo servidor, mesmo código, dados de teste. Se não ficou bom, volta para a etapa 02 sem custo nenhum: nada saiu daqui.</p>
+      <p><strong>Este é o único portão de qualidade que existe.</strong> O que passar daqui vai para o cliente.</p>
+    </div>
+  </div>
+
+  <!-- 05 -->
+  <div class="step">
+    <div class="rail"><div class="num eu">05</div></div>
+    <div class="body">
+      <p class="who eu">Eu</p>
+      <h2>Fecho o commit na branch nicolas</h2>
+      <p>Mensagem em Conventional Commits — <code>fix(kanban): ...</code> — porque o título do PR lá na frente é gerado a partir dela.</p>
+      <div class="note">
+        <span class="tag">Armadilha · ordem importa</span>
+        <p>Commit <strong>antes</strong> do próximo restart. O <code>app_version.rb</code> carimba o SHA no boot e escreve o <code>version.json</code>; o front só manda o navegador recarregar quando esse valor muda. Restartar antes de commitar carimba o SHA velho — o usuário continua vendo o bug com o bundle antigo em cache, e parece que a correção não funcionou.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wall">
+  <div class="rail"></div>
+  <div class="wallbox">
+    <h3>Muro — daqui a frota não é alcançável</h3>
+    <p>O host <code>nicolas</code> é pull-only: não tem a chave <code>simplex.linux.pem</code>, não tem <code>sshpass</code>, não tem rota de ssh para o <code>.229</code> e nem aparece na lista de VMs do <code>deploy.sh</code>. Tudo abaixo desta linha passa obrigatoriamente pelo GitHub.</p>
+  </div>
+</div>
+
+<div class="steps">
+  <!-- 06 -->
+  <div class="step">
+    <div class="rail"><div class="num eu">06</div></div>
+    <div class="body">
+      <p class="who eu">Eu</p>
+      <h2>Levo só o seu fix para um PR</h2>
+      <p>A <code>producao</code> <strong>não está atrás</strong> da <code>nicolas</code> — elas divergem. A <code>producao</code> recebe PR de outras pessoas o tempo todo (em agosto eram 236 commits só dela contra 84 só da <code>nicolas</code>). Um PR de branch inteira nasce conflitando em centenas de arquivos. O caminho que funciona é isolar a sua correção:</p>
+<pre>git fetch origin producao
+git worktree add -b spx/&lt;fix&gt; /tmp/&lt;dir&gt; origin/producao
+ln -sfn /home/chatwoot/chatwoot/.husky/_ /tmp/&lt;dir&gt;/.husky/_   <span class="c"># antes do cherry-pick</span>
+git -C /tmp/&lt;dir&gt; cherry-pick &lt;sha&gt;
+git -C /tmp/&lt;dir&gt; push -u origin spx/&lt;fix&gt;
+gh pr create --base producao --title "fix(escopo): ..."</pre>
+      <p>O <code>origin</code> busca por SSH com a deploy key e empurra por HTTPS com o token do <code>gh</code> — os dois lados de propósito, porque a deploy key é só de leitura.</p>
+      <div class="note">
+        <span class="tag">Armadilha</span>
+        <p>O symlink do husky vem <strong>logo depois</strong> do <code>worktree add</code>: o <code>.husky/_</code> é gerado pelo <code>pnpm install</code> e não vai no git, então em worktree o hook morre. Se você deixar para depois, o <code>cherry-pick --continue</code> quebra no meio da resolução de conflito.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 07 -->
+  <div class="step">
+    <div class="rail"><div class="num voce">07</div></div>
+    <div class="body">
+      <p class="who voce">Você</p>
+      <h2>Você mergeia o PR</h2>
+      <p>O <code>gh pr merge</code> é bloqueado para mim no modo automático — quem clica é você. Duas coisas para não se assustar e não se enganar:</p>
+      <div class="note">
+        <span class="tag">O CI vermelho quase nunca é seu</span>
+        <p>O repo inteiro tem 762 problemas de eslint, então <code>lint-frontend</code>, <code>frontend-tests</code>, as 16 fatias de <code>backend-tests</code> e o <code>Check Deployment</code> falham em <strong>qualquer</strong> PR, inclusive nos que já foram mergeados. O único check que barra de verdade é o <strong>Validate PR title</strong>: o título precisa ser Conventional Commits. Título em prosa reprova em 5 segundos e se conserta com <code>gh pr edit &lt;n&gt; --title</code>.</p>
+      </div>
+      <div class="note">
+        <span class="tag">Selo de "merged" não prova nada</span>
+        <p>Em 29/08 o PR #73 apareceu MERGED e o código não entrou: a <code>producao</code> foi reescrita depois e o commit de integração ficou órfão. A conferência real é <code>git merge-base --is-ancestor &lt;sha&gt; origin/producao</code> — eu rodo isso e te confirmo antes de qualquer um pedir o deploy.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 08 -->
+  <div class="step">
+    <div class="rail"><div class="num ops">08</div></div>
+    <div class="body">
+      <p class="who ops">Quem tem acesso ao 192.168.8.229</p>
+      <h2>Deploy da frota</h2>
+      <p>Um comando no orquestrador, que percorre as VMs uma a uma:</p>
+<pre>./deployment/deploy.sh producao</pre>
+      <p>Por VM: <code>git pull</code> → <code>bundle install</code> → <code>pnpm install</code> → <code>assets:precompile</code> → <code>db:migrate</code> → <code>restart chatwoot.target</code>. Nas máquinas remotas isso vai encapsulado no <code>cwctl -U producao</code>. VM que já está no último commit é pulada.</p>
+      <div class="fleet">
+        <div class="vm"><span class="n">PRODUCAO</span><span class="ip">local, no próprio .229</span><span class="st on">no fan-out</span></div>
+        <div class="vm"><span class="n">CATATAU</span><span class="ip">3.85.130.14 · AWS</span><span class="st on">no fan-out</span></div>
+        <div class="vm"><span class="n">SENTINELA</span><span class="ip">54.152.144.236 · AWS</span><span class="st on">no fan-out</span></div>
+        <div class="vm off"><span class="n">TOZI</span><span class="ip">3.82.215.109 · conta 6</span><span class="st">fora de propósito — sem credencial de GitHub; deploy manual por git bundle</span></div>
+        <div class="vm off"><span class="n">ALTERNATIVO</span><span class="ip">192.168.8.169</span><span class="st">comentado no array</span></div>
+      </div>
+      <div class="note">
+        <span class="tag">Antes de rodar</span>
+        <p>Backup do banco. As migrations são idempotentes, mas o <code>db:migrate</code> roda em produção de cliente real — é o único passo do fluxo que não tem volta fácil.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 09 -->
+  <div class="step">
+    <div class="rail"><div class="num ops">09</div></div>
+    <div class="body">
+      <p class="who ops">Depois do deploy</p>
+      <h2>Ligar a feature e conferir</h2>
+      <p>Correção de bug já vale assim que a VM reinicia. <strong>Feature nova entra desligada</strong> e se habilita conta por conta — piloto primeiro, nunca a frota inteira de uma vez.</p>
+      <div class="note">
+        <span class="tag">Risco nº 1 — bit de flag reclamado</span>
+        <p>O <code>feature_flags</code> é um bitmask <code>bigint</code> de 63 bits e está cheio, então flags novos reaproveitaram bits de flags antigos: <code>response_bot→message_sequences</code>, <code>message_reply_to→internal_chat</code>, <code>report_v4→ai_assistant_v2</code>, <code>mobile_v2→report_rollup</code>. Se alguma conta de produção tiver o flag <strong>velho</strong> ligado, o <strong>novo</strong> liga sozinho no deploy.</p>
+        <p>Por isso a pré-checagem roda <strong>antes</strong> do pull, ainda com o código antigo — depois não dá mais para saber qual dos dois o bit significava.</p>
+      </div>
+      <p>Fecha com o smoke: abrir o chat de um cliente, mandar e receber uma mensagem, conferir que o Sidekiq subiu com os crons novos.</p>
+    </div>
+  </div>
+
+</div>
+
+<section class="summary">
+  <h2>Quem faz o quê</h2>
+  <table>
+    <thead>
+      <tr><th>Etapa</th><th>Quem</th><th style="text-align:right">Tempo</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="d">01 · Pedido no chat</td><td class="k voce">você</td><td class="t">—</td></tr>
+      <tr><td class="d">02 · Edição do código</td><td class="k eu">eu</td><td class="t">varia</td></tr>
+      <tr><td class="d">03 · Build + restart do staging</td><td class="k eu">eu</td><td class="t">~10 min</td></tr>
+      <tr><td class="d">04 · Validação no seu chat</td><td class="k voce">você</td><td class="t">—</td></tr>
+      <tr><td class="d">05 · Commit</td><td class="k eu">eu</td><td class="t">&lt; 1 min</td></tr>
+      <tr><td class="d">06 · Cherry-pick, push e PR</td><td class="k eu">eu</td><td class="t">~5 min</td></tr>
+      <tr><td class="d">07 · Merge do PR</td><td class="k voce">você</td><td class="t">1 min</td></tr>
+      <tr><td class="d">08 · deploy.sh na frota</td><td class="k ops">.229</td><td class="t">~5 min/VM</td></tr>
+      <tr><td class="d">09 · Flags e smoke</td><td class="k ops">.229</td><td class="t">~10 min</td></tr>
+    </tbody>
+  </table>
+  <footer>Resumindo: eu faço tudo até o PR ficar aberto e verde no único check que importa. Da linha do merge para baixo é mão humana — por desenho, não por limitação de ferramenta.</footer>
+</section>
+
+</div>

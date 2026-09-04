@@ -1,0 +1,613 @@
+<title>Rolagem da lista de conversas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    --ground: #f6f7f9;
+    --surface: #ffffff;
+    --surface-sunk: #eef1f5;
+    --ink: #14181f;
+    --ink-soft: #3d4653;
+    --muted: #626c7b;
+    --line: #dde2e9;
+    --line-strong: #c3cbd6;
+    --ok: #1f7a4d;
+    --ok-bg: #e6f2ec;
+    --warn: #91600f;
+    --warn-bg: #f8efdd;
+    --bad: #a03328;
+
+    --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --f-body: "Source Sans 3", system-ui, -apple-system, sans-serif;
+    --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101318;
+      --surface: #171b22;
+      --surface-sunk: #1e232b;
+      --ink: #e7eaef;
+      --ink-soft: #c2c9d3;
+      --muted: #939cab;
+      --line: #29303a;
+      --line-strong: #3a434f;
+      --ok: #56b98a;
+      --ok-bg: #16281f;
+      --warn: #d3a253;
+      --warn-bg: #2a2115;
+      --bad: #e2796b;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #101318;
+    --surface: #171b22;
+    --surface-sunk: #1e232b;
+    --ink: #e7eaef;
+    --ink-soft: #c2c9d3;
+    --muted: #939cab;
+    --line: #29303a;
+    --line-strong: #3a434f;
+    --ok: #56b98a;
+    --ok-bg: #16281f;
+    --warn: #d3a253;
+    --warn-bg: #2a2115;
+    --bad: #e2796b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 78ch;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+  }
+
+  p, li { max-width: var(--measure); }
+
+  /* ---------- cabeçalho ---------- */
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 800;
+    font-size: clamp(34px, 6vw, 52px);
+    line-height: 1.04;
+    letter-spacing: -0.022em;
+    margin: 14px 0 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 18px 0 0;
+  }
+
+  .meta-line {
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .meta-line b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ---------- seções ---------- */
+
+  section { display: flex; flex-direction: column; gap: 18px; }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 25px;
+    letter-spacing: -0.012em;
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--ink);
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: -0.005em;
+    margin: 0;
+  }
+
+  p { margin: 0; }
+
+  /* ---------- livro-razão dos commits ---------- */
+
+  .ledger { display: flex; flex-direction: column; gap: 14px; }
+
+  .commit {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ok);
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 16px;
+    align-items: baseline;
+  }
+
+  .commit .ord {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ok);
+    letter-spacing: .08em;
+  }
+
+  .commit .sha {
+    font-family: var(--f-mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    word-break: break-all;
+  }
+
+  .commit .subject {
+    grid-column: 2;
+    font-size: 15.5px;
+    color: var(--ink-soft);
+    max-width: none;
+  }
+
+  .commit .does {
+    grid-column: 2;
+    margin-top: 8px;
+    font-size: 15px;
+    color: var(--muted);
+    max-width: none;
+  }
+
+  .commit a {
+    grid-column: 2;
+    margin-top: 10px;
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    color: var(--ok);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    justify-self: start;
+    word-break: break-all;
+  }
+  .commit a:hover { color: var(--ink); }
+  .commit a:focus-visible { outline: 2px solid var(--ok); outline-offset: 3px; }
+
+  /* ---------- fatos ---------- */
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+
+  .fact {
+    background: var(--surface);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .fact dt {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .fact dd {
+    margin: 0;
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.25;
+    color: var(--ink);
+  }
+  .fact dd.yes { color: var(--ok); }
+  .fact dd.care { color: var(--warn); }
+
+  /* ---------- antes / depois ---------- */
+
+  .scoreboard {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    overflow-x: auto;
+  }
+
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+
+  th, td {
+    padding: 11px 18px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  th {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--surface-sunk);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+  td.before { color: var(--bad); }
+  td.after { color: var(--ok); font-weight: 700; }
+  td.what { white-space: normal; min-width: 22ch; }
+
+  /* ---------- comandos ---------- */
+
+  .steps { display: flex; flex-direction: column; gap: 26px; counter-reset: step; }
+
+  .step { display: flex; flex-direction: column; gap: 10px; }
+
+  .step-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .step-head::before {
+    counter-increment: step;
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: .06em;
+  }
+
+  pre {
+    margin: 0;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    padding: 15px 17px;
+    overflow-x: auto;
+    font-family: var(--f-mono);
+    font-size: 13.5px;
+    line-height: 1.72;
+    color: var(--ink);
+    tab-size: 2;
+  }
+  pre .c { color: var(--muted); }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: .88em;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- avisos ---------- */
+
+  .note {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warn);
+    background: var(--warn-bg);
+    padding: 15px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .note .tag {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--warn);
+    font-weight: 700;
+  }
+  .note p { font-size: 15.5px; color: var(--ink-soft); max-width: none; }
+
+  ul.checks {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+  ul.checks li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    font-size: 15.5px;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+  }
+  ul.checks li::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    margin-top: 9px;
+    border: 1.5px solid var(--ok);
+    background: var(--ok-bg);
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  footer p { max-width: none; }
+
+  @media (max-width: 560px) {
+    body { font-size: 16px; }
+    .page { padding: 40px 18px 72px; gap: 44px; }
+    .commit { grid-template-columns: 1fr; }
+    .commit .subject, .commit .does, .commit a { grid-column: 1; }
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">Repasse para deploy &middot; ChatSPX</div>
+    <h1>A lista de conversas parava em 25</h1>
+    <p class="standfirst">
+      Dois clientes relataram o mesmo defeito: o cabeçalho mostrava 84 conversas,
+      a rolagem entregava 25 e anunciava &ldquo;todas as conversas carregadas&rdquo;.
+      Corrigido e validado no staging; falta subir para a frota.
+    </p>
+    <div class="meta-line">
+      <span><b>Origem:</b> branch <code>nicolas</code></span>
+      <span><b>Destino:</b> branch <code>producao</code></span>
+      <span><b>Data:</b> 03/09/2026</span>
+      <span><b>Migration:</b> nenhuma</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Os dois commits, nesta ordem</h2>
+    <p>
+      O segundo depende do primeiro: ele troca a regra de fim de lista por um sinal
+      explícito do backend, e essa regra só é segura sobre a ordenação estável que o
+      primeiro introduz. Aplicar apenas um dos dois deixa o defeito de pé.
+    </p>
+
+    <div class="ledger">
+      <article class="commit">
+        <span class="ord">1º</span>
+        <span class="sha">78faf6d414fd74c343ebd6ac382cfa2e2392780b</span>
+        <p class="subject">fix(conversas): lista parava em 25 e conversas sumiam da rolagem</p>
+        <p class="does">
+          Desempate por <code>id</code> na ordenação, para casar com a tupla que o cursor
+          compara &mdash; passa a usar o índice <code>idx_conv_list_keyset</code>, que já
+          existia e estava ocioso. Cursor gravado em microssegundos em vez de
+          milissegundos. Fim de lista deixa de ser inferido pela ausência de cursor.
+          Abas IA e Aguardando ganham estado de paginação.
+        </p>
+        <a href="https://github.com/Dev-Simplex/chatspx/commit/78faf6d414fd74c343ebd6ac382cfa2e2392780b">github.com/Dev-Simplex/chatspx/commit/78faf6d414</a>
+      </article>
+
+      <article class="commit">
+        <span class="ord">2º</span>
+        <span class="sha">5c74def397c4ea8655d67a97908ff12ed843cc83</span>
+        <p class="subject">fix(paginacao): backend passa a dizer se tem mais, e cursor para de comer microssegundos</p>
+        <p class="does">
+          O finder passa a devolver <code>has_more</code> nos dois modos de paginação e o
+          front decide por ele. Elimina o laço infinito quando o total é múltiplo exato da
+          página. Corrige a mesma truncagem de microssegundos em outros três cursores:
+          Kanban, painel Ao Vivo e mensagens agendadas.
+        </p>
+        <a href="https://github.com/Dev-Simplex/chatspx/commit/5c74def397c4ea8655d67a97908ff12ed843cc83">github.com/Dev-Simplex/chatspx/commit/5c74def397</a>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que muda para o atendente</h2>
+    <div class="scoreboard">
+      <table>
+        <thead>
+          <tr>
+            <th>Situação</th>
+            <th>Antes</th>
+            <th>Depois</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="what">Lista com 84 abertas, atendente com conversa fixada</td>
+            <td class="n before">25 de 84</td>
+            <td class="n after">84 de 84</td>
+          </tr>
+          <tr>
+            <td class="what">Pastas e filtros salvos</td>
+            <td class="n before">25, sempre</td>
+            <td class="n after">lista inteira</td>
+          </tr>
+          <tr>
+            <td class="what">Varredura completa com horários empatados</td>
+            <td class="n before">83 únicos, 1 sumia</td>
+            <td class="n after">84 únicos</td>
+          </tr>
+          <tr>
+            <td class="what">Lista com total múltiplo de 25</td>
+            <td class="n before">laço infinito</td>
+            <td class="n after">12 requisições</td>
+          </tr>
+          <tr>
+            <td class="what">Coluna do Kanban com 300 cards</td>
+            <td class="n before">268 de 300</td>
+            <td class="n after">300 de 300</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      O gatilho mais comum era o mais banal: bastava o atendente ter <b>uma</b> conversa
+      fixada para a lista dele travar na primeira página.
+    </p>
+  </section>
+
+  <section>
+    <h2>Fatos operacionais</h2>
+    <dl class="facts">
+      <div class="fact">
+        <dt>Migration</dt>
+        <dd class="yes">Nenhuma</dd>
+      </div>
+      <div class="fact">
+        <dt>Recompilar assets</dt>
+        <dd class="care">Obrigatório</dd>
+      </div>
+      <div class="fact">
+        <dt>Cherry-pick</dt>
+        <dd class="yes">Aplica limpo</dd>
+      </div>
+      <div class="fact">
+        <dt>Arquivos tocados</dt>
+        <dd>11</dd>
+      </div>
+      <div class="fact">
+        <dt>producao vs nicolas</dt>
+        <dd>ancestral, 20 atrás</dd>
+      </div>
+      <div class="fact">
+        <dt>Feature flag</dt>
+        <dd class="yes">Nenhuma nova</dd>
+      </div>
+    </dl>
+    <p>
+      Há mudança de JavaScript, então um deploy sem <code>assets:precompile</code> entrega
+      só metade da correção. O script de frota já faz isso; um deploy manual precisa fazer.
+    </p>
+  </section>
+
+  <section>
+    <h2>Como aplicar</h2>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-head"><h3>Ramo a partir da produção</h3></div>
+<pre>git fetch origin
+git checkout -b spx/fix-rolagem-conversas origin/producao</pre>
+      </div>
+
+      <div class="step">
+        <div class="step-head"><h3>Trazer os dois commits, na ordem</h3></div>
+<pre>git cherry-pick 78faf6d414 5c74def397</pre>
+      </div>
+
+      <div class="step">
+        <div class="step-head"><h3>Abrir o PR</h3></div>
+<pre>git push -u origin spx/fix-rolagem-conversas
+gh pr create --base producao \
+  --title "fix(conversas): lista de conversas parava em 25 itens"</pre>
+        <div class="note">
+          <span class="tag">Atenção ao título</span>
+          <p>
+            O CI reprova todo PR neste repositório; o único portão que vale é o
+            <b>Validate PR title</b>, que exige Conventional Commits. Título fora do
+            padrão trava o merge.
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-head"><h3>Deploy da frota</h3></div>
+        <p>
+          Depois do merge, rodar o deploy pelo orquestrador
+          <b>CHATSPX-PRODUCAO</b> (192.168.8.229) &mdash; é o único host com credencial
+          para o fan-out. O script já cuida de <code>bundle install</code>,
+          <code>pnpm install</code>, <code>assets:precompile</code>,
+          <code>db:migrate</code> e restart do <code>chatwoot.target</code>.
+        </p>
+<pre>./deployment/deploy.sh producao</pre>
+        <div class="note">
+          <span class="tag">Fora do fan-out</span>
+          <p>
+            A VM <b>TOZI</b> não está no array de deploy por não ter credencial do
+            GitHub &mdash; ela é atualizada à parte. Se for cliente afetado, precisa do
+            passo manual.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Como conferir depois de subir</h2>
+    <ul class="checks">
+      <li>Entrar com um atendente que tenha ao menos <b>uma conversa fixada</b> e uma fila
+          maior que 25. Rolar até o fim: a contagem tem de bater com o número do cabeçalho,
+          e o aviso de fim de lista só aparecer no fim de verdade.</li>
+      <li>Repetir nas abas <b>Minhas</b> e <b>Não atribuídas</b> &mdash; elas eram
+          contaminadas por um falso fim na aba Todas.</li>
+      <li>Trocar a ordenação para <b>prioridade</b> e abrir uma <b>pasta ou filtro
+          salvo</b>: eram os outros dois gatilhos.</li>
+      <li>No Kanban, abrir uma coluna com mais de 30 cards e rolar até o fim. Vale só nas
+          contas com <code>kanban_cursor_loading</code> ligada.</li>
+      <li>Na resposta de <code>GET /conversations</code>, o campo
+          <code>meta.has_more</code> passa a existir. É acréscimo, não quebra contrato.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>O que ficou de fora</h2>
+    <p>
+      Registrado e <b>não</b> incluído nestes commits, para não misturar escopo: com filtro
+      de período ativo, o contador do cabeçalho ignora o recorte de data enquanto a lista o
+      aplica; e em pastas filtradas por etiqueta a contagem infla quando a conversa tem
+      várias etiquetas. São defeitos de contador, de origem diferente, e não afetam a
+      rolagem.
+    </p>
+  </section>
+
+  <footer>
+    <p>
+      Validado no staging <b>nicolas.chatspx.app</b> com 11 verificações automatizadas em
+      duas contas &mdash; 84 e 300 conversas, com horários deliberadamente empatados &mdash;
+      todas sem perda e sem repetição. Nenhum teste foi feito em produção.
+    </p>
+  </footer>
+
+</div>

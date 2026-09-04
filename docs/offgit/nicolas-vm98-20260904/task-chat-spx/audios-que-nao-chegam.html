@@ -1,0 +1,416 @@
+<title>Áudios e vídeos que não chegam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #f4f6f8;
+    --surface: #ffffff;
+    --sunk: #eaeef2;
+    --ink: #1b2028;
+    --ink-soft: #39424f;
+    --muted: #5c6673;
+    --line: #dde3ea;
+    --line-firm: #bcc6d1;
+    --blue: #2c5f8a;
+    --blue-bg: #e9f1f8;
+    --amber: #8a5a1f;
+    --amber-bg: #faf1e1;
+
+    --f-title: Newsreader, Georgia, "Times New Roman", serif;
+    --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #14181d;
+      --surface: #1c2128;
+      --sunk: #232932;
+      --ink: #e8ecf1;
+      --ink-soft: #ccd4dd;
+      --muted: #97a1ae;
+      --line: #2c333c;
+      --line-firm: #3e4753;
+      --blue: #79b3de;
+      --blue-bg: #182634;
+      --amber: #d9a760;
+      --amber-bg: #2b2214;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #14181d;
+    --surface: #1c2128;
+    --sunk: #232932;
+    --ink: #e8ecf1;
+    --ink-soft: #ccd4dd;
+    --muted: #97a1ae;
+    --line: #2c333c;
+    --line-firm: #3e4753;
+    --blue: #79b3de;
+    --blue-bg: #182634;
+    --amber: #d9a760;
+    --amber-bg: #2b2214;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17.5px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 74ch;
+    margin: 0 auto;
+    padding: 60px 26px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+  }
+
+  p, li { max-width: 62ch; }
+  p { margin: 0; }
+
+  header { display: flex; flex-direction: column; gap: 16px; }
+
+  .kicker {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--blue);
+  }
+
+  h1 {
+    font-family: var(--f-title);
+    font-weight: 500;
+    font-size: clamp(34px, 6vw, 50px);
+    line-height: 1.1;
+    letter-spacing: -0.012em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .opening {
+    font-family: var(--f-title);
+    font-size: 21px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    font-style: italic;
+    max-width: 58ch;
+  }
+
+  section { display: flex; flex-direction: column; gap: 18px; }
+
+  h2 {
+    font-family: var(--f-title);
+    font-weight: 600;
+    font-size: 27px;
+    letter-spacing: -0.008em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  /* --- o que já sabemos --- */
+  .knowns {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .known {
+    background: var(--surface);
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .known .mark {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--blue-bg);
+    border: 1.5px solid var(--blue);
+    display: grid;
+    place-items: center;
+    margin-top: 3px;
+    flex: none;
+  }
+  .known .mark svg { width: 12px; height: 12px; display: block; }
+  .known .mark svg path { stroke: var(--blue); stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .known .txt { font-size: 16.5px; color: var(--ink-soft); max-width: none; }
+  .known .txt b { color: var(--ink); font-weight: 600; }
+
+  /* --- o teste --- */
+  .test {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 26px 26px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  ol.steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: s;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  ol.steps li {
+    counter-increment: s;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 14px;
+    align-items: baseline;
+    max-width: none;
+  }
+  ol.steps li::before {
+    content: counter(s);
+    font-family: var(--f-title);
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--blue);
+    text-align: center;
+  }
+  ol.steps .what { font-size: 16.5px; color: var(--ink-soft); }
+  ol.steps .what b { color: var(--ink); font-weight: 600; }
+
+  .grid-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+  th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+  th {
+    font-size: 12px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    background: var(--sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.item { font-weight: 600; color: var(--ink); white-space: nowrap; }
+  td.blank { color: var(--line-firm); letter-spacing: .12em; }
+
+  /* --- caixas --- */
+  .box {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--blue);
+    background: var(--blue-bg);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .box.warm { border-left-color: var(--amber); background: var(--amber-bg); }
+  .box .label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--blue);
+  }
+  .box.warm .label { color: var(--amber); }
+  .box p { font-size: 16.5px; color: var(--ink-soft); max-width: none; }
+  .box ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .box li { font-size: 16.5px; color: var(--ink-soft); max-width: none; }
+
+  ul.plain { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
+  ul.plain li { color: var(--ink-soft); }
+  ul.plain li b { color: var(--ink); font-weight: 600; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  footer p { font-size: 15.5px; color: var(--muted); max-width: none; }
+
+  @media (max-width: 560px) {
+    body { font-size: 16.5px; }
+    .sheet { padding: 42px 18px 72px; gap: 40px; }
+    .test { padding: 20px; }
+  }
+</style>
+
+<div class="sheet">
+
+  <header>
+    <div class="kicker">Envio de áudio e vídeo pelo sistema</div>
+    <h1>Áudios e vídeos que não chegam</h1>
+    <p class="opening">
+      Recebemos seu vídeo e ouvimos com atenção. Você está certa: do jeito que está hoje,
+      não dá para trabalhar.
+    </p>
+  </header>
+
+  <section>
+    <p>
+      O pior desse problema não é a mensagem falhar. É você ter mandado quatro áudios,
+      ter visto na tela que foram, e só descobrir muito depois que o proprietário nunca
+      recebeu — quando já não dava mais para consertar rápido. Você trabalhou duas vezes e
+      ainda ficou com a impressão de que tinha resolvido. Isso não deveria acontecer, e é
+      a primeira coisa que estamos corrigindo.
+    </p>
+    <p>
+      Sobre as mensagens que você apagou: entendemos que foram apagadas de propósito e
+      estão fora da conta. Não confundimos as duas coisas.
+    </p>
+  </section>
+
+  <section>
+    <h2>O que já conseguimos descartar</h2>
+    <p>
+      Pelo que você contou, já dá para eliminar algumas causas — o que ajuda a chegar mais
+      rápido na verdadeira.
+    </p>
+    <div class="knowns">
+      <div class="known">
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M1.5 6.4 L4.4 9.2 L10.5 2.6"></path></svg></span>
+        <span class="txt">
+          <b>Não é o seu número nem o aparelho.</b> Você gravou os mesmos áudios pelo
+          WhatsApp do celular e eles chegaram normalmente. A linha está boa.
+        </span>
+      </div>
+      <div class="known">
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M1.5 6.4 L4.4 9.2 L10.5 2.6"></path></svg></span>
+        <span class="txt">
+          <b>Não é tamanho de arquivo.</b> Um vídeo de 17 segundos é pequeno, e áudio de
+          recado é menor ainda. Se fosse peso, esses passariam.
+        </span>
+      </div>
+      <div class="known">
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M1.5 6.4 L4.4 9.2 L10.5 2.6"></path></svg></span>
+        <span class="txt">
+          <b>Não é oscilação passageira.</b> Você disse que acontece direto, e isso é uma
+          informação valiosa: falha constante tem causa fixa, e causa fixa a gente acha.
+        </span>
+      </div>
+    </div>
+    <p>
+      O que sobra aponta para o envio de <b>arquivos</b> especificamente — áudio, vídeo,
+      talvez foto e documento. Mensagem de texto segue outro caminho dentro do sistema, e é
+      por isso que ela continua funcionando enquanto o resto falha.
+    </p>
+  </section>
+
+  <section>
+    <h2>Um teste rápido que vai nos dizer onde está</h2>
+    <p>
+      Este é o único pedido que temos para você, e leva cinco minutos. Escolha um contato de
+      teste — pode ser o seu próprio número em outro aparelho, ou um colega — e mande estas
+      quatro coisas, <b>nesta ordem</b>:
+    </p>
+
+    <div class="test">
+      <ol class="steps">
+        <li><span class="what"><b>Uma mensagem de texto curta.</b> Só para confirmar que a linha está respondendo.</span></li>
+        <li><span class="what"><b>Uma foto.</b> Qualquer imagem comum da galeria.</span></li>
+        <li><span class="what"><b>Um documento.</b> Um PDF, um arquivo qualquer.</span></li>
+        <li><span class="what"><b>Um áudio curto.</b> Cinco segundos bastam.</span></li>
+      </ol>
+
+      <h3>E anote o que aconteceu com cada um</h3>
+      <div class="grid-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>O que enviou</th>
+              <th>Hora</th>
+              <th>Apareceu erro na tela?</th>
+              <th>Chegou?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="item">Texto</td><td class="blank">— — —</td><td class="blank">— — —</td><td class="blank">— — —</td></tr>
+            <tr><td class="item">Foto</td><td class="blank">— — —</td><td class="blank">— — —</td><td class="blank">— — —</td></tr>
+            <tr><td class="item">Documento</td><td class="blank">— — —</td><td class="blank">— — —</td><td class="blank">— — —</td></tr>
+            <tr><td class="item">Áudio</td><td class="blank">— — —</td><td class="blank">— — —</td><td class="blank">— — —</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="box">
+      <span class="label">A pergunta mais importante</span>
+      <p>
+        Quando o áudio ou o vídeo não vai, <b>aparece alguma marca de erro na tela</b>, ou
+        fica com cara de que enviou normalmente? Essa resposta muda completamente onde
+        procuramos — se aparece aviso, o sistema sabe que falhou; se não aparece nada, ele
+        nem sabe. Se conseguir mandar um print da tela junto, com o horário, melhor ainda:
+        com a hora exata a gente localiza aquela mensagem específica no sistema.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Enquanto a gente resolve</h2>
+    <div class="box warm">
+      <span class="label">Combinado provisório</span>
+      <p>
+        Não é a solução, é uma proteção temporária — e preferimos ser honestos a dizer que
+        está tudo bem:
+      </p>
+      <ul>
+        <li>Para <b>texto</b>, pode confiar normalmente. Essa parte está funcionando.</li>
+        <li>Para <b>áudio, vídeo e arquivos</b>, confirme com a pessoa que recebeu. Uma
+            pergunta curta depois de enviar já resolve.</li>
+        <li>Se for algo que <b>não pode falhar</b>, mande pelo celular mesmo, como você fez.
+            É chato, e não vai ser para sempre.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que estamos mudando</h2>
+    <ul class="plain">
+      <li>
+        <b>O sistema vai passar a avisar quando não tiver confirmação de entrega.</b> Se uma
+        mensagem sua sair e não houver confirmação dentro de alguns minutos, ela vai aparecer
+        marcada na conversa. Você não precisa mais adivinhar nem depender de o cliente
+        avisar que não recebeu.
+      </li>
+      <li>
+        <b>O envio de arquivos vai deixar de depender de um intermediário.</b> Hoje o áudio e
+        o vídeo passam por uma etapa a mais que a mensagem de texto não passa, e é aí que
+        eles se perdem. Estamos tirando essa etapa do caminho.
+      </li>
+      <li>
+        <b>Vamos monitorar por conta própria.</b> A meta é a gente descobrir que parou de
+        funcionar antes de você precisar gravar um vídeo para avisar.
+      </li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>
+      Obrigado por ter registrado tudo com esse cuidado — os detalhes que você deu, como ter
+      reenviado pelo celular e o vídeo de 17 segundos, foram justamente o que permitiu
+      descartar metade das causas possíveis logo de início.
+    </p>
+    <p>
+      Assim que você fizer o teste, é só mandar a tabela preenchida que seguimos daqui.
+    </p>
+  </footer>
+
+</div>
