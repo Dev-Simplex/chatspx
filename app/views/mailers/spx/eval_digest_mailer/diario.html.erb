@@ -5,6 +5,18 @@
     Isso normalmente significa que o cron de avaliação parou, e não que o dia foi tranquilo —
     vale conferir o <code>captain_conversation_eval_scheduler_job</code>.
   </p>
+<% elsif @situacao == :dia_limpo %>
+  <h2>Nenhuma conversa da IA com falha grave</h2>
+  <p>
+    Conta <strong><%= @account.name %></strong>, últimas <%= @janela %> horas.
+    O avaliador julgou <strong><%= @dados[:avaliados] %></strong>
+    atendimento<%= 's' if @dados[:avaliados] != 1 %> nessa janela e
+    <strong>nenhum</strong> recebeu marca de falha de severidade alta da IA.
+  </p>
+  <p>
+    O número de avaliados acompanha a mensagem de propósito: "nenhuma falha" sem ele é
+    indistinguível de avaliador parado.
+  </p>
 <% else %>
   <h2><%= @dados[:total_conversas] %> conversa<%= 's' if @dados[:total_conversas] != 1 %> da IA com falha grave</h2>
   <p>

@@ -179,6 +179,22 @@ RSpec.describe Spx::EvalDigestJob do
       expect(corpo['texto']).to include(conv.display_id.to_s)
     end
 
+    # O consumidor (n8n, Telegram, Slack) não deve ter que inferir o estado a partir dos
+    # contadores — inferência que este próprio job errou por quatro dias.
+    it 'names the situation in the payload instead of making the consumer infer it' do
+      corpo = nil
+      allow(HTTParty).to receive(:post) { |_u, opts| corpo = JSON.parse(opts[:body]) }
+      account.update!(custom_attributes: { 'eval_digest' => { 'enabled' => true, 'webhook_url' => url,
+                                                              'avisar_dia_limpo' => true } })
+      avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: [])
+
+      described_class.perform_now(account)
+
+      expect(corpo['situacao']).to eq('dia_limpo')
+      expect(corpo['avaliados']).to eq(1)
+      expect(corpo['texto']).to include('nenhum com falha grave')
+    end
+
     it 'flags when the evaluator itself stopped' do
       corpo = nil
       allow(HTTParty).to receive(:post) { |_u, opts| corpo = JSON.parse(opts[:body]) }
@@ -195,6 +211,54 @@ RSpec.describe Spx::EvalDigestJob do
       allow(HTTParty).to receive(:post).and_raise(Errno::ECONNREFUSED)
 
       expect { described_class.perform_now(account) }.not_to raise_error
+    end
+
+    # O silêncio do dia bom é AMBÍGUO para quem espera: entre 01 e 04/09/2026 o juiz estourava
+    # em todo episódio com atendimento, o digest via zero falha grave e calou por quatro dias.
+    # Quem esperava não tinha como distinguir dia limpo de sistema cego. `avisar_dia_limpo`
+    # troca o silêncio por uma confirmação do que foi medido.
+    describe 'aviso de dia limpo' do
+      it 'stays silent on a clean day by default' do
+        avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: [])
+
+        expect { described_class.perform_now(account) }.not_to(change { ActionMailer::Base.deliveries.size })
+      end
+
+      it 'reports the clean day when the account asked for it' do
+        habilitar('avisar_dia_limpo' => true)
+        avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: [])
+
+        expect { described_class.perform_now(account) }.to change { ActionMailer::Base.deliveries.size }.by(1)
+      end
+
+      # "Nenhuma falha" sem o número de avaliados é indistinguível de avaliador parado — é
+      # exatamente a leitura que deixou os quatro dias de cegueira passarem por dia bom.
+      it 'says how many were judged, not just that nothing failed' do
+        habilitar('avisar_dia_limpo' => true)
+        3.times { avaliar(create(:conversation, account: account, inbox: inbox), nota: 9, findings: []) }
+
+        described_class.perform_now(account)
+
+        expect(ActionMailer::Base.deliveries.last.subject).to include('3 atendimentos avaliados')
+      end
+
+      # Com nada julgado, "nenhuma falha" seria mentira por omissão: não houve medição.
+      it 'still reports a stopped evaluator as stopped, not as a clean day' do
+        habilitar('avisar_dia_limpo' => true)
+
+        described_class.perform_now(account)
+
+        expect(ActionMailer::Base.deliveries.last.subject).to include('não avaliou nada')
+      end
+
+      it 'keeps reporting real failures when they exist' do
+        habilitar('avisar_dia_limpo' => true)
+        avaliar(create(:conversation, account: account, inbox: inbox), nota: 1, findings: [finding('alucinacao')])
+
+        described_class.perform_now(account)
+
+        expect(ActionMailer::Base.deliveries.last.subject).to include('falha grave')
+      end
     end
 
     it 'sends to both destinations when both are configured' do
