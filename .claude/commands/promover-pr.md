@@ -1,10 +1,15 @@
 ---
-description: Revisa um PR, e se nada quebrar, mergeia e leva para as VMs de produção
-argument-hint: <numero do PR>
+description: Revisa um ou mais PRs, e se nada quebrar, mergeia e leva para as VMs de produção
+argument-hint: <numero(s) do(s) PR(s), ex: 99 ou 99 100 101>
 allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 ---
 
-Você vai conduzir a promoção do **PR #$1** do repositório `Dev-Simplex/chatspx`.
+Você vai conduzir a promoção de **$ARGUMENTS** (um ou mais PRs) do repositório
+`Dev-Simplex/chatspx`.
+
+**Com mais de um PR, trate como LOTE**: revise todos, mergeie todos, e faça **um
+único deploy no fim** — um bundle, um restart por VM. Deployar PR a PR multiplica
+a janela de instabilidade e é como se deixa uma VM para trás.
 
 **Primeira vez nesta máquina?** Rode antes:
 `bash scripts/ops/setup-promover-pr.sh` — ele confere os 4 requisitos (repo, `gh`
@@ -19,8 +24,11 @@ resultado do script como opinião: ele mede o que o GitHub esconde.
 ## Fase 1 — Raio-X (obrigatória, sempre primeiro)
 
 ```bash
-python3 scripts/ops/pr-raiox.py $1 --frota
+python3 scripts/ops/pr-raiox.py $ARGUMENTS --frota
 ```
+
+Aceita vários números de uma vez (`99 100 101`); ele analisa um a um e fecha com
+o resumo do lote. A frota é consultada só uma vez, no fim.
 
 O script responde três coisas que você **não** deve tentar responder de cabeça:
 
@@ -39,7 +47,10 @@ foi encontrado e pergunte como proceder.
 
 O script não lê código. Você lê:
 
-1. `gh pr view $1 --json body --jq .body` e o diff (`git diff <base>..<head>`).
+1. `gh pr view <n> --json body --jq .body` e o diff, **para cada PR do lote**.
+   Se o diff mostrar arquivo como REMOVIDO e você não esperava, não conclua nada:
+   mergeie num worktree e confira. Arquivo que a base ganhou depois aparece como
+   deletado no diff, e o merge não o apaga.
 2. Procure o que costuma quebrar: chamada em laço que vira N requisições HTTP,
    limite de API (o Vista recusa paginação acima de 50 e devolve **vazio sem
    erro**), campo que sai do strong params, `update!` em jsonb que substitui em
@@ -51,8 +62,9 @@ O script não lê código. Você lê:
 ## Fase 3 — Merge
 
 ```bash
-sha=$(gh pr view $1 --json headRefOid --jq .headRefOid)
-gh pr merge $1 --merge --match-head-commit "$sha"
+# repita para cada PR aprovado, na ordem
+sha=$(gh pr view <n> --json headRefOid --jq .headRefOid)
+gh pr merge <n> --merge --match-head-commit "$sha"
 ```
 
 O `--match-head-commit` existe porque o `gh` já pegou head velho por 30 segundos
@@ -61,8 +73,25 @@ está na homologação, use cherry-pick dos commits do autor em vez do merge dir
 
 ## Fase 4 — Deploy (merge não muda nada no cliente)
 
-Para cada VM, na ordem: **TOZI por último não** — TOZI é cliente real e vai
-primeiro só quando o usuário pedir; caso contrário comece por CATATAU.
+**Um deploy para o lote inteiro**, depois do último merge. O pacote vai do commit
+que as VMs têm hoje até o topo da branch, então cobre todos os PRs de uma vez.
+
+As VMs de produção:
+
+| VM | endereço |
+|---|---|
+| PRODUCAO | local (a própria máquina) |
+| TOZI | `3.94.9.51` — cliente real |
+| CATATAU | `3.85.130.14` |
+| SENTINELA | `54.166.220.138` |
+| FABRICA | `3.87.182.184` |
+| AGN | `13.221.167.143` |
+
+A **TOZI não tem Elastic IP**: o endereço dela já mudou num stop/start da AWS. Se
+não responder, confira o console EC2 antes de concluir que caiu.
+
+Comece pela CATATAU, que não é cliente crítico. A TOZI vai primeiro só quando o
+usuário pedir.
 
 ```bash
 # 1. pacote (só o que entrou, conferido pelo tamanho: 2 arquivos ≈ poucos KB)

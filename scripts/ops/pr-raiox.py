@@ -39,11 +39,13 @@ import sys
 
 REPO = "Dev-Simplex/chatspx"
 
-# VMs de producao. A Tozi entra sem IP fixo de proposito: o endereco dela ja
-# mudou uma vez num stop/start da AWS (nao era Elastic IP), e um script que
-# afirma um IP velho e pior do que um que admite nao saber.
+# VMs de producao. O IP da TOZI ja mudou uma vez num stop/start da AWS (a
+# instancia nao tem Elastic IP): se um dia der "sem resposta" aqui, o endereco
+# provavelmente trocou de novo — confira no console EC2 antes de concluir que a
+# maquina caiu, e atualize esta linha.
 FROTA = [
     ("PRODUCAO", "local"),
+    ("TOZI", "3.94.9.51"),
     ("CATATAU", "3.85.130.14"),
     ("SENTINELA", "54.166.220.138"),
     ("FABRICA", "3.87.182.184"),
@@ -197,7 +199,6 @@ def analisa(numero: int, checar_frota: bool) -> int:
             if commit not in (prod, "sem resposta"):
                 alertas.append(f"{nome} esta em {commit}, diferente de origin/producao ({prod}). "
                                "Deployar por ff pode desfazer o que so existe la — conferir antes.")
-        print(f"  {'TOZI':<11} (IP muda no stop/start da AWS — conferir pelo version.json da URL)")
 
     # ── veredito ────────────────────────────────────────────────────────────
     titulo("VEREDITO")
@@ -223,11 +224,27 @@ def analisa(numero: int, checar_frota: bool) -> int:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Raio-X de um PR antes do merge.")
-    p.add_argument("pr", type=int, help="numero do PR")
+    p = argparse.ArgumentParser(description="Raio-X de um ou mais PRs antes do merge.")
+    p.add_argument("prs", type=int, nargs="+", help="numero(s) do(s) PR(s)")
     p.add_argument("--frota", action="store_true", help="consultar tambem as VMs (mais lento)")
     args = p.parse_args()
-    return analisa(args.pr, args.frota)
+
+    # Com varios PRs, a frota e as branches sao as MESMAS para todos: consultar
+    # uma vez por PR seria N vezes o mesmo SSH. Entao so o ultimo consulta.
+    problemas = 0
+    for i, numero in enumerate(args.prs):
+        ultimo = i == len(args.prs) - 1
+        problemas += analisa(numero, args.frota and ultimo)
+
+    if len(args.prs) > 1:
+        titulo(f"LOTE DE {len(args.prs)} PRs")
+        print(f"  {len(args.prs) - problemas} sem bloqueio · {problemas} com bloqueio\n")
+        print(f"  {AZUL}Subindo em lote, faca UM deploy so no fim, nao um por PR:{RESET}")
+        print("    · mergeie todos, na ordem em que forem aprovados")
+        print("    · promova a branch UMA vez")
+        print("    · um unico bundle, um unico restart por VM")
+        print("  Menos janela de instabilidade e menos chance de deixar VM para tras.\n")
+    return 1 if problemas else 0
 
 
 if __name__ == "__main__":

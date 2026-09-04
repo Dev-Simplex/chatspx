@@ -76,7 +76,7 @@ Confirmado (08/07) via Almirante `drift_check`/`version_matrix`: **nenhuma VM fa
 
 | Pasta | Cliente | Conta | Branch (detached) | VM |
 |---|---|---|---|---|
-| `chatspx-clientes/tozi-prod/` | Tozi 🔴 PROD | 6 | `producao` | `tozi` (`3.82.215.109`) |
+| `chatspx-clientes/tozi-prod/` | Tozi 🔴 PROD | 6 | `producao` | `tozi` (`3.94.9.51`) |
 | `chatspx-clientes/tozi-hml/` | Tozi HML | 3 | `homologacao` | `homologacao` |
 | `chatspx-clientes/fabrica/` | Fábrica/Atacadão | 1/2 | base prod | `fabrica` (`3.87.182.184`) |
 
