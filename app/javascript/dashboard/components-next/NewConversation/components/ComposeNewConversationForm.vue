@@ -486,7 +486,7 @@ useKeyboardEvents({
 
 <template>
   <div
-    class="w-[40rem] overflow-visible transition-all duration-150 ease-in-out top-full flex flex-col bg-n-solid-1 border border-n-weak/60 shadow-2xl shadow-n-slate-1/60 rounded-3xl ring-1 ring-n-slate-1/5 min-w-0 max-h-[calc(100vh-8rem)]"
+    class="w-[40rem] max-w-[calc(100vw-2rem)] overflow-visible transition-all duration-150 ease-in-out top-full flex flex-col bg-n-solid-1 border border-n-weak/60 shadow-2xl shadow-n-slate-1/60 rounded-3xl ring-1 ring-n-slate-1/5 min-w-0 max-h-[min(calc(100vh-8rem),calc(100dvh-4rem))]"
   >
     <header
       class="flex items-center justify-between px-6 h-14 border-b border-n-weak/50"

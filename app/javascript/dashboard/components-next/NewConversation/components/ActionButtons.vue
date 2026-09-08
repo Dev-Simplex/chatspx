@@ -212,9 +212,9 @@ useEventListener(document, 'paste', onPaste);
 
 <template>
   <div
-    class="flex items-center justify-between w-full h-14 gap-2 px-6 py-3 border-t border-n-weak/60 bg-n-alpha-1 rounded-b-3xl"
+    class="flex items-center justify-between w-full h-14 gap-2 px-3 sm:px-6 py-3 border-t border-n-weak/60 bg-n-alpha-1 rounded-b-3xl"
   >
-    <div class="flex gap-2 items-center">
+    <div class="flex gap-2 items-center min-w-0">
       <WhatsAppOptions
         v-if="isWhatsappInbox"
         :inbox-id="inboxId"
@@ -240,7 +240,7 @@ useEventListener(document, 'paste', onPaste);
         />
         <EmojiInput
           v-if="isEmojiPickerOpen"
-          class="top-full mt-1.5 ltr:left-0 rtl:right-0"
+          class="!top-auto !bottom-full mb-1.5 ltr:left-0 rtl:right-0"
           :on-click="onClickInsertEmoji"
         />
       </div>
@@ -276,7 +276,7 @@ useEventListener(document, 'paste', onPaste);
       />
     </div>
 
-    <div class="flex gap-2 items-center">
+    <div class="flex gap-2 items-center shrink-0">
       <Button
         :label="t('COMPOSE_NEW_CONVERSATION.FORM.ACTION_BUTTONS.DISCARD')"
         variant="faded"

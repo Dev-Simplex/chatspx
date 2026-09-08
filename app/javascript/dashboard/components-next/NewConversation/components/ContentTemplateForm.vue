@@ -25,7 +25,7 @@ const handleBack = () => {
 
 <template>
   <div
-    class="absolute top-full mt-1.5 max-h-[30rem] overflow-y-auto ltr:left-0 rtl:right-0 flex flex-col gap-4 px-4 pt-6 pb-5 items-start w-[28.75rem] h-auto bg-n-solid-2 border border-n-strong shadow-sm rounded-lg"
+    class="absolute bottom-full mb-1.5 ltr:left-0 rtl:right-0 flex flex-col gap-4 px-4 pt-6 pb-0 items-start w-[28.75rem] max-w-[calc(100vw-2rem)] h-auto max-h-[min(30rem,calc(100dvh-7rem))] overflow-y-auto overscroll-contain bg-n-solid-2 border border-n-strong shadow-sm rounded-lg"
   >
     <div class="w-full">
       <ContentTemplateParser
@@ -34,7 +34,9 @@ const handleBack = () => {
         @back="handleBack"
       >
         <template #actions="{ sendMessage, goBack, disabled }">
-          <div class="flex gap-3 justify-between items-end w-full h-14">
+          <div
+            class="flex sticky bottom-0 z-10 gap-3 justify-between items-center px-4 pt-3 pb-5 -mx-4 bg-n-solid-2"
+          >
             <Button
               :label="t('CONTENT_TEMPLATES.FORM.BACK_BUTTON')"
               color="slate"

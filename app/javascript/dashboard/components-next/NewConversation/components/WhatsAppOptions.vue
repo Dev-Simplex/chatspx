@@ -74,7 +74,7 @@ const handleSendMessage = template => {
     />
     <div
       v-if="showTemplatesMenu"
-      class="absolute top-full mt-1.5 max-h-96 overflow-y-auto ltr:left-0 rtl:right-0 flex flex-col gap-2 p-4 items-center w-[21.875rem] h-auto bg-n-solid-2 border border-n-strong shadow-sm rounded-lg"
+      class="absolute bottom-full mb-1.5 ltr:left-0 rtl:right-0 flex flex-col gap-2 p-4 items-center w-[21.875rem] max-w-[calc(100vw-2rem)] h-auto max-h-[min(24rem,calc(100dvh-7rem))] overflow-y-auto overscroll-contain bg-n-solid-2 border border-n-strong shadow-sm rounded-lg"
     >
       <div class="relative w-full">
         <Icon
