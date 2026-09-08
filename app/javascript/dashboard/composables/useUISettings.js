@@ -136,14 +136,9 @@ const fetchQuotedReplyFlagFromUISettings = (channelType, uiSettings) => {
  * @returns {boolean} True if the hotkey is enabled, otherwise false.
  */
 const isEditorHotKeyEnabled = (key, uiSettings) => {
-  const {
-    editor_message_key: editorMessageKey,
-    enter_to_send_enabled: enterToSendEnabled,
-  } = uiSettings.value || {};
-  if (!editorMessageKey) {
-    return key === (enterToSendEnabled ? 'enter' : 'cmd_enter');
-  }
-  return editorMessageKey === key;
+  const { editor_message_key: editorMessageKey } = uiSettings.value || {};
+  // Enter is the default until the user picks a shortcut in profile settings.
+  return (editorMessageKey || 'enter') === key;
 };
 
 /**
