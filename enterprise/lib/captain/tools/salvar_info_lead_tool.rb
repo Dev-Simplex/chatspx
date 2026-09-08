@@ -16,7 +16,7 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
   # Marca a conversa pro time achar quem deixou contato. Agnóstica de canal de propósito.
   ALT_LABEL = 'contato-alternativo'.freeze
   # Faixa de dígitos de um telefone brasileiro plausível, com ou sem DDI e com ou sem o 9.
-  DIGITS_RANGE = (10..13).freeze
+  DIGITS_RANGE = (10..13)
 
   # Prioridade é dimensão NOVA e ortogonal ao status: mede chance de aprovação de
   # crédito, não estágio do lead. Um lead pode ser `qualificado` + `morno`.

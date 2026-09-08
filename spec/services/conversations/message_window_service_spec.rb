@@ -785,6 +785,7 @@ RSpec.describe Conversations::MessageWindowService do
 
   # A capacidade que decide se o agente precisa buscar um canal alcancavel antes de a conversa
   # esfriar. Verdadeiro por padrao: errar pro false poe conduta nova em canal que nao precisa.
+
   describe 'supports_reengagement?' do
     it 'e falso no Instagram, que nao tem template nem tag aprovada pra reabrir' do
       expect(create(:channel_instagram).supports_reengagement?).to be false

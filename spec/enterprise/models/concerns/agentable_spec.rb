@@ -233,6 +233,7 @@ RSpec.describe Concerns::Agentable do
   # O gate da coleta de contato alternativo. O bloco vive no assistant.liquid, que e o molde de
   # TODOS os clientes — conduta nova nao pode nascer ligada pra ninguem. Sao TRES condicoes, e o
   # spec exige as tres: canal que nao retoma + conta que ligou + canal alternativo configurado.
+
   describe 'contato alternativo no prompt' do
     let(:coleta_ligada) { { 'coleta_contato_alternativo' => { 'ativo' => true, 'canal' => 'WhatsApp' } } }
 

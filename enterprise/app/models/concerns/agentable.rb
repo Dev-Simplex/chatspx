@@ -22,15 +22,12 @@ module Concerns::Agentable
     if context
       state = context.context[:state] || {}
       config = state[:assistant_config] || {}
-      contato = contato_alternativo(config, state)
       enhanced_context = enhanced_context.merge(
         conversation: state[:conversation] || {},
         contact: config['feature_contact_attributes'].present? ? state[:contact] : nil,
         campaign: state[:campaign] || {},
-        channel_number: state[:channel_number],
-        contato_alternativo: contato,
-        janela_horas_restantes: contato ? state[:janela_horas_restantes] : nil
-      )
+        channel_number: state[:channel_number]
+      ).merge(contexto_de_canal(config, state))
     end
 
     return split_instructions_for_cache(enhanced_context) if prompt_cache_system_enabled?
@@ -45,6 +42,15 @@ module Concerns::Agentable
   # faltar qualquer uma das tres condicoes: o canal retomar sozinho, a conta nao ter ligado a
   # coleta, ou nao haver canal alternativo configurado. Opt-in por assistente de proposito:
   # o molde e compartilhado por TODOS os clientes, e conduta nova nao pode nascer ligada.
+  # As duas variaveis andam juntas de proposito: sem canal alternativo nao ha conduta a
+  # renderizar, e sem a conduta a conta regressiva viraria prazo solto no prompt.
+  def contexto_de_canal(config, state)
+    contato = contato_alternativo(config, state)
+    return { contato_alternativo: nil, janela_horas_restantes: nil } if contato.blank?
+
+    { contato_alternativo: contato, janela_horas_restantes: state[:janela_horas_restantes] }
+  end
+
   def contato_alternativo(config, state)
     return if state[:canal_retoma] != false
 
