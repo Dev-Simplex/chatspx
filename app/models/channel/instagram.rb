@@ -34,10 +34,24 @@ class Channel::Instagram < ApplicationRecord
     'Instagram'
   end
 
-  # `message.attachments[]` aceita até 30 imagens numa requisição só (medido ao vivo em
-  # 18/08: HTTP 200 com message_id, renderiza em todo lugar e volta como eco).
+  # NÃO agrupa — e o motivo é medição, não preferência. Na Tozi (inbox 101), de 01/09 a 05/09,
+  # 10 de 10 mensagens com 3 imagens FALHARAM, contra 116 de 117 entregues quando vai uma
+  # imagem por requisição. Os 3 primeiros erros eram de formato
+  # (`message[attachments][1][type] is required`, resolvido em 34752e813); os 7 seguintes são
+  # `100 - Upload failed`: a Meta aceita o corpo e não consegue baixar a mídia.
+  #
+  # A medição de 18/08 que autorizava o `true` foi feita à mão, em outra box e outro app Meta,
+  # e não exercitava este caminho. Duas coisas mudam de uma vez entre o envio que funciona e o
+  # que falha — o array E a origem da URL, porque o `send_photos_grouped` entrega o link do CDN
+  # do Vista sem baixar, enquanto uma foto por mensagem baixa e serve do nosso host. Com as
+  # duas confundidas no dado, uma requisição por anexo é a única configuração medida como boa
+  # sob QUALQUER das duas hipóteses.
+  #
+  # Reabilitar exige provar no canal alvo, não em outro. O custo de errar para o `true` é a IA
+  # dizer "mandei as fotos" e não chegar nada (conv 33147: quatro promessas, zero foto, e o
+  # cliente perguntando "Mandou ?").
   def supports_multi_image_message?
-    true
+    false
   end
 
   # Generic template, até 10 cards (medido ao vivo em 18/08). Duas limitações conhecidas e
