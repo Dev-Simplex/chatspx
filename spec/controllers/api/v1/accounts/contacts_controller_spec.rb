@@ -710,6 +710,8 @@ RSpec.describe 'Contacts API', type: :request do
         create(:inbox, account: account, waha_session_name: 'Simplex')
         waha_service = instance_double(Waha::ApiService)
         allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'Simplex', 'status' => 'WORKING' }])
         expect(waha_service).to receive(:check_contact_exists)
           .with(session_name: 'Simplex', phone: '14155550100')
           .and_return({ 'numberExists' => true })
@@ -772,6 +774,84 @@ RSpec.describe 'Contacts API', type: :request do
 
         post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
                                                         params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+
+        expect(response).to have_http_status(:success)
+      end
+
+      # O pedido do dono: se uma conexao falhar, usa outra. So falha de SESSAO faz cair para
+      # a proxima; resposta valida encerra a busca.
+      it 'falls back to the next session when the chosen one does not answer' do
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        # As duas aparecem vivas: a queda acontece DEPOIS da checagem de saude, que e o caso
+        # que a lista de WORKING sozinha nao cobre.
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'session-two', 'status' => 'WORKING' }])
+        allow(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-one', phone: '14155550100').and_raise(Waha::ApiService::Error)
+        allow(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-two', phone: '14155550100').and_return({ 'numberExists' => true })
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+        end.to change(Contact, :count).by(1)
+
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'gives up with a friendly message when every session fails' do
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions).and_return([])
+        allow(waha_service).to receive(:check_contact_exists).and_raise(Waha::ApiService::Error)
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+        end.not_to change(Contact, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'does not ask another session when the number simply has no WhatsApp' do
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'session-two', 'status' => 'WORKING' }])
+        # Resposta valida e definitiva: a segunda sessao nao pode ser consultada.
+        expect(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-one', phone: '14155550100').once.and_return({ 'numberExists' => false })
+        expect(waha_service).not_to receive(:check_contact_exists).with(session_name: 'session-two', phone: '14155550100')
+
+        post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                        params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'moves on when a session burns its own deadline, instead of eating the whole budget' do
+        stub_const('Api::V1::Accounts::ContactsController::WAHA_SESSION_ATTEMPT_SECONDS', 1)
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'session-two', 'status' => 'WORKING' }])
+        allow(waha_service).to receive(:check_contact_exists).with(session_name: 'session-one', phone: '14155550100') { sleep 3 }
+        allow(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-two', phone: '14155550100').and_return({ 'numberExists' => true })
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+        end.to change(Contact, :count).by(1)
 
         expect(response).to have_http_status(:success)
       end

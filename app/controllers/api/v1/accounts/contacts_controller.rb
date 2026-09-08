@@ -9,6 +9,18 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
   # dar (ver o comentario de DEFAULT_TIMEOUT em Waha::ApiService). Um teto total e o unico
   # jeito de a promessa daquele comentario valer de verdade.
   WAHA_VALIDATION_BUDGET_SECONDS = 10
+  # Prazo de CADA sessao. Sem ele o teto total nao adianta: a primeira sessao morta gasta
+  # os 10s sozinha (medido: 10,4s ate a WAHA devolver o 422) e a sessao viva seguinte nunca
+  # chega a ser tentada. Com 4s, uma morta + uma viva fecham em ~4,7s.
+  WAHA_SESSION_ATTEMPT_SECONDS = 4
+  # Teto de tentativas: uma conta pode ter muitas sessoes e varrer todas transformaria uma
+  # falha em espera longa. Duas alternativas ja cobrem o caso real (a escolhida caiu).
+  WAHA_MAX_SESSION_ATTEMPTS = 3
+
+  # Estouro do prazo de UMA sessao. Classe propria de proposito: `Timeout::Error` puro e o
+  # teto TOTAL, que precisa atravessar o laco e virar mensagem amigavel em vez de ser
+  # confundido com "esta sessao falhou, tenta a proxima".
+  class SessionAttemptTimeout < StandardError; end
   REVALIDATION_COOLDOWN_SECONDS = 300
 
   sort_on :email, type: :string
@@ -254,7 +266,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
     return true if sanitized_phone.blank?
 
     response = Timeout.timeout(WAHA_VALIDATION_BUDGET_SECONDS) do
-      waha_service.check_contact_exists(session_name: resolve_waha_session_name, phone: sanitized_phone)
+      check_whatsapp_on_any_session(sanitized_phone)
     end
     number_exists = response.fetch('numberExists') { response[:numberExists] }
     return true if number_exists
@@ -269,43 +281,58 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
     false
   end
 
-  def resolve_waha_session_name
-    @resolve_waha_session_name ||= find_waha_session_name
+  # Tenta as sessoes candidatas ate uma RESPONDER. O que faz pular para a proxima e falha
+  # de SESSAO (fora do ar, nao pareada, WAHA sem rota) ou a sessao estourar o prazo dela.
+  #
+  # Resposta valida ENCERRA a busca, inclusive `numberExists: false`: isso e a WAHA dizendo
+  # que o numero nao tem WhatsApp, e todas as sessoes falam com a mesma rede, entao insistir
+  # em outra so trocaria a resposta certa por uma espera.
+  def check_whatsapp_on_any_session(phone)
+    ultimo_erro = nil
+
+    waha_session_candidates.each do |sessao|
+      return attempt_whatsapp_check(sessao, phone)
+    rescue Waha::ApiService::Error, SessionAttemptTimeout => e
+      Rails.logger.warn("[validacao-whatsapp] sessao #{sessao} nao respondeu (#{e.class}): #{e.message}")
+      ultimo_erro = e
+    end
+
+    raise ultimo_erro || Waha::ApiService::Error, 'nenhuma sessao WAHA disponivel para validar'
   end
 
-  def find_waha_session_name
-    session_names = Current.account.inboxes.where.not(waha_session_name: [nil, ''])
-                           .distinct.order(:waha_session_name).pluck(:waha_session_name)
-    return WAHA_VALIDATION_SESSION_NAME if session_names.blank? && WAHA_VALIDATION_SESSION_NAME.present?
-    return session_names.first if session_names.one?
-    return WAHA_VALIDATION_SESSION_NAME if WAHA_VALIDATION_SESSION_NAME.present? && session_names.include?(WAHA_VALIDATION_SESSION_NAME)
-
-    # A escolha era `session_names.first`, ou seja, ORDEM ALFABETICA, sem olhar se a sessao
-    # esta viva. Na Realizare (5 sessoes, 4 WORKING) isso caia sempre na unica quebrada,
-    # `Realizare_adm`, e o `check-exists` levava 10s+ para devolver erro. Como o read_timeout
-    # do Net::HTTP e por LEITURA e nao total, o Rack::Timeout (15s) chegava primeiro e o
-    # agente via 500 ao criar contato. Medido em 08/09/2026: sessao morta 10,4s, sessao viva
-    # 0,49s.
-    working_waha_session(session_names) || session_names.first
+  def attempt_whatsapp_check(session_name, phone)
+    Timeout.timeout(WAHA_SESSION_ATTEMPT_SECONDS, SessionAttemptTimeout) do
+      waha_service.check_contact_exists(session_name: session_name, phone: phone)
+    end
   end
 
-  # Primeira sessao da conta que a WAHA reporta como WORKING, na ordem em que o admin as ve.
-  # Uma chamada extra (~0,4s medidos) que evita uma espera de 10s+ na sessao morta.
-  # Erra para o lado de NAO travar: se a lista de sessoes falhar, devolve nil e o chamador
-  # segue com o comportamento antigo em vez de impedir a criacao do contato.
-  def working_waha_session(session_names)
+  def waha_session_candidates
+    @waha_session_candidates ||= build_waha_session_candidates
+  end
+
+  # Ordem: a sessao fixada por ENV primeiro (decisao explicita do admin), depois as que a
+  # WAHA diz estarem WORKING, e por fim as demais como ultimo recurso — porque a lista de
+  # saude tem cache e pode estar velha, e uma sessao "morta" que voltou ainda e melhor
+  # candidata do que nenhuma.
+  #
+  # A escolha era `session_names.first`, ou seja, ORDEM ALFABETICA, sem olhar se a sessao
+  # estava viva. Na Realizare (5 sessoes, 4 WORKING) isso caia sempre na unica quebrada,
+  # `Realizare_adm`. Medido em 08/09/2026: sessao morta 10,4s, sessao viva 0,49s.
+  def build_waha_session_candidates
+    nomes = Current.account.inboxes.where.not(waha_session_name: [nil, ''])
+                   .distinct.order(:waha_session_name).pluck(:waha_session_name)
+    return Array(WAHA_VALIDATION_SESSION_NAME.presence) if nomes.blank?
+    # Uma sessao so: nao ha para onde cair, entao nao vale a chamada extra de saude.
+    return nomes if nomes.one?
+
+    fixada = WAHA_VALIDATION_SESSION_NAME if WAHA_VALIDATION_SESSION_NAME.present? && nomes.include?(WAHA_VALIDATION_SESSION_NAME)
     vivas = waha_working_session_names
-    return nil if vivas.blank?
-
-    session_names.find { |nome| vivas.include?(nome) }
-  rescue Timeout::Error
-    raise # o teto total e do chamador; engolir aqui gastaria o orcamento e seguiria assim mesmo
-  rescue StandardError
-    nil
+    ([fixada] + nomes.partition { |nome| vivas.include?(nome) }.flatten).compact.uniq.first(WAHA_MAX_SESSION_ATTEMPTS)
   end
 
-  # Cache curto porque a tela cria contatos em rajada e o estado da sessao nao muda a cada
-  # segundo. TTL baixo para uma sessao que acabou de voltar nao ficar marcada como morta.
+  # Sessoes que a WAHA reporta como WORKING. Uma chamada extra (~0,4s medidos) que evita
+  # comecar pela sessao morta. Erra para o lado de NAO travar: se a lista falhar, devolve
+  # vazio e a ordem volta a ser a que o admin ve, sem impedir a criacao do contato.
   def waha_working_session_names
     Rails.cache.fetch('waha:working_sessions', expires_in: 30.seconds) do
       Array(waha_service.list_sessions).filter_map do |sessao|
@@ -314,6 +341,10 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
         nome if status.to_s == 'WORKING'
       end
     end
+  rescue Timeout::Error
+    raise # o teto total e do chamador; engolir aqui gastaria o orcamento e seguiria assim mesmo
+  rescue StandardError
+    []
   end
 
   def normalize_phone_number_for_waha(phone_number)
