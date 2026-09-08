@@ -619,6 +619,70 @@ describe('composeConversationHelper', () => {
           validate_whatsapp: true,
         });
       });
+
+      // O agente digita um numero que ja e contato e fica sem saida, sendo que o que ele
+      // quer, falar com aquela pessoa, e perfeitamente possivel. Rails responde no idioma
+      // da conta: "Phone number ja esta em uso".
+      it('returns the existing contact when the phone is already taken', async () => {
+        ContactAPI.create.mockRejectedValue({
+          response: { data: { message: 'Phone number já está em uso' } },
+        });
+        ContactAPI.search.mockResolvedValue({
+          data: {
+            payload: [
+              { id: 7, name: 'Outro parecido', phone_number: '+5566996441400' },
+              { id: 8668, name: 'SIDNEI', phone_number: '+5566996441401' },
+            ],
+          },
+        });
+
+        const result = await helpers.createNewContact('+5566996441401');
+
+        expect(result).toEqual({
+          id: 8668,
+          name: 'SIDNEI',
+          phoneNumber: '+5566996441401',
+        });
+      });
+
+      it('returns the existing contact when the email is already taken', async () => {
+        ContactAPI.create.mockRejectedValue({
+          response: { data: { message: 'Email já está em uso' } },
+        });
+        ContactAPI.search.mockResolvedValue({
+          data: { payload: [{ id: 9, name: 'Ana', email: 'ana@exemplo.com' }] },
+        });
+
+        const result = await helpers.createNewContact('ana@exemplo.com');
+
+        expect(result.id).toBe(9);
+      });
+
+      // Falha de validacao no WhatsApp nao pode virar busca: ali o contato nao existe
+      // mesmo, e engolir o erro esconderia do agente o motivo real.
+      it('rethrows when the failure is not a duplicate', async () => {
+        ContactAPI.create.mockRejectedValue({
+          response: { data: { message: 'Número não possui WhatsApp' } },
+        });
+
+        await expect(
+          helpers.createNewContact('+5566996441401')
+        ).rejects.toBeTruthy();
+        expect(ContactAPI.search).not.toHaveBeenCalled();
+      });
+
+      it('rethrows when it is a duplicate but no exact match is found', async () => {
+        ContactAPI.create.mockRejectedValue({
+          response: { data: { message: 'Phone number já está em uso' } },
+        });
+        ContactAPI.search.mockResolvedValue({
+          data: { payload: [{ id: 7, phone_number: '+5566996441400' }] },
+        });
+
+        await expect(
+          helpers.createNewContact('+5566996441401')
+        ).rejects.toBeTruthy();
+      });
     });
 
     describe('fetchContactableInboxes', () => {

@@ -306,6 +306,36 @@ export const createContactSearcher = () => {
   };
 };
 
+// Violacao de unicidade do Rails chega com o NOME DO CAMPO em ingles e o resto no idioma
+// da conta: "Phone number ja esta em uso". Casar so por "already|taken" deixava passar
+// justamente o caso pt-BR, que e o nosso, e o agente via erro generico.
+const DUPLICATE_CONTACT_MESSAGE =
+  /(phone[_ ]?number|email|identifier).*(already|taken|em uso|já existe|ja existe)/i;
+
+export const isDuplicateContactError = error =>
+  DUPLICATE_CONTACT_MESSAGE.test(error?.response?.data?.message || '');
+
+// O agente digitou algo que JA e contato. O que ele quer e falar com essa pessoa, entao
+// devolvemos o contato existente em vez de um erro sem saida. Comparacao exata (so digitos
+// no telefone) porque a busca do backend e `ILIKE %termo%` e traz parecidos junto.
+const findExistingContact = async (term, isPhone) => {
+  const {
+    data: { payload = [] },
+  } = await ContactAPI.search(term, 1, 'name', '');
+  const found = camelcaseKeys(payload, { deep: true });
+
+  if (isPhone) {
+    const digits = term.replace(/\D/g, '');
+    return (
+      found.find(c => (c.phoneNumber || '').replace(/\D/g, '') === digits) ||
+      null
+    );
+  }
+
+  const email = term.toLowerCase();
+  return found.find(c => (c.email || '').toLowerCase() === email) || null;
+};
+
 export const createNewContact = async input => {
   const trimmed = typeof input === 'string' ? input.trim() : '';
   const isPhoneLike = trimmed.startsWith('+') || /^\d{8,}$/.test(trimmed);
@@ -322,13 +352,27 @@ export const createNewContact = async input => {
         email: trimmed,
       };
 
-  const {
-    data: {
-      payload: { contact: newContact },
-    },
-  } = await ContactAPI.create(payload);
+  try {
+    const {
+      data: {
+        payload: { contact: newContact },
+      },
+    } = await ContactAPI.create(payload);
 
-  return camelcaseKeys(newContact, { deep: true });
+    return camelcaseKeys(newContact, { deep: true });
+  } catch (error) {
+    // So o erro de DUPLICADO vira busca. Falha de validacao no WhatsApp, por exemplo,
+    // continua barrando: ali o contato nao existe mesmo, e engolir isso esconderia o motivo.
+    if (!isDuplicateContactError(error)) throw error;
+
+    const existing = await findExistingContact(
+      isPhoneLike ? normalizedPhone : trimmed,
+      isPhoneLike
+    );
+    if (existing) return existing;
+
+    throw error;
+  }
 };
 
 export const fetchContactableInboxes = async contactId => {

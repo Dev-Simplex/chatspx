@@ -65,13 +65,18 @@ const resolveContactCreateErrorMessage = error => {
   const rawMessage = error?.response?.data?.message || '';
   const lower = rawMessage.toLowerCase();
 
-  if (/phone[_ ]?number.*(already|taken)/.test(lower)) {
+  // O Rails traduz a validacao para o idioma da conta e deixa o nome do campo em ingles:
+  // "Phone number ja esta em uso". So `already|taken` nunca casava em pt-BR, e o agente
+  // recebia a mensagem generica em vez de saber que era duplicidade.
+  const taken = '(already|taken|em uso|já existe|ja existe)';
+
+  if (new RegExp(`phone[_ ]?number.*${taken}`).test(lower)) {
     return t('CONTACT_FORM.FORM.PHONE_NUMBER.DUPLICATE');
   }
-  if (/email.*(already|taken)/.test(lower)) {
+  if (new RegExp(`email.*${taken}`).test(lower)) {
     return t('CONTACT_FORM.FORM.EMAIL_ADDRESS.DUPLICATE');
   }
-  if (/identifier.*(already|taken)/.test(lower)) {
+  if (new RegExp(`identifier.*${taken}`).test(lower)) {
     return t('CONTACT_FORM.FORM.CONTACT_IDENTIFIER.DUPLICATE');
   }
 
