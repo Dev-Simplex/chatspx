@@ -176,7 +176,9 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(nao.index('AVULSO')).to be < nao.index('condomínio')
     end
 
-    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha.
+    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha. O campo do Vista
+    # é a única evidência do FATO, e a taxa continua sendo nomeada como taxa — a Tozi passou a
+    # manter o cadastro correto (08/09), então o campo volta a ser confiável sozinho.
     it 'keeps fee and fact distinguishable on the same listing line' do
       linha = tool.send(:format_listings, nil, [avulso_com_taxa], false)
 
@@ -379,16 +381,17 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(capturado['TituloSite']).to eq(['like', '%CASA JD TERRA RICA%'])
     end
 
-    # Os 2 títulos que não casaram eram anúncio de OUTRA imobiliária no mesmo portal. Devolver
-    # "nenhum imóvel encontrado" ali fez a IA dizer ao cliente que não havia apartamento nenhum
-    # — havia 17. O retorno tem que separar "não achei ESTE" de "não temos imóveis".
+    # O retorno tem que separar "não achei ESTE" de "não temos imóveis" — devolver "nenhum
+    # imóvel encontrado" aqui fez a IA dizer que não havia apartamento nenhum, havia 17.
+    # E a explicação que ele oferece mudou de ordem em 08/09: "pode ser de outra imobiliária"
+    # vinha primeiro e a IA a repetia sobre imóvel da própria Tozi (conv 33632).
     it 'says the advert may belong to another agency instead of implying an empty catalogue' do
       allow(tool).to receive(:fetch_vista).and_return([])
 
       texto = tool.perform(tool_context, status_tipo: 'locacao', titulo: 'APARTAMENTO QUE NAO E NOSSO')
 
-      expect(texto).to include('pode não ser nosso')
-      expect(texto).to match(/N[ÃA]O conclua que não temos imóveis/i)
+      expect(texto).to match(/cadastrado sem título/i)
+      expect(texto).to match(/N[ÃA]O conclua/i)
       expect(texto).not_to eq('Nenhum imóvel encontrado com esses critérios.')
     end
   end
@@ -424,6 +427,123 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     # senão a busca por código digitado nunca poderia dizer que não achou.
     it 'still allows treating a client-typed code as truly absent' do
       expect(tool.send(:codigo_nao_encontrado, '6762')).to match(/cliente escreveu ou falou/i)
+    end
+  end
+
+  # Conv 33632 (07/09): a cliente colou "Casa Portal do Servidor" de um portal, a busca por
+  # TituloSite não achou e a IA respondeu que o anúncio "pode ser de outra imobiliária" — sobre
+  # o 9819, que é da Tozi. O título de portal é "Categoria + Bairro" (a mesma composição da URL
+  # do site), e 23 dos 50 imóveis de locação estão com TituloSite VAZIO, o 9819 entre eles.
+  describe 'título de portal que não casa com o cadastro' do
+    it 'splits the category off the front of the title' do
+      expect(tool.send(:decompor_titulo, 'Casa Portal do Servidor')).to eq(['Casa', 'Portal Servidor'])
+    end
+
+    it 'matches the longest category first, so a compound one is not cut short' do
+      categoria, = tool.send(:decompor_titulo, 'Conjunto de Kitnets Jardim Itália')
+
+      expect(categoria).to eq('Conjunto de Kitnets')
+    end
+
+    it 'leaves the title alone when it opens with no known category' do
+      expect(tool.send(:decompor_titulo, 'Portal do Servidor')).to eq([nil, 'Portal Servidor'])
+    end
+
+    # Sem a fronteira de palavra, o "na" do conectivo é removido de dentro de Canadá e o bairro
+    # vira "Cadá" — o termo deixa de casar e o imóvel some.
+    it 'strips connectives as whole words, never inside a neighbourhood name' do
+      _, resto = tool.send(:decompor_titulo, 'CASA - RES. CANADÁ')
+
+      expect(resto).to eq('CANADÁ')
+    end
+
+    it 'offers the neighbourhood from the end first, shortening from the left' do
+      expect(tool.send(:candidatos_de_bairro, 'PISCINA JARDIM IMPERIAL'))
+        .to eq(['PISCINA JARDIM IMPERIAL', 'JARDIM IMPERIAL', 'IMPERIAL'])
+    end
+
+    it 'drops one-letter fragments that would match half the base' do
+      expect(tool.send(:candidatos_de_bairro, 'a JARDIM IMPERIAL')).not_to include('a JARDIM IMPERIAL')
+    end
+
+    # A explicação que a IA repetiu ao cliente era a menos provável das duas.
+    it 'stops leading with the other-agency explanation' do
+      texto = tool.send(:titulo_sem_correspondencia, 'Casa Portal do Servidor')
+
+      expect(texto).to match(/cadastrado sem título/i)
+      expect(texto).to match(/MENOS prov[áa]vel/i)
+      expect(texto).to match(/N[ÃA]O conclua/i)
+    end
+  end
+
+  # Conv 33660 (08/09): a cliente veio de um portal sem dizer se queria alugar ou comprar, a
+  # triagem presumiu venda, e a busca respondeu só por venda — "não temos casa no Residencial
+  # Canadá". Tinha: o 8780, para ALUGAR. Medido em 30 dias: de 134 combinações (bairro,
+  # categoria, finalidade) que voltaram vazias, 60 tinham imóvel naquele bairro na outra
+  # finalidade.
+  describe 'imóvel que existe na outra finalidade' do
+    it 'flips the Vista status, not just the sort order' do
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) do |f, **|
+        capturado = f
+        []
+      end
+
+      tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'], 'Bairro' => ['like', '%Canadá%'] },
+                true, 'Canadá')
+
+      expect(capturado['Status']).to eq(['like', '%alug%'])
+    end
+
+    it 'looks for sale when the search was for rent' do
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) do |f, **|
+        capturado = f
+        []
+      end
+
+      tool.send(:na_outra_finalidade, { 'Status' => ['like', '%alug%'] }, false, 'Canadá')
+
+      expect(capturado['Status']).to eq(['like', '%vend%'])
+    end
+
+    it 'says nothing when the other side is empty too' do
+      allow(tool).to receive(:fetch_vista).and_return([])
+
+      expect(tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá')).to be_nil
+    end
+
+    it 'says nothing when no neighbourhood was asked for' do
+      expect(tool.send(:na_outra_finalidade, {}, true, nil)).to be_nil
+    end
+
+    # O retorno INFORMA; quem decide é o agente, que sabe se o cliente declarou a finalidade
+    # ou se ela foi presumida. Cliente que disse "quero alugar" não quer ver venda.
+    it 'tells the agent to ask instead of asserting we have nothing' do
+      allow(tool).to receive(:fetch_vista).and_return([{ 'Codigo' => '8780' }])
+
+      texto = tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá')
+
+      expect(texto).to include('para ALUGAR')
+      expect(texto).to match(/pergunte a ele antes de afirmar que não temos/i)
+    end
+
+    it 'carries the notice into the widened-search header' do
+      cabecalho = tool.send(:header_ampliado, 'Canadá', [], ' AVISO DA OUTRA FINALIDADE')
+
+      expect(cabecalho).to end_with(' AVISO DA OUTRA FINALIDADE')
+    end
+
+    it 'keeps the header unchanged when there is nothing on the other side' do
+      expect(tool.send(:header_ampliado, 'Canadá', [])).not_to match(/ATENÇÃO/i)
+    end
+
+    # Falha de rede na consulta extra não pode derrubar a busca que já deu certo.
+    it 'swallows a failure on the extra lookup' do
+      allow(tool).to receive(:fetch_vista).and_raise(StandardError, 'vista fora')
+
+      expect { tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá') }
+        .not_to raise_error
     end
   end
 

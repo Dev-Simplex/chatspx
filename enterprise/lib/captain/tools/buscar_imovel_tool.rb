@@ -55,6 +55,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # o ramo `mobiliado` nunca funcionou (era o "Conferi 0 imóvel(is)" que aparecia mesmo com
   # acervo cheio), e quando este valor passou a valer para a busca comum ele derrubou TODA
   # busca de imóvel em produção. Não subir sem antes conferir o limite da API.
+  # Categorias como o Vista as escreve — conferidas no acervo em 08/09 (Terreno 38, Casa 31,
+  # Kitnet 17, Apartamento 8, Chácara 3, e os três de unidade única). Servem só para reconhecer
+  # a palavra no COMEÇO de um título de portal; não são filtro de busca. As compostas vêm
+  # primeiro: "Conjunto de Kitnets" tem que casar antes de "Kitnet".
+  CATEGORIAS_TITULO = ['Conjunto de Kitnets', 'Galpão Industrial', 'Ponto Comercial', 'Apartamento',
+                       'Chácara', 'Kitnet', 'Terreno', 'Casa'].freeze
+
   TETO_INSPECAO = 50
 
   # Quantos imóveis a resposta APRESENTA. É diferente de quantos ela conhece: o cliente não
@@ -129,7 +136,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       # que o cliente viu pode ser de OUTRA imobiliária no mesmo portal. Sem isso o retorno
       # genérico faz a IA concluir que o acervo está vazio — e foi o que aconteceu quando ela
       # respondeu que não havia apartamento nenhum tendo 17 no cadastro.
-      return titulo_sem_correspondencia(titulo) if titulo.present?
+      return sem_casar_pelo_titulo(tool_context, titulo, filter, venda) if titulo.present?
 
       # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
@@ -284,8 +291,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
     track_codigos(tool_context, imoveis)
     ref = [bairro, endereco].reject(&:blank?).join('/')
+    outra = na_outra_finalidade(filter, venda, bairro)
     imoveis = ordenar_alternativas(anexar_distancia_da_referencia(imoveis, ref))
-    format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis))
+    format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis, outra))
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] ampliar_sem_bairro: #{e.message}")
     nil
@@ -344,13 +352,43 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     end
   end
 
-  def header_ampliado(ref, imoveis)
+  def header_ampliado(ref, imoveis, outra = nil)
     com_dist = imoveis.any? { |im| im['dist_km'] }
     medida = com_dist ? " A distância de cada uma até #{ref} está na linha — use o número, não estime." : ''
     "Sem imóvel no critério exato (#{ref}). As opções abaixo são da mesma cidade e critério, " \
       'porém em OUTROS bairros: ofereça como alternativas fora do local pedido, deixando claro ' \
       'que não são do bairro/endereço solicitado — nunca encerre só com pergunta, apresente as ' \
-      "opções concretas.#{medida}"
+      "opções concretas.#{medida}#{outra}"
+  end
+
+  # "Não temos casa no Residencial Canadá" — e tinha, para ALUGAR. Conv 33660 (08/09): o
+  # cliente veio de um portal sem dizer se queria alugar ou comprar, a triagem chutou venda, e
+  # a busca respondeu só por venda. O imóvel 8780 estava no acervo o tempo todo.
+  #
+  # Medido em 30 dias: de 134 combinações (bairro, categoria, finalidade) que voltaram vazias,
+  # 60 tinham imóvel naquele mesmo bairro na OUTRA finalidade — 45%.
+  #
+  # O retorno só INFORMA; quem decide se aquilo interessa é o agente, porque ele sabe se o
+  # cliente declarou a finalidade ou se ela foi presumida. Cliente que disse "quero alugar" não
+  # quer ver venda; cliente que chegou por um anúncio não disse nada.
+  def na_outra_finalidade(filter, venda, bairro)
+    return if bairro.blank?
+
+    # O `venda:` do fetch_vista só troca a ORDENAÇÃO — quem decide a finalidade é o
+    # filter['Status'], montado no perform. Inverter só o argumento buscaria na mesma
+    # finalidade e o aviso nunca sairia.
+    invertido = filter.except('Endereco').merge('Status' => (venda ? ['like', '%alug%'] : ['like', '%vend%']))
+    achados = fetch_vista(invertido, quantidade: 1, venda: !venda)
+    return if achados.blank?
+
+    rotulo = venda ? 'para ALUGAR' : 'para COMPRAR'
+    " ATENÇÃO: nesse mesmo bairro existe imóvel #{rotulo} no critério pedido. Se o cliente " \
+      'disse com todas as letras o que queria, siga no que ele pediu. Mas se a finalidade foi ' \
+      'presumida — anúncio de portal, mensagem sem dizer se é aluguel ou compra —, pergunte a ' \
+      'ele antes de afirmar que não temos, porque temos.'
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] na_outra_finalidade: #{e.message}")
+    nil
   end
 
   # Geocodifica a referência que o CLIENTE pediu, com veto de sanidade: o Google nunca devolve
@@ -471,14 +509,112 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     rodape_parcial(mostrados, total)
   end
 
+  # Antes de dizer que não achou pelo título, tenta desmontá-lo. Fica fora do `perform` porque
+  # ele já está no teto de complexidade do rubocop.
+  def sem_casar_pelo_titulo(tool_context, titulo, filter, venda)
+    buscar_pelo_titulo_decomposto(tool_context, titulo, filter, venda).presence ||
+      titulo_sem_correspondencia(titulo)
+  end
+
+  # O título que o cliente traz de um portal quase nunca é o `TituloSite` do cadastro: é o nome
+  # que o portal MONTA, e ele é "Categoria + Bairro" — a mesma composição da URL do site da
+  # Tozi (`casa-portal-do-servidor-sinop-9819`). Medido nas 13 buscas por título de 30 dias:
+  # 9 não acharam, e as 9 seguem esse formato ("Casa Portal do Servidor", "Kitnet Jardim Terra
+  # Rica", "CASA - RES. CANADÁ", "APARTAMENTO SONHALTO VIDEIRA"); as 4 que acharam eram o
+  # TituloSite literal ("Kit net nova no Bairro Residencial Paris").
+  #
+  # Some-se que o campo é opcional e a Tozi não o preenche: 23 dos 50 imóveis de locação estão
+  # com `TituloSite` VAZIO — inclusive o 9819, o imóvel desta conversa. Buscar só por ele
+  # deixava a IA dizer que o anúncio "pode ser de outra imobiliária" sobre casa da própria casa.
+  #
+  # Aqui o título é desmontado e re-buscado por categoria + bairro. O bairro tende a ficar no
+  # FIM, então o resto é tentado inteiro e depois encurtando pela esquerda — "CASA COM PISCINA
+  # NO JARDIM IMPERIAL" só casa nos dois últimos termos, "CASA - RES. CANADÁ" só no último.
+  def buscar_pelo_titulo_decomposto(tool_context, titulo, filter, venda)
+    categoria, resto = decompor_titulo(titulo)
+    return if resto.blank? && categoria.blank?
+
+    imoveis = primeira_busca_que_acha(filter, categoria, resto, venda)
+    return if imoveis.blank?
+
+    track_codigos(tool_context, imoveis)
+    format_listings(tool_context, imoveis, venda, header: header_por_titulo(titulo, imoveis))
+  end
+
+  # Duas passadas: primeiro exigindo a categoria, depois só o bairro. A segunda existe porque
+  # o portal erra o tipo — "Kitnet Jardim Terra Rica" é o que o anúncio diz, e no Terra Rica só
+  # há casa e terreno; mostrar os dois vale mais que negar o imóvel por causa do rótulo.
+  #
+  # NÃO existe terceira passada só com a categoria. Ela foi medida e descartada: sem bairro,
+  # "CASA COM PISCINA NO JARDIM IMPERIAL" trazia 28 casas do acervo inteiro sob um cabeçalho
+  # dizendo que o anúncio provavelmente era uma delas. Devolver o acervo é pior que dizer que
+  # não achou.
+  def primeira_busca_que_acha(filter, categoria, resto, venda)
+    base = filter.except('TituloSite', 'Bairro', 'Categoria')
+    termos = candidatos_de_bairro(resto)
+
+    [categoria, nil].uniq.each do |cat|
+      com_cat = cat.present? ? base.merge('Categoria' => cat) : base
+      termos.each do |termo|
+        achados = fetch_vista(com_cat.merge('Bairro' => ['like', "%#{termo}%"]),
+                              quantidade: TETO_INSPECAO, venda: venda)
+        return achados if achados.present?
+      end
+    end
+    []
+  end
+
+  # "PISCINA JARDIM IMPERIAL" -> [a frase inteira, "JARDIM IMPERIAL", "IMPERIAL"]. Termo de uma
+  # letra só não entra: casaria com meio acervo.
+  def candidatos_de_bairro(resto)
+    tokens = resto.to_s.split(/\s+/).reject { |p| p.length < 2 }
+    return [] if tokens.empty?
+
+    Array.new(tokens.size) { |i| tokens[i..].join(' ') }.reject(&:blank?).uniq
+  end
+
+  # A categoria vem no COMEÇO do título e é conferida contra a lista real do acervo, nunca
+  # adivinhada. Pontuação e conectivo de sobra ("- RES.", "NO", "EM") saem do resto, senão o
+  # `like` procura por eles dentro do nome do bairro e não acha nada.
+  #
+  # O `\b` nos conectivos NÃO é decoração: sem a fronteira de palavra, "na" seria removido de
+  # dentro de "Canadá" e o bairro viraria "Cadá".
+  def decompor_titulo(titulo)
+    # O ponto entra no tr de propósito: em "RES." o `\b` do conectivo não casaria, porque
+    # entre "." e o espaço não há fronteira de palavra — os dois são non-word.
+    limpo = titulo.to_s.tr('-–—/|.,;', ' ').squeeze(' ').strip
+    categoria = CATEGORIAS_TITULO.find { |c| limpo.match?(/\A#{Regexp.escape(c)}\b/i) }
+    resto = categoria ? limpo.sub(/\A#{Regexp.escape(categoria)}\b/i, '') : limpo
+    [categoria, sem_conectivos(resto)]
+  end
+
+  def sem_conectivos(resto)
+    resto.gsub(/\b(no|na|em|de|do|da|res\.?|residencial|bairro|com)\b/i, ' ').squeeze(' ').strip
+  end
+
+  def header_por_titulo(titulo, imoveis)
+    quantos = imoveis.size == 1 ? 'apareceu 1 imóvel' : "apareceram #{imoveis.size} imóveis"
+    "Pelo título \"#{titulo}\" o cadastro não tinha nada, mas buscando pelo tipo e bairro que " \
+      "ele descreve #{quantos}. É provável que o anúncio seja de um destes — confirme com o " \
+      'cliente pelas características antes de tratar como o mesmo imóvel, e NÃO diga que o ' \
+      'anúncio é de outra imobiliária.'
+  end
+
   # Estado explícito, como o sem_mobiliado: a busca ACONTECEU e não achou aquele anúncio.
   # O que NÃO se pode concluir daqui é que não há imóvel — só que não há esse.
+  # A ordem das explicações importa e estava invertida. "Pode ser de outra imobiliária" vinha
+  # primeiro, e a IA repetia isso ao cliente como se fosse a conclusão — inclusive sobre imóvel
+  # da própria Tozi (conv 33632). A causa mais comum é bem mais simples: o título é um campo
+  # opcional que a Tozi não preenche, e 23 dos 50 imóveis de locação estão com ele VAZIO. Um
+  # imóvel sem título cadastrado nunca casa aqui, exista ou não.
   def titulo_sem_correspondencia(titulo)
-    "Não achei no nosso cadastro nenhum imóvel com o título \"#{titulo}\". Em portal de anúncios " \
-      'aparecem imóveis de várias imobiliárias, então esse anúncio pode não ser nosso. Diga isso ao ' \
-      'cliente com naturalidade e ofereça procurar pelo que ele quer: pergunte o tipo de imóvel, se é ' \
-      'pra alugar ou comprar, o bairro e a faixa de valor, e busque de novo por esses critérios. ' \
-      'NÃO conclua que não temos imóveis — esta busca foi só pelo título.'
+    "A busca pelo título \"#{titulo}\" não casou com nada, nem por tipo e bairro. Isso quase " \
+      'sempre quer dizer que o imóvel está cadastrado sem título, não que ele não exista — ' \
+      'metade do acervo de locação está assim. Pode ser também anúncio de outra imobiliária no ' \
+      'mesmo portal, mas essa é a hipótese MENOS provável e você NÃO deve apresentá-la ao ' \
+      'cliente como explicação. Peça a ele o que caracteriza o imóvel — tipo, bairro, faixa de ' \
+      'valor, se é aluguel ou compra — e busque de novo por esses critérios. NÃO conclua nem ' \
+      'diga que não temos o imóvel: esta busca foi só pelo nome do anúncio.'
   end
 
   def rodape_fechado(total)
