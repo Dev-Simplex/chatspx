@@ -742,6 +742,7 @@ RSpec.describe Conversations::MessageWindowService do
   end
   # Conta regressiva da janela. Ela alimenta o bloco volatil do prompt ("faltam Xh"), que so
   # existe em canal sem retomada — no Instagram, perder a janela e irreversivel.
+
   describe '#hours_remaining' do
     let!(:instagram_channel) { create(:channel_instagram) }
 

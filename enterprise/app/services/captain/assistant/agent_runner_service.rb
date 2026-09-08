@@ -224,12 +224,7 @@ class Captain::Assistant::AgentRunnerService
     # é evento de sistema, silencioso. O ESTADO da designação (rodizio_designado_em /
     # rodizio_produto) continua visível: é ele que a conduta de "modo contido" lê.
     state[:conversation][:custom_attributes] = sem_maquinario(state[:conversation][:custom_attributes])
-    state[:channel_type] = @conversation.inbox&.channel_type
-    state[:channel_number] = channel_number
-    state[:canal_retoma] = canal_retoma?
-    # A conta regressiva so existe onde perder a janela e IRREVERSIVEL. Em canal retomavel ela
-    # seria ruido: apressaria o agente sem que houvesse nada a perder.
-    state[:janela_horas_restantes] = Conversations::MessageWindowService.new(@conversation).hours_remaining unless state[:canal_retoma]
+    build_channel_state(state)
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
     state[:contact_inbox] = slice_attrs(@conversation.contact_inbox, CONTACT_INBOX_STATE_ATTRIBUTES) if @conversation.contact_inbox
@@ -276,6 +271,19 @@ class Captain::Assistant::AgentRunnerService
 
   # Número em que o atendimento acontece. Sem ele o agente não tem NENHUM telefone em
   # contexto e, ao ser cobrado pelo "número de vocês", confabula um (caso 20314).
+  # Tudo que o agente sabe sobre o CANAL: qual e, por onde ele atende, se alcanca a pessoa
+  # depois que a janela fecha e quanto tempo falta pra isso.
+  def build_channel_state(state)
+    state[:channel_type] = @conversation.inbox&.channel_type
+    state[:channel_number] = channel_number
+    state[:canal_retoma] = canal_retoma?
+    # A conta regressiva so existe onde perder a janela e IRREVERSIVEL. Em canal retomavel ela
+    # seria ruido: apressaria o agente sem que houvesse nada a perder.
+    return if state[:canal_retoma]
+
+    state[:janela_horas_restantes] = Conversations::MessageWindowService.new(@conversation).hours_remaining
+  end
+
   def channel_number
     @conversation.inbox&.channel.try(:phone_number)
   end
