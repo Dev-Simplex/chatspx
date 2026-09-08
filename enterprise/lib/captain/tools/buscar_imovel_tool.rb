@@ -656,40 +656,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # no rótulo negativo é mantida de propósito: sem ela, volta a colisão com a TAXA
   # ("taxa de condomínio R$ 300") que o PR #75 tratou, em que o modelo usava o valor da taxa
   # como prova do fato.
-  # Terceiro estado: o cadastro se CONTRADIZ, e aí não dá para afirmar nenhum dos dois.
-  #
-  # O campo `Condominio` é preenchido à mão e erra. Medido no acervo em 08/09: 9 dos 50 imóveis
-  # de locação cobram taxa de condomínio E estão marcados como avulsos — contra apenas 4
-  # marcados "Sim". A contradição é mais comum que a afirmação positiva.
-  #
-  # O que a conv 33632 mostrou: o 9819 é `Condominio: "Nao"` com `ValorCondominio: 350`, e a
-  # Tozi confirma que ele FICA em condomínio fechado. A IA leu o rótulo certo, disse "é avulso"
-  # e mandou a cliente buscar a chave no escritório para visitar sozinha — num imóvel onde isso
-  # não funciona. Errar para o lado do avulso manda a pessoa a uma porta que não abre.
-  #
-  # A decisão do PR #75 continua valendo onde ela foi medida: a taxa sozinha NÃO prova
-  # condomínio, e imóvel avulso pode ter taxa. O que muda aqui é só o caso em que os dois
-  # sinais se contradizem — que deixa de virar afirmação e passa a pedir confirmação humana.
   def format_condominio(imovel)
     case imovel['Condominio'].to_s.strip.downcase
     when 'sim' then ' [EM CONDOMÍNIO FECHADO]'
-    when 'nao', 'não' then avulso_ou_indefinido(imovel)
+    when 'nao', 'não' then ' [AVULSO — fora de condomínio fechado]'
     else ''
     end
-  end
-
-  # O texto MANDA acionar o handoff em vez de só proibir as duas ofertas: medido com N=3, a
-  # proibição sozinha tirou a chave (3/3 -> 0/3) mas empurrou a IA para o outro extremo — ela
-  # ofereceu agendar a visita, que é o caminho do condomínio. Sem uma terceira rota explícita
-  # ela escolhe um dos dois lados, e escolher é justamente o que não pode.
-  def avulso_ou_indefinido(imovel)
-    return ' [AVULSO — fora de condomínio fechado]' unless imovel['ValorCondominio'].to_f.positive?
-
-    ' [CONDOMÍNIO INDEFINIDO: o cadastro diz avulso mas cobra taxa de condomínio, e um dos dois ' \
-      'está errado. As duas formas de visita dependem disso — chave retirada no escritório se for ' \
-      'avulso, agendamento com consultor se for condomínio —, então não dá para oferecer nenhuma ' \
-      'das duas. Diga que vai confirmar como funciona a visita DESTE imóvel e ACIONE o handoff; ' \
-      'o resto do atendimento segue normal]'
   end
 
   # Área/metragem em m²: AreaTotal é a metragem do terreno/lote (essencial pra terreno);

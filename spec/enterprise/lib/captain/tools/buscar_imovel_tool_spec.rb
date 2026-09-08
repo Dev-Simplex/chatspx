@@ -147,11 +147,8 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(tool.send(:format_taxas, avulso_com_taxa)).to include('taxa de condomínio R$ 300')
     end
 
-    # Sem taxa nenhuma não há contradição: o campo é o único sinal e vale.
     it 'says the property does NOT sit in a gated community when Vista says Nao' do
-      sem_taxa = avulso_com_taxa.merge('ValorCondominio' => '0')
-
-      expect(tool.send(:format_condominio, sem_taxa)).to include('AVULSO — fora de condomínio fechado')
+      expect(tool.send(:format_condominio, avulso_com_taxa)).to include('AVULSO — fora de condomínio fechado')
     end
 
     it 'says it DOES when Vista says Sim' do
@@ -179,24 +176,14 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(nao.index('AVULSO')).to be < nao.index('condomínio')
     end
 
-    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha. A taxa continua
-    # sendo nomeada como taxa — o que mudou (conv 33632) é que, com os dois sinais brigando,
-    # a linha para de afirmar o fato em vez de escolher um lado.
+    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha. O campo do Vista
+    # é a única evidência do FATO, e a taxa continua sendo nomeada como taxa — a Tozi passou a
+    # manter o cadastro correto (08/09), então o campo volta a ser confiável sozinho.
     it 'keeps fee and fact distinguishable on the same listing line' do
       linha = tool.send(:format_listings, nil, [avulso_com_taxa], false)
 
       expect(linha).to include('taxa de condomínio R$ 300')
-      expect(linha).to include('CONDOMÍNIO INDEFINIDO')
-      expect(linha).not_to include('AVULSO — fora de condomínio fechado')
-    end
-
-    # A armadilha do #103 vale para o rótulo novo também: ler pela metade não pode virar
-    # afirmação de condomínio fechado.
-    it 'does not let the undefined label contain the positive one either' do
-      sim = tool.send(:format_condominio, imovel.merge('Condominio' => 'Sim'))
-      indef = tool.send(:format_condominio, avulso_com_taxa)
-
-      expect(indef).not_to include(sim.delete('[]').strip)
+      expect(linha).to include('AVULSO — fora de condomínio fechado')
     end
   end
 
@@ -486,46 +473,6 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(texto).to match(/cadastrado sem título/i)
       expect(texto).to match(/MENOS prov[áa]vel/i)
       expect(texto).to match(/N[ÃA]O conclua/i)
-    end
-  end
-
-  # O campo Condominio é preenchido à mão e erra: medido no acervo em 08/09, 9 dos 50 imóveis
-  # de locação cobram taxa E estão marcados como avulsos, contra 4 marcados "Sim". Na conv
-  # 33632 a IA leu "avulso" no 9819 e mandou a cliente retirar a chave para visitar sozinha um
-  # imóvel que fica em condomínio fechado.
-  describe 'quando o cadastro de condomínio se contradiz' do
-    it 'still calls it avulso when there is no fee at all' do
-      im = { 'Condominio' => 'Nao', 'ValorCondominio' => '0' }
-
-      expect(tool.send(:format_condominio, im)).to include('AVULSO')
-    end
-
-    it 'refuses to call it avulso when it charges a condo fee' do
-      im = { 'Condominio' => 'Nao', 'ValorCondominio' => '350' }
-
-      expect(tool.send(:format_condominio, im)).not_to include('AVULSO')
-      expect(tool.send(:format_condominio, im)).to include('INDEFINIDO')
-    end
-
-    # O dano da 33632 não foi o rótulo, foi o que ele autorizou: a cliente foi mandada retirar
-    # a chave de um imóvel em condomínio. O rótulo tem que barrar as DUAS rotas de visita e
-    # mandar acionar o handoff — proibir sem dar rota fez a IA escolher a outra ponta
-    # (medido: a chave saiu, mas ela passou a oferecer agendamento).
-    it 'blocks both visit routes and hands the case over' do
-      texto = tool.send(:format_condominio, { 'Condominio' => 'Nao', 'ValorCondominio' => '350' })
-
-      expect(texto).to match(/n[ãa]o d[áa] para oferecer nenhuma das duas/i)
-      expect(texto).to match(/ACIONE o handoff/i)
-    end
-
-    it 'keeps trusting the field when it says yes' do
-      im = { 'Condominio' => 'Sim', 'ValorCondominio' => '350' }
-
-      expect(tool.send(:format_condominio, im)).to eq(' [EM CONDOMÍNIO FECHADO]')
-    end
-
-    it 'stays silent when the field has no answer' do
-      expect(tool.send(:format_condominio, { 'Condominio' => '', 'ValorCondominio' => '350' })).to eq('')
     end
   end
 
