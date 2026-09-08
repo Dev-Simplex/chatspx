@@ -27,7 +27,7 @@ module Concerns::Agentable
         contact: config['feature_contact_attributes'].present? ? state[:contact] : nil,
         campaign: state[:campaign] || {},
         channel_number: state[:channel_number]
-      )
+      ).merge(contexto_de_canal(config, state))
     end
 
     return split_instructions_for_cache(enhanced_context) if prompt_cache_system_enabled?
@@ -36,6 +36,29 @@ module Concerns::Agentable
   end
 
   private
+
+  # Nome do canal que o agente deve pedir quando o ATUAL nao alcanca a pessoa depois que a
+  # janela fecha (Instagram). Devolve `nil` — e o bloco do prompt nem renderiza — sempre que
+  # faltar qualquer uma das tres condicoes: o canal retomar sozinho, a conta nao ter ligado a
+  # coleta, ou nao haver canal alternativo configurado. Opt-in por assistente de proposito:
+  # o molde e compartilhado por TODOS os clientes, e conduta nova nao pode nascer ligada.
+  # As duas variaveis andam juntas de proposito: sem canal alternativo nao ha conduta a
+  # renderizar, e sem a conduta a conta regressiva viraria prazo solto no prompt.
+  def contexto_de_canal(config, state)
+    contato = contato_alternativo(config, state)
+    return { contato_alternativo: nil, janela_horas_restantes: nil } if contato.blank?
+
+    { contato_alternativo: contato, janela_horas_restantes: state[:janela_horas_restantes] }
+  end
+
+  def contato_alternativo(config, state)
+    return if state[:canal_retoma] != false
+
+    coleta = config['coleta_contato_alternativo']
+    return unless coleta.is_a?(Hash) && coleta['ativo']
+
+    coleta['canal'].presence
+  end
 
   # Temperatura ausente (nil ou string vazia no config) cai no DEFAULT_TEMPERATURE; quem
   # tem valor explicito, inclusive 0, mantem o que esta gravado.
@@ -161,7 +184,7 @@ module Concerns::Agentable
   # Chaves de contexto que MUDAM durante a conversa (data/hora com resolucao de
   # minuto + estado da conversa/contato/campanha, incluindo custom_attributes que
   # as tools escrevem mid-conversa). Precisam ficar FORA do bloco cacheado.
-  VOLATILE_PROMPT_KEYS = %w[current_datetime business_status conversation contact campaign].freeze
+  VOLATILE_PROMPT_KEYS = %w[current_datetime business_status conversation contact campaign janela_horas_restantes].freeze
 
   # Prompt caching (Fase 2): separa o prefixo ESTAVEL do prompt (identidade,
   # persona, regras, guardrails, cenarios) do VOLATIL (data/hora + contexto da

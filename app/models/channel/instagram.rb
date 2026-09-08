@@ -48,6 +48,17 @@ class Channel::Instagram < ApplicationRecord
     true
   end
 
+  # Fechada a janela de 24h, NAO ha como retomar: o Instagram nao tem template/HSM, sponsored
+  # message nem one-time notification, e a tag HUMAN_AGENT (7 dias) depende de App Review que
+  # nenhum dos nossos apps tem — medido em 08/09/2026 contra a Graph, com destinatario ja fora
+  # dos 7 dias para nao entregar nada: sem tag vem `403 subcode 2534022` ("outside of allowed
+  # window") e com a tag vem `403 "must be reviewed and approved by Facebook"`. Quem some aqui
+  # so volta se ELE mesmo escrever — por isso o agente precisa buscar um canal alcancavel
+  # ENQUANTO a janela esta viva.
+  def supports_reengagement?
+    false
+  end
+
   def create_contact_inbox(instagram_id, name)
     @contact_inbox = ::ContactInboxWithContactBuilder.new({
                                                             source_id: instagram_id,

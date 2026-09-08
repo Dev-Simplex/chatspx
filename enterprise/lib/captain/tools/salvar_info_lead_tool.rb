@@ -6,6 +6,17 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
   CONTACT_NAME_KEY = 'nome_confirmado'.freeze
   MAX_NAME_LENGTH = 80
 
+  # O contato que a pessoa informa quando o canal atual não alcança ela depois que a janela
+  # fecha. Vai pro campo CANÔNICO (`contact.phone_number`) sempre que der: é ele que a tela de
+  # contato mostra, que a busca encontra e que a campanha alcança — guardar só num atributo
+  # solto deixaria o dado onde ninguém procura. O atributo fica junto como RASTRO da origem
+  # (informado pela pessoa no atendimento, não cadastrado pelo time).
+  CONTACT_ALT_KEY = 'contato_alternativo'.freeze
+  # Marca a conversa pro time achar quem deixou contato. Agnóstica de canal de propósito.
+  ALT_LABEL = 'contato-alternativo'.freeze
+  # Faixa de dígitos de um telefone brasileiro plausível, com ou sem DDI e com ou sem o 9.
+  DIGITS_RANGE = (10..13)
+
   # Prioridade é dimensão NOVA e ortogonal ao status: mede chance de aprovação de
   # crédito, não estágio do lead. Um lead pode ser `qualificado` + `morno`.
   PRIORIDADES = %w[quente morno frio].freeze
@@ -54,6 +65,13 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
               'Só o que ele disse; vazio se ele não apontou nenhum.',
         required: false
 
+  param :contato_alternativo,
+        type: 'string',
+        desc: 'O contato que a própria pessoa informou NESTA conversa pra ser encontrada em outro canal. ' \
+              'Copie os dígitos exatamente como ela escreveu, sem completar, corrigir nem deduzir nada. ' \
+              'Vazio se ela não informou nenhum.',
+        required: false
+
   # **args em vez de 9 keywords nomeadas: o schema que o LLM enxerga vem do DSL `param`
   # acima, não da assinatura.
   def perform(tool_context, **args)
@@ -82,9 +100,61 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
 
   def aplicar_efeitos(conversation, args, prioridade, status)
     salvar_nome_do_cliente(conversation, args[:nome_cliente])
+    salvar_contato_alternativo(conversation, args[:contato_alternativo])
     move_funnel_by_status(conversation, status)
     aplicar_label_de_prioridade(conversation, prioridade)
     mark_followup(conversation) if args[:precisa_followup]
+  end
+
+  # Guarda o contato que a pessoa deu e marca a conversa pro time. Só aceita o que de fato
+  # PARECE um telefone: o modelo às vezes devolve a frase inteira em vez do número, e frase
+  # virando contato gera lista suja que ninguém usa depois.
+  def salvar_contato_alternativo(conversation, informado)
+    e164 = normalizar_para_e164(informado)
+    return if e164.blank?
+
+    contact = conversation.contact
+    return if contact.nil?
+
+    registrar_no_contato(contact, e164)
+    conversation.add_labels((conversation.label_list + [ALT_LABEL]).uniq)
+  rescue StandardError => e
+    Rails.logger.warn("[SalvarInfoLeadTool] contato contact=#{conversation.contact_id}: #{e.message}")
+  end
+
+  # Duas guardas, e as duas protegem o cadastro contra o palpite de UM turno:
+  # 1. nunca sobrescreve telefone que já existe — o que o time cadastrou vale mais;
+  # 2. nunca toma número de outro contato. `phone_number` tem unicidade por conta, então
+  #    gravar um número que já é de alguém levantaria RecordInvalid no meio do atendimento —
+  #    e, mais importante, colisão ali não é falha: significa que a pessoa JÁ é alcançável pelo
+  #    cadastro que existe. O que falta é unir os dois, e isso é decisão humana.
+  # Nos dois casos o número fica gravado no atributo, então nada se perde.
+  def registrar_no_contato(contact, e164)
+    atuais = contact.custom_attributes || {}
+    novos = atuais.merge(CONTACT_ALT_KEY => e164)
+
+    if contact.phone_number.blank? && !numero_de_outro_contato?(contact, e164)
+      contact.update!(phone_number: e164, custom_attributes: novos)
+    elsif atuais[CONTACT_ALT_KEY].to_s != e164
+      contact.update!(custom_attributes: novos)
+    end
+  end
+
+  def numero_de_outro_contato?(contact, e164)
+    Contact.where(account_id: contact.account_id, phone_number: e164).where.not(id: contact.id).exists?
+  end
+
+  # `phone_number` exige E.164, e o callback do Contact REVERTE em silencio o que nao casar
+  # com o formato. Reusa o normalizador de BR que o produto ja tem (ele poe o nono digito em
+  # celular antigo e deixa fixo em paz).
+  def normalizar_para_e164(informado)
+    digitos = informado.to_s.gsub(/[^0-9]/, "")
+    return unless DIGITS_RANGE.cover?(digitos.length)
+
+    digitos = digitos.delete_prefix("55") if digitos.length > 11 && digitos.start_with?("55")
+    return unless (10..11).cover?(digitos.length)
+
+    Contacts::BrazilPhoneNormalizer.normalize("+55#{digitos}")
   end
 
   # "lixo" chega como prioridade mas É status: rotear pra nao_qualificado (que já cancela
