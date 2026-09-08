@@ -32,7 +32,7 @@ VMS=(
   # TOZI (3.94.9.51, conta 6, cliente real) fica FORA do array de proposito:
   # nao tem credencial GitHub -> cwctl/git pull falham. Deploy dela e por git bundle
   # manual (+ swap p/ OOM). Ver plano/prompt-deploy-frota-completo.md, secao TOZI.
-  # "ALTERNATIVO|192.168.8.169|local|simplexia"  # Fora do fan-out por ora (descomentar p/ incluir)
+  "ALTERNATIVO|192.168.8.169|local|simplexia"  # Fora do fan-out por ora (descomentar p/ incluir)
 )
 
 RED='\033[0;31m'
