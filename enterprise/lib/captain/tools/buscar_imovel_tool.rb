@@ -136,12 +136,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       # que o cliente viu pode ser de OUTRA imobiliária no mesmo portal. Sem isso o retorno
       # genérico faz a IA concluir que o acervo está vazio — e foi o que aconteceu quando ela
       # respondeu que não havia apartamento nenhum tendo 17 no cadastro.
-      if titulo.present?
-        por_partes = buscar_pelo_titulo_decomposto(tool_context, titulo, filter, venda)
-        return por_partes if por_partes.present?
-
-        return titulo_sem_correspondencia(titulo)
-      end
+      return sem_casar_pelo_titulo(tool_context, titulo, filter, venda) if titulo.present?
 
       # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
@@ -483,6 +478,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     rodape_parcial(mostrados, total)
   end
 
+  # Antes de dizer que não achou pelo título, tenta desmontá-lo. Fica fora do `perform` porque
+  # ele já está no teto de complexidade do rubocop.
+  def sem_casar_pelo_titulo(tool_context, titulo, filter, venda)
+    buscar_pelo_titulo_decomposto(tool_context, titulo, filter, venda).presence ||
+      titulo_sem_correspondencia(titulo)
+  end
+
   # O título que o cliente traz de um portal quase nunca é o `TituloSite` do cadastro: é o nome
   # que o portal MONTA, e ele é "Categoria + Bairro" — a mesma composição da URL do site da
   # Tozi (`casa-portal-do-servidor-sinop-9819`). Medido nas 13 buscas por título de 30 dias:
@@ -537,7 +539,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     tokens = resto.to_s.split(/\s+/).reject { |p| p.length < 2 }
     return [] if tokens.empty?
 
-    tokens.size.times.map { |i| tokens[i..].join(' ') }.reject(&:blank?).uniq
+    Array.new(tokens.size) { |i| tokens[i..].join(' ') }.reject(&:blank?).uniq
   end
 
   # A categoria vem no COMEÇO do título e é conferida contra a lista real do acervo, nunca
