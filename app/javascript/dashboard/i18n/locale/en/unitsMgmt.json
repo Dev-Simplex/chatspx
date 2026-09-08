@@ -106,7 +106,7 @@
         "HELP": "The WhatsApp line of this branch. An inbox belongs to one unit at most.",
         "APPLIES": {
           "LABEL": "Apply this schedule to the inboxes",
-          "HELP": "When on, a holiday or shutdown of this unit closes the inboxes above for the day and the away message goes out on its own. When off, the schedule is informational only."
+          "HELP": "Makes this unit's holiday or event apply to the selected inboxes, instead of only being recorded on the schedule: on the day of the rule it replaces each inbox's business hours, and the away message goes out on its own. When off, the schedule still appears in the unit list and in the reminder, but does not change service."
         },
         "EMPTY": "This account has no inbox yet."
       },
