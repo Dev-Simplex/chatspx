@@ -52,11 +52,16 @@ RSpec.describe Copilot::OpenaiSettings do
     end
 
     # Quem pergunta se há chave não pode levar exceção de banco na cara.
+    #
+    # A conta é materializada ANTES do stub de propósito: `create(:account)` passa pelo
+    # `Featurable#enable_default_features`, que também consulta InstallationConfig — com o
+    # stub já de pé, a exceção vinha da fábrica e o teste media a si mesmo.
     it 'survives the config lookup blowing up' do
+      conta = account
       allow(InstallationConfig).to receive(:find_by).and_raise(StandardError, 'banco fora')
 
-      expect { described_class.api_key(account) }.not_to raise_error
-      expect(described_class.api_key(account)).to be_nil
+      expect { described_class.api_key(conta) }.not_to raise_error
+      expect(described_class.api_key(conta)).to be_nil
     end
 
     it 'works without an account at all' do
