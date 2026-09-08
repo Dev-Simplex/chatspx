@@ -32,15 +32,15 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
               'Atualiza o que já existir, sem apagar o resto.'
 
   param :status, type: 'string',
-        desc: 'Status do lead: novo, em_contato, qualificado, esfriado, perdido, nao_qualificado ou convertido.', required: false
+                 desc: 'Status do lead: novo, em_contato, qualificado, esfriado, perdido, nao_qualificado ou convertido.', required: false
   param :sobre_cliente, type: 'string',
-        desc: 'Descrição curta (1 a 2 frases) sobre o cliente: o que procura, perfil e situação.', required: false
+                        desc: 'Descrição curta (1 a 2 frases) sobre o cliente: o que procura, perfil e situação.', required: false
   param :precisa_followup, type: 'boolean',
-        desc: 'true quando a conversa precisa de reabordagem depois (cliente esfriou, pediu pra pensar, sem resposta).', required: false
+                           desc: 'true quando a conversa precisa de reabordagem depois (cliente esfriou, pediu pra pensar, sem resposta).', required: false
   param :nome_cliente, type: 'string',
-        desc: 'Como a pessoa disse que se chama, quando ela informou o nome NESTA conversa. ' \
-              'Só o que veio da própria pessoa — nunca o nome que aparece no cadastro do contato, ' \
-              'que costuma ser anotação interna da equipe. Vazio se ela não disse o nome.', required: false
+                       desc: 'Como a pessoa disse que se chama, quando ela informou o nome NESTA conversa. ' \
+                             'Só o que veio da própria pessoa — nunca o nome que aparece no cadastro do contato, ' \
+                             'que costuma ser anotação interna da equipe. Vazio se ela não disse o nome.', required: false
   param :prioridade,
         type: 'string',
         desc: 'Chance de aprovação de crédito deste lead: quente quando ele declarou renda comprovável e não ' \
@@ -111,10 +111,8 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
   # virando contato gera lista suja que ninguém usa depois.
   def salvar_contato_alternativo(conversation, informado)
     e164 = normalizar_para_e164(informado)
-    return if e164.blank?
-
     contact = conversation.contact
-    return if contact.nil?
+    return if e164.blank? || contact.nil?
 
     registrar_no_contato(contact, e164)
     conversation.add_labels((conversation.label_list + [ALT_LABEL]).uniq)
@@ -148,10 +146,10 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
   # com o formato. Reusa o normalizador de BR que o produto ja tem (ele poe o nono digito em
   # celular antigo e deixa fixo em paz).
   def normalizar_para_e164(informado)
-    digitos = informado.to_s.gsub(/[^0-9]/, "")
+    digitos = informado.to_s.gsub(/[^0-9]/, '')
     return unless DIGITS_RANGE.cover?(digitos.length)
 
-    digitos = digitos.delete_prefix("55") if digitos.length > 11 && digitos.start_with?("55")
+    digitos = digitos.delete_prefix('55') if digitos.length > 11 && digitos.start_with?('55')
     return unless (10..11).cover?(digitos.length)
 
     Contacts::BrazilPhoneNormalizer.normalize("+55#{digitos}")
