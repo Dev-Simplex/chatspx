@@ -111,8 +111,42 @@ sudo systemctl restart chatwoot-web.1 chatwoot-worker.1
 
 Com frontend, antes do passo 2: build **no checkout principal**
 (`/home/chatwoot/chatwoot`), nunca dentro de worktree, onde o `pnpm exec vite
-build` entra em loop infinito. Depois do build, gerar os `.gz` (o nginx usa
+build` entra em loop infinito. Use heap 12288 (`NODE_OPTIONS
+'--max-old-space-size=12288'`): com 4096 essa base estoura OOM, e o OOM **não
+derruba o deploy**, o exit code vem mascarado e o precompile termina "com
+sucesso" sem ter gerado nada. Depois do build, gerar os `.gz` (o nginx usa
 `gzip_static` e o vite não gera).
+
+Para levar os assets sem copiar 1,1 GB: empacote só o que a build acabou de
+gerar, sem os `.map`, e extraia por cima na VM (sem `--delete`, para o entry
+antigo continuar servindo quem ainda não recarregou).
+
+```bash
+find public/vite -newermt '<AAAA-MM-DDTHH:MM:SS>' -type f ! -name '*.map' -print0 > /tmp/novos.list0
+tar -czf /tmp/assets.tgz --null -T /tmp/novos.list0   # ~19 MB, com o manifest dentro
+```
+
+Por fim, publique o `version.json` novo em cada VM. É ele que faz a aba aberta
+há dias recarregar sozinha (`autoUpdateHelper.js` compara a cada polling):
+
+```bash
+echo '{"version":"<sha10>","deployed_at":'$(date +%s)'}' \
+  | sudo -u chatwoot tee /home/chatwoot/chatwoot/public/version.json
+```
+
+### Três armadilhas de shell que custam 15 minutos cada
+
+1. **Só a AGN alcança o GitHub.** TOZI, CATATAU, SENTINELA e FABRICA respondem
+   `could not read Username` no `git fetch`. Por isso o pacote é a regra, não o
+   plano B. E o `fatal:` sai em **stderr**: um `&& echo OK` te engana.
+2. **`sudo -u chatwoot bash -c "..."` roda no diretório do `ubuntu`**, não no do
+   chatwoot. O sintoma é `fatal: not a git repository`, e parece problema de
+   permissão quando é só o `cd` faltando. Use `git -C /home/chatwoot/chatwoot`
+   ou ponha o `cd` **dentro** das aspas.
+3. **`source /usr/local/rvm/scripts/rvm` mata script não interativo.** Ele
+   encerra a shell na hora, sem imprimir nada, e devolve 1. Você vê saída vazia
+   e acha que o SSH falhou. Para ter o Ruby, chame `sudo -i -u chatwoot bash
+   /tmp/script.sh`, que já carrega o ambiente de login.
 
 ## Fase 5 — Provar que funcionou
 
