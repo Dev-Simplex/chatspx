@@ -126,6 +126,37 @@ describe ConversationFinder do
       end
     end
 
+    # Regressao: o auto-escopo por participacao usava `where(team_id: [...])`, que nunca casa
+    # com NULL, entao entrar num time fazia o agente PERDER de vista toda conversa sem time.
+    # Na FABRICA isso deixou os 23 agentes com a lista vazia. A camada de permissao ja liberava
+    # essas conversas (`team_id IN (?) OR team_id IS NULL`); quem as tirava era este filtro.
+    context 'when a non-admin agent belongs to a team' do
+      let(:team) { create(:team, account: account) }
+      let(:other_team) { create(:team, account: account) }
+      let!(:no_team_conversation) { create(:conversation, account: account, inbox: inbox) }
+      let!(:my_team_conversation) { create(:conversation, account: account, inbox: inbox, team: team) }
+      let!(:other_team_conversation) { create(:conversation, account: account, inbox: inbox, team: other_team) }
+      let(:params) { { status: 'all', assignee_type: 'all' } }
+
+      before { create(:team_member, user: user_1, team: team) }
+
+      it 'sees the conversations with no team and the ones from its own team' do
+        ids = conversation_finder.perform[:conversations].map(&:id)
+
+        expect(ids).to include(no_team_conversation.id)
+        expect(ids).to include(my_team_conversation.id)
+        expect(ids).not_to include(other_team_conversation.id)
+      end
+
+      it 'still excludes the teamless ones when the agent picks a team on the screen' do
+        # Escolher um time e filtrar de proposito: aqui sem time NAO entra, senao o filtro
+        # da tela deixaria de filtrar.
+        ids = described_class.new(user_1, params.merge(team_id: team.id)).perform[:conversations].map(&:id)
+
+        expect(ids).to contain_exactly(my_team_conversation.id)
+      end
+    end
+
     context 'with invalid team id' do
       let(:params) { { team_id: 'all' } }
 
@@ -348,23 +379,28 @@ describe ConversationFinder do
 
         before { account.update!(reply_assignment_gate: true) }
 
-        it 'lists only unassigned conversations from the user teams' do
+        # A fila esconde o time do COLEGA, nunca a conversa sem time: sem time e exatamente
+        # a que ninguem triou ainda, e escondê-la da fila esconde o lead novo de quem
+        # deveria pegar. Mesma regra da lista normal (ver filter_by_team). O `setup`
+        # externo ja traz 1 unassigned sem time, entao sao 2 sem time + 1 do team_a.
+        it 'lists the user teams queue plus the conversations with no team' do
           result = conversation_finder.perform
           ids = result[:conversations].map(&:id)
           expect(ids).to include(queue_team_a.id)
+          expect(ids).to include(queue_no_team.id)
           expect(ids).not_to include(queue_team_b.id)
-          expect(ids).not_to include(queue_no_team.id)
         end
 
-        it 'scopes the unassigned_count to the user teams' do
+        it 'scopes the unassigned_count to the user teams plus the teamless ones' do
           result = conversation_finder.perform
-          expect(result[:count][:unassigned_count]).to eq(1)
+          expect(result[:count][:unassigned_count]).to eq(3)
         end
 
         it 'ignores a team_id param pointing to a team the user does not belong to' do
           result = described_class.new(user_1, { assignee_type: 'unassigned', team_id: team_b.id }).perform
-          expect(result[:conversations].map(&:id)).to contain_exactly(queue_team_a.id)
-          expect(result[:count][:unassigned_count]).to eq(1)
+          expect(result[:conversations].map(&:id)).to include(queue_team_a.id)
+          expect(result[:conversations].map(&:id)).not_to include(queue_team_b.id)
+          expect(result[:count][:unassigned_count]).to eq(3)
         end
 
         it 'keeps the account-wide queue when the agent has no team' do
@@ -404,10 +440,10 @@ describe ConversationFinder do
       context 'with perform_counts_only (sidebar badge / endpoint meta)' do
         before { account.update!(reply_assignment_gate: true) }
 
-        it 'scopes unassigned_count to the user teams for a non-admin agent' do
+        it 'scopes unassigned_count to the user teams plus the teamless ones' do
           result = described_class.new(user_1, {}).perform_counts_only
-          # user_1 pertence só ao team_a → conta apenas a fila do team_a.
-          expect(result[:count][:unassigned_count]).to eq(1)
+          # user_1 pertence só ao team_a → team_a (1) + as sem time (2, uma do setup externo).
+          expect(result[:count][:unassigned_count]).to eq(3)
         end
 
         it 'matches the count the agent gets when opening the queue (list vs badge)' do

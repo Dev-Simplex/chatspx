@@ -316,10 +316,28 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     @conversations = @conversations.where(status: params[:status] || DEFAULT_STATUS)
   end
 
+  # `where(team_id: [...])` NUNCA casa com NULL, entao o auto-escopo por participacao apagava
+  # da lista toda conversa SEM time — justamente a que ainda nao passou pela triagem. A camada
+  # de permissao que roda LOGO ANTES deste filtro (PermissionFilterService#conversations_by_membership)
+  # ja declara a regra certa, `team_id IN (?) OR team_id IS NULL`: as duas se contradiziam e a
+  # de baixo vencia. Mesma leitura em ActiveAttendancesController#reachable?, que cai no inbox
+  # quando a conversa nao tem time.
+  #
+  # A assinatura de que era bug, e nao desenho: o filtro so liga para quem TEM time, entao
+  # entrar num time DIMINUIA o que o agente enxergava. Na FABRICA em 08/09/2026 os 23 agentes
+  # viam 0 de 32 conversas, porque nenhuma tinha time.
+  #
+  # A isencao vale so para o escopo IMPLICITO (participacao/supervisao, `@team` nil, incluindo a
+  # fila do F2). Quando o agente ESCOLHE um time no filtro da tela (`@team` presente), a conversa
+  # sem time continua fora — senao o filtro deixaria de filtrar.
   def filter_by_team
     return unless @team_ids.present? && @team_ids.any?
 
-    @conversations = @conversations.where(team_id: @team_ids)
+    @conversations = if @team.present?
+                       @conversations.where(team_id: @team_ids)
+                     else
+                       @conversations.where('conversations.team_id IS NULL OR conversations.team_id IN (?)', @team_ids)
+                     end
   end
 
   def filter_by_labels
