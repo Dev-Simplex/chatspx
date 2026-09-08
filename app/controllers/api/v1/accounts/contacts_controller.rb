@@ -2,6 +2,13 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
   include Sift
 
   WAHA_VALIDATION_SESSION_NAME = ENV.fetch('WAHA_DEFAULT_SESSION', nil).freeze
+  # Orcamento TOTAL da validacao no WhatsApp, folgado abaixo do Rack::Timeout (15s).
+  # O `read_timeout` do Net::HTTP e por LEITURA, nao pelo total: handshake, cabecalho e corpo
+  # podem somar mais que ele sem que nenhuma leitura sozinha estoure. Foi assim que uma sessao
+  # morta consumiu 14.995ms e virou 500, no lugar da mensagem amigavel que o codigo pretendia
+  # dar (ver o comentario de DEFAULT_TIMEOUT em Waha::ApiService). Um teto total e o unico
+  # jeito de a promessa daquele comentario valer de verdade.
+  WAHA_VALIDATION_BUDGET_SECONDS = 10
   REVALIDATION_COOLDOWN_SECONDS = 300
 
   sort_on :email, type: :string
@@ -246,13 +253,15 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
     sanitized_phone = normalize_phone_number_for_waha(permitted_params[:phone_number])
     return true if sanitized_phone.blank?
 
-    response = waha_service.check_contact_exists(session_name: resolve_waha_session_name, phone: sanitized_phone)
+    response = Timeout.timeout(WAHA_VALIDATION_BUDGET_SECONDS) do
+      waha_service.check_contact_exists(session_name: resolve_waha_session_name, phone: sanitized_phone)
+    end
     number_exists = response.fetch('numberExists') { response[:numberExists] }
     return true if number_exists
 
     render_error({ message: I18n.t('errors.contacts.whatsapp_validation.not_registered') }, :unprocessable_entity)
     false
-  rescue Waha::ApiService::Error
+  rescue Waha::ApiService::Error, Timeout::Error
     render_error({ message: I18n.t('errors.contacts.whatsapp_validation.unavailable') }, :unprocessable_entity)
     false
   rescue ArgumentError
@@ -271,7 +280,40 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
     return session_names.first if session_names.one?
     return WAHA_VALIDATION_SESSION_NAME if WAHA_VALIDATION_SESSION_NAME.present? && session_names.include?(WAHA_VALIDATION_SESSION_NAME)
 
-    session_names.first
+    # A escolha era `session_names.first`, ou seja, ORDEM ALFABETICA, sem olhar se a sessao
+    # esta viva. Na Realizare (5 sessoes, 4 WORKING) isso caia sempre na unica quebrada,
+    # `Realizare_adm`, e o `check-exists` levava 10s+ para devolver erro. Como o read_timeout
+    # do Net::HTTP e por LEITURA e nao total, o Rack::Timeout (15s) chegava primeiro e o
+    # agente via 500 ao criar contato. Medido em 08/09/2026: sessao morta 10,4s, sessao viva
+    # 0,49s.
+    working_waha_session(session_names) || session_names.first
+  end
+
+  # Primeira sessao da conta que a WAHA reporta como WORKING, na ordem em que o admin as ve.
+  # Uma chamada extra (~0,4s medidos) que evita uma espera de 10s+ na sessao morta.
+  # Erra para o lado de NAO travar: se a lista de sessoes falhar, devolve nil e o chamador
+  # segue com o comportamento antigo em vez de impedir a criacao do contato.
+  def working_waha_session(session_names)
+    vivas = waha_working_session_names
+    return nil if vivas.blank?
+
+    session_names.find { |nome| vivas.include?(nome) }
+  rescue Timeout::Error
+    raise # o teto total e do chamador; engolir aqui gastaria o orcamento e seguiria assim mesmo
+  rescue StandardError
+    nil
+  end
+
+  # Cache curto porque a tela cria contatos em rajada e o estado da sessao nao muda a cada
+  # segundo. TTL baixo para uma sessao que acabou de voltar nao ficar marcada como morta.
+  def waha_working_session_names
+    Rails.cache.fetch('waha:working_sessions', expires_in: 30.seconds) do
+      Array(waha_service.list_sessions).filter_map do |sessao|
+        nome = sessao['name'] || sessao[:name]
+        status = sessao['status'] || sessao[:status]
+        nome if status.to_s == 'WORKING'
+      end
+    end
   end
 
   def normalize_phone_number_for_waha(phone_number)
@@ -305,7 +347,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
   end
 
   def waha_service
-    @waha_service ||= Waha::ApiService.new
+    @waha_service ||= Waha::ApiService.new(timeout: 5)
   end
 
   def set_include_contact_inboxes
