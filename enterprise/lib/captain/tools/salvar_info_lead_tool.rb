@@ -6,12 +6,11 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
   CONTACT_NAME_KEY = 'nome_confirmado'.freeze
   MAX_NAME_LENGTH = 80
 
-  # Onde fica o contato que a pessoa informa quando o canal atual não alcança ela depois que a
-  # janela fecha. NÃO vai pra `contact.phone_number` de propósito: aquele campo tem unicidade
-  # por conta, então gravar ali faria o contato do canal sem retomada colidir com o cadastro que
-  # a mesma pessoa costuma ter no WhatsApp — merge silencioso ou erro de validação no meio do
-  # atendimento. Unir os dois cadastros é decisão de outra obra; aqui o que importa é não perder
-  # o número.
+  # O contato que a pessoa informa quando o canal atual não alcança ela depois que a janela
+  # fecha. Vai pro campo CANÔNICO (`contact.phone_number`) sempre que der: é ele que a tela de
+  # contato mostra, que a busca encontra e que a campanha alcança — guardar só num atributo
+  # solto deixaria o dado onde ninguém procura. O atributo fica junto como RASTRO da origem
+  # (informado pela pessoa no atendimento, não cadastrado pelo time).
   CONTACT_ALT_KEY = 'contato_alternativo'.freeze
   # Marca a conversa pro time achar quem deixou contato. Agnóstica de canal de propósito.
   ALT_LABEL = 'contato-alternativo'.freeze
@@ -109,22 +108,53 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
 
   # Guarda o contato que a pessoa deu e marca a conversa pro time. Só aceita o que de fato
   # PARECE um telefone: o modelo às vezes devolve a frase inteira em vez do número, e frase
-  # virando contato gera lista suja que ninguém consegue usar depois. Fora da faixa de dígitos
-  # não grava — campo vazio é melhor que número que não existe.
+  # virando contato gera lista suja que ninguém usa depois.
   def salvar_contato_alternativo(conversation, informado)
-    digitos = informado.to_s.gsub(/[^0-9]/, '')
-    return unless DIGITS_RANGE.cover?(digitos.length)
+    e164 = normalizar_para_e164(informado)
+    return if e164.blank?
 
     contact = conversation.contact
     return if contact.nil?
 
-    atuais = contact.custom_attributes || {}
-    return if atuais[CONTACT_ALT_KEY].to_s == digitos
-
-    contact.update!(custom_attributes: atuais.merge(CONTACT_ALT_KEY => digitos))
+    registrar_no_contato(contact, e164)
     conversation.add_labels((conversation.label_list + [ALT_LABEL]).uniq)
   rescue StandardError => e
     Rails.logger.warn("[SalvarInfoLeadTool] contato contact=#{conversation.contact_id}: #{e.message}")
+  end
+
+  # Duas guardas, e as duas protegem o cadastro contra o palpite de UM turno:
+  # 1. nunca sobrescreve telefone que já existe — o que o time cadastrou vale mais;
+  # 2. nunca toma número de outro contato. `phone_number` tem unicidade por conta, então
+  #    gravar um número que já é de alguém levantaria RecordInvalid no meio do atendimento —
+  #    e, mais importante, colisão ali não é falha: significa que a pessoa JÁ é alcançável pelo
+  #    cadastro que existe. O que falta é unir os dois, e isso é decisão humana.
+  # Nos dois casos o número fica gravado no atributo, então nada se perde.
+  def registrar_no_contato(contact, e164)
+    atuais = contact.custom_attributes || {}
+    novos = atuais.merge(CONTACT_ALT_KEY => e164)
+
+    if contact.phone_number.blank? && !numero_de_outro_contato?(contact, e164)
+      contact.update!(phone_number: e164, custom_attributes: novos)
+    elsif atuais[CONTACT_ALT_KEY].to_s != e164
+      contact.update!(custom_attributes: novos)
+    end
+  end
+
+  def numero_de_outro_contato?(contact, e164)
+    Contact.where(account_id: contact.account_id, phone_number: e164).where.not(id: contact.id).exists?
+  end
+
+  # `phone_number` exige E.164, e o callback do Contact REVERTE em silencio o que nao casar
+  # com o formato. Reusa o normalizador de BR que o produto ja tem (ele poe o nono digito em
+  # celular antigo e deixa fixo em paz).
+  def normalizar_para_e164(informado)
+    digitos = informado.to_s.gsub(/[^0-9]/, "")
+    return unless DIGITS_RANGE.cover?(digitos.length)
+
+    digitos = digitos.delete_prefix("55") if digitos.length > 11 && digitos.start_with?("55")
+    return unless (10..11).cover?(digitos.length)
+
+    Contacts::BrazilPhoneNormalizer.normalize("+55#{digitos}")
   end
 
   # "lixo" chega como prioridade mas É status: rotear pra nao_qualificado (que já cancela
