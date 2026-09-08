@@ -427,6 +427,88 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     end
   end
 
+  # Conv 33632 (07/09): a cliente colou "Casa Portal do Servidor" de um portal, a busca por
+  # TituloSite não achou e a IA respondeu que o anúncio "pode ser de outra imobiliária" — sobre
+  # o 9819, que é da Tozi. O título de portal é "Categoria + Bairro" (a mesma composição da URL
+  # do site), e 23 dos 50 imóveis de locação estão com TituloSite VAZIO, o 9819 entre eles.
+  describe 'título de portal que não casa com o cadastro' do
+    it 'splits the category off the front of the title' do
+      expect(tool.send(:decompor_titulo, 'Casa Portal do Servidor')).to eq(['Casa', 'Portal Servidor'])
+    end
+
+    it 'matches the longest category first, so a compound one is not cut short' do
+      categoria, = tool.send(:decompor_titulo, 'Conjunto de Kitnets Jardim Itália')
+
+      expect(categoria).to eq('Conjunto de Kitnets')
+    end
+
+    it 'leaves the title alone when it opens with no known category' do
+      expect(tool.send(:decompor_titulo, 'Portal do Servidor')).to eq([nil, 'Portal Servidor'])
+    end
+
+    # Sem a fronteira de palavra, o "na" do conectivo é removido de dentro de Canadá e o bairro
+    # vira "Cadá" — o termo deixa de casar e o imóvel some.
+    it 'strips connectives as whole words, never inside a neighbourhood name' do
+      _, resto = tool.send(:decompor_titulo, 'CASA - RES. CANADÁ')
+
+      expect(resto).to eq('CANADÁ')
+    end
+
+    it 'offers the neighbourhood from the end first, shortening from the left' do
+      expect(tool.send(:candidatos_de_bairro, 'PISCINA JARDIM IMPERIAL'))
+        .to eq(['PISCINA JARDIM IMPERIAL', 'JARDIM IMPERIAL', 'IMPERIAL'])
+    end
+
+    it 'drops one-letter fragments that would match half the base' do
+      expect(tool.send(:candidatos_de_bairro, 'a JARDIM IMPERIAL')).not_to include('a JARDIM IMPERIAL')
+    end
+
+    # A explicação que a IA repetiu ao cliente era a menos provável das duas.
+    it 'stops leading with the other-agency explanation' do
+      texto = tool.send(:titulo_sem_correspondencia, 'Casa Portal do Servidor')
+
+      expect(texto).to match(/cadastrado sem título/i)
+      expect(texto).to match(/MENOS prov[áa]vel/i)
+      expect(texto).to match(/N[ÃA]O conclua/i)
+    end
+  end
+
+  # O campo Condominio é preenchido à mão e erra: medido no acervo em 08/09, 9 dos 50 imóveis
+  # de locação cobram taxa E estão marcados como avulsos, contra 4 marcados "Sim". Na conv
+  # 33632 a IA leu "avulso" no 9819 e mandou a cliente retirar a chave para visitar sozinha um
+  # imóvel que fica em condomínio fechado.
+  describe 'quando o cadastro de condomínio se contradiz' do
+    it 'still calls it avulso when there is no fee at all' do
+      im = { 'Condominio' => 'Nao', 'ValorCondominio' => '0' }
+
+      expect(tool.send(:format_condominio, im)).to include('AVULSO')
+    end
+
+    it 'refuses to call it avulso when it charges a condo fee' do
+      im = { 'Condominio' => 'Nao', 'ValorCondominio' => '350' }
+
+      expect(tool.send(:format_condominio, im)).not_to include('AVULSO')
+      expect(tool.send(:format_condominio, im)).to include('INDEFINIDO')
+    end
+
+    # O dano da 33632 não foi o rótulo, foi o que ele autorizou.
+    it 'blocks the self-service key pickup while it is undefined' do
+      im = { 'Condominio' => 'Nao', 'ValorCondominio' => '350' }
+
+      expect(tool.send(:format_condominio, im)).to match(/N[ÃA]O ofereça a retirada de/i)
+    end
+
+    it 'keeps trusting the field when it says yes' do
+      im = { 'Condominio' => 'Sim', 'ValorCondominio' => '350' }
+
+      expect(tool.send(:format_condominio, im)).to eq(' [EM CONDOMÍNIO FECHADO]')
+    end
+
+    it 'stays silent when the field has no answer' do
+      expect(tool.send(:format_condominio, { 'Condominio' => '', 'ValorCondominio' => '350' })).to eq('')
+    end
+  end
+
   describe 'o teto de paginação' do
     it 'never asks the Vista for more than the API accepts' do
       expect(described_class::TETO_INSPECAO).to be <= 50

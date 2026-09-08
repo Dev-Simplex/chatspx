@@ -55,6 +55,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # o ramo `mobiliado` nunca funcionou (era o "Conferi 0 imóvel(is)" que aparecia mesmo com
   # acervo cheio), e quando este valor passou a valer para a busca comum ele derrubou TODA
   # busca de imóvel em produção. Não subir sem antes conferir o limite da API.
+  # Categorias como o Vista as escreve — conferidas no acervo em 08/09 (Terreno 38, Casa 31,
+  # Kitnet 17, Apartamento 8, Chácara 3, e os três de unidade única). Servem só para reconhecer
+  # a palavra no COMEÇO de um título de portal; não são filtro de busca. As compostas vêm
+  # primeiro: "Conjunto de Kitnets" tem que casar antes de "Kitnet".
+  CATEGORIAS_TITULO = ['Conjunto de Kitnets', 'Galpão Industrial', 'Ponto Comercial', 'Apartamento',
+                       'Chácara', 'Kitnet', 'Terreno', 'Casa'].freeze
+
   TETO_INSPECAO = 50
 
   # Quantos imóveis a resposta APRESENTA. É diferente de quantos ela conhece: o cliente não
@@ -129,7 +136,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       # que o cliente viu pode ser de OUTRA imobiliária no mesmo portal. Sem isso o retorno
       # genérico faz a IA concluir que o acervo está vazio — e foi o que aconteceu quando ela
       # respondeu que não havia apartamento nenhum tendo 17 no cadastro.
-      return titulo_sem_correspondencia(titulo) if titulo.present?
+      if titulo.present?
+        por_partes = buscar_pelo_titulo_decomposto(tool_context, titulo, filter, venda)
+        return por_partes if por_partes.present?
+
+        return titulo_sem_correspondencia(titulo)
+      end
 
       # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
@@ -471,14 +483,103 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     rodape_parcial(mostrados, total)
   end
 
+  # O título que o cliente traz de um portal quase nunca é o `TituloSite` do cadastro: é o nome
+  # que o portal MONTA, e ele é "Categoria + Bairro" — a mesma composição da URL do site da
+  # Tozi (`casa-portal-do-servidor-sinop-9819`). Medido nas 13 buscas por título de 30 dias:
+  # 9 não acharam, e as 9 seguem esse formato ("Casa Portal do Servidor", "Kitnet Jardim Terra
+  # Rica", "CASA - RES. CANADÁ", "APARTAMENTO SONHALTO VIDEIRA"); as 4 que acharam eram o
+  # TituloSite literal ("Kit net nova no Bairro Residencial Paris").
+  #
+  # Some-se que o campo é opcional e a Tozi não o preenche: 23 dos 50 imóveis de locação estão
+  # com `TituloSite` VAZIO — inclusive o 9819, o imóvel desta conversa. Buscar só por ele
+  # deixava a IA dizer que o anúncio "pode ser de outra imobiliária" sobre casa da própria casa.
+  #
+  # Aqui o título é desmontado e re-buscado por categoria + bairro. O bairro tende a ficar no
+  # FIM, então o resto é tentado inteiro e depois encurtando pela esquerda — "CASA COM PISCINA
+  # NO JARDIM IMPERIAL" só casa nos dois últimos termos, "CASA - RES. CANADÁ" só no último.
+  def buscar_pelo_titulo_decomposto(tool_context, titulo, filter, venda)
+    categoria, resto = decompor_titulo(titulo)
+    return if resto.blank? && categoria.blank?
+
+    imoveis = primeira_busca_que_acha(filter, categoria, resto, venda)
+    return if imoveis.blank?
+
+    track_codigos(tool_context, imoveis)
+    format_listings(tool_context, imoveis, venda, header: header_por_titulo(titulo, imoveis))
+  end
+
+  # Duas passadas: primeiro exigindo a categoria, depois só o bairro. A segunda existe porque
+  # o portal erra o tipo — "Kitnet Jardim Terra Rica" é o que o anúncio diz, e no Terra Rica só
+  # há casa e terreno; mostrar os dois vale mais que negar o imóvel por causa do rótulo.
+  #
+  # NÃO existe terceira passada só com a categoria. Ela foi medida e descartada: sem bairro,
+  # "CASA COM PISCINA NO JARDIM IMPERIAL" trazia 28 casas do acervo inteiro sob um cabeçalho
+  # dizendo que o anúncio provavelmente era uma delas. Devolver o acervo é pior que dizer que
+  # não achou.
+  def primeira_busca_que_acha(filter, categoria, resto, venda)
+    base = filter.except('TituloSite', 'Bairro', 'Categoria')
+    termos = candidatos_de_bairro(resto)
+
+    [categoria, nil].uniq.each do |cat|
+      com_cat = cat.present? ? base.merge('Categoria' => cat) : base
+      termos.each do |termo|
+        achados = fetch_vista(com_cat.merge('Bairro' => ['like', "%#{termo}%"]),
+                              quantidade: TETO_INSPECAO, venda: venda)
+        return achados if achados.present?
+      end
+    end
+    []
+  end
+
+  # "PISCINA JARDIM IMPERIAL" -> [a frase inteira, "JARDIM IMPERIAL", "IMPERIAL"]. Termo de uma
+  # letra só não entra: casaria com meio acervo.
+  def candidatos_de_bairro(resto)
+    tokens = resto.to_s.split(/\s+/).reject { |p| p.length < 2 }
+    return [] if tokens.empty?
+
+    tokens.size.times.map { |i| tokens[i..].join(' ') }.reject(&:blank?).uniq
+  end
+
+  # A categoria vem no COMEÇO do título e é conferida contra a lista real do acervo, nunca
+  # adivinhada. Pontuação e conectivo de sobra ("- RES.", "NO", "EM") saem do resto, senão o
+  # `like` procura por eles dentro do nome do bairro e não acha nada.
+  #
+  # O `\b` nos conectivos NÃO é decoração: sem a fronteira de palavra, "na" seria removido de
+  # dentro de "Canadá" e o bairro viraria "Cadá".
+  def decompor_titulo(titulo)
+    limpo = titulo.to_s.tr('-–—/|', ' ').squeeze(' ').strip
+    categoria = CATEGORIAS_TITULO.find { |c| limpo.match?(/\A#{Regexp.escape(c)}\b/i) }
+    resto = categoria ? limpo.sub(/\A#{Regexp.escape(categoria)}\b/i, '') : limpo
+    [categoria, sem_conectivos(resto)]
+  end
+
+  def sem_conectivos(resto)
+    resto.gsub(/\b(no|na|em|de|do|da|res\.?|residencial|bairro|com)\b/i, ' ').squeeze(' ').strip
+  end
+
+  def header_por_titulo(titulo, imoveis)
+    quantos = imoveis.size == 1 ? 'apareceu 1 imóvel' : "apareceram #{imoveis.size} imóveis"
+    "Pelo título \"#{titulo}\" o cadastro não tinha nada, mas buscando pelo tipo e bairro que " \
+      "ele descreve #{quantos}. É provável que o anúncio seja de um destes — confirme com o " \
+      'cliente pelas características antes de tratar como o mesmo imóvel, e NÃO diga que o ' \
+      'anúncio é de outra imobiliária.'
+  end
+
   # Estado explícito, como o sem_mobiliado: a busca ACONTECEU e não achou aquele anúncio.
   # O que NÃO se pode concluir daqui é que não há imóvel — só que não há esse.
+  # A ordem das explicações importa e estava invertida. "Pode ser de outra imobiliária" vinha
+  # primeiro, e a IA repetia isso ao cliente como se fosse a conclusão — inclusive sobre imóvel
+  # da própria Tozi (conv 33632). A causa mais comum é bem mais simples: o título é um campo
+  # opcional que a Tozi não preenche, e 23 dos 50 imóveis de locação estão com ele VAZIO. Um
+  # imóvel sem título cadastrado nunca casa aqui, exista ou não.
   def titulo_sem_correspondencia(titulo)
-    "Não achei no nosso cadastro nenhum imóvel com o título \"#{titulo}\". Em portal de anúncios " \
-      'aparecem imóveis de várias imobiliárias, então esse anúncio pode não ser nosso. Diga isso ao ' \
-      'cliente com naturalidade e ofereça procurar pelo que ele quer: pergunte o tipo de imóvel, se é ' \
-      'pra alugar ou comprar, o bairro e a faixa de valor, e busque de novo por esses critérios. ' \
-      'NÃO conclua que não temos imóveis — esta busca foi só pelo título.'
+    "A busca pelo título \"#{titulo}\" não casou com nada, nem por tipo e bairro. Isso quase " \
+      'sempre quer dizer que o imóvel está cadastrado sem título, não que ele não exista — ' \
+      'metade do acervo de locação está assim. Pode ser também anúncio de outra imobiliária no ' \
+      'mesmo portal, mas essa é a hipótese MENOS provável e você NÃO deve apresentá-la ao ' \
+      'cliente como explicação. Peça a ele o que caracteriza o imóvel — tipo, bairro, faixa de ' \
+      'valor, se é aluguel ou compra — e busque de novo por esses critérios. NÃO conclua nem ' \
+      'diga que não temos o imóvel: esta busca foi só pelo nome do anúncio.'
   end
 
   def rodape_fechado(total)
@@ -551,12 +652,34 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # no rótulo negativo é mantida de propósito: sem ela, volta a colisão com a TAXA
   # ("taxa de condomínio R$ 300") que o PR #75 tratou, em que o modelo usava o valor da taxa
   # como prova do fato.
+  # Terceiro estado: o cadastro se CONTRADIZ, e aí não dá para afirmar nenhum dos dois.
+  #
+  # O campo `Condominio` é preenchido à mão e erra. Medido no acervo em 08/09: 9 dos 50 imóveis
+  # de locação cobram taxa de condomínio E estão marcados como avulsos — contra apenas 4
+  # marcados "Sim". A contradição é mais comum que a afirmação positiva.
+  #
+  # O que a conv 33632 mostrou: o 9819 é `Condominio: "Nao"` com `ValorCondominio: 350`, e a
+  # Tozi confirma que ele FICA em condomínio fechado. A IA leu o rótulo certo, disse "é avulso"
+  # e mandou a cliente buscar a chave no escritório para visitar sozinha — num imóvel onde isso
+  # não funciona. Errar para o lado do avulso manda a pessoa a uma porta que não abre.
+  #
+  # A decisão do PR #75 continua valendo onde ela foi medida: a taxa sozinha NÃO prova
+  # condomínio, e imóvel avulso pode ter taxa. O que muda aqui é só o caso em que os dois
+  # sinais se contradizem — que deixa de virar afirmação e passa a pedir confirmação humana.
   def format_condominio(imovel)
     case imovel['Condominio'].to_s.strip.downcase
     when 'sim' then ' [EM CONDOMÍNIO FECHADO]'
-    when 'nao', 'não' then ' [AVULSO — fora de condomínio fechado]'
+    when 'nao', 'não' then avulso_ou_indefinido(imovel)
     else ''
     end
+  end
+
+  def avulso_ou_indefinido(imovel)
+    return ' [AVULSO — fora de condomínio fechado]' unless imovel['ValorCondominio'].to_f.positive?
+
+    ' [CONDOMÍNIO INDEFINIDO: o cadastro diz avulso mas cobra taxa de condomínio, e um dos dois ' \
+      'está errado. NÃO afirme que é avulso nem que é em condomínio, e NÃO ofereça a retirada de ' \
+      'chave para visita por conta própria — diga que o consultor confirma isso antes da visita]'
   end
 
   # Área/metragem em m²: AreaTotal é a metragem do terreno/lote (essencial pra terreno);
