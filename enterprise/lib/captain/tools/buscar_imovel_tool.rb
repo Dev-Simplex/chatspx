@@ -678,12 +678,18 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     end
   end
 
+  # O texto MANDA acionar o handoff em vez de só proibir as duas ofertas: medido com N=3, a
+  # proibição sozinha tirou a chave (3/3 -> 0/3) mas empurrou a IA para o outro extremo — ela
+  # ofereceu agendar a visita, que é o caminho do condomínio. Sem uma terceira rota explícita
+  # ela escolhe um dos dois lados, e escolher é justamente o que não pode.
   def avulso_ou_indefinido(imovel)
     return ' [AVULSO — fora de condomínio fechado]' unless imovel['ValorCondominio'].to_f.positive?
 
     ' [CONDOMÍNIO INDEFINIDO: o cadastro diz avulso mas cobra taxa de condomínio, e um dos dois ' \
-      'está errado. NÃO afirme que é avulso nem que é em condomínio, e NÃO ofereça a retirada de ' \
-      'chave para visita por conta própria — diga que o consultor confirma isso antes da visita]'
+      'está errado. As duas formas de visita dependem disso — chave retirada no escritório se for ' \
+      'avulso, agendamento com consultor se for condomínio —, então não dá para oferecer nenhuma ' \
+      'das duas. Diga que vai confirmar como funciona a visita DESTE imóvel e ACIONE o handoff; ' \
+      'o resto do atendimento segue normal]'
   end
 
   # Área/metragem em m²: AreaTotal é a metragem do terreno/lote (essencial pra terreno);

@@ -507,11 +507,15 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(tool.send(:format_condominio, im)).to include('INDEFINIDO')
     end
 
-    # O dano da 33632 não foi o rótulo, foi o que ele autorizou.
-    it 'blocks the self-service key pickup while it is undefined' do
-      im = { 'Condominio' => 'Nao', 'ValorCondominio' => '350' }
+    # O dano da 33632 não foi o rótulo, foi o que ele autorizou: a cliente foi mandada retirar
+    # a chave de um imóvel em condomínio. O rótulo tem que barrar as DUAS rotas de visita e
+    # mandar acionar o handoff — proibir sem dar rota fez a IA escolher a outra ponta
+    # (medido: a chave saiu, mas ela passou a oferecer agendamento).
+    it 'blocks both visit routes and hands the case over' do
+      texto = tool.send(:format_condominio, { 'Condominio' => 'Nao', 'ValorCondominio' => '350' })
 
-      expect(tool.send(:format_condominio, im)).to match(/N[ÃA]O ofereça a retirada de/i)
+      expect(texto).to match(/n[ãa]o d[áa] para oferecer nenhuma das duas/i)
+      expect(texto).to match(/ACIONE o handoff/i)
     end
 
     it 'keeps trusting the field when it says yes' do
