@@ -63,6 +63,40 @@ RSpec.describe DeleteObjectJob, type: :job do
       end
     end
 
+    # Regressao: as quatro tabelas abaixo nasceram com FK RESTRICT e sem `dependent:`,
+    # entao qualquer conversa tocada pela IA ou por um flow travava a exclusao da caixa.
+    # Como o job roda em background, a API respondia 200 "excluida" e a caixa voltava no
+    # proximo reload (visto na FABRICA em 08/09/2026). Ver migration 20260908120000.
+    context 'when the conversation carries AI and flow trails' do
+      let!(:account) { create(:account) }
+      let!(:inbox) { create(:inbox, account: account) }
+      let!(:conversation) { create(:conversation, account: account, inbox: inbox) }
+      let!(:flow) { create(:flow, account: account) }
+
+      before do
+        Captain::AssistantLog.create!(
+          captain_assistant: create(:captain_assistant, account: account),
+          conversation: conversation,
+          event_type: 'response'
+        )
+        create(:flow_run, flow: flow, account: account, conversation: conversation, contact: conversation.contact)
+        create(:flow_step_log, flow: flow, account: account, conversation: conversation)
+        create(:message_sequence_enrollment, conversation: conversation,
+                                             message_sequence: create(:message_sequence, account: account))
+      end
+
+      it 'destroys the inbox instead of dying on a foreign key' do
+        expect { described_class.perform_now('Inbox', inbox.id) }.not_to raise_error
+
+        expect(Inbox.where(id: inbox.id)).to be_empty
+        expect(Conversation.where(id: conversation.id)).to be_empty
+        expect(Captain::AssistantLog.where(conversation_id: conversation.id)).to be_empty
+        expect(FlowRun.where(conversation_id: conversation.id)).to be_empty
+        expect(FlowStepLog.where(conversation_id: conversation.id)).to be_empty
+        expect(MessageSequenceEnrollment.where(conversation_id: conversation.id)).to be_empty
+      end
+    end
+
     context 'when object is regular (Label)' do
       it 'just destroys the object' do
         label = create(:label)

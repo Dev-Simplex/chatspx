@@ -193,6 +193,14 @@ class Conversation < ApplicationRecord
   has_many :reporting_events, dependent: :destroy_async
   has_many :funnel_items, dependent: :destroy
   has_many :scheduled_messages, dependent: :destroy_async
+  # Filhos que nasceram sem `dependent:` e com FK RESTRICT no banco: a conversa ficava
+  # indestrutivel e a exclusao de caixa/contato/conta morria no DeleteObjectJob.
+  # A migration 20260908120000 poe CASCADE no banco; aqui garantimos a limpeza pelo
+  # ActiveRecord tambem, para nao depender so do Postgres. `delete_all` porque nenhum
+  # dos tres tem callback de destroy.
+  has_many :flow_runs, dependent: :delete_all
+  has_many :flow_step_logs, dependent: :delete_all
+  has_many :message_sequence_enrollments, dependent: :delete_all
 
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status

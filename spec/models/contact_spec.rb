@@ -196,4 +196,31 @@ RSpec.describe Contact do
       end
     end
   end
+
+  # Regressao gemea da que esta em spec/jobs/delete_object_job_spec.rb, e a que de fato
+  # cobre o CASCADE do banco: aqui a conversa NAO e destruida pelo ActiveRecord. Contact
+  # tem `has_many :conversations, dependent: :destroy_async`, entao a linha do contato sai
+  # na hora e quem apaga a conversa e o Postgres, pela FK. Com a FK em RESTRICT nos filhos
+  # da conversa, isso virava um 500 na tela de contatos. Ver migration 20260908120000.
+  describe 'destroying a contact whose conversation carries AI trails' do
+    let!(:account) { create(:account) }
+    let!(:contact) { create(:contact, account: account) }
+    let!(:conversation) { create(:conversation, account: account, contact: contact) }
+
+    before do
+      Captain::AssistantLog.create!(
+        captain_assistant: create(:captain_assistant, account: account),
+        conversation: conversation,
+        event_type: 'response'
+      )
+    end
+
+    it 'does not blow up on a foreign key' do
+      expect { contact.destroy! }.not_to raise_error
+
+      expect(described_class.where(id: contact.id)).to be_empty
+      expect(Conversation.where(id: conversation.id)).to be_empty
+      expect(Captain::AssistantLog.where(conversation_id: conversation.id)).to be_empty
+    end
+  end
 end

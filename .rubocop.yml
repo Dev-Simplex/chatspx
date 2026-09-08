@@ -92,6 +92,7 @@ Metrics/ModuleLength:
     - lib/seeders/message_seeder.rb
     - spec/support/slack_stubs.rb
     - 'app/helpers/reports/pdf_chart_helper.rb'
+    - 'enterprise/app/models/enterprise/concerns/conversation.rb'
 
 Rails/HelperInstanceVariable:
   Exclude:
