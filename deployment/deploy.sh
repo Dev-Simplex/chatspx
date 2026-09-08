@@ -27,12 +27,16 @@ CWCTL_URL="https://raw.githubusercontent.com/Dev-Simplex/chatspx/${BRANCH}/deplo
 # Lista de VMs: nome|ip|tipo(aws|local)|usuario
 VMS=(
   "PRODUCAO|local|local|chatwoot"
+  "TOZI|3.94.9.51|aws|ubuntu"
   "CATATAU|3.85.130.14|aws|ubuntu"
-  "SENTINELA|54.152.144.236|aws|ubuntu"
-  # TOZI (3.94.9.51, conta 6, cliente real) fica FORA do array de proposito:
-  # nao tem credencial GitHub -> cwctl/git pull falham. Deploy dela e por git bundle
-  # manual (+ swap p/ OOM). Ver plano/prompt-deploy-frota-completo.md, secao TOZI.
-  "ALTERNATIVO|192.168.8.169|local|simplexia"  # Fora do fan-out por ora (descomentar p/ incluir)
+  "SENTINELA|54.166.220.138|aws|ubuntu"
+  "FABRICA|3.87.182.184|aws|ubuntu"
+  "AGN|13.221.167.143|aws|ubuntu"
+  # TOZI e CLIENTE REAL (conta 6): deploy e restart so com OK explicito.
+  # O IP dela NAO e Elastic e ja mudou num stop/start da AWS (era 3.82.215.109).
+  # Se der "sem resposta", confira o console EC2 antes de concluir que caiu.
+  # ALTERNATIVO (192.168.8.169) foi DESATIVADO — a maquina nao existe mais.
+  # Removido do fan-out em 08/09/2026; se voltar, cadastre com o endereco novo.
 )
 
 RED='\033[0;31m'
