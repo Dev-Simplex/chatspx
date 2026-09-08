@@ -6,6 +6,18 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
   CONTACT_NAME_KEY = 'nome_confirmado'.freeze
   MAX_NAME_LENGTH = 80
 
+  # Onde fica o contato que a pessoa informa quando o canal atual não alcança ela depois que a
+  # janela fecha. NÃO vai pra `contact.phone_number` de propósito: aquele campo tem unicidade
+  # por conta, então gravar ali faria o contato do canal sem retomada colidir com o cadastro que
+  # a mesma pessoa costuma ter no WhatsApp — merge silencioso ou erro de validação no meio do
+  # atendimento. Unir os dois cadastros é decisão de outra obra; aqui o que importa é não perder
+  # o número.
+  CONTACT_ALT_KEY = 'contato_alternativo'.freeze
+  # Marca a conversa pro time achar quem deixou contato. Agnóstica de canal de propósito.
+  ALT_LABEL = 'contato-alternativo'.freeze
+  # Faixa de dígitos de um telefone brasileiro plausível, com ou sem DDI e com ou sem o 9.
+  DIGITS_RANGE = (10..13).freeze
+
   # Prioridade é dimensão NOVA e ortogonal ao status: mede chance de aprovação de
   # crédito, não estágio do lead. Um lead pode ser `qualificado` + `morno`.
   PRIORIDADES = %w[quente morno frio].freeze
@@ -54,6 +66,13 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
               'Só o que ele disse; vazio se ele não apontou nenhum.',
         required: false
 
+  param :contato_alternativo,
+        type: 'string',
+        desc: 'O contato que a própria pessoa informou NESTA conversa pra ser encontrada em outro canal. ' \
+              'Copie os dígitos exatamente como ela escreveu, sem completar, corrigir nem deduzir nada. ' \
+              'Vazio se ela não informou nenhum.',
+        required: false
+
   # **args em vez de 9 keywords nomeadas: o schema que o LLM enxerga vem do DSL `param`
   # acima, não da assinatura.
   def perform(tool_context, **args)
@@ -82,9 +101,30 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
 
   def aplicar_efeitos(conversation, args, prioridade, status)
     salvar_nome_do_cliente(conversation, args[:nome_cliente])
+    salvar_contato_alternativo(conversation, args[:contato_alternativo])
     move_funnel_by_status(conversation, status)
     aplicar_label_de_prioridade(conversation, prioridade)
     mark_followup(conversation) if args[:precisa_followup]
+  end
+
+  # Guarda o contato que a pessoa deu e marca a conversa pro time. Só aceita o que de fato
+  # PARECE um telefone: o modelo às vezes devolve a frase inteira em vez do número, e frase
+  # virando contato gera lista suja que ninguém consegue usar depois. Fora da faixa de dígitos
+  # não grava — campo vazio é melhor que número que não existe.
+  def salvar_contato_alternativo(conversation, informado)
+    digitos = informado.to_s.gsub(/[^0-9]/, '')
+    return unless DIGITS_RANGE.cover?(digitos.length)
+
+    contact = conversation.contact
+    return if contact.nil?
+
+    atuais = contact.custom_attributes || {}
+    return if atuais[CONTACT_ALT_KEY].to_s == digitos
+
+    contact.update!(custom_attributes: atuais.merge(CONTACT_ALT_KEY => digitos))
+    conversation.add_labels((conversation.label_list + [ALT_LABEL]).uniq)
+  rescue StandardError => e
+    Rails.logger.warn("[SalvarInfoLeadTool] contato contact=#{conversation.contact_id}: #{e.message}")
   end
 
   # "lixo" chega como prioridade mas É status: rotear pra nao_qualificado (que já cancela
