@@ -106,7 +106,7 @@
         "HELP": "A linha de WhatsApp desta filial. Uma caixa pertence a no máximo uma unidade.",
         "APPLIES": {
           "LABEL": "Aplicar esta agenda às caixas de entrada",
-          "HELP": "Ligado, o feriado ou a parada desta unidade fecha as caixas acima no dia, e a mensagem de ausência entra sozinha. Desligado, a agenda é só informativa."
+          "HELP": "Faz o feriado ou evento desta unidade valer nas caixas marcadas, em vez de ficar só registrado na agenda: no dia da regra, ela substitui o horário comercial de cada caixa e a mensagem de ausência responde sozinha. Desligado, a agenda continua aparecendo na lista de unidades e no lembrete, mas não muda o atendimento."
         },
         "EMPTY": "Esta conta ainda não tem caixa de entrada."
       },
