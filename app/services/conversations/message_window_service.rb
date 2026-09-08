@@ -12,6 +12,20 @@ class Conversations::MessageWindowService
     last_message_in_messaging_window?(messaging_window)
   end
 
+  # Quantas horas faltam pra janela do canal fechar, arredondado em 1 casa. `nil` quando nao ha
+  # o que correr atras: canal sem janela, conversa sem fala do cliente, ou janela ja vencida.
+  # Deriva do MESMO `messaging_window` do `can_reply?` de proposito — se a janela do canal mudar
+  # (a flag de 7 dias do Instagram, por exemplo), a conta regressiva acompanha sozinha.
+  def hours_remaining
+    window = messaging_window
+    return if window.blank? || last_incoming_message.nil?
+
+    remaining = (last_incoming_message.created_at + window) - Time.current
+    return if remaining <= 0
+
+    (remaining / 1.hour.to_f).round(1)
+  end
+
   private
 
   def messaging_window

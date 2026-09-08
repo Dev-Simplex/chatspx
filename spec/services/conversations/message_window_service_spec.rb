@@ -740,4 +740,59 @@ RSpec.describe Conversations::MessageWindowService do
       end
     end
   end
+  # Conta regressiva da janela. Ela alimenta o bloco volatil do prompt ("faltam Xh"), que so
+  # existe em canal sem retomada — no Instagram, perder a janela e irreversivel.
+  describe '#hours_remaining' do
+    let!(:instagram_channel) { create(:channel_instagram) }
+
+    def conversa_com_incoming(idade)
+      conversation = create(:conversation, inbox: instagram_channel.inbox)
+      create(:message, account: conversation.account, inbox: instagram_channel.inbox,
+                       conversation: conversation, message_type: :incoming, created_at: idade)
+      conversation
+    end
+
+    it 'devolve as horas que faltam pra janela de 24h fechar' do
+      service = described_class.new(conversa_com_incoming(4.hours.ago))
+
+      expect(service.hours_remaining).to be_within(0.2).of(20.0)
+    end
+
+    # Janela vencida nao vira numero negativo: nao ha mais o que correr atras, e o bloco do
+    # prompt precisa sumir em vez de anunciar prazo estourado.
+    it 'devolve nil quando a janela ja fechou' do
+      service = described_class.new(conversa_com_incoming(30.hours.ago))
+
+      expect(service.hours_remaining).to be_nil
+    end
+
+    it 'devolve nil quando o cliente nunca falou' do
+      conversation = create(:conversation, inbox: instagram_channel.inbox)
+
+      expect(described_class.new(conversation).hours_remaining).to be_nil
+    end
+
+    # Canal sem janela nenhuma (Api sem agent_reply_time_window) nao tem contagem regressiva.
+    it 'devolve nil em canal sem janela' do
+      api_channel = create(:channel_api, additional_attributes: {})
+      conversation = create(:conversation, inbox: api_channel.inbox)
+      create(:message, account: conversation.account, inbox: api_channel.inbox,
+                       conversation: conversation, message_type: :incoming, created_at: 3.hours.ago)
+
+      expect(described_class.new(conversation).hours_remaining).to be_nil
+    end
+  end
+
+  # A capacidade que decide se o agente precisa buscar um canal alcancavel antes de a conversa
+  # esfriar. Verdadeiro por padrao: errar pro false poe conduta nova em canal que nao precisa.
+  describe 'supports_reengagement?' do
+    it 'e falso no Instagram, que nao tem template nem tag aprovada pra reabrir' do
+      expect(create(:channel_instagram).supports_reengagement?).to be false
+    end
+
+    it 'e verdadeiro no WhatsApp, que reabre por template' do
+      expect(create(:channel_whatsapp, sync_templates: false, validate_provider_config: false)
+        .supports_reengagement?).to be true
+    end
+  end
 end

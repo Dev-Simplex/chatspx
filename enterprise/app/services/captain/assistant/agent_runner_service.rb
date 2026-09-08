@@ -226,6 +226,10 @@ class Captain::Assistant::AgentRunnerService
     state[:conversation][:custom_attributes] = sem_maquinario(state[:conversation][:custom_attributes])
     state[:channel_type] = @conversation.inbox&.channel_type
     state[:channel_number] = channel_number
+    state[:canal_retoma] = canal_retoma?
+    # A conta regressiva so existe onde perder a janela e IRREVERSIVEL. Em canal retomavel ela
+    # seria ruido: apressaria o agente sem que houvesse nada a perder.
+    state[:janela_horas_restantes] = Conversations::MessageWindowService.new(@conversation).hours_remaining unless state[:canal_retoma]
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
     state[:contact_inbox] = slice_attrs(@conversation.contact_inbox, CONTACT_INBOX_STATE_ATTRIBUTES) if @conversation.contact_inbox
@@ -274,6 +278,13 @@ class Captain::Assistant::AgentRunnerService
   # contexto e, ao ser cobrado pelo "número de vocês", confabula um (caso 20314).
   def channel_number
     @conversation.inbox&.channel.try(:phone_number)
+  end
+
+  # O canal alcanca a pessoa DEPOIS que a janela fecha? Onde nao alcanca (Instagram), sumir e
+  # definitivo — quem decide isso e o proprio canal, em `supports_reengagement?`. Canal que nao
+  # responde ao metodo e tratado como retomavel: o silencio nao pode ligar conduta nova.
+  def canal_retoma?
+    @conversation.inbox&.channel.try(:supports_reengagement?) != false
   end
 
   def slice_attrs(record, keys)
