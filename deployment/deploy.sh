@@ -99,7 +99,7 @@ update_vm() {
     bundle install --jobs $(nproc) --retry 3
     pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
-    RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
+    RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=12288' bundle exec rake assets:precompile
     RAILS_ENV=production bundle exec rails db:migrate
 
     if [ "$NO_RESTART" == "false" ]; then
@@ -121,13 +121,38 @@ update_vm() {
     return 1
   fi
 
-  # 2. Verificar se ja esta atualizado
+  # 2. Onde a VM esta, e se ela consegue buscar sozinha
+  #
+  # So a AGN alcanca o GitHub. TOZI, CATATAU, SENTINELA e FABRICA respondem
+  # "could not read Username" no fetch, porque nao tem credencial de leitura.
+  # Isso importa aqui por dois motivos:
+  #
+  #   1. o `fatal:` sai em STDERR, entao um `&& echo OK` acha que deu certo;
+  #   2. sem fetch, `origin/BRANCH` e a referencia VELHA que sobrou do ultimo
+  #      deploy — a VM se declara "no ultimo commit" comparando consigo mesma.
+  #
+  # Por isso o fetch e testado em separado do rev-parse: se ele falhar, a VM
+  # nao entra na comparacao e o script diz para usar o bundle, em vez de
+  # seguir para um `cwctl -U` que vai morrer no `git pull` la dentro.
+  # Medido em 08/09/2026.
   local remote_commit
-  remote_commit=$(remote_exec "$ip" "$tipo" "$user" "sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git fetch origin -q 2>/dev/null && git rev-parse HEAD 2>/dev/null'" 2>/dev/null || echo "desconhecido")
+  remote_commit=$(remote_exec "$ip" "$tipo" "$user" "sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse HEAD 2>/dev/null'" 2>/dev/null || echo "desconhecido")
+
+  if ! remote_exec "$ip" "$tipo" "$user" "sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git fetch origin -q'" >/dev/null 2>&1; then
+    fail "[$name] esta em ${remote_commit:0:9} mas NAO consegue buscar do GitHub"
+    warn "[$name] esta VM so aceita pacote: use o /promover-pr (git bundle), nao este script"
+    return 1
+  fi
+
   local latest_commit
   latest_commit=$(remote_exec "$ip" "$tipo" "$user" "sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse origin/${BRANCH} 2>/dev/null'" 2>/dev/null || echo "desconhecido")
 
-  if [ "$remote_commit" == "$latest_commit" ] && [ "$remote_commit" != "desconhecido" ]; then
+  if [ "$remote_commit" == "desconhecido" ] || [ "$latest_commit" == "desconhecido" ]; then
+    fail "[$name] nao consegui ler o commit da VM (remoto=${remote_commit:0:9} alvo=${latest_commit:0:9})"
+    return 1
+  fi
+
+  if [ "$remote_commit" == "$latest_commit" ]; then
     log "[$name] Ja esta no ultimo commit (${remote_commit:0:9}). Nada a atualizar."
     return 0
   fi
@@ -157,7 +182,7 @@ update_vm() {
         git fetch --all && git checkout ${BRANCH} && git pull origin ${BRANCH}
         bundle install --jobs \$(nproc) --retry 3
         pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-        RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
+        RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=12288' bundle exec rake assets:precompile
         RAILS_ENV=production bundle exec rails db:migrate
 UPDSCRIPT
     "
