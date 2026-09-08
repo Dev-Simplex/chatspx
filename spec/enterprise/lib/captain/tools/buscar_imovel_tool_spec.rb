@@ -484,7 +484,10 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
   describe 'imóvel que existe na outra finalidade' do
     it 'flips the Vista status, not just the sort order' do
       capturado = nil
-      allow(tool).to receive(:fetch_vista) { |f, **| capturado = f; [] }
+      allow(tool).to receive(:fetch_vista) do |f, **|
+        capturado = f
+        []
+      end
 
       tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'], 'Bairro' => ['like', '%Canadá%'] },
                 true, 'Canadá')
@@ -494,7 +497,10 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
 
     it 'looks for sale when the search was for rent' do
       capturado = nil
-      allow(tool).to receive(:fetch_vista) { |f, **| capturado = f; [] }
+      allow(tool).to receive(:fetch_vista) do |f, **|
+        capturado = f
+        []
+      end
 
       tool.send(:na_outra_finalidade, { 'Status' => ['like', '%alug%'] }, false, 'Canadá')
 
