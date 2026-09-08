@@ -44,8 +44,13 @@ REPO = "Dev-Simplex/chatspx"
 # instancia nao tem Elastic IP): se um dia der "sem resposta" aqui, o endereco
 # provavelmente trocou de novo — confira no console EC2 antes de concluir que a
 # maquina caiu, e atualize esta linha.
+# PRODUCAO tem endereco proprio de proposito. Antes ela era "local", o que
+# equivalia a dizer "a maquina onde este script esta rodando" — verdade na .229,
+# que E a producao, e mentira em qualquer outra. Rodado da VM do dev, o raio-X
+# mostrava o checkout DELE na linha PRODUCAO, ou seja, respondia sobre a maquina
+# errada com toda a confianca do mundo. Medido em 08/09/2026.
 FROTA = [
-    ("PRODUCAO", "local"),
+    ("PRODUCAO", "192.168.8.229"),
     ("TOZI", "3.94.9.51"),
     ("CATATAU", "3.85.130.14"),
     ("SENTINELA", "54.166.220.138"),
@@ -66,6 +71,17 @@ FROTA = [
 # Apertar o arquivo compartilhado para 600 conserta um usuario e quebra o outro.
 # Por isso: cada um tem a SUA copia privada em ~/.ssh/simplex.linux.pem (600), e o
 # arquivo compartilhado continua valendo para quem nao e dono dele.
+def _enderecos_desta_maquina() -> set:
+    """Os IPs desta maquina, para saber qual linha da FROTA e o proprio checkout.
+
+    Existe porque a alternativa (marcar uma linha como "local") transforma o
+    relatorio em algo que depende de onde ele foi rodado, e a linha PRODUCAO
+    passa a apontar para quem perguntou.
+    """
+    saida = sh(["hostname", "-I"], timeout=10)
+    return {ip for ip in saida.split() if ip}
+
+
 def _pem() -> str:
     do_ambiente = os.environ.get("TOZI_PEM")
     if do_ambiente:
@@ -213,9 +229,19 @@ def analisa(numero: int, checar_frota: bool) -> int:
     # ── 4. a frota ──────────────────────────────────────────────────────────
     if checar_frota:
         titulo("4. Onde a frota esta (o que realmente roda no cliente)")
+        aqui = _enderecos_desta_maquina()
         for nome, ip in FROTA:
-            if ip == "local":
+            if ip in aqui:
                 commit = sh(["git", "rev-parse", "--short=10", "HEAD"])
+            elif nome == "PRODUCAO":
+                # A .229 nao usa a chave da AWS (o acesso dela e por senha), entao de
+                # fora ela so responde se a maquina de onde voce roda ja tiver chave
+                # publica autorizada la. Quando nao tem, dizer "nao medida" e melhor
+                # do que herdar o HEAD local e chamar isso de producao.
+                commit = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=8",
+                             "-o", "BatchMode=yes", f"chatwoot@{ip}",
+                             "cd /home/chatwoot/chatwoot; git rev-parse --short=10 HEAD"],
+                            timeout=30) or "nao medida daqui"
             else:
                 commit = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
                              "-i", PEM, f"ubuntu@{ip}",
@@ -223,7 +249,10 @@ def analisa(numero: int, checar_frota: bool) -> int:
                             timeout=45) or "sem resposta"
             marca = VERDE if commit == prod else AMARELO
             print(f"  {nome:<11} {marca}{commit}{RESET}")
-            if commit not in (prod, "sem resposta"):
+            if commit == "nao medida daqui":
+                alertas.append(f"{nome} ({ip}) nao respondeu desta maquina: o numero dela NAO esta "
+                               "nesta tabela. Meca de la antes de concluir que a frota esta alinhada.")
+            elif commit not in (prod, "sem resposta"):
                 alertas.append(f"{nome} esta em {commit}, diferente de origin/producao ({prod}). "
                                "Deployar por ff pode desfazer o que so existe la — conferir antes.")
 
