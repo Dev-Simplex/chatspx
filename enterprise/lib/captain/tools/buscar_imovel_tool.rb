@@ -547,7 +547,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # O `\b` nos conectivos NÃO é decoração: sem a fronteira de palavra, "na" seria removido de
   # dentro de "Canadá" e o bairro viraria "Cadá".
   def decompor_titulo(titulo)
-    limpo = titulo.to_s.tr('-–—/|', ' ').squeeze(' ').strip
+    # O ponto entra no tr de propósito: em "RES." o `\b` do conectivo não casaria, porque
+    # entre "." e o espaço não há fronteira de palavra — os dois são non-word.
+    limpo = titulo.to_s.tr('-–—/|.,;', ' ').squeeze(' ').strip
     categoria = CATEGORIAS_TITULO.find { |c| limpo.match?(/\A#{Regexp.escape(c)}\b/i) }
     resto = categoria ? limpo.sub(/\A#{Regexp.escape(categoria)}\b/i, '') : limpo
     [categoria, sem_conectivos(resto)]

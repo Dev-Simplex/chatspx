@@ -147,8 +147,11 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(tool.send(:format_taxas, avulso_com_taxa)).to include('taxa de condomínio R$ 300')
     end
 
+    # Sem taxa nenhuma não há contradição: o campo é o único sinal e vale.
     it 'says the property does NOT sit in a gated community when Vista says Nao' do
-      expect(tool.send(:format_condominio, avulso_com_taxa)).to include('AVULSO — fora de condomínio fechado')
+      sem_taxa = avulso_com_taxa.merge('ValorCondominio' => '0')
+
+      expect(tool.send(:format_condominio, sem_taxa)).to include('AVULSO — fora de condomínio fechado')
     end
 
     it 'says it DOES when Vista says Sim' do
@@ -176,12 +179,24 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(nao.index('AVULSO')).to be < nao.index('condomínio')
     end
 
-    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha.
+    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha. A taxa continua
+    # sendo nomeada como taxa — o que mudou (conv 33632) é que, com os dois sinais brigando,
+    # a linha para de afirmar o fato em vez de escolher um lado.
     it 'keeps fee and fact distinguishable on the same listing line' do
       linha = tool.send(:format_listings, nil, [avulso_com_taxa], false)
 
       expect(linha).to include('taxa de condomínio R$ 300')
-      expect(linha).to include('AVULSO — fora de condomínio fechado')
+      expect(linha).to include('CONDOMÍNIO INDEFINIDO')
+      expect(linha).not_to include('AVULSO — fora de condomínio fechado')
+    end
+
+    # A armadilha do #103 vale para o rótulo novo também: ler pela metade não pode virar
+    # afirmação de condomínio fechado.
+    it 'does not let the undefined label contain the positive one either' do
+      sim = tool.send(:format_condominio, imovel.merge('Condominio' => 'Sim'))
+      indef = tool.send(:format_condominio, avulso_com_taxa)
+
+      expect(indef).not_to include(sim.delete('[]').strip)
     end
   end
 
@@ -379,16 +394,17 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(capturado['TituloSite']).to eq(['like', '%CASA JD TERRA RICA%'])
     end
 
-    # Os 2 títulos que não casaram eram anúncio de OUTRA imobiliária no mesmo portal. Devolver
-    # "nenhum imóvel encontrado" ali fez a IA dizer ao cliente que não havia apartamento nenhum
-    # — havia 17. O retorno tem que separar "não achei ESTE" de "não temos imóveis".
+    # O retorno tem que separar "não achei ESTE" de "não temos imóveis" — devolver "nenhum
+    # imóvel encontrado" aqui fez a IA dizer que não havia apartamento nenhum, havia 17.
+    # E a explicação que ele oferece mudou de ordem em 08/09: "pode ser de outra imobiliária"
+    # vinha primeiro e a IA a repetia sobre imóvel da própria Tozi (conv 33632).
     it 'says the advert may belong to another agency instead of implying an empty catalogue' do
       allow(tool).to receive(:fetch_vista).and_return([])
 
       texto = tool.perform(tool_context, status_tipo: 'locacao', titulo: 'APARTAMENTO QUE NAO E NOSSO')
 
-      expect(texto).to include('pode não ser nosso')
-      expect(texto).to match(/N[ÃA]O conclua que não temos imóveis/i)
+      expect(texto).to match(/cadastrado sem título/i)
+      expect(texto).to match(/N[ÃA]O conclua/i)
       expect(texto).not_to eq('Nenhum imóvel encontrado com esses critérios.')
     end
   end
