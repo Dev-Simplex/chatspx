@@ -291,8 +291,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
     track_codigos(tool_context, imoveis)
     ref = [bairro, endereco].reject(&:blank?).join('/')
+    outra = na_outra_finalidade(filter, venda, bairro)
     imoveis = ordenar_alternativas(anexar_distancia_da_referencia(imoveis, ref))
-    format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis))
+    format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis, outra))
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] ampliar_sem_bairro: #{e.message}")
     nil
@@ -351,13 +352,43 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     end
   end
 
-  def header_ampliado(ref, imoveis)
+  def header_ampliado(ref, imoveis, outra = nil)
     com_dist = imoveis.any? { |im| im['dist_km'] }
     medida = com_dist ? " A distância de cada uma até #{ref} está na linha — use o número, não estime." : ''
     "Sem imóvel no critério exato (#{ref}). As opções abaixo são da mesma cidade e critério, " \
       'porém em OUTROS bairros: ofereça como alternativas fora do local pedido, deixando claro ' \
       'que não são do bairro/endereço solicitado — nunca encerre só com pergunta, apresente as ' \
-      "opções concretas.#{medida}"
+      "opções concretas.#{medida}#{outra}"
+  end
+
+  # "Não temos casa no Residencial Canadá" — e tinha, para ALUGAR. Conv 33660 (08/09): o
+  # cliente veio de um portal sem dizer se queria alugar ou comprar, a triagem chutou venda, e
+  # a busca respondeu só por venda. O imóvel 8780 estava no acervo o tempo todo.
+  #
+  # Medido em 30 dias: de 134 combinações (bairro, categoria, finalidade) que voltaram vazias,
+  # 60 tinham imóvel naquele mesmo bairro na OUTRA finalidade — 45%.
+  #
+  # O retorno só INFORMA; quem decide se aquilo interessa é o agente, porque ele sabe se o
+  # cliente declarou a finalidade ou se ela foi presumida. Cliente que disse "quero alugar" não
+  # quer ver venda; cliente que chegou por um anúncio não disse nada.
+  def na_outra_finalidade(filter, venda, bairro)
+    return if bairro.blank?
+
+    # O `venda:` do fetch_vista só troca a ORDENAÇÃO — quem decide a finalidade é o
+    # filter['Status'], montado no perform. Inverter só o argumento buscaria na mesma
+    # finalidade e o aviso nunca sairia.
+    invertido = filter.except('Endereco').merge('Status' => (venda ? ['like', '%alug%'] : ['like', '%vend%']))
+    achados = fetch_vista(invertido, quantidade: 1, venda: !venda)
+    return if achados.blank?
+
+    rotulo = venda ? 'para ALUGAR' : 'para COMPRAR'
+    " ATENÇÃO: nesse mesmo bairro existe imóvel #{rotulo} no critério pedido. Se o cliente " \
+      'disse com todas as letras o que queria, siga no que ele pediu. Mas se a finalidade foi ' \
+      'presumida — anúncio de portal, mensagem sem dizer se é aluguel ou compra —, pergunte a ' \
+      'ele antes de afirmar que não temos, porque temos.'
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] na_outra_finalidade: #{e.message}")
+    nil
   end
 
   # Geocodifica a referência que o CLIENTE pediu, com veto de sanidade: o Google nunca devolve

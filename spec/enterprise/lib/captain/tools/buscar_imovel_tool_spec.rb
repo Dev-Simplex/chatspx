@@ -476,6 +476,71 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     end
   end
 
+  # Conv 33660 (08/09): a cliente veio de um portal sem dizer se queria alugar ou comprar, a
+  # triagem presumiu venda, e a busca respondeu só por venda — "não temos casa no Residencial
+  # Canadá". Tinha: o 8780, para ALUGAR. Medido em 30 dias: de 134 combinações (bairro,
+  # categoria, finalidade) que voltaram vazias, 60 tinham imóvel naquele bairro na outra
+  # finalidade.
+  describe 'imóvel que existe na outra finalidade' do
+    it 'flips the Vista status, not just the sort order' do
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) { |f, **| capturado = f; [] }
+
+      tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'], 'Bairro' => ['like', '%Canadá%'] },
+                true, 'Canadá')
+
+      expect(capturado['Status']).to eq(['like', '%alug%'])
+    end
+
+    it 'looks for sale when the search was for rent' do
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) { |f, **| capturado = f; [] }
+
+      tool.send(:na_outra_finalidade, { 'Status' => ['like', '%alug%'] }, false, 'Canadá')
+
+      expect(capturado['Status']).to eq(['like', '%vend%'])
+    end
+
+    it 'says nothing when the other side is empty too' do
+      allow(tool).to receive(:fetch_vista).and_return([])
+
+      expect(tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá')).to be_nil
+    end
+
+    it 'says nothing when no neighbourhood was asked for' do
+      expect(tool.send(:na_outra_finalidade, {}, true, nil)).to be_nil
+    end
+
+    # O retorno INFORMA; quem decide é o agente, que sabe se o cliente declarou a finalidade
+    # ou se ela foi presumida. Cliente que disse "quero alugar" não quer ver venda.
+    it 'tells the agent to ask instead of asserting we have nothing' do
+      allow(tool).to receive(:fetch_vista).and_return([{ 'Codigo' => '8780' }])
+
+      texto = tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá')
+
+      expect(texto).to include('para ALUGAR')
+      expect(texto).to match(/pergunte a ele antes de afirmar que não temos/i)
+    end
+
+    it 'carries the notice into the widened-search header' do
+      cabecalho = tool.send(:header_ampliado, 'Canadá', [], ' AVISO DA OUTRA FINALIDADE')
+
+      expect(cabecalho).to end_with(' AVISO DA OUTRA FINALIDADE')
+    end
+
+    it 'keeps the header unchanged when there is nothing on the other side' do
+      expect(tool.send(:header_ampliado, 'Canadá', [])).not_to match(/ATENÇÃO/i)
+    end
+
+    # Falha de rede na consulta extra não pode derrubar a busca que já deu certo.
+    it 'swallows a failure on the extra lookup' do
+      allow(tool).to receive(:fetch_vista).and_raise(StandardError, 'vista fora')
+
+      expect { tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá') }
+        .not_to raise_error
+    end
+  end
+
   describe 'o teto de paginação' do
     it 'never asks the Vista for more than the API accepts' do
       expect(described_class::TETO_INSPECAO).to be <= 50
