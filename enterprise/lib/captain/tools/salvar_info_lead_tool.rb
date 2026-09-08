@@ -35,8 +35,8 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
                  desc: 'Status do lead: novo, em_contato, qualificado, esfriado, perdido, nao_qualificado ou convertido.', required: false
   param :sobre_cliente, type: 'string',
                         desc: 'Descrição curta (1 a 2 frases) sobre o cliente: o que procura, perfil e situação.', required: false
-  param :precisa_followup, type: 'boolean',
-                           desc: 'true quando a conversa precisa de reabordagem depois (cliente esfriou, pediu pra pensar, sem resposta).', required: false
+  param :precisa_followup, type: 'boolean', required: false,
+                           desc: 'true quando a conversa precisa de reabordagem depois (cliente esfriou, pediu pra pensar, sem resposta).'
   param :nome_cliente, type: 'string',
                        desc: 'Como a pessoa disse que se chama, quando ela informou o nome NESTA conversa. ' \
                              'Só o que veio da própria pessoa — nunca o nome que aparece no cadastro do contato, ' \
