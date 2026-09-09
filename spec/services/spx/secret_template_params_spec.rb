@@ -81,21 +81,64 @@ RSpec.describe Spx::SecretTemplateParams do
     end
   end
 
-  describe '.forget!' do
-    let(:message) { create(:message, additional_attributes: { 'template_params' => described_class.protect(crus) }) }
-
-    it 'apaga o blob e deixa a mascara' do
-      expect(described_class.forget!(message)).to be(true)
-
-      params = message.reload.additional_attributes['template_params']
-      expect(params).not_to have_key(described_class::SECRET_KEY)
-      expect(params['processed_params']['body']['1']).to eq(described_class::MASK)
+  describe 'leitura por espectador' do
+    let(:account) { create(:account) }
+    let(:admin) { create(:user, account: account, role: :administrator) }
+    let(:agente) { create(:user, account: account, role: :agent) }
+    let(:message) do
+      create(:message, account: account, content: 'rastro',
+                       additional_attributes: { 'template_params' => described_class.protect(crus) })
     end
 
-    it 'e no-op quando nao ha blob' do
-      comum = create(:message, additional_attributes: { 'template_params' => crus })
+    before { Current.account = account }
 
-      expect(described_class.forget!(comum)).to be(false)
+    after { Current.reset }
+
+    describe '.sanitized_attributes' do
+      it 'devolve o valor real para administrador' do
+        params = described_class.sanitized_attributes(message, admin)['template_params']
+
+        expect(params['processed_params']['body']['1']).to eq('324074')
+        expect(params).not_to have_key(described_class::SECRET_KEY)
+      end
+
+      it 'devolve a mascara para agente, e sem o blob' do
+        params = described_class.sanitized_attributes(message, agente)['template_params']
+
+        expect(params['processed_params']['body']['1']).to eq(described_class::MASK)
+        expect(params).not_to have_key(described_class::SECRET_KEY)
+      end
+
+      it 'nao entrega o blob nem sem espectador, que e o caso do websocket' do
+        params = described_class.sanitized_attributes(message, nil)['template_params']
+
+        expect(params).not_to have_key(described_class::SECRET_KEY)
+        expect(params.to_json).not_to include('324074')
+      end
+    end
+
+    describe '.content_for' do
+      it 'mostra o valor ao administrador' do
+        expect(described_class.content_for(message, admin)).to include('324074')
+      end
+
+      it 'mantem o rastro para agente e para quem nao e usuario' do
+        expect(described_class.content_for(message, agente)).to eq('rastro')
+        expect(described_class.content_for(message, nil)).to eq('rastro')
+      end
+
+      it 'nao repete o valor que aparece no corpo e no botao' do
+        expect(described_class.content_for(message, admin).scan('324074').size).to eq(1)
+      end
+
+      it 'cai no rastro, em vez de estourar, quando o blob nao decifra' do
+        params = message.additional_attributes['template_params'].merge(described_class::SECRET_KEY => 'lixo')
+        message.update!(additional_attributes: { 'template_params' => params })
+
+        expect(described_class.content_for(message, admin)).to eq('rastro')
+        expect(described_class.sanitized_attributes(message, admin)['template_params'])
+          .not_to have_key(described_class::SECRET_KEY)
+      end
     end
   end
 end

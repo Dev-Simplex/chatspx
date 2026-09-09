@@ -273,7 +273,8 @@ en:
     no_content: 'No content'
   conversations:
     secret_template:
-      trace: 'Confidential content sent to the customer. The value is not visible in the inbox.'
+      trace: '🔒 Confidential content sent to the customer. The value is not visible in the inbox.'
+      trace_admin: '🔒 Confidential content sent to the customer: %{valores}'
     team_access:
       forbidden: 'You do not have permission to access this conversation.'
     reply_assignment_gate:

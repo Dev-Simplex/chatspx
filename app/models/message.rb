@@ -181,6 +181,11 @@ class Message < ApplicationRecord
     data[:forwarded] = forwarded if has_attribute?(:forwarded)
     data[:forwarded_from_message_id] = forwarded_from_message_id if has_attribute?(:forwarded_from_message_id)
     data[:starred] = starred if has_attribute?(:starred)
+    # O empurrão do websocket vai para uma SALA, não para uma pessoa: aqui não há como
+    # saber quem está do outro lado, então o valor protegido nunca sai por aqui, nem
+    # cifrado. Quem revela para administrador é a serialização por requisição, que conhece
+    # o Current.user. Ver Spx::SecretTemplateParams.
+    data[:additional_attributes] = Spx::SecretTemplateParams.sanitized_attributes(self, nil) if Spx::SecretTemplateParams.protected?(self)
     merge_sender_attributes(data)
   end
 

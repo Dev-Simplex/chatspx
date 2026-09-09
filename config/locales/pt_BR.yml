@@ -307,7 +307,8 @@ pt_BR:
     no_content: 'Sem conteúdo'
   conversations:
     secret_template:
-      trace: 'Conteúdo sigiloso enviado ao cliente. O valor não fica visível no atendimento.'
+      trace: '🔒 Conteúdo sigiloso enviado ao cliente. O valor não fica visível no atendimento.'
+      trace_admin: '🔒 Conteúdo sigiloso enviado ao cliente: %{valores}'
     team_access:
       forbidden: 'Esta conversa é de outro time. Só quem faz parte dele pode abri-la.'
     reply_assignment_gate:

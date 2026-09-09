@@ -2,6 +2,8 @@ class NpsSurveyListener < BaseListener
   def conversation_status_changed(event)
     conversation = extract_conversation_and_account(event)[0]
     return unless auto_nps_eligible?(conversation)
+    # Mesma trava do CSAT: disparo protegido não gera pesquisa (ver dispatch_only?).
+    return if Spx::SecretTemplateParams.dispatch_only?(conversation)
 
     NpsSurveyService.new(conversation: conversation, mode: 'auto').perform
   rescue StandardError => e

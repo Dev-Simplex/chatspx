@@ -22,8 +22,16 @@
 #
 # Na criação da mensagem o valor real sai de `processed_params`, que fica com a máscara, e
 # vai cifrado para `secret_params` na MESMA estrutura. O envio decifra na hora de montar o
-# payload da Meta e apaga a chave depois que a mensagem sai. Enquanto ela existe, é um blob
-# ilegível: serializar ou empurrar pelo websocket não entrega nada.
+# payload da Meta.
+#
+# O blob FICA guardado, porque o administrador precisa ler o valor depois. É a decisão do
+# dono do produto, tomada com o custo na mesa: o valor continua existindo no banco e no
+# backup, e quem for administrador da conta consegue ler o código que assina contrato.
+# Em troca, ele nunca sai do servidor para quem não é administrador, e nunca vai pelo
+# websocket, que não tem como saber quem está do outro lado.
+#
+# Quem revela é a LEITURA, não o armazenamento: `content_for` e `sanitized_attributes`
+# decidem por espectador. Fora daí, o que está gravado é máscara.
 #
 # Se a chave existir e não decifrar, o envio FALHA em vez de mandar a máscara. Mandar
 # "••••" como código seria pior do que não mandar: o cliente receberia um código inválido
@@ -80,17 +88,80 @@ module Spx::SecretTemplateParams
     raise RevealError, "nao foi possivel decifrar os parametros sigilosos: #{e.class}"
   end
 
-  # Chamado depois que a mensagem SAIU: o valor real já cumpriu a função e some do banco.
-  # A máscara continua em `processed_params`, então o rastro (quantas variáveis, qual
-  # botão) permanece legível sem entregar o conteúdo.
-  def forget!(message)
-    params = message.additional_attributes&.dig('template_params')
-    return false if params.blank? || params[SECRET_KEY].blank?
+  # A conversa existe SÓ para levar disparo protegido? Assinatura medida na Fábrica: as
+  # atividades da automação ("Atribuído a triagem", "admin atribuiu a si mesmo") mais a
+  # própria saída, e nenhuma entrada. Conversa com gente falando não bate.
+  #
+  # Três lugares perguntam isto, e é o mesmo conceito nos três: o envio (para tirar da
+  # fila), o CSAT e o NPS (para não mandar pesquisa de satisfação a quem só recebeu um
+  # código). Sem essa trava, na primeira VM com pesquisa ligada o cliente receberia
+  # "de 0 a 10, como foi seu atendimento?" logo depois do código de autenticação.
+  def dispatch_only?(conversation)
+    return false if conversation.blank?
+    return false if conversation.messages.incoming.exists?
 
-    params = params.except(SECRET_KEY)
-    message.additional_attributes = message.additional_attributes.merge('template_params' => params)
-    message.save!
-    true
+    protegidas = conversation.messages.outgoing.where("additional_attributes->'template_params' IS NOT NULL")
+    return false if protegidas.none?
+
+    conversation.messages.outgoing.where("additional_attributes->'template_params' IS NULL").none?
+  end
+
+  # A mensagem tem valor protegido? Usado pela serialização e pelo websocket.
+  def protected?(message)
+    message.additional_attributes&.dig('template_params', SECRET_KEY).present?
+  end
+
+  # O `additional_attributes` como ele PODE sair do servidor para este espectador.
+  #
+  # O blob sai SEMPRE, para todo mundo: não há motivo para mandar texto cifrado ao
+  # navegador, e mandar seria oferecer o alvo. Para administrador, o valor real entra no
+  # lugar da máscara; para o resto, fica a máscara.
+  def sanitized_attributes(message, viewer)
+    atributos = message.additional_attributes
+    return atributos unless protected?(message)
+
+    params = atributos['template_params']
+    params = admin?(viewer) ? reveal(params) : params.except(SECRET_KEY)
+    atributos.merge('template_params' => params)
+  rescue RevealError
+    atributos.merge('template_params' => atributos['template_params'].except(SECRET_KEY))
+  end
+
+  # O texto da bolha para este espectador. O agente vê o rastro; o administrador vê o
+  # rastro com o valor. Sai por `content` de propósito: assim a bolha, a busca e o export
+  # já respeitam a regra sem precisar de componente novo na tela.
+  def content_for(message, viewer)
+    return message.content unless protected?(message) && admin?(viewer)
+
+    valores = revealed_values(message.additional_attributes['template_params'])
+    return message.content if valores.blank?
+
+    I18n.t('conversations.secret_template.trace_admin', valores: valores.join(' · '))
+  rescue RevealError
+    message.content
+  end
+
+  # Os valores reais, sem repetição e sem as chaves estruturais. Um código de autenticação
+  # aparece duas vezes (corpo e botão da URL) e não faz sentido mostrar duas vezes.
+  def revealed_values(template_params)
+    processed = reveal(template_params)[PROCESSED_KEY]
+    return [] if processed.blank?
+
+    processed.values.flat_map { |valor| leaf_values(valor) }.compact_blank.uniq
+  end
+
+  def leaf_values(valor)
+    case valor
+    when Hash then valor.reject { |chave, _| STRUCTURAL_KEYS.include?(chave.to_s) }.values.map(&:to_s)
+    when Array then valor.flat_map { |item| leaf_values(item) }
+    else [valor.to_s]
+    end
+  end
+
+  # Administrador DA CONTA, não do sistema: a mesma leitura que o AgentMessageIsolation usa
+  # para isentar. Sem User (job, widget, API pública) nunca é administrador.
+  def admin?(viewer)
+    viewer.is_a?(User) && viewer.administrator?
   end
 
   def mask(processed)

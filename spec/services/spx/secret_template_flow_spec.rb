@@ -29,6 +29,19 @@ RSpec.describe 'fluxo do template sigiloso', type: :request do
     ).perform
   end
 
+  # Envia de verdade pelo servico, com a chamada para a Meta trocada por um duble que
+  # devolve os parametros que teriam ido no payload.
+  def enviar(message)
+    enviado = nil
+    allow(channel).to receive(:send_template) do |_source_id, info, _msg|
+      enviado = info[:parameters]
+      'wamid.retorno'
+    end
+    allow(message.inbox).to receive(:channel).and_return(channel)
+    Whatsapp::SendOnWhatsappService.new(message: message).perform
+    enviado
+  end
+
   describe 'com o template marcado como sigiloso na caixa' do
     before { inbox.update!(additional_attributes: { 'secret_template_names' => ['sample_shipping_confirmation'] }) }
 
@@ -66,26 +79,50 @@ RSpec.describe 'fluxo do template sigiloso', type: :request do
       expect(message.content).not_to include(codigo)
     end
 
-    it 'manda o codigo REAL para a Meta e apaga o blob depois do envio' do
+    it 'manda o codigo REAL para a Meta e mantem o blob, que o admin vai ler depois' do
       message = construir_mensagem
-      enviado = nil
-
-      allow(channel).to receive(:send_template) do |_source_id, info, _msg|
-        enviado = info[:parameters]
-        'wamid.retorno'
-      end
-      allow(message.inbox).to receive(:channel).and_return(channel)
-
-      described_class_service = Whatsapp::SendOnWhatsappService.new(message: message)
-      described_class_service.perform
+      enviado = enviar(message)
 
       texto_enviado = enviado.to_json
       expect(texto_enviado).to include(codigo)
       expect(texto_enviado).not_to include(Spx::SecretTemplateParams::MASK)
 
       params_finais = message.reload.additional_attributes['template_params']
-      expect(params_finais).not_to have_key('secret_params')
+      expect(params_finais['secret_params']).to be_present
       expect(params_finais['processed_params']['body']['1']).to eq(Spx::SecretTemplateParams::MASK)
+    end
+
+    it 'resolve a conversa que nasceu so para levar o disparo' do
+      message = construir_mensagem
+      enviar(message)
+
+      expect(message.conversation.reload.status).to eq('resolved')
+    end
+
+    it 'NAO resolve conversa que ja estava aberta antes' do
+      create(:message, conversation: conversation, message_type: :incoming, content: 'oi, tudo bem?')
+      message = construir_mensagem
+      enviar(message)
+
+      expect(message.conversation.reload.status).to eq('open')
+    end
+
+    it 'nao dispara pesquisa de satisfacao para quem so recebeu o codigo' do
+      inbox.update!(csat_survey_enabled: true, nps_survey_enabled: true)
+      message = construir_mensagem
+      enviar(message)
+
+      # A trava e do predicado, entao vale para as duas pesquisas de uma vez.
+      expect(Spx::SecretTemplateParams.dispatch_only?(message.conversation.reload)).to be(true)
+      expect(message.conversation.messages.where(content_type: %w[input_csat]).count).to eq(0)
+    end
+
+    it 'NAO resolve quando alguem ja tinha respondido pela caixa' do
+      create(:message, conversation: conversation, message_type: :outgoing, content: 'bom dia!')
+      message = construir_mensagem
+      enviar(message)
+
+      expect(message.conversation.reload.status).to eq('open')
     end
 
     it 'FALHA o envio quando o blob nao decifra, em vez de mandar a mascara como codigo' do
@@ -100,6 +137,41 @@ RSpec.describe 'fluxo do template sigiloso', type: :request do
 
       expect(message.reload.status).to eq('failed')
       expect(message.external_error).to include('sigilosos')
+    end
+  end
+
+  describe 'pela API, que e onde a regra vale de verdade' do
+    let(:admin) { create(:user, account: account, role: :administrator) }
+    # O agente so enxerga a conversa se for membro da caixa: precondicao do teste, nao
+    # objeto referenciado. Criado no before para nao virar `let!` orfao.
+
+    before do
+      create(:inbox_member, inbox: inbox, user: agente)
+      inbox.update!(additional_attributes: { 'secret_template_names' => ['sample_shipping_confirmation'] })
+    end
+
+    def mensagens_como(user)
+      get "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+          headers: user.create_new_auth_token, as: :json
+      response.parsed_body['payload']
+    end
+
+    it 'entrega o valor ao administrador e a mascara ao agente' do
+      construir_mensagem
+
+      do_admin = mensagens_como(admin).last
+      do_agente = mensagens_como(agente).last
+
+      expect(do_admin['content']).to include(codigo)
+      expect(do_agente['content']).not_to include(codigo)
+      expect(do_agente.to_json).not_to include(codigo)
+    end
+
+    it 'nao manda o blob cifrado para ninguem' do
+      construir_mensagem
+
+      expect(mensagens_como(admin).to_json).not_to include('secret_params')
+      expect(mensagens_como(agente).to_json).not_to include('secret_params')
     end
   end
 
