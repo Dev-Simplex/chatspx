@@ -7,7 +7,6 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
 import { useAdmin } from 'dashboard/composables/useAdmin';
-import unidadesAPI from 'dashboard/api/unidades';
 import socialPublicacoesAPI from 'dashboard/api/socialPublicacoes';
 import { internalChatNotify } from 'dashboard/helper/internalChatNotify';
 import draggable from 'vuedraggable';
@@ -101,11 +100,6 @@ const appIntegrations = useMapGetter('integrations/getAppIntegrations');
 
 const { isAdmin } = useAdmin();
 
-// Mesma ideia do `hasLeadIntake` logo abaixo: o item some quando a conta nao tem o dado.
-// Aqui o gate e por DADO e nao por feature flag de proposito — carregar as unidades liga a
-// tela, e nao ha um segundo interruptor para alguem esquecer de ligar. Ver §7 do contrato
-// docs/contratos/unidades.md.
-const temUnidades = ref(false);
 // Gate por DADO, como o item "Campanhas" logo abaixo: a pagina de Rede Social so aparece para
 // conta que tem comentario capturado. Conta sem canal de Instagram, ou com o campo `comments`
 // nao assinado, nao ganha item nenhum. Ver docs/SPEC-instagram-social.md §7.
@@ -314,16 +308,6 @@ onMounted(() => {
   // Só para saber se a conta tem captação de lead configurada (o item "Campanhas"
   // some quando não tem). O payload não expõe settings de hook para não-admin.
   if (!appIntegrations.value.length) store.dispatch('integrations/get');
-  // So para saber se a conta tem unidade cadastrada (o item "Unidades" some quando nao tem).
-  // Admin-only porque o endpoint tambem e — pedir como agente so geraria um 401 por sessao.
-  if (isAdmin.value) {
-    unidadesAPI
-      .getAll()
-      .then(({ data }) => {
-        temUnidades.value = Boolean(data?.unidades?.length);
-      })
-      .catch(() => {});
-  }
   // So para saber se a conta tem comentario publico capturado (o item "Rede Social" some quando
   // nao tem). Admin-only porque o endpoint tambem e.
   if (isAdmin.value) {
@@ -935,17 +919,6 @@ const menuItems = computed(() => {
           icon: lordIcon('waha'),
           to: accountScopedRoute('waha_connections_list'),
         },
-        ...(temUnidades.value
-          ? [
-              {
-                name: 'Settings Unidades',
-                label: t('SIDEBAR.UNIDADES'),
-                icon: lordIcon('companies', 'i-lucide-store'),
-                activeOn: ['unidades_list'],
-                to: accountScopedRoute('unidades_list'),
-              },
-            ]
-          : []),
         ...(hasMessageSequences.value
           ? [
               {
