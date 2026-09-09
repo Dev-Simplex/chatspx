@@ -41,7 +41,7 @@
     },
     "DETAIL": {
       "OPEN": "Why this one?",
-      "TITLE": "Conversation #{id}",
+      "TITLE": "Conversation {id}",
       "CLOSE": "Close",
       "DESIGNATED_AT": "Designated at",
       "CANDIDATES": "Candidates:"
@@ -59,6 +59,7 @@
       "HOURS": "{n}h",
       "HOURS_MINUTES": "{h}h{m}",
       "DAYS": "{n} d",
+      "DAYS_HOURS": "{d} d {h}h",
       "PHASE": {
         "IA": "AI covering",
         "ESPERA": "waiting for the consultant",
