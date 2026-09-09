@@ -1,8 +1,9 @@
 # Grava o trace de cada tool call da IA (Eval 2.0 F2). Prependado em TODA subclasse
 # de BasePublicTool (hook inherited): intercepta perform, mede, trunca o resultado e
 # persiste em captain_tool_calls. Best-effort por construção — NUNCA quebra a tool
-# (falha de trace só loga) e NUNCA altera o resultado. Só grava quando a conta tem
-# eval_enabled (config-first, multi-tenant).
+# (falha de trace só loga) e NUNCA altera o resultado. Só grava quando a conta pede o trace —
+# para julgar o atendimento depois (eval) ou para devolver o retorno ao contexto do turno
+# seguinte (ToolContextNote). Ver Captain::ToolCall.gravar_para? (config-first, multi-tenant).
 module Captain::Tools::TraceRecorder
   RESULT_PREVIEW_LIMIT = 1500
 
@@ -20,7 +21,7 @@ module Captain::Tools::TraceRecorder
 
   def record_tool_trace(tool_context, kwargs, result, started, exception)
     account = @assistant&.account
-    return unless account && Captain::ConversationEval.enabled_for?(account)
+    return unless account && Captain::ToolCall.gravar_para?(account)
 
     conversation = find_conversation(tool_context&.state)
     return unless conversation

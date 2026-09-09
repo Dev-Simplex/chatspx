@@ -98,6 +98,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     nota_episodio = nota_de_continuidade
     history.unshift({ content: nota_episodio, role: 'user' }) if nota_episodio.present?
 
+    # O que as ferramentas devolveram neste atendimento. Também PREÂMBULO, e depois do
+    # unshift acima de propósito: a linha do tempo do atendimento fica antes da nota de
+    # reentrada, que é sobre atendimentos ANTERIORES.
+    nota_tools = nota_de_ferramentas
+    history.unshift({ content: nota_tools, role: 'user' }) if nota_tools.present?
+
     # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
     # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
     # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
@@ -137,6 +143,23 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return unless janela_por_episodio?
 
     Captain::Conversation::EpisodeContinuityNote.new(conversation: @conversation).text
+  end
+
+  # Retorno de ferramenta não é `Message`, então some do histórico no turno seguinte e o
+  # agente passa a afirmar de memória o que já tinha consultado. A nota devolve esse dado
+  # recortado no MESMO atendimento que o histórico usa.
+  def nota_de_ferramentas
+    Captain::Conversation::ToolContextNote.new(
+      conversation: @conversation, desde: inicio_do_episodio
+    ).text
+  end
+
+  # A fronteira só existe quando a conta usa janela por episódio; sem ela a nota fica sem
+  # corte e o `desde: nil` cobre a conversa inteira, que é o mesmo alcance do histórico.
+  def inicio_do_episodio
+    return unless janela_por_episodio?
+
+    Captain::Conversation::EpisodeBoundary.new(conversation: @conversation).atual&.started_at
   end
 
   # Opt-in por conta, default desligado (produto multi-tenant — nunca hardcode de cliente).
