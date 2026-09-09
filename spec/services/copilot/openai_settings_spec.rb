@@ -7,6 +7,9 @@ require 'rails_helper'
 # o `api_key` lia, então o header saía com "Bearer " vazio.
 RSpec.describe Copilot::OpenaiSettings do
   let(:account) { create(:account) }
+  # A conta padrao destes exemplos USA o Captain. A global so vale para ela: e a mesma regua
+  # do painel de Agentes IA (`has_ai_agents` = `captain_assistants.exists?`).
+  let!(:assistente) { create(:captain_assistant, account: account) }
 
   describe '.api_key' do
     it 'prefers the key set on the account' do
@@ -58,10 +61,32 @@ RSpec.describe Copilot::OpenaiSettings do
     # stub já de pé, a exceção vinha da fábrica e o teste media a si mesmo.
     it 'survives the config lookup blowing up' do
       conta = account
+      assistente # materializa antes do stub, pelo mesmo motivo da conta
       allow(InstallationConfig).to receive(:find_by).and_raise(StandardError, 'banco fora')
 
       expect { described_class.api_key(conta) }.not_to raise_error
       expect(described_class.api_key(conta)).to be_nil
+    end
+
+    # O buraco que o degrau abriu: conta SEM agente nenhum passava a usar a chave da casa, e
+    # com ela a sugestao fantasma — que dispara sozinha ao abrir a conversa, sem clique e sem
+    # flag — mandava a mensagem do CLIENTE para a OpenAI. Medido na PRODUCAO em 09/09/2026:
+    # contas 5 e 85, zero agentes, 12 chamadas numa hora. A flag `captain_integration*` NAO
+    # serve de guarda: as 10 contas da box tem a flag ligada.
+    it 'does NOT lend the global key to an account with no AI agent' do
+      sem_agente = create(:account)
+      InstallationConfig.where(name: 'CAPTAIN_OPEN_AI_API_KEY').destroy_all
+      InstallationConfig.create!(name: 'CAPTAIN_OPEN_AI_API_KEY', value: 'a-global-do-captain')
+
+      expect(described_class.api_key(sem_agente)).to be_nil
+    end
+
+    # A chave da propria conta continua valendo mesmo sem agente: quem configurou, pagou.
+    it 'still honors an account key when the account has no AI agent' do
+      sem_agente = create(:account)
+      sem_agente.update!(settings: sem_agente.settings.merge('openai_api_key' => 'da-conta'))
+
+      expect(described_class.api_key(sem_agente)).to eq('da-conta')
     end
 
     it 'works without an account at all' do
