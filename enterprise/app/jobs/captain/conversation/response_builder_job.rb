@@ -681,7 +681,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return content if content.blank? || !content.match?(LOGRADOURO)
 
     unidade = unidade_da_conta
-    return content if unidade.nil? || unidade.endereco.blank?
+    return content if unidade.nil? || unidade.address.blank?
 
     certo = logradouro_da_unidade(unidade)
     content.gsub(LOGRADOURO) do |trecho|
@@ -689,7 +689,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       next trecho if trecho.match?(certo)
 
       Rails.logger.warn("[fix_office_address] conv=#{@conversation.id} endereço do escritório corrigido")
-      unidade.endereco
+      unidade.address
     end
   end
 
@@ -710,7 +710,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # várias seria escolher por conta própria a loja errada — então a guarda só age quando não
   # há ambiguidade: uma unidade ativa, um endereço possível.
   def unidade_da_conta
-    unidades = ::Spx::Unidade.ativas.where(account_id: @conversation.account_id).limit(2).to_a
+    unidades = ::Unit.where(account_id: @conversation.account_id, active: true).limit(2).to_a
     unidades.size == 1 ? unidades.first : nil
   rescue StandardError => e
     Rails.logger.warn("[fix_office_address] unidade indisponível: #{e.class}: #{e.message}")
@@ -721,7 +721,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # abrevia ("Av." x "Avenida"), corta o CEP e troca a ordem, e exigir o endereço literal
   # reescreveria resposta correta.
   def logradouro_da_unidade(unidade)
-    nucleo = unidade.endereco.to_s[/(?:av\.?|avenida|rua|travessa|alameda|rodovia)\s+([^,\-]{3,40})/i, 1]
+    nucleo = unidade.address.to_s[/(?:av\.?|avenida|rua|travessa|alameda|rodovia)\s+([^,\-]{3,40})/i, 1]
     return /\A\z/ if nucleo.blank?
 
     /#{Regexp.escape(nucleo.strip)}/i

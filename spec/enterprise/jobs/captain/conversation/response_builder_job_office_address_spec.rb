@@ -16,9 +16,9 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob do
   end
 
   def cadastrar_unidade!(ativa: true, endereco_valor: nil)
-    Spx::Unidade.create!(account_id: account.id, slug: "u-#{SecureRandom.hex(3)}", nome: 'Matriz',
-                         cidade: 'Sinop', uf: 'MT', ativa: ativa, timezone: 'America/Cuiaba',
-                         endereco: endereco_valor.nil? ? endereco : endereco_valor)
+    Unit.create!(account_id: account.id, name: "Unidade #{SecureRandom.hex(3)}", city: 'Sinop',
+                 state: 'MT', active: ativa, timezone: 'America/Cuiaba',
+                 address: endereco_valor.nil? ? endereco : endereco_valor)
   end
 
   context 'when the account has no unit registered' do
