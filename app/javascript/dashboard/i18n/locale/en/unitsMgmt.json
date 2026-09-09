@@ -91,6 +91,13 @@
         "LABEL": "State",
         "PLACEHOLDER": "MT"
       },
+      "ZIP_CODE": {
+        "LABEL": "Postal code",
+        "PLACEHOLDER": "78000-000",
+        "HELP": "Type the Brazilian postal code and the address, city and state fill themselves in. Only the street number is left.",
+        "SEARCHING": "Looking up the address…",
+        "NOT_FOUND": "Postal code not found. Fill the address in by hand."
+      },
       "ADDRESS": {
         "LABEL": "Address",
         "PLACEHOLDER": "Av. das Itaúbas, 1234"
@@ -100,6 +107,12 @@
         "PLACEHOLDER": "Select a timezone",
         "SEARCH": "Search timezone",
         "HELP": "The timezone tells whether this unit is open right now — each branch answers on its own clock."
+      },
+      "COORDINATES": {
+        "LABEL": "Coordinates",
+        "PLACEHOLDER": "-15.601, -56.097",
+        "HELP": "Open the unit in Google Maps, right-click the spot and paste it here. The AI uses this to send the location to the customer and to tell which store is closest. Leave it empty if you don't know.",
+        "ERROR": "Paste two numbers: latitude and longitude, in that order. Latitude ranges from -90 to 90 and longitude from -180 to 180."
       },
       "INBOXES": {
         "LABEL": "Inboxes of this unit",
