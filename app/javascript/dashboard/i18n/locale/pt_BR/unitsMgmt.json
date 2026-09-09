@@ -101,6 +101,12 @@
         "SEARCH": "Buscar fuso",
         "HELP": "É pelo fuso que a lista diz se a unidade está aberta agora — cada filial responde pelo próprio relógio."
       },
+      "COORDINATES": {
+        "LABEL": "Coordenadas",
+        "PLACEHOLDER": "-15.601, -56.097",
+        "HELP": "Abra a unidade no Google Maps, clique com o botão direito no ponto e cole aqui. A IA usa isto para mandar a localização ao cliente e dizer qual loja é a mais perto. Deixe vazio se não souber.",
+        "ERROR": "Cole dois números: latitude e longitude, nessa ordem. Latitude vai de -90 a 90 e longitude de -180 a 180."
+      },
       "INBOXES": {
         "LABEL": "Caixas de entrada desta unidade",
         "HELP": "A linha de WhatsApp desta filial. Uma caixa pertence a no máximo uma unidade.",

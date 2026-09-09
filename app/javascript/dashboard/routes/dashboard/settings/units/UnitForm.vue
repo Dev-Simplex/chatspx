@@ -95,6 +95,9 @@ const form = ref({
   notes: '',
   applies_to_inboxes: false,
 });
+// UM campo, e não dois: ninguém digita latitude e longitude separadas — copia o par do Google
+// Maps ("-15.601, -56.097") e cola. A quebra nos dois números acontece no envio.
+const coordenadas = ref('');
 const timeSlots = ref([]);
 const horaIds = ref({});
 const selectedInboxIds = ref([]);
@@ -122,6 +125,10 @@ const carregar = () => {
     notes: u?.notes ?? '',
     applies_to_inboxes: u?.applies_to_inboxes ?? false,
   };
+  coordenadas.value =
+    u?.latitude != null && u?.longitude != null
+      ? `${u.latitude}, ${u.longitude}`
+      : '';
   const grade = u?.working_hours?.length ? u.working_hours : GRADE_PADRAO;
   // Guarda o id de cada dia: sem ele o nested attributes cria linha nova em vez de
   // atualizar a existente, e o índice único do par (unidade, dia) recusa o salvar.
@@ -156,6 +163,27 @@ watch(() => props.unit, carregar);
 
 const timezones = timeZoneOptions();
 const nomeInvalido = computed(() => !form.value.name.trim());
+
+// Aceita "-15.601, -56.097" e também "-15,601 -56,097": o Google Maps copia com ponto, mas quem
+// digita à mão num teclado brasileiro usa vírgula decimal. Vazio é ausência legítima, não erro.
+const parCoordenada = computed(() => {
+  const cru = coordenadas.value.trim();
+  if (!cru) return null;
+
+  const numeros = cru
+    .replace(/,(\d)/g, '.$1')
+    .split(/[\s,;]+/)
+    .filter(Boolean)
+    .map(Number);
+
+  if (numeros.length !== 2 || numeros.some(Number.isNaN)) return false;
+
+  const [lat, lng] = numeros;
+  const naFaixa = Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  return naFaixa ? { latitude: lat, longitude: lng } : false;
+});
+
+const coordenadaInvalida = computed(() => parCoordenada.value === false);
 // Faixa invertida (fecha antes de abrir) — o próprio BusinessDay marca o dia. Dia
 // fechado nasce `valid: false` sem ser erro, então só conta quem tem hora escolhida.
 const gradeInvalida = computed(() =>
@@ -576,9 +604,14 @@ const regrasVisiveis = computed(() =>
 );
 
 const onSubmit = () => {
-  if (nomeInvalido.value || gradeInvalida.value) return;
+  if (nomeInvalido.value || gradeInvalida.value || coordenadaInvalida.value)
+    return;
   emit('submit', {
     ...form.value,
+    // `null` e não `''`: string vazia em coluna decimal do Rails vira 0.0, e o ponto (0,0) fica
+    // no Golfo da Guiné — uma unidade "sem pin" passaria a ser a mais próxima de todo mundo.
+    latitude: parCoordenada.value ? parCoordenada.value.latitude : null,
+    longitude: parCoordenada.value ? parCoordenada.value.longitude : null,
     inbox_ids: selectedInboxIds.value,
     working_hours_attributes: timeSlotTransform(timeSlots.value).map(hora => {
       const slot = timeSlots.value.find(item => item.day === hora.day_of_week);
@@ -655,6 +688,23 @@ const onSubmit = () => {
       </div>
       <p class="m-0 text-n-slate-11 text-label-small">
         {{ t('UNITS_MGMT.FORM.TIMEZONE.HELP') }}
+      </p>
+      <woot-input
+        v-model="coordenadas"
+        class="mb-0"
+        :class="{ error: coordenadaInvalida }"
+        :label="t('UNITS_MGMT.FORM.COORDINATES.LABEL')"
+        :placeholder="t('UNITS_MGMT.FORM.COORDINATES.PLACEHOLDER')"
+      />
+      <p
+        class="m-0 text-label-small"
+        :class="coordenadaInvalida ? 'text-n-ruby-11' : 'text-n-slate-11'"
+      >
+        {{
+          coordenadaInvalida
+            ? t('UNITS_MGMT.FORM.COORDINATES.ERROR')
+            : t('UNITS_MGMT.FORM.COORDINATES.HELP')
+        }}
       </p>
     </section>
 
@@ -1185,7 +1235,9 @@ const onSubmit = () => {
         type="submit"
         :label="t('UNITS_MGMT.FORM.SUBMIT')"
         :is-loading="isSaving"
-        :disabled="nomeInvalido || gradeInvalida || isSaving"
+        :disabled="
+          nomeInvalido || gradeInvalida || coordenadaInvalida || isSaving
+        "
       />
     </div>
   </form>
