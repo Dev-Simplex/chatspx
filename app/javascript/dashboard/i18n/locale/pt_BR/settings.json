@@ -41,7 +41,7 @@
     },
     "DETAIL": {
       "OPEN": "Por que este?",
-      "TITLE": "Conversa #{id}",
+      "TITLE": "Conversa {id}",
       "CLOSE": "Fechar",
       "DESIGNATED_AT": "Designado em",
       "CANDIDATES": "Candidatos:"
@@ -59,6 +59,7 @@
       "HOURS": "{n}h",
       "HOURS_MINUTES": "{h}h{m}",
       "DAYS": "{n} d",
+      "DAYS_HOURS": "{d} d {h}h",
       "PHASE": {
         "IA": "IA cobrindo",
         "ESPERA": "esperando o consultor pegar",

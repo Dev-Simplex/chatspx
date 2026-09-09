@@ -78,9 +78,9 @@ const abrirDetalhe = async lead => {
 
 const data_hora = valor => (valor ? new Date(valor).toLocaleString() : '—');
 
-// Montados aqui, e não no template, porque texto solto em template (o "#" e os "·")
-// é erro de lint no projeto — nada de string crua fora do i18n.
-const conversa = displayId => `#${displayId}`;
+// Montado aqui, e não no template, porque texto solto em template é erro de lint no projeto —
+// nada de string crua fora do i18n. O "#" saiu a pedido: o número do lead se lê sozinho.
+const conversa = displayId => `${displayId}`;
 
 // ---------------------------------------------------------------- linha do tempo
 
@@ -153,13 +153,38 @@ const duracao = segundos => {
   if (minutos < 60) return t('AGENTS_RODIZIO.TIMELINE.MINUTES', { n: minutos });
 
   const horas = Math.floor(minutos / 60);
-  const resto = minutos % 60;
+  const restoMin = minutos % 60;
   if (horas < 24) {
-    return resto
-      ? t('AGENTS_RODIZIO.TIMELINE.HOURS_MINUTES', { h: horas, m: resto })
+    // Minuto com zero à esquerda: "1h06", e não "1h6" — que se lê como uma hora e seis.
+    return restoMin
+      ? t('AGENTS_RODIZIO.TIMELINE.HOURS_MINUTES', {
+          h: horas,
+          m: String(restoMin).padStart(2, '0'),
+        })
       : t('AGENTS_RODIZIO.TIMELINE.HOURS', { n: horas });
   }
-  return t('AGENTS_RODIZIO.TIMELINE.DAYS', { n: Math.floor(horas / 24) });
+
+  const dias = Math.floor(horas / 24);
+  const restoHoras = horas % 24;
+  return restoHoras
+    ? t('AGENTS_RODIZIO.TIMELINE.DAYS_HOURS', { d: dias, h: restoHoras })
+    : t('AGENTS_RODIZIO.TIMELINE.DAYS', { n: dias });
+};
+
+// Hora do marco. Data cheia em seis marcos por lead ("09/09/2026 06:35:12" em cada um) vira
+// ruído: se o instante é de hoje, só a hora; se é de outro dia, dia/mês e hora.
+const instante = valor => {
+  if (!valor) return '—';
+
+  const quando = new Date(valor);
+  const relogio = { hour: '2-digit', minute: '2-digit' };
+  return quando.toDateString() === new Date().toDateString()
+    ? quando.toLocaleTimeString([], relogio)
+    : quando.toLocaleString([], {
+        day: '2-digit',
+        month: '2-digit',
+        ...relogio,
+      });
 };
 
 const proporcao = (parte, todo) => (todo > 0 ? ((parte || 0) / todo) * 100 : 0);
@@ -223,7 +248,7 @@ const marcosDo = lead =>
     .filter(([campo]) => lead[campo])
     .map(([campo, texto]) => ({
       chave: campo,
-      texto: texto(data_hora(lead[campo])),
+      texto: texto(instante(lead[campo])),
     }));
 
 const desfecho = lead => {
@@ -498,9 +523,11 @@ const irParaPolitica = () =>
                         <div
                           class="flex flex-wrap items-baseline justify-between gap-2"
                         >
-                          <span class="text-sm text-n-slate-12">
+                          <span class="text-sm font-medium text-n-slate-12">
                             {{ titulo(lead) }}
-                            <span class="text-xs text-n-slate-10">
+                            <span
+                              class="text-xs font-normal tabular-nums text-n-slate-10"
+                            >
                               {{ contexto(lead) }}
                             </span>
                           </span>
@@ -512,24 +539,27 @@ const irParaPolitica = () =>
                           </span>
                         </div>
 
+                        <!-- `v-tooltip` (floating-vue, global no dashboard) no lugar do
+                             `title`: o balão nativo do navegador demora a aparecer e ignora
+                             o tema da tela. -->
                         <div
-                          class="flex h-6 overflow-hidden rounded"
+                          class="flex h-7 overflow-hidden rounded-md ring-1 ring-inset ring-black/10"
                           :style="{ width: larguraBarra(lead, linha.user_id) }"
                         >
                           <div
                             v-for="fase in fasesDo(lead)"
                             :key="fase.chave"
-                            class="flex items-center px-2 overflow-hidden text-[10px] whitespace-nowrap min-w-[3px]"
+                            v-tooltip.top="fase.titulo"
+                            class="flex items-center px-2 overflow-hidden text-[11px] font-medium tracking-tight tabular-nums whitespace-nowrap min-w-[3px]"
                             :class="fase.classe"
                             :style="{ width: fase.largura }"
-                            :title="fase.titulo"
                           >
                             {{ fase.rotulo }}
                           </div>
                         </div>
 
                         <div
-                          class="flex flex-wrap text-xs gap-x-4 gap-y-1 text-n-slate-10"
+                          class="flex flex-wrap text-xs tabular-nums gap-x-4 gap-y-1 text-n-slate-10"
                         >
                           <span
                             v-for="marco in marcosDo(lead)"
