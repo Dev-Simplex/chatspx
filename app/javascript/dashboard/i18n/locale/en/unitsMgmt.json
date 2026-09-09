@@ -101,6 +101,12 @@
         "SEARCH": "Search timezone",
         "HELP": "The timezone tells whether this unit is open right now — each branch answers on its own clock."
       },
+      "COORDINATES": {
+        "LABEL": "Coordinates",
+        "PLACEHOLDER": "-15.601, -56.097",
+        "HELP": "Open the unit in Google Maps, right-click the spot and paste it here. The AI uses this to send the location to the customer and to tell which store is closest. Leave it empty if you don't know.",
+        "ERROR": "Paste two numbers: latitude and longitude, in that order. Latitude ranges from -90 to 90 and longitude from -180 to 180."
+      },
       "INBOXES": {
         "LABEL": "Inboxes of this unit",
         "HELP": "The WhatsApp line of this branch. An inbox belongs to one unit at most.",
