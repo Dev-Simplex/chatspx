@@ -272,6 +272,8 @@ en:
     attachment: 'Attachment'
     no_content: 'No content'
   conversations:
+    secret_template:
+      trace: 'Confidential content sent to the customer. The value is not visible in the inbox.'
     team_access:
       forbidden: 'You do not have permission to access this conversation.'
     reply_assignment_gate:

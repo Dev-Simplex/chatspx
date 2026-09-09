@@ -81,6 +81,10 @@
       "SAVE": "Save visibility",
       "SAVE_SUCCESS": "Template visibility updated.",
       "SAVE_ERROR": "Could not update template visibility."
+    },
+    "SECRET": {
+      "COL": "Confidential",
+      "HELP": "The values of this template's variables (code, signing link) are not visible to agents. Delivery to the customer is unchanged."
     }
   }
 }
