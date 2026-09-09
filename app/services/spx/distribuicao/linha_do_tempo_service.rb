@@ -33,7 +33,7 @@ class Spx::Distribuicao::LinhaDoTempoService
   private
 
   def logs
-    @logs ||= @escopo.includes(conversation: :inbox)
+    @logs ||= @escopo.includes(:chosen_user, conversation: [:inbox, :contact])
                      .order(designado_em: :desc, id: :desc)
                      .limit(LIMITE)
                      .to_a
@@ -109,9 +109,15 @@ class Spx::Distribuicao::LinhaDoTempoService
   end
 
   def identificacao(log)
+    contato = log.conversation&.contact
     {
       conversation_id: log.conversation_id,
       display_id: log.conversation&.display_id,
+      # Quem é o lead, na linguagem de quem lê a tela: o número identifica mais rápido que o #id.
+      contato: contato&.name,
+      telefone: contato&.phone_number,
+      # O corretor desta designação: é o dono da espera e do atendimento na barra.
+      corretor: log.chosen_user&.name,
       canal: canal(log),
       produto: log.produto_slug,
       status: log.status,

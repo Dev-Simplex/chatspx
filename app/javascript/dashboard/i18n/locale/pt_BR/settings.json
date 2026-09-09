@@ -53,6 +53,7 @@
       "EMPTY": "Nenhum lead de rodízio no período.",
       "SHOWING": "mostrando {n} de {total}",
       "LEGEND": "Largura é tempo, na mesma escala para todos.",
+      "AI_SHORT": "IA",
       "SECONDS": "{n}s",
       "MINUTES": "{n} min",
       "HOURS": "{n}h",

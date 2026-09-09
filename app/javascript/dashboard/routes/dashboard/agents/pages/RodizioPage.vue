@@ -78,29 +78,38 @@ const abrirDetalhe = async lead => {
 
 const data_hora = valor => (valor ? new Date(valor).toLocaleString() : '—');
 
+// Montados aqui, e não no template, porque texto solto em template (o "#" e os "·")
+// é erro de lint no projeto — nada de string crua fora do i18n.
+const conversa = displayId => `#${displayId}`;
+
 // ---------------------------------------------------------------- linha do tempo
 
 // Ordem dos blocos na barra, a cor e o nome de cada um. Computed, e não constante solta, porque
 // o nome é traduzido — e a chave fica escrita por extenso: chave montada em runtime já sumiu de
 // tela neste projeto e o lint reclama dela com razão.
+//
+// Sobre as cores: nesta skin de WhatsApp o `blue` e o `teal` foram sobrescritos para o MESMO
+// verde (idênticos no tema escuro), então azul não separa fase nenhuma — a da IA passou a ser
+// cinza. As quatro usam texto PRETO porque branco reprova em contraste sobre os tons sólidos
+// (medido: 1,6 a 3,9), enquanto preto passa em todos (5,4 a 13,3).
 const FASES = computed(() => [
   {
     chave: 'ia',
-    classe: 'bg-n-blue-3 text-n-blue-11',
+    classe: 'bg-n-slate-9 text-black',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.IA'),
   },
   {
     chave: 'espera',
-    classe: 'bg-n-amber-3 text-n-amber-11',
+    classe: 'bg-n-amber-9 text-black',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ESPERA'),
   },
   {
     chave: 'atendimento',
-    classe: 'bg-n-teal-3 text-n-teal-11',
+    classe: 'bg-n-teal-9 text-black',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ATENDIMENTO'),
   },
 ]);
-const PERDIDO = 'bg-n-ruby-3 text-n-ruby-11';
+const PERDIDO = 'bg-n-ruby-9 text-black';
 // Abaixo disso o bloco não cabe o texto; o número continua no título e nos marcos.
 const LARGURA_MINIMA_ROTULO = 12;
 
@@ -163,6 +172,14 @@ const escala = userId =>
 const larguraBarra = (lead, userId) =>
   `${proporcao(lead.total_segundos, escala(userId))}%`;
 
+// Quem estava com o lead naquele trecho: antes da designação é a IA, depois é o corretor. Só o
+// primeiro nome, porque o bloco é estreito.
+const dono = (lead, fase) =>
+  fase === 'ia'
+    ? t('AGENTS_RODIZIO.TIMELINE.AI_SHORT')
+    : (lead.corretor || '').split(' ')[0] ||
+      t('AGENTS_RODIZIO.TIMELINE.AI_SHORT');
+
 const fasesDo = lead =>
   FASES.value
     .filter(fase => (lead.fases?.[fase.chave] || 0) > 0)
@@ -175,8 +192,11 @@ const fasesDo = lead =>
         // Espera que terminou sem ninguém pegar é o defeito que a tela existe para mostrar.
         classe: perdeu ? PERDIDO : fase.classe,
         largura: `${largura}%`,
-        rotulo: largura >= LARGURA_MINIMA_ROTULO ? duracao(segundos) : '',
-        titulo: `${fase.nome} · ${duracao(segundos)}`,
+        rotulo:
+          largura >= LARGURA_MINIMA_ROTULO
+            ? `${dono(lead, fase.chave)} · ${duracao(segundos)}`
+            : '',
+        titulo: `${fase.nome} · ${dono(lead, fase.chave)} · ${duracao(segundos)}`,
       };
     });
 
@@ -231,8 +251,21 @@ const corDesfecho = lead => {
   return 'text-n-teal-11';
 };
 
-// "· WhatsApp · Apto 2 dorm" — montado aqui porque texto solto no template é erro de lint.
-const contexto = lead => [lead.canal, lead.produto].filter(Boolean).join(' · ');
+// Quem é o lead. O nome do contato manda; sem nome, o número; sem os dois, o #id da conversa.
+const titulo = lead =>
+  lead.contato || lead.telefone || conversa(lead.display_id);
+
+// "+55 11 98888-7777 · #4821 · WhatsApp · Apto 2 dorm" — montado aqui porque texto solto no
+// template é erro de lint no projeto.
+const contexto = lead =>
+  [
+    lead.contato ? lead.telefone : null,
+    conversa(lead.display_id),
+    lead.canal,
+    lead.produto,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
 const mediaEspera = userId => {
   const segundos = timelineDe(userId).media_espera_segundos;
@@ -241,10 +274,6 @@ const mediaEspera = userId => {
 
 const restantes = userId =>
   Math.max((timelineDe(userId).total || 0) - leadsDe(userId).length, 0);
-
-// Montados aqui, e não no template, porque texto solto em template (o "#" e os "·")
-// é erro de lint no projeto — nada de string crua fora do i18n.
-const conversa = displayId => `#${displayId}`;
 
 const resumoDesignacao = registro =>
   [registro.corretor || '—', registro.motivo, registro.status || '—'].join(
@@ -470,7 +499,7 @@ const irParaPolitica = () =>
                           class="flex flex-wrap items-baseline justify-between gap-2"
                         >
                           <span class="text-sm text-n-slate-12">
-                            {{ conversa(lead.display_id) }}
+                            {{ titulo(lead) }}
                             <span class="text-xs text-n-slate-10">
                               {{ contexto(lead) }}
                             </span>

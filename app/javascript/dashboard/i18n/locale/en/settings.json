@@ -53,6 +53,7 @@
       "EMPTY": "No rotation leads in this period.",
       "SHOWING": "showing {n} of {total}",
       "LEGEND": "Width is time, on the same scale for every lead.",
+      "AI_SHORT": "AI",
       "SECONDS": "{n}s",
       "MINUTES": "{n} min",
       "HOURS": "{n}h",
