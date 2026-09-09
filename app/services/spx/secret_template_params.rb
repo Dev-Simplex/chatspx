@@ -106,6 +106,21 @@ module Spx::SecretTemplateParams
     conversation.messages.outgoing.where("additional_attributes->'template_params' IS NULL").none?
   end
 
+  # Esta conversa NASCEU deste disparo? Ou seja: o disparo é a primeira fala dela.
+  #
+  # É a regra literal do "se já estava aberta antes, não resolve". A primeira versão
+  # perguntava outra coisa (se alguém já tinha CONVERSADO ali) e resolveu a #519 da
+  # Fábrica, que existia desde a véspera e vinha sendo usada para empurrar relatório em
+  # PDF: ninguém tinha falado nela, mas ela existia antes e não era do disparo.
+  def born_from_dispatch?(message)
+    conversation = message.conversation
+    return false if conversation.blank?
+    return false if conversation.messages.incoming.exists?
+
+    primeira = conversation.messages.where.not(message_type: :activity).order(:id).first
+    primeira&.id == message.id
+  end
+
   # A mensagem tem valor protegido? Usado pela serialização e pelo websocket.
   def protected?(message)
     message.additional_attributes&.dig('template_params', SECRET_KEY).present?

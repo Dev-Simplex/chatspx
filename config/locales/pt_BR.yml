@@ -354,6 +354,7 @@ pt_BR:
         auto_resolved_days: 'A conversa foi marcada como resolvida pelo sistema por ter %{count} dias de inatividade'
         auto_resolved_hours: 'A conversa foi marcada como resolvida pelo sistema por ter %{count} horas de inatividade'
         auto_resolved_minutes: 'A conversa foi marcada como resolvida pelo sistema por ter %{count} minutos de inatividade'
+        secret_dispatch_resolved: 'A conversa foi encerrada porque existia apenas para um envio sigiloso. Se o cliente responder, ela reabre.'
         system_auto_open: O sistema reabriu a conversa devido a uma nova mensagem recebida.
       priority:
         added: '%{user_name} definiu a prioridade para %{new_priority}'

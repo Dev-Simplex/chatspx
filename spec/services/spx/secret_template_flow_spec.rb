@@ -43,6 +43,8 @@ RSpec.describe 'fluxo do template sigiloso', type: :request do
   end
 
   describe 'com o template marcado como sigiloso na caixa' do
+    include ActiveJob::TestHelper
+
     before { inbox.update!(additional_attributes: { 'secret_template_names' => ['sample_shipping_confirmation'] }) }
 
     it 'grava a mascara, nao o codigo' do
@@ -105,6 +107,29 @@ RSpec.describe 'fluxo do template sigiloso', type: :request do
       enviar(message)
 
       expect(message.conversation.reload.status).to eq('open')
+    end
+
+    # O caso que escapou na Fabrica: a conversa #519 existia desde a vespera e servia para
+    # empurrar relatorio em PDF. Ninguem tinha FALADO nela, entao a primeira regra
+    # ("ninguem conversou aqui") a resolveu. Existir antes basta para nao mexer.
+    it 'NAO resolve conversa que ja existia, mesmo sem ninguem ter falado nela' do
+      create(:message, conversation: conversation, message_type: :outgoing, content: '',
+                       additional_attributes: { 'template_params' => { 'name' => 'outro_disparo' } })
+      message = construir_mensagem
+      enviar(message)
+
+      expect(message.conversation.reload.status).to eq('open')
+    end
+
+    it 'diz o motivo certo do encerramento, em vez de inventar inatividade' do
+      message = construir_mensagem
+      # A mensagem de atividade nasce num job; sem rodar o job nao ha o que conferir.
+      # Só ESTE job, para nao arrastar o resto da fila para dentro do teste.
+      perform_enqueued_jobs(only: Conversations::ActivityMessageJob) { enviar(message) }
+
+      atividade = message.conversation.messages.where(message_type: :activity).order(:id).last
+      expect(atividade.content).to eq(I18n.t('conversations.activity.status.secret_dispatch_resolved'))
+      expect(atividade.content).not_to include('inatividade')
     end
 
     it 'nao dispara pesquisa de satisfacao para quem so recebeu o codigo' do

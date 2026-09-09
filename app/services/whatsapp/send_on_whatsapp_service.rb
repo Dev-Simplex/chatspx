@@ -47,21 +47,25 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
     resolve_conversa_de_disparo
   end
 
-  # A conversa que existe SÓ para levar o disparo sai da fila. Assinatura medida na
-  # Fábrica: 2 atividades ("Atribuído a triagem", "admin atribuiu a si mesmo") mais a
-  # própria saída, nenhuma entrada. Conversa que já estava aberta antes fica aberta, porque
-  # ali tem gente atendendo.
+  # A conversa que NASCEU deste disparo sai da fila. Conversa que já existia antes fica
+  # como está, mesmo que ninguém tenha falado nela: a #519 da Fábrica é assim, existe desde
+  # a véspera e serve para empurrar relatório em PDF.
   #
   # Não se perde nada: só mensagem de ENTRADA reabre conversa resolvida, então se o cliente
   # responder ela volta sozinha para a fila.
+  #
+  # O marcador no Current existe para o encerramento não mentir o motivo: sem ele, o
+  # ActivityMessageHandler cai no ramo de auto-resolução por inatividade e escreve
+  # "resolvida pelo sistema por ter 0 minutos de inatividade", que é falso.
   def resolve_conversa_de_disparo
     return unless Spx::SecretTemplateParams.protected?(message)
+    return if message.conversation.resolved?
+    return unless Spx::SecretTemplateParams.born_from_dispatch?(message)
 
-    conversation = message.conversation
-    return if conversation.resolved?
-    return unless Spx::SecretTemplateParams.dispatch_only?(conversation)
-
-    conversation.update!(status: :resolved)
+    Current.secret_dispatch_resolve = true
+    message.conversation.update!(status: :resolved)
+  ensure
+    Current.secret_dispatch_resolve = nil
   end
 
   # Os parâmetros com o valor real, para montar o payload. Template comum passa direto.
