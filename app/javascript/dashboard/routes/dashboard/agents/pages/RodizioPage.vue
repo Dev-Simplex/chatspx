@@ -17,11 +17,17 @@ const data = ref(null);
 const teamId = ref('');
 const detalhe = ref(null);
 const detalheLoading = ref(false);
+const expandido = ref(null);
+const timelines = ref({});
+const timelineLoading = ref(false);
 
 const carregar = async () => {
   loading.value = true;
   loadError.value = false;
   detalhe.value = null;
+  // Trocar de time ou de período muda quais leads contam: o que estava aberto vira mentira.
+  expandido.value = null;
+  timelines.value = {};
   try {
     const params = teamId.value ? { team_id: teamId.value } : {};
     const { data: payload } = await DistribuicaoDashboardAPI.show(params);
@@ -71,6 +77,170 @@ const abrirDetalhe = async lead => {
 };
 
 const data_hora = valor => (valor ? new Date(valor).toLocaleString() : '—');
+
+// ---------------------------------------------------------------- linha do tempo
+
+// Ordem dos blocos na barra, a cor e o nome de cada um. Computed, e não constante solta, porque
+// o nome é traduzido — e a chave fica escrita por extenso: chave montada em runtime já sumiu de
+// tela neste projeto e o lint reclama dela com razão.
+const FASES = computed(() => [
+  {
+    chave: 'ia',
+    classe: 'bg-n-blue-3 text-n-blue-11',
+    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.IA'),
+  },
+  {
+    chave: 'espera',
+    classe: 'bg-n-amber-3 text-n-amber-11',
+    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ESPERA'),
+  },
+  {
+    chave: 'atendimento',
+    classe: 'bg-n-teal-3 text-n-teal-11',
+    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ATENDIMENTO'),
+  },
+]);
+const PERDIDO = 'bg-n-ruby-3 text-n-ruby-11';
+// Abaixo disso o bloco não cabe o texto; o número continua no título e nos marcos.
+const LARGURA_MINIMA_ROTULO = 12;
+
+const timelineDe = userId => timelines.value[userId] || { leads: [], total: 0 };
+const leadsDe = userId => timelineDe(userId).leads || [];
+
+// Abre e fecha a faixa. O resultado fica guardado por consultor: reabrir não bate na API de novo.
+const alternarConsultor = async linha => {
+  if (expandido.value === linha.user_id) {
+    expandido.value = null;
+    return;
+  }
+  expandido.value = linha.user_id;
+  if (timelines.value[linha.user_id]) return;
+
+  timelineLoading.value = true;
+  try {
+    const params = teamId.value ? { team_id: teamId.value } : {};
+    const { data: payload } = await DistribuicaoDashboardAPI.linhaDoTempo(
+      linha.user_id,
+      params
+    );
+    timelines.value = { ...timelines.value, [linha.user_id]: payload };
+  } catch (e) {
+    timelines.value = {
+      ...timelines.value,
+      [linha.user_id]: { leads: [], total: 0 },
+    };
+  } finally {
+    timelineLoading.value = false;
+  }
+};
+
+// Formatador próprio em vez do `formatTime` dos relatórios: aquele arredonda 1h50 para "1h", e
+// numa barra em que a diferença entre 2 min e 38 min é o assunto, isso apaga o dado.
+const duracao = segundos => {
+  const total = Math.round(segundos || 0);
+  if (total < 60) return t('AGENTS_RODIZIO.TIMELINE.SECONDS', { n: total });
+
+  const minutos = Math.round(total / 60);
+  if (minutos < 60) return t('AGENTS_RODIZIO.TIMELINE.MINUTES', { n: minutos });
+
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  if (horas < 24) {
+    return resto
+      ? t('AGENTS_RODIZIO.TIMELINE.HOURS_MINUTES', { h: horas, m: resto })
+      : t('AGENTS_RODIZIO.TIMELINE.HOURS', { n: horas });
+  }
+  return t('AGENTS_RODIZIO.TIMELINE.DAYS', { n: Math.floor(horas / 24) });
+};
+
+const proporcao = (parte, todo) => (todo > 0 ? ((parte || 0) / todo) * 100 : 0);
+
+// Todas as barras da faixa dividem a MESMA escala — a maior duração vira 100%. É o que deixa
+// comparar um lead com o outro de bater o olho, em vez de cada barra se normalizar sozinha.
+const escala = userId =>
+  Math.max(...leadsDe(userId).map(lead => lead.total_segundos || 0), 1);
+
+const larguraBarra = (lead, userId) =>
+  `${proporcao(lead.total_segundos, escala(userId))}%`;
+
+const fasesDo = lead =>
+  FASES.value
+    .filter(fase => (lead.fases?.[fase.chave] || 0) > 0)
+    .map(fase => {
+      const segundos = lead.fases[fase.chave];
+      const largura = proporcao(segundos, lead.total_segundos);
+      const perdeu = fase.chave === 'espera' && lead.perdido_em;
+      return {
+        chave: fase.chave,
+        // Espera que terminou sem ninguém pegar é o defeito que a tela existe para mostrar.
+        classe: perdeu ? PERDIDO : fase.classe,
+        largura: `${largura}%`,
+        rotulo: largura >= LARGURA_MINIMA_ROTULO ? duracao(segundos) : '',
+        titulo: `${fase.nome} · ${duracao(segundos)}`,
+      };
+    });
+
+// Um marco por instante gravado, na ordem em que aconteceram. O que não existe some da linha:
+// lead que ninguém pegou não tem "pegou", e lead aberto não tem "resolvido".
+const marcosDo = lead =>
+  [
+    ['chegou_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.ARRIVED', { hora })],
+    [
+      'designado_em',
+      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.DESIGNATED', { hora }),
+    ],
+    ['assumido_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.TAKEN', { hora })],
+    [
+      'primeira_resposta_em',
+      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.FIRST_REPLY', { hora }),
+    ],
+    ['perdido_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.LOST', { hora })],
+    [
+      'resolvido_em',
+      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.RESOLVED', { hora }),
+    ],
+  ]
+    .filter(([campo]) => lead[campo])
+    .map(([campo, texto]) => ({
+      chave: campo,
+      texto: texto(data_hora(lead[campo])),
+    }));
+
+const desfecho = lead => {
+  if (lead.perdido_em) {
+    return lead.repassado_para
+      ? t('AGENTS_RODIZIO.TIMELINE.OUTCOME.PASSED', {
+          nome: lead.repassado_para,
+        })
+      : t('AGENTS_RODIZIO.TIMELINE.OUTCOME.EXPIRED');
+  }
+  if (lead.resolvido_em) {
+    return t('AGENTS_RODIZIO.TIMELINE.OUTCOME.RESOLVED', {
+      tempo: duracao(lead.total_segundos),
+    });
+  }
+  if (lead.em_curso) return t('AGENTS_RODIZIO.TIMELINE.OUTCOME.IN_SERVICE');
+  return t('AGENTS_RODIZIO.TIMELINE.OUTCOME.WAITING', {
+    tempo: duracao(lead.fases?.espera),
+  });
+};
+
+const corDesfecho = lead => {
+  if (lead.perdido_em) return 'text-n-ruby-11';
+  if (!lead.resolvido_em && !lead.em_curso) return 'text-n-amber-11';
+  return 'text-n-teal-11';
+};
+
+// "· WhatsApp · Apto 2 dorm" — montado aqui porque texto solto no template é erro de lint.
+const contexto = lead => [lead.canal, lead.produto].filter(Boolean).join(' · ');
+
+const mediaEspera = userId => {
+  const segundos = timelineDe(userId).media_espera_segundos;
+  return segundos ? duracao(segundos) : '';
+};
+
+const restantes = userId =>
+  Math.max((timelineDe(userId).total || 0) - leadsDe(userId).length, 0);
 
 // Montados aqui, e não no template, porque texto solto em template (o "#" e os "·")
 // é erro de lint no projeto — nada de string crua fora do i18n.
@@ -207,35 +377,173 @@ const irParaPolitica = () =>
                 {{ t('AGENTS_RODIZIO.EMPTY') }}
               </td>
             </tr>
-            <tr
-              v-for="linha in linhas"
-              :key="linha.user_id"
-              class="border-t border-n-weak"
-            >
-              <td class="px-3 py-2 text-n-slate-12">
-                {{ linha.nome || linha.user_id }}
-              </td>
-              <td class="px-3 py-2 text-right text-n-slate-12">
-                {{ linha.recebidos }}
-              </td>
-              <td class="px-3 py-2 text-right text-n-slate-11">
-                {{ motivo(linha, 'rodizio') }}
-              </td>
-              <td class="px-3 py-2 text-right text-n-slate-11">
-                {{ motivo(linha, 'continuidade') }}
-              </td>
-              <td class="px-3 py-2 text-right text-n-slate-11">
-                {{ motivo(linha, 'preferencia_cliente') }}
-              </td>
-              <td class="px-3 py-2 text-right text-n-slate-11">
-                {{ motivo(linha, 'manual_gestor') }}
-              </td>
-              <td class="px-3 py-2 text-right text-n-slate-11">
-                {{ linha.abertos }}
-              </td>
-              <td class="px-3 py-2 text-n-slate-10">{{ canais(linha) }}</td>
-              <td class="px-3 py-2 text-n-slate-10">{{ produtos(linha) }}</td>
-            </tr>
+            <template v-for="linha in linhas" :key="linha.user_id">
+              <tr
+                class="border-t border-n-weak"
+                :class="{
+                  'bg-n-solid-1 dark:bg-n-solid-2': expandido === linha.user_id,
+                }"
+              >
+                <td class="px-3 py-2 text-n-slate-12">
+                  <button
+                    class="inline-flex items-center gap-2 text-left hover:underline underline-offset-4"
+                    :aria-expanded="expandido === linha.user_id"
+                    :title="t('AGENTS_RODIZIO.TIMELINE.OPEN')"
+                    @click="alternarConsultor(linha)"
+                  >
+                    <span
+                      class="transition-transform duration-200 i-lucide-chevron-right size-3.5 text-n-slate-10"
+                      :class="{ 'rotate-90': expandido === linha.user_id }"
+                    />
+                    {{ linha.nome || linha.user_id }}
+                  </button>
+                </td>
+                <td class="px-3 py-2 text-right text-n-slate-12">
+                  {{ linha.recebidos }}
+                </td>
+                <td class="px-3 py-2 text-right text-n-slate-11">
+                  {{ motivo(linha, 'rodizio') }}
+                </td>
+                <td class="px-3 py-2 text-right text-n-slate-11">
+                  {{ motivo(linha, 'continuidade') }}
+                </td>
+                <td class="px-3 py-2 text-right text-n-slate-11">
+                  {{ motivo(linha, 'preferencia_cliente') }}
+                </td>
+                <td class="px-3 py-2 text-right text-n-slate-11">
+                  {{ motivo(linha, 'manual_gestor') }}
+                </td>
+                <td class="px-3 py-2 text-right text-n-slate-11">
+                  {{ linha.abertos }}
+                </td>
+                <td class="px-3 py-2 text-n-slate-10">{{ canais(linha) }}</td>
+                <td class="px-3 py-2 text-n-slate-10">{{ produtos(linha) }}</td>
+              </tr>
+
+              <!-- A faixa abre ABAIXO da linha, e não como balão preso ao nome: a barra precisa
+                   da largura da tabela, e balão dentro de célula sai cortado. -->
+              <tr v-if="expandido === linha.user_id">
+                <td colspan="9" class="p-0">
+                  <div
+                    class="flex flex-col gap-3 px-4 py-4 border-t bg-n-solid-1 dark:bg-n-solid-2 border-n-weak"
+                  >
+                    <div
+                      class="flex flex-wrap items-baseline justify-between gap-2"
+                    >
+                      <p class="text-sm font-medium text-n-slate-12">
+                        {{
+                          t('AGENTS_RODIZIO.TIMELINE.TITLE', {
+                            nome: linha.nome || linha.user_id,
+                          })
+                        }}
+                      </p>
+                      <p
+                        v-if="mediaEspera(linha.user_id)"
+                        class="text-xs text-n-slate-11"
+                      >
+                        {{
+                          t('AGENTS_RODIZIO.TIMELINE.AVG_WAIT', {
+                            tempo: mediaEspera(linha.user_id),
+                          })
+                        }}
+                      </p>
+                    </div>
+
+                    <p v-if="timelineLoading" class="text-sm text-n-slate-10">
+                      {{ t('AGENTS_RODIZIO.LOADING') }}
+                    </p>
+                    <p
+                      v-else-if="!leadsDe(linha.user_id).length"
+                      class="text-sm text-n-slate-10"
+                    >
+                      {{ t('AGENTS_RODIZIO.TIMELINE.EMPTY') }}
+                    </p>
+                    <template v-else>
+                      <div
+                        v-for="lead in leadsDe(linha.user_id)"
+                        :key="lead.conversation_id"
+                        class="flex flex-col gap-2 p-3 bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak"
+                      >
+                        <div
+                          class="flex flex-wrap items-baseline justify-between gap-2"
+                        >
+                          <span class="text-sm text-n-slate-12">
+                            {{ conversa(lead.display_id) }}
+                            <span class="text-xs text-n-slate-10">
+                              {{ contexto(lead) }}
+                            </span>
+                          </span>
+                          <span
+                            class="text-xs font-medium"
+                            :class="corDesfecho(lead)"
+                          >
+                            {{ desfecho(lead) }}
+                          </span>
+                        </div>
+
+                        <div
+                          class="flex h-6 overflow-hidden rounded"
+                          :style="{ width: larguraBarra(lead, linha.user_id) }"
+                        >
+                          <div
+                            v-for="fase in fasesDo(lead)"
+                            :key="fase.chave"
+                            class="flex items-center px-2 overflow-hidden text-[10px] whitespace-nowrap min-w-[3px]"
+                            :class="fase.classe"
+                            :style="{ width: fase.largura }"
+                            :title="fase.titulo"
+                          >
+                            {{ fase.rotulo }}
+                          </div>
+                        </div>
+
+                        <div
+                          class="flex flex-wrap text-xs gap-x-4 gap-y-1 text-n-slate-10"
+                        >
+                          <span
+                            v-for="marco in marcosDo(lead)"
+                            :key="marco.chave"
+                          >
+                            {{ marco.texto }}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p
+                        v-if="restantes(linha.user_id)"
+                        class="text-xs text-n-slate-10"
+                      >
+                        {{
+                          t('AGENTS_RODIZIO.TIMELINE.SHOWING', {
+                            n: leadsDe(linha.user_id).length,
+                            total: timelineDe(linha.user_id).total,
+                          })
+                        }}
+                      </p>
+
+                      <div
+                        class="flex flex-wrap items-center text-xs gap-x-4 gap-y-1 text-n-slate-11"
+                      >
+                        <span
+                          v-for="fase in FASES"
+                          :key="fase.chave"
+                          class="inline-flex items-center gap-1.5"
+                        >
+                          <span
+                            class="inline-block w-5 h-2.5 rounded-sm"
+                            :class="fase.classe"
+                          />
+                          {{ fase.nome }}
+                        </span>
+                        <span class="text-n-slate-10">
+                          {{ t('AGENTS_RODIZIO.TIMELINE.LEGEND') }}
+                        </span>
+                      </div>
+                    </template>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </section>
