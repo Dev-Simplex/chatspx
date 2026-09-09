@@ -91,6 +91,13 @@
         "LABEL": "UF",
         "PLACEHOLDER": "MT"
       },
+      "ZIP_CODE": {
+        "LABEL": "CEP",
+        "PLACEHOLDER": "78000-000",
+        "HELP": "Digite o CEP e o endereço, a cidade e o estado se preenchem sozinhos. Falta só o número.",
+        "SEARCHING": "Buscando o endereço…",
+        "NOT_FOUND": "CEP não encontrado. Preencha o endereço à mão."
+      },
       "ADDRESS": {
         "LABEL": "Endereço",
         "PLACEHOLDER": "Av. das Itaúbas, 1234"

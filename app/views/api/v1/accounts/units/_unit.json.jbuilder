@@ -2,6 +2,7 @@ json.id unit.id
 json.name unit.name
 json.city unit.city
 json.state unit.state
+json.zip_code unit.zip_code
 json.address unit.address
 json.phone unit.phone
 # Coordenada e o interruptor PRECISAM sair aqui. Campo que o `permit` aceita mas o jbuilder não

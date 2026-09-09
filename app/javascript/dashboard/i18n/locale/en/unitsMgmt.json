@@ -91,6 +91,13 @@
         "LABEL": "State",
         "PLACEHOLDER": "MT"
       },
+      "ZIP_CODE": {
+        "LABEL": "Postal code",
+        "PLACEHOLDER": "78000-000",
+        "HELP": "Type the Brazilian postal code and the address, city and state fill themselves in. Only the street number is left.",
+        "SEARCHING": "Looking up the address…",
+        "NOT_FOUND": "Postal code not found. Fill the address in by hand."
+      },
       "ADDRESS": {
         "LABEL": "Address",
         "PLACEHOLDER": "Av. das Itaúbas, 1234"
