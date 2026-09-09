@@ -17,6 +17,14 @@ class DistribuicaoDashboard extends ApiClient {
       params: { conversation_id: conversationId },
     });
   }
+
+  // A linha do tempo dos leads que caíram no consultor pelo rodízio: quanto a IA cobriu, quanto
+  // o lead esperou ele pegar, e quanto durou o atendimento.
+  linhaDoTempo(userId, params = {}) {
+    return axios.get(`${this.url}/linha_do_tempo`, {
+      params: { ...params, user_id: userId },
+    });
+  }
 }
 
 export default new DistribuicaoDashboard();
