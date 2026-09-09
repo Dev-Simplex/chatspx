@@ -41,10 +41,45 @@
     },
     "DETAIL": {
       "OPEN": "Why this one?",
-      "TITLE": "Conversation #{id}",
+      "TITLE": "Conversation {id}",
       "CLOSE": "Close",
       "DESIGNATED_AT": "Designated at",
       "CANDIDATES": "Candidates:"
+    },
+    "TIMELINE": {
+      "OPEN": "See the lead timeline",
+      "TITLE": "Leads {nome} received through the rotation",
+      "AVG_WAIT": "average wait: {tempo}",
+      "EMPTY": "No rotation leads in this period.",
+      "SHOWING": "showing {n} of {total}",
+      "LEGEND": "Width is time, on the same scale for every lead.",
+      "AI_SHORT": "AI",
+      "SECONDS": "{n}s",
+      "MINUTES": "{n} min",
+      "HOURS": "{n}h",
+      "HOURS_MINUTES": "{h}h{m}",
+      "DAYS": "{n} d",
+      "DAYS_HOURS": "{d} d {h}h",
+      "PHASE": {
+        "IA": "AI covering",
+        "ESPERA": "waiting for the consultant",
+        "ATENDIMENTO": "being handled"
+      },
+      "MARK": {
+        "ARRIVED": "arrived {hora}",
+        "DESIGNATED": "designated {hora}",
+        "TAKEN": "picked up {hora}",
+        "FIRST_REPLY": "first reply {hora}",
+        "LOST": "left them {hora}",
+        "RESOLVED": "resolved {hora}"
+      },
+      "OUTCOME": {
+        "RESOLVED": "resolved in {tempo}",
+        "IN_SERVICE": "being handled",
+        "WAITING": "nobody picked it up · waiting for {tempo}",
+        "EXPIRED": "expired with nobody picking it up",
+        "PASSED": "expired and went to {nome}"
+      }
     },
     "CONFIGURE": "Set up rotation",
     "POLICY": {
@@ -757,7 +792,6 @@
     "AUDIT_LOGS": "Audit Logs",
     "INBOXES": "Inboxes",
     "WAHA_CONNECTIONS": "WhatsApp Connections",
-    "UNIDADES": "Locations",
     "MESSAGE_SEQUENCES": "Follow-up Sequences",
     "NOTIFICATIONS": "Notifications",
     "CANNED_RESPONSES": "Canned Responses",
