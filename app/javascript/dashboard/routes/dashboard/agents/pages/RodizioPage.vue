@@ -275,9 +275,11 @@ const irParaPolitica = () =>
         </p>
       </div>
       <div class="flex items-center gap-2">
+        <!-- `mb-0` mata o `mb-4` que a regra global de `select` traz pelo `field-base`: com ela a
+             caixa sobe metade da margem e desalinha da linha dos botões. -->
         <select
           v-model="teamId"
-          class="h-9 px-2 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
+          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
           @change="carregar"
         >
           <option value="">{{ t('AGENTS_RODIZIO.ALL_TEAMS') }}</option>
@@ -286,13 +288,13 @@ const irParaPolitica = () =>
           </option>
         </select>
         <button
-          class="h-9 px-3 text-sm rounded-lg bg-n-brand text-white transition-shadow hover:shadow-md"
+          class="h-9 px-3 text-sm rounded-lg bg-n-brand text-white transition-shadow hover:shadow-md whitespace-nowrap"
           @click="carregar"
         >
           {{ t('AGENTS_RODIZIO.RELOAD') }}
         </button>
         <button
-          class="h-9 px-3 text-sm rounded-lg border border-n-weak text-n-slate-11"
+          class="h-9 px-3 text-sm rounded-lg border border-n-weak text-n-slate-11 whitespace-nowrap"
           @click="irParaPolitica"
         >
           {{ t('AGENTS_RODIZIO.CONFIGURE') }}
