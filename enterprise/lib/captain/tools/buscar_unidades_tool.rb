@@ -43,7 +43,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   # Gate multi-tenant. O rescue não é cargo cult: a migration é aplicada com alvo, VM a VM, e sem
   # ele montar o agente numa box ainda não migrada derrubaria o atendimento da frota inteira.
   def active?
-    ::Spx::Unidade.ativas.exists?(account_id: @assistant.account_id)
+    ::Unit.ativas.exists?(account_id: @assistant.account_id)
   rescue StandardError => e
     Rails.logger.warn("[BuscarUnidades] active? indisponível: #{e.class} #{e.message}")
     false
@@ -66,8 +66,8 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   private
 
   def unidades_ativas
-    ::Spx::Unidade.ativas.where(account_id: @assistant.account_id)
-                  .includes(:horarios).order(:cidade, :nome).to_a
+    ::Unit.ativas.where(account_id: @assistant.account_id)
+          .includes(:working_hours).order(:city, :name).to_a
   end
 
   # Compara sem acento e sem caixa, e aceita continência nos dois sentidos porque a pessoa tanto
@@ -75,17 +75,17 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   # de tamanho existe pra continência não virar curinga: com uma ou duas letras ela casaria com
   # quase toda cidade, e a lista devolvida deixaria de significar alguma coisa.
   def filtrar_por_cidade(unidades, cidade)
-    alvo = ::Spx::Unidade.normalizar(cidade)
+    alvo = ::Unit.normalizar(cidade)
     return unidades if alvo.blank?
 
-    exatas = unidades.select { |unidade| ::Spx::Unidade.normalizar(unidade.cidade) == alvo }
+    exatas = unidades.select { |unidade| ::Unit.normalizar(unidade.cidade) == alvo }
     return exatas if exatas.any? || alvo.length < MINIMO_CONTINENCIA
 
     unidades.select { |unidade| contem_cidade?(unidade, alvo) }
   end
 
   def contem_cidade?(unidade, alvo)
-    nome = ::Spx::Unidade.normalizar(unidade.cidade)
+    nome = ::Unit.normalizar(unidade.cidade)
     nome.present? && (nome.include?(alvo) || alvo.include?(nome))
   end
 
@@ -126,8 +126,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     datas = momentos.flat_map(&:datas).uniq
     return [] if datas.empty?
 
-    ::Spx::UnidadeExcecao.where(account_id: @assistant.account_id)
-                         .vigentes_entre(datas.min, datas.max).to_a
+    ::UnitException.joins(:unit).where(units: { account_id: @assistant.account_id }).to_a
   end
 
   # Corte de lista nunca é silencioso: quem lê precisa saber que existe unidade fora do que veio.
@@ -225,7 +224,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   end
 
   def agrupar_semana(unidade)
-    ::Spx::Unidade::ORDEM_LEITURA.each_with_object([]) do |wday, acc|
+    ::UnitAtendimento::ORDEM_LEITURA.each_with_object([]) do |wday, acc|
       texto = texto_do_dia(unidade, wday)
       if acc.last && acc.last[:texto] == texto
         acc.last[:dias] << wday
