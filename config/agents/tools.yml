@@ -152,6 +152,16 @@
   description: 'Consulta as unidades físicas da conta: endereço, telefone e se abre na data pedida, já com feriado e exceção de calendário aplicados'
   icon: 'building'
 
+# Classe: Captain::Tools::BuscarUnitsTool. Lê do módulo `units` (Unit/UnitWorkingHour/
+# UnitException), que é onde o cadastro de unidade do produto vive — endereço, telefone,
+# horário com pausa e exceção com recorrência. A `buscar_unidades` acima lê da tabela
+# `unidades`, de uma frente paralela que fez a mesma coisa; enquanto as duas existirem, ligue
+# UMA por conta, senão a IA recebe duas respostas para a mesma pergunta.
+- id: buscar_units
+  title: 'Buscar unidades (units)'
+  description: 'Consulta as unidades da conta: endereço, telefone e se abre na data pedida, já com feriado e exceção de calendário aplicados'
+  icon: 'building'
+
 # Classe: Captain::Tools::EnviarLocalizacaoUnidadeTool. Irmã da enviar_localizacao (escritório) e
 # da enviar_localizacao_imovel (Vista) — muda só de onde vem a coordenada.
 - id: enviar_localizacao_unidade
