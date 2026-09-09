@@ -7,6 +7,7 @@ import DropdownContainer from 'next/dropdown-menu/base/DropdownContainer.vue';
 import DropdownSection from 'next/dropdown-menu/base/DropdownSection.vue';
 import DropdownBody from 'next/dropdown-menu/base/DropdownBody.vue';
 import DropdownItem from 'next/dropdown-menu/base/DropdownItem.vue';
+import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 
 const { options, maxChips, dropdownMaxHeight } = defineProps({
   options: {
@@ -138,22 +139,18 @@ const toggleOption = option => {
           <template #label>
             <span class="flex items-center gap-2 w-full">
               <span class="flex-1 min-w-0 truncate">{{ option.name }}</span>
-              <!-- A caixa aparece sempre: sem ela, a opcao nao marcada nao dava
-                   nenhum sinal de que era clicavel. -->
-              <span
-                class="grid flex-shrink-0 place-items-center w-4 h-4 border rounded transition-colors duration-200"
-                :class="
-                  selectedIds.includes(option.id)
-                    ? 'bg-n-brand border-n-brand'
-                    : 'bg-transparent border-n-slate-8 dark:border-n-slate-9'
-                "
-              >
-                <Icon
-                  v-if="selectedIds.includes(option.id)"
-                  icon="i-lucide-check"
-                  class="bg-white size-3 pointer-events-none"
-                />
-              </span>
+              <!-- Reusa o Checkbox do app: marcado fica no verde da marca com o
+                   "v" branco, igual ao resto da interface, e nao marcado mostra
+                   o contorno — antes a opcao nao selecionada nao desenhava nada.
+                   NAO usar <Icon icon="i-lucide-check" class="bg-*">: existe
+                   animated-icons/CheckIcon.vue, entao o Icon vira um componente
+                   SVG e a classe `bg-` pinta um quadrado solido atras dele em vez
+                   de colorir o traco. Era o que deixava a caixa branca.
+                   `pointer-events-none` porque quem alterna e o clique da linha. -->
+              <Checkbox
+                :model-value="selectedIds.includes(option.id)"
+                class="flex-shrink-0 pointer-events-none"
+              />
             </span>
           </template>
         </DropdownItem>
