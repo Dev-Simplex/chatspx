@@ -136,12 +136,25 @@ const toggleOption = option => {
           @click="toggleOption(option)"
         >
           <template #label>
-            {{ option.name }}
-            <Icon
-              v-if="selectedIds.includes(option.id)"
-              icon="i-lucide-check"
-              class="bg-n-blue-text pointer-events-none"
-            />
+            <span class="flex items-center gap-2 w-full">
+              <span class="flex-1 min-w-0 truncate">{{ option.name }}</span>
+              <!-- A caixa aparece sempre: sem ela, a opcao nao marcada nao dava
+                   nenhum sinal de que era clicavel. -->
+              <span
+                class="grid flex-shrink-0 place-items-center w-4 h-4 border rounded transition-colors duration-200"
+                :class="
+                  selectedIds.includes(option.id)
+                    ? 'bg-n-brand border-n-brand'
+                    : 'bg-transparent border-n-slate-8 dark:border-n-slate-9'
+                "
+              >
+                <Icon
+                  v-if="selectedIds.includes(option.id)"
+                  icon="i-lucide-check"
+                  class="bg-white size-3 pointer-events-none"
+                />
+              </span>
+            </span>
           </template>
         </DropdownItem>
       </DropdownSection>
