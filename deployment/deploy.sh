@@ -9,18 +9,25 @@
 set -euo pipefail
 
 NO_RESTART=false
+INCLUIR_TOZI=false
 BRANCH="producao"
 
 # Parse argumentos
 for arg in "$@"; do
   case "$arg" in
     --no-restart) NO_RESTART=true ;;
+    --incluir-tozi) INCLUIR_TOZI=true ;;
     --*) echo "Opcao desconhecida: $arg"; exit 1 ;;
     *) BRANCH="$arg" ;;
   esac
 done
 PEM="/home/chatwoot/chatwoot/simplex.linux.pem"
-LOCAL_PASS='Jzs72144#$GSpx'
+# Senha das VMs `local` fora do arquivo versionado: o que entra aqui fica no
+# historico do Git para sempre. Hoje nenhuma VM usa este caminho (a PRODUCAO e
+# tratada no ramo `local` sem SSH, e a ALTERNATIVO saiu do fan-out), entao o
+# valor vazio nao quebra nada — mas se alguem cadastrar uma VM `local` sem
+# exportar CHATSPX_LOCAL_PASS, o erro precisa ser obvio.
+LOCAL_PASS="${CHATSPX_LOCAL_PASS:-}"
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ServerAliveInterval=30"
 CWCTL_URL="https://raw.githubusercontent.com/Dev-Simplex/chatspx/${BRANCH}/deployment/setup_spx_24.04.sh"
 
@@ -48,6 +55,30 @@ log() { echo -e "${GREEN}[$(date '+%H:%M:%S')]${NC} $1"; }
 warn() { echo -e "${YELLOW}[$(date '+%H:%M:%S')] AVISO:${NC} $1"; }
 fail() { echo -e "${RED}[$(date '+%H:%M:%S')] ERRO:${NC} $1"; }
 
+# O commit que o PROCESSO esta rodando, nao o que esta no disco.
+# `public/version.json` e reescrito a cada boot com `git rev-parse --short HEAD`.
+commit_bate_com_version_json() {
+  local commit_completo="$1" conteudo="$2"
+  local curto
+  curto=$(printf '%s' "$conteudo" | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p')
+  [ -n "$curto" ] || return 1
+  case "$commit_completo" in
+    "$curto"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+esta_servindo_o_commit() {
+  commit_bate_com_version_json "$1" "$(cat /home/chatwoot/chatwoot/public/version.json 2>/dev/null)"
+}
+
+exige_local_pass() {
+  if [ -z "$LOCAL_PASS" ]; then
+    fail "VM do tipo 'local' exige a variavel CHATSPX_LOCAL_PASS exportada."
+    return 1
+  fi
+}
+
 # Executa comando remoto via SSH
 remote_exec() {
   local ip="$1" tipo="$2" user="$3" cmd="$4"
@@ -55,6 +86,7 @@ remote_exec() {
   if [ "$tipo" == "aws" ]; then
     ssh $SSH_OPTS -i "$PEM" "${user}@${ip}" "$cmd" 2>&1
   else
+    exige_local_pass || return 1
     sshpass -p "$LOCAL_PASS" ssh $SSH_OPTS "${user}@${ip}" "$cmd" 2>&1
   fi
 }
@@ -66,6 +98,7 @@ remote_sudo() {
   if [ "$tipo" == "aws" ]; then
     ssh $SSH_OPTS -i "$PEM" "${user}@${ip}" "sudo bash -c '${cmd}'" 2>&1
   else
+    exige_local_pass || return 1
     sshpass -p "$LOCAL_PASS" ssh $SSH_OPTS "${user}@${ip}" "echo '${LOCAL_PASS}' | sudo -S bash -c '${cmd}'" 2>&1
   fi
 }
@@ -87,9 +120,18 @@ update_vm() {
     git pull origin "$BRANCH"
     local after_commit=$(git rev-parse HEAD)
 
-    if [ "$before_commit" == "$after_commit" ]; then
-      log "[$name] Ja esta no ultimo commit (${before_commit:0:9}). Nada a atualizar."
+    # Git igual NAO significa entregue. `public/version.json` e carimbado no boot
+    # (config/initializers/app_version.rb) com o commit que o processo esta rodando:
+    # se ele diverge do HEAD, os assets ou o servico ficaram para tras e pular aqui
+    # devolveria "OK" sem ter entregue nada. Foi o que aconteceu em 08/09/2026 —
+    # alguem ja tinha dado `git pull` na VM, o script pulou, e a correcao ficou
+    # semanas fora do ar com o deploy relatando sucesso.
+    if [ "$before_commit" == "$after_commit" ] && esta_servindo_o_commit "$after_commit"; then
+      log "[$name] Ja esta no ultimo commit (${before_commit:0:9}) e servindo ele. Nada a atualizar."
       return 0
+    fi
+    if [ "$before_commit" == "$after_commit" ]; then
+      warn "[$name] git ja esta em ${before_commit:0:9}, mas o servico nao esta servindo esse commit. Reconstruindo."
     fi
     log "[$name] ${before_commit:0:9} -> ${after_commit:0:9}"
 
@@ -152,9 +194,15 @@ update_vm() {
     return 1
   fi
 
-  if [ "$remote_commit" == "$latest_commit" ]; then
-    log "[$name] Ja esta no ultimo commit (${remote_commit:0:9}). Nada a atualizar."
+  local remote_servindo
+  remote_servindo=$(remote_exec "$ip" "$tipo" "$user" "cat ~chatwoot/chatwoot/public/version.json 2>/dev/null" 2>/dev/null || echo "")
+
+  if [ "$remote_commit" == "$latest_commit" ] && commit_bate_com_version_json "$remote_commit" "$remote_servindo"; then
+    log "[$name] Ja esta no ultimo commit (${remote_commit:0:9}) e servindo ele. Nada a atualizar."
     return 0
+  fi
+  if [ "$remote_commit" == "$latest_commit" ]; then
+    warn "[$name] git ja esta em ${remote_commit:0:9}, mas o servico nao esta servindo esse commit. Reconstruindo."
   fi
   log "[$name] ${remote_commit:0:9} -> ${latest_commit:0:9}"
 
@@ -195,8 +243,18 @@ UPDSCRIPT
     warn "[$name] --no-restart: servico NAO reiniciado"
   fi
 
+  # Nao declare sucesso sem reler a VM. O `cwctl -U` ja voltou 0 tendo falhado o
+  # `git pull` la dentro (08/09/2026: "Atualizado com sucesso em 12s" numa VM que
+  # ficou 8 dias parada). Codigo de saida de wrapper nao e prova de entrega.
+  local commit_final
+  commit_final=$(remote_exec "$ip" "$tipo" "$user" "sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse HEAD 2>/dev/null'" 2>/dev/null || echo "desconhecido")
+  if [ "$commit_final" != "$latest_commit" ]; then
+    fail "[$name] terminou em ${commit_final:0:9}, mas o alvo era ${latest_commit:0:9}"
+    return 1
+  fi
+
   local elapsed=$(( $(date +%s) - start_time ))
-  log "[$name] Atualizado com sucesso em ${elapsed}s"
+  log "[$name] Atualizado e verificado em ${elapsed}s (${commit_final:0:9})"
   return 0
 }
 
@@ -212,8 +270,20 @@ success=0
 failed=0
 failed_names=""
 
+puladas=0
+
 for vm in "${VMS[@]}"; do
   IFS='|' read -r name ip tipo user <<< "$vm"
+
+  # TOZI e cliente real (conta 6) e o runbook exige OK explicito antes de
+  # deploy/restart. Estando no array, um `deploy.sh producao` sem querer a
+  # incluiria — por isso ela so entra com --incluir-tozi.
+  if [ "$name" == "TOZI" ] && [ "$INCLUIR_TOZI" == "false" ]; then
+    warn "[$name] pulada: cliente real. Use --incluir-tozi apos o OK explicito."
+    puladas=$((puladas + 1))
+    echo ""
+    continue
+  fi
 
   if update_vm "$name" "$ip" "$tipo" "$user"; then
     success=$((success + 1))
@@ -227,7 +297,17 @@ done
 
 echo "=========================================="
 echo "  Resultado: ${success}/${total} OK"
+if [ "$puladas" -gt 0 ]; then
+  warn "Puladas: ${puladas}"
+fi
 if [ "$failed" -gt 0 ]; then
   fail "Falharam:${failed_names}"
 fi
 echo "=========================================="
+
+# Sair com erro quando alguma VM falhar. Antes o script terminava no `echo` e
+# devolvia 0 mesmo imprimindo "Falharam: ..." — quem chamasse o deploy de outro
+# script ou de um agente lia sucesso.
+if [ "$failed" -gt 0 ]; then
+  exit 1
+fi
