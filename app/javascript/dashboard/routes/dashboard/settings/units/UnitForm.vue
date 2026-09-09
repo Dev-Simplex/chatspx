@@ -87,6 +87,7 @@ const REGRA_VAZIA = {
 
 const form = ref({
   name: '',
+  zip_code: '',
   city: '',
   state: '',
   address: '',
@@ -117,6 +118,7 @@ const carregar = () => {
   const u = props.unit;
   form.value = {
     name: u?.name ?? '',
+    zip_code: u?.zip_code ?? '',
     city: u?.city ?? '',
     state: u?.state ?? '',
     address: u?.address ?? '',
@@ -163,6 +165,47 @@ watch(() => props.unit, carregar);
 
 const timezones = timeZoneOptions();
 const nomeInvalido = computed(() => !form.value.name.trim());
+
+const cepBuscando = ref(false);
+const cepNaoEncontrado = ref(false);
+
+// ViaCEP: público, sem chave e o que todo cadastro brasileiro usa. Preenche endereço, cidade e
+// estado — NÃO a coordenada: o CEP devolve a rua, não a porta, e o centro de um CEP fica a
+// quarteirões da loja. O pin exato continua sendo colado à mão.
+//
+// Falhar aqui não pode travar o cadastro: sem rede, os campos seguem editáveis à mão.
+const buscarCep = async digitos => {
+  cepBuscando.value = true;
+  cepNaoEncontrado.value = false;
+  try {
+    const resposta = await fetch(`https://viacep.com.br/ws/${digitos}/json/`);
+    const dados = await resposta.json();
+    if (dados.erro) {
+      cepNaoEncontrado.value = true;
+      return;
+    }
+    // O número da casa o ViaCEP não tem: fica com o admin completar.
+    form.value.address =
+      [dados.logradouro, dados.bairro].filter(Boolean).join(' - ') ||
+      form.value.address;
+    form.value.city = dados.localidade || form.value.city;
+    form.value.state = dados.uf || form.value.state;
+  } catch (e) {
+    cepNaoEncontrado.value = true;
+  } finally {
+    cepBuscando.value = false;
+  }
+};
+
+// Dispara sozinho quando o CEP fica completo — com ou sem o traço, colado ou digitado.
+watch(
+  () => form.value.zip_code,
+  valor => {
+    const digitos = (valor || '').replace(/\D/g, '');
+    cepNaoEncontrado.value = false;
+    if (digitos.length === 8) buscarCep(digitos);
+  }
+);
 
 // Aceita "-15.601, -56.097" e também "-15,601 -56,097": o Google Maps copia com ponto, mas quem
 // digita à mão num teclado brasileiro usa vírgula decimal. Vazio é ausência legítima, não erro.
@@ -655,6 +698,24 @@ const onSubmit = () => {
           :placeholder="t('UNITS_MGMT.FORM.PHONE.PLACEHOLDER')"
         />
       </div>
+      <woot-input
+        v-model="form.zip_code"
+        class="mb-0"
+        :label="t('UNITS_MGMT.FORM.ZIP_CODE.LABEL')"
+        :placeholder="t('UNITS_MGMT.FORM.ZIP_CODE.PLACEHOLDER')"
+      />
+      <p
+        class="m-0 text-label-small"
+        :class="cepNaoEncontrado ? 'text-n-ruby-11' : 'text-n-slate-11'"
+      >
+        {{
+          cepBuscando
+            ? t('UNITS_MGMT.FORM.ZIP_CODE.SEARCHING')
+            : cepNaoEncontrado
+              ? t('UNITS_MGMT.FORM.ZIP_CODE.NOT_FOUND')
+              : t('UNITS_MGMT.FORM.ZIP_CODE.HELP')
+        }}
+      </p>
       <woot-input
         v-model="form.address"
         class="mb-0"

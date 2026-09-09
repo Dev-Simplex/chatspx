@@ -52,7 +52,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
   def unit_params
     params.require(:unit).permit(
       :name, :city, :state, :address, :phone, :timezone, :notes, :active, :applies_to_inboxes,
-      :latitude, :longitude,
+      :latitude, :longitude, :zip_code,
       working_hours_attributes: [:id, :day_of_week, :closed_all_day, :open_all_day,
                                  :open_hour, :open_minutes, :close_hour, :close_minutes,
                                  :break_start_hour, :break_start_minutes,
