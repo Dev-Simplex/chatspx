@@ -25,6 +25,12 @@ class Unit < ApplicationRecord
 
   validates :name, presence: true, uniqueness: { scope: :account_id, case_sensitive: false }
   validates :timezone, presence: true
+  # Coordenada é opcional — unidade sem pin é ausência legítima, não erro. Mas fora de faixa é
+  # erro: latitude 100 não existe, e um ponto inválido some no mapa em vez de avisar.
+  validates :latitude, numericality: { greater_than_or_equal_to: -90, less_than_or_equal_to: 90 },
+                       allow_nil: true
+  validates :longitude, numericality: { greater_than_or_equal_to: -180, less_than_or_equal_to: 180 },
+                        allow_nil: true
   validate :timezone_deve_existir
 
   after_create :criar_grade_padrao

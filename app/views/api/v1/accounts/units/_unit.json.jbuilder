@@ -2,8 +2,15 @@ json.id unit.id
 json.name unit.name
 json.city unit.city
 json.state unit.state
+json.zip_code unit.zip_code
 json.address unit.address
 json.phone unit.phone
+# Coordenada e o interruptor PRECISAM sair aqui. Campo que o `permit` aceita mas o jbuilder não
+# devolve grava uma vez e some: o formulário recarrega com o valor padrão e a próxima edição
+# sobrescreve o que estava certo — foi o que acontecia com `applies_to_inboxes`.
+json.latitude unit.latitude
+json.longitude unit.longitude
+json.applies_to_inboxes unit.applies_to_inboxes
 json.timezone unit.timezone
 json.notes unit.notes
 json.active unit.active
