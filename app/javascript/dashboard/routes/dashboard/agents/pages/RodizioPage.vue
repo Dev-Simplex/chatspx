@@ -409,11 +409,13 @@ const irParaPolitica = () =>
           <p v-if="!parados.leads.length" class="text-sm text-n-slate-10">
             {{ t('AGENTS_RODIZIO.STALLED.NONE') }}
           </p>
+          <!-- `bg-n-slate-3` no claro, e não `n-solid-1`: nesta skin o solid-1 claro é branco, igual
+               ao cartão, e a linha sem borda sumia no fundo. -->
           <ul v-else class="flex flex-col gap-1 overflow-y-auto max-h-24">
             <li
               v-for="lead in parados.leads"
               :key="lead.conversation_id"
-              class="flex flex-wrap items-center gap-3 px-2 py-1 rounded-md bg-n-solid-1 dark:bg-n-solid-3"
+              class="flex flex-wrap items-center gap-3 px-2 py-1 rounded-md bg-n-slate-3 dark:bg-n-solid-3"
             >
               <span class="text-sm text-n-slate-12">
                 {{ conversa(lead.display_id) }}
