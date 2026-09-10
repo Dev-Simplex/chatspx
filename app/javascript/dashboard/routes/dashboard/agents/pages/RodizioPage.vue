@@ -366,22 +366,22 @@ const irParaPolitica = () =>
     <template v-else>
       <section class="flex flex-wrap gap-4">
         <div
-          class="px-4 py-3 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+          class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
         >
           <p class="text-xs uppercase text-n-slate-10">
             {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
           </p>
-          <p class="text-2xl font-medium text-n-slate-12">
+          <p class="text-xl font-medium text-n-slate-12">
             {{ totais.recebidos || 0 }}
           </p>
         </div>
         <div
-          class="px-4 py-3 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+          class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
         >
           <p class="text-xs uppercase text-n-slate-10">
             {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
           </p>
-          <p class="text-2xl font-medium text-n-slate-12">
+          <p class="text-xl font-medium text-n-slate-12">
             {{ parados.total }}
           </p>
           <p class="text-xs text-n-slate-10">
@@ -391,6 +391,99 @@ const irParaPolitica = () =>
               })
             }}
           </p>
+        </div>
+        <!-- A lista fica ao lado do número, e não abaixo da tabela: lá embaixo ela tirava altura
+             da tabela, que é a seção que encolhe quando a tela não cabe. Pelo mesmo motivo é
+             baixa: título e explicação numa linha só, e três leads visíveis antes de rolar. -->
+        <div
+          class="flex flex-col flex-1 min-w-[20rem] gap-1 px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+        >
+          <div class="flex flex-wrap items-baseline gap-x-2">
+            <h2 class="text-xs uppercase text-n-slate-10">
+              {{ t('AGENTS_RODIZIO.STALLED.LIST_TITLE') }}
+            </h2>
+            <p class="text-xs text-n-slate-10">
+              {{ t('AGENTS_RODIZIO.STALLED.SUBTITLE') }}
+            </p>
+          </div>
+          <p v-if="!parados.leads.length" class="text-sm text-n-slate-10">
+            {{ t('AGENTS_RODIZIO.STALLED.NONE') }}
+          </p>
+          <ul v-else class="flex flex-col gap-1 overflow-y-auto max-h-24">
+            <li
+              v-for="lead in parados.leads"
+              :key="lead.conversation_id"
+              class="flex flex-wrap items-center gap-3 px-2 py-1 rounded-md bg-n-solid-1 dark:bg-n-solid-3"
+            >
+              <span class="text-sm text-n-slate-12">
+                {{ conversa(lead.display_id) }}
+              </span>
+              <span class="text-sm text-n-slate-11">{{
+                lead.corretor || '—'
+              }}</span>
+              <span class="text-sm text-n-slate-10">
+                {{
+                  t('AGENTS_RODIZIO.STALLED.MINUTES', {
+                    min: lead.minutos_parado,
+                  })
+                }}
+              </span>
+              <span v-if="lead.produto" class="text-xs text-n-slate-10">
+                {{ lead.produto }}
+              </span>
+              <button
+                class="ml-auto text-xs underline text-n-slate-11"
+                @click="abrirDetalhe(lead)"
+              >
+                {{ t('AGENTS_RODIZIO.DETAIL.OPEN') }}
+              </button>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- O "Por que este?" abre logo abaixo da lista que o chamou, e não no pé da página. -->
+      <section
+        v-if="detalhe"
+        class="flex flex-col gap-2 p-4 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+      >
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-medium text-n-slate-12">
+            {{
+              t('AGENTS_RODIZIO.DETAIL.TITLE', { id: detalhe.lead.display_id })
+            }}
+          </h2>
+          <button class="text-sm text-n-slate-11" @click="detalhe = null">
+            {{ t('AGENTS_RODIZIO.DETAIL.CLOSE') }}
+          </button>
+        </div>
+        <p v-if="detalheLoading" class="text-sm text-n-slate-10">
+          {{ t('AGENTS_RODIZIO.LOADING') }}
+        </p>
+        <!-- wrapper por causa do v-else: v-else e v-for no MESMO elemento é
+             anti-padrão do Vue e dá bug de renderização -->
+        <div v-else class="flex flex-col gap-3">
+          <div
+            v-for="registro in detalhe.designacoes"
+            :key="registro.id"
+            class="flex flex-col gap-1 pt-2 border-t border-n-weak"
+          >
+            <p class="text-sm text-n-slate-12">
+              {{ resumoDesignacao(registro) }}
+            </p>
+            <p class="text-xs text-n-slate-10">
+              {{ t('AGENTS_RODIZIO.DETAIL.DESIGNATED_AT') }}
+              {{ data_hora(registro.designado_em) }}
+            </p>
+            <p class="text-xs text-n-slate-10">
+              {{ t('AGENTS_RODIZIO.DETAIL.CANDIDATES') }}
+              {{ (registro.candidatos || []).join(', ') || '—' }}
+            </p>
+            <pre
+              class="p-2 overflow-x-auto text-xs rounded-lg bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-11"
+              >{{ registro.regra_aplicada }}</pre
+            >
+          </div>
         </div>
       </section>
 
@@ -607,92 +700,6 @@ const irParaPolitica = () =>
             </template>
           </tbody>
         </table>
-      </section>
-
-      <section class="flex flex-col gap-2">
-        <h2 class="text-base font-medium text-n-slate-12">
-          {{ t('AGENTS_RODIZIO.STALLED.LIST_TITLE') }}
-        </h2>
-        <p class="text-sm text-n-slate-11">
-          {{ t('AGENTS_RODIZIO.STALLED.SUBTITLE') }}
-        </p>
-        <p v-if="!parados.leads.length" class="text-sm text-n-slate-10">
-          {{ t('AGENTS_RODIZIO.STALLED.NONE') }}
-        </p>
-        <ul v-else class="flex flex-col gap-1">
-          <li
-            v-for="lead in parados.leads"
-            :key="lead.conversation_id"
-            class="flex flex-wrap items-center gap-3 px-3 py-2 bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak"
-          >
-            <span class="text-sm text-n-slate-12">
-              {{ conversa(lead.display_id) }}
-            </span>
-            <span class="text-sm text-n-slate-11">{{
-              lead.corretor || '—'
-            }}</span>
-            <span class="text-sm text-n-slate-10">
-              {{
-                t('AGENTS_RODIZIO.STALLED.MINUTES', {
-                  min: lead.minutos_parado,
-                })
-              }}
-            </span>
-            <span v-if="lead.produto" class="text-xs text-n-slate-10">
-              {{ lead.produto }}
-            </span>
-            <button
-              class="ml-auto text-sm underline text-n-slate-11"
-              @click="abrirDetalhe(lead)"
-            >
-              {{ t('AGENTS_RODIZIO.DETAIL.OPEN') }}
-            </button>
-          </li>
-        </ul>
-      </section>
-
-      <section
-        v-if="detalhe"
-        class="flex flex-col gap-2 p-4 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
-      >
-        <div class="flex items-center justify-between">
-          <h2 class="text-base font-medium text-n-slate-12">
-            {{
-              t('AGENTS_RODIZIO.DETAIL.TITLE', { id: detalhe.lead.display_id })
-            }}
-          </h2>
-          <button class="text-sm text-n-slate-11" @click="detalhe = null">
-            {{ t('AGENTS_RODIZIO.DETAIL.CLOSE') }}
-          </button>
-        </div>
-        <p v-if="detalheLoading" class="text-sm text-n-slate-10">
-          {{ t('AGENTS_RODIZIO.LOADING') }}
-        </p>
-        <!-- wrapper por causa do v-else: v-else e v-for no MESMO elemento é
-             anti-padrão do Vue e dá bug de renderização -->
-        <div v-else class="flex flex-col gap-3">
-          <div
-            v-for="registro in detalhe.designacoes"
-            :key="registro.id"
-            class="flex flex-col gap-1 pt-2 border-t border-n-weak"
-          >
-            <p class="text-sm text-n-slate-12">
-              {{ resumoDesignacao(registro) }}
-            </p>
-            <p class="text-xs text-n-slate-10">
-              {{ t('AGENTS_RODIZIO.DETAIL.DESIGNATED_AT') }}
-              {{ data_hora(registro.designado_em) }}
-            </p>
-            <p class="text-xs text-n-slate-10">
-              {{ t('AGENTS_RODIZIO.DETAIL.CANDIDATES') }}
-              {{ (registro.candidatos || []).join(', ') || '—' }}
-            </p>
-            <pre
-              class="p-2 overflow-x-auto text-xs rounded-lg bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-11"
-              >{{ registro.regra_aplicada }}</pre
-            >
-          </div>
-        </div>
       </section>
     </template>
   </div>
