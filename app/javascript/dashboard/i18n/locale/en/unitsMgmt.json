@@ -123,6 +123,14 @@
         },
         "EMPTY": "This account has no inbox yet."
       },
+      "CONDITIONS": {
+        "LABEL": "Service conditions",
+        "HELP": "Rules of this unit that the AI passes on to the customer as fact. One line per rule: a short name and what it says.",
+        "NAME_PLACEHOLDER": "Rule name",
+        "VALUE_PLACEHOLDER": "What applies",
+        "ADD": "Add condition",
+        "REMOVE": "Remove condition"
+      },
       "HOURS": {
         "LABEL": "Opening hours",
         "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages."
@@ -143,7 +151,8 @@
         },
         "EFFECT": {
           "CLOSED": "Closes the day",
-          "SPECIAL": "Opens with special hours"
+          "SPECIAL": "Opens with special hours",
+          "USUAL": "Keeps the usual hours"
         },
         "PERIOD": "Spans several days",
         "ENDS_ON": "Until",

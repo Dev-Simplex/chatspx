@@ -25,9 +25,12 @@ RSpec.describe UnitException do
       expect(regra).to be_valid
     end
 
-    it 'exige horário quando não fecha o dia' do
-      expect(regra(closed_all_day: false)).not_to be_valid
+    # Antes exigia horário sempre que a regra não fechasse. Passou a aceitar a regra SEM horário
+    # próprio — que é como se cadastra o evento que acontece sem mudar o funcionamento — e a
+    # recusar só a faixa pela metade. Ver 'regra sem horário próprio' abaixo.
+    it 'aceita faixa completa e recusa faixa pela metade' do
       expect(regra(closed_all_day: false, open_hour: 8, open_minutes: 0, close_hour: 12, close_minutes: 0)).to be_valid
+      expect(regra(closed_all_day: false, open_hour: 8, open_minutes: 0)).not_to be_valid
     end
 
     it 'recusa intervalo de repetição zero ou negativo' do
@@ -100,6 +103,53 @@ RSpec.describe UnitException do
       expect(nova.category).to eq('feriado')
       expect(nova.frequency).to eq('nao_repete')
       expect(nova.repeat_interval).to eq(1)
+    end
+  end
+
+  # O evento que acontece sem mudar o funcionamento — o caso mais comum, e que antes não era
+  # expressável: a validação exigia horário sempre que a regra não fechasse, então quem quisesse
+  # cadastrar isso tinha que inventar uma faixa. E faixa de exceção SUBSTITUI a grade do dia: um
+  # evento cadastrado das 8h às 18h apagaria a pausa do almoço daquele dia.
+  describe 'regra sem horário próprio' do
+    let(:unidade) { create(:unit) }
+
+    it 'aceita regra que não fecha e não traz horário' do
+      regra = build(:unit_exception, unit: unidade, closed_all_day: false, open_hour: nil,
+                                     open_minutes: nil, close_hour: nil, close_minutes: nil)
+
+      expect(regra).to be_valid
+    end
+
+    it 'recusa meia faixa — com só a abertura, o que foi digitado sumiria sem aviso' do
+      regra = build(:unit_exception, unit: unidade, closed_all_day: false, open_hour: 8,
+                                     open_minutes: 0, close_hour: nil, close_minutes: nil)
+
+      expect(regra).not_to be_valid
+    end
+
+    it 'segue aceitando a faixa completa' do
+      regra = build(:unit_exception, unit: unidade, closed_all_day: false, open_hour: 8,
+                                     open_minutes: 0, close_hour: 18, close_minutes: 0)
+
+      expect(regra).to be_valid
+    end
+
+    # A regra sem horário próprio não pode encostar na grade: o dia continua com as faixas de
+    # sempre, inclusive a pausa do almoço.
+    it 'preserva a grade do dia, pausa incluída' do
+      unidade.working_hours.destroy_all
+      create(:unit_working_hour, unit: unidade, day_of_week: 5, open_hour: 7, open_minutes: 30,
+                                 close_hour: 17, close_minutes: 30, break_start_hour: 11,
+                                 break_start_minutes: 30, break_end_hour: 13, break_end_minutes: 30)
+      create(:unit_exception, unit: unidade.reload, name: 'feirão', category: :evento,
+                              closed_all_day: false, starts_on: Date.new(2026, 9, 11),
+                              ends_on: Date.new(2026, 9, 11), open_hour: nil, open_minutes: nil,
+                              close_hour: nil, close_minutes: nil)
+
+      estado = unidade.reload.estado_em(Date.new(2026, 9, 11))
+
+      expect(estado.faixas.size).to eq(2)
+      expect(estado.por_excecao?).to be(true)
     end
   end
 end

@@ -272,4 +272,108 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
       expect(resposta).not_to include('envie a localização')
     end
   end
+
+  # O que a pessoa pergunta SEM citar data: "tem alguma coisa acontecendo aí?", "vocês vão ter
+  # feirão?". Antes, nenhuma exceção era carregada quando não havia data pedida — um evento marcado
+  # pra depois de amanhã só existia pro agente se o cliente por acaso perguntasse pelo dia exato.
+  describe 'evento em curso ou próximo, sem data pedida' do
+    let!(:unidade) { unidade_com_grade(nome: 'Loja Centro') }
+
+    def evento!(**attrs)
+      create(:unit_exception, unit: unidade, name: 'feirão de aniversário', category: :evento,
+                              closed_all_day: false, starts_on: Date.new(2026, 8, 21),
+                              ends_on: Date.new(2026, 8, 22), open_hour: 8, open_minutes: 0,
+                              close_hour: 18, close_minutes: 0, **attrs)
+    end
+
+    it 'anuncia o evento sem que ninguém tenha pedido data' do
+      evento!
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).to include('Evento na unidade: feirão de aniversário')
+    end
+
+    it 'diz os dias e o horário do evento' do
+      evento!
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).to include('sex 21/08', 'sáb 22/08', 'das 08:00 às 18:00')
+    end
+
+    # O caso mais comum, e o que quase saiu sem resposta: o evento acontece e a loja abre como
+    # sempre. Omitir o horário aqui faria a diferença entre "é no horário normal" e "não sei que
+    # horas é" desaparecer bem na pergunta que a pessoa faz.
+    it 'diz que é no horário de sempre quando o evento não tem horário próprio' do
+      evento!(open_hour: nil, open_minutes: nil, close_hour: nil, close_minutes: nil)
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).to include('no horário de funcionamento de sempre')
+    end
+
+    it 'avisa quando o período fecha a unidade, em vez de só dar horário' do
+      evento!(name: 'reforma da fachada', category: :manutencao, closed_all_day: true,
+              open_hour: nil, open_minutes: nil, close_hour: nil, close_minutes: nil)
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).to include('Manutenção na unidade: reforma da fachada')
+      expect(resposta).to include('unidade FECHADA nesse período')
+    end
+
+    # Feriado só muda horário, e a linha de horário já responde por ele. Anunciá-lo aqui encheria
+    # toda consulta com calendário que ninguém perguntou.
+    it 'NÃO anuncia feriado como evento' do
+      evento!(name: 'feriado municipal', category: :feriado, closed_all_day: true,
+              starts_on: Date.new(2026, 8, 21), ends_on: Date.new(2026, 8, 21),
+              open_hour: nil, open_minutes: nil, close_hour: nil, close_minutes: nil)
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).not_to include('Evento na unidade')
+    end
+
+    it 'ignora evento fora da janela — agenda distante não é notícia de hoje' do
+      evento!(starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 2))
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).not_to include('Evento na unidade')
+    end
+
+    it 'ignora evento que já passou' do
+      evento!(starts_on: Date.new(2026, 8, 1), ends_on: Date.new(2026, 8, 2))
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).not_to include('Evento na unidade')
+    end
+
+    it 'não vaza evento de outra unidade da mesma conta' do
+      outra = unidade_com_grade(nome: 'Loja Norte', cidade: 'Sinop')
+      create(:unit_exception, unit: outra, name: 'evento da outra loja', category: :evento,
+                              closed_all_day: false, starts_on: Date.new(2026, 8, 21),
+                              ends_on: Date.new(2026, 8, 21), open_hour: 8, open_minutes: 0,
+                              close_hour: 18, close_minutes: 0)
+
+      resposta = em_quarta { tool.perform(tool_context, cidade: 'Cuiabá') }
+
+      expect(resposta).not_to include('evento da outra loja')
+    end
+  end
+
+  # As condições de atendimento da unidade — o que o time cadastra e a IA repassa como fato. Elas
+  # já eram impressas; o que faltava era o time conseguir editá-las (ver units_controller).
+  describe 'condições de atendimento' do
+    it 'devolve cada condição como linha nomeada' do
+      unidade_com_grade(nome: 'Loja Centro',
+                        atributos: { 'retirada de chaves' => 'até as 16h30 nos dias úteis' })
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).to include('Retirada de chaves: até as 16h30 nos dias úteis')
+    end
+  end
 end

@@ -13,6 +13,9 @@ json.longitude unit.longitude
 json.applies_to_inboxes unit.applies_to_inboxes
 json.timezone unit.timezone
 json.notes unit.notes
+# Condições de atendimento, que a IA lê e repassa ao cliente. Mesma armadilha da coordenada: o
+# `permit` aceita, e sem sair aqui a tela abre vazia e o próximo salvar grava `{}` por cima.
+json.atributos unit.atributos || {}
 json.active unit.active
 json.created_at unit.created_at
 json.updated_at unit.updated_at

@@ -120,7 +120,7 @@ const avisosDeAmanha = computed(() =>
         regra: regra.name,
         efeito: regra.closed_all_day
           ? t('UNITS_MGMT.TOMORROW.CLOSED')
-          : faixaLegivel(regra),
+          : faixaLegivel(regra) || t('UNITS_MGMT.FORM.RULES.EFFECT.USUAL'),
       };
     })
     .filter(Boolean)
