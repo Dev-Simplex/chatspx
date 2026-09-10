@@ -606,4 +606,69 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to eq(%w[3 1 2])
     end
   end
+
+  # A regra "locação → transfira para Bruna" já existe no prompt da agente de vendas e é
+  # seguida 1 vez em 6 (medido no turno da conv 36940, onde ela conduziu 35 minutos de
+  # locação sozinha antes de passar). A instrução aqui chega junto com o dado, no instante
+  # da busca cruzada.
+  describe '#fora_da_minha_finalidade' do
+    subject(:aviso) { tool.send(:fora_da_minha_finalidade, venda) }
+
+    let(:venda) { false }
+
+    context 'when the assistant declares neither finalidade nor destino' do
+      it 'não muda o retorno — conta que não configurou não vê diferença' do
+        expect(aviso).to eq('')
+      end
+    end
+
+    context 'when it declares finalidade but nobody to hand over to' do
+      before { assistant.update!(config: assistant.config.merge('finalidade' => 'venda')) }
+
+      it 'não instrui passagem que não tem destino' do
+        expect(aviso).to eq('')
+      end
+    end
+
+    context 'when a sales agent searches for rentals' do
+      before do
+        assistant.update!(config: assistant.config.merge('finalidade' => 'venda',
+                                                         'agente_outra_finalidade' => 'Bruna'))
+      end
+
+      it 'manda transferir agora, nomeando o destino' do
+        expect(aviso).to include('locação', 'Bruna', 'transferir_para_agente', 'AGORA')
+      end
+
+      it 'não dispara quando a busca é da própria finalidade' do
+        expect(tool.send(:fora_da_minha_finalidade, true)).to eq('')
+      end
+    end
+
+    context 'when a rental agent searches for sales' do
+      before do
+        assistant.update!(config: assistant.config.merge('finalidade' => 'locacao',
+                                                         'agente_outra_finalidade' => 'Júlia'))
+      end
+
+      it 'vale nos dois sentidos — a regra é de finalidade cruzada, não de um time só' do
+        expect(tool.send(:fora_da_minha_finalidade, true)).to include('venda', 'Júlia')
+      end
+
+      it 'não dispara na busca de locação' do
+        expect(tool.send(:fora_da_minha_finalidade, false)).to eq('')
+      end
+    end
+
+    context 'when the declared finalidade is blank' do
+      before do
+        assistant.update!(config: assistant.config.merge('finalidade' => '  ',
+                                                         'agente_outra_finalidade' => 'Bruna'))
+      end
+
+      it 'trata como não configurado em vez de avisar sempre' do
+        expect(aviso).to eq('')
+      end
+    end
+  end
 end

@@ -64,6 +64,15 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   TETO_INSPECAO = 50
 
+  # Instrução da passagem por finalidade cruzada. Constante e não string montada no método
+  # porque ela é o CONTRATO com o modelo: quem for calibrar o texto mexe num lugar só.
+  AVISO_FINALIDADE = <<~AVISO.freeze
+    ATENÇÃO: esta busca é de %<finalidade>s, e quem atende %<finalidade>s nesta casa é %<destino>s.
+    Chame transferir_para_agente com %<destino>s AGORA, nesta mesma resposta — não siga conduzindo
+    e não prometa passar depois. Apresente as opções abaixo só se ainda houver algo a dizer antes
+    da passagem.
+  AVISO
+
   # Quantos imóveis a resposta APRESENTA. É diferente de quantos ela conhece: o cliente não
   # lê 17 opções numa mensagem, mas a IA precisa saber que existem 17 pra não dizer que são 5.
   MOSTRAR = 5
@@ -142,17 +151,53 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
       return ampliados if ampliados.present?
 
-      return 'Nenhum imóvel encontrado com esses critérios.'
+      return "#{fora_da_minha_finalidade(venda)}Nenhum imóvel encontrado com esses critérios."
     end
-    return format_listings(tool_context, imoveis, venda) unless geo
-
-    format_by_distance(tool_context, imoveis, venda, { lat: lat.to_f, lng: lng.to_f, raio: raio_km.presence&.to_f })
+    listagem = if geo
+                 format_by_distance(tool_context, imoveis, venda,
+                                    { lat: lat.to_f, lng: lng.to_f, raio: raio_km.presence&.to_f })
+               else
+                 format_listings(tool_context, imoveis, venda)
+               end
+    "#{fora_da_minha_finalidade(venda)}#{listagem}"
   rescue StandardError => e
     Rails.logger.warn("[BuscarImoveisTool] #{e.message}")
     'Não consegui buscar os imóveis agora.'
   end
 
   private
+
+  # O cliente virou de finalidade no meio da conversa e quem está atendendo é o especialista da
+  # OUTRA ponta. A instrução vai no RETORNO DA FERRAMENTA, no instante em que a busca cruzada
+  # acontece — e não no prompt, onde a mesma regra já existe ("locação → transfira para Bruna")
+  # e é seguida 1 vez em 6 (medido no turno da conv 36940). Instrução a 48k chars de distância
+  # não decide; a que chega junto com o dado, decide.
+  #
+  # Gatilho na PRIMEIRA busca cruzada, escolhido por replay de 60 dias na Tozi: das 136
+  # conversas em que uma agente de vendas buscou locação, 122 (89,7%) terminaram em locação e
+  # apenas 5 ficaram em vendas. Mesmo entre as 83 que fizeram UMA única busca, 71 foram para
+  # locação. Esperar a segunda busca deixaria passar 61% dos casos para ganhar ~2 pontos de
+  # precisão — e é essa espera que custou 35 minutos de atendimento errado naquela conversa.
+  #
+  # A assimetria fecha a escolha: transferir à toa custa uma transferência para quem tem as
+  # ferramentas certas (e pode devolver); não transferir custa o atendimento inteiro no
+  # especialista errado.
+  #
+  # Opt-in e multi-tenant: sem as duas chaves no assistente, o retorno não muda em nada.
+  def fora_da_minha_finalidade(venda)
+    minha = @assistant.config['finalidade'].to_s.strip.downcase
+    destino = @assistant.config['agente_outra_finalidade'].to_s.strip
+    return '' if minha.blank? || destino.blank?
+
+    buscada = venda ? 'venda' : 'locacao'
+    return '' if buscada == minha
+
+    format(AVISO_FINALIDADE, finalidade: rotulo(buscada), destino: destino)
+  end
+
+  def rotulo(finalidade)
+    finalidade == 'venda' ? 'venda' : 'locação'
+  end
 
   # Mobiliado NÃO é filtro de listagem no Vista — pedir Caracteristicas.Mobiliado no /listar
   # devolve HTTP 400 ("campo não está disponível"). O dado só existe no /detalhes, um imóvel
