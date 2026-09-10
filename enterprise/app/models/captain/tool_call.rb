@@ -11,4 +11,15 @@ class Captain::ToolCall < ApplicationRecord
   scope :for_conversation, ->(conversation_id) { where(conversation_id: conversation_id) }
   scope :in_window, ->(from, to) { where(created_at: from..to) }
   scope :with_error, -> { where(status: 'error') }
+
+  # Duas features querem o mesmo trace por motivos diferentes: o Eval, para julgar o
+  # atendimento depois, e a ToolContextNote, para devolver o retorno ao contexto do próximo
+  # turno. Sem este OR, ligar o contexto numa conta sem eval não gravaria nada e a nota
+  # nasceria sempre vazia — falha silenciosa.
+  def self.gravar_para?(account)
+    return false if account.blank?
+
+    Captain::ConversationEval.enabled_for?(account).present? ||
+      Captain::Conversation::ToolContextNote.enabled_for?(account)
+  end
 end
