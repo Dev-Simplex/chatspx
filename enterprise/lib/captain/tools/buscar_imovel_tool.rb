@@ -86,19 +86,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
               dormitorios: nil, piscina: nil, mobiliado: nil, suite: nil, titulo: nil,
               lat: nil, lng: nil, raio_km: nil, codigo: nil)
-    # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
-    if codigo.present?
-      cod = codigo.to_s.gsub(/\D/, '')
-      # O número que o cliente passa (placa/site/anúncio) às vezes é o Codigo interno,
-      # às vezes o ImoCodigo do site — tenta os dois antes de dizer que não achou.
-      achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
-      achados = fetch_vista({ 'ImoCodigo' => cod }, quantidade: 1) if achados.blank?
-      return codigo_nao_encontrado(cod) if achados.blank?
+    # Busca direta por CÓDIGO (placa/anúncio/site) — a BUSCA independe de venda/locação.
+    return por_codigo(tool_context, codigo, status_tipo) if codigo.present?
 
-      venda_cod = achados.first['Status'].to_s.match?(/vend/i)
-      track_codigos(tool_context, achados)
-      return format_listings(tool_context, achados, venda_cod, detalhado: true)
-    end
     venda = status_tipo.to_s == 'venda'
     filter = { 'Cidade' => 'Sinop' }
     filter['Status'] = venda ? ['like', '%vend%'] : ['like', '%alug%']
@@ -166,6 +156,34 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # Busca por código — o caminho de quem chega com placa, anúncio ou link do site.
+  #
+  # O aviso de finalidade lê o `status_tipo` PEDIDO, não o Status do imóvel achado, e a
+  # diferença é o caso real: na conv 36940 o cliente clicou num anúncio de casa à VENDA e
+  # disse que queria alugar. O imóvel é de venda (conferido no Vista: cód 7573 = "Venda");
+  # quem carrega a intenção do cliente é o parâmetro que o modelo preencheu.
+  #
+  # Que ele é sinal, e não ruído de preenchimento, está medido em 60 dias na Tozi: a agente de
+  # vendas pediu locação por código 127 vezes e a de locação pediu venda 12 — e das 115
+  # conversas com busca cruzada por código, 100 estão hoje no time de LOCAÇÃO contra 7 em
+  # vendas. O `venda_cod` continua vindo do imóvel, porque quem decide se o endereço sai
+  # mascarado é o anúncio, não o desejo do cliente.
+  def por_codigo(tool_context, codigo, status_tipo)
+    cod = codigo.to_s.gsub(/\D/, '')
+    # O número que o cliente passa (placa/site/anúncio) às vezes é o Codigo interno,
+    # às vezes o ImoCodigo do site — tenta os dois antes de dizer que não achou.
+    achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
+    achados = fetch_vista({ 'ImoCodigo' => cod }, quantidade: 1) if achados.blank?
+    aviso = fora_da_minha_finalidade(status_tipo.to_s == 'venda')
+    # Código não encontrado também leva o aviso: o cliente segue querendo a outra finalidade,
+    # e é justamente aí que a conversa costuma continuar no especialista errado.
+    return "#{aviso}#{codigo_nao_encontrado(cod)}" if achados.blank?
+
+    track_codigos(tool_context, achados)
+    venda_cod = achados.first['Status'].to_s.match?(/vend/i)
+    "#{aviso}#{format_listings(tool_context, achados, venda_cod, detalhado: true)}"
+  end
 
   # O cliente virou de finalidade no meio da conversa e quem está atendendo é o especialista da
   # OUTRA ponta. A instrução vai no RETORNO DA FERRAMENTA, no instante em que a busca cruzada
