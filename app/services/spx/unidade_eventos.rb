@@ -60,9 +60,12 @@ class Spx::UnidadeEventos
     "#{DIAS_ABREVIADOS[data.wday]} #{data.strftime('%d/%m')}"
   end
 
+  # Evento que não fecha e não traz horário próprio quer dizer "acontece no horário de sempre" — é
+  # o mesmo significado que o cálculo da agenda já dá a esse dado. Dizer isso por extenso, em vez
+  # de omitir, é o que separa "o evento é no horário normal" de "não sei que horas é o evento".
   def funcionamento(regra)
     return ', unidade FECHADA nesse período' if regra.closed_all_day?
-    return '' if regra.open_hour.nil? || regra.close_hour.nil?
+    return ', no horário de funcionamento de sempre' if regra.open_hour.nil? || regra.close_hour.nil?
 
     ", das #{relogio(regra.open_hour, regra.open_minutes)} às #{relogio(regra.close_hour, regra.close_minutes)}"
   end

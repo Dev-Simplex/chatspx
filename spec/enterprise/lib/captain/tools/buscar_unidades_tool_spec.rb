@@ -280,10 +280,10 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     let!(:unidade) { unidade_com_grade(nome: 'Loja Centro') }
 
     def evento!(**attrs)
-      padrao = { unit: unidade, name: 'feirão de aniversário', category: :evento,
-                 closed_all_day: false, starts_on: Date.new(2026, 8, 21), ends_on: Date.new(2026, 8, 22),
-                 open_hour: 8, open_minutes: 0, close_hour: 18, close_minutes: 0 }
-      create(:unit_exception, **padrao.merge(attrs))
+      create(:unit_exception, unit: unidade, name: 'feirão de aniversário', category: :evento,
+                              closed_all_day: false, starts_on: Date.new(2026, 8, 21),
+                              ends_on: Date.new(2026, 8, 22), open_hour: 8, open_minutes: 0,
+                              close_hour: 18, close_minutes: 0, **attrs)
     end
 
     it 'anuncia o evento sem que ninguém tenha pedido data' do
@@ -300,6 +300,17 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
       resposta = em_quarta { tool.perform(tool_context) }
 
       expect(resposta).to include('sex 21/08', 'sáb 22/08', 'das 08:00 às 18:00')
+    end
+
+    # O caso mais comum, e o que quase saiu sem resposta: o evento acontece e a loja abre como
+    # sempre. Omitir o horário aqui faria a diferença entre "é no horário normal" e "não sei que
+    # horas é" desaparecer bem na pergunta que a pessoa faz.
+    it 'diz que é no horário de sempre quando o evento não tem horário próprio' do
+      evento!(open_hour: nil, open_minutes: nil, close_hour: nil, close_minutes: nil)
+
+      resposta = em_quarta { tool.perform(tool_context) }
+
+      expect(resposta).to include('no horário de funcionamento de sempre')
     end
 
     it 'avisa quando o período fecha a unidade, em vez de só dar horário' do
@@ -365,5 +376,4 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
       expect(resposta).to include('Retirada de chaves: até as 16h30 nos dias úteis')
     end
   end
-
 end

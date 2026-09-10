@@ -250,5 +250,4 @@ RSpec.describe 'Units API', type: :request do
       expect(unidade.reload.atributos).to eq('a' => '1')
     end
   end
-
 end
