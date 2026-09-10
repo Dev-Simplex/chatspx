@@ -41,10 +41,45 @@
     },
     "DETAIL": {
       "OPEN": "Por que este?",
-      "TITLE": "Conversa #{id}",
+      "TITLE": "Conversa {id}",
       "CLOSE": "Fechar",
       "DESIGNATED_AT": "Designado em",
       "CANDIDATES": "Candidatos:"
+    },
+    "TIMELINE": {
+      "OPEN": "Ver a linha do tempo dos leads",
+      "TITLE": "Leads que {nome} recebeu pelo rodízio",
+      "AVG_WAIT": "média de espera: {tempo}",
+      "EMPTY": "Nenhum lead de rodízio no período.",
+      "SHOWING": "mostrando {n} de {total}",
+      "LEGEND": "Largura é tempo, na mesma escala para todos.",
+      "AI_SHORT": "IA",
+      "SECONDS": "{n}s",
+      "MINUTES": "{n} min",
+      "HOURS": "{n}h",
+      "HOURS_MINUTES": "{h}h{m}",
+      "DAYS": "{n} d",
+      "DAYS_HOURS": "{d} d {h}h",
+      "PHASE": {
+        "IA": "IA cobrindo",
+        "ESPERA": "esperando o consultor pegar",
+        "ATENDIMENTO": "em atendimento"
+      },
+      "MARK": {
+        "ARRIVED": "chegou {hora}",
+        "DESIGNATED": "designado {hora}",
+        "TAKEN": "pegou {hora}",
+        "FIRST_REPLY": "1ª resposta {hora}",
+        "LOST": "saiu dele {hora}",
+        "RESOLVED": "resolvido {hora}"
+      },
+      "OUTCOME": {
+        "RESOLVED": "resolvido em {tempo}",
+        "IN_SERVICE": "em atendimento",
+        "WAITING": "ninguém pegou · esperando há {tempo}",
+        "EXPIRED": "expirou sem ninguém pegar",
+        "PASSED": "expirou e foi para {nome}"
+      }
     },
     "CONFIGURE": "Configurar rodízio",
     "POLICY": {

@@ -41,6 +41,16 @@ class Api::V1::Accounts::DistribuicaoDashboardController < Api::V1::Accounts::Ba
     render json: { designacoes: registros.map { |log| serializar_designacao(log) } }
   end
 
+  # Drill-down por CONSULTOR: os leads que caíram nele pelo rodízio, cada um com a linha do tempo
+  # do percurso (IA cobrindo → esperando ele pegar → atendimento). O cálculo mora no service.
+  def linha_do_tempo
+    render json: Spx::Distribuicao::LinhaDoTempoService.new(
+      escopo: escopo_periodo, user_id: params[:user_id], canais: CANAIS
+    ).call
+  rescue StandardError
+    render json: { leads: [], total: 0, media_espera_segundos: nil }
+  end
+
   private
 
   def ensure_admin
