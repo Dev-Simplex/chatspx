@@ -1,5 +1,8 @@
 # Chat SPX — Simplex Solucoes
 
+> Antes de qualquer tarefa, leia `PROJETO.md`.
+> Em VM de desenvolvimento sem `/home/chatwoot/vault`, as seções sobre vault, frota e deploy não se aplicam.
+
 Fork do Chatwoot mantido pela Simplex. Produto SaaS proprio com branding e modulos customizados.
 
 ## Cerebro
