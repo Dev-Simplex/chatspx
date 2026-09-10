@@ -671,4 +671,77 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       end
     end
   end
+
+  # O ramo por CÓDIGO retornava cedo e nunca passava pelo aviso de finalidade — o furo que a
+  # conv 36940 expôs: a agente de vendas buscou o imóvel do anúncio dizendo que a busca era de
+  # locação e seguiu conduzindo por 35 minutos. Ele é justamente o caminho de quem chega com
+  # placa ou link do site, que é como o cliente do anúncio chega.
+  describe '#por_codigo' do
+    subject(:retorno) { tool.send(:por_codigo, tool_context, '7573', 'locacao') }
+
+    let(:a_venda) do
+      { 'Codigo' => '7573', 'ImoCodigo' => '7573', 'Categoria' => 'Casa', 'Bairro' => 'Centro',
+        'Cidade' => 'Sinop', 'Status' => 'Venda', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }
+    end
+
+    before do
+      allow(tool).to receive(:site_api_key).and_return(nil)
+      allow(tool).to receive(:fetch_vista).and_return([a_venda])
+      # O ramo por código apresenta detalhado, e o detalhado consulta /imoveis/detalhes.
+      # A suíte é offline: o que se testa aqui é a decisão, não a ida ao Vista.
+      allow(tool).to receive(:detalhes_info).and_return({})
+      assistant.update!(config: assistant.config.merge('finalidade' => 'venda',
+                                                       'agente_outra_finalidade' => 'Bruna'))
+    end
+
+    it 'avisa quando a finalidade pedida é a outra, mesmo tendo achado o imóvel' do
+      expect(retorno).to include('Bruna', 'transferir_para_agente', 'AGORA')
+    end
+
+    # O aviso ACRESCENTA, não substitui: o cliente perguntou por um imóvel e continua tendo
+    # direito à resposta sobre ele.
+    it 'apresenta o imóvel junto do aviso' do
+      expect(retorno).to include('7573')
+    end
+
+    it 'não avisa quando a busca é da própria finalidade' do
+      expect(tool.send(:por_codigo, tool_context, '7573', 'venda')).not_to include('Bruna')
+    end
+
+    # Aqui está a escolha que importa: o imóvel é de VENDA e a assistente também é de venda —
+    # pelo Status do imóvel nada dispararia. Quem carrega a intenção do cliente é o parâmetro.
+    it 'lê a finalidade pedida, não o Status do imóvel achado' do
+      expect(retorno).to include('locação')
+    end
+
+    it 'avisa também quando o código não existe no acervo' do
+      allow(tool).to receive(:fetch_vista).and_return([])
+
+      resposta = tool.send(:por_codigo, tool_context, '404', 'locacao')
+      expect(resposta).to include('Bruna')
+      expect(resposta).to include('confirme o número')
+    end
+
+    it 'segue registrando o código para a trava anti-alucinação das fotos' do
+      retorno
+
+      expect(conversation.reload.custom_attributes['codigos_buscados']).to include('7573')
+    end
+
+    # Pelo caminho PÚBLICO, que é o que o modelo chama. Sem este par, a prova não distingue
+    # "o método novo existe" de "a decisão do ramo mudou": o negativo passa nos dois lados.
+    it 'perform com código e finalidade cruzada leva o aviso' do
+      expect(tool.perform(tool_context, status_tipo: 'locacao', codigo: '7573')).to include('Bruna')
+    end
+
+    it 'perform com código da própria finalidade segue sem aviso' do
+      expect(tool.perform(tool_context, status_tipo: 'venda', codigo: '7573')).not_to include('Bruna')
+    end
+
+    it 'não muda nada para a conta que não configurou finalidade' do
+      assistant.update!(config: assistant.config.except('finalidade', 'agente_outra_finalidade'))
+
+      expect(retorno).not_to include('transferir_para_agente')
+    end
+  end
 end
