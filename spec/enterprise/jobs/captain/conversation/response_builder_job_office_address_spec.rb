@@ -117,4 +117,63 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob do
       expect(corrigir(texto)).to eq(texto)
     end
   end
+
+  # A resposta nem sempre diz de quem é o endereço. Perguntado "qual o endereço de vocês?", a
+  # IA responde só o endereço — sem marcador antes do logradouro. Medido em produção depois do
+  # merge da primeira versão: 3 de 6 respostas erradas escapavam por aqui.
+  context 'when the customer asked for the company address' do
+    before { cadastrar_unidade! }
+
+    def perguntar!(texto)
+      conversation.messages.create!(account_id: account.id, inbox_id: conversation.inbox_id,
+                                    content: texto, message_type: :incoming,
+                                    sender: conversation.contact)
+    end
+
+    # As três frases reais que escaparam da primeira versão.
+    it 'corrige mesmo sem marcador antes do logradouro' do
+      perguntar!('Qual o endereço de vocês?')
+
+      [
+        'Avenida das Embaúbas, 1030 – Jardim Botânico, Sinop/MT. Quer que eu mande a localização?',
+        'Avenida das Embaúbas, 1059, Setor Comercial. Estamos em pausa do almoço agora.',
+        'Av. Tarumãs, 2821, no bairro Jardim das Violetas, aqui em Sinop.'
+      ].each do |resposta|
+        expect(corrigir(resposta)).to include('Figueiras'), "escapou: #{resposta}"
+      end
+    end
+
+    it 'vale para as formas comuns da pergunta' do
+      ['Onde vocês ficam?', 'qual o endereço aí?', 'Me manda o endereço', 'onde fica a Tozi?'].each do |p|
+        conversation.messages.destroy_all
+        perguntar!(p)
+
+        expect(corrigir('Avenida das Embaúbas, 1030.')).to include('Figueiras'), "não pegou: #{p}"
+      end
+    end
+
+    # Pergunta sobre IMÓVEL não é pergunta sobre a empresa — e trocar aquele endereço mandaria
+    # a pessoa para o lugar errado.
+    it 'NÃO age quando a pergunta é sobre o endereço de um imóvel' do
+      perguntar!('Qual o endereço da casa?')
+      texto = 'Fica na Rua dos Antúrios, 234, no Jardim Paraíso.'
+
+      expect(corrigir(texto)).to eq(texto)
+    end
+
+    it 'NÃO age quando a pergunta cita o código do imóvel' do
+      perguntar!('Me manda o endereço do cód 9434')
+      texto = 'Fica na Rua dos Antúrios, 234.'
+
+      expect(corrigir(texto)).to eq(texto)
+    end
+
+    # Sem pergunta de endereço, volta a valer só o marcador na frase.
+    it 'não age em pergunta que não é sobre endereço' do
+      perguntar!('Tem casa de 3 quartos?')
+      texto = 'Tenho sim, uma na Rua dos Antúrios, 234.'
+
+      expect(corrigir(texto)).to eq(texto)
+    end
+  end
 end

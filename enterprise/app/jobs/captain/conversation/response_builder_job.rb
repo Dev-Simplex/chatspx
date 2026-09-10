@@ -8,6 +8,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # Quanto se olha pra trás do logradouro à procura do dono. Curto de propósito: o padrão é
   # "escritório fica na X", com o marcador colado.
   JANELA_DONO = 70
+  # A pergunta é sobre onde a EMPRESA fica. "de vocês", "aí", "da Tozi" — a forma como o
+  # cliente pergunta, não como a IA responde.
+  PERGUNTA_DE_ENDERECO = Regexp.union(
+    /(?:qual|onde|me manda|manda|passa|como chego|como fa[çc]o pra chegar)[^?]{0,40}(?:endere[çc]o|fica|localiza|ficam)/i,
+    /endere[çc]o de voc[êe]s/i,
+    /onde voc[êe]s (?:ficam|fica|est[ãa]o)/i
+  )
+  # Pergunta sobre IMÓVEL não é pergunta sobre a empresa. Sem este veto, "qual o endereço da
+  # casa?" faria a guarda trocar o endereço do imóvel — o estrago que ela existe pra evitar.
+  SOBRE_IMOVEL = /\b(?:casa|apartamento|apto|kitnet|kit|im[óo]vel|terreno|sobrado|sala|ponto|galp[ãa]o|ch[áa]cara|c[óo]d(?:igo)?)\b/i
   # Fim de frase de verdade: ponto/!/? seguido de espaço e MAIÚSCULA, ou quebra de linha.
   # "Av. das" não casa (minúscula depois do ponto), que é o que salva a abreviação.
   FIM_DE_FRASE = /[.!?]\s+(?=[A-ZÀ-Ú])|\n/
@@ -706,14 +716,37 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     unidade = unidade_da_conta
     return content if unidade.nil? || unidade.address.blank?
 
+    trocar_logradouros(content, unidade)
+  end
+
+  def trocar_logradouros(content, unidade)
     certo = logradouro_da_unidade(unidade)
+    # Quando a PERGUNTA foi sobre o endereço da empresa, todo logradouro da resposta é
+    # resposta a ela — não é preciso procurar marcador na frase.
+    perguntaram = perguntaram_o_endereco_da_empresa?
     content.gsub(LOGRADOURO) do |trecho|
-      next trecho unless dono_do_endereco?(Regexp.last_match.pre_match)
+      next trecho unless perguntaram || dono_do_endereco?(Regexp.last_match.pre_match)
       next trecho if trecho.match?(certo)
 
       Rails.logger.warn("[fix_office_address] conv=#{@conversation.id} endereço do escritório corrigido")
       unidade.address
     end
+  end
+
+  # A resposta nem sempre diz de quem é o endereço: perguntado "qual o endereço de vocês?", a
+  # IA responde só "Avenida das Embaúbas, 1030 — quer que eu mande a localização?". Não há
+  # marcador ANTES do logradouro, e a primeira versão desta guarda deixava passar — medido em
+  # produção depois do merge: 3 de 6 respostas erradas escapavam por aqui.
+  #
+  # Quem diz de quem é o endereço, nesse caso, é a PERGUNTA. Só vale quando ela é sobre a
+  # empresa e não cita imóvel: "qual o endereço da casa?" é outra coisa, e trocar aquele
+  # endereço mandaria a pessoa para o lugar errado.
+  def perguntaram_o_endereco_da_empresa?
+    pergunta = @conversation.messages.where(message_type: :incoming, private: false)
+                            .order(:id).last&.content.to_s
+    return false if pergunta.blank? || pergunta.match?(SOBRE_IMOVEL)
+
+    pergunta.match?(PERGUNTA_DE_ENDERECO)
   end
 
   # O que vem ANTES do logradouro diz de quem ele é. Duas armadilhas resolvidas aqui:
