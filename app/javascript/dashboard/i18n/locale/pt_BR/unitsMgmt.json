@@ -151,7 +151,8 @@
         },
         "EFFECT": {
           "CLOSED": "Fecha o dia",
-          "SPECIAL": "Abre em horário especial"
+          "SPECIAL": "Abre em horário especial",
+          "USUAL": "Mantém o horário de sempre"
         },
         "PERIOD": "Dura vários dias",
         "ENDS_ON": "Até",

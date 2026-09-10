@@ -134,8 +134,12 @@ const carregar = () => {
     u?.latitude != null && u?.longitude != null
       ? `${u.latitude}, ${u.longitude}`
       : '';
+  // Lista vira "a, b", do mesmo jeito que a ferramenta da IA a lê: `String(lista)` daria "a,b".
   regrasProprias.value = Object.entries(u?.atributos ?? {}).map(
-    ([chave, valor]) => ({ chave, valor: String(valor) })
+    ([chave, valor]) => ({
+      chave,
+      valor: Array.isArray(valor) ? valor.join(', ') : String(valor),
+    })
   );
   const grade = u?.working_hours?.length ? u.working_hours : GRADE_PADRAO;
   // Guarda o id de cada dia: sem ele o nested attributes cria linha nova em vez de
@@ -552,10 +556,13 @@ const resumoDaRegra = regra => {
   return frase;
 };
 
-const faixaDaRegra = regra =>
-  regra.closed_all_day
-    ? t('UNITS_MGMT.FORM.RULES.EFFECT.CLOSED')
-    : `${String(regra.open_hour).padStart(2, '0')}:${String(regra.open_minutes).padStart(2, '0')} – ${String(regra.close_hour).padStart(2, '0')}:${String(regra.close_minutes).padStart(2, '0')}`;
+const faixaDaRegra = regra => {
+  if (regra.closed_all_day) return t('UNITS_MGMT.FORM.RULES.EFFECT.CLOSED');
+  // Regra sem horário próprio vale o de sempre; formatar o nulo daria "null:null".
+  if (regra.open_hour === null || regra.open_hour === undefined)
+    return t('UNITS_MGMT.FORM.RULES.EFFECT.USUAL');
+  return `${String(regra.open_hour).padStart(2, '0')}:${String(regra.open_minutes).padStart(2, '0')} – ${String(regra.close_hour).padStart(2, '0')}:${String(regra.close_minutes).padStart(2, '0')}`;
+};
 
 // Caminho de volta: a regra gravada vira rascunho de novo quando se clica nela.
 const comoRascunho = regra => ({
