@@ -13,7 +13,7 @@ const teamId = computed(() => route.params.teamId);
 </script>
 
 <template>
-  <div class="h-full w-full p-8 col-span-6 overflow-auto">
+  <div class="min-w-0 w-full p-8 lg:col-span-6">
     <TeamDistribuicaoFields :team-id="teamId" />
   </div>
 </template>
