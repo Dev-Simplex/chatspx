@@ -55,7 +55,11 @@ class Spx::UnificarUnidades
   end
 
   def horarios(origem, unit_id)
-    linhas = sql('SELECT * FROM unidade_horarios WHERE unidade_id = ? ORDER BY dia_semana, abre', origem['id'])
+    # `to_char` no SQL: sem ele o driver devolve a coluna `time` e a conversao vira adivinhacao.
+    # Aqui o que chega e o relogio gravado, em texto, e o `hm` faz a unica conversao que existe.
+    linhas = sql("SELECT dia_semana, fechada, to_char(abre, 'HH24:MI') AS abre, " \
+                 "to_char(fecha, 'HH24:MI') AS fecha " \
+                 'FROM unidade_horarios WHERE unidade_id = ? ORDER BY dia_semana, abre', origem['id'])
     linhas.group_by { |h| h['dia_semana'] }.sort.each do |dia, do_dia|
       if do_dia.size > 2
         @avisos << "unidade ##{origem['id']} dia #{dia}: #{do_dia.size} faixas — a tabela nova cabe em 2 " \
@@ -79,11 +83,20 @@ class Spx::UnificarUnidades
     base.merge(hm(:break_start, abertos.first['fecha']), hm(:break_end, abertos.last['abre']))
   end
 
+  # A coluna `time` da tabela antiga guarda em UTC, e o Rails convertia para `Time.zone` na
+  # leitura: 11:30 gravado e 07:30 na tela, que e o horario que o cliente ve e a IA responde.
+  # `unit_working_hours` guarda hora de PAREDE em inteiro — sem converter aqui, a unidade
+  # abriria 4 horas mais tarde. Medido na Tozi: o ensaio seco propunha 11:30-21:30 para uma
+  # loja que abre 07:30-17:30.
+  #
+  # `Time.zone` e nao o fuso da unidade de proposito: e ele que produziu o 07:30 que existe
+  # hoje, e reproduzir a leitura antiga vale mais que corrigi-la no meio de uma copia.
   def hm(prefixo, valor)
-    t = valor.is_a?(String) ? Time.zone.parse(valor) : valor
-    return {} if t.nil?
+    hora, minuto = valor.to_s.split(':').first(2).map(&:to_i)
+    return {} if valor.blank?
 
-    { :"#{prefixo}_hour" => t.hour, :"#{prefixo}_minutes" => t.min }
+    local = Time.utc(2000, 1, 1, hora, minuto).in_time_zone(Time.zone)
+    { :"#{prefixo}_hour" => local.hour, :"#{prefixo}_minutes" => local.min }
   end
 
   def hhmm(hora, minuto)
@@ -101,7 +114,9 @@ class Spx::UnificarUnidades
   end
 
   def excecoes(origem, unit_id)
-    sql('SELECT * FROM unidade_excecoes WHERE unidade_id = ?', origem['id']).each do |e|
+    sql('SELECT motivo, etiqueta, data_inicio, data_fim, fechada, ' \
+        "to_char(abre, 'HH24:MI') AS abre, to_char(fecha, 'HH24:MI') AS fecha " \
+        'FROM unidade_excecoes WHERE unidade_id = ?', origem['id']).each do |e|
       nome = e['motivo'].presence || e['etiqueta'].presence || 'Exceção'
       puts "    excecao #{nome.inspect} #{e['data_inicio']}..#{e['data_fim']}"
       next unless @executar
