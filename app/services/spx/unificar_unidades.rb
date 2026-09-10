@@ -35,7 +35,7 @@ class Spx::UnificarUnidades
     end
 
     puts "  unidade ##{origem['id']} #{origem['nome'].inspect} (#{origem['cidade']}/#{origem['uf']})"
-    unit_id = criar_unit(u)
+    unit_id = criar_unit(origem)
     horarios(origem, unit_id)
     excecoes(origem, unit_id)
   end
