@@ -139,6 +139,7 @@ en:
       invalid_channel_id: 'Invalid slack channel. Please try again'
     whatsapp:
       token_exchange_failed: 'Failed to exchange code for access token. Please try again.'
+      template_outside_channel: "Template '%{name}' does not exist on number %{phone_number}. Each number has its own templates: pick one from this inbox's list."
       invalid_token_permissions: 'The access token does not have the required permissions for WhatsApp.'
       phone_info_fetch_failed: 'Failed to fetch phone number information. Please try again.'
       phone_number_already_exists: 'Channel already exists for this phone number: %{phone_number}, please contact support if the error persists'

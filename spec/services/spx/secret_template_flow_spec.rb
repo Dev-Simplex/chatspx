@@ -200,6 +200,39 @@ RSpec.describe 'fluxo do template sigiloso', type: :request do
     end
   end
 
+  # 132001 na Fabrica em 10/09: cada numero e um WABA proprio, e o mesmo texto existe nos
+  # dois com nomes diferentes. Mandar o do vizinho voltava da Meta como um codigo que nao
+  # diz nada para quem atende.
+  describe 'template que nao existe neste numero' do
+    let(:params_do_vizinho) do
+      { 'name' => 'template_do_outro_numero', 'language' => 'pt_BR',
+        'processed_params' => { 'body' => { '1' => 'oi' } } }
+    end
+
+    it 'falha ANTES de ir para a Meta, com o motivo escrito' do
+      message = Messages::MessageBuilder.new(
+        agente, conversation, ActionController::Parameters.new(template_params: params_do_vizinho)
+      ).perform
+
+      allow(message.inbox).to receive(:channel).and_return(channel)
+      expect(channel).not_to receive(:send_template)
+
+      Whatsapp::SendOnWhatsappService.new(message: message).perform
+
+      expect(message.reload.status).to eq('failed')
+      expect(message.external_error).to include('template_do_outro_numero')
+      expect(message.external_error).not_to include('132001')
+    end
+
+    it 'nao atrapalha o template que EXISTE no canal' do
+      message = construir_mensagem
+      enviado = enviar(message)
+
+      expect(enviado).to be_present
+      expect(message.reload.status).not_to eq('failed')
+    end
+  end
+
   describe 'com o template fora da lista' do
     it 'nao mexe em nada: sem mascara, sem blob, sem rastro' do
       message = construir_mensagem

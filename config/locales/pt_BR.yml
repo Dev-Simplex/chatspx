@@ -173,6 +173,7 @@ pt_BR:
       invalid_channel_id: 'Canal de slack inválido. Por favor, tente novamente'
     whatsapp:
       token_exchange_failed: 'Falha ao trocar o código por um token de acesso. Por favor, tente novamente.'
+      template_outside_channel: "O modelo '%{name}' não existe no número %{phone_number}. Cada número tem os seus próprios modelos: escolha um da lista desta caixa de entrada."
       invalid_token_permissions: 'O token de acesso não tem as permissões necessárias para o WhatsApp.'
       phone_info_fetch_failed: 'Falha ao obter a informação do número de telefone. Por favor, tente novamente.'
       phone_number_already_exists: 'Já existe um canal para este número de telefone: %{phone_number}. Entre em contato com o suporte se o erro persistir'

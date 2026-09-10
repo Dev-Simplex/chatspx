@@ -31,6 +31,8 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
       return
     end
 
+    return if template_fora_do_canal?(name, lang_code)
+
     deliver_template(name, namespace, lang_code, processed_parameters)
   end
 
@@ -66,6 +68,30 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
     message.conversation.update!(status: :resolved)
   ensure
     Current.secret_dispatch_resolve = nil
+  end
+
+  # O template existe NESTE numero? Cada numero e um WABA proprio, e o mesmo texto costuma
+  # existir nos dois com nomes diferentes (na Fabrica, `ae1a2_iniciaratendimentosuport` e
+  # `54b13_iniciaratendimentosuport`). Mandar o do vizinho volta da Meta como
+  # `(#132001) Template name does not exist in the translation`, que nao diz nada a quem
+  # atende.
+  #
+  # A checagem de cima parece cobrir isso e NAO cobre: o `name` que o processor devolve vem
+  # dos parametros que a tela mandou, nao do template encontrado no canal. Ou seja, ele
+  # nunca fica em branco por template inexistente, e a mensagem seguia para a Meta com
+  # `components` vazio. Medido na Fabrica em 10/09.
+  def template_fora_do_canal?(name, lang_code)
+    return false if channel.message_templates.blank?
+
+    existe = channel.message_templates.any? do |t|
+      t['name'] == name && (lang_code.blank? || t['language'].to_s.casecmp?(lang_code.to_s))
+    end
+    return false if existe
+
+    message.update!(status: :failed,
+                    external_error: I18n.t('errors.whatsapp.template_outside_channel',
+                                           name: name, phone_number: channel.phone_number))
+    true
   end
 
   # Os parâmetros com o valor real, para montar o payload. Template comum passa direto.
