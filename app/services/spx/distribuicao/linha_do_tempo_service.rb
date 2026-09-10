@@ -57,11 +57,18 @@ class Spx::Distribuicao::LinhaDoTempoService
   end
 
   # `conversation_resolved` é o único lugar com hora de resolução: `conversations` guarda só o
-  # status atual. Conversa reaberta e resolvida de novo tem mais de um evento — vale o último.
+  # status atual. O contato que volta cai na MESMA conversa, com um evento por ciclo: vale o
+  # primeiro depois desta designação. O último da vida da conversa pode ser de um ciclo anterior
+  # (e o lead que ainda espera apareceria resolvido) ou do seguinte (e o atendimento incharia).
   def resolvidos_em
     @resolvidos_em ||= ReportingEvent.where(name: 'conversation_resolved', conversation_id: conversation_ids)
-                                     .group(:conversation_id)
-                                     .maximum(:event_end_time)
+                                     .pluck(:conversation_id, :event_end_time)
+                                     .group_by(&:first)
+                                     .transform_values { |pares| pares.filter_map(&:last).sort }
+  end
+
+  def resolucao(log, designado)
+    (resolvidos_em[log.conversation_id] || []).find { |instante| instante >= designado }
   end
 
   # Quando a conversa REABRIU. No WhatsApp o contato que volta cai na mesma conversa, então
@@ -134,7 +141,7 @@ class Spx::Distribuicao::LinhaDoTempoService
       assumido_em: (log.encerrado_em if ASSUMIDOS.include?(log.status)),
       perdido_em: (log.encerrado_em if PERDIDOS.include?(log.status)),
       primeira_resposta_em: conversa&.first_reply_created_at,
-      resolvido_em: resolvidos_em[log.conversation_id]
+      resolvido_em: resolucao(log, designado)
     }
   end
 

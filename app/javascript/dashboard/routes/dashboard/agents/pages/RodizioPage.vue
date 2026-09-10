@@ -95,21 +95,21 @@ const conversa = displayId => `${displayId}`;
 const FASES = computed(() => [
   {
     chave: 'ia',
-    classe: 'bg-n-slate-9 text-black',
+    classe: 'bg-n-slate-9 text-n-black',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.IA'),
   },
   {
     chave: 'espera',
-    classe: 'bg-n-amber-9 text-black',
+    classe: 'bg-n-amber-9 text-n-black',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ESPERA'),
   },
   {
     chave: 'atendimento',
-    classe: 'bg-n-teal-9 text-black',
+    classe: 'bg-n-teal-9 text-n-black',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ATENDIMENTO'),
   },
 ]);
-const PERDIDO = 'bg-n-ruby-9 text-black';
+const PERDIDO = 'bg-n-ruby-9 text-n-black';
 // Abaixo disso o bloco não cabe o texto; o número continua no título e nos marcos.
 const LARGURA_MINIMA_ROTULO = 12;
 
@@ -543,7 +543,7 @@ const irParaPolitica = () =>
                              `title`: o balão nativo do navegador demora a aparecer e ignora
                              o tema da tela. -->
                         <div
-                          class="flex h-7 overflow-hidden rounded-md ring-1 ring-inset ring-black/10"
+                          class="flex h-7 overflow-hidden rounded-md ring-1 ring-inset ring-n-black/10"
                           :style="{ width: larguraBarra(lead, linha.user_id) }"
                         >
                           <div
