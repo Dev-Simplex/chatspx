@@ -1,4 +1,17 @@
 class Captain::Conversation::ResponseBuilderJob < ApplicationJob
+  # Trecho de endereço: logradouro + o que vem depois, até a pontuação. Fechado em ponto,
+  # ponto-e-vírgula ou fim de linha pra não engolir a frase seguinte.
+  LOGRADOURO = /(?:av\.?|avenida|rua|travessa|alameda|rodovia)\s+[A-ZÀ-Ú0-9][^.;\n]{3,80}/i
+  # Quem a frase diz que mora ali. Sem isto a guarda trocaria o endereço do IMÓVEL, que é
+  # informação legítima em locação.
+  DONO_ESCRITORIO = /escrit[óo]rio|imobili[áa]ria|nosso endere[çc]o|(?:a gente|n[óo]s)\s+fic\w+|ficamos\s+(?:na|no|em)|estamos\s+(?:localizad\w+|na|no|em)/i
+  # Quanto se olha pra trás do logradouro à procura do dono. Curto de propósito: o padrão é
+  # "escritório fica na X", com o marcador colado.
+  JANELA_DONO = 70
+  # Fim de frase de verdade: ponto/!/? seguido de espaço e MAIÚSCULA, ou quebra de linha.
+  # "Av. das" não casa (minúscula depois do ponto), que é o que salva a abreviação.
+  FIM_DE_FRASE = /[.!?]\s+(?=[A-ZÀ-Ú])|\n/
+
   MAX_MESSAGE_LENGTH = 10_000
   # Tolerância ao comparar o preço citado na frase com o do imóvel do link — a mesma ~2% da
   # medição do caso 42952. Absorve o arredondamento que a IA faz ("520 mil" para 519.900).
@@ -661,6 +674,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return content if content.blank?
 
     content = fix_property_links(content)
+    content = fix_office_address(content)
     content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
            .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
            .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
@@ -672,6 +686,68 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/ +,/, ',')                 # " ," -> ","
            .gsub(/,\s*([.!?;:])/, '\1')      # ", ." -> "."
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
+  end
+
+  # Endereço do escritório dito de memória. A `buscar_unidades` existe e responde certo quando
+  # é chamada — o problema é que ela nem sempre é chamada, e conduta não força chamada de
+  # ferramenta. Medido na Tozi em 90 dias: das 49 vezes em que a IA deu o endereço do
+  # escritório, 22 estavam ERRADAS, e nunca o mesmo endereço — Embaúbas 1320, Embaúbas 678,
+  # Avencas 1581, Tarumãs 3562, Julio Campos 1470… Cada uma é um cliente mandado a um lugar
+  # que não existe; na conv 41549 ele estava saindo de casa naquele momento.
+  #
+  # Mesma família do fix_property_links acima: a saída é conferida contra o dado que o sistema
+  # tem, em vez de se confiar que o modelo lembrou. A diferença é que aqui há resposta certa
+  # conhecida (a unidade cadastrada), então o endereço é CORRIGIDO, não removido.
+  #
+  # Opt-in por dado: conta sem unidade ativa não é tocada.
+  def fix_office_address(content)
+    return content if content.blank? || !content.match?(LOGRADOURO)
+
+    unidade = unidade_da_conta
+    return content if unidade.nil? || unidade.address.blank?
+
+    certo = logradouro_da_unidade(unidade)
+    content.gsub(LOGRADOURO) do |trecho|
+      next trecho unless dono_do_endereco?(Regexp.last_match.pre_match)
+      next trecho if trecho.match?(certo)
+
+      Rails.logger.warn("[fix_office_address] conv=#{@conversation.id} endereço do escritório corrigido")
+      unidade.address
+    end
+  end
+
+  # O que vem ANTES do logradouro diz de quem ele é. Duas armadilhas resolvidas aqui:
+  #
+  # 1. Não dá pra quebrar o texto em frases pelo ponto: `Av.` é abreviação, e o split partia
+  #    "Ficamos na Av. das Embaúbas" no meio, escondendo o dono da frase.
+  # 2. A janela é cortada no último fim de frase REAL (ponto seguido de maiúscula, ou quebra
+  #    de linha) — senão "…passar no nosso escritório. A casa fica na Rua X" faria a guarda
+  #    trocar o endereço do IMÓVEL, que é o estrago que ela existe pra evitar.
+  def dono_do_endereco?(anterior)
+    janela = anterior.to_s[-JANELA_DONO..] || anterior.to_s
+    janela = janela.split(FIM_DE_FRASE).last.to_s
+    janela.match?(DONO_ESCRITORIO)
+  end
+
+  # A conta pode ter várias unidades (rede com filiais). Corrigir para uma delas quando há
+  # várias seria escolher por conta própria a loja errada — então a guarda só age quando não
+  # há ambiguidade: uma unidade ativa, um endereço possível.
+  def unidade_da_conta
+    unidades = ::Unit.where(account_id: @conversation.account_id, active: true).limit(2).to_a
+    unidades.size == 1 ? unidades.first : nil
+  rescue StandardError => e
+    Rails.logger.warn("[fix_office_address] unidade indisponível: #{e.class}: #{e.message}")
+    nil
+  end
+
+  # Basta o logradouro da unidade aparecer na frase pra ela ser considerada certa: a IA
+  # abrevia ("Av." x "Avenida"), corta o CEP e troca a ordem, e exigir o endereço literal
+  # reescreveria resposta correta.
+  def logradouro_da_unidade(unidade)
+    nucleo = unidade.address.to_s[/(?:av\.?|avenida|rua|travessa|alameda|rodovia)\s+([^,\-]{3,40})/i, 1]
+    return /\A\z/ if nucleo.blank?
+
+    /#{Regexp.escape(nucleo.strip)}/i
   end
 
   # A URL de um imóvel só vem da buscar_imovel (build_url, que resolve o link pela
