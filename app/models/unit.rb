@@ -10,6 +10,8 @@
 # Quem dispara mensagem de ausência, move o widget e alimenta a métrica de horário
 # comercial continua sendo `inboxes.working_hours`, que este modelo NÃO toca.
 class Unit < ApplicationRecord
+  include UnitAtendimento
+
   DIAS_DA_SEMANA = (0..6).to_a.freeze
 
   belongs_to :account

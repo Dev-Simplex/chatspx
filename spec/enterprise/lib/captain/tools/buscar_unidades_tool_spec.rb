@@ -17,12 +17,18 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     travel_to(zona.parse('2026-08-19 14:30:00'), &)
   end
 
+  # `Unit` ja nasce com a grade da semana no after_create, entao a grade do teste substitui a padrao
+  # em vez de somar — o indice unico (unidade, dia) recusaria a segunda linha do mesmo dia.
   def unidade_com_grade(cidade: 'Cuiabá', **attrs)
-    unidade = create(:spx_unidade, account: account, cidade: cidade, **attrs)
-    (1..5).each { |dia| create(:spx_unidade_horario, unidade: unidade, dia_semana: dia, abre: '08:00', fecha: '18:00') }
-    create(:spx_unidade_horario, unidade: unidade, dia_semana: 6, abre: '08:00', fecha: '12:00')
-    create(:spx_unidade_horario, unidade: unidade, dia_semana: 0, fechada: true, abre: nil, fecha: nil)
-    unidade
+    unidade = create(:unit, account: account, city: cidade, **attrs)
+    unidade.working_hours.destroy_all
+    (1..5).each do |dia|
+      create(:unit_working_hour, unit: unidade, day_of_week: dia, open_hour: 8, open_minutes: 0, close_hour: 18, close_minutes: 0)
+    end
+    create(:unit_working_hour, unit: unidade, day_of_week: 6, open_hour: 8, open_minutes: 0, close_hour: 12, close_minutes: 0)
+    create(:unit_working_hour, unit: unidade, day_of_week: 0, closed_all_day: true,
+                               open_hour: nil, open_minutes: nil, close_hour: nil, close_minutes: nil)
+    unidade.reload
   end
 
   describe '#active?' do
@@ -31,19 +37,19 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     end
 
     it 'nega quando a única unidade está desativada' do
-      create(:spx_unidade, account: account, ativa: false)
+      create(:unit, account: account, ativa: false)
 
       expect(tool).not_to be_active
     end
 
     it 'aceita quando a conta tem unidade ativa' do
-      create(:spx_unidade, account: account)
+      create(:unit, account: account)
 
       expect(tool).to be_active
     end
 
     it 'não enxerga unidade de outra conta' do
-      create(:spx_unidade, account: create(:account))
+      create(:unit, account: create(:account))
 
       expect(tool).not_to be_active
     end
@@ -67,7 +73,7 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
 
     it 'anuncia falha de consulta sem deixar concluir que a unidade não existe' do
       unidade_com_grade
-      allow(Spx::Unidade).to receive(:ativas).and_raise(ActiveRecord::StatementInvalid)
+      allow(Unit).to receive(:ativas).and_raise(ActiveRecord::StatementInvalid)
 
       expect(tool.perform(tool_context)).to include('falha de consulta, não ausência')
     end
@@ -120,9 +126,9 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     let!(:unidade) { unidade_com_grade(nome: 'Loja Centro', etiquetas: ['MT']) }
 
     it 'aplica a exceção de etiqueta e diz por que aquele dia é diferente' do
-      create(:spx_unidade_excecao, account: account, etiqueta: 'MT', motivo: 'campanha de aniversário',
-                                   data_inicio: Date.new(2026, 8, 23), data_fim: Date.new(2026, 8, 23),
-                                   abre: '09:00', fecha: '15:00')
+      create(:unit_exception, unit: unidade, name: 'campanha de aniversário', closed_all_day: false,
+                              starts_on: Date.new(2026, 8, 23), ends_on: Date.new(2026, 8, 23),
+                              open_hour: 9, open_minutes: 0, close_hour: 15, close_minutes: 0)
 
       resposta = em_quarta { tool.perform(tool_context, quando: 'domingo') }
 
@@ -131,8 +137,8 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     end
 
     it 'fecha o dia quando a exceção fecha, mesmo com horário padrão cadastrado' do
-      create(:spx_unidade_excecao, account: account, unidade: unidade, fechada: true, motivo: 'feriado',
-                                   data_inicio: Date.new(2026, 8, 20), data_fim: Date.new(2026, 8, 20))
+      create(:unit_exception, unit: unidade, name: 'feriado', closed_all_day: true,
+                              starts_on: Date.new(2026, 8, 20), ends_on: Date.new(2026, 8, 20))
 
       resposta = em_quarta { tool.perform(tool_context, quando: 'amanhã') }
 
@@ -142,7 +148,10 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
 
   describe 'honestidade sobre dado ausente' do
     it 'não afirma que fecha quando a unidade não tem grade cadastrada' do
-      create(:spx_unidade, account: account, nome: 'Loja Nova')
+      # `Unit` cria a semana inteira no after_create; para simular unidade SEM grade é preciso
+      # limpar — e o caso continua valendo, porque apagar linha é possível na tela.
+      unidade = create(:unit, account: account, nome: 'Loja Nova')
+      unidade.working_hours.destroy_all
 
       resposta = em_quarta { tool.perform(tool_context, quando: 'amanhã') }
 
@@ -154,8 +163,9 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     # linha nenhuma saía como fechado. Quem cadastra só os dias úteis não está dizendo que fecha
     # no sábado — está deixando o sábado sem informação.
     it 'não afirma que fecha no dia sem linha, mesmo com o resto da semana cadastrado' do
-      unidade = create(:spx_unidade, account: account, nome: 'Loja Útil')
-      (1..5).each { |dia| create(:spx_unidade_horario, unidade: unidade, dia_semana: dia, abre: '08:00', fecha: '18:00') }
+      unidade = create(:unit, account: account, nome: 'Loja Útil')
+      unidade.working_hours.destroy_all
+      (1..5).each { |dia| create(:unit_working_hour, unit: unidade, day_of_week: dia) }
 
       resposta = em_quarta { tool.perform(tool_context, quando: 'sábado') }
 
@@ -164,9 +174,11 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     end
 
     it 'separa dia sem linha de dia fechado no horário habitual' do
-      unidade = create(:spx_unidade, account: account, nome: 'Loja Útil')
-      (1..5).each { |dia| create(:spx_unidade_horario, unidade: unidade, dia_semana: dia, abre: '08:00', fecha: '18:00') }
-      create(:spx_unidade_horario, unidade: unidade, dia_semana: 0, fechada: true, abre: nil, fecha: nil)
+      unidade = create(:unit, account: account, nome: 'Loja Útil')
+      unidade.working_hours.destroy_all
+      (1..5).each { |dia| create(:unit_working_hour, unit: unidade, day_of_week: dia) }
+      create(:unit_working_hour, unit: unidade, day_of_week: 0, closed_all_day: true,
+                                 open_hour: nil, open_minutes: nil, close_hour: nil, close_minutes: nil)
 
       resposta = tool.perform(tool_context)
 
@@ -176,7 +188,7 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
 
   describe 'volume' do
     it 'avisa quando corta a lista, em vez de truncar em silêncio' do
-      (described_class::LIMITE_UNIDADES + 3).times { |i| create(:spx_unidade, account: account, nome: "Loja #{i}") }
+      (described_class::LIMITE_UNIDADES + 3).times { |i| create(:unit, account: account, nome: "Loja #{i}") }
 
       resposta = tool.perform(tool_context)
 
@@ -254,7 +266,7 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     end
 
     it 'não convida quando nenhuma unidade tem coordenada' do
-      Spx::Unidade.where(account_id: account.id).find_each { |u| u.update!(latitude: nil, longitude: nil) }
+      Unit.where(account_id: account.id).find_each { |u| u.update!(latitude: nil, longitude: nil) }
       resposta = em_quarta { tool.perform(contexto, cidade: 'Rondonópolis') }
 
       expect(resposta).not_to include('envie a localização')
