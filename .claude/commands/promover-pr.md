@@ -86,12 +86,16 @@ As VMs de produção:
 | SENTINELA | `54.166.220.138` |
 | FABRICA | `3.87.182.184` |
 | AGN | `13.221.167.143` |
+| CDSOLAR | `13.218.193.75` — cliente real (novo) |
 
 A **TOZI não tem Elastic IP**: o endereço dela já mudou num stop/start da AWS. Se
 não responder, confira o console EC2 antes de concluir que caiu.
 
 Comece pela CATATAU, que não é cliente crítico. A TOZI vai primeiro só quando o
 usuário pedir.
+
+**TOZI e CDSOLAR são clientes**: só entram no deploy com OK explícito do usuário, pedido
+**a cada deploy**, e vão por último. Nem leitura por SSH sem esse OK.
 
 ```bash
 # 1. pacote (só o que entrou, conferido pelo tamanho: 2 arquivos ≈ poucos KB)

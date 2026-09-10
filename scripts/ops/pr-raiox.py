@@ -56,6 +56,9 @@ FROTA = [
     ("SENTINELA", "54.166.220.138"),
     ("FABRICA", "3.87.182.184"),
     ("AGN", "13.221.167.143"),
+    # Cliente novo desde 10/09/2026. Ficou fora desta tabela no primeiro dia e, por isso, fora de
+    # quatro deploys seguidos: quem conferia a frota por aqui nem sabia que ela existia.
+    ("CDSOLAR", "13.218.193.75"),
 ]
 # A chave e procurada em tres lugares, nesta ordem. O motivo esta na regra do
 # OpenSSH: ele recusa chave privada com bit de grupo ou de outros QUANDO o dono do

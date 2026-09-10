@@ -10,6 +10,7 @@ set -euo pipefail
 
 NO_RESTART=false
 INCLUIR_TOZI=false
+INCLUIR_CDSOLAR=false
 BRANCH="producao"
 
 # Parse argumentos
@@ -17,6 +18,7 @@ for arg in "$@"; do
   case "$arg" in
     --no-restart) NO_RESTART=true ;;
     --incluir-tozi) INCLUIR_TOZI=true ;;
+    --incluir-cdsolar) INCLUIR_CDSOLAR=true ;;
     --*) echo "Opcao desconhecida: $arg"; exit 1 ;;
     *) BRANCH="$arg" ;;
   esac
@@ -45,8 +47,7 @@ VMS=(
   "FABRICA|3.87.182.184|aws|ubuntu"
   "AGN|13.221.167.143|aws|ubuntu"
   "CDSOLAR|13.218.193.75|aws|ubuntu"
-  # CDSOLAR entrou a mao no deploy.sh da PRODUCAO em 10/09/2026, sem commit; esta linha so
-  # espelha o arquivo que roda la. Sem ela, o primeiro deploy deste arquivo tiraria a VM do fan-out.
+  # CDSOLAR e CLIENTE REAL (novo, desde 10/09/2026): mesma regra da TOZI, so com --incluir-cdsolar.
   # TOZI e CLIENTE REAL (conta 6): deploy e restart so com OK explicito.
   # O IP dela NAO e Elastic e ja mudou num stop/start da AWS (era 3.82.215.109).
   # Se der "sem resposta", confira o console EC2 antes de concluir que caiu.
@@ -301,6 +302,12 @@ for vm in "${VMS[@]}"; do
   # incluiria — por isso ela so entra com --incluir-tozi.
   if [ "$name" == "TOZI" ] && [ "$INCLUIR_TOZI" == "false" ]; then
     warn "[$name] pulada: cliente real. Use --incluir-tozi apos o OK explicito."
+    puladas=$((puladas + 1))
+    echo ""
+    continue
+  fi
+  if [ "$name" == "CDSOLAR" ] && [ "$INCLUIR_CDSOLAR" == "false" ]; then
+    warn "[$name] pulada: cliente real. Use --incluir-cdsolar apos o OK explicito."
     puladas=$((puladas + 1))
     echo ""
     continue
