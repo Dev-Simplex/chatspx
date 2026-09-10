@@ -103,14 +103,14 @@ export default {
 </script>
 
 <template>
-  <div class="h-full w-full p-8 col-span-6 overflow-auto">
+  <div class="min-w-0 w-full p-8 lg:col-span-6">
     <form class="flex flex-col gap-4 mx-0" @submit.prevent="addAgents">
       <PageHeader
         :header-title="headerTitle"
         :header-content="$t('TEAMS_SETTINGS.EDIT_FLOW.AGENTS.DESC')"
       />
 
-      <div class="w-full h-full">
+      <div class="w-full">
         <div v-if="v$.selectedAgents.$error">
           <p class="error-message pb-2">
             {{ $t('TEAMS_SETTINGS.ADD.AGENT_VALIDATION_ERROR') }}

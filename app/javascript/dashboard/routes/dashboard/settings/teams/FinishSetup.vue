@@ -11,7 +11,7 @@ export default {
 </script>
 
 <template>
-  <div class="h-full w-full p-6 col-span-6">
+  <div class="min-w-0 w-full p-6 lg:col-span-6">
     <EmptyState
       :title="$t('TEAMS_SETTINGS.FINISH.TITLE')"
       :message="$t('TEAMS_SETTINGS.FINISH.MESSAGE')"
