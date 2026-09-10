@@ -30,6 +30,11 @@ PEM="/home/chatwoot/chatwoot/simplex.linux.pem"
 LOCAL_PASS="${CHATSPX_LOCAL_PASS:-}"
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ServerAliveInterval=30"
 CWCTL_URL="https://raw.githubusercontent.com/Dev-Simplex/chatspx/${BRANCH}/deployment/setup_spx_24.04.sh"
+# As duas horas que dizem se a VM esta servindo o que tem no disco (ver web_subiu_depois_do_head).
+# Reflog da BRANCH, e nao do HEAD: o proprio deploy faz `git checkout` na mesma branch, e isso
+# tambem escreve no reflog do HEAD sem mudar codigo nenhum.
+CMD_BRANCH_ANDOU="git -C /home/chatwoot/chatwoot reflog -1 --date=unix --format=%gd ${BRANCH}"
+CMD_WEB_SUBIU="systemctl show chatwoot-web.1 -p ActiveEnterTimestamp --value --timestamp=unix"
 
 # Lista de VMs: nome|ip|tipo(aws|local)|usuario
 VMS=(
@@ -39,6 +44,9 @@ VMS=(
   "SENTINELA|54.166.220.138|aws|ubuntu"
   "FABRICA|3.87.182.184|aws|ubuntu"
   "AGN|13.221.167.143|aws|ubuntu"
+  "CDSOLAR|13.218.193.75|aws|ubuntu"
+  # CDSOLAR entrou a mao no deploy.sh da PRODUCAO em 10/09/2026, sem commit; esta linha so
+  # espelha o arquivo que roda la. Sem ela, o primeiro deploy deste arquivo tiraria a VM do fan-out.
   # TOZI e CLIENTE REAL (conta 6): deploy e restart so com OK explicito.
   # O IP dela NAO e Elastic e ja mudou num stop/start da AWS (era 3.82.215.109).
   # Se der "sem resposta", confira o console EC2 antes de concluir que caiu.
@@ -55,21 +63,35 @@ log() { echo -e "${GREEN}[$(date '+%H:%M:%S')]${NC} $1"; }
 warn() { echo -e "${YELLOW}[$(date '+%H:%M:%S')] AVISO:${NC} $1"; }
 fail() { echo -e "${RED}[$(date '+%H:%M:%S')] ERRO:${NC} $1"; }
 
-# O commit que o PROCESSO esta rodando, nao o que esta no disco.
-# `public/version.json` e reescrito a cada boot com `git rev-parse --short HEAD`.
-commit_bate_com_version_json() {
-  local commit_completo="$1" conteudo="$2"
-  local curto
-  curto=$(printf '%s' "$conteudo" | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p')
-  [ -n "$curto" ] || return 1
-  case "$commit_completo" in
-    "$curto"*) return 0 ;;
-    *) return 1 ;;
-  esac
+# "Esta servindo o que tem no disco?" = o chatwoot-web.1 subiu DEPOIS da ultima vez que a branch
+# andou. $1 = saida de CMD_BRANCH_ANDOU (`producao@{<epoch>}`), $2 = de CMD_WEB_SUBIU (`@<epoch>`).
+#
+# O `public/version.json` NAO responde isso, embora pareca: o app_version.rb o reescreve em TODO
+# boot do Rails, nao so no do web. `rake`, `rails runner` e o cron de 3 em 3 minutos
+# (`rails messages:reconcile_team_id`, na CATATAU, na AGN e na PRODUCAO) carimbam o HEAD novo com o
+# web velho no ar — medido na CATATAU em 10/09/2026: web de 15:51, carimbo das 17:57. Confiar nele
+# pularia a VM justamente no caso de 08/09 que este teste existe para pegar.
+#
+# As duas horas saem da mesma maquina, entao relogio torto nao interfere. Se alguma nao puder ser
+# lida, a resposta e "nao": na duvida o script reconstroi, nunca pula.
+RE_BRANCH_ANDOU='@\{([0-9]+)\}'
+RE_WEB_SUBIU='@([0-9]+)'
+web_subiu_depois_do_head() {
+  local branch_andou="" web_subiu=""
+  [[ "$1" =~ $RE_BRANCH_ANDOU ]] && branch_andou="${BASH_REMATCH[1]}"
+  [[ "$2" =~ $RE_WEB_SUBIU ]] && web_subiu="${BASH_REMATCH[1]}"
+  [ -n "$branch_andou" ] && [ -n "$web_subiu" ] && [ "$web_subiu" -ge "$branch_andou" ]
 }
 
-esta_servindo_o_commit() {
-  commit_bate_com_version_json "$1" "$(cat /home/chatwoot/chatwoot/public/version.json 2>/dev/null)"
+web_servindo_aqui() {
+  web_subiu_depois_do_head "$($CMD_BRANCH_ANDOU 2>&1 || true)" "$($CMD_WEB_SUBIU 2>&1 || true)"
+}
+
+web_servindo_na_vm() {
+  local ip="$1" tipo="$2" user="$3" branch_andou web_subiu
+  branch_andou=$(remote_exec "$ip" "$tipo" "$user" "sudo -n -u chatwoot $CMD_BRANCH_ANDOU" 2>/dev/null || echo "")
+  web_subiu=$(remote_exec "$ip" "$tipo" "$user" "$CMD_WEB_SUBIU" 2>/dev/null || echo "")
+  web_subiu_depois_do_head "$branch_andou" "$web_subiu"
 }
 
 exige_local_pass() {
@@ -120,13 +142,10 @@ update_vm() {
     git pull origin "$BRANCH"
     local after_commit=$(git rev-parse HEAD)
 
-    # Git igual NAO significa entregue. `public/version.json` e carimbado no boot
-    # (config/initializers/app_version.rb) com o commit que o processo esta rodando:
-    # se ele diverge do HEAD, os assets ou o servico ficaram para tras e pular aqui
-    # devolveria "OK" sem ter entregue nada. Foi o que aconteceu em 08/09/2026 —
-    # alguem ja tinha dado `git pull` na VM, o script pulou, e a correcao ficou
-    # semanas fora do ar com o deploy relatando sucesso.
-    if [ "$before_commit" == "$after_commit" ] && esta_servindo_o_commit "$after_commit"; then
+    # Git igual NAO significa entregue: se alguem ja deu `git pull` na VM sem reiniciar, o
+    # commit bate e o servico segue no codigo velho. Foi o que aconteceu em 08/09/2026 — o
+    # script pulou, e a correcao ficou semanas fora do ar com o deploy relatando sucesso.
+    if [ "$before_commit" == "$after_commit" ] && web_servindo_aqui; then
       log "[$name] Ja esta no ultimo commit (${before_commit:0:9}) e servindo ele. Nada a atualizar."
       return 0
     fi
@@ -194,10 +213,7 @@ update_vm() {
     return 1
   fi
 
-  local remote_servindo
-  remote_servindo=$(remote_exec "$ip" "$tipo" "$user" "cat ~chatwoot/chatwoot/public/version.json 2>/dev/null" 2>/dev/null || echo "")
-
-  if [ "$remote_commit" == "$latest_commit" ] && commit_bate_com_version_json "$remote_commit" "$remote_servindo"; then
+  if [ "$remote_commit" == "$latest_commit" ] && web_servindo_na_vm "$ip" "$tipo" "$user"; then
     log "[$name] Ja esta no ultimo commit (${remote_commit:0:9}) e servindo ele. Nada a atualizar."
     return 0
   fi
@@ -250,6 +266,11 @@ UPDSCRIPT
   commit_final=$(remote_exec "$ip" "$tipo" "$user" "sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse HEAD 2>/dev/null'" 2>/dev/null || echo "desconhecido")
   if [ "$commit_final" != "$latest_commit" ]; then
     fail "[$name] terminou em ${commit_final:0:9}, mas o alvo era ${latest_commit:0:9}"
+    return 1
+  fi
+  # Commit certo no disco nao prova restart: o exit 0 do `cwctl -U` tambem nao.
+  if [ "$NO_RESTART" == "false" ] && ! web_servindo_na_vm "$ip" "$tipo" "$user"; then
+    fail "[$name] esta em ${commit_final:0:9}, mas o chatwoot-web.1 nao reiniciou depois do codigo novo"
     return 1
   fi
 
