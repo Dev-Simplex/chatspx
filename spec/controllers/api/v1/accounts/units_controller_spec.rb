@@ -212,4 +212,43 @@ RSpec.describe 'Units API', type: :request do
       expect(caixa.reload.unit_id).to be_nil
     end
   end
+
+  # As condições de atendimento da unidade (retirada, exigência de documento, o que o ramo pedir).
+  # A ferramenta da IA já as lia; sem estar nos strong params, o time não tinha como cadastrá-las
+  # a não ser por console — então o campo existia e ninguém alcançava.
+  describe 'condições de atendimento' do
+    it 'grava as condições que a tela manda' do
+      cabecalho = admin.create_new_auth_token
+
+      post base,
+           params: { unit: { name: 'Matriz', timezone: 'America/Cuiaba',
+                             atributos: { 'retirada de chaves' => 'até as 16h30' } } },
+           headers: cabecalho, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(Unit.last.atributos).to eq('retirada de chaves' => 'até as 16h30')
+    end
+
+    it 'substitui o conjunto ao editar — remover linha na tela remove a condição' do
+      cabecalho = admin.create_new_auth_token
+      unidade = create(:unit, account: account, atributos: { 'a' => '1', 'b' => '2' })
+
+      patch "#{base}/#{unidade.id}", params: { unit: { atributos: { 'a' => '1' } } },
+                                     headers: cabecalho, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(unidade.reload.atributos).to eq('a' => '1')
+    end
+
+    it 'não mexe nas condições quando a chave não vem' do
+      cabecalho = admin.create_new_auth_token
+      unidade = create(:unit, account: account, atributos: { 'a' => '1' })
+
+      patch "#{base}/#{unidade.id}", params: { unit: { name: 'Outro nome' } },
+                                     headers: cabecalho, as: :json
+
+      expect(unidade.reload.atributos).to eq('a' => '1')
+    end
+  end
+
 end

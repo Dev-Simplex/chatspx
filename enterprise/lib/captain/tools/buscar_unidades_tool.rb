@@ -12,11 +12,16 @@
 class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   description 'Consulta as unidades físicas desta empresa: nome, cidade, endereço, telefone e se ' \
               'abre na data que a pessoa pediu, já com feriado e exceção de calendário aplicados. ' \
-              'A conta de calendário é feita aqui dentro — repasse a expressão de tempo do jeito ' \
-              'que a pessoa escreveu, sem converter em data você mesmo. Quando a pessoa tiver ' \
-              'enviado a localização dela nesta conversa, o retorno traz a distância até cada ' \
+              'Traz também as REGRAS PRÓPRIAS que o time cadastrou nesta unidade — as condições de ' \
+              'atendimento que valem no local e que você não tem como saber de cabeça — e os ' \
+              'EVENTOS e períodos especiais em curso ou marcados para os próximos dias. Chame ' \
+              'sempre que a pergunta for sobre como a unidade atende, sobre alguma condição do ' \
+              'local ou sobre algo acontecendo lá, mesmo que a pessoa não fale de horário nem de ' \
+              'endereço. A conta de calendário é feita aqui dentro — repasse a expressão de tempo ' \
+              'do jeito que a pessoa escreveu, sem converter em data você mesmo. Quando a pessoa ' \
+              'tiver enviado a localização dela nesta conversa, o retorno traz a distância até cada ' \
               'unidade e qual é a mais próxima, já calculadas. Use SÓ o que vier no retorno: ' \
-              'endereço, telefone, horário e distância que não estiverem aqui não existem.'
+              'endereço, telefone, horário, regra e evento que não estiverem aqui não existem.'
 
   param :cidade, type: 'string',
                  desc: 'O município que a pessoa citou nesta conversa. Vazio lista todas as unidades.',
@@ -122,10 +127,11 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
      *mostradas.map { |unidade| bloco(unidade, momentos[unidade], excecoes) }].compact.join("\n\n")
   end
 
-  def excecoes_das(momentos)
-    datas = momentos.flat_map(&:datas).uniq
-    return [] if datas.empty?
-
+  # Carregadas SEMPRE, e não só quando a pessoa pediu uma data. A versão anterior saía com lista
+  # vazia sem data pedida — e aí um evento marcado para depois de amanhã só existia para o agente
+  # se o cliente por acaso perguntasse pelo dia exato. É uma consulta por chamada, para a conta
+  # inteira; o custo não muda com a guarda.
+  def excecoes_das(_momentos)
     ::UnitException.joins(:unit).where(units: { account_id: @assistant.account_id }).to_a
   end
 
@@ -153,6 +159,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
     linhas << "Telefone: #{unidade.telefone}" if unidade.telefone.present?
     linhas << @perto.linha_de_distancia(unidade)
     linhas.concat(atributos(unidade))
+    linhas.concat(::Spx::UnidadeEventos.new(unidade, excecoes).linhas)
     linhas.concat(agenda(unidade, momento, excecoes))
     linhas.compact.join("\n")
   end

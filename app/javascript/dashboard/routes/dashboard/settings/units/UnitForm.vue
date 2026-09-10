@@ -99,6 +99,9 @@ const form = ref({
 // UM campo, e não dois: ninguém digita latitude e longitude separadas — copia o par do Google
 // Maps ("-15.601, -56.097") e cola. A quebra nos dois números acontece no envio.
 const coordenadas = ref('');
+// Pares nome/valor porque é assim que se edita; o hash só existe na hora de enviar. Editar JSON
+// na tela seria pedir pro time errar chave e a IA repassar rótulo torto ao cliente.
+const regrasProprias = ref([]);
 const timeSlots = ref([]);
 const horaIds = ref({});
 const selectedInboxIds = ref([]);
@@ -131,6 +134,9 @@ const carregar = () => {
     u?.latitude != null && u?.longitude != null
       ? `${u.latitude}, ${u.longitude}`
       : '';
+  regrasProprias.value = Object.entries(u?.atributos ?? {}).map(
+    ([chave, valor]) => ({ chave, valor: String(valor) })
+  );
   const grade = u?.working_hours?.length ? u.working_hours : GRADE_PADRAO;
   // Guarda o id de cada dia: sem ele o nested attributes cria linha nova em vez de
   // atualizar a existente, e o índice único do par (unidade, dia) recusa o salvar.
@@ -676,6 +682,13 @@ const onSubmit = () => {
       };
     }),
     exceptions: rules.value,
+    // Linha sem nome não vira regra: chave vazia no hash é regra que a IA leria como rótulo em
+    // branco. O valor pode ser vazio enquanto o time digita, mas não sobrevive ao envio.
+    atributos: Object.fromEntries(
+      regrasProprias.value
+        .filter(regra => regra.chave.trim() && regra.valor.trim())
+        .map(regra => [regra.chave.trim(), regra.valor.trim()])
+    ),
   });
 };
 </script>
@@ -767,6 +780,47 @@ const onSubmit = () => {
             : t('UNITS_MGMT.FORM.COORDINATES.HELP')
         }}
       </p>
+    </section>
+
+    <section>
+      <span class="text-heading-3">{{
+        t('UNITS_MGMT.FORM.CONDITIONS.LABEL')
+      }}</span>
+      <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+        {{ t('UNITS_MGMT.FORM.CONDITIONS.HELP') }}
+      </p>
+      <div
+        v-for="(condicao, index) in regrasProprias"
+        :key="`condicao-${index}`"
+        class="flex gap-2 items-start mb-2"
+      >
+        <woot-input
+          v-model="condicao.chave"
+          class="mb-0 w-1/3"
+          :placeholder="t('UNITS_MGMT.FORM.CONDITIONS.NAME_PLACEHOLDER')"
+        />
+        <woot-input
+          v-model="condicao.valor"
+          class="flex-1 mb-0"
+          :placeholder="t('UNITS_MGMT.FORM.CONDITIONS.VALUE_PLACEHOLDER')"
+        />
+        <Button
+          ghost
+          slate
+          xs
+          class="mt-2"
+          icon="i-lucide-trash-2"
+          :title="t('UNITS_MGMT.FORM.CONDITIONS.REMOVE')"
+          @click.prevent="regrasProprias.splice(index, 1)"
+        />
+      </div>
+      <Button
+        ghost
+        sm
+        icon="i-lucide-plus"
+        :label="t('UNITS_MGMT.FORM.CONDITIONS.ADD')"
+        @click.prevent="regrasProprias.push({ chave: '', valor: '' })"
+      />
     </section>
 
     <section>
