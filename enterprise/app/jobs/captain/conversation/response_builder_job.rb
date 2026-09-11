@@ -18,6 +18,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # Pergunta sobre IMÓVEL não é pergunta sobre a empresa. Sem este veto, "qual o endereço da
   # casa?" faria a guarda trocar o endereço do imóvel — o estrago que ela existe pra evitar.
   SOBRE_IMOVEL = /\b(?:casa|apartamento|apto|kitnet|kit|im[óo]vel|terreno|sobrado|sala|ponto|galp[ãa]o|ch[áa]cara|c[óo]d(?:igo)?)\b/i
+  # A pergunta cita a EMPRESA. Sem isso, "qual o endereço?" no meio de uma conversa de locação é
+  # pergunta sobre o imóvel que acabou de ser mostrado, e trocar a resposta mandaria o cliente ao
+  # escritório em vez da casa. Borda por [[:alpha:]] porque `\b` não enxerga o "í" de "aí".
+  DA_EMPRESA = /(?<![[:alpha:]])(?:voc[êe]s|a[íi]|escrit[óo]rio|loja|empresa|sede|imobili[áa]ria)(?![[:alpha:]])/i
   # Fim de frase de verdade: ponto/!/? seguido de espaço e MAIÚSCULA, ou quebra de linha.
   # "Av. das" não casa (minúscula depois do ponto), que é o que salva a abreviação.
   FIM_DE_FRASE = /[.!?]\s+(?=[A-ZÀ-Ú])|\n/
@@ -725,7 +729,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     # resposta a ela — não é preciso procurar marcador na frase.
     perguntaram = perguntaram_o_endereco_da_empresa?
     content.gsub(LOGRADOURO) do |trecho|
-      next trecho unless perguntaram || dono_do_endereco?(Regexp.last_match.pre_match)
+      anterior = Regexp.last_match.pre_match
+      next trecho unless (perguntaram && !fala_de_imovel?(anterior)) || dono_do_endereco?(anterior)
       next trecho if trecho.match?(certo)
 
       Rails.logger.warn("[fix_office_address] conv=#{@conversation.id} endereço do escritório corrigido")
@@ -746,7 +751,20 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
                             .order(:id).last&.content.to_s
     return false if pergunta.blank? || pergunta.match?(SOBRE_IMOVEL)
 
-    pergunta.match?(PERGUNTA_DE_ENDERECO)
+    pergunta.match?(PERGUNTA_DE_ENDERECO) && cita_a_empresa?(pergunta)
+  end
+
+  # "de vocês", "aí", "o escritório", ou o nome da conta ("onde fica a Tozi?").
+  def cita_a_empresa?(pergunta)
+    return true if pergunta.match?(DA_EMPRESA)
+
+    nome = @conversation.account&.name.to_s[/[[:alpha:]]{3,}/]
+    nome.present? && pergunta.match?(/(?<![[:alpha:]])#{Regexp.escape(nome)}(?![[:alpha:]])/i)
+  end
+
+  # Mesmo com a pergunta sobre a empresa, frase que fala de casa ou imóvel é sobre o imóvel.
+  def fala_de_imovel?(anterior)
+    frase_ate_o_logradouro(anterior).match?(SOBRE_IMOVEL)
   end
 
   # O que vem ANTES do logradouro diz de quem ele é. Duas armadilhas resolvidas aqui:
@@ -757,9 +775,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   #    de linha) — senão "…passar no nosso escritório. A casa fica na Rua X" faria a guarda
   #    trocar o endereço do IMÓVEL, que é o estrago que ela existe pra evitar.
   def dono_do_endereco?(anterior)
+    frase_ate_o_logradouro(anterior).match?(DONO_ESCRITORIO)
+  end
+
+  def frase_ate_o_logradouro(anterior)
     janela = anterior.to_s[-JANELA_DONO..] || anterior.to_s
-    janela = janela.split(FIM_DE_FRASE).last.to_s
-    janela.match?(DONO_ESCRITORIO)
+    janela.split(FIM_DE_FRASE).last.to_s
   end
 
   # A conta pode ter várias unidades (rede com filiais). Corrigir para uma delas quando há

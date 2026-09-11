@@ -4,7 +4,7 @@ require 'rails_helper'
 # chamada, e conduta não força chamada de ferramenta. Medido na Tozi em 90 dias: das 49 vezes
 # em que a IA deu o endereço do escritório, 22 estavam erradas, e nunca o mesmo endereço.
 RSpec.describe Captain::Conversation::ResponseBuilderJob do
-  let(:account) { create(:account) }
+  let(:account) { create(:account, name: 'Tozi Imóveis') }
   let(:conversation) { create(:conversation, account: account) }
   let(:job) { described_class.new }
   let(:endereco) { 'Av. das Figueiras, 1646 - Sala 01, Centro, Sinop/MT' }
@@ -144,7 +144,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob do
     end
 
     it 'vale para as formas comuns da pergunta' do
-      ['Onde vocês ficam?', 'qual o endereço aí?', 'Me manda o endereço', 'onde fica a Tozi?'].each do |p|
+      ['Onde vocês ficam?', 'qual o endereço aí?', 'onde fica a Tozi?'].each do |p|
         conversation.messages.destroy_all
         perguntar!(p)
 
@@ -166,6 +166,18 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob do
       texto = 'Fica na Rua dos Antúrios, 234.'
 
       expect(corrigir(texto)).to eq(texto)
+    end
+
+    # Pergunta de endereço que não cita a empresa, no meio de uma conversa, é sobre o imóvel que
+    # acabou de ser mostrado: trocar a resposta mandaria o cliente ao escritório em vez da casa.
+    it 'NÃO age na pergunta genérica, que não cita a empresa' do
+      ['Qual o endereço?', 'Me manda o endereço', 'Onde fica?'].each do |p|
+        conversation.messages.destroy_all
+        perguntar!(p)
+        texto = 'Fica na Rua dos Antúrios, 234, no Jardim Paraíso.'
+
+        expect(corrigir(texto)).to eq(texto), "trocou em: #{p}"
+      end
     end
 
     # Sem pergunta de endereço, volta a valer só o marcador na frase.
