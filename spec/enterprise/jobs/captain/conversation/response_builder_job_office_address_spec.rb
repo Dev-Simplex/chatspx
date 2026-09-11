@@ -4,7 +4,7 @@ require 'rails_helper'
 # chamada, e conduta não força chamada de ferramenta. Medido na Tozi em 90 dias: das 49 vezes
 # em que a IA deu o endereço do escritório, 22 estavam erradas, e nunca o mesmo endereço.
 RSpec.describe Captain::Conversation::ResponseBuilderJob do
-  let(:account) { create(:account) }
+  let(:account) { create(:account, name: 'Tozi Imóveis') }
   let(:conversation) { create(:conversation, account: account) }
   let(:job) { described_class.new }
   let(:endereco) { 'Av. das Figueiras, 1646 - Sala 01, Centro, Sinop/MT' }
@@ -113,6 +113,77 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob do
 
     it 'ignora unidade desativada' do
       texto = 'O escritório fica na Avenida dos Tarumãs, 1260.'
+
+      expect(corrigir(texto)).to eq(texto)
+    end
+  end
+
+  # A resposta nem sempre diz de quem é o endereço. Perguntado "qual o endereço de vocês?", a
+  # IA responde só o endereço — sem marcador antes do logradouro. Medido em produção depois do
+  # merge da primeira versão: 3 de 6 respostas erradas escapavam por aqui.
+  context 'when the customer asked for the company address' do
+    before { cadastrar_unidade! }
+
+    def perguntar!(texto)
+      conversation.messages.create!(account_id: account.id, inbox_id: conversation.inbox_id,
+                                    content: texto, message_type: :incoming,
+                                    sender: conversation.contact)
+    end
+
+    # As três frases reais que escaparam da primeira versão.
+    it 'corrige mesmo sem marcador antes do logradouro' do
+      perguntar!('Qual o endereço de vocês?')
+
+      [
+        'Avenida das Embaúbas, 1030 – Jardim Botânico, Sinop/MT. Quer que eu mande a localização?',
+        'Avenida das Embaúbas, 1059, Setor Comercial. Estamos em pausa do almoço agora.',
+        'Av. Tarumãs, 2821, no bairro Jardim das Violetas, aqui em Sinop.'
+      ].each do |resposta|
+        expect(corrigir(resposta)).to include('Figueiras'), "escapou: #{resposta}"
+      end
+    end
+
+    it 'vale para as formas comuns da pergunta' do
+      ['Onde vocês ficam?', 'qual o endereço aí?', 'onde fica a Tozi?'].each do |p|
+        conversation.messages.destroy_all
+        perguntar!(p)
+
+        expect(corrigir('Avenida das Embaúbas, 1030.')).to include('Figueiras'), "não pegou: #{p}"
+      end
+    end
+
+    # Pergunta sobre IMÓVEL não é pergunta sobre a empresa — e trocar aquele endereço mandaria
+    # a pessoa para o lugar errado.
+    it 'NÃO age quando a pergunta é sobre o endereço de um imóvel' do
+      perguntar!('Qual o endereço da casa?')
+      texto = 'Fica na Rua dos Antúrios, 234, no Jardim Paraíso.'
+
+      expect(corrigir(texto)).to eq(texto)
+    end
+
+    it 'NÃO age quando a pergunta cita o código do imóvel' do
+      perguntar!('Me manda o endereço do cód 9434')
+      texto = 'Fica na Rua dos Antúrios, 234.'
+
+      expect(corrigir(texto)).to eq(texto)
+    end
+
+    # Pergunta de endereço que não cita a empresa, no meio de uma conversa, é sobre o imóvel que
+    # acabou de ser mostrado: trocar a resposta mandaria o cliente ao escritório em vez da casa.
+    it 'NÃO age na pergunta genérica, que não cita a empresa' do
+      ['Qual o endereço?', 'Me manda o endereço', 'Onde fica?'].each do |p|
+        conversation.messages.destroy_all
+        perguntar!(p)
+        texto = 'Fica na Rua dos Antúrios, 234, no Jardim Paraíso.'
+
+        expect(corrigir(texto)).to eq(texto), "trocou em: #{p}"
+      end
+    end
+
+    # Sem pergunta de endereço, volta a valer só o marcador na frase.
+    it 'não age em pergunta que não é sobre endereço' do
+      perguntar!('Tem casa de 3 quartos?')
+      texto = 'Tenho sim, uma na Rua dos Antúrios, 234.'
 
       expect(corrigir(texto)).to eq(texto)
     end
