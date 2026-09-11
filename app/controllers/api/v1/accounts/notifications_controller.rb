@@ -13,6 +13,8 @@ class Api::V1::Accounts::NotificationsController < Api::V1::Accounts::BaseContro
   end
 
   def read_all
+    return head :ok if params[:primary_actor_type].present? && @primary_actor.nil?
+
     # rubocop:disable Rails/SkipsModelValidations
     if @primary_actor
       current_user.notifications.where(account_id: current_account.id, primary_actor: @primary_actor, read_at: nil)

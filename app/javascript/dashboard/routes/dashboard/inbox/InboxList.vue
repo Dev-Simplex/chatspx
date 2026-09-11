@@ -160,8 +160,6 @@ const openConversation = async notificationItem => {
     notificationType,
   } = notificationItem;
 
-  if (route.params.id === String(conversationId)) return;
-
   useTrack(INBOX_EVENTS.OPEN_CONVERSATION_VIA_INBOX, {
     notificationType,
   });
