@@ -744,4 +744,112 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(retorno).not_to include('transferir_para_agente')
     end
   end
+
+  # O passo a passo da visita a imóvel avulso chega no retorno da busca, lido da condição da
+  # unidade. Medido em 11/09: fora do prompt e dependendo de a agente consultar a ferramenta de
+  # unidade, ele sumiu de metade das respostas — "quero ver" é sobre o imóvel, e a consulta à
+  # unidade não acontecia.
+  describe 'regra de visita a imóvel avulso' do
+    let(:avulso) do
+      { 'Codigo' => '9623', 'Categoria' => 'Kitnet', 'Bairro' => 'Jardim Imperial', 'Cidade' => 'Sinop',
+        'Status' => 'Aluguel', 'ValorLocacao' => '1000', 'ValorVenda' => '0', 'Condominio' => 'Nao' }
+    end
+    let(:em_condominio) { avulso.merge('Codigo' => '2686', 'Condominio' => 'Sim') }
+    let(:regra) { 'deixa documento com foto e devolve a chave no mesmo dia' }
+
+    before do
+      allow(tool).to receive(:site_api_key).and_return(nil)
+      allow(tool).to receive(:detalhes_info).and_return({})
+      assistant.update!(config: assistant.config.merge('condicao_visita_avulso' => 'visita a imóvel avulso'))
+      create(:unit, account: account, atributos: { 'visita a imóvel avulso' => regra })
+    end
+
+    def listar(imoveis, venda: false)
+      tool.send(:format_listings, tool_context, imoveis, venda)
+    end
+
+    it 'traz a regra da unidade junto do imóvel avulso de locação' do
+      expect(listar([avulso])).to include(regra)
+    end
+
+    # Pelo caminho que o modelo chama — e pelo ramo de CÓDIGO, que é o de quem chega com placa
+    # ou link querendo visitar. Sem este exemplo a mutação só provaria que o método é novo.
+    it 'chega pelo caminho público, inclusive na busca por código' do
+      allow(tool).to receive(:fetch_vista).and_return([avulso])
+
+      expect(tool.perform(tool_context, status_tipo: 'locacao', codigo: '9623')).to include(regra)
+    end
+
+    it 'não traz em venda — lá não existe retirada de chave' do
+      expect(listar([avulso], venda: true)).not_to include(regra)
+    end
+
+    it 'não traz quando só há imóvel em condomínio fechado — lá a visita é agendada' do
+      expect(listar([em_condominio])).not_to include(regra)
+    end
+
+    it 'não muda nada para o assistente que não configurou a regra' do
+      assistant.update!(config: assistant.config.except('condicao_visita_avulso'))
+
+      expect(listar([avulso])).not_to include('Visita a imóvel avulso')
+    end
+
+    it 'não escolhe regra quando a conta tem mais de uma unidade ativa' do
+      create(:unit, account: account, atributos: { 'visita a imóvel avulso' => 'regra de outra loja' })
+
+      expect(listar([avulso])).not_to include('Visita a imóvel avulso')
+    end
+
+    # A POSIÇÃO é contrato. Anexada no fim, medido na produção em 11/09, a regra ficava na posição
+    # 711 do retorno por código e 1565 do comum — fora do corte de 700 da nota de ferramentas e,
+    # no comum, fora até do registro de 1500 da chamada. Sumia no turno do "quero ver".
+    it 'vem antes da lista, para sobreviver ao corte do contexto do turno seguinte' do
+      expect(listar([avulso])).to start_with('Visita a imóvel avulso')
+    end
+
+    # O contrato de ponta a ponta: o que a busca devolve chega ao turno seguinte. Lista cheia de
+    # propósito — é o comprimento que empurrava a regra para fora do corte.
+    it 'chega ao contexto do turno seguinte mesmo com a lista cheia' do
+      account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
+      retorno = listar(Array.new(5) { |i| avulso.merge('Codigo' => (9600 + i).to_s) })
+      Captain::ToolCall.create!(account_id: account.id, conversation_id: conversation.id,
+                                captain_assistant_id: assistant.id, tool_name: 'buscar_imovel',
+                                args: {}, result_preview: retorno[0, 1500], status: 'ok', duration_ms: 1)
+
+      nota = Captain::Conversation::ToolContextNote.new(conversation: conversation).text
+
+      expect(nota).to include(regra)
+    end
+
+    # A condição de visita diz "no horário de retirada de chave", e esse horário mora na condição
+    # vizinha. Com uma só, medido em 11/09, 4 de 6 respostas preencheram o horário de retirada com a
+    # grade de funcionamento. A config aceita a lista, e as duas chegam juntas.
+    it 'traz as condições listadas na config, na ordem dela' do
+      Unit.where(account_id: account.id).find_each do |unidade|
+        unidade.update!(atributos: unidade.atributos.merge('retirada e entrega de chave' => 'até o meio da tarde'))
+      end
+      assistant.update!(config: assistant.config.merge(
+        'condicao_visita_avulso' => ['visita a imóvel avulso', 'retirada e entrega de chave']
+      ))
+
+      retorno = listar([avulso])
+
+      expect(retorno).to include(regra, 'Retirada e entrega de chave: até o meio da tarde')
+      expect(retorno.index(regra)).to be < retorno.index('até o meio da tarde')
+    end
+
+    it 'ignora nome listado que a unidade não tem, sem perder os outros' do
+      assistant.update!(config: assistant.config.merge(
+        'condicao_visita_avulso' => ['visita a imóvel avulso', 'condição que ninguém cadastrou']
+      ))
+
+      expect(listar([avulso])).to include(regra)
+    end
+
+    it 'não traz nada quando a unidade não tem essa condição cadastrada' do
+      Unit.where(account_id: account.id).find_each { |unidade| unidade.update!(atributos: {}) }
+
+      expect(listar([avulso])).not_to include('Visita a imóvel avulso')
+    end
+  end
 end

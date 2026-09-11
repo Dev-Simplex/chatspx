@@ -547,7 +547,68 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def format_listings(tool_context, imoveis, venda, header: nil, detalhado: false)
     track_urls(tool_context, imoveis.first(MOSTRAR), venda)
     linhas = imoveis.first(MOSTRAR).each_with_index.map { |im, idx| linha_imovel(im, idx, venda, detalhado) }
-    "#{header || "Encontrei #{imoveis.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape(linhas.size, imoveis.size)}"
+    "#{condicao_de_visita(imoveis.first(MOSTRAR), venda)}" \
+      "#{header || "Encontrei #{imoveis.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape(linhas.size, imoveis.size)}"
+  end
+
+  # O passo a passo da visita a imóvel avulso — o que a pessoa leva, como retira a chave, até
+  # quando devolve — chega AQUI, junto do imóvel, e não no prompt nem numa consulta à unidade.
+  #
+  # Medido em 11/09 na Tozi: com o passo a passo fora do prompt e a instrução de consultar a
+  # ferramenta de unidade, a agente de locação consultou 1 vez em 6 quando o cliente disse
+  # "gostei, quero ver" — a pergunta é sobre o IMÓVEL, e ela não a associa à unidade. Documento
+  # com foto caiu de 5/6 para 3/6 nas respostas. A instrução que chega junto do dado decide.
+  #
+  # A fonte continua uma só: a condição cadastrada na unidade, que o time edita pela tela. O NOME
+  # dela é config do assistente, porque código compartilhado não sabe como cada cliente chama a
+  # própria regra.
+  #
+  # Só locação — em venda não existe retirada de chave. E só com UMA unidade ativa: com várias,
+  # usar a regra de uma delas seria mandar a pessoa ao balcão errado.
+  #
+  # Vem ANTES da lista, não depois. Anexada no fim, medido na produção em 11/09, ela caía na
+  # posição 711 do retorno por código e 1565 do comum: fora do corte de 700 que a nota de
+  # ferramentas aplica ao contexto do turno seguinte, e no comum fora até dos 1500 do registro da
+  # chamada. Chegava no turno da busca e sumia no do "quero ver" — que é justamente quando ela vale.
+  def condicao_de_visita(imoveis, venda)
+    return '' if venda || imoveis.none? { |im| avulso?(im) }
+
+    regras = regras_de_visita
+    return '' if regras.empty?
+
+    "Visita a imóvel avulso — regras cadastradas na unidade:\n" \
+      "#{regras.map { |nome, valor| "· #{nome.humanize}: #{valor}" }.join("\n")}\n"
+  end
+
+  # A config aceita um nome OU uma lista, porque uma condição sozinha deixa a resposta pela metade:
+  # a de visita diz "no horário de retirada de chave", e esse horário mora na condição vizinha.
+  # Medido em 11/09 na Tozi, com só a condição de visita no retorno, 4 de 6 respostas preencheram o
+  # horário de retirada com a grade de funcionamento — que fecha mais tarde. Com o texto antigo no
+  # prompt eram 5 de 6: o defeito é anterior a este código, e é a condição vizinha que o fecha.
+  def regras_de_visita
+    nomes = nomes_de_condicao
+    unidade = unidade_unica if nomes.any?
+    return [] if unidade.nil?
+
+    atributos = unidade.atributos.to_h
+    nomes.filter_map { |nome| [nome, atributos[nome]] if atributos[nome].present? }
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] regra de visita indisponível: #{e.class}: #{e.message}")
+    []
+  end
+
+  def nomes_de_condicao
+    Array(@assistant.config['condicao_visita_avulso']).map { |nome| nome.to_s.strip }.reject(&:blank?)
+  end
+
+  # Com várias unidades ativas, usar a regra de uma delas seria mandar a pessoa ao balcão errado.
+  def unidade_unica
+    unidades = ::Unit.where(account_id: @assistant.account_id, active: true).limit(2).to_a
+    unidades.one? ? unidades.first : nil
+  end
+
+  def avulso?(imovel)
+    %w[nao não].include?(imovel['Condominio'].to_s.strip.downcase)
   end
 
   def linha_imovel(imovel, idx, venda, detalhado)
