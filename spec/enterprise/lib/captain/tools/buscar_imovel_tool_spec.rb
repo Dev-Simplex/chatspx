@@ -13,20 +13,20 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
   # continuariam verdes com o domínio errado, que é justamente o que não se quer.
   before { allow(tool).to receive(:site_domain).and_return('imobiliaria-exemplo.com.br') }
 
+  let(:imovel) do
+    { 'Codigo' => '9908', 'ImoCodigo' => '5501', 'Categoria' => 'Casa', 'Bairro' => 'Jardim Paraíso',
+      'Cidade' => 'Sinop', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }
+  end
+
   # Conta que não declarou o domínio público. Antes herdava o de um cliente, embutido no
   # código da frota: montava link do site dele e, no PropertyRefContextService, tratava
   # link daquele domínio como "nosso". Agora a ausência é ausência — sem link, nunca link
   # errado. O preço segue sendo registrado: ele alimenta a guarda e não depende de URL.
   describe 'conta sem domínio público configurado' do
-    let(:imovel_sem_dominio) do
-      { 'Codigo' => '9908', 'ImoCodigo' => '5501', 'Categoria' => 'Casa', 'Bairro' => 'Jardim Paraíso',
-        'Cidade' => 'Sinop', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }
-    end
-
     before { allow(tool).to receive_messages(site_domain: nil, site_api_key: nil, format_extras: '') }
 
     it 'não monta URL nenhuma' do
-      expect(tool.send(:build_url, imovel_sem_dominio, true)).to be_nil
+      expect(tool.send(:build_url, imovel, true)).to be_nil
     end
 
     it 'não deriva a URL da API do site a partir de um host inexistente' do
@@ -34,7 +34,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     end
 
     it 'não grava link no mapa, mas preserva preço e bairro' do
-      tool.send(:track_urls, tool_context, [imovel_sem_dominio], true)
+      tool.send(:track_urls, tool_context, [imovel], true)
 
       attrs = conversation.reload.custom_attributes
       expect(attrs['urls_imoveis']).to be_blank
@@ -42,17 +42,12 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     end
 
     it 'fecha a linha da listagem sem deixar pontuação solta' do
-      linha = tool.send(:linha_imovel, imovel_sem_dominio, 0, true, false)
+      linha = tool.send(:linha_imovel, imovel, 0, true, false)
 
       expect(linha).not_to include('https://')
       expect(linha).not_to match(/\.\s+\z/)
       expect(linha).to end_with('.')
     end
-  end
-
-  let(:imovel) do
-    { 'Codigo' => '9908', 'ImoCodigo' => '5501', 'Categoria' => 'Casa', 'Bairro' => 'Jardim Paraíso',
-      'Cidade' => 'Sinop', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }
   end
 
   # track_urls alimenta o fix_property_links (response_builder_job): sem urls_imoveis na

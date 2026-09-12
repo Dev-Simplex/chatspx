@@ -302,7 +302,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     novos = {}
     dados = {}
     imoveis.each { |im| registra_imovel(im, venda, novos, dados) }
-    return if novos.empty?
+    # Os dois mapas são independentes: conta sem domínio público não tem URL a guardar, mas
+    # tem preço — e sair aqui olhando só o `novos` levaria o `dados_imoveis` junto, desligando
+    # a guarda de preço numa conta que nunca teve link nenhum. Foi o spec que pegou.
+    return if novos.empty? && dados.empty?
 
     atuais = conv.custom_attributes
     mapas = { 'urls_imoveis' => mescla_mapa(atuais, 'urls_imoveis', novos),
