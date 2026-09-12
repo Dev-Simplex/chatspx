@@ -8,15 +8,15 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
   let(:conversation) { create(:conversation, account: account, inbox: inbox) }
   let(:tool_context) { Struct.new(:state).new({ conversation: { id: conversation.id } }) }
 
-  # O domínio público é CONFIG DA CONTA — não existe mais constante de cliente no código.
-  # Domínio neutro de propósito: se algum dia voltar um default embutido, estes exemplos
-  # continuariam verdes com o domínio errado, que é justamente o que não se quer.
-  before { allow(tool).to receive(:site_domain).and_return('imobiliaria-exemplo.com.br') }
-
   let(:imovel) do
     { 'Codigo' => '9908', 'ImoCodigo' => '5501', 'Categoria' => 'Casa', 'Bairro' => 'Jardim Paraíso',
       'Cidade' => 'Sinop', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }
   end
+
+  # O domínio público é CONFIG DA CONTA — não existe mais constante de cliente no código.
+  # Domínio neutro de propósito: se algum dia voltar um default embutido, estes exemplos
+  # continuariam verdes com o domínio errado, que é justamente o que não se quer.
+  before { allow(tool).to receive(:site_domain).and_return('imobiliaria-exemplo.com.br') }
 
   # Conta que não declarou o domínio público. Antes herdava o de um cliente, embutido no
   # código da frota: montava link do site dele e, no PropertyRefContextService, tratava
