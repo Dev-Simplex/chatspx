@@ -7,8 +7,8 @@ RSpec.describe Captain::PropertyRefContextService, type: :model do
 
   let(:imovel) do
     { 'Codigo' => '9412', 'Categoria' => 'Casa', 'Status' => 'Aluguel', 'ValorVenda' => '0',
-      'ValorLocacao' => '3200', 'Bairro' => 'Santorini Residence', 'Cidade' => 'Sinop',
-      'Dormitorios' => '3' }
+      'ValorLocacao' => '3200', 'ValorCondominio' => '731.55',
+      'Bairro' => 'Santorini Residence', 'Cidade' => 'Sinop', 'Dormitorios' => '3' }
   end
 
   def note_for(content)
@@ -66,6 +66,31 @@ RSpec.describe Captain::PropertyRefContextService, type: :model do
       nota = note_for('(Ref: 9412) https://www.toziimoveis.com.br/imovel/casa-sinop-7777')
 
       expect(nota).to include('código 9412')
+    end
+  end
+
+  # A ficha passa a SUBSTITUIR a busca (medido: com ela no contexto o agente responde sem
+  # chamar o buscar_imovel). Se ela omitir ou arredondar o custo, a resposta fica pior que a
+  # de hoje — foi por isso que o condomínio entrou, e com centavos.
+  describe 'valores que a ficha carrega' do
+    it 'traz o condomínio com os centavos exatos, sem arredondar' do
+      nota = note_for('https://www.toziimoveis.com.br/imovel/casa-sinop-9412')
+
+      expect(nota).to include('condomínio R$ 731,55')
+      expect(nota).not_to include('R$ 732')
+    end
+
+    it 'mantém valor inteiro sem casas decimais' do
+      nota = note_for('https://www.toziimoveis.com.br/imovel/casa-sinop-9412')
+
+      expect(nota).to include('aluguel R$ 3.200')
+      expect(nota).not_to include('R$ 3.200,00')
+    end
+
+    it 'omite o condomínio quando o imóvel não tem' do
+      imovel['ValorCondominio'] = '0'
+
+      expect(note_for('https://www.toziimoveis.com.br/imovel/casa-sinop-9412')).not_to include('condomínio')
     end
   end
 

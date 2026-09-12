@@ -33,7 +33,12 @@ class Captain::PropertyRefContextService
   # no FIM do segmento — o slug é cosmético e o site resolve pelo número. Ancorar no fim é
   # o que impede casar número que faz parte do slug ("apto-123-quartos-9412" resolve 9412).
   LINK_PATTERN = %r{/imovel/[^\s/?#]*?(\d{3,6})(?:[/?#]|\z)}i
-  FIELDS = %w[Codigo Categoria Status ValorVenda ValorLocacao Bairro Cidade Dormitorios].freeze
+  # ValorCondominio entra porque a ficha PASSA A SUBSTITUIR a busca: medido com N=6, quando
+  # ela está no contexto o agente responde o preço direto e não chama mais o buscar_imovel.
+  # Sem o condomínio aqui, a resposta fica correta e mais POBRE que a de hoje — some um
+  # custo de R$ 731/mês da conta do inquilino. Ficha que substitui busca tem que empatar
+  # com ela no que o cliente pergunta.
+  FIELDS = %w[Codigo Categoria Status ValorVenda ValorLocacao ValorCondominio Bairro Cidade Dormitorios].freeze
   CACHE_TTL = 6.hours
   HTTP_TIMEOUT = 8
 
@@ -147,6 +152,7 @@ class Captain::PropertyRefContextService
     v = []
     v << "valor de venda #{format_brl(imovel['ValorVenda'])}" if imovel['ValorVenda'].to_f.positive?
     v << "aluguel #{format_brl(imovel['ValorLocacao'])}" if imovel['ValorLocacao'].to_f.positive?
+    v << "condomínio #{format_brl(imovel['ValorCondominio'])}" if imovel['ValorCondominio'].to_f.positive?
     v.join(', ')
   end
 
@@ -154,7 +160,13 @@ class Captain::PropertyRefContextService
     [imovel['Bairro'].to_s.strip.presence, imovel['Cidade'].to_s.strip.presence].compact.join(', ')
   end
 
+  # Arredondar servia enquanto a ficha só trazia venda e aluguel, que são inteiros no Vista.
+  # Condomínio tem centavos (731,55) e arredondar publicaria 732 — número errado escrito
+  # pela própria guarda contra número errado. Só quem tem centavos ganha as duas casas.
   def format_brl(valor)
-    "R$ #{ActiveSupport::NumberHelper.number_to_delimited(valor.to_f.round, delimiter: '.')}"
+    numero = valor.to_f
+    return "R$ #{ActiveSupport::NumberHelper.number_to_delimited(numero.round, delimiter: '.')}" if (numero % 1).zero?
+
+    ActiveSupport::NumberHelper.number_to_currency(numero, unit: 'R$ ', delimiter: '.', separator: ',')
   end
 end
