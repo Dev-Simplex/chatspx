@@ -73,8 +73,10 @@ RSpec.describe Captain::PropertyRefContextService, type: :model do
   # chamar o buscar_imovel). Se ela omitir ou arredondar o custo, a resposta fica pior que a
   # de hoje — foi por isso que o condomínio entrou, e com centavos.
   describe 'valores que a ficha carrega' do
+    # Pelo caminho "Ref:", que já existia: assim a prova de mutação acusa a mudança dos
+    # VALORES, e não a do link (que faria qualquer exemplo com URL falhar no código velho).
     it 'traz o condomínio com os centavos exatos, sem arredondar' do
-      nota = note_for('https://www.toziimoveis.com.br/imovel/casa-sinop-9412')
+      nota = note_for('Tenho interesse (Ref: 9412)')
 
       expect(nota).to include('condomínio R$ 731,55')
       expect(nota).not_to include('R$ 732')
@@ -90,7 +92,7 @@ RSpec.describe Captain::PropertyRefContextService, type: :model do
     it 'omite o condomínio quando o imóvel não tem' do
       imovel['ValorCondominio'] = '0'
 
-      expect(note_for('https://www.toziimoveis.com.br/imovel/casa-sinop-9412')).not_to include('condomínio')
+      expect(note_for('Tenho interesse (Ref: 9412)')).not_to include('condomínio')
     end
   end
 
