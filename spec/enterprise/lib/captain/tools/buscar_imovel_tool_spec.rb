@@ -8,6 +8,48 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
   let(:conversation) { create(:conversation, account: account, inbox: inbox) }
   let(:tool_context) { Struct.new(:state).new({ conversation: { id: conversation.id } }) }
 
+  # O domínio público é CONFIG DA CONTA — não existe mais constante de cliente no código.
+  # Domínio neutro de propósito: se algum dia voltar um default embutido, estes exemplos
+  # continuariam verdes com o domínio errado, que é justamente o que não se quer.
+  before { allow(tool).to receive(:site_domain).and_return('imobiliaria-exemplo.com.br') }
+
+  # Conta que não declarou o domínio público. Antes herdava o de um cliente, embutido no
+  # código da frota: montava link do site dele e, no PropertyRefContextService, tratava
+  # link daquele domínio como "nosso". Agora a ausência é ausência — sem link, nunca link
+  # errado. O preço segue sendo registrado: ele alimenta a guarda e não depende de URL.
+  describe 'conta sem domínio público configurado' do
+    let(:imovel_sem_dominio) do
+      { 'Codigo' => '9908', 'ImoCodigo' => '5501', 'Categoria' => 'Casa', 'Bairro' => 'Jardim Paraíso',
+        'Cidade' => 'Sinop', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }
+    end
+
+    before { allow(tool).to receive_messages(site_domain: nil, site_api_key: nil, format_extras: '') }
+
+    it 'não monta URL nenhuma' do
+      expect(tool.send(:build_url, imovel_sem_dominio, true)).to be_nil
+    end
+
+    it 'não deriva a URL da API do site a partir de um host inexistente' do
+      expect(tool.send(:site_api_url)).to be_nil
+    end
+
+    it 'não grava link no mapa, mas preserva preço e bairro' do
+      tool.send(:track_urls, tool_context, [imovel_sem_dominio], true)
+
+      attrs = conversation.reload.custom_attributes
+      expect(attrs['urls_imoveis']).to be_blank
+      expect(attrs.dig('dados_imoveis', '9908')).to eq('preco' => 450_000.0, 'bairro' => 'Jardim Paraíso')
+    end
+
+    it 'fecha a linha da listagem sem deixar pontuação solta' do
+      linha = tool.send(:linha_imovel, imovel_sem_dominio, 0, true, false)
+
+      expect(linha).not_to include('https://')
+      expect(linha).not_to match(/\.\s+\z/)
+      expect(linha).to end_with('.')
+    end
+  end
+
   let(:imovel) do
     { 'Codigo' => '9908', 'ImoCodigo' => '5501', 'Categoria' => 'Casa', 'Bairro' => 'Jardim Paraíso',
       'Cidade' => 'Sinop', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }

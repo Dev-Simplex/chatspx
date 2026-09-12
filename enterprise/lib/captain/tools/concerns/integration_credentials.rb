@@ -26,9 +26,6 @@ module Captain
       DEFAULT_OFFICE_LNG  = -55.5093314
       DEFAULT_OFFICE_NAME = 'Tozi Imóveis - Av. das Figueiras, 1646, Sala 01, Centro, Sinop/MT'.freeze
 
-      # Public site domain (link builder) --------------------------------------
-      DEFAULT_SITE_DOMAIN = 'toziimoveis.com.br'.freeze
-
       # Cidade de atendimento (viés das buscas no Google) — legacy Tozi ---------
       DEFAULT_GEO_CITY = 'Sinop MT'.freeze
 
@@ -61,10 +58,16 @@ module Captain
         }
       end
 
+      # SEM último recurso, de propósito. A constante que existia aqui era o domínio de UM
+      # cliente, em código que roda para toda a frota: a conta que não configurasse herdava
+      # a identidade dele. O estrago era de dois lados — montava link do site errado, e (no
+      # PropertyRefContextService) tratava link daquele domínio como "nosso", resolvendo o
+      # código contra o acervo de OUTRA conta. Nil aqui faz quem depende do domínio não
+      # produzir URL nenhuma, que é falha visível; o default fazia produzir URL errada com
+      # cara de certa. Configurar: Agentes IA -> integração Vista -> Domínio do site.
       def site_domain
         integration_setting('vista', 'site_domain') ||
-          custom_attribute('site_domain') ||
-          DEFAULT_SITE_DOMAIN
+          custom_attribute('site_domain')
       end
 
       # API do site do cliente que resolve código do imóvel -> URL da página.
@@ -74,7 +77,9 @@ module Captain
         integration_setting('vista', 'site_api_url') ||
           custom_attribute('site_api_url') ||
           ENV['SITE_API_URL'].presence ||
-          "https://www.#{site_domain}/functions/v1/api"
+          # Sem domínio não há host a derivar: nil em vez de "https://www./..." — URL
+          # sintaticamente válida e inexistente, que só falharia lá na frente no HTTP.
+          (site_domain.presence && "https://www.#{site_domain}/functions/v1/api")
       end
 
       # Cidade que enviesa a busca de lugares e o geocoding ("<termo> <cidade>"). Sem

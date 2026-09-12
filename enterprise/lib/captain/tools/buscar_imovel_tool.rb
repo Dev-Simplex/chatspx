@@ -332,7 +332,11 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     [imovel['Codigo'], imovel['ImoCodigo']].each do |k|
       next if k.to_s.strip.blank?
 
-      novos[k.to_s] = url
+      # Conta sem domínio público não tem URL a guardar. Gravar o nil envenenaria o mapa
+      # (o `mescla_mapa` já documenta que chave presente valendo nil estoura o merge) e
+      # faria o fix_property_links trocar o link por vazio. `dados` continua entrando: o
+      # preço alimenta a guarda de preço e não depende de link nenhum.
+      novos[k.to_s] = url if url.present?
       dados[k.to_s] = { 'preco' => preco, 'bairro' => imovel['Bairro'].to_s.strip } if preco.positive?
     end
   end
@@ -615,9 +619,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     valor = venda ? "R$ #{imovel['ValorVenda']}" : "R$ #{imovel['ValorLocacao']}/mês"
     dorm = imovel['Dormitorios'].to_i.positive? ? "#{imovel['Dormitorios']} quartos, " : ''
     dist = imovel['dist_km'] ? " — a #{format('%.1f', imovel['dist_km'])} km da referência" : ''
+    # Sem domínio configurado o build_url devolve nil; interpolar deixaria um ". " solto
+    # no fim da linha, que o modelo lê como frase cortada.
+    link = build_url(imovel, venda)
     linha = "#{idx + 1}) (cód #{imovel['Codigo']}) #{imovel['Categoria']} #{dorm}no #{imovel['Bairro']}, #{valor}" \
             "#{format_area(imovel)}#{format_taxas(imovel)}#{format_extras(imovel['Codigo'])}" \
-            "#{format_condominio(imovel)}#{dist}. #{build_url(imovel, venda)}"
+            "#{format_condominio(imovel)}#{dist}.#{link.present? ? " #{link}" : ''}"
     desc = detalhado ? descricao_limpa(imovel['DescricaoWeb'], venda: venda) : ''
     desc.present? ? "#{linha}\n#{desc}" : linha
   end
