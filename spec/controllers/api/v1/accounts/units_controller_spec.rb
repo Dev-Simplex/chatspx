@@ -113,8 +113,27 @@ RSpec.describe 'Units API', type: :request do
       unidade = account.units.find_by(name: 'Sinop')
       expect(unidade.working_hours.count).to eq(2)
       expect(unidade.working_hours.find_by(day_of_week: 1).break_end_hour).to eq(13)
-      expect(unidade.exceptions.pluck(:frequency)).to contain_exactly('anual', 'mensal')
+      expect(unidade.exceptions.where(name: %w[Natal Plantão]).pluck(:frequency)).to contain_exactly('anual', 'mensal')
       expect(caixa.reload.unit_id).to eq(unidade.id)
+    end
+
+    # O calendário não nasce vazio: os feriados nacionais entram no mesmo request, e o dia que a
+    # tela já marcou não ganha um segundo feriado em cima.
+    it 'traz os feriados nacionais junto, sem repetir o que a tela mandou' do
+      post base,
+           params: { unit: {
+             name: 'Sorriso', timezone: 'America/Cuiaba',
+             exceptions: [
+               { starts_on: '2026-12-25', name: 'Natal', category: 'feriado', frequency: 'anual',
+                 closed_all_day: true }
+             ]
+           } },
+           headers: admin.create_new_auth_token, as: :json
+
+      unidade = account.units.find_by(name: 'Sorriso')
+      expect(unidade.exceptions.pluck(:name)).to include('Tiradentes', 'Carnaval')
+      expect(unidade.exceptions.where(name: 'Natal').count).to eq(1)
+      expect(unidade.feriados_nacionais_ate).to eq(Date.current.year + 4)
     end
 
     # Antes da transação, a unidade ficava gravada pela metade depois do erro.
