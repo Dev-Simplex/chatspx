@@ -169,6 +169,29 @@ RSpec.describe 'Search', type: :request do
         expect(response_data[:payload][:conversations].length).to eq 1
       end
 
+      # A busca casa a conversa pelo CONTATO, sem passar por mensagem: conversa cuja primeira
+      # mensagem o agente nao enxerga (isolamento por time) ou que nao tem mensagem nenhuma
+      # chegava ao parcial como nil e derrubava a busca inteira com 500.
+      it 'returns the conversation with an empty message when no message is visible' do
+        contact = create(:contact, name: 'Test Sem Mensagem', account: account)
+        inbox = create(:inbox, account: account)
+        create(:inbox_member, user: agent, inbox: inbox)
+        create(:conversation, account: account, inbox: inbox, contact: contact)
+
+        get "/api/v1/accounts/#{account.id}/search/conversations",
+            headers: agent.create_new_auth_token,
+            params: { q: 'Test Sem Mensagem' },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        response_data = JSON.parse(response.body, symbolize_names: true)
+
+        expect(response_data[:payload][:conversations].length).to eq 1
+        # O jbuilder omite o bloco vazio, entao `message` sai ausente — o front nao le esse
+        # campo no resultado da busca (normaliza a partir de `meta`).
+        expect(response_data[:payload][:conversations].first[:message]).to be_blank
+      end
+
       context 'with advanced_search feature enabled', :opensearch do
         before do
           account.enable_features!('advanced_search')
