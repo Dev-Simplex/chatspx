@@ -101,6 +101,19 @@ RSpec.describe Whatsapp::ReferralTeamRoutingService do
       .with(conversation.id, hash_including(message_type: :activity))
   end
 
+  # Definir o time não dá dono ao lead, e sem dono ele aparece para o time inteiro: foi assim que
+  # dois vendedores da Catatau atenderam a mesma cliente em 15/09.
+  it 'asks the distribution engine for an owner right after choosing the team' do
+    agente = create(:user, account: account, role: :agent)
+    create(:team_member, team: team, user: agente)
+    create(:inbox_member, inbox: inbox, user: agente)
+    create(:distribuicao_policy, account: account, team: team, pool: [{ 'user_id' => agente.id, 'ativo' => true }])
+
+    rotear(mensagem({ 'referral' => referral }))
+
+    expect(conversation.assignee_id).to eq(agente.id)
+  end
+
   it 'never breaks message delivery when the routing fails' do
     msg = mensagem({ 'referral' => referral })
     allow(conversation).to receive(:update!).and_raise(StandardError, 'boom')
