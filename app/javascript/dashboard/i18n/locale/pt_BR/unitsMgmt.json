@@ -225,15 +225,11 @@
       },
       "CALENDAR": {
         "LABEL": "Calendário da unidade",
-        "HELP": "Clique no dia para marcar um feriado, um evento ou um horário especial. Clique numa marcação para editá-la.",
+        "HELP": "Os feriados nacionais já vêm marcados — apague o que não vale para esta unidade. Clique no dia para marcar um feriado, um evento ou um horário especial, e numa marcação para editá-la.",
         "PREVIOUS": "Mês anterior",
         "NEXT": "Próximo mês",
         "TODAY": "Hoje",
-        "RULES_TITLE": "Tudo que está marcado",
-        "HOLIDAYS": "Feriados nacionais",
-        "HOLIDAYS_HELP": "Marca no calendário os feriados nacionais do Brasil, inclusive Carnaval, Sexta-feira Santa e Corpus Christi. Apague os que não valem para esta unidade.",
-        "HOLIDAYS_ADDED": "Feriados nacionais marcados: {total}. Salve para gravar.",
-        "HOLIDAYS_NONE": "Os feriados nacionais já estão marcados neste calendário."
+        "RULES_TITLE": "Tudo que está marcado"
       }
     }
   }

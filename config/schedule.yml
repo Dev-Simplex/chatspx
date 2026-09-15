@@ -176,6 +176,13 @@ units_schedule_reminder_job:
   class: 'Units::ScheduleReminderJob'
   queue: scheduled_jobs
 
+# uma vez por dia, 10h UTC: põe os feriados nacionais na unidade que ainda não os tem e
+# completa o ano novo das datas móveis. NO-OP quando todas as unidades já estão em dia.
+units_feriados_nacionais_job:
+  cron: '0 10 * * *'
+  class: 'Units::FeriadosNacionaisJob'
+  queue: scheduled_jobs
+
 # digest diário do eval: leva as conversas com falha GRAVE da IA pra uma lista explícita de
 # e-mails, por conta. Sem custom_attributes['eval_digest']['enabled'] a conta não recebe nada.
 # Existe porque o eval detecta em volume e o resultado morria no painel: numa conta medida em

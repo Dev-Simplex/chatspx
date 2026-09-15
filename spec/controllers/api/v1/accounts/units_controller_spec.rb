@@ -113,8 +113,13 @@ RSpec.describe 'Units API', type: :request do
       unidade = account.units.find_by(name: 'Sinop')
       expect(unidade.working_hours.count).to eq(2)
       expect(unidade.working_hours.find_by(day_of_week: 1).break_end_hour).to eq(13)
-      expect(unidade.exceptions.pluck(:frequency)).to contain_exactly('anual', 'mensal')
+      expect(unidade.exceptions.where(name: %w[Natal Plantão]).pluck(:frequency)).to contain_exactly('anual', 'mensal')
       expect(caixa.reload.unit_id).to eq(unidade.id)
+      # Os feriados nacionais entram junto, sem ninguém pedir — e o Natal que a tela mandou não
+      # ganha um segundo Natal em cima.
+      expect(unidade.exceptions.pluck(:name)).to include('Tiradentes', 'Carnaval')
+      expect(unidade.exceptions.where(name: 'Natal').count).to eq(1)
+      expect(unidade.reload.feriados_nacionais_ate).to eq(Date.current.year + 4)
     end
 
     # Antes da transação, a unidade ficava gravada pela metade depois do erro.

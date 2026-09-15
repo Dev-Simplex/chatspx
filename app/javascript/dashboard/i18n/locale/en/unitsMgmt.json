@@ -225,15 +225,11 @@
       },
       "CALENDAR": {
         "LABEL": "Unit calendar",
-        "HELP": "Click a day to add a holiday, an event or special hours. Click an entry to edit it.",
+        "HELP": "The Brazilian national holidays are already here — delete the ones this unit does not observe. Click a day to add a holiday, an event or special hours, and an entry to edit it.",
         "PREVIOUS": "Previous month",
         "NEXT": "Next month",
         "TODAY": "Today",
-        "RULES_TITLE": "Everything scheduled",
-        "HOLIDAYS": "National holidays",
-        "HOLIDAYS_HELP": "Adds the Brazilian national holidays to the calendar, including Carnival, Good Friday and Corpus Christi. Delete the ones this unit does not observe.",
-        "HOLIDAYS_ADDED": "National holidays added: {total}. Save to keep them.",
-        "HOLIDAYS_NONE": "The national holidays are already on this calendar."
+        "RULES_TITLE": "Everything scheduled"
       }
     }
   }
