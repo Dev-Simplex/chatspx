@@ -78,6 +78,9 @@ class Captain::Behavior::MediaPipelineService
     audio_attachment = @message.attachments.find { |a| a.file_type == 'audio' }
     return unless audio_attachment
 
-    Messages::AudioTranscriptionService.new(message: @message).process
+    # O servico recebe o ANEXO posicional (nao `message:`) e o metodo publico e `perform`
+    # (nao `process`). Ele devolve `{ success:, transcriptions: }` ou `{ error: }`; daqui sai
+    # so o texto, que e o que o `process` promete com o `|| ''`.
+    Messages::AudioTranscriptionService.new(audio_attachment).perform[:transcriptions]
   end
 end
