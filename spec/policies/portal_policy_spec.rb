@@ -23,7 +23,7 @@ RSpec.describe PortalPolicy, type: :policy do
     end
   end
 
-  permissions :update?, :edit?, :create?, :destroy?, :logo? do
+  permissions :update?, :edit?, :create?, :destroy?, :archive?, :logo? do
     context 'when administrator' do
       it { expect(portal_policy).to permit(administrator_context, portal) }
     end
