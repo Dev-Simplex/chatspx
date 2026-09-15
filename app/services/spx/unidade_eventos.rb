@@ -5,9 +5,18 @@
 # acontecendo aí?" não cita dia, e antes disso nenhuma exceção era sequer carregada. O evento
 # ficava invisível para o agente justamente na pergunta que é sobre ele.
 #
-# FERIADO fica de fora de propósito: ele só muda o horário, e a linha de horário já responde por
-# ele. O que entra aqui é o que muda a EXPERIÊNCIA de quem vai até lá e tem nome que a pessoa
-# reconhece — evento, obra, temporada.
+# FERIADO ficava de fora, com o argumento de que "só muda o horário, e a linha de horário já
+# responde por ele". O argumento estava errado, e custou cliente na porta: a linha de horário só
+# responde para uma data RESOLVIDA, e quem pergunta "posso passar aí?" não cita data — nesse
+# caminho o retorno mostra a grade da semana comum, que no feriado está errada.
+#
+# Medido no feriado municipal de 14/09/2026 (Aniversário de Sinop, cadastrado e fechando o dia):
+# a IA convidou gente ao escritório em 4 conversas. Numa delas ela CHAMOU esta ferramenta sem
+# data e recebeu a grade habitual (conv 42025); noutras duas marcou 07h30 na véspera (11212 e
+# 41997); na 9022 marcou 13h30 e o cliente esperou meia hora na porta e foi embora.
+#
+# O que entra aqui é o que muda a EXPERIÊNCIA de quem vai até lá — e não haver ninguém para
+# atender é a maior mudança possível.
 class Spx::UnidadeEventos
   # Quantos dias à frente se enxerga. Curto de propósito: o que vale é o que a pessoa ainda pega
   # indo até lá. Janela longa transforma agenda anual em ruído em toda consulta.
@@ -34,16 +43,37 @@ class Spx::UnidadeEventos
     end.first(LIMITE)
   end
 
+  # Só os FECHAMENTOS, numa janela curta e sem rótulo de categoria: serve a quem vai INSTRUIR
+  # alguém a ir até a unidade (o retorno do buscar_imovel manda passar no escritório para retirar
+  # a chave). Ali não cabe a agenda de duas semanas — cabe "a porta vai estar fechada quando ela
+  # for". Reusa `candidatas` e o mesmo avaliador de recorrência: duas leituras divergem caladas.
+  def fechamentos(dias)
+    hoje = Time.now.in_time_zone(@unidade.zona).to_date
+    janela = (hoje..(hoje + dias))
+
+    candidatas.select(&:closed_all_day?).filter_map do |regra|
+      datas = janela.select { |data| ::Units::ScheduleEvaluator.rule_on?(regra, data) }
+      next if datas.empty?
+
+      "#{regra.name} — #{periodo(datas)}"
+    end.first(LIMITE)
+  end
+
   private
 
   # Quem decide se a regra vale numa data é o MESMO avaliador da agenda, e não uma segunda leitura
   # da recorrência: duas leituras divergem caladas, e aí o retorno anuncia evento em dia que a
   # agenda diz fechado.
   def candidatas
-    @excecoes.select { |regra| regra.unit_id == @unidade.id && !regra.feriado? }.sort_by(&:starts_on)
+    @excecoes.select { |regra| regra.unit_id == @unidade.id }.sort_by(&:starts_on)
   end
 
+  # O rótulo nomeia a CAUSA; quem descreve o efeito é o `funcionamento`, que já diz "unidade
+  # FECHADA nesse período". Feriado precisa do rótulo próprio porque "Evento na unidade" sugere
+  # algo acontecendo lá — o oposto do que ele significa.
   def rotulo(regra)
+    return 'Feriado na unidade' if regra.feriado?
+
     regra.manutencao? ? 'Manutenção na unidade' : 'Evento na unidade'
   end
 

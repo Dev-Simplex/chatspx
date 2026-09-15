@@ -576,7 +576,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     regras = regras_de_visita
     return '' if regras.empty?
 
-    "Visita a imóvel avulso — regras cadastradas na unidade:\n" \
+    # O aviso vem ANTES das regras pelo mesmo motivo que o bloco inteiro vem antes da lista: é o
+    # começo do retorno que sobrevive ao corte de 700 chars da nota de ferramentas no turno
+    # seguinte — e o turno seguinte é justamente o "quero ver" em que a visita se combina.
+    "#{aviso_de_fechamento(unidade_unica)}Visita a imóvel avulso — regras cadastradas na unidade:\n" \
       "#{regras.map { |nome, valor| "· #{nome.humanize}: #{valor}" }.join("\n")}\n"
   end
 
@@ -602,9 +605,40 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   end
 
   # Com várias unidades ativas, usar a regra de uma delas seria mandar a pessoa ao balcão errado.
+  # Memoizado: agora dois pontos do mesmo retorno o consultam (as regras e o aviso de fechamento).
+  # `defined?` e não `||=` porque nil é resposta legítima aqui — conta com zero ou duas unidades
+  # cai no nil, e `||=` refaria a consulta a cada chamada.
   def unidade_unica
+    return @unidade_unica if defined?(@unidade_unica)
+
     unidades = ::Unit.where(account_id: @assistant.account_id, active: true).limit(2).to_a
-    unidades.one? ? unidades.first : nil
+    @unidade_unica = unidades.one? ? unidades.first : nil
+  end
+
+  # A instrução abaixo manda a pessoa ir até o balcão. Se a porta está fechada no dia em que ela
+  # iria, isso é parte da instrução — não informação de calendário. Sem isso, no feriado municipal
+  # de 14/09/2026 a IA disse "passa aqui no escritório" em três conversas que NUNCA chamaram a
+  # buscar_unidades: o retorno que elas de fato leram foi este.
+  #
+  # Janela de 2 dias (hoje e amanhã): é o horizonte de quem vai retirar chave. Mais que isso vira
+  # agenda, e agenda em toda busca de imóvel é ruído que o modelo aprende a pular.
+  JANELA_FECHAMENTO = 2
+
+  def aviso_de_fechamento(unidade)
+    return '' if unidade.nil?
+
+    fechada = ::Spx::UnidadeEventos.new(unidade, excecoes_da_unidade(unidade)).fechamentos(JANELA_FECHAMENTO)
+    return '' if fechada.empty?
+
+    "ATENÇÃO — a unidade NÃO abre: #{fechada.join('; ')}. Não marque nem sugira que a pessoa " \
+      "passe lá nesse(s) dia(s); diga o fechamento antes de combinar qualquer coisa.\n"
+  end
+
+  def excecoes_da_unidade(unidade)
+    ::UnitException.where(unit_id: unidade.id).to_a
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] exceções da unidade indisponíveis: #{e.class}: #{e.message}")
+    []
   end
 
   def avulso?(imovel)
