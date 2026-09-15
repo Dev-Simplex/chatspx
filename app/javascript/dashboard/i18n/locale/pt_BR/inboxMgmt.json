@@ -719,6 +719,14 @@
         "DESCRIPTION": "Restrinja quais sites podem incorporar seu widget de chat. Por segurança, adicione apenas domínios que você possui e confia. Adicione um ou mais domínios separados por vírgulas. Deixe em branco para permitir todos os domínios (não recomendado para produção).",
         "PLACEHOLDER": "exemplo.com, www.exemplo.com, app.exemplo.com"
       },
+      "AD_REFERRAL_ROUTING": {
+        "TITLE": "Direcionar conversas de anúncio para um time",
+        "SUBTITLE": "Quando o contato inicia a conversa clicando em um anúncio do Facebook ou do Instagram, ela já entra no time escolhido, sem passar por menu.",
+        "TEAM_LABEL": "Time que recebe as conversas de anúncio",
+        "TEAM_PLACEHOLDER": "Escolha um time",
+        "HINT": "Vale só para conversa que ainda não tem time. Mensagem de anúncio que cai numa conversa já em atendimento mantém o time atual.",
+        "NO_TEAM_HINT": "Escolha um time, senão nada é direcionado."
+      },
       "AGENT_SIGNATURE": {
         "TITLE": "Assinar mensagens com o nome do agente",
         "SUBTITLE": "Adiciona o nome do agente antes das mensagens enviadas pela API oficial do WhatsApp (formato: *Nome*:). Mídia enviada sem legenda não é assinada."

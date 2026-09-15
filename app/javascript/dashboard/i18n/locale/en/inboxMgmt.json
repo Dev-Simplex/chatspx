@@ -731,6 +731,14 @@
           "HINT": "All agents in this inbox see the same pinned conversations."
         }
       },
+      "AD_REFERRAL_ROUTING": {
+        "TITLE": "Route ad conversations to a team",
+        "SUBTITLE": "When a contact starts the conversation by clicking a Facebook or Instagram ad, assign it to the chosen team right away, without waiting for a menu.",
+        "TEAM_LABEL": "Team that receives ad conversations",
+        "TEAM_PLACEHOLDER": "Select a team",
+        "HINT": "Applies only to conversations with no team yet. An ad message that lands on a conversation already being handled keeps its current team.",
+        "NO_TEAM_HINT": "Choose a team, otherwise nothing is routed."
+      },
       "AGENT_SIGNATURE": {
         "TITLE": "Sign messages with the agent's name",
         "SUBTITLE": "Prepend the agent's name to outgoing messages on the official WhatsApp Cloud API (format: *Name*:). Media sent without a caption is not signed."

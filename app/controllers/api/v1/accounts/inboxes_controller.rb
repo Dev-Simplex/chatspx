@@ -265,7 +265,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      # sem gravar nada. Ver o store_accessor correspondente em app/models/inbox.rb.
      # `secret_template_names` acompanha `allowed_template_names`: a mesma tela de Modelos
      # escolhe quais templates aparecem e quais têm o VALOR das variáveis protegido.
-     { additional_attributes: [:pin_mode, :agent_signature_enabled,
+     { additional_attributes: [:pin_mode, :agent_signature_enabled, :ad_referral_routing_enabled, :ad_referral_team_id,
                                { pinned_conversation_ids: [], allowed_template_names: [], secret_template_names: [] }] },
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
