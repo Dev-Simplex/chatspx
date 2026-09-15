@@ -772,7 +772,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     # entregue assim mesmo, em três conversas que NUNCA chamaram a buscar_unidades — este retorno
     # foi o único que elas leram. Um cliente esperou meia hora na porta e foi embora (conv 9022).
     describe 'unidade fechada no dia em que a pessoa iria' do
-      let(:unidade) { ::Unit.where(account_id: account.id).first }
+      let(:unidade) { Unit.where(account_id: account.id).first }
 
       def hoje_na_unidade
         Time.now.in_time_zone(unidade.timezone).to_date
