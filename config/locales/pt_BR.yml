@@ -369,6 +369,7 @@ pt_BR:
         assigned: 'Atribuído a %{team_name} por %{user_name}'
         assigned_with_assignee: 'Atribuído a %{assignee_name} via %{team_name} por %{user_name}'
         removed: 'Desatribuído de %{team_name} por %{user_name}'
+        assigned_from_ad: 'Direcionado para %{team_name} por ter vindo de anúncio'
       labels:
         added: '%{user_name} adicionou %{labels}'
         removed: '%{user_name} removeu %{labels}'
