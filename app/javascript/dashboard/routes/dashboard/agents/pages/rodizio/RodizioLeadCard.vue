@@ -9,6 +9,9 @@ const props = defineProps({
   // Segundos que valem 100% da barra. Vem de fora porque TODAS as barras da lista dividem a
   // mesma escala — é o que deixa comparar um lead com o outro de bater o olho.
   escala: { type: Number, default: 1 },
+  // Segundos desde que a resposta chegou do servidor. A fase aberta continua correndo na tela
+  // entre uma recarga e outra: o lead que espera há 38 min não pode ficar parado em 38 min.
+  decorrido: { type: Number, default: 0 },
 });
 
 const { t } = useI18n();
@@ -43,6 +46,31 @@ const PERDIDO = 'bg-n-ruby-9 text-n-black';
 const LARGURA_MINIMA_ROTULO = 12;
 
 const conversa = id => `#${id}`;
+
+// O que ainda corre: espera de quem ninguém pegou, atendimento de quem não terminou. Lead
+// encerrado não anda mais, e somar o relógio nele seria mentira.
+const emAndamento = computed(() => props.lead.situacao !== 'encerrado');
+
+const decorridoDa = chave =>
+  emAndamento.value && props.lead.situacao === chave ? props.decorrido : 0;
+
+const fasesVivas = computed(() => ({
+  ia: props.lead.fases?.ia || 0,
+  espera: (props.lead.fases?.espera || 0) + decorridoDa('espera'),
+  atendimento:
+    (props.lead.fases?.atendimento || 0) + decorridoDa('atendimento'),
+}));
+
+const totalVivo = computed(
+  () =>
+    (props.lead.total_segundos || 0) + (emAndamento.value ? props.decorrido : 0)
+);
+
+const naSituacaoHa = computed(
+  () =>
+    (props.lead.segundos_na_situacao || 0) +
+    (emAndamento.value ? props.decorrido : 0)
+);
 const tempo = segundos => duracao(t, segundos);
 const proporcao = (parte, todo) => (todo > 0 ? ((parte || 0) / todo) * 100 : 0);
 
@@ -89,11 +117,11 @@ const selo = computed(() => {
   return props.lead.situacao === 'espera'
     ? t('AGENTS_RODIZIO.TIMELINE.NOW.WAITING_WITH', {
         nome,
-        tempo: tempo(props.lead.segundos_na_situacao),
+        tempo: tempo(naSituacaoHa.value),
       })
     : t('AGENTS_RODIZIO.TIMELINE.NOW.IN_SERVICE_WITH', {
         nome,
-        tempo: tempo(props.lead.segundos_na_situacao),
+        tempo: tempo(naSituacaoHa.value),
       });
 });
 
@@ -130,10 +158,10 @@ const dono = fase =>
 
 const fases = computed(() =>
   FASES.value
-    .filter(fase => (props.lead.fases?.[fase.chave] || 0) > 0)
+    .filter(fase => (fasesVivas.value[fase.chave] || 0) > 0)
     .map(fase => {
-      const segundos = props.lead.fases[fase.chave];
-      const largura = proporcao(segundos, props.lead.total_segundos);
+      const segundos = fasesVivas.value[fase.chave];
+      const largura = proporcao(segundos, totalVivo.value);
       const perdeu = fase.chave === 'espera' && props.lead.perdido_em;
       return {
         chave: fase.chave,
@@ -153,10 +181,10 @@ const fases = computed(() =>
 // todos os outros em um fio. Quem passa da escala fica cheio, e o total em texto ao lado conta
 // a verdade — a barra compara, o número mede.
 const largura = computed(
-  () => `${Math.min(100, proporcao(props.lead.total_segundos, props.escala))}%`
+  () => `${Math.min(100, proporcao(totalVivo.value, props.escala))}%`
 );
 
-const total = computed(() => tempo(props.lead.total_segundos));
+const total = computed(() => tempo(totalVivo.value));
 
 // Um marco por instante gravado, na ordem em que aconteceram. O que não existe some da linha:
 // lead que ninguém pegou não tem "pegou", e lead aberto não tem "resolvido".

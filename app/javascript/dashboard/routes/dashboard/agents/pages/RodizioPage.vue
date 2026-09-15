@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
@@ -23,6 +23,27 @@ const expandido = ref(null);
 const timelines = ref({});
 const timelineLoading = ref(false);
 const aba = ref('consultores');
+// Relógio da tela. A resposta do backend é uma FOTOGRAFIA: o tempo de espera é calculado no
+// instante do request e congelava ali — numa tela feita para vigiar lead parado, o número que
+// para de crescer é justamente o que interessa. `agora` faz os tempos abertos correrem entre
+// uma recarga e outra, e `atualizadoEm` diz de quando é o dado.
+const agora = ref(new Date());
+const atualizadoEm = ref(null);
+let relogio = null;
+let recarga = null;
+
+// Segundos desde a última resposta — é o que se soma à fase aberta de cada lead.
+const decorrido = computed(() =>
+  atualizadoEm.value
+    ? Math.max(Math.round((agora.value - atualizadoEm.value) / 1000), 0)
+    : 0
+);
+
+const atualizadoHa = computed(() =>
+  atualizadoEm.value
+    ? t('AGENTS_RODIZIO.UPDATED_AGO', { tempo: duracao(t, decorrido.value) })
+    : ''
+);
 const leadsGerais = ref(null);
 const leadsLoading = ref(false);
 
@@ -114,12 +135,55 @@ const carregar = async () => {
   try {
     const { data: payload } = await DistribuicaoDashboardAPI.show(parametros());
     data.value = payload;
+    atualizadoEm.value = new Date();
   } catch (e) {
     loadError.value = true;
   } finally {
     loading.value = false;
   }
   if (aba.value === 'leads') carregarLeads();
+};
+
+// Sempre reconsulta: o dado guardado é de quando a faixa foi aberta, e reabrir o consultor
+// mostrava os números de minutos atrás sem nem bater na API. O guardado serve só para a faixa
+// não piscar "carregando" enquanto a resposta nova não chega.
+const buscarFaixa = async userId => {
+  timelineLoading.value = !timelines.value[userId];
+  try {
+    const { data: payload } = await DistribuicaoDashboardAPI.linhaDoTempo(
+      userId,
+      parametros()
+    );
+    timelines.value = { ...timelines.value, [userId]: payload };
+    atualizadoEm.value = new Date();
+  } catch (e) {
+    if (!timelines.value[userId]) {
+      timelines.value = {
+        ...timelines.value,
+        [userId]: { leads: [], total: 0 },
+      };
+    }
+  } finally {
+    timelineLoading.value = false;
+  }
+};
+
+// Recarga de fundo, a cada minuto: traz lead novo e mudança de status sem piscar a tela, sem
+// fechar a faixa aberta e sem perder o período escolhido. Falhou? A tela segue com o que tinha
+// e a próxima volta tenta de novo — recarga de fundo não pode transformar uma falha de rede em
+// tela de erro.
+const atualizarEmSilencio = async () => {
+  if (document.hidden) return;
+
+  try {
+    const { data: payload } = await DistribuicaoDashboardAPI.show(parametros());
+    data.value = payload;
+    atualizadoEm.value = new Date();
+  } catch (e) {
+    return;
+  }
+  if (aba.value === 'leads') carregarLeads();
+  if (expandido.value) buscarFaixa(expandido.value);
 };
 
 // Trocar o preset recarrega na hora; no personalizado só quando as duas pontas existem, senão a
@@ -148,7 +212,20 @@ const periodoLegivel = computed(() => {
   });
 });
 
-onMounted(carregar);
+onMounted(() => {
+  carregar();
+  // 10 s move os ponteiros na tela; 60 s vai ao servidor. Separados porque o relógio é de graça
+  // e o request não é.
+  relogio = setInterval(() => {
+    agora.value = new Date();
+  }, 10000);
+  recarga = setInterval(atualizarEmSilencio, 60000);
+});
+
+onBeforeUnmount(() => {
+  clearInterval(relogio);
+  clearInterval(recarga);
+});
 
 const linhas = computed(() => data.value?.linhas || []);
 const totais = computed(() => data.value?.totais || {});
@@ -233,23 +310,7 @@ const alternarConsultor = async linha => {
     return;
   }
   expandido.value = linha.user_id;
-  if (timelines.value[linha.user_id]) return;
-
-  timelineLoading.value = true;
-  try {
-    const { data: payload } = await DistribuicaoDashboardAPI.linhaDoTempo(
-      linha.user_id,
-      parametros()
-    );
-    timelines.value = { ...timelines.value, [linha.user_id]: payload };
-  } catch (e) {
-    timelines.value = {
-      ...timelines.value,
-      [linha.user_id]: { leads: [], total: 0 },
-    };
-  } finally {
-    timelineLoading.value = false;
-  }
+  await buscarFaixa(linha.user_id);
 };
 
 const escalaDoConsultor = userId => escalaDe(leadsDe(userId));
@@ -444,6 +505,12 @@ const irParaPolitica = () =>
             {{ time.name }} ({{ time.modo_posse }})
           </option>
         </select>
+        <span
+          v-if="atualizadoHa"
+          class="text-xs tabular-nums text-n-slate-10 whitespace-nowrap"
+        >
+          {{ atualizadoHa }}
+        </span>
         <button
           class="h-9 px-3 text-sm rounded-lg bg-n-brand text-white transition-shadow hover:shadow-md whitespace-nowrap"
           @click="carregar"
@@ -665,6 +732,7 @@ const irParaPolitica = () =>
             :key="lead.conversation_id"
             :lead="lead"
             :escala="escalaDosLeads"
+            :decorrido="decorrido"
           />
           <p v-if="restantesDaConta" class="text-xs text-n-slate-10">
             {{
@@ -821,6 +889,7 @@ const irParaPolitica = () =>
                         :key="lead.conversation_id"
                         :lead="lead"
                         :escala="escalaDoConsultor(linha.user_id)"
+                        :decorrido="decorrido"
                       />
 
                       <p

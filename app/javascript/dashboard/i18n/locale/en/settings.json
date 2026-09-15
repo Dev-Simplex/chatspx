@@ -16,6 +16,7 @@
     "SUBTITLE": "How leads are being distributed, and under which rule",
     "ALL_TEAMS": "All teams",
     "RELOAD": "Reload",
+    "UPDATED_AGO": "updated {tempo} ago",
     "LOADING": "Loading...",
     "ERROR": "Could not load the rotation data",
     "EMPTY": "No leads distributed in this period",
