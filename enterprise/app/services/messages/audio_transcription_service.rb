@@ -53,7 +53,11 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     blob = attachment.file.blob
     temp_dir = Rails.root.join('tmp/uploads/audio-transcriptions')
     FileUtils.mkdir_p(temp_dir)
-    temp_file_name = "#{blob.key}-#{blob.filename}"
+    # Sufixo unico POR EXECUCAO. O mesmo anexo e enfileirado por dois pontos (o hook de criacao
+    # do anexo e o builder de historico do Captain), e com nome deterministico os dois jobs
+    # escreviam no MESMO caminho: o que terminava primeiro apagava o arquivo do outro no
+    # `ensure`, e o vizinho estourava `Errno::ENOENT` no `File.open` do whisper.
+    temp_file_name = "#{blob.key}-#{SecureRandom.hex(8)}-#{blob.filename}"
 
     if blob.filename.extension_without_delimiter.blank?
       extension = extension_from_content_type(blob.content_type)
