@@ -47,6 +47,53 @@ RSpec.describe 'Search', type: :request do
     end
   end
 
+  describe 'search during asynchronous deletion' do
+    %w[search search/articles].each do |endpoint|
+      it "returns articles while their deleted portal awaits cleanup through #{endpoint}" do
+        portal = create(:portal, account: account)
+        article = create(:article, account: account, portal: portal, author: agent, title: 'Test Deleted Portal')
+        portal.destroy!
+
+        expect(article.reload.portal).to be_nil
+
+        get "/api/v1/accounts/#{account.id}/#{endpoint}",
+            headers: agent.create_new_auth_token, params: { q: 'test' }, as: :json
+
+        expect(response).to have_http_status(:success)
+        articles = response.parsed_body['payload']['articles']
+        result = articles.find { |item| item['id'] == article.id }
+        expect(result['title']).to eq(article.title)
+        expect(result).not_to have_key('portal_slug')
+        expect(articles.find { |item| item['id'] != article.id }['portal_slug']).to be_present
+      end
+    end
+
+    %w[search search/conversations].each do |endpoint|
+      it "returns conversations while their deleted SLA policy awaits cleanup through #{endpoint}" do
+        account.enable_features!('sla')
+        conversation = account.conversations.first
+        policy = create(:sla_policy, account: account)
+        applied_sla = create(:applied_sla, account: account, conversation: conversation, sla_policy: policy)
+        headers = agent.create_new_auth_token
+
+        get "/api/v1/accounts/#{account.id}/#{endpoint}", headers: headers, params: { q: 'test' }, as: :json
+
+        expect(response).to have_http_status(:success)
+        original_sla = response.parsed_body['payload']['conversations'].first['applied_sla']
+        expect(original_sla).to eq(applied_sla.push_event_data.stringify_keys)
+
+        policy.destroy!
+        expect(applied_sla.reload.sla_policy).to be_nil
+
+        get "/api/v1/accounts/#{account.id}/#{endpoint}", headers: headers, params: { q: 'test' }, as: :json
+
+        expect(response).to have_http_status(:success)
+        result = response.parsed_body['payload']['conversations'].first['applied_sla']
+        expect(result).to eq(original_sla.slice('id', 'sla_id', 'sla_status', 'created_at', 'updated_at'))
+      end
+    end
+  end
+
   describe 'GET /api/v1/accounts/{account.id}/search/contacts' do
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do
