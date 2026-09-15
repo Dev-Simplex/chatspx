@@ -234,11 +234,12 @@
       },
       "CALENDAR": {
         "LABEL": "Unit calendar",
-        "HELP": "Click a day to add a holiday, an event or special hours. Click an entry to edit it.",
+        "HELP": "The Brazilian national holidays are already here — delete the ones this unit does not observe. Click a day to add a holiday, an event or special hours, and an entry to edit it.",
         "PREVIOUS": "Previous month",
         "NEXT": "Next month",
         "TODAY": "Today",
-        "RULES_TITLE": "Everything scheduled"
+        "RULES_TITLE": "Everything scheduled in {ano}",
+        "RULES_EMPTY_YEAR": "Nothing scheduled in {ano}. Use the calendar arrows to see another year."
       }
     }
   }

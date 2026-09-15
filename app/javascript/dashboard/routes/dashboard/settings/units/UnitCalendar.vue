@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   startOfMonth,
@@ -25,11 +25,15 @@ const props = defineProps({
   selected: { type: String, default: '' },
   cores: { type: Object, required: true },
 });
-const emit = defineEmits(['select', 'edit']);
+const emit = defineEmits(['select', 'edit', 'ano']);
 
 const { t, locale } = useI18n();
 
 const mes = ref(startOfMonth(new Date()));
+
+// Quem lista as marcações precisa saber que ano está na tela — é o ano do mês em foco, não
+// o das seis semanas (janeiro mostra dias de dezembro do ano anterior, e eles não contam).
+watch(mes, atual => emit('ano', atual.getFullYear()), { immediate: true });
 
 const idioma = computed(() => locale.value.replace('_', '-'));
 

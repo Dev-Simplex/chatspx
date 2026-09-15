@@ -234,11 +234,12 @@
       },
       "CALENDAR": {
         "LABEL": "Calendário da unidade",
-        "HELP": "Clique no dia para marcar um feriado, um evento ou um horário especial. Clique numa marcação para editá-la.",
+        "HELP": "Os feriados nacionais já vêm marcados — apague o que não vale para esta unidade. Clique no dia para marcar um feriado, um evento ou um horário especial, e numa marcação para editá-la.",
         "PREVIOUS": "Mês anterior",
         "NEXT": "Próximo mês",
         "TODAY": "Hoje",
-        "RULES_TITLE": "Tudo que está marcado"
+        "RULES_TITLE": "Tudo que está marcado em {ano}",
+        "RULES_EMPTY_YEAR": "Nada marcado em {ano}. Use as setas do calendário para ver outro ano."
       }
     }
   }

@@ -25,6 +25,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
       @unit = Current.account.units.create!(unit_params)
       sincronizar_caixas
       sincronizar_excecoes
+      Units::FeriadosNacionais.garantir(@unit)
     end
     render :show, status: :created
   end
@@ -89,6 +90,14 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
 
   # Substitui o conjunto inteiro. Chave ausente = não mexe; lista vazia = apagou todas.
   # Vale porque exceção não é referenciada por ninguém — recriar não quebra nada.
+  #
+  # É por isso que os feriados nacionais entram DEPOIS desta troca, e não num `after_create`
+  # do modelo: a tela manda a lista inteira ao criar a unidade (vazia), e o `destroy_all`
+  # levaria junto o que o callback tivesse acabado de criar.
+  #
+  # E só na CRIAÇÃO: no update a tela acabou de mandar o que deve existir — repovoar ali
+  # devolveria à lista justamente o feriado que o admin apagou no mesmo salvar. Quem cuida da
+  # unidade que já existia, e do ano novo das datas móveis, é o `Units::FeriadosNacionaisJob`.
   def sincronizar_excecoes
     desejadas = excecoes_params
     return if desejadas.nil?
