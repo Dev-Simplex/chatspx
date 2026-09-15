@@ -11,10 +11,14 @@
 #   ad_referral_routing_enabled => liga/desliga
 #   ad_referral_team_id         => time de destino
 #
-# So age em conversa SEM time. Mensagem de anuncio que cai numa conversa ja em atendimento
-# (contato que voltou, conversa reaberta) nao muda o dono: trocar o time no meio do
-# atendimento tira a conversa de quem ja estava nela e, em caixa com isolamento de time,
-# esconde as mensagens anteriores de quem recebeu.
+# So age na PRIMEIRA mensagem recebida da conversa, e nao "so quando a conversa esta sem time":
+# medido na Catatau em 15/09, o flow de triagem carimba o time no `conversation.created`, que e
+# despachado antes do `message.created` — a conversa ja nasce com time e o roteamento do anuncio
+# nunca aconteceria. Quem paga o anuncio escolheu o destino, entao aqui ele ganha da triagem
+# automatica. Ja mensagem de anuncio que cai numa conversa em andamento (contato que voltou,
+# conversa reaberta) nao muda o dono: trocar o time no meio do atendimento tira a conversa de
+# quem estava nela e, em caixa com isolamento de time, esconde as mensagens anteriores de quem
+# recebeu.
 class Whatsapp::ReferralTeamRoutingService
   pattr_initialize [:message!]
 
@@ -31,7 +35,14 @@ class Whatsapp::ReferralTeamRoutingService
   private
 
   def roteavel?
-    referral.present? && conversation.present? && conversation.team_id.blank? && routing_enabled? && team.present?
+    referral.present? && conversation.present? && primeira_mensagem? && routing_enabled? &&
+      team.present? && conversation.team_id != team.id
+  end
+
+  # Primeira mensagem DO CLIENTE: o flow ja respondeu antes daqui (saudacao, menu), entao contar
+  # mensagem de qualquer direcao diria que a conversa tem historico quando ela acabou de nascer.
+  def primeira_mensagem?
+    conversation.messages.incoming.where(messages: { id: ...message.id }).none?
   end
 
   def conversation

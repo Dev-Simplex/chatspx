@@ -724,7 +724,7 @@
         "SUBTITLE": "Quando o contato inicia a conversa clicando em um anúncio do Facebook ou do Instagram, ela já entra no time escolhido, sem passar por menu.",
         "TEAM_LABEL": "Time que recebe as conversas de anúncio",
         "TEAM_PLACEHOLDER": "Escolha um time",
-        "HINT": "Vale só para conversa que ainda não tem time. Mensagem de anúncio que cai numa conversa já em atendimento mantém o time atual.",
+        "HINT": "Vale para a conversa que o anúncio abre, mesmo que a triagem já tenha escolhido um time. Mensagem de anúncio que cai numa conversa em andamento mantém o time atual.",
         "NO_TEAM_HINT": "Escolha um time, senão nada é direcionado."
       },
       "AGENT_SIGNATURE": {

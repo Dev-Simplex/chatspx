@@ -62,10 +62,22 @@ RSpec.describe Whatsapp::ReferralTeamRoutingService do
     expect(conversation.team_id).to be_nil
   end
 
+  # O flow de triagem carimba o time no conversation.created, despachado ANTES do message.created:
+  # esperar "conversa sem time" faria o roteamento do anúncio nunca acontecer.
+  it 'wins over the automatic triage that already set a team on the brand new conversation' do
+    triagem = create(:team, account: account)
+    conversation.update!(team_id: triagem.id)
+
+    rotear(mensagem({ 'referral' => referral }))
+
+    expect(conversation.team_id).to eq(team.id)
+  end
+
   # Trocar o time no meio do atendimento tira a conversa de quem já estava nela e, em caixa com
   # isolamento de time, esconde as mensagens anteriores de quem recebeu.
-  it 'keeps the current team when the ad message lands on a conversation already handled' do
+  it 'keeps the current team when the ad message lands on a conversation already in progress' do
     outro_time = create(:team, account: account)
+    mensagem({})
     conversation.update!(team_id: outro_time.id)
 
     rotear(mensagem({ 'referral' => referral }))

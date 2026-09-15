@@ -736,7 +736,7 @@
         "SUBTITLE": "When a contact starts the conversation by clicking a Facebook or Instagram ad, assign it to the chosen team right away, without waiting for a menu.",
         "TEAM_LABEL": "Team that receives ad conversations",
         "TEAM_PLACEHOLDER": "Select a team",
-        "HINT": "Applies only to conversations with no team yet. An ad message that lands on a conversation already being handled keeps its current team.",
+        "HINT": "Applies to the conversation the ad starts, even if triage already picked a team. An ad message that lands on a conversation already in progress keeps its current team.",
         "NO_TEAM_HINT": "Choose a team, otherwise nothing is routed."
       },
       "AGENT_SIGNATURE": {
