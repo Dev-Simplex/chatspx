@@ -229,7 +229,11 @@
         "PREVIOUS": "Mês anterior",
         "NEXT": "Próximo mês",
         "TODAY": "Hoje",
-        "RULES_TITLE": "Tudo que está marcado"
+        "RULES_TITLE": "Tudo que está marcado",
+        "HOLIDAYS": "Feriados nacionais",
+        "HOLIDAYS_HELP": "Marca no calendário os feriados nacionais do Brasil, inclusive Carnaval, Sexta-feira Santa e Corpus Christi. Apague os que não valem para esta unidade.",
+        "HOLIDAYS_ADDED": "Feriados nacionais marcados: {total}. Salve para gravar.",
+        "HOLIDAYS_NONE": "Os feriados nacionais já estão marcados neste calendário."
       }
     }
   }

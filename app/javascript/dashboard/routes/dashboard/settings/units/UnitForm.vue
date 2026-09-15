@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import {
   getTime,
@@ -17,6 +18,7 @@ import {
   dataDaEnesimaOcorrencia,
   proximasOcorrencias,
 } from './unitSchedule';
+import { feriadosQueFaltam } from './feriadosNacionais';
 import UnitCalendar from './UnitCalendar.vue';
 
 const props = defineProps({
@@ -616,6 +618,21 @@ const removerRegra = index => {
   if (editandoIndex.value === index) fecharPainel();
 };
 
+// Feriado nacional é o mesmo em toda filial: em vez de digitar doze regras por unidade,
+// um clique traz as que faltam. Entram na lista como qualquer outra marcação — nada vai
+// para o banco antes do Salvar, e o que não serve se apaga uma a uma.
+const adicionarFeriadosNacionais = () => {
+  const novos = feriadosQueFaltam(rules.value);
+  if (!novos.length) {
+    useAlert(t('UNITS_MGMT.FORM.CALENDAR.HOLIDAYS_NONE'));
+    return;
+  }
+  rules.value.push(...novos);
+  useAlert(
+    t('UNITS_MGMT.FORM.CALENDAR.HOLIDAYS_ADDED', { total: novos.length })
+  );
+};
+
 const diaEscolhido = computed(() => novaRegra.value.starts_on);
 
 const diaPorExtenso = computed(() => {
@@ -855,12 +872,25 @@ const onSubmit = () => {
     </section>
 
     <section>
-      <span class="text-heading-3">{{
-        t('UNITS_MGMT.FORM.CALENDAR.LABEL')
-      }}</span>
-      <p class="mt-0.5 mb-3 text-n-slate-11 text-label-small">
-        {{ t('UNITS_MGMT.FORM.CALENDAR.HELP') }}
-      </p>
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <span class="text-heading-3">{{
+            t('UNITS_MGMT.FORM.CALENDAR.LABEL')
+          }}</span>
+          <p class="mt-0.5 mb-3 text-n-slate-11 text-label-small">
+            {{ t('UNITS_MGMT.FORM.CALENDAR.HELP') }}
+          </p>
+        </div>
+        <Button
+          faded
+          slate
+          sm
+          icon="i-lucide-calendar-plus"
+          :label="t('UNITS_MGMT.FORM.CALENDAR.HOLIDAYS')"
+          :title="t('UNITS_MGMT.FORM.CALENDAR.HOLIDAYS_HELP')"
+          @click.prevent="adicionarFeriadosNacionais"
+        />
+      </div>
 
       <UnitCalendar
         :rules="rules"
