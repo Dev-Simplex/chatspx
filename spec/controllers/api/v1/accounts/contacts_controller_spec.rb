@@ -13,6 +13,107 @@ RSpec.describe 'Contacts API', type: :request do
     }
   end
 
+  describe 'POST /api/v1/accounts/{account.id}/contacts/{id}/revalidate_whatsapp' do
+    let(:admin) { create(:user, account: account, role: :administrator) }
+    let(:contact) { create(:contact, account: account, phone_number: '+14155552671') }
+    let(:channel) { create(:channel_api, account: account) }
+    let(:inbox) { channel.inbox }
+    let(:waha) { instance_double(Waha::ApiService) }
+
+    around do |example|
+      with_modified_env WAHA_DEFAULT_SESSION: nil, WAHA_API_URL: 'https://waha.example.com' do
+        example.run
+      end
+    end
+
+    before do
+      allow(Waha::ApiService).to receive(:new).and_return(waha)
+      allow(Waha::SessionStatusCache).to receive(:usable?).and_return(true)
+    end
+
+    def revalidate_contact
+      post "/api/v1/accounts/#{account.id}/contacts/#{contact.id}/revalidate_whatsapp",
+           headers: admin.create_new_auth_token, as: :json
+    end
+
+    it 'returns a readable 422 without a session and preserves validation attributes' do
+      expect(waha).not_to receive(:check_contact_exists)
+      revalidate_contact
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body).to eq('message' => I18n.t('errors.contacts.whatsapp_validation.unavailable', locale: account.locale))
+      expect(contact.reload.custom_attributes).not_to have_key('whatsapp_last_checked_at')
+    end
+
+    context 'with a contact inbox' do
+      before { create(:contact_inbox, contact: contact, inbox: inbox) }
+
+      it 'validates using the declared session and records its source' do
+        inbox.update!(waha_session_name: 'declared')
+        expect(waha).to receive(:check_contact_exists).with(session_name: 'declared', phone: '14155552671')
+                                                      .and_return('numberExists' => true)
+        revalidate_contact
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq('whatsapp_number_exists' => true)
+        expect(contact.reload.custom_attributes).to include('whatsapp_number_exists' => true, 'whatsapp_validation_source' => 'declared')
+        expect(contact.custom_attributes['whatsapp_last_checked_at']).to be_present
+      end
+
+      it 'falls back to the WAHA webhook session' do
+        channel.update!(webhook_url: 'https://waha.example.com/webhooks/chatwoot/webhook-session/app')
+        expect(waha).to receive(:check_contact_exists).with(session_name: 'webhook-session', phone: '14155552671')
+                                                      .and_return('numberExists' => false)
+        revalidate_contact
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq('whatsapp_number_exists' => false)
+        expect(contact.reload.custom_attributes['whatsapp_validation_source']).to eq('webhook-session')
+      end
+
+      it 'prefers a usable candidate and keeps the same source throughout the request' do
+        inbox.update!(waha_session_name: 'offline')
+        channel.update!(webhook_url: 'https://waha.example.com/webhooks/chatwoot/working/app')
+        expect(Waha::SessionStatusCache).to receive(:usable?).with('offline').once.and_return(false)
+        expect(Waha::SessionStatusCache).to receive(:usable?).with('working').once.and_return(true)
+        expect(waha).to receive(:check_contact_exists).with(session_name: 'working', phone: '14155552671')
+                                                      .and_return('numberExists' => true)
+        revalidate_contact
+
+        expect(response).to have_http_status(:ok)
+        expect(contact.reload.custom_attributes['whatsapp_validation_source']).to eq('working')
+      end
+
+      it 'does not treat a different provider webhook as a WAHA session' do
+        channel.update!(webhook_url: 'https://other.example.com/webhooks/chatwoot/foreign/app')
+        expect(waha).not_to receive(:check_contact_exists)
+        revalidate_contact
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+
+    it 'uses the configured default when no inbox declares a session' do
+      with_modified_env WAHA_DEFAULT_SESSION: 'default-session' do
+        expect(waha).to receive(:check_contact_exists).with(session_name: 'default-session', phone: '14155552671')
+                                                      .and_return('numberExists' => true)
+        revalidate_contact
+
+        expect(response).to have_http_status(:ok)
+        expect(contact.reload.custom_attributes['whatsapp_validation_source']).to eq('default-session')
+      end
+    end
+
+    it 'keeps the five-minute cooldown before session resolution' do
+      contact.update!(custom_attributes: { whatsapp_last_checked_at: 1.minute.ago.iso8601 })
+      expect(waha).not_to receive(:check_contact_exists)
+      revalidate_contact
+
+      expect(response).to have_http_status(:too_many_requests)
+      expect(response.parsed_body).to eq('message' => I18n.t('errors.contacts.whatsapp_validation.cooldown', locale: account.locale))
+    end
+  end
+
   describe 'GET /api/v1/accounts/{account.id}/contacts' do
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do
