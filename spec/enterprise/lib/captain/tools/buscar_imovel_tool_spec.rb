@@ -805,6 +805,61 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       tool.send(:format_listings, tool_context, imoveis, venda)
     end
 
+    # A regra acima manda a pessoa ir até o balcão. No feriado municipal de 14/09/2026 ela foi
+    # entregue assim mesmo, em três conversas que NUNCA chamaram a buscar_unidades — este retorno
+    # foi o único que elas leram. Um cliente esperou meia hora na porta e foi embora (conv 9022).
+    describe 'unidade fechada no dia em que a pessoa iria' do
+      let(:unidade) { Unit.where(account_id: account.id).first }
+
+      def hoje_na_unidade
+        Time.now.in_time_zone(unidade.timezone).to_date
+      end
+
+      def fechar(dia, nome: 'Aniversário da cidade')
+        create(:unit_exception, unit: unidade, name: nome, category: :feriado,
+                                closed_all_day: true, starts_on: dia)
+      end
+
+      it 'avisa que a unidade não abre hoje' do
+        fechar(hoje_na_unidade)
+
+        expect(listar([avulso])).to include('a unidade NÃO abre', 'Aniversário da cidade')
+      end
+
+      it 'avisa também na véspera — a visita costuma ser combinada no dia anterior' do
+        fechar(hoje_na_unidade + 1, nome: 'Feriado de amanhã')
+
+        expect(listar([avulso])).to include('Feriado de amanhã')
+      end
+
+      # Mesma razão da regra vir antes da lista: é o começo do retorno que sobrevive ao corte de
+      # 700 chars da nota de ferramentas no turno seguinte — o turno do "quero ver".
+      it 'põe o aviso antes da regra de visita' do
+        fechar(hoje_na_unidade)
+
+        retorno = listar([avulso])
+        expect(retorno).to start_with('ATENÇÃO')
+        expect(retorno.index('NÃO abre')).to be < retorno.index(regra)
+      end
+
+      it 'não vira agenda: fechamento distante não entra' do
+        fechar(hoje_na_unidade + 5, nome: 'Feriado distante')
+
+        expect(listar([avulso])).not_to include('Feriado distante')
+      end
+
+      it 'não avisa por evento que mantém a unidade aberta' do
+        create(:unit_exception, unit: unidade, name: 'Feirão', category: :evento,
+                                closed_all_day: false, starts_on: hoje_na_unidade)
+
+        expect(listar([avulso])).not_to include('NÃO abre')
+      end
+
+      it 'não muda nada quando não há fechamento nenhum' do
+        expect(listar([avulso])).not_to include('ATENÇÃO')
+      end
+    end
+
     it 'traz a regra da unidade junto do imóvel avulso de locação' do
       expect(listar([avulso])).to include(regra)
     end
