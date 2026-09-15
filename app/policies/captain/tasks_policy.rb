@@ -24,4 +24,8 @@ class Captain::TasksPolicy < ApplicationPolicy
   def follow_up?
     true
   end
+
+  def sentiment_analysis?
+    true
+  end
 end
