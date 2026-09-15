@@ -2,7 +2,10 @@ class SwaggerController < ApplicationController
   before_action :authenticate_docs!
 
   def respond
-    render inline: Rails.root.join('swagger', derived_path).read
+    file_path = Rails.root.join('swagger', derived_path)
+    return head :not_found unless file_path.file?
+
+    render inline: file_path.read
   end
 
   private

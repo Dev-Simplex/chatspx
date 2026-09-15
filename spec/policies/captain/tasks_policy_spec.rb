@@ -36,6 +36,10 @@ RSpec.describe Captain::TasksPolicy, type: :policy do
     end
   end
 
+  permissions :sentiment_analysis? do
+    it { expect(tasks_policy).to permit(agent_context, :'captain/tasks') }
+  end
+
   permissions :rewrite?, :summarize?, :reply_suggestion?, :follow_up? do
     context 'when the label_suggestion toggle is off' do
       before { account.update!(captain_features: { 'label_suggestion' => false }) }
