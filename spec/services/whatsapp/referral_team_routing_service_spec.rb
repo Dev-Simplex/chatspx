@@ -94,6 +94,13 @@ RSpec.describe Whatsapp::ReferralTeamRoutingService do
     expect(conversation.team_id).to be_nil
   end
 
+  # Sem rastro, o time lê a atividade anterior ("Atribuído a triagem") como se fosse a verdade.
+  it 'leaves the reason on the conversation timeline' do
+    expect { rotear(mensagem({ 'referral' => referral })) }
+      .to have_enqueued_job(Conversations::ActivityMessageJob)
+      .with(conversation.id, hash_including(message_type: :activity))
+  end
+
   it 'never breaks message delivery when the routing fails' do
     msg = mensagem({ 'referral' => referral })
     allow(conversation).to receive(:update!).and_raise(StandardError, 'boom')

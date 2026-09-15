@@ -26,6 +26,7 @@ class Whatsapp::ReferralTeamRoutingService
     return unless roteavel?
 
     conversation.update!(team_id: team.id)
+    registrar_atividade
     Rails.logger.info("[ReferralTeamRouting] conv=#{conversation.id} team=#{team.id}")
   rescue StandardError => e
     # Roteamento nunca pode derrubar o recebimento de mensagem.
@@ -33,6 +34,18 @@ class Whatsapp::ReferralTeamRoutingService
   end
 
   private
+
+  # A atividade nativa de troca de time so nasce quando ha autor no `Current` (ver
+  # AssigneeActivityMessageHandler#activity_message_owner), e aqui nao ha: a conversa mudaria de
+  # dono sem rastro nenhum e o time leria a atividade anterior ("Atribuido a triagem") como se
+  # fosse a verdade. O texto proprio diz o motivo, que "por Sistema de Automacao" nao diria.
+  def registrar_atividade
+    Conversations::ActivityMessageJob.perform_later(
+      conversation.id,
+      { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
+        content: I18n.t('conversations.activity.team.assigned_from_ad', team_name: team.name) }
+    )
+  end
 
   def roteavel?
     referral.present? && conversation.present? && primeira_mensagem? && routing_enabled? &&
