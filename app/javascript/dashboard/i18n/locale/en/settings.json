@@ -43,8 +43,33 @@
       "OPEN": "Why this one?",
       "TITLE": "Conversation {id}",
       "CLOSE": "Close",
-      "DESIGNATED_AT": "Designated at",
-      "CANDIDATES": "Candidates:"
+      "NOBODY": "Nobody was picked",
+      "CANDIDATES": "In the running:",
+      "RAW": "see the technical record",
+      "REASON": {
+        "RODIZIO": "came through the rotation",
+        "CONTINUIDADE": "came through continuity — already their client",
+        "PREFERENCIA": "came through a customer request",
+        "MANUAL": "the manager picked by hand",
+        "REPASSE": "came through a hand-off, the previous deadline blown",
+        "ESCALADO": "was escalated to the manager",
+        "SEM_POOL": "nobody was eligible at the time",
+        "FILA": "stayed in the queue, unowned, for whoever grabbed it first"
+      },
+      "STATUS": {
+        "DESIGNADO": "nobody picked it up yet",
+        "ASSUMIDO": "picked up the conversation",
+        "ENGAJADO": "worked the lead in Vista",
+        "EXPIRADO": "blew the deadline and was handed off",
+        "SUBSTITUIDO": "another assignment took its place"
+      },
+      "RULE": {
+        "TITLE": "The rule in force at the time:",
+        "POSSE_DESIGNACAO": "the conversation was not assigned — the AI kept answering until someone picked it up",
+        "POSSE_ASSIGNEE": "the conversation was assigned right away, and the AI went quiet",
+        "REPASSE_AUTO": "if nobody picked it up in {min} min, it moved on by itself",
+        "REPASSE_MANUAL": "no automatic hand-off — the {min} min only flag the lead as stalled"
+      }
     },
     "PERIOD": {
       "MONTH": "This month",

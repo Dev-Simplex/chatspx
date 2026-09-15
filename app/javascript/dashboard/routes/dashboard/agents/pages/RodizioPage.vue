@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
 import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
-import { duracao } from './rodizio/tempo';
+import { duracao, instante } from './rodizio/tempo';
 
 defineOptions({ name: 'RodizioPage' });
 
@@ -185,8 +185,6 @@ const abrirDetalhe = async lead => {
   }
 };
 
-const data_hora = valor => (valor ? new Date(valor).toLocaleString() : '—');
-
 // Montado aqui, e não no template, porque texto solto em template é erro de lint no projeto —
 // nada de string crua fora do i18n. O "#" saiu a pedido: o número do lead se lê sozinho.
 const conversa = displayId => `${displayId}`;
@@ -287,10 +285,96 @@ const irParaAba = valor => {
   if (valor === 'leads' && !leadsGerais.value) carregarLeads();
 };
 
-const resumoDesignacao = registro =>
-  [registro.corretor || '—', registro.motivo, registro.status || '—'].join(
-    ' · '
-  );
+// --- "Por que este?" -------------------------------------------------------------
+//
+// O painel mostrava o snapshot da política em JSON cru: linha de log na tela de quem gerencia.
+// O que importa ali são quatro respostas — quem levou, por qual regra, quem concorreu e o que
+// valia na hora —, e elas viram frase. O JSON continua ali, fechado, para quem for investigar.
+//
+// Os mapas são computed com a chave escrita por extenso: chave montada em runtime já sumiu de
+// tela neste projeto, e o lint reclama dela com razão.
+const MOTIVO_DA_ESCOLHA = computed(() => ({
+  rodizio: t('AGENTS_RODIZIO.DETAIL.REASON.RODIZIO'),
+  continuidade: t('AGENTS_RODIZIO.DETAIL.REASON.CONTINUIDADE'),
+  preferencia_cliente: t('AGENTS_RODIZIO.DETAIL.REASON.PREFERENCIA'),
+  manual_gestor: t('AGENTS_RODIZIO.DETAIL.REASON.MANUAL'),
+  repasse_sla: t('AGENTS_RODIZIO.DETAIL.REASON.REPASSE'),
+  escalado_gestor: t('AGENTS_RODIZIO.DETAIL.REASON.ESCALADO'),
+  sem_pool: t('AGENTS_RODIZIO.DETAIL.REASON.SEM_POOL'),
+  fila: t('AGENTS_RODIZIO.DETAIL.REASON.FILA'),
+}));
+
+const SITUACAO_DA_DESIGNACAO = computed(() => ({
+  designado: {
+    texto: t('AGENTS_RODIZIO.DETAIL.STATUS.DESIGNADO'),
+    classe: 'bg-n-amber-3 text-n-amber-11',
+  },
+  assumido: {
+    texto: t('AGENTS_RODIZIO.DETAIL.STATUS.ASSUMIDO'),
+    classe: 'bg-n-teal-3 text-n-teal-11',
+  },
+  engajado: {
+    texto: t('AGENTS_RODIZIO.DETAIL.STATUS.ENGAJADO'),
+    classe: 'bg-n-teal-3 text-n-teal-11',
+  },
+  expirado: {
+    texto: t('AGENTS_RODIZIO.DETAIL.STATUS.EXPIRADO'),
+    classe: 'bg-n-ruby-3 text-n-ruby-11',
+  },
+  substituido: {
+    texto: t('AGENTS_RODIZIO.DETAIL.STATUS.SUBSTITUIDO'),
+    classe: 'bg-n-slate-3 text-n-slate-11',
+  },
+}));
+
+const situacaoDaDesignacao = registro =>
+  SITUACAO_DA_DESIGNACAO.value[registro.status] || {
+    texto: registro.status || '—',
+    classe: 'bg-n-slate-3 text-n-slate-11',
+  };
+
+// "escolhida pelo rodízio · casa-condominio · 10/09/2026 às 12:52"
+const comoAEscolhaAconteceu = registro =>
+  [
+    MOTIVO_DA_ESCOLHA.value[registro.motivo] || registro.motivo,
+    registro.produto,
+    registro.designado_em ? instante(registro.designado_em) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+const quemConcorreu = registro => {
+  const nomes = registro.candidatos_nomes || registro.candidatos || [];
+  return nomes.length ? nomes.join(', ') : '—';
+};
+
+// A regra que valia NA HORA, em frases. É para isso que o snapshot existe — e é o que o JSON
+// escondia: posse e repasse são o que explica "por que ninguém pegou e nada aconteceu".
+const regraEmPalavras = registro => {
+  const regra = registro.regra_aplicada || {};
+  const repasse = regra.repasse || {};
+  const minutos = repasse.sla_minutos;
+  const frases = [];
+
+  if (regra.modo_posse === 'designacao') {
+    frases.push(t('AGENTS_RODIZIO.DETAIL.RULE.POSSE_DESIGNACAO'));
+  } else if (regra.modo_posse === 'assignee') {
+    frases.push(t('AGENTS_RODIZIO.DETAIL.RULE.POSSE_ASSIGNEE'));
+  }
+
+  if (minutos) {
+    frases.push(
+      repasse.automatico
+        ? t('AGENTS_RODIZIO.DETAIL.RULE.REPASSE_AUTO', { min: minutos })
+        : t('AGENTS_RODIZIO.DETAIL.RULE.REPASSE_MANUAL', { min: minutos })
+    );
+  }
+
+  return frases;
+};
+
+const registroTecnico = registro =>
+  JSON.stringify(registro.regra_aplicada || {}, null, 2);
 
 // Este painel só CONTA o que já aconteceu. Quem MONTA a política é a tela do time: ela é
 // por time, e a lista de times é onde se escolhe qual configurar.
@@ -489,21 +573,49 @@ const irParaPolitica = () =>
             :key="registro.id"
             class="flex flex-col gap-1 pt-2 border-t border-n-weak"
           >
-            <p class="text-sm text-n-slate-12">
-              {{ resumoDesignacao(registro) }}
-            </p>
-            <p class="text-xs text-n-slate-10">
-              {{ t('AGENTS_RODIZIO.DETAIL.DESIGNATED_AT') }}
-              {{ data_hora(registro.designado_em) }}
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm font-medium text-n-slate-12">
+                {{ registro.corretor || t('AGENTS_RODIZIO.DETAIL.NOBODY') }}
+              </span>
+              <span
+                class="px-2 py-0.5 text-xs rounded-full whitespace-nowrap"
+                :class="situacaoDaDesignacao(registro).classe"
+              >
+                {{ situacaoDaDesignacao(registro).texto }}
+              </span>
+            </div>
+            <p class="text-xs text-n-slate-11">
+              {{ comoAEscolhaAconteceu(registro) }}
             </p>
             <p class="text-xs text-n-slate-10">
               {{ t('AGENTS_RODIZIO.DETAIL.CANDIDATES') }}
-              {{ (registro.candidatos || []).join(', ') || '—' }}
+              {{ quemConcorreu(registro) }}
             </p>
-            <pre
-              class="p-2 overflow-x-auto text-xs rounded-lg bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-11"
-              >{{ registro.regra_aplicada }}</pre
-            >
+            <div v-if="regraEmPalavras(registro).length" class="mt-1">
+              <p class="text-xs font-medium text-n-slate-11">
+                {{ t('AGENTS_RODIZIO.DETAIL.RULE.TITLE') }}
+              </p>
+              <ul class="pl-4 m-0 list-disc">
+                <li
+                  v-for="frase in regraEmPalavras(registro)"
+                  :key="frase"
+                  class="text-xs text-n-slate-10"
+                >
+                  {{ frase }}
+                </li>
+              </ul>
+            </div>
+            <!-- O JSON não sumiu: virou a gaveta de quem for investigar. Fechado por padrão,
+                 porque snapshot de política é linha de log, não resposta de tela. -->
+            <details class="mt-1">
+              <summary class="text-xs cursor-pointer text-n-slate-10">
+                {{ t('AGENTS_RODIZIO.DETAIL.RAW') }}
+              </summary>
+              <pre
+                class="p-2 mt-1 overflow-x-auto text-xs rounded-lg bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-11"
+                >{{ registroTecnico(registro) }}</pre
+              >
+            </details>
           </div>
         </div>
       </section>

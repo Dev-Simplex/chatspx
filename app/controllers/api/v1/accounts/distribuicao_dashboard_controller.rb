@@ -193,6 +193,10 @@ class Api::V1::Accounts::DistribuicaoDashboardController < Api::V1::Accounts::Ba
     }
   end
 
+  def nomes_dos_usuarios
+    @nomes_dos_usuarios ||= Current.account.users.pluck(:id, :name).to_h
+  end
+
   def serializar_designacao(log)
     {
       id: log.id,
@@ -203,6 +207,8 @@ class Api::V1::Accounts::DistribuicaoDashboardController < Api::V1::Accounts::Ba
       designado_em: log.designado_em,
       encerrado_em: log.encerrado_em,
       candidatos: log.candidatos,
+      # Id não diz nada para quem lê a tela: "Candidatos: 3, 4, 5" é linha de log, não resposta.
+      candidatos_nomes: (log.candidatos || []).map { |id| nomes_dos_usuarios[id] || id },
       regra_aplicada: log.policy_snapshot,
       vista_negocio_codigo: log.vista_negocio_codigo
     }
