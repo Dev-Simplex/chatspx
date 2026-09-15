@@ -46,13 +46,31 @@
       "DESIGNATED_AT": "Designado em",
       "CANDIDATES": "Candidatos:"
     },
+    "PERIOD": {
+      "MONTH": "Este mês",
+      "LAST_MONTH": "Mês passado",
+      "DAYS_7": "Últimos 7 dias",
+      "DAYS_30": "Últimos 30 dias",
+      "CUSTOM": "Escolher datas",
+      "FROM": "Data inicial",
+      "TO": "Data final",
+      "RANGE": "· {de} a {ate}"
+    },
+    "TABS": {
+      "BY_AGENT": "Por consultor",
+      "BY_LEAD": "Por lead"
+    },
+    "LEADS": {
+      "TITLE": "Cada lead do período: onde está, com quem, e há quanto tempo",
+      "EMPTY": "Nenhum lead de rodízio no período. Troque o período no alto da tela para olhar outro mês."
+    },
     "TIMELINE": {
       "OPEN": "Ver a linha do tempo dos leads",
       "TITLE": "Leads que {nome} recebeu pelo rodízio",
       "AVG_WAIT": "média de espera: {tempo}",
       "EMPTY": "Nenhum lead de rodízio no período.",
       "SHOWING": "mostrando {n} de {total}",
-      "LEGEND": "Largura é tempo, na mesma escala para todos.",
+      "LEGEND": "Largura é tempo, na mesma escala para todos, até 24 h; o total exato vai ao lado da barra.",
       "AI_SHORT": "IA",
       "SECONDS": "{n}s",
       "MINUTES": "{n} min",
@@ -65,6 +83,10 @@
         "ESPERA": "esperando o consultor pegar",
         "ATENDIMENTO": "em atendimento"
       },
+      "NOW": {
+        "WAITING_WITH": "esperando {nome} pegar há {tempo}",
+        "IN_SERVICE_WITH": "com {nome} há {tempo}"
+      },
       "MARK": {
         "ARRIVED": "chegou {hora}",
         "DESIGNATED": "designado {hora}",
@@ -74,11 +96,9 @@
         "RESOLVED": "resolvido {hora}"
       },
       "OUTCOME": {
-        "RESOLVED": "resolvido em {tempo}",
-        "IN_SERVICE": "em atendimento",
-        "WAITING": "ninguém pegou · esperando há {tempo}",
-        "EXPIRED": "expirou sem ninguém pegar",
-        "PASSED": "expirou e foi para {nome}"
+        "RESOLVED": "{nome} · resolvido em {tempo}",
+        "EXPIRED": "{nome} · expirou sem ninguém pegar",
+        "PASSED": "{nome} · expirou e foi para {destino}"
       }
     },
     "CONFIGURE": "Configurar rodízio",

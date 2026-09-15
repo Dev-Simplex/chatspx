@@ -15,16 +15,28 @@ class Spx::Distribuicao::LinhaDoTempoService
   # Fechou sem ninguém encostar: o lead foi embora para outro corretor.
   PERDIDOS = %w[expirado substituido].freeze
 
+  # Quem ainda espera vem PRIMEIRO, do que espera há mais tempo. Sem isto o teto cortava
+  # justamente o lead parado — ele é antigo por definição, e a ordem por data de designação o
+  # empurrava para o fim. O que já terminou vem do mais recente.
+  ORDEM = Arel.sql(
+    '(encerrado_em IS NULL) DESC, ' \
+    'CASE WHEN encerrado_em IS NULL THEN designado_em END ASC NULLS LAST, ' \
+    'designado_em DESC NULLS LAST, id DESC'
+  )
+
   # `escopo` chega pronto do controller (conta + período + time), para o recorte da faixa ser
-  # exatamente o mesmo da tabela em volta.
-  def initialize(escopo:, user_id:, canais: {})
-    @escopo = escopo.where(chosen_user_id: user_id, motivo: 'rodizio')
+  # exatamente o mesmo da tabela em volta. Sem `user_id` a lista é da conta inteira — é a aba
+  # "Leads", que responde "onde está cada um" sem precisar adivinhar em quem ele caiu.
+  def initialize(escopo:, canais: {}, user_id: nil, limite: LIMITE)
+    @escopo = escopo.where(motivo: 'rodizio')
+    @escopo = @escopo.where(chosen_user_id: user_id) if user_id.present?
     @canais = canais
+    @limite = limite
   end
 
   def call
     {
-      leads: logs.map { |log| serializar(log) },
+      leads: ordenar(logs.map { |log| serializar(log) }),
       total: @escopo.count,
       media_espera_segundos: media_espera_segundos
     }
@@ -34,9 +46,23 @@ class Spx::Distribuicao::LinhaDoTempoService
 
   def logs
     @logs ||= @escopo.includes(:chosen_user, conversation: [:inbox, :contact])
-                     .order(designado_em: :desc, id: :desc)
-                     .limit(LIMITE)
+                     .order(ORDEM)
+                     .limit(@limite)
                      .to_a
+  end
+
+  # Três grupos, na ordem em que a gestão precisa olhar: ninguém pegou, está em atendimento, já
+  # terminou. Dentro dos dois primeiros, quem está há mais tempo assim aparece antes. O SQL já
+  # traz os parados; aqui separa quem está em atendimento de quem terminou, que só se sabe
+  # depois de cruzar com a resolução.
+  def ordenar(leads)
+    leads.sort_by do |lead|
+      case lead[:situacao]
+      when 'espera' then [0, -lead[:segundos_na_situacao]]
+      when 'atendimento' then [1, -lead[:segundos_na_situacao]]
+      else [2, -lead[:designado_em].to_i]
+      end
+    end
   end
 
   def conversation_ids
@@ -57,11 +83,18 @@ class Spx::Distribuicao::LinhaDoTempoService
   end
 
   # `conversation_resolved` é o único lugar com hora de resolução: `conversations` guarda só o
-  # status atual. Conversa reaberta e resolvida de novo tem mais de um evento — vale o último.
+  # status atual. O contato que volta cai na MESMA conversa, com um evento por ciclo: vale o
+  # primeiro depois desta designação. O último da vida da conversa pode ser de um ciclo anterior
+  # (e o lead que ainda espera apareceria resolvido) ou do seguinte (e o atendimento incharia).
   def resolvidos_em
     @resolvidos_em ||= ReportingEvent.where(name: 'conversation_resolved', conversation_id: conversation_ids)
-                                     .group(:conversation_id)
-                                     .maximum(:event_end_time)
+                                     .pluck(:conversation_id, :event_end_time)
+                                     .group_by(&:first)
+                                     .transform_values { |pares| pares.filter_map(&:last).sort }
+  end
+
+  def resolucao(log, designado)
+    (resolvidos_em[log.conversation_id] || []).find { |instante| instante >= designado }
   end
 
   # Quando a conversa REABRIU. No WhatsApp o contato que volta cai na mesma conversa, então
@@ -105,7 +138,26 @@ class Spx::Distribuicao::LinhaDoTempoService
 
   def serializar(log)
     marcos = marcos(log)
-    identificacao(log).merge(marcos).merge(fases(marcos)).merge(desfecho(log, marcos))
+    fases = fases(marcos)
+    identificacao(log).merge(marcos).merge(fases).merge(desfecho(log, marcos)).merge(situacao(marcos, fases[:fases]))
+  end
+
+  # Onde o lead está AGORA, e há quanto tempo — é o que a tela mostra no selo ("esperando Emily
+  # pegar há 38 min"). Sai daqui, e não da tela, para o selo e a ORDEM da lista nunca discordarem.
+  def situacao(marcos, fases)
+    return { situacao: 'espera', segundos_na_situacao: fases[:espera] } if aguardando?(marcos)
+    return { situacao: 'atendimento', segundos_na_situacao: fases[:atendimento] } if em_curso?(marcos)
+
+    { situacao: 'encerrado', segundos_na_situacao: 0 }
+  end
+
+  # Ninguém encostou: nem pegou, nem perdeu para outro. É a espera que ainda corre.
+  def aguardando?(marcos)
+    marcos[:assumido_em].blank? && marcos[:perdido_em].blank?
+  end
+
+  def em_curso?(marcos)
+    marcos[:assumido_em].present? && marcos[:resolvido_em].blank?
   end
 
   def identificacao(log)
@@ -134,7 +186,7 @@ class Spx::Distribuicao::LinhaDoTempoService
       assumido_em: (log.encerrado_em if ASSUMIDOS.include?(log.status)),
       perdido_em: (log.encerrado_em if PERDIDOS.include?(log.status)),
       primeira_resposta_em: conversa&.first_reply_created_at,
-      resolvido_em: resolvidos_em[log.conversation_id]
+      resolvido_em: resolucao(log, designado)
     }
   end
 
@@ -152,7 +204,7 @@ class Spx::Distribuicao::LinhaDoTempoService
 
   def desfecho(log, marcos)
     {
-      em_curso: marcos[:assumido_em].present? && marcos[:resolvido_em].blank?,
+      em_curso: em_curso?(marcos),
       repassado_para: marcos[:perdido_em] && sucessor(log)&.chosen_user&.name
     }
   end

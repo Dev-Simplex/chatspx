@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
+import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
+import { duracao } from './rodizio/tempo';
 
 defineOptions({ name: 'RodizioPage' });
 
@@ -20,6 +22,86 @@ const detalheLoading = ref(false);
 const expandido = ref(null);
 const timelines = ref({});
 const timelineLoading = ref(false);
+const aba = ref('consultores');
+const leadsGerais = ref(null);
+const leadsLoading = ref(false);
+
+const abas = computed(() => [
+  { value: 'consultores', label: t('AGENTS_RODIZIO.TABS.BY_AGENT') },
+  { value: 'leads', label: t('AGENTS_RODIZIO.TABS.BY_LEAD') },
+]);
+
+// ------------------------------------------------------------------------ período
+//
+// A tela nasceu olhando só o mês corrente e sem dizer que era essa a janela: mês sem movimento
+// mostrava "nenhum lead distribuído no período" e ninguém descobria QUAL período. Agora ele é
+// escolhido, vai nas TRÊS chamadas (tabela, faixa e leads) e fica escrito no cabeçalho.
+const periodo = ref('mes');
+const de = ref('');
+const ate = ref('');
+
+const periodos = computed(() => [
+  { value: 'mes', label: t('AGENTS_RODIZIO.PERIOD.MONTH') },
+  { value: 'mes_passado', label: t('AGENTS_RODIZIO.PERIOD.LAST_MONTH') },
+  { value: 'dias_7', label: t('AGENTS_RODIZIO.PERIOD.DAYS_7') },
+  { value: 'dias_30', label: t('AGENTS_RODIZIO.PERIOD.DAYS_30') },
+  { value: 'personalizado', label: t('AGENTS_RODIZIO.PERIOD.CUSTOM') },
+]);
+
+const comoISO = quando =>
+  `${quando.getFullYear()}-${String(quando.getMonth() + 1).padStart(2, '0')}-${String(quando.getDate()).padStart(2, '0')}`;
+
+const diasAtras = n => {
+  const quando = new Date();
+  quando.setDate(quando.getDate() - n);
+  return quando;
+};
+
+const INTERVALOS = {
+  mes: () => {
+    const hoje = new Date();
+    return [
+      new Date(hoje.getFullYear(), hoje.getMonth(), 1),
+      new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0),
+    ];
+  },
+  mes_passado: () => {
+    const hoje = new Date();
+    return [
+      new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1),
+      new Date(hoje.getFullYear(), hoje.getMonth(), 0),
+    ];
+  },
+  dias_7: () => [diasAtras(6), new Date()],
+  dias_30: () => [diasAtras(29), new Date()],
+};
+
+// O fim do dia vai junto no `ate`: o backend compara `created_at` contra o INSTANTE, e uma data
+// solta vira meia-noite — o lead de hoje ficaria de fora do próprio período.
+const parametros = () => {
+  const params = teamId.value ? { team_id: teamId.value } : {};
+  const [inicio, fim] =
+    periodo.value === 'personalizado'
+      ? [de.value, ate.value]
+      : INTERVALOS[periodo.value]().map(comoISO);
+
+  return inicio && fim
+    ? { ...params, de: inicio, ate: `${fim}T23:59:59` }
+    : params;
+};
+
+const carregarLeads = async () => {
+  leadsLoading.value = true;
+  try {
+    const { data: payload } =
+      await DistribuicaoDashboardAPI.leads(parametros());
+    leadsGerais.value = payload;
+  } catch (e) {
+    leadsGerais.value = { leads: [], total: 0 };
+  } finally {
+    leadsLoading.value = false;
+  }
+};
 
 const carregar = async () => {
   loading.value = true;
@@ -28,16 +110,43 @@ const carregar = async () => {
   // Trocar de time ou de período muda quais leads contam: o que estava aberto vira mentira.
   expandido.value = null;
   timelines.value = {};
+  leadsGerais.value = null;
   try {
-    const params = teamId.value ? { team_id: teamId.value } : {};
-    const { data: payload } = await DistribuicaoDashboardAPI.show(params);
+    const { data: payload } = await DistribuicaoDashboardAPI.show(parametros());
     data.value = payload;
   } catch (e) {
     loadError.value = true;
   } finally {
     loading.value = false;
   }
+  if (aba.value === 'leads') carregarLeads();
 };
+
+// Trocar o preset recarrega na hora; no personalizado só quando as duas pontas existem, senão a
+// tela recarregaria a cada dígito digitado na primeira data.
+const trocarPeriodo = () => {
+  if (periodo.value !== 'personalizado') carregar();
+};
+
+const trocarIntervalo = () => {
+  if (de.value && ate.value) carregar();
+};
+
+// O período que o backend de fato usou — é ele que vale, não o que a tela pediu.
+const periodoLegivel = computed(() => {
+  const janela = data.value?.periodo;
+  if (!janela?.de) return '';
+  const curto = valor =>
+    new Date(valor).toLocaleDateString([], {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  return t('AGENTS_RODIZIO.PERIOD.RANGE', {
+    de: curto(janela.de),
+    ate: curto(janela.ate),
+  });
+});
 
 onMounted(carregar);
 
@@ -84,34 +193,37 @@ const conversa = displayId => `${displayId}`;
 
 // ---------------------------------------------------------------- linha do tempo
 
-// Ordem dos blocos na barra, a cor e o nome de cada um. Computed, e não constante solta, porque
-// o nome é traduzido — e a chave fica escrita por extenso: chave montada em runtime já sumiu de
-// tela neste projeto e o lint reclama dela com razão.
-//
-// Sobre as cores: nesta skin de WhatsApp o `blue` e o `teal` foram sobrescritos para o MESMO
-// verde (idênticos no tema escuro), então azul não separa fase nenhuma — a da IA passou a ser
-// cinza. As quatro usam texto PRETO porque branco reprova em contraste sobre os tons sólidos
-// (medido: 1,6 a 3,9), enquanto preto passa em todos (5,4 a 13,3).
+// A legenda da faixa: os três blocos da barra, na ordem e com a cor que o cartão usa. Vive aqui
+// porque é uma por faixa, não uma por lead — a barra em si mora no RodizioLeadCard, e é lá que
+// está escrito por que a fase da IA é cinza nesta skin.
 const FASES = computed(() => [
   {
     chave: 'ia',
-    classe: 'bg-n-slate-9 text-black',
+    classe: 'bg-n-slate-9',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.IA'),
   },
   {
     chave: 'espera',
-    classe: 'bg-n-amber-9 text-black',
+    classe: 'bg-n-amber-9',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ESPERA'),
   },
   {
     chave: 'atendimento',
-    classe: 'bg-n-teal-9 text-black',
+    classe: 'bg-n-teal-9',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ATENDIMENTO'),
   },
 ]);
-const PERDIDO = 'bg-n-ruby-9 text-black';
-// Abaixo disso o bloco não cabe o texto; o número continua no título e nos marcos.
-const LARGURA_MINIMA_ROTULO = 12;
+
+// Teto da escala. Todas as barras dividem a mesma, e sem teto um lead de quatro dias achatava
+// todos os outros num fio de um pixel — justo os de minutos, que são a maioria. Passando de
+// 24 h a barra fica cheia e o total em texto, ao lado dela, conta a verdade.
+const TETO_ESCALA = 24 * 60 * 60;
+
+const escalaDe = leads =>
+  Math.min(
+    Math.max(...leads.map(lead => lead.total_segundos || 0), 1),
+    TETO_ESCALA
+  );
 
 const timelineDe = userId => timelines.value[userId] || { leads: [], total: 0 };
 const leadsDe = userId => timelineDe(userId).leads || [];
@@ -127,10 +239,9 @@ const alternarConsultor = async linha => {
 
   timelineLoading.value = true;
   try {
-    const params = teamId.value ? { team_id: teamId.value } : {};
     const { data: payload } = await DistribuicaoDashboardAPI.linhaDoTempo(
       linha.user_id,
-      params
+      parametros()
     );
     timelines.value = { ...timelines.value, [linha.user_id]: payload };
   } catch (e) {
@@ -143,162 +254,38 @@ const alternarConsultor = async linha => {
   }
 };
 
-// Formatador próprio em vez do `formatTime` dos relatórios: aquele arredonda 1h50 para "1h", e
-// numa barra em que a diferença entre 2 min e 38 min é o assunto, isso apaga o dado.
-const duracao = segundos => {
-  const total = Math.round(segundos || 0);
-  if (total < 60) return t('AGENTS_RODIZIO.TIMELINE.SECONDS', { n: total });
-
-  const minutos = Math.round(total / 60);
-  if (minutos < 60) return t('AGENTS_RODIZIO.TIMELINE.MINUTES', { n: minutos });
-
-  const horas = Math.floor(minutos / 60);
-  const restoMin = minutos % 60;
-  if (horas < 24) {
-    // Minuto com zero à esquerda: "1h06", e não "1h6" — que se lê como uma hora e seis.
-    return restoMin
-      ? t('AGENTS_RODIZIO.TIMELINE.HOURS_MINUTES', {
-          h: horas,
-          m: String(restoMin).padStart(2, '0'),
-        })
-      : t('AGENTS_RODIZIO.TIMELINE.HOURS', { n: horas });
-  }
-
-  const dias = Math.floor(horas / 24);
-  const restoHoras = horas % 24;
-  return restoHoras
-    ? t('AGENTS_RODIZIO.TIMELINE.DAYS_HOURS', { d: dias, h: restoHoras })
-    : t('AGENTS_RODIZIO.TIMELINE.DAYS', { n: dias });
-};
-
-// Hora do marco. Data cheia em seis marcos por lead ("09/09/2026 06:35:12" em cada um) vira
-// ruído: se o instante é de hoje, só a hora; se é de outro dia, dia/mês e hora.
-const instante = valor => {
-  if (!valor) return '—';
-
-  const quando = new Date(valor);
-  const relogio = { hour: '2-digit', minute: '2-digit' };
-  return quando.toDateString() === new Date().toDateString()
-    ? quando.toLocaleTimeString([], relogio)
-    : quando.toLocaleString([], {
-        day: '2-digit',
-        month: '2-digit',
-        ...relogio,
-      });
-};
-
-const proporcao = (parte, todo) => (todo > 0 ? ((parte || 0) / todo) * 100 : 0);
-
-// Todas as barras da faixa dividem a MESMA escala — a maior duração vira 100%. É o que deixa
-// comparar um lead com o outro de bater o olho, em vez de cada barra se normalizar sozinha.
-const escala = userId =>
-  Math.max(...leadsDe(userId).map(lead => lead.total_segundos || 0), 1);
-
-const larguraBarra = (lead, userId) =>
-  `${proporcao(lead.total_segundos, escala(userId))}%`;
-
-// Quem estava com o lead naquele trecho: antes da designação é a IA, depois é o corretor. Só o
-// primeiro nome, porque o bloco é estreito.
-const dono = (lead, fase) =>
-  fase === 'ia'
-    ? t('AGENTS_RODIZIO.TIMELINE.AI_SHORT')
-    : (lead.corretor || '').split(' ')[0] ||
-      t('AGENTS_RODIZIO.TIMELINE.AI_SHORT');
-
-const fasesDo = lead =>
-  FASES.value
-    .filter(fase => (lead.fases?.[fase.chave] || 0) > 0)
-    .map(fase => {
-      const segundos = lead.fases[fase.chave];
-      const largura = proporcao(segundos, lead.total_segundos);
-      const perdeu = fase.chave === 'espera' && lead.perdido_em;
-      return {
-        chave: fase.chave,
-        // Espera que terminou sem ninguém pegar é o defeito que a tela existe para mostrar.
-        classe: perdeu ? PERDIDO : fase.classe,
-        largura: `${largura}%`,
-        rotulo:
-          largura >= LARGURA_MINIMA_ROTULO
-            ? `${dono(lead, fase.chave)} · ${duracao(segundos)}`
-            : '',
-        titulo: `${fase.nome} · ${dono(lead, fase.chave)} · ${duracao(segundos)}`,
-      };
-    });
-
-// Um marco por instante gravado, na ordem em que aconteceram. O que não existe some da linha:
-// lead que ninguém pegou não tem "pegou", e lead aberto não tem "resolvido".
-const marcosDo = lead =>
-  [
-    ['chegou_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.ARRIVED', { hora })],
-    [
-      'designado_em',
-      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.DESIGNATED', { hora }),
-    ],
-    ['assumido_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.TAKEN', { hora })],
-    [
-      'primeira_resposta_em',
-      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.FIRST_REPLY', { hora }),
-    ],
-    ['perdido_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.LOST', { hora })],
-    [
-      'resolvido_em',
-      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.RESOLVED', { hora }),
-    ],
-  ]
-    .filter(([campo]) => lead[campo])
-    .map(([campo, texto]) => ({
-      chave: campo,
-      texto: texto(instante(lead[campo])),
-    }));
-
-const desfecho = lead => {
-  if (lead.perdido_em) {
-    return lead.repassado_para
-      ? t('AGENTS_RODIZIO.TIMELINE.OUTCOME.PASSED', {
-          nome: lead.repassado_para,
-        })
-      : t('AGENTS_RODIZIO.TIMELINE.OUTCOME.EXPIRED');
-  }
-  if (lead.resolvido_em) {
-    return t('AGENTS_RODIZIO.TIMELINE.OUTCOME.RESOLVED', {
-      tempo: duracao(lead.total_segundos),
-    });
-  }
-  if (lead.em_curso) return t('AGENTS_RODIZIO.TIMELINE.OUTCOME.IN_SERVICE');
-  return t('AGENTS_RODIZIO.TIMELINE.OUTCOME.WAITING', {
-    tempo: duracao(lead.fases?.espera),
-  });
-};
-
-const corDesfecho = lead => {
-  if (lead.perdido_em) return 'text-n-ruby-11';
-  if (!lead.resolvido_em && !lead.em_curso) return 'text-n-amber-11';
-  return 'text-n-teal-11';
-};
-
-// Quem é o lead. O nome do contato manda; sem nome, o número; sem os dois, o #id da conversa.
-const titulo = lead =>
-  lead.contato || lead.telefone || conversa(lead.display_id);
-
-// "+55 11 98888-7777 · #4821 · WhatsApp · Apto 2 dorm" — montado aqui porque texto solto no
-// template é erro de lint no projeto.
-const contexto = lead =>
-  [
-    lead.contato ? lead.telefone : null,
-    conversa(lead.display_id),
-    lead.canal,
-    lead.produto,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+const escalaDoConsultor = userId => escalaDe(leadsDe(userId));
 
 const mediaEspera = userId => {
   const segundos = timelineDe(userId).media_espera_segundos;
-  return segundos ? duracao(segundos) : '';
+  return segundos ? duracao(t, segundos) : '';
 };
 
 const restantes = userId =>
   Math.max((timelineDe(userId).total || 0) - leadsDe(userId).length, 0);
+
+// ---------------------------------------------------------------------- aba Leads
+
+// A tabela responde "quem recebeu quanto"; esta aba responde "onde está cada lead, com quem, e
+// há quanto tempo" — sem precisar adivinhar em quem ele caiu para poder clicar. Mesma escala e
+// mesmo cartão da faixa, e a ordem vem do backend: quem ninguém pegou primeiro.
+const leadsDaConta = computed(() => leadsGerais.value?.leads || []);
+
+const escalaDosLeads = computed(() => escalaDe(leadsDaConta.value));
+
+const restantesDaConta = computed(() =>
+  Math.max((leadsGerais.value?.total || 0) - leadsDaConta.value.length, 0)
+);
+
+const mediaEsperaDaConta = computed(() => {
+  const segundos = leadsGerais.value?.media_espera_segundos;
+  return segundos ? duracao(t, segundos) : '';
+});
+
+const irParaAba = valor => {
+  aba.value = valor;
+  if (valor === 'leads' && !leadsGerais.value) carregarLeads();
+};
 
 const resumoDesignacao = registro =>
   [registro.corretor || '—', registro.motivo, registro.status || '—'].join(
@@ -326,11 +313,43 @@ const irParaPolitica = () =>
         </h1>
         <p class="mt-1 text-sm text-n-slate-11">
           {{ t('AGENTS_RODIZIO.SUBTITLE') }}
+          <span v-if="periodoLegivel" class="tabular-nums text-n-slate-10">
+            {{ periodoLegivel }}
+          </span>
         </p>
       </div>
       <div class="flex items-center gap-2">
         <!-- `mb-0` mata o `mb-4` que a regra global de `select` traz pelo `field-base`: com ela a
              caixa sobe metade da margem e desalinha da linha dos botões. -->
+        <select
+          v-model="periodo"
+          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
+          @change="trocarPeriodo"
+        >
+          <option
+            v-for="item in periodos"
+            :key="item.value"
+            :value="item.value"
+          >
+            {{ item.label }}
+          </option>
+        </select>
+        <template v-if="periodo === 'personalizado'">
+          <input
+            v-model="de"
+            type="date"
+            class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
+            :aria-label="t('AGENTS_RODIZIO.PERIOD.FROM')"
+            @change="trocarIntervalo"
+          />
+          <input
+            v-model="ate"
+            type="date"
+            class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
+            :aria-label="t('AGENTS_RODIZIO.PERIOD.TO')"
+            @change="trocarIntervalo"
+          />
+        </template>
         <select
           v-model="teamId"
           class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
@@ -489,7 +508,82 @@ const irParaPolitica = () =>
         </div>
       </section>
 
-      <section class="overflow-x-auto">
+      <!-- Abas em vez de mais uma seção embaixo: a `section.overflow-x-auto` da tabela é a única
+           que encolhe nesta coluna flex, então todo bloco novo abaixo dela rouba altura da
+           tabela e a espreme numa caixa com rolagem própria. -->
+      <div class="flex gap-1 p-1 rounded-lg bg-n-slate-3 w-fit">
+        <button
+          v-for="item in abas"
+          :key="item.value"
+          class="px-3 py-1 text-sm rounded-md"
+          :class="
+            aba === item.value
+              ? 'bg-white dark:bg-n-solid-3 text-n-slate-12 font-medium'
+              : 'text-n-slate-11'
+          "
+          @click="irParaAba(item.value)"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+
+      <section v-if="aba === 'leads'" class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <p class="text-sm font-medium text-n-slate-12">
+            {{ t('AGENTS_RODIZIO.LEADS.TITLE') }}
+          </p>
+          <p v-if="mediaEsperaDaConta" class="text-xs text-n-slate-11">
+            {{
+              t('AGENTS_RODIZIO.TIMELINE.AVG_WAIT', {
+                tempo: mediaEsperaDaConta,
+              })
+            }}
+          </p>
+        </div>
+
+        <p v-if="leadsLoading" class="text-sm text-n-slate-10">
+          {{ t('AGENTS_RODIZIO.LOADING') }}
+        </p>
+        <p v-else-if="!leadsDaConta.length" class="text-sm text-n-slate-10">
+          {{ t('AGENTS_RODIZIO.LEADS.EMPTY') }}
+        </p>
+        <template v-else>
+          <RodizioLeadCard
+            v-for="lead in leadsDaConta"
+            :key="lead.conversation_id"
+            :lead="lead"
+            :escala="escalaDosLeads"
+          />
+          <p v-if="restantesDaConta" class="text-xs text-n-slate-10">
+            {{
+              t('AGENTS_RODIZIO.TIMELINE.SHOWING', {
+                n: leadsDaConta.length,
+                total: leadsGerais.total,
+              })
+            }}
+          </p>
+          <div
+            class="flex flex-wrap items-center text-xs gap-x-4 gap-y-1 text-n-slate-11"
+          >
+            <span
+              v-for="fase in FASES"
+              :key="fase.chave"
+              class="inline-flex items-center gap-1.5"
+            >
+              <span
+                class="inline-block w-5 h-2.5 rounded-sm"
+                :class="fase.classe"
+              />
+              {{ fase.nome }}
+            </span>
+            <span class="text-n-slate-10">
+              {{ t('AGENTS_RODIZIO.TIMELINE.LEGEND') }}
+            </span>
+          </div>
+        </template>
+      </section>
+
+      <section v-show="aba === 'consultores'" class="overflow-x-auto">
         <table class="w-full text-sm border rounded-xl border-n-weak">
           <thead class="bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11">
             <tr>
@@ -610,60 +704,12 @@ const irParaPolitica = () =>
                       {{ t('AGENTS_RODIZIO.TIMELINE.EMPTY') }}
                     </p>
                     <template v-else>
-                      <div
+                      <RodizioLeadCard
                         v-for="lead in leadsDe(linha.user_id)"
                         :key="lead.conversation_id"
-                        class="flex flex-col gap-2 p-3 bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak"
-                      >
-                        <div
-                          class="flex flex-wrap items-baseline justify-between gap-2"
-                        >
-                          <span class="text-sm font-medium text-n-slate-12">
-                            {{ titulo(lead) }}
-                            <span
-                              class="text-xs font-normal tabular-nums text-n-slate-10"
-                            >
-                              {{ contexto(lead) }}
-                            </span>
-                          </span>
-                          <span
-                            class="text-xs font-medium"
-                            :class="corDesfecho(lead)"
-                          >
-                            {{ desfecho(lead) }}
-                          </span>
-                        </div>
-
-                        <!-- `v-tooltip` (floating-vue, global no dashboard) no lugar do
-                             `title`: o balão nativo do navegador demora a aparecer e ignora
-                             o tema da tela. -->
-                        <div
-                          class="flex h-7 overflow-hidden rounded-md ring-1 ring-inset ring-black/10"
-                          :style="{ width: larguraBarra(lead, linha.user_id) }"
-                        >
-                          <div
-                            v-for="fase in fasesDo(lead)"
-                            :key="fase.chave"
-                            v-tooltip.top="fase.titulo"
-                            class="flex items-center px-2 overflow-hidden text-[11px] font-medium tracking-tight tabular-nums whitespace-nowrap min-w-[3px]"
-                            :class="fase.classe"
-                            :style="{ width: fase.largura }"
-                          >
-                            {{ fase.rotulo }}
-                          </div>
-                        </div>
-
-                        <div
-                          class="flex flex-wrap text-xs tabular-nums gap-x-4 gap-y-1 text-n-slate-10"
-                        >
-                          <span
-                            v-for="marco in marcosDo(lead)"
-                            :key="marco.chave"
-                          >
-                            {{ marco.texto }}
-                          </span>
-                        </div>
-                      </div>
+                        :lead="lead"
+                        :escala="escalaDoConsultor(linha.user_id)"
+                      />
 
                       <p
                         v-if="restantes(linha.user_id)"

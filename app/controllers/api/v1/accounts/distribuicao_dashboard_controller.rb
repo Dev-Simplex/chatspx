@@ -24,6 +24,10 @@ class Api::V1::Accounts::DistribuicaoDashboardController < Api::V1::Accounts::Ba
     'Channel::Email' => 'E-mail'
   }.freeze
 
+  # Teto da aba "Leads". Maior que o da faixa por consultor (20): esta lista é a conta inteira,
+  # e o total sem teto vai junto na resposta para a tela dizer "mostrando 50 de 130".
+  LIMITE_LEADS = 50
+
   def show
     render json: {
       periodo: { de: periodo.first, ate: periodo.last },
@@ -46,6 +50,17 @@ class Api::V1::Accounts::DistribuicaoDashboardController < Api::V1::Accounts::Ba
   def linha_do_tempo
     render json: Spx::Distribuicao::LinhaDoTempoService.new(
       escopo: escopo_periodo, user_id: params[:user_id], canais: CANAIS
+    ).call
+  rescue StandardError
+    render json: { leads: [], total: 0, media_espera_segundos: nil }
+  end
+
+  # A conta inteira, lead a lead: onde cada um está agora, com quem, e há quanto tempo. É a
+  # pergunta que a tabela por consultor não responde — ali é preciso saber em quem o lead caiu
+  # antes de poder olhar para ele. Teto maior que o da faixa, porque aqui não há um por pessoa.
+  def leads
+    render json: Spx::Distribuicao::LinhaDoTempoService.new(
+      escopo: escopo_periodo, canais: CANAIS, limite: LIMITE_LEADS
     ).call
   rescue StandardError
     render json: { leads: [], total: 0, media_espera_segundos: nil }
