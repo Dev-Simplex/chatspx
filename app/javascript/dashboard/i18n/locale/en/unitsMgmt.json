@@ -229,7 +229,8 @@
         "PREVIOUS": "Previous month",
         "NEXT": "Next month",
         "TODAY": "Today",
-        "RULES_TITLE": "Everything scheduled"
+        "RULES_TITLE": "Everything scheduled in {ano}",
+        "RULES_EMPTY_YEAR": "Nothing scheduled in {ano}. Use the calendar arrows to see another year."
       }
     }
   }

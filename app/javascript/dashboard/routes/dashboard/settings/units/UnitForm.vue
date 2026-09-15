@@ -108,6 +108,9 @@ const novaRegra = ref({ ...REGRA_VAZIA });
 // -1 = criando; >= 0 = editando a regra daquela posição.
 const editandoIndex = ref(-1);
 
+// Ano que o calendário está mostrando; a lista de marcações acompanha.
+const anoVisivel = ref(new Date().getFullYear());
+
 const rascunhoLimpo = () => ({
   ...REGRA_VAZIA,
   weekdays: [],
@@ -631,11 +634,23 @@ const diaPorExtenso = computed(() => {
 // A grade da semana no formato que o calendário entende (dia fechado fica marcado).
 const gradeParaCalendario = computed(() => timeSlotTransform(timeSlots.value));
 
+// A regra cai neste ano? Pergunta pela PRÓPRIA recorrência, em vez de olhar o `starts_on`: a
+// anual de 25/12/2026 vale em 2030, e a semanal só até o `until_date`. É a mesma máquina que
+// desenha o calendário, então a lista e a grade nunca discordam.
+const ocorreNoAno = (regra, ano) => {
+  const [primeira] = proximasOcorrencias(regra, 1, new Date(ano, 0, 1, 12));
+  return !!primeira && primeira.getFullYear() === ano;
+};
+
+// Só o ano que está na tela: com os feriados nacionais de cinco anos à frente, a lista
+// inteira viraria uma parede de datas que ninguém lê. Virou o ano no calendário, a lista
+// vira junto. O `index` continua sendo a posição em `rules` — é por ele que se edita e apaga.
 const regrasVisiveis = computed(() =>
   rules.value
-    .map((regra, index) => ({
+    .filter(regra => ocorreNoAno(regra, anoVisivel.value))
+    .map(regra => ({
       ...regra,
-      index,
+      index: rules.value.indexOf(regra),
       resumo: resumoDaRegra(regra),
       faixa: faixaDaRegra(regra),
       cor: COR_DA_CATEGORIA[regra.category] || COR_DA_CATEGORIA.feriado,
@@ -869,6 +884,7 @@ const onSubmit = () => {
         :cores="COR_DA_CATEGORIA"
         @select="escolherDia"
         @edit="editarRegra"
+        @ano="anoVisivel = $event"
       />
 
       <div
@@ -1224,9 +1240,18 @@ const onSubmit = () => {
         </p>
       </div>
 
+      <p
+        v-if="rules.length && !regrasVisiveis.length"
+        class="mt-3 mb-0 text-n-slate-11 text-label-small"
+      >
+        {{
+          t('UNITS_MGMT.FORM.CALENDAR.RULES_EMPTY_YEAR', { ano: anoVisivel })
+        }}
+      </p>
+
       <div v-if="regrasVisiveis.length" class="mt-3">
         <span class="text-n-slate-11 text-label-small">
-          {{ t('UNITS_MGMT.FORM.CALENDAR.RULES_TITLE') }}
+          {{ t('UNITS_MGMT.FORM.CALENDAR.RULES_TITLE', { ano: anoVisivel }) }}
         </span>
         <ul
           class="p-0 mx-0 mt-1 mb-0 list-none border rounded-lg divide-y divide-n-weak border-n-weak"

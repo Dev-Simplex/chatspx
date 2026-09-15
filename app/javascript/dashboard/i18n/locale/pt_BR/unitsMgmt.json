@@ -229,7 +229,8 @@
         "PREVIOUS": "Mês anterior",
         "NEXT": "Próximo mês",
         "TODAY": "Hoje",
-        "RULES_TITLE": "Tudo que está marcado"
+        "RULES_TITLE": "Tudo que está marcado em {ano}",
+        "RULES_EMPTY_YEAR": "Nada marcado em {ano}. Use as setas do calendário para ver outro ano."
       }
     }
   }
