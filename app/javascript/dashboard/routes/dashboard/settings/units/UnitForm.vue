@@ -13,6 +13,7 @@ import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import NextSelect from 'dashboard/components-next/select/Select.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import {
+  comoTextoISO,
   dataLegivel,
   dataDaEnesimaOcorrencia,
   proximasOcorrencias,
@@ -510,8 +511,10 @@ const previa = computed(() => {
 
 const nomeDoDia = dia => t(`UNITS_MGMT.WEEKDAYS_SHORT.${dia}`);
 
-// Frase humana da recorrência — é o que a lista mostra no lugar de uma data solta.
-const resumoDaRegra = regra => {
+// Frase humana da recorrência — é o que a lista mostra no lugar de uma data solta. `quando` é
+// o dia em que a regra cai no ano que está na tela: é ele que faz a anual dizer 25/12/2027
+// quando o calendário está em 2027, em vez de repetir para sempre o ano em que foi criada.
+const resumoDaRegra = (regra, quando) => {
   const chave = 'UNITS_MGMT.FORM.RULES.SUMMARY';
   const dias = regra.weekdays.map(nomeDoDia).join(', ');
   const posicoes = regra.week_positions
@@ -533,7 +536,9 @@ const resumoDaRegra = regra => {
       frase = t(`${chave}.MONTHLY_POSITION`, { posicoes, dias });
     }
   } else if (regra.frequency === 'anual') {
-    frase = t(`${chave}.YEARLY`, { data: dataLegivel(regra.starts_on) });
+    frase = t(`${chave}.YEARLY`, {
+      data: dataLegivel(quando ? comoTextoISO(quando) : regra.starts_on),
+    });
   } else if (regra.ends_on) {
     frase = t(`${chave}.PERIOD`, {
       inicio: dataLegivel(regra.starts_on),
@@ -634,31 +639,34 @@ const diaPorExtenso = computed(() => {
 // A grade da semana no formato que o calendário entende (dia fechado fica marcado).
 const gradeParaCalendario = computed(() => timeSlotTransform(timeSlots.value));
 
-// A regra cai neste ano? Pergunta pela PRÓPRIA recorrência, em vez de olhar o `starts_on`: a
-// anual de 25/12/2026 vale em 2030, e a semanal só até o `until_date`. É a mesma máquina que
-// desenha o calendário, então a lista e a grade nunca discordam.
-const ocorreNoAno = (regra, ano) => {
+// Em que dia a regra cai no ano pedido — `null` quando ela não cai nele. Pergunta pela PRÓPRIA
+// recorrência, em vez de olhar o `starts_on`: a anual de 25/12/2026 cai em 2030, e a semanal
+// só até o `until_date`. É a mesma máquina que desenha o calendário, então a lista e a grade
+// nunca discordam.
+const ocorrenciaNoAno = (regra, ano) => {
   const [primeira] = proximasOcorrencias(regra, 1, new Date(ano, 0, 1, 12));
-  return !!primeira && primeira.getFullYear() === ano;
+  return primeira && primeira.getFullYear() === ano ? primeira : null;
 };
 
-// Só o ano que está na tela: com os feriados nacionais de cinco anos à frente, a lista
-// inteira viraria uma parede de datas que ninguém lê. Virou o ano no calendário, a lista
-// vira junto. O `index` continua sendo a posição em `rules` — é por ele que se edita e apaga.
+// Só o ano que está na tela: com os feriados nacionais de cinco anos à frente, a lista inteira
+// viraria uma parede de datas que ninguém lê. Virou o ano no calendário, a lista vira junto —
+// e na ORDEM daquele ano, não na ordem em que as regras foram criadas. O `index` continua
+// sendo a posição em `rules`: é por ele que se edita e apaga.
 const regrasVisiveis = computed(() =>
   rules.value
-    .filter(regra => ocorreNoAno(regra, anoVisivel.value))
-    .map(regra => ({
+    .map(regra => ({ regra, quando: ocorrenciaNoAno(regra, anoVisivel.value) }))
+    .filter(({ quando }) => !!quando)
+    .sort((a, b) => a.quando - b.quando)
+    .map(({ regra, quando }) => ({
       ...regra,
       index: rules.value.indexOf(regra),
-      resumo: resumoDaRegra(regra),
+      resumo: resumoDaRegra(regra, quando),
       faixa: faixaDaRegra(regra),
       cor: COR_DA_CATEGORIA[regra.category] || COR_DA_CATEGORIA.feriado,
       rotulo: t(
         `UNITS_MGMT.FORM.RULES.CATEGORY.${regra.category.toUpperCase()}`
       ),
     }))
-    .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
 );
 
 const onSubmit = () => {
