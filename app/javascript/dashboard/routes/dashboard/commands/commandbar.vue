@@ -1,4 +1,5 @@
 <script setup>
+import './silenceLitDevWarnings';
 import '@chatwoot/ninja-keys';
 import { ref, computed, watchEffect, onMounted } from 'vue';
 import { useStore } from 'dashboard/composables/store';
