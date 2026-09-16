@@ -27,6 +27,7 @@ class Whatsapp::ReferralTeamRoutingService
 
     conversation.update!(team_id: team.id)
     registrar_atividade
+    distribuir
     Rails.logger.info("[ReferralTeamRouting] conv=#{conversation.id} team=#{team.id}")
   rescue StandardError => e
     # Roteamento nunca pode derrubar o recebimento de mensagem.
@@ -34,6 +35,20 @@ class Whatsapp::ReferralTeamRoutingService
   end
 
   private
+
+  # Definir o time nao da dono ao lead, e sem dono ele aparece para o time inteiro: na Catatau
+  # isso pos dois vendedores na mesma conversa (conv 196, 15/09, Rodrigo e Adrian falando com a
+  # mesma cliente). O Motor de Distribuicao so era acionado pelo no `distribuir` do flow, ou
+  # seja, DEPOIS que o cliente responde o menu — e o lead de anuncio nao passa por menu nenhum.
+  # Chamar aqui e o que fecha o caminho: quem escolheu o destino tambem decide o dono.
+  #
+  # Best-effort: o proprio Motor tem rescue e devolve no-op quando nao ha politica, pool ou
+  # quando o lead ja tem dono. Falhar aqui nao pode desfazer o direcionamento de time.
+  def distribuir
+    Spx::Distribuicao::DistribuirService.new(conversation).call
+  rescue StandardError => e
+    Rails.logger.warn("[ReferralTeamRouting] distribuicao conv=#{conversation.id}: #{e.class}: #{e.message}")
+  end
 
   # A atividade nativa de troca de time so nasce quando ha autor no `Current` (ver
   # AssigneeActivityMessageHandler#activity_message_owner), e aqui nao ha: a conversa mudaria de
