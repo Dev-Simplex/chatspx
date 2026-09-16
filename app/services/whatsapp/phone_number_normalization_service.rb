@@ -33,13 +33,19 @@ class Whatsapp::PhoneNumberNormalizationService
     # Duplicate fichas (e.g. ninth-digit legacy + current forms of the same
     # number): route to the ContactInbox whose conversation is most recent —
     # the "live thread" — instead of whichever variant happened to match first.
-    best = matches.max_by do |contact_inbox|
-      contact_inbox.conversations.maximum(:created_at) || contact_inbox.created_at
-    end
-    best.source_id
+    matches.max_by { |contact_inbox| thread_rank(contact_inbox) }.source_id
   end
 
   private
+
+  # Ficha COM conversa ganha de ficha vazia: uma ficha recem-criada tem created_at de agora e
+  # vencia por data a ficha antiga onde a thread viva mora, mandando o inbound seguinte para a
+  # ficha vazia. Entre fichas do mesmo tipo, a data decide, como antes. Uma consulta por ficha,
+  # igual ao que ja era feito -- e so as duplicatas chegam aqui (matches.one? saiu antes).
+  def thread_rank(contact_inbox)
+    last_conversation_at = contact_inbox.conversations.maximum(:created_at)
+    [last_conversation_at ? 1 : 0, last_conversation_at || contact_inbox.created_at]
+  end
 
   attr_reader :inbox
 
