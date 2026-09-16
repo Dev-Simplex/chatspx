@@ -64,6 +64,7 @@ const actions = {
 
   fetchAllConversations: async ({ commit, state, dispatch }) => {
     commit(types.SET_LIST_LOADING_STATUS);
+    commit(types.SET_LIST_ERROR, false);
     const params = state.conversationFilters;
     try {
       const {
@@ -75,17 +76,20 @@ const actions = {
         data,
         params.assigneeType
       );
+      commit(types.SET_LIST_ERROR, false);
     } catch (error) {
       // Aborted/canceled = a newer fetch replaced this one — ignore silently
       const isAbort =
         error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
       if (isAbort) return;
+      commit(types.SET_LIST_ERROR, true);
       commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
 
   fetchFilteredConversations: async ({ commit, dispatch }, params) => {
     commit(types.SET_LIST_LOADING_STATUS);
+    commit(types.SET_LIST_ERROR, false);
     try {
       const { data } = await ConversationApi.filter(params);
       buildConversationList(
@@ -94,10 +98,12 @@ const actions = {
         data,
         'appliedFilters'
       );
+      commit(types.SET_LIST_ERROR, false);
     } catch (error) {
       const isAbort =
         error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
       if (isAbort) return;
+      commit(types.SET_LIST_ERROR, true);
       commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
