@@ -261,14 +261,16 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
     end
 
     context 'with audio already transcribed (cached)' do
-      let(:audio1) do
+      # let!: o anexo nasce ANTES do spy. O hook de criacao consulta o servico para escolher o
+      # pipeline; o que este exemplo cobra e que o BUILDER nao o instancia.
+      let!(:audio1) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :audio)
         attachment.save!
         attachment.update!(meta: { transcribed_text: 'First audio text. ' })
         attachment
       end
 
-      let(:audio2) do
+      let!(:audio2) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :audio)
         attachment.save!
         attachment.update!(meta: { transcribed_text: 'Second audio text.' })
@@ -292,7 +294,7 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
     end
 
     context 'with audio that has no transcription yet' do
-      let(:audio_attachment) do
+      let!(:audio_attachment) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :audio)
         attachment.save!
         attachment
