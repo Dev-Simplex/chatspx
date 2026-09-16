@@ -76,7 +76,6 @@ const actions = {
         data,
         params.assigneeType
       );
-      commit(types.SET_LIST_ERROR, false);
     } catch (error) {
       // Aborted/canceled = a newer fetch replaced this one — ignore silently
       const isAbort =
@@ -98,7 +97,6 @@ const actions = {
         data,
         'appliedFilters'
       );
-      commit(types.SET_LIST_ERROR, false);
     } catch (error) {
       const isAbort =
         error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
