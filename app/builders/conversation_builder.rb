@@ -15,7 +15,9 @@ class ConversationBuilder
     # quando um request que segura o lock e morto por timeout.
     acquired = Redis::Alfred.set(lock_key, '1', nx: true, ex: 10)
 
-    return look_up_exising_conversation unless acquired
+    # Perdeu a corrida pela trava. Com a regra de conversa unica, devolve a do vencedor. Sem ela nao ha o
+    # que deduplicar, entao cria como criaria sem a trava: devolver nil dava 500 e a conversa nao nascia.
+    return (single_conversation_inbox? ? look_up_exising_conversation : create_new_conversation) unless acquired
 
     begin
       yield
@@ -36,6 +38,10 @@ class ConversationBuilder
   def find_contact_conversation_in_inbox
     base = ::Conversation.where(inbox_id: @contact_inbox.inbox_id, contact_id: @contact_inbox.contact_id)
     base.where.not(status: :resolved).order(created_at: :desc).first || base.order(created_at: :desc).first
+  end
+
+  def single_conversation_inbox?
+    @contact_inbox.inbox.lock_to_single_conversation? || waha_api_inbox?
   end
 
   def waha_api_inbox?
