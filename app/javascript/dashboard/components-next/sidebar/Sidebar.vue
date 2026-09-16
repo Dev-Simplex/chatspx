@@ -1179,7 +1179,7 @@ onKeyStroke('Escape', () => {
         @end="onSidebarReorder"
       >
         <template #item="{ element }">
-          <SidebarGroup v-bind="element" :is-collapsed="isCollapsed" />
+          <SidebarGroup v-bind="element" />
         </template>
       </draggable>
     </nav>
