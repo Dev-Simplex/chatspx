@@ -41,6 +41,25 @@ describe Whatsapp::HealthService do
     described_class.new(channel).fetch_health_status
   end
 
+  # T03: o contador de inbound descartado sobe pela tela de saude da caixa -- e o unico lugar
+  # onde "essa caixa esta recebendo zero" deixa de ser invisivel.
+  context 'with dropped inbound counters' do
+    after do
+      Redis::Alfred.scan_each(match: 'WHATSAPP_DROPPED_INBOUND::*') { |key| Redis::Alfred.delete(key) }
+    end
+
+    it 'carries the counter by reason' do
+      Whatsapp::DroppedInboundCounter.record(channel.id, 'reauthorization_required')
+      Whatsapp::DroppedInboundCounter.record(channel.id, 'reauthorization_required')
+
+      expect(health[:dropped_inbound]).to eq({ 'reauthorization_required' => 2 })
+    end
+
+    it 'carries an empty hash when nothing was dropped' do
+      expect(health[:dropped_inbound]).to eq({})
+    end
+  end
+
   context 'when the WABA has a single phone number' do
     it 'accepts only its own webhook url' do
       expect(health[:acceptable_webhook_urls]).to contain_exactly(own_url)

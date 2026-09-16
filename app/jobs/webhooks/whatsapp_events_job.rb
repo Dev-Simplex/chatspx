@@ -12,8 +12,10 @@ class Webhooks::WhatsappEventsJob < MutexApplicationJob
   def perform(params = {})
     channel = find_channel_from_whatsapp_business_payload(params)
 
-    if channel_is_inactive?(channel)
-      Rails.logger.warn("Inactive WhatsApp channel: #{channel&.phone_number || "unknown - #{params[:phone_number]}"}")
+    drop_reason = inactive_reason(channel)
+    if drop_reason
+      Rails.logger.warn("Inactive WhatsApp channel (#{drop_reason}): #{channel&.phone_number || "unknown - #{params[:phone_number]}"}")
+      record_dropped_inbound(channel, drop_reason, params)
       return
     end
 
@@ -101,12 +103,25 @@ class Webhooks::WhatsappEventsJob < MutexApplicationJob
     message[:to] || message[:from]
   end
 
-  def channel_is_inactive?(channel)
-    return true if channel.blank?
-    return true if channel.reauthorization_required?
-    return true unless channel.account.active?
+  # Devolve o MOTIVO do descarte, ou nil quando o canal esta ok. Eram tres situacoes muito
+  # diferentes escondidas atras do mesmo `return` silencioso.
+  def inactive_reason(channel)
+    return Whatsapp::DroppedInboundCounter::REASONS[:channel_not_found] if channel.blank?
+    return Whatsapp::DroppedInboundCounter::REASONS[:reauthorization_required] if channel.reauthorization_required?
+    return Whatsapp::DroppedInboundCounter::REASONS[:account_inactive] unless channel.account.active?
 
-    false
+    nil
+  end
+
+  # Sem canal nao ha id: conta pelo numero que veio no payload, que e o que a pessoa procura
+  # quando reclama que aquele numero nao recebe nada.
+  def record_dropped_inbound(channel, reason, params)
+    chave = channel&.id || "unknown-#{params[:phone_number] || payload_display_phone_number(params)}"
+    Whatsapp::DroppedInboundCounter.record(chave, reason)
+  end
+
+  def payload_display_phone_number(params)
+    params.dig(:entry, 0, :changes, 0, :value, :metadata, :display_phone_number)
   end
 
   def find_channel_by_url_param(params)

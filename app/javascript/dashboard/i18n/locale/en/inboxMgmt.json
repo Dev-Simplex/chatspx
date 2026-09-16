@@ -667,6 +667,16 @@
         "ACCOUNT_MODE": {
           "LABEL": "Account mode",
           "TOOLTIP": "Current operating mode of your WhatsApp account"
+        },
+        "DROPPED_INBOUND": {
+          "LABEL": "Dropped inbound",
+          "VALUE": "{count} in the last 7 days ({reason})",
+          "TOOLTIP": "Customer messages WhatsApp delivered but this inbox discarded before they became a message. Meta gets a 200, so they are never redelivered.",
+          "REASONS": {
+            "CHANNEL_NOT_FOUND": "channel not found for this number",
+            "REAUTHORIZATION_REQUIRED": "channel marked for reauthorization",
+            "ACCOUNT_INACTIVE": "account inactive"
+          }
         }
       },
       "VALUES": {
