@@ -37,7 +37,7 @@
       "LIST_TITLE": "Designated with no movement",
       "SUBTITLE": "Nobody picked these up yet. The AI is still covering the client.",
       "THRESHOLD": "over {min} min",
-      "MINUTES": "{min} min waiting",
+      "WAITING": "waiting for {tempo}",
       "NONE": "Nothing stalled right now"
     },
     "DETAIL": {

@@ -37,7 +37,7 @@
       "LIST_TITLE": "Designados sem movimento",
       "SUBTITLE": "Ninguém pegou ainda. A IA segue cobrindo o cliente.",
       "THRESHOLD": "acima de {min} min",
-      "MINUTES": "{min} min esperando",
+      "WAITING": "esperando há {tempo}",
       "NONE": "Nada parado no momento"
     },
     "DETAIL": {

@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useElementSize } from '@vueuse/core';
 import { duracao, instante } from './tempo';
 
 const props = defineProps({
@@ -42,8 +43,18 @@ const FASES = computed(() => [
   },
 ]);
 const PERDIDO = 'bg-n-ruby-9 text-n-black';
-// Abaixo disso o bloco não cabe o texto; o número continua no título e nos marcos.
-const LARGURA_MINIMA_ROTULO = 12;
+
+// O rótulo do bloco é decidido em PIXELS, medindo a barra — não em porcentagem dela. A conta em
+// porcentagem mentia: 30% de uma barra que ocupa 8% da tela são uns 20 px, e o texto saía
+// cortado no meio da palavra ("admi", "ad"). Em tela estreita isso acontecia em quase todo lead.
+//
+// Dois degraus: cabendo nome e tempo, mostra os dois; cabendo só o tempo, mostra o tempo; não
+// cabendo nada, o bloco fica limpo — o tooltip e o total ao lado continuam contando tudo.
+const PX_NOME_E_TEMPO = 104;
+const PX_SO_TEMPO = 56;
+
+const barra = ref(null);
+const { width: larguraDaBarra } = useElementSize(barra);
 
 const conversa = id => `#${id}`;
 
@@ -163,16 +174,22 @@ const fases = computed(() =>
       const segundos = fasesVivas.value[fase.chave];
       const largura = proporcao(segundos, totalVivo.value);
       const perdeu = fase.chave === 'espera' && props.lead.perdido_em;
+      const pixels = (largura / 100) * larguraDaBarra.value;
+      const duracaoDoBloco = tempo(segundos);
+      let rotulo = '';
+      if (pixels >= PX_NOME_E_TEMPO) {
+        rotulo = `${dono(fase.chave)} · ${duracaoDoBloco}`;
+      } else if (pixels >= PX_SO_TEMPO) {
+        rotulo = duracaoDoBloco;
+      }
+
       return {
         chave: fase.chave,
         // Espera que terminou sem ninguém pegar é o defeito que a tela existe para mostrar.
         classe: perdeu ? PERDIDO : fase.classe,
         largura: `${largura}%`,
-        rotulo:
-          largura >= LARGURA_MINIMA_ROTULO
-            ? `${dono(fase.chave)} · ${tempo(segundos)}`
-            : '',
-        titulo: `${fase.nome} · ${dono(fase.chave)} · ${tempo(segundos)}`,
+        rotulo,
+        titulo: `${fase.nome} · ${dono(fase.chave)} · ${duracaoDoBloco}`,
       };
     })
 );
@@ -237,11 +254,16 @@ const marcos = computed(() =>
       </span>
     </div>
 
-    <div class="flex items-center gap-2">
+    <!-- flex-wrap: em tela estreita o total desce uma linha em vez de espremer a barra. -->
+    <div class="flex flex-wrap items-center gap-2">
       <!-- `v-tooltip` (floating-vue, global no dashboard) no lugar do `title`: o balão nativo
            do navegador demora a aparecer e ignora o tema da tela. -->
+      <!-- `min-w`: com o teto de 24 h na escala, um lead de dez minutos virava um fio de poucos
+           pixels, sem texto nenhum. O piso garante que toda barra caiba pelo menos a duração —
+           e o total ao lado desfaz qualquer dúvida de quem é maior. -->
       <div
-        class="flex h-7 overflow-hidden rounded-md ring-1 ring-inset ring-n-black/10"
+        ref="barra"
+        class="flex h-7 overflow-hidden rounded-md ring-1 ring-inset ring-n-black/10 min-w-[7rem] max-w-full"
         :style="{ width: largura }"
       >
         <div

@@ -313,6 +313,11 @@ const alternarConsultor = async linha => {
   await buscarFaixa(linha.user_id);
 };
 
+// "8399 min esperando" é um número que ninguém lê. Vira "5 d 19h", no mesmo formato do resto da
+// tela, e continua correndo com o relógio local — o lead parado é o que mais precisa disso.
+const esperaDoParado = lead =>
+  duracao(t, (lead.minutos_parado || 0) * 60 + decorrido.value);
+
 const escalaDoConsultor = userId => escalaDe(leadsDe(userId));
 
 const mediaEspera = userId => {
@@ -587,21 +592,23 @@ const irParaPolitica = () =>
               :key="lead.conversation_id"
               class="flex flex-wrap items-center gap-3 px-2 py-1 rounded-md bg-n-slate-3 dark:bg-n-solid-3"
             >
-              <span class="text-sm text-n-slate-12">
-                {{ conversa(lead.display_id) }}
+              <span class="text-sm font-medium text-n-slate-12">
+                {{ lead.corretor || t('AGENTS_RODIZIO.DETAIL.NOBODY') }}
               </span>
-              <span class="text-sm text-n-slate-11">{{
-                lead.corretor || '—'
-              }}</span>
-              <span class="text-sm text-n-slate-10">
+              <span
+                class="px-2 py-0.5 text-xs rounded-full whitespace-nowrap tabular-nums bg-n-amber-3 text-n-amber-11"
+              >
                 {{
-                  t('AGENTS_RODIZIO.STALLED.MINUTES', {
-                    min: lead.minutos_parado,
+                  t('AGENTS_RODIZIO.STALLED.WAITING', {
+                    tempo: esperaDoParado(lead),
                   })
                 }}
               </span>
               <span v-if="lead.produto" class="text-xs text-n-slate-10">
                 {{ lead.produto }}
+              </span>
+              <span class="text-xs tabular-nums text-n-slate-10">
+                {{ conversa(lead.display_id) }}
               </span>
               <button
                 class="ml-auto text-xs underline text-n-slate-11"
