@@ -77,6 +77,7 @@
       "DAYS_7": "Last 7 days",
       "DAYS_30": "Last 30 days",
       "CUSTOM": "Pick dates",
+      "PICK_BOTH": "pick both dates",
       "FROM": "Start date",
       "TO": "End date",
       "RANGE": "· {de} to {ate}"

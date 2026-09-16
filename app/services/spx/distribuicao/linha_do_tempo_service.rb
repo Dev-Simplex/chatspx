@@ -163,6 +163,9 @@ class Spx::Distribuicao::LinhaDoTempoService
   def identificacao(log)
     contato = log.conversation&.contact
     {
+      # A chave do v-for na tela: a CONVERSA se repete quando há repasse (duas designações no
+      # mesmo lead), e chave repetida faz o Vue reaproveitar o cartão errado.
+      id: log.id,
       conversation_id: log.conversation_id,
       display_id: log.conversation&.display_id,
       # Quem é o lead, na linguagem de quem lê a tela: o número identifica mais rápido que o #id.

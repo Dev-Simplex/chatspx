@@ -40,8 +40,13 @@ class Api::V1::Accounts::DistribuicaoDashboardController < Api::V1::Accounts::Ba
 
   # Drill-down: "por que ESTE lead foi pra ESTE corretor". Devolve motivo, candidatos e a
   # política que valia NA HORA — é para isso que o snapshot existe.
+  # SEM o recorte de período de propósito: a pergunta é sobre a CONVERSA, não sobre a janela que
+  # está na tela. Com o filtro, o lead parado desde agosto — que aparece no cartão "sem
+  # movimento", que não tem período — abria o painel vazio quando a tela olhava setembro. A conta
+  # continua sendo o limite.
   def designacoes
-    registros = escopo_periodo.where(conversation_id: params[:conversation_id]).order(id: :desc).limit(20)
+    registros = Spx::Distribuicao::Log.where(account_id: Current.account.id, conversation_id: params[:conversation_id])
+                                      .order(id: :desc).limit(20)
     render json: { designacoes: registros.map { |log| serializar_designacao(log) } }
   end
 

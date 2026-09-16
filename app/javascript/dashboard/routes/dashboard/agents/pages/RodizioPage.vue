@@ -54,6 +54,8 @@ const abas = computed(() => [
 // mostrava "nenhum lead distribuído no período" e ninguém descobria QUAL período. Agora ele é
 // escolhido, vai nas TRÊS chamadas (tabela, faixa e leads) e fica escrito no cabeçalho.
 const periodo = ref('mes');
+// Último preset escolhido, para "Escolher datas" nascer com esse intervalo em vez de vazio.
+let periodoAnterior = 'mes';
 const de = ref('');
 const ate = ref('');
 
@@ -129,7 +131,8 @@ const carregar = async () => {
   // Trocar de time ou de período muda quais leads contam: o que estava aberto vira mentira.
   expandido.value = null;
   timelines.value = {};
-  leadsGerais.value = null;
+  // `leadsGerais` NÃO é zerado: zerar desmonta a lista e a rolagem vai ao topo. A resposta nova
+  // substitui a antiga quando chega, como a tabela já faz.
   try {
     const { data: payload } = await DistribuicaoDashboardAPI.show(parametros());
     data.value = payload;
@@ -177,6 +180,9 @@ const atualizarEmSilencio = async () => {
     const { data: payload } = await DistribuicaoDashboardAPI.show(parametros());
     data.value = payload;
     atualizadoEm.value = new Date();
+    // A tela de erro sai sozinha quando a recarga volta a funcionar: sem isto, quem viu a
+    // primeira carga falhar ficava preso no aviso mesmo com o dado já na mão.
+    loadError.value = false;
   } catch (e) {
     return;
   }
@@ -186,12 +192,26 @@ const atualizarEmSilencio = async () => {
 
 // Trocar o preset recarrega na hora; no personalizado só quando as duas pontas existem, senão a
 // tela recarregaria a cada dígito digitado na primeira data.
-const trocarPeriodo = () => {
-  if (periodo.value !== 'personalizado') carregar();
-};
+const hoje = comoISO(new Date());
 
 const trocarIntervalo = () => {
   if (de.value && ate.value) carregar();
+};
+
+const trocarPeriodo = () => {
+  if (periodo.value === 'personalizado') {
+    // Entra já preenchido com o intervalo que estava na tela: escolher "datas" não pode começar
+    // com dois campos vazios e a tela sem dado.
+    const [inicio, fim] = (INTERVALOS[periodoAnterior] || INTERVALOS.mes)().map(
+      comoISO
+    );
+    de.value = de.value || inicio;
+    ate.value = ate.value || fim;
+    trocarIntervalo();
+    return;
+  }
+  periodoAnterior = periodo.value;
+  carregar();
 };
 
 // O período que o backend de fato usou — é ele que vale, não o que a tela pediu.
@@ -482,22 +502,6 @@ const irParaPolitica = () =>
             {{ item.label }}
           </option>
         </select>
-        <template v-if="periodo === 'personalizado'">
-          <input
-            v-model="de"
-            type="date"
-            class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
-            :aria-label="t('AGENTS_RODIZIO.PERIOD.FROM')"
-            @change="trocarIntervalo"
-          />
-          <input
-            v-model="ate"
-            type="date"
-            class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
-            :aria-label="t('AGENTS_RODIZIO.PERIOD.TO')"
-            @change="trocarIntervalo"
-          />
-        </template>
         <select
           v-model="teamId"
           class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
@@ -522,6 +526,40 @@ const irParaPolitica = () =>
         </button>
       </div>
     </header>
+
+    <!-- As duas datas ganham linha própria: espremidas na fila de botões elas ficavam de alturas
+         diferentes, sem rótulo, e a segunda aparecia como "dd/mm/aaaa" solto no meio da barra.
+         Aqui cabem rótulo, limites (fim nunca antes do início, nada no futuro) e o aviso de que
+         falta escolher — e a linha some quando o período não é personalizado. -->
+    <div
+      v-if="periodo === 'personalizado'"
+      class="flex flex-wrap items-center justify-end gap-3 px-3 py-2 -mt-2 border rounded-xl border-n-weak bg-n-solid-1 dark:bg-n-solid-2"
+    >
+      <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
+        {{ t('AGENTS_RODIZIO.PERIOD.FROM') }}
+        <input
+          v-model="de"
+          type="date"
+          :max="ate || hoje"
+          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+          @change="trocarIntervalo"
+        />
+      </label>
+      <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
+        {{ t('AGENTS_RODIZIO.PERIOD.TO') }}
+        <input
+          v-model="ate"
+          type="date"
+          :min="de"
+          :max="hoje"
+          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+          @change="trocarIntervalo"
+        />
+      </label>
+      <span v-if="!de || !ate" class="text-xs text-n-slate-10">
+        {{ t('AGENTS_RODIZIO.PERIOD.PICK_BOTH') }}
+      </span>
+    </div>
 
     <p v-if="loading" class="text-sm text-n-slate-11">
       {{ t('AGENTS_RODIZIO.LOADING') }}
@@ -728,7 +766,7 @@ const irParaPolitica = () =>
         <template v-else>
           <RodizioLeadCard
             v-for="lead in leadsDaConta"
-            :key="lead.conversation_id"
+            :key="lead.id"
             :lead="lead"
             :escala="escalaDosLeads"
             :decorrido="decorrido"
@@ -885,7 +923,7 @@ const irParaPolitica = () =>
                     <template v-else>
                       <RodizioLeadCard
                         v-for="lead in leadsDe(linha.user_id)"
-                        :key="lead.conversation_id"
+                        :key="lead.id"
                         :lead="lead"
                         :escala="escalaDoConsultor(linha.user_id)"
                         :decorrido="decorrido"
