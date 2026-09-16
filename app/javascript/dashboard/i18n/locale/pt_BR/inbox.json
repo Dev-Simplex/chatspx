@@ -74,6 +74,7 @@
       "SNOOZE": "Notificação adiada",
       "DELETE": "Notificação excluída",
       "MARK_ALL_READ": "Todas as notificações marcadas como lidas",
+      "MARK_ALL_READ_ERROR": "Não foi possível marcar as notificações como lidas",
       "DELETE_ALL": "Todas as notificações excluídas",
       "DELETE_ALL_READ": "Todas as notificações lidas foram excluídas"
     },

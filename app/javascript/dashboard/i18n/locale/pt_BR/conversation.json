@@ -74,6 +74,7 @@
     "AI_SUMMARY_TITLE": "Resumo da IA",
     "AI_SUMMARY_READ_MORE": "Ler mais",
     "AI_SUMMARY_READ_LESS": "Ler menos",
+    "NEWEST_MESSAGE": "Mensagens mais recentes",
     "CLICK_HERE": "Clique aqui",
     "LOADING_INBOXES": "Carregando caixas de entrada",
     "LOADING_CONVERSATIONS": "Carregando conversas",
@@ -90,6 +91,13 @@
     "BOT_HANDOFF_ERROR": "Falha ao resolver conversas. Por favor, tente novamente.",
     "TWILIO_WHATSAPP_CAN_REPLY": "Você só pode responder a esta conversa usando um modelo de mensagem devido a",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "Restrições de janela de mensagem de 24 horas",
+    "WHATSAPP_WINDOW_EXPIRED": {
+      "TITLE": "Janela de 24 horas expirada",
+      "DESCRIPTION": "O WhatsApp só permite mensagens livres dentro de 24 horas após a última mensagem do cliente. Para retomar, envie um template aprovado.",
+      "SEND_TEMPLATE": "Enviar template",
+      "SEND_TEMPLATE_ACTION": "Enviar template",
+      "PRIVATE_NOTE": "Nota privada"
+    },
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "Esta conta do Instagram foi migrada para a nova caixa de entrada do canal do Instagram. Todas as novas mensagens serão mostradas lá. Você não poderá mais enviar mensagens desta conversa.",
     "REPLYING_TO": "Você está respondendo a:",
     "REMOVE_SELECTION": "Remover seleção",
@@ -908,6 +916,15 @@
         "EDIT_TOAST": "Sugestão pronta para editar",
         "DISCARDED_TOAST": "Sugestão descartada"
       }
+    },
+    "SCORE_TITLE": "Nota",
+    "SCORE_FORMAT": "{score}/10",
+    "COMMENT_TITLE": "Comentário",
+    "NPS_REPLY_MESSAGE": "Em uma escala de 0 a 10, o quanto você recomendaria nossa empresa?",
+    "RETRY_ERROR": "Erro ao tentar reenviar a mensagem",
+    "PERMISSION_MODAL": {
+      "TITLE": "Atenção",
+      "BACK": "Voltar para conversas"
     },
     "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente."
   },
