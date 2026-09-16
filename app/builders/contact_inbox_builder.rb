@@ -28,19 +28,23 @@ class ContactInboxBuilder
   end
 
   # WhatsApp Cloud API: um contato brasileiro pode ja ter um ContactInbox gravado na OUTRA
-  # forma do 9o digito (12 digitos legado x 13 digitos atual). Quando o source_id seria
-  # DERIVADO do telefone do contato (nenhum source_id explicito -> "Nova conversa"/"Enviar
-  # template" pelo painel), reusa a ficha existente casando as variantes em vez de criar uma
-  # ficha duplicada que parte a thread numa 2a conversa. source_id explicito (wa_id inbound)
-  # e honrado sem passar por aqui. Reusa o normalizador existente (nao inventa um terceiro).
+  # forma do 9o digito (12 digitos legado x 13 digitos atual). Reusa essa ficha em vez de criar
+  # uma duplicada que parte a thread numa 2a conversa.
+  #
+  # Vale TAMBEM com source_id explicito: o painel (contactable_inboxes_service) manda sempre a
+  # forma de 13 digitos, entao pular o reuso quando vem source_id era justamente o caminho que
+  # criava a 2a ficha. O guard continua estreito -- os outros canais saem na checagem de
+  # channel_type logo abaixo. Reusa o normalizador existente (nao inventa um terceiro).
   def reuse_existing_whatsapp_contact_inbox
-    return nil if @contact.blank? || @source_id.present?
+    return nil if @contact.blank?
     return nil unless @inbox.channel_type == 'Channel::Whatsapp'
-    return nil if @contact.phone_number.blank?
+
+    number = @source_id.presence || @contact.phone_number&.delete('+')
+    return nil if number.blank?
 
     resolved_source_id = Whatsapp::PhoneNumberNormalizationService
                          .new(@inbox)
-                         .normalize_and_find_contact_by_provider(@contact.phone_number.delete('+'), :cloud)
+                         .normalize_and_find_contact_by_provider(number, :cloud)
     @inbox.contact_inboxes.find_by(contact_id: @contact.id, source_id: resolved_source_id)
   end
 
