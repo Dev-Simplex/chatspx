@@ -138,7 +138,7 @@ const statusClass = computed(() => {
               <NextButton
                 :label="t('INTEGRATION_SETTINGS.OPENAI.SAVE.BUTTON')"
                 variant="solid"
-                color="brand"
+                color="blue"
                 :is-loading="isSaving"
                 @click="save"
               />
@@ -211,7 +211,7 @@ const statusClass = computed(() => {
           <NextButton
             :label="t('INTEGRATION_SETTINGS.OPENAI.SAVE.BUTTON')"
             variant="solid"
-            color="brand"
+            color="blue"
             :is-loading="isSaving"
             @click="save"
           />
