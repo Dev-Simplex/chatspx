@@ -26,7 +26,8 @@ const aba = ref('consultores');
 // Relógio da tela. A resposta do backend é uma FOTOGRAFIA: o tempo de espera é calculado no
 // instante do request e congelava ali — numa tela feita para vigiar lead parado, o número que
 // para de crescer é justamente o que interessa. `agora` faz os tempos abertos correrem entre
-// uma recarga e outra, e `atualizadoEm` diz de quando é o dado.
+// uma recarga e outra. `atualizadoEm` não vai para a tela: contador piscando a cada segundo é
+// ruído, e o que o usuário quer ver é o tempo do LEAD correndo, não o da página.
 const agora = ref(new Date());
 const atualizadoEm = ref(null);
 let relogio = null;
@@ -39,11 +40,6 @@ const decorrido = computed(() =>
     : 0
 );
 
-const atualizadoHa = computed(() =>
-  atualizadoEm.value
-    ? t('AGENTS_RODIZIO.UPDATED_AGO', { tempo: duracao(t, decorrido.value) })
-    : ''
-);
 const leadsGerais = ref(null);
 const leadsLoading = ref(false);
 
@@ -112,7 +108,7 @@ const parametros = () => {
 };
 
 const carregarLeads = async () => {
-  leadsLoading.value = true;
+  leadsLoading.value = !leadsGerais.value;
   try {
     const { data: payload } =
       await DistribuicaoDashboardAPI.leads(parametros());
@@ -125,7 +121,9 @@ const carregarLeads = async () => {
 };
 
 const carregar = async () => {
-  loading.value = true;
+  // Só a PRIMEIRA carga mostra "carregando". Trocar o conteúdo por uma linha de texto desmonta a
+  // tabela, a página encolhe e a rolagem volta ao topo — a cada recarga, no meio da leitura.
+  loading.value = !data.value;
   loadError.value = false;
   detalhe.value = null;
   // Trocar de time ou de período muda quais leads contam: o que estava aberto vira mentira.
@@ -510,12 +508,6 @@ const irParaPolitica = () =>
             {{ time.name }} ({{ time.modo_posse }})
           </option>
         </select>
-        <span
-          v-if="atualizadoHa"
-          class="text-xs tabular-nums text-n-slate-10 whitespace-nowrap"
-        >
-          {{ atualizadoHa }}
-        </span>
         <button
           class="h-9 px-3 text-sm rounded-lg bg-n-brand text-white transition-shadow hover:shadow-md whitespace-nowrap"
           @click="carregar"
