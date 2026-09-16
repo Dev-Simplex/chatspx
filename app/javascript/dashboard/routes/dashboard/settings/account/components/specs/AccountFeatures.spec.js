@@ -2,6 +2,9 @@ import { mount, flushPromises } from '@vue/test-utils';
 import AccountFeatures from '../AccountFeatures.vue';
 
 vi.mock('dashboard/composables', () => ({ useAlert: vi.fn() }));
+vi.mock('dashboard/composables/store.js', () => ({
+  useMapGetter: () => ({ value: { installationName: 'Chat SPX' } }),
+}));
 
 const getSpy = vi.fn();
 const updateSpy = vi.fn();
@@ -52,6 +55,20 @@ describe('AccountFeatures', () => {
     await flushPromises();
 
     expect(getSpy).toHaveBeenCalled();
+  });
+
+  it('exibe o nome da instalação em recursos com marca', async () => {
+    getSpy.mockResolvedValue({
+      data: {
+        features: [feature('chatwoot_v4', { display_name: 'Chatwoot V4' })],
+      },
+    });
+    const wrapper = montar();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Chat SPX V4');
+    expect(wrapper.text()).not.toContain('Chatwoot');
+    expect(wrapper.text()).not.toContain('chatwoot_v4');
   });
 
   it('mostra os tres grupos', async () => {
