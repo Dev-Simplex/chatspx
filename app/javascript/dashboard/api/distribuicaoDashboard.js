@@ -25,6 +25,11 @@ class DistribuicaoDashboard extends ApiClient {
       params: { ...params, user_id: userId },
     });
   }
+
+  // A conta inteira, lead a lead: onde cada um está agora, com quem, e há quanto tempo.
+  leads(params = {}) {
+    return axios.get(`${this.url}/leads`, { params });
+  }
 }
 
 export default new DistribuicaoDashboard();
