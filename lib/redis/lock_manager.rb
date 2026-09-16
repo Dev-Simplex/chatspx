@@ -30,9 +30,15 @@ class Redis::LockManager
   # * +true+ if the lock was successfully acquired.
   # * +false+ if the lock was not acquired.
   def lock(key, timeout = LOCK_TIMEOUT)
-    value = Time.now.to_f.to_s
+    # Token de posse. O valor antigo era `Time.now.to_f` e nunca era conferido: quando o TTL
+    # estourava no meio do trabalho, um segundo dono adquiria a "mesma" trava e o primeiro, ao
+    # terminar, apagava a trava DELE -- liberando um terceiro. Agora so apaga quem e dono.
+    token = SecureRandom.uuid
     # nx: true means set the key only if it does not exist
-    Redis::Alfred.set(key, value, nx: true, ex: timeout) ? true : false
+    return false unless Redis::Alfred.set(key, token, nx: true, ex: timeout)
+
+    tokens[key] = token
+    true
   end
 
   # Releases a lock for the given key.
@@ -45,7 +51,12 @@ class Redis::LockManager
   #
   # Note: If the key wasn't locked, this operation will have no effect.
   def unlock(key)
-    Redis::Alfred.delete(key)
+    token = tokens.delete(key)
+    # Sem token guardado (quem chama nao adquiriu a trava por esta instancia): comportamento
+    # antigo, apaga direto.
+    return Redis::Alfred.delete(key).present? || true if token.blank?
+
+    Redis::Alfred.delete_if_value(key, token)
     true
   end
 
@@ -59,5 +70,12 @@ class Redis::LockManager
   # * +false+ otherwise.
   def locked?(key)
     Redis::Alfred.exists?(key)
+  end
+
+  private
+
+  # Um LockManager por `with_lock`, entao o mapa nao cresce: e a posse daquela execucao.
+  def tokens
+    @tokens ||= {}
   end
 end
