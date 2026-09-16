@@ -27,6 +27,11 @@ module Redis::RedisKeys
   AUTHORIZATION_ERROR_COUNT = 'AUTHORIZATION_ERROR_COUNT:%<obj_type>s:%<obj_id>d'.freeze
   REAUTHORIZATION_REQUIRED =  'REAUTHORIZATION_REQUIRED:%<obj_type>s:%<obj_id>d'.freeze
 
+  # Inbound do WhatsApp descartado ANTES de virar mensagem (canal nao encontrado, canal marcado
+  # para reautorizar, conta inativa). O descarte responde 200 para a Meta, entao nao ha reentrega:
+  # sem contador, "recebendo zero" e indistinguivel de "ninguem escreveu hoje".
+  WHATSAPP_DROPPED_INBOUND = 'WHATSAPP_DROPPED_INBOUND::%<channel_id>s::%<reason>s'.freeze
+
   ## Internal Installation related keys
   CHATWOOT_INSTALLATION_ONBOARDING = 'CHATWOOT_INSTALLATION_ONBOARDING'.freeze
   CHATWOOT_INSTALLATION_CONFIG_RESET_WARNING = 'CHATWOOT_CONFIG_RESET_WARNING'.freeze

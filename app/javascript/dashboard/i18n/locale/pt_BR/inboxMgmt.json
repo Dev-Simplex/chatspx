@@ -667,6 +667,16 @@
         "ACCOUNT_MODE": {
           "LABEL": "Modo da conta",
           "TOOLTIP": "Modo de operação atual da sua conta do WhatsApp"
+        },
+        "DROPPED_INBOUND": {
+          "LABEL": "Recebidas e descartadas",
+          "VALUE": "{count} nos últimos 7 dias ({reason})",
+          "TOOLTIP": "Mensagens que o WhatsApp entregou e esta caixa descartou antes de virarem mensagem. A Meta recebe 200, então elas nunca são reenviadas.",
+          "REASONS": {
+            "CHANNEL_NOT_FOUND": "caixa não encontrada para este número",
+            "REAUTHORIZATION_REQUIRED": "caixa marcada para reautorizar",
+            "ACCOUNT_INACTIVE": "conta inativa"
+          }
         }
       },
       "VALUES": {
