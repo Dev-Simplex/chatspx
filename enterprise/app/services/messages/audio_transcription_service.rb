@@ -32,13 +32,7 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     { error: "OpenAI request failed (#{e.class})" }
   end
 
-  private
-
-  # Áudio (Whisper) usa uma key OpenAI própria, com fallback pra CAPTAIN_OPEN_AI_API_KEY.
-  def api_key_config_name
-    'AUDIO_OPEN_AI_API_KEY'
-  end
-
+  # Publico: o hook do anexo pergunta antes de escolher qual pipeline transcreve.
   def can_transcribe?
     # Captain v2 ("AI Agents") is the canonical flag; 'captain_integration' is the
     # legacy one (hidden from the super-admin UI). Accounts migrated to v2 can end up
@@ -47,6 +41,13 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     return false if account.audio_transcriptions.blank?
 
     account.usage_limits[:captain][:responses][:current_available].positive?
+  end
+
+  private
+
+  # Áudio (Whisper) usa uma key OpenAI própria, com fallback pra CAPTAIN_OPEN_AI_API_KEY.
+  def api_key_config_name
+    'AUDIO_OPEN_AI_API_KEY'
   end
 
   def fetch_audio_file
