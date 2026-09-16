@@ -36,15 +36,59 @@
       "LIST_TITLE": "Designated with no movement",
       "SUBTITLE": "Nobody picked these up yet. The AI is still covering the client.",
       "THRESHOLD": "over {min} min",
-      "MINUTES": "{min} min waiting",
+      "WAITING": "waiting for {tempo}",
       "NONE": "Nothing stalled right now"
     },
     "DETAIL": {
       "OPEN": "Why this one?",
       "TITLE": "Conversation {id}",
       "CLOSE": "Close",
-      "DESIGNATED_AT": "Designated at",
-      "CANDIDATES": "Candidates:"
+      "NOBODY": "Nobody was picked",
+      "CANDIDATES": "In the running:",
+      "RAW": "see the technical record",
+      "REASON": {
+        "RODIZIO": "came through the rotation",
+        "CONTINUIDADE": "came through continuity — already their client",
+        "PREFERENCIA": "came through a customer request",
+        "MANUAL": "the manager picked by hand",
+        "REPASSE": "came through a hand-off, the previous deadline blown",
+        "ESCALADO": "was escalated to the manager",
+        "SEM_POOL": "nobody was eligible at the time",
+        "FILA": "stayed in the queue, unowned, for whoever grabbed it first"
+      },
+      "STATUS": {
+        "DESIGNADO": "nobody picked it up yet",
+        "ASSUMIDO": "picked up the conversation",
+        "ENGAJADO": "worked the lead in Vista",
+        "EXPIRADO": "blew the deadline and was handed off",
+        "SUBSTITUIDO": "another assignment took its place"
+      },
+      "RULE": {
+        "TITLE": "The rule in force at the time:",
+        "POSSE_DESIGNACAO": "the conversation was not assigned — the AI kept answering until someone picked it up",
+        "POSSE_ASSIGNEE": "the conversation was assigned right away, and the AI went quiet",
+        "REPASSE_AUTO": "if nobody picked it up in {min} min, it moved on by itself",
+        "REPASSE_MANUAL": "no automatic hand-off — the {min} min only flag the lead as stalled"
+      }
+    },
+    "PERIOD": {
+      "MONTH": "This month",
+      "LAST_MONTH": "Last month",
+      "DAYS_7": "Last 7 days",
+      "DAYS_30": "Last 30 days",
+      "CUSTOM": "Pick dates",
+      "PICK_BOTH": "pick both dates",
+      "FROM": "Start date",
+      "TO": "End date",
+      "RANGE": "· {de} to {ate}"
+    },
+    "TABS": {
+      "BY_AGENT": "By agent",
+      "BY_LEAD": "By lead"
+    },
+    "LEADS": {
+      "TITLE": "Every lead in the period: where it is, with whom, and for how long",
+      "EMPTY": "No rotation leads in this period. Change the period at the top to look at another month."
     },
     "TIMELINE": {
       "OPEN": "See the lead timeline",
@@ -52,7 +96,7 @@
       "AVG_WAIT": "average wait: {tempo}",
       "EMPTY": "No rotation leads in this period.",
       "SHOWING": "showing {n} of {total}",
-      "LEGEND": "Width is time, on the same scale for every lead.",
+      "LEGEND": "Width is time, on the same scale for every lead, up to 24h; the exact total sits next to the bar.",
       "AI_SHORT": "AI",
       "SECONDS": "{n}s",
       "MINUTES": "{n} min",
@@ -65,6 +109,10 @@
         "ESPERA": "waiting for the consultant",
         "ATENDIMENTO": "being handled"
       },
+      "NOW": {
+        "WAITING_WITH": "waiting for {nome} to pick it up for {tempo}",
+        "IN_SERVICE_WITH": "with {nome} for {tempo}"
+      },
       "MARK": {
         "ARRIVED": "arrived {hora}",
         "DESIGNATED": "designated {hora}",
@@ -74,11 +122,9 @@
         "RESOLVED": "resolved {hora}"
       },
       "OUTCOME": {
-        "RESOLVED": "resolved in {tempo}",
-        "IN_SERVICE": "being handled",
-        "WAITING": "nobody picked it up · waiting for {tempo}",
-        "EXPIRED": "expired with nobody picking it up",
-        "PASSED": "expired and went to {nome}"
+        "RESOLVED": "{nome} · resolved in {tempo}",
+        "EXPIRED": "{nome} · expired with nobody picking it up",
+        "PASSED": "{nome} · expired and went to {destino}"
       }
     },
     "CONFIGURE": "Set up rotation",

@@ -65,6 +65,7 @@ Rails.application.routes.draw do
           resource :distribuicao_dashboard, only: [:show], controller: 'distribuicao_dashboard' do
             get :designacoes
             get :linha_do_tempo
+            get :leads
           end
 
           # Alias do contrato C1 do briefing (sem o prefixo /captain). A rota
