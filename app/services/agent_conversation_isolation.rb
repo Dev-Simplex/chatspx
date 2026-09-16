@@ -26,8 +26,8 @@
 # a galeria de anexos e o BulkActionsJob. Duplicar a checagem em qualquer um deles é
 # como as quatro superfícies passam a discordar.
 #
-# Decisão do dono: NÃO esconder da busca/lista/notificação — a conversa continua
-# aparecendo; o isolamento age SÓ na abertura.
+# Decisão do dono: a busca/lista continua mostrando a conversa, mas a notificação
+# de conversa nova é recolhida quando o dono muda e o agente não pode mais abri-la.
 module AgentConversationIsolation
   module_function
 
