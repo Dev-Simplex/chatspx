@@ -15,6 +15,10 @@ defineProps({
     type: String,
     default: '',
   },
+  hasError: {
+    type: Boolean,
+    default: false,
+  },
   isFetching: {
     type: Boolean,
     default: false,
@@ -42,6 +46,7 @@ const getName = message => {
     :query="query"
     :show-title="showTitle"
     :is-fetching="isFetching"
+    :has-error="hasError"
   >
     <ul v-if="messages.length" class="space-y-3 list-none">
       <li v-for="message in messages" :key="message.id">
@@ -49,6 +54,9 @@ const getName = message => {
           :id="message.conversationId"
           :account-id="accountId"
           :inbox-id="message.inboxId"
+          :inbox-data="message.inbox"
+          :avatar-name="getName(message)"
+          :avatar-src="message.sender?.thumbnail || message.sender?.avatarUrl"
           :created-at="message.createdAt"
           :message-id="message.id"
           :is-private="message.private"
