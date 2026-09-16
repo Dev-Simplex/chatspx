@@ -336,6 +336,18 @@ describe NotificationListener do
       expect(other_notification.reload).to be_persisted
     end
 
+    it 'não notifica quem já não pode abrir quando a atribuição chega antes do job de criação' do
+      Notification.where(primary_actor: new_conversation).delete_all
+      inbox.update!(agent_conversation_isolation: true)
+      new_conversation.update!(assignee: agent_a)
+
+      listener.conversation_created(Events::Base.new(:'conversation.created', Time.zone.now, conversation: new_conversation.reload))
+
+      expect(agent_a.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+      expect(agent_b.notifications.where(notification_type: :conversation_creation)).to be_empty
+      expect(admin.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+    end
+
     it 'recolhe de agente de outro time após a triagem e preserva o admin' do
       team_x = create(:team, account: account)
       team_y = create(:team, account: account)

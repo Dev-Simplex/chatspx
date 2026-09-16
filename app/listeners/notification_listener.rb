@@ -53,12 +53,19 @@ class NotificationListener < BaseListener
 
   private
 
+  # T43: a triagem/rodízio define time e dono segundos depois da criação. Quem recebeu o aviso de
+  # conversa nova e não pode mais abri-la perde o aviso (o destroy emite notification.deleted pro sino).
   def remove_inaccessible_creation_notifications(conversation, account)
     visibility = Conversations::VisibilityService.new(conversation: conversation)
     account.notifications.where(primary_actor: conversation, notification_type: :conversation_creation).includes(:user).find_each do |notification|
-      user = notification.user
-      notification.destroy unless visibility.visible_to?(user) && !AgentConversationIsolation.hidden_from?(conversation, user, account)
+      notification.destroy unless can_open?(visibility, conversation, notification.user, account)
     end
+  end
+
+  # Audiência da notificação de conversa nova = quem consegue abrir a conversa: time (VisibilityService)
+  # e isolamento por agente. Usada na criação e no recolhimento, para as duas nunca discordarem.
+  def can_open?(visibility, conversation, user, account)
+    visibility.visible_to?(user) && !AgentConversationIsolation.hidden_from?(conversation, user, account)
   end
 
   # D4 (D-9): quem PERDEU a conversa é notificado quando outro agente assume (takeover).
@@ -113,7 +120,7 @@ class NotificationListener < BaseListener
     visibility = Conversations::VisibilityService.new(conversation: conversation)
     members = conversation.inbox.members.includes(:notification_settings)
     members.each do |agent|
-      next unless visibility.visible_to?(agent)
+      next unless can_open?(visibility, conversation, agent, account)
 
       NotificationBuilder.new(
         notification_type: 'conversation_creation',
