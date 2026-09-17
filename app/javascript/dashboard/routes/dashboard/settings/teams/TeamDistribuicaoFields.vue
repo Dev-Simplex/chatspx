@@ -231,7 +231,9 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
             <option value="rodizio">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.MODO.RODIZIO') }}
             </option>
-            <option value="online">
+            <!-- O Motor ainda nao distribui neste modo (Policy#distribui?): escolher desligava o
+                 time em silencio. Fica visivel e travado para quem ja esta nele ver o aviso. -->
+            <option value="online" disabled>
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.MODO.ONLINE') }}
             </option>
             <option value="off">
