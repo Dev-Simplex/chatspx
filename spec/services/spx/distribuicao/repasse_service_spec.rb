@@ -146,6 +146,29 @@ RSpec.describe Spx::Distribuicao::RepasseService do
 
       expect(resultado.repassou).to be(false)
       expect(resultado.motivo).to eq('ja_engajada')
+      expect(log.reload.status).to eq('assumido')
+    end
+
+    # O "clica para ver e já foi para outro" da Catatau: o vendedor já tinha falado com o cliente,
+    # recebeu a designação e ficou esperando o cliente responder.
+    it 'não tira o lead de quem já atendia o cliente antes da designação' do
+      create(:message, account: account, inbox: inbox, conversation: conversation,
+                       message_type: :outgoing, sender: corretores[0], content: 'oi', created_at: 2.hours.ago)
+      log = designacao(corretores[0])
+
+      resultado = described_class.new(log).call
+
+      expect(resultado.repassou).to be(false)
+      expect(resultado.motivo).to eq('ja_engajada')
+    end
+
+    it 'resposta de mais de uma semana não segura o lead' do
+      create(:message, account: account, inbox: inbox, conversation: conversation,
+                       message_type: :outgoing, sender: corretores[0], content: 'oi', created_at: 8.days.ago)
+      log = designacao(corretores[0])
+      conversation.update!(assignee_id: corretores[0].id)
+
+      expect(described_class.new(log).call.repassou).to be(true)
     end
 
     it 'não repassa conversa já resolvida' do
