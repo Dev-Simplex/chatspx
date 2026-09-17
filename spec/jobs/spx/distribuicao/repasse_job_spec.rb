@@ -116,6 +116,18 @@ RSpec.describe Spx::Distribuicao::RepasseJob do
       expect(conv.reload.assignee_id).to eq(dono.id)
     end
 
+    # O "cliquei e já foi para outro" da Catatau, no job que só acorda com expediente cadastrado.
+    it 'nao repassa se ele ja atendia o cliente antes de receber' do
+      conv, log = conversa_com_dono(dono)
+      create(:message, account: account, inbox: inbox, conversation: conv,
+                       message_type: :outgoing, sender: dono, private: false, created_at: log.designado_em - 2.hours)
+
+      described_class.new.perform
+
+      expect(log.reload.status).to eq('assumido')
+      expect(conv.reload.assignee_id).to eq(dono.id)
+    end
+
     # Nota privada não é resposta ao cliente: o lead continua parado do ponto de vista dele.
     it 'nota privada nao conta como resposta' do
       conv, log = conversa_com_dono(dono)
