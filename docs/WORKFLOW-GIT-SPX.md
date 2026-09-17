@@ -29,13 +29,14 @@ Todas as worktrees do `chatspx` **compartilham o mesmo `.git`** (mesmo históric
 | Branch | Papel | Quem commita | Onde roda |
 |---|---|---|---|
 | `feat/*`, `spx/*` | **Unidade de trabalho** — 1 branch por task/feature | qualquer dev | VM de teste do dev |
-| `paulao` | **Branch de dev do Paulo** (VM pessoal de teste) | Paulo | VM Dev `paulao` (na frota Almirante) |
+| ~~`paulao`~~ | **Desativada em 16/09/2026.** Era a branch de dev do Paulo | — | VM `192.168.8.100` fora do ar |
 | `nicolas` | **Branch de dev do Nicolas** | Nicolas | VM Dev `nicolas` (na frota Almirante) |
+| `walisson` | **Branch de dev do Walisson** (tech lead) | Walisson | VM Dev `192.168.8.46` (sandbox, desde 16/09/2026) |
 | `homologacao` | **Staging** — integração antes de prod | via merge (não direto) | 1 VM `homologacao` (Proxmox) — contas 3/4/5 |
 | `producao` | **Produção** — o único que **replica** pras VMs de cliente | via merge (não direto) | **5 VMs CRÍTICAS**: `producao` · `catatau` · `sentinela` · `tozi` (c6) · `fabrica` (c1/2) |
 | `master` | Chatwoot upstream (open-source). **NÃO é o produto** — só a base do fork. Não tocar. | ninguém (só sync upstream) | — |
 
-> ⚠️ **`paulao` precisa de reconciliação antes de reviver:** a branch `origin/paulao` está ancestral de `producao` (nada único), MAS a **VM `paulao` roda um commit à frente do `origin/paulao`** (trabalho off-git no box). Antes de resetar a branch, **fazer backup/push do que está na VM** — senão estranda. Ver "Reviver a branch de dev".
+> ℹ️ **VM `paulao` desativada em 16/09/2026.** A `192.168.8.100` não responde mais, e o alerta antigo de trabalho off-git no box **não procede**: o commit que ele citava (`a1ca9dd817`, "style(spx-tozi): satisfazer rubocop") **já está em `producao`**, conferido antes de desativar. A branch `origin/paulao` estava em `19ad487573`, sem nenhum commit fora de `producao`, e foi removida. Para recriar, basta `git push origin <sha>:refs/heads/paulao`.
 
 ---
 
@@ -44,7 +45,7 @@ Todas as worktrees do `chatspx` **compartilham o mesmo `.git`** (mesmo históric
 ```
   feature branch (feat/*, spx/*)      ← onde o CÓDIGO é escrito, 1 por task
           │
-          │  dev testa na SUA VM (branch de dev: paulao=Paulo, nicolas=Nicolas)
+          │  dev testa na SUA VM (branch de dev: nicolas=Nicolas, walisson=Walisson)
           ▼
      homologacao         staging (contas 3/4/5 — clientes reais leves)
           │
@@ -181,20 +182,9 @@ por essa lacuna que a sessão da Fábrica commitou na worktree primária em 29/0
 
 ---
 
-## Reviver a branch de dev (`paulao`) no modelo "cada dev sua VM"
-
-A VM `paulao` existe e está viva, mas roda commit à frente do `origin/paulao` (off-git). Sequência **segura**:
-
-1. **Backup do box primeiro:** SSH na VM `paulao`, `git push origin paulao` (ou salvar o patch de `a1ca9dd81`). Só depois de garantir que nada da VM vive só lá.
-2. Resetar `paulao` sobre a base atual: `git checkout paulao && git reset --hard origin/homologacao` **(destrutivo — só com OK explícito e após o passo 1)**.
-3. VM do Paulo trackeia `paulao`; dev testa lá; promove pra `homologacao` por merge/PR.
-4. Espelhar o mesmo pra `nicolas`.
-
----
-
 ## Pendências de reconciliação (auditoria 2026-07-08)
 
 - 🟢 **`feat/aguardando-atendimento`** — 3 commits de handoff (Paulo, 24/jun) — **pushados pro origin em 08/07** (não vive mais só no notebook).
-- 🟡 **VM `paulao` à frente do `origin/paulao`** (`a1ca9dd81`) — reconciliar/pushar antes de reviver a branch.
+- 🟢 **VM `paulao`** — desativada em 16/09/2026. O commit que parecia viver só no box (`a1ca9dd81`) foi conferido e **já estava em `producao`**; nada se perdeu.
 - 🟡 **VM `homologacao` à frente do `origin/homologacao`** (commits do Nicolas no box) — reconciliar com o GitHub.
 - 🟢 `origin/paulao`, `origin/nicolas`, hotfix FK CASCADE, migration do eval: já reconciliados/salvos.

@@ -408,7 +408,7 @@ Sem ENV novas obrigatórias (constantes no model; se quiser, aceitar override po
   - galeria: zip por filtro bate com o index dedupado (mesma contagem).
 - **Front (vitest):** actions/mutations do bulk no store; toolbar renderiza estados (idle/preparando/erro); banner "selecionar todos do filtro" aparece só quando `totalCount > carregados`.
 
-### Manual (homologação — VM 8.100/paulao antes de Tozi)
+### Manual (homologação — VM 8.232 antes de Tozi)
 
 1. Galeria: selecionar 8 → download direto (sem zip). Selecionar 60 → zip; abrir no Windows Explorer e macOS (nomes acentuados ok).
 2. "Selecionar todos do filtro" com ~300 itens incl. vídeos → acompanhar progresso; conferir RAM do worker Sidekiq durante o job (`ps`/`free -h`) — deve ficar estável.
