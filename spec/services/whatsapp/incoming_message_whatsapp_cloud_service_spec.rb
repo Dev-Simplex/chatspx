@@ -57,6 +57,20 @@ describe Whatsapp::IncomingMessageWhatsappCloudService do
         expect(whatsapp_channel.inbox.messages.first.attachments.present?).to be false
         expect(whatsapp_channel.authorization_error_count).to eq(1)
       end
+
+      # O download roda DENTRO da trava por contato (TTL de 30s). Sem teto, um anexo gigante
+      # segurava a trava alem do TTL e dois webhooks do mesmo contato passavam a rodar juntos.
+      it 'caps the media download at the hard upload limit' do
+        stub_media_url_request
+        stub_sample_png_request
+        allow(Down).to receive(:download).and_call_original
+
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+
+        expect(Down).to have_received(:download).with(
+          anything, hash_including(max_size: Attachment::HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB.megabytes)
+        )
+      end
     end
 
     context 'when invalid attachment message params' do

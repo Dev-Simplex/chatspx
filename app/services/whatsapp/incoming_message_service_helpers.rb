@@ -1,6 +1,11 @@
 module Whatsapp::IncomingMessageServiceHelpers
+  # Este download roda DENTRO da trava por contato (WHATSAPP_MESSAGE_CREATE_LOCK, TTL de 30s).
+  # Sem teto, um anexo gigante segurava a trava alem do TTL e dois webhooks do mesmo contato
+  # passavam a rodar em paralelo. O teto e o mesmo que o produto ja recusa no upload.
   def download_attachment_file(attachment_payload)
-    Down.download(inbox.channel.media_url(attachment_payload[:id]), headers: inbox.channel.api_headers)
+    Down.download(inbox.channel.media_url(attachment_payload[:id]),
+                  headers: inbox.channel.api_headers,
+                  max_size: Attachment::HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB.megabytes)
   end
 
   def conversation_params
