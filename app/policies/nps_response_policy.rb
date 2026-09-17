@@ -3,6 +3,10 @@ class NpsResponsePolicy < ApplicationPolicy
     @account_user.administrator? || @account_user.agent?
   end
 
+  def show_by_conversation?
+    @account_user.administrator? || @account_user.agent?
+  end
+
   def metrics?
     @account_user.administrator? || @account_user.agent?
   end

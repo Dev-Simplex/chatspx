@@ -354,12 +354,32 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
 
   def check_whatsapp_with_fallback
     session_name = resolve_waha_session_name
+    raise Waha::ApiService::Error, 'No WAHA session configured for contact' if session_name.blank?
+
     phones_to_try = whatsapp_phone_candidates
     phones_to_try.each do |phone|
       response = waha_service.check_contact_exists(session_name: session_name, phone: phone)
       return true if response.fetch('numberExists') { response[:numberExists] }
     end
     false
+  end
+
+  def resolve_waha_session_name
+    return @waha_session_name if @waha_session_name.present?
+
+    candidates = contact_waha_session_candidates
+    @waha_session_name = if candidates.many?
+                           candidates.find { |name| Waha::SessionStatusCache.usable?(name) } || candidates.first
+                         else
+                           candidates.first
+                         end
+  end
+
+  def contact_waha_session_candidates
+    inboxes = @contact.contact_inboxes.includes(inbox: :channel).map(&:inbox)
+    inboxes.select! { |inbox| %w[Channel::Api Channel::Whatsapp].include?(inbox.channel_type) || inbox.twilio_whatsapp? }
+    (inboxes.map(&:waha_session_name) + inboxes.map { |inbox| Waha::GroupLocator.session_from_webhook(inbox) } +
+      [ENV.fetch('WAHA_DEFAULT_SESSION', nil)]).filter_map(&:presence).uniq
   end
 
   def whatsapp_phone_candidates

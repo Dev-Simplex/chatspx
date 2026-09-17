@@ -15,6 +15,10 @@ class AccountPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def chat_wallpaper?
+    @account_user.administrator?
+  end
+
   # Mesma regra do `update?`: mexer no que a conta inteira enxerga e coisa de administrador.
   def features?
     @account_user.administrator?

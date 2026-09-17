@@ -41,7 +41,10 @@ describe('#actions', () => {
       await actions.get({ commit }, { q: 'value' });
       expect(commit.mock.calls).toEqual([
         [types.SEARCH_CONVERSATIONS_SET, []],
-        [types.SEARCH_CONVERSATIONS_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.SEARCH_CONVERSATIONS_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
         [
           types.SEARCH_CONVERSATIONS_SET,
           [{ messages: [{ id: 1, content: 'value testing' }], id: 1 }],
@@ -55,7 +58,11 @@ describe('#actions', () => {
       await actions.get({ commit }, { q: 'value' });
       expect(commit.mock.calls).toEqual([
         [types.SEARCH_CONVERSATIONS_SET, []],
-        [types.SEARCH_CONVERSATIONS_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.SEARCH_CONVERSATIONS_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
+        [types.SEARCH_CONVERSATIONS_SET_UI_FLAG, { hasError: true }],
         [types.SEARCH_CONVERSATIONS_SET_UI_FLAG, { isFetching: false }],
       ]);
     });
@@ -108,7 +115,10 @@ describe('#actions', () => {
 
       await actions.contactSearch({ commit }, { q: 'test', page: 1 });
       expect(commit.mock.calls).toEqual([
-        [types.CONTACT_SEARCH_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.CONTACT_SEARCH_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
         [types.CONTACT_SEARCH_SET, [{ id: 1 }]],
         [types.CONTACT_SEARCH_SET_UI_FLAG, { isFetching: false }],
       ]);
@@ -118,7 +128,11 @@ describe('#actions', () => {
       axios.get.mockRejectedValue({});
       await actions.contactSearch({ commit }, { q: 'test' });
       expect(commit.mock.calls).toEqual([
-        [types.CONTACT_SEARCH_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.CONTACT_SEARCH_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
+        [types.CONTACT_SEARCH_SET_UI_FLAG, { hasError: true }],
         [types.CONTACT_SEARCH_SET_UI_FLAG, { isFetching: false }],
       ]);
     });
@@ -154,7 +168,7 @@ describe('#actions', () => {
       ]);
       expect(commit.mock.calls[3]).toEqual([
         types.CONVERSATION_SEARCH_SET_UI_FLAG,
-        { isFetching: true },
+        { isFetching: true, hasError: false },
       ]);
       expect(commit.mock.calls[4][0]).toBe(
         types.CONVERSATION_SEARCH_SET_IF_CURRENT
@@ -185,7 +199,7 @@ describe('#actions', () => {
       // Expected: SET_CONVERSATION_SEARCH_REQUEST_ID, SET_CONVERSATION_SEARCH_QUERY,
       // SET_CONVERSATION_SEARCH_COMPLETED(false), CONVERSATION_SEARCH_SET_UI_FLAG(true),
       // CONVERSATION_SEARCH_SET_UI_FLAG(false), SET_CONVERSATION_SEARCH_COMPLETED(true)
-      expect(commit.mock.calls.length).toBe(6);
+      expect(commit.mock.calls.length).toBe(7);
       expect(commit.mock.calls[0][0]).toBe(
         types.SET_CONVERSATION_SEARCH_REQUEST_ID
       );
@@ -199,13 +213,17 @@ describe('#actions', () => {
       ]);
       expect(commit.mock.calls[3]).toEqual([
         types.CONVERSATION_SEARCH_SET_UI_FLAG,
-        { isFetching: true },
+        { isFetching: true, hasError: false },
       ]);
       expect(commit.mock.calls[4]).toEqual([
         types.CONVERSATION_SEARCH_SET_UI_FLAG,
-        { isFetching: false },
+        { hasError: true },
       ]);
       expect(commit.mock.calls[5]).toEqual([
+        types.CONVERSATION_SEARCH_SET_UI_FLAG,
+        { isFetching: false },
+      ]);
+      expect(commit.mock.calls[6]).toEqual([
         types.SET_CONVERSATION_SEARCH_COMPLETED,
         true,
       ]);
@@ -237,7 +255,10 @@ describe('#actions', () => {
 
       await actions.messageSearch({ commit }, { q: 'test', page: 1 });
       expect(commit.mock.calls).toEqual([
-        [types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.MESSAGE_SEARCH_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
         [types.MESSAGE_SEARCH_SET, [{ id: 1 }]],
         [types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: false }],
       ]);
@@ -247,7 +268,11 @@ describe('#actions', () => {
       axios.get.mockRejectedValue({});
       await actions.messageSearch({ commit }, { q: 'test' });
       expect(commit.mock.calls).toEqual([
-        [types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.MESSAGE_SEARCH_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
+        [types.MESSAGE_SEARCH_SET_UI_FLAG, { hasError: true }],
         [types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: false }],
       ]);
     });
@@ -261,7 +286,10 @@ describe('#actions', () => {
 
       await actions.articleSearch({ commit }, { q: 'test', page: 1 });
       expect(commit.mock.calls).toEqual([
-        [types.ARTICLE_SEARCH_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.ARTICLE_SEARCH_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
         [types.ARTICLE_SEARCH_SET, [{ id: 1 }]],
         [types.ARTICLE_SEARCH_SET_UI_FLAG, { isFetching: false }],
       ]);
@@ -277,7 +305,10 @@ describe('#actions', () => {
         { q: 'test', page: 1, since: 1700000000, until: 1732000000 }
       );
       expect(commit.mock.calls).toEqual([
-        [types.ARTICLE_SEARCH_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.ARTICLE_SEARCH_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
         [types.ARTICLE_SEARCH_SET, [{ id: 1 }]],
         [types.ARTICLE_SEARCH_SET_UI_FLAG, { isFetching: false }],
       ]);
@@ -287,7 +318,11 @@ describe('#actions', () => {
       axios.get.mockRejectedValue({});
       await actions.articleSearch({ commit }, { q: 'test' });
       expect(commit.mock.calls).toEqual([
-        [types.ARTICLE_SEARCH_SET_UI_FLAG, { isFetching: true }],
+        [
+          types.ARTICLE_SEARCH_SET_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
+        [types.ARTICLE_SEARCH_SET_UI_FLAG, { hasError: true }],
         [types.ARTICLE_SEARCH_SET_UI_FLAG, { isFetching: false }],
       ]);
     });
