@@ -1,6 +1,6 @@
-class Api::V2::Accounts::Conversations::PdfExportsController < Api::V1::Accounts::BaseController
-  before_action :conversation
-
+# Herda do Conversations::BaseController para passar pelas mesmas travas da conversa (time e
+# isolamento por agente): o PDF é a transcrição inteira, com notas privadas.
+class Api::V2::Accounts::Conversations::PdfExportsController < Api::V1::Accounts::Conversations::BaseController
   def show
     export = ConversationPdfExport.find_by!(id: params[:id], conversation_id: @conversation.id)
     render json: serialize(export)
@@ -13,11 +13,6 @@ class Api::V2::Accounts::Conversations::PdfExportsController < Api::V1::Accounts
   end
 
   private
-
-  def conversation
-    @conversation = Current.account.conversations.find_by!(display_id: params[:conversation_id])
-    authorize @conversation, :show?
-  end
 
   def build_export
     ConversationPdfExport.create!(
