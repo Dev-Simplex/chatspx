@@ -107,7 +107,7 @@
       "MODO": {
         "LABEL": "How to choose",
         "RODIZIO": "Rotation — one at a time, in order",
-        "ONLINE": "Only whoever is online",
+        "ONLINE": "Only whoever is online (coming soon — does not distribute yet)",
         "OFF": "Off"
       },
       "POSSE": {
