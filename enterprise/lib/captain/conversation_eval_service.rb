@@ -8,6 +8,7 @@
 class Captain::ConversationEvalService < Captain::BaseTaskService
   RESPONSE_SCHEMA = Captain::ConversationEvalSchema
   TRANSCRIPT_CHAR_LIMIT = 60_000
+  EVAL_CONTEXT_CHAR_LIMIT = 20_000
 
   pattr_initialize [:account!, :conversation_display_id!, :episode, :model_override]
 
@@ -18,7 +19,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     response = make_api_call(
       model: eval_model,
       messages: [
-        { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context].compact.join("\n\n") },
+        { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context, eval_context].compact.join("\n\n") },
         { role: 'user', content: user_content(transcript) }
       ],
       schema: RESPONSE_SCHEMA
@@ -136,6 +137,14 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
       "CONFORMAR com estas normas: contradizer um fato ou uma regra daqui é falha (info_incorreta ou " \
       "quebrou_regra). As normas valem só para as respostas da IA, não para as dos humanos.\n---\n" \
       "#{instructions[0, SPEC_CHAR_LIMIT]}\n---"
+  end
+
+  def eval_context
+    contexto = episode_assistant&.behavior&.dig('eval', 'contexto').to_s
+    return if contexto.blank?
+
+    "CONTEXTO DO NEGÓCIO AVALIADO (vale como os exemplos específicos deste cliente):\n---\n" \
+      "#{contexto[0, EVAL_CONTEXT_CHAR_LIMIT]}\n---"
   end
 
   # O assistente dominante da janela avaliada (episódio) ou da conversa (legado).
