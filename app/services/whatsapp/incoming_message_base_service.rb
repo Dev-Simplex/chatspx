@@ -35,12 +35,19 @@ class Whatsapp::IncomingMessageBaseService
     return if find_message_by_source_id(messages_data.first[:id])
     return unless lock_message_source_id!
 
-    set_contact
-    return unless @contact
+    begin
+      set_contact
+      return unless @contact
 
-    ActiveRecord::Base.transaction do
-      set_conversation
-      create_messages
+      ActiveRecord::Base.transaction do
+        set_conversation
+        create_messages
+      end
+    rescue StandardError
+      # Falhou sem gravar a mensagem: solta a marca para a retentativa do Sidekiq reprocessar
+      # em vez de encerrar calada (ver Whatsapp::MessageDedupLock#release!).
+      unlock_message_source_id!
+      raise
     end
   end
 
