@@ -21,6 +21,15 @@ RSpec.describe 'Attachment Bulk Downloads API', type: :request do
     [attachment, conversation]
   end
 
+  def create_team_attachment(conversation, team)
+    message = create(:message, account: account, conversation: conversation, inbox: inbox)
+    message.update!(team_id: team.id)
+    attachment = message.attachments.new(account_id: account.id, file_type: :image)
+    attachment.file.attach(io: Rails.root.join('spec/assets/sample.png').open, filename: "#{team.id}.png", content_type: 'image/png')
+    attachment.save!
+    attachment
+  end
+
   describe 'POST /api/v1/accounts/{account.id}/attachment_bulk_downloads' do
     context 'when unauthenticated' do
       it 'returns unauthorized' do
@@ -80,6 +89,63 @@ RSpec.describe 'Attachment Bulk Downloads API', type: :request do
 
         expect(response).to have_http_status(:accepted)
         expect(response.parsed_body['total_count']).to eq(1)
+      end
+    end
+
+    context 'with team message isolation' do
+      let(:team_a) { create(:team, account: account, allow_auto_assign: false) }
+      let(:team_b) { create(:team, account: account, allow_auto_assign: false) }
+      let(:conversation) { create(:conversation, account: account, inbox: inbox, team: team_a) }
+
+      before { inbox.update!(team_message_isolation: true) }
+
+      it 'excludes the other team in both gallery filter and ids modes' do
+        own = create_team_attachment(conversation, team_a)
+        hidden = create_team_attachment(conversation, team_b)
+
+        post "/api/v1/accounts/#{account.id}/attachment_bulk_downloads",
+             headers: agent.create_new_auth_token, params: { filters: { type: 'image' } }, as: :json
+        expect(response).to have_http_status(:accepted)
+        expect(response.parsed_body['total_count']).to eq(1)
+        AttachmentBulkDownload.last.destroy!
+
+        post "/api/v1/accounts/#{account.id}/attachment_bulk_downloads",
+             headers: agent.create_new_auth_token, params: { attachment_ids: [own.id, hidden.id] }, as: :json
+        expect(response).to have_http_status(:accepted)
+        expect(response.parsed_body['total_count']).to eq(1)
+      end
+
+      it 'uses the requester exemption in conversation mode without Current.user' do
+        own = create_team_attachment(conversation, team_a)
+        hidden = create_team_attachment(conversation, team_b)
+        resolver = Attachments::BulkDownloadScopeResolver.new(account: account, user: agent, conversation_id: conversation.id)
+        Current.reset
+        expect(resolver.attachment_ids).to contain_exactly(own.id)
+        create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'team_message')
+
+        post "/api/v1/accounts/#{account.id}/attachment_bulk_downloads",
+             headers: agent.create_new_auth_token, params: { conversation_id: conversation.display_id }, as: :json
+        expect(response).to have_http_status(:accepted)
+        expect(response.parsed_body['total_count']).to eq(2)
+
+        bulk = AttachmentBulkDownload.last
+        Current.reset
+        job_resolver = Attachments::BulkDownloadScopeResolver.new(
+          account: account, user: bulk.requester_user, conversation_id: bulk.conversation_id
+        )
+        expect(job_resolver.attachment_ids).to contain_exactly(own.id, hidden.id)
+        Attachments::BulkDownloadJob.perform_now(bulk.id)
+        expect(bulk.reload.processed_count).to eq(job_resolver.count)
+      end
+
+      it 'includes the other team when the flag is off' do
+        create_team_attachment(conversation, team_a)
+        create_team_attachment(conversation, team_b)
+        inbox.update!(team_message_isolation: false)
+
+        post "/api/v1/accounts/#{account.id}/attachment_bulk_downloads",
+             headers: agent.create_new_auth_token, params: { filters: { type: 'image' } }, as: :json
+        expect(response.parsed_body['total_count']).to eq(2)
       end
     end
 
