@@ -66,15 +66,19 @@ module Spx
         Conversation.where(account_id: policy.account_id, team_id: policy.team_id, status: :open).select(:id)
       end
 
-      # Em modo assignee: a pessoa continua sendo a dona e ainda não falou com o cliente desde
-      # que recebeu. Se ela já respondeu, não há SLA nenhum a cobrar.
+      # Em modo assignee: a pessoa continua sendo a dona e não falou com o cliente. Mesma régua do
+      # RepasseService: resposta nos últimos 7 dias conta, e não só a dada depois da designação,
+      # senão quem já atendia perde o lead (Catatau, 16/09). Este job só acordava na Catatau com
+      # expediente cadastrado, por isso a regra velha ficou escondida aqui.
+      # `all_messages`: com isolamento por time o `messages` vem filtrado.
       def sem_resposta?(log)
         conv = log.conversation
         return false if conv.nil? || conv.assignee_id != log.chosen_user_id
 
-        !conv.messages.exists?(
+        desde = [log.designado_em, RepasseService::JANELA_ATENDIMENTO.ago].min
+        !conv.all_messages.exists?(
           sender_type: 'User', sender_id: log.chosen_user_id,
-          message_type: :outgoing, private: false, created_at: log.designado_em..
+          message_type: :outgoing, private: false, created_at: desde..
         )
       end
 
