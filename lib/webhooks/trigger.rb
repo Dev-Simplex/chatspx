@@ -1,6 +1,16 @@
 class Webhooks::Trigger
   SUPPORTED_ERROR_HANDLE_EVENTS = %w[message_created message_updated].freeze
 
+  # Sobe para o retry_on do WebhookJob so o que garante que o destino NAO recebeu: fora do ar, conexao
+  # recusada, pediu para esperar. 500 e timeout de leitura ficam de fora de proposito: o destino pode ter
+  # processado, e na caixa API (WAHA) reenviar duplicaria a mensagem para o cliente.
+  RETRYABLE_ERRORS = [
+    RestClient::TooManyRequests, RestClient::BadGateway, RestClient::ServiceUnavailable,
+    RestClient::Exceptions::OpenTimeout, Errno::ECONNREFUSED, Errno::EHOSTUNREACH, SocketError
+  ].freeze
+  # Cloudflare: origem fora do ar, sem conexao, inalcancavel, handshake SSL recusado.
+  RETRYABLE_CLOUDFLARE_CODES = [521, 522, 523, 525].freeze
+
   def initialize(url, payload, webhook_type, secret: nil, delivery_id: nil)
     @url = url
     @payload = payload
@@ -18,9 +28,9 @@ class Webhooks::Trigger
   rescue RestClient::TooManyRequests, RestClient::InternalServerError => e
     raise if @webhook_type == :agent_bot_webhook
 
-    handle_failure(e)
+    retry_or_handle_failure(e)
   rescue StandardError => e
-    handle_failure(e)
+    retry_or_handle_failure(e)
   end
 
   def handle_failure(error)
@@ -29,6 +39,18 @@ class Webhooks::Trigger
   end
 
   private
+
+  def retry_or_handle_failure(error)
+    raise error if @webhook_type != :agent_bot_webhook && destination_did_not_receive?(error)
+
+    handle_failure(error)
+  end
+
+  def destination_did_not_receive?(error)
+    return RETRYABLE_CLOUDFLARE_CODES.include?(error.http_code) if error.instance_of?(RestClient::RequestFailed)
+
+    RETRYABLE_ERRORS.any? { |klass| error.is_a?(klass) }
+  end
 
   def perform_request
     body = @payload.to_json
