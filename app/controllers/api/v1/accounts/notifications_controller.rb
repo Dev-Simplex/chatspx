@@ -10,6 +10,8 @@ class Api::V1::Accounts::NotificationsController < Api::V1::Accounts::BaseContro
     @notifications = notification_finder.notifications
     @unread_count = notification_finder.unread_count
     @count = notification_finder.count
+    # Numero da bolinha do app — ver Notification::PushNotificationService#unread_conversations_count.
+    @unread_conversations_count = Conversation.where(assignee_id: current_user.id).open.unread.count
   end
 
   def read_all
