@@ -115,6 +115,27 @@ describe ContactInboxWithContactBuilder do
       expect(contact_inbox.contact.id).to eq(brazil_contact.id)
     end
 
+    it 'doesnot create contact for brazil number with ninth digit when the legacy short number already exists' do
+      # Ficha nascida antes de o modelo normalizar o telefone: o formato curto so existe no banco.
+      legacy_contact = create(:contact, account: account, phone_number: '+5566996822686')
+      legacy_contact.update_column(:phone_number, '+556696822686') # rubocop:disable Rails/SkipsModelValidations
+      contact_inbox = nil
+
+      expect do
+        contact_inbox = described_class.new(
+          source_id: '5566996822686',
+          inbox: inbox,
+          contact_attributes: {
+            name: 'Walisson',
+            phone_number: '+5566996822686',
+            email: 'walisson@example.com'
+          }
+        ).perform
+      end.not_to change(Contact, :count)
+
+      expect(contact_inbox.contact.id).to eq(legacy_contact.id)
+    end
+
     it 'reuses contact if it exists with the same source_id in a Facebook inbox when creating for Instagram inbox' do
       instagram_source_id = '123456789'
 
