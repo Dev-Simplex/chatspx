@@ -14,8 +14,15 @@ RSpec.describe Spx::Distribuicao::RepasseService do
     create(:conversation, account: account, inbox: inbox, team: team, contact: contact, status: :open)
   end
 
+  # Expediente 24/7 na política: estes cenários são sobre o REPASSE, não sobre o relógio. Sem
+  # expediente conhecido o modo assignee não vence mais nada (ver 'relógio sem expediente').
+  let(:horario_24h) do
+    { 'timezone' => Time.zone.name,
+      'schedule' => (0..6).map { |dia| { 'day' => dia, 'ranges' => [{ 'start' => '00:00', 'end' => '23:59' }] } } }
+  end
+
   let(:policy) do
-    create(:distribuicao_policy, :com_repasse, account: account, team: team,
+    create(:distribuicao_policy, :com_repasse, account: account, team: team, horario: horario_24h,
                                                pool: corretores.map { |u| { 'user_id' => u.id, 'ativo' => true } })
   end
 
@@ -164,12 +171,36 @@ RSpec.describe Spx::Distribuicao::RepasseService do
 
     # O relógio comercial é o que impede punir quem estava fora do expediente.
     it 'não vence fora do expediente' do
+      policy.update!(horario: {}) # sem expediente na política, quem manda é o da caixa
       inbox.update!(working_hours_enabled: true, timezone: Time.zone.name)
       inbox.working_hours.destroy_all
       (0..6).each { |wday| inbox.working_hours.create!(day_of_week: wday, closed_all_day: true) }
       log = designacao(corretores[0], minutos: 600)
 
       expect(described_class.new(log).call.motivo).to eq('nao_venceu')
+    end
+  end
+
+  # A-3: o VarrerSlaJob manda TODA designação para cá, inclusive a do modo assignee — e aqui o
+  # relógio era sempre o de parede. Sem expediente conhecido, o lead era repassado às 3h da manhã.
+  describe 'relógio sem expediente configurado em lugar nenhum' do
+    before { policy.update!(horario: {}) }
+
+    it 'no modo assignee (locação) não vence: fail-closed, igual ao RepasseJob' do
+      log = designacao(corretores[0], minutos: 600)
+
+      resultado = described_class.new(log).call
+
+      expect(resultado.repassou).to be(false)
+      expect(resultado.motivo).to eq('nao_venceu')
+      expect(log.reload.status).to eq('designado')
+    end
+
+    it 'no modo designacao (vendas) segue no relógio de parede, como em produção desde 19/08' do
+      policy.update!(modo_posse: 'designacao')
+      log = designacao(corretores[0], minutos: 600)
+
+      expect(described_class.new(log).call.repassou).to be(true)
     end
   end
 
