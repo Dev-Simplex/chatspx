@@ -17,6 +17,19 @@ RSpec.describe Captain::Tools::ResolveConversationTool do
   end
 
   describe 'resolving a conversation' do
+    context 'when the conversation has no team' do
+      before do
+        allow_any_instance_of(Conversation).to receive(:team_required_for_resolution).and_call_original # rubocop:disable RSpec/AnyInstance
+        conversation.update!(team: nil)
+      end
+
+      it 'resolves the conversation' do
+        tool.perform(tool_context, reason: 'Atendimento concluido')
+
+        expect(conversation.reload).to be_resolved
+      end
+    end
+
     it 'marks resolved and enqueues an activity message with the reason' do
       tool.perform(tool_context, reason: 'Possible spam')
 
