@@ -44,8 +44,10 @@ describe ConversationBuilder do
       end
 
       it 'returns last from existing sms conversations when existing conversation is not present' do
-        create(:conversation, contact_inbox: contact_sms_inbox)
-        existing_conversation = create(:conversation, contact_inbox: contact_sms_inbox)
+        # inbox e contact explicitos: sem eles a factory cria outra conta/caixa/contato, e o builder
+        # busca por caixa + contato.
+        create(:conversation, account: account, inbox: sms_inbox, contact: contact, contact_inbox: contact_sms_inbox)
+        existing_conversation = create(:conversation, account: account, inbox: sms_inbox, contact: contact, contact_inbox: contact_sms_inbox)
         conversation = described_class.new(
           contact_inbox: contact_sms_inbox,
           params: {}
@@ -70,13 +72,38 @@ describe ConversationBuilder do
       end
 
       it 'returns last from existing api conversations when existing conversation is not present' do
-        create(:conversation, contact_inbox: contact_api_inbox)
-        existing_conversation = create(:conversation, contact_inbox: contact_api_inbox)
+        create(:conversation, account: account, inbox: api_inbox, contact: contact, contact_inbox: contact_api_inbox)
+        existing_conversation = create(:conversation, account: account, inbox: api_inbox, contact: contact, contact_inbox: contact_api_inbox)
         conversation = described_class.new(
           contact_inbox: contact_api_inbox,
           params: {}
         ).perform
 
+        expect(conversation.id).to eq(existing_conversation.id)
+      end
+    end
+
+    # Outro request do mesmo contato segura a trava de criacao (a corrida do GlitchTip producao 115).
+    context 'when another request holds the creation lock' do
+      let(:lock_key) { "conv_builder:#{api_inbox.id}:#{contact.id}" }
+
+      before { Redis::Alfred.set(lock_key, '1', ex: 10) }
+      after { Redis::Alfred.delete(lock_key) }
+
+      it 'still creates the conversation on an inbox without the single-conversation rule' do
+        conversation = described_class.new(contact_inbox: contact_api_inbox, params: {}).perform
+
+        expect(conversation).to be_persisted
+        expect(conversation.contact_inbox_id).to eq(contact_api_inbox.id)
+      end
+
+      it 'returns the existing conversation on a single-conversation inbox instead of creating another' do
+        api_inbox.update!(lock_to_single_conversation: true)
+        existing_conversation = create(:conversation, account: account, inbox: api_inbox, contact: contact, contact_inbox: contact_api_inbox)
+
+        conversation = nil
+        expect { conversation = described_class.new(contact_inbox: contact_api_inbox, params: {}).perform }
+          .not_to change(Conversation, :count)
         expect(conversation.id).to eq(existing_conversation.id)
       end
     end
