@@ -67,6 +67,23 @@ RSpec.describe DeleteObjectJob, type: :job do
     # entao qualquer conversa tocada pela IA ou por um flow travava a exclusao da caixa.
     # Como o job roda em background, a API respondia 200 "excluida" e a caixa voltava no
     # proximo reload (visto na FABRICA em 08/09/2026). Ver migration 20260908120000.
+    # T07: agente que ja recebeu atribuicao nao saia — o historico apontava para ele com FK RESTRICT.
+    # O historico e do relatorio da conta: fica, so perde o vinculo.
+    context 'when the agent left assignment history behind' do
+      let!(:account) { create(:account) }
+      let!(:agent) { create(:user, account: account, role: :agent) }
+      let!(:history) do
+        create(:conversation_assignment_history, account: account, conversation: create(:conversation, account: account), assignee: agent)
+      end
+
+      it 'destroys the agent and keeps the history without the assignee' do
+        expect { described_class.perform_now('User', agent.id) }.not_to raise_error
+
+        expect(User.where(id: agent.id)).to be_empty
+        expect(history.reload.assignee_id).to be_nil
+      end
+    end
+
     context 'when the conversation carries AI and flow trails' do
       let!(:account) { create(:account) }
       let!(:inbox) { create(:inbox, account: account) }

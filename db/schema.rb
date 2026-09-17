@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_15_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2292,16 +2292,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_130000) do
   add_foreign_key "campaign_recipients", "campaigns", on_delete: :cascade
   add_foreign_key "canned_responses", "teams", on_delete: :nullify
   add_foreign_key "canned_responses", "users", column: "created_by_id", on_delete: :nullify
-  add_foreign_key "captain_assistant_logs", "captain_assistants"
-  add_foreign_key "captain_assistant_logs", "conversations"
-  add_foreign_key "contact_flow_suppressions", "accounts"
-  add_foreign_key "contact_flow_suppressions", "contacts"
+  add_foreign_key "captain_assistant_logs", "captain_assistants", on_delete: :cascade
+  add_foreign_key "captain_assistant_logs", "conversations", on_delete: :cascade
+  add_foreign_key "contact_flow_suppressions", "accounts", on_delete: :cascade
+  add_foreign_key "contact_flow_suppressions", "contacts", on_delete: :cascade
   add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
   add_foreign_key "contact_inboxes", "inboxes", on_delete: :cascade
-  add_foreign_key "conversation_assignment_histories", "accounts"
+  add_foreign_key "conversation_assignment_histories", "accounts", on_delete: :cascade
   add_foreign_key "conversation_assignment_histories", "conversations", on_delete: :cascade
   add_foreign_key "conversation_assignment_histories", "teams"
-  add_foreign_key "conversation_assignment_histories", "users", column: "assignee_id"
+  add_foreign_key "conversation_assignment_histories", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "conversation_participants", "accounts", on_delete: :cascade
   add_foreign_key "conversation_participants", "conversations", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "accounts", on_delete: :cascade
@@ -2318,31 +2318,31 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_130000) do
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "csat_survey_responses", "conversations", on_delete: :cascade
-  add_foreign_key "flow_node_stats", "accounts"
-  add_foreign_key "flow_node_stats", "flows"
-  add_foreign_key "flow_runs", "accounts"
-  add_foreign_key "flow_runs", "contacts"
-  add_foreign_key "flow_runs", "conversations"
-  add_foreign_key "flow_runs", "flows"
-  add_foreign_key "flow_step_logs", "accounts"
-  add_foreign_key "flow_step_logs", "conversations"
-  add_foreign_key "flow_step_logs", "flow_runs"
-  add_foreign_key "flow_step_logs", "flows"
-  add_foreign_key "funnel_automations", "funnel_stages"
+  add_foreign_key "flow_node_stats", "accounts", on_delete: :cascade
+  add_foreign_key "flow_node_stats", "flows", on_delete: :cascade
+  add_foreign_key "flow_runs", "accounts", on_delete: :cascade
+  add_foreign_key "flow_runs", "contacts", on_delete: :cascade
+  add_foreign_key "flow_runs", "conversations", on_delete: :cascade
+  add_foreign_key "flow_runs", "flows", on_delete: :cascade
+  add_foreign_key "flow_step_logs", "accounts", on_delete: :cascade
+  add_foreign_key "flow_step_logs", "conversations", on_delete: :cascade
+  add_foreign_key "flow_step_logs", "flow_runs", on_delete: :cascade
+  add_foreign_key "flow_step_logs", "flows", on_delete: :cascade
+  add_foreign_key "funnel_automations", "funnel_stages", on_delete: :cascade
   add_foreign_key "funnel_automations", "funnels"
   add_foreign_key "funnel_custom_fields", "funnels"
-  add_foreign_key "funnel_item_notes", "funnel_items"
-  add_foreign_key "funnel_item_notes", "users"
+  add_foreign_key "funnel_item_notes", "funnel_items", on_delete: :cascade
+  add_foreign_key "funnel_item_notes", "users", on_delete: :nullify
   add_foreign_key "funnel_items", "conversations", on_delete: :cascade
   add_foreign_key "funnel_items", "funnel_stages"
   add_foreign_key "funnel_items", "funnels"
   add_foreign_key "funnel_items", "users", column: "assignee_id", on_delete: :nullify
-  add_foreign_key "funnel_items", "users", column: "moved_by_id"
+  add_foreign_key "funnel_items", "users", column: "moved_by_id", on_delete: :nullify
   add_foreign_key "funnel_metric_snapshots", "funnels"
   add_foreign_key "funnel_stages", "funnels"
   add_foreign_key "funnel_views", "accounts"
   add_foreign_key "funnel_views", "funnels"
-  add_foreign_key "funnel_views", "users"
+  add_foreign_key "funnel_views", "users", on_delete: :nullify
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
   add_foreign_key "inbox_isolation_exemptions", "inboxes", on_delete: :cascade
@@ -2360,9 +2360,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_130000) do
   add_foreign_key "labels", "teams", on_delete: :nullify
   add_foreign_key "labels", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "mentions", "conversations", on_delete: :cascade
-  add_foreign_key "message_reactions", "accounts"
-  add_foreign_key "message_reactions", "messages"
-  add_foreign_key "message_sequence_enrollments", "conversations"
+  add_foreign_key "message_reactions", "accounts", on_delete: :cascade
+  add_foreign_key "message_reactions", "messages", on_delete: :cascade
+  add_foreign_key "message_sequence_enrollments", "conversations", on_delete: :cascade
   add_foreign_key "message_sequence_enrollments", "message_sequences"
   add_foreign_key "message_sequence_steps", "message_sequences"
   add_foreign_key "message_sequences", "accounts"
@@ -2377,15 +2377,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_130000) do
   add_foreign_key "report_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
   add_foreign_key "reporting_events", "conversations", on_delete: :cascade
   add_foreign_key "scheduled_messages", "conversations", on_delete: :cascade
-  add_foreign_key "scheduled_messages", "inboxes"
-  add_foreign_key "scheduled_messages", "messages"
-  add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id"
+  add_foreign_key "scheduled_messages", "inboxes", on_delete: :cascade
+  add_foreign_key "scheduled_messages", "messages", on_delete: :nullify
+  add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id", on_delete: :nullify
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
   add_foreign_key "team_supervisors", "teams", on_delete: :cascade
   add_foreign_key "team_supervisors", "users", on_delete: :cascade
   add_foreign_key "unit_exceptions", "units", on_delete: :cascade
   add_foreign_key "unit_working_hours", "units", on_delete: :cascade
-  add_foreign_key "units", "accounts"
+  add_foreign_key "units", "accounts", on_delete: :cascade
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).
