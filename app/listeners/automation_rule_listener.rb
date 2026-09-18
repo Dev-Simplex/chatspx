@@ -438,8 +438,26 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # send_interactive) ou, sem ele, do próprio content (resposta digitada) — assim o wait_for_reply
   # casa tanto a escolha de opção quanto o texto livre.
   def reply_from_message(message)
-    selected = message.content_attributes&.dig('selected_option')
+    selected = message.content_attributes&.dig('selected_option') || opcao_votada_na_enquete(message)
     { id: selected&.dig('id') || message.content, title: selected&.dig('title') || message.content }
+  end
+
+  # Na WAHA o menu do flow vira uma ENQUETE nativa, cujas opções são só textos: o `value` da opção
+  # se perde no envio e o voto volta com o TÍTULO em `content`. Como a aresta do flow é rotulada
+  # com o `value`, sem esta tradução toda escolha caía no ramo de fallback. A mensagem-poll
+  # original guarda os `items` com `title` e `value`, e o voto aponta para ela.
+  def opcao_votada_na_enquete(message)
+    item = item_votado(message)
+    { 'id' => item['value'], 'title' => item['title'] } if item&.dig('value').present?
+  end
+
+  # O item original (title + value) que casa com o texto do voto.
+  def item_votado(message)
+    poll_id = message.content_attributes&.dig('poll_vote', 'poll_message_id')
+    return if poll_id.blank?
+
+    itens = Message.find_by(id: poll_id)&.content_attributes&.dig('items')
+    Array(itens).find { |i| i['title'].to_s.strip == message.content.to_s.strip }
   end
 
   # Detecta e processa um opt-out numa mensagem INCOMING de contato. Ao casar, registra a
