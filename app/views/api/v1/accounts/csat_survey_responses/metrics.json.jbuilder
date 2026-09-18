@@ -1,4 +1,5 @@
 json.total_count @total_count
+json.total_response_count_for_rate @total_response_count_for_rate
 json.ratings_count @ratings_count
 json.total_sent_messages_count @total_sent_messages_count
 json.signals @signals

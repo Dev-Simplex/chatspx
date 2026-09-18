@@ -12,6 +12,7 @@ export const state = {
   records: [],
   metrics: {
     totalResponseCount: 0,
+    totalResponseCountForRate: 0,
     ratingsCount: {
       1: 0,
       2: 0,
@@ -52,7 +53,7 @@ export const getters = {
       return 0;
     }
     return computeDistribution(
-      _state.metrics.totalResponseCount,
+      _state.metrics.totalResponseCountForRate,
       _state.metrics.totalSentMessagesCount
     );
   },
@@ -141,12 +142,14 @@ export const mutations = {
     _state,
     {
       total_count: totalResponseCount,
+      total_response_count_for_rate: totalResponseCountForRate,
       ratings_count: ratingsCount,
       total_sent_messages_count: totalSentMessagesCount,
       signals,
     }
   ) {
     _state.metrics.totalResponseCount = totalResponseCount || 0;
+    _state.metrics.totalResponseCountForRate = totalResponseCountForRate || 0;
     _state.metrics.ratingsCount = {
       1: ratingsCount['1'] || 0,
       2: ratingsCount['2'] || 0,
