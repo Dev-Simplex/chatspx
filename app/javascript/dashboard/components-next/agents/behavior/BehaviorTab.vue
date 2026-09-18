@@ -35,10 +35,6 @@ const csv = v =>
     .filter(Boolean);
 
 // Router
-const phones = computed({
-  get: () => (behavior.value.router?.only_contact_phones || []).join(', '),
-  set: v => patchObj('router', { only_contact_phones: csv(v) }),
-});
 const skipLabels = computed({
   get: () => (behavior.value.router?.skip_labels || []).join(', '),
   set: v => patchObj('router', { skip_labels: csv(v) }),
@@ -71,10 +67,6 @@ const ACTION_OPTS = computed(() => [
   {
     value: 'ignore',
     label: t('CAPTAIN.BEHAVIOR.BUSINESS_HOURS.ACTION_IGNORE'),
-  },
-  {
-    value: 'qualify_more',
-    label: t('CAPTAIN.BEHAVIOR.BUSINESS_HOURS.ACTION_QUALIFY'),
   },
 ]);
 const dayEntry = d =>
@@ -193,17 +185,6 @@ const save = () => {
       <div class="space-y-3">
         <div>
           <label class="block mb-1 text-[12px] font-semibold text-n-slate-11">
-            {{ t('CAPTAIN.BEHAVIOR.ROUTER.ONLY_CONTACT_PHONES') }}
-          </label>
-          <AiField
-            v-model="phones"
-            :placeholder="
-              t('CAPTAIN.BEHAVIOR.ROUTER.ONLY_CONTACT_PHONES_PLACEHOLDER')
-            "
-          />
-        </div>
-        <div>
-          <label class="block mb-1 text-[12px] font-semibold text-n-slate-11">
             {{ t('CAPTAIN.BEHAVIOR.ROUTER.SKIP_LABELS') }}
           </label>
           <AiField
@@ -216,21 +197,6 @@ const save = () => {
             :model-value="routerGet('skip_groups')"
             :label="t('CAPTAIN.BEHAVIOR.ROUTER.SKIP_GROUPS')"
             @update:model-value="routerSet('skip_groups', $event)"
-          />
-          <AiCheckbox
-            :model-value="routerGet('skip_after_human_response')"
-            :label="t('CAPTAIN.BEHAVIOR.ROUTER.SKIP_AFTER_HUMAN_RESPONSE')"
-            @update:model-value="routerSet('skip_after_human_response', $event)"
-          />
-          <AiCheckbox
-            :model-value="routerGet('skip_activity')"
-            :label="t('CAPTAIN.BEHAVIOR.ROUTER.SKIP_ACTIVITY')"
-            @update:model-value="routerSet('skip_activity', $event)"
-          />
-          <AiCheckbox
-            :model-value="routerGet('skip_agent_bot')"
-            :label="t('CAPTAIN.BEHAVIOR.ROUTER.SKIP_AGENT_BOT')"
-            @update:model-value="routerSet('skip_agent_bot', $event)"
           />
         </div>
       </div>
