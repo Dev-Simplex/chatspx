@@ -16,6 +16,7 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
 
   def metrics
     @total_count = @csat_survey_responses.count
+    @total_response_count_for_rate = @csat_survey_responses_for_rate.count
     @ratings_count = @csat_survey_responses.group(:rating).count
     @signals = Reports::SignalSet.new(entries: [{ metric: :csat, value: csat_satisfaction_score }]).build
   end
@@ -39,16 +40,25 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
   def set_total_sent_messages_count
     @csat_messages = Current.account.messages.input_csat
     @csat_messages = @csat_messages.where(created_at: range) if range.present?
+    @csat_messages = filter_sent_csat_messages(@csat_messages)
     @total_sent_messages_count = @csat_messages.count
+  end
+
+  def filter_sent_csat_messages(messages)
+    messages = messages.where(inbox_id: params[:inbox_id]) if params[:inbox_id].present?
+    messages = messages.joins(:conversation).where(conversations: { team_id: params[:team_id] }) if params[:team_id].present?
+    # Sent surveys use the conversation's current assignee as the agent proxy; responses store assigned_agent_id at response time.
+    messages = messages.joins(:conversation).where(conversations: { assignee_id: params[:user_ids] }) if params[:user_ids].present?
+    messages
   end
 
   def set_csat_survey_responses
     base_query = Current.account.csat_survey_responses.includes([:conversation, :assigned_agent, :contact])
-    @csat_survey_responses = filtrate(base_query).filter_by_created_at(range)
-                                                 .filter_by_assigned_agent_id(params[:user_ids])
-                                                 .filter_by_inbox_id(params[:inbox_id])
-                                                 .filter_by_team_id(params[:team_id])
-                                                 .filter_by_rating(params[:rating])
+    @csat_survey_responses_for_rate = filtrate(base_query).filter_by_created_at(range)
+                                                          .filter_by_assigned_agent_id(params[:user_ids])
+                                                          .filter_by_inbox_id(params[:inbox_id])
+                                                          .filter_by_team_id(params[:team_id])
+    @csat_survey_responses = @csat_survey_responses_for_rate.filter_by_rating(params[:rating])
   end
 
   def set_current_page_surveys
