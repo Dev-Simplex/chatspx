@@ -29,6 +29,7 @@ const { t } = useI18n();
 const teamId = computed(() => props.teamId);
 
 const carregando = ref(true);
+const carregado = ref(false);
 const salvando = ref(false);
 const semPermissao = ref(false);
 const politica = ref({});
@@ -67,9 +68,11 @@ function aplicar(dados) {
 
 async function carregar() {
   carregando.value = true;
+  carregado.value = false;
   try {
     const { data } = await TeamDistribuicaoAPI.show(teamId.value);
     aplicar(data);
+    carregado.value = true;
   } catch (erro) {
     if (erro.response?.status === 401) semPermissao.value = true;
     else useAlert(t('TEAMS_SETTINGS.DISTRIBUICAO.ERROR'));
@@ -156,6 +159,15 @@ function reativar(entrada) {
 }
 
 async function salvar() {
+  // No formulário embutido, apenas o time deve salvar se a distribuição não carregou.
+  // No botão próprio, avisamos que faltam dados do servidor antes de tentar salvar.
+  if (!carregado.value || semPermissao.value) {
+    if (!props.embutido && !semPermissao.value) {
+      useAlert(t('TEAMS_SETTINGS.DISTRIBUICAO.ERROR'));
+    }
+    return;
+  }
+
   salvando.value = true;
   try {
     const { data } = await TeamDistribuicaoAPI.update(teamId.value, {
