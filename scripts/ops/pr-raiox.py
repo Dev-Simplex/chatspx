@@ -60,6 +60,17 @@ FROTA = [
     # quatro deploys seguidos: quem conferia a frota por aqui nem sabia que ela existia.
     ("CDSOLAR", "13.218.193.75"),
 ]
+# Homologacao e VMs dos devs (fase 6 do /promover-pr). Aqui a branch de cada VM
+# NAO e a `producao`, e nada chega nelas sozinho: nao existe auto-pull. Em
+# 18/09/2026 os 6 PRs do dia entraram pela `homologacao` e a .232 ficou 52
+# commits atras. Nas VMs dos devs o criterio e "contem o commit", nao "mesmo
+# commit": elas tem trabalho do dev por cima. A VM do Walisson (.46) fica fora a
+# pedido dele.
+VMS_FASE6 = [
+    ("HOMOLOGACAO", "192.168.8.232", "homologacao"),
+    ("THALYSSON", "192.168.8.167", "thalysson"),
+    ("NICOLAS", "192.168.8.98", "nicolas"),
+]
 # A chave e procurada em tres lugares, nesta ordem. O motivo esta na regra do
 # OpenSSH: ele recusa chave privada com bit de grupo ou de outros QUANDO o dono do
 # arquivo e o usuario que roda ("bad permissions / This private key will be
@@ -258,6 +269,52 @@ def analisa(numero: int, checar_frota: bool) -> int:
             elif commit not in (prod, "sem resposta"):
                 alertas.append(f"{nome} esta em {commit}, diferente de origin/producao ({prod}). "
                                "Deployar por ff pode desfazer o que so existe la — conferir antes.")
+
+        # ── 5. homologacao e VMs dos devs ───────────────────────────────────
+        # So leitura: nada de fetch, e --no-optional-locks no status para nao
+        # disputar o index.lock com o dev que esta trabalhando ali. Se o objeto
+        # do commit nem existe na VM, o HEAD dela nao pode conte-lo: da NAO sem
+        # precisar de fetch. O public/version.json e reescrito a cada deploy e
+        # nao e trabalho de ninguem, por isso nao conta como arquivo em edicao.
+        titulo("5. Homologacao e VMs dos devs")
+        sha = sh(["git", "rev-parse", "origin/producao"])
+        cmd = ("cd /home/chatwoot/chatwoot || exit 1; "
+               f"if git cat-file -e '{sha}^{{commit}}' 2>/dev/null && git merge-base --is-ancestor {sha} HEAD; "
+               "then c=sim; else c=nao; fi; "
+               "e=$(git --no-optional-locks status --porcelain --untracked-files=no | grep -cv ' public/version.json$'); "
+               "echo $(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short=10 HEAD) $c $e "
+               "$(git rev-list --count HEAD --not --remotes)")
+        atrasadas = []
+        for nome, ip, branch in VMS_FASE6:
+            if ip in aqui:
+                saida = sh(["bash", "-c", cmd], timeout=30)
+            else:
+                saida = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=8",
+                            "-o", "BatchMode=yes", f"chatwoot@{ip}", cmd], timeout=30)
+            campos = saida.split()
+            if len(campos) != 5:
+                print(f"  {nome:<11} {AMARELO}nao medida daqui{RESET}")
+                continue
+            atual, head_vm, contem, editados, so_disco = campos
+            if contem == "sim":
+                marca, falta = VERDE, "em dia"
+            else:
+                atrasadas.append(nome)
+                marca = AMARELO
+                if editados != "0":
+                    falta = f"BLOQUEADA: {editados} arquivo(s) em edicao"
+                elif nome == "HOMOLOGACAO":
+                    falta = "atras: ff para o mesmo commit"
+                else:
+                    falta = "atras: merge da producao"
+            onde = atual if atual == branch else f"{atual} (esperada: {branch})"
+            print(f"  {nome:<11} {marca}{head_vm}{RESET}  {onde} · {falta}")
+            if so_disco != "0":
+                alertas.append(f"{nome} tem {so_disco} commit(s) que so existem no disco dela, nenhum remote "
+                               "tem. Backup antes de mexer (fase 6).")
+        if atrasadas:
+            alertas.append(f"Homologacao/devs atras: {', '.join(atrasadas)}. "
+                           "A fase 6 do /promover-pr oferece alinhar.")
 
     # ── veredito ────────────────────────────────────────────────────────────
     titulo("VEREDITO")

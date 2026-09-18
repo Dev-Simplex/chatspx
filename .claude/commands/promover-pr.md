@@ -1,5 +1,5 @@
 ---
-description: Revisa um ou mais PRs, e se nada quebrar, mergeia e leva para as VMs de produção
+description: Revisa um ou mais PRs, e se nada quebrar, mergeia e leva para as VMs de produção. No fim, oferece alinhar a homologação e as VMs dos devs
 argument-hint: <numero(s) do(s) PR(s), ex: 99 ou 99 100 101>
 allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 ---
@@ -161,8 +161,120 @@ Não diga "deployado". Mostre:
 - **e o comportamento**: se o PR conserta a busca, faça uma busca; se muda a
   tela, baixe o entry pela URL pública e confira o 200.
 
-Ao final, alinhe a `homologacao` com a `producao` se elas divergirem, e diga ao
-usuário o que ficou pendente.
+Ao final, alinhe a `homologacao` com a `producao` se elas divergirem, e siga para
+a Fase 6. O que ficou pendente você diz ao usuário no fechamento dela.
+
+## Fase 6: homologação e VMs dos devs
+
+Branch alinhada não é VM alinhada. Não existe auto-pull: merge em `homologacao`
+não desce para a `.232`, e nada chega sozinho nas VMs dos devs. Em 18/09 os 6 PRs
+do dia entraram pela `homologacao` e mesmo assim a `.232` ficou 52 commits atrás,
+parada em `feat/badge-conversas-nao-lidas`; o Thalysson ficou sem 3 PRs e o
+Nicolas, 179 commits atrás. Por isso a pergunta depende de onde cada VM está, não
+de onde o PR veio: **meça sempre e só pergunte pelas atrasadas.**
+
+| VM | endereço | branch | atualizar é |
+|---|---|---|---|
+| HOMOLOGACAO | `192.168.8.232` | `homologacao` | mesmo commit da produção (fast-forward) |
+| THALYSSON | `192.168.8.167` | `thalysson` | merge da `producao` na branch dele |
+| NICOLAS | `192.168.8.98` | `nicolas` | idem |
+
+A VM do Walisson (`.46`) fica fora, a pedido dele.
+
+**VM de dev é onde o dev trabalha.** Ela tem commit que não está no GitHub e
+arquivo em edição. Ali nunca se faz fast-forward, reset, stash nem clean:
+atualizar é mergear a `producao` na branch dele. Na homologação o critério é
+"mesmo commit"; na VM de dev é "contém o commit".
+
+### 1. Medir
+
+Depois do deploy, rode de novo o raio-X e leia a seção 5:
+
+```bash
+python3 scripts/ops/pr-raiox.py $ARGUMENTS --frota
+```
+
+Se as três contêm o commit, diga isso em uma linha e encerre.
+
+### 2. Perguntar uma vez
+
+Use a ferramenta de pergunta de múltipla escolha, com **só as VMs atrasadas e
+desbloqueadas** como opção. Cada opção diz o que vai acontecer: ff ou merge, se
+tem migration, se tem build, e que reinicia. Marcar a VM é o OK para reiniciar
+aquela VM. As bloqueadas aparecem no texto da pergunta, com o motivo, e não como
+opção.
+
+A VM está **bloqueada** quando:
+
+- tem arquivo em edição além do `public/version.json`. É o trabalho do dev, e não
+  se faz stash no lugar dele;
+- o merge dá conflito: `git merge-tree --write-tree HEAD <sha>` sai com erro
+  (teste depois do fetch, antes dele o commit nem está lá);
+- aparece como `nao medida daqui`;
+- é a homologação e o checkout está parado numa branch com commit que a
+  `homologacao` não tem. Pode ser teste em andamento: pergunte antes.
+
+### 3. Backup do que só existe no disco
+
+Se a VM tem commit que nenhum remote tem (o raio-X avisa no veredito), faça backup
+no GitHub antes de mexer, sem tocar no checkout:
+
+```bash
+# na VM
+git bundle create /tmp/<vm>.bundle HEAD --not --remotes
+# aqui, depois de trazer o arquivo
+git fetch /tmp/<vm>.bundle HEAD
+git push origin FETCH_HEAD:refs/heads/backup/<vm>-vm<ultimo-octeto>-<AAAAMMDD>
+```
+
+O merge não apaga esses commits. O backup é para o dia em que a VM morrer.
+
+### 4. Uma VM por vez
+
+As VMs de LAN dividem o host Proxmox com serviço de produção. Em 18/09 o swap do
+host estava cheio, e build em paralelo aperta todo mundo.
+
+### 5. Receita da homologação
+
+```bash
+cd /home/chatwoot/chatwoot
+git checkout -- public/version.json
+git fetch origin                     # a .232 alcança o GitHub
+git checkout homologacao && git merge --ff-only origin/homologacao
+RAILS_ENV=production bundle exec rake db:migrate
+```
+
+A fase 5 já alinhou a `homologacao` com a `producao`, então é o mesmo commit e os
+assets são **o mesmo tgz da fase 4**: extraia por cima e gere os `.gz`. Depois,
+`db:migrate:status` sem nenhum `down`, restart e prova.
+
+### 6. Receita da VM de dev
+
+```bash
+cd /home/chatwoot/chatwoot
+git checkout -- public/version.json
+git fetch origin producao
+git merge-tree --write-tree HEAD FETCH_HEAD >/dev/null   # erro aqui é conflito: pare e avise
+git merge --no-edit FETCH_HEAD
+RAILS_ENV=production bundle exec rake db:migrate
+git diff --name-only ORIG_HEAD HEAD -- app/javascript    # vazio: sem build
+```
+
+Build **na VM**, só se o merge trouxe frontend, no checkout principal dela e com
+heap 12288, e depois os `.gz`. O tgz da produção não serve aqui, porque o código
+da VM do dev é outro. Depois, `db:migrate:status` sem nenhum `down`, restart e
+prova.
+
+Nunca dê push na branch do dev (publicar é decisão dele), e nunca stash, reset
+nem clean.
+
+### 7. Provar e fechar
+
+A prova é a da fase 5, com uma diferença: na VM de dev o critério é
+`git merge-base --is-ancestor <sha> HEAD` (contém), não HEAD igual.
+
+Feche dizendo o que ficou para trás e o que o dev precisa fazer. Por exemplo:
+"Nicolas: 5 arquivos em edição; quando ele commitar, rode a fase 6 de novo."
 
 ## Regras que não se negociam
 
