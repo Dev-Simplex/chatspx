@@ -11,10 +11,11 @@ class NpsSurveyListener < BaseListener
   def message_created(event)
     message = extract_message_and_account(event)[0]
 
-    # Se um AGENTE envia mensagem, dismissa a pesquisa (agente assumiu a conversa).
-    # Mas nao dismissar as mensagens do proprio fluxo NPS (pergunta, aviso de resposta
-    # invalida, agradecimento) — senao a pesquisa e cancelada e reenviada em duplicidade.
-    if message.outgoing? && !nps_system_message?(message)
+    # So um HUMANO assumindo a conversa dismissa a pesquisa. `outgoing` sozinho tambem cobria a IA
+    # do Captain, mensagem de flow, regra de automacao e template de disparo: 1.541 das 3.181
+    # pesquisas descartadas da base (48%) morreram assim, e a nota que o cliente mandava depois
+    # caia no vazio, porque o ResponseBuilder so age sobre status `sent`.
+    if human_agent_takeover?(message)
       dismiss_active_nps(message.conversation)
       return
     end
@@ -60,6 +61,23 @@ class NpsSurveyListener < BaseListener
   def nps_system_message?(message)
     attrs = message.content_attributes || {}
     attrs['nps_survey'].present? || attrs['nps_survey_system'].present?
+  end
+
+  # Espelha AutomationRuleListener#human_agent_takeover?, que nasceu justamente desta licao:
+  # outgoing, de User real, nao privada e nao gerada por automacao. As mensagens do proprio fluxo
+  # NPS (pergunta, aviso de invalida, agradecimento) ficam de fora — dismissa-las cancelaria e
+  # reenviaria a pesquisa em duplicidade.
+  def human_agent_takeover?(message)
+    return false unless message.outgoing? && !message.private?
+    return false unless message.sender_type == 'User' && message.sender.present?
+    return false if nps_system_message?(message)
+
+    !automation_generated_message?(message)
+  end
+
+  def automation_generated_message?(message)
+    attrs = message.content_attributes || {}
+    attrs['automation_rule_id'].present? || attrs['flow_id'].present?
   end
 
   def dismiss_active_nps(conversation)
