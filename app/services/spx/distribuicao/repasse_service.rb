@@ -88,12 +88,19 @@ module Spx
       # lidos por ninguém em vendas: o gerente configurava o expediente, funcionava na locação e
       # não funcionava aqui, sem nada indicar.
       #
-      # `sem_agenda: :parede` PRESERVA o comportamento de vendas que está em produção desde
-      # 19/08 (sem expediente configurado, o prazo corre no relógio de parede). O default do
-      # JanelaService é `:nao_vence`, e adotá-lo aqui desligaria o repasse EM SILÊNCIO em todo
-      # time que ainda não configurou expediente — a correção apagaria o que veio consertar.
+      # `sem_agenda: :parede` PRESERVA o comportamento de vendas (modo `designacao`) que está em
+      # produção desde 19/08: sem expediente configurado, o prazo corre no relógio de parede.
+      # Adotar o default do JanelaService lá desligaria o repasse EM SILÊNCIO em todo time de
+      # vendas que ainda não configurou expediente — a correção apagaria o que veio consertar.
+      #
+      # No modo `assignee` (locação) vale o fail-closed `:nao_vence`, que é o que o RepasseJob já
+      # aplica a esse mesmo modo. Era essa garantia que o caminho do VarrerSlaJob furava: sem
+      # expediente conhecido, o lead era repassado às 3h da manhã ou no domingo e circulava pelo
+      # pool inteiro antes de alguém abrir o expediente. A tela do time já avisa quando não há
+      # expediente conhecido (`JanelaService#horario_definido?`), então o silêncio é anunciado.
       def vencido?(conversation)
-        JanelaService.new(policy: @policy, inbox: conversation.inbox, sem_agenda: :parede)
+        JanelaService.new(policy: @policy, inbox: conversation.inbox,
+                          sem_agenda: @policy.designacao? ? :parede : :nao_vence)
                      .vencido?(@log.designado_em, @policy.sla_assumir_minutos)
       end
 

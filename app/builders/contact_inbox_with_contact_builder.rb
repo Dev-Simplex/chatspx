@@ -111,10 +111,19 @@ class ContactInboxWithContactBuilder
     contact = account.contacts.find_by(phone_number: phone_number)
     return contact if contact
 
-    normalized_phone_number = Contacts::BrazilPhoneNormalizer.normalize(phone_number)
-    return if normalized_phone_number == phone_number
+    account.contacts.where(phone_number: brazil_phone_variants(phone_number)).order(:id).first
+  end
 
-    account.contacts.find_by(phone_number: normalized_phone_number)
+  # A ficha pode ter nascido com ou sem o 9o digito e o WhatsApp entrega sempre a forma
+  # com o 9: sem as DUAS variantes, todo contato antigo de 10 digitos vira duplicata.
+  def brazil_phone_variants(phone_number)
+    return [] unless phone_number.start_with?('+55')
+
+    phones = Campaigns::Whatsapp::CanonicalPhone.new
+    ddd, subscriber = phones.split_number(phone_number)
+    return [] if ddd.blank? || phones.landline?(subscriber)
+
+    phones.e164_variants(phones.canonical(ddd, subscriber))
   end
 
   def waha_api_inbox?

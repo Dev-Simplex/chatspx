@@ -77,15 +77,36 @@ describe AutomationRuleListener do
       expect(run.reload).to be_completed
     end
 
-    it 'does not consume an outgoing message (only incoming replies resume)' do
+    # WAHA: o menu vira enquete nativa, o `value` se perde no envio e o voto volta com o TÍTULO.
+    # Sem traduzir de volta, a escolha certa caía no ramo de fallback.
+    it 'resumes a WAHA poll vote by translating the option title back to its value' do
       run = waiting_run(reply_flow)
+      keyword_flow
+      itens = [{ 'title' => 'Sim', 'value' => 'yes' }, { 'title' => 'Não', 'value' => 'no' }]
+      poll = create(:message, conversation: conversation, inbox: inbox, account: account,
+                              message_type: :outgoing, content_type: :input_select, content: 'Escolha',
+                              content_attributes: { 'items' => itens })
+
+      voto = { 'poll_message_id' => poll.id, 'selected_options' => ['Sim'] }
+      deliver(incoming('Sim', content_attributes: { 'poll_vote' => voto }))
+
+      expect(conversation.reload.label_list).to include('resumed')
+      expect(conversation.label_list).not_to include('kw-hit')
+      expect(run.reload).to be_completed
+    end
+
+    it 'does not consume an outgoing message (only incoming replies resume)' do
+      waiting_run(reply_flow)
       allow(Flows::ReplyResumeService).to receive(:new).and_call_original
 
       deliver(create(:message, conversation: conversation, inbox: inbox, account: account,
                                message_type: :outgoing, content: 'yes'))
 
       expect(Flows::ReplyResumeService).not_to have_received(:new)
-      expect(run.reload).to be_waiting
+      # A espera não é RETOMADA por mensagem de saída; ela é CANCELADA, porque um humano
+      # respondendo é takeover (cancel_pending_flow_waits_on_agent_reply). O que este exemplo
+      # garante é que o ramo do flow não foi seguido.
+      expect(conversation.reload.label_list).not_to include('resumed')
     end
 
     it 'lets the message flow to normal dispatch when there is NO pending wait_for_reply' do

@@ -182,7 +182,10 @@ class ReconnectService {
   };
 
   onReconnect = async () => {
+    const disconnectTime = this.disconnectTime;
     await this.handleRouteSpecificFetch();
+    // O gap-fill usa esta queda; preserve outra que ocorrer durante o fetch.
+    if (this.disconnectTime === disconnectTime) this.disconnectTime = null;
     await this.revalidateCaches();
     emitter.emit(BUS_EVENTS.WEBSOCKET_RECONNECT_COMPLETED);
   };
