@@ -28,7 +28,9 @@ class Captain::Assistant::AgentRunnerService
 
   def generate_response(message_history: [])
     message_to_process, context = run_payload(message_history)
-    result = runner.run(message_to_process, context: context, max_turns: 100)
+    result = Llm::AccountScopedContext.with_account(@assistant.account) do
+      runner.run(message_to_process, context: context, max_turns: 100)
+    end
 
     process_agent_result(result)
   rescue StandardError => e
@@ -40,7 +42,9 @@ class Captain::Assistant::AgentRunnerService
   # mensagem. NAO altera #generate_response (caminho de producao). Mesma chamada do runner.
   def run_raw(message_history: [])
     message_to_process, context = run_payload(message_history)
-    runner.run(message_to_process, context: context, max_turns: 100)
+    Llm::AccountScopedContext.with_account(@assistant.account) do
+      runner.run(message_to_process, context: context, max_turns: 100)
+    end
   end
 
   private
