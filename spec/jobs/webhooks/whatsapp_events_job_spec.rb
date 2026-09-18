@@ -28,10 +28,14 @@ RSpec.describe Webhooks::WhatsappEventsJob do
     allow(process_service).to receive(:perform)
   end
 
+  after do
+    Redis::Alfred.scan_each(match: 'WHATSAPP_DROPPED_INBOUND::*') { |key| Redis::Alfred.delete(key) }
+  end
+
   it 'enqueues the job' do
     expect { job.perform_later(params) }.to have_enqueued_job(described_class)
       .with(params)
-      .on_queue('low')
+      .on_queue('high')
   end
 
   context 'when whatsapp_cloud provider' do
@@ -86,7 +90,7 @@ RSpec.describe Webhooks::WhatsappEventsJob do
       channel.prompt_reauthorization!
       allow(Rails.logger).to receive(:warn)
 
-      expect(Rails.logger).to receive(:warn).with("Inactive WhatsApp channel: #{channel.phone_number}")
+      expect(Rails.logger).to receive(:warn).with("Inactive WhatsApp channel (reauthorization_required): #{channel.phone_number}")
       job.perform_now(params)
     end
 
@@ -94,8 +98,51 @@ RSpec.describe Webhooks::WhatsappEventsJob do
       unknown_phone = '+1234567890'
       allow(Rails.logger).to receive(:warn)
 
-      expect(Rails.logger).to receive(:warn).with("Inactive WhatsApp channel: unknown - #{unknown_phone}")
+      expect(Rails.logger).to receive(:warn).with("Inactive WhatsApp channel (channel_not_found): unknown - #{unknown_phone}")
       job.perform_now(phone_number: unknown_phone)
+    end
+
+    # O descarte responde 200 para a Meta: nao ha reentrega e nada fica no banco. O contador e o
+    # unico rastro de que a caixa esta recebendo zero por um motivo, e nao por falta de cliente.
+    context 'when the inbound is dropped' do
+      # Montado por extenso, e nao com deep_merge: deep_merge SUBSTITUI array, entao o merge
+      # comia os metadata e o canal nem era encontrado -- o teste passava pelo motivo errado.
+      let(:message_params) do
+        {
+          object: 'whatsapp_business_account',
+          phone_number: channel.phone_number,
+          entry: [{ changes: [{ value: {
+            metadata: { phone_number_id: channel.provider_config['phone_number_id'],
+                        display_phone_number: channel.phone_number.delete('+') },
+            contacts: [{ profile: { name: 'Cliente' }, wa_id: '5566999111222' }],
+            messages: [{ from: '5566999111222', id: 'wamid.dropped_inbound_spec',
+                         text: { body: 'Alguem ai?' }, timestamp: '1633034394', type: 'text' }]
+          } }] }]
+        }
+      end
+
+      it 'counts the drop by reason when the channel is marked for reauthorization' do
+        channel.prompt_reauthorization!
+
+        job.perform_now(message_params)
+
+        expect(Message.count).to eq(0)
+        expect(Whatsapp::DroppedInboundCounter.counts(channel.id)).to eq({ 'reauthorization_required' => 1 })
+      end
+
+      it 'counts the drop under the payload phone number when no channel matches' do
+        job.perform_now(phone_number: '+1234567890')
+
+        expect(Whatsapp::DroppedInboundCounter.counts('unknown-+1234567890')).to eq({ 'channel_not_found' => 1 })
+      end
+
+      it 'does not count anything when the channel is healthy' do
+        allow(Whatsapp::IncomingMessageWhatsappCloudService).to receive(:new).and_return(process_service)
+
+        job.perform_now(message_params)
+
+        expect(Whatsapp::DroppedInboundCounter.counts(channel.id)).to be_empty
+      end
     end
   end
 

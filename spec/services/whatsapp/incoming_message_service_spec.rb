@@ -428,7 +428,7 @@ describe Whatsapp::IncomingMessageService do
         Redis::Alfred.delete(key)
       end
 
-      it 'keeps the dedup lock when an error occurs after acquiring it' do
+      it 'releases the dedup lock when an error occurs after acquiring it' do
         message_id = 'wamid.cleanup_key_after_error'
         params = {
           'contacts' => [{ 'profile' => { 'name' => 'Kedar' }, 'wa_id' => '919746334593' }],
@@ -446,10 +446,42 @@ describe Whatsapp::IncomingMessageService do
         allow(ContactInboxWithContactBuilder).to receive(:new).and_return(builder_double)
 
         expect { described_class.new(inbox: whatsapp_channel.inbox, params: params).perform }.to raise_error(ActiveRecord::RecordInvalid)
-        # The dedup lock (SET NX EX) intentionally persists after errors to prevent
-        # duplicate processing from retried webhook deliveries. The TTL ensures
-        # eventual expiry.
-        expect(Redis::Alfred.get(key)).to be_present
+        # A trava e adquirida antes do trabalho: mantida apos o erro, a retentativa do Sidekiq
+        # encerrava com sucesso sem gravar nada e a mensagem do cliente sumia. Ela e a marca de
+        # "ja processei", e nada foi processado.
+        expect(Redis::Alfred.get(key)).to be_nil
+      ensure
+        Redis::Alfred.delete(key)
+      end
+
+      it 'creates the message on the retry after a failed attachment download' do
+        message_id = 'wamid.attachment_download_timeout'
+        key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: message_id)
+        Redis::Alfred.delete(key)
+        stub_request(:get, whatsapp_channel.media_url('b1c68f38-8734-4ad3-b4a1-ef0c10d683')).to_return(
+          status: 200, body: File.read('spec/assets/sample.png'), headers: {}
+        )
+        params = {
+          'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => '2423423243' }],
+          'messages' => [{ 'from' => '2423423243', 'id' => message_id,
+                           'image' => { 'id' => 'b1c68f38-8734-4ad3-b4a1-ef0c10d683',
+                                        'mime_type' => 'image/jpeg',
+                                        'sha256' => '29ed500fa64eb55fc19dc4124acb300e5dcca0f822a301ae99944db',
+                                        'caption' => 'Check out my product!' },
+                           'timestamp' => '1633034394', 'type' => 'image' }]
+        }.with_indifferent_access
+
+        # 1a tentativa: o download da midia na Meta estoura e o job sobe o erro para o Sidekiq.
+        falhou = described_class.new(inbox: whatsapp_channel.inbox, params: params)
+        allow(falhou).to receive(:download_attachment_file).and_raise(Down::TimeoutError)
+        expect { falhou.perform }.to raise_error(Down::TimeoutError)
+        expect(whatsapp_channel.inbox.messages.count).to eq(0)
+
+        # 2a tentativa (a retentativa do Sidekiq), agora com a Meta respondendo.
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+
+        expect(whatsapp_channel.inbox.messages.count).to eq(1)
+        expect(whatsapp_channel.inbox.messages.first.attachments.present?).to be true
       ensure
         Redis::Alfred.delete(key)
       end
