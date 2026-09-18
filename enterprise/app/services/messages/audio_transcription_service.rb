@@ -122,7 +122,8 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   def update_transcription(transcribed_text)
     return if transcribed_text.blank?
 
-    attachment.update!(meta: { transcribed_text: transcribed_text })
+    # Mescla no banco: o `update!(meta: {...})` substituia o jsonb inteiro e apagava os picos da onda.
+    Attachments::MetaMerge.call(attachment, 'transcribed_text' => transcribed_text)
     message.reload.send_update_event
     message.account.increment_response_usage
 
