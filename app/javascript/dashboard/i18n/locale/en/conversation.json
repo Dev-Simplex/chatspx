@@ -453,6 +453,8 @@
     "VISIBLE_TO_AGENTS": "Private Note: Only visible to you and your team",
     "CHANGE_STATUS": "Conversation status changed",
     "CHANGE_STATUS_FAILED": "Conversation status change failed",
+    "MARK_AS_READ_FAILED": "Could not mark the conversation as read. Try again.",
+    "MARK_AS_UNREAD_FAILED": "Could not mark the conversation as unread. Try again.",
     "CHANGE_AGENT": "Conversation Assignee changed",
     "CHANGE_AGENT_FAILED": "Assignee change failed",
     "ASSIGN_LABEL_SUCCESFUL": "Label assigned successfully",

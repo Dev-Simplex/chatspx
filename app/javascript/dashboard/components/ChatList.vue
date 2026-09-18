@@ -1018,7 +1018,7 @@ async function markAsUnread(conversationId) {
     });
     redirectToConversationList();
   } catch (error) {
-    // Ignore error
+    useAlert(t('CONVERSATION.MARK_AS_UNREAD_FAILED'));
   }
 }
 // Ação DELIBERADA (botão "marcar como lida"), não leitura implícita: por isso
@@ -1032,7 +1032,7 @@ async function markAsRead(conversationId) {
       explicit: true,
     });
   } catch (error) {
-    // Ignore error
+    useAlert(t('CONVERSATION.MARK_AS_READ_FAILED'));
   }
 }
 

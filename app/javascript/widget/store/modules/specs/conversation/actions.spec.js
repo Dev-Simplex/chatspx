@@ -10,6 +10,26 @@ const dispatch = vi.fn();
 
 describe('#actions', () => {
   describe('#createConversation', () => {
+    it('rejects on API failure and clears the creating flag for retry', async () => {
+      API.post.mockRejectedValueOnce(new Error('API failed'));
+      const windowSpy = vi.spyOn(window, 'window', 'get');
+      windowSpy.mockImplementation(() => ({
+        WOOT_WIDGET: { $root: { $i18n: { locale: 'en' } } },
+        location: { search: '' },
+      }));
+
+      await expect(actions.createConversation({ commit }, {})).rejects.toThrow(
+        'API failed'
+      );
+      expect(commit).toHaveBeenCalledWith('setConversationUIFlag', {
+        isCreating: true,
+      });
+      expect(commit).toHaveBeenLastCalledWith('setConversationUIFlag', {
+        isCreating: false,
+      });
+      windowSpy.mockRestore();
+    });
+
     it('sends correct mutations', async () => {
       API.post.mockResolvedValue({
         data: {
@@ -32,7 +52,7 @@ describe('#actions', () => {
         },
       }));
       await actions.createConversation(
-        { commit },
+        { commit, dispatch },
         { contact: {}, message: 'This is a test message' }
       );
       expect(commit.mock.calls).toEqual([
