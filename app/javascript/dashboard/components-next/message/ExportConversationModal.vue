@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useClipboard } from '@vueuse/core';
 import { useAlert } from 'dashboard/composables';
 import ConversationPdfExportApi from 'dashboard/api/conversationPdfExport';
 import Icon from 'next/icon/Icon.vue';
@@ -13,6 +14,7 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const { t } = useI18n();
+const { copy, copied } = useClipboard({ copiedDuring: 2000 });
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_MAX_TRIES = 80; // ~4 min de polling
@@ -28,6 +30,7 @@ const isExporting = ref(false);
 const status = ref(''); // pending | processing | completed | failed
 const exportId = ref(null);
 const downloadUrl = ref(null);
+const sha256 = ref(null);
 const errorMessage = ref('');
 
 let pollTimer = null;
@@ -67,6 +70,7 @@ const resetState = () => {
   status.value = '';
   exportId.value = null;
   downloadUrl.value = null;
+  sha256.value = null;
   errorMessage.value = '';
   pollTries = 0;
   if (pollTimer) {
@@ -93,6 +97,7 @@ const filtersPayload = () => ({
 const resetExportOnly = () => {
   exportId.value = null;
   downloadUrl.value = null;
+  sha256.value = null;
   errorMessage.value = '';
   pollTries = 0;
   if (pollTimer) {
@@ -117,6 +122,7 @@ const pollStatus = async () => {
     status.value = data.status;
     if (data.status === 'completed') {
       downloadUrl.value = data.download_url;
+      sha256.value = data.sha256;
       isExporting.value = false;
     } else if (data.status === 'failed') {
       errorMessage.value = data.error_message || t('EXPORT_CONVERSATION.ERROR');
@@ -389,6 +395,33 @@ onBeforeUnmount(() => {
                 <p class="text-xs text-n-slate-11 mt-1">
                   {{ t('EXPORT_CONVERSATION.READY_HINT') }}
                 </p>
+              </div>
+              <div v-if="status === 'completed' && sha256" class="text-left">
+                <span class="block text-xs font-medium text-n-slate-11 mb-1">
+                  {{ t('EXPORT_CONVERSATION.SHA256') }}
+                </span>
+                <div class="flex items-start gap-2">
+                  <code
+                    class="min-w-0 flex-1 font-mono text-xs text-n-slate-11 break-all select-text"
+                  >
+                    {{ sha256 }}
+                  </code>
+                  <button
+                    type="button"
+                    class="shrink-0 p-1 rounded hover:bg-n-slate-3 text-n-slate-11"
+                    :aria-label="
+                      copied
+                        ? t('EXPORT_CONVERSATION.COPIED')
+                        : t('EXPORT_CONVERSATION.COPY_SHA256')
+                    "
+                    @click="copy(sha256)"
+                  >
+                    <Icon
+                      :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
+                      class="size-4"
+                    />
+                  </button>
+                </div>
               </div>
             </div>
 

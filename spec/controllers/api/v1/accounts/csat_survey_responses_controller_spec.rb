@@ -196,6 +196,20 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
         expect(content[1][1]).to eq '1'
         expect(content.length).to eq 3
       end
+
+      it 'escapes formula-like feedback and contact names' do
+        formula = '=HYPERLINK("http://x","y")'
+        csat_survey_response.update!(feedback_message: formula, contact: create(:contact, account: account, name: formula))
+
+        get "/api/v1/accounts/#{account.id}/csat_survey_responses/download",
+            params: params,
+            headers: administrator.create_new_auth_token
+
+        expect(response).to have_http_status(:success)
+        row = CSV.parse(response.body)[1]
+        expect(row[2]).to eq("'#{formula}")
+        expect(row[3]).to eq("'#{formula}")
+      end
     end
   end
 end
