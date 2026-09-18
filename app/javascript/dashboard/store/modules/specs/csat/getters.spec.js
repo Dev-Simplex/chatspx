@@ -56,13 +56,17 @@ describe('#getters', () => {
   it('getResponseRate', () => {
     expect(
       getters.getResponseRate({
-        metrics: { totalResponseCount: 0, totalSentMessagesCount: 0 },
+        metrics: { totalResponseCountForRate: 0, totalSentMessagesCount: 0 },
       })
     ).toEqual(0);
 
     expect(
       getters.getResponseRate({
-        metrics: { totalResponseCount: 20, totalSentMessagesCount: 50 },
+        metrics: {
+          totalResponseCount: 5,
+          totalResponseCountForRate: 20,
+          totalSentMessagesCount: 50,
+        },
       })
     ).toEqual('40.00');
   });

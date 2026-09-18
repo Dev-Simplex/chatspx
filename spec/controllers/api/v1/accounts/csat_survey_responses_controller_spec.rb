@@ -81,6 +81,65 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
   end
 
   describe 'GET /api/v1/accounts/{account.id}/csat_survey_responses/metrics' do
+    context 'with surveys in different inboxes, teams and agents' do
+      let(:inbox_a) { create(:inbox, account: account) }
+      let(:inbox_b) { create(:inbox, account: account) }
+      let(:team_a) { create(:team, account: account) }
+      let(:team_b) { create(:team, account: account) }
+      let(:agent_b) { create(:user, account: account, role: :agent) }
+      let(:conversation_a) { create(:conversation, account: account, inbox: inbox_a, team: team_a, assignee: agent) }
+      let(:conversation_b) { create(:conversation, account: account, inbox: inbox_b, team: team_b, assignee: agent_b) }
+
+      before do
+        csat_survey_response.destroy!
+        create(:team_member, team: team_a, user: agent)
+        create(:team_member, team: team_b, user: agent_b)
+        3.times { create(:message, account: account, conversation: conversation_a, content_type: :input_csat) }
+        create(:message, account: account, conversation: conversation_b, content_type: :input_csat)
+        create(:csat_survey_response, account: account, conversation: conversation_a, assigned_agent: agent, rating: 5)
+        create(:csat_survey_response, account: account, conversation: conversation_a, assigned_agent: agent, rating: 1)
+        create(:csat_survey_response, account: account, conversation: conversation_b, assigned_agent: agent_b, rating: 1)
+      end
+
+      def metrics_for(filters = {})
+        get "/api/v1/accounts/#{account.id}/csat_survey_responses/metrics",
+            params: filters, headers: administrator.create_new_auth_token, as: :json
+        response.parsed_body
+      end
+
+      it 'counts only surveys sent from the selected inbox' do
+        metrics = metrics_for(inbox_id: inbox_a.id)
+        expect(metrics).to include('total_count' => 2, 'total_response_count_for_rate' => 2, 'total_sent_messages_count' => 3)
+      end
+
+      it 'counts only surveys sent from the selected team' do
+        metrics = metrics_for(team_id: team_a.id)
+        expect(metrics).to include('total_count' => 2, 'total_response_count_for_rate' => 2, 'total_sent_messages_count' => 3)
+      end
+
+      it 'counts only surveys sent for the selected agent' do
+        expect(conversation_a.reload.assignee_id).to eq(agent.id)
+        metrics = metrics_for(user_ids: [agent.id])
+        expect(metrics).to include('total_count' => 2, 'total_response_count_for_rate' => 2, 'total_sent_messages_count' => 3)
+      end
+
+      it 'ignores the rating only for the response rate counts' do
+        without_rating = metrics_for(inbox_id: inbox_a.id)
+        with_rating = metrics_for(inbox_id: inbox_a.id, rating: 5)
+        expect(with_rating).to include('total_count' => 1, 'ratings_count' => { '5' => 1 })
+        expect(with_rating).to include('total_response_count_for_rate' => 2, 'total_sent_messages_count' => 3)
+        expect(with_rating.values_at('total_response_count_for_rate', 'total_sent_messages_count')).to eq(
+          without_rating.values_at('total_response_count_for_rate', 'total_sent_messages_count')
+        )
+      end
+
+      it 'preserves the unfiltered totals' do
+        metrics = metrics_for
+        expect(metrics).to include('total_count' => 3, 'total_response_count_for_rate' => 3, 'total_sent_messages_count' => 4)
+        expect(metrics['ratings_count']).to eq({ '1' => 2, '5' => 1 })
+      end
+    end
+
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do
         get "/api/v1/accounts/#{account.id}/csat_survey_responses/metrics"
