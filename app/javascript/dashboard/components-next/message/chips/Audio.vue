@@ -41,6 +41,19 @@ const playbackSpeed = ref(1);
 const hasLoadedSource = ref(false);
 const hasPrewarmedMetadata = ref(false);
 const isLoadingSource = ref(false);
+const isDraggingWaveform = ref(false);
+const hasWaveform = computed(
+  () =>
+    Array.isArray(attachment.waveformPeaks) &&
+    attachment.waveformPeaks.length > 0
+);
+const playedBars = computed(() =>
+  duration.value > 0
+    ? Math.floor(
+        (currentTime.value / duration.value) * attachment.waveformPeaks.length
+      )
+    : 0
+);
 
 const { uid } = getCurrentInstance();
 
@@ -150,6 +163,28 @@ const seek = async event => {
   currentTime.value = time;
 };
 
+const seekWaveform = event => {
+  if (!duration.value) return;
+  const { left, width } = event.currentTarget.getBoundingClientRect();
+  if (!width) return;
+  const fraction = Math.max(0, Math.min(1, (event.clientX - left) / width));
+  seek({ target: { value: fraction * duration.value } });
+};
+
+const onWaveformPointerDown = event => {
+  isDraggingWaveform.value = true;
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+  seekWaveform(event);
+};
+
+const onWaveformPointerMove = event => {
+  if (isDraggingWaveform.value) seekWaveform(event);
+};
+
+const onWaveformPointerUp = () => {
+  isDraggingWaveform.value = false;
+};
+
 const playOrPause = async () => {
   if (isPlaying.value) {
     audioPlayer.value.pause();
@@ -245,13 +280,41 @@ const downloadAudio = async () => {
       <div class="tabular-nums text-xs">
         {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
       </div>
-      <div class="flex-1 items-center flex px-2">
+      <div
+        class="flex-1 items-center flex px-2 focus-within:ring-2 focus-within:ring-n-slate-12 rounded-sm"
+      >
+        <div
+          v-if="hasWaveform"
+          data-testid="waveform"
+          aria-hidden="true"
+          class="flex h-6 w-full cursor-pointer items-center gap-px touch-none select-none"
+          @pointerdown="onWaveformPointerDown"
+          @pointermove="onWaveformPointerMove"
+          @pointerup="onWaveformPointerUp"
+          @pointercancel="onWaveformPointerUp"
+        >
+          <span
+            v-for="(peak, index) in attachment.waveformPeaks"
+            :key="index"
+            data-testid="waveform-bar"
+            class="min-w-0 flex-1 rounded-full"
+            :class="index < playedBars ? 'bg-n-slate-12' : 'bg-n-slate-12/40'"
+            :style="{ height: `${Math.max(10, peak * 100)}%` }"
+          />
+        </div>
+        <!-- The native slider stays focusable for keyboard and screen-reader seeking. -->
         <input
           type="range"
           min="0"
           :max="duration"
           :value="currentTime"
           class="w-full h-1 bg-n-slate-12/40 rounded-lg appearance-none cursor-pointer accent-current"
+          :class="{ 'sr-only': hasWaveform }"
+          :aria-label="
+            hasWaveform
+              ? $t('CONVERSATION_SIDEBAR.MEDIA_SECTIONS.AUDIO_PROGRESS')
+              : undefined
+          "
           @input="seek"
         />
       </div>
