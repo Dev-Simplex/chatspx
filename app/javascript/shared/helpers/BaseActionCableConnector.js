@@ -86,6 +86,13 @@ class BaseActionCableConnector {
     // brigar com o visibilityDidChange interno da lib.
     this.handleReturnToForeground = () => {
       if (this.isDestroyed) return;
+      if (
+        typeof window !== 'undefined' &&
+        window.reconnectService &&
+        (window.scrollY > 0 || window.scrollX > 0)
+      ) {
+        window.scrollTo(0, 0);
+      }
       const conn = this.consumer.connection;
       if (conn && !conn.isOpen()) conn.reopen();
       this.reconnectAttempts = 0;
