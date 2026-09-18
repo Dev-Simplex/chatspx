@@ -26,6 +26,7 @@
       "ROTATION": "Rotation",
       "CONTINUITY": "Continuity",
       "PREFERENCE": "Client request",
+      "HANDOFF": "Hand-off",
       "MANUAL": "Manager",
       "OPEN": "Still open",
       "CHANNELS": "Channels",
