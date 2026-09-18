@@ -102,16 +102,40 @@ usuário pedir.
 git bundle create /tmp/rel.bundle <branch> --not <commit_anterior>
 
 # 2. em cada VM
-git checkout -- public/version.json
 git fetch /tmp/rel.bundle <branch> && git merge --ff-only FETCH_HEAD
 # se tiver migration:
 RAILS_ENV=production bundle exec rake db:migrate
-# conferir SEMPRE antes do restart:
+# conferir SEMPRE (o timer também confere, e aborta se achar down):
 RAILS_ENV=production bundle exec rake db:migrate:status | grep -c '^   down'
 
-# 3. só então
-sudo systemctl restart chatwoot-web.1 chatwoot-worker.1
+# 3. instalar ou atualizar o timer, a cada deploy, para o script novo chegar
+cd /home/chatwoot/chatwoot/deployment
+sudo install -m 750 -o root -g root chatwoot-restart-noturno.sh /usr/local/sbin/
+sudo install -m 644 -o root -g root chatwoot-restart-noturno.service chatwoot-restart-noturno.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now chatwoot-restart-noturno.timer
 ```
+
+**Por padrão não reinicie.** O processo no ar continua servindo o código e o front
+antigos até o restart (o Puma sobe com `preload_app!` e o manifest do Vite fica em
+memória), então código e assets podem ir de dia. O timer reinicia web e workers às
+20:00 de Cuiabá, só se o disco andou depois que o web subiu, e aborta sozinho se
+houver migration pendente. O `install` usa o acesso de root que a VM tiver. O
+script vai para `/usr/local/sbin` como root porque o do checkout é do `chatwoot`, e
+root executando arquivo que o `chatwoot` pode editar é escalada de privilégio.
+
+Restart na hora só quando o usuário disser que é urgente (hotfix), com OK
+explícito, e aí do jeito de antes: `db:migrate:status` zerado e
+`sudo systemctl restart chatwoot-web.1 chatwoot-worker.1` (na PRODUCAO também
+`chatwoot-worker.bulk` e `chatwoot-worker.realtime`, que o `chatwoot.target` não
+cobre).
+
+**Migration com restart adiado.** Entre o migrate (de dia) e o restart (20:00), o
+código VELHO roda contra o schema NOVO. Migration aditiva (criar tabela, coluna,
+índice, trocar FK) é segura. Migration que remove ou renomeia tabela ou coluna, ou
+muda o tipo ou o `null: false` de coluna que o código velho usa, **não pode
+esperar**: faça o deploy inteiro junto do restart, às 20:00 ou na hora como
+urgente com OK. Leia as migrations que o raio-X lista antes de decidir.
 
 Com frontend, antes do passo 2: build **no checkout principal**
 (`/home/chatwoot/chatwoot`), nunca dentro de worktree, onde o `pnpm exec vite
@@ -130,13 +154,12 @@ find public/vite -newermt '<AAAA-MM-DDTHH:MM:SS>' -type f ! -name '*.map' -print
 tar -czf /tmp/assets.tgz --null -T /tmp/novos.list0   # ~19 MB, com o manifest dentro
 ```
 
-Por fim, publique o `version.json` novo em cada VM. É ele que faz a aba aberta
-há dias recarregar sozinha (`autoUpdateHelper.js` compara a cada polling):
-
-```bash
-echo '{"version":"<sha10>","deployed_at":'$(date +%s)'}' \
-  | sudo -u chatwoot tee /home/chatwoot/chatwoot/public/version.json
-```
+**Não restaure nem escreva o `public/version.json` à mão.** É ele que faz a aba
+aberta há dias recarregar sozinha (`autoUpdateHelper.js` compara a cada polling), e
+quem o escreve é o boot do web (`config/initializers/app_version.rb`), com o commit
+com que o web subiu. Escrito de dia, a aba recarrega à toa no front velho, guarda a
+versão nova e não recarrega mais quando o web novo sobe às 20:00. Só faça
+`git checkout -- public/version.json` se o `merge --ff-only` recusar por causa dele.
 
 ### Três armadilhas de shell que custam 15 minutos cada
 
@@ -154,12 +177,24 @@ echo '{"version":"<sha10>","deployed_at":'$(date +%s)'}' \
 
 ## Fase 5 — Provar que funcionou
 
-Não diga "deployado". Mostre:
+Não diga "deployado". Com o restart às 20:00, a prova vem em dois tempos.
 
-- o commit em cada VM (`git rev-parse --short=10 HEAD`)
-- `systemctl is-active` e o healthcheck (`curl .../api`)
-- **e o comportamento**: se o PR conserta a busca, faça uma busca; se muda a
-  tela, baixe o entry pela URL pública e confira o 200.
+**Agora**, em cada VM:
+
+- o commit no disco (`git rev-parse --short=10 HEAD`)
+- `db:migrate:status` sem nenhum `down`
+- o timer ativo: `systemctl is-enabled chatwoot-restart-noturno.timer` e
+  `systemctl list-timers chatwoot-restart-noturno.timer`
+- o web ainda saudável no código antigo: `systemctl is-active` e o healthcheck
+  (`curl .../api`)
+
+E diga "no disco, carrega às 20:00".
+
+**Depois das 20:00**, rode o raio-X com `--frota`: a seção 4 mostra, por VM, se o
+web já serve o disco e o que o timer fez na última noite. Só então prove o
+comportamento: se o PR conserta a busca, faça uma busca; se muda a tela, baixe o
+entry pela URL pública e confira o 200. Com restart urgente, a prova é toda na
+hora, como antes.
 
 Ao final, alinhe a `homologacao` com a `producao` se elas divergirem, e siga para
 a Fase 6. O que ficou pendente você diz ao usuário no fechamento dela.
@@ -200,9 +235,9 @@ Se as três contêm o commit, diga isso em uma linha e encerre.
 
 Use a ferramenta de pergunta de múltipla escolha, com **só as VMs atrasadas e
 desbloqueadas** como opção. Cada opção diz o que vai acontecer: ff ou merge, se
-tem migration, se tem build, e que reinicia. Marcar a VM é o OK para reiniciar
-aquela VM. As bloqueadas aparecem no texto da pergunta, com o motivo, e não como
-opção.
+tem migration, se tem build, e quando reinicia (homologação às 20:00, pelo timer;
+VM de dev na hora). Marcar a VM é o OK para reiniciar aquela VM. As bloqueadas
+aparecem no texto da pergunta, com o motivo, e não como opção.
 
 A VM está **bloqueada** quando:
 
@@ -238,7 +273,6 @@ host estava cheio, e build em paralelo aperta todo mundo.
 
 ```bash
 cd /home/chatwoot/chatwoot
-git checkout -- public/version.json
 git fetch origin                     # a .232 alcança o GitHub
 git checkout homologacao && git merge --ff-only origin/homologacao
 RAILS_ENV=production bundle exec rake db:migrate
@@ -246,7 +280,14 @@ RAILS_ENV=production bundle exec rake db:migrate
 
 A fase 5 já alinhou a `homologacao` com a `producao`, então é o mesmo commit e os
 assets são **o mesmo tgz da fase 4**: extraia por cima e gere os `.gz`. Depois,
-`db:migrate:status` sem nenhum `down`, restart e prova.
+`db:migrate:status` sem nenhum `down`, o timer instalado como na fase 4 e a prova
+em dois tempos da fase 5. A homologação tem cliente (contas 3/4/5): o restart
+também fica para as 20:00.
+
+O `public/version.json` segue a regra da fase 4. Se o `merge --ff-only` recusar
+porque a branch `homologacao` local tem commit só dela (aconteceu em 18/09:
+`fca99fcb0a`, de 02/09), faça o backup do passo 3 e renomeie a branch com
+`git branch -m`, nunca force.
 
 ### 6. Receita da VM de dev
 
@@ -262,8 +303,8 @@ git diff --name-only ORIG_HEAD HEAD -- app/javascript    # vazio: sem build
 
 Build **na VM**, só se o merge trouxe frontend, no checkout principal dela e com
 heap 12288, e depois os `.gz`. O tgz da produção não serve aqui, porque o código
-da VM do dev é outro. Depois, `db:migrate:status` sem nenhum `down`, restart e
-prova.
+da VM do dev é outro. Depois, `db:migrate:status` sem nenhum `down`, restart na
+hora e prova. VM de dev não é cliente e não recebe o timer.
 
 Nunca dê push na branch do dev (publicar é decisão dele), e nunca stash, reset
 nem clean.
@@ -279,6 +320,11 @@ Feche dizendo o que ficou para trás e o que o dev precisa fazer. Por exemplo:
 ## Regras que não se negociam
 
 - **Restart e reboot exigem OK explícito do usuário.**
+- **Reiniciar é reiniciar os serviços do SPX (web e workers), nunca a VM.** Nada
+  de `reboot`, `shutdown` ou stop/start: na AWS as VMs não têm Elastic IP e o IP
+  público muda num stop/start (a TOZI já trocou de IP assim). O restart das 20:00
+  é do timer, por decisão do dono em 18/09; fora dele, restart na hora continua
+  exigindo OK.
 - Antes de qualquer `merge --ff-only` numa VM, confira o HEAD **real** dela: a
   branch pode estar atrás do que roda no cliente.
 - `git` rodado **dentro** da VM mente sobre divergência, porque o deploy por

@@ -35,6 +35,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 
@@ -244,25 +246,55 @@ def analisa(numero: int, checar_frota: bool) -> int:
     if checar_frota:
         titulo("4. Onde a frota esta (o que realmente roda no cliente)")
         aqui = _enderecos_desta_maquina()
+        # Desde 18/09/2026 o restart e do timer das 20:00 de Cuiaba
+        # (deployment/chatwoot-restart-noturno.*): o commit no disco ja nao diz o
+        # que o cliente ve. Por isso o mesmo SSH traz tambem se o web serve o disco
+        # (a regua do deployment/deploy.sh: o web subiu depois da ultima vez que a
+        # branch andou), o estado do timer e a ultima linha do log dele. O local
+        # tambem le o /home/chatwoot/chatwoot: rodado de um worktree, o HEAD do
+        # diretorio atual e o do worktree, nao o que o web serve.
+        cmd = ("cd /home/chatwoot/chatwoot || exit 1; b=$(git rev-parse --abbrev-ref HEAD); "
+               "printf '%s|%s|%s|%s|%s|%s\\n' \"$(git rev-parse --short=10 HEAD)\" "
+               "\"$(git reflog -1 --date=unix --format=%gd \"$b\")\" "
+               "\"$(systemctl show chatwoot-web.1 -p ActiveEnterTimestamp --value --timestamp=unix)\" "
+               "\"$(systemctl show chatwoot-restart-noturno.timer -p LoadState --value)\" "
+               "\"$(systemctl is-active chatwoot-restart-noturno.timer)\" "
+               "\"$(tail -n1 log/restart-noturno.log 2>/dev/null)\"")
         for nome, ip in FROTA:
             if ip in aqui:
-                commit = sh(["git", "rev-parse", "--short=10", "HEAD"])
+                saida, falha = sh(["bash", "-c", cmd]), "sem resposta"
             elif nome == "PRODUCAO":
                 # A .229 nao usa a chave da AWS (o acesso dela e por senha), entao de
                 # fora ela so responde se a maquina de onde voce roda ja tiver chave
                 # publica autorizada la. Quando nao tem, dizer "nao medida" e melhor
                 # do que herdar o HEAD local e chamar isso de producao.
-                commit = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=8",
-                             "-o", "BatchMode=yes", f"chatwoot@{ip}",
-                             "cd /home/chatwoot/chatwoot; git rev-parse --short=10 HEAD"],
-                            timeout=30) or "nao medida daqui"
+                saida = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=8",
+                            "-o", "BatchMode=yes", f"chatwoot@{ip}", cmd], timeout=30)
+                falha = "nao medida daqui"
             else:
-                commit = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
-                             "-i", PEM, f"ubuntu@{ip}",
-                             "sudo -n -u chatwoot bash -lc 'cd /home/chatwoot/chatwoot; git rev-parse --short=10 HEAD'"],
-                            timeout=45) or "sem resposta"
+                saida = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
+                            "-i", PEM, f"ubuntu@{ip}", f"sudo -n -u chatwoot bash -lc {shlex.quote(cmd)}"],
+                           timeout=45)
+                falha = "sem resposta"
+            partes = saida.splitlines()[-1].split("|") if saida else []
+            if len(partes) != 6 or not partes[0]:
+                commit, extra = falha, ""
+            else:
+                commit, branch_andou, web_subiu, timer_load, timer_ativo, ultima = partes
+                andou, subiu = re.search(r"@\{(\d+)\}", branch_andou), re.search(r"@(\d+)", web_subiu)
+                timer = "ativo" if timer_ativo == "active" else "ausente" if timer_load == "not-found" else "inativo"
+                if not (andou and subiu):
+                    serve = "?"
+                elif int(subiu.group(1)) >= int(andou.group(1)):
+                    serve = "sim"
+                else:
+                    serve = "nao (carrega as 20:00)" if timer == "ativo" else "nao (so com restart)"
+                extra = f"  serve o disco: {serve} · timer: {timer}"
+                noite = ultima.split()
+                if len(noite) >= 2:
+                    extra += f" · ultima noite: {noite[1]} em {noite[0][:10]}"
             marca = VERDE if commit == prod else AMARELO
-            print(f"  {nome:<11} {marca}{commit}{RESET}")
+            print(f"  {nome:<11} {marca}{commit}{RESET}{extra}")
             if commit == "nao medida daqui":
                 alertas.append(f"{nome} ({ip}) nao respondeu desta maquina: o numero dela NAO esta "
                                "nesta tabela. Meca de la antes de concluir que a frota esta alinhada.")
