@@ -47,6 +47,15 @@ RSpec.describe Spx::Distribuicao::VarrerSlaJob do
     expect { described_class.perform_now }.not_to have_enqueued_job(Spx::Distribuicao::RepassarJob)
   end
 
+  # N-06: ligar o repasse num time com historico de designacoes abertas nao pode despejar os leads de
+  # meses atras no pool. O limite e o mesmo do RepasseJob (LOOKBACK).
+  it 'ignora designação mais velha que o limite de idade do repasse' do
+    create(:distribuicao_policy, :com_repasse, account: account, team: team, sla_assumir_minutos: 30)
+    designacao(60.days.in_minutes.to_i)
+
+    expect { described_class.perform_now }.not_to have_enqueued_job(Spx::Distribuicao::RepassarJob)
+  end
+
   # O filtro grosso usa o MENOR sla entre as políticas ligadas — é o limite inferior seguro.
   it 'usa o menor sla das políticas ligadas como piso da varredura' do
     outro_time = create(:team, account: account)

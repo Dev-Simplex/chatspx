@@ -820,6 +820,9 @@ const irParaPolitica = () =>
                 {{ t('AGENTS_RODIZIO.TABLE.PREFERENCE') }}
               </th>
               <th class="px-3 py-2 font-medium text-right">
+                {{ t('AGENTS_RODIZIO.TABLE.HANDOFF') }}
+              </th>
+              <th class="px-3 py-2 font-medium text-right">
                 {{ t('AGENTS_RODIZIO.TABLE.MANUAL') }}
               </th>
               <th class="px-3 py-2 font-medium text-right">
@@ -835,7 +838,7 @@ const irParaPolitica = () =>
           </thead>
           <tbody>
             <tr v-if="!linhas.length">
-              <td colspan="9" class="px-3 py-6 text-center text-n-slate-10">
+              <td colspan="10" class="px-3 py-6 text-center text-n-slate-10">
                 {{ t('AGENTS_RODIZIO.EMPTY') }}
               </td>
             </tr>
@@ -873,7 +876,14 @@ const irParaPolitica = () =>
                   {{ motivo(linha, 'preferencia_cliente') }}
                 </td>
                 <td class="px-3 py-2 text-right text-n-slate-11">
-                  {{ motivo(linha, 'manual_gestor') }}
+                  {{ motivo(linha, 'repasse_sla') }}
+                </td>
+                <!-- "Gestor" = chegou ao gestor, a mao ou escalado; as colunas somam "Recebidos". -->
+                <td class="px-3 py-2 text-right text-n-slate-11">
+                  {{
+                    motivo(linha, 'escalado_gestor') +
+                    motivo(linha, 'manual_gestor')
+                  }}
                 </td>
                 <td class="px-3 py-2 text-right text-n-slate-11">
                   {{ linha.abertos }}
@@ -885,7 +895,7 @@ const irParaPolitica = () =>
               <!-- A faixa abre ABAIXO da linha, e não como balão preso ao nome: a barra precisa
                    da largura da tabela, e balão dentro de célula sai cortado. -->
               <tr v-if="expandido === linha.user_id">
-                <td colspan="9" class="p-0">
+                <td colspan="10" class="p-0">
                   <div
                     class="flex flex-col gap-3 px-4 py-4 border-t bg-n-solid-1 dark:bg-n-solid-2 border-n-weak"
                   >
