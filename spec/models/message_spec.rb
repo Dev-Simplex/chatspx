@@ -156,6 +156,44 @@ RSpec.describe Message do
       expect(conversation.waiting_since).to be_nil
     end
 
+    # N-01: numa caixa WAHA, a resposta dada pelo CELULAR chega como nota privada com este cabecalho
+    # e o remetente e o dono do token. Para o cliente, e resposta.
+    context 'with a reply sent from the phone in a WAHA inbox' do
+      let(:account) { create(:account) }
+      let(:waha_inbox) do
+        create(:inbox, account: account, channel: create(:channel_api, account: account), waha_session_name: 'sessao_teste')
+      end
+      let(:waha_conversation) { create(:conversation, account: account, inbox: waha_inbox).tap(&:reload) }
+
+      def nota(content)
+        create(:message, message_type: :outgoing, private: true, conversation: waha_conversation,
+                         sender: create(:user, account: account), content: content)
+      end
+
+      it 'counts as the first reply and clears waiting_since' do
+        resposta = nota("*📱 Enviado do WhatsApp*\n\nJa te respondo")
+
+        waha_conversation.reload
+        expect(waha_conversation.first_reply_created_at).to eq resposta.reload.created_at
+        expect(waha_conversation.waiting_since).to be_nil
+      end
+
+      it 'keeps an ordinary private note internal' do
+        nota('anotacao interna')
+
+        waha_conversation.reload
+        expect(waha_conversation.first_reply_created_at).to be_nil
+        expect(waha_conversation.waiting_since).to be_present
+      end
+
+      it 'ignores the marker outside a WAHA inbox' do
+        waha_inbox.update!(waha_session_name: nil)
+        nota("*📱 Enviado do WhatsApp*\n\noi")
+
+        expect(waha_conversation.reload.first_reply_created_at).to be_nil
+      end
+    end
+
     it 'does not update the conversation first reply created at if the message is incoming' do
       expect(conversation.first_reply_created_at).to be_nil
       expect(conversation.waiting_since).to eq conversation.created_at

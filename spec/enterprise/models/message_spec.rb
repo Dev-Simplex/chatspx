@@ -136,6 +136,15 @@ RSpec.describe Message do
       expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
     end
 
+    # N-01: o atendente respondeu pelo celular numa caixa WAHA — a IA tem de parar de falar por cima.
+    it 'releases the mirror for a reply sent from the phone in a WAHA inbox' do
+      conversation.inbox.update!(channel: create(:channel_api, account: conversation.account), waha_session_name: 'sessao_teste')
+      create(:message, message_type: :outgoing, conversation: conversation, private: true,
+                       content: "*📱 Enviado do WhatsApp*\n\nJa te respondo")
+
+      expect(conversation.reload.assignee_agent_bot_id).to be_nil
+    end
+
     it 'does not release the mirror for template bootstrap messages' do
       create(
         :message,
