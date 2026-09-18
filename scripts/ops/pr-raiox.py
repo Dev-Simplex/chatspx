@@ -3,6 +3,7 @@
 
     scripts/ops/pr-raiox.py 93
     scripts/ops/pr-raiox.py 93 --frota      # consulta tambem as VMs (mais lento)
+    scripts/ops/pr-raiox.py 93 hotfix       # algo quebrou em producao (ou --hotfix)
 
 Responde, em 10 segundos, as perguntas que decidem se um PR pode subir:
 o que o merge REALMENTE traz, o que o deploy vai exigir e onde a frota esta.
@@ -138,7 +139,7 @@ def pr_info(numero: int) -> dict:
     return json.loads(saida)
 
 
-def analisa(numero: int, checar_frota: bool) -> int:
+def analisa(numero: int, checar_frota: bool, hotfix: bool = False) -> int:
     sh(["git", "fetch", "origin", "--prune", "-q"], timeout=120)
     pr = pr_info(numero)
     base, head = f"origin/{pr['baseRefName']}", f"origin/{pr['headRefName']}"
@@ -366,6 +367,8 @@ def analisa(numero: int, checar_frota: bool) -> int:
             print(f"    ▸ {a}")
     if not bloqueios and not alertas:
         print(f"  {VERDE}Nada mecanico impede o merge.{RESET}")
+    if hotfix:
+        print(f"  {AMARELO}HOTFIX{RESET}: restart na hora so nas VMs quebradas; o resto carrega as 20:00.")
 
     print(f"""
   {AZUL}O que este script NAO faz, e continua sendo seu trabalho:{RESET}
@@ -379,16 +382,27 @@ def analisa(numero: int, checar_frota: bool) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Raio-X de um ou mais PRs antes do merge.")
-    p.add_argument("prs", type=int, nargs="+", help="numero(s) do(s) PR(s)")
+    p.add_argument("prs", nargs="+", help="numero(s) do(s) PR(s); a palavra hotfix pode vir junto")
     p.add_argument("--frota", action="store_true", help="consultar tambem as VMs (mais lento)")
-    args = p.parse_args()
+    p.add_argument("--hotfix", action="store_true", help="algo quebrou em producao: restart na hora nas VMs quebradas")
+    # O /promover-pr repassa o $ARGUMENTS inteiro (ex.: "190 hotfix --frota"), entao a palavra
+    # hotfix chega misturada aos numeros; parse_intermixed_args aceita as opcoes em qualquer ordem.
+    args = p.parse_intermixed_args()
+    hotfix = args.hotfix or any(a.lower() == "hotfix" for a in args.prs)
+    prs = [a for a in args.prs if a.lower() != "hotfix"]
+    invalidos = [a for a in prs if not a.isdigit()]
+    if invalidos:
+        p.error(f"{', '.join(invalidos)}: nao e numero de PR nem 'hotfix'")
+    if not prs:
+        p.error("informe ao menos um numero de PR")
+    args.prs = [int(a) for a in prs]
 
     # Com varios PRs, a frota e as branches sao as MESMAS para todos: consultar
     # uma vez por PR seria N vezes o mesmo SSH. Entao so o ultimo consulta.
     problemas = 0
     for i, numero in enumerate(args.prs):
         ultimo = i == len(args.prs) - 1
-        problemas += analisa(numero, args.frota and ultimo)
+        problemas += analisa(numero, args.frota and ultimo, hotfix and ultimo)
 
     if len(args.prs) > 1:
         titulo(f"LOTE DE {len(args.prs)} PRs")

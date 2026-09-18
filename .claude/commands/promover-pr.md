@@ -1,6 +1,6 @@
 ---
 description: Revisa um ou mais PRs, e se nada quebrar, mergeia e leva para as VMs de produção. No fim, oferece alinhar a homologação e as VMs dos devs
-argument-hint: <numero(s) do(s) PR(s), ex: 99 ou 99 100 101>
+argument-hint: <numero(s) do(s) PR(s), ex: 99 ou 99 100 101; com algo quebrado em produção, some hotfix: 190 hotfix>
 allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 ---
 
@@ -20,6 +20,18 @@ deployar.
 Este comando existe porque o processo tem armadilhas que já derrubaram produção
 nesta semana. Siga as fases na ordem. **Não pule a fase 1**, e não trate o
 resultado do script como opinião: ele mede o que o GitHub esconde.
+
+## Hotfix: só quando algo quebrou em produção
+
+Com a palavra `hotfix` nos argumentos (ex.: `190 hotfix`), as VMs quebradas sobem
+reiniciadas na hora em vez de esperar as 20:00. Vale só quando algo quebrou em
+produção. **Antes de qualquer fase**, peça ao usuário, em uma linha, o que quebrou
+e onde (VM e conta), e não siga sem essa resposta: é ela que diz onde reiniciar
+agora e o que a fase 5 precisa reproduzir.
+
+Hotfix não pula revisão. As fases 1 a 3 continuam obrigatórias, e é no hotfix que
+mais se erra: pressa, PR pequeno que arrasta carona, teste que ninguém rodou. O
+que muda está nas fases 4 e 5.
 
 ## Fase 1 — Raio-X (obrigatória, sempre primeiro)
 
@@ -126,18 +138,29 @@ assets pela metade. O `install` usa o acesso de root que a VM tiver. O
 script vai para `/usr/local/sbin` como root porque o do checkout é do `chatwoot`, e
 root executando arquivo que o `chatwoot` pode editar é escalada de privilégio.
 
-Restart na hora só quando o usuário disser que é urgente (hotfix), com OK
-explícito, e aí do jeito de antes: `db:migrate:status` zerado e
-`sudo systemctl restart chatwoot-web.1 chatwoot-worker.1` (na PRODUCAO também
+**Com hotfix**, depois de ff, migrate, assets, `db:migrate:status` zerado e timer
+instalado em cada VM, faça **uma** pergunta de múltipla escolha com as VMs
+deployadas, para marcar onde o restart é agora: as quebradas. Marcar é o OK do
+restart daquela VM; TOZI e CDSOLAR continuam exigindo OK, e a marcação é esse OK.
+As não marcadas esperam as 20:00. Na VM marcada, reinicie todos os
+`chatwoot-web*` e `chatwoot-worker*` ativos (na PRODUCAO isso inclui
 `chatwoot-worker.bulk` e `chatwoot-worker.realtime`, que o `chatwoot.target` não
-cobre).
+cobre) e espere o `/api` responder 200:
+
+```bash
+sudo systemctl restart $(systemctl list-units --type=service --state=active --no-legend --plain 'chatwoot-web*' 'chatwoot-worker*' | awk '{print $1}')
+```
+
+Sem hotfix não existe restart na hora: a promoção normal carrega às 20:00.
 
 **Migration com restart adiado.** Entre o migrate (de dia) e o restart (20:00), o
 código VELHO roda contra o schema NOVO. Migration aditiva (criar tabela, coluna,
 índice, trocar FK) é segura. Migration que remove ou renomeia tabela ou coluna, ou
 muda o tipo ou o `null: false` de coluna que o código velho usa, **não pode
-esperar**: faça o deploy inteiro junto do restart, às 20:00 ou na hora como
-urgente com OK. Leia as migrations que o raio-X lista antes de decidir.
+esperar**: faça o deploy inteiro junto do restart das 20:00. Leia as migrations
+que o raio-X lista antes de decidir. Nas VMs marcadas num hotfix não há essa
+janela, porque o restart vem logo depois do migrate; a regra vale só para as não
+marcadas.
 
 Com frontend, antes do passo 2: build **no checkout principal**
 (`/home/chatwoot/chatwoot`), nunca dentro de worktree, onde o `pnpm exec vite
@@ -195,8 +218,11 @@ E diga "no disco, carrega às 20:00".
 **Depois das 20:00**, rode o raio-X com `--frota`: a seção 4 mostra, por VM, se
 web e workers já servem o disco e o que o timer fez na última noite. Só então prove o
 comportamento: se o PR conserta a busca, faça uma busca; se muda a tela, baixe o
-entry pela URL pública e confira o 200. Com restart urgente, a prova é toda na
-hora, como antes.
+entry pela URL pública e confira o 200.
+
+**VM reiniciada agora num hotfix** prova tudo na hora, inclusive o comportamento:
+reproduza o que quebrou (o que o usuário contou no começo) e mostre que parou. O
+timer das 20:00 pula essa VM sozinho, porque ela já serve o disco.
 
 Ao final, alinhe a `homologacao` com a `producao` se elas divergirem, e siga para
 a Fase 6. O que ficou pendente você diz ao usuário no fechamento dela.
@@ -327,6 +353,8 @@ Feche dizendo o que ficou para trás e o que o dev precisa fazer. Por exemplo:
   público muda num stop/start (a TOZI já trocou de IP assim). O restart das 20:00
   é do timer, por decisão do dono em 18/09; fora dele, restart na hora continua
   exigindo OK.
+- **Hotfix não é atalho.** Só vale com algo quebrado em produção, e mesmo assim
+  reinicia na hora só as VMs quebradas. Promoção normal nunca reinicia de dia.
 - Antes de qualquer `merge --ff-only` numa VM, confira o HEAD **real** dela: a
   branch pode estar atrás do que roda no cliente.
 - `git` rodado **dentro** da VM mente sobre divergência, porque o deploy por
