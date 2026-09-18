@@ -245,7 +245,7 @@ class Message < ApplicationRecord
   end
 
   def valid_first_reply?
-    return false unless human_response? && !private?
+    return false unless human_response? && reached_customer?
     return false if conversation.first_reply_created_at.present?
     # Usa all_messages (sem filtro de team_message_isolation) — first_reply_created_at e
     # contagem de respostas humanas previas sao globais por conversa, nao por team.
@@ -374,7 +374,7 @@ class Message < ApplicationRecord
   end
 
   def update_waiting_since
-    clear_waiting_since_on_outgoing_response if conversation.waiting_since.present? && !private
+    clear_waiting_since_on_outgoing_response if conversation.waiting_since.present? && reached_customer?
     set_waiting_since_on_incoming_message
   end
 
@@ -411,6 +411,23 @@ class Message < ApplicationRecord
       content_attributes['automation_rule_id'].blank? &&
       additional_attributes['campaign_id'].blank? &&
       (sender.is_a?(User) || content_attributes['external_echo'].present?)
+  end
+
+  # Resposta que o atendente deu pelo CELULAR numa caixa WAHA. O app do WAHA grava o eco como NOTA
+  # PRIVADA com este cabecalho, e o remetente e o dono do token, nao quem respondeu. Para o cliente
+  # ela e uma resposta como outra qualquer: conta para nao atendidas, 1a resposta, waiting_since,
+  # conversa pendente virar aberta e a IA soltar. NAO conta para rodizio nem repasse, que dependem de
+  # saber QUEM respondeu (decisao de 18/09).
+  WHATSAPP_PHONE_REPLY_MARKER = '*📱 Enviado do WhatsApp*'.freeze
+
+  def whatsapp_phone_reply?
+    private? && outgoing? && content.to_s.start_with?(WHATSAPP_PHONE_REPLY_MARKER) &&
+      inbox&.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
+  end
+
+  # Chegou ao cliente: publica, ou a nota que registra a resposta dada pelo celular.
+  def reached_customer?
+    !private? || whatsapp_phone_reply?
   end
 
   def bot_response?
@@ -474,7 +491,7 @@ class Message < ApplicationRecord
   def mark_pending_conversation_as_open_for_human_response
     return unless captain_pending_conversation?
     return unless human_response?
-    return if private?
+    return unless reached_customer?
 
     conversation.open!
   end

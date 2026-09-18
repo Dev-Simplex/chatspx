@@ -4,7 +4,7 @@ module Enterprise::Message
   def mark_pending_conversation_as_open_for_human_response
     return unless captain_pending_conversation?
     return unless human_response?
-    return if private?
+    return unless reached_customer?
     return if template_bootstrap_message?
 
     previous_user = Current.user
@@ -37,7 +37,7 @@ module Enterprise::Message
   # podendo mandar várias em sequência.
   def release_captain_mirror_after_human_reply
     return unless human_response?
-    return if private?
+    return unless reached_customer? # inclui a resposta dada pelo celular numa caixa WAHA
     return if template_bootstrap_message?
 
     mirror = conversation.assignee_agent_bot
