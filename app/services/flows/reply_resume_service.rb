@@ -54,6 +54,13 @@ class Flows::ReplyResumeService
       # run entre o SELECT e o lock. Só o primeiro a pegar o lock com o run ainda :waiting retoma.
       next false unless run.waiting?
 
+      # Flow desativado durante a espera: encerra o run e deixa a mensagem seguir para o disparo
+      # normal, em vez de retoma-lo.
+      if run.flow.active? == false
+        run.complete!
+        next false
+      end
+
       Flows::RunnerService.new(
         flow: run.flow, conversation: run.conversation,
         trigger_payload: run.context, flow_run: run, resume_reply: @reply

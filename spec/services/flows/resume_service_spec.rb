@@ -37,6 +37,18 @@ RSpec.describe Flows::ResumeService do
       expect(run.current_node_id).to be_nil
     end
 
+    # Desativar o flow e o botao de panico de quem opera: a espera que ja estava de pe tambem para.
+    it 'does not resume a run whose flow was deactivated, and closes it' do
+      flow = wait_flow
+      run = waiting_run(flow, wait_until: 1.minute.ago)
+      flow.update!(active: false)
+
+      described_class.new(flow_run: run).perform
+
+      expect(conversation.reload.label_list).not_to include('after')
+      expect(run.reload).to be_completed
+    end
+
     it 'does not resume a run whose wait_until is still in the future' do
       run = waiting_run(wait_flow, wait_until: 1.hour.from_now)
 
