@@ -3,6 +3,12 @@
 require 'agents'
 
 Rails.application.config.after_initialize do
+  # Sem este patch, o runner do gem `ai-agents` cria `RubyLLM::Chat.new(model:)` sem contexto e cai
+  # SEMPRE na chave global da instalação: a chave por conta (tela Conexões) fica decorativa e uma
+  # conta que estoura a cota derruba a IA de todas as outras da mesma VM. O patch só injeta contexto
+  # quando há um `with_account` ativo, então conta sem chave própria segue na global, como hoje.
+  Llm::AccountScopedContext.install_ruby_llm_patch!
+
   api_key = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value
   anthropic_key = InstallationConfig.find_by(name: 'CAPTAIN_ANTHROPIC_API_KEY')&.value
   model = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || LlmConstants::DEFAULT_MODEL
