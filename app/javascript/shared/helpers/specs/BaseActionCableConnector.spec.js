@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import BaseActionCableConnector from '../BaseActionCableConnector';
 
 const { createConsumer } = vi.hoisted(() => ({
@@ -58,5 +59,56 @@ describe('BaseActionCableConnector vigia', () => {
     vi.advanceTimersByTime(30000);
 
     expect(fetchRoute).not.toHaveBeenCalled();
+  });
+});
+
+describe('BaseActionCableConnector ao voltar para o primeiro plano', () => {
+  let connector;
+  let scrollTo;
+
+  beforeEach(() => {
+    vi.stubGlobal('scrollY', 120);
+    vi.stubGlobal('scrollX', 0);
+    scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    connector = new BaseActionCableConnector(
+      {
+        $store: {
+          getters: { getCurrentAccountId: 3, getCurrentUserID: 1 },
+        },
+      },
+      'token'
+    );
+  });
+
+  afterEach(() => {
+    connector.disconnect();
+    delete window.reconnectService;
+    vi.unstubAllGlobals();
+    // Só o espião deste bloco: restoreAllMocks zeraria o createConsumer do vi.hoisted acima.
+    scrollTo.mockRestore();
+  });
+
+  it('recoloca a janela do dashboard ao voltar para o primeiro plano', () => {
+    window.reconnectService = { handleRouteSpecificFetch: vi.fn() };
+
+    connector.handleReturnToForeground();
+
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+  });
+
+  it('não altera a rolagem do widget ao voltar para o primeiro plano', () => {
+    connector.handleReturnToForeground();
+
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('recoloca a janela do dashboard quando há rolagem horizontal', () => {
+    vi.stubGlobal('scrollY', 0);
+    vi.stubGlobal('scrollX', 80);
+    window.reconnectService = { handleRouteSpecificFetch: vi.fn() };
+
+    connector.handleReturnToForeground();
+
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
   });
 });
