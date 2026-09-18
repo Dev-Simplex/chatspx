@@ -140,6 +140,26 @@ else
   dica "git pull na branch producao"
 fi
 
+# ─── 5. homologação e VMs dos devs (fase 6) ────────────────────────────────
+# Opcional de propósito: sem esse acesso o /promover-pr revisa, mergeia e
+# deploya do mesmo jeito, só a fase 6 fica sem enxergar a VM. Por isso a falha
+# aqui não entra em `falta`. É a chave padrão do usuário (sem -i), a mesma que
+# o raio-X usa, e nunca senha. A VM do Walisson (.46) fica fora, a pedido dele.
+titulo "5. Acesso à homologação e VMs dos devs (fase 6, opcional)"
+aqui=" $(hostname -I 2>/dev/null) "
+for par in HOMOLOGACAO:192.168.8.232 THALYSSON:192.168.8.167 NICOLAS:192.168.8.98; do
+  nome=${par%%:*}; ip=${par#*:}
+  case "$aqui" in *" $ip "*) printf "      %s (%s) é esta máquina, pulei\n" "$nome" "$ip"; continue ;; esac
+  if timeout 15 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes \
+       chatwoot@"$ip" true 2>/dev/null; then
+    bom "SSH funciona na $nome ($ip)"
+  else
+    printf "  ${A}!${N} %s (%s) não respondeu por SSH\n" "$nome" "$ip"
+    dica "sem isso a fase 6 mostra 'nao medida daqui' para essa VM"
+    dica "peça para autorizarem sua chave pública (~/.ssh/id_ed25519.pub; se não tiver, ssh-keygen -t ed25519) no usuário chatwoot dela"
+  fi
+done
+
 # ─── veredito ──────────────────────────────────────────────────────────────
 titulo "RESULTADO"
 if [ "$falta" -eq 0 ]; then

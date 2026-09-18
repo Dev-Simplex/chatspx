@@ -32,6 +32,7 @@ Todas as worktrees do `chatspx` **compartilham o mesmo `.git`** (mesmo históric
 | ~~`paulao`~~ | **Desativada em 16/09/2026.** Era a branch de dev do Paulo | — | VM `192.168.8.100` fora do ar |
 | `nicolas` | **Branch de dev do Nicolas** | Nicolas | VM Dev `nicolas` (na frota Almirante) |
 | `walisson` | **Branch de dev do Walisson** (tech lead) | Walisson | VM Dev `192.168.8.46` (sandbox, desde 16/09/2026) |
+| `thalysson` | **Branch de dev do Thalysson** | Thalysson | VM Dev `192.168.8.167` |
 | `homologacao` | **Staging** — integração antes de prod | via merge (não direto) | 1 VM `homologacao` (Proxmox) — contas 3/4/5 |
 | `producao` | **Produção** — o único que **replica** pras VMs de cliente | via merge (não direto) | **5 VMs CRÍTICAS**: `producao` · `catatau` · `sentinela` · `tozi` (c6) · `fabrica` (c1/2) |
 | `master` | Chatwoot upstream (open-source). **NÃO é o produto** — só a base do fork. Não tocar. | ninguém (só sync upstream) | — |

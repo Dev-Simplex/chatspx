@@ -1,0 +1,11 @@
+[Unit]
+Description=Restart noturno do SPX as 20:00 de Cuiaba
+
+[Timer]
+OnCalendar=*-*-* 20:00:00 America/Cuiaba
+# Sem Persistent: se a VM estava fora as 20:00, o boot ja subiu o codigo novo.
+Persistent=false
+Unit=chatwoot-restart-noturno.service
+
+[Install]
+WantedBy=timers.target
