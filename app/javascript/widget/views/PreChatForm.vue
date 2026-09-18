@@ -6,6 +6,7 @@ import configMixin from '../mixins/configMixin';
 import { isEmptyObject } from 'widget/helpers/utils';
 import { ON_CONVERSATION_CREATED } from '../constants/widgetBusEvents';
 import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 export default {
   components: {
@@ -57,13 +58,19 @@ export default {
       } else {
         this.clearConversations();
         this.clearConversationAttributes();
-        this.$store.dispatch('conversation/createConversation', {
-          fullName: fullName,
-          emailAddress: emailAddress,
-          message: message,
-          phoneNumber: phoneNumber,
-          customAttributes: conversationCustomAttributes,
-        });
+        this.$store
+          .dispatch('conversation/createConversation', {
+            fullName: fullName,
+            emailAddress: emailAddress,
+            message: message,
+            phoneNumber: phoneNumber,
+            customAttributes: conversationCustomAttributes,
+          })
+          .catch(() => {
+            emitter.emit(BUS_EVENTS.SHOW_ALERT, {
+              message: this.$t('PRE_CHAT_FORM.CREATE_ERROR'),
+            });
+          });
       }
       if (!isEmptyObject(contactCustomAttributes)) {
         this.$store.dispatch(
