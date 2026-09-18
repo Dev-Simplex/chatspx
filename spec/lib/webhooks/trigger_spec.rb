@@ -216,6 +216,31 @@ describe Webhooks::Trigger do
       expect { trigger.execute(url, payload, webhook_type) }.not_to raise_error
       expect(message.reload.status).to eq('failed')
     end
+
+    context 'when the destination did not receive the event' do
+      [
+        RestClient::ServiceUnavailable.new(nil, 503),
+        RestClient::RequestFailed.new(nil, 525),
+        RestClient::Exceptions::OpenTimeout.new,
+        Errno::ECONNREFUSED.new
+      ].each do |error|
+        it "raises #{error.class} for the job to retry, without failing the message yet" do
+          payload = { event: 'message_created', id: message.id }
+          allow(RestClient::Request).to receive(:execute).and_raise(error)
+
+          expect { trigger.execute(url, payload, webhook_type) }.to raise_error(error.class)
+          expect(message.reload.status).to eq('sent')
+        end
+      end
+    end
+
+    it 'does not retry a read timeout, because the destination may have sent the message already' do
+      payload = { event: 'message_created', id: message.id }
+      allow(RestClient::Request).to receive(:execute).and_raise(RestClient::Exceptions::ReadTimeout.new)
+
+      expect { trigger.execute(url, payload, webhook_type) }.not_to raise_error
+      expect(message.reload.status).to eq('failed')
+    end
   end
 
   describe 'request headers' do
