@@ -44,6 +44,16 @@ RSpec.describe Flows::ReplyResumeService do
       expect(run.reload).to be_completed
     end
 
+    it 'closes the run and returns false when the flow was deactivated during the wait' do
+      flow = reply_flow
+      run = waiting_run(flow)
+      flow.update!(active: false)
+
+      expect(described_class.new(conversation: conversation, reply: { id: 'yes' }).perform).to be(false)
+      expect(run.reload).to be_completed
+      expect(conversation.reload.label_list).not_to include('yes-branch')
+    end
+
     it 'returns false when the conversation has no waiting wait_for_reply run' do
       expect(described_class.new(conversation: conversation, reply: { id: 'yes' }).perform).to be(false)
     end

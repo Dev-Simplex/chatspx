@@ -483,7 +483,9 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
                     ev: event_name)
              .pluck(:id)
     end
-    Flow.where(id: flow_ids)
+    # `.active` de novo aqui: o cache guarda IDS por 2 min, entao sem esta checagem desativar um
+    # flow (o botao de panico) so tinha efeito depois que o cache expirasse.
+    Flow.where(id: flow_ids).active
   end
 
   # Mesmo padrão de cache (2 min) dos flows por-evento — evita a query por mensagem. A lista
@@ -493,7 +495,9 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     flow_ids = Rails.cache.fetch(cache_key, expires_in: 2.minutes) do
       account.flows.active.keyword.pluck(:id)
     end
-    Flow.where(id: flow_ids)
+    # `.active` de novo aqui: o cache guarda IDS por 2 min, entao sem esta checagem desativar um
+    # flow (o botao de panico) so tinha efeito depois que o cache expirasse.
+    Flow.where(id: flow_ids).active
   end
 
   # Casa o conteúdo da mensagem com as keywords do trigger_config, case- e acento-insensitive
