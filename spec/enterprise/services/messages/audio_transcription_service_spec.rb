@@ -65,6 +65,20 @@ RSpec.describe Messages::AudioTranscriptionService, type: :service do
     end
   end
 
+  # N-05: o `update!(meta: {...})` substituia o jsonb inteiro e apagava os picos da onda que o
+  # Audio::WaveformGenerationJob grava no mesmo anexo.
+  describe '#update_transcription' do
+    it 'keeps the waveform peaks already in meta' do
+      attachment.update_column(:meta, { 'waveform_peaks' => [0.1, 0.9] }) # rubocop:disable Rails/SkipsModelValidations
+
+      described_class.new(attachment).send(:update_transcription, 'Hello world transcription')
+
+      meta = attachment.reload.meta
+      expect(meta['transcribed_text']).to eq('Hello world transcription')
+      expect(meta['waveform_peaks']).to eq([0.1, 0.9])
+    end
+  end
+
   describe '#fetch_audio_file' do
     let(:service) { described_class.new(attachment) }
 

@@ -70,10 +70,9 @@ class AudioTranscriptionService
     ext.present? ? ".#{ext}" : '.ogg'
   end
 
+  # Mescla no banco: a onda pode ter gravado no meta enquanto o Whisper rodava (ver Attachments::MetaMerge).
   def persist_text(text)
-    new_meta = (attachment.meta || {}).merge('transcribed_text' => text)
-    # Skip callbacks: this is metadata-only and would otherwise re-trigger transcription.
-    attachment.update_column(:meta, new_meta) # rubocop:disable Rails/SkipsModelValidations
+    Attachments::MetaMerge.call(attachment, 'transcribed_text' => text)
     notify_message_updated
   end
 
