@@ -49,6 +49,26 @@ describe('BaseActionCableConnector vigia', () => {
     expect(fetchRoute).toHaveBeenCalledTimes(1);
   });
 
+  it('passa três minutos de silêncio ao vigia', () => {
+    connector.lastEventReceivedAt = Date.now() - 165000;
+
+    vi.advanceTimersByTime(15000);
+
+    expect(fetchRoute).toHaveBeenCalledWith({ staleSeconds: 180 });
+  });
+
+  it('passa vinte minutos de silêncio ao voltar para a aba', () => {
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      value: true,
+    });
+    vi.advanceTimersByTime(1200000);
+
+    window.dispatchEvent(new Event('focus'));
+
+    expect(fetchRoute).toHaveBeenCalledWith({ staleSeconds: 1200 });
+  });
+
   it('não refaz a rota enquanto a aba está escondida', () => {
     Object.defineProperty(document, 'hidden', {
       configurable: true,

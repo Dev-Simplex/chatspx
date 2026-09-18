@@ -133,6 +133,35 @@ describe('ReconnectService', () => {
   });
 
   describe('fetchConversations', () => {
+    it('usa o silêncio do stream quando não houve queda de socket', async () => {
+      reconnectService.getSecondsSinceDisconnect = vi.fn().mockReturnValue(0);
+      isAConversationRoute.mockReturnValue(true);
+      storeMock.getters.getAppliedConversationFiltersQuery = [];
+      storeMock.getters['customViews/getActiveConversationFolder'] = {
+        query: null,
+      };
+
+      await reconnectService.handleRouteSpecificFetch({ staleSeconds: 180 });
+
+      expect(storeMock.dispatch).toHaveBeenCalledWith('updateChatListFilters', {
+        page: 1,
+        cursor: null,
+        updatedWithin: 195,
+      });
+    });
+
+    it('limita o silêncio a três horas no gap-fill', async () => {
+      reconnectService.getSecondsSinceDisconnect = vi.fn().mockReturnValue(0);
+
+      await reconnectService.fetchConversations(18000);
+
+      expect(storeMock.dispatch).toHaveBeenCalledWith('updateChatListFilters', {
+        page: 1,
+        cursor: null,
+        updatedWithin: 10815,
+      });
+    });
+
     it('should update the filters with disconnected time and the threshold', async () => {
       reconnectService.getSecondsSinceDisconnect = vi.fn().mockReturnValue(100);
       await reconnectService.fetchConversations();
@@ -439,7 +468,7 @@ describe('ReconnectService', () => {
 
     it('usa a duração da queda no gap-fill antes de zerá-la', async () => {
       reconnectService.onDisconnect();
-      differenceInSeconds.mockReturnValue(100);
+      differenceInSeconds.mockReturnValue(120);
       isAConversationRoute.mockReturnValue(true);
       storeMock.getters.getAppliedConversationFiltersQuery = [];
       storeMock.getters['customViews/getActiveConversationFolder'] = {
@@ -452,7 +481,7 @@ describe('ReconnectService', () => {
       expect(storeMock.dispatch).toHaveBeenCalledWith('updateChatListFilters', {
         page: 1,
         cursor: null,
-        updatedWithin: 115,
+        updatedWithin: 135,
       });
       expect(reconnectService.getSecondsSinceDisconnect()).toBe(0);
     });
