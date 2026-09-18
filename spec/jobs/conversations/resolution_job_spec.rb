@@ -18,6 +18,28 @@ RSpec.describe Conversations::ResolutionJob do
     expect(conversation.reload.status).to eq('open')
   end
 
+  context 'when the conversation has no team' do
+    before do
+      allow_any_instance_of(Conversation).to receive(:team_required_for_resolution).and_call_original # rubocop:disable RSpec/AnyInstance
+      conversation.update!(team: nil, last_activity_at: 2.hours.ago)
+    end
+
+    it 'resolves the conversation and sends the farewell only once' do
+      account.update!(auto_resolve_after: 60, auto_resolve_message: 'Ate logo')
+
+      described_class.perform_now(account: account)
+      described_class.perform_now(account: account)
+
+      expect(conversation.reload).to be_resolved
+      expect(conversation.messages.template.where(content: 'Ate logo').count).to eq(1)
+    end
+
+    it 'still rejects a manual resolution without a team' do
+      expect(conversation.update(status: :resolved)).to be(false)
+      expect(conversation.errors[:team_id]).to be_present
+    end
+  end
+
   context 'when auto_resolve_ignore_waiting is true' do
     it 'resolves non-waiting conversations if time of inactivity is more than auto resolve duration' do
       account.update(auto_resolve_after: 14_400, auto_resolve_ignore_waiting: true) # 10 days in minutes

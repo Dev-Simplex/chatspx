@@ -9,11 +9,15 @@ class Conversations::ResolutionJob < ApplicationJob
                                .includes(:inbox, :contact, :team, :assignee, :account)
                                .limit(Limits::BULK_ACTIONS_LIMIT)
     resolvable_conversations.find_each do |conversation|
+      # O encerramento automatico dispensa a escolha de time exigida do humano.
+      conversation.skip_team_required_for_resolution_validation = true
       # send message from bot that conversation has been resolved
       # do this is account.auto_resolve_message is set
       ::MessageTemplates::Template::AutoResolve.new(conversation: conversation).perform if account.auto_resolve_message.present?
       conversation.add_labels(account.auto_resolve_label) if account.auto_resolve_label.present?
-      conversation.toggle_status
+      unless conversation.toggle_status
+        Rails.logger.warn("[ResolutionJob] conversa #{conversation.id} nao encerrada: #{conversation.errors.full_messages.join(', ')}")
+      end
     end
   end
 
