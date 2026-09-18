@@ -118,9 +118,11 @@ sudo systemctl enable --now chatwoot-restart-noturno.timer
 
 **Por padrão não reinicie.** O processo no ar continua servindo o código e o front
 antigos até o restart (o Puma sobe com `preload_app!` e o manifest do Vite fica em
-memória), então código e assets podem ir de dia. O timer reinicia web e workers às
-20:00 de Cuiabá, só se o disco andou depois que o web subiu, e aborta sozinho se
-houver migration pendente. O `install` usa o acesso de root que a VM tiver. O
+memória), então código e assets podem ir de dia. Às 20:00 de Cuiabá o timer
+reinicia só o serviço (web ou worker) que subiu antes de a branch andar, e aborta
+sozinho se houver migration pendente. **Não deploye entre 19:50 e 20:10 de
+Cuiabá:** o timer pode pegar o deploy no meio, com código no disco sem migrate ou
+assets pela metade. O `install` usa o acesso de root que a VM tiver. O
 script vai para `/usr/local/sbin` como root porque o do checkout é do `chatwoot`, e
 root executando arquivo que o `chatwoot` pode editar é escalada de privilégio.
 
@@ -190,8 +192,8 @@ Não diga "deployado". Com o restart às 20:00, a prova vem em dois tempos.
 
 E diga "no disco, carrega às 20:00".
 
-**Depois das 20:00**, rode o raio-X com `--frota`: a seção 4 mostra, por VM, se o
-web já serve o disco e o que o timer fez na última noite. Só então prove o
+**Depois das 20:00**, rode o raio-X com `--frota`: a seção 4 mostra, por VM, se
+web e workers já servem o disco e o que o timer fez na última noite. Só então prove o
 comportamento: se o PR conserta a busca, faça uma busca; se muda a tela, baixe o
 entry pela URL pública e confira o 200. Com restart urgente, a prova é toda na
 hora, como antes.

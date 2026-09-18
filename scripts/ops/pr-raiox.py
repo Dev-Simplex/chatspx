@@ -248,15 +248,21 @@ def analisa(numero: int, checar_frota: bool) -> int:
         aqui = _enderecos_desta_maquina()
         # Desde 18/09/2026 o restart e do timer das 20:00 de Cuiaba
         # (deployment/chatwoot-restart-noturno.*): o commit no disco ja nao diz o
-        # que o cliente ve. Por isso o mesmo SSH traz tambem se o web serve o disco
-        # (a regua do deployment/deploy.sh: o web subiu depois da ultima vez que a
-        # branch andou), o estado do timer e a ultima linha do log dele. O local
-        # tambem le o /home/chatwoot/chatwoot: rodado de um worktree, o HEAD do
-        # diretorio atual e o do worktree, nao o que o web serve.
+        # que o cliente ve. Por isso o mesmo SSH traz tambem se os servicos servem o
+        # disco, o estado do timer e a ultima linha do log dele. "Serve o disco" e a
+        # regua do chatwoot-restart-noturno.sh: todo chatwoot-web* e chatwoot-worker*
+        # ativo subiu depois da ultima vez que a branch andou. Vale o mais antigo,
+        # porque o web pode ter caido e subido sozinho de dia com os workers ainda no
+        # codigo velho. Com varios units o `systemctl show --value` separa os valores
+        # por linha em branco, dai o `awk NF`. O local tambem le o
+        # /home/chatwoot/chatwoot: rodado de um worktree, o HEAD do diretorio atual e
+        # o do worktree, nao o que o web serve.
         cmd = ("cd /home/chatwoot/chatwoot || exit 1; b=$(git rev-parse --abbrev-ref HEAD); "
                "printf '%s|%s|%s|%s|%s|%s\\n' \"$(git rev-parse --short=10 HEAD)\" "
                "\"$(git reflog -1 --date=unix --format=%gd \"$b\")\" "
-               "\"$(systemctl show chatwoot-web.1 -p ActiveEnterTimestamp --value --timestamp=unix)\" "
+               "\"$(systemctl list-units --type=service --state=active --no-legend --plain 'chatwoot-web*' "
+               "'chatwoot-worker*' | awk '{print $1}' | xargs -r systemctl show -p ActiveEnterTimestamp --value "
+               "--timestamp=unix | tr -d @ | awk NF | sort -n | head -n1)\" "
                "\"$(systemctl show chatwoot-restart-noturno.timer -p LoadState --value)\" "
                "\"$(systemctl is-active chatwoot-restart-noturno.timer)\" "
                "\"$(tail -n1 log/restart-noturno.log 2>/dev/null)\"")
@@ -280,8 +286,8 @@ def analisa(numero: int, checar_frota: bool) -> int:
             if len(partes) != 6 or not partes[0]:
                 commit, extra = falha, ""
             else:
-                commit, branch_andou, web_subiu, timer_load, timer_ativo, ultima = partes
-                andou, subiu = re.search(r"@\{(\d+)\}", branch_andou), re.search(r"@(\d+)", web_subiu)
+                commit, branch_andou, mais_antigo, timer_load, timer_ativo, ultima = partes
+                andou, subiu = re.search(r"@\{(\d+)\}", branch_andou), re.search(r"(\d+)", mais_antigo)
                 timer = "ativo" if timer_ativo == "active" else "ausente" if timer_load == "not-found" else "inativo"
                 if not (andou and subiu):
                     serve = "?"

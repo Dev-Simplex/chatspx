@@ -47,22 +47,29 @@ mapfile -t units < <(systemctl list-units --type=service --all --no-legend --pla
   'chatwoot-web*' 'chatwoot-worker*' | awk '$3 != "inactive" {print $1}')
 [ "${#units[@]}" -gt 0 ] || termina abortou "nenhum chatwoot-web/worker no ar nesta VM" 1
 
-# 2. O web ja serve o disco? A regua do deployment/deploy.sh (web_subiu_depois_do_head): o web
-#    subiu depois da ultima vez que a branch andou. Reflog da BRANCH, nao do HEAD, porque um
-#    checkout na mesma branch tambem escreve no do HEAD. O public/version.json nao responde isso.
-#    Na duvida (nao leu um dos dois), reinicia: e noite, e um restart a mais e melhor que codigo
-#    parado no disco.
+# 2. Quem ja serve o disco? A regua do deployment/deploy.sh (web_subiu_depois_do_head), aplicada a
+#    CADA unit: ele subiu depois da ultima vez que a branch andou. Unit por unit porque o web pode
+#    cair e subir sozinho de dia (Restart=always) ja no codigo novo enquanto os workers seguem no
+#    velho: olhando so o web, a noite pularia e o Sidekiq ficaria atrasado ate a proxima mudanca.
+#    Reflog da BRANCH, nao do HEAD, porque um checkout na mesma branch tambem escreve no do HEAD. O
+#    public/version.json nao responde isso. Na duvida (reflog ilegivel, unit sem hora de subida ou
+#    fora do ar), reinicia: e noite, e um restart a mais e melhor que codigo parado no disco.
 RE_BRANCH_ANDOU='@\{([0-9]+)\}'
-RE_WEB_SUBIU='@([0-9]+)'
+RE_SUBIU='@([0-9]+)'
 branch=$(como_chatwoot git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)
 branch_andou=$(como_chatwoot git -C "$DIR" reflog -1 --date=unix --format=%gd "$branch" 2>/dev/null)
-web_subiu=$(systemctl show chatwoot-web.1 -p ActiveEnterTimestamp --value --timestamp=unix 2>/dev/null)
-andou="" subiu=""
+andou=""
 [[ "$branch_andou" =~ $RE_BRANCH_ANDOU ]] && andou="${BASH_REMATCH[1]}"
-[[ "$web_subiu" =~ $RE_WEB_SUBIU ]] && subiu="${BASH_REMATCH[1]}"
-if [ -n "$andou" ] && [ -n "$subiu" ] && [ "$subiu" -ge "$andou" ]; then
-  termina pulou "web ja serve o disco (subiu depois de $branch andar)"
-fi
+atrasados=()
+for u in "${units[@]}"; do
+  subiu=""
+  [[ "$(systemctl show "$u" -p ActiveEnterTimestamp --value --timestamp=unix 2>/dev/null)" =~ $RE_SUBIU ]] \
+    && subiu="${BASH_REMATCH[1]}"
+  if [ -z "$andou" ] || [ -z "$subiu" ] || [ "$subiu" -lt "$andou" ] || ! systemctl is-active -q "$u"; then
+    atrasados+=("$u")
+  fi
+done
+[ "${#atrasados[@]}" -gt 0 ] || termina pulou "${units[*]} ja servem o disco (subiram depois de $branch andar)"
 
 # 3. Migration pendente + restart = 500 em cadeia (PG::UndefinedColumn, incidente de 24/04/2026).
 #    Aqui a duvida vai para o outro lado: sem nenhuma linha `up` a leitura falhou, e nao reinicia.
@@ -72,16 +79,33 @@ downs=$(grep -cE '^\s+down\s' <<<"$status")
 [ "$ups" -gt 0 ] || termina abortou "nao consegui ler o db:migrate:status" 1
 [ "$downs" -eq 0 ] || termina abortou "$downs migration(s) pendente(s): rode o db:migrate" 1
 
-# 4. Restart, uma vez so. Espera o web responder 200 em /api; se nao responder, registra e sai sem
-#    tentar de novo: restart em laco derruba mais do que conserta.
+# 4. Restart so dos atrasados, uma vez so: se algo nao voltar, registra e sai sem tentar de novo,
+#    porque restart em laco derruba mais do que conserta. Com o web entre eles, a prova inclui o
+#    /api responder 200; so com workers, basta eles seguirem no ar.
+web_junto=""
+for u in "${atrasados[@]}"; do [[ "$u" == chatwoot-web* ]] && web_junto=1; done
 porta=$(systemctl show chatwoot-web.1 -p Environment --value 2>/dev/null | tr ' ' '\n' | sed -n 's/^PORT=//p')
 porta="${porta:-3000}"
-[ "$SIMULAR" = 1 ] && termina reiniciaria "${units[*]}, depois esperaria /api 200 na porta $porta"
+if [ "$SIMULAR" = 1 ]; then
+  [ -n "$web_junto" ] && prova="esperaria /api 200 na porta $porta" || prova="conferiria se seguem no ar"
+  termina reiniciaria "${atrasados[*]}, depois $prova"
+fi
 
-systemctl restart "${units[@]}" || termina falhou "systemctl restart devolveu erro: ${units[*]}" 1
-for _ in $(seq 36); do
-  sleep 5
-  codigo_http=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$porta/api")
-  [ "$codigo_http" = 200 ] && termina reiniciou "${units[*]}, /api 200"
+systemctl restart "${atrasados[@]}" || termina falhou "systemctl restart devolveu erro: ${atrasados[*]}" 1
+prova="no ar"
+if [ -n "$web_junto" ]; then
+  respondeu=""
+  for _ in $(seq 36); do
+    sleep 5
+    codigo_http=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$porta/api")
+    [ "$codigo_http" = 200 ] && { respondeu=1; break; }
+  done
+  [ -n "$respondeu" ] || termina falhou "reiniciou ${atrasados[*]}, mas /api nao respondeu 200 em 3 min" 1
+  prova="no ar, /api 200"
+else
+  sleep 15
+fi
+for u in "${atrasados[@]}"; do
+  systemctl is-active -q "$u" || termina falhou "reiniciou ${atrasados[*]}, mas $u nao ficou no ar" 1
 done
-termina falhou "reiniciou ${units[*]}, mas /api nao respondeu 200 em 3 min" 1
+termina reiniciou "${atrasados[*]}, $prova"
