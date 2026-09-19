@@ -18,6 +18,7 @@ class Messages::NewMessageNotificationService
     return if conversation.assignee.blank?
     return if already_notified?(conversation.assignee)
     return if conversation.assignee == sender
+    return if muted_by_assignee?
 
     NotificationBuilder.new(
       notification_type: 'assigned_conversation_new_message',
@@ -27,6 +28,20 @@ class Messages::NewMessageNotificationService
       secondary_actor: message
     ).perform
     mark_notified(conversation.assignee)
+  end
+
+  # SILENCIAR POR USUARIO (18/09/2026). `user_settings[assignee].muted_until` no futuro corta a
+  # notificacao de mensagem nova (sino + push) SO para quem silenciou — gravado pelo
+  # PATCH /conversations/:id/user_setting. Nao confundir com `mute!` (ConversationMuteHelpers),
+  # que BLOQUEIA o contato e resolve as conversas dele: era o que o botao "Silenciar" do app
+  # chamava, e quem so queria parar de ser avisado bloqueava o cliente.
+  def muted_by_assignee?
+    muted_until = conversation.user_setting_for(conversation.assignee_id)['muted_until']
+    return false if muted_until.blank?
+
+    Time.iso8601(muted_until) > Time.current
+  rescue ArgumentError
+    false
   end
 
   # The user could already have been notified via a mention or via assignment
