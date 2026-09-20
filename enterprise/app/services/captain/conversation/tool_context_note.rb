@@ -10,19 +10,35 @@
 # duas casas; dois turnos depois o cliente perguntou se eram em condomínio fechado e a IA
 # confirmou que sim, duas vezes. O dado existia e não estava mais à vista.
 #
-# Esta nota devolve só FATO — a chamada, os argumentos e o que voltou. O que fazer com isso é
-# CONDUTA e mora no prompt do agente, no banco da conta. Mesma disciplina da
+# A nota também carrega a consulta que FALHOU. Antes ela filtrava `status: 'ok'` e a chamada
+# falha simplesmente não entrava: o modelo via a lacuna como "nunca consultei" em vez de
+# "consultei e a consulta falhou", e completava de memória — o mesmo defeito por outro caminho.
+#
+# Esta nota devolve só FATO — a chamada, os argumentos e o que voltou (ou que não voltou). O que
+# fazer com isso é CONDUTA e mora no prompt do agente, no banco da conta. Mesma disciplina da
 # EpisodeContinuityNote e da HumanHistoryNote: nota que dá ordem vira exemplo pro modelo copiar.
 class Captain::Conversation::ToolContextNote
-  # Quantas chamadas entram. O que importa é o passado RECENTE do atendimento; ir além disso
-  # empurra o turno do cliente para longe no contexto sem devolver informação nova.
+  # Quantas chamadas BEM-SUCEDIDAS entram. O que importa é o passado RECENTE do atendimento; ir
+  # além disso empurra o turno do cliente para longe no contexto sem devolver informação nova.
   LIMITE_CHAMADAS = 6
+  # Falhas têm orçamento SEPARADO, e não competem com o dos fatos: uma rajada de timeouts não
+  # pode empurrar pra fora da nota o preço que a busca anterior trouxe. Três bastam para o modelo
+  # saber que a consulta não respondeu; a quarta não acrescenta.
+  LIMITE_FALHAS = 3
   # Corte por retorno. O trace já chega truncado em 1.500 (TraceRecorder::RESULT_PREVIEW_LIMIT);
   # aqui o corte é menor porque são várias chamadas somadas no mesmo preâmbulo.
   LIMITE_RESULTADO = 700
+  # A linha de falha diz que falhou e por quê, e isso cabe em pouco. Teto baixo de propósito:
+  # é o que garante que ela custe ~1 linha e não desloque fato bom.
+  LIMITE_MOTIVO = 200
+
   CABECALHO = '[Contexto do sistema: o que as ferramentas já devolveram neste atendimento. ' \
               'É o dado que você mesma consultou — vale mais que a sua lembrança dele. ' \
               'Se precisar de algo que não está aqui, consulte de novo.'.freeze
+  # Só entra quando há linha de falha na nota. Sem falha, a nota sai byte a byte igual à de
+  # antes deste PR — é o que mantém a mudança mensurável no harness de conduta.
+  AVISO_FALHA = ' Linha marcada NÃO CONFIRMOU é consulta que não retornou dado: ' \
+                'isso não é ausência do dado.'.freeze
 
   # `.present?` no fim porque `cast(nil)` devolve nil, e predicado que devolve nil obriga
   # todo chamador a lembrar disso.
@@ -54,21 +70,53 @@ class Captain::Conversation::ToolContextNote
 
   private
 
-  def buscar
-    escopo = Captain::ToolCall.for_conversation(@conversation.id).where(status: 'ok')
+  def escopo_base
+    escopo = Captain::ToolCall.for_conversation(@conversation.id)
     escopo = escopo.where('captain_tool_calls.created_at >= ?', @desde) if @desde.present?
-    # Pega as ÚLTIMAS e devolve em ordem cronológica: o preâmbulo se lê como a linha do tempo
-    # do atendimento, não de trás pra frente.
-    escopo.order(created_at: :desc).limit(LIMITE_CHAMADAS).to_a.reverse
+    escopo
+  end
+
+  def buscar
+    confirmadas = escopo_base.where(status: Captain::Tools::Result::CONFIRMADOS)
+                             .order(created_at: :desc).limit(LIMITE_CHAMADAS).to_a
+    # Ordem cronológica no fim: o preâmbulo se lê como a linha do tempo do atendimento, não de
+    # trás pra frente. Fato e falha entram na MESMA linha do tempo — é a sequência que mostra
+    # que a busca falhou DEPOIS do preço que veio antes.
+    (confirmadas + falhas_relevantes(confirmadas)).sort_by(&:created_at)
+  end
+
+  # Falha que uma consulta POSTERIOR da mesma ferramenta resolveu não é mais notícia — mostrar as
+  # duas faria o modelo dizer que a consulta falhou tendo o dado na mão. E ferramenta que falhou
+  # cinco vezes seguidas vira UMA linha: repetição não informa e ocupa a nota.
+  def falhas_relevantes(confirmadas)
+    ultimo_sucesso = confirmadas.group_by(&:tool_name)
+                                .transform_values { |chamadas| chamadas.max_by(&:created_at).created_at }
+
+    escopo_base.where(status: Captain::Tools::Result::NAO_CONFIRMADOS)
+               .order(created_at: :desc).limit(LIMITE_FALHAS * 5).to_a
+               .reject { |c| superada?(c, ultimo_sucesso[c.tool_name]) }
+               .uniq(&:tool_name)
+               .first(LIMITE_FALHAS)
+  end
+
+  def superada?(chamada, sucesso_em)
+    sucesso_em.present? && sucesso_em > chamada.created_at
   end
 
   def montar(chamadas)
-    linhas = [CABECALHO]
+    houve_falha = chamadas.any? { |c| nao_confirmou?(c) }
+    linhas = [houve_falha ? "#{CABECALHO}#{AVISO_FALHA}" : CABECALHO]
     chamadas.each { |c| linhas << linha(c) }
     "#{linhas.join("\n")}]"
   end
 
+  def nao_confirmou?(chamada)
+    Captain::Tools::Result::NAO_CONFIRMADOS.include?(chamada.status.to_s)
+  end
+
   def linha(chamada)
+    return "· #{chamada.tool_name}#{argumentos(chamada)} NÃO CONFIRMOU: #{motivo(chamada)}" if nao_confirmou?(chamada)
+
     "· #{chamada.tool_name}#{argumentos(chamada)} devolveu: #{resultado(chamada)}"
   end
 
@@ -85,5 +133,17 @@ class Captain::Conversation::ToolContextNote
     return texto if texto.length <= LIMITE_RESULTADO
 
     "#{texto[0, LIMITE_RESULTADO]}…"
+  end
+
+  # Exceção não deixa `result_preview` (o recorder grava nil), então o motivo vem da coluna
+  # `error`. Quem devolveu Result tipado tem o próprio texto no preview e ele é melhor: foi
+  # escrito para o modelo ler.
+  def motivo(chamada)
+    texto = chamada.result_preview.presence || chamada.error.presence
+    texto = texto.to_s.gsub(/\s+/, ' ').strip
+    return 'a consulta não retornou dado' if texto.empty?
+    return texto if texto.length <= LIMITE_MOTIVO
+
+    "#{texto[0, LIMITE_MOTIVO]}…"
   end
 end

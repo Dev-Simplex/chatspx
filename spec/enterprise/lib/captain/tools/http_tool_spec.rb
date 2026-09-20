@@ -164,50 +164,183 @@ RSpec.describe Captain::Tools::HttpTool, type: :model do
       end
     end
 
+    # Falha de consulta, por classe. Antes as cinco classes colapsavam em
+    # 'An error occurred while executing the request' — uma string em inglês que não distingue
+    # "não há dado" de "o sistema caiu" e não fecha a porta pra resposta de memória. O modelo
+    # lia isso como ausência e completava de cabeça (auditoria de 20/09, §5).
+    #
+    # `Resolv.getaddress` é stubado porque a guarda de SSRF resolve DNS de verdade, mesmo com
+    # WebMock ligado: sem o stub estes exemplos dependem de rede.
     context 'when handling errors' do
-      it 'returns generic error message on network failure' do
-        custom_tool.update!(endpoint_url: 'https://example.com/data')
-        stub_request(:get, 'https://example.com/data').to_raise(SocketError.new('Failed to connect'))
-
-        result = tool.perform(tool_context)
-
-        expect(result).to eq('An error occurred while executing the request')
+      before do
+        custom_tool.update!(endpoint_url: 'https://example.com/data', response_template: nil)
+        allow(Resolv).to receive(:getaddress).with('example.com').and_return('93.184.216.34')
       end
 
-      it 'returns generic error message on timeout' do
-        custom_tool.update!(endpoint_url: 'https://example.com/data')
-        stub_request(:get, 'https://example.com/data').to_timeout
+      # Toda classe de falha carrega a mesma promessa: isto não é ausência, e não se responde
+      # de memória. Se uma delas perder a frase, o modelo volta a preencher o silêncio.
+      shared_examples 'falha de consulta' do |trecho|
+        it "diz que é falha de consulta e proíbe responder de memória (#{trecho})" do
+          resultado = tool.perform(tool_context)
 
-        result = tool.perform(tool_context)
-
-        expect(result).to eq('An error occurred while executing the request')
+          expect(resultado).to include(trecho)
+          expect(resultado).to include('não é ausência de dado')
+          expect(resultado).to include('não responda de memória')
+        end
       end
 
-      it 'returns generic error message on HTTP 404' do
-        custom_tool.update!(endpoint_url: 'https://example.com/data')
-        stub_request(:get, 'https://example.com/data').to_return(status: 404, body: 'Not found')
+      context 'com timeout' do
+        before { stub_request(:get, 'https://example.com/data').to_timeout }
 
-        result = tool.perform(tool_context)
-
-        expect(result).to eq('An error occurred while executing the request')
+        it_behaves_like 'falha de consulta', 'não respondeu a tempo'
       end
 
-      it 'returns generic error message on HTTP 500' do
-        custom_tool.update!(endpoint_url: 'https://example.com/data')
-        stub_request(:get, 'https://example.com/data').to_return(status: 500, body: 'Server error')
+      context 'com o serviço fora do ar (HTTP 500)' do
+        before { stub_request(:get, 'https://example.com/data').to_return(status: 500, body: 'Server error') }
 
-        result = tool.perform(tool_context)
+        it_behaves_like 'falha de consulta', 'não respondeu ou está fora do ar'
+      end
 
-        expect(result).to eq('An error occurred while executing the request')
+      context 'com falha de conexão' do
+        before { stub_request(:get, 'https://example.com/data').to_raise(Errno::ECONNREFUSED) }
+
+        it_behaves_like 'falha de consulta', 'não respondeu ou está fora do ar'
+      end
+
+      context 'com credencial recusada (HTTP 401)' do
+        before { stub_request(:get, 'https://example.com/data').to_return(status: 401, body: 'nope') }
+
+        it_behaves_like 'falha de consulta', 'recusada pelo sistema consultado'
+      end
+
+      context 'com credencial sem permissão (HTTP 403)' do
+        before { stub_request(:get, 'https://example.com/data').to_return(status: 403, body: 'nope') }
+
+        it_behaves_like 'falha de consulta', 'recusada pelo sistema consultado'
+      end
+
+      # 404 é contrato, não indisponibilidade: a chamada chegou e foi rejeitada. Continua sem
+      # autorizar o modelo a concluir que o dado não existe.
+      context 'com resposta que não pôde ser lida (HTTP 404)' do
+        before { stub_request(:get, 'https://example.com/data').to_return(status: 404, body: 'Not found') }
+
+        it_behaves_like 'falha de consulta', 'resposta não pôde ser lida'
+      end
+
+      context 'com corpo que o template não consegue renderizar' do
+        before do
+          custom_tool.update!(response_template: '{{ response.x | filtro_que_nao_existe }}')
+          stub_request(:get, 'https://example.com/data').to_return(status: 200, body: '{"x": 1}')
+        end
+
+        it_behaves_like 'falha de consulta', 'resposta não pôde ser lida'
+      end
+
+      context 'com corpo excessivo' do
+        before do
+          stub_request(:get, 'https://example.com/data')
+            .to_return(status: 200, body: 'x' * (1.megabyte + 1))
+        end
+
+        it_behaves_like 'falha de consulta', 'grande demais'
+      end
+
+      # SSRF: o motivo real fica no log. Pro modelo é indisponibilidade — dizer "IP privado"
+      # não o ajuda a atender e expõe topologia dentro da conversa.
+      context 'com host que resolve para IP privado' do
+        before do
+          allow(Resolv).to receive(:getaddress).with('example.com').and_return('10.0.0.5')
+        end
+
+        it_behaves_like 'falha de consulta', 'não respondeu ou está fora do ar'
+
+        it 'não revela o motivo do bloqueio ao modelo' do
+          expect(tool.perform(tool_context)).not_to include('IP', 'privado', '10.0.0.5')
+        end
+      end
+
+      # 2xx sem corpo NÃO é ausência confirmada: um 204 pode ser resposta válida de uma ação e
+      # inútil para uma consulta, e o HttpTool não sabe qual é qual. Declarar ausência aqui
+      # seria inventar ausência — o defeito que este PR fecha.
+      context 'com 2xx sem conteúdo' do
+        before { stub_request(:get, 'https://example.com/data').to_return(status: 204, body: '') }
+
+        it 'não conclui ausência' do
+          resultado = tool.perform(tool_context)
+
+          expect(resultado).to include('sem conteúdo')
+          expect(resultado).to include('NÃO confirma que o dado não existe')
+        end
       end
 
       it 'logs error details' do
-        custom_tool.update!(endpoint_url: 'https://example.com/data')
         stub_request(:get, 'https://example.com/data').to_raise(StandardError.new('Test error'))
 
         expect(Rails.logger).to receive(:error).with(/HttpTool execution error.*Test error/)
 
         tool.perform(tool_context)
+      end
+
+      it 'mantém o detalhe técnico fora do texto que o modelo lê' do
+        stub_request(:get, 'https://example.com/data').to_return(status: 500, body: 'Server error')
+
+        expect(tool.perform(tool_context)).not_to include('500', 'HTTP')
+      end
+    end
+
+    # O HttpTool não herda de BasePublicTool, então ficava FORA do TraceRecorder: as custom tools
+    # de todos os tenants não geravam trace nenhum, e o que não tem trace não chega na nota do
+    # turno seguinte nem no eval. Aqui se testa o contrato de ponta a ponta — o status gravado é
+    # semântico, não "nenhuma exceção propagou".
+    describe 'trace e status semântico' do
+      let(:conversation) { create(:conversation, account: account) }
+      let(:tool_context_com_conversa) do
+        Struct.new(:state).new({ account_id: account.id, assistant_id: assistant.id,
+                                 conversation: { id: conversation.id, display_id: conversation.display_id } })
+      end
+
+      before do
+        account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
+        custom_tool.update!(endpoint_url: 'https://example.com/data', response_template: nil)
+        allow(Resolv).to receive(:getaddress).with('example.com').and_return('93.184.216.34')
+      end
+
+      def executar!
+        tool.perform(tool_context_com_conversa)
+        Captain::ToolCall.for_conversation(conversation.id).last
+      end
+
+      it 'grava trace da custom tool, que antes não existia' do
+        stub_request(:get, 'https://example.com/data').to_return(status: 200, body: '{"ok": true}')
+
+        expect(executar!).to be_present
+      end
+
+      it 'grava falha como error, não como ok' do
+        stub_request(:get, 'https://example.com/data').to_return(status: 500, body: 'x')
+
+        trace = executar!
+
+        expect(trace.status).to eq('error')
+        expect(trace.error).to include('HTTP 500')
+      end
+
+      it 'grava 2xx sem corpo como desconhecido, nunca como ausência confirmada' do
+        stub_request(:get, 'https://example.com/data').to_return(status: 204, body: '')
+
+        trace = executar!
+
+        expect(trace.status).to eq('desconhecido')
+        expect(Captain::Tools::Result::NAO_CONFIRMADOS).to include(trace.status)
+      end
+
+      it 'grava resposta com corpo como ok e devolve String para a gem' do
+        stub_request(:get, 'https://example.com/data').to_return(status: 200, body: '{"ok": true}')
+
+        resultado = tool.perform(tool_context_com_conversa)
+
+        expect(resultado).to be_a(String).and eq('{"ok": true}')
+        expect(Captain::ToolCall.for_conversation(conversation.id).last.status).to eq('ok')
       end
     end
 
