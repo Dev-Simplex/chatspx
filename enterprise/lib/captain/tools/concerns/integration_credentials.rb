@@ -103,6 +103,28 @@ module Captain
 
       private
 
+      # Evidence must not inherit another tenant's ENV/default credentials. Never persist the key.
+      def evidence_vista_provenance
+        bound = evidence_vista_account_bound?
+        version = Digest::SHA256.hexdigest([tool_account&.id, vista_base_url].to_json)
+        { account_bound: bound, source_version: "vista-v1:#{version}" }
+      rescue StandardError
+        { account_bound: false, source_version: 'vista-v1:unresolved' }
+      end
+
+      # Account, run scope, key and endpoint must independently match; keep the complete binding check together.
+      def evidence_vista_account_bound? # rubocop:disable Metrics/CyclomaticComplexity
+        return false unless tool_account
+
+        scope = Captain::Evidence::Context.scope
+        return false if scope && tool_account.id != scope.account_id
+
+        configured = %w[vista_api_key vista_base_url].map do |field|
+          integration_setting('vista', field) || custom_attribute(field)
+        end
+        configured.all?(&:present?) && configured == [vista_api_key, vista_base_url]
+      end
+
       # The account that owns the running tool (assistant's account).
       def tool_account
         @assistant&.account

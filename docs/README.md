@@ -16,6 +16,9 @@ base. Para não misturar cliente com cliente (nem cliente com plataforma), os do
 
 ## Onde estão os ambientes (deploy)
 
+- [Ledger de evidência e FactGuard em sombra](architecture/captain-factguard-shadow.md) — contrato,
+  fontes, cobertura/exclusões, testes/CI e custo; [consulta de métricas](architecture/captain-factguard-metrics.sql).
+
 O mapa de "qual VM é de qual cliente/ambiente" **não** fica aqui — fica em
 [`scripts/ops/AMBIENTES.md`](../scripts/ops/AMBIENTES.md), junto dos helpers de deploy por cliente.
 Leia antes de "subir em homologação": a palavra sozinha é ambígua (cada cliente tem a sua).

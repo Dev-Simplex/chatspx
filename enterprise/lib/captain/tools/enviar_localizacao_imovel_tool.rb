@@ -71,6 +71,9 @@ class Captain::Tools::EnviarLocalizacaoImovelTool < Captain::Tools::BasePublicTo
       headers: { 'Accept' => 'application/json' },
       timeout: 15
     )
+    if Captain::Evidence::Context.scope
+      Captain::Evidence::Sources.vista(resp, filter: { 'Codigo' => codigo }, name: 'vista.location_details', **evidence_vista_provenance)
+    end
     return SEM_PIN unless resp.code == 200
 
     data = resp.parsed_response

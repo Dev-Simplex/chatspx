@@ -1,0 +1,46 @@
+name: Captain FactGuard shadow
+permissions:
+  contents: read
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  evidence:
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    env:
+      RAILS_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: ''
+      REDIS_URL: redis://localhost:6379
+      SECRET_KEY_BASE: factguard-ci-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bundle exec rails db:create db:schema:load db:migrate
+      # Keep enterprise present: the FOSS workflow removes it and cannot validate this feature.
+      - run: bundle exec rspec spec/enterprise/services/captain/evidence --format progress --format json --out tmp/factguard-rspec.json
+      - name: Require the regression corpus
+        run: |
+          ruby -rjson -e 'r = JSON.parse(File.read("tmp/factguard-rspec.json")).fetch("summary"); abort("missing or failed regressions") unless r.fetch("example_count") >= 25 && r.fetch("failure_count").zero?'
+      - run: bundle exec rspec spec/enterprise/services/captain/property_ref_context_service_spec.rb
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: factguard-shadow-regression
+          path: tmp/factguard-rspec.json

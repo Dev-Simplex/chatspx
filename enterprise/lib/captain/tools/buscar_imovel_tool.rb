@@ -251,6 +251,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       paginacao: { pagina: 1, quantidade: quantidade }
     }
     resp = vista_get("#{base}/imoveis/listar", { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json })
+    Captain::Evidence::Sources.vista(resp, filter: filter, **evidence_vista_provenance) if Captain::Evidence::Context.scope
     return [] unless resp.code == 200
 
     data = resp.parsed_response

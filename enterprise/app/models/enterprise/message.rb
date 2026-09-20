@@ -1,5 +1,14 @@
 module Enterprise::Message
+  def self.prepended(base)
+    base.after_create :observe_fact_guard_shadow
+  end
+
   private
+
+  def observe_fact_guard_shadow
+    Captain::Evidence::Shadow.message(self)
+    true # observation must never abort a publication in shadow mode
+  end
 
   def mark_pending_conversation_as_open_for_human_response
     return unless captain_pending_conversation?

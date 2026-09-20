@@ -83,6 +83,7 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
   private
 
   def enviar(conversation, texto, resumo_texto)
+    Captain::Evidence::Shadow.observe(text: texto, stage: 'pre_tts')
     tts = Captain::ElevenLabsTtsService.new(@assistant)
     return 'Resposta em áudio não está configurada pra este agente. Responda em texto normalmente.' unless tts.configured?
 

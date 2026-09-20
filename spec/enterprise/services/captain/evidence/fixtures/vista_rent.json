@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "provenance": "reconstructed regression from documented conv 41803; not a faithful recorded conversation",
+  "incoming": "Tenho interesse no imóvel 9412",
+  "tool_request": {"filter": {"Codigo": "9412"}},
+  "http_responses": [
+    {"status": 200, "body": {"9412": {"Codigo": "9412", "ValorLocacao": "3200.00", "ValorCondominio": "500.00", "Condominio": "Nao"}, "total": 1}}
+  ],
+  "model_candidates": [
+    {"text": "Imóvel 9412: aluguel R$ 2.400", "expected": "would_block"},
+    {"text": "Imóvel 9412: aluguel R$ 3.200,00", "expected": "would_allow"}
+  ]
+}

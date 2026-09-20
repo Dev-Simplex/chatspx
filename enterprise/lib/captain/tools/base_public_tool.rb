@@ -9,6 +9,7 @@ class Captain::Tools::BasePublicTool < Agents::Tool
   def self.inherited(subclass)
     super
     subclass.prepend(Captain::Tools::TraceRecorder)
+    subclass.prepend(Captain::Evidence::ToolObservation)
   end
 
   def initialize(assistant)

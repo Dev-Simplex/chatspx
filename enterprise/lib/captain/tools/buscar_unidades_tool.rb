@@ -9,7 +9,7 @@
 #
 # Multi-tenant e opt-in: `active?` nega quando a conta não tem unidade ativa, e aí a tool nem
 # entra no toolset do agente. Conta sem unidade cadastrada não muda de comportamento em nada.
-class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
+class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool # rubocop:disable Metrics/ClassLength -- one shadow observation; preserve existing renderer
   description 'Consulta as unidades físicas desta empresa: nome, cidade, endereço, telefone e se ' \
               'abre na data que a pessoa pediu, já com feriado e exceção de calendário aplicados. ' \
               'Traz também as REGRAS PRÓPRIAS que o time cadastrou nesta unidade — as condições de ' \
@@ -60,6 +60,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
 
     perto = proximidade(tool_context)
     encontradas = filtrar_por_cidade(unidades, cidade)
+    encontradas.first(LIMITE_UNIDADES).each { |unit| Captain::Evidence::Sources.unit(unit) }
     return sem_unidade_na_cidade(unidades, cidade, perto) if encontradas.empty?
 
     montar_resposta(perto.ordenar(encontradas), unidades.size, quando, perto)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_20_190257) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -573,6 +573,71 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
     t.index ["account_id", "degrau", "ocorreu_em"], name: "idx_cap_ep_outcomes_acct_degrau"
     t.index ["conversation_id"], name: "index_captain_episode_outcomes_on_conversation_id"
     t.index ["episode_id", "degrau"], name: "idx_cap_ep_outcomes_ep_degrau", unique: true
+  end
+
+  create_table "captain_evidence_facts", force: :cascade do |t|
+    t.bigint "source_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.string "episode_key", null: false
+    t.string "entity_type", null: false
+    t.string "entity_id", null: false
+    t.jsonb "aliases", default: [], null: false
+    t.string "field", null: false
+    t.string "value_type", null: false
+    t.jsonb "value", null: false
+    t.string "unit", null: false
+    t.string "assertion_scope", default: "business", null: false
+    t.jsonb "dependencies", default: [], null: false
+    t.index ["account_id", "conversation_id", "episode_key"], name: "idx_evidence_facts_episode"
+    t.index ["source_id"], name: "index_captain_evidence_facts_on_source_id"
+  end
+
+  create_table "captain_evidence_sources", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "captain_assistant_id"
+    t.string "episode_key", null: false
+    t.string "turn_id", null: false
+    t.string "run_id", null: false
+    t.string "origin", null: false
+    t.string "source_name", null: false
+    t.string "source_version", null: false
+    t.string "status", null: false
+    t.jsonb "full_result", null: false
+    t.string "digest", null: false
+    t.datetime "observed_at", null: false
+    t.datetime "expires_at"
+    t.datetime "created_at", null: false
+    t.index ["account_id", "conversation_id", "episode_key", "id"], name: "idx_evidence_source_identity", unique: true
+    t.index ["account_id"], name: "index_captain_evidence_sources_on_account_id"
+    t.index ["conversation_id"], name: "index_captain_evidence_sources_on_conversation_id"
+  end
+
+  create_table "captain_fact_guard_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "captain_assistant_id"
+    t.bigint "message_id"
+    t.string "episode_key", null: false
+    t.string "turn_id", null: false
+    t.string "run_id", null: false
+    t.string "publication_id", null: false
+    t.string "publication_path", null: false
+    t.string "stage", null: false
+    t.string "extractor_version", null: false
+    t.string "fact_type", null: false
+    t.string "decision", null: false
+    t.string "reason", null: false
+    t.jsonb "claim", default: {}, null: false
+    t.jsonb "evidence_ids", default: [], null: false
+    t.string "payload_digest", null: false
+    t.float "duration_ms", null: false
+    t.datetime "created_at", null: false
+    t.index ["account_id", "created_at"], name: "idx_fact_guard_reporting"
+    t.index ["account_id"], name: "index_captain_fact_guard_events_on_account_id"
+    t.index ["conversation_id"], name: "index_captain_fact_guard_events_on_conversation_id"
+    t.index ["publication_id"], name: "index_captain_fact_guard_events_on_publication_id"
   end
 
   create_table "captain_inboxes", force: :cascade do |t|
@@ -2294,6 +2359,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
   add_foreign_key "canned_responses", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants", on_delete: :cascade
   add_foreign_key "captain_assistant_logs", "conversations", on_delete: :cascade
+  add_foreign_key "captain_evidence_facts", "captain_evidence_sources", column: ["account_id", "conversation_id", "episode_key", "source_id"], primary_key: ["account_id", "conversation_id", "episode_key", "id"], on_delete: :cascade
+  add_foreign_key "captain_evidence_sources", "accounts", on_delete: :cascade
+  add_foreign_key "captain_evidence_sources", "conversations", on_delete: :cascade
+  add_foreign_key "captain_fact_guard_events", "accounts", on_delete: :cascade
+  add_foreign_key "captain_fact_guard_events", "conversations", on_delete: :cascade
   add_foreign_key "contact_flow_suppressions", "accounts", on_delete: :cascade
   add_foreign_key "contact_flow_suppressions", "contacts", on_delete: :cascade
   add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade

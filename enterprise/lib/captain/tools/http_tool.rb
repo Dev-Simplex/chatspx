@@ -1,6 +1,8 @@
 require 'agents'
 
 class Captain::Tools::HttpTool < Agents::Tool
+  prepend Captain::Evidence::ToolObservation
+
   def initialize(assistant, custom_tool)
     @assistant = assistant
     @custom_tool = custom_tool
@@ -70,12 +72,22 @@ class Captain::Tools::HttpTool < Agents::Tool
     apply_metadata_headers(request, tool_context)
 
     response = http.request(request)
+    observe_http_result(response)
 
     raise "HTTP request failed with status #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     validate_response!(response)
 
     response
+  end
+
+  def observe_http_result(response)
+    scope = Captain::Evidence::Context.scope
+    return unless scope && @custom_tool.account_id == scope.account_id
+
+    Captain::Evidence::Sources.record(origin: 'custom_http', name: "custom:#{@custom_tool.id}:#{@custom_tool.slug}",
+                                      version: @custom_tool.updated_at.iso8601(6), status: 'unverified',
+                                      result: { http_status: response.code, body: response.body })
   end
 
   def check_private_ip!(hostname)

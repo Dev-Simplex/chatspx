@@ -59,6 +59,8 @@ class Captain::PropertyRefContextService
     imovel = fetch_imovel(codigo)
     return if imovel.blank?
 
+    observe_cached_evidence(imovel)
+
     format_note(imovel)
   rescue StandardError => e
     Rails.logger.warn("[PropertyRefContext] msg=#{@message&.id} #{e.class}: #{e.message}")
@@ -66,6 +68,21 @@ class Captain::PropertyRefContextService
   end
 
   private
+
+  def observe_cached_evidence(imovel)
+    return if @evidence_fresh
+
+    Captain::Evidence::Sources.record(origin: 'property_ref', name: 'property_ref.cache', version: 'legacy-cache-v1',
+                                      status: 'unverified', result: imovel)
+  end
+
+  def observe_fresh_evidence(response, codigo)
+    @evidence_fresh = true
+    return unless Captain::Evidence::Context.scope
+
+    Captain::Evidence::Sources.vista(response, filter: { 'Codigo' => codigo }, origin: 'property_ref',
+                                               name: 'property_ref.http', **evidence_vista_provenance)
+  end
 
   # "Ref:" primeiro por ser o formato explícito; o link é o fallback. Quem manda os dois na
   # mesma mensagem está falando do mesmo imóvel — não há caso em que a ordem mude a ficha.
@@ -103,6 +120,7 @@ class Captain::PropertyRefContextService
   end
 
   def fetch_imovel(codigo)
+    @evidence_fresh = false
     Rails.cache.fetch("captain:property_ref:#{@account.id}:#{codigo}", expires_in: CACHE_TTL) do
       pesquisa = { fields: FIELDS, filter: { 'Codigo' => codigo }, paginacao: { pagina: 1, quantidade: 1 } }
       resp = HTTParty.get(
@@ -111,6 +129,7 @@ class Captain::PropertyRefContextService
         headers: { 'Accept' => 'application/json' },
         timeout: HTTP_TIMEOUT
       )
+      observe_fresh_evidence(resp, codigo)
       next {} unless resp.code == 200
 
       data = resp.parsed_response

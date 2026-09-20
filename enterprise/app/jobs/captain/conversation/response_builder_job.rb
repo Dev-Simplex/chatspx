@@ -39,6 +39,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   retry_on Faraday::BadRequestError, attempts: 3, wait: 2.seconds
 
   def perform(conversation, assistant, directive: nil)
+    Captain::Evidence::Shadow.with_run(conversation, assistant) do
+      perform_response(conversation, assistant, directive: directive)
+    end
+  end
+
+  def perform_response(conversation, assistant, directive: nil)
     @conversation = conversation
     @inbox = conversation.inbox
     @assistant = assistant
@@ -498,9 +504,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def create_handoff_message
-    create_outgoing_message(
-      @assistant.config['handoff_message'].presence || I18n.t('conversations.captain.handoff')
-    )
+    Captain::Evidence::Context.with_path('handoff') do
+      create_outgoing_message(
+        @assistant.config['handoff_message'].presence || I18n.t('conversations.captain.handoff')
+      )
+    end
   end
 
   def create_messages
@@ -673,7 +681,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def send_response(content)
     @did_send = true
+    original = content
     content = sanitize_for_whatsapp(content)
+    if (scope = Captain::Evidence::Context.scope)
+      scope.publication_id = SecureRandom.uuid
+      Captain::Evidence::Shadow.observe(text: original, stage: 'pre_sanitizer')
+    end
     if humanizer_enabled?
       send_humanized_response(content)
     else
@@ -788,6 +801,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # há ambiguidade: uma unidade ativa, um endereço possível.
   def unidade_da_conta
     unidades = ::Unit.where(account_id: @conversation.account_id, active: true).limit(2).to_a
+    Captain::Evidence::Sources.unit(unidades.first, name: 'sanitizer.unit') if unidades.size == 1
     unidades.size == 1 ? unidades.first : nil
   rescue StandardError => e
     Rails.logger.warn("[fix_office_address] unidade indisponível: #{e.class}: #{e.message}")

@@ -92,6 +92,7 @@ module Concerns::Agentable
     now = Time.current.in_time_zone(tz)
     dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
     inside = Captain::Behavior::BusinessHoursChecker.new(assistant: asst).status == :inside
+    Captain::Evidence::Sources.assistant_hours(asst, bh, inside)
     status =
       if inside
         'dentro do horário comercial, com atendentes disponíveis agora'
