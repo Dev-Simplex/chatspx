@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_21_180936) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -614,6 +614,37 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
     t.datetime "created_at", null: false
     t.index ["account_id", "created_at"], name: "index_captain_tool_calls_on_account_id_and_created_at"
     t.index ["conversation_id", "created_at"], name: "index_captain_tool_calls_on_conversation_id_and_created_at"
+  end
+
+  create_table "catalog_categories", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name"], name: "index_catalog_categories_on_account_id_and_name", unique: true
+    t.index ["account_id"], name: "index_catalog_categories_on_account_id"
+  end
+
+  create_table "catalog_products", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "catalog_category_id"
+    t.string "name", null: false
+    t.text "description"
+    t.integer "price_cents", default: 0, null: false
+    t.integer "promo_price_cents"
+    t.string "currency", default: "BRL", null: false
+    t.string "sku"
+    t.integer "stock"
+    t.boolean "visible", default: true, null: false
+    t.boolean "featured", default: false, null: false
+    t.string "meta_product_id"
+    t.datetime "meta_synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "sku"], name: "index_catalog_products_on_account_id_and_sku", unique: true, where: "(sku IS NOT NULL)"
+    t.index ["account_id", "visible"], name: "index_catalog_products_on_account_id_and_visible"
+    t.index ["account_id"], name: "index_catalog_products_on_account_id"
+    t.index ["catalog_category_id"], name: "index_catalog_products_on_catalog_category_id"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -2294,6 +2325,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
   add_foreign_key "canned_responses", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants", on_delete: :cascade
   add_foreign_key "captain_assistant_logs", "conversations", on_delete: :cascade
+  add_foreign_key "catalog_categories", "accounts"
+  add_foreign_key "catalog_products", "accounts"
+  add_foreign_key "catalog_products", "catalog_categories", on_delete: :nullify
   add_foreign_key "contact_flow_suppressions", "accounts", on_delete: :cascade
   add_foreign_key "contact_flow_suppressions", "contacts", on_delete: :cascade
   add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
