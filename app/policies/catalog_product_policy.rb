@@ -27,6 +27,16 @@ class CatalogProductPolicy < ApplicationPolicy
     update?
   end
 
+  # Import por planilha (C5) é cadastro em massa: mesma régua do `create`. O Pundit procura o
+  # método pelo nome da ação, então sem estes dois a rota levantaria NoMethodError.
+  def import?
+    create?
+  end
+
+  def import_status?
+    create?
+  end
+
   # Porta do ERP (C3). Grava com token de usuário-robô que o cliente cria como AGENTE — foi a
   # escolha de produto, para não entregar token de administrador a um sistema de fora. Por isso
   # ela NÃO passa por `create?`: ali a régua é administrador, e o robô ficaria de fora.
