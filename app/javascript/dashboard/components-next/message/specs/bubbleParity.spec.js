@@ -1,5 +1,6 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { ref } from 'vue';
+import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import MessageMeta from '../MessageMeta.vue';
 import Activity from '../bubbles/Activity.vue';
 import FileBubble from '../bubbles/File.vue';
@@ -81,16 +82,60 @@ it('keeps the date on the day separator', () => {
   expect(wrapper.text()).toContain('2020');
   expect(wrapper.text()).not.toBe('15:04');
 });
-it.each(['manual.pdf', 'planilha.xlsx'])(
-  'shows the localized size beside %s before download',
+const documentPayload = name => ({
+  account_id: 1,
+  data_url: `https://example.com/${name}`,
+  extension: name.split('.').pop(),
+  file_size: 1258291,
+  file_type: 'file',
+  height: null,
+  id: 10,
+  message_id: 28,
+  thumb_url: '',
+  width: null,
+});
+
+it.each(['manual.pdf', 'planilha-com-nome-muito-longo.xlsx'])(
+  'keeps the size separate from the truncated name for %s',
   name => {
-    context.attachments.value[0].dataUrl = `https://example.com/${name}`;
-    expect(render(FileBubble).text()).toContain(`${name} · 1,2 MB`);
+    // Same API payload and deep conversion used by MessageList; no file_name.
+    const message = useCamelCase(
+      { attachments: [documentPayload(name)] },
+      {
+        deep: true,
+        stopPaths: [
+          'content_attributes.translations',
+          'content_attributes.interactive_payload',
+        ],
+      }
+    );
+    expect(message.attachments[0].fileSize).toBe(1258291);
+    context.attachments.value = message.attachments;
+    const wrapper = render(FileBubble);
+    expect(wrapper.text()).toContain(name);
+    const size = wrapper.get('[data-testid="file-size"]');
+    expect(size.text()).toBe('1,2 MB');
+    expect(size.classes()).toContain('shrink-0');
+    expect(size.element.closest('.truncate')).toBeNull();
+  }
+);
+it.each(['manual.pdf', 'planilha.xlsx'])(
+  'also accepts an unconverted API attachment for %s',
+  name => {
+    context.attachments.value = [documentPayload(name)];
+    const wrapper = render(FileBubble);
+    expect(wrapper.text()).toContain(name);
+    expect(wrapper.get('[data-testid="file-size"]').text()).toBe('1,2 MB');
+    expect(wrapper.get('a').attributes('href')).toBe(
+      `https://example.com/${name}`
+    );
   }
 );
 it('omits the size when the payload has no size', () => {
   delete context.attachments.value[0].fileSize;
-  expect(render(FileBubble).text()).not.toContain(' · ');
+  expect(render(FileBubble).find('[data-testid="file-size"]').exists()).toBe(
+    false
+  );
 });
 it.each(['static.webp', 'animated.webp'])(
   'renders marked sticker %s without a bubble background',
