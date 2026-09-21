@@ -15,8 +15,12 @@ import Icon from 'dashboard/components-next/icon/Icon.vue';
 const timeSlots = generateTimeSlots(30);
 
 // Mesmo estilo dos campos de hora do editor de regras do calendário (UnitForm.vue).
-const CAMPO_HORA =
-  'reset-base h-10 w-28 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 disabled:opacity-50';
+// O relógio do campo nativo nasce escuro (o app não declara color-scheme), some no tema escuro e
+// não parecia clicável. Realce e inversão no escuro, como em AiTimeField.vue.
+const RELOGIO =
+  '[&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:scale-110 [&::-webkit-calendar-picker-indicator]:transition-opacity hover:[&::-webkit-calendar-picker-indicator]:opacity-100';
+
+const CAMPO_HORA = `reset-base h-10 w-28 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 disabled:opacity-50 ${RELOGIO}`;
 
 export default {
   components: {

@@ -64,8 +64,11 @@ const COR_DA_CATEGORIA = {
 // justamente disso: `woot-input` monta rótulo e caixa com espaçamento próprio e 40px de
 // altura, enquanto o seletor nativo fica em 38px — alinhados pela base, os rótulos
 // saíam em linhas diferentes.
-const CAMPO =
-  'reset-base h-10 w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10';
+// Mesmo realce do relógio/calendário nativo usado na grade semanal (BusinessDay.vue).
+const RELOGIO =
+  '[&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:scale-110 [&::-webkit-calendar-picker-indicator]:transition-opacity hover:[&::-webkit-calendar-picker-indicator]:opacity-100';
+
+const CAMPO = `reset-base h-10 w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10 ${RELOGIO}`;
 const CAMPO_ESTREITO =
   'reset-base h-10 w-20 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12';
 const SELETOR = 'w-full [&>select]:h-10 [&>select]:w-full';
@@ -759,7 +762,7 @@ defineExpose({
 </script>
 
 <template>
-  <form class="flex flex-col gap-8" @submit.prevent="onSubmit">
+  <form class="flex flex-col gap-8 w-full" @submit.prevent="onSubmit">
     <section class="flex flex-col gap-4">
       <div class="grid gap-4 sm:grid-cols-2">
         <woot-input
@@ -880,14 +883,16 @@ defineExpose({
           </span>
         </span>
       </label>
+      <!-- Altura do corte casa com a da linha (8px de folga + 5 linhas de 32px = max-h-44): com
+           gap solto a lista terminava no meio de uma caixa e parecia quebrada. -->
       <div
         v-if="inboxes.length"
-        class="flex flex-col gap-2.5 p-3 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
+        class="flex flex-col p-2 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
       >
         <label
           v-for="inbox in inboxes"
           :key="inbox.id"
-          class="flex gap-2 items-center w-fit cursor-pointer mb-0"
+          class="flex gap-2 items-center h-8 px-2 rounded-md cursor-pointer mb-0 hover:bg-n-alpha-1"
         >
           <input
             v-model="selectedInboxIds"
@@ -954,6 +959,7 @@ defineExpose({
                     ? t('UNITS_MGMT.FORM.HOURS.COPIED_SHORT')
                     : t('UNITS_MGMT.FORM.HOURS.COPY')
                 "
+                :title="t('UNITS_MGMT.FORM.HOURS.COPY_HINT')"
                 @click.prevent="copiarParaOsDemaisDias(slot)"
               />
             </template>

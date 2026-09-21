@@ -130,9 +130,10 @@
       "HOURS": {
         "LABEL": "Opening hours",
         "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages.",
-        "COPY": "Copy to the other days",
+        "COPY": "Copy",
         "COPIED": "Hours copied to {count} day(s)",
-        "COPIED_SHORT": "Copied"
+        "COPIED_SHORT": "Copied",
+        "COPY_HINT": "Copy these hours to the other days"
       },
       "EXCEPTIONS": {
         "NAME": "Reason",

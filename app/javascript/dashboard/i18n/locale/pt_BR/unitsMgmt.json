@@ -130,9 +130,10 @@
       "HOURS": {
         "LABEL": "Horário de funcionamento",
         "HELP": "Informativo: serve para o atendente saber o que responder. Não dispara mensagem automática.",
-        "COPY": "Copiar para os demais dias",
+        "COPY": "Copiar",
         "COPIED": "Horário copiado para {count} dia(s)",
-        "COPIED_SHORT": "Copiado"
+        "COPIED_SHORT": "Copiado",
+        "COPY_HINT": "Copiar este horário para os demais dias"
       },
       "EXCEPTIONS": {
         "NAME": "Motivo",
