@@ -102,6 +102,10 @@
         "LABEL": "Endereço",
         "PLACEHOLDER": "Av. das Itaúbas, 1234"
       },
+      "ADDRESS_NUMBER": {
+        "LABEL": "Número",
+        "PLACEHOLDER": "123, S/N, Km 12"
+      },
       "TIMEZONE": {
         "LABEL": "Fuso horário",
         "PLACEHOLDER": "Escolha o fuso horário",
@@ -133,7 +137,9 @@
       },
       "HOURS": {
         "LABEL": "Horário de funcionamento",
-        "HELP": "Informativo: serve para o atendente saber o que responder. Não dispara mensagem automática."
+        "HELP": "Informativo: serve para o atendente saber o que responder. Não dispara mensagem automática.",
+        "COPY": "Copiar para os demais dias",
+        "COPIED": "Horário copiado para {count} dia(s)"
       },
       "EXCEPTIONS": {
         "NAME": "Motivo",
@@ -240,6 +246,13 @@
         "TODAY": "Hoje",
         "RULES_TITLE": "Tudo que está marcado em {ano}",
         "RULES_EMPTY_YEAR": "Nada marcado em {ano}. Use as setas do calendário para ver outro ano."
+      },
+      "UNSAVED": {
+        "TITLE": "Alterações não salvas",
+        "MESSAGE": "Você tem alterações não salvas. Deseja salvar antes de sair?",
+        "SAVE": "Salvar",
+        "DISCARD": "Descartar",
+        "KEEP": "Continuar editando"
       }
     }
   }

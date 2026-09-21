@@ -52,7 +52,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
 
   def unit_params
     params.require(:unit).permit(
-      :name, :city, :state, :address, :phone, :timezone, :notes, :active, :applies_to_inboxes,
+      :name, :city, :state, :address, :address_number, :phone, :timezone, :notes, :active, :applies_to_inboxes,
       :latitude, :longitude, :zip_code,
       # Regras próprias da unidade, em par nome/valor. Hash livre porque o que é regra muda por
       # ramo — o produto não tem como enumerar as colunas de antemão, e coluna nova por cliente é
