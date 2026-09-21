@@ -311,7 +311,9 @@ RSpec.describe Attachment do
   end
 
   describe 'file size validation' do
-    let(:attachment) { message.attachments.new(account_id: message.account_id, file_type: :image) }
+    # O limite configurado e para o que o atendente SOBE (mensagem enviada); o recebido so tem o teto rigido.
+    let(:enviada) { create(:message, message_type: :outgoing) }
+    let(:attachment) { enviada.attachments.new(account_id: enviada.account_id, file_type: :image) }
 
     before do
       allow(GlobalConfigService).to receive(:load).and_call_original
@@ -404,10 +406,51 @@ RSpec.describe Attachment do
     end
   end
 
+  # N-02: o que JA passou pelo WhatsApp nao pode ser recusado. Com a rede valendo para mensagem
+  # recebida, o video do cliente acima de 16 MB voltava 422 para a ponte e sumia, legenda junto.
+  describe 'files that already went through WhatsApp' do
+    let(:api_inbox) { create(:inbox, account: message.account, channel: create(:channel_api, account: message.account)) }
+
+    def anexo(msg, megas, content_type: 'video/mp4', file_type: :video)
+      attachment = msg.attachments.new(account_id: msg.account_id, file_type: file_type)
+      attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'arquivo', content_type: content_type)
+      allow(attachment.file).to receive(:byte_size).and_return(megas.megabytes)
+      attachment
+    end
+
+    it 'accepts a 20MB video the customer sent' do
+      recebida = create(:message, account: message.account, inbox: api_inbox, message_type: :incoming)
+
+      expect(anexo(recebida, 20).valid?).to be true
+    end
+
+    it 'still refuses a 20MB video the agent sends from the panel' do
+      enviada = create(:message, account: message.account, inbox: api_inbox, message_type: :outgoing)
+
+      expect(anexo(enviada, 20).valid?).to be false
+    end
+
+    it 'accepts a received file above the 40MB global cap, up to the hard 100MB' do
+      recebida = create(:message, account: message.account, inbox: api_inbox, message_type: :incoming)
+
+      expect(anexo(recebida, 60, content_type: 'application/pdf', file_type: :file).valid?).to be true
+      expect(anexo(recebida, 101, content_type: 'application/pdf', file_type: :file).valid?).to be false
+    end
+
+    it 'accepts a 20MB video the agent sent from the phone (echo note from the WAHA bridge)' do
+      api_inbox.update!(waha_session_name: 'sessao_teste')
+      eco = create(:message, account: message.account, inbox: api_inbox, message_type: :outgoing, private: true,
+                             content: "*📱 Enviado do WhatsApp*\n\nvideo do imovel")
+
+      expect(anexo(eco, 20).valid?).to be true
+    end
+  end
+
   describe 'WAHA per-category size validation (Channel::Api)' do
+    # A rede de 16 MB e para o que o atendente ENVIA pelo WAHA (o factory cria incoming por padrao).
     let(:api_message) do
       api_inbox = create(:inbox, account: message.account, channel: create(:channel_api, account: message.account))
-      create(:message, account: message.account, inbox: api_inbox)
+      create(:message, account: message.account, inbox: api_inbox, message_type: :outgoing)
     end
 
     before do
