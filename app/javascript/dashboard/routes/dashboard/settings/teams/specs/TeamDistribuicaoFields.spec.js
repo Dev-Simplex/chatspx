@@ -198,3 +198,35 @@ describe.each([
     );
   });
 });
+
+describe.each([true, false])(
+  'TeamDistribuicaoFields layout (embutido=%s)',
+  embutido => {
+    it('contem os tres campos numericos e mantem as unidades junto deles', async () => {
+      showSpy.mockResolvedValue({
+        data: {
+          ...resposta.data,
+          politica: { ...resposta.data.politica, repasse_automatico: true },
+        },
+      });
+      const wrapper = montar({ embutido });
+      await flushPromises();
+
+      // JSDOM não calcula layout; protege os overrides da regra global w-full/mb-4.
+      const campos = wrapper.findAll('input[type="number"]');
+      expect(campos).toHaveLength(3);
+      campos.forEach(campo => {
+        expect(campo.classes()).toEqual(
+          expect.arrayContaining(['!w-20', '!mb-0', 'shrink-0'])
+        );
+      });
+      campos.slice(0, 2).forEach(campo => {
+        const unidade = campo.element.nextElementSibling;
+        expect(unidade.classList.contains('whitespace-nowrap')).toBe(true);
+        expect(unidade.parentElement.classList.contains('gap-2')).toBe(true);
+      });
+      expect(wrapper.findAll('h4')).toHaveLength(3);
+      wrapper.unmount();
+    });
+  }
+);

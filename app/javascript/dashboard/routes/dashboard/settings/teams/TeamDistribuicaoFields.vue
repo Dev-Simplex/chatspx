@@ -236,7 +236,8 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
         </p>
       </div>
 
-      <fieldset :disabled="!ligada" class="flex flex-col gap-6">
+      <!-- !w / !mb vencem o seletor global de inputs em _base.scss (w-full / mb-4). -->
+      <fieldset :disabled="!ligada" class="flex min-w-0 flex-col gap-6">
         <div class="flex flex-col gap-1">
           <span class="text-sm font-medium text-n-slate-12">
             {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.MODO.LABEL') }}
@@ -259,10 +260,10 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
           </select>
         </div>
 
-        <div class="flex flex-col gap-1">
-          <span class="text-sm font-medium text-n-slate-12">
+        <div class="flex flex-col gap-3 border-t border-n-weak pt-6">
+          <h4 class="m-0 text-sm font-medium text-n-slate-12">
             {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POSSE.LABEL') }}
-          </span>
+          </h4>
           <select
             v-model="politica.modo_posse"
             class="max-w-md rounded-lg border border-n-weak bg-n-solid-1 text-sm"
@@ -307,14 +308,14 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CONTINUIDADE.LABEL') }}
             </span>
           </label>
-          <div class="flex items-center gap-2 pl-6">
+          <div class="flex items-center gap-2 pl-6 py-2">
             <input
               v-model.number="politica.continuidade_dias"
               type="number"
               min="1"
-              class="w-20 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
+              class="!w-20 !mb-0 shrink-0 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
             />
-            <span class="text-xs text-n-slate-11">
+            <span class="shrink-0 whitespace-nowrap text-xs text-n-slate-11">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CONTINUIDADE.DAYS') }}
             </span>
           </div>
@@ -323,26 +324,28 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
           </p>
         </div>
 
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center gap-2">
+        <div class="flex flex-col gap-6 border-t border-n-weak pt-6">
+          <div class="flex flex-col items-start gap-3">
             <span class="text-sm font-medium text-n-slate-12">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.LABEL') }}
             </span>
-            <input
-              v-model.number="politica.sla_assumir_minutos"
-              type="number"
-              min="1"
-              class="w-20 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
-            />
-            <span class="text-xs text-n-slate-11">
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.MINUTES') }}
-            </span>
+            <div class="flex items-center gap-2">
+              <input
+                v-model.number="politica.sla_assumir_minutos"
+                type="number"
+                min="1"
+                class="!w-20 !mb-0 shrink-0 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
+              />
+              <span class="shrink-0 whitespace-nowrap text-xs text-n-slate-11">
+                {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.MINUTES') }}
+              </span>
+            </div>
           </div>
 
-          <div class="flex flex-col gap-4">
-            <span class="text-sm font-medium text-n-slate-12">
+          <div class="flex flex-col gap-4 border-t border-n-weak pt-6">
+            <h4 class="m-0 text-sm font-medium text-n-slate-12">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.ON_EXPIRY') }}
-            </span>
+            </h4>
             <div class="flex flex-col gap-1">
               <label class="flex items-start gap-2">
                 <input
@@ -381,7 +384,7 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
                   v-model.number="politica.max_repasses"
                   type="number"
                   min="1"
-                  class="w-16 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
+                  class="!w-20 !mb-0 shrink-0 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
                 />
               </label>
               <label class="flex flex-col gap-1">
@@ -440,10 +443,10 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
         </div>
       </fieldset>
 
-      <div class="flex flex-col gap-2">
-        <span class="text-sm font-medium text-n-slate-12">
+      <div class="flex flex-col gap-3 border-t border-n-weak pt-6">
+        <h4 class="m-0 text-sm font-medium text-n-slate-12">
           {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.TITLE') }}
-        </span>
+        </h4>
         <p class="text-xs text-n-slate-11">
           {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.ORDER_HELP') }}
         </p>
