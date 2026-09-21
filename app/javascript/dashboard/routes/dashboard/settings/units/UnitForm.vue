@@ -275,10 +275,21 @@ const onSlotUpdate = (dia, slot) => {
 
 // Segunda a sexta costuma ser tudo igual: preenche um dia, copia, e ajusta so o que foge. Copia
 // para os dias ABERTOS — fim de semana fechado continua fechado.
+const diaCopiado = ref(null);
+let voltaDoBotao = null;
+
 const copiarParaOsDemaisDias = origem => {
   const { slots, copiados } = copiarHorarioParaDias(timeSlots.value, origem);
   timeSlots.value = slots;
   useAlert(t('UNITS_MGMT.FORM.HOURS.COPIED', { count: copiados }));
+
+  // O botão confirma no lugar onde o clique aconteceu: o aviso do topo some da vista de quem
+  // está olhando a grade lá embaixo.
+  diaCopiado.value = origem.day;
+  clearTimeout(voltaDoBotao);
+  voltaDoBotao = setTimeout(() => {
+    diaCopiado.value = null;
+  }, 2000);
 };
 
 // --- regras de agenda --------------------------------------------------------------
@@ -931,11 +942,18 @@ defineExpose({
             <template #acoes>
               <Button
                 v-if="slot.from && slot.to"
-                link
-                slate
-                xs
+                variant="faded"
+                size="xs"
                 type="button"
-                :label="t('UNITS_MGMT.FORM.HOURS.COPY')"
+                :color="diaCopiado === slot.day ? 'teal' : 'slate'"
+                :icon="
+                  diaCopiado === slot.day ? 'i-lucide-check' : 'i-lucide-copy'
+                "
+                :label="
+                  diaCopiado === slot.day
+                    ? t('UNITS_MGMT.FORM.HOURS.COPIED_SHORT')
+                    : t('UNITS_MGMT.FORM.HOURS.COPY')
+                "
                 @click.prevent="copiarParaOsDemaisDias(slot)"
               />
             </template>

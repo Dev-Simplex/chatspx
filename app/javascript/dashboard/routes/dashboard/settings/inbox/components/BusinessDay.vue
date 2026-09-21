@@ -271,15 +271,17 @@ export default {
       </span>
     </td>
     <td class="py-3 ltr:pr-3 rtl:pl-3">
-      <span
-        v-if="isDayEnabled && !hasError"
-        class="label bg-n-blue-3 text-n-blue-11 text-label-small inline-block px-2 py-1 rounded-lg cursor-default whitespace-nowrap"
-      >
-        {{ totalHours }}
-      </span>
-      <!-- "Copiar para os demais dias" mora aqui, preenchido por quem usa o componente: a grade da
-           unidade passa o slot; a da caixa de entrada não, e a coluna fica igual à de antes. -->
-      <slot name="acoes" />
+      <div class="flex items-center gap-2">
+        <span
+          v-if="isDayEnabled && !hasError"
+          class="label bg-n-blue-3 text-n-blue-11 text-label-small inline-block px-2 py-1 rounded-lg cursor-default whitespace-nowrap"
+        >
+          {{ totalHours }}
+        </span>
+        <!-- "Copiar para os demais dias" mora aqui, preenchido por quem usa o componente: a grade da
+             unidade passa o slot; a da caixa de entrada não, e a coluna fica igual à de antes. -->
+        <slot name="acoes" />
+      </div>
     </td>
   </tr>
 </template>
