@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
 import {
   getTime,
   timeSlotParse,
@@ -19,6 +20,11 @@ import {
   proximasOcorrencias,
 } from './unitSchedule';
 import UnitCalendar from './UnitCalendar.vue';
+import {
+  formatarCep,
+  formatarTelefone,
+  copiarHorarioParaDias,
+} from './unitFormulario';
 
 const props = defineProps({
   // Unidade existente quando é edição; nulo quando é criação.
@@ -58,8 +64,11 @@ const COR_DA_CATEGORIA = {
 // justamente disso: `woot-input` monta rótulo e caixa com espaçamento próprio e 40px de
 // altura, enquanto o seletor nativo fica em 38px — alinhados pela base, os rótulos
 // saíam em linhas diferentes.
-const CAMPO =
-  'reset-base h-10 w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10';
+// Mesmo realce do relógio/calendário nativo usado na grade semanal (BusinessDay.vue).
+const RELOGIO =
+  '[&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:outline [&::-webkit-calendar-picker-indicator]:outline-1 [&::-webkit-calendar-picker-indicator]:outline-n-weak [&::-webkit-calendar-picker-indicator]:transition-opacity hover:[&::-webkit-calendar-picker-indicator]:opacity-100';
+
+const CAMPO = `reset-base h-10 w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10 ${RELOGIO}`;
 const CAMPO_ESTREITO =
   'reset-base h-10 w-20 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12';
 const SELETOR = 'w-full [&>select]:h-10 [&>select]:w-full';
@@ -92,7 +101,11 @@ const form = ref({
   city: '',
   state: '',
   address: '',
-  phone: '',
+  address_number: '',
+  // Uma filial costuma ter mais de um número e alguns links. O `phone` da unidade continua
+  // existindo no banco (é o primeiro contato), mas quem edita aqui é a lista.
+  contacts: [],
+  social_links: [],
   timezone: 'America/Sao_Paulo',
   notes: '',
   applies_to_inboxes: false,
@@ -125,11 +138,19 @@ const carregar = () => {
   const u = props.unit;
   form.value = {
     name: u?.name ?? '',
-    zip_code: u?.zip_code ?? '',
+    zip_code: formatarCep(u?.zip_code ?? ''),
     city: u?.city ?? '',
     state: u?.state ?? '',
     address: u?.address ?? '',
-    phone: u?.phone ?? '',
+    address_number: u?.address_number ?? '',
+    contacts: (u?.contacts ?? []).map(contato => ({
+      label: contato.label ?? '',
+      phone: formatarTelefone(contato.phone ?? ''),
+    })),
+    social_links: (u?.social_links ?? []).map(link => ({
+      network: link.network || 'instagram',
+      url: link.url ?? '',
+    })),
     timezone: u?.timezone ?? 'America/Sao_Paulo',
     notes: u?.notes ?? '',
     applies_to_inboxes: u?.applies_to_inboxes ?? false,
@@ -174,11 +195,51 @@ const carregar = () => {
   rules.value = (u?.exceptions ?? []).map(regra => ({ ...regra }));
   novaRegra.value = rascunhoLimpo();
 };
+// Foto do formulario como ele abriu: e ela que responde "tem alteracao nao salva?" quando o modal
+// tenta fechar (o woot-modal desmonta o formulario antes de avisar, entao quem pergunta e a tela).
+const instantaneo = ref('');
+const estadoAtual = () =>
+  JSON.stringify({
+    form: form.value,
+    coordenadas: coordenadas.value,
+    timeSlots: timeSlots.value,
+    selectedInboxIds: [...selectedInboxIds.value].sort(),
+    rules: rules.value,
+  });
+const tirarFoto = () => {
+  instantaneo.value = estadoAtual();
+};
+
 carregar();
-watch(() => props.unit, carregar);
+tirarFoto();
+watch(
+  () => props.unit,
+  () => {
+    carregar();
+    tirarFoto();
+  }
+);
 
 const timezones = timeZoneOptions();
 const nomeInvalido = computed(() => !form.value.name.trim());
+
+// As redes são marca, não texto de interface: o nome não muda de língua. Só "Site" é palavra comum.
+const REDES = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'site', label: t('UNITS_MGMT.FORM.SOCIAL.WEBSITE') },
+];
+
+const adicionarContato = () =>
+  form.value.contacts.push({ label: '', phone: '' });
+const removerContato = indice => form.value.contacts.splice(indice, 1);
+const adicionarLink = () =>
+  form.value.social_links.push({ network: 'instagram', url: '' });
+const removerLink = indice => form.value.social_links.splice(indice, 1);
 
 const cepBuscando = ref(false);
 const cepNaoEncontrado = ref(false);
@@ -251,6 +312,53 @@ const onSlotUpdate = (dia, slot) => {
   timeSlots.value = timeSlots.value.map(item =>
     item.day === dia ? slot : item
   );
+};
+
+// Segunda a sexta costuma ser tudo igual: preenche um dia, copia, e ajusta so o que foge. Copia
+// para os dias ABERTOS — fim de semana fechado continua fechado.
+const diaCopiado = ref(null);
+let voltaDoBotao = null;
+
+// Nome por extenso, o mesmo que a linha da grade mostra: o aviso e a tabela falam igual. (O
+// `nomeDoDia` logo abaixo é a abreviação de três letras que o resumo da regra usa.)
+const nomeCompletoDoDia = dia => t(`UNITS_MGMT.WEEKDAYS.${dia}`);
+
+// "Copiar" sozinho não diz o que copia nem para onde vai: a dica mostra o horário daquele dia, e o
+// dia fechado explica por que o botão está apagado, em vez de deixar clicar para descobrir.
+const dicaDeCopiar = slot =>
+  slot.from && slot.to
+    ? t('UNITS_MGMT.FORM.HOURS.COPY_HINT', {
+        range: `${slot.from} – ${slot.to}`,
+      })
+    : t('UNITS_MGMT.FORM.HOURS.COPY_DISABLED');
+
+const copiarParaOsDemaisDias = origem => {
+  const { slots, dias } = copiarHorarioParaDias(timeSlots.value, origem);
+  timeSlots.value = slots;
+
+  // Intl.ListFormat põe o "e" antes do último — a lista sai na língua da tela sem tabela de emenda.
+  const lista = new Intl.ListFormat(locale.value.replace('_', '-'), {
+    type: 'conjunction',
+  }).format(dias.map(nomeCompletoDoDia));
+
+  useAlert(
+    dias.length
+      ? t('UNITS_MGMT.FORM.HOURS.COPIED', {
+          day: nomeCompletoDoDia(origem.day),
+          days: lista,
+        })
+      : t('UNITS_MGMT.FORM.HOURS.COPIED_NONE')
+  );
+
+  // O botão confirma no lugar onde o clique aconteceu: o aviso do topo some da vista de quem
+  // está olhando a grade lá embaixo. Sem dia copiado não há o que confirmar.
+  if (!dias.length) return;
+
+  diaCopiado.value = origem.day;
+  clearTimeout(voltaDoBotao);
+  voltaDoBotao = setTimeout(() => {
+    diaCopiado.value = null;
+  }, 2000);
 };
 
 // --- regras de agenda --------------------------------------------------------------
@@ -721,31 +829,137 @@ const onSubmit = () => {
     ),
   });
 };
+
+// A tela precisa das duas coisas para perguntar antes de descartar: se mudou algo e como salvar.
+defineExpose({
+  temAlteracoes: () => estadoAtual() !== instantaneo.value,
+  salvar: () => onSubmit(),
+});
 </script>
 
 <template>
-  <form class="flex flex-col gap-8" @submit.prevent="onSubmit">
+  <form class="flex flex-col gap-8 w-full" @submit.prevent="onSubmit">
     <section class="flex flex-col gap-4">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <woot-input
-          v-model="form.name"
-          class="mb-0"
-          :label="t('UNITS_MGMT.FORM.NAME.LABEL')"
-          :placeholder="t('UNITS_MGMT.FORM.NAME.PLACEHOLDER')"
-          :class="{ error: nomeInvalido }"
+      <woot-input
+        v-model="form.name"
+        class="mb-0"
+        :label="t('UNITS_MGMT.FORM.NAME.LABEL')"
+        :placeholder="t('UNITS_MGMT.FORM.NAME.PLACEHOLDER')"
+        :class="{ error: nomeInvalido }"
+      />
+
+      <div>
+        <span class="text-heading-3">{{
+          t('UNITS_MGMT.FORM.CONTACTS.LABEL')
+        }}</span>
+        <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+          {{ t('UNITS_MGMT.FORM.CONTACTS.HELP') }}
+        </p>
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="(contato, indice) in form.contacts"
+            :key="`contato-${indice}`"
+            class="flex items-center gap-2"
+          >
+            <div class="w-40 shrink-0">
+              <input
+                v-model="contato.label"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.CONTACTS.NAME_PLACEHOLDER')"
+              />
+            </div>
+            <div class="flex-1">
+              <input
+                :value="contato.phone"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.PHONE.PLACEHOLDER')"
+                @input="
+                  evento =>
+                    (contato.phone = formatarTelefone(evento.target.value))
+                "
+              />
+            </div>
+            <Button
+              variant="ghost"
+              color="slate"
+              size="xs"
+              type="button"
+              icon="i-lucide-trash-2"
+              :title="t('UNITS_MGMT.FORM.CONTACTS.REMOVE')"
+              @click.prevent="removerContato(indice)"
+            />
+          </div>
+        </div>
+        <Button
+          variant="faded"
+          color="slate"
+          size="xs"
+          type="button"
+          class="mt-2"
+          icon="i-lucide-plus"
+          :label="t('UNITS_MGMT.FORM.CONTACTS.ADD')"
+          @click.prevent="adicionarContato"
         />
-        <woot-input
-          v-model="form.phone"
-          class="mb-0"
-          :label="t('UNITS_MGMT.FORM.PHONE.LABEL')"
-          :placeholder="t('UNITS_MGMT.FORM.PHONE.PLACEHOLDER')"
+      </div>
+
+      <div>
+        <span class="text-heading-3">{{
+          t('UNITS_MGMT.FORM.SOCIAL.LABEL')
+        }}</span>
+        <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+          {{ t('UNITS_MGMT.FORM.SOCIAL.HELP') }}
+        </p>
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="(link, indice) in form.social_links"
+            :key="`link-${indice}`"
+            class="flex items-center gap-2"
+          >
+            <div class="w-40 shrink-0">
+              <NextSelect
+                v-model="link.network"
+                :options="REDES"
+                :class="SELETOR"
+              />
+            </div>
+            <div class="flex-1">
+              <input
+                v-model="link.url"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.SOCIAL.URL_PLACEHOLDER')"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              color="slate"
+              size="xs"
+              type="button"
+              icon="i-lucide-trash-2"
+              :title="t('UNITS_MGMT.FORM.SOCIAL.REMOVE')"
+              @click.prevent="removerLink(indice)"
+            />
+          </div>
+        </div>
+        <Button
+          variant="faded"
+          color="slate"
+          size="xs"
+          type="button"
+          class="mt-2"
+          icon="i-lucide-plus"
+          :label="t('UNITS_MGMT.FORM.SOCIAL.ADD')"
+          @click.prevent="adicionarLink"
         />
       </div>
       <woot-input
-        v-model="form.zip_code"
+        :model-value="form.zip_code"
         class="mb-0"
         :label="t('UNITS_MGMT.FORM.ZIP_CODE.LABEL')"
         :placeholder="t('UNITS_MGMT.FORM.ZIP_CODE.PLACEHOLDER')"
+        @update:model-value="valor => (form.zip_code = formatarCep(valor))"
       />
       <p
         class="m-0 text-label-small"
@@ -759,12 +973,21 @@ const onSubmit = () => {
               : t('UNITS_MGMT.FORM.ZIP_CODE.HELP')
         }}
       </p>
-      <woot-input
-        v-model="form.address"
-        class="mb-0"
-        :label="t('UNITS_MGMT.FORM.ADDRESS.LABEL')"
-        :placeholder="t('UNITS_MGMT.FORM.ADDRESS.PLACEHOLDER')"
-      />
+      <div class="grid gap-4 sm:grid-cols-4">
+        <woot-input
+          v-model="form.address"
+          class="mb-0 sm:col-span-3"
+          :label="t('UNITS_MGMT.FORM.ADDRESS.LABEL')"
+          :placeholder="t('UNITS_MGMT.FORM.ADDRESS.PLACEHOLDER')"
+        />
+        <!-- Texto, e nao numero: precisa aceitar "S/N", "123-A" e "Km 12". O ViaCEP nunca toca aqui. -->
+        <woot-input
+          v-model="form.address_number"
+          class="mb-0"
+          :label="t('UNITS_MGMT.FORM.ADDRESS_NUMBER.LABEL')"
+          :placeholder="t('UNITS_MGMT.FORM.ADDRESS_NUMBER.PLACEHOLDER')"
+        />
+      </div>
       <div class="grid gap-4 sm:grid-cols-3">
         <woot-input
           v-model="form.city"
@@ -875,14 +1098,16 @@ const onSubmit = () => {
           </span>
         </span>
       </label>
+      <!-- Altura do corte casa com a da linha (8px de folga + 5 linhas de 32px = max-h-44): com
+           gap solto a lista terminava no meio de uma caixa e parecia quebrada. -->
       <div
         v-if="inboxes.length"
-        class="flex flex-col gap-2.5 p-3 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
+        class="flex flex-col p-2 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
       >
         <label
           v-for="inbox in inboxes"
           :key="inbox.id"
-          class="flex gap-2 items-center w-fit cursor-pointer mb-0"
+          class="flex gap-2 items-center h-8 px-2 rounded-md cursor-pointer mb-0 hover:bg-n-alpha-1"
         >
           <input
             v-model="selectedInboxIds"
@@ -900,8 +1125,11 @@ const onSubmit = () => {
 
     <section>
       <span class="text-heading-3">{{ t('UNITS_MGMT.FORM.HOURS.LABEL') }}</span>
-      <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+      <p class="mt-0.5 mb-1 text-n-slate-11 text-label-small">
         {{ t('UNITS_MGMT.FORM.HOURS.HELP') }}
+      </p>
+      <p class="mb-2 text-n-slate-11 text-label-small">
+        {{ t('UNITS_MGMT.FORM.HOURS.COPY_HELP') }}
       </p>
       <table
         class="min-w-full table-auto outline outline-1 -outline-offset-1 outline-n-weak rounded-xl"
@@ -933,7 +1161,27 @@ const onSubmit = () => {
             :time-slot="slot"
             show-break
             @update="dados => onSlotUpdate(slot.day, dados)"
-          />
+          >
+            <template #acoes>
+              <Button
+                variant="faded"
+                size="xs"
+                type="button"
+                :color="diaCopiado === slot.day ? 'teal' : 'slate'"
+                :icon="
+                  diaCopiado === slot.day ? 'i-lucide-check' : 'i-lucide-copy'
+                "
+                :label="
+                  diaCopiado === slot.day
+                    ? t('UNITS_MGMT.FORM.HOURS.COPIED_SHORT')
+                    : t('UNITS_MGMT.FORM.HOURS.COPY')
+                "
+                :title="dicaDeCopiar(slot)"
+                :disabled="!(slot.from && slot.to)"
+                @click.prevent="copiarParaOsDemaisDias(slot)"
+              />
+            </template>
+          </BusinessDay>
         </tbody>
       </table>
     </section>

@@ -83,6 +83,21 @@
         "LABEL": "Phone",
         "PLACEHOLDER": "(66) 3531-0000"
       },
+      "CONTACTS": {
+        "LABEL": "Phone numbers",
+        "HELP": "More than one number? Label each one (Sales, Rentals, on-call). The first in the list is the one shown on the unit list.",
+        "NAME_PLACEHOLDER": "Sales",
+        "ADD": "Add phone number",
+        "REMOVE": "Remove this phone number"
+      },
+      "SOCIAL": {
+        "LABEL": "Social media and website",
+        "HELP": "Links the agent sends to the customer. Pasting without https:// is fine \u2014 it is added on save.",
+        "URL_PLACEHOLDER": "instagram.com/your.branch",
+        "ADD": "Add link",
+        "REMOVE": "Remove this link",
+        "WEBSITE": "Website"
+      },
       "CITY": {
         "LABEL": "City",
         "PLACEHOLDER": "Sinop"
@@ -101,6 +116,10 @@
       "ADDRESS": {
         "LABEL": "Address",
         "PLACEHOLDER": "Av. das Itaúbas, 1234"
+      },
+      "ADDRESS_NUMBER": {
+        "LABEL": "Number",
+        "PLACEHOLDER": "123, N/A, Km 12"
       },
       "TIMEZONE": {
         "LABEL": "Time zone",
@@ -133,7 +152,14 @@
       },
       "HOURS": {
         "LABEL": "Opening hours",
-        "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages."
+        "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages.",
+        "COPY": "Copy to the other days",
+        "COPY_HELP": "Fill one day in and use \u201cCopy to the other days\u201d \u2014 the closed days stay closed.",
+        "COPY_HINT": "Copy {range} to the other open days",
+        "COPY_DISABLED": "This day is closed \u2014 there are no hours to copy",
+        "COPIED": "{day} hours copied to {days}.",
+        "COPIED_NONE": "No other day is open to take these hours.",
+        "COPIED_SHORT": "Copied"
       },
       "EXCEPTIONS": {
         "NAME": "Reason",
@@ -240,6 +266,13 @@
         "TODAY": "Today",
         "RULES_TITLE": "Everything scheduled in {ano}",
         "RULES_EMPTY_YEAR": "Nothing scheduled in {ano}. Use the calendar arrows to see another year."
+      },
+      "UNSAVED": {
+        "TITLE": "Unsaved changes",
+        "MESSAGE": "You have unsaved changes. Do you want to save before leaving?",
+        "SAVE": "Save",
+        "DISCARD": "Discard",
+        "KEEP": "Keep editing"
       }
     }
   }

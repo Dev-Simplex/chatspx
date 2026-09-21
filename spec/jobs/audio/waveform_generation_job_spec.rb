@@ -94,7 +94,25 @@ RSpec.describe Audio::WaveformGenerationJob do
         expect(meta['waveform_peaks']).to eq(peaks)
       end
 
+      # N-05: a transcricao grava no meta ENQUANTO o ffmpeg roda (os dois jobs saem do mesmo commit). A onda
+      # gravava o meta lido antes e apagava a transcricao que o agente ja usa.
+      it 'keeps the transcription written while the extractor was running' do
+        allow(extractor).to receive(:extract) do
+          Attachment.where(id: audio_attachment.id).update_all(meta: { 'transcribed_text' => 'oi, tudo bem?' }) # rubocop:disable Rails/SkipsModelValidations
+          peaks
+        end
+
+        described_class.perform_now(audio_attachment.id)
+
+        meta = audio_attachment.reload.meta
+        expect(meta['transcribed_text']).to eq('oi, tudo bem?')
+        expect(meta['waveform_peaks']).to eq(peaks)
+      end
+
       it 'dispatches a MESSAGE_UPDATED event' do
+        # Cria o anexo ANTES de trocar o despachante: o `let` preguicoso criava a conta dentro do exemplo e o
+        # `account.created` caia no double (o exemplo falhava assim na producao, antes da N-05).
+        audio_attachment
         dispatcher = double('dispatcher')
         allow(Rails.configuration).to receive(:dispatcher).and_return(dispatcher)
         expect(dispatcher).to receive(:dispatch).with(
@@ -107,10 +125,10 @@ RSpec.describe Audio::WaveformGenerationJob do
 
       it 'is idempotent on a second run' do
         described_class.perform_now(audio_attachment.id)
-        # Reset the spy so we can verify the second invocation is a no-op.
-        allow(Audio::WaveformExtractor).to receive(:new).and_return(extractor)
         described_class.perform_now(audio_attachment.id)
-        expect(Audio::WaveformExtractor).not_to have_received(:new)
+        # Re-declarar o `allow` nao zera a contagem do espiao (o exemplo falhava assim na producao): o que prova
+        # a idempotencia e o extrator ter rodado UMA vez nas duas execucoes.
+        expect(Audio::WaveformExtractor).to have_received(:new).once
         expect(audio_attachment.reload.meta['waveform_peaks']).to eq(peaks)
       end
     end
