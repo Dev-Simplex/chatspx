@@ -20,7 +20,11 @@ import {
   proximasOcorrencias,
 } from './unitSchedule';
 import UnitCalendar from './UnitCalendar.vue';
-import { formatarCep, copiarHorarioParaDias } from './unitFormulario';
+import {
+  formatarCep,
+  formatarTelefone,
+  copiarHorarioParaDias,
+} from './unitFormulario';
 
 const props = defineProps({
   // Unidade existente quando é edição; nulo quando é criação.
@@ -133,7 +137,7 @@ const carregar = () => {
     state: u?.state ?? '',
     address: u?.address ?? '',
     address_number: u?.address_number ?? '',
-    phone: u?.phone ?? '',
+    phone: formatarTelefone(u?.phone ?? ''),
     timezone: u?.timezone ?? 'America/Sao_Paulo',
     notes: u?.notes ?? '',
     applies_to_inboxes: u?.applies_to_inboxes ?? false,
@@ -775,10 +779,11 @@ defineExpose({
           :class="{ error: nomeInvalido }"
         />
         <woot-input
-          v-model="form.phone"
+          :model-value="form.phone"
           class="mb-0"
           :label="t('UNITS_MGMT.FORM.PHONE.LABEL')"
           :placeholder="t('UNITS_MGMT.FORM.PHONE.PLACEHOLDER')"
+          @update:model-value="valor => (form.phone = formatarTelefone(valor))"
         />
       </div>
       <woot-input
