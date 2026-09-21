@@ -1,5 +1,6 @@
 {
   "CONVERSATION": {
+    "WHATSAPP_PHONE_REPLY": "Sent from phone",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "No one owns this conversation",
