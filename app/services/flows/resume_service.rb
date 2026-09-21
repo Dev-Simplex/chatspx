@@ -22,6 +22,9 @@ class Flows::ResumeService
     @flow_run.with_lock do
       next unless @flow_run.waiting?
       next if @flow_run.wait_until.nil? || @flow_run.wait_until > Time.current
+      # Desativar e o botao de panico: a espera que ja estava de pe nao pode voltar a andar. Fecha o
+      # run (libera o indice unico por flow+conversa) em vez de deixa-lo `waiting` para sempre.
+      next @flow_run.complete! unless @flow_run.flow.active?
 
       Flows::RunnerService.new(
         flow: @flow_run.flow,

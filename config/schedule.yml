@@ -23,6 +23,16 @@ flows_resume_job:
   class: 'Flows::ResumeJob'
   queue: scheduled_jobs
 
+# De hora em hora.
+# Agrega os flow_step_logs em FlowNodeStat e alimenta as pilulas "142 - 38%" do canvas. O job existe
+# desde a Fase 3.3 e o proprio cabecalho dele diz "roda de hora em hora (config/schedule.yml)", mas a
+# entrada nunca foi criada: por isso a .229 tinha 340 flow_step_logs e 0 flow_node_stats. E idempotente
+# por construcao (recomputa o total e faz upsert com SET, nao incremento).
+flows_stats_rollup_job:
+  cron: '0 * * * *'
+  class: 'Flows::StatsRollupJob'
+  queue: scheduled_jobs
+
 # A cada 5 minutos.
 # Vence as designacoes paradas do Motor de Distribuicao e repassa ao proximo do rodizio (ou
 # escala ao responsavel fixo). NO-OP enquanto nenhuma politica tiver `repasse_automatico`
