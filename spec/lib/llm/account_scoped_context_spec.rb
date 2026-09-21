@@ -48,4 +48,21 @@ RSpec.describe Llm::AccountScopedContext do
       expect(described_class.current_account_id).to be_nil
     end
   end
+
+  # O elo que faltava: o runner do gem `ai-agents` cria `RubyLLM::Chat.new(model:)` SEM contexto.
+  # Sem o patch instalado no boot, a chave da conta nunca chega ao chat que atende o cliente e tudo
+  # roda na chave global da instalação.
+  describe 'patch instalado no boot' do
+    it 'injects the account context into a Chat created without one' do
+      expect(RubyLLM::Chat.ancestors).to include(described_class::ChatThreadContextPatch)
+
+      scoped_context = RubyLLM.context { |config| config.openai_api_key = 'chave-da-conta' }
+      allow(Llm::Config).to receive(:context_for_account).with(account: account).and_return(scoped_context)
+
+      chat = described_class.with_account(account) { RubyLLM::Chat.new(model: Llm::Config::DEFAULT_MODEL) }
+
+      expect(chat.instance_variable_get(:@context)).to eq(scoped_context)
+      expect(chat.instance_variable_get(:@config).openai_api_key).to eq('chave-da-conta')
+    end
+  end
 end
