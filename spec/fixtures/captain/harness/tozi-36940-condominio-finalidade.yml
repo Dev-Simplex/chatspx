@@ -7,7 +7,7 @@ fidelidade:
 origem:
   conta: 6
   conversa: 36940
-  gravado_em: '2026-09-21T12:31:31-04:00'
+  gravado_em: '2026-09-21T14:43:22-04:00'
 relogio:
   inicio: '2026-09-08T21:56:19-04:00'
   fim: '2026-09-09T09:08:43-04:00'
@@ -553,9 +553,9 @@ mensagens:
   em: '2026-09-09T08:16:06-04:00'
   apresentado_ao_modelo: assistant
   fala_do_agente: false
-  texto: "Bom dia, tudo bem?  \\\nMe chamo CONTATO-49, sou consultor de locação na
-    Tozi Imóveis. \n  \n"
-  texto_sha: 55a0_9035_36b8
+  texto: "Bom dia, tudo bem?  \\\nMe chamo ATENDENTE-49, sou consultor de locação
+    na Tozi Imóveis. \n  \n"
+  texto_sha: eb09_82d8_1226
 - de: humano
   em: '2026-09-09T08:16:39-04:00'
   midia: audio
@@ -904,7 +904,7 @@ chamadas:
   resultado: |-
     Encontrei 32 opção(ões):
     1) (cód 4629) Casa 2 quartos, no Jardim Bella Morada II, R$ 1300/mês, 65 m² construídos (taxa de condomínio R$ 300), 14 fotos, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-4629
-    2) (cód 6694) Casa 3 quartos, no Jardim São CONTATO-21, R$ 1450/mês, 13 fotos, 2 suítes, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-6694
+    2) (cód 6694) Casa 3 quartos, no Jardim São Paulo, R$ 1450/mês, 13 fotos, 2 suítes, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-6694
     3) (cód 9887) Casa 2 quartos, no Jardim Aurora, R$ 1600/mês, 54.5 m² construídos, 10 fotos, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-9887
     4) (cód 7187) Casa 2 quartos, no Residencial Iguatemi, R$ 1600/mês, 12 fotos, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-7187
     5) (cód 9610) Casa 2 quartos, no Jardim Terra Rica, R$ 1800/mês, 174.37 m² construídos, 7 fotos [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-9610
@@ -922,7 +922,7 @@ chamadas:
   resultado: |-
     Encontrei 32 opção(ões):
     1) (cód 4629) Casa 2 quartos, no Jardim Bella Morada II, R$ 1300/mês, 65 m² construídos (taxa de condomínio R$ 300), 14 fotos, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-4629
-    2) (cód 6694) Casa 3 quartos, no Jardim São CONTATO-21, R$ 1450/mês, 13 fotos, 2 suítes, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-6694
+    2) (cód 6694) Casa 3 quartos, no Jardim São Paulo, R$ 1450/mês, 13 fotos, 2 suítes, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-6694
     3) (cód 9887) Casa 2 quartos, no Jardim Aurora, R$ 1600/mês, 54.5 m² construídos, 10 fotos, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-9887
     4) (cód 7187) Casa 2 quartos, no Residencial Iguatemi, R$ 1600/mês, 12 fotos, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-7187
     5) (cód 9610) Casa 2 quartos, no Jardim Terra Rica, R$ 1800/mês, 174.37 m² construídos, 7 fotos [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-9610
@@ -940,7 +940,7 @@ chamadas:
   truncado: true
   resultado: |-
     Encontrei 7 opção(ões):
-    1) (cód 6694) Casa 3 quartos, no Jardim São CONTATO-21, R$ 1450/mês, 13 fotos, 2 suítes, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-6694
+    1) (cód 6694) Casa 3 quartos, no Jardim São Paulo, R$ 1450/mês, 13 fotos, 2 suítes, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-6694
     2) (cód 9896) Casa 3 quartos, no Parque das Araras, R$ 2850/mês, 111.8 m² construídos, 13 fotos, 2 suítes, 2 vagas de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-9896
     3) (cód 9412) Casa 3 quartos, no Santorini Residence, R$ 3200/mês, 145.85 m² construídos (taxa de condomínio R$ 731.55), 23 fotos, 1 suíte, 2 vagas de garagem, com piscina, com churrasqueira [EM CONDOMÍNIO FECHADO]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-9412
     4) (cód 5194) Casa 3 quartos, no Jardim Primaveras, R$ 3200/mês, 130 m² construídos, 16 fotos, 1 vaga de garagem [AVULSO — fora de condomínio fechado]. https://www.toziimoveis.com.br/imovel/imovel-ficticio-5194
@@ -1554,15 +1554,72 @@ asseveracoes:
     tipo: fotos_enviadas
     esperado: permitir
     motivo: a ação confirmou conteúdo compatível
-envios_sem_busca:
+acoes_sem_trava:
 - ordem: 5
   tool: enviar_fotos_imovel
   codigo: '7573'
   em: '2026-09-08T21:57:23-04:00'
-  codigo_veio_de: template_de_campanha
-  esperado: bloquear
-  observado: enviado
+  fonte_do_codigo: template_de_campanha
+  fonte_aceitavel: true
+  trava_avaliada: false
+  esperado: reconhecer_fonte
+  observado: agiu_sem_avaliar
   estado: vermelho
   porque: 'a trava anti-alucinação só é avaliada quando alguma busca desta conversa
     já registrou código (`vistos.any? && !vistos.include?(cod)` em enterprise/lib/captain/tools/enviar_fotos_imovel_tool.rb).
     Sem busca nenhuma, ela não recusa: ela não roda. Ver §3.7 da auditoria.'
+pseudonimos:
+- tipo: atendente
+  pseudonimo: ATENDENTE-49
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-10006
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-1881
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-2498
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-4629
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-5194
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-5195
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-6694
+  ocorrencias: 3
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-6767
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-7187
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-744
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-7573
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9120
+  ocorrencias: 5
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9121
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9412
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9610
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9887
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9896
+  ocorrencias: 1

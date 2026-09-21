@@ -10,19 +10,6 @@
 class Spx::Harness::FixtureExportada
   LIMITE_PREVIEW = 1500
 
-  # Mensagem do banco não é turno do modelo. Entre uma e outra a produção decide TRÊS coisas,
-  # e todas mudam o cenário:
-  #
-  #   1. se entra  — Captain::Conversation::ResponseBuilderJob#survey_message? descarta NPS/CSAT;
-  #   2. com que papel — #determine_role: incoming vira 'user', o resto vira 'assistant';
-  #   3. com que texto — #outgoing_content troca payload interativo e anexo por um rótulo.
-  #
-  # Sem registrar isso, a fixture afirmaria coisas sobre texto que o modelo nunca viu. O
-  # carrossel da conv 41803 é o exemplo: o banco guarda "📷 Carrossel: 9 fotos do imóvel 9412",
-  # que é rótulo de PAINEL, e o modelo recebe "[carrossel de fotos do imóvel 9412 enviado]".
-  ROTULO_INTERATIVO = 'mensagem interativa enviada'.freeze
-  ROTULO_ANEXO = 'foto do imóvel enviada'.freeze
-
   AVISO_FICHA = 'Os valores abaixo são ESCOLHA DO CENÁRIO, não fato sobre o imóvel real. ' \
                 'A consulta do PropertyRef acontece fora de ferramenta e não fica no trace, ' \
                 'então não há como recuperá-la da produção. O teste prova o comportamento ' \
@@ -38,6 +25,10 @@ class Spx::Harness::FixtureExportada
   # chega a ser avaliada. É o §3.7 da auditoria, e é fail-open por construção.
   FERRAMENTAS_DE_ENVIO = %w[enviar_fotos_imovel enviar_localizacao_imovel].freeze
   CODIGO_EM_RESULTADO = /c[óo]d\.?\s*(\d{3,6})/i
+  # Palavra que começa com maiúscula dentro do resultado de uma busca. Não monta o nome
+  # completo do bairro porque não precisa: a proteção do Pseudonimizador é por PEDAÇO, então
+  # "Parque" e "Amazonas" separados protegem "Parque Amazonas" igual.
+  PALAVRA_PROPRIA = /(?<![[:alpha:]])[[:upper:]][[:alpha:]]{2,}/
   PORQUE_FAIL_OPEN = 'a trava anti-alucinação só é avaliada quando alguma busca desta conversa ' \
                      'já registrou código (`vistos.any? && !vistos.include?(cod)` em ' \
                      'enterprise/lib/captain/tools/enviar_fotos_imovel_tool.rb). Sem busca ' \
@@ -48,6 +39,16 @@ class Spx::Harness::FixtureExportada
   PORQUE_SEM_TRAVA = 'esta ferramenta não tem trava: ela não inclui o ' \
                      'Captain::Tools::ImoveisConhecidos e nunca confere se o código apareceu ' \
                      'em busca desta conversa. Age sobre o que o modelo disser.'.freeze
+
+  # De onde um código PODE vir sem ser invenção. A regra não é "só busca": o cliente que cola
+  # o link escolheu aquele imóvel, e o anúncio que ele clicou identifica qual imóvel interessa.
+  # Mandar foto nos dois casos é correto — o que falta é a ferramenta RECONHECER a fonte em vez
+  # de agir sem olhar.
+  #
+  # Limite do template de campanha: ele identifica QUAL imóvel, nunca prova preço nem condição
+  # comercial. "Entrada facilitada" escrita no anúncio não vira fato confirmado (ver §15 da
+  # auditoria e a regra do FactGuard).
+  FONTES_ACEITAVEIS = %w[busca mensagem_do_cliente template_de_campanha].freeze
 
   def initialize(bruto, id:)
     @bruto = bruto.deep_stringify_keys
@@ -78,7 +79,7 @@ class Spx::Harness::FixtureExportada
       'mensagens' => mensagens,
       'chamadas' => chamadas,
       'asseveracoes' => asseveracoes,
-      'envios_sem_busca' => envios_sem_busca
+      'acoes_sem_trava' => acoes_sem_trava
     }
   end
 
@@ -91,9 +92,31 @@ class Spx::Harness::FixtureExportada
   # O original vai junto para a checagem de preservação: é contra ele que se confere se algum
   # código ou valor se perdeu na pseudonimização.
   def escritor
-    @escritor ||= Spx::Harness::Escritor.new(id: @id, nomes: Array(@bruto['nomes']),
+    @escritor ||= Spx::Harness::Escritor.new(id: @id, nomes: @bruto['nomes'] || {},
                                              marca: @bruto['marca'],
+                                             protegidos: termos_de_negocio,
                                              original: original_para_conferir)
+  end
+
+  # Vocabulário que NUNCA pode ser trocado nem perdido. Três fontes, todas derivadas do que já
+  # está no cenário — nenhuma lista escrita à mão, que envelheceria calada:
+  #
+  #   1. os nomes das agentes de IA da conta (a conta 6 tem nove, entre elas Bruna, Clara e
+  #      Júlia — nomes que uma atendente pode ter também);
+  #   2. os nomes próprios que aparecem no RESULTADO das ferramentas de evidência: é dado do
+  #      Vista, e é lá que moram bairro, condomínio e empreendimento;
+  #   3. bairro e cidade da ficha injetada.
+  #
+  # O limite: um bairro que não aparece em nenhum resultado desta conversa não é protegido —
+  # mas também não está na fixture, então não há o que estragar.
+  def termos_de_negocio
+    @termos_de_negocio ||= begin
+      evidencias = Array(@bruto['chamadas']).filter_map do |c|
+        c['resultado'] if Spx::Harness::Afirmacoes::FONTES_DE_EVIDENCIA.include?(c['tool'].to_s)
+      end
+      dos_resultados = evidencias.flat_map { |texto| texto.scan(PALAVRA_PROPRIA) }
+      (Array(@bruto['agentes_da_conta']) + dos_resultados + ficha.values_at('Bairro', 'Cidade')).compact.uniq
+    end
   end
 
   # Só o que o cenário assevera: fala e retorno de ferramenta. Nome e telefone do original não
@@ -105,61 +128,16 @@ class Spx::Harness::FixtureExportada
 
   def mensagens
     Array(@bruto['mensagens']).map do |m|
-      apresentado = apresentado_ao_modelo(m)
-      ao_modelo = texto_ao_modelo(m)
+      ao_modelo = Spx::Harness::Apresentacao.texto(m)
       { 'de' => m['de'], 'em' => m['em'], 'agente' => m['agente'],
         'agente_nome' => m['agente_nome'], 'midia' => m['midia'],
         'marcador' => m['marcador'],
-        'apresentado_ao_modelo' => apresentado,
+        'apresentado_ao_modelo' => Spx::Harness::Apresentacao.papel(m),
         # Só quando DIFERE do texto guardado. Igual, seria ruído em toda linha.
         'texto_ao_modelo' => (ao_modelo if ao_modelo != m['texto'].to_s),
-        'fala_do_agente' => fala_do_agente?(m),
+        'fala_do_agente' => Spx::Harness::Apresentacao.fala_do_agente?(m),
         'texto' => m['texto'] }.compact
     end
-  end
-
-  # 'omitido' | 'user' | 'assistant' — o papel com que a mensagem chega ao modelo.
-  #
-  # O `meta_lead_ads_initial` cai em 'assistant' e isso NÃO é engano do gravador: nada o filtra,
-  # e o template da campanha entra no contexto como fala do próprio agente. Ver a dívida
-  # nomeada no doc 06 da auditoria.
-  def apresentado_ao_modelo(mensagem)
-    return 'omitido' if mensagem['marcador'].to_s == 'nps_survey'
-
-    mensagem['direcao'].to_s == 'incoming' ? 'user' : 'assistant'
-  end
-
-  # Espelha ResponseBuilderJob#outgoing_content. Só o lado de SAÍDA: o de entrada passa por
-  # multimodal e contexto de citação, que dependem de anexo e de mensagem citada — dado que
-  # esta exportação não carrega. Mensagem de entrada fica com o texto do banco, e a fixture
-  # não afirma nada sobre o que o modelo viu além disso.
-  def texto_ao_modelo(mensagem)
-    return mensagem['texto'].to_s if mensagem['direcao'].to_s == 'incoming'
-    return "[#{rotulo(mensagem, ROTULO_INTERATIVO, 'carrossel de fotos do imóvel %<codigo>s enviado')}]" if
-      mensagem['interativo']
-    return mensagem['texto'].to_s if mensagem['texto'].to_s.present?
-    return '' unless mensagem['anexos'].to_i.positive?
-
-    "[#{rotulo(mensagem, ROTULO_ANEXO, 'foto do imóvel %<codigo>s enviada')}]"
-  end
-
-  def rotulo(mensagem, generico, com_codigo)
-    codigo = mensagem['property_code'].to_s
-    codigo.present? ? format(com_codigo, codigo: codigo) : generico
-  end
-
-  # Fala GERADA pelo agente — a única coisa que pode carregar afirmação dele.
-  #
-  # Fica de fora o que chega ao modelo como turno do assistente sem ser fala: rótulo de payload
-  # interativo, placeholder de anexo e template de campanha. Cobrar do agente um preço escrito
-  # pela campanha, ou um código escrito pelo próprio sistema ao registrar um envio confirmado,
-  # acusaria invenção onde não houve nenhuma.
-  def fala_do_agente?(mensagem)
-    mensagem['de'].to_s == 'ia' &&
-      mensagem['marcador'].blank? &&
-      !mensagem['interativo'] &&
-      mensagem['anexos'].to_i.zero? &&
-      mensagem['texto'].to_s.present?
   end
 
   def chamadas
@@ -211,7 +189,7 @@ class Spx::Harness::FixtureExportada
   # diferentes. Um veredito só por mensagem apagaria essa diferença.
   def asseveracoes
     Array(@bruto['mensagens']).each_with_index.filter_map do |m, i|
-      next unless fala_do_agente?(m)
+      next unless Spx::Harness::Apresentacao.fala_do_agente?(m)
 
       afirmacoes = julgar(Spx::Harness::Afirmacoes.extrair(m['texto']), m['em'])
       next if afirmacoes.empty?
@@ -231,29 +209,39 @@ class Spx::Harness::FixtureExportada
     end
   end
 
-  # Ação sobre imóvel executada ANTES de qualquer busca desta conversa ter devolvido código.
+  # Ação sobre imóvel executada ANTES de qualquer busca desta conversa ter devolvido código —
+  # ou seja, com a trava PROVADAMENTE não avaliada.
+  #
+  # O defeito NÃO é a foto ter saído. Mandar foto do imóvel que o cliente pediu, ou do imóvel
+  # que ele clicou no anúncio, é o comportamento certo. O defeito é a ferramenta não ter
+  # AVALIADO de onde veio o código: hoje ela acerta por acidente, e acertaria igual se o
+  # código tivesse sido inventado pelo modelo.
+  #
   # Só este caso entra: é o único em que dá para afirmar, pelo trace e nada mais, que a trava
-  # não chegou a ser avaliada. Envio de código ausente das buscas DEPOIS de haver busca fica de
-  # fora — o código pode ser o ImoCodigo do mesmo imóvel, que a trava conhece pelo mapa de urls
-  # e que o `result_preview` não mostra (conv 19863, código 9746). Acusar esse caso seria
-  # inventar defeito a partir de evidência que a fixture não tem.
-  def envios_sem_busca
+  # não chegou a rodar. Envio de código ausente das buscas DEPOIS de haver busca fica de fora —
+  # o código pode ser o ImoCodigo do mesmo imóvel, que a trava conhece pelo mapa de urls e que
+  # o `result_preview` não mostra (conv 19863, código 9746). Acusar esse caso seria inventar
+  # defeito a partir de evidência que a fixture não tem.
+  def acoes_sem_trava
     havia_busca = false
     Array(@bruto['chamadas']).each_with_index.filter_map do |chamada, i|
       havia_busca ||= busca_com_codigo?(chamada)
       next if havia_busca || FERRAMENTAS_DE_ENVIO.exclude?(chamada['tool'].to_s)
 
-      envio_sem_trava(chamada, i + 1)
+      acao_sem_trava(chamada, i + 1)
     end
   end
 
-  def envio_sem_trava(chamada, ordem)
+  def acao_sem_trava(chamada, ordem)
     codigo = chamada['args'].is_a?(Hash) ? chamada['args']['codigo'].to_s : ''
-    aconteceu = envio_confirmado?(chamada)
+    fonte = origem_do_codigo(codigo, chamada['em'])
+    aceitavel = FONTES_ACEITAVEIS.include?(fonte)
     { 'ordem' => ordem, 'tool' => chamada['tool'], 'codigo' => codigo, 'em' => chamada['em'],
-      'codigo_veio_de' => origem_do_codigo(codigo, chamada['em']),
-      'esperado' => 'bloquear', 'observado' => aconteceu ? 'enviado' : 'nao_enviado',
-      'estado' => aconteceu ? 'vermelho' : 'verde',
+      'fonte_do_codigo' => fonte, 'fonte_aceitavel' => aceitavel,
+      'trava_avaliada' => false,
+      'esperado' => aceitavel ? 'reconhecer_fonte' : 'bloquear',
+      'observado' => envio_confirmado?(chamada) ? 'agiu_sem_avaliar' : 'nao_agiu',
+      'estado' => 'vermelho',
       'porque' => tem_trava?(chamada['tool']) ? PORQUE_FAIL_OPEN : PORQUE_SEM_TRAVA }
   end
 
@@ -287,7 +275,7 @@ class Spx::Harness::FixtureExportada
     # escreveu um segundo antes — verdade inútil que esconde a origem, que é o link colado.
     anteriores = Array(@bruto['mensagens']).select { |m| m['em'].to_s < instante.to_s }
     fonte = anteriores.find { |m| m['texto'].to_s.include?(codigo) }
-    return 'nenhuma fala anterior cita este código' if fonte.nil?
+    return 'nenhuma' if fonte.nil?
     return 'template_de_campanha' if fonte['marcador'].to_s == 'meta_lead_ads_initial'
 
     fonte['direcao'].to_s == 'incoming' ? 'mensagem_do_cliente' : 'fala_anterior_do_agente'

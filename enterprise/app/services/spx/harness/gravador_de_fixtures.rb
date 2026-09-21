@@ -27,7 +27,8 @@ class Spx::Harness::GravadorDeFixtures
     @id = id
     @desde = desde
     @ate = ate
-    @pseudo = Spx::Harness::Pseudonimizador.new(semente: id, marca: conversation.account&.name)
+    @pseudo = Spx::Harness::Pseudonimizador.new(semente: id, marca: conversation.account&.name,
+                                                protegidos: nomes_protegidos)
   end
 
   # Devolve o hash da fixture já pseudonimizado e conferido. NÃO escreve — quem escreve é
@@ -103,8 +104,16 @@ class Spx::Harness::GravadorDeFixtures
     id ? Captain::Assistant.find_by(id: id) : nil
   end
 
+  # Por PAPEL: o pseudônimo precisa preservar quem atende e quem é atendido.
   def nomes_proprios
-    [@conversation.contact&.name, @conversation.assignee&.name].compact
+    { 'atendente' => [@conversation.assignee&.name].compact,
+      'contato' => [@conversation.contact&.name].compact }
+  end
+
+  # Nome de agente de IA nunca é trocado: é o vocabulário da transferência, e a conta 6 tem
+  # nove agentes com nome de gente (Bruna, Clara, Júlia...) que uma atendente pode ter também.
+  def nomes_protegidos
+    Captain::Assistant.where(account_id: @conversation.account_id).pluck(:name).compact
   end
 
   def mensagens

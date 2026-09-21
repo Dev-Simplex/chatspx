@@ -4,12 +4,17 @@ require 'rails_helper'
 # com que papel e com que texto — e a fixture que ignora isso assevera coisas sobre texto que o
 # modelo nunca viu. Estes exemplos fixam o espelho do ResponseBuilderJob.
 RSpec.describe Spx::Harness::FixtureExportada do
-  def bruto(mensagens:, chamadas: [], ficha: nil, contexto: [])
+  def bruto(mensagens:, **resto)
     { 'origem' => { 'conta' => 6, 'conversa' => 41_803 },
       'relogio' => { 'inicio' => '2026-09-11T17:10:08-04:00', 'fim' => '2026-09-11T17:12:35-04:00' },
-      'flags' => {}, 'agentes' => [], 'nomes' => [], 'episodios' => [],
-      'contexto_injetado' => contexto, 'ficha_fabricada' => ficha,
-      'mensagens' => mensagens, 'chamadas' => chamadas }.compact
+      'flags' => {}, 'agentes' => [], 'episodios' => [], 'marca' => 'Tozi Imóveis',
+      'nomes' => resto[:nomes] || {}, 'agentes_da_conta' => resto[:agentes_da_conta] || [],
+      'contexto_injetado' => resto[:contexto] || [], 'ficha_fabricada' => resto[:ficha],
+      'mensagens' => mensagens, 'chamadas' => resto[:chamadas] || [] }.compact
+  end
+
+  def chamada(tool:, quando:, args: {}, resultado: '', status: 'ok')
+    { 'tool' => tool, 'em' => quando, 'args' => args, 'status' => status, 'resultado' => resultado }
   end
 
   def mensagem(extras = {})
@@ -155,6 +160,101 @@ RSpec.describe Spx::Harness::FixtureExportada do
                             'texto' => 'casas a partir de R$ 250.000 com entrada facilitada')]
 
       expect(montar(mensagens: mensagens)['asseveracoes']).to be_empty
+    end
+  end
+
+  # A asserção é "a trava precisa AVALIAR e reconhecer a fonte", não "a foto precisa ser
+  # bloqueada". Mandar foto do imóvel que o cliente pediu é correto — o defeito é agir sem
+  # olhar de onde veio o código.
+  describe 'ação com a trava não avaliada' do
+    let(:cliente) do
+      mensagem('de' => 'cliente', 'direcao' => 'incoming', 'em' => '2026-09-11T17:10:00-04:00',
+               'texto' => 'https://www.toziimoveis.com.br/imovel/casa-9412')
+    end
+    let(:envio) do
+      chamada(tool: 'enviar_fotos_imovel', quando: '2026-09-11T17:12:29-04:00', args: { 'codigo' => '9412' },
+              resultado: 'Enviei um carrossel com 9 fotos do imóvel 9412.')
+    end
+
+    it 'registra a ação que rodou antes de qualquer busca, com a fonte do código' do
+      acao = montar(mensagens: [cliente], chamadas: [envio])['acoes_sem_trava'].first
+
+      expect(acao).to include('tool' => 'enviar_fotos_imovel', 'codigo' => '9412',
+                              'fonte_do_codigo' => 'mensagem_do_cliente', 'fonte_aceitavel' => true,
+                              'trava_avaliada' => false, 'esperado' => 'reconhecer_fonte',
+                              'observado' => 'agiu_sem_avaliar', 'estado' => 'vermelho')
+    end
+
+    # O código do anúncio que o cliente clicou identifica QUAL imóvel interessa. O que ele
+    # nunca prova é preço nem condição comercial (§15).
+    it 'aceita o código que veio do template da campanha' do
+      campanha = mensagem('de' => 'sem_remetente', 'em' => '2026-09-08T21:50:00-04:00',
+                          'marcador' => 'meta_lead_ads_initial',
+                          'texto' => 'Vi que você se interessou neste imóvel: Casa (cód 9412).')
+
+      acao = montar(mensagens: [campanha], chamadas: [envio])['acoes_sem_trava'].first
+
+      expect(acao).to include('fonte_do_codigo' => 'template_de_campanha', 'fonte_aceitavel' => true,
+                              'esperado' => 'reconhecer_fonte')
+    end
+
+    # Código que só existe na fala anterior do próprio agente é o modelo citando a si mesmo.
+    it 'não aceita código que só apareceu na fala do próprio agente' do
+      fala = mensagem('em' => '2026-09-11T17:11:00-04:00', 'texto' => 'tenho o imóvel 9412 aqui')
+
+      acao = montar(mensagens: [fala], chamadas: [envio])['acoes_sem_trava'].first
+
+      expect(acao).to include('fonte_do_codigo' => 'fala_anterior_do_agente',
+                              'fonte_aceitavel' => false, 'esperado' => 'bloquear')
+    end
+
+    # Depois que existe busca, um código ausente do preview ainda pode ser o ImoCodigo que a
+    # trava conhece pelo mapa de urls. Acusar seria inventar defeito.
+    it 'não registra nada quando uma busca já havia devolvido código' do
+      busca = chamada(tool: 'buscar_imovel', quando: '2026-09-11T17:11:00-04:00',
+                      resultado: '1) (cód 9412) Casa no Parque Amazonas, R$ 2400/mês.')
+
+      expect(montar(mensagens: [cliente], chamadas: [busca, envio])['acoes_sem_trava']).to be_empty
+    end
+  end
+
+  describe 'a gravação' do
+    let(:destino) { Rails.root.join('tmp', "fixture-exportada-spec-#{SecureRandom.hex(4)}.yml") }
+
+    after { FileUtils.rm_f(destino) }
+
+    def gravar(**)
+      described_class.new(bruto(**), id: 'teste').gravar!(destino.to_s, parafrasear: false)
+    end
+
+    # Nome de agente de IA é o vocabulário da transferência. A conta 6 tem nove agentes com
+    # nome de gente, e uma atendente pode ter o mesmo nome.
+    it 'não troca o nome da agente de IA, e troca o da atendente' do
+      dados = gravar(mensagens: [mensagem('texto' => 'a Clara vai te passar para a Bruna')],
+                     nomes: { 'atendente' => ['Clara Fernandes'] },
+                     agentes_da_conta: %w[Clara Bruna])
+
+      expect(dados['mensagens'].first['texto']).to eq('a Clara vai te passar para a Bruna')
+    end
+
+    # Bairro e empreendimento saem do RESULTADO das ferramentas de evidência — é dado do Vista.
+    it 'protege bairro que também é sobrenome de atendente' do
+      busca = chamada(tool: 'buscar_imovel', quando: '2026-09-11T17:11:00-04:00',
+                      resultado: '1) (cód 9412) Casa no Parque Amazonas, R$ 2400/mês.')
+      dados = gravar(mensagens: [mensagem('texto' => 'a casa fica no Parque Amazonas')],
+                     chamadas: [busca], nomes: { 'atendente' => ['Rita Amazonas'] })
+
+      expect(dados['mensagens'].first['texto']).to eq('a casa fica no Parque Amazonas')
+    end
+
+    it 'grava o registro de substituições sem o original' do
+      dados = gravar(mensagens: [mensagem('de' => 'cliente', 'direcao' => 'incoming',
+                                          'texto' => 'aqui é a Paula Souza, meu zap é 66 99958-6623')],
+                     nomes: { 'contato' => ['Paula Souza'] })
+
+      expect(dados['pseudonimos'].pluck('tipo')).to include('contato', 'telefone')
+      expect(dados['pseudonimos'].to_s).not_to include('Paula', '99958')
+      expect(File.read(destino)).not_to include('Paula')
     end
   end
 end

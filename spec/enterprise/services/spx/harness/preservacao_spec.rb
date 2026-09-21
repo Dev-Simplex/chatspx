@@ -44,6 +44,31 @@ RSpec.describe Spx::Harness::Preservacao do
     end
   end
 
+  # Entrou quando a troca de nome passou a agir em PEDAÇOS: sobrenome brasileiro é nome de
+  # bairro com frequência — Oliveira, Campos, Rocha, Lima. Se a lista de proteção do
+  # Pseudonimizador falhar, o bairro some da fixture e o cenário deixa de descrever a conversa.
+  describe 'o vocabulário de negócio' do
+    it 'acusa bairro que sumiu da fixture' do
+      expect { described_class.conferir!('casa no CONTATO-12', original: 'casa no Parque Amazonas', origem: 'x', termos: ['Amazonas']) }
+        .to raise_error(described_class::Perdido, /termo Amazonas/)
+    end
+
+    it 'aceita quando o termo sobreviveu' do
+      expect(described_class.faltantes('casa no Parque Amazonas', 'casa no Parque Amazonas', termos: ['Amazonas']))
+        .to be_empty
+    end
+
+    # A lista vem da conta inteira e a maioria dos termos não aparece nesta conversa. Cobrar
+    # termo ausente dos dois lados acusaria perda que não houve.
+    it 'não cobra termo que nunca esteve no original' do
+      expect(described_class.faltantes('nada aqui', 'nada aqui', termos: %w[Amazonas Belvedere])).to be_empty
+    end
+
+    it 'não confunde o termo com pedaço de outra palavra' do
+      expect(described_class.presentes(['Ana'], 'comprei uma banana')).to be_empty
+    end
+  end
+
   describe 'o que NÃO é código nem valor' do
     # Sem a palavra-âncora, qualquer quantidade viraria "código" e a checagem acusaria o que ela
     # mesma não precisa — o oposto do problema, mas igualmente inútil.

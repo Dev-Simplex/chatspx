@@ -38,7 +38,7 @@ class Spx::Harness::Vazamento
   # Sem esta lista, o telefone fictício `(66) 90000-0001` derrubaria a própria trava — e o
   # `senha: REDIGIDO` também, que foi o primeiro a cair quando o contrato entre as duas classes
   # virou teste.
-  PSEUDONIMOS = /\bCONTATO-\d+\b|\(66\)\s?90000-\d{4}|contato-\d+@exemplo\.invalido|
+  PSEUDONIMOS = /\bCONTATO-\d+\b|\bATENDENTE-\d+\b|\(66\)\s?90000-\d{4}|contato-\d+@exemplo\.invalido|
                  Rua\ Fictícia,\ \d+|\bREDIGIDO\b/x
 
   class << self

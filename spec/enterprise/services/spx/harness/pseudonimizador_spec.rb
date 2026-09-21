@@ -87,6 +87,79 @@ RSpec.describe Spx::Harness::Pseudonimizador do
     end
   end
 
+  describe 'o papel no pseudônimo' do
+    # Atendente que vira CONTATO-n apaga a distinção entre quem atende e quem é atendido, e a
+    # conversa deixa de fazer sentido como cenário: não dá mais para ler quem transferiu.
+    it 'atendente vira ATENDENTE-n e contato vira CONTATO-n' do
+      texto = p.aplicar('Evellyn Fernandes atendeu Paula Souza',
+                        nomes: { 'atendente' => ['Evellyn Fernandes'], 'contato' => ['Paula Souza'] })
+
+      expect(texto).to match(/\AATENDENTE-\d+ atendeu CONTATO-\d+\z/)
+    end
+
+    it 'aceita lista simples e trata como contato' do
+      expect(p.aplicar('Paula Souza ligou', nomes: ['Paula Souza'])).to match(/\ACONTATO-\d+ ligou\z/)
+    end
+  end
+
+  describe 'o vocabulário protegido' do
+    # A conta 6 tem nove agentes de IA com nome de gente — Letícia, Bruna, Marina, Helena,
+    # Clara, Júlia, Feirão, Sofia e Rafa. Se uma atendente se chamar Clara, trocar o pedaço
+    # solto faria a AGENTE Clara virar pseudônimo e a transferência perderia o sentido.
+    subject(:p) { described_class.new(semente: 'fixture-1', protegidos: ['Clara', 'Parque Amazonas']) }
+
+    it 'não troca nome de agente de IA que coincide com nome de atendente' do
+      texto = p.aplicar('a Clara transferiu para o time',
+                        nomes: { 'atendente' => ['Clara Fernandes'] })
+
+      expect(texto).to eq('a Clara transferiu para o time')
+    end
+
+    # Sobrenome brasileiro é nome de bairro com frequência: Oliveira, Campos, Rocha, Lima.
+    # Trocar o pedaço apagaria dado de negócio do cenário.
+    it 'não troca pedaço de nome que também é bairro ou empreendimento' do
+      texto = p.aplicar('casa no Parque Amazonas',
+                        nomes: { 'atendente' => ['Rita Amazonas'] })
+
+      expect(texto).to eq('casa no Parque Amazonas')
+    end
+
+    # A proteção vale só para o pedaço SOLTO. O nome cadastrado inteiro sai de qualquer jeito.
+    it 'continua trocando o nome cadastrado inteiro, ainda que um pedaço seja protegido' do
+      texto = p.aplicar('atendido por Clara Fernandes', nomes: { 'atendente' => ['Clara Fernandes'] })
+
+      expect(texto).to match(/\Aatendido por ATENDENTE-\d+\z/)
+    end
+  end
+
+  describe 'o registro de substituições' do
+    # Quem revisa a fixture precisa ver o QUE foi trocado. O original fica de fora de
+    # propósito: um registro com os dois lados seria a tabela de desanonimização.
+    it 'diz tipo, pseudônimo e quantas vezes — nunca o original' do
+      p.aplicar_em({ 'a' => 'Paula Souza ligou do 66 99958-6623',
+                     'b' => 'Paula Souza de novo' },
+                   nomes: { 'contato' => ['Paula Souza'] })
+
+      contato = p.substituicoes.find { |s| s['tipo'] == 'contato' }
+      expect(contato['ocorrencias']).to eq(2)
+      expect(contato['pseudonimo']).to match(/\ACONTATO-\d+\z/)
+      expect(p.substituicoes.map(&:keys).flatten.uniq).to contain_exactly('tipo', 'pseudonimo', 'ocorrencias')
+      expect(p.substituicoes.to_s).not_to include('Paula')
+    end
+
+    it 'registra telefone e e-mail com o tipo certo' do
+      p.aplicar('zap 66 99958-6623, e-mail fulano@gmail.com')
+
+      expect(p.substituicoes.pluck('tipo')).to include('telefone', 'email')
+    end
+
+    it 'não registra nada quando não houve troca' do
+      p.aplicar('tudo certo, obrigado')
+
+      expect(p.substituicoes).to be_empty
+    end
+  end
+
   describe 'a marca do negócio' do
     subject(:p) { described_class.new(semente: 'fixture-1', marca: 'Tozi Imóveis') }
 

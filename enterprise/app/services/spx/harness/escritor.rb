@@ -16,11 +16,16 @@ class Spx::Harness::Escritor
   # cujo conteúdo textual é vazio. Marcá-la para paráfrase pedia que se reescrevesse o nada.
   SHA_VAZIO = 'da39a3ee5e6b'.freeze
 
-  def initialize(id:, nomes: [], original: nil, marca: nil)
+  # `nomes` vem POR PAPEL (`{ 'atendente' => [...], 'contato' => [...] }`) e `protegidos` é o
+  # vocabulário de negócio que não pode ser trocado nem perdido — nomes das agentes de IA,
+  # bairro, condomínio, empreendimento. A mesma lista serve às duas checagens opostas: o
+  # Pseudonimizador não troca, a Preservacao exige que tenha sobrevivido.
+  def initialize(id:, nomes: {}, original: nil, marca: nil, protegidos: [])
     @id = id
     @nomes = nomes
     @original = original
-    @pseudo = Spx::Harness::Pseudonimizador.new(semente: id, marca: marca)
+    @protegidos = Array(protegidos)
+    @pseudo = Spx::Harness::Pseudonimizador.new(semente: id, marca: marca, protegidos: @protegidos)
   end
 
   def preparar(bruto)
@@ -32,16 +37,41 @@ class Spx::Harness::Escritor
   def gravar!(bruto, caminho, parafrasear: true)
     dados = preparar(bruto)
     dados = marcar_para_parafrase(dados) if parafrasear
+    # Depois de tudo trocado: quem revisa a fixture precisa ver O QUE foi substituído. Só tipo
+    # e pseudônimo — guardar o par original→pseudônimo seria a tabela de desanonimização.
+    dados = dados.merge('pseudonimos' => @pseudo.substituicoes)
     conteudo = Spx::Harness::Vazamento.conferir!(dados.to_yaml, origem: "#{@id} (#{caminho})")
     # A trava garante que nada VAZOU; esta garante que nada se PERDEU. São perguntas opostas, e
     # a primeira gravação da 41803 passou na primeira e falharia na segunda.
-    Spx::Harness::Preservacao.conferir!(conteudo, original: @original, origem: @id) if @original
+    conferir_preservacao(dados)
     FileUtils.mkdir_p(File.dirname(caminho))
     File.write(caminho, conteudo)
     dados
   end
 
   private
+
+  # Confere sobre o TEXTO das folhas, não sobre o YAML. No YAML uma quebra de linha dentro de
+  # string vira os dois caracteres `\` e `n`, e aí a palavra seguinte fica colada num `n`:
+  # `\nLavanderia`. A fronteira de palavra da Preservacao não casava, e a checagem acusava
+  # perda de cinco termos que estavam lá — na conv 21743, na descrição do anúncio.
+  def conferir_preservacao(dados)
+    return if @original.blank?
+
+    Spx::Harness::Preservacao.conferir!(folhas(dados), original: @original, origem: @id,
+                                                       termos: @protegidos)
+  end
+
+  # Todo texto que vai para o arquivo, com as quebras de linha reais. É o que a fixture DIZ,
+  # sem a escapagem do serializador no meio.
+  def folhas(valor)
+    case valor
+    when String then valor
+    when Array then valor.map { |v| folhas(v) }.join("\n")
+    when Hash then valor.values.map { |v| folhas(v) }.join("\n")
+    else valor.to_s
+    end
+  end
 
   def marcar_para_parafrase(dados)
     copia = dados.deep_dup

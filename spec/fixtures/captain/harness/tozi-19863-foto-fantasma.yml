@@ -7,7 +7,7 @@ fidelidade:
 origem:
   conta: 6
   conversa: 19863
-  gravado_em: '2026-09-21T12:34:11-04:00'
+  gravado_em: '2026-09-21T14:47:11-04:00'
 relogio:
   inicio: '2026-07-22T17:51:23-04:00'
   fim: '2026-07-23T11:27:22-04:00'
@@ -481,14 +481,14 @@ mensagens:
   texto: |-
     Olá bom dia CONTATO-25, tudo bem?
 
-    Eu me chamo CONTATO-45, sou Secretária Executiva da Tozi imóveis
-  texto_sha: a20e_b329_a55a
+    Eu me chamo ATENDENTE-45, sou Secretária Executiva da Tozi imóveis
+  texto_sha: 681c_291a_9f93
 - de: humano
   em: '2026-07-23T09:56:36-04:00'
   apresentado_ao_modelo: assistant
   fala_do_agente: false
-  texto: O corretor CONTATO-61 vai entrar em contato contigo
-  texto_sha: cd38_b2ee_74f7
+  texto: O corretor ATENDENTE-61 vai entrar em contato contigo
+  texto_sha: 4f3c_2714_3aef
 - de: cliente
   em: '2026-07-23T10:34:25-04:00'
   apresentado_ao_modelo: user
@@ -512,14 +512,14 @@ mensagens:
   apresentado_ao_modelo: user
   fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
-  texto_sha: b452_f8c9_19c8
+  texto_sha: 20f1_0f2f_29ed
 - de: humano
   em: '2026-07-23T10:36:01-04:00'
   apresentado_ao_modelo: assistant
   fala_do_agente: false
-  texto: "Está certo sim, o corretor CONTATO-61 não está na imobiliária hoje ai eu
-    passei para o corretor Carlos assumir o atendimento \U0001F60A"
-  texto_sha: b620_33b3_825b
+  texto: "Está certo sim, o corretor ATENDENTE-61 não está na imobiliária hoje ai
+    eu passei para o corretor Carlos assumir o atendimento \U0001F60A"
+  texto_sha: 6d90_5e54_1406
 - de: cliente
   em: '2026-07-23T10:37:07-04:00'
   apresentado_ao_modelo: user
@@ -934,4 +934,50 @@ asseveracoes:
     valor: 370.0
     esperado: conferir_contra_busca
     motivo: houve busca antes da fala
-envios_sem_busca: []
+acoes_sem_trava: []
+pseudonimos:
+- tipo: atendente
+  pseudonimo: ATENDENTE-45
+  ocorrencias: 1
+- tipo: atendente
+  pseudonimo: ATENDENTE-61
+  ocorrencias: 3
+- tipo: contato
+  pseudonimo: CONTATO-25
+  ocorrencias: 17
+- tipo: endereco
+  pseudonimo: Rua Fictícia, 011
+  ocorrencias: 2
+- tipo: endereco
+  pseudonimo: Rua Fictícia, 3
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9203
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9204
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9215
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9614
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9745
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9792
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9817
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9821
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9849
+  ocorrencias: 2
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9852
+  ocorrencias: 2

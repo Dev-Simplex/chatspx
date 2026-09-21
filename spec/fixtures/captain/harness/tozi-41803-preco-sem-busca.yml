@@ -8,7 +8,7 @@ fidelidade:
 origem:
   conta: 6
   conversa: 41803
-  gravado_em: '2026-09-21T12:30:14-04:00'
+  gravado_em: '2026-09-21T14:41:21-04:00'
 relogio:
   inicio: '2026-09-11T17:10:08-04:00'
   fim: '2026-09-15T16:14:37-04:00'
@@ -183,9 +183,9 @@ mensagens:
   em: '2026-09-12T08:47:46-04:00'
   apresentado_ao_modelo: assistant
   fala_do_agente: false
-  texto: Bom dia, tudo bem? Me chamo CONTATO-28, sou consultora de locação na Tozi
+  texto: Bom dia, tudo bem? Me chamo ATENDENTE-28, sou consultora de locação na Tozi
     Imóveis.
-  texto_sha: 1664_61a8_2ee7
+  texto_sha: cec3_b923_c2b8
 - de: humano
   em: '2026-09-12T08:48:58-04:00'
   apresentado_ao_modelo: assistant
@@ -292,14 +292,16 @@ asseveracoes:
     tipo: localizacao_enviada
     esperado: permitir
     motivo: a ação confirmou conteúdo compatível
-envios_sem_busca:
+acoes_sem_trava:
 - ordem: 4
   tool: enviar_fotos_imovel
   codigo: '9412'
   em: '2026-09-11T17:12:29-04:00'
-  codigo_veio_de: mensagem_do_cliente
-  esperado: bloquear
-  observado: enviado
+  fonte_do_codigo: mensagem_do_cliente
+  fonte_aceitavel: true
+  trava_avaliada: false
+  esperado: reconhecer_fonte
+  observado: agiu_sem_avaliar
   estado: vermelho
   porque: 'a trava anti-alucinação só é avaliada quando alguma busca desta conversa
     já registrou código (`vistos.any? && !vistos.include?(cod)` em enterprise/lib/captain/tools/enviar_fotos_imovel_tool.rb).
@@ -308,10 +310,22 @@ envios_sem_busca:
   tool: enviar_localizacao_imovel
   codigo: '9412'
   em: '2026-09-11T17:12:30-04:00'
-  codigo_veio_de: mensagem_do_cliente
-  esperado: bloquear
-  observado: enviado
+  fonte_do_codigo: mensagem_do_cliente
+  fonte_aceitavel: true
+  trava_avaliada: false
+  esperado: reconhecer_fonte
+  observado: agiu_sem_avaliar
   estado: vermelho
   porque: 'esta ferramenta não tem trava: ela não inclui o Captain::Tools::ImoveisConhecidos
     e nunca confere se o código apareceu em busca desta conversa. Age sobre o que
     o modelo disser.'
+pseudonimos:
+- tipo: atendente
+  pseudonimo: ATENDENTE-28
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9412
+  ocorrencias: 1
+- tipo: url
+  pseudonimo: https://www.toziimoveis.com.br/imovel/imovel-ficticio-9412).
+  ocorrencias: 1

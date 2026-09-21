@@ -22,18 +22,29 @@ class Spx::Harness::Preservacao
   VALOR = /R\$\s*([\d.]+(?:,\d{2})?)|\b([\d.]+(?:,\d{2})?)\s*reais\b/i
 
   class << self
-    def conferir!(fixture, original:, origem:)
-      faltando = faltantes(fixture, original)
+    # `termos` é o vocabulário de NEGÓCIO que também precisa sobreviver: bairro, condomínio,
+    # empreendimento, nome de agente de IA. Entrou porque a troca de nome passou a agir em
+    # PEDAÇOS, e sobrenome brasileiro é nome de bairro com frequência — "Oliveira", "Campos",
+    # "Rocha", "Lima". Se um dia a lista de proteção do Pseudonimizador falhar, o bairro some
+    # da fixture e o cenário deixa de descrever a conversa; aqui isso falha alto.
+    def conferir!(fixture, original:, origem:, termos: [])
+      faltando = faltantes(fixture, original, termos: termos)
       return fixture if faltando.empty?
 
       raise Perdido, "perda em #{origem}: #{faltando.join(', ')} — presente no original e ausente " \
                      'na fixture. A fixture NÃO foi gravada: ela não testaria o caso dela.'
     end
 
-    def faltantes(fixture, original)
-      perdidos(codigos(original), codigos(fixture), 'código').concat(
-        perdidos(valores(original), valores(fixture), 'valor')
-      )
+    def faltantes(fixture, original, termos: [])
+      perdidos(codigos(original), codigos(fixture), 'código')
+        .concat(perdidos(valores(original), valores(fixture), 'valor'))
+        .concat(perdidos(presentes(termos, original), presentes(termos, fixture), 'termo'))
+    end
+
+    # Só cobra o que ESTAVA no original: a lista de termos vem da conta inteira e a maioria não
+    # aparece nesta conversa. Cobrar termo ausente dos dois lados acusaria perda que não houve.
+    def presentes(termos, texto)
+      Array(termos).map(&:to_s).uniq.select { |termo| texto.to_s.match?(/(?<![[:alpha:]])#{Regexp.escape(termo)}/i) }
     end
 
     def codigos(texto)

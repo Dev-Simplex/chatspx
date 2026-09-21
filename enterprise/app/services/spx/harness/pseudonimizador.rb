@@ -25,34 +25,54 @@ class Spx::Harness::Pseudonimizador
   # Código do imóvel no fim do caminho — é o único pedaço do slug que o cenário precisa.
   CODIGO_NA_URL = %r{(\d{3,6})(?=[/?#]|\z)}
 
-  # `marca` é o nome do negócio dono da conta. Serve de EXCLUSÃO: os pedaços dele não são
-  # identidade de pessoa neste texto, ainda que um sócio se chame assim. Sem isso, trocar o
-  # sobrenome do dono apagaria "Tozi Imóveis" de toda fala da conversa.
-  def initialize(semente:, marca: nil)
+  # `marca` é o nome do negócio dono da conta e `protegidos` é o vocabulário de NEGÓCIO —
+  # nomes das agentes de IA, bairro, condomínio, empreendimento. Os dois servem de EXCLUSÃO
+  # para os PEDAÇOS de nome, e a razão é concreta: sobrenome brasileiro costuma ser nome de
+  # bairro (Oliveira, Campos, Rocha, Lima), e a conta 6 tem nove agentes chamadas Letícia,
+  # Bruna, Marina, Helena, Clara, Júlia, Feirão, Sofia e Rafa. Sem a exclusão, uma atendente
+  # chamada Clara faria a agente Clara virar pseudônimo e a transferência perderia o sentido.
+  #
+  # A exclusão vale só para o PEDAÇO solto. O nome cadastrado inteiro continua sendo trocado:
+  # "Clara Fernandes" vira ATENDENTE-n, e só um "Clara" sozinho sobrevive — que numa conversa
+  # da Tozi é, quase sempre, a agente.
+  def initialize(semente:, marca: nil, protegidos: [])
     @semente = semente.to_s
     @marca = marca.to_s
+    @protegidos = Array(protegidos).compact.map(&:to_s)
     @nomes = {}
+    @contagem = Hash.new(0)
   end
 
-  # `nomes` são os nomes próprios conhecidos da conversa (contato, atendentes). Vêm de fora
-  # porque o serviço não adivinha nome: sem a lista, "Bruna" no meio do texto é indistinguível
-  # de uma palavra qualquer, e trocar por heurística estragaria o corpus.
-  def aplicar(texto, nomes: [])
+  # O que foi trocado, para quem revisa a fixture. Só TIPO e PSEUDÔNIMO — o original fica de
+  # fora de propósito: um registro que guardasse os dois seria a tabela de desanonimização.
+  def substituicoes
+    @contagem.map { |(tipo, pseudonimo), n| { 'tipo' => tipo, 'pseudonimo' => pseudonimo, 'ocorrencias' => n } }
+             .sort_by { |s| [s['tipo'], s['pseudonimo']] }
+  end
+
+  # `nomes` são os nomes próprios conhecidos da conversa, POR PAPEL:
+  # `{ 'atendente' => [...], 'contato' => [...] }`. O papel entra no pseudônimo porque a
+  # conversa perde a leitura sem ele — quem transferiu para quem, quem é o lead. Array simples
+  # continua aceito e é tratado como contato.
+  #
+  # Vêm de fora porque o serviço não adivinha nome: sem a lista, "Bruna" no meio do texto é
+  # indistinguível de uma palavra qualquer, e trocar por heurística estragaria o corpus.
+  def aplicar(texto, nomes: {})
     return texto if texto.blank?
 
     t = texto.to_s.dup
     t = trocar_nomes(t, nomes)
-    t = t.gsub(URL) { |u| url_neutra(u) }
+    t = t.gsub(URL) { |u| registrar('url', url_neutra(u)) }
     t = trocar_documentos(t)
-    t = t.gsub(EMAIL) { |v| "#{apelido('email', v)}@exemplo.invalido" }
-    t = t.gsub(LOGRADOURO) { |v| "Rua Fictícia, #{numero(v)}" }
-    t = t.gsub(TELEFONE) { |v| telefone_falso(v) }
-    t.gsub(CREDENCIAL) { "#{Regexp.last_match(1)}REDIGIDO" }
+    t = t.gsub(EMAIL) { |v| registrar('email', "#{apelido('email', v)}@exemplo.invalido") }
+    t = t.gsub(LOGRADOURO) { |v| registrar('endereco', "Rua Fictícia, #{numero(v)}") }
+    t = t.gsub(TELEFONE) { |v| registrar('telefone', telefone_falso(v)) }
+    t.gsub(CREDENCIAL) { registrar('credencial', "#{Regexp.last_match(1)}REDIGIDO") }
   end
 
   # Percorre a estrutura inteira (hash/array/string) — a fixture é um hash aninhado, e um
   # telefone escondido num argumento de tool vazaria igual.
-  def aplicar_em(valor, nomes: [])
+  def aplicar_em(valor, nomes: {})
     case valor
     when String then aplicar(valor, nomes: nomes)
     when Array then valor.map { |v| aplicar_em(v, nomes: nomes) }
@@ -88,26 +108,26 @@ class Spx::Harness::Pseudonimizador
   def trocar_documentos(texto)
     t = texto.gsub(Spx::Harness::Documento::CPF_BRUTO) do |v|
       if Spx::Harness::Documento.cpf?(v)
-        v.include?('.') ? '000.000.000-00' : '00000000000'
+        registrar('cpf', v.include?('.') ? '000.000.000-00' : '00000000000')
       else
         v
       end
     end
     t = t.gsub(Spx::Harness::Documento::CNPJ_BRUTO) do |v|
       if Spx::Harness::Documento.cnpj?(v)
-        v.include?('.') ? '00.000.000/0000-00' : '00000000000000'
+        registrar('cnpj', v.include?('.') ? '00.000.000/0000-00' : '00000000000000')
       else
         v
       end
     end
-    t = t.gsub(Spx::Harness::Documento::RG_FORMATADO, '00.000.000-0')
-    t.gsub(Spx::Harness::Documento::RG_ROTULADO, 'RG 00.000.000-0')
+    t = t.gsub(Spx::Harness::Documento::RG_FORMATADO) { registrar('rg', '00.000.000-0') }
+    t.gsub(Spx::Harness::Documento::RG_ROTULADO) { registrar('rg', 'RG 00.000.000-0') }
   end
 
   # Ordem decrescente de tamanho: sem isso, trocar "Ana" antes de "Ana Paula" deixaria "Paula".
   def trocar_nomes(texto, nomes)
-    variantes(nomes).reduce(texto) do |t, (alvo, pessoa, isolado)|
-      t.gsub(padrao_de_nome(alvo, isolado)) { apelido('nome', pessoa) }
+    variantes(nomes).reduce(texto) do |t, v|
+      t.gsub(padrao_de_nome(v[:alvo], v[:isolado])) { registrar(v[:papel], apelido(v[:papel], v[:pessoa])) }
     end
   end
 
@@ -118,18 +138,36 @@ class Spx::Harness::Pseudonimizador
   #
   # Pedaço que também é pedaço da MARCA fica de fora: é nome do negócio, não da pessoa.
   def variantes(nomes)
-    pares = nomes.compact.map(&:to_s).reject { |n| n.strip.length < 3 }
-                 .flat_map { |nome| variantes_de(nome) }
-    pares.uniq { |alvo, _, _| alvo.downcase }.sort_by { |alvo, _, _| -alvo.length }
+    pares = por_papel(nomes).flat_map do |papel, lista|
+      Array(lista).compact.map(&:to_s).reject { |n| n.strip.length < 3 }
+                  .flat_map { |nome| variantes_de(nome, papel) }
+    end
+    pares.uniq { |v| v[:alvo].downcase }.sort_by { |v| -v[:alvo].length }
   end
 
-  def variantes_de(nome)
-    soltos = pedacos(nome).reject { |p| pedacos_da_marca.include?(p.downcase) }
-    [[nome, nome, false]] + soltos.map { |p| [p, nome, true] }
+  def por_papel(nomes)
+    return { 'contato' => Array(nomes) } unless nomes.is_a?(Hash)
+
+    nomes.transform_keys(&:to_s)
   end
 
-  def pedacos_da_marca
-    @pedacos_da_marca ||= pedacos(@marca).to_set(&:downcase)
+  def variantes_de(nome, papel)
+    todos = pedacos(nome)
+    soltos = todos.reject { |p| pedacos_protegidos.include?(p.downcase) }
+    # Nome cadastrado de UM pedaço só, e esse pedaço é vocabulário de negócio: trocá-lo apaga o
+    # bairro. Aconteceu de verdade na conv 36940 — a conta tem um usuário cadastrado só com o
+    # primeiro nome, e o mesmo nome é bairro ("Jardim São Paulo"). Aqui a proteção vence, e o
+    # preço é conhecido: esse nome NÃO é pseudonimizado.
+    return [] if todos.size == 1 && soltos.empty?
+
+    [{ alvo: nome, pessoa: nome, papel: papel, isolado: false }] +
+      soltos.map { |p| { alvo: p, pessoa: nome, papel: papel, isolado: true } }
+  end
+
+  # Marca + vocabulário de negócio, em pedaços. Só barra PEDAÇO solto — o nome cadastrado
+  # inteiro é trocado de qualquer forma.
+  def pedacos_protegidos
+    @pedacos_protegidos ||= (pedacos(@marca) + @protegidos.flat_map { |p| pedacos(p) }).to_set(&:downcase)
   end
 
   # Pedaço solto precisa de fronteira, senão "Ana" acerta "Banana". `[[:alpha:]]` é ciente de
@@ -144,12 +182,22 @@ class Spx::Harness::Pseudonimizador
     texto.to_s.split(/[^[:alpha:]]+/).select { |p| p.length >= 3 }
   end
 
+  # O pseudônimo PRESERVA O PAPEL. Atendente que vira CONTATO-n apaga a distinção entre quem
+  # atende e quem é atendido, e a conversa deixa de fazer sentido como cenário.
+  PAPEIS = { 'atendente' => 'ATENDENTE', 'contato' => 'CONTATO' }.freeze
+
   def apelido(tipo, valor)
     @nomes[[tipo, valor.downcase]] ||=
-      case tipo
-      when 'nome' then "CONTATO-#{indice(valor)}"
-      else "contato-#{indice(valor)}"
+      if PAPEIS.key?(tipo)
+        "#{PAPEIS.fetch(tipo)}-#{indice(valor)}"
+      else
+        "contato-#{indice(valor)}"
       end
+  end
+
+  def registrar(tipo, pseudonimo)
+    @contagem[[tipo, pseudonimo]] += 1
+    pseudonimo
   end
 
   # Dois dígitos bastam: fixture com mais de 100 entidades distintas não é fixture, é dump.
