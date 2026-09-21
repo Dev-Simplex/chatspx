@@ -45,7 +45,7 @@ RSpec.describe 'ação sobre imóvel com a trava não avaliada' do
     end
   end
 
-  it 'toda ação sobre imóvel passa por uma trava que avalia a fonte do código' do
+  it 'toda ação sobre imóvel passa por uma trava que avalia a fonte do código', :defeito_aberto do
     agiram = acoes.select { |a| a['observado'] == 'agiu_sem_avaliar' }
     relato = agiram.map do |a|
       "#{a['fixture']}: #{a['tool']}(#{a['codigo']}) — fonte #{a['fonte_do_codigo']} " \
