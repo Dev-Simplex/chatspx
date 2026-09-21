@@ -20,6 +20,7 @@ import {
   proximasOcorrencias,
 } from './unitSchedule';
 import UnitCalendar from './UnitCalendar.vue';
+import { formatarCep, copiarHorarioParaDias } from './unitFormulario';
 
 const props = defineProps({
   // Unidade existente quando é edição; nulo quando é criação.
@@ -85,15 +86,6 @@ const REGRA_VAZIA = {
   until_date: '',
   ocorrencias: 12,
   reminder_days_before: '',
-};
-
-// 78550041, 78550-041 ou 78.550-041 dao no mesmo: fica so o digito, no maximo 8, com o traco
-// depois do quinto. A busca no ViaCEP ja tirava tudo que nao e digito, entao ela nao muda.
-const formatarCep = valor => {
-  const digitos = (valor || '').replace(/\D/g, '').slice(0, 8);
-  return digitos.length > 5
-    ? `${digitos.slice(0, 5)}-${digitos.slice(5)}`
-    : digitos;
 };
 
 const form = ref({
@@ -280,21 +272,8 @@ const onSlotUpdate = (dia, slot) => {
 // Segunda a sexta costuma ser tudo igual: preenche um dia, copia, e ajusta so o que foge. Copia
 // para os dias ABERTOS — fim de semana fechado continua fechado.
 const copiarParaOsDemaisDias = origem => {
-  let copiados = 0;
-  timeSlots.value = timeSlots.value.map(item => {
-    if (item.day === origem.day || !item.from || !item.to) return item;
-
-    copiados += 1;
-    return {
-      ...item,
-      from: origem.from,
-      to: origem.to,
-      breakFrom: origem.breakFrom,
-      breakTo: origem.breakTo,
-      openAllDay: origem.openAllDay,
-      valid: origem.valid,
-    };
-  });
+  const { slots, copiados } = copiarHorarioParaDias(timeSlots.value, origem);
+  timeSlots.value = slots;
   useAlert(t('UNITS_MGMT.FORM.HOURS.COPIED', { count: copiados }));
 };
 

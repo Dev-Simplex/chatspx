@@ -1,0 +1,77 @@
+import { formatarCep, copiarHorarioParaDias } from '../unitFormulario';
+
+describe('formatarCep', () => {
+  it('põe o traço depois do quinto dígito', () => {
+    expect(formatarCep('78550041')).toBe('78550-041');
+  });
+
+  it('aceita colado com traço ou com ponto', () => {
+    expect(formatarCep('78550-041')).toBe('78550-041');
+    expect(formatarCep('78.550-041')).toBe('78550-041');
+  });
+
+  it('descarta letra e corta no oitavo dígito', () => {
+    expect(formatarCep('78a550b041999')).toBe('78550-041');
+  });
+
+  it('não inventa traço enquanto o CEP está incompleto', () => {
+    expect(formatarCep('785')).toBe('785');
+    expect(formatarCep('')).toBe('');
+    expect(formatarCep(null)).toBe('');
+  });
+});
+
+describe('copiarHorarioParaDias', () => {
+  const grade = [
+    { day: 0, from: '', to: '' },
+    {
+      day: 1,
+      from: '07:48',
+      to: '18:00',
+      breakFrom: '12:00',
+      breakTo: '13:00',
+      valid: true,
+    },
+    {
+      day: 2,
+      from: '09:00',
+      to: '17:00',
+      breakFrom: '',
+      breakTo: '',
+      valid: true,
+    },
+    {
+      day: 3,
+      from: '09:00',
+      to: '17:00',
+      breakFrom: '',
+      breakTo: '',
+      valid: true,
+    },
+  ];
+
+  it('copia para os dias abertos e diz quantos mudaram', () => {
+    const { slots, copiados } = copiarHorarioParaDias(grade, grade[1]);
+
+    expect(copiados).toBe(2);
+    expect(slots[2]).toMatchObject({
+      from: '07:48',
+      to: '18:00',
+      breakFrom: '12:00',
+      breakTo: '13:00',
+    });
+    expect(slots[3]).toMatchObject({ from: '07:48', to: '18:00' });
+  });
+
+  it('não abre o dia que está fechado', () => {
+    const { slots } = copiarHorarioParaDias(grade, grade[1]);
+
+    expect(slots[0]).toMatchObject({ day: 0, from: '', to: '' });
+  });
+
+  it('não mexe no dia de origem', () => {
+    const { slots } = copiarHorarioParaDias(grade, grade[1]);
+
+    expect(slots[1]).toBe(grade[1]);
+  });
+});
