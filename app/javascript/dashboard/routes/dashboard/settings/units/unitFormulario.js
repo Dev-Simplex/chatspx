@@ -1,13 +1,17 @@
 // Ajudantes PUROS do formulário de unidade. Moram fora do .vue para poderem ser testados sem montar
 // a tela — mesmo caminho do unitSchedule.js ao lado.
 
-// 78550041, 78550-041 ou 78.550-041 dão no mesmo: fica só o dígito, no máximo 8, com o traço depois do
-// quinto. A busca no ViaCEP já removia tudo que não é dígito, então ela não muda.
+// 78550041, 78550-041 ou 78.550-041 dão no mesmo: fica só o dígito, no máximo 8, escrito como o CEP
+// é escrito — ponto depois do segundo, traço depois do quinto. A busca no ViaCEP já removia tudo que
+// não é dígito, então ela não muda.
 export const formatarCep = valor => {
   const digitos = (valor || '').replace(/\D/g, '').slice(0, 8);
-  return digitos.length > 5
-    ? `${digitos.slice(0, 5)}-${digitos.slice(5)}`
-    : digitos;
+  const inicio =
+    digitos.length > 2
+      ? `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}`
+      : digitos;
+
+  return digitos.length > 5 ? `${inicio}-${digitos.slice(5)}` : inicio;
 };
 
 // Telefone da filial: o parêntese e o traço aparecem enquanto se digita, como no CEP. Fixo fica

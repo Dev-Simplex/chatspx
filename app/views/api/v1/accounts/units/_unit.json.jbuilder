@@ -6,6 +6,10 @@ json.zip_code unit.zip_code
 json.address unit.address
 json.address_number unit.address_number
 json.phone unit.phone
+# As duas listas: telefones com rótulo e links de rede social. Mesmo motivo do comentário abaixo —
+# campo que o permit aceita e o jbuilder não devolve grava uma vez e some na edição seguinte.
+json.contacts unit.contacts
+json.social_links unit.social_links
 # Coordenada e o interruptor PRECISAM sair aqui. Campo que o `permit` aceita mas o jbuilder não
 # devolve grava uma vez e some: o formulário recarrega com o valor padrão e a próxima edição
 # sobrescreve o que estava certo — foi o que acontecia com `applies_to_inboxes`.

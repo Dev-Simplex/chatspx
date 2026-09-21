@@ -5,21 +5,22 @@ import {
 } from '../unitFormulario';
 
 describe('formatarCep', () => {
-  it('põe o traço depois do quinto dígito', () => {
-    expect(formatarCep('78550041')).toBe('78550-041');
+  it('escreve como o CEP é escrito: ponto no segundo, traço no quinto', () => {
+    expect(formatarCep('78550041')).toBe('78.550-041');
   });
 
   it('aceita colado com traço ou com ponto', () => {
-    expect(formatarCep('78550-041')).toBe('78550-041');
-    expect(formatarCep('78.550-041')).toBe('78550-041');
+    expect(formatarCep('78550-041')).toBe('78.550-041');
+    expect(formatarCep('78.550-041')).toBe('78.550-041');
   });
 
   it('descarta letra e corta no oitavo dígito', () => {
-    expect(formatarCep('78a550b041999')).toBe('78550-041');
+    expect(formatarCep('78a550b041999')).toBe('78.550-041');
   });
 
-  it('não inventa traço enquanto o CEP está incompleto', () => {
-    expect(formatarCep('785')).toBe('785');
+  it('não inventa pontuação enquanto o CEP está incompleto', () => {
+    expect(formatarCep('78')).toBe('78');
+    expect(formatarCep('785')).toBe('78.5');
     expect(formatarCep('')).toBe('');
     expect(formatarCep(null)).toBe('');
   });
