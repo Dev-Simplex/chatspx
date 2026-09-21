@@ -16,11 +16,11 @@ class Spx::Harness::Escritor
   # cujo conteúdo textual é vazio. Marcá-la para paráfrase pedia que se reescrevesse o nada.
   SHA_VAZIO = 'da39a3ee5e6b'.freeze
 
-  def initialize(id:, nomes: [], original: nil)
+  def initialize(id:, nomes: [], original: nil, marca: nil)
     @id = id
     @nomes = nomes
     @original = original
-    @pseudo = Spx::Harness::Pseudonimizador.new(semente: id)
+    @pseudo = Spx::Harness::Pseudonimizador.new(semente: id, marca: marca)
   end
 
   def preparar(bruto)

@@ -25,8 +25,12 @@ class Spx::Harness::Pseudonimizador
   # Código do imóvel no fim do caminho — é o único pedaço do slug que o cenário precisa.
   CODIGO_NA_URL = %r{(\d{3,6})(?=[/?#]|\z)}
 
-  def initialize(semente:)
+  # `marca` é o nome do negócio dono da conta. Serve de EXCLUSÃO: os pedaços dele não são
+  # identidade de pessoa neste texto, ainda que um sócio se chame assim. Sem isso, trocar o
+  # sobrenome do dono apagaria "Tozi Imóveis" de toda fala da conversa.
+  def initialize(semente:, marca: nil)
     @semente = semente.to_s
+    @marca = marca.to_s
     @nomes = {}
   end
 
@@ -102,8 +106,42 @@ class Spx::Harness::Pseudonimizador
 
   # Ordem decrescente de tamanho: sem isso, trocar "Ana" antes de "Ana Paula" deixaria "Paula".
   def trocar_nomes(texto, nomes)
-    nomes.compact.map(&:to_s).reject { |n| n.strip.length < 3 }.sort_by { |n| -n.length }
-         .reduce(texto) { |t, nome| t.gsub(/#{Regexp.escape(nome)}/i, apelido('nome', nome)) }
+    variantes(nomes).reduce(texto) do |t, (alvo, pessoa, isolado)|
+      t.gsub(padrao_de_nome(alvo, isolado)) { apelido('nome', pessoa) }
+    end
+  end
+
+  # Cada pessoa entra várias vezes: o nome inteiro e cada pedaço dele. O nome inteiro quase
+  # nunca aparece na conversa — quem se apresenta escreve o primeiro nome ("Me chamo Evellyn"),
+  # e foi assim que o nome de uma funcionária real sobreviveu à primeira gravação da conv 41803,
+  # com a lista dos 34 usuários da conta carregada e tudo.
+  #
+  # Pedaço que também é pedaço da MARCA fica de fora: é nome do negócio, não da pessoa.
+  def variantes(nomes)
+    pares = nomes.compact.map(&:to_s).reject { |n| n.strip.length < 3 }
+                 .flat_map { |nome| variantes_de(nome) }
+    pares.uniq { |alvo, _, _| alvo.downcase }.sort_by { |alvo, _, _| -alvo.length }
+  end
+
+  def variantes_de(nome)
+    soltos = pedacos(nome).reject { |p| pedacos_da_marca.include?(p.downcase) }
+    [[nome, nome, false]] + soltos.map { |p| [p, nome, true] }
+  end
+
+  def pedacos_da_marca
+    @pedacos_da_marca ||= pedacos(@marca).to_set(&:downcase)
+  end
+
+  # Pedaço solto precisa de fronteira, senão "Ana" acerta "Banana". `[[:alpha:]]` é ciente de
+  # acento em string UTF-8; `\b` do Ruby é ASCII e erraria em "José".
+  def padrao_de_nome(alvo, isolado)
+    return /#{Regexp.escape(alvo)}/i unless isolado
+
+    /(?<![[:alpha:]])#{Regexp.escape(alvo)}(?![[:alpha:]])/i
+  end
+
+  def pedacos(texto)
+    texto.to_s.split(/[^[:alpha:]]+/).select { |p| p.length >= 3 }
   end
 
   def apelido(tipo, valor)

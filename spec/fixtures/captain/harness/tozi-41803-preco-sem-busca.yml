@@ -3,12 +3,12 @@ id: tozi-41803-preco-sem-busca
 fidelidade:
   chamadas: faithful
   mensagens: faithful
-  property_ref_ficha: reconstructed
+  property_ref_ficha: fabricado
   tool_context_note: reconstructed
 origem:
   conta: 6
   conversa: 41803
-  gravado_em: '2026-09-21T11:00:58-04:00'
+  gravado_em: '2026-09-21T12:30:14-04:00'
 relogio:
   inicio: '2026-09-11T17:10:08-04:00'
   fim: '2026-09-15T16:14:37-04:00'
@@ -67,28 +67,59 @@ cache:
   estado: vazio
 contexto_injetado:
 - fonte: property_ref_ficha
-  fidelidade: reconstructed
+  fidelidade: fabricado
   porque: consulta propria ao Vista, fora de tool e ausente do trace
+  aviso: Os valores abaixo são ESCOLHA DO CENÁRIO, não fato sobre o imóvel real. A
+    consulta do PropertyRef acontece fora de ferramenta e não fica no trace, então
+    não há como recuperá-la da produção. O teste prova o comportamento DADA esta evidência;
+    não afirma nada sobre o acervo.
+  campos_que_a_ficha_traz:
+  - Codigo
+  - Categoria
+  - Status
+  - ValorVenda
+  - ValorLocacao
+  - ValorCondominio
+  - Bairro
+  - Cidade
+  - Dormitorios
+  valores:
+    Codigo: '9412'
+    Status: Aluguel
+    ValorLocacao: 3200
+    ValorCondominio: 732
+    Dormitorios: 3
+  nota_no_contexto: "[Ficha do imóvel que o cliente citou, consultada no acervo: código
+    9412, disponível para locação; não está à venda, aluguel R$ 3.200, condomínio
+    R$ 732, 3 dormitório(s)]"
 - fonte: tool_context_note
   fidelidade: reconstructed
   porque: montada em runtime a partir do trace truncado em 1500
 mensagens:
 - de: cliente
   em: '2026-09-11T17:10:08-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 3c89_984c_ef38
 - de: cliente
   em: '2026-09-11T17:10:08-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 6278_b644_8ca6
 - de: cliente
   em: '2026-09-11T17:10:19-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 7f49_5dd9_fa76
 - de: ia
   em: '2026-09-11T17:11:15-04:00'
   agente: 14
   agente_nome: bruna
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Boa tarde! Vi que você tem interesse nessa casa no Santorini Residence. É
     uma casa com 3 quartos (1 suíte), 2 vagas de garagem, por R$ 2.400 de aluguel.
   texto_sha: a521_310f_54df
@@ -96,50 +127,75 @@ mensagens:
   em: '2026-09-11T17:11:24-04:00'
   agente: 14
   agente_nome: bruna
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Quer que eu mande as fotos dela pra você?
   texto_sha: c11a_d868_2abc
 - de: cliente
   em: '2026-09-11T17:11:56-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 833a_b4f3_cb61
 - de: cliente
   em: '2026-09-11T17:12:02-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 54e2_2705_f896
 - de: ia
   em: '2026-09-11T17:12:29-04:00'
   agente: 14
+  apresentado_ao_modelo: assistant
+  texto_ao_modelo: "[carrossel de fotos do imóvel 9412 enviado]"
+  fala_do_agente: false
   texto: "\U0001F4F7 Carrossel: 9 fotos do imóvel 9412"
   texto_sha: b395_e7e9_02fd
 - de: ia
   em: '2026-09-11T17:12:29-04:00'
   agente: 14
   midia: location
+  apresentado_ao_modelo: assistant
+  texto_ao_modelo: "[foto do imóvel enviada]"
+  fala_do_agente: false
   texto:
 - de: ia
   em: '2026-09-11T17:12:35-04:00'
   agente: 14
   agente_nome: bruna
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Prontinho! Mandei as fotos e a localização da casa pra você.
   texto_sha: 5b5d_bcc8_1cdf
 - de: cliente
   em: '2026-09-11T17:35:31-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: ec88_9b00_f1cc
 - de: cliente
   em: '2026-09-11T17:35:48-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: cc39_8728_4986
 - de: humano
   em: '2026-09-12T08:47:46-04:00'
-  texto: Bom dia, tudo bem? Me chamo Evellyn, sou consultora de locação na Tozi Imóveis.
-  texto_sha: 90ef_40c3_2ec7
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
+  texto: Bom dia, tudo bem? Me chamo CONTATO-28, sou consultora de locação na Tozi
+    Imóveis.
+  texto_sha: 1664_61a8_2ee7
 - de: humano
   em: '2026-09-12T08:48:58-04:00'
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
   texto: "Aluguel R$ 3.200 + Condominio: R$ 732 \\\nIPTU é uma obrigação do proprietário. "
   texto_sha: 88e0_49f6_c07b
 - de: humano
   em: '2026-09-15T16:14:37-04:00'
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
   texto: Oi boa tarde, tudo bem? Você está podendo conversar agora?
   texto_sha: 38f6_5613_3dfc
 chamadas:
@@ -199,22 +255,63 @@ asseveracoes:
 - mensagem: 3
   agente: 14
   em: '2026-09-11T17:11:15-04:00'
+  evidencia_no_atendimento: nenhuma
+  esperado: bloquear
   afirmacoes:
-  - tipo: preco
+  - classe: imovel
+    tipo: preco
     valor: 2400.0
-  - tipo: dormitorios
+    esperado: bloquear
+    motivo: a ficha diz 3200.0, a fala diz 2400.0
+  - classe: imovel
+    tipo: dormitorios
     valor: 3.0
-  - tipo: suites
+    esperado: permitir
+    motivo: a ficha confirma
+  - classe: imovel
+    tipo: suites
     valor: 1.0
-  - tipo: vagas
+    esperado: bloquear
+    motivo: nenhuma fonte cobre este campo
+  - classe: imovel
+    tipo: vagas
     valor: 2.0
-  evidencia_no_atendimento: nenhuma
-  esperado: bloquear
-- mensagem: 7
+    esperado: bloquear
+    motivo: nenhuma fonte cobre este campo
+- mensagem: 9
   agente: 14
-  em: '2026-09-11T17:12:29-04:00'
-  afirmacoes:
-  - tipo: codigo
-    valor: '9412'
+  em: '2026-09-11T17:12:35-04:00'
   evidencia_no_atendimento: nenhuma
+  esperado: permitir
+  afirmacoes:
+  - classe: acao
+    tipo: fotos_enviadas
+    esperado: permitir
+    motivo: a ação confirmou conteúdo compatível
+  - classe: acao
+    tipo: localizacao_enviada
+    esperado: permitir
+    motivo: a ação confirmou conteúdo compatível
+envios_sem_busca:
+- ordem: 4
+  tool: enviar_fotos_imovel
+  codigo: '9412'
+  em: '2026-09-11T17:12:29-04:00'
+  codigo_veio_de: mensagem_do_cliente
   esperado: bloquear
+  observado: enviado
+  estado: vermelho
+  porque: 'a trava anti-alucinação só é avaliada quando alguma busca desta conversa
+    já registrou código (`vistos.any? && !vistos.include?(cod)` em enterprise/lib/captain/tools/enviar_fotos_imovel_tool.rb).
+    Sem busca nenhuma, ela não recusa: ela não roda. Ver §3.7 da auditoria.'
+- ordem: 5
+  tool: enviar_localizacao_imovel
+  codigo: '9412'
+  em: '2026-09-11T17:12:30-04:00'
+  codigo_veio_de: mensagem_do_cliente
+  esperado: bloquear
+  observado: enviado
+  estado: vermelho
+  porque: 'esta ferramenta não tem trava: ela não inclui o Captain::Tools::ImoveisConhecidos
+    e nunca confere se o código apareceu em busca desta conversa. Age sobre o que
+    o modelo disser.'

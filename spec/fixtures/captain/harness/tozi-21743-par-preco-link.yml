@@ -7,7 +7,7 @@ fidelidade:
 origem:
   conta: 6
   conversa: 21743
-  gravado_em: '2026-09-21T11:18:21-04:00'
+  gravado_em: '2026-09-21T12:32:50-04:00'
 relogio:
   inicio: '2026-08-08T09:25:12-04:00'
   fim: '2026-08-08T11:22:29-04:00'
@@ -56,26 +56,35 @@ contexto_injetado:
   fidelidade: reconstructed
   porque: montada em runtime a partir do trace truncado em 1500
 mensagens:
-- de: sistema
+- de: sem_remetente
   em: '2026-08-08T09:25:12-04:00'
-  texto: Oi Paula, tudo bem? Aqui é da Tozi Imóveis. Vi que você se interessou nas
-    casas com entrada facilitada aqui em Sinop. Posso te explicar como funciona e
-    ver se encaixa pra você?
-  texto_sha: ef62_4cbe_6456
+  marcador: meta_lead_ads_initial
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
+  texto: Oi CONTATO-60, tudo bem? Aqui é da Tozi Imóveis. Vi que você se interessou
+    nas casas com entrada facilitada aqui em Sinop. Posso te explicar como funciona
+    e ver se encaixa pra você?
+  texto_sha: adb8_3ca5_0793
 - de: cliente
   em: '2026-08-08T09:25:58-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 91a0_4f4a_0feb
 - de: ia
   em: '2026-08-08T09:26:28-04:00'
   agente: 13
   agente_nome: julia
-  texto: Legal, Paula! Vou te explicar.
-  texto_sha: 0056_f4c1_0150
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
+  texto: Legal, CONTATO-60! Vou te explicar.
+  texto_sha: 5564_43a1_4405
 - de: ia
   em: '2026-08-08T09:26:41-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: 'Essas casas funcionam com entrada facilitada: você pode parcelar a entrada
     em até 120 vezes direto com a construtora, sem juros, e as parcelas são fixas,
     não sobem com o tempo. Depois da entrada quitada, você financia o saldo com o
@@ -85,63 +94,88 @@ mensagens:
   em: '2026-08-08T09:26:52-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: São casas novas, em condomínio fechado com portaria e área de lazer.
   texto_sha: cba8_661f_1c85
 - de: ia
   em: '2026-08-08T09:27:01-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Me conta, é pra você morar ou pra investir?
   texto_sha: 8d3b_d3f0_54f5
 - de: cliente
   em: '2026-08-08T09:28:22-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 47bb_a37e_8a19
 - de: ia
   em: '2026-08-08T09:28:53-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Ótimo! E hoje você mora de aluguel ou já tem imóvel próprio?
   texto_sha: 8bdf_a6ed_e59f
 - de: cliente
   em: '2026-08-08T09:29:23-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 19b7_2298_99a5
 - de: ia
   em: '2026-08-08T09:29:53-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Entendi. E você pretende vender esse imóvel que você tem pra comprar a casa
     nova, ou vai manter ele?
   texto_sha: e19b_73ca_8332
 - de: cliente
   em: '2026-08-08T09:30:36-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 9692_25ca_7462
 - de: ia
   em: '2026-08-08T09:31:04-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Perfeito. E em quanto tempo você está pensando em se mudar pra casa nova?
   texto_sha: 17a0_7c8f_cd2b
 - de: cliente
   em: '2026-08-08T09:33:02-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 0e82_8d5e_86d4
 - de: cliente
   em: '2026-08-08T09:33:22-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 7f46_d3d8_e98a
 - de: ia
   em: '2026-08-08T09:34:15-04:00'
   agente: 13
   agente_nome: julia
-  texto: Que bom, Paula! Então dá pra a gente achar a casa ideal pra você com calma.
-  texto_sha: 5f92_5076_f2ee
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
+  texto: Que bom, CONTATO-60! Então dá pra a gente achar a casa ideal pra você com
+    calma.
+  texto_sha: d027_552a_bd6c
 - de: ia
   em: '2026-08-08T09:34:29-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Essa casa do anúncio que você viu fica no Parque Amazonas, tem 3 quartos
     (1 suíte), 2 vagas de garagem, com móveis planejados na cozinha e sala, pé direito
     duplo. O valor dela é R$ 578 mil.
@@ -150,23 +184,31 @@ mensagens:
   em: '2026-08-08T09:34:41-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Você prefere casa ou tá aberta pra apartamento também? E tem algum bairro
     que você gosta mais aqui em Sinop?
   texto_sha: 6771_a249_8d85
 - de: cliente
   em: '2026-08-08T09:38:12-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 30ff_6182_7c00
 - de: ia
   em: '2026-08-08T09:38:58-04:00'
   agente: 13
   agente_nome: julia
-  texto: Ótimo, Paula! Achei várias opções nos bairros que você gosta.
-  texto_sha: 4a43_6c96_e0b2
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
+  texto: Ótimo, CONTATO-60! Achei várias opções nos bairros que você gosta.
+  texto_sha: 73e7_a532_66ec
 - de: ia
   em: '2026-08-08T09:39:12-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: No Parque Amazonas tem uma casa de 3 quartos com suíte por R$ 520 mil e outra
     também de 3 quartos com suíte e 2 vagas por R$ 549 mil.
   texto_sha: 8d0a_3533_6103
@@ -174,6 +216,8 @@ mensagens:
   em: '2026-08-08T09:39:25-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: No Jardim Paulista tem uma casa de 3 quartos com suíte e churrasqueira por
     R$ 460 mil, e outra de 3 quartos com suíte por R$ 420 mil.
   texto_sha: abb4_060f_4274
@@ -181,6 +225,8 @@ mensagens:
   em: '2026-08-08T09:39:37-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: No Bougainville tem uma de 3 quartos com suíte e 3 vagas por R$ 550 mil,
     e outra com piscina e churrasqueira por R$ 680 mil.
   texto_sha: f412_ca7a_401a
@@ -188,77 +234,108 @@ mensagens:
   em: '2026-08-08T09:39:48-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Qual dessas te chamou mais atenção? Posso te mandar as fotos das que você
     quiser ver melhor.
   texto_sha: f187_4316_ac0c
 - de: cliente
   em: '2026-08-08T09:40:22-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 5aca_76f1_f8e1
 - de: ia
   em: '2026-08-08T09:40:48-04:00'
   agente: 13
+  apresentado_ao_modelo: assistant
+  texto_ao_modelo: "[carrossel de fotos do imóvel 9265 enviado]"
+  fala_do_agente: false
   texto: "\U0001F4F7 Carrossel: 9 fotos do imóvel 9265"
   texto_sha: 8e3f_8180_c9c8
 - de: ia
   em: '2026-08-08T09:41:03-04:00'
   agente: 13
   agente_nome: julia
-  texto: Mandei as fotos da primeira casa, Paula! Vou te enviar das outras também,
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
+  texto: Mandei as fotos da primeira casa, CONTATO-60! Vou te enviar das outras também,
     só um momento.
-  texto_sha: 4298_4085_3f35
+  texto_sha: d7ae_d31c_cf17
 - de: cliente
   em: '2026-08-08T09:48:31-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 14b8_5c84_f34d
 - de: ia
   em: '2026-08-08T09:48:59-04:00'
   agente: 13
+  apresentado_ao_modelo: assistant
+  texto_ao_modelo: "[carrossel de fotos do imóvel 9860 enviado]"
+  fala_do_agente: false
   texto: "\U0001F4F7 Carrossel: 9 fotos do imóvel 9860"
   texto_sha: 86db_f14a_7609
 - de: ia
   em: '2026-08-08T09:49:07-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: "\U0001F4F7 Carrossel: 9 fotos do imóvel 9860"
   texto_sha: 86db_f14a_7609
 - de: ia
   em: '2026-08-08T09:49:17-04:00'
   agente: 13
   agente_nome: julia
-  texto: Mandei mais uma, Paula! O sistema só deixa enviar algumas de cada vez.
-  texto_sha: ec73_098b_9007
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
+  texto: Mandei mais uma, CONTATO-60! O sistema só deixa enviar algumas de cada vez.
+  texto_sha: 022a_af9a_a1d9
 - de: ia
   em: '2026-08-08T09:49:31-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Pra você ver todas as fotos das 6 casas com calma, posso te passar os links
     das que mais te interessaram, aí você consegue ver a galeria completa de cada
     uma. Qual você quer que eu mande o link?
   texto_sha: 48b7_2c33_e798
 - de: cliente
   em: '2026-08-08T09:50:41-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 294d_73bb_0c4f
 - de: ia
   em: '2026-08-08T09:51:10-04:00'
   agente: 13
+  apresentado_ao_modelo: assistant
+  texto_ao_modelo: "[carrossel de fotos do imóvel 8572 enviado]"
+  fala_do_agente: false
   texto: "\U0001F4F7 Carrossel: 9 fotos do imóvel 8572"
   texto_sha: 8034_f198_2fe9
 - de: ia
   em: '2026-08-08T09:51:21-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: "\U0001F4F7 Carrossel: 9 fotos do imóvel 8572"
   texto_sha: 8034_f198_2fe9
 - de: cliente
   em: '2026-08-08T09:51:25-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 899f_3930_83fe
 - de: ia
   em: '2026-08-08T09:51:32-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: 'Pra você ver todas as fotos com calma e os detalhes completos de cada uma,
     vou te passar os links:'
   texto_sha: 2edc_385d_9b9f
@@ -266,6 +343,8 @@ mensagens:
   em: '2026-08-08T09:51:44-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: |-
     Parque Amazonas - R$ 520 mil (3 quartos):
     https://www.toziimoveis.com.br/imovel/imovel-ficticio-9265
@@ -274,6 +353,8 @@ mensagens:
   em: '2026-08-08T09:51:56-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: |-
     Parque Amazonas - R$ 549 mil (3 quartos):
     https://www.toziimoveis.com.br/imovel/imovel-ficticio-9860
@@ -282,14 +363,18 @@ mensagens:
   em: '2026-08-08T09:52:01-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: |-
-    Claro, Paula! Aqui está o link da casa do anúncio (Parque Amazonas - R$ 578 mil):
+    Claro, CONTATO-60! Aqui está o link da casa do anúncio (Parque Amazonas - R$ 578 mil):
     https://www.toziimoveis.com.br/imovel/imovel-ficticio-9629
-  texto_sha: 459b_72d9_da35
+  texto_sha: bdcf_943d_a104
 - de: ia
   em: '2026-08-08T09:52:08-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: |-
     Jardim Paulista - R$ 420 mil (3 quartos):
     https://www.toziimoveis.com.br/imovel/imovel-ficticio-8572
@@ -298,12 +383,16 @@ mensagens:
   em: '2026-08-08T09:52:10-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Aí você consegue ver todas as fotos dela também.
   texto_sha: f288_c9af_d8a8
 - de: ia
   em: '2026-08-08T09:52:20-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: |-
     Jardim Paulista - R$ 460 mil (3 quartos):
     https://www.toziimoveis.com.br/imovel/imovel-ficticio-5225
@@ -312,12 +401,16 @@ mensagens:
   em: '2026-08-08T09:52:20-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Quando você der uma olhada, me fala qual te interessou mais que a gente avança!
   texto_sha: 14ca_0bfb_3dd9
 - de: ia
   em: '2026-08-08T09:52:32-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: |-
     Bougainville - R$ 550 mil (3 quartos):
     https://www.toziimoveis.com.br/imovel/imovel-ficticio-6303
@@ -326,6 +419,8 @@ mensagens:
   em: '2026-08-08T09:52:44-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: |-
     Bougainville - R$ 680 mil (com piscina):
     https://www.toziimoveis.com.br/imovel/imovel-ficticio-9890
@@ -334,76 +429,111 @@ mensagens:
   em: '2026-08-08T09:52:54-04:00'
   agente: 13
   agente_nome: julia
+  apresentado_ao_modelo: assistant
+  fala_do_agente: true
   texto: Dá uma olhada com calma e me avisa qual te interessou mais!
   texto_sha: ab2e_d0ef_0a82
 - de: cliente
   em: '2026-08-08T09:53:48-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: a419_b0ae_edad
 - de: humano
   em: '2026-08-08T10:54:58-04:00'
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
   texto: |-
-    Olá bom dia Paula, tudo bem?
+    Olá bom dia CONTATO-60, tudo bem?
 
-    Eu me chamo Cibele, sou Secretária Executiva da Tozi imóveis
-  texto_sha: 13ea_b00e_7f2d
+    Eu me chamo CONTATO-79, sou Secretária Executiva da Tozi imóveis
+  texto_sha: 4dfa_0380_e8d9
 - de: cliente
   em: '2026-08-08T10:58:00-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 59ff_06f1_a5b7
 - de: cliente
   em: '2026-08-08T10:58:26-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 74e2_3431_c542
 - de: cliente
   em: '2026-08-08T10:58:43-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: d96a_db14_2a1f
 - de: cliente
   em: '2026-08-08T10:59:24-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 2e0a_b5b3_8ac3
 - de: cliente
   em: '2026-08-08T10:59:57-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 6857_ac48_2083
 - de: humano
   em: '2026-08-08T11:00:30-04:00'
-  texto: O corretor Lucas vai entrar em contato contigo para te explicar certinho
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
+  texto: O corretor CONTATO-14 vai entrar em contato contigo para te explicar certinho
     sobre os imóveis
-  texto_sha: 4584_6eca_5390
+  texto_sha: 4d0b_7fc3_9e4c
 - de: cliente
   em: '2026-08-08T11:00:42-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 9116_b663_48fd
 - de: humano
   em: '2026-08-08T11:01:17-04:00'
-  texto: "Paula, migramos de site recentemente por isso a divergência, mas o valor
-    correto é o que está no link \U0001F60A"
-  texto_sha: 0ac1_d37e_1409
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
+  texto: "CONTATO-60, migramos de site recentemente por isso a divergência, mas o
+    valor correto é o que está no link \U0001F60A"
+  texto_sha: fec6_dbe7_aa78
 - de: humano
   em: '2026-08-08T11:01:56-04:00'
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
   texto: Qual imóvel você mais se identificou para informar ao corretor?
   texto_sha: 6be2_11ff_51c7
 - de: cliente
   em: '2026-08-08T11:06:19-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 8ef4_f791_172d
 - de: humano
   em: '2026-08-08T11:09:01-04:00'
-  texto: 'Então Paula não necessariamente a casa pode ser vendida pelo valor, por
-    isso o trabalho do corretor para que fique bom  a negociação para ambas as partes '
-  texto_sha: 991f_6446_e161
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
+  texto: 'Então CONTATO-60 não necessariamente a casa pode ser vendida pelo valor,
+    por isso o trabalho do corretor para que fique bom  a negociação para ambas as
+    partes '
+  texto_sha: 0c67_d35c_5586
 - de: cliente
   em: '2026-08-08T11:12:34-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: 7294_188f_df86
 - de: humano
   em: '2026-08-08T11:14:35-04:00'
-  texto: 'O corretor Lucas vai entrar em contato contigo '
-  texto_sha: a775_3283_3d36
+  apresentado_ao_modelo: assistant
+  fala_do_agente: false
+  texto: 'O corretor CONTATO-14 vai entrar em contato contigo '
+  texto_sha: 3e4d_92e4_0bbc
 - de: cliente
   em: '2026-08-08T11:22:29-04:00'
+  apresentado_ao_modelo: user
+  fala_do_agente: false
   texto: "<PARAFRASEAR: escreva a intenção, não a fala>"
   texto_sha: b0a9_8216_a324
 chamadas:
@@ -440,8 +570,8 @@ chamadas:
   agente: 13
   em: '2026-08-08T09:34:06-04:00'
   args:
-    resumo: 'Paula interessada em casa com entrada facilitada (anúncio cód 9629 -
-      Parque Amazonas). Finalidade: morar. Já tem imóvel próprio e vai manter (não
+    resumo: 'CONTATO-60 interessada em casa com entrada facilitada (anúncio cód 9629
+      - Parque Amazonas). Finalidade: morar. Já tem imóvel próprio e vai manter (não
       é troca). Sem prazo definido, sem pressa. Aguardando consultor apresentar condições
       e opções.'
   status: ok
@@ -577,8 +707,8 @@ chamadas:
   agente: 13
   em: '2026-08-08T09:40:56-04:00'
   args:
-    resumo: 'Paula interessada em casa com entrada facilitada (anúncio cód 9629 -
-      Parque Amazonas). Finalidade: morar. Já tem imóvel próprio e vai manter (não
+    resumo: 'CONTATO-60 interessada em casa com entrada facilitada (anúncio cód 9629
+      - Parque Amazonas). Finalidade: morar. Já tem imóvel próprio e vai manter (não
       é troca). Sem prazo definido, sem pressa. Bairros de interesse: Jardim Paulista,
       Parque Amazonas, Bougainville. Pediu fotos de 6 opções (R$ 420k a R$ 680k).
       Aguardando retorno pra ver qual interessa mais.'
@@ -704,221 +834,301 @@ asseveracoes:
 - mensagem: 15
   agente: 13
   em: '2026-08-08T09:34:29-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 578.0
-  - tipo: dormitorios
-    valor: 3.0
-  - tipo: suites
-    valor: 1.0
-  - tipo: vagas
-    valor: 2.0
   evidencia_no_atendimento:
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 578.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
+    valor: 3.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: suites
+    valor: 1.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: vagas
+    valor: 2.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 19
   agente: 13
   em: '2026-08-08T09:39:12-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 520.0
-  - tipo: preco
-    valor: 549.0
-  - tipo: dormitorios
-    valor: 3.0
-  - tipo: vagas
-    valor: 2.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 520.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: preco
+    valor: 549.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
+    valor: 3.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: vagas
+    valor: 2.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 20
   agente: 13
   em: '2026-08-08T09:39:25-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 460.0
-  - tipo: preco
-    valor: 420.0
-  - tipo: dormitorios
-    valor: 3.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 460.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: preco
+    valor: 420.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
+    valor: 3.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 21
   agente: 13
   em: '2026-08-08T09:39:37-04:00'
+  evidencia_no_atendimento:
+  - buscar_imovel
+  - buscar_imovel
+  - buscar_imovel
+  - buscar_imovel
+  esperado: permitir
   afirmacoes:
-  - tipo: preco
+  - classe: imovel
+    tipo: preco
     valor: 550.0
-  - tipo: preco
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: preco
     valor: 680.0
-  - tipo: dormitorios
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
     valor: 3.0
-  - tipo: vagas
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: vagas
     valor: 3.0
-  evidencia_no_atendimento:
-  - buscar_imovel
-  - buscar_imovel
-  - buscar_imovel
-  - buscar_imovel
-  esperado: conferir_contra_evidencia
-- mensagem: 24
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+- mensagem: 22
   agente: 13
-  em: '2026-08-08T09:40:48-04:00'
-  afirmacoes:
-  - tipo: codigo
-    valor: '9265'
+  em: '2026-08-08T09:39:48-04:00'
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
-- mensagem: 27
+  esperado: permitir
+  afirmacoes:
+  - classe: acao
+    tipo: fotos_enviadas
+    esperado: permitir
+    motivo: a ação confirmou conteúdo compatível
+- mensagem: 25
   agente: 13
-  em: '2026-08-08T09:48:59-04:00'
-  afirmacoes:
-  - tipo: codigo
-    valor: '9860'
+  em: '2026-08-08T09:41:03-04:00'
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: acao
+    tipo: fotos_enviadas
+    esperado: permitir
+    motivo: a ação confirmou conteúdo compatível
 - mensagem: 28
   agente: 13
   em: '2026-08-08T09:49:07-04:00'
+  evidencia_no_atendimento:
+  - buscar_imovel
+  - buscar_imovel
+  - buscar_imovel
+  - buscar_imovel
+  esperado: permitir
   afirmacoes:
-  - tipo: codigo
+  - classe: imovel
+    tipo: codigo
     valor: '9860'
-  evidencia_no_atendimento:
-  - buscar_imovel
-  - buscar_imovel
-  - buscar_imovel
-  - buscar_imovel
-  esperado: conferir_contra_evidencia
-- mensagem: 32
-  agente: 13
-  em: '2026-08-08T09:51:10-04:00'
-  afirmacoes:
-  - tipo: codigo
-    valor: '8572'
-  evidencia_no_atendimento:
-  - buscar_imovel
-  - buscar_imovel
-  - buscar_imovel
-  - buscar_imovel
-  esperado: conferir_contra_evidencia
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 33
   agente: 13
   em: '2026-08-08T09:51:21-04:00'
-  afirmacoes:
-  - tipo: codigo
-    valor: '8572'
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: codigo
+    valor: '8572'
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 36
   agente: 13
   em: '2026-08-08T09:51:44-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 520.0
-  - tipo: dormitorios
-    valor: 3.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 520.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
+    valor: 3.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 37
   agente: 13
   em: '2026-08-08T09:51:56-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 549.0
-  - tipo: dormitorios
-    valor: 3.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 549.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
+    valor: 3.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 38
   agente: 13
   em: '2026-08-08T09:52:01-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 578.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 578.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 39
   agente: 13
   em: '2026-08-08T09:52:08-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 420.0
-  - tipo: dormitorios
-    valor: 3.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 420.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
+    valor: 3.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 41
   agente: 13
   em: '2026-08-08T09:52:20-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 460.0
-  - tipo: dormitorios
-    valor: 3.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 460.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
+    valor: 3.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 43
   agente: 13
   em: '2026-08-08T09:52:32-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 550.0
-  - tipo: dormitorios
-    valor: 3.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 550.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+  - classe: imovel
+    tipo: dormitorios
+    valor: 3.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
 - mensagem: 44
   agente: 13
   em: '2026-08-08T09:52:44-04:00'
-  afirmacoes:
-  - tipo: preco
-    valor: 680.0
   evidencia_no_atendimento:
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
   - buscar_imovel
-  esperado: conferir_contra_evidencia
+  esperado: permitir
+  afirmacoes:
+  - classe: imovel
+    tipo: preco
+    valor: 680.0
+    esperado: conferir_contra_busca
+    motivo: houve busca antes da fala
+envios_sem_busca: []

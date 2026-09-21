@@ -64,6 +64,45 @@ RSpec.describe Spx::Harness::Pseudonimizador do
     it 'redige credencial sem apagar a chave que a nomeia' do
       expect(p.aplicar('senha: batatinha123')).to eq('senha: REDIGIDO')
     end
+
+    # O vazamento real da primeira gravação da conv 41803: a lista dos 34 usuários da conta
+    # estava carregada, o nome cadastrado é o completo, e a funcionária escreveu só o primeiro
+    # nome. Trocar apenas o nome inteiro deixava o arquivo sair com ele.
+    it 'troca o primeiro nome sozinho, e não só o nome cadastrado inteiro' do
+      texto = p.aplicar('Me chamo Evellyn, sou consultora de locação', nomes: ['Evellyn Fernandes'])
+
+      expect(texto).not_to include('Evellyn')
+      expect(texto).to match(/\AMe chamo CONTATO-\d+, sou consultora de locação\z/)
+    end
+
+    it 'dá o mesmo pseudônimo ao primeiro nome e ao nome inteiro da mesma pessoa' do
+      texto = p.aplicar('Evellyn Fernandes atendeu; a Evellyn retorna amanhã', nomes: ['Evellyn Fernandes'])
+
+      expect(texto.scan(/CONTATO-\d+/).uniq.size).to eq(1)
+    end
+
+    # Pedaço solto sem fronteira acertaria palavra comum: "Ana" dentro de "Banana".
+    it 'não troca pedaço de nome no meio de outra palavra' do
+      expect(p.aplicar('comprei uma banana', nomes: ['Ana Paula'])).to eq('comprei uma banana')
+    end
+  end
+
+  describe 'a marca do negócio' do
+    subject(:p) { described_class.new(semente: 'fixture-1', marca: 'Tozi Imóveis') }
+
+    # Um sócio cadastrado como usuário carrega o sobrenome da empresa. Trocar esse pedaço
+    # apagaria o nome do negócio de toda fala da conversa — dano à fixture, sem ganho nenhum
+    # de privacidade: o repositório inteiro é do cliente e a fixture se chama tozi-*.
+    it 'não troca o pedaço do nome que também é a marca' do
+      texto = p.aplicar('Aqui é da Tozi Imóveis, falo com o Rafael?', nomes: ['Rafael Tozi'])
+
+      expect(texto).to include('Tozi Imóveis')
+      expect(texto).not_to include('Rafael')
+    end
+
+    it 'continua trocando o nome cadastrado inteiro, marca ou não' do
+      expect(p.aplicar('atendido por Rafael Tozi', nomes: ['Rafael Tozi'])).to match(/\Aatendido por CONTATO-\d+\z/)
+    end
   end
 
   describe 'o que NÃO é trocado' do

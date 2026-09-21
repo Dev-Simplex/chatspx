@@ -27,7 +27,7 @@ class Spx::Harness::GravadorDeFixtures
     @id = id
     @desde = desde
     @ate = ate
-    @pseudo = Spx::Harness::Pseudonimizador.new(semente: id)
+    @pseudo = Spx::Harness::Pseudonimizador.new(semente: id, marca: conversation.account&.name)
   end
 
   # Devolve o hash da fixture já pseudonimizado e conferido. NÃO escreve — quem escreve é
