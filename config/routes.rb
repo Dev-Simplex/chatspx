@@ -470,6 +470,16 @@ Rails.application.routes.draw do
           resource :notification_settings, only: [:show, :update]
 
           resources :units, only: [:index, :show, :create, :update, :destroy]
+
+          # Catálogo de produtos (C2, painel). A porta do ERP é outra e vem na C3.
+          namespace :catalog do
+            resources :products, only: [:index, :show, :create, :update, :destroy] do
+              member do
+                delete 'images/:image_id', action: :destroy_image, as: :image
+              end
+            end
+            resources :categories, only: [:index, :show, :create, :update, :destroy]
+          end
           resources :teams do
             resources :team_members, only: [:index, :create] do
               collection do

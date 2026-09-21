@@ -1,0 +1,10 @@
+json.payload do
+  json.array! @produtos do |produto|
+    json.partial! 'product', produto: produto
+  end
+end
+json.meta do
+  json.total @total
+  json.page @pagina
+  json.per_page Api::V1::Accounts::Catalog::ProductsController::RESULTADOS_POR_PAGINA
+end
