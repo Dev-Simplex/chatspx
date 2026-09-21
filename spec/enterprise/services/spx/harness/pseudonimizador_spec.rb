@@ -79,6 +79,44 @@ RSpec.describe Spx::Harness::Pseudonimizador do
     end
   end
 
+  # O slug da página do imóvel pode carregar rua e número SEM a palavra "Rua", e aí a trava de
+  # logradouro não pega. Em vez de reconhecer rua dentro do slug, o caminho inteiro é
+  # normalizado — mas o CÓDIGO tem que sobreviver, porque é o dado de negócio do cenário.
+  describe 'URL de imóvel' do
+    it 'apaga o slug descritivo e preserva o código' do
+      limpo = p.aplicar('vi esse https://www.toziimoveis.com.br/imovel/aluguel-casa-tarumas-1007-sinop-9412 ainda tem?')
+
+      expect(limpo).to include('imovel-ficticio-9412')
+      expect(limpo).not_to include('tarumas')
+      expect(limpo).not_to include('1007')
+    end
+
+    # Regressão da primeira gravação real (conv 41803): havia duas regras de URL em sequência e
+    # a segunda reescrevia a saída da primeira, levando o código junto com o slug.
+    it 'não deixa uma segunda passada comer o código' do
+      limpo = p.aplicar('https://www.toziimoveis.com.br/imovel/casa-sinop-9412')
+
+      expect(limpo).not_to include('pagina-ficticia')
+      expect(limpo).to end_with('imovel-ficticio-9412')
+    end
+
+    it 'apaga o caminho inteiro quando não há código' do
+      limpo = p.aplicar('https://www.toziimoveis.com.br/quem-somos/nossa-historia')
+
+      expect(limpo).to eq('https://www.toziimoveis.com.br/pagina-ficticia')
+    end
+
+    it 'preserva o host, que o fix_property_links precisa casar' do
+      expect(p.aplicar('https://www.toziimoveis.com.br/imovel/casa-9412')).to include('toziimoveis.com.br')
+    end
+
+    it 'entrega URL que a trava aceita' do
+      limpo = p.aplicar('https://www.toziimoveis.com.br/imovel/aluguel-casa-jardim-paraiso-sinop-9412')
+
+      expect(Spx::Harness::Vazamento.varrer(limpo)).to be_empty
+    end
+  end
+
   describe '#aplicar_em' do
     # Telefone escondido num argumento de tool vazaria igual ao do texto da mensagem.
     it 'percorre hash e array aninhados' do

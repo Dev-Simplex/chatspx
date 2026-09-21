@@ -21,9 +21,9 @@ class Spx::Harness::Pseudonimizador
   # (`casa-tarumas-1007-sinop-9412`), e aí a trava de logradouro não pega. Em vez de tentar
   # reconhecer nome de rua dentro do slug, o caminho inteiro é normalizado: sobra o host (que o
   # fix_property_links precisa casar) e o código no fim (que é o dado de negócio do cenário).
-  URL_IMOVEL = %r{(https?://[^\s/]+)/\S*?(\d{3,6})(?=[/?\s]|\z)}i
-  # URL sem código no fim: o caminho inteiro some, porque não há nada ali que o cenário precise.
-  URL_QUALQUER = %r{(https?://[^\s/]+)/\S+}i
+  URL = %r{https?://[^\s<>"']+}i
+  # Código do imóvel no fim do caminho — é o único pedaço do slug que o cenário precisa.
+  CODIGO_NA_URL = %r{(\d{3,6})(?=[/?#]|\z)}
 
   def initialize(semente:)
     @semente = semente.to_s
@@ -38,8 +38,7 @@ class Spx::Harness::Pseudonimizador
 
     t = texto.to_s.dup
     t = trocar_nomes(t, nomes)
-    t = t.gsub(URL_IMOVEL) { "#{Regexp.last_match(1)}/imovel/imovel-ficticio-#{Regexp.last_match(2)}" }
-    t = t.gsub(URL_QUALQUER) { "#{Regexp.last_match(1)}/pagina-ficticia" }
+    t = t.gsub(URL) { |u| url_neutra(u) }
     t = trocar_documentos(t)
     t = t.gsub(EMAIL) { |v| "#{apelido('email', v)}@exemplo.invalido" }
     t = t.gsub(LOGRADOURO) { |v| "Rua Fictícia, #{numero(v)}" }
@@ -59,6 +58,15 @@ class Spx::Harness::Pseudonimizador
   end
 
   private
+
+  # UMA passada só. Antes eram duas — a segunda regra reescrevia a saída da primeira e o código
+  # do imóvel, que é o dado de negócio do cenário, sumia junto com o slug. Descoberto conferindo
+  # a primeira gravação real (conv 41803): o link virou `/pagina-ficticia` e levou o 9412 embora.
+  def url_neutra(url)
+    host = url[%r{https?://[^\s/]+}]
+    codigo = url[CODIGO_NA_URL, 1]
+    codigo ? "#{host}/imovel/imovel-ficticio-#{codigo}" : "#{host}/pagina-ficticia"
+  end
 
   # Substituto com dígito verificador INVÁLIDO de propósito (sequência repetida), para a trava
   # não acusar a própria saída. Preserva a forma — pontuada continua pontuada.

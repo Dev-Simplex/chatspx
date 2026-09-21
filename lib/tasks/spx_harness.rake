@@ -40,6 +40,34 @@ namespace :spx do
       puts '  ATENÇÃO: fala substituída por marcador — escreva a paráfrase antes de usar.' unless corpus
     end
 
+    # Grava a partir de um JSON exportado da produção por consulta somente-leitura.
+    #
+    # Existe porque o gravador é código de branch e o dado está na VM do cliente: rodar o
+    # gravador lá seria deploy. Então a produção só é LIDA, o bruto fica FORA do repositório, e
+    # a pseudonimização acontece aqui — antes de qualquer byte entrar no versionado.
+    desc 'Grava fixture de um JSON exportado: gravar_exportado[json,id,destino]'
+    task :gravar_exportado, %i[json id destino] => :environment do |_t, args|
+      caminho_json = args[:json].presence or abort('informe o caminho do JSON exportado')
+      id = args[:id].presence or abort('informe um id para a fixture')
+      corpus = args[:destino].to_s == 'corpus'
+
+      bruto = JSON.parse(File.read(caminho_json))
+      destino = if corpus
+                  Rails.root.join('tmp/harness-corpus', "#{id}.yml")
+                else
+                  Rails.root.join('spec/fixtures/captain/harness', "#{id}.yml")
+                end
+
+      dados = Spx::Harness::FixtureExportada
+              .new(bruto, id: id)
+              .gravar!(destino.to_s, parafrasear: !corpus)
+
+      puts "gravado: #{destino}"
+      puts "  fidelidade: #{dados['fidelidade']}"
+      puts "  mensagens: #{dados['mensagens'].size} | chamadas: #{dados['chamadas'].size}"
+      puts "  truncadas: #{dados['chamadas'].count { |c| c['truncado'] }}"
+    end
+
     # Antes de gravar qualquer coisa, saber o que dá para gravar: quantos atendimentos e qual a
     # proporção fiel x reconstruída. A conta de 20/09 na Tozi deu 5,6% truncado no geral e 23%
     # no buscar_imovel — a truncagem não é uniforme, é concentrada na tool que mais importa.
