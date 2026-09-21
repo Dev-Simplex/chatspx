@@ -39,14 +39,23 @@ module Captain::Tools::TraceRecorder
       captain_assistant_id: @assistant.id,
       tool_name: self.class.name.demodulize.underscore.delete_suffix('_tool'),
       args: sanitize_trace(kwargs),
-      result_preview: exception ? nil : truncate_result(resultado),
+      result_preview: preview(resultado, exception),
       status: status_semantico(resultado, exception),
       error: motivo_do_erro(resultado, exception),
-      duration_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round,
+      duration_ms: decorrido_ms(started),
       created_at: Time.current
     )
   rescue StandardError => e
     Rails.logger.warn("[tool-trace] falhou ao gravar trace de #{self.class.name}: #{e.class} #{e.message}")
+  end
+
+  # Exceção não deixa retorno: o que houve está no campo `error`, não no preview.
+  def preview(resultado, exception)
+    exception ? nil : truncate_result(resultado)
+  end
+
+  def decorrido_ms(started)
+    ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
   end
 
   # Sucesso é SEMÂNTICO, não ausência de exceção. Antes, toda tool que capturava o próprio erro

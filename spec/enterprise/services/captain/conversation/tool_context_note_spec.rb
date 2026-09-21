@@ -10,11 +10,12 @@ RSpec.describe Captain::Conversation::ToolContextNote do
     conversation.reload
   end
 
-  def registrar(tool_name, args, resultado, status: 'ok', quando: Time.current, erro: nil)
+  def registrar(tool_name, args, resultado, opcoes = {})
     Captain::ToolCall.create!(
       account_id: account.id, conversation_id: conversation.id, captain_assistant_id: assistant.id,
-      tool_name: tool_name, args: args, result_preview: resultado, status: status, created_at: quando,
-      error: erro
+      tool_name: tool_name, args: args, result_preview: resultado,
+      status: opcoes.fetch(:status, 'ok'), created_at: opcoes.fetch(:quando, Time.current),
+      error: opcoes[:erro]
     )
   end
 
