@@ -477,6 +477,10 @@ Rails.application.routes.draw do
               member do
                 delete 'images/:image_id', action: :destroy_image, as: :image
               end
+              collection do
+                post :import
+                get 'import/:import_id', action: :import_status, as: :import_status
+              end
             end
             resources :categories, only: [:index, :show, :create, :update, :destroy]
           end

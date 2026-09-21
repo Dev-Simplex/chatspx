@@ -7,7 +7,7 @@
 class Api::V1::Accounts::Catalog::ProductsController < Api::V1::Accounts::BaseController
   RESULTADOS_POR_PAGINA = 25
 
-  before_action :produto, except: [:index, :create]
+  before_action :produto, except: [:index, :create, :import, :import_status]
   before_action :check_authorization
 
   # A vitrine precisa do total para paginar, então a resposta é objeto com `meta`, e não array
@@ -38,6 +38,26 @@ class Api::V1::Accounts::Catalog::ProductsController < Api::V1::Accounts::BaseCo
     head :ok
   end
 
+  # Import por planilha (C5). Assíncrono: a planilha do cliente pode ter milhares de linhas, e
+  # segurar a requisição até o fim entregaria timeout em vez de resultado.
+  def import
+    return render json: { error: I18n.t('errors.contacts.import.failed') }, status: :unprocessable_entity if params[:import_file].blank?
+
+    importacao = nil
+    ActiveRecord::Base.transaction do
+      importacao = Current.account.data_imports.create!(data_type: 'catalog_products')
+      importacao.import_file.attach(params[:import_file])
+    end
+    render json: resumo_da_importacao(importacao), status: :accepted
+  end
+
+  # Andamento e relatório de erro por linha. Sem tela ainda (a C6/C7 são do canal), é por aqui que
+  # o cliente busca o CSV das linhas recusadas.
+  def import_status
+    importacao = Current.account.data_imports.find(params[:import_id])
+    render json: resumo_da_importacao(importacao)
+  end
+
   # Apagar UMA foto sem mexer no resto: `images` é lista, e mandar a lista nova no update
   # ACRESCENTA em vez de substituir (ver `anexar_imagens`).
   def destroy_image
@@ -50,6 +70,17 @@ class Api::V1::Accounts::Catalog::ProductsController < Api::V1::Accounts::BaseCo
 
   def produto
     @produto ||= policy_scope(CatalogProduct).find(params[:id])
+  end
+
+  def resumo_da_importacao(importacao)
+    {
+      id: importacao.id,
+      status: importacao.status,
+      processed_records: importacao.processed_records,
+      total_records: importacao.total_records,
+      failed_records: importacao.total_records.to_i - importacao.processed_records.to_i,
+      failed_records_url: importacao.failed_records.attached? ? url_for(importacao.failed_records) : nil
+    }
   end
 
   def check_authorization
