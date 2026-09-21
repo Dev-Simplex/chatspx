@@ -281,13 +281,41 @@ const onSlotUpdate = (dia, slot) => {
 const diaCopiado = ref(null);
 let voltaDoBotao = null;
 
+// Nome por extenso, o mesmo que a linha da grade mostra: o aviso e a tabela falam igual. (O
+// `nomeDoDia` logo abaixo é a abreviação de três letras que o resumo da regra usa.)
+const nomeCompletoDoDia = dia => t(`UNITS_MGMT.WEEKDAYS.${dia}`);
+
+// "Copiar" sozinho não diz o que copia nem para onde vai: a dica mostra o horário daquele dia, e o
+// dia fechado explica por que o botão está apagado, em vez de deixar clicar para descobrir.
+const dicaDeCopiar = slot =>
+  slot.from && slot.to
+    ? t('UNITS_MGMT.FORM.HOURS.COPY_HINT', {
+        range: `${slot.from} – ${slot.to}`,
+      })
+    : t('UNITS_MGMT.FORM.HOURS.COPY_DISABLED');
+
 const copiarParaOsDemaisDias = origem => {
-  const { slots, copiados } = copiarHorarioParaDias(timeSlots.value, origem);
+  const { slots, dias } = copiarHorarioParaDias(timeSlots.value, origem);
   timeSlots.value = slots;
-  useAlert(t('UNITS_MGMT.FORM.HOURS.COPIED', { count: copiados }));
+
+  // Intl.ListFormat põe o "e" antes do último — a lista sai na língua da tela sem tabela de emenda.
+  const lista = new Intl.ListFormat(locale.value.replace('_', '-'), {
+    type: 'conjunction',
+  }).format(dias.map(nomeCompletoDoDia));
+
+  useAlert(
+    dias.length
+      ? t('UNITS_MGMT.FORM.HOURS.COPIED', {
+          day: nomeCompletoDoDia(origem.day),
+          days: lista,
+        })
+      : t('UNITS_MGMT.FORM.HOURS.COPIED_NONE')
+  );
 
   // O botão confirma no lugar onde o clique aconteceu: o aviso do topo some da vista de quem
-  // está olhando a grade lá embaixo.
+  // está olhando a grade lá embaixo. Sem dia copiado não há o que confirmar.
+  if (!dias.length) return;
+
   diaCopiado.value = origem.day;
   clearTimeout(voltaDoBotao);
   voltaDoBotao = setTimeout(() => {
@@ -910,8 +938,11 @@ defineExpose({
 
     <section>
       <span class="text-heading-3">{{ t('UNITS_MGMT.FORM.HOURS.LABEL') }}</span>
-      <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+      <p class="mt-0.5 mb-1 text-n-slate-11 text-label-small">
         {{ t('UNITS_MGMT.FORM.HOURS.HELP') }}
+      </p>
+      <p class="mb-2 text-n-slate-11 text-label-small">
+        {{ t('UNITS_MGMT.FORM.HOURS.COPY_HELP') }}
       </p>
       <table
         class="min-w-full table-auto outline outline-1 -outline-offset-1 outline-n-weak rounded-xl"
@@ -946,7 +977,6 @@ defineExpose({
           >
             <template #acoes>
               <Button
-                v-if="slot.from && slot.to"
                 variant="faded"
                 size="xs"
                 type="button"
@@ -959,7 +989,8 @@ defineExpose({
                     ? t('UNITS_MGMT.FORM.HOURS.COPIED_SHORT')
                     : t('UNITS_MGMT.FORM.HOURS.COPY')
                 "
-                :title="t('UNITS_MGMT.FORM.HOURS.COPY_HINT')"
+                :title="dicaDeCopiar(slot)"
+                :disabled="!(slot.from && slot.to)"
                 @click.prevent="copiarParaOsDemaisDias(slot)"
               />
             </template>

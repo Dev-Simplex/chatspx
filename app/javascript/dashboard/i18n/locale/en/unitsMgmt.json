@@ -130,10 +130,13 @@
       "HOURS": {
         "LABEL": "Opening hours",
         "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages.",
-        "COPY": "Copy",
-        "COPIED": "Hours copied to {count} day(s)",
-        "COPIED_SHORT": "Copied",
-        "COPY_HINT": "Copy these hours to the other days"
+        "COPY": "Copy to the other days",
+        "COPY_HELP": "Fill one day in and use \u201cCopy to the other days\u201d \u2014 the closed days stay closed.",
+        "COPY_HINT": "Copy {range} to the other open days",
+        "COPY_DISABLED": "This day is closed \u2014 there are no hours to copy",
+        "COPIED": "{day} hours copied to {days}.",
+        "COPIED_NONE": "No other day is open to take these hours.",
+        "COPIED_SHORT": "Copied"
       },
       "EXCEPTIONS": {
         "NAME": "Reason",
