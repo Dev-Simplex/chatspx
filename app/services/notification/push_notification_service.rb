@@ -1,19 +1,37 @@
 class Notification::PushNotificationService
   include Rails.application.routes.url_helpers
 
-  pattr_initialize [:notification!]
+  # Falha passageira de quem entrega o push (5xx do FCM ou do servico de push do navegador). Quem tenta de
+  # novo e o PushNotificationJob, uma inscricao por vez (ver #deliver).
+  class TransientError < StandardError; end
+  # Recusa do FCM que nao e passageira nem "app desinstalado": credencial vencida, payload invalido.
+  class FcmResponseError < StandardError; end
+
+  pattr_initialize [:notification!, :subscription_id]
 
   def perform
     return unless user_subscribed_to_notification?
 
-    notification_subscriptions.each do |subscription|
-      send_browser_push(subscription)
-      send_fcm_push(subscription)
-      send_push_via_chatwoot_hub(subscription)
-    end
+    subscriptions.each { |subscription| deliver(subscription) }
   end
 
   private
+
+  # Com `subscription_id`, e a retentativa de UMA inscricao: o laco manda para varias (celular, navegador),
+  # e repetir o trabalho inteiro faria quem ja recebeu receber o mesmo aviso de novo.
+  def subscriptions
+    subscription_id ? notification_subscriptions.where(id: subscription_id) : notification_subscriptions
+  end
+
+  def deliver(subscription)
+    send_browser_push(subscription)
+    send_fcm_push(subscription)
+    send_push_via_chatwoot_hub(subscription)
+  rescue TransientError
+    raise if subscription_id # ja e a retentativa: o retry_on do job cuida do espacamento e de reportar no fim
+
+    Notification::PushNotificationJob.set(wait: 30.seconds).perform_later(notification.id, subscription.id)
+  end
 
   delegate :user, to: :notification
   delegate :notification_subscriptions, to: :user
@@ -79,6 +97,8 @@ class Notification::PushNotificationService
       subscription.destroy!
     when WebPush::TooManyRequests
       Rails.logger.warn "WebPush rate limited for #{user.email} on account #{notification.account.id}: #{error.message}"
+    when WebPush::PushServiceError
+      raise TransientError, "WebPush #{error.message}"
     when Errno::ECONNRESET, Net::OpenTimeout, Net::ReadTimeout
       Rails.logger.error "WebPush operation error: #{error.message}"
     else
@@ -96,7 +116,7 @@ class Notification::PushNotificationService
     )
     fcm = fcm_service.fcm_client
     response = fcm.send_v1(fcm_options(subscription))
-    remove_subscription_if_error(subscription, response)
+    handle_fcm_response(subscription, response)
   end
 
   def send_push_via_chatwoot_hub(subscription)
@@ -115,11 +135,19 @@ class Notification::PushNotificationService
     ActiveModel::Type::Boolean.new.cast(ENV.fetch('ENABLE_PUSH_RELAY_SERVER', true))
   end
 
-  def remove_subscription_if_error(subscription, response)
-    if JSON.parse(response[:body])['results']&.first&.keys&.include?('error')
-      subscription.destroy!
+  # FCM HTTP v1: quem diz o resultado e o status HTTP. O corpo nao tem mais o `results` da API legada, e por
+  # isso credencial vencida, app desinstalado e FCM fora do ar saiam todos como "FCM push sent". So o 404
+  # (UNREGISTERED) apaga a inscricao: 400/403 tambem podem ser payload quebrado por um deploy, e apagar ai
+  # derrubaria as inscricoes de todo mundo de uma vez.
+  def handle_fcm_response(subscription, response)
+    status = response[:status_code].to_i
+    case status
+    when 200 then Rails.logger.info("FCM push sent to #{user.email} with title #{push_message[:title]}")
+    when 404 then subscription.destroy!
+    when 500..599 then raise TransientError, "FCM HTTP #{status}"
     else
-      Rails.logger.info("FCM push sent to #{user.email} with title #{push_message[:title]}")
+      error = FcmResponseError.new("FCM push failed: HTTP #{status} #{response[:body].to_s[0, 200]}")
+      ChatwootExceptionTracker.new(error, account: notification.account).capture_exception
     end
   end
 
