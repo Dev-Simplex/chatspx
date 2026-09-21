@@ -102,7 +102,10 @@ const form = ref({
   state: '',
   address: '',
   address_number: '',
-  phone: '',
+  // Uma filial costuma ter mais de um número e alguns links. O `phone` da unidade continua
+  // existindo no banco (é o primeiro contato), mas quem edita aqui é a lista.
+  contacts: [],
+  social_links: [],
   timezone: 'America/Sao_Paulo',
   notes: '',
   applies_to_inboxes: false,
@@ -140,7 +143,14 @@ const carregar = () => {
     state: u?.state ?? '',
     address: u?.address ?? '',
     address_number: u?.address_number ?? '',
-    phone: formatarTelefone(u?.phone ?? ''),
+    contacts: (u?.contacts ?? []).map(contato => ({
+      label: contato.label ?? '',
+      phone: formatarTelefone(contato.phone ?? ''),
+    })),
+    social_links: (u?.social_links ?? []).map(link => ({
+      network: link.network || 'instagram',
+      url: link.url ?? '',
+    })),
     timezone: u?.timezone ?? 'America/Sao_Paulo',
     notes: u?.notes ?? '',
     applies_to_inboxes: u?.applies_to_inboxes ?? false,
@@ -212,6 +222,24 @@ watch(
 
 const timezones = timeZoneOptions();
 const nomeInvalido = computed(() => !form.value.name.trim());
+
+// As redes são marca, não texto de interface: o nome não muda de língua. Só "Site" é palavra comum.
+const REDES = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'site', label: t('UNITS_MGMT.FORM.SOCIAL.WEBSITE') },
+];
+
+const adicionarContato = () =>
+  form.value.contacts.push({ label: '', phone: '' });
+const removerContato = indice => form.value.contacts.splice(indice, 1);
+const adicionarLink = () =>
+  form.value.social_links.push({ network: 'instagram', url: '' });
+const removerLink = indice => form.value.social_links.splice(indice, 1);
 
 const cepBuscando = ref(false);
 const cepNaoEncontrado = ref(false);
@@ -812,20 +840,118 @@ defineExpose({
 <template>
   <form class="flex flex-col gap-8 w-full" @submit.prevent="onSubmit">
     <section class="flex flex-col gap-4">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <woot-input
-          v-model="form.name"
-          class="mb-0"
-          :label="t('UNITS_MGMT.FORM.NAME.LABEL')"
-          :placeholder="t('UNITS_MGMT.FORM.NAME.PLACEHOLDER')"
-          :class="{ error: nomeInvalido }"
+      <woot-input
+        v-model="form.name"
+        class="mb-0"
+        :label="t('UNITS_MGMT.FORM.NAME.LABEL')"
+        :placeholder="t('UNITS_MGMT.FORM.NAME.PLACEHOLDER')"
+        :class="{ error: nomeInvalido }"
+      />
+
+      <div>
+        <span class="text-heading-3">{{
+          t('UNITS_MGMT.FORM.CONTACTS.LABEL')
+        }}</span>
+        <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+          {{ t('UNITS_MGMT.FORM.CONTACTS.HELP') }}
+        </p>
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="(contato, indice) in form.contacts"
+            :key="`contato-${indice}`"
+            class="flex items-center gap-2"
+          >
+            <div class="w-40 shrink-0">
+              <input
+                v-model="contato.label"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.CONTACTS.NAME_PLACEHOLDER')"
+              />
+            </div>
+            <div class="flex-1">
+              <input
+                :value="contato.phone"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.PHONE.PLACEHOLDER')"
+                @input="
+                  evento =>
+                    (contato.phone = formatarTelefone(evento.target.value))
+                "
+              />
+            </div>
+            <Button
+              variant="ghost"
+              color="slate"
+              size="xs"
+              type="button"
+              icon="i-lucide-trash-2"
+              :title="t('UNITS_MGMT.FORM.CONTACTS.REMOVE')"
+              @click.prevent="removerContato(indice)"
+            />
+          </div>
+        </div>
+        <Button
+          variant="faded"
+          color="slate"
+          size="xs"
+          type="button"
+          class="mt-2"
+          icon="i-lucide-plus"
+          :label="t('UNITS_MGMT.FORM.CONTACTS.ADD')"
+          @click.prevent="adicionarContato"
         />
-        <woot-input
-          :model-value="form.phone"
-          class="mb-0"
-          :label="t('UNITS_MGMT.FORM.PHONE.LABEL')"
-          :placeholder="t('UNITS_MGMT.FORM.PHONE.PLACEHOLDER')"
-          @update:model-value="valor => (form.phone = formatarTelefone(valor))"
+      </div>
+
+      <div>
+        <span class="text-heading-3">{{
+          t('UNITS_MGMT.FORM.SOCIAL.LABEL')
+        }}</span>
+        <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+          {{ t('UNITS_MGMT.FORM.SOCIAL.HELP') }}
+        </p>
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="(link, indice) in form.social_links"
+            :key="`link-${indice}`"
+            class="flex items-center gap-2"
+          >
+            <div class="w-40 shrink-0">
+              <NextSelect
+                v-model="link.network"
+                :options="REDES"
+                :class="SELETOR"
+              />
+            </div>
+            <div class="flex-1">
+              <input
+                v-model="link.url"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.SOCIAL.URL_PLACEHOLDER')"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              color="slate"
+              size="xs"
+              type="button"
+              icon="i-lucide-trash-2"
+              :title="t('UNITS_MGMT.FORM.SOCIAL.REMOVE')"
+              @click.prevent="removerLink(indice)"
+            />
+          </div>
+        </div>
+        <Button
+          variant="faded"
+          color="slate"
+          size="xs"
+          type="button"
+          class="mt-2"
+          icon="i-lucide-plus"
+          :label="t('UNITS_MGMT.FORM.SOCIAL.ADD')"
+          @click.prevent="adicionarLink"
         />
       </div>
       <woot-input

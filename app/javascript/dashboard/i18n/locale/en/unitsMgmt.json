@@ -83,6 +83,21 @@
         "LABEL": "Phone",
         "PLACEHOLDER": "(66) 3531-0000"
       },
+      "CONTACTS": {
+        "LABEL": "Phone numbers",
+        "HELP": "More than one number? Label each one (Sales, Rentals, on-call). The first in the list is the one shown on the unit list.",
+        "NAME_PLACEHOLDER": "Sales",
+        "ADD": "Add phone number",
+        "REMOVE": "Remove this phone number"
+      },
+      "SOCIAL": {
+        "LABEL": "Social media and website",
+        "HELP": "Links the agent sends to the customer. Pasting without https:// is fine \u2014 it is added on save.",
+        "URL_PLACEHOLDER": "instagram.com/your.branch",
+        "ADD": "Add link",
+        "REMOVE": "Remove this link",
+        "WEBSITE": "Website"
+      },
       "CITY": {
         "LABEL": "City",
         "PLACEHOLDER": "Sinop"

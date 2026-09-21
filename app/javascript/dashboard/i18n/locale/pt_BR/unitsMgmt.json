@@ -83,6 +83,21 @@
         "LABEL": "Telefone",
         "PLACEHOLDER": "(66) 3531-0000"
       },
+      "CONTACTS": {
+        "LABEL": "Telefones",
+        "HELP": "Mais de um número? Dê um rótulo a cada um (Vendas, Locação, plantão). O primeiro da lista é o que aparece na lista de unidades.",
+        "NAME_PLACEHOLDER": "Vendas",
+        "ADD": "Adicionar telefone",
+        "REMOVE": "Remover este telefone"
+      },
+      "SOCIAL": {
+        "LABEL": "Redes sociais e site",
+        "HELP": "Links que o atendente manda para o cliente. Pode colar sem o https:// \u2014 ele entra ao salvar.",
+        "URL_PLACEHOLDER": "instagram.com/sua.filial",
+        "ADD": "Adicionar link",
+        "REMOVE": "Remover este link",
+        "WEBSITE": "Site"
+      },
       "CITY": {
         "LABEL": "Cidade",
         "PLACEHOLDER": "Sinop"

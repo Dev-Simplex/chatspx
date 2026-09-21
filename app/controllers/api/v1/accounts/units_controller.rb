@@ -59,6 +59,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
       # justamente o que este campo existe pra evitar. É o único campo da unidade que a IA lê e
       # repassa ao cliente como fato.
       { atributos: {} },
+      { contacts: [:label, :phone], social_links: [:network, :url] },
       working_hours_attributes: [:id, :day_of_week, :closed_all_day, :open_all_day,
                                  :open_hour, :open_minutes, :close_hour, :close_minutes,
                                  :break_start_hour, :break_start_minutes,
