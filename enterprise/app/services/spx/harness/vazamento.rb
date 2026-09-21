@@ -19,8 +19,14 @@ class Spx::Harness::Vazamento
               (?:n[º°o]?\.?\s*)?\d{1,6}\b/ix
   CREDENCIAL = /\b(?:senha|password|passwd|pwd|api[_-]?key|token|secret|client[_-]secret)\b\s*[:=]\s*\S{4,}/i
   CHAVE_CONHECIDA = /\bsk-[A-Za-z0-9_-]{16,}|\b(?:ghp|gho|ghs)_[A-Za-z0-9]{20,}|\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\./
+  # Slug descritivo de URL. É o buraco que a trava de logradouro NÃO cobre:
+  # `casa-tarumas-1007-sinop-9412` carrega rua e número sem a palavra "Rua" e passaria limpo.
+  # Quatro ou mais termos hifenizados num segmento de caminho é slug descritivo; a forma
+  # normalizada que o Pseudonimizador produz (`imovel-ficticio-9412`) tem três e passa.
+  SLUG = %r{https?://[^\s/]+/\S*?[a-z0-9]+-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+}i
 
   PADROES = {
+    'slug de URL' => SLUG,
     'telefone' => TELEFONE,
     'e-mail' => EMAIL,
     'endereço com número' => ENDERECO,
@@ -48,7 +54,20 @@ class Spx::Harness::Vazamento
     # Só reporta, sem levantar. Serve ao spec de varredura do diretório inteiro.
     def varrer(texto)
       limpo = texto.to_s.gsub(PSEUDONIMOS, '')
-      PADROES.filter_map { |nome, rx| "#{nome} (#{limpo[rx]})" if limpo.match?(rx) }
+      achados = PADROES.filter_map { |nome, rx| "#{nome} (#{limpo[rx]})" if limpo.match?(rx) }
+      achados + documentos(limpo)
+    end
+
+    private
+
+    # CPF e CNPJ entram por DÍGITO VERIFICADOR, não por formato: é o que impede o telefone de
+    # 11 dígitos, o preço, o CEP e o código de imóvel de virarem "documento". RG só tem forma
+    # reconhecível quando pontuado ou rotulado — limite declarado no Spx::Harness::Documento.
+    def documentos(texto)
+      lista = Spx::Harness::Documento.encontrar(texto).map { |v| "documento (#{v})" }
+      rg = texto[Spx::Harness::Documento::RG_FORMATADO] || texto[Spx::Harness::Documento::RG_ROTULADO]
+      lista << "RG (#{rg})" if rg
+      lista
     end
   end
 end

@@ -60,6 +60,69 @@ RSpec.describe Spx::Harness::Vazamento do
     end
   end
 
+  # CPF e CNPJ entram por DÍGITO VERIFICADOR, não por formato. É o que separa documento de
+  # telefone de 11 dígitos sem heurística frágil — e o que impede preço, CEP e código de imóvel
+  # de virarem falso positivo. Os CPF/CNPJ abaixo são matematicamente válidos e fictícios.
+  describe 'documento' do
+    [
+      ['CPF pontuado', 'meu CPF é 529.982.247-25'],
+      ['CPF sem pontuação', 'cpf 52998224725 ok'],
+      ['CNPJ pontuado', 'CNPJ 11.222.333/0001-81'],
+      ['CNPJ sem pontuação', 'cnpj 11222333000181'],
+      ['RG pontuado', 'RG 12.345.678-9'],
+      ['RG rotulado', 'rg: 1234567-8']
+    ].each do |rotulo, texto|
+      it "pega #{rotulo}" do
+        expect(described_class.varrer(texto)).not_to be_empty
+      end
+    end
+
+    # O conflito real do conjunto: celular com DDD também tem 11 dígitos. Ele TEM que ser
+    # acusado — como telefone, nunca como documento.
+    it 'acusa telefone de 11 dígitos como telefone, não como documento' do
+      achados = described_class.varrer('66999586623')
+
+      expect(achados.join).to include('telefone')
+      expect(achados.join).not_to include('documento')
+    end
+
+    [
+      ['preço alto', 'imóvel de R$ 1.250.000,00'],
+      ['CEP', 'CEP 78550-000'],
+      ['código de imóvel', 'cód 9908 e cód 112233'],
+      ['sequência repetida', '11111111111'],
+      ['número de protocolo', 'protocolo 20260902143100'],
+      ['medida', 'área de 12345678 cm²']
+    ].each do |rotulo, texto|
+      it "não acusa #{rotulo} como documento" do
+        expect(described_class.varrer(texto).join).not_to include('documento')
+      end
+    end
+  end
+
+  # O buraco que a trava de logradouro não cobre: slug carrega rua e número sem a palavra "Rua".
+  describe 'slug de URL' do
+    it 'pega slug descritivo com rua e número embutidos' do
+      texto = 'https://www.toziimoveis.com.br/imovel/casa-tarumas-1007-sinop-9412'
+
+      expect(described_class.varrer(texto).join).to include('slug')
+    end
+
+    it 'pega slug sem número também' do
+      texto = 'https://www.toziimoveis.com.br/imovel/aluguel-casa-santorini-residence-sinop'
+
+      expect(described_class.varrer(texto).join).to include('slug')
+    end
+
+    it 'aceita a forma normalizada que o Pseudonimizador produz' do
+      expect(described_class.varrer('https://www.toziimoveis.com.br/imovel/imovel-ficticio-9412')).to be_empty
+    end
+
+    it 'aceita URL curta sem slug descritivo' do
+      expect(described_class.varrer('https://www.toziimoveis.com.br/contato')).to be_empty
+    end
+  end
+
   # Sem isto a trava derrubaria a própria saída do pseudonimizador, e o gravador nunca gravaria.
   describe 'os próprios pseudônimos' do
     it 'não acusa o telefone, e-mail, nome e endereço fictícios' do

@@ -17,6 +17,13 @@ class Spx::Harness::Pseudonimizador
   LOGRADOURO = /\b(?:rua|av\.?|avenida|travessa|alameda|rodovia|estrada|pra[çc]a)\b[^,;\n]{2,60},?\s*
                 (?:n[º°o]?\.?\s*)?\d{1,6}\b/ix
   CREDENCIAL = /(\b(?:senha|password|passwd|pwd|api[_-]?key|token|secret|client[_-]secret)\b\s*[:=]\s*)\S+/i
+  # O slug da página do imóvel pode carregar rua e número SEM a palavra "Rua"
+  # (`casa-tarumas-1007-sinop-9412`), e aí a trava de logradouro não pega. Em vez de tentar
+  # reconhecer nome de rua dentro do slug, o caminho inteiro é normalizado: sobra o host (que o
+  # fix_property_links precisa casar) e o código no fim (que é o dado de negócio do cenário).
+  URL_IMOVEL = %r{(https?://[^\s/]+)/\S*?(\d{3,6})(?=[/?\s]|\z)}i
+  # URL sem código no fim: o caminho inteiro some, porque não há nada ali que o cenário precise.
+  URL_QUALQUER = %r{(https?://[^\s/]+)/\S+}i
 
   def initialize(semente:)
     @semente = semente.to_s
@@ -31,6 +38,9 @@ class Spx::Harness::Pseudonimizador
 
     t = texto.to_s.dup
     t = trocar_nomes(t, nomes)
+    t = t.gsub(URL_IMOVEL) { "#{Regexp.last_match(1)}/imovel/imovel-ficticio-#{Regexp.last_match(2)}" }
+    t = t.gsub(URL_QUALQUER) { "#{Regexp.last_match(1)}/pagina-ficticia" }
+    t = trocar_documentos(t)
     t = t.gsub(EMAIL) { |v| "#{apelido('email', v)}@exemplo.invalido" }
     t = t.gsub(LOGRADOURO) { |v| "Rua Fictícia, #{numero(v)}" }
     t = t.gsub(TELEFONE) { |v| telefone_falso(v) }
@@ -49,6 +59,27 @@ class Spx::Harness::Pseudonimizador
   end
 
   private
+
+  # Substituto com dígito verificador INVÁLIDO de propósito (sequência repetida), para a trava
+  # não acusar a própria saída. Preserva a forma — pontuada continua pontuada.
+  def trocar_documentos(texto)
+    t = texto.gsub(Spx::Harness::Documento::CPF_BRUTO) do |v|
+      if Spx::Harness::Documento.cpf?(v)
+        v.include?('.') ? '000.000.000-00' : '00000000000'
+      else
+        v
+      end
+    end
+    t = t.gsub(Spx::Harness::Documento::CNPJ_BRUTO) do |v|
+      if Spx::Harness::Documento.cnpj?(v)
+        v.include?('.') ? '00.000.000/0000-00' : '00000000000000'
+      else
+        v
+      end
+    end
+    t = t.gsub(Spx::Harness::Documento::RG_FORMATADO, '00.000.000-0')
+    t.gsub(Spx::Harness::Documento::RG_ROTULADO, 'RG 00.000.000-0')
+  end
 
   # Ordem decrescente de tamanho: sem isso, trocar "Ana" antes de "Ana Paula" deixaria "Paula".
   def trocar_nomes(texto, nomes)
