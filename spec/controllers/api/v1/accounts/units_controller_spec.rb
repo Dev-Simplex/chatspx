@@ -88,6 +88,18 @@ RSpec.describe 'Units API', type: :request do
   end
 
   describe 'POST create' do
+    # O numero da casa precisa ser aceito no permit E devolvido no jbuilder: campo que grava mas nao
+    # volta some na proxima edicao (foi o que aconteceu com o applies_to_inboxes).
+    it 'guarda o numero do endereco e devolve na resposta' do
+      post base,
+           params: { unit: { name: 'Com numero', address: 'Rua dos Papiros - Centro', address_number: 'S/N' } },
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:created)
+      expect(account.units.find_by(name: 'Com numero').address_number).to eq('S/N')
+      expect(response.parsed_body['address_number']).to eq('S/N')
+    end
+
     it 'cria com a grade que a tela manda, as regras e as caixas' do
       caixa = create(:inbox, account: account)
 

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
 import {
   getTime,
   timeSlotParse,
@@ -86,12 +87,22 @@ const REGRA_VAZIA = {
   reminder_days_before: '',
 };
 
+// 78550041, 78550-041 ou 78.550-041 dao no mesmo: fica so o digito, no maximo 8, com o traco
+// depois do quinto. A busca no ViaCEP ja tirava tudo que nao e digito, entao ela nao muda.
+const formatarCep = valor => {
+  const digitos = (valor || '').replace(/\D/g, '').slice(0, 8);
+  return digitos.length > 5
+    ? `${digitos.slice(0, 5)}-${digitos.slice(5)}`
+    : digitos;
+};
+
 const form = ref({
   name: '',
   zip_code: '',
   city: '',
   state: '',
   address: '',
+  address_number: '',
   phone: '',
   timezone: 'America/Sao_Paulo',
   notes: '',
@@ -122,10 +133,11 @@ const carregar = () => {
   const u = props.unit;
   form.value = {
     name: u?.name ?? '',
-    zip_code: u?.zip_code ?? '',
+    zip_code: formatarCep(u?.zip_code ?? ''),
     city: u?.city ?? '',
     state: u?.state ?? '',
     address: u?.address ?? '',
+    address_number: u?.address_number ?? '',
     phone: u?.phone ?? '',
     timezone: u?.timezone ?? 'America/Sao_Paulo',
     notes: u?.notes ?? '',
@@ -164,8 +176,30 @@ const carregar = () => {
   rules.value = (u?.exceptions ?? []).map(regra => ({ ...regra }));
   novaRegra.value = rascunhoLimpo();
 };
+// Foto do formulario como ele abriu: e ela que responde "tem alteracao nao salva?" quando o modal
+// tenta fechar (o woot-modal desmonta o formulario antes de avisar, entao quem pergunta e a tela).
+const instantaneo = ref('');
+const estadoAtual = () =>
+  JSON.stringify({
+    form: form.value,
+    coordenadas: coordenadas.value,
+    timeSlots: timeSlots.value,
+    selectedInboxIds: [...selectedInboxIds.value].sort(),
+    rules: rules.value,
+  });
+const tirarFoto = () => {
+  instantaneo.value = estadoAtual();
+};
+
 carregar();
-watch(() => props.unit, carregar);
+tirarFoto();
+watch(
+  () => props.unit,
+  () => {
+    carregar();
+    tirarFoto();
+  }
+);
 
 const timezones = timeZoneOptions();
 const nomeInvalido = computed(() => !form.value.name.trim());
@@ -241,6 +275,27 @@ const onSlotUpdate = (dia, slot) => {
   timeSlots.value = timeSlots.value.map(item =>
     item.day === dia ? slot : item
   );
+};
+
+// Segunda a sexta costuma ser tudo igual: preenche um dia, copia, e ajusta so o que foge. Copia
+// para os dias ABERTOS — fim de semana fechado continua fechado.
+const copiarParaOsDemaisDias = origem => {
+  let copiados = 0;
+  timeSlots.value = timeSlots.value.map(item => {
+    if (item.day === origem.day || !item.from || !item.to) return item;
+
+    copiados += 1;
+    return {
+      ...item,
+      from: origem.from,
+      to: origem.to,
+      breakFrom: origem.breakFrom,
+      breakTo: origem.breakTo,
+      openAllDay: origem.openAllDay,
+      valid: origem.valid,
+    };
+  });
+  useAlert(t('UNITS_MGMT.FORM.HOURS.COPIED', { count: copiados }));
 };
 
 // --- regras de agenda --------------------------------------------------------------
@@ -701,6 +756,12 @@ const onSubmit = () => {
     exceptions: rules.value,
   });
 };
+
+// A tela precisa das duas coisas para perguntar antes de descartar: se mudou algo e como salvar.
+defineExpose({
+  temAlteracoes: () => estadoAtual() !== instantaneo.value,
+  salvar: () => onSubmit(),
+});
 </script>
 
 <template>
@@ -722,10 +783,11 @@ const onSubmit = () => {
         />
       </div>
       <woot-input
-        v-model="form.zip_code"
+        :model-value="form.zip_code"
         class="mb-0"
         :label="t('UNITS_MGMT.FORM.ZIP_CODE.LABEL')"
         :placeholder="t('UNITS_MGMT.FORM.ZIP_CODE.PLACEHOLDER')"
+        @update:model-value="valor => (form.zip_code = formatarCep(valor))"
       />
       <p
         class="m-0 text-label-small"
@@ -739,12 +801,21 @@ const onSubmit = () => {
               : t('UNITS_MGMT.FORM.ZIP_CODE.HELP')
         }}
       </p>
-      <woot-input
-        v-model="form.address"
-        class="mb-0"
-        :label="t('UNITS_MGMT.FORM.ADDRESS.LABEL')"
-        :placeholder="t('UNITS_MGMT.FORM.ADDRESS.PLACEHOLDER')"
-      />
+      <div class="grid gap-4 sm:grid-cols-4">
+        <woot-input
+          v-model="form.address"
+          class="mb-0 sm:col-span-3"
+          :label="t('UNITS_MGMT.FORM.ADDRESS.LABEL')"
+          :placeholder="t('UNITS_MGMT.FORM.ADDRESS.PLACEHOLDER')"
+        />
+        <!-- Texto, e nao numero: precisa aceitar "S/N", "123-A" e "Km 12". O ViaCEP nunca toca aqui. -->
+        <woot-input
+          v-model="form.address_number"
+          class="mb-0"
+          :label="t('UNITS_MGMT.FORM.ADDRESS_NUMBER.LABEL')"
+          :placeholder="t('UNITS_MGMT.FORM.ADDRESS_NUMBER.PLACEHOLDER')"
+        />
+      </div>
       <div class="grid gap-4 sm:grid-cols-3">
         <woot-input
           v-model="form.city"
@@ -872,7 +943,19 @@ const onSubmit = () => {
             :time-slot="slot"
             show-break
             @update="dados => onSlotUpdate(slot.day, dados)"
-          />
+          >
+            <template #acoes>
+              <Button
+                v-if="slot.from && slot.to"
+                link
+                slate
+                xs
+                type="button"
+                :label="t('UNITS_MGMT.FORM.HOURS.COPY')"
+                @click.prevent="copiarParaOsDemaisDias(slot)"
+              />
+            </template>
+          </BusinessDay>
         </tbody>
       </table>
     </section>

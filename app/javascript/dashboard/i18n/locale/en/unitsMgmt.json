@@ -102,6 +102,10 @@
         "LABEL": "Address",
         "PLACEHOLDER": "Av. das Itaúbas, 1234"
       },
+      "ADDRESS_NUMBER": {
+        "LABEL": "Number",
+        "PLACEHOLDER": "123, N/A, Km 12"
+      },
       "TIMEZONE": {
         "LABEL": "Time zone",
         "PLACEHOLDER": "Select a timezone",
@@ -125,7 +129,9 @@
       },
       "HOURS": {
         "LABEL": "Opening hours",
-        "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages."
+        "HELP": "Informational: it tells the agent what to answer. It does not send automatic messages.",
+        "COPY": "Copy to the other days",
+        "COPIED": "Hours copied to {count} day(s)"
       },
       "EXCEPTIONS": {
         "NAME": "Reason",
@@ -231,6 +237,13 @@
         "TODAY": "Today",
         "RULES_TITLE": "Everything scheduled in {ano}",
         "RULES_EMPTY_YEAR": "Nothing scheduled in {ano}. Use the calendar arrows to see another year."
+      },
+      "UNSAVED": {
+        "TITLE": "Unsaved changes",
+        "MESSAGE": "You have unsaved changes. Do you want to save before leaving?",
+        "SAVE": "Save",
+        "DISCARD": "Discard",
+        "KEEP": "Keep editing"
       }
     }
   }

@@ -4,6 +4,7 @@ json.city unit.city
 json.state unit.state
 json.zip_code unit.zip_code
 json.address unit.address
+json.address_number unit.address_number
 json.phone unit.phone
 # Coordenada e o interruptor PRECISAM sair aqui. Campo que o `permit` aceita mas o jbuilder não
 # devolve grava uma vez e some: o formulário recarrega com o valor padrão e a próxima edição

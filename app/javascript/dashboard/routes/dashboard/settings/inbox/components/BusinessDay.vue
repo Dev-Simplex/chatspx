@@ -8,18 +8,19 @@ import {
   END_OF_DAY,
 } from '../helpers/businessHour';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
-import NextSelect from 'dashboard/components-next/select/Select.vue';
 
+// A lista de 30 em 30 minutos SÓ serve para os horários padrão de quando o dia é ligado
+// (00:00 e 08:00). Os campos são de hora livre: uma unidade que abre 07:48 não tinha como ser
+// cadastrada, e o banco sempre aceitou qualquer minuto (working_hour.rb).
 const timeSlots = generateTimeSlots(30);
 
-// Em 24 h a lista já sobe na ordem do relógio: 00:00 → 23:59. Não há mais o que
-// agrupar (o agrupamento AM/PM só existia para separar as duas metades do dia).
-const timeOptions = timeSlots.map(slot => ({ value: slot, label: slot }));
+// Mesmo estilo dos campos de hora do editor de regras do calendário (UnitForm.vue).
+const CAMPO_HORA =
+  'reset-base h-10 w-28 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 disabled:opacity-50';
 
 export default {
   components: {
     Icon,
-    NextSelect,
   },
   props: {
     dayName: {
@@ -42,12 +43,8 @@ export default {
   },
   emits: ['update'],
   computed: {
-    fromTimeSlots() {
-      return timeOptions;
-    },
-    toTimeSlots() {
-      // Fechar à meia-noite se diz 23:59; 00:00 só faz sentido como hora de abrir.
-      return timeOptions.filter(option => option.value !== MIDNIGHT);
+    campoHora() {
+      return CAMPO_HORA;
     },
     isDayEnabled: {
       get() {
@@ -226,20 +223,22 @@ export default {
               $t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')
             }}</span>
           </div>
-          <NextSelect
+          <input
             v-model="fromTime"
-            :options="fromTimeSlots"
-            :placeholder="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
+            type="time"
+            :class="campoHora"
             :disabled="isOpenAllDay"
+            :aria-label="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
           />
           <div class="flex items-center">
             <Icon icon="i-lucide-minus size-4" />
           </div>
-          <NextSelect
+          <input
             v-model="toTime"
-            :options="toTimeSlots"
-            :placeholder="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
+            type="time"
+            :class="campoHora"
             :disabled="isOpenAllDay"
+            :aria-label="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
           />
         </div>
         <div
@@ -256,11 +255,11 @@ export default {
             {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.BREAK') }}
           </span>
           <template v-if="hasBreak">
-            <NextSelect v-model="breakFrom" :options="toTimeSlots" />
+            <input v-model="breakFrom" type="time" :class="campoHora" />
             <div class="flex items-center">
               <Icon icon="i-lucide-minus size-4" />
             </div>
-            <NextSelect v-model="breakTo" :options="toTimeSlots" />
+            <input v-model="breakTo" type="time" :class="campoHora" />
           </template>
         </div>
         <span v-if="hasError" class="error text-label-small text-n-ruby-9">
@@ -278,6 +277,9 @@ export default {
       >
         {{ totalHours }}
       </span>
+      <!-- "Copiar para os demais dias" mora aqui, preenchido por quem usa o componente: a grade da
+           unidade passa o slot; a da caixa de entrada não, e a coluna fica igual à de antes. -->
+      <slot name="acoes" />
     </td>
   </tr>
 </template>
