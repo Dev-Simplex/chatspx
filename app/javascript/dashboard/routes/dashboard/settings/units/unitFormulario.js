@@ -30,13 +30,15 @@ export const formatarTelefone = valor => {
 };
 
 // Segunda a sexta costuma ser tudo igual: preenche um dia, copia, e ajusta só o que foge. Copia para
-// os dias ABERTOS — fim de semana fechado continua fechado. Devolve a grade nova e quantos dias mudaram.
+// os dias ABERTOS — fim de semana fechado continua fechado. Devolve a grade nova e QUAIS dias mudaram:
+// o aviso nomeia os dias ("copiado para terça, quarta, quinta e sexta"), que é o que deixa claro, sem
+// ler manual, que o fim de semana ficou de fora.
 export const copiarHorarioParaDias = (slots, origem) => {
-  let copiados = 0;
+  const dias = [];
   const novos = slots.map(item => {
     if (item.day === origem.day || !item.from || !item.to) return item;
 
-    copiados += 1;
+    dias.push(item.day);
     return {
       ...item,
       from: origem.from,
@@ -48,5 +50,5 @@ export const copiarHorarioParaDias = (slots, origem) => {
     };
   });
 
-  return { slots: novos, copiados };
+  return { slots: novos, dias };
 };

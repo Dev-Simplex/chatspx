@@ -81,9 +81,9 @@ describe('copiarHorarioParaDias', () => {
   ];
 
   it('copia para os dias abertos e diz quantos mudaram', () => {
-    const { slots, copiados } = copiarHorarioParaDias(grade, grade[1]);
+    const { slots, dias } = copiarHorarioParaDias(grade, grade[1]);
 
-    expect(copiados).toBe(2);
+    expect(dias).toEqual([2, 3]);
     expect(slots[2]).toMatchObject({
       from: '07:48',
       to: '18:00',

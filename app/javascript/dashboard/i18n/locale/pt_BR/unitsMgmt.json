@@ -138,10 +138,13 @@
       "HOURS": {
         "LABEL": "Horário de funcionamento",
         "HELP": "Informativo: serve para o atendente saber o que responder. Não dispara mensagem automática.",
-        "COPY": "Copiar",
-        "COPIED": "Horário copiado para {count} dia(s)",
-        "COPIED_SHORT": "Copiado",
-        "COPY_HINT": "Copiar este horário para os demais dias"
+        "COPY": "Copiar para os demais dias",
+        "COPY_HELP": "Preencha um dia e use \u201cCopiar para os demais dias\u201d \u2014 os dias fechados continuam fechados.",
+        "COPY_HINT": "Copiar {range} para os demais dias abertos",
+        "COPY_DISABLED": "Este dia está fechado \u2014 não há horário para copiar",
+        "COPIED": "Horário de {day} copiado para {days}.",
+        "COPIED_NONE": "Nenhum outro dia está aberto para receber o horário.",
+        "COPIED_SHORT": "Copiado"
       },
       "EXCEPTIONS": {
         "NAME": "Motivo",
