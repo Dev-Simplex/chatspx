@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Catálogo · Chat SPX · mockup</title>
+<style>
+:root{
+  --wa-bubble-out:#d9fdd3; --wa-bubble-in:#ffffff;
+  --wa-bubble-shadow:0 1px .5px rgba(11,20,26,.13);
+  --wa-header-bg:#f0f2f5; --wa-list-bg:#fff; --wa-list-hover:#f5f6f7;
+  --wa-list-border:#e9edef; --wa-text-primary:#111b21; --wa-text-secondary:#5a6a73;
+  --wa-primary:#2dc46f; --wa-unread-bg:#25d366; --wa-chat-bg:#efeae2;
+  --wa-card-bg:#fff; --wa-card-action:#027eb5; --wa-card-divider:rgba(11,20,26,.11);
+  --wa-check-read:#53bdeb;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--wa-text-primary);background:#e5e7eb}
+.wrap{max-width:1280px;margin:0 auto;padding:16px}
+
+/* aviso */
+.flag{background:#fff3c4;border:1px solid #e9a700;border-radius:8px;padding:10px 14px;
+  margin-bottom:14px;font-size:13px;color:#6b4e00}
+.flag b{color:#4a3600}
+
+/* navegação de telas */
+.screens{display:flex;gap:4px;background:var(--wa-header-bg);padding:5px;
+  border-radius:10px;margin-bottom:14px;flex-wrap:wrap}
+.screens button{border:0;background:transparent;padding:8px 16px;border-radius:7px;
+  font-size:13px;font-weight:600;color:var(--wa-text-secondary);cursor:pointer}
+.screens button.on{background:#fff;color:var(--wa-text-primary);
+  box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.screen{display:none}.screen.on{display:block}
+
+/* moldura do app */
+.app{display:grid;grid-template-columns:62px 1fr;background:var(--wa-list-bg);
+  border:1px solid var(--wa-list-border);border-radius:12px;overflow:hidden;
+  min-height:660px}
+.rail{background:var(--wa-header-bg);border-right:1px solid var(--wa-list-border);
+  padding:12px 0;display:flex;flex-direction:column;align-items:center;gap:14px}
+.rail i{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  color:var(--wa-text-secondary);font-style:normal;font-size:17px;cursor:pointer}
+.rail i.on{background:#fff;color:var(--wa-primary);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.rail .logo{width:32px;height:32px;border-radius:9px;background:var(--wa-primary);
+  color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center;margin-bottom:4px}
+
+/* cabeçalho de página */
+.page{display:flex;flex-direction:column}
+.phead{padding:16px 20px;border-bottom:1px solid var(--wa-list-border);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.phead h1{font-size:19px;font-weight:600}
+.count{color:var(--wa-text-secondary);font-size:13px}
+.grow{flex:1}
+.search{position:relative}
+.search input{border:1px solid var(--wa-list-border);background:var(--wa-header-bg);
+  border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;width:250px;outline:0}
+.search input:focus{border-color:var(--wa-primary);background:#fff}
+.search span{position:absolute;left:10px;top:7px;color:var(--wa-text-secondary)}
+.btn{background:var(--wa-primary);color:#fff;border:0;border-radius:8px;
+  padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--wa-text-primary);border:1px solid var(--wa-list-border)}
+
+/* filtros */
+.chips{display:flex;gap:7px;padding:12px 20px;border-bottom:1px solid var(--wa-list-border);
+  flex-wrap:wrap}
+.chip{border:1px solid var(--wa-list-border);background:#fff;border-radius:999px;
+  padding:5px 13px;font-size:12.5px;color:var(--wa-text-secondary);cursor:pointer}
+.chip.on{background:var(--wa-primary);color:#fff;border-color:var(--wa-primary)}
+
+/* grade de produtos */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));
+  gap:14px;padding:18px 20px;overflow:auto}
+.card{border:1px solid var(--wa-list-border);border-radius:11px;overflow:hidden;
+  background:#fff;cursor:pointer;position:relative;transition:box-shadow .15s}
+.card:hover{box-shadow:0 4px 14px rgba(11,20,26,.11)}
+.card .ph{aspect-ratio:1;display:grid;place-items:center;position:relative}
+.card .body{padding:9px 11px 11px}
+.card .nm{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:3px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  min-height:34px}
+.card .pr{font-size:14px;font-weight:700;color:var(--wa-primary)}
+.card .old{font-size:11.5px;color:var(--wa-text-secondary);text-decoration:line-through;
+  margin-left:5px;font-weight:400}
+.card .sku{font-size:11px;color:var(--wa-text-secondary);margin-top:4px}
+.tag{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.62);color:#fff;
+  font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:5px}
+.tag.out{background:#d92d20}
+.tag.meta{top:8px;left:auto;right:8px;background:rgba(45,196,111,.95)}
+.send{position:absolute;inset:auto 0 0 0;background:var(--wa-primary);color:#fff;
+  text-align:center;padding:7px;font-size:12px;font-weight:600;
+  opacity:0;transition:opacity .15s}
+.card:hover .send{opacity:1}
+
+/* formulário */
+.two{display:grid;grid-template-columns:1fr 340px;gap:22px;padding:20px;overflow:auto}
+.fld{margin-bottom:15px}
+.fld label{display:block;font-size:12.5px;font-weight:600;margin-bottom:5px;
+  color:var(--wa-text-secondary)}
+.fld input,.fld textarea,.fld select{width:100%;border:1px solid var(--wa-list-border);
+  border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:inherit;outline:0;background:#fff}
+.fld input:focus,.fld textarea:focus{border-color:var(--wa-primary)}
+.fld textarea{resize:vertical;min-height:74px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.thumbs{display:flex;gap:9px;flex-wrap:wrap}
+.thumb{width:76px;height:76px;border-radius:9px;border:1px solid var(--wa-list-border);
+  display:grid;place-items:center;position:relative;overflow:hidden}
+.thumb.add{border-style:dashed;color:var(--wa-text-secondary);font-size:22px;cursor:pointer}
+.thumb .x{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);color:#fff;
+  width:17px;height:17px;border-radius:50%;font-size:11px;display:grid;place-items:center}
+.hint{font-size:11.5px;color:var(--wa-text-secondary);margin-top:6px}
+.tog{display:flex;align-items:center;gap:10px;padding:11px 13px;
+  border:1px solid var(--wa-list-border);border-radius:9px;margin-bottom:10px}
+.sw{width:38px;height:22px;border-radius:999px;background:var(--wa-primary);
+  position:relative;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:2px;right:2px;width:18px;height:18px;
+  border-radius:50%;background:#fff}
+.sw.off{background:#c9d1d6}.sw.off::after{right:auto;left:2px}
+.tog div{flex:1}.tog b{display:block;font-size:13px}
+.tog small{color:var(--wa-text-secondary);font-size:11.5px}
+
+/* painel lateral */
+.side{background:var(--wa-header-bg);border-radius:11px;padding:16px}
+.side h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--wa-text-secondary);margin-bottom:11px}
+.sync{background:#fff;border-radius:9px;padding:11px 13px;font-size:12.5px;margin-bottom:11px}
+.sync .ok{color:var(--wa-primary);font-weight:600}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--wa-primary);
+  display:inline-block;margin-right:6px}
+
+/* conversa */
+.chat{display:grid;grid-template-columns:300px 1fr;min-height:660px}
+.clist{border-right:1px solid var(--wa-list-border);overflow:auto}
+.chd{padding:13px 15px;background:var(--wa-header-bg);
+  border-bottom:1px solid var(--wa-list-border);font-weight:600;font-size:14px}
+.ci{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--wa-list-border);
+  cursor:pointer}
+.ci.on{background:var(--wa-list-hover)}
+.av{width:40px;height:40px;border-radius:50%;background:var(--wa-primary);color:#fff;
+  display:grid;place-items:center;font-weight:600;font-size:14px;flex-shrink:0}
+.ci .t{flex:1;min-width:0}
+.ci .n{font-size:13.5px;font-weight:600}
+.ci .p{font-size:12px;color:var(--wa-text-secondary);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.ci .m{font-size:10.5px;color:var(--wa-text-secondary)}
+.thread{display:flex;flex-direction:column;background:var(--wa-chat-bg)}
+.thead{padding:10px 16px;background:var(--wa-header-bg);
+  border-bottom:1px solid var(--wa-list-border);display:flex;align-items:center;gap:11px}
+.msgs{flex:1;padding:18px;overflow:auto;display:flex;flex-direction:column;gap:9px}
+.b{max-width:400px;padding:7px 10px;border-radius:8px;font-size:13.5px;
+  box-shadow:var(--wa-bubble-shadow);position:relative}
+.b.in{background:var(--wa-bubble-in);align-self:flex-start;border-top-left-radius:0}
+.b.out{background:var(--wa-bubble-out);align-self:flex-end;border-top-right-radius:0}
+.tm{font-size:10.5px;color:var(--wa-text-secondary);float:right;margin:6px 0 -2px 8px}
+.tm .ck{color:var(--wa-check-read)}
+
+/* cartão de produto na bolha */
+.pcard{background:var(--wa-card-bg);border-radius:7px;overflow:hidden;
+  margin:-3px -6px 5px;width:272px}
+.pcard .im{height:150px;display:grid;place-items:center;position:relative}
+.pcard .in{padding:8px 10px}
+.pcard .t{font-size:13.5px;font-weight:600;margin-bottom:2px}
+.pcard .v{font-size:14px;font-weight:700;color:var(--wa-text-primary)}
+.pcard .d{font-size:11.5px;color:var(--wa-text-secondary);margin-top:3px}
+.pact{border-top:1px solid var(--wa-card-divider);text-align:center;padding:8px;
+  color:var(--wa-card-action);font-size:13px;font-weight:600}
+.plist{background:var(--wa-card-bg);border-radius:7px;margin:-3px -6px 5px;
+  width:272px;overflow:hidden}
+.plist .hd{padding:9px 11px;font-size:13px;font-weight:600;
+  border-bottom:1px solid var(--wa-card-divider)}
+.pli{display:flex;gap:9px;padding:8px 11px;align-items:center;
+  border-bottom:1px solid var(--wa-card-divider)}
+.pli .sq{width:42px;height:42px;border-radius:6px;flex-shrink:0;display:grid;place-items:center}
+.pli .nm{font-size:12.5px;font-weight:600;line-height:1.25}
+.pli .vl{font-size:12px;color:var(--wa-text-secondary)}
+
+/* composer */
+.comp{padding:9px 14px;background:var(--wa-header-bg);display:flex;gap:9px;align-items:center}
+.comp .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;
+  color:var(--wa-text-secondary);font-size:17px;cursor:pointer}
+.comp .ic.hl{background:var(--wa-primary);color:#fff}
+.comp .box{flex:1;background:#fff;border-radius:8px;padding:9px 13px;
+  font-size:13.5px;color:var(--wa-text-secondary)}
+
+/* configurações */
+.cfg{padding:20px;overflow:auto;max-width:880px}
+.sec{border:1px solid var(--wa-list-border);border-radius:11px;margin-bottom:16px}
+.sec h2{font-size:14.5px;font-weight:600;padding:13px 16px;
+  border-bottom:1px solid var(--wa-list-border)}
+.sec .in{padding:16px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  background:var(--wa-header-bg);border-radius:7px;padding:9px 11px;
+  display:flex;align-items:center;gap:9px}
+.mono span{flex:1;overflow:auto;white-space:nowrap}
+.cp{color:var(--wa-card-action);font-weight:600;cursor:pointer;font-size:12px;flex-shrink:0}
+.ev{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:13px}
+.bx{width:17px;height:17px;border-radius:4px;background:var(--wa-primary);color:#fff;
+  display:grid;place-items:center;font-size:11px;flex-shrink:0}
+.bx.off{background:#fff;border:1.5px solid #c9d1d6}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--wa-text-secondary);padding:7px 0;border-bottom:1px solid var(--wa-list-border)}
+.tbl td{padding:10px 0;border-bottom:1px solid var(--wa-list-border)}
+.pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px}
+.pill.ok{background:#d9fdd3;color:#0a6b3d}
+.pill.no{background:#ffe4e2;color:#a3231a}
+.note{font-size:12.5px;color:var(--wa-text-secondary);margin-top:10px;line-height:1.5}
+@media(max-width:1000px){.two,.chat{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="flag">
+  <b>Mockup estático, não é o sistema.</b> Nada aqui salva, envia ou conecta em coisa alguma.
+  Serve só para decidir o desenho da aba Catálogo. Os produtos e conversas são fictícios.
+</div>
+
+<div class="screens">
+  <button class="on" onclick="go(0,this)">1 · Catálogo</button>
+  <button onclick="go(1,this)">2 · Cadastro do produto</button>
+  <button onclick="go(2,this)">3 · Enviando na conversa</button>
+  <button onclick="go(3,this)">4 · API e webhook</button>
+</div>
+
+<!-- ============ 1 · CATÁLOGO ============ -->
+<div class="screen on">
+ <div class="app">
+  <div class="rail">
+    <div class="logo">SPX</div>
+    <i>💬</i><i>👥</i><i class="on">🏷️</i><i>📊</i><i>⚙️</i>
+  </div>
+  <div class="page">
+    <div class="phead">
+      <h1>Catálogo</h1><span class="count">48 produtos · 44 ativos</span>
+      <div class="grow"></div>
+      <div class="search"><span>🔍</span><input placeholder="Buscar por nome ou SKU"></div>
+      <button class="btn ghost">Importar CSV</button>
+      <button class="btn">+ Novo produto</button>
+    </div>
+    <div class="chips">
+      <div class="chip on">Todos</div><div class="chip">Óculos de sol</div>
+      <div class="chip">Armação de grau</div><div class="chip">Lentes</div>
+      <div class="chip">Acessórios</div><div class="chip">Sem estoque</div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+ </div>
+</div>
+
+<!-- ============ 2 · CADASTRO ============ -->
+<div class="screen">
+ <div class="app">
+  <div class="rail">
+    <div class="logo">SPX</div><i>💬</i><i>👥</i><i class="on">🏷️</i><i>📊</i><i>⚙️</i>
+  </div>
+  <div class="page">
+    <div class="phead">
+      <h1>Ray-Ban Aviador Clássico</h1>
+      <span class="pill ok">Ativo</span>
+      <div class="grow"></div>
+      <button class="btn ghost">Enviar no chat</button>
+      <button class="btn">Salvar</button>
+    </div>
+    <div class="two">
+      <div>
+        <div class="fld">
+          <label>Fotos do produto</label>
+          <div class="thumbs">
+            <div class="thumb" style="background:linear-gradient(135deg,#1f2937,#4b5563)">
+              <span style="font-size:26px">🕶️</span><div class="x">×</div></div>
+            <div class="thumb" style="background:linear-gradient(135deg,#374151,#6b7280)">
+              <span style="font-size:26px">🕶️</span><div class="x">×</div></div>
+            <div class="thumb" style="background:linear-gradient(135deg,#111827,#374151)">
+              <span style="font-size:26px">🕶️</span><div class="x">×</div></div>
+            <div class="thumb add">+</div>
+          </div>
+          <div class="hint">JPG ou PNG, até 2 MB. A primeira foto é a capa.
+            Recomendado 800×800, que é o tamanho que o WhatsApp exibe.</div>
+        </div>
+        <div class="fld"><label>Nome</label><input value="Ray-Ban Aviador Clássico"></div>
+        <div class="fld"><label>Descrição</label>
+          <textarea>Armação metálica dourada, lente verde G-15 com proteção UV400. Tamanho 58mm. Acompanha estojo rígido e flanela.</textarea></div>
+        <div class="row">
+          <div class="fld"><label>Preço</label><input value="R$ 749,00"></div>
+          <div class="fld"><label>Preço promocional</label><input value="R$ 629,00"></div>
+        </div>
+        <div class="row">
+          <div class="fld"><label>SKU / código no ERP</label><input value="RB3025-001-58"></div>
+          <div class="fld"><label>Estoque</label><input value="12"></div>
+        </div>
+        <div class="fld"><label>Categoria</label>
+          <select><option>Óculos de sol</option><option>Armação de grau</option></select></div>
+      </div>
+      <div class="side">
+        <h3>Publicação</h3>
+        <div class="tog"><div class="sw"></div>
+          <div><b>Visível no catálogo</b><small>Aparece para o atendente enviar</small></div></div>
+        <div class="tog"><div class="sw"></div>
+          <div><b>Espelhar na Meta</b><small>Vai para o catálogo do WhatsApp oficial</small></div></div>
+        <div class="tog"><div class="sw off"></div>
+          <div><b>Destaque</b><small>Fixa no topo da lista</small></div></div>
+
+        <h3 style="margin-top:20px">Sincronização</h3>
+        <div class="sync"><span class="dot"></span><b>Meta Commerce</b><br>
+          <span class="ok">Sincronizado</span> há 3 min · ID 8841203<br>
+          <span style="color:var(--wa-text-secondary)">Catálogo: Fábrica de Óculos</span></div>
+        <div class="sync"><span class="dot"></span><b>ERP</b><br>
+          <span class="ok">Recebido</span> às 09:14 de hoje<br>
+          <span style="color:var(--wa-text-secondary)">Origem: webhook /produtos</span></div>
+
+        <h3 style="margin-top:20px">Como o cliente vê</h3>
+        <div style="background:var(--wa-chat-bg);border-radius:9px;padding:11px">
+          <div class="b out" style="max-width:100%;margin:0">
+            <div class="pcard" style="width:100%">
+              <div class="im" style="background:linear-gradient(135deg,#1f2937,#4b5563);height:118px">
+                <span style="font-size:44px">🕶️</span></div>
+              <div class="in"><div class="t">Ray-Ban Aviador Clássico</div>
+                <div class="v">R$ 629,00</div>
+                <div class="d">Fábrica de Óculos</div></div>
+              <div class="pact">Ver produto</div>
+            </div>
+            <span class="tm">09:41 <span class="ck">✓✓</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ============ 3 · CONVERSA ============ -->
+<div class="screen">
+ <div class="app">
+  <div class="rail">
+    <div class="logo">SPX</div><i class="on">💬</i><i>👥</i><i>🏷️</i><i>📊</i><i>⚙️</i>
+  </div>
+  <div class="chat">
+    <div class="clist">
+      <div class="chd">Conversas</div>
+      <div class="ci on"><div class="av">MS</div><div class="t">
+        <div class="n">Mariana Souza</div><div class="p">🏷️ Ray-Ban Aviador Clássico</div></div>
+        <div class="m">09:41</div></div>
+      <div class="ci"><div class="av" style="background:#6366f1">RC</div><div class="t">
+        <div class="n">Ricardo Camargo</div><div class="p">Vocês têm em outra cor?</div></div>
+        <div class="m">09:28</div></div>
+      <div class="ci"><div class="av" style="background:#f59e0b">JP</div><div class="t">
+        <div class="n">Juliana Pacheco</div><div class="p">🏷️ 3 produtos enviados</div></div>
+        <div class="m">08:55</div></div>
+      <div class="ci"><div class="av" style="background:#ec4899">AL</div><div class="t">
+        <div class="n">André Lopes</div><div class="p">Bom dia, queria ver os modelos</div></div>
+        <div class="m">08:12</div></div>
+    </div>
+    <div class="thread">
+      <div class="thead"><div class="av">MS</div>
+        <div><div style="font-weight:600;font-size:14px">Mariana Souza</div>
+        <div style="font-size:11.5px;color:var(--wa-text-secondary)">+55 65 9 8812-4407 · online</div></div>
+      </div>
+      <div class="msgs">
+        <div class="b in">Oi! Vi o anúncio de vocês, queria ver os óculos de sol
+          <span class="tm">09:36</span></div>
+        <div class="b out">Bom dia, Mariana! Claro, vou te mandar alguns modelos aqui mesmo,
+          sem precisar sair do WhatsApp 😊 <span class="tm">09:38 <span class="ck">✓✓</span></span></div>
+
+        <div class="b out">
+          <div class="plist">
+            <div class="hd">3 modelos selecionados para você</div>
+            <div class="pli"><div class="sq" style="background:linear-gradient(135deg,#1f2937,#4b5563)">🕶️</div>
+              <div><div class="nm">Ray-Ban Aviador Clássico</div><div class="vl">R$ 629,00</div></div></div>
+            <div class="pli"><div class="sq" style="background:linear-gradient(135deg,#7c2d12,#c2410c)">🕶️</div>
+              <div><div class="nm">Oakley Holbrook Prizm</div><div class="vl">R$ 899,00</div></div></div>
+            <div class="pli" style="border:0"><div class="sq" style="background:linear-gradient(135deg,#1e3a8a,#3b82f6)">🕶️</div>
+              <div><div class="nm">Vogue Quadrado Acetato</div><div class="vl">R$ 389,00</div></div></div>
+          </div>
+          <div class="pact" style="margin:0 -6px -3px;border-top:1px solid var(--wa-card-divider);background:var(--wa-card-bg);border-radius:0 0 7px 7px">Ver catálogo completo</div>
+          <span class="tm">09:39 <span class="ck">✓✓</span></span>
+        </div>
+
+        <div class="b in">Amei o aviador! Tem em dourado? <span class="tm">09:40</span></div>
+
+        <div class="b out">
+          <div class="pcard">
+            <div class="im" style="background:linear-gradient(135deg,#1f2937,#4b5563)">
+              <span style="font-size:52px">🕶️</span>
+              <div class="tag" style="background:rgba(45,196,111,.95)">12 em estoque</div>
+            </div>
+            <div class="in">
+              <div class="t">Ray-Ban Aviador Clássico</div>
+              <div class="v">R$ 629,00 <span style="font-size:11.5px;color:var(--wa-text-secondary);text-decoration:line-through;font-weight:400">R$ 749,00</span></div>
+              <div class="d">Dourado · lente verde G-15 · 58mm</div>
+            </div>
+            <div class="pact">Ver produto</div>
+          </div>
+          Esse é o dourado, Mariana. Está com R$ 120 de desconto essa semana.
+          <span class="tm">09:41 <span class="ck">✓✓</span></span>
+        </div>
+      </div>
+      <div class="comp">
+        <div class="ic">😊</div><div class="ic">📎</div>
+        <div class="ic hl" title="Enviar do catálogo">🏷️</div>
+        <div class="box">Digite uma mensagem</div>
+        <div class="ic">🎤</div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ============ 4 · API E WEBHOOK ============ -->
+<div class="screen">
+ <div class="app">
+  <div class="rail">
+    <div class="logo">SPX</div><i>💬</i><i>👥</i><i>🏷️</i><i>📊</i><i class="on">⚙️</i>
+  </div>
+  <div class="page">
+    <div class="phead"><h1>Catálogo · Integração</h1>
+      <span class="count">Conta: Fábrica de Óculos</span></div>
+    <div class="cfg">
+
+      <div class="sec"><h2>API para o seu sistema</h2><div class="in">
+        <div class="fld"><label>Endereço base</label>
+          <div class="mono"><span>https://chatspx.app/api/v1/accounts/2/catalogo</span>
+            <span class="cp">copiar</span></div></div>
+        <div class="fld"><label>Token de acesso</label>
+          <div class="mono"><span>cat_live_8f3a••••••••••••••••••••••••2b91</span>
+            <span class="cp">revelar</span><span class="cp">gerar novo</span></div>
+          <div class="hint">Enviar no cabeçalho <b>api_access_token</b>. O token vale só para esta conta.</div>
+        </div>
+        <table class="tbl">
+          <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+          <tr><td><b>GET</b></td><td>/produtos</td><td>Lista com paginação</td></tr>
+          <tr><td><b>POST</b></td><td>/produtos</td><td>Cria ou atualiza pelo SKU</td></tr>
+          <tr><td><b>PUT</b></td><td>/produtos/:sku</td><td>Atualiza preço e estoque</td></tr>
+          <tr><td><b>DELETE</b></td><td>/produtos/:sku</td><td>Tira do catálogo</td></tr>
+          <tr><td><b>POST</b></td><td>/produtos/lote</td><td>Até 500 por chamada</td></tr>
+        </table>
+        <div class="note">O SKU é a chave. Mandar o mesmo SKU duas vezes atualiza, não duplica.</div>
+      </div></div>
+
+      <div class="sec"><h2>Webhook, quando algo muda aqui</h2><div class="in">
+        <div class="fld"><label>URL de destino</label>
+          <input value="https://erp.fabricadeoculos.com.br/webhooks/chatspx"></div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--wa-text-secondary)">Eventos</label>
+        <div class="ev"><div class="bx">✓</div>produto.criado</div>
+        <div class="ev"><div class="bx">✓</div>produto.atualizado</div>
+        <div class="ev"><div class="bx">✓</div>estoque.alterado</div>
+        <div class="ev"><div class="bx off"></div>produto.removido</div>
+        <div class="ev"><div class="bx">✓</div>produto.enviado_no_chat
+          <span style="color:var(--wa-text-secondary);font-size:11.5px">(quem recebeu e quando)</span></div>
+        <div style="display:flex;gap:9px;margin-top:13px">
+          <button class="btn ghost">Testar webhook</button><button class="btn">Salvar</button></div>
+        <div class="note">Se o seu sistema não responder, tentamos de novo em 1, 5 e 30 minutos.</div>
+      </div></div>
+
+      <div class="sec"><h2>Catálogo do WhatsApp oficial</h2><div class="in">
+        <table class="tbl">
+          <tr><th>Caixa de entrada</th><th>Canal</th><th>Catálogo nativo</th><th>Situação</th></tr>
+          <tr><td>Vendas Oficial</td><td>WhatsApp oficial</td><td>Sim</td>
+            <td><span class="pill ok">44 produtos espelhados</span></td></tr>
+          <tr><td>Atacado</td><td>WAHA</td><td>Não</td>
+            <td><span class="pill no">envia como lista e foto</span></td></tr>
+          <tr><td>Suporte</td><td>WAHA</td><td>Não</td>
+            <td><span class="pill no">envia como lista e foto</span></td></tr>
+        </table>
+        <div class="note"><b>Por que a diferença.</b> O catálogo nativo do WhatsApp, aquele com
+          carrinho, exige que os produtos fiquem no Commerce Manager da Meta e o número seja
+          oficial. Nas caixas WAHA o WhatsApp não expõe catálogo para quem está de fora, então
+          o produto vai como foto com preço e um menu numerado. A informação chega igual, o
+          formato é que não é o nativo.</div>
+      </div></div>
+
+    </div>
+  </div>
+ </div>
+</div>
+
+<p style="text-align:center;color:#6b7280;font-size:12px;margin:18px 0 8px">
+  Mockup do Catálogo · Chat SPX · dados fictícios
+</p>
+</div>
+
+<script>
+const P=[
+ ["Ray-Ban Aviador Clássico","R$ 629,00","R$ 749,00","RB3025-001","#1f2937","#4b5563","12",""],
+ ["Oakley Holbrook Prizm","R$ 899,00","","OO9102-B7","#7c2d12","#c2410c","5","Meta"],
+ ["Vogue Quadrado Acetato","R$ 389,00","","VO5285-W44","#1e3a8a","#3b82f6","23","Meta"],
+ ["Armação Titânio Slim","R$ 1.190,00","R$ 1.390,00","TI-880-GR","#374151","#9ca3af","3",""],
+ ["Lente Antirreflexo CR-39","R$ 210,00","","LEN-AR-39","#065f46","#10b981","88","Meta"],
+ ["Prada Linea Rossa","R$ 1.450,00","","PS54IS-01","#4c1d95","#8b5cf6","0",""],
+ ["Estojo Rígido Couro","R$ 79,00","","ACS-EST-01","#78350f","#b45309","41","Meta"],
+ ["Clip-on Polarizado","R$ 149,00","R$ 189,00","CLP-POL-02","#0c4a6e","#0ea5e9","17",""]
+];
+document.getElementById("grid").innerHTML=P.map(p=>{
+ const zero=p[6]==="0";
+ return `<div class="card">
+  <div class="ph" style="background:linear-gradient(135deg,${p[4]},${p[5]})">
+    <span style="font-size:48px;${zero?'opacity:.42':''}">🕶️</span>
+    ${zero?'<div class="tag out">Sem estoque</div>':`<div class="tag">${p[6]} un.</div>`}
+    ${p[7]?'<div class="tag meta">Meta</div>':''}
+    <div class="send">🏷️ Enviar no chat</div>
+  </div>
+  <div class="body"><div class="nm">${p[0]}</div>
+   <div class="pr">${p[1]}${p[2]?`<span class="old">${p[2]}</span>`:''}</div>
+   <div class="sku">${p[3]}</div></div>
+ </div>`}).join("");
+
+function go(i,el){
+ document.querySelectorAll(".screen").forEach((s,n)=>s.classList.toggle("on",n===i));
+ document.querySelectorAll(".screens button").forEach(b=>b.classList.remove("on"));
+ el.classList.add("on");window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
