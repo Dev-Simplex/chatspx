@@ -27,6 +27,13 @@ class CatalogProductPolicy < ApplicationPolicy
     update?
   end
 
+  # Porta do ERP (C3). Grava com token de usuário-robô que o cliente cria como AGENTE — foi a
+  # escolha de produto, para não entregar token de administrador a um sistema de fora. Por isso
+  # ela NÃO passa por `create?`: ali a régua é administrador, e o robô ficaria de fora.
+  def sincronizar_erp?
+    index?
+  end
+
   private
 
   # O `authorize` só pergunta quem é o usuário na conta ATUAL, nunca de quem é o produto. Sem esta
