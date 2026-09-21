@@ -74,8 +74,9 @@
       "BUTTON_TEXT": "Desconectado"
     },
     "SIDEBAR_DESCRIPTION": {
+      "SITE_LEADS": "Leads do Site",
       "DIALOGFLOW": "Dialogflow é uma plataforma de processamento de linguagem natural para a construção de interfaces conversais. Integrá-lo com {installationName} permite que os bots lidem primeiro com consultas e transfiram para os agentes quando necessário. Ele ajuda a qualificar leads e reduzir a carga de trabalho dos agentes respondendo às FAQ. Para adicionar um fluxo de diálogo (Dialogflow), crie uma Conta de Serviço no Google Console e compartilhe as credenciais. Consulte sua documentação para obter detalhes",
-      "META LEAD ADS": "Receba anúncios de cadastro do Facebook/Instagram como conversas automaticamente. Quando alguém envia um formulário de cadastro, {installationName} cria um contato e uma conversa na caixa de entrada escolhida. Compatível com várias páginas (uma integração por página). Configure o webhook no Meta for Developers usando a URL de retorno exibida na documentação."
+      "META_LEAD_ADS": "Receba anúncios de cadastro do Facebook/Instagram como conversas automaticamente. Quando alguém envia um formulário de cadastro, {installationName} cria um contato e uma conversa na caixa de entrada escolhida. Compatível com várias páginas (uma integração por página). Configure o webhook no Meta for Developers usando a URL de retorno exibida na documentação."
     }
   }
 }

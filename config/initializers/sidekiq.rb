@@ -17,6 +17,9 @@ end
 
 Sidekiq.configure_server do |config|
   config.redis = Redis::Config.app
+  config.death_handlers << lambda do |_job, error|
+    ChatwootExceptionTracker.new(error).capture_exception
+  end
 
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('ENABLE_SIDEKIQ_DEQUEUE_LOGGER', false))
     config.server_middleware do |chain|
