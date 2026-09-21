@@ -157,6 +157,12 @@ RSpec.describe Captain::Conversation::ToolContextNote do
       expect(described_class.new(conversation: conversation).text).to include('NÃO CONFIRMOU')
     end
 
+    # O cabeçalho também contém a marca (é ele que a explica), então contar a marca solta
+    # somaria o aviso às linhas. Aqui só as linhas de chamada entram na conta.
+    def linhas_de_falha(texto)
+      texto.to_s.lines.count { |l| l.start_with?('·') && l.include?('NÃO CONFIRMOU') }
+    end
+
     # Uma rajada de timeout não pode empurrar pra fora da nota o preço que a busca trouxe antes.
     it 'colapsa falhas repetidas da mesma ferramenta e não consome o orçamento dos fatos' do
       ligar!
@@ -166,7 +172,7 @@ RSpec.describe Captain::Conversation::ToolContextNote do
       texto = described_class.new(conversation: conversation).text
 
       expect(texto).to include('R$ 1.200')
-      expect(texto.scan('NÃO CONFIRMOU').size).to eq(1)
+      expect(linhas_de_falha(texto)).to eq(1)
     end
 
     it 'limita o número de ferramentas distintas em falha' do
@@ -177,17 +183,20 @@ RSpec.describe Captain::Conversation::ToolContextNote do
 
       texto = described_class.new(conversation: conversation).text
 
-      expect(texto.scan('NÃO CONFIRMOU').size).to eq(described_class::LIMITE_FALHAS)
+      expect(linhas_de_falha(texto)).to eq(described_class::LIMITE_FALHAS)
     end
 
+    # 255 é o teto que o ApplicationRecord impõe a coluna string sem validador próprio, e é por
+    # isso que o recorder já grava truncado em 200. O corte da nota é menor ainda.
     it 'trunca o motivo da falha para não deslocar fato bom' do
       ligar!
-      registrar('buscar_imovel', {}, nil, status: 'error', erro: 'y' * 2_000)
+      registrar('buscar_imovel', {}, nil, status: 'error', erro: 'y' * 250)
 
       texto = described_class.new(conversation: conversation).text
 
       expect(texto).to include('…')
-      expect(texto.length).to be < 1_000
+      expect(texto).to include('y' * described_class::LIMITE_MOTIVO)
+      expect(texto).not_to include('y' * (described_class::LIMITE_MOTIVO + 1))
     end
 
     # Com lock_to_single_conversation o fio do contato é perpétuo: sem o corte, busca de

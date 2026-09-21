@@ -184,8 +184,9 @@ RSpec.describe Captain::Tools::HttpTool, type: :model do
           resultado = tool.perform(tool_context)
 
           expect(resultado).to include(trecho)
-          expect(resultado).to include('não é ausência de dado')
-          expect(resultado).to include('não responda de memória')
+          # Contra a própria constante, não contra uma cópia do texto: reescrever a frase sem
+          # perceber que ela é a promessa do PR passaria despercebido num expect literal.
+          expect(resultado).to include(described_class::NAO_INVENTE)
         end
       end
 
@@ -227,9 +228,12 @@ RSpec.describe Captain::Tools::HttpTool, type: :model do
         it_behaves_like 'falha de consulta', 'resposta não pôde ser lida'
       end
 
-      context 'com corpo que o template não consegue renderizar' do
+      # Filtro inexistente NÃO serve de gatilho: o `format_response` renderiza com
+      # `strict: false` de propósito, porque a resposta vem de API externa que omite campo
+      # conforme o caso. O que quebra de verdade é template malformado — tag não fechada.
+      context 'com template malformado' do
         before do
-          custom_tool.update!(response_template: '{{ response.x | filtro_que_nao_existe }}')
+          custom_tool.update!(response_template: '{{ response.x')
           stub_request(:get, 'https://example.com/data').to_return(status: 200, body: '{"x": 1}')
         end
 
