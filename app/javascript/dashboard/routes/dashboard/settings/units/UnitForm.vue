@@ -66,7 +66,7 @@ const COR_DA_CATEGORIA = {
 // saíam em linhas diferentes.
 // Mesmo realce do relógio/calendário nativo usado na grade semanal (BusinessDay.vue).
 const RELOGIO =
-  '[&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:scale-110 [&::-webkit-calendar-picker-indicator]:transition-opacity hover:[&::-webkit-calendar-picker-indicator]:opacity-100';
+  '[&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:outline [&::-webkit-calendar-picker-indicator]:outline-1 [&::-webkit-calendar-picker-indicator]:outline-n-weak [&::-webkit-calendar-picker-indicator]:transition-opacity hover:[&::-webkit-calendar-picker-indicator]:opacity-100';
 
 const CAMPO = `reset-base h-10 w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10 ${RELOGIO}`;
 const CAMPO_ESTREITO =
