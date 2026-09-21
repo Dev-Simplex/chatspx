@@ -113,7 +113,8 @@
       "POSSE": {
         "LABEL": "Depois de escolher",
         "ASSIGNEE": "Atribuir a pessoa (a IA cala)",
-        "DESIGNACAO": "Só registrar (a IA continua atendendo até alguém assumir)"
+        "DESIGNACAO": "Só registrar (a IA continua atendendo até alguém assumir)",
+        "HELP": "Ao atribuir, a IA para de atender; ao só registrar a pessoa escolhida, a IA continua até alguém assumir."
       },
       "CONTINUIDADE": {
         "LABEL": "Manter com quem já atendeu",
@@ -124,14 +125,16 @@
         "LABEL": "Tempo para assumir",
         "MINUTES": "minutos",
         "ON_EXPIRY": "Ao estourar",
-        "REPASSE": "Passar para o próximo",
-        "ALERT": "Só avisar o gerente",
+        "REPASSE": "Passar para o próximo quando o tempo estourar",
         "MAX": "Máximo de repasses",
-        "DESTINO": "Depois disso, vai para",
+        "DESTINO": "Quando a fila esgotar, vai para",
         "DESTINO_NONE": "Ninguém — fica onde está",
         "HORARIO": "Contar só no horário de trabalho",
         "EXPIRADO": "Quem deixa vencer gastou a vez",
-        "SEM_HORARIO": "Este time não tem horário de funcionamento definido, então o relógio não anda e nada é repassado. Defina o horário primeiro."
+        "SEM_HORARIO": "Este time não tem horário de funcionamento definido, então o relógio não anda e nada é repassado. Defina o horário primeiro.",
+        "REPASSE_OFF_HELP": "Desligado, o tempo serve só de medida: ao estourar, nada é repassado e ninguém é avisado.",
+        "HORARIO_HELP": "Usa o horário de trabalho definido para este time; sem horário definido, o relógio não anda.",
+        "EXPIRADO_HELP": "Com o repasse ligado, quem recebeu e não assumiu no prazo vai para o fim da fila mesmo assim: a vez foi gasta."
       },
       "POOL": {
         "TITLE": "Quem entra no rodízio",
@@ -156,11 +159,12 @@
       "SAVE": "Salvar distribuição",
       "SAVED": "Distribuição salva",
       "ERROR": "Não foi possível salvar a distribuição",
-      "FORBIDDEN": "Só um admin ou o gerente deste time pode alterar a distribuição.",
+      "FORBIDDEN": "Só um administrador ou supervisor deste time pode alterar a distribuição.",
       "GATILHO_SEM_IA": {
         "LABEL": "Distribuir também quando a conversa cair no time sem ser pela IA",
         "HELP": "Vale para transferência manual de um agente, e também para fluxo ou regra que troque o time. Só age em conversa que ainda não tem responsável. Desligado, o rodízio só dispara no repasse da IA para humano."
-      }
+      },
+      "CASCATA_HELP": "A IA registra na conversa quem o cliente pediu, pelo código ou nome exato da pessoa; se o nome indicar mais de uma pessoa, vale o rodízio."
     },
     "TEAM_FORM": {
       "ERROR_MESSAGE": "Não foi possível salvar os detalhes do time. Tente novamente."

@@ -227,9 +227,14 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
         </span>
       </label>
 
-      <p class="text-xs text-n-slate-11 border-l-2 border-n-weak pl-3">
-        {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CASCATA') }}
-      </p>
+      <div class="flex flex-col gap-1 border-l-2 border-n-weak pl-3">
+        <p class="text-xs text-n-slate-11">
+          {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CASCATA') }}
+        </p>
+        <p class="text-xs text-n-slate-11">
+          {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CASCATA_HELP') }}
+        </p>
+      </div>
 
       <fieldset :disabled="!ligada" class="flex flex-col gap-6">
         <div class="flex flex-col gap-1">
@@ -269,6 +274,9 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POSSE.DESIGNACAO') }}
             </option>
           </select>
+          <p class="text-xs text-n-slate-11">
+            {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POSSE.HELP') }}
+          </p>
         </div>
 
         <!-- O Motor nasceu pendurado no handoff da IA, entao time que recebe conversa por
@@ -331,26 +339,28 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
             </span>
           </div>
 
-          <div class="flex flex-col gap-2 pl-6">
-            <span class="text-xs text-n-slate-11">
+          <div class="flex flex-col gap-4">
+            <span class="text-sm font-medium text-n-slate-12">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.ON_EXPIRY') }}
             </span>
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="politica.repasse_automatico"
-                type="radio"
-                :value="true"
-              />
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.REPASSE') }}
-            </label>
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="politica.repasse_automatico"
-                type="radio"
-                :value="false"
-              />
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.ALERT') }}
-            </label>
+            <div class="flex flex-col gap-1">
+              <label class="flex items-start gap-2">
+                <input
+                  v-model="politica.repasse_automatico"
+                  type="checkbox"
+                  class="mt-1"
+                />
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.REPASSE') }}
+                </span>
+              </label>
+              <p
+                v-if="!politica.repasse_automatico"
+                class="text-xs text-n-slate-11 pl-6"
+              >
+                {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.REPASSE_OFF_HELP') }}
+              </p>
+            </div>
 
             <p
               v-if="politica.repasse_automatico && !horarioDefinido"
@@ -361,10 +371,10 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
 
             <div
               v-if="politica.repasse_automatico"
-              class="flex flex-col gap-2 pl-6"
+              class="flex flex-col gap-4 pl-6"
             >
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-n-slate-11">
+              <label class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-n-slate-12">
                   {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.MAX') }}
                 </span>
                 <input
@@ -373,9 +383,9 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
                   min="1"
                   class="w-16 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
                 />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-n-slate-11">
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-n-slate-12">
                   {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.DESTINO') }}
                 </span>
                 <select
@@ -393,19 +403,38 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
                     {{ pessoa.nome }}
                   </option>
                 </select>
-              </div>
+              </label>
             </div>
 
-            <label class="flex items-center gap-2 text-sm">
-              <input v-model="politica.sla_respeita_horario" type="checkbox" />
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.HORARIO') }}
+            <label class="flex items-start gap-2">
+              <input
+                v-model="politica.sla_respeita_horario"
+                type="checkbox"
+                class="mt-1"
+              />
+              <span class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.HORARIO') }}
+                </span>
+                <span class="text-xs text-n-slate-11">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.HORARIO_HELP') }}
+                </span>
+              </span>
             </label>
-            <label class="flex items-center gap-2 text-sm">
+            <label class="flex items-start gap-2">
               <input
                 v-model="politica.expirado_conta_como_recebido"
                 type="checkbox"
+                class="mt-1"
               />
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.EXPIRADO') }}
+              <span class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.EXPIRADO') }}
+                </span>
+                <span class="text-xs text-n-slate-11">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.EXPIRADO_HELP') }}
+                </span>
+              </span>
             </label>
           </div>
         </div>
