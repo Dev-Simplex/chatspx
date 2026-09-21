@@ -425,16 +425,36 @@ RSpec.describe Captain::Tools::HttpTool, type: :model do
         expect(texto).not_to include('não conclua ausência')
       end
 
-      # 2xx ilegível continua sendo uma ação que ACONTECEU. Dizer "não consegui" convidaria
-      # o modelo a repetir uma operação já efetivada.
-      it 'com 2xx e template malformado, é sucesso sem detalhe' do
+      # 2xx ilegível NÃO é sucesso: é comum API de CRM responder 200 com a recusa DENTRO do
+      # corpo (`{"sucesso": false, ...}`). Com corpo legível o modelo lê e percebe; com corpo
+      # ilegível, confirmar sucesso afirmaria ao cliente uma ação que o sistema recusou.
+      it 'com 2xx e template malformado, é indeterminado — não sucesso' do
         custom_tool.update!(response_template: '{{ response.x')
         stub_request(:post, 'https://example.com/acao').to_return(status: 200, body: '{"x": 1}')
 
         texto, trace = executar!
 
-        expect(texto).to eq(described_class::ACAO_FEITA_SEM_LEITURA)
-        expect(trace.status).to eq('ok')
+        expect(texto).to eq(described_class::ACAO_ILEGIVEL)
+        expect(texto).to include('NÃO repita')
+        expect(trace.status).to eq('desconhecido')
+      end
+
+      it 'com 2xx e corpo excessivo, é indeterminado' do
+        stub_request(:post, 'https://example.com/acao').to_return(status: 200, body: 'x' * (1.megabyte + 1))
+
+        expect(executar!.first).to eq(described_class::ACAO_ILEGIVEL)
+      end
+
+      # O `else` do build_http_request mandava verbo desconhecido como GET: um DELETE viraria
+      # leitura, devolveria 2xx e teria cara de ação bem-sucedida sem a ação ter acontecido.
+      it 'com verbo não suportado, falha alto em vez de virar GET silencioso' do
+        allow(custom_tool).to receive(:http_method).and_return('DELETE')
+
+        texto, trace = executar!
+
+        expect(texto).to eq(described_class::ACAO_NAO_REALIZADA)
+        expect(trace.status).to eq('error')
+        expect(WebMock).not_to have_requested(:get, 'https://example.com/acao')
       end
 
       # Nenhuma mensagem de ação pode carregar o NAO_INVENTE: ele manda "diga que não conseguiu

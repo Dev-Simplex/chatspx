@@ -25,9 +25,14 @@ module Captain::Tools::HttpAcao
                        'uma pessoa do time para verificar.'.freeze
   ACAO_RECUSADA = 'A ação foi recusada pelo sistema e NÃO foi concluída. Não repita sem mudar o ' \
                   'que foi enviado.'.freeze
-  ACAO_FEITA_SEM_LEITURA = 'A ação foi realizada com sucesso. A confirmação detalhada não pôde ser ' \
-                           'lida, então não descreva detalhes do resultado.'.freeze
   ACAO_CONFIRMADA = 'A ação foi realizada com sucesso (o sistema confirmou sem devolver conteúdo).'.freeze
+  # 2xx que não pôde ser lido NÃO é sucesso. É comum API de CRM responder 200 com a recusa DENTRO
+  # do corpo (`{"sucesso": false, ...}`): com corpo legível o modelo lê e percebe; com corpo
+  # ilegível, confirmar sucesso afirmaria ao cliente uma ação que o sistema recusou.
+  ACAO_ILEGIVEL = 'O sistema respondeu, mas a confirmação não pôde ser lida: NÃO se sabe se esta ' \
+                  'ação foi realizada — há sistema que responde com sucesso aparente e recusa ' \
+                  'dentro do corpo. NÃO repita a operação e não afirme que foi feita. Diga que ' \
+                  'precisa confirmar e acione uma pessoa do time para verificar.'.freeze
 
   private
 
@@ -39,9 +44,9 @@ module Captain::Tools::HttpAcao
   def resultado_acao(erro)
     detalhe = "#{erro.classe}: #{erro.message}"
     case desfecho_da_acao(erro)
-    when :realizada then Captain::Tools::Result.sucesso(ACAO_FEITA_SEM_LEITURA, detalhe: detalhe)
     # `desconhecido`, não `erro`: no trace e na nota do turno seguinte isto precisa aparecer como
     # "não se sabe", que é diferente de "falhou".
+    when :ilegivel then Captain::Tools::Result.desconhecido(ACAO_ILEGIVEL, detalhe: detalhe)
     when :indeterminada then Captain::Tools::Result.desconhecido(ACAO_INDETERMINADA, detalhe: detalhe)
     when :recusada then Captain::Tools::Result.erro(ACAO_RECUSADA, detalhe: detalhe)
     else Captain::Tools::Result.erro(ACAO_NAO_REALIZADA, detalhe: detalhe)
@@ -49,13 +54,14 @@ module Captain::Tools::HttpAcao
   end
 
   # A única prova de que a ação NÃO ocorreu é a requisição não ter saído. Tudo que foi enviado e
-  # não voltou confirmado é indeterminado — inclusive 5xx, porque o servidor pode ter gravado
-  # antes de falhar ao responder.
+  # não voltou CONFIRMADO é indeterminado — inclusive 5xx (o servidor pode ter gravado antes de
+  # falhar ao responder) e inclusive 2xx ilegível (o corpo que não se conseguiu ler pode ser
+  # justamente a recusa). Sucesso de ação só existe no caminho feliz, no #resultado_ok.
   def desfecho_da_acao(erro)
     return :nao_realizada unless erro.enviada?
 
     codigo = erro.status.to_i
-    return :realizada if codigo.between?(200, 299)
+    return :ilegivel if codigo.between?(200, 299)
     return :recusada if codigo.between?(400, 499) && HTTP_INDETERMINADO.exclude?(codigo)
 
     :indeterminada

@@ -43,7 +43,8 @@ class Captain::Tools::HttpTool < Agents::Tool
     indisponivel: 'O sistema consultado não respondeu ou está fora do ar.',
     nao_autorizado: 'A consulta foi recusada pelo sistema consultado (credencial ou permissão).',
     resposta_invalida: 'O sistema consultado respondeu, mas a resposta não pôde ser lida.',
-    corpo_excessivo: 'A resposta do sistema consultado é grande demais para ser lida aqui.'
+    corpo_excessivo: 'A resposta do sistema consultado é grande demais para ser lida aqui.',
+    nao_suportado: 'A consulta não pôde ser feita: o método HTTP configurado nesta ferramenta não é suportado.'
   }.freeze
 
   # 2xx sem corpo utilizável. NÃO é `vazio_completo`: um 204 pode ser resposta válida de uma
@@ -147,8 +148,9 @@ class Captain::Tools::HttpTool < Agents::Tool
   def formatar(response)
     @custom_tool.format_response(response.body)
   rescue StandardError => e
-    # Template/parse do corpo: o servidor respondeu, quem não soube ler fomos nós. O `status`
-    # vai junto porque, numa AÇÃO, um 2xx ilegível continua sendo uma ação REALIZADA.
+    # Template/parse do corpo: o servidor respondeu, quem não soube ler fomos nós. O `status` vai
+    # junto porque numa AÇÃO ele muda o desfecho: 2xx ilegível é INDETERMINADO, não sucesso — o
+    # corpo que não se conseguiu ler pode ser justamente uma recusa (`{"sucesso": false}`).
     raise FalhaDeConsulta.new(:resposta_invalida, "format_response: #{e.class}: #{e.message}",
                               status: response.code)
   end
@@ -233,15 +235,23 @@ class Captain::Tools::HttpTool < Agents::Tool
                               status: response.code)
   end
 
+  # Falha BARULHENTA no lugar da silenciosa. O `else` mandava qualquer verbo desconhecido como
+  # GET: um DELETE viraria uma leitura, devolveria 2xx e teria cara de ação bem-sucedida — a ação
+  # simplesmente não aconteceria. Hoje o enum do Captain::CustomTool só aceita GET e POST, mas o
+  # HttpAcao passou a classificar PUT/PATCH/DELETE como ação, e isso cria a expectativa de que
+  # funcionam. `enviada: false` porque nada sai daqui: numa ação, é "não realizada".
+  VERBOS_SUPORTADOS = %w[GET POST].freeze
+
   def build_http_request(uri, body)
-    if @custom_tool.http_method == 'POST'
-      request = Net::HTTP::Post.new(uri.request_uri)
-      if body
-        request.body = body
-        request['Content-Type'] = 'application/json'
-      end
-    else
-      request = Net::HTTP::Get.new(uri.request_uri)
+    verbo = @custom_tool.http_method.to_s.upcase
+    raise FalhaDeConsulta.new(:nao_suportado, "http_method não suportado: #{verbo}", enviada: false) if VERBOS_SUPORTADOS.exclude?(verbo)
+
+    return Net::HTTP::Get.new(uri.request_uri) unless verbo == 'POST'
+
+    request = Net::HTTP::Post.new(uri.request_uri)
+    if body
+      request.body = body
+      request['Content-Type'] = 'application/json'
     end
     request
   end
