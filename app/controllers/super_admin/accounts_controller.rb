@@ -76,12 +76,29 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
 
   private
 
+  # PARTE DO QUE A CONTA JA TEM, e nao do zero. O formulario esconde as features internas e as
+  # descontinuadas, e desabilita as premium no plano community — e campo escondido ou desabilitado NAO
+  # e enviado pelo navegador. Como `selected_feature_flags=` (FlagShihTzu) zera todos os bits antes de
+  # ligar os enviados, salvar uma conta aqui desligava em silencio o que a tela nao mostrou:
+  # kanban_ux_v2, kanban_cursor_loading, crm_v2, search_with_gin, advanced_search, companies. E a mesma
+  # licao do PATCH incremental da API (api/v1/accounts_controller#features).
   def enabled_feature_flags_from_params(enabled_features)
     features_hash = enabled_features.respond_to?(:to_unsafe_h) ? enabled_features.to_unsafe_h : enabled_features.to_h
 
-    features_hash.each_with_object([]) do |(flag, value), selected_flags|
-      selected_flags << flag.to_sym if ActiveModel::Type::Boolean.new.cast(value)
-    end
+    features_hash.each_with_object(flags_ja_ligadas) do |(flag, value), selected_flags|
+      if ActiveModel::Type::Boolean.new.cast(value)
+        selected_flags << flag.to_sym
+      else
+        selected_flags.delete(flag.to_sym)
+      end
+    end.uniq
+  end
+
+  # Conta nova ainda nao existe (o create nao tem :id): parte do zero, como antes.
+  def flags_ja_ligadas
+    return [] if params[:id].blank?
+
+    requested_resource.enabled_features.keys.map { |nome| :"feature_#{nome}" }
   end
 
   def synchronized_captain_feature_flags(selected_feature_flags)

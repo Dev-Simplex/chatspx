@@ -17,14 +17,15 @@ class Api::V1::Accounts::NotificationsController < Api::V1::Accounts::BaseContro
   def read_all
     return head :ok if params[:primary_actor_type].present? && @primary_actor.nil?
 
-    # rubocop:disable Rails/SkipsModelValidations
-    if @primary_actor
-      current_user.notifications.where(account_id: current_account.id, primary_actor: @primary_actor, read_at: nil)
-                  .update_all(read_at: DateTime.now.utc)
-    else
-      current_user.notifications.where(account_id: current_account.id, read_at: nil).update_all(read_at: DateTime.now.utc)
+    lidas = current_user.notifications.where(account_id: current_account.id, read_at: nil)
+    lidas = lidas.where(primary_actor: @primary_actor) if @primary_actor
+    ids = lidas.pluck(:id)
+    Notification.where(id: ids).update_all(read_at: DateTime.now.utc) # rubocop:disable Rails/SkipsModelValidations
+    # O update_all nao dispara o after_update_commit: sem isto a outra aba do mesmo usuario nunca sabia que as
+    # notificacoes foram lidas, e o sino ficava aceso la.
+    Notification.where(id: ids).find_each do |lida|
+      Rails.configuration.dispatcher.dispatch(Events::Types::NOTIFICATION_UPDATED, Time.zone.now, notification: lida)
     end
-    # rubocop:enable Rails/SkipsModelValidations
     head :ok
   end
 

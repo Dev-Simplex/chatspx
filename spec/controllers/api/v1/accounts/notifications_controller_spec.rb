@@ -60,6 +60,19 @@ RSpec.describe 'Notifications API', type: :request do
         expect(notification2.reload.read_at).not_to eq('')
       end
 
+      # N-07: o update_all nao disparava o after_update_commit, e a outra aba do mesmo usuario nunca sabia
+      # que as notificacoes foram lidas: o sino ficava aceso la.
+      it 'tells the other open tabs that the notifications were read' do
+        allow(Rails.configuration.dispatcher).to receive(:dispatch).and_call_original
+
+        post "/api/v1/accounts/#{account.id}/notifications/read_all", headers: admin.create_new_auth_token, as: :json
+
+        [notification1, notification2].each do |lida|
+          expect(Rails.configuration.dispatcher).to have_received(:dispatch)
+            .with(Events::Types::NOTIFICATION_UPDATED, anything, notification: lida)
+        end
+      end
+
       it 'updates only the notifications read at for primary actor when param is passed' do
         post "/api/v1/accounts/#{account.id}/notifications/read_all",
              headers: admin.create_new_auth_token,
