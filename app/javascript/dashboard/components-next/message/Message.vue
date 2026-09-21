@@ -325,11 +325,21 @@ const templateBadgeLabel = computed(() => {
     : t('CONVERSATION.TEMPLATE_BADGE');
 });
 
+const isPhoneReply = computed(
+  () => props.contentAttributes.whatsappPhoneReply === true
+);
+const displayContent = computed(() =>
+  isPhoneReply.value
+    ? props.contentAttributes.whatsappPhoneReplyContent
+    : props.content
+);
+
 /**
  * Computes the message variant based on props
  * @type {import('vue').ComputedRef<'user'|'agent'|'activity'|'private'|'scheduled'|'bot'|'template'>}
  */
 const variant = computed(() => {
+  if (isPhoneReply.value) return MESSAGE_VARIANTS.AGENT;
   if (props.private) return MESSAGE_VARIANTS.PRIVATE;
   if (
     isScheduledMessage.value &&
@@ -376,6 +386,7 @@ const variant = computed(() => {
 });
 
 const isBotOrAgentMessage = computed(() => {
+  if (isPhoneReply.value) return true;
   if (props.messageType === MESSAGE_TYPES.ACTIVITY) {
     return false;
   }
@@ -454,6 +465,7 @@ const gridTemplate = computed(() => {
 });
 
 const shouldGroupWithNext = computed(() => {
+  if (isPhoneReply.value) return false;
   if (props.status === MESSAGE_STATUS.FAILED) return false;
 
   return props.groupWithNext;
@@ -869,7 +881,8 @@ onMounted(setupHighlightTimer);
 
 provideMessageContext({
   ...toRefs(props),
-  isPrivate: computed(() => props.private),
+  content: displayContent,
+  isPrivate: computed(() => props.private && !isPhoneReply.value),
   variant,
   orientation,
   isBotOrAgentMessage,

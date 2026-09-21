@@ -137,6 +137,13 @@ const statusToShow = computed(() => {
     <div class="inline">
       <time class="inline">{{ readableTime }}</time>
     </div>
+    <Icon
+      v-if="contentAttributes.whatsappPhoneReply"
+      icon="i-lucide-smartphone"
+      class="size-3"
+      :title="$t('CONVERSATION.WHATSAPP_PHONE_REPLY')"
+      :aria-label="$t('CONVERSATION.WHATSAPP_PHONE_REPLY')"
+    />
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
     <Icon
       v-if="starred"
