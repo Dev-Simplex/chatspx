@@ -41,6 +41,62 @@ RSpec.describe Spx::Harness::Escritor do
     end
   end
 
+  # A regra é do CLIENTE, não da conversa. A fala da IA é o objeto do teste: é nela que mora o
+  # preço afirmado sem busca. Parafraseá-la apagava o que a fixture precisa provar.
+  describe 'quem é parafraseado' do
+    subject(:saida) { described_class.new(id: 'x').send(:marcar_para_parafrase, conversa) }
+
+    let(:conversa) do
+      { 'mensagens' => [
+        { 'de' => 'cliente', 'texto' => 'quanto custa?' },
+        { 'de' => 'ia', 'texto' => 'o aluguel fica em R$ 2.400' },
+        { 'de' => 'humano', 'texto' => 'na verdade são R$ 3.200' }
+      ] }
+    end
+
+    it 'parafraseia a fala do cliente' do
+      expect(saida['mensagens'][0]['texto']).to eq(described_class::PARAFRASEAR)
+    end
+
+    it 'PRESERVA a fala da IA, com o número que ela afirmou' do
+      expect(saida['mensagens'][1]['texto']).to include('R$ 2.400')
+    end
+
+    # Humano não é IA: rotular a fala de uma pessoa como do agente faria a fixture asseverar
+    # que o modelo disse o que o atendente disse. Na 41803 são três mensagens assim.
+    it 'PRESERVA a fala do humano' do
+      expect(saida['mensagens'][2]['texto']).to include('R$ 3.200')
+    end
+  end
+
+  # SHA1 de string vazia. Mensagem com esse digesto não é fala: é mídia (pin, carrossel, áudio).
+  # Marcá-la para paráfrase pedia que se reescrevesse o nada.
+  describe 'mídia' do
+    subject(:mensagem) { described_class.new(id: 'x').send(:marcar_para_parafrase, conversa)['mensagens'].first }
+
+    let(:conversa) { { 'mensagens' => [{ 'de' => 'ia', 'texto' => '', 'midia' => 'location' }] } }
+
+    it 'não vira marcador de paráfrase' do
+      expect(mensagem['texto']).to be_nil
+      expect(mensagem.to_s).not_to include('PARAFRASEAR')
+    end
+
+    it 'conserva o tipo e descarta o digesto do vazio' do
+      expect(mensagem['midia']).to eq('location')
+      expect(mensagem).not_to have_key('texto_sha')
+    end
+  end
+
+  describe 'a checagem de preservação no caminho de gravação' do
+    it 'não escreve quando um valor do original se perdeu' do
+      escritor = described_class.new(id: 'x', original: 'ia: fica em R$ 2.400')
+      bruto = { 'mensagens' => [{ 'de' => 'cliente', 'texto' => 'quanto?' }] }
+
+      expect { escritor.gravar!(bruto, destino) }.to raise_error(Spx::Harness::Preservacao::Perdido)
+      expect(File).not_to exist(destino)
+    end
+  end
+
   describe 'a ordem não negociável' do
     it 'não escreve nada quando a trava acusa' do
       allow(Spx::Harness::Vazamento).to receive(:conferir!).and_raise(Spx::Harness::Vazamento::Encontrado, 'boom')

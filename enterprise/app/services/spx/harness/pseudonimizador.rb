@@ -63,9 +63,20 @@ class Spx::Harness::Pseudonimizador
   # do imóvel, que é o dado de negócio do cenário, sumia junto com o slug. Descoberto conferindo
   # a primeira gravação real (conv 41803): o link virou `/pagina-ficticia` e levou o 9412 embora.
   def url_neutra(url)
-    host = url[%r{https?://[^\s/]+}]
-    codigo = url[CODIGO_NA_URL, 1]
-    codigo ? "#{host}/imovel/imovel-ficticio-#{codigo}" : "#{host}/pagina-ficticia"
+    # Pontuação colada no fim não é parte da URL. Sem tirá-la, `...-9412)` não casa o código e
+    # o link perde o 9412 — foi o que aconteceu no argumento do atualizar_resumo da conv 41803.
+    limpa = url.sub(/[),.;:\]}>]+\z/, '')
+    sufixo = url[limpa.length..].to_s
+    host = limpa[%r{https?://[^\s/]+}]
+    "#{host}#{caminho_neutro(limpa)}#{sufixo}"
+  end
+
+  # O código do imóvel é o ÚLTIMO grupo de 3 a 6 dígitos do CAMINHO (não da query: `?utm=2026`
+  # roubaria o lugar dele). É o único pedaço do slug que o cenário precisa.
+  def caminho_neutro(url)
+    caminho = url.sub(%r{\Ahttps?://[^\s/]+}, '').split('?').first.to_s
+    codigo = caminho.scan(/\d{3,6}/).last
+    codigo ? "/imovel/imovel-ficticio-#{codigo}" : '/pagina-ficticia'
   end
 
   # Substituto com dígito verificador INVÁLIDO de propósito (sequência repetida), para a trava
