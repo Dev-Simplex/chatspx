@@ -1,14 +1,12 @@
 <script setup>
 import { computed } from 'vue';
-import { messageTimestamp } from 'shared/helpers/timeHelper';
+import { messageStamp } from 'shared/helpers/timeHelper';
 import BaseBubble from './Base.vue';
 import { useMessageContext } from '../provider.js';
 
 const { content, createdAt, contentAttributes } = useMessageContext();
 
-const readableTime = computed(() =>
-  messageTimestamp(createdAt.value, 'LLL d, h:mm a')
-);
+const readableTime = computed(() => messageStamp(createdAt.value, 'HH:mm'));
 
 // F3: atividade feita por uma IA (marcada no backend via content_attributes.ai_actor)
 // ganha a identidade roxa + ícone de bot.

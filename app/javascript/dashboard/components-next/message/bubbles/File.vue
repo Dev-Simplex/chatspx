@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { formatBytes } from 'shared/helpers/FileHelper';
 
 import { useMessageContext } from '../provider.js';
 import BaseAttachmentBubble from './BaseAttachment.vue';
@@ -10,10 +11,10 @@ import ProgressRing from 'dashboard/components-next/upload/ProgressRing.vue';
 
 const { attachments } = useMessageContext();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const url = computed(() => {
-  return attachments.value[0].dataUrl;
+  return attachments.value[0].dataUrl ?? attachments.value[0].data_url;
 });
 
 // Optimistic "uploading" bubble: a document has no local preview, so show the
@@ -29,13 +30,29 @@ const uploadProgress = computed(() =>
 );
 
 const fileName = computed(() => {
-  const localName = attachments.value[0]?.fileName;
+  const localName =
+    attachments.value[0]?.fileName ?? attachments.value[0]?.file_name;
   if (localName) return localName;
   if (url.value) {
     const filename = url.value.substring(url.value.lastIndexOf('/') + 1);
     return filename || t('CONVERSATION.UNKNOWN_FILE_TYPE');
   }
   return t('CONVERSATION.UNKNOWN_FILE_TYPE');
+});
+
+const fileLabel = computed(() => decodeURI(fileName.value));
+
+const fileSize = computed(() => {
+  // MessageList camelizes API keys; also accept attachments passed through raw.
+  const size =
+    attachments.value[0]?.fileSize ?? attachments.value[0]?.file_size;
+  if (size == null) return '';
+
+  const [value, unit] = formatBytes(size, 1).split(' ');
+  const localizedSize = Number(value).toLocaleString(
+    locale.value.replace('_', '-')
+  );
+  return `${localizedSize} ${unit}`;
 });
 
 const fileType = computed(() => {
@@ -78,9 +95,16 @@ const isPdf = computed(
         />
       </div>
       <div class="flex items-center justify-between gap-2">
-        <span class="text-xs text-n-slate-11 truncate">
-          {{ decodeURI(fileName) }}
-        </span>
+        <div class="flex min-w-0 items-center gap-2 text-xs text-n-slate-11">
+          <span class="truncate">{{ fileLabel }}</span>
+          <span
+            v-if="fileSize"
+            data-testid="file-size"
+            class="shrink-0 whitespace-nowrap"
+          >
+            {{ fileSize }}
+          </span>
+        </div>
         <a
           :href="url"
           rel="noreferrer noopener nofollow"
@@ -97,12 +121,24 @@ const isPdf = computed(
     icon="i-teenyicons-user-circle-solid"
     icon-bg-color="bg-n-alpha-3 dark:bg-n-alpha-white"
     sender-translation-key="CONVERSATION.SHARED_ATTACHMENT.FILE"
-    :content="decodeURI(fileName)"
+    :content="fileLabel"
     :action="{
       href: url,
       label: $t('CONVERSATION.DOWNLOAD'),
     }"
   >
+    <template #default>
+      <div class="flex min-w-0 items-center gap-2 text-sm text-n-slate-11">
+        <span class="truncate">{{ fileLabel }}</span>
+        <span
+          v-if="fileSize"
+          data-testid="file-size"
+          class="shrink-0 whitespace-nowrap"
+        >
+          {{ fileSize }}
+        </span>
+      </div>
+    </template>
     <template #icon>
       <FileIcon :file-type="fileType" class="size-4" />
     </template>

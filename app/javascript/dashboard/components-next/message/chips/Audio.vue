@@ -12,6 +12,7 @@ import { useIntersectionObserver } from '@vueuse/core';
 import Icon from 'next/icon/Icon.vue';
 import { downloadFile } from '@chatwoot/utils';
 import { useEmitter } from 'dashboard/composables/emitter';
+import { playbackSpeed } from './playbackSpeed';
 import { emitter } from 'shared/helpers/mitt';
 
 const { attachment } = defineProps({
@@ -37,7 +38,6 @@ const isMuted = ref(false);
 const isBuffering = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
-const playbackSpeed = ref(1);
 const hasLoadedSource = ref(false);
 const hasPrewarmedMetadata = ref(false);
 const isLoadingSource = ref(false);
@@ -161,6 +161,7 @@ const playOrPause = async () => {
     if (!loaded) return;
 
     try {
+      audioPlayer.value.playbackRate = playbackSpeed.value;
       await audioPlayer.value.play();
       isPlaying.value = true;
     } catch {
@@ -172,8 +173,6 @@ const playOrPause = async () => {
 const onEnd = () => {
   isPlaying.value = false;
   currentTime.value = 0;
-  playbackSpeed.value = 1;
-  audioPlayer.value.playbackRate = 1;
 };
 
 const changePlaybackSpeed = () => {
