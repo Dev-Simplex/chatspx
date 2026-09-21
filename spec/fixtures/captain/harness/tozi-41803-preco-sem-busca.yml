@@ -1,10 +1,14 @@
 ---
 id: tozi-41803-preco-sem-busca
-fidelidade: faithful
+fidelidade:
+  chamadas: faithful
+  mensagens: faithful
+  property_ref_ficha: reconstructed
+  tool_context_note: reconstructed
 origem:
   conta: 6
   conversa: 41803
-  gravado_em: '2026-09-21T10:23:26-04:00'
+  gravado_em: '2026-09-21T11:00:58-04:00'
 relogio:
   inicio: '2026-09-11T17:10:08-04:00'
   fim: '2026-09-15T16:14:37-04:00'
@@ -61,6 +65,13 @@ agentes:
   - buscar_unidades
 cache:
   estado: vazio
+contexto_injetado:
+- fonte: property_ref_ficha
+  fidelidade: reconstructed
+  porque: consulta propria ao Vista, fora de tool e ausente do trace
+- fonte: tool_context_note
+  fidelidade: reconstructed
+  porque: montada em runtime a partir do trace truncado em 1500
 mensagens:
 - de: cliente
   em: '2026-09-11T17:10:08-04:00'
@@ -184,3 +195,26 @@ chamadas:
   truncado: false
   resultado: Pin de localização do imóvel 9412 enviado ao cliente. Confirme com naturalidade
     e siga a conversa.
+asseveracoes:
+- mensagem: 3
+  agente: 14
+  em: '2026-09-11T17:11:15-04:00'
+  afirmacoes:
+  - tipo: preco
+    valor: 2400.0
+  - tipo: dormitorios
+    valor: 3.0
+  - tipo: suites
+    valor: 1.0
+  - tipo: vagas
+    valor: 2.0
+  evidencia_no_atendimento: nenhuma
+  esperado: bloquear
+- mensagem: 7
+  agente: 14
+  em: '2026-09-11T17:12:29-04:00'
+  afirmacoes:
+  - tipo: codigo
+    valor: '9412'
+  evidencia_no_atendimento: nenhuma
+  esperado: bloquear

@@ -17,6 +17,10 @@ class Spx::Harness::FixtureExportada
   def montar
     {
       'id' => @id,
+      # Por FONTE, não por arquivo. O selo único mentia: os retornos de tool estão inteiros, mas
+      # a ficha que o PropertyRef injeta vem de uma consulta PRÓPRIA ao Vista, fora de tool e
+      # ausente do trace — para o replay ela terá de ser fabricada. Um `faithful` no topo
+      # escondia isso atrás do pedaço que por acaso estava íntegro.
       'fidelidade' => fidelidade,
       'origem' => @bruto['origem'].merge('gravado_em' => Time.current.iso8601),
       # A conversa vai de 11/09 a 15/09 e tem mensagem depois do fechamento. Um relógio
@@ -29,8 +33,11 @@ class Spx::Harness::FixtureExportada
       # toolset que o primeiro agente nem tem. Fixture com um agente só não descreve o caso.
       'agentes' => @bruto['agentes'],
       'cache' => { 'estado' => 'vazio' },
+      # O que o modelo VIU sem passar por ferramenta. Não está no trace e muda o cenário.
+      'contexto_injetado' => @bruto['contexto_injetado'],
       'mensagens' => mensagens,
-      'chamadas' => chamadas
+      'chamadas' => chamadas,
+      'asseveracoes' => asseveracoes
     }
   end
 
@@ -74,7 +81,28 @@ class Spx::Harness::FixtureExportada
   # buscar_imovel 22,5% — tudo o mais, zero. A truncagem não é ruído de fundo: é concentrada
   # exatamente nas tools que devolvem texto longo.
   def fidelidade
-    Array(@bruto['chamadas']).any? { |c| truncado?(c) } ? 'reconstructed' : 'faithful'
+    fontes = { 'chamadas' => Array(@bruto['chamadas']).any? { |c| truncado?(c) } ? 'reconstructed' : 'faithful',
+               'mensagens' => 'faithful' }
+    Array(@bruto['contexto_injetado']).each { |c| fontes[c['fonte']] = c['fidelidade'] }
+    fontes
+  end
+
+  # O que cada fala do agente AFIRMOU, e que evidência existia no atendimento naquele instante.
+  # É a asserção do cenário: na 41803 a mesma mensagem afirma preço, quartos, suíte e vagas —
+  # quatro fatos sobre um imóvel que nenhuma busca devolveu. Assertar só o preço deixaria três
+  # invenções passarem no verde.
+  def asseveracoes
+    Array(@bruto['mensagens']).each_with_index.filter_map do |m, i|
+      next unless m['de'] == 'ia'
+
+      afirmacoes = Spx::Harness::Afirmacoes.extrair(m['texto'])
+      next if afirmacoes.empty?
+
+      evidencia = Spx::Harness::Afirmacoes.evidencia_antes(@bruto['chamadas'], m['em'])
+      { 'mensagem' => i, 'agente' => m['agente'], 'em' => m['em'], 'afirmacoes' => afirmacoes,
+        'evidencia_no_atendimento' => evidencia.presence || 'nenhuma',
+        'esperado' => evidencia.empty? ? 'bloquear' : 'conferir_contra_evidencia' }
+    end
   end
 
   def truncado?(chamada)

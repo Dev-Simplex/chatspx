@@ -63,9 +63,17 @@ namespace :spx do
               .gravar!(destino.to_s, parafrasear: !corpus)
 
       puts "gravado: #{destino}"
-      puts "  fidelidade: #{dados['fidelidade']}"
+      puts '  fidelidade por fonte:'
+      dados['fidelidade'].each { |fonte, f| puts "    #{fonte.ljust(24)} #{f}" }
       puts "  mensagens: #{dados['mensagens'].size} | chamadas: #{dados['chamadas'].size}"
-      puts "  truncadas: #{dados['chamadas'].count { |c| c['truncado'] }}"
+      puts "  falantes: #{dados['mensagens'].group_by { |m| m['de'] }.transform_values(&:size)}"
+      puts "  agentes: #{Array(dados['agentes']).map { |a| a['nome'] }.join(', ')}"
+      puts "  contexto injetado: #{Array(dados['contexto_injetado']).map { |c| c['fonte'] }.join(', ').presence || 'nenhum'}"
+      puts "  asseverações: #{Array(dados['asseveracoes']).sum do |a|
+        a['afirmacoes'].size
+      end} " + "em #{Array(dados['asseveracoes']).size} fala(s); " + "sem evidência: #{Array(dados['asseveracoes']).count do |a|
+                                                                       a['esperado'] == 'bloquear'
+                                                                     end}"
     end
 
     # Antes de gravar qualquer coisa, saber o que dá para gravar: quantos atendimentos e qual a
