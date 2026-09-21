@@ -1030,16 +1030,16 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       allow(tool).to receive_messages(vista_base_url: 'https://vista.example', vista_api_key: 'k')
     end
 
-    it 'não cacheia resultado de consulta que falhou' do
+    def falhando!
       allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 500, parsed_response: nil))
+    end
 
-      2.times { tool.send(:detalhes_info, '9908') }
-
-      expect(HTTParty).to have_received(:get).twice
+    def respondendo!
+      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 200, parsed_response: detalhes_ok))
     end
 
     it 'marca como não consultado, e não como característica ausente' do
-      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 500, parsed_response: nil))
+      falhando!
 
       info = tool.send(:detalhes_info, '9908')
 
@@ -1048,26 +1048,89 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     end
 
     it 'cacheia o resultado que o servidor confirmou' do
-      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 200, parsed_response: detalhes_ok))
+      respondendo!
 
       2.times { tool.send(:detalhes_info, '9908') }
 
       expect(HTTParty).to have_received(:get).once
     end
 
-    it 'não deixa o resultado bom ser contaminado por uma falha anterior' do
-      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 500, parsed_response: nil))
-      tool.send(:detalhes_info, '9908')
-
-      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 200, parsed_response: detalhes_ok))
-
-      expect(tool.send(:detalhes_info, '9908')[:mobiliado]).to be true
-    end
-
     it 'não descreve característica que não pôde confirmar' do
-      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 500, parsed_response: nil))
+      falhando!
 
       expect(tool.send(:format_extras, '9908')).to eq('')
+    end
+
+    # O ramo `mobiliado` inspeciona até TETO_INSPECAO imóveis por turno. Sem cache negativo, um
+    # Vista fora do ar levava até 50 chamadas de detalhe POR TURNO, sem backoff nenhum,
+    # justamente enquanto ele estava caindo.
+    describe 'cache negativo curto' do
+      it 'segura a martelada enquanto o Vista está fora' do
+        falhando!
+
+        5.times { tool.send(:detalhes_info, '9908') }
+
+        expect(HTTParty).to have_received(:get).once
+      end
+
+      # A condição que separa isto do defeito que o PR conserta: guarda o ESTADO, nunca
+      # característica presumida. Se algum dia vazar um `mobiliado: false` para cá, o imóvel
+      # volta a sumir do filtro por falha de rede.
+      it 'guarda só o flag, sem característica nenhuma' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        guardado = memoria.read("captain:vista:detalhes:#{account.id}:9908")
+
+        expect(guardado).to eq({ consultado: false })
+        expect(guardado.keys).to eq([:consultado])
+      end
+
+      # O ponto todo: a falha esfria em segundos, não nas 6h do sucesso.
+      it 'expira rápido e deixa o resultado bom entrar' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(described_class::TTL_FALHA_PADRAO.seconds + 1.second) do
+          respondendo!
+          expect(tool.send(:detalhes_info, '9908')[:mobiliado]).to be true
+        end
+      end
+
+      it 'não segura pelas 6h do cache de sucesso' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(described_class::TTL_FALHA_PADRAO.seconds + 1.second) do
+          falhando!
+          tool.send(:detalhes_info, '9908')
+        end
+
+        expect(HTTParty).to have_received(:get).twice
+      end
+
+      # Configurável por conta para subir em incidente longo sem deploy.
+      it 'respeita o TTL da conta' do
+        account.update!(custom_attributes: account.custom_attributes.merge('vista_detalhes_ttl_falha' => 600))
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(2.minutes) do
+          falhando!
+          tool.send(:detalhes_info, '9908')
+        end
+
+        expect(HTTParty).to have_received(:get).once
+      end
+
+      it 'desliga com TTL zero' do
+        account.update!(custom_attributes: account.custom_attributes.merge('vista_detalhes_ttl_falha' => 0))
+        falhando!
+
+        2.times { tool.send(:detalhes_info, '9908') }
+
+        expect(HTTParty).to have_received(:get).twice
+      end
     end
   end
 

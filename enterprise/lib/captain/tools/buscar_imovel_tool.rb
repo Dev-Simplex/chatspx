@@ -975,18 +975,42 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # TETO_INSPECAO imóveis por busca, e sem cache seriam 60 chamadas ao Vista a cada pergunta.
   # 6h é curto o bastante pra refletir cadastro novo e longo o bastante pra uma conversa
   # inteira reaproveitar. Chave por conta, porque cada conta tem o seu Vista.
-  # SÓ resultado que o servidor confirmou entra no cache. Antes, o `{}` devolvido por erro era
-  # cacheado pelas mesmas 6h: uma indisponibilidade de segundos virava "sem foto, sem suíte e não
-  # mobiliado" para toda conversa da conta durante as 6 horas seguintes, e o imóvel sumia do
+  # SÓ resultado que o servidor confirmou entra no cache LONGO. Antes, o `{}` devolvido por erro
+  # era cacheado pelas mesmas 6h: uma indisponibilidade de segundos virava "sem foto, sem suíte e
+  # não mobiliado" para toda conversa da conta durante as 6 horas seguintes, e o imóvel sumia do
   # filtro de característica sem deixar rastro.
   def detalhes_info(codigo)
     chave = "captain:vista:detalhes:#{tool_account&.id}:#{codigo}"
     cacheado = Rails.cache.read(chave)
-    return cacheado if cacheado.is_a?(Hash) && cacheado[:consultado]
+    return cacheado if cacheado.is_a?(Hash) && cacheado.key?(:consultado)
 
     info = fetch_detalhes_info(codigo)
-    Rails.cache.write(chave, info, expires_in: 6.hours) if info[:consultado]
+    guardar_detalhes(chave, info)
     info
+  end
+
+  TTL_SUCESSO = 6.hours
+  # Cache negativo CURTO. A regra "erro nunca é cacheado" foi escrita contra o envenenamento de
+  # 6h, e ela continua valendo: o que se guarda aqui é só o ESTADO "não deu pra consultar",
+  # nunca característica presumida — o valor é o próprio NAO_CONSULTADO, que não tem campo
+  # nenhum além do flag. Sem isto, um Vista fora do ar leva até TETO_INSPECAO chamadas de
+  # detalhe POR TURNO (ramo `mobiliado`), sem backoff, justamente enquanto ele está caindo.
+  #
+  # Configurável por conta para dar de subir em incidente longo sem deploy; 0 desliga.
+  TTL_FALHA_PADRAO = 60
+
+  def guardar_detalhes(chave, info)
+    return Rails.cache.write(chave, info, expires_in: TTL_SUCESSO) if info[:consultado]
+
+    segundos = ttl_falha
+    return unless segundos.positive?
+
+    Rails.cache.write(chave, NAO_CONSULTADO, expires_in: segundos.seconds)
+  end
+
+  def ttl_falha
+    bruto = tool_account&.custom_attributes&.dig('vista_detalhes_ttl_falha')
+    bruto.nil? ? TTL_FALHA_PADRAO : bruto.to_i
   end
 
   # `consultado: false` é o estado DESCONHECIDO, e ele existe para não ser confundido com "a
