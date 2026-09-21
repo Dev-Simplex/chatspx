@@ -18,6 +18,15 @@ describe '/app/login', type: :request do
     end
   end
 
+  context 'with only SENTRY_DSN' do
+    it 'falls back to SENTRY_DSN for frontend error logging' do
+      with_modified_env SENTRY_DSN: 'https://chave@glitchtip.exemplo/1' do
+        get '/app/login'
+        expect(response.body).to include "window.errorLoggingConfig = 'https://chave@glitchtip.exemplo/1'"
+      end
+    end
+  end
+
   context 'with non-HTML format' do
     it 'returns not acceptable for JSON with error message' do
       get '/app/login', headers: { 'Accept' => 'application/json' }

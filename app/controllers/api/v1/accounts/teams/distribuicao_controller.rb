@@ -15,7 +15,7 @@ class Api::V1::Accounts::Teams::DistribuicaoController < Api::V1::Accounts::Base
 
   # Chaves aceitas numa entrada do pool. O pool é jsonb livre: sem allowlist, qualquer coisa
   # que o cliente mandar fica gravada para sempre e vira lixo que ninguém sabe de onde veio.
-  CHAVES_POOL = %w[user_id ativo suspenso_ate motivo cap produtos].freeze
+  CHAVES_POOL = %w[user_id ativo suspenso_ate motivo cap produtos vista_corretor].freeze
 
   def show
     render json: payload
@@ -160,6 +160,9 @@ class Api::V1::Accounts::Teams::DistribuicaoController < Api::V1::Accounts::Base
   # é preservada de propósito: ela É a ordem do rodízio.
   def pool_sanitizado
     validos = Current.account.users.pluck(:id).to_set
+    # `vista_corretor` não tem campo na tela e é gravado por console: como salvar o time reescreve
+    # o pool inteiro, sem preservar aqui o mapeamento some e o espelho do Vista para de criar card.
+    corretores = vista_corretor_atual
 
     Array(params[:pool]).filter_map do |entrada|
       hash = entrada.respond_to?(:to_unsafe_h) ? entrada.to_unsafe_h : entrada
@@ -168,7 +171,17 @@ class Api::V1::Accounts::Teams::DistribuicaoController < Api::V1::Accounts::Base
       uid = hash['user_id'].to_i
       next unless validos.include?(uid)
 
-      hash.slice(*CHAVES_POOL).merge('user_id' => uid)
+      limpa = hash.slice(*CHAVES_POOL).merge('user_id' => uid)
+      corretor = limpa['vista_corretor'].presence || corretores[uid]
+      corretor.present? ? limpa.merge('vista_corretor' => corretor) : limpa
+    end
+  end
+
+  def vista_corretor_atual
+    (policy_record&.pool || []).each_with_object({}) do |entrada, mapa|
+      next unless entrada.is_a?(Hash) && entrada['vista_corretor'].present?
+
+      mapa[entrada['user_id'].to_i] = entrada['vista_corretor']
     end
   end
 end

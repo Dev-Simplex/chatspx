@@ -113,6 +113,19 @@ RSpec.describe 'Api::V1::Accounts::Teams::Distribuicao', type: :request do
       expect(Spx::Distribuicao::Policy.last.pool.map { |e| e['user_id'] }).not_to include(forasteiro.id)
     end
 
+    # `vista_corretor` mapeia o atendente ao corretor do Vista e só é gravado por console: sem ele
+    # o espelho do Vista nao cria o card do lead. A tela nao tem campo para ele e manda o pool
+    # inteiro de volta, entao renomear o time nao pode apagar o mapeamento.
+    it 'preserva o vista_corretor que a tela nao envia de volta' do
+      politica = create(:distribuicao_policy, account: account, team: team,
+                                              pool: [{ 'user_id' => membro.id, 'vista_corretor' => '123' }])
+
+      patch url, params: { ativo: true, pool: [{ user_id: membro.id, ativo: true }] },
+                 headers: admin.create_new_auth_token
+
+      expect(politica.reload.pool.first['vista_corretor']).to eq('123')
+    end
+
     it 'guarda a suspensao com prazo da entrada do pool' do
       volta = 3.days.from_now.to_date.to_s
 

@@ -34,6 +34,18 @@ RSpec.describe 'NPS Responses API', type: :request do
       end
     end
 
+    it 'counts only label blocks and matches the breakdown' do
+      create(:nps_response, account: account, status: :dismissed,
+                            dismiss_reason: 'label_blocked', blocked_by_label: 'no-nps')
+      create(:nps_response, account: account, status: :dismissed, dismiss_reason: 'other_topic')
+      create(:nps_response, account: account, status: :dismissed, dismiss_reason: 'invalid_responses')
+
+      body = get_metrics
+      expect(body['blocked_count']).to eq(1)
+      expect(body['blocked_by_label_count']).to eq('no-nps' => 1)
+      expect(body['blocked_count']).to eq(body['blocked_by_label_count'].values.sum)
+    end
+
     context 'with a reliable sample (N >= 30)' do
       before do
         # 24 promotores (10) + 6 detratores (3) => NPS (24-6)/30*100 = 60
