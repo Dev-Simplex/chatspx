@@ -11,6 +11,8 @@
 # recebe o status semântico e a gem continua recebendo String, como sempre recebeu.
 module Captain::Tools::TraceRecorder
   RESULT_PREVIEW_LIMIT = 1500
+  # Substituto de byte que não é UTF-8 válido. Um caractere só: o resto do texto fica.
+  BYTE_INVALIDO = '?'.freeze
 
   def perform(tool_context, **kwargs)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -91,16 +93,32 @@ module Captain::Tools::TraceRecorder
            else
              resultado.is_a?(String) ? resultado : resultado.inspect
            end
-    sanitize_trace(text.to_s[0, RESULT_PREVIEW_LIMIT])
+    # Sanitiza ANTES de cortar: fatiar string de codificação inválida por caractere é o que
+    # não tem resposta definida. Depois de sanitizada ela é UTF-8 válida e o corte é trivial.
+    sanitize_trace(text.to_s)[0, RESULT_PREVIEW_LIMIT]
   end
 
-  # remove null bytes / controle C0 (o Postgres recusa em text/jsonb)
+  # remove null bytes / controle C0 (o Postgres recusa em text/jsonb) e normaliza a codificação
   def sanitize_trace(obj)
     case obj
-    when String then obj.gsub(/[\x00-\x08\x0B\x0C\x0E-\x1F]/, '')
+    when String then utf8_valido(obj).gsub(/[\x00-\x08\x0B\x0C\x0E-\x1F]/, '')
     when Array then obj.map { |v| sanitize_trace(v) }
     when Hash then obj.transform_values { |v| sanitize_trace(v) }
     else obj
     end
+  end
+
+  # O Postgres recusa a linha INTEIRA quando o texto tem byte que não é UTF-8 válido, e o
+  # `record_tool_trace` é best-effort: ele engole a exceção e a chamada simplesmente não é
+  # gravada. Um CRM que responda em latin-1 bastava para a chamada sumir do trace em silêncio —
+  # e, com ela, sumir da nota do turno seguinte e do eval, que é onde dói: o modelo perde o
+  # retorno e volta a responder de memória.
+  #
+  # `scrub` troca só o byte inválido e PRESERVA o resto. Descartar o texto todo trocaria um
+  # defeito por outro: trace ilegível é pior que trace com um `?` no meio.
+  def utf8_valido(texto)
+    return texto if texto.encoding == Encoding::UTF_8 && texto.valid_encoding?
+
+    texto.dup.force_encoding(Encoding::UTF_8).scrub(BYTE_INVALIDO)
   end
 end

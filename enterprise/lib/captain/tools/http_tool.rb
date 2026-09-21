@@ -54,6 +54,14 @@ class Captain::Tools::HttpTool < Agents::Tool
   SEM_CONTEUDO = 'A consulta foi respondida, mas veio sem conteúdo. Isto NÃO confirma que o ' \
                  'dado não existe: não conclua ausência e não responda de memória.'.freeze
 
+  # 2xx COM corpo, cujo conteúdo não se conseguiu extrair. É DIFERENTE do SEM_CONTEUDO, e a
+  # diferença é de fato: lá o servidor não mandou nada; aqui mandou e nós é que não soubemos
+  # ler. Dizer "veio sem conteúdo" neste caso afirma sobre a resposta do sistema uma coisa que
+  # não é verdade, e é dessa afirmação que o modelo conclui ausência.
+  CONTEUDO_ILEGIVEL = 'O sistema respondeu, mas o conteúdo da resposta não pôde ser extraído. ' \
+                      'Isto NÃO é ausência de dado: não conclua que o dado não existe e não ' \
+                      'responda de memória.'.freeze
+
   def initialize(assistant, custom_tool)
     @assistant = assistant
     @custom_tool = custom_tool
@@ -122,16 +130,50 @@ class Captain::Tools::HttpTool < Agents::Tool
   NAO_SAIU = [SocketError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH,
               Errno::ENETUNREACH, OpenSSL::SSL::SSLError].freeze
 
+  # Saída formatada vazia tem DUAS causas, e elas não se parecem em nada. A decisão é pelo
+  # corpo BRUTO, antes do template:
+  #
+  #   - corpo bruto vazio (204, content-length 0): o servidor não mandou nada. Em AÇÃO é a
+  #     confirmação normal — o 204 de um cancelamento; em CONSULTA não dá para saber se é
+  #     ausência ou contrato da operação, e inventar ausência é o defeito que este PR fecha;
+  #   - corpo bruto COM conteúdo e template renderizando vazio: o servidor mandou algo e nós
+  #     não soubemos ler. Confirmar sucesso aqui afirma uma operação que o sistema pode ter
+  #     RECUSADO — é comum o CRM responder 200 com `{"sucesso": false}`, e um template que
+  #     procura `{{ response.id }}` renderiza vazio exatamente nesse caso.
+  #
+  # Sem essa separação, o segundo caso caía no primeiro e uma recusa de 200 virava "A ação foi
+  # realizada com sucesso". Medido pelo harness offline em 21/09; ver §18.1 da auditoria.
+  # O corpo bruto é consultado ANTES do template, e não depois. Não é estilo: com template
+  # configurado, um 204 chega ao `format_response` como `JSON.parse(nil)`, que levanta
+  # `TypeError` — fora do rescue de `JSON::ParserError` — e o cancelamento bem-sucedido virava
+  # "não se sabe se aconteceu". Corpo vazio nem passa pelo template: não há o que renderizar.
   def resultado_ok(response)
+    return sem_corpo(response) if corpo_vazio?(response)
+
     formatado = formatar(response)
     return Captain::Tools::Result.sucesso(formatado) if formatado.present?
 
-    # 2xx sem corpo: para AÇÃO isso é a confirmação normal (204 de cancelamento); para CONSULTA
-    # não dá para saber se é ausência ou contrato da operação, e inventar ausência é o defeito
-    # que este PR fecha.
-    return Captain::Tools::Result.sucesso(ACAO_CONFIRMADA, detalhe: "http #{response.code} sem corpo") if acao?
+    corpo_ilegivel(response)
+  end
 
-    Captain::Tools::Result.desconhecido(SEM_CONTEUDO, detalhe: "http #{response.code} sem corpo")
+  # `.b` antes do strip: corpo em latin-1 ou binário faz `strip` levantar quando a string está
+  # marcada como UTF-8. Aqui a pergunta é de BYTES — "veio alguma coisa?" —, não de texto.
+  def corpo_vazio?(response)
+    response.body.to_s.b.strip.empty?
+  end
+
+  def sem_corpo(response)
+    detalhe = "http #{response.code} sem corpo"
+    return Captain::Tools::Result.sucesso(ACAO_CONFIRMADA, detalhe: detalhe) if acao?
+
+    Captain::Tools::Result.desconhecido(SEM_CONTEUDO, detalhe: detalhe)
+  end
+
+  def corpo_ilegivel(response)
+    detalhe = "http #{response.code} corpo de #{response.body.to_s.bytesize} bytes não extraído"
+    return Captain::Tools::Result.desconhecido(ACAO_ILEGIVEL, detalhe: detalhe) if acao?
+
+    Captain::Tools::Result.desconhecido(CONTEUDO_ILEGIVEL, detalhe: detalhe)
   end
 
   def resultado_consulta(erro)
