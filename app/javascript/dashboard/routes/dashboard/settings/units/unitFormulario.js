@@ -10,6 +10,25 @@ export const formatarCep = valor => {
     : digitos;
 };
 
+// Telefone da filial: o parêntese e o traço aparecem enquanto se digita, como no CEP. Fixo fica
+// (66) 3531-0000 e celular (66) 99999-9999 — quem manda é a quantidade de dígitos, não um seletor.
+// Número colado com o 55 na frente perde o 55 em vez de perder os dois últimos dígitos no corte.
+export const formatarTelefone = valor => {
+  let digitos = (valor || '').replace(/\D/g, '');
+  if (digitos.length > 11 && digitos.startsWith('55'))
+    digitos = digitos.slice(2);
+  digitos = digitos.slice(0, 11);
+
+  if (digitos.length <= 2) return digitos ? `(${digitos}` : '';
+
+  const ddd = `(${digitos.slice(0, 2)}) `;
+  const resto = digitos.slice(2);
+  if (resto.length <= 4) return ddd + resto;
+
+  const corte = resto.length > 8 ? 5 : 4;
+  return `${ddd}${resto.slice(0, corte)}-${resto.slice(corte)}`;
+};
+
 // Segunda a sexta costuma ser tudo igual: preenche um dia, copia, e ajusta só o que foge. Copia para
 // os dias ABERTOS — fim de semana fechado continua fechado. Devolve a grade nova e quantos dias mudaram.
 export const copiarHorarioParaDias = (slots, origem) => {

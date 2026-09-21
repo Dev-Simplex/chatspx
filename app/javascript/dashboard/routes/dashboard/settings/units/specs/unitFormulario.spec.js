@@ -1,4 +1,8 @@
-import { formatarCep, copiarHorarioParaDias } from '../unitFormulario';
+import {
+  formatarCep,
+  formatarTelefone,
+  copiarHorarioParaDias,
+} from '../unitFormulario';
 
 describe('formatarCep', () => {
   it('põe o traço depois do quinto dígito', () => {
@@ -18,6 +22,32 @@ describe('formatarCep', () => {
     expect(formatarCep('785')).toBe('785');
     expect(formatarCep('')).toBe('');
     expect(formatarCep(null)).toBe('');
+  });
+});
+
+describe('formatarTelefone', () => {
+  it('poe o parentese assim que o DDD e digitado', () => {
+    expect(formatarTelefone('6')).toBe('(6');
+    expect(formatarTelefone('66')).toBe('(66');
+    expect(formatarTelefone('663')).toBe('(66) 3');
+  });
+
+  it('fecha fixo com quatro digitos antes do traco', () => {
+    expect(formatarTelefone('6635310000')).toBe('(66) 3531-0000');
+  });
+
+  it('fecha celular com cinco digitos antes do traco', () => {
+    expect(formatarTelefone('66999998888')).toBe('(66) 99999-8888');
+  });
+
+  it('tira o 55 do numero colado em vez de cortar o final', () => {
+    expect(formatarTelefone('+55 66 99999-8888')).toBe('(66) 99999-8888');
+  });
+
+  it('aceita o que ja vem formatado e o vazio', () => {
+    expect(formatarTelefone('(66) 3531-0000')).toBe('(66) 3531-0000');
+    expect(formatarTelefone('')).toBe('');
+    expect(formatarTelefone(null)).toBe('');
   });
 });
 
