@@ -107,6 +107,23 @@ describe AutomationRuleListener do
       create(:message, conversation: conversation, inbox: inbox, account: account, message_type: :incoming, content: content)
     end
 
+    # Desativar e o botao de panico de quem opera: tem de valer na hora. O cache de 2 min guarda os
+    # IDS dos flows ativos, entao sem conferir `active` na query o flow desativado seguia disparando
+    # ate o cache expirar.
+    it 'stops firing immediately after the flow is deactivated, even with the cache warm' do
+      # O ambiente de teste usa `null_store`: sem um cache de verdade o cenario nao existe.
+      allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new)
+      flow = keyword_flow(%w[suporte])
+      deliver(incoming('preciso de suporte'))
+      expect(conversation.reload.label_list).to include('kw-hit')
+
+      conversation.update!(label_list: [])
+      flow.update!(active: false)
+      deliver(incoming('preciso de suporte de novo'))
+
+      expect(conversation.reload.label_list).not_to include('kw-hit')
+    end
+
     context 'with contains match (default)' do
       before { keyword_flow(%w[suporte ajuda]) }
 

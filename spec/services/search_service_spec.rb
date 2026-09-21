@@ -241,6 +241,39 @@ describe SearchService do
       # rubocop:enable RSpec/MultipleMemoizedHelpers
     end
 
+    # N-03: o alcance da busca e o mesmo da lista. Antes o agente do time A achava, pela busca, conversas
+    # e mensagens do time B na mesma caixa — as que a lista esconde e que dao 403 ao abrir.
+    context 'when the agent belongs to a team' do
+      let(:time_a) { create(:team, account: account) }
+      let(:time_b) { create(:team, account: account) }
+      let(:vizinho) { create(:contact, name: 'Zefiro Vizinho', account_id: account.id) }
+      let!(:conversa_b) { create(:conversation, contact: vizinho, inbox: inbox, account: account, team: time_b) }
+
+      before do
+        create(:team_member, team: time_a, user: user)
+        create(:message, account: account, inbox: inbox, conversation: conversa_b, content: 'senha do cofre zefirina')
+      end
+
+      it 'does not find messages of another team in the same inbox' do
+        search = described_class.new(current_user: user, current_account: account, params: { q: 'zefirina' }, search_type: 'Message')
+
+        expect(search.perform[:messages]).to be_empty
+      end
+
+      it 'does not find conversations of another team in the same inbox' do
+        search = described_class.new(current_user: user, current_account: account, params: { q: 'Zefiro' }, search_type: 'Conversation')
+
+        expect(search.perform[:conversations]).to be_empty
+      end
+
+      it 'still finds them for an administrator' do
+        admin = create(:user, account: account, role: :administrator)
+        search = described_class.new(current_user: admin, current_account: account, params: { q: 'zefirina' }, search_type: 'Message')
+
+        expect(search.perform[:messages].map(&:conversation_id)).to eq([conversa_b.id])
+      end
+    end
+
     context 'when conversation search' do
       it 'searches across conversations using contact information and order by created_at desc' do
         # random messages in another inbox
@@ -390,9 +423,9 @@ describe SearchService do
       it 'filters by all accessible inbox_ids for admin' do
         base_query = admin_search.send(:message_base_query)
 
-        # Admin still filters by inbox_id (all assigned inboxes)
+        # O alcance e o da lista (PermissionFilterService): para admin, todas as conversas da conta
         expect(base_query.to_sql).to include('created_at >= ')
-        expect(base_query.to_sql).to include('inbox_id')
+        expect(base_query.to_sql).to include('conversation_id')
       end
     end
 

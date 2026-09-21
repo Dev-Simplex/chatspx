@@ -167,7 +167,8 @@ function install_dependencies() {
       zlib1g-dev liblzma-dev libgmp-dev \
       imagemagick patch ruby-dev sudo \
       postgresql-client-16 redis-tools \
-      nodejs python3-pip python3-packaging
+      nodejs python3-pip python3-packaging \
+      ffmpeg
 
   echo "  Installing pnpm..."
   npm install -g pnpm

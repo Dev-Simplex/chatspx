@@ -6,6 +6,7 @@ import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { useMessageContext } from '../provider.js';
 import { ATTACHMENT_TYPES } from '../constants';
 import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
+import { useImageListRetry } from 'dashboard/composables/loadWithRetry';
 
 const props = defineProps({
   attachments: {
@@ -27,7 +28,9 @@ const {
 
 const showGallery = ref(false);
 const activeAttachment = ref(null);
-const errorMap = ref({});
+// Um erro marcava o quadro como quebrado para sempre; a foto recem-chegada pode ser pedida antes de o
+// arquivo chegar ao disco, entao o quadro tenta de novo antes de desistir.
+const { retrySrc, onLoadError, hasFailed } = useImageListRetry();
 
 const visibleAttachments = computed(() =>
   props.attachments.slice(0, props.maxVisible)
@@ -115,11 +118,9 @@ const tileClass = index => {
   return base;
 };
 
-const tileHasError = index => !!errorMap.value[index];
+const tileHasError = index => hasFailed(index);
 
-const onTileError = index => {
-  errorMap.value = { ...errorMap.value, [index]: true };
-};
+const onTileError = index => onLoadError(index);
 
 const isVideoAttachment = attachment =>
   [ATTACHMENT_TYPES.VIDEO, ATTACHMENT_TYPES.IG_REEL].includes(
@@ -225,19 +226,19 @@ const shouldShowMoreOverlay = index =>
         <template v-else>
           <img
             v-if="isImageAttachment(attachment) && getMediaSrc(attachment)"
-            :src="getMediaSrc(attachment)"
+            :src="retrySrc(index, getMediaSrc(attachment))"
             :class="mediaClass()"
             @error="onTileError(index)"
           />
           <img
             v-else-if="isVideoAttachment(attachment) && attachment.thumbUrl"
-            :src="attachment.thumbUrl"
+            :src="retrySrc(index, attachment.thumbUrl)"
             :class="mediaClass()"
             @error="onTileError(index)"
           />
           <video
             v-else-if="isVideoAttachment(attachment)"
-            :src="attachment.dataUrl"
+            :src="retrySrc(index, attachment.dataUrl)"
             :poster="attachment.thumbUrl || undefined"
             :class="mediaClass()"
             muted

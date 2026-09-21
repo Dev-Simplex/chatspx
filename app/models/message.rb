@@ -326,6 +326,13 @@ class Message < ApplicationRecord
     '[Attachment]' if attachments.any?
   end
 
+  # O conteudo JA passou pelo WhatsApp: o que o cliente mandou, ou o que o corretor mandou pelo proprio
+  # celular (eco da ponte WAHA, ver #whatsapp_phone_reply?). Usado pelas redes de tamanho do Attachment:
+  # elas existem para o que o atendente ENVIA pelo painel, nao para o que ja chegou.
+  def already_through_whatsapp?
+    incoming? || whatsapp_phone_reply?
+  end
+
   private
 
   def prevent_message_flooding
