@@ -374,7 +374,10 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     # Fetch me_info safely
     me_info = nil
     begin
-      me_info = fetch_me_info(session_name_str)
+      me_info = (session_hash['me'] || session_hash[:me]).presence ||
+                Rails.cache.fetch("waha/me/#{inbox.account_id}/#{inbox.id}/#{session_name_str}", expires_in: 10.minutes) do
+                  fetch_me_info(session_name_str)
+                end
     rescue StandardError => e
       Rails.logger.warn("Failed to fetch me_info for #{session_name_str}: #{e.message}")
       me_info = nil

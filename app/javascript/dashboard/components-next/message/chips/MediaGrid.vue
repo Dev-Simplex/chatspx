@@ -270,14 +270,14 @@ const shouldShowMoreOverlay = index =>
         </div>
       </button>
     </div>
+    <GalleryView
+      v-if="showGallery && activeAttachmentSnake"
+      v-model:show="showGallery"
+      :attachment="activeAttachmentSnake"
+      :all-attachments="galleryAttachments"
+      :has-more="hasMoreAttachments"
+      @load-more="loadMoreAttachments"
+      @close="() => (showGallery = false)"
+    />
   </div>
-  <GalleryView
-    v-if="showGallery && activeAttachmentSnake"
-    v-model:show="showGallery"
-    :attachment="activeAttachmentSnake"
-    :all-attachments="galleryAttachments"
-    :has-more="hasMoreAttachments"
-    @load-more="loadMoreAttachments"
-    @close="() => (showGallery = false)"
-  />
 </template>
