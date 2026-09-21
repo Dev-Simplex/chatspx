@@ -342,6 +342,19 @@ ciclomática. Não confundir com regressão de quem mexer neles.
 
 ---
 
+## Ferramentas Vista — régua comercial
+
+### 🔴 `enviar_localizacao_imovel`: inverter o `venda?` para fail-closed — PR próprio, a partir de `producao`
+- **Decidido 21/09/2026 pelo Paulo. Sequência:** depois do P0 (`fix/tool-result-tipado`), PR pequeno e separado, **sem interromper o harness**.
+- **O quê:** `venda?(data)` é `data['Status'].to_s.match?(/vend/i)`. O pin EXATO sai sempre que o Status nao casa `/vend/i` — o que inclui Status **vazio, ausente ou escrito de um jeito nao previsto**. Inverter: **pin exato so quando o Status for claramente de LOCACAO**; vazio, desconhecido ou qualquer outro valor vai para o pin do BAIRRO.
+- **Por que:** pior caso hoje = imovel de terceiro **a venda com a porta entregue** ao lead, que e como a concorrencia capta direto com o proprietario. Pior caso depois = locacao recebe pin de bairro. Os dois nao se comparam.
+- **Medido (conta 6, 30 dias):** 24 envios — 6 pin de bairro (venda), 13 exatos (12 em conversa so de locacao, 1 na conv 41803, locacao), 5 sem coordenada. Nenhuma coordenada exata de venda saiu; o defeito e a direcao da queda, nao um incidente.
+- **O PR precisa ter:** a inversao (de preferencia um `locacao?` explicito, para o nome dizer a regra) + teste dos tres caminhos de queda (Status vazio, nulo, desconhecido → bairro) + teste de que locacao continua com pin exato, senao a inversao vira regressao silenciosa no caso comum.
+- **NAO e** a trava de ORIGEM: a ferramenta continua sem o `Captain::Tools::ImoveisConhecidos` e continua agindo sobre qualquer codigo que o modelo disser. Sao dois defeitos independentes na mesma ferramenta — ver §16.1/§16.2 e a assercao vermelha em `spec/enterprise/services/spx/harness/acao_sem_trava_spec.rb`.
+- **Detalhe completo:** `spx-os/clientes/tozi-docs/ia/06-auditoria-confiabilidade-2026-09-20.md` §17.
+
+---
+
 ## Conduta da IA — Tozi (decisões do Paulo, 31/07)
 
 ### 🟡 Simulação de financiamento na conduta MCMV — parado por decisão
