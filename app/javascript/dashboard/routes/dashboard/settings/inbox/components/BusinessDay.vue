@@ -194,8 +194,8 @@ export default {
 
 <template>
   <tr>
-    <td class="ltr:pl-4 ltr:pr-3 rtl:pl-3 rtl:pr-4">
-      <div class="flex items-center gap-2 min-h-16">
+    <td class="py-3 align-top ltr:pl-4 ltr:pr-3 rtl:pl-3 rtl:pr-4">
+      <label class="flex items-center gap-2 h-10 m-0 cursor-pointer">
         <input
           v-model="isDayEnabled"
           name="enable-day"
@@ -203,78 +203,84 @@ export default {
           type="checkbox"
           :title="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.ENABLE')"
         />
-        <span class="text-body-main text-n-slate-12 font-medium">
+        <span
+          class="text-body-main text-n-slate-12 font-medium whitespace-nowrap"
+        >
           {{ dayName }}
         </span>
-      </div>
+      </label>
     </td>
-    <td class="py-3 ltr:pr-3 rtl:pl-3">
-      <div v-if="isDayEnabled" class="flex flex-col gap-1.5">
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2">
-            <input
-              v-model="isOpenAllDay"
-              name="enable-open-all-day"
-              class="m-0"
-              type="checkbox"
-              :title="$t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')"
-            />
-            <span class="text-body-main text-n-slate-12">{{
-              $t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')
-            }}</span>
-          </div>
+    <td class="py-3 align-top ltr:pr-3 rtl:pl-3">
+      <!-- As duas faixas (dia todo e almoço) dividem a MESMA grade: sem isso cada linha media
+           a própria largura, o campo da tarde caía para baixo e a coluna de horas desalinhava. -->
+      <div
+        v-if="isDayEnabled"
+        class="grid grid-cols-[minmax(11.5rem,max-content)_7rem_1.25rem_7rem] items-center gap-x-3 gap-y-2"
+      >
+        <label class="flex items-center gap-2 m-0 cursor-pointer">
           <input
-            v-model="fromTime"
-            type="time"
-            :class="campoHora"
-            :disabled="isOpenAllDay"
-            :aria-label="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
-          />
-          <div class="flex items-center">
-            <Icon icon="i-lucide-minus size-4" />
-          </div>
-          <input
-            v-model="toTime"
-            type="time"
-            :class="campoHora"
-            :disabled="isOpenAllDay"
-            :aria-label="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
-          />
-        </div>
-        <div
-          v-if="showBreak && !isOpenAllDay"
-          class="flex flex-wrap items-center gap-2"
-        >
-          <input
-            v-model="hasBreak"
-            name="enable-break"
+            v-model="isOpenAllDay"
+            name="enable-open-all-day"
             class="m-0"
             type="checkbox"
+            :title="$t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')"
           />
-          <span class="text-body-main text-n-slate-11">
-            {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.BREAK') }}
-          </span>
+          <span class="text-body-main text-n-slate-12 whitespace-nowrap">{{
+            $t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')
+          }}</span>
+        </label>
+        <input
+          v-model="fromTime"
+          type="time"
+          :class="campoHora"
+          :disabled="isOpenAllDay"
+          :aria-label="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
+        />
+        <Icon icon="i-lucide-minus size-4" class="justify-self-center" />
+        <input
+          v-model="toTime"
+          type="time"
+          :class="campoHora"
+          :disabled="isOpenAllDay"
+          :aria-label="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
+        />
+        <template v-if="showBreak && !isOpenAllDay">
+          <label class="flex items-center gap-2 m-0 cursor-pointer">
+            <input
+              v-model="hasBreak"
+              name="enable-break"
+              class="m-0"
+              type="checkbox"
+            />
+            <span class="text-body-main text-n-slate-11 whitespace-nowrap">
+              {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.BREAK') }}
+            </span>
+          </label>
           <template v-if="hasBreak">
             <input v-model="breakFrom" type="time" :class="campoHora" />
-            <div class="flex items-center">
-              <Icon icon="i-lucide-minus size-4" />
-            </div>
+            <Icon icon="i-lucide-minus size-4" class="justify-self-center" />
             <input v-model="breakTo" type="time" :class="campoHora" />
           </template>
-        </div>
-        <span v-if="hasError" class="error text-label-small text-n-ruby-9">
+        </template>
+        <span
+          v-if="hasError"
+          class="col-span-4 error text-label-small text-n-ruby-9"
+        >
           {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.VALIDATION_ERROR') }}
         </span>
       </div>
-      <span v-else class="text-body-main text-n-slate-11">
+      <span
+        v-else
+        class="flex items-center h-10 text-body-main text-n-slate-11"
+      >
         {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.UNAVAILABLE') }}
       </span>
     </td>
-    <td class="py-3 ltr:pr-3 rtl:pl-3">
-      <div class="flex items-center gap-2">
+    <td class="py-3 align-top ltr:pr-3 rtl:pl-3">
+      <div class="flex items-center gap-2 h-10 whitespace-nowrap">
         <span
           v-if="isDayEnabled && !hasError"
-          class="label bg-n-blue-3 text-n-blue-11 text-label-small inline-block px-2 py-1 rounded-lg cursor-default whitespace-nowrap"
+          class="label bg-n-blue-3 text-n-blue-11 text-label-small inline-block px-2 py-1 rounded-lg cursor-default"
         >
           {{ totalHours }}
         </span>
