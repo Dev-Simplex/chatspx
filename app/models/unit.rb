@@ -47,6 +47,10 @@ class Unit < ApplicationRecord
 
       { 'label' => contato['label'].to_s.strip, 'phone' => contato['phone'].strip }
     end
+    # Quem manda só o `phone` — a API de antes da lista — não pode perder o número: ele vira o
+    # primeiro contato. Quem apaga a lista inteira na tela não recebe o contato de volta, porque
+    # ali o `phone` não mudou; é o que separa "não conhece a lista" de "apagou de propósito".
+    self.contacts = [{ 'label' => '', 'phone' => phone.strip }] if contacts.empty? && phone.present? && phone_changed?
     self.phone = contacts.first&.fetch('phone', nil)
   end
 
