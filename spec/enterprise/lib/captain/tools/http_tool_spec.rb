@@ -296,6 +296,156 @@ RSpec.describe Captain::Tools::HttpTool, type: :model do
     # de todos os tenants não geravam trace nenhum, e o que não tem trace não chega na nota do
     # turno seguinte nem no eval. Aqui se testa o contrato de ponta a ponta — o status gravado é
     # semântico, não "nenhuma exceção propagou".
+
+    # ── AÇÃO ──────────────────────────────────────────────────────────────────────────────
+    # O HttpTool serve consulta E ação, e metade das custom tools armadas da frota é POST contra
+    # CRM real (registrar cliente, agendar visita, criar/cancelar proposta). Para elas a pergunta
+    # não é "consegui ler o dado?" e sim "a operação aconteceu?". As mensagens de consulta
+    # respondiam a pergunta errada de dois jeitos que custam dinheiro do cliente: ReadTimeout
+    # virava "não consegui" e o modelo repetia (proposta duplicada); 204 — resposta NORMAL de
+    # cancelamento — virava `desconhecido` e o modelo cancelava de novo.
+    describe 'ferramenta de AÇÃO (POST)' do
+      let(:custom_tool) { create(:captain_custom_tool, :with_post, account: account) }
+      let(:conversation) { create(:conversation, account: account) }
+      let(:tool_context_com_conversa) do
+        Struct.new(:state).new({ account_id: account.id, assistant_id: assistant.id,
+                                 conversation: { id: conversation.id, display_id: conversation.display_id } })
+      end
+
+      before do
+        account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
+        custom_tool.update!(endpoint_url: 'https://example.com/acao', response_template: nil)
+        allow(Resolv).to receive(:getaddress).with('example.com').and_return('93.184.216.34')
+      end
+
+      def executar!
+        texto = tool.perform(tool_context_com_conversa, value: 'x')
+        [texto, Captain::ToolCall.for_conversation(conversation.id).last]
+      end
+
+      # A ÚNICA prova de que a ação não ocorreu é a requisição não ter saído.
+      it 'com conexão recusada, afirma que a ação NÃO foi realizada' do
+        stub_request(:post, 'https://example.com/acao').to_raise(Errno::ECONNREFUSED)
+
+        texto, trace = executar!
+
+        expect(texto).to eq(described_class::ACAO_NAO_REALIZADA)
+        expect(trace.status).to eq('error')
+      end
+
+      # OpenTimeout é a conexão que nunca se estabeleceu — nada saiu.
+      it 'com timeout de conexão, afirma que a ação NÃO foi realizada' do
+        stub_request(:post, 'https://example.com/acao').to_raise(Net::OpenTimeout)
+
+        expect(executar!.first).to eq(described_class::ACAO_NAO_REALIZADA)
+      end
+
+      it 'com host que resolve para IP privado, afirma que a ação NÃO foi realizada' do
+        allow(Resolv).to receive(:getaddress).with('example.com').and_return('10.0.0.5')
+
+        expect(executar!.first).to eq(described_class::ACAO_NAO_REALIZADA)
+      end
+
+      # Enviada e sem confirmação: pode ter acontecido do outro lado.
+      shared_examples 'indeterminada' do
+        it 'não afirma nem sucesso nem falha, e proíbe repetir' do
+          texto, trace = executar!
+
+          expect(texto).to eq(described_class::ACAO_INDETERMINADA)
+          expect(texto).to include('NÃO repita')
+          expect(texto).not_to include('não conseguiu consultar')
+          expect(trace.status).to eq('desconhecido')
+        end
+      end
+
+      context 'com ReadTimeout' do
+        before { stub_request(:post, 'https://example.com/acao').to_raise(Net::ReadTimeout) }
+
+        it_behaves_like 'indeterminada'
+      end
+
+      context 'com HTTP 408' do
+        before { stub_request(:post, 'https://example.com/acao').to_return(status: 408) }
+
+        it_behaves_like 'indeterminada'
+      end
+
+      context 'com HTTP 429' do
+        before { stub_request(:post, 'https://example.com/acao').to_return(status: 429) }
+
+        it_behaves_like 'indeterminada'
+      end
+
+      # 5xx é indeterminado porque o servidor pode ter gravado antes de falhar ao responder.
+      context 'com HTTP 500' do
+        before { stub_request(:post, 'https://example.com/acao').to_return(status: 500, body: 'boom') }
+
+        it_behaves_like 'indeterminada'
+      end
+
+      # Conexão que morre no meio pode ter morrido DEPOIS de o servidor receber.
+      context 'com conexão derrubada no meio' do
+        before { stub_request(:post, 'https://example.com/acao').to_raise(Errno::ECONNRESET) }
+
+        it_behaves_like 'indeterminada'
+      end
+
+      it 'com 4xx, diz que não foi concluída' do
+        stub_request(:post, 'https://example.com/acao').to_return(status: 422, body: 'invalido')
+
+        texto, trace = executar!
+
+        expect(texto).to eq(described_class::ACAO_RECUSADA)
+        expect(trace.status).to eq('error')
+      end
+
+      it 'com 401, diz que não foi concluída' do
+        stub_request(:post, 'https://example.com/acao').to_return(status: 401)
+
+        expect(executar!.first).to eq(described_class::ACAO_RECUSADA)
+      end
+
+      it 'com 2xx e corpo, devolve o corpo' do
+        stub_request(:post, 'https://example.com/acao').to_return(status: 200, body: '{"id": 77}')
+
+        texto, trace = executar!
+
+        expect(texto).to eq('{"id": 77}')
+        expect(trace.status).to eq('ok')
+      end
+
+      # O caso do mtm_cancelar_proposta: 204 é a resposta NORMAL, não ausência de confirmação.
+      it 'com 204 sem corpo, é sucesso — não desconhecido' do
+        stub_request(:post, 'https://example.com/acao').to_return(status: 204, body: '')
+
+        texto, trace = executar!
+
+        expect(texto).to eq(described_class::ACAO_CONFIRMADA)
+        expect(trace.status).to eq('ok')
+        expect(texto).not_to include('não conclua ausência')
+      end
+
+      # 2xx ilegível continua sendo uma ação que ACONTECEU. Dizer "não consegui" convidaria
+      # o modelo a repetir uma operação já efetivada.
+      it 'com 2xx e template malformado, é sucesso sem detalhe' do
+        custom_tool.update!(response_template: '{{ response.x')
+        stub_request(:post, 'https://example.com/acao').to_return(status: 200, body: '{"x": 1}')
+
+        texto, trace = executar!
+
+        expect(texto).to eq(described_class::ACAO_FEITA_SEM_LEITURA)
+        expect(trace.status).to eq('ok')
+      end
+
+      # Nenhuma mensagem de ação pode carregar o NAO_INVENTE: ele manda "diga que não conseguiu
+      # consultar", que é exatamente o que não se pode dizer sobre uma ação indeterminada.
+      it 'nunca usa o texto de consulta numa ação' do
+        stub_request(:post, 'https://example.com/acao').to_raise(Net::ReadTimeout)
+
+        expect(executar!.first).not_to include(described_class::NAO_INVENTE)
+      end
+    end
+
     describe 'trace e status semântico' do
       let(:conversation) { create(:conversation, account: account) }
       let(:tool_context_com_conversa) do
