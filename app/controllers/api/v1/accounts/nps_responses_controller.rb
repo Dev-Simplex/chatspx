@@ -71,11 +71,12 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
   private
 
   def assign_blocked_counts(cohort)
-    @blocked_count = cohort.where(status: :dismissed).count
     @blocked_by_label_count = cohort.where(status: :dismissed)
                                     .where.not(blocked_by_label: nil)
                                     .group(:blocked_by_label)
                                     .count
+    # Usa a mesma base da quebra por etiqueta, sem incluir outros motivos de descarte.
+    @blocked_count = @blocked_by_label_count.values.sum
   end
 
   # Base filtrada (agente/inbox/contato), SEM recorte de data — o coorte por
