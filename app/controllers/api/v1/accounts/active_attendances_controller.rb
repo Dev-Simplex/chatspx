@@ -97,27 +97,41 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
                                  .index_by(&:id)
   end
 
-  # "Assumir sem pedir": só conversa SEM dono humano (fila ou IA — nos dois casos
-  # assignee_id é nil e o AssignmentService troca o bot pelo humano), ou admin, que
-  # força. Nunca oferece assumir a conversa que já é minha.
-  def can_assume?(conversation, ctx)
-    return false unless can_open?(conversation, ctx)
-    return false if ctx[:user_id].nil? || conversation.assignee_id == ctx[:user_id]
+  # Régua de AÇÃO (pedir/assumir), mais larga que a de ABRIR: a ConversationPolicy#show? já libera
+  # por CAIXA *ou* por time — quem barrava conversa de outro time era o guard de time do
+  # Conversations::BaseController, afrouxado agora para estes dois caminhos. Oferecer além disto
+  # prometeria um 403 no clique.
+  def can_act?(conversation, ctx)
+    return true if ctx[:admin]
+    return false if ctx[:user_id].nil?
 
-    conversation.assignee_id.blank? || ctx[:admin]
+    ctx[:inbox_ids].include?(conversation.inbox_id) || ctx[:team_ids].include?(conversation.team_id)
+  end
+
+  # "Assumir sem pedir": conversa SEM dono humano (fila ou IA — nos dois casos assignee_id é nil e
+  # o AssignmentService troca o bot pelo humano), inclusive a de OUTRO time: é o caso mais comum da
+  # fila, e deixá-la sem ação era o beco sem saída da aba. A conversa vem junto com o time de quem
+  # puxou (Conversations::TeamHandoverService). Nunca oferece assumir a que já é minha.
+  def can_assume?(conversation, ctx)
+    return false if ctx[:user_id].nil? || conversation.assignee_id == ctx[:user_id]
+    return can_act?(conversation, ctx) if conversation.assignee_id.blank?
+
+    # Dono humano: só admin força; o agente pede (can_request?).
+    ctx[:admin]
   end
 
   # Regra do pedido: o pedido é uma superfície da Fase 3, então só faz sentido com o
   # takeover_request_gate LIGADO — sem a flag a aba não oferece "Solicitar" (degrada
-  # p/ "Abrir"/"Bloqueado"). Usa `reachable?` (NÃO `can_open?`): senão o veto de
-  # isolamento derrubaria justamente o caminho de pedir a conversa isolada do colega.
+  # p/ "Abrir"/"Bloqueado"). Usa `can_act?` (NÃO `can_open?`): senão o veto de isolamento
+  # derrubaria justamente o caminho de pedir a conversa isolada do colega — e, desde 22/09,
+  # também a conversa de OUTRO time, que antes não podia nem ser pedida.
   def can_request?(conversation, ctx)
     return false unless takeover_gate_enabled?
     return false if ctx[:admin] || ctx[:user_id].nil?
     return false if conversation.assignee_id.blank? || conversation.assignee_agent_bot_id.present?
     return false if conversation.assignee_id == ctx[:user_id]
 
-    reachable?(conversation, ctx)
+    can_act?(conversation, ctx)
   end
 
   # Flag da conta puxada UMA vez (a capacidade é calculada por linha).
@@ -172,6 +186,7 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
                    .where(status: Conversation.statuses.values_at(*IN_SERVICE_STATUSES))
                    .where.not(contact_id: nil)
     scope = scope.where(contact_id: params[:contact_id]) if params[:contact_id].present?
+    scope = filtrar_por_busca(scope)
 
     # preload, NÃO includes: `includes` + `order` vira LEFT JOIN e quebra o total_count.
     # O avatar do assignee_agent_bot também entra: o jbuilder chama bot.avatar_url,
@@ -183,6 +198,36 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
          .order(last_activity_at: :desc, id: :desc) # o id desempata p/ paginação estável
          .page(@current_page)
          .per(RESULTS_PER_PAGE)
+  end
+
+  # A busca da aba precisa acontecer AQUI, antes de paginar: a tela tem 15 das 99 linhas na mão, e
+  # filtrar o que já está carregado diria "não achei" sobre as outras 84 — a resposta errada numa
+  # tela que existe para evitar atendimento duplicado.
+  #
+  # `joins`, nunca `includes`: `includes` + `order` vira LEFT JOIN e quebra o total_count (a mesma
+  # armadilha anotada em fetch_attendances). O assignee é left_joins porque a conversa pode estar
+  # na fila, sem agente.
+  def filtrar_por_busca(scope)
+    termo = params[:q].to_s.strip
+    return scope if termo.length < 2
+
+    escopo = scope.joins(:contact).left_joins(:assignee)
+    digitos = termo.gsub(/\D/, '')
+
+    # Telefone digitado com máscara: quem copia do painel cola "(66) 99927-4845" e o banco guarda
+    # "+5566999274845" — o ILIKE cru não casa. Termo só de dígitos e pontuação vira comparação de
+    # dígitos contra o telefone sem pontuação. Um campo, duas estratégias.
+    if digitos.length >= 3 && termo.match?(/\A[\d\s()+.\-]+\z/)
+      return escopo.where("regexp_replace(contacts.phone_number, '\\D', '', 'g') LIKE :digitos",
+                          digitos: "%#{digitos}%")
+    end
+
+    like = "%#{ActiveRecord::Base.sanitize_sql_like(termo)}%"
+    escopo.where(
+      'contacts.name ILIKE :q OR contacts.email ILIKE :q OR contacts.phone_number ILIKE :q ' \
+      'OR contacts.identifier ILIKE :q OR users.name ILIKE :q',
+      q: like
+    )
   end
 
   # .to_i: `params[:page] || 1` (o padrão copiado do contacts_controller) devolve a

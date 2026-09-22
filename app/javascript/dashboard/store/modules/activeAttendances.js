@@ -38,14 +38,21 @@ export const getters = {
   // API direto — por isso não existe um getter por contato aqui.)
 };
 
+// Termo da requisição em voo. Digitando rápido, a resposta de "ama" pode chegar DEPOIS da de
+// "amanda" e repintar a lista errada; a resposta que não for a do termo atual é descartada.
+let buscaEmVoo = '';
+
 export const actions = {
-  get: async ({ commit }, { page = 1, contactId } = {}) => {
+  get: async ({ commit }, { page = 1, contactId, q = '' } = {}) => {
+    buscaEmVoo = q;
     commit(types.SET_ACTIVE_ATTENDANCES_UI_FLAG, {
       isFetching: true,
       hasError: false,
     });
     try {
-      const { data } = await ActiveAttendancesAPI.get({ page, contactId });
+      const { data } = await ActiveAttendancesAPI.get({ page, contactId, q });
+      if (buscaEmVoo !== q) return;
+
       commit(types.SET_ACTIVE_ATTENDANCES, data.payload ?? []);
       commit(types.SET_ACTIVE_ATTENDANCES_META, {
         count: data.meta?.count ?? 0,
@@ -53,13 +60,19 @@ export const actions = {
         perPage: Number(data.meta?.per_page) || 15,
       });
     } catch (error) {
+      // Falha de uma busca que já não é a atual não pode pintar a tela de erro.
+      if (buscaEmVoo !== q) return;
+
       // Zera os records: manter a página anterior na tela enquanto a URL/paginação
       // dizem outra coisa mente tanto quanto o "ninguém em atendimento".
       commit(types.SET_ACTIVE_ATTENDANCES, []);
       commit(types.SET_ACTIVE_ATTENDANCES_UI_FLAG, { hasError: true });
       throw error;
     } finally {
-      commit(types.SET_ACTIVE_ATTENDANCES_UI_FLAG, { isFetching: false });
+      // Resposta velha não desliga o carregando: a busca atual ainda está em voo.
+      if (buscaEmVoo === q) {
+        commit(types.SET_ACTIVE_ATTENDANCES_UI_FLAG, { isFetching: false });
+      }
     }
   },
 };

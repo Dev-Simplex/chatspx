@@ -6,6 +6,12 @@ class Api::V1::Accounts::Conversations::TakeoverRequestsController < Api::V1::Ac
   # pedir o que não se pode acessar). O guard de time + a policy show? continuam
   # valendo (só peço conversa que alcanço pelo time/inbox).
   skip_before_action :authorize_agent_conversation_access
+  # Mesmo argumento para o TIME: pedir é como se ganha acesso à conversa do colega, e exigir ser do
+  # time da conversa para poder pedi-la fecha a porta e joga a chave dentro. A aba "Em atendimento"
+  # mostra a conta inteira de propósito; sem este skip, "Solicitar" numa conversa de outro time
+  # respondia 403. A ConversationPolicy#show? continua valendo (só peço o que alcanço pela caixa
+  # ou pelo time), e quem decide continua sendo o dono, ao aprovar.
+  skip_before_action :authorize_team_access
   before_action :check_authorization
 
   def create
