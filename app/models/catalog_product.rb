@@ -34,6 +34,10 @@
 # Preço em CENTAVOS, com moeda: é o formato que a Meta recebe. Decimal aqui obrigaria a converter
 # no envio e no espelho, e arredondaria promoção na mão.
 class CatalogProduct < ApplicationRecord
+  # Mesma receita de `Attachment` e `Avatarable`: sem os helpers de rota aqui, `url_for` na view
+  # devolve caminho RELATIVO, e a Meta (C9) precisa de URL absoluta para buscar a foto.
+  include Rails.application.routes.url_helpers
+
   belongs_to :account
   belongs_to :category, class_name: 'CatalogCategory', foreign_key: :catalog_category_id, optional: true, inverse_of: :products
 
@@ -67,6 +71,14 @@ class CatalogProduct < ApplicationRecord
 
   def capa
     images.first
+  end
+
+  def capa_url
+    capa ? url_for(capa) : nil
+  end
+
+  def imagens_para_api
+    images.map { |imagem| { id: imagem.id, url: url_for(imagem), filename: imagem.filename.to_s } }
   end
 
   # Carimbo do espelho, com `update_columns` DE PROPÓSITO: gravar por `update!` moveria o
