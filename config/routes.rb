@@ -816,6 +816,12 @@ Rails.application.routes.draw do
     end
   end
 
+  # Foto pública do produto do catálogo (C9). Fora do namespace autenticado porque quem busca é o
+  # crawler da Meta, que não tem sessão nem token — e o link precisa DURAR, porque a Meta faz cache
+  # dele (o link assinado do ActiveStorage morre em 30 min em produção). O `:id` é o `signed_id` do
+  # produto, sem expiração: `/:account_id/:product_id` cru deixaria o catálogo alheio enumerável.
+  get 'catalogo/fotos/:id', to: 'catalog/public_images#show', as: :catalog_public_image
+
   get 'hc/:slug', to: 'public/api/v1/portals#show'
   get 'hc/:slug/sitemap.xml', to: 'public/api/v1/portals#sitemap'
   get 'hc/:slug/:locale', to: 'public/api/v1/portals#show'

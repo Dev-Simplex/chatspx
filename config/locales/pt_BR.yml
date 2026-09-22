@@ -102,6 +102,12 @@ pt_BR:
       open_and_closed: não pode abrir o dia todo e fechar o dia todo ao mesmo tempo
     webhook:
       invalid: Eventos inválidos
+    catalog:
+      meta_rate_limited: O limite de chamadas do catálogo da Meta foi atingido. Os produtos que faltam saem na próxima sincronização.
+      not_configured: Esta conta ainda não tem catálogo na Meta, então não dá para enviar produto no número oficial.
+      product_not_synced: "%{product} ainda não está espelhado na Meta. Preencha o SKU e aguarde a próxima sincronização."
+      channel_not_supported: Esta caixa de entrada não envia produto do catálogo. Só o WhatsApp oficial (Cloud) suporta.
+      too_many_products: "Escolha no máximo %{limit} produtos. Foram selecionados %{count}."
     signup:
       disposable_email: Não permitimos e-mails descartáveis
       blocked_domain: Este domínio não é permitido. Se você acredita que isso é um erro, por favor contate o suporte.
@@ -588,6 +594,13 @@ pt_BR:
       open: 'Abertos'
       in_progress: 'Em Andamento'
       resolved: 'Resolvidos'
+  catalog:
+    # Textos de recheio da mensagem de produto (C9). A Meta EXIGE cabeçalho e corpo no
+    # `product_list`; a C8 manda os dela quando o atendente escrever algo.
+    message:
+      header: 'Nossos produtos'
+      body: 'Dá uma olhada no que separamos para você.'
+      section: 'Produtos'
   scheduled_messages:
     errors:
       failed_to_create: 'Falha ao criar mensagem'
