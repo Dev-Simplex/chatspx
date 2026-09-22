@@ -278,6 +278,8 @@ en:
       assignment_required: 'You must take over this conversation before replying'
     takeover_request_gate:
       request_required: 'This conversation belongs to another agent. Request it to take over.'
+    compose:
+      blocked_by_existing_attendance: 'This contact already has an ongoing conversation you cannot access. The message was not sent.'
     agent_conversation_isolation:
       access_blocked: 'This conversation is assigned to another agent. Request it to access it.'
     errors:
