@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import InboxesAPI from 'dashboard/api/inboxes';
@@ -13,6 +13,9 @@ import TemplatePreview from './TemplatePreview.vue';
 
 const props = defineProps({
   inboxId: { type: Number, required: true },
+  // Sem app da Meta configurado não existe upload, e sem upload não existe
+  // cabeçalho de mídia: a Meta exige um handle emitido por ela.
+  mediaUploadEnabled: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['created', 'cancel']);
@@ -25,7 +28,9 @@ const language = ref('pt_BR');
 const headerFormat = ref('NONE');
 const headerText = ref('');
 const headerExample = ref('');
-const headerMediaUrl = ref('');
+const headerMediaHandle = ref('');
+const headerMediaName = ref('');
+const isUploadingMedia = ref(false);
 const body = ref('');
 const bodyExamples = ref([]);
 const footer = ref('');
@@ -48,13 +53,20 @@ const languageOptions = [
   { value: 'es', label: 'Español' },
 ];
 
-const headerFormatOptions = computed(() => [
-  { value: 'NONE', label: tk('HEADER_NONE') },
-  { value: 'TEXT', label: tk('HEADER_TEXT') },
-  { value: 'IMAGE', label: tk('HEADER_IMAGE') },
-  { value: 'VIDEO', label: tk('HEADER_VIDEO') },
-  { value: 'DOCUMENT', label: tk('HEADER_DOCUMENT') },
-]);
+const headerFormatOptions = computed(() => {
+  const options = [
+    { value: 'NONE', label: tk('HEADER_NONE') },
+    { value: 'TEXT', label: tk('HEADER_TEXT') },
+  ];
+  if (props.mediaUploadEnabled) {
+    options.push(
+      { value: 'IMAGE', label: tk('HEADER_IMAGE') },
+      { value: 'VIDEO', label: tk('HEADER_VIDEO') },
+      { value: 'DOCUMENT', label: tk('HEADER_DOCUMENT') }
+    );
+  }
+  return options;
+});
 
 const buttonTypeOptions = computed(() => [
   { value: 'QUICK_REPLY', label: tk('BTN_QUICK_REPLY') },
@@ -73,6 +85,40 @@ const headerHasVar = computed(() => detectVars(headerText.value).length > 0);
 const isMediaHeader = computed(() =>
   ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerFormat.value)
 );
+
+const mediaAccept = computed(() => {
+  if (headerFormat.value === 'IMAGE') return 'image/jpeg,image/png';
+  if (headerFormat.value === 'VIDEO') return 'video/mp4,video/3gpp';
+  if (headerFormat.value === 'DOCUMENT') return 'application/pdf';
+  return '';
+});
+
+// Trocar o formato invalida o handle: ele é emitido para um arquivo específico.
+watch(headerFormat, () => {
+  headerMediaHandle.value = '';
+  headerMediaName.value = '';
+  delete errors.value.headerMedia;
+});
+
+const onMediaSelected = async event => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  headerMediaHandle.value = '';
+  headerMediaName.value = file.name;
+  delete errors.value.headerMedia;
+  isUploadingMedia.value = true;
+  try {
+    const { data } = await InboxesAPI.uploadTemplateMedia(props.inboxId, file);
+    headerMediaHandle.value = data.handle;
+  } catch (error) {
+    const response = error?.response?.data || {};
+    errors.value.headerMedia = response.error || tk('HEADER_MEDIA_UPLOAD_ERROR');
+    headerMediaName.value = '';
+  } finally {
+    isUploadingMedia.value = false;
+  }
+};
 
 const normalizedName = computed(() =>
   name.value
@@ -101,11 +147,11 @@ const buildComponents = () => {
       header.example = { header_text: [[headerExample.value || '']] };
     }
     components.push(header);
-  } else if (isMediaHeader.value && headerMediaUrl.value.trim()) {
+  } else if (isMediaHeader.value && headerMediaHandle.value) {
     components.push({
       type: 'HEADER',
       format: headerFormat.value,
-      example: { header_handle: [headerMediaUrl.value.trim()] },
+      example: { header_handle: [headerMediaHandle.value] },
     });
   }
 
@@ -142,6 +188,9 @@ const validate = () => {
   errors.value = {};
   if (!name.value.trim()) errors.value.name = tk('REQUIRED');
   if (!body.value.trim()) errors.value.body = tk('REQUIRED');
+  if (isMediaHeader.value && !headerMediaHandle.value) {
+    errors.value.headerMedia = tk('HEADER_MEDIA_REQUIRED');
+  }
   return Object.keys(errors.value).length === 0;
 };
 
@@ -214,12 +263,35 @@ const submit = async () => {
             :label="tk('HEADER_EXAMPLE')"
             placeholder="Maria"
           />
-          <Input
-            v-if="isMediaHeader"
-            v-model="headerMediaUrl"
-            :placeholder="tk('HEADER_MEDIA_PLACEHOLDER')"
-            :message="tk('HEADER_MEDIA_HINT')"
-          />
+          <p v-if="!mediaUploadEnabled" class="mb-0 text-xs text-n-slate-11">
+            {{ tk('HEADER_MEDIA_DISABLED') }}
+          </p>
+          <div v-if="isMediaHeader" class="flex flex-col gap-1">
+            <input
+              type="file"
+              :accept="mediaAccept"
+              class="text-sm text-n-slate-11 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-n-alpha-2 file:text-n-slate-12 hover:file:bg-n-alpha-3"
+              @change="onMediaSelected"
+            />
+            <span v-if="isUploadingMedia" class="text-xs text-n-slate-11">
+              {{ tk('HEADER_MEDIA_UPLOADING') }}
+            </span>
+            <span
+              v-else-if="errors.headerMedia"
+              class="text-xs text-n-ruby-11"
+            >
+              {{ errors.headerMedia }}
+            </span>
+            <span
+              v-else-if="headerMediaHandle"
+              class="text-xs text-n-teal-11"
+            >
+              {{ tk('HEADER_MEDIA_READY') }} {{ headerMediaName }}
+            </span>
+            <span v-else class="text-xs text-n-slate-11">
+              {{ tk('HEADER_MEDIA_HINT') }}
+            </span>
+          </div>
         </div>
 
         <!-- Body -->

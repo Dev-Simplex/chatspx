@@ -12,7 +12,8 @@
       "COL_NAME": "Name",
       "COL_STATUS": "Status",
       "COL_CATEGORY": "Category",
-      "COL_LANGUAGE": "Language"
+      "COL_LANGUAGE": "Language",
+      "RECLASSIFIED": "Meta reclassified it from {previous}."
     },
     "DELETE": {
       "TITLE": "Delete template",
@@ -44,8 +45,7 @@
       "HEADER_DOCUMENT": "Document",
       "HEADER_TEXT_PLACEHOLDER": "Header text (you can use {'{{'}1{'}}'})",
       "HEADER_EXAMPLE": "Example value for the header variable",
-      "HEADER_MEDIA_PLACEHOLDER": "Sample media URL (https://...)",
-      "HEADER_MEDIA_HINT": "A sample URL used by Meta during approval.",
+      "HEADER_MEDIA_HINT": "Choose the file Meta will review. It is sent to Meta and the approved template uses it as the header sample.",
       "BODY": "Body",
       "BODY_PLACEHOLDER": "Message text. Use {'{{'}1{'}}'}, {'{{'}2{'}}'}... for variables.",
       "BODY_HINT": "Use {'{{'}1{'}}'}, {'{{'}2{'}}'} for variables.",
@@ -63,7 +63,12 @@
       "ADD_BUTTON": "Add button",
       "REQUIRED": "Required",
       "CANCEL": "Cancel",
-      "SUBMIT": "Submit for approval"
+      "SUBMIT": "Submit for approval",
+      "HEADER_MEDIA_UPLOADING": "Sending the file to Meta…",
+      "HEADER_MEDIA_READY": "File accepted by Meta:",
+      "HEADER_MEDIA_REQUIRED": "Choose a file for the media header.",
+      "HEADER_MEDIA_UPLOAD_ERROR": "Meta refused the file. Try another one.",
+      "HEADER_MEDIA_DISABLED": "Media headers need the Meta App ID filled in on the template list."
     },
     "PREVIEW": {
       "TITLE": "Preview",
@@ -85,6 +90,11 @@
     "SECRET": {
       "COL": "Confidential",
       "HELP": "The values of this template's variables (code, signing link) are not visible to agents. Delivery to the customer is unchanged."
+    },
+    "APP_ID": {
+      "LABEL": "Meta App ID",
+      "PLACEHOLDER": "1234567890123456",
+      "HINT": "Required only for templates with image, video or document headers: the file is uploaded to this app. Find it in Meta for Developers, under the app connected to this WhatsApp account."
     }
   }
 }
