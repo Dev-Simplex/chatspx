@@ -9,6 +9,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
 import TemplateBuilder from './TemplateBuilder.vue';
 import TemplateWhatsappPreview from './TemplateWhatsappPreview.vue';
 
@@ -27,6 +28,9 @@ const selectedTemplate = ref(null);
 const deleteDialogRef = ref(null);
 const isDeleting = ref(false);
 const previewTemplate = ref(null);
+const mediaUploadEnabled = ref(false);
+const appId = ref(props.inbox.additional_attributes?.whatsapp_app_id || '');
+const savedAppId = ref(appId.value);
 
 const inboxId = computed(() => Number(props.inbox.id));
 
@@ -48,6 +52,8 @@ const listsDiffer = (a, b) => {
   const outro = [...b].sort();
   return um.length !== outro.length || um.some((name, i) => name !== outro[i]);
 };
+
+const isAppIdDirty = computed(() => appId.value.trim() !== savedAppId.value);
 
 const isVisibilityDirty = computed(
   () =>
@@ -81,10 +87,14 @@ const saveVisibility = async () => {
         ...(props.inbox.additional_attributes || {}),
         allowed_template_names: allowedNames.value,
         secret_template_names: secretNames.value,
+        whatsapp_app_id: appId.value.trim(),
       },
     });
     savedNames.value = [...allowedNames.value];
     savedSecretNames.value = [...secretNames.value];
+    savedAppId.value = appId.value.trim();
+    // o app id decide se o cabeçalho de mídia fica disponível no construtor
+    await fetchTemplates();
     useAlert(t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE_SUCCESS'));
   } catch (error) {
     useAlert(t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE_ERROR'));
@@ -98,6 +108,7 @@ const fetchTemplates = async () => {
   try {
     const { data } = await InboxesAPI.getMessageTemplates(inboxId.value);
     templates.value = data.templates || [];
+    mediaUploadEnabled.value = Boolean(data.media_upload_enabled);
   } catch (error) {
     useAlert(
       error?.response?.data?.error ||
@@ -175,6 +186,21 @@ const confirmDelete = async () => {
   }
 };
 
+// A Meta devolve 'NONE' em template aprovado; só há motivo quando de fato recusou.
+const rejectionReason = template => {
+  const reason = template.rejected_reason;
+  if (!reason || reason === 'NONE') return '';
+  return reason;
+};
+
+// Categoria pedida diferente da aprovada: a Meta reclassificou. UTILITY virando
+// MARKETING é o caso comum, e custa mais caro por mensagem.
+const downgradedFrom = template => {
+  const previous = template.previous_category;
+  if (!previous || previous === template.category) return '';
+  return previous;
+};
+
 const onCreated = async () => {
   view.value = 'list';
   await fetchTemplates();
@@ -189,6 +215,7 @@ onMounted(fetchTemplates);
     <TemplateBuilder
       v-if="view === 'builder'"
       :inbox-id="inboxId"
+      :media-upload-enabled="mediaUploadEnabled"
       @created="onCreated"
       @cancel="view = 'list'"
     />
@@ -206,7 +233,7 @@ onMounted(fetchTemplates);
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <Button
-            v-if="isVisibilityDirty"
+            v-if="isVisibilityDirty || isAppIdDirty"
             size="sm"
             icon="i-lucide-check"
             :label="t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE')"
@@ -234,6 +261,15 @@ onMounted(fetchTemplates);
       <p v-if="templates.length" class="text-sm text-n-slate-11">
         {{ t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.HINT') }}
       </p>
+
+      <div class="max-w-md">
+        <Input
+          v-model="appId"
+          :label="t('WHATSAPP_TEMPLATES_MGMT.APP_ID.LABEL')"
+          :placeholder="t('WHATSAPP_TEMPLATES_MGMT.APP_ID.PLACEHOLDER')"
+          :message="t('WHATSAPP_TEMPLATES_MGMT.APP_ID.HINT')"
+        />
+      </div>
 
       <!-- Loading -->
       <div
@@ -312,9 +348,25 @@ onMounted(fetchTemplates);
                   />
                   {{ template.status }}
                 </span>
+                <p
+                  v-if="rejectionReason(template)"
+                  class="mt-1 mb-0 text-xs text-n-ruby-11 max-w-[14rem]"
+                >
+                  {{ rejectionReason(template) }}
+                </p>
               </td>
               <td class="px-4 py-3 align-top text-n-slate-11">
                 {{ template.category }}
+                <p
+                  v-if="downgradedFrom(template)"
+                  class="mt-1 mb-0 text-xs text-n-amber-11 max-w-[14rem]"
+                >
+                  {{
+                    t('WHATSAPP_TEMPLATES_MGMT.LIST.RECLASSIFIED', {
+                      previous: downgradedFrom(template),
+                    })
+                  }}
+                </p>
               </td>
               <td class="px-4 py-3 align-top text-n-slate-11">
                 {{ template.language }}
