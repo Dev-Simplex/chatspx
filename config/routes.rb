@@ -434,7 +434,9 @@ Rails.application.routes.draw do
               post :analyze, on: :collection
             end
 
-            resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates'
+            resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates' do
+              post :upload_media, on: :collection
+            end
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
             collection do

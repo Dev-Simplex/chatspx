@@ -42,8 +42,12 @@ class Whatsapp::TemplateManagementService
     build_create_result(response, body)
   end
 
+  # `previous_category` revela quando a Meta rebaixou a categoria pedida (é
+  # comum UTILITY virar MARKETING) e `rejected_reason` explica a recusa. Os
+  # dois só vêm se forem pedidos no `fields` — sem isso a tela não tem como
+  # mostrar o que aconteceu.
   def list
-    response = HTTParty.get("#{waba_path}/message_templates?limit=100&fields=name,status,category,language,components,id", headers: api_headers)
+    response = HTTParty.get("#{waba_path}/message_templates?limit=100&fields=name,status,category,previous_category,rejected_reason,language,components,id", headers: api_headers)
     return { success: false, error: response.body } unless response.success?
 
     { success: true, templates: Array(response.parsed_response['data']) }
