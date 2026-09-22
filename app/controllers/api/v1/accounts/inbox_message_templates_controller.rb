@@ -20,7 +20,9 @@ class Api::V1::Accounts::InboxMessageTemplatesController < Api::V1::Accounts::Ba
   # existe depois do upload — URL o endpoint de templates não aceita.
   def upload_media
     file = params[:file]
-    return render json: { error: 'File is required' }, status: :unprocessable_entity if file.blank?
+    # Texto solto no lugar do arquivo passa pelo `blank?` e estoura no
+    # original_filename: a fronteira exige um upload de verdade.
+    return render json: { error: 'File is required' }, status: :unprocessable_entity unless file.respond_to?(:original_filename)
 
     result = upload_service.upload(file, file_name: file.original_filename, file_type: file.content_type)
 

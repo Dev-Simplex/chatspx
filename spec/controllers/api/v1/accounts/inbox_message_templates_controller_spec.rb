@@ -73,6 +73,14 @@ RSpec.describe Api::V1::Accounts::InboxMessageTemplatesController, type: :reques
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
+    # Texto no lugar do arquivo passava pelo blank? e estourava no
+    # original_filename, virando 500 em vez de erro de validação.
+    it 'refuses plain text in place of a file' do
+      post url, params: { file: 'nao-sou-um-arquivo' }, headers: admin.create_new_auth_token
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
     # Sem app id o erro tem que explicar o que falta, em vez de estourar 500.
     it 'explains when the channel has no app id configured' do
       allow(upload_service).to receive(:upload).and_raise(Whatsapp::ResumableUploadService::MissingAppIdError,
