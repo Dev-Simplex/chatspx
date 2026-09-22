@@ -1,37 +1,52 @@
 ---
-visita em imóvel avulso não vira agendamento:
+Pacaembu é planta única de 2 quartos:
   acertos: 6
-  prompt: 524f7f6d0532
+  prompt: b3a91f3465ec
   em: '2026-09-21'
-visita em condomínio é acompanhada:
-  acertos: 4
-  prompt: 524f7f6d0532
-  em: '2026-09-21'
-taxa de condomínio não é condomínio fechado:
-  acertos: 4
-  prompt: 524f7f6d0532
+'_ressalva': >-
+  Medido na produção da Tozi (conta 6) contra o código NO AR, antes do deploy do P0. Rascunho #2159, 6
+  rodadas por cenário, transação revertida, nada enviado a cliente. DUAS COISAS CONTAM AO LER OS NÚMEROS
+  ABSOLUTOS. (1) A conversa 2159 NÃO é limpa: ela injeta, em TODAS as rodadas, a nota de contato recorrente
+  ("este contato já foi atendido nesta conversa antes de hoje... o último terminou há 41 dias") com o resumo
+  do atendimento anterior. Isso vale igual para o antes e para o depois, então a COMPARAÇÃO é válida; o que
+  não é comparável é este número com um medido numa conversa limpa. Trocar a conversa de rascunho invalida
+  esta tabela. (2) A variância entre rodadas idênticas é grande. "visita em condomínio é acompanhada" deu
+  4/6 em 21/09 e 6/6 em 22/09, mesmo prompt; "pergunta aberta" deu 6/6 e depois 3/6. Os números abaixo são
+  de UMA rodada completa (21/09), exceto "não oferece agendamento em imóvel avulso", medido em 22/09. Um
+  valor abaixo do piso aqui é observação, não veredito.
+'controle: agradecimento não vira pergunta de serviço':
+  acertos: 6
+  prompt: de245cd50d74
   em: '2026-09-21'
 não completa a lista de imóveis de memória:
   acertos: 6
   prompt: 524f7f6d0532
   em: '2026-09-21'
-Pacaembu é planta única de 2 quartos:
+não oferece agendamento em imóvel avulso:
   acertos: 6
-  prompt: b3a91f3465ec
+  prompt: 524f7f6d0532
+  em: '2026-09-22'
+pergunta aberta, não interrogatório:
+  acertos: 3
+  prompt: de245cd50d74
+  em: '2026-09-21'
+taxa de condomínio não é condomínio fechado:
+  acertos: 4
+  prompt: 524f7f6d0532
+  em: '2026-09-21'
+triagem não descreve geografia que não consultou:
+  acertos: 6
+  prompt: de245cd50d74
   em: '2026-09-21'
 visita de venda é sempre com corretor:
   acertos: 6
   prompt: 7a76a197cf40
   em: '2026-09-21'
-pergunta aberta, não interrogatório:
-  acertos: 3
-  prompt: de245cd50d74
+visita em condomínio é acompanhada:
+  acertos: 4
+  prompt: 524f7f6d0532
   em: '2026-09-21'
-'controle: agradecimento não vira pergunta de serviço':
+visita em imóvel avulso não vira agendamento:
   acertos: 6
-  prompt: de245cd50d74
-  em: '2026-09-21'
-triagem não descreve geografia que não consultou:
-  acertos: 6
-  prompt: de245cd50d74
+  prompt: 524f7f6d0532
   em: '2026-09-21'
