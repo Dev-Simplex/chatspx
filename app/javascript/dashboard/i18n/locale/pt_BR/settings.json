@@ -912,7 +912,8 @@
     "ADVANCED_SEARCH": "Pesquisa avançada",
     "CAPTAIN_AI": "Agentes IA",
     "CONVERSATION_WORKFLOW": "Fluxo de Conversa",
-    "UNITS": "Unidades"
+    "UNITS": "Unidades",
+    "CATALOG": "Catálogo"
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "Configurações de Agentes IA",
