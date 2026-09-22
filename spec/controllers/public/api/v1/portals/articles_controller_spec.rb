@@ -121,6 +121,21 @@ RSpec.describe 'Public Articles API', type: :request do
   end
 
   describe 'GET /public/api/v1/portals/:slug/articles/:id' do
+    it 'returns 404 for an article from another portal' do
+      other_portal = create(:portal)
+      other_article = create(:article, portal: other_portal)
+
+      get "/hc/#{portal.slug}/articles/#{other_article.slug}"
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'returns 404 for an unknown article' do
+      get "/hc/#{portal.slug}/articles/unknown-article"
+
+      expect(response).to have_http_status(:not_found)
+    end
+
     it 'Fetch article with the id' do
       get "/hc/#{portal.slug}/articles/#{article.slug}"
       expect(response).to have_http_status(:success)
