@@ -22,6 +22,7 @@ import store from '../../../store';
 import sla from './sla/sla.routes';
 import teams from './teams/teams.routes';
 import units from './units/units.routes';
+import catalog from './catalog/catalog.routes';
 import customRoles from './customRoles/customRole.routes';
 import profile from './profile/profile.routes';
 import security from './security/security.routes';
@@ -65,6 +66,7 @@ export default {
     ...sla.routes,
     ...teams.routes,
     ...units.routes,
+    ...catalog.routes,
     ...customRoles.routes,
     ...profile.routes,
     ...security.routes,
