@@ -76,4 +76,12 @@ module Events::Types
   FUNNEL_ITEMS_BULK_MOVED = 'funnel_items.bulk_moved'
   FUNNEL_ITEMS_REORDERED = 'funnel_items.reordered'
   FUNNEL_STAGES_CHANGED = 'funnel_stages.changed'
+
+  # catálogo de produtos (C4) — contrato com o ERP do cliente em docs/catalogo-whatsapp.md.
+  # Nomes em português porque quem lê é o sistema do cliente, igual aos caminhos da C3.
+  CATALOGO_PRODUTO_CRIADO = 'produto.criado'
+  CATALOGO_PRODUTO_ATUALIZADO = 'produto.atualizado'
+  CATALOGO_ESTOQUE_ALTERADO = 'estoque.alterado'
+  CATALOGO_PRODUTO_REMOVIDO = 'produto.removido'
+  CATALOGO_PRODUTO_ENVIADO = 'produto.enviado_no_chat'
 end
