@@ -655,7 +655,10 @@
       "ATTENDED_BY_TEAM": "Atendido por {name} ({team})",
       "YOU": "você",
       "NO_ACTIVE_ATTENDANCE": "Nenhum atendimento em andamento 🌙",
-      "SEND_BLOCKED": "Este contato está sendo atendido por outro time. Você não pode enviar mensagem por aqui."
+      "SEND_BLOCKED": "Este contato está sendo atendido por outro time. Você não pode enviar mensagem por aqui.",
+      "SEARCH_PLACEHOLDER": "Buscar por contato, telefone ou agente",
+      "SEARCH_EMPTY": "Nenhum atendimento para “{termo}”",
+      "SEARCH_CLEAR": "Limpar busca"
     },
     "LOAD_MORE": "Carregar mais"
   },

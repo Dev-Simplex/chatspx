@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 
+import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import PaginationFooter from 'dashboard/components-next/pagination/PaginationFooter.vue';
@@ -42,9 +43,18 @@ const totalItems = computed(() => meta.value?.count ?? 0);
 const itemsPerPage = computed(() => Number(meta.value?.perPage) || 15);
 const pageFromRoute = computed(() => Number(route.query?.page) || 1);
 
+// A busca mora na URL junto da página: recarregar, voltar no navegador ou mandar o link para um
+// colega tem de cair na mesma lista. O campo é o espelho local, para digitar sem uma navegação por
+// tecla.
+const termoDaRota = computed(() => route.query?.q || '');
+const termo = ref(termoDaRota.value);
+// Menos de 2 caracteres não filtra nada (o backend aplica a mesma régua).
+const buscaAtiva = computed(() => termoDaRota.value.trim().length >= 2);
+
 const fetchAttendances = async (page = 1) => {
+  const q = termoDaRota.value.trim();
   try {
-    await store.dispatch('activeAttendances/get', { page });
+    await store.dispatch('activeAttendances/get', { page, q });
   } catch {
     // o store já marcou hasError; a tela mostra o estado de erro + "Tentar de novo"
     return;
@@ -53,6 +63,37 @@ const fetchAttendances = async (page = 1) => {
     router.replace({ query: { ...route.query, page: String(page) } });
   }
 };
+
+// Buscar SEMPRE volta para a página 1: procurar estando na página 5 devolveria "nada encontrado"
+// para um termo com resultado na primeira.
+let esperaDaBusca = null;
+const onBuscar = valor => {
+  termo.value = valor;
+  clearTimeout(esperaDaBusca);
+  esperaDaBusca = setTimeout(() => {
+    const novo = valor.trim();
+    if (novo === termoDaRota.value.trim()) return;
+
+    const query = { ...route.query, page: '1' };
+    if (novo) query.q = novo;
+    else delete query.q;
+    router.replace({ query });
+  }, 300);
+};
+
+const limparBusca = () => {
+  clearTimeout(esperaDaBusca);
+  termo.value = '';
+  const query = { ...route.query, page: '1' };
+  delete query.q;
+  router.replace({ query });
+};
+
+// O termo mudou na URL (digitação, limpar, voltar do navegador) → refaz a lista.
+watch(termoDaRota, valor => {
+  termo.value = valor;
+  fetchAttendances(1);
+});
 
 // Voltar/avançar no navegador muda só a query — sem isto a lista ficaria na
 // página anterior enquanto a URL diz outra. A guarda contra currentPage evita o
@@ -184,6 +225,44 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
             <span class="text-xl font-medium truncate text-n-slate-12">
               {{ t('CONTACTS_LAYOUT.HEADER.IN_ATTENDANCE_TITLE') }}
             </span>
+            <div class="relative w-full max-w-xs ltr:ml-4 rtl:mr-4">
+              <Icon
+                icon="i-lucide-search"
+                class="absolute size-4 -translate-y-1/2 pointer-events-none ltr:left-3 rtl:right-3 top-1/2 text-n-slate-10"
+              />
+              <!-- reset-base: o CSS global de input tem padding proprio e venceria o do Tailwind. -->
+              <input
+                :value="termo"
+                type="text"
+                class="w-full h-10 text-sm rounded-lg reset-base ltr:pl-9 ltr:pr-3 rtl:pr-9 rtl:pl-3 outline outline-1 outline-n-weak bg-n-alpha-black2 text-n-slate-12 placeholder:text-n-slate-10"
+                :placeholder="
+                  t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEARCH_PLACEHOLDER')
+                "
+                :aria-label="
+                  t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEARCH_PLACEHOLDER')
+                "
+                @input="onBuscar($event.target.value)"
+              />
+            </div>
+            <div class="relative w-full max-w-xs ltr:ml-4 rtl:mr-4">
+              <Icon
+                icon="i-lucide-search"
+                class="absolute size-4 -translate-y-1/2 pointer-events-none ltr:left-3 rtl:right-3 top-1/2 text-n-slate-10"
+              />
+              <!-- reset-base: o CSS global de input tem padding próprio e venceria o do Tailwind. -->
+              <input
+                :value="termo"
+                type="text"
+                class="w-full h-10 text-sm rounded-lg reset-base ltr:pl-9 ltr:pr-3 rtl:pr-9 rtl:pl-3 outline outline-1 outline-n-weak bg-n-alpha-black2 text-n-slate-12 placeholder:text-n-slate-10"
+                :placeholder="
+                  t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEARCH_PLACEHOLDER')
+                "
+                :aria-label="
+                  t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEARCH_PLACEHOLDER')
+                "
+                @input="onBuscar($event.target.value)"
+              />
+            </div>
           </div>
         </header>
 
@@ -208,6 +287,28 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
                 color="slate"
                 :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.RETRY')"
                 @click="fetchAttendances(pageFromRoute)"
+              />
+            </div>
+            <!-- Vazio de busca e vazio de verdade são respostas OPOSTAS: dizer "ninguém em
+                 atendimento" a quem acabou de digitar um nome é a mesma mentira que a aba
+                 existe para evitar. -->
+            <div
+              v-else-if="!hasAttendances && buscaAtiva"
+              class="flex flex-col items-center justify-center gap-3 py-10"
+            >
+              <span class="text-base text-n-slate-11">
+                {{
+                  t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEARCH_EMPTY', {
+                    termo: termoDaRota,
+                  })
+                }}
+              </span>
+              <Button
+                size="sm"
+                variant="faded"
+                color="slate"
+                :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEARCH_CLEAR')"
+                @click="limparBusca"
               />
             </div>
             <div
