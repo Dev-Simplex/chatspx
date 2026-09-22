@@ -17,6 +17,10 @@
 #To learn more, please read the Rails Internationalization guide
 #available at https://guides.rubyonrails.org/i18n.html.
 pt_BR:
+  catalog:
+    send:
+      empty: "Nenhum produto selecionado."
+      menu_header: "%{count} produtos:"
   hello: 'Olá, mundo'
   inbox:
     reauthorization:

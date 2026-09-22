@@ -773,6 +773,9 @@
     "MEDIA": {
       "IMAGE_UNAVAILABLE": "This image is no longer available.",
       "LOADING_FAILED": "Loading failed"
+    },
+    "CATALOG_BUBBLE": {
+      "SKU": "SKU {sku}"
     }
   },
   "CONFIRM_EMAIL": "Verifying...",

@@ -909,7 +909,20 @@
         "DISCARDED_TOAST": "Sugestão descartada"
       }
     },
-    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente."
+    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente.",
+    "CATALOG": {
+      "MENU": "Catálogo",
+      "TITLE": "Enviar produto",
+      "SEARCH": "Buscar por nome ou SKU",
+      "LOADING": "Carregando…",
+      "EMPTY": "Nenhum produto encontrado.",
+      "SELECTED": "{count} selecionado(s)",
+      "SEND": "Enviar",
+      "CANCEL": "Cancelar",
+      "CLOSE": "Fechar",
+      "WAHA_NOTICE_ONE": "Nesta caixa o produto vai como foto com legenda — não existe card de produto nativo.",
+      "WAHA_NOTICE_MANY": "Nesta caixa vai como álbum de fotos mais um menu numerado — não existe card de produto nativo."
+    }
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Enviar transcrição de conversa",

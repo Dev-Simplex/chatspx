@@ -49,6 +49,7 @@ import EmailBubble from './bubbles/Email/Index.vue';
 import UnsupportedBubble from './bubbles/Unsupported.vue';
 import CarouselBubble from './bubbles/Carousel.vue';
 import ContactBubble from './bubbles/Contact.vue';
+import CatalogProductBubble from './bubbles/CatalogProduct.vue';
 import DyteBubble from './bubbles/Dyte.vue';
 import LocationBubble from './bubbles/Location.vue';
 import CSATBubble from './bubbles/CSAT.vue';
@@ -516,6 +517,13 @@ const componentToRender = computed(() => {
   ];
   if (instagramSharedTypes.includes(props.contentAttributes.imageType)) {
     return InstagramStoryBubble;
+  }
+
+  // C8 — produto do catálogo: o retrato viaja no content_attributes e a bolha se reconstrói dele.
+  // Vem ANTES das regras de anexo: a mensagem carrega a foto como attachment (é assim que ela
+  // chega ao cliente no WhatsApp), e sem esta precedência ela cairia na bolha de imagem.
+  if (props.contentAttributes?.catalogProducts?.length) {
+    return CatalogProductBubble;
   }
 
   // One or more shared contacts render as rich contact cards. Content may hold

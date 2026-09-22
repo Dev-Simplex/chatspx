@@ -49,7 +49,11 @@ const LocationPickerModal = defineAsyncComponent(
 const ShareContactModal = defineAsyncComponent(
   () => import('dashboard/components-next/share-contact/ShareContactModal.vue')
 );
+const CatalogProductModal = defineAsyncComponent(
+  () => import('dashboard/components-next/catalog/CatalogProductModal.vue')
+);
 import MessageApi from 'dashboard/api/inbox/message';
+import CatalogAPI from 'dashboard/api/catalog';
 import { MESSAGE_MAX_LENGTH } from 'shared/helpers/MessageTypeHelper';
 import inboxMixin, { INBOX_FEATURES } from 'shared/mixins/inboxMixin';
 import { trimContent, debounce, getRecipients } from '@chatwoot/utils';
@@ -114,6 +118,7 @@ const whatsappAlertAction = message =>
 
 export default {
   components: {
+    CatalogProductModal,
     ArticleSearchPopover,
     AttachmentPreview,
     AttachmentPreviewModal,
@@ -247,6 +252,7 @@ export default {
       showCannedResponseModal: false,
       showLocationPickerModal: false,
       showShareContactModal: false,
+      showCatalogModal: false,
       updateEditorSelectionWith: '',
       undefinedVariableMessage: '',
       showMentions: false,
@@ -355,6 +361,11 @@ export default {
     },
     showContentTemplates() {
       return this.isATwilioWhatsAppChannel && !this.isPrivate;
+    },
+    // C10 — caixa WAHA não tem catálogo nativo: o produto vai como foto com legenda, e o
+    // seletor avisa isso antes de o atendente mandar. Mesma leitura do MessagesView.
+    isWahaInbox() {
+      return !!this.inbox?.waha_session_name;
     },
     // Free-form interactive buttons/list are delivered via WAHA (Channel::Api).
     // Offer on WhatsApp / API inboxes, in reply mode, when a reply is allowed.
@@ -1410,6 +1421,25 @@ export default {
           longitude,
           address,
         });
+        emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
+        emitter.emit(BUS_EVENTS.MESSAGE_SENT);
+      } catch (error) {
+        const errorMessage =
+          error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
+        useAlert(errorMessage);
+      }
+    },
+    openCatalogModal() {
+      if (!this.currentChat?.id) return;
+      this.showCatalogModal = true;
+    },
+    hideCatalogModal() {
+      this.showCatalogModal = false;
+    },
+    async onCatalogSend(productIds) {
+      this.hideCatalogModal();
+      try {
+        await CatalogAPI.sendToConversation(this.currentChat.id, productIds);
         emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
         emitter.emit(BUS_EVENTS.MESSAGE_SENT);
       } catch (error) {
@@ -3135,6 +3165,14 @@ export default {
                 icon="i-lucide-user-round-plus"
                 :click="openShareContactModal"
               />
+              <!-- C8 — Catálogo: mandar produto na conversa -->
+              <DropdownItem
+                v-if="!isPrivate"
+                data-testid="replybox-catalog"
+                :label="$t('CONVERSATION.CATALOG.MENU')"
+                icon="i-lucide-shopping-bag"
+                :click="openCatalogModal"
+              />
               <!-- Mensagem interativa: botões / lista (WhatsApp livre via WAHA) -->
               <DropdownItem
                 v-if="showInteractiveMessage"
@@ -3366,6 +3404,14 @@ export default {
       :show="showLocationPickerModal"
       @close="hideLocationPicker"
       @select="onLocationSelect"
+    />
+
+    <CatalogProductModal
+      v-if="showCatalogModal"
+      :show="showCatalogModal"
+      :is-waha="isWahaInbox"
+      @close="hideCatalogModal"
+      @send="onCatalogSend"
     />
 
     <ShareContactModal
