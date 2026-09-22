@@ -20,12 +20,14 @@ class Catalog::MetaSyncService
     @account = account
     @enviados = 0
     @carimbados = 0
+    @removidos = 0
     @pulados = []
   end
 
   def perform
     return resultado if catalogo_id.blank? || canal.blank?
 
+    remover_ocultos
     produtos.each_slice(TAMANHO_DO_LOTE) { |lote| sincronizar_lote(lote) }
     resultado
   rescue CustomExceptions::Catalog::MetaRateLimited
@@ -48,28 +50,55 @@ class Catalog::MetaSyncService
     @cliente ||= Whatsapp::FacebookApiClient.new(canal.provider_config['api_key'])
   end
 
-  # Só produto visível: o invisível está fora da vitrine, e a rota pública da foto devolve 404 para
-  # ele — mandá-lo à Meta criaria item sem imagem lá.
+  # Só produto visível: o invisível não entra na vitrine da Meta, e quem já entrou sai por
+  # `remover_ocultos`.
   def produtos
     @account.catalog_products.visiveis.para_sincronizar.order(:id).limit(LIMITE_DA_PASSADA)
   end
 
-  def sincronizar_lote(lote)
-    com_sku, sem_sku = lote.partition { |produto| produto.sku.present? }
-    sem_sku.each { |produto| pular(produto) }
-    return if com_sku.empty?
-
-    cliente.catalog_items_batch(catalogo_id, com_sku.map { |produto| { method: 'UPDATE', data: dados(produto) } })
-    @enviados += com_sku.size
-    carimbar(com_sku)
+  # Produto que some da vitrine tem que sumir do catálogo da Meta também. Sem isto o painel diz
+  # "oculto" e o cliente final continua vendo o item e podendo comprar — e desativar É remoção: é o
+  # que o DELETE da C3 faz e o que o `produto.removido` do model avisa ao ERP.
+  #
+  # Não filtra por `para_sincronizar`: quem sai leva o `meta_product_id` limpo no mesmo passo, e é
+  # isso que o tira desta lista para sempre.
+  def ocultos_espelhados
+    @account.catalog_products.where(visible: false).where.not(meta_product_id: nil).order(:id).limit(LIMITE_DA_PASSADA)
   end
 
-  # `retailer_id` é o SKU, e a Meta não aceita item sem a chave do varejista. Produto sem SKU é
-  # pulado com o motivo registrado — derrubar o lote por causa dele deixaria o catálogo inteiro sem
-  # espelho por um cadastro incompleto.
-  def pular(produto)
-    @pulados << { id: produto.id, motivo: :sem_sku }
-    Rails.logger.info("[catalogo] produto #{produto.id} fora do espelho da Meta: sem SKU")
+  def remover_ocultos
+    ocultos_espelhados.each_slice(TAMANHO_DO_LOTE) do |lote|
+      # Mesma chamada do espelho, outro verbo: o `items_batch` aceita DELETE pela `retailer_id`.
+      cliente.catalog_items_batch(catalogo_id, lote.map { |produto| { method: 'DELETE', data: { retailer_id: produto.sku } } })
+      lote.each(&:desmarcar_sincronizado!)
+      @removidos += lote.size
+    end
+  end
+
+  def sincronizar_lote(lote)
+    enviaveis = lote.select { |produto| enviavel?(produto) }
+    return if enviaveis.empty?
+
+    cliente.catalog_items_batch(catalogo_id, enviaveis.map { |produto| { method: 'UPDATE', data: dados(produto) } })
+    @enviados += enviaveis.size
+    carimbar(enviaveis)
+  end
+
+  # A Meta exige do PRODUCT_ITEM a chave do varejista (`retailer_id`, que é o SKU) e a imagem. Item
+  # sem um dos dois ela REJEITA, e item rejeitado nunca é carimbado: voltaria em `para_sincronizar`
+  # a cada passada, queimando para sempre a mesma cota que o lote existe para poupar.
+  def enviavel?(produto)
+    return true if produto.sku.present? && produto.capa.present?
+
+    # Pular com o motivo registrado é o que mantém o resto do lote de pé: derrubar a chamada por um
+    # cadastro incompleto deixaria o catálogo inteiro sem espelho.
+    pular(produto, produto.sku.blank? ? :sem_sku : :sem_foto)
+    false
+  end
+
+  def pular(produto, motivo)
+    @pulados << { id: produto.id, motivo: motivo }
+    Rails.logger.info("[catalogo] produto #{produto.id} fora do espelho da Meta: #{motivo}")
   end
 
   # O `items_batch` responde `handles`, não o id do item: quem diz o `meta_product_id` é a consulta
@@ -113,6 +142,6 @@ class Catalog::MetaSyncService
   end
 
   def resultado(limite_atingido: false)
-    { enviados: @enviados, carimbados: @carimbados, pulados: @pulados, limite_atingido: limite_atingido }
+    { enviados: @enviados, carimbados: @carimbados, removidos: @removidos, pulados: @pulados, limite_atingido: limite_atingido }
   end
 end

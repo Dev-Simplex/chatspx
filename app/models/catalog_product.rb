@@ -132,6 +132,13 @@ class CatalogProduct < ApplicationRecord
     update_columns(meta_product_id: id_na_meta, meta_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
   end
 
+  # O avesso do carimbo, para quando o produto SAI do catálogo da Meta (virou oculto). `update_columns`
+  # pelo mesmo motivo de lá, e também para não disparar um `produto.atualizado` ao ERP: ele já recebeu
+  # o `produto.removido` no instante em que o produto ficou invisível.
+  def desmarcar_sincronizado!
+    update_columns(meta_product_id: nil, meta_synced_at: nil) # rubocop:disable Rails/SkipsModelValidations
+  end
+
   private
 
   # Espaço em volta do SKU vindo do ERP transformaria " ABC" e "ABC" em dois produtos, furando a

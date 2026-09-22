@@ -56,6 +56,50 @@ describe Catalog::MetaSyncService do
       expect(WebMock).to(have_requested(:post, items_batch_url).with { |req| JSON.parse(req.body)['requests'].size == 1 })
     end
 
+    it 'pula produto sem foto sem derrubar o lote' do
+      sem_foto = create(:catalog_product, account: account, sku: 'ABC-7')
+      com_foto = create(:catalog_product, :com_foto, account: account, sku: 'ABC-8')
+      stub_espelho([{ 'id' => 'meta-8', 'retailer_id' => 'ABC-8' }])
+
+      resultado = described_class.new(account).perform
+
+      expect(resultado[:pulados]).to eq([{ id: sem_foto.id, motivo: :sem_foto }])
+      expect(resultado[:enviados]).to eq(1)
+      expect(com_foto.reload.meta_product_id).to eq('meta-8')
+      expect(sem_foto.reload.meta_product_id).to be_nil
+      expect(WebMock).to(have_requested(:post, items_batch_url).with do |req|
+        JSON.parse(req.body)['requests'].map { |r| r['data']['retailer_id'] } == ['ABC-8']
+      end)
+    end
+
+    it 'tira do catálogo da Meta o produto que virou oculto' do
+      produto = create(:catalog_product, :com_foto, account: account, sku: 'ABC-9')
+      produto.marcar_sincronizado!('meta-9')
+      produto.update!(visible: false)
+      stub_espelho([])
+
+      resultado = described_class.new(account).perform
+
+      expect(resultado[:removidos]).to eq(1)
+      expect(WebMock).to(have_requested(:post, items_batch_url).with do |req|
+        JSON.parse(req.body)['requests'] == [{ 'method' => 'DELETE', 'data' => { 'retailer_id' => 'ABC-9' } }]
+      end)
+
+      produto.reload
+      expect(produto.meta_product_id).to be_nil
+      expect(produto.meta_synced_at).to be_nil
+    end
+
+    it 'não volta a mexer no produto oculto já tirado do espelho' do
+      create(:catalog_product, :com_foto, account: account, sku: 'ABC-10', visible: false)
+      stub_espelho([])
+
+      resultado = described_class.new(account).perform
+
+      expect(resultado[:removidos]).to eq(0)
+      expect(WebMock).not_to have_requested(:post, items_batch_url)
+    end
+
     it 'para a passada quando a Meta devolve 429, em vez de repetir' do
       create(:catalog_product, :com_foto, account: account, sku: 'ABC-3')
       stub_request(:post, items_batch_url).to_return(status: 429, body: { error: { message: 'rate limit' } }.to_json)
