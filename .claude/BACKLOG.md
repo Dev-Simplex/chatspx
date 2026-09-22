@@ -342,6 +342,36 @@ ciclomática. Não confundir com regressão de quem mexer neles.
 
 ---
 
+## Custom tools HTTP — contrato do template de resposta
+
+### 🔴 Template com texto literal em volta do campo transforma recusa de 200 em sucesso — PR proprio, BLOQUEADO
+- **Decidido 22/09/2026 pelo Paulo:** **nao entra no P0**. O P0 nao piora este caso — antes e depois o modelo recebe o mesmo `"visita "`. Vira PR proprio, e **so depois** de confirmar com quem mantem o sistema da Fabrica se as tools `mtm_*` devolvem 200 com erro dentro do corpo.
+- **O que e:** a correcao do P0 (`0442478ecc`) decide pelo corpo BRUTO e fecha o template de **campo nu** (`{{ response.visita_id }}`), que rende vazio. Template com **texto literal em volta** (`visita {{ response.visita_id }}`) rende `"visita "` — que nao e vazio. O `formatado.present?` da true e a recusa de 200 vira sucesso, com uma frase truncada sem sentido.
+- **Por que nao e uma linha:** fechar exige o render **reportar variavel nao resolvida**. Hoje `Concerns::Toolable#format_response` roda com `strict: false` **de proposito** — API externa omite campo o tempo todo, e em modo strict o Liquid levanta e a tool inteira morre. E decisao sobre o contrato do template, nao remendo.
+- **Esta vermelho e marcado:** `spec/enterprise/services/spx/harness/nivel1/acao_e_consulta_spec.rb`, tag `:defeito_aberto`. O portao de CI roda `--tag ~defeito_aberto`, entao ele nao bloqueia — e listado num passo proprio.
+- **Pergunta aberta que destrava:** as `mtm_*` da conta 1 respondem 200 com erro no corpo? Sem isso nao da para dimensionar o impacto. Acesso a conta 1 exige OK do Paulo por vez.
+- **Detalhe completo:** `spx-os/.../06-auditoria-confiabilidade-2026-09-20.md` §18.1.
+
+---
+
+## Harness offline — CONGELADO em 22/09/2026
+
+> O harness fica como esta. O proximo passo e o **deploy do P0**, e e do Paulo. Nada aqui comeca
+> sem ele mandar.
+
+### 🟡 Cenario de truncagem do `search_knowledge` — proximo da fila quando descongelar
+- [ ] `search_knowledge` trunca **84,6%** das chamadas (medido conta 6, 30 dias), `buscar_empreendimento` 58,8%, `buscar_imovel` 22,5%, o resto zero. O `result_preview` corta em 1.500 e e dele que a nota do turno seguinte e montada — ou seja, a nota entrega ao modelo um pedaco do que a ferramenta devolveu, sem dizer que e pedaco.
+- [ ] Nenhuma fixture gravada hoje reproduz fielmente o que o modelo VIU no contexto; so o que as ferramentas devolveram. E estrutural, nao defeito de gravacao.
+
+### 🟡 Cenario de janela por episodio
+- [ ] Reentrada depois de gap, `EpisodeBoundary` derivada em runtime, nota de continuidade.
+
+### 🟡 Baseline do nivel 2
+- [ ] Rodar `spx:conduta:congelar` depois do deploy do P0, para ter o "depois" contra o "antes" de 21-22/09.
+- [ ] Dois cenarios estao **abaixo do proprio piso** no codigo NO AR (`visita em condominio e acompanhada` e `taxa de condominio nao e condominio fechado`, os dois 4/6 contra piso 5). Nao e regressao do P0 — e o estado atual, e precisa de decisao sobre conduta.
+
+---
+
 ## Ferramentas Vista — régua comercial
 
 ### 🔴 `enviar_localizacao_imovel`: inverter o `venda?` para fail-closed — PR próprio, a partir de `producao`
