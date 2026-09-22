@@ -43,6 +43,17 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                     Condominio ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
+  # O Vista respondeu, mas não com dado utilizável (não-200, corpo que não é Hash). Antes isso
+  # virava `[]` e o chamador dizia "Nenhum imóvel encontrado" — falha técnica publicada como
+  # ausência de negócio. Agora sobe até o rescue do #perform, que diz que a CONSULTA falhou.
+  class VistaIndisponivel < StandardError; end
+
+  # Tom espelhado na BuscarUnidadesTool::FALHA: diz o que aconteceu, nomeia que é falha de
+  # consulta e fecha a porta pra resposta de memória.
+  FALHA_BUSCA = 'Não consegui consultar o acervo agora. Isto é falha de consulta, não ausência: ' \
+                'não conclua que não há imóvel no critério, não cite imóvel de memória e não ' \
+                'afirme preço ou disponibilidade. Diga que não conseguiu consultar agora.'.freeze
+
   # Veto de sanidade do geocoding: o que cair além disso do escritório não é da cidade
   # de atendimento, é homônimo de outro município (ver geocode_referencia).
   RAIO_URBANO_KM = 25
@@ -124,10 +135,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "mobiliado=#{mobiliado.inspect} suite=#{suite.inspect} geo=#{geo} => #{imoveis.size} imoveis " \
                       "#{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
+    aviso_parcial = ''
     if mobiliado
-      candidatos = imoveis.size
-      imoveis = imoveis.select { |im| detalhes_info(im['Codigo'])[:mobiliado] }
-      return sem_mobiliado(candidatos) if imoveis.blank?
+      confirmados, desconhecidos = particionar_mobiliados(imoveis)
+      return sem_mobiliado_confirmado(imoveis.size, desconhecidos) if confirmados.blank?
+
+      imoveis = confirmados
+      aviso_parcial = mobiliado_parcial(desconhecidos)
     end
     track_codigos(tool_context, imoveis)
     if imoveis.blank?
@@ -149,10 +163,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                else
                  format_listings(tool_context, imoveis, venda)
                end
-    "#{fora_da_minha_finalidade(venda)}#{listagem}"
+    "#{fora_da_minha_finalidade(venda)}#{aviso_parcial}#{listagem}"
   rescue StandardError => e
-    Rails.logger.warn("[BuscarImoveisTool] #{e.message}")
-    'Não consegui buscar os imóveis agora.'
+    Rails.logger.warn("[BuscarImoveisTool] #{e.class}: #{e.message}")
+    Captain::Tools::Result.erro(FALHA_BUSCA, detalhe: "#{e.class}: #{e.message}")
   end
 
   private
@@ -238,6 +252,41 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       'ofereça as opções não mobiliadas ou o contato do consultor. Não prometa nova busca.'
   end
 
+  # Nenhum confirmado como mobiliado NÃO é o mesmo que "nenhum é mobiliado", quando parte do
+  # lote não pôde ser conferida. Afirmar ausência aqui publica falha de consulta como fato do
+  # acervo — só o caminho em que TODOS foram conferidos autoriza o texto acima.
+  def sem_mobiliado_confirmado(candidatos, desconhecidos)
+    return sem_mobiliado(candidatos) if desconhecidos.zero?
+
+    "Conferi #{candidatos} imóvel(is) que batem no resto do critério: nenhum está confirmado como " \
+      "mobiliado, e em #{desconhecidos} deles NÃO foi possível confirmar a característica porque a " \
+      'consulta de detalhes não respondeu. Não afirme que não há mobiliado: diga que não conseguiu ' \
+      'confirmar agora e ofereça falar com o consultor.'
+  end
+
+  # Desconhecido não é "não". Antes, `detalhes_info(...)[:mobiliado]` devolvia nil quando a
+  # consulta de detalhes falhava, o `select` lia nil como false, e imóvel BOM saía da lista sem
+  # deixar rastro nenhum. Agora o que não foi confirmado é contado e dito.
+  def particionar_mobiliados(imoveis)
+    confirmados = []
+    desconhecidos = 0
+    imoveis.each do |imovel|
+      info = detalhes_info(imovel['Codigo'])
+      next desconhecidos += 1 unless info[:consultado]
+
+      confirmados << imovel if info[:mobiliado]
+    end
+    [confirmados, desconhecidos]
+  end
+
+  def mobiliado_parcial(desconhecidos)
+    return '' if desconhecidos.zero?
+
+    "ATENÇÃO: em #{desconhecidos} imóvel(is) do critério não foi possível confirmar se são " \
+      'mobiliados (a consulta de detalhes não respondeu), então esta lista pode não ser todas as ' \
+      "opções mobiliadas. Não diga que são todas.\n"
+  end
+
   def fetch_vista(filter, quantidade: 5, venda: false)
     base = vista_base_url
     # Ordena por PREÇO crescente (o mais em conta dentro do filtro primeiro), não por
@@ -251,11 +300,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       paginacao: { pagina: 1, quantidade: quantidade }
     }
     resp = vista_get("#{base}/imoveis/listar", { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json })
-    return [] unless resp.code == 200
+    # Lista VAZIA e consulta que FALHOU são coisas diferentes e só uma delas autoriza dizer
+    # "não temos". Devolver [] aqui apagava a diferença: era o caminho 3 da auditoria de 20/09.
+    raise VistaIndisponivel, "listar respondeu HTTP #{resp.code}" unless resp.code == 200
 
     data = resp.parsed_response
     data = JSON.parse(data) if data.is_a?(String)
-    return [] unless data.is_a?(Hash)
+    raise VistaIndisponivel, "listar respondeu corpo inesperado (#{data.class})" unless data.is_a?(Hash)
 
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
   end
@@ -364,6 +415,11 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     outra = na_outra_finalidade(filter, venda, bairro)
     imoveis = ordenar_alternativas(anexar_distancia_da_referencia(imoveis, ref))
     format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis, outra))
+  rescue VistaIndisponivel
+    # Este rescue existia pra degradar a AMPLIAÇÃO (um extra) sem derrubar a busca. Vista fora
+    # do ar não é extra que falhou: engolir aqui devolveria nil e o chamador publicaria
+    # "Nenhum imóvel encontrado" — a mesma falha-vira-ausência, por um caminho lateral.
+    raise
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] ampliar_sem_bairro: #{e.message}")
     nil
@@ -900,7 +956,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # ("todas têm piscina", "não tem foto"). Falha de rede -> string vazia (não atrapalha).
   def format_extras(codigo)
     i = detalhes_info(codigo)
-    return '' if i.empty?
+    # Não confirmado = não se diz nada. Antes o `{}` de erro também caía aqui, mas pelo `empty?`;
+    # com o flag, "consultei e não veio" e "não consegui consultar" param de ser o mesmo silêncio.
+    return '' unless i[:consultado]
 
     bits = []
     bits << (i[:fotos].positive? ? "#{i[:fotos]} fotos" : 'sem fotos')
@@ -917,11 +975,47 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # TETO_INSPECAO imóveis por busca, e sem cache seriam 60 chamadas ao Vista a cada pergunta.
   # 6h é curto o bastante pra refletir cadastro novo e longo o bastante pra uma conversa
   # inteira reaproveitar. Chave por conta, porque cada conta tem o seu Vista.
+  # SÓ resultado que o servidor confirmou entra no cache LONGO. Antes, o `{}` devolvido por erro
+  # era cacheado pelas mesmas 6h: uma indisponibilidade de segundos virava "sem foto, sem suíte e
+  # não mobiliado" para toda conversa da conta durante as 6 horas seguintes, e o imóvel sumia do
+  # filtro de característica sem deixar rastro.
   def detalhes_info(codigo)
-    Rails.cache.fetch("captain:vista:detalhes:#{tool_account&.id}:#{codigo}", expires_in: 6.hours) do
-      fetch_detalhes_info(codigo)
-    end
+    chave = "captain:vista:detalhes:#{tool_account&.id}:#{codigo}"
+    cacheado = Rails.cache.read(chave)
+    return cacheado if cacheado.is_a?(Hash) && cacheado.key?(:consultado)
+
+    info = fetch_detalhes_info(codigo)
+    guardar_detalhes(chave, info)
+    info
   end
+
+  TTL_SUCESSO = 6.hours
+  # Cache negativo CURTO. A regra "erro nunca é cacheado" foi escrita contra o envenenamento de
+  # 6h, e ela continua valendo: o que se guarda aqui é só o ESTADO "não deu pra consultar",
+  # nunca característica presumida — o valor é o próprio NAO_CONSULTADO, que não tem campo
+  # nenhum além do flag. Sem isto, um Vista fora do ar leva até TETO_INSPECAO chamadas de
+  # detalhe POR TURNO (ramo `mobiliado`), sem backoff, justamente enquanto ele está caindo.
+  #
+  # Configurável por conta para dar de subir em incidente longo sem deploy; 0 desliga.
+  TTL_FALHA_PADRAO = 60
+
+  def guardar_detalhes(chave, info)
+    return Rails.cache.write(chave, info, expires_in: TTL_SUCESSO) if info[:consultado]
+
+    segundos = ttl_falha
+    return unless segundos.positive?
+
+    Rails.cache.write(chave, NAO_CONSULTADO, expires_in: segundos.seconds)
+  end
+
+  def ttl_falha
+    bruto = tool_account&.custom_attributes&.dig('vista_detalhes_ttl_falha')
+    bruto.nil? ? TTL_FALHA_PADRAO : bruto.to_i
+  end
+
+  # `consultado: false` é o estado DESCONHECIDO, e ele existe para não ser confundido com "a
+  # característica não existe". Quem lê tem que checar o flag antes de tratar os campos.
+  NAO_CONSULTADO = { consultado: false }.freeze
 
   def fetch_detalhes_info(codigo)
     resp = HTTParty.get(
@@ -929,18 +1023,20 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       query: { key: vista_api_key, imovel: codigo, pesquisa: { fields: ['Codigo', 'Suites', 'Vagas', { 'Foto' => %w[Foto] }, 'Caracteristicas'] }.to_json },
       headers: { 'Accept' => 'application/json' }, timeout: 10
     )
-    return {} unless resp.code == 200
+    return NAO_CONSULTADO unless resp.code == 200
 
     d = resp.parsed_response
     d = JSON.parse(d) if d.is_a?(String)
-    return {} unless d.is_a?(Hash)
+    return NAO_CONSULTADO unless d.is_a?(Hash)
 
     carac = d['Caracteristicas'].is_a?(Hash) ? d['Caracteristicas'] : {}
-    { fotos: (d['Foto'].is_a?(Hash) ? d['Foto'].size : 0), suites: d['Suites'].to_i, vagas: d['Vagas'].to_i,
+    { consultado: true,
+      fotos: (d['Foto'].is_a?(Hash) ? d['Foto'].size : 0), suites: d['Suites'].to_i, vagas: d['Vagas'].to_i,
       piscina: sim?(carac['Piscina']), quintal: sim?(carac['Quintal']),
       mobiliado: sim?(carac['Mobiliado']), churrasqueira: sim?(carac['Churrasqueira']) }
-  rescue StandardError
-    {}
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] detalhes #{codigo}: #{e.class}: #{e.message}")
+    NAO_CONSULTADO
   end
 
   def sim?(val)
