@@ -944,4 +944,236 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(listar([avulso])).not_to include('Visita a imóvel avulso')
     end
   end
+
+  # Falha técnica publicada como ausência de negócio: o `fetch_vista` devolvia `[]` em não-200 e
+  # o chamador dizia "Nenhum imóvel encontrado com esses critérios". O cliente ouvia que não
+  # existe imóvel no critério quando o que houve foi o Vista fora do ar.
+  describe 'consulta que falha não vira ausência' do
+    def resposta(code:, corpo:)
+      instance_double(HTTParty::Response, code: code, parsed_response: corpo)
+    end
+
+    before do
+      allow(tool).to receive_messages(site_api_key: nil, vista_base_url: 'https://vista.example', vista_api_key: 'k')
+    end
+
+    it 'diz que a consulta falhou quando o Vista responde não-200' do
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 503, corpo: nil))
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
+
+      expect(texto).to include('falha de consulta, não ausência')
+      expect(texto).not_to include('Nenhum imóvel encontrado')
+    end
+
+    it 'diz que a consulta falhou quando o corpo de 200 não é interpretável' do
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 200, corpo: '<html>erro</html>'))
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
+
+      expect(texto).to include('falha de consulta, não ausência')
+      expect(texto).not_to include('Nenhum imóvel encontrado')
+    end
+
+    # O outro lado da moeda: 200 com lista vazia É ausência confirmada, e continua sendo dita
+    # como tal. Se este exemplo cair junto com os de cima, a correção virou mordaça.
+    it 'preserva a ausência CONFIRMADA quando o Vista responde 200 sem resultado' do
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 200, corpo: { 'total' => 0, 'paginas' => 0 }))
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
+
+      expect(texto).to include('Nenhum imóvel encontrado')
+      expect(texto).not_to include('falha de consulta')
+    end
+
+    it 'grava a falha como erro no trace, não como ok' do
+      account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 503, corpo: nil))
+
+      tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
+
+      expect(Captain::ToolCall.for_conversation(conversation.id).last.status).to eq('error')
+    end
+
+    # O rescue do ampliar_sem_bairro existia pra degradar um EXTRA. Vista fora do ar não é
+    # extra que falhou: engolir ali devolvia nil e o chamador publicava "Nenhum imóvel".
+    #
+    # A sequência importa: a PRIMEIRA busca precisa voltar 200-vazia para o fluxo chegar na
+    # ampliação, e só a SEGUNDA cai. Com 500 nas duas, a primeira já levantaria e o exemplo
+    # passaria sem nunca exercitar o rescue que ele existe para cobrir.
+    it 'não deixa a ampliação por bairro engolir a indisponibilidade' do
+      allow(tool).to receive(:vista_get).and_return(
+        resposta(code: 200, corpo: { 'total' => 0 }),
+        resposta(code: 500, corpo: nil)
+      )
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Jardim Imperial')
+
+      expect(texto).to include('falha de consulta, não ausência')
+      expect(texto).not_to include('Nenhum imóvel encontrado')
+    end
+  end
+
+  # Cache de 6h guardando o `{}` devolvido por erro: uma indisponibilidade de segundos virava
+  # "sem foto, sem suíte e não mobiliado" para toda conversa da conta durante as 6 horas
+  # seguintes — e o imóvel sumia do filtro de característica sem deixar rastro.
+  describe 'cache de detalhes' do
+    let(:memoria) { ActiveSupport::Cache::MemoryStore.new }
+
+    let(:detalhes_ok) do
+      { 'Codigo' => '9908', 'Suites' => '1', 'Vagas' => '2',
+        'Foto' => { 'a' => {} }, 'Caracteristicas' => { 'Mobiliado' => 'Sim' } }
+    end
+
+    before do
+      allow(Rails).to receive(:cache).and_return(memoria)
+      allow(tool).to receive_messages(vista_base_url: 'https://vista.example', vista_api_key: 'k')
+    end
+
+    def falhando!
+      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 500, parsed_response: nil))
+    end
+
+    def respondendo!
+      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 200, parsed_response: detalhes_ok))
+    end
+
+    it 'marca como não consultado, e não como característica ausente' do
+      falhando!
+
+      info = tool.send(:detalhes_info, '9908')
+
+      expect(info[:consultado]).to be false
+      expect(info).not_to have_key(:mobiliado)
+    end
+
+    it 'cacheia o resultado que o servidor confirmou' do
+      respondendo!
+
+      2.times { tool.send(:detalhes_info, '9908') }
+
+      expect(HTTParty).to have_received(:get).once
+    end
+
+    it 'não descreve característica que não pôde confirmar' do
+      falhando!
+
+      expect(tool.send(:format_extras, '9908')).to eq('')
+    end
+
+    # O ramo `mobiliado` inspeciona até TETO_INSPECAO imóveis por turno. Sem cache negativo, um
+    # Vista fora do ar levava até 50 chamadas de detalhe POR TURNO, sem backoff nenhum,
+    # justamente enquanto ele estava caindo.
+    describe 'cache negativo curto' do
+      it 'segura a martelada enquanto o Vista está fora' do
+        falhando!
+
+        5.times { tool.send(:detalhes_info, '9908') }
+
+        expect(HTTParty).to have_received(:get).once
+      end
+
+      # A condição que separa isto do defeito que o PR conserta: guarda o ESTADO, nunca
+      # característica presumida. Se algum dia vazar um `mobiliado: false` para cá, o imóvel
+      # volta a sumir do filtro por falha de rede.
+      it 'guarda só o flag, sem característica nenhuma' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        guardado = memoria.read("captain:vista:detalhes:#{account.id}:9908")
+
+        expect(guardado).to eq({ consultado: false })
+        expect(guardado.keys).to eq([:consultado])
+      end
+
+      # O ponto todo: a falha esfria em segundos, não nas 6h do sucesso.
+      it 'expira rápido e deixa o resultado bom entrar' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(described_class::TTL_FALHA_PADRAO.seconds + 1.second) do
+          respondendo!
+          expect(tool.send(:detalhes_info, '9908')[:mobiliado]).to be true
+        end
+      end
+
+      it 'não segura pelas 6h do cache de sucesso' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(described_class::TTL_FALHA_PADRAO.seconds + 1.second) do
+          falhando!
+          tool.send(:detalhes_info, '9908')
+        end
+
+        expect(HTTParty).to have_received(:get).twice
+      end
+
+      # Configurável por conta para subir em incidente longo sem deploy.
+      it 'respeita o TTL da conta' do
+        account.update!(custom_attributes: account.custom_attributes.merge('vista_detalhes_ttl_falha' => 600))
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(2.minutes) do
+          falhando!
+          tool.send(:detalhes_info, '9908')
+        end
+
+        expect(HTTParty).to have_received(:get).once
+      end
+
+      it 'desliga com TTL zero' do
+        account.update!(custom_attributes: account.custom_attributes.merge('vista_detalhes_ttl_falha' => 0))
+        falhando!
+
+        2.times { tool.send(:detalhes_info, '9908') }
+
+        expect(HTTParty).to have_received(:get).twice
+      end
+    end
+  end
+
+  # Informação DESCONHECIDA tratada como falsa: `detalhes_info(...)[:mobiliado]` devolvia nil
+  # quando a consulta de detalhes falhava, o `select` lia nil como false, e imóvel bom saía da
+  # lista sem deixar rastro. Pior que o falso negativo é o texto: a tool afirmava que NENHUM era
+  # mobiliado tendo conferido nenhum.
+  describe 'filtro de característica com detalhe desconhecido' do
+    let(:casa) { imovel.merge('Codigo' => '1', 'ValorLocacao' => '1500', 'ValorVenda' => '0') }
+    let(:outra) { casa.merge('Codigo' => '2') }
+
+    before do
+      allow(tool).to receive_messages(site_api_key: nil, fetch_vista: [casa, outra])
+    end
+
+    it 'não afirma ausência quando não conseguiu confirmar a característica' do
+      allow(tool).to receive(:detalhes_info).and_return({ consultado: false })
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', mobiliado: true)
+
+      expect(texto).to include('NÃO foi possível confirmar')
+      expect(texto).not_to include('NENHUM está cadastrado')
+    end
+
+    it 'mantém a ausência confirmada quando TODOS foram conferidos' do
+      allow(tool).to receive(:detalhes_info).and_return({ consultado: true, mobiliado: false, fotos: 0,
+                                                          suites: 0, vagas: 0, piscina: false, quintal: false,
+                                                          churrasqueira: false })
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', mobiliado: true)
+
+      expect(texto).to include('NENHUM está cadastrado')
+    end
+
+    it 'avisa que a lista pode estar incompleta quando parte não foi confirmada' do
+      confirmado = { consultado: true, mobiliado: true, fotos: 1, suites: 0, vagas: 0,
+                     piscina: false, quintal: false, churrasqueira: false }
+      allow(tool).to receive(:detalhes_info).with('1').and_return(confirmado)
+      allow(tool).to receive(:detalhes_info).with('2').and_return({ consultado: false })
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', mobiliado: true)
+
+      expect(texto).to include('pode não ser todas as opções mobiliadas')
+    end
+  end
 end

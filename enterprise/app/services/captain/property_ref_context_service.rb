@@ -102,23 +102,40 @@ class Captain::PropertyRefContextService
       vista_api_key.present?
   end
 
+  # Só o que o servidor CONFIRMOU entra no cache — inclusive a ausência confirmada (200 sem o
+  # código), que é resposta legítima e vale as 6h. Falha de consulta não entra: antes, um não-200
+  # de segundos era cacheado como `{}` e apagava a ficha pelas 6 horas seguintes, devolvendo o
+  # imóvel à descrição de memória — exatamente a conv 41803 que motivou esta classe.
+  #
+  # O valor cacheado é envelopado (`consultado:`) em vez do imóvel cru: entrada gravada pelo
+  # formato antigo simplesmente não casa e vira um miss, sem precisar de invalidação.
   def fetch_imovel(codigo)
-    Rails.cache.fetch("captain:property_ref:#{@account.id}:#{codigo}", expires_in: CACHE_TTL) do
-      pesquisa = { fields: FIELDS, filter: { 'Codigo' => codigo }, paginacao: { pagina: 1, quantidade: 1 } }
-      resp = HTTParty.get(
-        "#{vista_base_url}/imoveis/listar",
-        query: { key: vista_api_key, pesquisa: pesquisa.to_json },
-        headers: { 'Accept' => 'application/json' },
-        timeout: HTTP_TIMEOUT
-      )
-      next {} unless resp.code == 200
+    chave = "captain:property_ref:#{@account.id}:#{codigo}"
+    cacheado = Rails.cache.read(chave)
+    return cacheado[:imovel].presence if cacheado.is_a?(Hash) && cacheado[:consultado]
 
-      data = resp.parsed_response
-      data = JSON.parse(data) if data.is_a?(String)
-      next {} unless data.is_a?(Hash)
+    imovel = consultar_imovel(codigo)
+    Rails.cache.write(chave, { consultado: true, imovel: imovel }, expires_in: CACHE_TTL) unless imovel.nil?
+    imovel.presence
+  end
 
-      data.values.find { |v| v.is_a?(Hash) && v['Codigo'].present? } || {}
-    end.presence
+  # nil = a consulta falhou e não se sabe nada (desconhecido).
+  # {}  = o servidor respondeu e não tem esse código (ausência confirmada).
+  def consultar_imovel(codigo)
+    pesquisa = { fields: FIELDS, filter: { 'Codigo' => codigo }, paginacao: { pagina: 1, quantidade: 1 } }
+    resp = HTTParty.get(
+      "#{vista_base_url}/imoveis/listar",
+      query: { key: vista_api_key, pesquisa: pesquisa.to_json },
+      headers: { 'Accept' => 'application/json' },
+      timeout: HTTP_TIMEOUT
+    )
+    return nil unless resp.code == 200
+
+    data = resp.parsed_response
+    data = JSON.parse(data) if data.is_a?(String)
+    return nil unless data.is_a?(Hash)
+
+    data.values.find { |v| v.is_a?(Hash) && v['Codigo'].present? } || {}
   end
 
   def format_note(imovel)
