@@ -470,6 +470,26 @@ Rails.application.routes.draw do
           resource :notification_settings, only: [:show, :update]
 
           resources :units, only: [:index, :show, :create, :update, :destroy]
+
+          # Catálogo de produtos (C2, painel). A porta do ERP é outra e vem na C3.
+          namespace :catalog do
+            resources :products, only: [:index, :show, :create, :update, :destroy] do
+              member do
+                delete 'images/:image_id', action: :destroy_image, as: :image
+              end
+            end
+            resources :categories, only: [:index, :show, :create, :update, :destroy]
+          end
+
+          # Porta do ERP (C3). Caminhos e nomes em português porque é contrato com o sistema do
+          # CLIENTE, e é assim que o documento mestre os publica. A chave é o SKU, não o id:
+          # `constraints` porque SKU com ponto (AB.123) viraria formato na rota.
+          namespace :catalogo do
+            resources :produtos, only: [:index, :create, :update, :destroy],
+                                 param: :sku, constraints: { sku: %r{[^/]+} } do
+              post :lote, on: :collection
+            end
+          end
           resources :teams do
             resources :team_members, only: [:index, :create] do
               collection do
