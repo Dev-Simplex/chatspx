@@ -54,6 +54,13 @@ class CatalogProduct < ApplicationRecord
 
   before_validation :limpar_sku
 
+  # Webhooks do catálogo (C4). `after_*_commit` porque avisar antes do commit entregaria ao ERP um
+  # produto que ainda pode não existir. O carimbo do espelho da Meta usa `update_columns` e não
+  # passa por aqui de propósito: sincronizar não é mudança de produto.
+  after_create_commit :avisar_criado
+  after_update_commit :avisar_alteracoes
+  after_destroy_commit :avisar_removido
+
   scope :visiveis, -> { where(visible: true) }
   scope :em_destaque, -> { where(featured: true) }
   scope :da_categoria, ->(id) { where(catalog_category_id: id) }
@@ -81,6 +88,24 @@ class CatalogProduct < ApplicationRecord
     images.map { |imagem| { id: imagem.id, url: url_for(imagem), filename: imagem.filename.to_s } }
   end
 
+  def webhook_data
+    {
+      id: id, account_id: account_id, sku: sku, name: name, description: description,
+      price_cents: price_cents, promo_price_cents: promo_price_cents,
+      current_price_cents: preco_atual_cents, currency: currency,
+      stock: stock, visible: visible, featured: featured,
+      categoria: category&.name, cover_url: capa_url,
+      meta_product_id: meta_product_id, updated_at: updated_at
+    }
+  end
+
+  # Chamado pela C8 quando o atendente manda o produto na conversa. Mora aqui, e não no serviço de
+  # envio, para o contrato do evento ficar num lugar só.
+  def avisar_enviado_no_chat(conversation_id:, message_id: nil)
+    disparar(Events::Types::CATALOGO_PRODUTO_ENVIADO,
+             extras: { conversation_id: conversation_id, message_id: message_id })
+  end
+
   # Carimbo do espelho, com `update_columns` DE PROPÓSITO: gravar por `update!` moveria o
   # `updated_at` no mesmo salvar, o carimbo nasceria mais velho que o registro e o produto nunca
   # sairia de `para_sincronizar` — a sincronização reenviaria o catálogo inteiro para sempre.
@@ -94,5 +119,56 @@ class CatalogProduct < ApplicationRecord
   # idempotência que o índice único deveria garantir. String vazia vira NULL pelo mesmo motivo.
   def limpar_sku
     self.sku = sku&.strip.presence
+  end
+
+  def avisar_criado
+    disparar(Events::Types::CATALOGO_PRODUTO_CRIADO)
+  end
+
+  # Três avisos diferentes podem sair do mesmo salvar, e é o que o ERP precisa:
+  # - tirar de visível é REMOÇÃO do ponto de vista dele (é o que o DELETE da C3 faz);
+  # - estoque tem evento próprio, porque é o que muda toda hora e o que dispara reposição;
+  # - o resto é atualização comum.
+  def avisar_alteracoes
+    avisar_estoque if saved_change_to_stock?
+
+    # Desativar É remoção para o ERP (é o que o DELETE da C3 faz), e sai como UM aviso só: mandar
+    # "removido" e "atualizado" no mesmo salvar encheria a fila dele com evento redundante.
+    if virou_invisivel?
+      avisar_removido
+    elsif mudou_alem_do_estoque?
+      disparar(Events::Types::CATALOGO_PRODUTO_ATUALIZADO)
+    end
+  end
+
+  def avisar_estoque
+    anterior, atual = saved_change_to_stock
+    disparar(Events::Types::CATALOGO_ESTOQUE_ALTERADO,
+             extras: { estoque_anterior: anterior, estoque_atual: atual })
+  end
+
+  def virou_invisivel?
+    saved_change_to_visible? && !visible
+  end
+
+  def mudou_alem_do_estoque?
+    (saved_changes.keys - %w[stock updated_at]).any?
+  end
+
+  def avisar_removido
+    disparar(Events::Types::CATALOGO_PRODUTO_REMOVIDO)
+  end
+
+  # O payload é montado AQUI, no instante do evento, e viaja pronto. Mandar o registro e deixar o
+  # listener ler depois entregava o estado ATUAL do produto: o "produto.criado" chegava com o preço
+  # de um update posterior, e o "estoque.alterado" já vinha invisível. Para um contrato com ERP
+  # isso é dado errado, não atraso.
+  #
+  # `event_at` vai junto porque a fila é assíncrona e a ordem de entrega não é garantida — é por
+  # ele que o cliente ordena e descarta evento velho.
+  def disparar(evento, extras: nil)
+    agora = Time.zone.now
+    payload = webhook_data.merge(event: evento, event_at: agora.iso8601(3)).merge(extras || {})
+    Rails.configuration.dispatcher.dispatch(evento, agora, payload: payload, account_id: account_id)
   end
 end
