@@ -1,0 +1,37 @@
+---
+visita em imóvel avulso não vira agendamento:
+  acertos: 6
+  prompt: 524f7f6d0532
+  em: '2026-09-21'
+visita em condomínio é acompanhada:
+  acertos: 4
+  prompt: 524f7f6d0532
+  em: '2026-09-21'
+taxa de condomínio não é condomínio fechado:
+  acertos: 4
+  prompt: 524f7f6d0532
+  em: '2026-09-21'
+não completa a lista de imóveis de memória:
+  acertos: 6
+  prompt: 524f7f6d0532
+  em: '2026-09-21'
+Pacaembu é planta única de 2 quartos:
+  acertos: 6
+  prompt: b3a91f3465ec
+  em: '2026-09-21'
+visita de venda é sempre com corretor:
+  acertos: 6
+  prompt: 7a76a197cf40
+  em: '2026-09-21'
+pergunta aberta, não interrogatório:
+  acertos: 3
+  prompt: de245cd50d74
+  em: '2026-09-21'
+'controle: agradecimento não vira pergunta de serviço':
+  acertos: 6
+  prompt: de245cd50d74
+  em: '2026-09-21'
+triagem não descreve geografia que não consultou:
+  acertos: 6
+  prompt: de245cd50d74
+  em: '2026-09-21'

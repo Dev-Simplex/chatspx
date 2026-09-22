@@ -39,6 +39,21 @@ RSpec.describe 'nível 1: consulta x ação quando o sistema externo falha' do
                                  endpoint_url: 'https://crm.ficticio.invalid/visitas',
                                  response_template: nil)
   end
+  # A MESMA ação, com template. É a configuração real de quem cadastra custom tool: o template
+  # é o que transforma a resposta do CRM em frase para o modelo — e era por dentro dele que a
+  # recusa de 200 virava confirmação.
+  let(:acao_com_template) do
+    create(:captain_custom_tool, account: account, slug: 'agendar_visita_formatada', http_method: 'POST',
+                                 endpoint_url: 'https://crm.ficticio.invalid/visitas',
+                                 response_template: '{{ response.visita_id }}')
+  end
+  # A MESMA coisa, com texto literal em volta do campo. Parece detalhe e não é: ver o defeito
+  # aberto no fim do arquivo.
+  let(:acao_com_prefixo) do
+    create(:captain_custom_tool, account: account, slug: 'agendar_visita_prefixada', http_method: 'POST',
+                                 endpoint_url: 'https://crm.ficticio.invalid/visitas',
+                                 response_template: 'visita {{ response.visita_id }}')
+  end
 
   # O DNS é limite de rede igual ao HTTP: o guard de SSRF do HttpTool resolve o host ANTES de
   # montar a requisição. Sem fechar esse limite, toda falha do cenário vira "não chegou a ser
@@ -136,9 +151,47 @@ RSpec.describe 'nível 1: consulta x ação quando o sistema externo falha' do
       expect(passo.status).to eq('desconhecido')
     end
 
-    # O 2xx ILEGÍVEL saiu deste arquivo. O nível 1 mostrou que ele NÃO é tratado como
-    # indeterminado hoje: vira "A ação foi realizada com sucesso". Virou defeito aberto, com
-    # asserção própria e vermelha, em `defeitos_abertos_spec.rb`.
+    # O 2xx com a RECUSA dentro do corpo. Este arquivo nasceu vermelho aqui: o nível 1 mostrou
+    # que a regra do P0 não estava sendo cumprida e a ferramenta dizia "realizada com sucesso"
+    # para uma operação que o CRM tinha recusado. Corrigido decidindo pelo corpo BRUTO antes do
+    # template; fica como cenário normal, com o controle positivo ao lado.
+    it 'não confirma quando o 200 carrega a recusa dentro do corpo' do
+      stub_request(:post, 'https://crm.ficticio.invalid/visitas')
+        .to_return(status: 200, body: '{"sucesso":false,"erro":"horário ocupado"}')
+
+      passo = roteiro.executar([{ custom_tool: acao_com_template, args: {} }]).last
+
+      expect(passo.resultado).to eq(Captain::Tools::HttpAcao::ACAO_ILEGIVEL)
+      expect(passo.status).to eq('desconhecido')
+    end
+
+    it 'confirma quando o template consegue ler a resposta' do
+      stub_request(:post, 'https://crm.ficticio.invalid/visitas')
+        .to_return(status: 200, body: '{"visita_id":900}')
+
+      passo = roteiro.executar([{ custom_tool: acao_com_template, args: {} }]).last
+
+      expect(passo.resultado).to eq('900')
+      expect(passo.status).to eq('ok')
+    end
+
+    # DEFEITO ABERTO. O mesmo 200 com recusa no corpo, com um template que tem texto literal
+    # em volta do campo: o Liquid rende `"visita "` — que NÃO é vazio —, o `formatado.present?`
+    # dá true, e a recusa vira sucesso outra vez, agora com uma frase truncada sem sentido.
+    #
+    # A correção do corpo bruto fecha o template de campo nu; este caminho continua aberto, e é
+    # a configuração MAIS comum de quem cadastra custom tool. Fechá-lo exige o render reportar
+    # variável não resolvida — hoje ele roda com `strict: false` de propósito, porque API
+    # externa omite campo o tempo todo. Não é uma linha: é uma decisão sobre o contrato do
+    # template, e por isso está aqui em vez de remendada.
+    it 'não confirma recusa quando o template tem texto literal em volta do campo', :defeito_aberto do
+      stub_request(:post, 'https://crm.ficticio.invalid/visitas')
+        .to_return(status: 200, body: '{"sucesso":false,"erro":"horário ocupado"}')
+
+      passo = roteiro.executar([{ custom_tool: acao_com_prefixo, args: {} }]).last
+
+      expect(passo.resultado).to eq(Captain::Tools::HttpAcao::ACAO_ILEGIVEL)
+    end
 
     # 4xx que não é 408/429: o sistema recusou e a operação NÃO aconteceu. Isso pode ser dito.
     it 'trata o 4xx como recusa, e recusa é fato que pode ser dito' do
@@ -196,6 +249,21 @@ RSpec.describe 'nível 1: consulta x ação quando o sistema externo falha' do
 
       expect(nota).to include('NÃO CONFIRMOU')
       expect(nota).to include(Captain::Conversation::ToolContextNote::AVISO_FALHA.strip)
+    end
+
+    # O trace sumia em silêncio quando o corpo não era UTF-8 válido — o Postgres recusa a linha
+    # inteira — e com ele sumia a chamada da nota. Um CRM em latin-1 bastava. O que o nível 1
+    # cobra é o efeito: a consulta continua chegando ao turno seguinte.
+    it 'carrega a consulta mesmo quando o corpo veio em latin-1' do
+      # 0xE3 é o `ã` em ISO-8859-1 e não é UTF-8 válido. Montado por byte, sem escape, para o
+      # cenário não depender de como o arquivo de spec foi salvo.
+      latin1 = 'pedido 77: entrega em S'.b + 0xE3.chr + 'o Paulo'.b
+      stub_request(:get, 'https://crm.ficticio.invalid/pedidos/77').to_return(status: 200, body: latin1)
+      rodar(consulta)
+
+      # A nota rotula a chamada como `http` (o nome da classe), não pelo slug — e o byte inválido
+      # virou `?` sem levar o resto junto, que é o ponto.
+      expect(roteiro.nota_do_proximo_turno).to include('pedido 77: entrega em S?o Paulo')
     end
 
     # Sem falha, a nota sai byte a byte igual à de antes do P0 — é o que mantém a mudança
