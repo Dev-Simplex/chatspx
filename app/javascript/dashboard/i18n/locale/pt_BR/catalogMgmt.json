@@ -25,6 +25,57 @@
       "META": "Meta",
       "META_SYNCED_AT": "Espelhado na Meta em {date}",
       "SEND_TO_CHAT": "Enviar no chat"
+    },
+    "FORM": {
+      "LOADING": "Carregando produto",
+      "BACK": "Catálogo",
+      "NEW_TITLE": "Novo produto",
+      "SAVE": "Salvar",
+      "SAVE_ERROR": "Não foi possível salvar o produto. Tente de novo em instantes.",
+      "LOAD_ERROR": "Não foi possível carregar o produto. Tente de novo em instantes.",
+      "STATE": {
+        "ACTIVE": "Ativo",
+        "HIDDEN": "Oculto"
+      },
+      "PHOTOS": {
+        "LABEL": "Fotos do produto",
+        "HINT": "JPG ou PNG, até 2 MB. A primeira foto é a capa. Recomendado 800x800, que é o tamanho que o WhatsApp exibe.",
+        "ADD": "Adicionar foto",
+        "REMOVE": "Remover foto",
+        "INVALID_TYPE": "{name} não é um arquivo JPG ou PNG.",
+        "TOO_BIG": "{name} passa de 2 MB.",
+        "REMOVE_ERROR": "Não foi possível remover a foto. Tente de novo em instantes."
+      },
+      "FIELDS": {
+        "NAME": "Nome",
+        "NAME_REQUIRED": "Dê um nome ao produto.",
+        "DESCRIPTION": "Descrição",
+        "PRICE": "Preço",
+        "PROMO_PRICE": "Preço promocional",
+        "PRICE_PLACEHOLDER": "0,00",
+        "SKU": "SKU / código no ERP",
+        "STOCK": "Estoque",
+        "CATEGORY": "Categoria",
+        "NO_CATEGORY": "Sem categoria"
+      },
+      "PUBLISH": {
+        "TITLE": "Publicação",
+        "VISIBLE": "Visível no catálogo",
+        "VISIBLE_HINT": "Aparece para o atendente enviar",
+        "FEATURED": "Destaque",
+        "FEATURED_HINT": "Fixa no topo da lista"
+      },
+      "SYNC": {
+        "TITLE": "Sincronização",
+        "SYNCED": "Espelhado na Meta",
+        "NOT_SYNCED": "Ainda não sincronizado",
+        "PRODUCT_ID": "ID {id}",
+        "SYNCED_AT": "Conferido {time}"
+      },
+      "PREVIEW": {
+        "TITLE": "Como o cliente vê",
+        "ACTION": "Ver produto"
+      }
     }
   }
 }
