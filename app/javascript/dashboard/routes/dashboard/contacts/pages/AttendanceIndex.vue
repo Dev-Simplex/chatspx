@@ -244,25 +244,6 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
                 @input="onBuscar($event.target.value)"
               />
             </div>
-            <div class="relative w-full max-w-xs ltr:ml-4 rtl:mr-4">
-              <Icon
-                icon="i-lucide-search"
-                class="absolute size-4 -translate-y-1/2 pointer-events-none ltr:left-3 rtl:right-3 top-1/2 text-n-slate-10"
-              />
-              <!-- reset-base: o CSS global de input tem padding próprio e venceria o do Tailwind. -->
-              <input
-                :value="termo"
-                type="text"
-                class="w-full h-10 text-sm rounded-lg reset-base ltr:pl-9 ltr:pr-3 rtl:pr-9 rtl:pl-3 outline outline-1 outline-n-weak bg-n-alpha-black2 text-n-slate-12 placeholder:text-n-slate-10"
-                :placeholder="
-                  t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEARCH_PLACEHOLDER')
-                "
-                :aria-label="
-                  t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEARCH_PLACEHOLDER')
-                "
-                @input="onBuscar($event.target.value)"
-              />
-            </div>
           </div>
         </header>
 
