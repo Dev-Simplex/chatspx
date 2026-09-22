@@ -116,8 +116,7 @@ Procfile.worktree
 vault
 
 # off-git hygiene 2026-06-05
-.env.bak
-.env.bak.*
+.env.bak*
 *.bak-orion-*
 .claude/STATE.md
 
