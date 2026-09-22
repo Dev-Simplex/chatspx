@@ -3,6 +3,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   include HmacConcern
   include ConversationTeamAccessConcern
   include AgentConversationAccessConcern
+  include ReusedConversationAccessConcern
   include WahaGroupSyncable
 
   CONVERSATIONLESS_ACTIONS = [:index, :meta, :search, :create, :filter].freeze
@@ -61,6 +62,9 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def create
     ActiveRecord::Base.transaction do
       @conversation = ConversationBuilder.new(params: params, contact_inbox: @contact_inbox).perform
+      adopt_or_block_reused_conversation
+      next if performed?
+
       self_assign_creator_for_reply_gate if params[:message].present?
       Messages::MessageBuilder.new(Current.user, @conversation, params[:message]).perform if params[:message].present?
     end

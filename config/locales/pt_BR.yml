@@ -316,6 +316,8 @@ pt_BR:
       assignment_required: 'Você precisa assumir a conversa antes de responder'
     takeover_request_gate:
       request_required: 'Esta conversa é de outro agente. Solicite o atendimento para assumir.'
+    compose:
+      blocked_by_existing_attendance: 'Este contato já está em atendimento em uma conversa que você não pode abrir. A mensagem não foi enviada.'
     agent_conversation_isolation:
       access_blocked: 'Esta conversa está atribuída a outro agente. Solicite o atendimento para acessá-la.'
     errors:

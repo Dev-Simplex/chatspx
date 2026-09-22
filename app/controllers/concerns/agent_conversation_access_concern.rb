@@ -23,13 +23,13 @@ module AgentConversationAccessConcern
     render_conversation_access_blocked
   end
 
-  def render_conversation_access_blocked
+  def render_conversation_access_blocked(message = I18n.t('conversations.agent_conversation_isolation.access_blocked'))
     owner = @conversation.assignee
     existing = ConversationTakeoverRequest.find_by(
       conversation_id: @conversation.id, requester_id: Current.user&.id, status: :pending
     )
     render json: {
-      error: I18n.t('conversations.agent_conversation_isolation.access_blocked'),
+      error: message,
       error_code: 'conversation_access_blocked',
       meta: {
         current_assignee: owner && {
