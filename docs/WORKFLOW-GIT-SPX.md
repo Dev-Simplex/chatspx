@@ -171,6 +171,31 @@ por essa lacuna que a sessão da Fábrica commitou na worktree primária em 29/0
 
 ---
 
+## O que está preso só neste notebook — `scripts/ops/git-preso.sh`
+
+A regra "toda branch no `origin` no fim do dia" está escrita duas vezes neste documento desde
+julho — e mesmo assim, em 22/09 a varredura encontrou **34 arquivos do FactGuard em branch
+local-only**, o `.claude/STATE.md` commitado numa branch de conciliação **732 commits atrás**, e uma
+worktree em `%TEMP%` que o Windows tinha varrido.
+
+O problema não era falta de regra: era que responder *"o que está preso?"* exigia cinco comandos
+manuais, então ninguém perguntava. O script faz a varredura:
+
+```bash
+scripts/ops/git-preso.sh
+```
+
+Ele só lê — não commita, não empurra, não apaga — e lista:
+
+1. **commits fora de qualquer remoto**, com o `git push` pronto para copiar;
+2. **stashes**, que somem num `git stash clear` e não aparecem em lugar nenhum;
+3. **worktrees**: as fantasmas (o diretório sumiu), as que têm arquivo sem commit, as que estão em
+   `%TEMP%` — que o Windows apaga sozinho — e as que estão **muito atrás do próprio upstream**, que
+   é como uma sessão acaba lendo código de dois meses atrás sem perceber.
+
+Rode ao abrir e ao fechar o dia, e antes de trocar de frente. O que ele **não** vê está dito no
+rodapé da saída: arquivo que nunca entrou no git, e trabalho que só existe no disco de uma VM.
+
 ## Higiene de branches
 
 - **Fim do dia:** `git push` de toda feature branch com trabalho novo (mesmo WIP). O `origin` é o backup.
