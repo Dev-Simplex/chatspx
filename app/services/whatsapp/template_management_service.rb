@@ -20,6 +20,10 @@ class Whatsapp::TemplateManagementService
   API_VERSION = 'v22.0'.freeze
   PENDING = 'PENDING'.freeze
   VALID_CATEGORIES = %w[MARKETING UTILITY AUTHENTICATION].freeze
+  # `previous_category` revela quando a Meta rebaixou a categoria pedida (UTILITY
+  # virando MARKETING é o caso comum) e `rejected_reason` explica a recusa. Os dois
+  # só chegam se forem pedidos aqui.
+  LIST_FIELDS = 'name,status,category,previous_category,rejected_reason,language,components,id'.freeze
 
   class InvalidCategoryError < StandardError; end
 
@@ -42,12 +46,8 @@ class Whatsapp::TemplateManagementService
     build_create_result(response, body)
   end
 
-  # `previous_category` revela quando a Meta rebaixou a categoria pedida (é
-  # comum UTILITY virar MARKETING) e `rejected_reason` explica a recusa. Os
-  # dois só vêm se forem pedidos no `fields` — sem isso a tela não tem como
-  # mostrar o que aconteceu.
   def list
-    response = HTTParty.get("#{waba_path}/message_templates?limit=100&fields=name,status,category,previous_category,rejected_reason,language,components,id", headers: api_headers)
+    response = HTTParty.get("#{waba_path}/message_templates?limit=100&fields=#{LIST_FIELDS}", headers: api_headers)
     return { success: false, error: response.body } unless response.success?
 
     { success: true, templates: Array(response.parsed_response['data']) }
