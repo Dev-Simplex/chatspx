@@ -5,7 +5,9 @@ RSpec.describe Whatsapp::ResumableUploadService do
   let(:whatsapp_channel) do
     create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', sync_templates: false, validate_provider_config: false)
   end
-  let!(:inbox) { create(:inbox, channel: whatsapp_channel, account: account) }
+  # O factory de canal já cria a inbox no after(:create); criar outra faria
+  # `channel.inbox` devolver a primeira, e o app id iria para a errada.
+  let(:inbox) { whatsapp_channel.inbox }
   let(:service) { described_class.new(whatsapp_channel.reload) }
   let(:app_id) { '1234567890' }
   let(:session_id) { 'upload:MTphdHRhY2htZW50' }
