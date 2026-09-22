@@ -20,6 +20,12 @@ class CatalogProductsAPI extends ApiClient {
       },
     });
   }
+
+  // Tirar UMA foto tem rota própria porque o update ACRESCENTA imagens em vez de substituir:
+  // mandar a lista sem a foto removida não a apagaria, só deixaria tudo como estava.
+  removerImagem(produtoId, imagemId) {
+    return axios.delete(`${this.url}/${produtoId}/images/${imagemId}`);
+  }
 }
 
 export const CatalogProducts = new CatalogProductsAPI();
