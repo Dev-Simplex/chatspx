@@ -822,6 +822,14 @@ const menuItems = computed(() => {
           icon: 'i-lucide-map-pin',
           to: accountScopedRoute('units_list'),
         },
+        {
+          name: 'Settings Catalog',
+          label: t('SIDEBAR.CATALOG'),
+          // Lucide puro pelo mesmo motivo de Unidades: nao ha entrada de etiqueta no
+          // mapa LORDICON, e pedir uma que nao existe rende um player vazio.
+          icon: 'i-lucide-tags',
+          to: accountScopedRoute('catalog_products_index'),
+        },
         ...(hasAdvancedAssignment.value
           ? [
               {

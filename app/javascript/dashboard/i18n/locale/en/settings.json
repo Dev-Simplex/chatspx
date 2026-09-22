@@ -908,7 +908,8 @@
     "ADVANCED_SEARCH": "Advanced search",
     "CAPTAIN_AI": "AI Agents",
     "CONVERSATION_WORKFLOW": "Conversation Workflow",
-    "UNITS": "Units"
+    "UNITS": "Units",
+    "CATALOG": "Catalog"
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "AI Agents Settings",

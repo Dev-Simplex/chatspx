@@ -1,0 +1,30 @@
+{
+  "CATALOG_MGMT": {
+    "HEADER": "Catálogo",
+    "DESCRIPTION": "Os produtos que o seu time manda na conversa: foto, preço e estoque no mesmo lugar.",
+    "SEARCH_PLACEHOLDER": "Buscar por nome ou SKU",
+    "LOADING": "Carregando catálogo",
+    "COUNT": "{n} produtos",
+    "ADD": {
+      "BUTTON": "+ Novo produto"
+    },
+    "FILTERS": {
+      "ALL_CATEGORIES": "Todas as categorias",
+      "VISIBLE_ONLY": "Só visíveis"
+    },
+    "LIST": {
+      "EMPTY": "Nenhum produto por aqui ainda. Cadastre um para começar a mandar na conversa.",
+      "ERROR": "Não foi possível carregar o catálogo. Tente de novo em instantes."
+    },
+    "CARD": {
+      "NO_IMAGE": "Sem foto",
+      "FEATURED": "Destaque",
+      "HIDDEN": "Oculto",
+      "OUT_OF_STOCK": "Sem estoque",
+      "STOCK": "{n} un.",
+      "META": "Meta",
+      "META_SYNCED_AT": "Espelhado na Meta em {date}",
+      "SEND_TO_CHAT": "Enviar no chat"
+    }
+  }
+}

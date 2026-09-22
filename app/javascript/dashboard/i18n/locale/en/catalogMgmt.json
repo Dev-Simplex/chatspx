@@ -1,0 +1,30 @@
+{
+  "CATALOG_MGMT": {
+    "HEADER": "Catalog",
+    "DESCRIPTION": "The products your team sends in conversations: photo, price and stock, all in one place.",
+    "SEARCH_PLACEHOLDER": "Search by name or SKU",
+    "LOADING": "Loading catalog",
+    "COUNT": "{n} products",
+    "ADD": {
+      "BUTTON": "+ New product"
+    },
+    "FILTERS": {
+      "ALL_CATEGORIES": "All categories",
+      "VISIBLE_ONLY": "Visible only"
+    },
+    "LIST": {
+      "EMPTY": "No product here yet. Create one to start sending it in conversations.",
+      "ERROR": "We could not load the catalog. Try again in a moment."
+    },
+    "CARD": {
+      "NO_IMAGE": "No photo",
+      "FEATURED": "Featured",
+      "HIDDEN": "Hidden",
+      "OUT_OF_STOCK": "Out of stock",
+      "STOCK": "{n} in stock",
+      "META": "Meta",
+      "META_SYNCED_AT": "Mirrored on Meta on {date}",
+      "SEND_TO_CHAT": "Send in chat"
+    }
+  }
+}
