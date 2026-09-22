@@ -158,14 +158,18 @@ RSpec.describe 'Active Attendances API', type: :request do
           expect(can_request_for(conv)).to be(true)
         end
 
-        it 'is false for a conversation whose team I am not part of' do
+        # 22/09/2026: pedir conversa de OUTRO time passou a ser permitido — antes a aba não
+        # oferecia ação nenhuma ali, e era um beco sem saída. A régua é a da
+        # ConversationPolicy#show? (alcanço a caixa OU o time), e quem decide continua sendo o
+        # dono, ao aprovar.
+        it 'is true for a conversation of another team when I am an inbox member' do
           other_team = create(:team, account: account)
           # o dono precisa ser do time, senão o ensure_assignee_is_from_team
           # (assignment_handler.rb:49) zera o assignee e o teste mediria "sem dono".
           create(:team_member, user: owner, team: other_team)
           conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: other_team, status: :open)
           expect(conv.reload.assignee_id).to eq(owner.id)
-          expect(can_request_for(conv)).to be(false)
+          expect(can_request_for(conv)).to be(true)
         end
 
         it 'is true when I belong to the conversation team' do
@@ -259,15 +263,25 @@ RSpec.describe 'Active Attendances API', type: :request do
           expect(row['can_request']).to be(true)
         end
 
-        # A linha "muda": time do qual não participo — nada de abrir/assumir/pedir.
-        it 'blocks everything for a conversation of a team I am not part of' do
+        # Time do qual não participo: continuo SEM abrir (abrir é ver conteúdo, e afrouxar isso
+        # reabriria o vazamento entre times), mas posso PEDIR — senão a linha fica sem saída.
+        it 'lets me request, but never open, a conversation of a team I am not part of' do
           other_team = create(:team, account: account)
           create(:team_member, user: owner, team: other_team)
           conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: other_team, status: :open)
           row = row_for(conv)
           expect(row['can_open']).to be(false)
           expect(row['can_assume']).to be(false)
-          expect(row['can_request']).to be(false)
+          expect(row['can_request']).to be(true)
+        end
+
+        # Sem dono humano (fila ou IA) em outro time: assumo direto, e a conversa vem para o meu
+        # time junto (Conversations::TeamHandoverService).
+        it 'lets me assume an unassigned conversation of another team' do
+          other_team = create(:team, account: account)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: nil, team: other_team, status: :open)
+          row = row_for(conv)
+          expect(row['can_assume']).to be(true)
         end
 
         it 'lets an admin open and assume a colleague conversation (force)' do
