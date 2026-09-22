@@ -277,10 +277,17 @@ const performCreateConversation = async ({ payload, isFromWhatsApp }) => {
     }
     return true; // Return success
   } catch (error) {
-    const message =
-      error instanceof ExceptionWithMessage
-        ? error.data
-        : t('COMPOSE_NEW_CONVERSATION.FORM.ERROR_MESSAGE');
+    // 403 do reuso de conversa: o contato já está em atendimento numa conversa
+    // que este agente não abre. O backend manda a frase pronta e a mensagem NÃO
+    // foi enviada — o erro genérico escondia as duas coisas.
+    const blocked =
+      error?.response?.data?.error_code === 'conversation_access_blocked';
+    let message = t('COMPOSE_NEW_CONVERSATION.FORM.ERROR_MESSAGE');
+    if (blocked) {
+      message = error.response.data.error;
+    } else if (error instanceof ExceptionWithMessage) {
+      message = error.data;
+    }
     useAlert(message, whatsappAlertAction(message));
     return false; // Return failure
   }

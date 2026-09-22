@@ -19,9 +19,21 @@ module ConversationTeamAccessConcern
     return if performed?
 
     # Bloqueia quem não é membro do time da conversa
-    return if Current.user.teams.exists?(id: @conversation.team_id)
+    return if team_member?
 
     render json: { error: I18n.t('conversations.team_access.forbidden') }, status: :forbidden
+  end
+
+  # Mesma regra do guard, para quem precisa PERGUNTAR em vez de responder 403 na
+  # hora: o `create` não passa pelo before_action (é CONVERSATIONLESS_ACTION) e
+  # ainda assim pode acabar com uma conversa de outro time nas mãos, quando o
+  # ConversationBuilder reusa a conversa que já existe do contato na caixa.
+  def team_access_blocked?
+    !team_access_exempt? && !team_member?
+  end
+
+  def team_member?
+    Current.user.teams.exists?(id: @conversation.team_id)
   end
 
   def team_access_exempt?
