@@ -82,7 +82,17 @@ RSpec.describe Account::ContactsExportJob do
       expect(csv_data.length).to eq(account.contacts.count)
 
       expect(emails).to include('test1@text.example', 'test2@text.example')
-      expect(phone_numbers).to include('+910808080818', '+910808080808')
+      expect(phone_numbers).to include("'+910808080818", "'+910808080808")
+    end
+
+    it 'escapes formula-like contact names in the CSV file' do
+      formula = '=HYPERLINK("http://x","y")'
+      create(:contact, account: account, name: formula, email: 'formula@example.com')
+
+      described_class.perform_now(account.id, user.id, %w[name email], {})
+
+      row = CSV.parse(account.contacts_export.download, headers: true).find { |contact| contact['email'] == 'formula@example.com' }
+      expect(row['name']).to eq("'#{formula}")
     end
 
     it 'returns all resolved contacts as results when filter is not prvoided' do

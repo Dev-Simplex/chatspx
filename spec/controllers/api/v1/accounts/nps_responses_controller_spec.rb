@@ -4,6 +4,22 @@ RSpec.describe 'NPS Responses API', type: :request do
   let(:account) { create(:account) }
   let(:administrator) { create(:user, account: account, role: :administrator) }
 
+  describe 'GET /api/v1/accounts/{account.id}/nps_responses/download' do
+    it 'escapes formula-like comments and contact names' do
+      formula = '=HYPERLINK("http://x","y")'
+      contact = create(:contact, account: account, name: formula)
+      create(:nps_response, account: account, contact: contact, comment: formula)
+
+      get "/api/v1/accounts/#{account.id}/nps_responses/download",
+          headers: administrator.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      row = CSV.parse(response.body, headers: true).first
+      expect(row['Comment']).to eq("'#{formula}")
+      expect(row['Contact Name']).to eq("'#{formula}")
+    end
+  end
+
   def get_metrics(params = {})
     get "/api/v1/accounts/#{account.id}/nps_responses/metrics",
         params: params, headers: administrator.create_new_auth_token, as: :json

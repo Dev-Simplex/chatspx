@@ -116,11 +116,10 @@ module Conversations
     end
 
     def footer_template
-      placeholder = '<span style="font-family:monospace;">SHA-256: HASH_AFTER_RENDER</span>'
       <<~HTML
         <div style="font-size:8.5px;width:100%;padding:0 8mm;color:#888;display:flex;justify-content:space-between;border-top:1px solid #e0e0e0;padding-top:3px;">
           <span>Export ID ##{@export.id} · Documento eletrônico</span>
-          <span>#{placeholder}</span>
+          <span>#{Time.current.in_time_zone('America/Manaus').strftime('%d/%m/%Y %H:%M')}</span>
           <span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
         </div>
       HTML
