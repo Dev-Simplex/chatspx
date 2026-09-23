@@ -435,6 +435,8 @@
     "VISIBLE_TO_AGENTS": "Mensagem Privada: Apenas visível para você e seu time",
     "CHANGE_STATUS": "Estado da conversa mudou",
     "CHANGE_STATUS_FAILED": "Mudança de status da conversa falhou",
+    "MARK_AS_READ_FAILED": "Não foi possível marcar a conversa como lida. Tente novamente.",
+    "MARK_AS_UNREAD_FAILED": "Não foi possível marcar a conversa como não lida. Tente novamente.",
     "CHANGE_AGENT": "Novo agente atribuído",
     "CHANGE_AGENT_FAILED": "Falha ao atribuir outro agente",
     "ASSIGN_LABEL_SUCCESFUL": "Etiqueta atribuída com sucesso",
