@@ -15,6 +15,7 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import TakeoverApprovalBanner from 'dashboard/components-next/Conversation/TakeoverApprovalBanner.vue';
 import TypingIndicator from 'next/message/TypingIndicator.vue';
 import { useAlert } from 'dashboard/composables';
+import { messageTimestamp } from 'shared/helpers/timeHelper';
 
 // stores and apis
 import { mapGetters } from 'vuex';
@@ -102,6 +103,11 @@ export default {
   },
 
   computed: {
+    // EA-01: data legível do corte para a faixa. O backend manda epoch em segundos.
+    handoverCutLabel() {
+      const at = this.currentChat?.handover_cut_at;
+      return at ? messageTimestamp(at, 'dd/MM/yyyy HH:mm') : '';
+    },
     ...mapGetters({
       currentChat: 'getSelectedChat',
       currentUserId: 'getCurrentUserID',
@@ -614,6 +620,19 @@ export default {
     <!-- D1 (Fase 3): pedido de atendimento pendente p/ o dono. Auto-suficiente
          (lê o store); só renderiza p/ o dono da conversa com pedido pendente. -->
     <TakeoverApprovalBanner />
+    <!-- EA-01: a conversa chegou por pedido aprovado — o histórico anterior não é visível para
+         este agente. Sem este aviso ele acha que a conversa começou ali e trata cliente antigo
+         como novo, que é pior do que não ver o histórico. -->
+    <Banner
+      v-if="currentChat.handover_cut_at"
+      color-scheme="secondary"
+      class="mx-2 mt-2 overflow-hidden rounded-lg relative z-10"
+      :message="
+        $t('CONVERSATION.HANDOVER_CUT.BANNER', {
+          date: handoverCutLabel,
+        })
+      "
+    />
     <Banner
       v-if="!currentChat.can_reply"
       color-scheme="alert"
