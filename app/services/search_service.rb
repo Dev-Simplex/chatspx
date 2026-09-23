@@ -19,7 +19,8 @@ class SearchService # rubocop:disable Metrics/ClassLength
   private
 
   def accessable_inbox_ids
-    @accessable_inbox_ids ||= @current_user.assigned_inboxes.pluck(:id)
+    # B4: a conta vai explícita — o serviço já a recebe no construtor.
+    @accessable_inbox_ids ||= @current_user.assigned_inboxes(current_account).pluck(:id)
   end
 
   # SUPERVISÃO DE TIME (D2): o supervisor acha na busca as conversas dos times que

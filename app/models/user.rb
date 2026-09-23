@@ -154,8 +154,28 @@ class User < ApplicationRecord
     self.uid = email
   end
 
-  def assigned_inboxes
-    administrator? ? Current.account.inboxes : inboxes.where(account_id: Current.account.id)
+  # B4: a conta vem por ARGUMENTO, e sem valor padrão. Antes o método lia `Current.account`, um
+  # thread-local que pode estar vazio no meio de um request — e aí `Current.account.id` levantava
+  # NoMethodError e derrubava a listagem de conversas com 500 (issue #232). Pior: no mesmo caminho
+  # `administrator?` também depende do Current e cai para `false` em silêncio, ou seja, o admin
+  # virava agente e recebia uma lista menor sem erro nenhum.
+  #
+  # Sem default de propósito: padrão silencioso aqui escolheria o lado errado, e o lado errado é
+  # consulta sem escopo de conta. Quem chama SEMPRE sabe a conta — é o controller que a carregou.
+  def assigned_inboxes(account)
+    raise ArgumentError, 'assigned_inboxes exige a conta' if account.blank?
+
+    conta = account.is_a?(Account) ? account : Account.find(account)
+    administrator_of?(conta.id) ? conta.inboxes : inboxes.where(account_id: conta.id)
+  end
+
+  # Admin NAQUELA conta. Tenta o vínculo já carregado (evita consulta quando a associação veio
+  # junto) e só então pergunta ao banco — sem o `vinculo ||=` o agente pagava uma consulta extra
+  # a cada chamada, porque `false` faria o `||` seguir adiante.
+  def administrator_of?(account_id)
+    vinculo = account_users.find { |au| au.account_id == account_id.to_i }
+    vinculo ||= AccountUser.find_by(account_id: account_id, user_id: id)
+    vinculo&.administrator? || false
   end
 
   # Ids dos times que este usuário SUPERVISIONA na conta informada. Memoizado por

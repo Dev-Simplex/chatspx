@@ -264,7 +264,10 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def conversation_finder
-    @conversation_finder ||= ConversationFinder.new(Current.user, params)
+    # B4: a conta vai EXPLÍCITA. `current_account` é o método do controller (o mesmo do
+    # before_action), não o thread-local — é o que sobrevive a um `Current` esvaziado no meio da
+    # requisição.
+    @conversation_finder ||= ConversationFinder.new(Current.user, params, account: current_account)
   end
 
   def assignee?
