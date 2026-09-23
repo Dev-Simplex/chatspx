@@ -198,10 +198,13 @@ RSpec.describe 'Active Attendances API', type: :request do
           expect(can_request_for(conv)).to be(false)
         end
 
-        it 'is false for an inbox I am not a member of (even with a human owner)' do
+        # EA-01: pedir deixou de exigir alcance. A aba mostra a conta inteira de propósito, e
+        # terminar a linha num aviso mudo era o beco sem saída que ela existe para evitar. Pedir
+        # não abre conteúdo nenhum — quem libera continua sendo o dono, ao aprovar.
+        it 'is true for an inbox I am not a member of (asking does not require reach)' do
           other_inbox = create(:inbox, account: account)
           conv = create(:conversation, account: account, inbox: other_inbox, assignee: owner, team: nil, status: :open)
-          expect(can_request_for(conv)).to be(false)
+          expect(can_request_for(conv)).to be(true)
         end
 
         it 'is always false for an admin (admins assign directly)' do
