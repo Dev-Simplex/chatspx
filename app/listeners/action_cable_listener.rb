@@ -51,7 +51,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   def message_updated(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, message_audience(conversation, message)) +
+    tokens = user_tokens(account, sem_quem_tem_corte(message_audience(conversation, message), conversation, message)) +
              participant_tokens(conversation) +
              contact_tokens(conversation.contact_inbox, message)
 
@@ -367,6 +367,25 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
       ids << member.id if TeamSupervision.supervises?(member, conversation.team_id, conversation.account_id)
     end
     ids
+  end
+
+  # EA-01 no tempo real. Só no `message_updated`: mensagem RECÉM-CRIADA é sempre posterior a
+  # qualquer aprovação, então no `message_created` este recorte nunca tiraria ninguém e a consulta
+  # seria desperdício no caminho mais quente do sistema. Já edição, exclusão e reação mexem em
+  # mensagem ANTIGA e carregam o conteúdo dela no evento — é por aí que o trecho cortado voltaria
+  # à tela de quem recebeu a conversa por pedido.
+  def sem_quem_tem_corte(membros, conversation, message)
+    cortes = ConversationTakeoverRequest.approved
+                                        .where(conversation_id: conversation.id)
+                                        .where.not(responded_at: nil)
+                                        .group(:requester_id)
+                                        .minimum(:responded_at)
+    return membros if cortes.empty?
+
+    sem_acesso = cortes.select { |_id, corte| corte > message.created_at }.keys
+    return membros if sem_acesso.empty?
+
+    membros.reject { |membro| sem_acesso.include?(membro.id) }
   end
 
   def message_isolation_allowed_ids(conversation, inbox, message)

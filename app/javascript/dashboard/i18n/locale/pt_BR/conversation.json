@@ -940,6 +940,9 @@
       "CLOSE": "Fechar",
       "WAHA_NOTICE_ONE": "Nesta caixa o produto vai como foto com legenda — não existe card de produto nativo.",
       "WAHA_NOTICE_MANY": "Nesta caixa vai como álbum de fotos mais um menu numerado — não existe card de produto nativo."
+    },
+    "HANDOVER_CUT": {
+      "BANNER": "Esta conversa foi transferida para você em {date}. O histórico anterior não fica visível."
     }
   },
   "EMAIL_TRANSCRIPT": {
