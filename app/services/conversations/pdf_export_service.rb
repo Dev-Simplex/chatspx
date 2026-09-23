@@ -28,25 +28,37 @@ module Conversations
     def filter_messages
       scope = @conversation.messages.includes(:sender, attachments: { file_attachment: :blob })
 
-      type_filters = []
-      type_filters << Message.message_types[:incoming] if @filters[:include_incoming] != false
-      type_filters << Message.message_types[:outgoing] if @filters[:include_outgoing] != false
-      type_filters << Message.message_types[:activity] if @filters[:include_activity]
-      type_filters << Message.message_types[:template] if @filters[:include_outgoing] != false
-
-      scope = scope.where(message_type: type_filters) if type_filters.any?
+      tipos = tipos_escolhidos
+      scope = scope.where(message_type: tipos) if tipos.any?
       scope = scope.where(private: false) unless @filters[:include_private]
 
-      if @filters[:date_from].present?
-        from = parse_date(@filters[:date_from])
-        scope = scope.where('messages.created_at >= ?', from.beginning_of_day) if from
-      end
-      if @filters[:date_to].present?
-        to = parse_date(@filters[:date_to])
-        scope = scope.where('messages.created_at <= ?', to.end_of_day) if to
-      end
+      scope = aplicar_periodo(scope)
+
+      # EA-01: o corte por transferência vale aqui também. Roda em job, então NÃO há Current.user —
+      # quem olha é o `requester_user` gravado na exportação. Sem isto, o agente que recebeu a
+      # conversa por pedido baixaria em PDF exatamente o histórico que a tela esconde dele.
+      scope = Conversations::HandoverCut.filter_messages(
+        scope, Conversations::HandoverCut.cut_at_for(@conversation, @export.requester_user, @account)
+      )
 
       scope.order(:created_at).to_a
+    end
+
+    def tipos_escolhidos
+      tipos = []
+      tipos << Message.message_types[:incoming] if @filters[:include_incoming] != false
+      tipos << Message.message_types[:outgoing] if @filters[:include_outgoing] != false
+      tipos << Message.message_types[:activity] if @filters[:include_activity]
+      tipos << Message.message_types[:template] if @filters[:include_outgoing] != false
+      tipos
+    end
+
+    def aplicar_periodo(scope)
+      from = parse_date(@filters[:date_from]) if @filters[:date_from].present?
+      to = parse_date(@filters[:date_to]) if @filters[:date_to].present?
+      scope = scope.where('messages.created_at >= ?', from.beginning_of_day) if from
+      scope = scope.where('messages.created_at <= ?', to.end_of_day) if to
+      scope
     end
 
     def parse_date(value)

@@ -28,7 +28,15 @@ class MessageFinder
                            :reactions,
                            sender: { avatar_attachment: [:blob] }
                          )
-    apply_agent_isolation(scope)
+    apply_handover_cut(apply_agent_isolation(scope))
+  end
+
+  # EA-01: quem recebeu a conversa por pedido aprovado vê só o que veio DEPOIS da aprovação.
+  # Mesmo lugar e mesmo motivo do isolamento por agente — a regra depende de quem olha.
+  def apply_handover_cut(scope)
+    Conversations::HandoverCut.filter_messages(
+      scope, Conversations::HandoverCut.cut_at_for(@conversation, Current.user)
+    )
   end
 
   # Isolamento POR AGENTE depende de QUEM olha — por isso (diferente do team isolation,

@@ -83,6 +83,11 @@ class User < ApplicationRecord
   encrypts :otp_secret, deterministic: true
   encrypts :otp_backup_codes
 
+  # EA-01: memo do corte por transferência (Conversations::HandoverCut). Mora na INSTÂNCIA porque
+  # ela é nova a cada requisição — thread-local aqui vazaria entre requisições, já que
+  # `Current.reset` não roda por request neste código.
+  attr_accessor :handover_cuts_cache
+
   has_many :account_users, dependent: :destroy_async
   has_many :accounts, through: :account_users
   accepts_nested_attributes_for :account_users

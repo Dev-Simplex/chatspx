@@ -48,8 +48,12 @@ class SearchService # rubocop:disable Metrics/ClassLength
     relation.where(id: permitted_conversations.select(:id))
   end
 
+  # EA-01: além do alcance por conversa, o CORTE por transferência. Quem recebeu a conversa por
+  # pedido aprovado não acha pela busca o que veio antes da aprovação — senão o histórico que a
+  # tela esconde volta inteiro por aqui.
   def scope_messages_to_access(relation)
-    relation.where(conversation_id: permitted_conversations.select(:id))
+    escopo = relation.where(conversation_id: permitted_conversations.select(:id))
+    Conversations::HandoverCut.filter_messages_across(escopo, current_user, current_account)
   end
 
   def conversation_accessible?(conversation)

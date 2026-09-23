@@ -120,18 +120,20 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
     ctx[:admin]
   end
 
-  # Regra do pedido: o pedido é uma superfície da Fase 3, então só faz sentido com o
-  # takeover_request_gate LIGADO — sem a flag a aba não oferece "Solicitar" (degrada
-  # p/ "Abrir"/"Bloqueado"). Usa `can_act?` (NÃO `can_open?`): senão o veto de isolamento
-  # derrubaria justamente o caminho de pedir a conversa isolada do colega — e, desde 22/09,
-  # também a conversa de OUTRO time, que antes não podia nem ser pedida.
+  # Regra do pedido: só faz sentido com o takeover_request_gate LIGADO — sem a flag a aba não
+  # oferece "Solicitar" (degrada p/ "Abrir"/"Bloqueado").
+  #
+  # Pedir NÃO exige alcance (EA-01): a aba mostra a conta inteira de propósito, e terminar a linha
+  # num aviso mudo — "Time comercial, você não participa" — é o beco sem saída que a aba existe
+  # para evitar. Pedir não abre conteúdo nenhum: quem libera continua sendo o dono, ao aprovar.
+  # O que segue valendo: gate ligado, não ser admin (admin atribui direto), a conversa ter dono
+  # HUMANO (de bot não se pede) e o dono não ser eu.
   def can_request?(conversation, ctx)
     return false unless takeover_gate_enabled?
     return false if ctx[:admin] || ctx[:user_id].nil?
     return false if conversation.assignee_id.blank? || conversation.assignee_agent_bot_id.present?
-    return false if conversation.assignee_id == ctx[:user_id]
 
-    can_act?(conversation, ctx)
+    conversation.assignee_id != ctx[:user_id]
   end
 
   # Flag da conta puxada UMA vez (a capacidade é calculada por linha).
