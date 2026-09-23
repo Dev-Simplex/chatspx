@@ -10,7 +10,7 @@ class Messages::AudioTranscriptionJob < ApplicationJob
 
     Rails.logger.warn("Discarding audio transcription job due to bad request: #{log_context}")
   end
-  retry_on ActiveStorage::FileNotFoundError, wait: 2.seconds, attempts: 3
+  retry_on ActiveStorage::FileNotFoundError, ActiveStorage::IntegrityError, wait: 2.seconds, attempts: 3
   discard_on Llm::Config::MissingAccountApiKeyError
 
   def perform(attachment_id)
