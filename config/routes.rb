@@ -481,8 +481,10 @@ Rails.application.routes.draw do
             resources :products, only: [:index, :show, :create, :update, :destroy] do
               member do
                 delete 'images/:image_id', action: :destroy_image, as: :image
+                post :sync, action: :sync_product
               end
               collection do
+                post :sync
                 post :import
                 get 'import/:import_id', action: :import_status, as: :import_status
               end

@@ -21,6 +21,8 @@ pt_BR:
     send:
       empty: "Nenhum produto selecionado."
       menu_header: "%{count} produtos:"
+    meta_sync:
+      not_configured: "O espelho do catálogo na Meta não está configurado nesta conta."
   hello: 'Olá, mundo'
   inbox:
     reauthorization:

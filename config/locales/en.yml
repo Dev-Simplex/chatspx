@@ -34,6 +34,8 @@ en:
     send:
       empty: "No product selected."
       menu_header: "%{count} products:"
+    meta_sync:
+      not_configured: "Meta catalog mirroring is not set up for this account."
   hello: 'Hello world'
   inbox:
     reauthorization:

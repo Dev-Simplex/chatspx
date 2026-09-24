@@ -7,8 +7,11 @@
 class Api::V1::Accounts::Catalog::ProductsController < Api::V1::Accounts::BaseController
   RESULTADOS_POR_PAGINA = 25
 
-  before_action :produto, except: [:index, :create, :import, :import_status]
+  before_action :produto, except: [:index, :create, :import, :import_status, :sync]
   before_action :check_authorization
+  before_action :exigir_espelho, only: [:sync, :sync_product]
+
+  helper_method :meta_sync_enabled?
 
   # A vitrine precisa do total para paginar, então a resposta é objeto com `meta`, e não array
   # solto: sem o total, a tela não sabe se existe página seguinte.
@@ -66,7 +69,33 @@ class Api::V1::Accounts::Catalog::ProductsController < Api::V1::Accounts::BaseCo
     render :show
   end
 
+  # Espelho da Meta (F3). O job é POR CONTA: sincronizar tudo e sincronizar um produto enfileiram a
+  # mesma passada. Assíncrono, então a resposta não diz "sincronizado" — o produto segue pendente
+  # até o job carimbá-lo.
+  def sync
+    Catalog::MetaSyncJob.perform_later(Current.account)
+    render json: { queued: true }, status: :accepted
+  end
+
+  def sync_product
+    @produto.pedir_sincronizacao!
+    Catalog::MetaSyncJob.perform_later(Current.account)
+    render :show, status: :accepted
+  end
+
   private
+
+  # Mesma checagem do serviço: conta sem catálogo ou sem caixa `whatsapp_cloud` não tem espelho.
+  def meta_sync_enabled?
+    return @meta_sync_enabled if defined?(@meta_sync_enabled)
+
+    @meta_sync_enabled = Catalog::MetaSyncService.new(Current.account).configurado?
+  end
+
+  # Sem isto o botão enfileiraria um job que termina em silêncio, e o usuário acharia que funcionou.
+  def exigir_espelho
+    render json: { error: I18n.t('catalog.meta_sync.not_configured') }, status: :unprocessable_entity unless meta_sync_enabled?
+  end
 
   def produto
     @produto ||= policy_scope(CatalogProduct).find(params[:id])
