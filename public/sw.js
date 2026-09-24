@@ -1,13 +1,22 @@
 /* eslint-disable no-restricted-globals, no-console */
-/* globals clients, caches */
+/* globals clients */
 
 // ============================================================================
-// Cache purger — força limpeza de SW antigos que possam ter instalado fetch
-// handler + cache no browser do usuário. skipWaiting + clients.claim garante
-// que qualquer tab aberta passe para este SW sem precisar recarregar.
+// Only the standalone offline page is cached. Keep purging legacy app caches:
+// caching dashboard HTML or API responses can leave users on a stale version.
+// Bump this cache version whenever offline.html changes.
 // ============================================================================
+const OFFLINE_CACHE = 'app-offline-v1';
+const OFFLINE_URL = '/offline.html';
+
 self.addEventListener('install', event => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(OFFLINE_CACHE);
+      await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
+      await self.skipWaiting();
+    })()
+  );
 });
 
 self.addEventListener('activate', event => {
@@ -15,10 +24,24 @@ self.addEventListener('activate', event => {
     (async () => {
       if (typeof caches !== 'undefined' && caches.keys) {
         const names = await caches.keys();
-        await Promise.all(names.map(n => caches.delete(n)));
+        await Promise.all(
+          names.filter(n => n !== OFFLINE_CACHE).map(n => caches.delete(n))
+        );
       }
       await self.clients.claim();
     })()
+  );
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.mode !== 'navigate' || event.request.method !== 'GET')
+    return;
+
+  event.respondWith(
+    fetch(event.request).catch(async () => {
+      const cache = await caches.open(OFFLINE_CACHE);
+      return cache.match(OFFLINE_URL);
+    })
   );
 });
 
