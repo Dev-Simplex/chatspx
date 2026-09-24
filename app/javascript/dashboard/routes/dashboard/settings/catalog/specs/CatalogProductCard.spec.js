@@ -59,20 +59,6 @@ describe('CatalogProductCard', () => {
     ).toBe(true);
   });
 
-  it('esconde "Enviar no chat" enquanto a C8 não liga o envio', () => {
-    expect(montar().find('[data-testid="enviar-no-chat"]').exists()).toBe(
-      false
-    );
-  });
-
-  it('emite `sendToChat` com o produto quando o envio está liberado', async () => {
-    const wrapper = montar({}, { canSend: true });
-
-    await wrapper.find('[data-testid="enviar-no-chat"]').trigger('click');
-
-    expect(wrapper.emitted('sendToChat')[0][0]).toMatchObject({ id: 1 });
-  });
-
   it('abre o cadastro ao clicar no card', async () => {
     const wrapper = montar();
 

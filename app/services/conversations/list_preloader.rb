@@ -138,6 +138,17 @@ class Conversations::ListPreloader
                              end
   end
 
+  # EA-01: corte por transferência. Fragmento vazio para quem não tem pedido aprovado (o caso
+  # comum), então a SQL não muda. Instante interpolado de propósito, pelo mesmo motivo que os ids
+  # em `isento_or`: aqui o bind é POSICIONAL, e o valor vem do banco, nunca do usuário.
+  def handover_cut_where
+    cuts = Conversations::HandoverCut.cuts_for(@user, @conversations.first&.account_id)
+    return '' if cuts.empty?
+
+    condicoes = cuts.map { |conversa_id, corte| "(m.conversation_id = #{conversa_id.to_i} AND m.created_at < '#{corte.utc.iso8601(6)}')" }
+    " AND NOT (#{condicoes.join(' OR ')})"
+  end
+
   def fetch_combined_last_message_rows # rubocop:disable Metrics/MethodLength
     uid = agent_filter_id
     supervised = uid ? supervised_team_ids : []
@@ -155,6 +166,7 @@ class Conversations::ListPreloader
     # O JOIN com `inboxes` deixou de ser condicional ao `uid`: o filtro por time tambem
     # pergunta a caixa (flag + lista), entao a tabela precisa estar unida SEMPRE.
     team_where = team_isolation_where
+    cut_where = handover_cut_where
 
     sql = <<~SQL.squish
       WITH last_all AS (
@@ -166,6 +178,7 @@ class Conversations::ListPreloader
           AND m.account_id = c.account_id
           AND #{team_where}
           #{agent_where}
+          #{cut_where}
         ORDER BY m.conversation_id, m.created_at DESC, m.id DESC
       ),
       last_non_activity AS (
@@ -178,6 +191,7 @@ class Conversations::ListPreloader
           AND m.message_type != 2
           AND #{team_where}
           #{agent_where}
+          #{cut_where}
         ORDER BY m.conversation_id, m.id DESC
       )
       SELECT 'all' AS kind, id, conversation_id FROM last_all

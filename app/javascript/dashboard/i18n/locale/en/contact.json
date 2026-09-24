@@ -655,7 +655,10 @@
       "ATTENDED_BY_TEAM": "Attended by {name} ({team})",
       "YOU": "you",
       "NO_ACTIVE_ATTENDANCE": "No attendance in progress 🌙",
-      "SEND_BLOCKED": "This contact is being attended by another team. You cannot message them from here."
+      "SEND_BLOCKED": "This contact is being attended by another team. You cannot message them from here.",
+      "SEARCH_PLACEHOLDER": "Search by contact, phone or agent",
+      "SEARCH_EMPTY": "No attendance found for “{termo}”",
+      "SEARCH_CLEAR": "Clear search"
     },
     "LOAD_MORE": "Load more"
   },

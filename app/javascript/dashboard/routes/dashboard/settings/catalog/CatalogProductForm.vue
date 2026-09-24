@@ -256,7 +256,8 @@ const salvar = async () => {
   } catch (e) {
     // A mensagem da API vem das validações do model (SKU repetido, por exemplo). Ela substitui o
     // texto genérico, e o formulário fica como está para ninguém redigitar o cadastro inteiro.
-    erro.value = e?.response?.data?.message || t('CATALOG_MGMT.FORM.SAVE_ERROR');
+    erro.value =
+      e?.response?.data?.message || t('CATALOG_MGMT.FORM.SAVE_ERROR');
   } finally {
     salvando.value = false;
   }

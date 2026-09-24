@@ -23,8 +23,7 @@
       "OUT_OF_STOCK": "Out of stock",
       "STOCK": "{n} in stock",
       "META": "Meta",
-      "META_SYNCED_AT": "Mirrored on Meta on {date}",
-      "SEND_TO_CHAT": "Send in chat"
+      "META_SYNCED_AT": "Mirrored on Meta on {date}"
     },
     "FORM": {
       "LOADING": "Loading product",

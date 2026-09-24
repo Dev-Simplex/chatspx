@@ -78,6 +78,14 @@ class LlmFormatter::ConversationLlmFormatter < LlmFormatter::DefaultLlmFormatter
     return "No messages in this conversation\n" if @record.messages.empty?
 
     messages = @record.messages.where.not(message_type: [:activity, :template])
+    # EA-01: o corte por transferência vale também para o que a IA LÊ — resumo, sugestão de
+    # resposta e Copilot passam por aqui. É a porta mais perigosa das que existem: a IA reescreve
+    # o conteúdo em vez de exibi-lo, então o vazamento não pareceria vazamento. Em job (FAQ,
+    # notas de contato) não há Current.user e o filtro vira no-op, que é o certo: ali não há
+    # ninguém olhando.
+    messages = Conversations::HandoverCut.filter_messages(
+      messages, Conversations::HandoverCut.cut_at_for(@record, Current.user)
+    )
 
     if config[:token_limit]
       build_limited_messages(messages, config)

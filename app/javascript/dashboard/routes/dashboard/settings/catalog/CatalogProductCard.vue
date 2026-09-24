@@ -9,17 +9,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // Quem liga o envio de verdade é a C8. Até lá o botão fica escondido: mostrar um "Enviar no
-  // chat" que não envia nada é pior do que não mostrar botão nenhum.
-  canSend: {
-    type: Boolean,
-    default: false,
-  },
 });
 
-// Nome do evento em camelCase porque é a regra da casa (`vue/custom-event-name-casing`); no
-// template quem escuta continua escrevendo `@send-to-chat`, que o Vue normaliza para cá.
-defineEmits(['abrir', 'sendToChat']);
+// Mandar produto na conversa é pelo seletor do próprio chat (C8); aqui o card só abre o cadastro.
+defineEmits(['abrir']);
 
 const { t } = useI18n();
 
@@ -59,7 +52,7 @@ const sincronizadoEm = computed(() => {
 
 <template>
   <div
-    class="relative flex flex-col overflow-hidden transition-shadow border group rounded-xl border-n-weak bg-n-solid-1 hover:shadow-md dark:bg-n-solid-2"
+    class="relative flex flex-col overflow-hidden transition-shadow border rounded-xl border-n-weak bg-n-solid-1 hover:shadow-md dark:bg-n-solid-2"
   >
     <div
       class="relative grid w-full place-items-center aspect-square bg-n-slate-3 dark:bg-n-solid-3"
@@ -115,15 +108,6 @@ const sincronizadoEm = computed(() => {
       >
         {{ $t('CATALOG_MGMT.CARD.META') }}
       </span>
-      <button
-        v-if="canSend"
-        type="button"
-        data-testid="enviar-no-chat"
-        class="absolute inset-x-0 bottom-0 z-20 py-2 text-sm font-medium transition-opacity opacity-0 bg-n-brand text-white group-hover:opacity-100 focus:opacity-100"
-        @click="$emit('sendToChat', produto)"
-      >
-        {{ $t('CATALOG_MGMT.CARD.SEND_TO_CHAT') }}
-      </button>
     </div>
     <div class="flex flex-col gap-1 p-3">
       <span class="font-medium line-clamp-2 text-n-slate-12 text-body-main">

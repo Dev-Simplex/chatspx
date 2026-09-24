@@ -11,12 +11,14 @@ vi.mock('dashboard/api/catalog', () => ({
   CatalogCategories: { get: listarCategorias },
 }));
 
-// A rota do cadastro é a C7 e ainda não existe — `hasRoute` respondendo `false` é exatamente o
-// estado que a tela precisa aguentar sem derrubar o router.
 vi.mock('vue-router', async importOriginal => ({
   ...(await importOriginal()),
   useRoute: () => ({ params: { accountId: '1' } }),
-  useRouter: () => ({ hasRoute: () => false, push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock('dashboard/composables/useAdmin', () => ({
+  useAdmin: () => ({ isAdmin: { value: true } }),
 }));
 
 // lottie-web cria um canvas no import e o jsdom nao o implementa — ele entra no grafo de

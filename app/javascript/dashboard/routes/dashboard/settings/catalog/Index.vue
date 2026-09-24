@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { CatalogCategories, CatalogProducts } from 'dashboard/api/catalog';
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
@@ -17,11 +18,8 @@ import CatalogProductCard from './CatalogProductCard.vue';
 const ESPERA_DA_BUSCA = 300;
 const POR_PAGINA_PADRAO = 25;
 
-// O cadastro é a C7. Enquanto a rota não existir, o botão e o card não levam a lugar nenhum —
-// empurrar o router para uma rota ausente derruba a tela inteira.
-const ROTA_DO_CADASTRO = 'catalog_product_edit';
-
 const { t } = useI18n();
+const { isAdmin } = useAdmin();
 const route = useRoute();
 const router = useRouter();
 
@@ -104,11 +102,13 @@ const semRegistros = computed(
   () => !carregando.value && !erro.value && !produtos.value.length
 );
 
+// O cadastro é só de administrador (rota e `CatalogProductPolicy`): o atendente navega pela grade,
+// mas abrir o formulário para ele seria mostrar uma tela que o salvar recusa.
 const abrirCadastro = (produto = null) => {
-  if (!router.hasRoute(ROTA_DO_CADASTRO)) return;
+  if (!isAdmin.value) return;
 
   router.push({
-    name: ROTA_DO_CADASTRO,
+    name: 'catalog_product_edit',
     params: {
       accountId: route.params.accountId,
       productId: produto ? produto.id : 'new',
@@ -138,6 +138,7 @@ const abrirCadastro = (produto = null) => {
         </template>
         <template #actions>
           <Button
+            v-if="isAdmin"
             :label="$t('CATALOG_MGMT.ADD.BUTTON')"
             size="sm"
             @click="abrirCadastro()"
@@ -175,13 +176,10 @@ const abrirCadastro = (produto = null) => {
         data-testid="catalogo-grade"
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
       >
-        <!-- TODO C8 (CHAT-91): quem liga o envio na conversa é a C8. Até lá `can-send` é falso e o
-             botão "Enviar no chat" fica escondido — o card já emite `sendToChat` esperando. -->
         <CatalogProductCard
           v-for="produto in produtos"
           :key="produto.id"
           :produto="produto"
-          :can-send="false"
           @abrir="abrirCadastro"
         />
       </div>

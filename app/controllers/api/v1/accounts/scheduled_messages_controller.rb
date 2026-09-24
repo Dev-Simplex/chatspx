@@ -149,7 +149,7 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
   def inboxes
     authorize(ScheduledMessage.new, :inboxes?)
     # assigned_inboxes ja devolve TODAS para admin e so as do agente para os demais.
-    @inboxes = Current.user.assigned_inboxes
+    @inboxes = Current.user.assigned_inboxes(Current.account)
     render 'api/v1/accounts/scheduled_messages/inboxes', formats: [:json]
   end
 
@@ -157,7 +157,7 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
 
   # admin recebe todas as caixas da conta; agente, so as suas.
   def inbox_accessible?(inbox)
-    Current.user.assigned_inboxes.exists?(id: inbox.id)
+    Current.user.assigned_inboxes(Current.account).exists?(id: inbox.id)
   end
 
   def set_scheduled_message
