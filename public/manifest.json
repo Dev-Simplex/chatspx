@@ -51,6 +51,20 @@
     }
   ],
   "start_url": "/",
+  "scope": "/",
+  "description": "Gerencie conversas e organize o atendimento da sua equipe.",
+  "orientation": "any",
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Minhas conversas",
+      "url": "/app?assignee_type=me"
+    },
+    {
+      "name": "Não atribuídas",
+      "url": "/app?assignee_type=unassigned"
+    }
+  ],
   "display": "standalone",
   "background_color": "#2dc46f",
   "theme_color": "#2dc46f"
