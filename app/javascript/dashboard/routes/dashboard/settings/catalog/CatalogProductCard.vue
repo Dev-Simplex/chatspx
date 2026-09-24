@@ -1,20 +1,22 @@
 <script setup>
 import { computed } from 'vue';
-import { format, parseISO } from 'date-fns';
-import { useI18n } from 'vue-i18n';
 import { formatarPreco } from './catalogoPreco';
+import CatalogMetaBadge from './CatalogMetaBadge.vue';
 
 const props = defineProps({
   produto: {
     type: Object,
     required: true,
   },
+  // Conta sem espelho configurado não mostra selo: todo produto ficaria "pendente" para sempre.
+  metaSyncEnabled: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 // Mandar produto na conversa é pelo seletor do próprio chat (C8); aqui o card só abre o cadastro.
 defineEmits(['abrir']);
-
-const { t } = useI18n();
 
 // `current_price_cents` já vem resolvido pelo backend (promoção vence o cheio). O preço cheio só
 // aparece riscado quando há promoção de verdade — repetir o mesmo valor riscado confunde.
@@ -36,18 +38,6 @@ const temEstoque = computed(
 const semEstoque = computed(
   () => temEstoque.value && props.produto.stock === 0
 );
-
-// O selo da Meta responde ao `meta_product_id`: é ele que prova que o espelho existe lá. O
-// `meta_synced_at` diz só QUANDO foi conferido, então vai no tooltip e pode faltar.
-const espelhadoNaMeta = computed(() => Boolean(props.produto.meta_product_id));
-
-const sincronizadoEm = computed(() => {
-  if (!props.produto.meta_synced_at) return '';
-
-  return t('CATALOG_MGMT.CARD.META_SYNCED_AT', {
-    date: format(parseISO(props.produto.meta_synced_at), 'dd/MM/yyyy HH:mm'),
-  });
-});
 </script>
 
 <template>
@@ -100,14 +90,11 @@ const sincronizadoEm = computed(() => {
           }}
         </span>
       </div>
-      <span
-        v-if="espelhadoNaMeta"
-        v-tooltip.top="sincronizadoEm"
-        data-testid="selo-meta"
-        class="absolute px-2 py-1 rounded-md top-2 ltr:right-2 rtl:left-2 text-label-small bg-n-teal-3 text-n-teal-11"
-      >
-        {{ $t('CATALOG_MGMT.CARD.META') }}
-      </span>
+      <CatalogMetaBadge
+        v-if="metaSyncEnabled && produto.meta_status"
+        :produto="produto"
+        class="absolute z-20 top-2 ltr:right-2 rtl:left-2"
+      />
     </div>
     <div class="flex flex-col gap-1 p-3">
       <span class="font-medium line-clamp-2 text-n-slate-12 text-body-main">

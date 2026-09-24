@@ -140,4 +140,36 @@ describe Catalog::MetaSyncService do
         .with { |req| JSON.parse(req.body)['requests'].first['data']['availability'] == 'out of stock' })
     end
   end
+
+  # O selo da aba (F3) tem que concordar com o que a passada faz com o produto.
+  describe 'CatalogProduct#meta_status' do
+    it 'é pendente antes da passada e sincronizado depois dela' do
+      produto = create(:catalog_product, :com_foto, account: account, sku: 'ABC-8')
+      expect(produto.meta_status).to eq('pendente')
+
+      stub_espelho([{ 'id' => 'meta-8', 'retailer_id' => 'ABC-8' }])
+      described_class.new(account).perform
+
+      expect(produto.reload.meta_status).to eq('sincronizado')
+    end
+
+    it 'volta a pendente quando o produto muda depois da sincronização' do
+      produto = create(:catalog_product, :com_foto, account: account, sku: 'ABC-9')
+      produto.marcar_sincronizado!('meta-9')
+      travel(1.minute) { produto.update!(name: 'Outro nome') }
+
+      expect(produto.meta_status).to eq('pendente')
+    end
+
+    it 'é incompleto, com o que falta, quando a passada pularia o produto' do
+      produto = create(:catalog_product, account: account, sku: nil)
+
+      expect(produto.meta_status).to eq('incompleto')
+      expect(produto.faltas_para_meta).to eq(%i[sku foto])
+    end
+
+    it 'não tem estado quando o produto está oculto' do
+      expect(create(:catalog_product, :com_foto, account: account, visible: false).meta_status).to be_nil
+    end
+  end
 end

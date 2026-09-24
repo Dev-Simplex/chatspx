@@ -21,9 +21,7 @@
       "FEATURED": "Destaque",
       "HIDDEN": "Oculto",
       "OUT_OF_STOCK": "Sem estoque",
-      "STOCK": "{n} un.",
-      "META": "Meta",
-      "META_SYNCED_AT": "Espelhado na Meta em {date}"
+      "STOCK": "{n} un."
     },
     "FORM": {
       "LOADING": "Carregando produto",
@@ -66,14 +64,32 @@
       },
       "SYNC": {
         "TITLE": "Sincronização",
-        "SYNCED": "Espelhado na Meta",
-        "NOT_SYNCED": "Ainda não sincronizado",
         "PRODUCT_ID": "ID {id}",
-        "SYNCED_AT": "Conferido {time}"
+        "NOW": "Sincronizar agora",
+        "QUEUED": "Sincronização enfileirada. O produto fica pendente até a Meta confirmar.",
+        "ERROR": "Não conseguimos enfileirar a sincronização. Tente de novo em instantes.",
+        "HIDDEN": "Produto oculto sai da Meta na próxima sincronização."
       },
       "PREVIEW": {
         "TITLE": "Como o cliente vê",
         "ACTION": "Ver produto"
+      }
+    },
+    "SYNC_ALL": {
+      "BUTTON": "Sincronizar com a Meta",
+      "QUEUED": "Sincronização enfileirada. Os produtos se atualizam conforme a Meta confirma.",
+      "ERROR": "Não conseguimos enfileirar a sincronização. Tente de novo em instantes."
+    },
+    "META_STATUS": {
+      "SINCRONIZADO": "Na Meta",
+      "PENDENTE": "Meta pendente",
+      "INCOMPLETO": "Incompleto",
+      "SYNCED_HINT": "Conferido {time}",
+      "PENDING_HINT": "Vai para a Meta na próxima sincronização",
+      "MISSING_HINT": "A Meta precisa de {items} para aceitar este produto",
+      "MISSING": {
+        "SKU": "SKU",
+        "FOTO": "foto"
       }
     }
   }

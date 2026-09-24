@@ -32,6 +32,16 @@ class CatalogAPI extends ApiClient {
     return axios.delete(`${this.url}/${produtoId}/images/${imagemId}`);
   }
 
+  // Espelho da Meta: o job é por conta, então as duas enfileiram a mesma passada. A do produto antes
+  // o devolve à fila de pendentes, e responde com ele ainda pendente — sincronizar é assíncrono.
+  sincronizar() {
+    return axios.post(`${this.url}/sync`);
+  }
+
+  sincronizarProduto(produtoId) {
+    return axios.post(`${this.url}/${produtoId}/sync`);
+  }
+
   sendToConversation(conversationId, productIds) {
     return axios.post(
       `${this.baseUrl()}/conversations/${conversationId}/catalog_products`,

@@ -25,7 +25,7 @@ class Catalog::MetaSyncService
   end
 
   def perform
-    return resultado if catalogo_id.blank? || canal.blank?
+    return resultado unless configurado?
 
     remover_ocultos
     produtos.each_slice(TAMANHO_DO_LOTE) { |lote| sincronizar_lote(lote) }
@@ -34,6 +34,12 @@ class Catalog::MetaSyncService
     # A cota da hora acabou. A passada PARA aqui e quem chamou reagenda; insistir agora só gastaria
     # tentativa contra o mesmo limite, e o que já foi carimbado não volta na próxima varredura.
     resultado(limite_atingido: true)
+  end
+
+  # Pública porque a aba decide por ela se mostra selo e botão de sincronizar: conta sem espelho
+  # veria todo produto "pendente" para sempre.
+  def configurado?
+    catalogo_id.present? && canal.present?
   end
 
   private
@@ -87,12 +93,14 @@ class Catalog::MetaSyncService
   # A Meta exige do PRODUCT_ITEM a chave do varejista (`retailer_id`, que é o SKU) e a imagem. Item
   # sem um dos dois ela REJEITA, e item rejeitado nunca é carimbado: voltaria em `para_sincronizar`
   # a cada passada, queimando para sempre a mesma cota que o lote existe para poupar.
+  # A régua mora no model (`faltas_para_meta`) porque o selo da aba usa a mesma.
   def enviavel?(produto)
-    return true if produto.sku.present? && produto.capa.present?
+    faltas = produto.faltas_para_meta
+    return true if faltas.empty?
 
     # Pular com o motivo registrado é o que mantém o resto do lote de pé: derrubar a chamada por um
     # cadastro incompleto deixaria o catálogo inteiro sem espelho.
-    pular(produto, produto.sku.blank? ? :sem_sku : :sem_foto)
+    pular(produto, :"sem_#{faltas.first}")
     false
   end
 

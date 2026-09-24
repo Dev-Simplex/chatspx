@@ -21,9 +21,7 @@
       "FEATURED": "Featured",
       "HIDDEN": "Hidden",
       "OUT_OF_STOCK": "Out of stock",
-      "STOCK": "{n} in stock",
-      "META": "Meta",
-      "META_SYNCED_AT": "Mirrored on Meta on {date}"
+      "STOCK": "{n} in stock"
     },
     "FORM": {
       "LOADING": "Loading product",
@@ -66,14 +64,32 @@
       },
       "SYNC": {
         "TITLE": "Sync",
-        "SYNCED": "Mirrored on Meta",
-        "NOT_SYNCED": "Not synced yet",
         "PRODUCT_ID": "ID {id}",
-        "SYNCED_AT": "Checked {time}"
+        "NOW": "Sync now",
+        "QUEUED": "Sync queued. This product stays pending until Meta confirms it.",
+        "ERROR": "We could not queue the sync. Try again in a moment.",
+        "HIDDEN": "Hidden products are removed from Meta on the next sync."
       },
       "PREVIEW": {
         "TITLE": "How the customer sees it",
         "ACTION": "See product"
+      }
+    },
+    "SYNC_ALL": {
+      "BUTTON": "Sync with Meta",
+      "QUEUED": "Sync queued. Products update as Meta confirms them.",
+      "ERROR": "We could not queue the sync. Try again in a moment."
+    },
+    "META_STATUS": {
+      "SINCRONIZADO": "On Meta",
+      "PENDENTE": "Meta pending",
+      "INCOMPLETO": "Incomplete",
+      "SYNCED_HINT": "Checked {time}",
+      "PENDING_HINT": "Goes to Meta on the next sync",
+      "MISSING_HINT": "Meta needs {items} to accept this product",
+      "MISSING": {
+        "SKU": "a SKU",
+        "FOTO": "a photo"
       }
     }
   }
