@@ -1,15 +1,21 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import CatalogIndex from '../Index.vue';
 
-const { listarProdutos, listarCategorias } = vi.hoisted(() => ({
-  listarProdutos: vi.fn(),
-  listarCategorias: vi.fn(),
-}));
+const { listarProdutos, listarCategorias, sincronizar, alertar } = vi.hoisted(
+  () => ({
+    listarProdutos: vi.fn(),
+    listarCategorias: vi.fn(),
+    sincronizar: vi.fn(),
+    alertar: vi.fn(),
+  })
+);
 
 vi.mock('dashboard/api/catalog', () => ({
-  CatalogProducts: { listar: listarProdutos },
+  CatalogProducts: { listar: listarProdutos, sincronizar },
   CatalogCategories: { get: listarCategorias },
 }));
+
+vi.mock('dashboard/composables', () => ({ useAlert: alertar }));
 
 vi.mock('vue-router', async importOriginal => ({
   ...(await importOriginal()),
@@ -63,8 +69,20 @@ const categorias = [
   { id: 8, name: 'Armação de grau', products_count: 0 },
 ];
 
-const resposta = (payload = produtos, total = payload.length) => ({
-  data: { payload, meta: { total, page: 1, per_page: 25 } },
+const resposta = (
+  payload = produtos,
+  total = payload.length,
+  metaSyncEnabled = false
+) => ({
+  data: {
+    payload,
+    meta: {
+      total,
+      page: 1,
+      per_page: 25,
+      meta_sync_enabled: metaSyncEnabled,
+    },
+  },
 });
 
 const SettingsLayoutStub = {
@@ -165,6 +183,31 @@ describe('Catálogo · Index', () => {
     expect(wrapper.text()).toContain('Ray-Ban Aviador Clássico');
     expect(wrapper.text()).toContain('Oakley Holbrook Prizm');
     expect(wrapper.text()).toContain('RB3025-001');
+  });
+
+  it('esconde o botão de sincronizar quando a conta não tem espelho', async () => {
+    const wrapper = montar();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="sincronizar-meta"]').exists()).toBe(
+      false
+    );
+  });
+
+  it('enfileira a sincronização da conta e avisa, sem mexer nos selos', async () => {
+    listarProdutos.mockResolvedValue(resposta(produtos, 2, true));
+    sincronizar.mockResolvedValue({ data: { queued: true } });
+    const wrapper = montar();
+    await flushPromises();
+
+    await wrapper.find('[data-testid="sincronizar-meta"]').trigger('click');
+    await flushPromises();
+
+    expect(sincronizar).toHaveBeenCalledTimes(1);
+    expect(alertar).toHaveBeenCalledWith(
+      'Sync queued. Products update as Meta confirms them.'
+    );
+    expect(listarProdutos).toHaveBeenCalledTimes(1);
   });
 
   it('manda a busca para a API em `q`, e não peneira a lista em memória', async () => {

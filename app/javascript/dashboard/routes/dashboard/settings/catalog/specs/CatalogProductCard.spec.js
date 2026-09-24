@@ -48,15 +48,28 @@ describe('CatalogProductCard', () => {
     ).toBe(false);
   });
 
-  // O selo responde ao `meta_product_id`, que é a prova de que o espelho existe lá; o
-  // `meta_synced_at` diz só quando foi conferido e por isso vai no tooltip.
-  it('mostra o selo da Meta só quando o produto tem espelho lá', () => {
-    expect(montar().find('[data-testid="selo-meta"]').exists()).toBe(false);
+  // O estado vem pronto do backend; o card só o pinta.
+  it('mostra o estado do espelho que o backend calculou', () => {
+    const selo = extra =>
+      montar(extra, { metaSyncEnabled: true }).find(
+        '[data-testid="selo-meta"]'
+      );
+
+    expect(selo({ meta_status: 'sincronizado' }).text()).toBe('On Meta');
+    expect(selo({ meta_status: 'pendente' }).text()).toBe('Meta pending');
     expect(
-      montar({ meta_product_id: 'meta_123' })
+      selo({ meta_status: 'incompleto', meta_missing: ['foto'] }).text()
+    ).toBe('Incomplete');
+    // Oculto não tem estado: o selo "Oculto" já diz tudo.
+    expect(selo({ meta_status: null }).exists()).toBe(false);
+  });
+
+  it('esconde o selo quando a conta não tem espelho configurado', () => {
+    expect(
+      montar({ meta_status: 'pendente' })
         .find('[data-testid="selo-meta"]')
         .exists()
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('abre o cadastro ao clicar no card', async () => {
