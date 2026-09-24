@@ -1,0 +1,80 @@
+{
+  "CATALOG_MGMT": {
+    "HEADER": "Catalog",
+    "DESCRIPTION": "The products your team sends in conversations: photo, price and stock, all in one place.",
+    "SEARCH_PLACEHOLDER": "Search by name or SKU",
+    "LOADING": "Loading catalog",
+    "COUNT": "{n} products",
+    "ADD": {
+      "BUTTON": "+ New product"
+    },
+    "FILTERS": {
+      "ALL_CATEGORIES": "All categories",
+      "VISIBLE_ONLY": "Visible only"
+    },
+    "LIST": {
+      "EMPTY": "No product here yet. Create one to start sending it in conversations.",
+      "ERROR": "We could not load the catalog. Try again in a moment."
+    },
+    "CARD": {
+      "NO_IMAGE": "No photo",
+      "FEATURED": "Featured",
+      "HIDDEN": "Hidden",
+      "OUT_OF_STOCK": "Out of stock",
+      "STOCK": "{n} in stock",
+      "META": "Meta",
+      "META_SYNCED_AT": "Mirrored on Meta on {date}"
+    },
+    "FORM": {
+      "LOADING": "Loading product",
+      "BACK": "Catalog",
+      "NEW_TITLE": "New product",
+      "SAVE": "Save",
+      "SAVE_ERROR": "We could not save this product. Try again in a moment.",
+      "LOAD_ERROR": "We could not load this product. Try again in a moment.",
+      "STATE": {
+        "ACTIVE": "Active",
+        "HIDDEN": "Hidden"
+      },
+      "PHOTOS": {
+        "LABEL": "Product photos",
+        "HINT": "JPG or PNG, up to 2 MB. The first photo is the cover. 800x800 is recommended, which is the size WhatsApp shows.",
+        "ADD": "Add photo",
+        "REMOVE": "Remove photo",
+        "INVALID_TYPE": "{name} is not a JPG or PNG file.",
+        "TOO_BIG": "{name} is larger than 2 MB.",
+        "REMOVE_ERROR": "We could not remove this photo. Try again in a moment."
+      },
+      "FIELDS": {
+        "NAME": "Name",
+        "NAME_REQUIRED": "Give the product a name.",
+        "DESCRIPTION": "Description",
+        "PRICE": "Price",
+        "PROMO_PRICE": "Promotional price",
+        "PRICE_PLACEHOLDER": "0,00",
+        "SKU": "SKU / code in the ERP",
+        "STOCK": "Stock",
+        "CATEGORY": "Category",
+        "NO_CATEGORY": "No category"
+      },
+      "PUBLISH": {
+        "TITLE": "Publishing",
+        "VISIBLE": "Visible in the catalog",
+        "VISIBLE_HINT": "Shows up for the agent to send",
+        "FEATURED": "Featured",
+        "FEATURED_HINT": "Pins it to the top of the list"
+      },
+      "SYNC": {
+        "TITLE": "Sync",
+        "SYNCED": "Mirrored on Meta",
+        "NOT_SYNCED": "Not synced yet",
+        "PRODUCT_ID": "ID {id}",
+        "SYNCED_AT": "Checked {time}"
+      },
+      "PREVIEW": {
+        "TITLE": "How the customer sees it",
+        "ACTION": "See product"
+      }
+    }
+  }
+}
