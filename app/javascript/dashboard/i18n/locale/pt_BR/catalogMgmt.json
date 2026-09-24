@@ -23,8 +23,7 @@
       "OUT_OF_STOCK": "Sem estoque",
       "STOCK": "{n} un.",
       "META": "Meta",
-      "META_SYNCED_AT": "Espelhado na Meta em {date}",
-      "SEND_TO_CHAT": "Enviar no chat"
+      "META_SYNCED_AT": "Espelhado na Meta em {date}"
     },
     "FORM": {
       "LOADING": "Carregando produto",
