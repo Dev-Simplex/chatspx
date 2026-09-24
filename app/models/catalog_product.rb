@@ -38,6 +38,10 @@ class CatalogProduct < ApplicationRecord
   # devolve caminho RELATIVO, e a Meta (C9) precisa de URL absoluta para buscar a foto.
   include Rails.application.routes.url_helpers
 
+  # Propósito do `signed_id` da foto pública (C9). Assinatura com propósito impede que o mesmo id
+  # sirva para outra rota assinada do sistema.
+  IMAGEM_PUBLICA = :catalog_public_image
+
   belongs_to :account
   belongs_to :category, class_name: 'CatalogCategory', foreign_key: :catalog_category_id, optional: true, inverse_of: :products
 
@@ -84,6 +88,21 @@ class CatalogProduct < ApplicationRecord
     capa ? url_for(capa) : nil
   end
 
+  # URL da capa para a META, e só para ela. É outra coisa do `capa_url`: aquele é o link assinado
+  # do ActiveStorage, que em produção morre em 30 minutos
+  # (`config.active_storage.service_urls_expire_in`, que existe por causa de vídeo grande em
+  # conversa e não vai mudar). A Meta busca a `image_url` uma vez e faz CACHE dela, então link que
+  # expira aparece depois como "a foto sumiu do catálogo".
+  #
+  # O identificador é o `signed_id` sem expiração: estável entre as passadas do espelho (o
+  # verificador é determinístico) e adivinhável só por quem tem o link — `/:account_id/:product_id`
+  # cru deixaria o catálogo inteiro de qualquer conta enumerável.
+  def public_image_url
+    return nil unless visible && capa.present?
+
+    catalog_public_image_url(id: signed_id(purpose: IMAGEM_PUBLICA, expires_in: nil))
+  end
+
   def imagens_para_api
     images.map { |imagem| { id: imagem.id, url: url_for(imagem), filename: imagem.filename.to_s } }
   end
@@ -111,6 +130,13 @@ class CatalogProduct < ApplicationRecord
   # sairia de `para_sincronizar` — a sincronização reenviaria o catálogo inteiro para sempre.
   def marcar_sincronizado!(id_na_meta)
     update_columns(meta_product_id: id_na_meta, meta_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  # O avesso do carimbo, para quando o produto SAI do catálogo da Meta (virou oculto). `update_columns`
+  # pelo mesmo motivo de lá, e também para não disparar um `produto.atualizado` ao ERP: ele já recebeu
+  # o `produto.removido` no instante em que o produto ficou invisível.
+  def desmarcar_sincronizado!
+    update_columns(meta_product_id: nil, meta_synced_at: nil) # rubocop:disable Rails/SkipsModelValidations
   end
 
   private

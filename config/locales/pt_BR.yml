@@ -102,6 +102,8 @@ pt_BR:
       open_and_closed: não pode abrir o dia todo e fechar o dia todo ao mesmo tempo
     webhook:
       invalid: Eventos inválidos
+    catalog:
+      meta_rate_limited: O limite de chamadas do catálogo da Meta foi atingido. Os produtos que faltam saem na próxima sincronização.
     signup:
       disposable_email: Não permitimos e-mails descartáveis
       blocked_domain: Este domínio não é permitido. Se você acredita que isso é um erro, por favor contate o suporte.

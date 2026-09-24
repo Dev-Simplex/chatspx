@@ -92,6 +92,8 @@ en:
       open_and_closed: cannot be open all day and closed all day at the same time
     webhook:
       invalid: Invalid events
+    catalog:
+      meta_rate_limited: The Meta catalog rate limit was reached. The remaining products go out on the next sync.
     signup:
       disposable_email: We do not allow disposable emails
       blocked_domain: This domain is not allowed. If you believe this is a mistake, please contact support.
