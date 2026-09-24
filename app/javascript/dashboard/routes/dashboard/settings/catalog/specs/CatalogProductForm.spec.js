@@ -7,9 +7,13 @@ const {
   atualizarProduto,
   removerImagem,
   listarCategorias,
+  sincronizarProduto,
+  alertar,
   empurrar,
   parametros,
 } = vi.hoisted(() => ({
+  sincronizarProduto: vi.fn(),
+  alertar: vi.fn(),
   mostrarProduto: vi.fn(),
   criarProduto: vi.fn(),
   atualizarProduto: vi.fn(),
@@ -25,9 +29,12 @@ vi.mock('dashboard/api/catalog', () => ({
     create: criarProduto,
     update: atualizarProduto,
     removerImagem,
+    sincronizarProduto,
   },
   CatalogCategories: { get: listarCategorias },
 }));
+
+vi.mock('dashboard/composables', () => ({ useAlert: alertar }));
 
 vi.mock('vue-router', async importOriginal => ({
   ...(await importOriginal()),
@@ -58,6 +65,9 @@ const produto = {
   category_name: 'Óculos de sol',
   meta_product_id: '8841203',
   meta_synced_at: '2026-09-22T09:41:00.000Z',
+  meta_status: 'sincronizado',
+  meta_missing: [],
+  meta_sync_enabled: true,
   images: [{ id: 55, url: 'https://exemplo.test/rb.jpg', filename: 'rb.jpg' }],
   cover_url: 'https://exemplo.test/rb.jpg',
 };
@@ -256,27 +266,58 @@ describe('Catálogo · formulário do produto', () => {
     expect(wrapper.find('[data-testid="remover-foto"]').exists()).toBe(false);
   });
 
-  it('mostra o espelho da Meta quando o produto tem `meta_product_id`', async () => {
+  it('mostra o estado do espelho e o id do item na Meta', async () => {
     parametros.productId = '7';
     const wrapper = montar();
     await flushPromises();
 
     const painel = wrapper.find('[data-testid="painel-sincronizacao"]');
-    expect(painel.text()).toContain('Mirrored on Meta');
+    expect(painel.text()).toContain('On Meta');
     expect(painel.text()).toContain('8841203');
   });
 
-  it('diz "ainda não sincronizado" quando não há `meta_product_id`', async () => {
+  it('esconde o painel quando a conta não tem espelho configurado', async () => {
     parametros.productId = '7';
     mostrarProduto.mockResolvedValue({
-      data: { ...produto, meta_product_id: null, meta_synced_at: null },
+      data: { ...produto, meta_sync_enabled: false },
     });
     const wrapper = montar();
     await flushPromises();
 
-    const painel = wrapper.find('[data-testid="painel-sincronizacao"]');
-    expect(painel.text()).toContain('Not synced yet');
-    expect(painel.text()).not.toContain('8841203');
+    expect(wrapper.find('[data-testid="painel-sincronizacao"]').exists()).toBe(
+      false
+    );
+  });
+
+  it('não oferece sincronizar produto incompleto', async () => {
+    parametros.productId = '7';
+    mostrarProduto.mockResolvedValue({
+      data: { ...produto, meta_status: 'incompleto', meta_missing: ['sku'] },
+    });
+    const wrapper = montar();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="sincronizar-produto"]').exists()).toBe(
+      false
+    );
+  });
+
+  it('enfileira a sincronização do produto e o mostra pendente', async () => {
+    parametros.productId = '7';
+    sincronizarProduto.mockResolvedValue({
+      data: { ...produto, meta_status: 'pendente', meta_synced_at: null },
+    });
+    const wrapper = montar();
+    await flushPromises();
+
+    await wrapper.find('[data-testid="sincronizar-produto"]').trigger('click');
+    await flushPromises();
+
+    expect(sincronizarProduto).toHaveBeenCalledWith('7');
+    expect(alertar).toHaveBeenCalled();
+    expect(
+      wrapper.find('[data-testid="painel-sincronizacao"]').text()
+    ).toContain('Meta pending');
   });
 
   it('mostra o erro que a API devolveu, sem apagar o que foi digitado', async () => {

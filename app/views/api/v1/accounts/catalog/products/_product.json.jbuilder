@@ -14,6 +14,9 @@ json.catalog_category_id produto.catalog_category_id
 json.category_name produto.category&.name
 json.meta_product_id produto.meta_product_id
 json.meta_synced_at produto.meta_synced_at
+# Estado do espelho (sincronizado/pendente/incompleto; nulo para oculto) e o que falta ao incompleto.
+json.meta_status produto.meta_status
+json.meta_missing produto.faltas_para_meta
 # URL assinada, boa para o painel. O espelho da Meta precisa de URL PÚBLICA e estável — é outra
 # conversa, e mora na C7/C9 (ver docs/catalogo-whatsapp.md).
 json.images produto.imagens_para_api

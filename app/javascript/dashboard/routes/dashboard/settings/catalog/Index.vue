@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import { useAdmin } from 'dashboard/composables/useAdmin';
+import { useAlert } from 'dashboard/composables';
 import { CatalogCategories, CatalogProducts } from 'dashboard/api/catalog';
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
@@ -34,6 +35,9 @@ const total = ref(0);
 const porPagina = ref(POR_PAGINA_PADRAO);
 const carregando = ref(true);
 const erro = ref('');
+// Vem no `meta` da lista: conta sem espelho da Meta configurado não vê selo nem botão.
+const metaSyncEnabled = ref(false);
+const sincronizando = ref(false);
 
 const carregar = async () => {
   carregando.value = true;
@@ -48,6 +52,7 @@ const carregar = async () => {
     produtos.value = data.payload || [];
     total.value = data.meta?.total || 0;
     porPagina.value = data.meta?.per_page || POR_PAGINA_PADRAO;
+    metaSyncEnabled.value = Boolean(data.meta?.meta_sync_enabled);
   } catch {
     erro.value = t('CATALOG_MGMT.LIST.ERROR');
     produtos.value = [];
@@ -74,6 +79,20 @@ const irParaPagina = numero => {
 const buscarComEspera = useDebounceFn(recomecar, ESPERA_DA_BUSCA);
 watch(busca, buscarComEspera);
 watch([categoriaId, soVisiveis], recomecar);
+
+// Só enfileira: o job é assíncrono, então a grade não finge que sincronizou — os selos continuam
+// "pendente" até a Meta confirmar e a lista ser recarregada.
+const sincronizarTudo = async () => {
+  sincronizando.value = true;
+  try {
+    await CatalogProducts.sincronizar();
+    useAlert(t('CATALOG_MGMT.SYNC_ALL.QUEUED'));
+  } catch (e) {
+    useAlert(e?.response?.data?.error || t('CATALOG_MGMT.SYNC_ALL.ERROR'));
+  } finally {
+    sincronizando.value = false;
+  }
+};
 
 const carregarCategorias = async () => {
   try {
@@ -138,6 +157,17 @@ const abrirCadastro = (produto = null) => {
         </template>
         <template #actions>
           <Button
+            v-if="isAdmin && metaSyncEnabled"
+            data-testid="sincronizar-meta"
+            :label="$t('CATALOG_MGMT.SYNC_ALL.BUTTON')"
+            :is-loading="sincronizando"
+            icon="i-lucide-refresh-cw"
+            size="sm"
+            variant="faded"
+            color="slate"
+            @click="sincronizarTudo"
+          />
+          <Button
             v-if="isAdmin"
             :label="$t('CATALOG_MGMT.ADD.BUTTON')"
             size="sm"
@@ -180,6 +210,7 @@ const abrirCadastro = (produto = null) => {
           v-for="produto in produtos"
           :key="produto.id"
           :produto="produto"
+          :meta-sync-enabled="metaSyncEnabled"
           @abrir="abrirCadastro"
         />
       </div>

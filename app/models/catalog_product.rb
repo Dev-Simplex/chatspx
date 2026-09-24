@@ -38,6 +38,10 @@ class CatalogProduct < ApplicationRecord
   # devolve caminho RELATIVO, e a Meta (C9) precisa de URL absoluta para buscar a foto.
   include Rails.application.routes.url_helpers
 
+  # Propósito do `signed_id` da foto pública (C9). Assinatura com propósito impede que o mesmo id
+  # sirva para outra rota assinada do sistema.
+  IMAGEM_PUBLICA = :catalog_public_image
+
   belongs_to :account
   belongs_to :category, class_name: 'CatalogCategory', foreign_key: :catalog_category_id, optional: true, inverse_of: :products
 
@@ -84,6 +88,49 @@ class CatalogProduct < ApplicationRecord
     capa ? url_for(capa) : nil
   end
 
+  # URL da capa para a META, e só para ela. É outra coisa do `capa_url`: aquele é o link assinado
+  # do ActiveStorage, que em produção morre em 30 minutos
+  # (`config.active_storage.service_urls_expire_in`, que existe por causa de vídeo grande em
+  # conversa e não vai mudar). A Meta busca a `image_url` uma vez e faz CACHE dela, então link que
+  # expira aparece depois como "a foto sumiu do catálogo".
+  #
+  # O identificador é o `signed_id` sem expiração: estável entre as passadas do espelho (o
+  # verificador é determinístico) e adivinhável só por quem tem o link — `/:account_id/:product_id`
+  # cru deixaria o catálogo inteiro de qualquer conta enumerável.
+  def public_image_url
+    return nil unless visible && capa.present?
+
+    catalog_public_image_url(id: signed_id(purpose: IMAGEM_PUBLICA, expires_in: nil))
+  end
+
+  # O que falta para a Meta aceitar o item: ela exige a chave do varejista (o SKU) e a imagem. É a
+  # MESMA régua do `MetaSyncService#enviavel?` — o selo da aba e o espelho não podem discordar.
+  def faltas_para_meta
+    [(:sku if sku.blank?), (:foto if capa.blank?)].compact
+  end
+
+  # Estado do espelho que a aba mostra. Oculto não tem estado: ele sai da Meta sozinho, e o selo
+  # "Oculto" já diz isso. Incompleto vem antes de sincronizado porque foto apagada não mexe no
+  # `updated_at` — o carimbo continuaria "em dia" com um item que a Meta já não aceitaria.
+  def meta_status
+    return nil unless visible
+    return 'incompleto' if faltas_para_meta.any?
+
+    meta_product_id.present? && !desatualizado_na_meta? ? 'sincronizado' : 'pendente'
+  end
+
+  # Espelho de `para_sincronizar` para UM registro já carregado, sem ir ao banco.
+  def desatualizado_na_meta?
+    meta_synced_at.nil? || meta_synced_at < updated_at
+  end
+
+  # "Sincronizar agora" de um produto: apagar o carimbo o devolve a `para_sincronizar`, e a próxima
+  # passada da conta o leva. `update_columns` pelo motivo do `desmarcar_sincronizado!`: não é
+  # mudança de produto, o ERP não tem nada a receber. O `meta_product_id` fica — o item existe lá.
+  def pedir_sincronizacao!
+    update_columns(meta_synced_at: nil) # rubocop:disable Rails/SkipsModelValidations
+  end
+
   def imagens_para_api
     images.map { |imagem| { id: imagem.id, url: url_for(imagem), filename: imagem.filename.to_s } }
   end
@@ -111,6 +158,13 @@ class CatalogProduct < ApplicationRecord
   # sairia de `para_sincronizar` — a sincronização reenviaria o catálogo inteiro para sempre.
   def marcar_sincronizado!(id_na_meta)
     update_columns(meta_product_id: id_na_meta, meta_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  # O avesso do carimbo, para quando o produto SAI do catálogo da Meta (virou oculto). `update_columns`
+  # pelo mesmo motivo de lá, e também para não disparar um `produto.atualizado` ao ERP: ele já recebeu
+  # o `produto.removido` no instante em que o produto ficou invisível.
+  def desmarcar_sincronizado!
+    update_columns(meta_product_id: nil, meta_synced_at: nil) # rubocop:disable Rails/SkipsModelValidations
   end
 
   private

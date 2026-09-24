@@ -2,8 +2,7 @@
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { getUnixTime, parseISO } from 'date-fns';
-import { dynamicTime } from 'shared/helpers/timeHelper';
+import { useAlert } from 'dashboard/composables';
 import { CatalogCategories, CatalogProducts } from 'dashboard/api/catalog';
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
@@ -13,6 +12,7 @@ import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import { formatarPreco, paraCampoDeReais, paraCentavos } from './catalogoPreco';
+import CatalogMetaBadge from './CatalogMetaBadge.vue';
 
 // A Meta busca a foto e faz cache dela; o que ela exibe é um quadrado de 800px. Recusar aqui o
 // arquivo que ela recusaria depois evita o "a foto não aparece" descoberto só no envio.
@@ -43,8 +43,11 @@ const fotos = ref([]);
 const novasFotos = ref([]);
 const categorias = ref([]);
 
-const metaProductId = ref('');
-const metaSyncedAt = ref('');
+// O painel de sincronização mostra o produto COMO O BACKEND O DEVOLVEU (`meta_status` é calculado
+// lá). Por isso ele guarda a última resposta, e não os campos que o usuário está editando.
+const produtoSalvo = ref(null);
+const metaSyncEnabled = ref(false);
+const sincronizando = ref(false);
 
 const carregando = ref(false);
 const salvando = ref(false);
@@ -71,8 +74,8 @@ const aplicar = produto => {
   destaque.value = Boolean(produto.featured);
   moeda.value = produto.currency || 'BRL';
   fotos.value = produto.images || [];
-  metaProductId.value = produto.meta_product_id || '';
-  metaSyncedAt.value = produto.meta_synced_at || '';
+  produtoSalvo.value = produto;
+  metaSyncEnabled.value = Boolean(produto.meta_sync_enabled);
 };
 
 const carregarProduto = async () => {
@@ -120,13 +123,29 @@ const titulo = computed(() =>
   nome.value.trim() ? nome.value.trim() : t('CATALOG_MGMT.FORM.NEW_TITLE')
 );
 
-const sincronizado = computed(() => Boolean(metaProductId.value));
+// Conta sem espelho, ou produto ainda não criado, não tem o que sincronizar.
+const mostrarSincronizacao = computed(
+  () => metaSyncEnabled.value && Boolean(produtoSalvo.value)
+);
 
-const sincronizadoHa = computed(() => {
-  if (!metaSyncedAt.value) return '';
+// Incompleto nunca vai: a passada o pularia. Oculto não tem estado, e sai da Meta sozinho.
+const podeSincronizar = computed(() =>
+  ['sincronizado', 'pendente'].includes(produtoSalvo.value?.meta_status)
+);
 
-  return dynamicTime(getUnixTime(parseISO(metaSyncedAt.value)));
-});
+// A resposta traz o produto PENDENTE: o job é assíncrono, e fingir que sincronizou mentiria.
+const sincronizarAgora = async () => {
+  sincronizando.value = true;
+  try {
+    const { data } = await CatalogProducts.sincronizarProduto(produtoId.value);
+    produtoSalvo.value = data;
+    useAlert(t('CATALOG_MGMT.FORM.SYNC.QUEUED'));
+  } catch (e) {
+    useAlert(e?.response?.data?.error || t('CATALOG_MGMT.FORM.SYNC.ERROR'));
+  } finally {
+    sincronizando.value = false;
+  }
+};
 
 // A prévia mostra o preço que o cliente veria hoje: a promoção vence o cheio, a mesma regra que o
 // `preco_atual_cents` do backend aplica na lista.
@@ -486,37 +505,41 @@ const salvar = async () => {
           </div>
 
           <div
+            v-if="mostrarSincronizacao"
             data-testid="painel-sincronizacao"
-            class="flex flex-col gap-2 p-4 border rounded-xl border-n-weak bg-n-solid-1 dark:bg-n-solid-2"
+            class="flex flex-col items-start gap-2 p-4 border rounded-xl border-n-weak bg-n-solid-1 dark:bg-n-solid-2"
           >
             <h3 class="font-medium text-n-slate-12 text-body-main">
               {{ $t('CATALOG_MGMT.FORM.SYNC.TITLE') }}
             </h3>
-            <template v-if="sincronizado">
-              <span class="font-medium text-n-teal-11 text-body-main">
-                {{ $t('CATALOG_MGMT.FORM.SYNC.SYNCED') }}
-              </span>
-              <span class="text-n-slate-11 text-label-small">
-                {{
-                  $t('CATALOG_MGMT.FORM.SYNC.PRODUCT_ID', {
-                    id: metaProductId,
-                  })
-                }}
-              </span>
-              <span
-                v-if="sincronizadoHa"
-                class="text-n-slate-11 text-label-small"
-              >
-                {{
-                  $t('CATALOG_MGMT.FORM.SYNC.SYNCED_AT', {
-                    time: sincronizadoHa,
-                  })
-                }}
-              </span>
-            </template>
-            <span v-else class="text-n-slate-11 text-body-main">
-              {{ $t('CATALOG_MGMT.FORM.SYNC.NOT_SYNCED') }}
+            <CatalogMetaBadge
+              v-if="produtoSalvo.meta_status"
+              :produto="produtoSalvo"
+            />
+            <span v-else class="text-n-slate-11 text-label-small">
+              {{ $t('CATALOG_MGMT.FORM.SYNC.HIDDEN') }}
             </span>
+            <span
+              v-if="produtoSalvo.meta_product_id"
+              class="text-n-slate-11 text-label-small"
+            >
+              {{
+                $t('CATALOG_MGMT.FORM.SYNC.PRODUCT_ID', {
+                  id: produtoSalvo.meta_product_id,
+                })
+              }}
+            </span>
+            <Button
+              v-if="podeSincronizar"
+              data-testid="sincronizar-produto"
+              :label="$t('CATALOG_MGMT.FORM.SYNC.NOW')"
+              :is-loading="sincronizando"
+              icon="i-lucide-refresh-cw"
+              size="sm"
+              variant="faded"
+              color="slate"
+              @click="sincronizarAgora"
+            />
           </div>
 
           <div class="flex flex-col gap-3">
