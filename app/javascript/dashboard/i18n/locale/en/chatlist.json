@@ -32,8 +32,8 @@
     "FILTER_ALL": "All",
     "ASSIGNEE_TYPE_TABS": {
       "me": "Mine",
-      "awaiting": "Awaiting assignment",
-      "pending_closure": "Awaiting closure",
+      "rodizio": "Rotation",
+      "pending_closure": "Attention",
       "unassigned": "Unassigned",
       "ai": "AI",
       "all": "All"

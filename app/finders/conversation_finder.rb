@@ -69,6 +69,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         ai_count: counts[:ai_count],
         awaiting_count: counts[:awaiting_count],
         awaiting_closure_count: counts[:awaiting_closure_count],
+        rodizio_count: counts[:rodizio_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -93,6 +94,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         ai_count: counts[:ai_count],
         awaiting_count: counts[:awaiting_count],
         awaiting_closure_count: counts[:awaiting_closure_count],
+        rodizio_count: counts[:rodizio_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -115,6 +117,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         ai_count: counts[:ai_count],
         awaiting_count: counts[:awaiting_count],
         awaiting_closure_count: counts[:awaiting_closure_count],
+        rodizio_count: counts[:rodizio_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -229,23 +232,37 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     when 'unassigned'
       @conversations = ai_tabs_enabled? ? @conversations.unassigned.without_captain_assignee : @conversations.unassigned
     when 'ai'
-      # IA = atribuída à IA E sem marcador de fila (as que aguardam atendente vão pro tab
-      # 'awaiting'; as que aguardam encerramento, pro tab 'pending_closure').
+      # IA = atribuída à IA, menos as que aguardam encerramento (essas vão pra aba 'Atenção').
+      # As que aguardam atendente ficam aqui: a aba 'awaiting' saiu da tela.
       @conversations = @conversations.assigned_to_captain
-                                     .where("conversations.custom_attributes->>'aguardando_humano_desde' IS NULL")
                                      .where("conversations.custom_attributes->>'aguardando_encerramento_desde' IS NULL")
     when 'awaiting'
-      # Aguardando atendimento = a IA fez handoff e segue dona, mas marcou que é hora de
-      # um humano assumir. TEM dono (IA) — por isso NÃO é "não atribuída".
       @conversations = @conversations.awaiting_human
+    when 'rodizio'
+      # Designação aberta do Motor de Distribuição: o rodízio escolheu alguém e ninguém assumiu
+      # (ou, no modo assignee com repasse, ainda sem primeira resposta). Agente vê só a dele.
+      @conversations = @conversations.where(id: designacoes_rodizio.select(:conversation_id))
     when 'pending_closure'
-      # Aguardando encerramento = conversa parada/encerrada marcada pra um humano JULGAR o
-      # fecho. A IA segue dona (responde se o cliente voltar) — some da aba IA, entra aqui.
-      @conversations = @conversations.awaiting_closure
+      # Aba 'Atenção': conversa parada/encerrada marcada pra um humano JULGAR o fecho. A IA
+      # segue dona. Só admin e supervisor.
+      @conversations = supervisor_view? ? @conversations.awaiting_closure : @conversations.none
     when 'assigned'
       @conversations = @conversations.assigned
     end
     @conversations
+  end
+
+  # Admin ou supervisor (de conta ou de time): vê o rodízio de todo mundo e a aba 'Atenção'.
+  def supervisor_view?
+    return @supervisor_view if defined?(@supervisor_view)
+
+    @supervisor_view = @is_admin || TeamSupervision.supervisor?(current_user, current_account)
+  end
+
+  # Fila do modo 'fila' também abre designação, mas sem ninguém escolhido: não é rodízio.
+  def designacoes_rodizio
+    logs = Spx::Distribuicao::Log.abertas.where(account_id: current_account.id).where.not(chosen_user_id: nil)
+    supervisor_view? ? logs : logs.where(chosen_user_id: current_user.id)
   end
 
   def ai_tabs_enabled?
@@ -387,17 +404,16 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     unattended = 'sub.status = 0 AND (sub.first_reply_created_at IS NULL OR sub.waiting_since IS NOT NULL)'
 
     # unassigned_count exclui conversas da IA somente com a flag ligada (DC-4);
-    # ai_count = espelho captain SEM o marcador "aguardando humano" (as que aguardam
-    # vão pro awaiting_count). awaiting_count = marcador presente (IA fez handoff, segue
-    # dona, esperando humano assumir).
+    # ai_count = espelho captain SEM o marcador "aguardando encerramento" (vão pra 'Atenção').
     sql = <<~SQL.squish
       SELECT
         COUNT(*)::int AS all_count,
         COUNT(*) FILTER (WHERE sub.assignee_id = #{uid})::int AS mine_count,
         COUNT(*) FILTER (WHERE sub.assignee_id IS NULL#{' AND ab.id IS NULL' if ai_tabs_enabled?})::int AS unassigned_count,
-        COUNT(*) FILTER (WHERE ab.id IS NOT NULL AND (sub.custom_attributes->>'aguardando_humano_desde') IS NULL AND (sub.custom_attributes->>'aguardando_encerramento_desde') IS NULL)::int AS ai_count,
+        COUNT(*) FILTER (WHERE ab.id IS NOT NULL AND (sub.custom_attributes->>'aguardando_encerramento_desde') IS NULL)::int AS ai_count,
         COUNT(*) FILTER (WHERE (sub.custom_attributes->>'aguardando_humano_desde') IS NOT NULL)::int AS awaiting_count,
         COUNT(*) FILTER (WHERE (sub.custom_attributes->>'aguardando_encerramento_desde') IS NOT NULL)::int AS awaiting_closure_count,
+        COUNT(*) FILTER (WHERE sub.id IN (#{designacoes_rodizio.select(:conversation_id).to_sql}))::int AS rodizio_count,
         COUNT(*) FILTER (WHERE #{unattended})::int AS unattended_all_count,
         COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id = #{uid})::int AS unattended_mine_count,
         COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id IS NULL)::int AS unattended_unassigned_count
@@ -413,6 +429,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       ai_count: result['ai_count'].to_i,
       awaiting_count: result['awaiting_count'].to_i,
       awaiting_closure_count: result['awaiting_closure_count'].to_i,
+      rodizio_count: result['rodizio_count'].to_i,
       unattended_all_count: result['unattended_all_count'].to_i,
       unattended_mine_count: result['unattended_mine_count'].to_i,
       unattended_unassigned_count: result['unattended_unassigned_count'].to_i
@@ -439,7 +456,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   def conversations_base_query
     @conversations.includes(
       :taggings, :inbox, { assignee: [:avatar_attachment, :teams] }, { contact: :avatar_attachment }, :team, :contact_inbox,
-      :assignee_agent_bot, :conversation_pins
+      :assignee_agent_bot, :conversation_pins, :designacao_rodizio
     ).then { |base| user_has_pins? ? pinned_first(base) : base }
   end
 
