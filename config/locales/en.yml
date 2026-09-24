@@ -94,10 +94,6 @@ en:
       invalid: Invalid events
     catalog:
       meta_rate_limited: The Meta catalog rate limit was reached. The remaining products go out on the next sync.
-      not_configured: This account has no Meta catalog yet, so products cannot be sent on the official number.
-      product_not_synced: "%{product} is not mirrored on Meta yet. Give it an SKU and wait for the next sync."
-      channel_not_supported: This inbox cannot send catalog products. Only the official WhatsApp Cloud channel supports them.
-      too_many_products: "Pick at most %{limit} products. %{count} were selected."
     signup:
       disposable_email: We do not allow disposable emails
       blocked_domain: This domain is not allowed. If you believe this is a mistake, please contact support.
@@ -558,13 +554,6 @@ en:
       open: 'Open'
       in_progress: 'In Progress'
       resolved: 'Resolved'
-  catalog:
-    # Textos de recheio da mensagem de produto (C9). A Meta EXIGE cabeçalho e corpo no
-    # `product_list`; a C8 manda os dela quando o atendente escrever algo.
-    message:
-      header: 'Our products'
-      body: 'Take a look at what we have for you.'
-      section: 'Products'
   scheduled_messages:
     errors:
       failed_to_create: 'Failed to create message'
