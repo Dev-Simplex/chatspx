@@ -30,9 +30,13 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   # params
   # assignee_type, inbox_id, :status, :cursor, :limit
 
-  def initialize(current_user, params)
+  # B4: a conta vem do CONTROLLER, que a carregou no `before_action`. Antes era
+  # `current_user.account`, que parecia proteção e não era: aquele método é derivado do MESMO
+  # `Current.account` (ver User#current_account_user), então nascia nil exatamente nos casos em
+  # que faria falta — e a listagem caía com 500 na linha seguinte (issue #232).
+  def initialize(current_user, params, account: Current.account)
     @current_user = current_user
-    @current_account = current_user.account
+    @current_account = account
     @is_admin = administrator?
     @params = params
   end
@@ -137,11 +141,9 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   end
 
   def set_inboxes
-    @inbox_ids = if params[:inbox_id]
-                   @current_user.assigned_inboxes.where(id: params[:inbox_id])
-                 else
-                   @current_user.assigned_inboxes.pluck(:id)
-                 end
+    # A conta vai EXPLÍCITA: é o que sobrevive a um `Current` esvaziado no meio da requisição.
+    caixas = @current_user.assigned_inboxes(@current_account)
+    @inbox_ids = params[:inbox_id] ? caixas.where(id: params[:inbox_id]) : caixas.pluck(:id)
   end
 
   def set_assignee_type
