@@ -49,7 +49,7 @@ const onError = () => {
       :loading="eager ? 'eager' : 'lazy'"
       :fetchpriority="highPriority ? 'high' : 'low'"
       decoding="async"
-      class="w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
+      class="w-full h-full object-cover transition-opacity duration-300"
       :class="loaded ? 'opacity-100' : 'opacity-0'"
       @load="onLoad"
       @error="onError"

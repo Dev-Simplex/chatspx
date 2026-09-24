@@ -141,7 +141,7 @@ const rootClass = computed(() => {
           v-for="emoji in EMOJIS"
           :key="emoji"
           type="button"
-          class="text-lg w-7 h-7 hover:scale-125 transition-transform leading-none"
+          class="text-lg w-7 h-7 leading-none rounded-md hover:bg-n-alpha-2 transition-colors"
           @click="toggle(emoji)"
         >
           {{ emoji }}
