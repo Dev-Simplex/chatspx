@@ -250,8 +250,6 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     authorize @contact_inbox.inbox, :show?
   rescue ActiveRecord::RecordNotUnique
     render json: { error: 'source_id should be unique' }, status: :unprocessable_entity
-  rescue ContactInboxBuilder::ConflictError => e
-    render json: { error: e.message, error_code: 'contact_inbox_conflict', meta: e.meta }, status: :unprocessable_entity
   end
 
   def build_contact_inbox
