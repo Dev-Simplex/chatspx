@@ -52,6 +52,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
       search: "%#{params[:q].strip}%"
     )
     @contacts = fetch_contacts_with_has_more(contacts)
+    @duplicates = Contacts::DuplicateFinder.new(account: Current.account, contacts: @contacts).perform
   end
 
   def search_for_schedule

@@ -287,7 +287,9 @@ export const createContactSearcher = () => {
     try {
       const {
         data: { payload },
-      } = await ContactAPI.search(trimmed, 1, 'name', '', { signal });
+      } = await ContactAPI.search(trimmed, 1, '-last_activity_at', '', {
+        signal,
+      });
 
       const camelCasedPayload = camelcaseKeys(payload, { deep: true });
       // Filter contacts that have either phone_number or email
