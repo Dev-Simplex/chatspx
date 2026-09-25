@@ -707,6 +707,7 @@
     },
     "FORM": {
       "GO_TO_CONVERSATION": "Visualizar",
+      "OPEN_CONTACT": "Abrir ficha",
       "SUCCESS_MESSAGE": "Mensagem enviada com sucesso!",
       "ERROR_MESSAGE": "Ocorreu um erro ao criar a conversa. Tente novamente mais tarde.",
       "NO_INBOX_ALERT": "Não há caixas de entrada disponíveis para iniciar uma conversa com este contato.",

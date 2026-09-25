@@ -292,6 +292,7 @@ en:
       request_required: 'This conversation belongs to another agent. Request it to take over.'
     compose:
       blocked_by_existing_attendance: 'This contact already has an ongoing conversation you cannot access. The message was not sent.'
+      contact_inbox_conflict: 'This number already belongs to the contact %{name}. Merge the contacts to continue.'
     agent_conversation_isolation:
       access_blocked: 'This conversation is assigned to another agent. Request it to access it.'
     errors:

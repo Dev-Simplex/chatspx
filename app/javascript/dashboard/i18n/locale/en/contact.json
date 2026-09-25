@@ -707,6 +707,7 @@
     },
     "FORM": {
       "GO_TO_CONVERSATION": "View",
+      "OPEN_CONTACT": "Open contact",
       "SUCCESS_MESSAGE": "The message was sent successfully!",
       "ERROR_MESSAGE": "An error occurred while creating the conversation. Please try again later.",
       "NO_INBOX_ALERT": "There are no available inboxes to start a conversation with this contact.",
