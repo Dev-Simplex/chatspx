@@ -4,6 +4,21 @@
 class ContactInboxBuilder
   pattr_initialize [:contact, :inbox, :source_id, { hmac_verified: false }]
 
+  # S-02: o numero ja esta vinculado a OUTRA ficha numa caixa WhatsApp Cloud. Renomear o vinculo
+  # alheio partiria a thread dele (e o formato do Twilio nem passa na validacao da Cloud).
+  class ConflictError < StandardError
+    attr_reader :holder
+
+    def initialize(holder)
+      @holder = holder
+      super(I18n.t('conversations.compose.contact_inbox_conflict', name: holder.name))
+    end
+
+    def meta
+      { id: holder.id, name: holder.name, phone_number: holder.phone_number }
+    end
+  end
+
   def perform
     # Idempotencia para WAHA: reusa ContactInbox existente do mesmo (contact, inbox)
     # para evitar duplicacao via UUID novo a cada chamada (race conditions da WAHA
@@ -124,12 +139,13 @@ class ContactInboxBuilder
 
     contact_inbox = ::ContactInbox.find_by(inbox_id: @inbox.id, source_id: @source_id)
     return if contact_inbox.blank?
+    raise ConflictError, contact_inbox.contact if @inbox.whatsapp?
 
     contact_inbox.update!(source_id: new_source_id)
   end
 
   def new_source_id
-    if @inbox.whatsapp? || @inbox.sms? || @inbox.twilio?
+    if @inbox.sms? || @inbox.twilio?
       "whatsapp:#{@source_id}#{rand(100)}"
     else
       "#{rand(10)}#{@source_id}"

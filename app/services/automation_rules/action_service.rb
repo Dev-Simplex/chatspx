@@ -24,6 +24,7 @@ class AutomationRules::ActionService < ActionService
 
   def send_attachment(blob_ids)
     return if conversation_a_tweet?
+    return if @conversation.inbox.read_only? # CHAT-155
 
     return unless @rule.files.attached?
 
@@ -42,6 +43,7 @@ class AutomationRules::ActionService < ActionService
 
   def send_message(message)
     return if conversation_a_tweet?
+    return if @conversation.inbox.read_only? # CHAT-155
 
     params = { content: message[0], private: false, content_attributes: { automation_rule_id: @rule.id } }
     Messages::MessageBuilder.new(nil, @conversation, params).perform

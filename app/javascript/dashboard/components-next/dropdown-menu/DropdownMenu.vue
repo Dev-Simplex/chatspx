@@ -215,8 +215,9 @@ onMounted(() => {
         v-for="(item, index) in filteredMenuItems"
         :key="index"
         type="button"
-        class="inline-flex items-center justify-start w-full h-8 min-w-0 gap-2 px-3 py-2 transition-all duration-200 ease-in-out border-0 rounded-lg z-60 hover:bg-n-slate-3/50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
+        class="inline-flex items-center justify-start w-full min-w-0 gap-2 px-3 py-2 transition-all duration-200 ease-in-out border-0 rounded-lg z-60 hover:bg-n-slate-3/50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
         :class="{
+          'h-8': !item.description,
           'bg-n-alpha-1 dark:bg-n-solid-active': item.isSelected,
           'text-n-ruby-11': item.action === 'delete',
           'text-n-slate-12': item.action !== 'delete',
@@ -239,12 +240,26 @@ onMounted(() => {
           class="flex-shrink-0 size-3.5"
         />
         <span v-if="item.emoji" class="flex-shrink-0">{{ item.emoji }}</span>
+        <span v-if="item.description" class="flex flex-col min-w-0 text-start">
+          <span class="text-sm truncate" :class="labelClass">
+            {{ item.label }}
+          </span>
+          <span class="text-xs truncate text-n-slate-11">
+            {{ item.description }}
+          </span>
+        </span>
         <span
-          v-if="item.label"
+          v-else-if="item.label"
           class="min-w-0 text-sm truncate"
           :class="labelClass"
         >
           {{ item.label }}
+        </span>
+        <span
+          v-if="item.badge"
+          class="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded-md ltr:ml-auto rtl:mr-auto bg-n-amber-3 text-n-amber-11"
+        >
+          {{ item.badge }}
         </span>
       </button>
     </template>

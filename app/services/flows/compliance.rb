@@ -22,6 +22,9 @@ module Flows::Compliance
   #   marketing_cap      → já atingiu o cap de marketing/contato na janela
   #   outside_window     → texto livre fora da janela de 24h (conversation.can_reply? == false)
   def enforce_compliance!(category:, free_form:)
+    # CHAT-155: todo envio de flow passa aqui; vira passo pulado, sem erro.
+    raise Flows::StepSkip.new('inbox_read_only', 'inbox is read-only') if @conversation.inbox.read_only?
+
     contact = @conversation.contact
 
     if ContactFlowSuppression.suppressed?(contact, category)

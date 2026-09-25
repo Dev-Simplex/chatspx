@@ -187,6 +187,9 @@ class Conversation < ApplicationRecord
                                                           inverse_of: :conversation
   has_many :conversation_participants, dependent: :destroy_async
   has_many :conversation_pins, dependent: :destroy_async
+  # Designação viva do rodízio (aba 'Rodízio' da lista). A fonte é o livro-razão do Motor.
+  has_one :designacao_rodizio, -> { abertas.where.not(chosen_user_id: nil).order(id: :desc) }, # rubocop:disable Rails/HasManyOrHasOneDependent
+          class_name: 'Spx::Distribuicao::Log', inverse_of: :conversation
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :conversation_takeover_requests, dependent: :destroy_async
   has_many :attachments, through: :messages

@@ -280,15 +280,31 @@ const performCreateConversation = async ({ payload, isFromWhatsApp }) => {
     // 403 do reuso de conversa: o contato já está em atendimento numa conversa
     // que este agente não abre. O backend manda a frase pronta e a mensagem NÃO
     // foi enviada — o erro genérico escondia as duas coisas.
-    const blocked =
-      error?.response?.data?.error_code === 'conversation_access_blocked';
+    // S-02: o número já pertence a outra ficha nesta caixa (Cloud). O backend
+    // manda o nome dela; o link abre a ficha para o agente mesclar.
+    const code = error?.response?.data?.error_code;
     let message = t('COMPOSE_NEW_CONVERSATION.FORM.ERROR_MESSAGE');
-    if (blocked) {
+    if (
+      code === 'conversation_access_blocked' ||
+      code === 'contact_inbox_conflict'
+    ) {
       message = error.response.data.error;
     } else if (error instanceof ExceptionWithMessage) {
       message = error.data;
     }
-    useAlert(message, whatsappAlertAction(message));
+    const holderId =
+      code === 'contact_inbox_conflict' && error.response.data.meta?.id;
+    useAlert(
+      message,
+      holderId
+        ? {
+            type: 'link',
+            to: `/app/accounts/${currentAccountId.value}/contacts/${holderId}`,
+            message: t('COMPOSE_NEW_CONVERSATION.FORM.OPEN_CONTACT'),
+            duration: 8000,
+          }
+        : whatsappAlertAction(message)
+    );
     return false; // Return failure
   }
 };

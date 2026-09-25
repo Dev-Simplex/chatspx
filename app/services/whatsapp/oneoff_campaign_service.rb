@@ -2,6 +2,9 @@ class Whatsapp::OneoffCampaignService
   pattr_initialize [:campaign!]
 
   def perform
+    # CHAT-155: a caixa virou somente leitura com a campanha agendada -- nada sai por ela.
+    return if inbox.read_only?
+
     validate_campaign!
     # marks campaign completed so that other jobs won't pick it up
     campaign.completed!

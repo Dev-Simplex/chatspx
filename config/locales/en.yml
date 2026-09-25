@@ -63,6 +63,13 @@ en:
         supervised_team_ids: Supervised teams
 
   errors:
+    read_only_inbox:
+      message_blocked: 'This inbox is in read-only mode.'
+      redirect_invalid: 'The redirect inbox must be another WhatsApp inbox of this account that is not read-only.'
+      campaign_blocked: 'A read-only inbox cannot send campaigns.'
+      not_redirectable: 'This conversation is not in a read-only inbox with a redirect inbox.'
+      contact_without_phone: 'Contact has no phone number'
+      replied_note: 'Replied through the inbox %{inbox}, conversation #%{conversation}'
     account_user:
     super_admin:
       team_supervisor_denied: Team supervisors do not have access to the Super Admin Console.
@@ -292,6 +299,7 @@ en:
       request_required: 'This conversation belongs to another agent. Request it to take over.'
     compose:
       blocked_by_existing_attendance: 'This contact already has an ongoing conversation you cannot access. The message was not sent.'
+      contact_inbox_conflict: 'This number already belongs to the contact %{name}. Merge the contacts to continue.'
     agent_conversation_isolation:
       access_blocked: 'This conversation is assigned to another agent. Request it to access it.'
     errors:

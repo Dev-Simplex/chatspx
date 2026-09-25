@@ -32,8 +32,8 @@
     "FILTER_ALL": "Todos",
     "ASSIGNEE_TYPE_TABS": {
       "me": "Minhas",
-      "awaiting": "Aguardando atendimento",
-      "pending_closure": "Aguardando encerramento",
+      "rodizio": "Rodízio",
+      "pending_closure": "Atenção",
       "unassigned": "Não atribuídas",
       "ai": "IA",
       "all": "Todas"

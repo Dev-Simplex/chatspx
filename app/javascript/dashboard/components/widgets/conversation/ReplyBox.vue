@@ -41,6 +41,7 @@ import ConversationAPI from 'dashboard/api/conversations';
 import WhatsappTemplates from './WhatsappTemplates/Modal.vue';
 import InteractiveMessageModal from './InteractiveMessageModal.vue';
 import WhatsappWindowExpired from './WhatsappTemplates/WhatsappWindowExpired.vue';
+import ReadOnlyInboxPanel from 'dashboard/components-next/Conversation/ReadOnlyInboxPanel.vue';
 import ContentTemplates from './ContentTemplates/ContentTemplatesModal.vue';
 import CannedResponseModal from 'dashboard/components-next/canned-response/CannedResponseModal.vue';
 const LocationPickerModal = defineAsyncComponent(
@@ -136,6 +137,7 @@ export default {
     WhatsappTemplates,
     InteractiveMessageModal,
     WhatsappWindowExpired,
+    ReadOnlyInboxPanel,
     CannedResponseModal,
     WootMessageEditor,
     QuotedEmailPreview,
@@ -242,6 +244,8 @@ export default {
       recordingAudioState: '',
       recordingAudioDurationText: '00:00',
       replyType: REPLY_EDITOR_MODES.REPLY,
+      // CHAT-155: o editor de nota so aparece depois de o atendente pedir.
+      readOnlyNoteOpen: false,
       bccEmails: '',
       ccEmails: '',
       toEmails: '',
@@ -376,7 +380,12 @@ export default {
         !!this.currentChat.id
       );
     },
+    // CHAT-155: nada sai por caixa somente leitura; so nota privada.
+    isReadOnlyInbox() {
+      return !!this.inbox?.read_only;
+    },
     isPrivate() {
+      if (this.isReadOnlyInbox) return true;
       if (
         this.currentChat.can_reply ||
         this.isAWhatsAppChannel ||
@@ -401,8 +410,9 @@ export default {
     },
     isReplyRestricted() {
       return (
-        !this.currentChat?.can_reply &&
-        !(this.isAWhatsAppChannel || this.isAPIInbox)
+        this.isReadOnlyInbox ||
+        (!this.currentChat?.can_reply &&
+          !(this.isAWhatsAppChannel || this.isAPIInbox))
       );
     },
     inboxId() {
@@ -733,6 +743,13 @@ export default {
         !this.currentChat.can_reply
       );
     },
+    showReadOnlyPanel() {
+      return this.isReadOnlyInbox && !this.readOnlyNoteOpen;
+    },
+    // Editor escondido: janela de 24h vencida ou caixa somente leitura.
+    isComposerReplaced() {
+      return this.showWhatsappWindowExpired || this.showReadOnlyPanel;
+    },
     showWhatsappWindowExpired() {
       return (
         this.isAWhatsAppChannel &&
@@ -747,7 +764,7 @@ export default {
       // Pill é sempre o root quando não é email e a janela WA não expirou.
       // Conteúdo central (input, audio, copilot) é trocado DENTRO do pill —
       // não cai mais no fluxo legacy quando audio/copilot são ativados.
-      return !this.isAnEmailChannel && !this.showWhatsappWindowExpired;
+      return !this.isAnEmailChannel && !this.isComposerReplaced;
     },
     waMode() {
       // Estados visuais possíveis dentro do pill.
@@ -852,6 +869,12 @@ export default {
       }
     },
     // Desativa drop global quando o modal de nova conversa está aberto
+    isReadOnlyInbox: {
+      handler(readOnly) {
+        if (readOnly) this.replyType = REPLY_EDITOR_MODES.NOTE;
+      },
+      immediate: true,
+    },
     newConversationModalActive(active) {
       this.globalDropEnabled = !active;
     },
@@ -864,6 +887,7 @@ export default {
         this.setCCAndToEmailsFromLastChat();
         // Reset Copilot editor state (includes cancelling ongoing generation)
         this.copilot.reset();
+        this.readOnlyNoteOpen = false;
         // Phase 5 — clear chip preview when navigating to a different conversation
         this.discardAiSuggestionChip({ trackReason: 'context_switch' });
       }
@@ -872,7 +896,10 @@ export default {
         return;
       }
 
-      if (canReply || this.isAWhatsAppChannel || this.isAPIInbox) {
+      if (
+        !this.isReadOnlyInbox &&
+        (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      ) {
         this.replyType = REPLY_EDITOR_MODES.REPLY;
       } else {
         this.replyType = REPLY_EDITOR_MODES.NOTE;
@@ -1931,7 +1958,10 @@ export default {
       this.$store.dispatch('draftMessages/setReplyEditorMode', {
         mode,
       });
-      if (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      if (
+        !this.isReadOnlyInbox &&
+        (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      )
         this.replyType = mode;
       if (this.isRecordingAudio) {
         this.toggleAudioRecorder();
@@ -2863,8 +2893,13 @@ export default {
       leave-to-class="opacity-0 translate-y-2 scale-[0.98]"
     >
       <div :key="copilot.editorTransitionKey.value" class="reply-box__top">
+        <ReadOnlyInboxPanel
+          v-if="showReadOnlyPanel"
+          :inbox="inbox"
+          @switch-to-note="readOnlyNoteOpen = true"
+        />
         <WhatsappWindowExpired
-          v-if="showWhatsappWindowExpired"
+          v-else-if="showWhatsappWindowExpired"
           @send-template="onExpiredSendTemplate"
           @switch-to-note="onExpiredSwitchToNote"
         />
@@ -3314,7 +3349,7 @@ export default {
     </div>
 
     <Transition
-      v-if="!showWhatsappWindowExpired"
+      v-if="!isComposerReplaced"
       mode="out-in"
       enter-active-class="transition-all duration-300 ease-out"
       enter-from-class="opacity-0 translate-y-2 scale-[0.98]"

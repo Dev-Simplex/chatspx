@@ -79,6 +79,9 @@ module Spx
         return false if alterados.zero?
 
         @log.reload
+        # O `update_all` pula o after_commit do Log: sem isto a aba 'Rodízio' seguiria mostrando
+        # a designação fechada quando não há repasse nem escalação (ja_engajada, sem_destino).
+        @log.avisar_lista
         true
       end
 

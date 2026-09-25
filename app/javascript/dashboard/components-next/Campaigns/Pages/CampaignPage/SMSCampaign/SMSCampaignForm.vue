@@ -60,8 +60,13 @@ const audienceList = computed(() =>
   mapToOptions(formState.labels.value, 'id', 'title')
 );
 
+// CHAT-155: nada sai por caixa somente leitura, entao ela nao e origem de campanha.
 const inboxOptions = computed(() =>
-  mapToOptions(formState.inboxes.value, 'id', 'name')
+  mapToOptions(
+    formState.inboxes.value.filter(inbox => !inbox.read_only),
+    'id',
+    'name'
+  )
 );
 
 const getErrorMessage = (field, errorKey) => {

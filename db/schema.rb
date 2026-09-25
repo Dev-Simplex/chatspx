@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_21_200000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_25_193752) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1542,9 +1542,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_21_200000) do
     t.bigint "agent_message_isolation_team_ids", default: [], null: false, array: true
     t.bigint "agent_conversation_isolation_team_ids", default: [], null: false, array: true
     t.bigint "unit_id"
+    t.boolean "read_only", default: false, null: false
+    t.bigint "read_only_redirect_inbox_id"
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
+    t.index ["read_only_redirect_inbox_id"], name: "index_inboxes_on_read_only_redirect_inbox_id"
     t.index ["unit_id"], name: "index_inboxes_on_unit_id"
     t.index ["waha_session_name"], name: "index_inboxes_on_waha_session_name"
   end
@@ -2384,6 +2387,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_21_200000) do
   add_foreign_key "funnels", "teams"
   add_foreign_key "inbox_isolation_exemptions", "inboxes", on_delete: :cascade
   add_foreign_key "inbox_isolation_exemptions", "users", on_delete: :cascade
+  add_foreign_key "inboxes", "inboxes", column: "read_only_redirect_inbox_id", on_delete: :nullify
   add_foreign_key "inboxes", "portals"
   add_foreign_key "inboxes", "units", on_delete: :nullify
   add_foreign_key "internal_channel_members", "internal_channels"
