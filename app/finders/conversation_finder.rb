@@ -233,8 +233,9 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       @conversations = ai_tabs_enabled? ? @conversations.unassigned.without_captain_assignee : @conversations.unassigned
     when 'ai'
       # IA = atribuída à IA, menos as que aguardam encerramento (essas vão pra aba 'Atenção').
-      # As que aguardam atendente ficam aqui: a aba 'awaiting' saiu da tela.
-      @conversations = @conversations.assigned_to_captain
+      # As que aguardam atendente ficam aqui: a aba 'awaiting' saiu da tela. Inclui a que aguarda
+      # humano e perdeu o dono (IA tirada na mão, lead pego no Vista), senão ela só existiria em 'Todas'.
+      @conversations = @conversations.assigned_to_captain.or(@conversations.awaiting_human.where(assignee_id: nil, assignee_agent_bot_id: nil))
                                      .where("conversations.custom_attributes->>'aguardando_encerramento_desde' IS NULL")
     when 'awaiting'
       @conversations = @conversations.awaiting_human
@@ -402,6 +403,9 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
 
     uid = sanitized_user_id
     unattended = 'sub.status = 0 AND (sub.first_reply_created_at IS NULL OR sub.waiting_since IS NOT NULL)'
+    orfa_aguardando = "((sub.custom_attributes->>'aguardando_humano_desde') IS NOT NULL " \
+                      'AND sub.assignee_id IS NULL AND sub.assignee_agent_bot_id IS NULL)'
+    sem_encerramento = "(sub.custom_attributes->>'aguardando_encerramento_desde') IS NULL"
 
     # unassigned_count exclui conversas da IA somente com a flag ligada (DC-4);
     # ai_count = espelho captain SEM o marcador "aguardando encerramento" (vão pra 'Atenção').
@@ -410,7 +414,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         COUNT(*)::int AS all_count,
         COUNT(*) FILTER (WHERE sub.assignee_id = #{uid})::int AS mine_count,
         COUNT(*) FILTER (WHERE sub.assignee_id IS NULL#{' AND ab.id IS NULL' if ai_tabs_enabled?})::int AS unassigned_count,
-        COUNT(*) FILTER (WHERE ab.id IS NOT NULL AND (sub.custom_attributes->>'aguardando_encerramento_desde') IS NULL)::int AS ai_count,
+        COUNT(*) FILTER (WHERE (ab.id IS NOT NULL OR #{orfa_aguardando}) AND #{sem_encerramento})::int AS ai_count,
         COUNT(*) FILTER (WHERE (sub.custom_attributes->>'aguardando_humano_desde') IS NOT NULL)::int AS awaiting_count,
         COUNT(*) FILTER (WHERE (sub.custom_attributes->>'aguardando_encerramento_desde') IS NOT NULL)::int AS awaiting_closure_count,
         COUNT(*) FILTER (WHERE sub.id IN (#{designacoes_rodizio.select(:conversation_id).to_sql}))::int AS rodizio_count,

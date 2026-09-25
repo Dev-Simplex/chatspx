@@ -169,13 +169,21 @@ const getters = {
         // como IA. Bots webhook emitem type 'agent_bot' mas não são atendentes IA.
         const isAIAssigned =
           assignee?.type === 'agent_bot' && Boolean(assignee.is_captain);
+        // Aguardando humano e sem dono nenhum também fica aqui (espelha o backend).
+        const isOrphanAwaiting =
+          !assignee &&
+          Boolean(conversation.custom_attributes?.aguardando_humano_desde);
         // Conversa na fila de encerramento sai da aba "IA" e vai para "Atenção"
         // (espelha o backend: ai_count exige o marcador ausente).
         const isPendingClosure = Boolean(
           conversation.custom_attributes?.aguardando_encerramento_desde
         );
         const shouldFilter = applyPageFilters(conversation, filters);
-        return isAIAssigned && !isPendingClosure && shouldFilter;
+        return (
+          (isAIAssigned || isOrphanAwaiting) &&
+          !isPendingClosure &&
+          shouldFilter
+        );
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
