@@ -779,6 +779,13 @@
       "ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT": "Conversations will continue over email if the contact email address is available.",
       "LOCK_TO_SINGLE_CONVERSATION": "Conversation Routing",
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Configure conversation creation for existing contacts",
+      "READ_ONLY": {
+        "LABEL": "Read-only",
+        "SUB_TEXT": "The inbox keeps receiving, but no message leaves through it, not even automatic ones.",
+        "REDIRECT_LABEL": "Redirect replies to",
+        "REDIRECT_HINT": "Agents get a button to answer the customer through this inbox.",
+        "NONE": "None"
+      },
       "TEAM_MESSAGE_ISOLATION": "Team message isolation",
       "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, agents can only see messages from their own team. Messages from other teams appear blurred with restricted access.",
       "AGENT_MESSAGE_ISOLATION": "Agent message isolation",

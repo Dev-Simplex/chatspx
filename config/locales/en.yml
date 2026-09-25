@@ -63,6 +63,13 @@ en:
         supervised_team_ids: Supervised teams
 
   errors:
+    read_only_inbox:
+      message_blocked: 'This inbox is in read-only mode.'
+      redirect_invalid: 'must be another WhatsApp inbox of this account that is not read-only'
+      campaign_blocked: 'cannot be a read-only inbox'
+      not_redirectable: 'This conversation is not in a read-only inbox with a redirect inbox.'
+      contact_without_phone: 'Contact has no phone number'
+      replied_note: 'Replied through the inbox %{inbox}, conversation #%{conversation}'
     account_user:
     super_admin:
       team_supervisor_denied: Team supervisors do not have access to the Super Admin Console.

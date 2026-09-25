@@ -41,6 +41,8 @@ class Campaign < ApplicationRecord
   validate :sender_must_belong_to_account
   validate :inbox_must_belong_to_account
   validate :dispatch_assignee_must_belong_to_account
+  # CHAT-155: so na criacao/troca de caixa -- uma campanha antiga precisa continuar mudando de status.
+  validate :inbox_not_read_only, if: :will_save_change_to_inbox_id?
 
   belongs_to :account
   belongs_to :inbox
@@ -71,6 +73,7 @@ class Campaign < ApplicationRecord
   def trigger!
     return unless one_off?
     return if completed?
+    return if inbox.read_only? # CHAT-155: campanha criada antes de a caixa virar somente leitura
 
     execute_campaign
   end
@@ -127,6 +130,10 @@ class Campaign < ApplicationRecord
 
     use_http_protocol = trigger_rules['url'].starts_with?('http://') || trigger_rules['url'].starts_with?('https://')
     errors.add(:url, 'invalid') if inbox.inbox_type == 'Website' && !use_http_protocol
+  end
+
+  def inbox_not_read_only
+    errors.add(:inbox_id, I18n.t('errors.read_only_inbox.campaign_blocked')) if inbox&.read_only?
   end
 
   def inbox_must_belong_to_account

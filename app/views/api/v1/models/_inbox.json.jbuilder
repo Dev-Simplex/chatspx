@@ -21,6 +21,10 @@ json.allow_messages_after_resolved resource.allow_messages_after_resolved
 json.lock_to_single_conversation resource.lock_to_single_conversation
 json.pending_status_enabled resource.pending_status_enabled
 json.team_message_isolation resource.team_message_isolation
+# CHAT-155: o nome do destino vai junto -- o agente pode nao ter a caixa de destino na lista dele.
+json.read_only resource.read_only
+json.read_only_redirect_inbox_id resource.read_only_redirect_inbox_id
+json.read_only_redirect_inbox_name resource.read_only_redirect_inbox&.name
 json.agent_message_isolation resource.agent_message_isolation
 json.agent_conversation_isolation resource.agent_conversation_isolation
 # EIXO 1, escopo por TIME de cada regra. Lista vazia = a regra vale para TODOS os times

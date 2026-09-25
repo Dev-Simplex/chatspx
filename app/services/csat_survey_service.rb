@@ -28,8 +28,10 @@ class CsatSurveyService
   # participante responde por todos, e a nota é atribuída ao contato-grupo, não a um cliente.
   # Não é hipótese — 15 CSAT já foram enviadas dentro de grupos nesta base (uma com erro 404).
   # Ver Conversation#group?, ponto único de verdade (nunca reimplementar a heurística de @g.us).
+  # CHAT-155: caixa somente leitura tambem -- o template sai ANTES de a Message ser gravada, entao a
+  # validacao do Message nao pegaria.
   def conversation_allows_csat?
-    conversation.resolved? && !conversation.tweet? && !conversation.group?
+    conversation.resolved? && !conversation.tweet? && !conversation.group? && !conversation.inbox.read_only?
   end
 
   def csat_enabled?

@@ -11,6 +11,8 @@ class ScheduledMessages::SendService
 
   def perform # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     return if scheduled_message.sent? || scheduled_message.cancelled?
+    # CHAT-155: a Message pode ja existir (so vai para o SendReplyJob) -- a validacao nao pegaria.
+    return mark_as_failed(I18n.t('errors.read_only_inbox.message_blocked')) if scheduled_message.conversation.inbox.read_only?
 
     if scheduled_message.message_id.present?
       message = scheduled_message.sent_message

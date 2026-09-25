@@ -40,7 +40,7 @@
 #  fk_rails_...  (portal_id => portals.id)
 #
 
-class Inbox < ApplicationRecord
+class Inbox < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include InboxIsolationScope
 
   include Reportable
@@ -48,6 +48,7 @@ class Inbox < ApplicationRecord
   include OutOfOffisable
   include AccountCacheRevalidator
   include InboxAgentAvailability
+  include InboxReadOnly
 
   # Fixar conversa POR CAIXA: `pin_mode` escolhe entre 'per_agent' (padrao) e 'per_inbox',
   # e `pinned_conversation_ids` guarda a lista quando o modo e por caixa. Restaurado a mao
