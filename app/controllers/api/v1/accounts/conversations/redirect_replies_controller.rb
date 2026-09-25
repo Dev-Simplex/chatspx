@@ -14,8 +14,9 @@ class Api::V1::Accounts::Conversations::RedirectRepliesController < Api::V1::Acc
       # Rollback desfaz tambem a conversa/vinculo recem-criados: o modal volta pedindo template.
       raise ActiveRecord::Rollback if (needs_template = requires_template?(target))
 
-      Messages::MessageBuilder.new(Current.user, target, message_params).perform
+      # Encerra antes de enviar: se algo falhar, nada saiu pelo destino.
       close_original(target)
+      Messages::MessageBuilder.new(Current.user, target, message_params).perform
     end
     return render json: { requires_template: true }, status: :unprocessable_entity if needs_template
 
@@ -59,6 +60,9 @@ class Api::V1::Accounts::Conversations::RedirectRepliesController < Api::V1::Acc
       sender: Current.user,
       content: I18n.t('errors.read_only_inbox.replied_note', inbox: target_inbox.name, conversation: target.display_id)
     )
+    # Encerramento do sistema, como o ResolutionJob: a regra "time antes de resolver" e para o
+    # atendente -- uma conversa sem time numa caixa desativada nunca fecharia.
+    @conversation.skip_team_required_for_resolution_validation = true
     @conversation.resolved!
   end
 

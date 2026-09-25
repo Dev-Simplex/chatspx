@@ -85,4 +85,15 @@ RSpec.describe 'Conversation redirect reply API (CHAT-155)', type: :request do
     expect(sent.additional_attributes.dig('template_params', 'name')).to eq('retomada')
     expect(conversation.reload).to be_resolved
   end
+
+  it 'resolves the original conversation even without a team (system closing)' do
+    # O rails_helper desliga essa regra por padrao; aqui ela precisa valer (foi o que quebrou no staging).
+    allow_any_instance_of(Conversation).to receive(:team_required_for_resolution).and_call_original # rubocop:disable RSpec/AnyInstance
+    conversation.update!(team: nil)
+
+    redirect
+
+    expect(response).to have_http_status(:success)
+    expect(conversation.reload).to be_resolved
+  end
 end
