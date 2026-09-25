@@ -39,6 +39,7 @@ const buildStore = ({
   gateEnabled = false,
   assistants = [],
   stats = {},
+  user = CURRENT_USER,
 } = {}) => {
   const statsState = {
     mineCount: 0,
@@ -57,7 +58,7 @@ const buildStore = ({
   const store = createStore({
     state: {},
     getters: {
-      getCurrentUser: () => CURRENT_USER,
+      getCurrentUser: () => user,
       getCurrentAccountId: () => 1,
       getCurrentRole: () => 'administrator',
       getFilteredConversations: () => [],
@@ -65,7 +66,8 @@ const buildStore = ({
       getAllStatusChats: () => [],
       getUnAssignedChats: () => [],
       getAIChats: () => [],
-      getAwaitingChats: () => [],
+      getRodizioChats: () => [],
+      getPendingClosureChats: () => [],
       getChatListLoadingStatus: () => false,
       getSelectedInbox: () => 0,
       getAppliedConversationFiltersV2: () => [],
@@ -270,18 +272,16 @@ describe('ChatList — assignee tabs (Fase C)', () => {
   });
 
   describe('with the assignment gate ON', () => {
-    it('shows Mine/Awaiting/AI/All as dynamic tabs (counts > 0), never the unassigned chip', () => {
-      // Abas dinâmicas: "Aguardando atendimento" (awaiting_count > 0) e "IA"
-      // (ai_count > 0) só aparecem quando têm conteúdo. A ordem é
-      // Minhas / Aguardando atendimento / IA / Todas. "Não atribuídas" deixa de
-      // ser chip no modo IA.
+    it('admin sees Mine/Rotation/Attention/AI/All, never the unassigned chip', () => {
+      // Admin/supervisor: "Rodízio" sempre; "Atenção" e "IA" quando têm conteúdo.
       const { wrapper } = mountChatList({
         gateEnabled: true,
         assistants: [{ id: 1, name: 'Aria' }],
         stats: {
           mineCount: 1,
           unAssignedCount: 2,
-          awaitingCount: 3,
+          rodizioCount: 0,
+          awaitingClosureCount: 3,
           aiCount: 4,
           allCount: 7,
         },
@@ -289,43 +289,73 @@ describe('ChatList — assignee tabs (Fase C)', () => {
       const items = wrapper.findComponent(ChatTypeTabs).props('items');
       expect(items.map(item => item.key)).toEqual([
         'me',
-        'awaiting',
+        'rodizio',
+        'pending_closure',
         'ai',
         'all',
       ]);
-      expect(items.find(item => item.key === 'unassigned')).toBeUndefined();
-
-      const awaitingTab = items.find(item => item.key === 'awaiting');
-      expect(awaitingTab.icon).toBe('i-lucide-clock');
-      expect(awaitingTab.count).toBe(3);
-
-      const aiTab = items.find(item => item.key === 'ai');
-      expect(aiTab.variant).toBeUndefined();
-      expect(aiTab.icon).toBe('i-lucide-sparkles');
-      expect(aiTab.count).toBe(4);
+      expect(items.find(item => item.key === 'rodizio').variant).toBe('alert');
+      expect(items.find(item => item.key === 'pending_closure').count).toBe(3);
+      expect(items.find(item => item.key === 'ai').count).toBe(4);
     });
 
-    it('hides the Awaiting tab when awaiting_count is zero', () => {
+    it('hides Attention when awaiting_closure_count is zero', () => {
       const { wrapper } = mountChatList({
         gateEnabled: true,
-        assistants: [{ id: 1, name: 'Aria' }],
-        stats: { awaitingCount: 0, aiCount: 1, allCount: 1 },
+        stats: { awaitingClosureCount: 0, aiCount: 1, allCount: 1 },
+      });
+      expect(tabKeys(wrapper)).toEqual(['me', 'rodizio', 'ai', 'all']);
+    });
+
+    it('agent sees Rotation only on their turn, and never Attention', () => {
+      const agent = {
+        id: 2,
+        name: 'Agent',
+        accounts: [{ id: 1, role: 'agent', permissions: ['agent'] }],
+      };
+      const stats = { awaitingClosureCount: 3, aiCount: 1, allCount: 4 };
+      const { wrapper } = mountChatList({
+        gateEnabled: true,
+        user: agent,
+        stats: { ...stats, rodizioCount: 0 },
       });
       expect(tabKeys(wrapper)).toEqual(['me', 'ai', 'all']);
+
+      const { wrapper: onTurn } = mountChatList({
+        gateEnabled: true,
+        user: agent,
+        stats: { ...stats, rodizioCount: 1 },
+      });
+      expect(tabKeys(onTurn)).toEqual(['me', 'rodizio', 'ai', 'all']);
+    });
+
+    it('supervisor sees Rotation and Attention like the admin', () => {
+      const { wrapper } = mountChatList({
+        gateEnabled: true,
+        user: {
+          id: 3,
+          name: 'Sup',
+          accounts: [
+            { id: 1, role: 'agent', permissions: ['agent', 'team_supervisor'] },
+          ],
+        },
+        stats: { awaitingClosureCount: 2, allCount: 2 },
+      });
+      expect(tabKeys(wrapper)).toEqual([
+        'me',
+        'rodizio',
+        'pending_closure',
+        'all',
+      ]);
     });
 
     it('hides the AI tab when ai_count is zero (regardless of assistants)', () => {
       const { wrapper } = mountChatList({
         gateEnabled: true,
         assistants: [{ id: 1, name: 'Aria' }],
-        stats: {
-          awaitingCount: 0,
-          aiCount: 0,
-          unAssignedCount: 2,
-          allCount: 5,
-        },
+        stats: { aiCount: 0, unAssignedCount: 2, allCount: 5 },
       });
-      expect(tabKeys(wrapper)).toEqual(['me', 'all']);
+      expect(tabKeys(wrapper)).toEqual(['me', 'rodizio', 'all']);
     });
 
     it('shows the AI tab on count even when the account has no assistants', () => {
@@ -334,7 +364,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
         assistants: [],
         stats: { aiCount: 2, allCount: 4 },
       });
-      expect(tabKeys(wrapper)).toEqual(['me', 'ai', 'all']);
+      expect(tabKeys(wrapper)).toEqual(['me', 'rodizio', 'ai', 'all']);
     });
 
     it('fetches captain assistants on mount', () => {
@@ -354,7 +384,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
           assistants: [{ id: 1, name: 'Aria' }],
           stats: {
             unAssignedCount: 0,
-            awaitingCount: 5,
+            rodizioCount: 5,
             aiCount: 5,
             unattendedAssignedCount: 1,
             unattendedUnassignedCount: 2,
@@ -364,8 +394,8 @@ describe('ChatList — assignee tabs (Fase C)', () => {
         { conversationType: 'unattended' }
       );
       const items = wrapper.findComponent(ChatTypeTabs).props('items');
-      // Awaiting/AI nunca aparecem na visão de não-respondidas (sem contadores
-      // per-awaiting/per-AI lá).
+      // Rodízio/Atenção/IA nunca aparecem na visão de não-respondidas (sem
+      // contadores per-fila lá).
       expect(items.map(item => item.key)).toEqual(['me', 'unassigned', 'all']);
       expect(items.find(item => item.key === 'me').count).toBe(1);
       expect(items.find(item => item.key === 'unassigned').count).toBe(2);

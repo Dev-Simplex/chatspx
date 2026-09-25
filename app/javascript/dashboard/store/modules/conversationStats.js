@@ -10,6 +10,7 @@ const state = {
   aiCount: 0,
   awaitingCount: 0,
   awaitingClosureCount: 0,
+  rodizioCount: 0,
   allCount: 0,
   unattendedAssignedCount: 0,
   unattendedUnassignedCount: 0,
@@ -108,6 +109,7 @@ export const mutations = {
       ai_count: aiCount,
       awaiting_count: awaitingCount,
       awaiting_closure_count: awaitingClosureCount,
+      rodizio_count: rodizioCount,
       all_count: allCount,
       unattended_assigned_to_me_count: unattendedAssignedCount,
       unattended_unassigned_count: unattendedUnassignedCount,
@@ -127,6 +129,9 @@ export const mutations = {
     }
     if ('awaiting_closure_count' in payload) {
       $state.awaitingClosureCount = awaitingClosureCount ?? 0;
+    }
+    if ('rodizio_count' in payload) {
+      $state.rodizioCount = rodizioCount ?? 0;
     }
     if ('unattended_assigned_to_me_count' in payload) {
       $state.unattendedAssignedCount = unattendedAssignedCount ?? 0;

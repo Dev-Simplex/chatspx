@@ -123,6 +123,7 @@ json.can_reply conversation.can_reply?
 json.handover_cut_at Conversations::HandoverCut.cut_at_for(conversation, Current.user)&.to_i
 json.contact_last_seen_at conversation.contact_last_seen_at.to_i
 json.custom_attributes conversation.custom_attributes
+json.rodizio_designado_id conversation.designacao_rodizio&.chosen_user_id
 json.inbox_id conversation.inbox_id
 json.labels conversation.cached_label_list_array
 json.muted conversation.muted?
