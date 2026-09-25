@@ -13,6 +13,7 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
   SCAN_LOCK_TTL = 10.minutes
 
   def perform(inbox)
+    return if inbox.read_only? # CHAT-155: o fechamento manda aviso/handoff ao cliente
     return if inbox.account.captain_auto_resolve_disabled?
 
     with_inbox_scan_lock(inbox) do

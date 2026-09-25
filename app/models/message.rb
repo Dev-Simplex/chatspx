@@ -84,6 +84,10 @@ class Message < ApplicationRecord
   validates :content_type, presence: true
   validates :content, length: { maximum: 150_000 }
   validates :processed_message_content, length: { maximum: 150_000 }
+  # CHAT-155: rede de seguranca da caixa somente leitura. Barra na CRIACAO porque a WAHA nao passa
+  # pelo SendReplyJob (sai pelo webhook da caixa API) -- se a Message existe, ela sai. Eco de algo
+  # enviado FORA daqui (app do celular) ja chega com source_id e so registra, entao passa.
+  validate :inbox_not_read_only, on: :create, if: -> { (outgoing? || template?) && !private? && source_id.blank? }
 
   # when you have a temperory id in your frontend and want it echoed back via action cable
   attr_accessor :echo_id
@@ -316,6 +320,10 @@ class Message < ApplicationRecord
   end
 
   private
+
+  def inbox_not_read_only
+    errors.add(:base, I18n.t('errors.read_only_inbox.message_blocked')) if inbox&.read_only?
+  end
 
   def prevent_message_flooding
     # Added this to cover the validation specs in messages

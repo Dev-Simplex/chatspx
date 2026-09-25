@@ -1,5 +1,13 @@
 {
   "CONVERSATION": {
+    "READ_ONLY_INBOX": {
+      "BANNER": "Caixa somente leitura: respostas não saem por este número.",
+      "REPLY_THROUGH": "Responder pela caixa {inbox}",
+      "DIALOG_DESCRIPTION": "A mensagem vai para o mesmo cliente pelo outro número, e você é levado para aquela conversa. Esta é resolvida com uma nota privada.",
+      "PLACEHOLDER": "Escreva a resposta",
+      "SEND": "Enviar",
+      "ERROR": "Não foi possível enviar a resposta. Tente novamente."
+    },
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "Conversa sem responsável",

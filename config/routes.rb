@@ -254,6 +254,8 @@ Rails.application.routes.draw do
               # Pendurado aqui p/ herdar `authorize :show?` + authorize_team_access
               # do Conversations::BaseController de graça.
               resources :takeover_requests, only: [:create]
+              # CHAT-155: responder o cliente de uma caixa somente leitura pela caixa de destino.
+              resource :redirect_reply, only: [:create]
               # C8: mandar produto do catálogo na conversa. Mesmo `scope module: :conversations`,
               # para herdar as travas de acesso à conversa.
               resources :catalog_products, only: [:create]

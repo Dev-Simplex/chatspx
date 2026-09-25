@@ -759,6 +759,13 @@
       "ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT": "As conversas continuarão sobre o e-mail se o endereço de e-mail de contato estiver disponível.",
       "LOCK_TO_SINGLE_CONVERSATION": "Bloquear para conversa única",
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Ativar ou desativar várias conversas para o mesmo contato nesta caixa de entrada",
+      "READ_ONLY": {
+        "LABEL": "Somente leitura",
+        "SUB_TEXT": "A caixa continua recebendo, mas nenhuma mensagem sai por ela, nem automática.",
+        "REDIRECT_LABEL": "Redirecionar respostas para",
+        "REDIRECT_HINT": "O atendente ganha um botão para responder o cliente por esta caixa.",
+        "NONE": "Nenhuma"
+      },
       "TEAM_MESSAGE_ISOLATION": "Isolamento de mensagens por time",
       "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "Quando ativado, agentes só visualizam mensagens do seu próprio time. Mensagens de outros times aparecem com acesso restrito.",
       "AGENT_MESSAGE_ISOLATION": "Isolamento de mensagens por agente",

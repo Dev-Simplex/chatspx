@@ -40,10 +40,12 @@ import { REPLY_POLICY } from 'shared/constants/links';
 import wootConstants from 'dashboard/constants/globals';
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
+import RedirectReplyDialog from 'dashboard/components-next/Conversation/RedirectReplyDialog.vue';
 
 export default {
   components: {
     MessageList,
+    RedirectReplyDialog,
     ForwardMessageModal,
     ReplyBox,
     TakeoverApprovalBanner,
@@ -634,7 +636,21 @@ export default {
       "
     />
     <Banner
-      v-if="!currentChat.can_reply"
+      v-if="inbox?.read_only"
+      color-scheme="warning"
+      class="mx-2 mt-2 overflow-hidden rounded-lg relative z-10"
+      :banner-message="$t('CONVERSATION.READ_ONLY_INBOX.BANNER')"
+      :has-action-button="!!inbox.read_only_redirect_inbox_id"
+      :action-button-label="
+        $t('CONVERSATION.READ_ONLY_INBOX.REPLY_THROUGH', {
+          inbox: inbox.read_only_redirect_inbox_name,
+        })
+      "
+      action-button-icon="i-lucide-reply"
+      @primary-action="$refs.redirectReplyDialog.open()"
+    />
+    <Banner
+      v-else-if="!currentChat.can_reply"
       color-scheme="alert"
       class="mx-2 mt-2 overflow-hidden rounded-lg relative z-10"
       :banner-message="replyWindowBannerMessage"
@@ -800,6 +816,11 @@ export default {
       :selected-message-ids="forwardSelectedMessageIds"
       @close="closeForwardModal"
       @forwarded="handleForwarded"
+    />
+    <RedirectReplyDialog
+      v-if="inbox?.read_only_redirect_inbox_id"
+      ref="redirectReplyDialog"
+      :inbox="inbox"
     />
   </div>
 </template>

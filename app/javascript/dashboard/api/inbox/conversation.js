@@ -115,6 +115,14 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/${conversationId}/assignments`, params);
   }
 
+  // CHAT-155: responde o cliente de uma caixa somente leitura pela caixa de destino.
+  redirectReply({ conversationId, content, templateParams }) {
+    return axios.post(`${this.url}/${conversationId}/redirect_reply`, {
+      content,
+      template_params: templateParams,
+    });
+  }
+
   // "Devolver para a IA": re-tria a conversa (Clara, time limpo). O backend
   // resolve qual é o assistente de triagem da conta/inbox.
   retriage({ conversationId }) {

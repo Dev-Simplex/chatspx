@@ -19,6 +19,9 @@ class SendReplyJob < ApplicationJob
 
   def perform(message_id)
     message = Message.find(message_id)
+    # CHAT-155: ultima barreira -- reenvio (retry) e agendada reusam uma Message que ja existia.
+    return if message.conversation.inbox.read_only?
+
     channel_name = message.conversation.inbox.channel.class.to_s
 
     return send_on_facebook_page(message) if channel_name == 'Channel::FacebookPage'

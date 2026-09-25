@@ -376,7 +376,12 @@ export default {
         !!this.currentChat.id
       );
     },
+    // CHAT-155: nada sai por caixa somente leitura; so nota privada.
+    isReadOnlyInbox() {
+      return !!this.inbox?.read_only;
+    },
     isPrivate() {
+      if (this.isReadOnlyInbox) return true;
       if (
         this.currentChat.can_reply ||
         this.isAWhatsAppChannel ||
@@ -401,8 +406,9 @@ export default {
     },
     isReplyRestricted() {
       return (
-        !this.currentChat?.can_reply &&
-        !(this.isAWhatsAppChannel || this.isAPIInbox)
+        this.isReadOnlyInbox ||
+        (!this.currentChat?.can_reply &&
+          !(this.isAWhatsAppChannel || this.isAPIInbox))
       );
     },
     inboxId() {
@@ -852,6 +858,12 @@ export default {
       }
     },
     // Desativa drop global quando o modal de nova conversa está aberto
+    isReadOnlyInbox: {
+      handler(readOnly) {
+        if (readOnly) this.replyType = REPLY_EDITOR_MODES.NOTE;
+      },
+      immediate: true,
+    },
     newConversationModalActive(active) {
       this.globalDropEnabled = !active;
     },
@@ -872,7 +884,10 @@ export default {
         return;
       }
 
-      if (canReply || this.isAWhatsAppChannel || this.isAPIInbox) {
+      if (
+        !this.isReadOnlyInbox &&
+        (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      ) {
         this.replyType = REPLY_EDITOR_MODES.REPLY;
       } else {
         this.replyType = REPLY_EDITOR_MODES.NOTE;
@@ -1931,7 +1946,10 @@ export default {
       this.$store.dispatch('draftMessages/setReplyEditorMode', {
         mode,
       });
-      if (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      if (
+        !this.isReadOnlyInbox &&
+        (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      )
         this.replyType = mode;
       if (this.isRecordingAudio) {
         this.toggleAudioRecorder();
