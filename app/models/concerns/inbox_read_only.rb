@@ -17,7 +17,7 @@ module InboxReadOnly
     target = read_only_redirect_inbox
     return if target && target.account_id == account_id && target.id != id && redirect_target_can_send?(target)
 
-    errors.add(:read_only_redirect_inbox_id, I18n.t('errors.read_only_inbox.redirect_invalid'))
+    errors.add(:base, I18n.t('errors.read_only_inbox.redirect_invalid'))
   end
 
   def redirect_target_can_send?(target)
