@@ -97,7 +97,8 @@
       "DIALOG_DESCRIPTION": "The message goes to the same customer from the other number, and you are taken to that conversation. This one is resolved with a private note.",
       "PLACEHOLDER": "Type your reply",
       "SEND": "Send",
-      "ERROR": "Could not send the reply. Please try again."
+      "ERROR": "Could not send the reply. Please try again.",
+      "PRIVATE_NOTE": "Internal note"
     },
     "WHATSAPP_WINDOW_EXPIRED": {
       "TITLE": "Janela de 24 horas expirada",

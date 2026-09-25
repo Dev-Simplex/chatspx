@@ -6,7 +6,8 @@
       "DIALOG_DESCRIPTION": "A mensagem vai para o mesmo cliente pelo outro número, e você é levado para aquela conversa. Esta é resolvida com uma nota privada.",
       "PLACEHOLDER": "Escreva a resposta",
       "SEND": "Enviar",
-      "ERROR": "Não foi possível enviar a resposta. Tente novamente."
+      "ERROR": "Não foi possível enviar a resposta. Tente novamente.",
+      "PRIVATE_NOTE": "Nota interna"
     },
     "REPLY_GATE_DIALOG": {
       "TITLE": {
