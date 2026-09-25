@@ -986,6 +986,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # atribuída ao espelho DESTE assistant (gate por atribuição, D-6). Compara com o
   # assistant do ARGUMENTO (serializado via GlobalID) — job em voo de IA antiga cala.
   def captain_can_respond?
+    return false if @inbox.read_only? # CHAT-155: a IA nao responde por caixa somente leitura
+
     status, mirror_id = Conversation.uncached do
       Conversation.where(id: @conversation.id).pick(:status, :assignee_agent_bot_id)
     end

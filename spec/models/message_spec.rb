@@ -16,6 +16,39 @@ RSpec.describe Message do
     it { is_expected.to validate_presence_of(:account_id) }
   end
 
+  describe 'read-only inbox (CHAT-155)' do
+    let(:conversation) { create(:conversation) }
+
+    before { conversation.inbox.update!(read_only: true) }
+
+    def build_message(**attrs)
+      build(:message, conversation: conversation, inbox: conversation.inbox, account: conversation.account, **attrs)
+    end
+
+    it 'blocks outgoing and template messages' do
+      %w[outgoing template].each do |type|
+        message = build_message(message_type: type)
+        expect(message).not_to be_valid
+        expect(message.errors[:base]).to include(I18n.t('errors.read_only_inbox.message_blocked'))
+      end
+    end
+
+    it 'lets incoming, activity and private notes through' do
+      expect(build_message(message_type: 'incoming')).to be_valid
+      expect(build_message(message_type: 'activity')).to be_valid
+      expect(build_message(message_type: 'outgoing', private: true)).to be_valid
+    end
+
+    it 'lets an echo of something sent outside the app through (already has source_id)' do
+      expect(build_message(message_type: 'outgoing', source_id: 'wamid.echo')).to be_valid
+    end
+
+    it 'does not block outgoing messages of a regular inbox' do
+      conversation.inbox.update!(read_only: false)
+      expect(build_message(message_type: 'outgoing')).to be_valid
+    end
+  end
+
   describe 'length validations' do
     let!(:message) { create(:message) }
 

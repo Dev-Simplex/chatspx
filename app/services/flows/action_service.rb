@@ -125,6 +125,7 @@ class Flows::ActionService < ActionService
   # Fonte do anexo é @flow.files (era @rule.files / @macro.files).
   def send_attachment(blob_ids)
     return if conversation_a_tweet?
+    return if @conversation.inbox.read_only? # CHAT-155 (anexo nao passa pelo enforce_compliance!)
     return unless @flow.files.attached?
 
     blobs = ActiveStorage::Blob.where(id: blob_ids)

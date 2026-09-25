@@ -7,6 +7,7 @@ class MessageTemplates::Template::OutOfOffice
   # o freio e o texto de fora-de-horário voltaria a cair dentro do grupo (caso real: conv 12).
   def self.perform_if_applicable(conversation)
     inbox = conversation.inbox
+    return if inbox.read_only? # CHAT-155
     return unless inbox.out_of_office?
     return if inbox.out_of_office_message.blank?
     return if conversation.group?

@@ -55,7 +55,7 @@ class NpsSurveyService # rubocop:disable Metrics/ClassLength
   end
 
   def conversation_allows_nps?
-    conversation.resolved? && !conversation.tweet?
+    conversation.resolved? && !conversation.tweet? && !conversation.inbox.read_only? # CHAT-155
   end
 
   def nps_already_sent?

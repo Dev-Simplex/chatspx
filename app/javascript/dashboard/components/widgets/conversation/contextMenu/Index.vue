@@ -414,7 +414,7 @@ export default {
         />
       </MenuItemWithSubmenu>
       <MenuItemWithSubmenu
-        v-if="isAllowed([MENU.AGENT])"
+        v-if="isAllowed([MENU.AGENT]) && !currentInbox?.read_only"
         :option="agentMenuConfig"
         :sub-menu-available="!!assignableAgents.length"
       >
@@ -430,7 +430,7 @@ export default {
         </template>
       </MenuItemWithSubmenu>
       <MenuItemWithSubmenu
-        v-if="isAllowed([MENU.TEAM])"
+        v-if="isAllowed([MENU.TEAM]) && !currentInbox?.read_only"
         :option="teamMenuConfig"
         :sub-menu-available="!!teams.length"
       >

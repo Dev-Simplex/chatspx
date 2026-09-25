@@ -22,6 +22,7 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   # fizer sentido: token atual, dono da conversa ainda é a IA, cliente não respondeu,
   # dentro de horário civilizado. A própria cutucada é gerada pelo agente no contexto.
   def perform(conversation, token)
+    return if conversation.inbox.read_only? # CHAT-155
     return unless followup_due?(conversation, token)
 
     # Dono resolvido ANTES de consumir token/followup_count (gate por atribuição, D-6):

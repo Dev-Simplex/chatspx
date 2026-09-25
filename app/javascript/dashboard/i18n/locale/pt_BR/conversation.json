@@ -92,6 +92,15 @@
     "BOT_HANDOFF_ERROR": "Falha ao resolver conversas. Por favor, tente novamente.",
     "TWILIO_WHATSAPP_CAN_REPLY": "Você só pode responder a esta conversa usando um modelo de mensagem devido a",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "Restrições de janela de mensagem de 24 horas",
+    "READ_ONLY_INBOX": {
+      "BANNER": "Caixa somente leitura: respostas não saem por este número.",
+      "REPLY_THROUGH": "Responder pela caixa {inbox}",
+      "DIALOG_DESCRIPTION": "A mensagem vai para o mesmo cliente pelo outro número, e você é levado para aquela conversa. Esta é resolvida com uma nota privada.",
+      "PLACEHOLDER": "Escreva a resposta",
+      "SEND": "Enviar",
+      "ERROR": "Não foi possível enviar a resposta. Tente novamente.",
+      "PRIVATE_NOTE": "Nota interna"
+    },
     "WHATSAPP_WINDOW_EXPIRED": {
       "TITLE": "Janela de 24 horas expirada",
       "DESCRIPTION": "O WhatsApp só permite mensagens livres dentro de 24 horas após a última mensagem do cliente. Para retomar, envie um template aprovado.",

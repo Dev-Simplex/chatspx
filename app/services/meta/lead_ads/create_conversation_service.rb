@@ -551,6 +551,7 @@ module Meta
       # a 1ª mensagem cai fora da janela → tem que ser template. WAHA (Channel::Api) não
       # tem essa restrição → segue texto livre.
       def create_initial_message(conversation)
+        return if @inbox.read_only? # CHAT-155: a conversa nasce, a abertura nao sai
         return create_imovel_opener(conversation) if cloud_whatsapp_inbox? && imovel_opener_ready?
         return create_initial_template_message(conversation) if cloud_whatsapp_inbox?
 

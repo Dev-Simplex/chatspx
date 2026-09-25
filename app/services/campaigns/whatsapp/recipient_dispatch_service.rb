@@ -22,6 +22,12 @@ module Campaigns
         return false unless recipient.processing?
 
         inbox = campaign.inbox
+        # CHAT-155: a caixa virou somente leitura no meio do disparo -- nada sai por ela.
+        if inbox.read_only?
+          recipient.update!(status: :skipped, external_error: 'caixa somente leitura')
+          return false
+        end
+
         contact_inbox = build_contact_inbox(inbox)
 
         # Decisao do Paulo: o disparo NAO atropela atendimento ativo. Contato com
