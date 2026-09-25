@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { dynamicTime } from 'shared/helpers/timeHelper';
 import { INPUT_TYPES } from 'dashboard/components-next/taginput/helper/tagInputHelper.js';
 import {
   formatPhoneDisplay,
@@ -86,9 +87,21 @@ const showPhoneCta = computed(() => {
 });
 
 const contactsList = computed(() => {
+  // S-03: so o nome deixava "Juliana", "Juliana", "Juliana". O telefone e o que
+  // diferencia uma ficha de WhatsApp; a ultima atividade diz qual ja falou com a gente.
   return props.contacts?.map(({ name, id, thumbnail, email, ...rest }) => ({
     id,
-    label: email ? `${name} (${email})` : name,
+    label: name,
+    description: [
+      rest.phoneNumber && formatPhoneDisplay(rest.phoneNumber).formatted,
+      email,
+      rest.lastActivityAt && dynamicTime(rest.lastActivityAt),
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    badge: rest.duplicateOf
+      ? t(`${i18nPrefix}.DUPLICATE_BADGE`, { id: rest.duplicateOf })
+      : null,
     value: id,
     thumbnail: { name, src: thumbnail },
     ...rest,
