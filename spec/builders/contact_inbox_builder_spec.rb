@@ -411,6 +411,18 @@ describe ContactInboxBuilder do
         expect(existing_contact_inbox.reload.source_id).not_to eq(source_id)
       end
 
+      it 'refuses to take the source_id of another contact in a whatsapp cloud inbox (S-02)' do
+        whatsapp_inbox = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+        holder = create(:contact, account: account, name: 'Juliana Aguiar', phone_number: '+5565992476382')
+        holder_inbox = create(:contact_inbox, contact: holder, inbox: whatsapp_inbox, source_id: '5565992476302')
+        blocked = create(:contact, account: account, phone_number: '+5565992476302')
+
+        expect do
+          described_class.new(contact: blocked, inbox: whatsapp_inbox, source_id: nil).perform
+        end.to raise_error(ContactInboxBuilder::ConflictError) { |error| expect(error.holder).to eq(holder) }
+        expect(holder_inbox.reload.source_id).to eq('5565992476302')
+      end
+
       it 'does not update source_id for channels other than email or phone number' do
         create(:contact_inbox, contact: contact2, inbox: channel_api.inbox, source_id: source_id)
 

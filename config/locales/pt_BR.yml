@@ -318,6 +318,7 @@ pt_BR:
       request_required: 'Esta conversa é de outro agente. Solicite o atendimento para assumir.'
     compose:
       blocked_by_existing_attendance: 'Este contato já está em atendimento em uma conversa que você não pode abrir. A mensagem não foi enviada.'
+      contact_inbox_conflict: 'Este número já pertence à ficha %{name}. Mescle as fichas para continuar.'
     agent_conversation_isolation:
       access_blocked: 'Esta conversa está atribuída a outro agente. Solicite o atendimento para acessá-la.'
     errors:
