@@ -340,6 +340,23 @@ RSpec.describe 'Contacts API', type: :request do
         expect(response.body).not_to include(contact1.email)
       end
 
+      it 'returns duplicate_of when another contact holds the number (S-03)' do
+        inbox = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+        wrong = create(:contact, name: 'Juliana Aguiar', account: account, phone_number: '+5565992476382')
+        create(:contact_inbox, contact: wrong, inbox: inbox, source_id: '5565992476302')
+        right = create(:contact, name: 'Juliana', account: account, phone_number: '+5565992476302')
+
+        get "/api/v1/accounts/#{account.id}/contacts/search",
+            params: { q: 'juliana' },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        payload = response.parsed_body['payload'].index_by { |contact| contact['id'] }
+        expect(payload[right.id]['duplicate_of']).to eq(wrong.id)
+        expect(payload[wrong.id]['duplicate_of']).to eq(right.id)
+        expect(response.parsed_body['payload'].pluck('duplicate_of')).to all(be_nil.or(be_a(Integer)))
+      end
+
       it 'matches the contact ignoring the case in email' do
         get "/api/v1/accounts/#{account.id}/contacts/search",
             params: { q: 'Test@Test.com' },
