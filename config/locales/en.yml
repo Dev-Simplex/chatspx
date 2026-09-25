@@ -63,8 +63,8 @@ en:
   errors:
     read_only_inbox:
       message_blocked: 'This inbox is in read-only mode.'
-      redirect_invalid: 'must be another WhatsApp inbox of this account that is not read-only'
-      campaign_blocked: 'cannot be a read-only inbox'
+      redirect_invalid: 'The redirect inbox must be another WhatsApp inbox of this account that is not read-only.'
+      campaign_blocked: 'A read-only inbox cannot send campaigns.'
       not_redirectable: 'This conversation is not in a read-only inbox with a redirect inbox.'
       contact_without_phone: 'Contact has no phone number'
       replied_note: 'Replied through the inbox %{inbox}, conversation #%{conversation}'

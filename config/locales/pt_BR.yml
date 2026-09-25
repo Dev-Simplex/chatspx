@@ -76,8 +76,8 @@ pt_BR:
   errors:
     read_only_inbox:
       message_blocked: 'Esta caixa de entrada está em modo somente leitura.'
-      redirect_invalid: 'precisa ser outra caixa de WhatsApp desta conta que não seja somente leitura'
-      campaign_blocked: 'não pode ser uma caixa somente leitura'
+      redirect_invalid: 'A caixa de destino precisa ser outra caixa de WhatsApp desta conta que não seja somente leitura.'
+      campaign_blocked: 'Uma caixa somente leitura não pode enviar campanhas.'
       not_redirectable: 'Esta conversa não está numa caixa somente leitura com redirecionamento.'
       contact_without_phone: 'Contato sem telefone'
       replied_note: 'Respondido pela caixa %{inbox}, conversa #%{conversation}'

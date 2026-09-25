@@ -133,7 +133,7 @@ class Campaign < ApplicationRecord
   end
 
   def inbox_not_read_only
-    errors.add(:inbox_id, I18n.t('errors.read_only_inbox.campaign_blocked')) if inbox&.read_only?
+    errors.add(:base, I18n.t('errors.read_only_inbox.campaign_blocked')) if inbox&.read_only?
   end
 
   def inbox_must_belong_to_account
