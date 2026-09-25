@@ -428,7 +428,8 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       unassigned_count: result['unassigned_count'].to_i,
       ai_count: result['ai_count'].to_i,
       awaiting_count: result['awaiting_count'].to_i,
-      awaiting_closure_count: result['awaiting_closure_count'].to_i,
+      # Só o supervisor vê a aba 'Atenção'; para os demais o número também não sai no /meta.
+      awaiting_closure_count: supervisor_view? ? result['awaiting_closure_count'].to_i : 0,
       rodizio_count: result['rodizio_count'].to_i,
       unattended_all_count: result['unattended_all_count'].to_i,
       unattended_mine_count: result['unattended_mine_count'].to_i,
