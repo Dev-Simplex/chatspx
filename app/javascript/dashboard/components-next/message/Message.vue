@@ -826,6 +826,12 @@ const shouldShowGroupAuthorAvatar = computed(
 );
 
 const avatarInfo = computed(() => {
+  // Resposta dada no WhatsApp do celular: a ponte WAHA não sabe quem respondeu. Nem a foto
+  // da caixa (externalEcho) nem o dono do token (sender) — só o ícone do WhatsApp.
+  if (isPhoneReply.value) {
+    return { name: '', src: '', iconName: 'i-ri-whatsapp-fill' };
+  }
+
   if (props.contentAttributes?.externalEcho) {
     const { name, avatar_url, channel_type, medium } = inbox.value;
     const iconName = avatar_url
@@ -866,6 +872,7 @@ const avatarInfo = computed(() => {
 });
 
 const avatarTooltip = computed(() => {
+  if (isPhoneReply.value) return t('CONVERSATION.WHATSAPP_PHONE_REPLY');
   if (props.contentAttributes?.externalEcho) {
     return replaceInstallationName(t('CONVERSATION.NATIVE_APP_ADVISORY'));
   }

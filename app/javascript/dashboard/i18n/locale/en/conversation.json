@@ -1,6 +1,6 @@
 {
   "CONVERSATION": {
-    "WHATSAPP_PHONE_REPLY": "Sent from phone",
+    "WHATSAPP_PHONE_REPLY": "Sent directly from WhatsApp on the phone (agent not identified)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "No one owns this conversation",

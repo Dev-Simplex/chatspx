@@ -1,6 +1,6 @@
 {
   "CONVERSATION": {
-    "WHATSAPP_PHONE_REPLY": "Enviada pelo celular",
+    "WHATSAPP_PHONE_REPLY": "Enviada direto pelo WhatsApp do celular (sem identificar o atendente)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "Conversa sem responsável",
