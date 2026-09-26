@@ -37,6 +37,7 @@ const CURRENT_USER = {
 
 const buildStore = ({
   gateEnabled = false,
+  rodizioTabsEnabled = false,
   assistants = [],
   stats = {},
   user = CURRENT_USER,
@@ -66,6 +67,7 @@ const buildStore = ({
       getAllStatusChats: () => [],
       getUnAssignedChats: () => [],
       getAIChats: () => [],
+      getAwaitingChats: () => [],
       getRodizioChats: () => [],
       getPendingClosureChats: () => [],
       getChatListLoadingStatus: () => false,
@@ -106,7 +108,10 @@ const buildStore = ({
         getters: {
           getAccount: () => () => ({
             id: 1,
-            settings: { reply_assignment_gate: gateEnabled },
+            settings: {
+              reply_assignment_gate: gateEnabled,
+              rodizio_conversation_tabs: rodizioTabsEnabled,
+            },
           }),
           isFeatureEnabledonAccount: () => () => false,
         },
@@ -276,6 +281,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
       // Admin/supervisor: "Rodízio" sempre; "Atenção" e "IA" quando têm conteúdo.
       const { wrapper } = mountChatList({
         gateEnabled: true,
+        rodizioTabsEnabled: true,
         assistants: [{ id: 1, name: 'Aria' }],
         stats: {
           mineCount: 1,
@@ -302,6 +308,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
     it('hides Attention when awaiting_closure_count is zero', () => {
       const { wrapper } = mountChatList({
         gateEnabled: true,
+        rodizioTabsEnabled: true,
         stats: { awaitingClosureCount: 0, aiCount: 1, allCount: 1 },
       });
       expect(tabKeys(wrapper)).toEqual(['me', 'rodizio', 'ai', 'all']);
@@ -316,6 +323,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
       const stats = { awaitingClosureCount: 3, aiCount: 1, allCount: 4 };
       const { wrapper } = mountChatList({
         gateEnabled: true,
+        rodizioTabsEnabled: true,
         user: agent,
         stats: { ...stats, rodizioCount: 0 },
       });
@@ -323,6 +331,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
 
       const { wrapper: onTurn } = mountChatList({
         gateEnabled: true,
+        rodizioTabsEnabled: true,
         user: agent,
         stats: { ...stats, rodizioCount: 1 },
       });
@@ -332,6 +341,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
     it('supervisor sees Rotation and Attention like the admin', () => {
       const { wrapper } = mountChatList({
         gateEnabled: true,
+        rodizioTabsEnabled: true,
         user: {
           id: 3,
           name: 'Sup',
@@ -352,6 +362,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
     it('hides the AI tab when ai_count is zero (regardless of assistants)', () => {
       const { wrapper } = mountChatList({
         gateEnabled: true,
+        rodizioTabsEnabled: true,
         assistants: [{ id: 1, name: 'Aria' }],
         stats: { aiCount: 0, unAssignedCount: 2, allCount: 5 },
       });
@@ -361,6 +372,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
     it('shows the AI tab on count even when the account has no assistants', () => {
       const { wrapper } = mountChatList({
         gateEnabled: true,
+        rodizioTabsEnabled: true,
         assistants: [],
         stats: { aiCount: 2, allCount: 4 },
       });
@@ -381,6 +393,7 @@ describe('ChatList — assignee tabs (Fase C)', () => {
       const { wrapper } = mountChatList(
         {
           gateEnabled: true,
+          rodizioTabsEnabled: true,
           assistants: [{ id: 1, name: 'Aria' }],
           stats: {
             unAssignedCount: 0,

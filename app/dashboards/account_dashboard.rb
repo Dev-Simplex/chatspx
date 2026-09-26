@@ -34,6 +34,7 @@ class AccountDashboard < Administrate::BaseDashboard
     locale: Field::Select.with_options(collection: LANGUAGES_CONFIG.map { |_x, y| y[:iso_639_1_code] }),
     status: Field::Select.with_options(collection: [%w[Active active], %w[Suspended suspended]]),
     account_users: Field::HasMany,
+    rodizio_conversation_tabs_enabled: Field::Boolean,
     custom_attributes: Field::String
   }.merge(enterprise_attribute_types).freeze
 
@@ -70,6 +71,7 @@ class AccountDashboard < Administrate::BaseDashboard
     status
     conversations
     account_users
+    rodizio_conversation_tabs_enabled
   ] + enterprise_show_page_attributes).freeze
 
   # FORM_ATTRIBUTES
@@ -87,6 +89,7 @@ class AccountDashboard < Administrate::BaseDashboard
     name
     locale
     status
+    rodizio_conversation_tabs_enabled
   ] + enterprise_form_attributes).freeze
 
   # COLLECTION_FILTERS

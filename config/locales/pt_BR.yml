@@ -41,6 +41,10 @@ pt_BR:
     login_saml_user: Esta conta usa autenticação SAML. Por favor, faça login através do provedor SAML da sua organização.
     saml_not_available: A autenticação SAML não está disponível nesta instalação.
     inbox_deletetion_response: Seu pedido de exclusão da caixa de entrada será processado dentro de algum tempo.
+  helpers:
+    label:
+      account:
+        rodizio_conversation_tabs_enabled: Ativar abas Rodízio e Atenção
   activerecord:
     models:
       unit: Unidade

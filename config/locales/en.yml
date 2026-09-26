@@ -61,6 +61,8 @@ en:
       account_user:
         console_role: Role
         supervised_team_ids: Supervised teams
+      account:
+        rodizio_conversation_tabs_enabled: Enable Rotation and Attention tabs
 
   errors:
     read_only_inbox:
