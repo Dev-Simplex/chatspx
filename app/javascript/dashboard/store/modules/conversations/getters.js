@@ -159,8 +159,13 @@ const getters = {
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
-  getAIChats: _state => {
+  getAIChats: (_state, _, __, rootGetters = {}) => {
     const filters = _state.conversationFilters;
+    const accountId = rootGetters.getCurrentAccountId;
+    const rodizioTabsEnabled = Boolean(
+      rootGetters['accounts/getAccount']?.(accountId)?.settings
+        ?.rodizio_conversation_tabs
+    );
 
     return _state.allConversations
       .filter(conversation => {
@@ -169,10 +174,12 @@ const getters = {
         // como IA. Bots webhook emitem type 'agent_bot' mas não são atendentes IA.
         const isAIAssigned =
           assignee?.type === 'agent_bot' && Boolean(assignee.is_captain);
-        // Aguardando humano e sem dono nenhum também fica aqui (espelha o backend).
-        const isOrphanAwaiting =
-          !assignee &&
-          Boolean(conversation.custom_attributes?.aguardando_humano_desde);
+        // No modo Rodízio, aguardando humano fica na IA; no modo anterior sai
+        // daqui e aparece em "Aguardando atendimento".
+        const isAwaiting = Boolean(
+          conversation.custom_attributes?.aguardando_humano_desde
+        );
+        const isOrphanAwaiting = rodizioTabsEnabled && !assignee && isAwaiting;
         // Conversa na fila de encerramento sai da aba "IA" e vai para "Atenção"
         // (espelha o backend: ai_count exige o marcador ausente).
         const isPendingClosure = Boolean(
@@ -181,20 +188,37 @@ const getters = {
         const shouldFilter = applyPageFilters(conversation, filters);
         return (
           (isAIAssigned || isOrphanAwaiting) &&
+          (rodizioTabsEnabled || !isAwaiting) &&
           !isPendingClosure &&
           shouldFilter
         );
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
+  getAwaitingChats: _state => {
+    const filters = _state.conversationFilters;
+
+    return _state.allConversations
+      .filter(conversation => {
+        const isAwaiting = Boolean(
+          conversation.custom_attributes?.aguardando_humano_desde
+        );
+        return isAwaiting && applyPageFilters(conversation, filters);
+      })
+      .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
+  },
   getRodizioChats: (_state, _, __, rootGetters) => {
     // "Rodízio": designação aberta (rodizio_designado_id, espelho do backend).
     // Admin/supervisor veem todas; o agente, só as que estão na vez dele.
+    const accountId = rootGetters.getCurrentAccountId;
+    if (
+      !rootGetters['accounts/getAccount'](accountId)?.settings
+        ?.rodizio_conversation_tabs
+    )
+      return [];
+
     const currentUser = rootGetters.getCurrentUser;
-    const permissions = getUserPermissions(
-      currentUser,
-      rootGetters.getCurrentAccountId
-    );
+    const permissions = getUserPermissions(currentUser, accountId);
     const seesAll = ['administrator', 'team_supervisor'].some(p =>
       permissions.includes(p)
     );

@@ -140,6 +140,7 @@ const mineChatsList = useMapGetter('getMineChats');
 const allChatList = useMapGetter('getAllStatusChats');
 const unAssignedChatsList = useMapGetter('getUnAssignedChats');
 const aiChatsList = useMapGetter('getAIChats');
+const awaitingChatsList = useMapGetter('getAwaitingChats');
 const rodizioChatsList = useMapGetter('getRodizioChats');
 const pendingClosureChatsList = useMapGetter('getPendingClosureChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
@@ -165,9 +166,10 @@ const getTeamFn = useMapGetter('teams/getTeam');
 const getConversationById = useMapGetter('getConversationById');
 
 // AI tabs (Fase C — C4): gated by the reply_assignment_gate account setting.
-// As abas dinâmicas (IA / Rodízio / Atenção) dependem dos contadores do
-// /meta (rodizioCount / aiCount), não da existência de assistentes Captain.
-const { isAssignmentGateEnabled } = useReplyAssignmentGate();
+// A conta alterna entre as filas antigas e Rodízio/Atenção; ambas continuam
+// subordinadas à Atribuição obrigatória.
+const { isAssignmentGateEnabled, isRodizioTabsEnabled } =
+  useReplyAssignmentGate();
 
 useChatListKeyboardEvents(conversationListRef);
 const {
@@ -304,7 +306,20 @@ const permittedAssigneeTabKeys = computed(() =>
     ASSIGNEE_TYPE_TAB_PERMISSIONS,
     userPermissions.value,
     item => item.permissions
-  ).map(({ key }) => key)
+  )
+    .map(({ key }) => key)
+    .filter(key => {
+      if (key === wootConstants.ASSIGNEE_TYPE.AWAITING)
+        return isAssignmentGateEnabled.value && !isRodizioTabsEnabled.value;
+      if (key === wootConstants.ASSIGNEE_TYPE.RODIZIO)
+        return isRodizioTabsEnabled.value;
+      if (key === wootConstants.ASSIGNEE_TYPE.PENDING_CLOSURE)
+        return (
+          isAssignmentGateEnabled.value &&
+          (!isRodizioTabsEnabled.value || isSupervisorView.value)
+        );
+      return true;
+    })
 );
 
 const assigneeTabItems = computed(() => {
@@ -322,13 +337,16 @@ const assigneeTabItems = computed(() => {
   const stats = conversationStats.value;
   const iconForKey = key => {
     if (key === wootConstants.ASSIGNEE_TYPE.ME) return 'i-lucide-user';
+    if (key === wootConstants.ASSIGNEE_TYPE.AWAITING) return 'i-lucide-clock';
     if (key === wootConstants.ASSIGNEE_TYPE.RODIZIO)
       return 'i-lucide-refresh-cw';
     if (key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED)
       return 'i-lucide-user-round-x';
     if (key === wootConstants.ASSIGNEE_TYPE.AI) return 'i-lucide-sparkles';
     if (key === wootConstants.ASSIGNEE_TYPE.PENDING_CLOSURE)
-      return 'i-lucide-triangle-alert';
+      return isRodizioTabsEnabled.value
+        ? 'i-lucide-triangle-alert'
+        : 'i-lucide-check-check';
     if (key === wootConstants.ASSIGNEE_TYPE.ALL) return 'i-lucide-users';
     return null;
   };
@@ -339,10 +357,18 @@ const assigneeTabItems = computed(() => {
   )
     .filter(({ key }) => {
       // Dynamic tabs (modo IA / gate ON): só aparecem quando têm conteúdo.
+      if (key === wootConstants.ASSIGNEE_TYPE.AWAITING)
+        return (
+          !isRodizioTabsEnabled.value &&
+          isAssignmentGateEnabled.value &&
+          !useUnattendedCounts &&
+          (stats.awaitingCount ?? 0) > 0
+        );
       // "Rodízio": gate ON, fora da visão de não-respondidas. Admin/supervisor
       // sempre; agente só quando tem conversa na vez dele.
       if (key === wootConstants.ASSIGNEE_TYPE.RODIZIO)
         return (
+          isRodizioTabsEnabled.value &&
           isAssignmentGateEnabled.value &&
           !useUnattendedCounts &&
           (isSupervisorView.value || (stats.rodizioCount ?? 0) > 0)
@@ -361,6 +387,7 @@ const assigneeTabItems = computed(() => {
         return (
           isAssignmentGateEnabled.value &&
           !useUnattendedCounts &&
+          (!isRodizioTabsEnabled.value || isSupervisorView.value) &&
           (stats.awaitingClosureCount ?? 0) > 0
         );
       // Gate ON: "Não atribuídas" deixa de ser chip da tab-bar no modo IA
@@ -377,13 +404,23 @@ const assigneeTabItems = computed(() => {
     .map(({ key }) => {
       return {
         key,
-        name: t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
+        name: t(
+          `CHAT_LIST.ASSIGNEE_TYPE_TABS.${
+            key === wootConstants.ASSIGNEE_TYPE.PENDING_CLOSURE &&
+            isRodizioTabsEnabled.value
+              ? 'attention'
+              : key
+          }`
+        ),
         count: stats[countKeyForTab(key)] ?? 0,
         icon: iconForKey(key),
         // "Rodízio" recebe o efeito de atenção em vermelho (.tab-alert):
         // é a vez de alguém pegar o lead.
         variant:
-          key === wootConstants.ASSIGNEE_TYPE.RODIZIO ? 'alert' : undefined,
+          key === wootConstants.ASSIGNEE_TYPE.RODIZIO ||
+          key === wootConstants.ASSIGNEE_TYPE.AWAITING
+            ? 'alert'
+            : undefined,
       };
     });
   return items;
@@ -609,6 +646,8 @@ const conversationList = computed(() => {
       localConversationList = mineChatsList.value;
     } else if (activeAssigneeTab.value === 'unassigned') {
       localConversationList = unAssignedChatsList.value;
+    } else if (activeAssigneeTab.value === 'awaiting') {
+      localConversationList = awaitingChatsList.value;
     } else if (activeAssigneeTab.value === 'rodizio') {
       localConversationList = rodizioChatsList.value;
     } else if (activeAssigneeTab.value === 'pending_closure') {
@@ -1439,37 +1478,27 @@ watch(
 );
 
 // Dynamic tabs (gate ON) can disappear while active when their count drops to
-// zero — "Rodízio" (do agente), "Atenção", "IA" e (legado) "Não atribuídas". Isso
+// zero — filas antigas, "Rodízio", "Atenção", "IA" e "Não atribuídas". Isso
 // deixaria activeTabIndex em -1, então voltamos para "Minhas". Não se aplica à
 // visão de não-respondidas (abas incondicionais lá).
 watch(
   [
     () => conversationStats.value.unAssignedCount,
+    () => conversationStats.value.awaitingCount,
     () => conversationStats.value.rodizioCount,
     () => conversationStats.value.awaitingClosureCount,
     () => conversationStats.value.aiCount,
     isAssignmentGateEnabled,
+    isRodizioTabsEnabled,
   ],
   () => {
     if (props.conversationType === 'unattended') return;
     if (!isAssignmentGateEnabled.value) return;
     if (!conversationStats.value.updatedOn) return;
 
-    const active = activeAssigneeTab.value;
-    const countByTab = {
-      [wootConstants.ASSIGNEE_TYPE.UNASSIGNED]:
-        conversationStats.value.unAssignedCount,
-      [wootConstants.ASSIGNEE_TYPE.PENDING_CLOSURE]:
-        conversationStats.value.awaitingClosureCount,
-      ...(isSupervisorView.value
-        ? {}
-        : {
-            [wootConstants.ASSIGNEE_TYPE.RODIZIO]:
-              conversationStats.value.rodizioCount,
-          }),
-      [wootConstants.ASSIGNEE_TYPE.AI]: conversationStats.value.aiCount,
-    };
-    if (active in countByTab && (countByTab[active] ?? 0) === 0) {
+    if (
+      !assigneeTabItems.value.some(({ key }) => key === activeAssigneeTab.value)
+    ) {
       updateAssigneeTab(wootConstants.ASSIGNEE_TYPE.ME);
     }
   }

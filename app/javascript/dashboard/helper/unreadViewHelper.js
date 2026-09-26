@@ -25,6 +25,8 @@ export const defaultAssigneeTab = (routeName, query = {}) => {
   if (query.assignee_type === 'me') return wootConstants.ASSIGNEE_TYPE.ME;
   if (query.assignee_type === 'unassigned')
     return wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
+  if (query.assignee_type === 'awaiting')
+    return wootConstants.ASSIGNEE_TYPE.AWAITING;
   if (query.assignee_type === 'all') return wootConstants.ASSIGNEE_TYPE.ALL;
   if (UNREAD_ROUTES.includes(routeName)) return wootConstants.ASSIGNEE_TYPE.ALL;
   return wootConstants.ASSIGNEE_TYPE.ME;
