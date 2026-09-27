@@ -29,7 +29,7 @@ RSpec.describe 'Api::V1::Accounts::Integrations::Captador', type: :request do
 
   def signed_by_fork?(request, method, body = '')
     signed = "#{request.headers['X-Captador-Timestamp']}.#{method}.#{request.uri.request_uri}.#{body}"
-    expected = "sha256=#{OpenSSL::HMAC.hexdigest('SHA256', hook.settings['shared_secret'], signed)}"
+    expected = "sha256=#{OpenSSL::HMAC.hexdigest('SHA256', hook.captador_shared_secret, signed)}"
     request.headers['X-Captador-Assinatura'] == expected && request.headers['X-Captador-Instancia'] == 'inst-1' &&
       request.headers['X-Chatspx-Usuario'] == agent.id.to_s
   end

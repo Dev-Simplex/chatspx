@@ -121,6 +121,16 @@ class Rack::Attack
     ActionDispatch::Request.new(req.env).params['mfa_token'].presence if req.path_without_extentions == '/spx/captador/v1/sessoes' && req.post?
   end
 
+  # Um novo desafio não zera o teto: todos os códigos do mesmo usuário somam pelo e-mail.
+  throttle('captador_login/mfa_email', limit: 10, period: 15.minutes) do |req|
+    next unless req.path_without_extentions == '/spx/captador/v1/sessoes' && req.post?
+
+    token = ActionDispatch::Request.new(req.env).params['mfa_token'].presence
+    Mfa::TokenService.new(token: token).verify_token&.email&.downcase if token
+  rescue StandardError
+    nil
+  end
+
   ## Reset password throttling
   throttle('reset_password/ip', limit: 5, period: 30.minutes) do |req|
     req.ip if req.path_without_extentions == '/auth/password' && req.post?

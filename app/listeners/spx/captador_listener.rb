@@ -102,8 +102,13 @@ class Spx::CaptadorListener < BaseListener
     unless Spx::Captador::Client.allowed_url?(url)
       return Rails.logger.warn("[Spx::CaptadorListener] destino recusado conta=#{hook.account_id}: #{url}")
     end
+    begin
+      Flows::SafeHttpClient.new(method: :post, url: url).validate_destination!
+    rescue Flows::StepSkip => e
+      return Rails.logger.warn("[Spx::CaptadorListener] destino recusado conta=#{hook.account_id}: #{e.message}")
+    end
 
-    WebhookJob.perform_later(url, payload, :account_webhook, secret: settings['shared_secret'], delivery_id: SecureRandom.uuid)
+    WebhookJob.perform_later(url, payload, :account_webhook, secret: hook.captador_shared_secret, delivery_id: SecureRandom.uuid)
   end
 
   def changed_any?(changed, attributes)

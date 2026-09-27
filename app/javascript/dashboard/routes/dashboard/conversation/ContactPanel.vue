@@ -1,9 +1,3 @@
-const captadorLeadId = computed(
-  () =>
-    currentChat.value.custom_attributes?.captador_lead_id ||
-    contact.value.custom_attributes?.captador_lead_id ||
-    null
-);
 <script setup>
 import { computed, watch, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -150,6 +144,12 @@ const groupParticipantsTitle = computed(() =>
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
 const contact = computed(() => contactGetter.value(contactId.value));
+const captadorLeadId = computed(
+  () =>
+    currentChat.value.custom_attributes?.captador_lead_id ||
+    contact.value.custom_attributes?.captador_lead_id ||
+    null
+);
 const contactAdditionalAttributes = computed(
   () => contact.value.additional_attributes || {}
 );

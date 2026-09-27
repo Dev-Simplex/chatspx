@@ -40,6 +40,17 @@ RSpec.describe 'Spx::Captador::Sessoes', type: :request do
 
       expect(response).to have_http_status(:unauthorized)
     end
+
+    it 'recusa a repetição exata de uma mutação assinada' do
+      body = { email: user.email, password: 'Password1!' }
+      timestamp = Time.now.to_i
+
+      login(body, timestamp: timestamp)
+      expect(response).to have_http_status(:ok)
+      login(body, timestamp: timestamp)
+
+      expect(response).to have_http_status(:unauthorized)
+    end
   end
 
   describe 'e-mail e senha' do
@@ -93,8 +104,8 @@ RSpec.describe 'Spx::Captador::Sessoes', type: :request do
       outsider = create(:user, account: create(:account))
       login({ email: outsider.email, password: 'Password1!' })
 
-      expect(response).to have_http_status(:forbidden)
-      expect(response.parsed_body['error_code']).to eq('not_account_member')
+      expect(response).to have_http_status(:unauthorized)
+      expect(response.parsed_body['error_code']).to eq('invalid_credentials')
     end
 
     it 'só funciona no hook marcado com allow_login' do
@@ -138,6 +149,9 @@ RSpec.describe 'Spx::Captador::Sessoes', type: :request do
       end
 
       it 'recusa código errado' do
+        key = "captador:mfa_errors:#{user.id}"
+        expect(Redis::Alfred).to receive(:incr).with(key).and_return(1)
+        expect(Redis::Alfred).to receive(:expire).with(key, 15.minutes.to_i)
         stub_code(false)
         login({ mfa_token: mfa_token, otp_code: '123456' })
 
@@ -151,6 +165,30 @@ RSpec.describe 'Spx::Captador::Sessoes', type: :request do
         expect(response).to have_http_status(:unauthorized)
         expect(response.parsed_body['error_code']).to eq('mfa_token_invalid')
       end
+
+
+      it 'bloqueia novos códigos quando o usuário acumulou dez erros' do
+        key = "captador:mfa_errors:#{user.id}"
+        allow(Redis::Alfred).to receive(:get).with(key).and_return('10')
+        expect(Mfa::AuthenticationService).not_to receive(:new)
+
+        login({ mfa_token: mfa_token, otp_code: '123456' })
+
+        expect(response).to have_http_status(:too_many_requests)
+      end
+
+      it 'não revela que a senha e o código de quem está fora da conta são válidos' do
+        outsider = create(:user, account: create(:account))
+        token = Mfa::TokenService.new(user: outsider).generate_token
+        allow(Mfa::AuthenticationService).to receive(:new)
+          .with(user: outsider, otp_code: '123456', backup_code: nil)
+          .and_return(instance_double(Mfa::AuthenticationService, authenticate: true))
+
+        login({ mfa_token: token, otp_code: '123456' })
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['error_code']).to eq('invalid_credentials')
+      end
     end
   end
 
@@ -160,10 +198,12 @@ RSpec.describe 'Spx::Captador::Sessoes', type: :request do
       Rack::Attack.throttles.fetch(name).block.call(Rack::Attack::Request.new(env))
     end
 
-    it 'limita a senha por e-mail e o passo do código pelo mfa_token' do
+    it 'limita a senha por e-mail e o passo do código pelo token e pelo e-mail do usuário' do
+      mfa_token = Mfa::TokenService.new(user: user).generate_token
       expect(discriminator('captador_login/email', { email: ' Maria@Simplex.com ', password: 'x' })).to eq('maria@simplex.com')
       expect(discriminator('captador_login/email', { mfa_token: 'abc', otp_code: '1' })).to be_nil
       expect(discriminator('captador_login/mfa_token', { mfa_token: 'abc', otp_code: '1' })).to eq('abc')
+      expect(discriminator('captador_login/mfa_email', { mfa_token: mfa_token, otp_code: '1' })).to eq(user.email.downcase)
     end
   end
 end

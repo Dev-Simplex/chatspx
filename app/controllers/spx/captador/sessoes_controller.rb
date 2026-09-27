@@ -5,6 +5,9 @@
 # disso: nenhum token é criado, só a identidade e o papel na conta do hook voltam. O 2FA segue o
 # mesmo contrato do sign_in: 206 com mfa_token, depois o código (ou backup_code) com o mfa_token.
 class Spx::Captador::SessoesController < Spx::Captador::BaseController
+  MFA_ERROR_LIMIT = 10
+  MFA_ERROR_TTL = 15.minutes.to_i
+
   before_action :ensure_login_allowed
 
   def create
@@ -13,7 +16,7 @@ class Spx::Captador::SessoesController < Spx::Captador::BaseController
 
     user = password_user
     return render_error(:unauthorized, 'invalid_credentials') unless user
-    return render_error(:forbidden, 'not_account_member') unless account_user(user)
+    return invalid_account_member(user) unless account_user(user)
     return render_mfa_required(user) if user.mfa_enabled?
 
     render_identity(user)
@@ -44,12 +47,35 @@ class Spx::Captador::SessoesController < Spx::Captador::BaseController
   def verify_mfa
     user = Mfa::TokenService.new(token: params[:mfa_token]).verify_token
     return render_error(:unauthorized, 'mfa_token_invalid') unless user
+    return head :too_many_requests if mfa_error_count(user) >= MFA_ERROR_LIMIT
 
     code_ok = Mfa::AuthenticationService.new(user: user, otp_code: params[:otp_code], backup_code: params[:backup_code]).authenticate
-    return render_error(:unauthorized, 'invalid_credentials') unless code_ok && user.active_for_authentication?
-    return render_error(:forbidden, 'not_account_member') unless account_user(user)
+    unless code_ok && user.active_for_authentication?
+      record_mfa_error(user)
+      return render_error(:unauthorized, 'invalid_credentials')
+    end
+    return invalid_account_member(user) unless account_user(user)
 
     render_identity(user)
+  end
+
+  def invalid_account_member(user)
+    Rails.logger.info("[Captador] login recusado usuario=#{user.id} conta=#{@account.id}: nao e membro")
+    render_error(:unauthorized, 'invalid_credentials')
+  end
+
+  def mfa_error_count(user)
+    Redis::Alfred.get(mfa_error_key(user)).to_i
+  end
+
+  def record_mfa_error(user)
+    Redis::Alfred.incr(mfa_error_key(user)).tap do |count|
+      Redis::Alfred.expire(mfa_error_key(user), MFA_ERROR_TTL) if count == 1
+    end
+  end
+
+  def mfa_error_key(user)
+    "captador:mfa_errors:#{user.id}"
   end
 
   def account_user(user)

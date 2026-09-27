@@ -63,6 +63,11 @@ class Flows::SafeHttpClient
     raise Flows::StepSkip.new('http_error', "#{e.class}: #{e.message}")
   end
 
+  # Preflight sem abrir conexão, para filas que usam outro cliente HTTP depois.
+  def validate_destination!
+    validated_ip(validated_uri)
+  end
+
   private
 
   def validated_uri
