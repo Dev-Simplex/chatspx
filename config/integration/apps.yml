@@ -479,3 +479,60 @@ leadsquared:
       'conversation_activity_score',
       'transcript_activity_score',
     ]
+captador:
+  id: captador
+  logo: captador.png
+  i18n_key: captador
+  hook_type: account
+  allow_multiple_hooks: false
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'captador_url': { 'type': 'string', 'pattern': '^https?://' },
+          'instance_key': { 'type': 'string', 'minLength': 1 },
+          'shared_secret': { 'type': 'string', 'minLength': 32 },
+          'allowed_inbox_ids': { 'type': 'string' },
+          'allow_login': { 'type': 'boolean' },
+        },
+      'required': ['captador_url', 'instance_key', 'shared_secret'],
+      'additionalProperties': false,
+    }
+  settings_form_schema:
+    [
+      {
+        'label': 'Endereço do Captador',
+        'type': 'text',
+        'name': 'captador_url',
+        'validation': 'required',
+        'help': 'Endereço base do Captador, por exemplo https://captador.spx.ia.br. Os eventos das conversas do Captador são enviados para ele.',
+      },
+      {
+        'label': 'Chave da instância',
+        'type': 'text',
+        'name': 'instance_key',
+        'validation': 'required',
+        'help': 'Identificador que o Captador deu a esta instância e conta, copiado da tela Conexões do Captador.',
+      },
+      {
+        'label': 'Segredo compartilhado',
+        'type': 'text',
+        'name': 'shared_secret',
+        'validation': 'required',
+        'help': 'Gerado na tela Conexões do Captador (no mínimo 32 caracteres). Assina as chamadas nos dois sentidos; troque nos dois lados para rotacionar.',
+      },
+      {
+        'label': 'Caixas liberadas',
+        'type': 'text',
+        'name': 'allowed_inbox_ids',
+        'help': 'IDs das caixas por onde o Captador pode abrir conversa, separados por vírgula. Vazio: nenhuma. WhatsApp oficial exige modelo aprovado; caixas não oficiais (WAHA) enviam texto livre, com risco de bloqueio do número.',
+      },
+      {
+        'label': 'Permitir login no Captador',
+        'type': 'checkbox',
+        'name': 'allow_login',
+        'help': 'Marque só na conta cujos usuários entram no Captador com o e-mail e a senha do ChatSPX.',
+      },
+    ]
+  visible_properties: ['captador_url', 'instance_key', 'allowed_inbox_ids', 'allow_login']

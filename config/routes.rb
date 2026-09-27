@@ -965,6 +965,13 @@ Rails.application.routes.draw do
       post 'perform_test',                      to: 'change_sets#perform_test'
       post 'eval_prompt',                       to: 'change_sets#eval_prompt'
     end
+
+    # Captador (app de Integrações): chamadas assinadas com o segredo do hook da conta. Ver
+    # Spx::Captador::BaseController e docs/contratos/captador.md.
+    namespace :captador do
+      post 'v1/sessoes', to: 'sessoes#create'
+      post 'v1/leads',   to: 'leads#create'
+    end
   end
 
   # ---------------------------------------------------------------------
