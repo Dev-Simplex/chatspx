@@ -77,40 +77,86 @@ RSpec.describe Spx::CaptadorListener do
     end
   end
 
-  describe '#message_updated' do
-    it 'entrega mudança de status (entregue, lida, falhou)' do
-      outgoing = message(message_type: 'outgoing')
-      expect_delivery(event: 'message_updated', changed_attributes: [{ 'status' => { previous_value: 'sent', current_value: 'failed' } }])
+  # Despacho real: o save do model enfileira o EventDispatcherJob, que roda aqui como no Sidekiq (o
+  # event data passa pela serialização do ActiveJob). O WebhookJob só é enfileirado, para conferir o
+  # que sairia para o Captador. O registro chega criado: o argumento é avaliado antes do bloco.
+  def save_for_real(record, **attributes)
+    perform_enqueued_jobs(only: EventDispatcherJob) { record.update!(**attributes) }
+  end
 
-      listener.message_updated(event('message.updated', message: outgoing, changed_attributes: { 'status' => %w[sent failed] }))
+  def expect_captador_job(**payload)
+    expect(WebhookJob).to have_been_enqueued.once.with(
+      url, hash_including(payload), :account_webhook, secret: hook.settings['shared_secret'], delivery_id: kind_of(String)
+    )
+  end
+
+  def status_change(previous, current)
+    include('status' => { previous_value: previous, current_value: current })
+  end
+
+  describe '#message_updated (Message#update! real)' do
+    let(:outgoing) { message(message_type: 'outgoing') }
+
+    it 'entrega a falha de envio com o motivo em content_attributes.external_error' do
+      save_for_real(outgoing, status: :failed, external_error: '131026: Message undeliverable')
+
+      expect_captador_job(event: 'message_updated', id: outgoing.id, changed_attributes: status_change('sent', 'failed'),
+                          content_attributes: hash_including('external_error' => '131026: Message undeliverable'),
+                          conversation: hash_including(id: conversation.display_id))
+    end
+
+    it 'entrega entregue e depois lida' do
+      save_for_real(outgoing, status: :delivered)
+      save_for_real(outgoing, status: :read)
+
+      expect_captador_job(event: 'message_updated', id: outgoing.id, changed_attributes: status_change('sent', 'delivered'))
+      expect_captador_job(event: 'message_updated', id: outgoing.id, changed_attributes: status_change('delivered', 'read'))
     end
 
     it 'ignora mudança que não é de status' do
-      edited = message
-      expect(WebhookJob).not_to receive(:perform_later)
+      save_for_real(outgoing, content: 'editada')
 
-      listener.message_updated(event('message.updated', message: edited, changed_attributes: { 'content' => %w[a b] }))
+      expect(WebhookJob).not_to have_been_enqueued
     end
   end
 
-  describe 'eventos da conversa' do
-    it 'entrega conversa resolvida ou reaberta' do
-      expect_delivery(event: 'conversation_status_changed', id: conversation.display_id)
+  describe 'eventos da conversa (Conversation#update! real)' do
+    let(:agent) { create(:user, account: account, role: :agent) }
 
-      listener.conversation_status_changed(event('conversation.status_changed', conversation: conversation,
-                                                                                changed_attributes: { 'status' => %w[open resolved] }))
+    # Resolver exige time (Conversation#team_required_for_resolution).
+    before do
+      conversation.update!(team: create(:team, account: account))
+      create(:inbox_member, inbox: inbox, user: agent)
     end
 
-    it 'entrega troca de dono ou de time' do
-      expect_delivery(event: 'conversation_updated', id: conversation.display_id)
+    it 'entrega conversa resolvida' do
+      save_for_real(conversation, status: :resolved)
 
-      listener.conversation_updated(event('conversation.updated', conversation: conversation, changed_attributes: { 'team_id' => [nil, 7] }))
+      expect_captador_job(event: 'conversation_status_changed', id: conversation.display_id, status: 'resolved')
+      expect(WebhookJob).to have_been_enqueued.once
     end
 
-    it 'ignora atualização que não mexe em dono nem time' do
-      expect(WebhookJob).not_to receive(:perform_later)
+    it 'entrega a troca de dono uma vez só' do
+      save_for_real(conversation, assignee: agent)
 
-      listener.conversation_updated(event('conversation.updated', conversation: conversation, changed_attributes: { 'label_list' => [[], ['x']] }))
+      expect_captador_job(event: 'conversation_updated', id: conversation.display_id,
+                          meta: hash_including(assignee: hash_including(name: agent.name)))
+      expect(WebhookJob).to have_been_enqueued.once
+    end
+
+    it 'entrega a troca de dono feita no mesmo save que resolve (o model não despacha conversation.updated)' do
+      save_for_real(conversation, status: :resolved, assignee: agent)
+
+      expect_captador_job(event: 'conversation_status_changed', status: 'resolved')
+      expect_captador_job(event: 'conversation_updated', id: conversation.display_id,
+                          meta: hash_including(assignee: hash_including(name: agent.name)))
+      expect(WebhookJob).to have_been_enqueued.twice
+    end
+
+    it 'ignora atualização que não mexe em dono, time nem status' do
+      save_for_real(conversation, priority: :high)
+
+      expect(WebhookJob).not_to have_been_enqueued
     end
   end
 end

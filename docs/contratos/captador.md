@@ -92,9 +92,9 @@ Só no hook com `allow_login`. Não cria token nem sessão no ChatSPX e não dev
 | `event` | Quando | Payload |
 |---|---|---|
 | `message_created` | lead escreveu (`incoming`) ou alguém respondeu (`outgoing`, não privada) | `message.webhook_data`; recusa do lead vem com `captador: { "opt_out": true }` |
-| `message_updated` | mudou `status` (`delivered`, `read`, `failed`) | `message.webhook_data` + `changed_attributes`; motivo da falha em `content_attributes.external_error` |
+| `message_updated` | mudou `status` (`delivered`, `read`, `failed`) | `message.webhook_data` + `changed_attributes` (`[{ "status": { "previous_value": "sent", "current_value": "failed" } }]`); motivo da falha em `content_attributes.external_error` |
 | `conversation_status_changed` | resolvida, reaberta, adiada | `conversation.webhook_data` + `changed_attributes` |
-| `conversation_updated` | mudou `assignee_id` ou `team_id` | `conversation.webhook_data` + `changed_attributes` |
+| `conversation_updated` | mudou `assignee_id` ou `team_id`, inclusive no mesmo save que muda o status (aí chega junto com um `conversation_status_changed`) | `conversation.webhook_data` + `changed_attributes` |
 
 A 1ª mensagem aberta pelo próprio Captador também gera `message_created` (`outgoing`): ela traz `additional_attributes.echo_id = "captador:<Idempotency-Key>"`.
 

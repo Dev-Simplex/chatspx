@@ -28,7 +28,7 @@ class Spx::CaptadorListener < BaseListener
   def message_updated(event)
     safely(event) do
       message = event.data[:message]
-      changed = extract_changed_attributes(event)
+      changed = message_changes(event)
       next unless changed_any?(changed, %w[status])
 
       hook = captador_hook(message.conversation)
@@ -48,7 +48,37 @@ class Spx::CaptadorListener < BaseListener
     end
   end
 
+  # Conversation#notify_conversation_updation não despacha conversation_updated quando o mesmo save
+  # também muda o status: a troca de dono ou de time desse save só aparece nestes dois eventos, que
+  # trazem o previous_changes inteiro. Sem mudança de status, o conversation_updated já entregou.
+  def assignee_changed(event)
+    safely(event) { deliver_owner_change_with_status(event) }
+  end
+
+  def team_changed(event)
+    safely(event) do
+      # Dono e time no mesmo save: o assignee_changed já entregou.
+      next if changed_any?(extract_changed_attributes(event), %w[assignee_id])
+
+      deliver_owner_change_with_status(event)
+    end
+  end
+
   private
+
+  # Message#send_update_event despacha as mudanças em previous_changes, e não em changed_attributes
+  # (o que o extract_changed_attributes lê). Aceita os dois, no formato do webhook de conta, que é o
+  # que o Captador lê: [{ "status" => { previous_value:, current_value: } }].
+  def message_changes(event)
+    extract_changed_attributes(event) ||
+      event.data[:previous_changes]&.map { |attr, (previous, current)| { attr => { previous_value: previous, current_value: current } } }
+  end
+
+  def deliver_owner_change_with_status(event)
+    return unless changed_any?(extract_changed_attributes(event), %w[status])
+
+    deliver_conversation(event, 'conversation_updated')
+  end
 
   def deliver_conversation(event, event_name)
     conversation = event.data[:conversation]
