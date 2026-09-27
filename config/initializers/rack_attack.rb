@@ -108,6 +108,19 @@ class Rack::Attack
     end
   end
 
+  # Login do Captador (Spx::Captador::SessoesController): todo o time chega pelo IP do Captador, então o
+  # limite é por e-mail; o Captador aplica o dele por IP do navegador. O passo do código 2FA vai pelo token.
+  throttle('captador_login/email', limit: 10, period: 15.minutes) do |req|
+    if req.path_without_extentions == '/spx/captador/v1/sessoes' && req.post?
+      params = ActionDispatch::Request.new(req.env).params
+      params['email'].to_s.downcase.gsub(/\s+/, '') if params['mfa_token'].blank?
+    end
+  end
+
+  throttle('captador_login/mfa_token', limit: 10, period: 1.minute) do |req|
+    ActionDispatch::Request.new(req.env).params['mfa_token'].presence if req.path_without_extentions == '/spx/captador/v1/sessoes' && req.post?
+  end
+
   ## Reset password throttling
   throttle('reset_password/ip', limit: 5, period: 30.minutes) do |req|
     req.ip if req.path_without_extentions == '/auth/password' && req.post?

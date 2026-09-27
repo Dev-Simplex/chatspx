@@ -15,6 +15,7 @@ class AsyncDispatcher < BaseDispatcher
       Spx::TemplateReplyRouterListener.instance,
       Spx::CtwaVisibilityListener.instance,
       Spx::Distribuicao::DesignacaoListener.instance,
+      Spx::CaptadorListener.instance,
       MessageSequences::ExitListener.instance,
       CampaignListener.instance,
       CsatSurveyListener.instance,

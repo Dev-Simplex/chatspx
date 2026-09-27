@@ -60,6 +60,8 @@ class Integrations::App
       account.feature_enabled?('crm_integration')
     when 'notion'
       notion_enabled?(account)
+    when 'captador'
+      account.captador_integration_enabled?
     else
       true
     end

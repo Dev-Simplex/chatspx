@@ -80,6 +80,23 @@ describe('useUISettings', () => {
     );
   });
 
+  it('places the Captador lead after the Kanban status and appends it to saved orders', () => {
+    const names = DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER.map(item => item.name);
+    expect(names.indexOf('captador_lead')).toBe(
+      names.indexOf('kanban_status') + 1
+    );
+
+    const saved = getUISettingsMock.value.conversation_sidebar_items_order;
+    getUISettingsMock.value.conversation_sidebar_items_order = saved.filter(
+      item => item.name !== 'captador_lead'
+    );
+    const { conversationSidebarItemsOrder } = useUISettings();
+    expect(conversationSidebarItemsOrder.value.at(-1)).toEqual({
+      name: 'captador_lead',
+    });
+    getUISettingsMock.value.conversation_sidebar_items_order = saved;
+  });
+
   it('returns correct contact sidebar items order', () => {
     const { contactSidebarItemsOrder } = useUISettings();
     expect(contactSidebarItemsOrder.value).toEqual(

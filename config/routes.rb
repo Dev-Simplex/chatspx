@@ -599,6 +599,13 @@ Rails.application.routes.draw do
                 post :test_key
               end
             end
+            # Painel do Captador na lateral da conversa (proxy assinado para o Captador).
+            resource :captador, controller: 'captador', only: [] do
+              collection do
+                get :lead
+                post :mover
+              end
+            end
           end
 
           # Account-level provider integrations (Vista / Google) — editable, masked credentials.
@@ -964,6 +971,15 @@ Rails.application.routes.draw do
       post 'test_credential',                   to: 'change_sets#test_credential'
       post 'perform_test',                      to: 'change_sets#perform_test'
       post 'eval_prompt',                       to: 'change_sets#eval_prompt'
+    end
+
+    # Captador (app de Integrações): chamadas assinadas com o segredo do hook da conta. Ver
+    # Spx::Captador::BaseController e docs/contratos/captador.md.
+    namespace :captador do
+      post 'v1/sessoes', to: 'sessoes#create'
+      post 'v1/leads',   to: 'leads#create'
+      get  'v1/catalogo', to: 'catalogo#show'
+      get  'v1/conversas', to: 'conversas#index'
     end
   end
 
