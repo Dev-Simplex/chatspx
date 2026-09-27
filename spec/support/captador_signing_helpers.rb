@@ -15,7 +15,7 @@ module CaptadorSigningHelpers
     allow(Resolv).to receive(:getaddresses).with('captador.spx.ia.br').and_return([ip])
   end
 
-  def captador_post(path, body, hook:, headers: {}, timestamp: Time.now.to_i, secret: hook.settings['shared_secret'])
+  def captador_post(path, body, hook:, headers: {}, timestamp: Time.now.to_i, secret: hook.captador_shared_secret)
     raw = body.to_json
     signature = OpenSSL::HMAC.hexdigest('SHA256', secret, "#{timestamp}.POST.#{path}.#{raw}")
     post path, params: raw, headers: {
@@ -26,7 +26,7 @@ module CaptadorSigningHelpers
     }.merge(headers)
   end
 
-  def captador_get(path_with_query, hook:, timestamp: Time.now.to_i, secret: hook.settings['shared_secret'])
+  def captador_get(path_with_query, hook:, timestamp: Time.now.to_i, secret: hook.captador_shared_secret)
     signature = OpenSSL::HMAC.hexdigest('SHA256', secret, "#{timestamp}.GET.#{path_with_query}.")
     get path_with_query, headers: {
       'X-Captador-Account' => hook.account_id.to_s,

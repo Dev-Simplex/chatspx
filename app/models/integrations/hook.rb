@@ -17,8 +17,11 @@
 class Integrations::Hook < ApplicationRecord
   include Reauthorizable
 
+  CAPTADOR_SECRET_PREFIX = 'encrypted:v1:'.freeze
+
   attr_readonly :app_id, :account_id, :inbox_id, :hook_type
   before_validation :ensure_hook_type
+  before_validation :encrypt_captador_shared_secret
   after_create :trigger_setup_if_crm
 
   # TODO: Remove guard once encryption keys become mandatory (target 3-4 releases out).
@@ -60,6 +63,21 @@ class Integrations::Hook < ApplicationRecord
     app_id == 'notion'
   end
 
+  # O segredo do Captador vive dentro do JSONB legado. Mantemos o formato sem migration, mas o
+  # valor fica cifrado com a chave da instalação; linhas antigas são recifradas no primeiro uso.
+  def captador_shared_secret
+    value = settings.to_h.stringify_keys['shared_secret'].to_s
+    return value unless app_id == 'captador'
+    return decrypt_captador_shared_secret(value) if value.start_with?(CAPTADOR_SECRET_PREFIX)
+
+    persist_encrypted_captador_shared_secret(value) if value.present? && persisted?
+    value
+  end
+
+  def captador_shared_secret_configured?
+    captador_shared_secret.present?
+  end
+
   def disable
     update(status: 'disabled')
   end
@@ -80,6 +98,35 @@ class Integrations::Hook < ApplicationRecord
   end
 
   private
+
+  def encrypt_captador_shared_secret
+    return unless app_id == 'captador'
+
+    current = settings.to_h.stringify_keys
+    secret = current['shared_secret'].to_s
+    return if secret.blank? || secret.start_with?(CAPTADOR_SECRET_PREFIX)
+
+    self.settings = current.merge('shared_secret' => encrypt_captador_shared_secret_value(secret))
+  end
+
+  def persist_encrypted_captador_shared_secret(secret)
+    encrypted_settings = settings.to_h.stringify_keys.merge('shared_secret' => encrypt_captador_shared_secret_value(secret))
+    update_column(:settings, encrypted_settings) # rubocop:disable Rails/SkipsModelValidations -- lazy backfill sem migration
+    self.settings = encrypted_settings
+  end
+
+  def encrypt_captador_shared_secret_value(secret)
+    CAPTADOR_SECRET_PREFIX + captador_secret_encryptor.encrypt_and_sign(secret)
+  end
+
+  def decrypt_captador_shared_secret(value)
+    captador_secret_encryptor.decrypt_and_verify(value.delete_prefix(CAPTADOR_SECRET_PREFIX))
+  end
+
+  def captador_secret_encryptor
+    key = ActiveSupport::KeyGenerator.new(Rails.application.secret_key_base).generate_key('spx/captador/shared_secret', 32)
+    ActiveSupport::MessageEncryptor.new(key)
+  end
 
   def ensure_feature_enabled
     errors.add(:feature_flag, 'Feature not enabled') unless feature_allowed?

@@ -31,6 +31,7 @@ class Spx::Captador::Client
   end
 
   def initialize(hook, user)
+    @shared_secret = hook.captador_shared_secret
     @settings = hook.settings
     @user = user
   end
@@ -58,14 +59,32 @@ class Spx::Captador::Client
 
   def headers(method, request_uri, body)
     timestamp = Time.now.to_i.to_s
-    signed = [timestamp, method.to_s.upcase, request_uri, body].join('.')
-    {
+    headers = {
       'Accept' => 'application/json',
       'X-Captador-Instancia' => @settings['instance_key'].to_s,
       'X-Chatspx-Usuario' => @user.id.to_s,
-      'X-Captador-Timestamp' => timestamp,
-      'X-Captador-Assinatura' => "sha256=#{OpenSSL::HMAC.hexdigest('SHA256', @settings['shared_secret'].to_s, signed)}"
+      'X-Captador-Timestamp' => timestamp
     }
+    headers['X-Captador-Assinatura'] = signature(method, request_uri, body, headers)
+    headers
+  end
+
+  def signature(method, request_uri, body, headers)
+    unless ActiveModel::Type::Boolean.new.cast(ENV.fetch('CAPTADOR_ASSINATURA_V2', false))
+      signed = [headers['X-Captador-Timestamp'], method.to_s.upcase, request_uri, body].join('.')
+      return "sha256=#{OpenSSL::HMAC.hexdigest('SHA256', @shared_secret.to_s, signed)}"
+    end
+
+    Spx::Captador::Signature.v2(
+      secret: @shared_secret,
+      timestamp: headers['X-Captador-Timestamp'],
+      method: method,
+      path: request_uri,
+      identifier: headers['X-Captador-Instancia'],
+      header_name: 'x-chatspx-usuario',
+      header_value: headers['X-Chatspx-Usuario'],
+      body: body
+    )
   end
 
   def parse(body)

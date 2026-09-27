@@ -11,6 +11,8 @@ RSpec.describe Spx::CaptadorListener do
   let(:conversation) { create(:conversation, account: account, inbox: inbox, custom_attributes: { 'captador_lead_id' => 'lead-1' }) }
   let(:url) { 'https://captador.spx.ia.br/webhooks/chatspx/inst-1' }
 
+  before { stub_captador_dns }
+
   def event(name, data)
     Events::Base.new(name, Time.zone.now, data)
   end
@@ -21,7 +23,7 @@ RSpec.describe Spx::CaptadorListener do
 
   def expect_delivery(payload)
     expect(WebhookJob).to receive(:perform_later)
-      .with(url, hash_including(payload), :account_webhook, secret: hook.settings['shared_secret'], delivery_id: kind_of(String))
+      .with(url, hash_including(payload), :account_webhook, secret: hook.captador_shared_secret, delivery_id: kind_of(String))
   end
 
   describe '#message_created' do
@@ -77,6 +79,14 @@ RSpec.describe Spx::CaptadorListener do
       listener.message_created(event('message.created', message: incoming))
     end
 
+    it 'não enfileira quando o host permitido resolve para IP interno' do
+      incoming = message
+      stub_captador_dns('10.0.0.5')
+      expect(WebhookJob).not_to receive(:perform_later)
+
+      listener.message_created(event('message.created', message: incoming))
+    end
+
     it 'não deixa exceção escapar para os listeners seguintes' do
       incoming = message
       allow(incoming).to receive(:webhook_data).and_raise(StandardError, 'boom')
@@ -94,7 +104,7 @@ RSpec.describe Spx::CaptadorListener do
 
   def expect_captador_job(**payload)
     expect(WebhookJob).to have_been_enqueued.once.with(
-      url, hash_including(payload), :account_webhook, secret: hook.settings['shared_secret'], delivery_id: kind_of(String)
+      url, hash_including(payload), :account_webhook, secret: hook.captador_shared_secret, delivery_id: kind_of(String)
     )
   end
 

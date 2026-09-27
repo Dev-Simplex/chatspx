@@ -65,11 +65,11 @@ RSpec.describe 'Spx::Captador::Leads', type: :request do
       expect(error_code).to eq('idempotency_key_required')
     end
 
-    it 'repete a mesma resposta para a mesma chave e o mesmo corpo, sem segunda mensagem' do
+    it 'repete a mesma resposta para a mesma chave, corpo e uma nova assinatura, sem segunda mensagem' do
       send_lead
       first = response.parsed_body
 
-      expect { send_lead }.not_to change(Message, :count)
+      expect { send_lead(timestamp: Time.now.to_i + 1) }.not_to change(Message, :count)
       expect(response).to have_http_status(:created)
       expect(response.parsed_body).to eq(first)
     end

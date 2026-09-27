@@ -517,10 +517,10 @@ captador:
       },
       {
         'label': 'Segredo compartilhado',
-        'type': 'text',
+        'type': 'password',
         'name': 'shared_secret',
         'validation': 'required',
-        'help': 'Gerado na tela Conexões do Captador (no mínimo 32 caracteres). Assina as chamadas nos dois sentidos; troque nos dois lados para rotacionar.',
+        'help': 'Gerado na tela Conexões do Captador (no mínimo 32 caracteres). Na edição, deixe em branco para manter o atual.',
       },
       {
         'label': 'Caixas liberadas',

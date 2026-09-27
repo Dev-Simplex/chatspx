@@ -8,7 +8,7 @@ App "Captador" em Configurações → Integrações. Especificação completa: `
 2. Integrações → Captador, com os campos:
    - `captador_url`: endereço base, por exemplo `https://captador.spx.ia.br`. O hook só aceita `https://`. O fork só chama (painel e eventos) hosts da variável `CAPTADOR_HOSTS_PERMITIDOS` (lista separada por vírgula; padrão `captador.spx.ia.br`), na porta 443, sem seguir redirecionamento e nunca para IP interno. Fora disso, o painel mostra "O Captador não respondeu" e os eventos não saem;
    - `instance_key`: chave dada pela tela Conexões do Captador (`[A-Za-z0-9_-]`);
-   - `shared_secret`: no mínimo 32 caracteres, gerado no Captador;
+   - `shared_secret`: no mínimo 32 caracteres, gerado no Captador. Fica cifrado no JSONB e é somente escrita: a API devolve apenas `shared_secret_configured`; na edição, vazio mantém o atual;
    - `allowed_inbox_ids`: CSV das caixas liberadas; vazio libera nenhuma;
    - `allow_login`: marcar só na conta de login.
 3. Ao criar o hook, o `Crm::SetupJob` cria a label `captador` e os atributos `cnpj` e `captador_lead_id` (contato) e `captador_lead_id` (conversa).
@@ -21,10 +21,22 @@ Sem migração: tudo vive em `accounts.settings`, `integrations_hooks.settings` 
 |---|---|
 | `X-Captador-Account` | `account_id` da conta no ChatSPX |
 | `X-Captador-Timestamp` | epoch em segundos; fora de ±300 s → 401 |
-| `X-Captador-Signature` | `sha256=` + hex de `HMAC_SHA256(shared_secret, "<ts>.<MÉTODO>.<path?query>.<corpo bruto>")` |
+| `X-Captador-Signature` | v1: `sha256=<hex>`; v2: `v2=<hex>` |
 | `Idempotency-Key` | obrigatório em `leads`; 8 a 128 caracteres `[A-Za-z0-9_-]` (UUID serve) |
 
-Qualquer falha de assinatura, conta sem a chave ou hook desligado: `401` sem corpo. Os erros de negócio vêm como `{ "error_code": "...", "meta": {...} }`.
+O receptor aceita os dois formatos. A v1 permanece `HMAC_SHA256(shared_secret, "<ts>.<MÉTODO>.<path?query>.<corpo bruto>")`. A v2 é o HMAC-SHA256 destas linhas UTF-8, unidas por LF e sem LF final:
+
+```text
+v2
+<timestamp>
+<MÉTODO em maiúsculas>
+<path?query exatamente recebido>
+<X-Captador-Account>
+idempotency-key:<Idempotency-Key ou vazio>
+<SHA-256 hex minúsculo do corpo bruto>
+```
+
+O Captador só envia v2 com `ASSINATURA_V2=true`. Qualquer falha de assinatura, conta sem a chave ou hook desligado: `401` sem corpo. Uma assinatura de mutação aceita só pode ser usada uma vez em 10 minutos; os erros de negócio vêm como `{ "error_code": "...", "meta": {...} }`.
 
 ## `POST /spx/captador/v1/sessoes` (login)
 
@@ -40,12 +52,11 @@ Só no hook com `allow_login`. Não cria token nem sessão no ChatSPX e não dev
 
 | HTTP | `error_code` | Quando |
 |---|---|---|
-| 401 | `invalid_credentials` | senha errada, e-mail inexistente, usuário inativo ou código 2FA errado (genérico) |
+| 401 | `invalid_credentials` | senha errada, e-mail inexistente, usuário inativo, fora da conta ou código 2FA errado (genérico) |
 | 401 | `mfa_token_invalid` | `mfa_token` inválido ou vencido (5 min): recomeçar pelo e-mail e senha |
 | 403 | `saml_required` | usuário SAML |
-| 403 | `not_account_member` | não é membro da conta do hook |
 | 403 | `login_not_allowed` | hook sem `allow_login` |
-| 429 | — | Rack::Attack: 10 tentativas por e-mail a cada 15 min; 10 códigos por `mfa_token` por minuto |
+| 429 | — | 10 senhas por e-mail/15 min; 10 códigos por `mfa_token`/min e por usuário/15 min |
 
 ## `POST /spx/captador/v1/leads` (abrir conversa)
 
@@ -87,7 +98,7 @@ Só no hook com `allow_login`. Não cria token nem sessão no ChatSPX e não dev
 
 ## Eventos (ChatSPX → Captador)
 
-`Spx::CaptadorListener` → `WebhookJob` → `POST <captador_url>/webhooks/chatspx/<instance_key>`, com `X-Chatwoot-Delivery`, `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` (`sha256=` + HMAC de `"<ts>.<corpo>"` com o `shared_secret`). São 5 tentativas quando o destino não recebeu. Só conversas com `custom_attributes.captador_lead_id`.
+`Spx::CaptadorListener` → `WebhookJob` → `POST <captador_url>/webhooks/chatspx/<instance_key>`, com `X-Chatwoot-Delivery`, `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` (`sha256=` + HMAC de `"<ts>.<corpo>"` com o `shared_secret`). Eventos continuam em v1 nesta fase; o Captador deduplica também assinatura + timestamp. São 5 tentativas quando o destino não recebeu. Antes da fila, o fork resolve o host e recusa qualquer IP interno. Só conversas com `custom_attributes.captador_lead_id`.
 
 | `event` | Quando | Payload |
 |---|---|---|
@@ -158,9 +169,10 @@ O proxy do fork:
 | `X-Captador-Instancia` | `instance_key` do hook |
 | `X-Chatspx-Usuario` | id do usuário do ChatSPX que está no painel (o mesmo `user.id` do login) |
 | `X-Captador-Timestamp` | epoch em segundos (janela de ±300 s) |
-| `X-Captador-Assinatura` | `sha256=` + hex de `HMAC_SHA256(shared_secret, "<ts>.<MÉTODO>.<path?query>.<corpo>")` |
+| `X-Captador-Assinatura` | v1: `sha256=<hex>`; v2: `v2=<hex>` |
 
-- **Assinatura igual à do sentido Captador → ChatSPX**, com ponto entre o método e o path: uma função só nos dois lados. O rascunho do `21-openapi` (`"<ts>.<MÉTODO> <caminho>.<corpo>"`, com espaço) fica valendo assim. No GET, o corpo é vazio.
+- A v1 usa `"<ts>.<MÉTODO>.<path?query>.<corpo>"`. A v2 usa as mesmas sete linhas descritas acima, trocando o identificador por `X-Captador-Instancia` e a linha de cabeçalho por `x-chatspx-usuario:<X-Chatspx-Usuario>`.
+- O fork continua enviando v1; `CAPTADOR_ASSINATURA_V2=true` vira painel GET/POST para v2. No GET, o corpo é vazio (hash SHA-256 da string vazia).
 - Resposta 200 (nos dois): `Nivel2Lead` = `{ lead: Lead | null, empresa: EmpresaResumo | null, etapas: [Etapa], url: string | null, pode_mover: boolean }`.
   - `empresa` e `pode_mover` são **acréscimos ao rascunho**, opcionais. `empresa` é o resumo da Receita que o painel mostra; `pode_mover: false` esconde "Mover para…" (sem o campo, o botão aparece).
   - O `mover` devolve o lead já na etapa nova.
