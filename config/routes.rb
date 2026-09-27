@@ -599,6 +599,13 @@ Rails.application.routes.draw do
                 post :test_key
               end
             end
+            # Painel do Captador na lateral da conversa (proxy assinado para o Captador).
+            resource :captador, controller: 'captador', only: [] do
+              collection do
+                get :lead
+                post :mover
+              end
+            end
           end
 
           # Account-level provider integrations (Vista / Google) — editable, masked credentials.
@@ -971,6 +978,8 @@ Rails.application.routes.draw do
     namespace :captador do
       post 'v1/sessoes', to: 'sessoes#create'
       post 'v1/leads',   to: 'leads#create'
+      get  'v1/catalogo', to: 'catalogo#show'
+      get  'v1/conversas', to: 'conversas#index'
     end
   end
 

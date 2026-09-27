@@ -18,4 +18,13 @@ module CaptadorSigningHelpers
       'X-Captador-Signature' => "sha256=#{signature}"
     }.merge(headers)
   end
+
+  def captador_get(path_with_query, hook:, timestamp: Time.now.to_i, secret: hook.settings['shared_secret'])
+    signature = OpenSSL::HMAC.hexdigest('SHA256', secret, "#{timestamp}.GET.#{path_with_query}.")
+    get path_with_query, headers: {
+      'X-Captador-Account' => hook.account_id.to_s,
+      'X-Captador-Timestamp' => timestamp.to_s,
+      'X-Captador-Signature' => "sha256=#{signature}"
+    }
+  end
 end

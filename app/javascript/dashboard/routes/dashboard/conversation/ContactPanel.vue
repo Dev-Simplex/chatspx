@@ -1,3 +1,9 @@
+const captadorLeadId = computed(
+  () =>
+    currentChat.value.custom_attributes?.captador_lead_id ||
+    contact.value.custom_attributes?.captador_lead_id ||
+    null
+);
 <script setup>
 import { computed, watch, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -31,6 +37,7 @@ import ShopifyOrdersList from 'dashboard/components/widgets/conversation/Shopify
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
+import CaptadorLead from 'dashboard/components/widgets/conversation/captador/CaptadorLead.vue';
 
 const props = defineProps({
   conversationId: {
@@ -70,6 +77,21 @@ const shopifyIntegration = useFunctionGetter(
 const isShopifyFeatureEnabled = computed(
   () => shopifyIntegration.value.enabled
 );
+
+// Painel do Captador: aparece onde o app está ligado; só busca o lead quando a
+// conversa ou o contato traz captador_lead_id (conversa comum não chama o Captador).
+const captadorIntegration = useFunctionGetter(
+  'integrations/getIntegration',
+  'captador'
+);
+const isCaptadorEnabled = computed(() => !!captadorIntegration.value?.enabled);
+const isCaptadorLeadOpen = computed(
+  () => uiSettings.value?.is_captador_lead_open !== false
+);
+// Aberta por padrão: inverte o estado exibido (o toggleSidebarUIState
+// gravaria true no 1º clique e a seção não fecharia).
+const toggleCaptadorLead = () =>
+  updateUISettings({ is_captador_lead_open: !isCaptadorLeadOpen.value });
 
 const { isCloudFeatureEnabled } = useAccount();
 
@@ -378,6 +400,21 @@ onMounted(() => {
               "
             >
               <KanbanStatus :conversation-id="conversationId" />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="element.name === 'captador_lead' && isCaptadorEnabled"
+          >
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CAPTADOR_LEAD')"
+              :is-open="isCaptadorLeadOpen"
+              compact
+              @toggle="toggleCaptadorLead"
+            >
+              <CaptadorLead
+                :conversation-id="conversationId"
+                :lead-id="captadorLeadId"
+              />
             </AccordionItem>
           </div>
         </template>
