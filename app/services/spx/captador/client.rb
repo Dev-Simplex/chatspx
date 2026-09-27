@@ -3,18 +3,32 @@
 # "sha256=" + HMAC-SHA256 de "<ts>.<MÉTODO>.<path?query>.<corpo>", e diz QUEM pede em
 # X-Chatspx-Usuario: o Captador aplica o papel dessa pessoa, e não o de um usuário de serviço.
 #
+# O captador_url vem do hook, que um admin de conta preenche: sem conferir o destino, o servidor
+# consultaria endereços internos (metadados da AWS, Redis, o próprio app) e o painel mostraria a
+# resposta (SSRF). Por isso só https, na porta 443, para os hosts de CAPTADOR_HOSTS_PERMITIDOS, e
+# pelo Flows::SafeHttpClient, que recusa IP interno, fixa o IP resolvido e não segue redirecionamento.
+#
 # Timeout curto de propósito: se o Captador cair, a seção do painel avisa e o atendimento segue.
 class Spx::Captador::Client
   TIMEOUT = 3
   BASE_PATH = '/integracao/chatspx/v1'.freeze
-  NETWORK_ERRORS = [
-    RestClient::Exceptions::Timeout, RestClient::ServerBrokeConnection, Errno::ECONNREFUSED, Errno::EHOSTUNREACH,
-    Errno::ECONNRESET, SocketError, OpenSSL::SSL::SSLError
-  ].freeze
+  DEFAULT_HOSTS = 'captador.spx.ia.br'.freeze
 
   class Unavailable < StandardError; end
 
   Response = Struct.new(:status, :body)
+
+  # Também usado pelo Spx::CaptadorListener antes de enfileirar os eventos.
+  def self.allowed_url?(url)
+    uri = URI.parse(url.to_s)
+    uri.is_a?(URI::HTTPS) && uri.port == 443 && allowed_hosts.include?(uri.host.to_s.downcase)
+  rescue URI::InvalidURIError
+    false
+  end
+
+  def self.allowed_hosts
+    ENV.fetch('CAPTADOR_HOSTS_PERMITIDOS', DEFAULT_HOSTS).split(',').map { |host| host.strip.downcase }.compact_blank
+  end
 
   def initialize(hook, user)
     @settings = hook.settings
@@ -33,16 +47,12 @@ class Spx::Captador::Client
 
   def request(method, path_and_query, body = '')
     url = "#{@settings['captador_url'].to_s.chomp('/')}#{path_and_query}"
-    response = RestClient::Request.execute(
-      method: method, url: url, payload: body.presence, headers: headers(method, URI(url).request_uri, body),
-      open_timeout: TIMEOUT, read_timeout: TIMEOUT
-    )
-    parse(response)
-  rescue RestClient::ExceptionWithResponse => e
-    raise Unavailable, e.message if e.response.nil?
+    raise Unavailable, "destino fora de CAPTADOR_HOSTS_PERMITIDOS: #{url}" unless self.class.allowed_url?(url)
 
-    parse(e.response)
-  rescue *NETWORK_ERRORS => e
+    result = Flows::SafeHttpClient.new(method: method, url: url, headers: headers(method, URI(url).request_uri, body),
+                                       body: body.presence, timeout: TIMEOUT).perform
+    Response.new(result.status, parse(result.body))
+  rescue Flows::StepSkip => e
     raise Unavailable, e.message
   end
 
@@ -50,7 +60,7 @@ class Spx::Captador::Client
     timestamp = Time.now.to_i.to_s
     signed = [timestamp, method.to_s.upcase, request_uri, body].join('.')
     {
-      content_type: :json, accept: :json,
+      'Accept' => 'application/json',
       'X-Captador-Instancia' => @settings['instance_key'].to_s,
       'X-Chatspx-Usuario' => @user.id.to_s,
       'X-Captador-Timestamp' => timestamp,
@@ -58,10 +68,9 @@ class Spx::Captador::Client
     }
   end
 
-  def parse(response)
-    body = response.body.present? ? JSON.parse(response.body) : nil
-    Response.new(response.code, body)
+  def parse(body)
+    body.present? ? JSON.parse(body) : nil
   rescue JSON::ParserError
-    Response.new(response.code, nil)
+    nil
   end
 end

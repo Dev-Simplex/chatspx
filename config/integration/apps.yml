@@ -490,8 +490,8 @@ captador:
       'type': 'object',
       'properties':
         {
-          'captador_url': { 'type': 'string', 'pattern': '^https?://' },
-          'instance_key': { 'type': 'string', 'minLength': 1 },
+          'captador_url': { 'type': 'string', 'pattern': '^https://' },
+          'instance_key': { 'type': 'string', 'minLength': 1, 'pattern': '^[A-Za-z0-9_-]+$' },
           'shared_secret': { 'type': 'string', 'minLength': 32 },
           'allowed_inbox_ids': { 'type': 'string' },
           'allow_login': { 'type': 'boolean' },

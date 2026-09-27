@@ -59,8 +59,10 @@ RSpec.describe 'Contrato Captador ↔ ChatSPX: vetores de ouro', type: :request 
     let(:client) { Spx::Captador::Client.new(hook, instance_double(User, id: 42)) }
     let(:cabecalhos) { { 'X-Captador-Instancia' => 'inst-1', 'X-Chatspx-Usuario' => '42', 'X-Captador-Timestamp' => timestamp.to_s } }
 
+    before { stub_captador_dns }
+
     it 'assina o GET leads com a query em ordem alfabética' do
-      stub = stub_request(:get, 'https://captador.test/integracao/chatspx/v1/leads?contact_id=5012&conversation_id=1234')
+      stub = stub_request(:get, 'https://captador.spx.ia.br/integracao/chatspx/v1/leads?contact_id=5012&conversation_id=1234')
              .with(headers: cabecalhos.merge(
                'X-Captador-Assinatura' => 'sha256=a4f3c9098bbd5309516f50747e7da46a6969fb2d33d9acc75a32d64be5d59811'
              ))
@@ -71,7 +73,7 @@ RSpec.describe 'Contrato Captador ↔ ChatSPX: vetores de ouro', type: :request 
     end
 
     it 'assina o POST mover' do
-      stub = stub_request(:post, "https://captador.test/integracao/chatspx/v1/leads/#{lead_id}/mover")
+      stub = stub_request(:post, "https://captador.spx.ia.br/integracao/chatspx/v1/leads/#{lead_id}/mover")
              .with(body: '{"etapa_id":3}', headers: cabecalhos.merge(
                'X-Captador-Assinatura' => 'sha256=4b6edfc053d88c6d213dd44f2a0f1a7a75d5b78942dbd99a164047eec7b237a8'
              ))
@@ -84,7 +86,7 @@ RSpec.describe 'Contrato Captador ↔ ChatSPX: vetores de ouro', type: :request 
 
   describe 'ChatSPX → Captador, eventos (Webhooks::Trigger com o segredo do hook)' do
     it 'assina "<ts>.<corpo>", sem método nem caminho' do
-      url = 'https://captador.test/webhooks/chatspx/inst-1'
+      url = 'https://captador.spx.ia.br/webhooks/chatspx/inst-1'
       stub = stub_request(:post, url)
              .with(body: '{"event":"message_created","id":99881}', headers: {
                      'X-Chatwoot-Delivery' => 'entrega-1',

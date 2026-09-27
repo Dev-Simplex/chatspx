@@ -10,6 +10,10 @@ class Api::V1::Accounts::Integrations::CaptadorController < Api::V1::Accounts::B
   include ConversationTeamAccessConcern
   include AgentConversationAccessConcern
 
+  LEAD_KEYS = %w[lead empresa etapas url pode_mover].freeze
+  PROBLEM_KEYS = %w[codigo title detail].freeze
+  BUSINESS_ERRORS = [400, 403, 404, 409, 422].freeze
+
   before_action :fetch_hook
   before_action :fetch_conversation
   before_action :authorize_team_access
@@ -49,17 +53,29 @@ class Api::V1::Accounts::Integrations::CaptadorController < Api::V1::Accounts::B
     Spx::Captador::Client.new(@hook, Current.user)
   end
 
-  # O que o Captador responde passa como veio, inclusive os 4xx de negócio (403 acesso_pendente,
-  # 404, 409, 422), que o painel sabe mostrar. 401 dele é segredo trocado de um lado só: para o
-  # atendente é o mesmo que o Captador fora do ar, e vira 502 como queda, timeout e 5xx.
+  # Do Captador só passa JSON, e só os campos que o painel usa: o 200 com o lead e os 4xx de negócio
+  # (403 acesso_pendente, 404, 409, 422), que o painel sabe mostrar. O resto vira o mesmo 502 de
+  # queda e timeout: 401 (segredo trocado de um lado só), 3xx, 5xx e corpo que não é JSON.
   def relay
     response = yield
-    return render_unavailable if response.status == 401 || response.status >= 500
-
-    render json: response.body, status: response.status
+    body = response.body.is_a?(Hash) ? response.body : nil
+    if response.status == 200 && body
+      render json: lead_payload(body)
+    elsif BUSINESS_ERRORS.include?(response.status)
+      render json: body.to_h.slice(*PROBLEM_KEYS), status: response.status
+    else
+      render_unavailable
+    end
   rescue Spx::Captador::Client::Unavailable => e
     Rails.logger.warn("[Captador] painel sem resposta conta=#{Current.account.id}: #{e.message}")
     render_unavailable
+  end
+
+  # O "Abrir no Captador" vira href no painel: só https.
+  def lead_payload(body)
+    payload = body.slice(*LEAD_KEYS)
+    payload['url'] = nil if payload.key?('url') && !payload['url'].to_s.start_with?('https://')
+    payload
   end
 
   def render_unavailable

@@ -6,8 +6,8 @@ App "Captador" em Configurações → Integrações. Especificação completa: `
 
 1. Super Admin → conta → **Captador integration enabled**. Chave `accounts.settings.captador_integration`; desligada, o app some da lista, `/spx/captador/*` responde 401 e nenhum evento sai.
 2. Integrações → Captador, com os campos:
-   - `captador_url`: endereço base, por exemplo `https://captador.spx.ia.br`;
-   - `instance_key`: chave dada pela tela Conexões do Captador;
+   - `captador_url`: endereço base, por exemplo `https://captador.spx.ia.br`. O hook só aceita `https://`. O fork só chama (painel e eventos) hosts da variável `CAPTADOR_HOSTS_PERMITIDOS` (lista separada por vírgula; padrão `captador.spx.ia.br`), na porta 443, sem seguir redirecionamento e nunca para IP interno. Fora disso, o painel mostra "O Captador não respondeu" e os eventos não saem;
+   - `instance_key`: chave dada pela tela Conexões do Captador (`[A-Za-z0-9_-]`);
    - `shared_secret`: no mínimo 32 caracteres, gerado no Captador;
    - `allowed_inbox_ids`: CSV das caixas liberadas; vazio libera nenhuma;
    - `allow_login`: marcar só na conta de login.

@@ -9,7 +9,7 @@ RSpec.describe Spx::CaptadorListener do
   let!(:hook) { captador_hook_for(account) }
   let(:inbox) { create(:inbox, account: account) }
   let(:conversation) { create(:conversation, account: account, inbox: inbox, custom_attributes: { 'captador_lead_id' => 'lead-1' }) }
-  let(:url) { 'https://captador.test/webhooks/chatspx/inst-1' }
+  let(:url) { 'https://captador.spx.ia.br/webhooks/chatspx/inst-1' }
 
   def event(name, data)
     Events::Base.new(name, Time.zone.now, data)
@@ -64,6 +64,14 @@ RSpec.describe Spx::CaptadorListener do
     it 'não entrega com o interruptor da conta desligado' do
       incoming = message
       account.update!(captador_integration: false)
+      expect(WebhookJob).not_to receive(:perform_later)
+
+      listener.message_created(event('message.created', message: incoming))
+    end
+
+    it 'não enfileira para destino fora de CAPTADOR_HOSTS_PERMITIDOS (SSRF)' do
+      incoming = message
+      hook.update!(settings: hook.settings.merge('captador_url' => 'https://169.254.169.254'))
       expect(WebhookJob).not_to receive(:perform_later)
 
       listener.message_created(event('message.created', message: incoming))

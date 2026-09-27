@@ -111,7 +111,7 @@ RSpec.describe 'Spx::Captador::Leads', type: :request do
       expect(sent_message.additional_attributes['template_params']).to include('name' => 'prospeccao_b2b_v1', 'language' => 'pt_BR')
       expect(contact).to have_attributes(phone_number: phone, name: 'Padaria X Ltda', email: 'contato@padariax.com.br')
       expect(contact.custom_attributes).to include('cnpj' => '12345678000199', 'captador_lead_id' => 'lead-1')
-      expect(conversation.custom_attributes).to include('captador_lead_id' => 'lead-1', 'captador_url' => 'https://captador.test/leads/lead-1')
+      expect(conversation.custom_attributes).to include('captador_lead_id' => 'lead-1', 'captador_url' => 'https://captador.spx.ia.br/leads/lead-1')
       expect(conversation.label_list).to include('captador')
     end
 

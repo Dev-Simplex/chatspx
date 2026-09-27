@@ -98,6 +98,11 @@ class Spx::CaptadorListener < BaseListener
   def deliver(hook, payload)
     settings = hook.settings
     url = "#{settings['captador_url'].to_s.chomp('/')}/webhooks/chatspx/#{settings['instance_key']}"
+    # O WebhookJob é da frota e posta em qualquer destino: o filtro contra SSRF fica aqui, antes de enfileirar.
+    unless Spx::Captador::Client.allowed_url?(url)
+      return Rails.logger.warn("[Spx::CaptadorListener] destino recusado conta=#{hook.account_id}: #{url}")
+    end
+
     WebhookJob.perform_later(url, payload, :account_webhook, secret: settings['shared_secret'], delivery_id: SecureRandom.uuid)
   end
 

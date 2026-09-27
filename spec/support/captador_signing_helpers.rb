@@ -4,8 +4,15 @@ module CaptadorSigningHelpers
   def captador_hook_for(account, **settings)
     account.update!(captador_integration: true)
     create(:integrations_hook, account: account, app_id: 'captador', settings: {
-      'captador_url' => 'https://captador.test', 'instance_key' => 'inst-1', 'shared_secret' => 's' * 40
+      'captador_url' => 'https://captador.spx.ia.br', 'instance_key' => 'inst-1', 'shared_secret' => 's' * 40
     }.merge(settings.stringify_keys))
+  end
+
+  # O Spx::Captador::Client resolve o host (Flows::SafeHttpClient) antes do WebMock: sem DNS no teste,
+  # responde com um IP público.
+  def stub_captador_dns(ip = '104.21.64.1')
+    allow(Resolv).to receive(:getaddresses).and_call_original
+    allow(Resolv).to receive(:getaddresses).with('captador.spx.ia.br').and_return([ip])
   end
 
   def captador_post(path, body, hook:, headers: {}, timestamp: Time.now.to_i, secret: hook.settings['shared_secret'])

@@ -48,11 +48,12 @@ class Flows::SafeHttpClient
   HTTP_TIMEOUT = 5 # s, open+read — curto: um nó não pode pendurar o walker
   MAX_RESPONSE_BYTES = 64 * 1024 # teto do corpo lido/gravado
 
-  def initialize(method:, url:, headers: {}, body: nil)
+  def initialize(method:, url:, headers: {}, body: nil, timeout: HTTP_TIMEOUT)
     @method = METHOD_CLASSES.key?(method.to_s) ? method.to_s : 'get'
     @url = url
     @headers = headers || {}
     @body = body
+    @timeout = timeout
   end
 
   def perform
@@ -113,8 +114,8 @@ class Flows::SafeHttpClient
     http = Net::HTTP.new(uri.hostname, uri.port)
     http.ipaddr = ip # fixa no IP validado (anti-rebinding), mantém hostname p/ SNI/cert
     http.use_ssl = uri.scheme == 'https'
-    http.open_timeout = HTTP_TIMEOUT
-    http.read_timeout = HTTP_TIMEOUT
+    http.open_timeout = @timeout
+    http.read_timeout = @timeout
     http.max_retries = 0
     read_capped(http, build_request(uri))
   end
