@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= @global_config['INSTALLATION_NAME'] %></title>
+    <%= csrf_meta_tags %>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <script>
+      window.globalConfig = <%= raw @global_config.to_json %>
+    </script>
+    <%= vite_client_tag %>
+    <%= vite_javascript_tag 'suggestions' %>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>

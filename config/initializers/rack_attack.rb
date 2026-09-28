@@ -97,6 +97,11 @@ class Rack::Attack
     end
   end
 
+  # SUG-02: formulario publico de sugestoes, sem login nem captcha.
+  throttle('suggestions/ip', limit: 5, period: 10.minutes) do |req|
+    req.ip if req.path_without_extentions == '/public/api/v1/suggestions' && req.post?
+  end
+
   throttle('login/email', limit: 10, period: 15.minutes) do |req|
     # Skip if this is an MFA verification request
     if req.path_without_extentions == '/auth/sign_in' && req.post? && req.params['mfa_token'].blank?
