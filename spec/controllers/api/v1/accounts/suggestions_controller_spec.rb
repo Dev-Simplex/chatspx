@@ -61,6 +61,35 @@ RSpec.describe 'Api::V1::Accounts::Suggestions', type: :request do
       expect(response.parsed_body['payload'].first['id']).to eq(minha_nova.id)
     end
 
+    it 'administrador ve as sugestoes de toda a conta, com o nome de quem mandou' do
+      admin = create(:user, account: account, role: :administrator)
+      create(:suggestion, account: account, user: agente, name: agente.name, content: 'do agente')
+      create(:suggestion, account: account, user: admin, name: admin.name, content: 'do admin')
+      create(:suggestion, account: create(:account), content: 'de outra conta')
+
+      get url, headers: admin.create_new_auth_token
+
+      payload = response.parsed_body['payload']
+      expect(payload.pluck('content')).to contain_exactly('do agente', 'do admin')
+      expect(payload.pluck('name')).to include(agente.name)
+      expect(response.parsed_body['meta']['all_account']).to be(true)
+    end
+
+    # No fork, supervisor e ADMINISTRADOR com times (AccountUser#console_role): nao pode ver as dos outros.
+    it 'supervisor ve so as proprias' do
+      supervisor = create(:user, account: account, role: :administrator)
+      team = create(:team, account: account)
+      create(:team_member, team: team, user: agente)
+      AccountUser.find_by(account: account, user: supervisor).update!(supervised_team_ids: [team.id])
+      create(:suggestion, account: account, user: agente, content: 'do agente')
+      create(:suggestion, account: account, user: supervisor, content: 'do supervisor')
+
+      get url, headers: supervisor.create_new_auth_token
+
+      expect(response.parsed_body['payload'].pluck('content')).to eq(['do supervisor'])
+      expect(response.parsed_body['meta']['all_account']).to be(false)
+    end
+
     it 'nao vaza sugestao de outra conta' do
       outra_conta = create(:account)
       create(:suggestion, account: outra_conta, user: create(:user, account: outra_conta, role: :agent))
