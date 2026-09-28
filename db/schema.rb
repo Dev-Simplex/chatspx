@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_25_193752) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_28_191937) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2080,6 +2080,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_25_193752) do
     t.index ["inbox_id"], name: "index_social_publicacoes_on_inbox_id"
   end
 
+  create_table "suggestions", force: :cascade do |t|
+    t.bigint "account_id"
+    t.bigint "user_id"
+    t.string "name", null: false
+    t.string "company", null: false
+    t.text "content", null: false
+    t.integer "source", default: 0, null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_suggestions_on_account_id"
+    t.index ["created_at"], name: "index_suggestions_on_created_at"
+    t.index ["status"], name: "index_suggestions_on_status"
+    t.index ["user_id"], name: "index_suggestions_on_user_id"
+  end
+
   create_table "taggings", id: :serial, force: :cascade do |t|
     t.integer "tag_id"
     t.string "taggable_type"
@@ -2420,6 +2436,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_25_193752) do
   add_foreign_key "scheduled_messages", "messages", on_delete: :nullify
   add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id", on_delete: :nullify
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
+  add_foreign_key "suggestions", "accounts", on_delete: :nullify
+  add_foreign_key "suggestions", "users", on_delete: :nullify
   add_foreign_key "team_supervisors", "teams", on_delete: :cascade
   add_foreign_key "team_supervisors", "users", on_delete: :cascade
   add_foreign_key "unit_exceptions", "units", on_delete: :cascade

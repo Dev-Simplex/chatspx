@@ -1,0 +1,29 @@
+{
+  "SUGGESTIONS": {
+    "TITLE": "Sugerir melhoria",
+    "DESCRIPTION": "Conte o que deixaria o seu dia a dia mais fácil. A sua sugestão vai direto para o time da Simplex.",
+    "FORM": {
+      "AUTHOR": "Enviando como {name} — {company}",
+      "PLACEHOLDER": "Descreva a sua ideia. Quanto mais detalhe, melhor.",
+      "ATTACH": "Anexar foto ou vídeo",
+      "REMOVE_ATTACH": "Remover anexo",
+      "SUBMIT": "Enviar",
+      "SUCCESS": "Sugestão enviada. Obrigado!",
+      "ERROR_EMPTY": "Escreva a sua sugestão antes de enviar.",
+      "ERROR_TYPE": "Só é aceita foto ou vídeo.",
+      "ERROR_SIZE": "O arquivo deve ter até {limit} MB.",
+      "ERROR_GENERIC": "Não foi possível enviar a sua sugestão. Tente de novo."
+    },
+    "LIST": {
+      "TITLE": "Minhas sugestões",
+      "EMPTY": "Você ainda não enviou nenhuma sugestão.",
+      "ERROR": "Não foi possível carregar as suas sugestões."
+    },
+    "STATUS": {
+      "NOVA": "Nova",
+      "LIDA": "Lida",
+      "PLANEJADA": "Planejada",
+      "FEITA": "Feita"
+    }
+  }
+}

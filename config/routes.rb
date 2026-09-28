@@ -164,6 +164,9 @@ Rails.application.routes.draw do
           # Campanhas de captação (lead ads / formulário): viewer só-leitura do volume por
           # campanha e da configuração do hook que a atende.
           resource :lead_campaigns, only: [:show, :update], controller: 'lead_campaigns'
+          # Caixa de sugestoes: qualquer membro da conta cria e le as proprias (SUG-01).
+          resources :suggestions, only: [:index, :create]
+
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :stats
@@ -924,6 +927,8 @@ Rails.application.routes.draw do
         delete :avatar, on: :member, action: :destroy_avatar
       end
       resources :platform_apps, only: [:index, :new, :create, :show, :edit, :update, :destroy]
+      # A ordem aqui define a posicao no menu lateral do Super Admin (SUG-01).
+      resources :suggestions, only: [:index, :show, :edit, :update]
       resource :instance_status, only: [:show]
 
       resource :settings, only: [:show] do

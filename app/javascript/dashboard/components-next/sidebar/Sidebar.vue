@@ -126,11 +126,20 @@ const helpCenterMenuItem = computed(() => {
     label: t('SIDEBAR.HELP_CENTER.TITLE'),
     icon: lordIcon('helpCenter', 'i-lucide-library-big'),
   };
+  // SUG-01: a caixa de sugestões vale para TODA conta, inclusive as que não têm a Central de
+  // Ajuda ligada — a rota `suggestions_new` não tem featureFlag, então o provider não a esconde.
+  const suggestionsChild = {
+    name: 'Suggestions',
+    label: t('SIDEBAR.HELP_CENTER.SUGGESTIONS'),
+    activeOn: ['suggestions_new'],
+    to: accountScopedRoute('suggestions_new'),
+  };
   if (!isHelpCenterAuthoring.value) {
     return {
       ...base,
       to: accountScopedRoute('help_center_view'),
       activeOn: ['help_center_view'],
+      children: [suggestionsChild],
     };
   }
   return {
@@ -176,6 +185,7 @@ const helpCenterMenuItem = computed(() => {
           navigationPath: 'portals_settings_index',
         }),
       },
+      suggestionsChild,
     ],
   };
 });
