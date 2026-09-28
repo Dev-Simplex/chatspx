@@ -32,6 +32,8 @@ Rails.application.routes.draw do
     namespace :survey do
       resources :responses, only: [:show]
     end
+    # SUG-02: formulario publico de sugestoes (sem login).
+    get 'sugestoes', to: 'suggestions#new'
     resource :slack_uploads, only: [:show]
   end
 
@@ -799,6 +801,7 @@ Rails.application.routes.draw do
   namespace :public, defaults: { format: 'json' } do
     namespace :api do
       namespace :v1 do
+        resources :suggestions, only: [:create]
         resources :inboxes do
           scope module: :inboxes do
             resources :contacts, only: [:create, :show, :update] do
