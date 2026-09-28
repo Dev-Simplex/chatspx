@@ -12,6 +12,7 @@ import PortalsIndex from './pages/PortalsIndexPage.vue';
 import PortalsNew from './pages/PortalsNewPage.vue';
 
 const HelpCenterEmbedPage = () => import('./pages/HelpCenterEmbedPage.vue');
+const SuggestionsPage = () => import('./pages/SuggestionsPage.vue');
 
 // Fora da conta autora (conta 3 do deploy de casa) o construtor de artigos
 // não existe: qualquer rota `portals_*` cai no iframe somente-leitura.
@@ -124,6 +125,16 @@ const portalRoutes = [
 
 export default {
   routes: [
+    {
+      // Caixa de sugestões (SUG-01). SEM featureFlag de propósito: quem tem a Central de Ajuda
+      // desligada continua podendo mandar ideia de melhoria para a Simplex.
+      path: frontendURL('accounts/:accountId/suggestions'),
+      name: 'suggestions_new',
+      component: SuggestionsPage,
+      meta: {
+        permissions: ['administrator', 'agent', 'custom_role'],
+      },
+    },
     {
       // Central de Ajuda embutida (iframe do portal publicado). Visível a
       // todos os papéis — é somente leitura. Todas as contas caem aqui, menos
