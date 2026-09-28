@@ -9,7 +9,7 @@ class Public::Api::V1::SuggestionsController < PublicController
     return head :payload_too_large if request.content_length.to_i > MAX_BODY
 
     suggestion = Suggestion.new(params.permit(:name, :company, :content, :media).merge(source: :public_link))
-    return render json: { error: suggestion.errors.full_messages.to_sentence }, status: :unprocessable_entity unless suggestion.save
+    return render json: { error: suggestion.errors.full_messages.join('. ') }, status: :unprocessable_entity unless suggestion.save
 
     head :created
   end
