@@ -1,5 +1,6 @@
 json.id suggestion.id
 json.content suggestion.content
+json.name suggestion.name
 json.status suggestion.status
 json.created_at suggestion.created_at.to_i
 

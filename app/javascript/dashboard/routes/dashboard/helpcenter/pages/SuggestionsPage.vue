@@ -21,6 +21,8 @@ const mediaInput = ref(null);
 const sending = ref(false);
 const loading = ref(false);
 const suggestions = ref([]);
+// O backend diz o alcance: admin da conta ve as de todos (com o autor); o resto, so as suas.
+const allAccount = ref(false);
 const errorMessage = ref('');
 
 const authorLine = computed(() =>
@@ -52,6 +54,7 @@ const loadSuggestions = async () => {
   try {
     const { data } = await SuggestionsAPI.get();
     suggestions.value = data?.payload || [];
+    allAccount.value = !!data?.meta?.all_account;
   } catch (error) {
     useAlert(t('SUGGESTIONS.LIST.ERROR'));
   } finally {
@@ -186,14 +189,22 @@ onMounted(loadSuggestions);
       </div>
 
       <h2 class="mt-8 text-heading-2 text-n-slate-12">
-        {{ $t('SUGGESTIONS.LIST.TITLE') }}
+        {{
+          allAccount
+            ? $t('SUGGESTIONS.LIST.TITLE_ADMIN')
+            : $t('SUGGESTIONS.LIST.TITLE')
+        }}
       </h2>
 
       <p
         v-if="!loading && !suggestions.length"
         class="mt-3 mb-0 text-body-main text-n-slate-11"
       >
-        {{ $t('SUGGESTIONS.LIST.EMPTY') }}
+        {{
+          allAccount
+            ? $t('SUGGESTIONS.LIST.EMPTY_ADMIN')
+            : $t('SUGGESTIONS.LIST.EMPTY')
+        }}
       </p>
 
       <ul class="mt-3 mb-0 space-y-3 list-none">
@@ -205,6 +216,9 @@ onMounted(loadSuggestions);
           <div class="flex flex-wrap items-center gap-2 justify-between">
             <span class="text-sm text-n-slate-11">
               {{ formatDate(suggestion.created_at) }}
+              <span v-if="allAccount" class="ms-2 font-medium text-n-slate-12">
+                {{ suggestion.name }}
+              </span>
             </span>
             <span
               class="px-2 py-0.5 text-xs rounded-md bg-n-alpha-2 text-n-slate-12"

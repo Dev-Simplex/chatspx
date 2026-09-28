@@ -1,11 +1,15 @@
 # Caixa de sugestoes DENTRO do sistema: qualquer membro da conta manda uma ideia de melhoria para a
-# Simplex e ve as proprias no "Minhas sugestoes". Sem policy de admin de proposito — a ideia boa
-# costuma vir de quem atende, nao de quem administra.
+# Simplex. Sem policy de admin para ENVIAR de proposito — a ideia boa costuma vir de quem atende.
+# Na LISTA, o administrador da conta ve as de todos; os demais (inclusive o supervisor, que no
+# banco e administrador com times -- ver AccountUser#console_role), so as proprias.
 class Api::V1::Accounts::SuggestionsController < Api::V1::Accounts::BaseController
   LIMITE_MINHAS = 50
 
   def index
-    @suggestions = Current.account.suggestions.where(user: Current.user).recentes.limit(LIMITE_MINHAS)
+    @all_account = Current.account_user&.console_role == 'administrator'
+    scope = Current.account.suggestions
+    scope = scope.where(user: Current.user) unless @all_account
+    @suggestions = scope.recentes.limit(LIMITE_MINHAS)
   end
 
   def create

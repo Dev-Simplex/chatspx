@@ -17,7 +17,9 @@
     "LIST": {
       "TITLE": "My suggestions",
       "EMPTY": "You have not sent any suggestions yet.",
-      "ERROR": "We could not load your suggestions."
+      "ERROR": "We could not load your suggestions.",
+      "TITLE_ADMIN": "Account suggestions",
+      "EMPTY_ADMIN": "No one in this account has sent a suggestion yet."
     },
     "STATUS": {
       "NOVA": "New",
