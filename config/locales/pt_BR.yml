@@ -45,6 +45,11 @@ pt_BR:
       unit_working_hour: Horário da unidade
       unit_exception: Exceção da unidade
     attributes:
+      suggestion:
+        name: Nome
+        company: Empresa
+        content: Sugestão
+        media: Anexo
       unit:
         name: Nome
         city: Cidade
