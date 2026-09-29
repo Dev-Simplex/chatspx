@@ -12,6 +12,7 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
 
   def create
     return head :ok if @contact_inbox&.contact&.blocked?
+    return ignore_waha_status_broadcast if waha_status_broadcast?
 
     @message = @conversation.messages.new(message_params)
     build_attachment
