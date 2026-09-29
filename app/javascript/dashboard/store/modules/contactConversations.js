@@ -149,8 +149,6 @@ export const actions = {
         id: conversationId,
         account_id: conversation.accountId ?? conversation.account_id,
       };
-    } catch (error) {
-      throw new Error(error);
     } finally {
       commit(types.default.SET_CONTACT_CONVERSATIONS_UI_FLAG, {
         isCreating: false,
