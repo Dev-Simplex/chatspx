@@ -19,29 +19,33 @@
 > **Regra desta sessão:** código só em worktree filha `spx/<frente>` (Orca), config de IA daqui com
 > antes/depois e ok do Paulo; o detalhe mora na Arena, o problema no gestão.
 
-**SPX — destravar entregas paradas e perdas em curso** (projeto novo na Arena)
-1. CHAT-156 — reproduzir o descarte de comentário do Instagram (`test_event?`) · **item atual proposto**
-2. CHAT-128 — abrir PR de `fix/resultado-tipado-de-tool` (harness + CI; 15 commits fora de producao)
-3. CHAT-129 — abrir PR de `spx/disparo-guarda` (4 commits)
-4. CHAT-130 — abrir PR de `spx/fix-fotos-handoff-hml` (10 commits, só no remoto)
-5. CHAT-131 — abrir PR de `PauloSeze/factguard-shadow`
-6. CHAT-133/134 — listar onde o Captador (#263/#264) colide com o Vista
-- Estacionados: corrigir taxonomia + fluxograma para o pick do #257 · apontar `scripts/ops/fabrica.sh` para `spx-os/clientes`
+**Organização (28/09, noite): Paulo pediu que esta sessão seja a ORQUESTRADORA.** Arena = frente → bloco
+(tarefa macro) → checklist numerado; gestão = só o problema. A posição se diz como "Dado certo 1/6".
 
 **Tozi — corrigir a estrutura das IAs** (conta 6, VM `3.94.9.51`)
-1. `vazio_completo` nunca gravado — achar a causa (destrava CHAT-147)
-2. CHAT-127 — antes/depois do `knowledge_mode` de Letícia, Marina, Rafa e Helena (Bruna: alimentar a base, não trocar)
-3. CHAT-125 — antes/depois de ligar o rodízio em `modo_posse: designacao` (único jeito de rotear sem calar a IA)
-4. CHAT-159 — teste vermelho do telefone inventado sem `buscar_unidades` (precisa do Docker Desktop)
-5. Classificar por causa os 20 `contradisse_tool` mais recentes (o eval que ninguém consome)
-6. CHAT-147 — sinal estrutural de oportunidade perdida (bloqueado pelo item 1)
-- Fora da sequência, já existiam na Arena: "Colocar em produção os prompts otimizados" e "Disparo dos contatos parados em aguardando atendimento".
-- Ponteiro por faixa e status online no pick (CHAT-143/144) ficam no gestão: o rodízio está desligado na Tozi, não bloqueia nada agora.
+- *Fazer as IAs usarem o dado certo:* 1 `vazio_completo` nunca gravado · 2 retorno da tool cortado do contexto
+  (CHAT-169; `captain_tool_context=true` na conta 6, teto 6×700) · 3 telefone inventado (CHAT-159) ·
+  4 `knowledge_mode` (CHAT-127) · 5 inventário de ferramentas (CHAT-168) · 6 prompts corrigidos (CHAT-136)
+- *Fazer o atendimento andar depois da IA:* 1 follow-up não dispara (CHAT-164) · 2 mensagem agendada sem IA
+  (CHAT-165) · 3 marcadores novos + troca manual (CHAT-166, decisão já tomada) · 4 rodízio em `designacao`
+  (CHAT-125) · 5 lead no Vista sem depender do rodízio (CHAT-133/134)
+- *Medir e aprender:* 1 20 `contradisse_tool` por causa · 2 oportunidade perdida (CHAT-147) · 3 re-medir
+  baseline (CHAT-135) · 4 Jev em sombra (CHAT-151 — sugestão do Paulo de potencializar as IAs com o Jev)
+- Fora dos blocos: disparo dos contatos parados (só sai com "pode soltar" do Paulo).
 
-**CD Solar / Rocket** — os handoffs não tocam essas frentes; seguem os itens que já estavam na Arena.
+**SPX — destravar entregas paradas e perdas em curso**
+- *Branches paradas → PR:* CHAT-128, 129, 130, 131 + decidir 3 branches sem PR
+- *Destravar o Instagram na Meta:* CHAT-156 **não é bug de código** — conserto no ar desde 25/08 (PR #63),
+  a Tozi roda `dac5a6dce`, mas **0 eventos `changes` em 7 dias** contra 314 de DM: a Meta não entrega
+  comentário. Caminho: endpoint de exclusão (CHAT-160) → App Review (Paulo) → token (CHAT-158) → diagnóstico (CHAT-157)
+- *Terminar campanhas (CHAT-167):* espera o Paulo listar o que falta no uso
+- *Captador × Vista* · *Arrumar docs e scripts* (taxonomia, fluxograma, `fabrica.sh`)
+- Defeitos da auditoria de 20/09 sem tarefa viraram CHAT-163.
 
-**Decisões do Paulo que travam:** CHAT-125 (ligar rodízio e em qual `modo_posse`) · CHAT-126 (sinal MCMV) ·
-CHAT-146 (desenho da coexistência) · enxugar ou não as 16 tarefas CHAT-126..151 escritas antes da regra de 28/09.
+**CD Solar (CHAT-161) / Rocket (CHAT-162)** — seguem os itens que já estavam na Arena.
+
+**Decisões do Paulo que travam:** CHAT-125 (ligar rodízio) · CHAT-126 (sinal MCMV) · CHAT-146 (coexistência).
+As 16 tarefas CHAT-126..151 ficam como estão (decidido 28/09).
 
 ### [2026-09-25] 🔴 O P0 ESTÁ NO AR E `vazio_completo` NUNCA FOI GRAVADO — a diferenciação não chega ao banco
 
