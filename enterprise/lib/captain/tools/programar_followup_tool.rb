@@ -1,15 +1,20 @@
 class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
   description 'Programa um follow-up (cutucada) pra esta conversa, pra retomar caso o cliente não responda. ' \
-              'Use o seu julgamento: programe só quando vale a pena manter o lead aquecido ou esclarecer algo pendente. ' \
+              'Use o seu julgamento: programe só quando vale a pena manter o contato aquecido ou esclarecer algo pendente. ' \
               'NÃO programe se o cliente disse que já responde, se a conversa se encerrou naturalmente, ou se não há nada pendente. ' \
-              'Você escolhe o tempo: poucos minutos pra um lead quente que sumiu no meio, algumas horas ou 1-2 dias pra quem ficou de pensar. ' \
-              'Quando o cliente disser quando quer ser procurado, mande isso em `janela` — é ela que passa a mandar no horário. ' \
+              'O tempo até a cutucada é decisão sua, tirada desta conversa: do que o cliente disse e de onde o atendimento parou. ' \
+              'Quando o cliente disser um momento pro retorno (horário, período do dia ou dia), `janela` é OBRIGATÓRIA, ' \
+              'com as palavras dele: sem ela o horário combinado não é cumprido, porque a cutucada sai no tempo de `minutos`. ' \
               'Programar de novo substitui o follow-up anterior.'
 
   param :minutos, type: 'number',
-        desc: 'Em quantos minutos cutucar, se o cliente não responder até lá. Ex: 5 a 15 pra lead quente; 120-480 pra algumas horas; até 2880 (2 dias).', required: true
+                  desc: 'Em quantos minutos cutucar, se o cliente não responder até lá: o tempo até o momento em que faz sentido ' \
+                        'retomar, julgado pelo que o cliente disse e pelo estado da conversa. Não há valor padrão; decida a cada caso. ' \
+                        'Valor fora do limite aceito é ajustado automaticamente. Com `janela` preenchida, é ela que define o horário.',
+                  required: true
   param :motivo, type: 'string',
-        desc: 'Em que ponto a conversa parou e o que retomar na cutucada. Ex: "estava escolhendo entre as duas casas que mandei".', required: true
+                 desc: 'Em que ponto a conversa parou e o que retomar na cutucada, descrito a partir do que aconteceu nesta conversa.',
+                 required: true
   param :janela,
         type: 'string',
         desc: 'O momento que o PRÓPRIO cliente disse preferir pro retorno, com as palavras dele. ' \
