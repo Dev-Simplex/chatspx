@@ -22,6 +22,12 @@
       "EMPTY_ADMIN": "No one in this account has sent a suggestion yet.",
       "SOURCE_LINK": "Via link"
     },
+    "PUBLIC_LINK": {
+      "TITLE": "Public link for collecting suggestions",
+      "HINT": "Anyone can send one without signing in. Share it over WhatsApp or email.",
+      "COPY": "Copy",
+      "COPIED": "Link copied."
+    },
     "STATUS": {
       "NOVA": "New",
       "LIDA": "Read",
