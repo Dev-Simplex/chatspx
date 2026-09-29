@@ -92,12 +92,12 @@ const sendAnother = () => {
 
 // Mesma paleta da pagina do Chat Interno (/chat-interno.html): preto, vidro, verde #2dc46f.
 const inputClass =
-  'w-full px-3.5 py-3 text-base rounded-xl border border-white/10 bg-white/[0.035] text-white placeholder:text-white/40 outline-none transition focus:border-[#2dc46f]/70 focus:ring-2 focus:ring-[#2dc46f]/20';
+  'w-full px-3.5 py-3 text-base rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.035)] text-[#fff] placeholder:text-[rgba(255,255,255,0.4)] outline-none transition focus:border-[#2dc46f]/70 focus:ring-2 focus:ring-[#2dc46f]/20';
 </script>
 
 <template>
   <div
-    class="min-h-screen bg-black text-white font-['Geist',ui-sans-serif,system-ui,sans-serif] bg-[radial-gradient(ellipse_90%_55%_at_50%_-10%,rgba(45,196,111,0.35),transparent_70%)]"
+    class="min-h-screen bg-[#000] text-[#fff] font-['Geist',ui-sans-serif,system-ui,sans-serif] bg-[radial-gradient(ellipse_90%_55%_at_50%_-10%,rgba(45,196,111,0.35),transparent_70%)]"
   >
     <div class="w-full max-w-xl px-4 pt-6 pb-12 mx-auto sm:pt-10">
       <header class="flex items-center gap-3 mb-10">
@@ -111,7 +111,7 @@ const inputClass =
         <h1 class="text-5xl font-semibold tracking-tight text-[#7ff5b5]">
           {{ t('SUGGESTIONS_FORM.THANKS_TITLE') }}
         </h1>
-        <p class="mt-4 text-lg leading-relaxed text-white/70">
+        <p class="mt-4 text-lg leading-relaxed text-[rgba(255,255,255,0.7)]">
           {{ t('SUGGESTIONS_FORM.THANKS_TEXT') }}
         </p>
         <button
@@ -138,13 +138,15 @@ const inputClass =
             {{ t('SUGGESTIONS_FORM.TITLE_ACCENT') }}
           </span>
         </h1>
-        <p class="mt-4 mb-8 text-lg leading-relaxed text-white/70">
+        <p
+          class="mt-4 mb-8 text-lg leading-relaxed text-[rgba(255,255,255,0.7)]"
+        >
           {{ t('SUGGESTIONS_FORM.DESCRIPTION') }}
         </p>
 
         <form
           novalidate
-          class="p-4 border sm:p-6 rounded-2xl border-white/10 bg-white/[0.035] backdrop-blur"
+          class="p-4 border sm:p-6 rounded-2xl border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.035)] backdrop-blur"
           @submit.prevent="submit"
         >
           <!-- Honeypot: pessoa nao ve nem alcanca pelo Tab; bot preenche e o servidor descarta. -->
@@ -158,7 +160,9 @@ const inputClass =
           />
 
           <label class="block mb-5">
-            <span class="block mb-1.5 text-sm font-medium text-white/80">
+            <span
+              class="block mb-1.5 text-sm font-medium text-[rgba(255,255,255,0.8)]"
+            >
               {{ t('SUGGESTIONS_FORM.NAME') }}
             </span>
             <input
@@ -176,7 +180,9 @@ const inputClass =
           </label>
 
           <label class="block mb-5">
-            <span class="block mb-1.5 text-sm font-medium text-white/80">
+            <span
+              class="block mb-1.5 text-sm font-medium text-[rgba(255,255,255,0.8)]"
+            >
               {{ t('SUGGESTIONS_FORM.COMPANY') }}
             </span>
             <input
@@ -194,7 +200,9 @@ const inputClass =
           </label>
 
           <label class="block mb-5">
-            <span class="block mb-1.5 text-sm font-medium text-white/80">
+            <span
+              class="block mb-1.5 text-sm font-medium text-[rgba(255,255,255,0.8)]"
+            >
               {{ t('SUGGESTIONS_FORM.CONTENT') }}
             </span>
             <textarea
@@ -213,19 +221,21 @@ const inputClass =
           </label>
 
           <div class="mb-6">
-            <span class="block mb-1.5 text-sm font-medium text-white/80">
+            <span
+              class="block mb-1.5 text-sm font-medium text-[rgba(255,255,255,0.8)]"
+            >
               {{ t('SUGGESTIONS_FORM.MEDIA') }}
             </span>
             <input
               ref="mediaInput"
               type="file"
               accept="image/*,video/*"
-              class="block w-full text-sm text-white/60 file:me-3 file:px-4 file:py-2.5 file:rounded-xl file:border file:border-white/15 file:bg-white/[0.07] file:text-white file:font-medium"
+              class="block w-full text-sm text-[rgba(255,255,255,0.6)] file:me-3 file:px-4 file:py-2.5 file:rounded-xl file:border file:border-[rgba(255,255,255,0.15)] file:bg-[rgba(255,255,255,0.07)] file:text-[#fff] file:font-medium"
               @change="onFileChange"
             />
             <div
               v-if="media"
-              class="flex items-center justify-between gap-2 mt-2 text-sm text-white/70"
+              class="flex items-center justify-between gap-2 mt-2 text-sm text-[rgba(255,255,255,0.7)]"
             >
               <span class="truncate">{{ media.name }}</span>
               <button
@@ -236,7 +246,10 @@ const inputClass =
                 {{ t('SUGGESTIONS_FORM.MEDIA_REMOVE') }}
               </button>
             </div>
-            <span v-else class="block mt-1.5 text-xs text-white/45">
+            <span
+              v-else
+              class="block mt-1.5 text-xs text-[rgba(255,255,255,0.45)]"
+            >
               {{ t('SUGGESTIONS_FORM.MEDIA_HINT', { limit: MAX_MEDIA_MB }) }}
             </span>
             <span
