@@ -162,22 +162,20 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
     post('/api/sendLocation', payload)
   end
 
-  # Send a saved contact card (vCard) via WAHA when we have the WhatsApp JID
-  # (contactId) of the person being shared. WAHA renders this as a tappable
-  # contact card in the recipient's WhatsApp.
-  #
-  # WAHA payload uses `contactsIds` (plural ARRAY) — confirmed via official docs:
-  # https://waha.devlike.pro/docs/how-to/send-messages/#contact-vcard
-  def send_contact_vcard(session:, chat_id:, contact_ids:)
-    ids = Array(contact_ids).compact.reject(&:blank?)
-    payload = { session: session, chatId: chat_id, contactsIds: ids }
-    post('/api/sendContactVcard', payload)
+  # Sends a native contact card (vCard) that the recipient's WhatsApp renders as
+  # a tappable card. Documented body (WEBJS, WPP, GOWS, NOWEB):
+  #   { session, chatId, contacts: [{ fullName, organization?, phoneNumber, whatsappId }] }
+  # whatsappId = digits only with country code (no +).
+  # https://waha.devlike.pro/docs/how-to/send-messages/#send-contact-vcard
+  def send_contact_vcard(session:, chat_id:, full_name:, phone:)
+    digits = phone.to_s.gsub(/\D/, '')
+    card = { fullName: full_name.to_s.squish, phoneNumber: "+#{digits}", whatsappId: digits }
+    post('/api/sendContactVcard', { session: session, chatId: chat_id, contacts: [card] })
   end
 
-  # Fallback path for "Telefone livre": we have a name + raw phone number but no
-  # WhatsApp JID. We build a vCard 3.0 string and ship it through /api/sendText.
-  # The recipient sees the vCard inline; long-press still allows saving on most
-  # WhatsApp clients.
+  # Fallback when /api/sendContactVcard answers with an error: builds a vCard 3.0
+  # string and ships it through /api/sendText. The recipient sees the raw vCard
+  # text instead of a card, but the contact still arrives.
   def send_text_with_vcard(session:, chat_id:, name:, phone:)
     payload = {
       session: session,
