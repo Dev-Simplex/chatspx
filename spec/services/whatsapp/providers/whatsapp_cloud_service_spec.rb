@@ -73,6 +73,58 @@ describe Whatsapp::Providers::WhatsappCloudService do
         expect(service.send_message('+123456789', message)).to eq 'message_id'
       end
 
+      it 'sends a 16-bit PNG as a JPEG variant' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+        attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+        png_header = "\x89PNG\r\n\x1A\n".b.ljust(24, "\0") << "\x10\x02"
+        variant = attachment.file.variant(format: :jpeg)
+
+        allow(attachment).to receive(:download_url).and_return('https://example.com/original.png')
+        allow(attachment.file.blob).to receive(:download_chunk).with(0...26).and_return(png_header)
+        allow(attachment.file).to receive(:variant).with(format: :jpeg).and_return(variant)
+        allow(variant).to receive(:processed).and_return(variant)
+        allow(variant).to receive(:url).and_return('https://example.com/converted.jpg')
+
+        stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+          .with(body: hash_including(image: WebMock::API.hash_including(link: 'https://example.com/converted.jpg')))
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
+
+      it 'keeps an 8-bit PNG original link' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+        attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+        png_header = "\x89PNG\r\n\x1A\n".b.ljust(24, "\0") << "\x08\x06"
+
+        allow(attachment).to receive(:download_url).and_return('https://example.com/original.png')
+        allow(attachment.file.blob).to receive(:download_chunk).with(0...26).and_return(png_header)
+        expect(attachment.file).not_to receive(:variant)
+
+        stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+          .with(body: hash_including(image: WebMock::API.hash_including(link: 'https://example.com/original.png')))
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
+
+      it 'keeps a JPEG original link' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+        attachment.file.attach(
+          io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.jpg', content_type: 'image/jpeg', identify: false
+        )
+
+        allow(attachment).to receive(:download_url).and_return('https://example.com/original.jpg')
+        expect(attachment.file.blob).not_to receive(:download_chunk)
+        expect(attachment.file).not_to receive(:variant)
+
+        stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+          .with(body: hash_including(image: WebMock::API.hash_including(link: 'https://example.com/original.jpg')))
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
+
       it 'calls message endpoints for document attachment message messages' do
         attachment = message.attachments.new(account_id: message.account_id, file_type: :file)
         attachment.file.attach(io: Rails.root.join('spec/assets/sample.pdf').open, filename: 'sample.pdf', content_type: 'application/pdf')
