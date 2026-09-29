@@ -65,6 +65,10 @@ en:
         rodizio_conversation_tabs_enabled: Enable Rotation and Attention tabs
 
   errors:
+    suggestions:
+      media:
+        type: 'must be a photo or a video'
+        size: 'must be up to %{limit} MB'
     read_only_inbox:
       message_blocked: 'This inbox is in read-only mode.'
       redirect_invalid: 'The redirect inbox must be another WhatsApp inbox of this account that is not read-only.'
