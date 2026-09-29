@@ -22,6 +22,12 @@
       "EMPTY_ADMIN": "Ninguém desta conta enviou sugestão ainda.",
       "SOURCE_LINK": "Pelo link"
     },
+    "PUBLIC_LINK": {
+      "TITLE": "Link público para receber sugestões",
+      "HINT": "Qualquer pessoa envia sem precisar de login. Mande por WhatsApp ou e-mail.",
+      "COPY": "Copiar",
+      "COPIED": "Link copiado."
+    },
     "STATUS": {
       "NOVA": "Nova",
       "LIDA": "Lida",
