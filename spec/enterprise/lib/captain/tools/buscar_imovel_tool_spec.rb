@@ -754,7 +754,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     it 'avisa também quando o código não existe no acervo' do
       allow(tool).to receive(:fetch_vista).and_return([])
 
-      resposta = tool.send(:por_codigo, tool_context, '404', 'locacao')
+      resposta = tool.send(:por_codigo, tool_context, '404', 'locacao').to_s
       expect(resposta).to include('Bruna')
       expect(resposta).to include('confirme o número')
     end
@@ -978,12 +978,27 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     # O outro lado da moeda: 200 com lista vazia É ausência confirmada, e continua sendo dita
     # como tal. Se este exemplo cair junto com os de cima, a correção virou mordaça.
     it 'preserva a ausência CONFIRMADA quando o Vista responde 200 sem resultado' do
+      account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
       allow(tool).to receive(:vista_get).and_return(resposta(code: 200, corpo: { 'total' => 0, 'paginas' => 0 }))
 
       texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
 
+      expect(texto).to be_a(String)
       expect(texto).to include('Nenhum imóvel encontrado')
       expect(texto).not_to include('falha de consulta')
+      # Sem o status, o gate do eval e a nota do turno seguinte liam a busca vazia como 'ok'.
+      expect(Captain::ToolCall.for_conversation(conversation.id).last.status).to eq('vazio_completo')
+    end
+
+    it 'grava o código ausente do acervo como ausência confirmada' do
+      account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 200, corpo: { 'total' => 0 }))
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', codigo: '404')
+
+      expect(texto).to be_a(String)
+      expect(texto).to include('confirme o número')
+      expect(Captain::ToolCall.for_conversation(conversation.id).last.status).to eq('vazio_completo')
     end
 
     it 'grava a falha como erro no trace, não como ok' do
@@ -1143,7 +1158,12 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     let(:outra) { casa.merge('Codigo' => '2') }
 
     before do
+      account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
       allow(tool).to receive_messages(site_api_key: nil, fetch_vista: [casa, outra])
+    end
+
+    def ultimo_status
+      Captain::ToolCall.for_conversation(conversation.id).last.status
     end
 
     it 'não afirma ausência quando não conseguiu confirmar a característica' do
@@ -1153,6 +1173,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
 
       expect(texto).to include('NÃO foi possível confirmar')
       expect(texto).not_to include('NENHUM está cadastrado')
+      expect(ultimo_status).to eq('parcial')
     end
 
     it 'mantém a ausência confirmada quando TODOS foram conferidos' do
@@ -1163,6 +1184,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       texto = tool.perform(tool_context, status_tipo: 'locacao', mobiliado: true)
 
       expect(texto).to include('NENHUM está cadastrado')
+      expect(ultimo_status).to eq('vazio_completo')
     end
 
     it 'avisa que a lista pode estar incompleta quando parte não foi confirmada' do
@@ -1173,7 +1195,9 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
 
       texto = tool.perform(tool_context, status_tipo: 'locacao', mobiliado: true)
 
+      expect(texto).to be_a(String)
       expect(texto).to include('pode não ser todas as opções mobiliadas')
+      expect(ultimo_status).to eq('parcial')
     end
   end
 end
