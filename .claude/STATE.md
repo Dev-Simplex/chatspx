@@ -10,6 +10,502 @@
 
 ## 🚧 Em andamento
 
+### [2026-09-28] 🧭 PLANO ÚNICO POR FRENTE — os dois handoffs de 28/09 consolidados (sessão integradora)
+
+> Fontes conferidas em 28/09: `origin/producao` (#226 P0 em 22/09 · #257 abas Rodízio/Atenção em 25/09 ·
+> #261 · #263/#264 Captador em 27/09), gestão CHAT (39 abertas) e Arena. Os dois handoffs batem com o
+> código; única divergência: CHAT-127 diz "5 agentes", o handoff diz "6 de 9" (a Bruna é a sexta e tem
+> tratamento próprio). O prompt de retomada está em `docs/PROMPT-RETOMADA-SPX-IA.md` (não versionado).
+> **Regra desta sessão:** código só em worktree filha `spx/<frente>` (Orca), config de IA daqui com
+> antes/depois e ok do Paulo; o detalhe mora na Arena, o problema no gestão.
+
+**SPX — destravar entregas paradas e perdas em curso** (projeto novo na Arena)
+1. CHAT-156 — reproduzir o descarte de comentário do Instagram (`test_event?`) · **item atual proposto**
+2. CHAT-128 — abrir PR de `fix/resultado-tipado-de-tool` (harness + CI; 15 commits fora de producao)
+3. CHAT-129 — abrir PR de `spx/disparo-guarda` (4 commits)
+4. CHAT-130 — abrir PR de `spx/fix-fotos-handoff-hml` (10 commits, só no remoto)
+5. CHAT-131 — abrir PR de `PauloSeze/factguard-shadow`
+6. CHAT-133/134 — listar onde o Captador (#263/#264) colide com o Vista
+- Estacionados: corrigir taxonomia + fluxograma para o pick do #257 · apontar `scripts/ops/fabrica.sh` para `spx-os/clientes`
+
+**Tozi — corrigir a estrutura das IAs** (conta 6, VM `3.94.9.51`)
+1. `vazio_completo` nunca gravado — achar a causa (destrava CHAT-147)
+2. CHAT-127 — antes/depois do `knowledge_mode` de Letícia, Marina, Rafa e Helena (Bruna: alimentar a base, não trocar)
+3. CHAT-125 — antes/depois de ligar o rodízio em `modo_posse: designacao` (único jeito de rotear sem calar a IA)
+4. CHAT-159 — teste vermelho do telefone inventado sem `buscar_unidades` (precisa do Docker Desktop)
+5. Classificar por causa os 20 `contradisse_tool` mais recentes (o eval que ninguém consome)
+6. CHAT-147 — sinal estrutural de oportunidade perdida (bloqueado pelo item 1)
+- Fora da sequência, já existiam na Arena: "Colocar em produção os prompts otimizados" e "Disparo dos contatos parados em aguardando atendimento".
+- Ponteiro por faixa e status online no pick (CHAT-143/144) ficam no gestão: o rodízio está desligado na Tozi, não bloqueia nada agora.
+
+**CD Solar / Rocket** — os handoffs não tocam essas frentes; seguem os itens que já estavam na Arena.
+
+**Decisões do Paulo que travam:** CHAT-125 (ligar rodízio e em qual `modo_posse`) · CHAT-126 (sinal MCMV) ·
+CHAT-146 (desenho da coexistência) · enxugar ou não as 16 tarefas CHAT-126..151 escritas antes da regra de 28/09.
+
+### [2026-09-25] 🔴 O P0 ESTÁ NO AR E `vazio_completo` NUNCA FOI GRAVADO — a diferenciação não chega ao banco
+
+> Achado ao procurar o sinal estrutural para os casos A e B. **Não é dívida técnica: é o pré-requisito
+> do detector de maior retorno do mapa.**
+
+- O código em produção declara `Captain::Tools::Result::CONFIRMADOS = ["ok", "vazio_completo", "parcial"]`.
+- **O banco tem dois valores, em toda a história:** `ok` **28.003** · `error` **2**. `vazio_completo` e
+  `parcial` **nunca foram gravados**.
+- **E não é falta de tempo de vida:** das 768 chamadas registradas **depois** do deploy do P0
+  (23/09 00:22 → 25/09 14:47 UTC), **todas** com status `ok`.
+- **O que isso invalida:** o gate do eval passou a ler `Result::CONFIRMADOS`, mas lê um campo que
+  **nunca varia**; o `ignorou_erro_da_tool` que devia subir de volume não tem como subir; e a query do
+  detector A/B devolve **zero**.
+- **Causas possíveis, nenhuma investigada:** (a) o `TraceRecorder` não desembrulha o `Result` e grava
+  literal `ok` · (b) os ramos que produzem `vazio_completo` não são exercitados · (c) o mapeamento para
+  a coluna persistida (há uma constante `STATUS_PERSISTIDO`) · (d) o desembrulho se perde porque a gem
+  `agents` recebe String. Registrado em **CHAT-103**, que já pedia "validação do trace".
+
+### [2026-09-25] ⭐ A HISTÓRIA DAS 17:20 — atribuir é o que mata, não o handoff
+
+> **Paulo:** *"17:20 cliente pede casa para alugar até 3000 perto do centro, a IA atendia mas já
+> mandava para aguardando atendimento, o lead ainda estava recebendo imagens para escolher, a Maria
+> Vitória via às 17:30 (final de expediente), atribuía a um consultor que calava a IA, e o humano só
+> iria responder no dia seguinte."*
+
+- **O mecanismo da plataforma está certo.** O handoff marca, roteia e **não solta o espelho** — a IA
+  segue respondendo (`captain_can_respond?` olha o espelho, não o marcador).
+- ⭐ **O que mata a conversa é a ATRIBUIÇÃO MANUAL.** Setar `assignee` dispara
+  `reset_agent_bot_when_assignee_present`, que **zera o espelho** e cala a IA na hora. **Não foi o
+  handoff que calou — foi o ato de atribuir.** E no pior momento possível: **17:30**, quando nenhum
+  humano vai agir nas 14 horas seguintes, com o cliente **no meio do fluxo**, escolhendo entre fotos.
+- ⭐ **A Maria Vitória não tem como rotear sem calar a IA.** A única ferramenta na mão dela é atribuir.
+  **O erro não é dela — é falta de um caminho.** E o caminho existe e está desligado:
+  **`modo_posse: designacao`** (*"só registra a designação; `assignee` segue nulo, o espelho sobrevive
+  e a IA continua atendendo até alguém assumir"*).
+- ⭐ **Isso reordena tudo:** a razão de ligar o rodízio **não é justiça de distribuição** — é que o
+  rodízio em `designacao` é **o único jeito de rotear sem calar a IA**. **CHAT-125 e CHAT-144 deixam de
+  ser melhoria de operação e passam a ser conserto de defeito com dano medido.**
+- **Regra dura do desenho:** *handoff não cala a IA; só um humano **falando** cala.*
+
+### [2026-09-25] Correções do Paulo: estados reais, padrão de texto recusado, e o caminho de volta
+
+- **Os estados de hoje são `aguardando atendimento` e `aguardando encerramento`** — eu havia inventado
+  "em atendimento"/"atenção". Medido: `aguardando_humano_desde` **6** (transitório) ·
+  `aguardando_encerramento_desde` **336** · `encerramento_avisado_em` **0**. **336 na fila de
+  encerramento e nenhuma avisada** — a fila existe, o aviso não sai.
+- ❌ **Padrão de texto determinístico RECUSADO como gatilho**, e com razão: *"seria mais uma coisa pra
+  ficar olhando porque aconteceu isso se a IA falou isso em outro sentido"*. Falso positivo mata
+  indicador. **Substituído pelo sinal ESTRUTURAL** — a ferramenta confirmou ausência (`vazio_completo`),
+  não a frase da IA. **O estrutural PENEIRA (barato, sem ambiguidade), a Jev JULGA** ("esta ausência era
+  negociável?"). Nenhum dos dois lê texto.
+- **O caminho de volta ganhou dono:** *"se humano pegar a conversa e esfriar, o supervisor deverá ficar
+  sabendo e ele decidir devolver ao rodízio"*. Não é a IA que retoma nem o humano que devolve — é o
+  **supervisor notificado**. Vira requisito de **CHAT-149**, e a população já está medida: **5 dos 7
+  `urgent` por pressão de janela JÁ têm assignee**.
+- 🔴 **Fábrica autorizada mas BLOQUEADA:** `scripts/ops/fabrica.sh` aponta para
+  `Obsidian/clientes/fabrica-atacadao-oculos.md` (a nota migrou para `spx-os/clientes/` em 13/08) **e**,
+  no caminho certo, o campo `senha:` no formato esperado **não existe mais** (rotação de agosto tirou
+  `credenciais/` do git). **Não contornei caçando credencial** — é decisão do Paulo consertar o helper.
+  Até lá a coluna "ótica" da taxonomia é **inferência, não medição**.
+
+### [2026-09-25] ⚠️ EU LI UMA VERSÃO VELHA DO RODÍZIO — o PR #257 já está em `producao`
+
+> **O Paulo avisou e estava certo:** *"O Rodizio foi implementado por outro desenvolvedor já com
+> 'atenção' e 'Rodizio', não sei se você tem acesso à nova versão."* Meu checkout de `homologacao`
+> estava atrás e eu não vi. **Toda afirmação sobre rodízio que eu fiz entre 23 e 25/09 precisa ser
+> reconferida** contra `origin/producao`.
+
+- **Onde está:** PR #257, branch `feat/abas-rodizio-atencao` — `50264fee81` (24/09), `e4d9d4d760`,
+  `6fdc281bf0`, `97731812f1` (25/09), autoria `simplex`.
+- 🔴 **A "Atenção" implementada NÃO é a que o Paulo desenhou.** De `constants/globals.js`:
+  `PENDING_CLOSURE` = *"'Atenção' (só admin/supervisor): conversa parada/encerrada marcada pra um
+  humano JULGAR O FECHO"* → é a fila `aguardando_encerramento` (as 336). A "atenção" da V2 do Paulo
+  é **julgar se vai para o rodízio**, ANTES do handoff. **Mesmo nome, momentos opostos** — resolver
+  no desenho antes que o time se confunda.
+- `RODIZIO` = designação aberta do Motor, com **escopo por papel**: admin/supervisor veem todas, o
+  agente só as que estão **na vez dele**.
+
+### [2026-09-25] ✅ Os dois cenários do Paulo JÁ ESTÃO em produção — falta só o online
+
+A escada de precedência do `pick` (`distribuir_service.rb`, `origin/producao`):
+
+| | Degrau | Consome a vez? |
+|---|---|---|
+| 0 | `@motivo_forcado` — repasse fura a fila, vai direto ao rodízio | — |
+| — | `sem_lead_novo` — já tem dono, não há lead novo | — |
+| 1 | `quem_ja_atende` | não |
+| 2 | ⭐ **`preferencia_do_cliente`** — o cliente pediu pelo nome | **SIM** |
+| 3 | ⭐ **`consultor_anterior`** — gateado por `continuidade_dias` (30) | **não** |
+| 4 | `proximo_rodizio` — ponteiro por time | sim |
+
+- **"Cliente pede alguém específico" existe.** Lê `custom_attributes[PREFERENCIA]`; **quem detecta e
+  grava é a CONDUTA DA IA**, o rodízio só lê. Casamento **estrito** (id, nome completo, ou primeiro
+  nome único); ambíguo devolve `nil` de propósito — *"mandar o lead pro 'Bruno errado' é pior que
+  mandar pro rodízio"*.
+- ⭐ **E consome a vez, com a justificativa certa:** *"se não contasse, viraria porta dos fundos —
+  bastava o corretor dizer aos contatos 'peça por mim' pra furar a fila inteira"*.
+- **"Conversa reaberta com a mesma pessoa" existe** e **não** consome a vez: *"é RETORNO de cliente
+  que já era dele"*.
+- 🔴 **O status online NÃO é consultado.** O dado existe (`AccountUser#availability` enum
+  `{online, offline, busy}` + `OnlineStatusTracker` no Redis), mas `distribuir_service.rb` tem **zero
+  ocorrências** de availability/online/presence. E as duas peças que ligariam isso estão mortas:
+  `so_online` aparece **só** no controller (default false, strong params, nunca lido no `build_pool`)
+  e `modo: 'online'` é **no-op** (`distribui?` só aceita `rodizio` e `fila`).
+- **A decisão que isso abre:** hoje preferência e continuidade designam **mesmo offline**. Se o online
+  entrar, decidir por degrau. **Recomendação registrada: o online PONDERA, não FILTRA** — entre dois
+  candidatos do mesmo degrau prefira o online, mas nunca deixe de designar por ninguém estar online
+  (gating sem fallback esvazia o pool fora do expediente). Exceção explícita para o **pedido nominal**:
+  vence o online, porque o cliente já escolheu esperar aquela pessoa.
+
+### [2026-09-25] O ponteiro único sobrevive — e apareceu o gancho certo para consertá-lo
+
+- `proximo_rodizio` **continua** lendo `State.last_user_id` por **time**, sem faixa. O PR #257 **não**
+  resolveu o problema do lead ruim que queima a vez.
+- ⭐ **Mas existe `CONSOMEM_VEZ` / `consome_vez?(motivo)`** — o código **já separa quem gasta a vez de
+  quem não gasta. É o gancho onde o ponteiro por faixa se encaixa.**
+- ⚠️ **Não é substituto:** se o lead ruim simplesmente não consumir a vez, ele vai sempre para a
+  **mesma** pessoa (a da vez atual), que passa a receber todo o lixo. Ponteiro por faixa segue sendo
+  o desenho justo.
+
+### [2026-09-25] 🗺️ TAXONOMIA DO ATENDIMENTO COM IA — 6 eixos, 10 frentes · `docs/TAXONOMIA-ATENDIMENTO-IA.md`
+
+> Paulo pediu **todas as hipóteses** do que pode acontecer num atendimento conduzido por IA, **para
+> qualquer segmento**, e definiu meu papel: *"você não vai implementar, você será orquestrador das
+> frentes e gerenciar as tarefas no gestão"*.
+
+- ⭐ **O insight que muda o instrumento: os casos A e B NÃO SÃO ERROS.** Nada alucinado, nenhuma regra
+  quebrada, harness e FactGuard verdes — e o eval deu **nota média 8,52** nos 21 descartes da IA.
+  A falha é: **a IA responde a pergunta feita; um vendedor responde a necessidade por trás.** A IA trata
+  o que o cliente declara como **filtro rígido**; um vendedor trata como **posição inicial de
+  negociação**.
+  - **A** (casa R$ 8 mil que não existia no acervo): *"não tenho"* devia ser **"posso captar"** — e era
+    o melhor lead do mês, disposto a pagar **2,3× o teto**.
+  - **B** (terreno para investir em outra cidade): *"só temos em Sinop"* devia ser **"a cidade é
+    premissa sua, não minha"** — para quem **investe**, geografia é negociável. A IA aplicou regra de
+    **moradia** a intenção de **investimento**.
+- ⭐ **Consequência operacional:** não se detecta A e B olhando **o que a IA fez de errado** — detecta-se
+  olhando **o que a IA DISSE que encerra conversas**. É **classificador da forma do "não"**
+  (*não temos · só atendemos em · acima do que temos · não trabalhamos com · é necessário*),
+  determinístico, sem LLM na 1ª passada, e **serve qualquer segmento** — só os substantivos mudam.
+  **É a peça de maior retorno do mapa.**
+  - ⚠️ **Não pode virar regra de prompt** proibindo a IA de dizer "não temos" — isso produz **invenção
+    de estoque**, pior que perder o lead. A IA segue dizendo a verdade; **o sistema marca**.
+- **Os 6 eixos:** (1) 12 **saídas falsas** · (2) 10 **mortes silenciosas** · (3) os **erros** — 22
+  categorias que o eval já tem + **5 que faltam** · (4) **estados de posse** (a máquina da V2) ·
+  (5) **6 relógios**, nenhum notifica ninguém · (6) **o que varia por segmento** (11 dimensões,
+  imobiliária × ótica × clínica × serviço).
+- **Duas transições que o Eixo 4 revelou:** *"em atendimento" → "ATENÇÃO"* **não existe hoje** (é o
+  estado novo da V2); e **humano → IA não tem caminho de volta** — ninguém tinha pensado nisso.
+- **Sobre a Jev:** faz sentido para **decisão fechada** (forma do "não", faixa, merece humano, encerrar)
+  e como **2ª opinião em sombra**. **Não** faz sentido para decidir **quando chamar tool** — é latência e
+  ponto de falha no caminho crítico, e a auditoria já mostrou que isso se conserta em **camada 1-3**
+  (0/6, 0/6, 0/8). A restrição do Paulo (dataset humano antes de decidir) **continua valendo**, mas
+  **sombra não precisa do dataset — ela o produz**: desacordo entre dois decisores é fila de revisão
+  mais rica que amostra aleatória. Pegadinhas já registradas: `confidence` de `Choice` é **normalizado
+  pelo nº de opções** (falha em silêncio, e aqui há decisões de 2, 4 e 8 opções) · critério manda mais
+  que modelo · lista vazia é resposta.
+- **10 frentes mapeadas contra o gestão, sem duplicar:** F1 **CHAT-146** · F2 **CHAT-147** (maior
+  retorno) · F3 **CHAT-148** (caso C) · F4 **CHAT-143** (caso D) · F5 **CHAT-144**+125 · F6
+  **CHAT-149** · F7 **CHAT-151** · F8 **CHAT-137** · F9 **CHAT-150** · F10 dentro de 146.
+  **Ordem:** F1 → F2/F3/F6/F9 em paralelo → F4+F5 juntas → F7 depois de F9 → F8 consome tudo.
+- 🔴 **LACUNA DECLARADA: os 5 agentes da Fábrica (conta 1) NÃO foram lidos** — `3.87.182.184` exige OK
+  do Paulo **por vez**. A coluna "Ótica" do Eixo 6 é **inferência pelo segmento, não medição**. Sem ler
+  a Fábrica há risco real de **desenhar para imobiliária e chamar de plataforma**.
+
+### [2026-09-25] 🔴 O PONTEIRO ÚNICO DO RODÍZIO: lead ruim CUSTA à pessoa o lead bom seguinte
+
+> **Objeção do Paulo, e ele está certo:** `meta_campanha` presente **não é sinal de compra** — "muitas
+> vezes são leads puramente desqualificados". E o problema não é a classificação: é o que ela causa
+> na **distribuição**.
+
+- **Provado no código** (`distribuir_service.rb:208-215`): `distribuicao_states` tem índice **único em
+  `team_id`**. **Um ponteiro por time, uma rotação, zero noção de qualidade.**
+  ```ruby
+  last = State.find_or_initialize_by(team_id: @team.id).last_user_id
+  ordered = pool_ids.index(last) ? pool_ids.rotate(idx + 1) : pool_ids
+  ```
+- ⭐ **O dano é pior que "A recebeu lixo":** o lead desqualificado **avança o ponteiro** e portanto
+  **custa a A o lead bom seguinte**. B recebe o qualificado *porque* o lixo queimou a vez de A. O
+  prejuízo de A não é ter atendido lixo — **é ter perdido o bom.**
+- **É a mesma família do incidente da Catatau de 15/09** (*"queimava a vez de cinco vendedores em
+  cinco minutos"*). Lá a causa era o menu do flow; aqui é a qualidade do lead. **O ponteiro único é o
+  defeito comum.**
+- **Conserto justo por construção: um ponteiro por FAIXA**, `(team_id, faixa)` em vez de `team_id` —
+  migration pequena. Lead ruim só queima a vez na rotação dos ruins; cada pessoa recebe parcela
+  proporcional de cada faixa, **sem ranquear gente**. Combina com "não empurrar a faixa baixa" (ela
+  fica no pull, que é o que a Tozi já faz à mão). A opção de dar os bons aos melhores closers
+  maximiza receita e destrói a equipe — descartada.
+- ⚠️ **CHAT-126 SUSPENSA.** Eu havia fechado o critério ("sinal de compra + dentro do expediente") e
+  fechei cedo: ele só **move** o problema para o rodízio. Marcar mais leads sem consertar a
+  distribuição distribui injustiça mais rápido. **Caiu** `meta_campanha` como gatilho suficiente —
+  anúncio é **origem**, não intenção. Direção provável: a origem qualifica OUTRO sinal; o gatilho é
+  **interação demonstrada**, como o próprio Paulo disse ("leads em potencial, **que interagiram e
+  responderam**, mas com ordem de prioridade").
+- **Criada CHAT-146 — DESENHO da coexistência IA × humano**, dona das 4 peças que têm de ser decididas
+  juntas: (1) distribuição × faixa · (2) **follow-up** — hoje o marcador **para a cutucada**, então
+  lead 3 dias na fila não é cutucado por ninguém · (3) **horário** — 3 fontes divergentes e nenhuma
+  resposta para "o que a IA faz fora do expediente" · (4) handoff (o mecanismo está certo; falta o
+  *quando*). **CHAT-126, 143 e 144 passam a depender dela.**
+- 🔴 **RESTRIÇÃO DURA que o Paulo reforçou: "o SPX não atende somente a Tozi".** Todo o levantamento
+  está escrito em *corretor, imóvel, MCMV, Vista* — **a Fábrica (conta 1, ótica, 5 agentes) não tem
+  nenhum dos quatro.** O desenho sai em vocabulário neutro: **faixa de prioridade, pool de
+  atendentes, sinal de intenção, fonte de horário**; cada peça opt-in por conta, default = hoje.
+
+### [2026-09-25] ✅ Diretriz: "eliminar qualquer coisa que faça a IA alucinar" — e o conserto tem DUAS metades
+
+- CHAT-127 deixa de ser "decidir por agente" e passa a execução. Mas **trocar `knowledge_mode` é só
+  metade**: o defeito é **regra dura apontando para fonte vazia**, e passar `hybrid → faq` conserta a
+  **ferramenta** e deixa **a linha do prompt** ("consulte a base antes de afirmar") apontando para o
+  nada. Os dois lados por agente, junto com [[CHAT-136]] (render/lint), não em duas passadas.
+- ⚠️ **Na Bruna trocar o modo pode PIORAR:** 4.188 msgs/30d em locação; sem base e sem `hybrid` ela
+  para de inventar da base e passa a inventar do nada. Recomendação registrada: **alimentar a base**
+  na Bruna; **trocar o modo** em Letícia, Marina, Rafa e Helena, cujo volume não justifica o esforço.
+
+### [2026-09-24] ⚠️ TRÊS FONTES DE HORÁRIO NA CONTA 6, E ELAS JÁ DIVERGEM
+
+> Descoberto ao fechar o critério da **CHAT-126**. É a mesma doença que o `UnitAtendimento`
+> documenta no próprio comentário — só que agora são **três**, não duas.
+
+| Fonte | seg-sex | sáb | Quem usa |
+|---|---|---|---|
+| **`Unit 1`** (`UnitAtendimento`) | `07:30-17:30` interv. `11:30-13:30` | `09:00-11:30` | a tela viva, `Units::ScheduleEvaluator` |
+| **`assistant.behavior['business_hours']`** | `07:30-11:30` e `13:30-17:30` | `09:00-11:30` | **a IA** (`Captain::Behavior::BusinessHoursChecker`) |
+| **`inbox.working_hours`** (caixa 91) | **`09:00-17:00`** | **FECHADO** | away message, widget, métrica |
+
+- A unidade e o behavior **concordam** — é o mesmo turno partido escrito de dois jeitos. **A caixa
+  diverge em 1h30 toda manhã e no sábado inteiro.**
+- **7 dos 9 agentes** têm `behavior['business_hours']['enabled'] = true` com `schedule` próprio de 7
+  dias (só Helena `nil` e Feirão `false`). A mesma informação em três lugares editáveis.
+- **Decisão registrada nas duas tarefas:** usar **`UnitAtendimento` como fonte única** — para o gate
+  do critério de marcação (CHAT-126) e para o cálculo de minutos úteis (CHAT-143). Usar o behavior
+  criaria a **quarta** divergência.
+- ⚠️ **Limite do que medi:** comparei só a caixa **91**, que tem `working_hours_enabled=false` (não
+  impõe nada, então a divergência dela é latente). As caixas **61 e 62 têm `enabled=true`** e eu
+  **não** conferi os horários — se divergirem da unidade, a mensagem de ausência dispara em hora
+  errada. **Conferir antes de implementar.**
+- Uma caixa (**93 "Notas"**) **não tem `unit_id`** — sem grade, sem pressão de janela. Recomendação
+  registrada: **não aplicar** (ausência de grade não pode virar urgência inventada).
+
+### [2026-09-24] ✅ CHAT-126 DEIXOU DE SER DECISÃO — critério de "aguardando atendimento" fechado
+
+> **Marca quando:** há sinal de compra (`meta_campanha` **ou** `meta_imovel_codigo` **ou** o contato
+> respondeu N mensagens) **e** está dentro do expediente pela grade da **unidade**, em
+> `modo_posse: designacao` — a IA **continua respondendo** até alguém puxar (já é o comportamento da
+> plataforma; nada a codar para isso).
+
+- **Não descarta ninguém.** Quem não tem sinal entra na fila com prioridade mais baixa, não fica fora
+  dela. O corte é de **ordem**, não de porta.
+- **Fora do expediente NÃO marca — e isso não custa nada.** O efeito colateral do marcador é **parar
+  a cutucada** (`followup_job.rb:118`); marcar às 22h desliga o follow-up numa sala vazia. E não
+  precisa marcar, porque **a pressão de janela não depende do marcador**: de madrugada a conversa não
+  é marcada mas **já é classificada**, e quando o expediente abre a fila já está na ordem certa.
+- ⭐ **Os 17 MCMV parados TODOS vieram de anúncio** — o sinal `meta_campanha` sozinho já os teria
+  marcado. O critério resolve o caso que originou a tarefa.
+- Único número ainda aberto: o **N** do sinal de interação (quantas respostas do contato contam).
+  Ajustável depois.
+
+### [2026-09-24] 🔴 72% DA FILA ABERTA DA TOZI TEM A JANELA JÁ FECHADA — 1.844 de 2.550
+
+> Simulação dos cortes de prioridade na conta 6 (somente leitura). Grade da unidade:
+> seg-sex `07:30-17:30`, sáb `09:00-11:30`.
+
+| das 2.550 abertas | 1ª conta (ERRADA) | **corrigida** |
+|---|---|---|
+| sem janela (canal sem janela, ou sem inbound) | 621 | 621 |
+| **janela JÁ FECHADA** | 1.844 | **1.843 — 72%** |
+| dentro da janela, > 4h úteis | 74 | 67 |
+| dentro da janela, 1 a 4h úteis (`high`) | 10 | **16** |
+| dentro da janela, < 1h útil (`urgent`) | 1 | **7** |
+| **acenderiam** | 11 | **23 — 0,9%** |
+
+> **Por que a 1ª conta estava errada:** li `open_hour`/`close_hour` e ignorei
+> `break_start`/`break_end`. O turno partido **existe e está preenchido** — a Unit 1 é
+> `07:30-11:30` + `13:30-17:30` = **480 min/dia**, não 600. Contei 2h úteis a mais por dia.
+> **A conclusão não muda** (0,9% está longe de painel vermelho), mas o número é 23.
+
+- ✅ **O medo do "painel todo vermelho" não se confirma: só 11 acendem.** Escopo amplo é seguro — e
+  agora por medição, não por chute. Isso liberou a decisão de escopo da [[CHAT-143]].
+- 🔴 **O achado maior que a pergunta:** as 1.844 **não podem ser respondidas de graça** — toda
+  resposta exige template. Passivo invisível: a conversa aparece aberta e o atendente descobre que
+  não pode responder só ao tentar. **Reenquadra as 700 em que "o cliente falou por último"** — a
+  maioria já está inalcançável sem HSM. Número registrado em **CHAT-98** (sugerir o template certo
+  na retomada fora da janela), que é onde o assunto mora; **não criei tarefa nova**.
+- **Simetria útil:** a Tozi ganhou 9 templates UTILITY em 22/09 (WABA hoje 11 utility × 49 marketing)
+  e a régua confirmada contra a Meta é que utility **nomeia uma solicitação anterior do cliente**.
+  Os 1.844 são o caso de uso que justifica a biblioteca.
+- **Decisões fechadas na CHAT-143:** sinais da v1 = `meta_campanha` + `meta_imovel_codigo` +
+  contagem de interação · cortes `<4h úteis → high`, `<1h útil → urgent` (conservador, ajustar
+  depois de medir) · **todos os setores e canais** — sai de graça, porque `messaging_window` devolve
+  `nil` em canal sem janela · **vocabulário nenhum**, os 4 níveis nativos como estão (decisão
+  delegada a mim: "quente/frio" tem 2 níveis contra 4, mapa por conta é config que diverge, e o
+  painel já renderiza com i18n; nome próprio de cliente vira override de i18n, não modelo de dados).
+- ⭐ **Refinamento do Paulo que virou o teste principal: MEDIR é universal, SINALIZAR é restrito.**
+  Calcular `minutos_uteis_na_janela` em toda conversa aberta; escrever `priority` só dentro da janela
+  e passado o corte. E **a pressão de janela NÃO depende de qualificação** — com `priority = o mais
+  alto entre qualificação e pressão`, conversa crua (cliente falou, ninguém respondeu, zero
+  qualificação) vira `urgent` pelo relógio. Hoje `priority` só muda se alguém **opinar** (automação
+  à mão ou copilot); **a pressão de janela é a única entrada que não precisa de julgamento** — nem
+  humano nem de LLM. **O primeiro caso de teste é a conversa crua, não o lead qualificado.**
+- ⚠️ **Ressalva do meu script:** li `open_hour`/`close_hour` e ignorei `break_start`/`break_end`, então
+  se houver turno partido contei minutos úteis **a mais** e o `urgent` real é um pouco maior. A
+  implementação deve usar `UnitAtendimento`, que já resolve turno partido e exceção.
+
+### [2026-09-24] 🧮 PRIORIDADE DA FILA: os 3 ingredientes existem e ninguém juntou — CHAT-143 e CHAT-144
+
+> **O pedido do Paulo:** lead que interagiu e respondeu **não é descartado** por não atender
+> requisito — vai para "aguardando atendimento" **com ordem de prioridade**. E a classificação tem
+> de servir setor que não é venda: não só quente/frio, mas urgente/alta/baixa. MCMV é público
+> econômico de alto volume — **não é descarte, é `low`/`medium`**; muda a ordem, não a fila.
+
+- ✅ **`Conversation#priority` é NATIVO e o painel JÁ CONSOME.** Enum `{low:0, medium:1, high:2,
+  urgent:3}`, índice em `priority` e em `(status, priority)`; `CardPriorityIcon.vue`, filtro em
+  `filterHelper.js`, ordenação `priority_desc_created_at_asc` no `ConversationFinder`. **Não precisa
+  campo novo** — "quente/frio" é vocabulário de vendas para `urgent/high`, não coluna.
+- ✅ **`Conversations::MessageWindowService#hours_remaining` já existe** e deriva do MESMO
+  `messaging_window` do `can_reply?` — WhatsApp 24h, Instagram 24h ou 7d pela flag, TikTok 48h, API
+  configurável. A conta regressiva acompanha o canal sozinha.
+- ✅ **`UnitAtendimento` já resolve o expediente por data**, com exceção e **turno partido** — a Tozi
+  é `07:30-11:30` e `13:30-17:30`. `Units::ScheduleEvaluator` já roda em produção.
+- 🔴 **O que falta é só a junção:** ninguém escreve `priority` automaticamente (3 caminhos, todos
+  manuais: `action_service.rb`, o copilot `change_priority_service`, e nada mais);
+  `hours_remaining` tem **um** consumidor (`agent_runner_service.rb:288`, como
+  `janela_horas_restantes` — **a IA sabe, o painel não**); e **nada cruza janela × expediente**.
+- ⭐ **O insight do Paulo é mais forte que `hours_remaining`.** Cliente diz "ok, aguardo" às 7:00; a
+  janela fecha 7:00 do dia seguinte; o expediente abre 7:30. `hours_remaining` diria **"23,9h
+  restantes"** e pareceria tranquilo — **o tempo ÚTIL é zero**. A métrica que importa é
+  **minutos de expediente restantes dentro da janela**, não hora de relógio. Deixar como primitivo
+  reusável (`minutos_uteis_na_janela`): o SLA de pickup também vai querer.
+- **O desenho: uma prioridade, duas entradas.** `priority` = o mais alto entre a **qualificação**
+  (conteúdo) e a **pressão de janela** (relógio). A segunda **promove** — lead morno vira `urgent`
+  quando o tempo útil acaba. É o que nenhuma medição de conteúdo pega.
+- **Como a Tozi opera hoje (Paulo):** uma pessoa pega as conversas em "aguardando atendimento" e
+  distribui à mão. O rodízio existe em código e o trabalho é feito por gente. Daí o **CHAT-144**:
+  **480 handoffs (34,2%) ninguém assumiu**, 440 deles COM `AssistantLog` — a IA fez a parte dela.
+  `sla_assumir_minutos` (30) e `repasse_automatico` (**false**) existem e estão desligados.
+- ⚠️ **Ordem:** ligar `repasse_automatico` sem a guarda de dono repete a conv 194 da Catatau
+  (16/09). A guarda existe (`guarda_de_dono.rb`, `repasse_service.rb`) e tem de subir junto.
+
+### [2026-09-24] 🎯 O MCMV NÃO É PROBLEMA DE HANDOFF — A IA NUNCA MARCA. E dois comentários do código mentem
+
+> **O Paulo esclareceu o desenho (24/09):** o papel da IA é qualificar para enriquecer a informação
+> ao humano. Lead com sinal de compra, DENTRO do expediente, pode ser marcado como "aguardando
+> atendimento" **e a IA continua a conversa** até alguém assumir. Não é dicotomia.
+
+- ✅ **Isso já é o comportamento da plataforma.** `captain_can_respond?`
+  (`response_builder_job.rb:988`) checa só duas coisas — status `pending`/`open` e o espelho captain
+  ainda ser do assistente. **Não olha `aguardando_humano_desde`.** Conversa em "Aguardando
+  atendimento" segue sendo respondida. Quem cala a IA é um humano pegar o `assignee`
+  (`reset_agent_bot_when_assignee_present` zera o espelho).
+- ⚠️ **DOIS COMENTÁRIOS DO CÓDIGO ESTÃO ERRADOS e me enganaram primeiro:**
+  - `human_handoff_service.rb`, **cabeçalho**: *"a IA silencia"* — **errado**. O corpo do MESMO
+    arquivo diz certo: *"NÃO solta o espelho — a IA continua dona/respondendo"*.
+  - `followup_job.rb:132`: *"a IA para de cutucar **e de responder**"* — para de cutucar, não de
+    responder.
+  O marcador faz outra coisa: põe na fila, **para a cutucada**, não agenda follow-up preventivo, sai
+  da auto-resolução.
+- 🔬 **MEDIDO: são DOIS problemas, e eu tinha misturado os dois.**
+
+  | População | Hipótese | Números |
+  |---|---|---|
+  | **21 MCMV** | **H1 — a IA nunca marca** | 17 sem log/degrau/marcador · 4 marcou |
+  | **480 gerais** | **H2 — marca e ninguém puxa** | 440 das 480 TÊM `AssistantLog` de handoff |
+
+  O mecanismo funciona: a IA chamou handoff **440 vezes em 30 dias**. O MCMV é problema de
+  **critério**; os 480 são problema de **SLA de pickup**, da operação — merece tarefa própria.
+- **Os 17 MCMV são idênticos:** `log=false degrau=false marcador=nao assignee=-`, de 10 a 31 dias.
+  Os dois únicos com `log=true` (#63806 2d, #63656 4d) têm **assignee=107** — handoff funcionou e
+  um humano pegou.
+- ❌ **H3 (horário) caiu:** dos 39 com mensagem de cliente, **26 (67%) falaram entre 8h e 18h**.
+  Dois terços dentro do expediente. Horário é fator minoritário, não a causa.
+- 🔴 **O achado mais afiado: `marcador setado = 0` nos 45.** Os 17 MCMV **não estão em fila nenhuma**
+  — nem em "Aguardando atendimento" (nunca houve marcador), nem com alguém (`assignee` nulo). Só
+  `open` e esquecidos. **Não foi negligência do time: eles não apareciam em lugar algum.**
+- **CHAT-126 reenquadrada** (comentário longo lá). A pergunta deixou de ser "transferir ou
+  qualificar" e passou a ser **qual sinal dispara a marcação** — e, pela tese da auditoria, isso não
+  pode ser linha de prompt (camada 1-3, não camada 4: medido 0/6, 0/6, 0/8). Candidatos que já são
+  dado: `meta_campanha`, `meta_imovel_codigo`, renda informada, pergunta de entrada/financiamento,
+  mais o recorte de expediente.
+
+### [2026-09-23] 📋 O PLANO SAIU DA CONVERSA: `docs/PLANO-ACOES-2026-09-23.md` + CHAT-126..137
+
+> **Próximo passo desta frente:** a decisão da conduta MCMV (**CHAT-126**). É a única coisa na fila
+> que é dinheiro parado — ~25 leads de anúncio há 22-31 dias, sem assignee, notas 1 a 5.
+
+- **Plano completo:** `docs/PLANO-ACOES-2026-09-23.md` — 20 ações em 7 blocos, cada uma com
+  evidência, tamanho (P/M/G/D) e a decisão que a destrava. Versionado, o time lê.
+- **12 tarefas criadas no gestão (projeto CHAT), todas com responsável Paulo:** 126 decisão MCMV ·
+  127 `hybrid` com base vazia · 128 PR do harness · 129 PR do `disparo-guarda` · 130 PR do
+  `fix-fotos-handoff-hml` · 131 PR do FactGuard · 132 repescagem dos 45 · 133 lead na lista do Vista ·
+  134 card no pipeline · 135 re-medir baseline · 136 render/lint do prompt · 137 revisão amostral.
+- **Responsável é o Paulo em todas, e isso está certo:** as 4 branches sem PR são **100% commits
+  dele** (`disparo-guarda` 4 · `fix-fotos-handoff-hml` 10 · `resultado-tipado-de-tool` 15 ·
+  `factguard-shadow` 1). O que pode ir para Nicolas/Thalysson são as de campanha (A15-A17) e higiene
+  (A19-A20), **deliberadamente não criadas** — segundo turno.
+- **6 tarefas antigas receberam comentário de cruzamento**, nenhuma reaberta: **CHAT-125** recebeu o
+  levantamento do rodízio inteiro (era o que ela pedia) · **CHAT-109/110** seguem `Concluído` porque
+  "construir" e "medir" foram feitos — faltou **entregar** (→128) e **re-medir** (→135) · **CHAT-106**
+  depende de 128 · **CHAT-103** está metade feita (Tozi no ar; resta a Fábrica) · **CHAT-111** teve a
+  fronteira de escopo acertada com 136.
+- ⚠️ **O `comentar_tarefa` do MCP `spx-gestao` usa o parâmetro `texto`, não `comentario`** — erra
+  quatro chamadas de uma vez com `{"erro": "faltou informar: texto"}`.
+
+### [2026-09-23] 📊 VARREDURA DAS FRENTES + CHAMADOS PARADOS — 51 de 58 frentes mergeadas, e o que está no ar quase não é usado
+
+> Levantamento pedido pelo Paulo. **Só leitura na `3.94.9.51`** (scripts em `/tmp`, nada escrito,
+> nada enviado). Corte de deploy identificado com precisão.
+
+- **O "deploy de 22/09 20h" é o restart do `chatwoot-web.1`:** `ActiveEnterTimestamp=2026-09-23
+  00:00:09 UTC` = **22/09 20:00 Cuiabá**. HEAD naquele instante: `41318fd1a` (PR #227). Logo o **P0
+  (PR #226, `fix/tool-result-tipado`) ESTÁ no ar** desde então — resolve a dúvida que ficou aberta.
+- ✅ **CORRIGIDO 23/09 21h pelo Paulo — existe restart noturno e eu não sabia.**
+  `chatwoot-restart-noturno.timer`: `OnCalendar=*-*-* 20:00:00 America/Cuiaba`, `Persistent=false`,
+  reinicia **web e workers, nunca a VM**. Logo **não existe passo de deploy manual na Tozi**: a
+  cadência é *mergeado e puxado antes das 20h → no ar naquela noite*. O restart de
+  `2026-09-23 00:00:09 UTC` que eu li como "o deploy de 22/09 20h" **era este timer** — a conclusão
+  sobre o P0 estar no ar segue certa, o mecanismo é que eu atribuí a uma ação humana. Os 5 PRs abaixo
+  subiram às **20h de 23/09** (`ActiveEnterTimestamp = 2026-09-24 00:00:13 UTC`, HEAD `501d10eb0`).
+  O que eu vi era uma **janela** entre o pull e o restart, não defeito.
+- 🔴→✅ **5 merges estavam no disco sem rodar quando medi (14h-18h de 23/09):** #246 (EA-01 pedir conversa),
+  #219 (t45 tela distribuição), #220 (t04 ações caladas), #221 (t05 exports), #236 (tema aba oculta).
+  Reflog: 23/09 15:03/15:18/15:33/19:35 UTC, todos após o restart. **`db:migrate:status` = 0 down**,
+  então restart é seguro e libera os 5. Worker reiniciou 23/09 06:21 UTC, também antes deles.
+- **Frentes `spx/*`: 58 no `origin`, 51 mergeadas em `producao`, 7 fora.** A maior fora é
+  `spx/fix-fotos-handoff-hml` com **10 commits de conserto de IA** parados (recursão infinita em
+  `track_imoveis`, retry do Vista, follow-up viciado em `[IGNORAR]`, campo `Condominio` para separar
+  fechado de avulso pelo dado, remoção de exemplos copiáveis das tools).
+- **Mergeado ≠ em uso.** Medido na conta 6: eval 🟢 19.077 avaliações (última 23/09 17:07) ·
+  NPS 🟢 15.836 respostas (2.100/30d) · flows 🟢 24 de 27 ativos · rodízio 🔴 **1 policy inativa,
+  pool vazio, 0 states, 0 logs** · catálogo de produtos do rodízio 🔴 **0 linhas**.
+- ⚠️ **DUAS LEITURAS MINHAS ESTAVAM ERRADAS, corrigidas em 23/09 com o Paulo:**
+  - **Unidades está CERTO.** `Unit` = **filial** (um endereço com horário próprio que agrupa
+    caixas) — a Tozi tem **uma**, então 1 linha é o número correto, não abandono. Conferido:
+    "Tozi Imóveis", `America/Cuiaba`, coordenadas preenchidas, **7 working_hours** (grade
+    completa), **23 exceções** (feriados), **5 das 6 caixas** vinculadas. Só falta
+    `address_number` (coluna nova de 21/09) e 1 caixa sem unidade.
+  - **Campanhas NÃO parou no teste.** `campaign_recipients` = **24.110 linhas**, e a campanha #29
+    ("Mega Feirão — base completa") disparou **13.391 destinatários em 21 minutos** (08/09,
+    17:29→17:50 UTC). As 10 "TESTE" eram o ensaio dela. **24.575 de 41.859 conversas** têm
+    `campaign_id`. O motor funciona em escala; o que falta é **superfície de controle** (BACKLOG
+    § Módulo Disparo).
+  - **Lição:** contagem baixa numa tabela não é sinal de abandono sem antes entender a unidade de
+    medida do modelo. Nos dois casos eu li o número antes de ler o `# comentário` do modelo.
+- 🔴 **`knowledge_mode=hybrid` com ZERO documentos em 6 dos 9 agentes** — Bruna, Letícia, Marina,
+  Rafa e Helena com `docs=0`, e só Júlia (20), Sofia (3) e Clara (1) têm base. O handoff só nomeava
+  a Bruna; é regra dura apontando para fonte vazia em quase toda a frota da conta.
+- **Chamados parados:** 2.543 conversas `open` (39.300 resolved). **700 têm o cliente falando por
+  último** — 335 há 7-30 dias e 262 há mais de 30. **486 handoffs (34,2% de 1.421) ninguém assumiu**;
+  96 dessas conversas seguem abertas. Do balde que o juiz já denunciou (`precisava_nao_fez`/`tardio`),
+  **45 continuam abertas**.
+- **Padrão dominante nos 45, e não é aleatório:** ~25 são leads de anúncio **MCMV / "entrada
+  facilitada"**, IDs 51xxx-54xxx, 22 a 31 dias, **sem assignee**, com o mesmo enredo — a IA
+  qualificou em profundidade e deu condição comercial em vez de transferir. Casa com o item
+  `🟡 Simulação de financiamento na conduta MCMV — parado por decisão` do `BACKLOG.md`: a decisão
+  parada está custando leads.
+- **A medição pós-deploy não conclui, e o motivo não é falta de dado:** 202 conversas depois × 1.311
+  antes (7d) — nota 7,78 × 7,83, limpas 73,76% × 74,07%. Nada se moveu porque **o P0 não era mudança
+  de conduta**; ele tipa falha de ferramenta. `contradisse_tool` subiu (26,8 → 32,1 por 100) e
+  `outro` saltou (13,8 → 34,0), os dois dentro do ruído de n=202.
+
+**Armadilha registrada:** existem duas branches quase homônimas — `fix/tool-result-tipado` (virou o
+PR #226 e está em `producao`) e `fix/resultado-tipado-de-tool` (carrega o **harness nível 1 + CI**,
+`origin` tem, **sem PR**). Confundir as duas custa uma hora.
+
 ### [2026-09-22] 🟢 A TOZI GANHOU 9 TEMPLATES UTILITY — e a Meta aceitou os 9 · allowlist já estava ligada
 
 > Onda 0 do plano de templates (CHAT-82), autorizada pelo Paulo. **Zero código** — usa a tela que já
