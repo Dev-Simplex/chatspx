@@ -47,7 +47,7 @@ module Enterprise::Message
     # CHAT-172: sem a marca a conversa fica com cara de órfã e a próxima mensagem do cliente devolve
     # a conversa à IA de triagem (D-12), que volta a falar por cima de quem está atendendo.
     conversation.update!(assignee_agent_bot_id: nil, # IA solta a conversa
-                         additional_attributes: conversation.additional_attributes.merge(
+                         additional_attributes: (conversation.additional_attributes || {}).merge(
                            Conversation::HUMAN_REPLIED_KEY => Time.current.iso8601
                          ))
   end
