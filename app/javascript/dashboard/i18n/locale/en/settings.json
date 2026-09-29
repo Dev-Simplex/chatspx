@@ -715,6 +715,12 @@
     "DOCS": "Read documentation",
     "CHANGELOG": "Changelog",
     "LOGOUT": "Log out",
+    "LOGOUT_CONFIRM": {
+      "TITLE": "Log out?",
+      "DESCRIPTION": "You will need to sign in again to use Chatwoot.",
+      "CONFIRM": "Log out",
+      "CANCEL": "Cancel"
+    },
     "SETTINGS": "Settings",
     "REPORTS": "Reports",
     "CAMPAIGNS": "Campaigns",
