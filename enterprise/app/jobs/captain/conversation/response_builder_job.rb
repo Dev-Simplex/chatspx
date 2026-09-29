@@ -440,6 +440,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def ensure_handoff_if_promised
     return unless promised_handoff?(@response['response'])
     return unless captain_can_respond?
+
+    # O tool gravou o handoff numa instancia PROPRIA da conversa; a do job foi carregada antes do
+    # turno. Sem o reload o marcador abaixo nunca aparece e o team_id e o de antes: o safety-net
+    # disparava e o time padrao do agente sobrescrevia o time que a IA escolheu (CD Solar, conv 19).
+    @conversation.reload
     # Ja aguardando humano (o agente chamou o tool NESTE turno e tambem escreveu a promessa):
     # nada a fazer, e sair antes do log mantem a metrica 'handoff_auto_fired' honesta —
     # ela mede so os casos em que o agente PROMETEU sem acionar.
