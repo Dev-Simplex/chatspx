@@ -398,6 +398,35 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
 
         expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
       end
+
+      # Regressao (CD Solar, conta 1, conv 19): a tool fez handoff pro time escolhido (Logistica)
+      # numa instancia PROPRIA da conversa, e o job ainda olhava a sua, carregada antes do turno —
+      # sem o marcador e sem time. O safety-net disparava e o time padrao do agente (Comercial)
+      # sobrescrevia a escolha da IA.
+      context 'with the agent default team configured' do
+        let(:comercial) { create(:team, account: account) }
+        let(:logistica) { create(:team, account: account) }
+        let(:assistant) { create(:captain_assistant, account: account, config: { 'team_id' => comercial.id }) }
+
+        it 'keeps the team chosen by the handoff tool in the same turn' do
+          allow(mock_llm_chat_service).to receive(:generate_response) do
+            Captain::Conversation::HumanHandoffService.new(
+              conversation: Conversation.find(conversation.id), assistant: assistant, team_id: logistica.id
+            ).perform
+            { 'response' => 'A equipe de Logistica ja esta a par e retorna em breve.' }
+          end
+          described_class.perform_now(conversation, assistant)
+
+          expect(conversation.reload.team_id).to eq(logistica.id)
+          expect(Captain::AssistantLog.where(conversation: conversation, event_type: 'handoff_auto_fired')).not_to exist
+        end
+
+        it 'still routes to the agent default team when no handoff happened before' do
+          responde('A equipe de Logistica ja esta a par e retorna em breve.')
+
+          expect(conversation.team_id).to eq(comercial.id)
+        end
+      end
     end
 
     # Regressao (conv 20320) — a camada mais letal do cancelamento indevido da cutucada, e a que

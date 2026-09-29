@@ -38,6 +38,7 @@ import resetPassword from './resetPassword.json';
 import search from './search.json';
 import setNewPassword from './setNewPassword.json';
 import settings from './settings.json';
+import suggestions from './suggestions.json';
 import signup from './signup.json';
 import sla from './sla.json';
 import snooze from './snooze.json';
@@ -92,6 +93,7 @@ export default {
   ...search,
   ...setNewPassword,
   ...settings,
+  ...suggestions,
   ...signup,
   ...sla,
   ...snooze,

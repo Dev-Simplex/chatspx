@@ -155,6 +155,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :macros, dependent: :destroy_async
   has_many :flows, dependent: :destroy_async
   has_many :campaigns, dependent: :destroy_async
+  # Sugestao sobrevive a conta apagada (a coluna fica vazia) — ver Suggestion.
+  has_many :suggestions, dependent: :nullify
   has_many :canned_responses, dependent: :destroy_async
   has_many :categories, dependent: :destroy_async, class_name: '::Category'
   has_many :contacts, dependent: :destroy_async

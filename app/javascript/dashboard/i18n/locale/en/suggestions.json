@@ -1,0 +1,32 @@
+{
+  "SUGGESTIONS": {
+    "TITLE": "Suggest an improvement",
+    "DESCRIPTION": "Tell us what would make your day-to-day easier. Your suggestion goes straight to the Simplex team.",
+    "FORM": {
+      "AUTHOR": "Sending as {name} — {company}",
+      "PLACEHOLDER": "Describe your idea. The more detail, the better.",
+      "ATTACH": "Attach photo or video",
+      "REMOVE_ATTACH": "Remove attachment",
+      "SUBMIT": "Send",
+      "SUCCESS": "Suggestion sent. Thank you!",
+      "ERROR_EMPTY": "Write your suggestion before sending.",
+      "ERROR_TYPE": "Only photos or videos are accepted.",
+      "ERROR_SIZE": "The file must be up to {limit} MB.",
+      "ERROR_GENERIC": "We could not send your suggestion. Please try again."
+    },
+    "LIST": {
+      "TITLE": "My suggestions",
+      "EMPTY": "You have not sent any suggestions yet.",
+      "ERROR": "We could not load your suggestions.",
+      "TITLE_ADMIN": "Account suggestions",
+      "EMPTY_ADMIN": "No one in this account has sent a suggestion yet."
+    },
+    "STATUS": {
+      "NOVA": "New",
+      "LIDA": "Read",
+      "PLANEJADA": "Planned",
+      "FEITA": "Done"
+    },
+    "MENU_SENT": "Sent suggestions"
+  }
+}

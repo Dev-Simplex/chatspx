@@ -74,15 +74,49 @@ RSpec.describe Waha::OutboundSpecialMessageService do
         msg.reload
       end
 
-      it 'dispatches via Waha::ApiService#send_text_with_vcard (sendContactVcard quebra na GoWS PLUS)' do
+      it 'dispatches a native contact card via Waha::ApiService#send_contact_vcard, not as text' do
         described_class.new(message).perform
 
-        expect(waha_api).to have_received(:send_text_with_vcard).with(
+        expect(waha_api).to have_received(:send_contact_vcard).with(
           session: 'default',
           chat_id: '5566999998888@c.us',
-          name: 'Maria',
+          full_name: 'Maria',
           phone: '+5511988887777'
         )
+        expect(waha_api).not_to have_received(:send_text_with_vcard)
+        expect(message.reload.source_id).to eq('vc-1')
+      end
+
+      context 'when /api/sendContactVcard returns an API error' do
+        before do
+          allow(waha_api).to receive(:send_contact_vcard).and_raise(Waha::ApiService::Error.new('WAHA API error (500): boom'))
+        end
+
+        it 'falls back to the inline vCard text and marks the message as sent' do
+          described_class.new(message).perform
+
+          expect(waha_api).to have_received(:send_text_with_vcard).with(
+            session: 'default',
+            chat_id: '5566999998888@c.us',
+            name: 'Maria',
+            phone: '+5511988887777'
+          )
+          expect(message.reload.status).to eq('sent')
+          expect(message.source_id).to eq('tv-1')
+        end
+      end
+
+      context 'when /api/sendContactVcard times out' do
+        before do
+          allow(waha_api).to receive(:send_contact_vcard).and_raise(Waha::ApiService::ConnectionError.new('WAHA API timeout'))
+        end
+
+        it 'does not fall back (the card may have been delivered) and marks the message as failed' do
+          described_class.new(message).perform
+
+          expect(waha_api).not_to have_received(:send_text_with_vcard)
+          expect(message.reload.status).to eq('failed')
+        end
       end
     end
 
@@ -98,15 +132,16 @@ RSpec.describe Waha::OutboundSpecialMessageService do
         msg.reload
       end
 
-      it 'dispatches via Waha::ApiService#send_text_with_vcard (inline vCard via /api/sendText)' do
+      it 'dispatches a native contact card via Waha::ApiService#send_contact_vcard' do
         described_class.new(message).perform
 
-        expect(waha_api).to have_received(:send_text_with_vcard).with(
+        expect(waha_api).to have_received(:send_contact_vcard).with(
           session: 'default',
           chat_id: '5566999998888@c.us',
-          name: 'João',
+          full_name: 'João',
           phone: '+5511977776666'
         )
+        expect(waha_api).not_to have_received(:send_text_with_vcard)
       end
     end
 
