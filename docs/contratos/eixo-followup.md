@@ -13,6 +13,12 @@ data: 2026-08-03
 >
 > Antes de mexer em qualquer coisa de follow-up: leia isto e use estes três nomes.
 
+> **Nomes do Paulo (28/09/2026):** ele chama a engrenagem 2 de **"agendada"** ("que horas posso te
+> chamar?" → "às 18h" → às 18h: "conseguiu falar com sua esposa?"). *Cutucada* e *repescagem* têm o
+> mesmo nome dos dois lados. Na conversa com ele, "follow-up" é o eixo inteiro, não a engrenagem 2.
+> A seção 3 descreve o código de 03/08; confira em `origin/producao` antes de afirmar o estado atual
+> (CHAT-164 e CHAT-165).
+
 ## 1. As três engrenagens
 
 Elas se parecem porque todas "mandam mensagem pra quem sumiu". São diferentes em tudo o que
