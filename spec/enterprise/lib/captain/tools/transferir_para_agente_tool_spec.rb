@@ -59,6 +59,17 @@ RSpec.describe Captain::Tools::TransferirParaAgenteTool, type: :model do
         end.not_to change(Message, :count)
       end
 
+      # Trava de teste (CHAT-171): destino que não atende o contato não recebe a conversa.
+      it 'does not transfer when the target has the test phone lock and the contact is outside it' do
+        conversation.contact.update!(phone_number: '+5565999111222')
+        target_assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['+5511888887777'] } })
+
+        result = tool.perform(tool_context, agente: 'Leo Locação')
+
+        expect(result).to include('indisponível')
+        expect(conversation.reload.assignee_agent_bot).to be_nil
+      end
+
       it 'moves the conversation to the target agent team' do
         team = create(:team, account: account)
         target_assistant.update!(config: { 'team_id' => team.id })

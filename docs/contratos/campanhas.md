@@ -151,3 +151,33 @@ disparo e o **estado de saúde do número** ao lado dos números da campanha.
 - **O blaster nativo continua desativado.** `Campaign#execute_campaign` é no-op para WhatsApp de
   propósito: quem dispara é o `DispatchSchedulerJob`, com pacing, janela e health gate. Nada
   nesta frente reativa o loop nativo.
+
+---
+
+## 6. O que o Paulo exige do módulo (28/09/2026) — o alvo, não o estado
+
+> *"Hoje praticamente eu faço tudo pelo backend aqui com Claude."* Cada campanha da Tozi e da
+> Fábrica passa por uma sessão de Claude no console. O módulo só está pronto quando o operador do
+> cliente faz sozinho, pela tela, tudo o que a sessão faz hoje. Tarefa: **CHAT-167**.
+
+**O trabalho que hoje é feito à mão e precisa estar na tela:**
+
+1. **Receber a lista** do cliente, organizar e sanitizar (formato, E.164, colunas).
+2. **Barrar** duplicados, lista negra/opt-out e **contato com conversa em atendimento**.
+3. **Planejar a cadência:** ondas, pacing, horários, e se haverá repescagem.
+4. **Desenhar os templates:** variações e categoria. Liga com o gerenciador de templates.
+5. **Definir o que acontece depois do disparo:** quem responde a resposta (a IA, um time, o
+   rodízio ou um usuário definido), qual template, se há resposta automática.
+6. **Respeitar a unidade:** cada unidade com as suas regras (horário, time, responsável). Faltou
+   isso na Fábrica, em 25/09: uma campanha por loja montada à mão (`spx-os/clientes/fabrica-atacadao-oculos-conversation-log.md`, 25/09).
+
+**Medição (funil por campanha e por template):** disparos → entregues → respondidos →
+qualificados → perdidos; custo, retorno, custo por lead qualificado, conversões e ranking dos
+melhores templates.
+
+**Kanban que se move sozinho:** cada destinatário vira um card que avança pelo que acontece
+(entregue, respondeu, qualificou, perdeu) sem ninguém arrastar.
+
+**Relação com o follow-up:** a repescagem (`docs/contratos/eixo-followup.md`, engrenagem 3) é a
+continuação natural de uma campanha ativa depois que a janela fecha.
+

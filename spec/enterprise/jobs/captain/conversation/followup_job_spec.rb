@@ -160,6 +160,57 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
     end
   end
 
+  # Compromisso órfão (medido na conta 6): o job desistia por uma trava ANTES do consumo e o
+  # followup_motivo ficava pendurado. Como o ResponseBuilderJob não agenda cutucada automática
+  # enquanto houver motivo (ja_tem_destino?), a conversa nunca mais era cutucada.
+  context 'when the job gives up on a pending commitment' do
+    let(:combinado) { { 'followup_motivo' => 'ia confirmar com o marido', 'followup_janela' => 'me chama as 19h' } }
+
+    before { conversation.update!(custom_attributes: conversation.custom_attributes.merge(combinado)) }
+
+    it 'clears the commitment when the follow-up became pointless' do
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('aguardando_humano_desde' => Time.current.iso8601))
+
+      described_class.perform_now(conversation, token)
+
+      attrs = conversation.reload.custom_attributes
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(attrs['followup_motivo']).to be_nil
+      expect(attrs['followup_janela']).to be_nil
+      expect(attrs['followup_count']).to eq(1)
+    end
+
+    it 'clears the commitment when the AI no longer owns the conversation' do
+      conversation.update!(assignee_agent_bot: nil)
+
+      described_class.perform_now(conversation, token)
+
+      expect(conversation.reload.custom_attributes['followup_motivo']).to be_nil
+    end
+
+    it 'does not touch the state of a newer follow-up when its own token is stale' do
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('aguardando_humano_desde' => Time.current.iso8601))
+
+      described_class.perform_now(conversation, 'token-antigo')
+
+      attrs = conversation.reload.custom_attributes
+      expect(attrs['followup_token']).to eq(token)
+      expect(attrs['followup_motivo']).to eq('ia confirmar com o marido')
+      expect(attrs['followup_janela']).to eq('me chama as 19h')
+    end
+
+    # Adiamento não é desistência: a faixa de descanso remarca o mesmo job, que ainda vai cumprir.
+    it 'keeps the commitment when quiet hours only postpone it' do
+      conversation.update!(custom_attributes: conversation.custom_attributes.except('followup_janela'))
+      travel_to Time.utc(2026, 6, 12, 6, 0) # 2h em America/Cuiaba, cliente sem falar
+
+      expect { described_class.perform_now(conversation, token) }.to have_enqueued_job(described_class)
+      attrs = conversation.reload.custom_attributes
+      expect(attrs['followup_motivo']).to eq('ia confirmar com o marido')
+      expect(attrs['followup_token']).to eq(token)
+    end
+  end
+
   # Controle: sem compromisso, a cutucada e so preventiva — resposta do cliente cancela mesmo.
   context 'when there is no commitment and the lead replied' do
     it 'still cancels the preventive nudge' do
@@ -211,15 +262,19 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
       expect(Spx::Tozi::FunnelPlacementService).not_to have_received(:move)
     end
 
-    # Compromisso tambem nao atravessa: fora da janela ele muda de FORMA (vira template), e essa
-    # forma nao existe ainda. O motivo fica armado pra quando existir, em vez de ser consumido.
-    it 'holds the border even with a pending commitment, keeping the commitment armed' do
+    # Compromisso também não atravessa: fora da janela ele muda de FORMA (vira template), e essa
+    # forma não existe ainda. Armado, o motivo bloqueava a cutucada automática quando o cliente
+    # voltasse (ja_tem_destino?), então a desistência o descarta sem gastar token nem tentativa.
+    it 'holds the border even with a pending commitment, dropping the orphan commitment' do
       conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_motivo' => 'ia confirmar com o marido'))
 
       described_class.perform_now(conversation, token)
 
+      attrs = conversation.reload.custom_attributes
       expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
-      expect(conversation.reload.custom_attributes['followup_motivo']).to be_present
+      expect(attrs['followup_motivo']).to be_nil
+      expect(attrs['followup_token']).to eq(token)
+      expect(attrs['followup_count']).to eq(1)
     end
   end
 

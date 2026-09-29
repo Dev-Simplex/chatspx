@@ -14,7 +14,7 @@ module Enterprise::ActionService
   # No-op silencioso em tudo inválido (padrão add_sla). Ordem segura: assign_ai_agent
   # ANTES de assign_team (guard A2b); a ordem inversa com team allow_auto_assign cria
   # um humano intermediário que a IA limpa em seguida — documentado, sem reordenação no v1.
-  def assign_ai_agent(assistant_ids)
+  def assign_ai_agent(assistant_ids) # rubocop:disable Metrics/CyclomaticComplexity
     return if assistant_ids.blank?
     # F1.4 (modo FILA): a re-triagem de órfãs não reanexa a IA (senão a fila some). A triagem
     # inicial nunca seta esta flag — só o OrphanRetriageJob no modo fila.
@@ -43,9 +43,11 @@ module Enterprise::ActionService
 
     # MESMO save: limpa humano + seta espelho (invariante; saves separados quebram com
     # allow_auto_assign). O after_commit da Fase A enfileira AssignmentKickJob.
-    Conversations::AssignmentService.new(
+    # nil = o service recusou (ex.: trava de teste do assistant) -> a IA não vira dona da regra.
+    assigned = Conversations::AssignmentService.new(
       conversation: @conversation, assignee_id: mirror.id, assignee_type: 'AgentBot'
     ).perform
+    return if assigned.nil?
 
     # A partir daqui a IA é a "dona" da triagem: as ações seguintes da MESMA regra
     # (ex.: assign_team → "Atribuído a recepção por Clara") são atribuídas a ela, não
