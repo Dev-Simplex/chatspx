@@ -56,5 +56,34 @@ describe Conversations::AssignmentService do
         expect(conversation.assignee_id).to be_nil
       end
     end
+
+    # Trava de teste (CHAT-171): assistente com only_contact_phones não assume contato fora da
+    # lista — a conversa segue com quem estava, como se a IA não existisse.
+    context 'when assigning a captain mirror whose assistant has the test phone lock' do
+      let(:contact) { create(:contact, account: account, phone_number: '+5565999111222') }
+      let(:conversation) { create(:conversation, account: account, contact: contact) }
+      let(:assistant) { create(:captain_assistant, account: account) }
+      let(:mirror) { assistant.mirror_agent_bot }
+
+      before { create(:captain_inbox, captain_assistant: assistant, inbox: conversation.inbox) }
+
+      def assign_mirror
+        described_class.new(conversation: conversation, assignee_id: mirror.id, assignee_type: 'AgentBot').perform
+      end
+
+      it 'does not assign the mirror when the contact is outside the list' do
+        assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['+5511888887777'] } })
+
+        expect(assign_mirror).to be_nil
+        expect(conversation.reload.assignee_agent_bot_id).to be_nil
+      end
+
+      it 'assigns the mirror when the contact is in the list' do
+        assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['6599111222'] } })
+
+        expect(assign_mirror).to eq(mirror)
+        expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+      end
+    end
   end
 end

@@ -200,6 +200,8 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
                                   .detect { |a| a.config['triage'] == true }
     return nil if assistant.nil?
     return nil unless ::CaptainInbox.exists?(inbox_id: inbox.id, captain_assistant_id: assistant.id)
+    # Trava de teste (CHAT-171): contato fora da lista não é devolvido à IA — segue órfão, pro humano.
+    return nil unless Captain::Behavior::ContactPhoneLock.new(assistant).allows?(conversation.contact)
 
     assistant
   end

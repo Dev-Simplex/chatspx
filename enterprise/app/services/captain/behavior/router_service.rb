@@ -10,18 +10,24 @@ class Captain::Behavior::RouterService
   end
 
   # Guards TÉCNICOS: activity, conteúdo vazio, grupos — mais o kill-switch por label.
-  # Guards de NEGÓCIO morreram com o gate por atribuição: whitelist de fones
-  # (only_contact_phones), skip_agent_bot (bug latente: lia coluna inexistente) e
-  # skip_after_human_response (papel assumido por: gate por atribuição + callback de
-  # exclusividade reset_agent_bot_when_assignee_present + A2c, que desatribui o espelho
-  # quando um humano responde SEM se atribuir).
+  # Guards de NEGÓCIO morreram com o gate por atribuição: skip_agent_bot (bug latente: lia
+  # coluna inexistente) e skip_after_human_response (papel assumido por: gate por atribuição
+  # + callback de exclusividade reset_agent_bot_when_assignee_present + A2c, que desatribui o
+  # espelho quando um humano responde SEM se atribuir).
   #
   # `skip_labels` VOLTOU e não é exceção à regra acima: ele não decide por negócio, ele
   # cala a IA quando o interlocutor é outro robô (label `bot-externo`). Esta linha existe
   # porque o comentário que o declarava morto sobreviveu à decisão que o ressuscitou.
-  def should_respond?
+  #
+  # A trava de teste (`only_contact_phones`) também VOLTOU (CHAT-171). O gate por atribuição
+  # não a substitui: onde a atribuição é automática para todo mundo, a lista era o único
+  # freio — e sem leitor a IA da CD Solar, configurada com a trava, respondeu 12 clientes
+  # reais em 21–25/09/2026. A regra mora em ContactPhoneLock, que os caminhos de atribuição
+  # também consultam.
+  def should_respond? # rubocop:disable Metrics/CyclomaticComplexity
     return false if @message.activity?
     return false if @message.content.blank? && @message.attachments.blank?
+    return false unless Captain::Behavior::ContactPhoneLock.new(@assistant).allows?(@conversation.contact)
     return false if skip_groups?
     return false if skip_labeled?
     return false if story_mention?
