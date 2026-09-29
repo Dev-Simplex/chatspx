@@ -35,6 +35,7 @@ class AccountDashboard < Administrate::BaseDashboard
     status: Field::Select.with_options(collection: [%w[Active active], %w[Suspended suspended]]),
     account_users: Field::HasMany,
     rodizio_conversation_tabs_enabled: Field::Boolean,
+    captador_integration_enabled: Field::Boolean,
     custom_attributes: Field::String
   }.merge(enterprise_attribute_types).freeze
 
@@ -72,6 +73,7 @@ class AccountDashboard < Administrate::BaseDashboard
     conversations
     account_users
     rodizio_conversation_tabs_enabled
+    captador_integration_enabled
   ] + enterprise_show_page_attributes).freeze
 
   # FORM_ATTRIBUTES
@@ -90,6 +92,7 @@ class AccountDashboard < Administrate::BaseDashboard
     locale
     status
     rodizio_conversation_tabs_enabled
+    captador_integration_enabled
   ] + enterprise_form_attributes).freeze
 
   # COLLECTION_FILTERS

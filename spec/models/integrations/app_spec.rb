@@ -87,6 +87,17 @@ RSpec.describe Integrations::App do
       end
     end
 
+    context 'when the app is captador' do
+      let(:app_name) { 'captador' }
+
+      it 'aparece só na conta com o interruptor captador_integration ligado' do
+        expect(app.active?(account)).to be false
+
+        account.update!(captador_integration_enabled: true)
+        expect(app.active?(account)).to be true
+      end
+    end
+
     context 'when other apps are queried' do
       let(:app_name) { 'webhook' }
 

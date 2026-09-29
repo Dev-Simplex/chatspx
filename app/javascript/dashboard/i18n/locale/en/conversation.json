@@ -1,6 +1,6 @@
 {
   "CONVERSATION": {
-    "WHATSAPP_PHONE_REPLY": "Sent from phone",
+    "WHATSAPP_PHONE_REPLY": "Sent directly from WhatsApp on the phone (agent not identified)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "No one owns this conversation",
@@ -1020,11 +1020,41 @@
       "LINEAR_ISSUES": "Linked Linear Issues",
       "SHOPIFY_ORDERS": "Shopify Orders",
       "KANBAN_STATUS": "Kanban Status",
+      "CAPTADOR_LEAD": "Captador lead",
       "GROUP_PARTICIPANTS": "Group members"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Not in any funnel",
       "OPEN_BOARD": "Open in Kanban"
+    },
+    "CAPTADOR": {
+      "LOADING": "Loading the Captador lead",
+      "EMPTY": "This contact did not come from Captador.",
+      "UNAVAILABLE": "Captador did not respond right now. The conversation works as usual.",
+      "PENDING_ACCESS": "Ask for access to Captador to see this lead.",
+      "RETRY": "Try again",
+      "MOVE": "Move to…",
+      "OPEN": "Open in Captador",
+      "MOVED": "Lead moved to {stage}.",
+      "MOVE_ERROR": "Could not move the lead.",
+      "STALLED": "Stalled",
+      "LOST": "Lost",
+      "DO_NOT_CONTACT": "Do not contact",
+      "FIELDS": {
+        "OWNER": "Owner",
+        "ORIGIN": "Source",
+        "LAST_ACTIVITY": "Last activity",
+        "STATUS": "Registry status",
+        "ACTIVITY": "Main activity",
+        "SIZE": "Company size",
+        "CITY": "City",
+        "OPENED_ON": "Founded"
+      },
+      "ORIGIN": {
+        "GOOGLE": "Google",
+        "RECEITA": "Federal Revenue registry",
+        "MANUAL": "Manual entry"
+      }
     },
     "SUMMARY": {
       "AI_TITLE": "AI summary",

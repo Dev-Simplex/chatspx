@@ -1,6 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe 'Integration Hooks API', type: :request do
+  include CaptadorSigningHelpers
+
   let(:account) { create(:account) }
   let(:admin) { create(:user, account: account, role: :administrator) }
   let(:agent) { create(:user, account: account, role: :agent) }
@@ -73,6 +75,21 @@ RSpec.describe 'Integration Hooks API', type: :request do
         expect(response).to have_http_status(:success)
         data = response.parsed_body
         expect(data['app_id']).to eq 'slack'
+      end
+
+      it 'não devolve nem apaga o segredo do Captador quando a edição o deixa em branco' do
+        captador = captador_hook_for(account, shared_secret: 's' * 40)
+        settings = captador.settings.except('shared_secret').merge('shared_secret' => '', 'allowed_inbox_ids' => '7')
+
+        patch api_v1_account_integrations_hook_url(account_id: account.id, id: captador.id),
+              params: { hook: { settings: settings } },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['settings']).to include('shared_secret_configured' => true, 'allowed_inbox_ids' => '7')
+        expect(response.parsed_body['settings']).not_to have_key('shared_secret')
+        expect(captador.reload.captador_shared_secret).to eq('s' * 40)
       end
     end
   end
