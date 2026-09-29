@@ -26,6 +26,7 @@
       "LIDA": "Read",
       "PLANEJADA": "Planned",
       "FEITA": "Done"
-    }
+    },
+    "MENU_SENT": "Sent suggestions"
   }
 }

@@ -13,6 +13,7 @@ import PortalsNew from './pages/PortalsNewPage.vue';
 
 const HelpCenterEmbedPage = () => import('./pages/HelpCenterEmbedPage.vue');
 const SuggestionsPage = () => import('./pages/SuggestionsPage.vue');
+const SuggestionsSentPage = () => import('./pages/SuggestionsSentPage.vue');
 
 // Fora da conta autora (conta 3 do deploy de casa) o construtor de artigos
 // não existe: qualquer rota `portals_*` cai no iframe somente-leitura.
@@ -131,6 +132,15 @@ export default {
       path: frontendURL('accounts/:accountId/suggestions'),
       name: 'suggestions_new',
       component: SuggestionsPage,
+      meta: {
+        permissions: ['administrator', 'agent', 'custom_role'],
+      },
+    },
+    {
+      // Lista das enviadas, em item próprio do menu (pedido do dono em 29/09).
+      path: frontendURL('accounts/:accountId/suggestions/sent'),
+      name: 'suggestions_sent',
+      component: SuggestionsSentPage,
       meta: {
         permissions: ['administrator', 'agent', 'custom_role'],
       },

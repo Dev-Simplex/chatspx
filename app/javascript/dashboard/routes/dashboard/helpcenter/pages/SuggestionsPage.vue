@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -12,6 +13,7 @@ const MAX_MEDIA_MB = 100;
 const MAX_CONTENT = 5000;
 
 const { t } = useI18n();
+const router = useRouter();
 const currentUser = useMapGetter('getCurrentUser');
 const currentAccount = useMapGetter('getCurrentAccount');
 
@@ -19,10 +21,6 @@ const content = ref('');
 const media = ref(null);
 const mediaInput = ref(null);
 const sending = ref(false);
-const loading = ref(false);
-const suggestions = ref([]);
-// O backend diz o alcance: admin da conta ve as de todos (com o autor); o resto, so as suas.
-const allAccount = ref(false);
 const errorMessage = ref('');
 
 const authorLine = computed(() =>
@@ -31,36 +29,6 @@ const authorLine = computed(() =>
     company: currentAccount.value?.name || '',
   })
 );
-
-// Mapa explícito: chave dinâmica de i18n some do bundle no build e o lint avisa disso.
-const STATUS_LABELS = () => ({
-  nova: t('SUGGESTIONS.STATUS.NOVA'),
-  lida: t('SUGGESTIONS.STATUS.LIDA'),
-  planejada: t('SUGGESTIONS.STATUS.PLANEJADA'),
-  feita: t('SUGGESTIONS.STATUS.FEITA'),
-});
-
-const statusLabel = status => STATUS_LABELS()[status] || status;
-
-const formatDate = timestamp =>
-  new Date(timestamp * 1000).toLocaleDateString(undefined, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-
-const loadSuggestions = async () => {
-  loading.value = true;
-  try {
-    const { data } = await SuggestionsAPI.get();
-    suggestions.value = data?.payload || [];
-    allAccount.value = !!data?.meta?.all_account;
-  } catch (error) {
-    useAlert(t('SUGGESTIONS.LIST.ERROR'));
-  } finally {
-    loading.value = false;
-  }
-};
 
 // Foto ou vídeo, até 100 MB — a mesma regra que o modelo aplica no servidor.
 const onFileChange = event => {
@@ -103,7 +71,8 @@ const submit = async () => {
     content.value = '';
     removeMedia();
     useAlert(t('SUGGESTIONS.FORM.SUCCESS'));
-    await loadSuggestions();
+    // A sugestão aparece em "Sugestões enviadas" — leva a pessoa até lá.
+    router.push({ name: 'suggestions_sent' });
   } catch (error) {
     errorMessage.value =
       error?.response?.data?.error || t('SUGGESTIONS.FORM.ERROR_GENERIC');
@@ -111,8 +80,6 @@ const submit = async () => {
     sending.value = false;
   }
 };
-
-onMounted(loadSuggestions);
 </script>
 
 <template>
@@ -187,62 +154,6 @@ onMounted(loadSuggestions);
           {{ errorMessage }}
         </p>
       </div>
-
-      <h2 class="mt-8 text-heading-2 text-n-slate-12">
-        {{
-          allAccount
-            ? $t('SUGGESTIONS.LIST.TITLE_ADMIN')
-            : $t('SUGGESTIONS.LIST.TITLE')
-        }}
-      </h2>
-
-      <p
-        v-if="!loading && !suggestions.length"
-        class="mt-3 mb-0 text-body-main text-n-slate-11"
-      >
-        {{
-          allAccount
-            ? $t('SUGGESTIONS.LIST.EMPTY_ADMIN')
-            : $t('SUGGESTIONS.LIST.EMPTY')
-        }}
-      </p>
-
-      <ul class="mt-3 mb-0 space-y-3 list-none">
-        <li
-          v-for="suggestion in suggestions"
-          :key="suggestion.id"
-          class="p-4 border rounded-xl border-n-weak bg-n-solid-1"
-        >
-          <div class="flex flex-wrap items-center gap-2 justify-between">
-            <span class="text-sm text-n-slate-11">
-              {{ formatDate(suggestion.created_at) }}
-              <span v-if="allAccount" class="ms-2 font-medium text-n-slate-12">
-                {{ suggestion.name }}
-              </span>
-            </span>
-            <span
-              class="px-2 py-0.5 text-xs rounded-md bg-n-alpha-2 text-n-slate-12"
-            >
-              {{ statusLabel(suggestion.status) }}
-            </span>
-          </div>
-          <p
-            class="mt-2 mb-0 break-words whitespace-pre-line text-body-main text-n-slate-12"
-          >
-            {{ suggestion.content }}
-          </p>
-          <a
-            v-if="suggestion.media_url"
-            :href="suggestion.media_url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-1 mt-2 text-sm break-all text-n-blue-11 hover:underline"
-          >
-            <Icon icon="i-lucide-paperclip" class="flex-shrink-0 size-3.5" />
-            {{ suggestion.media_filename }}
-          </a>
-        </li>
-      </ul>
     </div>
   </div>
 </template>

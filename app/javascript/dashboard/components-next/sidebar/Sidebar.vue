@@ -134,6 +134,12 @@ const helpCenterMenuItem = computed(() => {
     activeOn: ['suggestions_new'],
     to: accountScopedRoute('suggestions_new'),
   };
+  const suggestionsSentChild = {
+    name: 'SuggestionsSent',
+    label: t('SUGGESTIONS.MENU_SENT'),
+    activeOn: ['suggestions_sent'],
+    to: accountScopedRoute('suggestions_sent'),
+  };
   if (!isHelpCenterAuthoring.value) {
     // Com `children` o item do rail vira grupo e o clique deixa de navegar — então o portal
     // (iframe somente leitura) precisa virar filho, senão a conta de cliente perde o acesso a ele.
@@ -148,6 +154,7 @@ const helpCenterMenuItem = computed(() => {
           to: accountScopedRoute('help_center_view'),
         },
         suggestionsChild,
+        suggestionsSentChild,
       ],
     };
   }
@@ -195,6 +202,7 @@ const helpCenterMenuItem = computed(() => {
         }),
       },
       suggestionsChild,
+      suggestionsSentChild,
     ],
   };
 });
