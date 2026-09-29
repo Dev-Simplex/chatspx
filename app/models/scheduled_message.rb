@@ -16,6 +16,7 @@
 #  conversation_id   :bigint           not null
 #  inbox_id          :bigint           not null
 #  message_id        :bigint
+#  captain_assistant_id :bigint
 #  scheduled_by_id   :bigint
 #
 class ScheduledMessage < ApplicationRecord
@@ -34,6 +35,8 @@ class ScheduledMessage < ApplicationRecord
   belongs_to :conversation
   belongs_to :inbox
   belongs_to :scheduled_by, class_name: 'User', optional: true
+  # Agendada escrita pela IA (CHAT-165): sai em nome deste agente — ver ScheduledMessages::AssistantDeliveryService.
+  belongs_to :captain_assistant, class_name: 'Captain::Assistant', optional: true
   belongs_to :sent_message,
              class_name: 'Message',
              foreign_key: :message_id,

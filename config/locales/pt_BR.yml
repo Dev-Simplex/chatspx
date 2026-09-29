@@ -612,6 +612,11 @@ pt_BR:
     errors:
       failed_to_create: 'Falha ao criar mensagem'
       only_pending_allowed: 'Apenas mensagens pendentes podem ser alteradas ou canceladas'
+      window_closed_no_template: 'a janela de conversa está fechada e o agente não tem template configurado para ela'
+      template_unsupported_variables: 'o template configurado tem variáveis que não dá para preencher automaticamente'
+      template_without_contact_name: 'o template configurado precisa do nome do contato, e o contato não tem nome'
+    activity:
+      assistant_not_sent: 'A mensagem agendada pelo agente de IA não foi enviada: %{reason}.'
   auto_assignment:
     default_policy_name: 'Política Padrão'
     policy_actor: 'Sistema de Automação via %{policy_name}'

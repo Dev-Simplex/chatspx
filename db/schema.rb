@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_25_193752) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_29_111557) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -2001,6 +2001,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_25_193752) do
     t.bigint "message_id"
     t.bigint "scheduled_by_id"
     t.jsonb "template_params"
+    t.bigint "captain_assistant_id"
+    t.index ["captain_assistant_id"], name: "index_scheduled_messages_on_captain_assistant_id"
     t.index ["conversation_id", "scheduled_at", "id"], name: "idx_scheduled_messages_conversation_timeline", order: { scheduled_at: :desc, id: :desc }
     t.index ["conversation_id"], name: "index_scheduled_messages_on_conversation_id"
     t.index ["inbox_id"], name: "index_scheduled_messages_on_inbox_id"
