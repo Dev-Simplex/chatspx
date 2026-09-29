@@ -64,6 +64,8 @@ class Conversation < ApplicationRecord
 
   # Sufixo de JID que o WhatsApp usa para grupos (ver #group?).
   WHATSAPP_GROUP_JID_SUFFIX = '@g.us'.freeze
+  # Marca em additional_attributes: humano respondeu sem se atribuir (ver #human_replied_without_assignment?).
+  HUMAN_REPLIED_KEY = 'humano_respondeu_em'.freeze
 
   attr_accessor :skip_team_required_for_resolution_validation
 
@@ -347,6 +349,13 @@ class Conversation < ApplicationRecord
 
   def assigned_entity
     assignee_agent_bot || assignee
+  end
+
+  # Um humano respondeu sem se atribuir (pela plataforma ou pelo celular numa caixa WAHA) e a IA
+  # soltou a conversa. Sem dono, ela parece órfã, mas tem gente atendendo: a IA não reentra até a
+  # conversa ser resolvida, quando a marca é apagada.
+  def human_replied_without_assignment?
+    (additional_attributes || {}).key?(HUMAN_REPLIED_KEY)
   end
 
   def tweet?

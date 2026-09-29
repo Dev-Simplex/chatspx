@@ -92,7 +92,8 @@ class Conversations::OrphanRetriageJob < ApplicationJob
   # Current.skip_ai_agent_assignment desliga só a action assign_ai_agent. Setado POR REGRA
   # (não antes do loop), porque AutomationRules::ActionService#perform faz Current.reset no ensure.
   def retriage(conversation, account)
-    skip_ai = !account.ia_reentra_orfa_enabled?
+    # CHAT-172: humano respondeu sem se atribuir (ex.: pelo celular) — a IA não pega de volta.
+    skip_ai = !account.ia_reentra_orfa_enabled? || conversation.human_replied_without_assignment?
 
     account.automation_rules.where(event_name: 'conversation_created', active: true).find_each do |rule|
       conversation.reload

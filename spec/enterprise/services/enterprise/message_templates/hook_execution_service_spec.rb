@@ -465,4 +465,52 @@ RSpec.describe MessageTemplates::HookExecutionService do
       create(:message, conversation: conversation, message_type: :incoming, account: account)
     end
   end
+
+  # CHAT-172: o atendente responde pelo CELULAR numa caixa WAHA e o eco entra como nota privada
+  # "📱 Enviado do WhatsApp". O A2c já soltava o espelho, mas a conversa ficava órfã e a próxima
+  # mensagem do cliente fazia a IA de triagem reentrar (D-12) e falar por cima da atendente.
+  describe 'resposta pelo celular numa caixa WAHA (CHAT-172)' do
+    before do
+      inbox.update!(channel: create(:channel_api, account: account), waha_session_name: 'sessao_teste')
+      assistant.update!(config: { 'triage' => true })
+      conversation.update!(assignee_agent_bot: mirror)
+    end
+
+    def phone_reply
+      create(:message, conversation: conversation, message_type: :outgoing, account: account, private: true,
+                       content: "*📱 Enviado do WhatsApp*
+
+Já te respondo")
+    end
+
+    it 'keeps the assistant silent on the next customer message after a phone reply' do
+      phone_reply
+      expect(conversation.reload.assignee_agent_bot_id).to be_nil
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to receive(:perform_later)
+      expect(Captain::Conversation::AssignmentKickJob).not_to receive(:perform_later)
+
+      create(:message, conversation: conversation, message_type: :incoming, account: account)
+
+      expect(conversation.reload.assignee_agent_bot_id).to be_nil
+    end
+
+    it 'lets the assistant reenter again once the conversation is resolved and reopened' do
+      phone_reply
+      conversation.reload.resolved!
+
+      create(:message, conversation: conversation, message_type: :incoming, account: account)
+
+      expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+    end
+
+    it 'does not silence the assistant with its own messages' do
+      create(:message, conversation: conversation, message_type: :outgoing, account: account, sender: assistant)
+      expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+
+      expect(Captain::Conversation::ResponseBuilderJob).to receive(:perform_later)
+
+      create(:message, conversation: conversation, message_type: :incoming, account: account)
+    end
+  end
 end
