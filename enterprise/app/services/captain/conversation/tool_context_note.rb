@@ -25,9 +25,13 @@ class Captain::Conversation::ToolContextNote
   # pode empurrar pra fora da nota o preço que a busca anterior trouxe. Três bastam para o modelo
   # saber que a consulta não respondeu; a quarta não acrescenta.
   LIMITE_FALHAS = 3
-  # Corte por retorno. O trace já chega truncado em 1.500 (TraceRecorder::RESULT_PREVIEW_LIMIT);
-  # aqui o corte é menor porque são várias chamadas somadas no mesmo preâmbulo.
-  LIMITE_RESULTADO = 700
+  # Orçamento TOTAL dos retornos na nota, repartido da chamada mais recente para a mais antiga.
+  # É o mesmo teto de antes (6 chamadas × 700), só que somado: o corte fixo de 700 por chamada
+  # guardava o prefácio de regras da busca e cortava a lista de imóveis que vem depois dele
+  # (conv 28718: sem os códigos na nota, a IA inventou código para enviar as fotos), enquanto a
+  # chamada de registro ao lado quase não ocupava a sua cota. Cada retorno já chega truncado em
+  # 1.500 pelo trace (TraceRecorder::RESULT_PREVIEW_LIMIT), e esse é o teto natural por chamada.
+  ORCAMENTO_RESULTADOS = LIMITE_CHAMADAS * 700
   # A linha de falha diz que falhou e por quê, e isso cabe em pouco. Teto baixo de propósito:
   # é o que garante que ela custe ~1 linha e não desloque fato bom.
   LIMITE_MOTIVO = 200
@@ -106,7 +110,8 @@ class Captain::Conversation::ToolContextNote
   def montar(chamadas)
     houve_falha = chamadas.any? { |c| nao_confirmou?(c) }
     linhas = [houve_falha ? "#{CABECALHO}#{AVISO_FALHA}" : CABECALHO]
-    chamadas.each { |c| linhas << linha(c) }
+    cotas = cotas_de_resultado(chamadas)
+    chamadas.each { |c| linhas << linha(c, cotas[c.id]) }
     "#{linhas.join("\n")}]"
   end
 
@@ -114,10 +119,21 @@ class Captain::Conversation::ToolContextNote
     Captain::Tools::Result::NAO_CONFIRMADOS.include?(chamada.status.to_s)
   end
 
-  def linha(chamada)
+  # A mais recente leva o que precisar; as anteriores levam o que sobrar. A recente é a que o
+  # turno seguinte mais usa, e as antigas costumam ser registro curto que cabe inteiro na sobra.
+  def cotas_de_resultado(chamadas)
+    restante = ORCAMENTO_RESULTADOS
+    chamadas.reject { |c| nao_confirmou?(c) }.reverse.to_h do |c|
+      cota = [texto_resultado(c).length, restante].min
+      restante -= cota
+      [c.id, cota]
+    end
+  end
+
+  def linha(chamada, cota)
     return "· #{chamada.tool_name}#{argumentos(chamada)} NÃO CONFIRMOU: #{motivo(chamada)}" if nao_confirmou?(chamada)
 
-    "· #{chamada.tool_name}#{argumentos(chamada)} devolveu: #{resultado(chamada)}"
+    "· #{chamada.tool_name}#{argumentos(chamada)} devolveu: #{resultado(chamada, cota)}"
   end
 
   def argumentos(chamada)
@@ -127,12 +143,16 @@ class Captain::Conversation::ToolContextNote
     "(#{args.map { |k, v| "#{k}: #{v.inspect}" }.join(', ')})"
   end
 
-  def resultado(chamada)
-    texto = chamada.result_preview.to_s.gsub(/\s+/, ' ').strip
-    return '(sem retorno)' if texto.empty?
-    return texto if texto.length <= LIMITE_RESULTADO
+  def texto_resultado(chamada)
+    chamada.result_preview.to_s.gsub(/\s+/, ' ').strip
+  end
 
-    "#{texto[0, LIMITE_RESULTADO]}…"
+  def resultado(chamada, cota)
+    texto = texto_resultado(chamada)
+    return '(sem retorno)' if texto.empty?
+    return texto if texto.length <= cota
+
+    "#{texto[0, cota]}…"
   end
 
   # Exceção não deixa `result_preview` (o recorder grava nil), então o motivo vem da coluna
