@@ -19,7 +19,8 @@
       "EMPTY": "Você ainda não enviou nenhuma sugestão.",
       "ERROR": "Não foi possível carregar as suas sugestões.",
       "TITLE_ADMIN": "Sugestões da conta",
-      "EMPTY_ADMIN": "Ninguém desta conta enviou sugestão ainda."
+      "EMPTY_ADMIN": "Ninguém desta conta enviou sugestão ainda.",
+      "SOURCE_LINK": "Pelo link"
     },
     "STATUS": {
       "NOVA": "Nova",
