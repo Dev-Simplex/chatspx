@@ -19,7 +19,14 @@
       "EMPTY": "You have not sent any suggestions yet.",
       "ERROR": "We could not load your suggestions.",
       "TITLE_ADMIN": "Account suggestions",
-      "EMPTY_ADMIN": "No one in this account has sent a suggestion yet."
+      "EMPTY_ADMIN": "No one in this account has sent a suggestion yet.",
+      "SOURCE_LINK": "Via link"
+    },
+    "PUBLIC_LINK": {
+      "TITLE": "Public link for collecting suggestions",
+      "HINT": "Anyone can send one without signing in. Share it over WhatsApp or email.",
+      "COPY": "Copy",
+      "COPIED": "Link copied."
     },
     "STATUS": {
       "NOVA": "New",

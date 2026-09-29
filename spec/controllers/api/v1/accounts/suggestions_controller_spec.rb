@@ -75,6 +75,32 @@ RSpec.describe 'Api::V1::Accounts::Suggestions', type: :request do
       expect(response.parsed_body['meta']['all_account']).to be(true)
     end
 
+    context 'with a public link suggestion' do
+      before { create(:suggestion, account: nil, user: nil, source: :public_link, name: 'Kaio', company: 'Loja K', content: 'do link') }
+
+      it 'so o admin da conta autora (deploy de casa, conta 3) ve as do link' do
+        autora = Account.find_by(id: 3) || create(:account, id: 3)
+        admin = create(:user, account: autora, role: :administrator)
+
+        with_modified_env FRONTEND_URL: 'https://chat.simplexsolucoes.com.br' do
+          get '/api/v1/accounts/3/suggestions', headers: admin.create_new_auth_token
+        end
+
+        do_link = response.parsed_body['payload'].find { |s| s['content'] == 'do link' }
+        expect(do_link).to include('source' => 'public_link', 'company' => 'Loja K', 'name' => 'Kaio')
+      end
+
+      it 'admin de outra conta nao ve as do link' do
+        admin = create(:user, account: account, role: :administrator)
+
+        with_modified_env FRONTEND_URL: 'https://chat.simplexsolucoes.com.br' do
+          get url, headers: admin.create_new_auth_token
+        end
+
+        expect(response.parsed_body['payload'].pluck('content')).not_to include('do link')
+      end
+    end
+
     # No fork, supervisor e ADMINISTRADOR com times (AccountUser#console_role): nao pode ver as dos outros.
     it 'supervisor ve so as proprias' do
       supervisor = create(:user, account: account, role: :administrator)

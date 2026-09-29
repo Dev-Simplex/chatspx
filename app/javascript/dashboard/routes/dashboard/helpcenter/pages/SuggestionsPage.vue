@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import SuggestionsAPI from 'dashboard/api/suggestions';
 import Button from 'dashboard/components-next/button/Button.vue';
 import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
@@ -22,6 +23,15 @@ const media = ref(null);
 const mediaInput = ref(null);
 const sending = ref(false);
 const errorMessage = ref('');
+
+// Montado do domínio aberto: cada instalação tem o seu (nicolas.chatspx.app,
+// chat.simplexsolucoes.com.br, o de cada cliente), então nada de URL fixa.
+const publicLink = computed(() => `${window.location.origin}/sugestoes`);
+
+const copyPublicLink = async () => {
+  await copyTextToClipboard(publicLink.value);
+  useAlert(t('SUGGESTIONS.PUBLIC_LINK.COPIED'));
+};
 
 const authorLine = computed(() =>
   t('SUGGESTIONS.FORM.AUTHOR', {
@@ -152,6 +162,37 @@ const submit = async () => {
 
         <p v-if="errorMessage" class="mt-3 mb-0 text-sm text-n-ruby-11">
           {{ errorMessage }}
+        </p>
+      </div>
+
+      <div class="p-4 mt-4 border rounded-xl border-n-weak bg-n-solid-1">
+        <div class="flex items-center gap-2">
+          <Icon
+            icon="i-lucide-link"
+            class="flex-shrink-0 size-4 text-n-slate-11"
+          />
+          <h2 class="mb-0 font-medium text-body-main text-n-slate-12">
+            {{ $t('SUGGESTIONS.PUBLIC_LINK.TITLE') }}
+          </h2>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 mt-3">
+          <span
+            class="w-full min-w-0 px-3 py-2 text-sm break-all rounded-lg sm:flex-1 bg-n-alpha-2 text-n-slate-12"
+          >
+            {{ publicLink }}
+          </span>
+          <Button
+            :label="$t('SUGGESTIONS.PUBLIC_LINK.COPY')"
+            icon="i-lucide-copy"
+            variant="ghost"
+            color="slate"
+            size="sm"
+            class="w-full sm:w-auto whitespace-nowrap"
+            @click="copyPublicLink"
+          />
+        </div>
+        <p class="mt-2 mb-0 text-sm text-n-slate-11">
+          {{ $t('SUGGESTIONS.PUBLIC_LINK.HINT') }}
         </p>
       </div>
     </div>
