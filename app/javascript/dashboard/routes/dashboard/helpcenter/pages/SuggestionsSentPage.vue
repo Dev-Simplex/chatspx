@@ -1,24 +1,13 @@
 <script setup>
 // "Sugestões enviadas": a lista que ficava embaixo do formulário virou item próprio no menu.
 // O alcance vem do backend (meta.all_account): admin da conta vê as de todos, com o autor.
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
-import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import SuggestionsAPI from 'dashboard/api/suggestions';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
-import NextButton from 'next/button/Button.vue';
 
 const { t } = useI18n();
-
-// Montado do domínio aberto: cada instalação tem o seu (nicolas.chatspx.app,
-// chat.simplexsolucoes.com.br, o de cada cliente), então nada de URL fixa.
-const publicLink = computed(() => `${window.location.origin}/sugestoes`);
-
-const copyPublicLink = async () => {
-  await copyTextToClipboard(publicLink.value);
-  useAlert(t('SUGGESTIONS.PUBLIC_LINK.COPIED'));
-};
 
 const loading = ref(false);
 const suggestions = ref([]);
@@ -67,39 +56,6 @@ onMounted(loadSuggestions);
             : $t('SUGGESTIONS.LIST.TITLE')
         }}
       </h1>
-
-      <div
-        v-if="allAccount"
-        class="p-4 mt-4 border rounded-xl border-n-weak bg-n-solid-1"
-      >
-        <div class="flex items-center gap-2">
-          <Icon
-            icon="i-lucide-link"
-            class="flex-shrink-0 size-4 text-n-slate-11"
-          />
-          <h2 class="mb-0 font-medium text-body-main text-n-slate-12">
-            {{ $t('SUGGESTIONS.PUBLIC_LINK.TITLE') }}
-          </h2>
-        </div>
-        <div class="flex flex-wrap items-center gap-2 mt-3">
-          <span
-            class="w-full min-w-0 px-3 py-2 text-sm break-all rounded-lg sm:flex-1 bg-n-alpha-2 text-n-slate-12"
-          >
-            {{ publicLink }}
-          </span>
-          <NextButton
-            ghost
-            sm
-            slate
-            icon="i-lucide-copy"
-            :label="$t('SUGGESTIONS.PUBLIC_LINK.COPY')"
-            @click="copyPublicLink"
-          />
-        </div>
-        <p class="mt-2 mb-0 text-sm text-n-slate-11">
-          {{ $t('SUGGESTIONS.PUBLIC_LINK.HINT') }}
-        </p>
-      </div>
 
       <p
         v-if="!loading && !suggestions.length"
