@@ -42,7 +42,12 @@ export default {
       uiFlags: 'integrations/getUIFlags',
     }),
     formItems() {
-      return this.integration.settings_form_schema || [];
+      const items = this.integration.settings_form_schema || [];
+      if (!this.hook?.settings?.shared_secret_configured) return items;
+
+      return items.map(item =>
+        item.name === 'shared_secret' ? { ...item, validation: '' } : item
+      );
     },
   },
   methods: {

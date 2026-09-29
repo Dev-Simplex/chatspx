@@ -44,6 +44,7 @@ const raw = '*📱 Enviado do WhatsApp*\n\n💬 **Mensagem:**\n"Olá!"';
 const mountMessage = (contentAttributes = {}, groupWithNext = false) =>
   shallowMount(Message, {
     props: {
+      sender: { id: 38, type: 'user', name: 'Simplex', thumbnail: 'dono.png' },
       id: 1,
       messageType: 1,
       status: 'sent',
@@ -111,8 +112,24 @@ describe('phone reply display', () => {
     expect(wrapper.find('[icon="i-lucide-smartphone"]').exists()).toBe(false);
   });
 
+  it('shows the WhatsApp icon instead of the inbox photo or the token owner', () => {
+    const wrapper = mountMessage({
+      whatsappPhoneReply: true,
+      whatsappPhoneReplyContent: 'Olá!',
+      externalEcho: true,
+    });
+    const avatar = wrapper.find('avatar-stub');
+    expect(avatar.attributes('iconname')).toBe('i-ri-whatsapp-fill');
+    expect(avatar.attributes('name')).toBe('');
+    expect(avatar.attributes('src')).toBe('');
+  });
+
   it('translates the phone indicator in English and Brazilian Portuguese', () => {
-    expect(en.CONVERSATION.WHATSAPP_PHONE_REPLY).toBe('Sent from phone');
-    expect(ptBR.CONVERSATION.WHATSAPP_PHONE_REPLY).toBe('Enviada pelo celular');
+    expect(en.CONVERSATION.WHATSAPP_PHONE_REPLY).toBe(
+      'Sent directly from WhatsApp on the phone (agent not identified)'
+    );
+    expect(ptBR.CONVERSATION.WHATSAPP_PHONE_REPLY).toBe(
+      'Enviada direto pelo WhatsApp do celular (sem identificar o atendente)'
+    );
   });
 });

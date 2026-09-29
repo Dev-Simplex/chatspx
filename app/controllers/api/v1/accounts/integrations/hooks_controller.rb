@@ -7,7 +7,9 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
   end
 
   def update
-    @hook.update!(permitted_params.slice(:status, :settings))
+    attributes = permitted_params.slice(:status, :settings)
+    preserve_captador_secret(attributes)
+    @hook.update!(attributes)
   end
 
   def process_event
@@ -41,5 +43,12 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
 
   def permitted_params
     params.require(:hook).permit(:app_id, :inbox_id, :status, settings: {})
+  end
+
+  def preserve_captador_secret(attributes)
+    submitted = attributes[:settings]
+    return unless @hook.app_id == 'captador' && submitted && submitted[:shared_secret].blank?
+
+    attributes[:settings] = @hook.settings.merge(submitted.to_h.except('shared_secret', 'shared_secret_configured'))
   end
 end

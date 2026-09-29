@@ -46,17 +46,21 @@ export const ASSIGNEE_TYPE_TAB_PERMISSIONS = {
     count: 'mineCount',
     permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
   },
+  awaiting: {
+    count: 'awaitingCount',
+    permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+  },
   // Abas do modo IA (gate ON), dinâmicas — filtragem em ChatList.vue.
   // "Rodízio": admin/supervisor sempre; agente só quando há conversa na vez dele.
   rodizio: {
     count: 'rodizioCount',
     permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
   },
-  // "Atenção": conversas que a IA marcou para um humano julgar o fecho. Só
-  // admin e supervisor (o backend devolve vazio para os demais).
+  // A fila existe nos dois modos; ChatList restringe "Atenção" a gestor quando
+  // as abas de Rodízio estão ligadas.
   pending_closure: {
     count: 'awaitingClosureCount',
-    permissions: ['administrator', TEAM_SUPERVISOR],
+    permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
   },
   unassigned: {
     count: 'unAssignedCount',

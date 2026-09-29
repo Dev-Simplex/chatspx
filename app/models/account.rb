@@ -45,6 +45,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'takeover_request_gate': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'reply_assignment_gate': { 'type': %w[boolean null] },
+        'rodizio_conversation_tabs': { 'type': %w[boolean null] },
+        'captador_integration': { 'type': %w[boolean null] },
         'ia_reentra_orfa': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
         'template_reply_routing': {
@@ -127,7 +129,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # `meta_catalog_id` é o catálogo da Meta que espelha esta conta (um por conta).
   store_accessor :settings, :catalog_enabled, :meta_catalog_id
   store_accessor :settings, :captain_auto_resolve_mode
-  store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
+  store_accessor :settings, :reply_assignment_gate, :rodizio_conversation_tabs, :orphan_retriage_after
   # Reentrada da IA de triagem em conversa órfã. Nasceu derivada do reply_assignment_gate
   # (modo fila), que a vetava; ver #ia_reentra_orfa_enabled? para o porquê de separar.
   store_accessor :settings, :ia_reentra_orfa
@@ -138,6 +140,9 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # reply_assignment_gate de propósito: acoplar no backend seria surpresa.
   # NÃO vai em features.yml — o bitmask bigint já estourou os 63 bits.
   store_accessor :settings, :takeover_request_gate
+  # App "Captador" em Integrações. Liga por conta no Super Admin; desligado, o app some da lista e
+  # /spx/captador/* responde 401. Fora do features.yml pelo mesmo motivo do takeover_request_gate.
+  store_accessor :settings, :captador_integration
   include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
@@ -224,6 +229,26 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
 
   def reply_assignment_gate_enabled?
     ActiveModel::Type::Boolean.new.cast(reply_assignment_gate) || false
+  end
+
+  def rodizio_conversation_tabs_enabled?
+    ActiveModel::Type::Boolean.new.cast(rodizio_conversation_tabs) || false
+  end
+
+  alias rodizio_conversation_tabs_enabled rodizio_conversation_tabs_enabled?
+
+  def rodizio_conversation_tabs_enabled=(value)
+    self.rodizio_conversation_tabs = ActiveModel::Type::Boolean.new.cast(value)
+  end
+
+  def captador_integration_enabled?
+    ActiveModel::Type::Boolean.new.cast(captador_integration) || false
+  end
+
+  alias captador_integration_enabled captador_integration_enabled?
+
+  def captador_integration_enabled=(value)
+    self.captador_integration = ActiveModel::Type::Boolean.new.cast(value)
   end
 
   # A IA de triagem pode reassumir uma conversa ÓRFÃ (sem humano e sem espelho)?

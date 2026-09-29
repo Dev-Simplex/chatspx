@@ -451,6 +451,9 @@ describe('#getters', () => {
     const rootGettersFor = (id, permissions) => ({
       getCurrentUser: { id, accounts: [{ id: 1, permissions }] },
       getCurrentAccountId: 1,
+      'accounts/getAccount': () => ({
+        settings: { rodizio_conversation_tabs: true },
+      }),
     });
     const state = {
       allConversations: conversationList,

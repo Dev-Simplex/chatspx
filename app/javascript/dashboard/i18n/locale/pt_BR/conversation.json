@@ -1,6 +1,6 @@
 {
   "CONVERSATION": {
-    "WHATSAPP_PHONE_REPLY": "Enviada pelo celular",
+    "WHATSAPP_PHONE_REPLY": "Enviada direto pelo WhatsApp do celular (sem identificar o atendente)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "Conversa sem responsável",
@@ -1020,11 +1020,41 @@
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Pedidos do Shopify",
       "KANBAN_STATUS": "Situação no Kanban",
+      "CAPTADOR_LEAD": "Lead no Captador",
       "GROUP_PARTICIPANTS": "Integrantes do grupo"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Não está em nenhum funil",
       "OPEN_BOARD": "Abrir no Kanban"
+    },
+    "CAPTADOR": {
+      "LOADING": "Carregando o lead do Captador",
+      "EMPTY": "Esse contato não veio do Captador.",
+      "UNAVAILABLE": "O Captador não respondeu agora. O atendimento segue normal.",
+      "PENDING_ACCESS": "Peça acesso ao Captador para ver este lead.",
+      "RETRY": "Tentar de novo",
+      "MOVE": "Mover para…",
+      "OPEN": "Abrir no Captador",
+      "MOVED": "Lead movido para {stage}.",
+      "MOVE_ERROR": "Não deu para mover o lead.",
+      "STALLED": "Parado",
+      "LOST": "Perdido",
+      "DO_NOT_CONTACT": "Não contatar",
+      "FIELDS": {
+        "OWNER": "Responsável",
+        "ORIGIN": "Origem",
+        "LAST_ACTIVITY": "Última atividade",
+        "STATUS": "Situação na Receita",
+        "ACTIVITY": "Atividade principal",
+        "SIZE": "Porte",
+        "CITY": "Cidade",
+        "OPENED_ON": "Abertura"
+      },
+      "ORIGIN": {
+        "GOOGLE": "Google",
+        "RECEITA": "Receita Federal",
+        "MANUAL": "Cadastro manual"
+      }
     },
     "SUMMARY": {
       "AI_TITLE": "Resumo da IA",

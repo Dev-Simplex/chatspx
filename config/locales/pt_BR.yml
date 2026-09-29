@@ -41,6 +41,10 @@ pt_BR:
     login_saml_user: Esta conta usa autenticação SAML. Por favor, faça login através do provedor SAML da sua organização.
     saml_not_available: A autenticação SAML não está disponível nesta instalação.
     inbox_deletetion_response: Seu pedido de exclusão da caixa de entrada será processado dentro de algum tempo.
+  helpers:
+    label:
+      account:
+        rodizio_conversation_tabs_enabled: Ativar abas Rodízio e Atenção
   activerecord:
     models:
       unit: Unidade
@@ -494,6 +498,10 @@ pt_BR:
       name: 'Leads do Site'
       short_description: 'Receba os formulários do site como conversas automáticas.'
       description: 'Quando alguém preenche um formulário no site, o site envia o lead para um webhook e a conversa é aberta na inbox alvo com o template aprovado. O código do imóvel da página em que a pessoa estava abre a conversa já naquele imóvel, e a jornada de navegação vai como contexto para a IA.'
+    captador:
+      name: 'Captador'
+      short_description: 'Abra conversas com os leads prospectados no Captador e acompanhe as respostas no funil.'
+      description: 'O Captador abre a conversa com o lead em nome de quem clicou, pela caixa escolhida: modelo aprovado no WhatsApp oficial ou texto livre em caixa não oficial (WAHA). As respostas, os status de entrega e as trocas de dono voltam assinados para o Captador. Os usuários desta conta também podem entrar no Captador com o e-mail e a senha do ChatSPX.'
   captain:
     errors:
       missing_api_key: 'A chave da OpenAI não está configurada para esta conta. Configure em Ajustes do Captain.'

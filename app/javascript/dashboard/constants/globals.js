@@ -4,6 +4,7 @@ export default {
     ME: 'me',
     UNASSIGNED: 'unassigned',
     AI: 'ai',
+    AWAITING: 'awaiting',
     // "Rodízio": designação aberta do Motor de Distribuição. Admin/supervisor
     // veem todas; o agente, só as que estão na vez dele.
     RODIZIO: 'rodizio',
