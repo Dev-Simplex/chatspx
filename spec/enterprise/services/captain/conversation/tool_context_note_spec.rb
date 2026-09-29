@@ -72,12 +72,49 @@ RSpec.describe Captain::Conversation::ToolContextNote do
 
     it 'trunca retorno longo em vez de despejar o preview inteiro' do
       ligar!
-      registrar('buscar_imovel', { 'codigo' => '1' }, 'x' * 2_000)
+      registrar('buscar_imovel', { 'codigo' => '1' }, 'x' * 5_000)
 
       texto = described_class.new(conversation: conversation).text
 
       expect(texto).to include('…')
-      expect(texto.length).to be < 2_000
+      expect(texto.length).to be < 5_000
+    end
+
+    # Soma do que as chamadas devolveram na nota, sem o texto fixo de cada linha. O `]` que fecha
+    # a nota e o `…` do corte não são retorno de ferramenta.
+    def caracteres_de_retorno(texto)
+      texto.delete_suffix(']').lines.sum { |l| l.split('devolveu: ', 2)[1].to_s.chomp.delete_suffix('…').length }
+    end
+
+    # Caso real (conv 28718): o retorno da busca abre com as regras de visita e a lista vem
+    # depois. Com o corte fixo de 700 por chamada, a nota guardava as regras e perdia os códigos,
+    # e no turno seguinte a IA inventou código para enviar as fotos. A busca é a chamada que
+    # precisa do espaço; a de registro ao lado dela quase não ocupa.
+    it 'mantém o código do imóvel que vem depois do prefácio de regras' do
+      ligar!
+      prefacio = "Visita a imóvel avulso: #{'regra de visita da unidade. ' * 25}"
+      lista = '1) (cód 9601) Casa com 3 quartos, R$ 2.500 [AVULSO — fora de condomínio fechado]'
+      registrar('buscar_imovel', { 'bairro' => 'Centro' }, "#{prefacio}\n#{lista}", quando: 2.minutes.ago)
+      registrar('atualizar_resumo', { 'resumo' => 'busca no Centro' }, 'Resumo atualizado.', quando: 1.minute.ago)
+
+      texto = described_class.new(conversation: conversation).text
+
+      expect(prefacio.length + lista.length).to be > 700
+      expect(texto).to include('(cód 9601)')
+    end
+
+    # O orçamento que era 6 × 700 continua o mesmo no total: a mudança só redistribui. A chamada
+    # mais recente é a que fica inteira.
+    it 'nunca passa do orçamento total, e dá preferência à chamada mais recente' do
+      ligar!
+      (1..described_class::LIMITE_CHAMADAS).each do |i|
+        registrar('buscar_imovel', { 'n' => i.to_s }, "#{i}#{'x' * 1_498}#{i}", quando: (20 - i).minutes.ago)
+      end
+
+      texto = described_class.new(conversation: conversation).text
+
+      expect(caracteres_de_retorno(texto)).to be <= 4_200
+      expect(texto).to include("#{described_class::LIMITE_CHAMADAS}#{'x' * 1_498}#{described_class::LIMITE_CHAMADAS}")
     end
 
     # INVERTIDO em 20/09. Este teste afirmava que a chamada com erro era IGNORADA, com a
