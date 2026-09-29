@@ -439,6 +439,38 @@ RSpec.describe MessageTemplates::HookExecutionService do
       end
     end
 
+    # Trava de teste (CHAT-171): a reentrada não devolve à IA um contato fora da lista.
+    # A reentrada vai para o assistente de TRIAGEM (config['triage']); o controle positivo
+    # prova que, sem a trava, este mesmo cenário reanexa.
+    context 'when the triage assistant has the test phone lock' do
+      before do
+        account.update!(settings: { reply_assignment_gate: false, ia_reentra_orfa: true })
+        contact.update!(phone_number: '+5565999111222')
+        assistant.update!(config: { 'triage' => true })
+      end
+
+      def reentry
+        create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
+        orphan_conversation.reload.assignee_agent_bot_id
+      end
+
+      it 'reattaches the assistant when the lock is empty (controle)' do
+        expect(reentry).to eq(assistant.mirror_agent_bot.id)
+      end
+
+      it 'reattaches the assistant when the contact is in the list' do
+        assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['65 99911-1222'] } })
+
+        expect(reentry).to eq(assistant.mirror_agent_bot.id)
+      end
+
+      it 'does not reattach the assistant when the contact is outside the list' do
+        assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['+5511888887777'] } })
+
+        expect(reentry).to be_nil
+      end
+    end
+
     # Desligar explicitamente vale mesmo fora do modo fila — a conta escolhe, não deduz.
     context 'when the account opted OUT of ia_reentra_orfa in classic mode' do
       before { account.update!(settings: { reply_assignment_gate: false, ia_reentra_orfa: false }) }
