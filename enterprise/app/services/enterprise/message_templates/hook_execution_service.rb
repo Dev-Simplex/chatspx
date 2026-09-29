@@ -164,9 +164,15 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
   def orphan_captain_reentry?
     return false unless conversation.account.ia_reentra_orfa_enabled?
 
-    message.incoming? && !message.private? && conversation.open? &&
-      conversation.assignee_id.nil? && conversation.assignee_agent_bot_id.nil? &&
+    message.incoming? && !message.private? && conversation.open? && orphan_conversation? &&
       triage_assistant.present?
+  end
+
+  # Sem humano E sem IA. Humano que respondeu sem se atribuir (pela plataforma ou pelo celular numa
+  # caixa WAHA) segue atendendo: não é órfã, senão a IA de triagem fala por cima dele (CHAT-172).
+  def orphan_conversation?
+    conversation.assignee_id.nil? && conversation.assignee_agent_bot_id.nil? &&
+      !conversation.human_replied_without_assignment?
   end
 
   def reattach_triage_assistant
@@ -194,6 +200,8 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
                                   .detect { |a| a.config['triage'] == true }
     return nil if assistant.nil?
     return nil unless ::CaptainInbox.exists?(inbox_id: inbox.id, captain_assistant_id: assistant.id)
+    # Trava de teste (CHAT-171): contato fora da lista não é devolvido à IA — segue órfão, pro humano.
+    return nil unless Captain::Behavior::ContactPhoneLock.new(assistant).allows?(conversation.contact)
 
     assistant
   end

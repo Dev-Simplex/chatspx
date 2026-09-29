@@ -155,7 +155,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
       return ampliados if ampliados.present?
 
-      return "#{fora_da_minha_finalidade(venda)}Nenhum imóvel encontrado com esses critérios."
+      return Captain::Tools::Result.vazio_completo("#{fora_da_minha_finalidade(venda)}Nenhum imóvel encontrado com esses critérios.")
     end
     listagem = if geo
                  format_by_distance(tool_context, imoveis, venda,
@@ -163,7 +163,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                else
                  format_listings(tool_context, imoveis, venda)
                end
-    "#{fora_da_minha_finalidade(venda)}#{aviso_parcial}#{listagem}"
+    texto = "#{fora_da_minha_finalidade(venda)}#{aviso_parcial}#{listagem}"
+    # Lista com aviso de que parte não foi conferida: nunca autoriza "são todas".
+    aviso_parcial.present? ? Captain::Tools::Result.parcial(texto) : texto
   rescue StandardError => e
     Rails.logger.warn("[BuscarImoveisTool] #{e.class}: #{e.message}")
     Captain::Tools::Result.erro(FALHA_BUSCA, detalhe: "#{e.class}: #{e.message}")
@@ -192,7 +194,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     aviso = fora_da_minha_finalidade(status_tipo.to_s == 'venda')
     # Código não encontrado também leva o aviso: o cliente segue querendo a outra finalidade,
     # e é justamente aí que a conversa costuma continuar no especialista errado.
-    return "#{aviso}#{codigo_nao_encontrado(cod)}" if achados.blank?
+    return Captain::Tools::Result.vazio_completo("#{aviso}#{codigo_nao_encontrado(cod)}") if achados.blank?
 
     track_codigos(tool_context, achados)
     venda_cod = achados.first['Status'].to_s.match?(/vend/i)
@@ -256,12 +258,14 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # lote não pôde ser conferida. Afirmar ausência aqui publica falha de consulta como fato do
   # acervo — só o caminho em que TODOS foram conferidos autoriza o texto acima.
   def sem_mobiliado_confirmado(candidatos, desconhecidos)
-    return sem_mobiliado(candidatos) if desconhecidos.zero?
+    return Captain::Tools::Result.vazio_completo(sem_mobiliado(candidatos)) if desconhecidos.zero?
 
-    "Conferi #{candidatos} imóvel(is) que batem no resto do critério: nenhum está confirmado como " \
+    Captain::Tools::Result.parcial(
+      "Conferi #{candidatos} imóvel(is) que batem no resto do critério: nenhum está confirmado como " \
       "mobiliado, e em #{desconhecidos} deles NÃO foi possível confirmar a característica porque a " \
       'consulta de detalhes não respondeu. Não afirme que não há mobiliado: diga que não conseguiu ' \
       'confirmar agora e ofereça falar com o consultor.'
+    )
   end
 
   # Desconhecido não é "não". Antes, `detalhes_info(...)[:mobiliado]` devolvia nil quando a

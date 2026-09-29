@@ -13,6 +13,24 @@ data: 2026-08-03
 >
 > Antes de mexer em qualquer coisa de follow-up: leia isto e use estes três nomes.
 
+> **Nomes do Paulo (28/09/2026):** ele chama a engrenagem 2 de **"agendada"** ("que horas posso te
+> chamar?" → "às 18h" → às 18h: "conseguiu falar com sua esposa?"). *Cutucada* e *repescagem* têm o
+> mesmo nome dos dois lados. Na conversa com ele, "follow-up" é o eixo inteiro, não a engrenagem 2.
+> A seção 3 descreve o código de 03/08; confira em `origin/producao` antes de afirmar o estado atual
+> (CHAT-164 e CHAT-165).
+
+> **Decisão do Paulo (28/09/2026) — a AGENDADA é um follow-up com texto pronto.**
+> - Ao combinar o horário com o cliente, a IA já escreve a mensagem que vai sair (retomando o que
+>   ficou pendente) e a agenda para o momento que o cliente disse.
+> - A IA **cancela, edita ou reagenda** conforme a conversa muda ("ele só chega às 22h30" → a
+>   mensagem é reagendada para 22h30).
+> - **Conversa atribuída a um humano** (veio do rodízio ou ele assumiu o handoff): o humano **vê**
+>   a mensagem agendada na conversa e pode cancelá-la. Se não cancelar, ela sai.
+> - **A IA fez handoff e nenhum humano assumiu ainda:** a mensagem agendada **dispara**, sem
+>   depender de alguém aparecer.
+> - Isso substitui o desenho em que o texto é gerado só na hora do disparo e morre no handoff
+>   (medido em 28/09: 132 compromissos perdidos assim em 14 dias). Tarefa: CHAT-165.
+
 ## 1. As três engrenagens
 
 Elas se parecem porque todas "mandam mensagem pra quem sumiu". São diferentes em tudo o que
