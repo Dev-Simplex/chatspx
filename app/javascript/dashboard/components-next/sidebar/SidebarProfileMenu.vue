@@ -1,8 +1,9 @@
 <script setup>
-import { h, computed } from 'vue';
+import { h, ref, computed } from 'vue';
 import Auth from 'dashboard/api/auth';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
+import { useBranding } from 'shared/composables/useBranding';
 import Avatar from 'next/avatar/Avatar.vue';
 import SidebarProfileMenuStatus from './SidebarProfileMenuStatus.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
@@ -10,6 +11,7 @@ import LordIconIcon from 'next/icon/LordIconIcon.vue';
 import { LORDICON } from 'dashboard/constants/lordicons';
 import { usePolicy } from 'dashboard/composables/usePolicy';
 import { TEAM_SUPERVISOR } from 'dashboard/constants/permissions.js';
+import Dialog from 'next/dialog/Dialog.vue';
 
 import {
   DropdownContainer,
@@ -31,6 +33,9 @@ defineOptions({
 
 const { t } = useI18n();
 const { checkPermissions } = usePolicy();
+const { replaceInstallationName } = useBranding();
+
+const logoutDialogRef = ref(null);
 
 const currentUser = useMapGetter('getCurrentUser');
 const currentUserAvailability = useMapGetter('getCurrentUserAvailability');
@@ -145,7 +150,7 @@ const menuItems = computed(() => {
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.LOGOUT'),
       icon: lordIcon('logout', 'i-lucide-power'),
-      click: Auth.logout,
+      click: () => logoutDialogRef.value?.open(),
     },
   ];
 });
@@ -201,4 +206,17 @@ const allowedMenuItems = computed(() => {
       </template>
     </DropdownBody>
   </DropdownContainer>
+  <!-- Fora do DropdownBody: o menu fecha ao clicar no item e levaria o diálogo junto. -->
+  <Dialog
+    ref="logoutDialogRef"
+    type="alert"
+    width="md"
+    :title="t('SIDEBAR_ITEMS.LOGOUT_CONFIRM.TITLE')"
+    :description="
+      replaceInstallationName(t('SIDEBAR_ITEMS.LOGOUT_CONFIRM.DESCRIPTION'))
+    "
+    :confirm-button-label="t('SIDEBAR_ITEMS.LOGOUT_CONFIRM.CONFIRM')"
+    :cancel-button-label="t('SIDEBAR_ITEMS.LOGOUT_CONFIRM.CANCEL')"
+    @confirm="Auth.logout"
+  />
 </template>
