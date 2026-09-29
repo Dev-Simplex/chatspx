@@ -699,6 +699,7 @@
       "REQUEST_SENT": "Pedido enviado",
       "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "SEND_ANYWAY": "Enviar mesmo assim",
+      "TAKE_OVER_AND_SEND": "Assumir e enviar",
       "CANCEL": "Cancelar",
       "BANNER": "Este contato já está em atendimento."
     },

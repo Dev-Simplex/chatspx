@@ -699,6 +699,7 @@
       "REQUEST_SENT": "Request sent",
       "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
       "SEND_ANYWAY": "Send anyway",
+      "TAKE_OVER_AND_SEND": "Take over and send",
       "CANCEL": "Cancel",
       "BANNER": "This contact is already in attendance."
     },
