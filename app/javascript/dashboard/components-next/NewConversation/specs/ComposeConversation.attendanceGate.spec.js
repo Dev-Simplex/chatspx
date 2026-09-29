@@ -290,7 +290,7 @@ describe('ComposeConversation — Solicitar no compose (modo ligado)', () => {
     }
   );
 
-  it('keeps send anyway without takeover for an attendance in another inbox', async () => {
+  it('keeps the request gate for a human attendance in another inbox', async () => {
     resolveGateMock.mockResolvedValue({
       blocked: true,
       attendance: { id: 55, canRequest: true },
@@ -299,16 +299,9 @@ describe('ComposeConversation — Solicitar no compose (modo ligado)', () => {
     });
     const wrapper = await openBlocked();
 
-    expect(wrapper.vm.attendanceAllowSendAnyway).toBe(true);
-    expect(wrapper.vm.attendanceCanRequest).toBe(false);
+    expect(wrapper.vm.attendanceAllowSendAnyway).toBe(false);
+    expect(wrapper.vm.attendanceCanRequest).toBe(true);
     expect(wrapper.vm.attendanceTakeoverBeforeSend).toBe(false);
-    await wrapper.vm.onAttendanceSendAnyway();
-    await flushPromises();
-
-    expect(dispatchMock.mock.calls.map(call => call[0])).toEqual([
-      'contactConversations/get',
-      'contactConversations/create',
-    ]);
   });
 
   it('keeps the existing send flow without takeover when the flag is OFF', async () => {

@@ -351,19 +351,19 @@ const isSameInboxGateEnabled = computed(
 );
 const attendanceCanRequest = computed(
   () =>
-    isSameInboxGateEnabled.value &&
+    takeoverGateEnabled.value &&
     isHumanTakeover.value &&
     Boolean(attendanceGate.value.attendance?.canRequest) &&
     !attendanceGate.value.attendance?.myPendingRequestId
 );
 const attendanceHasPendingRequest = computed(
   () =>
-    isSameInboxGateEnabled.value &&
+    takeoverGateEnabled.value &&
     isHumanTakeover.value &&
     Boolean(attendanceGate.value.attendance?.myPendingRequestId)
 );
 const attendanceAllowSendAnyway = computed(
-  () => !(isSameInboxGateEnabled.value && isHumanTakeover.value)
+  () => !(takeoverGateEnabled.value && isHumanTakeover.value)
 );
 const attendanceTakeoverBeforeSend = computed(
   () =>
