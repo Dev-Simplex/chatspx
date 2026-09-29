@@ -90,151 +90,181 @@ const sendAnother = () => {
   sent.value = false;
 };
 
+// Mesma paleta da pagina do Chat Interno (/chat-interno.html): preto, vidro, verde #2dc46f.
 const inputClass =
-  'w-full px-3 py-2.5 text-base border rounded-lg bg-n-solid-1 text-n-slate-12 border-n-weak outline-none focus:border-n-brand focus:ring-2 focus:ring-n-brand/20';
+  'w-full px-3.5 py-3 text-base rounded-xl border border-white/10 bg-white/[0.035] text-white placeholder:text-white/40 outline-none transition focus:border-[#2dc46f]/70 focus:ring-2 focus:ring-[#2dc46f]/20';
 </script>
 
 <template>
-  <div class="min-h-screen bg-n-background sm:py-10">
-    <main
-      class="w-full max-w-xl px-4 py-6 mx-auto sm:px-8 sm:py-8 sm:border sm:shadow-lg sm:rounded-2xl sm:border-n-weak sm:bg-n-solid-1"
-    >
-      <header class="flex items-center gap-3 mb-6">
+  <div
+    class="min-h-screen bg-black text-white font-['Geist',ui-sans-serif,system-ui,sans-serif] bg-[radial-gradient(ellipse_90%_55%_at_50%_-10%,rgba(45,196,111,0.35),transparent_70%)]"
+  >
+    <div class="w-full max-w-xl px-4 pt-6 pb-12 mx-auto sm:pt-10">
+      <header class="flex items-center gap-3 mb-10">
         <img v-if="logo" :src="logo" alt="" class="object-contain size-9" />
-        <span class="text-base font-semibold text-n-slate-12">
+        <span class="text-lg font-semibold tracking-tight">
           {{ installationName }}
         </span>
       </header>
 
-      <section v-if="sent" class="py-10 text-center">
-        <h1 class="text-2xl font-semibold text-n-slate-12">
+      <section v-if="sent" class="py-12 text-center">
+        <h1 class="text-5xl font-semibold tracking-tight text-[#7ff5b5]">
           {{ t('SUGGESTIONS_FORM.THANKS_TITLE') }}
         </h1>
-        <p class="mt-2 text-n-slate-11">
+        <p class="mt-4 text-lg leading-relaxed text-white/70">
           {{ t('SUGGESTIONS_FORM.THANKS_TEXT') }}
         </p>
         <button
           type="button"
-          class="w-full px-5 py-3 mt-6 font-medium text-white rounded-lg sm:w-auto bg-n-brand"
+          class="w-full px-6 py-3.5 mt-8 font-semibold rounded-xl sm:w-auto bg-[#2dc46f] text-[#04130a] transition hover:bg-[#5ff0a3]"
           @click="sendAnother"
         >
           {{ t('SUGGESTIONS_FORM.SEND_ANOTHER') }}
         </button>
       </section>
 
-      <form v-else novalidate @submit.prevent="submit">
-        <h1 class="text-2xl font-semibold text-n-slate-12">
+      <template v-else>
+        <span
+          class="inline-flex items-center gap-2 px-3 py-1 text-sm border rounded-full border-[#2dc46f]/40 bg-[#2dc46f]/10 text-[#8ff5bd]"
+        >
+          <span class="rounded-full size-1.5 bg-[#2dc46f]" />
+          {{ t('SUGGESTIONS_FORM.BADGE') }}
+        </span>
+        <h1
+          class="mt-5 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl"
+        >
           {{ t('SUGGESTIONS_FORM.TITLE') }}
+          <span class="block text-[#7ff5b5]">
+            {{ t('SUGGESTIONS_FORM.TITLE_ACCENT') }}
+          </span>
         </h1>
-        <p class="mt-2 mb-6 text-n-slate-11">
+        <p class="mt-4 mb-8 text-lg leading-relaxed text-white/70">
           {{ t('SUGGESTIONS_FORM.DESCRIPTION') }}
         </p>
 
-        <!-- Honeypot: pessoa nao ve nem alcanca pelo Tab; bot preenche e o servidor descarta. -->
-        <input
-          v-model="form.website"
-          type="text"
-          name="website"
-          class="hidden"
-          tabindex="-1"
-          autocomplete="off"
-        />
-
-        <label class="block mb-4">
-          <span class="block mb-1 text-sm font-medium text-n-slate-12">
-            {{ t('SUGGESTIONS_FORM.NAME') }} *
-          </span>
-          <input
-            v-model="form.name"
-            type="text"
-            autocomplete="name"
-            :class="inputClass"
-          />
-          <span v-if="errors.name" class="block mt-1 text-sm text-n-ruby-11">
-            {{ errors.name }}
-          </span>
-        </label>
-
-        <label class="block mb-4">
-          <span class="block mb-1 text-sm font-medium text-n-slate-12">
-            {{ t('SUGGESTIONS_FORM.COMPANY') }} *
-          </span>
-          <input
-            v-model="form.company"
-            type="text"
-            autocomplete="organization"
-            :class="inputClass"
-          />
-          <span v-if="errors.company" class="block mt-1 text-sm text-n-ruby-11">
-            {{ errors.company }}
-          </span>
-        </label>
-
-        <label class="block mb-4">
-          <span class="block mb-1 text-sm font-medium text-n-slate-12">
-            {{ t('SUGGESTIONS_FORM.CONTENT') }} *
-          </span>
-          <textarea
-            v-model="form.content"
-            rows="5"
-            :maxlength="MAX_CONTENT"
-            :placeholder="t('SUGGESTIONS_FORM.CONTENT_PLACEHOLDER')"
-            :class="inputClass"
-          />
-          <span v-if="errors.content" class="block mt-1 text-sm text-n-ruby-11">
-            {{ errors.content }}
-          </span>
-        </label>
-
-        <div class="mb-6">
-          <span class="block mb-1 text-sm font-medium text-n-slate-12">
-            {{ t('SUGGESTIONS_FORM.MEDIA') }}
-          </span>
-          <input
-            ref="mediaInput"
-            type="file"
-            accept="image/*,video/*"
-            class="block w-full text-sm text-n-slate-11 file:me-3 file:px-3 file:py-2 file:border-0 file:rounded-lg file:bg-n-alpha-2 file:text-n-slate-12"
-            @change="onFileChange"
-          />
-          <div
-            v-if="media"
-            class="flex items-center justify-between gap-2 mt-2 text-sm text-n-slate-11"
-          >
-            <span class="truncate">{{ media.name }}</span>
-            <button
-              type="button"
-              class="flex-shrink-0 underline"
-              @click="clearMedia"
-            >
-              {{ t('SUGGESTIONS_FORM.MEDIA_REMOVE') }}
-            </button>
-          </div>
-          <span v-else class="block mt-1 text-xs text-n-slate-10">
-            {{ t('SUGGESTIONS_FORM.MEDIA_HINT', { limit: MAX_MEDIA_MB }) }}
-          </span>
-          <span v-if="errors.media" class="block mt-1 text-sm text-n-ruby-11">
-            {{ errors.media }}
-          </span>
-        </div>
-
-        <p v-if="errorMessage" class="mb-4 text-sm text-n-ruby-11">
-          {{ errorMessage }}
-        </p>
-
-        <button
-          type="submit"
-          :disabled="sending"
-          class="w-full px-5 py-3 font-medium text-white rounded-lg sm:w-auto bg-n-brand disabled:opacity-60"
+        <form
+          novalidate
+          class="p-4 border sm:p-6 rounded-2xl border-white/10 bg-white/[0.035] backdrop-blur"
+          @submit.prevent="submit"
         >
-          {{
-            sending
-              ? t('SUGGESTIONS_FORM.SENDING', { progress })
-              : t('SUGGESTIONS_FORM.SUBMIT')
-          }}
-        </button>
-      </form>
-    </main>
+          <!-- Honeypot: pessoa nao ve nem alcanca pelo Tab; bot preenche e o servidor descarta. -->
+          <input
+            v-model="form.website"
+            type="text"
+            name="website"
+            class="hidden"
+            tabindex="-1"
+            autocomplete="off"
+          />
+
+          <label class="block mb-5">
+            <span class="block mb-1.5 text-sm font-medium text-white/80">
+              {{ t('SUGGESTIONS_FORM.NAME') }}
+            </span>
+            <input
+              v-model="form.name"
+              type="text"
+              autocomplete="name"
+              :class="inputClass"
+            />
+            <span
+              v-if="errors.name"
+              class="block mt-1.5 text-sm text-[#ff8a8a]"
+            >
+              {{ errors.name }}
+            </span>
+          </label>
+
+          <label class="block mb-5">
+            <span class="block mb-1.5 text-sm font-medium text-white/80">
+              {{ t('SUGGESTIONS_FORM.COMPANY') }}
+            </span>
+            <input
+              v-model="form.company"
+              type="text"
+              autocomplete="organization"
+              :class="inputClass"
+            />
+            <span
+              v-if="errors.company"
+              class="block mt-1.5 text-sm text-[#ff8a8a]"
+            >
+              {{ errors.company }}
+            </span>
+          </label>
+
+          <label class="block mb-5">
+            <span class="block mb-1.5 text-sm font-medium text-white/80">
+              {{ t('SUGGESTIONS_FORM.CONTENT') }}
+            </span>
+            <textarea
+              v-model="form.content"
+              rows="5"
+              :maxlength="MAX_CONTENT"
+              :placeholder="t('SUGGESTIONS_FORM.CONTENT_PLACEHOLDER')"
+              :class="inputClass"
+            />
+            <span
+              v-if="errors.content"
+              class="block mt-1.5 text-sm text-[#ff8a8a]"
+            >
+              {{ errors.content }}
+            </span>
+          </label>
+
+          <div class="mb-6">
+            <span class="block mb-1.5 text-sm font-medium text-white/80">
+              {{ t('SUGGESTIONS_FORM.MEDIA') }}
+            </span>
+            <input
+              ref="mediaInput"
+              type="file"
+              accept="image/*,video/*"
+              class="block w-full text-sm text-white/60 file:me-3 file:px-4 file:py-2.5 file:rounded-xl file:border file:border-white/15 file:bg-white/[0.07] file:text-white file:font-medium"
+              @change="onFileChange"
+            />
+            <div
+              v-if="media"
+              class="flex items-center justify-between gap-2 mt-2 text-sm text-white/70"
+            >
+              <span class="truncate">{{ media.name }}</span>
+              <button
+                type="button"
+                class="flex-shrink-0 underline text-[#8ff5bd]"
+                @click="clearMedia"
+              >
+                {{ t('SUGGESTIONS_FORM.MEDIA_REMOVE') }}
+              </button>
+            </div>
+            <span v-else class="block mt-1.5 text-xs text-white/45">
+              {{ t('SUGGESTIONS_FORM.MEDIA_HINT', { limit: MAX_MEDIA_MB }) }}
+            </span>
+            <span
+              v-if="errors.media"
+              class="block mt-1.5 text-sm text-[#ff8a8a]"
+            >
+              {{ errors.media }}
+            </span>
+          </div>
+
+          <p v-if="errorMessage" class="mb-4 text-sm text-[#ff8a8a]">
+            {{ errorMessage }}
+          </p>
+
+          <button
+            type="submit"
+            :disabled="sending"
+            class="w-full px-6 py-3.5 font-semibold rounded-xl bg-[#2dc46f] text-[#04130a] transition hover:bg-[#5ff0a3] disabled:opacity-60"
+          >
+            {{
+              sending
+                ? t('SUGGESTIONS_FORM.SENDING', { progress })
+                : t('SUGGESTIONS_FORM.SUBMIT')
+            }}
+          </button>
+        </form>
+      </template>
+    </div>
   </div>
 </template>
 
