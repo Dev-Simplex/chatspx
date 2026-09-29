@@ -80,6 +80,16 @@ onMounted(loadSuggestions);
               <span v-if="allAccount" class="ms-2 font-medium text-n-slate-12">
                 {{ suggestion.name }}
               </span>
+              <template v-if="suggestion.source === 'public_link'">
+                <span class="ms-1 text-n-slate-11">{{
+                  suggestion.company
+                }}</span>
+                <span
+                  class="ms-2 px-2 py-0.5 text-xs rounded-md bg-n-teal-3 text-n-teal-11"
+                >
+                  {{ $t('SUGGESTIONS.LIST.SOURCE_LINK') }}
+                </span>
+              </template>
             </span>
             <span
               class="px-2 py-0.5 text-xs rounded-md bg-n-alpha-2 text-n-slate-12"
