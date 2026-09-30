@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_30_124039) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_30_201703) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1879,6 +1879,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_30_124039) do
     t.index ["status"], name: "index_nps_responses_on_status"
   end
 
+  create_table "performance_goals", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.date "month", null: false
+    t.string "target_type", null: false
+    t.bigint "target_id", null: false
+    t.string "metric", null: false
+    t.decimal "value", precision: 10, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "month", "target_type", "target_id", "metric"], name: "index_performance_goals_uniqueness", unique: true
+    t.index ["account_id"], name: "index_performance_goals_on_account_id"
+  end
+
   create_table "platform_app_permissibles", force: :cascade do |t|
     t.bigint "platform_app_id", null: false
     t.string "permissible_type", null: false
@@ -2437,6 +2450,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_30_124039) do
   add_foreign_key "notifications", "accounts", on_delete: :cascade
   add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "nps_responses", "conversations", on_delete: :cascade
+  add_foreign_key "performance_goals", "accounts", on_delete: :cascade
   add_foreign_key "report_pdf_exports", "accounts", on_delete: :cascade
   add_foreign_key "report_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
   add_foreign_key "reporting_events", "conversations", on_delete: :cascade
