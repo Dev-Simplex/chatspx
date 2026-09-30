@@ -47,6 +47,11 @@ VMS=(
   "FABRICA|3.87.182.184|aws|ubuntu"
   "AGN|13.221.167.143|aws|ubuntu"
   "CDSOLAR|13.218.193.75|aws|ubuntu"
+  # ROCKET: CLIENTE REAL, a unica fora da AWS -- roda na Hostinger. O tipo aqui e `aws` porque esse
+  # campo diz "entra por CHAVE" (o `local` e que pede senha), e a chave dela e a MESMA da frota.
+  # O login e `root`, nao `ubuntu`. Ficou fora de SEIS lotes (29 e 30/09/2026) por nao estar em
+  # cadastro nenhum: nem aqui, nem no scripts/ops/pr-raiox.py, nem no deployment/panel/server.js.
+  "ROCKET|2.25.195.47|aws|root"
   # CDSOLAR e CLIENTE REAL (novo, desde 10/09/2026): mesma regra da TOZI, so com --incluir-cdsolar.
   # TOZI e CLIENTE REAL (conta 6): deploy e restart so com OK explicito.
   # O IP dela NAO e Elastic e ja mudou num stop/start da AWS (era 3.82.215.109).

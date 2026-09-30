@@ -8,7 +8,6 @@ import { useMapGetter } from 'dashboard/composables/store';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
-import TagMultiSelectComboBox from 'dashboard/components-next/combobox/TagMultiSelectComboBox.vue';
 import WhatsAppTemplateParser from 'dashboard/components-next/whatsapp/WhatsAppTemplateParser.vue';
 
 const emit = defineEmits(['submit', 'cancel']);
@@ -17,7 +16,6 @@ const { t } = useI18n();
 
 const formState = {
   uiFlags: useMapGetter('campaigns/getUIFlags'),
-  labels: useMapGetter('labels/getLabels'),
   inboxes: useMapGetter('inboxes/getWhatsAppInboxes'),
   getFilteredWhatsAppTemplates: useMapGetter(
     'inboxes/getFilteredWhatsAppTemplates'
@@ -29,7 +27,6 @@ const initialState = {
   inboxId: null,
   templateId: null,
   scheduledAt: null,
-  selectedAudience: [],
 };
 
 const state = reactive({ ...initialState });
@@ -39,8 +36,6 @@ const rules = {
   title: { required, minLength: minLength(1) },
   inboxId: { required },
   templateId: { required },
-  scheduledAt: { required },
-  selectedAudience: { required },
 };
 
 const v$ = useVuelidate(rules, state);
@@ -59,10 +54,6 @@ const mapToOptions = (items, valueKey, labelKey) =>
     value: item[valueKey],
     label: item[labelKey],
   })) ?? [];
-
-const audienceList = computed(() =>
-  mapToOptions(formState.labels.value, 'id', 'title')
-);
 
 // CHAT-155: nada sai por caixa somente leitura, entao ela nao e origem de campanha.
 const inboxOptions = computed(() =>
@@ -105,8 +96,6 @@ const formErrors = computed(() => ({
   title: getErrorMessage('title', 'TITLE'),
   inbox: getErrorMessage('inboxId', 'INBOX'),
   template: getErrorMessage('templateId', 'TEMPLATE'),
-  scheduledAt: getErrorMessage('scheduledAt', 'SCHEDULED_AT'),
-  audience: getErrorMessage('selectedAudience', 'AUDIENCE'),
 }));
 
 const hasRequiredTemplateParams = computed(() => {
@@ -149,11 +138,11 @@ const prepareCampaignDetails = () => {
     message: templateContent,
     template_params: templateParams,
     inbox_id: state.inboxId,
+    // Com horário a campanha nasce agendada e o scheduler a inicia; sem horário, fica em
+    // rascunho e começa pelo botão Iniciar do detalhe. Quem recebe NÃO se escolhe aqui: vem
+    // da lista ou do segmento carregados no detalhe (a etiqueta que existia aqui era
+    // ignorada pelo disparo).
     scheduled_at: formatToUTCString(state.scheduledAt),
-    audience: state.selectedAudience?.map(id => ({
-      id,
-      type: 'Label',
-    })),
   };
 };
 
@@ -225,20 +214,9 @@ watch(
       :template="selectedTemplate"
     />
 
-    <div class="flex flex-col gap-1">
-      <label for="audience" class="mb-0.5 text-sm font-medium text-n-slate-12">
-        {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.AUDIENCE.LABEL') }}
-      </label>
-      <TagMultiSelectComboBox
-        v-model="state.selectedAudience"
-        :options="audienceList"
-        :label="t('CAMPAIGN.WHATSAPP.CREATE.FORM.AUDIENCE.LABEL')"
-        :placeholder="t('CAMPAIGN.WHATSAPP.CREATE.FORM.AUDIENCE.PLACEHOLDER')"
-        :has-error="!!formErrors.audience"
-        :message="formErrors.audience"
-        class="[&>div>button]:bg-n-alpha-black2"
-      />
-    </div>
+    <p class="text-xs text-n-slate-11">
+      {{ t('CAMPAIGN.WHATSAPP.CREATE.FORM.RECIPIENTS_INFO') }}
+    </p>
 
     <Input
       v-model="state.scheduledAt"
@@ -246,8 +224,8 @@ watch(
       type="datetime-local"
       :min="currentDateTime"
       :placeholder="t('CAMPAIGN.WHATSAPP.CREATE.FORM.SCHEDULED_AT.PLACEHOLDER')"
-      :message="formErrors.scheduledAt"
-      :message-type="formErrors.scheduledAt ? 'error' : 'info'"
+      :message="t('CAMPAIGN.WHATSAPP.CREATE.FORM.SCHEDULED_AT.INFO')"
+      message-type="info"
     />
 
     <div class="flex gap-3 justify-between items-center w-full">
