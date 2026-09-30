@@ -22,6 +22,13 @@ const data = ref(null);
 
 const campaignId = computed(() => props.campaignId || route.params.campaignId);
 
+// Só vale enquanto a campanha está parada por ele: o Iniciar limpa o motivo no backend.
+const startError = computed(() =>
+  data.value?.dispatch_status === 'failed'
+    ? data.value?.campaign?.dispatch_config?.start_error
+    : null
+);
+
 const KNOWN_CODES = ['131026', '130472', '131049', 'outro'];
 const codeLabel = code =>
   KNOWN_CODES.includes(code) ? t(`CAMPAIGN.WHATSAPP.DETAIL.CODES.${code}`) : '';
@@ -93,9 +100,17 @@ onBeforeUnmount(stopPolling);
               {{ data.campaign.title }}
             </h1>
             <p class="text-sm text-n-slate-11">
-              {{ t('CAMPAIGN.WHATSAPP.DETAIL.DELIVERY_RATE', { rate: data.delivery_rate }) }}
+              {{
+                t('CAMPAIGN.WHATSAPP.DETAIL.DELIVERY_RATE', {
+                  rate: data.delivery_rate,
+                })
+              }}
               ·
-              {{ t('CAMPAIGN.WHATSAPP.DETAIL.READ_RATE', { rate: data.read_rate }) }}
+              {{
+                t('CAMPAIGN.WHATSAPP.DETAIL.READ_RATE', {
+                  rate: data.read_rate,
+                })
+              }}
             </p>
           </div>
           <span
@@ -139,6 +154,19 @@ onBeforeUnmount(stopPolling);
           :campaign="data.campaign"
           @changed="fetchStats({ silent: true })"
         />
+        <!-- Agendamento que chegou na hora sem o que o Iniciar exige: o scheduler nao
+             dispara e deixa o motivo aqui, em vez de a campanha ficar muda. -->
+        <p
+          v-if="startError"
+          role="alert"
+          class="px-4 py-3 mb-6 text-sm border rounded-xl border-n-ruby-6 bg-n-ruby-2 text-n-ruby-11"
+        >
+          {{
+            t('CAMPAIGN.WHATSAPP.DISPATCH.START_BLOCKED', {
+              reason: startError,
+            })
+          }}
+        </p>
         <DispatchPanel
           class="mb-6"
           :campaign-id="campaignId"
@@ -148,7 +176,9 @@ onBeforeUnmount(stopPolling);
         />
 
         <div class="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
-          <div class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2">
+          <div
+            class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2"
+          >
             <h2 class="mb-3 text-sm font-medium text-n-slate-12">
               {{ t('CAMPAIGN.WHATSAPP.DETAIL.DISTRIBUTION') }}
             </h2>
@@ -160,14 +190,18 @@ onBeforeUnmount(stopPolling);
                   class="border-b border-n-weak last:border-0"
                 >
                   <td class="py-2 text-n-slate-12">{{ d.name }}</td>
-                  <td class="py-2 font-medium text-right tabular-nums text-n-slate-12">
+                  <td
+                    class="py-2 font-medium text-right tabular-nums text-n-slate-12"
+                  >
                     {{ d.count }}
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <div class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2">
+          <div
+            class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2"
+          >
             <h2 class="mb-3 text-sm font-medium text-n-slate-12">
               {{ t('CAMPAIGN.WHATSAPP.DETAIL.FAILURES') }}
             </h2>
@@ -182,7 +216,9 @@ onBeforeUnmount(stopPolling);
                     <code class="text-xs">{{ f.code }}</code>
                     {{ codeLabel(f.code) }}
                   </td>
-                  <td class="py-2 font-medium text-right tabular-nums text-n-slate-12">
+                  <td
+                    class="py-2 font-medium text-right tabular-nums text-n-slate-12"
+                  >
                     {{ f.count }}
                   </td>
                 </tr>
@@ -194,7 +230,9 @@ onBeforeUnmount(stopPolling);
           </div>
         </div>
 
-        <div class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2">
+        <div
+          class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2"
+        >
           <h2 class="mb-3 text-sm font-medium text-n-slate-12">
             {{ t('CAMPAIGN.WHATSAPP.DETAIL.CONVERSATIONS') }}
           </h2>
@@ -205,12 +243,18 @@ onBeforeUnmount(stopPolling);
                 :key="c.id"
                 class="border-b border-n-weak last:border-0"
               >
-                <td class="py-2 whitespace-nowrap text-n-slate-12">{{ c.name || '—' }}</td>
-                <td class="py-2 max-w-xs truncate text-n-slate-11">{{ c.last_reply }}</td>
+                <td class="py-2 whitespace-nowrap text-n-slate-12">
+                  {{ c.name || '—' }}
+                </td>
+                <td class="py-2 max-w-xs truncate text-n-slate-11">
+                  {{ c.last_reply }}
+                </td>
                 <td class="py-2 whitespace-nowrap text-n-slate-11">
                   {{ c.agent || t('CAMPAIGN.WHATSAPP.DETAIL.NO_AGENT') }}
                 </td>
-                <td class="py-2 text-xs capitalize text-n-slate-10">{{ c.status }}</td>
+                <td class="py-2 text-xs capitalize text-n-slate-10">
+                  {{ c.status }}
+                </td>
               </tr>
             </tbody>
           </table>

@@ -69,7 +69,7 @@ module Campaigns
             # String VAZIA, nunca nil: o builder faz `name || Haikunator.haikunate`, então
             # nil viraria um apelido aleatório.
             name: recipient.name.to_s.strip,
-            phone_number: recipient.phone_number,
+            phone_number: e164_phone,
             additional_attributes: { source: "campaign_#{campaign.id}" }
           },
           # Reusa a ficha que o WhatsApp ja usa pros replies (variantes 12d/13d do
@@ -79,9 +79,27 @@ module Campaigns
       end
 
       def resolved_source_id(inbox)
-        waid = recipient.phone_number.delete('+')
+        waid = e164_phone.delete('+')
         ::Whatsapp::PhoneNumberNormalizationService.new(inbox)
                                                    .normalize_and_find_contact_by_provider(waid, :cloud)
+      end
+
+      # O Contact valida E.164 (`+` e DDI). O ListLoaderService grava assim, mas qualquer carga
+      # fora dele chegava crua e todo contato NOVO estourava — 34 dos 36 primeiros no disparo
+      # da Fábrica em 25/09. Número com `+` só perde a máscara; sem `+`, passa pela mesma
+      # gramática brasileira da lista (DDI, zero de tronco, 9º dígito, `default_ddd`).
+      def e164_phone
+        @e164_phone ||= begin
+          raw = recipient.phone_number.to_s.strip
+          digits = raw.gsub(/\D/, '')
+          raw.start_with?('+') ? "+#{digits}" : brazilian_e164(digits)
+        end
+      end
+
+      def brazilian_e164(digits)
+        phone = CanonicalPhone.new(default_ddd: campaign.dispatch_config['default_ddd'])
+        ddd, subscriber = phone.split_number(digits)
+        ddd ? phone.e164(ddd, subscriber) : "+#{digits}"
       end
 
       # Atendimento ativo = qualquer conversa nao-resolvida do contato nesta inbox.
