@@ -53,6 +53,13 @@ class CatalogProduct < ApplicationRecord
   # A PRIMEIRA imagem é a capa — é ela que vai na bolha da conversa e no espelho da Meta.
   has_many_attached :images
 
+  # Fotos que vão para a conversa por item: a capa com a legenda e as seguintes soltas. Teto porque
+  # imóvel costuma ter 30+ fotos, e despejar todas prende o cliente num rolo de mídia.
+  FOTOS_NO_ENVIO = 10
+
+  # Teto de `additional_image_urls` da Meta.
+  FOTOS_EXTRAS_NA_META = 19
+
   validates :name, presence: true
   # Preço é opcional: imóvel e serviço nem sempre têm um preço só. Sem preço, nada mostra preço.
   validates :price_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
@@ -107,6 +114,20 @@ class CatalogProduct < ApplicationRecord
     return nil unless visible && capa.present?
 
     catalog_public_image_url(id: signed_id(purpose: IMAGEM_PUBLICA, expires_in: nil))
+  end
+
+  # As fotos depois da capa, para a galeria do item na Meta. Mesma régua do `public_image_url`, com
+  # o `signed_id` da FOTO: apagar uma foto não pode trocar a URL das outras, e a Meta faz cache.
+  def public_extra_image_urls
+    return [] unless visible
+
+    images.drop(1).first(FOTOS_EXTRAS_NA_META).map do |imagem|
+      catalog_public_extra_image_url(id: imagem.signed_id(purpose: IMAGEM_PUBLICA, expires_in: nil))
+    end
+  end
+
+  def fotos_para_envio
+    images.first(FOTOS_NO_ENVIO)
   end
 
   # O que falta para a Meta aceitar o item: ela exige a chave do varejista (o SKU), a imagem e o

@@ -67,7 +67,7 @@ const alternar = id => {
 const estaSelecionado = id => selecionados.value.includes(id);
 const podeEnviar = computed(() => selecionados.value.length > 0);
 
-// O álbum com menu numerado só existe a partir do segundo produto — é o aviso que muda de texto.
+// O menu numerado só existe a partir do segundo produto — é o aviso que muda de texto.
 const avisoWaha = computed(() =>
   selecionados.value.length > 1
     ? t('CONVERSATION.CATALOG.WAHA_NOTICE_MANY')

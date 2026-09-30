@@ -21,6 +21,10 @@ pt_BR:
     send:
       empty: "Nenhum item selecionado."
       menu_header: "%{count} itens:"
+    message:
+      body: "Confira os detalhes:"
+      header: "Selecionados para você"
+      section: "Itens"
     custom_fields:
       checked: "Sim"
     meta_sync:
