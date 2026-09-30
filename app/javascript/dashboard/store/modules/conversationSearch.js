@@ -2,6 +2,8 @@ import SearchAPI from '../../api/search';
 import types from '../mutation-types';
 
 let conversationSearchAbortController = null;
+const isCanceled = error =>
+  error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
 
 export const initialState = {
   records: [],
@@ -15,10 +17,11 @@ export const initialState = {
   uiFlags: {
     isFetching: false,
     isSearchCompleted: false,
-    contact: { isFetching: false },
-    conversation: { isFetching: false },
-    message: { isFetching: false },
-    article: { isFetching: false },
+    hasError: false,
+    contact: { isFetching: false, hasError: false },
+    conversation: { isFetching: false, hasError: false },
+    message: { isFetching: false, hasError: false },
+    article: { isFetching: false, hasError: false },
   },
 };
 
@@ -55,14 +58,19 @@ export const actions = {
     if (!q) {
       return;
     }
-    commit(types.SEARCH_CONVERSATIONS_SET_UI_FLAG, { isFetching: true });
+    commit(types.SEARCH_CONVERSATIONS_SET_UI_FLAG, {
+      isFetching: true,
+      hasError: false,
+    });
     try {
       const {
         data: { payload },
       } = await SearchAPI.get({ q });
       commit(types.SEARCH_CONVERSATIONS_SET, payload);
     } catch (error) {
-      // Ignore error
+      if (!isCanceled(error)) {
+        commit(types.SEARCH_CONVERSATIONS_SET_UI_FLAG, { hasError: true });
+      }
     } finally {
       commit(types.SEARCH_CONVERSATIONS_SET_UI_FLAG, {
         isFetching: false,
@@ -78,30 +86,30 @@ export const actions = {
       isFetching: true,
       isSearchCompleted: false,
     });
-    try {
-      await Promise.all([
-        dispatch('contactSearch', { q, ...filters }),
-        dispatch('conversationSearch', { q, ...filters }),
-        dispatch('messageSearch', { q, ...filters }),
-        dispatch('articleSearch', { q, ...filters }),
-      ]);
-    } catch (error) {
-      // Ignore error
-    } finally {
-      commit(types.FULL_SEARCH_SET_UI_FLAG, {
-        isFetching: false,
-        isSearchCompleted: true,
-      });
-    }
+    await Promise.all([
+      dispatch('contactSearch', { q, ...filters }),
+      dispatch('conversationSearch', { q, ...filters }),
+      dispatch('messageSearch', { q, ...filters }),
+      dispatch('articleSearch', { q, ...filters }),
+    ]);
+    commit(types.FULL_SEARCH_SET_UI_FLAG, {
+      isFetching: false,
+      isSearchCompleted: true,
+    });
   },
   async contactSearch({ commit }, payload) {
     const { page = 1, ...searchParams } = payload;
-    commit(types.CONTACT_SEARCH_SET_UI_FLAG, { isFetching: true });
+    commit(types.CONTACT_SEARCH_SET_UI_FLAG, {
+      isFetching: true,
+      hasError: false,
+    });
     try {
       const { data } = await SearchAPI.contacts({ ...searchParams, page });
       commit(types.CONTACT_SEARCH_SET, data.payload.contacts);
     } catch (error) {
-      // Ignore error
+      if (!isCanceled(error)) {
+        commit(types.CONTACT_SEARCH_SET_UI_FLAG, { hasError: true });
+      }
     } finally {
       commit(types.CONTACT_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
@@ -116,7 +124,10 @@ export const actions = {
     commit(types.SET_CONVERSATION_SEARCH_REQUEST_ID, requestId);
     commit(types.SET_CONVERSATION_SEARCH_QUERY, query);
     commit(types.SET_CONVERSATION_SEARCH_COMPLETED, false);
-    commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: true });
+    commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, {
+      isFetching: true,
+      hasError: false,
+    });
 
     // Now abort previous request
     if (conversationSearchAbortController) {
@@ -212,10 +223,12 @@ export const actions = {
         records: enrichedConversations,
       });
     } catch (error) {
-      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
-        return;
+      if (
+        !isCanceled(error) &&
+        state.lastConversationSearchRequestId === requestId
+      ) {
+        commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { hasError: true });
       }
-      // Ignore error
     } finally {
       // Only update flags if this is still the current request
       if (state.lastConversationSearchRequestId === requestId) {
@@ -226,12 +239,17 @@ export const actions = {
   },
   async messageSearch({ commit }, payload) {
     const { page = 1, ...searchParams } = payload;
-    commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: true });
+    commit(types.MESSAGE_SEARCH_SET_UI_FLAG, {
+      isFetching: true,
+      hasError: false,
+    });
     try {
       const { data } = await SearchAPI.messages({ ...searchParams, page });
       commit(types.MESSAGE_SEARCH_SET, data.payload.messages);
     } catch (error) {
-      // Ignore error
+      if (!isCanceled(error)) {
+        commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { hasError: true });
+      }
     } finally {
       commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
@@ -243,26 +261,36 @@ export const actions = {
   ) {
     // Always clear previous results when starting a new search in conversation
     commit(types.CLEAR_MESSAGE_SEARCH_RESULTS);
-    commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: true });
+    commit(types.MESSAGE_SEARCH_SET_UI_FLAG, {
+      isFetching: true,
+      hasError: false,
+    });
     try {
       const { data } = await SearchAPI.messages({ q, page, conversation_id });
       const messages = data.payload.messages || [];
       // Replace results instead of appending
       commit(types.MESSAGE_SEARCH_SET_REPLACE, messages);
     } catch (error) {
-      // Ignore error
+      if (!isCanceled(error)) {
+        commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { hasError: true });
+      }
     } finally {
       commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
   },
   async articleSearch({ commit }, payload) {
     const { page = 1, ...searchParams } = payload;
-    commit(types.ARTICLE_SEARCH_SET_UI_FLAG, { isFetching: true });
+    commit(types.ARTICLE_SEARCH_SET_UI_FLAG, {
+      isFetching: true,
+      hasError: false,
+    });
     try {
       const { data } = await SearchAPI.articles({ ...searchParams, page });
       commit(types.ARTICLE_SEARCH_SET, data.payload.articles);
     } catch (error) {
-      // Ignore error
+      if (!isCanceled(error)) {
+        commit(types.ARTICLE_SEARCH_SET_UI_FLAG, { hasError: true });
+      }
     } finally {
       commit(types.ARTICLE_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
@@ -333,6 +361,10 @@ export const mutations = {
     state.conversationSearchCompleted = false;
     state.messageRecords = [];
     state.articleRecords = [];
+    state.uiFlags.hasError = false;
+    ['contact', 'conversation', 'message', 'article'].forEach(section => {
+      state.uiFlags[section] = { ...state.uiFlags[section], hasError: false };
+    });
   },
   [types.SET_CONVERSATION_SEARCH_QUERY](state, query) {
     state.conversationSearchQuery = query || '';

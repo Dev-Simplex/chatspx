@@ -122,7 +122,7 @@ const onFileSelected = async event => {
           <NextButton
             :label="t('GENERAL_SETTINGS.FORM.CHAT_WALLPAPER.SAVE')"
             variant="solid"
-            color="brand"
+            color="blue"
             @click="saveUrl"
           />
           <NextButton
@@ -149,7 +149,7 @@ const onFileSelected = async event => {
           <NextButton
             :label="t('GENERAL_SETTINGS.FORM.CHAT_WALLPAPER.UPLOAD.BUTTON')"
             variant="solid"
-            color="brand"
+            color="blue"
             :is-loading="isUploading"
             @click="triggerUpload"
           />

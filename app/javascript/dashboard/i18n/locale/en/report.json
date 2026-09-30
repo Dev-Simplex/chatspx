@@ -168,7 +168,11 @@
         "NPS": "NPS",
         "SLA_HIT_RATE": "SLA hit rate",
         "BOT_RESOLUTION_RATE": "Bot resolution rate",
-        "BOT_HANDOFF_RATE": "Bot handoff rate"
+        "BOT_HANDOFF_RATE": "Bot handoff rate",
+        "RODIZIO_ESPERA": "Time until someone takes the lead",
+        "RODIZIO_NO_PRAZO": "Leads taken within the deadline",
+        "RODIZIO_PARADOS": "Leads waiting right now",
+        "RODIZIO_EXPIRADOS": "Leads nobody took"
       }
     },
     "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes"

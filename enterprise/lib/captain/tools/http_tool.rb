@@ -1,6 +1,67 @@
 require 'agents'
 
 class Captain::Tools::HttpTool < Agents::Tool
+  # Trace de tool calls: o HttpTool NÃO herda de BasePublicTool, então ficava de fora do
+  # recorder — as custom tools de todos os tenants não geravam trace nenhum, e o que não tem
+  # trace não chega na nota do turno seguinte nem no eval. Prepend na própria classe cobre
+  # também as subclasses anônimas que o Concerns::Toolable cria por slug.
+  prepend Captain::Tools::TraceRecorder
+  # Classificação da tool que AGE (POST/PUT/PATCH/DELETE): ver Captain::Tools::HttpAcao.
+  include Captain::Tools::HttpAcao
+
+  # Falha de consulta, classificada. O modelo precisa saber QUE classe de falha foi e, sobretudo,
+  # que nenhuma delas é ausência de dado — senão completa de memória (auditoria de 20/09, §5:
+  # timeout de 30s, HTTP≠2xx, DNS, SSRF e corpo >1MB colapsavam todos em
+  # 'An error occurred while executing the request').
+  # `enviada` e `status` NÃO mudam nada para consulta — existem para AÇÃO, onde a pergunta não é
+  # "consegui ler?" e sim "aconteceu?". Requisição que não saiu da máquina prova que a ação não
+  # ocorreu; requisição enviada sem resposta não prova nada nos dois sentidos.
+  class FalhaDeConsulta < StandardError
+    attr_reader :classe, :status
+
+    def initialize(classe, detalhe = nil, enviada: true, status: nil)
+      @classe = classe
+      @enviada = enviada
+      @status = status
+      super(detalhe.presence || classe.to_s)
+    end
+
+    def enviada?
+      @enviada
+    end
+  end
+
+  # Tom espelhado na Captain::Tools::BuscarUnidadesTool::FALHA, que é a referência certa no repo:
+  # diz o que aconteceu, nomeia que é falha de consulta e fecha a porta pra resposta de memória.
+  # Cada mensagem é autossuficiente porque o modelo pode ver só uma delas.
+  NAO_INVENTE = 'Isto é falha de consulta, não ausência de dado: não conclua que o dado não ' \
+                'existe, não responda de memória e não afirme nada sobre o que foi perguntado. ' \
+                'Diga que não conseguiu consultar agora.'.freeze
+
+  FALHAS = {
+    timeout: 'A consulta não respondeu a tempo.',
+    indisponivel: 'O sistema consultado não respondeu ou está fora do ar.',
+    nao_autorizado: 'A consulta foi recusada pelo sistema consultado (credencial ou permissão).',
+    resposta_invalida: 'O sistema consultado respondeu, mas a resposta não pôde ser lida.',
+    corpo_excessivo: 'A resposta do sistema consultado é grande demais para ser lida aqui.',
+    nao_suportado: 'A consulta não pôde ser feita: o método HTTP configurado nesta ferramenta não é suportado.'
+  }.freeze
+
+  # 2xx sem corpo utilizável. NÃO é `vazio_completo`: um 204 pode ser resposta válida de uma
+  # ação e resposta inútil de uma consulta, e o HttpTool não sabe qual é qual — o contrato é por
+  # operação e quem o conhece é quem cadastrou a tool. Declarar ausência aqui seria inventar
+  # ausência, que é o defeito que este PR fecha.
+  SEM_CONTEUDO = 'A consulta foi respondida, mas veio sem conteúdo. Isto NÃO confirma que o ' \
+                 'dado não existe: não conclua ausência e não responda de memória.'.freeze
+
+  # 2xx COM corpo, cujo conteúdo não se conseguiu extrair. É DIFERENTE do SEM_CONTEUDO, e a
+  # diferença é de fato: lá o servidor não mandou nada; aqui mandou e nós é que não soubemos
+  # ler. Dizer "veio sem conteúdo" neste caso afirma sobre a resposta do sistema uma coisa que
+  # não é verdade, e é dessa afirmação que o modelo conclui ausência.
+  CONTEUDO_ILEGIVEL = 'O sistema respondeu, mas o conteúdo da resposta não pôde ser extraído. ' \
+                      'Isto NÃO é ausência de dado: não conclua que o dado não existe e não ' \
+                      'responda de memória.'.freeze
+
   def initialize(assistant, custom_tool)
     @assistant = assistant
     @custom_tool = custom_tool
@@ -16,10 +77,17 @@ class Captain::Tools::HttpTool < Agents::Tool
     body = @custom_tool.build_request_body(params)
 
     response = execute_http_request(url, body, tool_context)
-    @custom_tool.format_response(response.body)
+    resultado_ok(response)
+  rescue FalhaDeConsulta => e
+    registrar_falha(e)
+    acao? ? resultado_acao(e) : resultado_consulta(e)
   rescue StandardError => e
-    Rails.logger.error("HttpTool execution error for #{@custom_tool.slug}: #{e.class} - #{e.message}")
-    'An error occurred while executing the request'
+    registrar_falha(e)
+    # Erro fora das classes conhecidas: `enviada: true` é o default SEGURO, não uma afirmação.
+    # Numa ação, não saber se a requisição saiu obriga a tratar como indeterminada — dizer "não
+    # foi realizada" convidaria a repetir uma operação que pode ter acontecido.
+    falha = FalhaDeConsulta.new(:indisponivel, "#{e.class}: #{e.message}")
+    acao? ? resultado_acao(falha) : resultado_consulta(falha)
   end
 
   # Additive helper for the custom-tool "test" endpoint (admin smoke test). Reuses the
@@ -53,6 +121,82 @@ class Captain::Tools::HttpTool < Agents::Tool
   # 1MB of text ≈ 250K tokens, which exceeds most LLM context windows
   MAX_RESPONSE_SIZE = 1.megabyte
 
+  TIMEOUTS = [Net::OpenTimeout, Net::ReadTimeout, Timeout::Error].freeze
+  INDISPONIVEL = [SocketError, EOFError, Errno::ECONNREFUSED, Errno::ECONNRESET,
+                  Errno::EHOSTUNREACH, Errno::ENETUNREACH, OpenSSL::SSL::SSLError].freeze
+  # Falhas em que a requisição comprovadamente NÃO saiu: recusa de conexão, host inalcançável,
+  # DNS e handshake TLS. `ECONNRESET`/`EOFError` ficam de fora de propósito — a conexão pode ter
+  # morrido DEPOIS de o servidor receber, e numa ação isso é indeterminado, não "não aconteceu".
+  NAO_SAIU = [SocketError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH,
+              Errno::ENETUNREACH, OpenSSL::SSL::SSLError].freeze
+
+  # Saída formatada vazia tem DUAS causas, e elas não se parecem em nada. A decisão é pelo
+  # corpo BRUTO, antes do template:
+  #
+  #   - corpo bruto vazio (204, content-length 0): o servidor não mandou nada. Em AÇÃO é a
+  #     confirmação normal — o 204 de um cancelamento; em CONSULTA não dá para saber se é
+  #     ausência ou contrato da operação, e inventar ausência é o defeito que este PR fecha;
+  #   - corpo bruto COM conteúdo e template renderizando vazio: o servidor mandou algo e nós
+  #     não soubemos ler. Confirmar sucesso aqui afirma uma operação que o sistema pode ter
+  #     RECUSADO — é comum o CRM responder 200 com `{"sucesso": false}`, e um template que
+  #     procura `{{ response.id }}` renderiza vazio exatamente nesse caso.
+  #
+  # Sem essa separação, o segundo caso caía no primeiro e uma recusa de 200 virava "A ação foi
+  # realizada com sucesso". Medido pelo harness offline em 21/09; ver §18.1 da auditoria.
+  # O corpo bruto é consultado ANTES do template, e não depois. Não é estilo: com template
+  # configurado, um 204 chega ao `format_response` como `JSON.parse(nil)`, que levanta
+  # `TypeError` — fora do rescue de `JSON::ParserError` — e o cancelamento bem-sucedido virava
+  # "não se sabe se aconteceu". Corpo vazio nem passa pelo template: não há o que renderizar.
+  def resultado_ok(response)
+    return sem_corpo(response) if corpo_vazio?(response)
+
+    formatado = formatar(response)
+    return Captain::Tools::Result.sucesso(formatado) if formatado.present?
+
+    corpo_ilegivel(response)
+  end
+
+  # `.b` antes do strip: corpo em latin-1 ou binário faz `strip` levantar quando a string está
+  # marcada como UTF-8. Aqui a pergunta é de BYTES — "veio alguma coisa?" —, não de texto.
+  def corpo_vazio?(response)
+    response.body.to_s.b.strip.empty?
+  end
+
+  def sem_corpo(response)
+    detalhe = "http #{response.code} sem corpo"
+    return Captain::Tools::Result.sucesso(ACAO_CONFIRMADA, detalhe: detalhe) if acao?
+
+    Captain::Tools::Result.desconhecido(SEM_CONTEUDO, detalhe: detalhe)
+  end
+
+  def corpo_ilegivel(response)
+    detalhe = "http #{response.code} corpo de #{response.body.to_s.bytesize} bytes não extraído"
+    return Captain::Tools::Result.desconhecido(ACAO_ILEGIVEL, detalhe: detalhe) if acao?
+
+    Captain::Tools::Result.desconhecido(CONTEUDO_ILEGIVEL, detalhe: detalhe)
+  end
+
+  def resultado_consulta(erro)
+    Captain::Tools::Result.erro("#{FALHAS.fetch(erro.classe)} #{NAO_INVENTE}",
+                                detalhe: "#{erro.classe}: #{erro.message}")
+  end
+
+  # O detalhe técnico (URL, corpo, classe da exceção) fica no log e no `detalhe` do Result;
+  # nunca no texto que o modelo lê. Slug identifica a tool sem expor credencial.
+  def registrar_falha(erro)
+    Rails.logger.error("HttpTool execution error for #{@custom_tool.slug}: #{erro.class} - #{erro.message}")
+  end
+
+  def formatar(response)
+    @custom_tool.format_response(response.body)
+  rescue StandardError => e
+    # Template/parse do corpo: o servidor respondeu, quem não soube ler fomos nós. O `status` vai
+    # junto porque numa AÇÃO ele muda o desfecho: 2xx ilegível é INDETERMINADO, não sucesso — o
+    # corpo que não se conseguiu ler pode ser justamente uma recusa (`{"sucesso": false}`).
+    raise FalhaDeConsulta.new(:resposta_invalida, "format_response: #{e.class}: #{e.message}",
+                              status: response.code)
+  end
+
   def execute_http_request(url, body, tool_context)
     uri = URI.parse(url)
 
@@ -69,43 +213,87 @@ class Captain::Tools::HttpTool < Agents::Tool
     apply_authentication(request)
     apply_metadata_headers(request, tool_context)
 
-    response = http.request(request)
+    response = executar(http, request)
 
-    raise "HTTP request failed with status #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+    codigo = response.code
+    raise FalhaDeConsulta.new(classe_do_status(codigo), "HTTP #{codigo}", status: codigo) unless response.is_a?(Net::HTTPSuccess)
 
     validate_response!(response)
 
     response
   end
 
+  # Traduz a exceção de transporte na classe de falha correspondente, antes que o rescue
+  # genérico do #perform a achate em "indisponível".
+  #
+  # A classe NÃO muda para consulta (as mensagens seguem as mesmas). O que muda é `enviada`, e
+  # ela só importa em AÇÃO: `Net::OpenTimeout` é a conexão que nunca se estabeleceu — nada saiu,
+  # a ação não ocorreu. `Net::ReadTimeout` é o oposto: a requisição foi enviada e a resposta não
+  # voltou, então a ação pode ter acontecido do outro lado.
+  def executar(http, request)
+    http.request(request)
+  rescue Net::OpenTimeout => e
+    raise FalhaDeConsulta.new(:timeout, "#{e.class}: #{e.message}", enviada: false)
+  rescue *TIMEOUTS => e
+    raise FalhaDeConsulta.new(:timeout, "#{e.class}: #{e.message}")
+  rescue *NAO_SAIU => e
+    raise FalhaDeConsulta.new(:indisponivel, "#{e.class}: #{e.message}", enviada: false)
+  rescue *INDISPONIVEL => e
+    raise FalhaDeConsulta.new(:indisponivel, "#{e.class}: #{e.message}")
+  end
+
+  # 401/403 é credencial — o operador precisa distinguir isso de "fora do ar" no trace.
+  # 408/429/5xx é transitório do lado de lá. O resto (400, 404, 422...) é contrato: a chamada
+  # chegou e foi rejeitada, e nenhum deles autoriza concluir que o dado não existe.
+  def classe_do_status(codigo)
+    numero = codigo.to_i
+    return :nao_autorizado if [401, 403].include?(numero)
+    return :indisponivel if numero == 408 || numero == 429 || numero >= 500
+
+    :resposta_invalida
+  end
+
   def check_private_ip!(hostname)
     ip_address = IPAddr.new(Resolv.getaddress(hostname))
 
-    raise 'Request blocked: hostname resolves to private IP address' if PRIVATE_IP_RANGES.any? { |range| range.include?(ip_address) }
+    # SSRF bloqueado: o motivo real fica no log. Pro modelo é indisponibilidade — dizer "IP
+    # privado" não o ajuda a atender e expõe topologia na conversa.
+    raise FalhaDeConsulta.new(:indisponivel, 'blocked: hostname resolves to private IP address', enviada: false) if
+      PRIVATE_IP_RANGES.any? { |range| range.include?(ip_address) }
   rescue Resolv::ResolvError, SocketError => e
-    raise "DNS resolution failed: #{e.message}"
+    raise FalhaDeConsulta.new(:indisponivel, "DNS resolution failed: #{e.message}", enviada: false)
   end
 
   def validate_response!(response)
     content_length = response['content-length']&.to_i
     if content_length && content_length > MAX_RESPONSE_SIZE
-      raise "Response size #{content_length} bytes exceeds maximum allowed #{MAX_RESPONSE_SIZE} bytes"
+      raise FalhaDeConsulta.new(:corpo_excessivo, "content-length #{content_length} > #{MAX_RESPONSE_SIZE}",
+                                status: response.code)
     end
 
     return unless response.body && response.body.bytesize > MAX_RESPONSE_SIZE
 
-    raise "Response body size #{response.body.bytesize} bytes exceeds maximum allowed #{MAX_RESPONSE_SIZE} bytes"
+    raise FalhaDeConsulta.new(:corpo_excessivo, "body #{response.body.bytesize} > #{MAX_RESPONSE_SIZE}",
+                              status: response.code)
   end
 
+  # Falha BARULHENTA no lugar da silenciosa. O `else` mandava qualquer verbo desconhecido como
+  # GET: um DELETE viraria uma leitura, devolveria 2xx e teria cara de ação bem-sucedida — a ação
+  # simplesmente não aconteceria. Hoje o enum do Captain::CustomTool só aceita GET e POST, mas o
+  # HttpAcao passou a classificar PUT/PATCH/DELETE como ação, e isso cria a expectativa de que
+  # funcionam. `enviada: false` porque nada sai daqui: numa ação, é "não realizada".
+  VERBOS_SUPORTADOS = %w[GET POST].freeze
+
   def build_http_request(uri, body)
-    if @custom_tool.http_method == 'POST'
-      request = Net::HTTP::Post.new(uri.request_uri)
-      if body
-        request.body = body
-        request['Content-Type'] = 'application/json'
-      end
-    else
-      request = Net::HTTP::Get.new(uri.request_uri)
+    verbo = @custom_tool.http_method.to_s.upcase
+    raise FalhaDeConsulta.new(:nao_suportado, "http_method não suportado: #{verbo}", enviada: false) if VERBOS_SUPORTADOS.exclude?(verbo)
+
+    return Net::HTTP::Get.new(uri.request_uri) unless verbo == 'POST'
+
+    request = Net::HTTP::Post.new(uri.request_uri)
+    if body
+      request.body = body
+      request['Content-Type'] = 'application/json'
     end
     request
   end

@@ -24,13 +24,13 @@ const handleChange = event => {
 </script>
 
 <template>
-  <div class="relative w-4 h-4">
+  <div class="relative w-4 h-4 isolate">
     <input
       :checked="modelValue"
       :indeterminate="indeterminate"
       type="checkbox"
       :disabled="disabled"
-      class="peer absolute inset-0 z-10 h-4 w-4 disabled:opacity-50 appearance-none rounded border border-n-slate-6 ring-transparent transition-all duration-200 checked:border-n-brand checked:bg-n-brand dark:border-n-slate-8 dark:checked:border-n-brand indeterminate:border-n-brand indeterminate:bg-n-brand hover:enabled:bg-n-teal-border cursor-pointer"
+      class="peer absolute inset-0 z-10 h-4 w-4 disabled:opacity-50 appearance-none rounded border border-n-slate-8 ring-transparent transition-all duration-200 checked:border-n-brand checked:bg-n-brand dark:border-n-slate-9 dark:checked:border-n-brand indeterminate:border-n-brand indeterminate:bg-n-brand hover:enabled:bg-n-teal-border cursor-pointer"
       @change="handleChange"
     />
     <!-- Checkmark SVG -->

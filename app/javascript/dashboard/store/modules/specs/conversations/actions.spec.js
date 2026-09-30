@@ -657,6 +657,7 @@ describe('#actions', () => {
       );
       expect(commit.mock.calls).toEqual([
         ['SET_LIST_LOADING_STATUS'],
+        ['SET_LIST_ERROR', false],
         ['SET_ALL_CONVERSATION', dataReceived.payload],
         ['CLEAR_LIST_LOADING_STATUS'],
         [

@@ -24,7 +24,7 @@ RSpec.describe 'Enterprise::PortalPolicy', type: :policy do
     end
   end
 
-  permissions :create?, :destroy? do
+  permissions :create?, :destroy?, :archive? do
     context 'when agent with knowledge_base_manage permission' do
       it { expect(portal_policy).not_to permit(agent_with_role_context, portal) }
     end

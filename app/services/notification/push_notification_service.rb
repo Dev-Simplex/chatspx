@@ -189,6 +189,20 @@ class Notification::PushNotificationService
     }
   end
 
+  # Bolinha do app: conversas ABERTAS atribuidas ao usuario com mensagem recebida
+  # ainda nao vista. Mesmo criterio da notificacao, que neste fork so vai para o
+  # atribuido (ver Messages::NewMessageNotificationService).
+  #
+  # Vai no aps.badge porque o iOS aplica o numero com o app FECHADO. Sem isso o
+  # app so recalculava ao ser aberto: o Rogerio ficou com "3" no icone tendo 0
+  # nao lidas no servidor (17/09/2026, iPhone build 28).
+  #
+  # Escopo `open`: contando resolvidas o numero estoura sem acao pendente
+  # (usuario 53 em producao: 77 contra 9). Custo medido: 9 a 82 ms por usuario.
+  def unread_conversations_count
+    Conversation.where(assignee_id: user.id).open.unread.count
+  end
+
   def fcm_apns_options
     {
       payload: {
@@ -198,6 +212,7 @@ class Notification::PushNotificationService
             body: notification.push_message_body
           },
           sound: 'default',
+          badge: unread_conversations_count,
           'mutable-content': 1,
           category: Time.zone.now.to_i.to_s
         }

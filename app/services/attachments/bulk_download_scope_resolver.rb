@@ -47,7 +47,12 @@ class Attachments::BulkDownloadScopeResolver
 
   def conversation_scope
     conversation = @account.conversations.find(@conversation_id)
-    rel = conversation.attachments.where(file_type: CONVERSATION_FILE_TYPES)
+    # `conversation.attachments` herda messages e depende de Current.user; no job
+    # usamos todas as mensagens e aplicamos a exceção do solicitante explicitamente.
+    rel = Attachment.joins(message: { conversation: :inbox })
+                    .where(messages: { conversation_id: conversation.id })
+                    .where(file_type: CONVERSATION_FILE_TYPES)
+    rel = TeamMessageIsolation.exclude_hidden(rel, @user, @account)
     @requested_ids.present? ? rel.where(id: @requested_ids) : rel
   end
 

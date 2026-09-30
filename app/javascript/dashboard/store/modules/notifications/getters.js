@@ -3,20 +3,22 @@ import camelcaseKeys from 'camelcase-keys';
 
 export const getters = {
   getNotifications($state) {
-    return Object.values($state.records).sort((n1, n2) => n2.id - n1.id);
+    return Object.values($state.records)
+      .filter(notification => !notification.read_at)
+      .sort((n1, n2) => n2.id - n1.id);
   },
   getFilteredNotifications: $state => filters => {
     const sortOrder = filters.sortOrder === 'desc' ? 'newest' : 'oldest';
-    const sortedNotifications = Object.values($state.records).sort((n1, n2) =>
-      sortComparator(n1, n2, sortOrder)
-    );
+    const sortedNotifications = Object.values($state.records)
+      .filter(notification => filters.type === 'read' || !notification.read_at)
+      .sort((n1, n2) => sortComparator(n1, n2, sortOrder));
     return sortedNotifications;
   },
   getFilteredNotificationsV4: $state => filters => {
     const sortOrder = filters.sortOrder === 'desc' ? 'newest' : 'oldest';
-    const sortedNotifications = Object.values($state.records).sort((n1, n2) =>
-      sortComparator(n1, n2, sortOrder)
-    );
+    const sortedNotifications = Object.values($state.records)
+      .filter(notification => filters.type === 'read' || !notification.read_at)
+      .sort((n1, n2) => sortComparator(n1, n2, sortOrder));
     return camelcaseKeys(sortedNotifications, { deep: true });
   },
   getNotificationById: $state => id => {

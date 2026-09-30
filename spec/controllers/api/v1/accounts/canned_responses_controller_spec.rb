@@ -54,6 +54,50 @@ RSpec.describe 'Canned Responses API', type: :request do
       end
     end
 
+    context 'when normalizing search terms' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+
+      it 'removes null bytes before filtering and ranking matches' do
+        content_match = account.canned_responses.first
+        partial_match = create(:canned_response, account: account, short_code: 'with-thanks', content: 'Welcome')
+        prefix_match = create(:canned_response, account: account, short_code: 'thanks', content: 'Welcome')
+        create(:canned_response, account: account, short_code: 'unrelated', content: 'Welcome')
+
+        get "/api/v1/accounts/#{account.id}/canned_responses",
+            params: { search: "tha\u0000nks" }, headers: agent.create_new_auth_token
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body.pluck('id')).to eq([prefix_match.id, partial_match.id, content_match.id])
+      end
+
+      [['thanks'], { term: 'thanks' }].each do |search|
+        it "accepts a search parameter of type #{search.class}" do
+          get "/api/v1/accounts/#{account.id}/canned_responses",
+              params: { search: search }, headers: agent.create_new_auth_token
+
+          expect(response).to have_http_status(:ok)
+          expect(response.parsed_body).to eq([])
+        end
+      end
+
+      ['', "\u0000", 'thanks', 'ação', '%', '_'].each do |search|
+        it "preserves existing search results for #{search.inspect}" do
+          create(:canned_response, account: account, short_code: 'ação', content: 'Welcome')
+          create(:canned_response, account: account, short_code: 'thanks', content: 'Welcome')
+          original_term = search == "\u0000" ? '' : search
+          expected_ids = account.canned_responses
+                                .where('short_code ILIKE :search OR content ILIKE :search', search: "%#{original_term}%")
+                                .order_by_search(original_term).pluck(:id)
+
+          get "/api/v1/accounts/#{account.id}/canned_responses",
+              params: { search: search }, headers: agent.create_new_auth_token
+
+          expect(response).to have_http_status(:ok)
+          expect(response.parsed_body.pluck('id')).to eq(expected_ids)
+        end
+      end
+    end
+
     context 'when filtering by visibility' do
       let(:admin) { create(:user, account: account, role: :administrator) }
       let(:agent_1) { create(:user, account: account, role: :agent) }

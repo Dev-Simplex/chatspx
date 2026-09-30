@@ -263,7 +263,10 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      # `pin_mode` e `pinned_conversation_ids` seguem no permit de proposito: sem eles o
      # Rails descarta o parametro EM SILENCIO e a tela responde 200 "salvo com sucesso"
      # sem gravar nada. Ver o store_accessor correspondente em app/models/inbox.rb.
-     { additional_attributes: [:pin_mode, :agent_signature_enabled, { pinned_conversation_ids: [], allowed_template_names: [] }] },
+     # `secret_template_names` acompanha `allowed_template_names`: a mesma tela de Modelos
+     # escolhe quais templates aparecem e quais têm o VALOR das variáveis protegido.
+     { additional_attributes: [:pin_mode, :agent_signature_enabled, :ad_referral_routing_enabled, :ad_referral_team_id,
+                               { pinned_conversation_ids: [], allowed_template_names: [], secret_template_names: [] }] },
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
                        template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },

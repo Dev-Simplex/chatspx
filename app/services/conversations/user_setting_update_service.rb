@@ -34,9 +34,17 @@ class Conversations::UserSettingUpdateService
     sanitized = sanitize_patch(@patch)
     raise ValidationError, 'patch must contain at least one allowed key' if sanitized.empty?
 
+    # O jsonb_set interno garante o nó `user_settings`: o `create_missing` do jsonb_set só cria a
+    # ÚLTIMA chave do caminho. Sem isso, conversa sem o nó (as 33.958 de produção em 18/09/2026)
+    # devolvia 200 sem gravar nada — fixar, arquivar e silenciar nunca persistiam.
     sql = <<~SQL.squish
       additional_attributes = jsonb_set(
-        coalesce(additional_attributes, '{}'::jsonb),
+        jsonb_set(
+          coalesce(additional_attributes, '{}'::jsonb),
+          '{user_settings}',
+          coalesce(additional_attributes -> 'user_settings', '{}'::jsonb),
+          true
+        ),
         ARRAY['user_settings', ?],
         coalesce(coalesce(additional_attributes, '{}'::jsonb) #> ARRAY['user_settings', ?], '{}'::jsonb) || ?::jsonb,
         true
@@ -107,9 +115,7 @@ class Conversations::UserSettingUpdateService
   end
 
   def coerce_iso_datetime(key, value)
-    unless value.is_a?(String)
-      raise ValidationError, "#{key} must be an ISO8601 string"
-    end
+    raise ValidationError, "#{key} must be an ISO8601 string" unless value.is_a?(String)
 
     Time.iso8601(value)
     value

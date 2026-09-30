@@ -8,6 +8,7 @@ import { enUS, ptBR } from 'date-fns/locale';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
+import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import { useStageColor } from './composables/useStageColor';
 import {
   FIELD_TYPES,
@@ -74,6 +75,7 @@ const scheduledByConversation = useMapGetter(
 );
 const { isMessageRestricted } = useTeamIsolation();
 const { isMessageRestricted: isAgentMessageRestricted } = useAgentIsolation();
+const { getPlainText } = useMessageFormatter();
 
 const dateLocale = computed(() =>
   String(locale.value || '').startsWith('pt') ? ptBR : enUS
@@ -161,7 +163,14 @@ const lastMessage = computed(() => {
   )
     return '🔒';
 
-  return message?.content || message?.processed_message_content || '';
+  const content = message?.content || message?.processed_message_content;
+  if (content) return getPlainText(content);
+
+  const fileType = message?.attachments?.[0]?.file_type;
+  if (fileType)
+    return getPlainText(t(`CHAT_LIST.ATTACHMENTS.${fileType}.CONTENT`));
+
+  return '';
 });
 
 // Labels come straight from the serializer (conversation.labels: [{title,color}]).

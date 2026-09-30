@@ -191,6 +191,13 @@ describe('#mutations', () => {
         conversationSearchCompleted: true,
         messageRecords: [{ id: 1 }],
         articleRecords: [{ id: 1 }],
+        uiFlags: {
+          hasError: true,
+          contact: { hasError: true },
+          conversation: { hasError: true },
+          message: { hasError: true },
+          article: { hasError: true },
+        },
       };
       mutations[types.CLEAR_SEARCH_RESULTS](state);
       expect(state.contactRecords).toEqual([]);
@@ -200,6 +207,11 @@ describe('#mutations', () => {
       expect(state.conversationSearchCompleted).toBe(false);
       expect(state.messageRecords).toEqual([]);
       expect(state.articleRecords).toEqual([]);
+      expect(state.uiFlags.hasError).toBe(false);
+      expect(state.uiFlags.contact.hasError).toBe(false);
+      expect(state.uiFlags.conversation.hasError).toBe(false);
+      expect(state.uiFlags.message.hasError).toBe(false);
+      expect(state.uiFlags.article.hasError).toBe(false);
     });
   });
 });

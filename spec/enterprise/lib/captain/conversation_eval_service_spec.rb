@@ -10,6 +10,40 @@ RSpec.describe Captain::ConversationEvalService do
   let(:conversation) { create(:conversation, account: account, inbox: inbox) }
   let(:service) { described_class.new(account: account, conversation_display_id: conversation.display_id) }
 
+  describe 'contexto do negócio no system prompt' do
+    let(:assistant) { instance_double(Captain::Assistant, behavior: behavior, config: {}) }
+    let(:behavior) { {} }
+    let(:system_prompt) { [] }
+
+    before do
+      allow(service).to receive(:episode_assistant).and_return(assistant)
+      allow(service).to receive(:build_transcript).and_return(['[Cliente]: Olá', {}])
+      allow(service).to receive(:make_api_call) do |args|
+        system_prompt << args[:messages].first[:content]
+        { error: 'parar após montar prompt' }
+      end
+    end
+
+    context 'with behavior.eval.contexto' do
+      let(:behavior) { { 'eval' => { 'contexto' => 'Catálogo de lentes e armações.' } } }
+
+      it 'inclui o bloco no system prompt' do
+        described_class.instance_method(:perform).super_method.bind_call(service)
+
+        expect(system_prompt.first).to include("CONTEXTO DO NEGÓCIO AVALIADO (vale como os exemplos específicos deste cliente):\n---\n" \
+                                               "Catálogo de lentes e armações.\n---")
+      end
+    end
+
+    context 'without behavior.eval.contexto' do
+      it 'não inclui o bloco no system prompt' do
+        described_class.instance_method(:perform).super_method.bind_call(service)
+
+        expect(system_prompt.first).not_to include('CONTEXTO DO NEGÓCIO AVALIADO')
+      end
+    end
+  end
+
   describe '#origem_context' do
     it 'is absent when the conversation carries no origin at all' do
       expect(service.send(:origem_context)).to be_nil

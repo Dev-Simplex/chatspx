@@ -1,6 +1,7 @@
 json.data do
   json.meta do
     json.unread_count @unread_count
+    json.unread_conversations_count @unread_conversations_count
     json.count @count
     json.current_page @current_page
   end

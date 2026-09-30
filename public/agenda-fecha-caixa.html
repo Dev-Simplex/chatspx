@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🗓%3C/text%3E%3C/svg%3E">
+<style>html{color-scheme:light dark}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Quando o Feriado Fecha a Caixa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    --paper:       #f4f7f4;
+    --surface:     #ffffff;
+    --surface-2:   #eaefea;
+    --ink:         #12211a;
+    --ink-2:       #45564d;
+    --ink-3:       #78877f;
+    --rule:        #d8e0da;
+    --rule-strong: #b9c5bd;
+    --green:       #2dc46f;
+    --green-deep:  #0d6b3b;
+    --green-wash:  #e2f5ea;
+    --red:         #b6362b;
+    --red-wash:    #fbe9e7;
+    --amber:       #8a6304;
+    --amber-wash:  #fbf1dc;
+    --blue:        #1f6f9e;
+
+    /* painel de configurações, com a cara do produto */
+    --ui-bg:      #ffffff;
+    --ui-bg-2:    #f6f8f7;
+    --ui-border:  #e2e6e4;
+    --ui-text:    #1f2b26;
+    --ui-muted:   #6b7a72;
+    --ui-accent:  #2dc46f;
+
+    --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --body:    "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --ui-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:       #0c130f;
+      --surface:     #131c17;
+      --surface-2:   #1b2620;
+      --ink:         #e6ede8;
+      --ink-2:       #a9b8af;
+      --ink-3:       #78877f;
+      --rule:        #263329;
+      --rule-strong: #3a4a3f;
+      --green:       #3ddc80;
+      --green-deep:  #7ceaa8;
+      --green-wash:  #122e1f;
+      --red:         #ff8a7a;
+      --red-wash:    #2c1614;
+      --amber:       #e0b451;
+      --amber-wash:  #2b2210;
+      --blue:        #6fb6dd;
+
+      --ui-bg:     #151a21;
+      --ui-bg-2:   #1c232c;
+      --ui-border: #2a323c;
+      --ui-text:   #e9edef;
+      --ui-muted:  #8b98a5;
+      --ui-accent: #2dc46f;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:       #0c130f;
+    --surface:     #131c17;
+    --surface-2:   #1b2620;
+    --ink:         #e6ede8;
+    --ink-2:       #a9b8af;
+    --ink-3:       #78877f;
+    --rule:        #263329;
+    --rule-strong: #3a4a3f;
+    --green:       #3ddc80;
+    --green-deep:  #7ceaa8;
+    --green-wash:  #122e1f;
+    --red:         #ff8a7a;
+    --red-wash:    #2c1614;
+    --amber:       #e0b451;
+    --amber-wash:  #2b2210;
+    --blue:        #6fb6dd;
+
+    --ui-bg:     #151a21;
+    --ui-bg-2:   #1c232c;
+    --ui-border: #2a323c;
+    --ui-text:   #e9edef;
+    --ui-muted:  #8b98a5;
+    --ui-accent: #2dc46f;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 980px; margin: 0 auto; padding: 0 22px 88px; }
+
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; line-height: 1.16; text-wrap: balance; }
+  p { margin: 0; }
+
+  code {
+    font-family: var(--mono); font-size: .84em;
+    background: var(--surface-2); border-radius: 4px;
+    padding: .12em .38em; color: var(--ink-2);
+  }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+  }
+
+  header.masthead { padding: 56px 0 26px; display: flex; flex-direction: column; gap: 17px; }
+  header.masthead h1 {
+    font-size: clamp(34px, 5.8vw, 52px);
+    letter-spacing: -.02em;
+    font-variation-settings: "SOFT" 20, "WONK" 1;
+  }
+  .standfirst { font-size: 18px; color: var(--ink-2); max-width: 62ch; }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  section { padding-top: 52px; display: flex; flex-direction: column; gap: 18px; }
+  section > h2 { font-size: clamp(23px, 3.2vw, 30px); letter-spacing: -.015em; max-width: 26ch; }
+  .lede { font-size: 17px; color: var(--ink-2); max-width: 66ch; }
+
+  /* ---------- painel de configurações (a tela real) ---------- */
+  .ui {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    padding: 22px 26px 24px 44px;
+    font-family: var(--ui-font);
+    color: var(--ui-text);
+    display: flex; flex-direction: column; gap: 15px;
+    max-width: 660px;
+  }
+  .ui-block { position: relative; }
+  .ui h4 { margin: 0; font-size: 15px; font-weight: 700; }
+  .ui .hint { font-size: 12.5px; color: var(--ui-muted); margin-top: 3px; }
+
+  .toggle-row {
+    position: relative;
+    display: grid; grid-template-columns: 20px 1fr; gap: 11px;
+    align-items: start; cursor: pointer;
+    border: 0; background: transparent; text-align: left; padding: 0;
+    font-family: inherit; color: inherit; width: 100%;
+  }
+  .toggle-row:focus-visible { outline: 2px solid var(--green); outline-offset: 5px; border-radius: 4px; }
+  .box {
+    width: 17px; height: 17px; margin-top: 3px; border-radius: 4px;
+    border: 1.5px solid var(--ui-muted); background: transparent;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: transparent;
+    transition: background .14s, border-color .14s, color .14s;
+  }
+  .toggle-row[aria-pressed="true"] .box,
+  .inbox-item.on .box { background: var(--ui-accent); border-color: var(--ui-accent); color: #08301c; }
+  .toggle-label { display: block; font-size: 14.5px; font-weight: 600; }
+  .toggle-desc { display: block; font-size: 12.5px; color: var(--ui-muted); margin-top: 3px; }
+
+  .inbox-list {
+    position: relative;
+    border: 1px solid var(--ui-border); border-radius: 8px;
+    padding: 6px; display: flex; flex-direction: column; gap: 1px;
+    background: var(--ui-bg-2);
+  }
+  .inbox-item { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; font-size: 13.5px; font-weight: 500; }
+  .inbox-item .box { margin-top: 0; }
+  .inbox-item.off { color: var(--ui-muted); }
+
+  /* ---------- alfinetes ---------- */
+  .pin {
+    position: absolute; z-index: 20;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: #fff; background: var(--blue);
+    box-shadow: 0 0 0 2.5px var(--ui-bg), 0 2px 6px rgba(0,0,0,.35);
+  }
+  .pin.key { background: #b6362b; }
+  .pin.r  { right: -11px; top: 50%; transform: translateY(-50%); }
+  .pin.tl { left: -28px; top: -6px; }
+  .pin.lm { left: -28px; top: 50%; transform: translateY(-50%); }
+
+  .clickcue {
+    font-size: 13.5px; color: var(--ink-3);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .clickcue b { color: var(--green-deep); font-weight: 600; }
+
+  /* ---------- legenda dos alfinetes ---------- */
+  .legend { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule); }
+  .lg {
+    display: grid; grid-template-columns: 26px 1fr; gap: 16px;
+    padding: 17px 0; border-bottom: 1px solid var(--rule);
+  }
+  .lg .n {
+    width: 24px; height: 24px; border-radius: 50%; margin-top: 2px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+    color: #fff; background: var(--blue);
+  }
+  .lg.key .n { background: #b6362b; }
+  .lg h3 { font-family: var(--body); font-size: 16px; font-weight: 600; letter-spacing: 0; }
+  .lg .isdoes { display: flex; flex-direction: column; gap: 7px; margin-top: 6px; }
+  .lg .isdoes p { font-size: 14.5px; color: var(--ink-2); padding-left: 82px; position: relative; }
+  .lg .isdoes p::before {
+    content: attr(data-k);
+    position: absolute; left: 0; top: 0;
+    font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .lg .isdoes p b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- o dia ---------- */
+  .day {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 6px; padding: 22px 24px 20px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .day-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+  .day-head h3 { font-size: 19px; }
+  .day-head .when { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+
+  .strip-wrap { overflow-x: auto; }
+  .strip { min-width: 560px; }
+  .strip svg { display: block; width: 100%; height: auto; }
+  .s-lab { font-family: "JetBrains Mono", monospace; font-size: 10.5px; fill: var(--ink-3); }
+  .s-tag { font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 700; }
+
+  .outcome {
+    display: grid; grid-template-columns: 34px 1fr; gap: 14px;
+    align-items: start; padding: 15px 17px; border-radius: 6px;
+  }
+  .outcome.open   { background: var(--green-wash); border: 1px solid var(--green); }
+  .outcome.closed { background: var(--amber-wash); border: 1px solid var(--amber); }
+  .outcome .mark {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #fff;
+  }
+  .outcome.open .mark   { background: #128a4d; }
+  .outcome.closed .mark { background: #8a6304; }
+  .outcome b { display: block; font-size: 15.5px; color: var(--ink); font-weight: 600; margin-bottom: 3px; }
+  .outcome p { font-size: 14.5px; color: var(--ink-2); }
+  .outcome .said {
+    margin-top: 9px; padding: 8px 12px; border-radius: 8px 8px 8px 3px;
+    background: var(--surface); border: 1px solid var(--rule);
+    font-family: var(--ui-font); font-size: 13.5px; color: var(--ink);
+    display: inline-block;
+  }
+
+  /* ---------- escada de decisão ---------- */
+  .ladder { display: flex; flex-direction: column; }
+  .step { display: grid; grid-template-columns: 158px 1fr; gap: 0 22px; }
+  .step .q {
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    color: var(--ink-3); padding: 16px 0;
+    border-right: 2px solid var(--rule-strong); position: relative;
+  }
+  .step .q span {
+    position: absolute; right: -5px; top: 22px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--rule-strong);
+  }
+  .step .a { padding: 15px 0 15px 4px; display: flex; flex-direction: column; gap: 4px; }
+  .step .a b { font-size: 15.5px; font-weight: 600; }
+  .step .a p { font-size: 14.5px; color: var(--ink-2); }
+  .step.no   .a b { color: var(--ink-2); }
+  .step.shut .a b { color: var(--red); }
+  .step.part .a b { color: var(--amber); }
+  .step.open .a b { color: var(--green-deep); }
+  .step + .step .q, .step + .step .a { border-top: 1px solid var(--rule); }
+
+  /* ---------- corrente de condições ---------- */
+  .chain { display: flex; flex-direction: column; gap: 9px; }
+  .link {
+    display: grid; grid-template-columns: 26px 1fr; gap: 13px; align-items: start;
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 5px; padding: 13px 16px;
+  }
+  .link .n {
+    width: 24px; height: 24px; border-radius: 5px; margin-top: 1px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+    background: var(--surface-2); color: var(--ink-2);
+  }
+  .link b { font-size: 15px; font-weight: 600; }
+  .link p { font-size: 14px; color: var(--ink-2); margin-top: 2px; }
+  .andsep {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
+    color: var(--ink-3); text-align: center; margin: -3px 0;
+  }
+
+  /* ---------- avisos ---------- */
+  .warns { display: grid; grid-template-columns: repeat(auto-fit, minmax(266px, 1fr)); gap: 14px; }
+  .warn {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-top: 3px solid var(--amber); border-radius: 4px;
+    padding: 17px 19px 19px; display: flex; flex-direction: column; gap: 7px;
+  }
+  .warn b { font-size: 15.5px; font-weight: 600; }
+  .warn p { font-size: 14.5px; color: var(--ink-2); }
+
+  .nogo {
+    background: var(--red-wash); border: 1px solid var(--red);
+    border-radius: 5px; padding: 22px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .nogo h3 { font-size: 19px; color: var(--red); }
+  .nogo p { font-size: 15px; color: var(--ink-2); }
+  .nogo ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
+  .nogo li { font-size: 15px; color: var(--ink-2); }
+  .nogo li b { color: var(--ink); font-weight: 600; }
+
+  footer.method {
+    margin-top: 52px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--ink-3);
+  }
+
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (max-width: 620px) {
+    .step { grid-template-columns: 1fr; }
+    .step .q { border-right: 0; border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
+    .step .q span { display: none; }
+    .step + .step .a { border-top: 0; }
+    .lg .isdoes p { padding-left: 0; padding-top: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">ChatSPX · Configurações › Unidades · como funciona</div>
+    <h1>Quando o Feriado Fecha a Caixa</h1>
+    <p class="standfirst">
+      Aquele bloco no fim do cadastro da unidade tem quatro elementos, e três deles não fazem nada
+      sozinhos. Abaixo, cada um com <strong>o que é</strong> e <strong>o que faz</strong> — e
+      depois um dia de feriado nos dois estados, para você ver o efeito.
+    </p>
+  </header>
+
+  <section>
+    <h2>Primeiro: o que é cada coisa na tela</h2>
+
+    <div class="ui">
+      <div class="ui-block">
+        <span class="pin tl">1</span>
+        <h4>Caixas de entrada desta unidade</h4>
+        <p class="hint">A linha de WhatsApp desta filial. Uma caixa pertence a no máximo uma unidade.</p>
+        <span class="pin r" style="top:auto;bottom:-2px;transform:none">2</span>
+      </div>
+
+      <button type="button" class="toggle-row" id="toggle" aria-pressed="false">
+        <span class="pin key lm">3</span>
+        <span class="box" aria-hidden="true">✓</span>
+        <span>
+          <span class="toggle-label">Aplicar esta agenda às caixas de entrada</span>
+          <span class="toggle-desc">
+            Ligado, o feriado ou a parada desta unidade fecha as caixas acima no dia, e a mensagem
+            de ausência entra sozinha. Desligado, a agenda é só informativa.
+          </span>
+        </span>
+      </button>
+
+      <div class="inbox-list">
+        <span class="pin tl">4</span>
+        <div class="inbox-item on">
+          <span class="box" aria-hidden="true">✓</span> WhatsApp Vendas — Sinop
+          <span class="pin r">5</span>
+        </div>
+        <div class="inbox-item on"><span class="box" aria-hidden="true">✓</span> WhatsApp Pós-venda — Sinop</div>
+        <div class="inbox-item off">
+          <span class="box" aria-hidden="true">✓</span> Site / Widget
+          <span class="pin r">6</span>
+        </div>
+        <div class="inbox-item off"><span class="box" aria-hidden="true">✓</span> WhatsApp Vendas — Sorriso</div>
+      </div>
+    </div>
+
+    <p class="clickcue"><b>↑ o alfinete 3 é clicável</b> — ligue e desligue para ver o efeito mais abaixo.</p>
+
+    <div class="legend">
+
+      <div class="lg">
+        <span class="n">1</span>
+        <div>
+          <h3>O bloco "Caixas de entrada desta unidade"</h3>
+          <div class="isdoes">
+            <p data-k="o que é">A parte do cadastro que <b>amarra caixas de entrada a esta filial</b>. É aqui que o sistema aprende que o número tal atende Sinop.</p>
+            <p data-k="o que faz">Sozinho, nada de operacional. Serve para a conversa saber de qual unidade ela é, e para os relatórios poderem separar por filial.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg">
+        <span class="n">2</span>
+        <div>
+          <h3>"Uma caixa pertence a no máximo uma unidade"</h3>
+          <div class="isdoes">
+            <p data-k="o que é">Um aviso, não uma opção. É a regra do sistema.</p>
+            <p data-k="o que faz">Se você marcar aqui uma caixa que já era de outra filial, ela <b>sai da outra automaticamente</b>. Não existe caixa em duas unidades, nem pergunta de confirmação — a última unidade salva fica com ela.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg key">
+        <span class="n">3</span>
+        <div>
+          <h3>O interruptor "Aplicar esta agenda às caixas de entrada"</h3>
+          <div class="isdoes">
+            <p data-k="o que é">A chave que decide se a <b>agenda desta unidade</b> — a grade semanal mais os feriados e paradas que você cadastrou nas abas anteriores — <b>manda de verdade</b> nas caixas marcadas. Vem <b>desligada</b>.</p>
+            <p data-k="desligado">A agenda é só painel: alimenta o "aberta agora / fechada" na lista de unidades e o e-mail de lembrete da véspera. Quem decide se o cliente recebe ausência continua sendo o <b>horário comercial de cada caixa</b>, configurado na tela da caixa. Cadastrar feriado aqui não muda nada para quem manda mensagem.</p>
+            <p data-k="ligado">Nos dias em que existir uma regra na agenda desta unidade, <b>a regra passa na frente do horário da caixa</b> — para todas as caixas marcadas. É assim que o feriado da filial fecha o número dela sem ninguém reeditar caixa por caixa na véspera.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg">
+        <span class="n">4</span>
+        <div>
+          <h3>A lista de caixas com caixinhas</h3>
+          <div class="isdoes">
+            <p data-k="o que é">Todas as caixas de entrada da conta. As marcadas <b>pertencem a esta unidade</b>.</p>
+            <p data-k="o que faz">Define o alcance do interruptor 3. Marcar uma caixa aqui, com o interruptor desligado, não muda comportamento nenhum — só o agrupamento.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg">
+        <span class="n">5</span>
+        <div>
+          <h3>Uma caixa marcada</h3>
+          <div class="isdoes">
+            <p data-k="o que é">Caixa que é desta filial.</p>
+            <p data-k="o que faz">Com o interruptor ligado, <b>o feriado da unidade fecha esta caixa</b> e a ausência dela responde sozinha. Com ele desligado, ela segue o próprio horário.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg">
+        <span class="n">6</span>
+        <div>
+          <h3>Uma caixa desmarcada</h3>
+          <div class="isdoes">
+            <p data-k="o que é">Caixa de outra filial, ou de nenhuma.</p>
+            <p data-k="o que faz">Fica <b>de fora</b>, mesmo com o interruptor ligado. Continua obedecendo só ao horário comercial configurado nela.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Agora o efeito: o mesmo dia, nos dois estados</h2>
+
+    <div class="day">
+      <div class="day-head">
+        <h3>Quinta, 20 de novembro · Consciência Negra</h3>
+        <span class="when">unidade Sinop · fuso de Cuiabá</span>
+      </div>
+
+      <div class="strip-wrap">
+        <div class="strip">
+          <svg id="strip-off" viewBox="0 0 700 132" role="img"
+               aria-label="Dia com o interruptor desligado: a caixa segue a grade e fica aberta das 8h às 18h; a mensagem do cliente às 10h12 cai dentro do expediente.">
+            <text class="s-lab" x="0" y="12" style="fill:var(--ink-2);font-weight:700">GRADE DA CAIXA · seg a sex, 08:00–18:00</text>
+            <rect x="0" y="22" width="700" height="26" rx="4" fill="var(--surface-2)"></rect>
+            <rect x="233" y="22" width="292" height="26" rx="4" fill="#2dc46f" opacity=".78"></rect>
+            <text class="s-tag" x="379" y="39" text-anchor="middle" fill="#08301c">ABERTA</text>
+
+            <text class="s-lab" x="0" y="72" style="fill:var(--ink-2);font-weight:700">AGENDA DA UNIDADE · feriado (dia todo)</text>
+            <rect x="0" y="82" width="700" height="26" rx="4" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-dasharray="4 3"></rect>
+            <text class="s-tag" x="520" y="99" text-anchor="middle" style="fill:var(--ink-3)">IGNORADA — a agenda é só informativa</text>
+
+            <line x1="297" y1="16" x2="297" y2="116" stroke="var(--red)" stroke-width="1.5"></line>
+            <circle cx="297" cy="16" r="3.5" fill="var(--red)"></circle>
+            <text class="s-tag" x="304" y="128" fill="var(--red)">cliente escreve 10:12</text>
+
+            <text class="s-lab" x="0" y="128">00h</text>
+            <text class="s-lab" x="700" y="128" text-anchor="end">24h</text>
+          </svg>
+
+          <svg id="strip-on" viewBox="0 0 700 132" hidden role="img"
+               aria-label="Dia com o interruptor ligado: a regra de feriado fecha o dia inteiro e vence a grade; a mensagem do cliente às 10h12 cai fora do expediente.">
+            <text class="s-lab" x="0" y="12" style="fill:var(--ink-3);font-weight:700">GRADE DA CAIXA · seg a sex, 08:00–18:00</text>
+            <rect x="0" y="22" width="700" height="26" rx="4" fill="var(--surface-2)"></rect>
+            <rect x="233" y="22" width="292" height="26" rx="4" fill="#2dc46f" opacity=".2"></rect>
+            <text class="s-tag" x="379" y="39" text-anchor="middle" style="fill:var(--ink-3)">vencida pela agenda</text>
+
+            <text class="s-lab" x="0" y="72" style="fill:var(--ink-2);font-weight:700">AGENDA DA UNIDADE · feriado (dia todo)</text>
+            <rect x="0" y="82" width="700" height="26" rx="4" fill="#8a6304" opacity=".85"></rect>
+            <text class="s-tag" x="500" y="99" text-anchor="middle" fill="#fff">FECHADA O DIA TODO</text>
+
+            <line x1="297" y1="16" x2="297" y2="116" stroke="var(--red)" stroke-width="1.5"></line>
+            <circle cx="297" cy="16" r="3.5" fill="var(--red)"></circle>
+            <text class="s-tag" x="304" y="128" fill="var(--red)">cliente escreve 10:12</text>
+
+            <text class="s-lab" x="0" y="128">00h</text>
+            <text class="s-lab" x="700" y="128" text-anchor="end">24h</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="outcome open" id="out-off">
+        <span class="mark">✓</span>
+        <span>
+          <b>Interruptor desligado — a caixa está aberta, nada automático acontece.</b>
+          <p>
+            20/11 é quinta-feira e 10:12 está dentro de 08:00–18:00, então para o sistema é
+            expediente normal — mesmo com o feriado cadastrado na agenda. A mensagem entra na fila
+            e espera um agente que não veio trabalhar.
+          </p>
+        </span>
+      </div>
+
+      <div class="outcome closed" id="out-on" hidden>
+        <span class="mark">!</span>
+        <span>
+          <b>Interruptor ligado — fora do expediente, e a ausência responde sozinha.</b>
+          <p>
+            A regra do dia venceu a grade das duas caixas marcadas (alfinete 5). O cliente recebe na
+            hora o texto que está em <em>Mensagem de ausência</em> daquela caixa:
+          </p>
+          <span class="said">Hoje é feriado na nossa unidade de Sinop. Voltamos amanhã às 8h. 🙂</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ligado, são só quatro situações</h2>
+    <p class="lede">
+      A decisão roda no fuso da <strong>unidade</strong>, não no da caixa, e vale para todas as
+      caixas marcadas.
+    </p>
+
+    <div class="ladder">
+      <div class="step no">
+        <div class="q">dia sem regra<span></span></div>
+        <div class="a">
+          <b>Nada muda</b>
+          <p>Vale o horário comercial da própria caixa, como sempre foi.</p>
+        </div>
+      </div>
+      <div class="step shut">
+        <div class="q">regra "fechado o dia todo"<span></span></div>
+        <div class="a">
+          <b>Caixa fechada o dia inteiro</b>
+          <p>O caso do feriado. A grade da caixa é ignorada de 00h a 24h.</p>
+        </div>
+      </div>
+      <div class="step part">
+        <div class="q">regra com horário próprio<span></span></div>
+        <div class="a">
+          <b>Aberta só na faixa da regra</b>
+          <p>
+            Véspera de Natal 08:00–12:00, por exemplo: às 11h a caixa responde, às 13h manda
+            ausência — mesmo que a grade diga 08:00–18:00.
+          </p>
+        </div>
+      </div>
+      <div class="step open">
+        <div class="q">a regra também ABRE<span></span></div>
+        <div class="a">
+          <b>E este é o caso que a tela não conta</b>
+          <p>
+            Se a grade fecha domingo mas você criar "plantão domingo 09:00–13:00", nesse horário a
+            caixa passa a ser tratada como <strong>aberta</strong>. A agenda vence nos dois sentidos,
+            não só para fechar.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ficar fora do expediente não envia nada sozinho</h2>
+    <p class="lede">
+      Para o cliente receber alguma coisa, as quatro condições precisam valer ao mesmo tempo. Se
+      qualquer uma falhar, o sistema apenas marca o estado e fica calado.
+    </p>
+
+    <div class="chain">
+      <div class="link">
+        <span class="n">1</span>
+        <span>
+          <b>A caixa tem "Mensagem de ausência" preenchida</b>
+          <p>É a mais esquecida. Campo vazio, nenhuma resposta sai — e o interruptor parece não funcionar.</p>
+        </span>
+      </div>
+      <div class="andsep">E</div>
+      <div class="link">
+        <span class="n">2</span>
+        <span>
+          <b>Ninguém já recebeu a ausência hoje nessa conversa</b>
+          <p>Uma vez por conversa por dia. O cliente que escreve cinco vezes recebe uma só.</p>
+        </span>
+      </div>
+      <div class="andsep">E</div>
+      <div class="link">
+        <span class="n">3</span>
+        <span>
+          <b>Nenhum agente respondeu nos últimos 5 minutos</b>
+          <p>Evita cortar uma conversa viva bem na virada do expediente.</p>
+        </span>
+      </div>
+      <div class="andsep">E</div>
+      <div class="link">
+        <span class="n">4</span>
+        <span>
+          <b>Não é campanha nem conversa de grupo</b>
+          <p>Nesses dois casos a ausência nunca sai, com ou sem unidade.</p>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Três coisas antes de ligar</h2>
+    <div class="warns">
+      <div class="warn">
+        <b>Alcança até caixa sem horário comercial</b>
+        <p>
+          Normalmente a ausência só dispara em caixa com "horário comercial" ligado. Com o
+          interruptor da unidade ligado, o feriado fecha a caixa <strong>mesmo assim</strong>. Uma
+          caixa que hoje nunca responde ausência vai passar a responder no feriado da filial.
+        </p>
+      </div>
+      <div class="warn">
+        <b>O fuso é o da unidade</b>
+        <p>
+          Se a unidade está em Cuiabá e a caixa em Brasília, a virada do feriado segue Cuiabá.
+          Vale conferir os dois antes de ligar.
+        </p>
+      </div>
+      <div class="warn">
+        <b>Duas regras no mesmo dia: vence quem fecha</b>
+        <p>
+          A ordem é data única › período › mensal › semanal › anual. No empate, ganha a que fecha —
+          o sistema nunca promete ao cliente que a filial está aberta.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="nogo">
+      <h3>Onde isso não chega</h3>
+      <p>Dois lugares continuam olhando só a grade da própria caixa e ignoram a agenda da unidade:</p>
+      <ul>
+        <li><b>O texto de disponibilidade do widget do site.</b> Ele recebe a grade da caixa e calcula no navegador do visitante.</li>
+        <li><b>O nó de espera dos fluxos e bots</b> com "respeitar horário comercial". Ele varre a grade semanal da caixa direto.</li>
+      </ul>
+      <p>
+        Na prática: no feriado da filial a ausência do WhatsApp sai, mas o widget do site pode
+        continuar dizendo que está online. Se isso importar no seu caso, dá para corrigir.
+      </p>
+    </div>
+  </section>
+
+  <footer class="method">
+    Comportamento conferido no código da branch <code>nicolas</code>: o interruptor grava
+    <code>units.applies_to_inboxes</code> (padrão desligado), a decisão do dia sai de
+    <code>Units::ScheduleEvaluator</code> e entra em <code>Inbox#out_of_office?</code>; as quatro
+    condições de envio estão em <code>MessageTemplates::HookExecutionService</code>. Nomes de
+    unidade, de caixas e a data são exemplos.
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var t    = document.getElementById('toggle');
+    var sOff = document.getElementById('strip-off');
+    var sOn  = document.getElementById('strip-on');
+    var oOff = document.getElementById('out-off');
+    var oOn  = document.getElementById('out-on');
+
+    function render(on) {
+      t.setAttribute('aria-pressed', String(on));
+      sOff.hidden = on;  sOn.hidden = !on;
+      oOff.hidden = on;  oOn.hidden = !on;
+    }
+
+    t.addEventListener('click', function () {
+      render(t.getAttribute('aria-pressed') !== 'true');
+    });
+
+    render(false);
+  })();
+</script>
+
+</body>
+</html>

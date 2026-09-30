@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 
@@ -59,6 +59,20 @@ const handleSendMessage = template => {
   emit('sendMessage', template);
   selectedTemplate.value = null;
 };
+
+// Template pertence ao WABA de UM numero. Trocar de caixa depois de escolher deixava a
+// escolha antiga de pe, e o envio ia com o template da outra caixa: a Meta recusa com
+// 132001 ("Template name does not exist in the translation") e o agente ve so um codigo.
+// Aconteceu na Fabrica em 10/09, nas duas direcoes, porque os dois numeros tem o MESMO
+// template com nomes diferentes (ae1a2_... e 54b13_...).
+watch(
+  () => props.inboxId,
+  () => {
+    selectedTemplate.value = null;
+    searchQuery.value = '';
+    showTemplatesMenu.value = false;
+  }
+);
 </script>
 
 <template>

@@ -133,6 +133,35 @@ describe('ReconnectService', () => {
   });
 
   describe('fetchConversations', () => {
+    it('usa o silêncio do stream quando não houve queda de socket', async () => {
+      reconnectService.getSecondsSinceDisconnect = vi.fn().mockReturnValue(0);
+      isAConversationRoute.mockReturnValue(true);
+      storeMock.getters.getAppliedConversationFiltersQuery = [];
+      storeMock.getters['customViews/getActiveConversationFolder'] = {
+        query: null,
+      };
+
+      await reconnectService.handleRouteSpecificFetch({ staleSeconds: 180 });
+
+      expect(storeMock.dispatch).toHaveBeenCalledWith('updateChatListFilters', {
+        page: 1,
+        cursor: null,
+        updatedWithin: 195,
+      });
+    });
+
+    it('limita o silêncio a três horas no gap-fill', async () => {
+      reconnectService.getSecondsSinceDisconnect = vi.fn().mockReturnValue(0);
+
+      await reconnectService.fetchConversations(18000);
+
+      expect(storeMock.dispatch).toHaveBeenCalledWith('updateChatListFilters', {
+        page: 1,
+        cursor: null,
+        updatedWithin: 10815,
+      });
+    });
+
     it('should update the filters with disconnected time and the threshold', async () => {
       reconnectService.getSecondsSinceDisconnect = vi.fn().mockReturnValue(100);
       await reconnectService.fetchConversations();
@@ -392,6 +421,69 @@ describe('ReconnectService', () => {
       expect(emitter.emit).toHaveBeenCalledWith(
         BUS_EVENTS.WEBSOCKET_RECONNECT_COMPLETED
       );
+    });
+
+    it('zera o tempo da queda depois de refazer a rota', async () => {
+      reconnectService.onDisconnect();
+      differenceInSeconds.mockReturnValue(100);
+      reconnectService.handleRouteSpecificFetch = vi.fn().mockResolvedValue();
+      reconnectService.revalidateCaches = vi.fn().mockResolvedValue();
+
+      await reconnectService.onReconnect();
+
+      expect(reconnectService.getSecondsSinceDisconnect()).toBe(0);
+    });
+
+    it('preserva uma nova queda ocorrida durante o gap-fill', async () => {
+      reconnectService.onDisconnect();
+      let finishFetch;
+      reconnectService.handleRouteSpecificFetch = vi.fn(
+        () =>
+          new Promise(resolve => {
+            finishFetch = resolve;
+          })
+      );
+      reconnectService.revalidateCaches = vi.fn().mockResolvedValue();
+
+      const reconnect = reconnectService.onReconnect();
+      reconnectService.onDisconnect();
+      const secondDisconnectTime = reconnectService.disconnectTime;
+      finishFetch();
+      await reconnect;
+
+      expect(reconnectService.disconnectTime).toBe(secondDisconnectTime);
+    });
+
+    it('não recarrega no online após uma queda antiga já reconciliada', async () => {
+      reconnectService.onDisconnect();
+      differenceInSeconds.mockReturnValue(10801);
+      reconnectService.handleRouteSpecificFetch = vi.fn().mockResolvedValue();
+      reconnectService.revalidateCaches = vi.fn().mockResolvedValue();
+
+      await reconnectService.onReconnect();
+      reconnectService.handleOnlineEvent();
+
+      expect(window.location.reload).not.toHaveBeenCalled();
+    });
+
+    it('usa a duração da queda no gap-fill antes de zerá-la', async () => {
+      reconnectService.onDisconnect();
+      differenceInSeconds.mockReturnValue(120);
+      isAConversationRoute.mockReturnValue(true);
+      storeMock.getters.getAppliedConversationFiltersQuery = [];
+      storeMock.getters['customViews/getActiveConversationFolder'] = {
+        query: null,
+      };
+      storeMock.dispatch.mockResolvedValue({});
+
+      await reconnectService.onReconnect();
+
+      expect(storeMock.dispatch).toHaveBeenCalledWith('updateChatListFilters', {
+        page: 1,
+        cursor: null,
+        updatedWithin: 135,
+      });
+      expect(reconnectService.getSecondsSinceDisconnect()).toBe(0);
     });
   });
 });

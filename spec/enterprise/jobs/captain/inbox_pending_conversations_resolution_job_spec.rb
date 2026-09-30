@@ -22,6 +22,24 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
   end
 
   context 'when captain_tasks is disabled' do
+    context 'when the conversation has no team' do
+      before do
+        allow_any_instance_of(Conversation).to receive(:team_required_for_resolution).and_call_original # rubocop:disable RSpec/AnyInstance
+        resolvable_pending_conversation.update!(team: nil)
+      end
+
+      it 'resolves it and continues the batch' do
+        following_conversation = create(:conversation, inbox: inbox, account: inbox.account, status: :pending,
+                                                       last_activity_at: 90.minutes.ago, team: nil)
+        following_conversation.update!(assignee_agent_bot: captain_assistant.mirror_agent_bot)
+
+        described_class.perform_now(inbox)
+
+        expect(resolvable_pending_conversation.reload).to be_resolved
+        expect(following_conversation.reload).to be_resolved
+      end
+    end
+
     it 'resolves pending conversations inactive for over 1 hour' do
       described_class.perform_now(inbox)
 
@@ -114,6 +132,19 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
       expect(resolvable_pending_conversation.reload.status).to eq('resolved')
     end
 
+    context 'when the conversation has no team' do
+      before do
+        allow_any_instance_of(Conversation).to receive(:team_required_for_resolution).and_call_original # rubocop:disable RSpec/AnyInstance
+        resolvable_pending_conversation.update!(team: nil)
+      end
+
+      it 'resolves the conversation' do
+        described_class.perform_now(inbox)
+
+        expect(resolvable_pending_conversation.reload).to be_resolved
+      end
+    end
+
     it 'creates a private note with the reason' do
       described_class.perform_now(inbox)
 
@@ -139,7 +170,7 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
       described_class.perform_now(inbox)
 
       public_message = resolvable_pending_conversation.messages.where(private: false).outgoing.last
-      expect(public_message.content).to eq(I18n.t('conversations.activity.auto_resolution_message'))
+      expect(public_message.content).to eq(I18n.t('conversations.activity.auto_resolution_message', locale: inbox.account.locale))
     end
 
     it 'adds the correct activity message after resolution' do
@@ -148,17 +179,13 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
       expected_content = I18n.t(
         'conversations.activity.captain.resolved_with_reason',
         user_name: captain_assistant.name,
-        reason: 'no outstanding questions'
+        reason: 'no outstanding questions',
+        locale: inbox.account.locale
       )
       expect(Conversations::ActivityMessageJob)
         .to have_been_enqueued.with(
-          resolvable_pending_conversation,
-          {
-            account_id: resolvable_pending_conversation.account_id,
-            inbox_id: resolvable_pending_conversation.inbox_id,
-            message_type: :activity,
-            content: expected_content
-          }
+          resolvable_pending_conversation.id,
+          hash_including(content: expected_content)
         )
     end
 
@@ -246,17 +273,13 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
       expected_content = I18n.t(
         'conversations.activity.captain.open_with_reason',
         user_name: captain_assistant.name,
-        reason: 'pending clarification from customer'
+        reason: 'pending clarification from customer',
+        locale: inbox.account.locale
       )
       expect(Conversations::ActivityMessageJob)
         .to have_been_enqueued.with(
-          resolvable_pending_conversation,
-          {
-            account_id: resolvable_pending_conversation.account_id,
-            inbox_id: resolvable_pending_conversation.inbox_id,
-            message_type: :activity,
-            content: expected_content
-          }
+          resolvable_pending_conversation.id,
+          hash_including(content: expected_content)
         )
     end
 
@@ -409,6 +432,19 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
       described_class.perform_now(inbox)
 
       expect(idle_ai_conversation.reload.custom_attributes).to have_key('aguardando_encerramento_desde')
+    end
+  end
+
+  context 'when finalizing a conversation without a team' do
+    before do
+      allow_any_instance_of(Conversation).to receive(:team_required_for_resolution).and_call_original # rubocop:disable RSpec/AnyInstance
+      resolvable_pending_conversation.update!(team: nil)
+    end
+
+    it 'resolves the conversation' do
+      described_class.new.send(:finalize_close, resolvable_pending_conversation, captain_assistant, 'trivial', 'concluida')
+
+      expect(resolvable_pending_conversation.reload).to be_resolved
     end
   end
 

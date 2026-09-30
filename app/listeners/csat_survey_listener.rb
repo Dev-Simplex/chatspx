@@ -3,6 +3,10 @@ class CsatSurveyListener < BaseListener
     conversation = extract_conversation_and_account(event)[0]
 
     return unless conversation.resolved?
+    # Conversa que existe só para levar disparo protegido não é atendimento: pesquisar
+    # satisfação logo depois de um código de autenticação seria constrangedor e sujaria a
+    # nota. Ver Spx::SecretTemplateParams#dispatch_only?.
+    return if Spx::SecretTemplateParams.dispatch_only?(conversation)
 
     begin
       CsatSurveyService.new(conversation: conversation).perform

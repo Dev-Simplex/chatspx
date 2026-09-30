@@ -37,7 +37,7 @@ export default {
 </script>
 
 <template>
-  <div class="h-full w-full p-6 col-span-6 overflow-y-auto">
+  <div class="min-w-0 w-full p-6 lg:col-span-6">
     <PageHeader
       :header-title="$t('TEAMS_SETTINGS.CREATE_FLOW.CREATE.TITLE')"
       :header-content="$t('TEAMS_SETTINGS.CREATE_FLOW.CREATE.DESC')"

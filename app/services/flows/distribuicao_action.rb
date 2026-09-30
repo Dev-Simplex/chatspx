@@ -27,9 +27,13 @@
 #   sem_politica— o time não tem política de distribuição ATIVA
 #   modo_off    — a política existe mas está em `online`/`off` (Policy#distribui? == false)
 #   sem_pool    — ninguém elegível (pool vazio/cap cheio); o Motor já registrou o motivo no razão
+#   ja_designada— o lead já tem designação viva no time; o Motor não redistribui por cima
+#   ja_tem_dono — a conversa já está atribuída a alguém do pool; idem
 #   erro_motor  — Result sem decisão E sem motivo: o serviço engoliu uma exceção no próprio
 #                 rescue (ele loga "[Distribuicao] conv=…"). Não é sucesso e não temos o erro.
 module Flows::DistribuicaoAction
+  SEM_LEAD_NOVO = %w[ja_designada ja_tem_dono].freeze
+
   private
 
   def distribuir(_action_params = nil)
@@ -50,6 +54,9 @@ module Flows::DistribuicaoAction
   def resolver(result, team)
     return registrar_no_log(result, team) if result.decidido || result.motivo == 'fila'
     raise Flows::StepSkip.new('sem_pool', "ninguém do pool do time #{team.name} estava disponível") if result.motivo == 'sem_pool'
+    # O lead já tem dono e o Motor se recusou a refazer a pergunta. É o caminho do cliente que
+    # volta ao menu: reportar como erro encheria o painel de alarme falso no caso mais comum.
+    raise Flows::StepSkip.new(result.motivo, "o lead já tem dono no time #{team.name}") if SEM_LEAD_NOVO.include?(result.motivo)
 
     raise Flows::StepSkip.new('erro_motor', 'o Motor de Distribuição não devolveu decisão (ver o log [Distribuicao])')
   end

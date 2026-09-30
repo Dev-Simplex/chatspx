@@ -12,7 +12,8 @@
       "COL_NAME": "Nome",
       "COL_STATUS": "Status",
       "COL_CATEGORY": "Categoria",
-      "COL_LANGUAGE": "Idioma"
+      "COL_LANGUAGE": "Idioma",
+      "RECLASSIFIED": "A Meta reclassificou: era {previous}."
     },
     "DELETE": {
       "TITLE": "Excluir modelo",
@@ -44,8 +45,7 @@
       "HEADER_DOCUMENT": "Documento",
       "HEADER_TEXT_PLACEHOLDER": "Texto do cabeçalho (pode usar {'{{'}1{'}}'})",
       "HEADER_EXAMPLE": "Valor de exemplo para a variável do cabeçalho",
-      "HEADER_MEDIA_PLACEHOLDER": "URL de mídia de exemplo (https://...)",
-      "HEADER_MEDIA_HINT": "Uma URL de exemplo usada pela Meta na aprovação.",
+      "HEADER_MEDIA_HINT": "Escolha o arquivo que a Meta vai analisar. Ele é enviado para a Meta e vira o exemplo de cabeçalho do template aprovado.",
       "BODY": "Corpo",
       "BODY_PLACEHOLDER": "Texto da mensagem. Use {'{{'}1{'}}'}, {'{{'}2{'}}'}... para variáveis.",
       "BODY_HINT": "Use {'{{'}1{'}}'}, {'{{'}2{'}}'} para variáveis.",
@@ -63,7 +63,12 @@
       "ADD_BUTTON": "Adicionar botão",
       "REQUIRED": "Obrigatório",
       "CANCEL": "Cancelar",
-      "SUBMIT": "Enviar para aprovação"
+      "SUBMIT": "Enviar para aprovação",
+      "HEADER_MEDIA_UPLOADING": "Enviando o arquivo para a Meta…",
+      "HEADER_MEDIA_READY": "Arquivo aceito pela Meta:",
+      "HEADER_MEDIA_REQUIRED": "Escolha um arquivo para o cabeçalho de mídia.",
+      "HEADER_MEDIA_UPLOAD_ERROR": "A Meta recusou o arquivo. Tente outro.",
+      "HEADER_MEDIA_DISABLED": "Cabeçalho de mídia exige o App ID da Meta preenchido na lista de templates."
     },
     "PREVIEW": {
       "TITLE": "Pré-visualização",
@@ -81,6 +86,15 @@
       "SAVE": "Salvar visibilidade",
       "SAVE_SUCCESS": "Visibilidade dos modelos atualizada.",
       "SAVE_ERROR": "Não foi possível atualizar a visibilidade dos modelos."
+    },
+    "SECRET": {
+      "COL": "Sigiloso",
+      "HELP": "O valor das variaveis deste modelo (codigo, link de assinatura) nao fica visivel para quem atende. O envio continua normal para o cliente."
+    },
+    "APP_ID": {
+      "LABEL": "App ID da Meta",
+      "PLACEHOLDER": "1234567890123456",
+      "HINT": "Necessário só para templates com cabeçalho de imagem, vídeo ou documento: o arquivo é enviado para esse app. Você encontra no Meta for Developers, no app ligado a esta conta do WhatsApp."
     }
   }
 }

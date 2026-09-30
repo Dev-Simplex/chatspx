@@ -27,13 +27,16 @@ describe('#mutations', () => {
       const state = { metrics: {} };
       mutations[types.SET_CSAT_RESPONSE_METRICS](state, {
         total_count: 29,
+        total_response_count_for_rate: 40,
         ratings_count: { 1: 10, 2: 10, 3: 3, 4: 3, 5: 3 },
         total_sent_messages_count: 120,
       });
       expect(state.metrics).toEqual({
         totalResponseCount: 29,
+        totalResponseCountForRate: 40,
         ratingsCount: { 1: 10, 2: 10, 3: 3, 4: 3, 5: 3 },
         totalSentMessagesCount: 120,
+        signals: [],
       });
     });
 
@@ -44,8 +47,10 @@ describe('#mutations', () => {
       });
       expect(state.metrics).toEqual({
         totalResponseCount: 0,
+        totalResponseCountForRate: 0,
         ratingsCount: { 1: 5, 2: 0, 3: 0, 4: 0, 5: 0 },
         totalSentMessagesCount: 0,
+        signals: [],
       });
     });
   });

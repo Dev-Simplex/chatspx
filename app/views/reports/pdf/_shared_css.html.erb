@@ -3,7 +3,10 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
-  background: #ffffff;
+  /* Mesmo cinza da `.page`: ela tem a altura do CONTEUDO, entao na ultima pagina o
+     fundo parava no meio e o resto da folha saia branco. O fundo do body e pintado
+     em todas as paginas (print_background: true). */
+  background: #f9fafb;
   color: #111b21;
   font-family: 'Inter', -apple-system, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
   font-size: 11px;

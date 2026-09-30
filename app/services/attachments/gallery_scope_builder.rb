@@ -33,6 +33,7 @@ class Attachments::GalleryScopeBuilder
                       .where(conversations: { inbox_id: inbox_ids })
     scope = exclude_incoming_whatsapp(scope)
     scope = exclude_isolated_conversations(scope)
+    scope = TeamMessageIsolation.exclude_hidden(scope, @user, @account)
     # EA-01: anexo do trecho cortado não aparece na faixa de mídias nem entra no .zip do
     # download em massa. A coluna da data aqui é a da MENSAGEM (o anexo herda o instante dela).
     scope = Conversations::HandoverCut.filter_messages_across(scope, @user, @account)
@@ -78,6 +79,7 @@ class Attachments::GalleryScopeBuilder
                     .joins(conversation: :inbox)
                     .where(conversations: { inbox_id: inbox_ids })
     scope = exclude_isolated_conversations(scope)
+    scope = TeamMessageIsolation.exclude_hidden(scope, @user, @account)
     scope = filter_inbox(scope)
     scope = filter_contact(scope)
     scope = filter_message_date_range(scope)

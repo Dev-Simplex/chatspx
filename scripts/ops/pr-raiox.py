@@ -3,6 +3,7 @@
 
     scripts/ops/pr-raiox.py 93
     scripts/ops/pr-raiox.py 93 --frota      # consulta tambem as VMs (mais lento)
+    scripts/ops/pr-raiox.py 93 hotfix       # algo quebrou em producao (ou --hotfix)
 
 Responde, em 10 segundos, as perguntas que decidem se um PR pode subir:
 o que o merge REALMENTE traz, o que o deploy vai exigir e onde a frota esta.
@@ -35,6 +36,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 
@@ -56,6 +59,20 @@ FROTA = [
     ("SENTINELA", "54.166.220.138"),
     ("FABRICA", "3.87.182.184"),
     ("AGN", "13.221.167.143"),
+    # Cliente novo desde 10/09/2026. Ficou fora desta tabela no primeiro dia e, por isso, fora de
+    # quatro deploys seguidos: quem conferia a frota por aqui nem sabia que ela existia.
+    ("CDSOLAR", "13.218.193.75"),
+]
+# Homologacao e VMs dos devs (fase 6 do /promover-pr). Aqui a branch de cada VM
+# NAO e a `producao`, e nada chega nelas sozinho: nao existe auto-pull. Em
+# 18/09/2026 os 6 PRs do dia entraram pela `homologacao` e a .232 ficou 52
+# commits atras. Nas VMs dos devs o criterio e "contem o commit", nao "mesmo
+# commit": elas tem trabalho do dev por cima. A VM do Walisson (.46) fica fora a
+# pedido dele.
+VMS_FASE6 = [
+    ("HOMOLOGACAO", "192.168.8.232", "homologacao"),
+    ("THALYSSON", "192.168.8.167", "thalysson"),
+    ("NICOLAS", "192.168.8.98", "nicolas"),
 ]
 # A chave e procurada em tres lugares, nesta ordem. O motivo esta na regra do
 # OpenSSH: ele recusa chave privada com bit de grupo ou de outros QUANDO o dono do
@@ -122,7 +139,7 @@ def pr_info(numero: int) -> dict:
     return json.loads(saida)
 
 
-def analisa(numero: int, checar_frota: bool) -> int:
+def analisa(numero: int, checar_frota: bool, hotfix: bool = False) -> int:
     sh(["git", "fetch", "origin", "--prune", "-q"], timeout=120)
     pr = pr_info(numero)
     base, head = f"origin/{pr['baseRefName']}", f"origin/{pr['headRefName']}"
@@ -230,31 +247,113 @@ def analisa(numero: int, checar_frota: bool) -> int:
     if checar_frota:
         titulo("4. Onde a frota esta (o que realmente roda no cliente)")
         aqui = _enderecos_desta_maquina()
+        # Desde 18/09/2026 o restart e do timer das 20:00 de Cuiaba
+        # (deployment/chatwoot-restart-noturno.*): o commit no disco ja nao diz o
+        # que o cliente ve. Por isso o mesmo SSH traz tambem se os servicos servem o
+        # disco, o estado do timer e a ultima linha do log dele. "Serve o disco" e a
+        # regua do chatwoot-restart-noturno.sh: todo chatwoot-web* e chatwoot-worker*
+        # ativo subiu depois da ultima vez que a branch andou. Vale o mais antigo,
+        # porque o web pode ter caido e subido sozinho de dia com os workers ainda no
+        # codigo velho. Com varios units o `systemctl show --value` separa os valores
+        # por linha em branco, dai o `awk NF`. O local tambem le o
+        # /home/chatwoot/chatwoot: rodado de um worktree, o HEAD do diretorio atual e
+        # o do worktree, nao o que o web serve.
+        cmd = ("cd /home/chatwoot/chatwoot || exit 1; b=$(git rev-parse --abbrev-ref HEAD); "
+               "printf '%s|%s|%s|%s|%s|%s\\n' \"$(git rev-parse --short=10 HEAD)\" "
+               "\"$(git reflog -1 --date=unix --format=%gd \"$b\")\" "
+               "\"$(systemctl list-units --type=service --state=active --no-legend --plain 'chatwoot-web*' "
+               "'chatwoot-worker*' | awk '{print $1}' | xargs -r systemctl show -p ActiveEnterTimestamp --value "
+               "--timestamp=unix | tr -d @ | awk NF | sort -n | head -n1)\" "
+               "\"$(systemctl show chatwoot-restart-noturno.timer -p LoadState --value)\" "
+               "\"$(systemctl is-active chatwoot-restart-noturno.timer)\" "
+               "\"$(tail -n1 log/restart-noturno.log 2>/dev/null)\"")
         for nome, ip in FROTA:
             if ip in aqui:
-                commit = sh(["git", "rev-parse", "--short=10", "HEAD"])
+                saida, falha = sh(["bash", "-c", cmd]), "sem resposta"
             elif nome == "PRODUCAO":
                 # A .229 nao usa a chave da AWS (o acesso dela e por senha), entao de
                 # fora ela so responde se a maquina de onde voce roda ja tiver chave
                 # publica autorizada la. Quando nao tem, dizer "nao medida" e melhor
                 # do que herdar o HEAD local e chamar isso de producao.
-                commit = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=8",
-                             "-o", "BatchMode=yes", f"chatwoot@{ip}",
-                             "cd /home/chatwoot/chatwoot; git rev-parse --short=10 HEAD"],
-                            timeout=30) or "nao medida daqui"
+                saida = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=8",
+                            "-o", "BatchMode=yes", f"chatwoot@{ip}", cmd], timeout=30)
+                falha = "nao medida daqui"
             else:
-                commit = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
-                             "-i", PEM, f"ubuntu@{ip}",
-                             "sudo -n -u chatwoot bash -lc 'cd /home/chatwoot/chatwoot; git rev-parse --short=10 HEAD'"],
-                            timeout=45) or "sem resposta"
+                saida = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
+                            "-i", PEM, f"ubuntu@{ip}", f"sudo -n -u chatwoot bash -lc {shlex.quote(cmd)}"],
+                           timeout=45)
+                falha = "sem resposta"
+            partes = saida.splitlines()[-1].split("|") if saida else []
+            if len(partes) != 6 or not partes[0]:
+                commit, extra = falha, ""
+            else:
+                commit, branch_andou, mais_antigo, timer_load, timer_ativo, ultima = partes
+                andou, subiu = re.search(r"@\{(\d+)\}", branch_andou), re.search(r"(\d+)", mais_antigo)
+                timer = "ativo" if timer_ativo == "active" else "ausente" if timer_load == "not-found" else "inativo"
+                if not (andou and subiu):
+                    serve = "?"
+                elif int(subiu.group(1)) >= int(andou.group(1)):
+                    serve = "sim"
+                else:
+                    serve = "nao (carrega as 20:00)" if timer == "ativo" else "nao (so com restart)"
+                extra = f"  serve o disco: {serve} · timer: {timer}"
+                noite = ultima.split()
+                if len(noite) >= 2:
+                    extra += f" · ultima noite: {noite[1]} em {noite[0][:10]}"
             marca = VERDE if commit == prod else AMARELO
-            print(f"  {nome:<11} {marca}{commit}{RESET}")
+            print(f"  {nome:<11} {marca}{commit}{RESET}{extra}")
             if commit == "nao medida daqui":
                 alertas.append(f"{nome} ({ip}) nao respondeu desta maquina: o numero dela NAO esta "
                                "nesta tabela. Meca de la antes de concluir que a frota esta alinhada.")
             elif commit not in (prod, "sem resposta"):
                 alertas.append(f"{nome} esta em {commit}, diferente de origin/producao ({prod}). "
                                "Deployar por ff pode desfazer o que so existe la — conferir antes.")
+
+        # ── 5. homologacao e VMs dos devs ───────────────────────────────────
+        # So leitura: nada de fetch, e --no-optional-locks no status para nao
+        # disputar o index.lock com o dev que esta trabalhando ali. Se o objeto
+        # do commit nem existe na VM, o HEAD dela nao pode conte-lo: da NAO sem
+        # precisar de fetch. O public/version.json e reescrito a cada deploy e
+        # nao e trabalho de ninguem, por isso nao conta como arquivo em edicao.
+        titulo("5. Homologacao e VMs dos devs")
+        sha = sh(["git", "rev-parse", "origin/producao"])
+        cmd = ("cd /home/chatwoot/chatwoot || exit 1; "
+               f"if git cat-file -e '{sha}^{{commit}}' 2>/dev/null && git merge-base --is-ancestor {sha} HEAD; "
+               "then c=sim; else c=nao; fi; "
+               "e=$(git --no-optional-locks status --porcelain --untracked-files=no | grep -cv ' public/version.json$'); "
+               "echo $(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short=10 HEAD) $c $e "
+               "$(git rev-list --count HEAD --not --remotes)")
+        atrasadas = []
+        for nome, ip, branch in VMS_FASE6:
+            if ip in aqui:
+                saida = sh(["bash", "-c", cmd], timeout=30)
+            else:
+                saida = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=8",
+                            "-o", "BatchMode=yes", f"chatwoot@{ip}", cmd], timeout=30)
+            campos = saida.split()
+            if len(campos) != 5:
+                print(f"  {nome:<11} {AMARELO}nao medida daqui{RESET}")
+                continue
+            atual, head_vm, contem, editados, so_disco = campos
+            if contem == "sim":
+                marca, falta = VERDE, "em dia"
+            else:
+                atrasadas.append(nome)
+                marca = AMARELO
+                if editados != "0":
+                    falta = f"BLOQUEADA: {editados} arquivo(s) em edicao"
+                elif nome == "HOMOLOGACAO":
+                    falta = "atras: ff para o mesmo commit"
+                else:
+                    falta = "atras: merge da producao"
+            onde = atual if atual == branch else f"{atual} (esperada: {branch})"
+            print(f"  {nome:<11} {marca}{head_vm}{RESET}  {onde} · {falta}")
+            if so_disco != "0":
+                alertas.append(f"{nome} tem {so_disco} commit(s) que so existem no disco dela, nenhum remote "
+                               "tem. Backup antes de mexer (fase 6).")
+        if atrasadas:
+            alertas.append(f"Homologacao/devs atras: {', '.join(atrasadas)}. "
+                           "A fase 6 do /promover-pr oferece alinhar.")
 
     # ── veredito ────────────────────────────────────────────────────────────
     titulo("VEREDITO")
@@ -268,6 +367,8 @@ def analisa(numero: int, checar_frota: bool) -> int:
             print(f"    ▸ {a}")
     if not bloqueios and not alertas:
         print(f"  {VERDE}Nada mecanico impede o merge.{RESET}")
+    if hotfix:
+        print(f"  {AMARELO}HOTFIX{RESET}: restart na hora so nas VMs quebradas; o resto carrega as 20:00.")
 
     print(f"""
   {AZUL}O que este script NAO faz, e continua sendo seu trabalho:{RESET}
@@ -281,16 +382,27 @@ def analisa(numero: int, checar_frota: bool) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Raio-X de um ou mais PRs antes do merge.")
-    p.add_argument("prs", type=int, nargs="+", help="numero(s) do(s) PR(s)")
+    p.add_argument("prs", nargs="+", help="numero(s) do(s) PR(s); a palavra hotfix pode vir junto")
     p.add_argument("--frota", action="store_true", help="consultar tambem as VMs (mais lento)")
-    args = p.parse_args()
+    p.add_argument("--hotfix", action="store_true", help="algo quebrou em producao: restart na hora nas VMs quebradas")
+    # O /promover-pr repassa o $ARGUMENTS inteiro (ex.: "190 hotfix --frota"), entao a palavra
+    # hotfix chega misturada aos numeros; parse_intermixed_args aceita as opcoes em qualquer ordem.
+    args = p.parse_intermixed_args()
+    hotfix = args.hotfix or any(a.lower() == "hotfix" for a in args.prs)
+    prs = [a for a in args.prs if a.lower() != "hotfix"]
+    invalidos = [a for a in prs if not a.isdigit()]
+    if invalidos:
+        p.error(f"{', '.join(invalidos)}: nao e numero de PR nem 'hotfix'")
+    if not prs:
+        p.error("informe ao menos um numero de PR")
+    args.prs = [int(a) for a in prs]
 
     # Com varios PRs, a frota e as branches sao as MESMAS para todos: consultar
     # uma vez por PR seria N vezes o mesmo SSH. Entao so o ultimo consulta.
     problemas = 0
     for i, numero in enumerate(args.prs):
         ultimo = i == len(args.prs) - 1
-        problemas += analisa(numero, args.frota and ultimo)
+        problemas += analisa(numero, args.frota and ultimo, hotfix and ultimo)
 
     if len(args.prs) > 1:
         titulo(f"LOTE DE {len(args.prs)} PRs")

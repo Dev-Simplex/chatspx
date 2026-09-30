@@ -42,4 +42,16 @@ module TeamMessageIsolation
 
     user.isolation_exempt_inbox_ids_for(inbox.account_id, ISOLATION_TYPE).include?(inbox.id)
   end
+
+  # Espelho SQL de `apply?` para leituras que unem messages, conversations e inboxes.
+  # Recebe o viewer explicitamente porque o job não tem Current.user.
+  def exclude_hidden(relation, user, account)
+    exempt_ids = user.is_a?(User) ? user.isolation_exempt_inbox_ids_for(account.id, ISOLATION_TYPE) : []
+    applies = Inbox.isolation_applies_sql(:team_message_isolation)
+    relation.where(
+      "NOT #{applies} OR conversations.inbox_id IN (:exempt_ids) " \
+      'OR messages.team_id IS NULL OR messages.team_id = conversations.team_id',
+      exempt_ids: exempt_ids
+    )
+  end
 end

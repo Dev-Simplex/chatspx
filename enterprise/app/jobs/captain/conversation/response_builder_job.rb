@@ -1,4 +1,31 @@
 class Captain::Conversation::ResponseBuilderJob < ApplicationJob
+  # Trecho de endereço: logradouro + o que vem depois, até a pontuação. Fechado em ponto,
+  # ponto-e-vírgula ou fim de linha pra não engolir a frase seguinte.
+  LOGRADOURO = /(?:av\.?|avenida|rua|travessa|alameda|rodovia)\s+[A-ZÀ-Ú0-9][^.;\n]{3,80}/i
+  # Quem a frase diz que mora ali. Sem isto a guarda trocaria o endereço do IMÓVEL, que é
+  # informação legítima em locação.
+  DONO_ESCRITORIO = /escrit[óo]rio|imobili[áa]ria|nosso endere[çc]o|(?:a gente|n[óo]s)\s+fic\w+|ficamos\s+(?:na|no|em)|estamos\s+(?:localizad\w+|na|no|em)/i
+  # Quanto se olha pra trás do logradouro à procura do dono. Curto de propósito: o padrão é
+  # "escritório fica na X", com o marcador colado.
+  JANELA_DONO = 70
+  # A pergunta é sobre onde a EMPRESA fica. "de vocês", "aí", "da Tozi" — a forma como o
+  # cliente pergunta, não como a IA responde.
+  PERGUNTA_DE_ENDERECO = Regexp.union(
+    /(?:qual|onde|me manda|manda|passa|como chego|como fa[çc]o pra chegar)[^?]{0,40}(?:endere[çc]o|fica|localiza|ficam)/i,
+    /endere[çc]o de voc[êe]s/i,
+    /onde voc[êe]s (?:ficam|fica|est[ãa]o)/i
+  )
+  # Pergunta sobre IMÓVEL não é pergunta sobre a empresa. Sem este veto, "qual o endereço da
+  # casa?" faria a guarda trocar o endereço do imóvel — o estrago que ela existe pra evitar.
+  SOBRE_IMOVEL = /\b(?:casa|apartamento|apto|kitnet|kit|im[óo]vel|terreno|sobrado|sala|ponto|galp[ãa]o|ch[áa]cara|c[óo]d(?:igo)?)\b/i
+  # A pergunta cita a EMPRESA. Sem isso, "qual o endereço?" no meio de uma conversa de locação é
+  # pergunta sobre o imóvel que acabou de ser mostrado, e trocar a resposta mandaria o cliente ao
+  # escritório em vez da casa. Borda por [[:alpha:]] porque `\b` não enxerga o "í" de "aí".
+  DA_EMPRESA = /(?<![[:alpha:]])(?:voc[êe]s|a[íi]|escrit[óo]rio|loja|empresa|sede|imobili[áa]ria)(?![[:alpha:]])/i
+  # Fim de frase de verdade: ponto/!/? seguido de espaço e MAIÚSCULA, ou quebra de linha.
+  # "Av. das" não casa (minúscula depois do ponto), que é o que salva a abreviação.
+  FIM_DE_FRASE = /[.!?]\s+(?=[A-ZÀ-Ú])|\n/
+
   MAX_MESSAGE_LENGTH = 10_000
   # Tolerância ao comparar o preço citado na frase com o do imóvel do link — a mesma ~2% da
   # medição do caso 42952. Absorve o arredondamento que a IA faz ("520 mil" para 519.900).
@@ -98,6 +125,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     nota_episodio = nota_de_continuidade
     history.unshift({ content: nota_episodio, role: 'user' }) if nota_episodio.present?
 
+    # O que as ferramentas devolveram neste atendimento. Também PREÂMBULO, e depois do
+    # unshift acima de propósito: a linha do tempo do atendimento fica antes da nota de
+    # reentrada, que é sobre atendimentos ANTERIORES.
+    nota_tools = nota_de_ferramentas
+    history.unshift({ content: nota_tools, role: 'user' }) if nota_tools.present?
+
     # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
     # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
     # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
@@ -137,6 +170,23 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return unless janela_por_episodio?
 
     Captain::Conversation::EpisodeContinuityNote.new(conversation: @conversation).text
+  end
+
+  # Retorno de ferramenta não é `Message`, então some do histórico no turno seguinte e o
+  # agente passa a afirmar de memória o que já tinha consultado. A nota devolve esse dado
+  # recortado no MESMO atendimento que o histórico usa.
+  def nota_de_ferramentas
+    Captain::Conversation::ToolContextNote.new(
+      conversation: @conversation, desde: inicio_do_episodio
+    ).text
+  end
+
+  # A fronteira só existe quando a conta usa janela por episódio; sem ela a nota fica sem
+  # corte e o `desde: nil` cobre a conversa inteira, que é o mesmo alcance do histórico.
+  def inicio_do_episodio
+    return unless janela_por_episodio?
+
+    Captain::Conversation::EpisodeBoundary.new(conversation: @conversation).atual&.started_at
   end
 
   # Opt-in por conta, default desligado (produto multi-tenant — nunca hardcode de cliente).
@@ -638,6 +688,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return content if content.blank?
 
     content = fix_property_links(content)
+    content = fix_office_address(content)
     content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
            .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
            .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
@@ -649,6 +700,108 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/ +,/, ',')                 # " ," -> ","
            .gsub(/,\s*([.!?;:])/, '\1')      # ", ." -> "."
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
+  end
+
+  # Endereço do escritório dito de memória. A `buscar_unidades` existe e responde certo quando
+  # é chamada — o problema é que ela nem sempre é chamada, e conduta não força chamada de
+  # ferramenta. Medido na Tozi em 90 dias: das 49 vezes em que a IA deu o endereço do
+  # escritório, 22 estavam ERRADAS, e nunca o mesmo endereço — Embaúbas 1320, Embaúbas 678,
+  # Avencas 1581, Tarumãs 3562, Julio Campos 1470… Cada uma é um cliente mandado a um lugar
+  # que não existe; na conv 41549 ele estava saindo de casa naquele momento.
+  #
+  # Mesma família do fix_property_links acima: a saída é conferida contra o dado que o sistema
+  # tem, em vez de se confiar que o modelo lembrou. A diferença é que aqui há resposta certa
+  # conhecida (a unidade cadastrada), então o endereço é CORRIGIDO, não removido.
+  #
+  # Opt-in por dado: conta sem unidade ativa não é tocada.
+  def fix_office_address(content)
+    return content if content.blank? || !content.match?(LOGRADOURO)
+
+    unidade = unidade_da_conta
+    return content if unidade.nil? || unidade.address.blank?
+
+    trocar_logradouros(content, unidade)
+  end
+
+  def trocar_logradouros(content, unidade)
+    certo = logradouro_da_unidade(unidade)
+    # Quando a PERGUNTA foi sobre o endereço da empresa, todo logradouro da resposta é
+    # resposta a ela — não é preciso procurar marcador na frase.
+    perguntaram = perguntaram_o_endereco_da_empresa?
+    content.gsub(LOGRADOURO) do |trecho|
+      anterior = Regexp.last_match.pre_match
+      next trecho unless (perguntaram && !fala_de_imovel?(anterior)) || dono_do_endereco?(anterior)
+      next trecho if trecho.match?(certo)
+
+      Rails.logger.warn("[fix_office_address] conv=#{@conversation.id} endereço do escritório corrigido")
+      unidade.address
+    end
+  end
+
+  # A resposta nem sempre diz de quem é o endereço: perguntado "qual o endereço de vocês?", a
+  # IA responde só "Avenida das Embaúbas, 1030 — quer que eu mande a localização?". Não há
+  # marcador ANTES do logradouro, e a primeira versão desta guarda deixava passar — medido em
+  # produção depois do merge: 3 de 6 respostas erradas escapavam por aqui.
+  #
+  # Quem diz de quem é o endereço, nesse caso, é a PERGUNTA. Só vale quando ela é sobre a
+  # empresa e não cita imóvel: "qual o endereço da casa?" é outra coisa, e trocar aquele
+  # endereço mandaria a pessoa para o lugar errado.
+  def perguntaram_o_endereco_da_empresa?
+    pergunta = @conversation.messages.where(message_type: :incoming, private: false)
+                            .order(:id).last&.content.to_s
+    return false if pergunta.blank? || pergunta.match?(SOBRE_IMOVEL)
+
+    pergunta.match?(PERGUNTA_DE_ENDERECO) && cita_a_empresa?(pergunta)
+  end
+
+  # "de vocês", "aí", "o escritório", ou o nome da conta ("onde fica a Tozi?").
+  def cita_a_empresa?(pergunta)
+    return true if pergunta.match?(DA_EMPRESA)
+
+    nome = @conversation.account&.name.to_s[/[[:alpha:]]{3,}/]
+    nome.present? && pergunta.match?(/(?<![[:alpha:]])#{Regexp.escape(nome)}(?![[:alpha:]])/i)
+  end
+
+  # Mesmo com a pergunta sobre a empresa, frase que fala de casa ou imóvel é sobre o imóvel.
+  def fala_de_imovel?(anterior)
+    frase_ate_o_logradouro(anterior).match?(SOBRE_IMOVEL)
+  end
+
+  # O que vem ANTES do logradouro diz de quem ele é. Duas armadilhas resolvidas aqui:
+  #
+  # 1. Não dá pra quebrar o texto em frases pelo ponto: `Av.` é abreviação, e o split partia
+  #    "Ficamos na Av. das Embaúbas" no meio, escondendo o dono da frase.
+  # 2. A janela é cortada no último fim de frase REAL (ponto seguido de maiúscula, ou quebra
+  #    de linha) — senão "…passar no nosso escritório. A casa fica na Rua X" faria a guarda
+  #    trocar o endereço do IMÓVEL, que é o estrago que ela existe pra evitar.
+  def dono_do_endereco?(anterior)
+    frase_ate_o_logradouro(anterior).match?(DONO_ESCRITORIO)
+  end
+
+  def frase_ate_o_logradouro(anterior)
+    janela = anterior.to_s[-JANELA_DONO..] || anterior.to_s
+    janela.split(FIM_DE_FRASE).last.to_s
+  end
+
+  # A conta pode ter várias unidades (rede com filiais). Corrigir para uma delas quando há
+  # várias seria escolher por conta própria a loja errada — então a guarda só age quando não
+  # há ambiguidade: uma unidade ativa, um endereço possível.
+  def unidade_da_conta
+    unidades = ::Unit.where(account_id: @conversation.account_id, active: true).limit(2).to_a
+    unidades.size == 1 ? unidades.first : nil
+  rescue StandardError => e
+    Rails.logger.warn("[fix_office_address] unidade indisponível: #{e.class}: #{e.message}")
+    nil
+  end
+
+  # Basta o logradouro da unidade aparecer na frase pra ela ser considerada certa: a IA
+  # abrevia ("Av." x "Avenida"), corta o CEP e troca a ordem, e exigir o endereço literal
+  # reescreveria resposta correta.
+  def logradouro_da_unidade(unidade)
+    nucleo = unidade.address.to_s[/(?:av\.?|avenida|rua|travessa|alameda|rodovia)\s+([^,\-]{3,40})/i, 1]
+    return /\A\z/ if nucleo.blank?
+
+    /#{Regexp.escape(nucleo.strip)}/i
   end
 
   # A URL de um imóvel só vem da buscar_imovel (build_url, que resolve o link pela

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import AccountFeaturesAPI from 'dashboard/api/accountFeatures';
+import { useBranding } from 'shared/composables/useBranding';
 import SectionLayout from './SectionLayout.vue';
 import Switch from 'next/switch/Switch.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -14,6 +15,7 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 // uma lista mantida no front vira segunda fonte de verdade e sai de sincronia, que é exatamente o
 // que aconteceu com `dashboard/featureFlags.js`, hoje já defasado em relação ao YAML.
 const { t } = useI18n();
+const { replaceInstallationName } = useBranding();
 
 const carregando = ref(true);
 const salvando = ref(null);
@@ -119,9 +121,10 @@ const alternar = async feature => {
         >
           <div class="flex flex-col">
             <span class="text-sm font-medium text-n-slate-12">
-              {{ feature.display_name || feature.name }}
+              {{
+                replaceInstallationName(feature.display_name || feature.name)
+              }}
             </span>
-            <span class="text-xs text-n-slate-11">{{ feature.name }}</span>
             <span v-if="aviso(feature)" class="mt-1 text-xs text-n-amber-11">
               {{ aviso(feature) }}
             </span>

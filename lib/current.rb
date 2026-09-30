@@ -26,6 +26,11 @@ module Current
   # Puma reusa threads → quem setar TEM que limpar num `ensure` (precedente:
   # Macros::ExecutionService).
   thread_mattr_accessor :takeover_approval_in_progress
+  # Encerramento de conversa que nasceu de um disparo sigiloso. Existe só para o
+  # ActivityMessageHandler não descrever o motivo errado: sem este marcador ele cai no ramo
+  # de auto-resolução por inatividade e escreve "por ter 0 minutos de inatividade", porque
+  # `auto_resolve_after` é nulo. Thread-local, entao quem seta LIMPA num `ensure`.
+  thread_mattr_accessor :secret_dispatch_resolve
 
   def self.reset
     Current.user = nil
@@ -37,5 +42,6 @@ module Current
     Current.funnel_automation_depth = nil
     Current.flow_depth = nil
     Current.takeover_approval_in_progress = nil
+    Current.secret_dispatch_resolve = nil
   end
 end

@@ -61,6 +61,53 @@ RSpec.describe Attachments::GalleryScopeBuilder, type: :service do
     expect(ids).not_to include(old.id)
   end
 
+  describe 'team message isolation' do
+    let(:team_a) { create(:team, account: account, allow_auto_assign: false) }
+    let(:team_b) { create(:team, account: account, allow_auto_assign: false) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox, team: team_a) }
+
+    def create_team_message(team)
+      message = create(:message, account: account, conversation: conversation, inbox: inbox,
+                                 content: "veja https://exemplo.com/#{team.id}")
+      message.update!(team_id: team.id)
+      attachment = message.attachments.new(account_id: account.id, file_type: :image)
+      attachment.file.attach(io: Rails.root.join('spec/assets/sample.png').open, filename: "#{team.id}.png", content_type: 'image/png')
+      attachment.save!
+      [message, attachment]
+    end
+
+    before { inbox.update!(team_message_isolation: true) }
+
+    it 'hides media and links from another team but keeps the current team' do
+      own_message, own_attachment = create_team_message(team_a)
+      hidden_message, hidden_attachment = create_team_message(team_b)
+
+      expect(builder.deduped_scope.pluck(:id)).to contain_exactly(own_attachment.id)
+      expect(builder.links_scope.pluck(:id)).to contain_exactly(own_message.id)
+      expect(hidden_message.id).not_to eq(own_message.id)
+      expect(hidden_attachment.id).not_to eq(own_attachment.id)
+    end
+
+    it 'shows both teams to an exempt agent even without Current.user' do
+      own_message, own_attachment = create_team_message(team_a)
+      hidden_message, hidden_attachment = create_team_message(team_b)
+      create(:inbox_isolation_exemption, inbox: inbox, user: agent, isolation_type: 'team_message')
+      Current.reset
+
+      expect(builder.deduped_scope.pluck(:id)).to contain_exactly(own_attachment.id, hidden_attachment.id)
+      expect(builder.links_scope.pluck(:id)).to contain_exactly(own_message.id, hidden_message.id)
+    end
+
+    it 'shows both teams when the flag is off' do
+      own_message, own_attachment = create_team_message(team_a)
+      other_message, other_attachment = create_team_message(team_b)
+      inbox.update!(team_message_isolation: false)
+
+      expect(builder.deduped_scope.pluck(:id)).to contain_exactly(own_attachment.id, other_attachment.id)
+      expect(builder.links_scope.pluck(:id)).to contain_exactly(own_message.id, other_message.id)
+    end
+  end
+
   # Isolamento por agente: num inbox isolado a galeria não pode vazar a mídia/link
   # da conversa de OUTRO agente (a superfície de conta não passa pelo guard).
   describe 'agent conversation isolation' do

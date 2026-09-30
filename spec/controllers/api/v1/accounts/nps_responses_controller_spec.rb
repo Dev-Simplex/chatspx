@@ -4,6 +4,22 @@ RSpec.describe 'NPS Responses API', type: :request do
   let(:account) { create(:account) }
   let(:administrator) { create(:user, account: account, role: :administrator) }
 
+  describe 'GET /api/v1/accounts/{account.id}/nps_responses/download' do
+    it 'escapes formula-like comments and contact names' do
+      formula = '=HYPERLINK("http://x","y")'
+      contact = create(:contact, account: account, name: formula)
+      create(:nps_response, account: account, contact: contact, comment: formula)
+
+      get "/api/v1/accounts/#{account.id}/nps_responses/download",
+          headers: administrator.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      row = CSV.parse(response.body, headers: true).first
+      expect(row['Comment']).to eq("'#{formula}")
+      expect(row['Contact Name']).to eq("'#{formula}")
+    end
+  end
+
   def get_metrics(params = {})
     get "/api/v1/accounts/#{account.id}/nps_responses/metrics",
         params: params, headers: administrator.create_new_auth_token, as: :json
@@ -16,6 +32,18 @@ RSpec.describe 'NPS Responses API', type: :request do
         get "/api/v1/accounts/#{account.id}/nps_responses/metrics"
         expect(response).to have_http_status(:unauthorized)
       end
+    end
+
+    it 'counts only label blocks and matches the breakdown' do
+      create(:nps_response, account: account, status: :dismissed,
+                            dismiss_reason: 'label_blocked', blocked_by_label: 'no-nps')
+      create(:nps_response, account: account, status: :dismissed, dismiss_reason: 'other_topic')
+      create(:nps_response, account: account, status: :dismissed, dismiss_reason: 'invalid_responses')
+
+      body = get_metrics
+      expect(body['blocked_count']).to eq(1)
+      expect(body['blocked_by_label_count']).to eq('no-nps' => 1)
+      expect(body['blocked_count']).to eq(body['blocked_by_label_count'].values.sum)
     end
 
     context 'with a reliable sample (N >= 30)' do

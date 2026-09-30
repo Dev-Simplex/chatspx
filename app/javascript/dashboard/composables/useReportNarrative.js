@@ -28,6 +28,12 @@ const LOWER_BETTER = {
   sla_hit_rate: false,
   bot_resolution_rate: false,
   bot_handoff_rate: true,
+  // Rodízio (EA/relatório de distribuição): espera e "leads parados" quanto menor melhor;
+  // "no prazo" quanto maior melhor.
+  rodizio_espera: true,
+  rodizio_no_prazo: false,
+  rodizio_parados: true,
+  rodizio_expirados: true,
 };
 
 // Métricas exibidas como percentual (a meta recebe sufixo %); score (nps) cru; resto tempo.
@@ -37,6 +43,9 @@ const PERCENT_METRICS = [
   'sla_hit_rate',
   'bot_resolution_rate',
   'bot_handoff_rate',
+  'rodizio_no_prazo',
+  'rodizio_parados',
+  'rodizio_expirados',
 ];
 
 const SEVERITY = { good: 0, warn: 1, bad: 2 };

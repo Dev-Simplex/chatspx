@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💬%3C/text%3E%3C/svg%3E">
+<style>html{color-scheme:light dark}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Autópsia do Chat Interno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    /* Verde da própria marca do fork (--wa-primary: #2dc46f), neutros com viés verde */
+    --paper:        #f4f7f4;
+    --surface:      #ffffff;
+    --surface-2:    #eaefea;
+    --ink:          #12211a;
+    --ink-2:        #45564d;
+    --ink-3:        #78877f;
+    --rule:         #d8e0da;
+    --rule-strong:  #b9c5bd;
+    --green:        #2dc46f;
+    --green-deep:   #0d6b3b;
+    --green-wash:   #e2f5ea;
+    --red:          #b6362b;
+    --red-wash:     #fbe9e7;
+    --amber:        #9a6a05;
+    --amber-wash:   #fbf1dc;
+    --shadow:       0 1px 2px rgba(18,33,26,.06), 0 8px 24px -12px rgba(18,33,26,.18);
+
+    --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --body:    "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:       #0c130f;
+      --surface:     #131c17;
+      --surface-2:   #1b2620;
+      --ink:         #e6ede8;
+      --ink-2:       #a9b8af;
+      --ink-3:       #78877f;
+      --rule:        #263329;
+      --rule-strong: #3a4a3f;
+      --green:       #3ddc80;
+      --green-deep:  #7ceaa8;
+      --green-wash:  #122e1f;
+      --red:         #ff8a7a;
+      --red-wash:    #2c1614;
+      --amber:       #e0b451;
+      --amber-wash:  #2b2210;
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:       #0c130f;
+    --surface:     #131c17;
+    --surface-2:   #1b2620;
+    --ink:         #e6ede8;
+    --ink-2:       #a9b8af;
+    --ink-3:       #78877f;
+    --rule:        #263329;
+    --rule-strong: #3a4a3f;
+    --green:       #3ddc80;
+    --green-deep:  #7ceaa8;
+    --green-wash:  #122e1f;
+    --red:         #ff8a7a;
+    --red-wash:    #2c1614;
+    --amber:       #e0b451;
+    --amber-wash:  #2b2210;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  .col { max-width: 68ch; }
+
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; text-wrap: balance; line-height: 1.15; margin: 0; }
+  p { margin: 0; }
+
+  a { color: var(--green-deep); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; border-radius: 3px; }
+
+  code, .mono { font-family: var(--mono); font-size: .84em; font-variant-ligatures: none; }
+  code {
+    background: var(--surface-2);
+    border-radius: 4px;
+    padding: .12em .38em;
+    color: var(--ink-2);
+    word-break: break-word;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* ---------- cabeçalho ---------- */
+  header.masthead {
+    padding: 64px 0 40px;
+    border-bottom: 2px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  header.masthead h1 {
+    font-size: clamp(40px, 7vw, 66px);
+    letter-spacing: -.02em;
+    font-variation-settings: "SOFT" 20, "WONK" 1;
+  }
+  .standfirst { font-size: 19px; color: var(--ink-2); max-width: 62ch; }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- seções ---------- */
+  section { padding-top: 56px; display: flex; flex-direction: column; gap: 20px; }
+  section > h2 {
+    font-size: clamp(25px, 3.4vw, 33px);
+    letter-spacing: -.015em;
+    max-width: 24ch;
+  }
+  .lede { font-size: 17.5px; color: var(--ink-2); }
+
+  /* ---------- sinais vitais ---------- */
+  .vitals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .vital { background: var(--surface); padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 5px; }
+  .vital .n {
+    font-family: var(--display);
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .vital .n.dead { color: var(--red); }
+  .vital .k { font-size: 13.5px; color: var(--ink-2); line-height: 1.35; }
+  .vital .sub { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+
+  /* ---------- gráfico ---------- */
+  figure { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  .chart-frame {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 20px 18px 12px;
+    overflow-x: auto;
+  }
+  .chart-frame svg { display: block; min-width: 620px; width: 100%; height: auto; }
+  figcaption { font-size: 14px; color: var(--ink-3); max-width: 70ch; }
+  .tick-txt { font-family: "JetBrains Mono", monospace; font-size: 10.5px; fill: var(--ink-3); }
+  .mark-txt { font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 700; fill: var(--red); }
+  .silence-txt { font-family: "Fraunces", Georgia, serif; font-size: 15px; font-style: normal; fill: var(--ink-3); }
+
+  /* ---------- pergunta respondida ---------- */
+  .answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; }
+  .answer {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--green);
+    border-radius: 3px;
+    padding: 22px 22px 24px;
+    display: flex; flex-direction: column; gap: 11px;
+  }
+  .answer h3 { font-size: 20px; }
+  .answer p { font-size: 15.5px; color: var(--ink-2); }
+  .answer p strong { color: var(--ink); font-weight: 600; }
+  .answer .verdict {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--green-deep);
+  }
+
+  /* ---------- lista de perdas ---------- */
+  .losses { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule); }
+  .loss {
+    border-bottom: 1px solid var(--rule);
+    padding: 18px 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px;
+    gap: 8px 24px;
+    align-items: start;
+  }
+  .loss h3 { font-family: var(--body); font-weight: 600; font-size: 16.5px; letter-spacing: 0; }
+  .loss p { font-size: 15px; color: var(--ink-2); grid-column: 1; }
+  .loss .proof {
+    grid-column: 2; grid-row: 1 / span 2;
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
+    color: var(--ink-3); text-align: right;
+  }
+  .loss .proof b { display: block; color: var(--red); font-size: 15px; font-weight: 700; }
+
+  /* ---------- lotes ---------- */
+  .batches { display: flex; flex-direction: column; gap: 16px; }
+  .batch {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .batch-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-2);
+  }
+  .batch-num {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    color: var(--green-deep); letter-spacing: .08em;
+  }
+  .batch-head h3 { font-size: 20.5px; flex: 1 1 260px; }
+  .cost {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--green-wash); color: var(--green-deep);
+    white-space: nowrap;
+  }
+  .cost.m { background: var(--amber-wash); color: var(--amber); }
+  .batch-body { padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .batch-why { font-size: 15.5px; color: var(--ink-2); }
+  .batch-why strong { color: var(--ink); font-weight: 600; }
+  ul.items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  ul.items li {
+    font-size: 15px; color: var(--ink-2);
+    padding-left: 20px; position: relative;
+  }
+  ul.items li::before {
+    content: ""; position: absolute; left: 3px; top: .62em;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  }
+  ul.items li b { color: var(--ink); font-weight: 600; }
+  .metric {
+    font-size: 14px; color: var(--ink-2);
+    border-top: 1px dashed var(--rule-strong);
+    padding-top: 12px;
+  }
+  .metric span {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-3); display: block; margin-bottom: 3px;
+  }
+
+  /* ---------- callout de risco ---------- */
+  .risk {
+    background: var(--red-wash);
+    border: 1px solid var(--red);
+    border-radius: 3px;
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .risk h3 { font-size: 21px; color: var(--red); }
+  .risk p { font-size: 15.5px; color: var(--ink-2); }
+  .risk p strong { color: var(--ink); }
+
+  /* ---------- tabela ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+    background: var(--surface-2); white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 600; }
+  td.state.no  { color: var(--red); }
+  td.state.yes { color: var(--green-deep); }
+  td.state.half { color: var(--amber); }
+  td.ev { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+
+  /* ---------- confirmado / caiu ---------- */
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .check-col { display: flex; flex-direction: column; gap: 12px; }
+  .check-col > .eyebrow { padding-bottom: 8px; border-bottom: 1px solid var(--rule-strong); }
+  .check { font-size: 15px; color: var(--ink-2); }
+  .check b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- fechamento ---------- */
+  .closing {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 3px;
+    padding: 34px 32px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .closing h2 { color: var(--paper); font-size: 27px; }
+  .closing p { color: var(--surface-2); font-size: 16.5px; }
+  .closing strong { color: var(--green); font-weight: 600; }
+  :root[data-theme="dark"] .closing,
+  :root:not([data-theme="light"]) .closing { border: 1px solid var(--rule-strong); }
+
+  footer.method {
+    margin-top: 56px; padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--ink-3);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  footer.method code { background: transparent; padding: 0; color: var(--ink-3); }
+
+  @media (max-width: 620px) {
+    .loss { grid-template-columns: 1fr; }
+    .loss .proof { grid-column: 1; grid-row: auto; text-align: left; }
+    .loss .proof b { display: inline; margin-right: 6px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">ChatSPX · auditoria de 8 de setembro de 2026 · somente leitura</div>
+    <h1>Autópsia do Chat Interno</h1>
+    <p class="standfirst">
+      Você pediu para olhar desempenho e facilidade de uso. A resposta honesta é que
+      <strong>o chat interno não está lento — está abandonado</strong>: 32 mensagens em toda a
+      história, nenhuma nos últimos 30 dias, com 20 pessoas na conta. Este documento mostra o
+      que o banco diz, o que o código explica, e um cardápio de lotes de correção com custo e
+      efeito esperado.
+    </p>
+  </header>
+
+  <section>
+    <h2>Sinais vitais</h2>
+    <p class="lede col">Medido direto no banco do staging, em 08/09/2026.</p>
+    <div class="vitals">
+      <div class="vital">
+        <div class="n">32</div>
+        <div class="k">mensagens em toda a história</div>
+        <div class="sub">25/06 → 03/08</div>
+      </div>
+      <div class="vital">
+        <div class="n dead">0</div>
+        <div class="k">nos últimos 30 dias</div>
+        <div class="sub">36 dias de silêncio</div>
+      </div>
+      <div class="vital">
+        <div class="n">6<span style="font-size:22px;color:var(--ink-3)">/20</span></div>
+        <div class="k">pessoas que já escreveram alguma vez</div>
+        <div class="sub">70% nunca usou</div>
+      </div>
+      <div class="vital">
+        <div class="n dead">0</div>
+        <div class="k">conversas de cliente compartilhadas</div>
+        <div class="sub">o botão existe e está no menu</div>
+      </div>
+      <div class="vital">
+        <div class="n dead">0</div>
+        <div class="k">respostas a uma mensagem</div>
+        <div class="sub">reply_to_id nunca preenchido</div>
+      </div>
+      <div class="vital">
+        <div class="n">10<span style="font-size:22px;color:var(--ink-3)">/16</span></div>
+        <div class="k">canais são salas de time vazias</div>
+        <div class="sub">criadas automaticamente</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Trinta das trinta e duas mensagens são da semana de lançamento</h2>
+    <figure>
+      <div class="chart-frame">
+        <svg viewBox="0 0 820 300" role="img" aria-label="Mensagens por dia no chat interno, de 25 de junho a 8 de setembro de 2026: 1, 2, 6, 5 e 16 mensagens entre 25/06 e 03/07, depois 1 em 13/07, 1 em 03/08 e nenhuma desde então.">
+          <!-- faixa de silêncio -->
+          <rect x="432" y="30" width="358" height="200" fill="var(--surface-2)"></rect>
+          <text class="silence-txt" x="611" y="128" text-anchor="middle">36 dias sem nenhuma mensagem</text>
+
+          <!-- grade -->
+          <line x1="40" y1="230" x2="790" y2="230" stroke="var(--rule-strong)" stroke-width="1"></line>
+          <line x1="40" y1="130" x2="790" y2="130" stroke="var(--rule)" stroke-width="1" stroke-dasharray="2 4"></line>
+          <line x1="40" y1="30"  x2="790" y2="30"  stroke="var(--rule)" stroke-width="1" stroke-dasharray="2 4"></line>
+          <text class="tick-txt" x="34" y="234" text-anchor="end">0</text>
+          <text class="tick-txt" x="34" y="134" text-anchor="end">8</text>
+          <text class="tick-txt" x="34" y="34"  text-anchor="end">16</text>
+
+          <!-- barras: 25/06=1, 26/06=2, 29/06=6, 02/07=5, 03/07=16, 13/07=1, 03/08=1 -->
+          <rect x="37"  y="217.5" width="7" height="12.5" fill="var(--green)"></rect>
+          <rect x="47"  y="205"   width="7" height="25"   fill="var(--green)"></rect>
+          <rect x="76"  y="155"   width="7" height="75"   fill="var(--green)"></rect>
+          <rect x="106" y="167.5" width="7" height="62.5" fill="var(--green)"></rect>
+          <rect x="115" y="30"    width="7" height="200"  fill="var(--green)"></rect>
+          <rect x="214" y="217.5" width="7" height="12.5" fill="var(--green)"></rect>
+          <rect x="421" y="217.5" width="7" height="12.5" fill="var(--green)"></rect>
+
+          <!-- marcador da troca de tela (02/07 às 21h12, na virada para 03/07) -->
+          <line x1="114" y1="18" x2="114" y2="238" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="4 3"></line>
+          <text class="mark-txt" x="121" y="14">02/07 · o redesign assume a rota</text>
+
+          <!-- eixo de datas -->
+          <text class="tick-txt" x="40"  y="252" text-anchor="start">25 jun</text>
+          <text class="tick-txt" x="218" y="252" text-anchor="middle">13 jul</text>
+          <text class="tick-txt" x="425" y="252" text-anchor="middle">3 ago</text>
+          <text class="tick-txt" x="790" y="252" text-anchor="end">8 set</text>
+
+          <text class="tick-txt" x="40" y="280" text-anchor="start" style="fill:var(--ink-2)">mensagens por dia</text>
+        </svg>
+      </div>
+      <figcaption>
+        O pico de 16 mensagens é do dia seguinte à troca de tela — então <strong>não dá para dizer
+        que a troca matou o uso</strong>. O que ela fez foi levar embora, naquele dia, as três coisas
+        que ligavam o chat ao trabalho de verdade. A prova está abaixo, e é numérica.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>As duas perguntas que você fez</h2>
+    <div class="answers">
+      <div class="answer">
+        <div class="verdict">Desempenho</div>
+        <h3>Não é volume de dados. É trabalho repetido.</h3>
+        <p>
+          A lista de conversas devolve <strong>2,8 KB</strong> — o payload é magro. Mas gasta
+          <strong>18 idas ao banco</strong> para montar isso, e <strong>12 delas procuram foto de
+          perfil numa conta que tem zero fotos anexadas</strong>. A lista de colegas gasta 21 queries
+          para 19 nomes.
+        </p>
+        <p>
+          Pior: essa chamada roda no carregamento da barra lateral, ou seja
+          <strong>em toda abertura de qualquer tela do sistema</strong> — inclusive para quem nunca
+          abre o chat. Hoje o chat interno custa caro principalmente para quem não o usa.
+        </p>
+        <p>
+          O acerto é o padrão que o resto do Chatwoot já usa em outros seis controllers.
+          Depois dele: <strong>18 → 7</strong> e <strong>21 → 3</strong> queries.
+        </p>
+      </div>
+      <div class="answer">
+        <div class="verdict">Facilidade de uso</div>
+        <h3>A tela não se mexe e não diz a verdade.</h3>
+        <p>
+          A lista de conversas <strong>não ordena por mensagem mais recente</strong> (nem no
+          servidor, nem na tela) e <strong>não atualiza a prévia quando chega mensagem</strong> —
+          o número sobe ao lado de um texto de anteontem. Chega mensagem e nada se move.
+        </p>
+        <p>
+          Some três informações falsas: o <strong>✓✓ de "lida" aparece sempre</strong>, mesmo sem
+          ninguém abrir; o <strong>"online" nunca acende</strong> na hora de escolher com quem falar;
+          e <strong>"Você:" nunca é impresso</strong> na prévia.
+        </p>
+        <p>
+          Para mandar a primeira mensagem para alguém são <strong>4 cliques</strong> e uma rolagem
+          de 19 nomes sem busca — digitar "Ana" na caixa de busca é um beco sem saída, porque ela
+          só procura conversa que já existe.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que a troca de tela levou embora</h2>
+    <p class="lede col">
+      Em 02/07 a rota passou a apontar para a tela nova. Ela é mais bonita e ganhou coisas que a
+      antiga nunca teve (áudio, respostas prontas, painel de mídia). Mas três peças ficaram para
+      trás — e são exatamente as que davam motivo para alguém abrir o chat no meio do expediente.
+      O backend das três continua pronto, funcionando e sem consumidor.
+    </p>
+
+    <div class="losses">
+      <div class="loss">
+        <h3>O card da conversa do cliente</h3>
+        <p>
+          "Compartilhar no chat interno" está vivo no menu ⋮ da conversa. Só que a tela nova
+          descarta o campo <code>shared_conversation</code> que o servidor manda: chega a nota solta,
+          sem o <code>#4821</code>, sem o nome do contato, sem jeito de abrir o atendimento.
+          E quem não escrever nota nenhuma leva um erro — o modelo exige conteúdo, embora o campo
+          diga "opcional".
+        </p>
+        <div class="proof"><b>0</b>de 32 mensagens com conversa anexada</div>
+      </div>
+
+      <div class="loss">
+        <h3>A @menção</h3>
+        <p>
+          O composer novo não tem gatilho de "@". Digitar "@Ana" é texto puro: não vira menção,
+          não notifica, não destaca. Toda a máquina existe e está ociosa — validação no servidor,
+          índice no banco, evento de tempo real, som e aviso próprios já traduzidos.
+        </p>
+        <div class="proof"><b>3</b>menções na história, todas antes de 02/07</div>
+      </div>
+
+      <div class="loss">
+        <h3>Link e <code>#123</code> clicáveis</h3>
+        <p>
+          O balão renderiza texto cru. Colar um link produz algo que ninguém clica; citar "#4521"
+          não leva a lugar nenhum. Num sistema de atendimento, passar link e número de conversa é
+          o uso mais óbvio que existe.
+        </p>
+        <div class="proof"><b>—</b>existe só na tela fora da rota</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O cardápio</h2>
+    <p class="lede col">
+      Seis lotes, ordenados por retorno dividido por esforço. Cada um fecha sozinho — dá para
+      mandar fazer o 0 e o 1 e parar aí. Quase tudo é ligar fio que já existe: nenhum item abaixo
+      precisa de tabela nova no banco.
+    </p>
+
+    <div class="batches">
+
+      <article class="batch">
+        <div class="batch-head">
+          <span class="batch-num">LOTE 0</span>
+          <h3>Parar de mandar o próximo dev para o arquivo errado</h3>
+          <span class="cost">~15 minutos</span>
+        </div>
+        <div class="batch-body">
+          <p class="batch-why">
+            Dois comentários no código dizem que a tela que está no ar é um
+            <strong>"protótipo com dados fictícios"</strong> e que a antiga é a de verdade. Isso é
+            falso desde <strong>49 minutos</strong> depois de ter sido escrito, em 02/07. Enquanto
+            estiver lá, alguém vai consertar bug no arquivo morto — que tem 3,4× mais linhas e
+            nomes de função melhores, então é onde a busca leva.
+          </p>
+          <ul class="items">
+            <li>Corrigir o comentário de <code>routes.js</code> e o de <code>ChatHeader.vue</code>. <b>2 linhas, 2 arquivos.</b></li>
+          </ul>
+          <p class="metric"><span>Por que primeiro</span>É a correção mais barata do relatório inteiro e protege todas as outras.</p>
+        </div>
+      </article>
+
+      <article class="batch">
+        <div class="batch-head">
+          <span class="batch-num">LOTE 1</span>
+          <h3>A tela para de mentir e passa a se mexer</h3>
+          <span class="cost">~1 dia · tudo pequeno</span>
+        </div>
+        <div class="batch-body">
+          <p class="batch-why">
+            Oito correções pequenas que atacam a sensação de ferramenta morta. Nenhuma toca no
+            banco; a maioria é uma linha virando oito.
+          </p>
+          <ul class="items">
+            <li><b>Ordenar a lista pela mensagem mais recente.</b> O dado já vem do servidor; falta um <code>.sort</code>.</li>
+            <li><b>Atualizar a prévia e a hora quando chega mensagem</b>, em vez de só incrementar o número.</li>
+            <li><b>Acabar com o ✓✓ falso</b> — calcular de verdade pelo <code>last_read_at</code> de cada membro, ou remover o tique.</li>
+            <li><b>Guardar o rascunho por conversa.</b> Hoje trocar de conversa apaga o que você estava digitando, e os anexos junto.</li>
+            <li><b>Foco automático no campo</b> ao abrir uma conversa. Corta um clique de toda conversa aberta, sempre.</li>
+            <li><b>Recarregar a conversa aberta ao voltar para a aba</b> e ao reconectar. Hoje a lista atualiza e a conversa aberta fica congelada.</li>
+            <li><b>Zerar o número de não lidas ao voltar para a aba.</b> Badge que não zera é badge que a pessoa aprende a ignorar.</li>
+            <li><b>DM nova aparecer sem F5</b> e o erro de carregamento parar de se disfarçar de "nenhuma conversa".</li>
+          </ul>
+          <p class="metric"><span>Como saber se deu certo</span>Abrir o chat e ver a conversa mais recente no topo, com a prévia certa. Mensagens por semana saindo de 0.</p>
+        </div>
+      </article>
+
+      <article class="batch">
+        <div class="batch-head">
+          <span class="batch-num">LOTE 2</span>
+          <h3>Reconectar com o trabalho de verdade</h3>
+          <span class="cost">~1 dia</span>
+        </div>
+        <div class="batch-body">
+          <p class="batch-why">
+            As três peças perdidas na troca de tela. <strong>É o lote de maior retorno</strong>:
+            o backend das três está pronto e o código da tela antiga serve de fonte para copiar.
+          </p>
+          <ul class="items">
+            <li><b>Card da conversa compartilhada</b>, clicável, abrindo o atendimento — mais um texto padrão quando a nota vier vazia, para acabar com o erro.</li>
+            <li><b>@menção no composer</b>, com sugestão dos colegas do canal. Liga de uma vez o aviso próprio (som + toast) que já está construído.</li>
+            <li><b>Link e <code>#123</code> clicáveis</b> dentro do balão.</li>
+          </ul>
+          <p class="metric"><span>Como saber se deu certo</span>Mensagens com conversa anexada saindo de 0 e passando de 10 na primeira semana; menções saindo de 3 na história para ≥10 por semana.</p>
+        </div>
+      </article>
+
+      <article class="batch">
+        <div class="batch-head">
+          <span class="batch-num">LOTE 3</span>
+          <h3>Desempenho, antes de doer</h3>
+          <span class="cost">~meio dia · tudo pequeno</span>
+        </div>
+        <div class="batch-body">
+          <p class="batch-why">
+            Hoje quase nada disso incomoda, porque quase ninguém usa. É <strong>exatamente por
+            isso</strong> que é a hora: dois destes itens passam de invisíveis a "a tela trava"
+            no dia em que a adoção acontecer.
+          </p>
+          <ul class="items">
+            <li><b>Carregar a foto de perfil junto</b>, em 4 endpoints. Medido: 18 → 7 e 21 → 3 queries. Beneficia toda abertura de tela do sistema, para todo agente.</li>
+            <li><b>Acabar com a tempestade de "marcar como lido".</b> Hoje uma mensagem num grupo de 19 gera ~343 publicações no Redis, 18 requisições e ~90 queries — para exibir um recibo que nenhuma tela mostra.</li>
+            <li><b>Ligar o "carregar mais" do histórico.</b> A paginação existe, está correta no servidor e nunca é chamada: a conversa acaba nas últimas 30 mensagens e não há como ver a 31ª.</li>
+            <li><b>Não buscar a lista inteira duas vezes</b> ao criar uma conversa.</li>
+            <li><b>Carregar a tela do chat sob demanda</b>, em vez de embutir no pacote principal do dashboard. Uma linha; o padrão já existe em quatro outras rotas do repositório.</li>
+          </ul>
+          <p class="metric"><span>Como saber se deu certo</span>Contar as queries do <code>GET /internal_channels</code> antes e depois. E rolar para cima numa conversa e continuar vendo histórico.</p>
+        </div>
+      </article>
+
+      <article class="batch">
+        <div class="batch-head">
+          <span class="batch-num">LOTE 4</span>
+          <h3>Chegar no bolso</h3>
+          <span class="cost m">~1 dia · médio</span>
+        </div>
+        <div class="batch-body">
+          <p class="batch-why">
+            Esta é a diferença estrutural para o WhatsApp. Hoje <strong>a entrega inteira depende
+            de o navegador estar aberto naquele segundo</strong>: sem aba aberta não há sino, não
+            há e-mail, não há push. Fim de expediente, almoço, notebook suspenso — a mensagem
+            existe no banco e ninguém fica sabendo.
+          </p>
+          <ul class="items">
+            <li><b>Push do navegador para mensagem interna não lida</b>, reaproveitando o job de push que já existe no repositório.</li>
+            <li><b>Pedir a permissão de notificação na hora certa</b> — ao abrir a tela, dentro de um clique. Hoje ela é pedida quando a primeira mensagem chega, ou seja, no pior momento possível: a pessoa vê um pedido sem contexto, bloqueia, e nunca mais recebe nada.</li>
+            <li><b>Silenciar um canal.</b> Hoje ou você aguenta o grupo de time inteiro, ou desliga o som de tudo e perde a DM que importava.</li>
+          </ul>
+          <p class="metric"><span>Como saber se deu certo</span>Mediana do tempo entre uma mensagem e a primeira resposta caindo para menos de 30 minutos. Hoje não há uma única resposta no banco.</p>
+        </div>
+      </article>
+
+      <article class="batch">
+        <div class="batch-head">
+          <span class="batch-num">LOTE 5</span>
+          <h3>Fechar a dívida das 2.030 linhas</h3>
+          <span class="cost m">~1 a 2 dias</span>
+        </div>
+        <div class="batch-body">
+          <p class="batch-why">
+            A tela antiga continua no disco, fora da rota, com <strong>2.030 linhas</strong>. Ela
+            <strong>não pesa no pacote</strong> (zero KB entregues ao navegador) e não quebra teste
+            nenhum — o custo dela é confusão. Ela já arrastou revisão de CSS em 13/08 e é o arquivo
+            com data de modificação mais recente da pasta, o que faz quem abrir a pasta concluir o
+            oposto da verdade.
+          </p>
+          <ul class="items">
+            <li><b>Ligar a gerência de grupo.</b> O diálogo de renomear / adicionar / remover membro está pronto, funcional, e a um <code>import</code> de distância. Hoje um grupo criado com o nome errado não tem conserto pela tela.</li>
+            <li><b>Trocar as ~95 frases cravadas em português por i18n.</b> As chaves já existem em <code>en</code> e <code>pt_BR</code> e não têm consumidor; sete dos nove arquivos desligam o lint para calar o aviso.</li>
+            <li><b>Apagar a tela antiga — no último commit</b>, depois que cada bloco tiver sido copiado dela. Ela é a fonte de onde se copia; apagar antes é jogar fora o texto pronto.</li>
+          </ul>
+          <p class="metric"><span>Observação</span>Voltar a rota para a tela antiga não é uma opção viável: devolveria 8 funções e tiraria 6 que o time já tem.</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Um item que não é melhoria — é decisão sua</h2>
+    <div class="risk">
+      <h3>O administrador lê todas as DMs, sem aviso e sem registro</h3>
+      <p>
+        A permissão diz <code>member? || admin?</code>: um administrador clica um botão e lê a
+        conversa privada de dois agentes, do começo ao fim. <strong>Não fica registro em lugar
+        nenhum</strong> (não há log de auditoria, e a flag genérica de auditoria está desligada) e
+        <strong>ninguém avisa os envolvidos</strong>. Ler nem sequer marca a conversa como lida,
+        então não aparece nem indiretamente.
+      </p>
+      <p>
+        Isso foi uma escolha de produto, não um bug — mas é um freio de adoção antes de ser um
+        risco: basta um agente descobrir para a equipe inteira voltar ao WhatsApp, e desta vez com
+        motivo. Também é exposição trabalhista, por ser monitoramento de comunicação entre
+        empregados sem ciência prévia.
+      </p>
+      <p>
+        <strong>Correção mínima (pequena):</strong> uma frase fixa no topo da lista de conversas
+        dizendo que administradores podem ler as conversas internas para fins de supervisão. Se
+        quiser ir além, gravar uma linha de registro a cada leitura de quem não é membro.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Onde o chat interno perde para o WhatsApp</h2>
+    <p class="lede col">
+      Só o que dá para verificar no código. Duas colunas boas de notar: mensagem de voz
+      <em>já existe</em> e a busca no histórico <em>já funciona</em> — o buraco é outro.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>O que o WhatsApp dá</th><th>Chat interno</th><th>Onde isso está no código</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Aviso com o app fechado</td>
+            <td class="state no">não existe</td>
+            <td class="ev">entrega só por ActionCable; exclusão do sino documentada em <code>create_service.rb:8-12</code></td>
+          </tr>
+          <tr>
+            <td>Encaminhar mensagem</td>
+            <td class="state no">não existe</td>
+            <td class="ev">menu do balão só tem Responder / Reagir / Copiar / Editar / Excluir</td>
+          </tr>
+          <tr>
+            <td>Responder sem sair da tela em que estou</td>
+            <td class="state no">não existe</td>
+            <td class="ev">o único contato fora da tela é um toast de texto puro</td>
+          </tr>
+          <tr>
+            <td>Marcar como não lida</td>
+            <td class="state no">não existe</td>
+            <td class="ev">existe o <em>filtro</em> "Não lidas", mas nenhuma ação</td>
+          </tr>
+          <tr>
+            <td>Silenciar uma conversa</td>
+            <td class="state no">não existe</td>
+            <td class="ev">só o interruptor global de som da conta inteira</td>
+          </tr>
+          <tr>
+            <td>Link virar clicável</td>
+            <td class="state no">não existe</td>
+            <td class="ev">o balão renderiza <code>{{ message.content }}</code> cru</td>
+          </tr>
+          <tr>
+            <td>Fixar conversa</td>
+            <td class="state half">some no F5</td>
+            <td class="ev">guardado só na memória da aba, sem persistência</td>
+          </tr>
+          <tr>
+            <td>Ler no celular</td>
+            <td class="state half">com ressalva</td>
+            <td class="ev">o layout responde e tem botão voltar — mas sem push, só com a aba aberta na frente</td>
+          </tr>
+          <tr>
+            <td>Histórico pesquisável</td>
+            <td class="state yes">existe</td>
+            <td class="ev">busca no servidor, entre canais, com atraso de 300 ms</td>
+          </tr>
+          <tr>
+            <td>Mensagem de voz</td>
+            <td class="state yes">existe</td>
+            <td class="ev">o gravador do chat de cliente foi reaproveitado no composer</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que foi confirmado, e o que caiu</h2>
+    <p class="lede col">
+      Metade do valor de uma auditoria é derrubar a suspeita errada antes de alguém gastar tempo
+      com ela. Estas foram checadas e não se sustentaram.
+    </p>
+    <div class="checks">
+      <div class="check-col">
+        <div class="eyebrow">Caiu — não perca tempo aqui</div>
+        <p class="check"><b>"A funcionalidade está desligada."</b> Não está. A flag <code>internal_chat</code> está ligada na conta, o item aparece na barra lateral e a rota libera. Acesso não é o problema.</p>
+        <p class="check"><b>"O botão de compartilhar é órfão."</b> Não é. Está importado e plugado no menu ⋮ da conversa. O que quebra é o que acontece depois dele.</p>
+        <p class="check"><b>"O payload é gordo."</b> Não é. 2,8 KB na lista de conversas e 269 bytes por mensagem. Banda não é o problema — número de queries é.</p>
+        <p class="check"><b>"As 2.030 linhas mortas pesam no pacote."</b> Não pesam. Nenhum <code>import</code> em todo o repositório: zero KB entregues ao navegador.</p>
+        <p class="check"><b>"Falta índice no banco."</b> Não falta. Os cinco caminhos reais têm índice adequado. O problema é o oposto — há oito índices sem uso nenhum, o que é dívida, não incêndio.</p>
+        <p class="check"><b>"A paginação está com bug de cursor."</b> Não está. O cursor é por <code>id</code>, sem empate possível e sem timestamp truncado. Ela só está desligada.</p>
+      </div>
+      <div class="check-col">
+        <div class="eyebrow">Confirmado com evidência</div>
+        <p class="check"><b>Zero conversas compartilhadas em 32 mensagens</b>, apesar do botão existir há ~2,5 meses. O caminho tem 100% de falha: ou dá erro, ou entrega uma mensagem sem a conversa.</p>
+        <p class="check"><b>Três menções na história</b>, todas anteriores a 02/07 — feitas pela tela que tinha o seletor de "@".</p>
+        <p class="check"><b>18 queries para 2,8 KB</b>, sendo 12 buscas de foto numa conta com zero fotos anexadas.</p>
+        <p class="check"><b>O comentário do <code>routes.js</code> é falso</b> desde 49 minutos depois de ter sido escrito, e continua guiando quem chega.</p>
+        <p class="check"><b>O redesign perdeu 8 funções e ganhou 6</b> que a tela antiga nunca teve. Não veio pela metade — veio desviado.</p>
+        <p class="check"><b>Store e API já têm 100% das peças que faltam.</b> Nenhum item do cardápio precisa de tabela nova no banco.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="closing">
+      <h2>Se fosse escolher, eu faria o 0, o 1 e o 2 — e pararia para medir</h2>
+      <p>
+        São <strong>dois dias e quinze minutos</strong>. O lote 0 impede que o próximo trabalho vá
+        para o arquivo errado. O lote 1 faz a tela deixar de parecer morta. O lote 2 devolve o
+        único motivo legítimo de abrir o chat interno no meio do expediente: <em>"olha essa conversa
+        aqui, o que eu respondo?"</em>.
+      </p>
+      <p>
+        Depois disso, olhe o número de mensagens por semana. Se ele sair de zero, o lote 4 (push) é
+        o que faz alguém <strong>voltar</strong> sem ser mandado, e o lote 3 vira urgente — porque
+        os problemas de desempenho dele só doem quando a adoção acontece. Se continuar em zero
+        mesmo com o lote 2 no ar, o problema não é mais software, e não vale gastar mais código
+        nele.
+      </p>
+      <p>
+        O item de supervisão do administrador é a única coisa aqui que eu não deixaria para depois,
+        independente do resto: custa uma frase na tela e evita a descoberta desagradável que
+        derruba a adoção de uma vez.
+      </p>
+    </div>
+  </section>
+
+  <footer class="method">
+    <p>
+      <strong>Método.</strong> Quatro auditorias paralelas e independentes — desempenho, usabilidade,
+      paridade entre as duas telas, e adoção — sobre <code>/home/chatwoot/chatwoot</code>, branch
+      <code>nicolas</code>. Somente leitura: nenhum arquivo do chat interno foi modificado e a árvore
+      compartilhada ficou intacta.
+    </p>
+    <p>
+      Os números de uso vêm de consultas de leitura ao banco do staging em 08/09/2026. Os números de
+      desempenho foram medidos com contagem de queries no mesmo ambiente. Cada afirmação deste
+      documento tem, nos relatórios completos, a referência de arquivo e linha que a sustenta.
+    </p>
+  </footer>
+
+</div>
+
+</body>
+</html>

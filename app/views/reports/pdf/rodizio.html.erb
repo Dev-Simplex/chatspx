@@ -1,0 +1,155 @@
+<%
+  resumo = @data[:resumo] || {}
+  kpis = @data[:kpis] || []
+  vazio = resumo[:recebidos].to_i.zero?
+  no_prazo = kpis.find { |kpi| kpi[:metric] == :rodizio_no_prazo }
+  # O hero herda a cor do semáforo do próprio KPI — verde não pode aparecer num mês ruim.
+  zona = { 'good' => '', 'warn' => 'is-passive', 'bad' => 'is-detractor' }[no_prazo && no_prazo[:level]].to_s
+  esperando = @data[:esperando] || { leads: [], total: 0 }
+%>
+
+<%# ---------- A pergunta do gestor, respondida na primeira linha ---------- %>
+<div class="section">
+  <%= render 'reports/pdf/callout', variant: vazio ? 'neutral' : 'info',
+        title: "#{number_with_delimiter(resumo[:recebidos].to_i)} leads distribuídos · prazo combinado de #{resumo[:sla_minutos]} min",
+        body: vazio ?
+          'Nenhum lead foi distribuído pelo rodízio no período selecionado.' :
+          "#{number_with_delimiter(resumo[:assumidos].to_i)} leads alguém pegou, " \
+          "#{resumo[:no_prazo_pct]}% dentro do prazo combinado. " \
+          "Agora há #{number_with_delimiter(resumo[:parados_agora].to_i)} esperando alguém pegar e " \
+          "#{number_with_delimiter(resumo[:expirados].to_i)} que ninguém pegou a tempo." %>
+</div>
+
+<%# ---------- O número da capa + onde cada lead parou ----------
+     Uma barra responde o que a tabela só responde somando coluna: quanto foi pego no prazo,
+     quanto atrasou e quanto ninguém pegou. %>
+<% if no_prazo.present? && @data[:desfecho].present? %>
+  <div class="section hero-row">
+    <%= render 'reports/pdf/hero_stat',
+          value: no_prazo[:value], value_class: zona,
+          label: 'Pegos dentro do prazo', pill: no_prazo[:status] && no_prazo[:status][:word], pill_class: zona,
+          caption: "Meta: #{no_prazo[:goal]} dos leads pegos em até #{resumo[:sla_minutos]} min" %>
+    <%= render 'reports/pdf/composition_bar',
+          title: 'Onde parou cada lead do rodízio', segments: @data[:desfecho] %>
+  </div>
+<% end %>
+
+<%# ---------- Semáforo: os quatro números com veredito ----------
+     A meta do tempo de espera é o SLA que o próprio cliente configurou na política do time —
+     cobrar 5 minutos de quem combinou 30 pintaria de vermelho um time que está cumprindo. %>
+<% unless vazio %>
+  <div class="section">
+    <div class="section-title"><span class="dot">1</span> Está indo bem?</div>
+    <%= render 'reports/pdf/kpi_band', cards: kpis.map { |kpi|
+      {
+        label: kpi[:label],
+        value: kpi[:value],
+        status: kpi[:level].to_s,
+        hint: "meta #{kpi[:goal]}",
+        meaning: kpi[:meaning],
+        delta: pdf_delta(kpi[:delta])
+      }
+    } %>
+    <div class="caption">
+      Verde é dentro da meta, amarelo é de olho, vermelho precisa de ação. O prazo de
+      <%= resumo[:sla_minutos] %> minutos é o que está configurado na política do time.
+      <%# A frase da comparação só entra quando ela existe: o período anterior pode não ter lead
+          nenhum, e explicar uma etiqueta que não está na página confunde mais do que ajuda. %>
+      <% if kpis.any? { |kpi| kpi[:delta].present? && kpi[:delta][:delta_pct].present? } %>
+        A etiqueta colorida compara com o período anterior de mesmo tamanho.
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- A espera dia a dia ----------
+     A média do período esconde o dia em que a promessa quebrou. A linha tracejada é o prazo. %>
+<% if @data[:espera_por_dia].present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot">2</span> Quanto o lead esperou, dia a dia</div>
+    <div class="card">
+      <%= pdf_bar_chart(@data[:espera_por_dia], value_format: :seconds,
+                        goal: @data[:sla_segundos], goal_label: "prazo combinado (#{resumo[:sla_minutos]} min)") %>
+      <%= render 'reports/pdf/chart_caption', emoji: '⏱️',
+            text: 'Tempo médio entre o lead cair no consultor e alguém falar com ele. Barra acima da linha tracejada é dia em que o prazo combinado não foi cumprido.' %>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- Quem recebeu e quanto o lead esperou por ele ---------- %>
+<% if @data[:ranking].present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot">3</span> Quem recebeu os leads</div>
+    <%= render 'reports/pdf/perf_table',
+          columns: { entity: 'Consultor', count: 'Leads recebidos', perf: 'Quanto do prazo consome', index: 'Tempo até pegar' },
+          rows: @data[:ranking].map { |linha|
+            { name: linha[:nome], count: number_with_delimiter(linha[:recebidos]), ratio: linha[:ratio],
+              bar_color: linha[:cor], badge: linha[:espera_humana], badge_class: linha[:badge_class] }
+          } %>
+    <div class="caption">
+      A barra mostra quanto do prazo combinado cada um consome até pegar o lead: cheia e vermelha
+      quer dizer que o prazo estourou. "—" é consultor que recebeu no período e ainda não pegou
+      nenhum lead até o fim.
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- O que dá para fazer HOJE ----------
+     A única seção do documento com nome e telefone: aqui o gestor age, não interpreta número. %>
+<% if esperando[:leads].present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot">4</span> Parados agora — ninguém pegou e o prazo já passou</div>
+    <%= render 'reports/pdf/data_table', table: {
+      columns: [
+        { label: 'Cliente' },
+        { label: 'Telefone' },
+        { label: 'Está com' },
+        { label: 'Canal' },
+        { label: 'Esperando há', align: 'right' }
+      ],
+      rows: esperando[:leads].map { |lead|
+        [lead[:contato], lead[:telefone], lead[:corretor], lead[:canal], lead[:espera]]
+      }
+    } %>
+    <div class="caption">
+      São os mesmos <%= number_with_delimiter(esperando[:total].to_i) %> do cartão "Parados agora":
+      lead que caiu no consultor e continua sem ninguém, com o prazo de
+      <%= resumo[:sla_minutos] %> min já vencido. Os que esperam há mais tempo vêm primeiro.
+      <% if esperando[:total].to_i > esperando[:leads].size %>
+        Mostrando <%= esperando[:leads].size %> deles.
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- O que fazer agora ---------- %>
+<% if @data[:recomendacoes].present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot">5</span> O que fazer agora</div>
+    <%= render 'reports/pdf/recommendations', items: @data[:recomendacoes] %>
+  </div>
+<% end %>
+
+<%# ---------- Glossário: o relatório não pode precisar de tradutor ---------- %>
+<% unless vazio %>
+  <div class="section">
+    <div class="section-title"><span class="dot">6</span> O que significa cada palavra</div>
+    <div class="card">
+      <div style="font-size:12px; line-height:1.7; color:#333;">
+        <p style="margin:0 0 6px;"><strong>Rodízio</strong> — a fila que decide de quem é a vez quando um lead novo chega, para todo mundo receber por igual.</p>
+        <p style="margin:0 0 6px;"><strong>Designado</strong> — o sistema já escolheu o consultor e colocou o lead com ele. O relógio da espera começa aqui.</p>
+        <p style="margin:0 0 6px;"><strong>Pegou</strong> — o consultor encostou no lead (respondeu ou assumiu). O relógio da espera para aqui.</p>
+        <p style="margin:0 0 6px;"><strong>Prazo combinado</strong> — <%= resumo[:sla_minutos] %> minutos, configurado na política do time. É o tempo que o consultor tem para pegar o lead.</p>
+        <p style="margin:0 0 6px;"><strong>Parado</strong> — lead designado que continua sem ninguém, agora.</p>
+        <p style="margin:0;"><strong>Ninguém pegou</strong> — o prazo acabou e o lead voltou para a fila, para outro consultor.</p>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- Leitura executiva ---------- %>
+<% if @data[:conclusion].present? %>
+  <div class="section">
+    <%= render 'reports/pdf/conclusion', title: @data[:conclusion][:title], body: @data[:conclusion][:body].html_safe %>
+  </div>
+<% end %>

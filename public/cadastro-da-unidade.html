@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Cadastro de unidade — melhorias propostas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏢</text></svg>">
+<style>
+  :root{
+    --bg:#0b1017; --surface:#151d26; --surface2:#111922; --field:#1f2d3a;
+    --border:#2a3947; --text:#e6edf3; --muted:#8fa3b5; --brand:#1f93ff;
+    --ok:#22c55e; --warn:#f59e0b; --ruby:#f43f5e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .wrap{max-width:860px;margin:0 auto;padding:32px 16px 80px}
+  h1{font-size:22px;margin:0 0 6px}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:14px}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px;padding:0;list-style:none}
+  .legend li{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);
+             border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted)}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:999px;
+       background:var(--brand);color:#fff;font-size:12px;font-weight:700;flex:none}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .card-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .card-head h2{font-size:17px;margin:0}
+  .card-body{padding:20px;display:flex;flex-direction:column;gap:20px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  .g-addr{grid-template-columns:1fr 130px}
+  @media(max-width:620px){.g2,.g3,.g-addr{grid-template-columns:1fr}}
+  label{display:block;font-size:13px;font-weight:600;margin:0 0 6px;color:var(--text)}
+  .lbl-row{display:flex;align-items:center;gap:8px;margin:0 0 6px}
+  .lbl-row label{margin:0}
+  input[type=text],input[type=time],select{
+    width:100%;background:var(--field);border:1px solid transparent;border-radius:10px;
+    color:var(--text);padding:10px 12px;font:inherit;font-size:14px}
+  input[type=time]{font-variant-numeric:tabular-nums}
+  input:focus,select:focus{outline:none;border-color:var(--brand)}
+  .help{margin:6px 0 0;font-size:12px;color:var(--muted)}
+  .help.ok{color:var(--ok)}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+     font-weight:600;padding:0 8px 10px 0}
+  td{padding:10px 8px 10px 0;border-top:1px solid var(--border);vertical-align:middle}
+  tr.fechada td{opacity:.55}
+  .day{font-weight:600;font-size:14px;white-space:nowrap}
+  .hours{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .hours input[type=time]{width:106px}
+  .dash{color:var(--muted)}
+  .switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .switch input{accent-color:var(--brand);width:16px;height:16px}
+  .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface2);
+       color:var(--text);border-radius:10px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+  .btn:hover{border-color:var(--brand)}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .btn.ghost{background:transparent}
+  .btn.danger{color:var(--ruby);border-color:#4a2530}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .btn[disabled]:hover{border-color:var(--border)}
+  .btn-copy{font-size:13px;padding:6px 10px;white-space:nowrap}
+  .tip{position:relative;display:inline-flex}
+  .tip::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);right:0;white-space:nowrap;
+    background:#0a1420;border:1px solid var(--border);color:var(--text);font-size:12px;padding:6px 10px;
+    border-radius:8px;opacity:0;pointer-events:none;transition:opacity .12s;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  .tip:hover::after{opacity:1}
+  .badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:999px;
+         background:var(--brand);color:#fff;font-size:12px;font-weight:700;flex:none}
+  .card-foot{padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .foot-right{display:flex;gap:10px;margin-left:auto}
+  .note{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--brand);
+        border-radius:0 10px 10px 0;padding:12px 14px;font-size:13px;color:var(--muted);margin:0}
+  .note b{color:var(--text)}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,16px);background:#0f2419;border:1px solid #1d5236;
+    color:#d6f5e3;padding:12px 16px;border-radius:12px;font-size:14px;box-shadow:0 12px 32px rgba(0,0,0,.5);
+    opacity:0;transition:opacity .18s,transform .18s;pointer-events:none;max-width:90vw}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  dialog{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:16px;padding:0;
+         max-width:440px;width:calc(100% - 32px)}
+  dialog::backdrop{background:rgba(3,8,14,.66);backdrop-filter:blur(2px)}
+  .dlg-body{padding:22px}
+  .dlg-body h3{margin:0 0 8px;font-size:17px}
+  .dlg-body p{margin:0;color:var(--muted);font-size:14px}
+  .dlg-foot{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;padding:0 22px 22px}
+  .backdrop-hint{margin:14px 0 0;text-align:center}
+  .today{background:var(--surface2);border:1px dashed var(--border);border-radius:12px;padding:14px;margin:0}
+  .today h4{margin:0 0 10px;font-size:13px;color:var(--warn);text-transform:uppercase;letter-spacing:.04em}
+  .today-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+  .today select{width:auto;min-width:104px}
+  .today .help{margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Cadastro de unidade — melhorias propostas</h1>
+  <p class="sub">Mockup navegável: pode digitar, copiar horário e tentar sair. Nada aqui salva de verdade.</p>
+
+  <ul class="legend">
+    <li><span class="num">1</span> Máscara no CEP</li>
+    <li><span class="num">2</span> Campo Número</li>
+    <li><span class="num">3</span> Horário livre + copiar</li>
+    <li><span class="num">4</span> Sair sem salvar</li>
+  </ul>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Nova unidade</h2>
+      <button class="btn ghost" id="btnX" aria-label="Fechar">✕</button>
+    </div>
+
+    <div class="card-body">
+
+      <div class="grid g2">
+        <div>
+          <label for="nome">Nome</label>
+          <input type="text" id="nome" placeholder="Matriz Sinop">
+        </div>
+        <div>
+          <label for="fone">Telefone</label>
+          <input type="text" id="fone" placeholder="(66) 3521-8000">
+        </div>
+      </div>
+
+      <div>
+        <div class="lbl-row"><span class="badge">1</span><label for="cep">CEP</label></div>
+        <input type="text" id="cep" inputmode="numeric" placeholder="00000-000" maxlength="9" autocomplete="off">
+        <p class="help" id="cepHelp">Preenche endereço, cidade e UF sozinho.</p>
+      </div>
+
+      <div class="grid g-addr">
+        <div>
+          <label for="end">Endereço</label>
+          <input type="text" id="end" placeholder="Rua, avenida - bairro">
+        </div>
+        <div>
+          <div class="lbl-row"><span class="badge">2</span><label for="num">Número</label></div>
+          <input type="text" id="num" placeholder="123 ou S/N">
+        </div>
+      </div>
+      <p class="note"><b>Por que campo separado:</b> hoje quem digita o número dentro do endereço perde ele
+        na hora que corrige o CEP — a busca sobrescreve o campo inteiro. Aceita texto: <b>S/N</b>, <b>123-A</b>, <b>Km 12</b>.</p>
+
+      <div class="grid g3">
+        <div>
+          <label for="cidade">Cidade</label>
+          <input type="text" id="cidade" placeholder="Sinop">
+        </div>
+        <div>
+          <label for="uf">UF</label>
+          <input type="text" id="uf" placeholder="MT" maxlength="2">
+        </div>
+        <div>
+          <label for="fuso">Fuso horário</label>
+          <select id="fuso">
+            <option>Cuiabá (America/Cuiaba)</option>
+            <option>Brasília (America/Sao_Paulo)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="lbl-row" style="justify-content:space-between">
+          <div class="lbl-row" style="margin:0"><span class="badge">3</span><label>Horário de funcionamento</label></div>
+          <button class="btn ghost btn-copy" id="btnHoje" type="button">Ver como é hoje</button>
+        </div>
+        <p class="help" id="gradeHelp">Preencha um dia e use “Copiar para os demais dias” — os dias fechados continuam fechados.</p>
+
+        <div id="hojeBox" class="today" hidden>
+          <h4>Como é hoje</h4>
+          <div class="today-row">
+            <span class="day" style="width:120px">Segunda-feira</span>
+            <select id="selHoje"></select>
+            <span class="dash">–</span>
+            <select id="selHoje2"></select>
+          </div>
+          <p class="help">Lista de 30 em 30 minutos: 48 opções para rolar, e <b>07:48 não existe</b>.
+             Sem atalho nenhum: os 7 dias são preenchidos um a um.</p>
+        </div>
+
+        <table id="grade">
+          <thead>
+            <tr><th style="width:150px">Dia</th><th>Situação</th><th>Horário</th><th></th></tr>
+          </thead>
+          <tbody id="corpo"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <div class="card-foot">
+      <span class="help" style="align-self:center">Feriados e exceções ficam no calendário, logo abaixo.</span>
+      <div class="foot-right">
+        <button class="btn" id="btnCancelar">Cancelar</button>
+        <button class="btn primary" id="btnSalvar">Salvar unidade</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="backdrop-hint">
+    <button class="btn" id="btnFora"><span class="badge">4</span> Clicar fora do formulário</button>
+  </p>
+  <p class="help" style="text-align:center">Tecla <b>Esc</b>, o <b>✕</b> e o <b>Cancelar</b> passam pelo mesmo aviso.</p>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<dialog id="dlg">
+  <div class="dlg-body">
+    <h3>Você tem alterações não salvas</h3>
+    <p id="dlgTexto">Deseja salvar antes de sair?</p>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn ghost" id="dlgVoltar">Continuar editando</button>
+    <button class="btn danger" id="dlgDescartar">Descartar</button>
+    <button class="btn primary" id="dlgSalvar">Salvar</button>
+  </div>
+</dialog>
+
+<script>
+const DIAS = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
+const CURTO = ['segunda','terça','quarta','quinta','sexta','sábado','domingo'];
+
+const estado = DIAS.map((_, i) => ({
+  aberta: i < 5, de: i < 5 ? '08:00' : '', ate: i < 5 ? '18:00' : '',
+  pausa: false, pausaDe: '12:00', pausaAte: '13:00'
+}));
+
+const corpo = document.getElementById('corpo');
+const toastEl = document.getElementById('toast');
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => toastEl.classList.remove('show'), 4200);
+}
+
+function faixa(d){ return d.de && d.ate ? d.de + ' – ' + d.ate : ''; }
+
+function render(){
+  corpo.innerHTML = '';
+  estado.forEach((d, i) => {
+    const tr = document.createElement('tr');
+    if (!d.aberta) tr.className = 'fechada';
+
+    const podeCopiar = d.aberta && d.de && d.ate;
+    const tip = podeCopiar
+      ? 'Copiar ' + faixa(d) + ' para os demais dias abertos'
+      : (d.aberta ? 'Preencha o horário deste dia para poder copiar'
+                  : 'Este dia está fechado — não há horário para copiar');
+
+    tr.innerHTML = `
+      <td class="day">${DIAS[i]}</td>
+      <td>
+        <label class="switch"><input type="checkbox" data-i="${i}" data-c="aberta" ${d.aberta?'checked':''}>
+          ${d.aberta ? 'Aberta' : 'Fechada'}</label>
+      </td>
+      <td>
+        ${d.aberta ? `
+          <div class="hours">
+            <input type="time" value="${d.de}"  data-i="${i}" data-c="de">
+            <span class="dash">–</span>
+            <input type="time" value="${d.ate}" data-i="${i}" data-c="ate">
+            <label class="switch"><input type="checkbox" data-i="${i}" data-c="pausa" ${d.pausa?'checked':''}> Pausa</label>
+            ${d.pausa ? `
+              <input type="time" value="${d.pausaDe}"  data-i="${i}" data-c="pausaDe">
+              <span class="dash">–</span>
+              <input type="time" value="${d.pausaAte}" data-i="${i}" data-c="pausaAte">` : ''}
+          </div>` : '<span class="help">Fechada o dia todo</span>'}
+      </td>
+      <td style="text-align:right">
+        <span class="tip" data-tip="${tip}">
+          <button class="btn btn-copy" data-copiar="${i}" ${podeCopiar?'':'disabled'}>⧉ Copiar para os demais dias</button>
+        </span>
+      </td>`;
+    corpo.appendChild(tr);
+  });
+}
+
+corpo.addEventListener('change', e => {
+  const el = e.target;
+  if (el.dataset.c === undefined) return;
+  const d = estado[+el.dataset.i];
+  d[el.dataset.c] = el.type === 'checkbox' ? el.checked : el.value;
+  if (el.dataset.c === 'aberta' && el.checked && !d.de) { d.de = '08:00'; d.ate = '18:00'; }
+  render();
+});
+
+corpo.addEventListener('click', e => {
+  const btn = e.target.closest('[data-copiar]');
+  if (!btn || btn.disabled) return;
+  const i = +btn.dataset.copiar, origem = estado[i], atingidos = [];
+  estado.forEach((d, j) => {
+    if (j === i || !d.aberta) return;
+    Object.assign(d, { de: origem.de, ate: origem.ate, pausa: origem.pausa,
+                       pausaDe: origem.pausaDe, pausaAte: origem.pausaAte });
+    atingidos.push(CURTO[j]);
+  });
+  render();
+  if (!atingidos.length) { toast('Nenhum outro dia está aberto para receber o horário.'); return; }
+  const lista = atingidos.length > 1
+    ? atingidos.slice(0, -1).join(', ') + ' e ' + atingidos.at(-1)
+    : atingidos[0];
+  toast('Horário de ' + CURTO[i] + ' copiado para ' + lista + '.');
+});
+
+render();
+
+// ---- 1. máscara do CEP + busca ------------------------------------------------
+const cep = document.getElementById('cep'), cepHelp = document.getElementById('cepHelp');
+cep.addEventListener('input', () => {
+  const dig = cep.value.replace(/\D/g, '').slice(0, 8);
+  cep.value = dig.length > 5 ? dig.slice(0, 5) + '-' + dig.slice(5) : dig;
+  cepHelp.className = 'help';
+  if (dig.length === 8) buscar(dig);
+  else cepHelp.textContent = 'Preenche endereço, cidade e UF sozinho.';
+});
+
+async function buscar(dig){
+  cepHelp.textContent = 'Buscando endereço…';
+  try{
+    const r = await fetch('https://viacep.com.br/ws/' + dig + '/json/');
+    const d = await r.json();
+    if (d.erro) throw new Error('nao achou');
+    document.getElementById('end').value = [d.logradouro, d.bairro].filter(Boolean).join(' - ');
+    document.getElementById('cidade').value = d.localidade || '';
+    document.getElementById('uf').value = d.uf || '';
+    cepHelp.className = 'help ok';
+    cepHelp.textContent = 'Endereço preenchido — o Número continua com você.';
+  }catch(e){
+    cepHelp.textContent = 'CEP não encontrado. Dá para preencher à mão.';
+  }
+}
+
+// ---- lista de 30 em 30, só para comparar --------------------------------------
+const opcoes = [];
+for (let m = 0; m < 24 * 60; m += 30)
+  opcoes.push(String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'));
+['selHoje','selHoje2'].forEach((id, k) => {
+  const s = document.getElementById(id);
+  s.innerHTML = opcoes.map(o => `<option${o === (k ? '18:00' : '08:00') ? ' selected' : ''}>${o}</option>`).join('');
+});
+const hojeBox = document.getElementById('hojeBox'), btnHoje = document.getElementById('btnHoje');
+btnHoje.addEventListener('click', () => {
+  hojeBox.hidden = !hojeBox.hidden;
+  btnHoje.textContent = hojeBox.hidden ? 'Ver como é hoje' : 'Ocultar';
+});
+
+// ---- 4. sair com alteração não salva ------------------------------------------
+const campos = ['nome','fone','cep','end','num','cidade','uf'];
+const foto = () => JSON.stringify([campos.map(id => document.getElementById(id).value), estado]);
+let inicial = foto();
+const sujo = () => foto() !== inicial;
+
+const dlg = document.getElementById('dlg');
+function tentarSair(){
+  if (!sujo()) { toast('Formulário sem alteração: fecha direto, sem perguntar.'); return; }
+  dlg.showModal();
+}
+document.getElementById('btnFora').addEventListener('click', tentarSair);
+document.getElementById('btnX').addEventListener('click', tentarSair);
+document.getElementById('btnCancelar').addEventListener('click', tentarSair);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !dlg.open) { e.preventDefault(); tentarSair(); } });
+
+document.getElementById('dlgVoltar').addEventListener('click', () => dlg.close());
+document.getElementById('dlgDescartar').addEventListener('click', () => { dlg.close(); toast('Descartado: o formulário fecharia e o que foi digitado some.'); });
+document.getElementById('dlgSalvar').addEventListener('click', () => { dlg.close(); salvar(); });
+document.getElementById('btnSalvar').addEventListener('click', salvar);
+
+function salvar(){
+  if (!document.getElementById('nome').value.trim()){
+    toast('Falta o nome da unidade — volta para o formulário com o erro à mostra.');
+    document.getElementById('nome').focus();
+    return;
+  }
+  const invertido = estado.find(d => d.aberta && d.de && d.ate && d.de >= d.ate);
+  if (invertido){ toast('Tem dia fechando antes de abrir — corrija para salvar.'); return; }
+  inicial = foto();
+  toast('Salvo. (No mockup, só limpa o “tem alteração”.)');
+}
+</script>
+</body>
+</html>

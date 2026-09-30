@@ -1,0 +1,96 @@
+{
+  "CATALOG_MGMT": {
+    "HEADER": "Catálogo",
+    "DESCRIPTION": "Os produtos que o seu time manda na conversa: foto, preço e estoque no mesmo lugar.",
+    "SEARCH_PLACEHOLDER": "Buscar por nome ou SKU",
+    "LOADING": "Carregando catálogo",
+    "COUNT": "{n} produtos",
+    "ADD": {
+      "BUTTON": "+ Novo produto"
+    },
+    "FILTERS": {
+      "ALL_CATEGORIES": "Todas as categorias",
+      "VISIBLE_ONLY": "Só visíveis"
+    },
+    "LIST": {
+      "EMPTY": "Nenhum produto por aqui ainda. Cadastre um para começar a mandar na conversa.",
+      "ERROR": "Não foi possível carregar o catálogo. Tente de novo em instantes."
+    },
+    "CARD": {
+      "NO_IMAGE": "Sem foto",
+      "FEATURED": "Destaque",
+      "HIDDEN": "Oculto",
+      "OUT_OF_STOCK": "Sem estoque",
+      "STOCK": "{n} un."
+    },
+    "FORM": {
+      "LOADING": "Carregando produto",
+      "BACK": "Catálogo",
+      "NEW_TITLE": "Novo produto",
+      "SAVE": "Salvar",
+      "SAVE_ERROR": "Não foi possível salvar o produto. Tente de novo em instantes.",
+      "LOAD_ERROR": "Não foi possível carregar o produto. Tente de novo em instantes.",
+      "STATE": {
+        "ACTIVE": "Ativo",
+        "HIDDEN": "Oculto"
+      },
+      "PHOTOS": {
+        "LABEL": "Fotos do produto",
+        "HINT": "JPG ou PNG, até 2 MB. A primeira foto é a capa. Recomendado 800x800, que é o tamanho que o WhatsApp exibe.",
+        "ADD": "Adicionar foto",
+        "REMOVE": "Remover foto",
+        "INVALID_TYPE": "{name} não é um arquivo JPG ou PNG.",
+        "TOO_BIG": "{name} passa de 2 MB.",
+        "REMOVE_ERROR": "Não foi possível remover a foto. Tente de novo em instantes."
+      },
+      "FIELDS": {
+        "NAME": "Nome",
+        "NAME_REQUIRED": "Dê um nome ao produto.",
+        "DESCRIPTION": "Descrição",
+        "PRICE": "Preço",
+        "PROMO_PRICE": "Preço promocional",
+        "PRICE_PLACEHOLDER": "0,00",
+        "SKU": "SKU / código no ERP",
+        "STOCK": "Estoque",
+        "CATEGORY": "Categoria",
+        "NO_CATEGORY": "Sem categoria"
+      },
+      "PUBLISH": {
+        "TITLE": "Publicação",
+        "VISIBLE": "Visível no catálogo",
+        "VISIBLE_HINT": "Aparece para o atendente enviar",
+        "FEATURED": "Destaque",
+        "FEATURED_HINT": "Fixa no topo da lista"
+      },
+      "SYNC": {
+        "TITLE": "Sincronização",
+        "PRODUCT_ID": "ID {id}",
+        "NOW": "Sincronizar agora",
+        "QUEUED": "Sincronização enfileirada. O produto fica pendente até a Meta confirmar.",
+        "ERROR": "Não conseguimos enfileirar a sincronização. Tente de novo em instantes.",
+        "HIDDEN": "Produto oculto sai da Meta na próxima sincronização."
+      },
+      "PREVIEW": {
+        "TITLE": "Como o cliente vê",
+        "ACTION": "Ver produto"
+      }
+    },
+    "SYNC_ALL": {
+      "BUTTON": "Sincronizar com a Meta",
+      "QUEUED": "Sincronização enfileirada. Os produtos se atualizam conforme a Meta confirma.",
+      "ERROR": "Não conseguimos enfileirar a sincronização. Tente de novo em instantes."
+    },
+    "META_STATUS": {
+      "SINCRONIZADO": "Na Meta",
+      "PENDENTE": "Meta pendente",
+      "INCOMPLETO": "Incompleto",
+      "SYNCED_HINT": "Conferido {time}",
+      "PENDING_HINT": "Vai para a Meta na próxima sincronização",
+      "MISSING_HINT": "A Meta precisa de {items} para aceitar este produto",
+      "MISSING": {
+        "SKU": "SKU",
+        "FOTO": "foto"
+      }
+    }
+  }
+}

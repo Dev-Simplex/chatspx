@@ -1,3 +1,2 @@
 @AGENTS.md
-
-@.claude/STATE.md
+@PROJETO.md

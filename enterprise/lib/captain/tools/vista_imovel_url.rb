@@ -14,7 +14,12 @@ module Captain::Tools::VistaImovelUrl
   SITE_LINK_TIMEOUT = 5
   SITE_LINK_TTL = 12.hours
 
+  # nil quando a conta não declarou o domínio público: sem ele não há URL a montar, e
+  # inventar uma mandaria o cliente para o site de outra conta. Quem chama já trata a
+  # ausência — o card cai nos quick replies e a linha da listagem sai sem link.
   def build_url(im, venda)
+    return nil if site_domain.blank?
+
     codigo = imovel_codigo(im)
     site_api_link(codigo) || fallback_url(im, venda, codigo)
   end

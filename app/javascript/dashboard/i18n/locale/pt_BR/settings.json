@@ -13,33 +13,11 @@
   },
   "AGENTS_RODIZIO": {
     "TITLE": "Rodízio",
-    "SUBTITLE": "Como os leads estão sendo distribuídos, e sob qual regra",
+    "SUBTITLE": "Como os leads novos estão sendo divididos entre a equipe",
     "ALL_TEAMS": "Todos os times",
-    "RELOAD": "Atualizar",
     "LOADING": "Carregando...",
     "ERROR": "Não foi possível carregar a contabilização do rodízio",
     "EMPTY": "Nenhum lead distribuído no período",
-    "TOTAL_RECEIVED": "Leads recebidos",
-    "TABLE": {
-      "CONSULTANT": "Consultor",
-      "RECEIVED": "Recebidos",
-      "ROTATION": "Rodízio",
-      "CONTINUITY": "Continuidade",
-      "PREFERENCE": "Pedido do cliente",
-      "HANDOFF": "Repasse",
-      "MANUAL": "Gestor",
-      "OPEN": "Em aberto",
-      "CHANNELS": "Canais",
-      "PRODUCTS": "Produtos"
-    },
-    "STALLED": {
-      "TITLE": "Sem movimento",
-      "LIST_TITLE": "Designados sem movimento",
-      "SUBTITLE": "Ninguém pegou ainda. A IA segue cobrindo o cliente.",
-      "THRESHOLD": "acima de {min} min",
-      "WAITING": "esperando há {tempo}",
-      "NONE": "Nada parado no momento"
-    },
     "DETAIL": {
       "OPEN": "Por que este?",
       "TITLE": "Conversa {id}",
@@ -88,45 +66,19 @@
       "BY_LEAD": "Por lead"
     },
     "LEADS": {
-      "TITLE": "Cada lead do período: onde está, com quem, e há quanto tempo",
-      "EMPTY": "Nenhum lead de rodízio no período. Troque o período no alto da tela para olhar outro mês."
+      "TITLE": "Cada lead do período. Quem está esperando aparece primeiro; a barra mostra quanto ele esperou até alguém pegar, e o traço no meio é o prazo.",
+      "EMPTY": "Nenhum lead de rodízio no período. Troque o período no alto da tela para olhar outro mês.",
+      "EMPTY_FILTERED": "Nenhum lead com esses filtros. Tente limpar os filtros ou trocar o período."
     },
     "TIMELINE": {
-      "OPEN": "Ver a linha do tempo dos leads",
-      "TITLE": "Leads que {nome} recebeu pelo rodízio",
-      "AVG_WAIT": "média de espera: {tempo}",
-      "EMPTY": "Nenhum lead de rodízio no período.",
       "SHOWING": "mostrando {n} de {total}",
-      "LEGEND": "Largura é tempo, na mesma escala para todos, até 24 h; o total exato vai ao lado da barra.",
       "AI_SHORT": "IA",
-      "SECONDS": "{n}s",
+      "SECONDS": "{n} s",
       "MINUTES": "{n} min",
       "HOURS": "{n}h",
       "HOURS_MINUTES": "{h}h{m}",
       "DAYS": "{n} d",
-      "DAYS_HOURS": "{d} d {h}h",
-      "PHASE": {
-        "IA": "IA cobrindo",
-        "ESPERA": "esperando o consultor pegar",
-        "ATENDIMENTO": "em atendimento"
-      },
-      "NOW": {
-        "WAITING_WITH": "esperando {nome} pegar há {tempo}",
-        "IN_SERVICE_WITH": "com {nome} há {tempo}"
-      },
-      "MARK": {
-        "ARRIVED": "chegou {hora}",
-        "DESIGNATED": "designado {hora}",
-        "TAKEN": "pegou {hora}",
-        "FIRST_REPLY": "1ª resposta {hora}",
-        "LOST": "saiu dele {hora}",
-        "RESOLVED": "resolvido {hora}"
-      },
-      "OUTCOME": {
-        "RESOLVED": "{nome} · resolvido em {tempo}",
-        "EXPIRED": "{nome} · expirou sem ninguém pegar",
-        "PASSED": "{nome} · expirou e foi para {destino}"
-      }
+      "DAYS_HOURS": "{d} d {h}h"
     },
     "CONFIGURE": "Configurar rodízio",
     "POLICY": {
@@ -204,6 +156,80 @@
         "CAP": "O teto precisa ser maior que zero. Deixe vazio para não limitar.",
         "POOL_VAZIO": "O rodízio está ligado mas não há ninguém no pool — nenhum lead seria distribuído."
       }
+    },
+    "AUTO_REFRESH": "· atualiza sozinho a cada minuto",
+    "FILTERS": {
+      "AGENT_ALL": "Todos os consultores",
+      "STATUS_ALL": "Todas as situações",
+      "CHANNEL_ALL": "Todos os canais",
+      "PRODUCT_ALL": "Todos os produtos",
+      "NO_PRODUCT": "Sem produto",
+      "LATE": "Só os que passaram do prazo",
+      "CLEAR": "Limpar filtros",
+      "STATUS": {
+        "WAITING": "Esperando alguém pegar",
+        "SERVING": "Em atendimento",
+        "RESOLVED": "Resolvidos",
+        "LOST": "Ninguém pegou a tempo"
+      }
+    },
+    "NOW": {
+      "TITLE_ONE": "1 cliente esperando alguém pegar agora",
+      "TITLE_MANY": "{n} clientes esperando alguém pegar agora",
+      "NONE": "Ninguém esperando além do prazo agora.",
+      "WAITING": "esperando {nome} há {tempo}",
+      "WAITING_QUEUE": "esperando na fila, sem ninguém escolhido, há {tempo}",
+      "DEADLINE": "prazo para pegar: {sla}",
+      "OPEN": "Abrir conversa",
+      "WHY": "por que ele?",
+      "SEE_ALL": "ver todos os {n}"
+    },
+    "CARDS": {
+      "TITLE": "Como está o rodízio no período",
+      "RECEIVED": "Leads recebidos",
+      "RECEIVED_SUB": "{n} pelo rodízio",
+      "RECEIVED_INFO": "Todos os leads que o rodízio entregou para alguém no período.",
+      "WAIT": "Tempo até alguém pegar",
+      "WAIT_SUB": "prazo combinado: {sla} min",
+      "WAIT_INFO": "Em média, quanto tempo o cliente esperou entre ser entregue a um consultor e o consultor pegar a conversa.",
+      "ON_TIME": "Pegos dentro do prazo",
+      "ON_TIME_SUB": "{n} de {total}",
+      "ON_TIME_INFO": "De cada 100 leads que alguém pegou, quantos foram pegos antes de o prazo acabar.",
+      "EXPIRED": "Ninguém pegou a tempo",
+      "EXPIRED_SUB": "{pct}% dos leads do rodízio",
+      "EXPIRED_INFO": "Leads em que o prazo acabou e ninguém tinha pegado."
+    },
+    "AGENT_ROW": {
+      "HINT": "Quantos leads cada consultor recebeu pelo rodízio. Barras parecidas = divisão justa. Clique num nome para ver os leads dele.",
+      "WAITING": "{n} esperando",
+      "AVG": "pega em {tempo}",
+      "CONTINUITY": "+{n} que já eram dele",
+      "PREFERENCE": "+{n} a pedido do cliente",
+      "OPEN_LEADS": "Ver os leads de {nome}",
+      "BREAKDOWN": "Pelo rodízio {rodizio} · Já eram dele {continuidade} · A pedido do cliente {preferencia} · Repassados para ele {repasse} · Escolhidos pelo gestor {gestor}"
+    },
+    "LEAD": {
+      "BAR_LABEL": "Até alguém pegar",
+      "DEADLINE": "prazo",
+      "DEADLINE_VALUE": "· prazo {sla}",
+      "NOBODY_TOOK": "ninguém pegou em {tempo}",
+      "BADGE_WAITING": "Esperando {nome} pegar · há {tempo}",
+      "BADGE_SERVING": "Com {nome} · há {tempo}",
+      "BADGE_RESOLVED": "Resolvido por {nome}",
+      "BADGE_PASSED": "Ninguém pegou · foi para {destino}",
+      "BADGE_EXPIRED": "Ninguém pegou a tempo",
+      "STORY_ARRIVED": "Chegou há {tempo}.",
+      "STORY_AI": "A IA atendeu por {tempo}.",
+      "STORY_NOT_TAKEN": "{nome} ainda não pegou.",
+      "STORY_SERVING": "{nome} pegou em {espera} e está atendendo há {atendimento}.",
+      "STORY_RESOLVED": "{nome} pegou em {espera} e resolveu em {atendimento}.",
+      "STORY_EXPIRED_PASSED": "Ninguém pegou em {espera}. O lead foi para {destino}.",
+      "STORY_EXPIRED": "Ninguém pegou em {espera}.",
+      "AT_ARRIVED": "Chegou {hora}",
+      "AT_DESIGNATED": "Entregue a {nome} {hora}",
+      "AT_TAKEN": "{nome} pegou {hora}",
+      "AT_LOST": "Saiu de {nome} {hora}",
+      "AT_RESOLVED": "Resolvido {hora}"
     }
   },
   "AGENTS_EVALUATION": {
@@ -892,12 +918,12 @@
     "REPORTS_OVERVIEW": "Visão geral",
     "REAUTHORIZE": "A conexão com a sua caixa de entrada expirou. Por favor, reconecte para continuar recebendo e enviando mensagens",
     "HELP_CENTER": {
-      "SUGGESTIONS": "Sugerir melhoria",
       "TITLE": "Central de Ajuda",
       "ARTICLES": "Artigos",
       "CATEGORIES": "Categorias",
       "LOCALES": "Localidades",
-      "SETTINGS": "Configurações"
+      "SETTINGS": "Configurações",
+      "SUGGESTIONS": "Sugerir melhoria"
     },
     "CHANNELS": "Caixa de entrada",
     "SET_AUTO_OFFLINE": {

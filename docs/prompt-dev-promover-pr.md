@@ -58,6 +58,7 @@ cabeça:
 | SENTINELA | `54.166.220.138` | |
 | FABRICA | `3.87.182.184` | |
 | AGN | `13.221.167.143` | |
+| CDSOLAR | `13.218.193.75` | cliente real (novo, desde 10/09/2026): só com OK explícito |
 | PRODUCAO | `192.168.8.229` | **você não alcança daqui** |
 
 A `.229` não usa a chave da AWS, o acesso dela é por senha e você não tem. O
@@ -89,7 +90,7 @@ Nenhuma delas se apresenta como erro. As três se disfarçam de outra coisa:
 **Regras que não se negociam**
 
 - **Restart e reboot só com OK explícito do usuário.** Em nenhuma hipótese
-  reinicie a TOZI por conta própria.
+  reinicie a TOZI ou a CDSOLAR por conta própria.
 - Antes de qualquer `merge --ff-only` numa VM, confira o HEAD **real** dela.
 - `git` rodado **dentro** da VM mente sobre divergência: o deploy por pacote
   não atualiza `refs/remotes/origin/*`, então sem `fetch` a VM se compara

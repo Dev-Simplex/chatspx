@@ -205,7 +205,7 @@ const hasContactName = computed(() => !!currentContact.value.name?.trim());
 const startNameEdit = async () => {
   editingContact.value = {
     id: currentContact.value.id,
-    name: currentContact.value.name || '',
+    name: currentContact.value.name || displayName.value,
   };
   nameDraft.value = editingContact.value.name;
   isEditingName.value = true;
@@ -372,7 +372,7 @@ const whatsAppWindowIcon = computed(() => {
     ref="conversationHeader"
     class="flex items-center justify-between flex-shrink-0 w-full px-4 bg-n-background dark:bg-n-solid-1 border-b border-n-weak wa-conversation-header"
   >
-    <div class="flex items-center gap-3 min-w-0 flex-1">
+    <div class="flex items-center gap-3 min-w-[8.25rem] flex-1">
       <BackButton
         v-if="showBackButton"
         :back-url="backButtonUrl"
@@ -388,27 +388,29 @@ const whatsAppWindowIcon = computed(() => {
         class="flex-shrink-0"
         allow-preview
       />
-      <div class="flex flex-col items-start min-w-0 overflow-hidden">
-        <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
+      <div
+        class="flex flex-col items-start min-w-[5rem] max-w-full overflow-hidden"
+      >
+        <div class="flex flex-row items-center w-full min-w-0 gap-1 p-0 m-0">
           <input
             v-if="isEditingName"
             ref="nameInput"
             v-model="nameDraft"
             type="text"
             :placeholder="$t('CONVERSATION.HEADER.NAME_PLACEHOLDER')"
-            class="wa-contact-name reset-base w-56 max-w-full px-1.5 py-0 border rounded-md border-n-strong bg-n-background text-n-slate-12 focus:border-n-brand focus:outline-none"
+            class="wa-contact-name reset-base w-56 min-w-0 max-w-full px-1.5 py-0 border rounded-md border-n-strong bg-n-background text-n-slate-12 focus:border-n-brand focus:outline-none"
             @keydown.enter.prevent="saveName"
             @keydown.esc.stop.prevent="cancelNameEdit"
             @blur="saveName"
           />
           <button
-            v-else-if="hasContactName"
+            v-else-if="hasContactName || (isGroup && displayName)"
             v-tooltip.bottom-start="$t('CONVERSATION.HEADER.EDIT_NAME')"
-            class="flex items-center min-w-0 gap-1 px-1 -mx-1 rounded-md group hover:bg-n-alpha-2 transition-colors"
+            class="flex items-center min-w-0 max-w-full gap-1 px-1 -mx-1 rounded-md group hover:bg-n-alpha-2 transition-colors"
             @click="startNameEdit"
           >
             <span
-              class="wa-contact-name truncate text-n-slate-12 group-hover:text-n-brand transition-colors"
+              class="wa-contact-name min-w-[5rem] truncate text-n-slate-12 group-hover:text-n-brand transition-colors"
             >
               {{ displayName }}
             </span>
@@ -418,11 +420,11 @@ const whatsAppWindowIcon = computed(() => {
           </button>
           <button
             v-else
-            class="flex items-center gap-1 px-1 -mx-1 rounded-md text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors"
+            class="flex items-center min-w-0 max-w-full gap-1 px-1 -mx-1 rounded-md text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors"
             @click="startNameEdit"
           >
             <span class="i-lucide-pencil size-3.5 flex-shrink-0" />
-            <span class="wa-contact-name truncate">
+            <span class="wa-contact-name min-w-[5rem] truncate">
               {{ $t('CONVERSATION.HEADER.NAME_CONTACT') }}
             </span>
           </button>
@@ -485,7 +487,7 @@ const whatsAppWindowIcon = computed(() => {
         class="hidden md:inline-flex"
       />
       <SLACardLabel
-        v-if="hasSlaPolicyId"
+        v-if="hasSlaPolicyId && hasRoomForChips"
         :chat="chat"
         show-extended-info
         :parent-width="width"

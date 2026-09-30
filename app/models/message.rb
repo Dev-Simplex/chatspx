@@ -173,8 +173,21 @@ class Message < ApplicationRecord
     @token ||= inbox.channel.try(:page_access_token)
   end
 
+  # Atributos derivados para REST e websocket; nunca persistem a apresentação no banco.
+  def display_content_attributes
+    return content_attributes unless whatsapp_phone_reply?
+
+    body = content.delete_prefix(WHATSAPP_PHONE_REPLY_MARKER).strip
+    wrapped_body = body.match(/\A💬 \*{1,2}Mensagem(?: \(às [^)]+\))?:\*{1,2}\s*"(.*)"\z/m)
+    content_attributes.merge(
+      'whatsapp_phone_reply' => true,
+      'whatsapp_phone_reply_content' => wrapped_body ? wrapped_body[1] : body
+    )
+  end
+
   def push_event_data # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     data = attributes.symbolize_keys.merge(
+      content_attributes: display_content_attributes,
       created_at: created_at.to_i,
       message_type: message_type_before_type_cast,
       conversation_id: conversation&.display_id,
@@ -185,6 +198,11 @@ class Message < ApplicationRecord
     data[:forwarded] = forwarded if has_attribute?(:forwarded)
     data[:forwarded_from_message_id] = forwarded_from_message_id if has_attribute?(:forwarded_from_message_id)
     data[:starred] = starred if has_attribute?(:starred)
+    # O empurrão do websocket vai para uma SALA, não para uma pessoa: aqui não há como
+    # saber quem está do outro lado, então o valor protegido nunca sai por aqui, nem
+    # cifrado. Quem revela para administrador é a serialização por requisição, que conhece
+    # o Current.user. Ver Spx::SecretTemplateParams.
+    data[:additional_attributes] = Spx::SecretTemplateParams.sanitized_attributes(self, nil) if Spx::SecretTemplateParams.protected?(self)
     merge_sender_attributes(data)
   end
 
