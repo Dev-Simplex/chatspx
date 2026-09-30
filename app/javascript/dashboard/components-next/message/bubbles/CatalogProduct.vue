@@ -62,8 +62,8 @@ const dinheiro = (centavos, moeda) =>
           <!-- Campos personalizados do retrato, já formatados pelo servidor e sem os internos.
                Mensagem antiga não tem `customFields` e segue abrindo igual. -->
           <span
-            v-for="campo in produto.customFields ?? []"
-            :key="campo.label"
+            v-for="(campo, posicao) in produto.customFields ?? []"
+            :key="posicao"
             class="text-sm [overflow-wrap:anywhere]"
           >
             <span class="opacity-70">{{ campo.label }}:</span>

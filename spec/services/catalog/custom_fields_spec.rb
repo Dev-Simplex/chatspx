@@ -40,6 +40,16 @@ RSpec.describe Catalog::CustomFields do
       expect(campos.normalizar('dormitorios' => '3')).to eq(campos.normalizar('dormitorios' => 3))
     end
 
+    it 'lê ponto seguido de três dígitos como milhar, e os outros pontos como decimal' do
+      expect(campos.normalizar('valor_venda' => '450.000')).to eq('valor_venda' => 450_000)
+      expect(campos.normalizar('valor_venda' => '1.250.000')).to eq('valor_venda' => 1_250_000)
+      expect(campos.normalizar('valor_venda' => '12.5')).to eq('valor_venda' => 12.5)
+    end
+
+    it 'mantém a opção de lista que o item já tinha, mesmo fora das opções atuais do campo' do
+      expect(campos.normalizar({ 'finalidade' => 'Permuta' }, { 'finalidade' => 'Permuta' })).to eq('finalidade' => 'Permuta')
+    end
+
     it 'aceita data no formato brasileiro' do
       expect(campos.normalizar('entrega' => '31/12/2026')).to eq('entrega' => '2026-12-31')
     end

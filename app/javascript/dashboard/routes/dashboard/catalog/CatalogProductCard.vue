@@ -129,8 +129,8 @@ const semEstoque = computed(
         </span>
       </span>
       <span
-        v-for="campo in campos"
-        :key="campo.label"
+        v-for="(campo, indice) in campos"
+        :key="indice"
         data-testid="card-campo"
         class="truncate text-n-slate-11 text-label-small"
       >

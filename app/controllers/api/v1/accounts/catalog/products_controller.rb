@@ -147,6 +147,7 @@ class Api::V1::Accounts::Catalog::ProductsController < Api::V1::Accounts::BaseCo
     )
     return atributos unless atributos.key?(:custom_attributes)
 
-    atributos.merge(custom_attributes: campos_personalizados.normalizar(atributos[:custom_attributes]))
+    atuais = @produto&.custom_attributes || {}
+    atributos.merge(custom_attributes: campos_personalizados.normalizar(atributos[:custom_attributes], atuais))
   end
 end

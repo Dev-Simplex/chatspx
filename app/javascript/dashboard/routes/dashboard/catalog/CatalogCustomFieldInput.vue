@@ -28,13 +28,20 @@ const tipo = computed(() => props.definicao.attribute_display_type);
 const rotulo = computed(() => props.definicao.attribute_display_name);
 const tipoDoInput = computed(() => TIPOS_DE_INPUT[tipo.value] || 'text');
 
-const opcoes = computed(() => [
-  { value: '', label: t('CATALOG_MGMT.FORM.CUSTOM_FIELDS.EMPTY_OPTION') },
-  ...(props.definicao.attribute_values || []).map(opcao => ({
-    value: opcao,
-    label: opcao,
-  })),
-]);
+// O valor já gravado entra na lista mesmo que a opção tenha sido tirada do campo depois: sem
+// isso o seletor abriria em branco escondendo um valor que continua salvo no item.
+const opcoes = computed(() => {
+  const valores = props.definicao.attribute_values || [];
+  const todas =
+    valor.value && !valores.includes(valor.value)
+      ? [valor.value, ...valores]
+      : valores;
+
+  return [
+    { value: '', label: t('CATALOG_MGMT.FORM.CUSTOM_FIELDS.EMPTY_OPTION') },
+    ...todas.map(opcao => ({ value: opcao, label: opcao })),
+  ];
+});
 </script>
 
 <template>
