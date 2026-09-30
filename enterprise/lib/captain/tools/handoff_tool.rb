@@ -27,6 +27,8 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   # conseguir satisfazer. Depois deste número de recusas, passa e registra.
   MAX_RECUSAS = 2
   CHAVE_RECUSAS = 'handoff_recusas_sem_prioridade'.freeze
+  HANDOFF_JA_FEITO = 'A conversa já está com a equipe humana; nada foi refeito e não é preciso chamar esta ' \
+                     'ferramenta de novo. Siga conforme suas instruções até uma pessoa assumir.'.freeze
 
   # RubyLLM::Tool delega description da instância para a classe — override de instância,
   # DINÂMICO por conta (tools são instanciadas a cada run: assistant.agent → agent_tools →
@@ -59,16 +61,22 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
     @assistant.account.custom_attributes&.dig('handoff_team_id').present?
   end
 
+  # Mesmo critério da description: no modo "a IA não escolhe", o destino é o time padrão do agente
+  # e `team_id` seria um parâmetro morto no esquema. O RubyLLM monta o esquema a partir daqui.
+  def parameters
+    fixed_handoff_team? ? super.except(:team_id) : super
+  end
+
   def perform(tool_context, reason: nil, team_id: nil)
     conversation = find_conversation(tool_context.state)
     return 'Conversation not found' unless conversation
 
-    # Idempotência: se a conversa JÁ está aguardando humano, não refaz o handoff (senão gera
-    # uma 2ª nota privada/dossiê duplicado e reseta o marcador a cada mensagem do cliente na espera).
-    if conversation.custom_attributes&.dig('aguardando_humano_desde').present?
-      return 'Esta conversa JÁ está aguardando atendimento humano — o handoff já foi feito. ' \
-             'NÃO chame o handoff de novo nem registre outro dossiê. Responda dúvidas NOVAS ' \
-             'normalmente; se for só cobrança de pressa/ansiedade sem pergunta nova, responda [IGNORAR].'
+    # Idempotência: com a conversa JÁ aguardando humano, ou com um humano já dono, não refaz o
+    # handoff (senão gera 2ª nota/dossiê, reseta o marcador e pode redistribuir para outra pessoa).
+    motivo = handoff_ja_feito(conversation)
+    if motivo
+      registrar_handoff_ja_pendente(conversation, motivo)
+      return HANDOFF_JA_FEITO
     end
 
     recusa = portao_do_segmento(conversation)
@@ -85,6 +93,23 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # A IA segue atendendo depois do handoff (Modelo A) e não enxerga a chamada anterior, então
+  # re-chama a ferramenta: 39% das chamadas na conta medida. `assignee_id` cobre a corrida em que
+  # alguém puxa a conversa no meio do turno — o service só se protegia do marcador.
+  def handoff_ja_feito(conversation)
+    return 'aguardando_humano' if conversation.custom_attributes&.dig('aguardando_humano_desde').present?
+
+    'humano_atribuido' if conversation.assignee_id.present?
+  end
+
+  # Registro barato só para medir a re-chamada; nunca derruba a resposta à IA.
+  def registrar_handoff_ja_pendente(conversation, motivo)
+    Captain::AssistantLog.create!(captain_assistant: @assistant, conversation: conversation,
+                                  event_type: 'handoff_ja_pendente', payload: { 'motivo' => motivo })
+  rescue StandardError => e
+    Rails.logger.warn("[HandoffTool] handoff_ja_pendente: #{e.message}")
+  end
 
   def registrar_e_disparar(conversation, reason, team_id)
     log_tool_usage('tool_handoff', {
