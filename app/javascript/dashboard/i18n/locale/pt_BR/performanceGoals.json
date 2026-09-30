@@ -53,6 +53,21 @@
       "OWN_HINT": "O atendente vê só o próprio desempenho.",
       "EVERYONE": "Ranking para todos",
       "EVERYONE_HINT": "O atendente vê o próprio desempenho e o ranking dos times dele, com os percentuais dos colegas (nunca os números)."
-    }
+    },
+    "STATUS": {
+      "HIT": "Meta batida",
+      "NEAR": "Perto da meta",
+      "BELOW": "Abaixo da meta"
+    },
+    "RANK_POSITION": "{position}º no ranking",
+    "OF": "{actual} de {goal}",
+    "UNITS": {
+      "MIN": "min",
+      "PTS": "pts"
+    },
+    "PODIUM": "Pódio",
+    "RANKING": "Ranking",
+    "MEMBERS": "Time",
+    "EDITOR_SUBTITLE": "{month} · metas de {count} pessoas"
   }
 }

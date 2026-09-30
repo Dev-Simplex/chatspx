@@ -53,6 +53,21 @@
       "OWN_HINT": "Agents see only their own performance.",
       "EVERYONE": "Ranking for everyone",
       "EVERYONE_HINT": "Agents see their own performance and the ranking of their teams, with colleagues' percentages (never their numbers)."
-    }
+    },
+    "STATUS": {
+      "HIT": "Goal reached",
+      "NEAR": "Close to goal",
+      "BELOW": "Below goal"
+    },
+    "RANK_POSITION": "#{position} in the ranking",
+    "OF": "{actual} of {goal}",
+    "UNITS": {
+      "MIN": "min",
+      "PTS": "pts"
+    },
+    "PODIUM": "Top 3",
+    "RANKING": "Ranking",
+    "MEMBERS": "Team",
+    "EDITOR_SUBTITLE": "{month} · goals for {count} people"
   }
 }
