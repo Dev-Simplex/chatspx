@@ -297,6 +297,24 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
           expect(history_entry('fala do cenario')[:agent_name]).to eq(scenario.handoff_key)
         end
       end
+
+      # O contato enviado pelo sistema (enviar_contato_unidade) leva o número no conteúdo, para o
+      # time humano ver. No histórico da IA ele entra pelo rótulo: se o número voltasse como fala
+      # dela, ela aprenderia a digitar telefone.
+      it 'shows a system-sent contact to the model by its label, without the number' do
+        create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                         content: '+55 (66) 99635-0491', additional_attributes: { 'contato_enviado' => { 'rotulo' => 'Suporte' } })
+        history = nil
+        allow(mock_agent_runner_service).to receive(:generate_response) do |message_history:|
+          history = message_history
+          { 'response' => 'ok' }
+        end
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(history.pluck(:content).join(' ')).not_to include('99635')
+        expect(history.pluck(:content)).to include('[contato "Suporte" enviado pelo sistema]')
+      end
     end
 
     # Regression (PR #13417): wrapping create_handoff_message and bot_handoff! in the

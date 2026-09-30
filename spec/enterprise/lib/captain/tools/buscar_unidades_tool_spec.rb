@@ -197,6 +197,31 @@ RSpec.describe Captain::Tools::BuscarUnidadesTool, type: :model do
     end
   end
 
+  # Regra de 29/09: com a ferramenta de envio de contato armada, o número sai do cadastro pelo
+  # sistema e não passa pela IA. Sem ela, o telefone continua aqui, senão a conta perde o contato.
+  describe 'telefone da unidade' do
+    before do
+      create(:unit, account: account, nome: 'Loja Centro',
+                    contacts: [{ 'label' => 'Comercial', 'phone' => '(66) 3531-7222' },
+                               { 'label' => 'Suporte', 'phone' => '66 99635-0491' }])
+    end
+
+    it 'mostra o telefone como hoje quando a ferramenta de envio não está armada' do
+      resposta = tool.perform(tool_context)
+
+      expect(resposta).to include('Telefone: (66) 3531-7222')
+    end
+
+    it 'troca o número pelos rótulos quando a ferramenta de envio está armada' do
+      assistant.update!(config: assistant.config.merge('tools' => %w[buscar_unidades enviar_contato_unidade]))
+
+      resposta = tool.perform(tool_context)
+
+      expect(resposta).not_to include('3531', '99635')
+      expect(resposta).to include('"Comercial"', '"Suporte"', 'enviar_contato_unidade')
+    end
+  end
+
   describe 'contrato com o registro de tools' do
     it 'é resolvida pelo id plural do tools.yml, que o classify singulariza' do
       expect(Captain::Assistant.resolve_tool_class('buscar_unidades')).to eq(described_class)
