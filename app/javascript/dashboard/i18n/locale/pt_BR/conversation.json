@@ -674,6 +674,12 @@
       "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
       "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
     },
+    "AI_SCHEDULED_BANNER": {
+      "TITLE": "Mensagem agendada por {name} para {when}",
+      "CANCEL": "Cancelar",
+      "CANCELLED": "Mensagem agendada cancelada.",
+      "CANCEL_ERROR": "Não foi possível cancelar a mensagem agendada."
+    },
     "SCHEDULE_MESSAGE": {
       "TOOLTIP": "Agendar mensagem",
       "TITLE": "Agendar mensagem",
