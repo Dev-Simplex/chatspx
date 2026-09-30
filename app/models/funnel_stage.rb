@@ -22,7 +22,8 @@ class FunnelStage < ApplicationRecord
   #   sla_hours        -> hours-in-stage budget; drives conditional card coloring
   #   color_rules      -> reserved for richer conditional coloring rules
   #   stage_permissions-> reserved for Fase 4 per-stage permissions
-  store_accessor :settings, :wip_limit, :sla_hours, :color_rules, :stage_permissions
+  #   counts_as_won    -> CHAT-177: cartao que entra nesta etapa conta como negocio ganho nas metas
+  store_accessor :settings, :wip_limit, :sla_hours, :color_rules, :stage_permissions, :counts_as_won
 
   validates :name, presence: true
   validates :name, length: { minimum: 1 }, allow_blank: false

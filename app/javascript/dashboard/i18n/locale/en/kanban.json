@@ -243,7 +243,9 @@
       "CONFIRM_DELETE": "Are you sure you want to delete this stage? All items will be removed.",
       "DELETE_ERROR": "Error deleting stage",
       "NAME_REQUIRED": "Nome da etapa é obrigatório",
-      "SAVE_ERROR": "Erro ao salvar etapa"
+      "SAVE_ERROR": "Erro ao salvar etapa",
+      "COUNTS_AS_WON": "This stage counts as a won deal",
+      "COUNTS_AS_WON_HINT": "Cards that enter this stage count toward sales goals. If the card leaves the stage, it stops counting."
     },
     "TASK": {
       "BADGE": "Task",

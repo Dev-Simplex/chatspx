@@ -69,7 +69,7 @@ class Api::V1::Accounts::FunnelStagesController < Api::V1::Accounts::BaseControl
   end
 
   def funnel_stage_params
-    params.require(:funnel_stage).permit(:name, :position, :color, :automation_type, settings: [:wip_limit, :sla_hours])
+    params.require(:funnel_stage).permit(:name, :position, :color, :automation_type, settings: [:wip_limit, :sla_hours, :counts_as_won])
   end
 
   def check_authorization
