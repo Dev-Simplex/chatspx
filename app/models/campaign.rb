@@ -68,6 +68,7 @@ class Campaign < ApplicationRecord
   has_many :campaign_recipients, dependent: :destroy
 
   before_validation :ensure_correct_campaign_attributes
+  before_validation :derive_dispatch_template
   after_commit :set_display_id, unless: :display_id?
 
   def trigger!
@@ -83,6 +84,17 @@ class Campaign < ApplicationRecord
   # Campaigns::Whatsapp::DispatchSchedulerJob.
   def whatsapp_blast?
     inbox&.inbox_type == 'Whatsapp' && template_name.present?
+  end
+
+  # O que impede o disparo de começar, ou nil. Regra ÚNICA do botão Iniciar
+  # (CampaignsController#start) e do agendamento (DispatchSchedulerJob): se as duas
+  # divergissem, a campanha agendada sairia sem o que o botão exige. O time entra porque,
+  # sem ele, a conversa nasce sem time e a resposta do lead cai sem dono.
+  def dispatch_start_blocker
+    return 'Campanha sem destinatários' if campaign_recipients.empty?
+    return 'Defina o template do disparo' if template_name.blank?
+
+    'Defina o time que recebe as conversas' if target_team_id.blank?
   end
 
   private
@@ -123,6 +135,20 @@ class Campaign < ApplicationRecord
       self.campaign_type = 'ongoing'
       self.scheduled_at = nil
     end
+  end
+
+  # A tela escolhe o template no formato nativo (`template_params.name/language`) e o motor
+  # dispara por `template_name`. Derivar aqui, e não no formulário, vale para qualquer
+  # criador — inclusive um front antigo em cache depois do deploy. Só preenche o vazio:
+  # o que o console gravou explicitamente continua valendo.
+  def derive_dispatch_template
+    return unless inbox&.inbox_type == 'Whatsapp' && template_name.blank?
+
+    name = template_params.is_a?(Hash) ? template_params['name'].presence : nil
+    return if name.blank?
+
+    self.template_name = name
+    self.template_language = template_params['language'].presence || template_language
   end
 
   def validate_url

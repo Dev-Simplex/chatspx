@@ -207,15 +207,11 @@
             "VARIABLES_LABEL": "Variables",
             "VARIABLE_PLACEHOLDER": "Enter value for {variable}"
           },
-          "AUDIENCE": {
-            "LABEL": "Audience",
-            "PLACEHOLDER": "Select the customer labels",
-            "ERROR": "Audience is required"
-          },
+          "RECIPIENTS_INFO": "Recipients are not chosen here: after creating, open the campaign and load the list or the segment.",
           "SCHEDULED_AT": {
             "LABEL": "Scheduled time",
             "PLACEHOLDER": "Please select the time",
-            "ERROR": "Scheduled time is required"
+            "INFO": "Optional. With a time, the dispatch starts by itself when it arrives. Empty, it starts from the Start button in the campaign."
           },
           "BUTTONS": {
             "CREATE": "Create",
@@ -295,7 +291,8 @@
           "NEVER": "Never received any campaign",
           "ANY": "Any",
           "EMPTY": "Pick at least one criterion — with none, the audience would be the whole base."
-        }
+        },
+        "START_BLOCKED": "The scheduled dispatch did not start: {reason}. Fix it and click Start."
       },
       "SETTINGS": {
         "TITLE": "Dispatch settings",
