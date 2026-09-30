@@ -35,6 +35,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # "milhão" vem ANTES de "mil" na alternância: invertido, "mil" casa o prefixo de "milhão"
   # e 1,2 milhão vira 1.200 (a prova do caso 42952 pegou isso).
   PRECO_CITADO = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)|(\d+(?:[.,]\d+)?)\s*(milh(?:ão|ões|oes)|mil)/i
+  # Laço de telefone (CHAT-159): a resposta original conta como a 1ª tentativa.
+  TENTATIVAS_DE_TELEFONE = 3
+  PALAVRAS_MINIMAS_APOS_REMOCAO = 3
   retry_on ActiveStorage::FileNotFoundError, attempts: 3, wait: 2.seconds
   retry_on Faraday::BadRequestError, attempts: 3, wait: 2.seconds
 
@@ -539,7 +542,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       return if skip_duplicate?(content)
     end
 
-    send_response(content)
+    content = com_telefones_de_fonte(content)
+    send_response(content) if content
   end
 
   # Silêncio deliberado do agente ([IGNORAR]) deixa rastro auditável: sem isso, uma
@@ -676,6 +680,66 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   rescue StandardError => e
     Rails.logger.warn('[Captain][regenerate_to_avoid_repeat] ' + e.message)
     false
+  end
+
+  # Laço de correção de telefone (CHAT-159). A IA não escreve telefone em texto: o da empresa
+  # sai pelo card de contato, e só passa número que o cliente ou alguém da equipe escreveu na
+  # conversa (a regra de fonte mora na guarda). Resposta com número sem fonte NÃO sai: volta pro
+  # modelo com o motivo e ele refaz, até sair correta ou bater o teto de tentativas.
+  # Devolve o texto a enviar, ou nil quando nada sai (silêncio ou retenção com handoff).
+  def com_telefones_de_fonte(content)
+    return content unless Captain::Behavior::PhoneSourceGuard.enabled_for?(@assistant)
+
+    guarda = Captain::Behavior::PhoneSourceGuard.new(conversation: @conversation)
+    (1..TENTATIVAS_DE_TELEFONE).each do |tentativa|
+      numeros = guarda.sem_fonte(content)
+      return content if numeros.empty?
+      return desfecho_do_telefone(guarda, content, numeros, tentativa) if tentativa == TENTATIVAS_DE_TELEFONE
+
+      log_behavior_event('phone_unsourced', { numeros: numeros, tentativa: tentativa, acao: 'regenerar' })
+      return reter_por_telefone unless regenerate_for_unsourced_phone
+
+      content = normalize_response_content(@response['response'])
+      return log_ignored(content) if no_reply?(content)
+    end
+  end
+
+  # Teto estourado: a IA insistiu. Sai o que dá para salvar — as frases com número sem fonte
+  # caem, o resto segue se ainda for uma mensagem. Se não sobrar mensagem, nada sai e alguém da
+  # equipe assume: silêncio puro deixaria o cliente sem retorno.
+  def desfecho_do_telefone(guarda, content, numeros, tentativa)
+    restante = guarda.remover(content, numeros)
+    enviavel = restante.scan(/\p{L}+/).size >= PALAVRAS_MINIMAS_APOS_REMOCAO
+    log_behavior_event('phone_unsourced', { numeros: numeros, tentativa: tentativa, acao: enviavel ? 'removido' : 'bloqueado' })
+    enviavel ? restante : reter_por_telefone
+  end
+
+  # Mesmo motivo a cada volta, sem exemplo nem valor concreto: citar o número errado aqui
+  # ensinaria o modelo a repeti-lo.
+  def regenerate_for_unsourced_phone
+    @directive = 'IMPORTANTE: sua resposta anterior não foi enviada porque escrevia um número de telefone. Não escreva ' \
+                 'telefone em texto. Para passar o contato da empresa, use a ferramenta de card de contato ' \
+                 '(enviar_contato_unidade); se ela não estiver disponível, responda sem telefone. Se o número for do ' \
+                 'próprio cliente, só repita o que ele escreveu nesta conversa. Responda de novo ao cliente.'
+    servico = captain_v2_enabled? ? Captain::Assistant::AgentRunnerService : Captain::Llm::AssistantChatService
+    @response = servico.new(assistant: @assistant, conversation: @conversation).generate_response(message_history: collect_previous_messages)
+    @response.present?
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][phone_unsourced] #{e.message}")
+    false
+  end
+
+  # A resposta não sai, e alguém da equipe assume a pergunta.
+  def reter_por_telefone
+    Captain::Conversation::HumanHandoffService.new(
+      conversation: @conversation, assistant: @assistant,
+      reason: 'A IA insistiu em escrever um telefone que ninguém passou nesta conversa e a resposta foi retida. ' \
+              'Precisa de atendimento humano.'
+    ).perform
+    nil
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][phone_unsourced][handoff] #{e.message}")
+    nil
   end
 
   def skip_duplicate?(content)
