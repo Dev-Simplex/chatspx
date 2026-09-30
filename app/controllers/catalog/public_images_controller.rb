@@ -20,16 +20,20 @@ class Catalog::PublicImagesController < ApplicationController
   end
 
   # As fotos da galeria (`additional_image_urls`). A assinatura é da própria foto, então foto
-  # apagada é 404 sem mexer na URL das outras.
+  # apagada é 404 sem mexer na URL das outras. O blob pode estar em mais de um item (e em mensagens):
+  # basta um item visível tê-lo.
   def extra
-    imagem = ActiveStorage::Attachment.find_signed(params[:id], purpose: CatalogProduct::IMAGEM_PUBLICA)
-    produto = imagem&.record
-    return head :not_found unless produto.is_a?(CatalogProduct) && produto.visible?
+    blob = ActiveStorage::Blob.find_signed(params[:id], purpose: CatalogProduct::IMAGEM_PUBLICA)
+    return head :not_found unless blob && em_item_visivel?(blob)
 
-    servir(imagem)
+    servir(blob)
   end
 
   private
+
+  def em_item_visivel?(blob)
+    CatalogProduct.visiveis.joins(:images_attachments).exists?(active_storage_attachments: { blob_id: blob.id })
+  end
 
   def servir(imagem)
     expires_in CACHE, public: true

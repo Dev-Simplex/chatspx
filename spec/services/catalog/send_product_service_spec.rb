@@ -66,6 +66,21 @@ describe Catalog::SendProductService do
     end
   end
 
+  describe 'foto pública da galeria' do
+    let(:inbox) { create(:channel_api, account: account).inbox }
+
+    it 'gera uma URL por foto depois da capa, que a rota pública resolve' do
+      produto = com_fotos(create(:catalog_product, account: account), 3)
+
+      urls = produto.public_extra_image_urls
+      id = urls.first.split('/').last
+      blob = ActiveStorage::Blob.find_signed(id, purpose: CatalogProduct::IMAGEM_PUBLICA)
+
+      expect(urls.size).to eq(2)
+      expect(blob).to eq(produto.images.second.blob)
+    end
+  end
+
   context 'with WhatsApp oficial inbox' do
     let(:inbox) do
       create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', sync_templates: false, validate_provider_config: false).inbox

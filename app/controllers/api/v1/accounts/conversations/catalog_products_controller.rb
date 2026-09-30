@@ -15,7 +15,9 @@ class Api::V1::Accounts::Conversations::CatalogProductsController < Api::V1::Acc
   before_action :enforce_reply_assignment_gate, only: [:create]
 
   def create
-    produtos = policy_scope(CatalogProduct).where(id: params[:product_ids]).to_a
+    # Na ordem em que o atendente marcou: é a ordem das fotos e do menu numerado na conversa.
+    ids = Array(params[:product_ids]).map(&:to_i)
+    produtos = policy_scope(CatalogProduct).where(id: ids).sort_by { |produto| ids.index(produto.id) }
     return render json: { error: I18n.t('catalog.send.empty') }, status: :unprocessable_entity if produtos.empty?
 
     mensagem = Catalog::SendProductService.new(conversation: @conversation, produtos: produtos, usuario: Current.user).perform

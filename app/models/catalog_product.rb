@@ -118,11 +118,13 @@ class CatalogProduct < ApplicationRecord
 
   # As fotos depois da capa, para a galeria do item na Meta. Mesma régua do `public_image_url`, com
   # o `signed_id` da FOTO: apagar uma foto não pode trocar a URL das outras, e a Meta faz cache.
+  # Assina o BLOB de propósito: o anexo repassa `signed_id` para ele, e o `find_signed` do anexo
+  # nunca acharia nada.
   def public_extra_image_urls
     return [] unless visible
 
     images.drop(1).first(FOTOS_EXTRAS_NA_META).map do |imagem|
-      catalog_public_extra_image_url(id: imagem.signed_id(purpose: IMAGEM_PUBLICA, expires_in: nil))
+      catalog_public_extra_image_url(id: imagem.blob.signed_id(purpose: IMAGEM_PUBLICA, expires_in: nil))
     end
   end
 
