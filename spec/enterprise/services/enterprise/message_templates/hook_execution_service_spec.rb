@@ -471,6 +471,39 @@ RSpec.describe MessageTemplates::HookExecutionService do
       end
     end
 
+    # Etiquetas sem IA da conta (CHAT-180): o caso de origem — conversa da portaria reaberta pelo
+    # contato voltava para a triagem. O controle prova que, sem a etiqueta, o mesmo cenário reanexa.
+    context 'when the account has labels the AI does not handle' do
+      before do
+        account.update!(settings: { reply_assignment_gate: false, ia_reentra_orfa: true },
+                        custom_attributes: account.custom_attributes.merge('captain_etiquetas_sem_ia' => ['portaria']))
+        assistant.update!(config: { 'triage' => true })
+      end
+
+      def reentry
+        create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
+        orphan_conversation.reload.assignee_agent_bot_id
+      end
+
+      it 'reattaches the assistant when the conversation has no configured label (controle)' do
+        orphan_conversation.update_labels(['vendas'])
+
+        expect(reentry).to eq(assistant.mirror_agent_bot.id)
+      end
+
+      it 'does not reattach the assistant when the conversation has the label' do
+        orphan_conversation.update_labels(['portaria'])
+
+        expect(reentry).to be_nil
+      end
+
+      it 'does not reattach the assistant when the contact has the label' do
+        contact.update_labels(['portaria'])
+
+        expect(reentry).to be_nil
+      end
+    end
+
     # Desligar explicitamente vale mesmo fora do modo fila — a conta escolhe, não deduz.
     context 'when the account opted OUT of ia_reentra_orfa in classic mode' do
       before { account.update!(settings: { reply_assignment_gate: false, ia_reentra_orfa: false }) }
