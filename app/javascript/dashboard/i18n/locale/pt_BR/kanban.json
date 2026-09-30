@@ -243,7 +243,9 @@
       "CONFIRM_DELETE": "Tem certeza que deseja excluir esta etapa? Todos os itens serão removidos.",
       "DELETE_ERROR": "Erro ao excluir etapa",
       "NAME_REQUIRED": "Nome da etapa é obrigatório",
-      "SAVE_ERROR": "Erro ao salvar etapa"
+      "SAVE_ERROR": "Erro ao salvar etapa",
+      "COUNTS_AS_WON": "Esta etapa conta como negócio ganho",
+      "COUNTS_AS_WON_HINT": "Cards que entram nesta etapa contam nas metas de vendas. Se o card sair da etapa, deixa de contar."
     },
     "TASK": {
       "BADGE": "Tarefa",

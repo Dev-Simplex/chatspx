@@ -37,6 +37,7 @@ const formData = ref({
   automation_type: null,
   wipLimit: '',
   slaHours: '',
+  countsAsWon: false,
 });
 
 const slaEnabled = ref(false);
@@ -96,6 +97,7 @@ const buildSettings = () => {
     stageIsResolved.value || !slaEnabled.value
       ? null
       : toLimit(formData.value.slaHours);
+  base.counts_as_won = !!formData.value.countsAsWon;
   return base;
 };
 
@@ -116,6 +118,7 @@ watch(
             : null,
         wipLimit: hasWip ? wip : '',
         slaHours: hasSla ? slaHours : '',
+        countsAsWon: !!newStage.settings?.counts_as_won,
       };
       slaEnabled.value = hasSla;
     }
@@ -360,6 +363,24 @@ const save = async () => {
             {{ t('KANBAN.STAGES.SLA_HINT') }}
           </p>
         </div>
+      </div>
+
+      <!-- CHAT-177: etapa de ganho alimenta o indicador "Negócios ganhos" das metas. -->
+      <div>
+        <label
+          class="flex items-center gap-2 text-sm font-semibold text-n-slate-12 cursor-pointer select-none"
+        >
+          <input
+            v-model="formData.countsAsWon"
+            type="checkbox"
+            class="size-4 rounded border-n-weak text-n-teal-9 focus:ring-n-brand cursor-pointer"
+          />
+          <Icon icon="i-lucide-trophy" class="size-4" />
+          {{ t('KANBAN.STAGES.COUNTS_AS_WON') }}
+        </label>
+        <p class="text-xs text-n-slate-10 mt-1 pl-6">
+          {{ t('KANBAN.STAGES.COUNTS_AS_WON_HINT') }}
+        </p>
       </div>
 
       <div
