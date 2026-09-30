@@ -317,8 +317,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # OpenAiMessageBuilderService: marcar a ORIGEM em vez de tentar corrigir por conduta.
   def outgoing_content(message)
     return interactive_payload_placeholder(message) if interactive_payload?(message)
+    return contato_enviado_placeholder(message) if message.additional_attributes&.dig('contato_enviado').present?
 
     message.content.presence || outgoing_attachment_placeholder(message)
+  end
+
+  # Contato enviado pelo sistema (enviar_contato_unidade): o conteúdo traz o número para o time
+  # humano, mas no histórico da IA entra só o rótulo. Se o número voltasse como fala dela, ela
+  # aprenderia a digitar telefone — justamente o que a ferramenta existe para evitar.
+  def contato_enviado_placeholder(message)
+    "[contato \"#{message.additional_attributes.dig('contato_enviado', 'rotulo')}\" enviado pelo sistema]"
   end
 
   def interactive_payload?(message)

@@ -156,7 +156,8 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   def bloco(unidade, momento, excecoes)
     linhas = ["#{unidade.nome}#{local(unidade)}"]
     linhas << "Endereço: #{unidade.endereco}" if unidade.endereco.present?
-    linhas << "Telefone: #{unidade.telefone}" if unidade.telefone.present?
+    # Decisão de 29/09: com a enviar_contato_unidade armada, o número não passa pela IA.
+    linhas << ::Captain::Tools::EnviarContatoUnidadeTool.linha_de_telefone(unidade, @assistant)
     linhas << @perto.linha_de_distancia(unidade)
     linhas.concat(atributos(unidade))
     linhas.concat(::Spx::UnidadeEventos.new(unidade, excecoes).linhas)

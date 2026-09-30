@@ -38,6 +38,29 @@ class Unit < ApplicationRecord
   before_save :arrumar_contatos, :arrumar_links
   after_create :criar_grade_padrao
 
+  # Unidade que atende uma caixa: a vinculada, se ativa. Caixa sem vínculo herda a única unidade
+  # ativa da conta; com várias, nil — não há como saber qual é, e adivinhar entregaria o dado de
+  # outra unidade como se fosse desta.
+  def self.da_caixa(inbox)
+    return nil unless inbox
+    return (inbox.unit if inbox.unit&.active?) if inbox.unit_id.present?
+
+    candidatas = ativas.where(account_id: inbox.account_id).limit(2).to_a
+    candidatas.one? ? candidatas.first : nil
+  end
+
+  # Contatos do cadastro com rótulo sempre preenchido e único, porque é pelo rótulo que a IA escolhe
+  # qual contato enviar. Linha sem rótulo vira "contato N", pela posição na lista.
+  def contatos_rotulados
+    rotulados = Array(contacts).each_with_index.filter_map do |contato, indice|
+      telefone = contato['phone'].to_s.strip
+      next if telefone.blank?
+
+      { rotulo: contato['label'].to_s.strip.presence || "contato #{indice + 1}", telefone: telefone }
+    end
+    rotulados.uniq { |contato| self.class.normalizar(contato[:rotulo]) }
+  end
+
   private
 
   # A tela adiciona a linha vazia antes de preencher, e quem desiste deixa ela para trás: linha sem

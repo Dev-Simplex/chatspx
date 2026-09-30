@@ -162,7 +162,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   # then creates an outgoing Message carrying an Attachment of file_type=:contact.
   # The downstream WhatsApp send pipeline (WAHA Channel::Api) is responsible
   # for shipping the vCard to the recipient.
-  def share_contact # rubocop:disable Metrics/MethodLength
+  def share_contact
     source = share_contact_params[:source].to_s
     return render_could_not_create_error('Invalid source') unless %w[agent contact manual].include?(source)
 
@@ -173,25 +173,9 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
     user = Current.user || @resource
 
-    @message = ActiveRecord::Base.transaction do
-      msg = @conversation.messages.create!(
-        account_id: @conversation.account_id,
-        inbox_id: @conversation.inbox_id,
-        message_type: :outgoing,
-        content: "#{name} — #{phone}",
-        sender: user,
-        additional_attributes: { contact: { name: name, phone: phone, source: source, ref: contact_ref }.compact }
-      )
-
-      msg.attachments.create!(
-        account_id: @conversation.account_id,
-        file_type: :contact,
-        fallback_title: phone,
-        meta: { firstName: name, lastName: '' }
-      )
-
-      msg
-    end
+    @message = Messages::ContactCardBuilder.new(
+      conversation: @conversation, sender: user, contact: { name: name, phone: phone, source: source, ref: contact_ref }
+    ).perform
 
     render partial: 'api/v1/models/message', formats: [:json], locals: { message: @message }
   rescue ActiveRecord::RecordInvalid, ArgumentError => e
