@@ -103,6 +103,9 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     'additionalProperties': true
   }.to_json.freeze
 
+  # Campos padrão do item do catálogo que a conta pode esconder.
+  CATALOG_HIDEABLE_FIELDS = %w[sku stock featured promo_price].freeze
+
   DEFAULT_QUERY_SETTING = {
     flag_query_mode: :bit_operator,
     check_for_column: false
@@ -114,6 +117,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
                  schema: SETTINGS_PARAMS_SCHEMA,
                  attribute_resolver: ->(record) { record.settings }
   validate :validate_reporting_timezone
+  validates :catalog_item_singular, :catalog_item_plural, length: { maximum: 30 }
+  validate :validate_catalog_hidden_fields
 
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
 
@@ -124,10 +129,9 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
-  # Catálogo é opt-in por conta, e não por feature flag: o `config/features.yml` já tem 65
-  # features para os 63 bits úteis de `feature_flags`, então flag nova simplesmente não liga.
-  # `meta_catalog_id` é o catálogo da Meta que espelha esta conta (um por conta).
-  store_accessor :settings, :catalog_enabled, :meta_catalog_id
+  # Catálogo é sempre ligado. A conta escolhe como chamar o item (Produto, Imóvel, Serviço) e quais
+  # campos padrão esconder. `meta_catalog_id` é o catálogo da Meta que espelha esta conta (um por conta).
+  store_accessor :settings, :catalog_item_singular, :catalog_item_plural, :catalog_hidden_fields, :meta_catalog_id
   store_accessor :settings, :captain_auto_resolve_mode
   store_accessor :settings, :reply_assignment_gate, :rodizio_conversation_tabs, :orphan_retriage_after
   # Reentrada da IA de triagem em conversa órfã. Nasceu derivada do reply_assignment_gate
@@ -356,6 +360,13 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     return if reporting_timezone.blank? || ActiveSupport::TimeZone[reporting_timezone].present?
 
     errors.add(:reporting_timezone, I18n.t('errors.account.reporting_timezone.invalid'))
+  end
+
+  def validate_catalog_hidden_fields
+    return if catalog_hidden_fields.blank?
+    return if catalog_hidden_fields.is_a?(Array) && (catalog_hidden_fields - CATALOG_HIDEABLE_FIELDS).empty?
+
+    errors.add(:catalog_hidden_fields, I18n.t('errors.account.catalog_hidden_fields.invalid'))
   end
 
   def remove_account_sequences

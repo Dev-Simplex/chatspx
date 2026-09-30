@@ -32,8 +32,10 @@
 en:
   catalog:
     send:
-      empty: "No product selected."
-      menu_header: "%{count} products:"
+      empty: "No item selected."
+      menu_header: "%{count} items:"
+    custom_fields:
+      checked: "Yes"
     meta_sync:
       not_configured: "Meta catalog mirroring is not set up for this account."
   hello: 'Hello world'
@@ -88,6 +90,8 @@ en:
     account:
       reporting_timezone:
         invalid: is not a valid timezone
+      catalog_hidden_fields:
+        invalid: only accepts sku, stock, featured and promo_price
     validations:
       presence: must not be blank
       invalid: is invalid
@@ -108,7 +112,8 @@ en:
     webhook:
       invalid: Invalid events
     catalog:
-      meta_rate_limited: The Meta catalog rate limit was reached. The remaining products go out on the next sync.
+      meta_rate_limited: The Meta catalog rate limit was reached. The remaining items go out on the next sync.
+      invalid_custom_field: 'Invalid value for the field "%{field}".'
     signup:
       disposable_email: We do not allow disposable emails
       blocked_domain: This domain is not allowed. If you believe this is a mistake, please contact support.
