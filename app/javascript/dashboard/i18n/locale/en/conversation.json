@@ -946,17 +946,17 @@
     },
     "WAHA_LINE_DOWN": "This inbox's WhatsApp line is down — anything you send now will not reach the customer.",
     "CATALOG": {
-      "MENU": "Catalog",
-      "TITLE": "Send a product",
+      "MENU": "Send {item}",
+      "TITLE": "Send {item}",
       "SEARCH": "Search by name or SKU",
       "LOADING": "Loading…",
-      "EMPTY": "No product found.",
+      "EMPTY": "No results.",
       "SELECTED": "{count} selected",
       "SEND": "Send",
       "CANCEL": "Cancel",
       "CLOSE": "Close",
-      "WAHA_NOTICE_ONE": "On this inbox the product goes as a photo with caption — there is no native product card.",
-      "WAHA_NOTICE_MANY": "On this inbox it goes as a photo album plus a numbered menu — there is no native product card."
+      "WAHA_NOTICE_ONE": "On this inbox it goes as a photo with caption.",
+      "WAHA_NOTICE_MANY": "On this inbox it goes as a photo album plus a numbered menu."
     },
     "HANDOVER_CUT": {
       "BANNER": "This conversation was transferred to you on {date}. Earlier history is not visible."

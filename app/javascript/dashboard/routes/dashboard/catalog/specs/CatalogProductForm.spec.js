@@ -11,7 +11,11 @@ const {
   alertar,
   empurrar,
   parametros,
+  escondidos,
+  definicoes,
 } = vi.hoisted(() => ({
+  escondidos: [],
+  definicoes: [],
   sincronizarProduto: vi.fn(),
   alertar: vi.fn(),
   mostrarProduto: vi.fn(),
@@ -35,6 +39,28 @@ vi.mock('dashboard/api/catalog', () => ({
 }));
 
 vi.mock('dashboard/composables', () => ({ useAlert: alertar }));
+
+// Nome do item e campos escondidos vêm da conta; aqui a conta usa o padrão e o teste escolhe
+// o que esconder.
+vi.mock('dashboard/composables/useCatalogLabels', async () => {
+  const { ref } = await import('vue');
+  return {
+    useCatalogLabels: () => ({
+      labels: ref({ item: 'product', items: 'products' }),
+      isFieldHidden: campo => escondidos.includes(campo),
+    }),
+  };
+});
+
+// As definições dos campos personalizados vêm da store de atributos.
+vi.mock('vuex', async importOriginal => ({
+  ...(await importOriginal()),
+  useStore: () => ({ dispatch: vi.fn() }),
+}));
+
+vi.mock('dashboard/composables/store', () => ({
+  useMapGetter: () => ({ value: () => definicoes }),
+}));
 
 vi.mock('vue-router', async importOriginal => ({
   ...(await importOriginal()),
@@ -77,24 +103,16 @@ const categorias = [
   { id: 8, name: 'Armação de grau', products_count: 0 },
 ];
 
-const SettingsLayoutStub = {
-  name: 'SettingsLayout',
-  props: ['isLoading', 'loadingMessage'],
+const CatalogLayoutStub = {
+  name: 'CatalogLayout',
+  props: ['title', 'backButtonLabel', 'isLoading', 'loadingMessage'],
   template: `<div>
-      <slot name="header" />
-      <slot name="preBody" />
-      <span v-if="isLoading" class="carregando">{{ loadingMessage }}</span>
-      <slot v-else name="body" />
-    </div>`,
-};
-
-const BaseSettingsHeaderStub = {
-  name: 'BaseSettingsHeader',
-  props: ['title', 'backButtonLabel'],
-  template: `<div class="cabecalho">
       <h1 class="titulo">{{ title }}</h1>
       <slot name="count" />
       <slot name="actions" />
+      <slot name="preBody" />
+      <span v-if="isLoading" class="carregando">{{ loadingMessage }}</span>
+      <slot v-else name="body" />
     </div>`,
 };
 
@@ -156,8 +174,7 @@ const montar = () =>
   mount(CatalogProductForm, {
     global: {
       stubs: {
-        SettingsLayout: SettingsLayoutStub,
-        BaseSettingsHeader: BaseSettingsHeaderStub,
+        CatalogLayout: CatalogLayoutStub,
         Button: ButtonStub,
         Input: InputStub,
         TextArea: TextAreaStub,
@@ -180,6 +197,8 @@ describe('Catálogo · formulário do produto', () => {
     criarProduto.mockResolvedValue({ data: { ...produto, id: 9 } });
     atualizarProduto.mockResolvedValue({ data: produto });
     removerImagem.mockResolvedValue({ data: { ...produto, images: [] } });
+    escondidos.length = 0;
+    definicoes.length = 0;
   });
 
   afterEach(() => {
@@ -191,7 +210,7 @@ describe('Catálogo · formulário do produto', () => {
     await flushPromises();
 
     expect(mostrarProduto).not.toHaveBeenCalled();
-    expect(wrapper.find('h1.titulo').text()).toBe('New product');
+    expect(wrapper.find('h1.titulo').text()).toBe('Add product');
     expect(campo(wrapper, 'campo-nome').element.value).toBe('');
   });
 
@@ -227,6 +246,83 @@ describe('Catálogo · formulário do produto', () => {
     );
   });
 
+  it('manda o preço em branco quando o item não tem preço', async () => {
+    const wrapper = montar();
+    await flushPromises();
+
+    await campo(wrapper, 'campo-nome').setValue('Casa no Centro');
+    await wrapper.find('[data-testid="salvar-produto"]').trigger('click');
+    await flushPromises();
+
+    const corpo = corpoEnviado(criarProduto.mock.calls[0]);
+    expect(corpo.get('catalog_product[price_cents]')).toBe('');
+  });
+
+  it('manda todas as chaves dos campos personalizados, inclusive as vazias', async () => {
+    definicoes.push(
+      {
+        id: 1,
+        attribute_key: 'dormitorios',
+        attribute_display_name: 'Dormitórios',
+        attribute_display_type: 'number',
+      },
+      {
+        id: 2,
+        attribute_key: 'valor_venda',
+        attribute_display_name: 'Valor de venda',
+        attribute_display_type: 'currency',
+      },
+      {
+        id: 3,
+        attribute_key: 'bairro',
+        attribute_display_name: 'Bairro',
+        attribute_display_type: 'text',
+      }
+    );
+    parametros.productId = '7';
+    mostrarProduto.mockResolvedValue({
+      data: {
+        ...produto,
+        custom_attributes: { dormitorios: 3, valor_venda: 2500.5 },
+      },
+    });
+    const wrapper = montar();
+    await flushPromises();
+
+    // Moeda volta do servidor como número e é editada em reais com vírgula.
+    expect(
+      campo(wrapper, 'campo-personalizado-valor_venda').element.value
+    ).toBe('2500,50');
+
+    await campo(wrapper, 'campo-personalizado-dormitorios').setValue('4');
+    await wrapper.find('[data-testid="salvar-produto"]').trigger('click');
+    await flushPromises();
+
+    const corpo = atualizarProduto.mock.calls[0][1];
+    expect(corpo.get('catalog_product[custom_attributes][dormitorios]')).toBe(
+      '4'
+    );
+    expect(corpo.get('catalog_product[custom_attributes][valor_venda]')).toBe(
+      '2500,50'
+    );
+    expect(corpo.get('catalog_product[custom_attributes][bairro]')).toBe('');
+  });
+
+  it('some com os campos padrão que a conta escondeu', async () => {
+    escondidos.push('sku', 'stock', 'promo_price', 'featured');
+    const wrapper = montar();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="campo-sku"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="campo-estoque"]').exists()).toBe(false);
+    expect(
+      wrapper.find('[data-testid="campo-preco-promocional"]').exists()
+    ).toBe(false);
+    expect(wrapper.find('[data-testid="interruptor-destaque"]').exists()).toBe(
+      false
+    );
+  });
+
   it('edita por PATCH no id da rota', async () => {
     parametros.productId = '7';
     const wrapper = montar();
@@ -251,7 +347,7 @@ describe('Catálogo · formulário do produto', () => {
     await flushPromises();
 
     expect(criarProduto).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain('Give the product a name.');
+    expect(wrapper.text()).toContain('Enter a name.');
   });
 
   it('remove foto já salva pelo endpoint de imagem', async () => {

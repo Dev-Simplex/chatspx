@@ -2,10 +2,13 @@
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { useMapGetter } from 'dashboard/composables/store';
+import { useCatalogLabels } from 'dashboard/composables/useCatalogLabels';
 import { CatalogCategories, CatalogProducts } from 'dashboard/api/catalog';
-import SettingsLayout from '../SettingsLayout.vue';
-import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
+import CatalogLayout from './CatalogLayout.vue';
+import CatalogCustomFieldInput from './CatalogCustomFieldInput.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
@@ -22,6 +25,16 @@ const TAMANHO_MAXIMO = 2 * 1024 * 1024;
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const store = useStore();
+const { labels, isFieldHidden } = useCatalogLabels();
+
+// Campos personalizados: um conjunto só por conta, na ordem em que foram criados.
+const porModelo = useMapGetter('attributes/getAttributesByModel');
+const definicoes = computed(() =>
+  [...porModelo.value('catalog_attribute')].sort((a, b) => a.id - b.id)
+);
+// chave -> valor como o controle o edita (texto, ou booleano na caixa de seleção).
+const campos = ref({});
 
 // `new` é o id que a grade manda para criar. Ele decide POST contra PATCH e se a tela abre
 // buscando o produto ou em branco.
@@ -74,6 +87,12 @@ const aplicar = produto => {
   destaque.value = Boolean(produto.featured);
   moeda.value = produto.currency || 'BRL';
   fotos.value = produto.images || [];
+  campos.value = Object.fromEntries(
+    Object.entries(produto.custom_attributes || {}).map(([chave, valor]) => [
+      chave,
+      typeof valor === 'boolean' ? valor : String(valor),
+    ])
+  );
   produtoSalvo.value = produto;
   metaSyncEnabled.value = Boolean(produto.meta_sync_enabled);
 };
@@ -102,6 +121,7 @@ const carregarCategorias = async () => {
 
 onMounted(() => {
   carregarCategorias();
+  store.dispatch('attributes/get');
   if (!ehNovo.value) carregarProduto();
 });
 
@@ -120,7 +140,9 @@ const opcoesDeCategoria = computed(() => [
 ]);
 
 const titulo = computed(() =>
-  nome.value.trim() ? nome.value.trim() : t('CATALOG_MGMT.FORM.NEW_TITLE')
+  nome.value.trim()
+    ? nome.value.trim()
+    : t('CATALOG_MGMT.FORM.NEW_TITLE', labels.value)
 );
 
 // Conta sem espelho, ou produto ainda não criado, não tem o que sincronizar.
@@ -159,6 +181,7 @@ const emPromocao = computed(
     promoCentavos.value < precoCentavos.value
 );
 
+// Sem preço a prévia não mostra preço (`formatarPreco` devolve vazio para nulo).
 const precoDaPrevia = computed(() =>
   formatarPreco(
     emPromocao.value ? promoCentavos.value : precoCentavos.value,
@@ -222,14 +245,29 @@ const removerSalva = async imagem => {
   }
 };
 
+// O valor de moeda volta do servidor como número (2500.5); o campo edita em reais com vírgula.
+const valorDoCampo = definicao => {
+  const valor = campos.value[definicao.attribute_key];
+  if (definicao.attribute_display_type === 'checkbox') return valor === true;
+  if (valor === undefined || valor === null) return '';
+  if (definicao.attribute_display_type === 'currency' && !valor.includes(','))
+    return Number(valor).toFixed(2).replace('.', ',');
+
+  return valor;
+};
+
+const mudarCampo = (definicao, valor) => {
+  campos.value = { ...campos.value, [definicao.attribute_key]: valor };
+};
+
 // FormData e não JSON porque as fotos viajam no mesmo salvar. Campo vazio vai como string vazia,
-// que o Rails converte para NULL em coluna numérica — é o que apaga uma promoção.
+// que o Rails converte para NULL em coluna numérica — é o que apaga uma promoção ou um preço.
 const montarCorpo = () => {
   const corpo = new FormData();
 
   corpo.append('catalog_product[name]', nome.value.trim());
   corpo.append('catalog_product[description]', descricao.value);
-  corpo.append('catalog_product[price_cents]', precoCentavos.value ?? 0);
+  corpo.append('catalog_product[price_cents]', precoCentavos.value ?? '');
   corpo.append(
     'catalog_product[promo_price_cents]',
     promoCentavos.value === null ? '' : promoCentavos.value
@@ -240,6 +278,15 @@ const montarCorpo = () => {
   corpo.append('catalog_product[catalog_category_id]', categoriaId.value);
   corpo.append('catalog_product[visible]', visivel.value);
   corpo.append('catalog_product[featured]', destaque.value);
+
+  // Vão TODAS as chaves, inclusive as vazias: o servidor substitui o conjunto, e é a chave em
+  // branco que apaga o valor de um campo.
+  definicoes.value.forEach(definicao => {
+    corpo.append(
+      `catalog_product[custom_attributes][${definicao.attribute_key}]`,
+      valorDoCampo(definicao)
+    );
+  });
 
   novasFotos.value.forEach(foto => {
     corpo.append('catalog_product[images][]', foto.arquivo);
@@ -284,42 +331,38 @@ const salvar = async () => {
 </script>
 
 <template>
-  <SettingsLayout
+  <CatalogLayout
+    hide-tabs
+    :title="titulo"
+    :back-button-label="$t('CATALOG_MGMT.FORM.BACK')"
     :is-loading="carregando"
     :loading-message="$t('CATALOG_MGMT.FORM.LOADING')"
   >
-    <template #header>
-      <BaseSettingsHeader
-        :title="titulo"
-        :back-button-label="$t('CATALOG_MGMT.FORM.BACK')"
+    <template #count>
+      <span
+        data-testid="selo-estado"
+        class="px-2 py-1 rounded-md text-label-small"
+        :class="
+          visivel
+            ? 'bg-n-teal-3 text-n-teal-11'
+            : 'bg-n-slate-4 text-n-slate-11'
+        "
       >
-        <template #count>
-          <span
-            data-testid="selo-estado"
-            class="px-2 py-1 rounded-md text-label-small"
-            :class="
-              visivel
-                ? 'bg-n-teal-3 text-n-teal-11'
-                : 'bg-n-slate-4 text-n-slate-11'
-            "
-          >
-            {{
-              visivel
-                ? $t('CATALOG_MGMT.FORM.STATE.ACTIVE')
-                : $t('CATALOG_MGMT.FORM.STATE.HIDDEN')
-            }}
-          </span>
-        </template>
-        <template #actions>
-          <Button
-            data-testid="salvar-produto"
-            :label="$t('CATALOG_MGMT.FORM.SAVE')"
-            :is-loading="salvando"
-            size="sm"
-            @click="salvar"
-          />
-        </template>
-      </BaseSettingsHeader>
+        {{
+          visivel
+            ? $t('CATALOG_MGMT.FORM.STATE.ACTIVE')
+            : $t('CATALOG_MGMT.FORM.STATE.HIDDEN')
+        }}
+      </span>
+    </template>
+    <template #actions>
+      <Button
+        data-testid="salvar-produto"
+        :label="$t('CATALOG_MGMT.FORM.SAVE')"
+        :is-loading="salvando"
+        size="sm"
+        @click="salvar"
+      />
     </template>
 
     <template #preBody>
@@ -434,8 +477,10 @@ const salvar = async () => {
               data-testid="campo-preco"
               :label="$t('CATALOG_MGMT.FORM.FIELDS.PRICE')"
               :placeholder="$t('CATALOG_MGMT.FORM.FIELDS.PRICE_PLACEHOLDER')"
+              :message="$t('CATALOG_MGMT.FORM.FIELDS.PRICE_HINT')"
             />
             <Input
+              v-if="!isFieldHidden('promo_price')"
               v-model="precoPromocional"
               data-testid="campo-preco-promocional"
               :label="$t('CATALOG_MGMT.FORM.FIELDS.PROMO_PRICE')"
@@ -443,13 +488,18 @@ const salvar = async () => {
             />
           </div>
 
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div
+            v-if="!isFieldHidden('sku') || !isFieldHidden('stock')"
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2"
+          >
             <Input
+              v-if="!isFieldHidden('sku')"
               v-model="sku"
               data-testid="campo-sku"
               :label="$t('CATALOG_MGMT.FORM.FIELDS.SKU')"
             />
             <Input
+              v-if="!isFieldHidden('stock')"
               v-model="estoque"
               data-testid="campo-estoque"
               type="number"
@@ -467,6 +517,25 @@ const salvar = async () => {
               data-testid="campo-categoria"
               :options="opcoesDeCategoria"
             />
+          </div>
+
+          <div
+            v-if="definicoes.length"
+            data-testid="secao-campos"
+            class="flex flex-col gap-4 pt-5 border-t border-n-weak"
+          >
+            <h3 class="font-medium text-n-slate-12 text-body-main">
+              {{ $t('CATALOG_MGMT.FORM.CUSTOM_FIELDS.TITLE') }}
+            </h3>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <CatalogCustomFieldInput
+                v-for="definicao in definicoes"
+                :key="definicao.id"
+                :definicao="definicao"
+                :model-value="valorDoCampo(definicao)"
+                @update:model-value="mudarCampo(definicao, $event)"
+              />
+            </div>
           </div>
         </div>
 
@@ -491,7 +560,10 @@ const salvar = async () => {
                 </span>
               </div>
             </div>
-            <div class="flex items-start gap-3">
+            <div
+              v-if="!isFieldHidden('featured')"
+              class="flex items-start gap-3"
+            >
               <Switch v-model="destaque" data-testid="interruptor-destaque" />
               <div class="flex flex-col">
                 <span class="font-medium text-n-slate-12 text-body-main">
@@ -566,7 +638,10 @@ const salvar = async () => {
                 <span class="font-medium text-n-slate-12 text-body-main">
                   {{ titulo }}
                 </span>
-                <span class="flex flex-wrap items-baseline gap-1.5">
+                <span
+                  v-if="precoDaPrevia"
+                  class="flex flex-wrap items-baseline gap-1.5"
+                >
                   <span class="font-semibold text-n-teal-11">
                     {{ precoDaPrevia }}
                   </span>
@@ -578,15 +653,10 @@ const salvar = async () => {
                   </span>
                 </span>
               </div>
-              <div
-                class="py-2 text-center border-t border-n-weak text-n-blue-11 text-label-small"
-              >
-                {{ $t('CATALOG_MGMT.FORM.PREVIEW.ACTION') }}
-              </div>
             </div>
           </div>
         </div>
       </div>
     </template>
-  </SettingsLayout>
+  </CatalogLayout>
 </template>

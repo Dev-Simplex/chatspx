@@ -1,21 +1,28 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import CatalogIndex from '../Index.vue';
 
-const { listarProdutos, listarCategorias, sincronizar, alertar } = vi.hoisted(
-  () => ({
-    listarProdutos: vi.fn(),
-    listarCategorias: vi.fn(),
-    sincronizar: vi.fn(),
-    alertar: vi.fn(),
-  })
-);
+const { listarProdutos, listarCategorias, escondidos } = vi.hoisted(() => ({
+  listarProdutos: vi.fn(),
+  listarCategorias: vi.fn(),
+  escondidos: [],
+}));
 
 vi.mock('dashboard/api/catalog', () => ({
-  CatalogProducts: { listar: listarProdutos, sincronizar },
+  CatalogProducts: { listar: listarProdutos },
   CatalogCategories: { get: listarCategorias },
 }));
 
-vi.mock('dashboard/composables', () => ({ useAlert: alertar }));
+// Nome do item e campos escondidos vêm da conta; aqui a conta usa o padrão e o teste escolhe
+// o que esconder.
+vi.mock('dashboard/composables/useCatalogLabels', async () => {
+  const { ref } = await import('vue');
+  return {
+    useCatalogLabels: () => ({
+      labels: ref({ item: 'product', items: 'products' }),
+      isFieldHidden: campo => escondidos.includes(campo),
+    }),
+  };
+});
 
 vi.mock('vue-router', async importOriginal => ({
   ...(await importOriginal()),
@@ -85,23 +92,17 @@ const resposta = (
   },
 });
 
-const SettingsLayoutStub = {
-  name: 'SettingsLayout',
-  props: ['isLoading', 'loadingMessage', 'noRecordsFound', 'noRecordsMessage'],
-  template: `<div>
-      <slot name="header" />
-      <slot name="preBody" />
-      <span v-if="isLoading" class="carregando">{{ loadingMessage }}</span>
-      <span v-else-if="noRecordsFound" class="vazio">{{ noRecordsMessage }}</span>
-      <slot v-else name="body" />
-    </div>`,
-};
-
-const BaseSettingsHeaderStub = {
-  name: 'BaseSettingsHeader',
-  props: ['title', 'description', 'searchPlaceholder', 'searchQuery'],
+const CatalogLayoutStub = {
+  name: 'CatalogLayout',
+  props: [
+    'isLoading',
+    'loadingMessage',
+    'noRecordsFound',
+    'noRecordsMessage',
+    'searchQuery',
+  ],
   emits: ['update:searchQuery'],
-  template: `<div class="cabecalho">
+  template: `<div>
       <input
         class="busca"
         :value="searchQuery"
@@ -109,6 +110,11 @@ const BaseSettingsHeaderStub = {
       />
       <slot name="count" />
       <slot name="actions" />
+      <slot name="filters" />
+      <slot name="preBody" />
+      <span v-if="isLoading" class="carregando">{{ loadingMessage }}</span>
+      <span v-else-if="noRecordsFound" class="vazio">{{ noRecordsMessage }}</span>
+      <slot v-else name="body" />
     </div>`,
 };
 
@@ -155,8 +161,7 @@ const montar = () =>
   mount(CatalogIndex, {
     global: {
       stubs: {
-        SettingsLayout: SettingsLayoutStub,
-        BaseSettingsHeader: BaseSettingsHeaderStub,
+        CatalogLayout: CatalogLayoutStub,
         Button: ButtonStub,
         Select: SelectStub,
         Checkbox: CheckboxStub,
@@ -172,6 +177,7 @@ describe('Catálogo · Index', () => {
   beforeEach(() => {
     listarProdutos.mockResolvedValue(resposta());
     listarCategorias.mockResolvedValue({ data: categorias });
+    escondidos.length = 0;
   });
 
   it('mostra na grade os produtos que a resposta trouxe', async () => {
@@ -185,29 +191,20 @@ describe('Catálogo · Index', () => {
     expect(wrapper.text()).toContain('RB3025-001');
   });
 
-  it('esconde o botão de sincronizar quando a conta não tem espelho', async () => {
+  it('chama o item pelo nome da conta no contador, no botão e no estado vazio', async () => {
     const wrapper = montar();
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="sincronizar-meta"]').exists()).toBe(
-      false
+    expect(wrapper.find('[data-testid="catalogo-contador"]').text()).toBe(
+      '2 products'
     );
-  });
+    expect(wrapper.text()).toContain('Add product');
 
-  it('enfileira a sincronização da conta e avisa, sem mexer nos selos', async () => {
-    listarProdutos.mockResolvedValue(resposta(produtos, 2, true));
-    sincronizar.mockResolvedValue({ data: { queued: true } });
-    const wrapper = montar();
+    listarProdutos.mockResolvedValue(resposta([], 0));
+    const vazio = montar();
     await flushPromises();
 
-    await wrapper.find('[data-testid="sincronizar-meta"]').trigger('click');
-    await flushPromises();
-
-    expect(sincronizar).toHaveBeenCalledTimes(1);
-    expect(alertar).toHaveBeenCalledWith(
-      'Sync queued. Products update as Meta confirms them.'
-    );
-    expect(listarProdutos).toHaveBeenCalledTimes(1);
+    expect(vazio.find('.vazio').text()).toContain('Add products');
   });
 
   it('manda a busca para a API em `q`, e não peneira a lista em memória', async () => {

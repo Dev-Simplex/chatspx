@@ -22,6 +22,20 @@ describe('#getters', () => {
     ]);
   });
 
+  it('getAttributes deixa de fora os campos do catálogo', () => {
+    const catalogo = {
+      attribute_display_name: 'Dormitórios',
+      attribute_key: 'dormitorios',
+      attribute_model: 'catalog_attribute',
+    };
+    const state = { records: [...attributesList, catalogo] };
+
+    expect(getters.getAttributes(state)).toEqual(attributesList);
+    expect(getters.getAttributesByModel(state)('catalog_attribute')).toEqual([
+      catalogo,
+    ]);
+  });
+
   it('getAttributesByModel', () => {
     const state = { records: attributesList };
     expect(getters.getAttributesByModel(state)(1)).toEqual([
