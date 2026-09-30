@@ -3,6 +3,7 @@ import { defineProps, defineEmits } from 'vue';
 import { useIntegrationHook } from 'dashboard/composables/useIntegrationHook';
 import { useBranding } from 'shared/composables/useBranding';
 import Button from 'dashboard/components-next/button/Button.vue';
+import CaptadorHookStatus from './CaptadorHookStatus.vue';
 
 const props = defineProps({
   integrationId: {
@@ -67,5 +68,9 @@ const { replaceInstallationName } = useBranding();
         />
       </div>
     </div>
+    <CaptadorHookStatus
+      v-if="integrationId === 'captador'"
+      :hook="integration.hooks[0]"
+    />
   </div>
 </template>

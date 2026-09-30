@@ -1390,5 +1390,24 @@
         "PROMPT_SAVE_ERROR": "Could not save prompt."
       }
     }
+  },
+  "CAPTADOR_HOOK": {
+    "ONBOARDING": "Create the connection in Captador, copy its URL, instance key and secret here, then save and test. The installation administrator must enable this integration and allow the Captador host.",
+    "ROTATION": "Leave the secret blank to keep it. To rotate, generate a new secret in Captador, copy it here and save both sides in the same maintenance window; then test again. Never disconnect to rotate.",
+    "EFFECTIVE": "Inboxes currently available through this hook (Captador may enable a subset):",
+    "EMPTY": "No inbox available. Edit the hook and add WhatsApp or API inbox IDs from this account.",
+    "UNAVAILABLE": "Unavailable inbox IDs: {ids}. Remove deleted inboxes or restore their write access, save and test again.",
+    "OPEN": "Continue setup in Captador",
+    "TEST": "Test saved connection",
+    "STATUS": {
+      "untested": "Saved connection not tested in this view. Save edits before testing.",
+      "ok": "Connection authenticated; inboxes available.",
+      "degraded": "Connection authenticated, but inbox configuration needs attention below.",
+      "disabled": "Enable the hook and the integration for this account before testing.",
+      "authentication_failed": "Authentication failed. Check the instance key and coordinate the same secret on both sides.",
+      "onboarding_required": "Health endpoint unavailable. Complete setup in Captador or ask its administrator to update the onboarding service.",
+      "unavailable": "Could not verify the connection. Check its URL, allowed host, network and account mapping, then try again."
+    },
+    "INBOX": "{name} (#{id})"
   }
 }

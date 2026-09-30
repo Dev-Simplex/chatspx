@@ -493,7 +493,7 @@ captador:
           'captador_url': { 'type': 'string', 'pattern': '^https://' },
           'instance_key': { 'type': 'string', 'minLength': 1, 'pattern': '^[A-Za-z0-9_-]+$' },
           'shared_secret': { 'type': 'string', 'minLength': 32 },
-          'allowed_inbox_ids': { 'type': 'string' },
+          'allowed_inbox_ids': { 'type': 'string', 'pattern': '^([1-9][0-9]*(,[1-9][0-9]*)*)?$' },
           'allow_login': { 'type': 'boolean' },
         },
       'required': ['captador_url', 'instance_key', 'shared_secret'],

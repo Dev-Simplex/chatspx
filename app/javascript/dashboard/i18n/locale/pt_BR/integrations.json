@@ -1405,5 +1405,24 @@
         "PROMPT_SAVE_ERROR": "Não foi possível salvar o prompt."
       }
     }
+  },
+  "CAPTADOR_HOOK": {
+    "ONBOARDING": "Crie a conexão no Captador, copie a URL, a chave da instância e o segredo para cá, salve e teste. O administrador da instalação precisa habilitar a integração e permitir o host do Captador.",
+    "ROTATION": "Deixe o segredo em branco para manter o atual. Para rotacionar, gere um novo segredo no Captador, copie para cá e salve os dois lados na mesma janela de manutenção; depois teste novamente. Não desconecte para rotacionar.",
+    "EFFECTIVE": "Caixas disponíveis por este hook neste momento (o Captador pode habilitar um subconjunto):",
+    "EMPTY": "Nenhuma caixa disponível. Edite o hook e informe IDs de caixas WhatsApp ou API desta conta.",
+    "UNAVAILABLE": "IDs de caixas indisponíveis: {ids}. Remova caixas excluídas ou restaure a permissão de escrita, salve e teste novamente.",
+    "OPEN": "Continuar configuração no Captador",
+    "TEST": "Testar conexão salva",
+    "STATUS": {
+      "untested": "Conexão salva ainda não testada nesta tela. Salve as alterações antes de testar.",
+      "ok": "Conexão autenticada; caixas disponíveis.",
+      "degraded": "Conexão autenticada, mas as caixas precisam dos ajustes indicados abaixo.",
+      "disabled": "Habilite o hook e a integração nesta conta antes de testar.",
+      "authentication_failed": "Falha na autenticação. Confira a chave da instância e coordene o mesmo segredo nos dois lados.",
+      "onboarding_required": "Endpoint de saúde indisponível. Conclua a configuração no Captador ou peça ao administrador que atualize o serviço de onboarding.",
+      "unavailable": "Não foi possível verificar a conexão. Confira URL, host permitido, rede e vínculo da conta; depois tente novamente."
+    },
+    "INBOX": "{name} (#{id})"
   }
 }

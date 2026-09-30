@@ -105,11 +105,22 @@ describe('#actions', () => {
     });
     it('sends correct actions if API is error', async () => {
       axios.post.mockRejectedValue(errorMessage);
-      await expect(actions.createHook({ commit })).rejects.toThrow(Error);
+      await expect(actions.createHook({ commit })).rejects.toBe(errorMessage);
       expect(commit.mock.calls).toEqual([
         [types.SET_INTEGRATIONS_UI_FLAG, { isCreatingHook: true }],
         [types.SET_INTEGRATIONS_UI_FLAG, { isCreatingHook: false }],
       ]);
+    });
+  });
+
+  it('preserves actionable Captador validation errors when editing the hook', async () => {
+    const error = { response: { data: { message: 'Invalid inbox IDs' } } };
+    axios.patch.mockRejectedValue(error);
+    await expect(
+      actions.updateHook({ commit }, { hookId: 3, hookData: { settings: {} } })
+    ).rejects.toBe(error);
+    expect(commit).toHaveBeenLastCalledWith(types.SET_INTEGRATIONS_UI_FLAG, {
+      isUpdatingHook: false,
     });
   });
 
