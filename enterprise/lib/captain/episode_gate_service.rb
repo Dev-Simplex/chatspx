@@ -44,7 +44,11 @@ class Captain::EpisodeGateService
   # do "não achei imóvel" falso.
   def contradicted_tool_findings
     tool_calls.filter_map do |call|
-      next if call.status == 'error' || call.result_preview.blank?
+      # `confirmada?` no lugar de `status == 'error'`: o retorno de um `desconhecido` (consulta
+      # que respondeu sem conteúdo) não é vazio nem casa com EMPTY_RESULT, então seria lido
+      # como "a tool trouxe resultados" e a negação seguinte da IA viraria um flagra FALSO.
+      next unless confirmada?(call)
+      next if call.result_preview.blank?
       next if call.result_preview.match?(EMPTY_RESULT)
 
       reply = ia_messages.find { |m| m.created_at.between?(call.created_at, call.created_at + REPLY_WINDOW) }
@@ -59,14 +63,18 @@ class Captain::EpisodeGateService
   # que NENHUMA busca do episódio retornou — código alucinado/transcrito errado; o
   # cliente vê fotos de um imóvel enquanto a IA descreve outro. Determinístico:
   # compara o arg da enviar_fotos com os códigos presentes nos retornos das buscas.
+  # `== 'ok'` virou `confirmada?` porque o status deixou de ser binário: uma busca que rodou e
+  # não achou nada (`vazio_completo`) ou que confirmou parte (`parcial`) É uma busca do
+  # episódio, e continuar comparando com 'ok' a descartaria em silêncio — o gate pararia de
+  # reconhecer os códigos que ela devolveu. Ver Captain::Tools::Result.
   def phantom_photo_findings
-    searches = tool_calls.select { |c| c.tool_name.start_with?('buscar') && c.status == 'ok' }
+    searches = tool_calls.select { |c| c.tool_name.start_with?('buscar') && confirmada?(c) }
     return [] if searches.empty?
 
     known = searches.flat_map { |c| c.result_preview.to_s.scan(/c[óo]d\.?\s*(\d{3,6})/i).flatten }.uniq
     return [] if known.empty?
 
-    tool_calls.select { |c| c.tool_name.include?('enviar_fotos') && c.status == 'ok' }.filter_map do |call|
+    tool_calls.select { |c| c.tool_name.include?('enviar_fotos') && confirmada?(c) }.filter_map do |call|
       codigo = call.args['codigo'].to_s[/\d{3,6}/]
       next if codigo.blank? || known.include?(codigo)
       next if call.result_preview.to_s.match?(/n[ãa]o apareceu|n[ãa]o envie/i) # a trava da tool já barrou
@@ -77,6 +85,16 @@ class Captain::EpisodeGateService
     end
   end
 
+  def confirmada?(call)
+    Captain::Tools::Result::CONFIRMADOS.include?(call.status.to_s)
+  end
+
+  # Continua sendo só `error`, e de propósito: `desconhecido` é consulta que RESPONDEU sem
+  # conteúdo utilizável — não falhou, e dizer "a ferramenta falhou" sobre ela seria impreciso.
+  #
+  # ⚠️ O volume deste finding SOBE depois deste PR, e isso não é regressão: ferramenta que
+  # capturava o próprio erro e devolvia "Não consegui..." era gravada como 'ok' e nunca chegava
+  # aqui. A falha existia e era invisível ao eval; agora ela conta.
   def tool_error_findings
     tool_calls.select { |call| call.status == 'error' }.map do |call|
       gate_finding('ignorou_erro_da_tool', nil,

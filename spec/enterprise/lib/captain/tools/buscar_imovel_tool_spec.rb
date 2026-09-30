@@ -13,6 +13,43 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       'Cidade' => 'Sinop', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }
   end
 
+  # O domínio público é CONFIG DA CONTA — não existe mais constante de cliente no código.
+  # Domínio neutro de propósito: se algum dia voltar um default embutido, estes exemplos
+  # continuariam verdes com o domínio errado, que é justamente o que não se quer.
+  before { allow(tool).to receive(:site_domain).and_return('imobiliaria-exemplo.com.br') }
+
+  # Conta que não declarou o domínio público. Antes herdava o de um cliente, embutido no
+  # código da frota: montava link do site dele e, no PropertyRefContextService, tratava
+  # link daquele domínio como "nosso". Agora a ausência é ausência — sem link, nunca link
+  # errado. O preço segue sendo registrado: ele alimenta a guarda e não depende de URL.
+  describe 'conta sem domínio público configurado' do
+    before { allow(tool).to receive_messages(site_domain: nil, site_api_key: nil, format_extras: '') }
+
+    it 'não monta URL nenhuma' do
+      expect(tool.send(:build_url, imovel, true)).to be_nil
+    end
+
+    it 'não deriva a URL da API do site a partir de um host inexistente' do
+      expect(tool.send(:site_api_url)).to be_nil
+    end
+
+    it 'não grava link no mapa, mas preserva preço e bairro' do
+      tool.send(:track_urls, tool_context, [imovel], true)
+
+      attrs = conversation.reload.custom_attributes
+      expect(attrs['urls_imoveis']).to be_blank
+      expect(attrs.dig('dados_imoveis', '9908')).to eq('preco' => 450_000.0, 'bairro' => 'Jardim Paraíso')
+    end
+
+    it 'fecha a linha da listagem sem deixar pontuação solta' do
+      linha = tool.send(:linha_imovel, imovel, 0, true, false)
+
+      expect(linha).not_to include('https://')
+      expect(linha).not_to match(/\.\s+\z/)
+      expect(linha).to end_with('.')
+    end
+  end
+
   # track_urls alimenta o fix_property_links (response_builder_job): sem urls_imoveis na
   # conversa, TODO link da Tozi na resposta da IA é apagado. Ele roda dentro de um rescue,
   # então a falha não levanta — ela some. Por isso os testes olham o resultado gravado na
@@ -176,7 +213,9 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(nao.index('AVULSO')).to be < nao.index('condomínio')
     end
 
-    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha.
+    # O caso da 4809 inteiro: taxa presente E imóvel avulso, na mesma linha. O campo do Vista
+    # é a única evidência do FATO, e a taxa continua sendo nomeada como taxa — a Tozi passou a
+    # manter o cadastro correto (08/09), então o campo volta a ser confiável sozinho.
     it 'keeps fee and fact distinguishable on the same listing line' do
       linha = tool.send(:format_listings, nil, [avulso_com_taxa], false)
 
@@ -379,16 +418,17 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(capturado['TituloSite']).to eq(['like', '%CASA JD TERRA RICA%'])
     end
 
-    # Os 2 títulos que não casaram eram anúncio de OUTRA imobiliária no mesmo portal. Devolver
-    # "nenhum imóvel encontrado" ali fez a IA dizer ao cliente que não havia apartamento nenhum
-    # — havia 17. O retorno tem que separar "não achei ESTE" de "não temos imóveis".
+    # O retorno tem que separar "não achei ESTE" de "não temos imóveis" — devolver "nenhum
+    # imóvel encontrado" aqui fez a IA dizer que não havia apartamento nenhum, havia 17.
+    # E a explicação que ele oferece mudou de ordem em 08/09: "pode ser de outra imobiliária"
+    # vinha primeiro e a IA a repetia sobre imóvel da própria Tozi (conv 33632).
     it 'says the advert may belong to another agency instead of implying an empty catalogue' do
       allow(tool).to receive(:fetch_vista).and_return([])
 
       texto = tool.perform(tool_context, status_tipo: 'locacao', titulo: 'APARTAMENTO QUE NAO E NOSSO')
 
-      expect(texto).to include('pode não ser nosso')
-      expect(texto).to match(/N[ÃA]O conclua que não temos imóveis/i)
+      expect(texto).to match(/cadastrado sem título/i)
+      expect(texto).to match(/N[ÃA]O conclua/i)
       expect(texto).not_to eq('Nenhum imóvel encontrado com esses critérios.')
     end
   end
@@ -424,6 +464,123 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
     # senão a busca por código digitado nunca poderia dizer que não achou.
     it 'still allows treating a client-typed code as truly absent' do
       expect(tool.send(:codigo_nao_encontrado, '6762')).to match(/cliente escreveu ou falou/i)
+    end
+  end
+
+  # Conv 33632 (07/09): a cliente colou "Casa Portal do Servidor" de um portal, a busca por
+  # TituloSite não achou e a IA respondeu que o anúncio "pode ser de outra imobiliária" — sobre
+  # o 9819, que é da Tozi. O título de portal é "Categoria + Bairro" (a mesma composição da URL
+  # do site), e 23 dos 50 imóveis de locação estão com TituloSite VAZIO, o 9819 entre eles.
+  describe 'título de portal que não casa com o cadastro' do
+    it 'splits the category off the front of the title' do
+      expect(tool.send(:decompor_titulo, 'Casa Portal do Servidor')).to eq(['Casa', 'Portal Servidor'])
+    end
+
+    it 'matches the longest category first, so a compound one is not cut short' do
+      categoria, = tool.send(:decompor_titulo, 'Conjunto de Kitnets Jardim Itália')
+
+      expect(categoria).to eq('Conjunto de Kitnets')
+    end
+
+    it 'leaves the title alone when it opens with no known category' do
+      expect(tool.send(:decompor_titulo, 'Portal do Servidor')).to eq([nil, 'Portal Servidor'])
+    end
+
+    # Sem a fronteira de palavra, o "na" do conectivo é removido de dentro de Canadá e o bairro
+    # vira "Cadá" — o termo deixa de casar e o imóvel some.
+    it 'strips connectives as whole words, never inside a neighbourhood name' do
+      _, resto = tool.send(:decompor_titulo, 'CASA - RES. CANADÁ')
+
+      expect(resto).to eq('CANADÁ')
+    end
+
+    it 'offers the neighbourhood from the end first, shortening from the left' do
+      expect(tool.send(:candidatos_de_bairro, 'PISCINA JARDIM IMPERIAL'))
+        .to eq(['PISCINA JARDIM IMPERIAL', 'JARDIM IMPERIAL', 'IMPERIAL'])
+    end
+
+    it 'drops one-letter fragments that would match half the base' do
+      expect(tool.send(:candidatos_de_bairro, 'a JARDIM IMPERIAL')).not_to include('a JARDIM IMPERIAL')
+    end
+
+    # A explicação que a IA repetiu ao cliente era a menos provável das duas.
+    it 'stops leading with the other-agency explanation' do
+      texto = tool.send(:titulo_sem_correspondencia, 'Casa Portal do Servidor')
+
+      expect(texto).to match(/cadastrado sem título/i)
+      expect(texto).to match(/MENOS prov[áa]vel/i)
+      expect(texto).to match(/N[ÃA]O conclua/i)
+    end
+  end
+
+  # Conv 33660 (08/09): a cliente veio de um portal sem dizer se queria alugar ou comprar, a
+  # triagem presumiu venda, e a busca respondeu só por venda — "não temos casa no Residencial
+  # Canadá". Tinha: o 8780, para ALUGAR. Medido em 30 dias: de 134 combinações (bairro,
+  # categoria, finalidade) que voltaram vazias, 60 tinham imóvel naquele bairro na outra
+  # finalidade.
+  describe 'imóvel que existe na outra finalidade' do
+    it 'flips the Vista status, not just the sort order' do
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) do |f, **|
+        capturado = f
+        []
+      end
+
+      tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'], 'Bairro' => ['like', '%Canadá%'] },
+                true, 'Canadá')
+
+      expect(capturado['Status']).to eq(['like', '%alug%'])
+    end
+
+    it 'looks for sale when the search was for rent' do
+      capturado = nil
+      allow(tool).to receive(:fetch_vista) do |f, **|
+        capturado = f
+        []
+      end
+
+      tool.send(:na_outra_finalidade, { 'Status' => ['like', '%alug%'] }, false, 'Canadá')
+
+      expect(capturado['Status']).to eq(['like', '%vend%'])
+    end
+
+    it 'says nothing when the other side is empty too' do
+      allow(tool).to receive(:fetch_vista).and_return([])
+
+      expect(tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá')).to be_nil
+    end
+
+    it 'says nothing when no neighbourhood was asked for' do
+      expect(tool.send(:na_outra_finalidade, {}, true, nil)).to be_nil
+    end
+
+    # O retorno INFORMA; quem decide é o agente, que sabe se o cliente declarou a finalidade
+    # ou se ela foi presumida. Cliente que disse "quero alugar" não quer ver venda.
+    it 'tells the agent to ask instead of asserting we have nothing' do
+      allow(tool).to receive(:fetch_vista).and_return([{ 'Codigo' => '8780' }])
+
+      texto = tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá')
+
+      expect(texto).to include('para ALUGAR')
+      expect(texto).to match(/pergunte a ele antes de afirmar que não temos/i)
+    end
+
+    it 'carries the notice into the widened-search header' do
+      cabecalho = tool.send(:header_ampliado, 'Canadá', [], ' AVISO DA OUTRA FINALIDADE')
+
+      expect(cabecalho).to end_with(' AVISO DA OUTRA FINALIDADE')
+    end
+
+    it 'keeps the header unchanged when there is nothing on the other side' do
+      expect(tool.send(:header_ampliado, 'Canadá', [])).not_to match(/ATENÇÃO/i)
+    end
+
+    # Falha de rede na consulta extra não pode derrubar a busca que já deu certo.
+    it 'swallows a failure on the extra lookup' do
+      allow(tool).to receive(:fetch_vista).and_raise(StandardError, 'vista fora')
+
+      expect { tool.send(:na_outra_finalidade, { 'Status' => ['like', '%vend%'] }, true, 'Canadá') }
+        .not_to raise_error
     end
   end
 
@@ -484,6 +641,539 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       lista = [imovel('1', 'Aurora'), imovel('2', 'Aurora'), imovel('3', 'Centro', 4.0)]
 
       expect(tool.send(:ordenar_alternativas, lista).map { |i| i['Codigo'] }).to eq(%w[3 1 2])
+    end
+  end
+
+  # A regra "locação → transfira para Bruna" já existe no prompt da agente de vendas e é
+  # seguida 1 vez em 6 (medido no turno da conv 36940, onde ela conduziu 35 minutos de
+  # locação sozinha antes de passar). A instrução aqui chega junto com o dado, no instante
+  # da busca cruzada.
+  describe '#fora_da_minha_finalidade' do
+    subject(:aviso) { tool.send(:fora_da_minha_finalidade, venda) }
+
+    let(:venda) { false }
+
+    context 'when the assistant declares neither finalidade nor destino' do
+      it 'não muda o retorno — conta que não configurou não vê diferença' do
+        expect(aviso).to eq('')
+      end
+    end
+
+    context 'when it declares finalidade but nobody to hand over to' do
+      before { assistant.update!(config: assistant.config.merge('finalidade' => 'venda')) }
+
+      it 'não instrui passagem que não tem destino' do
+        expect(aviso).to eq('')
+      end
+    end
+
+    context 'when a sales agent searches for rentals' do
+      before do
+        assistant.update!(config: assistant.config.merge('finalidade' => 'venda',
+                                                         'agente_outra_finalidade' => 'Bruna'))
+      end
+
+      it 'manda transferir agora, nomeando o destino' do
+        expect(aviso).to include('locação', 'Bruna', 'transferir_para_agente', 'AGORA')
+      end
+
+      it 'não dispara quando a busca é da própria finalidade' do
+        expect(tool.send(:fora_da_minha_finalidade, true)).to eq('')
+      end
+    end
+
+    context 'when a rental agent searches for sales' do
+      before do
+        assistant.update!(config: assistant.config.merge('finalidade' => 'locacao',
+                                                         'agente_outra_finalidade' => 'Júlia'))
+      end
+
+      it 'vale nos dois sentidos — a regra é de finalidade cruzada, não de um time só' do
+        expect(tool.send(:fora_da_minha_finalidade, true)).to include('venda', 'Júlia')
+      end
+
+      it 'não dispara na busca de locação' do
+        expect(tool.send(:fora_da_minha_finalidade, false)).to eq('')
+      end
+    end
+
+    context 'when the declared finalidade is blank' do
+      before do
+        assistant.update!(config: assistant.config.merge('finalidade' => '  ',
+                                                         'agente_outra_finalidade' => 'Bruna'))
+      end
+
+      it 'trata como não configurado em vez de avisar sempre' do
+        expect(aviso).to eq('')
+      end
+    end
+  end
+
+  # O ramo por CÓDIGO retornava cedo e nunca passava pelo aviso de finalidade — o furo que a
+  # conv 36940 expôs: a agente de vendas buscou o imóvel do anúncio dizendo que a busca era de
+  # locação e seguiu conduzindo por 35 minutos. Ele é justamente o caminho de quem chega com
+  # placa ou link do site, que é como o cliente do anúncio chega.
+  describe '#por_codigo' do
+    subject(:retorno) { tool.send(:por_codigo, tool_context, '7573', 'locacao') }
+
+    let(:a_venda) do
+      { 'Codigo' => '7573', 'ImoCodigo' => '7573', 'Categoria' => 'Casa', 'Bairro' => 'Centro',
+        'Cidade' => 'Sinop', 'Status' => 'Venda', 'ValorVenda' => '450000', 'ValorLocacao' => '0' }
+    end
+
+    before do
+      allow(tool).to receive(:site_api_key).and_return(nil)
+      allow(tool).to receive(:fetch_vista).and_return([a_venda])
+      # O ramo por código apresenta detalhado, e o detalhado consulta /imoveis/detalhes.
+      # A suíte é offline: o que se testa aqui é a decisão, não a ida ao Vista.
+      allow(tool).to receive(:detalhes_info).and_return({})
+      assistant.update!(config: assistant.config.merge('finalidade' => 'venda',
+                                                       'agente_outra_finalidade' => 'Bruna'))
+    end
+
+    it 'avisa quando a finalidade pedida é a outra, mesmo tendo achado o imóvel' do
+      expect(retorno).to include('Bruna', 'transferir_para_agente', 'AGORA')
+    end
+
+    # O aviso ACRESCENTA, não substitui: o cliente perguntou por um imóvel e continua tendo
+    # direito à resposta sobre ele.
+    it 'apresenta o imóvel junto do aviso' do
+      expect(retorno).to include('7573')
+    end
+
+    it 'não avisa quando a busca é da própria finalidade' do
+      expect(tool.send(:por_codigo, tool_context, '7573', 'venda')).not_to include('Bruna')
+    end
+
+    # Aqui está a escolha que importa: o imóvel é de VENDA e a assistente também é de venda —
+    # pelo Status do imóvel nada dispararia. Quem carrega a intenção do cliente é o parâmetro.
+    it 'lê a finalidade pedida, não o Status do imóvel achado' do
+      expect(retorno).to include('locação')
+    end
+
+    it 'avisa também quando o código não existe no acervo' do
+      allow(tool).to receive(:fetch_vista).and_return([])
+
+      resposta = tool.send(:por_codigo, tool_context, '404', 'locacao')
+      expect(resposta).to include('Bruna')
+      expect(resposta).to include('confirme o número')
+    end
+
+    it 'segue registrando o código para a trava anti-alucinação das fotos' do
+      retorno
+
+      expect(conversation.reload.custom_attributes['codigos_buscados']).to include('7573')
+    end
+
+    # Pelo caminho PÚBLICO, que é o que o modelo chama. Sem este par, a prova não distingue
+    # "o método novo existe" de "a decisão do ramo mudou": o negativo passa nos dois lados.
+    it 'perform com código e finalidade cruzada leva o aviso' do
+      expect(tool.perform(tool_context, status_tipo: 'locacao', codigo: '7573')).to include('Bruna')
+    end
+
+    it 'perform com código da própria finalidade segue sem aviso' do
+      expect(tool.perform(tool_context, status_tipo: 'venda', codigo: '7573')).not_to include('Bruna')
+    end
+
+    it 'não muda nada para a conta que não configurou finalidade' do
+      assistant.update!(config: assistant.config.except('finalidade', 'agente_outra_finalidade'))
+
+      expect(retorno).not_to include('transferir_para_agente')
+    end
+  end
+
+  # O passo a passo da visita a imóvel avulso chega no retorno da busca, lido da condição da
+  # unidade. Medido em 11/09: fora do prompt e dependendo de a agente consultar a ferramenta de
+  # unidade, ele sumiu de metade das respostas — "quero ver" é sobre o imóvel, e a consulta à
+  # unidade não acontecia.
+  describe 'regra de visita a imóvel avulso' do
+    let(:avulso) do
+      { 'Codigo' => '9623', 'Categoria' => 'Kitnet', 'Bairro' => 'Jardim Imperial', 'Cidade' => 'Sinop',
+        'Status' => 'Aluguel', 'ValorLocacao' => '1000', 'ValorVenda' => '0', 'Condominio' => 'Nao' }
+    end
+    let(:em_condominio) { avulso.merge('Codigo' => '2686', 'Condominio' => 'Sim') }
+    let(:regra) { 'deixa documento com foto e devolve a chave no mesmo dia' }
+
+    before do
+      allow(tool).to receive(:site_api_key).and_return(nil)
+      allow(tool).to receive(:detalhes_info).and_return({})
+      assistant.update!(config: assistant.config.merge('condicao_visita_avulso' => 'visita a imóvel avulso'))
+      create(:unit, account: account, atributos: { 'visita a imóvel avulso' => regra })
+    end
+
+    def listar(imoveis, venda: false)
+      tool.send(:format_listings, tool_context, imoveis, venda)
+    end
+
+    # A regra acima manda a pessoa ir até o balcão. No feriado municipal de 14/09/2026 ela foi
+    # entregue assim mesmo, em três conversas que NUNCA chamaram a buscar_unidades — este retorno
+    # foi o único que elas leram. Um cliente esperou meia hora na porta e foi embora (conv 9022).
+    describe 'unidade fechada no dia em que a pessoa iria' do
+      let(:unidade) { Unit.where(account_id: account.id).first }
+
+      def hoje_na_unidade
+        Time.now.in_time_zone(unidade.timezone).to_date
+      end
+
+      def fechar(dia, nome: 'Aniversário da cidade')
+        create(:unit_exception, unit: unidade, name: nome, category: :feriado,
+                                closed_all_day: true, starts_on: dia)
+      end
+
+      it 'avisa que a unidade não abre hoje' do
+        fechar(hoje_na_unidade)
+
+        expect(listar([avulso])).to include('a unidade NÃO abre', 'Aniversário da cidade')
+      end
+
+      it 'avisa também na véspera — a visita costuma ser combinada no dia anterior' do
+        fechar(hoje_na_unidade + 1, nome: 'Feriado de amanhã')
+
+        expect(listar([avulso])).to include('Feriado de amanhã')
+      end
+
+      # Mesma razão da regra vir antes da lista: é o começo do retorno que sobrevive ao corte de
+      # 700 chars da nota de ferramentas no turno seguinte — o turno do "quero ver".
+      it 'põe o aviso antes da regra de visita' do
+        fechar(hoje_na_unidade)
+
+        retorno = listar([avulso])
+        expect(retorno).to start_with('ATENÇÃO')
+        expect(retorno.index('NÃO abre')).to be < retorno.index(regra)
+      end
+
+      it 'não vira agenda: fechamento distante não entra' do
+        fechar(hoje_na_unidade + 5, nome: 'Feriado distante')
+
+        expect(listar([avulso])).not_to include('Feriado distante')
+      end
+
+      it 'não avisa por evento que mantém a unidade aberta' do
+        create(:unit_exception, unit: unidade, name: 'Feirão', category: :evento,
+                                closed_all_day: false, starts_on: hoje_na_unidade)
+
+        expect(listar([avulso])).not_to include('NÃO abre')
+      end
+
+      it 'não muda nada quando não há fechamento nenhum' do
+        expect(listar([avulso])).not_to include('ATENÇÃO')
+      end
+    end
+
+    it 'traz a regra da unidade junto do imóvel avulso de locação' do
+      expect(listar([avulso])).to include(regra)
+    end
+
+    # Pelo caminho que o modelo chama — e pelo ramo de CÓDIGO, que é o de quem chega com placa
+    # ou link querendo visitar. Sem este exemplo a mutação só provaria que o método é novo.
+    it 'chega pelo caminho público, inclusive na busca por código' do
+      allow(tool).to receive(:fetch_vista).and_return([avulso])
+
+      expect(tool.perform(tool_context, status_tipo: 'locacao', codigo: '9623')).to include(regra)
+    end
+
+    it 'não traz em venda — lá não existe retirada de chave' do
+      expect(listar([avulso], venda: true)).not_to include(regra)
+    end
+
+    it 'não traz quando só há imóvel em condomínio fechado — lá a visita é agendada' do
+      expect(listar([em_condominio])).not_to include(regra)
+    end
+
+    it 'não muda nada para o assistente que não configurou a regra' do
+      assistant.update!(config: assistant.config.except('condicao_visita_avulso'))
+
+      expect(listar([avulso])).not_to include('Visita a imóvel avulso')
+    end
+
+    it 'não escolhe regra quando a conta tem mais de uma unidade ativa' do
+      create(:unit, account: account, atributos: { 'visita a imóvel avulso' => 'regra de outra loja' })
+
+      expect(listar([avulso])).not_to include('Visita a imóvel avulso')
+    end
+
+    # A POSIÇÃO é contrato. Anexada no fim, medido na produção em 11/09, a regra ficava na posição
+    # 711 do retorno por código e 1565 do comum — fora do corte de 700 da nota de ferramentas e,
+    # no comum, fora até do registro de 1500 da chamada. Sumia no turno do "quero ver".
+    it 'vem antes da lista, para sobreviver ao corte do contexto do turno seguinte' do
+      expect(listar([avulso])).to start_with('Visita a imóvel avulso')
+    end
+
+    # O contrato de ponta a ponta: o que a busca devolve chega ao turno seguinte. Lista cheia de
+    # propósito — é o comprimento que empurrava a regra para fora do corte.
+    it 'chega ao contexto do turno seguinte mesmo com a lista cheia' do
+      account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
+      retorno = listar(Array.new(5) { |i| avulso.merge('Codigo' => (9600 + i).to_s) })
+      Captain::ToolCall.create!(account_id: account.id, conversation_id: conversation.id,
+                                captain_assistant_id: assistant.id, tool_name: 'buscar_imovel',
+                                args: {}, result_preview: retorno[0, 1500], status: 'ok', duration_ms: 1)
+
+      nota = Captain::Conversation::ToolContextNote.new(conversation: conversation).text
+
+      expect(nota).to include(regra)
+    end
+
+    # A condição de visita diz "no horário de retirada de chave", e esse horário mora na condição
+    # vizinha. Com uma só, medido em 11/09, 4 de 6 respostas preencheram o horário de retirada com a
+    # grade de funcionamento. A config aceita a lista, e as duas chegam juntas.
+    it 'traz as condições listadas na config, na ordem dela' do
+      Unit.where(account_id: account.id).find_each do |unidade|
+        unidade.update!(atributos: unidade.atributos.merge('retirada e entrega de chave' => 'até o meio da tarde'))
+      end
+      assistant.update!(config: assistant.config.merge(
+        'condicao_visita_avulso' => ['visita a imóvel avulso', 'retirada e entrega de chave']
+      ))
+
+      retorno = listar([avulso])
+
+      expect(retorno).to include(regra, 'Retirada e entrega de chave: até o meio da tarde')
+      expect(retorno.index(regra)).to be < retorno.index('até o meio da tarde')
+    end
+
+    it 'ignora nome listado que a unidade não tem, sem perder os outros' do
+      assistant.update!(config: assistant.config.merge(
+        'condicao_visita_avulso' => ['visita a imóvel avulso', 'condição que ninguém cadastrou']
+      ))
+
+      expect(listar([avulso])).to include(regra)
+    end
+
+    it 'não traz nada quando a unidade não tem essa condição cadastrada' do
+      Unit.where(account_id: account.id).find_each { |unidade| unidade.update!(atributos: {}) }
+
+      expect(listar([avulso])).not_to include('Visita a imóvel avulso')
+    end
+  end
+
+  # Falha técnica publicada como ausência de negócio: o `fetch_vista` devolvia `[]` em não-200 e
+  # o chamador dizia "Nenhum imóvel encontrado com esses critérios". O cliente ouvia que não
+  # existe imóvel no critério quando o que houve foi o Vista fora do ar.
+  describe 'consulta que falha não vira ausência' do
+    def resposta(code:, corpo:)
+      instance_double(HTTParty::Response, code: code, parsed_response: corpo)
+    end
+
+    before do
+      allow(tool).to receive_messages(site_api_key: nil, vista_base_url: 'https://vista.example', vista_api_key: 'k')
+    end
+
+    it 'diz que a consulta falhou quando o Vista responde não-200' do
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 503, corpo: nil))
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
+
+      expect(texto).to include('falha de consulta, não ausência')
+      expect(texto).not_to include('Nenhum imóvel encontrado')
+    end
+
+    it 'diz que a consulta falhou quando o corpo de 200 não é interpretável' do
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 200, corpo: '<html>erro</html>'))
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
+
+      expect(texto).to include('falha de consulta, não ausência')
+      expect(texto).not_to include('Nenhum imóvel encontrado')
+    end
+
+    # O outro lado da moeda: 200 com lista vazia É ausência confirmada, e continua sendo dita
+    # como tal. Se este exemplo cair junto com os de cima, a correção virou mordaça.
+    it 'preserva a ausência CONFIRMADA quando o Vista responde 200 sem resultado' do
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 200, corpo: { 'total' => 0, 'paginas' => 0 }))
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
+
+      expect(texto).to include('Nenhum imóvel encontrado')
+      expect(texto).not_to include('falha de consulta')
+    end
+
+    it 'grava a falha como erro no trace, não como ok' do
+      account.update!(custom_attributes: account.custom_attributes.merge('captain_tool_context' => true))
+      allow(tool).to receive(:vista_get).and_return(resposta(code: 503, corpo: nil))
+
+      tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Centro')
+
+      expect(Captain::ToolCall.for_conversation(conversation.id).last.status).to eq('error')
+    end
+
+    # O rescue do ampliar_sem_bairro existia pra degradar um EXTRA. Vista fora do ar não é
+    # extra que falhou: engolir ali devolvia nil e o chamador publicava "Nenhum imóvel".
+    #
+    # A sequência importa: a PRIMEIRA busca precisa voltar 200-vazia para o fluxo chegar na
+    # ampliação, e só a SEGUNDA cai. Com 500 nas duas, a primeira já levantaria e o exemplo
+    # passaria sem nunca exercitar o rescue que ele existe para cobrir.
+    it 'não deixa a ampliação por bairro engolir a indisponibilidade' do
+      allow(tool).to receive(:vista_get).and_return(
+        resposta(code: 200, corpo: { 'total' => 0 }),
+        resposta(code: 500, corpo: nil)
+      )
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', bairro: 'Jardim Imperial')
+
+      expect(texto).to include('falha de consulta, não ausência')
+      expect(texto).not_to include('Nenhum imóvel encontrado')
+    end
+  end
+
+  # Cache de 6h guardando o `{}` devolvido por erro: uma indisponibilidade de segundos virava
+  # "sem foto, sem suíte e não mobiliado" para toda conversa da conta durante as 6 horas
+  # seguintes — e o imóvel sumia do filtro de característica sem deixar rastro.
+  describe 'cache de detalhes' do
+    let(:memoria) { ActiveSupport::Cache::MemoryStore.new }
+
+    let(:detalhes_ok) do
+      { 'Codigo' => '9908', 'Suites' => '1', 'Vagas' => '2',
+        'Foto' => { 'a' => {} }, 'Caracteristicas' => { 'Mobiliado' => 'Sim' } }
+    end
+
+    before do
+      allow(Rails).to receive(:cache).and_return(memoria)
+      allow(tool).to receive_messages(vista_base_url: 'https://vista.example', vista_api_key: 'k')
+    end
+
+    def falhando!
+      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 500, parsed_response: nil))
+    end
+
+    def respondendo!
+      allow(HTTParty).to receive(:get).and_return(instance_double(HTTParty::Response, code: 200, parsed_response: detalhes_ok))
+    end
+
+    it 'marca como não consultado, e não como característica ausente' do
+      falhando!
+
+      info = tool.send(:detalhes_info, '9908')
+
+      expect(info[:consultado]).to be false
+      expect(info).not_to have_key(:mobiliado)
+    end
+
+    it 'cacheia o resultado que o servidor confirmou' do
+      respondendo!
+
+      2.times { tool.send(:detalhes_info, '9908') }
+
+      expect(HTTParty).to have_received(:get).once
+    end
+
+    it 'não descreve característica que não pôde confirmar' do
+      falhando!
+
+      expect(tool.send(:format_extras, '9908')).to eq('')
+    end
+
+    # O ramo `mobiliado` inspeciona até TETO_INSPECAO imóveis por turno. Sem cache negativo, um
+    # Vista fora do ar levava até 50 chamadas de detalhe POR TURNO, sem backoff nenhum,
+    # justamente enquanto ele estava caindo.
+    describe 'cache negativo curto' do
+      it 'segura a martelada enquanto o Vista está fora' do
+        falhando!
+
+        5.times { tool.send(:detalhes_info, '9908') }
+
+        expect(HTTParty).to have_received(:get).once
+      end
+
+      # A condição que separa isto do defeito que o PR conserta: guarda o ESTADO, nunca
+      # característica presumida. Se algum dia vazar um `mobiliado: false` para cá, o imóvel
+      # volta a sumir do filtro por falha de rede.
+      it 'guarda só o flag, sem característica nenhuma' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        guardado = memoria.read("captain:vista:detalhes:#{account.id}:9908")
+
+        expect(guardado).to eq({ consultado: false })
+        expect(guardado.keys).to eq([:consultado])
+      end
+
+      # O ponto todo: a falha esfria em segundos, não nas 6h do sucesso.
+      it 'expira rápido e deixa o resultado bom entrar' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(described_class::TTL_FALHA_PADRAO.seconds + 1.second) do
+          respondendo!
+          expect(tool.send(:detalhes_info, '9908')[:mobiliado]).to be true
+        end
+      end
+
+      it 'não segura pelas 6h do cache de sucesso' do
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(described_class::TTL_FALHA_PADRAO.seconds + 1.second) do
+          falhando!
+          tool.send(:detalhes_info, '9908')
+        end
+
+        expect(HTTParty).to have_received(:get).twice
+      end
+
+      # Configurável por conta para subir em incidente longo sem deploy.
+      it 'respeita o TTL da conta' do
+        account.update!(custom_attributes: account.custom_attributes.merge('vista_detalhes_ttl_falha' => 600))
+        falhando!
+        tool.send(:detalhes_info, '9908')
+
+        travel(2.minutes) do
+          falhando!
+          tool.send(:detalhes_info, '9908')
+        end
+
+        expect(HTTParty).to have_received(:get).once
+      end
+
+      it 'desliga com TTL zero' do
+        account.update!(custom_attributes: account.custom_attributes.merge('vista_detalhes_ttl_falha' => 0))
+        falhando!
+
+        2.times { tool.send(:detalhes_info, '9908') }
+
+        expect(HTTParty).to have_received(:get).twice
+      end
+    end
+  end
+
+  # Informação DESCONHECIDA tratada como falsa: `detalhes_info(...)[:mobiliado]` devolvia nil
+  # quando a consulta de detalhes falhava, o `select` lia nil como false, e imóvel bom saía da
+  # lista sem deixar rastro. Pior que o falso negativo é o texto: a tool afirmava que NENHUM era
+  # mobiliado tendo conferido nenhum.
+  describe 'filtro de característica com detalhe desconhecido' do
+    let(:casa) { imovel.merge('Codigo' => '1', 'ValorLocacao' => '1500', 'ValorVenda' => '0') }
+    let(:outra) { casa.merge('Codigo' => '2') }
+
+    before do
+      allow(tool).to receive_messages(site_api_key: nil, fetch_vista: [casa, outra])
+    end
+
+    it 'não afirma ausência quando não conseguiu confirmar a característica' do
+      allow(tool).to receive(:detalhes_info).and_return({ consultado: false })
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', mobiliado: true)
+
+      expect(texto).to include('NÃO foi possível confirmar')
+      expect(texto).not_to include('NENHUM está cadastrado')
+    end
+
+    it 'mantém a ausência confirmada quando TODOS foram conferidos' do
+      allow(tool).to receive(:detalhes_info).and_return({ consultado: true, mobiliado: false, fotos: 0,
+                                                          suites: 0, vagas: 0, piscina: false, quintal: false,
+                                                          churrasqueira: false })
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', mobiliado: true)
+
+      expect(texto).to include('NENHUM está cadastrado')
+    end
+
+    it 'avisa que a lista pode estar incompleta quando parte não foi confirmada' do
+      confirmado = { consultado: true, mobiliado: true, fotos: 1, suites: 0, vagas: 0,
+                     piscina: false, quintal: false, churrasqueira: false }
+      allow(tool).to receive(:detalhes_info).with('1').and_return(confirmado)
+      allow(tool).to receive(:detalhes_info).with('2').and_return({ consultado: false })
+
+      texto = tool.perform(tool_context, status_tipo: 'locacao', mobiliado: true)
+
+      expect(texto).to include('pode não ser todas as opções mobiliadas')
     end
   end
 end

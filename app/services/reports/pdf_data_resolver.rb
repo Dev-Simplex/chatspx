@@ -47,6 +47,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     when 'sla' then sla_data
     when 'funnel' then funnel_data
     when 'agent_assignment' then agent_assignment_data
+    when 'rodizio' then rodizio_data
     when 'agent', 'inbox', 'team', 'label' then summary_data(@report_type)
     else
       raise ArgumentError, "report_type desconhecido: #{@report_type}"
@@ -750,6 +751,275 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # ======================= ATRIBUIÇÕES (quem atribuiu pra quem) =======================
   # Reusa V2::Reports::AgentAssignmentBuilder (mesma fonte da aba "Atribuições") — não recria métrica.
+  # ======================= RODÍZIO =======================
+  # Mesma fonte da tela (Spx::Distribuicao::ResumoService): o que o gestor leu no painel e o que
+  # ele manda para a diretoria não podem divergir. A meta do tempo de espera é o SLA que o
+  # próprio cliente configurou na política do time. O recorte (time, agente, canal, produto) é o
+  # mesmo Spx::Distribuicao::Recorte da tela, e o subtítulo diz qual está aplicado.
+  def rodizio_data
+    {
+      report_type: 'rodizio', title: 'Relatório de Rodízio', period: rodizio_periodo,
+      overline: 'Distribuição de leads · Confidencial',
+      subtitle: rodizio_subtitle(rodizio_resumo),
+      base_label: "#{rodizio_resumo[:recebidos]} leads distribuídos",
+      resumo: rodizio_resumo,
+      sla_segundos: rodizio_resumo[:sla_minutos].to_i * 60,
+      kpis: rodizio_kpis(rodizio_resumo),
+      desfecho: rodizio_desfecho,
+      espera_por_dia: rodizio_espera_por_dia,
+      ranking: rodizio_ranking,
+      esperando: rodizio_esperando,
+      recomendacoes: rodizio_recomendacoes(rodizio_resumo),
+      conclusion: rodizio_conclusion(rodizio_resumo)
+    }
+  end
+
+  # `comparar: true` só aqui: o período anterior custa um segundo passe no livro-razão, e quem
+  # paga é o job do PDF — a tela, que recarrega sozinha, continua sem esse custo.
+  def rodizio_resumo_service
+    @rodizio_resumo_service ||= Spx::Distribuicao::ResumoService.new(
+      account: @account, inicio: rodizio_inicio, fim: rodizio_fim, recorte: rodizio_recorte, comparar: true
+    )
+  end
+
+  def rodizio_resumo
+    @rodizio_resumo ||= rodizio_resumo_service.call
+  end
+
+  def rodizio_inicio
+    range&.first || Time.zone.now.beginning_of_month
+  end
+
+  def rodizio_fim
+    range&.last || Time.zone.now.end_of_month
+  end
+
+  def rodizio_recorte
+    @rodizio_recorte ||= Spx::Distribuicao::Recorte.new(account: @account, filtros: @filters.slice(:team_id, :user_id, :canal, :produto))
+  end
+
+  # Sem `since/until` o rodízio olha o mês corrente (igual à tela) — "Todo o período" mentiria.
+  def rodizio_periodo
+    { since: format_date(rodizio_inicio), until: format_date(rodizio_fim),
+      label: "#{format_date(rodizio_inicio)} a #{format_date(rodizio_fim)}" }
+  end
+
+  # "Time Vendas · Agente João · 01/09/2026 a 23/09/2026 · prazo de 30 min": o documento diz o
+  # recorte, para o PDF de um agente não circular como se fosse o do time inteiro.
+  def rodizio_subtitle(resumo)
+    escopo = rodizio_recorte.descricao || 'Todos os times'
+    "#{escopo} · #{rodizio_periodo[:label]} · prazo combinado de #{resumo[:sla_minutos]} min para alguém pegar o lead"
+  end
+
+  # Os quatro números do semáforo, já com o veredito que veio do SignalSet.
+  # O SignalSet devolve `metric` e `level` como STRING (ver SignalSet#present) — comparar com
+  # símbolo aqui deixava o rótulo vazio e imprimia "888%" onde era para sair "15 min".
+  def rodizio_kpis(resumo)
+    (resumo[:signals] || []).map do |signal|
+      metrica = signal[:metric].to_sym
+      {
+        metric: metrica,
+        label: RODIZIO_ROTULOS[metrica],
+        value: rodizio_valor(metrica, signal[:value]),
+        goal: rodizio_valor(metrica, signal[:goal]),
+        level: signal[:level].to_s,
+        status: Reports::PdfBenchmarks::STATUS[signal[:level].to_sym],
+        meaning: RODIZIO_SIGNIFICADOS[metrica],
+        delta: rodizio_delta(metrica, signal, resumo[:anterior] || {})
+      }
+    end
+  end
+
+  RODIZIO_ROTULOS = {
+    rodizio_espera: 'Tempo até alguém pegar', rodizio_no_prazo: 'Pegos dentro do prazo',
+    rodizio_parados: 'Parados agora', rodizio_expirados: 'Ninguém pegou'
+  }.freeze
+
+  # A tradução de cada número para quem nunca viu o relatório — o gestor não deveria precisar
+  # perguntar o que a coluna significa.
+  RODIZIO_SIGNIFICADOS = {
+    rodizio_espera: 'quanto o lead espera desde que cai no consultor até alguém falar com ele',
+    rodizio_no_prazo: 'de cada 100 leads pegos, quantos foram dentro do prazo combinado',
+    rodizio_parados: 'leads designados e ainda sem ninguém, neste instante',
+    rodizio_expirados: 'leads que passaram do prazo sem ninguém encostar'
+  }.freeze
+
+  # Em "no prazo" subir é bom; em espera, parados e expirados subir é ruim. Sem esta direção o
+  # PDF pintaria de verde uma piora.
+  RODIZIO_MENOR_MELHOR = {
+    rodizio_espera: true, rodizio_no_prazo: false, rodizio_parados: true, rodizio_expirados: true
+  }.freeze
+
+  RODIZIO_ANTERIOR = {
+    rodizio_espera: :espera_media_segundos, rodizio_no_prazo: :no_prazo_pct, rodizio_expirados: :expirados_pct
+  }.freeze
+
+  # "▼ 18% mais rápido" em vez do número solto: o gestor só sabe se 12 min é bom comparando com o
+  # mês passado. "Parados agora" fica de fora — é foto do instante, não do período.
+  def rodizio_delta(metrica, signal, anterior)
+    chave = RODIZIO_ANTERIOR[metrica]
+    return nil if chave.nil? || anterior[chave].nil?
+
+    metric_delta(signal[:value].to_f, anterior[chave].to_f, lower_better: RODIZIO_MENOR_MELHOR[metrica])
+  end
+
+  def rodizio_valor(metrica, valor)
+    return "#{valor}%" unless metrica == :rodizio_espera
+
+    minutos = (valor.to_i / 60.0).round
+    minutos >= 60 ? "#{(minutos / 60.0).round(1)} h" : "#{minutos} min"
+  end
+
+  # Para onde foi cada lead que passou pela FILA. Uma barra responde o que a tabela só responde
+  # somando coluna: quanto foi pego no prazo, quanto atrasou e quanto ninguém pegou.
+  def rodizio_desfecho
+    escopo = rodizio_escopo.where(motivo: 'rodizio')
+    no_prazo = rodizio_assumidos.where('encerrado_em - designado_em <= ?', "#{rodizio_resumo[:sla_minutos]} minutes").count
+    por_status = escopo.group(:status).count
+    [
+      { label: 'Pego no prazo', value: no_prazo, color: '#2dc46f' },
+      { label: 'Pego com atraso', value: rodizio_assumidos.count - no_prazo, color: '#ffc53d' },
+      { label: 'Ainda esperando', value: por_status['designado'].to_i, color: '#8696a0' },
+      { label: 'Repassado a outro', value: por_status['substituido'].to_i, color: '#4f8fc6' },
+      { label: 'Ninguém pegou', value: por_status['expirado'].to_i, color: '#e54666' }
+    ].reject { |faixa| faixa[:value].to_i.zero? }
+  end
+
+  # Só designação FECHADA entra na espera: a que ainda corre não tem tempo final, e contá-la como
+  # se tivesse acabado agora empurraria a média para cima a cada emissão do PDF.
+  def rodizio_assumidos
+    @rodizio_assumidos ||= rodizio_escopo.where(motivo: 'rodizio', status: Spx::Distribuicao::ResumoService::ASSUMIDOS)
+                                         .where.not(designado_em: nil).where.not(encerrado_em: nil)
+  end
+
+  # A espera dia a dia contra o prazo combinado: o gestor vê EM QUE DIA a promessa quebrou, que a
+  # média do período esconde. Abaixo de dois dias com lead pego não é série, é um ponto.
+  def rodizio_espera_por_dia
+    serie = rodizio_assumidos.group(Arel.sql("DATE(designado_em AT TIME ZONE 'UTC' AT TIME ZONE '#{TZ}')"))
+                             .average(Arel.sql('EXTRACT(EPOCH FROM (encerrado_em - designado_em))'))
+    return [] if serie.size < 2
+
+    serie.sort.map { |dia, media| { label: dia.strftime('%d/%m'), value: media.to_f.round } }
+  end
+
+  # Quem recebeu quanto E quanto o lead esperou por ele. A tabela antiga dizia só o volume: quem
+  # recebe muito e pega rápido aparecia igual a quem recebe muito e some.
+  def rodizio_ranking
+    escopo = rodizio_escopo
+    contexto = {
+      esperas: rodizio_resumo_service.espera_por_consultor,
+      alvo: rodizio_resumo[:sla_minutos].to_i * 60,
+      abertos: escopo.where(status: 'designado').group(:chosen_user_id).count,
+      nomes: User.where(id: escopo.select(:chosen_user_id)).pluck(:id, :name).to_h
+    }
+    escopo.group(:chosen_user_id).count.sort_by { |_id, total| -total }
+          .first(15).map { |user_id, total| rodizio_linha(user_id, total, contexto) }
+  end
+
+  RODIZIO_BADGE = { good: 'up', warn: 'mid', bad: 'down' }.freeze
+
+  def rodizio_linha(user_id, total, ctx)
+    espera = ctx[:esperas][user_id]
+    nivel = espera && Reports::PdfBenchmarks.level_for(espera.to_f, { green: ctx[:alvo], yellow: ctx[:alvo] * 2, lower_better: true })
+    {
+      nome: ctx[:nomes][user_id] || "##{user_id}", recebidos: total, abertos: ctx[:abertos][user_id].to_i,
+      espera_humana: espera ? rodizio_valor(:rodizio_espera, espera) : '—',
+      # A barra é "quanto do prazo combinado ele consome": cheia e vermelha quando estoura.
+      ratio: espera ? (espera.to_f / ctx[:alvo]).clamp(0.0, 1.0) : 0.0,
+      cor: nivel ? Reports::PdfBenchmarks::STATUS[nivel][:color] : '#e9edef',
+      badge_class: RODIZIO_BADGE[nivel]
+    }
+  end
+
+  # Os leads parados AGORA, com nome e telefone: é a única parte do documento em que o gestor tem
+  # o que fazer hoje, e não outro número para interpretar. MESMO escopo do cartão "Parados agora"
+  # — uma lista mais curta que o cartão faria o gestor conferir a conta em vez de ligar para o
+  # cliente. Os mais antigos primeiro, que são os que ainda dá para salvar.
+  def rodizio_esperando
+    logs = rodizio_resumo_service.escopo_parados
+                                 .includes(:chosen_user, conversation: [:inbox, :contact])
+                                 .order(designado_em: :asc).limit(12)
+    { total: rodizio_resumo[:parados_agora].to_i, leads: logs.map { |log| rodizio_linha_espera(log) } }
+  end
+
+  # Sem `&.`: o escopo já garante designação com corretor, e conversa sempre tem contato e caixa.
+  def rodizio_linha_espera(log)
+    conversa = log.conversation
+    {
+      contato: conversa.contact.name.presence || "Conversa ##{conversa.display_id}",
+      telefone: conversa.contact.phone_number.presence || '—',
+      corretor: log.chosen_user.name,
+      canal: Spx::Distribuicao::Recorte.canal_de(conversa.inbox.channel_type),
+      espera: format_seconds((Time.zone.now - log.designado_em).round)
+    }
+  end
+
+  def rodizio_escopo
+    rodizio_recorte.aplicar(Spx::Distribuicao::Log.where(account_id: @account.id, created_at: rodizio_inicio..rodizio_fim)
+                                                  .where.not(chosen_user_id: nil))
+  end
+
+  # "O que fazer agora", tirado dos números DESTE período — nunca conselho genérico de manual.
+  def rodizio_recomendacoes(resumo)
+    itens = [rodizio_reco_expirados(resumo), rodizio_reco_parados(resumo), rodizio_reco_lentos].compact
+    return itens.first(3) if itens.any?
+    return [] if resumo[:recebidos].to_i.zero?
+
+    [{ title: 'Nada a corrigir neste período',
+       body: "Todos os leads foram pegos dentro do prazo de #{resumo[:sla_minutos]} min. Mantenha o pool do time como está." }]
+  end
+
+  def rodizio_reco_expirados(resumo)
+    return nil unless resumo[:expirados].to_i.positive?
+
+    { title: "#{resumo[:expirados]} leads ninguém pegou a tempo",
+      body: 'Confira quem está no pool do rodízio: consultor de férias, desligado ou sem o app aberto continua ' \
+            'recebendo a vez e segura o lead até o prazo estourar.' }
+  end
+
+  def rodizio_reco_parados(resumo)
+    return nil unless resumo[:parados_agora].to_i.positive?
+
+    { title: "#{resumo[:parados_agora]} leads esperando neste momento",
+      body: 'A lista com nome e telefone está na seção "Parados agora" — são os clientes que ainda dá tempo de atender hoje.' }
+  end
+
+  # O consultor mais lento do período, quando ele passa do dobro do prazo: é onde o ganho está.
+  def rodizio_reco_lentos
+    alvo = rodizio_resumo[:sla_minutos].to_i * 60
+    pior = rodizio_ranking.select { |linha| linha[:badge_class] == 'down' }.max_by { |linha| linha[:recebidos] }
+    return nil if pior.nil?
+
+    { title: "#{pior[:nome]} leva #{pior[:espera_humana]} para pegar o lead",
+      body: "Mais que o dobro do prazo combinado (#{alvo / 60} min) em #{pior[:recebidos]} leads recebidos. " \
+            'Vale checar carga de trabalho antes de tirar do rodízio.' }
+  end
+
+  def rodizio_conclusion(resumo)
+    return nil if resumo[:recebidos].to_i.zero?
+
+    corpo = "No período, <span class=\"hl\">#{resumo[:recebidos]} leads</span> foram distribuídos. " \
+            "#{resumo[:assumidos]} alguém pegou, #{resumo[:no_prazo_pct]}% dentro do prazo combinado de " \
+            "#{resumo[:sla_minutos]} min. Agora há #{resumo[:parados_agora]} esperando alguém pegar e " \
+            "#{resumo[:expirados]} que ninguém pegou a tempo.#{rodizio_tendencia(resumo)}"
+    { title: 'Leitura executiva', body: corpo }
+  end
+
+  # A frase que fecha o documento: comparado com o período anterior, a operação melhorou ou piorou.
+  def rodizio_tendencia(resumo)
+    anterior = resumo[:anterior] || {}
+    return '' if anterior[:espera_media_segundos].nil? || resumo[:espera_media_segundos].nil?
+
+    diferenca = resumo[:espera_media_segundos].to_i - anterior[:espera_media_segundos].to_i
+    return ' A espera ficou igual à do período anterior.' if diferenca.abs < 60
+
+    rumo = diferenca.negative? ? 'caiu' : 'subiu'
+    # Mesmo arredondamento do cartão: "caiu de 34 min para 12 minutos 40 segundos" ao lado de um
+    # cartão que diz "13 min" parece erro de conta.
+    " Comparado com o período anterior, a espera #{rumo} de #{rodizio_valor(:rodizio_espera, anterior[:espera_media_segundos])} " \
+      "para #{rodizio_valor(:rodizio_espera, resumo[:espera_media_segundos])}."
+  end
+
   def agent_assignment_data
     rows = V2::Reports::AgentAssignmentBuilder.new(account: @account, params: assignment_params).build
     totals = assignment_totals(rows)

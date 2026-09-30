@@ -159,8 +159,41 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
     @params[:campaign_id].present? ? { additional_attributes: { campaign_id: @params[:campaign_id] } } : {}
   end
 
+  # Ponto ÚNICO onde o valor das variáveis do template entra no banco. Por isso a proteção
+  # do template sigiloso mora aqui: depois daqui a mensagem já foi gravada, já foi
+  # serializada e já foi empurrada pelo websocket (Message#push_event_data leva toda
+  # coluna), então mascarar mais tarde chegaria tarde. Ver Spx::SecretTemplateParams.
   def template_params
-    @params[:template_params].present? ? { additional_attributes: { template_params: JSON.parse(@params[:template_params].to_json) } } : {}
+    @template_params ||=
+      if @params[:template_params].present?
+        crus = JSON.parse(@params[:template_params].to_json)
+        @secret_template = Spx::SecretTemplateParams.secret?(@conversation.inbox, crus)
+        protegidos = @secret_template ? Spx::SecretTemplateParams.protect(crus) : crus
+        { additional_attributes: { template_params: protegidos } }
+      else
+        @secret_template = false
+        {}
+      end
+  end
+
+  def secret_template?
+    template_params
+    @secret_template
+  end
+
+  # A bolha destas mensagens nasce VAZIA (quem dispara código não manda `content`), e bolha
+  # vazia faz o agente achar que nada saiu e reenviar. O rastro diz que saiu, quando saiu e
+  # que o valor é sigiloso, sem entregar o valor. O status de entrega da própria mensagem
+  # (enviada/entregue/lida/falhou) responde ao "o cliente recebeu?" melhor do que o código.
+  def message_content
+    # O rastro SUBSTITUI o content de propósito, não preenche só quando ele vem vazio. Quem
+    # dispara código não manda `content` (a bolha nasce vazia, e bolha vazia faz o agente
+    # achar que nada saiu e reenviar), mas o ContactInviteService manda o template JÁ
+    # RENDERIZADO ali, com as variáveis substituídas. Preservar esse texto entregaria pela
+    # bolha exatamente o valor que a máscara acabou de esconder.
+    return I18n.t('conversations.secret_template.trace') if secret_template?
+
+    @params[:content]
   end
 
   def message_sender
@@ -174,7 +207,7 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
       account_id: @conversation.account_id,
       inbox_id: @conversation.inbox_id,
       message_type: message_type,
-      content: @params[:content],
+      content: message_content,
       private: @private,
       sender: sender,
       content_type: @params[:content_type],

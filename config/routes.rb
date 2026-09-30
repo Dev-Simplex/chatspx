@@ -212,9 +212,8 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
-          # Unidades físicas do cliente — contrato em docs/contratos/unidades.md.
-          # Unidade é leitura (a carga é por rake); a escrita é da exceção, que é o que muda
-          # toda semana. Sem `update` na exceção: corrigir é apagar e criar outra.
+          # Implementacao antiga de Unidade (Spx::Unidade), que a IA le. A producao ja removeu os
+          # controllers, mas nesta maquina eles existem e a rota precisa continuar respondendo.
           resources :unidades, only: [:index]
           resources :unidade_excecoes, only: [:index, :create, :destroy]
           # Superficie de rede social — SPEC em docs/SPEC-instagram-social.md.
@@ -449,7 +448,9 @@ Rails.application.routes.draw do
               post :analyze, on: :collection
             end
 
-            resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates'
+            resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates' do
+              post :upload_media, on: :collection
+            end
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
             collection do
@@ -491,8 +492,10 @@ Rails.application.routes.draw do
             resources :products, only: [:index, :show, :create, :update, :destroy] do
               member do
                 delete 'images/:image_id', action: :destroy_image, as: :image
+                post :sync, action: :sync_product
               end
               collection do
+                post :sync
                 post :import
                 get 'import/:import_id', action: :import_status, as: :import_status
               end
@@ -826,6 +829,12 @@ Rails.application.routes.draw do
       end
     end
   end
+
+  # Foto pública do produto do catálogo (C9). Fora do namespace autenticado porque quem busca é o
+  # crawler da Meta, que não tem sessão nem token — e o link precisa DURAR, porque a Meta faz cache
+  # dele (o link assinado do ActiveStorage morre em 30 min em produção). O `:id` é o `signed_id` do
+  # produto, sem expiração: `/:account_id/:product_id` cru deixaria o catálogo alheio enumerável.
+  get 'catalogo/fotos/:id', to: 'catalog/public_images#show', as: :catalog_public_image
 
   get 'hc/:slug', to: 'public/api/v1/portals#show'
   get 'hc/:slug/sitemap.xml', to: 'public/api/v1/portals#sitemap'

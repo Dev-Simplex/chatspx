@@ -16,6 +16,7 @@ const state = {
   attachments: {},
   attachmentsMeta: {},
   listLoadingStatus: true,
+  listError: false,
   chatStatusFilter: wootConstants.STATUS_TYPE.OPEN,
   chatSortFilter: wootConstants.SORT_BY_TYPE.LATEST,
   currentInbox: null,
@@ -420,6 +421,10 @@ export const mutations = {
 
   [types.CLEAR_LIST_LOADING_STATUS](_state) {
     _state.listLoadingStatus = false;
+  },
+
+  [types.SET_LIST_ERROR](_state, hasError) {
+    _state.listError = hasError;
   },
 
   [types.UPDATE_MESSAGE_UNREAD_COUNT](

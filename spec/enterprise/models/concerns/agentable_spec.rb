@@ -230,4 +230,63 @@ RSpec.describe Concerns::Agentable do
       end
     end
   end
+  # O gate da coleta de contato alternativo. O bloco vive no assistant.liquid, que e o molde de
+  # TODOS os clientes — conduta nova nao pode nascer ligada pra ninguem. Sao TRES condicoes, e o
+  # spec exige as tres: canal que nao retoma + conta que ligou + canal alternativo configurado.
+
+  describe 'contato alternativo no prompt' do
+    let(:coleta_ligada) { { 'coleta_contato_alternativo' => { 'ativo' => true, 'canal' => 'WhatsApp' } } }
+
+    # Captura o contexto entregue ao renderer, que e onde a variavel do gate aparece.
+    def contexto_renderizado(state)
+      capturado = nil
+      allow(Captain::PromptRenderer).to receive(:render) do |_tpl, ctx|
+        capturado ||= ctx
+        'rendered_template'
+      end
+      contexto = Struct.new(:context).new({ state: state })
+      dummy_instance.agent_instructions(contexto)
+      capturado
+    end
+
+    it 'expoe o canal alternativo quando o canal nao retoma e a conta ligou' do
+      ctx = contexto_renderizado({ assistant_config: coleta_ligada, canal_retoma: false,
+                                   janela_horas_restantes: 6.5 })
+
+      expect(ctx['contato_alternativo']).to eq('WhatsApp')
+      expect(ctx['janela_horas_restantes']).to eq(6.5)
+    end
+
+    # A trava que impede a conduta de vazar pro WhatsApp e pros outros clientes.
+    it 'NAO expoe nada em canal que retoma, mesmo com a conta ligada' do
+      ctx = contexto_renderizado({ assistant_config: coleta_ligada, canal_retoma: true,
+                                   janela_horas_restantes: 6.5 })
+
+      expect(ctx['contato_alternativo']).to be_nil
+      expect(ctx['janela_horas_restantes']).to be_nil
+    end
+
+    it 'NAO expoe nada quando a conta nao ligou a coleta' do
+      ctx = contexto_renderizado({ assistant_config: {}, canal_retoma: false,
+                                   janela_horas_restantes: 6.5 })
+
+      expect(ctx['contato_alternativo']).to be_nil
+      expect(ctx['janela_horas_restantes']).to be_nil
+    end
+
+    it 'NAO expoe nada com a coleta ligada mas sem canal alternativo definido' do
+      ctx = contexto_renderizado({ assistant_config: { 'coleta_contato_alternativo' => { 'ativo' => true } },
+                                   canal_retoma: false })
+
+      expect(ctx['contato_alternativo']).to be_nil
+    end
+
+    # Canal que nao responde a `supports_reengagement?` chega sem a chave: o silencio nao pode
+    # ligar conduta nova.
+    it 'NAO expoe nada quando o state nem traz a informacao de canal' do
+      ctx = contexto_renderizado({ assistant_config: coleta_ligada })
+
+      expect(ctx['contato_alternativo']).to be_nil
+    end
+  end
 end

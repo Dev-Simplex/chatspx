@@ -29,6 +29,7 @@ import ConversationBulkActions from './widgets/conversation/conversationBulkActi
 import TeamSelectionModal from './widgets/conversation/TeamSelectionModal.vue';
 import TeleportWithDirection from 'dashboard/components-next/TeleportWithDirection.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 import IntersectionObserver from 'dashboard/components/IntersectionObserver.vue';
 import ConversationSearchModal from './widgets/conversation/ConversationSearchModal.vue';
 import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
@@ -139,6 +140,7 @@ const aiChatsList = useMapGetter('getAIChats');
 const awaitingChatsList = useMapGetter('getAwaitingChats');
 const pendingClosureChatsList = useMapGetter('getPendingClosureChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
+const chatListError = useMapGetter('getChatListError');
 const activeInbox = useMapGetter('getSelectedInbox');
 const conversationStats = useMapGetter('conversationStats/getStats');
 const appliedFilters = useMapGetter('getAppliedConversationFiltersV2');
@@ -623,7 +625,8 @@ const showEndOfListMessage = computed(() => {
   return (
     conversationList.value.length &&
     hasCurrentPageEndReached.value &&
-    !chatListLoading.value
+    !chatListLoading.value &&
+    !chatListError.value
   );
 });
 
@@ -860,23 +863,30 @@ function resetAndFetchData() {
   fetchConversations();
 }
 
+function retryConversations() {
+  if (hasActiveFolders.value) {
+    fetchSavedFilteredConversations(activeFolder.value.query);
+  } else if (hasAppliedFilters.value) {
+    fetchFilteredConversations(appliedFilters.value);
+  } else {
+    fetchConversations();
+  }
+}
+
 function loadMoreConversations() {
   // Não carregar mais a lista normal enquanto a busca estiver ativa
   if (isSearchActive.value) {
     return;
   }
-  if (hasCurrentPageEndReached.value || chatListLoading.value) {
+  if (
+    hasCurrentPageEndReached.value ||
+    chatListLoading.value ||
+    chatListError.value
+  ) {
     return;
   }
 
-  if (!hasAppliedFiltersOrActiveFolders.value) {
-    fetchConversations();
-  } else if (hasActiveFolders.value) {
-    const payload = activeFolder.value.query;
-    fetchSavedFilteredConversations(payload);
-  } else if (hasAppliedFilters.value) {
-    fetchFilteredConversations(appliedFilters.value);
-  }
+  retryConversations();
 }
 
 // Use IntersectionObserver instead of @scroll since Virtualizer only emits on user scroll.
@@ -1008,7 +1018,7 @@ async function markAsUnread(conversationId) {
     });
     redirectToConversationList();
   } catch (error) {
-    // Ignore error
+    useAlert(t('CONVERSATION.MARK_AS_UNREAD_FAILED'));
   }
 }
 // Ação DELIBERADA (botão "marcar como lida"), não leitura implícita: por isso
@@ -1022,7 +1032,7 @@ async function markAsRead(conversationId) {
       explicit: true,
     });
   } catch (error) {
-    // Ignore error
+    useAlert(t('CONVERSATION.MARK_AS_READ_FAILED'));
   }
 }
 
@@ -1513,12 +1523,20 @@ watch(conversationFilters, newVal => {
       @chat-tab-change="updateAssigneeTab"
     />
 
-    <p
+    <div
       v-if="!chatListLoading && !conversationList.length && !isSearchActive"
-      class="flex overflow-auto justify-center items-center p-4"
+      class="flex flex-col overflow-auto justify-center items-center gap-3 p-4 text-center"
     >
-      {{ $t('CHAT_LIST.LIST.404') }}
-    </p>
+      <template v-if="chatListError">
+        <p class="text-n-slate-11">{{ $t('CHAT_LIST.LIST.LOAD_ERROR') }}</p>
+        <Button
+          :label="$t('CHAT_LIST.LIST.RETRY')"
+          size="sm"
+          @click="retryConversations"
+        />
+      </template>
+      <p v-else>{{ $t('CHAT_LIST.LIST.404') }}</p>
+    </div>
     <div
       v-else-if="showSearchNoResults"
       class="flex flex-col items-center justify-center p-8 overflow-auto text-center"
@@ -1612,8 +1630,21 @@ watch(conversationFilters, newVal => {
       >
         {{ $t('CHAT_LIST.EOF') }}
       </p>
+      <div
+        v-else-if="chatListError && conversationList.length && !isSearchActive"
+        class="flex flex-col items-center gap-2 p-4 text-center"
+      >
+        <p class="text-sm text-n-slate-11">
+          {{ $t('CHAT_LIST.LIST.LOAD_ERROR') }}
+        </p>
+        <Button
+          :label="$t('CHAT_LIST.LIST.RETRY')"
+          size="sm"
+          @click="retryConversations"
+        />
+      </div>
       <IntersectionObserver
-        v-else
+        v-else-if="!chatListError"
         :options="intersectionObserverOptions"
         @observed="loadMoreConversations"
       />

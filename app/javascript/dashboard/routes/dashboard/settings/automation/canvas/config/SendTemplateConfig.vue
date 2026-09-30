@@ -128,6 +128,17 @@ const hydrateFromNode = () => {
 
 onMounted(hydrateFromNode);
 watch(() => props.node.id, hydrateFromNode);
+
+// Trocar a caixa deixava o template da caixa ANTERIOR aparecendo escolhido, e ele seguia
+// gravado em action_params. Quem configura acha que salvou o template da caixa nova.
+// (O `set` acima so encontra template na lista da caixa atual, entao nao da para GRAVAR um
+// template de outra caixa de proposito; o que enganava era a tela.)
+watch(selectedInboxId, (atual, anterior) => {
+  if (anterior === null || atual === anterior) return;
+
+  selectedTemplate.value = null;
+  emit('update', { action_params: [] });
+});
 </script>
 
 <template>

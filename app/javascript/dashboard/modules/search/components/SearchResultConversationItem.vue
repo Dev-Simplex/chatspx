@@ -2,8 +2,8 @@
 import { computed } from 'vue';
 import { frontendURL } from 'dashboard/helper/URLHelper.js';
 import { dynamicTime } from 'shared/helpers/timeHelper';
-import { useInbox } from 'dashboard/composables/useInbox';
-import { getInboxIconByType } from 'dashboard/helper/inbox';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import InboxName from 'dashboard/components/widgets/InboxName.vue';
 
 const props = defineProps({
   id: {
@@ -39,8 +39,6 @@ const props = defineProps({
     default: '',
   },
 });
-
-const { inbox } = useInbox(props.inbox?.id);
 
 const navigateTo = computed(() => {
   const params = {};
@@ -79,14 +77,6 @@ const infoItems = computed(() => [
 const visibleInfoItems = computed(() =>
   infoItems.value.filter(item => item.show)
 );
-
-const inboxName = computed(() => props.inbox?.name);
-
-const inboxIcon = computed(() => {
-  if (!inbox.value) return null;
-  const { channelType, medium } = inbox.value;
-  return getInboxIconByType(channelType, medium);
-});
 </script>
 
 <template>

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getFileInfo } from '@chatwoot/utils';
+import { formatBytes } from 'shared/helpers/FileHelper';
 
 import FileIcon from 'next/icon/FileIcon.vue';
 import Icon from 'next/icon/Icon.vue';
@@ -13,10 +14,23 @@ const { attachment } = defineProps({
   },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
+
+const url = computed(() => attachment.dataUrl ?? attachment.data_url);
+
+const fileSize = computed(() => {
+  const size = attachment.fileSize ?? attachment.file_size;
+  if (size == null) return '';
+
+  const [value, unit] = formatBytes(size, 1).split(' ');
+  const localizedSize = Number(value).toLocaleString(
+    locale.value.replace('_', '-')
+  );
+  return `${localizedSize} ${unit}`;
+});
 
 const fileDetails = computed(() => {
-  return getFileInfo(attachment?.dataUrl || '');
+  return getFileInfo(url.value || '');
 });
 
 const displayFileName = computed(() => {
@@ -67,10 +81,17 @@ const textColorClass = computed(() => {
     >
       {{ displayFileName }}
     </span>
+    <span
+      v-if="fileSize"
+      data-testid="file-size"
+      class="shrink-0 whitespace-nowrap text-sm text-n-slate-11"
+    >
+      {{ `· ${fileSize}` }}
+    </span>
     <a
       v-tooltip="t('CONVERSATION.DOWNLOAD')"
       class="flex-shrink-0 size-9 grid place-content-center cursor-pointer text-n-slate-11 hover:text-n-slate-12 transition-colors"
-      :href="attachment.dataUrl"
+      :href="url"
       rel="noreferrer noopener nofollow"
       target="_blank"
     >

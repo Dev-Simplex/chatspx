@@ -67,11 +67,13 @@ describe Instagram::SendOnInstagramService do
           expect(response['message_id']).to eq('random_message_id')
         end
 
-        # O Instagram aceita até 30 imagens em `message.attachments[]` numa requisição só, e é
-        # o que a capacidade do canal declara: duas fotos viram UMA chamada, não duas.
-        it 'if message is sent from chatwoot and is outgoing with multiple attachments' do
+        # O caminho do álbum continua existindo, mas DESLIGADO por padrão (ver a capacidade no
+        # Channel::Instagram): quem o habilitar tem que provar no canal dele. O teste passa a
+        # declarar isso, senão descreveria um comportamento que nenhum canal tem hoje.
+        it 'groups the images in a single request when the channel declares it groups' do
           message = build(:message, content: nil, message_type: 'outgoing', inbox: instagram_inbox, account: account,
                                     conversation: conversation)
+          allow(instagram_channel).to receive(:supports_multi_image_message?).and_return(true)
           avatar = message.attachments.new(account_id: message.account_id, file_type: :image)
           avatar.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
           sample = message.attachments.new(account_id: message.account_id, file_type: :image)
@@ -92,10 +94,10 @@ describe Instagram::SendOnInstagramService do
             .to contain_exactly(a_string_including(avatar.file.filename.to_s), a_string_including(sample.file.filename.to_s))
         end
 
-        # Contraprova da capacidade: com o canal declarando que NÃO agrupa, o mesmo par de
-        # fotos volta a sair numa requisição por anexo. (A contraprova de canal real é o
-        # Messenger, que herda o mesmo BaseSendService sem a capacidade.)
-        it 'sends one request per attachment when the channel does not group images' do
+        # O PADRÃO do Instagram: uma requisição por anexo. Sem stub nenhum, de propósito — é
+        # esta linha que trava a regressão medida em produção, onde 10 de 10 mensagens com 3
+        # imagens falharam e 116 de 117 com uma imagem por requisição chegaram.
+        it 'sends one request per attachment by default' do
           message = build(:message, content: nil, message_type: 'outgoing', inbox: instagram_inbox, account: account,
                                     conversation: conversation)
           2.times do |i|
@@ -104,13 +106,17 @@ describe Instagram::SendOnInstagramService do
                                    content_type: 'image/png')
           end
           message.save!
-          allow(instagram_channel).to receive(:supports_multi_image_message?).and_return(false)
 
           service = described_class.new(message: message)
-          allow(service).to receive(:send_message)
+          sent = []
+          allow(service).to receive(:send_message) { |params| sent << params }
           service.perform
 
-          expect(service).to have_received(:send_message).exactly(:twice)
+          expect(sent.size).to eq(2)
+          # A forma importa tanto quanto a contagem: `attachment` no singular é o payload que
+          # a Meta entrega; `attachments` é o que ela aceitou e não conseguiu baixar.
+          expect(sent.map { |params| params.dig(:message, :attachment, :type) }).to eq(%w[image image])
+          expect(sent.map { |params| params.dig(:message, :attachments) }).to all(be_nil)
         end
 
         # Anexo que não é imagem no meio derrubaria a requisição inteira: `attachments[]` só
@@ -369,7 +375,14 @@ describe Instagram::SendOnInstagramService do
 
       # É esta a asserção que o defeito quebrava: cada elemento precisa chegar com o SEU `type`,
       # e em form-urlencoded os três `type` chegavam soltos, sem dizer de quem eram.
+      #
+      # O agrupamento está DESLIGADO por padrão (a Meta aceita este corpo e não consegue baixar
+      # a mídia — ver a capacidade no Channel::Instagram), então quem quiser voltar a ligá-lo
+      # precisa do corpo em JSON de qualquer forma. Por isso a capacidade entra explícita aqui:
+      # a asserção guarda a serialização, não a decisão de agrupar.
       it 'keeps every attachment paired with its own type' do
+        allow(instagram_channel).to receive(:supports_multi_image_message?).and_return(true)
+
         enviados = JSON.parse(corpo_enviado[:body]).dig('message', 'attachments')
 
         expect(enviados.size).to eq(2)

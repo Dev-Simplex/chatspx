@@ -44,6 +44,11 @@ if (isLibraryMode) {
 
 export default defineConfig({
   plugins: plugins,
+  define: {
+    __VUE_OPTIONS_API__: true,
+    __VUE_PROD_DEVTOOLS__: false,
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+  },
   optimizeDeps: {
     // Deps do canvas de Automações que leem `process.env.*`. Como o canvas é lazy-loaded,
     // sem incluí-las o vite dev não substitui `process` no pré-bundle e o chunk quebra com

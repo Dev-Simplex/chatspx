@@ -13,33 +13,11 @@
   },
   "AGENTS_RODIZIO": {
     "TITLE": "Rotation",
-    "SUBTITLE": "How leads are being distributed, and under which rule",
+    "SUBTITLE": "How new leads are being split across the team",
     "ALL_TEAMS": "All teams",
-    "RELOAD": "Reload",
     "LOADING": "Loading...",
     "ERROR": "Could not load the rotation data",
     "EMPTY": "No leads distributed in this period",
-    "TOTAL_RECEIVED": "Leads received",
-    "TABLE": {
-      "CONSULTANT": "Consultant",
-      "RECEIVED": "Received",
-      "ROTATION": "Rotation",
-      "CONTINUITY": "Continuity",
-      "PREFERENCE": "Client request",
-      "HANDOFF": "Hand-off",
-      "MANUAL": "Manager",
-      "OPEN": "Still open",
-      "CHANNELS": "Channels",
-      "PRODUCTS": "Products"
-    },
-    "STALLED": {
-      "TITLE": "No movement",
-      "LIST_TITLE": "Designated with no movement",
-      "SUBTITLE": "Nobody picked these up yet. The AI is still covering the client.",
-      "THRESHOLD": "over {min} min",
-      "WAITING": "waiting for {tempo}",
-      "NONE": "Nothing stalled right now"
-    },
     "DETAIL": {
       "OPEN": "Why this one?",
       "TITLE": "Conversation {id}",
@@ -88,45 +66,19 @@
       "BY_LEAD": "By lead"
     },
     "LEADS": {
-      "TITLE": "Every lead in the period: where it is, with whom, and for how long",
-      "EMPTY": "No rotation leads in this period. Change the period at the top to look at another month."
+      "TITLE": "Every lead in the period. Waiting ones come first; the bar shows how long it waited to be picked up, and the mark in the middle is the deadline.",
+      "EMPTY": "No rotation leads in this period. Change the period at the top to look at another month.",
+      "EMPTY_FILTERED": "No leads match these filters. Try clearing them or changing the period."
     },
     "TIMELINE": {
-      "OPEN": "See the lead timeline",
-      "TITLE": "Leads {nome} received through the rotation",
-      "AVG_WAIT": "average wait: {tempo}",
-      "EMPTY": "No rotation leads in this period.",
       "SHOWING": "showing {n} of {total}",
-      "LEGEND": "Width is time, on the same scale for every lead, up to 24h; the exact total sits next to the bar.",
       "AI_SHORT": "AI",
-      "SECONDS": "{n}s",
+      "SECONDS": "{n} s",
       "MINUTES": "{n} min",
       "HOURS": "{n}h",
       "HOURS_MINUTES": "{h}h{m}",
       "DAYS": "{n} d",
-      "DAYS_HOURS": "{d} d {h}h",
-      "PHASE": {
-        "IA": "AI covering",
-        "ESPERA": "waiting for the consultant",
-        "ATENDIMENTO": "being handled"
-      },
-      "NOW": {
-        "WAITING_WITH": "waiting for {nome} to pick it up for {tempo}",
-        "IN_SERVICE_WITH": "with {nome} for {tempo}"
-      },
-      "MARK": {
-        "ARRIVED": "arrived {hora}",
-        "DESIGNATED": "designated {hora}",
-        "TAKEN": "picked up {hora}",
-        "FIRST_REPLY": "first reply {hora}",
-        "LOST": "left them {hora}",
-        "RESOLVED": "resolved {hora}"
-      },
-      "OUTCOME": {
-        "RESOLVED": "{nome} · resolved in {tempo}",
-        "EXPIRED": "{nome} · expired with nobody picking it up",
-        "PASSED": "{nome} · expired and went to {destino}"
-      }
+      "DAYS_HOURS": "{d} d {h}h"
     },
     "CONFIGURE": "Set up rotation",
     "POLICY": {
@@ -204,6 +156,80 @@
         "CAP": "A cap must be above zero. Leave it empty for no limit.",
         "POOL_VAZIO": "The rotation is on but nobody is in the pool — no lead would be distributed."
       }
+    },
+    "AUTO_REFRESH": "· refreshes on its own every minute",
+    "FILTERS": {
+      "AGENT_ALL": "All consultants",
+      "STATUS_ALL": "All statuses",
+      "CHANNEL_ALL": "All channels",
+      "PRODUCT_ALL": "All products",
+      "NO_PRODUCT": "No product",
+      "LATE": "Only past the deadline",
+      "CLEAR": "Clear filters",
+      "STATUS": {
+        "WAITING": "Waiting to be picked up",
+        "SERVING": "Being handled",
+        "RESOLVED": "Resolved",
+        "LOST": "Nobody picked up in time"
+      }
+    },
+    "NOW": {
+      "TITLE_ONE": "1 customer waiting to be picked up right now",
+      "TITLE_MANY": "{n} customers waiting to be picked up right now",
+      "NONE": "Nobody waiting past the deadline right now.",
+      "WAITING": "waiting for {nome} for {tempo}",
+      "WAITING_QUEUE": "waiting in the queue, nobody picked, for {tempo}",
+      "DEADLINE": "deadline to pick up: {sla}",
+      "OPEN": "Open conversation",
+      "WHY": "why them?",
+      "SEE_ALL": "see all {n}"
+    },
+    "CARDS": {
+      "TITLE": "How the rotation is doing in this period",
+      "RECEIVED": "Leads received",
+      "RECEIVED_SUB": "{n} through the rotation",
+      "RECEIVED_INFO": "Every lead the rotation handed to someone in this period.",
+      "WAIT": "Time until someone picks up",
+      "WAIT_SUB": "agreed deadline: {sla} min",
+      "WAIT_INFO": "On average, how long the customer waited between being handed to a consultant and the consultant picking up the conversation.",
+      "ON_TIME": "Picked up on time",
+      "ON_TIME_SUB": "{n} of {total}",
+      "ON_TIME_INFO": "Out of every 100 leads someone picked up, how many were picked up before the deadline.",
+      "EXPIRED": "Nobody picked up in time",
+      "EXPIRED_SUB": "{pct}% of rotation leads",
+      "EXPIRED_INFO": "Leads whose deadline ran out with nobody picking them up."
+    },
+    "AGENT_ROW": {
+      "HINT": "How many leads each consultant got through the rotation. Similar bars = fair split. Click a name to see their leads.",
+      "WAITING": "{n} waiting",
+      "AVG": "picks up in {tempo}",
+      "CONTINUITY": "+{n} already theirs",
+      "PREFERENCE": "+{n} at the customer's request",
+      "OPEN_LEADS": "See {nome}'s leads",
+      "BREAKDOWN": "Through the rotation {rodizio} · Already theirs {continuidade} · Customer request {preferencia} · Handed to them {repasse} · Picked by the manager {gestor}"
+    },
+    "LEAD": {
+      "BAR_LABEL": "Until picked up",
+      "DEADLINE": "deadline",
+      "DEADLINE_VALUE": "· deadline {sla}",
+      "NOBODY_TOOK": "nobody picked up in {tempo}",
+      "BADGE_WAITING": "Waiting for {nome} · for {tempo}",
+      "BADGE_SERVING": "With {nome} · for {tempo}",
+      "BADGE_RESOLVED": "Resolved by {nome}",
+      "BADGE_PASSED": "Nobody picked up · went to {destino}",
+      "BADGE_EXPIRED": "Nobody picked up in time",
+      "STORY_ARRIVED": "Arrived {tempo} ago.",
+      "STORY_AI": "The AI handled it for {tempo}.",
+      "STORY_NOT_TAKEN": "{nome} has not picked it up yet.",
+      "STORY_SERVING": "{nome} picked it up in {espera} and has been on it for {atendimento}.",
+      "STORY_RESOLVED": "{nome} picked it up in {espera} and resolved it in {atendimento}.",
+      "STORY_EXPIRED_PASSED": "Nobody picked it up in {espera}. The lead went to {destino}.",
+      "STORY_EXPIRED": "Nobody picked it up in {espera}.",
+      "AT_ARRIVED": "Arrived {hora}",
+      "AT_DESIGNATED": "Handed to {nome} {hora}",
+      "AT_TAKEN": "{nome} picked up {hora}",
+      "AT_LOST": "Left {nome} {hora}",
+      "AT_RESOLVED": "Resolved {hora}"
     }
   },
   "AGENTS_EVALUATION": {
@@ -891,12 +917,12 @@
     "REPORTS_OVERVIEW": "Overview",
     "REAUTHORIZE": "Your inbox connection has expired, please reconnect\n to continue receiving and sending messages",
     "HELP_CENTER": {
-      "SUGGESTIONS": "Suggest improvement",
       "TITLE": "Help Center",
       "ARTICLES": "Articles",
       "CATEGORIES": "Categories",
       "LOCALES": "Locales",
-      "SETTINGS": "Settings"
+      "SETTINGS": "Settings",
+      "SUGGESTIONS": "Suggest improvement"
     },
     "CHANNELS": "Inbox",
     "SET_AUTO_OFFLINE": {

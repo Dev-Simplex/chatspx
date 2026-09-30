@@ -410,7 +410,7 @@ const handleRemove = async item => {
     });
     emit('removeItem', item);
   } catch (_) {
-    // noop
+    useAlert(t('KANBAN.ITEMS.REMOVE_ERROR'));
   }
 };
 

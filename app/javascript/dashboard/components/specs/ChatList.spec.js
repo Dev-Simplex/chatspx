@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useRoute, useRouter } from 'vue-router';
 import ChatList from '../ChatList.vue';
 import ChatTypeTabs from '../widgets/ChatTypeTabs.vue';
+import { emitter } from 'shared/helpers/mitt';
 
 // Partial factory (instead of automock): dashboard/routes/index.js builds a
 // real router at import time (createRouter().onError(...)) and enters the
@@ -197,6 +198,48 @@ const tabKeys = wrapper =>
     .findComponent(ChatTypeTabs)
     .props('items')
     .map(item => item.key);
+
+describe('ChatList — mark as read or unread errors', () => {
+  beforeEach(() => {
+    useRoute.mockReturnValue({
+      name: 'home',
+      query: {},
+      params: { accountId: '1' },
+    });
+    useRouter.mockReturnValue({ push: vi.fn() });
+  });
+
+  it.each([
+    [
+      'markAsUnread',
+      'markMessagesUnread',
+      'Could not mark the conversation as unread. Try again.',
+    ],
+    [
+      'markAsRead',
+      'markMessagesRead',
+      'Could not mark the conversation as read. Try again.',
+    ],
+  ])(
+    '%s shows an alert when the action fails',
+    async (method, action, message) => {
+      const { wrapper, store } = mountChatList();
+      const alert = vi.fn();
+      emitter.on('newToastMessage', alert);
+      vi.spyOn(store, 'dispatch').mockImplementation(type =>
+        type === action
+          ? Promise.reject(new Error('API failed'))
+          : Promise.resolve()
+      );
+
+      await wrapper.vm.$.provides[method](42);
+
+      expect(alert).toHaveBeenCalledWith({ message, action: null });
+      emitter.off('newToastMessage', alert);
+      wrapper.unmount();
+    }
+  );
+});
 
 describe('ChatList — assignee tabs (Fase C)', () => {
   beforeEach(() => {

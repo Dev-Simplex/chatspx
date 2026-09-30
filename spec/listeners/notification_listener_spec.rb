@@ -302,6 +302,67 @@ describe NotificationListener do
     end
   end
 
+  describe 'recolhimento de notificações de conversa nova' do
+    let!(:agent_a) { create(:user, account: account) }
+    let!(:agent_b) { create(:user, account: account) }
+    let!(:admin) { create(:user, account: account, role: :administrator) }
+    let!(:new_conversation) { create(:conversation, account: account, inbox: inbox, assignee: nil) }
+
+    before do
+      [agent_a, agent_b, admin].each do |member|
+        create(:inbox_member, user: member, inbox: inbox)
+        setting = member.notification_settings.find_by!(account: account)
+        setting.selected_email_flags = [:email_conversation_creation]
+        setting.selected_push_flags = []
+        setting.save!
+      end
+
+      listener.conversation_created(Events::Base.new(:'conversation.created', Time.zone.now, conversation: new_conversation.reload))
+    end
+
+    it 'recolhe do outro agente após atribuição com isolamento, preservando o admin e outros tipos' do
+      expect(agent_a.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+      expect(agent_b.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+      other_notification = create(:notification, user: agent_b, account: account, primary_actor: new_conversation,
+                                                 notification_type: :conversation_mention)
+
+      inbox.update!(agent_conversation_isolation: true)
+      new_conversation.update!(assignee: agent_a)
+      listener.assignee_changed(Events::Base.new(:'conversation.assignee_changed', Time.zone.now, conversation: new_conversation.reload))
+
+      expect(agent_a.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+      expect(agent_b.notifications.where(notification_type: :conversation_creation)).to be_empty
+      expect(admin.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+      expect(other_notification.reload).to be_persisted
+    end
+
+    it 'não notifica quem já não pode abrir quando a atribuição chega antes do job de criação' do
+      Notification.where(primary_actor: new_conversation).delete_all
+      inbox.update!(agent_conversation_isolation: true)
+      new_conversation.update!(assignee: agent_a)
+
+      listener.conversation_created(Events::Base.new(:'conversation.created', Time.zone.now, conversation: new_conversation.reload))
+
+      expect(agent_a.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+      expect(agent_b.notifications.where(notification_type: :conversation_creation)).to be_empty
+      expect(admin.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+    end
+
+    it 'recolhe de agente de outro time após a triagem e preserva o admin' do
+      team_x = create(:team, account: account)
+      team_y = create(:team, account: account)
+      create(:team_member, user: agent_a, team: team_x)
+      create(:team_member, user: agent_b, team: team_y)
+      new_conversation.update!(team: team_x)
+
+      listener.team_changed(Events::Base.new(:'conversation.team_changed', Time.zone.now, conversation: new_conversation.reload))
+
+      expect(agent_a.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+      expect(agent_b.notifications.where(notification_type: :conversation_creation)).to be_empty
+      expect(admin.notifications.where(notification_type: :conversation_creation).count).to eq(1)
+    end
+  end
+
   # D4 (D-9): notifica quem PERDEU a conversa quando outro agente assume (takeover).
   describe 'assignee_changed - conversation_unassignment (D4)' do
     let(:event_name) { :'conversation.assignee_changed' }

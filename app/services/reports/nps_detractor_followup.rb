@@ -22,7 +22,7 @@ class Reports::NpsDetractorFollowup
     stats = scan_detractors
     durations = stats[:durations]
     {
-      total: durations.size + stats[:awaiting],
+      total: detractors.count,
       followed_up_count: durations.size,
       awaiting_count: stats[:awaiting],
       avg_followup_seconds: average(durations),
@@ -71,7 +71,8 @@ class Reports::NpsDetractorFollowup
     answered_at = nps.answered_at
     return nil if answered_at.blank?
 
-    reply = nps.conversation.messages
+    # O relatorio nao pode depender do isolamento por time aplicado ao viewer.
+    reply = nps.conversation.all_messages
                .where(message_type: :outgoing)
                .where('created_at >= ?', answered_at)
                .order(created_at: :asc)
@@ -87,6 +88,9 @@ class Reports::NpsDetractorFollowup
 
   # Ignora a propria pesquisa de NPS e o agradecimento automatico (skip_signature).
   def human_reply?(message)
+    # Apenas User com remetente conta: Captain, AgentBot e automacoes sem humano nao fecham o loop.
+    return false unless message.sender_type == 'User' && message.sender_id.present?
+
     attrs = message.content_attributes || {}
     return false if truthy?(attrs['nps_survey'])
     return false if truthy?(attrs['skip_signature'])

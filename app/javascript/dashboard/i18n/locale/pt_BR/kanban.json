@@ -241,7 +241,9 @@
       "NO_STAGES_DESCRIPTION": "Adicione etapas ao funil para começar a organizar suas conversas",
       "EDIT_FUNNEL_HINT": "Edite o funil para adicionar a primeira etapa.",
       "CONFIRM_DELETE": "Tem certeza que deseja excluir esta etapa? Todos os itens serão removidos.",
-      "DELETE_ERROR": "Erro ao excluir etapa"
+      "DELETE_ERROR": "Erro ao excluir etapa",
+      "NAME_REQUIRED": "Nome da etapa é obrigatório",
+      "SAVE_ERROR": "Erro ao salvar etapa"
     },
     "TASK": {
       "BADGE": "Tarefa",

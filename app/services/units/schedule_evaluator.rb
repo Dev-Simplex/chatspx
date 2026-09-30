@@ -102,8 +102,13 @@ class Units::ScheduleEvaluator
 
   # Qual regra manda no dia. Empate na especificidade: vence a que FECHA — nunca
   # prometer ao cliente que a filial está aberta.
+  #
+  # Regra que não fecha e não traz horário próprio (o evento que acontece "no horário de sempre")
+  # não muda o funcionamento, então não disputa o dia: sem este corte, `minutos_de(nil, nil)` vale
+  # 0 e a caixa ficaria fora do expediente o dia inteiro, e ela ainda passaria por cima de um
+  # feriado menos específico na mesma data.
   def rule_on(date)
-    candidatas = @unit.exceptions.select { |regra| self.class.rule_on?(regra, date) }
+    candidatas = @unit.exceptions.select { |regra| muda_o_funcionamento?(regra) && self.class.rule_on?(regra, date) }
     return nil if candidatas.empty?
 
     candidatas.min_by { |regra| [especificidade(regra), regra.closed_all_day? ? 0 : 1] }
@@ -129,6 +134,10 @@ class Units::ScheduleEvaluator
   end
 
   private
+
+  def muda_o_funcionamento?(regra)
+    regra.closed_all_day? || (!regra.open_hour.nil? && !regra.close_hour.nil?)
+  end
 
   def especificidade(regra)
     return regra.ends_on.present? ? 1 : 0 if regra.nao_repete?

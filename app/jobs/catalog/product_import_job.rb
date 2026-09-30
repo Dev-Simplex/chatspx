@@ -178,9 +178,25 @@ class Catalog::ProductImportJob < ApplicationJob
 
   def leitor(arquivo)
     arquivo.rewind
-    bruto = arquivo.read.force_encoding('UTF-8')
-    limpo = bruto.valid_encoding? ? bruto : bruto.encode('UTF-16le', invalid: :replace, replace: '').encode('UTF-8')
-    CSV.new(StringIO.new(limpo), headers: true)
+    limpo = em_utf8(arquivo.read)
+    CSV.new(StringIO.new(limpo), headers: true, col_sep: separador(limpo))
+  end
+
+  # O Excel em português salva CSV com PONTO E VÍRGULA, porque a vírgula já é o separador decimal
+  # do preço. Sem isto a planilha inteira vira uma coluna só e TODA linha é recusada por falta de
+  # SKU — medido: 0 de 2 linhas gravadas.
+  def separador(texto)
+    cabecalho = texto.lines.first.to_s
+    cabecalho.count(';') > cabecalho.count(',') ? ';' : ','
+  end
+
+  # O Excel também salva em Windows-1252, e não em UTF-8. Reinterpretar os bytes é o que preserva
+  # o acento: apenas remover o byte inválido transformava "Camisão" em "Camiso", em silêncio.
+  def em_utf8(bruto)
+    utf8 = bruto.dup.force_encoding('UTF-8')
+    return utf8 if utf8.valid_encoding?
+
+    bruto.dup.force_encoding('Windows-1252').encode('UTF-8', invalid: :replace, undef: :replace, replace: '')
   end
 
   def com_arquivo(&)

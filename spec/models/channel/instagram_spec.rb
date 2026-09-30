@@ -16,6 +16,21 @@ RSpec.describe Channel::Instagram do
     expect(channel.name).to eq('Instagram')
   end
 
+  describe 'capacidades de envio' do
+    # Medido na Tozi (inbox 101): 10 de 10 mensagens com 3 imagens em `message.attachments[]`
+    # falharam, contra 116 de 117 entregues com uma imagem por requisição. Enquanto ninguém
+    # provar o álbum NO canal alvo, o padrão é não agrupar.
+    it 'não agrupa imagens numa mensagem só' do
+      expect(channel.supports_multi_image_message?).to be false
+    end
+
+    # A vitrine de cards é outra capacidade e segue valendo — o generic template não depende
+    # do caminho que falhou.
+    it 'segue desenhando a vitrine de cards' do
+      expect(channel.supports_card_carousel?).to be true
+    end
+  end
+
   describe 'concerns' do
     it_behaves_like 'reauthorizable'
 

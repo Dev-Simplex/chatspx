@@ -2259,8 +2259,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_28_191937) do
     t.decimal "latitude", precision: 10, scale: 6
     t.decimal "longitude", precision: 10, scale: 6
     t.string "zip_code"
-    t.string "address_number"
+    t.jsonb "etiquetas", default: [], null: false
+    t.jsonb "atributos", default: {}, null: false
     t.integer "feriados_nacionais_ate"
+    t.string "address_number"
     t.jsonb "contacts", default: [], null: false
     t.jsonb "social_links", default: [], null: false
     t.index ["account_id", "name"], name: "index_units_on_account_id_and_name", unique: true

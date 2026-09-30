@@ -44,6 +44,10 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
+  // O dashboard tem altura fixa e rola nos containers internos. Se o documento
+  // rolar, a tela sobe e sobra uma faixa vazia (relato de produção 18/09/2026).
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .tooltip {

@@ -1639,7 +1639,7 @@ onBeforeUnmount(() => {
                       <button
                         v-for="e in QUICK_EMOJIS"
                         :key="e"
-                        class="text-base leading-none hover:scale-125 transition-transform"
+                        class="text-base leading-none rounded-md hover:bg-n-alpha-2 transition-colors"
                         @click="toggleReaction(item.msg, e)"
                       >
                         {{ e }}

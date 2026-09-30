@@ -10,9 +10,13 @@ class Api::V1::Accounts::NotificationsController < Api::V1::Accounts::BaseContro
     @notifications = notification_finder.notifications
     @unread_count = notification_finder.unread_count
     @count = notification_finder.count
+    # Numero da bolinha do app — ver Notification::PushNotificationService#unread_conversations_count.
+    @unread_conversations_count = Conversation.where(assignee_id: current_user.id).open.unread.count
   end
 
   def read_all
+    return head :ok if params[:primary_actor_type].present? && @primary_actor.nil?
+
     lidas = current_user.notifications.where(account_id: current_account.id, read_at: nil)
     lidas = lidas.where(primary_actor: @primary_actor) if @primary_actor
     ids = lidas.pluck(:id)

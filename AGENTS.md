@@ -1,5 +1,8 @@
 # Chat SPX — Simplex Solucoes
 
+> Antes de qualquer tarefa, leia `PROJETO.md`.
+> Em VM de desenvolvimento sem `/home/chatwoot/vault`, as seções sobre vault, frota e deploy não se aplicam.
+
 Fork do Chatwoot mantido pela Simplex. Produto SaaS proprio com branding e modulos customizados.
 
 ## Cerebro
@@ -163,6 +166,13 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 - Branch `producao` (nao `main`) — deploy script aponta para esta branch
 - .env de producao tem TZ=America/Manaus (nao Cuiaba)
 - Seeds: `db:seed` para dev rapido, `AccountSeeder` para dados ricos
+- **`db:prepare` no banco de TESTE roda `db:seed`, e o seed grava `installation_configs`.**
+  Depois disso ~30 specs de Captain estouram
+  `PG::UniqueViolation: duplicate key ... index_installation_configs_on_name` ao tentar criar
+  `CAPTAIN_OPEN_AI_API_KEY` — e parecem defeito do codigo, sem ser. Some com
+  `TRUNCATE installation_configs RESTART IDENTITY CASCADE;` no `chatwoot_test`. Prefira
+  `db:test:prepare` (carrega schema, nao semeia). A CI nao ve isso porque carrega schema
+  puro; quem monta ambiente de teste na mao, ve. Custou uma hora em 20/09/2026.
 - rbenv: sempre inicializar antes de qualquer comando Ruby
 - **CRITICO — Nunca `systemctl restart` em producao sem antes rodar `rails db:migrate:status`.** Migration pendente + restart = 500 em cadeia (PG::UndefinedColumn em queries que usam a coluna nova). Bomba latente pode ficar 7+ dias oculta porque codigo antigo em memoria nao a referencia. Ver vault: `01-Permanentes/Incidente - Pending Migration 24-abr-2026.md`. Para aplicar migration especifica pulando outras pendentes (ex: uma com orphan data), usar `db:migrate:up VERSION=YYYYMMDDHHMMSS` (nao `db:migrate VERSION=X` que aplica TODAS ate X).
 

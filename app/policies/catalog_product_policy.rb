@@ -37,6 +37,15 @@ class CatalogProductPolicy < ApplicationPolicy
     create?
   end
 
+  # Espelho da Meta (F3): enfileirar a passada da conta, ou devolver um produto a ela.
+  def sync?
+    create?
+  end
+
+  def sync_product?
+    update?
+  end
+
   # Porta do ERP (C3). Grava com token de usuário-robô que o cliente cria como AGENTE — foi a
   # escolha de produto, para não entregar token de administrador a um sistema de fora. Por isso
   # ela NÃO passa por `create?`: ali a régua é administrador, e o robô ficaria de fora.

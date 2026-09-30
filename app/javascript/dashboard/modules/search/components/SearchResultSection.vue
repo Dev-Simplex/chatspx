@@ -20,6 +20,10 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  hasError: {
+    type: Boolean,
+    default: false,
+  },
   isFetching: {
     type: Boolean,
     default: true,
@@ -43,7 +47,7 @@ const titleCase = computed(() => props.title.toLowerCase());
       :message="empty ? $t('SEARCH.SEARCHING_DATA') : $t('SEARCH.LOADING_DATA')"
     />
     <div
-      v-if="empty && !isFetching"
+      v-if="(empty || hasError) && !isFetching"
       class="flex items-start justify-center px-4 py-6 rounded-xl bg-n-slate-2 dark:bg-n-solid-1"
     >
       <Icon
@@ -51,7 +55,11 @@ const titleCase = computed(() => props.title.toLowerCase());
         class="text-n-slate-11 size-4 flex-shrink-0 mt-[3px]"
       />
       <p class="mx-2 my-0 text-center text-n-slate-11">
-        {{ $t('SEARCH.EMPTY_STATE', { item: titleCase, query }) }}
+        {{
+          hasError
+            ? $t('SEARCH.ERROR_STATE', { item: titleCase })
+            : $t('SEARCH.EMPTY_STATE', { item: titleCase, query })
+        }}
       </p>
     </div>
   </section>

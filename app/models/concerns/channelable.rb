@@ -45,6 +45,19 @@ module Channelable
   def supports_card_carousel?
     false
   end
+
+  # O canal permite RETOMAR a conversa depois que a janela de atendimento fecha? O WhatsApp
+  # permite (template/HSM), o widget e a Api nao tem janela — o Instagram e a excecao: nao
+  # existe template, sponsored message nem one-time notification, e a unica extensao da janela
+  # de 24h e a tag HUMAN_AGENT, que depende de App Review (medido em 08/09/2026 contra a Graph:
+  # 403 "To use 'Human Agent', your use of this endpoint must be reviewed and approved").
+  #
+  # Verdadeiro por padrao de proposito, ao contrario das capacidades acima: aqui o custo esta
+  # invertido. Errar para o `false` faz o agente pedir contato alternativo a quem ele ja alcanca
+  # — barulho em canal que nao precisa; errar para o `true` so mantem o comportamento atual.
+  def supports_reengagement?
+    true
+  end
 end
 
 Channelable.prepend_mod_with('Channelable')

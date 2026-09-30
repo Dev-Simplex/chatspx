@@ -64,6 +64,8 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
       next if assistant.blank?
 
       Current.executed_by = assistant
+      # O encerramento automatico dispensa a escolha de time exigida do humano.
+      conversation.skip_team_required_for_resolution_validation = true
       create_resolution_message(conversation, assistant)
       conversation.resolved!
     end
@@ -244,6 +246,8 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
   # Fecho SILENCIOSO: a despedida foi a nota de encerramento, enviada com a janela ABERTA
   # (pós-expiração nada free-form entrega). Grava motivo_encerramento (mesma chave do modal humano).
   def finalize_close(conversation, assistant, classe, reason)
+    # O encerramento automatico dispensa a escolha de time exigida do humano.
+    conversation.skip_team_required_for_resolution_validation = true
     conversation.custom_attributes = (conversation.custom_attributes || {}).merge('motivo_encerramento' => "IA/#{classe}: #{reason}")
     create_private_note(conversation, assistant, "Auto-encerrado (#{classe}): #{reason}")
     conversation.with_captain_activity_context(
@@ -302,6 +306,8 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
   end
 
   def resolve_conversation(conversation, assistant, reason)
+    # O encerramento automatico dispensa a escolha de time exigida do humano.
+    conversation.skip_team_required_for_resolution_validation = true
     create_private_note(conversation, assistant, "Auto-resolved: #{reason}")
     create_resolution_message(conversation, assistant)
     conversation.with_captain_activity_context(

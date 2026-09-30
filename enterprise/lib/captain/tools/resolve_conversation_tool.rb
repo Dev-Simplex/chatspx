@@ -10,6 +10,8 @@ class Captain::Tools::ResolveConversationTool < Captain::Tools::BasePublicTool
 
     log_tool_usage('resolve_conversation', { conversation_id: conversation.id, reason: reason })
 
+    # O encerramento automatico dispensa a escolha de time exigida do humano.
+    conversation.skip_team_required_for_resolution_validation = true
     conversation.with_captain_activity_context(reason: reason, reason_type: :tool) { conversation.resolved! }
 
     "Conversation ##{conversation.display_id} resolved#{" (Reason: #{reason})" if reason}"

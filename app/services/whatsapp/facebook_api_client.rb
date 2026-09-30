@@ -93,6 +93,34 @@ class Whatsapp::FacebookApiClient
     handle_response(response, 'Webhook callback override failed')
   end
 
+  # Espelho do catálogo (C9). O `items_batch` faz criação e atualização no MESMO verbo — `UPDATE` é
+  # upsert pela `retailer_id` —, então um lote só resolve produto novo e produto alterado.
+  def catalog_items_batch(catalog_id, requests)
+    response = HTTParty.post(
+      "#{BASE_URI}/#{@api_version}/#{catalog_id}/items_batch",
+      headers: request_headers,
+      body: { item_type: 'PRODUCT_ITEM', requests: requests }.to_json
+    )
+
+    handle_catalog_response(response, 'Catalog items batch failed')
+  end
+
+  # O `items_batch` responde `handles` (processamento assíncrono), NUNCA o id do item. É esta
+  # consulta que resolve `retailer_id` → id da Meta, e é dela que sai o `meta_product_id`.
+  def catalog_items(catalog_id, retailer_ids)
+    response = HTTParty.get(
+      "#{BASE_URI}/#{@api_version}/#{catalog_id}/products",
+      headers: request_headers,
+      query: {
+        fields: 'id,retailer_id',
+        filter: { retailer_id: { is_any: retailer_ids } }.to_json,
+        limit: retailer_ids.size
+      }
+    )
+
+    handle_catalog_response(response, 'Catalog items fetch failed')
+  end
+
   def unsubscribe_waba_webhook(waba_id)
     response = HTTParty.delete(
       "#{BASE_URI}/#{@api_version}/#{waba_id}/subscribed_apps",
@@ -115,6 +143,15 @@ class Whatsapp::FacebookApiClient
     app_id = GlobalConfigService.load('WHATSAPP_APP_ID', '')
     app_secret = GlobalConfigService.load('WHATSAPP_APP_SECRET', '')
     "#{app_id}|#{app_secret}"
+  end
+
+  # A Meta limita o catálogo a `200 + 40 × catálogos` chamadas por hora, e devolve 429 quando a cota
+  # acaba. O erro precisa ser NOMEADO aqui: pelo RuntimeError do `handle_response` o serviço não
+  # teria como separar "cota acabou, pare a passada" de "este item é inválido".
+  def handle_catalog_response(response, error_message)
+    raise CustomExceptions::Catalog::MetaRateLimited, { retry_after: response.headers['retry-after'] } if response.code == 429
+
+    handle_response(response, error_message)
   end
 
   def handle_response(response, error_message)

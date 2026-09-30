@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { messageTimestamp } from 'shared/helpers/timeHelper';
+import { messageStamp } from 'shared/helpers/timeHelper';
 
 import MessageStatus from './MessageStatus.vue';
 import Icon from 'next/icon/Icon.vue';
@@ -33,9 +33,7 @@ const {
   starred,
 } = useMessageContext();
 
-const readableTime = computed(() =>
-  messageTimestamp(createdAt.value, 'LLL d, h:mm a')
-);
+const readableTime = computed(() => messageStamp(createdAt.value, 'HH:mm'));
 
 const showStatusIndicator = computed(() => {
   if (isPrivate.value) return false;
@@ -137,6 +135,13 @@ const statusToShow = computed(() => {
     <div class="inline">
       <time class="inline">{{ readableTime }}</time>
     </div>
+    <Icon
+      v-if="contentAttributes.whatsappPhoneReply"
+      icon="i-lucide-smartphone"
+      class="size-3"
+      :title="$t('CONVERSATION.WHATSAPP_PHONE_REPLY')"
+      :aria-label="$t('CONVERSATION.WHATSAPP_PHONE_REPLY')"
+    />
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
     <Icon
       v-if="starred"
