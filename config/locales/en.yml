@@ -71,6 +71,9 @@ en:
         rodizio_conversation_tabs_enabled: Enable Rotation and Attention tabs
 
   errors:
+    performance_goals:
+      forbidden: "You don't have access to goals."
+      past_month: "Goals of past months can't be changed."
     suggestions:
       media:
         type: 'must be a photo or a video'
