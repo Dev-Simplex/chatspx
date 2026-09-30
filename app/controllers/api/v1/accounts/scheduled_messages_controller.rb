@@ -10,7 +10,7 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
   def index
     requested_status = normalized_status_filter
     scope = policy_scope(ScheduledMessage)
-    scope = scope.where(conversation_id: params[:conversation_id]) if params[:conversation_id].present?
+    scope = filter_by_conversation(scope)
     scope = apply_status_filter(scope, requested_status)
     return if performed?
 
@@ -154,6 +154,14 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
   end
 
   private
+
+  # conversation_id é o id interno; conversation_display_id, o que o front conhece.
+  def filter_by_conversation(scope)
+    scope = scope.where(conversation_id: params[:conversation_id]) if params[:conversation_id].present?
+    return scope if params[:conversation_display_id].blank?
+
+    scope.where(conversation_id: Current.account.conversations.where(display_id: params[:conversation_display_id]).select(:id))
+  end
 
   # admin recebe todas as caixas da conta; agente, so as suas.
   def inbox_accessible?(inbox)

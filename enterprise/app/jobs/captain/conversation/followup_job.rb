@@ -68,8 +68,12 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   # Travas que matam a cutucada de vez (não adiam): resolvida/esperando humano, ou fora da
   # janela (não é cutucada). Checadas antes de cancelado_por_resposta?, o que não muda nada:
   # aquele só cancela sem compromisso, e aí não há o que descartar.
+  #
+  # Agendada da IA esperando o horário do cliente (CHAT-165) também mata: ela cumpre o combinado,
+  # e cutucar antes é insistir com quem já disse quando quer falar.
   def desistencia?(conversation, attrs)
-    followup_pointless?(conversation, attrs) || janela_fechada?(conversation)
+    followup_pointless?(conversation, attrs) || janela_fechada?(conversation) ||
+      ScheduledMessage.agendada_da_ia_pendente?(conversation)
   end
 
   # Desistência (trava, não adiamento): o compromisso não vai ser cumprido por ESTE job, então

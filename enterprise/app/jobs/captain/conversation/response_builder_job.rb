@@ -131,6 +131,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     nota_tools = nota_de_ferramentas
     history.unshift({ content: nota_tools, role: 'user' }) if nota_tools.present?
 
+    # A agendada pendente (CHAT-165), para o agente poder reagendá-la ou cancelá-la.
+    nota_agendada = nota_da_agendada
+    history.unshift({ content: nota_agendada, role: 'user' }) if nota_agendada.present?
+
     # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
     # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
     # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
@@ -179,6 +183,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     Captain::Conversation::ToolContextNote.new(
       conversation: @conversation, desde: inicio_do_episodio
     ).text
+  end
+
+  def nota_da_agendada
+    return unless (@assistant.config['tools'] || []).include?('agendar_mensagem')
+
+    Captain::Conversation::AgendadaNote.new(conversation: @conversation).text
   end
 
   # A fronteira só existe quando a conta usa janela por episódio; sem ela a nota fica sem
@@ -254,10 +264,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   # A conversa já tem destino definido, então não se agenda cutucada preventiva: ou está com um
   # humano (aguardando_humano_desde), ou existe um compromisso combinado com hora marcada — e o
-  # token é um só, então a preventiva roubaria o slot dele. Cumprido o compromisso, o motivo é
+  # token é um só, então a preventiva roubaria o slot dele —, ou há uma agendada da IA esperando o
+  # horário que o cliente deu (cutucar antes disso é insistir com quem já disse quando quer falar). Cumprido o compromisso, o motivo é
   # consumido e o auto volta; se ele morrer sem cumprir, um novo programar_followup rearma.
   def ja_tem_destino?(attrs)
-    attrs['aguardando_humano_desde'].present? || attrs['followup_motivo'].present?
+    attrs['aguardando_humano_desde'].present? || attrs['followup_motivo'].present? ||
+      ScheduledMessage.agendada_da_ia_pendente?(@conversation)
   end
 
   # Opt-in implícito: só agentes que já têm a ferramenta de follow-up. Desligável por

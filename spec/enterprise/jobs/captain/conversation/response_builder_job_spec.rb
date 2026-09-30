@@ -471,6 +471,42 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
       end
     end
 
+    # CHAT-165: a agendada pendente da IA entra no contexto e segura a cutucada preventiva.
+    context 'when the AI has a pending scheduled message' do
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(true)
+        ScheduledMessage.create!(conversation: conversation, inbox: inbox, message: 'Texto pronto', scheduled_at: 3.hours.from_now,
+                                 status: :pending, captain_assistant_id: assistant.id)
+      end
+
+      it 'shows it to the agent when the agent has agendar_mensagem' do
+        assistant.update!(config: (assistant.config || {}).merge('tools' => %w[programar_followup agendar_mensagem]))
+
+        expect(mock_agent_runner_service).to receive(:generate_response)
+          .with(message_history: include(a_hash_including(content: a_string_including('Texto pronto'))))
+          .and_return({ 'response' => 'Oi' })
+
+        described_class.perform_now(conversation, assistant)
+      end
+
+      it 'does not show it to an agent without agendar_mensagem' do
+        expect(mock_agent_runner_service).to receive(:generate_response)
+          .with(message_history: [{ content: 'Hello', role: 'user' }])
+          .and_return({ 'response' => 'Oi' })
+
+        described_class.perform_now(conversation, assistant)
+      end
+
+      it 'does not arm the preventive nudge' do
+        assistant.update!(config: (assistant.config || {}).merge('tools' => %w[programar_followup agendar_mensagem]))
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(conversation.reload.custom_attributes['followup_token']).to be_nil
+      end
+    end
+
     context 'when message contains an image' do
       let(:message_with_image) { create(:message, conversation: conversation, message_type: :incoming, content: 'Can you help with this error?') }
       let(:image_attachment) { message_with_image.attachments.create!(account: account, file_type: :image, external_url: 'https://example.com/error.jpg') }
@@ -713,6 +749,5 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         end.not_to(change { conversation.messages.template.count })
       end
     end
-
   end
 end

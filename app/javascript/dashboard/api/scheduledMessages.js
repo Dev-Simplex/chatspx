@@ -16,6 +16,17 @@ class ScheduledMessagesAPI extends ApiClient {
     });
   }
 
+  // Pendentes de uma conversa pelo display_id (o id que o front conhece). A faixa
+  // da agendada da IA filtra as da IA pelo campo captain_assistant.
+  getAiPendingByConversation(conversationDisplayId) {
+    return axios.get(this.url, {
+      params: {
+        conversation_display_id: conversationDisplayId,
+        status: 'pending',
+      },
+    });
+  }
+
   // A caixa de entrada pode ser outra que não a da conversa, então o endpoint
   // devolve todas as caixas da conta.
   getInboxes() {

@@ -1,4 +1,6 @@
 class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
+  include Captain::Tools::MomentoDoCliente
+
   description 'Programa um follow-up (cutucada) pra esta conversa, pra retomar caso o cliente não responda. ' \
               'Use o seu julgamento: programe só quando vale a pena manter o contato aquecido ou esclarecer algo pendente. ' \
               'NÃO programe se o cliente disse que já responde, se a conversa se encerrou naturalmente, ou se não há nada pendente. ' \
@@ -36,14 +38,10 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
   # disparos. Não depende do modelo declarar que houve adiamento.
   ADIAMENTO = /chama(r|e)? (mais tarde|depois)|falar depois|mais tarde|outro hor|outro momento|depois eu|eu te chamo|retomar depois/i
 
-  DIAS_SEMANA = { 'domingo' => 0, 'segunda' => 1, 'terca' => 2, 'quarta' => 3,
-                  'quinta' => 4, 'sexta' => 5, 'sabado' => 6 }.freeze
-  # Hora de referência de cada período do dia.
-  PERIODOS = { 'manha' => 9, 'almoco' => 12, 'tarde' => 14, 'noite' => 19 }.freeze
-
   def perform(tool_context, minutos:, motivo:, janela: nil)
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa pra programar o follow-up.' unless conversation
+    return AGENDADA_NO_LUGAR if agendada_no_lugar?(janela)
 
     pela_janela = janela.present? ? minutos_ate(janela) : nil
     minutes = (pela_janela || minutos).to_i.clamp(MIN_MINUTOS, teto(pela_janela))
@@ -55,7 +53,16 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
     'Não consegui programar o follow-up agora.'
   end
 
+  # Com a agendada ligada no agente (CHAT-165), o momento que o cliente deu é cumprido por ela, com
+  # a mensagem pronta; a cutucada com `janela` passaria a disputar o mesmo combinado.
+  AGENDADA_NO_LUGAR = 'Nada programado: o cliente disse um momento para ser procurado, e isso se faz com agendar_mensagem, ' \
+                      'com a mensagem já escrita. Use-a em vez desta ferramenta.'.freeze
+
   private
+
+  def agendada_no_lugar?(janela)
+    janela.present? && (@assistant.config['tools'] || []).include?('agendar_mensagem')
+  end
 
   # Só vale o teto maior quando a janela foi ENTENDIDA: janela ilegível cai no `minutos` que o
   # modelo escolheu, e aí o número é dele, não do cliente — segue no teto da cutucada.
@@ -109,67 +116,5 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
     return false if id.blank?
 
     Message.find_by(id: id)&.content.to_s.match?(ADIAMENTO)
-  end
-
-  # Converte a janela declarada pelo cliente em minutos a partir de agora.
-  # nil quando o texto não traz dia nem hora reconhecíveis — aí quem manda é `minutos`.
-  def minutos_ate(janela)
-    texto = sem_acento(janela)
-    dia = data_alvo(texto)
-    relogio = hora_alvo(texto)
-    return nil if dia.nil? && relogio.nil?
-
-    hora, minuto = relogio || [PERIODOS['manha'], 0]
-    momento = momento_de(dia || Time.current.to_date, hora, minuto)
-    ((momento - Time.current) / 60).round
-  end
-
-  # Janela já vencida hoje (pediu "de manhã" à tarde) cai no dia seguinte.
-  def momento_de(dia, hora, minuto = 0)
-    momento = Time.zone.local(dia.year, dia.month, dia.day, hora, minuto)
-    momento <= Time.current ? momento + 1.day : momento
-  end
-
-  def data_alvo(texto)
-    hoje = Time.current.to_date
-    return hoje if texto.match?(/\bhoje\b|agora a (tarde|noite)|mais tarde/)
-    return hoje + 2 if texto.include?('depois de amanha')
-    return hoje + 1 if texto.match?(/\bamanha\b/)
-    # "semana que vem" caía no nil e, sem hora junto, a janela inteira era descartada: o cliente
-    # pedia uma semana e levava a cutucada que o modelo tinha escolhido — minutos depois.
-    return hoje + 7 if texto.match?(/(semana|mes) que vem|proxima semana/)
-
-    dia_da_semana(texto, hoje)
-  end
-
-  def dia_da_semana(texto, hoje)
-    nome, alvo = DIAS_SEMANA.find { |n, _| texto.include?(n) }
-    return nil if nome.nil?
-
-    delta = (alvo - hoje.wday) % 7
-    hoje + (delta.zero? ? 7 : delta)
-  end
-
-  # Devolve [hora, minuto] ou nil.
-  #
-  # O padrão antigo terminava em \b e por isso NÃO casava "21h30" — a forma mais comum de dizer
-  # hora quebrada em português. Entre o "h" e o "3" não há fronteira de palavra, então a janela
-  # virava nil e o horário que o cliente pediu era descartado em silêncio.
-  def hora_alvo(texto)
-    casou = texto.match(/\b(\d{1,2})\s*(?:h(?:oras?)?|:)\s*(\d{2})?/)
-    if casou
-      hora = casou[1].to_i
-      minuto = casou[2].to_i
-      return [hora, minuto] if hora.between?(0, 23) && minuto.between?(0, 59)
-    end
-
-    # Fronteira de palavra é obrigatória: "amanha" CONTÉM "manha", e sem \b
-    # "amanhã à tarde" era agendado de manhã.
-    _, hora = PERIODOS.find { |p, _| texto.match?(/\b#{p}\b/) }
-    hora && [hora, 0]
-  end
-
-  def sem_acento(str)
-    str.to_s.unicode_normalize(:nfd).gsub(/\p{Mn}/, '').downcase
   end
 end
