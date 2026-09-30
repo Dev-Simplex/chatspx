@@ -78,14 +78,20 @@ const trocarAba = aba => {
             :description="description"
             :back-button-label="backButtonLabel"
           />
-          <TabBar
+          <!-- Em tela estreita as quatro abas não cabem: a faixa rola de lado em vez de cortar
+               os rótulos. -->
+          <div
             v-if="!hideTabs && abas.length > 1"
             data-testid="catalogo-abas"
-            :tabs="abas"
-            :initial-active-tab="abaAtiva"
-            class="flex-shrink-0 max-w-full overflow-x-auto no-scrollbar"
-            @tab-changed="trocarAba"
-          />
+            class="max-w-full overflow-x-auto no-scrollbar"
+          >
+            <TabBar
+              :tabs="abas"
+              :initial-active-tab="abaAtiva"
+              class="!w-max"
+              @tab-changed="trocarAba"
+            />
+          </div>
           <div
             v-if="searchPlaceholder || $slots.count || $slots.actions"
             class="flex flex-wrap items-center justify-between gap-3"

@@ -94,6 +94,11 @@ describe('convertToAttributeSlug', () => {
       'test__ing'
     );
   });
+
+  it('should keep accented letters without the accent', () => {
+    expect(convertToAttributeSlug('Valor de locação')).toBe('valor_de_locacao');
+    expect(convertToAttributeSlug('Dormitórios')).toBe('dormitorios');
+  });
 });
 
 describe('convertToCategorySlug', () => {
