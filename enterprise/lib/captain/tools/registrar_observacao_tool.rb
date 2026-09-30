@@ -1,9 +1,9 @@
 class Captain::Tools::RegistrarObservacaoTool < Captain::Tools::BasePublicTool
   description 'Registra uma OBSERVAÇÃO como nota privada na conversa (visível só pra equipe, nunca pro cliente). ' \
               'NÃO é resumo — é pra sinalizar algo importante que o humano deve notar ao ler o histórico. ' \
-              'Ex.: o cliente é o fiador e não o inquilino; cliente irritado ou com pressa; já reclamou antes; ' \
-              'tem FGTS pra resgatar; restrição no nome. Chame quando julgar que há algo relevante a ressaltar; ' \
-              'pode ser curta ou detalhada, conforme a necessidade.'
+              'A observação sai do que o cliente disse ou demonstrou nesta conversa: um fato sobre ele ou sobre o ' \
+              'atendimento que muda como a equipe deve conduzir o caso e que não salta à vista numa leitura rápida. ' \
+              'Chame quando julgar que há algo relevante a ressaltar; pode ser curta ou detalhada, conforme a necessidade.'
 
   param :observacao, type: 'string',
                      desc: 'A observação a registrar como nota privada, pro humano notar ao ler o histórico da conversa.',

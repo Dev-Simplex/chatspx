@@ -8,6 +8,8 @@ Rails.application.config.after_initialize do
   # conta que estoura a cota derruba a IA de todas as outras da mesma VM. O patch só injeta contexto
   # quando há um `with_account` ativo, então conta sem chave própria segue na global, como hoje.
   Llm::AccountScopedContext.install_ruby_llm_patch!
+  # Ferramenta fora da lista do agente vira resposta ao modelo em vez de derrubar o turno.
+  Llm::MissingToolGuard.install!
 
   api_key = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value
   anthropic_key = InstallationConfig.find_by(name: 'CAPTAIN_ANTHROPIC_API_KEY')&.value

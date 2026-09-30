@@ -130,17 +130,26 @@ class Captain::Assistant < ApplicationRecord
   end
 
   def agent_tools
-    tools = [
-      self.class.resolve_tool_class('faq_lookup').new(self),
-      self.class.resolve_tool_class('handoff').new(self)
-    ]
-
-    if chunk_knowledge_enabled? && (knowledge_tool = self.class.resolve_tool_class('search_knowledge'))
-      tools.unshift(knowledge_tool.new(self))
+    tools = []
+    if knowledge_search_available? && (knowledge_tool = self.class.resolve_tool_class('search_knowledge'))
+      tools << knowledge_tool.new(self)
     end
+    tools << self.class.resolve_tool_class('faq_lookup').new(self) if faq_lookup_available?
+    tools << self.class.resolve_tool_class('handoff').new(self)
 
     tools.concat(configured_agent_tools)
     tools
+  end
+
+  # Ferramenta de busca só entra quando o modo de conhecimento a prevê E há o que buscar (CHAT-168).
+  # Sem conteúdo, ela só devolvia "nada encontrado" e ainda disputava a atenção do modelo — na conta
+  # 6, as 18 chamadas de search_knowledge dos agentes sem documento voltaram todas vazias.
+  def faq_lookup_available?
+    faq_knowledge_enabled? && responses.approved.exists?
+  end
+
+  def knowledge_search_available?
+    chunk_knowledge_enabled? && document_chunks.exists?
   end
 
   # B3 do modelo IA-como-agente: tools de negocio armadas direto no assistant via
