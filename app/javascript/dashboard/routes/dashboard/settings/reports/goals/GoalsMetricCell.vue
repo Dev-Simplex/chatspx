@@ -10,7 +10,7 @@ const props = defineProps({
   showNumbers: { type: Boolean, default: true },
 });
 
-const { t, n } = useI18n();
+const { t, locale } = useI18n();
 
 const attainment = computed(() => props.data?.attainment);
 const percent = computed(() =>
@@ -27,10 +27,11 @@ const barWidth = computed(
   () => WIDTHS[Math.round(Math.min(percent.value || 0, 100) / 5)]
 );
 
+// Intl direto: o `n()` do vue-i18n com opções soltas quebra sem numberFormats configurado.
 const format = value =>
-  props.metric === 'first_response_time'
-    ? n(Number(value), { maximumFractionDigits: 1 })
-    : n(Number(value), { maximumFractionDigits: 0 });
+  new Intl.NumberFormat(locale.value.replace('_', '-'), {
+    maximumFractionDigits: props.metric === 'first_response_time' ? 1 : 0,
+  }).format(Number(value));
 
 const emptyLabel = computed(() => {
   if (!props.showNumbers) return t('PERFORMANCE_GOALS.HIDDEN');
