@@ -715,6 +715,12 @@
     "DOCS": "Ler documentação",
     "CHANGELOG": "Notas de versão",
     "LOGOUT": "Encerrar sessão",
+    "LOGOUT_CONFIRM": {
+      "TITLE": "Encerrar sessão?",
+      "DESCRIPTION": "Você vai precisar entrar de novo para usar o Chatwoot.",
+      "CONFIRM": "Encerrar sessão",
+      "CANCEL": "Cancelar"
+    },
     "SETTINGS": "Configurações",
     "REPORTS": "Relatórios",
     "CAMPAIGNS": "Campanhas",
@@ -892,6 +898,7 @@
     "REPORTS_OVERVIEW": "Visão geral",
     "REAUTHORIZE": "A conexão com a sua caixa de entrada expirou. Por favor, reconecte para continuar recebendo e enviando mensagens",
     "HELP_CENTER": {
+      "SUGGESTIONS": "Sugerir melhoria",
       "TITLE": "Central de Ajuda",
       "ARTICLES": "Artigos",
       "CATEGORIES": "Categorias",

@@ -51,6 +51,11 @@ pt_BR:
       unit_working_hour: Horário da unidade
       unit_exception: Exceção da unidade
     attributes:
+      suggestion:
+        name: Nome
+        company: Empresa
+        content: Sugestão
+        media: Anexo
       unit:
         name: Nome
         city: Cidade
@@ -80,6 +85,10 @@ pt_BR:
         close_hour: Hora de fechar
         close_minutes: Minuto de fechar
   errors:
+    suggestions:
+      media:
+        type: 'deve ser uma foto ou um vídeo'
+        size: 'deve ter até %{limit} MB'
     read_only_inbox:
       message_blocked: 'Esta caixa de entrada está em modo somente leitura.'
       redirect_invalid: 'A caixa de destino precisa ser outra caixa de WhatsApp desta conta que não seja somente leitura.'

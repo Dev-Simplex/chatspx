@@ -46,22 +46,27 @@ RSpec.describe Waha::ApiService do
   end
 
   describe '#send_contact_vcard' do
-    it 'POSTs the contactsIds array (plural) to /api/sendContactVcard' do
+    it 'POSTs the documented contacts[] body (fullName/phoneNumber/whatsappId) to /api/sendContactVcard' do
       stub = stub_request(:post, 'https://waha.example.com/api/sendContactVcard')
-             .with(body: { session: 'default', chatId: '5511@c.us', contactsIds: ['5511988887777@c.us'] }.to_json)
+             .with(body: {
+               session: 'default',
+               chatId: '5511@c.us',
+               contacts: [{ fullName: 'Maria Cliente', phoneNumber: '+5511988887777', whatsappId: '5511988887777' }]
+             }.to_json)
              .to_return(status: 200, body: { 'id' => 'm-1' }.to_json)
 
-      service.send_contact_vcard(session: 'default', chat_id: '5511@c.us', contact_ids: ['5511988887777@c.us'])
+      result = service.send_contact_vcard(session: 'default', chat_id: '5511@c.us', full_name: 'Maria Cliente', phone: '+55 (11) 98888-7777')
 
       expect(stub).to have_been_requested
+      expect(result).to eq('id' => 'm-1')
     end
 
-    it 'normalizes scalar arg to single-element array' do
+    it 'strips CR/LF from the name' do
       stub = stub_request(:post, 'https://waha.example.com/api/sendContactVcard')
-             .with(body: { session: 'default', chatId: '5511@c.us', contactsIds: ['5511988887777@c.us'] }.to_json)
+             .with { |req| JSON.parse(req.body)['contacts'].first['fullName'] == 'Mal Intencionado' }
              .to_return(status: 200, body: { 'id' => 'm-1' }.to_json)
 
-      service.send_contact_vcard(session: 'default', chat_id: '5511@c.us', contact_ids: '5511988887777@c.us')
+      service.send_contact_vcard(session: 'default', chat_id: '5511@c.us', full_name: "Mal\r\nIntencionado", phone: '5511988887777')
 
       expect(stub).to have_been_requested
     end

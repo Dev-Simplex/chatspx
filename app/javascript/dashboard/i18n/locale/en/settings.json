@@ -715,6 +715,12 @@
     "DOCS": "Read documentation",
     "CHANGELOG": "Changelog",
     "LOGOUT": "Log out",
+    "LOGOUT_CONFIRM": {
+      "TITLE": "Log out?",
+      "DESCRIPTION": "You will need to sign in again to use Chatwoot.",
+      "CONFIRM": "Log out",
+      "CANCEL": "Cancel"
+    },
     "SETTINGS": "Settings",
     "REPORTS": "Reports",
     "CAMPAIGNS": "Campaigns",
@@ -891,6 +897,7 @@
     "REPORTS_OVERVIEW": "Overview",
     "REAUTHORIZE": "Your inbox connection has expired, please reconnect\n to continue receiving and sending messages",
     "HELP_CENTER": {
+      "SUGGESTIONS": "Suggest improvement",
       "TITLE": "Help Center",
       "ARTICLES": "Articles",
       "CATEGORIES": "Categories",

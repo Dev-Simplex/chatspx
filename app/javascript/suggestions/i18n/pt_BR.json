@@ -1,0 +1,25 @@
+{
+  "SUGGESTIONS_FORM": {
+    "TITLE": "Tem uma ideia?",
+    "DESCRIPTION": "Conte o que deixaria o seu dia a dia mais fácil. Nossa equipe lê todas as sugestões.",
+    "NAME": "Seu nome *",
+    "COMPANY": "Empresa *",
+    "CONTENT": "Sua sugestão *",
+    "CONTENT_PLACEHOLDER": "Descreva a sua ideia. Quanto mais detalhe, melhor.",
+    "MEDIA": "Foto ou vídeo (opcional)",
+    "MEDIA_HINT": "Até {limit} MB",
+    "MEDIA_REMOVE": "Remover arquivo",
+    "SUBMIT": "Enviar sugestão",
+    "SENDING": "Enviando… {progress}%",
+    "REQUIRED": "Campo obrigatório",
+    "ERROR_TYPE": "Só é aceita foto ou vídeo.",
+    "ERROR_SIZE": "O arquivo deve ter até {limit} MB.",
+    "ERROR_GENERIC": "Não foi possível enviar a sua sugestão. Tente de novo.",
+    "ERROR_TOO_MANY": "Muitos envios, tente daqui a alguns minutos.",
+    "THANKS_TITLE": "Obrigado!",
+    "THANKS_TEXT": "Sua sugestão foi recebida. Lemos todas.",
+    "SEND_ANOTHER": "Enviar outra",
+    "BADGE": "Caixa de sugestões",
+    "TITLE_ACCENT": "Conta pra gente."
+  }
+}
