@@ -6,6 +6,7 @@ import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
+import { getUserPermissions } from 'dashboard/helper/permissionsHelper';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import socialPublicacoesAPI from 'dashboard/api/socialPublicacoes';
 import { internalChatNotify } from 'dashboard/helper/internalChatNotify';
@@ -68,6 +69,18 @@ const { width: windowWidth } = useWindowSize();
 const isMobile = computed(() => windowWidth.value < 768);
 
 const accountId = useMapGetter('getCurrentAccountId');
+// CHAT-177: "Metas" aparece para quem gerencia ou quando a conta liberou o ranking ao atendente.
+const goalsCurrentUser = useMapGetter('getCurrentUser');
+const goalsAccountFn = useMapGetter('accounts/getAccount');
+const showGoals = computed(() => {
+  const permissions = getUserPermissions(goalsCurrentUser.value, accountId.value);
+  const visibility = goalsAccountFn.value(accountId.value)?.settings?.goals_visibility;
+  return (
+    permissions.includes('administrator') ||
+    permissions.includes('team_supervisor') ||
+    ['own', 'everyone'].includes(visibility)
+  );
+});
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
@@ -798,6 +811,15 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.REPORTS_BOT'),
           to: accountScopedRoute('bot_reports'),
         },
+        ...(showGoals.value
+          ? [
+              {
+                name: 'Reports Goals',
+                label: t('PERFORMANCE_GOALS.MENU'),
+                to: accountScopedRoute('goals_reports'),
+              },
+            ]
+          : []),
       ],
     },
     {

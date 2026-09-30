@@ -41,6 +41,7 @@ import search from './search.json';
 import setNewPassword from './setNewPassword.json';
 import settings from './settings.json';
 import suggestions from './suggestions.json';
+import performanceGoals from './performanceGoals.json';
 import signup from './signup.json';
 import sla from './sla.json';
 import snooze from './snooze.json';
@@ -97,6 +98,7 @@ export default {
   ...setNewPassword,
   ...settings,
   ...suggestions,
+  ...performanceGoals,
   ...signup,
   ...sla,
   ...snooze,

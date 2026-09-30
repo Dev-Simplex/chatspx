@@ -27,6 +27,8 @@ import LiveReports from './LiveReports.vue';
 import SLAReports from './SLAReports.vue';
 import LiveInService from './LiveInService.vue';
 
+const GoalsIndex = () => import('./goals/GoalsIndex.vue');
+
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
   permissions: ['administrator', 'report_manage'],
@@ -152,6 +154,17 @@ export default {
           name: 'account_overview_reports',
           meta,
           component: LiveReports,
+        },
+        {
+          // CHAT-177: meta PROPRIA (aceita o atendente). O `meta` compartilhado acima fica intocado:
+          // alterá-lo abriria os outros relatórios. Quem não pode ver leva 403 do servidor.
+          path: 'goals',
+          name: 'goals_reports',
+          meta: {
+            featureFlag: FEATURE_FLAGS.REPORTS,
+            permissions: ['administrator', 'agent', 'custom_role'],
+          },
+          component: GoalsIndex,
         },
         {
           path: 'conversation',

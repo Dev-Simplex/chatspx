@@ -1,0 +1,58 @@
+{
+  "PERFORMANCE_GOALS": {
+    "MENU": "Metas",
+    "TITLE": "Metas",
+    "DESCRIPTION": "Metas mensais de cada atendente e de cada time, e quanto cada um já atingiu.",
+    "CRITERIA_HELP": "Pessoas e times usam o mesmo critério dos relatórios de agente e de time; os totais não somam entre si.",
+    "PEOPLE": "Pessoas",
+    "TEAMS": "Times",
+    "ALL_TEAMS": "Todos os times",
+    "MONTH": "Mês",
+    "METRICS": {
+      "RESOLVED_CONVERSATIONS": "Conversas resolvidas",
+      "FIRST_RESPONSE_TIME": "Tempo de primeira resposta",
+      "NPS": "NPS",
+      "KANBAN_WINS": "Negócios ganhos"
+    },
+    "OVERALL": "Nota geral",
+    "POSITION": "#",
+    "NAME": "Nome",
+    "YOU": "você",
+    "NO_GOAL": "sem meta",
+    "NO_DATA": "sem dado",
+    "HIDDEN": "—",
+    "MINUTES": "{value} min",
+    "MINUTES_WITH_GOAL": "{value} min (meta {goal} min)",
+    "OF_GOAL": "{actual} / {goal}",
+    "MY_PERFORMANCE": "Meu desempenho",
+    "WITHOUT_GOAL": "Sem meta definida",
+    "EMPTY": "Nenhuma meta definida para este mês.",
+    "ERROR": "Não foi possível carregar as metas. Tente de novo.",
+    "KANBAN_NOT_CONFIGURED": "Marque uma etapa do Kanban como ganho para este indicador funcionar.",
+    "KANBAN_LINK": "Abrir o Kanban",
+    "KANBAN_LIMITATION": "Card tirado da etapa de ganho deixa de contar.",
+    "DEFINE": "Definir metas",
+    "EDITOR": {
+      "TITLE": "Definir metas",
+      "MONTH_HINT": "As metas valem deste mês em diante, até serem alteradas.",
+      "BACK": "Voltar ao ranking",
+      "APPLY_ALL": "Aplicar a todos do time",
+      "APPLY_HINT": "Preenche as linhas visíveis com os valores digitados nesta linha.",
+      "SINCE": "em vigor desde {month}",
+      "SAVE": "Salvar",
+      "SAVED": "Metas salvas.",
+      "SAVE_ERROR": "Não foi possível salvar as metas.",
+      "EMPTY_HINT": "Campo vazio = sem meta."
+    },
+    "VISIBILITY": {
+      "TITLE": "Quem enxerga o ranking",
+      "SAVED": "Visibilidade atualizada.",
+      "MANAGERS": "Só quem gerencia",
+      "MANAGERS_HINT": "Atendentes não veem metas nem o ranking.",
+      "OWN": "Cada um vê o seu",
+      "OWN_HINT": "O atendente vê só o próprio desempenho.",
+      "EVERYONE": "Ranking para todos",
+      "EVERYONE_HINT": "O atendente vê o próprio desempenho e o ranking dos times dele, com os percentuais dos colegas (nunca os números)."
+    }
+  }
+}
