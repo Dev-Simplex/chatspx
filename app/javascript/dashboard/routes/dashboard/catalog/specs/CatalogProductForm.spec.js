@@ -295,6 +295,12 @@ describe('Catálogo · formulário do produto', () => {
     ).toBe('2500,50');
 
     await campo(wrapper, 'campo-personalizado-dormitorios').setValue('4');
+    // O que a pessoa digita fica como digitou: reformatar a cada tecla reescrevia o campo.
+    await campo(wrapper, 'campo-personalizado-bairro').setValue('2');
+    expect(campo(wrapper, 'campo-personalizado-bairro').element.value).toBe(
+      '2'
+    );
+    await campo(wrapper, 'campo-personalizado-bairro').setValue('');
     await wrapper.find('[data-testid="salvar-produto"]').trigger('click');
     await flushPromises();
 

@@ -33,8 +33,11 @@ const porModelo = useMapGetter('attributes/getAttributesByModel');
 const definicoes = computed(() =>
   [...porModelo.value('catalog_attribute')].sort((a, b) => a.id - b.id)
 );
-// chave -> valor como o controle o edita (texto, ou booleano na caixa de seleção).
-const campos = ref({});
+// O que o servidor devolveu (número, texto, booleano) e, por cima, o que o usuário mexeu nesta
+// tela. Separados de propósito: formatar a cada tecla reescrevia o campo de moeda enquanto a
+// pessoa digitava ("2500" virava "2,00500").
+const camposSalvos = ref({});
+const camposEditados = ref({});
 
 // `new` é o id que a grade manda para criar. Ele decide POST contra PATCH e se a tela abre
 // buscando o produto ou em branco.
@@ -87,12 +90,8 @@ const aplicar = produto => {
   destaque.value = Boolean(produto.featured);
   moeda.value = produto.currency || 'BRL';
   fotos.value = produto.images || [];
-  campos.value = Object.fromEntries(
-    Object.entries(produto.custom_attributes || {}).map(([chave, valor]) => [
-      chave,
-      typeof valor === 'boolean' ? valor : String(valor),
-    ])
-  );
+  camposSalvos.value = produto.custom_attributes || {};
+  camposEditados.value = {};
   produtoSalvo.value = produto;
   metaSyncEnabled.value = Boolean(produto.meta_sync_enabled);
 };
@@ -246,18 +245,26 @@ const removerSalva = async imagem => {
 };
 
 // O valor de moeda volta do servidor como número (2500.5); o campo edita em reais com vírgula.
-const valorDoCampo = definicao => {
-  const valor = campos.value[definicao.attribute_key];
+const valorSalvo = definicao => {
+  const valor = camposSalvos.value[definicao.attribute_key];
   if (definicao.attribute_display_type === 'checkbox') return valor === true;
   if (valor === undefined || valor === null) return '';
-  if (definicao.attribute_display_type === 'currency' && !valor.includes(','))
+  if (definicao.attribute_display_type === 'currency')
     return Number(valor).toFixed(2).replace('.', ',');
 
-  return valor;
+  return String(valor);
 };
 
+const valorDoCampo = definicao =>
+  definicao.attribute_key in camposEditados.value
+    ? camposEditados.value[definicao.attribute_key]
+    : valorSalvo(definicao);
+
 const mudarCampo = (definicao, valor) => {
-  campos.value = { ...campos.value, [definicao.attribute_key]: valor };
+  camposEditados.value = {
+    ...camposEditados.value,
+    [definicao.attribute_key]: valor,
+  };
 };
 
 // FormData e não JSON porque as fotos viajam no mesmo salvar. Campo vazio vai como string vazia,

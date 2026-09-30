@@ -21,13 +21,17 @@ class Catalog::CustomFields
 
   # Devolve só chaves com definição na conta, com o valor já no tipo do campo. Valor em branco sai
   # do resultado (é como se apaga um campo). Valor que não converte levanta erro dizendo o campo.
-  def normalizar(valores)
+  #
+  # `atuais` são os valores que o item já tem: opção de lista que saiu do campo depois continua
+  # valendo para quem já a usava, senão o item ficaria impossível de salvar sem mexer nela.
+  def normalizar(valores, atuais = {})
     valores = valores.to_h.stringify_keys
     definicoes.each_with_object({}) do |definicao, resultado|
-      valor = valores[definicao.attribute_key]
+      chave = definicao.attribute_key
+      valor = valores[chave]
       next if em_branco?(valor)
 
-      resultado[definicao.attribute_key] = converter(definicao, valor)
+      resultado[chave] = valor.to_s == atuais[chave].to_s ? atuais[chave] : converter(definicao, valor)
     end
   end
 
@@ -61,14 +65,15 @@ class Catalog::CustomFields
     end
   end
 
-  # "1.234,56" (como o brasileiro digita) e "1234.56" viram o mesmo número: com os dois
-  # separadores o ponto é milhar; com um só, ele é decimal. Inteiro fica inteiro, para "3" e 3
-  # não contarem como mudança.
+  # "1.234,56" (como o brasileiro digita) e "1234.56" viram o mesmo número: com vírgula, o ponto
+  # é milhar. Sem vírgula, ponto seguido de grupos de três dígitos também é milhar ("450.000" é
+  # quatrocentos e cinquenta mil); fora disso ele é decimal ("12.5"). Inteiro fica inteiro, para
+  # "3" e 3 não contarem como mudança.
   def numero(definicao, valor)
     return inteiro_se_der(valor) if valor.is_a?(Numeric)
 
     texto = valor.to_s.strip.gsub(/[^\d,.-]/, '')
-    texto = texto.include?(',') ? texto.delete('.').tr(',', '.') : texto
+    texto = texto.delete('.').tr(',', '.') if texto.include?(',') || texto.match?(/\A-?\d{1,3}(\.\d{3})+\z/)
     invalido!(definicao) unless texto.match?(/\A-?\d+(\.\d+)?\z/)
 
     inteiro_se_der(texto.to_f)
