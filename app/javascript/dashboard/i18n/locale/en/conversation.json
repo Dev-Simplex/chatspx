@@ -674,6 +674,12 @@
       "REQUEST_EXISTS": "You already have a pending request for this conversation.",
       "REQUEST_ERROR": "Could not send the request, please try again."
     },
+    "AI_SCHEDULED_BANNER": {
+      "TITLE": "Message scheduled by {name} for {when}",
+      "CANCEL": "Cancel",
+      "CANCELLED": "Scheduled message cancelled.",
+      "CANCEL_ERROR": "Could not cancel the scheduled message."
+    },
     "SCHEDULE_MESSAGE": {
       "TOOLTIP": "Schedule message",
       "TITLE": "Schedule message",
