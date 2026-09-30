@@ -163,6 +163,7 @@
     "SHOW_QUOTED_TEXT": "Show Quoted Text",
     "MESSAGE_READ": "Read",
     "SENDING": "Sending",
+    "AI_SCHEDULED_MESSAGE": "AI message scheduled for {when}",
     "PIN_CONVERSATION": "Pin to top",
     "UNPIN_CONVERSATION": "Unpin"
   }

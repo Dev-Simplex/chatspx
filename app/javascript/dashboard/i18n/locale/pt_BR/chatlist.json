@@ -163,6 +163,7 @@
     "SHOW_QUOTED_TEXT": "Mostrar Texto Citado",
     "MESSAGE_READ": "Lida",
     "SENDING": "Enviando",
+    "AI_SCHEDULED_MESSAGE": "Mensagem da IA agendada para {when}",
     "PIN_CONVERSATION": "Fixar no topo",
     "UNPIN_CONVERSATION": "Desafixar"
   }
