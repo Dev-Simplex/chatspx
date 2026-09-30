@@ -4,7 +4,12 @@ import { required, minLength } from '@vuelidate/validators';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { convertToAttributeSlug } from 'dashboard/helper/commons.js';
-import { ATTRIBUTE_MODELS, ATTRIBUTE_TYPES } from './constants';
+import {
+  ATTRIBUTE_MODELS,
+  ATTRIBUTE_TYPES,
+  CATALOG_ATTRIBUTE_MODEL,
+  CATALOG_ATTRIBUTE_TYPES,
+} from './constants';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
@@ -25,6 +30,12 @@ export default {
       type: Number,
       default: 0,
     },
+    // Aba Campos do catálogo: modelo travado em catálogo, sem seletor de modelo, sem
+    // "obrigatório" e sem regex, com o tipo Moeda e "oculto" no papel de campo interno.
+    catalog: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup() {
     return { v$: useVuelidate() };
@@ -36,7 +47,9 @@ export default {
       // Using the prop as default. There is no side effect here as the component
       // is destroyed completely when the modal is closed. The prop doesn't change
       // dynamically when the modal is active.
-      attributeModel: this.selectedAttributeModelTab || 0,
+      attributeModel: this.catalog
+        ? CATALOG_ATTRIBUTE_MODEL
+        : this.selectedAttributeModelTab || 0,
       attributeType: 0,
       attributeKey: '',
       regexPattern: null,
@@ -61,7 +74,8 @@ export default {
       }));
     },
     types() {
-      return ATTRIBUTE_TYPES.map(item => ({
+      const types = this.catalog ? CATALOG_ATTRIBUTE_TYPES : ATTRIBUTE_TYPES;
+      return types.map(item => ({
         ...item,
         option: this.$t(`ATTRIBUTES_MGMT.ATTRIBUTE_TYPES.${item.key}`),
       }));
@@ -100,26 +114,27 @@ export default {
     },
   },
 
-  validations: {
-    displayName: {
-      required,
-      minLength: minLength(1),
-    },
-    description: {
-      required,
-    },
-    attributeModel: {
-      required,
-    },
-    attributeType: {
-      required,
-    },
-    attributeKey: {
-      required,
-      isKey(value) {
-        return !(value.indexOf(' ') >= 0);
+  validations() {
+    return {
+      displayName: {
+        required,
+        minLength: minLength(1),
       },
-    },
+      // No catálogo o rótulo já diz o que o campo é; exigir descrição seria burocracia.
+      description: this.catalog ? {} : { required },
+      attributeModel: {
+        required,
+      },
+      attributeType: {
+        required,
+      },
+      attributeKey: {
+        required,
+        isKey(value) {
+          return !(value.indexOf(' ') >= 0);
+        },
+      },
+    };
   },
 
   watch: {
@@ -177,11 +192,17 @@ export default {
 <template>
   <woot-modal v-model:show="show" :on-close="onClose">
     <div class="flex flex-col h-auto overflow-auto">
-      <woot-modal-header :header-title="$t('ATTRIBUTES_MGMT.ADD.TITLE')" />
+      <woot-modal-header
+        :header-title="
+          catalog
+            ? $t('CATALOG_MGMT.FIELDS_TAB.CUSTOM.ADD_TITLE')
+            : $t('ATTRIBUTES_MGMT.ADD.TITLE')
+        "
+      />
 
       <form class="flex w-full" @submit.prevent="addAttributes">
         <div class="w-full">
-          <label :class="{ error: v$.attributeModel.$error }">
+          <label v-if="!catalog" :class="{ error: v$.attributeModel.$error }">
             {{ $t('ATTRIBUTES_MGMT.ADD.FORM.MODEL.LABEL') }}
             <select v-model="attributeModel">
               <option v-for="model in models" :key="model.id" :value="model.id">
@@ -263,7 +284,7 @@ export default {
               {{ $t('ATTRIBUTES_MGMT.ADD.FORM.TYPE.LIST.ERROR') }}
             </label>
           </div>
-          <div v-if="isAttributeTypeText">
+          <div v-if="isAttributeTypeText && !catalog">
             <input
               v-model="regexEnabled"
               type="checkbox"
@@ -287,13 +308,20 @@ export default {
             type="text"
             :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.REGEX_CUE.PLACEHOLDER')"
           />
-          <label class="flex gap-2 items-center w-fit cursor-pointer">
+          <label
+            v-if="!catalog"
+            class="flex gap-2 items-center w-fit cursor-pointer"
+          >
             <input v-model="isRequired" type="checkbox" class="m-0" />
             {{ $t('ATTRIBUTES_MGMT.ADD.FORM.REQUIRED.LABEL') }}
           </label>
           <label class="flex gap-2 items-center w-fit cursor-pointer">
             <input v-model="isHidden" type="checkbox" class="m-0" />
-            {{ $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL') }}
+            {{
+              catalog
+                ? $t('CATALOG_MGMT.FIELDS_TAB.CUSTOM.INTERNAL_LABEL')
+                : $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL')
+            }}
           </label>
           <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
             <NextButton

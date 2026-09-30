@@ -1,19 +1,30 @@
 {
   "CATALOG_MGMT": {
     "HEADER": "Catálogo",
-    "DESCRIPTION": "Os produtos que o seu time manda na conversa: foto, preço e estoque no mesmo lugar.",
+    "DESCRIPTION": "O que o seu time manda na conversa: foto, preço e informações no mesmo lugar.",
     "SEARCH_PLACEHOLDER": "Buscar por nome ou SKU",
+    "SEARCH_PLACEHOLDER_NO_SKU": "Buscar por nome",
     "LOADING": "Carregando catálogo",
-    "COUNT": "{n} produtos",
+    "COUNT": "{n} {items}",
+    "ITEM": {
+      "SINGULAR": "produto",
+      "PLURAL": "produtos"
+    },
+    "TABS": {
+      "ITEMS": "Itens",
+      "CATEGORIES": "Categorias",
+      "FIELDS": "Campos",
+      "INTEGRATIONS": "Integrações"
+    },
     "ADD": {
-      "BUTTON": "+ Novo produto"
+      "BUTTON": "Adicionar {item}"
     },
     "FILTERS": {
       "ALL_CATEGORIES": "Todas as categorias",
       "VISIBLE_ONLY": "Só visíveis"
     },
     "LIST": {
-      "EMPTY": "Nenhum produto por aqui ainda. Cadastre um para começar a mandar na conversa.",
+      "EMPTY": "Nenhum resultado por aqui. Adicione {items} para mandar na conversa.",
       "ERROR": "Não foi possível carregar o catálogo. Tente de novo em instantes."
     },
     "CARD": {
@@ -24,18 +35,18 @@
       "STOCK": "{n} un."
     },
     "FORM": {
-      "LOADING": "Carregando produto",
+      "LOADING": "Carregando",
       "BACK": "Catálogo",
-      "NEW_TITLE": "Novo produto",
+      "NEW_TITLE": "Adicionar {item}",
       "SAVE": "Salvar",
-      "SAVE_ERROR": "Não foi possível salvar o produto. Tente de novo em instantes.",
-      "LOAD_ERROR": "Não foi possível carregar o produto. Tente de novo em instantes.",
+      "SAVE_ERROR": "Não foi possível salvar. Tente de novo em instantes.",
+      "LOAD_ERROR": "Não foi possível carregar. Tente de novo em instantes.",
       "STATE": {
         "ACTIVE": "Ativo",
         "HIDDEN": "Oculto"
       },
       "PHOTOS": {
-        "LABEL": "Fotos do produto",
+        "LABEL": "Fotos",
         "HINT": "JPG ou PNG, até 2 MB. A primeira foto é a capa. Recomendado 800x800, que é o tamanho que o WhatsApp exibe.",
         "ADD": "Adicionar foto",
         "REMOVE": "Remover foto",
@@ -45,15 +56,22 @@
       },
       "FIELDS": {
         "NAME": "Nome",
-        "NAME_REQUIRED": "Dê um nome ao produto.",
+        "NAME_REQUIRED": "Informe o nome.",
         "DESCRIPTION": "Descrição",
         "PRICE": "Preço",
+        "PRICE_HINT": "Opcional. Sem preço, nada mostra preço.",
         "PROMO_PRICE": "Preço promocional",
         "PRICE_PLACEHOLDER": "0,00",
         "SKU": "SKU / código no ERP",
         "STOCK": "Estoque",
         "CATEGORY": "Categoria",
         "NO_CATEGORY": "Sem categoria"
+      },
+      "CUSTOM_FIELDS": {
+        "TITLE": "Campos",
+        "EMPTY_OPTION": "Selecione",
+        "INTERNAL": "Interno",
+        "INTERNAL_HINT": "Campo interno: não aparece para o cliente."
       },
       "PUBLISH": {
         "TITLE": "Publicação",
@@ -66,18 +84,107 @@
         "TITLE": "Sincronização",
         "PRODUCT_ID": "ID {id}",
         "NOW": "Sincronizar agora",
-        "QUEUED": "Sincronização enfileirada. O produto fica pendente até a Meta confirmar.",
+        "QUEUED": "Sincronização enfileirada. Fica pendente até a Meta confirmar.",
         "ERROR": "Não conseguimos enfileirar a sincronização. Tente de novo em instantes.",
-        "HIDDEN": "Produto oculto sai da Meta na próxima sincronização."
+        "HIDDEN": "Item oculto sai da Meta na próxima sincronização."
       },
       "PREVIEW": {
-        "TITLE": "Como o cliente vê",
-        "ACTION": "Ver produto"
+        "TITLE": "Como o cliente vê"
+      }
+    },
+    "CATEGORIES": {
+      "DESCRIPTION": "Categorias organizam o catálogo e filtram a lista. Apagar uma categoria não apaga os itens dela.",
+      "LOADING": "Carregando categorias",
+      "ADD": "Adicionar categoria",
+      "EMPTY": {
+        "TITLE": "Nenhuma categoria ainda",
+        "HINT": "Crie a primeira para organizar o catálogo.",
+        "BUTTON": "Criar a primeira categoria"
+      },
+      "COUNT": "{n} {items}",
+      "RENAME": "Renomear",
+      "DELETE": "Apagar",
+      "DIALOG": {
+        "CREATE_TITLE": "Adicionar categoria",
+        "RENAME_TITLE": "Renomear categoria",
+        "NAME": "Nome da categoria",
+        "NAME_PLACEHOLDER": "Ex.: Apartamentos",
+        "SAVE": "Salvar",
+        "CANCEL": "Cancelar"
+      },
+      "DELETE_DIALOG": {
+        "TITLE": "Apagar a categoria {name}?",
+        "DESCRIPTION": "{n} {items} ficam sem categoria. Nenhum item é apagado.",
+        "DESCRIPTION_EMPTY": "Nenhum item usa esta categoria.",
+        "CONFIRM": "Apagar",
+        "CANCEL": "Cancelar"
+      },
+      "API": {
+        "LOAD_ERROR": "Não foi possível carregar as categorias. Tente de novo em instantes.",
+        "SAVED": "Categoria salva.",
+        "SAVE_ERROR": "Não foi possível salvar a categoria.",
+        "DELETED": "Categoria apagada.",
+        "DELETE_ERROR": "Não foi possível apagar a categoria."
+      }
+    },
+    "FIELDS_TAB": {
+      "STANDARD": {
+        "TITLE": "Campos padrão",
+        "DESCRIPTION": "Como o item se chama nesta conta e quais campos padrão aparecem no cadastro.",
+        "NAME_TITLE": "Como chamar o item",
+        "SINGULAR": "Singular",
+        "SINGULAR_PLACEHOLDER": "Produto",
+        "PLURAL": "Plural",
+        "PLURAL_PLACEHOLDER": "Produtos",
+        "VISIBILITY_TITLE": "Campos que aparecem",
+        "SKU": "SKU",
+        "SKU_HINT": "O SKU continua sendo usado pela integração com ERP e pelo espelho da Meta.",
+        "STOCK": "Estoque",
+        "FEATURED": "Destaque",
+        "PROMO_PRICE": "Preço promocional",
+        "SAVE": "Salvar",
+        "SAVED": "Campos padrão salvos.",
+        "SAVE_ERROR": "Não foi possível salvar. Tente de novo em instantes."
+      },
+      "CUSTOM": {
+        "TITLE": "Campos personalizados",
+        "DESCRIPTION": "Um conjunto só de campos para todos os itens. Campo vazio não aparece.",
+        "ADD": "Adicionar campo",
+        "EMPTY": "Nenhum campo personalizado ainda.",
+        "KEY": "Chave",
+        "TYPE": "Tipo",
+        "INTERNAL": "Interno",
+        "EDIT": "Editar",
+        "DELETE": "Apagar",
+        "ADD_TITLE": "Adicionar campo",
+        "EDIT_TITLE": "Editar campo",
+        "INTERNAL_LABEL": "Campo interno (não aparece para o cliente)",
+        "DELETE_DIALOG": {
+          "TITLE": "Apagar o campo {name}?",
+          "DESCRIPTION": "O campo some do cadastro, do card e da mensagem ao cliente.",
+          "CONFIRM": "Apagar",
+          "CANCEL": "Cancelar"
+        },
+        "DELETED": "Campo apagado.",
+        "DELETE_ERROR": "Não foi possível apagar o campo."
+      }
+    },
+    "INTEGRATIONS": {
+      "DESCRIPTION": "Ligue o catálogo a outros sistemas.",
+      "META": {
+        "TITLE": "Meta",
+        "DESCRIPTION": "Espelha os itens visíveis no catálogo da Meta. Precisa de uma caixa de entrada do WhatsApp oficial nesta conta.",
+        "CATALOG_ID": "ID do catálogo da Meta",
+        "CATALOG_ID_PLACEHOLDER": "Ex.: 1234567890123456",
+        "SAVE": "Salvar",
+        "SAVED": "ID do catálogo salvo.",
+        "SAVE_ERROR": "Não foi possível salvar. Tente de novo em instantes.",
+        "SYNC_HINT": "Salve o ID do catálogo para poder sincronizar."
       }
     },
     "SYNC_ALL": {
-      "BUTTON": "Sincronizar com a Meta",
-      "QUEUED": "Sincronização enfileirada. Os produtos se atualizam conforme a Meta confirma.",
+      "BUTTON": "Sincronizar tudo",
+      "QUEUED": "Sincronização enfileirada. Os itens se atualizam conforme a Meta confirma.",
       "ERROR": "Não conseguimos enfileirar a sincronização. Tente de novo em instantes."
     },
     "META_STATUS": {
@@ -86,10 +193,11 @@
       "INCOMPLETO": "Incompleto",
       "SYNCED_HINT": "Conferido {time}",
       "PENDING_HINT": "Vai para a Meta na próxima sincronização",
-      "MISSING_HINT": "A Meta precisa de {items} para aceitar este produto",
+      "MISSING_HINT": "A Meta precisa de {missing} para aceitar este item",
       "MISSING": {
         "SKU": "SKU",
-        "FOTO": "foto"
+        "FOTO": "foto",
+        "PRECO": "preço"
       }
     }
   }

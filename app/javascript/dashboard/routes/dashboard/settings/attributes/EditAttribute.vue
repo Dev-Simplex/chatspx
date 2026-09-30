@@ -3,7 +3,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { useAlert } from 'dashboard/composables';
 import { required, minLength } from '@vuelidate/validators';
 import { getRegexp } from 'shared/helpers/Validators';
-import { ATTRIBUTE_TYPES } from './constants';
+import { ATTRIBUTE_TYPES, CATALOG_ATTRIBUTE_TYPES } from './constants';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
 
@@ -18,6 +18,11 @@ export default {
       default: () => {},
     },
     isUpdating: {
+      type: Boolean,
+      default: false,
+    },
+    // Aba Campos do catálogo (ver AddAttribute): sem "obrigatório" e sem regex, com Moeda.
+    catalog: {
       type: Boolean,
       default: false,
     },
@@ -42,27 +47,27 @@ export default {
       tagInputTouched: false,
     };
   },
-  validations: {
-    displayName: {
-      required,
-    },
-    attributeType: {
-      required,
-    },
-    description: {
-      required,
-      minLength: minLength(1),
-    },
-    attributeKey: {
-      required,
-      isKey(value) {
-        return !(value.indexOf(' ') >= 0);
+  validations() {
+    return {
+      displayName: {
+        required,
       },
-    },
+      attributeType: {
+        required,
+      },
+      description: this.catalog ? {} : { required, minLength: minLength(1) },
+      attributeKey: {
+        required,
+        isKey(value) {
+          return !(value.indexOf(' ') >= 0);
+        },
+      },
+    };
   },
   computed: {
     types() {
-      return ATTRIBUTE_TYPES.map(item => ({
+      const types = this.catalog ? CATALOG_ATTRIBUTE_TYPES : ATTRIBUTE_TYPES;
+      return types.map(item => ({
         ...item,
         option: this.$t(`ATTRIBUTES_MGMT.ATTRIBUTE_TYPES.${item.key}`),
       }));
@@ -84,9 +89,10 @@ export default {
     },
 
     pageTitle() {
-      return `${this.$t('ATTRIBUTES_MGMT.EDIT.TITLE')} - ${
-        this.selectedAttribute.attribute_display_name
-      }`;
+      const title = this.catalog
+        ? this.$t('CATALOG_MGMT.FIELDS_TAB.CUSTOM.EDIT_TITLE')
+        : this.$t('ATTRIBUTES_MGMT.EDIT.TITLE');
+      return `${title} - ${this.selectedAttribute.attribute_display_name}`;
     },
     selectedAttributeType() {
       return this.types.find(
@@ -248,7 +254,7 @@ export default {
             {{ $t('ATTRIBUTES_MGMT.ADD.FORM.TYPE.LIST.ERROR') }}
           </label>
         </div>
-        <div v-if="isAttributeTypeText">
+        <div v-if="isAttributeTypeText && !catalog">
           <input
             v-model="regexEnabled"
             type="checkbox"
@@ -272,13 +278,20 @@ export default {
           type="text"
           :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.REGEX_CUE.PLACEHOLDER')"
         />
-        <label class="flex gap-2 items-center w-fit cursor-pointer">
+        <label
+          v-if="!catalog"
+          class="flex gap-2 items-center w-fit cursor-pointer"
+        >
           <input v-model="isRequired" type="checkbox" class="m-0" />
           {{ $t('ATTRIBUTES_MGMT.ADD.FORM.REQUIRED.LABEL') }}
         </label>
         <label class="flex gap-2 items-center w-fit cursor-pointer">
           <input v-model="isHidden" type="checkbox" class="m-0" />
-          {{ $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL') }}
+          {{
+            catalog
+              ? $t('CATALOG_MGMT.FIELDS_TAB.CUSTOM.INTERNAL_LABEL')
+              : $t('ATTRIBUTES_MGMT.ADD.FORM.HIDDEN.LABEL')
+          }}
         </label>
       </div>
       <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">

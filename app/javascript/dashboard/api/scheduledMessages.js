@@ -10,9 +10,11 @@ class ScheduledMessagesAPI extends ApiClient {
   }
 
   // Agendamentos de UMA conversa. `status` aceita pending/sent/failed/cancelled/all.
-  getByConversation(conversationId, { status = 'pending' } = {}) {
+  // Recebe o display_id (o `id` da conversa no front); conversation_id na API é o id
+  // interno, e mandar um no lugar do outro listava agendamentos de outra conversa.
+  getByConversation(conversationDisplayId, { status = 'pending' } = {}) {
     return axios.get(this.url, {
-      params: { conversation_id: conversationId, status },
+      params: { conversation_display_id: conversationDisplayId, status },
     });
   }
 

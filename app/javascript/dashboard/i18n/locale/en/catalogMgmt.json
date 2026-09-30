@@ -1,19 +1,30 @@
 {
   "CATALOG_MGMT": {
     "HEADER": "Catalog",
-    "DESCRIPTION": "The products your team sends in conversations: photo, price and stock, all in one place.",
+    "DESCRIPTION": "What your team sends in conversations: photo, price and details, all in one place.",
     "SEARCH_PLACEHOLDER": "Search by name or SKU",
+    "SEARCH_PLACEHOLDER_NO_SKU": "Search by name",
     "LOADING": "Loading catalog",
-    "COUNT": "{n} products",
+    "COUNT": "{n} {items}",
+    "ITEM": {
+      "SINGULAR": "product",
+      "PLURAL": "products"
+    },
+    "TABS": {
+      "ITEMS": "Items",
+      "CATEGORIES": "Categories",
+      "FIELDS": "Fields",
+      "INTEGRATIONS": "Integrations"
+    },
     "ADD": {
-      "BUTTON": "+ New product"
+      "BUTTON": "Add {item}"
     },
     "FILTERS": {
       "ALL_CATEGORIES": "All categories",
       "VISIBLE_ONLY": "Visible only"
     },
     "LIST": {
-      "EMPTY": "No product here yet. Create one to start sending it in conversations.",
+      "EMPTY": "Nothing here yet. Add {items} to send them in conversations.",
       "ERROR": "We could not load the catalog. Try again in a moment."
     },
     "CARD": {
@@ -24,18 +35,18 @@
       "STOCK": "{n} in stock"
     },
     "FORM": {
-      "LOADING": "Loading product",
+      "LOADING": "Loading",
       "BACK": "Catalog",
-      "NEW_TITLE": "New product",
+      "NEW_TITLE": "Add {item}",
       "SAVE": "Save",
-      "SAVE_ERROR": "We could not save this product. Try again in a moment.",
-      "LOAD_ERROR": "We could not load this product. Try again in a moment.",
+      "SAVE_ERROR": "We could not save. Try again in a moment.",
+      "LOAD_ERROR": "We could not load it. Try again in a moment.",
       "STATE": {
         "ACTIVE": "Active",
         "HIDDEN": "Hidden"
       },
       "PHOTOS": {
-        "LABEL": "Product photos",
+        "LABEL": "Photos",
         "HINT": "JPG or PNG, up to 2 MB. The first photo is the cover. 800x800 is recommended, which is the size WhatsApp shows.",
         "ADD": "Add photo",
         "REMOVE": "Remove photo",
@@ -45,15 +56,22 @@
       },
       "FIELDS": {
         "NAME": "Name",
-        "NAME_REQUIRED": "Give the product a name.",
+        "NAME_REQUIRED": "Enter a name.",
         "DESCRIPTION": "Description",
         "PRICE": "Price",
+        "PRICE_HINT": "Optional. Without a price, no price is shown.",
         "PROMO_PRICE": "Promotional price",
         "PRICE_PLACEHOLDER": "0,00",
         "SKU": "SKU / code in the ERP",
         "STOCK": "Stock",
         "CATEGORY": "Category",
         "NO_CATEGORY": "No category"
+      },
+      "CUSTOM_FIELDS": {
+        "TITLE": "Fields",
+        "EMPTY_OPTION": "Select",
+        "INTERNAL": "Internal",
+        "INTERNAL_HINT": "Internal field: not shown to the customer."
       },
       "PUBLISH": {
         "TITLE": "Publishing",
@@ -66,18 +84,107 @@
         "TITLE": "Sync",
         "PRODUCT_ID": "ID {id}",
         "NOW": "Sync now",
-        "QUEUED": "Sync queued. This product stays pending until Meta confirms it.",
+        "QUEUED": "Sync queued. It stays pending until Meta confirms it.",
         "ERROR": "We could not queue the sync. Try again in a moment.",
-        "HIDDEN": "Hidden products are removed from Meta on the next sync."
+        "HIDDEN": "Hidden items are removed from Meta on the next sync."
       },
       "PREVIEW": {
-        "TITLE": "How the customer sees it",
-        "ACTION": "See product"
+        "TITLE": "How the customer sees it"
+      }
+    },
+    "CATEGORIES": {
+      "DESCRIPTION": "Categories organize the catalog and filter the list. Deleting a category does not delete its items.",
+      "LOADING": "Loading categories",
+      "ADD": "Add category",
+      "EMPTY": {
+        "TITLE": "No categories yet",
+        "HINT": "Create the first one to organize the catalog.",
+        "BUTTON": "Create the first category"
+      },
+      "COUNT": "{n} {items}",
+      "RENAME": "Rename",
+      "DELETE": "Delete",
+      "DIALOG": {
+        "CREATE_TITLE": "Add category",
+        "RENAME_TITLE": "Rename category",
+        "NAME": "Category name",
+        "NAME_PLACEHOLDER": "E.g.: Apartments",
+        "SAVE": "Save",
+        "CANCEL": "Cancel"
+      },
+      "DELETE_DIALOG": {
+        "TITLE": "Delete the category {name}?",
+        "DESCRIPTION": "{n} {items} will have no category. No item is deleted.",
+        "DESCRIPTION_EMPTY": "No item uses this category.",
+        "CONFIRM": "Delete",
+        "CANCEL": "Cancel"
+      },
+      "API": {
+        "LOAD_ERROR": "We could not load the categories. Try again in a moment.",
+        "SAVED": "Category saved.",
+        "SAVE_ERROR": "We could not save the category.",
+        "DELETED": "Category deleted.",
+        "DELETE_ERROR": "We could not delete the category."
+      }
+    },
+    "FIELDS_TAB": {
+      "STANDARD": {
+        "TITLE": "Standard fields",
+        "DESCRIPTION": "What the item is called in this account and which standard fields show up in the form.",
+        "NAME_TITLE": "What to call the item",
+        "SINGULAR": "Singular",
+        "SINGULAR_PLACEHOLDER": "Product",
+        "PLURAL": "Plural",
+        "PLURAL_PLACEHOLDER": "Products",
+        "VISIBILITY_TITLE": "Fields shown",
+        "SKU": "SKU",
+        "SKU_HINT": "The SKU is still used by the ERP integration and by the Meta mirror.",
+        "STOCK": "Stock",
+        "FEATURED": "Featured",
+        "PROMO_PRICE": "Promotional price",
+        "SAVE": "Save",
+        "SAVED": "Standard fields saved.",
+        "SAVE_ERROR": "We could not save. Try again in a moment."
+      },
+      "CUSTOM": {
+        "TITLE": "Custom fields",
+        "DESCRIPTION": "One set of fields for every item. Empty fields are not shown.",
+        "ADD": "Add field",
+        "EMPTY": "No custom fields yet.",
+        "KEY": "Key",
+        "TYPE": "Type",
+        "INTERNAL": "Internal",
+        "EDIT": "Edit",
+        "DELETE": "Delete",
+        "ADD_TITLE": "Add field",
+        "EDIT_TITLE": "Edit field",
+        "INTERNAL_LABEL": "Internal field (not shown to the customer)",
+        "DELETE_DIALOG": {
+          "TITLE": "Delete the field {name}?",
+          "DESCRIPTION": "The field disappears from the form, the card and the message to the customer.",
+          "CONFIRM": "Delete",
+          "CANCEL": "Cancel"
+        },
+        "DELETED": "Field deleted.",
+        "DELETE_ERROR": "We could not delete the field."
+      }
+    },
+    "INTEGRATIONS": {
+      "DESCRIPTION": "Connect the catalog to other systems.",
+      "META": {
+        "TITLE": "Meta",
+        "DESCRIPTION": "Mirrors the visible items to the Meta catalog. Requires an official WhatsApp inbox in this account.",
+        "CATALOG_ID": "Meta catalog ID",
+        "CATALOG_ID_PLACEHOLDER": "E.g.: 1234567890123456",
+        "SAVE": "Save",
+        "SAVED": "Catalog ID saved.",
+        "SAVE_ERROR": "We could not save. Try again in a moment.",
+        "SYNC_HINT": "Save the catalog ID to be able to sync."
       }
     },
     "SYNC_ALL": {
-      "BUTTON": "Sync with Meta",
-      "QUEUED": "Sync queued. Products update as Meta confirms them.",
+      "BUTTON": "Sync everything",
+      "QUEUED": "Sync queued. Items update as Meta confirms them.",
       "ERROR": "We could not queue the sync. Try again in a moment."
     },
     "META_STATUS": {
@@ -86,10 +193,11 @@
       "INCOMPLETO": "Incomplete",
       "SYNCED_HINT": "Checked {time}",
       "PENDING_HINT": "Goes to Meta on the next sync",
-      "MISSING_HINT": "Meta needs {items} to accept this product",
+      "MISSING_HINT": "Meta needs {missing} to accept this item",
       "MISSING": {
         "SKU": "a SKU",
-        "FOTO": "a photo"
+        "FOTO": "a photo",
+        "PRECO": "a price"
       }
     }
   }

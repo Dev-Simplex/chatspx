@@ -4,10 +4,9 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import { useAdmin } from 'dashboard/composables/useAdmin';
-import { useAlert } from 'dashboard/composables';
+import { useCatalogLabels } from 'dashboard/composables/useCatalogLabels';
 import { CatalogCategories, CatalogProducts } from 'dashboard/api/catalog';
-import SettingsLayout from '../SettingsLayout.vue';
-import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
+import CatalogLayout from './CatalogLayout.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
@@ -21,6 +20,7 @@ const POR_PAGINA_PADRAO = 25;
 
 const { t } = useI18n();
 const { isAdmin } = useAdmin();
+const { labels, isFieldHidden } = useCatalogLabels();
 const route = useRoute();
 const router = useRouter();
 
@@ -35,9 +35,8 @@ const total = ref(0);
 const porPagina = ref(POR_PAGINA_PADRAO);
 const carregando = ref(true);
 const erro = ref('');
-// Vem no `meta` da lista: conta sem espelho da Meta configurado não vê selo nem botão.
+// Vem no `meta` da lista: conta sem espelho da Meta configurado não vê selo.
 const metaSyncEnabled = ref(false);
-const sincronizando = ref(false);
 
 const carregar = async () => {
   carregando.value = true;
@@ -79,20 +78,6 @@ const irParaPagina = numero => {
 const buscarComEspera = useDebounceFn(recomecar, ESPERA_DA_BUSCA);
 watch(busca, buscarComEspera);
 watch([categoriaId, soVisiveis], recomecar);
-
-// Só enfileira: o job é assíncrono, então a grade não finge que sincronizou — os selos continuam
-// "pendente" até a Meta confirmar e a lista ser recarregada.
-const sincronizarTudo = async () => {
-  sincronizando.value = true;
-  try {
-    await CatalogProducts.sincronizar();
-    useAlert(t('CATALOG_MGMT.SYNC_ALL.QUEUED'));
-  } catch (e) {
-    useAlert(e?.response?.data?.error || t('CATALOG_MGMT.SYNC_ALL.ERROR'));
-  } finally {
-    sincronizando.value = false;
-  }
-};
 
 const carregarCategorias = async () => {
   try {
@@ -137,45 +122,44 @@ const abrirCadastro = (produto = null) => {
 </script>
 
 <template>
-  <SettingsLayout
+  <CatalogLayout
+    v-model:search-query="busca"
+    :description="$t('CATALOG_MGMT.DESCRIPTION')"
+    :search-placeholder="
+      isFieldHidden('sku')
+        ? $t('CATALOG_MGMT.SEARCH_PLACEHOLDER_NO_SKU')
+        : $t('CATALOG_MGMT.SEARCH_PLACEHOLDER')
+    "
     :is-loading="carregando"
     :loading-message="$t('CATALOG_MGMT.LOADING')"
     :no-records-found="semRegistros"
-    :no-records-message="$t('CATALOG_MGMT.LIST.EMPTY')"
+    :no-records-message="$t('CATALOG_MGMT.LIST.EMPTY', labels)"
   >
-    <template #header>
-      <BaseSettingsHeader
-        v-model:search-query="busca"
-        :title="$t('CATALOG_MGMT.HEADER')"
-        :description="$t('CATALOG_MGMT.DESCRIPTION')"
-        :search-placeholder="$t('CATALOG_MGMT.SEARCH_PLACEHOLDER')"
+    <template #count>
+      <span
+        data-testid="catalogo-contador"
+        class="min-w-0 truncate text-body-main text-n-slate-11"
       >
-        <template #count>
-          <span class="min-w-0 truncate text-body-main text-n-slate-11">
-            {{ $t('CATALOG_MGMT.COUNT', { n: total }) }}
-          </span>
-        </template>
-        <template #actions>
-          <Button
-            v-if="isAdmin && metaSyncEnabled"
-            data-testid="sincronizar-meta"
-            :label="$t('CATALOG_MGMT.SYNC_ALL.BUTTON')"
-            :is-loading="sincronizando"
-            icon="i-lucide-refresh-cw"
-            size="sm"
-            variant="faded"
-            color="slate"
-            @click="sincronizarTudo"
-          />
-          <Button
-            v-if="isAdmin"
-            :label="$t('CATALOG_MGMT.ADD.BUTTON')"
-            size="sm"
-            @click="abrirCadastro()"
-          />
-        </template>
-      </BaseSettingsHeader>
-      <div class="flex flex-wrap items-center gap-3 mt-4">
+        {{
+          $t('CATALOG_MGMT.COUNT', {
+            n: total,
+            items: total === 1 ? labels.item : labels.items,
+          })
+        }}
+      </span>
+    </template>
+    <template #actions>
+      <Button
+        v-if="isAdmin"
+        data-testid="novo-item"
+        :label="$t('CATALOG_MGMT.ADD.BUTTON', labels)"
+        icon="i-lucide-plus"
+        size="sm"
+        @click="abrirCadastro()"
+      />
+    </template>
+    <template #filters>
+      <div class="flex flex-wrap items-center gap-3">
         <Select
           v-model="categoriaId"
           data-testid="filtro-categoria"
@@ -223,5 +207,5 @@ const abrirCadastro = (produto = null) => {
         @update:current-page="irParaPagina"
       />
     </template>
-  </SettingsLayout>
+  </CatalogLayout>
 </template>

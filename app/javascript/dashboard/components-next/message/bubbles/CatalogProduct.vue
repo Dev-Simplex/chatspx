@@ -21,6 +21,9 @@ const produtos = computed(() => contentAttributes.value?.catalogProducts ?? []);
 const emPromocao = produto =>
   produto.promoPriceCents && produto.promoPriceCents < produto.priceCents;
 
+const temPreco = produto =>
+  produto.currentPriceCents !== null && produto.currentPriceCents !== undefined;
+
 const dinheiro = (centavos, moeda) =>
   ((centavos ?? 0) / 100).toLocaleString('pt-BR', {
     style: 'currency',
@@ -44,7 +47,8 @@ const dinheiro = (centavos, moeda) =>
         />
         <div class="flex flex-col gap-0.5 min-w-0">
           <span class="font-medium break-words">{{ produto.name }}</span>
-          <span class="flex items-baseline gap-1.5">
+          <!-- Item sem preço não mostra preço. -->
+          <span v-if="temPreco(produto)" class="flex items-baseline gap-1.5">
             <span class="font-medium">
               {{ dinheiro(produto.currentPriceCents, produto.currency) }}
             </span>
@@ -54,6 +58,16 @@ const dinheiro = (centavos, moeda) =>
             >
               {{ dinheiro(produto.priceCents, produto.currency) }}
             </span>
+          </span>
+          <!-- Campos personalizados do retrato, já formatados pelo servidor e sem os internos.
+               Mensagem antiga não tem `customFields` e segue abrindo igual. -->
+          <span
+            v-for="campo in produto.customFields ?? []"
+            :key="campo.label"
+            class="text-sm break-words"
+          >
+            <span class="opacity-70">{{ campo.label }}:</span>
+            {{ campo.value }}
           </span>
           <span
             v-if="produto.description"

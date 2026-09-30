@@ -946,17 +946,17 @@
     },
     "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente.",
     "CATALOG": {
-      "MENU": "Catálogo",
-      "TITLE": "Enviar produto",
+      "MENU": "Enviar {item}",
+      "TITLE": "Enviar {item}",
       "SEARCH": "Buscar por nome ou SKU",
       "LOADING": "Carregando…",
-      "EMPTY": "Nenhum produto encontrado.",
+      "EMPTY": "Nenhum resultado.",
       "SELECTED": "{count} selecionado(s)",
       "SEND": "Enviar",
       "CANCEL": "Cancelar",
       "CLOSE": "Fechar",
-      "WAHA_NOTICE_ONE": "Nesta caixa o produto vai como foto com legenda — não existe card de produto nativo.",
-      "WAHA_NOTICE_MANY": "Nesta caixa vai como álbum de fotos mais um menu numerado — não existe card de produto nativo."
+      "WAHA_NOTICE_ONE": "Nesta caixa vai como foto com legenda.",
+      "WAHA_NOTICE_MANY": "Nesta caixa vai como álbum de fotos mais um menu numerado."
     },
     "HANDOVER_CUT": {
       "BANNER": "Esta conversa foi transferida para você em {date}. O histórico anterior não fica visível."

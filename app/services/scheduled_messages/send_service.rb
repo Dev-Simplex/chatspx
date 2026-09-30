@@ -15,7 +15,8 @@ class ScheduledMessages::SendService
     return mark_as_failed(I18n.t('errors.read_only_inbox.message_blocked')) if scheduled_message.conversation.inbox.read_only?
     return deliver_as_assistant if scheduled_message.try(:captain_assistant).present?
 
-    if scheduled_message.message_id.present?
+    existing_message = scheduled_message.message_id.present?
+    if existing_message
       message = scheduled_message.sent_message
       return mark_as_failed('Associated message not found') if message.blank?
 
@@ -55,7 +56,10 @@ class ScheduledMessages::SendService
     end
     attach_scheduled_attachments!(message)
 
-    ::SendReplyJob.perform_later(message.id)
+    # CHAT-174: a Message criada acima já foi para o SendReplyJob no callback de criação
+    # (Message#send_reply); enfileirar de novo mandava a mesma mensagem duas vezes ao canal.
+    # Só a Message que já existia precisa do envio explícito.
+    ::SendReplyJob.perform_later(message.id) if existing_message
     attrs = { status: :sent }
     attrs[:sent_at] = Time.current if scheduled_message.class.column_names.include?('sent_at')
     scheduled_message.update!(attrs)
