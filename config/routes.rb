@@ -838,6 +838,7 @@ Rails.application.routes.draw do
   # dele (o link assinado do ActiveStorage morre em 30 min em produção). O `:id` é o `signed_id` do
   # produto, sem expiração: `/:account_id/:product_id` cru deixaria o catálogo alheio enumerável.
   get 'catalogo/fotos/:id', to: 'catalog/public_images#show', as: :catalog_public_image
+  get 'catalogo/fotos/extras/:id', to: 'catalog/public_images#extra', as: :catalog_public_extra_image
 
   get 'hc/:slug', to: 'public/api/v1/portals#show'
   get 'hc/:slug/sitemap.xml', to: 'public/api/v1/portals#sitemap'

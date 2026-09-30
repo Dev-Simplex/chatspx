@@ -135,7 +135,9 @@ class Catalog::MetaSyncService
       currency: produto.currency,
       availability: disponibilidade(produto),
       condition: 'new',
-      image_url: produto.public_image_url
+      image_url: produto.public_image_url,
+      # A galeria do item no WhatsApp: é por ela que o cliente vê as outras fotos na mensagem nativa.
+      additional_image_urls: produto.public_extra_image_urls
     }
     # Promoção tem campo próprio na Meta. Baixar o `price` mostraria o promocional como se fosse o
     # cheio, sem o risco cortado que faz a promoção vender.

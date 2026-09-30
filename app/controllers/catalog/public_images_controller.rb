@@ -16,7 +16,23 @@ class Catalog::PublicImagesController < ApplicationController
     # é pior para o cliente final do que item ausente.
     return head :not_found if produto.nil? || !produto.visible? || produto.capa.blank?
 
+    servir(produto.capa)
+  end
+
+  # As fotos da galeria (`additional_image_urls`). A assinatura é da própria foto, então foto
+  # apagada é 404 sem mexer na URL das outras.
+  def extra
+    imagem = ActiveStorage::Attachment.find_signed(params[:id], purpose: CatalogProduct::IMAGEM_PUBLICA)
+    produto = imagem&.record
+    return head :not_found unless produto.is_a?(CatalogProduct) && produto.visible?
+
+    servir(imagem)
+  end
+
+  private
+
+  def servir(imagem)
     expires_in CACHE, public: true
-    send_data produto.capa.download, type: produto.capa.content_type, disposition: 'inline'
+    send_data imagem.download, type: imagem.content_type, disposition: 'inline'
   end
 end
