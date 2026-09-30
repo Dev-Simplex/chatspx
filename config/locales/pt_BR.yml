@@ -79,6 +79,9 @@ pt_BR:
         close_hour: Hora de fechar
         close_minutes: Minuto de fechar
   errors:
+    performance_goals:
+      forbidden: "Você não tem acesso às metas."
+      past_month: "Metas de meses passados não podem ser alteradas."
     suggestions:
       media:
         type: 'deve ser uma foto ou um vídeo'

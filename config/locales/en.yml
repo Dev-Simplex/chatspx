@@ -63,6 +63,9 @@ en:
         supervised_team_ids: Supervised teams
 
   errors:
+    performance_goals:
+      forbidden: "You don't have access to goals."
+      past_month: "Goals of past months can't be changed."
     suggestions:
       media:
         type: 'must be a photo or a video'

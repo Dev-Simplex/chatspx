@@ -168,6 +168,11 @@ Rails.application.routes.draw do
           resource :lead_campaigns, only: [:show, :update], controller: 'lead_campaigns'
           # Caixa de sugestoes: qualquer membro da conta cria e le as proprias (SUG-01).
           resources :suggestions, only: [:index, :create]
+          # CHAT-177: metas mensais e ranking do time.
+          get 'performance_goals', to: 'performance_goals#index'
+          put 'performance_goals', to: 'performance_goals#update'
+          patch 'performance_goals/visibility', to: 'performance_goals#visibility'
+          get 'performance_ranking', to: 'performance_rankings#show'
 
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do

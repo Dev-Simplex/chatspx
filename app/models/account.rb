@@ -41,6 +41,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'audio_transcriptions': { 'type': %w[boolean null] },
         'auto_resolve_label': { 'type': %w[string null] },
         'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
+        'goals_visibility': { 'type': %w[string null], 'enum': ['managers', 'own', 'everyone', nil] },
         'resolve_assignment_gate': { 'type': %w[boolean null] },
         'takeover_request_gate': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
@@ -121,6 +122,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :openai_api_key, :openai_model_default, :openai_model_advanced, :openai_model_vision
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
+  # CHAT-177: quem enxerga o ranking de metas (managers | own | everyone). Ver PerformanceGoals::Access.
+  store_accessor :settings, :goals_visibility
   store_accessor :settings, :keep_pending_on_bot_failure
   # Catálogo é opt-in por conta, e não por feature flag: o `config/features.yml` já tem 65
   # features para os 63 bits úteis de `feature_flags`, então flag nova simplesmente não liga.
