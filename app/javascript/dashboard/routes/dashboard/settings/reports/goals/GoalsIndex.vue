@@ -32,6 +32,7 @@ const data = ref(null);
 const teams = ref([]);
 const loading = ref(false);
 const failed = ref(false);
+const errorMessage = ref('');
 const editing = ref(false);
 
 const monthLabel = key => {
@@ -100,6 +101,11 @@ const load = async () => {
     }
   } catch (error) {
     failed.value = true;
+    // 403: o servidor diz que não há acesso; o resto é erro de carga.
+    errorMessage.value =
+      error?.response?.status === 403
+        ? error.response.data?.error
+        : t('PERFORMANCE_GOALS.ERROR');
     data.value = null;
   } finally {
     loading.value = false;
@@ -147,7 +153,7 @@ onMounted(load);
         <select
           v-model="month"
           :aria-label="$t('PERFORMANCE_GOALS.MONTH')"
-          class="reset-base h-9 px-3 text-sm border rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
+          class="reset-base !w-auto min-w-[12rem] h-9 px-3 text-sm border rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
         >
           <option v-for="key in monthOptions" :key="key" :value="key">
             {{ monthLabel(key) }}
@@ -176,7 +182,7 @@ onMounted(load);
         <select
           v-if="scope === 'users' && canManage && teams.length"
           v-model="teamId"
-          class="reset-base h-9 px-3 text-sm border rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
+          class="reset-base !w-auto min-w-[12rem] h-9 px-3 text-sm border rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
         >
           <option value="">{{ $t('PERFORMANCE_GOALS.ALL_TEAMS') }}</option>
           <option v-for="team in teams" :key="team.id" :value="team.id">
@@ -193,7 +199,7 @@ onMounted(load);
         <span class="i-lucide-loader-circle size-4 animate-spin" />
       </p>
       <p v-else-if="failed" class="text-sm text-n-ruby-11">
-        {{ $t('PERFORMANCE_GOALS.ERROR') }}
+        {{ errorMessage }}
       </p>
 
       <template v-else>

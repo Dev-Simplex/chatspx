@@ -199,7 +199,7 @@ onMounted(load);
     <div class="flex flex-wrap items-center gap-3">
       <select
         v-model="editMonth"
-        class="reset-base h-9 px-3 text-sm border rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
+        class="reset-base !w-auto min-w-[12rem] h-9 px-3 text-sm border rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
       >
         <option v-for="option in monthOptions" :key="option" :value="option">
           {{ monthLabel(option) }}
@@ -228,7 +228,7 @@ onMounted(load);
       <select
         v-if="tab === 'users' && data?.teams?.length"
         v-model="teamId"
-        class="reset-base h-9 px-3 text-sm border rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
+        class="reset-base !w-auto min-w-[12rem] h-9 px-3 text-sm border rounded-lg border-n-weak bg-n-solid-1 text-n-slate-12"
       >
         <option value="">{{ $t('PERFORMANCE_GOALS.ALL_TEAMS') }}</option>
         <option v-for="team in data.teams" :key="team.id" :value="team.id">
@@ -272,7 +272,7 @@ onMounted(load);
                 type="number"
                 min="0"
                 step="any"
-                class="reset-base w-24 h-8 px-2 text-sm border rounded-lg border-n-weak bg-n-solid-2 text-n-slate-12"
+                class="reset-base !w-24 h-8 px-2 text-sm border rounded-lg border-n-weak bg-n-solid-2 text-n-slate-12"
               />
             </td>
           </tr>
@@ -295,7 +295,7 @@ onMounted(load);
                 type="number"
                 min="0"
                 step="any"
-                class="reset-base w-24 h-8 px-2 text-sm border rounded-lg border-n-weak bg-n-solid-2 text-n-slate-12"
+                class="reset-base !w-24 h-8 px-2 text-sm border rounded-lg border-n-weak bg-n-solid-2 text-n-slate-12"
               />
               <p
                 v-if="sinceLabel(target, metric)"
