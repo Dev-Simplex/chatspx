@@ -13,6 +13,7 @@ import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import TakeoverApprovalBanner from 'dashboard/components-next/Conversation/TakeoverApprovalBanner.vue';
+import AiScheduledMessagesBanner from 'dashboard/components-next/Conversation/AiScheduledMessagesBanner.vue';
 import TypingIndicator from 'next/message/TypingIndicator.vue';
 import { useAlert } from 'dashboard/composables';
 import { messageTimestamp } from 'shared/helpers/timeHelper';
@@ -47,6 +48,7 @@ export default {
     ForwardMessageModal,
     ReplyBox,
     TakeoverApprovalBanner,
+    AiScheduledMessagesBanner,
     Banner,
     ConversationLabelSuggestion,
     Spinner,
@@ -620,6 +622,10 @@ export default {
     <!-- D1 (Fase 3): pedido de atendimento pendente p/ o dono. Auto-suficiente
          (lê o store); só renderiza p/ o dono da conversa com pedido pendente. -->
     <TakeoverApprovalBanner />
+    <AiScheduledMessagesBanner
+      :conversation-display-id="currentChat.id"
+      :messages-count="(currentChat.messages || []).length"
+    />
     <!-- EA-01: a conversa chegou por pedido aprovado — o histórico anterior não é visível para
          este agente. Sem este aviso ele acha que a conversa começou ali e trata cliente antigo
          como novo, que é pior do que não ver o histórico. -->
