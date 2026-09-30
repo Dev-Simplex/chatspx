@@ -64,7 +64,7 @@ const dinheiro = (centavos, moeda) =>
           <span
             v-for="campo in produto.customFields ?? []"
             :key="campo.label"
-            class="text-sm break-words"
+            class="text-sm [overflow-wrap:anywhere]"
           >
             <span class="opacity-70">{{ campo.label }}:</span>
             {{ campo.value }}

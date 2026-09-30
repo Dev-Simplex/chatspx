@@ -87,8 +87,12 @@ export const createPendingMessage = data => {
   return pendingMessage;
 };
 
+// Tira o acento antes de limpar: sem isso "Dormitórios" virava a chave "dormitrios", porque a
+// letra acentuada caía no filtro de caracteres especiais.
 export const convertToAttributeSlug = text => {
   return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^\w ]+/g, '')
     .replace(/ +/g, '_');
