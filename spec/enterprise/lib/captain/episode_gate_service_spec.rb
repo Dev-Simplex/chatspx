@@ -91,5 +91,50 @@ RSpec.describe Captain::EpisodeGateService do
 
       expect(findings.map { |f| f['categoria'] }).to include('contradisse_tool')
     end
+
+    # Contradição é de FATO consultado. Numa mensagem que tem busca, faq e handoff na janela, o
+    # gate gravava um finding por ferramenta — 4 a 7 flagras numa frase só (Tozi, 29/09).
+    it 'gera um finding por mensagem, não um por ferramenta da janela' do
+      tool('buscar_imovel', 'cód 9908 Casa no Centro, R$ 1.200', quando: 3.minutes.ago)
+      tool('faq_lookup', 'Aceitamos pet em todos os imóveis.', quando: 150.seconds.ago)
+      tool('handoff', 'Time humano acionado.', quando: 2.minutes.ago)
+      fala_da_ia('não encontrei nenhum imóvel nesse perfil', quando: 1.minute.ago)
+
+      contradicoes = findings.select { |f| f['categoria'] == 'contradisse_tool' }
+      expect(contradicoes.size).to eq(1)
+      expect(contradicoes.first['porque']).to include('buscar_imovel', 'faq_lookup')
+    end
+  end
+
+  # Nos 20 casos de 29/09, 37 dos 61 flagras do gate eram em ferramenta que REGISTRA ou AGE:
+  # ela sempre "devolve resultado" ("Time humano acionado") e não diz nada sobre o acervo.
+  describe 'ferramenta de registro ou ação na janela' do
+    %w[handoff atualizar_resumo salvar_info_lead programar_followup enviar_fotos_imovel].each do |nome|
+      it "#{nome} não torna a negação da IA uma contradição" do
+        tool(nome, 'Registrado com sucesso.')
+        fala_da_ia('no Centro não temos, mas tenho opções perto', quando: 1.minute.ago)
+
+        expect(findings.map { |f| f['categoria'] }).not_to include('contradisse_tool')
+      end
+    end
+  end
+
+  describe 'busca que só confirmou parte ou ampliou o critério' do
+    # `parcial` nunca autoriza "todos" nem "nenhum" — nem para a IA, nem para o gate acusá-la.
+    it 'retorno parcial não gera contradição' do
+      tool('buscar_imovel', 'cód 9908 Casa no Centro. Parte da lista não pôde ser conferida.', status: 'parcial')
+      fala_da_ia('mobiliado não encontrei, mas tenho estas', quando: 1.minute.ago)
+
+      expect(findings.map { |f| f['categoria'] }).not_to include('contradisse_tool')
+    end
+
+    # A própria ferramenta manda dizer que no critério pedido não há e oferecer as alternativas.
+    it 'busca ampliada para outros bairros não gera contradição' do
+      tool('buscar_imovel', 'Sem imóvel no critério exato (Bella Suíça). As opções abaixo são da mesma cidade ' \
+                            'e critério, porém em OUTROS bairros. cód 10034 Casa no Novo Horizonte')
+      fala_da_ia('no Bella Suíça mesmo não temos, mas achei estas opções', quando: 1.minute.ago)
+
+      expect(findings.map { |f| f['categoria'] }).not_to include('contradisse_tool')
+    end
   end
 end
