@@ -1,0 +1,58 @@
+{
+  "PERFORMANCE_GOALS": {
+    "MENU": "Goals",
+    "TITLE": "Goals",
+    "DESCRIPTION": "Monthly goals for each agent and team, and how much of them each one reached.",
+    "CRITERIA_HELP": "People and teams use the same criteria as the agent and team reports; their totals don't add up to each other.",
+    "PEOPLE": "People",
+    "TEAMS": "Teams",
+    "ALL_TEAMS": "All teams",
+    "MONTH": "Month",
+    "METRICS": {
+      "RESOLVED_CONVERSATIONS": "Resolved conversations",
+      "FIRST_RESPONSE_TIME": "First response time",
+      "NPS": "NPS",
+      "KANBAN_WINS": "Won deals"
+    },
+    "OVERALL": "Overall",
+    "POSITION": "#",
+    "NAME": "Name",
+    "YOU": "you",
+    "NO_GOAL": "no goal",
+    "NO_DATA": "no data",
+    "HIDDEN": "—",
+    "MINUTES": "{value} min",
+    "MINUTES_WITH_GOAL": "{value} min (goal {goal} min)",
+    "OF_GOAL": "{actual} / {goal}",
+    "MY_PERFORMANCE": "My performance",
+    "WITHOUT_GOAL": "No goal set",
+    "EMPTY": "No goals set for this month.",
+    "ERROR": "Could not load the goals. Try again.",
+    "KANBAN_NOT_CONFIGURED": "Mark a Kanban stage as won for this metric to work.",
+    "KANBAN_LINK": "Open Kanban",
+    "KANBAN_LIMITATION": "A card taken out of the won stage stops counting.",
+    "DEFINE": "Set goals",
+    "EDITOR": {
+      "TITLE": "Set goals",
+      "MONTH_HINT": "Goals are valid from this month on, until changed.",
+      "BACK": "Back to ranking",
+      "APPLY_ALL": "Apply to all in the team",
+      "APPLY_HINT": "Fills the visible rows with the values typed in this row.",
+      "SINCE": "in force since {month}",
+      "SAVE": "Save",
+      "SAVED": "Goals saved.",
+      "SAVE_ERROR": "Could not save the goals.",
+      "EMPTY_HINT": "Empty field = no goal."
+    },
+    "VISIBILITY": {
+      "TITLE": "Who sees the ranking",
+      "SAVED": "Visibility updated.",
+      "MANAGERS": "Managers only",
+      "MANAGERS_HINT": "Agents don't see goals or the ranking.",
+      "OWN": "Each agent sees their own",
+      "OWN_HINT": "Agents see only their own performance.",
+      "EVERYONE": "Ranking for everyone",
+      "EVERYONE_HINT": "Agents see their own performance and the ranking of their teams, with colleagues' percentages (never their numbers)."
+    }
+  }
+}
