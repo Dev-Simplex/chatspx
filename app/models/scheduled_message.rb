@@ -54,6 +54,11 @@ class ScheduledMessage < ApplicationRecord
 
   scope :pending, -> { where(status: :pending) }
   scope :upcoming, -> { where('scheduled_at > ?', Time.current).order(:scheduled_at) }
+  scope :da_ia, -> { where.not(captain_assistant_id: nil) }
+
+  def self.agendada_da_ia_pendente?(conversation)
+    pending.da_ia.exists?(conversation_id: conversation.id)
+  end
 
   def scheduled_at_must_be_in_future
     return if scheduled_at.blank?

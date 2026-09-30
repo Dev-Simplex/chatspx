@@ -70,6 +70,33 @@ RSpec.describe ScheduledMessages::SendService do
         expect(scheduled.reload).to be_sent
       end
 
+      describe 'com template de duas variáveis' do
+        let(:template_body) { 'Oi {{1}}, retomando o que combinamos: {{2}} Pode me responder por aqui?' }
+
+        it 'preenche cada variável pela origem configurada, com o texto pronto numa linha só' do
+          assistant.update!(behavior: { 'agendada' => { 'template_fora_janela' => template_configurado.merge(
+            'variaveis' => { '1' => 'primeiro_nome', '2' => 'texto' }
+          ) } })
+          scheduled = agendada_da_ia(texto: "Deu certo de conversar?\n\nSe quiser, marco a visita.")
+          message = described_class.new(scheduled_message: scheduled).perform
+
+          expect(message.content).to eq('Oi Maria, retomando o que combinamos: Deu certo de conversar? Se quiser, marco a visita. ' \
+                                        'Pode me responder por aqui?')
+          expect(message.additional_attributes.dig('template_params', 'processed_params', 'body')).to eq(
+            '1' => 'Maria', '2' => 'Deu certo de conversar? Se quiser, marco a visita.'
+          )
+        end
+
+        it 'não envia quando uma variável do template não tem origem configurada' do
+          assistant.update!(behavior: { 'agendada' => { 'template_fora_janela' => template_configurado } })
+          scheduled = agendada_da_ia
+          expect(described_class.new(scheduled_message: scheduled).perform).to be_nil
+
+          expect(scheduled.reload.error_message).to eq(I18n.t('scheduled_messages.errors.template_unsupported_variables'))
+          expect(conversation.messages.outgoing.count).to eq(0)
+        end
+      end
+
       it 'não envia e registra na conversa quando o agente não tem template configurado' do
         scheduled = agendada_da_ia
         expect(described_class.new(scheduled_message: scheduled).perform).to be_nil
@@ -87,8 +114,71 @@ RSpec.describe ScheduledMessages::SendService do
         expect(described_class.new(scheduled_message: scheduled).perform).to be_nil
 
         expect(scheduled.reload).to be_failed
-        expect(scheduled.error_message).to eq(I18n.t('scheduled_messages.errors.template_without_contact_name'))
+        expect(scheduled.error_message).to eq(I18n.t('scheduled_messages.errors.template_without_primeiro_nome'))
         expect(conversation.messages.outgoing.count).to eq(0)
+      end
+    end
+  end
+
+  describe 'revisão pela IA no horário' do
+    let(:agendada) do
+      ScheduledMessage.create!(conversation: conversation, inbox: inbox, message: 'Texto pronto', scheduled_at: 1.minute.from_now,
+                               status: :pending, captain_assistant_id: assistant.id, created_at: 3.hours.ago)
+    end
+
+    before do
+      cliente_falou(4.hours)
+      conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+      allow(Captain::Conversation::ResponseBuilderJob).to receive(:perform_now)
+    end
+
+    it 'sem fala nova do cliente, envia o texto pronto sem acionar a IA' do
+      message = described_class.new(scheduled_message: agendada).perform
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(message.content).to eq('Texto pronto')
+    end
+
+    context 'when the client wrote after the scheduling and the AI owns the conversation' do
+      before { cliente_falou(1.hour) }
+
+      it 'a IA revisa e a mensagem dela é a agendada cumprida' do
+        allow(Captain::Conversation::ResponseBuilderJob).to receive(:perform_now) do
+          conversation.messages.create!(message_type: :outgoing, account_id: account.id, inbox_id: inbox.id,
+                                        sender: assistant, content: 'Texto ajustado')
+        end
+
+        message = described_class.new(scheduled_message: agendada).perform
+
+        expect(Captain::Conversation::ResponseBuilderJob).to have_received(:perform_now)
+          .with(conversation, assistant, directive: a_string_including('Texto pronto'))
+        expect(message.content).to eq('Texto ajustado')
+        expect(agendada.reload).to be_sent
+      end
+
+      it 'a IA desiste e a agendada fica cancelada com o motivo' do
+        expect(described_class.new(scheduled_message: agendada).perform).to be_nil
+
+        expect(agendada.reload).to be_cancelled
+        expect(agendada.error_message).to eq(I18n.t('scheduled_messages.errors.discarded_by_assistant_review'))
+      end
+
+      it 'com humano atribuído, sai como foi escrita, sem revisão' do
+        conversation.update!(assignee: human)
+
+        message = described_class.new(scheduled_message: agendada).perform
+
+        expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+        expect(message.content).to eq('Texto pronto')
+      end
+
+      it 'com handoff esperando humano, sai como foi escrita, sem revisão' do
+        conversation.update!(custom_attributes: { 'aguardando_humano_desde' => 30.minutes.ago.iso8601 })
+
+        described_class.new(scheduled_message: agendada).perform
+
+        expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+        expect(agendada.reload).to be_sent
       end
     end
   end

@@ -95,6 +95,11 @@
   description: 'Programa uma cutucada futura pra retomar a conversa se o cliente não responder'
   icon: 'clock'
 
+- id: agendar_mensagem
+  title: 'Mensagem Agendada'
+  description: 'Deixa pronta a mensagem para o momento que o cliente combinou e a reagenda ou cancela conforme a conversa'
+  icon: 'clock'
+
 - id: enviar_localizacao
   title: 'Enviar Localização do Escritório'
   description: 'Envia ao cliente o pin de localização do escritório da Tozi no mapa'

@@ -73,10 +73,18 @@ class ScheduledMessages::SendService
   def deliver_as_assistant
     delivery = ScheduledMessages::AssistantDeliveryService.new(scheduled_message: scheduled_message)
     message = delivery.perform
+    # Na revisão a IA pode ter reagendado: a agendada nova substituiu esta, que já saiu de cena.
+    return if scheduled_message.reload.cancelled?
+    return discard(delivery.error) if delivery.descartada?
     return mark_as_failed(delivery.error) if message.nil?
 
     scheduled_message.update!(status: :sent, sent_at: Time.current, message_id: message.id)
     message
+  end
+
+  def discard(reason)
+    scheduled_message.update!(status: :cancelled, error_message: reason)
+    nil
   end
 
   def mark_as_failed(msg)

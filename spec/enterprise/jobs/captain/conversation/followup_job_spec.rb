@@ -49,6 +49,29 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
     end
   end
 
+  # CHAT-165: com agendada da IA pendente, é ela que cumpre o combinado; a cutucada não sai.
+  context 'when the AI has a pending scheduled message in the conversation' do
+    before do
+      ScheduledMessage.create!(conversation: conversation, inbox: inbox, message: 'Texto pronto', scheduled_at: 3.hours.from_now,
+                               status: :pending, captain_assistant_id: assistant.id)
+    end
+
+    it 'does not fire the nudge nor consume followup_count' do
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(conversation.reload.custom_attributes['followup_count']).to eq(1)
+    end
+
+    it 'still fires when the pending scheduled message is from a person' do
+      ScheduledMessage.update_all(captain_assistant_id: nil) # rubocop:disable Rails/SkipsModelValidations
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).to have_received(:perform_now)
+    end
+  end
+
   context 'when the conversation was transferred to another assistant (IA→IA)' do
     it 'fires the nudge from the CURRENT owner, not the one that scheduled it' do
       other_assistant = create(:captain_assistant, account: account)

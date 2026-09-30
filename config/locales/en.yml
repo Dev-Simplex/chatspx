@@ -575,8 +575,10 @@ en:
       failed_to_create: 'Failed to create message'
       only_pending_allowed: 'Only pending messages can be modified or cancelled'
       window_closed_no_template: 'the messaging window is closed and the agent has no template configured for it'
-      template_unsupported_variables: 'the configured template has variables that cannot be filled automatically'
-      template_without_contact_name: 'the configured template needs the contact name, and the contact has none'
+      template_unsupported_variables: 'the configured template has a variable without a known source in the agent configuration'
+      template_without_primeiro_nome: 'the configured template needs the contact name, and the contact has none'
+      template_without_texto: 'the scheduled message has no text to fill the template'
+      discarded_by_assistant_review: 'the AI agent reviewed it at the scheduled time and decided not to send it'
     activity:
       assistant_not_sent: 'Scheduled message from the AI agent was not sent: %{reason}.'
   auto_assignment:
