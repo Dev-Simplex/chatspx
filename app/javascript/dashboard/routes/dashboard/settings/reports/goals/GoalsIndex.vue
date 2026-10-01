@@ -235,6 +235,7 @@ onUnmounted(() => clearInterval(timer));
         :header-description="$t('PERFORMANCE_GOALS.DESCRIPTION')"
       >
         <Button
+          v-if="!failed"
           :label="$t('PERFORMANCE_GOALS.HOW_IT_WORKS')"
           icon="i-lucide-circle-help"
           size="sm"
@@ -270,7 +271,7 @@ onUnmounted(() => clearInterval(timer));
         {{ $t('PERFORMANCE_GOALS.CRITERIA_HELP') }}
       </p>
 
-      <GoalsHelp v-if="showHelp" class="mb-6" @close="toggleHelp" />
+      <GoalsHelp v-if="showHelp && !failed" class="mb-6" @close="toggleHelp" />
 
       <div
         v-if="loading"
