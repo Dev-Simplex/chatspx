@@ -26,8 +26,8 @@ class Captain::Conversation::EpisodeContinuityNote
 
   # String pro histórico do turno, ou nil quando não há atendimento anterior.
   def text
-    # Fronteira derivada no instante do turno quando a tabela do cron ainda não a tem —
-    # sem isso a nota também só apareceria a partir do segundo turno da reentrada.
+    # Fronteira derivada no instante do turno, não lida da tabela do cron — sem isso a nota
+    # também só apareceria a partir do segundo turno da reentrada.
     fronteira = Captain::Conversation::EpisodeBoundary.new(conversation: @conversation)
     atual = fronteira.atual
     # Contato novo (atendimento 1) não tem do que ser lembrado — a nota nasce na reentrada.
