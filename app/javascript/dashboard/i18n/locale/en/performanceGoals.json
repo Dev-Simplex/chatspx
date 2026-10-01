@@ -87,6 +87,33 @@
     "HITS": "{hit}/{total} goals hit",
     "DAYS_LEFT": "{count} day left | {count} days left",
     "CLOSED": "Month closed",
-    "PACE_LEGEND": "The light band on the bar marks where the metric should be today to reach the goal by month end."
+    "PACE_LEGEND": "The light band on the bar marks where the metric should be today to reach the goal by month end.",
+    "HOW_IT_WORKS": "How it works",
+    "HELP": {
+      "TITLE": "How to read this screen",
+      "CLOSE": "Close",
+      "OVERALL_TITLE": "Overall score",
+      "OVERALL_BODY": "The average of each goal percentage. Each goal counts at most 150%, so an easy goal does not hide the others. A metric without a goal or without data is left out: it never becomes 0%.",
+      "RANKING": "The ranking is ordered by overall score. On a tie, whoever resolved more conversations comes first.",
+      "METRICS_TITLE": "The metrics",
+      "RESOLVED": "Conversations that arrived in the month and are already resolved. Higher is better.",
+      "FRT": "Average minutes until the first reply. Lower is better: 4 min against a 5 min goal is 125%.",
+      "NPS": "Score of the satisfaction surveys answered in the month (promoters minus detractors). No answers means no data.",
+      "KANBAN": "Kanban cards that entered a stage marked as won during the month.",
+      "STATUS_TITLE": "The badges",
+      "HIT": "reached 100% or more.",
+      "ON_PACE": "month in progress and, at this pace, the goal will be reached.",
+      "NEAR": "between 70% and 99% (or projected in that range).",
+      "BEHIND": "for goals that add up during the month, below what should be done by today.",
+      "BELOW": "below 70%.",
+      "START": "days 1 to 4 of the month: too early to project.",
+      "PACE_TITLE": "Pace and projection",
+      "PACE_BODY": "Resolved conversations and won deals add up during the month. With a goal of 10 conversations in a 31-day month, 6 are expected by day 20: the light band on the bar marks that point.",
+      "PROJECTION_BODY": "From day 5 on, the projection stretches what was done so far to the end of the month and shows where the overall score should close. Reply time and NPS are averages and count as they are."
+    },
+    "TIPS": {
+      "OVERALL": "Average of the goal percentages (each counts up to 150%). Click \"How it works\" to see the math.",
+      "PROJECTION": "Where the overall score should close the month if today's pace continues."
+    }
   }
 }
