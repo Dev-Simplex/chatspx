@@ -9,6 +9,7 @@ defineProps({
 });
 
 const { t } = useI18n();
+const assetsPath = '/brand-assets/outubro-rosa';
 </script>
 
 <template>
@@ -18,10 +19,10 @@ const { t } = useI18n();
     <picture class="mb-2">
       <source
         media="(prefers-reduced-motion: reduce)"
-        srcset="/brand-assets/outubro-rosa/carregamento.png"
+        :srcset="`${assetsPath}/carregamento.png`"
       />
       <img
-        src="/brand-assets/outubro-rosa/carregamento.webp"
+        :src="`${assetsPath}/carregamento.webp`"
         alt=""
         width="48"
         height="48"

@@ -35,6 +35,7 @@ const logoUrl = computed(() => {
 });
 
 const logoVisible = ref(true);
+const assetsPath = '/brand-assets/outubro-rosa';
 const entranceFinished = ref(false);
 const { start: startCycle } = useTimeoutFn(
   () => {
@@ -53,14 +54,10 @@ const { start: startCycle } = useTimeoutFn(
       <picture>
         <source
           media="(prefers-reduced-motion: reduce)"
-          srcset="/brand-assets/outubro-rosa/tela-vazia.png"
+          :srcset="`${assetsPath}/tela-vazia.png`"
         />
         <img
-          :src="
-            entranceFinished
-              ? '/brand-assets/outubro-rosa/ciclo.webp'
-              : '/brand-assets/outubro-rosa/entrada.webp'
-          "
+          :src="`${assetsPath}/${entranceFinished ? 'ciclo' : 'entrada'}.webp`"
           alt=""
           width="240"
           height="240"
