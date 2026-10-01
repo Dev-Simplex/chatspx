@@ -21,6 +21,7 @@ class Integrations::Hook < ApplicationRecord
 
   attr_readonly :app_id, :account_id, :inbox_id, :hook_type
   before_validation :ensure_hook_type
+  before_validation :normalize_captador_settings
   before_validation :encrypt_captador_shared_secret
   after_create :trigger_setup_if_crm
 
@@ -32,6 +33,7 @@ class Integrations::Hook < ApplicationRecord
   validates :inbox_id, presence: true, if: -> { hook_type == 'inbox' }
   validate :validate_settings_json_schema
   validate :ensure_feature_enabled
+  validate :validate_captador_inboxes
   validates :app_id, uniqueness: { scope: [:account_id], unless: -> { app.present? && app.params[:allow_multiple_hooks].present? } }
 
   # TODO: This seems to be only used for slack at the moment
@@ -78,6 +80,13 @@ class Integrations::Hook < ApplicationRecord
     captador_shared_secret.present?
   end
 
+  def captador_inbox_state
+    ids = settings['allowed_inbox_ids'].to_s.split(',').map(&:strip).grep(/\A[1-9][0-9]*\z/).map(&:to_i).uniq
+    inboxes = account.inboxes.where(id: ids, channel_type: %w[Channel::Whatsapp Channel::Api]).order(:id)
+    effective = inboxes.reject(&:read_only?).map { |inbox| { id: inbox.id, name: inbox.name } }
+    { effective_inboxes: effective, unavailable_inbox_ids: ids - effective.pluck(:id) }
+  end
+
   def disable
     update(status: 'disabled')
   end
@@ -99,12 +108,37 @@ class Integrations::Hook < ApplicationRecord
 
   private
 
+  def normalize_captador_settings
+    return unless app_id == 'captador'
+
+    self.settings = settings.to_h.except('shared_secret_configured')
+    settings['shared_secret'] = settings_in_database.to_h['shared_secret'] if persisted? && settings['shared_secret'].blank?
+    value = settings['allowed_inbox_ids']
+    return unless value.is_a?(String) && value.match?(/\A\s*(?:[0-9]+\s*(?:,\s*[0-9]+\s*)*)?\z/)
+
+    settings['allowed_inbox_ids'] = value.strip.split(',').map(&:to_i).uniq.sort.join(',')
+  end
+
+  def validate_captador_inboxes
+    return unless app_id == 'captador'
+
+    value = settings['allowed_inbox_ids']
+    return if value.blank?
+
+    valid = value.is_a?(String) && value.match?(/\A[1-9][0-9]*(?:,[1-9][0-9]*)*\z/)
+    ids = value.to_s.split(',').map(&:to_i)
+    available = account.inboxes.where(id: ids, channel_type: %w[Channel::Whatsapp Channel::Api]).pluck(:id)
+    errors.add(:settings, I18n.t('integration_apps.captador.invalid_inboxes')) unless valid && (ids - available).empty?
+  end
+
   def encrypt_captador_shared_secret
     return unless app_id == 'captador'
 
     current = settings.to_h.stringify_keys
-    secret = current['shared_secret'].to_s
-    return if secret.blank? || secret.start_with?(CAPTADOR_SECRET_PREFIX)
+    secret = current['shared_secret']
+    return unless secret.is_a?(String)
+    return errors.add(:settings, :invalid) if secret.blank?
+    return if secret.length < 32 || secret.start_with?(CAPTADOR_SECRET_PREFIX)
 
     self.settings = current.merge('shared_secret' => encrypt_captador_shared_secret_value(secret))
   end

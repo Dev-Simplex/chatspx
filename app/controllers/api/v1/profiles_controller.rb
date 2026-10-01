@@ -10,9 +10,10 @@ class Api::V1::ProfilesController < Api::BaseController
       @user.update!(password_params.except(:current_password))
     end
 
-    @user.assign_attributes(profile_params)
+    @user.assign_attributes(profile_params.except(:ui_settings))
     @user.custom_attributes.merge!(custom_attributes_params)
     @user.save!
+    merge_ui_settings
   end
 
   def avatar
@@ -53,6 +54,17 @@ class Api::V1::ProfilesController < Api::BaseController
   end
 
   private
+
+  # Junta no banco as chaves enviadas, sem ler antes: uma aba com ui_settings velho
+  # não pode sobrescrever o que outra aba salvou.
+  def merge_ui_settings
+    ui_settings = profile_params[:ui_settings]
+    return if ui_settings.blank?
+
+    merge_sql = ["ui_settings = coalesce(ui_settings, '{}'::jsonb) || ?::jsonb", ui_settings.to_h.to_json]
+    User.where(id: @user.id).update_all(merge_sql) # rubocop:disable Rails/SkipsModelValidations
+    @user.reload
+  end
 
   def set_user
     @user = current_user

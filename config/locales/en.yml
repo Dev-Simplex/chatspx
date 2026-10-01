@@ -478,6 +478,7 @@ en:
       description: 'When someone submits a form on your website, the site posts the lead to a webhook and a conversation is opened in the target inbox with the approved template. The property code of the page the visitor was on opens the conversation already on that property, and the browsing journey is carried to the AI as context.'
     captador:
       name: 'Captador'
+      invalid_inboxes: 'Use comma-separated positive inbox IDs belonging to this account (WhatsApp or API). Remove deleted or unsupported inboxes; leave blank to allow none.'
       short_description: 'Open conversations with the leads prospected in Captador and track the replies in its pipeline.'
       description: 'Captador opens the conversation with the lead on behalf of the user who clicked, through the chosen inbox: an approved template on official WhatsApp or free text on an unofficial inbox (WAHA). Replies, delivery statuses and owner changes are sent back to Captador, signed. Users of this account can also sign in to Captador with their ChatSPX email and password.'
   captain:

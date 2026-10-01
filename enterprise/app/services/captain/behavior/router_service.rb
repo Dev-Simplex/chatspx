@@ -24,10 +24,14 @@ class Captain::Behavior::RouterService
   # freio — e sem leitor a IA da CD Solar, configurada com a trava, respondeu 12 clientes
   # reais em 21–25/09/2026. A regra mora em ContactPhoneLock, que os caminhos de atribuição
   # também consultam.
+  #
+  # As etiquetas sem IA da CONTA (CHAT-180, SkipLabelsLock) seguem o mesmo desenho: valem para
+  # qualquer IA da conta e olham também o contato — ao contrário de `skip_labels`, que é do
+  # assistente e só cala a resposta, sem impedir a atribuição.
   def should_respond? # rubocop:disable Metrics/CyclomaticComplexity
     return false if @message.activity?
     return false if @message.content.blank? && @message.attachments.blank?
-    return false unless Captain::Behavior::ContactPhoneLock.new(@assistant).allows?(@conversation.contact)
+    return false if locked?
     return false if skip_groups?
     return false if skip_labeled?
     return false if story_mention?
@@ -36,6 +40,13 @@ class Captain::Behavior::RouterService
   end
 
   private
+
+  # Travas que também valem para a atribuição: telefone de teste do assistente (CHAT-171) e
+  # etiquetas sem IA da conta (CHAT-180).
+  def locked?
+    !Captain::Behavior::ContactPhoneLock.new(@assistant).allows?(@conversation.contact) ||
+      !Captain::Behavior::SkipLabelsLock.new(@conversation.account).allows?(@conversation)
+  end
 
   # Menção da marca no story de OUTRA pessoa não é mensagem: é uma notificação que o Instagram
   # entrega em forma de mensagem. Ninguém escreveu nada — o `content` é gerado por nós

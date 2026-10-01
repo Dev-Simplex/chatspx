@@ -202,6 +202,8 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
     return nil unless ::CaptainInbox.exists?(inbox_id: inbox.id, captain_assistant_id: assistant.id)
     # Trava de teste (CHAT-171): contato fora da lista não é devolvido à IA — segue órfão, pro humano.
     return nil unless Captain::Behavior::ContactPhoneLock.new(assistant).allows?(conversation.contact)
+    # Etiquetas sem IA da conta (CHAT-180): a portaria que reabre a conversa não volta para a triagem.
+    return nil unless Captain::Behavior::SkipLabelsLock.new(conversation.account).allows?(conversation)
 
     assistant
   end

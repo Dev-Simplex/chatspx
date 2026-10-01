@@ -70,6 +70,17 @@ RSpec.describe Captain::Tools::TransferirParaAgenteTool, type: :model do
         expect(conversation.reload.assignee_agent_bot).to be_nil
       end
 
+      # Etiquetas sem IA da conta (CHAT-180): conversa etiquetada não passa para outra IA.
+      it 'does not transfer when the conversation has a label the AI does not handle' do
+        account.update!(custom_attributes: { 'captain_etiquetas_sem_ia' => ['portaria'] })
+        conversation.update_labels(['portaria'])
+
+        result = tool.perform(tool_context, agente: 'Leo Locação')
+
+        expect(result).to include('indisponível')
+        expect(conversation.reload.assignee_agent_bot).to be_nil
+      end
+
       it 'moves the conversation to the target agent team' do
         team = create(:team, account: account)
         target_assistant.update!(config: { 'team_id' => team.id })

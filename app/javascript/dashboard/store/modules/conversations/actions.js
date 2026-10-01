@@ -900,20 +900,18 @@ const actions = {
     commit(types.UPDATE_CHAT_LIST_FILTERS, data);
   },
 
+  // Sem catch: o erro chega a quem chamou, que mostra o aviso, e a tela segue com a
+  // prioridade antiga (ela só muda depois que o servidor confirma).
   assignPriority: async ({ dispatch }, { conversationId, priority }) => {
-    try {
-      await ConversationApi.togglePriority({
-        conversationId,
-        priority,
-      });
+    await ConversationApi.togglePriority({
+      conversationId,
+      priority,
+    });
 
-      dispatch('setCurrentChatPriority', {
-        priority,
-        conversationId,
-      });
-    } catch (error) {
-      // Handle error
-    }
+    dispatch('setCurrentChatPriority', {
+      priority,
+      conversationId,
+    });
   },
 
   setCurrentChatPriority({ commit }, { priority, conversationId }) {

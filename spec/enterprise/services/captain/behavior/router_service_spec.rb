@@ -167,6 +167,40 @@ RSpec.describe Captain::Behavior::RouterService do
     end
   end
 
+  # Etiquetas que a IA não atende (CHAT-180): configuração da CONTA, vale para qualquer IA dela.
+  describe 'etiquetas sem IA da conta (captain_etiquetas_sem_ia)' do
+    def configurar(*etiquetas)
+      account.update!(custom_attributes: { 'captain_etiquetas_sem_ia' => etiquetas })
+    end
+
+    it 'does not respond when the conversation has a configured label' do
+      configurar('portaria')
+      conversation.update_labels(['portaria'])
+
+      expect(should_respond?).to be false
+    end
+
+    it 'does not respond when the contact has a configured label' do
+      configurar('portaria')
+      contact.update_labels(['portaria'])
+
+      expect(should_respond?).to be false
+    end
+
+    it 'responds when the conversation label is not configured' do
+      configurar('portaria')
+      conversation.update_labels(['atendimento'])
+
+      expect(should_respond?).to be true
+    end
+
+    it 'responds when the account has no configuration' do
+      conversation.update_labels(['portaria'])
+
+      expect(should_respond?).to be true
+    end
+  end
+
   # Trava de teste (CHAT-171): com only_contact_phones preenchido, a IA só fala com esses
   # telefones. O contato do spec é +55 65 99911-1222.
   describe 'trava de teste (only_contact_phones)' do
