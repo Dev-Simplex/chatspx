@@ -535,7 +535,7 @@ onUnmounted(() => clearInterval(timer));
                   </span>
                   <span
                     v-if="rowTone(row).pill"
-                    class="block w-fit mt-1 px-2 py-0.5 text-[11px] font-medium rounded-full"
+                    class="block w-fit mt-1 px-2 py-0.5 text-[11px] font-medium rounded-full whitespace-nowrap"
                     :class="rowTone(row).pill"
                   >
                     {{ statusLabel(rowTone(row)) }}
