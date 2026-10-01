@@ -282,7 +282,17 @@ onUnmounted(() => clearInterval(timer));
               >
                 {{ overall(me.overall) }}
               </p>
-              <p v-if="projection(me)" class="mb-0 text-xs text-n-slate-11">
+              <span
+                v-if="rowTone(me).pill"
+                class="inline-block px-2 py-0.5 text-[11px] font-medium rounded-full"
+                :class="rowTone(me).pill"
+              >
+                {{ statusLabel(rowTone(me)) }}
+              </span>
+              <p
+                v-if="projection(me)"
+                class="mt-1 mb-0 text-xs text-n-slate-11"
+              >
                 {{ $t('PERFORMANCE_GOALS.PROJECTION', { value: projection(me) }) }}
               </p>
             </div>
