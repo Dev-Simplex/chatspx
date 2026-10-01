@@ -8,11 +8,15 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
 
   def update
     attributes = permitted_params.slice(:status, :settings)
-    preserve_captador_secret(attributes)
-    @hook.update!(attributes)
+    @hook.with_lock do
+      preserve_captador_secret(attributes)
+      @hook.update!(attributes)
+    end
   end
 
   def process_event
+    return captador_health if @hook.app_id == 'captador' && params[:event] == 'health'
+
     response = @hook.process_event(params[:event])
 
     # for cases like an invalid event, or when conversation does not have enough messages
@@ -33,6 +37,33 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
 
   private
 
+  def captador_health
+    authorize(:hook, :update?)
+    state = @hook.captador_inbox_state.merge(account_id: Current.account.id)
+    return render json: state.merge(status: 'disabled') unless @hook.enabled? && Current.account.captador_integration_enabled?
+
+    response = Spx::Captador::Client.new(@hook, Current.user).health
+    render json: state.merge(status: captador_health_status(response, state))
+  rescue Spx::Captador::Client::Unavailable
+    render json: state.merge(status: 'unavailable')
+  end
+
+  def captador_health_status(response, state)
+    if response.status == 200 && captador_health_identity?(response.body)
+      state[:unavailable_inbox_ids].any? || state[:effective_inboxes].empty? ? 'degraded' : 'ok'
+    elsif response.status == 401
+      'authentication_failed'
+    elsif response.status == 404
+      'onboarding_required'
+    else
+      'unavailable'
+    end
+  end
+
+  def captador_health_identity?(body)
+    body.is_a?(Hash) && body['account_id'] == Current.account.id && body['instance_key'] == @hook.settings['instance_key']
+  end
+
   def fetch_hook
     @hook = Current.account.hooks.find(params[:id])
   end
@@ -42,13 +73,21 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
   end
 
   def permitted_params
-    params.require(:hook).permit(:app_id, :inbox_id, :status, settings: {})
+    attributes = params.require(:hook).permit(:app_id, :inbox_id, :status, settings: {})
+    if (@hook&.app_id || attributes[:app_id]) == 'captador' &&
+       attributes.dig(:settings, :shared_secret).to_s.start_with?(Integrations::Hook::CAPTADOR_SECRET_PREFIX)
+      raise ActionController::BadRequest
+    end
+
+    attributes
   end
 
   def preserve_captador_secret(attributes)
     submitted = attributes[:settings]
-    return unless @hook.app_id == 'captador' && submitted && submitted[:shared_secret].blank?
+    return unless @hook.app_id == 'captador' && submitted
 
-    attributes[:settings] = @hook.settings.merge(submitted.to_h.except('shared_secret', 'shared_secret_configured'))
+    submitted = submitted.to_h.except('shared_secret_configured')
+    submitted.delete('shared_secret') if submitted['shared_secret'].blank?
+    attributes[:settings] = @hook.settings.merge(submitted)
   end
 end

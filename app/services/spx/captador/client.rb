@@ -40,6 +40,10 @@ class Spx::Captador::Client
     request(:get, "#{BASE_PATH}/leads?#{{ conversation_id: conversation_id, contact_id: contact_id }.to_query}")
   end
 
+  def health
+    request(:get, "#{BASE_PATH}/saude")
+  end
+
   def move(lead_id, etapa_id)
     request(:post, "#{BASE_PATH}/leads/#{ERB::Util.url_encode(lead_id)}/mover", { etapa_id: etapa_id }.to_json)
   end

@@ -518,6 +518,7 @@ pt_BR:
       description: 'Quando alguém preenche um formulário no site, o site envia o lead para um webhook e a conversa é aberta na inbox alvo com o template aprovado. O código do imóvel da página em que a pessoa estava abre a conversa já naquele imóvel, e a jornada de navegação vai como contexto para a IA.'
     captador:
       name: 'Captador'
+      invalid_inboxes: 'Use IDs positivos de caixas desta conta (WhatsApp ou API), separados por vírgula. Remova caixas excluídas ou incompatíveis; deixe vazio para não liberar nenhuma.'
       short_description: 'Abra conversas com os leads prospectados no Captador e acompanhe as respostas no funil.'
       description: 'O Captador abre a conversa com o lead em nome de quem clicou, pela caixa escolhida: modelo aprovado no WhatsApp oficial ou texto livre em caixa não oficial (WAHA). As respostas, os status de entrega e as trocas de dono voltam assinados para o Captador. Os usuários desta conta também podem entrar no Captador com o e-mail e a senha do ChatSPX.'
   captain:
