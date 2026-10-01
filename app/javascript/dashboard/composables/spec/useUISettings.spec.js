@@ -42,18 +42,12 @@ describe('useUISettings', () => {
     });
   });
 
-  it('updates UI settings correctly', () => {
+  it('updates UI settings sending only the changed keys', () => {
     const { updateUISettings } = useUISettings();
     updateUISettings({ enter_to_send_enabled: true });
     expect(mockDispatch).toHaveBeenCalledWith('updateUISettings', {
       uiSettings: {
         enter_to_send_enabled: true,
-        is_ct_labels_open: true,
-        conversation_sidebar_items_order:
-          DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER,
-        contact_sidebar_items_order: DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER,
-        editor_message_key: 'enter',
-        channel_email_quoted_reply_enabled: true,
       },
     });
   });
@@ -64,11 +58,6 @@ describe('useUISettings', () => {
     expect(mockDispatch).toHaveBeenCalledWith('updateUISettings', {
       uiSettings: {
         is_ct_labels_open: false,
-        conversation_sidebar_items_order:
-          DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER,
-        contact_sidebar_items_order: DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER,
-        editor_message_key: 'enter',
-        channel_email_quoted_reply_enabled: true,
       },
     });
   });
@@ -81,7 +70,9 @@ describe('useUISettings', () => {
   });
 
   it('places the Captador lead after the Kanban status and appends it to saved orders', () => {
-    const names = DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER.map(item => item.name);
+    const names = DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER.map(
+      item => item.name
+    );
     expect(names.indexOf('captador_lead')).toBe(
       names.indexOf('kanban_status') + 1
     );
@@ -115,13 +106,7 @@ describe('useUISettings', () => {
     setSignatureFlagForInbox('email', true);
     expect(mockDispatch).toHaveBeenCalledWith('updateUISettings', {
       uiSettings: {
-        is_ct_labels_open: true,
-        conversation_sidebar_items_order:
-          DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER,
-        contact_sidebar_items_order: DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER,
         email_signature_enabled: true,
-        editor_message_key: 'enter',
-        channel_email_quoted_reply_enabled: true,
       },
     });
   });
@@ -136,11 +121,6 @@ describe('useUISettings', () => {
     setQuotedReplyFlagForInbox('Channel::Email', false);
     expect(mockDispatch).toHaveBeenCalledWith('updateUISettings', {
       uiSettings: {
-        is_ct_labels_open: true,
-        conversation_sidebar_items_order:
-          DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER,
-        contact_sidebar_items_order: DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER,
-        editor_message_key: 'enter',
         channel_email_quoted_reply_enabled: false,
       },
     });

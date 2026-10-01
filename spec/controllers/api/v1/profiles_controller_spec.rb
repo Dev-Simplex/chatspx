@@ -154,6 +154,21 @@ RSpec.describe 'Profile API', type: :request do
         json_response = response.parsed_body
         expect(json_response['ui_settings']['is_contact_sidebar_open']).to be(false)
       end
+
+      it 'merges ui_settings keeping keys saved by other tabs and replacing the keys sent' do
+        agent.update!(ui_settings: { 'conversations_filter_by' => { 'status' => 'all', 'order_by' => 'latest' },
+                                     'is_sidebar_collapsed' => true })
+
+        put '/api/v1/profile',
+            params: { profile: { ui_settings: { conversations_filter_by: { status: 'open' }, show_secondary_sidebar: false } } },
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expected = { 'conversations_filter_by' => { 'status' => 'open' }, 'is_sidebar_collapsed' => true, 'show_secondary_sidebar' => false }
+        expect(response.parsed_body['ui_settings']).to eq(expected)
+        expect(agent.reload.ui_settings).to eq(expected)
+      end
     end
 
     context 'when an authenticated user updates email' do
