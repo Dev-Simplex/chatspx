@@ -955,8 +955,8 @@
       "SEND": "Enviar",
       "CANCEL": "Cancelar",
       "CLOSE": "Fechar",
-      "WAHA_NOTICE_ONE": "Nesta caixa vai como foto com legenda.",
-      "WAHA_NOTICE_MANY": "Nesta caixa vai como álbum de fotos mais um menu numerado."
+      "WAHA_NOTICE_ONE": "Nesta caixa vão as fotos do item, uma a uma, com a legenda na primeira.",
+      "WAHA_NOTICE_MANY": "Nesta caixa vão as fotos de cada item, uma a uma, com a legenda na primeira, e no fim um menu numerado."
     },
     "HANDOVER_CUT": {
       "BANNER": "Esta conversa foi transferida para você em {date}. O histórico anterior não fica visível."

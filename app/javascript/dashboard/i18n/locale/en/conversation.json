@@ -955,8 +955,8 @@
       "SEND": "Send",
       "CANCEL": "Cancel",
       "CLOSE": "Close",
-      "WAHA_NOTICE_ONE": "On this inbox it goes as a photo with caption.",
-      "WAHA_NOTICE_MANY": "On this inbox it goes as a photo album plus a numbered menu."
+      "WAHA_NOTICE_ONE": "On this inbox the item's photos go one by one, with the caption on the first.",
+      "WAHA_NOTICE_MANY": "On this inbox each item's photos go one by one, with the caption on the first, followed by a numbered menu."
     },
     "HANDOVER_CUT": {
       "BANNER": "This conversation was transferred to you on {date}. Earlier history is not visible."
