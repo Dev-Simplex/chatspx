@@ -120,7 +120,7 @@ const gapLabel = computed(() => {
         {{ gapLabel }}
       </p>
       <p
-        v-if="rhythm && showNumbers && data.attainment < 1"
+        v-if="rhythm?.expected && showNumbers && data.attainment < 1"
         class="mb-0 text-xs tabular-nums text-n-slate-10"
       >
         {{
