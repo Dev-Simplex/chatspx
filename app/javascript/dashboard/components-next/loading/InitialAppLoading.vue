@@ -1,5 +1,6 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
+import { brandAssetUrl } from 'shared/helpers/brandAssetUrl';
 
 defineProps({
   message: {
@@ -10,6 +11,8 @@ defineProps({
 
 const { t } = useI18n();
 const assetsPath = '/brand-assets/outubro-rosa';
+const assetUrl = name =>
+  brandAssetUrl(`${assetsPath}/${name}`, window.globalConfig?.GIT_SHA);
 </script>
 
 <template>
@@ -19,10 +22,10 @@ const assetsPath = '/brand-assets/outubro-rosa';
     <picture class="mb-2">
       <source
         media="(prefers-reduced-motion: reduce)"
-        :srcset="`${assetsPath}/carregamento.png`"
+        :srcset="assetUrl('carregamento.png')"
       />
       <img
-        :src="`${assetsPath}/carregamento.webp`"
+        :src="assetUrl('carregamento.webp')"
         alt=""
         width="48"
         height="48"

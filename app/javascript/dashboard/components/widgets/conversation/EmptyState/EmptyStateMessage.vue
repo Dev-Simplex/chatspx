@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useTimeoutFn } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
+import { brandAssetUrl } from 'shared/helpers/brandAssetUrl';
 
 defineProps({
   message: {
@@ -30,12 +31,17 @@ const logoUrl = computed(() => {
   return (
     globalConfig.value?.logoThumbnail ||
     globalConfig.value?.logo ||
-    '/brand-assets/logo_thumbnail.svg'
+    brandAssetUrl(
+      '/brand-assets/logo_thumbnail.svg',
+      globalConfig.value?.gitSha
+    )
   );
 });
 
 const logoVisible = ref(true);
 const assetsPath = '/brand-assets/outubro-rosa';
+const assetUrl = name =>
+  brandAssetUrl(`${assetsPath}/${name}`, globalConfig.value?.gitSha);
 const entranceFinished = ref(false);
 const { start: startCycle } = useTimeoutFn(
   () => {
@@ -54,10 +60,10 @@ const { start: startCycle } = useTimeoutFn(
       <picture>
         <source
           media="(prefers-reduced-motion: reduce)"
-          :srcset="`${assetsPath}/tela-vazia.png`"
+          :srcset="assetUrl('tela-vazia.png')"
         />
         <img
-          :src="`${assetsPath}/${entranceFinished ? 'ciclo' : 'entrada'}.webp`"
+          :src="assetUrl(`${entranceFinished ? 'ciclo' : 'entrada'}.webp`)"
           alt=""
           width="240"
           height="240"

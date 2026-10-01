@@ -1,5 +1,6 @@
 import { parseBoolean } from '@chatwoot/utils';
 import { resolveMaximumFileUploadSize } from 'shared/helpers/FileHelper';
+import { brandAssetUrl } from 'shared/helpers/brandAssetUrl';
 
 const {
   API_CHANNEL_NAME: apiChannelName,
@@ -43,9 +44,9 @@ const state = {
   maximumFileUploadSize: resolveMaximumFileUploadSize(maximumFileUploadSize),
   hCaptchaSiteKey,
   installationName,
-  logo,
-  logoDark,
-  logoThumbnail,
+  logo: brandAssetUrl(logo, gitSha),
+  logoDark: brandAssetUrl(logoDark, gitSha),
+  logoThumbnail: brandAssetUrl(logoThumbnail, gitSha),
   privacyURL,
   optimizedMessageScrollLoading:
     optimizedMessageScrollLoading === undefined
