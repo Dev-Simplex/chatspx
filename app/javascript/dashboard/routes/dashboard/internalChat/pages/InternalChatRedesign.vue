@@ -6,6 +6,7 @@
 // busca de conteúdo — toda a funcionalidade vem do store/backend real.
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { brandAssetUrl } from 'shared/helpers/brandAssetUrl';
 import { messageStamp } from 'shared/helpers/timeHelper';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
@@ -58,7 +59,10 @@ const brandLogo = computed(
   () =>
     globalConfig.value?.logoThumbnail ||
     globalConfig.value?.logo ||
-    '/brand-assets/logo_thumbnail.svg'
+    brandAssetUrl(
+      '/brand-assets/logo_thumbnail.svg',
+      globalConfig.value?.gitSha
+    )
 );
 const openNewConversation = () => chatSidebarRef.value?.openCompose();
 

@@ -1,9 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue';
+import { useTimeoutFn } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
-import { emitter } from 'shared/helpers/mitt';
-import { BUS_EVENTS } from 'shared/constants/busEvents';
+import { brandAssetUrl } from 'shared/helpers/brandAssetUrl';
 
 defineProps({
   message: {
@@ -31,24 +31,52 @@ const logoUrl = computed(() => {
   return (
     globalConfig.value?.logoThumbnail ||
     globalConfig.value?.logo ||
-    '/brand-assets/logo_thumbnail.svg'
+    brandAssetUrl(
+      '/brand-assets/logo_thumbnail.svg',
+      globalConfig.value?.gitSha
+    )
   );
 });
 
 const logoVisible = ref(true);
-
-function openNewConversation() {
-  emitter.emit(BUS_EVENTS.NEW_CONVERSATION_MODAL, true);
-}
+const assetsPath = '/brand-assets/outubro-rosa';
+const assetUrl = name =>
+  brandAssetUrl(`${assetsPath}/${name}`, globalConfig.value?.gitSha);
+const entranceFinished = ref(false);
+const { start: startCycle } = useTimeoutFn(
+  () => {
+    entranceFinished.value = true;
+  },
+  3000,
+  { immediate: false }
+);
 </script>
 
 <template>
   <div
     class="relative flex flex-col items-center justify-center h-full w-full px-8 py-16 text-center"
   >
-    <div class="flex flex-col items-center max-w-md">
-      <!-- Logo with subtle float animation -->
-      <div v-if="logoVisible" class="mb-8 animate-float-gentle">
+    <div v-if="showCta" class="flex flex-col items-center max-w-md gap-6">
+      <picture>
+        <source
+          media="(prefers-reduced-motion: reduce)"
+          :srcset="assetUrl('tela-vazia.png')"
+        />
+        <img
+          :src="assetUrl(`${entranceFinished ? 'ciclo' : 'entrada'}.webp`)"
+          alt=""
+          width="240"
+          height="240"
+          class="size-60 object-contain"
+          @load="!entranceFinished && startCycle()"
+        />
+      </picture>
+      <p class="text-base text-n-slate-11 leading-relaxed">
+        {{ t('CONVERSATION.EMPTY_STATE.PREVENTION_MESSAGE') }}
+      </p>
+    </div>
+    <div v-else class="flex flex-col items-center max-w-md">
+      <div v-if="logoVisible" class="mb-8">
         <img
           :src="logoUrl"
           alt=""
@@ -73,18 +101,10 @@ function openNewConversation() {
       >
         {{ description }}
       </p>
-
-      <button
-        v-if="showCta"
-        class="wa-empty-cta flex items-center gap-2 mt-8 px-6 h-10 rounded-full text-white font-medium text-sm transition-colors active:scale-[0.97]"
-        @click="openNewConversation"
-      >
-        <span class="i-lucide-message-square-plus size-4" />
-        {{ t('CONVERSATION.EMPTY_STATE.NEW_CONVERSATION') }}
-      </button>
     </div>
 
     <div
+      v-if="!showCta"
       class="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5"
     >
       <span class="i-lucide-lock size-3 text-n-slate-9" />
@@ -94,18 +114,3 @@ function openNewConversation() {
     </div>
   </div>
 </template>
-
-<style scoped>
-.animate-float-gentle {
-  animation: float-gentle 3s ease-in-out infinite;
-}
-@keyframes float-gentle {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-</style>
