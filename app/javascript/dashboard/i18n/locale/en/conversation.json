@@ -53,6 +53,7 @@
     "VIEW_ORIGINAL": "View original",
     "VIEW_TRANSLATED": "View translated",
     "EMPTY_STATE": {
+      "PREVENTION_MESSAGE": "Prevention is an act of love for yourself.",
       "CMD_BAR": "to open command menu",
       "KEYBOARD_SHORTCUTS": "to view keyboard shortcuts",
       "NEW_CONVERSATION": "New conversation",

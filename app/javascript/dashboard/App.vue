@@ -1,6 +1,6 @@
 <script>
 import { mapGetters } from 'vuex';
-import LoadingState from './components/widgets/LoadingState.vue';
+import InitialAppLoading from './components-next/loading/InitialAppLoading.vue';
 import NetworkNotification from './components/NetworkNotification.vue';
 import UpdateBanner from './components/app/UpdateBanner.vue';
 import WahaConnectionsBanner from './components/app/WahaConnectionsBanner.vue';
@@ -40,7 +40,7 @@ export default {
   name: 'App',
 
   components: {
-    LoadingState,
+    InitialAppLoading,
     NetworkNotification,
     UpdateBanner,
     AppVersionBanner,
@@ -225,7 +225,7 @@ export default {
       <MigrationBanner />
     </MotionConfig>
   </div>
-  <LoadingState v-else />
+  <InitialAppLoading v-else />
   <Toaster
     position="bottom-right"
     :duration="5000"
