@@ -87,6 +87,33 @@
     "HITS": "{hit}/{total} metas batidas",
     "DAYS_LEFT": "falta {count} dia | faltam {count} dias",
     "CLOSED": "Mês fechado",
-    "PACE_LEGEND": "A faixa clara na barra marca onde o indicador deveria estar hoje para fechar a meta no fim do mês."
+    "PACE_LEGEND": "A faixa clara na barra marca onde o indicador deveria estar hoje para fechar a meta no fim do mês.",
+    "HOW_IT_WORKS": "Como funciona",
+    "HELP": {
+      "TITLE": "Como ler esta tela",
+      "CLOSE": "Fechar",
+      "OVERALL_TITLE": "Nota geral",
+      "OVERALL_BODY": "É a média dos percentuais das metas de cada um. Cada meta entra no máximo com 150%, para uma meta folgada não esconder as outras. Indicador sem meta ou sem dado fica fora da conta: nunca vira 0%.",
+      "RANKING": "O ranking ordena pela nota geral. No empate, quem resolveu mais conversas fica na frente.",
+      "METRICS_TITLE": "Os indicadores",
+      "RESOLVED": "Conversas que chegaram no mês e já foram resolvidas. Quanto mais, melhor.",
+      "FRT": "Média de minutos até a primeira resposta. Quanto menos, melhor: 4 min com meta de 5 min dá 125%.",
+      "NPS": "Nota das pesquisas de satisfação respondidas no mês (promotores menos detratores). Sem resposta, fica sem dado.",
+      "KANBAN": "Cartões do Kanban que entraram no mês numa etapa marcada como ganho.",
+      "STATUS_TITLE": "Os selos",
+      "HIT": "chegou a 100% ou mais.",
+      "ON_PACE": "mês em andamento e, se continuar assim, fecha a meta.",
+      "NEAR": "entre 70% e 99% (ou com projeção nessa faixa).",
+      "BEHIND": "nas metas que somam no mês, está abaixo do que já devia ter feito até hoje.",
+      "BELOW": "menos de 70%.",
+      "START": "dias 1 a 4 do mês: ainda é cedo para projetar.",
+      "PACE_TITLE": "Ritmo e projeção",
+      "PACE_BODY": "Conversas resolvidas e negócios ganhos vão somando ao longo do mês. Com meta de 10 conversas num mês de 31 dias, no dia 20 o esperado é 6: a faixa clara na barra marca esse ponto.",
+      "PROJECTION_BODY": "A partir do dia 5, a projeção estica o que já foi feito até o fim do mês e mostra onde a nota geral deve fechar. Tempo de resposta e NPS são médias e entram como estão."
+    },
+    "TIPS": {
+      "OVERALL": "Média dos percentuais das metas (cada uma conta até 150%). Clique em \"Como funciona\" para ver a conta.",
+      "PROJECTION": "Onde a nota geral deve fechar o mês se o ritmo de hoje continuar."
+    }
   }
 }

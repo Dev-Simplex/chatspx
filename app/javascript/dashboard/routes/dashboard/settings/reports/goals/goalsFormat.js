@@ -8,7 +8,7 @@ export const METRICS = [
 ];
 
 // Cor por quanto da meta foi atingido: batida (>= 100%), perto (>= 70%), abaixo.
-const TONES = {
+export const TONES = {
   hit: {
     key: 'HIT',
     text: 'text-n-teal-11',

@@ -11,6 +11,7 @@ import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import ReportHeader from '../components/ReportHeader.vue';
 import GoalsMetricCell from './GoalsMetricCell.vue';
 import GoalsEditor from './GoalsEditor.vue';
+import GoalsHelp from './GoalsHelp.vue';
 import {
   METRICS,
   metricTone,
@@ -40,6 +41,24 @@ const loading = ref(false);
 const failed = ref(false);
 const errorMessage = ref('');
 const editing = ref(false);
+// "Como funciona" abre sozinho na primeira visita; fechar fica lembrado neste navegador.
+const HELP_KEY = 'chatspx-goals-help-closed';
+const readHelpClosed = () => {
+  try {
+    return localStorage.getItem(HELP_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+const showHelp = ref(!readHelpClosed());
+const toggleHelp = () => {
+  showHelp.value = !showHelp.value;
+  try {
+    localStorage.setItem(HELP_KEY, showHelp.value ? '0' : '1');
+  } catch {
+    // sem storage: só não lembra
+  }
+};
 // Relógio da tela: o ritmo do mês anda a cada recarga automática.
 const today = ref(new Date());
 const progress = computed(() => monthProgress(month.value, today.value));
@@ -79,6 +98,24 @@ const STATUS_LABELS = () => ({
   START: t('PERFORMANCE_GOALS.STATUS.START'),
 });
 const statusLabel = tone => STATUS_LABELS()[tone.key] || '';
+const STATUS_HELP = () => ({
+  HIT: t('PERFORMANCE_GOALS.HELP.HIT'),
+  NEAR: t('PERFORMANCE_GOALS.HELP.NEAR'),
+  BELOW: t('PERFORMANCE_GOALS.HELP.BELOW'),
+  ON_PACE: t('PERFORMANCE_GOALS.HELP.ON_PACE'),
+  BEHIND: t('PERFORMANCE_GOALS.HELP.BEHIND'),
+  START: t('PERFORMANCE_GOALS.HELP.START'),
+});
+// Dica do selo: "Perto da meta: entre 70% e 99%..."
+const statusHelp = tone =>
+  tone.key ? `${statusLabel(tone)}: ${STATUS_HELP()[tone.key]}` : '';
+const METRIC_HELP = () => ({
+  resolved_conversations: t('PERFORMANCE_GOALS.HELP.RESOLVED'),
+  first_response_time: t('PERFORMANCE_GOALS.HELP.FRT'),
+  nps: t('PERFORMANCE_GOALS.HELP.NPS'),
+  kanban_wins: t('PERFORMANCE_GOALS.HELP.KANBAN'),
+});
+const metricHelp = metric => METRIC_HELP()[metric];
 const rowTone = row => overallTone(row, progress.value);
 const projection = row => {
   if (row.overall >= 1) return null;
@@ -198,6 +235,14 @@ onUnmounted(() => clearInterval(timer));
         :header-description="$t('PERFORMANCE_GOALS.DESCRIPTION')"
       >
         <Button
+          :label="$t('PERFORMANCE_GOALS.HOW_IT_WORKS')"
+          icon="i-lucide-circle-help"
+          size="sm"
+          variant="faded"
+          color="slate"
+          @click="toggleHelp"
+        />
+        <Button
           v-if="canDefine"
           :label="$t('PERFORMANCE_GOALS.DEFINE')"
           icon="i-lucide-target"
@@ -224,6 +269,8 @@ onUnmounted(() => clearInterval(timer));
       <p class="mb-6 text-xs text-n-slate-10">
         {{ $t('PERFORMANCE_GOALS.CRITERIA_HELP') }}
       </p>
+
+      <GoalsHelp v-if="showHelp" class="mb-6" @close="toggleHelp" />
 
       <div
         v-if="loading"
@@ -286,11 +333,13 @@ onUnmounted(() => clearInterval(timer));
                 v-if="rowTone(me).pill"
                 class="inline-block px-2 py-0.5 text-[11px] font-medium rounded-full"
                 :class="rowTone(me).pill"
+                v-tooltip="statusHelp(rowTone(me))"
               >
                 {{ statusLabel(rowTone(me)) }}
               </span>
               <p
                 v-if="projection(me)"
+                v-tooltip="$t('PERFORMANCE_GOALS.TIPS.PROJECTION')"
                 class="mt-1 mb-0 text-xs text-n-slate-11"
               >
                 {{ $t('PERFORMANCE_GOALS.PROJECTION', { value: projection(me) }) }}
@@ -330,9 +379,11 @@ onUnmounted(() => clearInterval(timer));
               "
             >
               <p
-                class="mb-2 text-xs font-medium tracking-wider uppercase text-n-slate-10"
+                v-tooltip="metricHelp(metric)"
+                class="flex items-center gap-1 mb-2 text-xs font-medium tracking-wider uppercase cursor-help text-n-slate-10"
               >
                 {{ metricLabel(metric) }}
+                <span class="flex-shrink-0 i-lucide-info size-3" />
               </p>
               <template v-if="me.metrics[metric].attainment != null">
                 <div class="flex items-baseline justify-between gap-2">
@@ -345,6 +396,7 @@ onUnmounted(() => clearInterval(timer));
                   <span
                     class="px-2 py-0.5 text-[11px] font-medium rounded-full"
                     :class="metricTone(metric, me.metrics[metric], progress).pill"
+                v-tooltip="statusHelp(metricTone(metric, me.metrics[metric], progress))"
                   >
                     {{
                       statusLabel(
@@ -406,6 +458,7 @@ onUnmounted(() => clearInterval(timer));
             :key="group.key"
             class="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-full"
             :class="group.tone.pill"
+                v-tooltip="statusHelp(group.tone)"
           >
             <span v-if="group.key === 'HIT'" class="i-lucide-trophy size-4" />
             <span class="tabular-nums">{{ group.count }}</span>
@@ -475,13 +528,27 @@ onUnmounted(() => clearInterval(timer));
                   {{ $t('PERFORMANCE_GOALS.POSITION') }}
                 </th>
                 <th class="px-3 py-3">{{ $t('PERFORMANCE_GOALS.NAME') }}</th>
-                <th class="px-3 py-3">{{ $t('PERFORMANCE_GOALS.OVERALL') }}</th>
+                <th class="px-3 py-3">
+                  <span
+                    v-tooltip="$t('PERFORMANCE_GOALS.TIPS.OVERALL')"
+                    class="inline-flex items-center gap-1 cursor-help"
+                  >
+                    {{ $t('PERFORMANCE_GOALS.OVERALL') }}
+                    <span class="i-lucide-info size-3" />
+                  </span>
+                </th>
                 <th
                   v-for="metric in METRICS"
                   :key="metric"
                   class="px-3 py-3 font-medium"
                 >
-                  {{ metricLabel(metric) }}
+                  <span
+                    v-tooltip="metricHelp(metric)"
+                    class="inline-flex items-center gap-1 cursor-help"
+                  >
+                    {{ metricLabel(metric) }}
+                    <span class="flex-shrink-0 i-lucide-info size-3" />
+                  </span>
                 </th>
               </tr>
             </thead>
@@ -537,11 +604,13 @@ onUnmounted(() => clearInterval(timer));
                     v-if="rowTone(row).pill"
                     class="block w-fit mt-1 px-2 py-0.5 text-[11px] font-medium rounded-full whitespace-nowrap"
                     :class="rowTone(row).pill"
+                v-tooltip="statusHelp(rowTone(row))"
                   >
                     {{ statusLabel(rowTone(row)) }}
                   </span>
                   <p
                     v-if="projection(row)"
+                v-tooltip="$t('PERFORMANCE_GOALS.TIPS.PROJECTION')"
                     class="mt-1 mb-0 text-xs tabular-nums text-n-slate-10"
                   >
                     {{ $t('PERFORMANCE_GOALS.PROJECTION', { value: projection(row) }) }}
