@@ -605,6 +605,19 @@ const menuItems = computed(() => {
       to: accountScopedRoute('gallery_index'),
       activeOn: ['gallery_index'],
     },
+    {
+      name: 'Catalog',
+      label: t('SIDEBAR.CATALOG'),
+      icon: lordIcon('catalog', 'i-lucide-store'),
+      to: accountScopedRoute('catalog_products_index'),
+      activeOn: [
+        'catalog_products_index',
+        'catalog_product_edit',
+        'catalog_categories',
+        'catalog_fields',
+        'catalog_integrations',
+      ],
+    },
     ...(temRedeSocial.value
       ? [
           {
@@ -848,14 +861,6 @@ const menuItems = computed(() => {
           // que não existe rende um player vazio.
           icon: 'i-lucide-map-pin',
           to: accountScopedRoute('units_list'),
-        },
-        {
-          name: 'Settings Catalog',
-          label: t('SIDEBAR.CATALOG'),
-          // Lucide puro pelo mesmo motivo de Unidades: nao ha entrada de etiqueta no
-          // mapa LORDICON, e pedir uma que nao existe rende um player vazio.
-          icon: 'i-lucide-tags',
-          to: accountScopedRoute('catalog_products_index'),
         },
         ...(hasAdvancedAssignment.value
           ? [

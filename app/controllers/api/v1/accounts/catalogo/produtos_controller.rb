@@ -18,6 +18,10 @@ class Api::V1::Accounts::Catalogo::ProdutosController < Api::V1::Accounts::BaseC
   before_action :check_authorization
   before_action :validar_data_do_filtro, only: [:index]
 
+  helper_method :campos_personalizados
+
+  rescue_from CustomExceptions::Catalog::InvalidCustomField, with: :render_error_response
+
   def index
     escopo = filtrar(policy_scope(CatalogProduct).includes(:category, images_attachments: :blob))
     @total = escopo.count
@@ -35,7 +39,7 @@ class Api::V1::Accounts::Catalogo::ProdutosController < Api::V1::Accounts::BaseC
   # PUT /produtos/:sku — o ERP manda o que mudou (tipicamente preço e estoque).
   def update
     @produto = por_sku!(params[:sku])
-    @produto.update!(produto_params.except(:sku))
+    @produto.update!(com_campos(@produto, produto_params.except(:sku)))
     render :show
   end
 
@@ -99,8 +103,24 @@ class Api::V1::Accounts::Catalogo::ProdutosController < Api::V1::Accounts::BaseC
     produto = policy_scope(CatalogProduct).find_by(sku: sku)
     @criado = produto.nil?
     produto ||= Current.account.catalog_products.new
-    produto.update!(atributos.merge(sku: sku))
+    produto.update!(com_campos(produto, atributos).merge(sku: sku))
     produto
+  end
+
+  def campos_personalizados
+    @campos_personalizados ||= Catalog::CustomFields.new(Current.account)
+  end
+
+  # `campos` do ERP MESCLA, ao contrário do painel: o ERP manda atualização parcial. Chave ausente
+  # fica como está, chave com null (ou vazia) é apagada — um `update!` direto no jsonb trocaria o
+  # conjunto inteiro e apagaria o que não veio.
+  def com_campos(produto, atributos)
+    campos = atributos.delete(:campos)
+    return atributos if campos.nil?
+
+    campos = campos.to_h
+    apagados = campos.select { |_, valor| valor.nil? || valor == '' }.keys
+    atributos.merge(custom_attributes: produto.custom_attributes.except(*apagados).merge(campos_personalizados.normalizar(campos)))
   end
 
   def gravar_item_do_lote(item)
@@ -109,12 +129,14 @@ class Api::V1::Accounts::Catalogo::ProdutosController < Api::V1::Accounts::BaseC
     { sku: produto.sku, status: @criado ? 'criado' : 'atualizado', id: produto.id }
   rescue ActiveRecord::RecordInvalid => e
     { sku: item[:sku], status: 'erro', erros: e.record.errors.full_messages }
+  rescue CustomExceptions::Catalog::InvalidCustomField => e
+    { sku: item[:sku], status: 'erro', erros: [e.message] }
   rescue ActionController::ParameterMissing
     { sku: nil, status: 'erro', erros: ['SKU é obrigatório'] }
   end
 
   CAMPOS_PERMITIDOS = [:name, :description, :price_cents, :promo_price_cents, :currency,
-                       :sku, :stock, :visible, :featured, :categoria].freeze
+                       :sku, :stock, :visible, :featured, :categoria, { campos: {} }].freeze
 
   def produto_params
     normalizar(params.require(:produto).permit(*CAMPOS_PERMITIDOS))

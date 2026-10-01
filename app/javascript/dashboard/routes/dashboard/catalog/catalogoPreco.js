@@ -20,10 +20,13 @@ export const paraCentavos = texto => {
   if (!limpo) return null;
 
   // Em pt-BR a vírgula é o decimal e o ponto é o milhar ("1.299,90"). Sem trocar os dois de lugar
-  // antes do parse, "1.299" viraria R$ 1,29 — o erro caro é esse, não o centavo perdido.
-  const normalizado = limpo.includes(',')
-    ? limpo.replace(/\./g, '').replace(',', '.')
-    : limpo;
+  // antes do parse, "1.299" viraria R$ 1,29 — o erro caro é esse, não o centavo perdido. Vale
+  // também sem vírgula: "450.000" é quatrocentos e cinquenta mil, não quatrocentos e cinquenta.
+  const soMilhar = /^\d{1,3}(\.\d{3})+$/.test(limpo);
+  const normalizado =
+    limpo.includes(',') || soMilhar
+      ? limpo.replace(/\./g, '').replace(',', '.')
+      : limpo;
 
   const valor = Number.parseFloat(normalizado);
 

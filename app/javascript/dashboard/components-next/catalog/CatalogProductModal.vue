@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CatalogAPI from 'dashboard/api/catalog';
+import { useCatalogLabels } from 'dashboard/composables/useCatalogLabels';
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -13,6 +14,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'send']);
 
 const { t } = useI18n();
+const { labels, isFieldHidden } = useCatalogLabels();
 
 const dialogRef = ref(null);
 const busca = ref('');
@@ -65,17 +67,22 @@ const alternar = id => {
 const estaSelecionado = id => selecionados.value.includes(id);
 const podeEnviar = computed(() => selecionados.value.length > 0);
 
-// O álbum com menu numerado só existe a partir do segundo produto — é o aviso que muda de texto.
+// O menu numerado só existe a partir do segundo produto — é o aviso que muda de texto.
 const avisoWaha = computed(() =>
   selecionados.value.length > 1
     ? t('CONVERSATION.CATALOG.WAHA_NOTICE_MANY')
     : t('CONVERSATION.CATALOG.WAHA_NOTICE_ONE')
 );
 
+// Item sem preço não mostra preço: devolver '' é o que tira a linha do card.
 const preco = produto => {
-  const valor =
-    (produto.currentPriceCents ?? produto.current_price_cents) / 100;
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const centavos = produto.currentPriceCents ?? produto.current_price_cents;
+  if (centavos === null || centavos === undefined) return '';
+
+  return (centavos / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
 };
 
 const emPromocao = produto => produto.onSale ?? produto.on_sale;
@@ -130,7 +137,7 @@ const onKeyDown = evento => {
             class="flex items-center justify-between px-5 py-4 border-b border-n-slate-3 dark:border-n-slate-7"
           >
             <h3 class="text-base font-medium text-n-slate-12 m-0">
-              {{ t('CONVERSATION.CATALOG.TITLE') }}
+              {{ t('CONVERSATION.CATALOG.TITLE', labels) }}
             </h3>
             <button
               class="reset-base p-1 rounded-md text-n-slate-11 hover:bg-n-alpha-2"
@@ -146,7 +153,11 @@ const onKeyDown = evento => {
               v-model="busca"
               type="search"
               class="reset-base w-full h-10 px-3 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10"
-              :placeholder="t('CONVERSATION.CATALOG.SEARCH')"
+              :placeholder="
+                isFieldHidden('sku')
+                  ? t('CATALOG_MGMT.SEARCH_PLACEHOLDER_NO_SKU')
+                  : t('CONVERSATION.CATALOG.SEARCH')
+              "
             />
           </div>
 
@@ -189,7 +200,10 @@ const onKeyDown = evento => {
                   <span class="text-sm text-n-slate-12 line-clamp-2">
                     {{ produto.name }}
                   </span>
-                  <span class="text-sm text-n-slate-12 font-medium">
+                  <span
+                    v-if="preco(produto)"
+                    class="text-sm text-n-slate-12 font-medium"
+                  >
                     {{ preco(produto) }}
                     <span
                       v-if="emPromocao(produto)"
@@ -199,7 +213,7 @@ const onKeyDown = evento => {
                     </span>
                   </span>
                   <span
-                    v-if="produto.sku"
+                    v-if="produto.sku && !isFieldHidden('sku')"
                     class="text-label-small text-n-slate-10"
                   >
                     {{ produto.sku }}

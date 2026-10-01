@@ -11,7 +11,9 @@ class Api::V1::Accounts::Catalog::ProductsController < Api::V1::Accounts::BaseCo
   before_action :check_authorization
   before_action :exigir_espelho, only: [:sync, :sync_product]
 
-  helper_method :meta_sync_enabled?
+  helper_method :meta_sync_enabled?, :campos_personalizados
+
+  rescue_from CustomExceptions::Catalog::InvalidCustomField, with: :render_error_response
 
   # A vitrine precisa do total para paginar, então a resposta é objeto com `meta`, e não array
   # solto: sem o total, a tela não sabe se existe página seguinte.
@@ -132,10 +134,20 @@ class Api::V1::Accounts::Catalog::ProductsController < Api::V1::Accounts::BaseCo
     @produto.images.attach(imagens) if imagens.present?
   end
 
+  def campos_personalizados
+    @campos_personalizados ||= Catalog::CustomFields.new(Current.account)
+  end
+
+  # A tela manda TODAS as chaves dos campos personalizados, então o conjunto é substituído: chave
+  # que veio em branco some. Sem a chave `custom_attributes` no corpo, os campos ficam como estão.
   def produto_params
-    params.require(:catalog_product).permit(
+    atributos = params.require(:catalog_product).permit(
       :name, :description, :price_cents, :promo_price_cents, :currency,
-      :sku, :stock, :visible, :featured, :catalog_category_id
+      :sku, :stock, :visible, :featured, :catalog_category_id, custom_attributes: {}
     )
+    return atributos unless atributos.key?(:custom_attributes)
+
+    atuais = @produto&.custom_attributes || {}
+    atributos.merge(custom_attributes: campos_personalizados.normalizar(atributos[:custom_attributes], atuais))
   end
 end

@@ -12,6 +12,7 @@ import { routes as agentsRoutes } from './agents/agents.routes';
 import { routes as kanbanRoutes } from './kanban/routes';
 import { routes as internalChatRoutes } from './internalChat/routes';
 import { routes as galleryRoutes } from './gallery/routes';
+import { routes as catalogRoutes } from './catalog/catalog.routes';
 import { routes as takeoverRequestsRoutes } from './takeoverRequests/routes';
 import { routes as socialRoutes } from './social/routes';
 import { routes as assessmentsRoutes } from './assessments/routes';
@@ -31,6 +32,7 @@ export default {
         ...internalChatRoutes,
         ...inboxRoutes,
         ...galleryRoutes,
+        ...catalogRoutes,
         ...takeoverRequestsRoutes,
         ...socialRoutes,
         ...assessmentsRoutes,

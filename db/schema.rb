@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_29_111557) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_30_124039) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -630,7 +630,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_29_111557) do
     t.bigint "catalog_category_id"
     t.string "name", null: false
     t.text "description"
-    t.integer "price_cents", default: 0, null: false
+    t.integer "price_cents"
     t.integer "promo_price_cents"
     t.string "currency", default: "BRL", null: false
     t.string "sku"
@@ -641,7 +641,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_29_111557) do
     t.datetime "meta_synced_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "custom_attributes", default: {}, null: false
+    t.string "source"
+    t.string "external_id"
+    t.string "external_image_url"
     t.index ["account_id", "sku"], name: "index_catalog_products_on_account_id_and_sku", unique: true, where: "(sku IS NOT NULL)"
+    t.index ["account_id", "source", "external_id"], name: "index_catalog_products_on_account_id_and_source_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
     t.index ["account_id", "visible"], name: "index_catalog_products_on_account_id_and_visible"
     t.index ["account_id"], name: "index_catalog_products_on_account_id"
     t.index ["catalog_category_id"], name: "index_catalog_products_on_catalog_category_id"

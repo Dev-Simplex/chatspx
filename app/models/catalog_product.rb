@@ -6,27 +6,32 @@
 #
 #  id                  :bigint           not null, primary key
 #  currency            :string           not null, default("BRL")
+#  custom_attributes   :jsonb            not null
 #  description         :text
+#  external_image_url  :string
 #  featured            :boolean          not null, default(FALSE)
 #  meta_synced_at      :datetime
 #  name                :string           not null
-#  price_cents         :integer          not null, default(0)
+#  price_cents         :integer
 #  promo_price_cents   :integer
 #  sku                 :string
+#  source              :string
 #  stock               :integer
 #  visible             :boolean          not null, default(TRUE)
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #  account_id          :bigint           not null
 #  catalog_category_id :bigint
+#  external_id         :string
 #  meta_product_id     :string
 #
 # Indexes
 #
-#  index_catalog_products_on_account_id              (account_id)
-#  index_catalog_products_on_account_id_and_sku      (account_id,sku) UNIQUE WHERE (sku IS NOT NULL)
-#  index_catalog_products_on_account_id_and_visible  (account_id,visible)
-#  index_catalog_products_on_catalog_category_id     (catalog_category_id)
+#  index_catalog_products_on_account_id                             (account_id)
+#  index_catalog_products_on_account_id_and_sku                     (account_id,sku) UNIQUE WHERE (sku IS NOT NULL)
+#  index_catalog_products_on_account_id_and_source_and_external_id  (account_id,source,external_id) UNIQUE WHERE (external_id IS NOT NULL)
+#  index_catalog_products_on_account_id_and_visible                 (account_id,visible)
+#  index_catalog_products_on_catalog_category_id                    (catalog_category_id)
 #
 # Produto do catálogo. O banco daqui é a FONTE; o catálogo da Meta é espelho (`meta_product_id`
 # guarda o item de lá, `meta_synced_at` diz quando ele foi conferido pela última vez).
@@ -48,8 +53,16 @@ class CatalogProduct < ApplicationRecord
   # A PRIMEIRA imagem é a capa — é ela que vai na bolha da conversa e no espelho da Meta.
   has_many_attached :images
 
+  # Fotos que vão para a conversa por item: a capa com a legenda e as seguintes soltas. Teto porque
+  # imóvel costuma ter 30+ fotos, e despejar todas prende o cliente num rolo de mídia.
+  FOTOS_NO_ENVIO = 10
+
+  # Teto de `additional_image_urls` da Meta.
+  FOTOS_EXTRAS_NA_META = 19
+
   validates :name, presence: true
-  validates :price_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  # Preço é opcional: imóvel e serviço nem sempre têm um preço só. Sem preço, nada mostra preço.
+  validates :price_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
   validates :promo_price_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
   validates :stock, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
   validates :currency, presence: true
@@ -77,7 +90,7 @@ class CatalogProduct < ApplicationRecord
   end
 
   def em_promocao?
-    promo_price_cents.present? && promo_price_cents < price_cents
+    promo_price_cents.present? && price_cents.present? && promo_price_cents < price_cents
   end
 
   def capa
@@ -103,10 +116,32 @@ class CatalogProduct < ApplicationRecord
     catalog_public_image_url(id: signed_id(purpose: IMAGEM_PUBLICA, expires_in: nil))
   end
 
-  # O que falta para a Meta aceitar o item: ela exige a chave do varejista (o SKU) e a imagem. É a
-  # MESMA régua do `MetaSyncService#enviavel?` — o selo da aba e o espelho não podem discordar.
+  # As fotos depois da capa, para a galeria do item na Meta. Mesma régua do `public_image_url`, com
+  # o `signed_id` da FOTO: apagar uma foto não pode trocar a URL das outras, e a Meta faz cache.
+  # Assina o BLOB de propósito: o anexo repassa `signed_id` para ele, e o `find_signed` do anexo
+  # nunca acharia nada.
+  def public_extra_image_urls
+    return [] unless visible
+
+    images.drop(1).first(FOTOS_EXTRAS_NA_META).map do |imagem|
+      catalog_public_extra_image_url(id: imagem.blob.signed_id(purpose: IMAGEM_PUBLICA, expires_in: nil))
+    end
+  end
+
+  def fotos_para_envio
+    images.first(FOTOS_NO_ENVIO)
+  end
+
+  # O que falta para a Meta aceitar o item: ela exige a chave do varejista (o SKU), a imagem e o
+  # preço. É a MESMA régua do `MetaSyncService#enviavel?` — o selo da aba e o espelho não podem
+  # discordar.
   def faltas_para_meta
-    [(:sku if sku.blank?), (:foto if capa.blank?)].compact
+    [(:sku if sku.blank?), (:foto if capa.blank?), (:preco if price_cents.nil?)].compact
+  end
+
+  # Item que veio de integração é espelho de lá: o SPX só lê.
+  def read_only?
+    source.present?
   end
 
   # Estado do espelho que a aba mostra. Oculto não tem estado: ele sai da Meta sozinho, e o selo
@@ -142,6 +177,7 @@ class CatalogProduct < ApplicationRecord
       current_price_cents: preco_atual_cents, currency: currency,
       stock: stock, visible: visible, featured: featured,
       categoria: category&.name, cover_url: capa_url,
+      custom_attributes: custom_attributes, source: source, external_id: external_id,
       meta_product_id: meta_product_id, updated_at: updated_at
     }
   end

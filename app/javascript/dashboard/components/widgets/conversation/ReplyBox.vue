@@ -82,6 +82,7 @@ import { useAIOnboarding } from 'dashboard/composables/useAIOnboarding';
 import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
 import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import { useConnectionStatus } from 'dashboard/composables/useConnectionStatus';
+import { useCatalogLabels } from 'dashboard/composables/useCatalogLabels';
 import { useAIAssistantFlag } from 'dashboard/components-next/ai-assistant/composables/useAIAssistantFlag';
 import { useAITour } from 'dashboard/components-next/ai-assistant/composables/useAITour';
 import AIOnboardingCoachmark from './AIOnboardingCoachmark.vue';
@@ -201,8 +202,11 @@ export default {
     // envio — o ChatSPX já tem envio otimista + reconcilePendingMessages, então o
     // ReconnectService reenvia sozinho ao voltar; travar o envio seria pior.
     const { isSustainedOffline } = useConnectionStatus();
+    // O item do catálogo tem o nome que a conta escolheu (produto, imóvel, serviço).
+    const { labels: catalogLabels } = useCatalogLabels();
 
     return {
+      catalogLabels,
       uiSettings,
       isEditorHotKeyEnabled,
       fetchSignatureFlagFromUISettings,
@@ -3204,7 +3208,7 @@ export default {
               <DropdownItem
                 v-if="!isPrivate"
                 data-testid="replybox-catalog"
-                :label="$t('CONVERSATION.CATALOG.MENU')"
+                :label="$t('CONVERSATION.CATALOG.MENU', catalogLabels)"
                 icon="i-lucide-shopping-bag"
                 :click="openCatalogModal"
               />

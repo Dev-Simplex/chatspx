@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useCatalogLabels } from 'dashboard/composables/useCatalogLabels';
 import { formatarPreco } from './catalogoPreco';
 import CatalogMetaBadge from './CatalogMetaBadge.vue';
 
@@ -18,6 +19,16 @@ const props = defineProps({
 // Mandar produto na conversa é pelo seletor do próprio chat (C8); aqui o card só abre o cadastro.
 defineEmits(['abrir']);
 
+// O card cabe três campos sem virar ficha; o resto está no cadastro.
+const CAMPOS_NO_CARD = 3;
+
+const { isFieldHidden } = useCatalogLabels();
+
+// Já vêm do servidor no formato de exibição, sem os internos e sem os vazios.
+const campos = computed(() =>
+  (props.produto.custom_fields || []).slice(0, CAMPOS_NO_CARD)
+);
+
 // `current_price_cents` já vem resolvido pelo backend (promoção vence o cheio). O preço cheio só
 // aparece riscado quando há promoção de verdade — repetir o mesmo valor riscado confunde.
 const precoAtual = computed(() =>
@@ -33,7 +44,10 @@ const precoCheio = computed(() =>
 // Estoque zero é diferente de estoque não controlado: o primeiro vira alerta vermelho, o segundo
 // simplesmente não mostra etiqueta.
 const temEstoque = computed(
-  () => props.produto.stock !== null && props.produto.stock !== undefined
+  () =>
+    !isFieldHidden('stock') &&
+    props.produto.stock !== null &&
+    props.produto.stock !== undefined
 );
 const semEstoque = computed(
   () => temEstoque.value && props.produto.stock === 0
@@ -62,7 +76,7 @@ const semEstoque = computed(
         class="absolute flex flex-col items-start gap-1 top-2 ltr:left-2 rtl:right-2"
       >
         <span
-          v-if="produto.featured"
+          v-if="produto.featured && !isFieldHidden('featured')"
           class="px-2 py-1 rounded-md text-label-small bg-n-amber-3 text-n-amber-11"
         >
           {{ $t('CATALOG_MGMT.CARD.FEATURED') }}
@@ -100,7 +114,12 @@ const semEstoque = computed(
       <span class="font-medium line-clamp-2 text-n-slate-12 text-body-main">
         {{ produto.name }}
       </span>
-      <span class="flex flex-wrap items-baseline gap-1.5">
+      <!-- Sem preço, não há linha de preço: "R$ 0,00" num imóvel seria informação errada. -->
+      <span
+        v-if="precoAtual"
+        data-testid="card-preco"
+        class="flex flex-wrap items-baseline gap-1.5"
+      >
         <span class="font-semibold text-n-teal-11">{{ precoAtual }}</span>
         <span
           v-if="precoCheio"
@@ -109,7 +128,19 @@ const semEstoque = computed(
           {{ precoCheio }}
         </span>
       </span>
-      <span v-if="produto.sku" class="text-n-slate-10 text-label-small">
+      <span
+        v-for="(campo, indice) in campos"
+        :key="indice"
+        data-testid="card-campo"
+        class="truncate text-n-slate-11 text-label-small"
+      >
+        {{ campo.label }}: {{ campo.value }}
+      </span>
+      <span
+        v-if="produto.sku && !isFieldHidden('sku')"
+        data-testid="card-sku"
+        class="text-n-slate-10 text-label-small"
+      >
         {{ produto.sku }}
       </span>
     </div>

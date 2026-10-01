@@ -1,6 +1,20 @@
 import { mount } from '@vue/test-utils';
 import CatalogProductCard from '../CatalogProductCard.vue';
 
+const { escondidos } = vi.hoisted(() => ({ escondidos: [] }));
+
+// Nome do item e campos escondidos vêm da conta; aqui a conta usa o padrão e o teste escolhe
+// o que esconder.
+vi.mock('dashboard/composables/useCatalogLabels', async () => {
+  const { ref } = await import('vue');
+  return {
+    useCatalogLabels: () => ({
+      labels: ref({ item: 'product', items: 'products' }),
+      isFieldHidden: campo => escondidos.includes(campo),
+    }),
+  };
+});
+
 const produto = {
   id: 1,
   name: 'Ray-Ban Aviador Clássico',
@@ -24,6 +38,44 @@ const montar = (extra = {}, props = {}) =>
   });
 
 describe('CatalogProductCard', () => {
+  beforeEach(() => {
+    escondidos.length = 0;
+  });
+
+  it('não mostra preço quando o item não tem preço', () => {
+    const wrapper = montar({
+      price_cents: null,
+      current_price_cents: null,
+      on_sale: false,
+    });
+
+    expect(wrapper.find('[data-testid="card-preco"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('R$');
+  });
+
+  it('mostra até três campos personalizados, na ordem em que vieram', () => {
+    const wrapper = montar({
+      custom_fields: [
+        { label: 'Dormitórios', value: '3' },
+        { label: 'Bairro', value: 'Centro' },
+        { label: 'Vagas', value: '2' },
+        { label: 'Suítes', value: '1' },
+      ],
+    });
+
+    expect(
+      wrapper.findAll('[data-testid="card-campo"]').map(campo => campo.text())
+    ).toEqual(['Dormitórios: 3', 'Bairro: Centro', 'Vagas: 2']);
+  });
+
+  it('some com SKU e estoque quando a conta esconde os dois', () => {
+    escondidos.push('sku', 'stock');
+    const wrapper = montar();
+
+    expect(wrapper.find('[data-testid="card-sku"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="selo-estoque"]').exists()).toBe(false);
+  });
+
   it('risca o preço cheio só quando existe promoção', () => {
     expect(montar().find('.line-through').exists()).toBe(true);
     expect(

@@ -34,6 +34,7 @@ const ESTADOS = {
 const FALTAS = {
   sku: 'CATALOG_MGMT.META_STATUS.MISSING.SKU',
   foto: 'CATALOG_MGMT.META_STATUS.MISSING.FOTO',
+  preco: 'CATALOG_MGMT.META_STATUS.MISSING.PRECO',
 };
 
 const status = computed(() => props.produto.meta_status);
@@ -45,7 +46,7 @@ const dica = computed(() => {
       t(FALTAS[falta])
     );
     return t('CATALOG_MGMT.META_STATUS.MISSING_HINT', {
-      items: faltas.join(', '),
+      missing: faltas.join(', '),
     });
   }
   if (status.value === 'pendente')

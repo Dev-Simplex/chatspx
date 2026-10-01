@@ -19,8 +19,14 @@
 pt_BR:
   catalog:
     send:
-      empty: "Nenhum produto selecionado."
-      menu_header: "%{count} produtos:"
+      empty: "Nenhum item selecionado."
+      menu_header: "%{count} itens:"
+    message:
+      body: "Confira os detalhes:"
+      header: "Selecionados para você"
+      section: "Itens"
+    custom_fields:
+      checked: "Sim"
     meta_sync:
       not_configured: "O espelho do catálogo na Meta não está configurado nesta conta."
   hello: 'Olá, mundo'
@@ -105,6 +111,8 @@ pt_BR:
     account:
       reporting_timezone:
         invalid: não é um fuso horário válido
+      catalog_hidden_fields:
+        invalid: só aceita sku, stock, featured e promo_price
     validations:
       presence: não pode ficar em branco
       invalid: é inválido
@@ -125,7 +133,8 @@ pt_BR:
     webhook:
       invalid: Eventos inválidos
     catalog:
-      meta_rate_limited: O limite de chamadas do catálogo da Meta foi atingido. Os produtos que faltam saem na próxima sincronização.
+      meta_rate_limited: O limite de chamadas do catálogo da Meta foi atingido. Os itens que faltam saem na próxima sincronização.
+      invalid_custom_field: 'Valor inválido para o campo "%{field}".'
     signup:
       disposable_email: Não permitimos e-mails descartáveis
       blocked_domain: Este domínio não é permitido. Se você acredita que isso é um erro, por favor contate o suporte.

@@ -76,12 +76,29 @@ class Catalog::ProductImportJob < ApplicationJob
     # semana tem três colunas — sku, preço, estoque —, e exigir nome nela recusava 100% das linhas.
     return 'Nome é obrigatório' if produto.new_record? && atributos[:name].blank?
 
+    campos = campos_da_linha(linha)
+    atributos[:custom_attributes] = produto.custom_attributes.merge(campos) if campos.present?
     produto.update!(atributos)
     nil
   rescue ActiveRecord::RecordInvalid => e
     e.record.errors.full_messages.join(', ')
-  rescue ArgumentError => e
+  rescue ArgumentError, CustomExceptions::Catalog::InvalidCustomField => e
     e.message
+  end
+
+  # Coluna com o cabeçalho igual à CHAVE ou ao RÓTULO de um campo personalizado preenche o campo.
+  # Célula vazia não apaga, pelo mesmo motivo das colunas padrão: planilha parcial não zera cadastro.
+  def campos_da_linha(linha)
+    valores = linha.transform_keys { |k| k.to_s.strip.downcase }
+    brutos = campos_personalizados.definicoes.each_with_object({}) do |definicao, resultado|
+      valor = valores[definicao.attribute_key.downcase].presence || valores[definicao.attribute_display_name.downcase].presence
+      resultado[definicao.attribute_key] = valor if valor
+    end
+    campos_personalizados.normalizar(brutos)
+  end
+
+  def campos_personalizados
+    @campos_personalizados ||= Catalog::CustomFields.new(@conta)
   end
 
   def montar(linha)
