@@ -9,6 +9,7 @@ if Current.account_user&.administrator?
   settings = resource.settings
   if resource.app_id == 'captador'
     settings = settings.except('shared_secret').merge('shared_secret_configured' => resource.captador_shared_secret_configured?)
+    json.captador_state resource.captador_inbox_state
   end
   json.settings settings
 end

@@ -252,7 +252,8 @@ RSpec.describe 'Spx::Captador::Leads', type: :request do
     it 'recusa caixa que não é WhatsApp, mesmo liberada' do
       widget = create(:inbox, account: account)
       create(:inbox_member, inbox: widget, user: agent)
-      hook.update!(settings: hook.settings.merge('allowed_inbox_ids' => "#{inbox.id}, #{widget.id}"))
+      # Simulate a legacy hook: new writes reject unsupported channels before reaching this endpoint.
+      hook.update_column(:settings, hook.settings.merge('allowed_inbox_ids' => "#{inbox.id}, #{widget.id}")) # rubocop:disable Rails/SkipsModelValidations
       send_lead(body.merge(inbox_id: widget.id))
 
       expect(error_code).to eq('channel_not_allowed')

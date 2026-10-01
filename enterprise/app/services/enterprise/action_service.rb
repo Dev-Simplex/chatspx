@@ -43,7 +43,8 @@ module Enterprise::ActionService
 
     # MESMO save: limpa humano + seta espelho (invariante; saves separados quebram com
     # allow_auto_assign). O after_commit da Fase A enfileira AssignmentKickJob.
-    # nil = o service recusou (ex.: trava de teste do assistant) -> a IA não vira dona da regra.
+    # nil = o service recusou (ex.: trava de teste do assistant, etiqueta sem IA da conta) ->
+    # a IA não vira dona da regra.
     assigned = Conversations::AssignmentService.new(
       conversation: @conversation, assignee_id: mirror.id, assignee_type: 'AgentBot'
     ).perform

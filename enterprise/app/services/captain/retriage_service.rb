@@ -21,6 +21,7 @@ class Captain::RetriageService
     return failure('Nenhum assistente de triagem configurado nesta conta.') if assistant.nil?
     return failure('A triagem não está habilitada nesta caixa de entrada.') unless eligible?(assistant)
     return failure('A triagem está em modo de teste e não atende este contato.') unless contact_allowed?(assistant)
+    return failure('Esta conversa tem uma etiqueta que a IA não atende.') unless labels_allowed?
 
     mirror = AgentBot.captain.find_by(captain_assistant_id: assistant.id)
     return failure('Espelho da triagem não encontrado (rode captain:sync_mirrors).') if mirror.nil?
@@ -46,6 +47,11 @@ class Captain::RetriageService
   # Trava de teste (CHAT-171): devolver à IA um contato que ela não atende deixaria a conversa muda.
   def contact_allowed?(assistant)
     Captain::Behavior::ContactPhoneLock.new(assistant).allows?(@conversation.contact)
+  end
+
+  # Etiquetas sem IA da conta (CHAT-180): conversa ou contato etiquetado não volta para a IA.
+  def labels_allowed?
+    Captain::Behavior::SkipLabelsLock.new(@account).allows?(@conversation)
   end
 
   def failure(message)
