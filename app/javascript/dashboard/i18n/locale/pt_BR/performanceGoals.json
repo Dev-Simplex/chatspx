@@ -57,7 +57,10 @@
     "STATUS": {
       "HIT": "Meta batida",
       "NEAR": "Perto da meta",
-      "BELOW": "Abaixo da meta"
+      "BELOW": "Abaixo da meta",
+      "ON_PACE": "No ritmo",
+      "BEHIND": "Atrás do ritmo",
+      "START": "Começo do mês"
     },
     "RANK_POSITION": "{position}º no ranking",
     "OF": "{actual} de {goal}",
@@ -68,6 +71,22 @@
     "PODIUM": "Pódio",
     "RANKING": "Ranking",
     "MEMBERS": "Time",
-    "EDITOR_SUBTITLE": "{month} · metas de {count} pessoas"
+    "EDITOR_SUBTITLE": "{month} · metas de {count} pessoas",
+    "GAP": {
+      "RESOLVED_CONVERSATIONS": "falta {value} conversa | faltam {value} conversas",
+      "KANBAN_WINS": "falta {value} negócio | faltam {value} negócios",
+      "NPS": "faltam {value} pts",
+      "FIRST_RESPONSE_TIME": "precisa cair {value}"
+    },
+    "ABOVE": "superou em {value}",
+    "EXPECTED": "esperado até hoje: {value}",
+    "PROJECTION": "projeção do mês: {value}",
+    "CELEBRATE_TITLE": "Meta do mês batida!",
+    "CELEBRATE_BODY": "Parabéns, sua nota geral passou de 100%.",
+    "PARTIAL": "Você já bateu {hit} de {total} metas.",
+    "HITS": "{hit}/{total} metas batidas",
+    "DAYS_LEFT": "falta {count} dia | faltam {count} dias",
+    "CLOSED": "Mês fechado",
+    "PACE_LEGEND": "A faixa clara na barra marca onde o indicador deveria estar hoje para fechar a meta no fim do mês."
   }
 }

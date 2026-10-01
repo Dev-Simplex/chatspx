@@ -57,7 +57,10 @@
     "STATUS": {
       "HIT": "Goal reached",
       "NEAR": "Close to goal",
-      "BELOW": "Below goal"
+      "BELOW": "Below goal",
+      "ON_PACE": "On pace",
+      "BEHIND": "Behind pace",
+      "START": "Start of month"
     },
     "RANK_POSITION": "#{position} in the ranking",
     "OF": "{actual} of {goal}",
@@ -68,6 +71,22 @@
     "PODIUM": "Top 3",
     "RANKING": "Ranking",
     "MEMBERS": "Team",
-    "EDITOR_SUBTITLE": "{month} · goals for {count} people"
+    "EDITOR_SUBTITLE": "{month} · goals for {count} people",
+    "GAP": {
+      "RESOLVED_CONVERSATIONS": "{value} conversation to go | {value} conversations to go",
+      "KANBAN_WINS": "{value} deal to go | {value} deals to go",
+      "NPS": "{value} pts to go",
+      "FIRST_RESPONSE_TIME": "needs to drop {value}"
+    },
+    "ABOVE": "beat it by {value}",
+    "EXPECTED": "expected by today: {value}",
+    "PROJECTION": "month projection: {value}",
+    "CELEBRATE_TITLE": "Monthly goal reached!",
+    "CELEBRATE_BODY": "Congratulations, your overall score passed 100%.",
+    "PARTIAL": "You already hit {hit} of {total} goals.",
+    "HITS": "{hit}/{total} goals hit",
+    "DAYS_LEFT": "{count} day left | {count} days left",
+    "CLOSED": "Month closed",
+    "PACE_LEGEND": "The light band on the bar marks where the metric should be today to reach the goal by month end."
   }
 }

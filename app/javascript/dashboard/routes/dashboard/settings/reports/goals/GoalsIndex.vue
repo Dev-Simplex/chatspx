@@ -1,6 +1,6 @@
 <script setup>
 // CHAT-177: Relatórios → Metas. O servidor decide o que cada papel recebe; a tela só mostra o que veio.
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import PerformanceGoalsAPI from 'dashboard/api/performanceGoals';
@@ -13,7 +13,11 @@ import GoalsMetricCell from './GoalsMetricCell.vue';
 import GoalsEditor from './GoalsEditor.vue';
 import {
   METRICS,
-  goalTone,
+  metricTone,
+  overallTone,
+  projectedOverall,
+  goalsHit,
+  monthProgress,
   formatMetric,
   percentLabel,
   monthKey,
@@ -36,6 +40,9 @@ const loading = ref(false);
 const failed = ref(false);
 const errorMessage = ref('');
 const editing = ref(false);
+// Relógio da tela: o ritmo do mês anda a cada recarga automática.
+const today = ref(new Date());
+const progress = computed(() => monthProgress(month.value, today.value));
 
 // Abre no mês atual e volta até 11 meses.
 const monthOptions = computed(() =>
@@ -67,8 +74,34 @@ const STATUS_LABELS = () => ({
   HIT: t('PERFORMANCE_GOALS.STATUS.HIT'),
   NEAR: t('PERFORMANCE_GOALS.STATUS.NEAR'),
   BELOW: t('PERFORMANCE_GOALS.STATUS.BELOW'),
+  ON_PACE: t('PERFORMANCE_GOALS.STATUS.ON_PACE'),
+  BEHIND: t('PERFORMANCE_GOALS.STATUS.BEHIND'),
+  START: t('PERFORMANCE_GOALS.STATUS.START'),
 });
-const statusLabel = attainment => STATUS_LABELS()[goalTone(attainment).key] || '';
+const statusLabel = tone => STATUS_LABELS()[tone.key] || '';
+const rowTone = row => overallTone(row, progress.value);
+const projection = row => {
+  if (row.overall >= 1) return null;
+  return percentLabel(projectedOverall(row.metrics, progress.value));
+};
+
+// Quantos em cada situação, na ordem da melhor para a pior.
+const SUMMARY_ORDER = ['HIT', 'ON_PACE', 'START', 'NEAR', 'BEHIND', 'BELOW'];
+const summary = computed(() => {
+  const groups = {};
+  rows.value.forEach(row => {
+    const tone = rowTone(row);
+    if (!tone.key) return;
+    groups[tone.key] = groups[tone.key] || { tone, count: 0 };
+    groups[tone.key].count += 1;
+  });
+  return SUMMARY_ORDER.filter(key => groups[key]).map(key => ({
+    key,
+    ...groups[key],
+  }));
+});
+const meHits = computed(() => goalsHit(me.value?.metrics));
+const meCelebrates = computed(() => me.value?.overall >= 1);
 
 const canManage = computed(() => !!data.value?.can_manage);
 const canDefine = computed(() => canManage.value && month.value >= currentMonth);
@@ -104,8 +137,10 @@ const meNumbers = metric => {
     : t('PERFORMANCE_GOALS.OF', { actual: fmt(actual), goal: fmt(goal) });
 };
 
-const load = async () => {
-  loading.value = true;
+// silent: recarga automática, sem trocar a tela pelo carregando.
+const load = async ({ silent = false } = {}) => {
+  today.value = new Date();
+  loading.value = !silent;
   failed.value = false;
   try {
     const { data: payload } = await PerformanceGoalsAPI.getRanking({
@@ -136,8 +171,16 @@ const onSaved = () => {
   load();
 };
 
-watch([month, scope, teamId], load);
+watch([month, scope, teamId], () => load());
 onMounted(load);
+
+// Mês corrente: o ranking se mexe sozinho enquanto a equipe atende.
+const timer = setInterval(() => {
+  if (month.value === monthKey(new Date()) && !editing.value && !failed.value) {
+    load({ silent: true });
+  }
+}, 60000);
+onUnmounted(() => clearInterval(timer));
 </script>
 
 <template>
@@ -235,17 +278,46 @@ onMounted(load);
               </p>
               <p
                 class="mb-0 text-3xl font-semibold tabular-nums"
-                :class="goalTone(me.overall).text"
+                :class="rowTone(me).text"
               >
                 {{ overall(me.overall) }}
               </p>
+              <p v-if="projection(me)" class="mb-0 text-xs text-n-slate-11">
+                {{ $t('PERFORMANCE_GOALS.PROJECTION', { value: projection(me) }) }}
+              </p>
             </div>
           </div>
+          <div
+            v-if="meCelebrates"
+            class="flex items-center gap-3 p-4 mb-5 rounded-lg bg-n-teal-3 text-n-teal-11"
+          >
+            <span class="i-lucide-trophy size-7 flex-shrink-0" />
+            <div>
+              <p class="mb-0 text-base font-semibold">
+                {{ $t('PERFORMANCE_GOALS.CELEBRATE_TITLE') }}
+              </p>
+              <p class="mb-0 text-sm">
+                {{ $t('PERFORMANCE_GOALS.CELEBRATE_BODY') }}
+              </p>
+            </div>
+          </div>
+          <p
+            v-else-if="meHits.hit"
+            class="flex items-center gap-2 mb-5 text-sm text-n-teal-11"
+          >
+            <span class="i-lucide-trophy size-4" />
+            {{ $t('PERFORMANCE_GOALS.PARTIAL', meHits) }}
+          </p>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div
               v-for="metric in METRICS"
               :key="metric"
-              class="p-4 rounded-lg bg-n-alpha-1"
+              class="p-4 rounded-lg bg-n-alpha-1 ring-1"
+              :class="
+                me.metrics[metric].attainment >= 1
+                  ? 'ring-n-teal-7'
+                  : 'ring-transparent'
+              "
             >
               <p
                 class="mb-2 text-xs font-medium tracking-wider uppercase text-n-slate-10"
@@ -256,21 +328,26 @@ onMounted(load);
                 <div class="flex items-baseline justify-between gap-2">
                   <span
                     class="text-2xl font-semibold tabular-nums"
-                    :class="goalTone(me.metrics[metric].attainment).text"
+                    :class="metricTone(metric, me.metrics[metric], progress).text"
                   >
                     {{ percentLabel(me.metrics[metric].attainment) }}
                   </span>
                   <span
                     class="px-2 py-0.5 text-[11px] font-medium rounded-full"
-                    :class="goalTone(me.metrics[metric].attainment).pill"
+                    :class="metricTone(metric, me.metrics[metric], progress).pill"
                   >
-                    {{ statusLabel(me.metrics[metric].attainment) }}
+                    {{
+                      statusLabel(
+                        metricTone(metric, me.metrics[metric], progress)
+                      )
+                    }}
                   </span>
                 </div>
                 <GoalsMetricCell
                   class="mt-1 [&>span]:hidden"
                   :metric="metric"
                   :data="me.metrics[metric]"
+                  :progress="progress"
                 />
               </template>
               <template v-else>
@@ -309,6 +386,33 @@ onMounted(load);
           />
         </div>
 
+        <!-- Resumo -->
+        <section
+          v-if="summary.length"
+          class="flex flex-wrap items-center gap-2"
+        >
+          <span
+            v-for="group in summary"
+            :key="group.key"
+            class="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-full"
+            :class="group.tone.pill"
+          >
+            <span v-if="group.key === 'HIT'" class="i-lucide-trophy size-4" />
+            <span class="tabular-nums">{{ group.count }}</span>
+            {{ statusLabel(group.tone) }}
+          </span>
+          <span
+            class="inline-flex items-center gap-1.5 text-sm ltr:ml-auto rtl:mr-auto text-n-slate-11"
+          >
+            <span class="i-lucide-calendar-clock size-4" />
+            {{
+              progress
+                ? $t('PERFORMANCE_GOALS.DAYS_LEFT', { count: progress.left }, progress.left)
+                : $t('PERFORMANCE_GOALS.CLOSED')
+            }}
+          </span>
+        </section>
+
         <!-- Pódio -->
         <section v-if="podium.length" class="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div
@@ -334,13 +438,14 @@ onMounted(load);
                 {{ row.name }}
               </p>
               <p
-                class="mb-0 text-2xl font-semibold tabular-nums"
-                :class="goalTone(row.overall).text"
+                class="inline-flex items-center gap-1.5 mb-0 text-2xl font-semibold tabular-nums"
+                :class="rowTone(row).text"
               >
+                <span v-if="row.overall >= 1" class="i-lucide-trophy size-5" />
                 {{ overall(row.overall) }}
               </p>
               <p class="mb-0 text-xs text-n-slate-10">
-                {{ $t('PERFORMANCE_GOALS.OVERALL') }}
+                {{ statusLabel(rowTone(row)) || $t('PERFORMANCE_GOALS.OVERALL') }}
               </p>
             </div>
           </div>
@@ -401,16 +506,36 @@ onMounted(load);
                       <p v-if="isMine(row)" class="mb-0 text-xs text-n-brand">
                         {{ $t('PERFORMANCE_GOALS.YOU') }}
                       </p>
+                      <p
+                        v-if="goalsHit(row.metrics).hit"
+                        class="flex items-center gap-1 mb-0 text-xs text-n-teal-11"
+                      >
+                        <span class="i-lucide-trophy size-3" />
+                        {{ $t('PERFORMANCE_GOALS.HITS', goalsHit(row.metrics)) }}
+                      </p>
                     </div>
                   </div>
                 </td>
                 <td class="px-3 py-4">
                   <span
                     class="text-base font-semibold tabular-nums"
-                    :class="goalTone(row.overall).text"
+                    :class="rowTone(row).text"
                   >
                     {{ overall(row.overall) }}
                   </span>
+                  <span
+                    v-if="rowTone(row).pill"
+                    class="block w-fit mt-1 px-2 py-0.5 text-[11px] font-medium rounded-full"
+                    :class="rowTone(row).pill"
+                  >
+                    {{ statusLabel(rowTone(row)) }}
+                  </span>
+                  <p
+                    v-if="projection(row)"
+                    class="mt-1 mb-0 text-xs tabular-nums text-n-slate-10"
+                  >
+                    {{ $t('PERFORMANCE_GOALS.PROJECTION', { value: projection(row) }) }}
+                  </p>
                 </td>
                 <td v-for="metric in METRICS" :key="metric" class="px-3 py-4">
                   <span
@@ -424,12 +549,21 @@ onMounted(load);
                     :metric="metric"
                     :data="row.metrics[metric]"
                     :show-numbers="showNumbers(row)"
+                    :progress="progress"
                   />
                 </td>
               </tr>
             </tbody>
           </table>
         </section>
+
+        <div
+          v-if="progress && rows.length"
+          class="flex items-start gap-2 -mt-3 text-xs text-n-slate-11"
+        >
+          <span class="flex-shrink-0 w-4 h-1.5 mt-1 rounded-full bg-n-slate-6" />
+          <span>{{ $t('PERFORMANCE_GOALS.PACE_LEGEND') }}</span>
+        </div>
 
         <div
           v-if="canManage && rows.length"
