@@ -79,7 +79,9 @@ export default {
         4000
       );
     } catch (error) {
-      // Handle error
+      // Só o botão "marcar como lida" avisa a pessoa; a leitura automática ao abrir
+      // a conversa continua calada.
+      if (explicit) throw error;
     }
   },
 
