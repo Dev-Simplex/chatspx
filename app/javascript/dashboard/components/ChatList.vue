@@ -1043,22 +1043,23 @@ function redirectToConversationList() {
 }
 
 async function assignPriority(priority, conversationId = null) {
-  store.dispatch('setCurrentChatPriority', {
-    priority,
-    conversationId,
-  });
-  store.dispatch('assignPriority', { conversationId, priority }).then(() => {
-    useTrack(CONVERSATION_EVENTS.CHANGE_PRIORITY, {
-      newValue: priority,
-      from: 'Context menu',
+  store
+    .dispatch('assignPriority', { conversationId, priority })
+    .then(() => {
+      useTrack(CONVERSATION_EVENTS.CHANGE_PRIORITY, {
+        newValue: priority,
+        from: 'Context menu',
+      });
+      useAlert(
+        t('CONVERSATION.PRIORITY.CHANGE_PRIORITY.SUCCESSFUL', {
+          priority,
+          conversationId,
+        })
+      );
+    })
+    .catch(() => {
+      useAlert(t('CONVERSATION.PRIORITY.CHANGE_PRIORITY.FAILED'));
     });
-    useAlert(
-      t('CONVERSATION.PRIORITY.CHANGE_PRIORITY.SUCCESSFUL', {
-        priority,
-        conversationId,
-      })
-    );
-  });
 }
 
 async function markAsUnread(conversationId) {

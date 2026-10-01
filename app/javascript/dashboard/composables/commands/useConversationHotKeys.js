@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useRoute } from 'vue-router';
 import { emitter } from 'shared/helpers/mitt';
+import { useAlert } from 'dashboard/composables';
 import { useConversationLabels } from 'dashboard/composables/useConversationLabels';
 import { useCaptain } from 'dashboard/composables/useCaptain';
 import { useAgentsList } from 'dashboard/composables/useAgentsList';
@@ -239,10 +240,14 @@ export function useConversationHotKeys() {
   };
 
   const onChangePriority = action => {
-    store.dispatch('assignPriority', {
-      conversationId: currentChat.value.id,
-      priority: action.priority.key,
-    });
+    store
+      .dispatch('assignPriority', {
+        conversationId: currentChat.value.id,
+        priority: action.priority.key,
+      })
+      .catch(() => {
+        useAlert(t('CONVERSATION.PRIORITY.CHANGE_PRIORITY.FAILED'));
+      });
   };
 
   const onChangeTeam = action => {
