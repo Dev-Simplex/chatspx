@@ -362,4 +362,49 @@ RSpec.describe 'Campaigns API', type: :request do
       expect(campaign.template_language).to eq('en')
     end
   end
+
+  # Os números da campanha vêm do DESTINATÁRIO. A conversa guarda só a campanha de origem: quem
+  # recebeu duas campanhas sumia da segunda e a resposta de meses antes contava na primeira.
+  describe 'GET /api/v1/accounts/{account.id}/campaigns/:id/stats (funil por destinatário)' do
+    let(:administrator) { create(:user, account: account, role: :administrator) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:contact) { create(:contact, account: account) }
+    let(:origem) { create(:campaign, account: account, inbox: inbox) }
+    let(:segunda) { create(:campaign, account: account, inbox: inbox) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact, campaign: origem) }
+
+    def recipient(campaign, **attrs)
+      CampaignRecipient.create!(campaign: campaign, account: account, contact: contact, conversation: conversation,
+                                phone_number: '+5566999990000', **attrs)
+    end
+
+    def stats(campaign)
+      get "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/stats",
+          headers: administrator.create_new_auth_token, as: :json
+      JSON.parse(response.body, symbolize_names: true)
+    end
+
+    it 'conta cada campanha pelos seus destinatários, com o contato nas duas' do
+      recipient(origem, status: :delivered, sent_at: 10.days.ago, delivered_at: 10.days.ago)
+      recipient(segunda, status: :replied, sent_at: 1.hour.ago, read_at: 50.minutes.ago, replied_at: 30.minutes.ago,
+                         pricing: { 'billable' => true, 'category' => 'marketing' })
+      recipient(segunda, status: :failed, sent_at: 1.hour.ago, external_error: '131026: Message undeliverable')
+      recipient(segunda, status: :pending)
+
+      expect(stats(segunda)).to include(total: 2, reached: 1, delivered: 1, read: 1, replied: 1, failed: 1,
+                                        delivery_rate: 50.0, failures: [{ code: '131026', count: 1 }],
+                                        cost: { billable: 1, by_category: { marketing: 1 } })
+      expect(stats(origem)).to include(total: 1, reached: 1, delivered: 1, read: 0, replied: 0, failed: 0)
+    end
+
+    it 'cai no agregado por conversa quando a campanha não tem destinatários' do
+      template = { 'template_params' => { 'name' => 'antigo' } }
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :outgoing, status: :read,
+                       additional_attributes: template)
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :outgoing, status: :failed,
+                       external_error: '131049: Ecosystem engagement', additional_attributes: template)
+
+      expect(stats(origem)).to include(total: 1, reached: 1, read: 1, failed: 1, failures: [{ code: '131049', count: 1 }])
+    end
+  end
 end

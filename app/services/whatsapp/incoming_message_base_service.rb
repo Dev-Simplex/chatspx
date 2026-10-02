@@ -64,6 +64,8 @@ class Whatsapp::IncomingMessageBaseService
       message.external_error = "#{error[:code]}: #{error[:title]}"
     end
     message.save!
+    # Custo do disparo: a Meta manda `pricing` (categoria, cobrável) no status e ele era descartado.
+    Campaigns::Whatsapp::RecipientTracker.pricing(message, status[:pricing]) if status[:pricing].present?
   end
 
   def create_messages
