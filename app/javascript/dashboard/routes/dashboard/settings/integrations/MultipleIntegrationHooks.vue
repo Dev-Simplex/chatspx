@@ -77,7 +77,7 @@ const inboxName = hook => (hook.inbox ? hook.inbox.name : '');
       :title="integration.name || ''"
       :description="
         $t(
-          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.name.toUpperCase()}`,
+          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.id.toUpperCase()}`,
           { installationName: globalConfig.installationName }
         )
       "

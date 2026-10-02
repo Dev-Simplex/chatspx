@@ -45,6 +45,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'takeover_request_gate': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'reply_assignment_gate': { 'type': %w[boolean null] },
+        'rodizio_conversation_tabs': { 'type': %w[boolean null] },
+        'captador_integration': { 'type': %w[boolean null] },
         'ia_reentra_orfa': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
         'template_reply_routing': {
@@ -101,6 +103,9 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     'additionalProperties': true
   }.to_json.freeze
 
+  # Campos padrão do item do catálogo que a conta pode esconder.
+  CATALOG_HIDEABLE_FIELDS = %w[sku stock featured promo_price].freeze
+
   DEFAULT_QUERY_SETTING = {
     flag_query_mode: :bit_operator,
     check_for_column: false
@@ -112,6 +117,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
                  schema: SETTINGS_PARAMS_SCHEMA,
                  attribute_resolver: ->(record) { record.settings }
   validate :validate_reporting_timezone
+  validates :catalog_item_singular, :catalog_item_plural, length: { maximum: 30 }
+  validate :validate_catalog_hidden_fields
 
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
 
@@ -122,8 +129,11 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
+  # Catálogo é sempre ligado. A conta escolhe como chamar o item (Produto, Imóvel, Serviço) e quais
+  # campos padrão esconder. `meta_catalog_id` é o catálogo da Meta que espelha esta conta (um por conta).
+  store_accessor :settings, :catalog_item_singular, :catalog_item_plural, :catalog_hidden_fields, :meta_catalog_id
   store_accessor :settings, :captain_auto_resolve_mode
-  store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
+  store_accessor :settings, :reply_assignment_gate, :rodizio_conversation_tabs, :orphan_retriage_after
   # Reentrada da IA de triagem em conversa órfã. Nasceu derivada do reply_assignment_gate
   # (modo fila), que a vetava; ver #ia_reentra_orfa_enabled? para o porquê de separar.
   store_accessor :settings, :ia_reentra_orfa
@@ -134,6 +144,9 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # reply_assignment_gate de propósito: acoplar no backend seria surpresa.
   # NÃO vai em features.yml — o bitmask bigint já estourou os 63 bits.
   store_accessor :settings, :takeover_request_gate
+  # App "Captador" em Integrações. Liga por conta no Super Admin; desligado, o app some da lista e
+  # /spx/captador/* responde 401. Fora do features.yml pelo mesmo motivo do takeover_request_gate.
+  store_accessor :settings, :captador_integration
   include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
@@ -146,6 +159,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :macros, dependent: :destroy_async
   has_many :flows, dependent: :destroy_async
   has_many :campaigns, dependent: :destroy_async
+  # Sugestao sobrevive a conta apagada (a coluna fica vazia) — ver Suggestion.
+  has_many :suggestions, dependent: :nullify
   has_many :canned_responses, dependent: :destroy_async
   has_many :categories, dependent: :destroy_async, class_name: '::Category'
   has_many :contacts, dependent: :destroy_async
@@ -177,6 +192,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :teams, dependent: :destroy_async
   # Unidades (filiais): agrupam caixas de entrada e descrevem o horário daquele lugar.
   has_many :units, dependent: :destroy_async
+  has_many :catalog_categories, dependent: :destroy_async
+  has_many :catalog_products, dependent: :destroy_async
   has_many :telegram_channels, dependent: :destroy_async, class_name: '::Channel::Telegram'
   has_many :twilio_sms, dependent: :destroy_async, class_name: '::Channel::TwilioSms'
   has_many :twitter_profiles, dependent: :destroy_async, class_name: '::Channel::TwitterProfile'
@@ -218,6 +235,26 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
 
   def reply_assignment_gate_enabled?
     ActiveModel::Type::Boolean.new.cast(reply_assignment_gate) || false
+  end
+
+  def rodizio_conversation_tabs_enabled?
+    ActiveModel::Type::Boolean.new.cast(rodizio_conversation_tabs) || false
+  end
+
+  alias rodizio_conversation_tabs_enabled rodizio_conversation_tabs_enabled?
+
+  def rodizio_conversation_tabs_enabled=(value)
+    self.rodizio_conversation_tabs = ActiveModel::Type::Boolean.new.cast(value)
+  end
+
+  def captador_integration_enabled?
+    ActiveModel::Type::Boolean.new.cast(captador_integration) || false
+  end
+
+  alias captador_integration_enabled captador_integration_enabled?
+
+  def captador_integration_enabled=(value)
+    self.captador_integration = ActiveModel::Type::Boolean.new.cast(value)
   end
 
   # A IA de triagem pode reassumir uma conversa ÓRFÃ (sem humano e sem espelho)?
@@ -323,6 +360,13 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     return if reporting_timezone.blank? || ActiveSupport::TimeZone[reporting_timezone].present?
 
     errors.add(:reporting_timezone, I18n.t('errors.account.reporting_timezone.invalid'))
+  end
+
+  def validate_catalog_hidden_fields
+    return if catalog_hidden_fields.blank?
+    return if catalog_hidden_fields.is_a?(Array) && (catalog_hidden_fields - CATALOG_HIDEABLE_FIELDS).empty?
+
+    errors.add(:catalog_hidden_fields, I18n.t('errors.account.catalog_hidden_fields.invalid'))
   end
 
   def remove_account_sequences

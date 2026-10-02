@@ -22,6 +22,7 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   # fizer sentido: token atual, dono da conversa ainda é a IA, cliente não respondeu,
   # dentro de horário civilizado. A própria cutucada é gerada pelo agente no contexto.
   def perform(conversation, token)
+    return if conversation.inbox.read_only? # CHAT-155
     return unless followup_due?(conversation, token)
 
     # Dono resolvido ANTES de consumir token/followup_count (gate por atribuição, D-6):
@@ -30,7 +31,7 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     # do dono ATUAL da conversa (não da inbox) — transferência IA→IA mid-followup faz a
     # cutucada sair com a voz da IA nova.
     assistant = owner_assistant(conversation)
-    return unless assistant # dono não é IA -> cutucada morre SEM consumir token/count
+    return desistir_do_compromisso(conversation, token) unless assistant # dono não é IA -> morre SEM consumir token/count
 
     attrs = conversation.custom_attributes || {}
     count = attrs['followup_count'].to_i
@@ -57,12 +58,40 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     conversation.reload
     attrs = conversation.custom_attributes || {}
     return false unless attrs['followup_token'] == token           # substituído por outro follow-up
-    return false if followup_pointless?(conversation, attrs)
+    return desistir_do_compromisso(conversation, token) if desistencia?(conversation, attrs)
     return false if cancelado_por_resposta?(conversation, attrs)
-    return false if janela_fechada?(conversation)                  # fora da janela -> não é cutucada
     return false if reschedule_if_quiet_hours(conversation, token, attrs) # noite -> desacelera ou adia
 
     true
+  end
+
+  # Travas que matam a cutucada de vez (não adiam): resolvida/esperando humano, ou fora da
+  # janela (não é cutucada). Checadas antes de cancelado_por_resposta?, o que não muda nada:
+  # aquele só cancela sem compromisso, e aí não há o que descartar.
+  #
+  # Agendada da IA esperando o horário do cliente (CHAT-165) também mata: ela cumpre o combinado,
+  # e cutucar antes é insistir com quem já disse quando quer falar.
+  def desistencia?(conversation, attrs)
+    followup_pointless?(conversation, attrs) || janela_fechada?(conversation) ||
+      ScheduledMessage.agendada_da_ia_pendente?(conversation)
+  end
+
+  # Desistência (trava, não adiamento): o compromisso não vai ser cumprido por ESTE job, então
+  # ele sai do registro. Pendurado, o followup_motivo fazia o ja_tem_destino? do
+  # ResponseBuilderJob bloquear toda cutucada automática seguinte — a conversa nunca mais era
+  # cutucada (medido: 201 conversas ativas com motivo órfão). Token e followup_count ficam como
+  # estão (cutucada que não sai não gasta tentativa); a quiet hours NÃO passa por aqui, porque
+  # remarca o mesmo job, que ainda vai cumprir. Sob lock e com o token conferido de novo, pra
+  # não apagar o compromisso de um follow-up mais novo gravado no meio do caminho. Devolve
+  # false para servir de retorno de followup_due?.
+  def desistir_do_compromisso(conversation, token)
+    conversation.with_lock do
+      attrs = conversation.custom_attributes || {}
+      next unless attrs['followup_token'] == token && compromisso?(attrs)
+
+      conversation.update!(custom_attributes: attrs.merge('followup_motivo' => nil, 'followup_janela' => nil))
+    end
+    false
   end
 
   # BORDA DA JANELA (contrato do eixo, regra 1). Cutucada é engrenagem in-window: fora da janela
@@ -72,13 +101,15 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   # Morre DEFINITIVO, não remarca como as quiet hours: a manhã chega sozinha, a janela não. Só a
   # resposta do cliente reabre (template não reabre), e a cutucada é justamente o que não pode
   # causar esse evento — remarcar seria esperar por si mesma. Se o cliente voltar, o turno dele
-  # rearma uma cutucada nova pelo auto_schedule_followup; nada se perde.
+  # rearma uma cutucada nova pelo auto_schedule_followup — o que só vale porque a desistência
+  # limpa o followup_motivo (senão o ja_tem_destino? bloquearia o rearme).
   #
   # Fica em followup_due?, antes de tudo, por dois motivos: (a) mantém o princípio do arquivo —
-  # cutucada que não sai não gasta token nem followup_count, e o compromisso (followup_motivo)
-  # fica armado pra quando a forma-template existir; (b) é o único ponto que também barra o
-  # cool_down_lead, cuja escalada termina em MessageTemplates::Template::OutOfOffice, que cria
-  # mensagem SEM checar can_reply? — parar na borda "sem cair em outro caminho de envio" exige
+  # cutucada que não sai não gasta token nem followup_count. O compromisso (followup_motivo),
+  # porém, é descartado (desistir_do_compromisso): armado, ele bloqueava a cutucada automática
+  # quando o cliente voltasse, e a forma-template que o cumpriria fora da janela não existe;
+  # (b) é o único ponto que também barra o cool_down_lead, cuja escalada termina em
+  # MessageTemplates::Template::OutOfOffice, que cria mensagem SEM checar can_reply? — parar na borda "sem cair em outro caminho de envio" exige
   # cortar antes dele. Vem antes do reschedule pra não gastar job remarcando o que já morreu.
   #
   # can_reply? devolve TRUE quando o canal não tem janela configurada, e isso é de propósito:

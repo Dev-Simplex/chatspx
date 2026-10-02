@@ -63,6 +63,7 @@
   "TODAY": "Hoje",
   "YESTERDAY": "Ontem",
   "PRE_CHAT_FORM": {
+    "CREATE_ERROR": "Não foi possível iniciar a conversa. Tente novamente.",
     "FIELDS": {
       "FULL_NAME": {
         "LABEL": "Nome Completo",

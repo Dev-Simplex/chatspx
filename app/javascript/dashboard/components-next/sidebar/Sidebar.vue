@@ -113,11 +113,36 @@ const helpCenterMenuItem = computed(() => {
     label: t('SIDEBAR.HELP_CENTER.TITLE'),
     icon: lordIcon('helpCenter', 'i-lucide-library-big'),
   };
+  // SUG-01: a caixa de sugestões vale para TODA conta, inclusive as que não têm a Central de
+  // Ajuda ligada — a rota `suggestions_new` não tem featureFlag, então o provider não a esconde.
+  const suggestionsChild = {
+    name: 'Suggestions',
+    label: t('SIDEBAR.HELP_CENTER.SUGGESTIONS'),
+    activeOn: ['suggestions_new'],
+    to: accountScopedRoute('suggestions_new'),
+  };
+  const suggestionsSentChild = {
+    name: 'SuggestionsSent',
+    label: t('SUGGESTIONS.MENU_SENT'),
+    activeOn: ['suggestions_sent'],
+    to: accountScopedRoute('suggestions_sent'),
+  };
   if (!isHelpCenterAuthoring.value) {
+    // Com `children` o item do rail vira grupo e o clique deixa de navegar — então o portal
+    // (iframe somente leitura) precisa virar filho, senão a conta de cliente perde o acesso a ele.
     return {
       ...base,
-      to: accountScopedRoute('help_center_view'),
       activeOn: ['help_center_view'],
+      children: [
+        {
+          name: 'HelpCenterArticles',
+          label: t('SIDEBAR.HELP_CENTER.ARTICLES'),
+          activeOn: ['help_center_view'],
+          to: accountScopedRoute('help_center_view'),
+        },
+        suggestionsChild,
+        suggestionsSentChild,
+      ],
     };
   }
   return {
@@ -163,6 +188,8 @@ const helpCenterMenuItem = computed(() => {
           navigationPath: 'portals_settings_index',
         }),
       },
+      suggestionsChild,
+      suggestionsSentChild,
     ],
   };
 });
@@ -577,6 +604,19 @@ const menuItems = computed(() => {
       icon: lordIcon('gallery', 'i-lucide-image'),
       to: accountScopedRoute('gallery_index'),
       activeOn: ['gallery_index'],
+    },
+    {
+      name: 'Catalog',
+      label: t('SIDEBAR.CATALOG'),
+      icon: lordIcon('catalog', 'i-lucide-store'),
+      to: accountScopedRoute('catalog_products_index'),
+      activeOn: [
+        'catalog_products_index',
+        'catalog_product_edit',
+        'catalog_categories',
+        'catalog_fields',
+        'catalog_integrations',
+      ],
     },
     ...(temRedeSocial.value
       ? [

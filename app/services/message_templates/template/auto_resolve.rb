@@ -2,6 +2,7 @@ class MessageTemplates::Template::AutoResolve
   pattr_initialize [:conversation!]
 
   def perform
+    return if conversation.inbox.read_only? # CHAT-155: resolve, mas o aviso nao sai
     return if conversation.account.auto_resolve_message.blank?
 
     if within_messaging_window?

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_30_124039) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -614,6 +614,42 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
     t.datetime "created_at", null: false
     t.index ["account_id", "created_at"], name: "index_captain_tool_calls_on_account_id_and_created_at"
     t.index ["conversation_id", "created_at"], name: "index_captain_tool_calls_on_conversation_id_and_created_at"
+  end
+
+  create_table "catalog_categories", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "name"], name: "index_catalog_categories_on_account_id_and_name", unique: true
+    t.index ["account_id"], name: "index_catalog_categories_on_account_id"
+  end
+
+  create_table "catalog_products", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "catalog_category_id"
+    t.string "name", null: false
+    t.text "description"
+    t.integer "price_cents"
+    t.integer "promo_price_cents"
+    t.string "currency", default: "BRL", null: false
+    t.string "sku"
+    t.integer "stock"
+    t.boolean "visible", default: true, null: false
+    t.boolean "featured", default: false, null: false
+    t.string "meta_product_id"
+    t.datetime "meta_synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "custom_attributes", default: {}, null: false
+    t.string "source"
+    t.string "external_id"
+    t.string "external_image_url"
+    t.index ["account_id", "sku"], name: "index_catalog_products_on_account_id_and_sku", unique: true, where: "(sku IS NOT NULL)"
+    t.index ["account_id", "source", "external_id"], name: "index_catalog_products_on_account_id_and_source_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
+    t.index ["account_id", "visible"], name: "index_catalog_products_on_account_id_and_visible"
+    t.index ["account_id"], name: "index_catalog_products_on_account_id"
+    t.index ["catalog_category_id"], name: "index_catalog_products_on_catalog_category_id"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -1511,9 +1547,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
     t.bigint "agent_message_isolation_team_ids", default: [], null: false, array: true
     t.bigint "agent_conversation_isolation_team_ids", default: [], null: false, array: true
     t.bigint "unit_id"
+    t.boolean "read_only", default: false, null: false
+    t.bigint "read_only_redirect_inbox_id"
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
+    t.index ["read_only_redirect_inbox_id"], name: "index_inboxes_on_read_only_redirect_inbox_id"
     t.index ["unit_id"], name: "index_inboxes_on_unit_id"
     t.index ["waha_session_name"], name: "index_inboxes_on_waha_session_name"
   end
@@ -1967,6 +2006,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
     t.bigint "message_id"
     t.bigint "scheduled_by_id"
     t.jsonb "template_params"
+    t.bigint "captain_assistant_id"
+    t.index ["captain_assistant_id"], name: "index_scheduled_messages_on_captain_assistant_id"
     t.index ["conversation_id", "scheduled_at", "id"], name: "idx_scheduled_messages_conversation_timeline", order: { scheduled_at: :desc, id: :desc }
     t.index ["conversation_id"], name: "index_scheduled_messages_on_conversation_id"
     t.index ["inbox_id"], name: "index_scheduled_messages_on_inbox_id"
@@ -2044,6 +2085,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
     t.datetime "lida_em"
     t.index ["account_id", "external_id"], name: "index_social_publicacoes_on_account_id_and_external_id", unique: true
     t.index ["inbox_id"], name: "index_social_publicacoes_on_inbox_id"
+  end
+
+  create_table "suggestions", force: :cascade do |t|
+    t.bigint "account_id"
+    t.bigint "user_id"
+    t.string "name", null: false
+    t.string "company", null: false
+    t.text "content", null: false
+    t.integer "source", default: 0, null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_suggestions_on_account_id"
+    t.index ["created_at"], name: "index_suggestions_on_created_at"
+    t.index ["status"], name: "index_suggestions_on_status"
+    t.index ["user_id"], name: "index_suggestions_on_user_id"
   end
 
   create_table "taggings", id: :serial, force: :cascade do |t|
@@ -2212,6 +2269,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
     t.jsonb "etiquetas", default: [], null: false
     t.jsonb "atributos", default: {}, null: false
     t.integer "feriados_nacionais_ate"
+    t.string "address_number"
+    t.jsonb "contacts", default: [], null: false
+    t.jsonb "social_links", default: [], null: false
     t.index ["account_id", "name"], name: "index_units_on_account_id_and_name", unique: true
     t.index ["account_id"], name: "index_units_on_account_id"
   end
@@ -2294,6 +2354,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
   add_foreign_key "canned_responses", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants", on_delete: :cascade
   add_foreign_key "captain_assistant_logs", "conversations", on_delete: :cascade
+  add_foreign_key "catalog_categories", "accounts"
+  add_foreign_key "catalog_products", "accounts"
+  add_foreign_key "catalog_products", "catalog_categories", on_delete: :nullify
   add_foreign_key "contact_flow_suppressions", "accounts", on_delete: :cascade
   add_foreign_key "contact_flow_suppressions", "contacts", on_delete: :cascade
   add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
@@ -2347,6 +2410,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
   add_foreign_key "funnels", "teams"
   add_foreign_key "inbox_isolation_exemptions", "inboxes", on_delete: :cascade
   add_foreign_key "inbox_isolation_exemptions", "users", on_delete: :cascade
+  add_foreign_key "inboxes", "inboxes", column: "read_only_redirect_inbox_id", on_delete: :nullify
   add_foreign_key "inboxes", "portals"
   add_foreign_key "inboxes", "units", on_delete: :nullify
   add_foreign_key "internal_channel_members", "internal_channels"
@@ -2381,6 +2445,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_16_220000) do
   add_foreign_key "scheduled_messages", "messages", on_delete: :nullify
   add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id", on_delete: :nullify
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
+  add_foreign_key "suggestions", "accounts", on_delete: :nullify
+  add_foreign_key "suggestions", "users", on_delete: :nullify
   add_foreign_key "team_supervisors", "teams", on_delete: :cascade
   add_foreign_key "team_supervisors", "users", on_delete: :cascade
   add_foreign_key "unit_exceptions", "units", on_delete: :cascade

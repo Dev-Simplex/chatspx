@@ -23,6 +23,8 @@ class Crm::SetupJob < ApplicationJob
     case hook.app_id
     when 'leadsquared'
       Crm::Leadsquared::SetupService.new(hook)
+    when 'captador'
+      Crm::Captador::SetupService.new(hook)
     # Add cases for future CRMs here
     # when 'hubspot'
     #   Crm::Hubspot::SetupService.new(hook)

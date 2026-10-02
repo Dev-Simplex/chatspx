@@ -30,6 +30,11 @@ module Spx
       STATUS = %w[designado assumido engajado expirado substituido].freeze
 
       scope :abertas, -> { where(status: 'designado') }
+
+      # A aba 'Rodízio' da lista lê a designação aberta. Abrir ou fechar uma não mexe na conversa,
+      # então sem este aviso a tela só veria a mudança no próximo evento dela. Só o websocket:
+      # disparar CONVERSATION_UPDATED de verdade acordaria automações e webhooks à toa.
+      after_commit :avisar_lista, if: -> { saved_change_to_status? && chosen_user_id.present? }
       # Filtro GROSSO do varredor: usa o relógio de parede (o índice
       # status+designado_em) para trazer candidatas. O prazo real é conferido depois, no
       # relógio comercial de cada política — só que aí sobre dezenas de linhas, não sobre a
@@ -44,6 +49,17 @@ module Spx
       # pode ter substituído a anterior.
       def self.designacao_aberta(conversation_id)
         abertas.where(conversation_id: conversation_id).order(id: :desc).first
+      end
+
+      def avisar_lista
+        conversa = Conversation.find_by(id: conversation_id)
+        return if conversa.nil?
+
+        ActionCableListener.instance.conversation_updated(
+          Events::Base.new(Events::Types::CONVERSATION_UPDATED, Time.zone.now, conversation: conversa)
+        )
+      rescue StandardError => e
+        Rails.logger.warn("[Distribuicao] aviso da lista conv=#{conversation_id}: #{e.message}")
       end
 
       def encerrar!(status)

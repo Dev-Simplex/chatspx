@@ -252,7 +252,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
     [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled, :nps_survey_enabled,
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :team_message_isolation,
-     :agent_message_isolation, :agent_conversation_isolation, :pending_status_enabled,
+     :agent_message_isolation, :agent_conversation_isolation, :pending_status_enabled, :read_only, :read_only_redirect_inbox_id,
      # Escopo por time das 3 regras de isolamento. Lista VAZIA = a regra vale para TODOS os
      # times (comportamento historico); com times escolhidos, so vale neles.
      { team_message_isolation_team_ids: [] },

@@ -137,4 +137,30 @@ RSpec.describe 'Scheduled Messages API', type: :request do
       end
     end
   end
+
+  # CHAT-165: a faixa da conversa busca pelo display_id (o id que o front conhece) e precisa saber
+  # quais agendadas são da IA.
+  describe 'GET /api/v1/accounts/{account.id}/scheduled_messages with conversation_display_id' do
+    let(:assistant) { create(:captain_assistant, account: account) }
+    let(:other_conversation) { create(:conversation, account: account, inbox: inbox, contact: contact, contact_inbox: contact_inbox) }
+
+    before do
+      ScheduledMessage.create!(conversation: conversation, inbox: inbox, message: 'da IA', scheduled_at: scheduled_at,
+                               status: :pending, captain_assistant_id: assistant.id)
+      ScheduledMessage.create!(conversation: other_conversation, inbox: inbox, message: 'de outra conversa',
+                               scheduled_at: scheduled_at, status: :pending)
+    end
+
+    it 'returns only the conversation pending messages, with the assistant that will send them' do
+      get "/api/v1/accounts/#{account.id}/scheduled_messages",
+          params: { conversation_display_id: conversation.display_id, status: 'pending' },
+          headers: admin.create_new_auth_token,
+          as: :json
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body.pluck('message')).to eq(['da IA'])
+      expect(body.first['captain_assistant']).to eq('id' => assistant.id, 'name' => assistant.name)
+    end
+  end
 end

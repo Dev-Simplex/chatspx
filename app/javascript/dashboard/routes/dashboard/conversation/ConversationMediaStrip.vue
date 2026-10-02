@@ -6,6 +6,7 @@ import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
 import ConversationMedia from './ConversationMedia.vue';
+import { useImageListRetry } from 'dashboard/composables/loadWithRetry';
 
 const props = defineProps({
   conversationId: {
@@ -101,6 +102,11 @@ const getThumbSrc = att => {
   return normalizeFileType(att) === 'image' ? att?.data_url || '' : '';
 };
 
+// A foto recem-chegada pode ser pedida antes de o arquivo chegar ao disco: a miniatura tenta de novo e,
+// se desistir, cai no icone de tipo em vez de ficar quebrada.
+const { retrySrc, onLoadError, hasFailed } = useImageListRetry();
+const thumbKey = (att, idx) => att.id ?? att.message_id ?? idx;
+
 const getFallbackIcon = att => {
   const type = normalizeFileType(att);
   if (type === 'audio') return 'i-lucide-mic';
@@ -178,10 +184,11 @@ const onTabChange = tab => {
         @click="openPanel"
       >
         <img
-          v-if="getThumbSrc(att)"
-          :src="getThumbSrc(att)"
+          v-if="getThumbSrc(att) && !hasFailed(thumbKey(att, idx))"
+          :src="retrySrc(thumbKey(att, idx), getThumbSrc(att))"
           class="object-cover w-full h-full"
           alt=""
+          @error="onLoadError(thumbKey(att, idx))"
         />
         <!-- Sem miniatura (doc/áudio): ícone de tipo. Escondido na casinha do
              contador, senão o ícone atravessa o "+N" e os dois ficam ilegíveis. -->

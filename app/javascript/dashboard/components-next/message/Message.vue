@@ -49,6 +49,7 @@ import EmailBubble from './bubbles/Email/Index.vue';
 import UnsupportedBubble from './bubbles/Unsupported.vue';
 import CarouselBubble from './bubbles/Carousel.vue';
 import ContactBubble from './bubbles/Contact.vue';
+import CatalogProductBubble from './bubbles/CatalogProduct.vue';
 import DyteBubble from './bubbles/Dyte.vue';
 import LocationBubble from './bubbles/Location.vue';
 import CSATBubble from './bubbles/CSAT.vue';
@@ -325,11 +326,21 @@ const templateBadgeLabel = computed(() => {
     : t('CONVERSATION.TEMPLATE_BADGE');
 });
 
+const isPhoneReply = computed(
+  () => props.contentAttributes.whatsappPhoneReply === true
+);
+const displayContent = computed(() =>
+  isPhoneReply.value
+    ? props.contentAttributes.whatsappPhoneReplyContent
+    : props.content
+);
+
 /**
  * Computes the message variant based on props
  * @type {import('vue').ComputedRef<'user'|'agent'|'activity'|'private'|'scheduled'|'bot'|'template'>}
  */
 const variant = computed(() => {
+  if (isPhoneReply.value) return MESSAGE_VARIANTS.AGENT;
   if (props.private) return MESSAGE_VARIANTS.PRIVATE;
   if (
     isScheduledMessage.value &&
@@ -376,6 +387,7 @@ const variant = computed(() => {
 });
 
 const isBotOrAgentMessage = computed(() => {
+  if (isPhoneReply.value) return true;
   if (props.messageType === MESSAGE_TYPES.ACTIVITY) {
     return false;
   }
@@ -454,6 +466,7 @@ const gridTemplate = computed(() => {
 });
 
 const shouldGroupWithNext = computed(() => {
+  if (isPhoneReply.value) return false;
   if (props.status === MESSAGE_STATUS.FAILED) return false;
 
   return props.groupWithNext;
@@ -516,6 +529,13 @@ const componentToRender = computed(() => {
   ];
   if (instagramSharedTypes.includes(props.contentAttributes.imageType)) {
     return InstagramStoryBubble;
+  }
+
+  // C8 — produto do catálogo: o retrato viaja no content_attributes e a bolha se reconstrói dele.
+  // Vem ANTES das regras de anexo: a mensagem carrega a foto como attachment (é assim que ela
+  // chega ao cliente no WhatsApp), e sem esta precedência ela cairia na bolha de imagem.
+  if (props.contentAttributes?.catalogProducts?.length) {
+    return CatalogProductBubble;
   }
 
   // One or more shared contacts render as rich contact cards. Content may hold
@@ -806,6 +826,12 @@ const shouldShowGroupAuthorAvatar = computed(
 );
 
 const avatarInfo = computed(() => {
+  // Resposta dada no WhatsApp do celular: a ponte WAHA não sabe quem respondeu. Nem a foto
+  // da caixa (externalEcho) nem o dono do token (sender) — só o ícone do WhatsApp.
+  if (isPhoneReply.value) {
+    return { name: '', src: '', iconName: 'i-ri-whatsapp-fill' };
+  }
+
   if (props.contentAttributes?.externalEcho) {
     const { name, avatar_url, channel_type, medium } = inbox.value;
     const iconName = avatar_url
@@ -846,6 +872,7 @@ const avatarInfo = computed(() => {
 });
 
 const avatarTooltip = computed(() => {
+  if (isPhoneReply.value) return t('CONVERSATION.WHATSAPP_PHONE_REPLY');
   if (props.contentAttributes?.externalEcho) {
     return replaceInstallationName(t('CONVERSATION.NATIVE_APP_ADVISORY'));
   }
@@ -869,7 +896,8 @@ onMounted(setupHighlightTimer);
 
 provideMessageContext({
   ...toRefs(props),
-  isPrivate: computed(() => props.private),
+  content: displayContent,
+  isPrivate: computed(() => props.private && !isPhoneReply.value),
   variant,
   orientation,
   isBotOrAgentMessage,

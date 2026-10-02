@@ -1,4 +1,10 @@
 class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Accounts::Conversations::BaseController
+  # Puxar para si a conversa que está na fila ou com a IA é o caminho da aba "Em atendimento", e o
+  # guard de time barrava isso quando a conversa era de outro time. A exceção é APERTADA: só para
+  # mim, e só quando não há dono humano. Atribuir conversa de outro time a terceiros continua 403.
+  skip_before_action :authorize_team_access, only: [:create]
+  before_action :authorize_team_access_ou_puxar, only: [:create]
+
   # assigns agent/team to a conversation
   def create
     if params.key?(:assignee_id) || agent_bot_assignment?
@@ -23,7 +29,27 @@ class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Account
       assignee_type: params[:assignee_type]
     ).perform
 
+    # Puxou de outro time: a conversa vem junto. Senão, em caixa com isolamento por time, ela
+    # sumiria da vista de quem acabou de assumir.
+    Conversations::TeamHandoverService.new(conversation: @conversation, user: Current.user).perform if puxando_para_si?
+
     render_agent(resource)
+  end
+
+  def authorize_team_access_ou_puxar
+    return if puxando_para_si?
+
+    authorize_team_access
+  end
+
+  # Memoizado: depois do AssignmentService a conversa já tem dono, e a pergunta passaria a devolver
+  # false justamente quando ela é usada para mover o time.
+  def puxando_para_si?
+    return @puxando_para_si if defined?(@puxando_para_si)
+
+    @puxando_para_si = Current.user.is_a?(User) &&
+                       @conversation.assignee_id.blank? &&
+                       params[:assignee_id].to_s == Current.user.id.to_s
   end
 
   # D1 (Fase 3) — guard (a) das 3 superfícies humanas. Mesma lógica do guard

@@ -13,6 +13,7 @@ import FlowTemplatesGallery from './FlowTemplatesGallery.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { BaseTable } from 'dashboard/components-next/table';
 import AutomationRuleRow from './AutomationRuleRow.vue';
+import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import EditAutomationRule from './EditAutomationRule.vue';
 
 const getters = useStoreGetters();
@@ -28,6 +29,7 @@ const showTemplatesGallery = ref(false);
 const selectedFlow = ref({});
 const editDialogRef = ref(null);
 const selectedAutomation = ref({});
+const showMoreActions = ref(false);
 const searchQuery = ref('');
 const importing = ref(false);
 const toggleModalTitle = ref(t('AUTOMATION.TOGGLE.ACTIVATION_TITLE'));
@@ -293,6 +295,37 @@ const importLegacy = async () => {
   }
 };
 
+// Só "Novo fluxo" fica na barra. Importar, Modelos e Regra clássica são ações ocasionais e
+// viviam disputando a mesma linha com a busca e o contador: os quatro rótulos saíam cortados
+// ("Importar automações e mac..."). Agora moram num menu.
+const moreActionItems = computed(() => [
+  {
+    label: t('AUTOMATION.TEMPLATES.BUTTON'),
+    value: 'templates',
+    action: 'templates',
+    icon: 'i-lucide-layout-grid',
+  },
+  {
+    label: t('AUTOMATION.IMPORT.BUTTON'),
+    value: 'import',
+    action: 'import',
+    icon: 'i-lucide-download',
+  },
+  {
+    label: t('AUTOMATION.CLASSIC_RULE_BTN'),
+    value: 'classic',
+    action: 'classic',
+    icon: 'i-lucide-sliders-horizontal',
+  },
+]);
+
+const handleMoreAction = ({ action }) => {
+  showMoreActions.value = false;
+  if (action === 'templates') openTemplatesGallery();
+  if (action === 'import') importLegacy();
+  if (action === 'classic') openAddPopup();
+};
+
 const tableHeaders = computed(() => {
   return [
     t('AUTOMATION.LIST.TABLE_HEADER.NAME'),
@@ -320,40 +353,38 @@ const tableHeaders = computed(() => {
         feature-name="automation"
       >
         <template v-if="records?.length" #count>
-          <span class="text-body-main text-n-slate-11">
+          <span class="text-body-main text-n-slate-11 whitespace-nowrap">
             {{ $t('AUTOMATION.COUNT', { n: records.length }) }}
           </span>
         </template>
         <template #actions>
-          <Button
-            :label="$t('AUTOMATION.CLASSIC_RULE_BTN')"
-            size="sm"
-            variant="link"
-            color="slate"
-            data-testid="create-classic-rule"
-            @click="openAddPopup"
-          />
-          <Button
-            :label="$t('AUTOMATION.IMPORT.BUTTON')"
-            size="sm"
-            variant="faded"
-            icon="i-lucide-download"
-            :is-loading="importing"
-            data-testid="import-legacy"
-            @click="importLegacy"
-          />
-          <Button
-            :label="$t('AUTOMATION.TEMPLATES.BUTTON')"
-            size="sm"
-            variant="faded"
-            icon="i-lucide-layout-grid"
-            data-testid="open-templates"
-            @click="openTemplatesGallery"
-          />
+          <div
+            v-on-clickaway="() => (showMoreActions = false)"
+            class="relative flex items-center"
+          >
+            <Button
+              :label="$t('AUTOMATION.MORE_ACTIONS')"
+              size="sm"
+              variant="faded"
+              color="slate"
+              icon="i-lucide-ellipsis"
+              :is-loading="importing"
+              class="whitespace-nowrap"
+              data-testid="automation-more-actions"
+              @click="showMoreActions = !showMoreActions"
+            />
+            <DropdownMenu
+              v-if="showMoreActions"
+              :menu-items="moreActionItems"
+              class="z-50 mt-1 top-full ltr:right-0 rtl:left-0"
+              @action="handleMoreAction"
+            />
+          </div>
           <Button
             :label="$t('AUTOMATION.CANVAS.NEW_FLOW')"
             size="sm"
             icon="i-lucide-workflow"
+            class="whitespace-nowrap"
             data-testid="open-canvas"
             @click="openCanvas"
           />

@@ -135,15 +135,20 @@ class Waha::OutboundSpecialMessageService
     name = contact_data['name'].presence || attachment.meta&.[]('firstName').presence || attachment.fallback_title.to_s
     phone = contact_data['phone'].presence || attachment.fallback_title.to_s
 
-    # Sempre via /api/sendText com vCard inline — /api/sendContactVcard quebra
-    # na engine GoWS PLUS (TypeError interno mesmo com payload correto).
-    resp = waha.send_text_with_vcard(
-      session: @inbox.waha_session_name,
-      chat_id: chat_id,
-      name: name,
-      phone: phone
-    )
-    mark_sent(resp)
+    mark_sent(send_contact_card(name, phone))
+  end
+
+  # Cartão nativo via /api/sendContactVcard. O TypeError de maio/2026 na GoWS PLUS
+  # ("reading 'map'") vinha do corpo errado (`contactsIds` em vez de `contacts`).
+  # Se o endpoint ainda responder erro, cai no vCard em texto para o contato não se
+  # perder. Timeout/conexão não cai: o cartão pode ter saído e o texto duplicaria.
+  def send_contact_card(name, phone)
+    waha.send_contact_vcard(session: @inbox.waha_session_name, chat_id: chat_id, full_name: name, phone: phone)
+  rescue Waha::ApiService::ConnectionError
+    raise
+  rescue Waha::ApiService::Error => e
+    Rails.logger.warn("[Waha::OutboundSpecialMessageService] sendContactVcard falhou (#{e.message}); enviando vCard como texto")
+    waha.send_text_with_vcard(session: @inbox.waha_session_name, chat_id: chat_id, name: name, phone: phone)
   end
 
   # Interactive menus are delivered as a native WhatsApp POLL. On the GOWS PLUS

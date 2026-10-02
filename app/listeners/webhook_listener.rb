@@ -111,6 +111,19 @@ class WebhookListener < BaseListener
     handle_typing_status(__method__.to_s, event)
   end
 
+  # --- catálogo de produtos (C4) ---------------------------------------------------------------
+  # Os nomes dos métodos saem do nome do evento ('produto.criado' → produto_criado).
+
+  def produto_criado(event) = entregar_do_produto(event)
+
+  def produto_atualizado(event) = entregar_do_produto(event)
+
+  def estoque_alterado(event) = entregar_do_produto(event)
+
+  def produto_removido(event) = entregar_do_produto(event)
+
+  def produto_enviado_no_chat(event) = entregar_do_produto(event)
+
   private
 
   def handle_typing_status(event_name, event)
@@ -164,5 +177,27 @@ class WebhookListener < BaseListener
   def deliver_webhook_payloads(payload, inbox)
     deliver_account_webhooks(payload, inbox.account)
     deliver_api_inbox_webhooks(payload, inbox)
+  end
+
+  # O payload chega PRONTO, montado no instante do evento (CatalogProduct#disparar). Aqui não se
+  # lê o produto de novo: ele já pode ter mudado, e o ERP receberia um retrato errado.
+  def entregar_do_produto(event)
+    payload = event.data[:payload]
+    conta = Account.find_by(id: event.data[:account_id])
+    return if payload.blank? || conta.blank?
+
+    entregar_webhooks_do_catalogo(payload.symbolize_keys, conta)
+  end
+
+  # Catálogo (C4): o produto não pertence a caixa nenhuma, então a entrega é só por conta. A
+  # cadência de retentativa é a do contrato com o ERP (1, 5 e 30 minutos), daí o job próprio.
+  def entregar_webhooks_do_catalogo(payload, conta)
+    conta.webhooks.account_type.each do |webhook|
+      next unless webhook.subscriptions.include?(payload[:event])
+
+      Catalog::WebhookJob.perform_later(webhook.url, payload,
+                                        secret: webhook.secret,
+                                        delivery_id: SecureRandom.uuid)
+    end
   end
 end

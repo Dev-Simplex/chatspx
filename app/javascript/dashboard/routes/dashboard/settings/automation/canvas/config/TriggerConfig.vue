@@ -46,10 +46,12 @@ const kind = computed(() => {
   return 'event';
 });
 
+// 'schedule' fica de fora: o gatilho por agendamento nunca dispara (nao ha editor de alvo, e o
+// schedule_trigger_job nao esta no schedule.yml). Melhor nao oferecer do que deixar montarem um
+// fluxo que nunca roda. O `kind` acima ainda reconhece 'schedule' por retrocompatibilidade.
 const kindOptions = computed(() => [
   { id: 'event', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_EVENT') },
   { id: 'keyword', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_KEYWORD') },
-  { id: 'schedule', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_SCHEDULE') },
   { id: 'webhook', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_WEBHOOK') },
 ]);
 

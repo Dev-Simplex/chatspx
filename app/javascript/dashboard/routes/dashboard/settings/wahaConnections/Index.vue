@@ -267,7 +267,7 @@ onUnmounted(() => {
 
         <!-- Botão Principal GRANDE -->
         <button
-          class="inline-flex items-center gap-3 px-10 py-4 text-lg font-bold text-white bg-[#00a884] hover:bg-[#008f72] rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:scale-105"
+          class="inline-flex items-center gap-3 px-10 py-4 text-lg font-bold text-white bg-n-brand hover:bg-n-brand/90 rounded-xl shadow-xl hover:shadow-2xl transition-shadow duration-200"
           @click="handleAddConnection"
         >
           <svg
@@ -353,7 +353,7 @@ onUnmounted(() => {
           {{ $t('WAHA_CONNECTIONS.NO_CONNECTIONS_DESCRIPTION') }}
         </p>
         <button
-          class="inline-flex items-center gap-2 px-8 py-3 text-base font-semibold text-white bg-[#00a884] hover:bg-[#008f72] rounded-lg shadow-lg transition-all"
+          class="inline-flex items-center gap-2 px-8 py-3 text-base font-semibold text-white bg-n-brand hover:bg-n-brand/90 rounded-lg shadow-lg transition-colors"
           @click="handleAddConnection"
         >
           <svg
@@ -384,7 +384,7 @@ onUnmounted(() => {
               <!-- Logo WhatsApp -->
               <div class="relative flex-shrink-0">
                 <div
-                  class="size-12 rounded-lg flex items-center justify-center bg-[#00a884]"
+                  class="size-12 rounded-lg flex items-center justify-center bg-n-brand"
                 >
                   <svg viewBox="0 0 32 32" class="size-7">
                     <path
@@ -395,7 +395,7 @@ onUnmounted(() => {
                 </div>
                 <div
                   v-if="connection.status === 'WORKING'"
-                  class="absolute -top-1 -right-1 size-3 rounded-full border-2 border-white dark:border-n-solid-2 bg-[#00a884]"
+                  class="absolute -top-1 -right-1 size-3 rounded-full border-2 border-white dark:border-n-solid-2 bg-n-brand"
                 />
               </div>
 
@@ -480,7 +480,7 @@ onUnmounted(() => {
 
             <button
               v-if="connection.status === 'STOPPED'"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all bg-[#00a884]"
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-colors bg-n-brand hover:bg-n-brand/90"
               @click="handleConnect(connection)"
             >
               <div class="i-lucide-plug size-4" />
@@ -498,7 +498,7 @@ onUnmounted(() => {
 
             <button
               v-if="connection.status === 'FAILED'"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all bg-[#00a884]"
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-colors bg-n-brand hover:bg-n-brand/90"
               @click="handleRestart(connection)"
             >
               <div class="i-lucide-refresh-cw size-4" />

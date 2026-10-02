@@ -13,7 +13,7 @@ describe Notification::PushNotificationService do
         allow(WebPush).to receive(:payload_send).and_return(true)
         allow(Rails.logger).to receive(:info)
         allow(Notification::FcmService).to receive(:new).and_return(fcm_service_double)
-        allow(fcm_double).to receive(:send_v1).and_return({ body: { 'results': [] }.to_json })
+        allow(fcm_double).to receive(:send_v1).and_return({ status_code: 200, body: { name: 'projects/x/messages/1' }.to_json })
         allow(GlobalConfigService).to receive(:load).with('FIREBASE_PROJECT_ID', nil).and_return('test_project_id')
         allow(GlobalConfigService).to receive(:load).with('FIREBASE_CREDENTIALS', nil).and_return('test_credentials')
       end
@@ -60,6 +60,55 @@ describe Notification::PushNotificationService do
 
         described_class.new(notification: notification).perform
       end
+    end
+  end
+
+  # N-07: o FCM HTTP v1 diz o resultado pelo status. Antes, qualquer resposta saia como "FCM push sent".
+  describe 'FCM HTTP v1 responses' do
+    let!(:subscription) { create(:notification_subscription, user: notification.user, subscription_type: 'fcm') }
+
+    def responde(status)
+      allow(fcm_double).to receive(:send_v1).and_return({ status_code: status, body: { error: { status: 'X' } }.to_json })
+    end
+
+    before do
+      allow(Notification::FcmService).to receive(:new).and_return(fcm_service_double)
+      allow(GlobalConfigService).to receive(:load).with('FIREBASE_PROJECT_ID', nil).and_return('test_project_id')
+      allow(GlobalConfigService).to receive(:load).with('FIREBASE_CREDENTIALS', nil).and_return('test_credentials')
+      allow(Rails.logger).to receive(:info)
+    end
+
+    it 'removes the subscription only when the token is gone (404 UNREGISTERED)' do
+      responde(404)
+      described_class.new(notification: notification).perform
+
+      expect(NotificationSubscription.exists?(subscription.id)).to be(false)
+    end
+
+    it 'reports a rejected credential (401) and keeps the subscription' do
+      responde(401)
+      tracker = instance_double(ChatwootExceptionTracker, capture_exception: true)
+      allow(ChatwootExceptionTracker).to receive(:new).and_return(tracker)
+
+      described_class.new(notification: notification).perform
+
+      expect(tracker).to have_received(:capture_exception)
+      expect(NotificationSubscription.exists?(subscription.id)).to be(true)
+      expect(Rails.logger).not_to have_received(:info).with(/FCM push sent/)
+    end
+
+    it 'schedules a retry of THAT subscription only when FCM is down (5xx)' do
+      responde(503)
+
+      expect { described_class.new(notification: notification).perform }
+        .to have_enqueued_job(Notification::PushNotificationJob).with(notification.id, subscription.id)
+    end
+
+    it 'raises on the retry itself, so the job retry_on handles backoff and reporting' do
+      responde(503)
+
+      expect { described_class.new(notification: notification, subscription_id: subscription.id).perform }
+        .to raise_error(described_class::TransientError)
     end
   end
 end

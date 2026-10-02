@@ -46,17 +46,18 @@ export const ASSIGNEE_TYPE_TAB_PERMISSIONS = {
     count: 'mineCount',
     permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
   },
-  // "Aguardando atendimento" (modelo B / IA mode): conversas que a IA entregou
-  // e seguem dela até um humano assumir. Aba dinâmica — só aparece com o gate ON
-  // e awaiting_count > 0 (filtragem em ChatList.vue). A posição aqui dita a ordem
-  // (Minhas / Aguardando atendimento / IA / Todas no modo IA).
   awaiting: {
     count: 'awaitingCount',
     permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
   },
-  // "Aguardando encerramento": fila irmã — conversas paradas/encerradas que a IA
-  // marcou para um humano julgar o fecho. Dinâmica (gate ON + awaitingClosureCount
-  // > 0, filtragem em ChatList.vue). Fica na linha 2 junto de "Aguardando atendimento".
+  // Abas do modo IA (gate ON), dinâmicas — filtragem em ChatList.vue.
+  // "Rodízio": admin/supervisor sempre; agente só quando há conversa na vez dele.
+  rodizio: {
+    count: 'rodizioCount',
+    permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+  },
+  // A fila existe nos dois modos; ChatList restringe "Atenção" a gestor quando
+  // as abas de Rodízio estão ligadas.
   pending_closure: {
     count: 'awaitingClosureCount',
     permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],

@@ -99,6 +99,8 @@ export default {
       businessName: '',
       locktoSingleConversation: false,
       teamMessageIsolation: false,
+      readOnly: false,
+      readOnlyRedirectInboxId: '',
       agentMessageIsolation: false,
       agentConversationIsolation: false,
       // Lista VAZIA = a regra vale para todos os times (é o comportamento de hoje).
@@ -147,7 +149,26 @@ export default {
       uiFlags: 'inboxes/getUIFlags',
       portals: 'portals/allPortals',
       teams: 'teams/getTeams',
+      inboxes: 'inboxes/getInboxes',
     }),
+    // CHAT-155: so caixas que conseguem enviar -- WhatsApp oficial ou WAHA, desta conta,
+    // que nao sejam esta nem somente leitura (o backend recusa as outras).
+    readOnlyRedirectOptions() {
+      const targets = this.inboxes.filter(
+        inbox =>
+          inbox.id !== this.inbox.id &&
+          !inbox.read_only &&
+          (inbox.channel_type === 'Channel::Whatsapp' ||
+            (inbox.channel_type === 'Channel::Api' && inbox.waha_session_name))
+      );
+      return [
+        {
+          value: '',
+          label: this.$t('INBOX_MGMT.SETTINGS_POPUP.READ_ONLY.NONE'),
+        },
+        ...targets.map(inbox => ({ value: inbox.id, label: inbox.name })),
+      ];
+    },
     // Vale para as DUAS regras de mensagem: a conversa nasce sem time, antes da triagem,
     // e esconder as bolhas dela esconderia o lead novo de quem precisa atender.
     isolationNoTeamHint() {
@@ -511,6 +532,9 @@ export default {
       this.replyTime = this.inbox.reply_time;
       this.locktoSingleConversation = this.inbox.lock_to_single_conversation;
       this.teamMessageIsolation = this.inbox.team_message_isolation || false;
+      this.readOnly = this.inbox.read_only || false;
+      this.readOnlyRedirectInboxId =
+        this.inbox.read_only_redirect_inbox_id || '';
       this.agentMessageIsolation = this.inbox.agent_message_isolation || false;
       this.agentConversationIsolation =
         this.inbox.agent_conversation_isolation || false;
@@ -735,6 +759,11 @@ export default {
             : null,
           lock_to_single_conversation: this.locktoSingleConversation,
           team_message_isolation: this.teamMessageIsolation,
+          read_only: this.readOnly,
+          // '' e nao null: no FormData o null vira a string "null".
+          read_only_redirect_inbox_id: this.readOnly
+            ? this.readOnlyRedirectInboxId
+            : '',
           agent_message_isolation: this.agentMessageIsolation,
           agent_conversation_isolation: this.agentConversationIsolation,
           // Espalhado (e não escrito chave a chave) de propósito: quando a inbox não trouxe a
@@ -1034,6 +1063,32 @@ export default {
                 />
               </template>
             </SettingsFieldSection>
+
+            <SettingsToggleSection
+              v-model="readOnly"
+              :header="$t('INBOX_MGMT.SETTINGS_POPUP.READ_ONLY.LABEL')"
+              :description="$t('INBOX_MGMT.SETTINGS_POPUP.READ_ONLY.SUB_TEXT')"
+              class="mb-4"
+            >
+              <template v-if="readOnly" #editor>
+                <div class="flex flex-col items-start gap-2">
+                  <span class="text-sm font-medium text-n-slate-12">
+                    {{
+                      $t('INBOX_MGMT.SETTINGS_POPUP.READ_ONLY.REDIRECT_LABEL')
+                    }}
+                  </span>
+                  <SelectInput
+                    v-model="readOnlyRedirectInboxId"
+                    :options="readOnlyRedirectOptions"
+                  />
+                  <p class="mb-0 text-sm text-n-slate-11">
+                    {{
+                      $t('INBOX_MGMT.SETTINGS_POPUP.READ_ONLY.REDIRECT_HINT')
+                    }}
+                  </p>
+                </div>
+              </template>
+            </SettingsToggleSection>
 
             <SettingsToggleSection
               v-model="teamMessageIsolation"

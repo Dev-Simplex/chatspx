@@ -40,10 +40,12 @@ import resetPassword from './resetPassword.json';
 import search from './search.json';
 import setNewPassword from './setNewPassword.json';
 import settings from './settings.json';
+import suggestions from './suggestions.json';
 import signup from './signup.json';
 import sla from './sla.json';
 import snooze from './snooze.json';
 import teamsSettings from './teamsSettings.json';
+import catalogMgmt from './catalogMgmt.json';
 import unitsMgmt from './unitsMgmt.json';
 import webhooks from './webhooks.json';
 import whatsappTemplates from './whatsappTemplates.json';
@@ -94,10 +96,12 @@ export default {
   ...search,
   ...setNewPassword,
   ...settings,
+  ...suggestions,
   ...signup,
   ...sla,
   ...snooze,
   ...teamsSettings,
+  ...catalogMgmt,
   ...unitsMgmt,
   ...webhooks,
   ...whatsappTemplates,

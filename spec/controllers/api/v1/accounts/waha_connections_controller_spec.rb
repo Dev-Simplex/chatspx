@@ -25,6 +25,73 @@ RSpec.describe 'Api::V1::Accounts::WahaConnections', type: :request do
     conversa
   end
 
+  describe 'GET connection identity' do
+    let(:index_url) { "/api/v1/accounts/#{account.id}/waha_connections" }
+    let(:session_data) { { 'name' => sessao, 'status' => 'WORKING' } }
+    let(:headers) { admin.create_new_auth_token }
+
+    before do
+      allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new)
+      allow(waha).to receive(:list_sessions).with(all: true).and_return([session_data])
+    end
+
+    it 'uses the identity from the session list without another WAHA request' do
+      session_data['me'] = { 'id' => '5565999999999@c.us' }
+      expect(waha).not_to receive(:get_session_me)
+
+      get index_url, headers: headers
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body.first['phone_number']).to eq('5565999999999')
+    end
+
+    it 'caches the fallback per inbox for ten minutes and refreshes after expiry' do
+      allow(waha).to receive(:get_session_me).with(sessao).and_return({ 'id' => '5565999999999@c.us' })
+      2.times { get index_url, headers: headers }
+      expect(waha).to have_received(:get_session_me).once
+      expect(response.parsed_body.first['phone_number']).to eq('5565999999999')
+
+      travel 11.minutes do
+        get index_url, headers: headers
+      end
+
+      expect(waha).to have_received(:get_session_me).twice
+    end
+
+    it 'prefers a fresh listed identity over a cached fallback' do
+      allow(waha).to receive(:get_session_me).with(sessao).and_return({ 'id' => '111@c.us' })
+      get index_url, headers: headers
+      session_data['me'] = { 'id' => '222@c.us' }
+      get index_url, headers: headers
+
+      expect(response.parsed_body.first['phone_number']).to eq('222')
+      expect(waha).to have_received(:get_session_me).once
+    end
+
+    it 'keeps the list available and caches an unavailable fallback' do
+      session_data['me'] = nil
+      allow(waha).to receive(:get_session_me).with(sessao).and_raise(Waha::ApiService::Error)
+      2.times { get index_url, headers: headers }
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body.first['phone_number']).to be_nil
+      expect(waha).to have_received(:get_session_me).once
+    end
+
+    it 'keeps cached identities separate for each inbox' do
+      second = create(:inbox, account: account, waha_session_name: 'OtherSession')
+      allow(waha).to receive(:list_sessions).with(all: true)
+                                            .and_return([session_data, { 'name' => second.waha_session_name, 'status' => 'WORKING' }])
+      allow(waha).to receive(:get_session_me).with(sessao).and_return({ 'id' => '111@c.us' })
+      allow(waha).to receive(:get_session_me).with(second.waha_session_name).and_return({ 'id' => '222@c.us' })
+      2.times { get index_url, headers: headers }
+
+      expect(response.parsed_body.pluck('phone_number')).to contain_exactly('111', '222')
+      expect(waha).to have_received(:get_session_me).with(sessao).once
+      expect(waha).to have_received(:get_session_me).with(second.waha_session_name).once
+    end
+  end
+
   describe 'DELETE sem pedir para apagar a caixa (o padrão)' do
     it 'apaga a sessão no WAHA' do
       expect(waha).to receive(:delete_session).with(sessao)

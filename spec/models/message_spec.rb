@@ -16,6 +16,39 @@ RSpec.describe Message do
     it { is_expected.to validate_presence_of(:account_id) }
   end
 
+  describe 'read-only inbox (CHAT-155)' do
+    let(:conversation) { create(:conversation) }
+
+    before { conversation.inbox.update!(read_only: true) }
+
+    def build_message(**attrs)
+      build(:message, conversation: conversation, inbox: conversation.inbox, account: conversation.account, **attrs)
+    end
+
+    it 'blocks outgoing and template messages' do
+      %w[outgoing template].each do |type|
+        message = build_message(message_type: type)
+        expect(message).not_to be_valid
+        expect(message.errors[:base]).to include(I18n.t('errors.read_only_inbox.message_blocked'))
+      end
+    end
+
+    it 'lets incoming, activity and private notes through' do
+      expect(build_message(message_type: 'incoming')).to be_valid
+      expect(build_message(message_type: 'activity')).to be_valid
+      expect(build_message(message_type: 'outgoing', private: true)).to be_valid
+    end
+
+    it 'lets an echo of something sent outside the app through (already has source_id)' do
+      expect(build_message(message_type: 'outgoing', source_id: 'wamid.echo')).to be_valid
+    end
+
+    it 'does not block outgoing messages of a regular inbox' do
+      conversation.inbox.update!(read_only: false)
+      expect(build_message(message_type: 'outgoing')).to be_valid
+    end
+  end
+
   describe 'length validations' do
     let!(:message) { create(:message) }
 
@@ -154,6 +187,44 @@ RSpec.describe Message do
 
       expect(conversation.first_reply_created_at).to eq outgoing_message.created_at
       expect(conversation.waiting_since).to be_nil
+    end
+
+    # N-01: numa caixa WAHA, a resposta dada pelo CELULAR chega como nota privada com este cabecalho
+    # e o remetente e o dono do token. Para o cliente, e resposta.
+    context 'with a reply sent from the phone in a WAHA inbox' do
+      let(:account) { create(:account) }
+      let(:waha_inbox) do
+        create(:inbox, account: account, channel: create(:channel_api, account: account), waha_session_name: 'sessao_teste')
+      end
+      let(:waha_conversation) { create(:conversation, account: account, inbox: waha_inbox).tap(&:reload) }
+
+      def nota(content)
+        create(:message, message_type: :outgoing, private: true, conversation: waha_conversation,
+                         sender: create(:user, account: account), content: content)
+      end
+
+      it 'counts as the first reply and clears waiting_since' do
+        resposta = nota("*📱 Enviado do WhatsApp*\n\nJa te respondo")
+
+        waha_conversation.reload
+        expect(waha_conversation.first_reply_created_at).to eq resposta.reload.created_at
+        expect(waha_conversation.waiting_since).to be_nil
+      end
+
+      it 'keeps an ordinary private note internal' do
+        nota('anotacao interna')
+
+        waha_conversation.reload
+        expect(waha_conversation.first_reply_created_at).to be_nil
+        expect(waha_conversation.waiting_since).to be_present
+      end
+
+      it 'ignores the marker outside a WAHA inbox' do
+        waha_inbox.update!(waha_session_name: nil)
+        nota("*📱 Enviado do WhatsApp*\n\noi")
+
+        expect(waha_conversation.reload.first_reply_created_at).to be_nil
+      end
     end
 
     it 'does not update the conversation first reply created at if the message is incoming' do

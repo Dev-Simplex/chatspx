@@ -100,7 +100,9 @@ class BaseActionCableConnector {
       // Gap-fill (Método D): recupera o que passou enquanto a aba esteve fora,
       // reusando o refetch por updatedWithin já existente. No-op no widget (não
       // há reconnectService no window).
-      window.reconnectService?.handleRouteSpecificFetch?.();
+      window.reconnectService?.handleRouteSpecificFetch?.({
+        staleSeconds: (Date.now() - this.lastEventReceivedAt) / 1000,
+      });
     };
     this.onVisibilityChange = () => {
       if (
@@ -135,7 +137,9 @@ class BaseActionCableConnector {
       const isStale =
         Date.now() - this.lastEventReceivedAt > STALE_EVENT_THRESHOLD;
       if (isTabVisible && isStale && window.reconnectService) {
-        window.reconnectService.handleRouteSpecificFetch?.();
+        window.reconnectService.handleRouteSpecificFetch?.({
+          staleSeconds: (Date.now() - this.lastEventReceivedAt) / 1000,
+        });
         this.lastEventReceivedAt = Date.now();
       }
       this.triggerStaleCheckInterval();

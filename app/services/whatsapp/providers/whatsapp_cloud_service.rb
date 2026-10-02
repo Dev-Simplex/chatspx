@@ -219,7 +219,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
   def send_attachment_message(phone_number, message)
     attachment = message.attachments.first
     type = resolve_media_type(attachment)
-    type_content = voice_note_content(attachment, type) || { 'link': attachment.download_url }
+    type_content = voice_note_content(attachment, type) || { 'link': attachment_link(attachment, type) }
     apply_caption(type_content, type, message)
     type_content['filename'] = attachment.file.filename if type == 'document'
     response = HTTParty.post(
@@ -235,6 +235,23 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     )
 
     process_response(response, message)
+  end
+
+  def attachment_link(attachment, type)
+    return attachment.download_url unless png_16_bit?(attachment, type)
+
+    ActiveStorage::Current.url_options = Rails.application.routes.default_url_options if ActiveStorage::Current.url_options.blank?
+    attachment.file.variant(format: :jpeg).processed.url
+  rescue StandardError => e
+    Rails.logger.warn("[WhatsApp Cloud] conversao de PNG 16-bit falhou, enviando original: #{e.class}: #{e.message}")
+    attachment.download_url
+  end
+
+  def png_16_bit?(attachment, type)
+    return false unless type == 'image' && attachment.file.content_type == 'image/png'
+
+    header = attachment.file.blob.download_chunk(0...26)
+    header.start_with?("\x89PNG\r\n\x1A\n".b) && header.getbyte(24).to_i > 8
   end
 
   # VOICE NOTE (PTT). O Meta so entrega audio como NOTA DE VOZ — bolha com onda, play na

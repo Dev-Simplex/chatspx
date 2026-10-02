@@ -9,10 +9,30 @@ class Api::V1::Accounts::InboxMessageTemplatesController < Api::V1::Accounts::Ba
   def index
     result = service.list
     if result[:success]
-      render json: { templates: result[:templates] }
+      render json: { templates: result[:templates], media_upload_enabled: upload_service.configured? }
     else
       render json: { error: result[:error] }, status: :unprocessable_entity
     end
+  end
+
+  # Sobe a mídia do cabeçalho e devolve o handle da Meta. É passo separado da
+  # criação porque o `example.header_handle` do template exige um handle que só
+  # existe depois do upload — URL o endpoint de templates não aceita.
+  def upload_media
+    file = params[:file]
+    # Texto solto no lugar do arquivo passa pelo `blank?` e estoura no
+    # original_filename: a fronteira exige um upload de verdade.
+    return render json: { error: 'File is required' }, status: :unprocessable_entity unless file.respond_to?(:original_filename)
+
+    result = upload_service.upload(file, file_name: file.original_filename, file_type: file.content_type)
+
+    if result[:success]
+      render json: { handle: result[:handle] }
+    else
+      render json: { error: result[:error], details: result[:response_body] }, status: :unprocessable_entity
+    end
+  rescue Whatsapp::ResumableUploadService::MissingAppIdError, Whatsapp::ResumableUploadService::UnsupportedFileTypeError => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def create
@@ -59,6 +79,10 @@ class Api::V1::Accounts::InboxMessageTemplatesController < Api::V1::Accounts::Ba
 
   def service
     @service ||= Whatsapp::TemplateManagementService.new(@inbox.channel)
+  end
+
+  def upload_service
+    @upload_service ||= Whatsapp::ResumableUploadService.new(@inbox.channel)
   end
 
   # components é um array aninhado livre no formato Graph API

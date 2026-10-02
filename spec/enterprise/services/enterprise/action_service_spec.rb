@@ -87,6 +87,29 @@ describe ActionService do
           action_service.assign_ai_agent([assistant.id])
         end.to have_enqueued_job(Captain::Conversation::AssignmentKickJob).with(conversation)
       end
+
+      # Trava de teste (CHAT-171): a triagem automática não entrega à IA um contato fora da lista.
+      it 'does not assign the AI nor take over the rule when the contact is outside the test phone lock' do
+        conversation.contact.update!(phone_number: '+5565999111222')
+        assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['+5511888887777'] } })
+
+        action_service.assign_ai_agent([assistant.id])
+
+        expect(conversation.reload.assignee_agent_bot_id).to be_nil
+        expect(Current.executed_by).not_to eq(assistant)
+      end
+
+      # Etiquetas sem IA da conta (CHAT-180): a triagem automática não entrega à IA a conversa
+      # etiquetada (o caso da portaria de condomínio na Tozi).
+      it 'does not assign the AI nor take over the rule when the conversation has a label the AI does not handle' do
+        account.update!(custom_attributes: { 'captain_etiquetas_sem_ia' => ['portaria'] })
+        conversation.update_labels(['portaria'])
+
+        action_service.assign_ai_agent([assistant.id])
+
+        expect(conversation.reload.assignee_agent_bot_id).to be_nil
+        expect(Current.executed_by).not_to eq(assistant)
+      end
     end
 
     context 'with invalid params (no-op silencioso, padrão add_sla)' do

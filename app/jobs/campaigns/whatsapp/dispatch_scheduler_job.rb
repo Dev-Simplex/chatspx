@@ -1,7 +1,8 @@
 module Campaigns
   module Whatsapp
     # Scheduler RESUMIVEL do disparo de campanhas WhatsApp. Roda a cada minuto
-    # (config/schedule.yml) e, para cada campanha em `dispatch_running`:
+    # (config/schedule.yml), promove as agendadas cuja hora chegou e, para cada campanha em
+    # `dispatch_running`:
     #
     #   1. respeita quiet-hours e o gate de saude do numero (opt-in),
     #   2. reivindica um lote de pendentes proporcional ao pacing,
@@ -19,6 +20,7 @@ module Campaigns
 
       def perform
         @quality_by_inbox = {}
+        promote_due_scheduled
         Campaign.dispatch_running.where(campaign_type: :one_off).find_each(batch_size: 50) do |campaign|
           next unless campaign.whatsapp_blast?
 
@@ -32,6 +34,27 @@ module Campaigns
       end
 
       private
+
+      # Agendamento: campanha `scheduled` cuja hora chegou entra em `running` e já despacha
+      # neste mesmo tick. Vale a mesma regra do botão Iniciar (Campaign#dispatch_start_blocker);
+      # sem o que ela exige a campanha NÃO começa: vira `failed` com o motivo em
+      # `dispatch_config['start_error']`, que o detalhe mostra. Não fica tentando a cada
+      # minuto de propósito: carregar a lista às 14h não pode soltar sozinho um disparo
+      # agendado para as 9h. O operador corrige e aperta Iniciar.
+      def promote_due_scheduled
+        Campaign.dispatch_scheduled.where(campaign_type: :one_off, scheduled_at: ..Time.current).find_each(batch_size: 50) do |campaign|
+          next unless campaign.inbox&.inbox_type == 'Whatsapp'
+
+          blocker = campaign.dispatch_start_blocker
+          if blocker
+            campaign.update!(dispatch_status: :failed, dispatch_config: campaign.dispatch_config.merge('start_error' => blocker))
+          else
+            campaign.dispatch_running!
+          end
+        rescue StandardError => e
+          Rails.logger.error("[CampaignDispatch] agendamento da campanha #{campaign.id} falhou: #{e.class}: #{e.message}")
+        end
+      end
 
       def process_campaign(campaign)
         return complete_if_drained(campaign) unless campaign.campaign_recipients.pending.exists?

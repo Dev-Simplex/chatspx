@@ -107,6 +107,8 @@ module Enterprise::Concerns::Conversation
   end
 
   def release_captain_mirror_on_resolve
+    # CHAT-172: o atendimento humano acabou; se o cliente voltar, a IA pode reentrar.
+    self.additional_attributes = additional_attributes.except(Conversation::HUMAN_REPLIED_KEY) if human_replied_without_assignment?
     return if assignee_agent_bot_id.blank?
     return unless assignee_agent_bot&.captain? # bot webhook preserva comportamento atual
 

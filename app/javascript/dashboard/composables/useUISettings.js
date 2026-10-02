@@ -6,6 +6,7 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'group_participants' },
   { name: 'conversation_actions' },
   { name: 'kanban_status' },
+  { name: 'captador_lead' },
   { name: 'macros' },
   { name: 'conversation_info' },
   { name: 'contact_attributes' },
@@ -151,12 +152,7 @@ export function useUISettings() {
   const uiSettings = computed(() => getters.getUISettings.value);
 
   const updateUISettings = (settings = {}) => {
-    store.dispatch('updateUISettings', {
-      uiSettings: {
-        ...uiSettings.value,
-        ...settings,
-      },
-    });
+    store.dispatch('updateUISettings', { uiSettings: settings });
   };
 
   return {

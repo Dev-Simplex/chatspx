@@ -30,6 +30,18 @@
 # available at https://guides.rubyonrails.org/i18n.html.
 
 en:
+  catalog:
+    send:
+      empty: "No item selected."
+      menu_header: "%{count} items:"
+    message:
+      body: "Take a look at the details:"
+      header: "Selected for you"
+      section: "Items"
+    custom_fields:
+      checked: "Yes"
+    meta_sync:
+      not_configured: "Meta catalog mirroring is not set up for this account."
   hello: 'Hello world'
   inbox:
     reauthorization:
@@ -55,8 +67,21 @@ en:
       account_user:
         console_role: Role
         supervised_team_ids: Supervised teams
+      account:
+        rodizio_conversation_tabs_enabled: Enable Rotation and Attention tabs
 
   errors:
+    suggestions:
+      media:
+        type: 'must be a photo or a video'
+        size: 'must be up to %{limit} MB'
+    read_only_inbox:
+      message_blocked: 'This inbox is in read-only mode.'
+      redirect_invalid: 'The redirect inbox must be another WhatsApp inbox of this account that is not read-only.'
+      campaign_blocked: 'A read-only inbox cannot send campaigns.'
+      not_redirectable: 'This conversation is not in a read-only inbox with a redirect inbox.'
+      contact_without_phone: 'Contact has no phone number'
+      replied_note: 'Replied through the inbox %{inbox}, conversation #%{conversation}'
     account_user:
     super_admin:
       team_supervisor_denied: Team supervisors do not have access to the Super Admin Console.
@@ -69,6 +94,8 @@ en:
     account:
       reporting_timezone:
         invalid: is not a valid timezone
+      catalog_hidden_fields:
+        invalid: only accepts sku, stock, featured and promo_price
     validations:
       presence: must not be blank
       invalid: is invalid
@@ -88,6 +115,9 @@ en:
       open_and_closed: cannot be open all day and closed all day at the same time
     webhook:
       invalid: Invalid events
+    catalog:
+      meta_rate_limited: The Meta catalog rate limit was reached. The remaining items go out on the next sync.
+      invalid_custom_field: 'Invalid value for the field "%{field}".'
     signup:
       disposable_email: We do not allow disposable emails
       blocked_domain: This domain is not allowed. If you believe this is a mistake, please contact support.
@@ -282,6 +312,9 @@ en:
       assignment_required: 'You must take over this conversation before replying'
     takeover_request_gate:
       request_required: 'This conversation belongs to another agent. Request it to take over.'
+    compose:
+      blocked_by_existing_attendance: 'This contact already has an ongoing conversation you cannot access. The message was not sent.'
+      contact_inbox_conflict: 'This number already belongs to the contact %{name}. Merge the contacts to continue.'
     agent_conversation_isolation:
       access_blocked: 'This conversation is assigned to another agent. Request it to access it.'
     errors:
@@ -440,6 +473,11 @@ en:
       name: 'Site Leads'
       short_description: 'Receive website form submissions as conversations.'
       description: 'When someone submits a form on your website, the site posts the lead to a webhook and a conversation is opened in the target inbox with the approved template. The property code of the page the visitor was on opens the conversation already on that property, and the browsing journey is carried to the AI as context.'
+    captador:
+      name: 'Captador'
+      invalid_inboxes: 'Use comma-separated positive inbox IDs belonging to this account (WhatsApp or API). Remove deleted or unsupported inboxes; leave blank to allow none.'
+      short_description: 'Open conversations with the leads prospected in Captador and track the replies in its pipeline.'
+      description: 'Captador opens the conversation with the lead on behalf of the user who clicked, through the chosen inbox: an approved template on official WhatsApp or free text on an unofficial inbox (WAHA). Replies, delivery statuses and owner changes are sent back to Captador, signed. Users of this account can also sign in to Captador with their ChatSPX email and password.'
   captain:
     errors:
       missing_api_key: 'OpenAI API key is not configured for this account. Please configure it in Captain settings.'
@@ -550,6 +588,13 @@ en:
     errors:
       failed_to_create: 'Failed to create message'
       only_pending_allowed: 'Only pending messages can be modified or cancelled'
+      window_closed_no_template: 'the messaging window is closed and the agent has no template configured for it'
+      template_unsupported_variables: 'the configured template has a variable without a known source in the agent configuration'
+      template_without_primeiro_nome: 'the configured template needs the contact name, and the contact has none'
+      template_without_texto: 'the scheduled message has no text to fill the template'
+      discarded_by_assistant_review: 'the AI agent reviewed it at the scheduled time and decided not to send it'
+    activity:
+      assistant_not_sent: 'Scheduled message from the AI agent was not sent: %{reason}.'
   auto_assignment:
     default_policy_name: 'Default Policy'
     policy_actor: 'Automation System via %{policy_name}'

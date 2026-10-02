@@ -40,7 +40,7 @@ By default, it renders:
     <% if @portal.logo.present? %>
       <link rel="icon" href="<%= url_for(@portal.logo) %>">
       <% else %>
-      <link rel="icon" type="image/svg+xml" href="/brand-assets/logo_thumbnail.svg">
+      <link rel="icon" type="image/svg+xml" href="/brand-assets/logo_thumbnail.svg?v=<%= GIT_HASH.first(10) %>">
     <% end %>
 
     <% unless @theme_from_params.blank? %>

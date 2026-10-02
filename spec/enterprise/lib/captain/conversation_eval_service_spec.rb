@@ -111,6 +111,24 @@ RSpec.describe Captain::ConversationEvalService do
     end
   end
 
+  # O juiz cortava em 1.200 o retorno que o trace já tinha guardado com 1.500. Na locação a
+  # lista de imóveis vem depois do bloco de regras, e o item citado pela IA caía nesse vão:
+  # 9 dos 11 flagras do juiz nos 20 casos de contradisse_tool da Tozi (29/09).
+  describe 'retorno de ferramenta que o juiz lê' do
+    it 'é o mesmo tamanho que o registro guarda' do
+      m = create(:message, account: account, inbox: inbox, conversation: conversation, content: 'tem casa?')
+      limite = Captain::Tools::TraceRecorder::RESULT_PREVIEW_LIMIT
+      Captain::ToolCall.create!(account_id: account.id, conversation_id: conversation.id,
+                                captain_assistant_id: create(:captain_assistant, account: account).id,
+                                tool_name: 'buscar_imovel', args: {}, status: 'ok',
+                                result_preview: "#{'x' * (limite - 20)} cód 8138 Acácias", created_at: m.created_at)
+
+      linha = service.send(:pending_tool_lines, [m]).first[:line]
+
+      expect(linha).to include('cód 8138 Acácias')
+    end
+  end
+
   # Em 14k o juiz julgava contra uma FATIA da norma: 7 dos 8 agentes de uma conta ficavam
   # truncados, a Júlia perdendo 71%. A regra que ela cumpria morava no char 15.825 e virou
   # info_incorreta de severidade alta.

@@ -35,9 +35,63 @@ class Unit < ApplicationRecord
                         allow_nil: true
   validate :timezone_deve_existir
 
+  before_save :arrumar_contatos, :arrumar_links
   after_create :criar_grade_padrao
 
+  # Unidade que atende uma caixa: a vinculada, se ativa. Caixa sem vínculo herda a única unidade
+  # ativa da conta; com várias, nil — não há como saber qual é, e adivinhar entregaria o dado de
+  # outra unidade como se fosse desta.
+  def self.da_caixa(inbox)
+    return nil unless inbox
+    return (inbox.unit if inbox.unit&.active?) if inbox.unit_id.present?
+
+    candidatas = ativas.where(account_id: inbox.account_id).limit(2).to_a
+    candidatas.one? ? candidatas.first : nil
+  end
+
+  # Contatos do cadastro com rótulo sempre preenchido e único, porque é pelo rótulo que a IA escolhe
+  # qual contato enviar. Linha sem rótulo vira "contato N", pela posição na lista.
+  def contatos_rotulados
+    rotulados = Array(contacts).each_with_index.filter_map do |contato, indice|
+      telefone = contato['phone'].to_s.strip
+      next if telefone.blank?
+
+      { rotulo: contato['label'].to_s.strip.presence || "contato #{indice + 1}", telefone: telefone }
+    end
+    rotulados.uniq { |contato| self.class.normalizar(contato[:rotulo]) }
+  end
+
   private
+
+  # A tela adiciona a linha vazia antes de preencher, e quem desiste deixa ela para trás: linha sem
+  # número não vira registro. O `phone` acompanha o primeiro contato porque é ele que a lista de
+  # unidades e a API mostram.
+  def arrumar_contatos
+    self.contacts = Array(contacts).filter_map do |contato|
+      next if contato['phone'].blank?
+
+      { 'label' => contato['label'].to_s.strip, 'phone' => contato['phone'].strip }
+    end
+    # Quem manda só o `phone` — a API de antes da lista — não pode perder o número: ele vira o
+    # primeiro contato. Quem apaga a lista inteira na tela não recebe o contato de volta, porque
+    # ali o `phone` não mudou; é o que separa "não conhece a lista" de "apagou de propósito".
+    self.contacts = [{ 'label' => '', 'phone' => phone.strip }] if contacts.empty? && phone.present? && phone_changed?
+    self.phone = contacts.first&.fetch('phone', nil)
+  end
+
+  def arrumar_links
+    self.social_links = Array(social_links).filter_map do |link|
+      next if link['url'].blank?
+
+      { 'network' => link['network'].to_s, 'url' => com_esquema(link['url'].strip) }
+    end
+  end
+
+  # Quem copia da barra do navegador traz o https; quem digita à mão escreve "instagram.com/x", e
+  # sem esquema o navegador trata como caminho relativo do painel.
+  def com_esquema(url)
+    url.match?(%r{\Ahttps?://}) ? url : "https://#{url}"
+  end
 
   def timezone_deve_existir
     return if timezone.blank? || TZInfo::Timezone.all_identifiers.include?(timezone)

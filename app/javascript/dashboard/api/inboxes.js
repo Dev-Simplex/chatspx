@@ -59,6 +59,16 @@ class Inboxes extends CacheEnabledApiClient {
     });
   }
 
+  uploadTemplateMedia(inboxId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return axios.post(
+      `${this.url}/${inboxId}/message_templates/upload_media`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+  }
+
   deleteMessageTemplate(inboxId, templateName) {
     return axios.delete(
       `${this.url}/${inboxId}/message_templates/${encodeURIComponent(

@@ -19,7 +19,8 @@ class SearchService # rubocop:disable Metrics/ClassLength
   private
 
   def accessable_inbox_ids
-    @accessable_inbox_ids ||= @current_user.assigned_inboxes.pluck(:id)
+    # B4: a conta vai explícita — o serviço já a recebe no construtor.
+    @accessable_inbox_ids ||= @current_user.assigned_inboxes(current_account).pluck(:id)
   end
 
   # SUPERVISÃO DE TIME (D2): o supervisor acha na busca as conversas dos times que
@@ -33,23 +34,31 @@ class SearchService # rubocop:disable Metrics/ClassLength
     Conversation.where(account_id: current_account.id, team_id: supervised_team_ids).select(:id).to_sql
   end
 
-  def scope_conversations_to_access(relation)
-    return relation.where(inbox_id: accessable_inbox_ids) if supervised_team_ids.empty?
-
-    relation.where('conversations.inbox_id IN (:ids) OR conversations.team_id IN (:teams)',
-                   ids: accessable_inbox_ids, teams: supervised_team_ids)
+  # O alcance da busca e o MESMO da lista de conversas: Conversations::PermissionFilterService (caixa,
+  # time e supervisao; administrador ve a conta inteira). A busca filtrava so por caixa e supervisao,
+  # e o agente de um time lia por aqui o conteudo de conversas de outro time na mesma caixa — as que a
+  # lista esconde dele e que respondem 403 ao abrir (na .229, 9 agentes alcancando 643 conversas em
+  # 3 meses). Mesma classe de vazamento da T14 (copilot) e da T16 (galeria).
+  def permitted_conversations
+    @permitted_conversations ||= Conversations::PermissionFilterService.new(
+      current_account.conversations, current_user, current_account
+    ).perform
   end
 
-  # Do lado das mensagens não há team_id da conversa: o alcance vira subconsulta.
-  def scope_messages_to_access(relation)
-    return relation.where(inbox_id: accessable_inbox_ids) if supervised_team_ids.empty?
+  def scope_conversations_to_access(relation)
+    relation.where(id: permitted_conversations.select(:id))
+  end
 
-    relation.where("messages.inbox_id IN (:ids) OR messages.conversation_id IN (#{supervised_conversations_sql})",
-                   ids: accessable_inbox_ids)
+  # EA-01: além do alcance por conversa, o CORTE por transferência. Quem recebeu a conversa por
+  # pedido aprovado não acha pela busca o que veio antes da aprovação — senão o histórico que a
+  # tela esconde volta inteiro por aqui.
+  def scope_messages_to_access(relation)
+    escopo = relation.where(conversation_id: permitted_conversations.select(:id))
+    Conversations::HandoverCut.filter_messages_across(escopo, current_user, current_account)
   end
 
   def conversation_accessible?(conversation)
-    accessable_inbox_ids.include?(conversation.inbox_id) || supervised_team_ids.include?(conversation.team_id)
+    permitted_conversations.exists?(id: conversation.id)
   end
 
   def search_query

@@ -33,7 +33,9 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Minhas",
       "awaiting": "Aguardando atendimento",
+      "rodizio": "Rodízio",
       "pending_closure": "Aguardando encerramento",
+      "attention": "Atenção",
       "unassigned": "Não atribuídas",
       "ai": "IA",
       "all": "Todas"

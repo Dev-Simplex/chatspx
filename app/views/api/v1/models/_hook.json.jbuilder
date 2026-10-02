@@ -5,5 +5,12 @@ json.inbox resource.inbox&.slice(:id, :name)
 json.account_id resource.account_id
 json.hook_type resource.hook_type
 
-json.settings resource.settings if Current.account_user&.administrator?
+if Current.account_user&.administrator?
+  settings = resource.settings
+  if resource.app_id == 'captador'
+    settings = settings.except('shared_secret').merge('shared_secret_configured' => resource.captador_shared_secret_configured?)
+    json.captador_state resource.captador_inbox_state
+  end
+  json.settings settings
+end
 json.reference_id resource.reference_id if Current.account_user&.administrator?

@@ -13,6 +13,7 @@ import { MESSAGE_VARIANTS, ORIENTATION } from '../constants';
 
 const props = defineProps({
   hideMeta: { type: Boolean, default: false },
+  transparent: { type: Boolean, default: false },
 });
 
 const {
@@ -65,6 +66,8 @@ const flexOrientationClass = computed(() => {
 });
 
 const messageClass = computed(() => {
+  if (props.transparent) return '!bg-transparent !shadow-none text-n-slate-12';
+
   const classToApply = [varaintBaseMap[variant.value]];
 
   if (variant.value !== MESSAGE_VARIANTS.ACTIVITY) {

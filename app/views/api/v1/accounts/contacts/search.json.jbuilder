@@ -7,5 +7,6 @@ end
 json.payload do
   json.array! @contacts do |contact|
     json.partial! 'api/v1/models/contact', formats: [:json], resource: contact, with_contact_inboxes: @include_contact_inboxes
+    json.duplicate_of @duplicates[contact.id]
   end
 end

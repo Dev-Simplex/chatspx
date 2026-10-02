@@ -15,6 +15,15 @@ if resource.respond_to?(:scheduled_by_id) && resource.scheduled_by.present?
 else
   json.scheduled_by nil
 end
+# Agendada escrita pela IA (CHAT-165): o agente que vai enviá-la.
+if resource.try(:captain_assistant).present?
+  json.captain_assistant do
+    json.id resource.captain_assistant.id
+    json.name resource.captain_assistant.name
+  end
+else
+  json.captain_assistant nil
+end
 json.created_at resource.created_at&.iso8601
 json.updated_at resource.updated_at&.iso8601
 json.attachments(resource.attachments.map do |attachment|

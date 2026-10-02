@@ -84,6 +84,10 @@ class Message < ApplicationRecord
   validates :content_type, presence: true
   validates :content, length: { maximum: 150_000 }
   validates :processed_message_content, length: { maximum: 150_000 }
+  # CHAT-155: rede de seguranca da caixa somente leitura. Barra na CRIACAO porque a WAHA nao passa
+  # pelo SendReplyJob (sai pelo webhook da caixa API) -- se a Message existe, ela sai. Eco de algo
+  # enviado FORA daqui (app do celular) ja chega com source_id e so registra, entao passa.
+  validate :inbox_not_read_only, on: :create, if: -> { (outgoing? || template?) && !private? && source_id.blank? }
 
   # when you have a temperory id in your frontend and want it echoed back via action cable
   attr_accessor :echo_id
@@ -169,8 +173,21 @@ class Message < ApplicationRecord
     @token ||= inbox.channel.try(:page_access_token)
   end
 
+  # Atributos derivados para REST e websocket; nunca persistem a apresentação no banco.
+  def display_content_attributes
+    return content_attributes unless whatsapp_phone_reply?
+
+    body = content.delete_prefix(WHATSAPP_PHONE_REPLY_MARKER).strip
+    wrapped_body = body.match(/\A💬 \*{1,2}Mensagem(?: \(às [^)]+\))?:\*{1,2}\s*"(.*)"\z/m)
+    content_attributes.merge(
+      'whatsapp_phone_reply' => true,
+      'whatsapp_phone_reply_content' => wrapped_body ? wrapped_body[1] : body
+    )
+  end
+
   def push_event_data # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     data = attributes.symbolize_keys.merge(
+      content_attributes: display_content_attributes,
       created_at: created_at.to_i,
       message_type: message_type_before_type_cast,
       conversation_id: conversation&.display_id,
@@ -250,7 +267,7 @@ class Message < ApplicationRecord
   end
 
   def valid_first_reply?
-    return false unless human_response? && !private?
+    return false unless human_response? && reached_customer?
     return false if conversation.first_reply_created_at.present?
     # Usa all_messages (sem filtro de team_message_isolation) — first_reply_created_at e
     # contagem de respostas humanas previas sao globais por conversa, nao por team.
@@ -313,7 +330,18 @@ class Message < ApplicationRecord
     '[Attachment]' if attachments.any?
   end
 
+  # O conteudo JA passou pelo WhatsApp: o que o cliente mandou, ou o que o corretor mandou pelo proprio
+  # celular (eco da ponte WAHA, ver #whatsapp_phone_reply?). Usado pelas redes de tamanho do Attachment:
+  # elas existem para o que o atendente ENVIA pelo painel, nao para o que ja chegou.
+  def already_through_whatsapp?
+    incoming? || whatsapp_phone_reply?
+  end
+
   private
+
+  def inbox_not_read_only
+    errors.add(:base, I18n.t('errors.read_only_inbox.message_blocked')) if inbox&.read_only?
+  end
 
   def prevent_message_flooding
     # Added this to cover the validation specs in messages
@@ -379,7 +407,7 @@ class Message < ApplicationRecord
   end
 
   def update_waiting_since
-    clear_waiting_since_on_outgoing_response if conversation.waiting_since.present? && !private
+    clear_waiting_since_on_outgoing_response if conversation.waiting_since.present? && reached_customer?
     set_waiting_since_on_incoming_message
   end
 
@@ -416,6 +444,23 @@ class Message < ApplicationRecord
       content_attributes['automation_rule_id'].blank? &&
       additional_attributes['campaign_id'].blank? &&
       (sender.is_a?(User) || content_attributes['external_echo'].present?)
+  end
+
+  # Resposta que o atendente deu pelo CELULAR numa caixa WAHA. O app do WAHA grava o eco como NOTA
+  # PRIVADA com este cabecalho, e o remetente e o dono do token, nao quem respondeu. Para o cliente
+  # ela e uma resposta como outra qualquer: conta para nao atendidas, 1a resposta, waiting_since,
+  # conversa pendente virar aberta e a IA soltar. NAO conta para rodizio nem repasse, que dependem de
+  # saber QUEM respondeu (decisao de 18/09).
+  WHATSAPP_PHONE_REPLY_MARKER = '*📱 Enviado do WhatsApp*'.freeze
+
+  def whatsapp_phone_reply?
+    private? && outgoing? && content.to_s.start_with?(WHATSAPP_PHONE_REPLY_MARKER) &&
+      inbox&.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
+  end
+
+  # Chegou ao cliente: publica, ou a nota que registra a resposta dada pelo celular.
+  def reached_customer?
+    !private? || whatsapp_phone_reply?
   end
 
   def bot_response?
@@ -479,7 +524,7 @@ class Message < ApplicationRecord
   def mark_pending_conversation_as_open_for_human_response
     return unless captain_pending_conversation?
     return unless human_response?
-    return if private?
+    return unless reached_customer?
 
     conversation.open!
   end

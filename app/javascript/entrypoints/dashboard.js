@@ -21,6 +21,7 @@ import router, { initalizeRouter } from 'dashboard/routes';
 import store from 'dashboard/store';
 import constants from 'dashboard/constants/globals';
 import * as Sentry from '@sentry/vue';
+import { ignoreErrors, beforeSend } from 'dashboard/helper/errorLogging';
 import {
   initializeAnalyticsEvents,
   initializeChatwootEvents,
@@ -72,9 +73,8 @@ if (window.errorLoggingConfig) {
       /safari-extension:/i,
     ],
     integrations: [Sentry.browserTracingIntegration({ router })],
-    ignoreErrors: [
-      'ResizeObserver loop completed with undelivered notifications',
-    ],
+    ignoreErrors,
+    beforeSend,
   });
 }
 

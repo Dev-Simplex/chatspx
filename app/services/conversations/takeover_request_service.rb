@@ -98,6 +98,8 @@ class Conversations::TakeoverRequestService
     # O flag que deixa a aprovação passar pelo TakeoverGate. `ensure` obrigatório.
     Current.takeover_approval_in_progress = true
     conversation.update!(assignee_id: @request.requester_id)
+    # O pedido aprovado termina igual ao assumir: a conversa vai para o time de quem pediu.
+    Conversations::TeamHandoverService.new(conversation: conversation, user: @request.requester).perform
   ensure
     Current.takeover_approval_in_progress = nil
   end

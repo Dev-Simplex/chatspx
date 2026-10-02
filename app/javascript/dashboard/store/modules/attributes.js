@@ -17,8 +17,13 @@ export const getters = {
   getUIFlags(_state) {
     return _state.uiFlags;
   },
+  // Campo de catálogo fica de fora: quem usa esta lista são as variáveis do editor, as condições
+  // de automação e o formulário pré-chat, e nenhum deles fala de item do catálogo. A aba Campos
+  // do catálogo lê por `getAttributesByModel('catalog_attribute')`.
   getAttributes: _state => {
-    return _state.records;
+    return _state.records.filter(
+      record => record.attribute_model !== 'catalog_attribute'
+    );
   },
   getConversationAttributes: _state => {
     return _state.records

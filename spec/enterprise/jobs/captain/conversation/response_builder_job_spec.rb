@@ -297,6 +297,24 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
           expect(history_entry('fala do cenario')[:agent_name]).to eq(scenario.handoff_key)
         end
       end
+
+      # O contato enviado pelo sistema (enviar_contato_unidade) leva o número no conteúdo, para o
+      # time humano ver. No histórico da IA ele entra pelo rótulo: se o número voltasse como fala
+      # dela, ela aprenderia a digitar telefone.
+      it 'shows a system-sent contact to the model by its label, without the number' do
+        create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                         content: '+55 (66) 99635-0491', additional_attributes: { 'contato_enviado' => { 'rotulo' => 'Suporte' } })
+        history = nil
+        allow(mock_agent_runner_service).to receive(:generate_response) do |message_history:|
+          history = message_history
+          { 'response' => 'ok' }
+        end
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(history.pluck(:content).join(' ')).not_to include('99635')
+        expect(history.pluck(:content)).to include('[contato "Suporte" enviado pelo sistema]')
+      end
     end
 
     # Regression (PR #13417): wrapping create_handoff_message and bot_handoff! in the
@@ -398,6 +416,35 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
 
         expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
       end
+
+      # Regressao (CD Solar, conta 1, conv 19): a tool fez handoff pro time escolhido (Logistica)
+      # numa instancia PROPRIA da conversa, e o job ainda olhava a sua, carregada antes do turno —
+      # sem o marcador e sem time. O safety-net disparava e o time padrao do agente (Comercial)
+      # sobrescrevia a escolha da IA.
+      context 'with the agent default team configured' do
+        let(:comercial) { create(:team, account: account) }
+        let(:logistica) { create(:team, account: account) }
+        let(:assistant) { create(:captain_assistant, account: account, config: { 'team_id' => comercial.id }) }
+
+        it 'keeps the team chosen by the handoff tool in the same turn' do
+          allow(mock_llm_chat_service).to receive(:generate_response) do
+            Captain::Conversation::HumanHandoffService.new(
+              conversation: Conversation.find(conversation.id), assistant: assistant, team_id: logistica.id
+            ).perform
+            { 'response' => 'A equipe de Logistica ja esta a par e retorna em breve.' }
+          end
+          described_class.perform_now(conversation, assistant)
+
+          expect(conversation.reload.team_id).to eq(logistica.id)
+          expect(Captain::AssistantLog.where(conversation: conversation, event_type: 'handoff_auto_fired')).not_to exist
+        end
+
+        it 'still routes to the agent default team when no handoff happened before' do
+          responde('A equipe de Logistica ja esta a par e retorna em breve.')
+
+          expect(conversation.team_id).to eq(comercial.id)
+        end
+      end
     end
 
     # Regressao (conv 20320) — a camada mais letal do cancelamento indevido da cutucada, e a que
@@ -439,6 +486,42 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         described_class.perform_now(conversation, assistant)
 
         expect(conversation.reload.custom_attributes['followup_count']).to eq(0)
+      end
+    end
+
+    # CHAT-165: a agendada pendente da IA entra no contexto e segura a cutucada preventiva.
+    context 'when the AI has a pending scheduled message' do
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(true)
+        ScheduledMessage.create!(conversation: conversation, inbox: inbox, message: 'Texto pronto', scheduled_at: 3.hours.from_now,
+                                 status: :pending, captain_assistant_id: assistant.id)
+      end
+
+      it 'shows it to the agent when the agent has agendar_mensagem' do
+        assistant.update!(config: (assistant.config || {}).merge('tools' => %w[programar_followup agendar_mensagem]))
+
+        expect(mock_agent_runner_service).to receive(:generate_response)
+          .with(message_history: include(a_hash_including(content: a_string_including('Texto pronto'))))
+          .and_return({ 'response' => 'Oi' })
+
+        described_class.perform_now(conversation, assistant)
+      end
+
+      it 'does not show it to an agent without agendar_mensagem' do
+        expect(mock_agent_runner_service).to receive(:generate_response)
+          .with(message_history: [{ content: 'Hello', role: 'user' }])
+          .and_return({ 'response' => 'Oi' })
+
+        described_class.perform_now(conversation, assistant)
+      end
+
+      it 'does not arm the preventive nudge' do
+        assistant.update!(config: (assistant.config || {}).merge('tools' => %w[programar_followup agendar_mensagem]))
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(conversation.reload.custom_attributes['followup_token']).to be_nil
       end
     end
 
@@ -684,6 +767,5 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         end.not_to(change { conversation.messages.template.count })
       end
     end
-
   end
 end

@@ -310,6 +310,7 @@ watch(
           "
           ref="triggerRef"
           v-tooltip.right="hasChildren || reorderMode ? undefined : label"
+          :aria-label="label"
           data-hover-host
           :data-sidebar-active="String(isActive || hasActiveChild)"
           :to="!reorderMode && to && !hasChildren ? to : undefined"

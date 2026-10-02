@@ -62,7 +62,14 @@ FROTA = [
     # Cliente novo desde 10/09/2026. Ficou fora desta tabela no primeiro dia e, por isso, fora de
     # quatro deploys seguidos: quem conferia a frota por aqui nem sabia que ela existia.
     ("CDSOLAR", "13.218.193.75"),
+    # Mesma historia da CDSOLAR, e pior: ficou fora de SEIS lotes (de 29 a 30/09/2026) porque nao
+    # estava nem aqui, nem no deployment/deploy.sh, nem no panel. Foi descoberta em 30/09 porque o
+    # dono perguntou por ela pelo dominio (rocketstudio.chatspx.app).
+    ("ROCKET", "2.25.195.47"),
 ]
+# A ROCKET e a unica fora da AWS: roda na Hostinger e o login dela e `root`, nao `ubuntu`. A chave
+# e a MESMA da frota. Quem nao esta aqui entra como ubuntu.
+USUARIO_SSH = {"ROCKET": "root"}
 # Homologacao e VMs dos devs (fase 6 do /promover-pr). Aqui a branch de cada VM
 # NAO e a `producao`, e nada chega nelas sozinho: nao existe auto-pull. Em
 # 18/09/2026 os 6 PRs do dia entraram pela `homologacao` e a .232 ficou 52
@@ -280,7 +287,8 @@ def analisa(numero: int, checar_frota: bool, hotfix: bool = False) -> int:
                 falha = "nao medida daqui"
             else:
                 saida = sh(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
-                            "-i", PEM, f"ubuntu@{ip}", f"sudo -n -u chatwoot bash -lc {shlex.quote(cmd)}"],
+                            "-i", PEM, f"{USUARIO_SSH.get(nome, 'ubuntu')}@{ip}",
+                            f"sudo -n -u chatwoot bash -lc {shlex.quote(cmd)}"],
                            timeout=45)
                 falha = "sem resposta"
             partes = saida.splitlines()[-1].split("|") if saida else []

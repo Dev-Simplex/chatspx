@@ -107,6 +107,12 @@ export default {
     isAdminUser() {
       return this.currentRole === 'administrator';
     },
+    // CHAT-155: conversa de caixa somente leitura nao troca de dono nem de time.
+    isReadOnlyInbox() {
+      return !!this.$store.getters['inboxes/getInbox'](
+        this.currentChat?.inbox_id
+      )?.read_only;
+    },
     aiAgentsList() {
       const inboxId = this.currentChat?.inbox_id;
       return (this.captainAssistants || [])
@@ -194,10 +200,6 @@ export default {
         const oldValue = this.currentChat?.priority;
         const priority = priorityItem ? priorityItem.id : null;
 
-        this.$store.dispatch('setCurrentChatPriority', {
-          priority,
-          conversationId,
-        });
         this.$store
           .dispatch('assignPriority', { conversationId, priority })
           .then(() => {
@@ -212,6 +214,9 @@ export default {
                 conversationId,
               })
             );
+          })
+          .catch(() => {
+            useAlert(this.$t('CONVERSATION.PRIORITY.CHANGE_PRIORITY.FAILED'));
           });
       },
     },
@@ -551,7 +556,7 @@ export default {
 
 <template>
   <div class="wa-assign-section">
-    <div class="wa-assign-row">
+    <div v-if="!isReadOnlyInbox" class="wa-assign-row">
       <span class="wa-assign-label">
         {{ $t('CONVERSATION_SIDEBAR.ASSIGNEE_LABEL') }}
       </span>
@@ -574,7 +579,7 @@ export default {
         @click="onRetriage"
       />
     </div>
-    <div class="wa-assign-value-wrap">
+    <div v-if="!isReadOnlyInbox" class="wa-assign-value-wrap">
       <MultiselectDropdown
         :options="assigneeOptions"
         :selected-item="selectedAssignee"
@@ -590,12 +595,12 @@ export default {
         @select="onClickAssignAssignee"
       />
     </div>
-    <div class="wa-assign-row">
+    <div v-if="!isReadOnlyInbox" class="wa-assign-row">
       <span class="wa-assign-label">
         {{ $t('CONVERSATION_SIDEBAR.TEAM_LABEL') }}
       </span>
     </div>
-    <div class="wa-assign-value-wrap">
+    <div v-if="!isReadOnlyInbox" class="wa-assign-value-wrap">
       <MultiselectDropdown
         :options="teamsList"
         :selected-item="assignedTeam"

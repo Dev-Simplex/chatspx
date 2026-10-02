@@ -655,7 +655,10 @@
       "ATTENDED_BY_TEAM": "Atendido por {name} ({team})",
       "YOU": "você",
       "NO_ACTIVE_ATTENDANCE": "Nenhum atendimento em andamento 🌙",
-      "SEND_BLOCKED": "Este contato está sendo atendido por outro time. Você não pode enviar mensagem por aqui."
+      "SEND_BLOCKED": "Este contato está sendo atendido por outro time. Você não pode enviar mensagem por aqui.",
+      "SEARCH_PLACEHOLDER": "Buscar por contato, telefone ou agente",
+      "SEARCH_EMPTY": "Nenhum atendimento para “{termo}”",
+      "SEARCH_CLEAR": "Limpar busca"
     },
     "LOAD_MORE": "Carregar mais"
   },
@@ -696,6 +699,7 @@
       "REQUEST_SENT": "Pedido enviado",
       "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "SEND_ANYWAY": "Enviar mesmo assim",
+      "TAKE_OVER_AND_SEND": "Assumir e enviar",
       "CANCEL": "Cancelar",
       "BANNER": "Este contato já está em atendimento."
     },
@@ -704,10 +708,12 @@
     },
     "FORM": {
       "GO_TO_CONVERSATION": "Visualizar",
+      "OPEN_CONTACT": "Abrir ficha",
       "SUCCESS_MESSAGE": "Mensagem enviada com sucesso!",
       "ERROR_MESSAGE": "Ocorreu um erro ao criar a conversa. Tente novamente mais tarde.",
       "NO_INBOX_ALERT": "Não há caixas de entrada disponíveis para iniciar uma conversa com este contato.",
       "CONTACT_SELECTOR": {
+        "DUPLICATE_BADGE": "Ficha duplicada de #{id}",
         "TAG_INPUT_PLACEHOLDER": "Digite o telefone ou busque um contato...",
         "TAG_INPUT_HINT": "Inclua o DDD. Não precisa salvar o contato.",
         "DIAL_PLACEHOLDER": "Digite o número com DDD",

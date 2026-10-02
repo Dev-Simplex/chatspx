@@ -35,6 +35,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # "milhão" vem ANTES de "mil" na alternância: invertido, "mil" casa o prefixo de "milhão"
   # e 1,2 milhão vira 1.200 (a prova do caso 42952 pegou isso).
   PRECO_CITADO = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)|(\d+(?:[.,]\d+)?)\s*(milh(?:ão|ões|oes)|mil)/i
+  # Laço de telefone (CHAT-159): a resposta original conta como a 1ª tentativa.
+  TENTATIVAS_DE_TELEFONE = 3
+  PALAVRAS_MINIMAS_APOS_REMOCAO = 3
   retry_on ActiveStorage::FileNotFoundError, attempts: 3, wait: 2.seconds
   retry_on Faraday::BadRequestError, attempts: 3, wait: 2.seconds
 
@@ -131,6 +134,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     nota_tools = nota_de_ferramentas
     history.unshift({ content: nota_tools, role: 'user' }) if nota_tools.present?
 
+    # A agendada pendente (CHAT-165), para o agente poder reagendá-la ou cancelá-la.
+    nota_agendada = nota_da_agendada
+    history.unshift({ content: nota_agendada, role: 'user' }) if nota_agendada.present?
+
     # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
     # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
     # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
@@ -179,6 +186,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     Captain::Conversation::ToolContextNote.new(
       conversation: @conversation, desde: inicio_do_episodio
     ).text
+  end
+
+  def nota_da_agendada
+    return unless (@assistant.config['tools'] || []).include?('agendar_mensagem')
+
+    Captain::Conversation::AgendadaNote.new(conversation: @conversation).text
   end
 
   # A fronteira só existe quando a conta usa janela por episódio; sem ela a nota fica sem
@@ -254,10 +267,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   # A conversa já tem destino definido, então não se agenda cutucada preventiva: ou está com um
   # humano (aguardando_humano_desde), ou existe um compromisso combinado com hora marcada — e o
-  # token é um só, então a preventiva roubaria o slot dele. Cumprido o compromisso, o motivo é
+  # token é um só, então a preventiva roubaria o slot dele —, ou há uma agendada da IA esperando o
+  # horário que o cliente deu (cutucar antes disso é insistir com quem já disse quando quer falar). Cumprido o compromisso, o motivo é
   # consumido e o auto volta; se ele morrer sem cumprir, um novo programar_followup rearma.
   def ja_tem_destino?(attrs)
-    attrs['aguardando_humano_desde'].present? || attrs['followup_motivo'].present?
+    attrs['aguardando_humano_desde'].present? || attrs['followup_motivo'].present? ||
+      ScheduledMessage.agendada_da_ia_pendente?(@conversation)
   end
 
   # Opt-in implícito: só agentes que já têm a ferramenta de follow-up. Desligável por
@@ -302,8 +317,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # OpenAiMessageBuilderService: marcar a ORIGEM em vez de tentar corrigir por conduta.
   def outgoing_content(message)
     return interactive_payload_placeholder(message) if interactive_payload?(message)
+    return contato_enviado_placeholder(message) if message.additional_attributes&.dig('contato_enviado').present?
 
     message.content.presence || outgoing_attachment_placeholder(message)
+  end
+
+  # Contato enviado pelo sistema (enviar_contato_unidade): o conteúdo traz o número para o time
+  # humano, mas no histórico da IA entra só o rótulo. Se o número voltasse como fala dela, ela
+  # aprenderia a digitar telefone — justamente o que a ferramenta existe para evitar.
+  def contato_enviado_placeholder(message)
+    "[contato \"#{message.additional_attributes.dig('contato_enviado', 'rotulo')}\" enviado pelo sistema]"
   end
 
   def interactive_payload?(message)
@@ -440,6 +463,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def ensure_handoff_if_promised
     return unless promised_handoff?(@response['response'])
     return unless captain_can_respond?
+
+    # O tool gravou o handoff numa instancia PROPRIA da conversa; a do job foi carregada antes do
+    # turno. Sem o reload o marcador abaixo nunca aparece e o team_id e o de antes: o safety-net
+    # disparava e o time padrao do agente sobrescrevia o time que a IA escolheu (CD Solar, conv 19).
+    @conversation.reload
     # Ja aguardando humano (o agente chamou o tool NESTE turno e tambem escreveu a promessa):
     # nada a fazer, e sair antes do log mantem a metrica 'handoff_auto_fired' honesta —
     # ela mede so os casos em que o agente PROMETEU sem acionar.
@@ -522,7 +550,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       return if skip_duplicate?(content)
     end
 
-    send_response(content)
+    content = com_telefones_de_fonte(content)
+    send_response(content) if content
   end
 
   # Silêncio deliberado do agente ([IGNORAR]) deixa rastro auditável: sem isso, uma
@@ -659,6 +688,66 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   rescue StandardError => e
     Rails.logger.warn('[Captain][regenerate_to_avoid_repeat] ' + e.message)
     false
+  end
+
+  # Laço de correção de telefone (CHAT-159). A IA não escreve telefone em texto: o da empresa
+  # sai pelo card de contato, e só passa número que o cliente ou alguém da equipe escreveu na
+  # conversa (a regra de fonte mora na guarda). Resposta com número sem fonte NÃO sai: volta pro
+  # modelo com o motivo e ele refaz, até sair correta ou bater o teto de tentativas.
+  # Devolve o texto a enviar, ou nil quando nada sai (silêncio ou retenção com handoff).
+  def com_telefones_de_fonte(content)
+    return content unless Captain::Behavior::PhoneSourceGuard.enabled_for?(@assistant)
+
+    guarda = Captain::Behavior::PhoneSourceGuard.new(conversation: @conversation)
+    (1..TENTATIVAS_DE_TELEFONE).each do |tentativa|
+      numeros = guarda.sem_fonte(content)
+      return content if numeros.empty?
+      return desfecho_do_telefone(guarda, content, numeros, tentativa) if tentativa == TENTATIVAS_DE_TELEFONE
+
+      log_behavior_event('phone_unsourced', { numeros: numeros, tentativa: tentativa, acao: 'regenerar' })
+      return reter_por_telefone unless regenerate_for_unsourced_phone
+
+      content = normalize_response_content(@response['response'])
+      return log_ignored(content) if no_reply?(content)
+    end
+  end
+
+  # Teto estourado: a IA insistiu. Sai o que dá para salvar — as frases com número sem fonte
+  # caem, o resto segue se ainda for uma mensagem. Se não sobrar mensagem, nada sai e alguém da
+  # equipe assume: silêncio puro deixaria o cliente sem retorno.
+  def desfecho_do_telefone(guarda, content, numeros, tentativa)
+    restante = guarda.remover(content, numeros)
+    enviavel = restante.scan(/\p{L}+/).size >= PALAVRAS_MINIMAS_APOS_REMOCAO
+    log_behavior_event('phone_unsourced', { numeros: numeros, tentativa: tentativa, acao: enviavel ? 'removido' : 'bloqueado' })
+    enviavel ? restante : reter_por_telefone
+  end
+
+  # Mesmo motivo a cada volta, sem exemplo nem valor concreto: citar o número errado aqui
+  # ensinaria o modelo a repeti-lo.
+  def regenerate_for_unsourced_phone
+    @directive = 'IMPORTANTE: sua resposta anterior não foi enviada porque escrevia um número de telefone. Não escreva ' \
+                 'telefone em texto. Para passar o contato da empresa, use a ferramenta de card de contato ' \
+                 '(enviar_contato_unidade); se ela não estiver disponível, responda sem telefone. Se o número for do ' \
+                 'próprio cliente, só repita o que ele escreveu nesta conversa. Responda de novo ao cliente.'
+    servico = captain_v2_enabled? ? Captain::Assistant::AgentRunnerService : Captain::Llm::AssistantChatService
+    @response = servico.new(assistant: @assistant, conversation: @conversation).generate_response(message_history: collect_previous_messages)
+    @response.present?
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][phone_unsourced] #{e.message}")
+    false
+  end
+
+  # A resposta não sai, e alguém da equipe assume a pergunta.
+  def reter_por_telefone
+    Captain::Conversation::HumanHandoffService.new(
+      conversation: @conversation, assistant: @assistant,
+      reason: 'A IA insistiu em escrever um telefone que ninguém passou nesta conversa e a resposta foi retida. ' \
+              'Precisa de atendimento humano.'
+    ).perform
+    nil
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][phone_unsourced][handoff] #{e.message}")
+    nil
   end
 
   def skip_duplicate?(content)
@@ -986,6 +1075,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # atribuída ao espelho DESTE assistant (gate por atribuição, D-6). Compara com o
   # assistant do ARGUMENTO (serializado via GlobalID) — job em voo de IA antiga cala.
   def captain_can_respond?
+    return false if @inbox.read_only? # CHAT-155: a IA nao responde por caixa somente leitura
+
     status, mirror_id = Conversation.uncached do
       Conversation.where(id: @conversation.id).pick(:status, :assignee_agent_bot_id)
     end

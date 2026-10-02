@@ -277,11 +277,35 @@ const performCreateConversation = async ({ payload, isFromWhatsApp }) => {
     }
     return true; // Return success
   } catch (error) {
-    const message =
-      error instanceof ExceptionWithMessage
-        ? error.data
-        : t('COMPOSE_NEW_CONVERSATION.FORM.ERROR_MESSAGE');
-    useAlert(message, whatsappAlertAction(message));
+    // 403 do reuso de conversa: o contato já está em atendimento numa conversa
+    // que este agente não abre. O backend manda a frase pronta e a mensagem NÃO
+    // foi enviada — o erro genérico escondia as duas coisas.
+    // S-02: o número já pertence a outra ficha nesta caixa (Cloud). O backend
+    // manda o nome dela; o link abre a ficha para o agente mesclar.
+    const code = error?.response?.data?.error_code;
+    let message = t('COMPOSE_NEW_CONVERSATION.FORM.ERROR_MESSAGE');
+    if (
+      code === 'conversation_access_blocked' ||
+      code === 'contact_inbox_conflict' ||
+      code === 'assignment_required'
+    ) {
+      message = error.response.data.error;
+    } else if (error instanceof ExceptionWithMessage) {
+      message = error.data;
+    }
+    const holderId =
+      code === 'contact_inbox_conflict' && error.response.data.meta?.id;
+    useAlert(
+      message,
+      holderId
+        ? {
+            type: 'link',
+            to: `/app/accounts/${currentAccountId.value}/contacts/${holderId}`,
+            message: t('COMPOSE_NEW_CONVERSATION.FORM.OPEN_CONTACT'),
+            duration: 8000,
+          }
+        : whatsappAlertAction(message)
+    );
     return false; // Return failure
   }
 };
@@ -322,6 +346,9 @@ const createConversation = async ({ payload, isFromWhatsApp }) => {
 const isHumanTakeover = computed(
   () => attendanceGate.value.variant === ATTENDANCE_VARIANT.HUMAN
 );
+const isSameInboxGateEnabled = computed(
+  () => takeoverGateEnabled.value && attendanceGate.value.sameInbox
+);
 const attendanceCanRequest = computed(
   () =>
     takeoverGateEnabled.value &&
@@ -337,6 +364,13 @@ const attendanceHasPendingRequest = computed(
 );
 const attendanceAllowSendAnyway = computed(
   () => !(takeoverGateEnabled.value && isHumanTakeover.value)
+);
+const attendanceTakeoverBeforeSend = computed(
+  () =>
+    isSameInboxGateEnabled.value &&
+    [ATTENDANCE_VARIANT.BOT, ATTENDANCE_VARIANT.UNASSIGNED].includes(
+      attendanceGate.value.variant
+    )
 );
 const isRequestingAttendance = ref(false);
 
@@ -369,9 +403,29 @@ const onAttendanceRequest = async reason => {
 
 const onAttendanceSendAnyway = async () => {
   const pending = pendingConversation.value;
+  const shouldTakeover = attendanceTakeoverBeforeSend.value;
+  const conversationId = attendanceGate.value.attendance?.id;
   attendanceDialogRef.value?.close();
   pendingConversation.value = null;
-  if (pending) await performCreateConversation(pending);
+  if (!pending) return;
+
+  if (shouldTakeover) {
+    try {
+      await store.dispatch('assignAgent', {
+        conversationId,
+        agentId: currentUser.value.id,
+        rethrow: true,
+      });
+    } catch (error) {
+      useAlert(
+        error?.response?.data?.error ||
+          t('COMPOSE_NEW_CONVERSATION.FORM.ERROR_MESSAGE')
+      );
+      return;
+    }
+  }
+
+  await performCreateConversation(pending);
 };
 
 const onAttendanceGoToConversation = () => {
@@ -520,6 +574,7 @@ useKeyboardEvents(keyboardEvents);
       :can-request="attendanceCanRequest"
       :has-pending-request="attendanceHasPendingRequest"
       :allow-send-anyway="attendanceAllowSendAnyway"
+      :takeover-before-send="attendanceTakeoverBeforeSend"
       :is-requesting="isRequestingAttendance"
       @go-to-conversation="onAttendanceGoToConversation"
       @send-anyway="onAttendanceSendAnyway"

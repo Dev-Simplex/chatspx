@@ -4,10 +4,14 @@ import { ref, computed, defineEmits } from 'vue';
 import { useEventListener } from '@vueuse/core';
 import Button from 'dashboard/components-next/button/Button.vue';
 
-const { modalType, closeOnBackdropClick, onClose } = defineProps({
+const { modalType, closeOnBackdropClick, onClose, beforeClose } = defineProps({
   closeOnBackdropClick: { type: Boolean, default: true },
   showCloseButton: { type: Boolean, default: true },
   onClose: { type: Function, default: null },
+  // Chamado ANTES de fechar; devolvendo false, o modal fica aberto. Existe porque o `close` abaixo
+  // desmonta o conteudo antes do `on-close`, e quem tem formulario preenchido perdia tudo sem aviso
+  // no clique fora, no Esc e no X. Quem nao passa a prop nao muda em nada.
+  beforeClose: { type: Function, default: null },
   fullWidth: { type: Boolean, default: false },
   modalType: { type: String, default: 'centered' },
   size: { type: String, default: '' },
@@ -33,6 +37,8 @@ const handleMouseDown = () => {
 };
 
 const close = () => {
+  if (typeof beforeClose === 'function' && beforeClose() === false) return;
+
   show.value = false;
   emit('close');
   if (typeof onClose === 'function') onClose();

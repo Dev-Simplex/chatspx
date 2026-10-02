@@ -2,6 +2,7 @@ class MessageTemplates::HookExecutionService
   pattr_initialize [:message!]
 
   def perform
+    return if conversation.inbox.read_only? # CHAT-155: saudacao, ausencia e coleta de e-mail
     return if conversation.last_incoming_message.blank?
     return if message.auto_reply_email?
 
