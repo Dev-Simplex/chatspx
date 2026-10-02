@@ -52,12 +52,31 @@ class ScheduledMessage < ApplicationRecord
 
   enum status: status_mapping_for_column
 
+  after_commit :sync_conversation_ai_schedule, if: -> { captain_assistant_id.present? }
+
   scope :pending, -> { where(status: :pending) }
   scope :upcoming, -> { where('scheduled_at > ?', Time.current).order(:scheduled_at) }
   scope :da_ia, -> { where.not(captain_assistant_id: nil) }
 
   def self.agendada_da_ia_pendente?(conversation)
     pending.da_ia.exists?(conversation_id: conversation.id)
+  end
+
+  # Horário da próxima agendada da IA pendente, espelhado em
+  # conversation.custom_attributes['agendada_ia_em'] para a LISTA de conversas mostrar o indicador
+  # sem uma consulta por card: o campo já vem no payload e chega pelo evento de atualização.
+  # Trava uma cópia recém-lida: a instância do chamador pode ter atributo sujo (o display_id vem de
+  # trigger do banco) e o with_lock recusa registro com alteração pendente.
+  def self.sync_ai_schedule!(conversation_id)
+    conversation = ::Conversation.find(conversation_id)
+    conversation.with_lock do
+      proxima = pending.da_ia.where(conversation_id: conversation.id).minimum(:scheduled_at)
+      attrs = conversation.custom_attributes || {}
+      valor = proxima&.iso8601
+      next if attrs['agendada_ia_em'] == valor
+
+      conversation.update!(custom_attributes: valor ? attrs.merge('agendada_ia_em' => valor) : attrs.except('agendada_ia_em'))
+    end
   end
 
   def scheduled_at_must_be_in_future
@@ -71,6 +90,12 @@ class ScheduledMessage < ApplicationRecord
     return if message.present? || attachments.attached?
 
     errors.add(:message, 'must have content or attachments')
+  end
+
+  def sync_conversation_ai_schedule
+    self.class.sync_ai_schedule!(conversation_id)
+  rescue StandardError => e
+    Rails.logger.warn("[ScheduledMessage] sync_ai_schedule conv=#{conversation_id}: #{e.message}")
   end
 
   def validate_future_scheduled_at?
