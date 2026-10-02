@@ -234,6 +234,17 @@ RSpec.describe Concerns::Agentable do
   # TODOS os clientes — conduta nova nao pode nascer ligada pra ninguem. Sao TRES condicoes, e o
   # spec exige as tres: canal que nao retoma + conta que ligou + canal alternativo configurado.
 
+  describe 'canal atual no prompt' do
+    it 'repassa ao template o canal atual que veio no state' do
+      canal = { 'tipo' => 'WhatsApp', 'caixa' => 'Linha da loja', 'papel' => 'Atendimento geral' }
+      contexto = Struct.new(:context).new({ state: { canal_atual: canal } })
+
+      expect(Captain::PromptRenderer).to receive(:render).with('dummy_class', hash_including(canal_atual: canal))
+
+      dummy_instance.agent_instructions(contexto)
+    end
+  end
+
   describe 'contato alternativo no prompt' do
     let(:coleta_ligada) { { 'coleta_contato_alternativo' => { 'ativo' => true, 'canal' => 'WhatsApp' } } }
 

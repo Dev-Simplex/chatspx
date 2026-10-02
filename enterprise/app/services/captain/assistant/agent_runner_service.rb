@@ -280,6 +280,8 @@ class Captain::Assistant::AgentRunnerService
   def build_channel_state(state)
     state[:channel_type] = @conversation.inbox&.channel_type
     state[:channel_number] = channel_number
+    state[:canal_atual] = canal_atual
+    state[:canais_destino] = canais_destino
     state[:canal_retoma] = canal_retoma?
     # A conta regressiva so existe onde perder a janela e IRREVERSIVEL. Em canal retomavel ela
     # seria ruido: apressaria o agente sem que houvesse nada a perder.
@@ -290,6 +292,25 @@ class Captain::Assistant::AgentRunnerService
 
   def channel_number
     @conversation.inbox&.channel.try(:phone_number)
+  end
+
+  # Onde a conversa acontece: o canal, a caixa e o papel dela na empresa (InboxCanal). Só existe
+  # quando a caixa tem papel configurado — sem ele, o prompt fica como sempre foi.
+  def canal_atual
+    inbox = @conversation.inbox
+    return if inbox&.papel.blank?
+
+    { 'tipo' => inbox.nome_do_canal, 'caixa' => inbox.name, 'papel' => inbox.papel }.compact
+  end
+
+  # Para onde a IA pode levar o cliente — só com a ferramenta que faz isso ligada no assistente.
+  def canais_destino
+    return unless @conversation.inbox && Captain::Tools::LevarAoCanalTool.armada?(@assistant)
+
+    destinos = Captain::Tools::LevarAoCanalTool.destinos(@conversation.inbox).map do |caixa|
+      { 'caixa' => caixa.name, 'tipo' => caixa.nome_do_canal, 'papel' => caixa.papel }.compact
+    end
+    destinos.presence
   end
 
   # O canal alcanca a pessoa DEPOIS que a janela fecha? Onde nao alcanca (Instagram), sumir e

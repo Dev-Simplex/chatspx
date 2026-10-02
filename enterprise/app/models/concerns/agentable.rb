@@ -26,7 +26,9 @@ module Concerns::Agentable
         conversation: state[:conversation] || {},
         contact: config['feature_contact_attributes'].present? ? state[:contact] : nil,
         campaign: state[:campaign] || {},
-        channel_number: state[:channel_number]
+        channel_number: state[:channel_number],
+        canal_atual: state[:canal_atual],
+        canais_destino: state[:canais_destino]
       ).merge(contexto_de_canal(config, state))
     end
 

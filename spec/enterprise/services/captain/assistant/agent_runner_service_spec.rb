@@ -496,6 +496,43 @@ RSpec.describe Captain::Assistant::AgentRunnerService do
       end
     end
 
+    # Onde a IA está (InboxCanal): só com papel configurado na caixa. Sem ele, nada entra.
+    describe 'canal atual' do
+      it 'fica de fora quando a caixa não tem papel' do
+        expect(service.send(:build_state)[:canal_atual]).to be_nil
+      end
+
+      it 'traz o canal, a caixa e o papel quando a caixa tem papel' do
+        whatsapp = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+        whatsapp.update!(name: 'Linha da loja', canal: { 'papel' => 'Atendimento geral' })
+        conversa = create(:conversation, account: account, inbox: whatsapp, contact: contact)
+
+        estado = described_class.new(assistant: assistant, conversation: conversa).send(:build_state)
+
+        expect(estado[:canal_atual]).to eq('tipo' => 'WhatsApp', 'caixa' => 'Linha da loja', 'papel' => 'Atendimento geral')
+      end
+    end
+
+    # Para onde a IA pode levar o cliente: só com a ferramenta ligada no assistente.
+    describe 'canais de destino' do
+      before do
+        unidade = create(:unit, account: account)
+        inbox.update!(unit_id: unidade.id)
+        whatsapp = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+        whatsapp.update!(name: 'Geral', unit_id: unidade.id, canal: { 'papel' => 'Atendimento geral', 'destino' => true })
+      end
+
+      it 'ficam de fora sem a ferramenta ligada' do
+        expect(service.send(:build_state)[:canais_destino]).to be_nil
+      end
+
+      it 'listam as caixas de destino da unidade com a ferramenta ligada' do
+        assistant.update!(config: assistant.config.merge('tools' => ['levar_ao_canal']))
+
+        expect(service.send(:build_state)[:canais_destino]).to eq([{ 'caixa' => 'Geral', 'tipo' => 'WhatsApp', 'papel' => 'Atendimento geral' }])
+      end
+    end
+
     context 'when conversation is nil' do
       subject(:service) { described_class.new(assistant: assistant, conversation: nil) }
 
