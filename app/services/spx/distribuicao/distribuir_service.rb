@@ -88,13 +88,14 @@ module Spx
       end
 
       # Tudo que acontece DEPOIS da escolha, na ordem em que tem de acontecer: a posse, o
-      # ponteiro do rodízio, o livro-razão, o carimbo e — por último, porque pode falhar sem
-      # invalidar o resto — o espelho no Vista.
+      # ponteiro do rodízio, o livro-razão, o carimbo, o aviso à pessoa escolhida e — por
+      # último, porque pode falhar sem invalidar o resto — o espelho no Vista.
       def efetivar(chosen, motivo, pool_ids)
         assign!(chosen)
         advance_state(chosen) if consome_vez?(motivo)
         registrar(chosen, motivo, pool_ids)
         carimbar(chosen)
+        avisar(chosen) if @policy.designacao?
         espelhar_vista(chosen)
         Result.new(decidido: true, user_id: chosen, motivo: motivo)
       end
@@ -253,6 +254,21 @@ module Spx
         return unless @policy.designacao?
 
         CarimbarService.new(conversation: @conversation, user_id: user_id, produto: produto).perform
+      end
+
+      # Só em designacao (ver #efetivar). No modo assignee quem avisa é o próprio Chatwoot: a atribuição
+      # dispara `assignee_changed` e o NotificationListener notifica o novo dono. Aqui ninguém
+      # vira assignee, então esse aviso nunca saía e a pessoa designada não ficava sabendo do
+      # lead (na locação, sem Vista, não havia sinal nenhum fora do carimbo).
+      # Reusa `conversation_assignment` porque vem ligado de fábrica: cai no sininho e no
+      # push/e-mail conforme as preferências de cada um. O repasse por SLA passa por aqui
+      # também, então a nova pessoa é avisada do mesmo jeito.
+      # Rescue próprio: falha no aviso não pode desfazer a designação já registrada.
+      def avisar(user_id)
+        NotificationBuilder.new(notification_type: 'conversation_assignment', user: User.find(user_id),
+                                account: @conversation.account, primary_actor: @conversation).perform
+      rescue StandardError => e
+        Rails.logger.warn("[Distribuicao] aviso conv=#{@conversation&.id} user=#{user_id}: #{e.message}")
       end
 
       # Espelho no Vista — é como o corretor de vendas fica sabendo do lead. Roda POR ÚLTIMO
