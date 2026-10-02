@@ -174,11 +174,28 @@
         "CODE": "Meta code",
         "REASON": "Reason",
         "NO_AGENT": "Unassigned",
+        "NO_FAILURES": "No failures recorded.",
+        "CAMPAIGN_STATUS": {
+          "active": "Active",
+          "completed": "Completed"
+        },
+        "CONVERSATION_STATUS": {
+          "open": "Open",
+          "resolved": "Resolved",
+          "pending": "Pending",
+          "snoozed": "Snoozed"
+        },
+        "TABLE": {
+          "CONTACT": "Contact",
+          "LAST_REPLY": "Last reply",
+          "STATUS": "Status"
+        },
         "CODES": {
           "131026": "No WhatsApp",
           "130472": "Meta pacing",
           "131049": "Meta pacing",
-          "outro": "Other"
+          "outro": "Other",
+          "unknown": "Uncatalogued error"
         }
       },
       "CREATE": {
@@ -234,8 +251,41 @@
           "failed": "Failed"
         },
         "START": "Start dispatch",
+        "RESUME": "Resume dispatch",
+        "CONFIRM": {
+          "TITLE": "Start the dispatch?",
+          "TITLE_RESUME": "Resume the dispatch?",
+          "IRREVERSIBLE": "Messages start going out now, and a sent message cannot be undone.",
+          "RECIPIENTS": "Goes to",
+          "TEMPLATE": "Template",
+          "NO_TEMPLATE": "none configured",
+          "PACING": "Pacing",
+          "PACING_VALUE": "1 every {seconds}s (~{rate}/min)",
+          "QUIET": "Quiet window",
+          "QUIET_VALUE": "from {start} to {end}",
+          "NO_QUIET": "none — sends at any hour",
+          "PREVIEW": "How the message will arrive",
+          "PREVIEW_FOR": "How it will reach {name}",
+          "NO_BODY": "This template is not synced on this inbox, so the text cannot be shown. Sync the templates before dispatching.",
+          "MISSING": "The template expects {vars} and the value is empty — the message goes out with the gap blank.",
+          "DIRTY": "There are unsaved changes in the settings above. The dispatch uses what is saved, not what is on screen."
+        },
         "PAUSE": "Pause",
         "PROGRESS": "{done} of {total} processed",
+        "PROGRESS_LABEL": "Dispatch progress",
+        "FAILED_NOTE": "{count} were not delivered.",
+        "IGNORED_LINES": "{count} line(s) with no recognisable phone were ignored.",
+        "FILE_LABEL": "CSV file with the list",
+        "ORIGIN": {
+          "SIMULACAO": "Simulation — {source}. Nothing has been loaded yet.",
+          "CARREGADO": "Loaded — {source}. These recipients are stored."
+        },
+        "TABLE": {
+          "REASON": "Reason",
+          "COUNT": "Count",
+          "NAME": "Name",
+          "PHONE": "Phone"
+        },
         "RECIPIENT_STATUS": {
           "pending": "Queued",
           "processing": "Sending",
@@ -278,6 +328,7 @@
         "TEMPLATE_DOWNLOAD": "Download the template",
         "NOT_CSV": "Spreadsheets (.xlsx/.xls) are not read here. Save as CSV — the template button gives you the right format.",
         "SOURCE": {
+          "GROUP": "Audience source",
           "PLANILHA": "From a spreadsheet",
           "SEGMENTO": "From the contact base"
         },
@@ -304,6 +355,8 @@
         "ASSIGNEE_HINT": "Only for inboxes without AI: assigning a human silences the AI agent.",
         "PACING": "Seconds between messages",
         "PACING_HINT": "About {rate} messages per minute.",
+        "PACING_INVALID": "Enter a number from 1 to 60. Left blank, the engine would read 0.",
+        "UNSAVED": "Unsaved change",
         "QUIET": "Quiet window (no sending)",
         "QUIET_TO": "to",
         "QUIET_HINT": "Whole hours only — 16:30 cannot be expressed. Leave both empty to send at any time.",

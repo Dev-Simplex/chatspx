@@ -56,6 +56,13 @@ const CAMPO_I18N = {
   empreendimento: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.empreendimento',
 };
 
+// Os <label> deste formulário eram ÓRFÃOS: não envolviam o controle e não tinham `for`,
+// porque o Select não expunha `id` para apontar. Agora expõe, e o id sai da campanha para
+// não colidir caso dois formulários coexistam.
+const idBase = computed(
+  () => `lead-routing-${props.campanha?.campaign_id || 'novo'}`
+);
+
 const dialogRef = ref(null);
 const salvando = ref(false);
 const erros = ref([]);
@@ -280,10 +287,14 @@ defineExpose({ open });
       </p>
 
       <div v-if="templateEditavel" class="flex flex-col gap-2 min-w-0">
-        <label class="text-sm font-medium text-n-slate-12">
+        <label
+          :for="`${idBase}-template`"
+          class="text-sm font-medium text-n-slate-12"
+        >
           {{ t('CAMPAIGN.LEAD_ADS.EDIT.TEMPLATE') }}
         </label>
         <Select
+          :id="`${idBase}-template`"
           v-model="templateSelecionado"
           class="max-w-full"
           :options="opcoesDeTemplate"
@@ -325,7 +336,13 @@ defineExpose({ open });
           <span class="w-28 text-xs text-n-slate-11">
             {{ t('CAMPAIGN.LEAD_ADS.EDIT.VARIABLE', { numero: variavel }) }}
           </span>
-          <Select v-model="campos[indice]" :options="opcoesDeCampo" />
+          <Select
+            v-model="campos[indice]"
+            :aria-label="
+              t('CAMPAIGN.LEAD_ADS.EDIT.VARIABLE', { numero: variavel })
+            "
+            :options="opcoesDeCampo"
+          />
         </div>
         <p v-if="erroDe('campos')" class="text-xs text-n-ruby-11">
           {{ erroDe('campos') }}
@@ -334,10 +351,14 @@ defineExpose({ open });
 
       <div class="flex flex-wrap gap-5">
         <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-n-slate-12">
+          <label
+            :for="`${idBase}-agente`"
+            class="text-sm font-medium text-n-slate-12"
+          >
             {{ t('CAMPAIGN.LEAD_ADS.EDIT.AGENT') }}
           </label>
           <Select
+            :id="`${idBase}-agente`"
             v-model="agente"
             :options="opcoesDeAgente"
             :error="erroDe('agente')"
@@ -348,10 +369,14 @@ defineExpose({ open });
           </p>
         </div>
         <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-n-slate-12">
+          <label
+            :for="`${idBase}-time`"
+            class="text-sm font-medium text-n-slate-12"
+          >
             {{ t('CAMPAIGN.LEAD_ADS.EDIT.TEAM') }}
           </label>
           <Select
+            :id="`${idBase}-time`"
             v-model="time"
             :options="opcoesDeTime"
             :error="erroDe('time')"
