@@ -320,7 +320,7 @@ const iReacted = emoji =>
             v-for="e in reactionEmojis"
             :key="e"
             type="button"
-            class="text-base leading-none transition-transform hover:scale-125"
+            class="text-base leading-none rounded-md hover:bg-n-alpha-2 transition-colors"
             @click="react(e)"
           >
             {{ e }}

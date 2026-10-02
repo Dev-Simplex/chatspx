@@ -64,6 +64,7 @@ const actions = {
 
   fetchAllConversations: async ({ commit, state, dispatch }) => {
     commit(types.SET_LIST_LOADING_STATUS);
+    commit(types.SET_LIST_ERROR, false);
     const params = state.conversationFilters;
     try {
       const {
@@ -80,12 +81,14 @@ const actions = {
       const isAbort =
         error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
       if (isAbort) return;
+      commit(types.SET_LIST_ERROR, true);
       commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
 
   fetchFilteredConversations: async ({ commit, dispatch }, params) => {
     commit(types.SET_LIST_LOADING_STATUS);
+    commit(types.SET_LIST_ERROR, false);
     try {
       const { data } = await ConversationApi.filter(params);
       buildConversationList(
@@ -98,6 +101,7 @@ const actions = {
       const isAbort =
         error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
       if (isAbort) return;
+      commit(types.SET_LIST_ERROR, true);
       commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
@@ -896,20 +900,18 @@ const actions = {
     commit(types.UPDATE_CHAT_LIST_FILTERS, data);
   },
 
+  // Sem catch: o erro chega a quem chamou, que mostra o aviso, e a tela segue com a
+  // prioridade antiga (ela só muda depois que o servidor confirma).
   assignPriority: async ({ dispatch }, { conversationId, priority }) => {
-    try {
-      await ConversationApi.togglePriority({
-        conversationId,
-        priority,
-      });
+    await ConversationApi.togglePriority({
+      conversationId,
+      priority,
+    });
 
-      dispatch('setCurrentChatPriority', {
-        priority,
-        conversationId,
-      });
-    } catch (error) {
-      // Handle error
-    }
+    dispatch('setCurrentChatPriority', {
+      priority,
+      conversationId,
+    });
   },
 
   setCurrentChatPriority({ commit }, { priority, conversationId }) {

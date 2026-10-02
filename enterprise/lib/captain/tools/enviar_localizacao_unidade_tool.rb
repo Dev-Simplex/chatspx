@@ -18,7 +18,7 @@ class Captain::Tools::EnviarLocalizacaoUnidadeTool < Captain::Tools::BasePublicT
   # Mesmo gate multi-tenant da BuscarUnidadesTool, e pelo mesmo motivo: a migration entra VM a VM,
   # e montar o agente numa box ainda nao migrada nao pode derrubar o atendimento da frota.
   def active?
-    ::Spx::Unidade.ativas.com_coordenada.exists?(account_id: @assistant.account_id)
+    ::Unit.ativas.com_coordenada.exists?(account_id: @assistant.account_id)
   rescue StandardError => e
     Rails.logger.warn("[EnviarLocalizacaoUnidade] active? indisponível: #{e.class} #{e.message}")
     false
@@ -45,25 +45,25 @@ class Captain::Tools::EnviarLocalizacaoUnidadeTool < Captain::Tools::BasePublicT
   private
 
   def escopo
-    ::Spx::Unidade.ativas.where(account_id: @assistant.account_id)
+    ::Unit.ativas.where(account_id: @assistant.account_id)
   end
 
   # Mesma regra de casamento da BuscarUnidadesTool (sem acento, sem caixa, continência nos dois
   # sentidos com piso de 3 letras). Duplicar a comparação aqui seria o caminho para as duas
   # ferramentas discordarem sobre qual é a loja de uma cidade.
   def encontrar(cidade)
-    alvo = ::Spx::Unidade.normalizar(cidade)
+    alvo = ::Unit.normalizar(cidade)
     return nil if alvo.blank?
 
     unidades = escopo.to_a
-    exatas = unidades.select { |unidade| ::Spx::Unidade.normalizar(unidade.cidade) == alvo }
+    exatas = unidades.select { |unidade| ::Unit.normalizar(unidade.cidade) == alvo }
     return exatas.first if exatas.any? || alvo.length < 3
 
     unidades.find { |unidade| contem?(unidade, alvo) }
   end
 
   def contem?(unidade, alvo)
-    nome = ::Spx::Unidade.normalizar(unidade.cidade)
+    nome = ::Unit.normalizar(unidade.cidade)
     nome.present? && (nome.include?(alvo) || alvo.include?(nome))
   end
 

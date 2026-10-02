@@ -1,4 +1,5 @@
 <script>
+import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import inboxMixin from 'shared/mixins/inboxMixin';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
@@ -12,6 +13,7 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import TextArea from 'next/textarea/TextArea.vue';
 import WhatsappReauthorize from '../channels/whatsapp/Reauthorize.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
+import SelectInput from 'dashboard/components-next/select/Select.vue';
 
 export default {
   components: {
@@ -23,6 +25,7 @@ export default {
     NextButton,
     TextArea,
     WhatsappReauthorize,
+    SelectInput,
   },
   mixins: [inboxMixin],
   props: {
@@ -46,12 +49,29 @@ export default {
       isSettingDefaults: false,
       agentSignatureEnabled: false,
       isUpdatingAgentSignature: false,
+      // Roteamento do lead de anuncio (CTWA). `''` e "nenhum time escolhido": o
+      // <select> nao tem valor nulo, e `null` deixaria a opcao vazia sem selecao.
+      adReferralRoutingEnabled: false,
+      adReferralTeamId: '',
+      isUpdatingAdReferralRouting: false,
     };
   },
   validations: {
     whatsAppInboxAPIKey: { required },
   },
   computed: {
+    ...mapGetters({ teams: 'teams/getTeams' }),
+    adReferralTeamOptions() {
+      return (this.teams || []).map(team => ({
+        value: team.id,
+        label: team.name,
+      }));
+    },
+    // Ligado sem time nao roteia nada: o service so age quando os dois campos estao
+    // preenchidos, e a tela precisa dizer isso em vez de deixar o admin achar que salvou.
+    adReferralMissingTeam() {
+      return this.adReferralRoutingEnabled && !this.adReferralTeamId;
+    },
     isEmbeddedSignupWhatsApp() {
       return this.inbox.provider_config?.source === 'embedded_signup';
     },
@@ -77,9 +97,18 @@ export default {
       if (!this.isSettingDefaults && this.isAWhatsAppCloudChannel)
         this.updateAgentSignature();
     },
+    adReferralRoutingEnabled() {
+      if (!this.isSettingDefaults && this.isAWhatsAppCloudChannel)
+        this.updateAdReferralRouting();
+    },
+    adReferralTeamId() {
+      if (!this.isSettingDefaults && this.isAWhatsAppCloudChannel)
+        this.updateAdReferralRouting();
+    },
   },
   mounted() {
     this.setDefaults();
+    if (this.isAWhatsAppCloudChannel) this.$store.dispatch('teams/get');
   },
   methods: {
     setDefaults() {
@@ -91,6 +120,10 @@ export default {
       this.allowedDomains = this.inbox.allowed_domains || '';
       this.agentSignatureEnabled =
         this.inbox.additional_attributes?.agent_signature_enabled || false;
+      this.adReferralRoutingEnabled =
+        this.inbox.additional_attributes?.ad_referral_routing_enabled || false;
+      this.adReferralTeamId =
+        Number(this.inbox.additional_attributes?.ad_referral_team_id) || '';
       this.$nextTick(() => {
         this.isSettingDefaults = false;
       });
@@ -112,6 +145,30 @@ export default {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
       } finally {
         this.isUpdatingAgentSignature = false;
+      }
+    },
+    // Grava as duas chaves juntas e em JSON (`formData: false`): em multipart o objeto
+    // aninhado viraria a string "[object Object]" e o Rails descartaria em silencio.
+    // O controller faz merge do `additional_attributes`, entao as chaves de outras
+    // features da mesma caixa continuam onde estavam.
+    async updateAdReferralRouting() {
+      if (this.isUpdatingAdReferralRouting) return;
+      this.isUpdatingAdReferralRouting = true;
+      try {
+        await this.$store.dispatch('inboxes/updateInbox', {
+          id: this.inbox.id,
+          formData: false,
+          additional_attributes: {
+            ...(this.inbox.additional_attributes || {}),
+            ad_referral_routing_enabled: this.adReferralRoutingEnabled,
+            ad_referral_team_id: this.adReferralTeamId || null,
+          },
+        });
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.isUpdatingAdReferralRouting = false;
       }
     },
     handleHmacFlag() {
@@ -487,12 +544,43 @@ export default {
       class="hidden"
     />
   </div>
-  <div v-if="isAWhatsAppCloudChannel" class="mt-6">
+  <div v-if="isAWhatsAppCloudChannel" class="mt-6 space-y-4">
     <SettingsToggleSection
       v-model="agentSignatureEnabled"
       :header="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_SIGNATURE.TITLE')"
       :description="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_SIGNATURE.SUBTITLE')"
     />
+    <SettingsToggleSection
+      v-model="adReferralRoutingEnabled"
+      :header="$t('INBOX_MGMT.SETTINGS_POPUP.AD_REFERRAL_ROUTING.TITLE')"
+      :description="
+        $t('INBOX_MGMT.SETTINGS_POPUP.AD_REFERRAL_ROUTING.SUBTITLE')
+      "
+    >
+      <template v-if="adReferralRoutingEnabled" #editor>
+        <p class="mb-1 text-sm font-medium text-n-slate-12">
+          {{ $t('INBOX_MGMT.SETTINGS_POPUP.AD_REFERRAL_ROUTING.TEAM_LABEL') }}
+        </p>
+        <SelectInput
+          v-model="adReferralTeamId"
+          :options="adReferralTeamOptions"
+          :placeholder="
+            $t('INBOX_MGMT.SETTINGS_POPUP.AD_REFERRAL_ROUTING.TEAM_PLACEHOLDER')
+          "
+          :disabled="isUpdatingAdReferralRouting"
+        />
+        <p
+          class="mt-1.5 text-label-small"
+          :class="adReferralMissingTeam ? 'text-n-amber-11' : 'text-n-slate-11'"
+        >
+          {{
+            adReferralMissingTeam
+              ? $t('INBOX_MGMT.SETTINGS_POPUP.AD_REFERRAL_ROUTING.NO_TEAM_HINT')
+              : $t('INBOX_MGMT.SETTINGS_POPUP.AD_REFERRAL_ROUTING.HINT')
+          }}
+        </p>
+      </template>
+    </SettingsToggleSection>
   </div>
 </template>
 

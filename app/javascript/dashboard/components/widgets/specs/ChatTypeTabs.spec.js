@@ -34,21 +34,30 @@ describe('ChatTypeTabs', () => {
     expect(wrapper.findAllComponents(TabsItem).length).toBe(4);
   });
 
-  it('groups queue tabs (awaiting/ai) on a second row via a flex row-break', () => {
-    // me, all (primary, row 1) + awaiting, ai (queue, row 2)
+  it('moves the queue tabs (rodizio/pending_closure) after the primary ones', () => {
+    // me, ai, all (primary, row 1) + rodizio, pending_closure (queue, row 2)
     const wrapper = mountComponent([
       { key: 'me', name: 'Mine', count: 1, icon: 'i-lucide-user' },
-      { key: 'awaiting', name: 'Awaiting', count: 2, icon: 'i-lucide-clock' },
+      {
+        key: 'rodizio',
+        name: 'Rotation',
+        count: 2,
+        icon: 'i-lucide-refresh-cw',
+      },
+      {
+        key: 'pending_closure',
+        name: 'Attention',
+        count: 1,
+        icon: 'i-lucide-triangle-alert',
+      },
       { key: 'ai', name: 'AI', count: 3, icon: 'i-lucide-sparkles' },
       { key: 'all', name: 'All', count: 4, icon: 'i-lucide-users' },
     ]);
-    const breaks = wrapper.findAll('.wa-tab-row-break');
-    expect(breaks.length).toBe(1);
-    // Rendered order: me, all (primary) | break | awaiting, ai (queue)
+    // Rendered order: me, ai, all (primary), then rodizio, pending_closure
     const tabNames = wrapper
       .findAllComponents(TabsItem)
       .map(c => c.props('name'));
-    expect(tabNames).toEqual(['Mine', 'All', 'Awaiting', 'AI']);
+    expect(tabNames).toEqual(['Mine', 'AI', 'All', 'Rotation', 'Attention']);
   });
 
   it('does not render a row-break when there are no queue tabs (single row)', () => {
@@ -79,16 +88,15 @@ describe('ChatTypeTabs', () => {
 
   it('emits chatTabChange with the item key on tab click', async () => {
     const wrapper = mountComponent(items);
-    // Reordered order of buttons: me, unassigned, all, ai → index 3 is 'ai'
-    await wrapper.findAll('button[role="tab"]')[3].trigger('click');
+    // Sem filas, a ordem é a natural: me, unassigned, ai, all → index 2 is 'ai'
+    await wrapper.findAll('button[role="tab"]')[2].trigger('click');
     expect(wrapper.emitted('chatTabChange')[0]).toEqual(['ai']);
   });
 
   it('keeps the active tab correct after reordering (active follows key)', () => {
     const wrapper = mountComponent(items, 'ai');
     const tabs = wrapper.findAllComponents(TabsItem);
-    // 'ai' is the last (queue) tab after reordering — index 3
-    expect(tabs[3].props('name')).toBe('AI');
+    expect(tabs[2].props('name')).toBe('AI');
     const activeButton = wrapper.find('button[aria-selected="true"]');
     expect(activeButton.text()).toContain('AI');
   });

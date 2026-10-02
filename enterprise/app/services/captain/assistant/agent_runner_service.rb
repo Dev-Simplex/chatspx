@@ -28,7 +28,9 @@ class Captain::Assistant::AgentRunnerService
 
   def generate_response(message_history: [])
     message_to_process, context = run_payload(message_history)
-    result = runner.run(message_to_process, context: context, max_turns: 100)
+    result = Llm::AccountScopedContext.with_account(@assistant.account) do
+      runner.run(message_to_process, context: context, max_turns: 100)
+    end
 
     process_agent_result(result)
   rescue StandardError => e
@@ -40,7 +42,9 @@ class Captain::Assistant::AgentRunnerService
   # mensagem. NAO altera #generate_response (caminho de producao). Mesma chamada do runner.
   def run_raw(message_history: [])
     message_to_process, context = run_payload(message_history)
-    runner.run(message_to_process, context: context, max_turns: 100)
+    Llm::AccountScopedContext.with_account(@assistant.account) do
+      runner.run(message_to_process, context: context, max_turns: 100)
+    end
   end
 
   private
@@ -224,8 +228,7 @@ class Captain::Assistant::AgentRunnerService
     # é evento de sistema, silencioso. O ESTADO da designação (rodizio_designado_em /
     # rodizio_produto) continua visível: é ele que a conduta de "modo contido" lê.
     state[:conversation][:custom_attributes] = sem_maquinario(state[:conversation][:custom_attributes])
-    state[:channel_type] = @conversation.inbox&.channel_type
-    state[:channel_number] = channel_number
+    build_channel_state(state)
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
     state[:contact_inbox] = slice_attrs(@conversation.contact_inbox, CONTACT_INBOX_STATE_ATTRIBUTES) if @conversation.contact_inbox
@@ -272,8 +275,28 @@ class Captain::Assistant::AgentRunnerService
 
   # Número em que o atendimento acontece. Sem ele o agente não tem NENHUM telefone em
   # contexto e, ao ser cobrado pelo "número de vocês", confabula um (caso 20314).
+  # Tudo que o agente sabe sobre o CANAL: qual e, por onde ele atende, se alcanca a pessoa
+  # depois que a janela fecha e quanto tempo falta pra isso.
+  def build_channel_state(state)
+    state[:channel_type] = @conversation.inbox&.channel_type
+    state[:channel_number] = channel_number
+    state[:canal_retoma] = canal_retoma?
+    # A conta regressiva so existe onde perder a janela e IRREVERSIVEL. Em canal retomavel ela
+    # seria ruido: apressaria o agente sem que houvesse nada a perder.
+    return if state[:canal_retoma]
+
+    state[:janela_horas_restantes] = Conversations::MessageWindowService.new(@conversation).hours_remaining
+  end
+
   def channel_number
     @conversation.inbox&.channel.try(:phone_number)
+  end
+
+  # O canal alcanca a pessoa DEPOIS que a janela fecha? Onde nao alcanca (Instagram), sumir e
+  # definitivo — quem decide isso e o proprio canal, em `supports_reengagement?`. Canal que nao
+  # responde ao metodo e tratado como retomavel: o silencio nao pode ligar conduta nova.
+  def canal_retoma?
+    @conversation.inbox&.channel.try(:supports_reengagement?) != false
   end
 
   def slice_attrs(record, keys)

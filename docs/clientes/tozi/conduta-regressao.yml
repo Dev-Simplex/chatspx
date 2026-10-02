@@ -22,7 +22,7 @@ cenarios:
     turnos:
       - { de: cliente, texto: 'Oi, procuro casa pra alugar de 2 quartos até 2500' }
       - de: assistente
-        texto: 'Encontrei uma opção: (cód 9887) Casa 2 quartos, no Jardim Aurora, R$ 2200/mês, 2 vagas de garagem [NÃO fica em condomínio fechado].'
+        texto: 'Encontrei uma opção: (cód 9887) Casa 2 quartos, no Jardim Aurora, R$ 2200/mês, 2 vagas de garagem [AVULSO — fora de condomínio fechado].'
       - { de: cliente, texto: 'Gostei dessa. Quero ver ela' }
     espera:
       - 'chave'
@@ -40,7 +40,7 @@ cenarios:
     turnos:
       - { de: cliente, texto: 'Oi, procuro apartamento pra alugar' }
       - de: assistente
-        texto: 'Encontrei uma opção: (cód 2686) Apartamento 2 quartos, no Residencial Florença, R$ 2100/mês, 1 vaga de garagem [FICA em condomínio fechado].'
+        texto: 'Encontrei uma opção: (cód 2686) Apartamento 2 quartos, no Residencial Florença, R$ 2100/mês, 1 vaga de garagem [EM CONDOMÍNIO FECHADO].'
       - { de: cliente, texto: 'Gostei desse. Quero ver ele' }
     espera:
       - '(agendad|acompanh)'
@@ -198,7 +198,7 @@ cenarios:
     turnos:
       - { de: cliente, texto: 'Oi, vi a kitnet do Jardim Imperial' }
       - de: assistente
-        texto: 'Encontrei: 1) (cód 9623) Kitnet no Jardim Imperial, R$ 1000/mês, 37.5 m² construídos, 8 fotos, 1 suíte [NÃO fica em condomínio fechado]. São 1 opção(ões) e não existem outras para este critério.'
+        texto: 'Encontrei: 1) (cód 9623) Kitnet no Jardim Imperial, R$ 1000/mês, 37.5 m² construídos, 8 fotos, 1 suíte [AVULSO — fora de condomínio fechado]. São 1 opção(ões) e não existem outras para este critério.'
       - { de: assistente, texto: 'Te mandei as fotos! É R$ 1.000 de aluguel + R$ 50 de esgoto + R$ 50 de água.' }
       - { de: cliente, texto: 'Gostei, cabe no meu orçamento' }
     espera:

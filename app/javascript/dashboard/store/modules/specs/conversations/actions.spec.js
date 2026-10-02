@@ -393,7 +393,21 @@ describe('#actions', () => {
     });
     it('sends correct mutations if api is unsuccessful', async () => {
       axios.post.mockRejectedValue({ message: 'Incorrect header' });
-      await actions.markMessagesRead({ commit }, { id: 1, explicit: true });
+      await expect(
+        actions.markMessagesRead({ commit }, { id: 1, explicit: true })
+      ).rejects.toEqual({ message: 'Incorrect header' });
+      expect(commit.mock.calls).toEqual([]);
+    });
+    it('does not throw on the automatic read when api is unsuccessful', async () => {
+      axios.post.mockRejectedValue({ message: 'Incorrect header' });
+      const rootGetters = {
+        getCurrentUserID: 1,
+        getConversationById: () => ({ meta: { assignee: { id: 1 } } }),
+      };
+      await expect(
+        actions.markMessagesRead({ commit, rootGetters }, { id: 1 })
+      ).resolves.toBeUndefined();
+      expect(axios.post).toHaveBeenCalled();
       expect(commit.mock.calls).toEqual([]);
     });
   });
@@ -657,6 +671,7 @@ describe('#actions', () => {
       );
       expect(commit.mock.calls).toEqual([
         ['SET_LIST_LOADING_STATUS'],
+        ['SET_LIST_ERROR', false],
         ['SET_ALL_CONVERSATION', dataReceived.payload],
         ['CLEAR_LIST_LOADING_STATUS'],
         [

@@ -6,6 +6,10 @@ module Enterprise::Concerns::Conversation
     has_one :applied_sla, dependent: :destroy_async
     has_many :sla_events, dependent: :destroy_async
     has_many :captain_responses, class_name: 'Captain::AssistantResponse', dependent: :nullify, as: :documentable
+    # A trilha de auditoria da IA nascia com FK RESTRICT e sem `dependent:`, entao
+    # segurava a conversa inteira (ver migration 20260908120000). `delete_all` porque
+    # Captain::AssistantLog nao tem callback de destroy.
+    has_many :captain_assistant_logs, class_name: 'Captain::AssistantLog', dependent: :delete_all
     before_validation :validate_sla_policy, if: -> { sla_policy_id_changed? }
     around_save :ensure_applied_sla_is_created, if: -> { sla_policy_id_changed? }
     # A2e: resolver a conversa LIMPA o dono-espelho captain (reopen nasce sem dono ->
@@ -103,6 +107,8 @@ module Enterprise::Concerns::Conversation
   end
 
   def release_captain_mirror_on_resolve
+    # CHAT-172: o atendimento humano acabou; se o cliente voltar, a IA pode reentrar.
+    self.additional_attributes = additional_attributes.except(Conversation::HUMAN_REPLIED_KEY) if human_replied_without_assignment?
     return if assignee_agent_bot_id.blank?
     return unless assignee_agent_bot&.captain? # bot webhook preserva comportamento atual
 

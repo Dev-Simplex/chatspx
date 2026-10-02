@@ -52,7 +52,7 @@ export const actions = {
     }
   },
   read: async (
-    { commit },
+    { commit, dispatch },
     { id, primaryActorType, primaryActorId, unreadCount }
   ) => {
     commit(types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: true });
@@ -60,6 +60,7 @@ export const actions = {
       await NotificationsAPI.read(primaryActorType, primaryActorId);
       commit(types.SET_NOTIFICATIONS_UNREAD_COUNT, unreadCount - 1);
       commit(types.READ_NOTIFICATION, { id, read_at: new Date() });
+      await dispatch('unReadCount');
       commit(types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: false });
     } catch (error) {
       commit(types.SET_NOTIFICATIONS_UI_FLAG, { isUpdating: false });

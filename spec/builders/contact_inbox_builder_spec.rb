@@ -176,6 +176,62 @@ describe ContactInboxBuilder do
           ).perform
         end.to raise_error(ActionController::ParameterMissing, 'param is missing or the value is empty: contact phone number')
       end
+
+      # T44: o painel manda SEMPRE a forma de 13 digitos como source_id explicito. Sem reuso,
+      # nascia uma 2a ficha do mesmo contato na mesma caixa e o atendimento se partia: o vendedor
+      # falava numa conversa e a resposta do cliente entrava na outra.
+      context 'when the brazilian contact already has a ficha in the other ninth-digit form' do
+        let(:br_contact) { create(:contact, phone_number: '+5566996636632', account: account) }
+
+        it 'reuses the 12-digit ficha when the panel sends a 13-digit source id' do
+          existing_contact_inbox = create(:contact_inbox, contact: br_contact, inbox: whatsapp_inbox, source_id: '556696636632')
+
+          contact_inbox = described_class.new(
+            contact: br_contact,
+            inbox: whatsapp_inbox,
+            source_id: '5566996636632'
+          ).perform
+
+          expect(contact_inbox.id).to eq(existing_contact_inbox.id)
+          expect(whatsapp_inbox.contact_inboxes.where(contact_id: br_contact.id).count).to eq(1)
+        end
+
+        it 'reuses the 13-digit ficha when the incoming source id has 12 digits' do
+          existing_contact_inbox = create(:contact_inbox, contact: br_contact, inbox: whatsapp_inbox, source_id: '5566996636632')
+
+          contact_inbox = described_class.new(
+            contact: br_contact,
+            inbox: whatsapp_inbox,
+            source_id: '556696636632'
+          ).perform
+
+          expect(contact_inbox.id).to eq(existing_contact_inbox.id)
+        end
+
+        it 'still creates a ficha when the source id is not a variant of the existing one' do
+          create(:contact_inbox, contact: br_contact, inbox: whatsapp_inbox, source_id: '556696636632')
+
+          contact_inbox = described_class.new(
+            contact: br_contact,
+            inbox: whatsapp_inbox,
+            source_id: '5511988887777'
+          ).perform
+
+          expect(contact_inbox.source_id).to eq('5511988887777')
+        end
+      end
+
+      it 'creates a ficha for a non-brazilian contact with an explicit source id, as before' do
+        create(:contact_inbox, contact: contact, inbox: whatsapp_inbox, source_id: '23423424123')
+
+        contact_inbox = described_class.new(
+          contact: contact,
+          inbox: whatsapp_inbox,
+          source_id: '23423424199'
+        ).perform
+
+        expect(contact_inbox.source_id).to eq('23423424199')
+      end
     end
 
     describe 'sms inbox' do
@@ -353,6 +409,18 @@ describe ContactInboxBuilder do
         expect(ContactInbox.last.inbox_id).to eq(channel.inbox.id)
         expect(existing_contact_inbox.reload.source_id).to include(source_id)
         expect(existing_contact_inbox.reload.source_id).not_to eq(source_id)
+      end
+
+      it 'refuses to take the source_id of another contact in a whatsapp cloud inbox (S-02)' do
+        whatsapp_inbox = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+        holder = create(:contact, account: account, name: 'Juliana Aguiar', phone_number: '+5565992476382')
+        holder_inbox = create(:contact_inbox, contact: holder, inbox: whatsapp_inbox, source_id: '5565992476302')
+        blocked = create(:contact, account: account, phone_number: '+5565992476302')
+
+        expect do
+          described_class.new(contact: blocked, inbox: whatsapp_inbox, source_id: nil).perform
+        end.to raise_error(ContactInboxBuilder::ConflictError) { |error| expect(error.holder).to eq(holder) }
+        expect(holder_inbox.reload.source_id).to eq('5565992476302')
       end
 
       it 'does not update source_id for channels other than email or phone number' do

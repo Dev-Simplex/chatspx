@@ -65,6 +65,20 @@ RSpec.describe Messages::AudioTranscriptionService, type: :service do
     end
   end
 
+  # N-05: o `update!(meta: {...})` substituia o jsonb inteiro e apagava os picos da onda que o
+  # Audio::WaveformGenerationJob grava no mesmo anexo.
+  describe '#update_transcription' do
+    it 'keeps the waveform peaks already in meta' do
+      attachment.update_column(:meta, { 'waveform_peaks' => [0.1, 0.9] }) # rubocop:disable Rails/SkipsModelValidations
+
+      described_class.new(attachment).send(:update_transcription, 'Hello world transcription')
+
+      meta = attachment.reload.meta
+      expect(meta['transcribed_text']).to eq('Hello world transcription')
+      expect(meta['waveform_peaks']).to eq([0.1, 0.9])
+    end
+  end
+
   describe '#fetch_audio_file' do
     let(:service) { described_class.new(attachment) }
 
@@ -82,6 +96,32 @@ RSpec.describe Messages::AudioTranscriptionService, type: :service do
       expect(File.extname(temp_file_path)).to eq('.mpeg')
     ensure
       FileUtils.rm_f(temp_file_path) if temp_file_path.present?
+    end
+
+    # O mesmo anexo e enfileirado por dois pontos (hook de criacao do anexo e builder de
+    # historico do Captain). Com nome deterministico, os dois jobs usavam o MESMO caminho.
+    it 'usa um caminho diferente a cada execucao' do
+      primeiro = service.send(:fetch_audio_file)
+      segundo = described_class.new(attachment).send(:fetch_audio_file)
+
+      expect(primeiro).not_to eq(segundo)
+      expect(File.extname(primeiro)).to eq(File.extname(segundo))
+    ensure
+      FileUtils.rm_f(primeiro) if primeiro.present?
+      FileUtils.rm_f(segundo) if segundo.present?
+    end
+
+    it 'nao apaga o arquivo temporario de outro job no mesmo anexo' do
+      # Job A ja baixou o audio e esta com o arquivo aberto no whisper.
+      caminho_do_job_a = described_class.new(attachment).send(:fetch_audio_file)
+
+      # Job B roda o ciclo inteiro, incluindo o `ensure` que apaga o proprio temporario.
+      allow(service).to receive_messages(whisper_with_retry: 'transcrito', update_transcription: nil)
+      service.send(:transcribe_audio)
+
+      expect(File).to exist(caminho_do_job_a)
+    ensure
+      FileUtils.rm_f(caminho_do_job_a) if caminho_do_job_a.present?
     end
   end
 end

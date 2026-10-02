@@ -65,6 +65,18 @@ describe Whatsapp::PhoneNumberNormalizationService do
 
         expect(result).to eq('556696636632')
       end
+
+      it 'prefers the ficha that has a conversation over an empty ficha created later' do
+        # T44: a ficha vazia recem-criada tem created_at de AGORA e vencia por data a ficha
+        # antiga onde a thread viva mora, mandando o inbound seguinte para uma conversa nova.
+        ficha_antiga = create(:contact_inbox, contact: contact, inbox: inbox, source_id: '556696636632', created_at: 3.months.ago)
+        create(:conversation, account: account, inbox: inbox, contact: contact, contact_inbox: ficha_antiga, created_at: 3.months.ago)
+        create(:contact_inbox, contact: create(:contact, account: account), inbox: inbox, source_id: '5566996636632')
+
+        result = service.normalize_and_find_contact_by_provider('5566996636632', :cloud)
+
+        expect(result).to eq('556696636632')
+      end
     end
 
     context 'with non-Brazilian numbers' do

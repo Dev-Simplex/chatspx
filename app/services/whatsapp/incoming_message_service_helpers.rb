@@ -1,6 +1,11 @@
 module Whatsapp::IncomingMessageServiceHelpers
+  # Este download roda DENTRO da trava por contato (WHATSAPP_MESSAGE_CREATE_LOCK, TTL de 30s).
+  # Sem teto, um anexo gigante segurava a trava alem do TTL e dois webhooks do mesmo contato
+  # passavam a rodar em paralelo. O teto e o mesmo que o produto ja recusa no upload.
   def download_attachment_file(attachment_payload)
-    Down.download(inbox.channel.media_url(attachment_payload[:id]), headers: inbox.channel.api_headers)
+    Down.download(inbox.channel.media_url(attachment_payload[:id]),
+                  headers: inbox.channel.api_headers,
+                  max_size: Attachment::HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB.megabytes)
   end
 
   def conversation_params
@@ -25,6 +30,8 @@ module Whatsapp::IncomingMessageServiceHelpers
   end
 
   def message_content(message)
+    return "*Reagiu com* #{message.dig(:reaction, :emoji)}" if message[:type] == 'reaction'
+
     # TODO: map interactive messages back to button messages in chatwoot
     message.dig(:text, :body) ||
       message.dig(:button, :text) ||
@@ -51,7 +58,9 @@ module Whatsapp::IncomingMessageServiceHelpers
   end
 
   def unprocessable_message_type?(message_type)
-    %w[reaction ephemeral unsupported request_welcome].include?(message_type)
+    return true if message_type == 'reaction' && messages_data.first.dig(:reaction, :emoji).blank?
+
+    %w[ephemeral unsupported request_welcome].include?(message_type)
   end
 
   def processed_waid(waid)
@@ -67,7 +76,7 @@ module Whatsapp::IncomingMessageServiceHelpers
   end
 
   def process_in_reply_to(message)
-    @in_reply_to_external_id = message['context']&.[]('id')
+    @in_reply_to_external_id = message.dig('reaction', 'message_id') || message.dig('context', 'id')
   end
 
   def find_message_by_source_id(source_id)
@@ -80,5 +89,30 @@ module Whatsapp::IncomingMessageServiceHelpers
     return false if messages_data.blank?
 
     Whatsapp::MessageDedupLock.new(messages_data.first[:id]).acquire!
+  end
+
+  def unlock_message_source_id!
+    return if messages_data.blank?
+
+    Whatsapp::MessageDedupLock.new(messages_data.first[:id]).release!
+  end
+
+  private
+
+  def update_contact_with_profile_name(contact_params)
+    profile_name = contact_params.dig(:profile, :name)
+    return if profile_name.blank?
+    return if @contact.name == profile_name
+
+    # Only update if current name exactly matches the phone number or formatted phone number
+    return unless contact_name_matches_phone_number?
+
+    @contact.update!(name: profile_name)
+  end
+
+  def contact_name_matches_phone_number?
+    phone_number = "+#{messages_data.first[:from]}"
+    formatted_phone_number = TelephoneNumber.parse(phone_number).international_number
+    @contact.name == phone_number || @contact.name == formatted_phone_number
   end
 end

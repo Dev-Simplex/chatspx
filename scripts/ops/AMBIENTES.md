@@ -10,7 +10,7 @@
 | Cliente | Ambiente | Host / VM | App (URL) | Conta(s) | Helper |
 |---|---|---|---|---|---|
 | **Tozi** | Homologação (sandbox) | `192.168.8.232` (LAN, `simplexia@`) | chatspx.app | conta **3** | `scripts/ops/tozi-hml.sh` |
-| **Tozi** | 🔴 Produção (cliente real) | `3.82.215.109` (`ubuntu@`, PEM) | tozi.chatspx.app | conta **6** | `scripts/ops/tozi-prod.sh` |
+| **Tozi** | 🔴 Produção (cliente real) | `3.94.9.51` (`ubuntu@`, PEM) | tozi.chatspx.app | conta **6** | `scripts/ops/tozi-prod.sh` |
 | **Fábrica / Atacadão** | Box único (build/teste) | `3.87.182.184` (`chatwoot@`) | fabrica.chatspx.app | **1** Fábrica · **2** Atacadão | `scripts/ops/fabrica.sh` |
 
 Observações:

@@ -250,6 +250,19 @@ RSpec.describe Conversations::OrphanRetriageJob do
 
         expect(conversation.reload.assignee_agent_bot_id).to eq(assistant.mirror_agent_bot.id)
       end
+
+      # CHAT-172: o humano respondeu sem se atribuir (ex.: pelo celular) — não é órfã de verdade.
+      it 'does not reassign the IA when a human replied without assigning themselves' do
+        create(:automation_rule, account: account, event_name: 'conversation_created',
+                                 conditions: matching_conditions,
+                                 actions: [{ 'action_name' => 'assign_ai_agent', 'action_params' => [assistant.id] }])
+        conversation = create_orphan
+        conversation.update_columns(additional_attributes: { Conversation::HUMAN_REPLIED_KEY => Time.current.iso8601 }) # rubocop:disable Rails/SkipsModelValidations
+
+        described_class.perform_now(account)
+
+        expect(conversation.reload.assignee_agent_bot_id).to be_nil
+      end
     end
   end
 

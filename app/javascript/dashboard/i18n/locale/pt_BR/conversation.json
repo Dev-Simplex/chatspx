@@ -1,5 +1,6 @@
 {
   "CONVERSATION": {
+    "WHATSAPP_PHONE_REPLY": "Enviada direto pelo WhatsApp do celular (sem identificar o atendente)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "Conversa sem responsável",
@@ -52,6 +53,7 @@
     "VIEW_ORIGINAL": "Ver original",
     "VIEW_TRANSLATED": "Ver traduzido",
     "EMPTY_STATE": {
+      "PREVENTION_MESSAGE": "Prevenção é um gesto de amor por você.",
       "CMD_BAR": "para abrir o menu de comando",
       "KEYBOARD_SHORTCUTS": "para ver os atalhos de teclado",
       "NEW_CONVERSATION": "Nova conversa",
@@ -74,6 +76,7 @@
     "AI_SUMMARY_TITLE": "Resumo da IA",
     "AI_SUMMARY_READ_MORE": "Ler mais",
     "AI_SUMMARY_READ_LESS": "Ler menos",
+    "NEWEST_MESSAGE": "Mensagens mais recentes",
     "CLICK_HERE": "Clique aqui",
     "LOADING_INBOXES": "Carregando caixas de entrada",
     "LOADING_CONVERSATIONS": "Carregando conversas",
@@ -90,6 +93,22 @@
     "BOT_HANDOFF_ERROR": "Falha ao resolver conversas. Por favor, tente novamente.",
     "TWILIO_WHATSAPP_CAN_REPLY": "Você só pode responder a esta conversa usando um modelo de mensagem devido a",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "Restrições de janela de mensagem de 24 horas",
+    "READ_ONLY_INBOX": {
+      "BANNER": "Caixa somente leitura: respostas não saem por este número.",
+      "REPLY_THROUGH": "Responder pela caixa {inbox}",
+      "DIALOG_DESCRIPTION": "A mensagem vai para o mesmo cliente pelo outro número, e você é levado para aquela conversa. Esta é resolvida com uma nota privada.",
+      "PLACEHOLDER": "Escreva a resposta",
+      "SEND": "Enviar",
+      "ERROR": "Não foi possível enviar a resposta. Tente novamente.",
+      "PRIVATE_NOTE": "Nota interna"
+    },
+    "WHATSAPP_WINDOW_EXPIRED": {
+      "TITLE": "Janela de 24 horas expirada",
+      "DESCRIPTION": "O WhatsApp só permite mensagens livres dentro de 24 horas após a última mensagem do cliente. Para retomar, envie um template aprovado.",
+      "SEND_TEMPLATE": "Enviar template",
+      "SEND_TEMPLATE_ACTION": "Enviar template",
+      "PRIVATE_NOTE": "Nota privada"
+    },
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "Esta conta do Instagram foi migrada para a nova caixa de entrada do canal do Instagram. Todas as novas mensagens serão mostradas lá. Você não poderá mais enviar mensagens desta conversa.",
     "REPLYING_TO": "Você está respondendo a:",
     "REMOVE_SELECTION": "Remover seleção",
@@ -426,6 +445,8 @@
     "VISIBLE_TO_AGENTS": "Mensagem Privada: Apenas visível para você e seu time",
     "CHANGE_STATUS": "Estado da conversa mudou",
     "CHANGE_STATUS_FAILED": "Mudança de status da conversa falhou",
+    "MARK_AS_READ_FAILED": "Não foi possível marcar a conversa como lida. Tente novamente.",
+    "MARK_AS_UNREAD_FAILED": "Não foi possível marcar a conversa como não lida. Tente novamente.",
     "CHANGE_AGENT": "Novo agente atribuído",
     "CHANGE_AGENT_FAILED": "Falha ao atribuir outro agente",
     "ASSIGN_LABEL_SUCCESFUL": "Etiqueta atribuída com sucesso",
@@ -653,6 +674,12 @@
       "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
       "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
+    },
+    "AI_SCHEDULED_BANNER": {
+      "TITLE": "Mensagem agendada por {name} para {when}",
+      "CANCEL": "Cancelar",
+      "CANCELLED": "Mensagem agendada cancelada.",
+      "CANCEL_ERROR": "Não foi possível cancelar a mensagem agendada."
     },
     "SCHEDULE_MESSAGE": {
       "TOOLTIP": "Agendar mensagem",
@@ -909,7 +936,32 @@
         "DISCARDED_TOAST": "Sugestão descartada"
       }
     },
-    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente."
+    "SCORE_TITLE": "Nota",
+    "SCORE_FORMAT": "{score}/10",
+    "COMMENT_TITLE": "Comentário",
+    "NPS_REPLY_MESSAGE": "Em uma escala de 0 a 10, o quanto você recomendaria nossa empresa?",
+    "RETRY_ERROR": "Erro ao tentar reenviar a mensagem",
+    "PERMISSION_MODAL": {
+      "TITLE": "Atenção",
+      "BACK": "Voltar para conversas"
+    },
+    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente.",
+    "CATALOG": {
+      "MENU": "Enviar {item}",
+      "TITLE": "Enviar {item}",
+      "SEARCH": "Buscar por nome ou SKU",
+      "LOADING": "Carregando…",
+      "EMPTY": "Nenhum resultado.",
+      "SELECTED": "{count} selecionado(s)",
+      "SEND": "Enviar",
+      "CANCEL": "Cancelar",
+      "CLOSE": "Fechar",
+      "WAHA_NOTICE_ONE": "Nesta caixa vão as fotos do item, uma a uma, com a legenda na primeira.",
+      "WAHA_NOTICE_MANY": "Nesta caixa vão as fotos de cada item, uma a uma, com a legenda na primeira, e no fim um menu numerado."
+    },
+    "HANDOVER_CUT": {
+      "BANNER": "Esta conversa foi transferida para você em {date}. O histórico anterior não fica visível."
+    }
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Enviar transcrição de conversa",
@@ -975,11 +1027,41 @@
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Pedidos do Shopify",
       "KANBAN_STATUS": "Situação no Kanban",
+      "CAPTADOR_LEAD": "Lead no Captador",
       "GROUP_PARTICIPANTS": "Integrantes do grupo"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Não está em nenhum funil",
       "OPEN_BOARD": "Abrir no Kanban"
+    },
+    "CAPTADOR": {
+      "LOADING": "Carregando o lead do Captador",
+      "EMPTY": "Esse contato não veio do Captador.",
+      "UNAVAILABLE": "O Captador não respondeu agora. O atendimento segue normal.",
+      "PENDING_ACCESS": "Peça acesso ao Captador para ver este lead.",
+      "RETRY": "Tentar de novo",
+      "MOVE": "Mover para…",
+      "OPEN": "Abrir no Captador",
+      "MOVED": "Lead movido para {stage}.",
+      "MOVE_ERROR": "Não deu para mover o lead.",
+      "STALLED": "Parado",
+      "LOST": "Perdido",
+      "DO_NOT_CONTACT": "Não contatar",
+      "FIELDS": {
+        "OWNER": "Responsável",
+        "ORIGIN": "Origem",
+        "LAST_ACTIVITY": "Última atividade",
+        "STATUS": "Situação na Receita",
+        "ACTIVITY": "Atividade principal",
+        "SIZE": "Porte",
+        "CITY": "Cidade",
+        "OPENED_ON": "Abertura"
+      },
+      "ORIGIN": {
+        "GOOGLE": "Google",
+        "RECEITA": "Receita Federal",
+        "MANUAL": "Cadastro manual"
+      }
     },
     "SUMMARY": {
       "AI_TITLE": "Resumo da IA",
@@ -998,6 +1080,7 @@
       "VIDEOS": "Vídeos",
       "AUDIOS": "Áudios",
       "AUDIO": "Áudio",
+      "AUDIO_PROGRESS": "Progresso do áudio",
       "DOCUMENTS": "Documentos",
       "DOCUMENT": "Documento",
       "LINKS": "Links"
@@ -1155,6 +1238,9 @@
     "DOWNLOAD": "Baixar PDF",
     "CANCEL": "Cancelar",
     "CLOSE": "Fechar",
+    "SHA256": "Código de verificação SHA-256",
+    "COPY_SHA256": "Copiar SHA-256",
+    "COPIED": "Copiado",
     "READY_TITLE": "PDF pronto",
     "READY_HINT": "Clique no botão abaixo para baixar o arquivo.",
     "TIMEOUT": "Geração está demorando demais. Tente novamente ou reduza o período.",

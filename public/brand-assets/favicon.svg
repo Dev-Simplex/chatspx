@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Chat SPX — Outubro Rosa — 01 · Contorno de cetim</title>
+  <desc id="desc">O próprio contorno do balão é uma fita rosa. Construção próxima à v1; tecido com costura e dobra.</desc>
+  <defs><clipPath id="ribbon"><path d="M27 145V100C27 50 64 12 109 12H151C202 12 239 51 239 106C239 154 202 188 153 188H103C91 188 84 194 77 200L40 239L35 221L20 219L66 181C80 169 87 163 100 163H153C187 163 212 140 212 106C212 68 186 39 151 39H110C78 39 55 66 55 100V145Z"/></clipPath></defs>
+  <path d="M27 142C27 172 35 185 59 206L93 242L100 223L115 223L73 179C59 164 55 156 55 142Z" fill="#982451"/>
+  <path d="M27 145V100C27 50 64 12 109 12H151C202 12 239 51 239 106C239 154 202 188 153 188H103C91 188 84 194 77 200L40 239L35 221L20 219L66 181C80 169 87 163 100 163H153C187 163 212 140 212 106C212 68 186 39 151 39H110C78 39 55 66 55 100V145Z" fill="#D44880"/>
+  <path d="M32 62C20 84 19 98 29 112C38 124 53 135 60 150C64 144 68 137 66 126C64 110 41 104 34 86C30 77 31 69 32 62Z" fill="#E3749E" clip-path="url(#ribbon)"/>
+
+</svg>

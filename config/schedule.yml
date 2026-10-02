@@ -8,11 +8,13 @@
 internal_check_new_versions_job:
   cron: '0 0 * * *'
   class: 'Internal::TriggerDailyScheduledItemsJob'
+  active_job: true
   queue: scheduled_jobs
 # # executed At every 5th minute..
 trigger_scheduled_items_job:
   cron: '*/5 * * * *'
   class: 'TriggerScheduledItemsJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed At every minute..
@@ -21,6 +23,18 @@ trigger_scheduled_items_job:
 flows_resume_job:
   cron: '*/1 * * * *'
   class: 'Flows::ResumeJob'
+  active_job: true
+  queue: scheduled_jobs
+
+# De hora em hora.
+# Agrega os flow_step_logs em FlowNodeStat e alimenta as pilulas "142 - 38%" do canvas. O job existe
+# desde a Fase 3.3 e o proprio cabecalho dele diz "roda de hora em hora (config/schedule.yml)", mas a
+# entrada nunca foi criada: por isso a .229 tinha 340 flow_step_logs e 0 flow_node_stats. E idempotente
+# por construcao (recomputa o total e faz upsert com SET, nao incremento).
+flows_stats_rollup_job:
+  cron: '0 * * * *'
+  class: 'Flows::StatsRollupJob'
+  active_job: true
   queue: scheduled_jobs
 
 # A cada 5 minutos.
@@ -30,12 +44,14 @@ flows_resume_job:
 spx_distribuicao_varrer_sla_job:
   cron: '*/5 * * * *'
   class: 'Spx::Distribuicao::VarrerSlaJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed At every minute..
 trigger_imap_email_inboxes_job:
   cron: '*/1 * * * *'
   class: 'Inboxes::FetchImapEmailInboxesJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed every minute
@@ -45,6 +61,7 @@ trigger_imap_email_inboxes_job:
 campaigns_whatsapp_dispatch_job:
   cron: '*/1 * * * *'
   class: 'Campaigns::Whatsapp::DispatchSchedulerJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed daily at 2230 UTC
@@ -52,6 +69,7 @@ campaigns_whatsapp_dispatch_job:
 remove_stale_contact_inboxes_job.rb:
   cron: '30 22 * * *'
   class: 'Internal::RemoveStaleContactInboxesJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed daily at 2230 UTC
@@ -59,6 +77,7 @@ remove_stale_contact_inboxes_job.rb:
 remove_stale_redis_keys_job.rb:
   cron: '30 22 * * *'
   class: 'Internal::RemoveStaleRedisKeysJob'
+  active_job: true
   queue: scheduled_jobs
 
 # DISABLED: investigating if this job is the source of orphan conversations
@@ -74,6 +93,7 @@ remove_stale_redis_keys_job.rb:
 delete_accounts_job:
   cron: '0 1 * * *'
   class: 'Internal::DeleteAccountsJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed every 15 minutes
@@ -81,12 +101,14 @@ delete_accounts_job:
 bulk_auto_assignment_job:
   cron: '*/15 * * * *'
   class: 'Inboxes::BulkAutoAssignmentJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed every 30 minutes for assignment_v2
 periodic_assignment_job:
   cron: '*/30 * * * *'
   class: 'AutoAssignment::PeriodicAssignmentJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed every 30 minutes (em :00 e :30)
@@ -96,6 +118,7 @@ periodic_assignment_job:
 waha_refresh_groups_job:
   cron: '*/30 * * * *'
   class: 'Waha::RefreshGroupsJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed every hour at :15 (logo apos o refresh de grupos das :00 aquecer o cache)
@@ -105,6 +128,7 @@ waha_refresh_groups_job:
 waha_resolve_lid_sweep_job:
   cron: '15 * * * *'
   class: 'Contacts::ResolveLidSweepJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executed every 5 minutes
@@ -114,6 +138,7 @@ waha_resolve_lid_sweep_job:
 waha_inbound_reconciler_job:
   cron: '*/5 * * * *'
   class: 'Waha::InboundReconcilerJob'
+  active_job: true
   queue: low
 
 # executed weekly on Sunday at 03:00 UTC
@@ -121,6 +146,7 @@ waha_inbound_reconciler_job:
 purge_orphan_blobs_job:
   cron: '0 3 * * 0'
   class: 'Internal::PurgeOrphanBlobsJob'
+  active_job: true
   queue: housekeeping
 
 # executed daily at 2230 UTC
@@ -128,6 +154,7 @@ purge_orphan_blobs_job:
 remove_old_notification_job:
   cron: '30 22 * * *'
   class: 'Notification::RemoveOldNotificationJob'
+  active_job: true
   queue: purgable
 
 # executed every 12 hours
@@ -135,6 +162,7 @@ remove_old_notification_job:
 remove_orphan_conversations_job:
   cron: '0 */12 * * *'
   class: 'Internal::RemoveOrphanConversationsJob'
+  active_job: true
   queue: housekeeping
 
 # executed every 5 minutes
@@ -143,6 +171,7 @@ remove_orphan_conversations_job:
 conversations_orphan_watch_job:
   cron: '*/5 * * * *'
   class: 'Account::OrphanConversationsWatchJob'
+  active_job: true
   queue: scheduled_jobs
 # executed every 5 minutes
 # repasse por SLA no modo ASSIGNEE (locação): a pessoa já é dona e o prazo mede "não respondeu
@@ -153,12 +182,14 @@ conversations_orphan_watch_job:
 distribuicao_repasse_job:
   cron: '*/5 * * * *'
   class: 'Spx::Distribuicao::RepasseJob'
+  active_job: true
   queue: scheduled_jobs
 # executed daily at 0400 UTC
 # purge expired bulk media downloads (zip blob + record) after 7-day retention
 purge_expired_bulk_downloads_job:
   cron: '0 4 * * *'
   class: 'Attachments::PurgeBulkDownloadsJob'
+  active_job: true
   queue: housekeeping
 
 # executed hourly (minuto 7 p/ evitar o topo da hora)
@@ -167,6 +198,7 @@ purge_expired_bulk_downloads_job:
 captain_conversation_eval_scheduler_job:
   cron: '7 * * * *'
   class: 'Captain::ConversationEvalSchedulerJob'
+  active_job: true
   queue: scheduled_jobs
 
 # executado uma vez por dia, 11h UTC (8h em Brasília) — o aviso chega no começo do
@@ -174,6 +206,15 @@ captain_conversation_eval_scheduler_job:
 units_schedule_reminder_job:
   cron: '0 11 * * *'
   class: 'Units::ScheduleReminderJob'
+  active_job: true
+  queue: scheduled_jobs
+
+# uma vez por dia, 10h UTC: põe os feriados nacionais na unidade que ainda não os tem e
+# completa o ano novo das datas móveis. NO-OP quando todas as unidades já estão em dia.
+units_feriados_nacionais_job:
+  cron: '0 10 * * *'
+  class: 'Units::FeriadosNacionaisJob'
+  active_job: true
   queue: scheduled_jobs
 
 # digest diário do eval: leva as conversas com falha GRAVE da IA pra uma lista explícita de
@@ -187,4 +228,5 @@ units_schedule_reminder_job:
 spx_eval_digest_scheduler_job:
   cron: '0 7 * * *'
   class: 'Spx::EvalDigestSchedulerJob'
+  active_job: true
   queue: scheduled_jobs

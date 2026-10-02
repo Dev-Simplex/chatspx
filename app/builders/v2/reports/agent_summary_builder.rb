@@ -11,8 +11,18 @@ class V2::Reports::AgentSummaryBuilder < V2::Reports::BaseSummaryBuilder
   attr_reader :conversations_count, :resolved_count,
               :avg_resolution_time, :avg_first_response_time, :avg_first_response_time_after_assignment, :avg_reply_time
 
+  def load_data
+    super
+    # Resolvidas pertencem à mesma coorte de conversas, não aos eventos do período.
+    @resolved_count = conversations_scope.where(status: :resolved).group(:assignee_id).count
+  end
+
   def fetch_conversations_count
-    with_inbox_filter(account.conversations.where(created_at: range)).group('assignee_id').count
+    conversations_scope.group(:assignee_id).count
+  end
+
+  def conversations_scope
+    with_inbox_filter(account.conversations.where(created_at: range))
   end
 
   def prepare_report

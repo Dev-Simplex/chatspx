@@ -8,6 +8,14 @@ module Enterprise::SearchService
       where_conditions[:inbox_id] = accessable_inbox_ids unless should_skip_inbox_filtering?
     end
 
+    # EA-01: o corte por transferência não tem como ser expresso por par (conversa, instante) no
+    # Elasticsearch, então aqui a conversa cortada sai INTEIRA da busca para quem a recebeu por
+    # pedido. É mais restritivo do que a regra pede, e é o lado seguro: o contrário devolveria o
+    # histórico que a tela esconde. Hoje este caminho está morto nesta frota (sem ES e com a
+    # flag advanced_search desligada); fica fechado para o dia em que ligarem.
+    cortadas = Conversations::HandoverCut.cuts_for(current_user, current_account).keys
+    where_conditions[:conversation_id] = { not: cortadas } if cortadas.any? && where_conditions[:conversation_id].blank?
+
     Message.search(
       search_query,
       fields: %w[content attachments.transcribed_text content_attributes.email.subject],

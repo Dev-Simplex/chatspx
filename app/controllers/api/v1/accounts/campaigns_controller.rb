@@ -39,11 +39,13 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   end
 
   # Inicia/retoma o disparo (dispatch_status: running). O scheduler despacha no pacing.
+  # O motivo de um agendamento que não pôde iniciar (`start_error`) sai daqui: iniciar à mão
+  # é justamente a resposta a ele.
   def start
-    return render json: { error: 'Campanha sem destinatários' }, status: :unprocessable_entity if @campaign.campaign_recipients.empty?
-    return render json: { error: 'Defina o template do disparo' }, status: :unprocessable_entity if @campaign.template_name.blank?
+    blocker = @campaign.dispatch_start_blocker
+    return render json: { error: blocker }, status: :unprocessable_entity if blocker
 
-    @campaign.dispatch_running!
+    @campaign.update!(dispatch_status: :running, dispatch_config: @campaign.dispatch_config.except('start_error'))
     render json: dispatch_state
   end
 
@@ -54,7 +56,11 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   end
 
   def create
-    @campaign = Current.account.campaigns.create!(campaign_params)
+    @campaign = Current.account.campaigns.new(campaign_params)
+    # Disparo WhatsApp com horário nasce agendado: o DispatchSchedulerJob o inicia quando a
+    # hora chega. Sem horário fica em rascunho e começa pelo botão Iniciar do detalhe.
+    @campaign.dispatch_status = :scheduled if @campaign.inbox&.inbox_type == 'Whatsapp' && campaign_params[:scheduled_at].present?
+    @campaign.save!
   end
 
   def update

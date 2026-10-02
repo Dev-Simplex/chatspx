@@ -32,6 +32,7 @@ module Whatsapp
 
     def perform
       return skip('inbox não é WhatsApp — HSM não existe neste canal') unless whatsapp_inbox?
+      return skip('caixa somente leitura (CHAT-155)') if conversation.inbox.read_only?
 
       Messages::MessageBuilder.new(nil, conversation, message_params.with_indifferent_access).perform
     end

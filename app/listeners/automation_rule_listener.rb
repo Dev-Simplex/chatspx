@@ -438,8 +438,26 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # send_interactive) ou, sem ele, do próprio content (resposta digitada) — assim o wait_for_reply
   # casa tanto a escolha de opção quanto o texto livre.
   def reply_from_message(message)
-    selected = message.content_attributes&.dig('selected_option')
+    selected = message.content_attributes&.dig('selected_option') || opcao_votada_na_enquete(message)
     { id: selected&.dig('id') || message.content, title: selected&.dig('title') || message.content }
+  end
+
+  # Na WAHA o menu do flow vira uma ENQUETE nativa, cujas opções são só textos: o `value` da opção
+  # se perde no envio e o voto volta com o TÍTULO em `content`. Como a aresta do flow é rotulada
+  # com o `value`, sem esta tradução toda escolha caía no ramo de fallback. A mensagem-poll
+  # original guarda os `items` com `title` e `value`, e o voto aponta para ela.
+  def opcao_votada_na_enquete(message)
+    item = item_votado(message)
+    { 'id' => item['value'], 'title' => item['title'] } if item&.dig('value').present?
+  end
+
+  # O item original (title + value) que casa com o texto do voto.
+  def item_votado(message)
+    poll_id = message.content_attributes&.dig('poll_vote', 'poll_message_id')
+    return if poll_id.blank?
+
+    itens = Message.find_by(id: poll_id)&.content_attributes&.dig('items')
+    Array(itens).find { |i| i['title'].to_s.strip == message.content.to_s.strip }
   end
 
   # Detecta e processa um opt-out numa mensagem INCOMING de contato. Ao casar, registra a
@@ -483,7 +501,9 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
                     ev: event_name)
              .pluck(:id)
     end
-    Flow.where(id: flow_ids)
+    # `.active` de novo aqui: o cache guarda IDS por 2 min, entao sem esta checagem desativar um
+    # flow (o botao de panico) so tinha efeito depois que o cache expirasse.
+    Flow.where(id: flow_ids).active
   end
 
   # Mesmo padrão de cache (2 min) dos flows por-evento — evita a query por mensagem. A lista
@@ -493,7 +513,9 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     flow_ids = Rails.cache.fetch(cache_key, expires_in: 2.minutes) do
       account.flows.active.keyword.pluck(:id)
     end
-    Flow.where(id: flow_ids)
+    # `.active` de novo aqui: o cache guarda IDS por 2 min, entao sem esta checagem desativar um
+    # flow (o botao de panico) so tinha efeito depois que o cache expirasse.
+    Flow.where(id: flow_ids).active
   end
 
   # Casa o conteúdo da mensagem com as keywords do trigger_config, case- e acento-insensitive

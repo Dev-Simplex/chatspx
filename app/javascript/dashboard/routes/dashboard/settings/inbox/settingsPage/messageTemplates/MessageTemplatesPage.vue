@@ -9,6 +9,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
 import TemplateBuilder from './TemplateBuilder.vue';
 import TemplateWhatsappPreview from './TemplateWhatsappPreview.vue';
 
@@ -27,6 +28,9 @@ const selectedTemplate = ref(null);
 const deleteDialogRef = ref(null);
 const isDeleting = ref(false);
 const previewTemplate = ref(null);
+const mediaUploadEnabled = ref(false);
+const appId = ref(props.inbox.additional_attributes?.whatsapp_app_id || '');
+const savedAppId = ref(appId.value);
 
 const inboxId = computed(() => Number(props.inbox.id));
 
@@ -34,16 +38,28 @@ const allowedNames = ref([
   ...(props.inbox.additional_attributes?.allowed_template_names || []),
 ]);
 const savedNames = ref([...allowedNames.value]);
+// Templates cujo VALOR das variaveis nao pode ser visto por quem atende (codigo de
+// autenticacao, link de assinatura). Anda no mesmo salvamento da visibilidade porque as
+// duas escolhas sao da mesma tela e do mesmo objeto.
+const secretNames = ref([
+  ...(props.inbox.additional_attributes?.secret_template_names || []),
+]);
+const savedSecretNames = ref([...secretNames.value]);
 const isSavingVisibility = ref(false);
 
-const isVisibilityDirty = computed(() => {
-  const current = [...allowedNames.value].sort();
-  const saved = [...savedNames.value].sort();
-  return (
-    current.length !== saved.length ||
-    current.some((name, i) => name !== saved[i])
-  );
-});
+const listsDiffer = (a, b) => {
+  const um = [...a].sort();
+  const outro = [...b].sort();
+  return um.length !== outro.length || um.some((name, i) => name !== outro[i]);
+};
+
+const isAppIdDirty = computed(() => appId.value.trim() !== savedAppId.value);
+
+const isVisibilityDirty = computed(
+  () =>
+    listsDiffer(allowedNames.value, savedNames.value) ||
+    listsDiffer(secretNames.value, savedSecretNames.value)
+);
 
 const isVisible = name => allowedNames.value.includes(name);
 
@@ -51,6 +67,14 @@ const toggleVisible = name => {
   allowedNames.value = allowedNames.value.includes(name)
     ? allowedNames.value.filter(n => n !== name)
     : [...allowedNames.value, name];
+};
+
+const isSecret = name => secretNames.value.includes(name);
+
+const toggleSecret = name => {
+  secretNames.value = secretNames.value.includes(name)
+    ? secretNames.value.filter(n => n !== name)
+    : [...secretNames.value, name];
 };
 
 const saveVisibility = async () => {
@@ -62,9 +86,15 @@ const saveVisibility = async () => {
       additional_attributes: {
         ...(props.inbox.additional_attributes || {}),
         allowed_template_names: allowedNames.value,
+        secret_template_names: secretNames.value,
+        whatsapp_app_id: appId.value.trim(),
       },
     });
     savedNames.value = [...allowedNames.value];
+    savedSecretNames.value = [...secretNames.value];
+    savedAppId.value = appId.value.trim();
+    // o app id decide se o cabeçalho de mídia fica disponível no construtor
+    await fetchTemplates();
     useAlert(t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE_SUCCESS'));
   } catch (error) {
     useAlert(t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE_ERROR'));
@@ -78,8 +108,12 @@ const fetchTemplates = async () => {
   try {
     const { data } = await InboxesAPI.getMessageTemplates(inboxId.value);
     templates.value = data.templates || [];
+    mediaUploadEnabled.value = Boolean(data.media_upload_enabled);
   } catch (error) {
-    useAlert(error?.response?.data?.error || t('WHATSAPP_TEMPLATES_MGMT.LIST.LOAD_ERROR'));
+    useAlert(
+      error?.response?.data?.error ||
+        t('WHATSAPP_TEMPLATES_MGMT.LIST.LOAD_ERROR')
+    );
   } finally {
     isLoading.value = false;
   }
@@ -92,7 +126,10 @@ const syncTemplates = async () => {
     useAlert(t('WHATSAPP_TEMPLATES_MGMT.LIST.SYNC_SUCCESS'));
     await fetchTemplates();
   } catch (error) {
-    useAlert(error?.response?.data?.error || t('WHATSAPP_TEMPLATES_MGMT.LIST.SYNC_ERROR'));
+    useAlert(
+      error?.response?.data?.error ||
+        t('WHATSAPP_TEMPLATES_MGMT.LIST.SYNC_ERROR')
+    );
   } finally {
     isSyncing.value = false;
   }
@@ -132,16 +169,36 @@ const confirmDelete = async () => {
   if (!selectedTemplate.value) return;
   isDeleting.value = true;
   try {
-    await InboxesAPI.deleteMessageTemplate(inboxId.value, selectedTemplate.value.name);
+    await InboxesAPI.deleteMessageTemplate(
+      inboxId.value,
+      selectedTemplate.value.name
+    );
     useAlert(t('WHATSAPP_TEMPLATES_MGMT.DELETE.SUCCESS'));
     deleteDialogRef.value.close();
     await fetchTemplates();
   } catch (error) {
-    useAlert(error?.response?.data?.error || t('WHATSAPP_TEMPLATES_MGMT.DELETE.ERROR'));
+    useAlert(
+      error?.response?.data?.error || t('WHATSAPP_TEMPLATES_MGMT.DELETE.ERROR')
+    );
   } finally {
     isDeleting.value = false;
     selectedTemplate.value = null;
   }
+};
+
+// A Meta devolve 'NONE' em template aprovado; só há motivo quando de fato recusou.
+const rejectionReason = template => {
+  const reason = template.rejected_reason;
+  if (!reason || reason === 'NONE') return '';
+  return reason;
+};
+
+// Categoria pedida diferente da aprovada: a Meta reclassificou. UTILITY virando
+// MARKETING é o caso comum, e custa mais caro por mensagem.
+const downgradedFrom = template => {
+  const previous = template.previous_category;
+  if (!previous || previous === template.category) return '';
+  return previous;
 };
 
 const onCreated = async () => {
@@ -158,6 +215,7 @@ onMounted(fetchTemplates);
     <TemplateBuilder
       v-if="view === 'builder'"
       :inbox-id="inboxId"
+      :media-upload-enabled="mediaUploadEnabled"
       @created="onCreated"
       @cancel="view = 'list'"
     />
@@ -175,7 +233,7 @@ onMounted(fetchTemplates);
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <Button
-            v-if="isVisibilityDirty"
+            v-if="isVisibilityDirty || isAppIdDirty"
             size="sm"
             icon="i-lucide-check"
             :label="t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE')"
@@ -204,8 +262,20 @@ onMounted(fetchTemplates);
         {{ t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.HINT') }}
       </p>
 
+      <div class="max-w-md">
+        <Input
+          v-model="appId"
+          :label="t('WHATSAPP_TEMPLATES_MGMT.APP_ID.LABEL')"
+          :placeholder="t('WHATSAPP_TEMPLATES_MGMT.APP_ID.PLACEHOLDER')"
+          :message="t('WHATSAPP_TEMPLATES_MGMT.APP_ID.HINT')"
+        />
+      </div>
+
       <!-- Loading -->
-      <div v-if="isLoading" class="flex items-center justify-center py-12 text-n-slate-11">
+      <div
+        v-if="isLoading"
+        class="flex items-center justify-center py-12 text-n-slate-11"
+      >
         <Icon icon="i-lucide-loader-circle" class="size-5 animate-spin" />
       </div>
 
@@ -214,7 +284,10 @@ onMounted(fetchTemplates);
         v-else-if="!templates.length"
         class="flex flex-col items-center justify-center gap-2 py-12 text-center"
       >
-        <Icon icon="i-lucide-message-square-dashed" class="size-8 text-n-slate-9" />
+        <Icon
+          icon="i-lucide-message-square-dashed"
+          class="size-8 text-n-slate-9"
+        />
         <p class="mb-0 text-sm text-n-slate-11">
           {{ t('WHATSAPP_TEMPLATES_MGMT.LIST.EMPTY') }}
         </p>
@@ -225,11 +298,26 @@ onMounted(fetchTemplates);
         <table class="w-full text-sm min-w-[36rem]">
           <thead class="bg-n-solid-2 text-n-slate-11">
             <tr>
-              <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_NAME') }}</th>
-              <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_STATUS') }}</th>
-              <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_CATEGORY') }}</th>
-              <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_LANGUAGE') }}</th>
-              <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.COL') }}</th>
+              <th class="px-4 py-2.5 font-medium text-start">
+                {{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_NAME') }}
+              </th>
+              <th class="px-4 py-2.5 font-medium text-start">
+                {{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_STATUS') }}
+              </th>
+              <th class="px-4 py-2.5 font-medium text-start">
+                {{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_CATEGORY') }}
+              </th>
+              <th class="px-4 py-2.5 font-medium text-start">
+                {{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_LANGUAGE') }}
+              </th>
+              <th class="px-4 py-2.5 font-medium text-start">
+                {{ t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.COL') }}
+              </th>
+              <th class="px-4 py-2.5 font-medium text-start">
+                <span :title="t('WHATSAPP_TEMPLATES_MGMT.SECRET.HELP')">
+                  {{ t('WHATSAPP_TEMPLATES_MGMT.SECRET.COL') }}
+                </span>
+              </th>
               <th class="px-4 py-2.5" />
             </tr>
           </thead>
@@ -241,8 +329,12 @@ onMounted(fetchTemplates);
             >
               <td class="px-4 py-3 align-top">
                 <div class="flex flex-col gap-0.5 min-w-0">
-                  <span class="font-medium text-n-slate-12 break-all">{{ template.name }}</span>
-                  <span class="text-xs text-n-slate-10 line-clamp-2 max-w-md">{{ bodyPreview(template) }}</span>
+                  <span class="font-medium text-n-slate-12 break-all">{{
+                    template.name
+                  }}</span>
+                  <span class="text-xs text-n-slate-10 line-clamp-2 max-w-md">{{
+                    bodyPreview(template)
+                  }}</span>
                 </div>
               </td>
               <td class="px-4 py-3 align-top">
@@ -250,16 +342,46 @@ onMounted(fetchTemplates);
                   class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
                   :class="statusBadgeClass(template)"
                 >
-                  <span class="size-1.5 rounded-full" :class="statusDotClass(template)" />
+                  <span
+                    class="size-1.5 rounded-full"
+                    :class="statusDotClass(template)"
+                  />
                   {{ template.status }}
                 </span>
+                <p
+                  v-if="rejectionReason(template)"
+                  class="mt-1 mb-0 text-xs text-n-ruby-11 max-w-[14rem]"
+                >
+                  {{ rejectionReason(template) }}
+                </p>
               </td>
-              <td class="px-4 py-3 align-top text-n-slate-11">{{ template.category }}</td>
-              <td class="px-4 py-3 align-top text-n-slate-11">{{ template.language }}</td>
+              <td class="px-4 py-3 align-top text-n-slate-11">
+                {{ template.category }}
+                <p
+                  v-if="downgradedFrom(template)"
+                  class="mt-1 mb-0 text-xs text-n-amber-11 max-w-[14rem]"
+                >
+                  {{
+                    t('WHATSAPP_TEMPLATES_MGMT.LIST.RECLASSIFIED', {
+                      previous: downgradedFrom(template),
+                    })
+                  }}
+                </p>
+              </td>
+              <td class="px-4 py-3 align-top text-n-slate-11">
+                {{ template.language }}
+              </td>
               <td class="px-4 py-3 align-top">
                 <Checkbox
                   :model-value="isVisible(template.name)"
                   @change="toggleVisible(template.name)"
+                />
+              </td>
+              <td class="px-4 py-3 align-top">
+                <Checkbox
+                  :model-value="isSecret(template.name)"
+                  :title="t('WHATSAPP_TEMPLATES_MGMT.SECRET.HELP')"
+                  @change="toggleSecret(template.name)"
                 />
               </td>
               <td class="px-4 py-3 align-top text-end">
@@ -301,7 +423,11 @@ onMounted(fetchTemplates);
       ref="deleteDialogRef"
       type="alert"
       :title="t('WHATSAPP_TEMPLATES_MGMT.DELETE.TITLE')"
-      :description="t('WHATSAPP_TEMPLATES_MGMT.DELETE.MESSAGE', { name: selectedTemplate?.name })"
+      :description="
+        t('WHATSAPP_TEMPLATES_MGMT.DELETE.MESSAGE', {
+          name: selectedTemplate?.name,
+        })
+      "
       :confirm-button-label="t('WHATSAPP_TEMPLATES_MGMT.DELETE.CONFIRM')"
       :is-loading="isDeleting"
       @confirm="confirmDelete"

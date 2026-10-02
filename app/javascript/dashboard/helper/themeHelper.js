@@ -18,7 +18,11 @@ const applyTheme = isOSOnDarkMode => {
 
 export const setColorTheme = isOSOnDarkMode => {
   // View Transitions API: cross-fade between theme states (Chrome 111+, Edge 111+)
-  if (typeof document !== 'undefined' && document.startViewTransition) {
+  if (
+    typeof document !== 'undefined' &&
+    document.startViewTransition &&
+    document.visibilityState === 'visible'
+  ) {
     document.startViewTransition(() => applyTheme(isOSOnDarkMode));
     return;
   }

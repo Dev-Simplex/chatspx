@@ -32,6 +32,8 @@ Rails.application.routes.draw do
     namespace :survey do
       resources :responses, only: [:show]
     end
+    # SUG-02: formulario publico de sugestoes (sem login).
+    get 'sugestoes', to: 'suggestions#new'
     resource :slack_uploads, only: [:show]
   end
 
@@ -64,6 +66,8 @@ Rails.application.routes.draw do
           resource :agent_stats, only: [:show]
           resource :distribuicao_dashboard, only: [:show], controller: 'distribuicao_dashboard' do
             get :designacoes
+            get :linha_do_tempo
+            get :leads
           end
 
           # Alias do contrato C1 do briefing (sem o prefixo /captain). A rota
@@ -162,6 +166,9 @@ Rails.application.routes.draw do
           # Campanhas de captação (lead ads / formulário): viewer só-leitura do volume por
           # campanha e da configuração do hook que a atende.
           resource :lead_campaigns, only: [:show, :update], controller: 'lead_campaigns'
+          # Caixa de sugestoes: qualquer membro da conta cria e le as proprias (SUG-01).
+          resources :suggestions, only: [:index, :create]
+
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :stats
@@ -205,11 +212,6 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
-          # Unidades físicas do cliente — contrato em docs/contratos/unidades.md.
-          # Unidade é leitura (a carga é por rake); a escrita é da exceção, que é o que muda
-          # toda semana. Sem `update` na exceção: corrigir é apagar e criar outra.
-          resources :unidades, only: [:index]
-          resources :unidade_excecoes, only: [:index, :create, :destroy]
           # Superficie de rede social — SPEC em docs/SPEC-instagram-social.md.
           # A captura vem do webhook; a leitura e a resposta manual moram aqui.
           resources :social_comentarios, only: [:index] do
@@ -252,6 +254,11 @@ Rails.application.routes.draw do
               # Pendurado aqui p/ herdar `authorize :show?` + authorize_team_access
               # do Conversations::BaseController de graça.
               resources :takeover_requests, only: [:create]
+              # CHAT-155: responder o cliente de uma caixa somente leitura pela caixa de destino.
+              resource :redirect_reply, only: [:create]
+              # C8: mandar produto do catálogo na conversa. Mesmo `scope module: :conversations`,
+              # para herdar as travas de acesso à conversa.
+              resources :catalog_products, only: [:create]
               resources :messages, only: [:index, :create, :destroy, :update] do
                 member do
                   post :translate
@@ -437,7 +444,9 @@ Rails.application.routes.draw do
               post :analyze, on: :collection
             end
 
-            resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates'
+            resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates' do
+              post :upload_media, on: :collection
+            end
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
             collection do
@@ -473,6 +482,32 @@ Rails.application.routes.draw do
           resource :notification_settings, only: [:show, :update]
 
           resources :units, only: [:index, :show, :create, :update, :destroy]
+
+          # Catálogo de produtos (C2, painel). A porta do ERP é outra e vem na C3.
+          namespace :catalog do
+            resources :products, only: [:index, :show, :create, :update, :destroy] do
+              member do
+                delete 'images/:image_id', action: :destroy_image, as: :image
+                post :sync, action: :sync_product
+              end
+              collection do
+                post :sync
+                post :import
+                get 'import/:import_id', action: :import_status, as: :import_status
+              end
+            end
+            resources :categories, only: [:index, :show, :create, :update, :destroy]
+          end
+
+          # Porta do ERP (C3). Caminhos e nomes em português porque é contrato com o sistema do
+          # CLIENTE, e é assim que o documento mestre os publica. A chave é o SKU, não o id:
+          # `constraints` porque SKU com ponto (AB.123) viraria formato na rota.
+          namespace :catalogo do
+            resources :produtos, only: [:index, :create, :update, :destroy],
+                                 param: :sku, constraints: { sku: %r{[^/]+} } do
+              post :lote, on: :collection
+            end
+          end
           resources :teams do
             resources :team_members, only: [:index, :create] do
               collection do
@@ -567,6 +602,13 @@ Rails.application.routes.draw do
             resource :openai, controller: 'openai', only: [] do
               collection do
                 post :test_key
+              end
+            end
+            # Painel do Captador na lateral da conversa (proxy assinado para o Captador).
+            resource :captador, controller: 'captador', only: [] do
+              collection do
+                get :lead
+                post :mover
               end
             end
           end
@@ -765,6 +807,7 @@ Rails.application.routes.draw do
   namespace :public, defaults: { format: 'json' } do
     namespace :api do
       namespace :v1 do
+        resources :suggestions, only: [:create]
         resources :inboxes do
           scope module: :inboxes do
             resources :contacts, only: [:create, :show, :update] do
@@ -789,6 +832,13 @@ Rails.application.routes.draw do
       end
     end
   end
+
+  # Foto pública do produto do catálogo (C9). Fora do namespace autenticado porque quem busca é o
+  # crawler da Meta, que não tem sessão nem token — e o link precisa DURAR, porque a Meta faz cache
+  # dele (o link assinado do ActiveStorage morre em 30 min em produção). O `:id` é o `signed_id` do
+  # produto, sem expiração: `/:account_id/:product_id` cru deixaria o catálogo alheio enumerável.
+  get 'catalogo/fotos/:id', to: 'catalog/public_images#show', as: :catalog_public_image
+  get 'catalogo/fotos/extras/:id', to: 'catalog/public_images#extra', as: :catalog_public_extra_image
 
   get 'hc/:slug', to: 'public/api/v1/portals#show'
   get 'hc/:slug/sitemap.xml', to: 'public/api/v1/portals#sitemap'
@@ -893,6 +943,8 @@ Rails.application.routes.draw do
         delete :avatar, on: :member, action: :destroy_avatar
       end
       resources :platform_apps, only: [:index, :new, :create, :show, :edit, :update, :destroy]
+      # A ordem aqui define a posicao no menu lateral do Super Admin (SUG-01).
+      resources :suggestions, only: [:index, :show, :edit, :update]
       resource :instance_status, only: [:show]
 
       resource :settings, only: [:show] do
@@ -928,6 +980,15 @@ Rails.application.routes.draw do
       post 'test_credential',                   to: 'change_sets#test_credential'
       post 'perform_test',                      to: 'change_sets#perform_test'
       post 'eval_prompt',                       to: 'change_sets#eval_prompt'
+    end
+
+    # Captador (app de Integrações): chamadas assinadas com o segredo do hook da conta. Ver
+    # Spx::Captador::BaseController e docs/contratos/captador.md.
+    namespace :captador do
+      post 'v1/sessoes', to: 'sessoes#create'
+      post 'v1/leads',   to: 'leads#create'
+      get  'v1/catalogo', to: 'catalogo#show'
+      get  'v1/conversas', to: 'conversas#index'
     end
   end
 

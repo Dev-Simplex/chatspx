@@ -1,0 +1,13 @@
+[Unit]
+Description=Restart noturno do SPX (web e workers, nunca a VM)
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Sempre a copia de root em /usr/local/sbin, nunca o script do checkout: ele e do usuario
+# chatwoot, e root executando arquivo que o chatwoot pode editar e escalada de privilegio.
+ExecStart=/usr/local/sbin/chatwoot-restart-noturno.sh
+# O script ja manda cada linha ao journald pelo logger; o stdout e para quem roda a mao.
+StandardOutput=null
+# db:migrate:status sobe o Rails e o web leva um tempo para responder; nada disso passa de minutos.
+TimeoutStartSec=15min

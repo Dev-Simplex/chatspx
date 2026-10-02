@@ -1,4 +1,8 @@
 class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController # rubocop:disable Metrics/ClassLength
+  # O gate saiu daqui para um concern: a C8 (mandar produto na conversa) precisa da MESMA régua,
+  # e régua de resposta duplicada é régua que um dia diverge.
+  include ReplyAssignmentGateConcern
+
   before_action :ensure_api_inbox, only: :update, unless: :content_update?
   before_action :enforce_reply_assignment_gate, only: [:create, :share_location, :share_contact]
 
@@ -158,7 +162,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   # then creates an outgoing Message carrying an Attachment of file_type=:contact.
   # The downstream WhatsApp send pipeline (WAHA Channel::Api) is responsible
   # for shipping the vCard to the recipient.
-  def share_contact # rubocop:disable Metrics/MethodLength
+  def share_contact
     source = share_contact_params[:source].to_s
     return render_could_not_create_error('Invalid source') unless %w[agent contact manual].include?(source)
 
@@ -169,25 +173,9 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
     user = Current.user || @resource
 
-    @message = ActiveRecord::Base.transaction do
-      msg = @conversation.messages.create!(
-        account_id: @conversation.account_id,
-        inbox_id: @conversation.inbox_id,
-        message_type: :outgoing,
-        content: "#{name} — #{phone}",
-        sender: user,
-        additional_attributes: { contact: { name: name, phone: phone, source: source, ref: contact_ref }.compact }
-      )
-
-      msg.attachments.create!(
-        account_id: @conversation.account_id,
-        file_type: :contact,
-        fallback_title: phone,
-        meta: { firstName: name, lastName: '' }
-      )
-
-      msg
-    end
+    @message = Messages::ContactCardBuilder.new(
+      conversation: @conversation, sender: user, contact: { name: name, phone: phone, source: source, ref: contact_ref }
+    ).perform
 
     render partial: 'api/v1/models/message', formats: [:json], locals: { message: @message }
   rescue ActiveRecord::RecordInvalid, ArgumentError => e
@@ -233,37 +221,6 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   # D1 (D-4): com o "Modo atribuição obrigatória" ligado, só o assignee responde.
-  # Controller-level de propósito: macros/campanhas/scheduled/IA criam Message via
-  # jobs e nunca passam aqui; private_chat tem controller próprio (fora do gate).
-  def enforce_reply_assignment_gate
-    return unless Current.account.reply_assignment_gate_enabled? # helper da Fase C (C-F0)
-
-    user = Current.user || @resource
-    return unless user.is_a?(User)                       # bot-token (AgentBot) e nil ficam fora
-    return if params[:private].to_s == 'true'            # nota privada — padrão do fork (:264)
-    return if params[:source_id].present?                # echo do app WAHA externo (User real id=1)
-    return if params[:message_type].to_s == 'incoming'   # incoming via API não é resposta de agente
-    return if @conversation.assignee_id == user.id
-
-    render_assignment_required
-  end
-
-  def render_assignment_required
-    assignee = @conversation.assigned_entity              # assignee_agent_bot || assignee (Fase A)
-    render json: {
-      error: I18n.t('conversations.reply_assignment_gate.assignment_required'),
-      error_code: 'assignment_required',
-      meta: {
-        current_assignee: assignee && {
-          id: assignee.id,
-          name: assignee.try(:available_name) || assignee.name,
-          type: @conversation.assignee_type               # 'AgentBot' | 'User' | nil
-        },
-        team: @conversation.team && { id: @conversation.team.id, name: @conversation.team.name }
-      }
-    }, status: :unprocessable_entity
-  end
-
   def permitted_params
     params.permit(:id, :target_language, :status, :external_error, :content)
   end

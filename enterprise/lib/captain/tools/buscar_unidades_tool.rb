@@ -12,11 +12,16 @@
 class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   description 'Consulta as unidades físicas desta empresa: nome, cidade, endereço, telefone e se ' \
               'abre na data que a pessoa pediu, já com feriado e exceção de calendário aplicados. ' \
-              'A conta de calendário é feita aqui dentro — repasse a expressão de tempo do jeito ' \
-              'que a pessoa escreveu, sem converter em data você mesmo. Quando a pessoa tiver ' \
-              'enviado a localização dela nesta conversa, o retorno traz a distância até cada ' \
+              'Traz também as REGRAS PRÓPRIAS que o time cadastrou nesta unidade — as condições de ' \
+              'atendimento que valem no local e que você não tem como saber de cabeça — e os ' \
+              'EVENTOS e períodos especiais em curso ou marcados para os próximos dias. Chame ' \
+              'sempre que a pergunta for sobre como a unidade atende, sobre alguma condição do ' \
+              'local ou sobre algo acontecendo lá, mesmo que a pessoa não fale de horário nem de ' \
+              'endereço. A conta de calendário é feita aqui dentro — repasse a expressão de tempo ' \
+              'do jeito que a pessoa escreveu, sem converter em data você mesmo. Quando a pessoa ' \
+              'tiver enviado a localização dela nesta conversa, o retorno traz a distância até cada ' \
               'unidade e qual é a mais próxima, já calculadas. Use SÓ o que vier no retorno: ' \
-              'endereço, telefone, horário e distância que não estiverem aqui não existem.'
+              'endereço, telefone, horário, regra e evento que não estiverem aqui não existem.'
 
   param :cidade, type: 'string',
                  desc: 'O município que a pessoa citou nesta conversa. Vazio lista todas as unidades.',
@@ -43,7 +48,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   # Gate multi-tenant. O rescue não é cargo cult: a migration é aplicada com alvo, VM a VM, e sem
   # ele montar o agente numa box ainda não migrada derrubaria o atendimento da frota inteira.
   def active?
-    ::Spx::Unidade.ativas.exists?(account_id: @assistant.account_id)
+    ::Unit.ativas.exists?(account_id: @assistant.account_id)
   rescue StandardError => e
     Rails.logger.warn("[BuscarUnidades] active? indisponível: #{e.class} #{e.message}")
     false
@@ -66,8 +71,8 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   private
 
   def unidades_ativas
-    ::Spx::Unidade.ativas.where(account_id: @assistant.account_id)
-                  .includes(:horarios).order(:cidade, :nome).to_a
+    ::Unit.ativas.where(account_id: @assistant.account_id)
+          .includes(:working_hours).order(:city, :name).to_a
   end
 
   # Compara sem acento e sem caixa, e aceita continência nos dois sentidos porque a pessoa tanto
@@ -75,17 +80,17 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   # de tamanho existe pra continência não virar curinga: com uma ou duas letras ela casaria com
   # quase toda cidade, e a lista devolvida deixaria de significar alguma coisa.
   def filtrar_por_cidade(unidades, cidade)
-    alvo = ::Spx::Unidade.normalizar(cidade)
+    alvo = ::Unit.normalizar(cidade)
     return unidades if alvo.blank?
 
-    exatas = unidades.select { |unidade| ::Spx::Unidade.normalizar(unidade.cidade) == alvo }
+    exatas = unidades.select { |unidade| ::Unit.normalizar(unidade.cidade) == alvo }
     return exatas if exatas.any? || alvo.length < MINIMO_CONTINENCIA
 
     unidades.select { |unidade| contem_cidade?(unidade, alvo) }
   end
 
   def contem_cidade?(unidade, alvo)
-    nome = ::Spx::Unidade.normalizar(unidade.cidade)
+    nome = ::Unit.normalizar(unidade.cidade)
     nome.present? && (nome.include?(alvo) || alvo.include?(nome))
   end
 
@@ -122,12 +127,12 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
      *mostradas.map { |unidade| bloco(unidade, momentos[unidade], excecoes) }].compact.join("\n\n")
   end
 
-  def excecoes_das(momentos)
-    datas = momentos.flat_map(&:datas).uniq
-    return [] if datas.empty?
-
-    ::Spx::UnidadeExcecao.where(account_id: @assistant.account_id)
-                         .vigentes_entre(datas.min, datas.max).to_a
+  # Carregadas SEMPRE, e não só quando a pessoa pediu uma data. A versão anterior saía com lista
+  # vazia sem data pedida — e aí um evento marcado para depois de amanhã só existia para o agente
+  # se o cliente por acaso perguntasse pelo dia exato. É uma consulta por chamada, para a conta
+  # inteira; o custo não muda com a guarda.
+  def excecoes_das(_momentos)
+    ::UnitException.joins(:unit).where(units: { account_id: @assistant.account_id }).to_a
   end
 
   # Corte de lista nunca é silencioso: quem lê precisa saber que existe unidade fora do que veio.
@@ -151,9 +156,11 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   def bloco(unidade, momento, excecoes)
     linhas = ["#{unidade.nome}#{local(unidade)}"]
     linhas << "Endereço: #{unidade.endereco}" if unidade.endereco.present?
-    linhas << "Telefone: #{unidade.telefone}" if unidade.telefone.present?
+    # Decisão de 29/09: com a enviar_contato_unidade armada, o número não passa pela IA.
+    linhas << ::Captain::Tools::EnviarContatoUnidadeTool.linha_de_telefone(unidade, @assistant)
     linhas << @perto.linha_de_distancia(unidade)
     linhas.concat(atributos(unidade))
+    linhas.concat(::Spx::UnidadeEventos.new(unidade, excecoes).linhas)
     linhas.concat(agenda(unidade, momento, excecoes))
     linhas.compact.join("\n")
   end
@@ -225,7 +232,7 @@ class Captain::Tools::BuscarUnidadesTool < Captain::Tools::BasePublicTool
   end
 
   def agrupar_semana(unidade)
-    ::Spx::Unidade::ORDEM_LEITURA.each_with_object([]) do |wday, acc|
+    ::UnitAtendimento::ORDEM_LEITURA.each_with_object([]) do |wday, acc|
       texto = texto_do_dia(unidade, wday)
       if acc.last && acc.last[:texto] == texto
         acc.last[:dias] << wday

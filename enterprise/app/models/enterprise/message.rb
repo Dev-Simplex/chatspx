@@ -4,7 +4,7 @@ module Enterprise::Message
   def mark_pending_conversation_as_open_for_human_response
     return unless captain_pending_conversation?
     return unless human_response?
-    return if private?
+    return unless reached_customer?
     return if template_bootstrap_message?
 
     previous_user = Current.user
@@ -37,14 +37,19 @@ module Enterprise::Message
   # podendo mandar várias em sequência.
   def release_captain_mirror_after_human_reply
     return unless human_response?
-    return if private?
+    return unless reached_customer? # inclui a resposta dada pelo celular numa caixa WAHA
     return if template_bootstrap_message?
 
     mirror = conversation.assignee_agent_bot
     return unless mirror&.captain?
 
     conversation.captain_release_reason = 'human_reply' # E4: motivo para o watcher de auditoria
-    conversation.update!(assignee_agent_bot_id: nil) # IA solta a conversa
+    # CHAT-172: sem a marca a conversa fica com cara de órfã e a próxima mensagem do cliente devolve
+    # a conversa à IA de triagem (D-12), que volta a falar por cima de quem está atendendo.
+    conversation.update!(assignee_agent_bot_id: nil, # IA solta a conversa
+                         additional_attributes: (conversation.additional_attributes || {}).merge(
+                           Conversation::HUMAN_REPLIED_KEY => Time.current.iso8601
+                         ))
   end
 
   # Fila "Aguardando encerramento": o cliente voltou a falar, então a conversa sai da fila.

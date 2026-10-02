@@ -21,6 +21,9 @@ module Spx
     class RepasseService
       Result = Struct.new(:repassou, :destino, :motivo, keyword_init: true)
 
+      # Quem falou com o cliente nesse intervalo está esperando o cliente, não parado.
+      JANELA_ATENDIMENTO = 7.days
+
       def initialize(log)
         @log = log
       end
@@ -56,8 +59,10 @@ module Spx
       # deixá-la aberta manteria um lead fantasma na conta de "parados" do gestor para sempre.
       ENCERRAM = %w[conversa_sumiu ja_engajada].freeze
 
+      # Lead engajado fecha como `assumido`: `expirado` carimbaria no histórico da roleta que o
+      # vendedor deixou vencer um lead que ele atendeu.
       def desfecho_sem_repasse(motivo)
-        expirar! if ENCERRAM.include?(motivo)
+        expirar!(motivo == 'ja_engajada' ? 'assumido' : 'expirado') if ENCERRAM.include?(motivo)
         nada(motivo)
       end
 
@@ -68,12 +73,15 @@ module Spx
       # A transição É a trava: `update_all` com o status no WHERE devolve 0 quando outra
       # execução já venceu a corrida. Devolve true só para quem de fato virou a linha — é o que
       # garante que o mesmo lead não seja repassado duas vezes se o job rodar em duplicata.
-      def expirar!
+      def expirar!(status = 'expirado')
         alterados = Log.where(id: @log.id, status: 'designado')
-                       .update_all(status: 'expirado', encerrado_em: Time.current) # rubocop:disable Rails/SkipsModelValidations
+                       .update_all(status: status, encerrado_em: Time.current) # rubocop:disable Rails/SkipsModelValidations
         return false if alterados.zero?
 
         @log.reload
+        # O `update_all` pula o after_commit do Log: sem isto a aba 'Rodízio' seguiria mostrando
+        # a designação fechada quando não há repasse nem escalação (ja_engajada, sem_destino).
+        @log.avisar_lista
         true
       end
 
@@ -83,12 +91,19 @@ module Spx
       # lidos por ninguém em vendas: o gerente configurava o expediente, funcionava na locação e
       # não funcionava aqui, sem nada indicar.
       #
-      # `sem_agenda: :parede` PRESERVA o comportamento de vendas que está em produção desde
-      # 19/08 (sem expediente configurado, o prazo corre no relógio de parede). O default do
-      # JanelaService é `:nao_vence`, e adotá-lo aqui desligaria o repasse EM SILÊNCIO em todo
-      # time que ainda não configurou expediente — a correção apagaria o que veio consertar.
+      # `sem_agenda: :parede` PRESERVA o comportamento de vendas (modo `designacao`) que está em
+      # produção desde 19/08: sem expediente configurado, o prazo corre no relógio de parede.
+      # Adotar o default do JanelaService lá desligaria o repasse EM SILÊNCIO em todo time de
+      # vendas que ainda não configurou expediente — a correção apagaria o que veio consertar.
+      #
+      # No modo `assignee` (locação) vale o fail-closed `:nao_vence`, que é o que o RepasseJob já
+      # aplica a esse mesmo modo. Era essa garantia que o caminho do VarrerSlaJob furava: sem
+      # expediente conhecido, o lead era repassado às 3h da manhã ou no domingo e circulava pelo
+      # pool inteiro antes de alguém abrir o expediente. A tela do time já avisa quando não há
+      # expediente conhecido (`JanelaService#horario_definido?`), então o silêncio é anunciado.
       def vencido?(conversation)
-        JanelaService.new(policy: @policy, inbox: conversation.inbox, sem_agenda: :parede)
+        JanelaService.new(policy: @policy, inbox: conversation.inbox,
+                          sem_agenda: @policy.designacao? ? :parede : :nao_vence)
                      .vencido?(@log.designado_em, @policy.sla_assumir_minutos)
       end
 
@@ -97,15 +112,28 @@ module Spx
       # teria fechado a linha — isto é a rede de segurança para a janela entre as duas coisas.
       def engajada?(conversation)
         return true if conversation.resolved?
-        return true if resposta_humana_apos_designacao?(conversation)
+        return true if resposta_humana_apos_designacao?(conversation) || escolhido_ja_atendia?(conversation)
 
         conversation.assignee_id.present? && conversation.assignee_id != @log.chosen_user_id
       end
 
       def resposta_humana_apos_designacao?(conversation)
-        conversation.messages
-                    .where(message_type: :outgoing, private: false, sender_type: 'User')
-                    .exists?(['messages.created_at > ?', @log.designado_em])
+        respostas_humanas(conversation).exists?(['messages.created_at > ?', @log.designado_em])
+      end
+
+      # Só contar resposta DEPOIS da designação tirava o lead de quem já atendia. Catatau, 16/09:
+      # conv 194, o Adrian tinha 3 respostas, recebeu a designação às 10h11, abriu na hora, e às
+      # 10h45 o lead foi para a Larissa porque o cliente não escreveu de novo e ele não tinha o
+      # que responder. É o "clica para ver e já foi para outro" dos vendedores.
+      def escolhido_ja_atendia?(conversation)
+        respostas_humanas(conversation).where(sender_id: @log.chosen_user_id)
+                                       .exists?(['messages.created_at > ?', JANELA_ATENDIMENTO.ago])
+      end
+
+      # `all_messages`: em caixa com isolamento por time (a da Catatau tem) o `messages` vem
+      # filtrado pelo time atual, e a resposta dada antes de uma troca de time sumiria daqui.
+      def respostas_humanas(conversation)
+        conversation.all_messages.where(message_type: :outgoing, private: false, sender_type: 'User')
       end
 
       def repassar(conversation)

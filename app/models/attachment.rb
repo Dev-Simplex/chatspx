@@ -217,7 +217,9 @@ class Attachment < ApplicationRecord
   # WAHA per-category size net. No-op for every other channel (do-no-harm) and
   # for mimes without a known category.
   def validate_waha_category_size(byte_size, content_type)
-    return unless message&.inbox&.channel_type == 'Channel::Api'
+    # N-02: o que ja passou pelo WhatsApp nao e barrado — antes, o video do cliente acima de 16 MB voltava
+    # 422 para a ponte e sumia, legenda junto (desde 18/06, zero video > 16 MB entrou em caixa WAHA).
+    return unless message&.inbox&.channel_type == 'Channel::Api' && !message.already_through_whatsapp?
 
     category = waha_category_from_mime(content_type)
     limit_mb = WAHA_MAX_SIZE_BY_CATEGORY_MB[category]
@@ -238,6 +240,9 @@ class Attachment < ApplicationRecord
   # min(configured limit, hard 100MB ceiling). A smaller configured limit
   # (e.g. SMS-tuned installs) is still respected; larger/unset is capped at 100.
   def max_upload_size_mb
+    # O limite configurado e para o que o atendente SOBE; o que ja passou pelo WhatsApp so tem o teto rigido.
+    return HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB if message&.already_through_whatsapp?
+
     limit_mb = GlobalConfigService.load('MAXIMUM_FILE_UPLOAD_SIZE', 40).to_i
     limit_mb = 40 if limit_mb <= 0
 

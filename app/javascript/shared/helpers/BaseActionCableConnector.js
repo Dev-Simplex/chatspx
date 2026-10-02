@@ -1,5 +1,4 @@
 import { createConsumer } from '@rails/actioncable';
-import WindowVisibilityHelper from 'dashboard/helper/AudioAlerts/WindowVisibilityHelper';
 
 const PRESENCE_INTERVAL = 20000;
 const PRESENCE_JITTER = 5000;
@@ -86,6 +85,13 @@ class BaseActionCableConnector {
     // brigar com o visibilityDidChange interno da lib.
     this.handleReturnToForeground = () => {
       if (this.isDestroyed) return;
+      if (
+        typeof window !== 'undefined' &&
+        window.reconnectService &&
+        (window.scrollY > 0 || window.scrollX > 0)
+      ) {
+        window.scrollTo(0, 0);
+      }
       const conn = this.consumer.connection;
       if (conn && !conn.isOpen()) conn.reopen();
       this.reconnectAttempts = 0;
@@ -94,7 +100,9 @@ class BaseActionCableConnector {
       // Gap-fill (Método D): recupera o que passou enquanto a aba esteve fora,
       // reusando o refetch por updatedWithin já existente. No-op no widget (não
       // há reconnectService no window).
-      window.reconnectService?.handleRouteSpecificFetch?.();
+      window.reconnectService?.handleRouteSpecificFetch?.({
+        staleSeconds: (Date.now() - this.lastEventReceivedAt) / 1000,
+      });
     };
     this.onVisibilityChange = () => {
       if (
@@ -124,13 +132,14 @@ class BaseActionCableConnector {
     if (this.isDestroyed) return;
     this.staleCheckTimer = setTimeout(() => {
       if (this.isDestroyed) return;
-      const isTabVisible =
-        typeof document === 'undefined' ||
-        WindowVisibilityHelper.isWindowVisible();
+      // O vigia também precisa agir quando a aba aparece em outro monitor sem foco.
+      const isTabVisible = typeof document === 'undefined' || !document.hidden;
       const isStale =
         Date.now() - this.lastEventReceivedAt > STALE_EVENT_THRESHOLD;
       if (isTabVisible && isStale && window.reconnectService) {
-        window.reconnectService.handleRouteSpecificFetch?.();
+        window.reconnectService.handleRouteSpecificFetch?.({
+          staleSeconds: (Date.now() - this.lastEventReceivedAt) / 1000,
+        });
         this.lastEventReceivedAt = Date.now();
       }
       this.triggerStaleCheckInterval();

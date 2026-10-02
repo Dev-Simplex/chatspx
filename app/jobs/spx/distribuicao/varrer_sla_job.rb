@@ -37,8 +37,12 @@ module Spx
       # `designado_em` no relógio de PAREDE com o MENOR sla de todas as políticas: é o limite
       # inferior seguro — nenhuma designação pode ter vencido em horário comercial antes de
       # ter vencido na parede. O RepasseService descarta as que ainda não venceram de fato.
+      #
+      # Limite de IDADE igual ao do RepasseJob: sem ele, ligar o repasse num time com historico de
+      # designacoes abertas (a Tozi, em vendas) despejaria de uma vez os leads de meses atras no pool.
       def candidatas(policies, menor_sla)
         Log.designadas_antes_de(menor_sla.minutes.ago)
+           .where(designado_em: RepasseJob::LOOKBACK.ago..)
            .where(account_id: policies.select(:account_id))
            .order(:designado_em)
            .limit(LOTE)

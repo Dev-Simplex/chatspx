@@ -1,5 +1,5 @@
 <%=
-  CSV.generate_line([
+  CSVSafe.generate_line([
     I18n.t('reports.nps.headers.agent_name', default: 'Agent Name'),
     I18n.t('reports.nps.headers.score', default: 'Score'),
     I18n.t('reports.nps.headers.classification', default: 'Classification'),
@@ -20,7 +20,7 @@
 <% conversation = nps_response.conversation %>
 <% inbox = nps_response.inbox %>
 <%=
-  CSV.generate_line([
+  CSVSafe.generate_line([
     assigned_agent ? "#{assigned_agent.name} (#{assigned_agent.email})" : nil,
     nps_response.score,
     nps_response.classification,
@@ -37,7 +37,7 @@
 -%>
 <% end %>
 <%=
-  CSV.generate_line([
+  CSVSafe.generate_line([
     I18n.t(
       'reports.period',
       since: params[:since].present? ? Date.strptime(params[:since], '%s') : nil,

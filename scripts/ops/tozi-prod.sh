@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════════
-#  ⚠️  TOZI · PRODUÇÃO · 3.82.215.109 (tozi.chatspx.app, conta 6)  ⚠️
+#  ⚠️  TOZI · PRODUÇÃO · 3.94.9.51 (tozi.chatspx.app, conta 6)  ⚠️
 #  CLIENTE REAL. Deploy/restart só com OK EXPLÍCITO do Paulo.
 #  Antes de restart: sempre `rails db:migrate:status` (pendente + restart = 500 em cadeia).
 # ═══════════════════════════════════════════════════════════════════════
@@ -9,9 +9,9 @@
 #   scripts/ops/tozi-prod.sh run "<cmd apos RAILS_ENV=production>"
 #   scripts/ops/tozi-prod.sh ssh "<cmd cru>"
 set -euo pipefail
-printf '\033[1;31m▛▀ ⚠️  TOZI · PRODUÇÃO · 3.82.215.109 (conta 6) — CLIENTE REAL ▀▜\033[0m\n' >&2
+printf '\033[1;31m▛▀ ⚠️  TOZI · PRODUÇÃO · 3.94.9.51 (conta 6) — CLIENTE REAL ▀▜\033[0m\n' >&2
 KEY="${TOZI_PEM:-/c/Users/paulo/Downloads/handoff-tozi/simplex.linux.pem}"
-H=ubuntu@3.82.215.109
+H=ubuntu@3.94.9.51
 chmod 600 "$KEY" 2>/dev/null || true
 case "${1:-}" in
   put) scp -i "$KEY" -o StrictHostKeyChecking=no "$2" "$H:$3" ;;

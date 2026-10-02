@@ -32,13 +32,7 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     { error: "OpenAI request failed (#{e.class})" }
   end
 
-  private
-
-  # Áudio (Whisper) usa uma key OpenAI própria, com fallback pra CAPTAIN_OPEN_AI_API_KEY.
-  def api_key_config_name
-    'AUDIO_OPEN_AI_API_KEY'
-  end
-
+  # Publico: o hook do anexo pergunta antes de escolher qual pipeline transcreve.
   def can_transcribe?
     # Captain v2 ("AI Agents") is the canonical flag; 'captain_integration' is the
     # legacy one (hidden from the super-admin UI). Accounts migrated to v2 can end up
@@ -49,11 +43,22 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     account.usage_limits[:captain][:responses][:current_available].positive?
   end
 
+  private
+
+  # Áudio (Whisper) usa uma key OpenAI própria, com fallback pra CAPTAIN_OPEN_AI_API_KEY.
+  def api_key_config_name
+    'AUDIO_OPEN_AI_API_KEY'
+  end
+
   def fetch_audio_file
     blob = attachment.file.blob
     temp_dir = Rails.root.join('tmp/uploads/audio-transcriptions')
     FileUtils.mkdir_p(temp_dir)
-    temp_file_name = "#{blob.key}-#{blob.filename}"
+    # Sufixo unico POR EXECUCAO. O mesmo anexo e enfileirado por dois pontos (o hook de criacao
+    # do anexo e o builder de historico do Captain), e com nome deterministico os dois jobs
+    # escreviam no MESMO caminho: o que terminava primeiro apagava o arquivo do outro no
+    # `ensure`, e o vizinho estourava `Errno::ENOENT` no `File.open` do whisper.
+    temp_file_name = "#{blob.key}-#{SecureRandom.hex(8)}-#{blob.filename}"
 
     if blob.filename.extension_without_delimiter.blank?
       extension = extension_from_content_type(blob.content_type)
@@ -117,7 +122,8 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   def update_transcription(transcribed_text)
     return if transcribed_text.blank?
 
-    attachment.update!(meta: { transcribed_text: transcribed_text })
+    # Mescla no banco: o `update!(meta: {...})` substituia o jsonb inteiro e apagava os picos da onda.
+    Attachments::MetaMerge.call(attachment, 'transcribed_text' => transcribed_text)
     message.reload.send_update_event
     message.account.increment_response_usage
 

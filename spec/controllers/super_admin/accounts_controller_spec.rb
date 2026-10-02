@@ -55,6 +55,41 @@ RSpec.describe 'Super Admin accounts API', type: :request do
     end
   end
 
+  # N-08: o formulario esconde as features internas e as descontinuadas, e desabilita as premium no
+  # plano community. Campo escondido ou desabilitado nao e enviado — e o salvar zerava esses bits.
+  describe 'PATCH /super_admin/accounts/{account_id}' do
+    before { sign_in(super_admin, scope: :super_admin) }
+
+    it 'mantem ligada a feature que o formulario nao mostra' do
+      account.enable_features!('kanban_ux_v2', 'inbound_emails')
+
+      patch "/super_admin/accounts/#{account.id}",
+            params: { account: { name: account.name }, enabled_features: { feature_inbound_emails: '1' } }
+
+      expect(account.reload.feature_enabled?('kanban_ux_v2')).to be(true)
+      expect(account.feature_enabled?('inbound_emails')).to be(true)
+    end
+
+    it 'desliga o que o formulario mandou desmarcado' do
+      account.enable_features!('inbound_emails', 'kanban_ux_v2')
+
+      patch "/super_admin/accounts/#{account.id}",
+            params: { account: { name: account.name }, enabled_features: { feature_inbound_emails: '0' } }
+
+      expect(account.reload.feature_enabled?('inbound_emails')).to be(false)
+      expect(account.feature_enabled?('kanban_ux_v2')).to be(true)
+    end
+
+    it 'liga o que o formulario mandou marcado' do
+      account.disable_features!('inbound_emails')
+
+      patch "/super_admin/accounts/#{account.id}",
+            params: { account: { name: account.name }, enabled_features: { feature_inbound_emails: '1' } }
+
+      expect(account.reload.feature_enabled?('inbound_emails')).to be(true)
+    end
+  end
+
   describe 'DELETE /super_admin/accounts/{account_id}' do
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do

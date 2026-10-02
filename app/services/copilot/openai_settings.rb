@@ -14,10 +14,57 @@ class Copilot::OpenaiSettings
   WHISPER_COST_PER_MINUTE = 0.006
 
   class << self
+    # A chave da conta manda, e o ENV é o segundo. O terceiro degrau é a chave GLOBAL do
+    # Captain, e ele existe porque sem ele a descrição de mídia morria em silêncio numa
+    # instalação inteira.
+    #
+    # Conv 30328 (Tozi, 08/09): a cliente respondeu a stories e a IA respondeu no escuro —
+    # "vi que você mandou uma imagem" — e depois cutucou cinco vezes. A causa não era o
+    # pipeline de vídeo, que está deployado e funciona (extraí três quadros do story real):
+    # era a chamada de visão voltando 401. E o 401 não era chave ruim, era chave AUSENTE: as
+    # duas chaves de OpenAI que a box tem respondem HTTP 200 quando testadas, mas nenhuma
+    # delas mora nos dois lugares que este método lia. O header saía com "Bearer " vazio.
+    #
+    # `CAPTAIN_OPEN_AI_API_KEY` é a mesma chave que o runner do Captain já usa para todo o
+    # resto do produto nessa instalação, então cair nela não amplia acesso nem cria credencial
+    # nova — só para de procurar num lugar onde ninguém a guarda. Quem quiser isolar o custo
+    # por conta continua podendo, e a chave da conta continua tendo precedência.
     def api_key(account)
       account_key = account&.settings&.dig('openai_api_key').to_s.strip
       env_key = ENV.fetch('OPENAI_API_KEY', nil).to_s.strip
-      account_key.presence || env_key.presence
+      account_key.presence || env_key.presence || captain_global_key(account)
+    end
+
+    # A global do Captain só vale para quem de fato USA o Captain. A justificativa deste degrau
+    # é que ela "é a mesma chave que o runner do Captain já usa nessa instalação" — e essa frase
+    # só é verdadeira onde há agente cadastrado.
+    #
+    # Sem esta guarda, medido na PRODUCAO em 09/09/2026 na hora seguinte ao deploy: as contas 5
+    # e 85, que não têm agente nenhum, passaram a mandar o conteúdo da última mensagem do
+    # CLIENTE para a OpenAI toda vez que um atendente abria uma conversa. A sugestão fantasma
+    # dispara sozinha — watcher em `lastIncomingMessage.id` com `immediate: true` no ReplyBox —,
+    # sem clique e sem flag de feature. Foram 12 chamadas em uma hora, em conta que nunca ligou
+    # IA nenhuma. O custo era irrisório; o problema era o dado saindo.
+    #
+    # A régua é a MESMA do painel de Agentes IA (`has_ai_agents` = `captain_assistants.exists?`)
+    # e NÃO a flag `captain_integration*`: as 10 contas da PRODUCAO têm a flag ligada, então ela
+    # não distingue quem usa de quem não usa.
+    def captain_global_key(account = nil)
+      return nil unless usa_captain?(account)
+
+      InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value.to_s.strip.presence
+    rescue StandardError => e
+      # Config ausente ou banco fora não pode derrubar quem só queria saber se há chave.
+      Rails.logger.warn("[OpenaiSettings] chave global do Captain indisponível: #{e.message}")
+      nil
+    end
+
+    # Conta ausente é contexto de sistema (job sem tenant): ali a global continua valendo.
+    # `respond_to?` porque `captain_assistants` mora no overlay Enterprise e este arquivo é OSS.
+    def usa_captain?(account)
+      return true if account.nil?
+
+      account.respond_to?(:captain_assistants) && account.captain_assistants.exists?
     end
 
     def default_model(account)

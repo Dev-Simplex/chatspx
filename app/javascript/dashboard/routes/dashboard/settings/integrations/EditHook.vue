@@ -42,7 +42,12 @@ export default {
       uiFlags: 'integrations/getUIFlags',
     }),
     formItems() {
-      return this.integration.settings_form_schema || [];
+      const items = this.integration.settings_form_schema || [];
+      if (!this.hook?.settings?.shared_secret_configured) return items;
+
+      return items.map(item =>
+        item.name === 'shared_secret' ? { ...item, validation: '' } : item
+      );
     },
   },
   methods: {
@@ -53,6 +58,13 @@ export default {
       // FormKit form usa string. JSON fields precisam ser stringified pro user editar.
       const formSchema = this.integration?.settings_form_schema || [];
       formSchema.forEach(item => {
+        if (
+          this.integrationId === 'captador' &&
+          item.name === 'shared_secret'
+        ) {
+          values[item.name] = '';
+          return;
+        }
         const raw = settings[item.name];
         if (raw === undefined || raw === null) {
           values[item.name] = '';
@@ -112,6 +124,9 @@ export default {
       :header-title="`${integration.name} — ${$t('INTEGRATION_APPS.EDIT.TITLE')}`"
       :header-content="replaceInstallationName(integration.short_description)"
     />
+    <p v-if="integrationId === 'captador'" class="my-3 text-sm text-n-slate-11">
+      {{ $t('CAPTADOR_HOOK.ROTATION') }}
+    </p>
     <FormKit
       v-model="values"
       type="form"

@@ -7,36 +7,36 @@ const clearMatchingNotification = async (
   { dispatch, rootGetters },
   conversationId
 ) => {
+  if (!rootGetters?.['notifications/getUnreadCount']) return;
   const conversationIdNum = Number(conversationId);
   if (!conversationIdNum) return;
 
-  const notifications = rootGetters['notifications/getNotifications'] || [];
-  const match = notifications.find(
-    n =>
-      !n.read_at &&
-      n.primary_actor_type === 'Conversation' &&
-      Number(n.primary_actor_id) === conversationIdNum
-  );
+  try {
+    let notifications = rootGetters?.['notifications/getNotifications'] || [];
+    const matchesConversation = notification =>
+      notification.primary_actor_type === 'Conversation' &&
+      Number(notification.primary_actor?.id) === conversationIdNum;
+    let match = notifications.find(matchesConversation);
 
-  if (match) {
-    const unreadCount = rootGetters['notifications/getUnreadCount'] || 0;
+    // Routes use display_id; read_all expects the database primary_actor_id.
+    // Check the first page if the notification is not loaded in the store.
+    if (!match) {
+      const { data } = await NotificationsAPI.get({ page: 1 });
+      notifications = data.data.payload;
+      match = notifications.find(matchesConversation);
+    }
+    if (!match || match.read_at) return;
+
     await dispatch(
       'notifications/read',
       {
         id: match.id,
         primaryActorType: match.primary_actor_type,
         primaryActorId: match.primary_actor_id,
-        unreadCount,
+        unreadCount: rootGetters['notifications/getUnreadCount'],
       },
       { root: true }
     );
-    return;
-  }
-
-  // Notifications list not loaded yet — talk to API directly and refresh count
-  try {
-    await NotificationsAPI.read('Conversation', conversationIdNum);
-    await dispatch('notifications/unReadCount', undefined, { root: true });
   } catch (error) {
     // silent — auto-clear is best effort
   }
@@ -65,6 +65,7 @@ const canClearUnreadMarker = (rootGetters, conversationId) => {
 export default {
   // `explicit: true` só vem do botão "marcar como lida". Abrir a conversa nunca manda.
   markMessagesRead: async ({ commit, dispatch, rootGetters }, data) => {
+    clearMatchingNotification({ dispatch, rootGetters }, data.id);
     const explicit = data.explicit === true;
     if (!explicit && !canClearUnreadMarker(rootGetters, data.id)) return;
 
@@ -77,9 +78,10 @@ export default {
           commit(mutationTypes.UPDATE_MESSAGE_UNREAD_COUNT, { id, lastSeen }),
         4000
       );
-      clearMatchingNotification({ dispatch, rootGetters }, data.id);
     } catch (error) {
-      // Handle error
+      // Só o botão "marcar como lida" avisa a pessoa; a leitura automática ao abrir
+      // a conversa continua calada.
+      if (explicit) throw error;
     }
   },
 

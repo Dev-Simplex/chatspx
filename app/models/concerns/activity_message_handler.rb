@@ -68,14 +68,26 @@ module ActivityMessageHandler
   end
 
   def user_status_change_activity_content(user_name)
-    if user_name
-      I18n.t("conversations.activity.status.#{status}", user_name: user_name)
-    elsif Current.contact.present? && resolved?
-      I18n.t('conversations.activity.status.contact_resolved', contact_name: Current.contact.name.capitalize)
-    elsif resolved?
-      message_data = auto_resolve_message_key(auto_resolve_after || 0)
-      I18n.t("conversations.activity.status.#{message_data[:key]}", count: message_data[:count])
+    return I18n.t("conversations.activity.status.#{status}", user_name: user_name) if user_name
+    return unless resolved?
+
+    resolved_without_user_content
+  end
+
+  # Encerrou sem usuário: ou foi o contato, ou foi o encerramento de um disparo sigiloso,
+  # ou foi a auto-resolução por inatividade. A ordem importa: o disparo tem motivo próprio
+  # e não pode herdar o texto da inatividade, que anunciaria "0 minutos de inatividade" sem
+  # nunca ter esperado nada (`auto_resolve_after` é nulo aí).
+  # Ver Whatsapp::SendOnWhatsappService#resolve_conversa_de_disparo.
+  def resolved_without_user_content
+    if Current.contact.present?
+      return I18n.t('conversations.activity.status.contact_resolved',
+                    contact_name: Current.contact.name.capitalize)
     end
+    return I18n.t('conversations.activity.status.secret_dispatch_resolved') if Current.secret_dispatch_resolve
+
+    message_data = auto_resolve_message_key(auto_resolve_after || 0)
+    I18n.t("conversations.activity.status.#{message_data[:key]}", count: message_data[:count])
   end
 
   def automation_status_change_activity_content

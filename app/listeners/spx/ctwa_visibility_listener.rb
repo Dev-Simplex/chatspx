@@ -15,6 +15,9 @@ class Spx::CtwaVisibilityListener < BaseListener
     return if message.nil? || !message.incoming? || message.private?
 
     Whatsapp::ReferralVisibilityService.new(message: message).perform
+    # Carimbar a origem e dar dono sao duas perguntas diferentes ("de onde veio?" x "quem
+    # atende?") e cada service se protege sozinho: a falha de um nao pode calar o outro.
+    Whatsapp::ReferralTeamRoutingService.new(message: message).perform
   rescue StandardError => e
     registrar_falha(event, e)
   end

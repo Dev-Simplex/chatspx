@@ -18,6 +18,7 @@ const { t } = useI18n();
 const {
   filteredCurrentChatAttachments,
   attachments,
+  contentType,
   hasMoreAttachments,
   loadMoreAttachments,
 } = useMessageContext();
@@ -68,7 +69,9 @@ const handleImageError = () => {
 
 <template>
   <BaseBubble
-    class="overflow-hidden p-3"
+    class="overflow-hidden"
+    :transparent="contentType === 'sticker'"
+    :class="contentType === 'sticker' ? 'p-0' : 'p-3'"
     data-bubble-name="image"
     @click="!isUploading && (showGallery = true)"
   >

@@ -25,7 +25,7 @@ class Conversations::FilterService < FilterService
 
   def base_relation
     conversations = @account.conversations.includes(
-      :taggings, :inbox, { assignee: :avatar_attachment }, { contact: :avatar_attachment }, :team, :contact_inbox
+      :taggings, :inbox, { assignee: :avatar_attachment }, { contact: :avatar_attachment }, :team, :contact_inbox, :designacao_rodizio
     )
 
     Conversations::PermissionFilterService.new(

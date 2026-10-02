@@ -31,6 +31,50 @@ describe Whatsapp::IncomingMessageWhatsappCloudService do
       }.with_indifferent_access
     end
 
+    context 'when receiving a reaction' do
+      let(:reaction) { { id: 'reaction-b06', from: '2423423243', type: 'reaction', reaction: { message_id: 'target-b06', emoji: '👍' } } }
+
+      before do
+        params[:entry][0][:changes][0][:value][:messages] = [reaction.with_indifferent_access]
+      end
+
+      it 'persists the existing chip format, links the target and deduplicates delivery' do
+        service = described_class.new(inbox: whatsapp_channel.inbox, params: params)
+        expect { service.perform }.to change { whatsapp_channel.inbox.messages.incoming.count }.by(1)
+        message = whatsapp_channel.inbox.messages.incoming.last
+        expect(message.content).to eq('*Reagiu com* 👍')
+        expect(message.attachments).to be_empty
+        expect(message.source_id).to eq('reaction-b06')
+        expect { described_class.new(inbox: whatsapp_channel.inbox, params: params).perform }.not_to change(Message, :count)
+      end
+
+      it 'anchors the reaction to a message in the same conversation' do
+        params[:entry][0][:changes][0][:value][:messages] = [{ id: 'target-b06', from: '2423423243', type: 'text', text: { body: 'Olá' } }]
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        target = whatsapp_channel.inbox.messages.incoming.last
+        params[:entry][0][:changes][0][:value][:messages] = [reaction.with_indifferent_access]
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        expect(whatsapp_channel.inbox.messages.incoming.last.content_attributes['in_reply_to']).to eq(target.id)
+      end
+
+      it 'does not create an empty chip for reaction removal' do
+        params[:entry][0][:changes][0][:value][:messages][0][:reaction][:emoji] = ''
+        expect { described_class.new(inbox: whatsapp_channel.inbox, params: params).perform }.not_to change(Message, :count)
+      end
+    end
+
+    context 'when receiving a sticker' do
+      it 'preserves the explicit sticker marker in the message payload' do
+        data = params[:entry][0][:changes][0][:value][:messages][0]
+        data[:type] = 'sticker'
+        data[:sticker] = data.delete(:image)
+        stub_media_url_request
+        stub_sample_png_request
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        expect(whatsapp_channel.inbox.messages.incoming.last.content_type).to eq('sticker')
+      end
+    end
+
     context 'when valid attachment message params' do
       it 'creates appropriate conversations, message and contacts' do
         stub_media_url_request
@@ -56,6 +100,20 @@ describe Whatsapp::IncomingMessageWhatsappCloudService do
         expect(whatsapp_channel.inbox.messages.first.content).to eq('Check out my product!')
         expect(whatsapp_channel.inbox.messages.first.attachments.present?).to be false
         expect(whatsapp_channel.authorization_error_count).to eq(1)
+      end
+
+      # O download roda DENTRO da trava por contato (TTL de 30s). Sem teto, um anexo gigante
+      # segurava a trava alem do TTL e dois webhooks do mesmo contato passavam a rodar juntos.
+      it 'caps the media download at the hard upload limit' do
+        stub_media_url_request
+        stub_sample_png_request
+        allow(Down).to receive(:download).and_call_original
+
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+
+        expect(Down).to have_received(:download).with(
+          anything, hash_including(max_size: Attachment::HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB.megabytes)
+        )
       end
     end
 

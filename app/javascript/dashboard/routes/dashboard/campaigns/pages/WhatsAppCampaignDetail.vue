@@ -25,6 +25,13 @@ const settingsDirty = ref(false);
 
 const campaignId = computed(() => props.campaignId || route.params.campaignId);
 
+// Só vale enquanto a campanha está parada por ele: o Iniciar limpa o motivo no backend.
+const startError = computed(() =>
+  data.value?.dispatch_status === 'failed'
+    ? data.value?.campaign?.dispatch_config?.start_error
+    : null
+);
+
 const KNOWN_CODES = ['131026', '130472', '131049', 'outro'];
 // Codigo fora da lista aparecia sozinho, cru, como `131052` — identificador tecnico nao e
 // informacao de atendimento neste produto. Agora ele sempre vem acompanhado de uma frase,
@@ -170,6 +177,19 @@ onBeforeUnmount(stopPolling);
           @changed="fetchStats({ silent: true })"
           @dirty="settingsDirty = $event"
         />
+        <!-- Agendamento que chegou na hora sem o que o Iniciar exige: o scheduler nao
+             dispara e deixa o motivo aqui, em vez de a campanha ficar muda. -->
+        <p
+          v-if="startError"
+          role="alert"
+          class="px-4 py-3 mb-6 text-sm border rounded-xl border-n-ruby-6 bg-n-ruby-2 text-n-ruby-11"
+        >
+          {{
+            t('CAMPAIGN.WHATSAPP.DISPATCH.START_BLOCKED', {
+              reason: startError,
+            })
+          }}
+        </p>
         <DispatchPanel
           class="mb-6"
           :campaign-id="campaignId"

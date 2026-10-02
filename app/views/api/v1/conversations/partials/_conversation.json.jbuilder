@@ -118,8 +118,12 @@ json.additional_attributes conversation.additional_attributes
 json.agent_last_seen_at conversation.agent_last_seen_at.to_i
 json.assignee_last_seen_at conversation.assignee_last_seen_at.to_i
 json.can_reply conversation.can_reply?
+# EA-01: instante a partir do qual ESTE usuário vê a conversa, quando ela chegou a ele por um
+# pedido aprovado. nil para todo mundo mais — a faixa só aparece para quem tem corte.
+json.handover_cut_at Conversations::HandoverCut.cut_at_for(conversation, Current.user)&.to_i
 json.contact_last_seen_at conversation.contact_last_seen_at.to_i
 json.custom_attributes conversation.custom_attributes
+json.rodizio_designado_id conversation.designacao_rodizio&.chosen_user_id
 json.inbox_id conversation.inbox_id
 json.labels conversation.cached_label_list_array
 json.muted conversation.muted?

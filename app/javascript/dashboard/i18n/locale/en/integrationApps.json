@@ -74,8 +74,9 @@
       "BUTTON_TEXT": "Disconnect"
     },
     "SIDEBAR_DESCRIPTION": {
+      "SITE_LEADS": "Site Leads",
       "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details",
-      "META LEAD ADS": "Receive Facebook/Instagram Lead Ads as conversations automatically. When a user submits a Lead Form, {installationName} creates a contact and a conversation in the target inbox. Supports multiple pages (one hook per page). Configure the webhook in Meta for Developers using the callback URL shown in the documentation."
+      "META_LEAD_ADS": "Receive Facebook/Instagram Lead Ads as conversations automatically. When a user submits a Lead Form, {installationName} creates a contact and a conversation in the target inbox. Supports multiple pages (one hook per page). Configure the webhook in Meta for Developers using the callback URL shown in the documentation."
     }
   }
 }

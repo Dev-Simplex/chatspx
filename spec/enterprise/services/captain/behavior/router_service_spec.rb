@@ -167,13 +167,93 @@ RSpec.describe Captain::Behavior::RouterService do
     end
   end
 
-  describe 'guards de negócio mortos (papel assumido pelo gate por atribuição)' do
-    it 'responds even when only_contact_phones whitelist does not match (guard morto)' do
-      assistant.update!(behavior: { 'router' => { 'only_contact_phones' => ['+5511888887777'] } })
+  # Etiquetas que a IA não atende (CHAT-180): configuração da CONTA, vale para qualquer IA dela.
+  describe 'etiquetas sem IA da conta (captain_etiquetas_sem_ia)' do
+    def configurar(*etiquetas)
+      account.update!(custom_attributes: { 'captain_etiquetas_sem_ia' => etiquetas })
+    end
+
+    it 'does not respond when the conversation has a configured label' do
+      configurar('portaria')
+      conversation.update_labels(['portaria'])
+
+      expect(should_respond?).to be false
+    end
+
+    it 'does not respond when the contact has a configured label' do
+      configurar('portaria')
+      contact.update_labels(['portaria'])
+
+      expect(should_respond?).to be false
+    end
+
+    it 'responds when the conversation label is not configured' do
+      configurar('portaria')
+      conversation.update_labels(['atendimento'])
 
       expect(should_respond?).to be true
     end
 
+    it 'responds when the account has no configuration' do
+      conversation.update_labels(['portaria'])
+
+      expect(should_respond?).to be true
+    end
+  end
+
+  # Trava de teste (CHAT-171): com only_contact_phones preenchido, a IA só fala com esses
+  # telefones. O contato do spec é +55 65 99911-1222.
+  describe 'trava de teste (only_contact_phones)' do
+    def travar(*telefones)
+      assistant.update!(behavior: { 'router' => { 'only_contact_phones' => telefones } })
+    end
+
+    it 'does not respond to a contact outside the list' do
+      travar('+5511888887777')
+
+      expect(should_respond?).to be false
+    end
+
+    it 'responds to a contact in the list written the same way' do
+      travar('+5565999111222')
+
+      expect(should_respond?).to be true
+    end
+
+    it 'matches the list entry without the ninth digit' do
+      travar('556599111222')
+
+      expect(should_respond?).to be true
+    end
+
+    it 'matches the list entry without the country code' do
+      travar('(65) 99911-1222')
+
+      expect(should_respond?).to be true
+    end
+
+    it 'matches by the WAHA JID when the contact has no phone number' do
+      contact.update!(phone_number: nil, custom_attributes: { 'waha_whatsapp_jid' => '556599111222@c.us' })
+      travar('+5565999111222')
+
+      expect(should_respond?).to be true
+    end
+
+    it 'does not respond when the contact has no phone at all' do
+      contact.update!(phone_number: nil)
+      travar('+5565999111222')
+
+      expect(should_respond?).to be false
+    end
+
+    it 'keeps responding to everyone when the list is empty' do
+      travar('', nil)
+
+      expect(should_respond?).to be true
+    end
+  end
+
+  describe 'guards de negócio mortos (papel assumido pelo gate por atribuição)' do
     it 'responds even with skip_agent_bot config (bug latente não portado)' do
       assistant.update!(behavior: { 'router' => { 'skip_agent_bot' => true } })
       conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)

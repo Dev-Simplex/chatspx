@@ -34,9 +34,7 @@ class Captain::Tools::TransferirParaAgenteTool < Captain::Tools::BasePublicTool
     bloqueio = guard_transfer(conversation, alvo)
     return bloqueio if bloqueio
 
-    # Lookup direto do espelho (sem mirror_agent_bot/sync!): a transferência não deve
-    # criar espelho — se não existe, o agente não está operacional.
-    mirror = AgentBot.find_by(captain_assistant_id: alvo.id)
+    mirror = available_mirror(conversation, alvo)
     return "O agente #{alvo.name} está indisponível no momento." if mirror.nil?
 
     attrs = transfer_attributes(conversation, alvo, mirror)
@@ -49,6 +47,17 @@ class Captain::Tools::TransferirParaAgenteTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # Lookup direto do espelho (sem mirror_agent_bot/sync!): a transferência não deve
+  # criar espelho — se não existe, o agente não está operacional. Trava de teste (CHAT-171):
+  # destino que não atende este contato também está indisponível — transferir deixaria a
+  # conversa muda. Idem para etiqueta que a conta tirou da IA (CHAT-180).
+  def available_mirror(conversation, alvo)
+    return nil unless Captain::Behavior::ContactPhoneLock.new(alvo).allows?(conversation.contact)
+    return nil unless Captain::Behavior::SkipLabelsLock.new(conversation.account).allows?(conversation)
+
+    AgentBot.find_by(captain_assistant_id: alvo.id)
+  end
 
   # nil = pode transferir. String = recusa (o texto vai pro agente, que segue atendendo).
   # Dois gatilhos: (1) o destino JÁ participou do vaivém recente — devolver pra ele é o

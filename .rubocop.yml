@@ -92,6 +92,7 @@ Metrics/ModuleLength:
     - lib/seeders/message_seeder.rb
     - spec/support/slack_stubs.rb
     - 'app/helpers/reports/pdf_chart_helper.rb'
+    - 'enterprise/app/models/enterprise/concerns/conversation.rb'
 
 Rails/HelperInstanceVariable:
   Exclude:
@@ -106,6 +107,7 @@ Rails/ApplicationController:
     - 'app/controllers/platform_controller.rb'
     - 'app/controllers/public_controller.rb'
     - 'app/controllers/survey/responses_controller.rb'
+    - 'app/controllers/suggestions_controller.rb'
 
 Rails/FindEach:
   Enabled: true

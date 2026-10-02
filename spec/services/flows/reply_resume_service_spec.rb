@@ -44,6 +44,16 @@ RSpec.describe Flows::ReplyResumeService do
       expect(run.reload).to be_completed
     end
 
+    it 'closes the run and returns false when the flow was deactivated during the wait' do
+      flow = reply_flow
+      run = waiting_run(flow)
+      flow.update!(active: false)
+
+      expect(described_class.new(conversation: conversation, reply: { id: 'yes' }).perform).to be(false)
+      expect(run.reload).to be_completed
+      expect(conversation.reload.label_list).not_to include('yes-branch')
+    end
+
     it 'returns false when the conversation has no waiting wait_for_reply run' do
       expect(described_class.new(conversation: conversation, reply: { id: 'yes' }).perform).to be(false)
     end
@@ -82,6 +92,25 @@ RSpec.describe Flows::ReplyResumeService do
       expect(newer_run.reload).to be_completed
       expect(old_run.reload).to be_waiting
       expect(conversation.reload.label_list).to include('no-branch')
+    end
+
+    # Menu sem timeout grava wait_until nil e nunca vence: semanas depois ele sequestrava a primeira
+    # mensagem do cliente, que recebia o fallback em vez de cair no flow de boas-vindas.
+    it 'ignores a run with no deadline that has been waiting longer than the grace period' do
+      velho = waiting_run(reply_flow)
+      velho.update_columns(updated_at: 3.days.ago) # rubocop:disable Rails/SkipsModelValidations
+
+      expect(described_class.new(conversation: conversation, reply: { id: 'yes' }).perform).to be(false)
+      expect(velho.reload).to be_waiting
+    end
+
+    # Timeout ligado: quem manda é o prazo, e o Flows::ResumeJob encerra no vencimento.
+    it 'still resumes an old run when a deadline was set' do
+      com_prazo = waiting_run(reply_flow)
+      com_prazo.update_columns(updated_at: 3.days.ago, wait_until: 2.days.from_now) # rubocop:disable Rails/SkipsModelValidations
+
+      expect(described_class.new(conversation: conversation, reply: { id: 'yes' }).perform).to be(true)
+      expect(com_prazo.reload).to be_completed
     end
   end
 end

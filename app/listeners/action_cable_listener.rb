@@ -51,7 +51,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   def message_updated(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, message_audience(conversation, message)) +
+    tokens = user_tokens(account, sem_quem_tem_corte(message_audience(conversation, message), conversation, message)) +
              participant_tokens(conversation) +
              contact_tokens(conversation.contact_inbox, message)
 
@@ -61,35 +61,35 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   def first_reply_created(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = user_tokens(account, conversation_audience(conversation))
 
     broadcast(account, tokens, FIRST_REPLY_CREATED, message.push_event_data)
   end
 
   def conversation_created(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
+    tokens = user_tokens(account, conversation_audience(conversation)) + contact_inbox_tokens(conversation.contact_inbox)
 
     broadcast(account, tokens, CONVERSATION_CREATED, conversation.push_event_data)
   end
 
   def conversation_read(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = user_tokens(account, conversation_audience(conversation))
 
     broadcast(account, tokens, CONVERSATION_READ, conversation.push_event_data)
   end
 
   def conversation_status_changed(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
+    tokens = user_tokens(account, conversation_audience(conversation)) + contact_inbox_tokens(conversation.contact_inbox)
 
     broadcast(account, tokens, CONVERSATION_STATUS_CHANGED, conversation.push_event_data)
   end
 
   def conversation_updated(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
+    tokens = user_tokens(account, conversation_audience(conversation)) + contact_inbox_tokens(conversation.contact_inbox)
 
     broadcast(account, tokens, CONVERSATION_UPDATED, conversation.push_event_data)
   end
@@ -128,7 +128,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
 
   def assignee_changed(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = user_tokens(account, conversation_audience(conversation))
 
     broadcast(account, tokens, ASSIGNEE_CHANGED, conversation.push_event_data)
   end
@@ -213,7 +213,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
 
   def conversation_contact_changed(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = user_tokens(account, conversation_audience(conversation))
 
     broadcast(account, tokens, CONVERSATION_CONTACT_CHANGED, conversation.push_event_data)
   end
@@ -255,7 +255,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     message, account = extract_message_and_account(event)
     reaction = event.data[:reaction]
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) +
+    tokens = user_tokens(account, conversation_audience(conversation)) +
              participant_tokens(conversation) +
              contact_tokens(conversation.contact_inbox, message)
 
@@ -270,7 +270,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     message, account = extract_message_and_account(event)
     reaction = event.data[:reaction]
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) +
+    tokens = user_tokens(account, conversation_audience(conversation)) +
              participant_tokens(conversation) +
              contact_tokens(conversation.contact_inbox, message)
 
@@ -327,11 +327,65 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   # e exceção por caixa — resolvidos em consultas fixas, não uma por membro.
   def message_audience(conversation, message)
     inbox = conversation.inbox
-    members = inbox.members
+    # Mensagem so vai a quem pode ABRIR a conversa: alem da regra de time, fora quem o
+    # isolamento por agente bloqueia (a lista mostra a conversa, a abertura nao).
+    members = conversation_audience(conversation).reject do |member|
+      AgentConversationIsolation.hidden_from?(conversation, member, conversation.account)
+    end
     return members unless inbox.agent_message_isolation? && message.agent_id.present?
 
     allowed = message_isolation_allowed_ids(conversation, inbox, message)
     members.select { |member| allowed.include?(member.id) }
+  end
+
+  # ISOLAMENTO NO WEBSOCKET (18/09/2026). Os eventos de conversa iam a TODOS os membros da
+  # caixa, sem a regra da lista (Conversations::PermissionFilterService). Em producao a
+  # conversa #14566 (conta 5, time vendas-terceiros) nao vinha na lista do corretor 44, de
+  # outro time, e o GET dela dava 403 — mas o evento chegava, e o app mobile mostrava a
+  # conversa, o time e as mensagens (relato da Catatau). O site descartava no cliente, o que
+  # nao protege nada: o dado estava no frame do socket.
+  # Publico = mesma regra da lista: conversa sem time -> caixa inteira; com time -> membros
+  # do time, quem nao tem time nenhum na conta (a lista mostra tudo a eles), supervisores do
+  # time e o responsavel. Admins seguem recebendo tudo pelo admin_tokens do user_tokens.
+  def conversation_audience(conversation)
+    members = conversation.inbox.members.to_a
+    return members if conversation.team_id.blank?
+
+    allowed = team_audience_ids(conversation, members)
+    members.select { |member| allowed.include?(member.id) }
+  end
+
+  def team_audience_ids(conversation, members)
+    member_ids = members.map(&:id)
+    with_any_team = TeamMember.joins(:team)
+                              .where(teams: { account_id: conversation.account_id }, user_id: member_ids)
+                              .distinct.pluck(:user_id).to_set
+    ids = TeamMember.where(team_id: conversation.team_id, user_id: member_ids).pluck(:user_id).to_set
+    ids.merge(member_ids.to_set - with_any_team)
+    ids << conversation.assignee_id if conversation.assignee_id.present?
+    members.each do |member|
+      ids << member.id if TeamSupervision.supervises?(member, conversation.team_id, conversation.account_id)
+    end
+    ids
+  end
+
+  # EA-01 no tempo real. Só no `message_updated`: mensagem RECÉM-CRIADA é sempre posterior a
+  # qualquer aprovação, então no `message_created` este recorte nunca tiraria ninguém e a consulta
+  # seria desperdício no caminho mais quente do sistema. Já edição, exclusão e reação mexem em
+  # mensagem ANTIGA e carregam o conteúdo dela no evento — é por aí que o trecho cortado voltaria
+  # à tela de quem recebeu a conversa por pedido.
+  def sem_quem_tem_corte(membros, conversation, message)
+    cortes = ConversationTakeoverRequest.approved
+                                        .where(conversation_id: conversation.id)
+                                        .where.not(responded_at: nil)
+                                        .group(:requester_id)
+                                        .minimum(:responded_at)
+    return membros if cortes.empty?
+
+    sem_acesso = cortes.select { |_id, corte| corte > message.created_at }.keys
+    return membros if sem_acesso.empty?
+
+    membros.reject { |membro| sem_acesso.include?(membro.id) }
   end
 
   def message_isolation_allowed_ids(conversation, inbox, message)
@@ -348,7 +402,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     return if conversation.blank?
 
     account = conversation.account
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = user_tokens(account, conversation_audience(conversation))
 
     payload = {
       conversation: { id: conversation.display_id },
@@ -442,7 +496,7 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
                            user.pubsub_token
                          end
 
-    tokens = user_tokens(account, conversation.inbox.members) + [conversation.contact_inbox.pubsub_token]
+    tokens = user_tokens(account, conversation_audience(conversation)) + [conversation.contact_inbox.pubsub_token]
     current_user_token.present? ? tokens - [current_user_token] : tokens
   end
 

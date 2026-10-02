@@ -24,8 +24,6 @@ class Whatsapp::IncomingMessageBaseService
   private
 
   def process_messages
-    # We don't support reactions & ephemeral message now, we need to skip processing the message
-    # if the webhook event is a reaction or an ephermal message or an unsupported message.
     return if unprocessable_message_type?(message_type)
 
     # Multiple webhook events can be received for the same message due to
@@ -35,12 +33,19 @@ class Whatsapp::IncomingMessageBaseService
     return if find_message_by_source_id(messages_data.first[:id])
     return unless lock_message_source_id!
 
-    set_contact
-    return unless @contact
+    begin
+      set_contact
+      return unless @contact
 
-    ActiveRecord::Base.transaction do
-      set_conversation
-      create_messages
+      ActiveRecord::Base.transaction do
+        set_conversation
+        create_messages
+      end
+    rescue StandardError
+      # Falhou sem gravar a mensagem: solta a marca para a retentativa do Sidekiq reprocessar
+      # em vez de encerrar calada (ver Whatsapp::MessageDedupLock#release!).
+      unlock_message_source_id!
+      raise
     end
   end
 
@@ -81,6 +86,7 @@ class Whatsapp::IncomingMessageBaseService
 
   def create_regular_message(message)
     create_message(message, source_id: message[:id])
+    @message.content_type = :sticker if message_type == 'sticker'
     attach_files
     attach_location if message_type == 'location'
     @message.save!
@@ -142,7 +148,7 @@ class Whatsapp::IncomingMessageBaseService
   end
 
   def attach_files
-    return if %w[text button interactive location contacts].include?(message_type)
+    return if %w[text button interactive location contacts reaction].include?(message_type)
 
     attachment_payload = messages_data.first[message_type.to_sym]
     @message.content ||= attachment_payload[:caption]
@@ -225,22 +231,5 @@ class Whatsapp::IncomingMessageBaseService
         meta: contact_meta
       )
     end
-  end
-
-  def update_contact_with_profile_name(contact_params)
-    profile_name = contact_params.dig(:profile, :name)
-    return if profile_name.blank?
-    return if @contact.name == profile_name
-
-    # Only update if current name exactly matches the phone number or formatted phone number
-    return unless contact_name_matches_phone_number?
-
-    @contact.update!(name: profile_name)
-  end
-
-  def contact_name_matches_phone_number?
-    phone_number = "+#{messages_data.first[:from]}"
-    formatted_phone_number = TelephoneNumber.parse(phone_number).international_number
-    @contact.name == phone_number || @contact.name == formatted_phone_number
   end
 end

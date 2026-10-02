@@ -108,7 +108,7 @@ function onTriggerClick(e) {
     <div
       v-if="isOpen && !useTeleport()"
       v-on-click-outside="[closeMenu, { ignore: [triggerRef] }]"
-      class="absolute z-10"
+      class="absolute z-50"
     >
       <slot />
     </div>

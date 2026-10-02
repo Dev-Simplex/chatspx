@@ -63,6 +63,57 @@ RSpec.describe DeleteObjectJob, type: :job do
       end
     end
 
+    # Regressao: as quatro tabelas abaixo nasceram com FK RESTRICT e sem `dependent:`,
+    # entao qualquer conversa tocada pela IA ou por um flow travava a exclusao da caixa.
+    # Como o job roda em background, a API respondia 200 "excluida" e a caixa voltava no
+    # proximo reload (visto na FABRICA em 08/09/2026). Ver migration 20260908120000.
+    # T07: agente que ja recebeu atribuicao nao saia — o historico apontava para ele com FK RESTRICT.
+    # O historico e do relatorio da conta: fica, so perde o vinculo.
+    context 'when the agent left assignment history behind' do
+      let!(:account) { create(:account) }
+      let!(:agent) { create(:user, account: account, role: :agent) }
+      let!(:history) do
+        create(:conversation_assignment_history, account: account, conversation: create(:conversation, account: account), assignee: agent)
+      end
+
+      it 'destroys the agent and keeps the history without the assignee' do
+        expect { described_class.perform_now('User', agent.id) }.not_to raise_error
+
+        expect(User.where(id: agent.id)).to be_empty
+        expect(history.reload.assignee_id).to be_nil
+      end
+    end
+
+    context 'when the conversation carries AI and flow trails' do
+      let!(:account) { create(:account) }
+      let!(:inbox) { create(:inbox, account: account) }
+      let!(:conversation) { create(:conversation, account: account, inbox: inbox) }
+      let!(:flow) { create(:flow, account: account) }
+
+      before do
+        Captain::AssistantLog.create!(
+          captain_assistant: create(:captain_assistant, account: account),
+          conversation: conversation,
+          event_type: 'response'
+        )
+        create(:flow_run, flow: flow, account: account, conversation: conversation, contact: conversation.contact)
+        create(:flow_step_log, flow: flow, account: account, conversation: conversation)
+        create(:message_sequence_enrollment, conversation: conversation,
+                                             message_sequence: create(:message_sequence, account: account))
+      end
+
+      it 'destroys the inbox instead of dying on a foreign key' do
+        expect { described_class.perform_now('Inbox', inbox.id) }.not_to raise_error
+
+        expect(Inbox.where(id: inbox.id)).to be_empty
+        expect(Conversation.where(id: conversation.id)).to be_empty
+        expect(Captain::AssistantLog.where(conversation_id: conversation.id)).to be_empty
+        expect(FlowRun.where(conversation_id: conversation.id)).to be_empty
+        expect(FlowStepLog.where(conversation_id: conversation.id)).to be_empty
+        expect(MessageSequenceEnrollment.where(conversation_id: conversation.id)).to be_empty
+      end
+    end
+
     context 'when object is regular (Label)' do
       it 'just destroys the object' do
         label = create(:label)

@@ -120,8 +120,9 @@ export const actions = {
       });
 
       return data;
-    } catch (error) {
-      throw new Error(error);
+      // Sem catch de propósito: o `throw new Error(error)` que vivia aqui
+      // destruía o objeto do axios — `error.response` sumia e quem chama nunca
+      // via o error_code/mensagem que o backend mandou.
     } finally {
       commit(types.default.SET_CONTACT_CONVERSATIONS_UI_FLAG, {
         isCreating: false,
@@ -148,8 +149,6 @@ export const actions = {
         id: conversationId,
         account_id: conversation.accountId ?? conversation.account_id,
       };
-    } catch (error) {
-      throw new Error(error);
     } finally {
       commit(types.default.SET_CONTACT_CONVERSATIONS_UI_FLAG, {
         isCreating: false,

@@ -30,7 +30,11 @@ class Api::V1::Accounts::Conversations::UserSettingsController < Api::V1::Accoun
     )
   end
 
+  # `.to_h` é obrigatório: o UserSettingUpdateService só aceita Hash e trata o resto como `{}`.
+  # Com `permit(...).fetch` saía um ActionController::Parameters, então TODO PATCH (fixar, arquivar,
+  # silenciar, tema) respondia 422 "patch must contain at least one allowed key" desde maio — o app
+  # mostrava o estado otimista e perdia no próximo fetch. Medido em 18/09/2026 com a conta sup@.
   def user_setting_params
-    params.permit(user_setting: [:pinned, :archived_at, :muted_until, :theme_key]).fetch(:user_setting, {})
+    params.fetch(:user_setting, {}).permit(:pinned, :archived_at, :muted_until, :theme_key).to_h
   end
 end

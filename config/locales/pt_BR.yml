@@ -17,6 +17,18 @@
 #To learn more, please read the Rails Internationalization guide
 #available at https://guides.rubyonrails.org/i18n.html.
 pt_BR:
+  catalog:
+    send:
+      empty: "Nenhum item selecionado."
+      menu_header: "%{count} itens:"
+    message:
+      body: "Confira os detalhes:"
+      header: "Selecionados para você"
+      section: "Itens"
+    custom_fields:
+      checked: "Sim"
+    meta_sync:
+      not_configured: "O espelho do catálogo na Meta não está configurado nesta conta."
   hello: 'Olá, mundo'
   inbox:
     reauthorization:
@@ -35,12 +47,21 @@ pt_BR:
     login_saml_user: Esta conta usa autenticação SAML. Por favor, faça login através do provedor SAML da sua organização.
     saml_not_available: A autenticação SAML não está disponível nesta instalação.
     inbox_deletetion_response: Seu pedido de exclusão da caixa de entrada será processado dentro de algum tempo.
+  helpers:
+    label:
+      account:
+        rodizio_conversation_tabs_enabled: Ativar abas Rodízio e Atenção
   activerecord:
     models:
       unit: Unidade
       unit_working_hour: Horário da unidade
       unit_exception: Exceção da unidade
     attributes:
+      suggestion:
+        name: Nome
+        company: Empresa
+        content: Sugestão
+        media: Anexo
       unit:
         name: Nome
         city: Cidade
@@ -70,6 +91,17 @@ pt_BR:
         close_hour: Hora de fechar
         close_minutes: Minuto de fechar
   errors:
+    suggestions:
+      media:
+        type: 'deve ser uma foto ou um vídeo'
+        size: 'deve ter até %{limit} MB'
+    read_only_inbox:
+      message_blocked: 'Esta caixa de entrada está em modo somente leitura.'
+      redirect_invalid: 'A caixa de destino precisa ser outra caixa de WhatsApp desta conta que não seja somente leitura.'
+      campaign_blocked: 'Uma caixa somente leitura não pode enviar campanhas.'
+      not_redirectable: 'Esta conversa não está numa caixa somente leitura com redirecionamento.'
+      contact_without_phone: 'Contato sem telefone'
+      replied_note: 'Respondido pela caixa %{inbox}, conversa #%{conversation}'
     features:
       sem_bit: "Estas features não podem ser ligadas nesta versão: %{features}. O limite técnico de features do sistema foi atingido e liberar mais exige uma mudança no banco."
     conversation:
@@ -79,6 +111,8 @@ pt_BR:
     account:
       reporting_timezone:
         invalid: não é um fuso horário válido
+      catalog_hidden_fields:
+        invalid: só aceita sku, stock, featured e promo_price
     validations:
       presence: não pode ficar em branco
       invalid: é inválido
@@ -98,6 +132,9 @@ pt_BR:
       open_and_closed: não pode abrir o dia todo e fechar o dia todo ao mesmo tempo
     webhook:
       invalid: Eventos inválidos
+    catalog:
+      meta_rate_limited: O limite de chamadas do catálogo da Meta foi atingido. Os itens que faltam saem na próxima sincronização.
+      invalid_custom_field: 'Valor inválido para o campo "%{field}".'
     signup:
       disposable_email: Não permitimos e-mails descartáveis
       blocked_domain: Este domínio não é permitido. Se você acredita que isso é um erro, por favor contate o suporte.
@@ -173,6 +210,7 @@ pt_BR:
       invalid_channel_id: 'Canal de slack inválido. Por favor, tente novamente'
     whatsapp:
       token_exchange_failed: 'Falha ao trocar o código por um token de acesso. Por favor, tente novamente.'
+      template_outside_channel: "O modelo '%{name}' não existe no número %{phone_number}. Cada número tem os seus próprios modelos: escolha um da lista desta caixa de entrada."
       invalid_token_permissions: 'O token de acesso não tem as permissões necessárias para o WhatsApp.'
       phone_info_fetch_failed: 'Falha ao obter a informação do número de telefone. Por favor, tente novamente.'
       phone_number_already_exists: 'Já existe um canal para este número de telefone: %{phone_number}. Entre em contato com o suporte se o erro persistir'
@@ -306,12 +344,18 @@ pt_BR:
     attachment: 'Anexo'
     no_content: 'Sem conteúdo'
   conversations:
+    secret_template:
+      trace: '🔒 Conteúdo sigiloso enviado ao cliente. O valor não fica visível no atendimento.'
+      trace_admin: '🔒 Conteúdo sigiloso enviado ao cliente: %{valores}'
     team_access:
       forbidden: 'Esta conversa é de outro time. Só quem faz parte dele pode abri-la.'
     reply_assignment_gate:
       assignment_required: 'Você precisa assumir a conversa antes de responder'
     takeover_request_gate:
       request_required: 'Esta conversa é de outro agente. Solicite o atendimento para assumir.'
+    compose:
+      blocked_by_existing_attendance: 'Este contato já está em atendimento em uma conversa que você não pode abrir. A mensagem não foi enviada.'
+      contact_inbox_conflict: 'Este número já pertence à ficha %{name}. Mescle as fichas para continuar.'
     agent_conversation_isolation:
       access_blocked: 'Esta conversa está atribuída a outro agente. Solicite o atendimento para acessá-la.'
     errors:
@@ -351,6 +395,7 @@ pt_BR:
         auto_resolved_days: 'A conversa foi marcada como resolvida pelo sistema por ter %{count} dias de inatividade'
         auto_resolved_hours: 'A conversa foi marcada como resolvida pelo sistema por ter %{count} horas de inatividade'
         auto_resolved_minutes: 'A conversa foi marcada como resolvida pelo sistema por ter %{count} minutos de inatividade'
+        secret_dispatch_resolved: 'A conversa foi encerrada porque existia apenas para um envio sigiloso. Se o cliente responder, ela reabre.'
         system_auto_open: O sistema reabriu a conversa devido a uma nova mensagem recebida.
       priority:
         added: '%{user_name} definiu a prioridade para %{new_priority}'
@@ -364,6 +409,7 @@ pt_BR:
         assigned: 'Atribuído a %{team_name} por %{user_name}'
         assigned_with_assignee: 'Atribuído a %{assignee_name} via %{team_name} por %{user_name}'
         removed: 'Desatribuído de %{team_name} por %{user_name}'
+        assigned_from_ad: 'Direcionado para %{team_name} por ter vindo de anúncio'
       labels:
         added: '%{user_name} adicionou %{labels}'
         removed: '%{user_name} removeu %{labels}'
@@ -425,7 +471,7 @@ pt_BR:
     dyte:
       name: 'Dyte'
       short_description: 'Iniciar chamadas de vídeo/voz com clientes diretamente do Chatwoot.'
-      description: 'Dyte é um produto que integra as funcionalidades de áudio e vídeo em sua aplicação. Com esta integração, os seus agentes podem iniciar chamadas de vídeo/voz com seus clientes diretamente do chatwoot.'
+      description: 'Dyte é um produto que integra as funcionalidades de áudio e vídeo em sua aplicação. Com esta integração, os seus agentes podem iniciar chamadas de vídeo/voz com seus clientes diretamente do Chatwoot.'
       meeting_name: '%{agent_name} começou a reunião'
     slack:
       name: 'Slack'
@@ -470,6 +516,11 @@ pt_BR:
       name: 'Leads do Site'
       short_description: 'Receba os formulários do site como conversas automáticas.'
       description: 'Quando alguém preenche um formulário no site, o site envia o lead para um webhook e a conversa é aberta na inbox alvo com o template aprovado. O código do imóvel da página em que a pessoa estava abre a conversa já naquele imóvel, e a jornada de navegação vai como contexto para a IA.'
+    captador:
+      name: 'Captador'
+      invalid_inboxes: 'Use IDs positivos de caixas desta conta (WhatsApp ou API), separados por vírgula. Remova caixas excluídas ou incompatíveis; deixe vazio para não liberar nenhuma.'
+      short_description: 'Abra conversas com os leads prospectados no Captador e acompanhe as respostas no funil.'
+      description: 'O Captador abre a conversa com o lead em nome de quem clicou, pela caixa escolhida: modelo aprovado no WhatsApp oficial ou texto livre em caixa não oficial (WAHA). As respostas, os status de entrega e as trocas de dono voltam assinados para o Captador. Os usuários desta conta também podem entrar no Captador com o e-mail e a senha do ChatSPX.'
   captain:
     errors:
       missing_api_key: 'A chave da OpenAI não está configurada para esta conta. Configure em Ajustes do Captain.'
@@ -580,6 +631,13 @@ pt_BR:
     errors:
       failed_to_create: 'Falha ao criar mensagem'
       only_pending_allowed: 'Apenas mensagens pendentes podem ser alteradas ou canceladas'
+      window_closed_no_template: 'a janela de conversa está fechada e o agente não tem template configurado para ela'
+      template_unsupported_variables: 'o template configurado tem variável sem origem conhecida na configuração do agente'
+      template_without_primeiro_nome: 'o template configurado precisa do nome do contato, e o contato não tem nome'
+      template_without_texto: 'a mensagem agendada não tem texto para preencher o template'
+      discarded_by_assistant_review: 'o agente de IA revisou no horário e decidiu não enviar'
+    activity:
+      assistant_not_sent: 'A mensagem agendada pelo agente de IA não foi enviada: %{reason}.'
   auto_assignment:
     default_policy_name: 'Política Padrão'
     policy_actor: 'Sistema de Automação via %{policy_name}'

@@ -30,7 +30,7 @@ class Api::V1::Accounts::Contacts::CallsController < Api::V1::Accounts::BaseCont
   end
 
   def voice_inbox
-    @voice_inbox ||= Current.user.assigned_inboxes.where(
+    @voice_inbox ||= Current.user.assigned_inboxes(Current.account).where(
       account_id: Current.account.id,
       channel_type: 'Channel::Voice'
     ).find(params.require(:inbox_id))

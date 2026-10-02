@@ -40,15 +40,16 @@ import resetPassword from './resetPassword.json';
 import search from './search.json';
 import setNewPassword from './setNewPassword.json';
 import settings from './settings.json';
+import suggestions from './suggestions.json';
 import signup from './signup.json';
 import sla from './sla.json';
 import snooze from './snooze.json';
 import teamsSettings from './teamsSettings.json';
+import catalogMgmt from './catalogMgmt.json';
 import unitsMgmt from './unitsMgmt.json';
 import webhooks from './webhooks.json';
 import whatsappTemplates from './whatsappTemplates.json';
 import whatsappTemplatesMgmt from './whatsappTemplatesMgmt.json';
-import unidades from './unidades.json';
 import redeSocial from './redeSocial.json';
 import yearInReview from './yearInReview.json';
 
@@ -95,15 +96,16 @@ export default {
   ...search,
   ...setNewPassword,
   ...settings,
+  ...suggestions,
   ...signup,
   ...sla,
   ...snooze,
   ...teamsSettings,
+  ...catalogMgmt,
   ...unitsMgmt,
   ...webhooks,
   ...whatsappTemplates,
   ...whatsappTemplatesMgmt,
-  ...unidades,
   ...redeSocial,
   ...yearInReview,
 };

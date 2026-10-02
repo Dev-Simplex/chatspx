@@ -29,9 +29,18 @@ class UnitException < ApplicationRecord
   validates :reminder_days_before, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 30 },
                                    allow_nil: true
 
+  # Horário PRÓPRIO é opcional numa regra que não fecha: sem ele, o cálculo da agenda já entende
+  # "vale o horário de sempre" (ver UnitAtendimento#faixas_em) — e é assim que se cadastra o evento
+  # que acontece sem mudar o funcionamento.
+  #
+  # Exigi-lo, como antes, forçava inventar uma faixa: a única faixa de uma exceção SUBSTITUI a
+  # grade do dia, então um evento cadastrado das 8h às 18h apagaria a pausa do almoço daquele dia
+  # e a IA passaria a dizer que a unidade abre direto. Regra de calendário não pode ser o caminho
+  # para estragar o horário.
   with_options unless: :closed_all_day? do
-    validates :open_hour, :close_hour, presence: true, inclusion: 0..23
-    validates :open_minutes, :close_minutes, presence: true, inclusion: 0..59
+    validates :open_hour, :close_hour, inclusion: { in: 0..23 }, allow_nil: true
+    validates :open_minutes, :close_minutes, inclusion: { in: 0..59 }, allow_nil: true
+    validate :faixa_completa_ou_ausente
   end
 
   validate :listas_dentro_do_permitido
@@ -40,6 +49,17 @@ class UnitException < ApplicationRecord
   validate :termino_coerente
 
   private
+
+  # Meia faixa é pior que nenhuma: com só a abertura preenchida, o cálculo cai no horário de sempre
+  # e o que a pessoa digitou some sem aviso.
+  def faixa_completa_ou_ausente
+    preenchidos = [open_hour, close_hour].compact.size
+    return if preenchidos.zero? || preenchidos == 2
+
+    errors.add(:base, I18n.t('errors.unit_exception.faixa_incompleta',
+                             default: 'Informe a hora de abrir e a de fechar, ou deixe as duas ' \
+                                      'em branco para valer o horário de sempre.'))
+  end
 
   def listas_dentro_do_permitido
     errors.add(:weekdays, I18n.t('errors.units.invalid_weekday')) unless (weekdays - DIAS_DA_SEMANA).empty?

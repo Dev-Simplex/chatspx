@@ -41,6 +41,7 @@ import ConversationAPI from 'dashboard/api/conversations';
 import WhatsappTemplates from './WhatsappTemplates/Modal.vue';
 import InteractiveMessageModal from './InteractiveMessageModal.vue';
 import WhatsappWindowExpired from './WhatsappTemplates/WhatsappWindowExpired.vue';
+import ReadOnlyInboxPanel from 'dashboard/components-next/Conversation/ReadOnlyInboxPanel.vue';
 import ContentTemplates from './ContentTemplates/ContentTemplatesModal.vue';
 import CannedResponseModal from 'dashboard/components-next/canned-response/CannedResponseModal.vue';
 const LocationPickerModal = defineAsyncComponent(
@@ -49,7 +50,11 @@ const LocationPickerModal = defineAsyncComponent(
 const ShareContactModal = defineAsyncComponent(
   () => import('dashboard/components-next/share-contact/ShareContactModal.vue')
 );
+const CatalogProductModal = defineAsyncComponent(
+  () => import('dashboard/components-next/catalog/CatalogProductModal.vue')
+);
 import MessageApi from 'dashboard/api/inbox/message';
+import CatalogAPI from 'dashboard/api/catalog';
 import { MESSAGE_MAX_LENGTH } from 'shared/helpers/MessageTypeHelper';
 import inboxMixin, { INBOX_FEATURES } from 'shared/mixins/inboxMixin';
 import { trimContent, debounce, getRecipients } from '@chatwoot/utils';
@@ -77,6 +82,7 @@ import { useAIOnboarding } from 'dashboard/composables/useAIOnboarding';
 import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
 import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import { useConnectionStatus } from 'dashboard/composables/useConnectionStatus';
+import { useCatalogLabels } from 'dashboard/composables/useCatalogLabels';
 import { useAIAssistantFlag } from 'dashboard/components-next/ai-assistant/composables/useAIAssistantFlag';
 import { useAITour } from 'dashboard/components-next/ai-assistant/composables/useAITour';
 import AIOnboardingCoachmark from './AIOnboardingCoachmark.vue';
@@ -114,6 +120,7 @@ const whatsappAlertAction = message =>
 
 export default {
   components: {
+    CatalogProductModal,
     ArticleSearchPopover,
     AttachmentPreview,
     AttachmentPreviewModal,
@@ -131,6 +138,7 @@ export default {
     WhatsappTemplates,
     InteractiveMessageModal,
     WhatsappWindowExpired,
+    ReadOnlyInboxPanel,
     CannedResponseModal,
     WootMessageEditor,
     QuotedEmailPreview,
@@ -194,8 +202,11 @@ export default {
     // envio — o ChatSPX já tem envio otimista + reconcilePendingMessages, então o
     // ReconnectService reenvia sozinho ao voltar; travar o envio seria pior.
     const { isSustainedOffline } = useConnectionStatus();
+    // O item do catálogo tem o nome que a conta escolheu (produto, imóvel, serviço).
+    const { labels: catalogLabels } = useCatalogLabels();
 
     return {
+      catalogLabels,
       uiSettings,
       isEditorHotKeyEnabled,
       fetchSignatureFlagFromUISettings,
@@ -237,6 +248,8 @@ export default {
       recordingAudioState: '',
       recordingAudioDurationText: '00:00',
       replyType: REPLY_EDITOR_MODES.REPLY,
+      // CHAT-155: o editor de nota so aparece depois de o atendente pedir.
+      readOnlyNoteOpen: false,
       bccEmails: '',
       ccEmails: '',
       toEmails: '',
@@ -247,6 +260,7 @@ export default {
       showCannedResponseModal: false,
       showLocationPickerModal: false,
       showShareContactModal: false,
+      showCatalogModal: false,
       updateEditorSelectionWith: '',
       undefinedVariableMessage: '',
       showMentions: false,
@@ -356,6 +370,11 @@ export default {
     showContentTemplates() {
       return this.isATwilioWhatsAppChannel && !this.isPrivate;
     },
+    // C10 — caixa WAHA não tem catálogo nativo: o produto vai como foto com legenda, e o
+    // seletor avisa isso antes de o atendente mandar. Mesma leitura do MessagesView.
+    isWahaInbox() {
+      return !!this.inbox?.waha_session_name;
+    },
     // Free-form interactive buttons/list are delivered via WAHA (Channel::Api).
     // Offer on WhatsApp / API inboxes, in reply mode, when a reply is allowed.
     showInteractiveMessage() {
@@ -365,7 +384,12 @@ export default {
         !!this.currentChat.id
       );
     },
+    // CHAT-155: nada sai por caixa somente leitura; so nota privada.
+    isReadOnlyInbox() {
+      return !!this.inbox?.read_only;
+    },
     isPrivate() {
+      if (this.isReadOnlyInbox) return true;
       if (
         this.currentChat.can_reply ||
         this.isAWhatsAppChannel ||
@@ -390,8 +414,9 @@ export default {
     },
     isReplyRestricted() {
       return (
-        !this.currentChat?.can_reply &&
-        !(this.isAWhatsAppChannel || this.isAPIInbox)
+        this.isReadOnlyInbox ||
+        (!this.currentChat?.can_reply &&
+          !(this.isAWhatsAppChannel || this.isAPIInbox))
       );
     },
     inboxId() {
@@ -722,6 +747,13 @@ export default {
         !this.currentChat.can_reply
       );
     },
+    showReadOnlyPanel() {
+      return this.isReadOnlyInbox && !this.readOnlyNoteOpen;
+    },
+    // Editor escondido: janela de 24h vencida ou caixa somente leitura.
+    isComposerReplaced() {
+      return this.showWhatsappWindowExpired || this.showReadOnlyPanel;
+    },
     showWhatsappWindowExpired() {
       return (
         this.isAWhatsAppChannel &&
@@ -736,7 +768,7 @@ export default {
       // Pill é sempre o root quando não é email e a janela WA não expirou.
       // Conteúdo central (input, audio, copilot) é trocado DENTRO do pill —
       // não cai mais no fluxo legacy quando audio/copilot são ativados.
-      return !this.isAnEmailChannel && !this.showWhatsappWindowExpired;
+      return !this.isAnEmailChannel && !this.isComposerReplaced;
     },
     waMode() {
       // Estados visuais possíveis dentro do pill.
@@ -841,6 +873,12 @@ export default {
       }
     },
     // Desativa drop global quando o modal de nova conversa está aberto
+    isReadOnlyInbox: {
+      handler(readOnly) {
+        if (readOnly) this.replyType = REPLY_EDITOR_MODES.NOTE;
+      },
+      immediate: true,
+    },
     newConversationModalActive(active) {
       this.globalDropEnabled = !active;
     },
@@ -853,6 +891,7 @@ export default {
         this.setCCAndToEmailsFromLastChat();
         // Reset Copilot editor state (includes cancelling ongoing generation)
         this.copilot.reset();
+        this.readOnlyNoteOpen = false;
         // Phase 5 — clear chip preview when navigating to a different conversation
         this.discardAiSuggestionChip({ trackReason: 'context_switch' });
       }
@@ -861,7 +900,10 @@ export default {
         return;
       }
 
-      if (canReply || this.isAWhatsAppChannel || this.isAPIInbox) {
+      if (
+        !this.isReadOnlyInbox &&
+        (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      ) {
         this.replyType = REPLY_EDITOR_MODES.REPLY;
       } else {
         this.replyType = REPLY_EDITOR_MODES.NOTE;
@@ -1418,6 +1460,25 @@ export default {
         useAlert(errorMessage);
       }
     },
+    openCatalogModal() {
+      if (!this.currentChat?.id) return;
+      this.showCatalogModal = true;
+    },
+    hideCatalogModal() {
+      this.showCatalogModal = false;
+    },
+    async onCatalogSend(productIds) {
+      this.hideCatalogModal();
+      try {
+        await CatalogAPI.sendToConversation(this.currentChat.id, productIds);
+        emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
+        emitter.emit(BUS_EVENTS.MESSAGE_SENT);
+      } catch (error) {
+        const errorMessage =
+          error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
+        useAlert(errorMessage);
+      }
+    },
     openShareContactModal() {
       if (!this.currentChat?.id) return;
       this.showShareContactModal = true;
@@ -1901,7 +1962,10 @@ export default {
       this.$store.dispatch('draftMessages/setReplyEditorMode', {
         mode,
       });
-      if (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      if (
+        !this.isReadOnlyInbox &&
+        (canReply || this.isAWhatsAppChannel || this.isAPIInbox)
+      )
         this.replyType = mode;
       if (this.isRecordingAudio) {
         this.toggleAudioRecorder();
@@ -2833,8 +2897,13 @@ export default {
       leave-to-class="opacity-0 translate-y-2 scale-[0.98]"
     >
       <div :key="copilot.editorTransitionKey.value" class="reply-box__top">
+        <ReadOnlyInboxPanel
+          v-if="showReadOnlyPanel"
+          :inbox="inbox"
+          @switch-to-note="readOnlyNoteOpen = true"
+        />
         <WhatsappWindowExpired
-          v-if="showWhatsappWindowExpired"
+          v-else-if="showWhatsappWindowExpired"
           @send-template="onExpiredSendTemplate"
           @switch-to-note="onExpiredSwitchToNote"
         />
@@ -3135,6 +3204,14 @@ export default {
                 icon="i-lucide-user-round-plus"
                 :click="openShareContactModal"
               />
+              <!-- C8 — Catálogo: mandar produto na conversa -->
+              <DropdownItem
+                v-if="!isPrivate"
+                data-testid="replybox-catalog"
+                :label="$t('CONVERSATION.CATALOG.MENU', catalogLabels)"
+                icon="i-lucide-shopping-bag"
+                :click="openCatalogModal"
+              />
               <!-- Mensagem interativa: botões / lista (WhatsApp livre via WAHA) -->
               <DropdownItem
                 v-if="showInteractiveMessage"
@@ -3276,7 +3353,7 @@ export default {
     </div>
 
     <Transition
-      v-if="!showWhatsappWindowExpired"
+      v-if="!isComposerReplaced"
       mode="out-in"
       enter-active-class="transition-all duration-300 ease-out"
       enter-from-class="opacity-0 translate-y-2 scale-[0.98]"
@@ -3366,6 +3443,14 @@ export default {
       :show="showLocationPickerModal"
       @close="hideLocationPicker"
       @select="onLocationSelect"
+    />
+
+    <CatalogProductModal
+      v-if="showCatalogModal"
+      :show="showCatalogModal"
+      :is-waha="isWahaInbox"
+      @close="hideCatalogModal"
+      @send="onCatalogSend"
     />
 
     <ShareContactModal

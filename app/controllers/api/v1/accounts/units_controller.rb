@@ -25,6 +25,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
       @unit = Current.account.units.create!(unit_params)
       sincronizar_caixas
       sincronizar_excecoes
+      Units::FeriadosNacionais.garantir(@unit)
     end
     render :show, status: :created
   end
@@ -51,7 +52,14 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
 
   def unit_params
     params.require(:unit).permit(
-      :name, :city, :state, :address, :phone, :timezone, :notes, :active, :applies_to_inboxes,
+      :name, :city, :state, :address, :address_number, :phone, :timezone, :notes, :active, :applies_to_inboxes,
+      :latitude, :longitude, :zip_code,
+      # Regras próprias da unidade, em par nome/valor. Hash livre porque o que é regra muda por
+      # ramo — o produto não tem como enumerar as colunas de antemão, e coluna nova por cliente é
+      # justamente o que este campo existe pra evitar. É o único campo da unidade que a IA lê e
+      # repassa ao cliente como fato.
+      { atributos: {} },
+      { contacts: [:label, :phone], social_links: [:network, :url] },
       working_hours_attributes: [:id, :day_of_week, :closed_all_day, :open_all_day,
                                  :open_hour, :open_minutes, :close_hour, :close_minutes,
                                  :break_start_hour, :break_start_minutes,
@@ -83,6 +91,14 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
 
   # Substitui o conjunto inteiro. Chave ausente = não mexe; lista vazia = apagou todas.
   # Vale porque exceção não é referenciada por ninguém — recriar não quebra nada.
+  #
+  # É por isso que os feriados nacionais entram DEPOIS desta troca, e não num `after_create`
+  # do modelo: a tela manda a lista inteira ao criar a unidade (vazia), e o `destroy_all`
+  # levaria junto o que o callback tivesse acabado de criar.
+  #
+  # E só na CRIAÇÃO: no update a tela acabou de mandar o que deve existir — repovoar ali
+  # devolveria à lista justamente o feriado que o admin apagou no mesmo salvar. Quem cuida da
+  # unidade que já existia, e do ano novo das datas móveis, é o `Units::FeriadosNacionaisJob`.
   def sincronizar_excecoes
     desejadas = excecoes_params
     return if desejadas.nil?

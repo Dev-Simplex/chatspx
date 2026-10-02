@@ -120,7 +120,7 @@ const avisosDeAmanha = computed(() =>
         regra: regra.name,
         efeito: regra.closed_all_day
           ? t('UNITS_MGMT.TOMORROW.CLOSED')
-          : faixaLegivel(regra),
+          : faixaLegivel(regra) || t('UNITS_MGMT.FORM.RULES.EFFECT.USUAL'),
       };
     })
     .filter(Boolean)
@@ -159,6 +159,34 @@ const abrirEdicao = unit => {
 const fecharForm = () => {
   toggleFormPopup(false);
   selectedUnit.value = null;
+};
+
+// Fechar com o formulario preenchido jogava tudo fora sem aviso — no clique fora, no Esc, no X e no
+// Cancelar. O woot-modal desmonta o conteudo ANTES do on-close, entao a pergunta precisa vir antes de
+// fechar (prop `before-close`): devolvendo false, o modal fica aberto e o que foi digitado continua la.
+const formRef = ref(null);
+const [showNaoSalvoPopup, toggleNaoSalvoPopup] = useToggle(false);
+
+const confirmarSaida = () => {
+  if (!formRef.value?.temAlteracoes?.()) return true;
+
+  toggleNaoSalvoPopup(true);
+  return false;
+};
+
+const tentarFechar = () => {
+  if (confirmarSaida()) fecharForm();
+};
+
+const descartarAlteracoes = () => {
+  toggleNaoSalvoPopup(false);
+  fecharForm();
+};
+
+// Mesma validacao do botao Salvar: faltando o nome ou com faixa invertida, volta ao formulario.
+const salvarAntesDeSair = () => {
+  toggleNaoSalvoPopup(false);
+  formRef.value?.salvar?.();
 };
 
 const salvar = async payload => {
@@ -362,6 +390,7 @@ const isSaving = computed(
     <woot-modal
       v-model:show="showFormPopup"
       :on-close="fecharForm"
+      :before-close="confirmarSaida"
       size="medium"
     >
       <div class="flex flex-col h-auto overflow-auto">
@@ -373,11 +402,42 @@ const isSaving = computed(
           "
         />
         <UnitForm
+          ref="formRef"
           :unit="selectedUnit"
           :is-saving="isSaving"
           @submit="salvar"
-          @cancel="fecharForm"
+          @cancel="tentarFechar"
         />
+      </div>
+    </woot-modal>
+
+    <woot-modal v-model:show="showNaoSalvoPopup" size="small">
+      <div class="flex flex-col gap-4 p-6">
+        <h3 class="m-0 text-heading-3 text-n-slate-12">
+          {{ $t('UNITS_MGMT.FORM.UNSAVED.TITLE') }}
+        </h3>
+        <p class="m-0 text-n-slate-11 text-body-main">
+          {{ $t('UNITS_MGMT.FORM.UNSAVED.MESSAGE') }}
+        </p>
+        <div class="flex justify-end gap-2">
+          <Button
+            faded
+            slate
+            :label="$t('UNITS_MGMT.FORM.UNSAVED.KEEP')"
+            @click="toggleNaoSalvoPopup(false)"
+          />
+          <Button
+            faded
+            ruby
+            :label="$t('UNITS_MGMT.FORM.UNSAVED.DISCARD')"
+            @click="descartarAlteracoes"
+          />
+          <Button
+            :label="$t('UNITS_MGMT.FORM.UNSAVED.SAVE')"
+            :is-loading="isSaving"
+            @click="salvarAntesDeSair"
+          />
+        </div>
       </div>
     </woot-modal>
 

@@ -1,4 +1,6 @@
 class Captain::Tools::Copilot::SearchMessagesService < Captain::Tools::BaseTool
+  include Captain::Tools::Copilot::ConversationScope
+
   def self.name
     'search_messages'
   end
@@ -8,12 +10,15 @@ class Captain::Tools::Copilot::SearchMessagesService < Captain::Tools::BaseTool
   param :limit, type: :integer, desc: 'Max results to return (default 20)'
 
   def execute(query:, limit: 20)
-    account = @assistant.account
-    messages = account.messages
-                      .where('content ILIKE ?', "%#{query}%")
-                      .order(created_at: :desc)
-                      .limit([limit, 50].min)
-                      .includes(:conversation)
+    # So as conversas que este usuario alcanca (ver ConversationScope): sem isso a busca lia
+    # mensagem de qualquer caixa e time da conta, inclusive das que dao 403 na tela.
+    # EA-01: alem do alcance por conversa, o CORTE por transferencia — o Copilot nao pode achar
+    # o que a tela esconde de quem recebeu a conversa por pedido.
+    messages = Conversations::HandoverCut.filter_messages_across(
+      account.messages.where(conversation_id: permissible_conversations.select(:id)), @user, account
+    )
+    messages = messages.where('content ILIKE ?', "%#{query}%")
+    messages = messages.order(created_at: :desc).limit([limit, 50].min).includes(:conversation)
 
     return "No messages found for '#{query}'" if messages.empty?
 

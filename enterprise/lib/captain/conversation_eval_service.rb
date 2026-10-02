@@ -8,6 +8,7 @@
 class Captain::ConversationEvalService < Captain::BaseTaskService
   RESPONSE_SCHEMA = Captain::ConversationEvalSchema
   TRANSCRIPT_CHAR_LIMIT = 60_000
+  EVAL_CONTEXT_CHAR_LIMIT = 20_000
 
   pattr_initialize [:account!, :conversation_display_id!, :episode, :model_override]
 
@@ -18,8 +19,8 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     response = make_api_call(
       model: eval_model,
       messages: [
-        { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context].compact.join("\n\n") },
-        { role: 'user', content: user_content }
+        { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context, eval_context].compact.join("\n\n") },
+        { role: 'user', content: user_content(transcript) }
       ],
       schema: RESPONSE_SCHEMA
     )
@@ -117,7 +118,13 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     [cabecalho, *linhas].join("\n")
   end
 
-  def user_content
+  # O transcript vem por ARGUMENTO, não por leitura de escopo: ele é variável local do
+  # `perform`, e quando este corpo foi extraído para cá (078efe33e6) o método passou a
+  # referenciar um nome que não existe aqui. O efeito foi mudo e invertido — episódio SEM
+  # atendimento saía cedo no `perform` e era gravado como 'sem_mensagens', enquanto todo
+  # episódio COM atendimento estourava NameError e não gravava veredito nenhum. Em 3 dias,
+  # ~420 atendimentos reais ficaram sem julgamento e o digest emudeceu por falta de finding.
+  def user_content(transcript)
     [origem_context, carryover_context, system_events_summary,
      human_annotations_context, desfecho_context, transcript].compact.join("\n\n")
   end
@@ -130,6 +137,14 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
       "CONFORMAR com estas normas: contradizer um fato ou uma regra daqui é falha (info_incorreta ou " \
       "quebrou_regra). As normas valem só para as respostas da IA, não para as dos humanos.\n---\n" \
       "#{instructions[0, SPEC_CHAR_LIMIT]}\n---"
+  end
+
+  def eval_context
+    contexto = episode_assistant&.behavior&.dig('eval', 'contexto').to_s
+    return if contexto.blank?
+
+    "CONTEXTO DO NEGÓCIO AVALIADO (vale como os exemplos específicos deste cliente):\n---\n" \
+      "#{contexto[0, EVAL_CONTEXT_CHAR_LIMIT]}\n---"
   end
 
   # O assistente dominante da janela avaliada (episódio) ou da conversa (legado).
@@ -222,7 +237,9 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     from = messages.first.created_at
     to = messages.last.created_at + 2.minutes
     Captain::ToolCall.for_conversation(conversation.id).in_window(from, to).order(:created_at).map do |call|
-      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 1200]
+      # O mesmo teto do registro: cortar em 1.200 o que foi gravado com 1.500 tirava do juiz a
+      # lista de imóveis, que vem depois do bloco de regras (9 dos 11 flagras dele, Tozi 29/09).
+      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, Captain::Tools::TraceRecorder::RESULT_PREVIEW_LIMIT]
       { at: call.created_at, line: "[TOOL #{call.tool_name} args=#{call.args.to_json[0, 200]} => #{resultado}]" }
     end
   end

@@ -441,74 +441,43 @@ describe('#getters', () => {
       expect(result.map(c => c.id)).toEqual([1]);
     });
   });
-  describe('#getAwaitingChats', () => {
-    it('returns only conversations the AI handed off (aguardando_humano_desde present)', () => {
-      // Backend parity (Conversation.awaiting_human / assignee_type=awaiting):
-      // the marker presence is the sole criterion — the AI stays the assignee.
-      const conversationList = [
-        {
-          id: 1,
-          inbox_id: 2,
-          status: 1,
-          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
-          custom_attributes: {
-            aguardando_humano_desde: '2026-06-24T10:00:00Z',
-          },
-          labels: [],
-        },
-        {
-          id: 2,
-          inbox_id: 2,
-          status: 1,
-          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
-          custom_attributes: {},
-          labels: [],
-        },
-        {
-          id: 3,
-          inbox_id: 2,
-          status: 1,
-          meta: { assignee: { id: 4 } },
-          labels: [],
-        },
-      ];
+  describe('#getRodizioChats', () => {
+    const conversationList = [
+      { id: 1, inbox_id: 2, status: 1, rodizio_designado_id: 7, labels: [] },
+      { id: 2, inbox_id: 2, status: 1, rodizio_designado_id: 8, labels: [] },
+      { id: 3, inbox_id: 3, status: 1, rodizio_designado_id: 7, labels: [] },
+      { id: 4, inbox_id: 2, status: 1, rodizio_designado_id: null, labels: [] },
+    ];
+    const rootGettersFor = (id, permissions) => ({
+      getCurrentUser: { id, accounts: [{ id: 1, permissions }] },
+      getCurrentAccountId: 1,
+      'accounts/getAccount': () => ({
+        settings: { rodizio_conversation_tabs: true },
+      }),
+    });
+    const state = {
+      allConversations: conversationList,
+      conversationFilters: { inboxId: 2, status: 1 },
+    };
 
-      const result = getters.getAwaitingChats({
-        allConversations: conversationList,
-        conversationFilters: { status: 1 },
-      });
+    it('agent sees only the conversations on their turn', () => {
+      const result = getters.getRodizioChats(
+        state,
+        null,
+        null,
+        rootGettersFor(7, ['agent'])
+      );
       expect(result.map(c => c.id)).toEqual([1]);
     });
 
-    it('applies page filters', () => {
-      const conversationList = [
-        {
-          id: 1,
-          inbox_id: 2,
-          status: 1,
-          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
-          custom_attributes: {
-            aguardando_humano_desde: '2026-06-24T10:00:00Z',
-          },
-          labels: [],
-        },
-        {
-          id: 2,
-          inbox_id: 3,
-          status: 1,
-          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
-          custom_attributes: {
-            aguardando_humano_desde: '2026-06-24T10:00:00Z',
-          },
-          labels: [],
-        },
-      ];
-
-      const result = getters.getAwaitingChats({
-        allConversations: conversationList,
-        conversationFilters: { inboxId: 2, status: 1 },
-      });
-      expect(result.map(c => c.id)).toEqual([1]);
+    it('supervisor sees every open designation', () => {
+      const result = getters.getRodizioChats(
+        state,
+        null,
+        null,
+        rootGettersFor(9, ['agent', 'team_supervisor'])
+      );
+      expect(result.map(c => c.id).sort()).toEqual([1, 2]);
     });
   });
   describe('#getConversationById', () => {

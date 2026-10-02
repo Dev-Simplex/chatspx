@@ -87,11 +87,9 @@ class Audio::WaveformGenerationJob < ApplicationJob
     nil
   end
 
+  # Mescla no banco: a transcricao pode ter gravado no meta enquanto o ffmpeg rodava (ver Attachments::MetaMerge).
   def persist_peaks(attachment, peaks)
-    new_meta = (attachment.meta || {}).merge('waveform_peaks' => peaks)
-    # Skip callbacks: metadata-only update; we do not want to re-enqueue
-    # transcription or waveform extraction.
-    attachment.update_column(:meta, new_meta) # rubocop:disable Rails/SkipsModelValidations
+    Attachments::MetaMerge.call(attachment, 'waveform_peaks' => peaks)
   end
 
   def notify_message_updated(attachment)

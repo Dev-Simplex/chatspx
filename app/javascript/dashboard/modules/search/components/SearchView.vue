@@ -192,12 +192,43 @@ const isFetchingAny = computed(() => {
   );
 });
 
+const visibleSections = computed(() =>
+  tabs.value
+    .filter(tab => tab.key !== 'all')
+    .map(
+      tab =>
+        ({
+          contacts: 'contact',
+          conversations: 'conversation',
+          messages: 'message',
+          articles: 'article',
+        })[tab.key]
+    )
+);
+const hasSearchError = computed(() =>
+  visibleSections.value.some(section => uiFlags.value[section].hasError)
+);
+const allSectionsFailed = computed(
+  () =>
+    visibleSections.value.length > 0 &&
+    visibleSections.value.every(section => uiFlags.value[section].hasError)
+);
+const showSearchError = computed(
+  () =>
+    isSelectedTabAll.value &&
+    query.value &&
+    uiFlags.value.isSearchCompleted &&
+    !isFetchingAny.value &&
+    allSectionsFailed.value
+);
+
 const showEmptySearchResults = computed(
   () =>
     totalSearchResultsCount.value === 0 &&
     uiFlags.value.isSearchCompleted &&
     isSelectedTabAll.value &&
     !isFetchingAny.value &&
+    !hasSearchError.value &&
     query.value
 );
 
@@ -205,6 +236,7 @@ const showResultsSection = computed(
   () =>
     (uiFlags.value.isSearchCompleted && totalSearchResultsCount.value !== 0) ||
     isFetchingAny.value ||
+    (hasSearchError.value && !allSectionsFailed.value) ||
     (!isSelectedTabAll.value && query.value && !isFetchingAny.value)
 );
 
@@ -396,6 +428,7 @@ onUnmounted(() => {
               <SearchResultContactsList
                 v-if="filterContacts"
                 :is-fetching="uiFlags.contact.isFetching"
+                :has-error="uiFlags.contact.hasError"
                 :contacts="contacts"
                 :query="query"
                 :show-title="isSelectedTabAll"
@@ -419,6 +452,7 @@ onUnmounted(() => {
               <SearchResultMessagesList
                 v-if="filterMessages"
                 :is-fetching="uiFlags.message.isFetching"
+                :has-error="uiFlags.message.hasError"
                 :messages="messages"
                 :query="query"
                 :show-title="isSelectedTabAll"
@@ -442,6 +476,7 @@ onUnmounted(() => {
               <SearchResultConversationsList
                 v-if="filterConversations"
                 :is-fetching="uiFlags.conversation.isFetching"
+                :has-error="uiFlags.conversation.hasError"
                 :conversations="conversations"
                 :query="query"
                 :show-title="isSelectedTabAll"
@@ -467,6 +502,7 @@ onUnmounted(() => {
               <SearchResultArticlesList
                 v-if="filterArticles"
                 :is-fetching="uiFlags.article.isFetching"
+                :has-error="uiFlags.article.hasError"
                 :articles="articles"
                 :query="query"
                 :show-title="isSelectedTabAll"
@@ -494,6 +530,22 @@ onUnmounted(() => {
                 @click="loadMore"
               />
             </div>
+          </div>
+          <div
+            v-else-if="showSearchError"
+            class="flex flex-col items-center justify-center px-4 py-6 mt-8 rounded-md"
+          >
+            <p class="m-2 text-center text-n-slate-11">
+              {{ t('SEARCH.ERROR_STATE_FULL') }}
+            </p>
+            <NextButton
+              :label="t('SEARCH.RETRY')"
+              icon="i-lucide-refresh-cw"
+              slate
+              sm
+              outline
+              @click="onSearch(query)"
+            />
           </div>
           <div
             v-else-if="showEmptySearchResults"

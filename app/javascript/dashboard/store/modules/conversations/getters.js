@@ -159,8 +159,13 @@ const getters = {
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
-  getAIChats: _state => {
+  getAIChats: (_state, _, __, rootGetters = {}) => {
     const filters = _state.conversationFilters;
+    const accountId = rootGetters.getCurrentAccountId;
+    const rodizioTabsEnabled = Boolean(
+      rootGetters['accounts/getAccount']?.(accountId)?.settings
+        ?.rodizio_conversation_tabs
+    );
 
     return _state.allConversations
       .filter(conversation => {
@@ -169,29 +174,28 @@ const getters = {
         // como IA. Bots webhook emitem type 'agent_bot' mas não são atendentes IA.
         const isAIAssigned =
           assignee?.type === 'agent_bot' && Boolean(assignee.is_captain);
-        // Conversa aguardando humano (handoff feito, IA segue dona) sai da aba "IA"
-        // e fica só em "Aguardando atendimento" — espelha o backend (ai_count exige
-        // marcador ausente). Sem isto, a mesma conversa aparecia nas duas abas.
+        // No modo Rodízio, aguardando humano fica na IA; no modo anterior sai
+        // daqui e aparece em "Aguardando atendimento".
         const isAwaiting = Boolean(
           conversation.custom_attributes?.aguardando_humano_desde
         );
-        // Conversa na fila de encerramento também sai da aba "IA" (espelha o backend:
-        // ai_count exige os dois marcadores ausentes).
+        const isOrphanAwaiting = rodizioTabsEnabled && !assignee && isAwaiting;
+        // Conversa na fila de encerramento sai da aba "IA" e vai para "Atenção"
+        // (espelha o backend: ai_count exige o marcador ausente).
         const isPendingClosure = Boolean(
           conversation.custom_attributes?.aguardando_encerramento_desde
         );
         const shouldFilter = applyPageFilters(conversation, filters);
-        return isAIAssigned && !isAwaiting && !isPendingClosure && shouldFilter;
+        return (
+          (isAIAssigned || isOrphanAwaiting) &&
+          (rodizioTabsEnabled || !isAwaiting) &&
+          !isPendingClosure &&
+          shouldFilter
+        );
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
   getAwaitingChats: _state => {
-    // "Aguardando atendimento" (modelo B): a IA fez handoff e segue dona, mas
-    // marcou que é hora de um humano assumir. Espelha o critério do backend
-    // (Conversation.awaiting_human / assignee_type='awaiting'): basta o marcador
-    // custom_attributes.aguardando_humano_desde estar presente — independente de
-    // quem é o assignee (a IA continua dona). Mantém count (REST) e lista
-    // (websocket) coerentes para a fila do sidebar.
     const filters = _state.conversationFilters;
 
     return _state.allConversations
@@ -199,15 +203,40 @@ const getters = {
         const isAwaiting = Boolean(
           conversation.custom_attributes?.aguardando_humano_desde
         );
-        const shouldFilter = applyPageFilters(conversation, filters);
-        return isAwaiting && shouldFilter;
+        return isAwaiting && applyPageFilters(conversation, filters);
+      })
+      .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
+  },
+  getRodizioChats: (_state, _, __, rootGetters) => {
+    // "Rodízio": designação aberta (rodizio_designado_id, espelho do backend).
+    // Admin/supervisor veem todas; o agente, só as que estão na vez dele.
+    const accountId = rootGetters.getCurrentAccountId;
+    if (
+      !rootGetters['accounts/getAccount'](accountId)?.settings
+        ?.rodizio_conversation_tabs
+    )
+      return [];
+
+    const currentUser = rootGetters.getCurrentUser;
+    const permissions = getUserPermissions(currentUser, accountId);
+    const seesAll = ['administrator', 'team_supervisor'].some(p =>
+      permissions.includes(p)
+    );
+    const filters = _state.conversationFilters;
+
+    return _state.allConversations
+      .filter(conversation => {
+        const designadoId = conversation.rodizio_designado_id;
+        if (!designadoId) return false;
+        if (!seesAll && designadoId !== currentUser.id) return false;
+        return applyPageFilters(conversation, filters);
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
   getPendingClosureChats: _state => {
-    // "Aguardando encerramento": espelha o backend (Conversation.awaiting_closure /
+    // "Atenção": espelha o backend (Conversation.awaiting_closure /
     // assignee_type='pending_closure') — basta o marcador aguardando_encerramento_desde
-    // presente (a IA continua dona). Mesma mecânica da fila "Aguardando atendimento".
+    // presente (a IA continua dona).
     const filters = _state.conversationFilters;
 
     return _state.allConversations
@@ -243,6 +272,7 @@ const getters = {
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
   getChatListLoadingStatus: ({ listLoadingStatus }) => listLoadingStatus,
+  getChatListError: ({ listError }) => listError,
   getAllMessagesLoaded(_state) {
     const [chat] = getSelectedChatConversation(_state);
     return !chat || chat.allMessagesLoaded === undefined

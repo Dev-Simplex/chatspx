@@ -29,6 +29,7 @@ const { t } = useI18n();
 const teamId = computed(() => props.teamId);
 
 const carregando = ref(true);
+const carregado = ref(false);
 const salvando = ref(false);
 const semPermissao = ref(false);
 const politica = ref({});
@@ -67,9 +68,11 @@ function aplicar(dados) {
 
 async function carregar() {
   carregando.value = true;
+  carregado.value = false;
   try {
     const { data } = await TeamDistribuicaoAPI.show(teamId.value);
     aplicar(data);
+    carregado.value = true;
   } catch (erro) {
     if (erro.response?.status === 401) semPermissao.value = true;
     else useAlert(t('TEAMS_SETTINGS.DISTRIBUICAO.ERROR'));
@@ -156,6 +159,15 @@ function reativar(entrada) {
 }
 
 async function salvar() {
+  // No formulário embutido, apenas o time deve salvar se a distribuição não carregou.
+  // No botão próprio, avisamos que faltam dados do servidor antes de tentar salvar.
+  if (!carregado.value || semPermissao.value) {
+    if (!props.embutido && !semPermissao.value) {
+      useAlert(t('TEAMS_SETTINGS.DISTRIBUICAO.ERROR'));
+    }
+    return;
+  }
+
   salvando.value = true;
   try {
     const { data } = await TeamDistribuicaoAPI.update(teamId.value, {
@@ -215,11 +227,17 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
         </span>
       </label>
 
-      <p class="text-xs text-n-slate-11 border-l-2 border-n-weak pl-3">
-        {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CASCATA') }}
-      </p>
+      <div class="flex flex-col gap-1 border-l-2 border-n-weak pl-3">
+        <p class="text-xs text-n-slate-11">
+          {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CASCATA') }}
+        </p>
+        <p class="text-xs text-n-slate-11">
+          {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CASCATA_HELP') }}
+        </p>
+      </div>
 
-      <fieldset :disabled="!ligada" class="flex flex-col gap-6">
+      <!-- !w / !mb vencem o seletor global de inputs em _base.scss (w-full / mb-4). -->
+      <fieldset :disabled="!ligada" class="flex min-w-0 flex-col gap-6">
         <div class="flex flex-col gap-1">
           <span class="text-sm font-medium text-n-slate-12">
             {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.MODO.LABEL') }}
@@ -231,7 +249,9 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
             <option value="rodizio">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.MODO.RODIZIO') }}
             </option>
-            <option value="online">
+            <!-- O Motor ainda nao distribui neste modo (Policy#distribui?): escolher desligava o
+                 time em silencio. Fica visivel e travado para quem ja esta nele ver o aviso. -->
+            <option value="online" disabled>
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.MODO.ONLINE') }}
             </option>
             <option value="off">
@@ -240,10 +260,10 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
           </select>
         </div>
 
-        <div class="flex flex-col gap-1">
-          <span class="text-sm font-medium text-n-slate-12">
+        <div class="flex flex-col gap-3 border-t border-n-weak pt-6">
+          <h4 class="m-0 text-sm font-medium text-n-slate-12">
             {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POSSE.LABEL') }}
-          </span>
+          </h4>
           <select
             v-model="politica.modo_posse"
             class="max-w-md rounded-lg border border-n-weak bg-n-solid-1 text-sm"
@@ -255,6 +275,9 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POSSE.DESIGNACAO') }}
             </option>
           </select>
+          <p class="text-xs text-n-slate-11">
+            {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POSSE.HELP') }}
+          </p>
         </div>
 
         <!-- O Motor nasceu pendurado no handoff da IA, entao time que recebe conversa por
@@ -285,14 +308,14 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CONTINUIDADE.LABEL') }}
             </span>
           </label>
-          <div class="flex items-center gap-2 pl-6">
+          <div class="flex items-center gap-2 pl-6 py-2">
             <input
               v-model.number="politica.continuidade_dias"
               type="number"
               min="1"
-              class="w-20 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
+              class="!w-20 !mb-0 shrink-0 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
             />
-            <span class="text-xs text-n-slate-11">
+            <span class="shrink-0 whitespace-nowrap text-xs text-n-slate-11">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.CONTINUIDADE.DAYS') }}
             </span>
           </div>
@@ -301,42 +324,46 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
           </p>
         </div>
 
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center gap-2">
+        <div class="flex flex-col gap-6 border-t border-n-weak pt-6">
+          <div class="flex flex-col items-start gap-3">
             <span class="text-sm font-medium text-n-slate-12">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.LABEL') }}
             </span>
-            <input
-              v-model.number="politica.sla_assumir_minutos"
-              type="number"
-              min="1"
-              class="w-20 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
-            />
-            <span class="text-xs text-n-slate-11">
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.MINUTES') }}
-            </span>
+            <div class="flex items-center gap-2">
+              <input
+                v-model.number="politica.sla_assumir_minutos"
+                type="number"
+                min="1"
+                class="!w-20 !mb-0 shrink-0 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
+              />
+              <span class="shrink-0 whitespace-nowrap text-xs text-n-slate-11">
+                {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.MINUTES') }}
+              </span>
+            </div>
           </div>
 
-          <div class="flex flex-col gap-2 pl-6">
-            <span class="text-xs text-n-slate-11">
+          <div class="flex flex-col gap-4 border-t border-n-weak pt-6">
+            <h4 class="m-0 text-sm font-medium text-n-slate-12">
               {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.ON_EXPIRY') }}
-            </span>
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="politica.repasse_automatico"
-                type="radio"
-                :value="true"
-              />
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.REPASSE') }}
-            </label>
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="politica.repasse_automatico"
-                type="radio"
-                :value="false"
-              />
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.ALERT') }}
-            </label>
+            </h4>
+            <div class="flex flex-col gap-1">
+              <label class="flex items-start gap-2">
+                <input
+                  v-model="politica.repasse_automatico"
+                  type="checkbox"
+                  class="mt-1"
+                />
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.REPASSE') }}
+                </span>
+              </label>
+              <p
+                v-if="!politica.repasse_automatico"
+                class="text-xs text-n-slate-11 pl-6"
+              >
+                {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.REPASSE_OFF_HELP') }}
+              </p>
+            </div>
 
             <p
               v-if="politica.repasse_automatico && !horarioDefinido"
@@ -347,21 +374,21 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
 
             <div
               v-if="politica.repasse_automatico"
-              class="flex flex-col gap-2 pl-6"
+              class="flex flex-col gap-4 pl-6"
             >
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-n-slate-11">
+              <label class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-n-slate-12">
                   {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.MAX') }}
                 </span>
                 <input
                   v-model.number="politica.max_repasses"
                   type="number"
                   min="1"
-                  class="w-16 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
+                  class="!w-20 !mb-0 shrink-0 rounded-lg border border-n-weak bg-n-solid-1 text-sm"
                 />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-n-slate-11">
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-n-slate-12">
                   {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.DESTINO') }}
                 </span>
                 <select
@@ -379,28 +406,47 @@ defineExpose({ salvar, temPermissao: computed(() => !semPermissao.value) });
                     {{ pessoa.nome }}
                   </option>
                 </select>
-              </div>
+              </label>
             </div>
 
-            <label class="flex items-center gap-2 text-sm">
-              <input v-model="politica.sla_respeita_horario" type="checkbox" />
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.HORARIO') }}
+            <label class="flex items-start gap-2">
+              <input
+                v-model="politica.sla_respeita_horario"
+                type="checkbox"
+                class="mt-1"
+              />
+              <span class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.HORARIO') }}
+                </span>
+                <span class="text-xs text-n-slate-11">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.HORARIO_HELP') }}
+                </span>
+              </span>
             </label>
-            <label class="flex items-center gap-2 text-sm">
+            <label class="flex items-start gap-2">
               <input
                 v-model="politica.expirado_conta_como_recebido"
                 type="checkbox"
+                class="mt-1"
               />
-              {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.EXPIRADO') }}
+              <span class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.EXPIRADO') }}
+                </span>
+                <span class="text-xs text-n-slate-11">
+                  {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.SLA.EXPIRADO_HELP') }}
+                </span>
+              </span>
             </label>
           </div>
         </div>
       </fieldset>
 
-      <div class="flex flex-col gap-2">
-        <span class="text-sm font-medium text-n-slate-12">
+      <div class="flex flex-col gap-3 border-t border-n-weak pt-6">
+        <h4 class="m-0 text-sm font-medium text-n-slate-12">
           {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.TITLE') }}
-        </span>
+        </h4>
         <p class="text-xs text-n-slate-11">
           {{ $t('TEAMS_SETTINGS.DISTRIBUICAO.POOL.ORDER_HELP') }}
         </p>

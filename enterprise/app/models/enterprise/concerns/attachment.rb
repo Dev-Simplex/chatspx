@@ -2,16 +2,29 @@ module Enterprise::Concerns::Attachment
   extend ActiveSupport::Concern
 
   included do
+    # Um dono por audio. Somado a este, o hook OSS mandava o MESMO audio de novo para o Whisper:
+    # duas cobrancas e dois jobs disputando o anexo.
+    skip_callback :commit, :after, :schedule_audio_transcription
     after_create_commit :enqueue_audio_transcription
     after_create_commit :enqueue_media_description
   end
 
   private
 
+  # Quem transcreve e o Captain (chave de audio propria, conta uso). Quando ele nao pode, fica o
+  # pipeline OSS, com as regras dele — e o que ja transcrevia essas contas antes.
   def enqueue_audio_transcription
     return unless file_type.to_sym == :audio
+    return schedule_audio_transcription unless captain_transcribes_audio?
 
     Messages::AudioTranscriptionJob.perform_later(id)
+  end
+
+  def captain_transcribes_audio?
+    message.present? && Messages::AudioTranscriptionService.new(self).can_transcribe?
+  rescue StandardError
+    # Sem chave do Captain na instalacao o servico nem inicializa.
+    false
   end
 
   # Descreve a midia AQUI, na chegada, e nao no momento em que o agente monta o contexto:

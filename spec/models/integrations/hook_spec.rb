@@ -2,6 +2,8 @@ require 'rails_helper'
 require Rails.root.join 'spec/models/concerns/reauthorizable_shared.rb'
 
 RSpec.describe Integrations::Hook do
+  include CaptadorSigningHelpers
+
   it_behaves_like 'reauthorizable'
 
   context 'with validations' do
@@ -109,6 +111,28 @@ RSpec.describe Integrations::Hook do
         create(:integrations_hook, account: account, app_id: 'slack')
         expect(Crm::SetupJob).not_to have_received(:perform_later)
       end
+    end
+  end
+
+  describe 'segredo do Captador' do
+    let(:account) { create(:account) }
+    let(:secret) { 'segredo-compartilhado-com-mais-de-32-caracteres' }
+
+    it 'grava cifrado no JSONB e devolve o valor só pelo accessor interno' do
+      hook = captador_hook_for(account, shared_secret: secret)
+      stored = hook.reload.settings['shared_secret']
+
+      expect(stored).to start_with(described_class::CAPTADOR_SECRET_PREFIX)
+      expect(stored).not_to include(secret)
+      expect(hook.captador_shared_secret).to eq(secret)
+    end
+
+    it 'recifra uma linha legada no primeiro uso' do
+      hook = captador_hook_for(account, shared_secret: secret)
+      hook.update_column(:settings, hook.settings.merge('shared_secret' => secret)) # rubocop:disable Rails/SkipsModelValidations
+
+      expect(hook.reload.captador_shared_secret).to eq(secret)
+      expect(hook.reload.settings['shared_secret']).to start_with(described_class::CAPTADOR_SECRET_PREFIX)
     end
   end
 end

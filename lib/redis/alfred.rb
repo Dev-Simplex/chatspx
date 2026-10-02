@@ -21,6 +21,20 @@ module Redis::Alfred
       $alfred.with { |conn| conn.get(key) }
     end
 
+    # Apaga a chave SO se o valor for o esperado. Sem isso, quem segurava uma trava que ja
+    # expirou apaga a trava de OUTRO dono ao terminar.
+    #
+    # Comparacao em Ruby, e nao script Lua, de proposito: em teste o $alfred embrulha um
+    # MockRedis, que nao implementa EVAL -- o script derrubaria a suite inteira. Resta uma
+    # janela de microssegundos entre o GET e o DEL; o defeito que isto fecha vive em outra
+    # escala (o dono segura a trava por MINUTOS depois de ela ter expirado).
+    def delete_if_value(key, value)
+      return false unless get(key) == value
+
+      delete(key)
+      true
+    end
+
     def delete(key)
       $alfred.with { |conn| conn.del(key) }
     end

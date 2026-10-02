@@ -33,6 +33,30 @@ RSpec.describe Redis::LockManager do
       lock_manager.unlock(lock_key)
       expect(lock_manager.locked?(lock_key)).to be false
     end
+
+    # O caso do GlitchTip tozi 111: o detentor passa do TTL (download de midia sem teto), a chave
+    # expira, um segundo webhook adquire a "mesma" trava, e o primeiro, ao terminar, apagava a
+    # trava DELE -- liberando um terceiro a rodar em paralelo.
+    it 'does not release a lock that now belongs to someone else' do
+      primeiro = described_class.new
+      primeiro.lock(lock_key, 1)
+      sleep 2
+
+      segundo = described_class.new
+      expect(segundo.lock(lock_key, 30)).to be true
+
+      primeiro.unlock(lock_key)
+
+      expect(segundo.locked?(lock_key)).to be true
+    end
+
+    it 'still releases when the caller did not acquire through this instance' do
+      lock_manager.lock(lock_key)
+
+      described_class.new.unlock(lock_key)
+
+      expect(lock_manager.locked?(lock_key)).to be false
+    end
   end
 
   describe '#locked?' do

@@ -7,6 +7,7 @@ import { useInbox } from 'dashboard/composables/useInbox';
 import { ATTACHMENT_TYPES } from 'dashboard/components-next/message/constants.js';
 
 import CardLayout from 'dashboard/components-next/CardLayout.vue';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import FileChip from 'next/message/chips/File.vue';
 import AudioChip from 'next/message/chips/Audio.vue';
@@ -16,6 +17,18 @@ const props = defineProps({
   id: {
     type: Number,
     default: 0,
+  },
+  inboxData: {
+    type: Object,
+    default: () => ({}),
+  },
+  avatarName: {
+    type: String,
+    default: '',
+  },
+  avatarSrc: {
+    type: String,
+    default: '',
   },
   inboxId: {
     type: Number,
@@ -61,11 +74,14 @@ const createdAtTime = computed(() => {
   return dynamicTime(props.createdAt);
 });
 
-const inboxName = computed(() => inbox.value?.name);
+const resultInbox = computed(() =>
+  props.inboxData?.name ? props.inboxData : inbox.value
+);
+const inboxName = computed(() => resultInbox.value?.name);
 
 const inboxIcon = computed(() => {
-  if (!inbox.value) return null;
-  const { channelType, medium } = inbox.value;
+  if (!resultInbox.value) return null;
+  const { channelType, medium } = resultInbox.value;
   return getInboxIconByType(channelType, medium);
 });
 
@@ -88,51 +104,66 @@ const audioAttachments = computed(() => {
       layout="col"
       class="[&>div]:justify-start [&>div]:gap-2 [&>div]:px-4 [&>div]:py-3 [&>div]:items-start hover:bg-n-slate-2 dark:hover:bg-n-solid-3"
     >
-      <div
-        class="flex items-center min-w-0 justify-between gap-2 w-full h-7 mb-1"
-      >
-        <div class="flex items-center gap-3">
-          <div class="flex items-center gap-1.5 flex-shrink-0">
-            <Icon
-              icon="i-lucide-hash"
-              class="flex-shrink-0 text-n-slate-11 size-4"
-            />
-            <span class="text-n-slate-12 text-sm leading-4">
-              {{ id }}
-            </span>
-          </div>
-          <div v-if="inboxName" class="w-px h-3 bg-n-strong" />
-          <div v-if="inboxName" class="flex items-center gap-1.5 flex-shrink-0">
+      <div class="flex items-center gap-2 w-full">
+        <Avatar
+          :name="avatarName"
+          :src="avatarSrc"
+          :size="24"
+          rounded-full
+          class="flex-shrink-0"
+        />
+        <div
+          class="flex items-center min-w-0 justify-between gap-2 w-full h-7 mb-1"
+        >
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <Icon
+                icon="i-lucide-hash"
+                class="flex-shrink-0 text-n-slate-11 size-4"
+              />
+              <span class="text-n-slate-12 text-sm leading-4">
+                {{ id }}
+              </span>
+            </div>
+            <div v-if="inboxName" class="w-px h-3 bg-n-strong" />
             <div
-              v-if="inboxIcon"
-              class="flex items-center justify-center flex-shrink-0 rounded-full bg-n-alpha-2 size-4"
+              v-if="inboxName"
+              class="flex items-center gap-1.5 flex-shrink-0"
+            >
+              <div
+                v-if="inboxIcon"
+                class="flex items-center justify-center flex-shrink-0 rounded-full bg-n-alpha-2 size-4"
+              >
+                <Icon
+                  :icon="inboxIcon"
+                  class="flex-shrink-0 text-n-slate-11 size-2.5"
+                />
+              </div>
+              <span class="text-sm leading-4 text-n-slate-12">
+                {{ inboxName }}
+              </span>
+            </div>
+            <div v-if="isPrivate" class="w-px h-3 bg-n-strong" />
+            <div
+              v-if="isPrivate"
+              class="flex items-center text-n-amber-11 gap-1.5 flex-shrink-0"
             >
               <Icon
-                :icon="inboxIcon"
-                class="flex-shrink-0 text-n-slate-11 size-2.5"
+                icon="i-lucide-lock-keyhole"
+                class="flex-shrink-0 size-3.5"
               />
+              <span class="text-sm leading-4">
+                {{ $t('SEARCH.PRIVATE') }}
+              </span>
             </div>
-            <span class="text-sm leading-4 text-n-slate-12">
-              {{ inboxName }}
-            </span>
           </div>
-          <div v-if="isPrivate" class="w-px h-3 bg-n-strong" />
-          <div
-            v-if="isPrivate"
-            class="flex items-center text-n-amber-11 gap-1.5 flex-shrink-0"
+          <span
+            v-if="createdAtTime"
+            class="text-sm font-normal min-w-0 truncate text-n-slate-11"
           >
-            <Icon icon="i-lucide-lock-keyhole" class="flex-shrink-0 size-3.5" />
-            <span class="text-sm leading-4">
-              {{ $t('SEARCH.PRIVATE') }}
-            </span>
-          </div>
+            {{ createdAtTime }}
+          </span>
         </div>
-        <span
-          v-if="createdAtTime"
-          class="text-sm font-normal min-w-0 truncate text-n-slate-11"
-        >
-          {{ createdAtTime }}
-        </span>
       </div>
       <slot />
       <div v-if="audioAttachments.length" class="mt-1.5 space-y-4 w-full">

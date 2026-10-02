@@ -4,7 +4,9 @@
     "LOAD_MORE_CONVERSATIONS": "Load more conversations",
     "EOF": "All conversations loaded 🎉",
     "LIST": {
-      "404": "There are no active conversations in this group."
+      "404": "There are no active conversations in this group.",
+      "LOAD_ERROR": "Could not load conversations.",
+      "RETRY": "Try again"
     },
     "FAILED_TO_SEND": "Failed to send",
     "SEND_ERROR": {
@@ -31,7 +33,9 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Mine",
       "awaiting": "Awaiting assignment",
+      "rodizio": "Rotation",
       "pending_closure": "Awaiting closure",
+      "attention": "Attention",
       "unassigned": "Unassigned",
       "ai": "AI",
       "all": "All"

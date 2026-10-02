@@ -31,6 +31,9 @@ module Spx
       # em modo_posse=designacao ninguém vira `assignee` (ver #assign!).
       Result = Struct.new(:decidido, :user_id, :motivo, keyword_init: true)
 
+      # Quem já é dono do lead antes de o rodízio girar (designação viva, dono atual, continuidade).
+      include GuardaDeDono
+
       # Corretor que o CLIENTE pediu pelo nome. Escrito pela conduta da IA, lido aqui.
       PREFERENCIA = 'rodizio_preferencia'.freeze
       # Motivos que gastam a vez do consultor no rodízio (ver #consome_vez?).
@@ -70,7 +73,7 @@ module Spx
         return sem_pool(pool_ids) if pool_ids.empty?
 
         chosen, motivo = pick(@policy, pool_ids)
-        return sem_pool(pool_ids) if chosen.nil?
+        return sem_escolha(pool_ids, motivo) if chosen.nil?
 
         efetivar(chosen, motivo, pool_ids)
       rescue StandardError => e
@@ -154,6 +157,12 @@ module Spx
         # de deixar o prazo vencer (ou para alguém já excluído) e o lead nunca andaria.
         return [proximo_rodizio(policy, pool_ids), @motivo_forcado] if @motivo_forcado
 
+        dono = sem_lead_novo(pool_ids)
+        return [nil, dono] if dono
+
+        atendente = quem_ja_atende(pool_ids)
+        return [atendente, 'ja_atendida'] if atendente
+
         preferido = preferencia_do_cliente(pool_ids)
         return [preferido, 'preferencia_cliente'] if preferido
 
@@ -194,24 +203,6 @@ module Spx
       # a vez de ninguém.
       def consome_vez?(motivo)
         CONSOMEM_VEZ.include?(motivo)
-      end
-
-      # Consultor que já atendeu ESTE contato NESTE time, dentro da janela, e que
-      # ainda está no pool ativo. Query por contato (índice conversations.contact_id).
-      #
-      # ⚠️ Em modo_posse=designacao isto naturalmente não casa: `assignee` nunca é gravado,
-      # então não há histórico por onde procurar. NÃO é bug — em vendas a fonte de "quem já
-      # atende este cliente" é o VISTA (SPEC-RODIZIO §7.1), e entra junto com o espelho.
-      def consultor_anterior(policy, pool_ids)
-        desde = policy.continuidade_dias.to_i.days.ago
-        @conversation.contact.conversations
-                     .where(team_id: @team.id)
-                     .where.not(id: @conversation.id)
-                     .where(assignee_id: pool_ids)
-                     .where('last_activity_at >= ?', desde)
-                     .order(last_activity_at: :desc)
-                     .limit(1)
-                     .pick(:assignee_id)
       end
 
       # Round-robin: o primeiro do pool DEPOIS do last_user_id (ponteiro no state),

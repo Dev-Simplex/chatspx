@@ -60,12 +60,16 @@ class ReconnectService {
     this.handleRouteSpecificFetch();
   };
 
-  fetchConversations = async () => {
+  fetchConversations = async (staleSeconds = 0) => {
     await this.store.dispatch('updateChatListFilters', {
       page: 1,
       cursor: null,
+      // O silêncio do stream também deixa lacunas sem registrar uma queda.
       updatedWithin:
-        this.getSecondsSinceDisconnect() + DISCONNECT_DELAY_THRESHOLD,
+        Math.min(
+          Math.max(this.getSecondsSinceDisconnect(), staleSeconds),
+          MAX_DISCONNECT_SECONDS
+        ) + DISCONNECT_DELAY_THRESHOLD,
     });
     await this.store.dispatch('fetchAllConversations');
     // Reset the updatedWithin in the store chat list filter after fetching conversations when the user is reconnected
@@ -81,7 +85,7 @@ class ReconnectService {
     });
   };
 
-  fetchConversationsOnReconnect = async () => {
+  fetchConversationsOnReconnect = async (staleSeconds = 0) => {
     const {
       getAppliedConversationFiltersQuery,
       'customViews/getActiveConversationFolder': activeFolder,
@@ -92,7 +96,7 @@ class ReconnectService {
     if (query) {
       await this.fetchFilteredOrSavedConversations(query);
     } else {
-      await this.fetchConversations();
+      await this.fetchConversations(staleSeconds);
     }
   };
 
@@ -150,10 +154,10 @@ class ReconnectService {
     ]);
   };
 
-  handleRouteSpecificFetch = async () => {
+  handleRouteSpecificFetch = async ({ staleSeconds = 0 } = {}) => {
     const currentRoute = this.router.currentRoute.value.name;
     if (isAConversationRoute(currentRoute, true)) {
-      await this.fetchConversationsOnReconnect();
+      await this.fetchConversationsOnReconnect(staleSeconds);
       await this.fetchConversationMessagesOnReconnect();
     } else if (isAInboxViewRoute(currentRoute, true)) {
       await this.fetchNotificationsOnReconnect(
@@ -182,7 +186,10 @@ class ReconnectService {
   };
 
   onReconnect = async () => {
+    const disconnectTime = this.disconnectTime;
     await this.handleRouteSpecificFetch();
+    // O gap-fill usa esta queda; preserve outra que ocorrer durante o fetch.
+    if (this.disconnectTime === disconnectTime) this.disconnectTime = null;
     await this.revalidateCaches();
     emitter.emit(BUS_EVENTS.WEBSOCKET_RECONNECT_COMPLETED);
   };

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
 import {
   getTime,
   timeSlotParse,
@@ -13,11 +14,17 @@ import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import NextSelect from 'dashboard/components-next/select/Select.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import {
+  comoTextoISO,
   dataLegivel,
   dataDaEnesimaOcorrencia,
   proximasOcorrencias,
 } from './unitSchedule';
 import UnitCalendar from './UnitCalendar.vue';
+import {
+  formatarCep,
+  formatarTelefone,
+  copiarHorarioParaDias,
+} from './unitFormulario';
 
 const props = defineProps({
   // Unidade existente quando é edição; nulo quando é criação.
@@ -57,8 +64,11 @@ const COR_DA_CATEGORIA = {
 // justamente disso: `woot-input` monta rótulo e caixa com espaçamento próprio e 40px de
 // altura, enquanto o seletor nativo fica em 38px — alinhados pela base, os rótulos
 // saíam em linhas diferentes.
-const CAMPO =
-  'reset-base h-10 w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10';
+// Mesmo realce do relógio/calendário nativo usado na grade semanal (BusinessDay.vue).
+const RELOGIO =
+  '[&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:outline [&::-webkit-calendar-picker-indicator]:outline-1 [&::-webkit-calendar-picker-indicator]:outline-n-weak [&::-webkit-calendar-picker-indicator]:transition-opacity hover:[&::-webkit-calendar-picker-indicator]:opacity-100';
+
+const CAMPO = `reset-base h-10 w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10 ${RELOGIO}`;
 const CAMPO_ESTREITO =
   'reset-base h-10 w-20 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12';
 const SELETOR = 'w-full [&>select]:h-10 [&>select]:w-full';
@@ -87,14 +97,25 @@ const REGRA_VAZIA = {
 
 const form = ref({
   name: '',
+  zip_code: '',
   city: '',
   state: '',
   address: '',
-  phone: '',
+  address_number: '',
+  // Uma filial costuma ter mais de um número e alguns links. O `phone` da unidade continua
+  // existindo no banco (é o primeiro contato), mas quem edita aqui é a lista.
+  contacts: [],
+  social_links: [],
   timezone: 'America/Sao_Paulo',
   notes: '',
   applies_to_inboxes: false,
 });
+// UM campo, e não dois: ninguém digita latitude e longitude separadas — copia o par do Google
+// Maps ("-15.601, -56.097") e cola. A quebra nos dois números acontece no envio.
+const coordenadas = ref('');
+// Pares nome/valor porque é assim que se edita; o hash só existe na hora de enviar. Editar JSON
+// na tela seria pedir pro time errar chave e a IA repassar rótulo torto ao cliente.
+const regrasProprias = ref([]);
 const timeSlots = ref([]);
 const horaIds = ref({});
 const selectedInboxIds = ref([]);
@@ -103,6 +124,9 @@ const novaRegra = ref({ ...REGRA_VAZIA });
 
 // -1 = criando; >= 0 = editando a regra daquela posição.
 const editandoIndex = ref(-1);
+
+// Ano que o calendário está mostrando; a lista de marcações acompanha.
+const anoVisivel = ref(new Date().getFullYear());
 
 const rascunhoLimpo = () => ({
   ...REGRA_VAZIA,
@@ -114,14 +138,34 @@ const carregar = () => {
   const u = props.unit;
   form.value = {
     name: u?.name ?? '',
+    zip_code: formatarCep(u?.zip_code ?? ''),
     city: u?.city ?? '',
     state: u?.state ?? '',
     address: u?.address ?? '',
-    phone: u?.phone ?? '',
+    address_number: u?.address_number ?? '',
+    contacts: (u?.contacts ?? []).map(contato => ({
+      label: contato.label ?? '',
+      phone: formatarTelefone(contato.phone ?? ''),
+    })),
+    social_links: (u?.social_links ?? []).map(link => ({
+      network: link.network || 'instagram',
+      url: link.url ?? '',
+    })),
     timezone: u?.timezone ?? 'America/Sao_Paulo',
     notes: u?.notes ?? '',
     applies_to_inboxes: u?.applies_to_inboxes ?? false,
   };
+  coordenadas.value =
+    u?.latitude != null && u?.longitude != null
+      ? `${u.latitude}, ${u.longitude}`
+      : '';
+  // Lista vira "a, b", do mesmo jeito que a ferramenta da IA a lê: `String(lista)` daria "a,b".
+  regrasProprias.value = Object.entries(u?.atributos ?? {}).map(
+    ([chave, valor]) => ({
+      chave,
+      valor: Array.isArray(valor) ? valor.join(', ') : String(valor),
+    })
+  );
   const grade = u?.working_hours?.length ? u.working_hours : GRADE_PADRAO;
   // Guarda o id de cada dia: sem ele o nested attributes cria linha nova em vez de
   // atualizar a existente, e o índice único do par (unidade, dia) recusa o salvar.
@@ -151,11 +195,113 @@ const carregar = () => {
   rules.value = (u?.exceptions ?? []).map(regra => ({ ...regra }));
   novaRegra.value = rascunhoLimpo();
 };
+// Foto do formulario como ele abriu: e ela que responde "tem alteracao nao salva?" quando o modal
+// tenta fechar (o woot-modal desmonta o formulario antes de avisar, entao quem pergunta e a tela).
+const instantaneo = ref('');
+const estadoAtual = () =>
+  JSON.stringify({
+    form: form.value,
+    coordenadas: coordenadas.value,
+    timeSlots: timeSlots.value,
+    selectedInboxIds: [...selectedInboxIds.value].sort(),
+    rules: rules.value,
+  });
+const tirarFoto = () => {
+  instantaneo.value = estadoAtual();
+};
+
 carregar();
-watch(() => props.unit, carregar);
+tirarFoto();
+watch(
+  () => props.unit,
+  () => {
+    carregar();
+    tirarFoto();
+  }
+);
 
 const timezones = timeZoneOptions();
 const nomeInvalido = computed(() => !form.value.name.trim());
+
+// As redes são marca, não texto de interface: o nome não muda de língua. Só "Site" é palavra comum.
+const REDES = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'site', label: t('UNITS_MGMT.FORM.SOCIAL.WEBSITE') },
+];
+
+const adicionarContato = () =>
+  form.value.contacts.push({ label: '', phone: '' });
+const removerContato = indice => form.value.contacts.splice(indice, 1);
+const adicionarLink = () =>
+  form.value.social_links.push({ network: 'instagram', url: '' });
+const removerLink = indice => form.value.social_links.splice(indice, 1);
+
+const cepBuscando = ref(false);
+const cepNaoEncontrado = ref(false);
+
+// ViaCEP: público, sem chave e o que todo cadastro brasileiro usa. Preenche endereço, cidade e
+// estado — NÃO a coordenada: o CEP devolve a rua, não a porta, e o centro de um CEP fica a
+// quarteirões da loja. O pin exato continua sendo colado à mão.
+//
+// Falhar aqui não pode travar o cadastro: sem rede, os campos seguem editáveis à mão.
+const buscarCep = async digitos => {
+  cepBuscando.value = true;
+  cepNaoEncontrado.value = false;
+  try {
+    const resposta = await fetch(`https://viacep.com.br/ws/${digitos}/json/`);
+    const dados = await resposta.json();
+    if (dados.erro) {
+      cepNaoEncontrado.value = true;
+      return;
+    }
+    // O número da casa o ViaCEP não tem: fica com o admin completar.
+    form.value.address =
+      [dados.logradouro, dados.bairro].filter(Boolean).join(' - ') ||
+      form.value.address;
+    form.value.city = dados.localidade || form.value.city;
+    form.value.state = dados.uf || form.value.state;
+  } catch (e) {
+    cepNaoEncontrado.value = true;
+  } finally {
+    cepBuscando.value = false;
+  }
+};
+
+// Dispara sozinho quando o CEP fica completo — com ou sem o traço, colado ou digitado.
+watch(
+  () => form.value.zip_code,
+  valor => {
+    const digitos = (valor || '').replace(/\D/g, '');
+    cepNaoEncontrado.value = false;
+    if (digitos.length === 8) buscarCep(digitos);
+  }
+);
+
+// Aceita "-15.601, -56.097" e também "-15,601 -56,097": o Google Maps copia com ponto, mas quem
+// digita à mão num teclado brasileiro usa vírgula decimal. Vazio é ausência legítima, não erro.
+const parCoordenada = computed(() => {
+  const cru = coordenadas.value.trim();
+  if (!cru) return null;
+
+  const numeros = cru
+    .replace(/,(\d)/g, '.$1')
+    .split(/[\s,;]+/)
+    .filter(Boolean)
+    .map(Number);
+
+  if (numeros.length !== 2 || numeros.some(Number.isNaN)) return false;
+
+  const [lat, lng] = numeros;
+  const naFaixa = Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  return naFaixa ? { latitude: lat, longitude: lng } : false;
+});
+
+const coordenadaInvalida = computed(() => parCoordenada.value === false);
 // Faixa invertida (fecha antes de abrir) — o próprio BusinessDay marca o dia. Dia
 // fechado nasce `valid: false` sem ser erro, então só conta quem tem hora escolhida.
 const gradeInvalida = computed(() =>
@@ -166,6 +312,53 @@ const onSlotUpdate = (dia, slot) => {
   timeSlots.value = timeSlots.value.map(item =>
     item.day === dia ? slot : item
   );
+};
+
+// Segunda a sexta costuma ser tudo igual: preenche um dia, copia, e ajusta so o que foge. Copia
+// para os dias ABERTOS — fim de semana fechado continua fechado.
+const diaCopiado = ref(null);
+let voltaDoBotao = null;
+
+// Nome por extenso, o mesmo que a linha da grade mostra: o aviso e a tabela falam igual. (O
+// `nomeDoDia` logo abaixo é a abreviação de três letras que o resumo da regra usa.)
+const nomeCompletoDoDia = dia => t(`UNITS_MGMT.WEEKDAYS.${dia}`);
+
+// "Copiar" sozinho não diz o que copia nem para onde vai: a dica mostra o horário daquele dia, e o
+// dia fechado explica por que o botão está apagado, em vez de deixar clicar para descobrir.
+const dicaDeCopiar = slot =>
+  slot.from && slot.to
+    ? t('UNITS_MGMT.FORM.HOURS.COPY_HINT', {
+        range: `${slot.from} – ${slot.to}`,
+      })
+    : t('UNITS_MGMT.FORM.HOURS.COPY_DISABLED');
+
+const copiarParaOsDemaisDias = origem => {
+  const { slots, dias } = copiarHorarioParaDias(timeSlots.value, origem);
+  timeSlots.value = slots;
+
+  // Intl.ListFormat põe o "e" antes do último — a lista sai na língua da tela sem tabela de emenda.
+  const lista = new Intl.ListFormat(locale.value.replace('_', '-'), {
+    type: 'conjunction',
+  }).format(dias.map(nomeCompletoDoDia));
+
+  useAlert(
+    dias.length
+      ? t('UNITS_MGMT.FORM.HOURS.COPIED', {
+          day: nomeCompletoDoDia(origem.day),
+          days: lista,
+        })
+      : t('UNITS_MGMT.FORM.HOURS.COPIED_NONE')
+  );
+
+  // O botão confirma no lugar onde o clique aconteceu: o aviso do topo some da vista de quem
+  // está olhando a grade lá embaixo. Sem dia copiado não há o que confirmar.
+  if (!dias.length) return;
+
+  diaCopiado.value = origem.day;
+  clearTimeout(voltaDoBotao);
+  voltaDoBotao = setTimeout(() => {
+    diaCopiado.value = null;
+  }, 2000);
 };
 
 // --- regras de agenda --------------------------------------------------------------
@@ -436,8 +629,10 @@ const previa = computed(() => {
 
 const nomeDoDia = dia => t(`UNITS_MGMT.WEEKDAYS_SHORT.${dia}`);
 
-// Frase humana da recorrência — é o que a lista mostra no lugar de uma data solta.
-const resumoDaRegra = regra => {
+// Frase humana da recorrência — é o que a lista mostra no lugar de uma data solta. `quando` é
+// o dia em que a regra cai no ano que está na tela: é ele que faz a anual dizer 25/12/2027
+// quando o calendário está em 2027, em vez de repetir para sempre o ano em que foi criada.
+const resumoDaRegra = (regra, quando) => {
   const chave = 'UNITS_MGMT.FORM.RULES.SUMMARY';
   const dias = regra.weekdays.map(nomeDoDia).join(', ');
   const posicoes = regra.week_positions
@@ -459,7 +654,9 @@ const resumoDaRegra = regra => {
       frase = t(`${chave}.MONTHLY_POSITION`, { posicoes, dias });
     }
   } else if (regra.frequency === 'anual') {
-    frase = t(`${chave}.YEARLY`, { data: dataLegivel(regra.starts_on) });
+    frase = t(`${chave}.YEARLY`, {
+      data: dataLegivel(quando ? comoTextoISO(quando) : regra.starts_on),
+    });
   } else if (regra.ends_on) {
     frase = t(`${chave}.PERIOD`, {
       inicio: dataLegivel(regra.starts_on),
@@ -475,10 +672,13 @@ const resumoDaRegra = regra => {
   return frase;
 };
 
-const faixaDaRegra = regra =>
-  regra.closed_all_day
-    ? t('UNITS_MGMT.FORM.RULES.EFFECT.CLOSED')
-    : `${String(regra.open_hour).padStart(2, '0')}:${String(regra.open_minutes).padStart(2, '0')} – ${String(regra.close_hour).padStart(2, '0')}:${String(regra.close_minutes).padStart(2, '0')}`;
+const faixaDaRegra = regra => {
+  if (regra.closed_all_day) return t('UNITS_MGMT.FORM.RULES.EFFECT.CLOSED');
+  // Regra sem horário próprio vale o de sempre; formatar o nulo daria "null:null".
+  if (regra.open_hour === null || regra.open_hour === undefined)
+    return t('UNITS_MGMT.FORM.RULES.EFFECT.USUAL');
+  return `${String(regra.open_hour).padStart(2, '0')}:${String(regra.open_minutes).padStart(2, '0')} – ${String(regra.close_hour).padStart(2, '0')}:${String(regra.close_minutes).padStart(2, '0')}`;
+};
 
 // Caminho de volta: a regra gravada vira rascunho de novo quando se clica nela.
 const comoRascunho = regra => ({
@@ -560,25 +760,45 @@ const diaPorExtenso = computed(() => {
 // A grade da semana no formato que o calendário entende (dia fechado fica marcado).
 const gradeParaCalendario = computed(() => timeSlotTransform(timeSlots.value));
 
+// Em que dia a regra cai no ano pedido — `null` quando ela não cai nele. Pergunta pela PRÓPRIA
+// recorrência, em vez de olhar o `starts_on`: a anual de 25/12/2026 cai em 2030, e a semanal
+// só até o `until_date`. É a mesma máquina que desenha o calendário, então a lista e a grade
+// nunca discordam.
+const ocorrenciaNoAno = (regra, ano) => {
+  const [primeira] = proximasOcorrencias(regra, 1, new Date(ano, 0, 1, 12));
+  return primeira && primeira.getFullYear() === ano ? primeira : null;
+};
+
+// Só o ano que está na tela: com os feriados nacionais de cinco anos à frente, a lista inteira
+// viraria uma parede de datas que ninguém lê. Virou o ano no calendário, a lista vira junto —
+// e na ORDEM daquele ano, não na ordem em que as regras foram criadas. O `index` continua
+// sendo a posição em `rules`: é por ele que se edita e apaga.
 const regrasVisiveis = computed(() =>
   rules.value
-    .map((regra, index) => ({
+    .map(regra => ({ regra, quando: ocorrenciaNoAno(regra, anoVisivel.value) }))
+    .filter(({ quando }) => !!quando)
+    .sort((a, b) => a.quando - b.quando)
+    .map(({ regra, quando }) => ({
       ...regra,
-      index,
-      resumo: resumoDaRegra(regra),
+      index: rules.value.indexOf(regra),
+      resumo: resumoDaRegra(regra, quando),
       faixa: faixaDaRegra(regra),
       cor: COR_DA_CATEGORIA[regra.category] || COR_DA_CATEGORIA.feriado,
       rotulo: t(
         `UNITS_MGMT.FORM.RULES.CATEGORY.${regra.category.toUpperCase()}`
       ),
     }))
-    .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
 );
 
 const onSubmit = () => {
-  if (nomeInvalido.value || gradeInvalida.value) return;
+  if (nomeInvalido.value || gradeInvalida.value || coordenadaInvalida.value)
+    return;
   emit('submit', {
     ...form.value,
+    // `null` e não `''`: string vazia em coluna decimal do Rails vira 0.0, e o ponto (0,0) fica
+    // no Golfo da Guiné — uma unidade "sem pin" passaria a ser a mais próxima de todo mundo.
+    latitude: parCoordenada.value ? parCoordenada.value.latitude : null,
+    longitude: parCoordenada.value ? parCoordenada.value.longitude : null,
     inbox_ids: selectedInboxIds.value,
     working_hours_attributes: timeSlotTransform(timeSlots.value).map(hora => {
       const slot = timeSlots.value.find(item => item.day === hora.day_of_week);
@@ -600,34 +820,174 @@ const onSubmit = () => {
       };
     }),
     exceptions: rules.value,
+    // Linha sem nome não vira regra: chave vazia no hash é regra que a IA leria como rótulo em
+    // branco. O valor pode ser vazio enquanto o time digita, mas não sobrevive ao envio.
+    atributos: Object.fromEntries(
+      regrasProprias.value
+        .filter(regra => regra.chave.trim() && regra.valor.trim())
+        .map(regra => [regra.chave.trim(), regra.valor.trim()])
+    ),
   });
 };
+
+// A tela precisa das duas coisas para perguntar antes de descartar: se mudou algo e como salvar.
+defineExpose({
+  temAlteracoes: () => estadoAtual() !== instantaneo.value,
+  salvar: () => onSubmit(),
+});
 </script>
 
 <template>
-  <form class="flex flex-col gap-8" @submit.prevent="onSubmit">
+  <form class="flex flex-col gap-8 w-full" @submit.prevent="onSubmit">
     <section class="flex flex-col gap-4">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <woot-input
-          v-model="form.name"
-          class="mb-0"
-          :label="t('UNITS_MGMT.FORM.NAME.LABEL')"
-          :placeholder="t('UNITS_MGMT.FORM.NAME.PLACEHOLDER')"
-          :class="{ error: nomeInvalido }"
+      <woot-input
+        v-model="form.name"
+        class="mb-0"
+        :label="t('UNITS_MGMT.FORM.NAME.LABEL')"
+        :placeholder="t('UNITS_MGMT.FORM.NAME.PLACEHOLDER')"
+        :class="{ error: nomeInvalido }"
+      />
+
+      <div>
+        <span class="text-heading-3">{{
+          t('UNITS_MGMT.FORM.CONTACTS.LABEL')
+        }}</span>
+        <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+          {{ t('UNITS_MGMT.FORM.CONTACTS.HELP') }}
+        </p>
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="(contato, indice) in form.contacts"
+            :key="`contato-${indice}`"
+            class="flex items-center gap-2"
+          >
+            <div class="w-40 shrink-0">
+              <input
+                v-model="contato.label"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.CONTACTS.NAME_PLACEHOLDER')"
+              />
+            </div>
+            <div class="flex-1">
+              <input
+                :value="contato.phone"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.PHONE.PLACEHOLDER')"
+                @input="
+                  evento =>
+                    (contato.phone = formatarTelefone(evento.target.value))
+                "
+              />
+            </div>
+            <Button
+              variant="ghost"
+              color="slate"
+              size="xs"
+              type="button"
+              icon="i-lucide-trash-2"
+              :title="t('UNITS_MGMT.FORM.CONTACTS.REMOVE')"
+              @click.prevent="removerContato(indice)"
+            />
+          </div>
+        </div>
+        <Button
+          variant="faded"
+          color="slate"
+          size="xs"
+          type="button"
+          class="mt-2"
+          icon="i-lucide-plus"
+          :label="t('UNITS_MGMT.FORM.CONTACTS.ADD')"
+          @click.prevent="adicionarContato"
         />
-        <woot-input
-          v-model="form.phone"
-          class="mb-0"
-          :label="t('UNITS_MGMT.FORM.PHONE.LABEL')"
-          :placeholder="t('UNITS_MGMT.FORM.PHONE.PLACEHOLDER')"
+      </div>
+
+      <div>
+        <span class="text-heading-3">{{
+          t('UNITS_MGMT.FORM.SOCIAL.LABEL')
+        }}</span>
+        <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+          {{ t('UNITS_MGMT.FORM.SOCIAL.HELP') }}
+        </p>
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="(link, indice) in form.social_links"
+            :key="`link-${indice}`"
+            class="flex items-center gap-2"
+          >
+            <div class="w-40 shrink-0">
+              <NextSelect
+                v-model="link.network"
+                :options="REDES"
+                :class="SELETOR"
+              />
+            </div>
+            <div class="flex-1">
+              <input
+                v-model="link.url"
+                type="text"
+                :class="CAMPO"
+                :placeholder="t('UNITS_MGMT.FORM.SOCIAL.URL_PLACEHOLDER')"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              color="slate"
+              size="xs"
+              type="button"
+              icon="i-lucide-trash-2"
+              :title="t('UNITS_MGMT.FORM.SOCIAL.REMOVE')"
+              @click.prevent="removerLink(indice)"
+            />
+          </div>
+        </div>
+        <Button
+          variant="faded"
+          color="slate"
+          size="xs"
+          type="button"
+          class="mt-2"
+          icon="i-lucide-plus"
+          :label="t('UNITS_MGMT.FORM.SOCIAL.ADD')"
+          @click.prevent="adicionarLink"
         />
       </div>
       <woot-input
-        v-model="form.address"
+        :model-value="form.zip_code"
         class="mb-0"
-        :label="t('UNITS_MGMT.FORM.ADDRESS.LABEL')"
-        :placeholder="t('UNITS_MGMT.FORM.ADDRESS.PLACEHOLDER')"
+        :label="t('UNITS_MGMT.FORM.ZIP_CODE.LABEL')"
+        :placeholder="t('UNITS_MGMT.FORM.ZIP_CODE.PLACEHOLDER')"
+        @update:model-value="valor => (form.zip_code = formatarCep(valor))"
       />
+      <p
+        class="m-0 text-label-small"
+        :class="cepNaoEncontrado ? 'text-n-ruby-11' : 'text-n-slate-11'"
+      >
+        {{
+          cepBuscando
+            ? t('UNITS_MGMT.FORM.ZIP_CODE.SEARCHING')
+            : cepNaoEncontrado
+              ? t('UNITS_MGMT.FORM.ZIP_CODE.NOT_FOUND')
+              : t('UNITS_MGMT.FORM.ZIP_CODE.HELP')
+        }}
+      </p>
+      <div class="grid gap-4 sm:grid-cols-4">
+        <woot-input
+          v-model="form.address"
+          class="mb-0 sm:col-span-3"
+          :label="t('UNITS_MGMT.FORM.ADDRESS.LABEL')"
+          :placeholder="t('UNITS_MGMT.FORM.ADDRESS.PLACEHOLDER')"
+        />
+        <!-- Texto, e nao numero: precisa aceitar "S/N", "123-A" e "Km 12". O ViaCEP nunca toca aqui. -->
+        <woot-input
+          v-model="form.address_number"
+          class="mb-0"
+          :label="t('UNITS_MGMT.FORM.ADDRESS_NUMBER.LABEL')"
+          :placeholder="t('UNITS_MGMT.FORM.ADDRESS_NUMBER.PLACEHOLDER')"
+        />
+      </div>
       <div class="grid gap-4 sm:grid-cols-3">
         <woot-input
           v-model="form.city"
@@ -656,6 +1016,64 @@ const onSubmit = () => {
       <p class="m-0 text-n-slate-11 text-label-small">
         {{ t('UNITS_MGMT.FORM.TIMEZONE.HELP') }}
       </p>
+      <woot-input
+        v-model="coordenadas"
+        class="mb-0"
+        :class="{ error: coordenadaInvalida }"
+        :label="t('UNITS_MGMT.FORM.COORDINATES.LABEL')"
+        :placeholder="t('UNITS_MGMT.FORM.COORDINATES.PLACEHOLDER')"
+      />
+      <p
+        class="m-0 text-label-small"
+        :class="coordenadaInvalida ? 'text-n-ruby-11' : 'text-n-slate-11'"
+      >
+        {{
+          coordenadaInvalida
+            ? t('UNITS_MGMT.FORM.COORDINATES.ERROR')
+            : t('UNITS_MGMT.FORM.COORDINATES.HELP')
+        }}
+      </p>
+    </section>
+
+    <section>
+      <span class="text-heading-3">{{
+        t('UNITS_MGMT.FORM.CONDITIONS.LABEL')
+      }}</span>
+      <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+        {{ t('UNITS_MGMT.FORM.CONDITIONS.HELP') }}
+      </p>
+      <div
+        v-for="(condicao, index) in regrasProprias"
+        :key="`condicao-${index}`"
+        class="flex gap-2 items-start mb-2"
+      >
+        <woot-input
+          v-model="condicao.chave"
+          class="mb-0 w-1/3"
+          :placeholder="t('UNITS_MGMT.FORM.CONDITIONS.NAME_PLACEHOLDER')"
+        />
+        <woot-input
+          v-model="condicao.valor"
+          class="flex-1 mb-0"
+          :placeholder="t('UNITS_MGMT.FORM.CONDITIONS.VALUE_PLACEHOLDER')"
+        />
+        <Button
+          ghost
+          slate
+          xs
+          class="mt-2"
+          icon="i-lucide-trash-2"
+          :title="t('UNITS_MGMT.FORM.CONDITIONS.REMOVE')"
+          @click.prevent="regrasProprias.splice(index, 1)"
+        />
+      </div>
+      <Button
+        ghost
+        sm
+        icon="i-lucide-plus"
+        :label="t('UNITS_MGMT.FORM.CONDITIONS.ADD')"
+        @click.prevent="regrasProprias.push({ chave: '', valor: '' })"
+      />
     </section>
 
     <section>
@@ -680,14 +1098,16 @@ const onSubmit = () => {
           </span>
         </span>
       </label>
+      <!-- Altura do corte casa com a da linha (8px de folga + 5 linhas de 32px = max-h-44): com
+           gap solto a lista terminava no meio de uma caixa e parecia quebrada. -->
       <div
         v-if="inboxes.length"
-        class="flex flex-col gap-2.5 p-3 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
+        class="flex flex-col p-2 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
       >
         <label
           v-for="inbox in inboxes"
           :key="inbox.id"
-          class="flex gap-2 items-center w-fit cursor-pointer mb-0"
+          class="flex gap-2 items-center h-8 px-2 rounded-md cursor-pointer mb-0 hover:bg-n-alpha-1"
         >
           <input
             v-model="selectedInboxIds"
@@ -705,8 +1125,11 @@ const onSubmit = () => {
 
     <section>
       <span class="text-heading-3">{{ t('UNITS_MGMT.FORM.HOURS.LABEL') }}</span>
-      <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+      <p class="mt-0.5 mb-1 text-n-slate-11 text-label-small">
         {{ t('UNITS_MGMT.FORM.HOURS.HELP') }}
+      </p>
+      <p class="mb-2 text-n-slate-11 text-label-small">
+        {{ t('UNITS_MGMT.FORM.HOURS.COPY_HELP') }}
       </p>
       <table
         class="min-w-full table-auto outline outline-1 -outline-offset-1 outline-n-weak rounded-xl"
@@ -738,7 +1161,27 @@ const onSubmit = () => {
             :time-slot="slot"
             show-break
             @update="dados => onSlotUpdate(slot.day, dados)"
-          />
+          >
+            <template #acoes>
+              <Button
+                variant="faded"
+                size="xs"
+                type="button"
+                :color="diaCopiado === slot.day ? 'teal' : 'slate'"
+                :icon="
+                  diaCopiado === slot.day ? 'i-lucide-check' : 'i-lucide-copy'
+                "
+                :label="
+                  diaCopiado === slot.day
+                    ? t('UNITS_MGMT.FORM.HOURS.COPIED_SHORT')
+                    : t('UNITS_MGMT.FORM.HOURS.COPY')
+                "
+                :title="dicaDeCopiar(slot)"
+                :disabled="!(slot.from && slot.to)"
+                @click.prevent="copiarParaOsDemaisDias(slot)"
+              />
+            </template>
+          </BusinessDay>
         </tbody>
       </table>
     </section>
@@ -758,6 +1201,7 @@ const onSubmit = () => {
         :cores="COR_DA_CATEGORIA"
         @select="escolherDia"
         @edit="editarRegra"
+        @ano="anoVisivel = $event"
       />
 
       <div
@@ -1113,9 +1557,18 @@ const onSubmit = () => {
         </p>
       </div>
 
+      <p
+        v-if="rules.length && !regrasVisiveis.length"
+        class="mt-3 mb-0 text-n-slate-11 text-label-small"
+      >
+        {{
+          t('UNITS_MGMT.FORM.CALENDAR.RULES_EMPTY_YEAR', { ano: anoVisivel })
+        }}
+      </p>
+
       <div v-if="regrasVisiveis.length" class="mt-3">
         <span class="text-n-slate-11 text-label-small">
-          {{ t('UNITS_MGMT.FORM.CALENDAR.RULES_TITLE') }}
+          {{ t('UNITS_MGMT.FORM.CALENDAR.RULES_TITLE', { ano: anoVisivel }) }}
         </span>
         <ul
           class="p-0 mx-0 mt-1 mb-0 list-none border rounded-lg divide-y divide-n-weak border-n-weak"
@@ -1185,7 +1638,9 @@ const onSubmit = () => {
         type="submit"
         :label="t('UNITS_MGMT.FORM.SUBMIT')"
         :is-loading="isSaving"
-        :disabled="nomeInvalido || gradeInvalida || isSaving"
+        :disabled="
+          nomeInvalido || gradeInvalida || coordenadaInvalida || isSaving
+        "
       />
     </div>
   </form>

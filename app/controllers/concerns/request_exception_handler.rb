@@ -3,6 +3,7 @@ module RequestExceptionHandler
 
   included do
     rescue_from ActiveRecord::RecordInvalid, with: :render_record_invalid
+    rescue_from ContactInboxBuilder::ConflictError, with: :render_contact_inbox_conflict
   end
 
   private
@@ -49,6 +50,12 @@ module RequestExceptionHandler
       message: exception.record.errors.full_messages.join(', '),
       attributes: exception.record.errors.attribute_names
     }, status: :unprocessable_entity
+  end
+
+  # S-02: o numero ja e de outra ficha na caixa WhatsApp Cloud. Vale para todo endpoint que cria vinculo.
+  def render_contact_inbox_conflict(exception)
+    log_handled_error(exception)
+    render json: { error: exception.message, error_code: 'contact_inbox_conflict', meta: exception.meta }, status: :unprocessable_entity
   end
 
   def render_error_response(exception)

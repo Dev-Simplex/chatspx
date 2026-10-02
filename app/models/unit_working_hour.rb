@@ -28,6 +28,22 @@ class UnitWorkingHour < ApplicationRecord
   CAMPOS_DA_PAUSA = %i[break_start_hour break_start_minutes break_end_hour break_end_minutes].freeze
 
   # Minutos desde a meia-noite — é assim que a tela compara o relógio com a faixa.
+  # As janelas deste dia, em minutos desde a meia-noite local. Uma linha vira DUAS faixas quando há
+  # intervalo — é assim que a grade partida ("fecha para o almoço") chega a quem lê, e é o mesmo par
+  # que a tabela antiga expressava com duas linhas no mesmo dia.
+  def faixas
+    return [] if closed_all_day?
+    return [UnitAtendimento::Faixa.new(inicio: 0, fim: UnitAtendimento::MINUTOS_DO_DIA)] if open_all_day?
+
+    abre = em_minutos(open_hour, open_minutes)
+    fecha = em_minutos(close_hour, close_minutes)
+    return [] if abre.nil? || fecha.nil?
+    return [UnitAtendimento::Faixa.new(inicio: abre, fim: fecha)] unless pausa?
+
+    [UnitAtendimento::Faixa.new(inicio: abre, fim: em_minutos(break_start_hour, break_start_minutes)),
+     UnitAtendimento::Faixa.new(inicio: em_minutos(break_end_hour, break_end_minutes), fim: fecha)]
+  end
+
   def pausa?
     CAMPOS_DA_PAUSA.none? { |campo| public_send(campo).nil? }
   end

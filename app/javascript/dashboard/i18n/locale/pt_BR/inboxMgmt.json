@@ -309,7 +309,8 @@
           "AUTH_NOT_COMPLETED": "Autenticação não concluída. Por favor, reinicie o processo.",
           "SUCCESS_FALLBACK": "A conta do WhatsApp Business foi configurada com sucesso",
           "MANUAL_FALLBACK": "Se o seu número já estiver conectado à Plataforma WhatsApp Business (API) ou se você for um provedor de tecnologia integrando o seu próprio número, use o fluxo de {link}",
-          "MANUAL_LINK_TEXT": "fluxo de configuração manual"
+          "MANUAL_LINK_TEXT": "fluxo de configuração manual",
+          "SDK_LOAD_ERROR": "Não foi possível carregar o SDK do Facebook. Recarregue a página e tente novamente."
         },
         "API": {
           "ERROR_MESSAGE": "Não foi possível salvar o canal do WhatsApp"
@@ -667,6 +668,16 @@
         "ACCOUNT_MODE": {
           "LABEL": "Modo da conta",
           "TOOLTIP": "Modo de operação atual da sua conta do WhatsApp"
+        },
+        "DROPPED_INBOUND": {
+          "LABEL": "Recebidas e descartadas",
+          "VALUE": "{count} nos últimos 7 dias ({reason})",
+          "TOOLTIP": "Mensagens que o WhatsApp entregou e esta caixa descartou antes de virarem mensagem. A Meta recebe 200, então elas nunca são reenviadas.",
+          "REASONS": {
+            "CHANNEL_NOT_FOUND": "caixa não encontrada para este número",
+            "REAUTHORIZATION_REQUIRED": "caixa marcada para reautorizar",
+            "ACCOUNT_INACTIVE": "conta inativa"
+          }
         }
       },
       "VALUES": {
@@ -719,6 +730,26 @@
         "DESCRIPTION": "Restrinja quais sites podem incorporar seu widget de chat. Por segurança, adicione apenas domínios que você possui e confia. Adicione um ou mais domínios separados por vírgulas. Deixe em branco para permitir todos os domínios (não recomendado para produção).",
         "PLACEHOLDER": "exemplo.com, www.exemplo.com, app.exemplo.com"
       },
+      "PIN_MODE": {
+        "TITLE": "Conversas fixadas",
+        "SUBTITLE": "Escolha se as conversas fixadas são salvas por agente (cada agente mantém sua lista) ou por caixa de entrada (todo o time compartilha a lista).",
+        "PER_AGENT": {
+          "LABEL": "Por agente",
+          "HINT": "Cada agente mantém sua própria lista de conversas fixadas."
+        },
+        "PER_INBOX": {
+          "LABEL": "Por caixa de entrada",
+          "HINT": "Todos os agentes desta caixa de entrada veem as mesmas conversas fixadas."
+        }
+      },
+      "AD_REFERRAL_ROUTING": {
+        "TITLE": "Direcionar conversas de anúncio para um time",
+        "SUBTITLE": "Quando o contato inicia a conversa clicando em um anúncio do Facebook ou do Instagram, ela já entra no time escolhido, sem passar por menu.",
+        "TEAM_LABEL": "Time que recebe as conversas de anúncio",
+        "TEAM_PLACEHOLDER": "Escolha um time",
+        "HINT": "Vale para a conversa que o anúncio abre, mesmo que a triagem já tenha escolhido um time. Mensagem de anúncio que cai numa conversa em andamento mantém o time atual.",
+        "NO_TEAM_HINT": "Escolha um time, senão nada é direcionado."
+      },
       "AGENT_SIGNATURE": {
         "TITLE": "Assinar mensagens com o nome do agente",
         "SUBTITLE": "Adiciona o nome do agente antes das mensagens enviadas pela API oficial do WhatsApp (formato: *Nome*:). Mídia enviada sem legenda não é assinada."
@@ -749,6 +780,13 @@
       "ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT": "As conversas continuarão sobre o e-mail se o endereço de e-mail de contato estiver disponível.",
       "LOCK_TO_SINGLE_CONVERSATION": "Bloquear para conversa única",
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Ativar ou desativar várias conversas para o mesmo contato nesta caixa de entrada",
+      "READ_ONLY": {
+        "LABEL": "Somente leitura",
+        "SUB_TEXT": "A caixa continua recebendo, mas nenhuma mensagem sai por ela, nem automática.",
+        "REDIRECT_LABEL": "Redirecionar respostas para",
+        "REDIRECT_HINT": "O atendente ganha um botão para responder o cliente por esta caixa.",
+        "NONE": "Nenhuma"
+      },
       "TEAM_MESSAGE_ISOLATION": "Isolamento de mensagens por time",
       "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "Quando ativado, agentes só visualizam mensagens do seu próprio time. Mensagens de outros times aparecem com acesso restrito.",
       "AGENT_MESSAGE_ISOLATION": "Isolamento de mensagens por agente",
@@ -809,7 +847,28 @@
       "WHATSAPP_TEMPLATES_SYNC_SUBHEADER": "Sincronize manualmente os modelos de mensagens do WhatsApp para atualizar seus modelos disponíveis.",
       "WHATSAPP_TEMPLATES_SYNC_BUTTON": "Sincronizar Modelos",
       "WHATSAPP_TEMPLATES_SYNC_SUCCESS": "Sincronização de modelos iniciada com sucesso. Pode demorar alguns minutos para atualizar.",
-      "UPDATE_PRE_CHAT_FORM_SETTINGS": "Atualizar configurações do Formulário Pre Chat"
+      "UPDATE_PRE_CHAT_FORM_SETTINGS": "Atualizar configurações do Formulário Pre Chat",
+      "ISOLATION_PARTICIPANTS": {
+        "TITLE": "Agentes que participam",
+        "COUNT": "{selected} de {total} marcados",
+        "SELECT_ALL": "Selecionar todos",
+        "SEES_EVERYTHING": "vê tudo",
+        "SUPERVISOR_BADGE_AGENT": "isento no time dele",
+        "SUPERVISOR_BADGE_TEAM": "participa sempre",
+        "SUPERVISOR_OF": "supervisor do time {name}",
+        "SUPERVISOR_OF_MANY": "supervisor de {count} times",
+        "ADMIN_NOTE_AGENT": "Administradores não aparecem aqui: eles nunca são isolados por agente.",
+        "ADMIN_NOTE_TEAM": "Administradores não aparecem aqui — mas eles também não escapam desta regra. Para tirar o isolamento de time de um administrador, desligue a chave desta caixa.",
+        "SUPERVISOR_NOTE_AGENT": "Supervisores de time já enxergam as mensagens de qualquer agente nas conversas do time que supervisionam — por isso vêm marcados como isentos, sem caixa de seleção.",
+        "SUPERVISOR_NOTE_TEAM": "A supervisão de time isenta do isolamento por agente, não deste: aqui o supervisor participa como qualquer outro, e por isso vem marcado e sem caixa de seleção.",
+        "EMPTY": "Nenhum agente nesta caixa de entrada. Adicione agentes na aba Colaboradores.",
+        "LOADING": "Carregando os agentes da caixa...",
+        "SAVE": "Salvar lista",
+        "SAVING": "Salvando...",
+        "UNSAVED": "Alterações ainda não salvas",
+        "SAVED": "Lista de participantes atualizada",
+        "SAVE_ERROR": "Não foi possível salvar a lista. Tente de novo."
+      }
     },
     "HELP_CENTER": {
       "LABEL": "Centro de Ajuda",

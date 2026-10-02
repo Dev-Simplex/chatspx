@@ -1,5 +1,6 @@
 <script>
 import { useBranding } from 'shared/composables/useBranding';
+import { brandAssetUrl } from 'shared/helpers/brandAssetUrl';
 
 const {
   LOGO_THUMBNAIL: logoThumbnail,
@@ -24,7 +25,10 @@ export default {
     return {
       globalConfig: {
         brandName,
-        logoThumbnail,
+        logoThumbnail: brandAssetUrl(
+          logoThumbnail,
+          window.globalConfig?.GIT_SHA
+        ),
         widgetBrandURL,
       },
     };

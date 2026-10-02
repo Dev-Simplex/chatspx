@@ -40,7 +40,7 @@
 #  fk_rails_...  (portal_id => portals.id)
 #
 
-class Inbox < ApplicationRecord
+class Inbox < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include InboxIsolationScope
 
   include Reportable
@@ -48,6 +48,7 @@ class Inbox < ApplicationRecord
   include OutOfOffisable
   include AccountCacheRevalidator
   include InboxAgentAvailability
+  include InboxReadOnly
 
   # Fixar conversa POR CAIXA: `pin_mode` escolhe entre 'per_agent' (padrao) e 'per_inbox',
   # e `pinned_conversation_ids` guarda a lista quando o modo e por caixa. Restaurado a mao
@@ -57,6 +58,12 @@ class Inbox < ApplicationRecord
   # muda). Convive com a fixacao POR ATENDENTE que veio da `nicolas` (conversation_pins):
   # sao dois modos, nao dois donos da mesma chave.
   store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
+
+  # Roteamento do lead de anuncio (CTWA): quando a Meta manda `referral` na primeira mensagem,
+  # a conversa nasce ja no time da campanha em vez de esperar o menu. Ver
+  # Whatsapp::ReferralTeamRoutingService. Mesma regra do `pin_mode` acima: sem o store_accessor
+  # o valor volta do banco sem leitor e o strong params descarta a gravacao em silencio.
+  store_accessor :additional_attributes, :ad_referral_routing_enabled, :ad_referral_team_id
 
   # Not allowing characters:
   validates :name, presence: true

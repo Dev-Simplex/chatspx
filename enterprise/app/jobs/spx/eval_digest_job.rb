@@ -24,7 +24,7 @@ class Spx::EvalDigestJob < ApplicationJob
     return Rails.logger.warn("[EvalDigest] conta #{account.id} habilitada sem destino") if destinos.empty?
 
     dados = coletar(account, config)
-    return unless vale_avisar?(dados)
+    return unless vale_avisar?(dados, config)
 
     entregar(account, dados, destinos)
   end
@@ -36,10 +36,30 @@ class Spx::EvalDigestJob < ApplicationJob
     { emails: emails, webhook: config['webhook_url'].to_s.presence }.compact_blank
   end
 
-  # Silêncio quando o dia foi bom; alerta quando o próprio Eval parou de rodar. Digest
-  # diário que chega sempre, mesmo vazio, é o primeiro a virar filtro de caixa de entrada.
-  def vale_avisar?(dados)
+  # Por padrão: silêncio quando o dia foi bom, alerta quando o próprio Eval parou. Digest que
+  # chega todo dia, mesmo vazio, é o primeiro a virar filtro de caixa de entrada.
+  #
+  # Só que o silêncio é AMBÍGUO para quem espera, e isso custou caro: entre 01 e 04/09 o juiz
+  # estourava em todo episódio com atendimento e não gravava veredito nenhum; o digest via
+  # zero falha grave e calou por quatro dias, enquanto quem esperava não tinha como saber se
+  # o dia tinha sido limpo ou se o sistema estava cego.
+  #
+  # `avisar_dia_limpo` troca o silêncio por uma confirmação de que o ciclo rodou e o que ele
+  # viu. Opt-in por conta: quem prefere só ser incomodado quando há problema não muda de
+  # comportamento, e quem prefere o sinal de vida diário liga a chave.
+  def vale_avisar?(dados, config = {})
+    return true if config['avisar_dia_limpo']
+
     dados[:conversas].any? || dados[:avaliados].zero?
+  end
+
+  # Distingue os três estados que o digest pode reportar. `eval_parado` é o mais grave e vem
+  # primeiro: sem nada julgado, "nenhuma falha" não é notícia boa, é ausência de medição.
+  def situacao(dados)
+    return :eval_parado if dados[:avaliados].zero?
+    return :dia_limpo if dados[:conversas].empty?
+
+    :com_falhas
   end
 
   def entregar(account, dados, destinos)
@@ -70,7 +90,10 @@ class Spx::EvalDigestJob < ApplicationJob
       conta: { id: account.id, nome: account.name },
       janela_desde: dados[:desde].iso8601,
       avaliados: dados[:avaliados],
-      eval_parado: dados[:conversas].empty? && dados[:avaliados].zero?,
+      eval_parado: situacao(dados) == :eval_parado,
+      # Quem consome o webhook (n8n, Telegram, Slack) decide o que fazer com cada estado sem
+      # ter que inferir a partir dos contadores — inferência que este job mesmo errou.
+      situacao: situacao(dados),
       total_conversas: dados[:total_conversas],
       por_categoria: dados[:por_categoria].to_h,
       conversas: dados[:conversas].map { |c| c.merge(url: url_da_conversa(account, c[:display_id])) },
@@ -86,8 +109,16 @@ class Spx::EvalDigestJob < ApplicationJob
   # Texto pronto pra encaminhar, curto o bastante pra caber numa mensagem de WhatsApp ou
   # Telegram sem virar parede.
   def texto(account, dados)
-    return "⚠️ #{account.name}: o avaliador não julgou nenhum atendimento nas últimas horas — provável cron parado." if
-      dados[:conversas].empty? && dados[:avaliados].zero?
+    case situacao(dados)
+    when :eval_parado
+      return "⚠️ #{account.name}: o avaliador não julgou nenhum atendimento nas últimas horas — provável cron parado."
+    when :dia_limpo
+      # Diz o que foi MEDIDO, não só que está tudo bem: "nenhuma falha grave" sem o número de
+      # atendimentos avaliados é indistinguível de avaliador parado — foi essa ambiguidade que
+      # deixou quatro dias de cegueira passarem por dia bom.
+      return "✅ #{account.name} — #{dados[:avaliados]} atendimento(s) avaliado(s) nas últimas " \
+             'horas, nenhum com falha grave da IA.'
+    end
 
     cab = "🔎 #{account.name} — #{dados[:total_conversas]} conversa(s) da IA com falha grave " \
           "(de #{dados[:avaliados]} avaliadas)"
@@ -108,7 +139,7 @@ class Spx::EvalDigestJob < ApplicationJob
     severidades = Array(config['severidades'].presence || SEVERIDADES_PADRAO)
     limite = (config['limite'] || LIMITE_PADRAO).to_i
 
-    avaliados = Captain::ConversationEval.where(account_id: account.id).where(created_at: desde..).count
+    avaliados = julgados(account, desde)
     linhas = achados(account, desde, severidades, config['nota_maxima'])
     conversas = agrupar_por_conversa(linhas)
 
@@ -119,6 +150,27 @@ class Spx::EvalDigestJob < ApplicationJob
       conversas: conversas.first(limite),
       total_conversas: conversas.size
     }
+  end
+
+  # Conta só o que foi JULGADO de verdade. Episódio sem atendimento (disparo que ninguém
+  # respondeu, conversa fechada só com mensagem de atividade) grava uma linha sintética
+  # `{"skip": "sem_mensagens"}` e ela não é evidência de que o avaliador está de pé.
+  #
+  # Sem esta distinção o alerta de "eval parado" nunca dispara pelo modo de falha que de
+  # fato aconteceu: em 01–03/09/2026 o juiz estourava em TODO episódio com atendimento e
+  # gravava só os sintéticos. O contador via 41 avaliações, concluía que o dia tinha sido
+  # bom e ficava calado — enquanto ~420 atendimentos reais passavam sem julgamento.
+  # O critério é a MARCA, não a ausência de conteúdo: só o registro que carrega `skip` está
+  # declarando que não houve o que julgar. Veredito nulo segue contando como julgamento —
+  # avaliação antiga com nota e findings preenchidos não pode sumir do denominador.
+  #
+  # `jsonb_exists(...)` e não o operador `?`: dentro de uma string de condição do Rails o
+  # `?` é placeholder de bind e o operador jsonb seria consumido como parâmetro.
+  def julgados(account, desde)
+    Captain::ConversationEval
+      .where(account_id: account.id, created_at: desde..)
+      .where("veredito_raw IS NULL OR NOT jsonb_exists(veredito_raw, 'skip')")
+      .count
   end
 
   # SQL cru porque `response_findings` é um array jsonb e o filtro é por elemento — o

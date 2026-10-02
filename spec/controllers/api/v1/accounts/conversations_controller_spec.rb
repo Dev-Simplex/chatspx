@@ -573,6 +573,44 @@ RSpec.describe 'Conversations API', type: :request do
           expect(response_data[:meta][:team][:name]).to eq(team.name)
         end
       end
+
+      context 'when the number already belongs to another contact in a whatsapp cloud inbox (S-02)' do
+        let(:whatsapp_inbox) { create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox }
+        let(:holder) { create(:contact, account: account, name: 'Juliana Aguiar', phone_number: '+5565992476382') }
+        let!(:holder_inbox) { create(:contact_inbox, contact: holder, inbox: whatsapp_inbox, source_id: '5565992476302') }
+        let(:blocked) { create(:contact, account: account, phone_number: '+5565992476302') }
+
+        before { create(:inbox_member, user: agent, inbox: whatsapp_inbox) }
+
+        it 'answers contact_inbox_conflict naming the holder and keeps its contact inbox' do
+          expect do
+            post "/api/v1/accounts/#{account.id}/conversations",
+                 headers: agent.create_new_auth_token,
+                 params: { contact_id: blocked.id, inbox_id: whatsapp_inbox.id, message: { content: 'oi' } },
+                 as: :json
+          end.not_to change(Message, :count)
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          body = response.parsed_body
+          expect(body['error_code']).to eq('contact_inbox_conflict')
+          expect(body['error']).to include('Juliana Aguiar')
+          expect(body['meta']).to include('id' => holder.id, 'name' => 'Juliana Aguiar', 'phone_number' => '+5565992476382')
+          expect(holder_inbox.reload.contact_id).to eq(holder.id)
+          expect(holder_inbox.source_id).to eq('5565992476302')
+        end
+
+        it 'still creates the conversation for a contact without conflict' do
+          allow(Rails.configuration.dispatcher).to receive(:dispatch)
+          other = create(:contact, account: account, phone_number: '+5565981112222')
+
+          post "/api/v1/accounts/#{account.id}/conversations",
+               headers: agent.create_new_auth_token,
+               params: { contact_id: other.id, inbox_id: whatsapp_inbox.id },
+               as: :json
+
+          expect(response).to have_http_status(:success)
+        end
+      end
     end
   end
 

@@ -8,18 +8,23 @@ import {
   END_OF_DAY,
 } from '../helpers/businessHour';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
-import NextSelect from 'dashboard/components-next/select/Select.vue';
 
+// A lista de 30 em 30 minutos SÓ serve para os horários padrão de quando o dia é ligado
+// (00:00 e 08:00). Os campos são de hora livre: uma unidade que abre 07:48 não tinha como ser
+// cadastrada, e o banco sempre aceitou qualquer minuto (working_hour.rb).
 const timeSlots = generateTimeSlots(30);
 
-// Em 24 h a lista já sobe na ordem do relógio: 00:00 → 23:59. Não há mais o que
-// agrupar (o agrupamento AM/PM só existia para separar as duas metades do dia).
-const timeOptions = timeSlots.map(slot => ({ value: slot, label: slot }));
+// Mesmo estilo dos campos de hora do editor de regras do calendário (UnitForm.vue).
+// O relógio do campo nativo nasce escuro (o app não declara color-scheme), some no tema escuro e
+// não parecia clicável. Realce e inversão no escuro, como em AiTimeField.vue.
+const RELOGIO =
+  '[&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:outline [&::-webkit-calendar-picker-indicator]:outline-1 [&::-webkit-calendar-picker-indicator]:outline-n-weak [&::-webkit-calendar-picker-indicator]:transition-opacity hover:[&::-webkit-calendar-picker-indicator]:opacity-100';
+
+const CAMPO_HORA = `reset-base h-10 w-28 px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 disabled:opacity-50 ${RELOGIO}`;
 
 export default {
   components: {
     Icon,
-    NextSelect,
   },
   props: {
     dayName: {
@@ -42,12 +47,8 @@ export default {
   },
   emits: ['update'],
   computed: {
-    fromTimeSlots() {
-      return timeOptions;
-    },
-    toTimeSlots() {
-      // Fechar à meia-noite se diz 23:59; 00:00 só faz sentido como hora de abrir.
-      return timeOptions.filter(option => option.value !== MIDNIGHT);
+    campoHora() {
+      return CAMPO_HORA;
     },
     isDayEnabled: {
       get() {
@@ -197,8 +198,8 @@ export default {
 
 <template>
   <tr>
-    <td class="ltr:pl-4 ltr:pr-3 rtl:pl-3 rtl:pr-4">
-      <div class="flex items-center gap-2 min-h-16">
+    <td class="py-3 align-top ltr:pl-4 ltr:pr-3 rtl:pl-3 rtl:pr-4">
+      <label class="flex items-center gap-2 h-10 m-0 cursor-pointer">
         <input
           v-model="isDayEnabled"
           name="enable-day"
@@ -206,78 +207,91 @@ export default {
           type="checkbox"
           :title="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.ENABLE')"
         />
-        <span class="text-body-main text-n-slate-12 font-medium">
+        <span
+          class="text-body-main text-n-slate-12 font-medium whitespace-nowrap"
+        >
           {{ dayName }}
         </span>
-      </div>
+      </label>
     </td>
-    <td class="py-3 ltr:pr-3 rtl:pl-3">
-      <div v-if="isDayEnabled" class="flex flex-col gap-1.5">
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2">
-            <input
-              v-model="isOpenAllDay"
-              name="enable-open-all-day"
-              class="m-0"
-              type="checkbox"
-              :title="$t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')"
-            />
-            <span class="text-body-main text-n-slate-12">{{
-              $t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')
-            }}</span>
-          </div>
-          <NextSelect
-            v-model="fromTime"
-            :options="fromTimeSlots"
-            :placeholder="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
-            :disabled="isOpenAllDay"
-          />
-          <div class="flex items-center">
-            <Icon icon="i-lucide-minus size-4" />
-          </div>
-          <NextSelect
-            v-model="toTime"
-            :options="toTimeSlots"
-            :placeholder="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
-            :disabled="isOpenAllDay"
-          />
-        </div>
-        <div
-          v-if="showBreak && !isOpenAllDay"
-          class="flex flex-wrap items-center gap-2"
-        >
+    <td class="py-3 align-top ltr:pr-3 rtl:pl-3">
+      <!-- As duas faixas (dia todo e almoço) dividem a MESMA grade: sem isso cada linha media
+           a própria largura, o campo da tarde caía para baixo e a coluna de horas desalinhava. -->
+      <div
+        v-if="isDayEnabled"
+        class="grid grid-cols-[minmax(11.5rem,max-content)_7rem_1.25rem_7rem] items-center gap-x-3 gap-y-2"
+      >
+        <label class="flex items-center gap-2 m-0 cursor-pointer">
           <input
-            v-model="hasBreak"
-            name="enable-break"
+            v-model="isOpenAllDay"
+            name="enable-open-all-day"
             class="m-0"
             type="checkbox"
+            :title="$t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')"
           />
-          <span class="text-body-main text-n-slate-11">
-            {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.BREAK') }}
-          </span>
+          <span class="text-body-main text-n-slate-12 whitespace-nowrap">{{
+            $t('INBOX_MGMT.BUSINESS_HOURS.ALL_DAY')
+          }}</span>
+        </label>
+        <input
+          v-model="fromTime"
+          type="time"
+          :class="campoHora"
+          :disabled="isOpenAllDay"
+          :aria-label="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
+        />
+        <Icon icon="i-lucide-minus size-4" class="justify-self-center" />
+        <input
+          v-model="toTime"
+          type="time"
+          :class="campoHora"
+          :disabled="isOpenAllDay"
+          :aria-label="$t('INBOX_MGMT.BUSINESS_HOURS.DAY.CHOOSE')"
+        />
+        <template v-if="showBreak && !isOpenAllDay">
+          <label class="flex items-center gap-2 m-0 cursor-pointer">
+            <input
+              v-model="hasBreak"
+              name="enable-break"
+              class="m-0"
+              type="checkbox"
+            />
+            <span class="text-body-main text-n-slate-11 whitespace-nowrap">
+              {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.BREAK') }}
+            </span>
+          </label>
           <template v-if="hasBreak">
-            <NextSelect v-model="breakFrom" :options="toTimeSlots" />
-            <div class="flex items-center">
-              <Icon icon="i-lucide-minus size-4" />
-            </div>
-            <NextSelect v-model="breakTo" :options="toTimeSlots" />
+            <input v-model="breakFrom" type="time" :class="campoHora" />
+            <Icon icon="i-lucide-minus size-4" class="justify-self-center" />
+            <input v-model="breakTo" type="time" :class="campoHora" />
           </template>
-        </div>
-        <span v-if="hasError" class="error text-label-small text-n-ruby-9">
+        </template>
+        <span
+          v-if="hasError"
+          class="col-span-4 error text-label-small text-n-ruby-9"
+        >
           {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.VALIDATION_ERROR') }}
         </span>
       </div>
-      <span v-else class="text-body-main text-n-slate-11">
+      <span
+        v-else
+        class="flex items-center h-10 text-body-main text-n-slate-11"
+      >
         {{ $t('INBOX_MGMT.BUSINESS_HOURS.DAY.UNAVAILABLE') }}
       </span>
     </td>
-    <td class="py-3 ltr:pr-3 rtl:pl-3">
-      <span
-        v-if="isDayEnabled && !hasError"
-        class="label bg-n-blue-3 text-n-blue-11 text-label-small inline-block px-2 py-1 rounded-lg cursor-default whitespace-nowrap"
-      >
-        {{ totalHours }}
-      </span>
+    <td class="py-3 align-top ltr:pr-3 rtl:pl-3">
+      <div class="flex items-center gap-2 h-10 whitespace-nowrap">
+        <span
+          v-if="isDayEnabled && !hasError"
+          class="label bg-n-blue-3 text-n-blue-11 text-label-small inline-block px-2 py-1 rounded-lg cursor-default"
+        >
+          {{ totalHours }}
+        </span>
+        <!-- "Copiar para os demais dias" mora aqui, preenchido por quem usa o componente: a grade da
+             unidade passa o slot; a da caixa de entrada não, e a coluna fica igual à de antes. -->
+        <slot name="acoes" />
+      </div>
     </td>
   </tr>
 </template>

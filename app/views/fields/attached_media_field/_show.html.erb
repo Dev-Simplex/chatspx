@@ -1,0 +1,5 @@
+<% if field.attached? %>
+  <%= link_to field.filename, field.url, target: '_blank', rel: 'noopener noreferrer', class: 'text-woot-600 underline' %>
+<% else %>
+  <span class="text-slate-400">—</span>
+<% end %>

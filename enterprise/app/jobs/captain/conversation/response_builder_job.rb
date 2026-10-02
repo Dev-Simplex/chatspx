@@ -1,4 +1,31 @@
 class Captain::Conversation::ResponseBuilderJob < ApplicationJob
+  # Trecho de endereço: logradouro + o que vem depois, até a pontuação. Fechado em ponto,
+  # ponto-e-vírgula ou fim de linha pra não engolir a frase seguinte.
+  LOGRADOURO = /(?:av\.?|avenida|rua|travessa|alameda|rodovia)\s+[A-ZÀ-Ú0-9][^.;\n]{3,80}/i
+  # Quem a frase diz que mora ali. Sem isto a guarda trocaria o endereço do IMÓVEL, que é
+  # informação legítima em locação.
+  DONO_ESCRITORIO = /escrit[óo]rio|imobili[áa]ria|nosso endere[çc]o|(?:a gente|n[óo]s)\s+fic\w+|ficamos\s+(?:na|no|em)|estamos\s+(?:localizad\w+|na|no|em)/i
+  # Quanto se olha pra trás do logradouro à procura do dono. Curto de propósito: o padrão é
+  # "escritório fica na X", com o marcador colado.
+  JANELA_DONO = 70
+  # A pergunta é sobre onde a EMPRESA fica. "de vocês", "aí", "da Tozi" — a forma como o
+  # cliente pergunta, não como a IA responde.
+  PERGUNTA_DE_ENDERECO = Regexp.union(
+    /(?:qual|onde|me manda|manda|passa|como chego|como fa[çc]o pra chegar)[^?]{0,40}(?:endere[çc]o|fica|localiza|ficam)/i,
+    /endere[çc]o de voc[êe]s/i,
+    /onde voc[êe]s (?:ficam|fica|est[ãa]o)/i
+  )
+  # Pergunta sobre IMÓVEL não é pergunta sobre a empresa. Sem este veto, "qual o endereço da
+  # casa?" faria a guarda trocar o endereço do imóvel — o estrago que ela existe pra evitar.
+  SOBRE_IMOVEL = /\b(?:casa|apartamento|apto|kitnet|kit|im[óo]vel|terreno|sobrado|sala|ponto|galp[ãa]o|ch[áa]cara|c[óo]d(?:igo)?)\b/i
+  # A pergunta cita a EMPRESA. Sem isso, "qual o endereço?" no meio de uma conversa de locação é
+  # pergunta sobre o imóvel que acabou de ser mostrado, e trocar a resposta mandaria o cliente ao
+  # escritório em vez da casa. Borda por [[:alpha:]] porque `\b` não enxerga o "í" de "aí".
+  DA_EMPRESA = /(?<![[:alpha:]])(?:voc[êe]s|a[íi]|escrit[óo]rio|loja|empresa|sede|imobili[áa]ria)(?![[:alpha:]])/i
+  # Fim de frase de verdade: ponto/!/? seguido de espaço e MAIÚSCULA, ou quebra de linha.
+  # "Av. das" não casa (minúscula depois do ponto), que é o que salva a abreviação.
+  FIM_DE_FRASE = /[.!?]\s+(?=[A-ZÀ-Ú])|\n/
+
   MAX_MESSAGE_LENGTH = 10_000
   # Tolerância ao comparar o preço citado na frase com o do imóvel do link — a mesma ~2% da
   # medição do caso 42952. Absorve o arredondamento que a IA faz ("520 mil" para 519.900).
@@ -8,6 +35,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # "milhão" vem ANTES de "mil" na alternância: invertido, "mil" casa o prefixo de "milhão"
   # e 1,2 milhão vira 1.200 (a prova do caso 42952 pegou isso).
   PRECO_CITADO = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)|(\d+(?:[.,]\d+)?)\s*(milh(?:ão|ões|oes)|mil)/i
+  # Laço de telefone (CHAT-159): a resposta original conta como a 1ª tentativa.
+  TENTATIVAS_DE_TELEFONE = 3
+  PALAVRAS_MINIMAS_APOS_REMOCAO = 3
   retry_on ActiveStorage::FileNotFoundError, attempts: 3, wait: 2.seconds
   retry_on Faraday::BadRequestError, attempts: 3, wait: 2.seconds
 
@@ -98,6 +128,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     nota_episodio = nota_de_continuidade
     history.unshift({ content: nota_episodio, role: 'user' }) if nota_episodio.present?
 
+    # O que as ferramentas devolveram neste atendimento. Também PREÂMBULO, e depois do
+    # unshift acima de propósito: a linha do tempo do atendimento fica antes da nota de
+    # reentrada, que é sobre atendimentos ANTERIORES.
+    nota_tools = nota_de_ferramentas
+    history.unshift({ content: nota_tools, role: 'user' }) if nota_tools.present?
+
+    # A agendada pendente (CHAT-165), para o agente poder reagendá-la ou cancelá-la.
+    nota_agendada = nota_da_agendada
+    history.unshift({ content: nota_agendada, role: 'user' }) if nota_agendada.present?
+
     # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
     # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
     # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
@@ -137,6 +177,29 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return unless janela_por_episodio?
 
     Captain::Conversation::EpisodeContinuityNote.new(conversation: @conversation).text
+  end
+
+  # Retorno de ferramenta não é `Message`, então some do histórico no turno seguinte e o
+  # agente passa a afirmar de memória o que já tinha consultado. A nota devolve esse dado
+  # recortado no MESMO atendimento que o histórico usa.
+  def nota_de_ferramentas
+    Captain::Conversation::ToolContextNote.new(
+      conversation: @conversation, desde: inicio_do_episodio
+    ).text
+  end
+
+  def nota_da_agendada
+    return unless (@assistant.config['tools'] || []).include?('agendar_mensagem')
+
+    Captain::Conversation::AgendadaNote.new(conversation: @conversation).text
+  end
+
+  # A fronteira só existe quando a conta usa janela por episódio; sem ela a nota fica sem
+  # corte e o `desde: nil` cobre a conversa inteira, que é o mesmo alcance do histórico.
+  def inicio_do_episodio
+    return unless janela_por_episodio?
+
+    Captain::Conversation::EpisodeBoundary.new(conversation: @conversation).atual&.started_at
   end
 
   # Opt-in por conta, default desligado (produto multi-tenant — nunca hardcode de cliente).
@@ -204,10 +267,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   # A conversa já tem destino definido, então não se agenda cutucada preventiva: ou está com um
   # humano (aguardando_humano_desde), ou existe um compromisso combinado com hora marcada — e o
-  # token é um só, então a preventiva roubaria o slot dele. Cumprido o compromisso, o motivo é
+  # token é um só, então a preventiva roubaria o slot dele —, ou há uma agendada da IA esperando o
+  # horário que o cliente deu (cutucar antes disso é insistir com quem já disse quando quer falar). Cumprido o compromisso, o motivo é
   # consumido e o auto volta; se ele morrer sem cumprir, um novo programar_followup rearma.
   def ja_tem_destino?(attrs)
-    attrs['aguardando_humano_desde'].present? || attrs['followup_motivo'].present?
+    attrs['aguardando_humano_desde'].present? || attrs['followup_motivo'].present? ||
+      ScheduledMessage.agendada_da_ia_pendente?(@conversation)
   end
 
   # Opt-in implícito: só agentes que já têm a ferramenta de follow-up. Desligável por
@@ -252,8 +317,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # OpenAiMessageBuilderService: marcar a ORIGEM em vez de tentar corrigir por conduta.
   def outgoing_content(message)
     return interactive_payload_placeholder(message) if interactive_payload?(message)
+    return contato_enviado_placeholder(message) if message.additional_attributes&.dig('contato_enviado').present?
 
     message.content.presence || outgoing_attachment_placeholder(message)
+  end
+
+  # Contato enviado pelo sistema (enviar_contato_unidade): o conteúdo traz o número para o time
+  # humano, mas no histórico da IA entra só o rótulo. Se o número voltasse como fala dela, ela
+  # aprenderia a digitar telefone — justamente o que a ferramenta existe para evitar.
+  def contato_enviado_placeholder(message)
+    "[contato \"#{message.additional_attributes.dig('contato_enviado', 'rotulo')}\" enviado pelo sistema]"
   end
 
   def interactive_payload?(message)
@@ -390,6 +463,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def ensure_handoff_if_promised
     return unless promised_handoff?(@response['response'])
     return unless captain_can_respond?
+
+    # O tool gravou o handoff numa instancia PROPRIA da conversa; a do job foi carregada antes do
+    # turno. Sem o reload o marcador abaixo nunca aparece e o team_id e o de antes: o safety-net
+    # disparava e o time padrao do agente sobrescrevia o time que a IA escolheu (CD Solar, conv 19).
+    @conversation.reload
     # Ja aguardando humano (o agente chamou o tool NESTE turno e tambem escreveu a promessa):
     # nada a fazer, e sair antes do log mantem a metrica 'handoff_auto_fired' honesta —
     # ela mede so os casos em que o agente PROMETEU sem acionar.
@@ -472,7 +550,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       return if skip_duplicate?(content)
     end
 
-    send_response(content)
+    content = com_telefones_de_fonte(content)
+    send_response(content) if content
   end
 
   # Silêncio deliberado do agente ([IGNORAR]) deixa rastro auditável: sem isso, uma
@@ -611,6 +690,66 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     false
   end
 
+  # Laço de correção de telefone (CHAT-159). A IA não escreve telefone em texto: o da empresa
+  # sai pelo card de contato, e só passa número que o cliente ou alguém da equipe escreveu na
+  # conversa (a regra de fonte mora na guarda). Resposta com número sem fonte NÃO sai: volta pro
+  # modelo com o motivo e ele refaz, até sair correta ou bater o teto de tentativas.
+  # Devolve o texto a enviar, ou nil quando nada sai (silêncio ou retenção com handoff).
+  def com_telefones_de_fonte(content)
+    return content unless Captain::Behavior::PhoneSourceGuard.enabled_for?(@assistant)
+
+    guarda = Captain::Behavior::PhoneSourceGuard.new(conversation: @conversation)
+    (1..TENTATIVAS_DE_TELEFONE).each do |tentativa|
+      numeros = guarda.sem_fonte(content)
+      return content if numeros.empty?
+      return desfecho_do_telefone(guarda, content, numeros, tentativa) if tentativa == TENTATIVAS_DE_TELEFONE
+
+      log_behavior_event('phone_unsourced', { numeros: numeros, tentativa: tentativa, acao: 'regenerar' })
+      return reter_por_telefone unless regenerate_for_unsourced_phone
+
+      content = normalize_response_content(@response['response'])
+      return log_ignored(content) if no_reply?(content)
+    end
+  end
+
+  # Teto estourado: a IA insistiu. Sai o que dá para salvar — as frases com número sem fonte
+  # caem, o resto segue se ainda for uma mensagem. Se não sobrar mensagem, nada sai e alguém da
+  # equipe assume: silêncio puro deixaria o cliente sem retorno.
+  def desfecho_do_telefone(guarda, content, numeros, tentativa)
+    restante = guarda.remover(content, numeros)
+    enviavel = restante.scan(/\p{L}+/).size >= PALAVRAS_MINIMAS_APOS_REMOCAO
+    log_behavior_event('phone_unsourced', { numeros: numeros, tentativa: tentativa, acao: enviavel ? 'removido' : 'bloqueado' })
+    enviavel ? restante : reter_por_telefone
+  end
+
+  # Mesmo motivo a cada volta, sem exemplo nem valor concreto: citar o número errado aqui
+  # ensinaria o modelo a repeti-lo.
+  def regenerate_for_unsourced_phone
+    @directive = 'IMPORTANTE: sua resposta anterior não foi enviada porque escrevia um número de telefone. Não escreva ' \
+                 'telefone em texto. Para passar o contato da empresa, use a ferramenta de card de contato ' \
+                 '(enviar_contato_unidade); se ela não estiver disponível, responda sem telefone. Se o número for do ' \
+                 'próprio cliente, só repita o que ele escreveu nesta conversa. Responda de novo ao cliente.'
+    servico = captain_v2_enabled? ? Captain::Assistant::AgentRunnerService : Captain::Llm::AssistantChatService
+    @response = servico.new(assistant: @assistant, conversation: @conversation).generate_response(message_history: collect_previous_messages)
+    @response.present?
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][phone_unsourced] #{e.message}")
+    false
+  end
+
+  # A resposta não sai, e alguém da equipe assume a pergunta.
+  def reter_por_telefone
+    Captain::Conversation::HumanHandoffService.new(
+      conversation: @conversation, assistant: @assistant,
+      reason: 'A IA insistiu em escrever um telefone que ninguém passou nesta conversa e a resposta foi retida. ' \
+              'Precisa de atendimento humano.'
+    ).perform
+    nil
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][phone_unsourced][handoff] #{e.message}")
+    nil
+  end
+
   def skip_duplicate?(content)
     return false unless dedup_enabled?
 
@@ -638,6 +777,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return content if content.blank?
 
     content = fix_property_links(content)
+    content = fix_office_address(content)
     content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
            .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
            .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
@@ -649,6 +789,108 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/ +,/, ',')                 # " ," -> ","
            .gsub(/,\s*([.!?;:])/, '\1')      # ", ." -> "."
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
+  end
+
+  # Endereço do escritório dito de memória. A `buscar_unidades` existe e responde certo quando
+  # é chamada — o problema é que ela nem sempre é chamada, e conduta não força chamada de
+  # ferramenta. Medido na Tozi em 90 dias: das 49 vezes em que a IA deu o endereço do
+  # escritório, 22 estavam ERRADAS, e nunca o mesmo endereço — Embaúbas 1320, Embaúbas 678,
+  # Avencas 1581, Tarumãs 3562, Julio Campos 1470… Cada uma é um cliente mandado a um lugar
+  # que não existe; na conv 41549 ele estava saindo de casa naquele momento.
+  #
+  # Mesma família do fix_property_links acima: a saída é conferida contra o dado que o sistema
+  # tem, em vez de se confiar que o modelo lembrou. A diferença é que aqui há resposta certa
+  # conhecida (a unidade cadastrada), então o endereço é CORRIGIDO, não removido.
+  #
+  # Opt-in por dado: conta sem unidade ativa não é tocada.
+  def fix_office_address(content)
+    return content if content.blank? || !content.match?(LOGRADOURO)
+
+    unidade = unidade_da_conta
+    return content if unidade.nil? || unidade.address.blank?
+
+    trocar_logradouros(content, unidade)
+  end
+
+  def trocar_logradouros(content, unidade)
+    certo = logradouro_da_unidade(unidade)
+    # Quando a PERGUNTA foi sobre o endereço da empresa, todo logradouro da resposta é
+    # resposta a ela — não é preciso procurar marcador na frase.
+    perguntaram = perguntaram_o_endereco_da_empresa?
+    content.gsub(LOGRADOURO) do |trecho|
+      anterior = Regexp.last_match.pre_match
+      next trecho unless (perguntaram && !fala_de_imovel?(anterior)) || dono_do_endereco?(anterior)
+      next trecho if trecho.match?(certo)
+
+      Rails.logger.warn("[fix_office_address] conv=#{@conversation.id} endereço do escritório corrigido")
+      unidade.address
+    end
+  end
+
+  # A resposta nem sempre diz de quem é o endereço: perguntado "qual o endereço de vocês?", a
+  # IA responde só "Avenida das Embaúbas, 1030 — quer que eu mande a localização?". Não há
+  # marcador ANTES do logradouro, e a primeira versão desta guarda deixava passar — medido em
+  # produção depois do merge: 3 de 6 respostas erradas escapavam por aqui.
+  #
+  # Quem diz de quem é o endereço, nesse caso, é a PERGUNTA. Só vale quando ela é sobre a
+  # empresa e não cita imóvel: "qual o endereço da casa?" é outra coisa, e trocar aquele
+  # endereço mandaria a pessoa para o lugar errado.
+  def perguntaram_o_endereco_da_empresa?
+    pergunta = @conversation.messages.where(message_type: :incoming, private: false)
+                            .order(:id).last&.content.to_s
+    return false if pergunta.blank? || pergunta.match?(SOBRE_IMOVEL)
+
+    pergunta.match?(PERGUNTA_DE_ENDERECO) && cita_a_empresa?(pergunta)
+  end
+
+  # "de vocês", "aí", "o escritório", ou o nome da conta ("onde fica a Tozi?").
+  def cita_a_empresa?(pergunta)
+    return true if pergunta.match?(DA_EMPRESA)
+
+    nome = @conversation.account&.name.to_s[/[[:alpha:]]{3,}/]
+    nome.present? && pergunta.match?(/(?<![[:alpha:]])#{Regexp.escape(nome)}(?![[:alpha:]])/i)
+  end
+
+  # Mesmo com a pergunta sobre a empresa, frase que fala de casa ou imóvel é sobre o imóvel.
+  def fala_de_imovel?(anterior)
+    frase_ate_o_logradouro(anterior).match?(SOBRE_IMOVEL)
+  end
+
+  # O que vem ANTES do logradouro diz de quem ele é. Duas armadilhas resolvidas aqui:
+  #
+  # 1. Não dá pra quebrar o texto em frases pelo ponto: `Av.` é abreviação, e o split partia
+  #    "Ficamos na Av. das Embaúbas" no meio, escondendo o dono da frase.
+  # 2. A janela é cortada no último fim de frase REAL (ponto seguido de maiúscula, ou quebra
+  #    de linha) — senão "…passar no nosso escritório. A casa fica na Rua X" faria a guarda
+  #    trocar o endereço do IMÓVEL, que é o estrago que ela existe pra evitar.
+  def dono_do_endereco?(anterior)
+    frase_ate_o_logradouro(anterior).match?(DONO_ESCRITORIO)
+  end
+
+  def frase_ate_o_logradouro(anterior)
+    janela = anterior.to_s[-JANELA_DONO..] || anterior.to_s
+    janela.split(FIM_DE_FRASE).last.to_s
+  end
+
+  # A conta pode ter várias unidades (rede com filiais). Corrigir para uma delas quando há
+  # várias seria escolher por conta própria a loja errada — então a guarda só age quando não
+  # há ambiguidade: uma unidade ativa, um endereço possível.
+  def unidade_da_conta
+    unidades = ::Unit.where(account_id: @conversation.account_id, active: true).limit(2).to_a
+    unidades.size == 1 ? unidades.first : nil
+  rescue StandardError => e
+    Rails.logger.warn("[fix_office_address] unidade indisponível: #{e.class}: #{e.message}")
+    nil
+  end
+
+  # Basta o logradouro da unidade aparecer na frase pra ela ser considerada certa: a IA
+  # abrevia ("Av." x "Avenida"), corta o CEP e troca a ordem, e exigir o endereço literal
+  # reescreveria resposta correta.
+  def logradouro_da_unidade(unidade)
+    nucleo = unidade.address.to_s[/(?:av\.?|avenida|rua|travessa|alameda|rodovia)\s+([^,\-]{3,40})/i, 1]
+    return /\A\z/ if nucleo.blank?
+
+    /#{Regexp.escape(nucleo.strip)}/i
   end
 
   # A URL de um imóvel só vem da buscar_imovel (build_url, que resolve o link pela
@@ -833,6 +1075,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # atribuída ao espelho DESTE assistant (gate por atribuição, D-6). Compara com o
   # assistant do ARGUMENTO (serializado via GlobalID) — job em voo de IA antiga cala.
   def captain_can_respond?
+    return false if @inbox.read_only? # CHAT-155: a IA nao responde por caixa somente leitura
+
     status, mirror_id = Conversation.uncached do
       Conversation.where(id: @conversation.id).pick(:status, :assignee_agent_bot_id)
     end

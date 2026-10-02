@@ -13,6 +13,107 @@ RSpec.describe 'Contacts API', type: :request do
     }
   end
 
+  describe 'POST /api/v1/accounts/{account.id}/contacts/{id}/revalidate_whatsapp' do
+    let(:admin) { create(:user, account: account, role: :administrator) }
+    let(:contact) { create(:contact, account: account, phone_number: '+14155552671') }
+    let(:channel) { create(:channel_api, account: account) }
+    let(:inbox) { channel.inbox }
+    let(:waha) { instance_double(Waha::ApiService) }
+
+    around do |example|
+      with_modified_env WAHA_DEFAULT_SESSION: nil, WAHA_API_URL: 'https://waha.example.com' do
+        example.run
+      end
+    end
+
+    before do
+      allow(Waha::ApiService).to receive(:new).and_return(waha)
+      allow(Waha::SessionStatusCache).to receive(:usable?).and_return(true)
+    end
+
+    def revalidate_contact
+      post "/api/v1/accounts/#{account.id}/contacts/#{contact.id}/revalidate_whatsapp",
+           headers: admin.create_new_auth_token, as: :json
+    end
+
+    it 'returns a readable 422 without a session and preserves validation attributes' do
+      expect(waha).not_to receive(:check_contact_exists)
+      revalidate_contact
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body).to eq('message' => I18n.t('errors.contacts.whatsapp_validation.unavailable', locale: account.locale))
+      expect(contact.reload.custom_attributes).not_to have_key('whatsapp_last_checked_at')
+    end
+
+    context 'with a contact inbox' do
+      before { create(:contact_inbox, contact: contact, inbox: inbox) }
+
+      it 'validates using the declared session and records its source' do
+        inbox.update!(waha_session_name: 'declared')
+        expect(waha).to receive(:check_contact_exists).with(session_name: 'declared', phone: '14155552671')
+                                                      .and_return('numberExists' => true)
+        revalidate_contact
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq('whatsapp_number_exists' => true)
+        expect(contact.reload.custom_attributes).to include('whatsapp_number_exists' => true, 'whatsapp_validation_source' => 'declared')
+        expect(contact.custom_attributes['whatsapp_last_checked_at']).to be_present
+      end
+
+      it 'falls back to the WAHA webhook session' do
+        channel.update!(webhook_url: 'https://waha.example.com/webhooks/chatwoot/webhook-session/app')
+        expect(waha).to receive(:check_contact_exists).with(session_name: 'webhook-session', phone: '14155552671')
+                                                      .and_return('numberExists' => false)
+        revalidate_contact
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq('whatsapp_number_exists' => false)
+        expect(contact.reload.custom_attributes['whatsapp_validation_source']).to eq('webhook-session')
+      end
+
+      it 'prefers a usable candidate and keeps the same source throughout the request' do
+        inbox.update!(waha_session_name: 'offline')
+        channel.update!(webhook_url: 'https://waha.example.com/webhooks/chatwoot/working/app')
+        expect(Waha::SessionStatusCache).to receive(:usable?).with('offline').once.and_return(false)
+        expect(Waha::SessionStatusCache).to receive(:usable?).with('working').once.and_return(true)
+        expect(waha).to receive(:check_contact_exists).with(session_name: 'working', phone: '14155552671')
+                                                      .and_return('numberExists' => true)
+        revalidate_contact
+
+        expect(response).to have_http_status(:ok)
+        expect(contact.reload.custom_attributes['whatsapp_validation_source']).to eq('working')
+      end
+
+      it 'does not treat a different provider webhook as a WAHA session' do
+        channel.update!(webhook_url: 'https://other.example.com/webhooks/chatwoot/foreign/app')
+        expect(waha).not_to receive(:check_contact_exists)
+        revalidate_contact
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+
+    it 'uses the configured default when no inbox declares a session' do
+      with_modified_env WAHA_DEFAULT_SESSION: 'default-session' do
+        expect(waha).to receive(:check_contact_exists).with(session_name: 'default-session', phone: '14155552671')
+                                                      .and_return('numberExists' => true)
+        revalidate_contact
+
+        expect(response).to have_http_status(:ok)
+        expect(contact.reload.custom_attributes['whatsapp_validation_source']).to eq('default-session')
+      end
+    end
+
+    it 'keeps the five-minute cooldown before session resolution' do
+      contact.update!(custom_attributes: { whatsapp_last_checked_at: 1.minute.ago.iso8601 })
+      expect(waha).not_to receive(:check_contact_exists)
+      revalidate_contact
+
+      expect(response).to have_http_status(:too_many_requests)
+      expect(response.parsed_body).to eq('message' => I18n.t('errors.contacts.whatsapp_validation.cooldown', locale: account.locale))
+    end
+  end
+
   describe 'GET /api/v1/accounts/{account.id}/contacts' do
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do
@@ -338,6 +439,23 @@ RSpec.describe 'Contacts API', type: :request do
         expect(response).to conform_schema(200)
         expect(response.body).to include(contact2.email)
         expect(response.body).not_to include(contact1.email)
+      end
+
+      it 'returns duplicate_of when another contact holds the number (S-03)' do
+        inbox = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+        wrong = create(:contact, name: 'Juliana Aguiar', account: account, phone_number: '+5565992476382')
+        create(:contact_inbox, contact: wrong, inbox: inbox, source_id: '5565992476302')
+        right = create(:contact, name: 'Juliana', account: account, phone_number: '+5565992476302')
+
+        get "/api/v1/accounts/#{account.id}/contacts/search",
+            params: { q: 'juliana' },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        payload = response.parsed_body['payload'].index_by { |contact| contact['id'] }
+        expect(payload[right.id]['duplicate_of']).to eq(wrong.id)
+        expect(payload[wrong.id]['duplicate_of']).to eq(right.id)
+        expect(response.parsed_body['payload'].pluck('duplicate_of')).to all(be_nil.or(be_a(Integer)))
       end
 
       it 'matches the contact ignoring the case in email' do
@@ -710,6 +828,8 @@ RSpec.describe 'Contacts API', type: :request do
         create(:inbox, account: account, waha_session_name: 'Simplex')
         waha_service = instance_double(Waha::ApiService)
         allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'Simplex', 'status' => 'WORKING' }])
         expect(waha_service).to receive(:check_contact_exists)
           .with(session_name: 'Simplex', phone: '14155550100')
           .and_return({ 'numberExists' => true })
@@ -727,6 +847,8 @@ RSpec.describe 'Contacts API', type: :request do
         create(:inbox, account: account, waha_session_name: 'session-one')
         waha_service = instance_double(Waha::ApiService)
         allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'session-two', 'status' => 'WORKING' }])
         expect(waha_service).to receive(:check_contact_exists)
           .with(session_name: 'session-one', phone: '14155550100')
           .and_return({ 'numberExists' => true })
@@ -737,6 +859,138 @@ RSpec.describe 'Contacts API', type: :request do
         end.to change(Contact, :count).by(1)
 
         expect(response).to have_http_status(:success)
+      end
+
+      # Regressao: a escolha era so alfabetica. Na Realizare (5 sessoes, 4 vivas) isso caia
+      # sempre na unica morta e o check-exists levava 10s+, estourando o Rack::Timeout.
+      it 'prefers a session WAHA reports as WORKING over an alphabetically earlier dead one' do
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'FAILED' }, { 'name' => 'session-two', 'status' => 'WORKING' }])
+        expect(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-two', phone: '14155550100')
+          .and_return({ 'numberExists' => true })
+
+        post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                        params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'falls back to the alphabetical order when the session list cannot be read' do
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions).and_raise(Waha::ApiService::Error)
+        expect(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-one', phone: '14155550100')
+          .and_return({ 'numberExists' => true })
+
+        post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                        params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+
+        expect(response).to have_http_status(:success)
+      end
+
+      # O pedido do dono: se uma conexao falhar, usa outra. So falha de SESSAO faz cair para
+      # a proxima; resposta valida encerra a busca.
+      it 'falls back to the next session when the chosen one does not answer' do
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        # As duas aparecem vivas: a queda acontece DEPOIS da checagem de saude, que e o caso
+        # que a lista de WORKING sozinha nao cobre.
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'session-two', 'status' => 'WORKING' }])
+        allow(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-one', phone: '14155550100').and_raise(Waha::ApiService::Error)
+        allow(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-two', phone: '14155550100').and_return({ 'numberExists' => true })
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+        end.to change(Contact, :count).by(1)
+
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'gives up with a friendly message when every session fails' do
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions).and_return([])
+        allow(waha_service).to receive(:check_contact_exists).and_raise(Waha::ApiService::Error)
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+        end.not_to change(Contact, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'does not ask another session when the number simply has no WhatsApp' do
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'session-two', 'status' => 'WORKING' }])
+        # Resposta valida e definitiva: a segunda sessao nao pode ser consultada.
+        expect(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-one', phone: '14155550100').once.and_return({ 'numberExists' => false })
+        expect(waha_service).not_to receive(:check_contact_exists).with(session_name: 'session-two', phone: '14155550100')
+
+        post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                        params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'moves on when a session burns its own deadline, instead of eating the whole budget' do
+        stub_const('Api::V1::Accounts::ContactsController::WAHA_SESSION_ATTEMPT_SECONDS', 1)
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions)
+          .and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }, { 'name' => 'session-two', 'status' => 'WORKING' }])
+        allow(waha_service).to receive(:check_contact_exists).with(session_name: 'session-one', phone: '14155550100') { sleep 3 }
+        allow(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-two', phone: '14155550100').and_return({ 'numberExists' => true })
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+        end.to change(Contact, :count).by(1)
+
+        expect(response).to have_http_status(:success)
+      end
+
+      # O `read_timeout` do Net::HTTP e por leitura: o total pode passar sem nenhum estouro,
+      # e ai quem corta e o Rack::Timeout, com 500 na cara do agente. O teto total troca isso
+      # por uma mensagem que o agente entende.
+      it 'answers with a friendly message instead of 500 when the validation exceeds its budget' do
+        stub_const('Api::V1::Accounts::ContactsController::WAHA_VALIDATION_BUDGET_SECONDS', 1)
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        allow(waha_service).to receive(:list_sessions).and_return([{ 'name' => 'session-one', 'status' => 'WORKING' }])
+        allow(waha_service).to receive(:check_contact_exists) { sleep 3 }
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+        end.not_to change(Contact, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
       end
     end
   end

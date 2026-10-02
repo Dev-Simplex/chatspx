@@ -14,7 +14,7 @@ class Captain::AssistantLog < ApplicationRecord
     response debounce_skip debounce_fire router_skip business_hours_skip
     handoff media_process humanizer_split dedup_skip error copilot_trigger
     mirror_assigned mirror_released human_takeover ignored
-    handoff_auto_fired dedup_regenerate unknown_marker
+    handoff_auto_fired dedup_regenerate unknown_marker phone_unsourced handoff_ja_pendente
   ].freeze
 
   validates :event_type, presence: true, inclusion: { in: EVENT_TYPES }

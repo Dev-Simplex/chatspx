@@ -1,5 +1,6 @@
 {
   "CONVERSATION": {
+    "WHATSAPP_PHONE_REPLY": "Sent directly from WhatsApp on the phone (agent not identified)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "No one owns this conversation",
@@ -52,6 +53,7 @@
     "VIEW_ORIGINAL": "View original",
     "VIEW_TRANSLATED": "View translated",
     "EMPTY_STATE": {
+      "PREVENTION_MESSAGE": "Prevention is an act of love for yourself.",
       "CMD_BAR": "to open command menu",
       "KEYBOARD_SHORTCUTS": "to view keyboard shortcuts",
       "NEW_CONVERSATION": "New conversation",
@@ -91,6 +93,15 @@
     "BOT_HANDOFF_ERROR": "Failed to take over the conversation. Please try again.",
     "TWILIO_WHATSAPP_CAN_REPLY": "The 24-hour message window has expired. Send a template to resume the conversation.",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "24 hour message window restriction",
+    "READ_ONLY_INBOX": {
+      "BANNER": "Read-only inbox: replies do not leave through this number.",
+      "REPLY_THROUGH": "Reply through the inbox {inbox}",
+      "DIALOG_DESCRIPTION": "The message goes to the same customer from the other number, and you are taken to that conversation. This one is resolved with a private note.",
+      "PLACEHOLDER": "Type your reply",
+      "SEND": "Send",
+      "ERROR": "Could not send the reply. Please try again.",
+      "PRIVATE_NOTE": "Internal note"
+    },
     "WHATSAPP_WINDOW_EXPIRED": {
       "TITLE": "Janela de 24 horas expirada",
       "DESCRIPTION": "O WhatsApp só permite mensagens livres dentro de 24 horas após a última mensagem do cliente. Para retomar, envie um template aprovado.",
@@ -453,6 +464,8 @@
     "VISIBLE_TO_AGENTS": "Private Note: Only visible to you and your team",
     "CHANGE_STATUS": "Conversation status changed",
     "CHANGE_STATUS_FAILED": "Conversation status change failed",
+    "MARK_AS_READ_FAILED": "Could not mark the conversation as read. Try again.",
+    "MARK_AS_UNREAD_FAILED": "Could not mark the conversation as unread. Try again.",
     "CHANGE_AGENT": "Conversation Assignee changed",
     "CHANGE_AGENT_FAILED": "Assignee change failed",
     "ASSIGN_LABEL_SUCCESFUL": "Label assigned successfully",
@@ -661,6 +674,12 @@
       "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
       "REQUEST_EXISTS": "You already have a pending request for this conversation.",
       "REQUEST_ERROR": "Could not send the request, please try again."
+    },
+    "AI_SCHEDULED_BANNER": {
+      "TITLE": "Message scheduled by {name} for {when}",
+      "CANCEL": "Cancel",
+      "CANCELLED": "Scheduled message cancelled.",
+      "CANCEL_ERROR": "Could not cancel the scheduled message."
     },
     "SCHEDULE_MESSAGE": {
       "TOOLTIP": "Schedule message",
@@ -926,7 +945,23 @@
       "TITLE": "Atenção",
       "BACK": "Voltar para conversas"
     },
-    "WAHA_LINE_DOWN": "This inbox's WhatsApp line is down — anything you send now will not reach the customer."
+    "WAHA_LINE_DOWN": "This inbox's WhatsApp line is down — anything you send now will not reach the customer.",
+    "CATALOG": {
+      "MENU": "Send {item}",
+      "TITLE": "Send {item}",
+      "SEARCH": "Search by name or SKU",
+      "LOADING": "Loading…",
+      "EMPTY": "No results.",
+      "SELECTED": "{count} selected",
+      "SEND": "Send",
+      "CANCEL": "Cancel",
+      "CLOSE": "Close",
+      "WAHA_NOTICE_ONE": "On this inbox the item's photos go one by one, with the caption on the first.",
+      "WAHA_NOTICE_MANY": "On this inbox each item's photos go one by one, with the caption on the first, followed by a numbered menu."
+    },
+    "HANDOVER_CUT": {
+      "BANNER": "This conversation was transferred to you on {date}. Earlier history is not visible."
+    }
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Send conversation transcript",
@@ -992,11 +1027,41 @@
       "LINEAR_ISSUES": "Linked Linear Issues",
       "SHOPIFY_ORDERS": "Shopify Orders",
       "KANBAN_STATUS": "Kanban Status",
+      "CAPTADOR_LEAD": "Captador lead",
       "GROUP_PARTICIPANTS": "Group members"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Not in any funnel",
       "OPEN_BOARD": "Open in Kanban"
+    },
+    "CAPTADOR": {
+      "LOADING": "Loading the Captador lead",
+      "EMPTY": "This contact did not come from Captador.",
+      "UNAVAILABLE": "Captador did not respond right now. The conversation works as usual.",
+      "PENDING_ACCESS": "Ask for access to Captador to see this lead.",
+      "RETRY": "Try again",
+      "MOVE": "Move to…",
+      "OPEN": "Open in Captador",
+      "MOVED": "Lead moved to {stage}.",
+      "MOVE_ERROR": "Could not move the lead.",
+      "STALLED": "Stalled",
+      "LOST": "Lost",
+      "DO_NOT_CONTACT": "Do not contact",
+      "FIELDS": {
+        "OWNER": "Owner",
+        "ORIGIN": "Source",
+        "LAST_ACTIVITY": "Last activity",
+        "STATUS": "Registry status",
+        "ACTIVITY": "Main activity",
+        "SIZE": "Company size",
+        "CITY": "City",
+        "OPENED_ON": "Founded"
+      },
+      "ORIGIN": {
+        "GOOGLE": "Google",
+        "RECEITA": "Federal Revenue registry",
+        "MANUAL": "Manual entry"
+      }
     },
     "SUMMARY": {
       "AI_TITLE": "AI summary",
@@ -1015,6 +1080,7 @@
       "VIDEOS": "Videos",
       "AUDIOS": "Audios",
       "AUDIO": "Audio",
+      "AUDIO_PROGRESS": "Audio progress",
       "DOCUMENTS": "Documents",
       "DOCUMENT": "Document",
       "LINKS": "Links"
@@ -1172,6 +1238,9 @@
     "DOWNLOAD": "Download PDF",
     "CANCEL": "Cancel",
     "CLOSE": "Close",
+    "SHA256": "SHA-256 verification code",
+    "COPY_SHA256": "Copy SHA-256",
+    "COPIED": "Copied",
     "READY_TITLE": "PDF ready",
     "READY_HINT": "Click the download button below to save your file.",
     "TIMEOUT": "Generation is taking too long. Try again later or reduce the date range.",

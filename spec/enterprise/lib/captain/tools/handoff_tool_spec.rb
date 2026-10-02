@@ -48,9 +48,56 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
       expect(tool.parameters[:team_id].type).to eq('string')
       expect(tool.parameters[:team_id].required).to be false
     end
+
+    # Conta no modo "a IA não escolhe o time": o destino é o time padrão do agente, então
+    # oferecer team_id ao modelo é um parâmetro morto que só custa esquema e chance de erro.
+    it 'hides team_id when the account does not let the AI choose the team' do
+      account.update!(custom_attributes: { 'handoff_team_id' => 1 })
+
+      parameters = described_class.new(assistant).parameters
+
+      expect(parameters).not_to have_key(:team_id)
+      expect(parameters).to have_key(:reason)
+    end
   end
 
   describe '#perform' do
+    # Re-chamada: a IA segue atendendo depois do handoff e chama a ferramenta de novo (39% das
+    # chamadas na conta medida). Não pode refazer nada — nem nota, nem registro, nem distribuição.
+    context 'when the handoff was already done' do
+      def handoff_logs(type)
+        Captain::AssistantLog.where(conversation: conversation, event_type: type)
+      end
+
+      shared_examples 'does not redo the handoff' do |motivo|
+        it 'returns the conduct text without creating note, handoff log or distribution' do
+          expect(Spx::Distribuicao::DistribuirService).not_to receive(:new)
+
+          result = nil
+          expect { result = tool.perform(tool_context, reason: 'De novo') }.not_to change(Message, :count)
+
+          expect(result).to include('já está com a equipe')
+          expect(handoff_logs('handoff')).not_to exist
+          expect(handoff_logs('handoff_ja_pendente').sole.payload).to eq('motivo' => motivo)
+        end
+      end
+
+      context 'with the conversation waiting for a human' do
+        before { conversation.update!(custom_attributes: { 'aguardando_humano_desde' => Time.current.iso8601 }) }
+
+        it_behaves_like 'does not redo the handoff', 'aguardando_humano'
+      end
+
+      context 'with a human already assigned' do
+        before do
+          create(:inbox_member, inbox: inbox, user: user)
+          conversation.update!(assignee: user)
+        end
+
+        it_behaves_like 'does not redo the handoff', 'humano_atribuido'
+      end
+    end
+
     context 'when conversation exists' do
       context 'with reason provided' do
         it 'creates a private note with reason and hands off conversation' do

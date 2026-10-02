@@ -11,6 +11,13 @@
 # derrubar o listener. Devolve true SÓ quando de fato retomou um run — o AutomationRuleListener usa
 # isso pra dar early-return (a resposta pertence ao flow ativo, não dispara flow novo).
 class Flows::ReplyResumeService
+  # Menu com timeout DESLIGADO (o padrão da tela) grava `wait_until: nil`: o scope `due` nunca o
+  # pega (`NULL <= now()` é NULL) e o run ficava `waiting` para sempre, sequestrando a primeira
+  # mensagem que o cliente mandasse semanas depois — ele recebia o fallback do menu velho e nenhum
+  # outro flow disparava. Sem prazo, a espera vale por este tempo; com prazo, quem manda é o
+  # `wait_until` (o Flows::ResumeJob encerra no vencimento).
+  VALIDADE_SEM_PRAZO = 24.hours
+
   def initialize(conversation:, reply:)
     @conversation = conversation
     @reply = reply
@@ -47,6 +54,13 @@ class Flows::ReplyResumeService
       # run entre o SELECT e o lock. Só o primeiro a pegar o lock com o run ainda :waiting retoma.
       next false unless run.waiting?
 
+      # Flow desativado durante a espera: encerra o run e deixa a mensagem seguir para o disparo
+      # normal, em vez de retoma-lo.
+      if run.flow.active? == false
+        run.complete!
+        next false
+      end
+
       Flows::RunnerService.new(
         flow: run.flow, conversation: run.conversation,
         trigger_payload: run.context, flow_run: run, resume_reply: @reply
@@ -61,6 +75,7 @@ class Flows::ReplyResumeService
   # (tempo) puro NÃO casa: seu current_node_id é o sucessor, não um wait_for_reply.
   def pending_reply_run
     FlowRun.waiting.where(conversation: @conversation)
+           .where('wait_until IS NOT NULL OR flow_runs.updated_at >= ?', VALIDADE_SEM_PRAZO.ago)
            .order(updated_at: :desc)
            .detect { |run| wait_for_reply_node?(run) }
   end

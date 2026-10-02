@@ -103,6 +103,14 @@ export const LORDICON = {
     active: 'https://cdn.lordicon.com/htbzeuqv.json',
     family: 'system',
   },
+  // Catálogo — system-outline-481-store (idle) / system-solid-481-store (active).
+  // A CDN do Lordicon responde 404 para ícone novo, então os dois Lottie entram no repositório
+  // (assets/lottie/lordicon/catalog-outline.json e catalog-solid.json), importados como URL.
+  // Enquanto os arquivos não chegam a entrada fica sem `idle`/`active`: o LordIconIcon mostra só
+  // o Lucide de reserva (i-lucide-store), sem player vazio.
+  catalog: {
+    family: 'system',
+  },
   // Tab "Mídia" da galeria — mesmo par do entry sidebar.
   galleryMedia: {
     idle: 'https://cdn.lordicon.com/ltjljakp.json',

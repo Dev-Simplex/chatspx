@@ -7,7 +7,6 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
 import { useAdmin } from 'dashboard/composables/useAdmin';
-import unidadesAPI from 'dashboard/api/unidades';
 import socialPublicacoesAPI from 'dashboard/api/socialPublicacoes';
 import { internalChatNotify } from 'dashboard/helper/internalChatNotify';
 import draggable from 'vuedraggable';
@@ -94,30 +93,12 @@ const hasInternalChat = computed(() => {
   );
 });
 
-// Apps de captação de lead por formulário — os mesmos que a tela de campanhas lê.
-const LEAD_INTAKE_APPS = ['meta_lead_ads', 'site_leads'];
-
-const appIntegrations = useMapGetter('integrations/getAppIntegrations');
-
 const { isAdmin } = useAdmin();
 
-// Mesma ideia do `hasLeadIntake` logo abaixo: o item some quando a conta nao tem o dado.
-// Aqui o gate e por DADO e nao por feature flag de proposito — carregar as unidades liga a
-// tela, e nao ha um segundo interruptor para alguem esquecer de ligar. Ver §7 do contrato
-// docs/contratos/unidades.md.
-const temUnidades = ref(false);
-// Gate por DADO, como o item "Campanhas" logo abaixo: a pagina de Rede Social so aparece para
+// Gate por DADO: a pagina de Rede Social so aparece para
 // conta que tem comentario capturado. Conta sem canal de Instagram, ou com o campo `comments`
 // nao assinado, nao ganha item nenhum. Ver docs/SPEC-instagram-social.md §7.
 const temRedeSocial = ref(false);
-
-// A tela de campanhas só existe para conta que captura lead por formulário: sem hook
-// configurado, não há campanha nenhuma para mostrar e o item não aparece.
-const hasLeadIntake = computed(() =>
-  appIntegrations.value.some(
-    app => LEAD_INTAKE_APPS.includes(app.id) && app.hooks?.length > 0
-  )
-);
 
 // Só a conta autora (conta 3 do deploy de casa) mantém o construtor do Help
 // Center; todas as outras contas/VMs veem o portal publicado embutido.
@@ -132,11 +113,36 @@ const helpCenterMenuItem = computed(() => {
     label: t('SIDEBAR.HELP_CENTER.TITLE'),
     icon: lordIcon('helpCenter', 'i-lucide-library-big'),
   };
+  // SUG-01: a caixa de sugestões vale para TODA conta, inclusive as que não têm a Central de
+  // Ajuda ligada — a rota `suggestions_new` não tem featureFlag, então o provider não a esconde.
+  const suggestionsChild = {
+    name: 'Suggestions',
+    label: t('SIDEBAR.HELP_CENTER.SUGGESTIONS'),
+    activeOn: ['suggestions_new'],
+    to: accountScopedRoute('suggestions_new'),
+  };
+  const suggestionsSentChild = {
+    name: 'SuggestionsSent',
+    label: t('SUGGESTIONS.MENU_SENT'),
+    activeOn: ['suggestions_sent'],
+    to: accountScopedRoute('suggestions_sent'),
+  };
   if (!isHelpCenterAuthoring.value) {
+    // Com `children` o item do rail vira grupo e o clique deixa de navegar — então o portal
+    // (iframe somente leitura) precisa virar filho, senão a conta de cliente perde o acesso a ele.
     return {
       ...base,
-      to: accountScopedRoute('help_center_view'),
       activeOn: ['help_center_view'],
+      children: [
+        {
+          name: 'HelpCenterArticles',
+          label: t('SIDEBAR.HELP_CENTER.ARTICLES'),
+          activeOn: ['help_center_view'],
+          to: accountScopedRoute('help_center_view'),
+        },
+        suggestionsChild,
+        suggestionsSentChild,
+      ],
     };
   }
   return {
@@ -182,6 +188,8 @@ const helpCenterMenuItem = computed(() => {
           navigationPath: 'portals_settings_index',
         }),
       },
+      suggestionsChild,
+      suggestionsSentChild,
     ],
   };
 });
@@ -276,14 +284,6 @@ provideSidebarContext({
 });
 
 const inboxes = useMapGetter('inboxes/getInboxes');
-// Gate por DADO do item "WhatsApp" de campanhas, no mesmo espírito do `hasLeadIntake`:
-// o disparo só existe sobre inbox WhatsApp (o `Campaign#whatsapp_blast?` exige
-// `inbox_type == 'Whatsapp'`), então conta sem esse canal não ganha a porta. Gate por
-// canal e não por campanha existente de propósito — senão a primeira campanha da conta
-// nunca poderia ser criada pela tela.
-const hasWhatsappCampaigns = computed(() =>
-  inboxes.value.some(inbox => inbox.channel_type === 'Channel::Whatsapp')
-);
 // D1 (Fase 3): contador de pedidos de atendimento pendentes (item "Pedidos" só
 // aparece quando há algum — sem poluir a sidebar de quem não usa o modo).
 const takeoverRequestCount = useMapGetter('takeoverRequests/getIncomingCount');
@@ -311,19 +311,6 @@ onMounted(() => {
   // Carrega os canais do chat interno para o badge de não lidas aparecer (e o
   // tempo-real incrementar) mesmo sem abrir a página do chat.
   if (hasInternalChat.value) store.dispatch('internalChat/fetchChannels');
-  // Só para saber se a conta tem captação de lead configurada (o item "Campanhas"
-  // some quando não tem). O payload não expõe settings de hook para não-admin.
-  if (!appIntegrations.value.length) store.dispatch('integrations/get');
-  // So para saber se a conta tem unidade cadastrada (o item "Unidades" some quando nao tem).
-  // Admin-only porque o endpoint tambem e — pedir como agente so geraria um 401 por sessao.
-  if (isAdmin.value) {
-    unidadesAPI
-      .getAll()
-      .then(({ data }) => {
-        temUnidades.value = Boolean(data?.unidades?.length);
-      })
-      .catch(() => {});
-  }
   // So para saber se a conta tem comentario publico capturado (o item "Rede Social" some quando
   // nao tem). Admin-only porque o endpoint tambem e.
   if (isAdmin.value) {
@@ -618,6 +605,19 @@ const menuItems = computed(() => {
       to: accountScopedRoute('gallery_index'),
       activeOn: ['gallery_index'],
     },
+    {
+      name: 'Catalog',
+      label: t('SIDEBAR.CATALOG'),
+      icon: lordIcon('catalog', 'i-lucide-store'),
+      to: accountScopedRoute('catalog_products_index'),
+      activeOn: [
+        'catalog_products_index',
+        'catalog_product_edit',
+        'catalog_categories',
+        'catalog_fields',
+        'catalog_integrations',
+      ],
+    },
     ...(temRedeSocial.value
       ? [
           {
@@ -812,42 +812,8 @@ const menuItems = computed(() => {
         },
       ],
     },
-    // Campanhas volta como UM item, com os filhos aparecendo por DADO — mesmo critério do
-    // `hasLeadIntake` e das telas de Unidades e Rede Social: a conta só ganha a porta quando
-    // existe o que mostrar atrás dela. Antes eram dois itens disputando o rótulo "Campanhas".
-    //
-    // Live chat e SMS seguem desligados desde 640ad1365b (24/07). Só o WhatsApp voltou,
-    // porque a tela dele deixou de ser visualizador: ela agora OPERA o disparo (conferir a
-    // audiência, carregar a lista, iniciar e pausar), que antes era rake e CSV por SSH.
-    ...(hasLeadIntake.value || hasWhatsappCampaigns.value
-      ? [
-          {
-            name: 'Campaigns',
-            label: t('SIDEBAR.CAMPAIGNS'),
-            icon: lordIcon('megaphone', 'i-lucide-megaphone'),
-            children: [
-              ...(hasLeadIntake.value
-                ? [
-                    {
-                      name: 'Lead Campaigns',
-                      label: t('SIDEBAR.LEAD_ADS'),
-                      to: accountScopedRoute('campaigns_lead_ads_index'),
-                    },
-                  ]
-                : []),
-              ...(hasWhatsappCampaigns.value
-                ? [
-                    {
-                      name: 'WhatsApp Campaigns',
-                      label: t('SIDEBAR.WHATSAPP'),
-                      to: accountScopedRoute('campaigns_whatsapp_index'),
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ]
-      : []),
+    // Campanhas saiu do menu em 17/09/2026 por decisão de produto. As telas seguem no
+    // código e abrem por link direto (/campaigns/whatsapp, /campaigns/lead_ads).
     helpCenterMenuItem.value,
     {
       name: 'Settings',
@@ -935,17 +901,6 @@ const menuItems = computed(() => {
           icon: lordIcon('waha'),
           to: accountScopedRoute('waha_connections_list'),
         },
-        ...(temUnidades.value
-          ? [
-              {
-                name: 'Settings Unidades',
-                label: t('SIDEBAR.UNIDADES'),
-                icon: lordIcon('companies', 'i-lucide-store'),
-                activeOn: ['unidades_list'],
-                to: accountScopedRoute('unidades_list'),
-              },
-            ]
-          : []),
         ...(hasMessageSequences.value
           ? [
               {
@@ -1206,7 +1161,7 @@ onKeyStroke('Escape', () => {
         @end="onSidebarReorder"
       >
         <template #item="{ element }">
-          <SidebarGroup v-bind="element" :is-collapsed="isCollapsed" />
+          <SidebarGroup v-bind="element" />
         </template>
       </draggable>
     </nav>

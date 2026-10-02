@@ -43,6 +43,17 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                     Condominio ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
+  # O Vista respondeu, mas não com dado utilizável (não-200, corpo que não é Hash). Antes isso
+  # virava `[]` e o chamador dizia "Nenhum imóvel encontrado" — falha técnica publicada como
+  # ausência de negócio. Agora sobe até o rescue do #perform, que diz que a CONSULTA falhou.
+  class VistaIndisponivel < StandardError; end
+
+  # Tom espelhado na BuscarUnidadesTool::FALHA: diz o que aconteceu, nomeia que é falha de
+  # consulta e fecha a porta pra resposta de memória.
+  FALHA_BUSCA = 'Não consegui consultar o acervo agora. Isto é falha de consulta, não ausência: ' \
+                'não conclua que não há imóvel no critério, não cite imóvel de memória e não ' \
+                'afirme preço ou disponibilidade. Diga que não conseguiu consultar agora.'.freeze
+
   # Veto de sanidade do geocoding: o que cair além disso do escritório não é da cidade
   # de atendimento, é homônimo de outro município (ver geocode_referencia).
   RAIO_URBANO_KM = 25
@@ -55,7 +66,23 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # o ramo `mobiliado` nunca funcionou (era o "Conferi 0 imóvel(is)" que aparecia mesmo com
   # acervo cheio), e quando este valor passou a valer para a busca comum ele derrubou TODA
   # busca de imóvel em produção. Não subir sem antes conferir o limite da API.
+  # Categorias como o Vista as escreve — conferidas no acervo em 08/09 (Terreno 38, Casa 31,
+  # Kitnet 17, Apartamento 8, Chácara 3, e os três de unidade única). Servem só para reconhecer
+  # a palavra no COMEÇO de um título de portal; não são filtro de busca. As compostas vêm
+  # primeiro: "Conjunto de Kitnets" tem que casar antes de "Kitnet".
+  CATEGORIAS_TITULO = ['Conjunto de Kitnets', 'Galpão Industrial', 'Ponto Comercial', 'Apartamento',
+                       'Chácara', 'Kitnet', 'Terreno', 'Casa'].freeze
+
   TETO_INSPECAO = 50
+
+  # Instrução da passagem por finalidade cruzada. Constante e não string montada no método
+  # porque ela é o CONTRATO com o modelo: quem for calibrar o texto mexe num lugar só.
+  AVISO_FINALIDADE = <<~AVISO.freeze
+    ATENÇÃO: esta busca é de %<finalidade>s, e quem atende %<finalidade>s nesta casa é %<destino>s.
+    Chame transferir_para_agente com %<destino>s AGORA, nesta mesma resposta — não siga conduzindo
+    e não prometa passar depois. Apresente as opções abaixo só se ainda houver algo a dizer antes
+    da passagem.
+  AVISO
 
   # Quantos imóveis a resposta APRESENTA. É diferente de quantos ela conhece: o cliente não
   # lê 17 opções numa mensagem, mas a IA precisa saber que existem 17 pra não dizer que são 5.
@@ -70,19 +97,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
               dormitorios: nil, piscina: nil, mobiliado: nil, suite: nil, titulo: nil,
               lat: nil, lng: nil, raio_km: nil, codigo: nil)
-    # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
-    if codigo.present?
-      cod = codigo.to_s.gsub(/\D/, '')
-      # O número que o cliente passa (placa/site/anúncio) às vezes é o Codigo interno,
-      # às vezes o ImoCodigo do site — tenta os dois antes de dizer que não achou.
-      achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
-      achados = fetch_vista({ 'ImoCodigo' => cod }, quantidade: 1) if achados.blank?
-      return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
+    # Busca direta por CÓDIGO (placa/anúncio/site) — a BUSCA independe de venda/locação.
+    return por_codigo(tool_context, codigo, status_tipo) if codigo.present?
 
-      venda_cod = achados.first['Status'].to_s.match?(/vend/i)
-      track_codigos(tool_context, achados)
-      return format_listings(tool_context, achados, venda_cod, detalhado: true)
-    end
     venda = status_tipo.to_s == 'venda'
     filter = { 'Cidade' => 'Sinop' }
     filter['Status'] = venda ? ['like', '%vend%'] : ['like', '%alug%']
@@ -118,10 +135,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "mobiliado=#{mobiliado.inspect} suite=#{suite.inspect} geo=#{geo} => #{imoveis.size} imoveis " \
                       "#{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
+    aviso_parcial = ''
     if mobiliado
-      candidatos = imoveis.size
-      imoveis = imoveis.select { |im| detalhes_info(im['Codigo'])[:mobiliado] }
-      return sem_mobiliado(candidatos) if imoveis.blank?
+      confirmados, desconhecidos = particionar_mobiliados(imoveis)
+      return sem_mobiliado_confirmado(imoveis.size, desconhecidos) if confirmados.blank?
+
+      imoveis = confirmados
+      aviso_parcial = mobiliado_parcial(desconhecidos)
     end
     track_codigos(tool_context, imoveis)
     if imoveis.blank?
@@ -129,23 +149,89 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       # que o cliente viu pode ser de OUTRA imobiliária no mesmo portal. Sem isso o retorno
       # genérico faz a IA concluir que o acervo está vazio — e foi o que aconteceu quando ela
       # respondeu que não havia apartamento nenhum tendo 17 no cadastro.
-      return titulo_sem_correspondencia(titulo) if titulo.present?
+      return sem_casar_pelo_titulo(tool_context, titulo, filter, venda) if titulo.present?
 
       # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
       return ampliados if ampliados.present?
 
-      return 'Nenhum imóvel encontrado com esses critérios.'
+      return Captain::Tools::Result.vazio_completo("#{fora_da_minha_finalidade(venda)}Nenhum imóvel encontrado com esses critérios.")
     end
-    return format_listings(tool_context, imoveis, venda) unless geo
-
-    format_by_distance(tool_context, imoveis, venda, { lat: lat.to_f, lng: lng.to_f, raio: raio_km.presence&.to_f })
+    listagem = if geo
+                 format_by_distance(tool_context, imoveis, venda,
+                                    { lat: lat.to_f, lng: lng.to_f, raio: raio_km.presence&.to_f })
+               else
+                 format_listings(tool_context, imoveis, venda)
+               end
+    texto = "#{fora_da_minha_finalidade(venda)}#{aviso_parcial}#{listagem}"
+    # Lista com aviso de que parte não foi conferida: nunca autoriza "são todas".
+    aviso_parcial.present? ? Captain::Tools::Result.parcial(texto) : texto
   rescue StandardError => e
-    Rails.logger.warn("[BuscarImoveisTool] #{e.message}")
-    'Não consegui buscar os imóveis agora.'
+    Rails.logger.warn("[BuscarImoveisTool] #{e.class}: #{e.message}")
+    Captain::Tools::Result.erro(FALHA_BUSCA, detalhe: "#{e.class}: #{e.message}")
   end
 
   private
+
+  # Busca por código — o caminho de quem chega com placa, anúncio ou link do site.
+  #
+  # O aviso de finalidade lê o `status_tipo` PEDIDO, não o Status do imóvel achado, e a
+  # diferença é o caso real: na conv 36940 o cliente clicou num anúncio de casa à VENDA e
+  # disse que queria alugar. O imóvel é de venda (conferido no Vista: cód 7573 = "Venda");
+  # quem carrega a intenção do cliente é o parâmetro que o modelo preencheu.
+  #
+  # Que ele é sinal, e não ruído de preenchimento, está medido em 60 dias na Tozi: a agente de
+  # vendas pediu locação por código 127 vezes e a de locação pediu venda 12 — e das 115
+  # conversas com busca cruzada por código, 100 estão hoje no time de LOCAÇÃO contra 7 em
+  # vendas. O `venda_cod` continua vindo do imóvel, porque quem decide se o endereço sai
+  # mascarado é o anúncio, não o desejo do cliente.
+  def por_codigo(tool_context, codigo, status_tipo)
+    cod = codigo.to_s.gsub(/\D/, '')
+    # O número que o cliente passa (placa/site/anúncio) às vezes é o Codigo interno,
+    # às vezes o ImoCodigo do site — tenta os dois antes de dizer que não achou.
+    achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
+    achados = fetch_vista({ 'ImoCodigo' => cod }, quantidade: 1) if achados.blank?
+    aviso = fora_da_minha_finalidade(status_tipo.to_s == 'venda')
+    # Código não encontrado também leva o aviso: o cliente segue querendo a outra finalidade,
+    # e é justamente aí que a conversa costuma continuar no especialista errado.
+    return Captain::Tools::Result.vazio_completo("#{aviso}#{codigo_nao_encontrado(cod)}") if achados.blank?
+
+    track_codigos(tool_context, achados)
+    venda_cod = achados.first['Status'].to_s.match?(/vend/i)
+    "#{aviso}#{format_listings(tool_context, achados, venda_cod, detalhado: true)}"
+  end
+
+  # O cliente virou de finalidade no meio da conversa e quem está atendendo é o especialista da
+  # OUTRA ponta. A instrução vai no RETORNO DA FERRAMENTA, no instante em que a busca cruzada
+  # acontece — e não no prompt, onde a mesma regra já existe ("locação → transfira para Bruna")
+  # e é seguida 1 vez em 6 (medido no turno da conv 36940). Instrução a 48k chars de distância
+  # não decide; a que chega junto com o dado, decide.
+  #
+  # Gatilho na PRIMEIRA busca cruzada, escolhido por replay de 60 dias na Tozi: das 136
+  # conversas em que uma agente de vendas buscou locação, 122 (89,7%) terminaram em locação e
+  # apenas 5 ficaram em vendas. Mesmo entre as 83 que fizeram UMA única busca, 71 foram para
+  # locação. Esperar a segunda busca deixaria passar 61% dos casos para ganhar ~2 pontos de
+  # precisão — e é essa espera que custou 35 minutos de atendimento errado naquela conversa.
+  #
+  # A assimetria fecha a escolha: transferir à toa custa uma transferência para quem tem as
+  # ferramentas certas (e pode devolver); não transferir custa o atendimento inteiro no
+  # especialista errado.
+  #
+  # Opt-in e multi-tenant: sem as duas chaves no assistente, o retorno não muda em nada.
+  def fora_da_minha_finalidade(venda)
+    minha = @assistant.config['finalidade'].to_s.strip.downcase
+    destino = @assistant.config['agente_outra_finalidade'].to_s.strip
+    return '' if minha.blank? || destino.blank?
+
+    buscada = venda ? 'venda' : 'locacao'
+    return '' if buscada == minha
+
+    format(AVISO_FINALIDADE, finalidade: rotulo(buscada), destino: destino)
+  end
+
+  def rotulo(finalidade)
+    finalidade == 'venda' ? 'venda' : 'locação'
+  end
 
   # Mobiliado NÃO é filtro de listagem no Vista — pedir Caracteristicas.Mobiliado no /listar
   # devolve HTTP 400 ("campo não está disponível"). O dado só existe no /detalhes, um imóvel
@@ -168,6 +254,43 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       'ofereça as opções não mobiliadas ou o contato do consultor. Não prometa nova busca.'
   end
 
+  # Nenhum confirmado como mobiliado NÃO é o mesmo que "nenhum é mobiliado", quando parte do
+  # lote não pôde ser conferida. Afirmar ausência aqui publica falha de consulta como fato do
+  # acervo — só o caminho em que TODOS foram conferidos autoriza o texto acima.
+  def sem_mobiliado_confirmado(candidatos, desconhecidos)
+    return Captain::Tools::Result.vazio_completo(sem_mobiliado(candidatos)) if desconhecidos.zero?
+
+    Captain::Tools::Result.parcial(
+      "Conferi #{candidatos} imóvel(is) que batem no resto do critério: nenhum está confirmado como " \
+      "mobiliado, e em #{desconhecidos} deles NÃO foi possível confirmar a característica porque a " \
+      'consulta de detalhes não respondeu. Não afirme que não há mobiliado: diga que não conseguiu ' \
+      'confirmar agora e ofereça falar com o consultor.'
+    )
+  end
+
+  # Desconhecido não é "não". Antes, `detalhes_info(...)[:mobiliado]` devolvia nil quando a
+  # consulta de detalhes falhava, o `select` lia nil como false, e imóvel BOM saía da lista sem
+  # deixar rastro nenhum. Agora o que não foi confirmado é contado e dito.
+  def particionar_mobiliados(imoveis)
+    confirmados = []
+    desconhecidos = 0
+    imoveis.each do |imovel|
+      info = detalhes_info(imovel['Codigo'])
+      next desconhecidos += 1 unless info[:consultado]
+
+      confirmados << imovel if info[:mobiliado]
+    end
+    [confirmados, desconhecidos]
+  end
+
+  def mobiliado_parcial(desconhecidos)
+    return '' if desconhecidos.zero?
+
+    "ATENÇÃO: em #{desconhecidos} imóvel(is) do critério não foi possível confirmar se são " \
+      'mobiliados (a consulta de detalhes não respondeu), então esta lista pode não ser todas as ' \
+      "opções mobiliadas. Não diga que são todas.\n"
+  end
+
   def fetch_vista(filter, quantidade: 5, venda: false)
     base = vista_base_url
     # Ordena por PREÇO crescente (o mais em conta dentro do filtro primeiro), não por
@@ -181,11 +304,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       paginacao: { pagina: 1, quantidade: quantidade }
     }
     resp = vista_get("#{base}/imoveis/listar", { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json })
-    return [] unless resp.code == 200
+    # Lista VAZIA e consulta que FALHOU são coisas diferentes e só uma delas autoriza dizer
+    # "não temos". Devolver [] aqui apagava a diferença: era o caminho 3 da auditoria de 20/09.
+    raise VistaIndisponivel, "listar respondeu HTTP #{resp.code}" unless resp.code == 200
 
     data = resp.parsed_response
     data = JSON.parse(data) if data.is_a?(String)
-    return [] unless data.is_a?(Hash)
+    raise VistaIndisponivel, "listar respondeu corpo inesperado (#{data.class})" unless data.is_a?(Hash)
 
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
   end
@@ -232,7 +357,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     novos = {}
     dados = {}
     imoveis.each { |im| registra_imovel(im, venda, novos, dados) }
-    return if novos.empty?
+    # Os dois mapas são independentes: conta sem domínio público não tem URL a guardar, mas
+    # tem preço — e sair aqui olhando só o `novos` levaria o `dados_imoveis` junto, desligando
+    # a guarda de preço numa conta que nunca teve link nenhum. Foi o spec que pegou.
+    return if novos.empty? && dados.empty?
 
     atuais = conv.custom_attributes
     mapas = { 'urls_imoveis' => mescla_mapa(atuais, 'urls_imoveis', novos),
@@ -262,7 +390,11 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     [imovel['Codigo'], imovel['ImoCodigo']].each do |k|
       next if k.to_s.strip.blank?
 
-      novos[k.to_s] = url
+      # Conta sem domínio público não tem URL a guardar. Gravar o nil envenenaria o mapa
+      # (o `mescla_mapa` já documenta que chave presente valendo nil estoura o merge) e
+      # faria o fix_property_links trocar o link por vazio. `dados` continua entrando: o
+      # preço alimenta a guarda de preço e não depende de link nenhum.
+      novos[k.to_s] = url if url.present?
       dados[k.to_s] = { 'preco' => preco, 'bairro' => imovel['Bairro'].to_s.strip } if preco.positive?
     end
   end
@@ -284,11 +416,53 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
     track_codigos(tool_context, imoveis)
     ref = [bairro, endereco].reject(&:blank?).join('/')
-    imoveis = anexar_distancia_da_referencia(imoveis, ref)
-    format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis))
+    outra = na_outra_finalidade(filter, venda, bairro)
+    imoveis = ordenar_alternativas(anexar_distancia_da_referencia(imoveis, ref))
+    format_listings(tool_context, imoveis, venda, header: header_ampliado(ref, imoveis, outra))
+  rescue VistaIndisponivel
+    # Este rescue existia pra degradar a AMPLIAÇÃO (um extra) sem derrubar a busca. Vista fora
+    # do ar não é extra que falhou: engolir aqui devolveria nil e o chamador publicaria
+    # "Nenhum imóvel encontrado" — a mesma falha-vira-ausência, por um caminho lateral.
+    raise
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] ampliar_sem_bairro: #{e.message}")
     nil
+  end
+
+  # A ordem em que o Vista devolve é sempre a mesma, e o `format_listings` corta os MOSTRAR
+  # primeiros — então TODO cliente cujo bairro não tem imóvel recebia exatamente as mesmas
+  # opções. Medido em 03/09 pedindo cinco bairros diferentes (Pienza, Ipanema, Alvorada,
+  # Girassol, Bandeirantes): os quatro mesmos imóveis nas cinco vezes, Bella Morada II e
+  # Jardim Aurora sempre na frente. Em 30 dias isso virou 126 menções da IA a Bella Morada e
+  # 119 a Aurora, contra 3 e 15 do time humano — e o acervo nem é concentrado ali: são 29
+  # casas de locação espalhadas por ~20 bairros, lideradas por Santorini e Primaveras.
+  #
+  # Duas réguas, nesta ordem:
+  #
+  # 1. Distância, quando ela existe. O código já calculava `dist_km` e só a IMPRIMIA; usá-la
+  #    para ordenar faz o cliente que pediu um bairro receber o que está perto DELE, que é o
+  #    que ele quer. Vira critério em vez de rótulo.
+  # 2. Sem distância (o geocoding erra 26% e é vetado pelo raio urbano), reveza por BAIRRO:
+  #    um imóvel de cada bairro antes de repetir bairro. Não inventa proximidade que não foi
+  #    medida, e ainda assim mostra a variedade real do acervo em vez dos mesmos dois.
+  #
+  # A ordem relativa do Vista é preservada dentro de cada grupo — `sort_by` e `group_by` são
+  # estáveis em Ruby, então isto reordena sem embaralhar.
+  # Distância PARCIAL ainda é distância. Medido no acervo de locação em 03/09: o geocoding do
+  # bairro pedido resolve, 24 dos 29 imóveis têm coordenada e 5 não — exigir que TODOS
+  # tivessem descartava a medida de 24 por causa de 5, e a lista voltava a ser a ordem do
+  # Vista. Quem não tem coordenada vai para o fim, onde não atrapalha nem some.
+  def ordenar_alternativas(imoveis)
+    com, sem = imoveis.partition { |im| im['dist_km'] }
+    return revezar_por_bairro(imoveis) if com.empty?
+
+    com.sort_by { |im| im['dist_km'] } + revezar_por_bairro(sem)
+  end
+
+  def revezar_por_bairro(imoveis)
+    grupos = imoveis.group_by { |im| im['Bairro'].to_s.strip.downcase }.values
+    maior = grupos.map(&:size).max.to_i
+    maior.times.flat_map { |i| grupos.filter_map { |g| g[i] } }
   end
 
   # Quando a alternativa vem de OUTRO bairro, a distância até o que o cliente pediu deixa de
@@ -308,13 +482,43 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     end
   end
 
-  def header_ampliado(ref, imoveis)
+  def header_ampliado(ref, imoveis, outra = nil)
     com_dist = imoveis.any? { |im| im['dist_km'] }
     medida = com_dist ? " A distância de cada uma até #{ref} está na linha — use o número, não estime." : ''
     "Sem imóvel no critério exato (#{ref}). As opções abaixo são da mesma cidade e critério, " \
       'porém em OUTROS bairros: ofereça como alternativas fora do local pedido, deixando claro ' \
       'que não são do bairro/endereço solicitado — nunca encerre só com pergunta, apresente as ' \
-      "opções concretas.#{medida}"
+      "opções concretas.#{medida}#{outra}"
+  end
+
+  # "Não temos casa no Residencial Canadá" — e tinha, para ALUGAR. Conv 33660 (08/09): o
+  # cliente veio de um portal sem dizer se queria alugar ou comprar, a triagem chutou venda, e
+  # a busca respondeu só por venda. O imóvel 8780 estava no acervo o tempo todo.
+  #
+  # Medido em 30 dias: de 134 combinações (bairro, categoria, finalidade) que voltaram vazias,
+  # 60 tinham imóvel naquele mesmo bairro na OUTRA finalidade — 45%.
+  #
+  # O retorno só INFORMA; quem decide se aquilo interessa é o agente, porque ele sabe se o
+  # cliente declarou a finalidade ou se ela foi presumida. Cliente que disse "quero alugar" não
+  # quer ver venda; cliente que chegou por um anúncio não disse nada.
+  def na_outra_finalidade(filter, venda, bairro)
+    return if bairro.blank?
+
+    # O `venda:` do fetch_vista só troca a ORDENAÇÃO — quem decide a finalidade é o
+    # filter['Status'], montado no perform. Inverter só o argumento buscaria na mesma
+    # finalidade e o aviso nunca sairia.
+    invertido = filter.except('Endereco').merge('Status' => (venda ? ['like', '%alug%'] : ['like', '%vend%']))
+    achados = fetch_vista(invertido, quantidade: 1, venda: !venda)
+    return if achados.blank?
+
+    rotulo = venda ? 'para ALUGAR' : 'para COMPRAR'
+    " ATENÇÃO: nesse mesmo bairro existe imóvel #{rotulo} no critério pedido. Se o cliente " \
+      'disse com todas as letras o que queria, siga no que ele pediu. Mas se a finalidade foi ' \
+      'presumida — anúncio de portal, mensagem sem dizer se é aluguel ou compra —, pergunte a ' \
+      'ele antes de afirmar que não temos, porque temos.'
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] na_outra_finalidade: #{e.message}")
+    nil
   end
 
   # Geocodifica a referência que o CLIENTE pediu, com veto de sanidade: o Google nunca devolve
@@ -410,16 +614,114 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def format_listings(tool_context, imoveis, venda, header: nil, detalhado: false)
     track_urls(tool_context, imoveis.first(MOSTRAR), venda)
     linhas = imoveis.first(MOSTRAR).each_with_index.map { |im, idx| linha_imovel(im, idx, venda, detalhado) }
-    "#{header || "Encontrei #{imoveis.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape(linhas.size, imoveis.size)}"
+    "#{condicao_de_visita(imoveis.first(MOSTRAR), venda)}" \
+      "#{header || "Encontrei #{imoveis.size} opção(ões):"}\n#{linhas.join("\n")}\n#{rodape(linhas.size, imoveis.size)}"
+  end
+
+  # O passo a passo da visita a imóvel avulso — o que a pessoa leva, como retira a chave, até
+  # quando devolve — chega AQUI, junto do imóvel, e não no prompt nem numa consulta à unidade.
+  #
+  # Medido em 11/09 na Tozi: com o passo a passo fora do prompt e a instrução de consultar a
+  # ferramenta de unidade, a agente de locação consultou 1 vez em 6 quando o cliente disse
+  # "gostei, quero ver" — a pergunta é sobre o IMÓVEL, e ela não a associa à unidade. Documento
+  # com foto caiu de 5/6 para 3/6 nas respostas. A instrução que chega junto do dado decide.
+  #
+  # A fonte continua uma só: a condição cadastrada na unidade, que o time edita pela tela. O NOME
+  # dela é config do assistente, porque código compartilhado não sabe como cada cliente chama a
+  # própria regra.
+  #
+  # Só locação — em venda não existe retirada de chave. E só com UMA unidade ativa: com várias,
+  # usar a regra de uma delas seria mandar a pessoa ao balcão errado.
+  #
+  # Vem ANTES da lista, não depois. Anexada no fim, medido na produção em 11/09, ela caía na
+  # posição 711 do retorno por código e 1565 do comum: fora do corte de 700 que a nota de
+  # ferramentas aplica ao contexto do turno seguinte, e no comum fora até dos 1500 do registro da
+  # chamada. Chegava no turno da busca e sumia no do "quero ver" — que é justamente quando ela vale.
+  def condicao_de_visita(imoveis, venda)
+    return '' if venda || imoveis.none? { |im| avulso?(im) }
+
+    regras = regras_de_visita
+    return '' if regras.empty?
+
+    # O aviso vem ANTES das regras pelo mesmo motivo que o bloco inteiro vem antes da lista: é o
+    # começo do retorno que sobrevive ao corte de 700 chars da nota de ferramentas no turno
+    # seguinte — e o turno seguinte é justamente o "quero ver" em que a visita se combina.
+    "#{aviso_de_fechamento(unidade_unica)}Visita a imóvel avulso — regras cadastradas na unidade:\n" \
+      "#{regras.map { |nome, valor| "· #{nome.humanize}: #{valor}" }.join("\n")}\n"
+  end
+
+  # A config aceita um nome OU uma lista, porque uma condição sozinha deixa a resposta pela metade:
+  # a de visita diz "no horário de retirada de chave", e esse horário mora na condição vizinha.
+  # Medido em 11/09 na Tozi, com só a condição de visita no retorno, 4 de 6 respostas preencheram o
+  # horário de retirada com a grade de funcionamento — que fecha mais tarde. Com o texto antigo no
+  # prompt eram 5 de 6: o defeito é anterior a este código, e é a condição vizinha que o fecha.
+  def regras_de_visita
+    nomes = nomes_de_condicao
+    unidade = unidade_unica if nomes.any?
+    return [] if unidade.nil?
+
+    atributos = unidade.atributos.to_h
+    nomes.filter_map { |nome| [nome, atributos[nome]] if atributos[nome].present? }
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] regra de visita indisponível: #{e.class}: #{e.message}")
+    []
+  end
+
+  def nomes_de_condicao
+    Array(@assistant.config['condicao_visita_avulso']).map { |nome| nome.to_s.strip }.reject(&:blank?)
+  end
+
+  # Com várias unidades ativas, usar a regra de uma delas seria mandar a pessoa ao balcão errado.
+  # Memoizado: agora dois pontos do mesmo retorno o consultam (as regras e o aviso de fechamento).
+  # `defined?` e não `||=` porque nil é resposta legítima aqui — conta com zero ou duas unidades
+  # cai no nil, e `||=` refaria a consulta a cada chamada.
+  def unidade_unica
+    return @unidade_unica if defined?(@unidade_unica)
+
+    unidades = ::Unit.where(account_id: @assistant.account_id, active: true).limit(2).to_a
+    @unidade_unica = unidades.one? ? unidades.first : nil
+  end
+
+  # A instrução abaixo manda a pessoa ir até o balcão. Se a porta está fechada no dia em que ela
+  # iria, isso é parte da instrução — não informação de calendário. Sem isso, no feriado municipal
+  # de 14/09/2026 a IA disse "passa aqui no escritório" em três conversas que NUNCA chamaram a
+  # buscar_unidades: o retorno que elas de fato leram foi este.
+  #
+  # Janela de 2 dias (hoje e amanhã): é o horizonte de quem vai retirar chave. Mais que isso vira
+  # agenda, e agenda em toda busca de imóvel é ruído que o modelo aprende a pular.
+  JANELA_FECHAMENTO = 2
+
+  def aviso_de_fechamento(unidade)
+    return '' if unidade.nil?
+
+    fechada = ::Spx::UnidadeEventos.new(unidade, excecoes_da_unidade(unidade)).fechamentos(JANELA_FECHAMENTO)
+    return '' if fechada.empty?
+
+    "ATENÇÃO — a unidade NÃO abre: #{fechada.join('; ')}. Não marque nem sugira que a pessoa " \
+      "passe lá nesse(s) dia(s); diga o fechamento antes de combinar qualquer coisa.\n"
+  end
+
+  def excecoes_da_unidade(unidade)
+    ::UnitException.where(unit_id: unidade.id).to_a
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] exceções da unidade indisponíveis: #{e.class}: #{e.message}")
+    []
+  end
+
+  def avulso?(imovel)
+    %w[nao não].include?(imovel['Condominio'].to_s.strip.downcase)
   end
 
   def linha_imovel(imovel, idx, venda, detalhado)
     valor = venda ? "R$ #{imovel['ValorVenda']}" : "R$ #{imovel['ValorLocacao']}/mês"
     dorm = imovel['Dormitorios'].to_i.positive? ? "#{imovel['Dormitorios']} quartos, " : ''
     dist = imovel['dist_km'] ? " — a #{format('%.1f', imovel['dist_km'])} km da referência" : ''
+    # Sem domínio configurado o build_url devolve nil; interpolar deixaria um ". " solto
+    # no fim da linha, que o modelo lê como frase cortada.
+    link = build_url(imovel, venda)
     linha = "#{idx + 1}) (cód #{imovel['Codigo']}) #{imovel['Categoria']} #{dorm}no #{imovel['Bairro']}, #{valor}" \
             "#{format_area(imovel)}#{format_taxas(imovel)}#{format_extras(imovel['Codigo'])}" \
-            "#{format_condominio(imovel)}#{dist}. #{build_url(imovel, venda)}"
+            "#{format_condominio(imovel)}#{dist}.#{link.present? ? " #{link}" : ''}"
     desc = detalhado ? descricao_limpa(imovel['DescricaoWeb'], venda: venda) : ''
     desc.present? ? "#{linha}\n#{desc}" : linha
   end
@@ -435,14 +737,112 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     rodape_parcial(mostrados, total)
   end
 
+  # Antes de dizer que não achou pelo título, tenta desmontá-lo. Fica fora do `perform` porque
+  # ele já está no teto de complexidade do rubocop.
+  def sem_casar_pelo_titulo(tool_context, titulo, filter, venda)
+    buscar_pelo_titulo_decomposto(tool_context, titulo, filter, venda).presence ||
+      titulo_sem_correspondencia(titulo)
+  end
+
+  # O título que o cliente traz de um portal quase nunca é o `TituloSite` do cadastro: é o nome
+  # que o portal MONTA, e ele é "Categoria + Bairro" — a mesma composição da URL do site da
+  # Tozi (`casa-portal-do-servidor-sinop-9819`). Medido nas 13 buscas por título de 30 dias:
+  # 9 não acharam, e as 9 seguem esse formato ("Casa Portal do Servidor", "Kitnet Jardim Terra
+  # Rica", "CASA - RES. CANADÁ", "APARTAMENTO SONHALTO VIDEIRA"); as 4 que acharam eram o
+  # TituloSite literal ("Kit net nova no Bairro Residencial Paris").
+  #
+  # Some-se que o campo é opcional e a Tozi não o preenche: 23 dos 50 imóveis de locação estão
+  # com `TituloSite` VAZIO — inclusive o 9819, o imóvel desta conversa. Buscar só por ele
+  # deixava a IA dizer que o anúncio "pode ser de outra imobiliária" sobre casa da própria casa.
+  #
+  # Aqui o título é desmontado e re-buscado por categoria + bairro. O bairro tende a ficar no
+  # FIM, então o resto é tentado inteiro e depois encurtando pela esquerda — "CASA COM PISCINA
+  # NO JARDIM IMPERIAL" só casa nos dois últimos termos, "CASA - RES. CANADÁ" só no último.
+  def buscar_pelo_titulo_decomposto(tool_context, titulo, filter, venda)
+    categoria, resto = decompor_titulo(titulo)
+    return if resto.blank? && categoria.blank?
+
+    imoveis = primeira_busca_que_acha(filter, categoria, resto, venda)
+    return if imoveis.blank?
+
+    track_codigos(tool_context, imoveis)
+    format_listings(tool_context, imoveis, venda, header: header_por_titulo(titulo, imoveis))
+  end
+
+  # Duas passadas: primeiro exigindo a categoria, depois só o bairro. A segunda existe porque
+  # o portal erra o tipo — "Kitnet Jardim Terra Rica" é o que o anúncio diz, e no Terra Rica só
+  # há casa e terreno; mostrar os dois vale mais que negar o imóvel por causa do rótulo.
+  #
+  # NÃO existe terceira passada só com a categoria. Ela foi medida e descartada: sem bairro,
+  # "CASA COM PISCINA NO JARDIM IMPERIAL" trazia 28 casas do acervo inteiro sob um cabeçalho
+  # dizendo que o anúncio provavelmente era uma delas. Devolver o acervo é pior que dizer que
+  # não achou.
+  def primeira_busca_que_acha(filter, categoria, resto, venda)
+    base = filter.except('TituloSite', 'Bairro', 'Categoria')
+    termos = candidatos_de_bairro(resto)
+
+    [categoria, nil].uniq.each do |cat|
+      com_cat = cat.present? ? base.merge('Categoria' => cat) : base
+      termos.each do |termo|
+        achados = fetch_vista(com_cat.merge('Bairro' => ['like', "%#{termo}%"]),
+                              quantidade: TETO_INSPECAO, venda: venda)
+        return achados if achados.present?
+      end
+    end
+    []
+  end
+
+  # "PISCINA JARDIM IMPERIAL" -> [a frase inteira, "JARDIM IMPERIAL", "IMPERIAL"]. Termo de uma
+  # letra só não entra: casaria com meio acervo.
+  def candidatos_de_bairro(resto)
+    tokens = resto.to_s.split(/\s+/).reject { |p| p.length < 2 }
+    return [] if tokens.empty?
+
+    Array.new(tokens.size) { |i| tokens[i..].join(' ') }.reject(&:blank?).uniq
+  end
+
+  # A categoria vem no COMEÇO do título e é conferida contra a lista real do acervo, nunca
+  # adivinhada. Pontuação e conectivo de sobra ("- RES.", "NO", "EM") saem do resto, senão o
+  # `like` procura por eles dentro do nome do bairro e não acha nada.
+  #
+  # O `\b` nos conectivos NÃO é decoração: sem a fronteira de palavra, "na" seria removido de
+  # dentro de "Canadá" e o bairro viraria "Cadá".
+  def decompor_titulo(titulo)
+    # O ponto entra no tr de propósito: em "RES." o `\b` do conectivo não casaria, porque
+    # entre "." e o espaço não há fronteira de palavra — os dois são non-word.
+    limpo = titulo.to_s.tr('-–—/|.,;', ' ').squeeze(' ').strip
+    categoria = CATEGORIAS_TITULO.find { |c| limpo.match?(/\A#{Regexp.escape(c)}\b/i) }
+    resto = categoria ? limpo.sub(/\A#{Regexp.escape(categoria)}\b/i, '') : limpo
+    [categoria, sem_conectivos(resto)]
+  end
+
+  def sem_conectivos(resto)
+    resto.gsub(/\b(no|na|em|de|do|da|res\.?|residencial|bairro|com)\b/i, ' ').squeeze(' ').strip
+  end
+
+  def header_por_titulo(titulo, imoveis)
+    quantos = imoveis.size == 1 ? 'apareceu 1 imóvel' : "apareceram #{imoveis.size} imóveis"
+    "Pelo título \"#{titulo}\" o cadastro não tinha nada, mas buscando pelo tipo e bairro que " \
+      "ele descreve #{quantos}. É provável que o anúncio seja de um destes — confirme com o " \
+      'cliente pelas características antes de tratar como o mesmo imóvel, e NÃO diga que o ' \
+      'anúncio é de outra imobiliária.'
+  end
+
   # Estado explícito, como o sem_mobiliado: a busca ACONTECEU e não achou aquele anúncio.
   # O que NÃO se pode concluir daqui é que não há imóvel — só que não há esse.
+  # A ordem das explicações importa e estava invertida. "Pode ser de outra imobiliária" vinha
+  # primeiro, e a IA repetia isso ao cliente como se fosse a conclusão — inclusive sobre imóvel
+  # da própria Tozi (conv 33632). A causa mais comum é bem mais simples: o título é um campo
+  # opcional que a Tozi não preenche, e 23 dos 50 imóveis de locação estão com ele VAZIO. Um
+  # imóvel sem título cadastrado nunca casa aqui, exista ou não.
   def titulo_sem_correspondencia(titulo)
-    "Não achei no nosso cadastro nenhum imóvel com o título \"#{titulo}\". Em portal de anúncios " \
-      'aparecem imóveis de várias imobiliárias, então esse anúncio pode não ser nosso. Diga isso ao ' \
-      'cliente com naturalidade e ofereça procurar pelo que ele quer: pergunte o tipo de imóvel, se é ' \
-      'pra alugar ou comprar, o bairro e a faixa de valor, e busque de novo por esses critérios. ' \
-      'NÃO conclua que não temos imóveis — esta busca foi só pelo título.'
+    "A busca pelo título \"#{titulo}\" não casou com nada, nem por tipo e bairro. Isso quase " \
+      'sempre quer dizer que o imóvel está cadastrado sem título, não que ele não exista — ' \
+      'metade do acervo de locação está assim. Pode ser também anúncio de outra imobiliária no ' \
+      'mesmo portal, mas essa é a hipótese MENOS provável e você NÃO deve apresentá-la ao ' \
+      'cliente como explicação. Peça a ele o que caracteriza o imóvel — tipo, bairro, faixa de ' \
+      'valor, se é aluguel ou compra — e busque de novo por esses critérios. NÃO conclua nem ' \
+      'diga que não temos o imóvel: esta busca foi só pelo nome do anúncio.'
   end
 
   def rodape_fechado(total)
@@ -463,6 +863,29 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # "TAXA de condomínio" por extenso, não só "condomínio": são DOIS campos distintos do Vista
   # (ValorCondominio = quanto se paga; Condominio = se o imóvel fica dentro de um condomínio
   # fechado) e a palavra sozinha os confundia na mesma linha. Ver format_condominio.
+  # O código que o cliente traz costuma vir de uma PLACA fotografada, e quem lê o número na
+  # foto é o próprio modelo — que erra, e erra sem perceber. Conv 33099 (03/09): a placa dizia
+  # 6767, ele leu 6763 e depois 6762, e as duas vezes anunciou ao cliente que o imóvel não
+  # existia, inventando o porquê ("pode ser que já tenha sido alugada"). O imóvel estava no
+  # acervo o tempo todo; só apareceu quando o cliente digitou o número.
+  #
+  # Duas leituras DIFERENTES da mesma imagem são a assinatura de leitura incerta. Medido em
+  # 30 dias: 75 de 450 buscas por código voltam vazias, e em 6 conversas uma busca falhou e a
+  # seguinte, com outro número, achou.
+  #
+  # O texto não podia seguir afirmando ausência: ele é o único sinal que o agente tem, e sem
+  # ressalva vira "não temos esse imóvel". Aqui a régua é a MESMA que o transcritor de áudio
+  # já aplica — dizer que a fonte é falível — mas sem fala pronta: descreve o estado e a
+  # conduta esperada, e o agente escolhe as palavras.
+  def codigo_nao_encontrado(cod)
+    "Nenhum imóvel com o código #{cod} no acervo. ATENÇÃO: se esse número veio de uma FOTO " \
+      '(placa, anúncio, print), a leitura pode ter sido sua e estar errada — dígito trocado é ' \
+      'comum. Nesse caso NÃO afirme ao cliente que o imóvel não existe, não foi encontrado ou ' \
+      'já foi alugado, e não invente motivo: peça que ele confirme o número, e busque de novo ' \
+      'com o que ele responder. Só trate como inexistente o código que o PRÓPRIO cliente ' \
+      'escreveu ou falou.'
+  end
+
   def format_taxas(im)
     parts = []
     parts << "taxa de condomínio R$ #{im['ValorCondominio']}" if im['ValorCondominio'].to_f.positive?
@@ -480,10 +903,22 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # evidência do fato. Medido na conv 4809 (28/08): imóvel com ValorCondominio=300 e
   # Condominio="Nao" foi anunciado ao cliente como "em condomínio fechado", e a conduta de
   # visita ainda aplicou o caminho de visita acompanhada por cima do erro.
+  # O rótulo negativo CONTINHA o positivo: "NÃO fica em condomínio fechado" tem dentro de si
+  # a string "fica em condomínio fechado", e basta o modelo perder o "NÃO" para ler o oposto
+  # do que o dado diz. Conv 33099 (03/09): o retorno trazia "[NÃO fica em condomínio fechado]"
+  # e dois minutos depois a IA disse ao cliente que a casa era em condomínio fechado — e por
+  # causa disso ofereceu agendar a visita, num imóvel de chave avulsa. O Vista é inequívoco:
+  # Condominio="Nao", ValorCondominio="0".
+  #
+  # Agora a palavra que decide vem PRIMEIRO e é diferente em cada estado — AVULSO contra
+  # CONDOMÍNIO FECHADO —, então ler pela metade não inverte o sentido. A menção a condomínio
+  # no rótulo negativo é mantida de propósito: sem ela, volta a colisão com a TAXA
+  # ("taxa de condomínio R$ 300") que o PR #75 tratou, em que o modelo usava o valor da taxa
+  # como prova do fato.
   def format_condominio(imovel)
     case imovel['Condominio'].to_s.strip.downcase
-    when 'sim' then ' [FICA em condomínio fechado]'
-    when 'nao', 'não' then ' [NÃO fica em condomínio fechado]'
+    when 'sim' then ' [EM CONDOMÍNIO FECHADO]'
+    when 'nao', 'não' then ' [AVULSO — fora de condomínio fechado]'
     else ''
     end
   end
@@ -525,7 +960,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # ("todas têm piscina", "não tem foto"). Falha de rede -> string vazia (não atrapalha).
   def format_extras(codigo)
     i = detalhes_info(codigo)
-    return '' if i.empty?
+    # Não confirmado = não se diz nada. Antes o `{}` de erro também caía aqui, mas pelo `empty?`;
+    # com o flag, "consultei e não veio" e "não consegui consultar" param de ser o mesmo silêncio.
+    return '' unless i[:consultado]
 
     bits = []
     bits << (i[:fotos].positive? ? "#{i[:fotos]} fotos" : 'sem fotos')
@@ -542,11 +979,47 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # TETO_INSPECAO imóveis por busca, e sem cache seriam 60 chamadas ao Vista a cada pergunta.
   # 6h é curto o bastante pra refletir cadastro novo e longo o bastante pra uma conversa
   # inteira reaproveitar. Chave por conta, porque cada conta tem o seu Vista.
+  # SÓ resultado que o servidor confirmou entra no cache LONGO. Antes, o `{}` devolvido por erro
+  # era cacheado pelas mesmas 6h: uma indisponibilidade de segundos virava "sem foto, sem suíte e
+  # não mobiliado" para toda conversa da conta durante as 6 horas seguintes, e o imóvel sumia do
+  # filtro de característica sem deixar rastro.
   def detalhes_info(codigo)
-    Rails.cache.fetch("captain:vista:detalhes:#{tool_account&.id}:#{codigo}", expires_in: 6.hours) do
-      fetch_detalhes_info(codigo)
-    end
+    chave = "captain:vista:detalhes:#{tool_account&.id}:#{codigo}"
+    cacheado = Rails.cache.read(chave)
+    return cacheado if cacheado.is_a?(Hash) && cacheado.key?(:consultado)
+
+    info = fetch_detalhes_info(codigo)
+    guardar_detalhes(chave, info)
+    info
   end
+
+  TTL_SUCESSO = 6.hours
+  # Cache negativo CURTO. A regra "erro nunca é cacheado" foi escrita contra o envenenamento de
+  # 6h, e ela continua valendo: o que se guarda aqui é só o ESTADO "não deu pra consultar",
+  # nunca característica presumida — o valor é o próprio NAO_CONSULTADO, que não tem campo
+  # nenhum além do flag. Sem isto, um Vista fora do ar leva até TETO_INSPECAO chamadas de
+  # detalhe POR TURNO (ramo `mobiliado`), sem backoff, justamente enquanto ele está caindo.
+  #
+  # Configurável por conta para dar de subir em incidente longo sem deploy; 0 desliga.
+  TTL_FALHA_PADRAO = 60
+
+  def guardar_detalhes(chave, info)
+    return Rails.cache.write(chave, info, expires_in: TTL_SUCESSO) if info[:consultado]
+
+    segundos = ttl_falha
+    return unless segundos.positive?
+
+    Rails.cache.write(chave, NAO_CONSULTADO, expires_in: segundos.seconds)
+  end
+
+  def ttl_falha
+    bruto = tool_account&.custom_attributes&.dig('vista_detalhes_ttl_falha')
+    bruto.nil? ? TTL_FALHA_PADRAO : bruto.to_i
+  end
+
+  # `consultado: false` é o estado DESCONHECIDO, e ele existe para não ser confundido com "a
+  # característica não existe". Quem lê tem que checar o flag antes de tratar os campos.
+  NAO_CONSULTADO = { consultado: false }.freeze
 
   def fetch_detalhes_info(codigo)
     resp = HTTParty.get(
@@ -554,18 +1027,20 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       query: { key: vista_api_key, imovel: codigo, pesquisa: { fields: ['Codigo', 'Suites', 'Vagas', { 'Foto' => %w[Foto] }, 'Caracteristicas'] }.to_json },
       headers: { 'Accept' => 'application/json' }, timeout: 10
     )
-    return {} unless resp.code == 200
+    return NAO_CONSULTADO unless resp.code == 200
 
     d = resp.parsed_response
     d = JSON.parse(d) if d.is_a?(String)
-    return {} unless d.is_a?(Hash)
+    return NAO_CONSULTADO unless d.is_a?(Hash)
 
     carac = d['Caracteristicas'].is_a?(Hash) ? d['Caracteristicas'] : {}
-    { fotos: (d['Foto'].is_a?(Hash) ? d['Foto'].size : 0), suites: d['Suites'].to_i, vagas: d['Vagas'].to_i,
+    { consultado: true,
+      fotos: (d['Foto'].is_a?(Hash) ? d['Foto'].size : 0), suites: d['Suites'].to_i, vagas: d['Vagas'].to_i,
       piscina: sim?(carac['Piscina']), quintal: sim?(carac['Quintal']),
       mobiliado: sim?(carac['Mobiliado']), churrasqueira: sim?(carac['Churrasqueira']) }
-  rescue StandardError
-    {}
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] detalhes #{codigo}: #{e.class}: #{e.message}")
+    NAO_CONSULTADO
   end
 
   def sim?(val)

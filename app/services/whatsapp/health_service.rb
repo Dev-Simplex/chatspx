@@ -9,7 +9,9 @@ class Whatsapp::HealthService
 
   def fetch_health_status
     validate_channel!
-    fetch_phone_health_data
+    # O contador de descarte entra aqui, e nao so no controller, porque os dois caminhos que
+    # alimentam a tela de saude passam por este metodo.
+    fetch_phone_health_data.merge(dropped_inbound: Whatsapp::DroppedInboundCounter.counts(@channel.id))
   end
 
   private

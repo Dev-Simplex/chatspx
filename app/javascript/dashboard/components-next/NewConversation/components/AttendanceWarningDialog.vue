@@ -17,13 +17,12 @@ const props = defineProps({
   variant: { type: String, default: ATTENDANCE_VARIANT.HUMAN },
   attendance: { type: Object, default: null },
   sameInbox: { type: Boolean, default: false },
-  // Com o modo de pedido ligado, o pai (ComposeConversation) manda estas 3:
-  // pode solicitar → mostra "Solicitar atendimento"; já pedi → mostra "Pedido
-  // enviado"; e allowSendAnyway=false esconde o "Enviar mesmo assim" (validação
-  // de verdade em vez de aviso furável).
+  // O pai controla se o aviso permite enviar, exige pedido ou assume a conversa
+  // antes do envio.
   canRequest: { type: Boolean, default: false },
   hasPendingRequest: { type: Boolean, default: false },
   allowSendAnyway: { type: Boolean, default: true },
+  takeoverBeforeSend: { type: Boolean, default: false },
   isRequesting: { type: Boolean, default: false },
   // 'compose' (default) = criar conversa; 'conversation' = dropdown de responsável
   // dentro de uma conversa (reusa o copy CONVERSATION.TAKEOVER_REQUEST.*, que fala
@@ -158,15 +157,21 @@ defineExpose({ open, close });
           :label="t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.CANCEL')"
           @click="emit('cancel')"
         />
-        <!-- "Enviar mesmo assim" só quando o modo NÃO exige pedido (aviso furável
-             de sempre). Com o modo ligado + dono humano, some: a saída é pedir. -->
+        <!-- Dono humano com gate pede atendimento. Bot/fila na mesma caixa é
+             assumido antes do envio; os demais casos mantêm o envio direto. -->
         <Button
           v-if="allowSendAnyway"
           type="button"
           variant="faded"
           color="slate"
           size="sm"
-          :label="t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.SEND_ANYWAY')"
+          :label="
+            takeoverBeforeSend
+              ? t(
+                  'COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.TAKE_OVER_AND_SEND'
+                )
+              : t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.SEND_ANYWAY')
+          "
           @click="emit('sendAnyway')"
         />
         <Button

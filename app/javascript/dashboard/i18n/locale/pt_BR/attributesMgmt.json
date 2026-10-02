@@ -15,6 +15,7 @@
     "ATTRIBUTE_TYPES": {
       "TEXT": "Texto",
       "NUMBER": "Número",
+      "CURRENCY": "Moeda",
       "LINK": "Link",
       "DATE": "Data",
       "LIST": "Lista",

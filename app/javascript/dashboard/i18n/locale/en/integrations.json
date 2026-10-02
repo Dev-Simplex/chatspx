@@ -1191,22 +1191,15 @@
       "ROUTER": {
         "TITLE": "Router",
         "DESCRIPTION": "Control when the agent should respond.",
-        "ONLY_CONTACT_PHONES": "Whitelist by phone number",
-        "ONLY_CONTACT_PHONES_PLACEHOLDER": "+5566996247866, +551199...",
-        "ONLY_CONTACT_PHONES_HINT": "If filled, agent only replies to messages from these phone numbers. Useful for testing on a specific contact before broad rollout. Brazilian numbers tolerate variations (with/without 9, with/without DDI).",
         "SKIP_LABELS": "Skip labels",
         "SKIP_LABELS_PLACEHOLDER": "Comma-separated labels to skip",
-        "SKIP_GROUPS": "Skip group conversations",
-        "SKIP_AFTER_HUMAN_RESPONSE": "Stop after a human agent replies",
-        "SKIP_ACTIVITY": "Skip activity messages",
-        "SKIP_AGENT_BOT": "Skip when agent bot assigned"
+        "SKIP_GROUPS": "Skip group conversations"
       },
       "BUSINESS_HOURS": {
         "TITLE": "Business Hours",
         "DESCRIPTION": "Define when the agent is active.",
         "OUTSIDE_ACTION": "Outside hours action",
         "ACTION_IGNORE": "Ignore messages",
-        "ACTION_QUALIFY": "Qualify more",
         "TIMEZONE_LABEL": "Timezone",
         "SCHEDULE_LABEL": "Hours per day"
       },
@@ -1397,5 +1390,24 @@
         "PROMPT_SAVE_ERROR": "Could not save prompt."
       }
     }
+  },
+  "CAPTADOR_HOOK": {
+    "ONBOARDING": "Create the connection in Captador, copy its URL, instance key and secret here, then save and test. The installation administrator must enable this integration and allow the Captador host.",
+    "ROTATION": "Leave the secret blank to keep it. To rotate, generate a new secret in Captador, copy it here and save both sides in the same maintenance window; then test again. Never disconnect to rotate.",
+    "EFFECTIVE": "Inboxes currently available through this hook (Captador may enable a subset):",
+    "EMPTY": "No inbox available. Edit the hook and add WhatsApp or API inbox IDs from this account.",
+    "UNAVAILABLE": "Unavailable inbox IDs: {ids}. Remove deleted inboxes or restore their write access, save and test again.",
+    "OPEN": "Continue setup in Captador",
+    "TEST": "Test saved connection",
+    "STATUS": {
+      "untested": "Saved connection not tested in this view. Save edits before testing.",
+      "ok": "Connection authenticated; inboxes available.",
+      "degraded": "Connection authenticated, but inbox configuration needs attention below.",
+      "disabled": "Enable the hook and the integration for this account before testing.",
+      "authentication_failed": "Authentication failed. Check the instance key and coordinate the same secret on both sides.",
+      "onboarding_required": "Health endpoint unavailable. Complete setup in Captador or ask its administrator to update the onboarding service.",
+      "unavailable": "Could not verify the connection. Check its URL, allowed host, network and account mapping, then try again."
+    },
+    "INBOX": "{name} (#{id})"
   }
 }

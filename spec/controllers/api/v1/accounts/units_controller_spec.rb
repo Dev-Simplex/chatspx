@@ -88,6 +88,18 @@ RSpec.describe 'Units API', type: :request do
   end
 
   describe 'POST create' do
+    # O numero da casa precisa ser aceito no permit E devolvido no jbuilder: campo que grava mas nao
+    # volta some na proxima edicao (foi o que aconteceu com o applies_to_inboxes).
+    it 'guarda o numero do endereco e devolve na resposta' do
+      post base,
+           params: { unit: { name: 'Com numero', address: 'Rua dos Papiros - Centro', address_number: 'S/N' } },
+           headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:created)
+      expect(account.units.find_by(name: 'Com numero').address_number).to eq('S/N')
+      expect(response.parsed_body['address_number']).to eq('S/N')
+    end
+
     it 'cria com a grade que a tela manda, as regras e as caixas' do
       caixa = create(:inbox, account: account)
 
@@ -113,8 +125,27 @@ RSpec.describe 'Units API', type: :request do
       unidade = account.units.find_by(name: 'Sinop')
       expect(unidade.working_hours.count).to eq(2)
       expect(unidade.working_hours.find_by(day_of_week: 1).break_end_hour).to eq(13)
-      expect(unidade.exceptions.pluck(:frequency)).to contain_exactly('anual', 'mensal')
+      expect(unidade.exceptions.where(name: %w[Natal Plantão]).pluck(:frequency)).to contain_exactly('anual', 'mensal')
       expect(caixa.reload.unit_id).to eq(unidade.id)
+    end
+
+    # O calendário não nasce vazio: os feriados nacionais entram no mesmo request, e o dia que a
+    # tela já marcou não ganha um segundo feriado em cima.
+    it 'traz os feriados nacionais junto, sem repetir o que a tela mandou' do
+      post base,
+           params: { unit: {
+             name: 'Sorriso', timezone: 'America/Cuiaba',
+             exceptions: [
+               { starts_on: '2026-12-25', name: 'Natal', category: 'feriado', frequency: 'anual',
+                 closed_all_day: true }
+             ]
+           } },
+           headers: admin.create_new_auth_token, as: :json
+
+      unidade = account.units.find_by(name: 'Sorriso')
+      expect(unidade.exceptions.pluck(:name)).to include('Tiradentes', 'Carnaval')
+      expect(unidade.exceptions.where(name: 'Natal').count).to eq(1)
+      expect(unidade.feriados_nacionais_ate).to eq(Date.current.year + 4)
     end
 
     # Antes da transação, a unidade ficava gravada pela metade depois do erro.
@@ -210,6 +241,44 @@ RSpec.describe 'Units API', type: :request do
       expect(response).to have_http_status(:success)
       expect(Unit.find_by(id: unidade.id)).to be_nil
       expect(caixa.reload.unit_id).to be_nil
+    end
+  end
+
+  # As condições de atendimento da unidade (retirada, exigência de documento, o que o ramo pedir).
+  # A ferramenta da IA já as lia; sem estar nos strong params, o time não tinha como cadastrá-las
+  # a não ser por console — então o campo existia e ninguém alcançava.
+  describe 'condições de atendimento' do
+    it 'grava as condições que a tela manda' do
+      cabecalho = admin.create_new_auth_token
+
+      post base,
+           params: { unit: { name: 'Matriz', timezone: 'America/Cuiaba',
+                             atributos: { 'retirada de chaves' => 'até as 16h30' } } },
+           headers: cabecalho, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(Unit.last.atributos).to eq('retirada de chaves' => 'até as 16h30')
+    end
+
+    it 'substitui o conjunto ao editar — remover linha na tela remove a condição' do
+      cabecalho = admin.create_new_auth_token
+      unidade = create(:unit, account: account, atributos: { 'a' => '1', 'b' => '2' })
+
+      patch "#{base}/#{unidade.id}", params: { unit: { atributos: { 'a' => '1' } } },
+                                     headers: cabecalho, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(unidade.reload.atributos).to eq('a' => '1')
+    end
+
+    it 'não mexe nas condições quando a chave não vem' do
+      cabecalho = admin.create_new_auth_token
+      unidade = create(:unit, account: account, atributos: { 'a' => '1' })
+
+      patch "#{base}/#{unidade.id}", params: { unit: { name: 'Outro nome' } },
+                                     headers: cabecalho, as: :json
+
+      expect(unidade.reload.atributos).to eq('a' => '1')
     end
   end
 end

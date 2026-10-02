@@ -11,8 +11,12 @@ class ScheduledMessages::SendService
 
   def perform # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     return if scheduled_message.sent? || scheduled_message.cancelled?
+    # CHAT-155: a Message pode ja existir (so vai para o SendReplyJob) -- a validacao nao pegaria.
+    return mark_as_failed(I18n.t('errors.read_only_inbox.message_blocked')) if scheduled_message.conversation.inbox.read_only?
+    return deliver_as_assistant if scheduled_message.try(:captain_assistant).present?
 
-    if scheduled_message.message_id.present?
+    existing_message = scheduled_message.message_id.present?
+    if existing_message
       message = scheduled_message.sent_message
       return mark_as_failed('Associated message not found') if message.blank?
 
@@ -52,7 +56,10 @@ class ScheduledMessages::SendService
     end
     attach_scheduled_attachments!(message)
 
-    ::SendReplyJob.perform_later(message.id)
+    # CHAT-174: a Message criada acima já foi para o SendReplyJob no callback de criação
+    # (Message#send_reply); enfileirar de novo mandava a mesma mensagem duas vezes ao canal.
+    # Só a Message que já existia precisa do envio explícito.
+    ::SendReplyJob.perform_later(message.id) if existing_message
     attrs = { status: :sent }
     attrs[:sent_at] = Time.current if scheduled_message.class.column_names.include?('sent_at')
     scheduled_message.update!(attrs)
@@ -64,6 +71,25 @@ class ScheduledMessages::SendService
   end
 
   private
+
+  # A mensagem criada pela IA é enviada pelo callback de criação (Message#send_reply), então não
+  # passa pelo SendReplyJob explícito do caminho acima.
+  def deliver_as_assistant
+    delivery = ScheduledMessages::AssistantDeliveryService.new(scheduled_message: scheduled_message)
+    message = delivery.perform
+    # Na revisão a IA pode ter reagendado: a agendada nova substituiu esta, que já saiu de cena.
+    return if scheduled_message.reload.cancelled?
+    return discard(delivery.error) if delivery.descartada?
+    return mark_as_failed(delivery.error) if message.nil?
+
+    scheduled_message.update!(status: :sent, sent_at: Time.current, message_id: message.id)
+    message
+  end
+
+  def discard(reason)
+    scheduled_message.update!(status: :cancelled, error_message: reason)
+    nil
+  end
 
   def mark_as_failed(msg)
     attrs = { status: :failed }

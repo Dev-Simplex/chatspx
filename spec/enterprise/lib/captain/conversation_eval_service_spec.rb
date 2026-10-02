@@ -10,6 +10,40 @@ RSpec.describe Captain::ConversationEvalService do
   let(:conversation) { create(:conversation, account: account, inbox: inbox) }
   let(:service) { described_class.new(account: account, conversation_display_id: conversation.display_id) }
 
+  describe 'contexto do negócio no system prompt' do
+    let(:assistant) { instance_double(Captain::Assistant, behavior: behavior, config: {}) }
+    let(:behavior) { {} }
+    let(:system_prompt) { [] }
+
+    before do
+      allow(service).to receive(:episode_assistant).and_return(assistant)
+      allow(service).to receive(:build_transcript).and_return(['[Cliente]: Olá', {}])
+      allow(service).to receive(:make_api_call) do |args|
+        system_prompt << args[:messages].first[:content]
+        { error: 'parar após montar prompt' }
+      end
+    end
+
+    context 'with behavior.eval.contexto' do
+      let(:behavior) { { 'eval' => { 'contexto' => 'Catálogo de lentes e armações.' } } }
+
+      it 'inclui o bloco no system prompt' do
+        described_class.instance_method(:perform).super_method.bind_call(service)
+
+        expect(system_prompt.first).to include("CONTEXTO DO NEGÓCIO AVALIADO (vale como os exemplos específicos deste cliente):\n---\n" \
+                                               "Catálogo de lentes e armações.\n---")
+      end
+    end
+
+    context 'without behavior.eval.contexto' do
+      it 'não inclui o bloco no system prompt' do
+        described_class.instance_method(:perform).super_method.bind_call(service)
+
+        expect(system_prompt.first).not_to include('CONTEXTO DO NEGÓCIO AVALIADO')
+      end
+    end
+  end
+
   describe '#origem_context' do
     it 'is absent when the conversation carries no origin at all' do
       expect(service.send(:origem_context)).to be_nil
@@ -74,6 +108,24 @@ RSpec.describe Captain::ConversationEvalService do
       allow(m).to receive(:content_for_llm).and_return('[Voice Message] essas casinhas aonde mesmo?')
 
       expect(service.send(:message_text, m)).to include('essas casinhas aonde mesmo?')
+    end
+  end
+
+  # O juiz cortava em 1.200 o retorno que o trace já tinha guardado com 1.500. Na locação a
+  # lista de imóveis vem depois do bloco de regras, e o item citado pela IA caía nesse vão:
+  # 9 dos 11 flagras do juiz nos 20 casos de contradisse_tool da Tozi (29/09).
+  describe 'retorno de ferramenta que o juiz lê' do
+    it 'é o mesmo tamanho que o registro guarda' do
+      m = create(:message, account: account, inbox: inbox, conversation: conversation, content: 'tem casa?')
+      limite = Captain::Tools::TraceRecorder::RESULT_PREVIEW_LIMIT
+      Captain::ToolCall.create!(account_id: account.id, conversation_id: conversation.id,
+                                captain_assistant_id: create(:captain_assistant, account: account).id,
+                                tool_name: 'buscar_imovel', args: {}, status: 'ok',
+                                result_preview: "#{'x' * (limite - 20)} cód 8138 Acácias", created_at: m.created_at)
+
+      linha = service.send(:pending_tool_lines, [m]).first[:line]
+
+      expect(linha).to include('cód 8138 Acácias')
     end
   end
 
@@ -181,6 +233,24 @@ RSpec.describe Captain::ConversationEvalService do
         expect(schema).to include(categoria)
         expect(prompt).to include("- #{categoria}:")
       end
+    end
+  end
+
+  # Este arquivo exercitava os blocos de contexto UM A UM e nunca montava a mensagem que
+  # de fato vai ao juiz. Foi por essa fresta que 078efe33e6 passou: ao extrair o corpo do
+  # prompt para `user_content`, o `transcript` — variável local do `perform` — virou um nome
+  # sem dono, e TODO episódio com atendimento passou a estourar NameError em produção. Os
+  # sem atendimento continuavam gravando o veredito sintético, então o volume não caía e o
+  # painel parecia vivo. Montar a mensagem inteira é o teste que enxerga isso.
+  describe 'a mensagem que vai ao juiz' do
+    it 'monta o conteúdo com o transcript que o perform construiu' do
+      conteudo = service.send(:user_content, '[Cliente]: tem kitnet?')
+
+      expect(conteudo).to include('[Cliente]: tem kitnet?')
+    end
+
+    it 'não depende de escopo externo para chegar ao transcript' do
+      expect(service.method(:user_content).arity).to eq(1)
     end
   end
 end

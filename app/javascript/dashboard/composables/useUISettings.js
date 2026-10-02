@@ -6,6 +6,7 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'group_participants' },
   { name: 'conversation_actions' },
   { name: 'kanban_status' },
+  { name: 'captador_lead' },
   { name: 'macros' },
   { name: 'conversation_info' },
   { name: 'contact_attributes' },
@@ -136,14 +137,9 @@ const fetchQuotedReplyFlagFromUISettings = (channelType, uiSettings) => {
  * @returns {boolean} True if the hotkey is enabled, otherwise false.
  */
 const isEditorHotKeyEnabled = (key, uiSettings) => {
-  const {
-    editor_message_key: editorMessageKey,
-    enter_to_send_enabled: enterToSendEnabled,
-  } = uiSettings.value || {};
-  if (!editorMessageKey) {
-    return key === (enterToSendEnabled ? 'enter' : 'cmd_enter');
-  }
-  return editorMessageKey === key;
+  const { editor_message_key: editorMessageKey } = uiSettings.value || {};
+  // Enter is the default until the user picks a shortcut in profile settings.
+  return (editorMessageKey || 'enter') === key;
 };
 
 /**
@@ -156,12 +152,7 @@ export function useUISettings() {
   const uiSettings = computed(() => getters.getUISettings.value);
 
   const updateUISettings = (settings = {}) => {
-    store.dispatch('updateUISettings', {
-      uiSettings: {
-        ...uiSettings.value,
-        ...settings,
-      },
-    });
+    store.dispatch('updateUISettings', { uiSettings: settings });
   };
 
   return {

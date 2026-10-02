@@ -170,7 +170,8 @@
         "BOT_RESOLUTION_RATE": "Resolução pelo bot",
         "BOT_HANDOFF_RATE": "Transferência do bot"
       }
-    }
+    },
+    "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes"
   },
   "AGENT_REPORTS": {
     "HEADER": "Visão Geral de Agentes",
@@ -616,7 +617,8 @@
     },
     "FILTER": {
       "RESPONDED": "Respondidos",
-      "NOT_RESPONDED": "Não respondidos"
+      "NOT_RESPONDED": "Não respondidos",
+      "ARIA_LABEL": "Filtrar por status de resposta"
     },
     "TABLE": {
       "HEADER": {

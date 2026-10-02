@@ -12,7 +12,7 @@ RSpec.describe Captain::Tools::EnviarLocalizacaoUnidadeTool, type: :model do
   let(:contexto) { Struct.new(:state).new({ conversation: { id: conversation.id } }) }
 
   def unidade(cidade:, nome: nil, **attrs)
-    create(:spx_unidade, account: account, cidade: cidade, nome: nome || "Loja #{cidade}", **attrs)
+    create(:unit, account: account, cidade: cidade, nome: nome || "Loja #{cidade}", **attrs)
   end
 
   describe '#active?' do
@@ -40,7 +40,7 @@ RSpec.describe Captain::Tools::EnviarLocalizacaoUnidadeTool, type: :model do
     end
 
     it 'não enxerga unidade de outra conta' do
-      create(:spx_unidade, account: create(:account), cidade: 'Sorriso', latitude: -12.545, longitude: -55.711)
+      create(:unit, account: create(:account), cidade: 'Sorriso', latitude: -12.545, longitude: -55.711)
 
       expect(tool).not_to be_active
     end

@@ -361,7 +361,7 @@ Totais/rodapé: soma por coluna. Ordenação default: **Recebidas (total)** desc
 - `spec/models/concerns/assignment_handler_spec.rb` — `after_commit` chama o service só quando `assignee_id` muda; não quebra se o service levantar.
 - `spec/controllers/.../summary_reports_controller_spec.rb` — `GET agent_assignment` admin 200 / agente comum 403.
 
-### 11.2. Manual (homologação — VM 8.232, depois 8.100/paulao antes de prod)
+### 11.2. Manual (homologação — VM 8.232 antes de prod)
 - Atribuir manual A→B, auto (round-robin), pegar pra si, reatribuir, desatribuir → conferir a tabela e os números na aba.
 - Trocar o período e conferir recorte por data.
 - Exportar CSV e conferir colunas/linhas.
@@ -395,7 +395,7 @@ Totais/rodapé: soma por coluna. Ordenação default: **Recebidas (total)** desc
 
 ## 14. Rollout ⚠️
 - **Migration é aditiva e defensiva** (create-if-missing + add-column-if-missing) → segura pro botão **Deploy** do painel (que roda `db:migrate` na frota). Ainda assim: **conferir antes** se `conversation_assignment_histories` já existe em cada DB (schema.rb tem a tabela, mas DBs antigos podem não ter — a migration cobre, mas validar em homolog primeiro). Ver `feedback_prod_restart_migration` (checar `db:migrate:status` antes de restart).
-- **Ordem:** homologação (8.232) → validação humana → paulao/8.100 → producao (frota) → Tozi por último. `git push`/deploy = **@devops** (não empurrar por conta própria).
+- **Ordem:** homologação (8.232) → validação humana → producao (frota) → Tozi por último. `git push`/deploy = **@devops** (não empurrar por conta própria).
 - **Sem downtime:** aditivo, sem lock pesado; o writer só passa a gravar após o deploy do código (forward-only).
 - **Reversível:** desligar = remover o gancho no `assignment_handler` (as colunas/tabela ficam, inertes).
 

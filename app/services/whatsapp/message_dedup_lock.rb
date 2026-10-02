@@ -16,4 +16,11 @@ class Whatsapp::MessageDedupLock
   def acquire!
     ::Redis::Alfred.set(@key, true, nx: true, ex: @ttl)
   end
+
+  # Solta a trava quando o processamento falhou. A chave serve para dois papeis ao mesmo tempo:
+  # exclusao mutua entre workers E marca de "ja processei". Mantida apos um erro, a marca faz a
+  # retentativa do Sidekiq sair calada e a mensagem do cliente some para sempre.
+  def release!
+    ::Redis::Alfred.delete(@key)
+  end
 end

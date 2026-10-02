@@ -44,12 +44,15 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
     end
   end
 
-  # O Instagram não lê a chave do carrossel, mas entrega N imagens numa mensagem só. O lote
-  # continua sendo o mesmo (3 fotos, mesmo offset, mesmo cooldown) — muda o empacotamento:
-  # uma mensagem com 3 anexos, no lugar de 3 mensagens com intervalo entre elas.
-  context 'when the channel delivers several images in one message (Instagram)' do
+  # O empacotamento em UMA mensagem com N anexos continua existindo, mas nenhum canal o
+  # declara hoje: na Tozi ele falhou 10 de 10 vezes (ver a capacidade no Channel::Instagram).
+  # A capacidade entra explícita aqui porque o que este bloco cobre é o empacotamento, não a
+  # decisão de usá-lo.
+  context 'when the channel declares it delivers several images in one message' do
     let(:channel) { create(:channel_instagram, account: account) }
     let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+
+    before { allow_any_instance_of(Channel::Instagram).to receive(:supports_multi_image_message?).and_return(true) } # rubocop:disable RSpec/AnyInstance
 
     it 'sends a single message carrying every photo of the batch' do
       tool.perform(tool_context, codigo: '9434')
@@ -74,6 +77,21 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
       tool.perform(tool_context, codigo: '9434')
 
       expect(conversation.reload.custom_attributes['fotos_offset_9434']).to eq(3)
+    end
+  end
+
+  # O PADRÃO do Instagram hoje: uma mensagem por foto, com download local — a configuração
+  # medida em produção como a que entrega (116 de 117, contra 0 de 10 do agrupamento).
+  context 'when the channel is Instagram' do
+    let(:channel) { create(:channel_instagram, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+
+    it 'keeps one message per photo, downloading each file' do
+      tool.perform(tool_context, codigo: '9434')
+
+      expect(outgoing.count).to eq(3)
+      expect(outgoing.map { |m| m.attachments.size }).to eq([1, 1, 1])
+      expect(Down).to have_received(:download).exactly(3).times
     end
   end
 

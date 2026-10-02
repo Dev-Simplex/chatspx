@@ -2,10 +2,25 @@ json.id unit.id
 json.name unit.name
 json.city unit.city
 json.state unit.state
+json.zip_code unit.zip_code
 json.address unit.address
+json.address_number unit.address_number
 json.phone unit.phone
+# As duas listas: telefones com rótulo e links de rede social. Mesmo motivo do comentário abaixo —
+# campo que o permit aceita e o jbuilder não devolve grava uma vez e some na edição seguinte.
+json.contacts unit.contacts
+json.social_links unit.social_links
+# Coordenada e o interruptor PRECISAM sair aqui. Campo que o `permit` aceita mas o jbuilder não
+# devolve grava uma vez e some: o formulário recarrega com o valor padrão e a próxima edição
+# sobrescreve o que estava certo — foi o que acontecia com `applies_to_inboxes`.
+json.latitude unit.latitude
+json.longitude unit.longitude
+json.applies_to_inboxes unit.applies_to_inboxes
 json.timezone unit.timezone
 json.notes unit.notes
+# Condições de atendimento, que a IA lê e repassa ao cliente. Mesma armadilha da coordenada: o
+# `permit` aceita, e sem sair aqui a tela abre vazia e o próximo salvar grava `{}` por cima.
+json.atributos unit.atributos || {}
 json.active unit.active
 json.created_at unit.created_at
 json.updated_at unit.updated_at

@@ -168,8 +168,23 @@ export const regraDoDia = (unit, data) => {
   )[0];
 };
 
+const temValor = valor => valor !== null && valor !== undefined;
+
+// Regra que não fecha e não traz horário próprio (o evento que acontece "no horário de sempre")
+// não muda o funcionamento: fica fora do aberto/fechado, como no ScheduleEvaluator#rule_on do
+// Ruby. Sem este corte, `minutosDe(null, null)` vale 0 e a unidade aparece fechada o dia inteiro.
+const mudaOFuncionamento = regra =>
+  !!regra.closed_all_day ||
+  (temValor(regra.open_hour) && temValor(regra.close_hour));
+
 const regraDeHoje = (unit, momento) =>
-  regraDoDia(unit, momento.data) ||
+  regraDoDia(
+    {
+      ...unit,
+      exceptions: (unit.exceptions || []).filter(mudaOFuncionamento),
+    },
+    momento.data
+  ) ||
   (unit.working_hours || []).find(hora => hora.day_of_week === momento.dia);
 
 // --- prévia das próximas datas -----------------------------------------------------
@@ -229,6 +244,8 @@ const dentroDaPausa = (regra, minutos) =>
 export const faixaLegivel = regra => {
   if (!regra || regra.closed_all_day) return '';
   if (regra.open_all_day) return '24h';
+  // Sem horário próprio vale o de sempre, e quem mostra isso é quem chamou: aqui sairia "null:null".
+  if (!temValor(regra.open_hour) || !temValor(regra.close_hour)) return '';
 
   const abertura = hhmm(regra.open_hour, regra.open_minutes);
   const fechamento = hhmm(regra.close_hour, regra.close_minutes);

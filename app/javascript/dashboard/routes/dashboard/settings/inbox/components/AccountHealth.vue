@@ -40,6 +40,40 @@ const MODE_COLORS = {
   SANDBOX: 'text-n-slate-11',
 };
 
+// Mensagens do cliente que o WhatsApp entregou e o sistema descartou antes de virarem mensagem
+// (canal nao encontrado, canal marcado para reautorizar, conta inativa). A Meta recebe 200, entao
+// nao ha reentrega: sem este numero, "essa caixa nao recebe nada" parece "ninguem escreveu hoje".
+const droppedInboundCounts = computed(
+  () => props.healthData?.dropped_inbound || {}
+);
+
+const droppedInboundTotal = computed(() =>
+  Object.values(droppedInboundCounts.value).reduce(
+    (total, count) => total + Number(count || 0),
+    0
+  )
+);
+
+const droppedInboundReason = computed(() => {
+  const [maior] = Object.entries(droppedInboundCounts.value).sort(
+    (a, b) => Number(b[1]) - Number(a[1])
+  );
+  return maior?.[0];
+});
+
+// Chaves escritas por extenso: chave de i18n montada em runtime some da tela sem avisar.
+const DROPPED_INBOUND_REASONS = computed(() => ({
+  channel_not_found: t(
+    'INBOX_MGMT.ACCOUNT_HEALTH.FIELDS.DROPPED_INBOUND.REASONS.CHANNEL_NOT_FOUND'
+  ),
+  reauthorization_required: t(
+    'INBOX_MGMT.ACCOUNT_HEALTH.FIELDS.DROPPED_INBOUND.REASONS.REAUTHORIZATION_REQUIRED'
+  ),
+  account_inactive: t(
+    'INBOX_MGMT.ACCOUNT_HEALTH.FIELDS.DROPPED_INBOUND.REASONS.ACCOUNT_INACTIVE'
+  ),
+}));
+
 const healthItems = computed(() => {
   if (!props.healthData) {
     return [];
@@ -106,6 +140,20 @@ const healthItems = computed(() => {
       tooltip: t('INBOX_MGMT.ACCOUNT_HEALTH.FIELDS.ACCOUNT_MODE.TOOLTIP'),
       show: true,
       type: 'mode',
+    },
+    {
+      // So aparece quando houve descarte nos ultimos 7 dias: linha em branco todo dia vira
+      // ruido e para de ser lida justamente no dia em que importa.
+      key: 'droppedInbound',
+      label: t('INBOX_MGMT.ACCOUNT_HEALTH.FIELDS.DROPPED_INBOUND.LABEL'),
+      value: t('INBOX_MGMT.ACCOUNT_HEALTH.FIELDS.DROPPED_INBOUND.VALUE', {
+        count: droppedInboundTotal.value,
+        reason:
+          DROPPED_INBOUND_REASONS.value[droppedInboundReason.value] ||
+          droppedInboundReason.value,
+      }),
+      tooltip: t('INBOX_MGMT.ACCOUNT_HEALTH.FIELDS.DROPPED_INBOUND.TOOLTIP'),
+      show: droppedInboundTotal.value > 0,
     },
   ];
 });

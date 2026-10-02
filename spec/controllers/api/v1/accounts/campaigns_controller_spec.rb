@@ -285,4 +285,81 @@ RSpec.describe 'Campaigns API', type: :request do
       end
     end
   end
+
+  # Fatia 1 de campanhas (CHAT-167): a campanha criada pela TELA tem de disparar sem console.
+  describe 'campanha WhatsApp criada pela tela' do
+    let(:administrator) { create(:user, account: account, role: :administrator) }
+    let(:team) { create(:team, account: account) }
+    # Canal montado a mão: a trait :whatsapp do factory cria 360dialog e bate na rede.
+    let(:whatsapp_inbox) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
+                                sync_templates: false, validate_provider_config: false).inbox
+    end
+    # Exatamente o que o WhatsAppCampaignForm.vue envia: template só em `template_params`,
+    # sem `template_name`, sem `audience` (quem recebe vem da lista carregada no detalhe).
+    let(:form_payload) do
+      {
+        title: 'Aniversário', message: 'Olá {{1}}', inbox_id: whatsapp_inbox.id,
+        template_params: { name: 'aniversario_v2', namespace: '', category: 'MARKETING',
+                           language: 'pt_BR', processed_params: {} }
+      }
+    end
+
+    def create_from_form(payload = form_payload)
+      post "/api/v1/accounts/#{account.id}/campaigns",
+           params: payload, headers: administrator.create_new_auth_token, as: :json
+      Campaign.find_by!(account_id: account.id, display_id: response.parsed_body['id'])
+    end
+
+    def start(campaign)
+      post "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/start",
+           headers: administrator.create_new_auth_token, as: :json
+    end
+
+    it 'aceita a campanha sem etiqueta de público e grava o template do disparo' do
+      campaign = create_from_form
+
+      expect(response).to have_http_status(:success)
+      expect(campaign.audience).to be_blank
+      expect(campaign.template_name).to eq('aniversario_v2')
+      expect(campaign.template_language).to eq('pt_BR')
+      expect(campaign).to be_whatsapp_blast
+    end
+
+    it 'o start aceita a campanha criada pela tela depois da lista e do time' do
+      campaign = create_from_form
+      campaign.update!(target_team_id: team.id)
+      CampaignRecipient.create!(campaign: campaign, account: account, phone_number: '+5566992927211')
+
+      start(campaign)
+
+      expect(response).to have_http_status(:success)
+      expect(campaign.reload).to be_dispatch_running
+    end
+
+    it 'o start recusa campanha sem time, porque a resposta do lead cairia sem dono' do
+      campaign = create_from_form
+      CampaignRecipient.create!(campaign: campaign, account: account, phone_number: '+5566992927211')
+
+      start(campaign)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(campaign.reload).to be_dispatch_draft
+    end
+
+    it 'nasce agendada quando a tela manda horário, e em rascunho quando não manda' do
+      agendada = create_from_form(form_payload.merge(scheduled_at: 1.day.from_now.iso8601))
+      rascunho = create_from_form
+
+      expect(agendada).to be_dispatch_scheduled
+      expect(rascunho).to be_dispatch_draft
+    end
+
+    it 'não sobrescreve template_name informado explicitamente' do
+      campaign = create_from_form(form_payload.merge(template_name: 'outro_template', template_language: 'en'))
+
+      expect(campaign.template_name).to eq('outro_template')
+      expect(campaign.template_language).to eq('en')
+    end
+  end
 end

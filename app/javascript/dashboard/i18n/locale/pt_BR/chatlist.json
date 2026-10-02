@@ -4,7 +4,9 @@
     "LOAD_MORE_CONVERSATIONS": "Carregar mais conversas",
     "EOF": "Todas as conversas carregadas 🎉",
     "LIST": {
-      "404": "Não há conversas ativas neste grupo."
+      "404": "Não há conversas ativas neste grupo.",
+      "LOAD_ERROR": "Não foi possível carregar as conversas.",
+      "RETRY": "Tentar novamente"
     },
     "FAILED_TO_SEND": "Falha ao enviar",
     "SEND_ERROR": {
@@ -31,7 +33,9 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Minhas",
       "awaiting": "Aguardando atendimento",
+      "rodizio": "Rodízio",
       "pending_closure": "Aguardando encerramento",
+      "attention": "Atenção",
       "unassigned": "Não atribuídas",
       "ai": "IA",
       "all": "Todas"

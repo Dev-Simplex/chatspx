@@ -667,6 +667,16 @@
         "ACCOUNT_MODE": {
           "LABEL": "Account mode",
           "TOOLTIP": "Current operating mode of your WhatsApp account"
+        },
+        "DROPPED_INBOUND": {
+          "LABEL": "Dropped inbound",
+          "VALUE": "{count} in the last 7 days ({reason})",
+          "TOOLTIP": "Customer messages WhatsApp delivered but this inbox discarded before they became a message. Meta gets a 200, so they are never redelivered.",
+          "REASONS": {
+            "CHANNEL_NOT_FOUND": "channel not found for this number",
+            "REAUTHORIZATION_REQUIRED": "channel marked for reauthorization",
+            "ACCOUNT_INACTIVE": "account inactive"
+          }
         }
       },
       "VALUES": {
@@ -731,6 +741,14 @@
           "HINT": "All agents in this inbox see the same pinned conversations."
         }
       },
+      "AD_REFERRAL_ROUTING": {
+        "TITLE": "Route ad conversations to a team",
+        "SUBTITLE": "When a contact starts the conversation by clicking a Facebook or Instagram ad, assign it to the chosen team right away, without waiting for a menu.",
+        "TEAM_LABEL": "Team that receives ad conversations",
+        "TEAM_PLACEHOLDER": "Select a team",
+        "HINT": "Applies to the conversation the ad starts, even if triage already picked a team. An ad message that lands on a conversation already in progress keeps its current team.",
+        "NO_TEAM_HINT": "Choose a team, otherwise nothing is routed."
+      },
       "AGENT_SIGNATURE": {
         "TITLE": "Sign messages with the agent's name",
         "SUBTITLE": "Prepend the agent's name to outgoing messages on the official WhatsApp Cloud API (format: *Name*:). Media sent without a caption is not signed."
@@ -761,6 +779,13 @@
       "ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT": "Conversations will continue over email if the contact email address is available.",
       "LOCK_TO_SINGLE_CONVERSATION": "Conversation Routing",
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Configure conversation creation for existing contacts",
+      "READ_ONLY": {
+        "LABEL": "Read-only",
+        "SUB_TEXT": "The inbox keeps receiving, but no message leaves through it, not even automatic ones.",
+        "REDIRECT_LABEL": "Redirect replies to",
+        "REDIRECT_HINT": "Agents get a button to answer the customer through this inbox.",
+        "NONE": "None"
+      },
       "TEAM_MESSAGE_ISOLATION": "Team message isolation",
       "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, agents can only see messages from their own team. Messages from other teams appear blurred with restricted access.",
       "AGENT_MESSAGE_ISOLATION": "Agent message isolation",

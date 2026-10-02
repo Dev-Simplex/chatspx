@@ -224,15 +224,11 @@
             "VARIABLES_LABEL": "Variáveis",
             "VARIABLE_PLACEHOLDER": "Digite um valor para {variable}"
           },
-          "AUDIENCE": {
-            "LABEL": "Público",
-            "PLACEHOLDER": "Selecionar etiquetas dos clientes",
-            "ERROR": "Público é necessário"
-          },
+          "RECIPIENTS_INFO": "Quem recebe não se escolhe aqui: depois de criar, abra a campanha e carregue a lista ou o segmento.",
           "SCHEDULED_AT": {
             "LABEL": "Horário agendado",
             "PLACEHOLDER": "Por favor insira a hora",
-            "ERROR": "Horário agendado é necessário"
+            "INFO": "Opcional. Com horário, o disparo começa sozinho quando ele chegar. Vazio, começa pelo botão Iniciar da campanha."
           },
           "BUTTONS": {
             "CREATE": "Criar",
@@ -346,7 +342,8 @@
           "NEVER": "Nunca recebeu campanha nenhuma",
           "ANY": "Qualquer",
           "EMPTY": "Escolha pelo menos um critério — sem nenhum, o público seria a base inteira."
-        }
+        },
+        "START_BLOCKED": "O disparo agendado não começou: {reason}. Corrija e clique em Iniciar."
       },
       "SETTINGS": {
         "TITLE": "Configuração do disparo",
