@@ -142,6 +142,30 @@
         },
         "EMPTY": "Esta conta ainda não tem caixa de entrada."
       },
+      "CHANNELS": {
+        "LABEL": "Papel de cada caixa",
+        "HELP": "O que cada caixa é para a empresa, em poucas palavras. A IA usa isso para saber onde está atendendo e levar o cliente ao canal certo.",
+        "ROLE": {
+          "PLACEHOLDER": "O que esta caixa é para a empresa, em poucas palavras"
+        },
+        "DESTINATION": {
+          "LABEL": "A IA pode levar clientes para esta caixa",
+          "HELP": "Quando o cliente precisar do que esta caixa atende, a IA o chama por aqui com uma mensagem de abertura."
+        },
+        "MAIN": {
+          "LABEL": "WhatsApp principal desta unidade",
+          "HELP": "Usado quando o cliente está em outro canal e pede para ser chamado no WhatsApp. Só uma caixa por unidade."
+        },
+        "TEMPLATE": {
+          "LABEL": "Template de abertura",
+          "NONE": "Nenhum",
+          "HELP": "Template aprovado enviado quando a IA traz um cliente para cá. A variável 1 é o primeiro nome e a 2 é o motivo."
+        },
+        "TEXT": {
+          "LABEL": "Texto de abertura",
+          "HELP": "Texto enviado quando a IA traz um cliente para cá. A variável 1 é o primeiro nome e a 2 é o motivo, escritas como nos templates."
+        }
+      },
       "CONDITIONS": {
         "LABEL": "Condições de atendimento",
         "HELP": "Regras desta unidade que a IA repassa ao cliente como fato. Uma linha por regra: um nome curto e o que ela diz.",

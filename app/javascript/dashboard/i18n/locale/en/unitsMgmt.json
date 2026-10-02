@@ -142,6 +142,30 @@
         },
         "EMPTY": "This account has no inbox yet."
       },
+      "CHANNELS": {
+        "LABEL": "Role of each inbox",
+        "HELP": "What each inbox is for the company, in a few words. The AI uses this to know where it is answering and to take the customer to the right channel.",
+        "ROLE": {
+          "PLACEHOLDER": "What this inbox is for the company, in a few words"
+        },
+        "DESTINATION": {
+          "LABEL": "The AI can take customers to this inbox",
+          "HELP": "When the customer needs what this inbox handles, the AI calls them here with an opening message."
+        },
+        "MAIN": {
+          "LABEL": "Main WhatsApp of this unit",
+          "HELP": "Used when the customer is on another channel and asks to be called on WhatsApp. Only one inbox per unit."
+        },
+        "TEMPLATE": {
+          "LABEL": "Opening template",
+          "NONE": "None",
+          "HELP": "Approved template sent when the AI takes a customer here. Variable 1 is the first name and variable 2 is the reason."
+        },
+        "TEXT": {
+          "LABEL": "Opening text",
+          "HELP": "Text sent when the AI takes a customer here. Variable 1 is the first name and variable 2 is the reason, written as in templates."
+        }
+      },
       "CONDITIONS": {
         "LABEL": "Service conditions",
         "HELP": "Rules of this unit that the AI passes on to the customer as fact. One line per rule: a short name and what it says.",

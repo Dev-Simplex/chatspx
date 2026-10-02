@@ -56,3 +56,63 @@ export const copiarHorarioParaDias = (slots, origem) => {
 
   return { slots: novos, dias };
 };
+
+// Papel de cada caixa da unidade e se ela é canal de destino da IA (`canais` da API). O formulário
+// guarda um objeto por caixa e manda só as caixas marcadas na unidade.
+const CANAL_VAZIO = {
+  papel: '',
+  destino: false,
+  principal: false,
+  template_name: '',
+  template_language: '',
+  texto: '',
+};
+
+export const canaisDaUnidade = unidade =>
+  Object.fromEntries(
+    (unidade?.canais ?? []).map(({ inbox_id: id, ...canal }) => [
+      id,
+      { ...CANAL_VAZIO, ...canal },
+    ])
+  );
+
+export const canalDaCaixa = (canais, id) => canais[id] ?? { ...CANAL_VAZIO };
+
+// Caixa que alcança o cliente no WhatsApp: a API oficial ou uma sessão WAHA. Só ela pode ser
+// destino ou o WhatsApp principal.
+export const falaWhatsapp = caixa =>
+  caixa?.channel_type === 'Channel::Whatsapp' ||
+  (caixa?.channel_type === 'Channel::Api' && !!caixa?.waha_session_name);
+
+// Templates que a Meta aprovou nesta caixa, um por nome e idioma.
+export const templatesAprovados = caixa =>
+  (caixa?.message_templates ?? [])
+    .filter(modelo => String(modelo.status).toUpperCase() === 'APPROVED')
+    .map(modelo => ({
+      value: `${modelo.name}|${modelo.language}`,
+      label: `${modelo.name} (${modelo.language})`,
+    }));
+
+// O WhatsApp principal é um só: marcar um desmarca os outros.
+export const marcarPrincipal = (canais, id, ligado) =>
+  Object.fromEntries(
+    Object.entries(canais).map(([chave, canal]) => [
+      chave,
+      { ...canal, principal: ligado && String(chave) === String(id) },
+    ])
+  );
+
+export const canaisParaEnvio = (canais, idsDaUnidade, caixas) =>
+  idsDaUnidade.map(id => {
+    const canal = canalDaCaixa(canais, id);
+    const whatsapp = falaWhatsapp(caixas.find(caixa => caixa.id === id));
+    return {
+      inbox_id: id,
+      papel: canal.papel.trim(),
+      destino: whatsapp && canal.destino,
+      principal: whatsapp && canal.principal,
+      template_name: canal.template_name,
+      template_language: canal.template_language,
+      texto: canal.texto.trim(),
+    };
+  });
