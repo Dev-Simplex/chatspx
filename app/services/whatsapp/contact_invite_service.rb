@@ -25,6 +25,8 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   DEFAULT_LANGUAGE = 'pt_BR'.freeze
   DEFAULT_COOLDOWN_HOURS = 24
   INVITE_KEY = 'convite_whatsapp_em'.freeze
+  ORIGEM_DA_ABERTURA = 'troca_de_canal_origem_id'.freeze
+  FALHA_KEY = 'acionamento_falhou'.freeze
   # Controle do fio ANTIGO — não faz sentido carregar pro fio novo.
   SKIP_CONTEXT_KEYS = %w[followup_token followup_status followup_motivo followup_count
                          aguardando_humano_desde convite_whatsapp_em].freeze
@@ -45,6 +47,8 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
     target = target_conversation
     return failure(:alvo_em_atendimento) if target.blank?
 
+    # Na troca de canal o resumo da origem fica no topo, antes da abertura.
+    note(target, target_note) if troca_de_canal?
     send_opener(target)
     stamp(target)
     Result.new(ok: true, conversation: target, phone: phone, contact_name: target.contact&.name)
@@ -232,6 +236,7 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   # Conversa que o cliente já tem no destino: segue nela, com o dono que tiver. Resolvida volta a
   # andar como conversa nova da caixa — pendente para a IA de lá, se houver, ou aberta.
   def reabrir_no_destino(conversation)
+    conversation.update!(custom_attributes: conversation.custom_attributes.merge(inherited_context))
     return conversation if conversation.open? || conversation.pending?
 
     pendente = inbox.active_bot? && inbox.pending_status_enabled? && conversation.assignee_id.nil?
@@ -242,7 +247,13 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   # Indicação NÃO herda o contexto do indicador — o histórico é de outra pessoa. Na troca de canal
   # o destino tem papel próprio, e os atributos da origem são de lá.
   def inherited_context
-    mesma_pessoa && !troca_de_canal? ? origin.custom_attributes.except(*SKIP_CONTEXT_KEYS) : {}
+    return { Whatsapp::TrocaDeCanalResumo::ATRIBUTO => passagem.atributo } if troca_de_canal?
+
+    mesma_pessoa ? origin.custom_attributes.except(*SKIP_CONTEXT_KEYS) : {}
+  end
+
+  def passagem
+    @passagem ||= Whatsapp::TrocaDeCanalResumo.new(origem: origin, motivo: contexto)
   end
 
   def additional_attributes
@@ -323,7 +334,16 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
       params[:template_params] = { 'name' => template_name, 'language' => language,
                                    'processed_params' => { 'body' => template_vars } }
     end
-    Messages::MessageBuilder.new(nil, conversation, params.with_indifferent_access).perform
+    message = Messages::MessageBuilder.new(nil, conversation, params.with_indifferent_access).perform
+    marcar_abertura(message) if troca_de_canal?
+    message
+  end
+
+  # Marca a abertura da troca de canal com a conversa de origem: se a entrega falhar depois (o
+  # status volta pelo webhook), o Spx::TrocaDeCanalFalhaListener avisa a origem.
+  def marcar_abertura(message)
+    marcas = (message.additional_attributes || {}).merge(ORIGEM_DA_ABERTURA => origin.id)
+    message.update_columns(additional_attributes: marcas) # rubocop:disable Rails/SkipsModelValidations
   end
 
   def window_open?(conversation)
@@ -332,9 +352,9 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
 
   # Cooldown na origem + rastro nas duas pontas, pro time entender o pulo de fio.
   def stamp(target)
-    origin.update!(custom_attributes: origin.custom_attributes.merge(INVITE_KEY => Time.current.iso8601))
+    origin.update!(custom_attributes: origin.custom_attributes.except(FALHA_KEY).merge(INVITE_KEY => Time.current.iso8601))
     note(origin, origin_note(target))
-    note(target, target_note)
+    note(target, target_note) unless troca_de_canal?
   end
 
   def origin_note(target)
@@ -349,7 +369,7 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
 
   def target_note
     if troca_de_canal?
-      "Cliente veio da conversa ##{origin.display_id}, na caixa #{origin.inbox.name}. Motivo: #{contexto}"
+      passagem.nota
     elsif mesma_pessoa
       "Continuação do atendimento da conversa ##{origin.display_id} — o cliente pediu pra ser chamado neste número."
     else
