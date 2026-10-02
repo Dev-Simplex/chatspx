@@ -14,6 +14,11 @@
 #
 # Opt-in por conta (multi-tenant): account.settings['contact_invite'] =
 # { enabled:, template_name:, language:, cooldown_hours:, referral_label: }. Sem config, no-op.
+#
+# Com `destino:` (outra caixa da empresa) é a TROCA DE CANAL: o próprio cliente é levado para a
+# caixa de destino, que manda a abertura pelo acionamento configurado nela (InboxCanal) — template
+# aprovado na API oficial, texto no WAHA. A origem pode ser qualquer canal. O destino segue o
+# roteamento dele: não herda dono, time nem atributos da origem.
 class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   Result = Struct.new(:ok, :error, :conversation, :phone, :contact_name, keyword_init: true)
 
@@ -24,12 +29,13 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   SKIP_CONTEXT_KEYS = %w[followup_token followup_status followup_motivo followup_count
                          aguardando_humano_desde convite_whatsapp_em].freeze
 
-  def initialize(conversation:, phone:, contexto:, nome: nil, mesma_pessoa: false)
+  def initialize(conversation:, phone:, contexto:, nome: nil, mesma_pessoa: false, destino: nil) # rubocop:disable Metrics/ParameterLists
     @origin = conversation
+    @destino = destino
     @raw_phone = phone
     @contexto = contexto.to_s.strip.presence
     @nome = nome.to_s.strip.presence
-    @mesma_pessoa = ActiveModel::Type::Boolean.new.cast(mesma_pessoa) || false
+    @mesma_pessoa = destino.present? || ActiveModel::Type::Boolean.new.cast(mesma_pessoa) || false
   end
 
   def perform
@@ -49,7 +55,11 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
 
   private
 
-  attr_reader :origin, :raw_phone, :contexto, :nome, :mesma_pessoa
+  attr_reader :origin, :raw_phone, :contexto, :nome, :mesma_pessoa, :destino
+
+  def troca_de_canal?
+    destino.present?
+  end
 
   # Motivo pra NÃO enviar, ou nil quando está liberado.
   def rejection
@@ -57,11 +67,21 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   end
 
   def config_rejection
+    return destino_rejection if troca_de_canal?
     return :desligado unless settings['enabled']
     return :sem_template if template_name.blank?
     return :canal_incompativel unless origin.inbox.channel.is_a?(Channel::Whatsapp)
 
     :sem_template_aprovado if template_body.blank?
+  end
+
+  # A config que vale é a da caixa de destino; a da conta (`contact_invite`) é do convite.
+  def destino_rejection
+    return :mesmo_canal if destino.id == origin.inbox_id
+    return :canal_incompativel unless destino.fala_whatsapp?
+    return :sem_template_aprovado if template_body.blank?
+
+    :destino_sem_ficha if waha? && ficha_waha.nil?
   end
 
   def numero_rejection
@@ -85,16 +105,30 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   # A abertura do próprio cliente ("você pediu pra eu te chamar") não serve pra
   # indicação, então cada caso pode ter seu template; sem o de indicação, cai no padrão.
   def template_name
+    return destino.canal_config['template_name'].to_s if troca_de_canal?
+
     chave = mesma_pessoa ? 'template_name' : 'referral_template_name'
     (settings[chave].presence || settings['template_name']).to_s
   end
 
   def language
+    return destino.canal_config['template_language'].presence || DEFAULT_LANGUAGE if troca_de_canal?
+
     settings['language'].presence || DEFAULT_LANGUAGE
   end
 
   def inbox
-    origin.inbox
+    destino || origin.inbox
+  end
+
+  def waha?
+    inbox.api? && inbox.waha_session_name.present?
+  end
+
+  # No WAHA quem cria a ficha de um número é a integração do WAHA, quando a pessoa escreve; criar
+  # aqui duplicaria o contato. Então só dá para chamar quem já tem ficha nessa caixa.
+  def ficha_waha
+    @ficha_waha ||= inbox.contact_inboxes.where(contact_id: origin.contact_id).order(updated_at: :desc).first
   end
 
   # E.164 pelo mesmo normalizador do resto do fork (9º dígito, DDI, trunk-0).
@@ -116,7 +150,10 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
                    .normalize_and_find_contact_by_provider(phone.delete('+'), :cloud)
   end
 
+  # Na troca de canal o número costuma ser o mesmo desta conversa — é o mesmo cliente, outra caixa.
   def same_number?
+    return false if troca_de_canal?
+
     atual = [origin.contact_inbox&.source_id, origin.contact&.phone_number].compact.map { |v| v.gsub(/\D/, '') }
     atual.include?(phone.delete('+'))
   end
@@ -137,7 +174,9 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   # Outro número do MESMO cliente: ficha nova no contato dele. Indicação: contato
   # próprio (reusa o cadastro se a pessoa já existir na conta).
   def contact_inbox
-    @contact_inbox ||= if mesma_pessoa
+    @contact_inbox ||= if waha?
+                         ficha_waha
+                       elsif mesma_pessoa
                          inbox.contact_inboxes.find_by(source_id: source_id) ||
                            ContactInboxBuilder.new(contact: origin.contact, inbox: inbox, source_id: source_id).perform
                        else
@@ -155,6 +194,7 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   # nil = alvo já está em atendimento (indicação que já é cliente de alguém).
   def target_conversation
     existing = contact_inbox.conversations.order(created_at: :desc).first
+    return reabrir_no_destino(existing) if existing && troca_de_canal?
     return busy?(existing) ? nil : reopen(existing) if existing
 
     conversation = Conversation.create!(
@@ -163,7 +203,7 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
       contact_id: contact_inbox.contact_id,
       contact_inbox_id: contact_inbox.id,
       status: 'open',
-      team_id: origin.team_id,
+      team_id: (origin.team_id unless troca_de_canal?),
       custom_attributes: inherited_context,
       additional_attributes: additional_attributes
     )
@@ -189,13 +229,26 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
     conversation
   end
 
-  # Indicação NÃO herda o contexto do indicador — o histórico é de outra pessoa.
+  # Conversa que o cliente já tem no destino: segue nela, com o dono que tiver. Resolvida volta a
+  # andar como conversa nova da caixa — pendente para a IA de lá, se houver, ou aberta.
+  def reabrir_no_destino(conversation)
+    return conversation if conversation.open? || conversation.pending?
+
+    pendente = inbox.active_bot? && inbox.pending_status_enabled? && conversation.assignee_id.nil?
+    conversation.update!(status: pendente ? :pending : :open)
+    conversation
+  end
+
+  # Indicação NÃO herda o contexto do indicador — o histórico é de outra pessoa. Na troca de canal
+  # o destino tem papel próprio, e os atributos da origem são de lá.
   def inherited_context
-    mesma_pessoa ? origin.custom_attributes.except(*SKIP_CONTEXT_KEYS) : {}
+    mesma_pessoa && !troca_de_canal? ? origin.custom_attributes.except(*SKIP_CONTEXT_KEYS) : {}
   end
 
   def additional_attributes
-    if mesma_pessoa
+    if troca_de_canal?
+      { 'source' => 'troca_de_canal', 'origin_conversation_id' => origin.id }
+    elsif mesma_pessoa
       { 'source' => 'contact_invite', 'origin_conversation_id' => origin.id }
     else
       { 'source' => 'indicacao', 'indicado_por_conversation_id' => origin.id,
@@ -206,6 +259,8 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   # Mesmo dono da conversa de origem (IA ou humano), pelo trilho canônico — assim o fio
   # novo não cai na triagem nem fica órfão, e a indicação fica com quem a recebeu.
   def inherit_owner(conversation)
+    return if troca_de_canal?
+
     if origin.assignee_agent_bot_id.present?
       Conversations::AssignmentService.new(
         conversation: conversation, assignee_id: origin.assignee_agent_bot_id, assignee_type: 'AgentBot'
@@ -231,8 +286,13 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
     end
   end
 
+  # No WAHA não há template: a abertura é o texto configurado na caixa de destino.
   def template_body
-    @template_body ||= (template && (template['components'] || []).find { |c| c['type'] == 'BODY' })&.dig('text').to_s
+    @template_body ||= troca_de_canal? && waha? ? destino.canal_config['texto'].to_s : corpo_do_template
+  end
+
+  def corpo_do_template
+    (template && (template['components'] || []).find { |c| c['type'] == 'BODY' })&.dig('text').to_s
   end
 
   # Quantas variáveis o template aprovado tem — o corpo dita o que mandamos.
@@ -259,7 +319,7 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
     params = { content: preview, content_type: :text, message_type: 'outgoing', private: false }
     # Só gasta HSM quando a janela de 24h está fechada — se a pessoa escreveu daquele
     # número há pouco, texto livre passa igual e sai mais barato.
-    unless window_open?(conversation)
+    unless waha? || window_open?(conversation)
       params[:template_params] = { 'name' => template_name, 'language' => language,
                                    'processed_params' => { 'body' => template_vars } }
     end
@@ -278,7 +338,9 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   end
 
   def origin_note(target)
-    if mesma_pessoa
+    if troca_de_canal?
+      "Cliente chamado no canal #{inbox.name} (#{phone}). O atendimento continua na conversa ##{target.display_id}."
+    elsif mesma_pessoa
       "Mensagem enviada no outro número que o cliente pediu (#{phone}). O atendimento continua na conversa ##{target.display_id}."
     else
       "Indicação: #{target.contact&.name} (#{phone}) foi chamado no WhatsApp a partir desta conversa. Atendimento em ##{target.display_id}."
@@ -286,7 +348,9 @@ class Whatsapp::ContactInviteService # rubocop:disable Metrics/ClassLength
   end
 
   def target_note
-    if mesma_pessoa
+    if troca_de_canal?
+      "Cliente veio da conversa ##{origin.display_id}, na caixa #{origin.inbox.name}. Motivo: #{contexto}"
+    elsif mesma_pessoa
       "Continuação do atendimento da conversa ##{origin.display_id} — o cliente pediu pra ser chamado neste número."
     else
       "Lead por indicação de #{origin.contact&.name} (conversa ##{origin.display_id})."
