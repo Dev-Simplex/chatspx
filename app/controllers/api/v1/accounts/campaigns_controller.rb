@@ -126,33 +126,65 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
       total: @campaign.campaign_recipients.count }
   end
 
-  # Agregado read-only de um disparo ancorado nesta campanha (conversas linkadas por
-  # campaign_id + status das mensagens-template). Generico: vale pra qualquer campanha
-  # WhatsApp cujo orquestrador grave campaign_id nas conversas.
-  def campaign_stats # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-    conv_ids = @campaign.conversations.pluck(:id)
-    total = conv_ids.size
+  # Funil por DESTINATARIO: cada numero conta na campanha que o disparou, mesmo quando a conversa
+  # nasceu de outra campanha. Cumulativo — quem leu ou respondeu tambem foi entregue — e quem nem
+  # saiu da fila (pendente, pulado, cancelado) nao entra. Os eventos vem do RecipientTracker.
+  def recipient_funnel
+    dispatched = @campaign.campaign_recipients.where(status: %i[sent delivered read replied failed])
+    by_status = dispatched.group(:status).count
+    count = ->(*keys) { by_status.values_at(*keys).sum(&:to_i) }
+    reached = count.call('sent', 'delivered', 'read', 'replied')
+    {
+      conv_ids: dispatched.where.not(conversation_id: nil).distinct.pluck(:conversation_id),
+      total: by_status.values.sum, reached: reached, sent: reached, delivered: count.call('delivered', 'read', 'replied'),
+      read: dispatched.where.not(read_at: nil).count, failed: count.call('failed'), replied: count.call('replied'),
+      failures: failure_codes(dispatched.failed.pluck(:external_error))
+    }
+  end
 
+  # Agregado legado por conversa (conversations.campaign_id + status das mensagens-template).
+  def conversation_funnel
+    conv_ids = @campaign.conversations.pluck(:id)
     outgoing = Message.where(conversation_id: conv_ids, message_type: :outgoing)
                       .where("messages.additional_attributes -> 'template_params' ->> 'name' IS NOT NULL")
     by_status = outgoing.reorder(nil).group(:status).count
-    sent = by_status['sent'].to_i
-    delivered = by_status['delivered'].to_i
-    read = by_status['read'].to_i
-    failed = by_status['failed'].to_i
-    reached = sent + delivered + read
-
+    sent, delivered, read, failed = by_status.values_at('sent', 'delivered', 'read', 'failed').map(&:to_i)
     replied = Message.where(conversation_id: conv_ids, message_type: :incoming, private: false)
                      .where.not(content: [nil, '']).reorder(nil).distinct.count(:conversation_id)
+    {
+      conv_ids: conv_ids, total: conv_ids.size, reached: sent + delivered + read, sent: sent, delivered: delivered,
+      read: read, failed: failed, replied: replied,
+      failures: failure_codes(outgoing.where(status: :failed).find_each.map(&:external_error)) # store em content_attributes
+    }
+  end
+
+  def failure_codes(errors)
+    codes = errors.each_with_object(Hash.new(0)) { |error, acc| acc[error.to_s[/\A\d+/] || 'outro'] += 1 }
+    codes.map { |code, n| { code: code, count: n } }.sort_by { |h| -h[:count] }
+  end
+
+  # O que a Meta informou no status de cada envio (`pricing`): quantos foram cobraveis e por
+  # categoria. Valor em dinheiro depende de tabela de preco por categoria e pais, que nao existe
+  # aqui — este e o ponto onde ela entraria.
+  def campaign_cost
+    priced = @campaign.campaign_recipients.where("pricing <> '{}'::jsonb")
+    { billable: priced.where("pricing ->> 'billable' = 'true'").count,
+      by_category: priced.reorder(nil).group(Arel.sql("pricing ->> 'category'")).count }
+  end
+
+  # Agregado read-only do disparo. Campanha com destinatarios (motor Campaigns::Whatsapp) conta
+  # pelo DESTINATARIO; sem eles (disparos antigos que so gravavam campaign_id na conversa) cai
+  # no agregado por conversa, que e o unico rastro que esses disparos deixaram.
+  def campaign_stats # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    funnel = @campaign.campaign_recipients.exists? ? recipient_funnel : conversation_funnel
+    conv_ids, failures = funnel.values_at(:conv_ids, :failures)
+    total, reached, sent, delivered, read, failed, replied =
+      funnel.values_at(:total, :reached, :sent, :delivered, :read, :failed, :replied)
 
     dist = Conversation.where(id: conv_ids).where.not(assignee_id: nil).reorder(nil).group(:assignee_id).count
     agent_names = User.where(id: dist.keys).pluck(:id, :name).to_h
     distribution = dist.map { |aid, n| { id: aid, name: agent_names[aid] || "##{aid}", count: n } }
                        .sort_by { |h| -h[:count] }
-
-    codes = Hash.new(0)
-    outgoing.where(status: :failed).find_each { |m| codes[m.external_error.to_s[/\A\d+/] || 'outro'] += 1 }
-    failures = codes.map { |code, n| { code: code, count: n } }.sort_by { |h| -h[:count] }
 
     recent = Conversation.where(id: conv_ids).includes(:contact, :assignee)
                          .reorder(last_activity_at: :desc).limit(15).map do |conversation|
@@ -179,7 +211,7 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
       total: total, reached: reached, sent: sent, delivered: delivered, read: read, failed: failed, replied: replied,
       delivery_rate: total.zero? ? 0 : (reached.to_f / total * 100).round(1),
       read_rate: reached.zero? ? 0 : (read.to_f / reached * 100).round(1),
-      distribution: distribution, failures: failures, recent: recent
+      distribution: distribution, failures: failures, recent: recent, cost: campaign_cost
     }
   end
 end

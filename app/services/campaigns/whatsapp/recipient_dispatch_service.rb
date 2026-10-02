@@ -39,12 +39,14 @@ module Campaigns
         end
 
         conversation = find_or_create_conversation(inbox, contact_inbox)
-        send_hsm(conversation)
+        message = send_hsm(conversation)
         close_with_team(conversation)
 
+        # `message_id` liga o destinatario a mensagem do template: e por ela que entregue, lido e
+        # falhou chegam (Campaigns::Whatsapp::RecipientTracker).
         recipient.update!(
           status: :sent, conversation_id: conversation.id, contact_id: contact_inbox.contact_id,
-          sent_at: Time.current, external_error: nil
+          message_id: message&.id, sent_at: Time.current, external_error: nil
         )
         true
       rescue StandardError => e
