@@ -43,6 +43,20 @@ module InboxCanal
     whatsapp? || (api? && waha_session_name.present?)
   end
 
+  NOMES_DE_CANAL = {
+    'Channel::Whatsapp' => 'WhatsApp', 'Channel::Instagram' => 'Instagram', 'Channel::WebWidget' => 'chat do site',
+    'Channel::Email' => 'e-mail', 'Channel::Telegram' => 'Telegram', 'Channel::Sms' => 'SMS', 'Channel::Tiktok' => 'TikTok'
+  }.freeze
+
+  # Como o cliente chama o canal desta caixa. Página do Facebook com Instagram ligado atende o Instagram.
+  def nome_do_canal
+    return 'WhatsApp' if fala_whatsapp?
+    return 'Instagram' if instagram?
+    return 'Messenger' if facebook?
+
+    NOMES_DE_CANAL[channel_type]
+  end
+
   private
 
   # Destino e principal existem para o acionamento sair por esta caixa — fora do WhatsApp não há
