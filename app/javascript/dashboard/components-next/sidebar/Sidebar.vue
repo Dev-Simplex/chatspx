@@ -93,12 +93,25 @@ const hasInternalChat = computed(() => {
   );
 });
 
+// Apps de captação de lead por formulário — os mesmos que a tela de campanhas lê.
+const LEAD_INTAKE_APPS = ['meta_lead_ads', 'site_leads'];
+
+const appIntegrations = useMapGetter('integrations/getAppIntegrations');
+
 const { isAdmin } = useAdmin();
 
-// Gate por DADO: a pagina de Rede Social so aparece para
+// Gate por DADO, como o item "Campanhas" logo abaixo: a pagina de Rede Social so aparece para
 // conta que tem comentario capturado. Conta sem canal de Instagram, ou com o campo `comments`
 // nao assinado, nao ganha item nenhum. Ver docs/SPEC-instagram-social.md §7.
 const temRedeSocial = ref(false);
+
+// A tela de campanhas só existe para conta que captura lead por formulário: sem hook
+// configurado, não há campanha nenhuma para mostrar e o item não aparece.
+const hasLeadIntake = computed(() =>
+  appIntegrations.value.some(
+    app => LEAD_INTAKE_APPS.includes(app.id) && app.hooks?.length > 0
+  )
+);
 
 // Só a conta autora (conta 3 do deploy de casa) mantém o construtor do Help
 // Center; todas as outras contas/VMs veem o portal publicado embutido.
@@ -284,6 +297,14 @@ provideSidebarContext({
 });
 
 const inboxes = useMapGetter('inboxes/getInboxes');
+// Gate por DADO do item "WhatsApp" de campanhas, no mesmo espírito do `hasLeadIntake`:
+// o disparo só existe sobre inbox WhatsApp (o `Campaign#whatsapp_blast?` exige
+// `inbox_type == 'Whatsapp'`), então conta sem esse canal não ganha a porta. Gate por
+// canal e não por campanha existente de propósito — senão a primeira campanha da conta
+// nunca poderia ser criada pela tela.
+const hasWhatsappCampaigns = computed(() =>
+  inboxes.value.some(inbox => inbox.channel_type === 'Channel::Whatsapp')
+);
 // D1 (Fase 3): contador de pedidos de atendimento pendentes (item "Pedidos" só
 // aparece quando há algum — sem poluir a sidebar de quem não usa o modo).
 const takeoverRequestCount = useMapGetter('takeoverRequests/getIncomingCount');
@@ -311,6 +332,9 @@ onMounted(() => {
   // Carrega os canais do chat interno para o badge de não lidas aparecer (e o
   // tempo-real incrementar) mesmo sem abrir a página do chat.
   if (hasInternalChat.value) store.dispatch('internalChat/fetchChannels');
+  // Só para saber se a conta tem captação de lead configurada (o item "Campanhas"
+  // some quando não tem). O payload não expõe settings de hook para não-admin.
+  if (!appIntegrations.value.length) store.dispatch('integrations/get');
   // So para saber se a conta tem comentario publico capturado (o item "Rede Social" some quando
   // nao tem). Admin-only porque o endpoint tambem e.
   if (isAdmin.value) {
@@ -812,8 +836,42 @@ const menuItems = computed(() => {
         },
       ],
     },
-    // Campanhas saiu do menu em 17/09/2026 por decisão de produto. As telas seguem no
-    // código e abrem por link direto (/campaigns/whatsapp, /campaigns/lead_ads).
+    // Campanhas volta como UM item, com os filhos aparecendo por DADO — mesmo critério do
+    // `hasLeadIntake` e das telas de Unidades e Rede Social: a conta só ganha a porta quando
+    // existe o que mostrar atrás dela. Antes eram dois itens disputando o rótulo "Campanhas".
+    //
+    // Live chat e SMS seguem desligados desde 640ad1365b (24/07). Só o WhatsApp voltou,
+    // porque a tela dele deixou de ser visualizador: ela agora OPERA o disparo (conferir a
+    // audiência, carregar a lista, iniciar e pausar), que antes era rake e CSV por SSH.
+    ...(hasLeadIntake.value || hasWhatsappCampaigns.value
+      ? [
+          {
+            name: 'Campaigns',
+            label: t('SIDEBAR.CAMPAIGNS'),
+            icon: lordIcon('megaphone', 'i-lucide-megaphone'),
+            children: [
+              ...(hasLeadIntake.value
+                ? [
+                    {
+                      name: 'Lead Campaigns',
+                      label: t('SIDEBAR.LEAD_ADS'),
+                      to: accountScopedRoute('campaigns_lead_ads_index'),
+                    },
+                  ]
+                : []),
+              ...(hasWhatsappCampaigns.value
+                ? [
+                    {
+                      name: 'WhatsApp Campaigns',
+                      label: t('SIDEBAR.WHATSAPP'),
+                      to: accountScopedRoute('campaigns_whatsapp_index'),
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : []),
     helpCenterMenuItem.value,
     {
       name: 'Settings',
