@@ -222,6 +222,11 @@ class Message < ApplicationRecord
     data
   end
 
+  # Um video .MOV desta mensagem ainda esta virando .mp4: o envio ao cliente espera (ver Attachment#aguardando_mp4?).
+  def aguardando_mp4?
+    attachments.any?(&:aguardando_mp4?)
+  end
+
   def webhook_data
     data = {
       account: account.webhook_data,
