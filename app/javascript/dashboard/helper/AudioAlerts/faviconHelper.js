@@ -3,7 +3,7 @@ export const showBadgeOnFavicon = () => {
 
   favicons.forEach(favicon => {
     const newFileName = `/favicon-badge-${favicon.sizes[[0]]}.png`;
-    favicon.href = newFileName;
+    favicon.href = newFileName + new URL(favicon.href).search;
   });
 };
 
@@ -14,7 +14,7 @@ export const initFaviconSwitcher = () => {
     if (document.visibilityState === 'visible') {
       favicons.forEach(favicon => {
         const oldFileName = `/favicon-${favicon.sizes[[0]]}.png`;
-        favicon.href = oldFileName;
+        favicon.href = oldFileName + new URL(favicon.href).search;
       });
     }
   });

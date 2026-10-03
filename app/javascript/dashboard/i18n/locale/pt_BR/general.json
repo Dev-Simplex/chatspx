@@ -14,6 +14,7 @@
     "LATER": "Agora não"
   },
   "GENERAL": {
+    "LOADING_WORKSPACE": "Carregando seu espaço de trabalho...",
     "SHOWING_RESULTS": "Mostrando {firstIndex}—{lastIndex} de {totalCount} itens",
     "PHONE_INPUT": {
       "PLACEHOLDER": "Pesquisar",
