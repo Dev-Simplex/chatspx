@@ -315,6 +315,46 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         expect(history.pluck(:content).join(' ')).not_to include('99635')
         expect(history.pluck(:content)).to include('[contato "Suporte" enviado pelo sistema]')
       end
+
+      # CHAT-180 (conv 22777): a fala do atendente humano entrava como turno `assistant`, e a
+      # IA repetia como precedente dela a autorização que o humano tinha dado.
+      context 'with a human agent message in the history' do
+        let(:atendente) { create(:user, account: account, display_name: 'Atendente') }
+
+        before do
+          conversation.update!(team: create(:team, account: account, name: 'Equipe Teste'))
+          create(:message, conversation: conversation, message_type: :outgoing, sender: atendente, content: 'fala do humano')
+          # A resposta do humano atribui a conversa a ele; a IA só volta quando ele sai — a reentrada.
+          conversation.update_columns(assignee_id: nil, assignee_agent_bot_id: assistant.mirror_agent_bot.id) # rubocop:disable Rails/SkipsModelValidations
+        end
+
+        def historico
+          history = nil
+          allow(mock_agent_runner_service).to receive(:generate_response) do |message_history:|
+            history = message_history
+            { 'response' => 'ok' }
+          end
+          described_class.perform_now(conversation, assistant)
+          history
+        end
+
+        it 'keeps the old assistant turn when the account flag is off' do
+          expect(historico).to include({ content: 'fala do humano', role: 'assistant' })
+        end
+
+        it 'sends it as a turn of someone else, labeled with name and team, when the flag is on' do
+          account.update!(custom_attributes: account.custom_attributes.merge('captain_human_origin_label' => true))
+
+          expect(historico).to include({ content: '[Atendente, time equipe teste] fala do humano', role: 'user' })
+        end
+
+        it 'keeps the AI own messages as assistant turns when the flag is on' do
+          account.update!(custom_attributes: account.custom_attributes.merge('captain_human_origin_label' => true))
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant, content: 'fala da IA')
+
+          expect(historico).to include({ content: 'fala da IA', role: 'assistant' })
+        end
+      end
     end
 
     # Regression (PR #13417): wrapping create_handoff_message and bot_handoff! in the

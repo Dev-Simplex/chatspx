@@ -111,11 +111,33 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # assistant turns); outgoing com anexo vira placeholder textual.
       content = if message.incoming?
                   with_reply_context(message, prepare_multimodal_message_content(message))
+                elsif fala_humana?(message)
+                  "#{rotulo_de_origem(message)} #{outgoing_content(message)}"
                 else
                   outgoing_content(message)
                 end
       with_forwardable_agent_name({ content: content, role: determine_role(message) }, message)
     end.tap { |history| injetar_notas(history) }
+  end
+
+  # Fala de atendente humano no histórico (CHAT-180). Como turno `assistant` ela é, para o
+  # modelo, algo que ELE disse — e a autorização que o humano deu vira precedente que a IA
+  # repete (conv 22777: "pode liberar"). Entra como turno de outra pessoa, com a origem
+  # carimbada pelo sistema. Opt-in por conta.
+  def fala_humana?(message)
+    message.outgoing? && message.sender_type == 'User' && origem_humana_rotulada?
+  end
+
+  def origem_humana_rotulada?
+    ActiveModel::Type::Boolean.new.cast(account.custom_attributes&.dig('captain_human_origin_label')).present?
+  end
+
+  # Nome do atendente e time da conversa, montados do cadastro — mesmo formato de evento entre
+  # colchetes dos placeholders de mídia.
+  def rotulo_de_origem(message)
+    nome = message.sender.try(:available_name).to_s.strip.presence || 'atendente'
+    time = @conversation.team&.name.to_s.strip
+    time.present? ? "[#{nome}, time #{time}]" : "[#{nome}]"
   end
 
   # Notas de contexto do turno. Não são mensagem no banco: não aparecem no painel nem vão
@@ -299,7 +321,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def determine_role(message)
-    message.message_type == 'incoming' ? 'user' : 'assistant'
+    message.message_type == 'incoming' || fala_humana?(message) ? 'user' : 'assistant'
   end
 
   # Foto sai como outgoing de conteudo vazio; sem o codigo, todas viram o MESMO placeholder
