@@ -33,7 +33,9 @@ class Attachments::Mp4ConversionJob < ApplicationJob
       next false unless Video::Mp4Converter.new(source).convert(output)
 
       # `attach` salva o anexo e passa pela validacao de tamanho: um .mp4 acima do limite da caixa
-      # devolve false e o envio segue com o original.
+      # devolve false e o envio segue com o original. Vira :video tambem quando o navegador mandou o
+      # .MOV sem tipo e ele entrou como :file.
+      attachment.file_type = :video
       File.open(output) do |io|
         attachment.file.attach(io: io, filename: "#{attachment.file.filename.base}.mp4", content_type: 'video/mp4')
       end

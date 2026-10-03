@@ -16,8 +16,10 @@ module AttachmentMp4Conversion
 
   private
 
+  # Pelo tipo que o ActiveStorage identifica nos bytes, e nao pelo `file_type`: navegador que nao conhece
+  # .MOV manda o arquivo sem tipo, e ele entra como :file.
   def mov_enviado?
-    video? && message&.outgoing? && file.attached? && file.blob.content_type == 'video/quicktime'
+    message&.outgoing? && file.attached? && file.blob.content_type == 'video/quicktime'
   end
 
   def schedule_mp4_conversion
