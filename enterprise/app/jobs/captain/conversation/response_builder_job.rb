@@ -158,9 +158,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     todas = @conversation.messages.where(message_type: [:incoming, :outgoing]).where(private: false)
     return todas unless janela_por_episodio?
 
-    # A fronteira é DERIVADA no instante do turno quando a tabela ainda não a tem — a
-    # tabela é populada por cron e chegaria tarde demais justamente na reentrada, que é
-    # onde o histórico velho faz estrago. Ver Captain::Conversation::EpisodeBoundary.
+    # A fronteira é DERIVADA no instante do turno, não lida da tabela do cron — ela chegaria
+    # tarde demais justamente na reentrada, que é onde o histórico velho faz estrago, e segue
+    # a segmentação do Eval. Ver Captain::Conversation::EpisodeBoundary.
     inicio = Captain::Conversation::EpisodeBoundary.new(conversation: @conversation).atual&.started_at
     # Sem fronteira alguma (conversa sem mensagem segmentável): conversa inteira.
     return todas if inicio.blank?
