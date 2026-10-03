@@ -32,12 +32,14 @@ class Attachments::Mp4ConversionJob < ApplicationJob
       attachment.file.blob.open { |file| FileUtils.cp(file.path, source) }
       next false unless Video::Mp4Converter.new(source).convert(output)
 
-      # `attach` salva o anexo e passa pela validacao de tamanho: um .mp4 acima do limite da caixa
-      # devolve false e o envio segue com o original. Vira :video tambem quando o navegador mandou o
-      # .MOV sem tipo e ele entrou como :file.
+      # Vira :video tambem quando o navegador mandou o .MOV sem tipo e ele entrou como :file. O `save`
+      # e explicito (com o file_type mudado, o `attach` nao salva sozinho) e fica dentro do bloco: o upload
+      # roda no commit e le o arquivo aberto. Um .mp4 acima do limite da caixa nao passa na validacao, o
+      # save devolve false e o envio segue com o original.
       attachment.file_type = :video
       File.open(output) do |io|
         attachment.file.attach(io: io, filename: "#{attachment.file.filename.base}.mp4", content_type: 'video/mp4')
+        attachment.save
       end
     end
   rescue ActiveStorage::FileNotFoundError
