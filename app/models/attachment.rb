@@ -21,8 +21,9 @@
 #  index_attachments_on_message_id  (message_id)
 #
 
-class Attachment < ApplicationRecord
+class Attachment < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include Rails.application.routes.url_helpers
+  include AttachmentMp4Conversion
 
   ACCEPTABLE_FILE_TYPES = %w[
     text/csv text/plain text/rtf
