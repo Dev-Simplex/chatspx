@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 
 const props = defineProps({
@@ -7,17 +8,27 @@ const props = defineProps({
   currentUserId: { type: [Number, String], default: null },
   media: { type: Array, default: () => [] },
   docs: { type: Array, default: () => [] },
+  canManage: { type: Boolean, default: false },
 });
 
-defineEmits(['close']);
+defineEmits(['close', 'manage']);
 
-const STATUS_LABEL = { online: 'online', busy: 'ocupado', offline: 'offline' };
-const labelFor = presence => STATUS_LABEL[presence] || 'offline';
+const { t } = useI18n();
+const PRESENCES = ['online', 'busy', 'offline'];
+const labelFor = presence =>
+  t(
+    `INTERNAL_CHAT.PRESENCE.${(PRESENCES.includes(presence) ? presence : 'offline').toUpperCase()}`
+  );
 
 const online = computed(() => props.conversation.presence === 'online');
 const headerStatus = computed(() => {
-  if (props.conversation.isTeam) return 'Grupo de time';
-  if (props.conversation.isGroup) return 'Grupo';
+  const count = props.conversation.members?.length || 0;
+  if (props.conversation.isTeam) {
+    return t('INTERNAL_CHAT.HEADER.TEAM_COUNT', { count });
+  }
+  if (props.conversation.isGroup) {
+    return t('INTERNAL_CHAT.HEADER.GROUP_COUNT', { count });
+  }
   return labelFor(props.conversation.presence); // DM → presença do colega
 });
 
@@ -38,16 +49,18 @@ const members = computed(() =>
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="flex flex-col h-full bg-n-solid-1">
     <header
       class="flex items-center flex-shrink-0 h-16 gap-2 px-3 border-b border-n-weak"
     >
-      <h3 class="flex-1 text-sm font-semibold text-n-slate-12">Informações</h3>
+      <h3 class="flex-1 text-sm font-semibold text-n-slate-12">
+        {{ t('INTERNAL_CHAT.HEADER.DETAILS') }}
+      </h3>
       <button
+        v-tooltip="t('INTERNAL_CHAT.INFO.CLOSE')"
         type="button"
         class="inline-flex items-center justify-center rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2"
-        title="Fechar"
+        :aria-label="t('INTERNAL_CHAT.INFO.CLOSE')"
         @click="$emit('close')"
       >
         <span class="text-lg i-lucide-x" />
@@ -73,6 +86,15 @@ const members = computed(() =>
         <p class="text-xs" :class="online ? 'text-n-brand' : 'text-n-slate-10'">
           {{ headerStatus }}
         </p>
+        <button
+          v-if="canManage"
+          type="button"
+          class="flex items-center gap-1.5 px-3 py-1.5 mt-1 text-xs font-medium rounded-lg text-n-slate-12 bg-n-alpha-2 hover:bg-n-alpha-3"
+          @click="$emit('manage')"
+        >
+          <span class="i-lucide-settings-2" />
+          {{ t('INTERNAL_CHAT.MANAGE.TITLE') }}
+        </button>
       </div>
 
       <!-- Mídia e documentos da conversa -->
@@ -80,7 +102,7 @@ const members = computed(() =>
         <p
           class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
         >
-          Mídia e documentos
+          {{ t('INTERNAL_CHAT.INFO.MEDIA') }}
         </p>
 
         <div v-if="media.length" class="grid grid-cols-3 gap-1.5 mb-3">
@@ -123,7 +145,7 @@ const members = computed(() =>
           v-if="!media.length && !docs.length"
           class="py-4 text-xs text-center text-n-slate-10"
         >
-          Nenhuma mídia ou documento nesta conversa ainda.
+          {{ t('INTERNAL_CHAT.INFO.NO_MEDIA') }}
         </p>
       </div>
 
@@ -132,7 +154,7 @@ const members = computed(() =>
         <p
           class="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
         >
-          {{ members.length }} membros
+          {{ t('INTERNAL_CHAT.HEADER.PARTICIPANTS', { count: members.length }) }}
         </p>
         <div
           v-for="m in members"
@@ -161,7 +183,7 @@ const members = computed(() =>
             v-if="m.isMe"
             class="text-[11px] px-1.5 py-0.5 rounded-full bg-n-alpha-2 text-n-slate-11"
           >
-            você
+            {{ t('INTERNAL_CHAT.INFO.YOU') }}
           </span>
         </div>
       </div>

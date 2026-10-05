@@ -1,6 +1,15 @@
 <script setup>
-import { ref, computed, nextTick, defineAsyncComponent } from 'vue';
+import {
+  ref,
+  computed,
+  watch,
+  nextTick,
+  onMounted,
+  defineAsyncComponent,
+} from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import {
   checkFileSizeLimit,
   HARD_MAXIMUM_FILE_UPLOAD_SIZE,
@@ -11,9 +20,14 @@ import CannedResponse from 'dashboard/components/widgets/conversation/CannedResp
 const props = defineProps({
   // Mensagem sendo respondida: { id, name, preview } (ou null).
   replyingTo: { type: Object, default: null },
+  // Rascunho salvo desta conversa (o composer remonta a cada troca de conversa).
+  initialDraft: { type: String, default: '' },
+  // Quem pode ser @mencionado: [{ id, name, avatar_url }] (vazio = sem menção).
+  mentionCandidates: { type: Array, default: () => [] },
 });
 
-const emit = defineEmits(['send', 'cancelReply']);
+const emit = defineEmits(['send', 'cancelReply', 'draftChange']);
+const { t } = useI18n();
 
 const EmojiInput = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiInput.vue')
@@ -22,7 +36,7 @@ const AudioRecorder = defineAsyncComponent(
   () => import('dashboard/components/widgets/WootWriter/AudioRecorder.vue')
 );
 
-const draft = ref('');
+const draft = ref(props.initialDraft);
 const showEmoji = ref(false);
 const textareaRef = ref(null);
 const fileInputRef = ref(null);
@@ -35,6 +49,73 @@ const autoResize = () => {
   if (!el) return;
   el.style.height = 'auto';
   el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
+};
+
+// Rascunho por conversa: cada mudança sobe para o pai guardar.
+watch(draft, value => emit('draftChange', value));
+
+// Abriu a conversa → já dá para digitar.
+onMounted(() =>
+  nextTick(() => {
+    autoResize();
+    textareaRef.value?.focus();
+  })
+);
+
+// ── @menção ────────────────────────────────────────────────────────────────
+// Digitou "@" (no começo ou depois de espaço) → lista dos membros; escolher
+// insere "@Nome " e o id vai junto no envio, o que avisa a pessoa.
+const mentionQuery = ref(null);
+const mentionIndex = ref(0);
+const updateMentionQuery = () => {
+  const el = textareaRef.value;
+  if (!el || !props.mentionCandidates.length) {
+    mentionQuery.value = null;
+    return;
+  }
+  const before = draft.value.slice(0, el.selectionStart);
+  const match = before.match(/(?:^|\s)@([^\s@]*)$/);
+  mentionQuery.value = match ? match[1].toLowerCase() : null;
+  mentionIndex.value = 0;
+};
+const mentionOptions = computed(() => {
+  if (mentionQuery.value === null) return [];
+  return props.mentionCandidates
+    .filter(m => (m.name || '').toLowerCase().includes(mentionQuery.value))
+    .slice(0, 6);
+});
+const pickMention = member => {
+  const el = textareaRef.value;
+  const caret = el.selectionStart;
+  const before = draft.value
+    .slice(0, caret)
+    .replace(/@[^\s@]*$/, `@${member.name} `);
+  draft.value = before + draft.value.slice(caret);
+  mentionQuery.value = null;
+  nextTick(() => {
+    el.focus();
+    el.setSelectionRange(before.length, before.length);
+    autoResize();
+  });
+};
+const moveMention = step => {
+  const total = mentionOptions.value.length;
+  mentionIndex.value = (mentionIndex.value + step + total) % total;
+};
+// Setas/Tab navegam na lista de menção só enquanto ela está aberta.
+const onMentionKey = (event, action) => {
+  if (!mentionOptions.value.length) return;
+  event.preventDefault();
+  action();
+};
+const mentionedIdsIn = text =>
+  props.mentionCandidates
+    .filter(m => m.name && text.includes(`@${m.name}`))
+    .map(m => m.id);
+
+const onInput = () => {
+  autoResize();
+  updateMentionQuery();
 };
 
 // ── Respostas prontas (picker "/") ────────────────────────────────────────────
@@ -86,7 +167,10 @@ const onFilesSelected = event => {
       attachedFiles.value.push(file);
     } else {
       useAlert(
-        `O arquivo "${file.name}" excede o limite de ${HARD_MAXIMUM_FILE_UPLOAD_SIZE} MB.`
+        t('INTERNAL_CHAT.ATTACHMENT_TOO_LARGE', {
+          name: file.name,
+          size: HARD_MAXIMUM_FILE_UPLOAD_SIZE,
+        })
       );
     }
   });
@@ -117,7 +201,9 @@ const send = () => {
     content,
     attachments: [...attachedFiles.value],
     replyToId: props.replyingTo?.id || null,
+    mentionedUserIds: mentionedIdsIn(content),
   });
+  mentionQuery.value = null;
   draft.value = '';
   attachedFiles.value = [];
   showEmoji.value = false;
@@ -128,14 +214,43 @@ const send = () => {
 // Enter escolhe a resposta. Sem match (nenhuma .mention--box), envia normalmente —
 // assim uma mensagem que começa com "/" e não é atalho ainda pode ser enviada.
 const onEnter = () => {
+  if (mentionOptions.value.length) {
+    pickMention(mentionOptions.value[mentionIndex.value]);
+    return;
+  }
   if (showCanned.value && document.querySelector('.mention--box')) return;
   send();
 };
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="relative px-4 pb-3 md:px-6 flex-shrink-0 bg-n-background">
+    <!-- @menção: lista acima do campo enquanto digita "@nome" -->
+    <div
+      v-if="mentionOptions.length"
+      class="absolute z-30 py-1 mb-2 overflow-hidden border shadow-lg left-4 md:left-6 bottom-full w-72 rounded-xl bg-n-solid-1 border-n-weak"
+    >
+      <p class="px-3 pt-1 pb-1.5 text-[11px] text-n-slate-10">
+        {{ t('INTERNAL_CHAT.COMPOSER.MENTION_HINT') }}
+      </p>
+      <button
+        v-for="(member, i) in mentionOptions"
+        :key="member.id"
+        type="button"
+        class="flex items-center w-full gap-2.5 px-3 py-1.5 text-sm text-left text-n-slate-12"
+        :class="i === mentionIndex ? 'bg-n-alpha-2' : 'hover:bg-n-alpha-1'"
+        @mousedown.prevent="pickMention(member)"
+      >
+        <Avatar
+          :name="member.name || ''"
+          :src="member.avatar_url || ''"
+          :size="24"
+          rounded-full
+        />
+        <span class="truncate">{{ member.name }}</span>
+      </button>
+    </div>
+
     <!-- Respostas prontas: aparece acima do compositor ao começar com "/" -->
     <CannedResponse
       v-if="showCanned"
@@ -160,7 +275,8 @@ const onEnter = () => {
       <button
         type="button"
         class="inline-flex items-center justify-center flex-shrink-0 rounded-full w-7 h-7 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
-        title="Cancelar resposta"
+        v-tooltip="t('INTERNAL_CHAT.COMPOSER.CANCEL_REPLY')"
+        :aria-label="t('INTERNAL_CHAT.COMPOSER.CANCEL_REPLY')"
         @click="emit('cancelReply')"
       >
         <span class="i-lucide-x" />
@@ -179,7 +295,8 @@ const onEnter = () => {
         <button
           type="button"
           class="inline-flex items-center justify-center rounded-full w-5 h-5 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
-          title="Remover anexo"
+          v-tooltip="t('INTERNAL_CHAT.COMPOSER.REMOVE_FILE')"
+          :aria-label="t('INTERNAL_CHAT.COMPOSER.REMOVE_FILE')"
           @click="removeFile(index)"
         >
           <span class="i-lucide-x" />
@@ -222,7 +339,8 @@ const onEnter = () => {
           type="button"
           class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
           :class="showEmoji ? 'text-wa-composer-send bg-n-alpha-2' : ''"
-          title="Emoji"
+          v-tooltip="t('INTERNAL_CHAT.EMOJI')"
+          :aria-label="t('INTERNAL_CHAT.EMOJI')"
           @click="toggleEmoji"
         >
           <span class="text-lg i-lucide-smile" />
@@ -238,7 +356,8 @@ const onEnter = () => {
       <button
         type="button"
         class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
-        title="Anexar arquivo"
+        v-tooltip="t('INTERNAL_CHAT.ATTACH')"
+        :aria-label="t('INTERNAL_CHAT.ATTACH')"
         @click="onPickFile"
       >
         <span class="text-lg i-lucide-paperclip" />
@@ -263,15 +382,25 @@ const onEnter = () => {
         ref="textareaRef"
         v-model="draft"
         rows="1"
-        placeholder="Digite sua mensagem..."
+        :placeholder="
+          mentionCandidates.length
+            ? t('INTERNAL_CHAT.COMPOSER.PLACEHOLDER_GROUP')
+            : t('INTERNAL_CHAT.PLACEHOLDER')
+        "
         class="reset-base flex-1 h-auto min-h-0 px-1 py-1.5 mb-0 text-sm bg-transparent outline-none resize-none text-n-slate-12 placeholder:text-wa-composer-placeholder max-h-28 leading-snug"
-        @input="autoResize"
+        @input="onInput"
+        @click="updateMentionQuery"
         @keydown.enter.exact.prevent="onEnter"
+        @keydown.tab="onMentionKey($event, onEnter)"
+        @keydown.up="onMentionKey($event, () => moveMention(-1))"
+        @keydown.down="onMentionKey($event, () => moveMention(1))"
+        @keydown.esc="mentionQuery = null"
       />
       <button
         type="button"
         class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 transition-all rounded-full shadow-sm bg-wa-composer-send text-wa-composer-send-fg hover:brightness-110 active:scale-90 disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100"
-        title="Enviar"
+        v-tooltip="t('INTERNAL_CHAT.SEND')"
+        :aria-label="t('INTERNAL_CHAT.SEND')"
         :disabled="!draft.trim() && !attachedFiles.length"
         @click="send"
       >

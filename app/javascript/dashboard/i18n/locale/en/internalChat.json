@@ -4,7 +4,9 @@
     "AUDIT": {
       "ON": "Audit on — showing all channels (admin). Click to exit.",
       "OFF": "Audit all channels (admin)",
-      "READONLY": "Audit mode (admin) — read only"
+      "READONLY": "Audit mode (admin) — read only",
+      "READONLY_HINT": "Audit mode: read-only (you are not in this conversation).",
+      "HINT": "Shows every conversation in the account. You can only read the ones you are not in."
     },
     "NEW_DM": "New direct message",
     "NEW_GROUP": "New group",
@@ -42,7 +44,9 @@
       "DESKTOP_HINT": "System alert even when the tab is in the background.",
       "SOUND": "Sound",
       "SOUND_HINT": "Play a sound on new messages.",
-      "BLOCKED": "Notifications are blocked in your browser. Enable them in the site settings to get desktop alerts."
+      "BLOCKED": "Notifications are blocked in your browser. Enable them in the site settings to get desktop alerts.",
+      "TONE": "Tone",
+      "PREVIEW": "Play the tone"
     },
     "MENTION_TOAST": "{from} mentioned you in {channel}",
     "TODAY": "Today",
@@ -89,7 +93,8 @@
       "PEOPLE": "People",
       "CONFIRM": "Share",
       "DONE": "Shared to internal chat",
-      "ERROR": "Could not share the conversation"
+      "ERROR": "Could not share the conversation",
+      "DEFAULT_NOTE": "I shared conversation #{id}"
     },
     "AUDIO": {
       "REQUESTING": "Allow the microphone in the browser prompt…",
@@ -108,6 +113,101 @@
       "PLAY_ERROR": "Couldn't play this audio.",
       "DOWNLOAD": "Download",
       "SENDING_PROGRESS": "Sending {progress}%"
+    },
+    "PRESENCE": {
+      "ONLINE": "Online",
+      "BUSY": "Busy",
+      "OFFLINE": "Offline"
+    },
+    "HEADER": {
+      "GROUP": "Group",
+      "GROUP_COUNT": "Group · {count} participants",
+      "TEAM_COUNT": "Team group · {count} participants",
+      "PARTICIPANTS": "{count} participants",
+      "DETAILS": "See details: participants, photos and files",
+      "SEARCH": "Search this conversation",
+      "MORE": "More options",
+      "SHOW_MEMBERS": "See participants",
+      "FAVORITE": "Add to favorites",
+      "UNFAVORITE": "Remove from favorites",
+      "CLEAR": "Clear conversation (just for you)"
+    },
+    "MUTE": {
+      "ON": "Mute conversation",
+      "OFF": "Unmute notifications",
+      "HINT": "No sound or alert. Mentions of you still notify.",
+      "ACTIVE": "Muted conversation: no sound or alert"
+    },
+    "LIST": {
+      "ALL": "All",
+      "UNREAD": "Unread",
+      "FAVORITES": "Favorites",
+      "TAB_PERSON": "Person",
+      "TAB_TEAMS": "Team groups",
+      "PICK_PERSON": "Choose who to talk to:",
+      "PICK_MEMBERS": "Check who is in the group:",
+      "CREATE_GROUP": "Create group",
+      "TEAMS_HINT": "One group per team, with every team member. Click to open.",
+      "SEARCH_PLACEHOLDER": "Search person, group or message…",
+      "EMPTY_TITLE": "No conversations yet",
+      "EMPTY_HINT": "Talk to a teammate or your team without leaving the app.",
+      "NO_UNREAD": "All caught up. No conversation with new messages.",
+      "NO_FAVORITES": "No favorites. Open a conversation and use ⋮ › Add to favorites.",
+      "MESSAGES": "Messages",
+      "YOU": "You",
+      "NO_MESSAGES": "No messages yet",
+      "UNREAD_COUNT": "{count} unread messages"
+    },
+    "THREAD": {
+      "LOADING": "Loading messages…",
+      "LOADING_OLDER": "Loading earlier messages…",
+      "LOAD_OLDER": "See earlier messages",
+      "START": "Start of the conversation",
+      "EMPTY_TITLE": "No messages yet",
+      "EMPTY_HINT": "Type below and press Enter. Use @ to call someone and #123 to point to a customer conversation.",
+      "NO_MATCH": "No message with that text in this conversation.",
+      "SEARCH_PLACEHOLDER": "Search this conversation…",
+      "CLOSE_SEARCH": "Close search"
+    },
+    "COMPOSER": {
+      "PLACEHOLDER_GROUP": "Write a message… (@ to mention)",
+      "MENTION_HINT": "Mention (the person gets an alert)",
+      "CANCEL_REPLY": "Cancel reply",
+      "REMOVE_FILE": "Remove attachment"
+    },
+    "BUBBLE": {
+      "REPLY": "Reply to message",
+      "COPY": "Copy",
+      "COPIED": "Message copied",
+      "EDIT": "Edit message",
+      "DELETE": "Delete",
+      "SENT": "Sent",
+      "READ": "Read",
+      "OPEN_CONVERSATION": "Open the conversation"
+    },
+    "SHARED": {
+      "OPEN": "Open",
+      "NO_NAME": "Unnamed contact"
+    },
+    "INFO": {
+      "CLOSE": "Close details",
+      "MEDIA": "Photos and files",
+      "NO_MEDIA": "No photos or files in this conversation yet.",
+      "YOU": "you"
+    },
+    "EMPTY_STATE": {
+      "PICK": "Pick a conversation on the side or start a new one.",
+      "FIRST": "Talk to teammates and teams without leaving the app. Start your first conversation.",
+      "NEW": "New conversation",
+      "TIP_MENTION": "Use @name to alert someone in a group",
+      "TIP_CONVERSATION": "Type #123 to link straight to a customer conversation",
+      "TIP_SHARE": "In a customer conversation, ⋮ › Share to internal chat",
+      "PRIVATE": "Internal messages: only your team sees them"
+    },
+    "CLEAR": {
+      "TITLE": "Clear conversation?",
+      "BODY": "Messages disappear only from your screen until you reload the page. Nothing is deleted for other participants.",
+      "CONFIRM": "Clear"
     }
   }
 }

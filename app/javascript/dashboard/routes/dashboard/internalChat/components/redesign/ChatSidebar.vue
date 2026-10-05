@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import ConversationListItem from './ConversationListItem.vue';
@@ -13,6 +14,7 @@ const props = defineProps({
   isAdmin: { type: Boolean, default: false },
   auditMode: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
+  loadError: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -21,8 +23,10 @@ const emit = defineEmits([
   'createGroup',
   'createTeam',
   'toggleAudit',
+  'retry',
 ]);
 
+const { t } = useI18n();
 const store = useStore();
 const search = ref('');
 
@@ -62,11 +66,11 @@ const composeMode = ref('dm'); // 'dm' | 'group'
 const groupName = ref('');
 const groupMemberIds = ref([]);
 
-const FILTERS = [
-  { key: 'all', label: 'Todas' },
-  { key: 'unread', label: 'Não lidas' },
-  { key: 'favorites', label: 'Favoritas' },
-];
+const FILTERS = computed(() => [
+  { key: 'all', label: t('INTERNAL_CHAT.LIST.ALL') },
+  { key: 'unread', label: t('INTERNAL_CHAT.LIST.UNREAD') },
+  { key: 'favorites', label: t('INTERNAL_CHAT.LIST.FAVORITES') },
+]);
 
 const filtered = computed(() => {
   let list = props.conversations;
@@ -78,6 +82,13 @@ const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
   if (q) list = list.filter(c => c.name.toLowerCase().includes(q));
   return list;
+});
+
+// Lista vazia no filtro: diz por quê, conforme a aba.
+const emptyFilterText = computed(() => {
+  if (search.value.trim()) return t('INTERNAL_CHAT.NO_SEARCH_RESULTS');
+  if (activeFilter.value === 'unread') return t('INTERNAL_CHAT.LIST.NO_UNREAD');
+  return t('INTERNAL_CHAT.LIST.NO_FAVORITES');
 });
 
 // Quantidade por aba (mostrada ao lado do rótulo).
@@ -131,13 +142,14 @@ defineExpose({ openCompose });
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -->
   <aside class="flex flex-col h-full bg-n-solid-1">
     <!-- Header -->
     <header
       class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0"
     >
-      <h1 class="text-lg font-bold text-n-slate-12">Chat Interno</h1>
+      <h1 class="text-lg font-bold text-n-slate-12">
+        {{ t('INTERNAL_CHAT.TITLE') }}
+      </h1>
       <div class="flex items-center gap-0.5">
         <!-- Configurações de notificação -->
         <div class="relative">
@@ -145,7 +157,8 @@ defineExpose({ openCompose });
             type="button"
             class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
             :class="showSettings ? 'text-n-brand bg-n-alpha-2' : ''"
-            title="Notificações"
+            v-tooltip="t('INTERNAL_CHAT.NOTIFICATIONS.TITLE')"
+            :aria-label="t('INTERNAL_CHAT.NOTIFICATIONS.TITLE')"
             @click="showSettings = !showSettings"
           >
             <span class="text-lg i-lucide-bell" />
@@ -165,7 +178,8 @@ defineExpose({ openCompose });
             type="button"
             class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
             :class="showCompose ? 'text-n-brand bg-n-alpha-2' : ''"
-            title="Nova conversa"
+            v-tooltip="t('INTERNAL_CHAT.EMPTY_STATE.NEW')"
+            :aria-label="t('INTERNAL_CHAT.EMPTY_STATE.NEW')"
             @click="showCompose ? closeCompose() : openCompose()"
           >
             <span class="text-lg i-lucide-square-pen" />
@@ -187,7 +201,7 @@ defineExpose({ openCompose });
                   "
                   @click="composeMode = 'dm'"
                 >
-                  Conversa
+                  {{ t('INTERNAL_CHAT.LIST.TAB_PERSON') }}
                 </button>
                 <button
                   type="button"
@@ -199,7 +213,7 @@ defineExpose({ openCompose });
                   "
                   @click="composeMode = 'group'"
                 >
-                  Novo grupo
+                  {{ t('INTERNAL_CHAT.NEW_GROUP') }}
                 </button>
                 <button
                   v-if="teams.length"
@@ -212,7 +226,7 @@ defineExpose({ openCompose });
                   "
                   @click="composeMode = 'team'"
                 >
-                  Grupos de time
+                  {{ t('INTERNAL_CHAT.LIST.TAB_TEAMS') }}
                 </button>
               </div>
 
@@ -221,11 +235,14 @@ defineExpose({ openCompose });
                 v-if="composeMode === 'dm'"
                 class="py-1 overflow-y-auto max-h-72"
               >
+                <p class="px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
+                  {{ t('INTERNAL_CHAT.LIST.PICK_PERSON') }}
+                </p>
                 <p
                   v-if="!agents.length"
                   class="px-3 py-4 text-xs text-center text-n-slate-10"
                 >
-                  Nenhum colega disponível.
+                  {{ t('INTERNAL_CHAT.NO_AGENTS') }}
                 </p>
                 <button
                   v-for="a in agents"
@@ -252,9 +269,13 @@ defineExpose({ openCompose });
                 <input
                   v-model="groupName"
                   type="text"
-                  placeholder="Nome do grupo"
+                  :placeholder="t('INTERNAL_CHAT.GROUP_NAME_PLACEHOLDER')"
+                  :aria-label="t('INTERNAL_CHAT.GROUP_NAME')"
                   class="reset-base w-full h-9 px-3 mb-2 text-sm border rounded-lg outline-none bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12 placeholder:text-n-slate-10"
                 />
+                <p class="px-1 pb-1 text-[11px] text-n-slate-10">
+                  {{ t('INTERNAL_CHAT.LIST.PICK_MEMBERS') }}
+                </p>
                 <div class="py-1 overflow-y-auto max-h-52">
                   <label
                     v-for="a in agents"
@@ -282,14 +303,14 @@ defineExpose({ openCompose });
                   :disabled="!canCreateGroup"
                   @click="createGroup"
                 >
-                  Criar grupo
+                  {{ t('INTERNAL_CHAT.LIST.CREATE_GROUP') }}
                 </button>
               </div>
 
               <!-- Grupos de time: um clique abre o grupo pronto do time -->
               <div v-else class="py-1 overflow-y-auto max-h-72">
                 <p class="px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
-                  Grupos que espelham suas equipes (membros = time).
+                  {{ t('INTERNAL_CHAT.LIST.TEAMS_HINT') }}
                 </p>
                 <button
                   v-for="team in teams"
@@ -323,7 +344,7 @@ defineExpose({ openCompose });
         <input
           v-model="search"
           type="text"
-          placeholder="Buscar conversas e mensagens..."
+          :placeholder="t('INTERNAL_CHAT.LIST.SEARCH_PLACEHOLDER')"
           class="reset-base w-full h-10 pl-9 pr-3 text-sm transition-colors border border-transparent outline-none rounded-xl bg-n-alpha-1 focus:border-n-brand focus:bg-n-background text-n-slate-12 placeholder:text-n-slate-10"
           @input="onSearchInput"
         />
@@ -340,12 +361,12 @@ defineExpose({ openCompose });
             ? 'text-n-brand border-n-brand bg-n-alpha-2'
             : 'text-n-slate-11 border-n-weak hover:bg-n-alpha-1'
         "
-        title="Ver todos os canais da conta (somente leitura nos que você não participa)"
+        v-tooltip="t('INTERNAL_CHAT.AUDIT.HINT')"
         @click="$emit('toggleAudit')"
       >
         <span class="flex items-center gap-2">
           <span class="text-sm i-lucide-shield" />
-          Ver todos os canais (admin)
+          {{ t('INTERNAL_CHAT.AUDIT.OFF') }}
         </span>
         <span
           class="relative inline-flex items-center flex-shrink-0 h-5 transition-colors rounded-full w-9"
@@ -408,6 +429,44 @@ defineExpose({ openCompose });
           </span>
         </div>
       </template>
+      <!-- Falhou ao carregar: diz e oferece tentar de novo -->
+      <div
+        v-else-if="loadError && !conversations.length"
+        class="flex flex-col items-center gap-3 px-4 py-10 text-center"
+      >
+        <span class="text-2xl i-lucide-wifi-off text-n-ruby-11" />
+        <p class="text-sm text-n-slate-12">
+          {{ t('INTERNAL_CHAT.LOAD_ERROR') }}
+        </p>
+        <button
+          type="button"
+          class="px-4 py-1.5 text-xs font-semibold rounded-lg text-n-slate-12 bg-n-alpha-2 hover:bg-n-alpha-3"
+          @click="emit('retry')"
+        >
+          {{ t('INTERNAL_CHAT.RETRY') }}
+        </button>
+      </div>
+      <!-- Ninguém conversou ainda: diz o que fazer -->
+      <div
+        v-else-if="!conversations.length && !search.trim()"
+        class="flex flex-col items-center gap-3 px-6 py-10 text-center"
+      >
+        <span class="text-3xl i-lucide-messages-square text-n-slate-9" />
+        <p class="text-sm font-medium text-n-slate-12">
+          {{ t('INTERNAL_CHAT.LIST.EMPTY_TITLE') }}
+        </p>
+        <p class="text-xs text-n-slate-11">
+          {{ t('INTERNAL_CHAT.LIST.EMPTY_HINT') }}
+        </p>
+        <button
+          type="button"
+          class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white rounded-lg bg-n-brand hover:bg-n-teal-10"
+          @click="openCompose"
+        >
+          <span class="i-lucide-square-pen" />
+          {{ t('INTERNAL_CHAT.EMPTY_STATE.NEW') }}
+        </button>
+      </div>
       <template v-else>
         <ConversationListItem
           v-for="c in filtered"
@@ -420,7 +479,7 @@ defineExpose({ openCompose });
           v-if="!filtered.length && !showMessageResults"
           class="px-4 py-10 text-sm text-center text-n-slate-10"
         >
-          Nenhuma conversa encontrada.
+          {{ emptyFilterText }}
         </p>
 
         <!-- Resultados de mensagens (busca por conteúdo, cross-channel) -->
@@ -428,7 +487,7 @@ defineExpose({ openCompose });
           <p
             class="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
           >
-            Mensagens
+            {{ t('INTERNAL_CHAT.LIST.MESSAGES') }}
           </p>
           <button
             v-for="r in searchResults"
@@ -447,14 +506,14 @@ defineExpose({ openCompose });
             </span>
             <span class="block text-xs truncate text-n-slate-10">
               <span class="text-n-slate-11">{{ r.user?.name }}:</span>
-              {{ r.content || '📎 Anexo' }}
+              {{ r.content || `📎 ${t('INTERNAL_CHAT.ATTACHMENT')}` }}
             </span>
           </button>
           <p
             v-if="!searchResults.length"
             class="px-4 py-6 text-sm text-center text-n-slate-10"
           >
-            Nenhuma mensagem encontrada.
+            {{ t('INTERNAL_CHAT.NO_RESULTS') }}
           </p>
         </template>
       </template>

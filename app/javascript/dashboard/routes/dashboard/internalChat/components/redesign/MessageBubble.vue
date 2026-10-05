@@ -1,5 +1,8 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store';
+import { frontendURL } from 'dashboard/helper/URLHelper';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
 import { useAlert } from 'dashboard/composables';
@@ -12,6 +15,8 @@ import MenuItem from 'dashboard/components/widgets/conversation/contextMenu/menu
 const props = defineProps({
   message: { type: Object, required: true },
   currentUserId: { type: [Number, String], default: null },
+  // Nomes de agentes que viram destaque quando aparecem como "@Nome".
+  mentionNames: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits([
@@ -22,6 +27,49 @@ const emit = defineEmits([
   'retry',
   'scrollTo',
 ]);
+
+const { t } = useI18n();
+const accountId = useMapGetter('getCurrentAccountId');
+const conversationPath = displayId =>
+  frontendURL(`accounts/${accountId.value}/conversations/${displayId}`);
+
+// ── Texto rico: links, #123 (conversa) e @menções ──────────────────────────
+const TOKEN_RE = /(https?:\/\/[^\s]+|#\d+)/g;
+const mentionRe = computed(() => {
+  const names = props.mentionNames
+    .slice()
+    .sort((a, b) => b.length - a.length)
+    .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return names.length ? new RegExp(`@(?:${names.join('|')})`, 'g') : null;
+});
+const splitMentions = text => {
+  const re = mentionRe.value;
+  if (!re) return [{ t: 'text', v: text }];
+  const out = [];
+  let last = 0;
+  text.replace(re, (match, idx) => {
+    if (idx > last) out.push({ t: 'text', v: text.slice(last, idx) });
+    out.push({ t: 'mention', v: match });
+    last = idx + match.length;
+    return match;
+  });
+  if (last < text.length) out.push({ t: 'text', v: text.slice(last) });
+  return out;
+};
+const contentParts = computed(() => {
+  const s = String(props.message.content || '');
+  const out = [];
+  let last = 0;
+  s.replace(TOKEN_RE, (match, _g, idx) => {
+    if (idx > last) out.push(...splitMentions(s.slice(last, idx)));
+    if (match[0] === '#') out.push({ t: 'conv', v: match, id: match.slice(1) });
+    else out.push({ t: 'link', v: match });
+    last = idx + match.length;
+    return match;
+  });
+  if (last < s.length) out.push(...splitMentions(s.slice(last)));
+  return out;
+});
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '✅', '🙏'];
 const REACTION_SLOTS = QUICK_EMOJIS.length;
@@ -89,7 +137,7 @@ const onReply = () => {
 const copyContent = async () => {
   closeAll();
   await copyTextToClipboard(props.message.content || '');
-  useAlert('Mensagem copiada');
+  useAlert(t('INTERNAL_CHAT.BUBBLE.COPIED'));
 };
 
 // Os emojis oferecidos na barra de reação: seus recentes primeiro, completando
@@ -152,32 +200,41 @@ const iReacted = emoji =>
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div
     class="flex items-end gap-2 group"
     :class="message.mine ? 'flex-row-reverse' : 'flex-row'"
     :data-msg-id="message.id"
   >
-    <Avatar
-      v-if="!message.mine"
-      :name="message.senderName || ''"
-      :src="message.avatarSrc || ''"
-      :size="28"
-      rounded-full
-      class="mb-1"
-    />
+    <!-- Em grupo: avatar no 1º balão da sequência, espaço vazio nos seguintes -->
+    <template v-if="!message.mine && message.inGroup">
+      <Avatar
+        v-if="message.showSender"
+        :name="message.senderName || ''"
+        :src="message.avatarSrc || ''"
+        :size="28"
+        rounded-full
+        class="self-start mt-5"
+      />
+      <span v-else class="flex-shrink-0 w-7" />
+    </template>
 
     <div
       class="flex flex-col max-w-[78%] md:max-w-[68%] min-w-0"
       :class="message.mine ? 'items-end' : 'items-start'"
     >
+      <span
+        v-if="message.showSender"
+        class="px-1 mb-0.5 text-xs font-semibold text-n-slate-11"
+      >
+        {{ message.senderName }}
+      </span>
       <!-- Apagada -->
       <div
         v-if="message.deleted"
         class="flex items-center gap-1.5 px-3.5 py-2 text-sm italic rounded-2xl text-n-slate-10 bg-n-alpha-1"
       >
         <span class="text-sm i-lucide-ban" />
-        Mensagem apagada
+        {{ t('INTERNAL_CHAT.DELETED') }}
       </div>
 
       <!-- Editar inline -->
@@ -199,10 +256,10 @@ const iReacted = emoji =>
             class="font-medium text-n-brand"
             @click="saveEdit"
           >
-            Salvar
+            {{ t('INTERNAL_CHAT.SAVE_EDIT') }}
           </button>
           <button type="button" class="text-n-slate-10" @click="cancelEdit">
-            Cancelar
+            {{ t('INTERNAL_CHAT.CANCEL') }}
           </button>
         </div>
       </div>
@@ -255,7 +312,8 @@ const iReacted = emoji =>
                 ? 'bubble-out-meta hover:bg-n-black/10 dark:hover:bg-white/10'
                 : 'text-n-slate-11 hover:bg-n-alpha-2'
             "
-            title="Ações da mensagem"
+            v-tooltip="t('INTERNAL_CHAT.MESSAGE_ACTIONS')"
+            :aria-label="t('INTERNAL_CHAT.MESSAGE_ACTIONS')"
             @click.stop="openMenuFromButton"
           >
             <span class="text-lg i-lucide-chevron-down" />
@@ -279,31 +337,40 @@ const iReacted = emoji =>
         >
           <div class="menu-container">
             <MenuItem
-              :option="{ icon: 'arrow-reply', label: 'Responder mensagem' }"
+              :option="{
+                icon: 'arrow-reply',
+                label: t('INTERNAL_CHAT.BUBBLE.REPLY'),
+              }"
               variant="icon"
               @click.stop="onReply"
             />
             <MenuItem
-              :option="{ icon: 'i-lucide-smile-plus', label: 'Reagir' }"
+              :option="{
+                icon: 'i-lucide-smile-plus',
+                label: t('INTERNAL_CHAT.REACT'),
+              }"
               variant="icon"
               @click.stop="toggleReactionPicker"
             />
             <MenuItem
               v-if="message.content"
-              :option="{ icon: 'clipboard', label: 'Copiar' }"
+              :option="{ icon: 'clipboard', label: t('INTERNAL_CHAT.BUBBLE.COPY') }"
               variant="icon"
               @click.stop="copyContent"
             />
             <hr v-if="message.mine" />
             <MenuItem
               v-if="message.mine"
-              :option="{ icon: 'i-lucide-pencil', label: 'Editar mensagem' }"
+              :option="{
+                icon: 'i-lucide-pencil',
+                label: t('INTERNAL_CHAT.BUBBLE.EDIT'),
+              }"
               variant="icon"
               @click.stop="startEdit"
             />
             <MenuItem
               v-if="message.mine"
-              :option="{ icon: 'delete', label: 'Excluir' }"
+              :option="{ icon: 'delete', label: t('INTERNAL_CHAT.BUBBLE.DELETE') }"
               variant="icon"
               @click.stop="askDelete"
             />
@@ -333,20 +400,22 @@ const iReacted = emoji =>
           class="absolute z-20 flex items-center gap-2 px-2 py-1 text-xs border rounded-lg shadow -top-9 bg-n-solid-1 border-n-weak"
           :class="message.mine ? 'right-1' : 'left-1'"
         >
-          <span class="whitespace-nowrap text-n-slate-11">Apagar?</span>
+          <span class="whitespace-nowrap text-n-slate-11">
+            {{ t('INTERNAL_CHAT.DELETE_Q') }}
+          </span>
           <button
             type="button"
             class="font-medium text-n-ruby-11"
             @click="doDelete"
           >
-            Apagar
+            {{ t('INTERNAL_CHAT.DELETE') }}
           </button>
           <button
             type="button"
             class="text-n-slate-10"
             @click="confirmDelete = false"
           >
-            Cancelar
+            {{ t('INTERNAL_CHAT.CANCEL') }}
           </button>
         </div>
 
@@ -361,17 +430,62 @@ const iReacted = emoji =>
             {{ message.replyTo.user_name }}
           </span>
           <span class="block text-[11px] opacity-75 truncate">
-            {{ message.replyTo.content || 'Mensagem apagada' }}
+            {{ message.replyTo.content || t('INTERNAL_CHAT.DELETED') }}
           </span>
         </button>
 
-        <!-- Texto + "editado" -->
+        <!-- Conversa de cliente compartilhada: card que abre a conversa -->
+        <router-link
+          v-if="message.sharedConversation"
+          :to="conversationPath(message.sharedConversation.display_id)"
+          class="flex items-center gap-2.5 p-2 mb-1.5 border rounded-xl border-n-weak bg-n-background/60 hover:bg-n-alpha-1 text-n-slate-12"
+        >
+          <span
+            class="flex-shrink-0 text-lg i-lucide-message-square-share text-n-brand"
+          />
+          <span class="flex-1 min-w-0">
+            <span class="block text-sm font-semibold truncate">
+              #{{ message.sharedConversation.display_id }} –
+              {{
+                message.sharedConversation.contact_name ||
+                t('INTERNAL_CHAT.SHARED.NO_NAME')
+              }}
+            </span>
+            <span class="block text-xs truncate text-n-slate-11">
+              {{ message.sharedConversation.inbox_name }}
+            </span>
+          </span>
+          <span class="flex-shrink-0 text-xs font-medium text-n-brand">
+            {{ t('INTERNAL_CHAT.SHARED.OPEN') }}
+          </span>
+        </router-link>
+
+        <!-- Texto (links, #123 e @menções clicáveis) + "editado" -->
         <p v-if="message.content" class="leading-relaxed whitespace-pre-wrap">
-          {{ message.content
-          }}<span
+          <template v-for="(part, i) in contentParts" :key="i">
+            <a
+              v-if="part.t === 'link'"
+              :href="part.v"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline break-all"
+              >{{ part.v }}</a
+            ><router-link
+              v-else-if="part.t === 'conv'"
+              v-tooltip="t('INTERNAL_CHAT.BUBBLE.OPEN_CONVERSATION')"
+              :to="conversationPath(part.id)"
+              class="font-medium underline"
+              >{{ part.v }}</router-link
+            ><span
+              v-else-if="part.t === 'mention'"
+              class="px-0.5 font-semibold rounded bg-n-brand/15"
+              >{{ part.v }}</span
+            ><template v-else>{{ part.v }}</template>
+          </template>
+          <span
             v-if="message.edited"
             class="text-[10px] opacity-60 ml-1 align-baseline"
-            >editado</span
+            >{{ t('INTERNAL_CHAT.EDITED') }}</span
           >
         </p>
 
@@ -421,22 +535,27 @@ const iReacted = emoji =>
         >
           {{ message.time }}
           <span
-            v-if="message.mine && message.status === 'progress'"
+            v-if="message.delivery === 'progress'"
+            v-tooltip="t('INTERNAL_CHAT.SENDING')"
             class="text-sm i-lucide-clock"
-            title="Enviando…"
           />
           <button
-            v-else-if="message.mine && message.status === 'failed'"
+            v-else-if="message.delivery === 'failed'"
             type="button"
             class="font-medium text-n-ruby-11 hover:underline"
             @click="emit('retry', message)"
           >
-            Falhou — tentar de novo
+            {{ t('INTERNAL_CHAT.SEND_FAILED_RETRY') }}
           </button>
           <span
-            v-else-if="message.mine"
-            class="text-sm"
-            :class="message.read ? 'i-lucide-check-check' : 'i-lucide-check'"
+            v-else-if="message.delivery === 'read'"
+            v-tooltip="t('INTERNAL_CHAT.BUBBLE.READ')"
+            class="text-sm i-lucide-check-check text-n-blue-11"
+          />
+          <span
+            v-else-if="message.delivery === 'sent'"
+            v-tooltip="t('INTERNAL_CHAT.BUBBLE.SENT')"
+            class="text-sm i-lucide-check"
           />
         </span>
       </div>

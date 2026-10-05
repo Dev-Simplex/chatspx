@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 
 const props = defineProps({
@@ -9,9 +10,13 @@ const props = defineProps({
 
 defineEmits(['select']);
 
+const { t } = useI18n();
+// Prévia diz quem escreveu: "Você:" nas minhas, primeiro nome em grupo.
 const preview = computed(() => {
   const lm = props.conversation.lastMessage || {};
-  return lm.fromMe ? `Você: ${lm.preview}` : lm.preview;
+  if (!lm.preview) return t('INTERNAL_CHAT.LIST.NO_MESSAGES');
+  if (lm.fromMe) return `${t('INTERNAL_CHAT.LIST.YOU')}: ${lm.preview}`;
+  return lm.author ? `${lm.author}: ${lm.preview}` : lm.preview;
 });
 
 // Only show the green presence dot for online people (groups/offline: none).
@@ -56,7 +61,12 @@ const status = computed(() =>
       </span>
       <span class="flex items-center justify-between gap-2 mt-0.5">
         <span
-          class="block text-xs truncate"
+          v-if="conversation.muted"
+          v-tooltip="t('INTERNAL_CHAT.MUTE.ACTIVE')"
+          class="flex-shrink-0 text-xs i-lucide-bell-off text-n-slate-10"
+        />
+        <span
+          class="flex-1 block text-xs truncate"
           :class="
             conversation.unreadCount ? 'text-n-slate-12' : 'text-n-slate-10'
           "
@@ -65,7 +75,9 @@ const status = computed(() =>
         </span>
         <span
           v-if="conversation.unreadCount"
-          class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-semibold text-white rounded-full bg-n-brand flex-shrink-0"
+          v-tooltip="t('INTERNAL_CHAT.LIST.UNREAD_COUNT', { count: conversation.unreadCount })"
+          class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-semibold text-white rounded-full flex-shrink-0"
+          :class="conversation.muted ? 'bg-n-slate-9' : 'bg-n-brand'"
         >
           {{ conversation.unreadCount }}
         </span>

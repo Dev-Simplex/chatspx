@@ -4,7 +4,9 @@
     "AUDIT": {
       "ON": "Auditoria ativa — mostrando todos os canais (admin). Clique para sair.",
       "OFF": "Auditar todos os canais (admin)",
-      "READONLY": "Modo auditoria (admin) — somente leitura"
+      "READONLY": "Modo auditoria (admin) — somente leitura",
+      "READONLY_HINT": "Modo auditoria: só leitura (você não participa desta conversa).",
+      "HINT": "Mostra todas as conversas da conta. Nas que você não participa, só dá para ler."
     },
     "NEW_DM": "Nova mensagem direta",
     "NEW_GROUP": "Novo grupo",
@@ -42,7 +44,9 @@
       "DESKTOP_HINT": "Aviso do sistema mesmo com a aba em segundo plano.",
       "SOUND": "Som",
       "SOUND_HINT": "Toca um som ao receber mensagem.",
-      "BLOCKED": "As notificações estão bloqueadas no navegador. Habilite-as nas configurações do site para receber alertas no desktop."
+      "BLOCKED": "As notificações estão bloqueadas no navegador. Habilite-as nas configurações do site para receber alertas no desktop.",
+      "TONE": "Toque",
+      "PREVIEW": "Ouvir o toque"
     },
     "MENTION_TOAST": "{from} mencionou você em {channel}",
     "TODAY": "Hoje",
@@ -89,7 +93,8 @@
       "PEOPLE": "Pessoas",
       "CONFIRM": "Compartilhar",
       "DONE": "Conversa compartilhada no chat interno",
-      "ERROR": "Não foi possível compartilhar a conversa"
+      "ERROR": "Não foi possível compartilhar a conversa",
+      "DEFAULT_NOTE": "Compartilhei a conversa #{id}"
     },
     "AUDIO": {
       "REQUESTING": "Permita o microfone no aviso do navegador…",
@@ -108,6 +113,101 @@
       "PLAY_ERROR": "Não foi possível tocar este áudio.",
       "DOWNLOAD": "Baixar",
       "SENDING_PROGRESS": "Enviando {progress}%"
+    },
+    "PRESENCE": {
+      "ONLINE": "Online",
+      "BUSY": "Ocupado",
+      "OFFLINE": "Offline"
+    },
+    "HEADER": {
+      "GROUP": "Grupo",
+      "GROUP_COUNT": "Grupo · {count} participantes",
+      "TEAM_COUNT": "Grupo do time · {count} participantes",
+      "PARTICIPANTS": "{count} participantes",
+      "DETAILS": "Ver detalhes: participantes, fotos e arquivos",
+      "SEARCH": "Buscar nesta conversa",
+      "MORE": "Mais opções",
+      "SHOW_MEMBERS": "Ver participantes",
+      "FAVORITE": "Favoritar conversa",
+      "UNFAVORITE": "Remover dos favoritos",
+      "CLEAR": "Limpar conversa (só para você)"
+    },
+    "MUTE": {
+      "ON": "Silenciar conversa",
+      "OFF": "Reativar notificações",
+      "HINT": "Sem som nem aviso. Menção a você continua avisando.",
+      "ACTIVE": "Conversa silenciada: sem som nem aviso"
+    },
+    "LIST": {
+      "ALL": "Todas",
+      "UNREAD": "Não lidas",
+      "FAVORITES": "Favoritas",
+      "TAB_PERSON": "Pessoa",
+      "TAB_TEAMS": "Grupos de time",
+      "PICK_PERSON": "Escolha com quem conversar:",
+      "PICK_MEMBERS": "Marque quem participa do grupo:",
+      "CREATE_GROUP": "Criar grupo",
+      "TEAMS_HINT": "Um grupo por time, com todos os membros do time. Clique para abrir.",
+      "SEARCH_PLACEHOLDER": "Buscar pessoa, grupo ou mensagem…",
+      "EMPTY_TITLE": "Nenhuma conversa ainda",
+      "EMPTY_HINT": "Converse com um colega ou com seu time sem sair do sistema.",
+      "NO_UNREAD": "Tudo lido. Nenhuma conversa com mensagem nova.",
+      "NO_FAVORITES": "Nenhuma favorita. Abra uma conversa e use ⋮ › Favoritar.",
+      "MESSAGES": "Mensagens",
+      "YOU": "Você",
+      "NO_MESSAGES": "Nenhuma mensagem ainda",
+      "UNREAD_COUNT": "{count} mensagens não lidas"
+    },
+    "THREAD": {
+      "LOADING": "Carregando mensagens…",
+      "LOADING_OLDER": "Carregando mensagens anteriores…",
+      "LOAD_OLDER": "Ver mensagens anteriores",
+      "START": "Início da conversa",
+      "EMPTY_TITLE": "Nenhuma mensagem ainda",
+      "EMPTY_HINT": "Escreva abaixo e tecle Enter. Use @ para chamar alguém e #123 para citar uma conversa de cliente.",
+      "NO_MATCH": "Nenhuma mensagem com esse texto nesta conversa.",
+      "SEARCH_PLACEHOLDER": "Buscar nesta conversa…",
+      "CLOSE_SEARCH": "Fechar busca"
+    },
+    "COMPOSER": {
+      "PLACEHOLDER_GROUP": "Escreva uma mensagem… (@ para mencionar)",
+      "MENTION_HINT": "Mencionar (a pessoa recebe um aviso)",
+      "CANCEL_REPLY": "Cancelar resposta",
+      "REMOVE_FILE": "Remover anexo"
+    },
+    "BUBBLE": {
+      "REPLY": "Responder mensagem",
+      "COPY": "Copiar",
+      "COPIED": "Mensagem copiada",
+      "EDIT": "Editar mensagem",
+      "DELETE": "Excluir",
+      "SENT": "Enviada",
+      "READ": "Lida",
+      "OPEN_CONVERSATION": "Abrir a conversa"
+    },
+    "SHARED": {
+      "OPEN": "Abrir",
+      "NO_NAME": "Contato sem nome"
+    },
+    "INFO": {
+      "CLOSE": "Fechar detalhes",
+      "MEDIA": "Fotos e arquivos",
+      "NO_MEDIA": "Nenhuma foto ou arquivo nesta conversa ainda.",
+      "YOU": "você"
+    },
+    "EMPTY_STATE": {
+      "PICK": "Escolha uma conversa ao lado ou comece uma nova.",
+      "FIRST": "Converse com colegas e times sem sair do sistema. Comece pela primeira conversa.",
+      "NEW": "Nova conversa",
+      "TIP_MENTION": "Use @nome para avisar alguém no grupo",
+      "TIP_CONVERSATION": "Escreva #123 para levar direto à conversa do cliente",
+      "TIP_SHARE": "Na conversa do cliente, ⋮ › Compartilhar no chat interno",
+      "PRIVATE": "Mensagens internas: só a sua equipe vê"
+    },
+    "CLEAR": {
+      "TITLE": "Limpar conversa?",
+      "BODY": "As mensagens somem só da sua tela até recarregar a página. Nada é apagado para os outros participantes.",
+      "CONFIRM": "Limpar"
     }
   }
 }

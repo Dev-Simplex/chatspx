@@ -46,7 +46,11 @@ const share = async () => {
       channelId: selected.value.type === 'channel' ? selected.value.id : null,
       userId: selected.value.type === 'agent' ? selected.value.id : null,
       conversationDisplayId: displayId.value,
-      note: note.value.trim(),
+      // O backend exige texto: sem comentário vai uma frase padrão (o card com
+      // o link da conversa aparece junto no balão).
+      note:
+        note.value.trim() ||
+        t('INTERNAL_CHAT.SHARE.DEFAULT_NOTE', { id: displayId.value }),
     });
     useAlert(t('INTERNAL_CHAT.SHARE.DONE'));
     close();
