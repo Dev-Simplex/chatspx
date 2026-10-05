@@ -100,7 +100,7 @@ watch(
           <input
             v-model="name"
             type="text"
-            class="flex-1 px-3 py-2 text-sm bg-n-alpha-1 border border-n-weak rounded-lg text-n-slate-12 focus:outline-none focus:border-n-brand"
+            class="reset-base flex-1 px-3 py-2 text-sm bg-n-alpha-1 border border-n-weak rounded-lg text-n-slate-12 focus:outline-none focus:border-n-brand"
             @keydown.enter.prevent="rename"
           />
           <Button
@@ -137,8 +137,10 @@ watch(
               {{ member.name }}
             </span>
             <button
+              v-tooltip="t('INTERNAL_CHAT.MANAGE.REMOVE')"
+              type="button"
               class="i-lucide-x text-n-slate-10 hover:text-n-ruby-11"
-              :title="t('INTERNAL_CHAT.MANAGE.REMOVE')"
+              :aria-label="t('INTERNAL_CHAT.MANAGE.REMOVE')"
               @click="removeMember(member)"
             />
           </div>
