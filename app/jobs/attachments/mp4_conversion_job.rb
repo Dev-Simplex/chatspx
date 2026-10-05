@@ -12,18 +12,52 @@ class Attachments::Mp4ConversionJob < ApplicationJob
     Attachments::MetaMerge.call(attachment, 'mp4' => 'falhou') if attachment
   end
 
+  # Uma conversao por vez na VM: o ffmpeg divide o teto de memoria do worker (Video::Mp4Converter#decoder_args).
+  LOCK_KEY = "MP4_CONVERSION_LOCK::#{Socket.gethostname}".freeze
+  LOCK_TTL = Video::Mp4Converter::TIMEOUT_SECONDS + 60
+  BUSY_WAIT = 10.seconds
+  # O pico medido de um 4K HEVC e ~360 MB.
+  MEMORY_NEEDED = 500.megabytes
+
   def perform(attachment_id)
     attachment = Attachment.find_by(id: attachment_id)
     return unless attachment&.converter_mp4?
 
-    if convert(attachment)
+    lock_manager = Redis::LockManager.new
+    return self.class.set(wait: BUSY_WAIT).perform_later(attachment_id) unless lock_manager.lock(LOCK_KEY, LOCK_TTL)
+
+    begin
+      run(attachment)
+    ensure
+      lock_manager.unlock(LOCK_KEY)
+    end
+  end
+
+  private
+
+  def run(attachment)
+    if !free_memory?
+      Rails.logger.warn("[Attachments::Mp4ConversionJob] sem memoria livre no worker, segue o original att=#{attachment.id}")
+      Attachments::MetaMerge.call(attachment, 'mp4' => 'falhou')
+    elsif convert(attachment)
       refresh_bubble(attachment)
     else
       Attachments::MetaMerge.call(attachment, 'mp4' => 'falhou')
     end
   end
 
-  private
+  # Folga ate o teto do cgroup do worker (memory.max - uso que nao e cache de arquivo). Fora de um
+  # cgroup com teto (dev, Docker sem limite), nao ha o que conferir.
+  def free_memory?
+    dir = "/sys/fs/cgroup#{File.read('/proc/self/cgroup')[/^0::(.*)$/, 1]}"
+    max = File.read("#{dir}/memory.max").strip
+    return true if max == 'max'
+
+    used = File.read("#{dir}/memory.current").to_i - File.read("#{dir}/memory.stat")[/^inactive_file (\d+)/, 1].to_i
+    max.to_i - used >= MEMORY_NEEDED
+  rescue SystemCallError
+    true
+  end
 
   def convert(attachment)
     Dir.mktmpdir('mp4-conversion') do |dir|
