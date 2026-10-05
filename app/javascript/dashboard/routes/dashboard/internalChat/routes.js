@@ -1,8 +1,9 @@
 import { frontendURL } from '../../../helper/URLHelper';
 import { FEATURE_FLAGS } from '../../../featureFlags';
-// Redesign visual (protótipo, dados fictícios). A página funcional antiga
-// (InternalChatIndex.vue) segue no disco para revert rápido quando quisermos.
-import InternalChatRedesign from './pages/InternalChatRedesign.vue';
+// A tela viva do chat interno é a InternalChatRedesign (dados reais). A
+// InternalChatIndex.vue está morta: não é importada em lugar nenhum.
+// Import dinâmico: o chat vira um chunk próprio e não pesa no boot do painel.
+const InternalChatRedesign = () => import('./pages/InternalChatRedesign.vue');
 
 const commonMeta = {
   permissions: ['administrator', 'agent'],

@@ -1,6 +1,19 @@
 import InternalChatAPI from '../../api/internalChat';
 
 let refetchInFlight = false;
+// Uma leitura por rajada: com a conversa aberta, cada mensagem recebida pedia um
+// POST /read. Agora espera a rajada acalmar e marca uma vez só.
+let markReadTimer = null;
+const MARK_READ_DELAY = 2000;
+
+// Prévia local dos arquivos enquanto sobem: o balão já mostra o áudio/arquivo
+// (e dá para ouvir) antes da resposta do servidor.
+const localPreviews = files =>
+  files.map((file, index) => ({
+    id: `local-${index}`,
+    filename: file.name,
+    url: URL.createObjectURL(file),
+  }));
 
 export const state = {
   channels: [],
@@ -77,24 +90,21 @@ export const actions = {
     commit('SET_AUDIT_CHANNELS', data);
   },
 
-  createDm: async ({ commit, dispatch }, userId) => {
+  createDm: async ({ commit }, userId) => {
     const { data } = await InternalChatAPI.createDm(userId);
     commit('UPSERT_CHANNEL', data);
-    await dispatch('fetchChannels');
     return data;
   },
 
-  createGroup: async ({ commit, dispatch }, { name, memberIds }) => {
+  createGroup: async ({ commit }, { name, memberIds }) => {
     const { data } = await InternalChatAPI.createGroup(name, memberIds);
     commit('UPSERT_CHANNEL', data);
-    await dispatch('fetchChannels');
     return data;
   },
 
-  createTeamChannel: async ({ commit, dispatch }, teamId) => {
+  createTeamChannel: async ({ commit }, teamId) => {
     const { data } = await InternalChatAPI.createTeamChannel(teamId);
     commit('UPSERT_CHANNEL', data);
-    await dispatch('fetchChannels');
     return data;
   },
 
@@ -122,8 +132,8 @@ export const actions = {
   // Sair da tela do chat (ou desmarcar canal) — qualquer mensagem volta a notificar.
   clearActiveChannel: ({ commit }) => commit('SET_ACTIVE_CHANNEL', null),
 
-  // Advance the read cursor for a channel (clears the badge + fires the read
-  // receipt to other members). Best-effort: audit/non-members get 403.
+  // Advance the read cursor for a channel (clears the badge). Best-effort:
+  // audit/non-members get 403.
   markRead: async ({ commit }, channelId) => {
     try {
       await InternalChatAPI.markRead(channelId);
@@ -178,7 +188,7 @@ export const actions = {
   },
 
   sendMessage: async (
-    { commit, rootGetters },
+    { commit, rootGetters, state: $state },
     {
       channelId,
       content,
@@ -192,6 +202,12 @@ export const actions = {
     // Optimistic bubble: render the message immediately (status 'progress') so a
     // slow network doesn't leave the sender staring at nothing. The server copy
     // (same echo_id) reconciles it; a failure flips it to 'failed' (with retry).
+    // O retry chega sem anexos: reaproveita os arquivos guardados no balão que
+    // falhou (senão um áudio que falhou virava mensagem vazia e falhava de novo).
+    const failed =
+      echoId &&
+      ($state.messagesByChannel[channelId] || []).find(m => m.id === echoId);
+    const files = attachments.length ? attachments : failed?.files || [];
     if (echoId) {
       const me = rootGetters.getCurrentUser || {};
       commit('APPEND_MESSAGE', {
@@ -204,7 +220,9 @@ export const actions = {
           status: 'progress',
           reactions: {},
           mentioned_user_ids: mentionedUserIds,
-          attachments: [],
+          attachments: failed?.attachments || localPreviews(files),
+          files,
+          upload_progress: files.length ? 0 : null,
           user: { id: me.id, name: me.name, avatar_url: me.avatar_url },
         },
       });
@@ -213,11 +231,20 @@ export const actions = {
     try {
       const { data } = await InternalChatAPI.sendMessage(channelId, {
         content,
-        attachments,
+        attachments: files,
         mentionedUserIds,
         replyToId,
         sharedConversationId,
         echoId,
+        onUploadProgress:
+          echoId && files.length
+            ? ({ loaded, total }) =>
+                commit('SET_UPLOAD_PROGRESS', {
+                  channelId,
+                  echoId,
+                  progress: Math.floor((loaded / total) * 100),
+                })
+            : undefined,
       });
       commit('APPEND_MESSAGE', { channelId, message: data });
       commit('SET_LAST_MESSAGE', { channelId, message: data });
@@ -311,8 +338,13 @@ export const actions = {
     // actively viewing the channel, keep it read (advances the server cursor +
     // the sender's read receipt) instead of inflating the badge.
     if (!fromMe) {
-      if (viewingThis) dispatch('markRead', channelId);
-      else commit('BUMP_UNREAD', channelId);
+      if (viewingThis) {
+        clearTimeout(markReadTimer);
+        markReadTimer = setTimeout(
+          () => dispatch('markRead', channelId),
+          MARK_READ_DELAY
+        );
+      } else commit('BUMP_UNREAD', channelId);
     }
 
     if (!fromMe && !mentionsMe && !viewingThis) {
@@ -477,6 +509,17 @@ export const mutations = {
     $state.messagesByChannel = {
       ...$state.messagesByChannel,
       [channelId]: [...existing, message],
+    };
+  },
+  SET_UPLOAD_PROGRESS($state, { channelId, echoId, progress }) {
+    const existing = $state.messagesByChannel[channelId];
+    const idx = (existing || []).findIndex(m => m.id === echoId);
+    if (idx === -1 || existing[idx].upload_progress === progress) return;
+    const next = existing.slice();
+    next.splice(idx, 1, { ...next[idx], upload_progress: progress });
+    $state.messagesByChannel = {
+      ...$state.messagesByChannel,
+      [channelId]: next,
     };
   },
   MARK_MESSAGE_FAILED($state, { channelId, echoId }) {

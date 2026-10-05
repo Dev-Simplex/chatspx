@@ -60,6 +60,7 @@ class InternalChatAPI extends ApiClient {
       replyToId = null,
       sharedConversationId = null,
       echoId = null,
+      onUploadProgress,
     }
   ) {
     const formData = new FormData();
@@ -70,7 +71,9 @@ class InternalChatAPI extends ApiClient {
     if (sharedConversationId)
       formData.append('shared_conversation_id', sharedConversationId);
     if (echoId) formData.append('echo_id', echoId);
-    return axios.post(`${this.url}/${channelId}/internal_messages`, formData);
+    return axios.post(`${this.url}/${channelId}/internal_messages`, formData, {
+      onUploadProgress,
+    });
   }
 
   editMessage(channelId, messageId, content) {
