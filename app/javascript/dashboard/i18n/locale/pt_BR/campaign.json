@@ -174,11 +174,28 @@
         "CODE": "Código Meta",
         "REASON": "Motivo",
         "NO_AGENT": "Sem dono",
+        "NO_FAILURES": "Nenhuma falha registrada.",
+        "CAMPAIGN_STATUS": {
+          "active": "Ativa",
+          "completed": "Concluída"
+        },
+        "CONVERSATION_STATUS": {
+          "open": "Aberta",
+          "resolved": "Resolvida",
+          "pending": "Pendente",
+          "snoozed": "Adiada"
+        },
+        "TABLE": {
+          "CONTACT": "Contato",
+          "LAST_REPLY": "Última resposta",
+          "STATUS": "Situação"
+        },
         "CODES": {
           "131026": "Sem WhatsApp",
           "130472": "Pacing Meta",
           "131049": "Pacing Meta",
-          "outro": "Outro"
+          "outro": "Outro",
+          "unknown": "Erro não catalogado"
         }
       },
       "CREATE": {
@@ -234,8 +251,41 @@
           "failed": "Falhou"
         },
         "START": "Iniciar disparo",
+        "RESUME": "Retomar disparo",
+        "CONFIRM": {
+          "TITLE": "Iniciar o disparo?",
+          "TITLE_RESUME": "Retomar o disparo?",
+          "IRREVERSIBLE": "As mensagens começam a sair agora, e enviada não se desfaz.",
+          "RECIPIENTS": "Vai para",
+          "TEMPLATE": "Template",
+          "NO_TEMPLATE": "nenhum configurado",
+          "PACING": "Ritmo",
+          "PACING_VALUE": "1 a cada {seconds}s (~{rate}/min)",
+          "QUIET": "Janela de silêncio",
+          "QUIET_VALUE": "das {start} às {end}",
+          "NO_QUIET": "nenhuma — envia a qualquer hora",
+          "PREVIEW": "Como a mensagem vai chegar",
+          "PREVIEW_FOR": "Como vai chegar para {name}",
+          "NO_BODY": "Este template não está sincronizado nesta caixa, então não dá para mostrar o texto. Sincronize os templates antes de disparar.",
+          "MISSING": "O template espera {vars} e o valor está vazio — a mensagem sai com a lacuna em branco.",
+          "DIRTY": "Há alteração não salva na configuração acima. O disparo usa o que está salvo, não o que está na tela."
+        },
         "PAUSE": "Pausar",
         "PROGRESS": "{done} de {total} processados",
+        "PROGRESS_LABEL": "Progresso do disparo",
+        "FAILED_NOTE": "{count} não foram entregues.",
+        "IGNORED_LINES": "{count} linha(s) sem telefone reconhecível foram ignoradas.",
+        "FILE_LABEL": "Arquivo CSV com a lista",
+        "ORIGIN": {
+          "SIMULACAO": "Simulação — {source}. Nada foi carregado ainda.",
+          "CARREGADO": "Carregado — {source}. Estes destinatários estão gravados."
+        },
+        "TABLE": {
+          "REASON": "Motivo",
+          "COUNT": "Quantos",
+          "NAME": "Nome",
+          "PHONE": "Telefone"
+        },
         "RECIPIENT_STATUS": {
           "pending": "Na fila",
           "processing": "Enviando",
@@ -278,6 +328,7 @@
         "TEMPLATE_DOWNLOAD": "Baixar o modelo",
         "NOT_CSV": "Planilha (.xlsx/.xls) não é lida aqui. Salve como CSV — o botão do modelo entrega o formato certo.",
         "SOURCE": {
+          "GROUP": "Origem do público",
           "PLANILHA": "De uma planilha",
           "SEGMENTO": "Da base de contatos"
         },
@@ -304,6 +355,8 @@
         "ASSIGNEE_HINT": "Só em caixa sem IA: atribuir uma pessoa cala o agente de IA.",
         "PACING": "Segundos entre uma mensagem e outra",
         "PACING_HINT": "Cerca de {rate} mensagens por minuto.",
+        "PACING_INVALID": "Informe um número de 1 a 60. Em branco o motor entenderia 0.",
+        "UNSAVED": "Alteração não salva",
         "QUIET": "Janela de silêncio (não envia)",
         "QUIET_TO": "às",
         "QUIET_HINT": "Só hora cheia — 16:30 não é expressável. Deixe as duas vazias para enviar a qualquer hora.",

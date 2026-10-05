@@ -6,17 +6,26 @@
 # leitura errada antes — o job aplica tratamento de mídia e recorte de episódio que a sonda
 # improvisada não aplicava, e a conclusão saiu invertida.
 class Spx::Conduta::Regressao
+  # O que foi MEDIDO nesta execução, por nome de cenário. É a matéria-prima do congelamento de
+  # baseline — o arquivo de cenários não é reescrito (perderia os comentários, que são metade
+  # do valor dele) e o baseline vive num arquivo irmão, escrito por máquina.
+  attr_reader :medicoes
+
   def initialize(conversation:, rodadas: 6)
     @conversation = conversation
     @rodadas = rodadas
+    @medicoes = {}
   end
 
-  # Devolve quantos cenários ficaram ABAIXO do piso. Emite cada linha pelo bloco.
+  # Devolve quantos cenários ficaram ABAIXO do piso ou CAÍRAM contra o baseline. Emite cada
+  # linha pelo bloco.
   def executar(cenarios)
     falhas = 0
     ActiveRecord::Base.transaction do
       cenarios.each do |cenario|
         resultado = rodar(cenario)
+        @medicoes[cenario.fetch('nome')] =
+          Spx::Conduta::Baseline.congelar(acertos: resultado[:acertos], assistant: resultado[:assistant])
         falhas += 1 unless resultado[:ok]
         yield(formatar(cenario, resultado)) if block_given?
       end
@@ -32,7 +41,11 @@ class Spx::Conduta::Regressao
     respostas = Array.new(@rodadas) { uma_rodada(assistant, cenario.fetch('turnos')) }
     acertos = respostas.count { |r| aprovado?(r, cenario) }
     piso = cenario.fetch('piso', @rodadas)
-    { acertos: acertos, total: @rodadas, piso: piso, ok: acertos >= piso, respostas: respostas }
+    # O piso responde "está aceitável?". O baseline responde "PIOROU?" — e é a segunda pergunta
+    # que pega a regressão de prompt que fica acima do piso.
+    baseline = Spx::Conduta::Baseline.ler(cenario, acertos: acertos, assistant: assistant)
+    { acertos: acertos, total: @rodadas, piso: piso, assistant: assistant, baseline: baseline,
+      ok: acertos >= piso && !baseline.caiu?, respostas: respostas }
   end
 
   # A rodada inteira roda numa transação aninhada revertida: as mensagens de rascunho não
@@ -81,7 +94,8 @@ class Spx::Conduta::Regressao
 
   def formatar(cenario, res)
     marca = res[:ok] ? '✅' : '❌'
-    linha = "#{marca} #{cenario.fetch('nome').ljust(44)} #{res[:acertos]}/#{res[:total]} (piso #{res[:piso]})"
+    linha = "#{marca} #{cenario.fetch('nome').ljust(44)} #{res[:acertos]}/#{res[:total]} " \
+            "(piso #{res[:piso]}) · #{res[:baseline].texto}"
     return linha if res[:ok]
 
     reprovadas = res[:respostas].reject { |t| aprovado?(t, cenario) }.first(2)

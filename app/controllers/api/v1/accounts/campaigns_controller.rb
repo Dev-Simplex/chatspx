@@ -175,11 +175,55 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
                   pacing_seconds: @campaign.pacing_seconds, template_name: @campaign.template_name,
                   dispatch_config: @campaign.dispatch_config },
       dispatch_status: @campaign.dispatch_status,
+      dispatch_preview: dispatch_preview,
       recipients: @campaign.campaign_recipients.group(:status).count,
       total: total, reached: reached, sent: sent, delivered: delivered, read: read, failed: failed, replied: replied,
       delivery_rate: total.zero? ? 0 : (reached.to_f / total * 100).round(1),
       read_rate: reached.zero? ? 0 : (read.to_f / reached * 100).round(1),
       distribution: distribution, failures: failures, recent: recent
     }
+  end
+
+  # O que o PRÓXIMO destinatário pendente vai receber, já renderizado.
+  #
+  # A tela que dispara nunca mostrou a mensagem. Foi assim que 124 pessoas receberam
+  # "Oi , sou a Kettlen": o parâmetro vazio só ficou visível DEPOIS do envio, lendo o
+  # texto enviado — o status não acusa, porque a Meta aceitou.
+  #
+  # O corpo vem do template APROVADO sincronizado no canal, pelo mesmo catálogo que a
+  # engine de captação usa (`TemplateCatalog`, "a mesma lente do envio"), e os parâmetros
+  # são montados como em `Campaigns::Whatsapp::RecipientDispatchService#send_hsm`:
+  # `default_params` da campanha sobrescritos pelos do destinatário.
+  #
+  # `nil` quando não há template configurado; `body: nil` quando o template não está
+  # sincronizado/aprovado no canal — a tela diz isso em vez de inventar um corpo.
+  def dispatch_preview
+    return nil if @campaign.template_name.blank?
+
+    descritor = LeadCampaigns::TemplateCatalog.new(@campaign.inbox)
+                                              .encontrar(@campaign.template_name, @campaign.template_language)
+    proximo = @campaign.campaign_recipients.pending.order(:id).first
+    parametros = preview_params(proximo)
+
+    {
+      template_name: @campaign.template_name, template_language: @campaign.template_language,
+      contact_name: proximo&.name.presence, contact_phone: proximo&.phone_number,
+      body: descritor && render_template_body(descritor[:corpo], parametros),
+      # Variável que o template exige e o parâmetro não preenche: é a checagem que teria
+      # pego o "Oi ," ANTES de sair.
+      missing: descritor ? descritor[:variaveis].reject { |nome| parametros[nome.to_s].present? } : []
+    }
+  end
+
+  def preview_params(recipient)
+    bruto = (@campaign.dispatch_config['default_params'] || {}).merge(recipient&.template_params || {})
+    bruto.to_h { |chave, valor| [chave.to_s, valor.to_s] }
+  end
+
+  # Mesma substituição de `Whatsapp::SendTemplateService#render_synced_body`. Se as duas
+  # divergirem, o preview passa a mentir sobre o envio — e um preview que mente é pior que
+  # preview nenhum, porque é justamente nele que o operador vai confiar.
+  def render_template_body(texto, parametros)
+    texto.to_s.gsub(LeadCampaigns::TemplateCatalog::VARIAVEL) { parametros[Regexp.last_match(1).strip].to_s }
   end
 end
