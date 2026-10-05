@@ -130,6 +130,11 @@
   description: 'Cria ou atualiza o resumo vivo do atendimento da IA na conversa (atributo Resumo Atendimento IA)'
   icon: 'document'
 
+- id: consultar_historico_conversa
+  title: 'Consultar Histórico da Conversa'
+  description: 'Busca nas mensagens de antes da IA assumir a conversa, com data e origem de cada trecho'
+  icon: 'search'
+
 - id: registrar_observacao
   title: 'Registrar Observação'
   description: 'Registra uma observação como nota privada, pro humano notar ao ler o histórico'

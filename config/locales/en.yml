@@ -116,6 +116,8 @@ en:
       end_before_start: cannot be earlier than the start date
       close_before_open: cannot be earlier than the opening time
       open_and_closed: cannot be open all day and closed all day at the same time
+      single_main_whatsapp: Only one inbox can be the unit's main WhatsApp
+      channel_needs_whatsapp: Only a WhatsApp inbox can be a destination channel or the main WhatsApp
     webhook:
       invalid: Invalid events
     catalog:

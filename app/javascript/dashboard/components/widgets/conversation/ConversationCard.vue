@@ -238,6 +238,20 @@ export default {
       return Boolean(this.chat.pinned);
     },
 
+    // CHAT-165: agendada da IA pendente. O horário vem espelhado nos atributos da conversa
+    // (ScheduledMessage.sync_ai_schedule!), então o card não precisa consultar nada.
+    aiScheduledTitle() {
+      const at = this.chat.custom_attributes?.agendada_ia_em;
+      if (!at) return '';
+      const when = new Date(at).toLocaleString([], {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return this.$t('CHAT_LIST.AI_SCHEDULED_MESSAGE', { when });
+    },
+
     isInboxNameVisible() {
       return !this.activeInbox;
     },
@@ -554,6 +568,13 @@ export default {
             <span class="i-lucide-user size-3" />
             {{ assignee.name }}
           </span>
+          <span
+            v-if="aiScheduledTitle"
+            data-testid="ai-scheduled-indicator"
+            class="i-lucide-calendar-clock size-3.5 self-center text-n-slate-10"
+            :title="aiScheduledTitle"
+            :aria-label="aiScheduledTitle"
+          />
           <PriorityMark :priority="chat.priority" />
         </div>
       </div>

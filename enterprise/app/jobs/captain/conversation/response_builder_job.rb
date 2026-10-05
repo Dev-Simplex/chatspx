@@ -111,11 +111,33 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # assistant turns); outgoing com anexo vira placeholder textual.
       content = if message.incoming?
                   with_reply_context(message, prepare_multimodal_message_content(message))
+                elsif fala_humana?(message)
+                  "#{rotulo_de_origem(message)} #{outgoing_content(message)}"
                 else
                   outgoing_content(message)
                 end
       with_forwardable_agent_name({ content: content, role: determine_role(message) }, message)
     end.tap { |history| injetar_notas(history) }
+  end
+
+  # Fala de atendente humano no histórico (CHAT-180). Como turno `assistant` ela é, para o
+  # modelo, algo que ELE disse — e a autorização que o humano deu vira precedente que a IA
+  # repete (conv 22777: "pode liberar"). Entra como turno de outra pessoa, com a origem
+  # carimbada pelo sistema. Opt-in por conta.
+  def fala_humana?(message)
+    message.outgoing? && message.sender_type == 'User' && origem_humana_rotulada?
+  end
+
+  def origem_humana_rotulada?
+    ActiveModel::Type::Boolean.new.cast(account.custom_attributes&.dig('captain_human_origin_label')).present?
+  end
+
+  # Nome do atendente e time da conversa, montados do cadastro — mesmo formato de evento entre
+  # colchetes dos placeholders de mídia.
+  def rotulo_de_origem(message)
+    nome = message.sender.try(:available_name).to_s.strip.presence || 'atendente'
+    time = @conversation.team&.name.to_s.strip
+    time.present? ? "[#{nome}, time #{time}]" : "[#{nome}]"
   end
 
   # Notas de contexto do turno. Não são mensagem no banco: não aparecem no painel nem vão
@@ -125,6 +147,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     # (AgentRunnerService#extract_last_user_message). No fim do array, a nota viraria "a
     # mensagem a responder" e a fala do cliente desceria pro contexto — o que é de
     # propósito na diretiva de follow-up abaixo, mas seria errado aqui.
+    #
+    # O resumo do que veio antes da reentrada entra primeiro para ficar colado no início da
+    # janela, logo depois da nota de continuidade: os unshifts empilham ao contrário.
+    nota_reentrada = nota_de_reentrada
+    history.unshift({ content: nota_reentrada, role: 'user' }) if nota_reentrada.present?
+
     nota_episodio = nota_de_continuidade
     history.unshift({ content: nota_episodio, role: 'user' }) if nota_episodio.present?
 
@@ -156,11 +184,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # A fronteira vem do EpisodeSegmenterService, que já roda em prod pro Eval 2.0.
   def mensagens_do_contexto
     todas = @conversation.messages.where(message_type: [:incoming, :outgoing]).where(private: false)
+    # Reentrada (CHAT-180): o que veio antes de a IA assumir chega por resumo, não palavra por
+    # palavra. Soma-se ao corte por episódio — vale o mais recente dos dois.
+    todas = todas.where('messages.id > ?', corte_da_reentrada) if corte_da_reentrada
     return todas unless janela_por_episodio?
 
-    # A fronteira é DERIVADA no instante do turno quando a tabela ainda não a tem — a
-    # tabela é populada por cron e chegaria tarde demais justamente na reentrada, que é
-    # onde o histórico velho faz estrago. Ver Captain::Conversation::EpisodeBoundary.
+    # A fronteira é DERIVADA no instante do turno, não lida da tabela do cron — ela chegaria
+    # tarde demais justamente na reentrada, que é onde o histórico velho faz estrago, e segue
+    # a segmentação do Eval. Ver Captain::Conversation::EpisodeBoundary.
     inicio = Captain::Conversation::EpisodeBoundary.new(conversation: @conversation).atual&.started_at
     # Sem fronteira alguma (conversa sem mensagem segmentável): conversa inteira.
     return todas if inicio.blank?
@@ -171,6 +202,28 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     # (janela 0 de 39 turnos). No caminho real sempre há a mensagem do cliente que motivou
     # o turno, então o vazio só aparece em disparo sem resposta.
     todas.where('messages.created_at >= ?', inicio)
+  end
+
+  # Id da última mensagem que ficou fora da janela porque veio antes de a IA assumir.
+  # Opt-in por conta (captain_reentry_summary).
+  def corte_da_reentrada
+    return @corte_da_reentrada if defined?(@corte_da_reentrada)
+
+    @corte_da_reentrada = if Captain::Conversation::Reentrada.enabled_for?(account)
+                            Captain::Conversation::Reentrada.new(conversation: @conversation).corte_id
+                          end
+  end
+
+  # Só FATO, como as outras notas: o que aconteceu e quem fez. Gerado uma vez por reentrada
+  # (o JourneySummary guarda em cache pelo trecho resumido).
+  def nota_de_reentrada
+    return unless corte_da_reentrada
+
+    resumo = Captain::Conversation::JourneySummary.for(@conversation, ate: corte_da_reentrada)
+    return if resumo.blank?
+
+    '[Contexto do sistema: resumo do que aconteceu nesta conversa antes de você assumir. As mensagens ' \
+      "resumidas não estão no histórico abaixo.\n#{resumo}]"
   end
 
   def nota_de_continuidade
@@ -299,7 +352,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def determine_role(message)
-    message.message_type == 'incoming' ? 'user' : 'assistant'
+    message.message_type == 'incoming' || fala_humana?(message) ? 'user' : 'assistant'
   end
 
   # Foto sai como outgoing de conteudo vazio; sem o codigo, todas viram o MESMO placeholder
