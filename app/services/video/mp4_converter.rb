@@ -17,11 +17,14 @@ class Video::Mp4Converter
   end
 
   def convert(output_path)
-    ok = system('timeout', TIMEOUT_SECONDS.to_s, ffmpeg_path, '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
-                '-i', @source_path, '-map', '0:v:0', '-map', '0:a:0?', *video_args,
-                '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', output_path,
-                out: File::NULL, err: File::NULL)
-    ok && File.size?(output_path).present?
+    output, status = Open3.capture2e('timeout', TIMEOUT_SECONDS.to_s, ffmpeg_path, '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
+                                     '-i', @source_path, '-map', '0:v:0', '-map', '0:a:0?', *video_args,
+                                     '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', output_path)
+    return true if status.success? && File.size?(output_path).present?
+
+    # Sem ffmpeg (127) ou sem o libx264 ("Unknown encoder"), o motivo fica no log da VM.
+    Rails.logger.error("[Video::Mp4Converter] ffmpeg saiu com #{status.exitstatus}: #{output.to_s.strip.last(500)}")
+    false
   end
 
   private
