@@ -107,5 +107,15 @@ namespace :campaigns do
       puts "== Campanha ##{campaign.id} '#{campaign.title}' — dispatch=#{campaign.dispatch_status} =="
       CampaignRecipient.statuses.each_key { |s| puts "   #{s.ljust(12)} #{counts[s].to_i}" }
     end
+
+    # Uma vez, depois do deploy do rastreio por destinatário: quem foi enviado antes dele parou
+    # em `sent` e sem `message_id`, e o analítico (que agora lê o destinatário) os veria assim.
+    desc 'Reaplica entregue/lido/falhou/respondeu nos destinatários enviados antes do rastreio. [campaign_id opcional]'
+    task :backfill_tracking, [:campaign_id] => :environment do |_t, args|
+      scope = CampaignRecipient.where(status: :sent).where.not(sent_at: nil).includes(:campaign)
+      scope = scope.where(campaign_id: Integer(args[:campaign_id])) if args[:campaign_id].present?
+      scope.find_each { |recipient| Campaigns::Whatsapp::RecipientTracker.backfill(recipient) }
+      puts "== backfill concluído: #{scope.count} destinatários ainda em sent =="
+    end
   end
 end

@@ -13,7 +13,7 @@ RSpec.describe Campaigns::Whatsapp::RecipientDispatchService do
   let(:campaign) do
     create(:campaign, account: account, inbox: inbox, template_name: 'aniversario_v2', target_team_id: team.id)
   end
-  let(:sender) { instance_double(Whatsapp::SendTemplateService, perform: true) }
+  let(:sender) { instance_double(Whatsapp::SendTemplateService, perform: nil) }
 
   before { allow(Whatsapp::SendTemplateService).to receive(:new).and_return(sender) }
 
@@ -44,5 +44,16 @@ RSpec.describe Campaigns::Whatsapp::RecipientDispatchService do
 
     expect(recipient).to be_sent
     expect(recipient.contact.phone_number).to eq('+5566992927211')
+  end
+
+  # É pela mensagem do template que entregue, lido e falhou chegam ao destinatário.
+  it 'liga o destinatário à mensagem do template enviada' do
+    message = create(:message, account: account, inbox: inbox, message_type: :outgoing)
+    allow(sender).to receive(:perform).and_return(message)
+
+    recipient = dispatch('+5566992927211')
+
+    expect(recipient).to be_sent
+    expect(recipient.message_id).to eq(message.id)
   end
 end

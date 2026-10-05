@@ -158,6 +158,22 @@ describe Whatsapp::IncomingMessageService do
         expect(message.external_error).to eq('123: abc')
       end
 
+      # O custo do disparo: a Meta manda `pricing` no status e ele era descartado.
+      it 'grava o pricing do status no destinatário da campanha' do
+        message = Message.find_by!(source_id: from)
+        campaign = create(:campaign, account: whatsapp_channel.account, inbox: whatsapp_channel.inbox)
+        recipient = CampaignRecipient.create!(campaign: campaign, account: whatsapp_channel.account, phone_number: "+#{from}",
+                                              status: :sent, message_id: message.id)
+        pricing = { 'billable' => true, 'pricing_model' => 'PMP', 'category' => 'marketing', 'type' => 'regular' }
+        status_params = {
+          'statuses' => [{ 'recipient_id' => from, 'id' => from, 'status' => 'delivered', 'pricing' => pricing }]
+        }.with_indifferent_access
+
+        described_class.new(inbox: whatsapp_channel.inbox, params: status_params).perform
+
+        expect(recipient.reload.pricing).to eq(pricing)
+      end
+
       it 'will not throw error if unsupported status' do
         status_params = {
           'statuses' => [{ 'recipient_id' => from, 'id' => from, 'status' => 'deleted',
