@@ -27,6 +27,8 @@ json.updated_at unit.updated_at
 
 # Caixas desta unidade — a tela mostra quais linhas atendem por aqui.
 json.inbox_ids unit.inboxes.map(&:id)
+# Papel e destino de cada caixa — sem sair aqui, a tela abriria vazia e o próximo salvar apagaria.
+json.canais(unit.inboxes.map { |caixa| { inbox_id: caixa.id }.merge(caixa.canal_config) })
 
 json.working_hours unit.working_hours.sort_by(&:day_of_week) do |hora|
   json.id hora.id

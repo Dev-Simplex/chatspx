@@ -49,6 +49,7 @@ class Inbox < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include AccountCacheRevalidator
   include InboxAgentAvailability
   include InboxReadOnly
+  include InboxCanal
 
   # Fixar conversa POR CAIXA: `pin_mode` escolhe entre 'per_agent' (padrao) e 'per_inbox',
   # e `pinned_conversation_ids` guarda a lista quando o modo e por caixa. Restaurado a mao
