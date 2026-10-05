@@ -33,6 +33,28 @@ class Spx::Harness::Afirmacoes
   FONTES_DE_EVIDENCIA = %w[buscar_imovel buscar_empreendimento apresentar_imoveis
                            consultar_chave_imovel buscar_unidades].freeze
 
+  # Afirmação sobre A EMPRESA — telefone, endereço, horário. Classe própria porque a fonte é
+  # OUTRA e é única: só a `buscar_unidades` devolve esses dados.
+  #
+  # O que torna isto pior que uma afirmação sobre imóvel: o telefone certo da Tozi existe em UM
+  # lugar só, a tabela `units`. Não está no prompt, não está em FAQ, não está em documento
+  # nenhum. Então não chamar a ferramenta não produz "não sei" — produz número INVENTADO, com a
+  # confiança de um fato. Medido na conv 42863 (28/09/2026): a IA respondeu "(66) 3531-2284",
+  # duas vezes, e esse número não existe em lugar nenhum do sistema; o certo, 3531-7222, vive
+  # só na `units`. Um humano corrigiu 8 minutos depois.
+  #
+  # O prompt da agente manda consultar, com seção própria e título literal ("Endereço, telefone
+  # e horário vêm da ferramenta, não da sua memória"). Ela tinha a ferramenta armada e ignorou
+  # as duas — regra em prompt não é trava.
+  FONTES_DA_EMPRESA = %w[buscar_unidades enviar_localizacao].freeze
+
+  # Telefone fixo ou celular brasileiro, com ou sem DDD e com qualquer separador. O piso de 8
+  # dígitos é o que separa telefone de preço, de código de imóvel e de CEP.
+  PADROES_EMPRESA = {
+    'telefone' => /(?:\(?\d{2}\)?[\s.-]?)?\d{4,5}[\s.-]\d{4}\b/,
+    'endereco' => /\b(?:av\.?|avenida|rua|travessa|alameda|rodovia|estrada|pra[çc]a)\b[^,;\n]{2,60},\s*\d{1,6}\b/i
+  }.freeze
+
   # Campo do Vista -> tipo de afirmação. Vem do que a ficha do PropertyRefContextService
   # REALMENTE traz (a constante FIELDS de lá): Codigo, Categoria, Status, ValorVenda,
   # ValorLocacao, ValorCondominio, Bairro, Cidade, Dormitorios.
@@ -60,7 +82,15 @@ class Spx::Harness::Afirmacoes
           { 'classe' => 'imovel', 'tipo' => tipo, 'valor' => valor } if valor
         end
       end
-      (imovel + acoes(texto)).uniq
+      (imovel + empresa(texto) + acoes(texto)).uniq
+    end
+
+    # Telefone e endereço da empresa na fala do agente.
+    def empresa(texto)
+      PADROES_EMPRESA.filter_map do |tipo, rx|
+        casado = texto.to_s[rx]
+        { 'classe' => 'empresa', 'tipo' => tipo, 'valor' => casado.strip } if casado
+      end
     end
 
     def acoes(texto)
@@ -78,8 +108,20 @@ class Spx::Harness::Afirmacoes
     # O veredito de UMA afirmação: [esperado, motivo].
     def esperado(afirmacao, chamadas, instante, ficha: nil)
       return acao(afirmacao, chamadas, instante) if afirmacao['classe'] == 'acao'
+      return empresa_consultada(chamadas, instante) if afirmacao['classe'] == 'empresa'
 
       imovel(afirmacao, chamadas, instante, ficha)
+    end
+
+    # Telefone e endereço da empresa NÃO têm outra fonte. Sem consulta, é invenção — não há
+    # ficha nem histórico que possa confirmá-los, ao contrário do que acontece com imóvel.
+    def empresa_consultada(chamadas, instante)
+      consultou = Array(chamadas).any? do |c|
+        FONTES_DA_EMPRESA.include?(c['tool'].to_s) && c['em'].to_s < instante.to_s
+      end
+      return ['conferir_contra_unidades', 'a ferramenta foi consultada antes da fala'] if consultou
+
+      ['bloquear', 'nenhuma consulta às unidades precedeu a fala — telefone e endereço não têm outra fonte']
     end
 
     def evidencia_antes(chamadas, instante)
