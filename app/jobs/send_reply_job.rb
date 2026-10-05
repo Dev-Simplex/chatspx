@@ -3,6 +3,8 @@ class SendReplyJob < ApplicationJob
   retry_on StandardError, wait: :polynomially_longer, attempts: 5
   discard_on ActiveJob::DeserializationError
 
+  MP4_RETRY_WAIT = 5.seconds
+
   CHANNEL_SERVICES = {
     'Channel::TwitterProfile' => ::Twitter::SendOnTwitterService,
     'Channel::TwilioSms' => ::Twilio::SendOnTwilioService,
@@ -21,6 +23,8 @@ class SendReplyJob < ApplicationJob
     message = Message.find(message_id)
     # CHAT-155: ultima barreira -- reenvio (retry) e agendada reusam uma Message que ja existia.
     return if message.conversation.inbox.read_only?
+    # Video .MOV ainda virando .mp4 (Attachments::Mp4ConversionJob): volta depois, para sair ja convertido.
+    return self.class.set(wait: MP4_RETRY_WAIT).perform_later(message_id) if message.aguardando_mp4?
 
     channel_name = message.conversation.inbox.channel.class.to_s
 
