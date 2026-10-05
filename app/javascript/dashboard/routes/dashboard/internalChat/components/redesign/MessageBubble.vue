@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import { useMapGetter } from 'dashboard/composables/store';
 import { frontendURL } from 'dashboard/helper/URLHelper';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -9,6 +10,7 @@ import { useAlert } from 'dashboard/composables';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 // Mesmas peças do menu de mensagem do chat normal — o menu do chat interno
 // passa a ser idêntico ao de lá (lista com rótulo, não uma pílula de ícones).
+import AudioPlayer from './AudioPlayer.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import MenuItem from 'dashboard/components/widgets/conversation/contextMenu/menuItem.vue';
 
@@ -29,6 +31,7 @@ const emit = defineEmits([
 ]);
 
 const { t } = useI18n();
+const router = useRouter();
 const accountId = useMapGetter('getCurrentAccountId');
 const conversationPath = displayId =>
   frontendURL(`accounts/${accountId.value}/conversations/${displayId}`);
@@ -305,6 +308,7 @@ const iReacted = emoji =>
           />
           <button
             ref="dropdownButtonRef"
+            v-tooltip="t('INTERNAL_CHAT.MESSAGE_ACTIONS')"
             type="button"
             class="relative z-10 inline-flex items-center justify-center w-8 h-8 transition-colors rounded-md"
             :class="
@@ -312,7 +316,6 @@ const iReacted = emoji =>
                 ? 'bubble-out-meta hover:bg-n-black/10 dark:hover:bg-white/10'
                 : 'text-n-slate-11 hover:bg-n-alpha-2'
             "
-            v-tooltip="t('INTERNAL_CHAT.MESSAGE_ACTIONS')"
             :aria-label="t('INTERNAL_CHAT.MESSAGE_ACTIONS')"
             @click.stop="openMenuFromButton"
           >
@@ -354,7 +357,10 @@ const iReacted = emoji =>
             />
             <MenuItem
               v-if="message.content"
-              :option="{ icon: 'clipboard', label: t('INTERNAL_CHAT.BUBBLE.COPY') }"
+              :option="{
+                icon: 'clipboard',
+                label: t('INTERNAL_CHAT.BUBBLE.COPY'),
+              }"
               variant="icon"
               @click.stop="copyContent"
             />
@@ -370,7 +376,10 @@ const iReacted = emoji =>
             />
             <MenuItem
               v-if="message.mine"
-              :option="{ icon: 'delete', label: t('INTERNAL_CHAT.BUBBLE.DELETE') }"
+              :option="{
+                icon: 'delete',
+                label: t('INTERNAL_CHAT.BUBBLE.DELETE'),
+              }"
               variant="icon"
               @click.stop="askDelete"
             />
@@ -470,12 +479,13 @@ const iReacted = emoji =>
               rel="noopener noreferrer"
               class="underline break-all"
               >{{ part.v }}</a
-            ><router-link
+            ><a
               v-else-if="part.t === 'conv'"
               v-tooltip="t('INTERNAL_CHAT.BUBBLE.OPEN_CONVERSATION')"
-              :to="conversationPath(part.id)"
+              :href="conversationPath(part.id)"
               class="font-medium underline"
-              >{{ part.v }}</router-link
+              @click.prevent="router.push(conversationPath(part.id))"
+              >{{ part.v }}</a
             ><span
               v-else-if="part.t === 'mention'"
               class="px-0.5 font-semibold rounded bg-n-brand/15"
@@ -509,12 +519,7 @@ const iReacted = emoji =>
                 class="max-w-[220px] max-h-[220px] rounded-lg object-cover"
               />
             </a>
-            <audio
-              v-else-if="isAudio(att)"
-              :src="att.url"
-              controls
-              class="max-w-[240px] h-9"
-            />
+            <AudioPlayer v-else-if="isAudio(att)" :src="att.url" />
             <a
               v-else
               :href="att.url"
@@ -537,8 +542,17 @@ const iReacted = emoji =>
           <span
             v-if="message.delivery === 'progress'"
             v-tooltip="t('INTERNAL_CHAT.SENDING')"
-            class="text-sm i-lucide-clock"
-          />
+            class="inline-flex items-center gap-1"
+          >
+            <span class="text-sm i-lucide-clock" />
+            <span v-if="message.uploadProgress != null">
+              {{
+                t('INTERNAL_CHAT.AUDIO.SENDING_PROGRESS', {
+                  progress: message.uploadProgress,
+                })
+              }}
+            </span>
+          </span>
           <button
             v-else-if="message.delivery === 'failed'"
             type="button"

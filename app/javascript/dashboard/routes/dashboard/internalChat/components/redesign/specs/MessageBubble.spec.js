@@ -67,9 +67,13 @@ describe('MessageBubble do chat interno', () => {
       { content: 'veja #42 em https://x.com/a com @Ana Paula' },
       { mentionNames: ['Ana Paula'] }
     );
+    // texto continua idêntico (sem espaço a mais em volta dos tokens)
+    expect(wrapper.find('p').element.textContent).toBe(
+      'veja #42 em https://x.com/a com @Ana Paula'
+    );
     expect(wrapper.find('a[href="https://x.com/a"]').exists()).toBe(true);
     expect(
-      wrapper.find('[data-to="/app/accounts/7/conversations/42"]').text()
+      wrapper.find('a[href="/app/accounts/7/conversations/42"]').text()
     ).toBe('#42');
     expect(wrapper.find('span.font-semibold.rounded').text()).toBe(
       '@Ana Paula'

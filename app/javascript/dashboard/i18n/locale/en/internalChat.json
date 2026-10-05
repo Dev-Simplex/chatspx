@@ -173,7 +173,8 @@
       "PLACEHOLDER_GROUP": "Write a message… (@ to mention)",
       "MENTION_HINT": "Mention (the person gets an alert)",
       "CANCEL_REPLY": "Cancel reply",
-      "REMOVE_FILE": "Remove attachment"
+      "REMOVE_FILE": "Remove attachment",
+      "RECORD": "Record audio"
     },
     "BUBBLE": {
       "REPLY": "Reply to message",

@@ -14,7 +14,7 @@ import {
   checkFileSizeLimit,
   HARD_MAXIMUM_FILE_UPLOAD_SIZE,
 } from 'shared/helpers/FileHelper';
-import { AUDIO_FORMATS } from 'shared/constants/messages';
+import AudioRecorder from './AudioRecorder.vue';
 import CannedResponse from 'dashboard/components/widgets/conversation/CannedResponse.vue';
 
 const props = defineProps({
@@ -32,9 +32,6 @@ const { t } = useI18n();
 const EmojiInput = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiInput.vue')
 );
-const AudioRecorder = defineAsyncComponent(
-  () => import('dashboard/components/widgets/WootWriter/AudioRecorder.vue')
-);
 
 const draft = ref(props.initialDraft);
 const showEmoji = ref(false);
@@ -42,7 +39,6 @@ const textareaRef = ref(null);
 const fileInputRef = ref(null);
 const attachedFiles = ref([]);
 const recording = ref(false);
-const audioRecorderRef = ref(null);
 
 const autoResize = () => {
   const el = textareaRef.value;
@@ -179,19 +175,18 @@ const onFilesSelected = event => {
 const removeFile = index => attachedFiles.value.splice(index, 1);
 
 // ── Áudio ───────────────────────────────────────────────────────────────────
-// O AudioRecorder começa a gravar assim que monta; paramos via ref exposto.
+// Grava, deixa ouvir e envia so o audio; o texto digitado continua no campo.
 const startRecording = () => {
   showEmoji.value = false;
   recording.value = true;
 };
-const stopRecording = () => audioRecorderRef.value?.stopRecording();
-const onFinishRecord = ({ file }) => {
-  if (file) attachedFiles.value.push(file);
+const onAudioSend = file => {
   recording.value = false;
-};
-const onRecordError = () => {
-  recording.value = false;
-  useAlert('Não foi possível gravar o áudio.');
+  emit('send', {
+    content: '',
+    attachments: [file],
+    replyToId: props.replyingTo?.id || null,
+  });
 };
 
 const send = () => {
@@ -273,9 +268,9 @@ const onEnter = () => {
         </span>
       </span>
       <button
+        v-tooltip="t('INTERNAL_CHAT.COMPOSER.CANCEL_REPLY')"
         type="button"
         class="inline-flex items-center justify-center flex-shrink-0 rounded-full w-7 h-7 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
-        v-tooltip="t('INTERNAL_CHAT.COMPOSER.CANCEL_REPLY')"
         :aria-label="t('INTERNAL_CHAT.COMPOSER.CANCEL_REPLY')"
         @click="emit('cancelReply')"
       >
@@ -293,9 +288,9 @@ const onEnter = () => {
         <span class="i-lucide-paperclip text-n-slate-10" />
         <span class="max-w-[160px] truncate">{{ file.name }}</span>
         <button
+          v-tooltip="t('INTERNAL_CHAT.COMPOSER.REMOVE_FILE')"
           type="button"
           class="inline-flex items-center justify-center rounded-full w-5 h-5 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
-          v-tooltip="t('INTERNAL_CHAT.COMPOSER.REMOVE_FILE')"
           :aria-label="t('INTERNAL_CHAT.COMPOSER.REMOVE_FILE')"
           @click="removeFile(index)"
         >
@@ -305,28 +300,11 @@ const onEnter = () => {
     </div>
 
     <!-- Gravação de áudio: substitui a barra do composer enquanto grava -->
-    <div
+    <AudioRecorder
       v-if="recording"
-      class="relative z-20 flex items-center gap-2 px-3 py-2 border shadow-sm rounded-3xl bg-wa-composer-input border-n-weak"
-    >
-      <span class="flex-shrink-0 i-lucide-mic text-n-ruby-11 animate-pulse" />
-      <div class="flex-1 min-w-0">
-        <AudioRecorder
-          ref="audioRecorderRef"
-          :audio-record-format="AUDIO_FORMATS.MP3"
-          @finish-record="onFinishRecord"
-          @record-error="onRecordError"
-        />
-      </div>
-      <button
-        type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 transition-all rounded-full shadow-sm bg-wa-composer-send text-wa-composer-send-fg hover:brightness-110 active:scale-90"
-        title="Concluir gravação"
-        @click="stopRecording"
-      >
-        <span class="text-lg i-lucide-check" />
-      </button>
-    </div>
+      @send="onAudioSend"
+      @cancel="recording = false"
+    />
 
     <!-- Single-row composer pill -->
     <div
@@ -336,10 +314,10 @@ const onEnter = () => {
       <!-- Emoji: o picker abre ACIMA do ícone (ancorado ao botão, à esquerda) -->
       <div class="relative flex-shrink-0">
         <button
+          v-tooltip="t('INTERNAL_CHAT.EMOJI')"
           type="button"
           class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
           :class="showEmoji ? 'text-wa-composer-send bg-n-alpha-2' : ''"
-          v-tooltip="t('INTERNAL_CHAT.EMOJI')"
           :aria-label="t('INTERNAL_CHAT.EMOJI')"
           @click="toggleEmoji"
         >
@@ -354,9 +332,9 @@ const onEnter = () => {
       </div>
       <!-- Anexo -->
       <button
+        v-tooltip="t('INTERNAL_CHAT.ATTACH')"
         type="button"
         class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
-        v-tooltip="t('INTERNAL_CHAT.ATTACH')"
         :aria-label="t('INTERNAL_CHAT.ATTACH')"
         @click="onPickFile"
       >
@@ -371,9 +349,10 @@ const onEnter = () => {
       />
       <!-- Áudio -->
       <button
+        v-tooltip="t('INTERNAL_CHAT.COMPOSER.RECORD')"
         type="button"
         class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
-        title="Gravar áudio"
+        :aria-label="t('INTERNAL_CHAT.COMPOSER.RECORD')"
         @click="startRecording"
       >
         <span class="text-lg i-lucide-mic" />
@@ -397,9 +376,9 @@ const onEnter = () => {
         @keydown.esc="mentionQuery = null"
       />
       <button
+        v-tooltip="t('INTERNAL_CHAT.SEND')"
         type="button"
         class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 transition-all rounded-full shadow-sm bg-wa-composer-send text-wa-composer-send-fg hover:brightness-110 active:scale-90 disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100"
-        v-tooltip="t('INTERNAL_CHAT.SEND')"
         :aria-label="t('INTERNAL_CHAT.SEND')"
         :disabled="!draft.trim() && !attachedFiles.length"
         @click="send"

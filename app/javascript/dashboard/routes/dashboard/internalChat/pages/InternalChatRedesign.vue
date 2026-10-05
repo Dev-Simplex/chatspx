@@ -295,6 +295,7 @@ const threadItems = computed(() => {
       edited: Boolean(m.edited),
       deleted: Boolean(m.deleted),
       status: m.status,
+      uploadProgress: m.upload_progress ?? null,
       mentionedUserIds: m.mentioned_user_ids || [],
     });
     prev = m;
