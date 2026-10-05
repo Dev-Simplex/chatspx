@@ -169,6 +169,13 @@
   description: 'Envia ao cliente o pin de localização de uma unidade da conta no mapa (por cidade)'
   icon: 'location'
 
+# Classe: Captain::Tools::LevarAoCanalTool. A IA escolhe o canal de destino pelo nome; quem manda a
+# abertura é a caixa de destino, pelo acionamento configurado na unidade.
+- id: levar_ao_canal
+  title: 'Levar ao canal certo'
+  description: 'Leva o cliente para outro canal da empresa configurado na unidade: o sistema envia a abertura pela caixa de destino e o atendimento continua lá'
+  icon: 'phone'
+
 # Classe: Captain::Tools::EnviarContatoUnidadeTool. A IA escolhe o rótulo do contato; o número sai
 # do cadastro da unidade da caixa e quem o envia é o sistema (cartão no WhatsApp, texto nos demais).
 - id: enviar_contato_unidade
