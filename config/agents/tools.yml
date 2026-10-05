@@ -175,3 +175,10 @@
   title: 'Enviar Contato da Unidade'
   description: 'Envia ao cliente um contato de telefone da unidade que atende a conversa, escolhido pelo rótulo do cadastro, sem a IA ver ou escrever o número'
   icon: 'phone'
+
+# Classe: Captain::Tools::ConsultarCatalogoTool. Lê o catálogo da conta (CatalogProduct), sem busca
+# semântica. O que ela pesquisa e o que ela mostra vêm de assistant.config['catalogo'].
+- id: consultar_catalogo
+  title: 'Consultar Catálogo'
+  description: 'Consulta o catálogo de serviços e produtos da conta por nome, código, categoria e campos configurados, e devolve só o que está cadastrado'
+  icon: 'library'
