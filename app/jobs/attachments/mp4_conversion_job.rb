@@ -1,6 +1,6 @@
-# Troca o .MOV de um video enviado pelo atendente por um .mp4 (Video::Mp4Converter).
+# Troca o .MOV de um video (enviado pelo atendente ou recebido do cliente) por um .mp4 (Video::Mp4Converter).
 #
-# Enquanto este job nao termina, o envio ao cliente espera (Attachment#aguardando_mp4?): o
+# No envio, enquanto este job nao termina, a mensagem espera (Attachment#aguardando_mp4?): o
 # SendReplyJob e o webhook da caixa API (ponte da WAHA) voltam a olhar a cada poucos segundos.
 # Quando a conversao falha, o anexo fica marcado e o envio segue com o arquivo original.
 class Attachments::Mp4ConversionJob < ApplicationJob
@@ -14,7 +14,7 @@ class Attachments::Mp4ConversionJob < ApplicationJob
 
   def perform(attachment_id)
     attachment = Attachment.find_by(id: attachment_id)
-    return unless attachment&.aguardando_mp4?
+    return unless attachment&.converter_mp4?
 
     if convert(attachment)
       refresh_bubble(attachment)
@@ -49,7 +49,7 @@ class Attachments::Mp4ConversionJob < ApplicationJob
     false
   end
 
-  # So a tela: o webhook `message_created` da caixa API ainda vai sair (ja com o .mp4), e um
+  # So a tela: no envio, o webhook `message_created` da caixa API ainda vai sair (ja com o .mp4), e um
   # `message_updated` antes dele chegaria a ponte da WAHA fora de ordem.
   def refresh_bubble(attachment)
     message = attachment.message.reload
