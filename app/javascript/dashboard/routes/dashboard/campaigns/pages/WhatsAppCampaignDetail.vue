@@ -15,10 +15,13 @@ const props = defineProps({
 
 const route = useRoute();
 const router = useRouter();
-const { t } = useI18n();
+const { t, te } = useI18n();
 
 const loading = ref(true);
 const data = ref(null);
+// Sobe do formulário do motor para o painel de disparo: iniciar com a configuração
+// antiga, achando que salvou, é o erro que esta tela não pode deixar passar calado.
+const settingsDirty = ref(false);
 
 const campaignId = computed(() => props.campaignId || route.params.campaignId);
 
@@ -30,8 +33,27 @@ const startError = computed(() =>
 );
 
 const KNOWN_CODES = ['131026', '130472', '131049', 'outro'];
+// Codigo fora da lista aparecia sozinho, cru, como `131052` — identificador tecnico nao e
+// informacao de atendimento neste produto. Agora ele sempre vem acompanhado de uma frase,
+// nem que seja a de "nao catalogado": o numero serve para diagnosticar, o texto para ler.
 const codeLabel = code =>
-  KNOWN_CODES.includes(code) ? t(`CAMPAIGN.WHATSAPP.DETAIL.CODES.${code}`) : '';
+  KNOWN_CODES.includes(code)
+    ? t(`CAMPAIGN.WHATSAPP.DETAIL.CODES.${code}`)
+    : t('CAMPAIGN.WHATSAPP.DETAIL.CODES.unknown');
+
+// `data.campaign.status` e `c.status` chegam como enum CRU do Rails e eram renderizados
+// com `capitalize`: no topo da pagina havia uma pilula traduzida ("Disparando") a seis
+// pixels de outra em ingles ("completed"), descrevendo conceitos diferentes e as duas
+// chamadas de "status". Mapas explicitos, com o valor cru como ultimo recurso.
+const campaignStatusLabel = code =>
+  te(`CAMPAIGN.WHATSAPP.DETAIL.CAMPAIGN_STATUS.${code}`)
+    ? t(`CAMPAIGN.WHATSAPP.DETAIL.CAMPAIGN_STATUS.${code}`)
+    : code;
+
+const conversationStatusLabel = code =>
+  te(`CAMPAIGN.WHATSAPP.DETAIL.CONVERSATION_STATUS.${code}`)
+    ? t(`CAMPAIGN.WHATSAPP.DETAIL.CONVERSATION_STATUS.${code}`)
+    : code;
 
 // `silent` evita piscar a tela inteira no polling do disparo em andamento.
 const fetchStats = async ({ silent = false } = {}) => {
@@ -114,9 +136,9 @@ onBeforeUnmount(stopPolling);
             </p>
           </div>
           <span
-            class="shrink-0 px-2 py-1 text-xs font-medium capitalize rounded-md bg-n-alpha-2 text-n-slate-11"
+            class="px-2 py-1 text-xs font-medium rounded-md shrink-0 bg-n-alpha-2 text-n-slate-11"
           >
-            {{ data.campaign.status }}
+            {{ campaignStatusLabel(data.campaign.status) }}
           </span>
         </div>
 
@@ -153,6 +175,7 @@ onBeforeUnmount(stopPolling);
           :campaign-id="campaignId"
           :campaign="data.campaign"
           @changed="fetchStats({ silent: true })"
+          @dirty="settingsDirty = $event"
         />
         <!-- Agendamento que chegou na hora sem o que o Iniciar exige: o scheduler nao
              dispara e deixa o motivo aqui, em vez de a campanha ficar muda. -->
@@ -172,6 +195,9 @@ onBeforeUnmount(stopPolling);
           :campaign-id="campaignId"
           :dispatch-status="data.dispatch_status"
           :recipients="data.recipients"
+          :campaign="data.campaign"
+          :dispatch-preview="data.dispatch_preview"
+          :settings-dirty="settingsDirty"
           @changed="fetchStats({ silent: true })"
         />
 
@@ -182,7 +208,20 @@ onBeforeUnmount(stopPolling);
             <h2 class="mb-3 text-sm font-medium text-n-slate-12">
               {{ t('CAMPAIGN.WHATSAPP.DETAIL.DISTRIBUTION') }}
             </h2>
+            <!-- As chaves DETAIL.AGENT/COUNT/CODE/REASON existiam traduzidas nos dois
+                 idiomas e nao eram referenciadas por markup nenhum: as tabelas subiam sem
+                 <thead>. Agora sao usadas. -->
             <table class="w-full text-sm">
+              <thead>
+                <tr class="text-xs text-left text-n-slate-10">
+                  <th class="py-1 font-normal">
+                    {{ t('CAMPAIGN.WHATSAPP.DETAIL.AGENT') }}
+                  </th>
+                  <th class="py-1 font-normal text-right">
+                    {{ t('CAMPAIGN.WHATSAPP.DETAIL.COUNT') }}
+                  </th>
+                </tr>
+              </thead>
               <tbody>
                 <tr
                   v-for="d in data.distribution"
@@ -206,6 +245,16 @@ onBeforeUnmount(stopPolling);
               {{ t('CAMPAIGN.WHATSAPP.DETAIL.FAILURES') }}
             </h2>
             <table class="w-full text-sm">
+              <thead>
+                <tr class="text-xs text-left text-n-slate-10">
+                  <th class="py-1 font-normal">
+                    {{ t('CAMPAIGN.WHATSAPP.DETAIL.REASON') }}
+                  </th>
+                  <th class="py-1 font-normal text-right">
+                    {{ t('CAMPAIGN.WHATSAPP.DETAIL.COUNT') }}
+                  </th>
+                </tr>
+              </thead>
               <tbody>
                 <tr
                   v-for="f in data.failures"
@@ -213,8 +262,8 @@ onBeforeUnmount(stopPolling);
                   class="border-b border-n-weak last:border-0"
                 >
                   <td class="py-2 text-n-slate-11">
-                    <code class="text-xs">{{ f.code }}</code>
                     {{ codeLabel(f.code) }}
+                    <code class="text-xs text-n-slate-10">{{ f.code }}</code>
                   </td>
                   <td
                     class="py-2 font-medium text-right tabular-nums text-n-slate-12"
@@ -223,7 +272,9 @@ onBeforeUnmount(stopPolling);
                   </td>
                 </tr>
                 <tr v-if="!data.failures.length">
-                  <td class="py-2 text-n-slate-10">—</td>
+                  <td class="py-2 text-n-slate-10" colspan="2">
+                    {{ t('CAMPAIGN.WHATSAPP.DETAIL.NO_FAILURES') }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -237,6 +288,22 @@ onBeforeUnmount(stopPolling);
             {{ t('CAMPAIGN.WHATSAPP.DETAIL.CONVERSATIONS') }}
           </h2>
           <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-left text-n-slate-10">
+                <th class="py-1 font-normal">
+                  {{ t('CAMPAIGN.WHATSAPP.DETAIL.TABLE.CONTACT') }}
+                </th>
+                <th class="py-1 font-normal">
+                  {{ t('CAMPAIGN.WHATSAPP.DETAIL.TABLE.LAST_REPLY') }}
+                </th>
+                <th class="py-1 font-normal">
+                  {{ t('CAMPAIGN.WHATSAPP.DETAIL.AGENT') }}
+                </th>
+                <th class="py-1 font-normal">
+                  {{ t('CAMPAIGN.WHATSAPP.DETAIL.TABLE.STATUS') }}
+                </th>
+              </tr>
+            </thead>
             <tbody>
               <tr
                 v-for="c in data.recent"
@@ -246,14 +313,14 @@ onBeforeUnmount(stopPolling);
                 <td class="py-2 whitespace-nowrap text-n-slate-12">
                   {{ c.name || '—' }}
                 </td>
-                <td class="py-2 max-w-xs truncate text-n-slate-11">
+                <td class="max-w-xs py-2 truncate text-n-slate-11">
                   {{ c.last_reply }}
                 </td>
                 <td class="py-2 whitespace-nowrap text-n-slate-11">
                   {{ c.agent || t('CAMPAIGN.WHATSAPP.DETAIL.NO_AGENT') }}
                 </td>
-                <td class="py-2 text-xs capitalize text-n-slate-10">
-                  {{ c.status }}
+                <td class="py-2 text-xs text-n-slate-10">
+                  {{ conversationStatusLabel(c.status) }}
                 </td>
               </tr>
             </tbody>

@@ -1,0 +1,112 @@
+# Harness offline — nível 1 (segurança determinística).
+#
+# Roda o que NÃO depende de modelo: ferramentas reais, HTTP e DNS mockados, asserção binária.
+# O nível 2 (Spx::Conduta::Regressao) chama o modelo de verdade e custa dinheiro por rodada —
+# ele não entra aqui e continua sendo disparado à mão antes de mudança de prompt.
+#
+# Três decisões deste job, e o motivo de cada uma:
+#
+#   1. `db:schema:load`, NUNCA `db:prepare`. O `db:prepare` roda os seeds, os seeds gravam
+#      `installation_configs`, e daí ~30 specs de Captain estouram
+#      `PG::UniqueViolation ... CAPTAIN_OPEN_AI_API_KEY` com cara de defeito de código.
+#      Custou uma hora em 20/09 numa máquina local; aqui fica explícito.
+#   2. Rede BLOQUEADA. Se um cenário do harness conseguir sair para a internet, ele deixou de
+#      ser determinístico — e nunca mais falha na CI pelo motivo certo. A trava é do WebMock
+#      (`disable_net_connect!`, já no rails_helper) e o passo abaixo confere que ela está de pé.
+#   3. O portão exclui `--tag ~defeito_aberto`. Os vermelhos deliberados vivem num arquivo
+#      próprio e são reportados num passo que NÃO bloqueia: uma suíte permanentemente vermelha
+#      vira ruído que ninguém lê, e aí o vermelho novo passa despercebido junto com os velhos.
+name: Harness offline (nível 1)
+permissions:
+  contents: read
+on:
+  push:
+    branches:
+      - producao
+      - homologacao
+  pull_request:
+    paths:
+      - 'enterprise/app/services/spx/**'
+      - 'enterprise/lib/captain/tools/**'
+      - 'enterprise/app/services/captain/**'
+      - 'spec/enterprise/services/spx/**'
+      - 'spec/fixtures/captain/harness/**'
+      - '.github/workflows/harness_offline.yml'
+  workflow_dispatch:
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ''
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --mount type=tmpfs,destination=/var/lib/postgresql/data
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: --entrypoint redis-server
+
+    env:
+      RAILS_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: ''
+      REDIS_URL: redis://localhost:6379
+      # Sem runtime de JS: nada aqui renderiza front, e o ExecJS procurando node atrasa o boot.
+      EXECJS_RUNTIME: Disabled
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # Schema puro. Ver decisão 1 no cabeçalho — `db:prepare` semeia e quebra Captain.
+      - name: Preparar banco sem seed
+        run: |
+          bundle exec rake db:create
+          bundle exec rake db:schema:load
+
+      # A trava de rede é do WebMock e vale para a suíte inteira. Este passo existe para o dia
+      # em que alguém ligar `allow_net_connect` "só para depurar" e esquecer ligado.
+      - name: Conferir que a rede está bloqueada nos testes
+        run: |
+          if grep -rn "allow_net_connect!" spec/ --include=*.rb | grep -v "disable_net_connect"; then
+            echo "::error::allow_net_connect! encontrado na suíte — o harness deixa de ser determinístico"
+            exit 1
+          fi
+
+      # O PORTÃO. Vermelho aqui é regressão de verdade.
+      - name: Harness — nível 1 e gravador
+        run: |
+          bundle exec rspec --tag ~defeito_aberto --format progress \
+            spec/enterprise/services/spx
+
+      - name: Rubocop dos arquivos do harness
+        run: |
+          bundle exec rubocop --force-exclusion \
+            enterprise/app/services/spx spec/enterprise/services/spx \
+            spec/support/harness_rede_falsa.rb lib/tasks/spx_conduta.rake
+
+      # NÃO bloqueia. Serve para a lista de defeitos abertos ficar visível a cada rodada, em
+      # vez de virar uma suíte vermelha que se aprende a ignorar.
+      - name: Defeitos abertos (não bloqueia)
+        continue-on-error: true
+        run: |
+          bundle exec rspec --tag defeito_aberto --format documentation \
+            spec/enterprise/services/spx

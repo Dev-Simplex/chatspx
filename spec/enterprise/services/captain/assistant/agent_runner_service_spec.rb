@@ -513,6 +513,26 @@ RSpec.describe Captain::Assistant::AgentRunnerService do
       end
     end
 
+    # Para onde a IA pode levar o cliente: só com a ferramenta ligada no assistente.
+    describe 'canais de destino' do
+      before do
+        unidade = create(:unit, account: account)
+        inbox.update!(unit_id: unidade.id)
+        whatsapp = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+        whatsapp.update!(name: 'Geral', unit_id: unidade.id, canal: { 'papel' => 'Atendimento geral', 'destino' => true })
+      end
+
+      it 'ficam de fora sem a ferramenta ligada' do
+        expect(service.send(:build_state)[:canais_destino]).to be_nil
+      end
+
+      it 'listam as caixas de destino da unidade com a ferramenta ligada' do
+        assistant.update!(config: assistant.config.merge('tools' => ['levar_ao_canal']))
+
+        expect(service.send(:build_state)[:canais_destino]).to eq([{ 'caixa' => 'Geral', 'tipo' => 'WhatsApp', 'papel' => 'Atendimento geral' }])
+      end
+    end
+
     context 'when conversation is nil' do
       subject(:service) { described_class.new(assistant: assistant, conversation: nil) }
 
