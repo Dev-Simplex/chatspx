@@ -17,7 +17,7 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     # json columns of joined tables ("no equality operator for type json").
     # Admin em modo auditoria (?scope=all) vê TODOS os canais da conta.
     base = audit_all? ? Current.account.internal_channels : policy_scope(InternalChannel)
-    @channels = base.includes(:users, members: :user).to_a
+    @channels = base.includes(:users, members: { user: { avatar_attachment: :blob } }).to_a
     # Fase 2: compute the preview + unread badge in 2 grouped queries instead of
     # the per-channel N+1 (includes(:messages) loaded EVERY message of EVERY
     # channel, and unread_count fired one COUNT per channel).
@@ -183,7 +183,7 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
   def accessible_messages
     InternalMessage
       .where(internal_channel_id: policy_scope(InternalChannel).select(:id), deleted_at: nil)
-      .includes(:user, internal_channel: :users)
+      .includes({ user: { avatar_attachment: :blob } }, internal_channel: :users)
   end
 
   def check_authorization

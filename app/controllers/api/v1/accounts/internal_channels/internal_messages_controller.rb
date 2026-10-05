@@ -15,7 +15,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
   # Newest page by default; pass `before` (a message id) to load older history.
   def index
     scope = @channel.messages.includes(
-      :user, { reply_to: :user }, { shared_conversation: [:contact, :inbox] }, attachments_attachments: :blob
+      { user: { avatar_attachment: :blob } }, { reply_to: :user }, { shared_conversation: [:contact, :inbox] }, attachments_attachments: :blob
     )
     scope = scope.where('internal_messages.id < ?', params[:before]) if params[:before].present?
     # reorder (not order): the messages association defaults to created_at ASC,

@@ -221,11 +221,10 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
       expect(channel.members.find_by(user: alice).last_read_at).to be_present
     end
 
-    it 'broadcasts a read receipt to the other member' do
+    it 'does not broadcast a read receipt (no screen shows it)' do
       expect do
         post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/read", headers: alice.create_new_auth_token
-      end.to have_enqueued_job(ActionCableBroadcastJob)
-        .with([bob.pubsub_token], 'internal.read', hash_including(account_id: account.id, user_id: alice.id))
+      end.not_to have_enqueued_job(ActionCableBroadcastJob)
     end
   end
 
