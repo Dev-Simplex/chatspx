@@ -164,13 +164,13 @@
       "LOAD_OLDER": "Ver mensagens anteriores",
       "START": "Início da conversa",
       "EMPTY_TITLE": "Nenhuma mensagem ainda",
-      "EMPTY_HINT": "Escreva abaixo e tecle Enter. Use @ para chamar alguém e #123 para citar uma conversa de cliente.",
+      "EMPTY_HINT": "Escreva abaixo e tecle Enter. Use {'@'} para chamar alguém e #123 para citar uma conversa de cliente.",
       "NO_MATCH": "Nenhuma mensagem com esse texto nesta conversa.",
       "SEARCH_PLACEHOLDER": "Buscar nesta conversa…",
       "CLOSE_SEARCH": "Fechar busca"
     },
     "COMPOSER": {
-      "PLACEHOLDER_GROUP": "Escreva uma mensagem… (@ para mencionar)",
+      "PLACEHOLDER_GROUP": "Escreva uma mensagem… ({'@'} para mencionar)",
       "MENTION_HINT": "Mencionar (a pessoa recebe um aviso)",
       "CANCEL_REPLY": "Cancelar resposta",
       "REMOVE_FILE": "Remover anexo",
@@ -200,7 +200,7 @@
       "PICK": "Escolha uma conversa ao lado ou comece uma nova.",
       "FIRST": "Converse com colegas e times sem sair do sistema. Comece pela primeira conversa.",
       "NEW": "Nova conversa",
-      "TIP_MENTION": "Use @nome para avisar alguém no grupo",
+      "TIP_MENTION": "Use {'@'}nome para avisar alguém no grupo",
       "TIP_CONVERSATION": "Escreva #123 para levar direto à conversa do cliente",
       "TIP_SHARE": "Na conversa do cliente, ⋮ › Compartilhar no chat interno",
       "PRIVATE": "Mensagens internas: só a sua equipe vê"

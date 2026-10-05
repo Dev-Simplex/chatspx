@@ -164,13 +164,13 @@
       "LOAD_OLDER": "See earlier messages",
       "START": "Start of the conversation",
       "EMPTY_TITLE": "No messages yet",
-      "EMPTY_HINT": "Type below and press Enter. Use @ to call someone and #123 to point to a customer conversation.",
+      "EMPTY_HINT": "Type below and press Enter. Use {'@'} to call someone and #123 to point to a customer conversation.",
       "NO_MATCH": "No message with that text in this conversation.",
       "SEARCH_PLACEHOLDER": "Search this conversation…",
       "CLOSE_SEARCH": "Close search"
     },
     "COMPOSER": {
-      "PLACEHOLDER_GROUP": "Write a message… (@ to mention)",
+      "PLACEHOLDER_GROUP": "Write a message… ({'@'} to mention)",
       "MENTION_HINT": "Mention (the person gets an alert)",
       "CANCEL_REPLY": "Cancel reply",
       "REMOVE_FILE": "Remove attachment",
@@ -200,7 +200,7 @@
       "PICK": "Pick a conversation on the side or start a new one.",
       "FIRST": "Talk to teammates and teams without leaving the app. Start your first conversation.",
       "NEW": "New conversation",
-      "TIP_MENTION": "Use @name to alert someone in a group",
+      "TIP_MENTION": "Use {'@'}name to alert someone in a group",
       "TIP_CONVERSATION": "Type #123 to link straight to a customer conversation",
       "TIP_SHARE": "In a customer conversation, ⋮ › Share to internal chat",
       "PRIVATE": "Internal messages: only your team sees them"
