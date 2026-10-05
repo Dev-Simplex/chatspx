@@ -24,6 +24,12 @@ import {
   formatarCep,
   formatarTelefone,
   copiarHorarioParaDias,
+  canaisDaUnidade,
+  canalDaCaixa,
+  falaWhatsapp,
+  templatesAprovados,
+  marcarPrincipal,
+  canaisParaEnvio,
 } from './unitFormulario';
 
 const props = defineProps({
@@ -119,6 +125,9 @@ const regrasProprias = ref([]);
 const timeSlots = ref([]);
 const horaIds = ref({});
 const selectedInboxIds = ref([]);
+// Papel e destino de cada caixa, por id. Guarda também caixa desmarcada: remarcar não perde o que foi
+// digitado, e o envio só leva as marcadas.
+const canais = ref({});
 const rules = ref([]);
 const novaRegra = ref({ ...REGRA_VAZIA });
 
@@ -192,6 +201,7 @@ const carregar = () => {
     };
   });
   selectedInboxIds.value = [...(u?.inbox_ids ?? [])];
+  canais.value = canaisDaUnidade(u);
   rules.value = (u?.exceptions ?? []).map(regra => ({ ...regra }));
   novaRegra.value = rascunhoLimpo();
 };
@@ -204,6 +214,11 @@ const estadoAtual = () =>
     coordenadas: coordenadas.value,
     timeSlots: timeSlots.value,
     selectedInboxIds: [...selectedInboxIds.value].sort(),
+    canais: canaisParaEnvio(
+      canais.value,
+      [...selectedInboxIds.value].sort(),
+      inboxes.value
+    ),
     rules: rules.value,
   });
 const tirarFoto = () => {
@@ -790,6 +805,36 @@ const regrasVisiveis = computed(() =>
     }))
 );
 
+const caixasDaUnidade = computed(() =>
+  inboxes.value.filter(caixa => selectedInboxIds.value.includes(caixa.id))
+);
+
+// O objeto da caixa nasce na primeira edição, para o v-model ter onde escrever.
+const canal = id => {
+  if (!canais.value[id]) canais.value[id] = canalDaCaixa(canais.value, id);
+  return canais.value[id];
+};
+
+const opcoesDeTemplate = caixa => [
+  { value: '', label: t('UNITS_MGMT.FORM.CHANNELS.TEMPLATE.NONE') },
+  ...templatesAprovados(caixa),
+];
+
+const templateDaCaixa = id => {
+  const { template_name: nome, template_language: idioma } = canal(id);
+  return nome ? `${nome}|${idioma}` : '';
+};
+
+const escolherTemplate = (id, valor) => {
+  const [nome = '', idioma = ''] = (valor || '').split('|');
+  Object.assign(canal(id), { template_name: nome, template_language: idioma });
+};
+
+const alternarPrincipal = (id, ligado) => {
+  canal(id);
+  canais.value = marcarPrincipal(canais.value, id, ligado);
+};
+
 const onSubmit = () => {
   if (nomeInvalido.value || gradeInvalida.value || coordenadaInvalida.value)
     return;
@@ -800,6 +845,11 @@ const onSubmit = () => {
     latitude: parCoordenada.value ? parCoordenada.value.latitude : null,
     longitude: parCoordenada.value ? parCoordenada.value.longitude : null,
     inbox_ids: selectedInboxIds.value,
+    canais: canaisParaEnvio(
+      canais.value,
+      selectedInboxIds.value,
+      inboxes.value
+    ),
     working_hours_attributes: timeSlotTransform(timeSlots.value).map(hora => {
       const slot = timeSlots.value.find(item => item.day === hora.day_of_week);
       const comPausa =
@@ -1121,6 +1171,95 @@ defineExpose({
       <p v-else class="text-n-slate-11 text-label-small">
         {{ t('UNITS_MGMT.FORM.INBOXES.EMPTY') }}
       </p>
+    </section>
+
+    <section v-if="caixasDaUnidade.length">
+      <span class="text-heading-3">{{
+        t('UNITS_MGMT.FORM.CHANNELS.LABEL')
+      }}</span>
+      <p class="mt-0.5 mb-2 text-n-slate-11 text-label-small">
+        {{ t('UNITS_MGMT.FORM.CHANNELS.HELP') }}
+      </p>
+      <div class="flex flex-col gap-3">
+        <div
+          v-for="caixa in caixasDaUnidade"
+          :key="`canal-${caixa.id}`"
+          class="flex flex-col gap-2 p-3 border border-solid rounded-lg border-n-weak dark:border-n-strong"
+        >
+          <span class="text-sm font-medium text-n-slate-12">
+            {{ caixa.name }}
+          </span>
+          <input
+            v-model="canal(caixa.id).papel"
+            type="text"
+            :class="CAMPO"
+            :placeholder="t('UNITS_MGMT.FORM.CHANNELS.ROLE.PLACEHOLDER')"
+          />
+          <template v-if="falaWhatsapp(caixa)">
+            <label class="flex gap-2 items-start mb-0 cursor-pointer w-fit">
+              <input
+                v-model="canal(caixa.id).destino"
+                type="checkbox"
+                class="m-0 mt-0.5"
+              />
+              <span class="flex flex-col">
+                <span class="text-sm text-n-slate-12">
+                  {{ t('UNITS_MGMT.FORM.CHANNELS.DESTINATION.LABEL') }}
+                </span>
+                <span class="text-n-slate-11 text-label-small">
+                  {{ t('UNITS_MGMT.FORM.CHANNELS.DESTINATION.HELP') }}
+                </span>
+              </span>
+            </label>
+            <label class="flex gap-2 items-start mb-0 cursor-pointer w-fit">
+              <input
+                :checked="canal(caixa.id).principal"
+                type="checkbox"
+                class="m-0 mt-0.5"
+                @change="alternarPrincipal(caixa.id, $event.target.checked)"
+              />
+              <span class="flex flex-col">
+                <span class="text-sm text-n-slate-12">
+                  {{ t('UNITS_MGMT.FORM.CHANNELS.MAIN.LABEL') }}
+                </span>
+                <span class="text-n-slate-11 text-label-small">
+                  {{ t('UNITS_MGMT.FORM.CHANNELS.MAIN.HELP') }}
+                </span>
+              </span>
+            </label>
+            <div
+              v-if="caixa.channel_type === 'Channel::Whatsapp'"
+              class="flex flex-col gap-1"
+            >
+              <span class="text-sm text-n-slate-12">
+                {{ t('UNITS_MGMT.FORM.CHANNELS.TEMPLATE.LABEL') }}
+              </span>
+              <NextSelect
+                :model-value="templateDaCaixa(caixa.id)"
+                :options="opcoesDeTemplate(caixa)"
+                :class="SELETOR"
+                @update:model-value="escolherTemplate(caixa.id, $event)"
+              />
+              <span class="text-n-slate-11 text-label-small">
+                {{ t('UNITS_MGMT.FORM.CHANNELS.TEMPLATE.HELP') }}
+              </span>
+            </div>
+            <div v-else class="flex flex-col gap-1">
+              <span class="text-sm text-n-slate-12">
+                {{ t('UNITS_MGMT.FORM.CHANNELS.TEXT.LABEL') }}
+              </span>
+              <textarea
+                v-model="canal(caixa.id).texto"
+                rows="3"
+                class="reset-base w-full px-3 py-2 text-sm rounded-lg outline outline-1 outline-n-weak bg-n-surface-1 text-n-slate-12 placeholder:text-n-slate-10"
+              />
+              <span class="text-n-slate-11 text-label-small">
+                {{ t('UNITS_MGMT.FORM.CHANNELS.TEXT.HELP') }}
+              </span>
+            </div>
+          </template>
+        </div>
+      </div>
     </section>
 
     <section>
