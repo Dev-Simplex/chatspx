@@ -42,12 +42,12 @@ RSpec.describe 'Api::V1::Accounts features', type: :request do
       expect(campanhas).to include('enabled' => true, 'available' => true, 'premium' => false)
     end
 
-    # `available: false` é o que faz a tela TRAVAR o interruptor em vez de só avisar.
-    it 'marca como indisponiveis as que nao cabem no bitmask' do
+    it 'oferece tambem as features gravadas na coluna extra' do
       get url, headers: admin.create_new_auth_token
 
-      indisponiveis = response.parsed_body['features'].reject { |f| f['available'] }.pluck('name')
-      expect(indisponiveis).to contain_exactly('conversation_required_attributes', 'advanced_assignment')
+      names = %w[conversation_required_attributes advanced_assignment]
+      extras = response.parsed_body['features'].select { |feature| names.include?(feature['name']) }
+      expect(extras.pluck('available')).to eq([true, true])
     end
   end
 
@@ -87,33 +87,20 @@ RSpec.describe 'Api::V1::Accounts features', type: :request do
     end
   end
 
-  # Sem esta guarda a requisição morreria com RangeError, porque o bit não cabe no bigint.
-  describe 'as features que nao cabem no bitmask' do
-    it 'recusa ligar, com mensagem que explica o motivo' do
-      patch url, params: { features: { advanced_assignment: true } }, headers: admin.create_new_auth_token
-
-      expect(response).to have_http_status(:unprocessable_entity)
-      expect(response.parsed_body['error']).to include('advanced_assignment')
-    end
-
-    it 'nao grava nada quando uma do lote e bloqueada' do
-      # Parte de campanhas DESLIGADA de proposito: desde esta mesma migration o produto
-      # nasce com ela ligada, e sem este passo o teste passaria por acidente, sem provar
-      # que o lote e atomico.
-      account.disable_features('campaigns')
-
-      patch url, params: { features: { campaigns: true, advanced_assignment: true } },
+  describe 'features na coluna extra' do
+    it 'liga e desliga sem alterar as flags antigas' do
+      account.enable_features!('campaigns')
+      patch url, params: { features: { advanced_assignment: true, conversation_required_attributes: true } },
                  headers: admin.create_new_auth_token
 
-      expect(account.reload.feature_enabled?('campaigns')).to be(false)
-    end
+      expect(response).to have_http_status(:success)
+      expect(account.reload.enabled_features.keys).to include('campaigns', 'advanced_assignment', 'conversation_required_attributes')
 
-    # Desligar continua permitido: serve para consertar conta que ficou com bit inválido por outro
-    # caminho.
-    it 'permite DESLIGAR uma delas' do
       patch url, params: { features: { advanced_assignment: false } }, headers: admin.create_new_auth_token
 
       expect(response).to have_http_status(:success)
+      expect(account.reload.feature_enabled?('advanced_assignment')).to be(false)
+      expect(account.feature_enabled?('conversation_required_attributes')).to be(true)
     end
   end
 

@@ -8,13 +8,18 @@ module Featurable
 
   FEATURE_LIST = YAML.safe_load(Rails.root.join('config/features.yml').read).freeze
 
-  FEATURES = FEATURE_LIST.each_with_object({}) do |feature, result|
+  FEATURES = FEATURE_LIST.first(63).each_with_object({}) do |feature, result|
     result[result.keys.size + 1] = "feature_#{feature['name']}".to_sym
-  end
+  end.freeze
+
+  EXTRA_FEATURES = FEATURE_LIST.drop(63).each_with_object({}) do |feature, result|
+    result[result.keys.size + 1] = "feature_#{feature['name']}".to_sym
+  end.freeze
 
   included do
     include FlagShihTzu
     has_flags FEATURES.merge(column: 'feature_flags').merge(QUERY_MODE)
+    has_flags EXTRA_FEATURES.merge(column: 'feature_flags_extra').merge(QUERY_MODE)
 
     before_create :enable_default_features
   end

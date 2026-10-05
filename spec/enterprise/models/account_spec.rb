@@ -11,6 +11,15 @@ RSpec.describe Account, type: :model do
     it { is_expected.to have_many(:custom_roles).dependent(:destroy_async) }
   end
 
+  it 'salva as flags da segunda coluna pelo formulario do Super Admin' do
+    account = create(:account, custom_attributes: { plan_name: 'Enterprise' })
+
+    account.update!(selected_feature_flags: %i[feature_assignment_v2 feature_conversation_required_attributes feature_advanced_assignment])
+
+    expect(account.reload.enabled_features.keys).to include('assignment_v2', 'conversation_required_attributes', 'advanced_assignment')
+    expect(account.feature_flags_extra).to eq(3)
+  end
+
   describe 'sla_policies' do
     let!(:account) { create(:account) }
     let!(:sla_policy) { create(:sla_policy, account: account) }

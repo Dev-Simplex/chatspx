@@ -142,7 +142,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :resolve_assignment_gate
   # Modo "só troca de mãos via pedido aprovado" (D1). Independente do
   # reply_assignment_gate de propósito: acoplar no backend seria surpresa.
-  # NÃO vai em features.yml — o bitmask bigint já estourou os 63 bits.
+  # NÃO vai em features.yml: é configuração por conta, não recurso do produto.
   store_accessor :settings, :takeover_request_gate
   # App "Captador" em Integrações. Liga por conta no Super Admin; desligado, o app some da lista e
   # /spx/captador/* responde 401. Fora do features.yml pelo mesmo motivo do takeover_request_gate.
