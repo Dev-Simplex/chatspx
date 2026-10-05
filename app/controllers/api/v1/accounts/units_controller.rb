@@ -24,6 +24,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
     ActiveRecord::Base.transaction do
       @unit = Current.account.units.create!(unit_params)
       sincronizar_caixas
+      sincronizar_canais
       sincronizar_excecoes
       Units::FeriadosNacionais.garantir(@unit)
     end
@@ -34,6 +35,7 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
     ActiveRecord::Base.transaction do
       @unit.update!(unit_params)
       sincronizar_caixas
+      sincronizar_canais
       sincronizar_excecoes
     end
     render :show
@@ -87,6 +89,39 @@ class Api::V1::Accounts::UnitsController < Api::V1::Accounts::BaseController
     Current.account.inboxes.where(unit_id: @unit.id).where.not(id: desejadas).update_all(unit_id: nil) # rubocop:disable Rails/SkipsModelValidations
     Current.account.inboxes.where(id: desejadas).update_all(unit_id: @unit.id) # rubocop:disable Rails/SkipsModelValidations
     @unit.association(:inboxes).reset
+  end
+
+  # Papel e destino de cada caixa DESTA unidade (ver InboxCanal). Chave ausente = não mexe; caixa
+  # fora da lista fica como está, e caixa de fora da unidade é ignorada, como em `inbox_ids`.
+  def sincronizar_canais
+    lista = params.require(:unit).permit(canais: [:inbox_id, *InboxCanal::CAMPOS_CANAL])[:canais]
+    return if lista.nil?
+
+    caixas = @unit.inboxes.index_by(&:id)
+    lista.each do |item|
+      caixa = caixas[item[:inbox_id].to_i]
+      next unless caixa
+
+      caixa.update!(canal: canal_normalizado(item))
+    end
+    um_so_principal!
+  end
+
+  def canal_normalizado(item)
+    booleano = ActiveModel::Type::Boolean.new
+    InboxCanal::CAMPOS_CANAL.each_with_object({}) do |campo, canal|
+      valor = item[campo]
+      canal[campo] = %w[destino principal].include?(campo) ? (booleano.cast(valor) || false) : valor.to_s.strip.presence
+    end.compact
+  end
+
+  # O WhatsApp principal é UM por unidade: com dois, o acionamento vindo de fora do WhatsApp não
+  # teria por onde sair sem adivinhar.
+  def um_so_principal!
+    return if @unit.inboxes.reload.count(&:whatsapp_principal?) <= 1
+
+    @unit.errors.add(:base, I18n.t('errors.units.single_main_whatsapp'))
+    raise ActiveRecord::RecordInvalid, @unit
   end
 
   # Substitui o conjunto inteiro. Chave ausente = não mexe; lista vazia = apagou todas.

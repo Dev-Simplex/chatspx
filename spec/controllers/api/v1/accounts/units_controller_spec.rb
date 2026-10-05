@@ -281,4 +281,74 @@ RSpec.describe 'Units API', type: :request do
       expect(unidade.reload.atributos).to eq('a' => '1')
     end
   end
+
+  # O papel de cada caixa e se ela é canal de destino (InboxCanal). A tela de unidades grava e lê
+  # pelo mesmo `canais`, então o ciclo salvar -> ler precisa fechar.
+  describe 'canal de cada caixa' do
+    let(:unidade) { create(:unit, account: account) }
+    let(:whatsapp) do
+      create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox.tap do |caixa|
+        caixa.update!(unit_id: unidade.id)
+      end
+    end
+    let(:site) { create(:inbox, account: account).tap { |caixa| caixa.update!(unit_id: unidade.id) } }
+
+    def gravar(canais)
+      patch "#{base}/#{unidade.id}", params: { unit: { canais: canais } }, headers: admin.create_new_auth_token, as: :json
+    end
+
+    it 'grava o papel, o destino e o template, e devolve na leitura' do
+      gravar([{ inbox_id: whatsapp.id, papel: ' Atendimento geral ', destino: true, principal: true,
+                template_name: 'acionamento', template_language: 'pt_BR' }])
+
+      expect(response).to have_http_status(:success)
+      expect(whatsapp.reload.canal_config).to eq('papel' => 'Atendimento geral', 'destino' => true, 'principal' => true,
+                                                 'template_name' => 'acionamento', 'template_language' => 'pt_BR')
+      devolvido = response.parsed_body['canais'].find { |canal| canal['inbox_id'] == whatsapp.id }
+      expect(devolvido).to include('papel' => 'Atendimento geral', 'destino' => true, 'template_name' => 'acionamento')
+    end
+
+    it 'preserva os outros atributos da caixa' do
+      whatsapp.update!(additional_attributes: { 'pin_mode' => 'per_inbox' })
+
+      gravar([{ inbox_id: whatsapp.id, papel: 'Vendas' }])
+
+      canal = { 'papel' => 'Vendas', 'destino' => false, 'principal' => false }
+      expect(whatsapp.reload.additional_attributes).to include('pin_mode' => 'per_inbox', 'canal' => canal)
+    end
+
+    it 'ignora caixa que não é da unidade' do
+      alheia = create(:inbox, account: account)
+
+      gravar([{ inbox_id: alheia.id, papel: 'Intrusa' }])
+
+      expect(response).to have_http_status(:success)
+      expect(alheia.reload.papel).to be_nil
+    end
+
+    it 'não mexe quando a chave não vem' do
+      whatsapp.update!(canal: { 'papel' => 'Vendas' })
+
+      patch "#{base}/#{unidade.id}", params: { unit: { name: 'Outro nome' } }, headers: admin.create_new_auth_token, as: :json
+
+      expect(whatsapp.reload.papel).to eq('Vendas')
+    end
+
+    it 'recusa destino em caixa que não fala WhatsApp' do
+      gravar([{ inbox_id: site.id, papel: 'Site', destino: true }])
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(site.reload.canal_destino?).to be(false)
+    end
+
+    it 'recusa dois WhatsApp principais na mesma unidade, sem gravar nenhum' do
+      outro = create(:channel_whatsapp, account: account, sync_templates: false, validate_provider_config: false).inbox
+      outro.update!(unit_id: unidade.id)
+
+      gravar([{ inbox_id: whatsapp.id, principal: true }, { inbox_id: outro.id, principal: true }])
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect([whatsapp.reload, outro.reload].map(&:whatsapp_principal?)).to eq([false, false])
+    end
+  end
 end

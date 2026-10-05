@@ -315,6 +315,88 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         expect(history.pluck(:content).join(' ')).not_to include('99635')
         expect(history.pluck(:content)).to include('[contato "Suporte" enviado pelo sistema]')
       end
+
+      # CHAT-180 (conv 22777): a fala do atendente humano entrava como turno `assistant`, e a
+      # IA repetia como precedente dela a autorização que o humano tinha dado.
+      context 'with a human agent message in the history' do
+        let(:atendente) { create(:user, account: account, display_name: 'Atendente') }
+
+        before do
+          conversation.update!(team: create(:team, account: account, name: 'Equipe Teste'))
+          create(:message, conversation: conversation, message_type: :outgoing, sender: atendente, content: 'fala do humano')
+          # A resposta do humano atribui a conversa a ele; a IA só volta quando ele sai — a reentrada.
+          conversation.update_columns(assignee_id: nil, assignee_agent_bot_id: assistant.mirror_agent_bot.id) # rubocop:disable Rails/SkipsModelValidations
+        end
+
+        def historico
+          history = nil
+          allow(mock_agent_runner_service).to receive(:generate_response) do |message_history:|
+            history = message_history
+            { 'response' => 'ok' }
+          end
+          described_class.perform_now(conversation, assistant)
+          history
+        end
+
+        it 'keeps the old assistant turn when the account flag is off' do
+          expect(historico).to include({ content: 'fala do humano', role: 'assistant' })
+        end
+
+        it 'sends it as a turn of someone else, labeled with name and team, when the flag is on' do
+          account.update!(custom_attributes: account.custom_attributes.merge('captain_human_origin_label' => true))
+
+          expect(historico).to include({ content: '[Atendente, time equipe teste] fala do humano', role: 'user' })
+        end
+
+        it 'keeps the AI own messages as assistant turns when the flag is on' do
+          account.update!(custom_attributes: account.custom_attributes.merge('captain_human_origin_label' => true))
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant, content: 'fala da IA')
+
+          expect(historico).to include({ content: 'fala da IA', role: 'assistant' })
+        end
+      end
+
+      # CHAT-180 parte 3 (conv 22777): ao reassumir, a IA recebe o resumo do que veio antes, não
+      # as mensagens antigas.
+      context 'when the AI takes over a conversation that already had history' do
+        let(:atendente) { create(:user, account: account) }
+
+        before do
+          create(:message, conversation: conversation, message_type: :outgoing, sender: atendente,
+                           content: 'fala antiga do humano', created_at: 1.day.ago)
+          # A resposta do humano atribui a conversa a ele; a IA só volta quando ele sai — a reentrada.
+          conversation.update_columns(assignee_id: nil, assignee_agent_bot_id: assistant.mirror_agent_bot.id) # rubocop:disable Rails/SkipsModelValidations
+          Captain::AssistantLog.create!(captain_assistant: assistant, conversation_id: conversation.id,
+                                        event_type: 'mirror_assigned', created_at: 1.minute.ago)
+          create(:message, conversation: conversation, message_type: :incoming, content: 'pedido novo')
+          allow(Captain::Conversation::JourneySummary).to receive(:for).and_return('Pedido: resumo da jornada')
+        end
+
+        def historico
+          history = nil
+          allow(mock_agent_runner_service).to receive(:generate_response) do |message_history:|
+            history = message_history
+            { 'response' => 'ok' }
+          end
+          described_class.perform_now(conversation, assistant)
+          history.pluck(:content)
+        end
+
+        it 'keeps the whole history when the account flag is off' do
+          expect(historico).to include('fala antiga do humano')
+          expect(Captain::Conversation::JourneySummary).not_to have_received(:for)
+        end
+
+        it 'replaces the old messages by the journey summary when the flag is on' do
+          account.update!(custom_attributes: account.custom_attributes.merge('captain_reentry_summary' => true))
+
+          conteudos = historico
+
+          expect(conteudos).not_to include('fala antiga do humano')
+          expect(conteudos).to include('pedido novo')
+          expect(conteudos.join).to include('Pedido: resumo da jornada')
+        end
+      end
     end
 
     # Regression (PR #13417): wrapping create_handoff_message and bot_handoff! in the

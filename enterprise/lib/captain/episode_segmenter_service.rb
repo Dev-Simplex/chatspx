@@ -33,8 +33,10 @@ class Captain::EpisodeSegmenterService
   # 09:41:55, episódios criados às 10:07:17. Quem depende da tabela fica sem fronteira
   # exatamente no primeiro turno da reentrada, que é onde o dano acontece.
   #
-  # Mesmo cálculo do #perform; o que muda é só não persistir.
+  # Mesmo cálculo do #perform, com uma diferença deliberada: aqui a resolução e o template
+  # CORTAM o episódio. Ver #tipo?.
   def preview
+    @tipo_pelo_rotulo = true
     build_segments
   end
 
@@ -50,7 +52,7 @@ class Captain::EpisodeSegmenterService
   end
 
   # [id, message_type, created_at, hsm?, resolucao?] em ordem cronológica.
-  # Activities entram só como marcadores de resolução; template (3) conta como HSM.
+  # Activities entram só como marcadores de resolução; template conta como HSM.
   def rows
     @rows ||= conversation.messages
                           .where(message_type: %i[incoming outgoing activity template])
@@ -63,10 +65,21 @@ class Captain::EpisodeSegmenterService
         id: id,
         type: type,
         at: at,
-        hsm: type == 3 || (attrs.is_a?(Hash) && attrs['template_params'].present?),
-        resolucao: type == 2 && content.to_s.match?(/resolvid|resolved/i)
+        hsm: tipo?(type, 'template') || (attrs.is_a?(Hash) && attrs['template_params'].present?),
+        resolucao: tipo?(type, 'activity') && content.to_s.match?(/resolvid|resolved/i)
       }
     end
+  end
+
+  # `pluck` de coluna enum devolve o RÓTULO ("activity"), não o inteiro. A comparação com o
+  # inteiro nunca casa, e assim a resolução e o template não cortavam episódio: só o gap. Na
+  # conv 22777 (conta 6) isso entregou à IA o atendimento resolvido na véspera (CHAT-180).
+  #
+  # O runtime (#preview) compara pelo rótulo. O cron do Eval (#perform) segue com a comparação
+  # antiga DE PROPÓSITO: decisão do Paulo em 01/10/2026, para não re-segmentar os episódios já
+  # julgados e não quebrar a comparação do Eval no tempo. As duas segmentações divergem.
+  def tipo?(type, rotulo)
+    @tipo_pelo_rotulo ? type.to_s == rotulo : type == Message.message_types[rotulo]
   end
 
   def build_segments
@@ -79,7 +92,7 @@ class Captain::EpisodeSegmenterService
         pending_close = row[:at] if current
         next
       end
-      next if row[:type] == 2 # outras activities não são conversacionais
+      next if tipo?(row[:type], 'activity') # outras activities não são conversacionais
 
       if current && pending_close
         if row[:at] - pending_close < REOPEN_GRACE
@@ -100,7 +113,7 @@ class Captain::EpisodeSegmenterService
         next
       end
 
-      if current && row[:hsm] && row[:type] != 0
+      if current && row[:hsm] && !tipo?(row[:type], 'incoming')
         current.reason = 'hsm_campanha'
         current = close_and_open(segments, current, row)
         next

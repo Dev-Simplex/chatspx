@@ -119,3 +119,26 @@ describe('ConversationCard — isUnattendedAndMine guard', () => {
     expect(wrapper.vm.isUnattendedAndMine).toBe(false);
   });
 });
+
+// CHAT-165: indicador discreto de agendada da IA pendente, com o horário no title.
+describe('ConversationCard — AI scheduled message indicator', () => {
+  it('shows the indicator with the time when the conversation has one', () => {
+    const wrapper = mountCard(
+      null,
+      {},
+      { custom_attributes: { agendada_ia_em: '2026-09-30T23:00:00Z' } }
+    );
+    const indicator = wrapper.find('[data-testid="ai-scheduled-indicator"]');
+
+    expect(indicator.exists()).toBe(true);
+    expect(indicator.attributes('title')).toBeTruthy();
+  });
+
+  it('shows nothing without a pending AI scheduled message', () => {
+    const wrapper = mountCard(null, {}, { custom_attributes: {} });
+
+    expect(
+      wrapper.find('[data-testid="ai-scheduled-indicator"]').exists()
+    ).toBe(false);
+  });
+});

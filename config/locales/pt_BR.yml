@@ -130,6 +130,8 @@ pt_BR:
       end_before_start: não pode ser anterior à data de início
       close_before_open: não pode ser anterior ao horário de abertura
       open_and_closed: não pode abrir o dia todo e fechar o dia todo ao mesmo tempo
+      single_main_whatsapp: Só uma caixa pode ser o WhatsApp principal da unidade
+      channel_needs_whatsapp: Só caixa de WhatsApp pode ser canal de destino ou o WhatsApp principal
     webhook:
       invalid: Eventos inválidos
     catalog:
