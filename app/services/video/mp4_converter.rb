@@ -18,7 +18,7 @@ class Video::Mp4Converter
 
   def convert(output_path)
     output, status = Open3.capture2e('timeout', TIMEOUT_SECONDS.to_s, ffmpeg_path, '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
-                                     '-i', @source_path, '-map', '0:v:0', '-map', '0:a:0?', *video_args,
+                                     *decoder_args, '-i', @source_path, '-map', '0:v:0', '-map', '0:a:0?', *video_args,
                                      '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', output_path)
     return true if status.success? && File.size?(output_path).present?
 
@@ -28,6 +28,13 @@ class Video::Mp4Converter
   end
 
   private
+
+  # O ffmpeg roda dentro do worker, que tem teto de memoria (MemoryMax do systemd): estourou, o worker
+  # inteiro cai. Sem limite, o decodificador abre uma thread por nucleo e um 4K HEVC passa de 1 GB;
+  # com 2, fica perto de 360 MB.
+  def decoder_args
+    %w[-threads 2]
+  end
 
   # Video que ja e H.264 so troca de embalagem (segundos). HEVC, o padrao do iPhone, precisa
   # recodificar; `yuv420p` porque o HDR do iPhone e 10 bits, que navegador e WhatsApp nao tocam.
