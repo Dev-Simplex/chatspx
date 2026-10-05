@@ -6,16 +6,6 @@
 # `app/javascript/dashboard/featureFlags.js`, mantido à mão e hoje já defasado (não tem
 # `kanban_ux_v2`, `kanban_cursor_loading`, `crm_v2`).
 class AccountFeaturesCatalog
-  # As features que NÃO CABEM no bitmask. `accounts.feature_flags` é bigint (63 bits úteis) e a
-  # POSIÇÃO no YAML define o bit; com 65 entradas, as posições 64 e 65 pedem 2^63 e 2^64. Ligar
-  # qualquer uma levanta RangeError e derruba a requisição.
-  #
-  # CALCULADO, e não digitado: se alguém acrescentar feature no YAML a lista cresce sozinha, em vez
-  # de virar mentira. Já documentado no fork em `app/services/kanban/realtime.rb`.
-  SEM_BIT = Featurable::FEATURE_LIST.each_with_index.filter_map do |feature, indice|
-    feature['name'] if (1 << indice) > ((2**63) - 1)
-  end.freeze
-
   NOMES = Featurable::FEATURE_LIST.pluck('name').freeze
 
   def initialize(account)
@@ -29,12 +19,6 @@ class AccountFeaturesCatalog
 
   def self.desconhecidas(nomes)
     nomes - NOMES
-  end
-
-  # Pedido de LIGAR uma que não cabe. Desligar é sempre permitido (inclusive para consertar uma conta
-  # que ficou com bit inválido por outro caminho).
-  def self.bloqueadas(pedidos)
-    pedidos.select { |nome, valor| ligar?(valor) && SEM_BIT.include?(nome) }.keys
   end
 
   def self.ligar?(valor)
@@ -52,8 +36,7 @@ class AccountFeaturesCatalog
       premium: feature['premium'].present?,
       deprecated: feature['deprecated'].present?,
       internal: feature['chatwoot_internal'].present?,
-      # `available: false` = a tela TRAVA o interruptor, em vez de só avisar.
-      available: SEM_BIT.exclude?(nome)
+      available: true
     }
   end
 end

@@ -29,8 +29,7 @@ const feature = (name, extra = {}) => ({
 const catalogo = [
   feature('automations', { enabled: true }),
   feature('saml', { premium: true }),
-  // As duas que não cabem no bitmask: a tela tem de TRAVAR, não só avisar.
-  feature('advanced_assignment', { premium: true, available: false }),
+  feature('recurso_indisponivel', { available: false }),
 ];
 
 const montar = () =>
@@ -127,13 +126,12 @@ describe('AccountFeatures', () => {
       expect(updateSpy).toHaveBeenCalledWith({ saml: true });
     });
 
-    // Ligar uma sem bit estoura no banco. Barrar aqui evita a viagem e o erro sem propósito.
     it('NAO chama a API para quem esta indisponivel', async () => {
       const wrapper = montar();
       await flushPromises();
 
       await wrapper.vm.alternar(
-        feature('advanced_assignment', { available: false })
+        feature('recurso_indisponivel', { available: false })
       );
 
       expect(updateSpy).not.toHaveBeenCalled();
