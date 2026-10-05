@@ -30,10 +30,9 @@ const formatTime = seconds => {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 };
 
-const timeLabel = computed(() =>
-  current.value > 0
-    ? `${formatTime(current.value)} / ${formatTime(duration.value)}`
-    : formatTime(duration.value)
+// Sempre "atual / total": o texto não muda de largura ao dar play e a barra não pula.
+const timeLabel = computed(
+  () => `${formatTime(current.value)} / ${formatTime(duration.value)}`
 );
 
 // Os handlers leem o elemento do evento: o pause() do unmount ainda dispara
@@ -170,9 +169,7 @@ onBeforeUnmount(() => {
           @input="seek"
         />
       </div>
-      <span
-        class="flex-shrink-0 text-xs text-right tabular-nums opacity-75 min-w-[4.5rem]"
-      >
+      <span class="flex-shrink-0 text-xs tabular-nums opacity-75">
         {{ timeLabel }}
       </span>
     </template>
