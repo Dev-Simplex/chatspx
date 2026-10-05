@@ -242,6 +242,9 @@ const pendingInternalNotification = useMapGetter(
 );
 watch(pendingInternalNotification, notification => {
   if (!notification) return;
+  // Conversa silenciada no chat interno: nem som nem aviso (menção segue avisando).
+  const muted = uiSettings.value?.internal_chat_muted_channel_ids || [];
+  if (muted.includes(notification.channelId)) return;
   const hidden = typeof document !== 'undefined' && document.hidden;
   if (!hidden) useAlert(`${notification.title}: ${notification.body}`);
   internalChatNotify({
