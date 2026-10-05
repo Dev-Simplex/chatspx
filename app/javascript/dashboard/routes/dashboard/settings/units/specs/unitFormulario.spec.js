@@ -2,6 +2,11 @@ import {
   formatarCep,
   formatarTelefone,
   copiarHorarioParaDias,
+  canaisDaUnidade,
+  falaWhatsapp,
+  templatesAprovados,
+  marcarPrincipal,
+  canaisParaEnvio,
 } from '../unitFormulario';
 
 describe('formatarCep', () => {
@@ -104,5 +109,73 @@ describe('copiarHorarioParaDias', () => {
     const { slots } = copiarHorarioParaDias(grade, grade[1]);
 
     expect(slots[1]).toBe(grade[1]);
+  });
+});
+
+describe('canais das caixas', () => {
+  const cloud = { id: 1, channel_type: 'Channel::Whatsapp' };
+  const waha = { id: 2, channel_type: 'Channel::Api', waha_session_name: 's1' };
+  const site = { id: 3, channel_type: 'Channel::WebWidget' };
+
+  it('carrega o canal de cada caixa com os campos vazios preenchidos', () => {
+    const canais = canaisDaUnidade({
+      canais: [{ inbox_id: 1, papel: 'Geral', destino: true }],
+    });
+
+    expect(canais[1]).toEqual({
+      papel: 'Geral',
+      destino: true,
+      principal: false,
+      template_name: '',
+      template_language: '',
+      texto: '',
+    });
+  });
+
+  it('só WhatsApp oficial ou sessão WAHA falam WhatsApp', () => {
+    expect([cloud, waha, site].map(falaWhatsapp)).toEqual([true, true, false]);
+  });
+
+  it('lista só os templates aprovados', () => {
+    const caixa = {
+      message_templates: [
+        { name: 'abertura', language: 'pt_BR', status: 'APPROVED' },
+        { name: 'rascunho', language: 'pt_BR', status: 'PENDING' },
+      ],
+    };
+
+    expect(templatesAprovados(caixa)).toEqual([
+      { value: 'abertura|pt_BR', label: 'abertura (pt_BR)' },
+    ]);
+  });
+
+  it('mantém um único WhatsApp principal', () => {
+    const canais = { 1: { principal: true }, 2: { principal: false } };
+
+    expect(marcarPrincipal(canais, 2, true)).toEqual({
+      1: { principal: false },
+      2: { principal: true },
+    });
+  });
+
+  it('envia só as caixas da unidade e não marca destino fora do WhatsApp', () => {
+    const canais = canaisDaUnidade({
+      canais: [
+        { inbox_id: 3, papel: ' Site ', destino: true },
+        { inbox_id: 9, papel: 'Fora da unidade' },
+      ],
+    });
+
+    expect(canaisParaEnvio(canais, [3], [cloud, waha, site])).toEqual([
+      {
+        inbox_id: 3,
+        papel: 'Site',
+        destino: false,
+        principal: false,
+        template_name: '',
+        template_language: '',
+        texto: '',
+      },
+    ]);
   });
 });
