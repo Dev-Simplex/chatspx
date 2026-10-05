@@ -54,6 +54,21 @@ RSpec.describe Captain::Tools::LevarAoCanalTool, type: :model do
     sem_numero!(resposta)
   end
 
+  it 'leva o resumo da origem: nota no topo e atributo para a IA do destino' do
+    conversa.update!(custom_attributes: { 'resumo_atendimento_ia' => 'Cliente quer alugar um apartamento.',
+                                          'acionamento_falhou' => 'falha anterior' })
+
+    tool.perform(contexto, canal: 'Geral', motivo: 'Você quer falar sobre locação.')
+
+    nova = Conversation.where(inbox: destino, contact: contato).sole
+    primeira, abertura = nova.messages.order(:id).first(2)
+    expect(primeira.private).to be(true)
+    expect(primeira.content).to include('Resumo da origem:', 'Cliente quer alugar um apartamento.')
+    expect(abertura.additional_attributes['troca_de_canal_origem_id']).to eq(conversa.id)
+    expect(nova.custom_attributes['origem_canal']).to include('Motivo: Você quer falar sobre locação.')
+    expect(conversa.reload.custom_attributes).not_to have_key('acionamento_falhou')
+  end
+
   it 'segue na conversa que o cliente já tem aberta no destino, sem trocar o dono' do
     dono = create(:user, account: account, role: :agent)
     ficha = create(:contact_inbox, contact: contato, inbox: destino, source_id: '5566999887766')
