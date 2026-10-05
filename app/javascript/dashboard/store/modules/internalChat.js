@@ -1,5 +1,7 @@
 import InternalChatAPI from '../../api/internalChat';
 
+let refetchInFlight = false;
+
 export const state = {
   channels: [],
   // Modo auditoria (admin): TODOS os canais da conta, lista separada da do usuário.
@@ -218,6 +220,7 @@ export const actions = {
         echoId,
       });
       commit('APPEND_MESSAGE', { channelId, message: data });
+      commit('SET_LAST_MESSAGE', { channelId, message: data });
       return data;
     } catch (error) {
       if (echoId) commit('MARK_MESSAGE_FAILED', { channelId, echoId });
@@ -278,6 +281,15 @@ export const actions = {
     const message = payload.message;
     if ($state.messagesByChannel[channelId]) {
       commit('APPEND_MESSAGE', { channelId, message });
+    }
+    commit('SET_LAST_MESSAGE', { channelId, message });
+    // Canal que ainda não está na lista (ex.: DM nova): um único refetch, mesmo
+    // que cheguem várias mensagens dele enquanto a busca está em voo.
+    if (!$state.channels.some(c => c.id === channelId) && !refetchInFlight) {
+      refetchInFlight = true;
+      dispatch('fetchChannels').finally(() => {
+        refetchInFlight = false;
+      });
     }
 
     // Notifica qualquer mensagem nova de canais de que sou membro (DM, grupo ou
@@ -494,6 +506,18 @@ export const mutations = {
   CLEAR_UNREAD($state, channelId) {
     const channel = $state.channels.find(c => c.id === channelId);
     if (channel) channel.unread_count = 0;
+  },
+  // Prévia da lista (e a ordem por recência) acompanha a última mensagem.
+  SET_LAST_MESSAGE($state, { channelId, message }) {
+    const channel = $state.channels.find(c => c.id === channelId);
+    if (!channel) return;
+    channel.last_message = {
+      content: message.content,
+      created_at: message.created_at,
+      user_id: message.user?.id,
+      user_name: message.user?.name,
+      deleted: Boolean(message.deleted),
+    };
   },
   BUMP_UNREAD($state, channelId) {
     const channel = $state.channels.find(c => c.id === channelId);

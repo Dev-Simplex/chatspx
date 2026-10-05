@@ -26,6 +26,7 @@ if last_message.present?
   json.last_message do
     json.content last_message.content
     json.created_at last_message.created_at.to_i
+    json.user_id last_message.user_id
     json.user_name last_message.user&.name
     json.deleted last_message.deleted?
   end
