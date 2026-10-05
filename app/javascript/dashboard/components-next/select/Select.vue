@@ -33,6 +33,19 @@ defineProps({
     type: String,
     default: '',
   },
+  // Sem estes dois, o <select> INTERNO nao tinha como receber nome acessivel: atributo
+  // solto no componente cai na <div> raiz, nao no controle. Era por isso que os <label>
+  // dos formularios que usam este Select ficavam orfaos — nao havia `for` a apontar nem
+  // `aria-label` a passar, e o conserto era impossivel no ponto de uso.
+  // Opcionais e sem default visivel: quem ja usa o componente nao muda em nada.
+  id: {
+    type: String,
+    default: undefined,
+  },
+  ariaLabel: {
+    type: String,
+    default: undefined,
+  },
 });
 
 const modelValue = defineModel({
@@ -44,7 +57,9 @@ const modelValue = defineModel({
 <template>
   <div class="w-fit relative">
     <select
+      :id="id"
       v-model="modelValue"
+      :aria-label="ariaLabel"
       :disabled="disabled"
       class="appearance-none bg-none rounded-lg border-0 outline-1 outline -outline-offset-1 transition-all duration-200 bg-n-surface-1 !mb-0 py-2 px-3 pr-10 text-sm"
       :class="{
