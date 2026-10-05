@@ -142,8 +142,8 @@ onBeforeUnmount(() => {
         <span class="tabular-nums text-n-slate-11">{{ elapsedLabel }}</span>
       </template>
       <template v-else>
-        <AudioPlayer :src="previewUrl" class="text-n-slate-12" />
-        <span class="hidden text-xs truncate sm:inline text-n-slate-10">
+        <AudioPlayer :src="previewUrl" fluid class="text-n-slate-12" />
+        <span class="flex-shrink-0 hidden text-xs md:inline text-n-slate-10">
           {{ t('INTERNAL_CHAT.AUDIO.REVIEW_HINT') }}
         </span>
       </template>

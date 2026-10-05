@@ -9,6 +9,8 @@ import { useI18n } from 'vue-i18n';
 
 defineProps({
   src: { type: String, required: true },
+  // Ocupa a largura que sobrar (prévia no composer) em vez da largura fixa do balão.
+  fluid: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -75,6 +77,10 @@ const toggle = () => {
   });
 };
 
+const progress = computed(() =>
+  duration.value ? Math.min(100, (current.value / duration.value) * 100) : 0
+);
+
 const seek = event => {
   audioRef.value.currentTime = Number(event.target.value);
 };
@@ -87,7 +93,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 w-60 max-w-full">
+  <div
+    class="flex items-center gap-3 max-w-full"
+    :class="fluid ? 'flex-1 min-w-0' : 'w-64'"
+  >
     <audio
       ref="audioRef"
       :src="src"
@@ -136,7 +145,18 @@ onBeforeUnmount(() => {
         <span v-else-if="status === 'playing'" class="i-lucide-pause" />
         <span v-else class="i-lucide-play" />
       </button>
-      <div class="flex flex-col flex-1 min-w-0 gap-0.5">
+      <div class="relative flex items-center flex-1 h-6 min-w-0 group">
+        <div class="w-full h-1.5 rounded-full bg-n-alpha-3">
+          <div
+            class="h-full rounded-full bg-n-brand"
+            :style="{ width: `${progress}%` }"
+          />
+        </div>
+        <span
+          v-if="duration"
+          class="absolute -translate-x-1/2 rounded-full shadow pointer-events-none size-3 bg-n-brand ring-2 ring-n-solid-1"
+          :style="{ left: `${progress}%` }"
+        />
         <input
           type="range"
           min="0"
@@ -146,13 +166,15 @@ onBeforeUnmount(() => {
           :disabled="!duration"
           :title="t('INTERNAL_CHAT.AUDIO.SEEK')"
           :aria-label="t('INTERNAL_CHAT.AUDIO.SEEK')"
-          class="w-full h-1 cursor-pointer accent-n-brand disabled:cursor-default"
+          class="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-default"
           @input="seek"
         />
-        <span class="text-[11px] leading-none tabular-nums opacity-75">
-          {{ timeLabel }}
-        </span>
       </div>
+      <span
+        class="flex-shrink-0 text-xs text-right tabular-nums opacity-75 min-w-[4.5rem]"
+      >
+        {{ timeLabel }}
+      </span>
     </template>
   </div>
 </template>
