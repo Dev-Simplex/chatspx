@@ -90,6 +90,24 @@
       "CONFIRM": "Compartilhar",
       "DONE": "Conversa compartilhada no chat interno",
       "ERROR": "Não foi possível compartilhar a conversa"
+    },
+    "AUDIO": {
+      "REQUESTING": "Permita o microfone no aviso do navegador…",
+      "RECORDING": "Gravando",
+      "STOP": "Parar a gravação (você ouve antes de enviar)",
+      "DISCARD": "Descartar o áudio",
+      "SEND": "Enviar o áudio",
+      "REVIEW_HINT": "Ouça e envie, ou descarte",
+      "PERMISSION_DENIED": "O navegador bloqueou o microfone. Clique no cadeado ao lado do endereço do site e permita o microfone.",
+      "NO_MIC": "Nenhum microfone encontrado neste computador.",
+      "UNSUPPORTED": "Este navegador não grava áudio. Use o Chrome, o Edge ou o Firefox atualizados.",
+      "RECORD_ERROR": "Não foi possível gravar o áudio. Tente de novo.",
+      "PLAY": "Ouvir o áudio",
+      "PAUSE": "Pausar",
+      "SEEK": "Avançar ou voltar o áudio",
+      "PLAY_ERROR": "Não foi possível tocar este áudio.",
+      "DOWNLOAD": "Baixar",
+      "SENDING_PROGRESS": "Enviando {progress}%"
     }
   }
 }

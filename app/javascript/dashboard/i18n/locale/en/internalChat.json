@@ -90,6 +90,24 @@
       "CONFIRM": "Share",
       "DONE": "Shared to internal chat",
       "ERROR": "Could not share the conversation"
+    },
+    "AUDIO": {
+      "REQUESTING": "Allow the microphone in the browser prompt…",
+      "RECORDING": "Recording",
+      "STOP": "Stop recording (you can listen before sending)",
+      "DISCARD": "Discard the audio",
+      "SEND": "Send the audio",
+      "REVIEW_HINT": "Listen and send, or discard",
+      "PERMISSION_DENIED": "The browser blocked the microphone. Click the lock next to the site address and allow the microphone.",
+      "NO_MIC": "No microphone found on this computer.",
+      "UNSUPPORTED": "This browser can't record audio. Use an up-to-date Chrome, Edge or Firefox.",
+      "RECORD_ERROR": "Couldn't record the audio. Try again.",
+      "PLAY": "Play the audio",
+      "PAUSE": "Pause",
+      "SEEK": "Move forward or back in the audio",
+      "PLAY_ERROR": "Couldn't play this audio.",
+      "DOWNLOAD": "Download",
+      "SENDING_PROGRESS": "Sending {progress}%"
     }
   }
 }
