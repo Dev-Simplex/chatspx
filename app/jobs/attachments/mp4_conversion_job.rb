@@ -41,6 +41,7 @@ class Attachments::Mp4ConversionJob < ApplicationJob
       Attachments::MetaMerge.call(attachment, 'mp4' => 'falhou')
     elsif convert(attachment)
       refresh_bubble(attachment)
+      Attachments::VideoPosterJob.perform_later(attachment.id)
     else
       Attachments::MetaMerge.call(attachment, 'mp4' => 'falhou')
     end

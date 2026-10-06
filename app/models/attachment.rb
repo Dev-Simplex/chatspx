@@ -24,6 +24,7 @@
 class Attachment < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include Rails.application.routes.url_helpers
   include AttachmentMp4Conversion
+  include AttachmentVideoPoster
 
   ACCEPTABLE_FILE_TYPES = %w[
     text/csv text/plain text/rtf
@@ -64,6 +65,7 @@ class Attachment < ApplicationRecord # rubocop:disable Metrics/ClassLength
   end
 
   def thumb_url
+    return video_poster_url if video?
     return '' unless file.attached? && image?
 
     begin
