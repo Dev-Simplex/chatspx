@@ -87,7 +87,11 @@ export const authorColor = (sender = {}, isDark = false) => {
 
 /** Iniciais para o avatar: primeira + última palavra do nome. */
 export const authorInitials = (name = '') => {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  // Só palavras que começam com letra: "Carla Mendes (teste)" vira "CM", não "C(".
+  const parts = String(name)
+    .trim()
+    .split(/\s+/)
+    .filter(part => /^\p{L}/u.test(part));
   if (!parts.length) return '';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
