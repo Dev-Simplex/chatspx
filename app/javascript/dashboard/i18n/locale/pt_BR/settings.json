@@ -229,6 +229,7 @@
       "LATE_TITLE": "{n} lead esperando há mais de {min} min sem ninguém pegar | {n} leads esperando há mais de {min} min sem ninguém pegar",
       "LATE_OLDEST": "O mais antigo está com {nome} há {tempo}.",
       "LATE_WHO": "Com quem: {lista}.",
+      "LATE_SPREAD": "Espalhados entre {n} pessoas: a lista abaixo mostra cada um.",
       "WARN_TITLE": "Tudo no prazo, mas {n} lead ainda espera alguém pegar | Tudo no prazo, mas {n} leads ainda esperam alguém pegar",
       "WARN_SUB": "Nenhum passou de {min} min. Se passar, ele aparece aqui em vermelho.",
       "OK_TITLE": "Tudo em dia: nenhum lead esperando alguém pegar",

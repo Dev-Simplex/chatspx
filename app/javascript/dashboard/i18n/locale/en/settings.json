@@ -229,6 +229,7 @@
       "LATE_TITLE": "{n} lead waiting over {min} min with nobody picking it up | {n} leads waiting over {min} min with nobody picking them up",
       "LATE_OLDEST": "The oldest is with {nome}, for {tempo}.",
       "LATE_WHO": "With: {lista}.",
+      "LATE_SPREAD": "Spread across {n} people: the list below shows each one.",
       "WARN_TITLE": "All on time, but {n} lead is still waiting to be picked up | All on time, but {n} leads are still waiting to be picked up",
       "WARN_SUB": "None is over {min} min. If one gets there, it shows up here in red.",
       "OK_TITLE": "All good: no lead waiting to be picked up",

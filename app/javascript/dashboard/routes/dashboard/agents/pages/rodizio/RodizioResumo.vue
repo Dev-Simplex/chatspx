@@ -90,7 +90,13 @@ const frase = computed(() => {
             nome: nomeDe(maisAntigo),
             tempo: tempo(esperaDe(maisAntigo)),
           }),
-        t('AGENTS_RODIZIO.SUMMARY.LATE_WHO', { lista: listaDeNomes(pessoas) }),
+        // Até três pessoas cabem numa frase; mais que isso vira ruído — a lista logo abaixo
+        // mostra cada um.
+        pessoas.length <= 3
+          ? t('AGENTS_RODIZIO.SUMMARY.LATE_WHO', {
+              lista: listaDeNomes(pessoas),
+            })
+          : t('AGENTS_RODIZIO.SUMMARY.LATE_SPREAD', { n: pessoas.length }),
       ]
         .filter(Boolean)
         .join(' '),
@@ -210,7 +216,9 @@ const numeros = computed(() => {
               })
             }}
           </span>
-          <span class="min-w-0 text-sm text-n-slate-12">
+          <span
+            class="flex flex-wrap items-baseline min-w-0 text-sm gap-x-1 text-n-slate-12"
+          >
             <span class="font-semibold">{{ nomeDe(lead) }}</span>
             <span class="text-n-slate-11">
               {{ t('AGENTS_RODIZIO.SUMMARY.HAS_NOT_TAKEN') }}
@@ -261,10 +269,12 @@ const numeros = computed(() => {
       >
         <p
           v-tooltip.top="numero.dica"
-          class="inline-flex items-center gap-1 m-0 text-xs font-medium text-n-slate-11 w-fit cursor-help"
+          class="m-0 text-xs font-medium text-n-slate-11 w-fit cursor-help"
         >
           {{ numero.rotulo }}
-          <span class="i-lucide-info size-3 text-n-slate-9" />
+          <span
+            class="inline-block ml-0.5 align-[-2px] i-lucide-info size-3 text-n-slate-9"
+          />
         </p>
         <p
           class="m-0 text-2xl font-semibold leading-tight tabular-nums"

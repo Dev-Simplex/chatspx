@@ -136,7 +136,7 @@ const mediaDe = userId => {
     >
       <li v-for="linha in linhas" :key="linha.user_id">
         <button
-          class="grid items-center w-full grid-cols-1 px-4 py-3 text-left md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_auto] gap-x-5 gap-y-2 hover:bg-n-slate-2 dark:hover:bg-n-solid-3"
+          class="grid items-center w-full grid-cols-1 px-4 py-3 text-left md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_17rem] gap-x-5 gap-y-2 hover:bg-n-slate-2 dark:hover:bg-n-solid-3"
           :aria-expanded="expandido === linha.user_id"
           @click="emit('alternar', linha)"
         >
