@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
@@ -130,7 +131,7 @@ const contact = computed(
 );
 
 const contactName = computed(
-  () => contact.value?.name || t('KANBAN.ITEMS.UNNAMED_CONTACT')
+  () => contactDisplayName(contact.value, t('KANBAN.ITEMS.UNNAMED_CONTACT'))
 );
 const contactThumbnail = computed(() => {
   return (

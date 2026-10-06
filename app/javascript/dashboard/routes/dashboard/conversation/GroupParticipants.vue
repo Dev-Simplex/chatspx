@@ -13,9 +13,9 @@ import { frontendURL } from 'dashboard/helper/URLHelper';
 import ContactAPI from 'dashboard/api/contacts';
 import GroupParticipantsAPI from 'dashboard/api/groupParticipants';
 import {
-  groupSavedContacts,
-  loadGroupSavedContacts,
-} from 'dashboard/composables/useGroupSavedContacts';
+  savedContactFor,
+  refreshSavedContacts,
+} from 'dashboard/composables/useSavedContactNames';
 import GroupParticipantRow from 'dashboard/components-next/GroupParticipants/GroupParticipantRow.vue';
 
 const props = defineProps({
@@ -44,9 +44,6 @@ const {
   syncedAt,
 } = useGroupConversation();
 
-// Contato salvo de cada integrante, pelo telefone: { telefone: { id, name } }.
-const savedContacts = computed(() => groupSavedContacts(props.conversationId));
-
 /**
  * O nome que o agente salvou no ChatSPX vale mais que o do WhatsApp (que quase
  * sempre vem vazio). Ordem: admins, depois quem tem nome A→Z, depois só número.
@@ -54,8 +51,10 @@ const savedContacts = computed(() => groupSavedContacts(props.conversationId));
 const participants = computed(() =>
   snapshotParticipants.value
     .map(participant => {
-      if (participant.isUnknown || !savedContacts.value) return participant;
-      const saved = savedContacts.value[participant.phone];
+      if (participant.isUnknown) return participant;
+      const saved = savedContactFor(participant.phone);
+      // Ainda consultando: mostra como veio, sem marcar "não salvo" antes da hora.
+      if (saved === undefined) return participant;
       return {
         ...participant,
         name: saved?.name || participant.name,
@@ -74,14 +73,6 @@ const participants = computed(() =>
         { sensitivity: 'base' }
       );
     })
-);
-
-// Recarrega quando a lista de integrantes muda (sync); as bolhas leem o mesmo cache.
-watch(
-  () => [props.conversationId, syncedAt.value],
-  ([conversationId], previous) =>
-    loadGroupSavedContacts(conversationId, { force: Boolean(previous) }),
-  { immediate: true }
 );
 
 const isSyncing = ref(false);
@@ -146,8 +137,10 @@ const footerText = computed(() => {
 
 // "7 de 10 salvos nos seus contatos": quanto do grupo já está identificado.
 const savedSummary = computed(() => {
-  if (!savedContacts.value || isSyncing.value) return '';
+  if (isSyncing.value) return '';
   const known = participants.value.filter(p => !p.isUnknown);
+  // Só depois que todos foram consultados.
+  if (known.some(p => p.notSaved === undefined)) return '';
   const saved = known.filter(p => p.savedContactId && !p.savedWithoutName);
   return t('GROUP_INFO.SAVED_SUMMARY', {
     saved: saved.length,
@@ -370,7 +363,7 @@ const saveName = async () => {
         phone_number: phoneToSave(participant.phone),
       });
     }
-    await loadGroupSavedContacts(props.conversationId, { force: true });
+    refreshSavedContacts([participant.phone]);
     useAlert(t('GROUP_INFO.NAME_SAVED', { name }));
     closePopover();
   } catch (error) {

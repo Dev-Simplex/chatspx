@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import {
   computed,
   nextTick,
@@ -151,7 +152,9 @@ const { isGroup, groupName, hasSnapshot, participantCount } =
 /** Nome exibido: em grupo, sem o sufixo "(GROUP)" que a integração gruda. */
 const displayName = computed(() => {
   const name = currentContact.value?.name || '';
-  return isGroup.value ? groupName.value || name : name;
+  if (isGroup.value) return groupName.value || name;
+  // Ficha sem nome de verdade mostra o nome salvo do dono do número.
+  return contactDisplayName(currentContact.value);
 });
 
 const groupSubtitle = computed(() => {

@@ -15,6 +15,7 @@ import {
   formatPhone,
   UNKNOWN_AUTHOR_COLOR,
 } from 'dashboard/helper/whatsappGroupHelper';
+import { withSavedName } from 'dashboard/composables/useSavedContactNames';
 
 /**
  * Sem nome, o avatar mostra o DDD — é o que identifica a pessoa de relance numa lista
@@ -76,8 +77,10 @@ export const groupAuthorLabels = t => {
  * @param {String} labels.sentBy - Prefixo do rótulo acessível ("Enviado por")
  * @returns {GroupAuthor|null} `null` quando não há autor estruturado (mensagem legada)
  */
-export const buildGroupAuthor = (sender, labels = {}) => {
-  if (!sender) return null;
+export const buildGroupAuthor = (rawSender, labels = {}) => {
+  if (!rawSender) return null;
+  // Número salvo no sistema mostra o nome do dono, não o que o WhatsApp mandou.
+  const sender = withSavedName(rawSender);
 
   const { unknownLabel = '', unknownHint = '', sentBy = '' } = labels;
 

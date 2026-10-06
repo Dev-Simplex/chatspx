@@ -360,6 +360,8 @@ Rails.application.routes.draw do
               post :cancel
             end
           end
+          # Numero -> nome salvo, em lote (Contacts::SavedNames).
+          resource :contact_names, only: [:show]
           resources :contacts, only: [:index, :show, :update, :create, :destroy] do
             collection do
               get :active

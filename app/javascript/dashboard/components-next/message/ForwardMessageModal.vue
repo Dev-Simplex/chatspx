@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'dashboard/composables/store';
@@ -48,7 +49,7 @@ const mapConversation = (conv, fallbackName) => ({
   id: conv.id,
   displayId: conv.display_id || conv.id,
   type: 'conversation',
-  name: conv.meta?.sender?.name || fallbackName,
+  name: contactDisplayName(conv.meta?.sender, fallbackName),
   phone: conv.meta?.sender?.phone_number || '',
   email: conv.meta?.sender?.email || '',
   avatar: conv.meta?.sender?.thumbnail || conv.meta?.sender?.avatar_url || '',
@@ -106,7 +107,7 @@ const searchContacts = async query => {
         id: `contact-${contact.id}`,
         contactId: contact.id,
         type: 'contact',
-        name: contact.name || unknownLabel,
+        name: contactDisplayName(contact, unknownLabel),
         phone: contact.phoneNumber || '',
         email: contact.email || '',
         avatar: contact.thumbnail || '',
