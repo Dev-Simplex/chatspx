@@ -55,7 +55,7 @@ RSpec.describe Spx::CaptadorListener do
       listener.message_created(event('message.created', message: note))
     end
 
-    it 'não entrega conversa que não é do Captador' do
+    it 'não entrega conversa sem carimbo de caixa que não está liberada' do
       incoming = message
       conversation.update!(custom_attributes: {})
       expect(WebhookJob).not_to receive(:perform_later)
@@ -92,6 +92,54 @@ RSpec.describe Spx::CaptadorListener do
       allow(incoming).to receive(:webhook_data).and_raise(StandardError, 'boom')
 
       expect { listener.message_created(event('message.created', message: incoming)) }.not_to raise_error
+    end
+  end
+
+  # Conversa aberta direto no ChatSPX: o Captador liga ao lead pelo telefone do contato.
+  describe 'conversa sem carimbo' do
+    let(:released) { create(:channel_api, account: account).inbox }
+    let(:contact) { create(:contact, account: account, phone_number: '+5565999998888') }
+    let(:conversation) { create(:conversation, account: account, inbox: released, contact: contact) }
+
+    def direct_message(**attrs)
+      create(:message, account: account, inbox: conversation.inbox, conversation: conversation, **attrs)
+    end
+
+    before { hook.update!(settings: hook.settings.merge('allowed_inbox_ids' => released.id.to_s)) }
+
+    def resolved(conv)
+      event('conversation.status_changed', conversation: conv, changed_attributes: { status: %w[open resolved] })
+    end
+
+    it 'entrega a mensagem de caixa liberada com o telefone do contato e a caixa' do
+      incoming = direct_message(message_type: 'incoming', content: 'Oi, quero um orçamento')
+      sender = hash_including(id: contact.id, phone_number: '+5565999998888')
+      expect_delivery(event: 'message_created', id: incoming.id,
+                      conversation: hash_including(id: conversation.display_id, inbox_id: released.id, meta: hash_including(sender: sender)))
+
+      listener.message_created(event('message.created', message: incoming))
+    end
+
+    it 'entrega a conversa resolvida de caixa liberada' do
+      expect_delivery(event: 'conversation_status_changed', id: conversation.display_id, inbox_id: released.id)
+
+      listener.conversation_status_changed(resolved(conversation))
+    end
+
+    it 'ignora nota privada' do
+      note = direct_message(message_type: 'outgoing', private: true)
+      expect(WebhookJob).not_to receive(:perform_later)
+
+      listener.message_created(event('message.created', message: note))
+    end
+
+    it 'ignora caixa fora de allowed_inbox_ids' do
+      other = create(:conversation, account: account, inbox: create(:channel_api, account: account).inbox, contact: contact)
+      incoming = create(:message, account: account, inbox: other.inbox, conversation: other, message_type: 'incoming')
+      expect(WebhookJob).not_to receive(:perform_later)
+
+      listener.message_created(event('message.created', message: incoming))
+      listener.conversation_status_changed(resolved(other))
     end
   end
 
