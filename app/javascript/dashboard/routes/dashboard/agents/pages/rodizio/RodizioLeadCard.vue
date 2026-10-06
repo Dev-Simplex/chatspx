@@ -275,18 +275,19 @@ const passos = computed(() => {
           {{ contexto }}
         </span>
       </span>
-      <span
-        class="ml-auto text-sm font-medium tabular-nums text-n-slate-12 whitespace-nowrap"
-      >
-        {{ selo }}
-      </span>
-      <span
-        v-tooltip.top="t('AGENTS_RODIZIO.TIMELINE.WAIT_HINT')"
-        class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap tabular-nums"
-        :class="faixa.selo"
-      >
-        <span class="i-lucide-clock size-3" />
-        {{ t('AGENTS_RODIZIO.TIMELINE.WAIT', { tempo: tempo(espera) }) }}
+      <!-- Situação e espera andam juntas: em tela estreita descem de linha as duas, nunca uma só. -->
+      <span class="flex flex-wrap items-center justify-end gap-2 ml-auto">
+        <span class="text-sm font-medium tabular-nums text-n-slate-12">
+          {{ selo }}
+        </span>
+        <span
+          v-tooltip.top="t('AGENTS_RODIZIO.TIMELINE.WAIT_HINT')"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap tabular-nums"
+          :class="faixa.selo"
+        >
+          <span class="i-lucide-clock size-3" />
+          {{ t('AGENTS_RODIZIO.TIMELINE.WAIT', { tempo: tempo(espera) }) }}
+        </span>
       </span>
     </div>
 
@@ -321,12 +322,13 @@ const passos = computed(() => {
         </div>
         <div class="min-w-0 pb-2 md:pb-0 md:pr-2">
           <p
-            class="m-0 text-xs truncate"
-            :class="
+            class="m-0 text-xs"
+            :class="[
+              passo.conector ? 'truncate' : 'break-words',
               passo.atual || passo.pendente
                 ? 'font-semibold text-n-slate-12'
-                : 'font-medium text-n-slate-12'
-            "
+                : 'font-medium text-n-slate-12',
+            ]"
           >
             {{ passo.rotulo }}
           </p>
