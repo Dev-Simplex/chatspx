@@ -66,7 +66,7 @@ const articleMenuItems = computed(() => {
     ARTICLE_MENU_OPTIONS[ARTICLE_STATUSES.PUBLISHED]
   ).map(key => commonItems[key]);
 
-  return [commonItems.copyLink, ...statusItems, commonItems.delete];
+  return [...statusItems, commonItems.delete];
 });
 
 const statusTextColor = computed(() => {
@@ -132,6 +132,19 @@ const handleClick = id => {
         {{ title }}
       </span>
       <div class="flex items-center gap-2">
+        <Button
+          :label="
+            t(
+              'HELP_CENTER.ARTICLES_PAGE.ARTICLE_CARD.CARD.DROPDOWN_MENU.COPY_LINK'
+            )
+          "
+          :title="t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.COPY_LINK_TIP')"
+          icon="i-lucide-link"
+          color="slate"
+          variant="faded"
+          size="xs"
+          @click="emit('articleAction', { action: 'copy_link', id })"
+        />
         <span
           class="text-xs font-medium inline-flex items-center h-6 px-2 py-0.5 rounded-full"
           :class="statusTextColor"

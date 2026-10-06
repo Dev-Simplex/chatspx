@@ -73,13 +73,6 @@ export const ARTICLE_STATUSES = {
 };
 
 export const ARTICLE_MENU_ITEMS = {
-  copyLink: {
-    label:
-      'HELP_CENTER.ARTICLES_PAGE.ARTICLE_CARD.CARD.DROPDOWN_MENU.COPY_LINK',
-    value: 'copy_link',
-    action: 'copy_link',
-    icon: 'i-lucide-link',
-  },
   publish: {
     label: 'HELP_CENTER.ARTICLES_PAGE.ARTICLE_CARD.CARD.DROPDOWN_MENU.PUBLISH',
     value: ARTICLE_STATUSES.PUBLISHED,
