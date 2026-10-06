@@ -8,6 +8,9 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   WEEKDAY_LABELS = %w[Seg Ter Qua Qui Sex Sáb Dom].freeze
   WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0].freeze # remapeia Dom-primeiro do #wday para Seg-primeiro.
 
+  # Coluna "Gestor" da tela do rodízio: chegou ao gestor, à mão ou escalado.
+  RODIZIO_GESTOR = %w[escalado_gestor manual_gestor].freeze
+
   SUMMARY_BUILDERS = {
     'agent' => 'V2::Reports::AgentSummaryBuilder',
     'inbox' => 'V2::Reports::InboxSummaryBuilder',
@@ -47,6 +50,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     when 'sla' then sla_data
     when 'funnel' then funnel_data
     when 'agent_assignment' then agent_assignment_data
+    when 'rodizio' then rodizio_data
     when 'agent', 'inbox', 'team', 'label' then summary_data(@report_type)
     else
       raise ArgumentError, "report_type desconhecido: #{@report_type}"
@@ -746,6 +750,84 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def funnel_age_label(seconds)
     seconds.to_i.positive? ? format_seconds(seconds) : '—'
+  end
+
+  # ======================= RODÍZIO =======================
+  # A tela Relatórios → Rodízio no papel. Usa o MESMO service da tela, com os mesmos `de`/`ate`/
+  # `team_id` que ela mandou: um número diferente entre tela e PDF seria o gestor conferindo e
+  # não fechando.
+  def rodizio_data
+    servico = Spx::Distribuicao::ContabilizacaoService.new(
+      account: @account, inicio: @filters[:de], fim: @filters[:ate], team_id: @filters[:team_id]
+    )
+    dados = servico.call
+    inicio, fim = servico.periodo
+    time = rodizio_time
+    recebidos = dados[:totais][:recebidos].to_i
+    {
+      report_type: 'rodizio', title: 'Relatório do Rodízio de Leads',
+      period: { label: "#{format_date(inicio)} a #{format_date(fim)}" },
+      overline: 'Distribuição de Leads · Confidencial',
+      subtitle: "Quem recebeu os leads, por qual regra, e o que está parado agora · #{time}",
+      base_label: "#{recebidos} #{recebidos == 1 ? 'lead recebido' : 'leads recebidos'}",
+      meta_extra: [{ label: 'Time', value: time }],
+      recebidos: recebidos,
+      sem_movimento: rodizio_parados(dados[:sem_movimento]),
+      tabela: rodizio_tabela(dados[:linhas], dados[:totais])
+    }
+  end
+
+  def rodizio_time
+    return 'Todos os times' if @filters[:team_id].blank?
+
+    @account.teams.find_by(id: @filters[:team_id])&.name || "Time ##{@filters[:team_id]}"
+  end
+
+  def rodizio_parados(sem_movimento)
+    {
+      limiar_minutos: sem_movimento[:limiar_minutos],
+      total: sem_movimento[:total].to_i,
+      rows: sem_movimento[:leads].map do |lead|
+        [lead[:corretor] || 'Ninguém', rodizio_duracao(lead[:minutos_parado].to_i * 60), lead[:produto].presence || '—',
+         lead[:display_id].to_s, lead[:designado_em]&.in_time_zone(TZ)&.strftime('%d/%m/%Y %H:%M') || '—']
+      end
+    }
+  end
+
+  def rodizio_tabela(linhas, totais)
+    rows = linhas.map { |linha| rodizio_linha(linha[:nome] || "##{linha[:user_id]}", linha) }
+    return rows if rows.empty?
+
+    produtos = linhas.each_with_object(Hash.new(0)) { |linha, acc| linha[:produtos].each { |nome, n| acc[nome] += n } }
+    rows << rodizio_linha('Total', recebidos: totais[:recebidos], motivos: totais[:por_motivo],
+                                   abertos: linhas.sum { |linha| linha[:abertos] }, canais: totais[:por_canal], produtos: produtos)
+  end
+
+  # Mesmas colunas e mesma conta da tabela da tela ("Gestor" = escalado + à mão).
+  def rodizio_linha(nome, linha)
+    m = linha[:motivos] || {}
+    [nome, linha[:recebidos].to_i, m['rodizio'].to_i, m['continuidade'].to_i, m['preferencia_cliente'].to_i,
+     m['repasse_sla'].to_i, RODIZIO_GESTOR.sum { |chave| m[chave].to_i }, linha[:abertos].to_i,
+     rodizio_contagem(linha[:canais]), rodizio_contagem(linha[:produtos])]
+  end
+
+  # "WhatsApp 12 · Site 3" — igual à tela.
+  def rodizio_contagem(contagem)
+    (contagem || {}).map { |nome, total| "#{nome} #{total}" }.join(' · ').presence || '—'
+  end
+
+  # Mesmo formato da tela (rodizio/tempo.js): "45s", "12 min", "1h06", "5 d 19h".
+  def rodizio_duracao(segundos)
+    return "#{segundos}s" if segundos < 60
+
+    minutos = segundos / 60
+    return "#{minutos} min" if minutos < 60
+
+    horas, resto = minutos.divmod(60)
+    return (resto.zero? ? "#{horas}h" : format('%<h>dh%<m>02d', h: horas, m: resto)) if horas < 24
+
+    dias, resto_horas = horas.divmod(24)
+    resto_horas.zero? ? "#{dias} d" : "#{dias} d #{resto_horas}h"
   end
 
   # ======================= ATRIBUIÇÕES (quem atribuiu pra quem) =======================

@@ -28,6 +28,7 @@
         meta_items = [
           { label: 'Cliente', value: @account.name },
           { label: 'Período', value: @data.dig(:period, :label) },
+          *@data[:meta_extra],
           { label: 'Base analisada', value: @data[:base_label] || '—' },
           { label: 'Emissão', value: @generated_at.in_time_zone('America/Manaus').strftime('%d/%m/%Y %H:%M') }
         ]

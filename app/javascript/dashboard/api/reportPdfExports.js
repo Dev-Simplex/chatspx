@@ -7,6 +7,7 @@ class ReportPdfExportsAPI extends ApiClient {
   }
 
   // reportType: 'nps' | ... ; filters: { from, to, user_ids, inbox_id, team_id, funnel_id }
+  // `de`/`ate` são o período do Rodízio, mandados como a própria tela manda à API dela.
   create({
     reportType,
     from,
@@ -15,6 +16,8 @@ class ReportPdfExportsAPI extends ApiClient {
     inbox_id,
     team_id,
     funnel_id,
+    de,
+    ate,
   } = {}) {
     return axios.post(this.url, {
       report_type: reportType,
@@ -24,6 +27,8 @@ class ReportPdfExportsAPI extends ApiClient {
       inbox_id,
       team_id,
       funnel_id,
+      de,
+      ate,
     });
   }
 

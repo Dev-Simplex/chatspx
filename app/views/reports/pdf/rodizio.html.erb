@@ -1,0 +1,96 @@
+<%
+  parados = @data[:sem_movimento]
+  tabela = @data[:tabela]
+  limiar = parados[:limiar_minutos]
+  emissao = @generated_at.in_time_zone('America/Manaus').strftime('%d/%m/%Y às %H:%M')
+  colunas = [
+    { label: 'Consultor' },
+    { label: 'Recebidos', align: 'right' },
+    { label: 'Rodízio', align: 'right' },
+    { label: 'Continuidade', align: 'right' },
+    { label: 'Pedido do cliente', align: 'right' },
+    { label: 'Repasse', align: 'right' },
+    { label: 'Gestor', align: 'right' },
+    { label: 'Em aberto', align: 'right' },
+    { label: 'Canais' },
+    { label: 'Produtos' }
+  ]
+%>
+
+<%# A tabela por consultor tem 10 colunas: no padding padrão ela não cabe num A4 em pé. %>
+<style>
+  .rodizio-tabela table { font-size: 9.5px; }
+  .rodizio-tabela thead th { padding: 7px 5px; font-size: 7.5px; letter-spacing: 0.2px; }
+  .rodizio-tabela tbody td { padding: 6px 5px; }
+  .rodizio-tabela tbody td:nth-child(9) { white-space: nowrap; }
+  .rodizio-tabela tbody tr:last-child td { font-weight: 700; background: #f0f2f5; border-bottom: none; }
+  .rodizio-legenda p { margin: 0 0 5px; font-size: 10.5px; line-height: 1.5; color: #333; }
+</style>
+
+<%# ---------- 1. Os dois cartões do topo da tela ---------- %>
+<div class="section">
+  <div class="section-title"><span class="dot">1</span> Resumo</div>
+  <%= render 'reports/pdf/kpi_band', cards: [
+    { label: 'Leads recebidos', value: number_with_delimiter(@data[:recebidos]), hero: true,
+      hint: "no período #{@data.dig(:period, :label)}" },
+    { label: 'Sem movimento', value: number_with_delimiter(parados[:total]),
+      hint: "designados há mais de #{limiar} min sem ninguém pegar — situação em #{emissao}" }
+  ] %>
+</div>
+
+<%# ---------- 2. Designados sem movimento ----------
+     Foto do instante, como na tela: não depende do período, inclui lead designado antes dele. %>
+<div class="section">
+  <div class="section-title"><span class="dot">2</span> Designados sem movimento</div>
+  <div class="card" style="padding:0;">
+    <% if parados[:rows].empty? %>
+      <div style="padding:12px 16px; font-size:11px; color:#667781;">Nada parado no momento.</div>
+    <% else %>
+      <%= render 'reports/pdf/data_table', table: {
+        columns: [
+          { label: 'Está com' },
+          { label: 'Esperando há', align: 'right' },
+          { label: 'Produto' },
+          { label: 'Conversa nº', align: 'right' },
+          { label: 'Designado em', align: 'right' }
+        ],
+        rows: parados[:rows]
+      } %>
+    <% end %>
+  </div>
+  <div class="chart-caption">
+    Ninguém pegou ainda; a IA segue cobrindo o cliente. Entra aqui o lead designado há mais de
+    <%= limiar %> min, contado até <%= emissao %>, mesmo que tenha chegado antes do período.
+    Os que esperam há mais tempo vêm primeiro.
+    <% if parados[:total] > parados[:rows].size %>
+      Mostrando <%= parados[:rows].size %> de <%= parados[:total] %>.
+    <% end %>
+  </div>
+</div>
+
+<%# ---------- 3. Tabela por consultor ---------- %>
+<div class="section">
+  <div class="section-title"><span class="dot">3</span> Leads por consultor</div>
+  <div class="card rodizio-tabela" style="padding:0;">
+    <% if tabela.empty? %>
+      <div style="padding:12px 16px; font-size:11px; color:#667781;">Nenhum lead distribuído no período.</div>
+    <% else %>
+      <%= render 'reports/pdf/data_table', table: { columns: colunas, rows: tabela } %>
+    <% end %>
+  </div>
+</div>
+
+<%# ---------- 4. Legenda: o relatório não pode precisar de tradutor ---------- %>
+<div class="section">
+  <div class="section-title"><span class="dot">4</span> O que significa cada coluna</div>
+  <div class="card rodizio-legenda">
+    <p><strong>Recebidos</strong> — leads que caíram no consultor no período. É a soma das cinco colunas seguintes.</p>
+    <p><strong>Rodízio</strong> — chegou pela vez dele na fila.</p>
+    <p><strong>Continuidade</strong> — o cliente já tinha falado com ele antes e voltou para ele.</p>
+    <p><strong>Pedido do cliente</strong> — o próprio cliente pediu para falar com este consultor.</p>
+    <p><strong>Repasse</strong> — outro consultor não pegou a tempo e o lead passou para este.</p>
+    <p><strong>Gestor</strong> — o gestor entregou o lead à mão, ou o lead subiu para o gestor.</p>
+    <p><strong>Em aberto</strong> — leads dele que ainda ninguém pegou.</p>
+    <p style="margin:0;"><strong>Canais</strong> e <strong>Produtos</strong> — por onde os leads chegaram e o que procuravam. "—" é lead sem produto.</p>
+  </div>
+</div>

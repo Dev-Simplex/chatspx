@@ -23,15 +23,17 @@ export default {
           'reportPdfExports/generate',
           { reportType: this.reportType, ...this.filters }
         );
+        // Link com `download` em vez de window.open: o PDF leva segundos para ficar pronto e,
+        // passado o clique, o navegador bloqueia a janela nova em silêncio. A URL já vem como
+        // anexo (disposition: attachment), então o arquivo baixa sem sair da tela.
         if (downloadUrl) {
-          window.open(downloadUrl, '_blank');
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = '';
+          link.click();
         }
       } catch (error) {
-        useAlert(
-          this.$t('REPORT.DOWNLOAD_PDF_FAILED', {
-            default: 'Erro ao gerar o PDF do relatório',
-          })
-        );
+        useAlert(this.$t('REPORT.DOWNLOAD_PDF_FAILED'));
       } finally {
         this.loading = false;
       }
@@ -42,7 +44,7 @@ export default {
 
 <template>
   <V4Button
-    :label="$t('REPORT.DOWNLOAD_PDF', { default: 'Baixar PDF' })"
+    :label="loading ? $t('REPORT.GENERATING_PDF') : $t('REPORT.DOWNLOAD_PDF')"
     icon="i-lucide-file-down"
     size="sm"
     variant="outline"

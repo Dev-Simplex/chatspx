@@ -7,6 +7,7 @@
     "DOWNLOAD_CONVERSATION_REPORTS": "Baixar relatórios de conversas",
     "DOWNLOAD_PDF": "Baixar PDF",
     "DOWNLOAD_PDF_FAILED": "Erro ao gerar o PDF do relatório, tente novamente mais tarde.",
+    "GENERATING_PDF": "Gerando PDF…",
     "DATA_FETCHING_FAILED": "Falha ao buscar dados, tente novamente mais tarde.",
     "SUMMARY_FETCHING_FAILED": "Não foi possível obter o resumo. Tente novamente mais tarde.",
     "METRICS": {

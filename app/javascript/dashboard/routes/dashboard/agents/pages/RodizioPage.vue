@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
 import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import { duracao, instante } from './rodizio/tempo';
 
 defineOptions({ name: 'RodizioPage' });
@@ -251,6 +252,9 @@ const times = computed(() => data.value?.times || []);
 const parados = computed(
   () => data.value?.sem_movimento || { total: 0, leads: [], limiar_minutos: 0 }
 );
+
+// O PDF pede à API exatamente o que a tela pediu (período e time): é a tela no papel.
+const filtrosDoPdf = computed(() => parametros());
 
 const motivo = (linha, chave) => linha.motivos?.[chave] || 0;
 
@@ -518,6 +522,7 @@ const irParaPolitica = () =>
         >
           {{ t('AGENTS_RODIZIO.RELOAD') }}
         </button>
+        <DownloadPdfButton report-type="rodizio" :filters="filtrosDoPdf" />
         <button
           class="h-9 px-3 text-sm rounded-lg border border-n-weak text-n-slate-11 whitespace-nowrap"
           @click="irParaPolitica"
