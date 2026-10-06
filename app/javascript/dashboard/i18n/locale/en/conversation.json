@@ -1350,6 +1350,7 @@
     "SENT_BY_IN_GROUP": "Sent by {name} in this group",
     "REPLYING_TO": "Replying to {name}",
     "NOT_SAVED": "Not in your contacts",
-    "SAVED_NO_NAME": "Saved in contacts, without a name"
+    "SAVED_NO_NAME": "Saved in contacts, without a name",
+    "WHATSAPP_NAME": "WhatsApp name, not saved"
   }
 }

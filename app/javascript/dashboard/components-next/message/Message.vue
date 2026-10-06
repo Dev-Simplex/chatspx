@@ -32,6 +32,10 @@ import {
 } from './constants';
 
 import { buildGroupAuthor, groupAuthorLabels } from './groupAuthorPresenter.js';
+import {
+  groupSavedContacts,
+  loadGroupSavedContacts,
+} from 'dashboard/composables/useGroupSavedContacts';
 
 import Avatar from 'next/avatar/Avatar.vue';
 import Icon from 'next/icon/Icon.vue';
@@ -812,11 +816,21 @@ const groupSender = computed(() => {
  * aqui e continua idêntica. Mensagem legada (autor dentro do texto, sem `group_sender`)
  * devolve `null`: a bolha degrada para o comportamento de hoje em vez de quebrar.
  */
+// Nome que o agente salvou nos contatos vale mais que o do WhatsApp (uma requisição por conversa, em cache).
+if (props.isGroupConversation) loadGroupSavedContacts(props.conversationId);
+
 const groupAuthor = computed(() => {
   if (!props.isGroupConversation) return null;
   if (props.messageType !== MESSAGE_TYPES.INCOMING) return null;
 
-  return buildGroupAuthor(groupSender.value, groupAuthorLabels(t));
+  const sender = groupSender.value;
+  const savedName =
+    sender?.phone &&
+    groupSavedContacts(props.conversationId)?.[sender.phone]?.name;
+  return buildGroupAuthor(
+    savedName ? { ...sender, name: savedName } : sender,
+    groupAuthorLabels(t)
+  );
 });
 
 // No WhatsApp o autor abre o bloco; no Chatwoot o avatar fecha. Em grupo seguimos o

@@ -12,6 +12,10 @@ import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { frontendURL } from 'dashboard/helper/URLHelper';
 import ContactAPI from 'dashboard/api/contacts';
 import GroupParticipantsAPI from 'dashboard/api/groupParticipants';
+import {
+  groupSavedContacts,
+  loadGroupSavedContacts,
+} from 'dashboard/composables/useGroupSavedContacts';
 import GroupParticipantRow from 'dashboard/components-next/GroupParticipants/GroupParticipantRow.vue';
 
 const props = defineProps({
@@ -41,17 +45,7 @@ const {
 } = useGroupConversation();
 
 // Contato salvo de cada integrante, pelo telefone: { telefone: { id, name } }.
-// null = ainda não carregou (não marca ninguém como "não salvo" antes da hora).
-const savedContacts = ref(null);
-
-const loadSavedContacts = async () => {
-  try {
-    const { data } = await GroupParticipantsAPI.show(props.conversationId);
-    savedContacts.value = data?.contacts || {};
-  } catch {
-    savedContacts.value = null;
-  }
-};
+const savedContacts = computed(() => groupSavedContacts(props.conversationId));
 
 /**
  * O nome que o agente salvou no ChatSPX vale mais que o do WhatsApp (que quase
@@ -82,14 +76,11 @@ const participants = computed(() =>
     })
 );
 
-// Recarrega quando a lista de integrantes muda (sync) ou a conversa troca.
+// Recarrega quando a lista de integrantes muda (sync); as bolhas leem o mesmo cache.
 watch(
-  () => [
-    props.conversationId,
-    snapshotParticipants.value.length,
-    syncedAt.value,
-  ],
-  loadSavedContacts,
+  () => [props.conversationId, syncedAt.value],
+  ([conversationId], previous) =>
+    loadGroupSavedContacts(conversationId, { force: Boolean(previous) }),
   { immediate: true }
 );
 
