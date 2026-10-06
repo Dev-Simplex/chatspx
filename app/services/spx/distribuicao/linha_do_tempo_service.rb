@@ -1,215 +1,270 @@
-# Linha do tempo dos leads que caíram num consultor PELO RODÍZIO (SPEC-RODIZIO §9).
+# Linha do tempo dos leads que entraram na fila PELO RODÍZIO (SPEC-RODIZIO §9).
 #
-# A tela de contabilização diz QUANTOS cada um recebeu. Isto diz o que aconteceu com cada lead:
-# quanto tempo a IA cobriu antes de o motor escolher alguém, quanto o lead esperou o escolhido
-# pegar, e quanto durou o atendimento. Read-only: lê o livro-razão, não decide nada.
+# A tela de contabilização diz QUANTOS cada um recebeu. Isto conta o percurso de cada lead, como
+# um rastreio de entrega: chegou → a IA cobriu → o motor designou → (expirou e foi repassado) →
+# alguém pegou → resolveu. Read-only: lê o livro-razão, não decide nada.
 #
-# Só `motivo: rodizio` de propósito. Continuidade e pedido do cliente não passaram pela fila —
-# medir a espera deles como se fosse rodízio inventaria um problema que não existe.
-class Spx::Distribuicao::LinhaDoTempoService
-  # Teto da faixa, igual ao do drill-down por conversa. O total sem teto vai junto na resposta,
-  # para a tela poder dizer "mostrando 20 de 34".
+# Um lead = uma designação `motivo: rodizio` MAIS os repasses que vieram dela. O repasse é uma
+# linha nova no livro-razão (`repasse_sla`/`escalado_gestor`), e tratar cada linha como um lead
+# escondia o fim da história: o lead que expirou com a Misya e hoje espera o Gelson aparecia
+# "encerrado", e o Gelson nem o via na lista dele.
+#
+# Só leads que entraram pelo rodízio, de propósito: continuidade e pedido do cliente não passaram
+# pela fila — medir a espera deles como se fosse rodízio inventaria um problema que não existe.
+class Spx::Distribuicao::LinhaDoTempoService # rubocop:disable Metrics/ClassLength
+  # Teto da lista por consultor. O total sem teto vai junto, para a tela dizer "mostrando 20 de 34".
   LIMITE = 20
   # Designação que fechou porque alguém ENCOSTOU no lead: é o fim da espera.
   ASSUMIDOS = %w[assumido engajado].freeze
-  # Fechou sem ninguém encostar: o lead foi embora para outro corretor.
+  # Fechou sem ninguém encostar: o lead foi embora para outro corretor (ou para ninguém).
   PERDIDOS = %w[expirado substituido].freeze
+  # As linhas que continuam o MESMO lead depois de uma designação perdida.
+  REPASSES = %w[repasse_sla escalado_gestor].freeze
+  SITUACOES = %w[espera atendimento resolvido perdido].freeze
 
-  # Quem ainda espera vem PRIMEIRO, do que espera há mais tempo. Sem isto o teto cortava
-  # justamente o lead parado — ele é antigo por definição, e a ordem por data de designação o
-  # empurrava para o fim. O que já terminou vem do mais recente.
-  ORDEM = Arel.sql(
-    '(encerrado_em IS NULL) DESC, ' \
-    'CASE WHEN encerrado_em IS NULL THEN designado_em END ASC NULLS LAST, ' \
-    'designado_em DESC NULLS LAST, id DESC'
-  )
-
-  # `escopo` chega pronto do controller (conta + período + time), para o recorte da faixa ser
-  # exatamente o mesmo da tabela em volta. Sem `user_id` a lista é da conta inteira — é a aba
-  # "Leads", que responde "onde está cada um" sem precisar adivinhar em quem ele caiu.
-  def initialize(escopo:, canais: {}, user_id: nil, limite: LIMITE)
-    @escopo = escopo.where(motivo: 'rodizio')
-    @escopo = @escopo.where(chosen_user_id: user_id) if user_id.present?
+  # `escopo` chega pronto do controller (conta + período + time), para o recorte ser exatamente o
+  # mesmo da tabela em volta. `user_id` filtra os leads por onde o consultor PASSOU (recebeu pelo
+  # rodízio ou por repasse); `situacao` é um dos SITUACOES ou 'repassado'.
+  def initialize(escopo:, canais: {}, user_id: nil, limite: LIMITE, situacao: nil)
+    @escopo = escopo
+    @user_id = user_id.presence&.to_i
     @canais = canais
     @limite = limite
+    @situacao = situacao.presence
   end
 
   def call
+    do_consultor = @user_id ? todos.select { |lead| lead[:pessoas].include?(@user_id) } : todos
+    filtrados = filtrar(do_consultor)
     {
-      leads: ordenar(logs.map { |log| serializar(log) }),
-      total: @escopo.count,
-      media_espera_segundos: media_espera_segundos
+      leads: filtrados.first(@limite),
+      total: filtrados.size,
+      contagem: contagem(do_consultor),
+      consultores: consultores,
+      media_espera_segundos: media_espera(do_consultor)
     }
   end
 
   private
 
-  def logs
-    @logs ||= @escopo.includes(:chosen_user, conversation: [:inbox, :contact])
-                     .order(ORDEM)
-                     .limit(@limite)
-                     .to_a
+  # Todos os leads do período, do que chegou por último para o primeiro. A ordem é a da pergunta
+  # "o que entrou hoje e onde está?"; quem quer ver só os parados usa o filtro "Esperando".
+  def todos
+    @todos ||= raizes.map { |log| serializar(log) }.sort_by { |lead| [-lead[:chegou_em].to_i, -lead[:id]] }
   end
 
-  # Três grupos, na ordem em que a gestão precisa olhar: ninguém pegou, está em atendimento, já
-  # terminou. Dentro dos dois primeiros, quem está há mais tempo assim aparece antes. O SQL já
-  # traz os parados; aqui separa quem está em atendimento de quem terminou, que só se sabe
-  # depois de cruzar com a resolução.
-  def ordenar(leads)
-    leads.sort_by do |lead|
-      case lead[:situacao]
-      when 'espera' then [0, -lead[:segundos_na_situacao]]
-      when 'atendimento' then [1, -lead[:segundos_na_situacao]]
-      else [2, -lead[:designado_em].to_i]
-      end
-    end
+  def filtrar(leads)
+    return leads if @situacao.blank?
+    return leads.select { |lead| lead[:repassado] } if @situacao == 'repassado'
+
+    leads.select { |lead| lead[:situacao] == @situacao }
+  end
+
+  # As contagens dos filtros: as quatro situações somam o total; "repassado" é um recorte por
+  # cima delas (um lead repassado hoje pode estar esperando, em atendimento ou resolvido).
+  def contagem(leads)
+    base = SITUACOES.index_with { |situacao| leads.count { |lead| lead[:situacao] == situacao } }
+    base.merge(todos: leads.size, repassado: leads.count { |lead| lead[:repassado] })
+  end
+
+  # Quem aparece em algum lead do período, para o filtro por consultor.
+  def consultores
+    por_pessoa = todos.flat_map { |lead| lead[:pessoas] }.tally
+    por_pessoa.filter_map { |id, total| nomes[id] && { id: id, nome: nomes[id], total: total } }.sort_by { |item| item[:nome] }
+  end
+
+  # Média só de quem alguém pegou: lead ainda esperando não tem espera final, e contá-lo como se
+  # tivesse acabado agora empurraria a média para cima a cada recarga da tela.
+  def media_espera(leads)
+    esperas = leads.select { |lead| lead[:pegou_em] }.pluck(:espera_segundos)
+    esperas.any? ? (esperas.sum / esperas.size.to_f).round : nil
+  end
+
+  def raizes
+    @raizes ||= @escopo.where(motivo: 'rodizio').includes(conversation: [:inbox, :contact]).to_a
   end
 
   def conversation_ids
-    @conversation_ids ||= logs.map(&:conversation_id)
+    @conversation_ids ||= raizes.map(&:conversation_id).uniq
   end
 
-  # Média só de quem foi assumido: designação ainda aberta não tem espera final, e contá-la
-  # como se tivesse acabado agora empurraria a média para cima a cada recarga da tela.
-  #
-  # Os dois `where.not` são separados de propósito: `where.not(a: nil, b: nil)` vira
-  # NOT (a IS NULL AND b IS NULL), que deixa passar a linha em que só uma das duas é nula.
-  def media_espera_segundos
-    @escopo.where(status: ASSUMIDOS)
-           .where.not(designado_em: nil)
-           .where.not(encerrado_em: nil)
-           .average(Arel.sql('EXTRACT(EPOCH FROM (encerrado_em - designado_em))'))
-           &.round
-  end
-
-  # `conversation_resolved` é o único lugar com hora de resolução: `conversations` guarda só o
-  # status atual. O contato que volta cai na MESMA conversa, com um evento por ciclo: vale o
-  # primeiro depois desta designação. O último da vida da conversa pode ser de um ciclo anterior
-  # (e o lead que ainda espera apareceria resolvido) ou do seguinte (e o atendimento incharia).
-  def resolvidos_em
-    @resolvidos_em ||= ReportingEvent.where(name: 'conversation_resolved', conversation_id: conversation_ids)
-                                     .pluck(:conversation_id, :event_end_time)
-                                     .group_by(&:first)
-                                     .transform_values { |pares| pares.filter_map(&:last).sort }
-  end
-
-  def resolucao(log, designado)
-    (resolvidos_em[log.conversation_id] || []).find { |instante| instante >= designado }
-  end
-
-  # Quando a conversa REABRIU. No WhatsApp o contato que volta cai na mesma conversa, então
-  # `conversations.created_at` pode ser de semanas atrás: sem isto, a fase "IA cobrindo" de um
-  # lead redistribuído hoje traria o tempo inteiro desde a primeira mensagem da vida do contato
-  # (medido: 24 dias) e esmagaria a espera, que é o que esta tela existe para mostrar.
-  def reaberturas_em
-    @reaberturas_em ||= ReportingEvent.where(name: 'conversation_opened', conversation_id: conversation_ids)
-                                      .pluck(:conversation_id, :event_end_time)
-                                      .group_by(&:first)
-                                      .transform_values { |pares| pares.filter_map(&:last).sort }
-  end
-
-  # A chegada DESTE lead: a última reabertura antes de o motor designar, ou o nascimento da
-  # conversa quando ela nunca reabriu.
-  def chegada(log, designado)
-    reaberturas = reaberturas_em[log.conversation_id] || []
-    reaberturas.reverse.find { |instante| instante <= designado } || log.conversation&.created_at || designado
-  end
-
-  # Todas as designações das mesmas conversas, para achar PARA QUEM o lead foi quando esta
-  # aqui expirou. Uma query só: a busca do sucessor acontece em memória.
+  # Todas as designações das mesmas conversas, sem o recorte de período: o repasse de um lead
+  # do dia 30 pode ter acontecido no dia 1º. Uma query só; o resto é em memória.
   def designacoes_por_conversa
     @designacoes_por_conversa ||= Spx::Distribuicao::Log.where(conversation_id: conversation_ids)
-                                                        .includes(:chosen_user)
                                                         .order(:id)
                                                         .group_by(&:conversation_id)
   end
 
-  def sucessor(log)
-    designacoes_por_conversa.fetch(log.conversation_id, []).find { |outra| outra.id > log.id }
+  def nomes
+    @nomes ||= User.where(id: designacoes_por_conversa.values.flatten.filter_map(&:chosen_user_id) + usuarios_das_resolucoes)
+                   .pluck(:id, :name).to_h
   end
 
-  # Duração nunca negativa: relógio torto ou dado antigo não pode virar bloco de largura
-  # negativa na barra.
+  # A designação de rodízio e os repasses que a seguiram, enquanto cada uma terminou perdida.
+  def cadeia(log)
+    seguintes = designacoes_por_conversa.fetch(log.conversation_id, []).select { |outra| outra.id > log.id }
+    seguintes.each_with_object([log]) do |outra, elos|
+      break elos unless PERDIDOS.include?(elos.last.status) && REPASSES.include?(outra.motivo)
+
+      elos << outra
+    end
+  end
+
+  # A próxima designação da conversa que NÃO é deste lead: o contato voltou e começou outro ciclo.
+  # Tudo o que acontece depois dela é de outro lead.
+  def proximo_ciclo(cadeia)
+    designacoes_por_conversa.fetch(cadeia.first.conversation_id, []).find { |outra| outra.id > cadeia.last.id }
+  end
+
+  # O contato que volta cai na MESMA conversa, com um evento por ciclo: vale o primeiro DENTRO
+  # deste ciclo. O último da vida da conversa pode ser de um ciclo anterior (e o lead que ainda
+  # espera apareceria resolvido) ou do seguinte (e o atendimento incharia).
+  def eventos_de(nome)
+    @eventos_de ||= {}
+    @eventos_de[nome] ||= ReportingEvent.where(name: nome, conversation_id: conversation_ids)
+                                        .where.not(event_end_time: nil)
+                                        .order(:event_end_time)
+                                        .pluck(:conversation_id, :event_end_time, :user_id)
+                                        .group_by(&:first)
+  end
+
+  def usuarios_das_resolucoes
+    eventos_de('conversation_resolved').values.flatten(1).filter_map(&:last)
+  end
+
+  def resolucao(conversation_id, inicio, fim)
+    eventos_de('conversation_resolved').fetch(conversation_id, []).find do |_, instante, _|
+      instante >= inicio && (fim.nil? || instante < fim)
+    end
+  end
+
+  # A chegada DESTE lead: a última reabertura antes de o motor designar, ou o nascimento da
+  # conversa quando ela nunca reabriu. NÃO é `conversations.created_at`: no WhatsApp o contato que
+  # volta cai na mesma conversa, e a fase da IA trazia o tempo desde a primeira mensagem da vida
+  # dele (medido: 24 dias), esmagando a espera, que é o que esta tela existe para mostrar.
+  def chegada(log, designado)
+    reaberturas = eventos_de('conversation_opened').fetch(log.conversation_id, []).map { |_, instante, _| instante }
+    reaberturas.reverse.find { |instante| instante <= designado } || log.conversation&.created_at || designado
+  end
+
   def segundos(inicio, fim)
     return 0 if inicio.blank? || fim.blank?
 
     [(fim - inicio).round, 0].max
   end
 
+  # Tudo o que se sabe de UM ciclo do lead, calculado uma vez e lido pelo resto.
+  def ciclo(log)
+    elos = cadeia(log)
+    designado = log.designado_em || log.created_at
+    fim = proximo_ciclo(elos)&.then { |outra| outra.designado_em || outra.created_at }
+    resolvido = resolucao(log.conversation_id, designado, fim)
+    { log: log, elos: elos, designado: designado, fim: fim, chegou: chegada(log, designado),
+      pegou: elos.find { |elo| ASSUMIDOS.include?(elo.status) },
+      resolvido_em: resolvido&.second, resolvido_por: resolvido && nomes[resolvido.third] }
+  end
+
   def serializar(log)
-    marcos = marcos(log)
-    fases = fases(marcos)
-    identificacao(log).merge(marcos).merge(fases).merge(desfecho(log, marcos)).merge(situacao(marcos, fases[:fases]))
+    c = ciclo(log)
+    identificacao(log, c[:elos]).merge(
+      chegou_em: c[:chegou],
+      designado_em: c[:designado],
+      pegou_em: c[:pegou]&.encerrado_em,
+      resolvido_em: c[:resolvido_em],
+      repassado: c[:elos].size > 1 || fim_perdido?(c[:elos]),
+      espera_segundos: segundos(c[:designado], fim_da_espera(c)),
+      eventos: eventos(c)
+    ).merge(situacao(c))
   end
 
-  # Onde o lead está AGORA, e há quanto tempo — é o que a tela mostra no selo ("esperando Emily
-  # pegar há 38 min"). Sai daqui, e não da tela, para o selo e a ORDEM da lista nunca discordarem.
-  def situacao(marcos, fases)
-    return { situacao: 'espera', segundos_na_situacao: fases[:espera] } if aguardando?(marcos)
-    return { situacao: 'atendimento', segundos_na_situacao: fases[:atendimento] } if em_curso?(marcos)
-
-    { situacao: 'encerrado', segundos_na_situacao: 0 }
+  def agora
+    @agora ||= Time.zone.now
   end
 
-  # Ninguém encostou: nem pegou, nem perdeu para outro. É a espera que ainda corre.
-  def aguardando?(marcos)
-    marcos[:assumido_em].blank? && marcos[:perdido_em].blank?
+  # A espera vai da primeira designação até alguém pegar — atravessando os repasses, porque para
+  # o cliente é uma espera só. Sem ninguém pegar, corre até agora (ou até expirar/resolver).
+  def fim_da_espera(ciclo)
+    return ciclo[:pegou].encerrado_em if ciclo[:pegou]
+    return ciclo[:elos].last.encerrado_em if fim_perdido?(ciclo[:elos])
+
+    ciclo[:resolvido_em] || agora
   end
 
-  def em_curso?(marcos)
-    marcos[:assumido_em].present? && marcos[:resolvido_em].blank?
+  def fim_perdido?(elos)
+    PERDIDOS.include?(elos.last.status)
   end
 
-  def identificacao(log)
+  # Onde o lead está AGORA, e desde quando — é o selo do cartão ("Esperando Misya pegar há 1 d").
+  # Sai daqui, e não da tela, para o selo e os filtros nunca discordarem. Resolvido vence tudo:
+  # conversa encerrada não espera mais ninguém, mesmo que a designação tenha ficado aberta.
+  def situacao(ciclo)
+    ultimo = ciclo[:elos].last
+    if ciclo[:resolvido_em]
+      { situacao: 'resolvido', segundos_na_situacao: segundos(ciclo[:chegou], ciclo[:resolvido_em]) }
+    elsif ciclo[:pegou]
+      { situacao: 'atendimento', segundos_na_situacao: segundos(ciclo[:pegou].encerrado_em, agora) }
+    elsif fim_perdido?(ciclo[:elos])
+      { situacao: 'perdido', segundos_na_situacao: 0 }
+    else
+      { situacao: 'espera', segundos_na_situacao: segundos(ultimo.designado_em || ultimo.created_at, agora) }
+    end
+  end
+
+  def identificacao(log, elos)
     contato = log.conversation&.contact
     {
-      # A chave do v-for na tela: a CONVERSA se repete quando há repasse (duas designações no
-      # mesmo lead), e chave repetida faz o Vue reaproveitar o cartão errado.
+      # A chave do v-for: a mesma CONVERSA se repete quando o contato volta em outro ciclo.
       id: log.id,
       conversation_id: log.conversation_id,
       display_id: log.conversation&.display_id,
       # Quem é o lead, na linguagem de quem lê a tela: o número identifica mais rápido que o #id.
       contato: contato&.name,
       telefone: contato&.phone_number,
-      # O corretor desta designação: é o dono da espera e do atendimento na barra.
-      corretor: log.chosen_user&.name,
+      # Com quem o lead está AGORA (o último da cadeia de repasses).
+      corretor: nome(elos.last),
+      pessoas: elos.filter_map(&:chosen_user_id).uniq,
       canal: canal(log),
-      produto: log.produto_slug,
-      status: log.status,
-      repasse_n: log.repasse_n
+      produto: log.produto_slug
     }
   end
 
-  def marcos(log)
-    conversa = log.conversation
-    designado = log.designado_em || log.created_at
-    {
-      chegou_em: chegada(log, designado),
-      designado_em: designado,
-      assumido_em: (log.encerrado_em if ASSUMIDOS.include?(log.status)),
-      perdido_em: (log.encerrado_em if PERDIDOS.include?(log.status)),
-      primeira_resposta_em: conversa&.first_reply_created_at,
-      resolvido_em: resolucao(log, designado)
-    }
+  # Os marcos do rastreio, em ordem. Cada um diz o que aconteceu, com quem e quando; a tela
+  # escreve a duração entre um e outro no conector.
+  def eventos(ciclo)
+    lista = [{ tipo: 'chegou', em: ciclo[:chegou] }, { tipo: 'designado', em: ciclo[:designado], quem: nome(ciclo[:elos].first) }]
+    lista += repasses(ciclo[:elos]) + desfecho(ciclo)
+    lista.select { |evento| evento[:em] }.each_with_index.sort_by { |evento, ordem| [evento[:em], ordem] }.map(&:first)
   end
 
-  # Os três blocos da barra. `espera` corre até agora enquanto ninguém pega — é o único que
-  # fica crescendo na tela, e é o que o rodízio de fato controla.
-  def fases(marcos)
-    agora = Time.zone.now
-    ia = segundos(marcos[:chegou_em], marcos[:designado_em])
-    espera = segundos(marcos[:designado_em], marcos[:assumido_em] || marcos[:perdido_em] || agora)
-    atendimento = marcos[:assumido_em] ? segundos(marcos[:assumido_em], marcos[:resolvido_em] || agora) : 0
-
-    { fases: { ia: ia, espera: espera, atendimento: atendimento },
-      total_segundos: ia + espera + atendimento }
+  def repasses(elos)
+    elos.each_cons(2).map do |anterior, seguinte|
+      { tipo: 'repassado', em: seguinte.designado_em || anterior.encerrado_em, quem: nome(seguinte), de: nome(anterior),
+        motivo: seguinte.motivo, status_anterior: anterior.status }
+    end
   end
 
-  def desfecho(log, marcos)
-    {
-      em_curso: em_curso?(marcos),
-      repassado_para: marcos[:perdido_em] && sucessor(log)&.chosen_user&.name
-    }
+  def desfecho(ciclo)
+    ultimo = ciclo[:elos].last
+    pegou = ciclo[:pegou]
+    resposta = primeira_resposta(ciclo)
+    [
+      ({ tipo: 'expirou', em: ultimo.encerrado_em, quem: nome(ultimo), status_anterior: ultimo.status } if fim_perdido?(ciclo[:elos])),
+      ({ tipo: 'pegou', em: pegou.encerrado_em, quem: nome(pegou) } if pegou),
+      ({ tipo: 'respondeu', em: resposta } if resposta),
+      ({ tipo: 'resolvido', em: ciclo[:resolvido_em], quem: ciclo[:resolvido_por] } if ciclo[:resolvido_em])
+    ].compact
+  end
+
+  # `first_reply_created_at` é da CONVERSA, não do ciclo: no contato que volta ele é de semanas
+  # atrás. Só entra na linha se caiu dentro deste ciclo.
+  def primeira_resposta(ciclo)
+    instante = ciclo[:log].conversation&.first_reply_created_at
+    instante if instante && instante >= ciclo[:chegou] && (ciclo[:fim].nil? || instante < ciclo[:fim])
+  end
+
+  def nome(elo)
+    nomes[elo.chosen_user_id]
   end
 
   def canal(log)

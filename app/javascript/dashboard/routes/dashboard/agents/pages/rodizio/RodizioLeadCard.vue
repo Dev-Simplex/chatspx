@@ -1,102 +1,44 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useElementSize } from '@vueuse/core';
 import { duracao, instante } from './tempo';
+import { faixaDaEspera } from './faixa';
 
 const props = defineProps({
-  // Um lead serializado pelo LinhaDoTempoService: marcos, fases, situação e desfecho.
+  // Um lead serializado pelo LinhaDoTempoService: quem é, a situação e os marcos (`eventos`).
   lead: { type: Object, required: true },
-  // Segundos que valem 100% da barra. Vem de fora porque TODAS as barras da lista dividem a
-  // mesma escala — é o que deixa comparar um lead com o outro de bater o olho.
-  escala: { type: Number, default: 1 },
-  // Segundos desde que a resposta chegou do servidor. A fase aberta continua correndo na tela
-  // entre uma recarga e outra: o lead que espera há 38 min não pode ficar parado em 38 min.
+  // Segundos desde que a resposta chegou do servidor. O que ainda corre (espera, atendimento)
+  // continua correndo na tela entre uma recarga e outra.
   decorrido: { type: Number, default: 0 },
+  // Minutos para pegar o lead, o mesmo limite do cartão "Sem movimento". Pinta a espera.
+  limiar: { type: Number, default: 30 },
 });
 
 const { t } = useI18n();
-
-// Ordem dos blocos na barra, a cor e o nome de cada um. Computed, e não constante solta, porque
-// o nome é traduzido — e a chave fica escrita por extenso: chave montada em runtime já sumiu de
-// tela neste projeto e o lint reclama dela com razão.
-//
-// Sobre as cores: nesta skin de WhatsApp o `blue` e o `teal` foram sobrescritos para o MESMO
-// verde (idênticos no tema escuro), então azul não separa fase nenhuma — a da IA passou a ser
-// cinza. As quatro usam texto PRETO porque branco reprova em contraste sobre os tons sólidos
-// (medido: 1,6 a 3,9), enquanto preto passa em todos (5,4 a 13,3).
-const FASES = computed(() => [
-  {
-    chave: 'ia',
-    classe: 'bg-n-slate-9 text-n-black',
-    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.IA'),
-  },
-  {
-    chave: 'espera',
-    classe: 'bg-n-amber-9 text-n-black',
-    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ESPERA'),
-  },
-  {
-    chave: 'atendimento',
-    classe: 'bg-n-teal-9 text-n-black',
-    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ATENDIMENTO'),
-  },
-]);
-const PERDIDO = 'bg-n-ruby-9 text-n-black';
-
-// O rótulo do bloco é decidido em PIXELS, medindo a barra — não em porcentagem dela. A conta em
-// porcentagem mentia: 30% de uma barra que ocupa 8% da tela são uns 20 px, e o texto saía
-// cortado no meio da palavra ("admi", "ad"). Em tela estreita isso acontecia em quase todo lead.
-//
-// Dois degraus: cabendo nome e tempo, mostra os dois; cabendo só o tempo, mostra o tempo; não
-// cabendo nada, o bloco fica limpo — o tooltip e o total ao lado continuam contando tudo.
-const PX_NOME_E_TEMPO = 104;
-const PX_SO_TEMPO = 56;
-
-const barra = ref(null);
-const { width: larguraDaBarra } = useElementSize(barra);
-
-const conversa = id => `#${id}`;
-
-// O que ainda corre: espera de quem ninguém pegou, atendimento de quem não terminou. Lead
-// encerrado não anda mais, e somar o relógio nele seria mentira.
-const emAndamento = computed(() => props.lead.situacao !== 'encerrado');
-
-const decorridoDa = chave =>
-  emAndamento.value && props.lead.situacao === chave ? props.decorrido : 0;
-
-const fasesVivas = computed(() => ({
-  ia: props.lead.fases?.ia || 0,
-  espera: (props.lead.fases?.espera || 0) + decorridoDa('espera'),
-  atendimento:
-    (props.lead.fases?.atendimento || 0) + decorridoDa('atendimento'),
-}));
-
-const totalVivo = computed(
-  () =>
-    (props.lead.total_segundos || 0) + (emAndamento.value ? props.decorrido : 0)
-);
-
-const naSituacaoHa = computed(
-  () =>
-    (props.lead.segundos_na_situacao || 0) +
-    (emAndamento.value ? props.decorrido : 0)
-);
 const tempo = segundos => duracao(t, segundos);
-const proporcao = (parte, todo) => (todo > 0 ? ((parte || 0) / todo) * 100 : 0);
 
-// Quem é o lead. O nome do contato manda; sem nome, o número; sem os dois, o #id da conversa.
-const titulo = computed(
-  () =>
-    props.lead.contato || props.lead.telefone || conversa(props.lead.display_id)
+// O cartão é um rastreio de entrega: uma linha de marcos (chegou → entregue a X → repassado →
+// pegou → resolvido), com quem e a hora em cada um e a duração escrita no conector entre eles.
+// Substituiu a barra proporcional: um lead parado há um dia virava uma barra toda amarela e
+// ninguém sabia o que estava olhando.
+
+const emAberto = computed(() =>
+  ['espera', 'atendimento'].includes(props.lead.situacao)
+);
+const correndo = computed(() => (emAberto.value ? props.decorrido : 0));
+const naSituacao = computed(
+  () => (props.lead.segundos_na_situacao || 0) + correndo.value
 );
 
-// "+55 11 98888-7777 · #4821 · WhatsApp · Apto 2 dorm" — montado aqui porque texto solto no
-// template é erro de lint no projeto.
+const titulo = computed(
+  () => props.lead.contato || props.lead.telefone || `#${props.lead.display_id}`
+);
+
+// "+55 11 98888-7777 · #4821 · WhatsApp · Apto 2 dorm"
 const contexto = computed(() =>
   [
     props.lead.contato ? props.lead.telefone : null,
-    conversa(props.lead.display_id),
+    `#${props.lead.display_id}`,
     props.lead.canal,
     props.lead.produto,
   ]
@@ -104,190 +46,311 @@ const contexto = computed(() =>
     .join(' · ')
 );
 
-// --- onde o lead está AGORA -------------------------------------------------------
-//
-// O selo é a resposta às três perguntas de quem acompanha: com quem está, em que pé, e há
-// quanto tempo. A situação vem do backend (mesma regra que ORDENA a lista), para o selo e a
-// ordem nunca discordarem.
-const AGORA = {
-  espera: {
-    chave: 'WAITING_WITH',
-    classe: 'bg-n-amber-3 text-n-amber-11',
-  },
-  atendimento: {
-    chave: 'IN_SERVICE_WITH',
-    classe: 'bg-n-teal-3 text-n-teal-11',
-  },
-};
+const nomeDe = nome => nome || t('AGENTS_RODIZIO.TIMELINE.AI_SHORT');
 
-const agora = computed(() => AGORA[props.lead.situacao] || null);
+// --- a espera, em destaque -------------------------------------------------------------
+
+const espera = computed(
+  () =>
+    (props.lead.espera_segundos || 0) +
+    (props.lead.situacao === 'espera' ? props.decorrido : 0)
+);
+
+const faixa = computed(() =>
+  faixaDaEspera({
+    segundos: espera.value,
+    limiar: props.limiar,
+    aindaEsperando: props.lead.situacao === 'espera',
+    perdido: props.lead.situacao === 'perdido',
+  })
+);
+
+// --- onde o lead está agora, em palavras -----------------------------------------------
 
 const selo = computed(() => {
-  if (!agora.value) return '';
-  const nome = props.lead.corretor || t('AGENTS_RODIZIO.TIMELINE.AI_SHORT');
-  return props.lead.situacao === 'espera'
-    ? t('AGENTS_RODIZIO.TIMELINE.NOW.WAITING_WITH', {
-        nome,
-        tempo: tempo(naSituacaoHa.value),
-      })
-    : t('AGENTS_RODIZIO.TIMELINE.NOW.IN_SERVICE_WITH', {
-        nome,
-        tempo: tempo(naSituacaoHa.value),
-      });
-});
-
-// Lead encerrado não tem selo: quem conta o fim é o desfecho, e ele precisa dizer de quem era.
-const desfecho = computed(() => {
-  const nome = props.lead.corretor || t('AGENTS_RODIZIO.TIMELINE.AI_SHORT');
-  if (props.lead.perdido_em) {
-    return props.lead.repassado_para
-      ? t('AGENTS_RODIZIO.TIMELINE.OUTCOME.PASSED', {
-          nome,
-          destino: props.lead.repassado_para,
-        })
-      : t('AGENTS_RODIZIO.TIMELINE.OUTCOME.EXPIRED', { nome });
+  const nome = nomeDe(props.lead.corretor);
+  const quanto = tempo(naSituacao.value);
+  if (props.lead.situacao === 'espera') {
+    return t('AGENTS_RODIZIO.TIMELINE.NOW.WAITING', { nome, tempo: quanto });
   }
-  return t('AGENTS_RODIZIO.TIMELINE.OUTCOME.RESOLVED', {
-    nome,
-    tempo: tempo(props.lead.total_segundos),
-  });
+  if (props.lead.situacao === 'atendimento') {
+    return t('AGENTS_RODIZIO.TIMELINE.NOW.IN_SERVICE', { nome, tempo: quanto });
+  }
+  if (props.lead.situacao === 'resolvido') {
+    return t('AGENTS_RODIZIO.TIMELINE.NOW.RESOLVED', { tempo: quanto });
+  }
+  return t('AGENTS_RODIZIO.TIMELINE.NOW.LOST', { nome });
 });
 
-const corDesfecho = computed(() =>
-  props.lead.perdido_em ? 'text-n-ruby-11' : 'text-n-teal-11'
-);
+// --- os marcos ------------------------------------------------------------------------
 
-// --- a barra ----------------------------------------------------------------------
+// Cor do círculo de cada marco: cinza o que é rotina, vermelho o que deu errado (prazo
+// estourado), verde o que andou (pegou, respondeu, resolveu).
+const TOM = {
+  neutro: 'bg-n-slate-3 text-n-slate-11',
+  ruim: 'bg-n-ruby-3 text-n-ruby-11',
+  bom: 'bg-n-teal-3 text-n-teal-11',
+};
 
-// Quem estava com o lead naquele trecho: antes da designação é a IA, depois é o corretor. Só o
-// primeiro nome, porque o bloco é estreito.
-const dono = fase =>
-  fase === 'ia'
-    ? t('AGENTS_RODIZIO.TIMELINE.AI_SHORT')
-    : (props.lead.corretor || '').split(' ')[0] ||
-      t('AGENTS_RODIZIO.TIMELINE.AI_SHORT');
+const porQue = evento => {
+  const nome = nomeDe(evento.de);
+  if (evento.status_anterior === 'substituido') {
+    return t('AGENTS_RODIZIO.TIMELINE.WHY.SUBSTITUIDO', { nome });
+  }
+  if (evento.motivo === 'escalado_gestor') {
+    return t('AGENTS_RODIZIO.TIMELINE.WHY.ESCALADO', { nome });
+  }
+  return t('AGENTS_RODIZIO.TIMELINE.WHY.REPASSE', { nome });
+};
 
-const fases = computed(() =>
-  FASES.value
-    .filter(fase => (fasesVivas.value[fase.chave] || 0) > 0)
-    .map(fase => {
-      const segundos = fasesVivas.value[fase.chave];
-      const largura = proporcao(segundos, totalVivo.value);
-      const perdeu = fase.chave === 'espera' && props.lead.perdido_em;
-      const pixels = (largura / 100) * larguraDaBarra.value;
-      const duracaoDoBloco = tempo(segundos);
-      let rotulo = '';
-      if (pixels >= PX_NOME_E_TEMPO) {
-        rotulo = `${dono(fase.chave)} · ${duracaoDoBloco}`;
-      } else if (pixels >= PX_SO_TEMPO) {
-        rotulo = duracaoDoBloco;
-      }
+// As classes de ícone ficam escritas por extenso: o Tailwind só gera o que encontra no código.
+const MARCO = {
+  chegou: () => ({
+    icone: 'i-lucide-message-circle',
+    tom: TOM.neutro,
+    rotulo: t('AGENTS_RODIZIO.TIMELINE.STEP.ARRIVED'),
+  }),
+  designado: evento => ({
+    icone: 'i-lucide-user-check',
+    tom: TOM.neutro,
+    rotulo: t('AGENTS_RODIZIO.TIMELINE.STEP.DESIGNATED', {
+      nome: nomeDe(evento.quem),
+    }),
+    detalhe: t('AGENTS_RODIZIO.TIMELINE.WHY.RODIZIO'),
+  }),
+  repassado: evento => ({
+    icone: 'i-lucide-repeat-2',
+    tom: TOM.ruim,
+    rotulo: t('AGENTS_RODIZIO.TIMELINE.STEP.PASSED', {
+      nome: nomeDe(evento.quem),
+    }),
+    detalhe: porQue(evento),
+  }),
+  expirou: evento => ({
+    icone: 'i-lucide-timer-off',
+    tom: TOM.ruim,
+    rotulo: t('AGENTS_RODIZIO.TIMELINE.STEP.EXPIRED', {
+      nome: nomeDe(evento.quem),
+    }),
+  }),
+  pegou: evento => ({
+    icone: 'i-lucide-hand',
+    tom: TOM.bom,
+    rotulo: t('AGENTS_RODIZIO.TIMELINE.STEP.TAKEN', {
+      nome: nomeDe(evento.quem),
+    }),
+  }),
+  respondeu: () => ({
+    icone: 'i-lucide-reply',
+    tom: TOM.bom,
+    rotulo: t('AGENTS_RODIZIO.TIMELINE.STEP.FIRST_REPLY'),
+  }),
+  resolvido: evento => ({
+    icone: 'i-lucide-circle-check',
+    tom: TOM.bom,
+    rotulo: evento.quem
+      ? t('AGENTS_RODIZIO.TIMELINE.STEP.RESOLVED_BY', { nome: evento.quem })
+      : t('AGENTS_RODIZIO.TIMELINE.STEP.RESOLVED'),
+  }),
+};
 
-      return {
-        chave: fase.chave,
-        // Espera que terminou sem ninguém pegar é o defeito que a tela existe para mostrar.
-        classe: perdeu ? PERDIDO : fase.classe,
-        largura: `${largura}%`,
-        rotulo,
-        titulo: `${fase.nome} · ${dono(fase.chave)} · ${duracaoDoBloco}`,
-      };
-    })
-);
+const segundosEntre = (de, ate) =>
+  Math.max(Math.round((new Date(ate) - new Date(de)) / 1000), 0);
 
-// A barra nunca passa de 100%: um lead de quatro dias ao lado de um de dez minutos achatava
-// todos os outros em um fio. Quem passa da escala fica cheio, e o total em texto ao lado conta
-// a verdade — a barra compara, o número mede.
-const largura = computed(
-  () => `${Math.min(100, proporcao(totalVivo.value, props.escala))}%`
-);
+// O conector diz o que aconteceu ENTRE dois marcos: antes de alguém ser escolhido a IA cobria;
+// depois, o lead esperava alguém pegar; depois de pegar, era atendimento. Só a ESPERA tem cor
+// (a da faixa): é a única medida que a tela julga, e cor em tudo vira enfeite.
+const CONECTOR = {
+  ia: { barra: 'bg-n-slate-6', texto: 'text-n-slate-10', chave: 'IA' },
+  espera: null,
+  atendimento: {
+    barra: 'bg-n-slate-9',
+    texto: 'text-n-slate-11',
+    chave: 'SERVICE',
+  },
+  fim: { barra: 'bg-n-slate-6', texto: 'text-n-slate-10', chave: null },
+};
 
-const total = computed(() => tempo(totalVivo.value));
+const conector = (fase, segundos) => {
+  const estilo = CONECTOR[fase] || {
+    barra: faixa.value.barra,
+    texto: faixa.value.texto,
+    chave: 'WAIT',
+  };
+  const quanto = tempo(segundos);
+  return {
+    barra: estilo.barra,
+    texto: estilo.texto,
+    // Rótulos escritos por extenso, um por fase: chave montada em runtime já sumiu de tela aqui.
+    rotulo:
+      {
+        IA: t('AGENTS_RODIZIO.TIMELINE.GAP.IA', { tempo: quanto }),
+        WAIT: t('AGENTS_RODIZIO.TIMELINE.GAP.WAIT', { tempo: quanto }),
+        SERVICE: t('AGENTS_RODIZIO.TIMELINE.GAP.SERVICE', { tempo: quanto }),
+      }[estilo.chave] || quanto,
+  };
+};
 
-// Um marco por instante gravado, na ordem em que aconteceram. O que não existe some da linha:
-// lead que ninguém pegou não tem "pegou", e lead aberto não tem "resolvido".
-const marcos = computed(() =>
-  [
-    ['chegou_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.ARRIVED', { hora })],
-    [
-      'designado_em',
-      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.DESIGNATED', { hora }),
-    ],
-    ['assumido_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.TAKEN', { hora })],
-    [
-      'primeira_resposta_em',
-      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.FIRST_REPLY', { hora }),
-    ],
-    ['perdido_em', hora => t('AGENTS_RODIZIO.TIMELINE.MARK.LOST', { hora })],
-    [
-      'resolvido_em',
-      hora => t('AGENTS_RODIZIO.TIMELINE.MARK.RESOLVED', { hora }),
-    ],
-  ]
-    .filter(([campo]) => props.lead[campo])
-    .map(([campo, texto]) => ({
-      chave: campo,
-      texto: texto(instante(props.lead[campo])),
-    }))
-);
+// Em que fase o lead está DEPOIS de cada marco.
+const faseDepois = (tipo, faseAtual) => {
+  if (tipo === 'chegou') return 'ia';
+  if (tipo === 'designado' || tipo === 'repassado') return 'espera';
+  if (tipo === 'pegou') return 'atendimento';
+  if (tipo === 'expirou' || tipo === 'resolvido') return 'fim';
+  return faseAtual;
+};
+
+// O marco que ainda não aconteceu, para o lead em aberto: "Falta Gelson pegar". Tracejado,
+// porque é o próximo passo, não um fato.
+const pendente = computed(() => {
+  if (props.lead.situacao === 'espera') {
+    return {
+      icone: 'i-lucide-hourglass',
+      tom: `border border-dashed ${faixa.value.borda} ${faixa.value.texto}`,
+      rotulo: t('AGENTS_RODIZIO.TIMELINE.STEP.PENDING_TAKE', {
+        nome: nomeDe(props.lead.corretor),
+      }),
+    };
+  }
+  if (props.lead.situacao === 'atendimento') {
+    return {
+      icone: 'i-lucide-circle-check',
+      tom: 'border border-dashed border-n-slate-7 text-n-slate-10',
+      rotulo: t('AGENTS_RODIZIO.TIMELINE.STEP.PENDING_RESOLVE'),
+    };
+  }
+  return null;
+});
+
+// Quanto já corre desde o último marco até agora. Conta pelo relógio do SERVIDOR (o tempo na
+// situação que veio na resposta + o que passou desde ela), não pelo do computador de quem olha:
+// assim o conector e o selo nunca discordam.
+const correndoDesde = ultimo => {
+  const inicio = [...(props.lead.eventos || [])]
+    .reverse()
+    .find(evento =>
+      props.lead.situacao === 'espera'
+        ? ['designado', 'repassado'].includes(evento.tipo)
+        : evento.tipo === 'pegou'
+    );
+  const jaPassou = inicio ? segundosEntre(inicio.em, ultimo.em) : 0;
+  return Math.max(naSituacao.value - jaPassou, 0);
+};
+
+const passos = computed(() => {
+  const eventos = props.lead.eventos || [];
+  let fase = 'ia';
+  const lista = eventos.map((evento, indice) => {
+    fase = faseDepois(evento.tipo, fase);
+    const proximo = eventos[indice + 1];
+    let ligacao = null;
+    if (proximo) {
+      ligacao = conector(fase, segundosEntre(evento.em, proximo.em));
+    } else if (pendente.value) {
+      ligacao = conector(fase, correndoDesde(evento));
+    }
+    return {
+      chave: `${evento.tipo}-${indice}`,
+      ...MARCO[evento.tipo](evento),
+      hora: instante(evento.em),
+      atual: !proximo,
+      conector: ligacao,
+    };
+  });
+  if (pendente.value) {
+    lista.push({ chave: 'pendente', ...pendente.value, pendente: true });
+  }
+  return lista;
+});
 </script>
 
 <template>
   <div
-    class="flex flex-col gap-2 p-3 bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak"
+    class="flex flex-col gap-3 px-3 py-2.5 bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak"
   >
-    <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <span class="text-sm font-medium text-n-slate-12">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span class="min-w-0 text-sm font-medium text-n-slate-12">
         {{ titulo }}
         <span class="text-xs font-normal tabular-nums text-n-slate-10">
           {{ contexto }}
         </span>
       </span>
       <span
-        v-if="agora"
-        class="px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap tabular-nums"
-        :class="agora.classe"
+        class="ml-auto text-sm font-medium tabular-nums text-n-slate-12 whitespace-nowrap"
       >
         {{ selo }}
       </span>
-      <span v-else class="text-xs font-medium" :class="corDesfecho">
-        {{ desfecho }}
-      </span>
-    </div>
-
-    <!-- flex-wrap: em tela estreita o total desce uma linha em vez de espremer a barra. -->
-    <div class="flex flex-wrap items-center gap-2">
-      <!-- `v-tooltip` (floating-vue, global no dashboard) no lugar do `title`: o balão nativo
-           do navegador demora a aparecer e ignora o tema da tela. -->
-      <!-- `min-w`: com o teto de 24 h na escala, um lead de dez minutos virava um fio de poucos
-           pixels, sem texto nenhum. O piso garante que toda barra caiba pelo menos a duração —
-           e o total ao lado desfaz qualquer dúvida de quem é maior. -->
-      <div
-        ref="barra"
-        class="flex h-7 overflow-hidden rounded-md ring-1 ring-inset ring-n-black/10 min-w-[7rem] max-w-full"
-        :style="{ width: largura }"
+      <span
+        v-tooltip.top="t('AGENTS_RODIZIO.TIMELINE.WAIT_HINT')"
+        class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap tabular-nums"
+        :class="faixa.selo"
       >
-        <div
-          v-for="fase in fases"
-          :key="fase.chave"
-          v-tooltip.top="fase.titulo"
-          class="flex items-center px-2 overflow-hidden text-[11px] font-medium tracking-tight tabular-nums whitespace-nowrap min-w-[3px]"
-          :class="fase.classe"
-          :style="{ width: fase.largura }"
-        >
-          {{ fase.rotulo }}
-        </div>
-      </div>
-      <span class="text-xs whitespace-nowrap tabular-nums text-n-slate-10">
-        {{ total }}
+        <span class="i-lucide-clock size-3" />
+        {{ t('AGENTS_RODIZIO.TIMELINE.WAIT', { tempo: tempo(espera) }) }}
       </span>
     </div>
 
-    <div
-      class="flex flex-wrap text-xs tabular-nums gap-x-4 gap-y-1 text-n-slate-10"
-    >
-      <span v-for="marco in marcos" :key="marco.chave">
-        {{ marco.texto }}
-      </span>
-    </div>
+    <!-- Rastreio: vertical em tela estreita, horizontal a partir de 768 px. O `pt-4` reserva o
+         espaço do texto que fica sobre o conector na versão horizontal. -->
+    <ol class="flex flex-col p-0 m-0 list-none md:flex-row md:pt-4">
+      <li
+        v-for="passo in passos"
+        :key="passo.chave"
+        class="flex min-w-0 gap-2 md:flex-col md:gap-1"
+        :class="passo.conector ? 'md:flex-1' : 'md:flex-none md:w-36'"
+      >
+        <div class="flex flex-col items-center shrink-0 md:flex-row">
+          <span
+            class="flex items-center justify-center rounded-full size-6 shrink-0"
+            :class="[passo.tom, { 'ring-2 ring-current': passo.atual }]"
+          >
+            <span class="size-3.5" :class="passo.icone" />
+          </span>
+          <div
+            v-if="passo.conector"
+            class="relative flex-1 w-0.5 min-h-[0.75rem] rounded-full md:w-auto md:h-0.5 md:min-h-0 md:mx-1"
+            :class="passo.conector.barra"
+          >
+            <span
+              class="absolute inset-x-0 hidden text-center truncate bottom-1.5 text-[11px] font-medium tabular-nums md:block"
+              :class="passo.conector.texto"
+            >
+              {{ passo.conector.rotulo }}
+            </span>
+          </div>
+        </div>
+        <div class="min-w-0 pb-2 md:pb-0 md:pr-2">
+          <p
+            class="m-0 text-xs truncate"
+            :class="
+              passo.atual || passo.pendente
+                ? 'font-semibold text-n-slate-12'
+                : 'font-medium text-n-slate-12'
+            "
+          >
+            {{ passo.rotulo }}
+          </p>
+          <p
+            v-if="passo.detalhe"
+            class="m-0 text-[11px] truncate text-n-slate-10"
+          >
+            {{ passo.detalhe }}
+          </p>
+          <p
+            v-if="passo.hora"
+            class="m-0 text-[11px] tabular-nums text-n-slate-10"
+          >
+            {{ passo.hora }}
+          </p>
+          <p
+            v-if="passo.conector"
+            class="m-0 mt-0.5 text-[11px] font-medium tabular-nums md:hidden"
+            :class="passo.conector.texto"
+          >
+            {{ passo.conector.rotulo }}
+          </p>
+        </div>
+      </li>
+    </ol>
   </div>
 </template>

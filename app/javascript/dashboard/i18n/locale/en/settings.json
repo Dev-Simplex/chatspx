@@ -85,19 +85,29 @@
     },
     "TABS": {
       "BY_AGENT": "By agent",
-      "BY_LEAD": "By lead"
+      "BY_LEAD": "Lead timeline"
     },
     "LEADS": {
-      "TITLE": "Every lead in the period: where it is, with whom, and for how long",
-      "EMPTY": "No rotation leads in this period. Change the period at the top to look at another month."
+      "TITLE": "Every lead in the period, newest arrival first",
+      "EMPTY": "No rotation leads in this period. Change the period at the top to look at another month.",
+      "EMPTY_FILTER": "No lead matches this filter in the period.",
+      "MORE": "Show more",
+      "ALL_AGENTS": "All agents",
+      "FILTER": {
+        "TODOS": "All",
+        "ESPERA": "Waiting",
+        "ATENDIMENTO": "Being handled",
+        "RESOLVIDO": "Resolved",
+        "REPASSADO": "Expired/handed off",
+        "REPASSADO_HINT": "Leads where someone let the deadline pass. They also count in the situation they are in now."
+      }
     },
     "TIMELINE": {
       "OPEN": "See the lead timeline",
-      "TITLE": "Leads {nome} received through the rotation",
-      "AVG_WAIT": "average wait: {tempo}",
+      "TITLE": "Leads that went through {nome} in the rotation",
+      "AVG_WAIT": "average wait until someone picked it up: {tempo}",
       "EMPTY": "No rotation leads in this period.",
       "SHOWING": "showing {n} of {total}",
-      "LEGEND": "Width is time, on the same scale for every lead, up to 24h; the exact total sits next to the bar.",
       "AI_SHORT": "AI",
       "SECONDS": "{n}s",
       "MINUTES": "{n} min",
@@ -105,27 +115,45 @@
       "HOURS_MINUTES": "{h}h{m}",
       "DAYS": "{n} d",
       "DAYS_HOURS": "{d} d {h}h",
-      "PHASE": {
-        "IA": "AI covering",
-        "ESPERA": "waiting for the consultant",
-        "ATENDIMENTO": "being handled"
+      "WAIT": "Wait {tempo}",
+      "WAIT_HINT": "From the lead handed to an agent until someone picked it up, hand-offs included.",
+      "LEGEND": {
+        "TITLE": "How to read:",
+        "STEPS": "each dot is a milestone of the lead, with who and when; between them, how long it took",
+        "NOW": "current milestone",
+        "OK": "picked up within {min} min",
+        "WARN": "waiting, still within {min} min",
+        "LATE": "over {min} min",
+        "RULE": "(the same limit as the No movement card)"
       },
       "NOW": {
-        "WAITING_WITH": "waiting for {nome} to pick it up for {tempo}",
-        "IN_SERVICE_WITH": "with {nome} for {tempo}"
+        "WAITING": "Waiting for {nome} to pick it up for {tempo}",
+        "IN_SERVICE": "Being handled by {nome} for {tempo}",
+        "RESOLVED": "Resolved in {tempo}",
+        "LOST": "Expired with {nome} and nobody picked it up"
       },
-      "MARK": {
-        "ARRIVED": "arrived {hora}",
-        "DESIGNATED": "designated {hora}",
-        "TAKEN": "picked up {hora}",
-        "FIRST_REPLY": "first reply {hora}",
-        "LOST": "left them {hora}",
-        "RESOLVED": "resolved {hora}"
+      "STEP": {
+        "ARRIVED": "Arrived",
+        "DESIGNATED": "Handed to {nome}",
+        "PASSED": "Handed off to {nome}",
+        "EXPIRED": "Expired with {nome}",
+        "TAKEN": "{nome} picked it up",
+        "FIRST_REPLY": "First reply",
+        "RESOLVED": "Resolved",
+        "RESOLVED_BY": "Resolved by {nome}",
+        "PENDING_TAKE": "Waiting for {nome}",
+        "PENDING_RESOLVE": "Not resolved yet"
       },
-      "OUTCOME": {
-        "RESOLVED": "{nome} · resolved in {tempo}",
-        "EXPIRED": "{nome} · expired with nobody picking it up",
-        "PASSED": "{nome} · expired and went to {destino}"
+      "WHY": {
+        "RODIZIO": "through the rotation",
+        "REPASSE": "{nome} missed the deadline",
+        "ESCALADO": "{nome} missed it; went to the manager",
+        "SUBSTITUIDO": "{nome} was replaced"
+      },
+      "GAP": {
+        "IA": "AI {tempo}",
+        "WAIT": "wait {tempo}",
+        "SERVICE": "handling {tempo}"
       }
     },
     "CONFIGURE": "Set up rotation",

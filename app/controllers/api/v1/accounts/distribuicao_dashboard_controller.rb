@@ -49,9 +49,11 @@ class Api::V1::Accounts::DistribuicaoDashboardController < Api::V1::Accounts::Ba
   # A conta inteira, lead a lead: onde cada um está agora, com quem, e há quanto tempo. É a
   # pergunta que a tabela por consultor não responde — ali é preciso saber em quem o lead caiu
   # antes de poder olhar para ele. Teto maior que o da faixa, porque aqui não há um por pessoa.
+  # Filtros por situação e por consultor, e "mostrar mais" de 50 em 50 (teto de 500 por resposta).
   def leads
     render json: Spx::Distribuicao::LinhaDoTempoService.new(
-      escopo: escopo_periodo, canais: CANAIS, limite: LIMITE_LEADS
+      escopo: escopo_periodo, canais: CANAIS, user_id: params[:user_id], situacao: params[:situacao],
+      limite: params[:limite].to_i.clamp(LIMITE_LEADS, 500)
     ).call
   rescue StandardError
     render json: { leads: [], total: 0, media_espera_segundos: nil }

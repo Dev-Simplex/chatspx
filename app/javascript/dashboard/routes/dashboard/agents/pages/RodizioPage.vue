@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
 import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
+import RodizioLegenda from './rodizio/RodizioLegenda.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import { duracao, instante } from './rodizio/tempo';
 
@@ -23,7 +24,9 @@ const detalheLoading = ref(false);
 const expandido = ref(null);
 const timelines = ref({});
 const timelineLoading = ref(false);
-const aba = ref('consultores');
+// A linha do tempo dos leads abre primeiro: é o que se quer ver sem clicar em nada. A tabela
+// por consultor continua a uma aba de distância.
+const aba = ref('leads');
 // Relógio da tela. A resposta do backend é uma FOTOGRAFIA: o tempo de espera é calculado no
 // instante do request e congelava ali — numa tela feita para vigiar lead parado, o número que
 // para de crescer é justamente o que interessa. `agora` faz os tempos abertos correrem entre
@@ -43,10 +46,16 @@ const decorrido = computed(() =>
 
 const leadsGerais = ref(null);
 const leadsLoading = ref(false);
+// Filtros da linha do tempo: situação (um dos botões com contagem) e consultor. Vão ao backend,
+// porque a contagem é do período inteiro, não só dos leads que cabem na tela.
+const PASSO_LEADS = 50;
+const filtroSituacao = ref('');
+const filtroConsultor = ref('');
+const limiteLeads = ref(PASSO_LEADS);
 
 const abas = computed(() => [
-  { value: 'consultores', label: t('AGENTS_RODIZIO.TABS.BY_AGENT') },
   { value: 'leads', label: t('AGENTS_RODIZIO.TABS.BY_LEAD') },
+  { value: 'consultores', label: t('AGENTS_RODIZIO.TABS.BY_AGENT') },
 ]);
 
 // ------------------------------------------------------------------------ período
@@ -113,8 +122,12 @@ const parametros = () => {
 const carregarLeads = async () => {
   leadsLoading.value = !leadsGerais.value;
   try {
-    const { data: payload } =
-      await DistribuicaoDashboardAPI.leads(parametros());
+    const { data: payload } = await DistribuicaoDashboardAPI.leads({
+      ...parametros(),
+      situacao: filtroSituacao.value || undefined,
+      user_id: filtroConsultor.value || undefined,
+      limite: limiteLeads.value,
+    });
     leadsGerais.value = payload;
   } catch (e) {
     leadsGerais.value = { leads: [], total: 0 };
@@ -290,37 +303,8 @@ const conversa = displayId => `${displayId}`;
 
 // ---------------------------------------------------------------- linha do tempo
 
-// A legenda da faixa: os três blocos da barra, na ordem e com a cor que o cartão usa. Vive aqui
-// porque é uma por faixa, não uma por lead — a barra em si mora no RodizioLeadCard, e é lá que
-// está escrito por que a fase da IA é cinza nesta skin.
-const FASES = computed(() => [
-  {
-    chave: 'ia',
-    classe: 'bg-n-slate-9',
-    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.IA'),
-  },
-  {
-    chave: 'espera',
-    classe: 'bg-n-amber-9',
-    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ESPERA'),
-  },
-  {
-    chave: 'atendimento',
-    classe: 'bg-n-teal-9',
-    nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ATENDIMENTO'),
-  },
-]);
-
-// Teto da escala. Todas as barras dividem a mesma, e sem teto um lead de quatro dias achatava
-// todos os outros num fio de um pixel — justo os de minutos, que são a maioria. Passando de
-// 24 h a barra fica cheia e o total em texto, ao lado dela, conta a verdade.
-const TETO_ESCALA = 24 * 60 * 60;
-
-const escalaDe = leads =>
-  Math.min(
-    Math.max(...leads.map(lead => lead.total_segundos || 0), 1),
-    TETO_ESCALA
-  );
+// O limite que pinta a espera de cada lead: o mesmo do cartão "Sem movimento".
+const limiar = computed(() => parados.value.limiar_minutos || 30);
 
 const timelineDe = userId => timelines.value[userId] || { leads: [], total: 0 };
 const leadsDe = userId => timelineDe(userId).leads || [];
@@ -340,8 +324,6 @@ const alternarConsultor = async linha => {
 const esperaDoParado = lead =>
   duracao(t, (lead.minutos_parado || 0) * 60 + decorrido.value);
 
-const escalaDoConsultor = userId => escalaDe(leadsDe(userId));
-
 const mediaEspera = userId => {
   const segundos = timelineDe(userId).media_espera_segundos;
   return segundos ? duracao(t, segundos) : '';
@@ -353,15 +335,69 @@ const restantes = userId =>
 // ---------------------------------------------------------------------- aba Leads
 
 // A tabela responde "quem recebeu quanto"; esta aba responde "onde está cada lead, com quem, e
-// há quanto tempo" — sem precisar adivinhar em quem ele caiu para poder clicar. Mesma escala e
-// mesmo cartão da faixa, e a ordem vem do backend: quem ninguém pegou primeiro.
+// há quanto tempo" — sem precisar adivinhar em quem ele caiu para poder clicar. Do que chegou por
+// último para o primeiro; os parados se acham pelo filtro "Esperando".
 const leadsDaConta = computed(() => leadsGerais.value?.leads || []);
-
-const escalaDosLeads = computed(() => escalaDe(leadsDaConta.value));
 
 const restantesDaConta = computed(() =>
   Math.max((leadsGerais.value?.total || 0) - leadsDaConta.value.length, 0)
 );
+
+// Os botões de situação, cada um com quantos leads tem. Esperando + Em atendimento + Resolvidos
+// somam "Todos" (o raro lead que expirou sem ninguém pegar só aparece no recorte de baixo).
+// "Expirados/repassados" é um recorte por cima delas, por isso vem separado por um traço.
+const situacoes = computed(() => {
+  const contagem = leadsGerais.value?.contagem || {};
+  return [
+    {
+      value: '',
+      label: t('AGENTS_RODIZIO.LEADS.FILTER.TODOS'),
+      total: contagem.todos,
+    },
+    {
+      value: 'espera',
+      label: t('AGENTS_RODIZIO.LEADS.FILTER.ESPERA'),
+      total: contagem.espera,
+    },
+    {
+      value: 'atendimento',
+      label: t('AGENTS_RODIZIO.LEADS.FILTER.ATENDIMENTO'),
+      total: contagem.atendimento,
+    },
+    {
+      value: 'resolvido',
+      label: t('AGENTS_RODIZIO.LEADS.FILTER.RESOLVIDO'),
+      total: contagem.resolvido,
+    },
+  ];
+});
+
+const contagemRepassados = computed(
+  () => leadsGerais.value?.contagem?.repassado || 0
+);
+
+// "Gelson de Paula (4)": quantos leads do período passaram por cada um.
+const consultoresDoFiltro = computed(() =>
+  (leadsGerais.value?.consultores || []).map(pessoa => ({
+    ...pessoa,
+    rotulo: `${pessoa.nome} (${pessoa.total})`,
+  }))
+);
+
+const filtrar = () => {
+  limiteLeads.value = PASSO_LEADS;
+  carregarLeads();
+};
+
+const escolherSituacao = valor => {
+  filtroSituacao.value = valor;
+  filtrar();
+};
+
+const mostrarMais = () => {
+  limiteLeads.value += PASSO_LEADS;
+  carregarLeads();
+};
 
 const mediaEsperaDaConta = computed(() => {
   const segundos = leadsGerais.value?.media_espera_segundos;
@@ -750,10 +786,10 @@ const irParaPolitica = () =>
 
       <section v-if="aba === 'leads'" class="flex flex-col gap-3">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
-          <p class="text-sm font-medium text-n-slate-12">
+          <p class="m-0 text-sm font-medium text-n-slate-12">
             {{ t('AGENTS_RODIZIO.LEADS.TITLE') }}
           </p>
-          <p v-if="mediaEsperaDaConta" class="text-xs text-n-slate-11">
+          <p v-if="mediaEsperaDaConta" class="m-0 text-xs text-n-slate-11">
             {{
               t('AGENTS_RODIZIO.TIMELINE.AVG_WAIT', {
                 tempo: mediaEsperaDaConta,
@@ -762,44 +798,91 @@ const irParaPolitica = () =>
           </p>
         </div>
 
+        <!-- Filtros: situação em botões com a contagem de cada uma, e o consultor ao lado. -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            v-for="item in situacoes"
+            :key="item.value"
+            class="inline-flex items-center gap-1.5 h-8 px-3 text-sm border rounded-full"
+            :class="
+              filtroSituacao === item.value
+                ? 'bg-n-slate-12 text-n-slate-1 border-n-slate-12 font-medium'
+                : 'bg-white dark:bg-n-solid-2 border-n-weak text-n-slate-11'
+            "
+            @click="escolherSituacao(item.value)"
+          >
+            {{ item.label }}
+            <span class="text-xs tabular-nums opacity-80">
+              {{ item.total || 0 }}
+            </span>
+          </button>
+          <span class="w-px h-5 bg-n-slate-6" />
+          <button
+            v-tooltip.top="t('AGENTS_RODIZIO.LEADS.FILTER.REPASSADO_HINT')"
+            class="inline-flex items-center gap-1.5 h-8 px-3 text-sm border rounded-full"
+            :class="
+              filtroSituacao === 'repassado'
+                ? 'bg-n-slate-12 text-n-slate-1 border-n-slate-12 font-medium'
+                : 'bg-white dark:bg-n-solid-2 border-n-weak text-n-slate-11'
+            "
+            @click="escolherSituacao('repassado')"
+          >
+            <span class="i-lucide-repeat-2 size-3.5" />
+            {{ t('AGENTS_RODIZIO.LEADS.FILTER.REPASSADO') }}
+            <span class="text-xs tabular-nums opacity-80">
+              {{ contagemRepassados }}
+            </span>
+          </button>
+          <select
+            v-model="filtroConsultor"
+            class="h-8 px-2 mb-0 ml-auto text-sm bg-white border rounded-lg w-auto dark:bg-n-solid-2 border-n-weak text-n-slate-12"
+            @change="filtrar"
+          >
+            <option value="">{{ t('AGENTS_RODIZIO.LEADS.ALL_AGENTS') }}</option>
+            <option
+              v-for="pessoa in consultoresDoFiltro"
+              :key="pessoa.id"
+              :value="pessoa.id"
+            >
+              {{ pessoa.rotulo }}
+            </option>
+          </select>
+        </div>
+
+        <RodizioLegenda :limiar="limiar" />
+
         <p v-if="leadsLoading" class="text-sm text-n-slate-10">
           {{ t('AGENTS_RODIZIO.LOADING') }}
         </p>
         <p v-else-if="!leadsDaConta.length" class="text-sm text-n-slate-10">
-          {{ t('AGENTS_RODIZIO.LEADS.EMPTY') }}
+          {{
+            filtroSituacao || filtroConsultor
+              ? t('AGENTS_RODIZIO.LEADS.EMPTY_FILTER')
+              : t('AGENTS_RODIZIO.LEADS.EMPTY')
+          }}
         </p>
         <template v-else>
           <RodizioLeadCard
             v-for="lead in leadsDaConta"
             :key="lead.id"
             :lead="lead"
-            :escala="escalaDosLeads"
             :decorrido="decorrido"
+            :limiar="limiar"
           />
-          <p v-if="restantesDaConta" class="text-xs text-n-slate-10">
-            {{
-              t('AGENTS_RODIZIO.TIMELINE.SHOWING', {
-                n: leadsDaConta.length,
-                total: leadsGerais.total,
-              })
-            }}
-          </p>
-          <div
-            class="flex flex-wrap items-center text-xs gap-x-4 gap-y-1 text-n-slate-11"
-          >
-            <span
-              v-for="fase in FASES"
-              :key="fase.chave"
-              class="inline-flex items-center gap-1.5"
+          <div v-if="restantesDaConta" class="flex items-center gap-3">
+            <button
+              class="h-8 px-3 text-sm border rounded-lg border-n-weak text-n-slate-12"
+              @click="mostrarMais"
             >
-              <span
-                class="inline-block w-5 h-2.5 rounded-sm"
-                :class="fase.classe"
-              />
-              {{ fase.nome }}
-            </span>
-            <span class="text-n-slate-10">
-              {{ t('AGENTS_RODIZIO.TIMELINE.LEGEND') }}
+              {{ t('AGENTS_RODIZIO.LEADS.MORE') }}
+            </button>
+            <span class="text-xs text-n-slate-10">
+              {{
+                t('AGENTS_RODIZIO.TIMELINE.SHOWING', {
+                  n: leadsDaConta.length,
+                  total: leadsGerais.total,
+                })
+              }}
             </span>
           </div>
         </template>
@@ -936,12 +1019,13 @@ const irParaPolitica = () =>
                       {{ t('AGENTS_RODIZIO.TIMELINE.EMPTY') }}
                     </p>
                     <template v-else>
+                      <RodizioLegenda :limiar="limiar" />
                       <RodizioLeadCard
                         v-for="lead in leadsDe(linha.user_id)"
                         :key="lead.id"
                         :lead="lead"
-                        :escala="escalaDoConsultor(linha.user_id)"
                         :decorrido="decorrido"
+                        :limiar="limiar"
                       />
 
                       <p
@@ -955,25 +1039,6 @@ const irParaPolitica = () =>
                           })
                         }}
                       </p>
-
-                      <div
-                        class="flex flex-wrap items-center text-xs gap-x-4 gap-y-1 text-n-slate-11"
-                      >
-                        <span
-                          v-for="fase in FASES"
-                          :key="fase.chave"
-                          class="inline-flex items-center gap-1.5"
-                        >
-                          <span
-                            class="inline-block w-5 h-2.5 rounded-sm"
-                            :class="fase.classe"
-                          />
-                          {{ fase.nome }}
-                        </span>
-                        <span class="text-n-slate-10">
-                          {{ t('AGENTS_RODIZIO.TIMELINE.LEGEND') }}
-                        </span>
-                      </div>
                     </template>
                   </div>
                 </td>

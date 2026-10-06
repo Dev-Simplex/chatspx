@@ -85,19 +85,29 @@
     },
     "TABS": {
       "BY_AGENT": "Por consultor",
-      "BY_LEAD": "Por lead"
+      "BY_LEAD": "Linha do tempo dos leads"
     },
     "LEADS": {
-      "TITLE": "Cada lead do período: onde está, com quem, e há quanto tempo",
-      "EMPTY": "Nenhum lead de rodízio no período. Troque o período no alto da tela para olhar outro mês."
+      "TITLE": "Todos os leads do período, do que chegou por último para o primeiro",
+      "EMPTY": "Nenhum lead de rodízio no período. Troque o período no alto da tela para olhar outro mês.",
+      "EMPTY_FILTER": "Nenhum lead com este filtro no período.",
+      "MORE": "Mostrar mais",
+      "ALL_AGENTS": "Todos os consultores",
+      "FILTER": {
+        "TODOS": "Todos",
+        "ESPERA": "Esperando",
+        "ATENDIMENTO": "Em atendimento",
+        "RESOLVIDO": "Resolvidos",
+        "REPASSADO": "Expirados/repassados",
+        "REPASSADO_HINT": "Leads em que alguém deixou o prazo passar. Eles também contam na situação em que estão agora."
+      }
     },
     "TIMELINE": {
       "OPEN": "Ver a linha do tempo dos leads",
-      "TITLE": "Leads que {nome} recebeu pelo rodízio",
-      "AVG_WAIT": "média de espera: {tempo}",
+      "TITLE": "Leads que passaram por {nome} no rodízio",
+      "AVG_WAIT": "espera média até alguém pegar: {tempo}",
       "EMPTY": "Nenhum lead de rodízio no período.",
       "SHOWING": "mostrando {n} de {total}",
-      "LEGEND": "Largura é tempo, na mesma escala para todos, até 24 h; o total exato vai ao lado da barra.",
       "AI_SHORT": "IA",
       "SECONDS": "{n}s",
       "MINUTES": "{n} min",
@@ -105,27 +115,45 @@
       "HOURS_MINUTES": "{h}h{m}",
       "DAYS": "{n} d",
       "DAYS_HOURS": "{d} d {h}h",
-      "PHASE": {
-        "IA": "IA cobrindo",
-        "ESPERA": "esperando o consultor pegar",
-        "ATENDIMENTO": "em atendimento"
+      "WAIT": "Espera {tempo}",
+      "WAIT_HINT": "Do lead entregue ao consultor até alguém pegar, somando os repasses.",
+      "LEGEND": {
+        "TITLE": "Como ler:",
+        "STEPS": "cada bolinha é um marco do lead, com quem e a hora; entre elas, quanto tempo levou",
+        "NOW": "marco atual",
+        "OK": "pegou em até {min} min",
+        "WARN": "esperando, ainda dentro de {min} min",
+        "LATE": "passou de {min} min",
+        "RULE": "(o mesmo limite do cartão Sem movimento)"
       },
       "NOW": {
-        "WAITING_WITH": "esperando {nome} pegar há {tempo}",
-        "IN_SERVICE_WITH": "com {nome} há {tempo}"
+        "WAITING": "Esperando {nome} pegar há {tempo}",
+        "IN_SERVICE": "Em atendimento com {nome} há {tempo}",
+        "RESOLVED": "Resolvido em {tempo}",
+        "LOST": "Expirou com {nome} e ninguém pegou"
       },
-      "MARK": {
-        "ARRIVED": "chegou {hora}",
-        "DESIGNATED": "designado {hora}",
-        "TAKEN": "pegou {hora}",
-        "FIRST_REPLY": "1ª resposta {hora}",
-        "LOST": "saiu dele {hora}",
-        "RESOLVED": "resolvido {hora}"
+      "STEP": {
+        "ARRIVED": "Chegou",
+        "DESIGNATED": "Entregue a {nome}",
+        "PASSED": "Repassado para {nome}",
+        "EXPIRED": "Expirou com {nome}",
+        "TAKEN": "{nome} pegou",
+        "FIRST_REPLY": "1ª resposta",
+        "RESOLVED": "Resolvido",
+        "RESOLVED_BY": "Resolvido por {nome}",
+        "PENDING_TAKE": "Falta {nome} pegar",
+        "PENDING_RESOLVE": "Falta resolver"
       },
-      "OUTCOME": {
-        "RESOLVED": "{nome} · resolvido em {tempo}",
-        "EXPIRED": "{nome} · expirou sem ninguém pegar",
-        "PASSED": "{nome} · expirou e foi para {destino}"
+      "WHY": {
+        "RODIZIO": "pelo rodízio",
+        "REPASSE": "{nome} não pegou no prazo",
+        "ESCALADO": "{nome} não pegou; foi ao gestor",
+        "SUBSTITUIDO": "{nome} foi substituído"
+      },
+      "GAP": {
+        "IA": "IA {tempo}",
+        "WAIT": "espera {tempo}",
+        "SERVICE": "atendimento {tempo}"
       }
     },
     "CONFIGURE": "Configurar rodízio",
