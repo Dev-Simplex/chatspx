@@ -133,6 +133,7 @@ onBeforeUnmount(() => {
           >
             <video
               :src="item.dataUrl"
+              :poster="item.thumbUrl || undefined"
               class="w-full h-full object-cover"
               preload="metadata"
               muted
