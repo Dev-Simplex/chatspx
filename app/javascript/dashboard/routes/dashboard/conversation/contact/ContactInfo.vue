@@ -1,4 +1,5 @@
 <script>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { dynamicTime } from 'shared/helpers/timeHelper';
@@ -69,7 +70,9 @@ export default {
       return String(this.contact.identifier || '').endsWith('@g.us');
     },
     displayName() {
-      return stripGroupSuffix(this.contact.name || '');
+      if (this.isWhatsappGroup) return stripGroupSuffix(this.contact.name || '');
+      // Ficha sem nome de verdade mostra o nome salvo do dono do número.
+      return contactDisplayName(this.contact);
     },
     // Identificador técnico não é informação de atendimento: em grupo, escondemos.
     visibleIdentifier() {

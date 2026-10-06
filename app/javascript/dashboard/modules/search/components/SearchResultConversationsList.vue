@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { defineProps, computed } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store.js';
 
@@ -54,7 +55,7 @@ const conversationsWithSubject = computed(() => {
       >
         <SearchResultConversationItem
           :id="conversation.id"
-          :name="conversation.contact?.name"
+          :name="contactDisplayName(conversation.contact)"
           :email="conversation.contact?.email"
           :account-id="accountId"
           :inbox="conversation.inbox"

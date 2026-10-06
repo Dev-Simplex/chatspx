@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { computed, ref } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
@@ -185,7 +186,10 @@ const getConversationFromItem = item => {
 
 const getContactName = item => {
   const conversation = getConversationFromItem(item);
-  return conversation?.contact?.name || t('KANBAN.ITEMS.UNNAMED_CONTACT');
+  return contactDisplayName(
+    conversation?.contact,
+    t('KANBAN.ITEMS.UNNAMED_CONTACT')
+  );
 };
 
 const getContactPhone = item => {

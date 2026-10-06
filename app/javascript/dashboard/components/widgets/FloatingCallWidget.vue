@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
@@ -28,7 +29,8 @@ const getCallInfo = call => {
   return {
     conversation,
     inbox,
-    contactName: sender?.name || sender?.phone_number || 'Unknown caller',
+    contactName:
+      contactDisplayName(sender) || sender?.phone_number || 'Unknown caller',
     inboxName: inbox?.name || 'Customer support',
     avatar: sender?.avatar || sender?.thumbnail,
   };

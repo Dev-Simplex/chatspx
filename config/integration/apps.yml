@@ -526,7 +526,7 @@ captador:
         'label': 'Caixas liberadas',
         'type': 'text',
         'name': 'allowed_inbox_ids',
-        'help': 'IDs das caixas por onde o Captador pode abrir conversa, separados por vírgula. Vazio: nenhuma. WhatsApp oficial exige modelo aprovado; caixas não oficiais (WAHA) enviam texto livre, com risco de bloqueio do número.',
+        'help': 'IDs das caixas por onde o Captador pode abrir conversa, separados por vírgula. Vazio: nenhuma. As conversas destas caixas, mesmo as abertas direto no ChatSPX, também enviam ao Captador as mensagens (nunca as notas privadas) e as mudanças de status e de dono. WhatsApp oficial exige modelo aprovado; caixas não oficiais (WAHA) enviam texto livre, com risco de bloqueio do número.',
       },
       {
         'label': 'Permitir login no Captador',

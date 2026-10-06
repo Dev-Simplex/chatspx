@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { useMapGetter } from 'dashboard/composables/store.js';
 
 import SearchResultSection from './SearchResultSection.vue';
@@ -43,7 +44,7 @@ const accountId = useMapGetter('getCurrentAccountId');
       <li v-for="contact in contacts" :key="contact.id">
         <SearchResultContactItem
           :id="contact.id"
-          :name="contact.name"
+          :name="contactDisplayName(contact)"
           :email="contact.email"
           :phone="contact.phoneNumber"
           :additional-attributes="contact.additionalAttributes"

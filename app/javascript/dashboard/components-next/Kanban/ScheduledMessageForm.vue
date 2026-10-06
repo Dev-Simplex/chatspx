@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -118,7 +119,7 @@ const timezoneLabel = computed(
 );
 
 const getContactName = contact =>
-  contact?.name ||
+  contactDisplayName(contact) ||
   contact?.identifier ||
   contact?.email ||
   t('KANBAN.ITEMS.UNNAMED_CONTACT');

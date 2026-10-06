@@ -9,7 +9,7 @@ App "Captador" em Configurações → Integrações. Especificação completa: `
    - `captador_url`: endereço base, por exemplo `https://captador.spx.ia.br`. O hook só aceita `https://`. O fork só chama (painel e eventos) hosts da variável `CAPTADOR_HOSTS_PERMITIDOS` (lista separada por vírgula; padrão `captador.spx.ia.br`), na porta 443, sem seguir redirecionamento e nunca para IP interno. Fora disso, o painel mostra "O Captador não respondeu" e os eventos não saem;
    - `instance_key`: chave dada pela tela Conexões do Captador (`[A-Za-z0-9_-]`);
    - `shared_secret`: no mínimo 32 caracteres, gerado no Captador. Fica cifrado no JSONB e é somente escrita: a API devolve apenas `shared_secret_configured`; na edição, vazio mantém o atual;
-   - `allowed_inbox_ids`: CSV das caixas liberadas; vazio libera nenhuma;
+   - `allowed_inbox_ids`: CSV das caixas liberadas; vazio libera nenhuma. Vale para abrir conversa e para os eventos das conversas sem carimbo (ver Eventos);
    - `allow_login`: marcar só na conta de login.
 3. Ao criar o hook, o `Crm::SetupJob` cria a label `captador` e os atributos `cnpj` e `captador_lead_id` (contato) e `captador_lead_id` (conversa).
 
@@ -98,7 +98,13 @@ Só no hook com `allow_login`. Não cria token nem sessão no ChatSPX e não dev
 
 ## Eventos (ChatSPX → Captador)
 
-`Spx::CaptadorListener` → `WebhookJob` → `POST <captador_url>/webhooks/chatspx/<instance_key>`, com `X-Chatwoot-Delivery`, `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` (`sha256=` + HMAC de `"<ts>.<corpo>"` com o `shared_secret`). Eventos continuam em v1 nesta fase; o Captador deduplica também assinatura + timestamp. São 5 tentativas quando o destino não recebeu. Antes da fila, o fork resolve o host e recusa qualquer IP interno. Só conversas com `custom_attributes.captador_lead_id`.
+`Spx::CaptadorListener` → `WebhookJob` → `POST <captador_url>/webhooks/chatspx/<instance_key>`, com `X-Chatwoot-Delivery`, `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` (`sha256=` + HMAC de `"<ts>.<corpo>"` com o `shared_secret`). Eventos continuam em v1 nesta fase; o Captador deduplica também assinatura + timestamp. São 5 tentativas quando o destino não recebeu. Antes da fila, o fork resolve o host e recusa qualquer IP interno.
+
+Quais conversas geram evento (sempre com a chave da conta ligada e o hook ativo):
+- **com o carimbo** `custom_attributes.captador_lead_id`: todas, de qualquer caixa;
+- **sem o carimbo** (aberta direto no ChatSPX, ou nova depois de resolvida): só as de caixa listada em `allowed_inbox_ids`. Lista vazia libera nenhuma, a mesma regra do `POST leads` e do catálogo. O Captador liga a conversa ao lead pelo telefone do contato, que vem em `conversation.meta.sender.phone_number` (E.164 ou `null`), com a caixa em `conversation.inbox_id` (nos eventos de conversa, `meta.sender` e `inbox_id` ficam na raiz).
+
+Os filtros por evento da tabela abaixo valem para os dois casos. Nota privada nunca sai, e o payload da conversa só traz mensagens públicas. `conversation_created` não é enviado: o Captador liga pela primeira `message_created`.
 
 | `event` | Quando | Payload |
 |---|---|---|

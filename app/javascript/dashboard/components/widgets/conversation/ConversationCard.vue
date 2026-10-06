@@ -1,4 +1,5 @@
 <script>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { mapGetters } from 'vuex';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
@@ -207,7 +208,11 @@ export default {
 
       return {
         id,
-        name: storeContact?.name || raw.name || raw.full_name || 'Unknown',
+        // Ficha sem nome de verdade mostra o nome salvo do dono do número.
+        name: contactDisplayName(
+          { ...raw, ...storeContact, name: storeContact?.name || raw.name || raw.full_name },
+          'Unknown'
+        ),
         thumbnail:
           storeContact?.thumbnail ||
           raw.thumbnail ||

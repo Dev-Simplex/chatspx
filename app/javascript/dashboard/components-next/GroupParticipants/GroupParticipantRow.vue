@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { authorColor } from 'dashboard/helper/whatsappGroupHelper';
 
@@ -19,6 +20,8 @@ const props = defineProps({
 });
 
 defineEmits(['select']);
+
+const { t } = useI18n();
 
 /**
  * Cor determinística do participante — a mesma que a bolha usa para o autor,
@@ -52,13 +55,28 @@ const primaryLine = computed(() => {
 const secondaryLine = computed(() => {
   const { isUnknown, name, formattedPhone } = props.participant;
   if (isUnknown) return '—';
-  // A segunda linha só existe quando a primeira já é o nome.
-  return name ? formattedPhone || '—' : '';
+  if (name) {
+    // Nome que veio do WhatsApp, não dos contatos: avisa para não confundir com um salvo.
+    const phone = formattedPhone || '—';
+    return props.participant.notSaved
+      ? `${phone} · ${t('GROUP_INFO.WHATSAPP_NAME')}`
+      : phone;
+  }
+  // Só número: diz por quê, para o agente saber que dá para salvar o contato.
+  if (props.participant.notSaved) return t('GROUP_INFO.NOT_SAVED');
+  if (props.participant.savedWithoutName) return t('GROUP_INFO.SAVED_NO_NAME');
+  return '';
 });
 
-const avatarName = computed(() =>
-  props.participant.isUnknown ? '?' : primaryLine.value || '?'
-);
+// Sem nome, o avatar mostra o ícone de pessoa em vez de "+5" (o início do número).
+const avatarName = computed(() => {
+  if (props.participant.isUnknown) return '?';
+  // Iniciais só de palavras com letra: "Edu (nome do WhatsApp)" vira "EW", não "E(".
+  return (props.participant.name || '')
+    .split(/\s+/)
+    .filter(word => /^\p{L}/u.test(word))
+    .join(' ');
+});
 </script>
 
 <template>
@@ -93,7 +111,7 @@ const avatarName = computed(() =>
       </div>
       <div
         v-if="secondaryLine"
-        class="text-[12px] leading-tight truncate text-n-slate-11 tabular-nums"
+        class="text-[12px] leading-tight break-words text-n-slate-11 tabular-nums"
       >
         {{ secondaryLine }}
       </div>

@@ -1,4 +1,5 @@
 <script setup>
+import { savedContactFor } from 'dashboard/composables/useSavedContactNames';
 import { computed, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import camelcaseKeys from 'camelcase-keys';
@@ -89,12 +90,19 @@ const formattedPhone = computed(() => {
   }
 });
 
-// Title is the name; falls back to the (formatted) phone number.
-const displayName = computed(() => contactName.value || formattedPhone.value);
+// Número salvo no sistema mostra o nome do dono (com ou sem o nono dígito);
+// senão o nome do cartão; senão o telefone formatado.
+const savedContact = computed(() =>
+  phoneNumber.value ? savedContactFor(phoneNumber.value) : null
+);
+const shownName = computed(
+  () => savedContact.value?.name || contactName.value
+);
+const displayName = computed(() => shownName.value || formattedPhone.value);
 
 // Only show the phone as a secondary line when it isn't already the title.
 const showPhoneLine = computed(
-  () => Boolean(contactName.value) && Boolean(phoneNumber.value)
+  () => Boolean(shownName.value) && Boolean(phoneNumber.value)
 );
 
 const initial = computed(() => {
@@ -116,7 +124,10 @@ const hasActions = computed(() => Boolean(e164.value));
 // Smart "already saved" state: resolved once on mount so the action can read
 // "View contact" instead of "Save contact" when the contact already exists.
 const savedContactId = ref(null);
-const isSaved = computed(() => Boolean(savedContactId.value));
+// A busca geral acha a ficha também pelo número com/sem o nono dígito.
+const isSaved = computed(() =>
+  Boolean(savedContactId.value || savedContact.value?.id)
+);
 
 const accountId = computed(() => window.location.pathname.split('/')[3]);
 
@@ -145,7 +156,7 @@ async function filterContactByNumber(searchCandidate) {
 
 async function resolveContact() {
   let contact = isSaved.value
-    ? { id: savedContactId.value }
+    ? { id: savedContactId.value || savedContact.value?.id }
     : await filterContactByNumber(e164.value);
 
   if (!contact) {

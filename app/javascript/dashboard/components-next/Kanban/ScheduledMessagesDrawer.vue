@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { computed, onBeforeUnmount, ref, watch, nextTick } from 'vue';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -75,7 +76,7 @@ const getContactForMessage = message => {
 
   return {
     name:
-      contact?.name ||
+      contactDisplayName(contact) ||
       `${t('KANBAN.SCHEDULED_MESSAGES.CONVERSATION')} #${
         message.conversationDisplayId || message.conversationId
       }`,
