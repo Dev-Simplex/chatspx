@@ -55,7 +55,13 @@ const primaryLine = computed(() => {
 const secondaryLine = computed(() => {
   const { isUnknown, name, formattedPhone } = props.participant;
   if (isUnknown) return '—';
-  if (name) return formattedPhone || '—';
+  if (name) {
+    // Nome que veio do WhatsApp, não dos contatos: avisa para não confundir com um salvo.
+    const phone = formattedPhone || '—';
+    return props.participant.notSaved
+      ? `${phone} · ${t('GROUP_INFO.WHATSAPP_NAME')}`
+      : phone;
+  }
   // Só número: diz por quê, para o agente saber que dá para salvar o contato.
   if (props.participant.notSaved) return t('GROUP_INFO.NOT_SAVED');
   if (props.participant.savedWithoutName) return t('GROUP_INFO.SAVED_NO_NAME');
