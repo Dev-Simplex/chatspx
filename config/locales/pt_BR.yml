@@ -578,6 +578,9 @@ pt_BR:
     common:
       home: Principal
       last_updated_on: Última atualização em %{last_updated_on}
+      copy_link: Copiar link
+      copy_link_hint: Copia o endereço deste artigo para você mandar a alguém
+      link_copied: Link copiado
       view_all_articles: Visualizar tudo
       article: artigo
       articles: artigos

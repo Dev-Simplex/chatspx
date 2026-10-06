@@ -37,7 +37,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['goBack', 'previewArticle']);
+const emit = defineEmits(['goBack', 'previewArticle', 'copyLink']);
 
 const { t } = useI18n();
 const store = useStore();
@@ -134,6 +134,15 @@ const updateArticleStatus = async ({ value }) => {
         {{ statusText }}
       </span>
       <div class="flex items-center gap-2">
+        <Button
+          :label="t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.COPY_LINK')"
+          :title="t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.COPY_LINK_TIP')"
+          icon="i-lucide-link"
+          color="slate"
+          size="sm"
+          :disabled="!articleId"
+          @click="emit('copyLink')"
+        />
         <Button
           :label="t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.PREVIEW')"
           color="slate"

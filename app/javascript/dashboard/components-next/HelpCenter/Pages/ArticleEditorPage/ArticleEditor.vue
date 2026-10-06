@@ -32,6 +32,7 @@ const emit = defineEmits([
   'setAuthor',
   'setCategory',
   'previewArticle',
+  'copyLink',
 ]);
 
 const { t } = useI18n();
@@ -110,6 +111,7 @@ const previewArticle = () => {
         :article-id="article.id"
         @go-back="onClickGoBack"
         @preview-article="previewArticle"
+        @copy-link="emit('copyLink')"
       />
     </template>
     <template #content>

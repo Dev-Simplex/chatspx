@@ -4,7 +4,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAlert, useTrack } from 'dashboard/composables';
 import { PORTALS_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
-import { buildPortalArticleURL } from 'dashboard/helper/portalHelper';
+import {
+  buildPortalArticleURL,
+  ARTICLE_STATUSES,
+} from 'dashboard/helper/portalHelper';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 
 import ArticleEditor from 'dashboard/components-next/HelpCenter/Pages/ArticleEditorPage/ArticleEditor.vue';
@@ -103,6 +107,15 @@ const previewArticle = () => {
   });
 };
 
+const copyLink = async () => {
+  await copyTextToClipboard(articleLink.value);
+  useAlert(
+    article.value?.status === ARTICLE_STATUSES.PUBLISHED
+      ? t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.LINK_COPIED')
+      : t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.LINK_COPIED_DRAFT')
+  );
+};
+
 onMounted(fetchArticleDetails);
 </script>
 
@@ -114,6 +127,7 @@ onMounted(fetchArticleDetails);
     @save-article="saveArticle"
     @save-article-async="saveArticleAsync"
     @preview-article="previewArticle"
+    @copy-link="copyLink"
     @go-back="goBackToArticles"
   />
 </template>

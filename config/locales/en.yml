@@ -535,6 +535,9 @@ en:
     common:
       home: Home
       last_updated_on: Last updated on %{last_updated_on}
+      copy_link: Copy link
+      copy_link_hint: Copy this article's address to send it to someone
+      link_copied: Link copied
       view_all_articles: View all
       article: article
       articles: articles

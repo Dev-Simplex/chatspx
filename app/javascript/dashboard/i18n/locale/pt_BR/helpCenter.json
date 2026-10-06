@@ -525,7 +525,8 @@
             "PUBLISH": "Publicar",
             "DRAFT": "Rascunho",
             "ARCHIVE": "Arquivar",
-            "DELETE": "Excluir"
+            "DELETE": "Excluir",
+            "COPY_LINK": "Copiar link"
           },
           "STATUS": {
             "DRAFT": "Rascunho",
@@ -693,7 +694,11 @@
         "PUBLISH": "Publicar",
         "DRAFT": "Rascunho",
         "ARCHIVE": "Arquivar",
-        "BACK_TO_ARTICLES": "Voltar aos artigos"
+        "BACK_TO_ARTICLES": "Voltar aos artigos",
+        "COPY_LINK": "Copiar link",
+        "COPY_LINK_TIP": "Copia o endereço do artigo para você colar e mandar a quem precisa",
+        "LINK_COPIED": "Link do artigo copiado. Cole onde quiser compartilhar.",
+        "LINK_COPIED_DRAFT": "Link copiado, mas o artigo não está publicado: publique para que todos possam abrir."
       },
       "EDIT_ARTICLE": {
         "MORE_PROPERTIES": "Mais propriedades",

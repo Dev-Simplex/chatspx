@@ -34,4 +34,14 @@
      <%= I18n.t('public_portal.common.last_updated_on', last_updated_on: article.updated_at.strftime("%b %d, %Y")) %>
     </span>
   </div>
+  <button
+    type="button"
+    data-copy-article-link
+    data-copied-label="<%= I18n.t('public_portal.common.link_copied') %>"
+    title="<%= I18n.t('public_portal.common.copy_link_hint') %>"
+    class="inline-flex items-center gap-2 px-3 py-1.5 mt-3 text-sm font-medium border rounded-lg md:mt-0 text-slate-700 border-slate-200 hover:bg-slate-50 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-800"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span data-copy-article-link-label><%= I18n.t('public_portal.common.copy_link') %></span>
+  </button>
 </div>

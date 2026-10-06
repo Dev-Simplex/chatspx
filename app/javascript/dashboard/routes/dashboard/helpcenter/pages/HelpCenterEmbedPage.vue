@@ -85,6 +85,7 @@ const onLoaded = () => {
       :title="t('SIDEBAR.HELP_CENTER.TITLE')"
       class="w-full h-full border-0"
       referrerpolicy="no-referrer-when-downgrade"
+      allow="clipboard-write"
       @load="onLoaded"
     />
   </div>

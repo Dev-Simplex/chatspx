@@ -66,6 +66,45 @@ export const openExternalLinksInNewTab = () => {
   });
 };
 
+// Endereço do artigo para mandar a alguém: sem os parâmetros do iframe do painel
+// (embed/theme/show_plain_layout), senão quem recebe abre a versão embutida.
+export const shareableArticleURL = href => {
+  const url = new URL(href);
+  ['embed', 'theme', 'show_plain_layout'].forEach(param =>
+    url.searchParams.delete(param)
+  );
+  url.hash = '';
+  return url.toString();
+};
+
+const copyText = async text => {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Dentro do iframe do painel o navegador pode negar a API de clipboard.
+    const field = document.createElement('textarea');
+    field.value = text;
+    document.body.appendChild(field);
+    field.select();
+    document.execCommand('copy');
+    field.remove();
+  }
+};
+
+export const initializeCopyArticleLink = () => {
+  const button = document.querySelector('[data-copy-article-link]');
+  if (!button) return;
+  const label = button.querySelector('[data-copy-article-link-label]');
+  const originalText = label.textContent;
+  button.addEventListener('click', async () => {
+    await copyText(shareableArticleURL(window.location.href));
+    label.textContent = button.dataset.copiedLabel;
+    setTimeout(() => {
+      label.textContent = originalText;
+    }, 2000);
+  });
+};
+
 export const InitializationHelpers = {
   navigateToLocalePage: () => {
     document.addEventListener('change', e => {
@@ -135,6 +174,7 @@ export const InitializationHelpers = {
 
   initialize: () => {
     openExternalLinksInNewTab();
+    initializeCopyArticleLink();
     InitializationHelpers.setDirectionAttribute();
     if (window.portalConfig.isPlainLayoutEnabled === 'true') {
       InitializationHelpers.appendPlainParamToURLs();

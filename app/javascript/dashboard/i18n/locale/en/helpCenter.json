@@ -525,7 +525,8 @@
             "PUBLISH": "Publish",
             "DRAFT": "Draft",
             "ARCHIVE": "Archive",
-            "DELETE": "Delete"
+            "DELETE": "Delete",
+            "COPY_LINK": "Copy link"
           },
           "STATUS": {
             "DRAFT": "Draft",
@@ -693,7 +694,11 @@
         "PUBLISH": "Publish",
         "DRAFT": "Draft",
         "ARCHIVE": "Archive",
-        "BACK_TO_ARTICLES": "Back to articles"
+        "BACK_TO_ARTICLES": "Back to articles",
+        "COPY_LINK": "Copy link",
+        "COPY_LINK_TIP": "Copies the article address so you can paste and send it",
+        "LINK_COPIED": "Article link copied. Paste it wherever you want to share.",
+        "LINK_COPIED_DRAFT": "Link copied, but the article is not published: publish it so everyone can open it."
       },
       "EDIT_ARTICLE": {
         "MORE_PROPERTIES": "More properties",

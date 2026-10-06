@@ -6,7 +6,12 @@ import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAlert, useTrack } from 'dashboard/composables';
 import { PORTALS_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
-import { getArticleStatus } from 'dashboard/helper/portalHelper.js';
+import {
+  getArticleStatus,
+  buildPortalArticleURL,
+  ARTICLE_STATUSES,
+} from 'dashboard/helper/portalHelper.js';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import wootConstants from 'dashboard/constants/globals';
 
 import ArticleCard from 'dashboard/components-next/HelpCenter/ArticleCard/ArticleCard.vue';
@@ -151,7 +156,32 @@ const handleArticleAction = async (action, { status, id }) => {
   }
 };
 
+const getPortalBySlug = useMapGetter('portals/portalBySlug');
+
+const copyArticleLink = async id => {
+  const article = localArticles.value.find(item => item.id === id);
+  const { portalSlug } = route.params;
+  await copyTextToClipboard(
+    buildPortalArticleURL(
+      portalSlug,
+      null,
+      null,
+      article.slug,
+      getPortalBySlug.value(portalSlug)?.custom_domain
+    )
+  );
+  useAlert(
+    article.status === ARTICLE_STATUSES.PUBLISHED
+      ? t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.LINK_COPIED')
+      : t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.LINK_COPIED_DRAFT')
+  );
+};
+
 const updateArticle = ({ action, value, id }) => {
+  if (action === 'copy_link') {
+    copyArticleLink(id);
+    return;
+  }
   const status = action !== 'delete' ? getArticleStatus(value) : null;
   handleArticleAction(action, { status, id });
 };
