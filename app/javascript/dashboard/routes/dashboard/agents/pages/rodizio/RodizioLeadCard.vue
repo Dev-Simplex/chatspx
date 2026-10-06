@@ -2,7 +2,8 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { duracao, instante } from './tempo';
-import { faixaDaEspera } from './faixa';
+import { faixaDaEspera, FAIXAS } from './faixa';
+import { linkDaConversa } from './conversa';
 
 const props = defineProps({
   // Um lead serializado pelo LinhaDoTempoService: quem é, a situação e os marcos (`eventos`).
@@ -12,6 +13,7 @@ const props = defineProps({
   decorrido: { type: Number, default: 0 },
   // Minutos para pegar o lead, o mesmo limite do cartão "Sem movimento". Pinta a espera.
   limiar: { type: Number, default: 30 },
+  accountId: { type: [Number, String], required: true },
 });
 
 const { t } = useI18n();
@@ -63,6 +65,19 @@ const faixa = computed(() =>
     aindaEsperando: props.lead.situacao === 'espera',
     perdido: props.lead.situacao === 'perdido',
   })
+);
+
+// Precisa de ação: ninguém pegou e já passou do limite (ou expirou sem ninguém). O cartão ganha
+// uma faixa vermelha na borda esquerda, para saltar aos olhos no meio da lista.
+const precisaDeAcao = computed(
+  () =>
+    faixa.value === FAIXAS.atrasado &&
+    !props.lead.pegou_em &&
+    props.lead.situacao !== 'resolvido'
+);
+
+const link = computed(() =>
+  linkDaConversa(props.accountId, props.lead.display_id)
 );
 
 // --- onde o lead está agora, em palavras -----------------------------------------------
@@ -265,15 +280,29 @@ const passos = computed(() => {
 </script>
 
 <template>
-  <div
-    class="flex flex-col gap-3 px-3 py-2.5 bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak"
+  <!-- O cartão inteiro abre a conversa, em outra aba: quem vigia o rodízio não perde o filtro
+       nem a rolagem desta tela. -->
+  <a
+    :href="link"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="relative flex flex-col gap-2.5 py-2.5 pl-4 pr-3 overflow-hidden no-underline transition-shadow bg-white border rounded-lg group dark:bg-n-solid-2 border-n-weak hover:shadow-md hover:border-n-slate-7"
   >
+    <span
+      v-if="precisaDeAcao"
+      class="absolute inset-y-0 left-0 w-1"
+      :class="FAIXAS.atrasado.barra"
+    />
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span class="min-w-0 text-sm font-medium text-n-slate-12">
+      <span class="min-w-0 text-sm font-semibold text-n-slate-12">
         {{ titulo }}
-        <span class="text-xs font-normal tabular-nums text-n-slate-10">
+        <span class="ml-1 text-xs font-normal tabular-nums text-n-slate-10">
           {{ contexto }}
         </span>
+        <span
+          v-tooltip.top="t('AGENTS_RODIZIO.TIMELINE.OPEN_HINT')"
+          class="inline-block ml-1 align-middle transition-opacity opacity-0 i-lucide-external-link size-3.5 text-n-slate-10 group-hover:opacity-100"
+        />
       </span>
       <!-- Situação e espera andam juntas: em tela estreita descem de linha as duas, nunca uma só. -->
       <span class="flex flex-wrap items-center justify-end gap-2 ml-auto">
@@ -298,7 +327,7 @@ const passos = computed(() => {
         v-for="passo in passos"
         :key="passo.chave"
         class="flex min-w-0 gap-2 md:flex-col md:gap-1"
-        :class="passo.conector ? 'md:flex-1' : 'md:flex-none md:w-36'"
+        :class="passo.conector ? 'md:flex-1' : 'md:flex-none md:w-40'"
       >
         <div class="flex flex-col items-center shrink-0 md:flex-row">
           <span
@@ -322,27 +351,19 @@ const passos = computed(() => {
         </div>
         <div class="min-w-0 pb-2 md:pb-0 md:pr-2">
           <p
-            class="m-0 text-xs"
+            class="m-0 text-xs leading-4 text-n-slate-12"
             :class="[
               passo.conector ? 'truncate' : 'break-words',
-              passo.atual || passo.pendente
-                ? 'font-semibold text-n-slate-12'
-                : 'font-medium text-n-slate-12',
+              passo.atual || passo.pendente ? 'font-semibold' : 'font-medium',
             ]"
           >
             {{ passo.rotulo }}
           </p>
           <p
-            v-if="passo.detalhe"
-            class="m-0 text-[11px] truncate text-n-slate-10"
+            v-if="passo.hora || passo.detalhe"
+            class="m-0 text-[11px] leading-4 truncate tabular-nums text-n-slate-10"
           >
-            {{ passo.detalhe }}
-          </p>
-          <p
-            v-if="passo.hora"
-            class="m-0 text-[11px] tabular-nums text-n-slate-10"
-          >
-            {{ passo.hora }}
+            {{ [passo.hora, passo.detalhe].filter(Boolean).join(' · ') }}
           </p>
           <p
             v-if="passo.conector"
@@ -354,5 +375,5 @@ const passos = computed(() => {
         </div>
       </li>
     </ol>
-  </div>
+  </a>
 </template>

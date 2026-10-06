@@ -41,7 +41,9 @@ class Spx::Distribuicao::LinhaDoTempoService # rubocop:disable Metrics/ClassLeng
       total: filtrados.size,
       contagem: contagem(do_consultor),
       consultores: consultores,
-      media_espera_segundos: media_espera(do_consultor)
+      media_espera_segundos: media_espera(do_consultor),
+      # Os números do topo da tela: o período inteiro, sem o filtro de consultor.
+      geral: { contagem: contagem(todos), media_espera_segundos: media_espera(todos) }
     }
   end
 

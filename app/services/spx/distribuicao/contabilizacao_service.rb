@@ -126,7 +126,7 @@ class Spx::Distribuicao::ContabilizacaoService
 
     { limiar_minutos: limite,
       total: abertas.count,
-      leads: abertas.includes(:chosen_user, :conversation).order(designado_em: :asc).limit(100).map { |log| serializar_parado(log) } }
+      leads: abertas.includes(:chosen_user, conversation: :contact).order(designado_em: :asc).limit(100).map { |log| serializar_parado(log) } }
   rescue StandardError
     { limiar_minutos: limiar_minutos, total: 0, leads: [] }
   end
@@ -148,6 +148,8 @@ class Spx::Distribuicao::ContabilizacaoService
       conversation_id: log.conversation_id,
       display_id: log.conversation&.display_id,
       corretor: log.chosen_user&.name,
+      # Quem é o cliente: na lista de ação da tela, "Cliente Bot 3-7" diz mais que "#630".
+      contato: log.conversation&.contact&.name,
       produto: log.produto_slug,
       designado_em: log.designado_em,
       minutos_parado: log.designado_em && ((Time.zone.now - log.designado_em) / 60).round,

@@ -4,14 +4,16 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
 import RodizioLegenda from './rodizio/RodizioLegenda.vue';
-import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
+import RodizioResumo from './rodizio/RodizioResumo.vue';
+import RodizioPorConsultor from './rodizio/RodizioPorConsultor.vue';
 import { duracao, instante } from './rodizio/tempo';
 
 defineOptions({ name: 'RodizioPage' });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
 const { accountId } = useAccount();
 
@@ -24,14 +26,12 @@ const detalheLoading = ref(false);
 const expandido = ref(null);
 const timelines = ref({});
 const timelineLoading = ref(false);
-// A linha do tempo dos leads abre primeiro: é o que se quer ver sem clicar em nada. A tabela
-// por consultor continua a uma aba de distância.
+// A linha do tempo dos leads abre primeiro: é o que se quer ver sem clicar em nada.
 const aba = ref('leads');
+const secaoDasAbas = ref(null);
 // Relógio da tela. A resposta do backend é uma FOTOGRAFIA: o tempo de espera é calculado no
-// instante do request e congelava ali — numa tela feita para vigiar lead parado, o número que
-// para de crescer é justamente o que interessa. `agora` faz os tempos abertos correrem entre
-// uma recarga e outra. `atualizadoEm` não vai para a tela: contador piscando a cada segundo é
-// ruído, e o que o usuário quer ver é o tempo do LEAD correndo, não o da página.
+// instante do request e congelava ali. `agora` faz os tempos abertos correrem entre uma recarga
+// e outra; o contador da página em si não vai para a tela (seria ruído piscando).
 const agora = ref(new Date());
 const atualizadoEm = ref(null);
 let relogio = null;
@@ -46,23 +46,28 @@ const decorrido = computed(() =>
 
 const leadsGerais = ref(null);
 const leadsLoading = ref(false);
-// Filtros da linha do tempo: situação (um dos botões com contagem) e consultor. Vão ao backend,
-// porque a contagem é do período inteiro, não só dos leads que cabem na tela.
+// Filtros da linha do tempo: situação e consultor. Vão ao backend, porque a contagem é do
+// período inteiro, não só dos leads que cabem na tela.
 const PASSO_LEADS = 50;
 const filtroSituacao = ref('');
 const filtroConsultor = ref('');
 const limiteLeads = ref(PASSO_LEADS);
 
 const abas = computed(() => [
-  { value: 'leads', label: t('AGENTS_RODIZIO.TABS.BY_LEAD') },
-  { value: 'consultores', label: t('AGENTS_RODIZIO.TABS.BY_AGENT') },
+  {
+    value: 'leads',
+    icone: 'i-lucide-route',
+    label: t('AGENTS_RODIZIO.TABS.BY_LEAD'),
+  },
+  {
+    value: 'consultores',
+    icone: 'i-lucide-users',
+    label: t('AGENTS_RODIZIO.TABS.BY_AGENT'),
+  },
 ]);
 
 // ------------------------------------------------------------------------ período
-//
-// A tela nasceu olhando só o mês corrente e sem dizer que era essa a janela: mês sem movimento
-// mostrava "nenhum lead distribuído no período" e ninguém descobria QUAL período. Agora ele é
-// escolhido, vai nas TRÊS chamadas (tabela, faixa e leads) e fica escrito no cabeçalho.
+
 const periodo = ref('mes');
 // Último preset escolhido, para "Escolher datas" nascer com esse intervalo em vez de vazio.
 let periodoAnterior = 'mes';
@@ -137,16 +142,14 @@ const carregarLeads = async () => {
 };
 
 const carregar = async () => {
-  // Só a PRIMEIRA carga mostra "carregando". Trocar o conteúdo por uma linha de texto desmonta a
-  // tabela, a página encolhe e a rolagem volta ao topo — a cada recarga, no meio da leitura.
+  // Só a PRIMEIRA carga mostra "carregando": trocar o conteúdo por uma linha de texto desmonta
+  // a lista e a rolagem volta ao topo a cada recarga.
   loading.value = !data.value;
   loadError.value = false;
   detalhe.value = null;
   // Trocar de time ou de período muda quais leads contam: o que estava aberto vira mentira.
   expandido.value = null;
   timelines.value = {};
-  // `leadsGerais` NÃO é zerado: zerar desmonta a lista e a rolagem vai ao topo. A resposta nova
-  // substitui a antiga quando chega, como a tabela já faz.
   try {
     const { data: payload } = await DistribuicaoDashboardAPI.show(parametros());
     data.value = payload;
@@ -156,12 +159,11 @@ const carregar = async () => {
   } finally {
     loading.value = false;
   }
-  if (aba.value === 'leads') carregarLeads();
+  // Sempre: os números do topo saem desta resposta, qualquer que seja a aba aberta.
+  carregarLeads();
 };
 
-// Sempre reconsulta: o dado guardado é de quando a faixa foi aberta, e reabrir o consultor
-// mostrava os números de minutos atrás sem nem bater na API. O guardado serve só para a faixa
-// não piscar "carregando" enquanto a resposta nova não chega.
+// Sempre reconsulta; o guardado serve só para a faixa não piscar "carregando".
 const buscarFaixa = async userId => {
   timelineLoading.value = !timelines.value[userId];
   try {
@@ -183,10 +185,8 @@ const buscarFaixa = async userId => {
   }
 };
 
-// Recarga de fundo, a cada minuto: traz lead novo e mudança de status sem piscar a tela, sem
-// fechar a faixa aberta e sem perder o período escolhido. Falhou? A tela segue com o que tinha
-// e a próxima volta tenta de novo — recarga de fundo não pode transformar uma falha de rede em
-// tela de erro.
+// Recarga de fundo, a cada minuto, sem piscar e sem perder período, filtro ou faixa aberta.
+// Falha de rede aqui não vira tela de erro: a próxima volta tenta de novo.
 const atualizarEmSilencio = async () => {
   if (document.hidden) return;
 
@@ -194,18 +194,14 @@ const atualizarEmSilencio = async () => {
     const { data: payload } = await DistribuicaoDashboardAPI.show(parametros());
     data.value = payload;
     atualizadoEm.value = new Date();
-    // A tela de erro sai sozinha quando a recarga volta a funcionar: sem isto, quem viu a
-    // primeira carga falhar ficava preso no aviso mesmo com o dado já na mão.
     loadError.value = false;
   } catch (e) {
     return;
   }
-  if (aba.value === 'leads') carregarLeads();
+  carregarLeads();
   if (expandido.value) buscarFaixa(expandido.value);
 };
 
-// Trocar o preset recarrega na hora; no personalizado só quando as duas pontas existem, senão a
-// tela recarregaria a cada dígito digitado na primeira data.
 const hoje = comoISO(new Date());
 
 const trocarIntervalo = () => {
@@ -214,8 +210,6 @@ const trocarIntervalo = () => {
 
 const trocarPeriodo = () => {
   if (periodo.value === 'personalizado') {
-    // Entra já preenchido com o intervalo que estava na tela: escolher "datas" não pode começar
-    // com dois campos vazios e a tela sem dado.
     const [inicio, fim] = (INTERVALOS[periodoAnterior] || INTERVALOS.mes)().map(
       comoISO
     );
@@ -228,26 +222,59 @@ const trocarPeriodo = () => {
   carregar();
 };
 
-// O período que o backend de fato usou — é ele que vale, não o que a tela pediu.
+// --- o período e o time, escritos como gente fala ----------------------------------------
+//
+// "Outubro de 2026 · Todos os times". A data vem do que o BACKEND usou, mas só a parte da data
+// ("2026-10-31"): converter o instante para o fuso do navegador mostrava "01/11" no fim do mês.
+const idioma = computed(() =>
+  String(locale.value || 'pt-BR').replace('_', '-')
+);
+
+const dataDoBackend = valor => {
+  const [ano, mes, dia] = String(valor).slice(0, 10).split('-').map(Number);
+  return new Date(ano, mes - 1, dia);
+};
+
+const dataCurta = quando =>
+  quando.toLocaleDateString(idioma.value, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+
 const periodoLegivel = computed(() => {
   const janela = data.value?.periodo;
   if (!janela?.de) return '';
-  const curto = valor =>
-    new Date(valor).toLocaleDateString([], {
-      day: '2-digit',
-      month: '2-digit',
+  const inicio = dataDoBackend(janela.de);
+  const fim = dataDoBackend(janela.ate);
+  if (['mes', 'mes_passado'].includes(periodo.value)) {
+    const nome = inicio.toLocaleDateString(idioma.value, {
+      month: 'long',
       year: 'numeric',
     });
-  return t('AGENTS_RODIZIO.PERIOD.RANGE', {
-    de: curto(janela.de),
-    ate: curto(janela.ate),
+    return nome.charAt(0).toUpperCase() + nome.slice(1);
+  }
+  const intervalo = t('AGENTS_RODIZIO.PERIOD.RANGE', {
+    de: dataCurta(inicio),
+    ate: dataCurta(fim),
   });
+  const preset = periodos.value.find(item => item.value === periodo.value);
+  return periodo.value === 'personalizado'
+    ? intervalo
+    : `${preset.label} (${intervalo})`;
 });
+
+const times = computed(() => data.value?.times || []);
+
+const timeLegivel = computed(
+  () =>
+    times.value.find(time => String(time.id) === String(teamId.value))?.name ||
+    t('AGENTS_RODIZIO.ALL_TEAMS')
+);
 
 onMounted(() => {
   carregar();
-  // 10 s move os ponteiros na tela; 60 s vai ao servidor. Separados porque o relógio é de graça
-  // e o request não é.
+  // 10 s move os ponteiros na tela; 60 s vai ao servidor.
   relogio = setInterval(() => {
     agora.value = new Date();
   }, 10000);
@@ -261,7 +288,6 @@ onBeforeUnmount(() => {
 
 const linhas = computed(() => data.value?.linhas || []);
 const totais = computed(() => data.value?.totais || {});
-const times = computed(() => data.value?.times || []);
 const parados = computed(
   () => data.value?.sem_movimento || { total: 0, leads: [], limiar_minutos: 0 }
 );
@@ -269,18 +295,8 @@ const parados = computed(
 // O PDF pede à API exatamente o que a tela pediu (período e time): é a tela no papel.
 const filtrosDoPdf = computed(() => parametros());
 
-const motivo = (linha, chave) => linha.motivos?.[chave] || 0;
-
-// "WhatsApp 12 · Site 3" — os canais que a gestão já lê na planilha manual.
-const canais = linha =>
-  Object.entries(linha.canais || {})
-    .map(([nome, total]) => `${nome} ${total}`)
-    .join(' · ');
-
-const produtos = linha =>
-  Object.entries(linha.produtos || {})
-    .map(([nome, total]) => `${nome} ${total}`)
-    .join(' · ');
+// O limite que pinta a espera de cada lead: o mesmo do cartão de parados.
+const limiar = computed(() => parados.value.limiar_minutos || 30);
 
 const abrirDetalhe = async lead => {
   detalhe.value = { lead, designacoes: [] };
@@ -297,19 +313,8 @@ const abrirDetalhe = async lead => {
   }
 };
 
-// Montado aqui, e não no template, porque texto solto em template é erro de lint no projeto —
-// nada de string crua fora do i18n. O "#" saiu a pedido: o número do lead se lê sozinho.
-const conversa = displayId => `${displayId}`;
+// ------------------------------------------------------------------- por consultor
 
-// ---------------------------------------------------------------- linha do tempo
-
-// O limite que pinta a espera de cada lead: o mesmo do cartão "Sem movimento".
-const limiar = computed(() => parados.value.limiar_minutos || 30);
-
-const timelineDe = userId => timelines.value[userId] || { leads: [], total: 0 };
-const leadsDe = userId => timelineDe(userId).leads || [];
-
-// Abre e fecha a faixa. O resultado fica guardado por consultor: reabrir não bate na API de novo.
 const alternarConsultor = async linha => {
   if (expandido.value === linha.user_id) {
     expandido.value = null;
@@ -319,29 +324,19 @@ const alternarConsultor = async linha => {
   await buscarFaixa(linha.user_id);
 };
 
-// "8399 min esperando" é um número que ninguém lê. Vira "5 d 19h", no mesmo formato do resto da
-// tela, e continua correndo com o relógio local — o lead parado é o que mais precisa disso.
-const esperaDoParado = lead =>
-  duracao(t, (lead.minutos_parado || 0) * 60 + decorrido.value);
+// -------------------------------------------------------------- linha do tempo
 
-const mediaEspera = userId => {
-  const segundos = timelineDe(userId).media_espera_segundos;
-  return segundos ? duracao(t, segundos) : '';
-};
-
-const restantes = userId =>
-  Math.max((timelineDe(userId).total || 0) - leadsDe(userId).length, 0);
-
-// ---------------------------------------------------------------------- aba Leads
-
-// A tabela responde "quem recebeu quanto"; esta aba responde "onde está cada lead, com quem, e
-// há quanto tempo" — sem precisar adivinhar em quem ele caiu para poder clicar. Do que chegou por
-// último para o primeiro; os parados se acham pelo filtro "Esperando".
 const leadsDaConta = computed(() => leadsGerais.value?.leads || []);
+const geral = computed(() => leadsGerais.value?.geral || {});
 
 const restantesDaConta = computed(() =>
   Math.max((leadsGerais.value?.total || 0) - leadsDaConta.value.length, 0)
 );
+
+const mediaEsperaDaConta = computed(() => {
+  const segundos = leadsGerais.value?.media_espera_segundos;
+  return segundos ? duracao(t, segundos) : '';
+});
 
 // Os botões de situação, cada um com quantos leads tem. Esperando + Em atendimento + Resolvidos
 // somam "Todos" (o raro lead que expirou sem ninguém pegar só aparece no recorte de baixo).
@@ -358,16 +353,19 @@ const situacoes = computed(() => {
       value: 'espera',
       label: t('AGENTS_RODIZIO.LEADS.FILTER.ESPERA'),
       total: contagem.espera,
+      ponto: 'bg-n-amber-9',
     },
     {
       value: 'atendimento',
       label: t('AGENTS_RODIZIO.LEADS.FILTER.ATENDIMENTO'),
       total: contagem.atendimento,
+      ponto: 'bg-n-slate-9',
     },
     {
       value: 'resolvido',
       label: t('AGENTS_RODIZIO.LEADS.FILTER.RESOLVIDO'),
       total: contagem.resolvido,
+      ponto: 'bg-n-teal-9',
     },
   ];
 });
@@ -394,29 +392,65 @@ const escolherSituacao = valor => {
   filtrar();
 };
 
+const limparFiltros = () => {
+  filtroSituacao.value = '';
+  filtroConsultor.value = '';
+  filtrar();
+};
+
 const mostrarMais = () => {
   limiteLeads.value += PASSO_LEADS;
   carregarLeads();
 };
 
-const mediaEsperaDaConta = computed(() => {
-  const segundos = leadsGerais.value?.media_espera_segundos;
-  return segundos ? duracao(t, segundos) : '';
-});
-
-const irParaAba = valor => {
-  aba.value = valor;
-  if (valor === 'leads' && !leadsGerais.value) carregarLeads();
+// Do resumo do topo direto para os leads que esperam, já filtrados.
+const verEsperando = () => {
+  aba.value = 'leads';
+  filtroConsultor.value = '';
+  escolherSituacao('espera');
+  secaoDasAbas.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
+
+// Lista vazia diz POR QUE está vazia, e de um jeito que ajuda: "ninguém esperando" é boa notícia.
+const VAZIOS = computed(() => ({
+  espera: {
+    icone: 'i-lucide-party-popper',
+    texto: t('AGENTS_RODIZIO.LEADS.EMPTY_BY.ESPERA'),
+  },
+  atendimento: {
+    icone: 'i-lucide-inbox',
+    texto: t('AGENTS_RODIZIO.LEADS.EMPTY_BY.ATENDIMENTO'),
+  },
+  resolvido: {
+    icone: 'i-lucide-inbox',
+    texto: t('AGENTS_RODIZIO.LEADS.EMPTY_BY.RESOLVIDO'),
+  },
+  repassado: {
+    icone: 'i-lucide-circle-check',
+    texto: t('AGENTS_RODIZIO.LEADS.EMPTY_BY.REPASSADO'),
+  },
+}));
+
+const vazio = computed(() => {
+  if (filtroConsultor.value) {
+    return {
+      icone: 'i-lucide-user-search',
+      texto: t('AGENTS_RODIZIO.LEADS.EMPTY_FILTER'),
+      limpar: true,
+    };
+  }
+  return (
+    VAZIOS.value[filtroSituacao.value] || {
+      icone: 'i-lucide-calendar-x',
+      texto: t('AGENTS_RODIZIO.LEADS.EMPTY'),
+    }
+  );
+});
 
 // --- "Por que este?" -------------------------------------------------------------
 //
-// O painel mostrava o snapshot da política em JSON cru: linha de log na tela de quem gerencia.
-// O que importa ali são quatro respostas — quem levou, por qual regra, quem concorreu e o que
-// valia na hora —, e elas viram frase. O JSON continua ali, fechado, para quem for investigar.
-//
-// Os mapas são computed com a chave escrita por extenso: chave montada em runtime já sumiu de
-// tela neste projeto, e o lint reclama dela com razão.
+// O painel conta, em frases, quem levou, por qual regra, quem concorreu e o que valia na hora.
+// O JSON continua ali, fechado, para quem for investigar.
 const MOTIVO_DA_ESCOLHA = computed(() => ({
   rodizio: t('AGENTS_RODIZIO.DETAIL.REASON.RODIZIO'),
   continuidade: t('AGENTS_RODIZIO.DETAIL.REASON.CONTINUIDADE'),
@@ -500,8 +534,7 @@ const regraEmPalavras = registro => {
 const registroTecnico = registro =>
   JSON.stringify(registro.regra_aplicada || {}, null, 2);
 
-// Este painel só CONTA o que já aconteceu. Quem MONTA a política é a tela do time: ela é
-// por time, e a lista de times é onde se escolhe qual configurar.
+// Este painel só CONTA o que já aconteceu. Quem MONTA a política é a tela do time.
 const irParaPolitica = () =>
   router.push({
     name: 'settings_teams_list',
@@ -510,76 +543,84 @@ const irParaPolitica = () =>
 </script>
 
 <template>
-  <!-- `w-full h-full` porque esta tela deixou de ser filha do AgentsPageView: agora
-       ela e o proprio filho do <main> do Dashboard (flex row, overflow-hidden), e sem
-       isso encolheria para a largura do conteudo e nao rolaria. -->
-  <div class="flex flex-col w-full h-full gap-6 p-6 overflow-y-auto">
-    <header class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-medium text-n-slate-12">
+  <!-- `w-full h-full`: esta tela é filha direta do <main> do Dashboard (flex row,
+       overflow-hidden); sem isso encolheria para a largura do conteúdo e não rolaria. -->
+  <div class="flex flex-col w-full h-full gap-5 px-6 py-5 overflow-y-auto">
+    <header class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <div class="min-w-0">
+        <h1 class="m-0 text-xl font-semibold text-n-slate-12">
           {{ t('AGENTS_RODIZIO.TITLE') }}
         </h1>
-        <p class="mt-1 text-sm text-n-slate-11">
-          {{ t('AGENTS_RODIZIO.SUBTITLE') }}
-          <span v-if="periodoLegivel" class="tabular-nums text-n-slate-10">
-            {{ periodoLegivel }}
-          </span>
+        <p
+          v-if="periodoLegivel"
+          class="inline-flex items-center gap-1.5 m-0 mt-0.5 text-sm text-n-slate-11"
+        >
+          <span class="i-lucide-calendar size-3.5 text-n-slate-10" />
+          <span class="font-medium text-n-slate-12">{{ periodoLegivel }}</span>
+          <span class="rounded-full size-1 bg-n-slate-8" />
+          {{ timeLegivel }}
         </p>
       </div>
-      <div class="flex items-center gap-2">
-        <!-- `mb-0` mata o `mb-4` que a regra global de `select` traz pelo `field-base`: com ela a
-             caixa sobe metade da margem e desalinha da linha dos botões. -->
-        <select
-          v-model="periodo"
-          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
-          @change="trocarPeriodo"
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Período e time numa caixa só: são as duas perguntas de "o que estou vendo". -->
+        <div
+          class="flex items-center h-8 bg-white border divide-x rounded-lg dark:bg-n-solid-2 border-n-weak divide-n-weak"
         >
-          <option
-            v-for="item in periodos"
-            :key="item.value"
-            :value="item.value"
+          <!-- `mb-0` e `border-0` matam a margem e a borda que a regra global de `select` traz. -->
+          <select
+            v-model="periodo"
+            :aria-label="t('AGENTS_RODIZIO.PERIOD.LABEL')"
+            class="h-full py-0 pl-2 pr-7 mb-0 text-sm bg-transparent border-0 rounded-l-lg w-auto text-n-slate-12"
+            @change="trocarPeriodo"
           >
-            {{ item.label }}
-          </option>
-        </select>
-        <select
-          v-model="teamId"
-          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12"
-          @change="carregar"
-        >
-          <option value="">{{ t('AGENTS_RODIZIO.ALL_TEAMS') }}</option>
-          <option v-for="time in times" :key="time.id" :value="time.id">
-            {{ time.name }} ({{ time.modo_posse }})
-          </option>
-        </select>
+            <option
+              v-for="item in periodos"
+              :key="item.value"
+              :value="item.value"
+            >
+              {{ item.label }}
+            </option>
+          </select>
+          <select
+            v-model="teamId"
+            :aria-label="t('AGENTS_RODIZIO.TEAM_LABEL')"
+            class="h-full py-0 pl-2 pr-7 mb-0 text-sm bg-transparent border-0 rounded-r-lg w-auto text-n-slate-12"
+            @change="carregar"
+          >
+            <option value="">{{ t('AGENTS_RODIZIO.ALL_TEAMS') }}</option>
+            <option v-for="time in times" :key="time.id" :value="time.id">
+              {{ time.name }}
+            </option>
+          </select>
+        </div>
         <button
-          class="h-9 px-3 text-sm rounded-lg bg-n-brand text-white transition-shadow hover:shadow-md whitespace-nowrap"
+          v-tooltip.top="t('AGENTS_RODIZIO.RELOAD_HINT')"
+          :aria-label="t('AGENTS_RODIZIO.RELOAD')"
+          class="flex items-center justify-center bg-white border rounded-lg size-8 dark:bg-n-solid-2 border-n-weak text-n-slate-11 hover:text-n-slate-12 hover:bg-n-slate-2"
           @click="carregar"
         >
-          {{ t('AGENTS_RODIZIO.RELOAD') }}
+          <span class="i-lucide-refresh-cw size-4" />
         </button>
-        <!-- `shrink-0`: sem ele o botão encolhe na fila do cabeçalho e o texto some, ficando só o ícone. -->
+        <!-- `shrink-0`: sem ele o botão encolhe na fila do cabeçalho e o texto some. -->
         <DownloadPdfButton
           class="shrink-0"
           report-type="rodizio"
           :filters="filtrosDoPdf"
         />
         <button
-          class="h-9 px-3 text-sm rounded-lg border border-n-weak text-n-slate-11 whitespace-nowrap"
+          class="inline-flex items-center h-8 gap-1.5 px-2.5 text-sm rounded-lg text-n-slate-11 hover:text-n-slate-12 hover:bg-n-slate-3 whitespace-nowrap"
           @click="irParaPolitica"
         >
+          <span class="i-lucide-settings-2 size-4" />
           {{ t('AGENTS_RODIZIO.CONFIGURE') }}
         </button>
       </div>
     </header>
 
-    <!-- As duas datas ganham linha própria: espremidas na fila de botões elas ficavam de alturas
-         diferentes, sem rótulo, e a segunda aparecia como "dd/mm/aaaa" solto no meio da barra.
-         Aqui cabem rótulo, limites (fim nunca antes do início, nada no futuro) e o aviso de que
-         falta escolher — e a linha some quando o período não é personalizado. -->
+    <!-- Datas próprias em linha separada, com rótulo, limites e o aviso de que falta escolher. -->
     <div
       v-if="periodo === 'personalizado'"
-      class="flex flex-wrap items-center justify-end gap-3 px-3 py-2 -mt-2 border rounded-xl border-n-weak bg-n-solid-1 dark:bg-n-solid-2"
+      class="flex flex-wrap items-center justify-end gap-3 px-3 py-2 -mt-2 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2"
     >
       <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
         {{ t('AGENTS_RODIZIO.PERIOD.FROM') }}
@@ -587,7 +628,7 @@ const irParaPolitica = () =>
           v-model="de"
           type="date"
           :max="ate || hoje"
-          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+          class="h-8 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
           @change="trocarIntervalo"
         />
       </label>
@@ -598,7 +639,7 @@ const irParaPolitica = () =>
           type="date"
           :min="de"
           :max="hoje"
-          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+          class="h-8 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
           @change="trocarIntervalo"
         />
       </label>
@@ -607,95 +648,24 @@ const irParaPolitica = () =>
       </span>
     </div>
 
-    <p v-if="loading" class="text-sm text-n-slate-11">
+    <p v-if="loading" class="m-0 text-sm text-n-slate-11">
       {{ t('AGENTS_RODIZIO.LOADING') }}
     </p>
-    <p v-else-if="loadError" class="text-sm text-n-ruby-11">
+    <p v-else-if="loadError" class="m-0 text-sm text-n-ruby-11">
       {{ t('AGENTS_RODIZIO.ERROR') }}
     </p>
 
     <template v-else>
-      <section class="flex flex-wrap gap-4">
-        <div
-          class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
-        >
-          <p class="text-xs uppercase text-n-slate-10">
-            {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
-          </p>
-          <p class="text-xl font-medium text-n-slate-12">
-            {{ totais.recebidos || 0 }}
-          </p>
-        </div>
-        <div
-          class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
-        >
-          <p class="text-xs uppercase text-n-slate-10">
-            {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
-          </p>
-          <p class="text-xl font-medium text-n-slate-12">
-            {{ parados.total }}
-          </p>
-          <p class="text-xs text-n-slate-10">
-            {{
-              t('AGENTS_RODIZIO.STALLED.THRESHOLD', {
-                min: parados.limiar_minutos,
-              })
-            }}
-          </p>
-        </div>
-        <!-- A lista fica ao lado do número, e não abaixo da tabela: lá embaixo ela tirava altura
-             da tabela, que é a seção que encolhe quando a tela não cabe. Pelo mesmo motivo é
-             baixa: título e explicação numa linha só, e três leads visíveis antes de rolar. -->
-        <div
-          class="flex flex-col flex-1 min-w-[20rem] gap-1 px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
-        >
-          <div class="flex flex-wrap items-baseline gap-x-2">
-            <h2 class="text-xs uppercase text-n-slate-10">
-              {{ t('AGENTS_RODIZIO.STALLED.LIST_TITLE') }}
-            </h2>
-            <p class="text-xs text-n-slate-10">
-              {{ t('AGENTS_RODIZIO.STALLED.SUBTITLE') }}
-            </p>
-          </div>
-          <p v-if="!parados.leads.length" class="text-sm text-n-slate-10">
-            {{ t('AGENTS_RODIZIO.STALLED.NONE') }}
-          </p>
-          <!-- `bg-n-slate-3` no claro, e não `n-solid-1`: nesta skin o solid-1 claro é branco, igual
-               ao cartão, e a linha sem borda sumia no fundo. -->
-          <ul v-else class="flex flex-col gap-1 overflow-y-auto max-h-24">
-            <li
-              v-for="lead in parados.leads"
-              :key="lead.conversation_id"
-              class="flex flex-wrap items-center gap-3 px-2 py-1 rounded-md bg-n-slate-3 dark:bg-n-solid-3"
-            >
-              <span class="text-sm font-medium text-n-slate-12">
-                {{ lead.corretor || t('AGENTS_RODIZIO.DETAIL.NOBODY') }}
-              </span>
-              <span
-                class="px-2 py-0.5 text-xs rounded-full whitespace-nowrap tabular-nums bg-n-amber-3 text-n-amber-11"
-              >
-                {{
-                  t('AGENTS_RODIZIO.STALLED.WAITING', {
-                    tempo: esperaDoParado(lead),
-                  })
-                }}
-              </span>
-              <span v-if="lead.produto" class="text-xs text-n-slate-10">
-                {{ lead.produto }}
-              </span>
-              <span class="text-xs tabular-nums text-n-slate-10">
-                {{ conversa(lead.display_id) }}
-              </span>
-              <button
-                class="ml-auto text-xs underline text-n-slate-11"
-                @click="abrirDetalhe(lead)"
-              >
-                {{ t('AGENTS_RODIZIO.DETAIL.OPEN') }}
-              </button>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <RodizioResumo
+        :parados="parados"
+        :geral="geral"
+        :totais="totais"
+        :limiar="limiar"
+        :decorrido="decorrido"
+        :account-id="accountId"
+        @ver-esperando="verEsperando"
+        @por-que="abrirDetalhe"
+      />
 
       <!-- O "Por que este?" abre logo abaixo da lista que o chamou, e não no pé da página. -->
       <section
@@ -770,28 +740,29 @@ const irParaPolitica = () =>
         </div>
       </section>
 
-      <!-- Abas em vez de mais uma seção embaixo: a `section.overflow-x-auto` da tabela é a única
-           que encolhe nesta coluna flex, então todo bloco novo abaixo dela rouba altura da
-           tabela e a espreme numa caixa com rolagem própria. -->
-      <div class="flex gap-1 p-1 rounded-lg bg-n-slate-3 w-fit">
+      <div
+        ref="secaoDasAbas"
+        class="flex items-center gap-1 p-1 border rounded-lg bg-n-slate-3 dark:bg-n-solid-2 border-n-weak w-fit scroll-mt-4"
+      >
         <button
           v-for="item in abas"
           :key="item.value"
-          class="px-3 py-1 text-sm rounded-md"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md"
           :class="
             aba === item.value
-              ? 'bg-white dark:bg-n-solid-3 text-n-slate-12 font-medium'
-              : 'text-n-slate-11'
+              ? 'bg-white dark:bg-n-solid-3 text-n-slate-12 font-medium shadow-sm'
+              : 'text-n-slate-11 hover:text-n-slate-12'
           "
-          @click="irParaAba(item.value)"
+          @click="aba = item.value"
         >
+          <span class="size-4" :class="item.icone" />
           {{ item.label }}
         </button>
       </div>
 
-      <section v-if="aba === 'leads'" class="flex flex-col gap-3">
+      <section v-if="aba === 'leads'" class="flex flex-col gap-3 -mt-1">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
-          <p class="m-0 text-sm font-medium text-n-slate-12">
+          <p class="m-0 text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.LEADS.TITLE') }}
           </p>
           <p v-if="mediaEsperaDaConta" class="m-0 text-xs text-n-slate-11">
@@ -812,35 +783,41 @@ const irParaPolitica = () =>
             :class="
               filtroSituacao === item.value
                 ? 'bg-n-slate-12 text-n-slate-1 border-n-slate-12 font-medium'
-                : 'bg-white dark:bg-n-solid-2 border-n-weak text-n-slate-11'
+                : 'bg-white dark:bg-n-solid-2 border-n-weak text-n-slate-11 hover:text-n-slate-12'
             "
             @click="escolherSituacao(item.value)"
           >
+            <span
+              v-if="item.ponto"
+              class="rounded-full size-2"
+              :class="item.ponto"
+            />
             {{ item.label }}
-            <span class="text-xs tabular-nums opacity-80">
+            <span class="text-xs font-semibold tabular-nums">
               {{ item.total || 0 }}
             </span>
           </button>
-          <span class="w-px h-5 bg-n-slate-6" />
+          <span class="w-px h-5 mx-1 bg-n-slate-6" />
           <button
             v-tooltip.top="t('AGENTS_RODIZIO.LEADS.FILTER.REPASSADO_HINT')"
             class="inline-flex items-center gap-1.5 h-8 px-3 text-sm border rounded-full"
             :class="
               filtroSituacao === 'repassado'
                 ? 'bg-n-slate-12 text-n-slate-1 border-n-slate-12 font-medium'
-                : 'bg-white dark:bg-n-solid-2 border-n-weak text-n-slate-11'
+                : 'bg-white dark:bg-n-solid-2 border-n-weak text-n-slate-11 hover:text-n-slate-12'
             "
             @click="escolherSituacao('repassado')"
           >
             <span class="i-lucide-repeat-2 size-3.5" />
             {{ t('AGENTS_RODIZIO.LEADS.FILTER.REPASSADO') }}
-            <span class="text-xs tabular-nums opacity-80">
+            <span class="text-xs font-semibold tabular-nums">
               {{ contagemRepassados }}
             </span>
           </button>
           <select
             v-model="filtroConsultor"
-            class="h-8 px-2 mb-0 ml-auto text-sm bg-white border rounded-lg w-auto dark:bg-n-solid-2 border-n-weak text-n-slate-12"
+            :aria-label="t('AGENTS_RODIZIO.LEADS.ALL_AGENTS')"
+            class="h-8 py-0 pl-3 pr-8 mb-0 ml-auto text-sm bg-white border rounded-full w-auto dark:bg-n-solid-2 border-n-weak text-n-slate-12"
             @change="filtrar"
           >
             <option value="">{{ t('AGENTS_RODIZIO.LEADS.ALL_AGENTS') }}</option>
@@ -856,16 +833,23 @@ const irParaPolitica = () =>
 
         <RodizioLegenda :limiar="limiar" />
 
-        <p v-if="leadsLoading" class="text-sm text-n-slate-10">
+        <p v-if="leadsLoading" class="m-0 text-sm text-n-slate-10">
           {{ t('AGENTS_RODIZIO.LOADING') }}
         </p>
-        <p v-else-if="!leadsDaConta.length" class="text-sm text-n-slate-10">
-          {{
-            filtroSituacao || filtroConsultor
-              ? t('AGENTS_RODIZIO.LEADS.EMPTY_FILTER')
-              : t('AGENTS_RODIZIO.LEADS.EMPTY')
-          }}
-        </p>
+        <div
+          v-else-if="!leadsDaConta.length"
+          class="flex flex-col items-center gap-2 px-4 py-10 text-center border border-dashed rounded-xl border-n-weak"
+        >
+          <span class="size-6 text-n-slate-9" :class="vazio.icone" />
+          <p class="m-0 text-sm text-n-slate-11">{{ vazio.texto }}</p>
+          <button
+            v-if="vazio.limpar"
+            class="text-xs font-medium underline text-n-slate-11 underline-offset-2"
+            @click="limparFiltros"
+          >
+            {{ t('AGENTS_RODIZIO.LEADS.CLEAR') }}
+          </button>
+        </div>
         <template v-else>
           <RodizioLeadCard
             v-for="lead in leadsDaConta"
@@ -873,10 +857,11 @@ const irParaPolitica = () =>
             :lead="lead"
             :decorrido="decorrido"
             :limiar="limiar"
+            :account-id="accountId"
           />
           <div v-if="restantesDaConta" class="flex items-center gap-3">
             <button
-              class="h-8 px-3 text-sm border rounded-lg border-n-weak text-n-slate-12"
+              class="h-8 px-3 text-sm bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak text-n-slate-12 hover:bg-n-slate-2"
               @click="mostrarMais"
             >
               {{ t('AGENTS_RODIZIO.LEADS.MORE') }}
@@ -893,165 +878,18 @@ const irParaPolitica = () =>
         </template>
       </section>
 
-      <section v-show="aba === 'consultores'" class="overflow-x-auto">
-        <table class="w-full text-sm border rounded-xl border-n-weak">
-          <thead class="bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11">
-            <tr>
-              <th class="px-3 py-2 font-medium text-left">
-                {{ t('AGENTS_RODIZIO.TABLE.CONSULTANT') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-right">
-                {{ t('AGENTS_RODIZIO.TABLE.RECEIVED') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-right">
-                {{ t('AGENTS_RODIZIO.TABLE.ROTATION') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-right">
-                {{ t('AGENTS_RODIZIO.TABLE.CONTINUITY') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-right">
-                {{ t('AGENTS_RODIZIO.TABLE.PREFERENCE') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-right">
-                {{ t('AGENTS_RODIZIO.TABLE.HANDOFF') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-right">
-                {{ t('AGENTS_RODIZIO.TABLE.MANUAL') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-right">
-                {{ t('AGENTS_RODIZIO.TABLE.OPEN') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-left">
-                {{ t('AGENTS_RODIZIO.TABLE.CHANNELS') }}
-              </th>
-              <th class="px-3 py-2 font-medium text-left">
-                {{ t('AGENTS_RODIZIO.TABLE.PRODUCTS') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!linhas.length">
-              <td colspan="10" class="px-3 py-6 text-center text-n-slate-10">
-                {{ t('AGENTS_RODIZIO.EMPTY') }}
-              </td>
-            </tr>
-            <template v-for="linha in linhas" :key="linha.user_id">
-              <tr
-                class="border-t border-n-weak"
-                :class="{
-                  'bg-n-solid-1 dark:bg-n-solid-2': expandido === linha.user_id,
-                }"
-              >
-                <td class="px-3 py-2 text-n-slate-12">
-                  <button
-                    class="inline-flex items-center gap-2 text-left hover:underline underline-offset-4"
-                    :aria-expanded="expandido === linha.user_id"
-                    :title="t('AGENTS_RODIZIO.TIMELINE.OPEN')"
-                    @click="alternarConsultor(linha)"
-                  >
-                    <span
-                      class="transition-transform duration-200 i-lucide-chevron-right size-3.5 text-n-slate-10"
-                      :class="{ 'rotate-90': expandido === linha.user_id }"
-                    />
-                    {{ linha.nome || linha.user_id }}
-                  </button>
-                </td>
-                <td class="px-3 py-2 text-right text-n-slate-12">
-                  {{ linha.recebidos }}
-                </td>
-                <td class="px-3 py-2 text-right text-n-slate-11">
-                  {{ motivo(linha, 'rodizio') }}
-                </td>
-                <td class="px-3 py-2 text-right text-n-slate-11">
-                  {{ motivo(linha, 'continuidade') }}
-                </td>
-                <td class="px-3 py-2 text-right text-n-slate-11">
-                  {{ motivo(linha, 'preferencia_cliente') }}
-                </td>
-                <td class="px-3 py-2 text-right text-n-slate-11">
-                  {{ motivo(linha, 'repasse_sla') }}
-                </td>
-                <!-- "Gestor" = chegou ao gestor, a mao ou escalado; as colunas somam "Recebidos". -->
-                <td class="px-3 py-2 text-right text-n-slate-11">
-                  {{
-                    motivo(linha, 'escalado_gestor') +
-                    motivo(linha, 'manual_gestor')
-                  }}
-                </td>
-                <td class="px-3 py-2 text-right text-n-slate-11">
-                  {{ linha.abertos }}
-                </td>
-                <td class="px-3 py-2 text-n-slate-10">{{ canais(linha) }}</td>
-                <td class="px-3 py-2 text-n-slate-10">{{ produtos(linha) }}</td>
-              </tr>
-
-              <!-- A faixa abre ABAIXO da linha, e não como balão preso ao nome: a barra precisa
-                   da largura da tabela, e balão dentro de célula sai cortado. -->
-              <tr v-if="expandido === linha.user_id">
-                <td colspan="10" class="p-0">
-                  <div
-                    class="flex flex-col gap-3 px-4 py-4 border-t bg-n-solid-1 dark:bg-n-solid-2 border-n-weak"
-                  >
-                    <div
-                      class="flex flex-wrap items-baseline justify-between gap-2"
-                    >
-                      <p class="text-sm font-medium text-n-slate-12">
-                        {{
-                          t('AGENTS_RODIZIO.TIMELINE.TITLE', {
-                            nome: linha.nome || linha.user_id,
-                          })
-                        }}
-                      </p>
-                      <p
-                        v-if="mediaEspera(linha.user_id)"
-                        class="text-xs text-n-slate-11"
-                      >
-                        {{
-                          t('AGENTS_RODIZIO.TIMELINE.AVG_WAIT', {
-                            tempo: mediaEspera(linha.user_id),
-                          })
-                        }}
-                      </p>
-                    </div>
-
-                    <p v-if="timelineLoading" class="text-sm text-n-slate-10">
-                      {{ t('AGENTS_RODIZIO.LOADING') }}
-                    </p>
-                    <p
-                      v-else-if="!leadsDe(linha.user_id).length"
-                      class="text-sm text-n-slate-10"
-                    >
-                      {{ t('AGENTS_RODIZIO.TIMELINE.EMPTY') }}
-                    </p>
-                    <template v-else>
-                      <RodizioLegenda :limiar="limiar" />
-                      <RodizioLeadCard
-                        v-for="lead in leadsDe(linha.user_id)"
-                        :key="lead.id"
-                        :lead="lead"
-                        :decorrido="decorrido"
-                        :limiar="limiar"
-                      />
-
-                      <p
-                        v-if="restantes(linha.user_id)"
-                        class="text-xs text-n-slate-10"
-                      >
-                        {{
-                          t('AGENTS_RODIZIO.TIMELINE.SHOWING', {
-                            n: leadsDe(linha.user_id).length,
-                            total: timelineDe(linha.user_id).total,
-                          })
-                        }}
-                      </p>
-                    </template>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </section>
+      <RodizioPorConsultor
+        v-else
+        class="-mt-1"
+        :linhas="linhas"
+        :expandido="expandido"
+        :faixas="timelines"
+        :carregando-faixa="timelineLoading"
+        :decorrido="decorrido"
+        :limiar="limiar"
+        :account-id="accountId"
+        @alternar="alternarConsultor"
+      />
     </template>
   </div>
 </template>

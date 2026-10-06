@@ -12,34 +12,13 @@
     "NO_INBOX": "No inbox"
   },
   "AGENTS_RODIZIO": {
-    "TITLE": "Rotation",
+    "TITLE": "Lead rotation",
     "SUBTITLE": "How leads are being distributed, and under which rule",
     "ALL_TEAMS": "All teams",
     "RELOAD": "Reload",
     "LOADING": "Loading...",
     "ERROR": "Could not load the rotation data",
     "EMPTY": "No leads distributed in this period",
-    "TOTAL_RECEIVED": "Leads received",
-    "TABLE": {
-      "CONSULTANT": "Consultant",
-      "RECEIVED": "Received",
-      "ROTATION": "Rotation",
-      "CONTINUITY": "Continuity",
-      "PREFERENCE": "Client request",
-      "HANDOFF": "Hand-off",
-      "MANUAL": "Manager",
-      "OPEN": "Still open",
-      "CHANNELS": "Channels",
-      "PRODUCTS": "Products"
-    },
-    "STALLED": {
-      "TITLE": "No movement",
-      "LIST_TITLE": "Designated with no movement",
-      "SUBTITLE": "Nobody picked these up yet. The AI is still covering the client.",
-      "THRESHOLD": "over {min} min",
-      "WAITING": "waiting for {tempo}",
-      "NONE": "Nothing stalled right now"
-    },
     "DETAIL": {
       "OPEN": "Why this one?",
       "TITLE": "Conversation {id}",
@@ -81,14 +60,15 @@
       "PICK_BOTH": "pick both dates",
       "FROM": "Start date",
       "TO": "End date",
-      "RANGE": "· {de} to {ate}"
+      "RANGE": "{de} to {ate}",
+      "LABEL": "Period"
     },
     "TABS": {
       "BY_AGENT": "By agent",
       "BY_LEAD": "Lead timeline"
     },
     "LEADS": {
-      "TITLE": "Every lead in the period, newest arrival first",
+      "TITLE": "Every lead in the period, newest arrival first. Click a card to open the conversation.",
       "EMPTY": "No rotation leads in this period. Change the period at the top to look at another month.",
       "EMPTY_FILTER": "No lead matches this filter in the period.",
       "MORE": "Show more",
@@ -100,7 +80,14 @@
         "RESOLVIDO": "Resolved",
         "REPASSADO": "Expired/handed off",
         "REPASSADO_HINT": "Leads where someone let the deadline pass. They also count in the situation they are in now."
-      }
+      },
+      "EMPTY_BY": {
+        "ESPERA": "Nobody waiting to be picked up. Good sign.",
+        "ATENDIMENTO": "No lead being handled right now.",
+        "RESOLVIDO": "No lead resolved yet in this period.",
+        "REPASSADO": "No hand-offs: every lead was picked up by whoever got it first."
+      },
+      "CLEAR": "Clear filters"
     },
     "TIMELINE": {
       "OPEN": "See the lead timeline",
@@ -154,7 +141,8 @@
         "IA": "AI {tempo}",
         "WAIT": "wait {tempo}",
         "SERVICE": "handling {tempo}"
-      }
+      },
+      "OPEN_HINT": "Opens the conversation in another tab"
     },
     "CONFIGURE": "Set up rotation",
     "POLICY": {
@@ -231,6 +219,58 @@
         "CONTINUIDADE_DIAS": "Continuity days must be a whole number above zero.",
         "CAP": "A cap must be above zero. Leave it empty for no limit.",
         "POOL_VAZIO": "The rotation is on but nobody is in the pool — no lead would be distributed."
+      }
+    },
+    "RELOAD_HINT": "Refresh now (the screen already refreshes itself every minute)",
+    "TEAM_LABEL": "Team",
+    "OPEN_CONVERSATION": "Open conversation",
+    "SUMMARY": {
+      "LIST": "{inicio} and {fim}",
+      "LATE_TITLE": "{n} lead waiting over {min} min with nobody picking it up | {n} leads waiting over {min} min with nobody picking them up",
+      "LATE_OLDEST": "The oldest is with {nome}, for {tempo}.",
+      "LATE_WHO": "With: {lista}.",
+      "WARN_TITLE": "All on time, but {n} lead is still waiting to be picked up | All on time, but {n} leads are still waiting to be picked up",
+      "WARN_SUB": "None is over {min} min. If one gets there, it shows up here in red.",
+      "OK_TITLE": "All good: no lead waiting to be picked up",
+      "OK_SUB": "If a lead goes over {min} min with nobody picking it up, it shows up here with the name of who has it.",
+      "SEE_WAITING": "See the waiting ones",
+      "WAITING_FOR": "for {tempo}",
+      "HAS_NOT_TAKEN": "has not picked up",
+      "MORE": "and {n} more — see them all in the timeline"
+    },
+    "KPI": {
+      "DISTRIBUTED": "Leads distributed",
+      "DISTRIBUTED_HINT": "Every lead handed to an agent in the period: by rotation, continuity, customer request, hand-off or the manager.",
+      "DISTRIBUTED_SUB": "{n} by rotation",
+      "STALLED": "Waiting over {min} min",
+      "STALLED_HINT": "Leads handed to someone who has not picked them up, for over {min} min. Counts what is stalled now, from any period.",
+      "STALLED_SUB": "nobody picked them up, right now",
+      "STALLED_NONE": "no forgotten lead",
+      "AVG_WAIT": "Average wait to pick up",
+      "AVG_WAIT_HINT": "From the lead handed to an agent until someone picked it up, hand-offs included. Rotation leads in the period only.",
+      "AVG_WAIT_SUB": "the limit is {min} min",
+      "PASSED": "Handed off on deadline",
+      "PASSED_HINT": "Leads the first agent did not pick up in time, so the system passed them to someone else.",
+      "OF_ROTATION": "of {n} rotation leads"
+    },
+    "AGENTS": {
+      "TITLE": "How much each agent received in the period, and where each lead came from",
+      "RECEIVED": "received | received",
+      "OPEN": "{n} waiting to be picked up | {n} waiting to be picked up",
+      "OPEN_NONE": "nothing waiting",
+      "OPEN_HINT": "Leads handed to this person that they have not picked up yet.",
+      "CHANNELS_PRODUCTS": "Channels: {canais}   ·   Products: {produtos}",
+      "ORIGIN": {
+        "RODIZIO": "Rotation",
+        "RODIZIO_HINT": "Came on this person's turn in the rotation.",
+        "CONTINUIDADE": "Continuity",
+        "CONTINUIDADE_HINT": "The contact came back and went straight to whoever served them before.",
+        "PREFERENCIA": "Customer request",
+        "PREFERENCIA_HINT": "The customer asked to talk to this person.",
+        "REPASSE": "Hand-off",
+        "REPASSE_HINT": "Whoever received it first did not pick it up in time, and the lead came to this person.",
+        "GESTOR": "Manager",
+        "GESTOR_HINT": "The manager handed it over, or the lead went up to them after too many hand-offs."
       }
     }
   },
