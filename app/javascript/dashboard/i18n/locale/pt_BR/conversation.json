@@ -1345,9 +1345,22 @@
       "VIEW_CONTACT": "Ver contato",
       "COPY_PHONE": "Copiar telefone",
       "COPY_PHONE_DISABLED": "Este integrante não tem telefone conhecido",
-      "PHONE_COPIED": "Telefone copiado"
+      "PHONE_COPIED": "Telefone copiado",
+      "SAVE_CONTACT": "Salvar nos contatos",
+      "GIVE_NAME": "Dar um nome a este contato"
     },
     "SENT_BY_IN_GROUP": "Enviado por {name} neste grupo",
-    "REPLYING_TO": "Respondendo a {name}"
+    "REPLYING_TO": "Respondendo a {name}",
+    "NOT_SAVED": "Não está nos seus contatos",
+    "SAVED_NO_NAME": "Salvo nos contatos, mas sem nome",
+    "WHATSAPP_NAME": "nome do WhatsApp, não salvo",
+    "SAVED_SUMMARY": "{saved} de {total} salvos nos seus contatos",
+    "NAME_LABEL": "Nome do contato",
+    "NAME_PLACEHOLDER": "Ex.: Maria da Silva",
+    "NAME_SAVE": "Salvar",
+    "NAME_SAVING": "Salvando…",
+    "NAME_CANCEL": "Cancelar",
+    "NAME_SAVED": "{name} salvo nos contatos",
+    "NAME_SAVE_ERROR": "Não foi possível salvar o contato. Tente de novo."
   }
 }
