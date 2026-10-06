@@ -71,7 +71,11 @@ const secondaryLine = computed(() => {
 // Sem nome, o avatar mostra o ícone de pessoa em vez de "+5" (o início do número).
 const avatarName = computed(() => {
   if (props.participant.isUnknown) return '?';
-  return props.participant.name || '';
+  // Iniciais só de palavras com letra: "Edu (nome do WhatsApp)" vira "EW", não "E(".
+  return (props.participant.name || '')
+    .split(/\s+/)
+    .filter(word => /^\p{L}/u.test(word))
+    .join(' ');
 });
 </script>
 
@@ -107,7 +111,7 @@ const avatarName = computed(() => {
       </div>
       <div
         v-if="secondaryLine"
-        class="text-[12px] leading-tight truncate text-n-slate-11 tabular-nums"
+        class="text-[12px] leading-tight break-words text-n-slate-11 tabular-nums"
       >
         {{ secondaryLine }}
       </div>

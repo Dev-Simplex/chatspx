@@ -144,6 +144,17 @@ const footerText = computed(() => {
   return syncedLabel.value ? `${syncedLabel.value} · ${partial}` : partial;
 });
 
+// "7 de 10 salvos nos seus contatos": quanto do grupo já está identificado.
+const savedSummary = computed(() => {
+  if (!savedContacts.value || isSyncing.value) return '';
+  const known = participants.value.filter(p => !p.isUnknown);
+  const saved = known.filter(p => p.savedContactId && !p.savedWithoutName);
+  return t('GROUP_INFO.SAVED_SUMMARY', {
+    saved: saved.length,
+    total: known.length,
+  });
+});
+
 /**
  * Skeleton só enquanto NÃO há nada para mostrar. Quando já existe lista, uma
  * sincronização em andamento não pode apagá-la da tela.
@@ -272,7 +283,7 @@ const openPopover = (participant, anchor) => {
   }
   if (!anchor?.getBoundingClientRect) return;
   const rect = anchor.getBoundingClientRect();
-  const estimatedHeight = 190;
+  const estimatedHeight = 260;
   const top =
     rect.bottom + estimatedHeight > window.innerHeight
       ? Math.max(8, rect.top - estimatedHeight)
@@ -320,6 +331,58 @@ const viewContact = () => {
   );
   closePopover();
 };
+
+// --- Salvar / dar nome sem sair do grupo ---------------------------------
+const naming = ref(false);
+const nameDraft = ref('');
+const savingName = ref(false);
+
+const canName = computed(
+  () =>
+    !!activeParticipant.value?.phone &&
+    (activeParticipant.value.notSaved ||
+      activeParticipant.value.savedWithoutName)
+);
+
+const startNaming = () => {
+  // Nome que veio do WhatsApp já entra como sugestão.
+  nameDraft.value = activeParticipant.value?.name || '';
+  naming.value = true;
+};
+
+// Celular BR que o grupo manda sem o nono dígito é salvo no formato atual (com o 9).
+const phoneToSave = digits =>
+  /^55\d{2}[6-9]\d{7}$/.test(digits)
+    ? `+${digits.slice(0, 4)}9${digits.slice(4)}`
+    : `+${digits}`;
+
+const saveName = async () => {
+  const participant = activeParticipant.value;
+  const name = nameDraft.value.trim();
+  if (!participant || !name || savingName.value) return;
+  savingName.value = true;
+  try {
+    if (participant.savedContactId) {
+      await ContactAPI.update(participant.savedContactId, { name });
+    } else {
+      await ContactAPI.create({
+        name,
+        phone_number: phoneToSave(participant.phone),
+      });
+    }
+    await loadGroupSavedContacts(props.conversationId, { force: true });
+    useAlert(t('GROUP_INFO.NAME_SAVED', { name }));
+    closePopover();
+  } catch (error) {
+    useAlert(error?.response?.data?.message || t('GROUP_INFO.NAME_SAVE_ERROR'));
+  } finally {
+    savingName.value = false;
+  }
+};
+
+watch(activeParticipant, () => {
+  naming.value = false;
+});
 
 const copyPhone = async () => {
   const participant = activeParticipant.value;
@@ -448,7 +511,12 @@ const copyPhone = async () => {
       <div
         class="flex items-start gap-2 px-4 py-2 mt-1 text-[11px] leading-snug border-t text-n-slate-11 border-n-weak"
       >
-        <span class="flex-1 min-w-0">{{ footerText }}</span>
+        <span class="flex-1 min-w-0">
+          <span v-if="savedSummary" class="block font-medium text-n-slate-12">
+            {{ savedSummary }}
+          </span>
+          {{ footerText }}
+        </span>
         <button
           v-tooltip="$t('GROUP_INFO.SYNC_TOOLTIP')"
           type="button"
@@ -486,6 +554,55 @@ const copyPhone = async () => {
             {{ activeParticipant.formattedPhone }}
           </p>
         </div>
+        <form
+          v-if="naming"
+          class="flex flex-col gap-2 px-3 py-2 border-b border-n-weak"
+          @submit.prevent="saveName"
+        >
+          <label class="text-[11.5px] text-n-slate-11">
+            {{ $t('GROUP_INFO.NAME_LABEL') }}
+            <input
+              v-model="nameDraft"
+              type="text"
+              autofocus
+              :placeholder="$t('GROUP_INFO.NAME_PLACEHOLDER')"
+              class="w-full h-8 px-2 mt-1 text-[13px] border rounded-lg reset-base bg-n-alpha-black2 dark:bg-n-solid-2 border-n-weak text-n-slate-12 focus:outline-none"
+            />
+          </label>
+          <div class="flex justify-end gap-2">
+            <button
+              type="button"
+              class="px-2.5 h-7 text-[12.5px] border-0 rounded-lg bg-transparent text-n-slate-11 hover:bg-n-slate-3/50"
+              @click="naming = false"
+            >
+              {{ $t('GROUP_INFO.NAME_CANCEL') }}
+            </button>
+            <button
+              type="submit"
+              class="px-3 h-7 text-[12.5px] font-medium text-white border-0 rounded-lg bg-n-brand hover:bg-n-brand/90 disabled:opacity-50"
+              :disabled="!nameDraft.trim() || savingName"
+            >
+              {{
+                savingName
+                  ? $t('GROUP_INFO.NAME_SAVING')
+                  : $t('GROUP_INFO.NAME_SAVE')
+              }}
+            </button>
+          </div>
+        </form>
+        <button
+          v-else-if="canName"
+          type="button"
+          class="inline-flex items-center w-full h-8 gap-2 px-3 text-[13px] font-medium border-0 rounded-lg bg-transparent text-n-brand hover:bg-n-slate-3/50"
+          @click.stop="startNaming"
+        >
+          <span class="i-lucide-user-plus size-3.5" />
+          {{
+            activeParticipant.savedWithoutName
+              ? $t('GROUP_INFO.ACTIONS.GIVE_NAME')
+              : $t('GROUP_INFO.ACTIONS.SAVE_CONTACT')
+          }}
+        </button>
         <span v-tooltip="openDmTooltip" class="block">
           <button
             type="button"
