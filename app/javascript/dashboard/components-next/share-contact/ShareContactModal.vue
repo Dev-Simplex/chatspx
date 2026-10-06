@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ContactAPI from 'dashboard/api/contacts.js';
@@ -115,7 +116,8 @@ const manualReady = computed(
 
 // === Preview unificado ===
 const previewName = computed(() => {
-  if (activeTab.value === 'contact') return selectedContact.value?.name || '';
+  if (activeTab.value === 'contact')
+    return contactDisplayName(selectedContact.value);
   return manualName.value.trim();
 });
 

@@ -16,17 +16,11 @@ import ApiClient from './ApiClient';
  * do corpo (`synced`, `cached`, `never_synced`, `throttled`, `failed`,
  * `skipped`). Nunca trate "HTTP 200" como "deu certo".
  *
- * `GET` = leitura sem chamar a WAHA. O snapshot já vem no payload da conversa; o
- * painel usa o GET pelo `contacts`: o contato SALVO de cada integrante (pelo
- * telefone), para mostrar o nome em vez do número.
+ * O `GET` existe mas não é usado: o snapshot já vem no payload da conversa.
  */
 class GroupParticipantsAPI extends ApiClient {
   constructor() {
     super('conversations', { accountScoped: true });
-  }
-
-  show(conversationId) {
-    return axios.get(`${this.url}/${conversationId}/waha_group`);
   }
 
   sync(conversationId) {

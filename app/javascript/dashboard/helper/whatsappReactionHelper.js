@@ -24,6 +24,7 @@
  * de criar uma mensagem. Enquanto isso não vier, este saneamento é o que impede o fio de
  * ser tomado por reações. Quando vier, este módulo sai inteiro.
  */
+import { withSavedName } from 'dashboard/composables/useSavedContactNames';
 import {
   parseLegacyGroupContent,
   participantLabel,
@@ -72,7 +73,10 @@ export const parseWhatsAppReaction = (message = {}) => {
 
   // Autor estruturado (mensagem nova) tem precedência sobre o nome extraído do texto.
   const author = groupSender || legacySender;
-  const { label } = author ? participantLabel(author) : { label: null };
+  // Número salvo no sistema mostra o nome do dono.
+  const { label } = author
+    ? participantLabel(withSavedName(author))
+    : { label: null };
 
   return {
     emoji: match[1],

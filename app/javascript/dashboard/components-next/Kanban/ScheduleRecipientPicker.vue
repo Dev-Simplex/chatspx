@@ -1,4 +1,5 @@
 <script setup>
+import { contactDisplayName } from 'dashboard/composables/useSavedContactNames';
 import { useI18n } from 'vue-i18n';
 import Avatar from 'next/avatar/Avatar.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -48,7 +49,7 @@ const emit = defineEmits([
 const { t } = useI18n();
 
 const contactName = contact =>
-  contact?.name ||
+  contactDisplayName(contact) ||
   contact?.identifier ||
   contact?.email ||
   t('KANBAN.ITEMS.UNNAMED_CONTACT');
