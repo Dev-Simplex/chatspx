@@ -1,10 +1,12 @@
 # Empurra para o Captador o que acontece nas conversas que ele abriu (22 §1.5): resposta do lead
 # (com opt_out quando é recusa), resposta do vendedor, status de entrega (o motivo da falha vem em
 # content_attributes.external_error), conversa resolvida ou reaberta e troca de dono ou de time.
+# Conversa sem o carimbo (aberta direto no ChatSPX) só sai se for de uma caixa liberada no hook: o
+# Captador a liga ao lead pelo telefone do contato (conversation.meta.sender.phone_number).
 #
 # Mesmo payload e mesma assinatura dos webhooks de conta (X-Chatwoot-Signature com o segredo do
-# hook), pelo WebhookJob, com as retentativas dele. O filtro começa pelo que já está em memória
-# (custom_attributes.captador_lead_id): conversa comum não custa nenhuma consulta.
+# hook), pelo WebhookJob, com as retentativas dele. O filtro começa pelo interruptor da conta
+# (accounts.settings): conta sem o Captador nem consulta o hook.
 #
 # Cada handler tem rescue próprio: o listener roda para TODA conta no AsyncDispatcher, e uma
 # exceção aqui derrubaria os listeners seguintes do EventDispatcherJob.
@@ -89,10 +91,17 @@ class Spx::CaptadorListener < BaseListener
   end
 
   def captador_hook(conversation)
-    return if conversation&.custom_attributes&.dig('captador_lead_id').blank?
-    return unless conversation.account.captador_integration_enabled?
+    return unless conversation&.account&.captador_integration_enabled?
 
-    conversation.account.hooks.find_by(app_id: Spx::Captador::BaseController::APP_ID, status: 'enabled')
+    hook = conversation.account.hooks.find_by(app_id: Spx::Captador::BaseController::APP_ID, status: 'enabled')
+    hook if hook && captador_conversation?(hook, conversation)
+  end
+
+  # Com o carimbo captador_lead_id, sempre. Sem ele, só nas caixas de allowed_inbox_ids (vazio libera
+  # nenhuma, como no POST leads e no catálogo).
+  def captador_conversation?(hook, conversation)
+    conversation.custom_attributes&.dig('captador_lead_id').present? ||
+      hook.settings['allowed_inbox_ids'].to_s.split(',').map(&:strip).include?(conversation.inbox_id.to_s)
   end
 
   def deliver(hook, payload)
