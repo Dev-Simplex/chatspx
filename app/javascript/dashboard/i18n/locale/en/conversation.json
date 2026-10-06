@@ -1345,12 +1345,22 @@
       "VIEW_CONTACT": "View contact",
       "COPY_PHONE": "Copy phone number",
       "COPY_PHONE_DISABLED": "This member has no known phone number",
-      "PHONE_COPIED": "Phone number copied"
+      "PHONE_COPIED": "Phone number copied",
+      "SAVE_CONTACT": "Save to contacts",
+      "GIVE_NAME": "Give this contact a name"
     },
     "SENT_BY_IN_GROUP": "Sent by {name} in this group",
     "REPLYING_TO": "Replying to {name}",
     "NOT_SAVED": "Not in your contacts",
     "SAVED_NO_NAME": "Saved in contacts, without a name",
-    "WHATSAPP_NAME": "WhatsApp name, not saved"
+    "WHATSAPP_NAME": "WhatsApp name, not saved",
+    "SAVED_SUMMARY": "{saved} of {total} saved in your contacts",
+    "NAME_LABEL": "Contact name",
+    "NAME_PLACEHOLDER": "E.g.: Maria da Silva",
+    "NAME_SAVE": "Save",
+    "NAME_SAVING": "Saving…",
+    "NAME_CANCEL": "Cancel",
+    "NAME_SAVED": "{name} saved in contacts",
+    "NAME_SAVE_ERROR": "Could not save the contact. Try again."
   }
 }
