@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { authorColor } from 'dashboard/helper/whatsappGroupHelper';
 
@@ -19,6 +20,8 @@ const props = defineProps({
 });
 
 defineEmits(['select']);
+
+const { t } = useI18n();
 
 /**
  * Cor determinística do participante — a mesma que a bolha usa para o autor,
@@ -52,13 +55,18 @@ const primaryLine = computed(() => {
 const secondaryLine = computed(() => {
   const { isUnknown, name, formattedPhone } = props.participant;
   if (isUnknown) return '—';
-  // A segunda linha só existe quando a primeira já é o nome.
-  return name ? formattedPhone || '—' : '';
+  if (name) return formattedPhone || '—';
+  // Só número: diz por quê, para o agente saber que dá para salvar o contato.
+  if (props.participant.notSaved) return t('GROUP_INFO.NOT_SAVED');
+  if (props.participant.savedWithoutName) return t('GROUP_INFO.SAVED_NO_NAME');
+  return '';
 });
 
-const avatarName = computed(() =>
-  props.participant.isUnknown ? '?' : primaryLine.value || '?'
-);
+// Sem nome, o avatar mostra o ícone de pessoa em vez de "+5" (o início do número).
+const avatarName = computed(() => {
+  if (props.participant.isUnknown) return '?';
+  return props.participant.name || '';
+});
 </script>
 
 <template>
