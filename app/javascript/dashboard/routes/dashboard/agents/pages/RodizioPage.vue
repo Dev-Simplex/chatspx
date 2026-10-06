@@ -558,7 +558,12 @@ const irParaPolitica = () =>
         >
           {{ t('AGENTS_RODIZIO.RELOAD') }}
         </button>
-        <DownloadPdfButton report-type="rodizio" :filters="filtrosDoPdf" />
+        <!-- `shrink-0`: sem ele o botão encolhe na fila do cabeçalho e o texto some, ficando só o ícone. -->
+        <DownloadPdfButton
+          class="shrink-0"
+          report-type="rodizio"
+          :filters="filtrosDoPdf"
+        />
         <button
           class="h-9 px-3 text-sm rounded-lg border border-n-weak text-n-slate-11 whitespace-nowrap"
           @click="irParaPolitica"
