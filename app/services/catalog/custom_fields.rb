@@ -46,6 +46,20 @@ class Catalog::CustomFields
     end
   end
 
+  # `[{ label, value }]` para a IA de atendimento. Sem `chaves`, vale a régua do cliente (campo
+  # interno fica fora). Com `chaves`, é allowlist: entram só esses campos, internos inclusive —
+  # "interno" quer dizer "não vai ao cliente", não "a IA não pode saber".
+  def para_ia(valores, chaves = nil)
+    valores = valores.to_h
+    permitidas = chaves.nil? ? nil : Array(chaves).map(&:to_s)
+    definicoes.filter_map do |definicao|
+      next if permitidas ? permitidas.exclude?(definicao.attribute_key) : definicao.hidden
+
+      texto = formatar(definicao, valores[definicao.attribute_key])
+      { 'label' => definicao.attribute_display_name, 'value' => texto } if texto.present?
+    end
+  end
+
   private
 
   # `false` é valor (caixa desmarcada), não ausência — por isso não serve o `blank?`.

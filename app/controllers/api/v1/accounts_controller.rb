@@ -95,12 +95,6 @@ class Api::V1::AccountsController < Api::BaseController
     desconhecidas = AccountFeaturesCatalog.desconhecidas(pedidos.keys)
     return render json: { error: "feature desconhecida: #{desconhecidas.join(', ')}" }, status: :unprocessable_entity if desconhecidas.any?
 
-    bloqueadas = AccountFeaturesCatalog.bloqueadas(pedidos)
-    if bloqueadas.any?
-      return render json: { error: I18n.t('errors.features.sem_bit', features: bloqueadas.join(', ')) },
-                    status: :unprocessable_entity
-    end
-
     aplicar_features(pedidos)
     render json: catalogo
   end

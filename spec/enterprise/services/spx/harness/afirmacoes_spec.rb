@@ -25,8 +25,11 @@ RSpec.describe Spx::Harness::Afirmacoes do
 
     # Número sem âncora não é afirmação sobre o imóvel — mesmo critério da Preservacao. Sem
     # isso, "das 7h30 às 17h30" viraria quatro fatos inventados e o cenário acusaria fantasma.
-    it 'não transforma horário, data e telefone em afirmação' do
-      expect(described_class.extrair('atendemos das 7h30 às 17h30, dia 02/09, no (66) 3531-7222')).to be_empty
+    # O telefone, porém, é afirmação sobre a EMPRESA (ver nivel1/telefone_da_empresa_spec.rb).
+    it 'não transforma horário, data e telefone em afirmação sobre o imóvel' do
+      afirmacoes = described_class.extrair('atendemos das 7h30 às 17h30, dia 02/09, no (66) 3531-7222')
+
+      expect(afirmacoes).to contain_exactly({ 'classe' => 'empresa', 'tipo' => 'telefone', 'valor' => '(66) 3531-7222' })
     end
 
     it 'não inventa afirmação em fala sem fato' do

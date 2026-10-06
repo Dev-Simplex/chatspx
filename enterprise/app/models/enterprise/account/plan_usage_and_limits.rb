@@ -126,6 +126,8 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
   end
 
   def agent_limits
+    return ChatwootApp.max_limit if ENV['SPX_ENTERPRISE_OVERRIDE'] == 'true' || ENV['SPX_HML_ENTERPRISE_SANDBOX'] == 'true'
+
     subscribed_quantity = custom_attributes['subscribed_quantity']
     subscribed_quantity || get_limits(:agents)
   end
