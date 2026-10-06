@@ -33,12 +33,65 @@ const router = useRouter();
 const accountId = useMapGetter('getCurrentAccountId');
 
 const {
-  participants,
+  participants: snapshotParticipants,
   participantCount,
   hasSnapshot,
   unresolvedCount,
   syncedAt,
 } = useGroupConversation();
+
+// Contato salvo de cada integrante, pelo telefone: { telefone: { id, name } }.
+// null = ainda não carregou (não marca ninguém como "não salvo" antes da hora).
+const savedContacts = ref(null);
+
+const loadSavedContacts = async () => {
+  try {
+    const { data } = await GroupParticipantsAPI.show(props.conversationId);
+    savedContacts.value = data?.contacts || {};
+  } catch {
+    savedContacts.value = null;
+  }
+};
+
+/**
+ * O nome que o agente salvou no ChatSPX vale mais que o do WhatsApp (que quase
+ * sempre vem vazio). Ordem: admins, depois quem tem nome A→Z, depois só número.
+ */
+const participants = computed(() =>
+  snapshotParticipants.value
+    .map(participant => {
+      if (participant.isUnknown || !savedContacts.value) return participant;
+      const saved = savedContacts.value[participant.phone];
+      return {
+        ...participant,
+        name: saved?.name || participant.name,
+        savedContactId: saved?.id || null,
+        notSaved: !saved,
+        savedWithoutName: Boolean(saved && !saved.name),
+      };
+    })
+    .sort((a, b) => {
+      if (a.isUnknown !== b.isUnknown) return a.isUnknown ? 1 : -1;
+      if (a.admin !== b.admin) return a.admin ? -1 : 1;
+      if (Boolean(a.name) !== Boolean(b.name)) return a.name ? -1 : 1;
+      return String(a.name || a.formattedPhone).localeCompare(
+        String(b.name || b.formattedPhone),
+        'pt-BR',
+        { sensitivity: 'base' }
+      );
+    })
+);
+
+// Recarrega quando a lista de integrantes muda (sync) ou a conversa troca.
+watch(
+  () => [
+    props.conversationId,
+    snapshotParticipants.value.length,
+    syncedAt.value,
+  ],
+  loadSavedContacts,
+  { immediate: true }
+);
 
 const isSyncing = ref(false);
 const syncFailed = ref(false);
@@ -191,8 +244,14 @@ const resolveContact = async participant => {
     return;
   }
   try {
-    const { data } = await ContactAPI.search(`+${participant.phone}`);
-    const contact = (data?.payload || [])[0];
+    // Já ligado pelo telefone (com e sem o nono dígito): não precisa buscar.
+    let contact = participant.savedContactId
+      ? { id: participant.savedContactId }
+      : null;
+    if (!contact) {
+      const { data } = await ContactAPI.search(`+${participant.phone}`);
+      contact = (data?.payload || [])[0];
+    }
     if (!contact?.id) {
       lookup.value = {
         status: 'missing',

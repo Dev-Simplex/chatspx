@@ -15,7 +15,11 @@
 #     "reason": null|"not_a_group"|"no_session"|"waha_unavailable"|"waha_error"|
 #               "force_throttled"|"empty_participants"|"unexpected_error",
 #     "waha_group": null | { "participants":[{lid,phone,name,admin}], "count":N,
-#                            "synced_at":"iso8601" } }
+#                            "synced_at":"iso8601" },
+#     "contacts": { "<telefone>": { "id": N, "name": "Nome salvo"|null } } }   (so no GET)
+#
+# `contacts` liga cada integrante ao contato salvo na conta (Waha::GroupParticipantContacts): e o que deixa o
+# painel mostrar o NOME que o agente salvou em vez do numero.
 #
 # Por que sempre 200: falha da WAHA nao pode quebrar a tela. O front decide o que
 # mostrar a partir de `ok`/`status`; `waha_group: null` significa "nunca
@@ -24,6 +28,7 @@ class Api::V1::Accounts::Conversations::WahaGroupController < Api::V1::Accounts:
   def show
     snapshot = @conversation.additional_attributes&.dig('waha_group')
     render json: payload(success: true, status: snapshot.present? ? 'cached' : 'never_synced', reason: nil, snapshot: snapshot)
+      .merge(contacts: saved_contacts(snapshot))
   end
 
   def create
@@ -32,6 +37,11 @@ class Api::V1::Accounts::Conversations::WahaGroupController < Api::V1::Accounts:
   end
 
   private
+
+  def saved_contacts(snapshot)
+    phones = Array(snapshot&.dig('participants')).pluck('phone')
+    Waha::GroupParticipantContacts.call(Current.account, phones)
+  end
 
   def payload(success:, status:, reason:, snapshot:)
     { ok: success, status: status, reason: reason, waha_group: snapshot }

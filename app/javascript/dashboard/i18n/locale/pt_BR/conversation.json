@@ -1348,6 +1348,8 @@
       "PHONE_COPIED": "Telefone copiado"
     },
     "SENT_BY_IN_GROUP": "Enviado por {name} neste grupo",
-    "REPLYING_TO": "Respondendo a {name}"
+    "REPLYING_TO": "Respondendo a {name}",
+    "NOT_SAVED": "Não está nos seus contatos",
+    "SAVED_NO_NAME": "Salvo nos contatos, mas sem nome"
   }
 }
