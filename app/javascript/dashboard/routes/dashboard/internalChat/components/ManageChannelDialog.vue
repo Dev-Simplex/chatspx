@@ -11,7 +11,7 @@ const props = defineProps({
   show: { type: Boolean, default: false },
   channel: { type: Object, default: null },
 });
-const emit = defineEmits(['close', 'left']);
+const emit = defineEmits(['close', 'askLeave']);
 
 const store = useStore();
 const { t } = useI18n();
@@ -55,10 +55,10 @@ const removeMember = async member => {
   });
 };
 
-const leave = async () => {
-  await store.dispatch('internalChat/leaveChannel', props.channel.id);
-  emit('left', props.channel.id);
+// Sair passa pela mesma confirmação do menu ⋮ (a tela pergunta antes).
+const leave = () => {
   emit('close');
+  emit('askLeave');
 };
 
 const close = () => emit('close');

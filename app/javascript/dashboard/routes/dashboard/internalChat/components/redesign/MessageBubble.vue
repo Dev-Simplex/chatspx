@@ -743,14 +743,40 @@ const iReacted = emoji =>
       </span>
     </div>
 
-    <!-- Horário discreto ao lado do balão, só no hover -->
-    <span
+    <!-- Ao lado do balão, no hover/foco: Responder e Reagir à vista (antes só
+         pela setinha escondida dentro do balão) + o horário -->
+    <div
       v-if="!editing"
-      class="self-center flex-shrink-0 text-[11px] tabular-nums transition-opacity duration-200 opacity-0 text-n-slate-10 group-hover:opacity-100"
-      aria-hidden="true"
+      class="flex items-center self-center flex-shrink-0 gap-0.5 transition-opacity duration-200 opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+      :class="message.mine ? 'flex-row-reverse' : 'flex-row'"
     >
-      {{ message.time }}
-    </span>
+      <template v-if="!message.deleted">
+        <button
+          v-tooltip="t('INTERNAL_CHAT.BUBBLE.REPLY')"
+          type="button"
+          class="inline-flex items-center justify-center transition-colors rounded-full size-7 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          :aria-label="t('INTERNAL_CHAT.BUBBLE.REPLY')"
+          @click="onReply"
+        >
+          <span class="i-lucide-reply size-4" />
+        </button>
+        <button
+          v-tooltip="t('INTERNAL_CHAT.REACT')"
+          type="button"
+          class="inline-flex items-center justify-center transition-colors rounded-full size-7 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          :aria-label="t('INTERNAL_CHAT.REACT')"
+          @click.stop="toggleReactionPicker"
+        >
+          <span class="i-lucide-smile-plus size-4" />
+        </button>
+      </template>
+      <span
+        class="px-1 text-[11px] tabular-nums text-n-slate-10"
+        aria-hidden="true"
+      >
+        {{ message.time }}
+      </span>
+    </div>
   </div>
 </template>
 

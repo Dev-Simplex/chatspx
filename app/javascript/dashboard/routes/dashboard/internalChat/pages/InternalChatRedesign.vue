@@ -14,6 +14,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useAlert } from 'dashboard/composables';
 import { messageStamp } from 'shared/helpers/timeHelper';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
@@ -74,7 +75,14 @@ const onToggleMute = () => {
     ? mutedIds.value.filter(x => x !== id)
     : [...mutedIds.value, id];
   updateUISettings({ internal_chat_muted_channel_ids: next });
+  useAlert(
+    next.includes(id)
+      ? t('INTERNAL_CHAT.MUTE.DONE_ON')
+      : t('INTERNAL_CHAT.MUTE.DONE_OFF')
+  );
 };
+// Ação que falhou no servidor: diz, em vez de ficar muda.
+const failAlert = () => useAlert(t('INTERNAL_CHAT.ACTION_ERROR'));
 
 // Preferências por navegador (favoritos e rascunhos): localStorage pode faltar
 // (aba anônima, bloqueio) — a tela segue funcionando, só não lembra.
@@ -530,29 +538,35 @@ const onCancelReply = () => {
 
 const onReact = ({ messageId, emoji }) => {
   if (!activeId.value) return;
-  store.dispatch('internalChat/reactToMessage', {
-    channelId: activeId.value,
-    messageId,
-    emoji,
-  });
+  store
+    .dispatch('internalChat/reactToMessage', {
+      channelId: activeId.value,
+      messageId,
+      emoji,
+    })
+    .catch(failAlert);
 };
 
 const onEdit = ({ messageId, content }) => {
   const text = (content || '').trim();
   if (!text || !activeId.value) return;
-  store.dispatch('internalChat/editMessage', {
-    channelId: activeId.value,
-    messageId,
-    content: text,
-  });
+  store
+    .dispatch('internalChat/editMessage', {
+      channelId: activeId.value,
+      messageId,
+      content: text,
+    })
+    .catch(failAlert);
 };
 
 const onDelete = messageId => {
   if (!activeId.value) return;
-  store.dispatch('internalChat/deleteMessage', {
-    channelId: activeId.value,
-    messageId,
-  });
+  store
+    .dispatch('internalChat/deleteMessage', {
+      channelId: activeId.value,
+      messageId,
+    })
+    .catch(failAlert);
 };
 
 // Reenvia uma bolha que falhou (reusa o echo_id para reconciliar no lugar).
@@ -569,15 +583,16 @@ const onRetry = msg => {
 };
 
 const onCreateDm = async agentId => {
-  const channel = await store.dispatch('internalChat/createDm', agentId);
+  const channel = await store
+    .dispatch('internalChat/createDm', agentId)
+    .catch(failAlert);
   if (channel?.id) onSelect(channel.id);
 };
 
 const onCreateGroup = async ({ name, memberIds }) => {
-  const channel = await store.dispatch('internalChat/createGroup', {
-    name,
-    memberIds,
-  });
+  const channel = await store
+    .dispatch('internalChat/createGroup', { name, memberIds })
+    .catch(failAlert);
   if (channel?.id) onSelect(channel.id);
 };
 
@@ -593,10 +608,9 @@ const onCreateTeam = async team => {
     onSelect(existing.id);
     return;
   }
-  const channel = await store.dispatch(
-    'internalChat/createTeamChannel',
-    team.id
-  );
+  const channel = await store
+    .dispatch('internalChat/createTeamChannel', team.id)
+    .catch(failAlert);
   if (channel?.id) {
     // guarda o canal aberto (o fetchChannels pode não trazê-lo se não sou membro)
     if (!extraChannels.value.some(c => c.id === channel.id)) {
@@ -614,6 +628,11 @@ const onFavorite = () => {
   else next.add(id);
   favorites.value = next;
   writeLocal(favoritesKey.value, [...next]);
+  useAlert(
+    next.has(id)
+      ? t('INTERNAL_CHAT.HEADER.FAVORITE_DONE')
+      : t('INTERNAL_CHAT.HEADER.UNFAVORITE_DONE')
+  );
 };
 
 const closeActive = () => {
@@ -622,11 +641,26 @@ const closeActive = () => {
   showManage.value = false;
 };
 
-const onLeave = async () => {
+// Botão principal da confirmação já com o foco (Enter confirma, Esc cancela).
+const vFocus = { mounted: el => el.focus() };
+
+// "Sair do grupo" pergunta antes: não dá para voltar sozinho.
+const showLeaveConfirm = ref(false);
+const onLeave = () => {
+  if (activeId.value != null) showLeaveConfirm.value = true;
+};
+const confirmLeave = async () => {
   const id = activeId.value;
+  const name = activeConversation.value?.name || '';
+  showLeaveConfirm.value = false;
   if (id == null) return;
-  await store.dispatch('internalChat/leaveChannel', id);
-  closeActive();
+  try {
+    await store.dispatch('internalChat/leaveChannel', id);
+    closeActive();
+    useAlert(t('INTERNAL_CHAT.LEAVE.DONE', { name }));
+  } catch {
+    failAlert();
+  }
 };
 
 // "Limpar conversa" pede confirmação antes de esconder as mensagens.
@@ -675,7 +709,8 @@ const stepConversation = step => {
   if (list[next].id !== activeId.value) onSelect(list[next].id);
 };
 const onEscape = () => {
-  if (showClearConfirm.value) showClearConfirm.value = false;
+  if (showLeaveConfirm.value) showLeaveConfirm.value = false;
+  else if (showClearConfirm.value) showClearConfirm.value = false;
   else if (showInfo.value) showInfo.value = false;
   else if (searchOpen.value) toggleSearch();
   else if (replyingTo.value) replyingTo.value = null;
@@ -904,7 +939,7 @@ onBeforeUnmount(() => {
           :show="showManage"
           :channel="activeRaw"
           @close="showManage = false"
-          @left="closeActive"
+          @ask-leave="onLeave"
         />
       </div>
 
@@ -1106,6 +1141,46 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <!-- Confirmação: sair do grupo -->
+    <div
+      v-if="showLeaveConfirm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-alpha-black2"
+      @click.self="showLeaveConfirm = false"
+    >
+      <div
+        role="alertdialog"
+        class="w-full max-w-xs p-5 border shadow-xl rounded-3xl bg-n-solid-1 border-n-weak"
+      >
+        <h3 class="text-sm font-semibold text-n-slate-12">
+          {{
+            t('INTERNAL_CHAT.LEAVE.TITLE', {
+              name: activeConversation?.name || '',
+            })
+          }}
+        </h3>
+        <p class="mb-0 mt-1.5 text-xs leading-relaxed text-n-slate-11">
+          {{ t('INTERNAL_CHAT.LEAVE.BODY') }}
+        </p>
+        <div class="flex justify-end gap-2 mt-4">
+          <button
+            type="button"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg text-n-slate-11 hover:bg-n-alpha-2"
+            @click="showLeaveConfirm = false"
+          >
+            {{ t('INTERNAL_CHAT.CANCEL') }}
+          </button>
+          <button
+            v-focus
+            type="button"
+            class="px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-n-ruby-9 hover:bg-n-ruby-10"
+            @click="confirmLeave"
+          >
+            {{ t('INTERNAL_CHAT.LEAVE.CONFIRM') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Confirmação: limpar conversa -->
     <div
       v-if="showClearConfirm"
@@ -1130,6 +1205,7 @@ onBeforeUnmount(() => {
             {{ t('INTERNAL_CHAT.CANCEL') }}
           </button>
           <button
+            v-focus
             type="button"
             class="px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-n-ruby-9 hover:bg-n-ruby-10"
             @click="confirmClear"

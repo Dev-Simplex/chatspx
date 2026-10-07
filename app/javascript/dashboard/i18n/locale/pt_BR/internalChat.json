@@ -68,7 +68,7 @@
     "NO_MENTIONS": "Nenhuma menção ainda.",
     "NO_RESULTS": "Nenhuma mensagem encontrada.",
     "SEARCH_MIN_HINT": "Digite ao menos 2 caracteres para buscar.",
-    "DELETE_Q": "Apagar mensagem?",
+    "DELETE_Q": "Apagar para todos?",
     "SAVE_EDIT": "Salvar",
     "TYPING_ONE": "{name} está digitando…",
     "TYPING_MANY": "{count} pessoas digitando…",
@@ -89,12 +89,14 @@
       "TITLE": "Compartilhar conversa no chat interno",
       "SUBTITLE": "Compartilhando a conversa #{id} ({name}) com a equipe.",
       "NOTE_PLACEHOLDER": "Adicione um comentário (opcional)…",
-      "CHANNELS": "Canais",
+      "CHANNELS": "Grupos e times",
       "PEOPLE": "Pessoas",
       "CONFIRM": "Compartilhar",
       "DONE": "Conversa compartilhada no chat interno",
       "ERROR": "Não foi possível compartilhar a conversa",
-      "DEFAULT_NOTE": "Compartilhei a conversa #{id}"
+      "DEFAULT_NOTE": "Compartilhei a conversa #{id}",
+      "SEARCH": "Buscar pessoa, grupo ou time…",
+      "NO_MATCH": "Nada com esse nome."
     },
     "AUDIO": {
       "REQUESTING": "Permita o microfone no aviso do navegador…",
@@ -132,13 +134,17 @@
       "UNFAVORITE": "Remover dos favoritos",
       "CLEAR": "Limpar conversa (só para você)",
       "MEMBERS_ONLINE": "{count} participantes · {online} online",
-      "TEAM_MEMBERS_ONLINE": "Grupo do time · {count} participantes · {online} online"
+      "TEAM_MEMBERS_ONLINE": "Grupo do time · {count} participantes · {online} online",
+      "FAVORITE_DONE": "Adicionada às favoritas, no topo da lista.",
+      "UNFAVORITE_DONE": "Removida das favoritas."
     },
     "MUTE": {
       "ON": "Silenciar conversa",
       "OFF": "Reativar notificações",
       "HINT": "Sem som nem aviso. Menção a você continua avisando.",
-      "ACTIVE": "Conversa silenciada: sem som nem aviso"
+      "ACTIVE": "Conversa silenciada: sem som nem aviso",
+      "DONE_ON": "Conversa silenciada. Menção a você continua avisando.",
+      "DONE_OFF": "Avisos desta conversa reativados."
     },
     "LIST": {
       "ALL": "Todas",
@@ -207,7 +213,7 @@
       "COPY": "Copiar",
       "COPIED": "Mensagem copiada",
       "EDIT": "Editar mensagem",
-      "DELETE": "Excluir",
+      "DELETE": "Apagar",
       "SENT": "Enviada",
       "READ": "Lida",
       "OPEN_CONVERSATION": "Abrir a conversa",
@@ -315,6 +321,12 @@
       "SAVING": "Salvando…",
       "SAVED": "Salvo. Os avisos novos aparecem em até 5 minutos.",
       "ERROR": "Não deu para salvar ou carregar. Tente de novo."
+    },
+    "LEAVE": {
+      "TITLE": "Sair do grupo {name}?",
+      "BODY": "Você deixa de receber e de ver as mensagens deste grupo. Só volta se alguém do grupo adicionar você de novo.",
+      "CONFIRM": "Sair do grupo",
+      "DONE": "Você saiu do grupo {name}."
     }
   }
 }

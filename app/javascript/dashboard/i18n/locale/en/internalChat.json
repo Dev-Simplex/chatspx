@@ -68,7 +68,7 @@
     "NO_MENTIONS": "No mentions yet.",
     "NO_RESULTS": "No messages found.",
     "SEARCH_MIN_HINT": "Type at least 2 characters to search.",
-    "DELETE_Q": "Delete message?",
+    "DELETE_Q": "Delete for everyone?",
     "SAVE_EDIT": "Save",
     "TYPING_ONE": "{name} is typing…",
     "TYPING_MANY": "{count} people are typing…",
@@ -89,12 +89,14 @@
       "TITLE": "Share conversation to internal chat",
       "SUBTITLE": "Sharing conversation #{id} ({name}) with the team.",
       "NOTE_PLACEHOLDER": "Add a note (optional)…",
-      "CHANNELS": "Channels",
+      "CHANNELS": "Groups and teams",
       "PEOPLE": "People",
       "CONFIRM": "Share",
       "DONE": "Shared to internal chat",
       "ERROR": "Could not share the conversation",
-      "DEFAULT_NOTE": "I shared conversation #{id}"
+      "DEFAULT_NOTE": "I shared conversation #{id}",
+      "SEARCH": "Search person, group or team…",
+      "NO_MATCH": "Nothing with that name."
     },
     "AUDIO": {
       "REQUESTING": "Allow the microphone in the browser prompt…",
@@ -132,13 +134,17 @@
       "UNFAVORITE": "Remove from favorites",
       "CLEAR": "Clear conversation (just for you)",
       "MEMBERS_ONLINE": "{count} participants · {online} online",
-      "TEAM_MEMBERS_ONLINE": "Team group · {count} participants · {online} online"
+      "TEAM_MEMBERS_ONLINE": "Team group · {count} participants · {online} online",
+      "FAVORITE_DONE": "Added to favorites, at the top of the list.",
+      "UNFAVORITE_DONE": "Removed from favorites."
     },
     "MUTE": {
       "ON": "Mute conversation",
       "OFF": "Unmute notifications",
       "HINT": "No sound or alert. Mentions of you still notify.",
-      "ACTIVE": "Muted conversation: no sound or alert"
+      "ACTIVE": "Muted conversation: no sound or alert",
+      "DONE_ON": "Conversation muted. Mentions of you still notify.",
+      "DONE_OFF": "Notifications for this conversation are back on."
     },
     "LIST": {
       "ALL": "All",
@@ -315,6 +321,12 @@
       "SAVING": "Saving…",
       "SAVED": "Saved. New notices show up within 5 minutes.",
       "ERROR": "Couldn't save or load. Try again."
+    },
+    "LEAVE": {
+      "TITLE": "Leave the group {name}?",
+      "BODY": "You stop receiving and seeing this group’s messages. You only come back if someone in the group adds you again.",
+      "CONFIRM": "Leave group",
+      "DONE": "You left the group {name}."
     }
   }
 }
