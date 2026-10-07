@@ -1,0 +1,11 @@
+.git
+.bundle
+.env
+.env.*
+log
+storage
+tmp
+public/system
+public/packs
+node_modules
+vendor/bundle

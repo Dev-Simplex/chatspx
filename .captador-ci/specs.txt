@@ -1,0 +1,5 @@
+spec/requests/spx/captador/frota_spec.rb
+spec/requests/spx/captador/sessoes_spec.rb
+spec/requests/spx/captador/catalogo_spec.rb
+spec/requests/spx/captador/leads_spec.rb
+spec/models/integrations/hook_captador_spec.rb
