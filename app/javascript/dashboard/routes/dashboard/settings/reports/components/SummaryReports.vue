@@ -1,7 +1,7 @@
 <script setup>
 import OverviewReportFilters from './OverviewReportFilters.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
-import { formatTime } from '@chatwoot/utils';
+import { formatDuration } from 'dashboard/helper/reportFormat';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
@@ -136,7 +136,7 @@ const columns = computed(() => [
   }),
 ]);
 
-const renderAvgTime = value => (value ? formatTime(value) : '--');
+const renderAvgTime = value => (value ? formatDuration(value, t) : '--');
 
 const renderCount = value => (value ? value.toLocaleString() : '--');
 
