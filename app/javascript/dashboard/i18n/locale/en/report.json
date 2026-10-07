@@ -176,8 +176,8 @@
       "EYEBROW": "Quick summary",
       "LEVEL": {
         "GOOD": "on target",
-        "WARN": "attention",
-        "BAD": "needs improvement"
+        "WARN": "close to target",
+        "BAD": "far from target"
       },
       "HIGHLIGHT_TITLE": "What went best",
       "ATTENTION_TITLE": "What needs attention",
@@ -197,7 +197,8 @@
         "BOT_HANDOFF_RATE": "Bot handoff rate"
       },
       "INSIGHT_BETTER_TIMES": "{times} times better than the previous period",
-      "INSIGHT_WORSE_TIMES": "{times} times worse than the previous period"
+      "INSIGHT_WORSE_TIMES": "{times} times worse than the previous period",
+      "VS_GOAL_PILL": "{level} ({goal})"
     },
     "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes",
     "TIME": {
@@ -246,6 +247,11 @@
       "FIRST_RESPONSE": "On average, the customer waited {avg} for the first reply. Half waited up to {half}; 9 out of 10, up to {most}.",
       "RESOLUTION": "{resolved}, and each one took {time} on average to be resolved.",
       "RESOLVED": "{count} conversations were resolved"
+    },
+    "CHART_AXIS": {
+      "QUANTITY": "quantity",
+      "AVERAGE_TIME": "average time",
+      "CONVERSATIONS": "conversations"
     }
   },
   "AGENT_REPORTS": {

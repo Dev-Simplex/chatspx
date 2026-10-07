@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { formatTime } from '@chatwoot/utils';
+import { formatDuration } from 'dashboard/helper/reportFormat';
 import format from 'date-fns/format';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import ReportsAPI from 'dashboard/api/reports';
@@ -74,7 +74,7 @@ const formatValue = row => {
   if (isMessageMetric.value) {
     return t('REPORT.DRILLDOWN.MESSAGES_COUNT', { count: row.value });
   }
-  return formatTime(row.value);
+  return formatDuration(row.value, t);
 };
 
 const formatDate = timestamp =>

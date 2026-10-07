@@ -108,7 +108,7 @@ const insightCards = computed(() => {
   >
     <div class="flex items-center justify-between gap-3">
       <div class="flex flex-col gap-2">
-        <span class="text-xs uppercase tracking-[0.2em] text-n-slate-10">
+        <span class="text-sm font-medium text-n-slate-11">
           {{ t('REPORT.INSIGHTS.EYEBROW') }}
         </span>
         <h3 class="text-xl font-semibold text-n-slate-12">
