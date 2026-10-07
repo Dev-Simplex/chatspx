@@ -212,8 +212,8 @@
         "APPROVER_EMPTY": "There is nobody else in this conversation to approve. Ask in a conversation with your manager.",
         "CONVERSATION": "Customer conversation (optional)",
         "CONVERSATION_PLACEHOLDER": "Conversation number, e.g.: 123",
-        "SEND_APPROVAL": "Send approval request",
-        "SEND_HELP": "Send help request",
+        "SEND_APPROVAL": "Send request",
+        "SEND_HELP": "Send request",
         "CANCEL": "Cancel",
         "FAILED": "Could not send the request. Check the fields and try again."
       },

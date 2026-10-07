@@ -755,7 +755,7 @@ const iReacted = emoji =>
               :placeholder="
                 t('INTERNAL_CHAT.REQUEST.CARD.DENY_REASON_PLACEHOLDER')
               "
-              class="reset-base w-full px-3 py-2 text-sm border rounded-lg outline-none resize-none bg-n-solid-1 dark:bg-n-solid-3 border-n-strong text-n-slate-12 placeholder:text-n-slate-10 focus:border-n-ruby-9"
+              class="reset-base w-full px-3 py-2 mb-0 text-sm border border-solid rounded-lg outline-none resize-none bg-n-solid-1 dark:bg-n-solid-3 border-n-strong text-n-slate-12 placeholder:text-n-slate-10 focus:border-n-ruby-9"
             />
             <div class="flex gap-2">
               <button
@@ -786,7 +786,7 @@ const iReacted = emoji =>
             <template v-if="isApproval">
               <button
                 type="button"
-                class="flex-1 h-9 text-sm font-medium border rounded-lg border-n-ruby-9/50 text-n-ruby-11 hover:bg-n-ruby-9/10 disabled:opacity-60"
+                class="flex-1 h-9 text-sm font-medium border border-solid rounded-lg border-n-ruby-9/50 text-n-ruby-11 hover:bg-n-ruby-9/10 disabled:opacity-60"
                 :disabled="deciding"
                 @click="denying = true"
               >

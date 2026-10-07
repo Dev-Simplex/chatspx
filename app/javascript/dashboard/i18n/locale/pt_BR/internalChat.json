@@ -212,8 +212,8 @@
         "APPROVER_EMPTY": "Não há mais ninguém nesta conversa para aprovar. Peça numa conversa com o seu gestor.",
         "CONVERSATION": "Conversa do cliente (opcional)",
         "CONVERSATION_PLACEHOLDER": "Número da conversa, ex.: 123",
-        "SEND_APPROVAL": "Enviar pedido de aprovação",
-        "SEND_HELP": "Enviar pedido de ajuda",
+        "SEND_APPROVAL": "Enviar pedido",
+        "SEND_HELP": "Enviar pedido",
         "CANCEL": "Cancelar",
         "FAILED": "Não foi possível enviar o pedido. Confira os campos e tente de novo."
       },

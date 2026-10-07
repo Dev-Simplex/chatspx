@@ -125,7 +125,7 @@ defineExpose({ open });
           rows="2"
           maxlength="1000"
           :placeholder="t('INTERNAL_CHAT.REQUEST.FORM.DETAIL_PLACEHOLDER')"
-          class="reset-base w-full px-3 py-2 text-sm border rounded-lg outline-none resize-none bg-n-solid-1 dark:bg-n-solid-2 border-n-strong text-n-slate-12 placeholder:text-n-slate-10 focus:border-n-teal-9"
+          class="reset-base w-full px-3 py-2 mb-0 text-sm border border-solid rounded-lg outline-none resize-none bg-n-solid-1 dark:bg-n-solid-2 border-n-strong text-n-slate-12 placeholder:text-n-slate-10 focus:border-n-teal-9"
         />
       </label>
 
@@ -144,7 +144,7 @@ defineExpose({ open });
             v-for="person in approvers"
             :key="person.id"
             type="button"
-            class="flex items-center gap-2.5 px-2.5 py-1.5 text-sm text-left border rounded-lg text-n-slate-12"
+            class="flex items-center gap-2.5 px-2.5 py-1.5 text-sm text-left border border-solid rounded-lg text-n-slate-12"
             :class="
               approverId === person.id
                 ? 'border-n-teal-9 bg-n-teal-9/10'
