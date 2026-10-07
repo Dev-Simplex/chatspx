@@ -211,6 +211,11 @@ const toggleGroupMember = id => {
   const i = groupMemberIds.value.indexOf(id);
   if (i === -1) groupMemberIds.value.push(id);
   else groupMemberIds.value.splice(i, 1);
+  // Marcou alguém achado pela busca: limpa e volta o cursor para a próxima.
+  if (peopleQuery.value) {
+    peopleQuery.value = '';
+    nextTick(() => peopleSearchRef.value?.focus());
+  }
 };
 
 const canCreateGroup = computed(
@@ -218,9 +223,9 @@ const canCreateGroup = computed(
 );
 // Diz o que falta em vez de só apagar o botão.
 const groupMissing = computed(() => {
-  if (!groupName.value.trim()) return t('INTERNAL_CHAT.LIST.GROUP_NEEDS_NAME');
   if (!groupMemberIds.value.length)
     return t('INTERNAL_CHAT.LIST.GROUP_NEEDS_PEOPLE');
+  if (!groupName.value.trim()) return t('INTERNAL_CHAT.LIST.GROUP_NEEDS_NAME');
   return '';
 });
 const createGroup = () => {

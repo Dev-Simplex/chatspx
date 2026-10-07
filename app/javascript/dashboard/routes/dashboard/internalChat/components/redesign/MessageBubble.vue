@@ -754,20 +754,20 @@ const iReacted = emoji =>
         <button
           v-tooltip="t('INTERNAL_CHAT.BUBBLE.REPLY')"
           type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-full size-7 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full size-7 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
           :aria-label="t('INTERNAL_CHAT.BUBBLE.REPLY')"
           @click="onReply"
         >
-          <span class="i-lucide-reply size-4" />
+          <span class="flex-shrink-0 i-lucide-reply size-4" />
         </button>
         <button
           v-tooltip="t('INTERNAL_CHAT.REACT')"
           type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-full size-7 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full size-7 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
           :aria-label="t('INTERNAL_CHAT.REACT')"
           @click.stop="toggleReactionPicker"
         >
-          <span class="i-lucide-smile-plus size-4" />
+          <span class="flex-shrink-0 i-lucide-smile-plus size-4" />
         </button>
       </template>
       <span
