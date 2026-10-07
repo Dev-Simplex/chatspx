@@ -287,7 +287,7 @@ export default {
           <button
             v-if="drilldownFilters"
             type="button"
-            class="flex items-center gap-1 text-sm font-medium text-n-brand hover:underline w-fit"
+            class="flex items-center gap-1 p-0 m-0 text-sm font-medium text-n-brand hover:underline w-fit"
             @click="openDrilldown(metric)"
           >
             <span class="i-lucide-list size-4" />
@@ -318,7 +318,6 @@ export default {
       >
         {{ chartCaption(metric) }}
       </p>
-
     </div>
     <ReportDrilldownPanel
       v-if="drilldownMetric && drilldownFilters"
