@@ -65,7 +65,7 @@ const open = (key, nameKey) => {
             <template #conversations>
               <button
                 type="button"
-                class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
+                class="inline p-0 m-0 align-baseline text-[length:inherit] leading-[inherit] font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
                 @click="
                   open(
                     'conversations_count',
@@ -83,7 +83,7 @@ const open = (key, nameKey) => {
             <template #incoming>
               <button
                 type="button"
-                class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
+                class="inline p-0 m-0 align-baseline text-[length:inherit] leading-[inherit] font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
                 @click="
                   open(
                     'incoming_messages_count',
@@ -97,7 +97,7 @@ const open = (key, nameKey) => {
             <template #outgoing>
               <button
                 type="button"
-                class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
+                class="inline p-0 m-0 align-baseline text-[length:inherit] leading-[inherit] font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
                 @click="
                   open(
                     'outgoing_messages_count',
@@ -118,7 +118,7 @@ const open = (key, nameKey) => {
             <template #avg>
               <button
                 type="button"
-                class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
+                class="inline p-0 m-0 align-baseline text-[length:inherit] leading-[inherit] font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
                 @click="
                   open(
                     'avg_first_response_time',
@@ -145,7 +145,7 @@ const open = (key, nameKey) => {
             <template #resolved>
               <button
                 type="button"
-                class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
+                class="inline p-0 m-0 align-baseline text-[length:inherit] leading-[inherit] font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
                 @click="
                   open(
                     'resolutions_count',
