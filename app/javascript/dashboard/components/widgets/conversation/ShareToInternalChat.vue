@@ -17,8 +17,19 @@ const store = useStore();
 const { t } = useI18n();
 const dialogRef = ref(null);
 
-const channels = computed(() => store.getters['internalChat/getChannels']);
-const agents = computed(() => store.getters['internalChat/getAgents']);
+// Grupos e times aqui; conversa de 1 a 1 é por "Pessoas" (antes a mesma pessoa
+// aparecia nas duas listas). A busca filtra as duas.
+const query = ref('');
+const matches = name =>
+  (name || '').toLowerCase().includes(query.value.trim().toLowerCase());
+const channels = computed(() =>
+  store.getters['internalChat/getChannels'].filter(
+    c => c.channel_type !== 'direct' && matches(c.title)
+  )
+);
+const agents = computed(() =>
+  store.getters['internalChat/getAgents'].filter(a => matches(a.name))
+);
 const note = ref('');
 const selected = ref(null); // { type: 'channel' | 'agent', id }
 const isSending = ref(false);
@@ -66,6 +77,7 @@ watch(
   show => {
     if (show) {
       note.value = '';
+      query.value = '';
       selected.value = null;
       store.dispatch('internalChat/fetchChannels');
       store.dispatch('internalChat/fetchAgents');
@@ -107,6 +119,19 @@ watch(
         :placeholder="t('INTERNAL_CHAT.SHARE.NOTE_PLACEHOLDER')"
       />
 
+      <div class="relative">
+        <span
+          class="absolute -translate-y-1/2 pointer-events-none i-lucide-search left-3 top-1/2 text-n-slate-10"
+        />
+        <input
+          v-model="query"
+          type="text"
+          :placeholder="t('INTERNAL_CHAT.SHARE.SEARCH')"
+          :aria-label="t('INTERNAL_CHAT.SHARE.SEARCH')"
+          class="reset-base w-full h-9 pl-9 pr-3 text-sm bg-n-alpha-1 border border-n-weak rounded-lg text-n-slate-12 focus:outline-none focus:border-n-brand"
+        />
+      </div>
+
       <div class="max-h-72 overflow-y-auto -mx-1 px-1 space-y-3">
         <div v-if="channels.length">
           <p class="text-xs font-medium uppercase text-n-slate-10 mb-1">
@@ -128,7 +153,7 @@ watch(
           </button>
         </div>
 
-        <div>
+        <div v-if="agents.length">
           <p class="text-xs font-medium uppercase text-n-slate-10 mb-1">
             {{ t('INTERNAL_CHAT.SHARE.PEOPLE') }}
           </p>
@@ -152,6 +177,12 @@ watch(
             <span class="truncate">{{ agent.name }}</span>
           </button>
         </div>
+        <p
+          v-if="!channels.length && !agents.length"
+          class="py-4 text-sm text-center text-n-slate-10"
+        >
+          {{ t('INTERNAL_CHAT.SHARE.NO_MATCH') }}
+        </p>
       </div>
     </div>
 
