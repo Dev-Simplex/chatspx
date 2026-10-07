@@ -1,4 +1,5 @@
-class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
+# A lógica nova do disparo mora em Campaigns::Whatsapp::*; o que sobra aqui é roteamento de ação.
+class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController # rubocop:disable Metrics/ClassLength
   before_action :campaign, except: [:index, :create]
   before_action :check_authorization
 
@@ -14,6 +15,14 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
 
   def stats
     render json: campaign_stats
+  end
+
+  # Quem NAO recebeu e por que (Campaigns::Whatsapp::UndeliveredReport). `.csv` exporta a lista inteira.
+  def undelivered
+    report = Campaigns::Whatsapp::UndeliveredReport.new(campaign: @campaign, type: params[:type])
+    return render json: report.page(params[:page]) unless request.format.csv?
+
+    send_data report.to_csv, type: 'text/csv; charset=utf-8', filename: "campanha-#{@campaign.display_id}-nao-enviados.csv"
   end
 
   # Higiene da audiencia em DRY-RUN: mostra quem entra, quem sai e por que, sem
