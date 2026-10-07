@@ -24,7 +24,7 @@ module Campaigns
         inbox = campaign.inbox
         # CHAT-155: a caixa virou somente leitura no meio do disparo -- nada sai por ela.
         if inbox.read_only?
-          recipient.update!(status: :skipped, external_error: 'caixa somente leitura')
+          recipient.update!(status: :skipped, external_error: 'caixa_somente_leitura')
           return false
         end
 
@@ -32,9 +32,10 @@ module Campaigns
 
         # Decisao do Paulo: o disparo NAO atropela atendimento ativo. Contato com
         # conversa nao-resolvida (aberta/pending/snoozed) e PULADO (marca skipped).
+        # O motivo vai como codigo de CampaignRecipient::SKIP_REASONS (lista de nao enviados).
         if active_conversation?(inbox, contact_inbox.contact_id)
           recipient.update!(status: :skipped, contact_id: contact_inbox.contact_id,
-                            external_error: 'contato em atendimento ativo')
+                            external_error: 'atendimento_ativo')
           return false
         end
 
