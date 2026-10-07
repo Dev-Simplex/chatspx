@@ -2,7 +2,14 @@
 // Chat interno — tela viva, ligada ao store internalChat (backend real).
 // Mostra DMs, grupos e "grupos de time" (auto-criados a partir dos Teams da
 // conta). Admin pode alternar "Ver todos" para auditar todos os canais.
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import {
+  ref,
+  computed,
+  watch,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -439,6 +446,26 @@ const onLoadOlder = async () => {
   }
 };
 
+// Resultado de mensagem da busca: abre a conversa e rola até a mensagem
+// (carrega páginas anteriores se ela for antiga).
+const threadRef = ref(null);
+const onOpenMessage = async ({ channelId, messageId }) => {
+  if (activeId.value !== channelId) await onSelect(channelId);
+  await nextTick();
+  await new Promise(resolve => {
+    setTimeout(resolve, 80);
+  });
+  for (let page = 0; page < 6; page += 1) {
+    if (activeId.value !== channelId) return;
+    if (threadRef.value?.scrollToMessage(messageId)) return;
+    if (!hasMore.value) return;
+    // eslint-disable-next-line no-await-in-loop
+    await onLoadOlder();
+    // eslint-disable-next-line no-await-in-loop
+    await nextTick();
+  }
+};
+
 // Abrir uma conversa pelo endereço: ?channel=ID (clique na notificação) e
 // ?share=905&text=… ("Falar com" na conversa bloqueada): a conversa do cliente
 // fica num selo acima do campo e vai junto com a próxima mensagem.
@@ -690,6 +717,7 @@ onBeforeUnmount(() => {
         @create-team="onCreateTeam"
         @toggle-audit="toggleAudit"
         @retry="resyncList"
+        @open-message="onOpenMessage"
       />
       <InternalChatPushPrompt v-if="activeId" />
     </div>
@@ -746,6 +774,7 @@ onBeforeUnmount(() => {
 
           <!-- key por conversa: remonta → fade da thread + rola pro fim ao abrir -->
           <MessageThread
+            ref="threadRef"
             :key="activeId"
             :items="visibleMessages"
             :current-user-id="currentUserId"

@@ -25,17 +25,20 @@ const emit = defineEmits([
 const { t } = useI18n();
 const scroller = ref(null);
 
-// Rola até a mensagem citada e a destaca por um instante (clique no reply).
+// Rola até a mensagem citada e a destaca por um instante (clique no reply e
+// resultado da busca). Devolve se achou (a mensagem pode não estar carregada).
 const scrollToMessage = id => {
   const el = scroller.value?.querySelector(`[data-msg-id="${id}"]`);
-  if (!el) return;
+  if (!el) return false;
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   el.classList.add('ring-2', 'ring-n-teal-9/60', 'rounded-2xl');
   setTimeout(
     () => el.classList.remove('ring-2', 'ring-n-teal-9/60', 'rounded-2xl'),
     1400
   );
+  return true;
 };
+defineExpose({ scrollToMessage });
 
 const scrollToBottom = (smooth = false) => {
   const el = scroller.value;

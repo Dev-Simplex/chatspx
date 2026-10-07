@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -27,6 +27,7 @@ const emit = defineEmits([
   'createTeam',
   'toggleAudit',
   'retry',
+  'openMessage',
 ]);
 
 const { t } = useI18n();
@@ -59,8 +60,13 @@ const resultTime = ts => {
     minute: '2-digit',
   });
 };
+// Resultado de mensagem: abre a conversa JÁ na mensagem (o pai rola e destaca).
 const openResult = result => {
-  if (result?.internal_channel_id) emit('select', result.internal_channel_id);
+  if (!result?.internal_channel_id) return;
+  emit('openMessage', {
+    channelId: result.internal_channel_id,
+    messageId: result.id,
+  });
 };
 const activeFilter = ref('all');
 const showCompose = ref(false);
@@ -68,6 +74,14 @@ const showSettings = ref(false);
 const composeMode = ref('dm'); // 'dm' | 'group'
 const groupName = ref('');
 const groupMemberIds = ref([]);
+// Busca de pessoas dentro de "Nova conversa" (DM e grupo).
+const peopleQuery = ref('');
+const peopleSearchRef = ref(null);
+const matchesName = (name, q) =>
+  (name || '').toLowerCase().includes(q.trim().toLowerCase());
+const composeAgents = computed(() =>
+  props.agents.filter(a => matchesName(a.name, peopleQuery.value))
+);
 
 const FILTERS = computed(() => [
   { key: 'all', label: t('INTERNAL_CHAT.LIST.ALL') },
@@ -87,6 +101,21 @@ const filtered = computed(() => {
   return list;
 });
 
+// Busca na lista também acha PESSOAS com quem ainda não há conversa: um clique
+// e a conversa começa (antes a tela dizia "Nenhuma mensagem encontrada").
+const peopleResults = computed(() => {
+  const q = search.value.trim();
+  if (!q) return [];
+  const withDm = new Set(
+    props.conversations
+      .filter(c => c.channelType === 'direct')
+      .flatMap(c => (c.members || []).map(m => m.id))
+  );
+  return props.agents
+    .filter(a => !withDm.has(a.id) && matchesName(a.name, q))
+    .slice(0, 5);
+});
+
 // Lista vazia no filtro: diz por quê, conforme a aba.
 const emptyFilterText = computed(() => {
   if (search.value.trim()) return t('INTERNAL_CHAT.NO_SEARCH_RESULTS');
@@ -103,7 +132,16 @@ const counts = computed(() => ({
 
 // Seções da aba "Todas": favoritas no topo, depois o resto por recência.
 const sections = computed(() => {
-  if (activeFilter.value !== 'all' || search.value.trim()) {
+  if (search.value.trim()) {
+    return [
+      {
+        key: 'list',
+        title: t('INTERNAL_CHAT.LIST.SECTION_RECENT'),
+        items: filtered.value,
+      },
+    ].filter(sec => sec.items.length);
+  }
+  if (activeFilter.value !== 'all') {
     return [{ key: 'list', title: '', items: filtered.value }];
   }
   const fav = filtered.value.filter(c => c.favorited);
@@ -138,11 +176,19 @@ const showOnlineStrip = computed(
     !search.value.trim()
 );
 
-const openCompose = () => {
+const openCompose = (mode = 'dm') => {
   showCompose.value = true;
-  composeMode.value = 'dm';
+  composeMode.value = mode;
   groupName.value = '';
   groupMemberIds.value = [];
+  peopleQuery.value = '';
+  // Já dá para digitar o nome da pessoa.
+  nextTick(() => peopleSearchRef.value?.focus());
+};
+const setComposeMode = mode => {
+  composeMode.value = mode;
+  peopleQuery.value = '';
+  nextTick(() => peopleSearchRef.value?.focus());
 };
 const closeCompose = () => {
   showCompose.value = false;
@@ -151,6 +197,13 @@ const closeCompose = () => {
 const startDm = agent => {
   closeCompose();
   emit('createDm', agent.id);
+};
+
+// Enter na busca de pessoas: com um único nome na lista, já abre a conversa.
+const onPeopleEnter = () => {
+  if (composeMode.value === 'dm' && composeAgents.value.length === 1) {
+    startDm(composeAgents.value[0]);
+  }
 };
 
 const toggleGroupMember = id => {
@@ -162,6 +215,13 @@ const toggleGroupMember = id => {
 const canCreateGroup = computed(
   () => groupName.value.trim().length > 0 && groupMemberIds.value.length > 0
 );
+// Diz o que falta em vez de só apagar o botão.
+const groupMissing = computed(() => {
+  if (!groupName.value.trim()) return t('INTERNAL_CHAT.LIST.GROUP_NEEDS_NAME');
+  if (!groupMemberIds.value.length)
+    return t('INTERNAL_CHAT.LIST.GROUP_NEEDS_PEOPLE');
+  return '';
+});
 const createGroup = () => {
   if (!canCreateGroup.value) return;
   emit('createGroup', {
@@ -178,7 +238,13 @@ const startTeam = team => {
 };
 
 // Permite que a tela vazia (no painel principal) abra o compose desta sidebar.
-defineExpose({ openCompose });
+// Alt+B (atalho do pai) põe o cursor na busca.
+const searchInputRef = ref(null);
+const focusSearch = () => {
+  searchInputRef.value?.focus();
+  searchInputRef.value?.select();
+};
+defineExpose({ openCompose, focusSearch });
 </script>
 
 <template>
@@ -244,7 +310,7 @@ defineExpose({ openCompose });
                       ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm'
                       : 'text-n-slate-11 hover:text-n-slate-12'
                   "
-                  @click="composeMode = 'dm'"
+                  @click="setComposeMode('dm')"
                 >
                   {{ t('INTERNAL_CHAT.LIST.TAB_PERSON') }}
                 </button>
@@ -256,7 +322,7 @@ defineExpose({ openCompose });
                       ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm'
                       : 'text-n-slate-11 hover:text-n-slate-12'
                   "
-                  @click="composeMode = 'group'"
+                  @click="setComposeMode('group')"
                 >
                   {{ t('INTERNAL_CHAT.NEW_GROUP') }}
                 </button>
@@ -269,10 +335,28 @@ defineExpose({ openCompose });
                       ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm'
                       : 'text-n-slate-11 hover:text-n-slate-12'
                   "
-                  @click="composeMode = 'team'"
+                  @click="setComposeMode('team')"
                 >
                   {{ t('INTERNAL_CHAT.LIST.TAB_TEAMS') }}
                 </button>
+              </div>
+
+              <!-- Busca de pessoas (DM e grupo): digitar o nome é o caminho -->
+              <div v-if="composeMode !== 'team'" class="px-2 pb-1">
+                <div class="relative">
+                  <span
+                    class="absolute -translate-y-1/2 pointer-events-none i-lucide-search left-3 top-1/2 text-n-slate-10"
+                  />
+                  <input
+                    ref="peopleSearchRef"
+                    v-model="peopleQuery"
+                    type="text"
+                    :placeholder="t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')"
+                    :aria-label="t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')"
+                    class="reset-base w-full h-9 pl-9 pr-3 text-sm border rounded-xl outline-none bg-n-alpha-1 border-transparent focus:border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
+                    @keydown.enter.prevent="onPeopleEnter"
+                  />
+                </div>
               </div>
 
               <!-- DM: pick an agent -->
@@ -280,17 +364,21 @@ defineExpose({ openCompose });
                 v-if="composeMode === 'dm'"
                 class="py-1 overflow-y-auto max-h-72"
               >
-                <p class="mb-0 px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
+                <p class="mb-0 px-3 pt-1 pb-1 text-[11px] text-n-slate-10">
                   {{ t('INTERNAL_CHAT.LIST.PICK_PERSON') }}
                 </p>
                 <p
-                  v-if="!agents.length"
+                  v-if="!composeAgents.length"
                   class="mb-0 px-3 py-4 text-xs text-center text-n-slate-10"
                 >
-                  {{ t('INTERNAL_CHAT.NO_AGENTS') }}
+                  {{
+                    agents.length
+                      ? t('INTERNAL_CHAT.LIST.NO_PEOPLE_MATCH')
+                      : t('INTERNAL_CHAT.NO_AGENTS')
+                  }}
                 </p>
                 <button
-                  v-for="a in agents"
+                  v-for="a in composeAgents"
                   :key="a.id"
                   type="button"
                   class="flex items-center w-full gap-2.5 px-3 py-2 text-left hover:bg-n-alpha-1"
@@ -309,21 +397,32 @@ defineExpose({ openCompose });
                 </button>
               </div>
 
-              <!-- Group: name + members -->
-              <div v-else-if="composeMode === 'group'" class="p-2">
-                <input
-                  v-model="groupName"
-                  type="text"
-                  :placeholder="t('INTERNAL_CHAT.GROUP_NAME_PLACEHOLDER')"
-                  :aria-label="t('INTERNAL_CHAT.GROUP_NAME')"
-                  class="reset-base w-full h-9 px-3 mb-2 text-sm border rounded-xl outline-none bg-n-alpha-1 border-transparent focus:border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
-                />
-                <p class="mb-0 px-1 pb-1 text-[11px] text-n-slate-10">
-                  {{ t('INTERNAL_CHAT.LIST.PICK_MEMBERS') }}
+              <!-- Group: members (com busca acima) + name -->
+              <div v-else-if="composeMode === 'group'" class="px-2 pb-2">
+                <p
+                  class="flex items-center justify-between mb-0 px-1 pt-1 pb-1 text-[11px] text-n-slate-10"
+                >
+                  <span>{{ t('INTERNAL_CHAT.LIST.PICK_MEMBERS') }}</span>
+                  <span
+                    v-if="groupMemberIds.length"
+                    class="font-semibold text-n-teal-11"
+                  >
+                    {{
+                      t('INTERNAL_CHAT.LIST.SELECTED_COUNT', {
+                        count: groupMemberIds.length,
+                      })
+                    }}
+                  </span>
                 </p>
-                <div class="py-1 overflow-y-auto max-h-52">
+                <div class="py-1 overflow-y-auto max-h-44">
+                  <p
+                    v-if="!composeAgents.length"
+                    class="mb-0 px-3 py-3 text-xs text-center text-n-slate-10"
+                  >
+                    {{ t('INTERNAL_CHAT.LIST.NO_PEOPLE_MATCH') }}
+                  </p>
                   <label
-                    v-for="a in agents"
+                    v-for="a in composeAgents"
                     :key="a.id"
                     class="flex items-center w-full gap-2.5 px-2 py-1.5 text-left rounded-lg cursor-pointer hover:bg-n-alpha-1"
                   >
@@ -342,14 +441,40 @@ defineExpose({ openCompose });
                     <span class="text-sm text-n-slate-12">{{ a.name }}</span>
                   </label>
                 </div>
+                <label
+                  class="block px-1 pt-2 pb-1 text-[11px] font-semibold text-n-slate-11"
+                  for="internal-chat-group-name"
+                >
+                  {{ t('INTERNAL_CHAT.GROUP_NAME') }}
+                </label>
+                <input
+                  id="internal-chat-group-name"
+                  v-model="groupName"
+                  type="text"
+                  :placeholder="t('INTERNAL_CHAT.GROUP_NAME_PLACEHOLDER')"
+                  class="reset-base w-full h-9 px-3 text-sm border rounded-xl outline-none bg-n-alpha-1 border-transparent focus:border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
+                  @keydown.enter.prevent="createGroup"
+                />
                 <button
                   type="button"
-                  class="w-full px-3 py-2 mt-1 text-sm font-semibold text-white rounded-xl bg-n-teal-10 dark:bg-n-teal-5 hover:bg-n-teal-11 disabled:opacity-40"
+                  class="w-full px-3 py-2 mt-2 text-sm font-semibold text-white rounded-xl bg-n-teal-10 dark:bg-n-teal-5 hover:bg-n-teal-11 disabled:opacity-40"
                   :disabled="!canCreateGroup"
                   @click="createGroup"
                 >
-                  {{ t('INTERNAL_CHAT.LIST.CREATE_GROUP') }}
+                  {{
+                    groupMemberIds.length
+                      ? t('INTERNAL_CHAT.LIST.CREATE_GROUP_WITH', {
+                          count: groupMemberIds.length,
+                        })
+                      : t('INTERNAL_CHAT.LIST.CREATE_GROUP')
+                  }}
                 </button>
+                <p
+                  v-if="groupMissing"
+                  class="mb-0 px-1 pt-1.5 text-[11px] text-center text-n-slate-10"
+                >
+                  {{ groupMissing }}
+                </p>
               </div>
 
               <!-- Grupos de time: um clique abre o grupo pronto do time -->
@@ -394,6 +519,7 @@ defineExpose({ openCompose });
           class="absolute -translate-y-1/2 pointer-events-none i-lucide-search left-3 top-1/2 text-n-slate-10"
         />
         <input
+          ref="searchInputRef"
           v-model="search"
           type="text"
           :placeholder="t('INTERNAL_CHAT.LIST.SEARCH_PLACEHOLDER')"
@@ -549,7 +675,7 @@ defineExpose({ openCompose });
         <button
           type="button"
           class="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white rounded-full bg-n-teal-10 dark:bg-n-teal-5 hover:bg-n-teal-11"
-          @click="openCompose"
+          @click="openCompose()"
         >
           <span class="i-lucide-square-pen" />
           {{ t('INTERNAL_CHAT.EMPTY_STATE.NEW') }}
@@ -577,8 +703,46 @@ defineExpose({ openCompose });
             />
           </div>
         </section>
+        <!-- Pessoas sem conversa ainda: um clique começa a conversa -->
+        <template v-if="peopleResults.length">
+          <p
+            class="mb-0 px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
+          >
+            {{ t('INTERNAL_CHAT.LIST.SECTION_PEOPLE') }}
+          </p>
+          <button
+            v-for="a in peopleResults"
+            :key="`person-${a.id}`"
+            type="button"
+            class="flex items-center w-full gap-3 py-2 pl-4 pr-3 text-left transition-colors rounded-2xl hover:bg-n-alpha-1"
+            @click="startDm(a)"
+          >
+            <Avatar
+              :name="a.name"
+              :src="a.avatar_url || a.thumbnail || ''"
+              :size="40"
+              :status="a.availability_status === 'online' ? 'online' : null"
+              rounded-full
+            />
+            <span class="flex-1 min-w-0">
+              <span
+                class="block text-sm font-semibold truncate text-n-slate-12"
+              >
+                {{ a.name }}
+              </span>
+              <span class="block text-xs text-n-teal-11">
+                {{ t('INTERNAL_CHAT.LIST.START_CHAT') }}
+              </span>
+            </span>
+            <span
+              class="flex-shrink-0 i-lucide-message-circle-plus size-4 text-n-slate-10"
+            />
+          </button>
+        </template>
         <p
-          v-if="!filtered.length && !showMessageResults"
+          v-if="
+            !filtered.length && !showMessageResults && !peopleResults.length
+          "
           class="mb-0 px-4 py-10 text-sm text-center text-n-slate-10"
         >
           {{ emptyFilterText }}
@@ -600,6 +764,9 @@ defineExpose({ openCompose });
           >
             <span class="flex items-center justify-between gap-2">
               <span class="text-sm font-medium text-n-slate-12 truncate">
+                <span class="font-normal text-n-slate-10">
+                  {{ t('INTERNAL_CHAT.LIST.IN_CONVERSATION') }}
+                </span>
                 {{ r.channel_title }}
               </span>
               <span class="text-[11px] text-n-slate-10 flex-shrink-0">
