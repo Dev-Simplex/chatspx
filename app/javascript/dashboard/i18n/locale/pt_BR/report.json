@@ -37,38 +37,38 @@
     },
     "METRICS": {
       "CONVERSATIONS": {
-        "NAME": "Conversas",
-        "DESC": "( Total )"
+        "NAME": "Quantas conversas chegaram?",
+        "DESC": "Cada cliente que mandou mensagem e abriu uma conversa no período."
       },
       "INCOMING_MESSAGES": {
-        "NAME": "Mensagens Recebidas",
-        "DESC": "( Total )"
+        "NAME": "Quantas mensagens os clientes mandaram?",
+        "DESC": "Todas as mensagens que chegaram dos clientes."
       },
       "OUTGOING_MESSAGES": {
-        "NAME": "Mensagens enviadas",
-        "DESC": "( Total )"
+        "NAME": "Quantas mensagens a equipe mandou?",
+        "DESC": "Todas as respostas enviadas aos clientes, por atendentes e pela IA."
       },
       "FIRST_RESPONSE_TIME": {
-        "NAME": "Tempo de Primeira Resposta",
-        "DESC": "(Média)",
+        "NAME": "Quanto o cliente esperou pela 1ª resposta?",
+        "DESC": "Em média, do momento em que o cliente escreveu até a primeira resposta de uma pessoa. Quanto menor, melhor.",
         "INFO_TEXT": "Tempo médio até a primeira resposta humana ao cliente. Quanto menor, melhor.",
         "TOOLTIP_TEXT": "O Tempo de Primeira Resposta é de {metricValue} (com base em {conversationCount} conversas)"
       },
       "FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": {
-        "NAME": "Primeira Resposta Após Transferência",
-        "DESC": "(Média)",
+        "NAME": "Depois de passar para um atendente, quanto tempo até ele responder?",
+        "DESC": "Em média, da hora em que a conversa chegou ao atendente até a primeira resposta dele. Quanto menor, melhor.",
         "INFO_TEXT": "Tempo médio até a primeira resposta depois que a conversa é transferida para um agente. Quanto menor, melhor.",
         "TOOLTIP_TEXT": "A Primeira Resposta Após Transferência é de {metricValue} (com base em {conversationCount} conversas)"
       },
       "RESOLUTION_TIME": {
-        "NAME": "Tempo de Resolução",
-        "DESC": "(Média)",
+        "NAME": "Quanto tempo levou para resolver?",
+        "DESC": "Em média, da primeira mensagem até a conversa ser marcada como resolvida. Quanto menor, melhor.",
         "INFO_TEXT": "Tempo médio entre a abertura da conversa e a sua resolução. Quanto menor, melhor.",
         "TOOLTIP_TEXT": "O Tempo de Resolução é de {metricValue} (com base em {conversationCount} conversas)"
       },
       "RESOLUTION_COUNT": {
-        "NAME": "Contagem de Resolução",
-        "DESC": "( Total )"
+        "NAME": "Quantas conversas foram resolvidas?",
+        "DESC": "Conversas que a equipe marcou como resolvidas no período."
       },
       "BOT_RESOLUTION_COUNT": {
         "NAME": "Contagem de Resolução",
@@ -79,9 +79,9 @@
         "DESC": "( Total )"
       },
       "REPLY_TIME": {
-        "NAME": "Tempo de espera do cliente",
+        "NAME": "Quanto o cliente esperou entre uma mensagem e outra?",
         "TOOLTIP_TEXT": "O Tempo de Espera é {metricValue} (com base em {conversationCount} respostas)",
-        "DESC": ""
+        "DESC": "Em média, cada vez que o cliente mandou mensagem e ficou esperando a resposta. Quanto menor, melhor."
       }
     },
     "DATE_RANGE_OPTIONS": {
@@ -161,30 +161,30 @@
       "PER_PAGE_TEMPLATE": "{size} / página"
     },
     "INSIGHTS": {
-      "EYEBROW": "Insights",
-      "TITLE": "Insights de Velocidade",
-      "BASE": "Base:",
-      "AVG_FIRST_RESPONSE_TIME": "Média primeira resposta",
-      "P50_FIRST_RESPONSE_TIME": "Primeira resposta p50",
-      "P90_FIRST_RESPONSE_TIME": "Primeira resposta p90",
-      "AVG_REPLY_TIME": "Média tempo de espera",
-      "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Média pós-transferência",
-      "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Pós-transferência p50",
-      "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Pós-transferência p90"
+      "EYEBROW": "Velocidade do atendimento",
+      "TITLE": "Quanto tempo o cliente espera?",
+      "BASE": "calculado com {count} conversas",
+      "AVG_FIRST_RESPONSE_TIME": "Em média, a 1ª resposta chegou em",
+      "P50_FIRST_RESPONSE_TIME": "Metade dos clientes recebeu a 1ª resposta em até",
+      "P90_FIRST_RESPONSE_TIME": "9 em cada 10 clientes receberam a 1ª resposta em até",
+      "AVG_REPLY_TIME": "Em média, entre uma mensagem e outra, o cliente esperou",
+      "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Depois de chegar ao atendente, a 1ª resposta veio em média em",
+      "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Depois de chegar ao atendente, metade recebeu resposta em até",
+      "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Depois de chegar ao atendente, 9 em cada 10 receberam resposta em até"
     },
     "NARRATIVE": {
-      "EYEBROW": "Auto-insights",
+      "EYEBROW": "Resumo rápido",
       "LEVEL": {
         "GOOD": "dentro da meta",
         "WARN": "atenção",
         "BAD": "precisa melhorar"
       },
-      "HIGHLIGHT_TITLE": "Destaque",
-      "ATTENTION_TITLE": "Ponto de atenção",
+      "HIGHLIGHT_TITLE": "O que foi melhor",
+      "ATTENTION_TITLE": "O que precisa de atenção",
       "ALL_GOOD": "Todos os indicadores estão dentro da meta — mantenha o ritmo.",
-      "INSIGHT_BETTER": "{pct}% melhor que o período anterior",
-      "INSIGHT_WORSE": "{pct}% pior que o período anterior",
-      "VS_GOAL": "meta {goal}",
+      "INSIGHT_BETTER": "{pct}% melhor que no período anterior",
+      "INSIGHT_WORSE": "{pct}% pior que no período anterior",
+      "VS_GOAL": "a meta é {goal}",
       "METRIC": {
         "FIRST_RESPONSE": "Tempo de primeira resposta",
         "RESOLUTION": "Tempo de resolução",
@@ -195,9 +195,58 @@
         "SLA_HIT_RATE": "Cumprimento de SLA",
         "BOT_RESOLUTION_RATE": "Resolução pelo bot",
         "BOT_HANDOFF_RATE": "Transferência do bot"
+      },
+      "INSIGHT_BETTER_TIMES": "{times} vezes melhor que no período anterior",
+      "INSIGHT_WORSE_TIMES": "{times} vezes pior que no período anterior"
+    },
+    "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes",
+    "TIME": {
+      "ZERO": "0 s",
+      "SECONDS": "{s} s",
+      "MINUTES": "{min} min",
+      "MINUTES_SECONDS": "{min} min {s} s",
+      "HOURS": "{h} h",
+      "HOURS_MINUTES": "{h} h {min} min",
+      "DAYS": "{d} dia | {d} dias",
+      "DAYS_HOURS": "{d} dia e {h} h | {d} dias e {h} h"
+    },
+    "CHANGE": {
+      "SAME": "igual",
+      "MORE": "{pct}% a mais",
+      "LESS": "{pct}% a menos",
+      "TIMES_MORE": "{times} vezes mais",
+      "VS_PREVIOUS": "{change} que no período anterior",
+      "VERDICT": {
+        "GOOD": "bom sinal",
+        "BAD": "atenção"
       }
     },
-    "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes"
+    "CHART_CAPTION": {
+      "HOW_COUNT": {
+        "HOUR": "Cada barra é uma hora.",
+        "DAY": "Cada barra é um dia.",
+        "WEEK": "Cada barra é uma semana.",
+        "MONTH": "Cada barra é um mês.",
+        "YEAR": "Cada barra é um ano."
+      },
+      "HOW_TIME": {
+        "HOUR": "Cada barra é o tempo médio de uma hora; a linha mostra quantas conversas entraram na conta.",
+        "DAY": "Cada barra é o tempo médio de um dia; a linha mostra quantas conversas entraram na conta.",
+        "WEEK": "Cada barra é o tempo médio de uma semana; a linha mostra quantas conversas entraram na conta.",
+        "MONTH": "Cada barra é o tempo médio de um mês; a linha mostra quantas conversas entraram na conta.",
+        "YEAR": "Cada barra é o tempo médio de um ano; a linha mostra quantas conversas entraram na conta."
+      },
+      "PEAK_COUNT": "O mais alto foi {high} ({highValue}) e o mais baixo, {low} ({lowValue}).",
+      "PEAK_TIME": "O mais demorado foi {high} ({highValue}) e o mais rápido, {low} ({lowValue})."
+    },
+    "PLAIN_SUMMARY": {
+      "TITLE": "O período em poucas palavras",
+      "VOLUME": "Chegaram {conversations}. Os clientes mandaram {incoming} mensagens e a equipe respondeu com {outgoing}.",
+      "CONVERSATIONS": "{count} conversas",
+      "FIRST_RESPONSE": "O cliente esperou, em média, {avg} pela primeira resposta. Metade esperou até {half}; 9 em cada 10, até {most}.",
+      "RESOLUTION": "{resolved}, e cada uma levou em média {time} para ser resolvida.",
+      "RESOLVED": "{count} conversas foram resolvidas"
+    }
   },
   "AGENT_REPORTS": {
     "HEADER": "Visão Geral de Agentes",
