@@ -93,7 +93,7 @@ const trend = computed(() => {
       <button
         v-else-if="fetchingStatus === STATUS.FINISHED && clickable"
         type="button"
-        class="text-2xl font-semibold text-n-slate-12 tabular-nums underline decoration-dotted decoration-n-slate-8 underline-offset-4 hover:text-n-brand hover:decoration-n-brand"
+        class="p-0 m-0 text-left text-2xl font-semibold text-n-slate-12 tabular-nums underline decoration-dotted decoration-n-slate-8 underline-offset-4 hover:text-n-brand hover:decoration-n-brand"
         :title="t('REPORT.DRILLDOWN.OPEN')"
         @click="emit('select')"
       >
@@ -125,7 +125,12 @@ const trend = computed(() => {
       >
         <span>{{ pill.icon }}</span>
         <span>
-          {{ t('REPORT.NARRATIVE.VS_GOAL_PILL', { level: pill.label, goal: goalDisplay(signal) }) }}
+          {{
+            t('REPORT.NARRATIVE.VS_GOAL_PILL', {
+              level: pill.label,
+              goal: goalDisplay(signal),
+            })
+          }}
         </span>
       </div>
     </div>
