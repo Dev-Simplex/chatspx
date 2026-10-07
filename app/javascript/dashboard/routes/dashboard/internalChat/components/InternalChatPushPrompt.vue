@@ -6,15 +6,18 @@ import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   verifyServiceWorkerExistence,
-  registerSubscription,
+  sendRegistrationToServer,
 } from 'dashboard/helper/pushHelper';
 
 const { t } = useI18n();
 
 const DISMISS_KEY = 'internal_chat_push_prompt_dismissed_at';
 const DISMISS_DAYS = 14;
+// Sem serviço de push (navegador sem suporte, rede bloqueando) a inscrição
+// fica pendurada para sempre: depois disso a tela diz que não deu.
+const SUBSCRIBE_TIMEOUT_MS = 30000;
 
-// idle → asking → done | blocked
+// idle → asking → done | blocked | failed
 const state = ref(null);
 
 const recentlyDismissed = () => {
@@ -58,12 +61,26 @@ const enable = async () => {
     state.value = permission === 'denied' ? 'blocked' : 'idle';
     return;
   }
-  registerSubscription(() => {
+  try {
+    const subscribe = navigator.serviceWorker.ready
+      .then(registration =>
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: window.chatwootConfig.vapidPublicKey,
+        })
+      )
+      .then(sendRegistrationToServer);
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('timeout')), SUBSCRIBE_TIMEOUT_MS);
+    });
+    await Promise.race([subscribe, timeout]);
     state.value = 'done';
     setTimeout(() => {
       if (state.value === 'done') state.value = null;
     }, 5000);
-  });
+  } catch (e) {
+    state.value = 'failed';
+  }
 };
 </script>
 
@@ -89,28 +106,33 @@ const enable = async () => {
         />
       </span>
       <div class="flex-1 min-w-0">
-        <template v-if="state === 'idle' || state === 'asking'">
+        <template v-if="['idle', 'asking', 'failed'].includes(state)">
           <div class="text-sm font-medium text-n-slate-12">
             {{ t('INTERNAL_CHAT.PUSH_PROMPT.TITLE') }}
           </div>
           <div class="mt-1 text-xs text-n-slate-11">
             {{
-              state === 'asking'
-                ? t('INTERNAL_CHAT.PUSH_PROMPT.ASKING')
-                : t('INTERNAL_CHAT.PUSH_PROMPT.DESCRIPTION')
+              {
+                asking: t('INTERNAL_CHAT.PUSH_PROMPT.ASKING'),
+                failed: t('INTERNAL_CHAT.PUSH_PROMPT.FAILED'),
+              }[state] || t('INTERNAL_CHAT.PUSH_PROMPT.DESCRIPTION')
             }}
           </div>
-          <div v-if="state === 'idle'" class="flex gap-2 mt-3">
+          <div v-if="state !== 'asking'" class="flex gap-2 mt-3">
             <button
               type="button"
-              class="px-3 py-1.5 text-xs font-medium text-white rounded-full bg-n-teal-9 hover:bg-n-teal-10"
+              class="px-3 py-1.5 text-xs font-medium text-white rounded-full whitespace-nowrap bg-n-teal-9 hover:bg-n-teal-10"
               @click="enable"
             >
-              {{ t('INTERNAL_CHAT.PUSH_PROMPT.ENABLE') }}
+              {{
+                state === 'failed'
+                  ? t('INTERNAL_CHAT.PUSH_PROMPT.RETRY')
+                  : t('INTERNAL_CHAT.PUSH_PROMPT.ENABLE')
+              }}
             </button>
             <button
               type="button"
-              class="px-3 py-1.5 text-xs rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+              class="px-3 py-1.5 text-xs rounded-full whitespace-nowrap text-n-slate-11 hover:bg-n-alpha-2"
               @click="dismiss"
             >
               {{ t('INTERNAL_CHAT.PUSH_PROMPT.LATER') }}

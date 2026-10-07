@@ -324,7 +324,9 @@
       "ASKING": "Answer the browser prompt at the top of the screen…",
       "DONE": "Done! You will be notified even with ChatSPX closed.",
       "BLOCKED": "The browser blocked notifications. Click the lock next to the address to allow them.",
-      "CLOSE": "Close"
+      "CLOSE": "Close",
+      "FAILED": "Could not turn on notifications in this browser. Try again later.",
+      "RETRY": "Try again"
     },
     "SHARE_DRAFT": {
       "LABEL": "Conversation #{id} goes with your message",

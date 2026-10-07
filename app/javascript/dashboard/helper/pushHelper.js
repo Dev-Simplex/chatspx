@@ -3,6 +3,11 @@ import NotificationSubscriptions from '../api/notificationSubscription';
 import auth from '../api/auth';
 import { useAlert } from 'dashboard/composables';
 
+// O Cloudflare guarda o /sw.js por um ano (Cache-Control do public/): sem a
+// versão no endereço, mudança no service worker nunca chega ao navegador.
+// TROQUE ESTE VALOR A CADA MUDANÇA EM public/sw.js.
+const SW_VERSION = '2026-10-07';
+
 export const verifyServiceWorkerExistence = (callback = () => {}) => {
   if (!('serviceWorker' in navigator)) {
     // Service Worker isn't supported on this browser, disable or hide UI.
@@ -15,7 +20,7 @@ export const verifyServiceWorkerExistence = (callback = () => {}) => {
   }
 
   navigator.serviceWorker
-    .register('/sw.js', { updateViaCache: 'none' })
+    .register(`/sw.js?v=${SW_VERSION}`, { updateViaCache: 'none' })
     .then(registration => {
       // Força checagem imediata de update — evita SW velho de sessões antigas
       // ficar instalado por até 24h conforme padrão Chrome.

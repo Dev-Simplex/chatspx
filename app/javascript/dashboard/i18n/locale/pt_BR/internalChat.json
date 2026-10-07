@@ -324,7 +324,9 @@
       "ASKING": "Responda a pergunta do navegador no alto da tela…",
       "DONE": "Pronto! Você vai ser avisado mesmo com o ChatSPX fechado.",
       "BLOCKED": "O navegador bloqueou os avisos. Clique no cadeado ao lado do endereço para liberar.",
-      "CLOSE": "Fechar"
+      "CLOSE": "Fechar",
+      "FAILED": "Não deu para ligar os avisos neste navegador. Tente de novo mais tarde.",
+      "RETRY": "Tentar de novo"
     },
     "SHARE_DRAFT": {
       "LABEL": "A conversa #{id} vai junto com a sua mensagem",
