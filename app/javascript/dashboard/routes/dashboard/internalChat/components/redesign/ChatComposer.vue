@@ -316,7 +316,7 @@ const onEnter = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.ATTACH')"
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :aria-label="t('INTERNAL_CHAT.ATTACH')"
         @click="onPickFile"
       >
@@ -332,7 +332,7 @@ const onEnter = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.COMPOSER.RECORD')"
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :aria-label="t('INTERNAL_CHAT.COMPOSER.RECORD')"
         @click="startRecording"
       >
@@ -366,12 +366,12 @@ const onEnter = () => {
           <button
             v-tooltip="t('INTERNAL_CHAT.EMOJI')"
             type="button"
-            class="inline-flex items-center justify-center transition-colors rounded-full size-8 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+            class="inline-flex items-center justify-center transition-colors rounded-full size-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
             :class="showEmoji ? 'text-n-teal-11 bg-n-alpha-2' : ''"
             :aria-label="t('INTERNAL_CHAT.EMOJI')"
             @click="toggleEmoji"
           >
-            <span class="text-lg i-lucide-smile" />
+            <span class="text-xl i-lucide-smile" />
           </button>
           <template v-if="showEmoji">
             <div class="fixed inset-0 z-10" @click="showEmoji = false" />
@@ -387,17 +387,17 @@ const onEnter = () => {
               : t('INTERNAL_CHAT.COMPOSER.SEND_EMPTY')
           "
           type="button"
-          class="inline-flex items-center justify-center flex-shrink-0 transition-colors duration-200 rounded-full size-8"
+          class="inline-flex items-center justify-center flex-shrink-0 transition-colors duration-200 rounded-full size-9"
           :class="
             canSend
-              ? 'bg-n-teal-10 dark:bg-n-teal-5 text-white hover:bg-n-teal-11 shadow-sm'
-              : 'bg-n-alpha-2 text-n-slate-9 cursor-not-allowed'
+              ? 'bg-n-teal-10 dark:bg-n-teal-9 text-white hover:bg-n-teal-11 shadow-sm'
+              : 'bg-n-slate-4 text-n-slate-11 cursor-not-allowed'
           "
           :aria-label="t('INTERNAL_CHAT.SEND')"
           :disabled="!canSend"
           @click="send"
         >
-          <span class="text-lg i-lucide-arrow-up" />
+          <span class="text-xl i-lucide-arrow-up" />
         </button>
       </div>
     </div>
