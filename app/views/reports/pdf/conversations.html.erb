@@ -133,27 +133,67 @@
 <% end %>
 
 <%# ============ ANEXO: as conversas por trás dos números ============ %>
-<%# As tabelas do anexo podem quebrar entre páginas (o padrão do PDF segura seção e cartão inteiros). %>
+<%# Visual: as mais demoradas em barras; o período agrupado por dia, uma linha por conversa, tempo curto e a 1ª
+    resposta colorida pela meta. As tabelas podem quebrar entre páginas (o padrão do PDF segura seção e cartão). %>
 <% appendix = @data[:appendix] || {} %>
 <% if appendix[:shown].to_i.positive? %>
   <div class="section" style="break-before: page;">
     <div class="narrative-title"><span class="q">Anexo.</span> Quais são essas conversas?</div>
-    <% if appendix.dig(:slowest, :rows).present? %>
-      <div class="section-title"><span class="dot">›</span> As <%= appendix[:slowest][:rows].size %> que mais esperaram pela 1ª resposta</div>
-      <div class="card" style="padding:0;">
-        <%= render 'reports/pdf/data_table', table: appendix[:slowest] %>
+    <div class="cl-legend">
+      <span><i class="cl-dot good"></i> 1ª resposta dentro da meta (até <%= appendix[:goal] %>)</span>
+      <span><i class="cl-dot warn"></i> perto da meta</span>
+      <span><i class="cl-dot bad"></i> longe da meta</span>
+    </div>
+    <% if appendix[:slowest].present? %>
+      <div class="section-title"><span class="dot">›</span> As <%= appendix[:slowest].size %> que mais esperaram pela 1ª resposta</div>
+      <div class="card cl-bars">
+        <% appendix[:slowest].each do |row| %>
+          <div class="cl-bar-row">
+            <div>
+              <div class="cl-who"><%= row[:id] %> · <%= row[:contact] %></div>
+              <div class="cl-where"><%= row[:inbox] %> · <%= row[:agent] %> · <%= row[:status] %>, resolução: <%= row[:resolution] %></div>
+            </div>
+            <div class="cl-track">
+              <div class="cl-fill <%= row[:first_level] %>" style="width: <%= [row[:bar_pct], 2].max %>%;"></div>
+              <span class="cl-value"><%= row[:first] %></span>
+            </div>
+          </div>
+        <% end %>
       </div>
     <% end %>
   </div>
   <div class="section" style="break-inside: auto;">
-    <div class="section-title"><span class="dot">›</span> Conversas do período</div>
+    <div class="section-title"><span class="dot">›</span> Conversas do período, dia a dia</div>
     <% if appendix[:total] > appendix[:shown] %>
-      <p style="margin: -2mm 0 3mm; font-size: 11px; color: #667781;">
+      <p style="margin: -2mm 0 2mm; font-size: 10px; color: #667781;">
         Mostrando as <%= appendix[:shown] %> mais recentes de <%= appendix[:total] %>. A lista completa está no sistema (clique no número) e no CSV.
       </p>
     <% end %>
-    <div class="card" style="padding:0; break-inside: auto;">
-      <%= render 'reports/pdf/data_table', table: appendix[:conversations] %>
-    </div>
+    <% appendix[:days].each do |day| %>
+      <div class="cl-day"><%= day[:title] %> <small><%= day[:rows].size %> <%= day[:rows].size == 1 ? 'conversa' : 'conversas' %></small></div>
+      <table class="cl-table">
+        <colgroup>
+          <col style="width: 7%;"><col style="width: 8%;"><col style="width: 19%;"><col style="width: 19%;">
+          <col style="width: 18%;"><col style="width: 10%;"><col style="width: 11%;"><col style="width: 8%;">
+        </colgroup>
+        <thead>
+          <tr><th>Hora</th><th>Conversa</th><th>Contato</th><th>Caixa</th><th>Agente</th><th>Status</th><th>1ª resposta</th><th>Resolução</th></tr>
+        </thead>
+        <tbody>
+          <% day[:rows].each do |row| %>
+            <tr>
+              <td class="muted"><%= row[:time] %></td>
+              <td><%= row[:id] %></td>
+              <td class="cl-wrap"><%= row[:contact] %></td>
+              <td class="cl-wrap"><%= row[:inbox] %></td>
+              <td class="cl-wrap"><%= row[:agent] %></td>
+              <td><span class="cl-chip <%= row[:status_key] %>"><%= row[:status] %></span></td>
+              <td><i class="cl-dot <%= row[:first_level] %>"></i> <%= row[:first] %></td>
+              <td class="<%= 'muted' if row[:resolution] == 'em aberto' %>"><%= row[:resolution] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
   </div>
 <% end %>
