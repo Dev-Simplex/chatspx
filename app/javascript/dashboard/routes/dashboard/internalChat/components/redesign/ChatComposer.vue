@@ -16,6 +16,7 @@ import {
 } from 'shared/helpers/FileHelper';
 import AudioRecorder from './AudioRecorder.vue';
 import CannedResponse from 'dashboard/components/widgets/conversation/CannedResponse.vue';
+import RequestDialog from './RequestDialog.vue';
 
 const props = defineProps({
   // Mensagem sendo respondida: { id, name, preview } (ou null).
@@ -24,6 +25,9 @@ const props = defineProps({
   initialDraft: { type: String, default: '' },
   // Quem pode ser @mencionado: [{ id, name, avatar_url }] (vazio = sem menção).
   mentionCandidates: { type: Array, default: () => [] },
+  // Conversa aberta e quem mais está nela (para "Pedir aprovação"/"Pedir ajuda").
+  channelId: { type: Number, default: null },
+  members: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['send', 'cancelReply', 'draftChange']);
@@ -174,6 +178,14 @@ const onFilesSelected = event => {
 };
 const removeFile = index => attachedFiles.value.splice(index, 1);
 
+// ── Pedir aprovação / Pedir ajuda ───────────────────────────────────────────
+const showRequestMenu = ref(false);
+const requestDialogRef = ref(null);
+const openRequest = kind => {
+  showRequestMenu.value = false;
+  requestDialogRef.value?.open(kind);
+};
+
 // ── Áudio ───────────────────────────────────────────────────────────────────
 // Grava, deixa ouvir e envia so o audio; o texto digitado continua no campo.
 const startRecording = () => {
@@ -313,6 +325,58 @@ const onEnter = () => {
     <!-- Barra de escrita: ações discretas à esquerda, pílula com o texto e o
          botão de enviar redondo, que só ganha cor quando há o que enviar. -->
     <div v-else class="flex items-end gap-1">
+      <!-- "+": pedir aprovação ou ajuda (vira um cartão com botões) -->
+      <div v-if="channelId" class="relative flex-shrink-0 mb-0.5">
+        <button
+          v-tooltip="t('INTERNAL_CHAT.REQUEST.MENU')"
+          type="button"
+          class="inline-flex items-center justify-center transition-colors rounded-full size-9 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          :class="showRequestMenu ? 'bg-n-alpha-2 text-n-slate-12' : ''"
+          :aria-label="t('INTERNAL_CHAT.REQUEST.MENU')"
+          :aria-expanded="showRequestMenu"
+          @click="showRequestMenu = !showRequestMenu"
+        >
+          <span class="text-xl i-lucide-plus" />
+        </button>
+        <template v-if="showRequestMenu">
+          <div class="fixed inset-0 z-10" @click="showRequestMenu = false" />
+          <div
+            class="absolute left-0 z-30 p-1 mb-2 border shadow-xl bottom-full w-72 rounded-2xl bg-n-solid-1 border-n-weak"
+          >
+            <button
+              v-for="option in [
+                {
+                  kind: 'approval',
+                  icon: 'i-lucide-badge-check',
+                  label: t('INTERNAL_CHAT.REQUEST.ASK_APPROVAL'),
+                  hint: t('INTERNAL_CHAT.REQUEST.ASK_APPROVAL_HINT'),
+                },
+                {
+                  kind: 'help',
+                  icon: 'i-lucide-life-buoy',
+                  label: t('INTERNAL_CHAT.REQUEST.ASK_HELP'),
+                  hint: t('INTERNAL_CHAT.REQUEST.ASK_HELP_HINT'),
+                },
+              ]"
+              :key="option.kind"
+              type="button"
+              class="flex items-start w-full gap-3 px-3 py-2 text-left rounded-xl hover:bg-n-alpha-2"
+              @click="openRequest(option.kind)"
+            >
+              <span
+                class="flex-shrink-0 mt-0.5 size-5 text-n-teal-11"
+                :class="option.icon"
+              />
+              <span class="flex flex-col min-w-0">
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{ option.label }}
+                </span>
+                <span class="text-xs text-n-slate-10">{{ option.hint }}</span>
+              </span>
+            </button>
+          </div>
+        </template>
+      </div>
       <button
         v-tooltip="t('INTERNAL_CHAT.ATTACH')"
         type="button"
@@ -401,6 +465,12 @@ const onEnter = () => {
         </button>
       </div>
     </div>
+    <RequestDialog
+      v-if="channelId"
+      ref="requestDialogRef"
+      :channel-id="channelId"
+      :approvers="members"
+    />
     <p
       v-if="!recording"
       class="mb-0 hidden mt-1.5 text-[11px] text-center truncate md:block text-n-slate-10"

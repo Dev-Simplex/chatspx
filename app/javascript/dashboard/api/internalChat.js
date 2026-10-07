@@ -76,6 +76,26 @@ class InternalChatAPI extends ApiClient {
     });
   }
 
+  // Pedido de aprovação ou de ajuda: vira um cartão com botões no balão.
+  createRequest(
+    channelId,
+    { kind, title, detail, approverId, conversationId, echoId }
+  ) {
+    return axios.post(`${this.url}/${channelId}/internal_messages`, {
+      request: { kind, title, detail, approver_id: approverId },
+      shared_conversation_id: conversationId || undefined,
+      echo_id: echoId,
+    });
+  }
+
+  // decision: 'approve' | 'deny' | 'help'
+  decideRequest(channelId, messageId, decision, reason) {
+    return axios.post(
+      `${this.url}/${channelId}/internal_messages/${messageId}/decide`,
+      { decision, reason }
+    );
+  }
+
   editMessage(channelId, messageId, content) {
     return axios.patch(
       `${this.url}/${channelId}/internal_messages/${messageId}`,

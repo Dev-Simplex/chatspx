@@ -42,10 +42,11 @@ class InternalMessages::DecideService
     ).compact
   end
 
-  # Texto do aviso a quem pediu, já no idioma da conta.
+  # Texto do aviso a quem pediu, já no idioma da conta (o nome de quem decidiu
+  # vai no título do aviso).
   def notice
     I18n.with_locale(@message.internal_channel.account.locale || I18n.default_locale) do
-      I18n.t("internal_chat.request_notice.#{STATUS[@decision]}", name: @user.name, title: @message.content)
+      I18n.t("internal_chat.request_notice.#{STATUS[@decision]}", title: @message.content)
     end
   end
 end

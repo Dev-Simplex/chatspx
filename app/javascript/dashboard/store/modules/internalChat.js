@@ -257,6 +257,29 @@ export const actions = {
     }
   },
 
+  // Pedido de aprovação/ajuda. Sem balão otimista: o modal mostra "Enviando…"
+  // e só fecha quando o servidor devolve o cartão (ou mostra o erro).
+  sendRequest: async ({ commit }, { channelId, ...request }) => {
+    const { data } = await InternalChatAPI.createRequest(channelId, request);
+    commit('APPEND_MESSAGE', { channelId, message: data });
+    commit('SET_LAST_MESSAGE', { channelId, message: data });
+    return data;
+  },
+
+  decideRequest: async (
+    { commit },
+    { channelId, messageId, decision, reason }
+  ) => {
+    const { data } = await InternalChatAPI.decideRequest(
+      channelId,
+      messageId,
+      decision,
+      reason
+    );
+    commit('UPDATE_MESSAGE', { channelId, message: data });
+    return data;
+  },
+
   // Fase 5: group management.
   renameChannel: async ({ commit }, { channelId, name }) => {
     const { data } = await InternalChatAPI.renameChannel(channelId, name);
@@ -364,11 +387,23 @@ export const actions = {
   },
 
   // Real-time: a message was edited / deleted / reacted-to.
-  applyUpdatedMessage: ({ commit }, payload) => {
+  // `notice` vem quando um pedido foi decidido: avisa (toast + som) só quem pediu.
+  applyUpdatedMessage: ({ commit, rootGetters }, payload) => {
     commit('UPDATE_MESSAGE', {
       channelId: payload.internal_channel_id,
       message: payload.message,
     });
+    if (
+      payload.notice &&
+      payload.message.user?.id === rootGetters.getCurrentUserID
+    ) {
+      commit('SET_PENDING_NOTIFICATION', {
+        title: payload.message.content_attributes?.request?.decided_by_name,
+        body: payload.notice,
+        channelId: payload.internal_channel_id,
+        at: Date.now(),
+      });
+    }
   },
 
   editMessage: async ({ commit }, { channelId, messageId, content }) => {

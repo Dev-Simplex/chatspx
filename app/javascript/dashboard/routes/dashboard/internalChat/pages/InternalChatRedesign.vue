@@ -362,6 +362,9 @@ const threadItems = computed(() => {
       status: m.status,
       uploadProgress: m.upload_progress ?? null,
       mentionedUserIds: m.mentioned_user_ids || [],
+      // Pedido de aprovação/ajuda (request) e aviso do sistema (system).
+      messageType: m.message_type || 'text',
+      contentAttributes: m.content_attributes || {},
     });
     prev = m;
   });
@@ -787,6 +790,10 @@ onBeforeUnmount(() => {
             :replying-to="replyingTo"
             :initial-draft="drafts[activeId] || ''"
             :mention-candidates="mentionCandidates"
+            :channel-id="activeId"
+            :members="
+              activeConversation.members.filter(m => m.id !== currentUserId)
+            "
             @send="onSend"
             @draft-change="onDraftChange"
             @cancel-reply="onCancelReply"

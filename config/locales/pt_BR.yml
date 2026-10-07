@@ -715,9 +715,9 @@ pt_BR:
       custom_domain_not_configured: 'Domínio personalizado não está configurado'
   internal_chat:
     request_notice:
-      approved: '%{name} aprovou seu pedido: %{title}'
-      denied: '%{name} recusou seu pedido: %{title}'
-      taken: '%{name} vai ajudar com: %{title}'
+      approved: '✅ Aprovou seu pedido: %{title}'
+      denied: '❌ Recusou seu pedido: %{title}'
+      taken: '🙋 Vai ajudar com: %{title}'
   internal_chat_push:
     mention_title: '%{name} mencionou você em %{channel}'
     shared_conversation: 'Conversa #%{id}'

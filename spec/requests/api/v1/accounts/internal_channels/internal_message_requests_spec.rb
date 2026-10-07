@@ -51,7 +51,7 @@ RSpec.describe 'Chat interno: pedido de aprovação/ajuda', type: :request do
 
     expect { decide(message, boss, 'approve') }
       .to have_enqueued_job(ActionCableBroadcastJob)
-      .with(anything, 'internal.message.updated', hash_including(notice: a_string_including(boss.name)))
+      .with(anything, 'internal.message.updated', hash_including(notice: a_string_including('Desconto de 5%')))
     expect(response).to have_http_status(:success)
     expect(message.reload.request_data).to include('status' => 'approved', 'decided_by_id' => boss.id)
 
