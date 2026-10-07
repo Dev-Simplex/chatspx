@@ -161,7 +161,6 @@
       "UNREAD_COUNT": "{count} mensagens não lidas",
       "SUMMARY_UNREAD_ONE": "1 conversa com mensagem nova",
       "SUMMARY_UNREAD_MANY": "{count} conversas com mensagem nova",
-      "SUMMARY_ALL_READ": "Tudo lido",
       "ONLINE_NOW": "Online agora",
       "ONLINE_NOW_HINT": "Clique para mandar mensagem",
       "SECTION_FAVORITES": "Favoritas",

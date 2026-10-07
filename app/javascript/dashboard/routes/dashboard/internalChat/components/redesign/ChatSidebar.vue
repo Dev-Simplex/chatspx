@@ -126,8 +126,7 @@ const sections = computed(() => {
 // Frase do topo: o que é novo, em linguagem de gente.
 const summary = computed(() => {
   const n = counts.value.unread;
-  if (!props.conversations.length) return '';
-  if (!n) return t('INTERNAL_CHAT.LIST.SUMMARY_ALL_READ');
+  if (!n) return '';
   return n === 1
     ? t('INTERNAL_CHAT.LIST.SUMMARY_UNREAD_ONE')
     : t('INTERNAL_CHAT.LIST.SUMMARY_UNREAD_MANY', { count: n });
@@ -381,19 +380,9 @@ defineExpose({ openCompose });
       </div>
       <p
         v-if="summary"
-        class="flex items-center gap-1.5 mt-0.5 mb-0 text-[13px] basis-full"
-        :class="
-          counts.unread ? 'text-n-teal-11 font-semibold' : 'text-n-slate-11'
-        "
+        class="flex items-center gap-1.5 mt-0.5 mb-0 text-[13px] basis-full text-n-teal-11 font-semibold"
       >
-        <span
-          class="flex-shrink-0 size-3.5"
-          :class="
-            counts.unread
-              ? 'i-lucide-message-circle-more'
-              : 'i-lucide-check-check'
-          "
-        />
+        <span class="flex-shrink-0 size-3.5 i-lucide-message-circle-more" />
         {{ summary }}
       </p>
     </header>

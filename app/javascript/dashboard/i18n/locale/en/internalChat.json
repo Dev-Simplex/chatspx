@@ -161,7 +161,6 @@
       "UNREAD_COUNT": "{count} unread messages",
       "SUMMARY_UNREAD_ONE": "1 conversation with new messages",
       "SUMMARY_UNREAD_MANY": "{count} conversations with new messages",
-      "SUMMARY_ALL_READ": "All caught up",
       "ONLINE_NOW": "Online now",
       "ONLINE_NOW_HINT": "Click to send a message",
       "SECTION_FAVORITES": "Favorites",
