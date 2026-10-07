@@ -50,12 +50,11 @@ export default {
     const { calculateTrend, isAverageMetricType } = useReportMetrics(
       props.accountSummaryKey
     );
-    const { signalForReportKey, phraseFor } = useReportNarrative();
+    const { signalForReportKey } = useReportNarrative();
     return {
       calculateTrend,
       isAverageMetricType,
       signalForReportKey,
-      phraseFor,
     };
   },
   data() {
@@ -207,6 +206,22 @@ export default {
         },
       };
 
+      // Eixos com nome: no grafico de tempo ha dois (tempo a esquerda, conversas a direita).
+      const axisTitle = text => ({ display: true, text, color: '#8696a0' });
+      if (options.scales?.y) {
+        options.scales.y.title = axisTitle(
+          this.$t(
+            this.isAverageMetricType(metric.KEY)
+              ? 'REPORT.CHART_AXIS.AVERAGE_TIME'
+              : 'REPORT.CHART_AXIS.QUANTITY'
+          )
+        );
+      }
+      if (options.scales?.y1) {
+        options.scales.y1.title = axisTitle(
+          this.$t('REPORT.CHART_AXIS.CONVERSATIONS')
+        );
+      }
       if (this.isAverageMetricType(metric.KEY) && options.scales?.y) {
         const tickCallback = options.scales.y.ticks.callback;
         options.scales.y.ticks.callback = (value, index, ticks) =>
@@ -303,9 +318,7 @@ export default {
       >
         {{ chartCaption(metric) }}
       </p>
-      <p v-if="metric.signal" class="text-xs text-n-slate-11 -mt-2 px-1">
-        {{ phraseFor(metric.signal) }}
-      </p>
+
     </div>
     <ReportDrilldownPanel
       v-if="drilldownMetric && drilldownFilters"

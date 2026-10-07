@@ -24,7 +24,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
     v-if="hasSignals"
     class="rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm mt-4"
   >
-    <span class="text-xs uppercase tracking-[0.2em] text-n-slate-10">
+    <span class="text-sm font-medium text-n-slate-11">
       {{ t('REPORT.NARRATIVE.EYEBROW') }}
     </span>
     <div class="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2">

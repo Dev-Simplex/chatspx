@@ -40,7 +40,7 @@ const { displayMetric, isAverageMetricType, fetchingStatus } = useReportMetrics(
   props.summaryFetchingKey
 );
 
-const { pillFor } = useReportNarrative();
+const { pillFor, goalDisplay } = useReportNarrative();
 const pill = computed(() => pillFor(props.signal));
 
 // A variacao em frase ("5% a menos que no periodo anterior") e, quando da para julgar, se isso e bom:
@@ -124,7 +124,9 @@ const trend = computed(() => {
         :class="pill.colorClass"
       >
         <span>{{ pill.icon }}</span>
-        <span>{{ pill.label }}</span>
+        <span>
+          {{ t('REPORT.NARRATIVE.VS_GOAL_PILL', { level: pill.label, goal: goalDisplay(signal) }) }}
+        </span>
       </div>
     </div>
   </div>

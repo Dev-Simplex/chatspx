@@ -62,27 +62,24 @@ const open = (key, nameKey) => {
               type="button"
               class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
               @click="open('conversations_count', 'REPORT.METRICS.CONVERSATIONS.NAME')"
-            >
-              {{ t('REPORT.PLAIN_SUMMARY.CONVERSATIONS', { count: count('conversations_count') }) }}
-            </button>
+            v-text="t('REPORT.PLAIN_SUMMARY.CONVERSATIONS', { count: count('conversations_count') })"
+            />
           </template>
           <template #incoming>
             <button
               type="button"
               class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
               @click="open('incoming_messages_count', 'REPORT.METRICS.INCOMING_MESSAGES.NAME')"
-            >
-              {{ count('incoming_messages_count') }}
-            </button>
+            v-text="count('incoming_messages_count')"
+            />
           </template>
           <template #outgoing>
             <button
               type="button"
               class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
               @click="open('outgoing_messages_count', 'REPORT.METRICS.OUTGOING_MESSAGES.NAME')"
-            >
-              {{ count('outgoing_messages_count') }}
-            </button>
+            v-text="count('outgoing_messages_count')"
+            />
           </template>
         </i18n-t>
       </li>
@@ -94,9 +91,8 @@ const open = (key, nameKey) => {
               type="button"
               class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
               @click="open('avg_first_response_time', 'REPORT.METRICS.FIRST_RESPONSE_TIME.NAME')"
-            >
-              {{ time('avg_first_response_time') }}
-            </button>
+            v-text="time('avg_first_response_time')"
+            />
           </template>
           <template #half>
             <strong>{{ time('p50_first_response_time') }}</strong>
@@ -114,9 +110,8 @@ const open = (key, nameKey) => {
               type="button"
               class="font-semibold underline decoration-dotted underline-offset-4 hover:text-n-brand"
               @click="open('resolutions_count', 'REPORT.METRICS.RESOLUTION_COUNT.NAME')"
-            >
-              {{ t('REPORT.PLAIN_SUMMARY.RESOLVED', { count: count('resolutions_count') }) }}
-            </button>
+            v-text="t('REPORT.PLAIN_SUMMARY.RESOLVED', { count: count('resolutions_count') })"
+            />
           </template>
           <template #time>
             <strong>{{ time('avg_resolution_time') }}</strong>

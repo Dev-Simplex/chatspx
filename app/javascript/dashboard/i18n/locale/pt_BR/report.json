@@ -176,8 +176,8 @@
       "EYEBROW": "Resumo rápido",
       "LEVEL": {
         "GOOD": "dentro da meta",
-        "WARN": "atenção",
-        "BAD": "precisa melhorar"
+        "WARN": "quase na meta",
+        "BAD": "longe da meta"
       },
       "HIGHLIGHT_TITLE": "O que foi melhor",
       "ATTENTION_TITLE": "O que precisa de atenção",
@@ -197,7 +197,8 @@
         "BOT_HANDOFF_RATE": "Transferência do bot"
       },
       "INSIGHT_BETTER_TIMES": "{times} vezes melhor que no período anterior",
-      "INSIGHT_WORSE_TIMES": "{times} vezes pior que no período anterior"
+      "INSIGHT_WORSE_TIMES": "{times} vezes pior que no período anterior",
+      "VS_GOAL_PILL": "{level} ({goal})"
     },
     "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes",
     "TIME": {
@@ -246,6 +247,11 @@
       "FIRST_RESPONSE": "O cliente esperou, em média, {avg} pela primeira resposta. Metade esperou até {half}; 9 em cada 10, até {most}.",
       "RESOLUTION": "{resolved}, e cada uma levou em média {time} para ser resolvida.",
       "RESOLVED": "{count} conversas foram resolvidas"
+    },
+    "CHART_AXIS": {
+      "QUANTITY": "quantidade",
+      "AVERAGE_TIME": "tempo médio",
+      "CONVERSATIONS": "conversas"
     }
   },
   "AGENT_REPORTS": {
