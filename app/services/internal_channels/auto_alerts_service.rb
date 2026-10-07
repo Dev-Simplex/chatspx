@@ -11,6 +11,7 @@
 # mensagem com ela: um aviso por lead e ciclo de designação, um por pessoa, indicador e mês.
 class InternalChannels::AutoAlertsService
   EVENTS = %w[lead_parado meta_batida].freeze
+  ICONS = { 'lead_parado' => 'i-lucide-alarm-clock', 'meta_batida' => 'i-lucide-trophy' }.freeze
 
   def self.enabled?(channel, event)
     channel.settings.dig('auto_alerts', event) == true
@@ -65,9 +66,11 @@ class InternalChannels::AutoAlertsService
   def post(key, content, conversation_id = nil)
     return if @channel.messages.exists?(["content_attributes -> 'alert' ->> 'key' = ?", key])
 
+    kind = key.split(':').first
+
     message = @channel.messages.create!(
       message_type: :system, content: content, shared_conversation_id: conversation_id,
-      content_attributes: { 'alert' => { 'kind' => key.split(':').first, 'key' => key } }
+      content_attributes: { 'icon' => ICONS[kind], 'alert' => { 'kind' => kind, 'key' => key } }
     )
     InternalMessages::BroadcastService.created(message)
   end

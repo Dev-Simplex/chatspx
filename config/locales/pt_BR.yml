@@ -628,15 +628,15 @@ pt_BR:
       one: '%{count} segundo'
       other: '%{count} segundos'
   internal_chat_alerts:
-    lead_parado: '⏰ Lead parado há %{duration} com %{consultor} — %{contato} (#%{id})'
+    lead_parado: 'Lead parado há %{duration} com %{consultor} — %{contato} (#%{id})'
     minutes: '%{m} min'
     hours: '%{h} h %{m} min'
     days: '%{d} d %{h} h'
     meta_batida:
-      resolved_conversations: '🎉 %{name} bateu a meta do mês: %{actual} de %{goal} conversas resolvidas'
-      first_response_time: '🎉 %{name} bateu a meta do mês: primeira resposta em %{actual} min (meta: %{goal} min)'
-      nps: '🎉 %{name} bateu a meta do mês: NPS %{actual} (meta: %{goal})'
-      kanban_wins: '🎉 %{name} bateu a meta do mês: %{actual} de %{goal} negócios ganhos'
+      resolved_conversations: '%{name} bateu a meta do mês: %{actual} de %{goal} conversas resolvidas'
+      first_response_time: '%{name} bateu a meta do mês: primeira resposta em %{actual} min (meta: %{goal} min)'
+      nps: '%{name} bateu a meta do mês: NPS %{actual} (meta: %{goal})'
+      kanban_wins: '%{name} bateu a meta do mês: %{actual} de %{goal} negócios ganhos'
   kanban:
     funnels:
       team_required: 'Selecione um time para o funil. Como agente, você só pode criar funis vinculados a um dos seus times.'

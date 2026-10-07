@@ -65,7 +65,7 @@ RSpec.describe InternalChannels::AutoAlertsService do
     it 'avisa uma vez por pessoa, indicador e mês, só da meta atingida' do
       2.times { described_class.new(channel).perform }
 
-      expect(channel.messages.pluck(:content)).to eq(['🎉 Emily Santos bateu a meta do mês: 12 de 10 conversas resolvidas'])
+      expect(channel.messages.pluck(:content)).to eq(['Emily Santos bateu a meta do mês: 12 de 10 conversas resolvidas'])
     end
 
     it 'avisa de novo no mês seguinte' do
