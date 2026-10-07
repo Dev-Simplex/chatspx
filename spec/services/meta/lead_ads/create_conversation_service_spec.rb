@@ -161,6 +161,18 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
 
       expect(svc.send(:initial_message_already_sent?, conversation)).to be false
     end
+
+    it 'ignores an opener older than the dedup window' do
+      travel_to(25.hours.ago) { initial_message_on(conversation) }
+
+      expect(svc.send(:initial_message_already_sent?, conversation)).to be false
+    end
+
+    it 'still sees an opener inside the dedup window' do
+      travel_to(23.hours.ago) { initial_message_on(conversation) }
+
+      expect(svc.send(:initial_message_already_sent?, conversation)).to be true
+    end
   end
 
   describe 'opener idempotency' do
@@ -178,6 +190,36 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
       again = service(hook: hook, lead: lead).perform
       expect(again.id).to eq(conversation.id)
       expect(openers(again.reload).size).to eq(1)
+    end
+
+    it 'does not resend when the same lead is redelivered minutes later' do
+      conversation = service(hook: hook, lead: lead).perform
+
+      travel 10.minutes do
+        again = service(hook: hook, lead: lead).perform
+        expect(again.id).to eq(conversation.id)
+        expect(openers(again.reload).size).to eq(1)
+      end
+    end
+
+    # O bug de 06/10/2026: conversa reaproveitada que teve abertura meses atras calava o lead novo.
+    it 'sends the opener again to a lead returning to an old open conversation' do
+      conversation = travel_to(2.months.ago) { service(hook: hook, lead: lead).perform }
+      expect(conversation.reload.status).not_to eq('resolved')
+
+      again = service(hook: hook, lead: lead_with(leadgen_id: '2', full_name: 'Maria Silva')).perform
+      expect(again.id).to eq(conversation.id)
+      expect(openers(again.reload).size).to eq(2)
+    end
+
+    it 'reopens an old resolved conversation and sends the opener again' do
+      conversation = travel_to(1.month.ago) { service(hook: hook, lead: lead).perform }
+      conversation.resolved!
+
+      again = service(hook: hook, lead: lead_with(leadgen_id: '2', full_name: 'Maria Silva')).perform
+      expect(again.id).to eq(conversation.id)
+      expect(again.reload.status).not_to eq('resolved')
+      expect(openers(again).size).to eq(2)
     end
   end
 

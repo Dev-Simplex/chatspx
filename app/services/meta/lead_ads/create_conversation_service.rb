@@ -95,7 +95,7 @@ module Meta
           Rails.logger.info("Meta Lead Ads: skip_initial_message=true hook=#{@hook.id} conversation=#{conversation.id} — conversa criada sem 1a mensagem")
         elsif initial_message_already_sent?(conversation)
           # Idempotencia: redelivery/retry do webhook nao reenvia a abertura.
-          Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — 1a mensagem ja enviada, pulando (idempotencia)")
+          Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — 1a mensagem enviada nas ultimas 24h, pulando")
         else
           create_initial_message(conversation)
         end
@@ -532,7 +532,17 @@ module Meta
       end
 
       # A abertura automatica carrega content_attributes.meta_lead_ads_initial=true —
-      # se ja existe nessa conversa, um redelivery/retry nao deve reenviar.
+      # se saiu nessa conversa ha pouco, um redelivery/retry nao deve reenviar.
+      #
+      # So conta a abertura RECENTE. A conversa e reaproveitada (lock_to_single), entao
+      # "ja teve abertura algum dia" calava todo lead que voltava pelo formulario: em
+      # 06/10/2026 a Tozi tinha leads novos parados em conversas de marco, 01/09 e 14/09.
+      # Fora da janela, e lead novo e recebe a abertura de novo.
+      #
+      # Janela e nao id do lead: o id do site e `site:<telefone>` (o mesmo a vida toda —
+      # casar por ele recriaria o bloqueio permanente) e a abertura nunca gravou o leadgen_id.
+      # A janela cobre redelivery da Meta, formulario enviado duas vezes seguidas e o
+      # retry do Sidekiq nas primeiras horas.
       #
       # ⚠️ `content_attributes` é jsonb NA TABELA mas `store ... coder: JSON` NO MODELO: o Rails
       # serializa o Hash e o banco guarda uma STRING JSON, não um objeto. Contra uma string,
@@ -541,9 +551,10 @@ module Meta
       # é o mesmo padrão do `EPISODE_ANCHOR_SQL` (enterprise/app/models/captain/conversation_episode.rb),
       # e funciona tanto pra linha duplo-serializada quanto pra objeto jsonb de verdade.
       INITIAL_MESSAGE_SQL = "(content_attributes #>> '{}')::jsonb ->> 'meta_lead_ads_initial' = 'true'".freeze
+      INITIAL_MESSAGE_DEDUP_WINDOW = 24.hours
 
       def initial_message_already_sent?(conversation)
-        conversation.messages.where(INITIAL_MESSAGE_SQL).exists?
+        conversation.messages.where(INITIAL_MESSAGE_SQL).exists?(created_at: INITIAL_MESSAGE_DEDUP_WINDOW.ago..)
       end
 
       # Cloud API (WhatsApp oficial) fora da janela 24h só aceita HSM aprovado — texto
