@@ -191,6 +191,59 @@
       "HINT_GROUP": "Enter sends · {'@'} mentions · #123 links a conversation · / canned replies",
       "SEND_EMPTY": "Type something to send"
     },
+    "REQUEST": {
+      "MENU": "Ask for approval or help",
+      "ASK_APPROVAL": "Ask for approval",
+      "ASK_APPROVAL_HINT": "The chosen person approves or declines with one click",
+      "ASK_HELP": "Ask for help",
+      "ASK_HELP_HINT": "Whoever can help clicks “I'll help”",
+      "FORM": {
+        "TITLE_APPROVAL": "Ask for approval",
+        "TITLE_HELP": "Ask for help",
+        "DESCRIPTION_APPROVAL": "Becomes a card in this conversation with Approve and Decline buttons. Only the chosen person can answer.",
+        "DESCRIPTION_HELP": "Becomes a card in this conversation. Whoever can help clicks “I'll help” and everyone sees who took it.",
+        "WHAT_APPROVAL": "What needs approval?",
+        "WHAT_HELP": "What do you need help with?",
+        "WHAT_PLACEHOLDER_APPROVAL": "E.g.: 5% discount on the 2-bedroom apartment",
+        "WHAT_PLACEHOLDER_HELP": "E.g.: Customer asked for a copy of the invoice",
+        "DETAIL": "Details (optional)",
+        "DETAIL_PLACEHOLDER": "Amount, deadline, reason…",
+        "APPROVER": "Who will approve?",
+        "APPROVER_EMPTY": "There is nobody else in this conversation to approve. Ask in a conversation with your manager.",
+        "CONVERSATION": "Customer conversation (optional)",
+        "CONVERSATION_PLACEHOLDER": "Conversation number, e.g.: 123",
+        "SEND_APPROVAL": "Send approval request",
+        "SEND_HELP": "Send help request",
+        "CANCEL": "Cancel",
+        "FAILED": "Could not send the request. Check the fields and try again."
+      },
+      "CARD": {
+        "LABEL_APPROVAL": "Approval request",
+        "LABEL_HELP": "Help request",
+        "FROM_TO": "{from} asked {to}",
+        "FROM": "Request from {from}",
+        "CONVERSATION": "Open conversation #{id}",
+        "APPROVE": "Approve",
+        "DENY": "Decline",
+        "HELP": "I'll help",
+        "WAITING": "Waiting for {name} to answer",
+        "WAITING_HELP": "Waiting for someone to help",
+        "APPROVED": "Approved by {name} {when}",
+        "DENIED": "Declined by {name} {when}",
+        "TAKEN": "{name} will help {when}",
+        "WHEN_TODAY": "at {time}",
+        "WHEN_DAY": "on {date} at {time}",
+        "REASON": "Reason: {reason}",
+        "DENY_REASON": "Reason for declining (optional)",
+        "DENY_REASON_PLACEHOLDER": "E.g.: above the discount limit",
+        "CONFIRM_DENY": "Confirm decline",
+        "BACK": "Back",
+        "DECIDING": "Saving…",
+        "DECIDE_FAILED": "Could not save your answer. Try again.",
+        "ALREADY_DECIDED": "This request had already been answered."
+      }
+    },
+    "SYSTEM_MESSAGE": "Automatic notice",
     "BUBBLE": {
       "REPLY": "Reply to message",
       "COPY": "Copy",
@@ -262,6 +315,21 @@
       "TIPS_TITLE": "What you can do here",
       "TIP_AUDIO": "Record audio with the microphone and listen before sending",
       "ALL_PEOPLE": "All people"
+    },
+    "PUSH_PROMPT": {
+      "TITLE": "Want to be notified of team messages even with ChatSPX closed?",
+      "DESCRIPTION": "Only direct messages and when someone mentions you. Muted conversations stay quiet.",
+      "ENABLE": "Yes, notify me",
+      "LATER": "Not now",
+      "ASKING": "Answer the browser prompt at the top of the screen…",
+      "DONE": "Done! You will be notified even with ChatSPX closed.",
+      "BLOCKED": "The browser blocked notifications. Click the lock next to the address to allow them.",
+      "CLOSE": "Close"
+    },
+    "SHARE_DRAFT": {
+      "LABEL": "Conversation #{id} goes with your message",
+      "REMOVE": "Remove the conversation from the message",
+      "GREETING": "Hi {name}, can we talk about conversation #{id}? "
     }
   }
 }

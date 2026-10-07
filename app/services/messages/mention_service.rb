@@ -10,6 +10,7 @@ class Messages::MentionService
     Conversations::UserMentionJob.perform_later(validated_mentioned_ids, message.conversation.id, message.account.id)
     generate_notifications_for_mentions(validated_mentioned_ids)
     add_mentioned_users_as_participants(validated_mentioned_ids)
+    InternalMessages::NoteMentionJob.perform_later(message.id, validated_mentioned_ids.map(&:to_i))
   end
 
   private

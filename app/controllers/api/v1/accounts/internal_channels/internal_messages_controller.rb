@@ -37,6 +37,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
       shared_conversation_display_id: params[:shared_conversation_id], echo_id: params[:echo_id],
       request: request_params
     ).perform
+    InternalMessages::PushJob.perform_later(@message.id)
     render :show, status: :created
   rescue ActiveRecord::RecordInvalid => e
     render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity

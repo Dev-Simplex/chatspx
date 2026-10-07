@@ -6,7 +6,9 @@
 // takeover). A conversa continua aparecendo na busca/lista; o bloqueio é só aqui.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useStore } from 'dashboard/composables/store';
+import { useRouter } from 'vue-router';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -18,7 +20,10 @@ const props = defineProps({
 
 const { t } = useI18n();
 const store = useStore();
-const { currentAccount } = useAccount();
+const router = useRouter();
+const { currentAccount, isCloudFeatureEnabled, accountScopedRoute } =
+  useAccount();
+const currentUserId = useMapGetter('getCurrentUserID');
 
 const gateEnabled = computed(() =>
   Boolean(currentAccount.value?.settings?.takeover_request_gate)
@@ -26,6 +31,46 @@ const gateEnabled = computed(() =>
 
 const ownerName = computed(() => props.meta?.current_assignee?.name || '');
 const teamName = computed(() => props.meta?.team?.name || '');
+
+// "Falar com <dono>": abre (ou cria) a DM no chat interno com esta conversa
+// já no selo do campo e um recado pronto para enviar.
+const ownerId = computed(() => props.meta?.current_assignee?.id);
+const canTalkToOwner = computed(
+  () =>
+    Boolean(ownerId.value) &&
+    ownerId.value !== currentUserId.value &&
+    isCloudFeatureEnabled(FEATURE_FLAGS.INTERNAL_CHAT)
+);
+const isOpeningChat = ref(false);
+const onTalkToOwner = async () => {
+  if (isOpeningChat.value) return;
+  isOpeningChat.value = true;
+  try {
+    const channel = await store.dispatch(
+      'internalChat/createDm',
+      ownerId.value
+    );
+    const firstName = ownerName.value.split(' ')[0];
+    router.push(
+      accountScopedRoute(
+        'internal_chat_index',
+        {},
+        {
+          channel: channel.id,
+          share: props.conversationId,
+          text: t('INTERNAL_CHAT.SHARE_DRAFT.GREETING', {
+            name: firstName,
+            id: props.conversationId,
+          }),
+        }
+      )
+    );
+  } catch (error) {
+    useAlert(t('CONVERSATION.ACCESS_BLOCKED.TALK_TO_ERROR'));
+  } finally {
+    isOpeningChat.value = false;
+  }
+};
 
 const requested = ref(Boolean(props.meta?.existing_request));
 const isRequesting = ref(false);
@@ -111,5 +156,17 @@ const onRequest = async () => {
         @click="onRequest"
       />
     </template>
+    <Button
+      v-if="canTalkToOwner"
+      faded
+      color="slate"
+      size="sm"
+      icon="i-lucide-message-circle"
+      class="mt-3"
+      :is-loading="isOpeningChat"
+      :disabled="isOpeningChat"
+      :label="$t('CONVERSATION.ACCESS_BLOCKED.TALK_TO', { name: ownerName })"
+      @click="onTalkToOwner"
+    />
   </div>
 </template>

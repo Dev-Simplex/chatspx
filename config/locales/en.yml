@@ -665,3 +665,8 @@ en:
       approved: '%{name} approved your request: %{title}'
       denied: '%{name} declined your request: %{title}'
       taken: '%{name} will help with: %{title}'
+  internal_chat_push:
+    mention_title: '%{name} mentioned you in %{channel}'
+    shared_conversation: 'Conversation #%{id}'
+    attachment: '📎 File'
+    note_mention: '%{name} mentioned you in conversation #%{id}: %{excerpt}'

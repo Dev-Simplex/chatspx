@@ -673,7 +673,9 @@
       "REQUEST_SENT": "Request sent",
       "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
       "REQUEST_EXISTS": "You already have a pending request for this conversation.",
-      "REQUEST_ERROR": "Could not send the request, please try again."
+      "REQUEST_ERROR": "Could not send the request, please try again.",
+      "TALK_TO": "Talk to {name}",
+      "TALK_TO_ERROR": "Could not open the chat, try again."
     },
     "AI_SCHEDULED_BANNER": {
       "TITLE": "Message scheduled by {name} for {when}",

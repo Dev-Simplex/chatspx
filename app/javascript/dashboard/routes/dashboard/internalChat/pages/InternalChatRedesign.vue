@@ -2,7 +2,8 @@
 // Chat interno — tela viva, ligada ao store internalChat (backend real).
 // Mostra DMs, grupos e "grupos de time" (auto-criados a partir dos Teams da
 // conta). Admin pode alternar "Ver todos" para auditar todos os canais.
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
@@ -16,6 +17,7 @@ import MessageThread from '../components/redesign/MessageThread.vue';
 import ChatComposer from '../components/redesign/ChatComposer.vue';
 import ChatInfoPanel from '../components/redesign/ChatInfoPanel.vue';
 import ManageChannelDialog from '../components/ManageChannelDialog.vue';
+import InternalChatPushPrompt from '../components/InternalChatPushPrompt.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 
 const store = useStore();
@@ -434,6 +436,16 @@ const onLoadOlder = async () => {
   }
 };
 
+// Abrir uma conversa pelo endereço: ?channel=ID (clique na notificação) e
+// ?share=905&text=… ("Falar com" na conversa bloqueada): a conversa do cliente
+// fica num selo acima do campo e vai junto com a próxima mensagem.
+const route = useRoute();
+const router = useRouter();
+const pendingShare = ref(null);
+const pendingShareHere = computed(() =>
+  pendingShare.value?.channelId === activeId.value ? pendingShare.value : null
+);
+
 // O composer emite { content, attachments, replyToId, mentionedUserIds }.
 // Falha vira balão "não enviada · tentar de novo" (o store marca).
 const onSend = ({
@@ -451,11 +463,29 @@ const onSend = ({
       attachments,
       mentionedUserIds,
       replyToId: replyToId || replyingTo.value?.id || null,
+      sharedConversationId: pendingShareHere.value?.displayId || null,
       echoId: getUuid(),
     })
     .catch(() => {});
   replyingTo.value = null;
+  if (pendingShareHere.value) pendingShare.value = null;
 };
+
+watch(
+  () => route.query.channel,
+  channel => {
+    const id = Number(channel);
+    if (!id) return;
+    const share = Number(route.query.share);
+    if (share) pendingShare.value = { channelId: id, displayId: share };
+    if (route.query.text && !drafts.value[id]) {
+      drafts.value = { ...drafts.value, [id]: String(route.query.text) };
+    }
+    onSelect(id);
+    router.replace({ query: {} });
+  },
+  { immediate: true }
+);
 
 const onReply = msg => {
   replyingTo.value = {
@@ -658,6 +688,7 @@ onBeforeUnmount(() => {
         @toggle-audit="toggleAudit"
         @retry="resyncList"
       />
+      <InternalChatPushPrompt v-if="activeId" />
     </div>
 
     <!-- Conversation -->
@@ -728,6 +759,28 @@ onBeforeUnmount(() => {
             @retry="onRetry"
           />
 
+          <div
+            v-if="pendingShareHere && !activeConversation.readOnly"
+            class="flex items-center flex-shrink-0 gap-2 px-3 py-2 mx-4 mt-2 text-xs md:mx-6 rounded-xl bg-n-teal-3 text-n-teal-11"
+          >
+            <span class="flex-shrink-0 i-lucide-message-square-text size-4" />
+            <span class="flex-1 min-w-0 truncate">
+              {{
+                t('INTERNAL_CHAT.SHARE_DRAFT.LABEL', {
+                  id: pendingShareHere.displayId,
+                })
+              }}
+            </span>
+            <button
+              v-tooltip="t('INTERNAL_CHAT.SHARE_DRAFT.REMOVE')"
+              type="button"
+              class="flex-shrink-0 p-1 rounded-full hover:bg-n-teal-4"
+              :aria-label="t('INTERNAL_CHAT.SHARE_DRAFT.REMOVE')"
+              @click="pendingShare = null"
+            >
+              <span class="block i-lucide-x size-3.5" />
+            </button>
+          </div>
           <ChatComposer
             v-if="!activeConversation.readOnly"
             :key="`composer-${activeId}`"

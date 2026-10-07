@@ -673,7 +673,9 @@
       "REQUEST_SENT": "Pedido enviado",
       "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
-      "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
+      "REQUEST_ERROR": "Não foi possível solicitar, tente novamente.",
+      "TALK_TO": "Falar com {name}",
+      "TALK_TO_ERROR": "Não foi possível abrir o chat, tente de novo."
     },
     "AI_SCHEDULED_BANNER": {
       "TITLE": "Mensagem agendada por {name} para {when}",

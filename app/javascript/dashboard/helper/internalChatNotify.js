@@ -21,25 +21,44 @@ const playSound = tone => {
   }
 };
 
-const showDesktop = (title, body) => {
+// Clicar no aviso abre a conversa do chat interno (?channel= na tela do chat).
+// Import tardio: o router importa o painel, que importa este helper.
+const openChannel = async channelId => {
+  window.focus();
+  const { default: router } = await import('dashboard/routes');
+  const { accountId } = router.currentRoute.value.params;
+  if (!accountId) return;
+  router.push({
+    name: 'internal_chat_index',
+    params: { accountId },
+    query: { channel: String(channelId) },
+  });
+};
+
+// A tag por canal é a mesma do push do servidor (InternalMessages::PushService):
+// com a aba em segundo plano chegam os dois e o navegador mostra um só.
+const showDesktop = (title, body, channelId) => {
   if (!('Notification' in window) || !title) return;
   const spawn = () => {
     try {
-      // eslint-disable-next-line no-new
-      new Notification(title, { body, silent: true });
+      const notification = new Notification(title, {
+        body,
+        silent: true,
+        tag: channelId ? `internal-chat-${channelId}` : undefined,
+      });
+      if (channelId) {
+        notification.onclick = () => {
+          notification.close();
+          openChannel(channelId);
+        };
+      }
     } catch (e) {
       // ignore
     }
   };
-  if (Notification.permission === 'granted') {
-    spawn();
-  } else if (Notification.permission === 'default') {
-    Notification.requestPermission()
-      .then(p => {
-        if (p === 'granted') spawn();
-      })
-      .catch(() => {});
-  }
+  // A permissão é pedida no convite da tela do chat (InternalChatPushPrompt),
+  // nunca no meio de um aviso: pedido sem clique o navegador esconde ou bloqueia.
+  if (Notification.permission === 'granted') spawn();
 };
 
 export const internalChatNotify = ({
@@ -47,9 +66,10 @@ export const internalChatNotify = ({
   body,
   sound = true,
   tone = DEFAULT_TONE,
+  channelId = null,
 } = {}) => {
   if (sound) playSound(tone);
-  showDesktop(title, body);
+  showDesktop(title, body, channelId);
 };
 
 export default internalChatNotify;

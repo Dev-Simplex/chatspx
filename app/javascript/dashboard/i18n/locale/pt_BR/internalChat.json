@@ -191,6 +191,59 @@
       "HINT_GROUP": "Enter envia · {'@'} chama alguém · #123 cita uma conversa · / respostas prontas",
       "SEND_EMPTY": "Escreva algo para enviar"
     },
+    "REQUEST": {
+      "MENU": "Pedir aprovação ou ajuda",
+      "ASK_APPROVAL": "Pedir aprovação",
+      "ASK_APPROVAL_HINT": "A pessoa escolhida aprova ou recusa com um clique",
+      "ASK_HELP": "Pedir ajuda",
+      "ASK_HELP_HINT": "Quem puder ajudar clica em “Eu ajudo”",
+      "FORM": {
+        "TITLE_APPROVAL": "Pedir aprovação",
+        "TITLE_HELP": "Pedir ajuda",
+        "DESCRIPTION_APPROVAL": "Vira um cartão nesta conversa com os botões Aprovar e Recusar. Só a pessoa escolhida pode responder.",
+        "DESCRIPTION_HELP": "Vira um cartão nesta conversa. Quem puder ajudar clica em “Eu ajudo” e todos veem quem assumiu.",
+        "WHAT_APPROVAL": "O que precisa ser aprovado?",
+        "WHAT_HELP": "Com o que você precisa de ajuda?",
+        "WHAT_PLACEHOLDER_APPROVAL": "Ex.: Desconto de 5% no apto de 2 dormitórios",
+        "WHAT_PLACEHOLDER_HELP": "Ex.: Cliente pediu a segunda via do boleto",
+        "DETAIL": "Detalhes (opcional)",
+        "DETAIL_PLACEHOLDER": "Valor, prazo, motivo…",
+        "APPROVER": "Quem vai aprovar?",
+        "APPROVER_EMPTY": "Não há mais ninguém nesta conversa para aprovar. Peça numa conversa com o seu gestor.",
+        "CONVERSATION": "Conversa do cliente (opcional)",
+        "CONVERSATION_PLACEHOLDER": "Número da conversa, ex.: 123",
+        "SEND_APPROVAL": "Enviar pedido de aprovação",
+        "SEND_HELP": "Enviar pedido de ajuda",
+        "CANCEL": "Cancelar",
+        "FAILED": "Não foi possível enviar o pedido. Confira os campos e tente de novo."
+      },
+      "CARD": {
+        "LABEL_APPROVAL": "Pedido de aprovação",
+        "LABEL_HELP": "Pedido de ajuda",
+        "FROM_TO": "{from} pediu a {to}",
+        "FROM": "Pedido de {from}",
+        "CONVERSATION": "Abrir conversa #{id}",
+        "APPROVE": "Aprovar",
+        "DENY": "Recusar",
+        "HELP": "Eu ajudo",
+        "WAITING": "Aguardando {name} responder",
+        "WAITING_HELP": "Aguardando alguém ajudar",
+        "APPROVED": "Aprovado por {name} {when}",
+        "DENIED": "Recusado por {name} {when}",
+        "TAKEN": "{name} vai ajudar {when}",
+        "WHEN_TODAY": "às {time}",
+        "WHEN_DAY": "em {date} às {time}",
+        "REASON": "Motivo: {reason}",
+        "DENY_REASON": "Motivo da recusa (opcional)",
+        "DENY_REASON_PLACEHOLDER": "Ex.: acima do limite de desconto",
+        "CONFIRM_DENY": "Confirmar recusa",
+        "BACK": "Voltar",
+        "DECIDING": "Registrando…",
+        "DECIDE_FAILED": "Não deu para registrar a sua resposta. Tente de novo.",
+        "ALREADY_DECIDED": "Este pedido já tinha sido respondido."
+      }
+    },
+    "SYSTEM_MESSAGE": "Aviso automático",
     "BUBBLE": {
       "REPLY": "Responder mensagem",
       "COPY": "Copiar",
@@ -262,6 +315,21 @@
       "TIPS_TITLE": "O que dá para fazer aqui",
       "TIP_AUDIO": "Grave áudio no microfone e ouça antes de enviar",
       "ALL_PEOPLE": "Todas as pessoas"
+    },
+    "PUSH_PROMPT": {
+      "TITLE": "Quer ser avisado de mensagens da equipe mesmo com o ChatSPX fechado?",
+      "DESCRIPTION": "Só mensagens diretas e quando alguém mencionar você. Conversas silenciadas não avisam.",
+      "ENABLE": "Sim, quero ser avisado",
+      "LATER": "Agora não",
+      "ASKING": "Responda a pergunta do navegador no alto da tela…",
+      "DONE": "Pronto! Você vai ser avisado mesmo com o ChatSPX fechado.",
+      "BLOCKED": "O navegador bloqueou os avisos. Clique no cadeado ao lado do endereço para liberar.",
+      "CLOSE": "Fechar"
+    },
+    "SHARE_DRAFT": {
+      "LABEL": "A conversa #{id} vai junto com a sua mensagem",
+      "REMOVE": "Tirar a conversa da mensagem",
+      "GREETING": "Oi {name}, podemos falar da conversa #{id}? "
     }
   }
 }

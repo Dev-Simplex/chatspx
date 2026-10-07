@@ -89,14 +89,29 @@ self.addEventListener('fetch', event => {
 
 self.addEventListener('push', event => {
   let notification = event.data && event.data.json();
-
-  event.waitUntil(
+  const show = () =>
     self.registration.showNotification(notification.title, {
       tag: notification.tag,
+      body: notification.body,
       data: {
         url: notification.url,
       },
-    })
+    });
+
+  // Chat interno com o ChatSPX na tela: a própria página já avisa (toast), o
+  // aviso do sistema seria repetido. Com a aba visível o Chrome não exige
+  // mostrar notificação para o push.
+  const isInternalChat = (notification.tag || '').startsWith('internal-chat-');
+  event.waitUntil(
+    isInternalChat
+      ? clients
+          .matchAll({ type: 'window', includeUncontrolled: true })
+          .then(windowClients =>
+            windowClients.some(client => client.visibilityState === 'visible')
+              ? null
+              : show()
+          )
+      : show()
   );
 });
 
@@ -112,13 +127,24 @@ self.addEventListener('notificationclick', event => {
       if (matchingWindowClients.length) {
         let firstWindow = matchingWindowClients[0];
         if (firstWindow && 'focus' in firstWindow) {
-          firstWindow.focus();
-          return;
+          return firstWindow.focus();
         }
       }
-      if (clients.openWindow) {
-        clients.openWindow(notification.data.url);
+      // Chat interno: aproveita a aba do ChatSPX que já está aberta (abre a
+      // conversa nela) em vez de carregar o painel inteiro numa aba nova.
+      const appWindow = windowClients.find(client =>
+        client.url.includes('/app/accounts/')
+      );
+      if (
+        notification.data.url.includes('/internal-chat') &&
+        appWindow &&
+        'navigate' in appWindow
+      ) {
+        return appWindow
+          .navigate(notification.data.url)
+          .then(client => (client || appWindow).focus());
       }
+      return clients.openWindow && clients.openWindow(notification.data.url);
     })
   );
 });

@@ -231,6 +231,7 @@ watch(pendingInternalMention, mention => {
     body: message,
     sound: internalChatSoundEnabled(),
     tone: internalChatTone(),
+    channelId: mention.channelId,
   });
 });
 
@@ -253,6 +254,7 @@ watch(pendingInternalNotification, notification => {
     body: notification.body,
     sound: internalChatSoundEnabled(),
     tone: internalChatTone(),
+    channelId: notification.channelId,
   });
 });
 
