@@ -658,6 +658,48 @@ const toggleAudit = async () => {
   if (auditMode.value) await store.dispatch('internalChat/fetchAuditChannels');
 };
 
+// ── Teclado ─────────────────────────────────────────────────────────────────
+// Esc fecha a camada de cima (confirmação › Detalhes › busca › resposta);
+// menus e janelas pequenas fecham antes, sozinhos (useEscClose).
+// Alt+N nova conversa · Alt+B buscar · Alt+J / Alt+K conversa anterior/próxima
+// (mesmas teclas da lista de conversas do sistema).
+const listOrder = computed(() => [
+  ...conversationList.value.filter(c => c.favorited),
+  ...conversationList.value.filter(c => !c.favorited),
+]);
+const stepConversation = step => {
+  const list = listOrder.value;
+  if (!list.length) return;
+  const i = list.findIndex(c => c.id === activeId.value);
+  const next = i === -1 ? 0 : Math.min(Math.max(i + step, 0), list.length - 1);
+  if (list[next].id !== activeId.value) onSelect(list[next].id);
+};
+const onEscape = () => {
+  if (showClearConfirm.value) showClearConfirm.value = false;
+  else if (showInfo.value) showInfo.value = false;
+  else if (searchOpen.value) toggleSearch();
+  else if (replyingTo.value) replyingTo.value = null;
+  else return false;
+  return true;
+};
+const SHORTCUTS = {
+  KeyN: () => openNewConversation(),
+  KeyB: () => chatSidebarRef.value?.focusSearch(),
+  KeyJ: () => stepConversation(-1),
+  KeyK: () => stepConversation(1),
+};
+const onKeydown = event => {
+  if (showManage.value) return; // a janela de gerenciar cuida do próprio Esc
+  if (event.key === 'Escape') {
+    if (onEscape()) event.preventDefault();
+    return;
+  }
+  const action = SHORTCUTS[event.code];
+  if (!action || !event.altKey || event.ctrlKey || event.metaKey) return;
+  event.preventDefault();
+  action();
+};
+
 // ── Ciclo de vida + tempo real ─────────────────────────────────────────────
 const resyncList = () => {
   store.dispatch('internalChat/fetchChannels');
@@ -684,10 +726,12 @@ onMounted(() => {
   store.dispatch('teams/get');
   emitter.on(BUS_EVENTS.WEBSOCKET_RECONNECT, onReconnect);
   document.addEventListener('visibilitychange', onVisibility);
+  document.addEventListener('keydown', onKeydown);
 });
 onBeforeUnmount(() => {
   emitter.off(BUS_EVENTS.WEBSOCKET_RECONNECT, onReconnect);
   document.removeEventListener('visibilitychange', onVisibility);
+  document.removeEventListener('keydown', onKeydown);
   store.dispatch('internalChat/clearActiveChannel');
 });
 </script>
@@ -1026,6 +1070,30 @@ onBeforeUnmount(() => {
                 <span class="pt-1.5">{{ t(tip[1]) }}</span>
               </li>
             </ul>
+            <p
+              class="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-3 mt-4 mb-0 text-xs border-t border-n-weak text-n-slate-11"
+            >
+              <span class="flex items-center gap-1.5 font-semibold">
+                <span class="i-lucide-keyboard size-4" />
+                {{ t('INTERNAL_CHAT.HOME.KEYS_TITLE') }}
+              </span>
+              <span
+                v-for="k in [
+                  ['Alt+N', 'INTERNAL_CHAT.HOME.KEY_NEW'],
+                  ['Alt+B', 'INTERNAL_CHAT.HOME.KEY_SEARCH'],
+                  ['Alt+J / Alt+K', 'INTERNAL_CHAT.HOME.KEY_STEP'],
+                  ['Esc', 'INTERNAL_CHAT.HOME.KEY_ESC'],
+                ]"
+                :key="k[0]"
+                class="inline-flex items-center gap-1"
+              >
+                <kbd
+                  class="px-1.5 py-px font-sans text-[11px] font-semibold border rounded-md border-n-strong bg-n-alpha-1 text-n-slate-12"
+                  >{{ k[0] }}</kbd
+                >
+                {{ t(k[1]) }}
+              </span>
+            </p>
           </section>
 
           <p

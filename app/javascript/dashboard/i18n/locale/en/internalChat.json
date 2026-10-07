@@ -150,7 +150,7 @@
       "PICK_MEMBERS": "Check who is in:",
       "CREATE_GROUP": "Create group",
       "TEAMS_HINT": "One group per team, with every team member. Click to open.",
-      "SEARCH_PLACEHOLDER": "Search name or message…",
+      "SEARCH_PLACEHOLDER": "Search person, group or message…",
       "EMPTY_TITLE": "No conversations yet",
       "EMPTY_HINT": "Talk to a teammate or your team without leaving the app.",
       "NO_UNREAD": "All caught up. No conversation with new messages.",
@@ -249,7 +249,8 @@
       "TIP_MENTION": "Use {'@'}name to alert someone in a group",
       "TIP_CONVERSATION": "Type #123 to link straight to a customer conversation",
       "TIP_SHARE": "In a customer conversation, ⋮ › Share to internal chat",
-      "PRIVATE": "Internal messages: only your team sees them"
+      "PRIVATE": "Internal messages: only your team sees them",
+      "NEW_SHORTCUT": "New conversation (Alt+N)"
     },
     "CLEAR": {
       "TITLE": "Clear conversation?",
@@ -272,7 +273,12 @@
       "TEAMS_HINT": "A ready group with the whole team.",
       "TIPS_TITLE": "What you can do here",
       "TIP_AUDIO": "Record audio with the microphone and listen before sending",
-      "ALL_PEOPLE": "All people"
+      "ALL_PEOPLE": "All people",
+      "KEYS_TITLE": "Keyboard",
+      "KEY_NEW": "new conversation",
+      "KEY_SEARCH": "search",
+      "KEY_STEP": "previous / next conversation",
+      "KEY_ESC": "closes whatever is open"
     },
     "PUSH_PROMPT": {
       "TITLE": "Want to be notified of team messages even with ChatSPX closed?",

@@ -16,6 +16,7 @@ import {
 } from 'shared/helpers/FileHelper';
 import AudioRecorder from './AudioRecorder.vue';
 import CannedResponse from 'dashboard/components/widgets/conversation/CannedResponse.vue';
+import { useEscClose } from './useEscClose';
 
 const props = defineProps({
   // Mensagem sendo respondida: { id, name, preview } (ou null).
@@ -39,6 +40,9 @@ const textareaRef = ref(null);
 const fileInputRef = ref(null);
 const attachedFiles = ref([]);
 const recording = ref(false);
+useEscClose(showEmoji, () => {
+  showEmoji.value = false;
+});
 
 const autoResize = () => {
   const el = textareaRef.value;
@@ -108,6 +112,13 @@ const mentionedIdsIn = text =>
   props.mentionCandidates
     .filter(m => m.name && text.includes(`@${m.name}`))
     .map(m => m.id);
+
+// Esc com a lista de menção aberta só fecha a lista (não cancela a resposta).
+const onEsc = event => {
+  if (mentionQuery.value === null || !mentionOptions.value.length) return;
+  event.stopPropagation();
+  mentionQuery.value = null;
+};
 
 const onInput = () => {
   autoResize();
@@ -359,7 +370,7 @@ const onEnter = () => {
           @keydown.tab="onMentionKey($event, onEnter)"
           @keydown.up="onMentionKey($event, () => moveMention(-1))"
           @keydown.down="onMentionKey($event, () => moveMention(1))"
-          @keydown.esc="mentionQuery = null"
+          @keydown.esc="onEsc"
         />
         <!-- Emoji: o picker abre ACIMA do ícone -->
         <div class="relative flex-shrink-0">

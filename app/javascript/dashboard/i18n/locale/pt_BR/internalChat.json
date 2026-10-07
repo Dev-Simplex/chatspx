@@ -150,7 +150,7 @@
       "PICK_MEMBERS": "Marque quem participa:",
       "CREATE_GROUP": "Criar grupo",
       "TEAMS_HINT": "Um grupo por time, com todos os membros do time. Clique para abrir.",
-      "SEARCH_PLACEHOLDER": "Buscar nome ou mensagem…",
+      "SEARCH_PLACEHOLDER": "Buscar pessoa, grupo ou mensagem…",
       "EMPTY_TITLE": "Nenhuma conversa ainda",
       "EMPTY_HINT": "Converse com um colega ou com seu time sem sair do sistema.",
       "NO_UNREAD": "Tudo lido. Nenhuma conversa com mensagem nova.",
@@ -249,7 +249,8 @@
       "TIP_MENTION": "Use {'@'}nome para avisar alguém no grupo",
       "TIP_CONVERSATION": "Escreva #123 para levar direto à conversa do cliente",
       "TIP_SHARE": "Na conversa do cliente, ⋮ › Compartilhar no chat interno",
-      "PRIVATE": "Mensagens internas: só a sua equipe vê"
+      "PRIVATE": "Mensagens internas: só a sua equipe vê",
+      "NEW_SHORTCUT": "Nova conversa (Alt+N)"
     },
     "CLEAR": {
       "TITLE": "Limpar conversa?",
@@ -272,7 +273,12 @@
       "TEAMS_HINT": "Um grupo pronto com todo o time.",
       "TIPS_TITLE": "O que dá para fazer aqui",
       "TIP_AUDIO": "Grave áudio no microfone e ouça antes de enviar",
-      "ALL_PEOPLE": "Todas as pessoas"
+      "ALL_PEOPLE": "Todas as pessoas",
+      "KEYS_TITLE": "Teclado",
+      "KEY_NEW": "nova conversa",
+      "KEY_SEARCH": "buscar",
+      "KEY_STEP": "conversa anterior / próxima",
+      "KEY_ESC": "fecha o que estiver aberto"
     },
     "PUSH_PROMPT": {
       "TITLE": "Quer ser avisado de mensagens da equipe mesmo com o ChatSPX fechado?",

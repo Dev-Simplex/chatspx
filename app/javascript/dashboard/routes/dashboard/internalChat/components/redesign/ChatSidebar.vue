@@ -5,6 +5,7 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import ConversationListItem from './ConversationListItem.vue';
 import NotificationSettings from './NotificationSettings.vue';
+import { useEscClose } from './useEscClose';
 
 const props = defineProps({
   conversations: { type: Array, default: () => [] },
@@ -237,6 +238,18 @@ const startTeam = team => {
   emit('createTeam', team);
 };
 
+useEscClose(showCompose, closeCompose);
+useEscClose(showSettings, () => {
+  showSettings.value = false;
+});
+// Esc na busca com texto: limpa (sem texto, deixa o Esc seguir para a tela).
+const onSearchEsc = event => {
+  if (!search.value) return;
+  event.stopPropagation();
+  search.value = '';
+  onSearchInput();
+};
+
 // Permite que a tela vazia (no painel principal) abra o compose desta sidebar.
 // Alt+B (atalho do pai) põe o cursor na busca.
 const searchInputRef = ref(null);
@@ -285,7 +298,7 @@ defineExpose({ openCompose, focusSearch });
         <!-- Nova conversa -->
         <div class="relative">
           <button
-            v-tooltip="t('INTERNAL_CHAT.EMPTY_STATE.NEW')"
+            v-tooltip="t('INTERNAL_CHAT.EMPTY_STATE.NEW_SHORTCUT')"
             type="button"
             class="inline-flex items-center justify-center text-white transition-colors rounded-full shadow-sm size-9 bg-n-teal-10 dark:bg-n-teal-5 hover:bg-n-teal-11 dark:hover:bg-n-teal-6"
             :aria-label="t('INTERNAL_CHAT.EMPTY_STATE.NEW')"
@@ -526,6 +539,7 @@ defineExpose({ openCompose, focusSearch });
           :aria-label="t('INTERNAL_CHAT.LIST.SEARCH_PLACEHOLDER')"
           class="reset-base w-full h-9 pl-9 pr-3 text-sm transition-colors border border-transparent outline-none rounded-full bg-n-alpha-2 focus:border-n-teal-9 focus:bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-10"
           @input="onSearchInput"
+          @keydown.esc="onSearchEsc"
         />
       </div>
     </div>

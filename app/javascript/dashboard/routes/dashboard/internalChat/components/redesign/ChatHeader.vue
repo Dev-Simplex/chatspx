@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import { useEscClose } from './useEscClose';
 
 const props = defineProps({
   conversation: { type: Object, required: true },
@@ -24,6 +25,9 @@ const emit = defineEmits([
 
 const { t } = useI18n();
 const showMenu = ref(false);
+useEscClose(showMenu, () => {
+  showMenu.value = false;
+});
 
 const online = computed(() => props.conversation.presence === 'online');
 // Diz com quem se fala: presença do colega (DM) ou tipo + participantes + online.

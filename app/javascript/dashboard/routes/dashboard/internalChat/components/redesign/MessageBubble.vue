@@ -11,6 +11,7 @@ import { copyTextToClipboard } from 'shared/helpers/clipboard';
 // Mesmas peças do menu de mensagem do chat normal — o menu do chat interno
 // passa a ser idêntico ao de lá (lista com rótulo, não uma pílula de ícones).
 import AudioPlayer from './AudioPlayer.vue';
+import { useEscClose } from './useEscClose';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import MenuItem from 'dashboard/components/widgets/conversation/contextMenu/menuItem.vue';
 
@@ -94,6 +95,11 @@ const closeAll = () => {
   showReactionPicker.value = false;
   confirmDelete.value = false;
 };
+
+useEscClose(
+  () => showMenu.value || showReactionPicker.value || confirmDelete.value,
+  closeAll
+);
 
 // O menu agora é o ContextMenu compartilhado: flutua em `position: fixed` num
 // teleport para o body, então a posição vem em coordenadas de viewport
@@ -323,7 +329,7 @@ const iReacted = emoji =>
           rows="2"
           class="reset-base w-full px-3.5 py-2 text-[15px] border outline-none !outline-0 resize-none rounded-2xl bg-n-solid-1 border-n-weak text-n-slate-12 focus:border-n-teal-9"
           @keydown.enter.exact.prevent="saveEdit"
-          @keydown.esc="cancelEdit"
+          @keydown.esc.stop="cancelEdit"
         />
         <div class="flex justify-end gap-3 px-1 text-xs">
           <button type="button" class="text-n-slate-11" @click="cancelEdit">
