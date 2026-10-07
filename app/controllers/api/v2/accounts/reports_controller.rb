@@ -20,6 +20,17 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: build_summary(:bot_summary)
   end
 
+  # As conversas por tras de um numero do relatorio (painel de detalhe e o CSV dele).
+  def drilldown
+    builder = V2::Reports::Conversations::DrilldownBuilder.new(Current.account, report_params)
+    return head :unprocessable_entity if params[:type].blank? || !builder.supported?
+
+    respond_to do |format|
+      format.json { render json: builder.page(params[:page]) }
+      format.csv { send_data builder.to_csv, filename: "#{params[:metric]}_#{Time.zone.today.iso8601}.csv", type: 'text/csv' }
+    end
+  end
+
   def agents
     @report_data = generate_agents_report
     generate_csv('agents_report', 'api/v2/accounts/reports/agents')
