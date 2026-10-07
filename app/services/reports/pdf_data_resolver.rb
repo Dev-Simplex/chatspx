@@ -932,18 +932,70 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     rows = SUMMARY_BUILDERS[metric_type].constantize.new(account: @account, params: summary_params(metric_type)).build
     kpis = summary_kpis(rows)
     signals = summary_verdict_signals(rows)
-    noun = SUMMARY_TITLES[metric_type].sub('Relatório de ', '').downcase
+    comparison = summary_comparison(metric_type, kpis)
+    noun = summary_noun(metric_type)
     {
       report_type: metric_type, title: SUMMARY_TITLES[metric_type], period: period_meta,
-      overline: 'Desempenho · Confidencial',
+      overline: 'Desempenho · Confidencial', noun: noun,
       subtitle: with_inbox_scope("#{kpis[:entities]} #{noun} com atividade · #{kpis[:conversations]} conversas no período."),
       base_label: "#{kpis[:conversations]} conversas",
-      kpis: kpis,
+      headline: conversations_headline({ conversations_count: kpis[:conversations] }, comparison),
+      kpis: kpis, comparison: comparison,
       highlight: signals.any? ? conversations_highlight(signals) : nil,
       attention: signals.any? ? conversations_attention(signals) : nil,
       trends: metric_type == 'label' ? {} : account_trends,
+      people: summary_people(rows, metric_type),
       table: summary_table(rows, metric_type)
     }
+  end
+
+  def summary_noun(metric_type)
+    SUMMARY_TITLES[metric_type].sub('Relatório de ', '').downcase
+  end
+
+  # Mesma comparacao do PDF de Conversas, com o periodo anterior das MESMAS entidades.
+  def summary_comparison(metric_type, kpis)
+    previous = previous_summary_kpis(metric_type)
+    return {} if previous.nil?
+
+    {
+      conversations: metric_delta(kpis[:conversations], previous[:conversations], lower_better: false),
+      first_response: metric_delta(kpis[:frt_seconds], previous[:frt_seconds], lower_better: true),
+      resolution: metric_delta(kpis[:resolution_seconds], previous[:resolution_seconds], lower_better: true),
+      resolutions: metric_delta(kpis[:resolved], previous[:resolved], lower_better: false)
+    }
+  end
+
+  def previous_summary_kpis(metric_type)
+    params = previous_builder_params
+    return nil if params.nil?
+
+    summary_kpis(SUMMARY_BUILDERS[metric_type].constantize.new(account: @account, params: params.merge(type: metric_type.to_sym)).build)
+  rescue StandardError => e
+    Rails.logger.warn("[report_pdf] período anterior indisponível (#{metric_type}): #{e.message}")
+    nil
+  end
+
+  # Uma linha por pessoa/caixa/time/etiqueta, com barra do volume e a 1a resposta colorida pela meta.
+  def summary_people(rows, metric_type)
+    names = summary_names(metric_type)
+    visible = rows.select { |row| row[:conversations_count].to_i.positive? }.sort_by { |row| -row[:conversations_count].to_i }
+    most = visible.first&.dig(:conversations_count).to_f
+    visible.map { |row| summary_person(row, metric_type, names, most) }
+  end
+
+  def summary_person(row, metric_type, names, most)
+    {
+      name: row[:name] || entity_name(row[:id], names), channel: (names.dig(:channels, row[:id]) if metric_type == 'inbox'),
+      conversations: row[:conversations_count].to_i, resolved: row[:resolved_conversations_count].to_i,
+      bar_pct: most.positive? ? ((row[:conversations_count].to_f / most) * 100).round : 0,
+      first: short_or_dash(row[:avg_first_response_time]), first_level: first_level(row[:avg_first_response_time]),
+      resolution: short_or_dash(row[:avg_resolution_time]), reply: short_or_dash(row[:avg_reply_time])
+    }
+  end
+
+  def short_or_dash(seconds)
+    seconds ? short_duration(seconds) : '—'
   end
 
   # Sinais do veredito da MÉDIA das entidades, reusando a lógica de Conversas
@@ -967,12 +1019,15 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def summary_kpis(rows)
     with_data = rows.select { |row| row[:conversations_count].to_i.positive? }
+    frt = avg_metric(with_data, :avg_first_response_time)
+    resolution = avg_metric(with_data, :avg_resolution_time)
     {
       entities: with_data.size,
       conversations: rows.sum { |row| row[:conversations_count].to_i },
       resolved: rows.sum { |row| row[:resolved_conversations_count].to_i },
-      avg_first_response: format_seconds(avg_metric(with_data, :avg_first_response_time)),
-      avg_resolution: format_seconds(avg_metric(with_data, :avg_resolution_time))
+      avg_first_response: format_seconds(frt), avg_resolution: format_seconds(resolution),
+      # crus, para o semaforo e a comparacao (como no PDF de Conversas)
+      frt_seconds: frt.to_f, resolution_seconds: resolution.to_f
     }
   end
 

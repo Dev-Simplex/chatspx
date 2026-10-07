@@ -1,91 +1,190 @@
+<%# Relatório por entidade (atendentes, caixas, times, etiquetas) no mesmo estilo do PDF de Conversas:
+    manchete, "O que aconteceu?", "Melhorou ou piorou?", meta, destaque/atenção, gráficos e uma linha por entidade. %>
 <%
   k = @data[:kpis]
+  cmp = @data[:comparison] || {}
   trends = @data[:trends] || {}
+  people = @data[:people] || []
   has_trends = trends.present? && trends[:conversations].present?
+  type = @data[:report_type]
 
-  entities = k[:entities].to_i
   conversations = k[:conversations].to_i
   resolved = k[:resolved].to_i
-  # Em sumarios por entidade, resolvidas pode contar conversas criadas fora da janela
-  # (resolvidas no periodo) e superar o total — so exibimos a taxa quando ela faz sentido.
+  # Em sumários por entidade, resolvidas pode contar conversas criadas fora da janela
+  # (resolvidas no período) e superar o total — só exibimos a taxa quando ela faz sentido.
   resolution_rate = conversations.positive? ? ((resolved.to_f / conversations) * 100).round : 0
   show_rate = conversations.positive? && resolved <= conversations
-  resolved_hint = show_rate ? "#{resolution_rate}% das conversas" : 'no período'
 
-  is_label = @data[:report_type] == 'label'
-  entities_label = is_label ? 'Etiquetas ativas' : 'Itens com dados'
+  frt_status = pdf_status(k[:frt_seconds], metric: :first_response)
+  res_status = pdf_status(k[:resolution_seconds], metric: :resolution)
+  rate_status = pdf_status(resolution_rate, metric: :resolution_rate)
+  frt_goal = Reports::PdfBenchmarks.goal(:first_response)
+  res_goal = Reports::PdfBenchmarks.goal(:resolution)
+  frt_goal_h = Reports::TimeFormatPresenter.new(frt_goal).format
+  res_goal_h = Reports::TimeFormatPresenter.new(res_goal).format
 
-  highlight_body =
-    "#{number_with_delimiter(entities)} itens com atividade · " \
-    "#{number_with_delimiter(conversations)} conversas · " \
-    "#{number_with_delimiter(resolved)} resolvidas#{" (#{resolution_rate}%)" if show_rate}."
+  who = { 'agent' => 'Quem atendeu?', 'inbox' => 'Como foi cada caixa?', 'team' => 'Como foi cada time?',
+          'label' => 'Como foi cada etiqueta?' }[type] || 'Como foi cada um?'
+  entity_col = { 'agent' => 'Atendente', 'inbox' => 'Caixa', 'team' => 'Time', 'label' => 'Etiqueta' }[type] || 'Item'
+
+  palette = %w[#1ea65b #2dc46f #5fd68f #95de64 #b7eb8f]
+  top = people.first(5)
+  others = conversations - top.sum { |person| person[:conversations] }
+  segments = top.each_with_index.map { |person, i| { label: person[:name], value: person[:conversations], color: palette[i] } }
+  segments << { label: 'Outros', value: others, color: '#d9dee2' } if others.positive?
 %>
 
-<%# ---------- Highlight (data-driven) ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/callout', variant: 'info',
-        title: 'Resumo de desempenho do período',
-        body: highlight_body %>
+<%# Legenda do semáforo %>
+<div class="clarity-legend">
+  <span><span class="status-dot status-dot--good"></span> bom</span>
+  <span><span class="status-dot status-dot--warn"></span> atenção</span>
+  <span><span class="status-dot status-dot--bad"></span> precisa melhorar</span>
 </div>
 
-<%# ---------- Veredito da média (destaque + atenção) ---------- %>
+<%= render 'reports/pdf/headline', headline: @data[:headline] if @data[:headline] %>
+
+<%# ============ 1. O QUE ACONTECEU? ============ %>
+<div class="section">
+  <div class="narrative-title"><span class="q">1.</span> O que aconteceu?</div>
+  <div class="hero-row">
+    <%= render 'reports/pdf/hero_stat',
+          value: number_with_delimiter(conversations), value_class: 'is-neutral',
+          label: 'Conversas no período',
+          caption: "#{number_with_delimiter(people.size)} #{@data[:noun]} com atividade · #{number_with_delimiter(resolved)} resolvidas" %>
+    <% if segments.size > 1 %>
+      <%= render 'reports/pdf/composition_bar', title: "Quem recebeu mais conversas", segments: segments %>
+    <% end %>
+  </div>
+</div>
+
+<%# ============ 2. MELHOROU OU PIOROU? ============ %>
+<div class="section">
+  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?</div>
+  <%
+    cards = [
+      { label: 'Conversas', value: number_with_delimiter(conversations), hero: true,
+        meaning: 'quantas pessoas falaram com a equipe', delta: pdf_delta(cmp[:conversations]) },
+      { label: '1ª resposta', value: k[:avg_first_response], small: true, status: frt_status[:level],
+        meaning: 'quanto o cliente espera pela primeira resposta (média)', delta: pdf_delta(cmp[:first_response]) },
+      { label: 'Resolução', value: k[:avg_resolution], small: true, status: res_status[:level],
+        meaning: 'quanto tempo até o problema ser resolvido (média)', delta: pdf_delta(cmp[:resolution]) },
+    ]
+    cards << if show_rate
+               { label: 'Taxa de resolução', value: "#{resolution_rate}%", status: rate_status[:level],
+                 meaning: 'quantas conversas terminam resolvidas' }
+             else
+               { label: 'Resolvidas', value: number_with_delimiter(resolved), meaning: 'conversas resolvidas no período',
+                 delta: pdf_delta(cmp[:resolutions]) }
+             end
+  %>
+  <%= render 'reports/pdf/kpi_band', cards: cards %>
+</div>
+
+<%# Meta x resultado %>
+<% if conversations.positive? %>
+  <div class="section">
+    <%= render 'reports/pdf/callout',
+          variant: frt_status[:level] == :good ? 'success' : (frt_status[:level] == :warn ? 'warning' : 'error'),
+          title: "A meta é responder em até #{frt_goal_h}",
+          body: "Em média, a 1ª resposta veio em #{k[:avg_first_response]} #{frt_status[:emoji]} (#{frt_status[:word]}) e a resolução levou #{k[:avg_resolution]} (meta #{res_goal_h})." %>
+  </div>
+<% end %>
+
+<%# Destaque e atenção %>
 <% if @data[:highlight] %>
   <div class="section">
     <div class="verdict-grid">
       <%= render 'reports/pdf/verdict', v: @data[:highlight] %>
-      <% if @data[:attention] %>
-        <%= render 'reports/pdf/verdict', v: @data[:attention] %>
-      <% end %>
+      <%= render 'reports/pdf/verdict', v: @data[:attention] if @data[:attention] %>
     </div>
   </div>
 <% end %>
 
-<%# ---------- KPIs ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/kpi_band', cards: [
-    { label: 'Conversas', value: number_with_delimiter(conversations), hero: true },
-    { label: entities_label, value: number_with_delimiter(entities) },
-    { label: 'Resolvidas', value: number_with_delimiter(resolved), hint: resolved_hint },
-    { label: 'FRT médio', value: k[:avg_first_response], small: true },
-    { label: 'Resolução média', value: k[:avg_resolution], small: true },
-  ] %>
-</div>
-
-<%# ---------- Tendências (agent/inbox/team com range) ---------- %>
+<%# Gráficos com meta e legenda %>
 <% if has_trends %>
   <div class="section">
-    <div class="section-title"><span class="dot">1</span> Conversas por dia</div>
+    <div class="section-title"><span class="dot">›</span> Conversas por dia</div>
     <div class="card">
-      <%= pdf_bar_chart(trends[:conversations]) %>
+      <%= pdf_bar_chart(trends[:conversations], color: '#2dc46f') %>
       <%= render 'reports/pdf/chart_legend', items: [{ color: '#2dc46f', label: 'conversas iniciadas no dia' }] %>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title"><span class="dot">2</span> Tempo de 1ª resposta</div>
-    <div class="card">
-      <%= pdf_line_chart(trends[:first_response], value_format: :seconds) %>
-      <%= render 'reports/pdf/chart_legend', items: [{ color: '#2dc46f', label: 'tempo médio de 1ª resposta — quanto mais baixo, melhor' }] %>
+  <% if trends[:first_response].present? %>
+    <div class="section">
+      <div class="section-title"><span class="dot">›</span> Tempo de 1ª resposta — você x sua meta</div>
+      <div class="card">
+        <%= pdf_line_chart(trends[:first_response], color: '#1ea65b', value_format: :seconds,
+              goal: frt_goal, goal_label: "meta #{frt_goal_h}") %>
+        <%= render 'reports/pdf/chart_legend', items: [
+          { color: '#1ea65b', label: 'tempo médio de 1ª resposta' },
+          { color: '#8696a0', label: "linha tracejada = meta (#{frt_goal_h})" },
+        ] %>
+        <%= render 'reports/pdf/chart_caption', emoji: '🎯',
+              text: "Quando a linha verde está abaixo da tracejada, os clientes foram atendidos dentro da meta de #{frt_goal_h}. Quanto mais baixo, melhor." %>
+      </div>
     </div>
-  </div>
+  <% end %>
 
-  <div class="section">
-    <div class="section-title"><span class="dot">3</span> Tempo de resolução</div>
-    <div class="card">
-      <%= pdf_line_chart(trends[:resolution], value_format: :seconds) %>
-      <%= render 'reports/pdf/chart_legend', items: [{ color: '#2dc46f', label: 'tempo médio de resolução — quanto mais baixo, melhor' }] %>
+  <% if trends[:resolution].present? %>
+    <div class="section">
+      <div class="section-title"><span class="dot">›</span> Tempo de resolução</div>
+      <div class="card">
+        <%= pdf_line_chart(trends[:resolution], color: '#1ea65b', value_format: :seconds,
+              goal: res_goal, goal_label: "meta #{res_goal_h}") %>
+        <%= render 'reports/pdf/chart_legend', items: [
+          { color: '#1ea65b', label: 'tempo médio de resolução — quanto mais baixo, melhor' },
+          { color: '#8696a0', label: "linha tracejada = meta (#{res_goal_h})" },
+        ] %>
+      </div>
     </div>
-  </div>
+  <% end %>
 <% end %>
 
-<%# ---------- Detalhamento ---------- %>
-<% if @data[:table].present? && @data[:table][:rows].present? %>
-  <div class="section">
-    <div class="section-title"><span class="dot"><%= has_trends ? '4' : '1' %></span> Detalhamento</div>
-    <div class="card" style="padding:0;">
-      <%= render 'reports/pdf/data_table',
-            table: { columns: @data[:table][:columns],
-                     rows: @data[:table][:rows].first(18) } %>
+<%# ============ 3. QUEM ATENDEU? ============ %>
+<% if people.any? %>
+  <%# Até ~15 linhas a seção vai inteira (título não fica sozinho no pé da página); lista longa pode quebrar. %>
+  <div class="section" style="<%= 'break-inside: auto;' if people.size > 15 %>">
+    <div class="narrative-title"><span class="q">3.</span> <%= who %></div>
+    <div class="cl-legend">
+      <span><i class="cl-dot good"></i> 1ª resposta dentro da meta (até <%= frt_goal_h %>)</span>
+      <span><i class="cl-dot warn"></i> perto da meta</span>
+      <span><i class="cl-dot bad"></i> longe da meta</span>
+    </div>
+    <div class="card" style="padding: 2mm 4mm;<%= ' break-inside: auto;' if people.size > 15 %>">
+      <table class="cl-table">
+        <colgroup>
+          <col style="width: <%= type == 'inbox' ? 20 : 26 %>%;">
+          <% if type == 'inbox' %><col style="width: 12%;"><% end %>
+          <col style="width: <%= type == 'inbox' ? 24 : 28 %>%;"><col style="width: 10%;">
+          <col style="width: 12%;"><col style="width: 12%;"><col style="width: 10%;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th><%= entity_col %></th>
+            <% if type == 'inbox' %><th>Canal</th><% end %>
+            <th>Conversas</th><th>Resolvidas</th><th>1ª resposta</th><th>Resolução</th><th>Espera do cliente</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% people.each do |person| %>
+            <tr>
+              <td class="cl-wrap"><strong><%= person[:name] %></strong></td>
+              <% if type == 'inbox' %><td class="cl-wrap muted"><%= person[:channel] || '—' %></td><% end %>
+              <td>
+                <div class="cl-track">
+                  <div class="cl-fill" style="width: <%= [person[:bar_pct], 3].max %>%;"></div>
+                  <span class="cl-value"><%= number_with_delimiter(person[:conversations]) %></span>
+                </div>
+              </td>
+              <td><%= number_with_delimiter(person[:resolved]) %></td>
+              <td><i class="cl-dot <%= person[:first_level] %>"></i> <%= person[:first] %></td>
+              <td><%= person[:resolution] %></td>
+              <td><%= person[:reply] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
 <% end %>
