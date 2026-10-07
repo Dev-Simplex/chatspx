@@ -57,6 +57,55 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  // As conversas por tras de um numero do relatorio (painel de detalhe).
+  getDrilldown({
+    metric,
+    from,
+    to,
+    type = 'account',
+    id,
+    businessHours,
+    inboxId,
+    page = 1,
+  }) {
+    return axios.get(`${this.url}/drilldown`, {
+      params: {
+        metric,
+        since: from,
+        until: to,
+        type,
+        id,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+        timezone_offset: getTimeOffset(),
+        page,
+      },
+    });
+  }
+
+  getDrilldownCsv({
+    metric,
+    from,
+    to,
+    type = 'account',
+    id,
+    businessHours,
+    inboxId,
+  }) {
+    return axios.get(`${this.url}/drilldown.csv`, {
+      params: {
+        metric,
+        since: from,
+        until: to,
+        type,
+        id,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+        timezone_offset: getTimeOffset(),
+      },
+    });
+  }
+
   getConversationMetric(type = 'account', page = 1) {
     return axios.get(`${this.url}/conversations`, {
       params: {

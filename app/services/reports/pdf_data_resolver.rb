@@ -339,10 +339,55 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       highlight: conversations_highlight(signals),
       attention: conversations_attention(signals),
       trends: account_trends,
-      heatmap: heatmap,
-      heatmap_insight: heatmap_peak_insight(heatmap),
-      table: conversations_table(summary)
+      heatmap: heatmap, heatmap_insight: heatmap_peak_insight(heatmap),
+      table: conversations_table(summary),
+      appendix: conversations_appendix(summary)
     }
+  end
+
+  # ---- Anexo: as conversas por tras dos numeros (o mesmo recorte do painel de detalhe da tela) ----
+  APPENDIX_LIMIT = 100
+  APPENDIX_SLOWEST = 10
+  STATUS_PT = { 'open' => 'Aberta', 'resolved' => 'Resolvida', 'pending' => 'Pendente', 'snoozed' => 'Adiada' }.freeze
+
+  def conversations_appendix(summary)
+    rows = drilldown('conversations_count').top(APPENDIX_LIMIT)
+    slowest = drilldown('avg_first_response_time').top(APPENDIX_SLOWEST)
+    {
+      total: summary[:conversations_count].to_i, shown: rows.size,
+      slowest: appendix_table(slowest, appendix_times(slowest.pluck(:id))),
+      conversations: appendix_table(rows, appendix_times(rows.pluck(:id)))
+    }
+  end
+
+  def drilldown(metric)
+    V2::Reports::Conversations::DrilldownBuilder.new(@account, builder_params(type: :account, metric: metric))
+  end
+
+  # 1a resposta e resolucao de cada conversa, na mesma coluna (com ou sem horario comercial) dos numeros.
+  def appendix_times(conversation_ids)
+    column = business_hours? ? :value_in_business_hours : :value
+    ReportingEvent.where(conversation_id: conversation_ids, name: %w[first_response conversation_resolved])
+                  .order(:created_at).pluck(:conversation_id, :name, column)
+                  .each_with_object({ first_response: {}, resolution: {} }) do |(conversation_id, name, value), times|
+      times[name == 'first_response' ? :first_response : :resolution][conversation_id] = value
+    end
+  end
+
+  def appendix_table(rows, times)
+    {
+      columns: [{ label: 'Conversa' }, { label: 'Contato' }, { label: 'Caixa' }, { label: 'Agente' }, { label: 'Status' },
+                { label: 'Criada em' }, { label: '1ª resposta', align: 'right' }, { label: 'Resolução', align: 'right' }],
+      rows: rows.map do |row|
+        ["##{row[:display_id]}", row[:contact_name].presence || 'Sem nome', row[:inbox_name], row[:agent_name].presence || 'Sem agente',
+         STATUS_PT.fetch(row[:status], row[:status]), Time.zone.at(row[:created_at]).in_time_zone(TZ).strftime('%d/%m %H:%M'),
+         appendix_duration(times[:first_response]&.dig(row[:id])), appendix_duration(times[:resolution]&.dig(row[:id]))]
+      end
+    }
+  end
+
+  def appendix_duration(seconds)
+    seconds.nil? ? '—' : format_seconds(seconds)
   end
 
   def conversations_subtitle(summary)

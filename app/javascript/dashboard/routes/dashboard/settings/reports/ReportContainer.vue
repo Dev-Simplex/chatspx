@@ -8,9 +8,10 @@ import format from 'date-fns/format';
 import { formatTime } from '@chatwoot/utils';
 import ChartStats from './components/ChartElements/ChartStats.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
+import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 
 export default {
-  components: { ChartStats, BarChart },
+  components: { ChartStats, BarChart, ReportDrilldownPanel },
   props: {
     groupBy: {
       type: Object,
@@ -23,6 +24,12 @@ export default {
     summaryFetchingKey: {
       type: String,
       default: 'getAccountSummaryFetchingStatus',
+    },
+    // Filtros da tela ({ from, to, type, id, businessHours, inboxId }): com eles, cada numero abre
+    // a lista de conversas por tras dele.
+    drilldownFilters: {
+      type: Object,
+      default: null,
     },
     reportKeys: {
       type: Object,
@@ -50,6 +57,9 @@ export default {
       signalForReportKey,
       phraseFor,
     };
+  },
+  data() {
+    return { drilldownMetric: null };
   },
   computed: {
     ...mapGetters({
@@ -84,6 +94,9 @@ export default {
     },
   },
   methods: {
+    openDrilldown(metric) {
+      this.drilldownMetric = { key: metric.KEY, name: metric.NAME };
+    },
     getMetricMax(metric) {
       const data = this.accountReport.data[metric.KEY] || [];
       const values = data.map(element => element.value || 0);
@@ -208,10 +221,21 @@ export default {
             :signal="metric.signal"
             :account-summary-key="accountSummaryKey"
             :summary-fetching-key="summaryFetchingKey"
+            :clickable="!!drilldownFilters"
+            @select="openDrilldown(metric)"
           />
           <span v-if="metric.DESC" class="text-sm text-n-slate-10">
             {{ metric.DESC }}
           </span>
+          <button
+            v-if="drilldownFilters"
+            type="button"
+            class="flex items-center gap-1 text-sm font-medium text-n-brand hover:underline w-fit"
+            @click="openDrilldown(metric)"
+          >
+            <span class="i-lucide-list size-4" />
+            {{ $t('REPORT.DRILLDOWN.OPEN') }}
+          </button>
         </div>
       </div>
       <div class="h-72 rounded-xl p-2">
@@ -235,5 +259,11 @@ export default {
         {{ phraseFor(metric.signal) }}
       </p>
     </div>
+    <ReportDrilldownPanel
+      v-if="drilldownMetric && drilldownFilters"
+      :metric="drilldownMetric"
+      :filters="drilldownFilters"
+      @close="drilldownMetric = null"
+    />
   </div>
 </template>

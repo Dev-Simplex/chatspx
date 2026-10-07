@@ -23,7 +23,14 @@ const props = defineProps({
     type: String,
     default: 'getAccountSummaryFetchingStatus',
   },
+  // O numero abre a lista de conversas por tras dele (ReportDrilldownPanel).
+  clickable: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const emit = defineEmits(['select']);
 
 const { t } = useI18n();
 
@@ -60,6 +67,15 @@ const trendColor = (value, key) => {
       >
         {{ t('REPORT.SUMMARY_FETCHING_FAILED') }}
       </div>
+      <button
+        v-else-if="fetchingStatus === STATUS.FINISHED && clickable"
+        type="button"
+        class="text-2xl font-semibold text-n-slate-12 tabular-nums underline decoration-dotted decoration-n-slate-8 underline-offset-4 hover:text-n-brand hover:decoration-n-brand"
+        :title="t('REPORT.DRILLDOWN.OPEN')"
+        @click="emit('select')"
+      >
+        {{ displayMetric(metric.KEY) }}
+      </button>
       <div
         v-else-if="fetchingStatus === STATUS.FINISHED"
         class="text-2xl font-semibold text-n-slate-12 tabular-nums"

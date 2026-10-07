@@ -227,6 +227,30 @@ en:
   reports:
     period: Reporting period %{since} to %{until}
     utc_warning: The report generated is in UTC timezone
+    drilldown_csv:
+      headers:
+        display_id: Conversation
+        contact: Contact
+        inbox: Inbox
+        agent: Agent
+        team: Team
+        status: Status
+        created_at: Created at
+        value_at: Counted at
+      value:
+        conversations_count: Conversations
+        incoming_messages_count: Incoming messages
+        outgoing_messages_count: Outgoing messages
+        avg_first_response_time: First response time (seconds)
+        avg_first_response_time_after_assignment: First response after assignment (seconds)
+        avg_resolution_time: Resolution time (seconds)
+        resolutions_count: Resolution time (seconds)
+        reply_time: Customer waiting time (seconds)
+      status:
+        open: Open
+        resolved: Resolved
+        pending: Pending
+        snoozed: Snoozed
     agent_csv:
       agent_name: Agent name
       conversations_count: Assigned conversations

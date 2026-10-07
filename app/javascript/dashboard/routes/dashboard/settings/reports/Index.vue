@@ -156,6 +156,15 @@ export default {
     />
     <ReportNarrativeSummary :signals="accountSummary.signals || []" />
     <SpeedInsightsPanel />
-    <ReportContainer :group-by="groupBy" />
+    <ReportContainer
+      :group-by="groupBy"
+      :drilldown-filters="{
+        from,
+        to,
+        type: 'account',
+        businessHours,
+        inboxId,
+      }"
+    />
   </div>
 </template>

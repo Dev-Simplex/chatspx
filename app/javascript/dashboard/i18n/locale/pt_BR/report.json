@@ -9,6 +9,32 @@
     "DOWNLOAD_PDF_FAILED": "Erro ao gerar o PDF do relatório, tente novamente mais tarde.",
     "DATA_FETCHING_FAILED": "Falha ao buscar dados, tente novamente mais tarde.",
     "SUMMARY_FETCHING_FAILED": "Não foi possível obter o resumo. Tente novamente mais tarde.",
+    "DRILLDOWN": {
+      "OPEN": "Ver conversas",
+      "CLOSE": "Fechar",
+      "DOWNLOAD_CSV": "CSV",
+      "LOAD_MORE": "Carregar mais",
+      "EMPTY": "Nenhuma conversa por trás deste número no período escolhido.",
+      "FETCH_FAILED": "Não foi possível carregar as conversas. Tente novamente.",
+      "CSV_FAILED": "Não foi possível baixar o CSV. Tente novamente.",
+      "TOTAL_CONVERSATIONS": "{count} conversas",
+      "TOTAL_MESSAGES": "{total} mensagens em {conversations} conversas",
+      "TOTAL_EVENTS": "{total} registros em {conversations} conversas",
+      "MESSAGES_COUNT": "{count} mensagens",
+      "NO_NAME": "Sem nome",
+      "NO_AGENT": "Sem agente",
+      "ORDER": {
+        "RECENT": "Mais recentes primeiro",
+        "SLOWEST": "Mais demoradas primeiro",
+        "MOST_MESSAGES": "Com mais mensagens primeiro"
+      },
+      "STATUS": {
+        "open": "Aberta",
+        "resolved": "Resolvida",
+        "pending": "Pendente",
+        "snoozed": "Adiada"
+      }
+    },
     "METRICS": {
       "CONVERSATIONS": {
         "NAME": "Conversas",

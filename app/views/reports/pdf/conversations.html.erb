@@ -131,3 +131,29 @@
     </div>
   </div>
 <% end %>
+
+<%# ============ ANEXO: as conversas por trás dos números ============ %>
+<%# As tabelas do anexo podem quebrar entre páginas (o padrão do PDF segura seção e cartão inteiros). %>
+<% appendix = @data[:appendix] || {} %>
+<% if appendix[:shown].to_i.positive? %>
+  <div class="section" style="break-before: page;">
+    <div class="narrative-title"><span class="q">Anexo.</span> Quais são essas conversas?</div>
+    <% if appendix.dig(:slowest, :rows).present? %>
+      <div class="section-title"><span class="dot">›</span> As <%= appendix[:slowest][:rows].size %> que mais esperaram pela 1ª resposta</div>
+      <div class="card" style="padding:0;">
+        <%= render 'reports/pdf/data_table', table: appendix[:slowest] %>
+      </div>
+    <% end %>
+  </div>
+  <div class="section" style="break-inside: auto;">
+    <div class="section-title"><span class="dot">›</span> Conversas do período</div>
+    <% if appendix[:total] > appendix[:shown] %>
+      <p style="margin: -2mm 0 3mm; font-size: 11px; color: #667781;">
+        Mostrando as <%= appendix[:shown] %> mais recentes de <%= appendix[:total] %>. A lista completa está no sistema (clique no número) e no CSV.
+      </p>
+    <% end %>
+    <div class="card" style="padding:0; break-inside: auto;">
+      <%= render 'reports/pdf/data_table', table: appendix[:conversations] %>
+    </div>
+  </div>
+<% end %>
