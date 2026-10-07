@@ -141,7 +141,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
 <template>
   <Teleport to="body">
     <div class="fixed inset-0 z-50 flex justify-end">
-      <div class="absolute inset-0 bg-n-alpha-black1" @click="emit('close')" />
+      <div class="absolute inset-0 bg-n-black/40" @click="emit('close')" />
       <aside
         class="relative flex flex-col w-full max-w-lg h-full bg-n-solid-2 border-l border-n-weak shadow-xl"
         role="dialog"
