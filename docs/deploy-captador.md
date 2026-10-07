@@ -147,3 +147,23 @@ A ordem vale para a conta de produção da Simplex. A homologação faz o mesmo 
    - envio para um número interno;
    - resposta pelo celular, que move o card;
    - painel na conversa com "Mover para…".
+
+## 7. Token da frota (`CAPTADOR_FROTA_TOKEN`)
+
+As rotas `/spx/captador/v1/frota/*` (contrato, seção "Frota") ficam em 404 até a instalação ter a variável. Cada instalação tem o seu token, que não se repete entre VMs.
+
+1. **Gerar e gravar**, como `chatwoot`, no `.env` do checkout. Na `.229`: `ssh chatwoot-producao`. Nas VMs AWS, a partir da `.229`: `ssh -i ~/.ssh/simplex.linux.pem ubuntu@<IP>` e depois `sudo -i -u chatwoot`.
+   ```bash
+   cd /home/chatwoot/chatwoot
+   grep -q '^CAPTADOR_FROTA_TOKEN=' .env || printf '\nCAPTADOR_FROTA_TOKEN=%s\n' "$(openssl rand -hex 32)" >> .env
+   grep '^CAPTADOR_FROTA_TOKEN=' .env   # copiar para o Captador e para o cofre; não colar em chat nem em PR
+   ```
+   A linha não regrava um token que já existe. Para trocar, edite a linha e reinicie.
+2. **Carregar:** o `.env` só é lido quando o Puma sobe. Grave o token no mesmo dia do deploy do código, antes das 19:50: o restart das 20:00 leva os dois juntos. Sem código novo, o timer não reinicia, e aí é preciso um restart do `chatwoot-web.1`, com o OK do usuário.
+3. **Conferir**, depois do restart:
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/spx/captador/v1/frota/contas   # 401: no ar e com token; 404: sem token ou código velho
+   T=$(sed -n 's/^CAPTADOR_FROTA_TOKEN=//p' /home/chatwoot/chatwoot/.env)
+   curl -s -H "Authorization: Bearer $T" http://127.0.0.1:3000/spx/captador/v1/frota/contas | head -c 300; echo
+   ```
+4. **Desligar** sem deploy: apague a linha do `.env` e reinicie o web. As rotas voltam a 404.
