@@ -352,7 +352,7 @@ const onEnter = () => {
               : t('INTERNAL_CHAT.PLACEHOLDER')
           "
           :aria-label="t('INTERNAL_CHAT.PLACEHOLDER')"
-          class="reset-base flex-1 h-auto min-h-0 px-0 py-[7px] mb-0 text-[15px] bg-transparent dark:!bg-transparent outline-none resize-none text-n-slate-12 placeholder:text-n-slate-10 max-h-28 leading-snug"
+          class="reset-base flex-1 h-auto min-h-0 px-0 py-[7px] mb-0 text-[15px] bg-transparent dark:!bg-transparent outline-none !outline-0 resize-none text-n-slate-12 placeholder:text-n-slate-10 max-h-28 leading-snug"
           @input="onInput"
           @click="updateMentionQuery"
           @keydown.enter.exact.prevent="onEnter"
