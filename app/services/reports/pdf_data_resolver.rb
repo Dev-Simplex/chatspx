@@ -346,17 +346,21 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   # ---- Anexo: as conversas por tras dos numeros (o mesmo recorte do painel de detalhe da tela) ----
+  # Visual, para ler sem esforco: as mais demoradas em barras, e o periodo agrupado por dia (a data sai da linha),
+  # com tempo curto ("51 min") e a 1a resposta colorida pela meta.
   APPENDIX_LIMIT = 100
   APPENDIX_SLOWEST = 10
   STATUS_PT = { 'open' => 'Aberta', 'resolved' => 'Resolvida', 'pending' => 'Pendente', 'snoozed' => 'Adiada' }.freeze
+  WEEKDAYS_PT = %w[Domingo Segunda Terça Quarta Quinta Sexta Sábado].freeze
 
   def conversations_appendix(summary)
     rows = drilldown('conversations_count').top(APPENDIX_LIMIT)
     slowest = drilldown('avg_first_response_time').top(APPENDIX_SLOWEST)
+    times = appendix_times((rows + slowest).pluck(:id).uniq)
     {
       total: summary[:conversations_count].to_i, shown: rows.size,
-      slowest: appendix_table(slowest, appendix_times(slowest.pluck(:id))),
-      conversations: appendix_table(rows, appendix_times(rows.pluck(:id)))
+      goal: format_seconds(Reports::PdfBenchmarks.goal(:first_response)),
+      slowest: appendix_slowest(slowest, times), days: appendix_days(rows, times)
     }
   end
 
@@ -374,20 +378,43 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     end
   end
 
-  def appendix_table(rows, times)
+  def appendix_slowest(rows, times)
+    longest = rows.filter_map { |row| row[:value] }.max.to_f
+    rows.map do |row|
+      appendix_row(row, times).merge(bar_pct: longest.positive? ? ((row[:value].to_f / longest) * 100).round : 0)
+    end
+  end
+
+  def appendix_days(rows, times)
+    rows.group_by { |row| Time.zone.at(row[:created_at]).in_time_zone(TZ).to_date }.map do |date, day_rows|
+      { title: "#{WEEKDAYS_PT[date.wday]}, #{date.strftime('%d/%m')}", rows: day_rows.map { |row| appendix_row(row, times) } }
+    end
+  end
+
+  def appendix_row(row, times)
+    first = times[:first_response][row[:id]]
+    resolution = times[:resolution][row[:id]]
     {
-      columns: [{ label: 'Conversa' }, { label: 'Contato' }, { label: 'Caixa' }, { label: 'Agente' }, { label: 'Status' },
-                { label: 'Criada em' }, { label: '1ª resposta', align: 'right' }, { label: 'Resolução', align: 'right' }],
-      rows: rows.map do |row|
-        ["##{row[:display_id]}", row[:contact_name].presence || 'Sem nome', row[:inbox_name], row[:agent_name].presence || 'Sem agente',
-         STATUS_PT.fetch(row[:status], row[:status]), Time.zone.at(row[:created_at]).in_time_zone(TZ).strftime('%d/%m %H:%M'),
-         appendix_duration(times[:first_response]&.dig(row[:id])), appendix_duration(times[:resolution]&.dig(row[:id]))]
-      end
+      id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
+      agent: row[:agent_name].presence || 'Sem agente', status: STATUS_PT.fetch(row[:status], row[:status]),
+      status_key: row[:status], time: Time.zone.at(row[:created_at]).in_time_zone(TZ).strftime('%H:%M'),
+      first: first ? short_duration(first) : 'sem resposta', first_level: first_level(first),
+      resolution: resolution ? short_duration(resolution) : 'em aberto'
     }
   end
 
-  def appendix_duration(seconds)
-    seconds.nil? ? '—' : format_seconds(seconds)
+  def first_level(seconds)
+    seconds ? Reports::PdfBenchmarks.status(seconds, :first_response)[:level] : :none
+  end
+
+  # "51 min", "1 h 20 min", "4 min 35 s": no maximo duas unidades (o mesmo jeito da tela).
+  def short_duration(seconds)
+    total = seconds.to_f.round
+    return "#{total} s" if total < 60
+    return total < 600 && (total % 60).positive? ? "#{total / 60} min #{total % 60} s" : "#{total / 60} min" if total < 3600
+    return (total % 3600) >= 60 ? "#{total / 3600} h #{(total % 3600) / 60} min" : "#{total / 3600} h" if total < 86_400
+
+    "#{total / 86_400} d #{(total % 86_400) / 3600} h"
   end
 
   def conversations_subtitle(summary)
