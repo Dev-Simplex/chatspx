@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useI18n, I18nT } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { STATUS } from 'dashboard/store/constants';
 import { formatDuration } from 'dashboard/helper/reportFormat';
@@ -61,7 +61,7 @@ const open = (key, nameKey) => {
           class="i-lucide-message-circle size-5 mt-1 shrink-0 text-n-brand"
         />
         <span class="min-w-0">
-          <i18n-t keypath="REPORT.PLAIN_SUMMARY.VOLUME" tag="span">
+          <I18nT keypath="REPORT.PLAIN_SUMMARY.VOLUME" tag="span">
             <template #conversations>
               <button
                 type="button"
@@ -72,12 +72,13 @@ const open = (key, nameKey) => {
                     'REPORT.METRICS.CONVERSATIONS.NAME'
                   )
                 "
-                v-text="
+              >
+                {{
                   t('REPORT.PLAIN_SUMMARY.CONVERSATIONS', {
                     count: count('conversations_count'),
                   })
-                "
-              />
+                }}
+              </button>
             </template>
             <template #incoming>
               <button
@@ -89,8 +90,9 @@ const open = (key, nameKey) => {
                     'REPORT.METRICS.INCOMING_MESSAGES.NAME'
                   )
                 "
-                v-text="count('incoming_messages_count')"
-              />
+              >
+                {{ count('incoming_messages_count') }}
+              </button>
             </template>
             <template #outgoing>
               <button
@@ -102,16 +104,17 @@ const open = (key, nameKey) => {
                     'REPORT.METRICS.OUTGOING_MESSAGES.NAME'
                   )
                 "
-                v-text="count('outgoing_messages_count')"
-              />
+              >
+                {{ count('outgoing_messages_count') }}
+              </button>
             </template>
-          </i18n-t>
+          </I18nT>
         </span>
       </li>
       <li v-if="hasFirstResponse" class="flex gap-3">
         <span class="i-lucide-timer size-5 mt-1 shrink-0 text-n-brand" />
         <span class="min-w-0">
-          <i18n-t keypath="REPORT.PLAIN_SUMMARY.FIRST_RESPONSE" tag="span">
+          <I18nT keypath="REPORT.PLAIN_SUMMARY.FIRST_RESPONSE" tag="span">
             <template #avg>
               <button
                 type="button"
@@ -122,8 +125,9 @@ const open = (key, nameKey) => {
                     'REPORT.METRICS.FIRST_RESPONSE_TIME.NAME'
                   )
                 "
-                v-text="time('avg_first_response_time')"
-              />
+              >
+                {{ time('avg_first_response_time') }}
+              </button>
             </template>
             <template #half>
               <strong>{{ time('p50_first_response_time') }}</strong>
@@ -131,13 +135,13 @@ const open = (key, nameKey) => {
             <template #most>
               <strong>{{ time('p90_first_response_time') }}</strong>
             </template>
-          </i18n-t>
+          </I18nT>
         </span>
       </li>
       <li v-if="hasResolutions" class="flex gap-3">
         <span class="i-lucide-circle-check size-5 mt-1 shrink-0 text-n-brand" />
         <span class="min-w-0">
-          <i18n-t keypath="REPORT.PLAIN_SUMMARY.RESOLUTION" tag="span">
+          <I18nT keypath="REPORT.PLAIN_SUMMARY.RESOLUTION" tag="span">
             <template #resolved>
               <button
                 type="button"
@@ -148,17 +152,18 @@ const open = (key, nameKey) => {
                     'REPORT.METRICS.RESOLUTION_COUNT.NAME'
                   )
                 "
-                v-text="
+              >
+                {{
                   t('REPORT.PLAIN_SUMMARY.RESOLVED', {
                     count: count('resolutions_count'),
                   })
-                "
-              />
+                }}
+              </button>
             </template>
             <template #time>
               <strong>{{ time('avg_resolution_time') }}</strong>
             </template>
-          </i18n-t>
+          </I18nT>
         </span>
       </li>
     </ul>
