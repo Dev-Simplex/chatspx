@@ -189,6 +189,10 @@ const onAudioSend = file => {
   });
 };
 
+const canSend = computed(
+  () => Boolean(draft.value.trim()) || attachedFiles.value.length > 0
+);
+
 const send = () => {
   const content = draft.value.trim();
   if (!content && !attachedFiles.value.length) return;
@@ -219,11 +223,11 @@ const onEnter = () => {
 </script>
 
 <template>
-  <div class="relative px-4 pb-3 md:px-6 flex-shrink-0 bg-n-background">
+  <div class="relative px-3 pt-2 pb-2.5 md:px-5 flex-shrink-0 bg-n-background">
     <!-- @menção: lista acima do campo enquanto digita "@nome" -->
     <div
       v-if="mentionOptions.length"
-      class="absolute z-30 py-1 mb-2 overflow-hidden border shadow-lg left-4 md:left-6 bottom-full w-72 rounded-xl bg-n-solid-1 border-n-weak"
+      class="absolute z-30 p-1 mb-1 overflow-hidden border shadow-xl left-20 md:left-24 bottom-full w-72 rounded-2xl bg-n-solid-1 border-n-weak"
     >
       <p class="px-3 pt-1 pb-1.5 text-[11px] text-n-slate-10">
         {{ t('INTERNAL_CHAT.COMPOSER.MENTION_HINT') }}
@@ -232,7 +236,7 @@ const onEnter = () => {
         v-for="(member, i) in mentionOptions"
         :key="member.id"
         type="button"
-        class="flex items-center w-full gap-2.5 px-3 py-1.5 text-sm text-left text-n-slate-12"
+        class="flex items-center w-full gap-2.5 px-2.5 py-1.5 text-sm text-left rounded-xl text-n-slate-12"
         :class="i === mentionIndex ? 'bg-n-alpha-2' : 'hover:bg-n-alpha-1'"
         @mousedown.prevent="pickMention(member)"
       >
@@ -256,7 +260,7 @@ const onEnter = () => {
     <!-- Barra "respondendo a X" -->
     <div
       v-if="replyingTo"
-      class="flex items-center gap-2 mb-2 px-2.5 py-1.5 bg-n-alpha-1 border-l-2 border-n-brand rounded-r-lg"
+      class="flex items-center gap-2 mb-2 px-3 py-1.5 bg-n-alpha-1 border-l-[3px] border-n-teal-9 rounded-xl"
     >
       <span class="flex-shrink-0 i-lucide-reply text-n-slate-10" />
       <span class="flex-1 min-w-0">
@@ -306,39 +310,17 @@ const onEnter = () => {
       @cancel="recording = false"
     />
 
-    <!-- Single-row composer pill -->
-    <div
-      v-else
-      class="relative z-20 flex items-center gap-1 px-2 py-1 transition-colors border shadow-sm rounded-3xl bg-wa-composer-input border-n-weak focus-within:border-n-strong"
-    >
-      <!-- Emoji: o picker abre ACIMA do ícone (ancorado ao botão, à esquerda) -->
-      <div class="relative flex-shrink-0">
-        <button
-          v-tooltip="t('INTERNAL_CHAT.EMOJI')"
-          type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
-          :class="showEmoji ? 'text-wa-composer-send bg-n-alpha-2' : ''"
-          :aria-label="t('INTERNAL_CHAT.EMOJI')"
-          @click="toggleEmoji"
-        >
-          <span class="text-lg i-lucide-smile" />
-        </button>
-        <template v-if="showEmoji">
-          <div class="fixed inset-0 z-10" @click="showEmoji = false" />
-          <div class="absolute z-30 emoji-anchor bottom-full mb-2 left-0">
-            <EmojiInput :on-click="onEmojiSelect" />
-          </div>
-        </template>
-      </div>
-      <!-- Anexo -->
+    <!-- Barra de escrita: ações discretas à esquerda, pílula com o texto e o
+         botão de enviar redondo, que só ganha cor quando há o que enviar. -->
+    <div v-else class="flex items-end gap-1">
       <button
         v-tooltip="t('INTERNAL_CHAT.ATTACH')"
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :aria-label="t('INTERNAL_CHAT.ATTACH')"
         @click="onPickFile"
       >
-        <span class="text-lg i-lucide-paperclip" />
+        <span class="text-xl i-lucide-paperclip" />
       </button>
       <input
         ref="fileInputRef"
@@ -347,45 +329,88 @@ const onEnter = () => {
         class="hidden"
         @change="onFilesSelected"
       />
-      <!-- Áudio -->
       <button
         v-tooltip="t('INTERNAL_CHAT.COMPOSER.RECORD')"
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :aria-label="t('INTERNAL_CHAT.COMPOSER.RECORD')"
         @click="startRecording"
       >
-        <span class="text-lg i-lucide-mic" />
+        <span class="text-xl i-lucide-mic" />
       </button>
-      <textarea
-        ref="textareaRef"
-        v-model="draft"
-        rows="1"
-        :placeholder="
-          mentionCandidates.length
-            ? t('INTERNAL_CHAT.COMPOSER.PLACEHOLDER_GROUP')
-            : t('INTERNAL_CHAT.PLACEHOLDER')
-        "
-        class="reset-base flex-1 h-auto min-h-0 px-1 py-1.5 mb-0 text-sm bg-transparent outline-none resize-none text-n-slate-12 placeholder:text-wa-composer-placeholder max-h-28 leading-snug"
-        @input="onInput"
-        @click="updateMentionQuery"
-        @keydown.enter.exact.prevent="onEnter"
-        @keydown.tab="onMentionKey($event, onEnter)"
-        @keydown.up="onMentionKey($event, () => moveMention(-1))"
-        @keydown.down="onMentionKey($event, () => moveMention(1))"
-        @keydown.esc="mentionQuery = null"
-      />
-      <button
-        v-tooltip="t('INTERNAL_CHAT.SEND')"
-        type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 transition-all rounded-full shadow-sm bg-wa-composer-send text-wa-composer-send-fg hover:brightness-110 active:scale-90 disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100"
-        :aria-label="t('INTERNAL_CHAT.SEND')"
-        :disabled="!draft.trim() && !attachedFiles.length"
-        @click="send"
+
+      <div
+        class="relative z-20 flex items-end flex-1 min-w-0 gap-1 py-1 pl-4 pr-1 transition-colors border rounded-[22px] bg-n-solid-1 dark:bg-n-solid-2 border-n-strong focus-within:border-n-teal-9"
       >
-        <span class="text-lg i-lucide-send-horizontal" />
-      </button>
+        <textarea
+          ref="textareaRef"
+          v-model="draft"
+          rows="1"
+          :placeholder="
+            mentionCandidates.length
+              ? t('INTERNAL_CHAT.COMPOSER.PLACEHOLDER_GROUP')
+              : t('INTERNAL_CHAT.PLACEHOLDER')
+          "
+          :aria-label="t('INTERNAL_CHAT.PLACEHOLDER')"
+          class="reset-base flex-1 h-auto min-h-0 px-0 py-[7px] mb-0 text-[15px] bg-transparent outline-none resize-none text-n-slate-12 placeholder:text-n-slate-10 max-h-28 leading-snug"
+          @input="onInput"
+          @click="updateMentionQuery"
+          @keydown.enter.exact.prevent="onEnter"
+          @keydown.tab="onMentionKey($event, onEnter)"
+          @keydown.up="onMentionKey($event, () => moveMention(-1))"
+          @keydown.down="onMentionKey($event, () => moveMention(1))"
+          @keydown.esc="mentionQuery = null"
+        />
+        <!-- Emoji: o picker abre ACIMA do ícone -->
+        <div class="relative flex-shrink-0">
+          <button
+            v-tooltip="t('INTERNAL_CHAT.EMOJI')"
+            type="button"
+            class="inline-flex items-center justify-center transition-colors rounded-full size-8 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+            :class="showEmoji ? 'text-n-teal-11 bg-n-alpha-2' : ''"
+            :aria-label="t('INTERNAL_CHAT.EMOJI')"
+            @click="toggleEmoji"
+          >
+            <span class="text-lg i-lucide-smile" />
+          </button>
+          <template v-if="showEmoji">
+            <div class="fixed inset-0 z-10" @click="showEmoji = false" />
+            <div class="absolute z-30 mb-3 emoji-anchor bottom-full right-0">
+              <EmojiInput :on-click="onEmojiSelect" />
+            </div>
+          </template>
+        </div>
+        <button
+          v-tooltip="
+            canSend
+              ? t('INTERNAL_CHAT.SEND')
+              : t('INTERNAL_CHAT.COMPOSER.SEND_EMPTY')
+          "
+          type="button"
+          class="inline-flex items-center justify-center flex-shrink-0 transition-colors duration-200 rounded-full size-8"
+          :class="
+            canSend
+              ? 'bg-n-teal-10 dark:bg-n-teal-5 text-white hover:bg-n-teal-11 shadow-sm'
+              : 'bg-n-alpha-2 text-n-slate-9 cursor-not-allowed'
+          "
+          :aria-label="t('INTERNAL_CHAT.SEND')"
+          :disabled="!canSend"
+          @click="send"
+        >
+          <span class="text-lg i-lucide-arrow-up" />
+        </button>
+      </div>
     </div>
+    <p
+      v-if="!recording"
+      class="hidden mt-1.5 text-[11px] text-center truncate md:block text-n-slate-10"
+    >
+      {{
+        mentionCandidates.length
+          ? t('INTERNAL_CHAT.COMPOSER.HINT_GROUP')
+          : t('INTERNAL_CHAT.COMPOSER.HINT_DM')
+      }}
+    </p>
   </div>
 </template>
 

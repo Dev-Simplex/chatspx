@@ -130,7 +130,9 @@
       "SHOW_MEMBERS": "See participants",
       "FAVORITE": "Add to favorites",
       "UNFAVORITE": "Remove from favorites",
-      "CLEAR": "Clear conversation (just for you)"
+      "CLEAR": "Clear conversation (just for you)",
+      "MEMBERS_ONLINE": "{count} participants · {online} online",
+      "TEAM_MEMBERS_ONLINE": "Team group · {count} participants · {online} online"
     },
     "MUTE": {
       "ON": "Mute conversation",
@@ -156,7 +158,17 @@
       "MESSAGES": "Messages",
       "YOU": "You",
       "NO_MESSAGES": "No messages yet",
-      "UNREAD_COUNT": "{count} unread messages"
+      "UNREAD_COUNT": "{count} unread messages",
+      "SUMMARY_UNREAD_ONE": "1 conversation with new messages",
+      "SUMMARY_UNREAD_MANY": "{count} conversations with new messages",
+      "SUMMARY_ALL_READ": "All caught up",
+      "ONLINE_NOW": "Online now",
+      "ONLINE_NOW_HINT": "Click to send a message",
+      "SECTION_FAVORITES": "Favorites",
+      "SECTION_RECENT": "Conversations",
+      "TEAM_BADGE": "Team",
+      "GROUP_BADGE": "Group",
+      "FILTERS": "Filter conversations"
     },
     "THREAD": {
       "LOADING": "Loading messages…",
@@ -167,14 +179,18 @@
       "EMPTY_HINT": "Type below and press Enter. Use {'@'} to call someone and #123 to point to a customer conversation.",
       "NO_MATCH": "No message with that text in this conversation.",
       "SEARCH_PLACEHOLDER": "Search this conversation…",
-      "CLOSE_SEARCH": "Close search"
+      "CLOSE_SEARCH": "Close search",
+      "NEW_MESSAGES": "New messages"
     },
     "COMPOSER": {
       "PLACEHOLDER_GROUP": "Write a message… ({'@'} to mention)",
       "MENTION_HINT": "Mention (the person gets an alert)",
       "CANCEL_REPLY": "Cancel reply",
       "REMOVE_FILE": "Remove attachment",
-      "RECORD": "Record audio"
+      "RECORD": "Record audio",
+      "HINT_DM": "Enter sends · Shift+Enter new line · #123 links a conversation · / canned replies",
+      "HINT_GROUP": "Enter sends · {'@'} mentions · #123 links a conversation · / canned replies",
+      "SEND_EMPTY": "Type something to send"
     },
     "BUBBLE": {
       "REPLY": "Reply to message",
@@ -184,17 +200,36 @@
       "DELETE": "Delete",
       "SENT": "Sent",
       "READ": "Read",
-      "OPEN_CONVERSATION": "Open the conversation"
+      "OPEN_CONVERSATION": "Open the conversation",
+      "DELIVERED": "Delivered",
+      "READ_LABEL": "Read",
+      "DELIVERED_HINT": "Arrived in the chat. Not read yet.",
+      "READ_HINT": "Your colleague has read this message.",
+      "MENTIONED_YOU": "mentioned you"
     },
     "SHARED": {
       "OPEN": "Open",
-      "NO_NAME": "Unnamed contact"
+      "NO_NAME": "Unnamed contact",
+      "TITLE": "Customer conversation",
+      "OPEN_FULL": "Open conversation",
+      "STATUS": {
+        "OPEN": "Open",
+        "RESOLVED": "Resolved",
+        "PENDING": "Pending",
+        "SNOOZED": "Snoozed"
+      }
     },
     "INFO": {
       "CLOSE": "Close details",
       "MEDIA": "Photos and files",
       "NO_MEDIA": "No photos or files in this conversation yet.",
-      "YOU": "you"
+      "YOU": "you",
+      "SEARCH": "Search",
+      "MUTE": "Mute",
+      "UNMUTE": "Unmute",
+      "FAVORITE": "Favorite",
+      "UNFAVORITE": "Unfavorite",
+      "MANAGE": "Manage"
     },
     "EMPTY_STATE": {
       "PICK": "Pick a conversation on the side or start a new one.",
@@ -209,6 +244,24 @@
       "TITLE": "Clear conversation?",
       "BODY": "Messages disappear only from your screen until you reload the page. Nothing is deleted for other participants.",
       "CONFIRM": "Clear"
+    },
+    "HOME": {
+      "GREETING_MORNING": "Good morning, {name}",
+      "GREETING_AFTERNOON": "Good afternoon, {name}",
+      "GREETING_EVENING": "Good evening, {name}",
+      "UNREAD_ONE": "You have 1 conversation with new messages.",
+      "UNREAD_MANY": "You have {count} conversations with new messages.",
+      "OPEN_LATEST": "Open {name}",
+      "ALL_READ": "No new messages. Talk to a colleague or your team without leaving the system.",
+      "ONLINE_TITLE": "Colleagues online now",
+      "ONLINE_HINT": "Click a person to send a message.",
+      "NO_ONLINE": "Nobody is online right now. Your message waits until they come back.",
+      "MORE_PEOPLE": "+{count} people",
+      "TEAMS_TITLE": "Your teams",
+      "TEAMS_HINT": "A ready group with the whole team.",
+      "TIPS_TITLE": "What you can do here",
+      "TIP_AUDIO": "Record audio with the microphone and listen before sending",
+      "ALL_PEOPLE": "All people"
     }
   }
 }

@@ -26,14 +26,20 @@ const { t } = useI18n();
 const showMenu = ref(false);
 
 const online = computed(() => props.conversation.presence === 'online');
-// Diz com quem se fala: presença do colega (DM) ou tipo + nº de participantes.
+// Diz com quem se fala: presença do colega (DM) ou tipo + participantes + online.
+const onlineCount = computed(
+  () =>
+    (props.conversation.members || []).filter(m => m.presence === 'online')
+      .length
+);
 const statusText = computed(() => {
   const count = props.conversation.members?.length || 0;
+  const params = { count, online: onlineCount.value };
   if (props.conversation.isTeam) {
-    return t('INTERNAL_CHAT.HEADER.TEAM_COUNT', { count });
+    return t('INTERNAL_CHAT.HEADER.TEAM_MEMBERS_ONLINE', params);
   }
   if (props.conversation.isGroup) {
-    return t('INTERNAL_CHAT.HEADER.GROUP_COUNT', { count });
+    return t('INTERNAL_CHAT.HEADER.MEMBERS_ONLINE', params);
   }
   const presence = props.conversation.presence || 'offline';
   return t(`INTERNAL_CHAT.PRESENCE.${presence.toUpperCase()}`);
@@ -46,69 +52,77 @@ const canLeave = computed(
     !props.conversation.readOnly
 );
 
-const pick = event => {
+// Fecha o menu; o item emite o próprio evento logo em seguida.
+const pick = () => {
   showMenu.value = false;
-  emit(event);
 };
 </script>
 
 <template>
+  <!-- Cabeçalho centrado (como no iPhone): quem é + como está; ações à direita -->
   <header
-    class="flex items-center flex-shrink-0 h-16 gap-3 px-4 border-b md:px-6 border-n-weak bg-n-background"
+    class="relative z-20 grid items-center flex-shrink-0 h-16 grid-cols-[1fr_auto_1fr] gap-2 px-3 border-b md:px-4 border-n-weak bg-n-background/90 backdrop-blur"
   >
-    <button
-      v-tooltip="t('INTERNAL_CHAT.BACK')"
-      type="button"
-      class="inline-flex items-center justify-center flex-shrink-0 -ml-1 rounded-lg w-9 h-9 md:hidden text-n-slate-11 hover:bg-n-alpha-2"
-      :aria-label="t('INTERNAL_CHAT.BACK')"
-      @click="emit('back')"
-    >
-      <span class="text-lg i-lucide-arrow-left" />
-    </button>
+    <div class="flex items-center min-w-0">
+      <button
+        v-tooltip="t('INTERNAL_CHAT.BACK')"
+        type="button"
+        class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-9 md:hidden text-n-teal-11 hover:bg-n-alpha-2"
+        :aria-label="t('INTERNAL_CHAT.BACK')"
+        @click="emit('back')"
+      >
+        <span class="text-xl i-lucide-chevron-left" />
+      </button>
+    </div>
 
     <!-- Clicar em quem/qual grupo abre os detalhes (participantes, mídia) -->
     <button
-      v-tooltip="t('INTERNAL_CHAT.HEADER.DETAILS')"
+      v-tooltip.bottom="t('INTERNAL_CHAT.HEADER.DETAILS')"
       type="button"
-      class="flex items-center flex-1 min-w-0 gap-3 text-left"
+      class="flex items-center min-w-0 gap-2.5 px-3 py-1 transition-colors rounded-2xl hover:bg-n-alpha-1 max-w-[min(28rem,50vw)]"
+      :class="infoActive ? 'bg-n-alpha-1' : ''"
       @click="emit('toggleInfo')"
     >
       <Avatar
         :name="conversation.name"
         :src="conversation.avatarSrc || ''"
         :icon-name="conversation.iconName"
-        :size="40"
+        :size="36"
         :status="online ? 'online' : null"
         rounded-full
+        class="flex-shrink-0"
       />
-      <span class="flex-1 min-w-0">
-        <span class="flex items-center gap-1.5">
+      <span class="flex flex-col min-w-0 text-left">
+        <span class="flex items-center gap-1 min-w-0">
           <span
-            class="text-sm font-semibold leading-tight truncate text-n-slate-12"
+            class="text-[15px] font-semibold leading-tight truncate text-n-slate-12"
           >
             {{ conversation.name }}
           </span>
           <span
             v-if="conversation.muted"
             v-tooltip="t('INTERNAL_CHAT.MUTE.ACTIVE')"
-            class="flex-shrink-0 i-lucide-bell-off text-n-slate-10"
+            class="flex-shrink-0 text-xs i-lucide-bell-off text-n-slate-10"
+          />
+          <span
+            class="flex-shrink-0 text-xs i-lucide-chevron-right text-n-slate-9"
           />
         </span>
         <span
-          class="block text-xs leading-tight mt-0.5"
-          :class="online ? 'text-n-brand' : 'text-n-slate-11'"
+          class="text-xs leading-tight truncate mt-0.5"
+          :class="online ? 'text-n-teal-11 font-medium' : 'text-n-slate-11'"
         >
           {{ statusText }}
         </span>
       </span>
     </button>
 
-    <div class="flex items-center gap-0.5 text-n-slate-11">
+    <div class="flex items-center justify-end gap-0.5 text-n-slate-11">
       <button
         v-tooltip="t('INTERNAL_CHAT.HEADER.SEARCH')"
         type="button"
-        class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
-        :class="searchActive ? 'text-n-brand bg-n-alpha-2' : ''"
+        class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        :class="searchActive ? 'text-n-teal-11 bg-n-alpha-2' : ''"
         :aria-label="t('INTERNAL_CHAT.HEADER.SEARCH')"
         @click="emit('toggleSearch')"
       >
@@ -117,8 +131,8 @@ const pick = event => {
       <button
         v-tooltip="t('INTERNAL_CHAT.HEADER.DETAILS')"
         type="button"
-        class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
-        :class="infoActive ? 'text-n-brand bg-n-alpha-2' : ''"
+        class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        :class="infoActive ? 'text-n-teal-11 bg-n-alpha-2' : ''"
         :aria-label="t('INTERNAL_CHAT.HEADER.DETAILS')"
         @click="emit('toggleInfo')"
       >
@@ -130,8 +144,8 @@ const pick = event => {
         <button
           v-tooltip="t('INTERNAL_CHAT.HEADER.MORE')"
           type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
-          :class="showMenu ? 'text-n-brand bg-n-alpha-2' : ''"
+          class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          :class="showMenu ? 'text-n-teal-11 bg-n-alpha-2' : ''"
           :aria-label="t('INTERNAL_CHAT.HEADER.MORE')"
           @click="showMenu = !showMenu"
         >
@@ -140,13 +154,16 @@ const pick = event => {
         <template v-if="showMenu">
           <div class="fixed inset-0 z-10" @click="showMenu = false" />
           <div
-            class="absolute right-0 z-20 py-1 mt-1 overflow-hidden border shadow-lg top-full w-64 rounded-xl bg-n-solid-1 border-n-weak"
+            class="absolute right-0 z-20 p-1.5 mt-2 overflow-hidden border shadow-xl top-full w-72 rounded-2xl bg-n-solid-1 border-n-weak"
           >
             <button
               v-if="conversation.isGroup"
               type="button"
-              class="flex items-center w-full gap-2.5 px-3 py-2 text-sm text-left text-n-slate-12 hover:bg-n-alpha-1"
-              @click="pick('showMembers')"
+              class="flex items-center w-full gap-2.5 px-3 py-2.5 text-sm text-left rounded-xl text-n-slate-12 hover:bg-n-alpha-1"
+              @click="
+                pick();
+                emit('showMembers');
+              "
             >
               <span class="text-base i-lucide-users" />
               {{ t('INTERNAL_CHAT.HEADER.SHOW_MEMBERS') }}
@@ -154,8 +171,11 @@ const pick = event => {
             <button
               v-if="canManage"
               type="button"
-              class="flex items-center w-full gap-2.5 px-3 py-2 text-sm text-left text-n-slate-12 hover:bg-n-alpha-1"
-              @click="pick('manage')"
+              class="flex items-center w-full gap-2.5 px-3 py-2.5 text-sm text-left rounded-xl text-n-slate-12 hover:bg-n-alpha-1"
+              @click="
+                pick();
+                emit('manage');
+              "
             >
               <span class="text-base i-lucide-settings-2" />
               {{ t('INTERNAL_CHAT.MANAGE.TITLE') }}
@@ -163,12 +183,17 @@ const pick = event => {
             <button
               v-if="!conversation.readOnly"
               type="button"
-              class="flex items-start w-full gap-2.5 px-3 py-2 text-sm text-left text-n-slate-12 hover:bg-n-alpha-1"
-              @click="pick('toggleMute')"
+              class="flex items-start w-full gap-2.5 px-3 py-2.5 text-sm text-left rounded-xl text-n-slate-12 hover:bg-n-alpha-1"
+              @click="
+                pick();
+                emit('toggleMute');
+              "
             >
               <span
                 class="mt-0.5 text-base"
-                :class="conversation.muted ? 'i-lucide-bell' : 'i-lucide-bell-off'"
+                :class="
+                  conversation.muted ? 'i-lucide-bell' : 'i-lucide-bell-off'
+                "
               />
               <span class="flex-1">
                 {{
@@ -186,8 +211,11 @@ const pick = event => {
             </button>
             <button
               type="button"
-              class="flex items-center w-full gap-2.5 px-3 py-2 text-sm text-left text-n-slate-12 hover:bg-n-alpha-1"
-              @click="pick('favorite')"
+              class="flex items-center w-full gap-2.5 px-3 py-2.5 text-sm text-left rounded-xl text-n-slate-12 hover:bg-n-alpha-1"
+              @click="
+                pick();
+                emit('favorite');
+              "
             >
               <span
                 class="text-base"
@@ -203,8 +231,11 @@ const pick = event => {
             </button>
             <button
               type="button"
-              class="flex items-center w-full gap-2.5 px-3 py-2 text-sm text-left text-n-slate-12 hover:bg-n-alpha-1"
-              @click="pick('clear')"
+              class="flex items-center w-full gap-2.5 px-3 py-2.5 text-sm text-left rounded-xl text-n-slate-12 hover:bg-n-alpha-1"
+              @click="
+                pick();
+                emit('clear');
+              "
             >
               <span class="text-base i-lucide-eraser" />
               {{ t('INTERNAL_CHAT.HEADER.CLEAR') }}
@@ -212,8 +243,11 @@ const pick = event => {
             <button
               v-if="canLeave"
               type="button"
-              class="flex items-center w-full gap-2.5 px-3 py-2 text-sm text-left text-n-ruby-11 hover:bg-n-ruby-3"
-              @click="pick('leave')"
+              class="flex items-center w-full gap-2.5 px-3 py-2.5 text-sm text-left rounded-xl text-n-ruby-11 hover:bg-n-ruby-3"
+              @click="
+                pick();
+                emit('leave');
+              "
             >
               <span class="text-base i-lucide-log-out" />
               {{ t('INTERNAL_CHAT.MANAGE.LEAVE') }}

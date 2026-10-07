@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
     <template v-else>
       <button
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 transition-colors rounded-full bg-n-alpha-2 hover:bg-n-alpha-3"
+        class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 transition-colors rounded-full bg-[color-mix(in_srgb,currentColor_14%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_24%,transparent)]"
         :title="
           status === 'playing'
             ? t('INTERNAL_CHAT.AUDIO.PAUSE')
@@ -145,15 +145,18 @@ onBeforeUnmount(() => {
         <span v-else class="i-lucide-play" />
       </button>
       <div class="relative flex items-center flex-1 h-6 min-w-0 group">
-        <div class="w-full h-1.5 rounded-full bg-n-alpha-3">
+        <!-- trilha na cor do texto: lê no balão verde e no cinza -->
+        <div
+          class="w-full h-1.5 rounded-full bg-[color-mix(in_srgb,currentColor_22%,transparent)]"
+        >
           <div
-            class="h-full rounded-full bg-n-brand"
+            class="h-full rounded-full bg-current"
             :style="{ width: `${progress}%` }"
           />
         </div>
         <span
           v-if="duration"
-          class="absolute -translate-x-1/2 rounded-full shadow pointer-events-none size-3 bg-n-brand ring-2 ring-n-solid-1"
+          class="absolute -translate-x-1/2 rounded-full shadow pointer-events-none size-3 bg-current ring-2 ring-n-solid-1"
           :style="{ left: `${progress}%` }"
         />
         <input

@@ -30,9 +30,9 @@ const scrollToMessage = id => {
   const el = scroller.value?.querySelector(`[data-msg-id="${id}"]`);
   if (!el) return;
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  el.classList.add('ring-2', 'ring-n-brand/60', 'rounded-2xl');
+  el.classList.add('ring-2', 'ring-n-teal-9/60', 'rounded-2xl');
   setTimeout(
-    () => el.classList.remove('ring-2', 'ring-n-brand/60', 'rounded-2xl'),
+    () => el.classList.remove('ring-2', 'ring-n-teal-9/60', 'rounded-2xl'),
     1400
   );
 };
@@ -61,8 +61,7 @@ watch(
   (next, prev) => {
     const el = scroller.value;
     if (!el || next.length <= prev.length) return;
-    const prepended =
-      prev.length > 0 && next.at(-1)?.id === prev.at(-1)?.id;
+    const prepended = prev.length > 0 && next.at(-1)?.id === prev.at(-1)?.id;
     if (prepended) {
       const fromBottom = el.scrollHeight - el.scrollTop;
       nextTick(() => {
@@ -78,7 +77,7 @@ watch(
 <template>
   <div
     ref="scroller"
-    class="flex-1 min-h-0 px-4 py-5 overflow-y-auto md:px-8 bg-n-background"
+    class="flex-1 min-h-0 px-3 pt-2 pb-4 overflow-y-auto md:px-6 bg-n-background"
     @scroll.passive="onScroll"
   >
     <!-- Carregando a conversa pela primeira vez -->
@@ -96,17 +95,21 @@ watch(
       class="flex flex-col items-center justify-center h-full gap-2 text-center"
     >
       <span
-        class="text-3xl text-n-slate-9"
-        :class="searching ? 'i-lucide-search-x' : 'i-lucide-message-circle'"
-      />
-      <p class="text-sm font-medium text-n-slate-12">
+        class="flex items-center justify-center mb-1 rounded-full size-14 bg-n-alpha-2"
+      >
+        <span
+          class="text-2xl text-n-slate-10"
+          :class="searching ? 'i-lucide-search-x' : 'i-lucide-message-circle'"
+        />
+      </span>
+      <p class="text-base font-semibold text-n-slate-12">
         {{
           searching
             ? t('INTERNAL_CHAT.THREAD.NO_MATCH')
             : t('INTERNAL_CHAT.THREAD.EMPTY_TITLE')
         }}
       </p>
-      <p v-if="!searching" class="max-w-xs text-xs text-n-slate-11">
+      <p v-if="!searching" class="max-w-xs text-sm text-n-slate-11">
         {{ t('INTERNAL_CHAT.THREAD.EMPTY_HINT') }}
       </p>
     </div>
@@ -137,18 +140,32 @@ watch(
       <div
         v-for="item in items"
         :key="item.id"
-        :class="item.type === 'message' && item.continued ? 'mt-0.5' : 'mt-3'"
+        :class="
+          item.type === 'message' ? (item.continued ? 'mt-0.5' : 'mt-3') : ''
+        "
       >
-        <!-- Separador de dia -->
+        <!-- Horário centralizado acima do bloco ("Hoje 09:02") -->
         <div
-          v-if="item.type === 'day'"
-          class="sticky top-0 z-10 flex justify-center py-1"
+          v-if="item.type === 'stamp'"
+          class="flex justify-center pt-5 pb-1 text-[11px] text-n-slate-10"
         >
-          <span
-            class="px-3 py-1 text-[11px] font-medium rounded-full shadow-sm text-n-slate-11 bg-n-solid-2 first-letter:uppercase"
-          >
-            {{ item.label }}
+          <span>
+            <span class="font-semibold first-letter:uppercase inline-block">
+              {{ item.day }}
+            </span>
+            {{ item.time }}
           </span>
+        </div>
+
+        <!-- Onde começam as mensagens que chegaram enquanto você não via -->
+        <div
+          v-else-if="item.type === 'new'"
+          data-new-marker
+          class="flex items-center gap-3 pt-4 pb-1 text-[11px] font-semibold text-n-teal-11"
+        >
+          <span class="flex-1 h-px bg-n-teal-9/40" />
+          {{ t('INTERNAL_CHAT.THREAD.NEW_MESSAGES') }}
+          <span class="flex-1 h-px bg-n-teal-9/40" />
         </div>
 
         <!-- Mensagem -->

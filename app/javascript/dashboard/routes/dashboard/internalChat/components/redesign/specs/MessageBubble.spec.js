@@ -75,7 +75,7 @@ describe('MessageBubble do chat interno', () => {
     expect(
       wrapper.find('a[href="/app/accounts/7/conversations/42"]').text()
     ).toBe('#42');
-    expect(wrapper.find('span.font-semibold.rounded').text()).toBe(
+    expect(wrapper.find('span.font-semibold.rounded-md').text()).toBe(
       '@Ana Paula'
     );
   });
@@ -89,8 +89,20 @@ describe('MessageBubble do chat interno', () => {
       },
     });
     const card = wrapper.find('[data-to="/app/accounts/7/conversations/123"]');
-    expect(card.text()).toContain('#123 – Maria');
-    expect(card.text()).toContain('WhatsApp');
+    expect(card.text()).toContain('Maria');
+    expect(card.text()).toContain('#123 · WhatsApp');
+  });
+
+  it('situação da entrega por extenso embaixo do balão', () => {
+    expect(mountBubble({ delivery: 'read' }).text()).toContain('Read');
+    expect(mountBubble({ delivery: 'sent' }).text()).toContain('Delivered');
+    expect(mountBubble({ delivery: null }).text()).not.toContain('Delivered');
+  });
+
+  it('só emoji vira emoji grande, sem balão', () => {
+    const html = mountBubble({ content: '🎉🎉', mine: false }).html();
+    expect(html).toContain('text-4xl');
+    expect(html).not.toContain('bg-n-slate-3');
   });
 
   it('✓✓ só quando lida; ✓ quando só enviada', () => {

@@ -196,6 +196,27 @@ const doDelete = () => {
 const reactionEntries = computed(() =>
   Object.entries(props.message.reactions || {}).filter(([, u]) => u?.length)
 );
+// Só emoji (até 3): aparece grande e sem balão, como no iPhone.
+const JUMBO_RE =
+  /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\uFE0F|\u200D|\s)+$/u;
+const jumbo = computed(() => {
+  const m = props.message;
+  const text = (m.content || '').trim();
+  if (!text || m.attachments?.length || m.replyTo || m.sharedConversation)
+    return false;
+  if (!JUMBO_RE.test(text)) return false;
+  return (text.match(/\p{Extended_Pictographic}/gu) || []).length <= 3;
+});
+
+// Situação da conversa de cliente compartilhada (aberta, resolvida…).
+const SHARED_STATUS = ['open', 'resolved', 'pending', 'snoozed'];
+const sharedStatus = computed(() => {
+  const status = props.message.sharedConversation?.status;
+  return SHARED_STATUS.includes(status)
+    ? t(`INTERNAL_CHAT.SHARED.STATUS.${status.toUpperCase()}`)
+    : '';
+});
+
 const iReacted = emoji =>
   (props.message.reactions?.[emoji] || [])
     .map(Number)
@@ -208,33 +229,42 @@ const iReacted = emoji =>
     :class="message.mine ? 'flex-row-reverse' : 'flex-row'"
     :data-msg-id="message.id"
   >
-    <!-- Em grupo: avatar no 1º balão da sequência, espaço vazio nos seguintes -->
+    <!-- Em grupo: avatar ao lado do ÚLTIMO balão da sequência (junto da cauda) -->
     <template v-if="!message.mine && message.inGroup">
       <Avatar
-        v-if="message.showSender"
+        v-if="message.tail"
         :name="message.senderName || ''"
         :src="message.avatarSrc || ''"
         :size="28"
         rounded-full
-        class="self-start mt-5"
+        class="flex-shrink-0 mb-0.5"
       />
       <span v-else class="flex-shrink-0 w-7" />
     </template>
 
     <div
-      class="flex flex-col max-w-[78%] md:max-w-[68%] min-w-0"
+      class="flex flex-col max-w-[78%] md:max-w-[66%] min-w-0"
       :class="message.mine ? 'items-end' : 'items-start'"
     >
       <span
-        v-if="message.showSender"
-        class="px-1 mb-0.5 text-xs font-semibold text-n-slate-11"
+        v-if="message.showSender || (message.mentionsMe && !message.mine)"
+        class="flex items-center gap-1.5 px-3 mb-0.5 text-xs"
       >
-        {{ message.senderName }}
+        <span v-if="message.showSender" class="font-semibold text-n-slate-11">
+          {{ message.senderName }}
+        </span>
+        <span
+          v-if="message.mentionsMe && !message.mine"
+          class="inline-flex items-center gap-0.5 px-1.5 rounded-full font-semibold bg-n-teal-9/15 text-n-teal-11"
+        >
+          <span class="i-lucide-at-sign size-3" />
+          {{ t('INTERNAL_CHAT.BUBBLE.MENTIONED_YOU') }}
+        </span>
       </span>
       <!-- Apagada -->
       <div
         v-if="message.deleted"
-        class="flex items-center gap-1.5 px-3.5 py-2 text-sm italic rounded-2xl text-n-slate-10 bg-n-alpha-1"
+        class="flex items-center gap-1.5 px-3.5 py-2 text-sm italic border border-dashed rounded-[20px] text-n-slate-10 border-n-strong"
       >
         <span class="text-sm i-lucide-ban" />
         {{ t('INTERNAL_CHAT.DELETED') }}
@@ -243,78 +273,98 @@ const iReacted = emoji =>
       <!-- Editar inline -->
       <div
         v-else-if="editing"
-        class="flex flex-col gap-1.5 w-[260px] max-w-full"
+        class="flex flex-col gap-1.5 w-[280px] max-w-full"
       >
         <textarea
           ref="editRef"
           v-model="editDraft"
           rows="2"
-          class="reset-base w-full px-3 py-2 text-sm border outline-none resize-none rounded-xl bg-n-alpha-1 border-n-weak text-n-slate-12 focus:border-n-brand"
+          class="reset-base w-full px-3.5 py-2 text-[15px] border outline-none resize-none rounded-2xl bg-n-solid-1 border-n-weak text-n-slate-12 focus:border-n-teal-9"
           @keydown.enter.exact.prevent="saveEdit"
           @keydown.esc="cancelEdit"
         />
-        <div class="flex gap-3 px-1 text-xs">
+        <div class="flex justify-end gap-3 px-1 text-xs">
+          <button type="button" class="text-n-slate-11" @click="cancelEdit">
+            {{ t('INTERNAL_CHAT.CANCEL') }}
+          </button>
           <button
             type="button"
-            class="font-medium text-n-brand"
+            class="font-semibold text-n-teal-11"
             @click="saveEdit"
           >
             {{ t('INTERNAL_CHAT.SAVE_EDIT') }}
           </button>
-          <button type="button" class="text-n-slate-10" @click="cancelEdit">
-            {{ t('INTERNAL_CHAT.CANCEL') }}
-          </button>
         </div>
       </div>
 
-      <!-- Balão normal -->
+      <!-- Balão -->
       <div
         v-else
-        class="relative px-3.5 py-2 text-sm shadow-sm rounded-2xl break-words min-w-0"
-        :class="
-          message.mine
-            ? 'bubble-out rounded-br-md'
-            : 'bg-n-alpha-2 text-n-slate-12 rounded-bl-md'
-        "
+        class="relative min-w-0 break-words transition-shadow duration-300"
+        :class="[
+          jumbo
+            ? 'px-1 text-4xl leading-tight'
+            : 'px-3.5 py-[7px] text-[15px] leading-[1.35] rounded-[20px]',
+          !jumbo &&
+            (message.mine
+              ? 'bg-n-teal-11 dark:bg-n-teal-4 text-white'
+              : 'bg-n-slate-3 dark:bg-n-slate-4 text-n-slate-12'),
+          !jumbo &&
+            message.tail &&
+            (message.mine ? 'rounded-br-md' : 'rounded-bl-md'),
+          !jumbo && message.sharedConversation ? 'w-72 max-w-full' : '',
+          !jumbo && message.mentionsMe && !message.mine
+            ? 'ring-2 ring-n-teal-9/50'
+            : '',
+        ]"
         @contextmenu.prevent="openMenuFromEvent"
         @touchstart.passive="startLongPress"
         @touchend="cancelLongPress"
         @touchmove.passive="cancelLongPress"
       >
-        <!-- Gatilho ⌄ no canto do balão, no mesmo formato do chat normal:
-             aparece no hover/foco, e o toque continua no long-press.
-             A faixa repinta o fundo do balão para o botão não cair em cima do
-             texto, mas em DEGRADÊ e só no topo: num balão curto (um emoji, um
-             "ok") a faixa sólida de altura inteira engolia a mensagem e o
-             horário no hover. Assim o ⌄ tem fundo onde precisa e o conteúdo
-             continua legível por baixo.
-             No balão recebido o tint alpha é recomposto por dentro — duas
-             camadas de 12% empilhadas ficariam mais escuras que o balão, então
-             o degradê é aplicado nas duas camadas.
-             Só o ⌄ mora aqui (responder é o 1º item do menu): com dois botões a
-             faixa cobria metade de um balão curto. -->
-        <div
-          v-if="!message.deleted"
-          class="absolute top-0 right-0 z-20 flex items-start justify-end w-12 h-10 max-h-full p-1 transition-opacity duration-200 opacity-0 rounded-tr-2xl group-hover:opacity-100 focus-within:opacity-100"
+        <!-- Cauda do balão: só no último da sequência (estilo iMessage) -->
+        <svg
+          v-if="message.tail && !jumbo"
+          viewBox="0 0 12 16"
+          aria-hidden="true"
+          class="absolute bottom-0 w-3 h-4 pointer-events-none"
           :class="
             message.mine
-              ? 'bubble-out-fade'
-              : 'bg-gradient-to-l to-transparent from-n-background from-55%'
+              ? '-right-[5px] text-n-teal-11 dark:text-n-teal-4'
+              : '-left-[5px] -scale-x-100 text-n-slate-3 dark:text-n-slate-4'
           "
         >
-          <span
-            v-if="!message.mine"
-            class="absolute inset-0 rounded-tr-2xl bg-gradient-to-l to-transparent from-n-alpha-2 from-55%"
+          <path
+            d="M0 0 H5 C5 7 7.5 12.5 12 16 C7 16.3 3 14.8 0 12.5 Z"
+            fill="currentColor"
           />
+        </svg>
+
+        <!-- Gatilho ⌄ no canto: aparece no hover/foco (toque: long-press).
+             O degradê repinta a cor do balão só no topo, para o botão não
+             cobrir o texto de um balão curto. -->
+        <div
+          v-if="!message.deleted"
+          class="absolute top-0 right-0 z-20 flex items-start justify-end w-12 h-9 max-h-full p-0.5 transition-opacity duration-200 opacity-0 rounded-tr-[20px] group-hover:opacity-100 focus-within:opacity-100"
+          :class="
+            jumbo
+              ? ''
+              : message.mine
+                ? 'bg-gradient-to-l to-transparent from-55% from-n-teal-11 dark:from-n-teal-4'
+                : 'bg-gradient-to-l to-transparent from-55% from-n-slate-3 dark:from-n-slate-4'
+          "
+        >
           <button
             ref="dropdownButtonRef"
             v-tooltip="t('INTERNAL_CHAT.MESSAGE_ACTIONS')"
             type="button"
-            class="relative z-10 inline-flex items-center justify-center w-8 h-8 transition-colors rounded-md"
+            class="relative z-10 inline-flex items-center justify-center transition-colors rounded-full size-7"
             :class="
-              message.mine
-                ? 'bubble-out-meta hover:bg-n-black/10 dark:hover:bg-white/10'
-                : 'text-n-slate-11 hover:bg-n-alpha-2'
+              jumbo
+                ? 'bg-n-solid-1 shadow text-n-slate-11 text-base'
+                : message.mine
+                  ? 'text-white/85 hover:bg-white/15'
+                  : 'text-n-slate-11 hover:bg-n-alpha-2'
             "
             :aria-label="t('INTERNAL_CHAT.MESSAGE_ACTIONS')"
             @click.stop="openMenuFromButton"
@@ -389,14 +439,14 @@ const iReacted = emoji =>
         <!-- Picker de reação -->
         <div
           v-if="showReactionPicker"
-          class="absolute z-20 flex gap-1 px-2 py-1 border rounded-full shadow-md bottom-full mb-1.5 bg-n-solid-1 border-n-weak"
+          class="absolute z-20 flex gap-0.5 p-1 border rounded-full shadow-xl bottom-full mb-2 bg-n-solid-1 border-n-weak"
           :class="message.mine ? 'right-0' : 'left-0'"
         >
           <button
             v-for="e in reactionEmojis"
             :key="e"
             type="button"
-            class="text-base leading-none rounded-md hover:bg-n-alpha-2 transition-colors"
+            class="inline-flex items-center justify-center text-xl leading-none transition-colors rounded-full size-9 hover:bg-n-alpha-2"
             @click="react(e)"
           >
             {{ e }}
@@ -406,25 +456,25 @@ const iReacted = emoji =>
         <!-- Confirmação de apagar -->
         <div
           v-if="confirmDelete"
-          class="absolute z-20 flex items-center gap-2 px-2 py-1 text-xs border rounded-lg shadow -top-9 bg-n-solid-1 border-n-weak"
+          class="absolute z-20 flex items-center gap-3 px-3 py-1.5 text-xs border shadow-lg rounded-full -top-10 bg-n-solid-1 border-n-weak"
           :class="message.mine ? 'right-1' : 'left-1'"
         >
-          <span class="whitespace-nowrap text-n-slate-11">
+          <span class="whitespace-nowrap text-n-slate-12">
             {{ t('INTERNAL_CHAT.DELETE_Q') }}
           </span>
           <button
             type="button"
-            class="font-medium text-n-ruby-11"
-            @click="doDelete"
-          >
-            {{ t('INTERNAL_CHAT.DELETE') }}
-          </button>
-          <button
-            type="button"
-            class="text-n-slate-10"
+            class="text-n-slate-11"
             @click="confirmDelete = false"
           >
             {{ t('INTERNAL_CHAT.CANCEL') }}
+          </button>
+          <button
+            type="button"
+            class="font-semibold text-n-ruby-11"
+            @click="doDelete"
+          >
+            {{ t('INTERNAL_CHAT.DELETE') }}
           </button>
         </div>
 
@@ -432,69 +482,102 @@ const iReacted = emoji =>
         <button
           v-if="message.replyTo"
           type="button"
-          class="block w-full pl-2 mb-1 text-left border-l-2 rounded-sm opacity-90 border-n-brand"
+          class="block w-full px-2.5 py-1.5 mt-0.5 mb-1.5 text-left border-l-[3px] rounded-lg"
+          :class="
+            message.mine
+              ? 'border-white/70 bg-white/15'
+              : 'border-n-teal-9 bg-n-alpha-2'
+          "
           @click="emit('scrollTo', message.replyTo.id)"
         >
-          <span class="block text-[11px] font-semibold">
+          <span class="block text-xs font-semibold">
             {{ message.replyTo.user_name }}
           </span>
-          <span class="block text-[11px] opacity-75 truncate">
+          <span class="block text-xs truncate opacity-80">
             {{ message.replyTo.content || t('INTERNAL_CHAT.DELETED') }}
           </span>
         </button>
 
-        <!-- Conversa de cliente compartilhada: card que abre a conversa -->
+        <!-- Conversa de cliente compartilhada: cartão que abre a conversa -->
         <router-link
           v-if="message.sharedConversation"
           :to="conversationPath(message.sharedConversation.display_id)"
-          class="flex items-center gap-2.5 p-2 mb-1.5 border rounded-xl border-n-weak bg-n-background/60 hover:bg-n-alpha-1 text-n-slate-12"
+          class="block p-3 mt-0.5 mb-1.5 transition-colors border rounded-2xl"
+          :class="
+            message.mine
+              ? 'bg-white/10 border-white/25 hover:bg-white/15 text-white'
+              : 'bg-n-solid-1 dark:bg-n-solid-2 border-n-weak hover:bg-n-alpha-1 text-n-slate-12'
+          "
         >
           <span
-            class="flex-shrink-0 text-lg i-lucide-message-square-share text-n-brand"
-          />
-          <span class="flex-1 min-w-0">
-            <span class="block text-sm font-semibold truncate">
-              #{{ message.sharedConversation.display_id }} –
+            class="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider opacity-80"
+          >
+            <span class="i-lucide-message-square-share size-3.5" />
+            {{ t('INTERNAL_CHAT.SHARED.TITLE') }}
+          </span>
+          <span class="flex items-center gap-2 mt-1.5">
+            <span class="flex-1 min-w-0 text-[15px] font-semibold truncate">
               {{
                 message.sharedConversation.contact_name ||
                 t('INTERNAL_CHAT.SHARED.NO_NAME')
               }}
             </span>
-            <span class="block text-xs truncate text-n-slate-11">
-              {{ message.sharedConversation.inbox_name }}
+            <span
+              v-if="sharedStatus"
+              class="flex-shrink-0 px-2 py-0.5 text-[11px] font-semibold rounded-full"
+              :class="
+                message.mine ? 'bg-white/20' : 'bg-n-teal-9/15 text-n-teal-11'
+              "
+            >
+              {{ sharedStatus }}
             </span>
           </span>
-          <span class="flex-shrink-0 text-xs font-medium text-n-brand">
-            {{ t('INTERNAL_CHAT.SHARED.OPEN') }}
+          <span class="block text-xs truncate opacity-80">
+            #{{ message.sharedConversation.display_id }} ·
+            {{ message.sharedConversation.inbox_name }}
+          </span>
+          <span
+            class="flex items-center justify-between pt-2 mt-2 text-xs font-semibold border-t"
+            :class="
+              message.mine ? 'border-white/20' : 'border-n-weak text-n-teal-11'
+            "
+          >
+            {{ t('INTERNAL_CHAT.SHARED.OPEN_FULL') }}
+            <span class="i-lucide-arrow-right size-4" />
           </span>
         </router-link>
 
         <!-- Texto (links, #123 e @menções clicáveis) + "editado" -->
-        <p v-if="message.content" class="leading-relaxed whitespace-pre-wrap">
+        <p v-if="message.content" class="whitespace-pre-wrap">
           <template v-for="(part, i) in contentParts" :key="i">
             <a
               v-if="part.t === 'link'"
               :href="part.v"
               target="_blank"
               rel="noopener noreferrer"
-              class="underline break-all"
+              class="underline break-all underline-offset-2"
+              :class="message.mine ? '' : 'text-n-teal-11'"
               >{{ part.v }}</a
             ><a
               v-else-if="part.t === 'conv'"
               v-tooltip="t('INTERNAL_CHAT.BUBBLE.OPEN_CONVERSATION')"
               :href="conversationPath(part.id)"
-              class="font-medium underline"
+              class="font-semibold underline underline-offset-2"
+              :class="message.mine ? '' : 'text-n-teal-11'"
               @click.prevent="router.push(conversationPath(part.id))"
               >{{ part.v }}</a
             ><span
               v-else-if="part.t === 'mention'"
-              class="px-0.5 font-semibold rounded bg-n-brand/15"
+              class="px-1 font-semibold rounded-md"
+              :class="
+                message.mine ? 'bg-white/20' : 'bg-n-teal-9/15 text-n-teal-11'
+              "
               >{{ part.v }}</span
             ><template v-else>{{ part.v }}</template>
           </template>
           <span
             v-if="message.edited"
-            class="text-[10px] opacity-60 ml-1 align-baseline"
+            class="ml-1 text-[11px] align-baseline opacity-70"
             >{{ t('INTERNAL_CHAT.EDITED') }}</span
           >
         </p>
@@ -502,7 +585,7 @@ const iReacted = emoji =>
         <!-- Anexos -->
         <div
           v-if="message.attachments.length"
-          class="flex flex-col gap-1.5"
+          class="flex flex-col gap-1.5 py-0.5"
           :class="{ 'mt-1.5': message.content }"
         >
           <template v-for="att in message.attachments" :key="att.id">
@@ -511,12 +594,12 @@ const iReacted = emoji =>
               :href="att.url"
               target="_blank"
               rel="noopener noreferrer"
-              class="block"
+              class="block -mx-2"
             >
               <img
                 :src="att.url"
                 :alt="att.filename"
-                class="max-w-[220px] max-h-[220px] rounded-lg object-cover"
+                class="max-w-[240px] max-h-[240px] rounded-2xl object-cover"
               />
             </a>
             <AudioPlayer v-else-if="isAudio(att)" :src="att.url" />
@@ -525,78 +608,95 @@ const iReacted = emoji =>
               :href="att.url"
               target="_blank"
               rel="noopener noreferrer"
-              class="flex items-center gap-1.5 text-xs underline opacity-90"
+              class="flex items-center gap-2 px-2.5 py-2 text-sm rounded-xl"
+              :class="message.mine ? 'bg-white/15' : 'bg-n-alpha-2'"
             >
-              <span class="i-lucide-paperclip" />
-              {{ att.filename }}
+              <span class="flex-shrink-0 i-lucide-file-text size-5" />
+              <span class="flex-1 min-w-0 truncate">{{ att.filename }}</span>
+              <span class="flex-shrink-0 i-lucide-download size-4 opacity-80" />
             </a>
           </template>
         </div>
-
-        <!-- Hora + status -->
-        <span
-          class="flex items-center justify-end gap-1 mt-1 text-[10px] leading-none"
-          :class="message.mine ? 'bubble-out-meta' : 'text-n-slate-10'"
-        >
-          {{ message.time }}
-          <span
-            v-if="message.delivery === 'progress'"
-            v-tooltip="t('INTERNAL_CHAT.SENDING')"
-            class="inline-flex items-center gap-1"
-          >
-            <span class="text-sm i-lucide-clock" />
-            <span v-if="message.uploadProgress != null">
-              {{
-                t('INTERNAL_CHAT.AUDIO.SENDING_PROGRESS', {
-                  progress: message.uploadProgress,
-                })
-              }}
-            </span>
-          </span>
-          <button
-            v-else-if="message.delivery === 'failed'"
-            type="button"
-            class="font-medium text-n-ruby-11 hover:underline"
-            @click="emit('retry', message)"
-          >
-            {{ t('INTERNAL_CHAT.SEND_FAILED_RETRY') }}
-          </button>
-          <span
-            v-else-if="message.delivery === 'read'"
-            v-tooltip="t('INTERNAL_CHAT.BUBBLE.READ')"
-            class="text-sm i-lucide-check-check text-n-blue-11"
-          />
-          <span
-            v-else-if="message.delivery === 'sent'"
-            v-tooltip="t('INTERNAL_CHAT.BUBBLE.SENT')"
-            class="text-sm i-lucide-check"
-          />
-        </span>
       </div>
 
-      <!-- Chips de reação -->
+      <!-- Chips de reação: encostam no balão -->
       <div
         v-if="!message.deleted && reactionEntries.length"
-        class="flex flex-wrap gap-1 mt-1"
+        class="relative z-10 flex flex-wrap gap-1 -mt-1.5 px-2"
         :class="message.mine ? 'justify-end' : 'justify-start'"
       >
         <button
           v-for="[emoji, users] in reactionEntries"
           :key="emoji"
           type="button"
-          class="inline-flex items-center gap-1 px-1.5 h-5 text-xs border rounded-full transition-colors"
+          class="inline-flex items-center gap-1 px-1.5 h-6 text-xs border rounded-full shadow-sm transition-colors bg-n-solid-1"
           :class="
             iReacted(emoji)
-              ? 'border-n-brand bg-n-brand/10 text-n-slate-12'
-              : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+              ? 'border-n-teal-9 text-n-slate-12'
+              : 'border-n-weak text-n-slate-11 hover:bg-n-solid-2'
           "
           @click="react(emoji)"
         >
           <span>{{ emoji }}</span>
-          <span>{{ users.length }}</span>
+          <span class="font-semibold">{{ users.length }}</span>
         </button>
       </div>
+
+      <!-- Situação do envio, por extenso, embaixo do balão (como no iPhone):
+           "Enviando…", "Não enviada · tentar de novo", "Entregue" ou "Lida". -->
+      <span
+        v-if="message.delivery"
+        class="flex items-center gap-1 px-2 mt-1 text-[11px] font-medium leading-none"
+      >
+        <span
+          v-if="message.delivery === 'progress'"
+          class="inline-flex items-center gap-1 text-n-slate-10"
+        >
+          <span class="i-lucide-clock size-3" />
+          {{
+            message.uploadProgress != null
+              ? t('INTERNAL_CHAT.AUDIO.SENDING_PROGRESS', {
+                  progress: message.uploadProgress,
+                })
+              : t('INTERNAL_CHAT.SENDING')
+          }}
+        </span>
+        <button
+          v-else-if="message.delivery === 'failed'"
+          type="button"
+          class="inline-flex items-center gap-1 font-semibold text-n-ruby-11 hover:underline"
+          @click="emit('retry', message)"
+        >
+          <span class="i-lucide-circle-alert size-3.5" />
+          {{ t('INTERNAL_CHAT.SEND_FAILED_RETRY') }}
+        </button>
+        <span
+          v-else-if="message.delivery === 'read'"
+          v-tooltip="t('INTERNAL_CHAT.BUBBLE.READ_HINT')"
+          class="inline-flex items-center gap-1 text-n-teal-11"
+        >
+          <span class="i-lucide-check-check size-3.5" />
+          {{ t('INTERNAL_CHAT.BUBBLE.READ_LABEL') }}
+        </span>
+        <span
+          v-else-if="message.delivery === 'sent'"
+          v-tooltip="t('INTERNAL_CHAT.BUBBLE.DELIVERED_HINT')"
+          class="inline-flex items-center gap-1 text-n-slate-10"
+        >
+          <span class="i-lucide-check size-3.5" />
+          {{ t('INTERNAL_CHAT.BUBBLE.DELIVERED') }}
+        </span>
+      </span>
     </div>
+
+    <!-- Horário discreto ao lado do balão, só no hover -->
+    <span
+      v-if="!editing"
+      class="self-center flex-shrink-0 text-[11px] tabular-nums transition-opacity duration-200 opacity-0 text-n-slate-10 group-hover:opacity-100"
+      aria-hidden="true"
+    >
+      {{ message.time }}
+    </span>
   </div>
 </template>
 
@@ -608,46 +708,5 @@ const iReacted = emoji =>
   hr {
     @apply m-1 border-b border-solid border-n-strong;
   }
-}
-
-/* Balão de saída: a mesma paleta do balão do chat normal (_wa-skin.scss), em
-   vez do verde-brand. O brand é claro e saturado demais — sobre ele o ⌄, o
-   horário e os ticks ficavam lavados, que foi a queixa. Estas variáveis já
-   governam o balão da conversa com o cliente, então os dois chats passam a
-   combinar, e cada tema traz o par fundo/texto com contraste próprio. */
-.bubble-out {
-  background-color: var(--wa-bubble-out);
-  color: var(--wa-text-primary);
-}
-
-/* Texto secundário DENTRO do balão de saída: horário, ticks e o ⌄. */
-.bubble-out-meta {
-  color: var(--wa-text-secondary);
-}
-
-/* Fundo do gatilho ⌄ — repinta o balão em degradê (ver comentário no template). */
-.bubble-out-fade {
-  background-image: linear-gradient(
-    to left,
-    var(--wa-bubble-out) 55%,
-    transparent
-  );
-}
-
-.dark .bubble-out {
-  background-color: var(--wa-bubble-out-dark);
-  color: var(--wa-text-primary-dark);
-}
-
-.dark .bubble-out-meta {
-  color: var(--wa-text-secondary-dark);
-}
-
-.dark .bubble-out-fade {
-  background-image: linear-gradient(
-    to left,
-    var(--wa-bubble-out-dark) 55%,
-    transparent
-  );
 }
 </style>

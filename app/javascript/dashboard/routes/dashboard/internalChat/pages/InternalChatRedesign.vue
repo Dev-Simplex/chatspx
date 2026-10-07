@@ -6,7 +6,6 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
-import { brandAssetUrl } from 'shared/helpers/brandAssetUrl';
 import { messageStamp } from 'shared/helpers/timeHelper';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
@@ -17,10 +16,10 @@ import MessageThread from '../components/redesign/MessageThread.vue';
 import ChatComposer from '../components/redesign/ChatComposer.vue';
 import ChatInfoPanel from '../components/redesign/ChatInfoPanel.vue';
 import ManageChannelDialog from '../components/ManageChannelDialog.vue';
+import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 
 const store = useStore();
 const { t } = useI18n();
-const globalConfig = useMapGetter('globalConfig/get');
 const channels = useMapGetter('internalChat/getChannels');
 const auditChannels = useMapGetter('internalChat/getAuditChannels');
 const agents = useMapGetter('internalChat/getAgents');
@@ -100,18 +99,9 @@ const onDraftChange = text => {
   writeLocal(DRAFTS_KEY, next);
 };
 
-// Tela vazia (nenhuma conversa aberta): logo da marca + botão "Nova conversa".
+// Tela inicial (nenhuma conversa aberta): "Comece por aqui".
 const chatSidebarRef = ref(null);
-const logoVisible = ref(true);
-const brandLogo = computed(
-  () =>
-    globalConfig.value?.logoThumbnail ||
-    globalConfig.value?.logo ||
-    brandAssetUrl(
-      '/brand-assets/logo_thumbnail.svg',
-      globalConfig.value?.gitSha
-    )
-);
+const currentUser = useMapGetter('getCurrentUser');
 const openNewConversation = () => chatSidebarRef.value?.openCompose();
 
 const presenceOf = userId =>
@@ -208,6 +198,33 @@ const mentionCandidates = computed(() => {
   return conv.members.filter(m => m.id !== currentUserId.value);
 });
 
+// Colegas online agora (sem você): atalho na lista e na tela inicial.
+const onlineAgents = computed(() =>
+  (agents.value || []).filter(
+    a =>
+      a.id !== currentUserId.value &&
+      (presenceOf(a.id) || a.availability_status) === 'online'
+  )
+);
+const greeting = computed(() => {
+  const h = new Date().getHours();
+  const name = (currentUser.value?.name || '').split(' ')[0];
+  if (h < 12) return t('INTERNAL_CHAT.HOME.GREETING_MORNING', { name });
+  if (h < 18) return t('INTERNAL_CHAT.HOME.GREETING_AFTERNOON', { name });
+  return t('INTERNAL_CHAT.HOME.GREETING_EVENING', { name });
+});
+const unreadConversations = computed(() =>
+  conversationList.value.filter(c => c.unreadCount > 0)
+);
+const homeSummary = computed(() => {
+  const n = unreadConversations.value.length;
+  if (!n) return t('INTERNAL_CHAT.HOME.ALL_READ');
+  return n === 1
+    ? t('INTERNAL_CHAT.HOME.UNREAD_ONE')
+    : t('INTERNAL_CHAT.HOME.UNREAD_MANY', { count: n });
+});
+const HOME_PEOPLE = 8;
+
 // ── Mensagens ──────────────────────────────────────────────────────────────
 // "Limpar conversa": esconde as mensagens anteriores ao clique (só na MINHA
 // visão; nada é apagado no servidor, recarregar restaura). channelId -> unix ts.
@@ -252,41 +269,87 @@ const deliveryOf = m => {
 };
 
 const GROUP_WINDOW = 5 * 60; // mensagens seguidas do mesmo autor em 5 min
+const STAMP_GAP = 30 * 60; // pausa maior que isso ganha horário centralizado
+// Onde começam as mensagens novas da conversa aberta (capturado ao abrir,
+// antes de o selo de não lidas zerar): { channelId, count }.
+const unreadOnOpen = ref(null);
 const threadItems = computed(() => {
   const out = [];
   const isGroup = Boolean(activeConversation.value?.isGroup);
-  let lastDay = null;
+  const msgs = rawMessages.value;
+  const me = currentUserId.value;
+
+  // A 1ª das N últimas mensagens de outras pessoas recebe "Mensagens novas".
+  let newFromId = null;
+  const marker = unreadOnOpen.value;
+  if (marker && marker.channelId === activeId.value && marker.count > 0) {
+    let left = marker.count;
+    for (let i = msgs.length - 1; i >= 0 && left > 0; i -= 1) {
+      if (msgs[i].user?.id !== me && !msgs[i].deleted) {
+        left -= 1;
+        if (left === 0) newFromId = msgs[i].id;
+      }
+    }
+  }
+  // "Entregue/Lida" só embaixo da minha última mensagem (como no iPhone).
+  const lastMine = [...msgs]
+    .reverse()
+    .find(m => m.user?.id === me && m.status !== 'failed');
+
   let prev = null;
-  rawMessages.value.forEach(m => {
-    const key = new Date(m.created_at * 1000).toDateString();
-    if (key !== lastDay) {
+  msgs.forEach(m => {
+    if (
+      !prev ||
+      !isSameDay(
+        new Date(prev.created_at * 1000),
+        new Date(m.created_at * 1000)
+      ) ||
+      m.created_at - prev.created_at > STAMP_GAP
+    ) {
       out.push({
-        type: 'day',
-        id: `day-${key}`,
-        label: dayLabelFor(m.created_at),
+        type: 'stamp',
+        id: `stamp-${m.id ?? m.echo_id}`,
+        day: dayLabelFor(m.created_at),
+        time: messageStamp(m.created_at, 'HH:mm'),
       });
-      lastDay = key;
       prev = null;
     }
-    const mine = m.user?.id === currentUserId.value;
+    if (newFromId != null && m.id === newFromId) {
+      out.push({ type: 'new', id: 'new-messages' });
+      prev = null;
+    }
+    const mine = m.user?.id === me;
     const continued =
       Boolean(prev) &&
       prev.user?.id === m.user?.id &&
       m.created_at - prev.created_at < GROUP_WINDOW;
+    let delivery = null;
+    if (mine && (m.status === 'progress' || m.status === 'failed')) {
+      delivery = deliveryOf(m);
+    } else if (
+      mine &&
+      lastMine &&
+      (m.id ?? m.echo_id) === (lastMine.id ?? lastMine.echo_id)
+    ) {
+      delivery = deliveryOf(m);
+    }
     out.push({
       type: 'message',
       id: m.id ?? m.echo_id,
       echoId: m.echo_id,
       mine,
+      userId: m.user?.id,
       senderName: m.user?.name,
       avatarSrc: m.user?.avatar_url,
       // Nome em cima só no 1º balão de uma sequência de outra pessoa, em grupo.
       showSender: isGroup && !mine && !continued,
       inGroup: isGroup,
       continued,
+      tail: true, // recalculado abaixo: só o último da sequência tem cauda
+      mentionsMe: (m.mentioned_user_ids || []).map(Number).includes(Number(me)),
       content: m.content,
       time: messageStamp(m.created_at, 'HH:mm'),
-      delivery: mine ? deliveryOf(m) : null,
+      delivery,
       // campos crus para render rico (anexos, reações, reply, editado, apagada…)
       attachments: m.attachments || [],
       reactions: m.reactions || {},
@@ -299,6 +362,11 @@ const threadItems = computed(() => {
       mentionedUserIds: m.mentioned_user_ids || [],
     });
     prev = m;
+  });
+  out.forEach((item, i) => {
+    if (item.type !== 'message') return;
+    const next = out[i + 1];
+    item.tail = !(next?.type === 'message' && next.continued);
   });
   return out;
 });
@@ -342,7 +410,10 @@ const onSelect = async id => {
   searchQuery.value = '';
   showInfo.value = false;
   replyingTo.value = null;
-  // O selo de não lidas some na hora; o servidor confirma no fetchMessages.
+  // Guarda quantas eram novas (para o divisor "Mensagens novas") e zera o selo
+  // na hora; o servidor confirma no fetchMessages.
+  const opened = rawChannelList.value.find(c => c.id === id);
+  unreadOnOpen.value = { channelId: id, count: opened?.unread_count || 0 };
   store.commit('internalChat/CLEAR_UNREAD', id);
   loadingMessages.value = !store.getters['internalChat/getMessages'](id).length;
   try {
@@ -511,6 +582,12 @@ const confirmClear = () => {
   clearedAt.value = { ...clearedAt.value, [id]: Math.floor(Date.now() / 1000) };
 };
 
+// "Buscar" do painel de detalhes: abre a busca da conversa.
+const onInfoSearch = () => {
+  searchOpen.value = true;
+  if (window.innerWidth < 1280) showInfo.value = false;
+};
+
 const toggleSearch = () => {
   searchOpen.value = !searchOpen.value;
   if (!searchOpen.value) searchQuery.value = '';
@@ -559,7 +636,7 @@ onBeforeUnmount(() => {
   <div class="flex w-full h-full bg-n-background">
     <!-- Sidebar -->
     <div
-      class="relative w-full h-full md:w-[300px] xl:w-[360px] md:flex-shrink-0 md:border-r md:border-n-weak"
+      class="relative w-full h-full md:w-[320px] xl:w-[380px] md:flex-shrink-0 md:border-r md:border-n-weak"
       :class="mobileView === 'thread' ? 'hidden md:block' : 'block'"
     >
       <ChatSidebar
@@ -572,6 +649,8 @@ onBeforeUnmount(() => {
         :audit-mode="auditMode"
         :loading="uiFlags.isFetchingChannels"
         :load-error="uiFlags.channelsLoadError"
+        :current-user-id="currentUserId"
+        :online-agents="onlineAgents"
         @select="onSelect"
         @create-dm="onCreateDm"
         @create-group="onCreateGroup"
@@ -586,93 +665,96 @@ onBeforeUnmount(() => {
       class="relative flex-col flex-1 h-full min-w-0"
       :class="mobileView === 'thread' ? 'flex' : 'hidden md:flex'"
     >
-      <template v-if="activeConversation">
-        <ChatHeader
-          :conversation="activeConversation"
-          :search-active="searchOpen"
-          :info-active="showInfo"
-          :can-manage="canManage"
-          @back="mobileView = 'list'"
-          @toggle-search="toggleSearch"
-          @toggle-info="showInfo = !showInfo"
-          @show-members="showInfo = true"
-          @manage="showManage = true"
-          @toggle-mute="onToggleMute"
-          @favorite="onFavorite"
-          @leave="onLeave"
-          @clear="onClear"
-        />
+      <div v-if="activeConversation" class="flex flex-1 min-h-0">
+        <div class="relative flex flex-col flex-1 min-w-0">
+          <ChatHeader
+            :conversation="activeConversation"
+            :search-active="searchOpen"
+            :info-active="showInfo"
+            :can-manage="canManage"
+            @back="mobileView = 'list'"
+            @toggle-search="toggleSearch"
+            @toggle-info="showInfo = !showInfo"
+            @show-members="showInfo = true"
+            @manage="showManage = true"
+            @toggle-mute="onToggleMute"
+            @favorite="onFavorite"
+            @leave="onLeave"
+            @clear="onClear"
+          />
 
-        <!-- In-conversation search bar -->
-        <div
-          v-if="searchOpen"
-          class="flex items-center gap-2 px-4 py-2 border-b md:px-6 border-n-weak bg-n-background flex-shrink-0"
-        >
-          <div class="relative flex-1">
-            <span
-              class="absolute -translate-y-1/2 pointer-events-none i-lucide-search left-3 top-1/2 text-n-slate-10"
-            />
-            <input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('INTERNAL_CHAT.THREAD.SEARCH_PLACEHOLDER')"
-              class="reset-base w-full h-9 pl-9 pr-3 text-sm transition-colors border border-transparent outline-none rounded-xl bg-n-alpha-1 focus:border-n-brand focus:bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-10"
-            />
-          </div>
-          <button
-            v-tooltip="t('INTERNAL_CHAT.THREAD.CLOSE_SEARCH')"
-            type="button"
-            class="inline-flex items-center justify-center rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2"
-            :aria-label="t('INTERNAL_CHAT.THREAD.CLOSE_SEARCH')"
-            @click="toggleSearch"
+          <!-- In-conversation search bar -->
+          <div
+            v-if="searchOpen"
+            class="flex items-center gap-2 px-3 py-2 border-b md:px-5 border-n-weak bg-n-background flex-shrink-0"
           >
-            <span class="text-lg i-lucide-x" />
-          </button>
+            <div class="relative flex-1">
+              <span
+                class="absolute -translate-y-1/2 pointer-events-none i-lucide-search left-3 top-1/2 text-n-slate-10"
+              />
+              <input
+                v-model="searchQuery"
+                type="text"
+                :placeholder="t('INTERNAL_CHAT.THREAD.SEARCH_PLACEHOLDER')"
+                class="reset-base w-full h-9 pl-9 pr-3 text-sm transition-colors border border-transparent outline-none rounded-full bg-n-alpha-2 focus:border-n-teal-9 focus:bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-10"
+              />
+            </div>
+            <button
+              v-tooltip="t('INTERNAL_CHAT.THREAD.CLOSE_SEARCH')"
+              type="button"
+              class="inline-flex items-center justify-center rounded-full size-9 text-n-slate-11 hover:bg-n-alpha-2"
+              :aria-label="t('INTERNAL_CHAT.THREAD.CLOSE_SEARCH')"
+              @click="toggleSearch"
+            >
+              <span class="text-lg i-lucide-x" />
+            </button>
+          </div>
+
+          <!-- key por conversa: remonta → fade da thread + rola pro fim ao abrir -->
+          <MessageThread
+            :key="activeId"
+            :items="visibleMessages"
+            :current-user-id="currentUserId"
+            :loading="loadingMessages"
+            :loading-older="loadingOlder"
+            :has-more="hasMore && !(searchOpen && searchQuery.trim())"
+            :searching="searchOpen && Boolean(searchQuery.trim())"
+            :mention-names="mentionNames"
+            @load-older="onLoadOlder"
+            @react="onReact"
+            @edit="onEdit"
+            @delete="onDelete"
+            @reply="onReply"
+            @retry="onRetry"
+          />
+
+          <ChatComposer
+            v-if="!activeConversation.readOnly"
+            :key="`composer-${activeId}`"
+            :replying-to="replyingTo"
+            :initial-draft="drafts[activeId] || ''"
+            :mention-candidates="mentionCandidates"
+            @send="onSend"
+            @draft-change="onDraftChange"
+            @cancel-reply="onCancelReply"
+          />
+          <div
+            v-else
+            class="flex items-center justify-center gap-1.5 px-4 py-3 text-xs text-center md:px-6 flex-shrink-0 text-n-slate-11 bg-n-alpha-1 border-t border-n-weak"
+          >
+            <span class="i-lucide-eye size-4" />
+            {{ t('INTERNAL_CHAT.AUDIT.READONLY_HINT') }}
+          </div>
         </div>
 
-        <!-- key por conversa: remonta → fade da thread + rola pro fim ao abrir -->
-        <MessageThread
-          :key="activeId"
-          :items="visibleMessages"
-          :current-user-id="currentUserId"
-          :loading="loadingMessages"
-          :loading-older="loadingOlder"
-          :has-more="hasMore && !(searchOpen && searchQuery.trim())"
-          :searching="searchOpen && Boolean(searchQuery.trim())"
-          :mention-names="mentionNames"
-          @load-older="onLoadOlder"
-          @react="onReact"
-          @edit="onEdit"
-          @delete="onDelete"
-          @reply="onReply"
-          @retry="onRetry"
-        />
-
-        <ChatComposer
-          v-if="!activeConversation.readOnly"
-          :key="`composer-${activeId}`"
-          :replying-to="replyingTo"
-          :initial-draft="drafts[activeId] || ''"
-          :mention-candidates="mentionCandidates"
-          @send="onSend"
-          @draft-change="onDraftChange"
-          @cancel-reply="onCancelReply"
-        />
-        <div
-          v-else
-          class="px-4 py-3 text-xs text-center md:px-6 flex-shrink-0 text-n-slate-10 bg-n-alpha-1 border-t border-n-weak"
-        >
-          {{ t('INTERNAL_CHAT.AUDIT.READONLY_HINT') }}
-        </div>
-
-        <!-- Info drawer -->
+        <!-- Detalhes: coluna ao lado a partir de 1280 px; gaveta por cima abaixo disso -->
         <template v-if="showInfo">
           <div
-            class="absolute inset-0 z-20 lg:hidden bg-n-alpha-black2"
+            class="absolute inset-0 z-20 xl:hidden bg-n-alpha-black2"
             @click="showInfo = false"
           />
           <div
-            class="absolute inset-y-0 right-0 z-30 w-80 max-w-[85%] border-l shadow-xl border-n-weak"
+            class="absolute inset-y-0 right-0 z-30 w-80 max-w-[85%] border-l shadow-xl xl:shadow-none xl:static xl:flex-shrink-0 border-n-weak"
           >
             <ChatInfoPanel
               :conversation="activeConversation"
@@ -681,6 +763,9 @@ onBeforeUnmount(() => {
               :docs="docItems"
               :can-manage="canManage"
               @manage="showManage = true"
+              @search="onInfoSearch"
+              @toggle-mute="onToggleMute"
+              @favorite="onFavorite"
               @close="showInfo = false"
             />
           </div>
@@ -692,68 +777,175 @@ onBeforeUnmount(() => {
           @close="showManage = false"
           @left="closeActive"
         />
-      </template>
+      </div>
 
-      <div
-        v-else
-        class="relative flex flex-col items-center justify-center flex-1 w-full px-8 py-16 text-center"
-      >
-        <div class="flex flex-col items-center max-w-md">
-          <div v-if="logoVisible" class="mb-8">
-            <img
-              :src="brandLogo"
-              alt=""
-              class="size-20 drop-shadow-sm"
-              @error="logoVisible = false"
-            />
+      <!-- Tela inicial: "Comece por aqui" — o que é novo, quem está online,
+           seus times e o que dá para fazer, tudo a um clique. -->
+      <div v-else class="flex-1 min-h-0 overflow-y-auto">
+        <div class="w-full max-w-2xl px-6 pt-12 pb-10 mx-auto">
+          <h2 class="text-3xl font-bold tracking-tight text-n-slate-12">
+            {{ greeting }}
+          </h2>
+          <p class="mt-2 text-[15px] text-n-slate-11">
+            {{ homeSummary }}
+          </p>
+          <div class="flex flex-wrap gap-2 mt-5">
+            <button
+              v-if="unreadConversations.length"
+              type="button"
+              class="inline-flex items-center gap-2 px-4 text-sm font-semibold text-white transition-colors rounded-full h-10 bg-n-teal-10 dark:bg-n-teal-5 hover:bg-n-teal-11"
+              @click="onSelect(unreadConversations[0].id)"
+            >
+              <span class="i-lucide-message-circle-more size-4" />
+              {{
+                t('INTERNAL_CHAT.HOME.OPEN_LATEST', {
+                  name: unreadConversations[0].name,
+                })
+              }}
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 px-4 text-sm font-semibold transition-colors rounded-full h-10"
+              :class="
+                unreadConversations.length
+                  ? 'bg-n-alpha-2 text-n-slate-12 hover:bg-n-alpha-3'
+                  : 'bg-n-teal-10 dark:bg-n-teal-5 text-white hover:bg-n-teal-11'
+              "
+              @click="openNewConversation"
+            >
+              <span class="i-lucide-square-pen size-4" />
+              {{ t('INTERNAL_CHAT.EMPTY_STATE.NEW') }}
+            </button>
           </div>
 
-          <h3 class="text-2xl font-semibold text-n-slate-12">
-            {{ t('INTERNAL_CHAT.TITLE') }}
-          </h3>
+          <!-- Colegas online agora -->
+          <section
+            class="p-5 mt-8 border rounded-3xl border-n-weak bg-n-solid-1"
+          >
+            <div class="flex items-baseline justify-between gap-3">
+              <h3
+                class="flex items-center gap-2 text-sm font-semibold text-n-slate-12"
+              >
+                <span class="rounded-full size-2 bg-n-teal-9" />
+                {{ t('INTERNAL_CHAT.HOME.ONLINE_TITLE') }}
+                <span class="font-normal text-n-slate-10">
+                  {{ onlineAgents.length }}
+                </span>
+              </h3>
+              <span class="text-xs text-n-slate-10">
+                {{
+                  onlineAgents.length ? t('INTERNAL_CHAT.HOME.ONLINE_HINT') : ''
+                }}
+              </span>
+            </div>
+            <p v-if="!onlineAgents.length" class="mt-3 text-sm text-n-slate-11">
+              {{ t('INTERNAL_CHAT.HOME.NO_ONLINE') }}
+            </p>
+            <div v-else class="grid grid-cols-4 gap-1 mt-3 sm:grid-cols-8">
+              <button
+                v-for="a in onlineAgents.slice(0, HOME_PEOPLE)"
+                :key="a.id"
+                v-tooltip="a.name"
+                type="button"
+                class="flex flex-col items-center gap-1.5 px-1 py-2 transition-colors rounded-2xl hover:bg-n-alpha-1"
+                @click="onCreateDm(a.id)"
+              >
+                <Avatar
+                  :name="a.name"
+                  :src="a.avatar_url || a.thumbnail || ''"
+                  :size="48"
+                  status="online"
+                  rounded-full
+                />
+                <span
+                  class="w-full text-xs text-center truncate text-n-slate-12"
+                >
+                  {{ (a.name || '').split(' ')[0] }}
+                </span>
+              </button>
+            </div>
+            <button
+              v-if="onlineAgents.length > HOME_PEOPLE"
+              type="button"
+              class="mt-2 text-xs font-semibold text-n-teal-11 hover:underline"
+              @click="openNewConversation"
+            >
+              {{
+                t('INTERNAL_CHAT.HOME.MORE_PEOPLE', {
+                  count: onlineAgents.length - HOME_PEOPLE,
+                })
+              }}
+            </button>
+          </section>
+
+          <!-- Seus times -->
+          <section
+            v-if="teamList.length"
+            class="p-5 mt-4 border rounded-3xl border-n-weak bg-n-solid-1"
+          >
+            <div class="flex items-baseline justify-between gap-3">
+              <h3 class="text-sm font-semibold text-n-slate-12">
+                {{ t('INTERNAL_CHAT.HOME.TEAMS_TITLE') }}
+              </h3>
+              <span class="text-xs text-n-slate-10">
+                {{ t('INTERNAL_CHAT.HOME.TEAMS_HINT') }}
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-3">
+              <button
+                v-for="team in teamList.slice(0, 8)"
+                :key="team.id"
+                type="button"
+                class="inline-flex items-center gap-2 py-1.5 pl-1.5 pr-3.5 text-sm font-medium capitalize transition-colors rounded-full bg-n-alpha-1 hover:bg-n-alpha-2 text-n-slate-12"
+                @click="onCreateTeam(team)"
+              >
+                <span
+                  class="inline-flex items-center justify-center rounded-full size-7 bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-11"
+                >
+                  <span class="i-lucide-users size-4" />
+                </span>
+                {{ team.name }}
+              </button>
+            </div>
+          </section>
+
+          <!-- O que dá para fazer aqui -->
+          <section
+            class="p-5 mt-4 border rounded-3xl border-n-weak bg-n-solid-1"
+          >
+            <h3 class="text-sm font-semibold text-n-slate-12">
+              {{ t('INTERNAL_CHAT.HOME.TIPS_TITLE') }}
+            </h3>
+            <ul class="grid gap-3 mt-3 sm:grid-cols-2">
+              <li
+                v-for="tip in [
+                  ['i-lucide-at-sign', 'INTERNAL_CHAT.EMPTY_STATE.TIP_MENTION'],
+                  [
+                    'i-lucide-hash',
+                    'INTERNAL_CHAT.EMPTY_STATE.TIP_CONVERSATION',
+                  ],
+                  ['i-lucide-share-2', 'INTERNAL_CHAT.EMPTY_STATE.TIP_SHARE'],
+                  ['i-lucide-mic', 'INTERNAL_CHAT.HOME.TIP_AUDIO'],
+                ]"
+                :key="tip[1]"
+                class="flex items-start gap-3 text-[13px] leading-snug text-n-slate-11"
+              >
+                <span
+                  class="inline-flex items-center justify-center flex-shrink-0 rounded-xl size-8 bg-n-teal-9/15 text-n-teal-11"
+                >
+                  <span class="size-4" :class="tip[0]" />
+                </span>
+                <span class="pt-1.5">{{ t(tip[1]) }}</span>
+              </li>
+            </ul>
+          </section>
 
           <p
-            class="mt-3 text-sm leading-relaxed text-center text-n-slate-11 max-w-sm"
+            class="flex items-center justify-center gap-1.5 mt-8 text-xs text-n-slate-10"
           >
-            {{
-              conversationList.length
-                ? t('INTERNAL_CHAT.EMPTY_STATE.PICK')
-                : t('INTERNAL_CHAT.EMPTY_STATE.FIRST')
-            }}
-          </p>
-
-          <button
-            type="button"
-            class="wa-empty-cta flex items-center gap-2 mt-8 px-6 h-10 rounded-full text-white font-medium text-sm transition-colors active:scale-[0.97]"
-            @click="openNewConversation"
-          >
-            <span class="i-lucide-message-square-plus size-4" />
-            {{ t('INTERNAL_CHAT.EMPTY_STATE.NEW') }}
-          </button>
-
-          <ul class="mt-8 space-y-2 text-xs text-left text-n-slate-11">
-            <li class="flex items-center gap-2">
-              <span class="i-lucide-at-sign size-4 text-n-slate-10" />
-              {{ t('INTERNAL_CHAT.EMPTY_STATE.TIP_MENTION') }}
-            </li>
-            <li class="flex items-center gap-2">
-              <span class="i-lucide-hash size-4 text-n-slate-10" />
-              {{ t('INTERNAL_CHAT.EMPTY_STATE.TIP_CONVERSATION') }}
-            </li>
-            <li class="flex items-center gap-2">
-              <span class="i-lucide-share-2 size-4 text-n-slate-10" />
-              {{ t('INTERNAL_CHAT.EMPTY_STATE.TIP_SHARE') }}
-            </li>
-          </ul>
-        </div>
-
-        <div
-          class="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5"
-        >
-          <span class="i-lucide-lock size-3 text-n-slate-9" />
-          <span class="text-xs text-n-slate-9">
+            <span class="i-lucide-lock size-3" />
             {{ t('INTERNAL_CHAT.EMPTY_STATE.PRIVATE') }}
-          </span>
+          </p>
         </div>
       </div>
     </div>
@@ -765,7 +957,7 @@ onBeforeUnmount(() => {
       @click.self="showClearConfirm = false"
     >
       <div
-        class="w-full max-w-xs p-5 border shadow-xl rounded-2xl bg-n-solid-1 border-n-weak"
+        class="w-full max-w-xs p-5 border shadow-xl rounded-3xl bg-n-solid-1 border-n-weak"
       >
         <h3 class="text-sm font-semibold text-n-slate-12">
           {{ t('INTERNAL_CHAT.CLEAR.TITLE') }}

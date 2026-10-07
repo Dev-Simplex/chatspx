@@ -130,7 +130,9 @@
       "SHOW_MEMBERS": "Ver participantes",
       "FAVORITE": "Favoritar conversa",
       "UNFAVORITE": "Remover dos favoritos",
-      "CLEAR": "Limpar conversa (só para você)"
+      "CLEAR": "Limpar conversa (só para você)",
+      "MEMBERS_ONLINE": "{count} participantes · {online} online",
+      "TEAM_MEMBERS_ONLINE": "Grupo do time · {count} participantes · {online} online"
     },
     "MUTE": {
       "ON": "Silenciar conversa",
@@ -156,7 +158,17 @@
       "MESSAGES": "Mensagens",
       "YOU": "Você",
       "NO_MESSAGES": "Nenhuma mensagem ainda",
-      "UNREAD_COUNT": "{count} mensagens não lidas"
+      "UNREAD_COUNT": "{count} mensagens não lidas",
+      "SUMMARY_UNREAD_ONE": "1 conversa com mensagem nova",
+      "SUMMARY_UNREAD_MANY": "{count} conversas com mensagem nova",
+      "SUMMARY_ALL_READ": "Tudo lido",
+      "ONLINE_NOW": "Online agora",
+      "ONLINE_NOW_HINT": "Clique para mandar mensagem",
+      "SECTION_FAVORITES": "Favoritas",
+      "SECTION_RECENT": "Conversas",
+      "TEAM_BADGE": "Time",
+      "GROUP_BADGE": "Grupo",
+      "FILTERS": "Filtrar conversas"
     },
     "THREAD": {
       "LOADING": "Carregando mensagens…",
@@ -167,14 +179,18 @@
       "EMPTY_HINT": "Escreva abaixo e tecle Enter. Use {'@'} para chamar alguém e #123 para citar uma conversa de cliente.",
       "NO_MATCH": "Nenhuma mensagem com esse texto nesta conversa.",
       "SEARCH_PLACEHOLDER": "Buscar nesta conversa…",
-      "CLOSE_SEARCH": "Fechar busca"
+      "CLOSE_SEARCH": "Fechar busca",
+      "NEW_MESSAGES": "Mensagens novas"
     },
     "COMPOSER": {
       "PLACEHOLDER_GROUP": "Escreva uma mensagem… ({'@'} para mencionar)",
       "MENTION_HINT": "Mencionar (a pessoa recebe um aviso)",
       "CANCEL_REPLY": "Cancelar resposta",
       "REMOVE_FILE": "Remover anexo",
-      "RECORD": "Gravar áudio"
+      "RECORD": "Gravar áudio",
+      "HINT_DM": "Enter envia · Shift+Enter quebra linha · #123 cita uma conversa · / respostas prontas",
+      "HINT_GROUP": "Enter envia · {'@'} chama alguém · #123 cita uma conversa · / respostas prontas",
+      "SEND_EMPTY": "Escreva algo para enviar"
     },
     "BUBBLE": {
       "REPLY": "Responder mensagem",
@@ -184,17 +200,36 @@
       "DELETE": "Excluir",
       "SENT": "Enviada",
       "READ": "Lida",
-      "OPEN_CONVERSATION": "Abrir a conversa"
+      "OPEN_CONVERSATION": "Abrir a conversa",
+      "DELIVERED": "Entregue",
+      "READ_LABEL": "Lida",
+      "DELIVERED_HINT": "Chegou no chat. Ainda não foi lida.",
+      "READ_HINT": "O colega já leu esta mensagem.",
+      "MENTIONED_YOU": "mencionou você"
     },
     "SHARED": {
       "OPEN": "Abrir",
-      "NO_NAME": "Contato sem nome"
+      "NO_NAME": "Contato sem nome",
+      "TITLE": "Conversa de cliente",
+      "OPEN_FULL": "Abrir conversa",
+      "STATUS": {
+        "OPEN": "Aberta",
+        "RESOLVED": "Resolvida",
+        "PENDING": "Pendente",
+        "SNOOZED": "Adiada"
+      }
     },
     "INFO": {
       "CLOSE": "Fechar detalhes",
       "MEDIA": "Fotos e arquivos",
       "NO_MEDIA": "Nenhuma foto ou arquivo nesta conversa ainda.",
-      "YOU": "você"
+      "YOU": "você",
+      "SEARCH": "Buscar",
+      "MUTE": "Silenciar",
+      "UNMUTE": "Reativar",
+      "FAVORITE": "Favoritar",
+      "UNFAVORITE": "Desfavoritar",
+      "MANAGE": "Gerenciar"
     },
     "EMPTY_STATE": {
       "PICK": "Escolha uma conversa ao lado ou comece uma nova.",
@@ -209,6 +244,24 @@
       "TITLE": "Limpar conversa?",
       "BODY": "As mensagens somem só da sua tela até recarregar a página. Nada é apagado para os outros participantes.",
       "CONFIRM": "Limpar"
+    },
+    "HOME": {
+      "GREETING_MORNING": "Bom dia, {name}",
+      "GREETING_AFTERNOON": "Boa tarde, {name}",
+      "GREETING_EVENING": "Boa noite, {name}",
+      "UNREAD_ONE": "Você tem 1 conversa com mensagem nova.",
+      "UNREAD_MANY": "Você tem {count} conversas com mensagem nova.",
+      "OPEN_LATEST": "Abrir {name}",
+      "ALL_READ": "Nenhuma mensagem nova. Fale com um colega ou com o seu time sem sair do sistema.",
+      "ONLINE_TITLE": "Colegas online agora",
+      "ONLINE_HINT": "Clique na pessoa para mandar mensagem.",
+      "NO_ONLINE": "Ninguém online agora. A mensagem fica esperando a pessoa voltar.",
+      "MORE_PEOPLE": "+{count} pessoas",
+      "TEAMS_TITLE": "Seus times",
+      "TEAMS_HINT": "Um grupo pronto com todo o time.",
+      "TIPS_TITLE": "O que dá para fazer aqui",
+      "TIP_AUDIO": "Grave áudio no microfone e ouça antes de enviar",
+      "ALL_PEOPLE": "Todas as pessoas"
     }
   }
 }
