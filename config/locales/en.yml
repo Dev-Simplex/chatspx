@@ -670,11 +670,6 @@ en:
       subject: 'Finish setting up %{custom_domain}'
     ssl_status:
       custom_domain_not_configured: 'Custom domain is not configured'
-  internal_chat:
-    request_notice:
-      approved: '✅ Approved your request: %{title}'
-      denied: '❌ Declined your request: %{title}'
-      taken: '🙋 Will help with: %{title}'
   internal_chat_push:
     mention_title: '%{name} mentioned you in %{channel}'
     shared_conversation: 'Conversation #%{id}'

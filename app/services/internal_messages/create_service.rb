@@ -12,7 +12,7 @@
 # mean invasive, broad-impact changes to core. Real-time delivery covers the need.
 class InternalMessages::CreateService
   def initialize(channel:, user:, content:, attachments: [], mentioned_user_ids: [], # rubocop:disable Metrics/ParameterLists
-                 reply_to_id: nil, shared_conversation_display_id: nil, echo_id: nil, request: nil)
+                 reply_to_id: nil, shared_conversation_display_id: nil, echo_id: nil)
     @channel = channel
     @user = user
     @content = content
@@ -21,7 +21,6 @@ class InternalMessages::CreateService
     @reply_to_id = reply_to_id
     @shared_conversation_display_id = shared_conversation_display_id
     @echo_id = echo_id
-    @request = request.presence&.to_h&.with_indifferent_access
   end
 
   def perform
@@ -30,7 +29,6 @@ class InternalMessages::CreateService
       mentioned_user_ids: valid_mentions, reply_to_id: valid_reply_to_id,
       shared_conversation_id: shared_conversation&.id
     )
-    apply_request!(message) if @request
     message.echo_id = @echo_id
     attach!(message)
     message.save!
@@ -41,28 +39,6 @@ class InternalMessages::CreateService
   end
 
   private
-
-  # Pedido de aprovação/ajuda: o título vira o content (prévia na lista, busca e
-  # aviso) e o resto vai para content_attributes. Quem decide uma aprovação é
-  # @mencionado, para receber o aviso de menção mesmo num grupo movimentado.
-  def apply_request!(message)
-    approver = (@channel.users.find_by(id: @request[:approver_id]) if @request[:kind] == 'approval')
-    message.message_type = :request
-    message.content = @request[:title].to_s.strip.truncate(140)
-    message.content_attributes = { 'request' => request_payload(message.content, approver) }
-    message.mentioned_user_ids = [approver.id] if approver && approver.id != @user.id
-  end
-
-  def request_payload(title, approver)
-    {
-      'kind' => @request[:kind].to_s,
-      'title' => title,
-      'detail' => @request[:detail].to_s.strip.truncate(1000).presence,
-      'approver_id' => approver&.id,
-      'approver_name' => approver&.name,
-      'status' => 'pending'
-    }.compact
-  end
 
   # Resolve a shared conversation by display_id within the channel's account.
   def shared_conversation

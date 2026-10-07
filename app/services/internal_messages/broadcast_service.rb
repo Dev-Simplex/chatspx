@@ -8,14 +8,12 @@ class InternalMessages::BroadcastService
     new(message).broadcast('internal.message.created')
   end
 
-  # notice: aviso pronto (já traduzido) para quem pediu, quando um pedido é decidido.
-  def self.updated(message, notice: nil)
-    new(message, notice: notice).broadcast('internal.message.updated')
+  def self.updated(message)
+    new(message).broadcast('internal.message.updated')
   end
 
-  def initialize(message, notice: nil)
+  def initialize(message)
     @message = message
-    @notice = notice
   end
 
   def broadcast(event)
@@ -32,9 +30,8 @@ class InternalMessages::BroadcastService
       # event is dropped client-side and real-time never reaches the recipient.
       account_id: @message.internal_channel.account_id,
       internal_channel_id: @message.internal_channel_id,
-      message: serialize,
-      notice: @notice
-    }.compact
+      message: serialize
+    }
   end
 
   private

@@ -8,7 +8,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
 
   before_action :fetch_channel
   before_action :authorize_channel
-  before_action :fetch_message, only: [:update, :destroy, :react, :decide]
+  before_action :fetch_message, only: [:update, :destroy, :react]
 
   PAGE_SIZE = 30
 
@@ -34,8 +34,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
       channel: @channel, user: Current.user,
       content: params[:content], attachments: params[:attachments],
       mentioned_user_ids: params[:mentioned_user_ids], reply_to_id: params[:reply_to_id],
-      shared_conversation_display_id: params[:shared_conversation_id], echo_id: params[:echo_id],
-      request: request_params
+      shared_conversation_display_id: params[:shared_conversation_id], echo_id: params[:echo_id]
     ).perform
     InternalMessages::PushJob.perform_later(@message.id)
     render :show, status: :created
@@ -77,26 +76,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
     render :show
   end
 
-  # Pedido de aprovação/ajuda: aprovar, recusar (com motivo opcional) ou "Eu ajudo".
-  # Quem pode decidir mora no modelo (InternalMessage#can_decide?).
-  def decide
-    @message = InternalMessages::DecideService.new(
-      message: @message, user: Current.user, decision: params[:decision], reason: params[:reason]
-    ).perform
-    render :show
-  rescue InternalMessages::DecideService::NotAllowed
-    render_forbidden
-  rescue InternalMessages::DecideService::AlreadyDecided
-    render json: { error: 'Already decided' }, status: :conflict
-  end
-
   private
-
-  def request_params
-    return if params[:request].blank?
-
-    params.require(:request).permit(:kind, :title, :detail, :approver_id)
-  end
 
   # Admin alcança qualquer canal (para ler em auditoria); a policy (show?) libera
   # admin para leitura, e channel_member? barra escrita em canais que ele não participa.

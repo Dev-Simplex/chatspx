@@ -2,8 +2,7 @@
 import { ref, computed, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { useStore, useMapGetter } from 'dashboard/composables/store';
-import { format, isToday } from 'date-fns';
+import { useMapGetter } from 'dashboard/composables/store';
 import { frontendURL } from 'dashboard/helper/URLHelper';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
@@ -33,7 +32,6 @@ const emit = defineEmits([
 
 const { t } = useI18n();
 const router = useRouter();
-const store = useStore();
 const accountId = useMapGetter('getCurrentAccountId');
 const conversationPath = displayId =>
   frontendURL(`accounts/${accountId.value}/conversations/${displayId}`);
@@ -204,13 +202,7 @@ const JUMBO_RE =
 const jumbo = computed(() => {
   const m = props.message;
   const text = (m.content || '').trim();
-  if (
-    !text ||
-    m.attachments?.length ||
-    m.replyTo ||
-    m.sharedConversation ||
-    (m.messageType && m.messageType !== 'text')
-  )
+  if (!text || m.attachments?.length || m.replyTo || m.sharedConversation)
     return false;
   if (!JUMBO_RE.test(text)) return false;
   return (text.match(/\p{Extended_Pictographic}/gu) || []).length <= 3;
@@ -225,77 +217,8 @@ const sharedStatus = computed(() => {
     : '';
 });
 
-// ── Pedido de aprovação/ajuda e aviso do sistema ─────────────────────────────
+// ── Aviso do sistema ─────────────────────────────────────────────────────────
 const isSystem = computed(() => props.message.messageType === 'system');
-const isRequest = computed(
-  () => props.message.messageType === 'request' && !props.message.deleted
-);
-const request = computed(() => props.message.contentAttributes?.request || {});
-const isApproval = computed(() => request.value.kind === 'approval');
-const isMe = id => Number(id) === Number(props.currentUserId);
-// Mesma regra do servidor (InternalMessage#can_decide?): aprovação só a pessoa
-// escolhida; ajuda qualquer um da conversa menos quem pediu.
-const canDecide = computed(
-  () =>
-    request.value.status === 'pending' &&
-    (isApproval.value
-      ? isMe(request.value.approver_id)
-      : !isMe(props.message.userId))
-);
-const decidedWhen = computed(() => {
-  const at = request.value.decided_at;
-  if (!at) return '';
-  const date = new Date(at * 1000);
-  const time = format(date, 'HH:mm');
-  return isToday(date)
-    ? t('INTERNAL_CHAT.REQUEST.CARD.WHEN_TODAY', { time })
-    : t('INTERNAL_CHAT.REQUEST.CARD.WHEN_DAY', {
-        date: format(date, 'dd/MM'),
-        time,
-      });
-});
-const RESULT = {
-  approved: {
-    key: 'APPROVED',
-    icon: 'i-lucide-circle-check',
-    tone: 'bg-n-teal-9/15 text-n-teal-11',
-  },
-  denied: {
-    key: 'DENIED',
-    icon: 'i-lucide-circle-x',
-    tone: 'bg-n-ruby-9/15 text-n-ruby-11',
-  },
-  taken: {
-    key: 'TAKEN',
-    icon: 'i-lucide-hand-helping',
-    tone: 'bg-n-teal-9/15 text-n-teal-11',
-  },
-};
-const result = computed(() => RESULT[request.value.status] || null);
-
-const denying = ref(false);
-const denyReason = ref('');
-const deciding = ref(false);
-const decide = async (decision, reason) => {
-  deciding.value = true;
-  try {
-    await store.dispatch('internalChat/decideRequest', {
-      channelId: store.getters['internalChat/getActiveChannelId'],
-      messageId: props.message.id,
-      decision,
-      reason,
-    });
-    denying.value = false;
-  } catch (error) {
-    useAlert(
-      error?.response?.status === 409
-        ? t('INTERNAL_CHAT.REQUEST.CARD.ALREADY_DECIDED')
-        : t('INTERNAL_CHAT.REQUEST.CARD.DECIDE_FAILED')
-    );
-  } finally {
-    deciding.value = false;
-  }
-};
 
 const iReacted = emoji =>
   (props.message.reactions?.[emoji] || [])
@@ -330,7 +253,7 @@ const iReacted = emoji =>
     >
       <span class="i-lucide-message-square-share size-3.5" />
       {{
-        t('INTERNAL_CHAT.REQUEST.CARD.CONVERSATION', {
+        t('INTERNAL_CHAT.SYSTEM_CONVERSATION', {
           id: message.sharedConversation.display_id,
         })
       }}
@@ -424,19 +347,14 @@ const iReacted = emoji =>
           jumbo
             ? 'px-1 text-4xl leading-tight'
             : 'px-3.5 py-[7px] text-[15px] leading-[1.35] rounded-[20px]',
-          isRequest
-            ? 'w-80 max-w-full !py-3 border border-n-weak bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-12 shadow-sm'
-            : !jumbo &&
-              (message.mine
-                ? 'bg-n-teal-11 dark:bg-n-teal-4 text-white'
-                : 'bg-n-slate-3 dark:bg-n-slate-4 text-n-slate-12'),
           !jumbo &&
-            !isRequest &&
+            (message.mine
+              ? 'bg-n-teal-11 dark:bg-n-teal-4 text-white'
+              : 'bg-n-slate-3 dark:bg-n-slate-4 text-n-slate-12'),
+          !jumbo &&
             message.tail &&
             (message.mine ? 'rounded-br-md' : 'rounded-bl-md'),
-          !jumbo && !isRequest && message.sharedConversation
-            ? 'w-72 max-w-full'
-            : '',
+          !jumbo && message.sharedConversation ? 'w-72 max-w-full' : '',
           !jumbo && message.mentionsMe && !message.mine
             ? 'ring-2 ring-n-teal-9/50'
             : '',
@@ -448,7 +366,7 @@ const iReacted = emoji =>
       >
         <!-- Cauda do balão: só no último da sequência (estilo iMessage) -->
         <svg
-          v-if="message.tail && !jumbo && !isRequest"
+          v-if="message.tail && !jumbo"
           viewBox="0 0 14 20"
           aria-hidden="true"
           class="absolute bottom-0 w-3.5 h-5 pointer-events-none"
@@ -473,11 +391,9 @@ const iReacted = emoji =>
           :class="
             jumbo
               ? ''
-              : isRequest
-                ? 'bg-gradient-to-l to-transparent from-55% from-n-solid-1 dark:from-n-solid-2'
-                : message.mine
-                  ? 'bg-gradient-to-l to-transparent from-55% from-n-teal-11 dark:from-n-teal-4'
-                  : 'bg-gradient-to-l to-transparent from-55% from-n-slate-3 dark:from-n-slate-4'
+              : message.mine
+                ? 'bg-gradient-to-l to-transparent from-55% from-n-teal-11 dark:from-n-teal-4'
+                : 'bg-gradient-to-l to-transparent from-55% from-n-slate-3 dark:from-n-slate-4'
           "
         >
           <button
@@ -488,7 +404,7 @@ const iReacted = emoji =>
             :class="
               jumbo
                 ? 'bg-n-solid-1 shadow text-n-slate-11 text-base'
-                : message.mine && !isRequest
+                : message.mine
                   ? 'text-white/85 hover:bg-white/15'
                   : 'text-n-slate-11 hover:bg-n-alpha-2'
             "
@@ -542,7 +458,7 @@ const iReacted = emoji =>
             />
             <hr v-if="message.mine" />
             <MenuItem
-              v-if="message.mine && !isRequest"
+              v-if="message.mine"
               :option="{
                 icon: 'i-lucide-pencil',
                 label: t('INTERNAL_CHAT.BUBBLE.EDIT'),
@@ -626,7 +542,7 @@ const iReacted = emoji =>
 
         <!-- Texto (links, #123 e @menções clicáveis) + "editado" -->
         <p
-          v-if="message.content && !isRequest"
+          v-if="message.content"
           class="mb-0 whitespace-pre-wrap"
           :class="
             jumbo ? 'text-4xl leading-tight' : 'text-[15px] leading-[1.35]'
@@ -665,182 +581,9 @@ const iReacted = emoji =>
           >
         </p>
 
-        <!-- Pedido de aprovação/ajuda: cartão com a decisão ou os botões -->
-        <div v-if="isRequest" class="flex flex-col gap-2 pr-6">
-          <span
-            class="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
-          >
-            <span
-              class="size-3.5"
-              :class="
-                isApproval ? 'i-lucide-badge-check' : 'i-lucide-life-buoy'
-              "
-            />
-            {{
-              isApproval
-                ? t('INTERNAL_CHAT.REQUEST.CARD.LABEL_APPROVAL')
-                : t('INTERNAL_CHAT.REQUEST.CARD.LABEL_HELP')
-            }}
-          </span>
-          <p class="mb-0 text-[15px] font-semibold leading-snug break-words">
-            {{ request.title || message.content }}
-          </p>
-          <p
-            v-if="request.detail"
-            class="mb-0 text-sm leading-snug whitespace-pre-wrap text-n-slate-11"
-          >
-            {{ request.detail }}
-          </p>
-          <router-link
-            v-if="message.sharedConversation"
-            :to="conversationPath(message.sharedConversation.display_id)"
-            class="flex items-center gap-1.5 text-sm font-semibold text-n-teal-11 hover:underline"
-          >
-            <span class="flex-shrink-0 i-lucide-message-square-share size-4" />
-            <span class="truncate">
-              {{
-                t('INTERNAL_CHAT.REQUEST.CARD.CONVERSATION', {
-                  id: message.sharedConversation.display_id,
-                })
-              }}
-              <template v-if="message.sharedConversation.contact_name">
-                · {{ message.sharedConversation.contact_name }}
-              </template>
-            </span>
-          </router-link>
-          <span class="text-xs text-n-slate-10">
-            {{
-              isApproval
-                ? t('INTERNAL_CHAT.REQUEST.CARD.FROM_TO', {
-                    from: message.senderName,
-                    to: request.approver_name,
-                  })
-                : t('INTERNAL_CHAT.REQUEST.CARD.FROM', {
-                    from: message.senderName,
-                  })
-            }}
-          </span>
-
-          <!-- Já respondido: quem, quando e (na recusa) o motivo -->
-          <div
-            v-if="result"
-            class="flex flex-col gap-1 px-2.5 py-2 text-sm rounded-xl"
-            :class="result.tone"
-          >
-            <span class="flex items-center gap-1.5 font-semibold">
-              <span class="flex-shrink-0 size-4" :class="result.icon" />
-              {{
-                t(`INTERNAL_CHAT.REQUEST.CARD.${result.key}`, {
-                  name: request.decided_by_name,
-                  when: decidedWhen,
-                })
-              }}
-            </span>
-            <span v-if="request.reason" class="text-n-slate-12">
-              {{
-                t('INTERNAL_CHAT.REQUEST.CARD.REASON', {
-                  reason: request.reason,
-                })
-              }}
-            </span>
-          </div>
-
-          <!-- Recusa: motivo opcional antes de confirmar -->
-          <div v-else-if="canDecide && denying" class="flex flex-col gap-2">
-            <textarea
-              v-model="denyReason"
-              rows="2"
-              maxlength="280"
-              :aria-label="t('INTERNAL_CHAT.REQUEST.CARD.DENY_REASON')"
-              :placeholder="
-                t('INTERNAL_CHAT.REQUEST.CARD.DENY_REASON_PLACEHOLDER')
-              "
-              class="reset-base w-full px-3 py-2 mb-0 text-sm border border-solid rounded-lg outline-none resize-none bg-n-solid-1 dark:bg-n-solid-3 border-n-strong text-n-slate-12 placeholder:text-n-slate-10 focus:border-n-ruby-9"
-            />
-            <div class="flex gap-2">
-              <button
-                type="button"
-                class="flex-1 h-9 text-sm font-medium rounded-lg bg-n-alpha-2 text-n-slate-12 hover:bg-n-alpha-3"
-                :disabled="deciding"
-                @click="denying = false"
-              >
-                {{ t('INTERNAL_CHAT.REQUEST.CARD.BACK') }}
-              </button>
-              <button
-                type="button"
-                class="flex-1 h-9 text-sm font-semibold text-white rounded-lg bg-n-ruby-9 hover:bg-n-ruby-10 disabled:opacity-60"
-                :disabled="deciding"
-                @click="decide('deny', denyReason)"
-              >
-                {{
-                  deciding
-                    ? t('INTERNAL_CHAT.REQUEST.CARD.DECIDING')
-                    : t('INTERNAL_CHAT.REQUEST.CARD.CONFIRM_DENY')
-                }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Pendente e é você quem responde: os botões -->
-          <div v-else-if="canDecide" class="flex gap-2">
-            <template v-if="isApproval">
-              <button
-                type="button"
-                class="flex-1 h-9 text-sm font-medium border border-solid rounded-lg border-n-ruby-9/50 text-n-ruby-11 hover:bg-n-ruby-9/10 disabled:opacity-60"
-                :disabled="deciding"
-                @click="denying = true"
-              >
-                {{ t('INTERNAL_CHAT.REQUEST.CARD.DENY') }}
-              </button>
-              <button
-                type="button"
-                class="inline-flex items-center justify-center flex-1 h-9 gap-1.5 text-sm font-semibold text-white rounded-lg bg-n-teal-10 dark:bg-n-teal-9 hover:bg-n-teal-11 disabled:opacity-60"
-                :disabled="deciding"
-                @click="decide('approve')"
-              >
-                <span class="i-lucide-check size-4" />
-                {{
-                  deciding
-                    ? t('INTERNAL_CHAT.REQUEST.CARD.DECIDING')
-                    : t('INTERNAL_CHAT.REQUEST.CARD.APPROVE')
-                }}
-              </button>
-            </template>
-            <button
-              v-else
-              type="button"
-              class="inline-flex items-center justify-center flex-1 h-9 gap-1.5 text-sm font-semibold text-white rounded-lg bg-n-teal-10 dark:bg-n-teal-9 hover:bg-n-teal-11 disabled:opacity-60"
-              :disabled="deciding"
-              @click="decide('help')"
-            >
-              <span class="i-lucide-hand-helping size-4" />
-              {{
-                deciding
-                  ? t('INTERNAL_CHAT.REQUEST.CARD.DECIDING')
-                  : t('INTERNAL_CHAT.REQUEST.CARD.HELP')
-              }}
-            </button>
-          </div>
-
-          <!-- Pendente e não é você: quem falta responder -->
-          <span
-            v-else
-            class="flex items-center gap-1.5 px-2.5 py-2 text-sm font-medium rounded-xl bg-n-amber-9/15 text-n-amber-11"
-          >
-            <span class="flex-shrink-0 i-lucide-hourglass size-4" />
-            {{
-              isApproval
-                ? t('INTERNAL_CHAT.REQUEST.CARD.WAITING', {
-                    name: request.approver_name,
-                  })
-                : t('INTERNAL_CHAT.REQUEST.CARD.WAITING_HELP')
-            }}
-          </span>
-        </div>
-
         <!-- Conversa de cliente compartilhada: cartão que abre a conversa -->
         <router-link
-          v-if="message.sharedConversation && !isRequest"
+          v-if="message.sharedConversation"
           :to="conversationPath(message.sharedConversation.display_id)"
           class="block p-3 mt-2 mb-1 transition-colors border rounded-2xl"
           :class="
