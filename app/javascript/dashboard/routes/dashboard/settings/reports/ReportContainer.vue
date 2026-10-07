@@ -112,10 +112,15 @@ export default {
       if (ranked.length < 2) return '';
       const high = ranked[0];
       const low = ranked[ranked.length - 1];
+      // Tudo zerado nao tem o que contar; tudo igual, diz isso em vez de "o mais alto e o mais baixo".
+      if (!high.value) return '';
       const period = this.groupBy?.period || 'day';
       const how = this.$t(
         `REPORT.CHART_CAPTION.${isTime ? 'HOW_TIME' : 'HOW_COUNT'}.${period.toUpperCase()}`
       );
+      if (high.value === low.value) {
+        return `${how} ${this.$t('REPORT.CHART_CAPTION.ALL_EQUAL', { value: show(high.value) })}`;
+      }
       const peak = this.$t(
         `REPORT.CHART_CAPTION.${isTime ? 'PEAK_TIME' : 'PEAK_COUNT'}`,
         {

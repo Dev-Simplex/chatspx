@@ -21,9 +21,14 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
   end
 
   # As conversas por tras de um numero do relatorio (painel de detalhe e o CSV dele).
+  DRILLDOWN_TYPES = %w[account agent inbox team label].freeze
+
   def drilldown
+    # Antes do report_params: ele faz `params[:type].to_sym`, e sem tipo (ou com um invalido) virava 500.
+    return head :unprocessable_entity unless DRILLDOWN_TYPES.include?(params[:type].to_s)
+
     builder = V2::Reports::Conversations::DrilldownBuilder.new(Current.account, report_params)
-    return head :unprocessable_entity if params[:type].blank? || !builder.supported?
+    return head :unprocessable_entity unless builder.supported?
 
     respond_to do |format|
       format.json { render json: builder.page(params[:page]) }

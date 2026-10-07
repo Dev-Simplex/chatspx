@@ -55,7 +55,9 @@ export function useReportMetrics(
    */
   const displayMetric = key => {
     if (isAverageMetricType(key)) {
-      return formatDuration(accountSummary.value[key], t);
+      // Sem tempo medido (ou media invalida) nao e "0 s", que leria como "respondeu na hora".
+      const value = Number(accountSummary.value[key]);
+      return value > 0 ? formatDuration(value, t) : '--';
     }
     return Number(accountSummary.value[key] || '').toLocaleString();
   };

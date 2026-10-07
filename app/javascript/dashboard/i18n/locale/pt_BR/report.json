@@ -238,7 +238,8 @@
         "YEAR": "Cada barra é o tempo médio de um ano; a linha mostra quantas conversas entraram na conta."
       },
       "PEAK_COUNT": "O mais alto foi {high} ({highValue}) e o mais baixo, {low} ({lowValue}).",
-      "PEAK_TIME": "O mais demorado foi {high} ({highValue}) e o mais rápido, {low} ({lowValue})."
+      "PEAK_TIME": "O mais demorado foi {high} ({highValue}) e o mais rápido, {low} ({lowValue}).",
+      "ALL_EQUAL": "Todos ficaram iguais: {value}."
     },
     "PLAIN_SUMMARY": {
       "TITLE": "O período em poucas palavras",

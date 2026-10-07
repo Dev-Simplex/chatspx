@@ -238,7 +238,8 @@
         "YEAR": "Each bar is the average time of one year; the line shows how many conversations were counted."
       },
       "PEAK_COUNT": "The highest was {high} ({highValue}) and the lowest, {low} ({lowValue}).",
-      "PEAK_TIME": "The slowest was {high} ({highValue}) and the fastest, {low} ({lowValue})."
+      "PEAK_TIME": "The slowest was {high} ({highValue}) and the fastest, {low} ({lowValue}).",
+      "ALL_EQUAL": "All of them were the same: {value}."
     },
     "PLAIN_SUMMARY": {
       "TITLE": "The period in a few words",
