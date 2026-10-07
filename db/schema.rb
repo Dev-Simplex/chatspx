@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_30_201703) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_07_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1601,6 +1601,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_30_201703) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "dm_key"
+    t.jsonb "settings", default: {}, null: false
     t.index ["account_id", "channel_type"], name: "index_internal_channels_on_account_id_and_channel_type"
     t.index ["account_id", "dm_key"], name: "idx_internal_channels_on_account_and_dm_key", unique: true, where: "((channel_type = 0) AND (dm_key IS NOT NULL))"
     t.index ["account_id"], name: "index_internal_channels_on_account_id"
@@ -1609,7 +1610,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_30_201703) do
 
   create_table "internal_messages", force: :cascade do |t|
     t.bigint "internal_channel_id", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
     t.text "content", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -1619,6 +1620,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_30_201703) do
     t.jsonb "reactions", default: {}, null: false
     t.bigint "reply_to_id"
     t.bigint "shared_conversation_id"
+    t.integer "message_type", default: 0, null: false
+    t.jsonb "content_attributes", default: {}, null: false
     t.index ["internal_channel_id", "created_at"], name: "index_internal_messages_on_internal_channel_id_and_created_at"
     t.index ["internal_channel_id", "id"], name: "idx_internal_messages_on_channel_and_id"
     t.index ["internal_channel_id"], name: "index_internal_messages_on_internal_channel_id"

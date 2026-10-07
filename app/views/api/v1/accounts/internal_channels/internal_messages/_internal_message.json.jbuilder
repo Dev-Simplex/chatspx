@@ -5,6 +5,8 @@ json.echo_id message.echo_id
 json.internal_channel_id message.internal_channel_id
 json.content message.deleted? ? nil : message.content
 json.created_at message.created_at.to_i
+json.message_type message.message_type
+json.content_attributes message.content_attributes
 json.edited message.edited?
 json.deleted message.deleted?
 json.reactions message.reactions

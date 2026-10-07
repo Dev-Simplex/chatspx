@@ -240,7 +240,10 @@ Rails.application.routes.draw do
               post :leave
             end
             resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
-              member { post :react }
+              member do
+                post :react
+                post :decide
+              end
             end
           end
           resources :agents_for_internal_chat, only: [:index], controller: :internal_chat_agents

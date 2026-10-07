@@ -660,3 +660,8 @@ en:
       subject: 'Finish setting up %{custom_domain}'
     ssl_status:
       custom_domain_not_configured: 'Custom domain is not configured'
+  internal_chat:
+    request_notice:
+      approved: '%{name} approved your request: %{title}'
+      denied: '%{name} declined your request: %{title}'
+      taken: '%{name} will help with: %{title}'

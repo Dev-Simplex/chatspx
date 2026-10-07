@@ -703,3 +703,8 @@ pt_BR:
       subject: 'Termine de configurar %{custom_domain}'
     ssl_status:
       custom_domain_not_configured: 'Domínio personalizado não está configurado'
+  internal_chat:
+    request_notice:
+      approved: '%{name} aprovou seu pedido: %{title}'
+      denied: '%{name} recusou seu pedido: %{title}'
+      taken: '%{name} vai ajudar com: %{title}'
