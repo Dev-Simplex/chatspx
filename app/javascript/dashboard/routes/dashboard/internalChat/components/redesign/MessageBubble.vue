@@ -498,11 +498,52 @@ const iReacted = emoji =>
           </span>
         </button>
 
+        <!-- Texto (links, #123 e @menções clicáveis) + "editado" -->
+        <p
+          v-if="message.content"
+          class="mb-0 whitespace-pre-wrap"
+          :class="
+            jumbo ? 'text-4xl leading-tight' : 'text-[15px] leading-[1.35]'
+          "
+        >
+          <template v-for="(part, i) in contentParts" :key="i">
+            <a
+              v-if="part.t === 'link'"
+              :href="part.v"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline break-all underline-offset-2"
+              :class="message.mine ? '' : 'text-n-teal-11'"
+              >{{ part.v }}</a
+            ><a
+              v-else-if="part.t === 'conv'"
+              v-tooltip="t('INTERNAL_CHAT.BUBBLE.OPEN_CONVERSATION')"
+              :href="conversationPath(part.id)"
+              class="font-semibold underline underline-offset-2"
+              :class="message.mine ? '' : 'text-n-teal-11'"
+              @click.prevent="router.push(conversationPath(part.id))"
+              >{{ part.v }}</a
+            ><span
+              v-else-if="part.t === 'mention'"
+              class="px-1 font-semibold rounded-md"
+              :class="
+                message.mine ? 'bg-white/20' : 'bg-n-teal-9/15 text-n-teal-11'
+              "
+              >{{ part.v }}</span
+            ><template v-else>{{ part.v }}</template>
+          </template>
+          <span
+            v-if="message.edited"
+            class="ml-1 text-[11px] align-baseline opacity-70"
+            >{{ t('INTERNAL_CHAT.EDITED') }}</span
+          >
+        </p>
+
         <!-- Conversa de cliente compartilhada: cartão que abre a conversa -->
         <router-link
           v-if="message.sharedConversation"
           :to="conversationPath(message.sharedConversation.display_id)"
-          class="block p-3 mt-0.5 mb-1.5 transition-colors border rounded-2xl"
+          class="block p-3 mt-2 mb-1 transition-colors border rounded-2xl"
           :class="
             message.mine
               ? 'bg-white/10 border-white/25 hover:bg-white/15 text-white'
@@ -546,41 +587,6 @@ const iReacted = emoji =>
             <span class="i-lucide-arrow-right size-4" />
           </span>
         </router-link>
-
-        <!-- Texto (links, #123 e @menções clicáveis) + "editado" -->
-        <p v-if="message.content" class="whitespace-pre-wrap">
-          <template v-for="(part, i) in contentParts" :key="i">
-            <a
-              v-if="part.t === 'link'"
-              :href="part.v"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="underline break-all underline-offset-2"
-              :class="message.mine ? '' : 'text-n-teal-11'"
-              >{{ part.v }}</a
-            ><a
-              v-else-if="part.t === 'conv'"
-              v-tooltip="t('INTERNAL_CHAT.BUBBLE.OPEN_CONVERSATION')"
-              :href="conversationPath(part.id)"
-              class="font-semibold underline underline-offset-2"
-              :class="message.mine ? '' : 'text-n-teal-11'"
-              @click.prevent="router.push(conversationPath(part.id))"
-              >{{ part.v }}</a
-            ><span
-              v-else-if="part.t === 'mention'"
-              class="px-1 font-semibold rounded-md"
-              :class="
-                message.mine ? 'bg-white/20' : 'bg-n-teal-9/15 text-n-teal-11'
-              "
-              >{{ part.v }}</span
-            ><template v-else>{{ part.v }}</template>
-          </template>
-          <span
-            v-if="message.edited"
-            class="ml-1 text-[11px] align-baseline opacity-70"
-            >{{ t('INTERNAL_CHAT.EDITED') }}</span
-          >
-        </p>
 
         <!-- Anexos -->
         <div

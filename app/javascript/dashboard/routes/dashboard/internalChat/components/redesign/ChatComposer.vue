@@ -229,7 +229,7 @@ const onEnter = () => {
       v-if="mentionOptions.length"
       class="absolute z-30 p-1 mb-1 overflow-hidden border shadow-xl left-20 md:left-24 bottom-full w-72 rounded-2xl bg-n-solid-1 border-n-weak"
     >
-      <p class="px-3 pt-1 pb-1.5 text-[11px] text-n-slate-10">
+      <p class="mb-0 px-3 pt-1 pb-1.5 text-[11px] text-n-slate-10">
         {{ t('INTERNAL_CHAT.COMPOSER.MENTION_HINT') }}
       </p>
       <button
@@ -403,7 +403,7 @@ const onEnter = () => {
     </div>
     <p
       v-if="!recording"
-      class="hidden mt-1.5 text-[11px] text-center truncate md:block text-n-slate-10"
+      class="mb-0 hidden mt-1.5 text-[11px] text-center truncate md:block text-n-slate-10"
     >
       {{
         mentionCandidates.length

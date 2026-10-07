@@ -61,7 +61,7 @@ const pick = () => {
 <template>
   <!-- Cabeçalho centrado (como no iPhone): quem é + como está; ações à direita -->
   <header
-    class="relative z-20 grid items-center flex-shrink-0 h-16 grid-cols-[1fr_auto_1fr] gap-2 px-3 border-b md:px-4 border-n-weak bg-n-background/90 backdrop-blur"
+    class="relative z-20 grid items-center flex-shrink-0 h-16 grid-cols-[1fr_auto_1fr] gap-2 px-3 border-b md:px-4 border-n-weak bg-n-background"
   >
     <div class="flex items-center min-w-0">
       <button

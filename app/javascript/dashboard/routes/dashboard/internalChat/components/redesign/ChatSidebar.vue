@@ -196,7 +196,7 @@ defineExpose({ openCompose });
         </h1>
         <p
           v-if="summary"
-          class="flex items-center gap-1.5 mt-0.5 text-[13px]"
+          class="mb-0 flex items-center gap-1.5 mt-0.5 text-[13px]"
           :class="
             counts.unread ? 'text-n-teal-11 font-semibold' : 'text-n-slate-11'
           "
@@ -298,12 +298,12 @@ defineExpose({ openCompose });
                 v-if="composeMode === 'dm'"
                 class="py-1 overflow-y-auto max-h-72"
               >
-                <p class="px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
+                <p class="mb-0 px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
                   {{ t('INTERNAL_CHAT.LIST.PICK_PERSON') }}
                 </p>
                 <p
                   v-if="!agents.length"
-                  class="px-3 py-4 text-xs text-center text-n-slate-10"
+                  class="mb-0 px-3 py-4 text-xs text-center text-n-slate-10"
                 >
                   {{ t('INTERNAL_CHAT.NO_AGENTS') }}
                 </p>
@@ -336,7 +336,7 @@ defineExpose({ openCompose });
                   :aria-label="t('INTERNAL_CHAT.GROUP_NAME')"
                   class="reset-base w-full h-9 px-3 mb-2 text-sm border rounded-xl outline-none bg-n-alpha-1 border-transparent focus:border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
                 />
-                <p class="px-1 pb-1 text-[11px] text-n-slate-10">
+                <p class="mb-0 px-1 pb-1 text-[11px] text-n-slate-10">
                   {{ t('INTERNAL_CHAT.LIST.PICK_MEMBERS') }}
                 </p>
                 <div class="py-1 overflow-y-auto max-h-52">
@@ -372,7 +372,7 @@ defineExpose({ openCompose });
 
               <!-- Grupos de time: um clique abre o grupo pronto do time -->
               <div v-else class="py-1 overflow-y-auto max-h-72">
-                <p class="px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
+                <p class="mb-0 px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
                   {{ t('INTERNAL_CHAT.LIST.TEAMS_HINT') }}
                 </p>
                 <button
@@ -484,7 +484,7 @@ defineExpose({ openCompose });
     <!-- Online agora: um clique e já está conversando -->
     <div v-if="showOnlineStrip" class="pt-1 pb-1 flex-shrink-0">
       <p
-        class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
+        class="mb-0 px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
       >
         {{ t('INTERNAL_CHAT.LIST.ONLINE_NOW') }}
       </p>
@@ -534,7 +534,7 @@ defineExpose({ openCompose });
         class="flex flex-col items-center gap-3 px-4 py-10 text-center"
       >
         <span class="text-2xl i-lucide-wifi-off text-n-ruby-11" />
-        <p class="text-sm text-n-slate-12">
+        <p class="mb-0 text-sm text-n-slate-12">
           {{ t('INTERNAL_CHAT.LOAD_ERROR') }}
         </p>
         <button
@@ -551,10 +551,10 @@ defineExpose({ openCompose });
         class="flex flex-col items-center gap-3 px-6 py-10 text-center"
       >
         <span class="text-3xl i-lucide-messages-square text-n-slate-9" />
-        <p class="text-sm font-medium text-n-slate-12">
+        <p class="mb-0 text-sm font-medium text-n-slate-12">
           {{ t('INTERNAL_CHAT.LIST.EMPTY_TITLE') }}
         </p>
-        <p class="text-xs text-n-slate-11">
+        <p class="mb-0 text-xs text-n-slate-11">
           {{ t('INTERNAL_CHAT.LIST.EMPTY_HINT') }}
         </p>
         <button
@@ -570,7 +570,7 @@ defineExpose({ openCompose });
         <section v-for="sec in sections" :key="sec.key">
           <p
             v-if="sec.title"
-            class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
+            class="mb-0 px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
           >
             {{ sec.title }}
           </p>
@@ -590,7 +590,7 @@ defineExpose({ openCompose });
         </section>
         <p
           v-if="!filtered.length && !showMessageResults"
-          class="px-4 py-10 text-sm text-center text-n-slate-10"
+          class="mb-0 px-4 py-10 text-sm text-center text-n-slate-10"
         >
           {{ emptyFilterText }}
         </p>
@@ -598,7 +598,7 @@ defineExpose({ openCompose });
         <!-- Resultados de mensagens (busca por conteúdo, cross-channel) -->
         <template v-if="showMessageResults">
           <p
-            class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
+            class="mb-0 px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
           >
             {{ t('INTERNAL_CHAT.LIST.MESSAGES') }}
           </p>
@@ -624,7 +624,7 @@ defineExpose({ openCompose });
           </button>
           <p
             v-if="!searchResults.length"
-            class="px-4 py-6 text-sm text-center text-n-slate-10"
+            class="mb-0 px-4 py-6 text-sm text-center text-n-slate-10"
           >
             {{ t('INTERNAL_CHAT.NO_RESULTS') }}
           </p>

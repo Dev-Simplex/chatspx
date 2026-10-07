@@ -786,7 +786,7 @@ onBeforeUnmount(() => {
           <h2 class="text-3xl font-bold tracking-tight text-n-slate-12">
             {{ greeting }}
           </h2>
-          <p class="mt-2 text-[15px] text-n-slate-11">
+          <p class="mb-0 mt-2 text-[15px] text-n-slate-11">
             {{ homeSummary }}
           </p>
           <div class="flex flex-wrap gap-2 mt-5">
@@ -838,7 +838,10 @@ onBeforeUnmount(() => {
                 }}
               </span>
             </div>
-            <p v-if="!onlineAgents.length" class="mt-3 text-sm text-n-slate-11">
+            <p
+              v-if="!onlineAgents.length"
+              class="mb-0 mt-3 text-sm text-n-slate-11"
+            >
               {{ t('INTERNAL_CHAT.HOME.NO_ONLINE') }}
             </p>
             <div v-else class="grid grid-cols-4 gap-1 mt-3 sm:grid-cols-8">
@@ -941,7 +944,7 @@ onBeforeUnmount(() => {
           </section>
 
           <p
-            class="flex items-center justify-center gap-1.5 mt-8 text-xs text-n-slate-10"
+            class="mb-0 flex items-center justify-center gap-1.5 mt-8 text-xs text-n-slate-10"
           >
             <span class="i-lucide-lock size-3" />
             {{ t('INTERNAL_CHAT.EMPTY_STATE.PRIVATE') }}
@@ -962,7 +965,7 @@ onBeforeUnmount(() => {
         <h3 class="text-sm font-semibold text-n-slate-12">
           {{ t('INTERNAL_CHAT.CLEAR.TITLE') }}
         </h3>
-        <p class="mt-1.5 text-xs leading-relaxed text-n-slate-11">
+        <p class="mb-0 mt-1.5 text-xs leading-relaxed text-n-slate-11">
           {{ t('INTERNAL_CHAT.CLEAR.BODY') }}
         </p>
         <div class="flex justify-end gap-2 mt-4">

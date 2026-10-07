@@ -95,7 +95,7 @@ const members = computed(() =>
           {{ conversation.name }}
         </h2>
         <p
-          class="text-[13px] text-center"
+          class="mb-0 text-[13px] text-center"
           :class="online ? 'text-n-teal-11 font-medium' : 'text-n-slate-11'"
         >
           {{ headerStatus }}
@@ -204,7 +204,7 @@ const members = computed(() =>
 
         <p
           v-if="!media.length && !docs.length"
-          class="px-3 py-4 text-xs text-center rounded-2xl bg-n-alpha-1 text-n-slate-10"
+          class="mb-0 px-3 py-4 text-xs text-center rounded-2xl bg-n-alpha-1 text-n-slate-10"
         >
           {{ t('INTERNAL_CHAT.INFO.NO_MEDIA') }}
         </p>
@@ -213,7 +213,7 @@ const members = computed(() =>
       <!-- Membros (com presença) -->
       <div v-if="conversation.isGroup" class="px-3 pb-4">
         <p
-          class="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
+          class="mb-0 px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
         >
           {{
             t('INTERNAL_CHAT.HEADER.PARTICIPANTS', { count: members.length })
