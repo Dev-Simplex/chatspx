@@ -18,7 +18,8 @@ class InternalChannelMember < ApplicationRecord
   validates :user_id, uniqueness: { scope: :internal_channel_id }
 
   def unread_count
-    scope = internal_channel.messages.where.not(user_id: user_id).where(deleted_at: nil)
+    # IS DISTINCT FROM: o aviso do sistema (user_id nulo) também conta como não lido.
+    scope = internal_channel.messages.where('internal_messages.user_id IS DISTINCT FROM ?', user_id).where(deleted_at: nil)
     scope = scope.where('internal_messages.created_at > ?', last_read_at) if last_read_at.present?
     scope.count
   end

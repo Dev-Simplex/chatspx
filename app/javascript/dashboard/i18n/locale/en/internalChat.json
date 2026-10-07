@@ -330,6 +330,25 @@
       "LABEL": "Conversation #{id} goes with your message",
       "REMOVE": "Remove the conversation from the message",
       "GREETING": "Hi {name}, can we talk about conversation #{id}? "
+    },
+    "AUTO_ALERTS": {
+      "TITLE": "Automatic notices",
+      "ON": "On",
+      "OFF": "Off",
+      "LEAD_PARADO": {
+        "NAME": "Lead waiting",
+        "HINT": "Posts here when a round-robin lead goes more than {minutes} min without anyone picking it up. One notice per lead."
+      },
+      "META_BATIDA": {
+        "NAME": "Goal reached",
+        "HINT": "Posts here when someone on the team reaches a monthly goal. One notice per person and goal each month."
+      },
+      "WHO_MANAGES": "New notices show up within 5 minutes. Only an admin or the team's supervisor can change this.",
+      "READ_ONLY": "Only an admin or the team's supervisor can turn these on or off.",
+      "LOADING": "Loading notices…",
+      "SAVING": "Saving…",
+      "SAVED": "Saved. New notices show up within 5 minutes.",
+      "ERROR": "Couldn't save or load. Try again."
     }
   }
 }

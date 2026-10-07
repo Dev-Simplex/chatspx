@@ -245,6 +245,7 @@ Rails.application.routes.draw do
                 post :decide
               end
             end
+            resource :auto_alerts, only: [:show, :update], module: :internal_channels
           end
           resources :agents_for_internal_chat, only: [:index], controller: :internal_chat_agents
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]

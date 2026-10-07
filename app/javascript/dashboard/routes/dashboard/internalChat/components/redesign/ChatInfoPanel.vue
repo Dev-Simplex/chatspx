@@ -1,7 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
+import AutoAlertsAPI from 'dashboard/api/internalChatAutoAlerts';
 
 const props = defineProps({
   conversation: { type: Object, required: true },
@@ -57,6 +59,41 @@ const members = computed(() =>
     // quem está online primeiro; você por último
     .sort((a, b) => a.isMe - b.isMe || a.rank - b.rank)
 );
+
+// Avisos automáticos (só sala de time): o servidor diz o que está ligado e se eu posso mudar.
+const ALERT_EVENTS = ['lead_parado', 'meta_batida'];
+const alerts = ref(null);
+const alertsState = ref('idle'); // idle | loading | saving | saved | error
+
+const loadAlerts = async () => {
+  alerts.value = null;
+  if (!props.conversation.isTeam) return;
+  alertsState.value = 'loading';
+  try {
+    const { data } = await AutoAlertsAPI.get(props.conversation.id);
+    alerts.value = data;
+    alertsState.value = 'idle';
+  } catch {
+    alertsState.value = 'error';
+  }
+};
+watch(() => props.conversation.id, loadAlerts, { immediate: true });
+
+const toggleAlert = async (event, value) => {
+  const previous = alerts.value.events[event];
+  alerts.value.events[event] = value;
+  alertsState.value = 'saving';
+  try {
+    const { data } = await AutoAlertsAPI.update(props.conversation.id, {
+      [event]: value,
+    });
+    alerts.value = data;
+    alertsState.value = 'saved';
+  } catch {
+    alerts.value.events[event] = previous;
+    alertsState.value = 'error';
+  }
+};
 </script>
 
 <template>
@@ -207,6 +244,80 @@ const members = computed(() =>
           class="mb-0 px-3 py-4 text-xs text-center rounded-2xl bg-n-alpha-1 text-n-slate-10"
         >
           {{ t('INTERNAL_CHAT.INFO.NO_MEDIA') }}
+        </p>
+      </div>
+
+      <!-- Avisos automáticos da sala do time -->
+      <div v-if="conversation.isTeam" class="px-3 pb-3">
+        <p
+          class="px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
+        >
+          {{ t('INTERNAL_CHAT.AUTO_ALERTS.TITLE') }}
+        </p>
+        <div v-if="alerts" class="overflow-hidden rounded-2xl bg-n-alpha-1">
+          <div
+            v-for="event in ALERT_EVENTS"
+            :key="event"
+            class="flex items-start gap-3 px-3 py-2.5 border-b last:border-b-0 border-n-weak"
+          >
+            <span class="flex-1 min-w-0">
+              <span class="block text-sm font-medium text-n-slate-12">
+                {{ t(`INTERNAL_CHAT.AUTO_ALERTS.${event.toUpperCase()}.NAME`) }}
+              </span>
+              <span class="block text-xs leading-snug text-n-slate-11">
+                {{
+                  t(`INTERNAL_CHAT.AUTO_ALERTS.${event.toUpperCase()}.HINT`, {
+                    minutes: alerts.limiar_minutos,
+                  })
+                }}
+              </span>
+            </span>
+            <span class="flex items-center gap-2 pt-0.5">
+              <span
+                class="text-[11px]"
+                :class="
+                  alerts.events[event] ? 'text-n-teal-11' : 'text-n-slate-10'
+                "
+              >
+                {{
+                  alerts.events[event]
+                    ? t('INTERNAL_CHAT.AUTO_ALERTS.ON')
+                    : t('INTERNAL_CHAT.AUTO_ALERTS.OFF')
+                }}
+              </span>
+              <Switch
+                v-if="alerts.can_manage"
+                :model-value="alerts.events[event]"
+                :disabled="alertsState === 'saving'"
+                @update:model-value="value => toggleAlert(event, value)"
+              />
+            </span>
+          </div>
+        </div>
+        <p
+          class="px-1 mt-1.5 mb-0 text-[11px] leading-snug"
+          :class="
+            alertsState === 'error' ? 'text-n-ruby-11' : 'text-n-slate-10'
+          "
+        >
+          <template v-if="alertsState === 'loading'">
+            {{ t('INTERNAL_CHAT.AUTO_ALERTS.LOADING') }}
+          </template>
+          <template v-else-if="alertsState === 'saving'">
+            {{ t('INTERNAL_CHAT.AUTO_ALERTS.SAVING') }}
+          </template>
+          <template v-else-if="alertsState === 'error'">
+            {{ t('INTERNAL_CHAT.AUTO_ALERTS.ERROR') }}
+          </template>
+          <template v-else-if="alertsState === 'saved'">
+            {{ t('INTERNAL_CHAT.AUTO_ALERTS.SAVED') }}
+          </template>
+          <template v-else-if="alerts?.can_manage">
+            {{ t('INTERNAL_CHAT.AUTO_ALERTS.WHO_MANAGES') }}
+          </template>
+          <template v-else>
+            {{ t('INTERNAL_CHAT.AUTO_ALERTS.READ_ONLY') }}
+          </template>
         </p>
       </div>
 

@@ -330,6 +330,25 @@
       "LABEL": "A conversa #{id} vai junto com a sua mensagem",
       "REMOVE": "Tirar a conversa da mensagem",
       "GREETING": "Oi {name}, podemos falar da conversa #{id}? "
+    },
+    "AUTO_ALERTS": {
+      "TITLE": "Avisos automáticos",
+      "ON": "Ligado",
+      "OFF": "Desligado",
+      "LEAD_PARADO": {
+        "NAME": "Lead parado",
+        "HINT": "Avisa aqui quando um lead do rodízio passa de {minutes} min sem ninguém pegar. Um aviso por lead."
+      },
+      "META_BATIDA": {
+        "NAME": "Meta batida",
+        "HINT": "Avisa aqui quando alguém do time bate uma meta do mês. Um aviso por pessoa e meta, por mês."
+      },
+      "WHO_MANAGES": "Os avisos novos aparecem em até 5 minutos. Só admin ou supervisor do time pode mudar.",
+      "READ_ONLY": "Só admin ou supervisor do time pode ligar ou desligar.",
+      "LOADING": "Carregando avisos…",
+      "SAVING": "Salvando…",
+      "SAVED": "Salvo. Os avisos novos aparecem em até 5 minutos.",
+      "ERROR": "Não deu para salvar ou carregar. Tente de novo."
     }
   }
 }

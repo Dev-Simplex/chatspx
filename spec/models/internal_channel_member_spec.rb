@@ -38,6 +38,11 @@ RSpec.describe InternalChannelMember, type: :model do
       expect(alice_member.unread_count).to eq(1)
     end
 
+    it 'counts system notices (no author)' do
+      create(:internal_message, internal_channel: channel, user: nil, message_type: :system, content: 'Lead parado')
+      expect(alice_member.unread_count).to eq(1)
+    end
+
     it 'ignores soft-deleted messages' do
       create(:internal_message, internal_channel: channel, user: bob, content: 'visível')
       create(:internal_message, internal_channel: channel, user: bob, content: 'apagada').soft_delete!

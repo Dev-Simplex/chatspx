@@ -56,6 +56,32 @@ class Spx::Distribuicao::ContabilizacaoService
     escopo
   end
 
+  # "N leads designados há mais de X sem ninguém pegar." Em vendas o SLA não repassa nada
+  # (§7.2) — ele existe para o gestor VER. Ignora o período: o que importa é o que está
+  # parado AGORA, inclusive coisa designada no mês passado.
+  def sem_movimento
+    limite = limiar_minutos
+    abertas = Spx::Distribuicao::Log.where(account_id: @account.id, status: 'designado')
+                                    .where(designado_em: ...limite.minutes.ago)
+    abertas = abertas.where(conversation_id: conversas_do_time) if @team_id
+
+    { limiar_minutos: limite,
+      total: abertas.count,
+      leads: abertas.includes(:chosen_user, conversation: :contact).order(designado_em: :asc).limit(100).map { |log| serializar_parado(log) } }
+  rescue StandardError
+    { limiar_minutos: limiar_minutos, total: 0, leads: [] }
+  end
+
+  # Limiar do time consultado; sem time, o menor limiar configurado na conta (o mais
+  # exigente), e 30 como último recurso.
+  def limiar_minutos
+    return @limiar_minutos if defined?(@limiar_minutos)
+
+    escopo = Spx::Distribuicao::Policy.ativas.where(account_id: @account.id)
+    escopo = escopo.where(team_id: @team_id) if @team_id
+    @limiar_minutos = escopo.minimum(:sla_assumir_minutos) || 30
+  end
+
   private
 
   def conversas_do_time
@@ -113,32 +139,6 @@ class Spx::Distribuicao::ContabilizacaoService
   def canal(log)
     tipo = log.conversation&.inbox&.channel_type.to_s
     CANAIS[tipo] || tipo.presence || '—'
-  end
-
-  # "N leads designados há mais de X sem ninguém pegar." Em vendas o SLA não repassa nada
-  # (§7.2) — ele existe para o gestor VER. Ignora o período: o que importa é o que está
-  # parado AGORA, inclusive coisa designada no mês passado.
-  def sem_movimento
-    limite = limiar_minutos
-    abertas = Spx::Distribuicao::Log.where(account_id: @account.id, status: 'designado')
-                                    .where(designado_em: ...limite.minutes.ago)
-    abertas = abertas.where(conversation_id: conversas_do_time) if @team_id
-
-    { limiar_minutos: limite,
-      total: abertas.count,
-      leads: abertas.includes(:chosen_user, conversation: :contact).order(designado_em: :asc).limit(100).map { |log| serializar_parado(log) } }
-  rescue StandardError
-    { limiar_minutos: limiar_minutos, total: 0, leads: [] }
-  end
-
-  # Limiar do time consultado; sem time, o menor limiar configurado na conta (o mais
-  # exigente), e 30 como último recurso.
-  def limiar_minutos
-    return @limiar_minutos if defined?(@limiar_minutos)
-
-    escopo = Spx::Distribuicao::Policy.ativas.where(account_id: @account.id)
-    escopo = escopo.where(team_id: @team_id) if @team_id
-    @limiar_minutos = escopo.minimum(:sla_assumir_minutos) || 30
   end
 
   # `minutos_parado` é wall-clock. O relógio consciente de expediente depende de uma fonte

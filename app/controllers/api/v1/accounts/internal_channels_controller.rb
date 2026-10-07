@@ -173,7 +173,7 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     InternalChannelMember
       .where(user_id: Current.user.id, internal_channel_id: channel_ids)
       .joins('JOIN internal_messages im ON im.internal_channel_id = internal_channel_members.internal_channel_id')
-      .where('im.user_id <> internal_channel_members.user_id AND im.deleted_at IS NULL')
+      .where('im.user_id IS DISTINCT FROM internal_channel_members.user_id AND im.deleted_at IS NULL')
       .where('internal_channel_members.last_read_at IS NULL OR im.created_at > internal_channel_members.last_read_at')
       .group('internal_channel_members.internal_channel_id')
       .count('im.id')
